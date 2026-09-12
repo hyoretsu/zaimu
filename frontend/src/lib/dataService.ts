@@ -718,22 +718,36 @@ export const dataService = {
 			if (isGuestMode()) return [];
 			return fetchWithAuth<CreditCardImport[]>("/credit-card-imports");
 		},
+		async reconcileItem(
+			importId: string,
+			itemId: string,
+			creditPurchaseId: string | null,
+		): Promise<CreditCardImport> {
+			if (isGuestMode()) throw new Error("Conecte sua conta para importar faturas.");
+			return fetchWithAuth<CreditCardImport>(`/credit-card-imports/${importId}/items/${itemId}/reconcile`, {
+				body: JSON.stringify({ creditPurchaseId }),
+				method: "POST",
+			});
+		},
 		async updateItem(
 			importId: string,
 			itemId: string,
-			data: Partial<
-				Pick<
-					CreditCardImportItem,
-					| "currentInstallment"
-					| "description"
-					| "installments"
-					| "isSelected"
-					| "purchaseDate"
-					| "storeName"
-					| "tagIds"
-					| "totalAmount"
-				>
-			>,
+			data: Omit<
+				Partial<
+					Pick<
+						CreditCardImportItem,
+						| "description"
+						| "installments"
+						| "isSelected"
+						| "purchaseDate"
+						| "storeName"
+						| "tagIds"
+						| "time"
+						| "totalAmount"
+					>
+				>,
+				"debtSplit"
+			> & { debtSplit?: DebtSplitInput | null },
 		): Promise<CreditCardImport> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar faturas.");
 			return fetchWithAuth<CreditCardImport>(`/credit-card-imports/${importId}/items/${itemId}`, {

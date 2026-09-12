@@ -2,7 +2,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { LuCircleAlert, LuFileCheck2, LuTrash2 } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
-import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import {
 	Dialog,
 	DialogContent,
@@ -20,6 +19,7 @@ import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
 import { showToast } from "@/stores";
 import { CreditCardImportItemRow } from "./CreditCardImportItemRow";
+import { CreditPurchaseReconciliationDialog } from "./CreditPurchaseReconciliationDialog";
 import { EditImportedCreditPurchaseDialog } from "./EditImportedCreditPurchaseDialog";
 
 export function CreditCardImportReviewDialog({
@@ -33,6 +33,8 @@ export function CreditCardImportReviewDialog({
 }) {
 	const queryClient = useQueryClient();
 	const [editingItem, setEditingItem] = useState<CreditCardImportItem | null>(null);
+	const [reconcilingItem, setReconcilingItem] = useState<CreditCardImportItem | null>(null);
+	const [discardConfirmationOpen, setDiscardConfirmationOpen] = useState(false);
 	const creditCardImport = useQuery({
 		enabled: open && Boolean(importId),
 		queryFn: () => dataService.creditCardImports.get(importId!),
@@ -82,14 +84,27 @@ export function CreditCardImportReviewDialog({
 			showToast("Compra e parcelas criadas.", "positive");
 		},
 	});
+	const reconcileItem = useMutation({
+		mutationFn: ({ creditPurchaseId, itemId }: { creditPurchaseId: string | null; itemId: string }) =>
+			dataService.creditCardImports.reconcileItem(importId!, itemId, creditPurchaseId),
+		onError: error => showToast(error.message, "negative"),
+		onSuccess: async () => {
+			setReconcilingItem(null);
+			await invalidate();
+			showToast("Conciliação atualizada.", "positive");
+		},
+	});
 	const approve = useMutation({
 		mutationFn: () => dataService.creditCardImports.approve(importId!),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async result => {
-			onOpenChange(false);
+			const reviewFinished = result.created === items.length;
+			if (reviewFinished) onOpenChange(false);
 			await invalidateCreditCards();
 			showToast(
-				`${result.created} ${result.created === 1 ? "compra criada" : "compras criadas"}; parcelas distribuídas nas faturas.`,
+				reviewFinished
+					? "Revisão finalizada."
+					: `${result.created} ${result.created === 1 ? "compra aprovada" : "compras aprovadas"}. Concilie as pendências restantes.`,
 				"positive",
 			);
 		},
@@ -98,6 +113,7 @@ export function CreditCardImportReviewDialog({
 		mutationFn: () => dataService.creditCardImports.delete(importId!),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
+			setDiscardConfirmationOpen(false);
 			onOpenChange(false);
 			await invalidate();
 			showToast("Importação descartada.", "info");
@@ -106,8 +122,12 @@ export function CreditCardImportReviewDialog({
 	const items = creditCardImport.data?.items ?? [];
 	const creditCard = creditCards.data?.find(card => card.id === creditCardImport.data?.creditCardId);
 	const creditCardName = creditCard ? getCreditCardDisplayName(creditCard) : "Cartão de crédito";
-	const selectedCount = items.filter(item => item.isSelected).length;
-	const busy = updateItem.isPending || approveItem.isPending || approve.isPending || discard.isPending;
+	const busy =
+		updateItem.isPending ||
+		reconcileItem.isPending ||
+		approveItem.isPending ||
+		approve.isPending ||
+		discard.isPending;
 
 	return (
 		<>
@@ -145,30 +165,60 @@ export function CreditCardImportReviewDialog({
 										key={item.id}
 										onApprove={() => approveItem.mutate(item.id)}
 										onEdit={() => setEditingItem(item)}
-										onSelectedChange={isSelected =>
-											updateItem.mutate({ data: { isSelected }, itemId: item.id })
-										}
+										onReconcile={() => {
+											if (item.reconciledCreditPurchaseId)
+												reconcileItem.mutate({ creditPurchaseId: null, itemId: item.id });
+											else setReconcilingItem(item);
+										}}
 									/>
 								))}
 							</div>
 						</ScrollArea>
 					)}
 					<DialogFooter className="flex-row justify-end">
-						<ConfirmActionButton
-							className="cursor-pointer"
-							confirmation="Descartar toda a importação?"
+						<Button
+							className="cursor-pointer bg-destructive text-destructive-foreground hover:bg-destructive/80"
 							disabled={busy}
-							onConfirm={() => discard.mutateAsync()}
-							variant="destructive"
+							onClick={() => setDiscardConfirmationOpen(true)}
 						>
-							<LuTrash2 /> Descartar
-						</ConfirmActionButton>
+							<LuTrash2 /> Descartar lote
+						</Button>
 						<Button
 							className="cursor-pointer disabled:cursor-not-allowed"
-							disabled={busy || selectedCount === 0}
+							disabled={busy || items.length === 0}
 							onClick={() => approve.mutate()}
 						>
-							<LuFileCheck2 /> {approve.isPending ? "Aprovando…" : `Aprovar ${selectedCount}`}
+							<LuFileCheck2 /> {approve.isPending ? "Finalizando…" : "Finalizar revisão"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+			<Dialog onOpenChange={setDiscardConfirmationOpen} open={discardConfirmationOpen}>
+				<DialogContent showCloseButton={false}>
+					<DialogHeader>
+						<DialogTitle>Excluir importação?</DialogTitle>
+						<DialogDescription>
+							Esta ação excluirá todo o lote importado e não poderá ser desfeita.
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter>
+						<Button
+							className="cursor-pointer"
+							disabled={discard.isPending}
+							onClick={() => {
+								setDiscardConfirmationOpen(false);
+								onOpenChange(false);
+							}}
+							variant="outline"
+						>
+							Fechar modal
+						</Button>
+						<Button
+							className="cursor-pointer bg-destructive text-destructive-foreground hover:bg-destructive/80"
+							disabled={discard.isPending}
+							onClick={() => discard.mutate()}
+						>
+							<LuTrash2 /> {discard.isPending ? "Excluindo…" : "Excluir lote"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>
@@ -179,6 +229,16 @@ export function CreditCardImportReviewDialog({
 				onSubmit={data => editingItem && updateItem.mutate({ data, itemId: editingItem.id })}
 				open={editingItem !== null}
 				pending={updateItem.isPending}
+			/>
+			<CreditPurchaseReconciliationDialog
+				item={reconcilingItem}
+				onOpenChange={nextOpen => !nextOpen && setReconcilingItem(null)}
+				onReconcile={candidate => {
+					if (!reconcilingItem) return;
+					reconcileItem.mutate({ creditPurchaseId: candidate.id, itemId: reconcilingItem.id });
+				}}
+				open={reconcilingItem !== null}
+				pending={reconcileItem.isPending}
 			/>
 		</>
 	);

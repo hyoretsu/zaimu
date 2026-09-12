@@ -5,16 +5,100 @@ import {
 	getTagsByEntity,
 	replaceEntityTags,
 } from "~/modules/categories/application/tag-assignments";
+import { linkPurchaseToDebt, syncPurchaseDebtEvent } from "~/modules/debts/application/debt-ledger";
+import {
+	getDebtSplitInput,
+	getDebtSplitReturn,
+	replaceDebtSplit,
+} from "~/modules/debts/application/debt-splits";
 import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
 import { materializeImportedPurchase } from "../../application/materialize-imported-purchase";
 import { assignCreditCardPurchaseExternalIds } from "../../domain/credit-card-import-identity";
+import { matchesExistingCreditPurchase } from "../../domain/credit-card-import-reconciliation";
 import { parseCreditCardStatementPdf } from "../../domain/credit-card-statement-parser";
-import { CreditCardImportItemUpdateDTO } from "./CreditCardImportsDTO";
+import { CreditCardImportItemReconcileDTO, CreditCardImportItemUpdateDTO } from "./CreditCardImportsDTO";
 
 const importItemTagEntityType = "CREDIT_CARD_IMPORT_ITEM";
 const dateKey = (value: Date | string) => new Date(value).toISOString().slice(0, 10);
+
+async function getPotentialDuplicates(
+	creditCardId: string,
+	items: Array<{
+		description: string;
+		id: string;
+		installmentAmount: number | string;
+		installments: number;
+		purchaseDate: Date | string;
+		reconciledCreditPurchaseId: null | string;
+		storeName: null | string;
+	}>,
+) {
+	const candidates = await queryRows(
+		db.sql.public.CreditPurchase.innerJoin(db.sql.public.CreditCardStatement, (fields, functions) =>
+			functions.eq(fields.CreditPurchase.statementId, fields.CreditCardStatement.id),
+		)
+			.select(fields => ({
+				currentInstallment: fields.CreditPurchase.currentInstallment,
+				description: fields.CreditPurchase.description,
+				id: fields.CreditPurchase.id,
+				installmentAmount: fields.CreditPurchase.installmentAmount,
+				installments: fields.CreditPurchase.installments,
+				parentId: fields.CreditPurchase.parentId,
+				purchaseDate: fields.CreditPurchase.purchaseDate,
+				storeName: fields.CreditPurchase.storeName,
+				time: fields.CreditPurchase.time,
+				totalAmount: fields.CreditPurchase.totalAmount,
+			}))
+			.where((fields, functions) =>
+				functions.and(
+					functions.eq(fields.CreditCardStatement.creditCardId, creditCardId),
+					functions.eq(fields.CreditPurchase.parentId, null),
+					functions.eq(fields.CreditPurchase.externalId, null),
+					functions.eq(fields.CreditPurchase.isRefund, false),
+				),
+			)
+			.build(),
+	);
+	const children = candidates.length
+		? await queryRows(
+				db.sql.public.CreditPurchase.select("parentId")
+					.where((fields, functions) =>
+						functions.in(
+							fields.parentId,
+							candidates.map(candidate => candidate.id),
+						),
+					)
+					.build(),
+			)
+		: [];
+	const reconciledItems = await queryRows(
+		db.sql.public.CreditCardImportItem.select("reconciledCreditPurchaseId").build(),
+	);
+	const occupiedCandidateIds = new Set(
+		reconciledItems.flatMap(item =>
+			item.reconciledCreditPurchaseId ? [item.reconciledCreditPurchaseId] : [],
+		),
+	);
+	const childCounts = new Map<string, number>();
+	for (const child of children) {
+		if (child.parentId) childCounts.set(child.parentId, (childCounts.get(child.parentId) ?? 0) + 1);
+	}
+	const candidatesWithCounts = candidates
+		.filter(candidate => !occupiedCandidateIds.has(candidate.id))
+		.map(candidate => ({
+			...candidate,
+			existingInstallments: 1 + (childCounts.get(candidate.id) ?? 0),
+		}));
+	const result = new Map<string, typeof candidatesWithCounts>();
+	for (const item of items) {
+		if (item.reconciledCreditPurchaseId) continue;
+		const matches = candidatesWithCounts.filter(candidate => matchesExistingCreditPurchase(item, candidate));
+		if (matches.length) result.set(item.id, matches);
+	}
+	return result;
+}
 
 async function getImport(userId: string, importId: string) {
 	const creditCardImport = await queryFirst(
@@ -53,7 +137,9 @@ async function getImportReturn(userId: string, importId: string) {
 			"installments",
 			"isSelected",
 			"purchaseDate",
+			"reconciledCreditPurchaseId",
 			"storeName",
+			"time",
 			"totalAmount",
 			"updatedAt",
 		)
@@ -65,17 +151,27 @@ async function getImportReturn(userId: string, importId: string) {
 		importItemTagEntityType,
 		items.map(item => item.id),
 	);
+	const duplicates = await getPotentialDuplicates(creditCardImport.creditCardId, items);
 	return {
 		...creditCardImport,
 		dueDate: dateKey(creditCardImport.dueDate),
-		items: items.map(item => ({
-			...item,
-			installmentAmount: Number(item.installmentAmount),
-			purchaseDate: dateKey(item.purchaseDate),
-			tagIds: (tags.get(item.id) ?? []).map(tag => tag.id),
-			tags: tags.get(item.id) ?? [],
-			totalAmount: Number(item.totalAmount),
-		})),
+		items: await Promise.all(
+			items.map(async item => ({
+				...item,
+				debtSplit: await getDebtSplitReturn({ creditCardImportItemId: item.id }, Number(item.totalAmount)),
+				duplicates: (duplicates.get(item.id) ?? []).map(candidate => ({
+					...candidate,
+					installmentAmount: Number(candidate.installmentAmount),
+					purchaseDate: dateKey(candidate.purchaseDate),
+					totalAmount: Number(candidate.totalAmount),
+				})),
+				installmentAmount: Number(item.installmentAmount),
+				purchaseDate: dateKey(item.purchaseDate),
+				tagIds: (tags.get(item.id) ?? []).map(tag => tag.id),
+				tags: tags.get(item.id) ?? [],
+				totalAmount: Number(item.totalAmount),
+			})),
+		),
 		statementDate: dateKey(creditCardImport.statementDate),
 	};
 }
@@ -121,26 +217,32 @@ async function approveItems(userId: string, importId: string, itemId?: string) {
 			"externalId",
 			"installmentAmount",
 			"installments",
-			"isSelected",
 			"purchaseDate",
+			"reconciledCreditPurchaseId",
 			"storeName",
+			"time",
 			"totalAmount",
 		)
 			.where((fields, functions) => functions.eq(fields.creditCardImportId, importId))
 			.build(),
 	);
-	const selectedItems = allItems.filter(item => (itemId ? item.id === itemId : item.isSelected));
+	const duplicates = await getPotentialDuplicates(creditCardImport.creditCardId, allItems);
+	const selectedItems = allItems.filter(item => (itemId ? item.id === itemId : !duplicates.has(item.id)));
 	if (itemId && !selectedItems.length) throw new HttpException("Compra importada não encontrada", 404);
+	if (itemId && duplicates.has(itemId))
+		throw new HttpException("Concilie as possíveis parcelas existentes antes de aprovar", 400);
 	const tagsByItem = await getTagsByEntity(
 		importItemTagEntityType,
 		selectedItems.map(item => item.id),
 	);
 	for (const item of selectedItems) {
 		if (item.storeName) await resolveStore(userId, item.storeName);
-		await materializeImportedPurchase(
+		const debtSplit = await getDebtSplitInput({ creditCardImportItemId: item.id });
+		const rootId = await materializeImportedPurchase(
 			{
 				...card,
 				cashbackRate: card.cashbackRate === null ? null : Number(card.cashbackRate),
+				cashbackYieldPeriod: card.cashbackYieldPeriod as "MONTHLY" | "YEARLY" | null,
 				cashbackYieldReferencePercentage:
 					card.cashbackYieldReferencePercentage === null
 						? null
@@ -150,43 +252,49 @@ async function approveItems(userId: string, importId: string, itemId?: string) {
 			},
 			{
 				...item,
+				existingRootId: item.reconciledCreditPurchaseId,
 				installmentAmount: Number(item.installmentAmount),
 				tagIds: (tagsByItem.get(item.id) ?? []).map(tag => tag.id),
 				totalAmount: Number(item.totalAmount),
 			},
 		);
+		if (!rootId) throw new HttpException("Não foi possível identificar a compra criada", 500);
+		const debtInput = {
+			creditPurchaseId: rootId,
+			date: dateKey(item.purchaseDate),
+			debtSplit: debtSplit ?? null,
+			description: item.storeName || item.description,
+			totalAmount: Number(item.totalAmount),
+			userId,
+		};
+		if (item.reconciledCreditPurchaseId) await syncPurchaseDebtEvent(debtInput);
+		else if (debtSplit) await linkPurchaseToDebt({ ...debtInput, debtSplit });
 	}
-	await cleanupItemTags(itemId ? selectedItems.map(item => item.id) : allItems.map(item => item.id));
-	if (itemId) {
+	await cleanupItemTags(selectedItems.map(item => item.id));
+	if (selectedItems.length) {
 		await executeStatement(
 			db.sql.public.CreditCardImportItem.delete()
-				.where((fields, functions) => functions.eq(fields.id, itemId))
+				.where((fields, functions) =>
+					functions.in(
+						fields.id,
+						selectedItems.map(item => item.id),
+					),
+				)
 				.build(),
 		);
-		const remaining = await queryFirst(
-			db.sql.public.CreditCardImportItem.select("id")
-				.where((fields, functions) => functions.eq(fields.creditCardImportId, importId))
-				.limit(1)
-				.build(),
-		);
-		if (!remaining)
-			await executeStatement(
-				db.sql.public.CreditCardImport.update({ status: "APPROVED", updatedAt: new Date() })
-					.where((fields, functions) => functions.eq(fields.id, importId))
-					.build(),
-			);
-	} else {
-		await executeStatement(
-			db.sql.public.CreditCardImportItem.delete()
-				.where((fields, functions) => functions.eq(fields.creditCardImportId, importId))
-				.build(),
-		);
+	}
+	const remaining = await queryFirst(
+		db.sql.public.CreditCardImportItem.select("id")
+			.where((fields, functions) => functions.eq(fields.creditCardImportId, importId))
+			.limit(1)
+			.build(),
+	);
+	if (!remaining)
 		await executeStatement(
 			db.sql.public.CreditCardImport.update({ status: "APPROVED", updatedAt: new Date() })
 				.where((fields, functions) => functions.eq(fields.id, importId))
 				.build(),
 		);
-	}
 	return { created: selectedItems.length };
 }
 
@@ -305,7 +413,6 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 			const current = await queryFirst(
 				db.sql.public.CreditCardImportItem.select(
 					"id",
-					"currentInstallment",
 					"description",
 					"installments",
 					"isSelected",
@@ -324,20 +431,17 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 			);
 			if (!current) throw new HttpException("Compra importada não encontrada", 404);
 			const installments = body.installments ?? current.installments;
-			const currentInstallment = body.currentInstallment ?? current.currentInstallment;
-			if (currentInstallment > installments)
-				throw new HttpException("A parcela atual não pode ser maior que o total de parcelas", 400);
 			const totalAmount = body.totalAmount ?? Number(current.totalAmount);
 			const tagIds = body.tagIds === undefined ? undefined : await assertTagOwnership(body.tagIds, userId);
 			await executeStatement(
 				db.sql.public.CreditCardImportItem.update({
-					currentInstallment,
 					description: body.description?.trim() || current.description,
 					installmentAmount: String(Math.round((totalAmount / installments) * 100) / 100),
 					installments,
 					isSelected: body.isSelected ?? current.isSelected,
 					purchaseDate: body.purchaseDate ? new Date(`${body.purchaseDate}T12:00:00`) : current.purchaseDate,
 					storeName: body.storeName === undefined ? current.storeName : body.storeName?.trim() || null,
+					...(body.time !== undefined && { time: body.time }),
 					totalAmount: String(totalAmount),
 					updatedAt: new Date(),
 				})
@@ -346,9 +450,74 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 			);
 			if (tagIds)
 				await replaceEntityTags({ entityIds: [current.id], entityType: importItemTagEntityType, tagIds });
+			if (body.debtSplit !== undefined)
+				await replaceDebtSplit({
+					amount: totalAmount,
+					split: body.debtSplit,
+					target: { creditCardImportItemId: current.id },
+					userId,
+				});
 			return getImportReturn(userId, params.id);
 		},
 		{ body: CreditCardImportItemUpdateDTO, params: t.Object({ id: t.String(), itemId: t.String() }) },
+	)
+	.post(
+		"/:id/items/:itemId/reconcile",
+		async ({ body, params, request }) => {
+			const userId = await requireUserId(request);
+			const creditCardImport = await getImport(userId, params.id);
+			if (creditCardImport.status !== "PENDING")
+				throw new HttpException("Esta importação já foi aprovada", 400);
+			const item = await queryFirst(
+				db.sql.public.CreditCardImportItem.select(
+					"id",
+					"description",
+					"installmentAmount",
+					"installments",
+					"purchaseDate",
+					"reconciledCreditPurchaseId",
+					"storeName",
+				)
+					.where((fields, functions) =>
+						functions.and(
+							functions.eq(fields.id, params.itemId),
+							functions.eq(fields.creditCardImportId, params.id),
+						),
+					)
+					.limit(1)
+					.build(),
+			);
+			if (!item) throw new HttpException("Compra importada não encontrada", 404);
+			if (body.creditPurchaseId === null) {
+				await executeStatement(
+					db.sql.public.CreditCardImportItem.update({
+						reconciledCreditPurchaseId: null,
+						updatedAt: new Date(),
+					})
+						.where((fields, functions) => functions.eq(fields.id, item.id))
+						.build(),
+				);
+				return getImportReturn(userId, params.id);
+			}
+			const candidates = await getPotentialDuplicates(creditCardImport.creditCardId, [
+				{ ...item, reconciledCreditPurchaseId: null },
+			]);
+			if (!(candidates.get(item.id) ?? []).some(candidate => candidate.id === body.creditPurchaseId))
+				throw new HttpException("A compra selecionada não corresponde às parcelas importadas", 409);
+			await executeStatement(
+				db.sql.public.CreditCardImportItem.update({
+					reconciledCreditPurchaseId: body.creditPurchaseId,
+					updatedAt: new Date(),
+				})
+					.where((fields, functions) => functions.eq(fields.id, item.id))
+					.build(),
+			);
+			return getImportReturn(userId, params.id);
+		},
+		{
+			body: CreditCardImportItemReconcileDTO,
+			params: t.Object({ id: t.String(), itemId: t.String() }),
+		},
 	)
 	.post("/:id/items/:itemId/approve", async ({ params, request }) =>
 		approveItems(await requireUserId(request), params.id, params.itemId),

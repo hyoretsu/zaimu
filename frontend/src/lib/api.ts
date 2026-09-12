@@ -319,16 +319,33 @@ export interface CreditCardImportItem {
 	categoryId?: string | null;
 	createdAt: string;
 	currentInstallment: number;
+	debtSplit?: DebtSplit | null;
 	description: string;
+	duplicates: CreditCardImportPurchaseDuplicate[];
 	installmentAmount: number;
 	installments: number;
 	isSelected: boolean;
 	purchaseDate: string;
+	reconciledCreditPurchaseId?: string | null;
 	storeName?: string | null;
 	tagIds: string[];
 	tags: Tag[];
+	time?: string | null;
 	totalAmount: number;
 	updatedAt: string;
+}
+
+export interface CreditCardImportPurchaseDuplicate {
+	id: string;
+	currentInstallment: number;
+	description: string;
+	existingInstallments: number;
+	installmentAmount: number;
+	installments: number;
+	purchaseDate: string;
+	storeName?: string | null;
+	time?: string | null;
+	totalAmount: number;
 }
 
 export interface CreditCardImport {

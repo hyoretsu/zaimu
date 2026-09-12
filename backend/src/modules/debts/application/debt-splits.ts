@@ -4,6 +4,7 @@ import { HttpException } from "~/shared/errors";
 import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
 
 export type DebtSplitTarget =
+	| { creditCardImportItemId: string }
 	| { creditPurchaseId: string }
 	| { recurringPaymentId: string }
 	| { subscriptionId: string }
@@ -11,6 +12,7 @@ export type DebtSplitTarget =
 	| { transactionId: string };
 
 type TargetField =
+	| "creditCardImportItemId"
 	| "creditPurchaseId"
 	| "recurringPaymentId"
 	| "subscriptionId"
@@ -53,6 +55,7 @@ async function findSplit(target: DebtSplitTarget) {
 			"ownerIncluded",
 			"ownerShares",
 			"userId",
+			"creditCardImportItemId",
 			"transactionId",
 			"transactionImportItemId",
 			"creditPurchaseId",
@@ -60,6 +63,7 @@ async function findSplit(target: DebtSplitTarget) {
 			"recurringPaymentId",
 		)
 			.where((fields, functions) => {
+				if (field === "creditCardImportItemId") return functions.eq(fields.creditCardImportItemId, id);
 				if (field === "creditPurchaseId") return functions.eq(fields.creditPurchaseId, id);
 				if (field === "recurringPaymentId") return functions.eq(fields.recurringPaymentId, id);
 				if (field === "subscriptionId") return functions.eq(fields.subscriptionId, id);

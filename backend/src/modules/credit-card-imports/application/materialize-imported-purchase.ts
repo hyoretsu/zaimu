@@ -1,17 +1,19 @@
 import { addMonths } from "date-fns";
 import { replaceEntityTags, tagEntityType } from "~/modules/categories/application/tag-assignments";
 import { HttpException } from "~/shared/errors";
-import { db, executeStatement, queryFirst } from "~/shared/infra/sql";
+import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
 
 interface ImportedPurchaseInput {
 	categoryId: null | string;
 	description: string;
 	externalId: string;
+	existingRootId: null | string;
 	installmentAmount: number;
 	installments: number;
 	purchaseDate: Date;
 	storeName: null | string;
 	tagIds: string[];
+	time: null | string;
 	totalAmount: number;
 }
 
@@ -62,8 +64,48 @@ async function getOrCreateStatement(card: CardSnapshot, purchaseDate: Date) {
 
 export async function materializeImportedPurchase(card: CardSnapshot, input: ImportedPurchaseInput) {
 	const createdIds: string[] = [];
-	let rootId: string | null = null;
+	let rootId = input.existingRootId;
+	const existingPurchases = rootId
+		? await queryRows(
+				db.sql.public.CreditPurchase.select("id", "currentInstallment", "installmentAmount")
+					.where((fields, functions) =>
+						functions.or(functions.eq(fields.id, rootId!), functions.eq(fields.parentId, rootId!)),
+					)
+					.build(),
+			)
+		: [];
+	const existingByInstallment = new Map(
+		existingPurchases.map(purchase => [purchase.currentInstallment, purchase]),
+	);
+	if (
+		existingPurchases.some(
+			purchase =>
+				purchase.currentInstallment > input.installments ||
+				Number(purchase.installmentAmount) !== input.installmentAmount,
+		)
+	)
+		throw new HttpException("As parcelas existentes não correspondem à compra importada", 409);
 	for (let currentInstallment = 1; currentInstallment <= input.installments; currentInstallment++) {
+		const existing = existingByInstallment.get(currentInstallment);
+		if (existing) {
+			await executeStatement(
+				db.sql.public.CreditPurchase.update({
+					categoryId: input.categoryId,
+					description: input.description,
+					...(currentInstallment === 1 && { externalId: input.externalId }),
+					installments: input.installments,
+					purchaseDate: input.purchaseDate,
+					storeName: input.storeName,
+					time: input.time,
+					totalAmount: String(input.totalAmount),
+					updatedAt: new Date(),
+				})
+					.where((fields, functions) => functions.eq(fields.id, existing.id))
+					.build(),
+			);
+			createdIds.push(existing.id);
+			continue;
+		}
 		const occurrenceDate = addMonths(input.purchaseDate, currentInstallment - 1);
 		const statement = await getOrCreateStatement(card, occurrenceDate);
 		const purchase = await queryFirst(
@@ -94,6 +136,7 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 					purchaseDate: input.purchaseDate,
 					statementId: statement.id,
 					storeName: input.storeName ?? undefined,
+					time: input.time ?? undefined,
 					totalAmount: String(input.totalAmount),
 				},
 			])
@@ -108,7 +151,7 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 				totalAmount: functions.raw`${fields.totalAmount} + ${String(input.installmentAmount)}`.returns(
 					"pg/numeric@1",
 				),
-				updatedAt: new Date(),
+				updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
 			}))
 				.where((fields, functions) => functions.eq(fields.id, statement.id))
 				.build(),

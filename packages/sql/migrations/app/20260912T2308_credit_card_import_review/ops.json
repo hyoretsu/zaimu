@@ -1,0 +1,256 @@
+[
+	{
+		"execute": [
+			{
+				"description": "add column \"reconciledCreditPurchaseId\"",
+				"sql": "ALTER TABLE \"public\".\"CreditCardImportItem\" ADD COLUMN \"reconciledCreditPurchaseId\" character varying(36)"
+			}
+		],
+		"id": "column.public.CreditCardImportItem.reconciledCreditPurchaseId",
+		"label": "Add column \"reconciledCreditPurchaseId\" to \"CreditCardImportItem\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"reconciledCreditPurchaseId\" exists",
+				"params": ["public", "CreditCardImportItem", "reconciledCreditPurchaseId"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"reconciledCreditPurchaseId\" is missing",
+				"params": ["public", "CreditCardImportItem", "reconciledCreditPurchaseId"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "reconciledCreditPurchaseId",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditCardImportItem"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"time\"",
+				"sql": "ALTER TABLE \"public\".\"CreditCardImportItem\" ADD COLUMN \"time\" time(3)"
+			}
+		],
+		"id": "column.public.CreditCardImportItem.time",
+		"label": "Add column \"time\" to \"CreditCardImportItem\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"time\" exists",
+				"params": ["public", "CreditCardImportItem", "time"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"time\" is missing",
+				"params": ["public", "CreditCardImportItem", "time"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "time",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditCardImportItem"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"creditCardImportItemId\"",
+				"sql": "ALTER TABLE \"public\".\"DebtSplit\" ADD COLUMN \"creditCardImportItemId\" character varying(36)"
+			}
+		],
+		"id": "column.public.DebtSplit.creditCardImportItemId",
+		"label": "Add column \"creditCardImportItemId\" to \"DebtSplit\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"creditCardImportItemId\" exists",
+				"params": ["public", "DebtSplit", "creditCardImportItemId"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"creditCardImportItemId\" is missing",
+				"params": ["public", "DebtSplit", "creditCardImportItemId"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "creditCardImportItemId",
+				"objectType": "column",
+				"schema": "public",
+				"table": "DebtSplit"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add unique constraint \"CreditCardImportItem_reconciledCreditPurchaseId_key\"",
+				"sql": "ALTER TABLE \"public\".\"CreditCardImportItem\" ADD CONSTRAINT \"CreditCardImportItem_reconciledCreditPurchaseId_key\" UNIQUE (\"reconciledCreditPurchaseId\")"
+			}
+		],
+		"id": "unique.CreditCardImportItem.CreditCardImportItem_reconciledCreditPurchaseId_key",
+		"label": "Add unique constraint on \"CreditCardImportItem\" (reconciledCreditPurchaseId)",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify constraint \"CreditCardImportItem_reconciledCreditPurchaseId_key\" exists",
+				"params": [
+					"CreditCardImportItem_reconciledCreditPurchaseId_key",
+					"public",
+					"\"public\".\"CreditCardImportItem\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure constraint \"CreditCardImportItem_reconciledCreditPurchaseId_key\" does not exist",
+				"params": [
+					"CreditCardImportItem_reconciledCreditPurchaseId_key",
+					"public",
+					"\"public\".\"CreditCardImportItem\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditCardImportItem_reconciledCreditPurchaseId_key",
+				"objectType": "unique",
+				"schema": "public",
+				"table": "CreditCardImportItem"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add unique constraint \"DebtSplit_creditCardImportItemId_key\"",
+				"sql": "ALTER TABLE \"public\".\"DebtSplit\" ADD CONSTRAINT \"DebtSplit_creditCardImportItemId_key\" UNIQUE (\"creditCardImportItemId\")"
+			}
+		],
+		"id": "unique.DebtSplit.DebtSplit_creditCardImportItemId_key",
+		"label": "Add unique constraint on \"DebtSplit\" (creditCardImportItemId)",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify constraint \"DebtSplit_creditCardImportItemId_key\" exists",
+				"params": ["DebtSplit_creditCardImportItemId_key", "public", "\"public\".\"DebtSplit\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure constraint \"DebtSplit_creditCardImportItemId_key\" does not exist",
+				"params": ["DebtSplit_creditCardImportItemId_key", "public", "\"public\".\"DebtSplit\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "DebtSplit_creditCardImportItemId_key",
+				"objectType": "unique",
+				"schema": "public",
+				"table": "DebtSplit"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"CreditCardImportItem_reconciledCreditPurchaseId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"CreditCardImportItem\"\nADD CONSTRAINT \"CreditCardImportItem_reconciledCreditPurchaseId_fkey\"\nFOREIGN KEY (\"reconciledCreditPurchaseId\")\nREFERENCES \"public\".\"CreditPurchase\" (\"id\")\nON DELETE SET NULL\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.CreditCardImportItem.CreditCardImportItem_reconciledCreditPurchaseId_fkey",
+		"label": "Add foreign key \"CreditCardImportItem_reconciledCreditPurchaseId_fkey\" on \"CreditCardImportItem\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"CreditCardImportItem_reconciledCreditPurchaseId_fkey\" exists",
+				"params": [
+					"CreditCardImportItem_reconciledCreditPurchaseId_fkey",
+					"public",
+					"\"public\".\"CreditCardImportItem\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"CreditCardImportItem_reconciledCreditPurchaseId_fkey\" does not exist",
+				"params": [
+					"CreditCardImportItem_reconciledCreditPurchaseId_fkey",
+					"public",
+					"\"public\".\"CreditCardImportItem\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditCardImportItem_reconciledCreditPurchaseId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "CreditCardImportItem"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"DebtSplit_creditCardImportItemId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"DebtSplit\"\nADD CONSTRAINT \"DebtSplit_creditCardImportItemId_fkey\"\nFOREIGN KEY (\"creditCardImportItemId\")\nREFERENCES \"public\".\"CreditCardImportItem\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.DebtSplit.DebtSplit_creditCardImportItemId_fkey",
+		"label": "Add foreign key \"DebtSplit_creditCardImportItemId_fkey\" on \"DebtSplit\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"DebtSplit_creditCardImportItemId_fkey\" exists",
+				"params": ["DebtSplit_creditCardImportItemId_fkey", "public", "\"public\".\"DebtSplit\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"DebtSplit_creditCardImportItemId_fkey\" does not exist",
+				"params": ["DebtSplit_creditCardImportItemId_fkey", "public", "\"public\".\"DebtSplit\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "DebtSplit_creditCardImportItemId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "DebtSplit"
+			},
+			"id": "postgres"
+		}
+	}
+]

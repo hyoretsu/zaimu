@@ -1,6 +1,5 @@
-import { LuCheck, LuPencil } from "react-icons/lu";
+import { LuCheck, LuGitMerge, LuPencil } from "react-icons/lu";
 import { TransactionListItem } from "@/components/transactions";
-import { Checkbox } from "@/components/ui/Checkbox";
 import type { CreditCardImportItem, Transaction } from "@/lib/api";
 import { formatLocalDate } from "@/lib/date";
 
@@ -13,8 +12,8 @@ function toTransaction(
 		amount: item.totalAmount,
 		createdAt: item.createdAt,
 		creditCardId,
-		currentInstallment: item.currentInstallment,
 		date: item.purchaseDate,
+		debtSplit: item.debtSplit,
 		description: item.description,
 		id: item.id,
 		installmentAmount: item.installmentAmount,
@@ -25,6 +24,7 @@ function toTransaction(
 		storeName: item.storeName,
 		tagIds: item.tagIds,
 		tags: item.tags,
+		time: item.time,
 		type: "EXPENSE",
 	};
 }
@@ -36,7 +36,7 @@ export function CreditCardImportItemRow({
 	item,
 	onApprove,
 	onEdit,
-	onSelectedChange,
+	onReconcile,
 }: {
 	creditCardId: string;
 	creditCardName: string;
@@ -44,30 +44,36 @@ export function CreditCardImportItemRow({
 	item: CreditCardImportItem;
 	onApprove: () => void;
 	onEdit: () => void;
-	onSelectedChange: (selected: boolean) => void;
+	onReconcile: () => void;
 }) {
 	const transaction = toTransaction(item, creditCardId, creditCardName);
 
 	return (
 		<TransactionListItem
 			actionItems={[
-				{ disabled, icon: <LuCheck />, onClick: onApprove, text: "Aprovar" },
+				{
+					disabled: disabled || item.duplicates.length > 0,
+					icon: <LuCheck />,
+					onClick: onApprove,
+					text: "Aprovar",
+				},
+				{
+					disabled: disabled || (item.duplicates.length === 0 && !item.reconciledCreditPurchaseId),
+					icon: <LuGitMerge />,
+					onClick: onReconcile,
+					text: item.reconciledCreditPurchaseId ? "Desfazer conciliação" : "Conciliar",
+				},
 				{ disabled, icon: <LuPencil />, onClick: onEdit, text: "Editar" },
 			]}
 			forceCompactActions
-			icon={
-				<div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-muted">
-					<Checkbox
-						aria-label={`Selecionar ${item.description}`}
-						checked={item.isSelected}
-						disabled={disabled}
-						onCheckedChange={checked => onSelectedChange(checked === true)}
-					/>
-				</div>
-			}
 			metadataPrefix={
-				<span className="text-muted-foreground text-xs">
-					{formatLocalDate(item.purchaseDate)} · Pendente de aprovação
+				<span className={item.duplicates.length ? "text-warning text-xs" : "text-muted-foreground text-xs"}>
+					{formatLocalDate(item.purchaseDate)} ·{" "}
+					{item.duplicates.length
+						? "Possíveis parcelas existentes"
+						: item.reconciledCreditPurchaseId
+							? "Parcelas conciliadas"
+							: "Pendente de aprovação"}
 				</span>
 			}
 			transaction={transaction}
