@@ -121,8 +121,17 @@ export function StorePicker({
 									<Skeleton className="h-9 rounded-xl" key={item} />
 								))}
 							</div>
-						) : filteredStores.length ? (
+						) : (
 							<div className="grid gap-1">
+								<Button
+									className="cursor-pointer justify-start rounded-xl px-2 py-2 font-normal"
+									onClick={() => selectStore("")}
+									type="button"
+									variant={value ? "outline" : "secondary"}
+								>
+									<LuStore className="text-muted-foreground" />
+									<span className="truncate">Sem loja</span>
+								</Button>
 								{filteredStores.map(storeName => (
 									<Button
 										className="cursor-pointer justify-start rounded-xl px-2 py-2 font-normal"
@@ -135,11 +144,12 @@ export function StorePicker({
 										<span className="truncate">{storeName}</span>
 									</Button>
 								))}
+								{!filteredStores.length && (
+									<p className="px-2 py-6 text-center text-muted-foreground text-sm">
+										Nenhuma loja encontrada. Use + para adicionar.
+									</p>
+								)}
 							</div>
-						) : (
-							<p className="px-2 py-6 text-center text-muted-foreground text-sm">
-								Nenhuma loja encontrada. Use + para adicionar.
-							</p>
 						)}
 					</ScrollArea>
 				</PopoverContent>
