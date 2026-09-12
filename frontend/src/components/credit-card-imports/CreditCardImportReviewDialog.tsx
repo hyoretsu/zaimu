@@ -15,6 +15,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { CreditCardImportItem } from "@/lib/api";
+import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
 import { showToast } from "@/stores";
@@ -36,6 +37,11 @@ export function CreditCardImportReviewDialog({
 		enabled: open && Boolean(importId),
 		queryFn: () => dataService.creditCardImports.get(importId!),
 		queryKey: ["credit-card-import", importId],
+	});
+	const creditCards = useQuery({
+		enabled: open,
+		queryFn: () => dataService.creditCards.getAll(),
+		queryKey: ["credit-cards"],
 	});
 	const invalidate = async () => {
 		await Promise.all([
@@ -98,6 +104,8 @@ export function CreditCardImportReviewDialog({
 		},
 	});
 	const items = creditCardImport.data?.items ?? [];
+	const creditCard = creditCards.data?.find(card => card.id === creditCardImport.data?.creditCardId);
+	const creditCardName = creditCard ? getCreditCardDisplayName(creditCard) : "Cartão de crédito";
 	const selectedCount = items.filter(item => item.isSelected).length;
 	const busy = updateItem.isPending || approveItem.isPending || approve.isPending || discard.isPending;
 
@@ -113,7 +121,7 @@ export function CreditCardImportReviewDialog({
 								: "Carregando compras da fatura…"}
 						</DialogDescription>
 					</DialogHeader>
-					{creditCardImport.isPending ? (
+					{creditCardImport.isPending || creditCards.isPending ? (
 						<div className="space-y-3">
 							{[1, 2, 3].map(item => (
 								<Skeleton className="h-20 rounded-2xl" key={item} />
@@ -130,6 +138,8 @@ export function CreditCardImportReviewDialog({
 							<div className="divide-y rounded-2xl border bg-card shadow-sm">
 								{items.map(item => (
 									<CreditCardImportItemRow
+										creditCardId={creditCardImport.data!.creditCardId}
+										creditCardName={creditCardName}
 										disabled={busy}
 										item={item}
 										key={item.id}
