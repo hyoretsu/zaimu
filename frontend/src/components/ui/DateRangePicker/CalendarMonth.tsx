@@ -1,7 +1,6 @@
 import {
+	addDays,
 	eachDayOfInterval,
-	endOfMonth,
-	endOfWeek,
 	format,
 	isAfter,
 	isBefore,
@@ -37,9 +36,10 @@ export function CalendarMonth({
 	onDateSelect,
 	startDate,
 }: CalendarMonthProps) {
+	const calendarStart = startOfWeek(startOfMonth(month), { weekStartsOn: 0 });
 	const days = eachDayOfInterval({
-		end: endOfWeek(endOfMonth(month), { weekStartsOn: 0 }),
-		start: startOfWeek(startOfMonth(month), { weekStartsOn: 0 }),
+		end: addDays(calendarStart, 41),
+		start: calendarStart,
 	});
 	const previewStart =
 		hoveredDate && (activeBoundary === "end" ? startDate : endDate)
