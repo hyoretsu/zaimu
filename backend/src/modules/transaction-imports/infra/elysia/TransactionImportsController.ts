@@ -84,7 +84,18 @@ interface PotentialDuplicates {
 }
 
 interface TransferSuggestionCandidate extends TransferSuggestionItem {
+	categoryColor?: string | null;
+	categoryId?: string | null;
+	categoryName?: string | null;
+	createdAt?: Date;
+	debtSplit?: Awaited<ReturnType<typeof getDebtSplitReturn>>;
 	description: string | null;
+	destinationFinancialAccountId?: string | null;
+	isHidden?: boolean;
+	originFinancialAccountId?: string | null;
+	storeName?: string | null;
+	tagIds?: string[];
+	tags?: TagSummary[];
 	time: string | null;
 	transactionImportId: string | null;
 }
@@ -121,16 +132,27 @@ async function getTransferSuggestionPairs(userId: string, itemIds: string[]) {
 			db.sql.public.TransactionExternalReference.innerJoin(db.sql.public.Transaction, (fields, functions) =>
 				functions.eq(fields.TransactionExternalReference.transactionId, fields.Transaction.id),
 			)
+				.outerLeftJoin(db.sql.public.Category, (fields, functions) =>
+					functions.eq(fields.Transaction.categoryId, fields.Category.id),
+				)
 				.innerJoin(db.sql.public.FinancialAccount, (fields, functions) =>
 					functions.eq(fields.TransactionExternalReference.financialAccountId, fields.FinancialAccount.id),
 				)
 				.select(fields => ({
 					amount: fields.Transaction.amount,
+					categoryColor: fields.Category.color,
+					categoryId: fields.Transaction.categoryId,
+					categoryName: fields.Category.name,
+					createdAt: fields.Transaction.createdAt,
 					date: fields.Transaction.date,
 					description: fields.Transaction.description,
+					destinationFinancialAccountId: fields.Transaction.destinationFinancialAccountId,
 					externalId: fields.TransactionExternalReference.externalId,
 					financialAccountId: fields.TransactionExternalReference.financialAccountId,
 					id: fields.Transaction.id,
+					isHidden: fields.Transaction.isHidden,
+					originFinancialAccountId: fields.Transaction.originFinancialAccountId,
+					storeName: fields.Transaction.storeName,
 					time: fields.Transaction.time,
 					type: fields.Transaction.type,
 				}))
@@ -162,13 +184,25 @@ async function getTransferSuggestionPairs(userId: string, itemIds: string[]) {
 			source: "IMPORT_ITEM" as const,
 			type: candidate.type as ImportItemType,
 		}));
-	const materializedCandidates: TransferSuggestionCandidate[] = candidates.map(candidate => ({
-		...candidate,
-		amount: Number(candidate.amount),
-		source: "TRANSACTION" as const,
-		transactionImportId: null,
-		type: candidate.type as TransactionType,
-	}));
+	const transactionTags = await getTagsByEntity(
+		tagEntityType.transaction,
+		candidates.map(candidate => candidate.id),
+	);
+	const materializedCandidates: TransferSuggestionCandidate[] = await Promise.all(
+		candidates.map(async candidate => {
+			const tags = transactionTags.get(candidate.id) ?? [];
+			return {
+				...candidate,
+				amount: Number(candidate.amount),
+				debtSplit: await getDebtSplitReturn({ transactionId: candidate.id }, Number(candidate.amount)),
+				source: "TRANSACTION" as const,
+				tagIds: tags.map(tag => tag.id),
+				tags,
+				transactionImportId: null,
+				type: candidate.type as TransactionType,
+			};
+		}),
+	);
 	return new Map<string, TransferSuggestion<TransferSuggestionCandidate>[]>(
 		itemIds.map(itemId => {
 			const item = activeItems.find(candidate => candidate.id === itemId);
@@ -475,9 +509,22 @@ async function getImportReturn(userId: string, importId: string) {
 						const counterpart = pair.outgoing.id === item.id ? pair.incoming : pair.outgoing;
 						return {
 							amount: Number(counterpart.amount),
+							categoryColor: counterpart.categoryColor,
+							categoryId: counterpart.categoryId,
+							categoryName: counterpart.categoryName,
+							createdAt: counterpart.createdAt ?? item.createdAt,
 							date: toDateKey(counterpart.date),
+							debtSplit: counterpart.debtSplit,
+							description: counterpart.description,
+							destinationFinancialAccountId: counterpart.destinationFinancialAccountId,
 							financialAccountId: counterpart.financialAccountId,
 							id: counterpart.id,
+							isHidden: counterpart.isHidden ?? false,
+							originFinancialAccountId: counterpart.originFinancialAccountId,
+							storeName: counterpart.storeName,
+							tagIds: counterpart.tagIds ?? [],
+							tags: counterpart.tags ?? [],
+							time: counterpart.time,
 							type: counterpart.type,
 						};
 					}),

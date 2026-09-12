@@ -250,9 +250,20 @@ export interface TransactionImportDuplicate {
 export interface TransactionImportTransferSuggestion {
 	id: string;
 	amount: number;
+	categoryColor?: string | null;
+	categoryId?: string | null;
+	categoryName?: string | null;
+	createdAt: string;
 	date: string;
 	description?: string | null;
+	debtSplit?: DebtSplit | null;
+	destinationFinancialAccountId?: string | null;
 	financialAccountId: string;
+	isHidden: boolean;
+	originFinancialAccountId?: string | null;
+	storeName?: string | null;
+	tagIds: string[];
+	tags: Tag[];
 	time?: string | null;
 	type: Transaction["type"] | "YIELD";
 }

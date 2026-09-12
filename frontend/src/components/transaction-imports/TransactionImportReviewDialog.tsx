@@ -59,22 +59,37 @@ function toTransaction(item: TransactionImportItem, accountNames: Map<string, st
 function toTransferSuggestionTransaction(
 	suggestion: TransactionImportTransferSuggestion,
 	accountNames: Map<string, string>,
-	createdAt: string,
 ): Transaction {
 	const type = suggestion.type === "YIELD" ? "INCOME" : suggestion.type;
-	const accountName = accountNames.get(suggestion.financialAccountId) ?? "Conta sem nome";
+	const originFinancialAccountId =
+		suggestion.originFinancialAccountId ?? (type === "EXPENSE" ? suggestion.financialAccountId : null);
+	const destinationFinancialAccountId =
+		suggestion.destinationFinancialAccountId ?? (type === "INCOME" ? suggestion.financialAccountId : null);
+	const originName = originFinancialAccountId ? accountNames.get(originFinancialAccountId) : undefined;
+	const destinationName = destinationFinancialAccountId
+		? accountNames.get(destinationFinancialAccountId)
+		: undefined;
 	return {
 		amount: suggestion.amount,
-		createdAt,
+		categoryColor: suggestion.categoryColor ?? undefined,
+		categoryId: suggestion.categoryId ?? undefined,
+		categoryName: suggestion.categoryName ?? undefined,
+		createdAt: suggestion.createdAt,
 		date: suggestion.date,
+		debtSplit: suggestion.debtSplit,
 		description: suggestion.description ?? undefined,
-		destinationFinancialAccountId: type === "INCOME" ? suggestion.financialAccountId : null,
-		destinationName: type === "INCOME" ? accountName : null,
+		destinationFinancialAccountId,
+		destinationName,
 		id: suggestion.id,
-		originFinancialAccountId: type === "INCOME" ? null : suggestion.financialAccountId,
-		originName: type === "INCOME" ? null : accountName,
+		isHidden: suggestion.isHidden,
+		isSynced: true,
+		originFinancialAccountId,
+		originName,
 		source: "FINANCIAL_ACCOUNT",
-		sourceName: accountName,
+		sourceName: type === "INCOME" ? destinationName : originName,
+		storeName: suggestion.storeName,
+		tagIds: suggestion.tagIds,
+		tags: suggestion.tags,
 		time: suggestion.time,
 		type,
 	};
@@ -445,11 +460,7 @@ export function TransactionImportReviewDialog({
 			<TransferSuggestionDecisionDialog
 				counterpartTransaction={
 					transferSuggestionDecision
-						? toTransferSuggestionTransaction(
-								transferSuggestionDecision.suggestion,
-								accountNames,
-								transferSuggestionDecision.item.createdAt,
-							)
+						? toTransferSuggestionTransaction(transferSuggestionDecision.suggestion, accountNames)
 						: null
 				}
 				currentTransaction={
