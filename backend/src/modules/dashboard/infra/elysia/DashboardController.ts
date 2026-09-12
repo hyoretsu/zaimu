@@ -1,4 +1,4 @@
-import { startOfDay } from "date-fns";
+import { addDays, endOfDay, startOfDay } from "date-fns";
 import Elysia, { t } from "elysia";
 import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
 import { requireUserId } from "~/modules/auth";
@@ -7,6 +7,7 @@ import {
 	type DashboardForecast,
 	dateKey,
 	nextOccurrence,
+	occurrencesInRange,
 	period,
 	type RecurrenceFrequency,
 	resolveDashboardRange,
@@ -178,6 +179,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 								"id",
 								"recurrenceId",
 								"salaryId",
+								"salaryOccurrenceDate",
 								"subscriptionId",
 								"type",
 							)
@@ -260,7 +262,88 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 			date: startOfDay(transaction.date),
 			type: transaction.type as "EXPENSE" | "INCOME" | "TRANSFER",
 		}));
-		const periodTransactions = normalizedTransactions.filter(
+		const duration =
+			Math.round((startOfDay(range.end).getTime() - startOfDay(range.start).getTime()) / 86_400_000) + 1;
+		const comparisonEnd = endOfDay(addDays(range.end, duration * 6));
+		const projectionStart = addDays(today, 1);
+		const linkedTransactionDates = new Set(
+			normalizedTransactions.flatMap(transaction => {
+				const sourceId = transaction.salaryId ?? transaction.subscriptionId ?? transaction.recurrenceId;
+				return sourceId ? [`${sourceId}:${dateKey(transaction.date)}`] : [];
+			}),
+		);
+		const projectedMovements: Array<{
+			amount: number;
+			date: Date;
+			type: "EXPENSE" | "INCOME";
+		}> = [];
+		const addSchedule = (schedule: {
+			amount: number;
+			dayOfMonth?: null | number;
+			dayOfWeek?: null | number;
+			endDate?: Date | null;
+			frequency: RecurrenceFrequency;
+			sourceId: string;
+			startDate: Date;
+			type: "EXPENSE" | "INCOME";
+		}) => {
+			for (const occurrence of occurrencesInRange({
+				...schedule,
+				from: projectionStart,
+				through: comparisonEnd,
+			})) {
+				if (!linkedTransactionDates.has(`${schedule.sourceId}:${dateKey(occurrence)}`))
+					projectedMovements.push({ amount: schedule.amount, date: occurrence, type: schedule.type });
+			}
+		};
+		for (const salary of salaries.filter(item => item.isActive))
+			addSchedule({
+				amount: Number(salary.amount),
+				dayOfMonth: salary.payDay,
+				endDate: salary.endDate,
+				frequency: salary.frequency as RecurrenceFrequency,
+				sourceId: salary.id,
+				startDate: salary.startDate,
+				type: "INCOME",
+			});
+		for (const subscription of subscriptions.filter(item => item.isActive))
+			addSchedule({
+				amount: Number(subscription.amount),
+				dayOfMonth: subscription.billingDay,
+				endDate: subscription.endDate,
+				frequency: subscription.frequency as RecurrenceFrequency,
+				sourceId: subscription.id,
+				startDate: subscription.startDate,
+				type: "EXPENSE",
+			});
+		for (const recurrence of recurring.filter(item => item.isActive))
+			addSchedule({
+				amount: Number(recurrence.amount),
+				dayOfMonth: recurrence.dayOfMonth,
+				dayOfWeek: recurrence.dayOfWeek,
+				endDate: recurrence.endDate,
+				frequency: recurrence.frequency as RecurrenceFrequency,
+				sourceId: recurrence.id,
+				startDate: recurrence.startDate,
+				type: "EXPENSE",
+			});
+		for (const payment of payments.filter(
+			item => !item.paidDate && item.dueDate >= projectionStart && item.dueDate <= comparisonEnd,
+		))
+			projectedMovements.push({
+				amount: Number(payment.totalPaid),
+				date: payment.dueDate,
+				type: "EXPENSE",
+			});
+		for (const statement of statements.filter(
+			item => item.dueDate >= projectionStart && item.dueDate <= comparisonEnd,
+		)) {
+			const outstanding = Math.max(0, Number(statement.totalAmount) - Number(statement.paidAmount));
+			if (outstanding)
+				projectedMovements.push({ amount: outstanding, date: statement.dueDate, type: "EXPENSE" });
+		}
+		const comparisonTransactions = [...normalizedTransactions, ...projectedMovements];
+		const periodTransactions = comparisonTransactions.filter(
 			transaction =>
 				transaction.date >= range.start && transaction.date <= range.end && transaction.type !== "TRANSFER",
 		);
@@ -270,7 +353,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 		const expenses = periodTransactions
 			.filter(transaction => transaction.type === "EXPENSE")
 			.reduce((sum, transaction) => sum + transaction.amount, 0);
-		const afterRange = normalizedTransactions
+		const afterRange = comparisonTransactions
 			.filter(transaction => transaction.date > range.end && transaction.type !== "TRANSFER")
 			.reduce(
 				(sum, transaction) =>
@@ -436,7 +519,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 			comparison: buildComparisonPeriods({
 				base: range,
 				initialBalance: dashboardPeriod.initialBalance,
-				transactions: normalizedTransactions,
+				transactions: comparisonTransactions,
 			}),
 			creditCards: cardsWithStatements,
 			debts: { iOwe, net: owedToMe - iOwe, owedToMe, people },

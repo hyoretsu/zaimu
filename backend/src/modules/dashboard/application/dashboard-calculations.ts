@@ -51,6 +51,12 @@ export function nextOccurrence(input: {
 	let occurrence = start;
 	if (input.frequency === "MONTHLY") occurrence = monthlyDate(start, input.dayOfMonth ?? start.getDate());
 	if (input.frequency === "YEARLY") occurrence = yearlyDate(start, input.dayOfMonth ?? start.getDate());
+	if (
+		(input.frequency === "WEEKLY" || input.frequency === "BIWEEKLY") &&
+		typeof input.dayOfWeek === "number"
+	) {
+		occurrence = addDays(start, (input.dayOfWeek - start.getDay() + 7) % 7);
+	}
 	while (occurrence < from) {
 		switch (input.frequency) {
 			case "DAILY":
@@ -71,6 +77,24 @@ export function nextOccurrence(input: {
 		}
 	}
 	return end && isAfter(occurrence, end) ? undefined : occurrence;
+}
+
+export function occurrencesInRange(input: {
+	dayOfMonth?: null | number;
+	dayOfWeek?: null | number;
+	endDate?: Date | null;
+	frequency: RecurrenceFrequency;
+	from: Date;
+	startDate: Date;
+	through: Date;
+}) {
+	const occurrences: Date[] = [];
+	let occurrence = nextOccurrence(input);
+	while (occurrence && occurrence <= endOfDay(input.through)) {
+		occurrences.push(occurrence);
+		occurrence = nextOccurrence({ ...input, from: addDays(occurrence, 1) });
+	}
+	return occurrences;
 }
 
 export function buildComparisonPeriods(input: {

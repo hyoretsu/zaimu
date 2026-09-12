@@ -1332,6 +1332,96 @@ export const dataService = {
 							type: "TRANSACTION" as const,
 						})),
 				].toSorted((left, right) => left.date.localeCompare(right.date));
+				const duration = Math.round((rangeEnd.getTime() - rangeStart.getTime()) / 86_400_000) + 1;
+				const comparisonEnd = new Date(rangeEnd);
+				comparisonEnd.setDate(comparisonEnd.getDate() + duration * 6);
+				const projectionStart = new Date(now);
+				projectionStart.setHours(12, 0, 0, 0);
+				projectionStart.setDate(projectionStart.getDate() + 1);
+				const linkedTransactionDates = new Set(
+					transactions.flatMap(transaction => {
+						const sourceId = transaction.salaryId ?? transaction.subscriptionId ?? transaction.recurrenceId;
+						return sourceId ? [`${sourceId}:${transaction.date.slice(0, 10)}`] : [];
+					}),
+				);
+				const projectedMovements: Array<{ amount: number; date: Date; type: "EXPENSE" | "INCOME" }> = [];
+				const addSchedule = (item: {
+					amount: number;
+					day: number;
+					endDate?: string | null;
+					frequency: "BIWEEKLY" | "DAILY" | "MONTHLY" | "WEEKLY" | "YEARLY";
+					sourceId: string;
+					startDate: string;
+					type: "EXPENSE" | "INCOME";
+				}) => {
+					const start = new Date(`${item.startDate.slice(0, 10)}T12:00:00`);
+					const end = item.endDate ? new Date(`${item.endDate.slice(0, 10)}T12:00:00`) : comparisonEnd;
+					let occurrence = new Date(
+						start.getFullYear(),
+						start.getMonth(),
+						item.frequency === "MONTHLY"
+							? Math.min(item.day, new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate())
+							: start.getDate(),
+						12,
+					);
+					while (occurrence <= comparisonEnd && occurrence <= end) {
+						if (
+							occurrence >= projectionStart &&
+							!linkedTransactionDates.has(`${item.sourceId}:${dateKey(occurrence)}`)
+						)
+							projectedMovements.push({ amount: item.amount, date: occurrence, type: item.type });
+						if (item.frequency === "DAILY") occurrence.setDate(occurrence.getDate() + 1);
+						if (item.frequency === "WEEKLY") occurrence.setDate(occurrence.getDate() + 7);
+						if (item.frequency === "BIWEEKLY") occurrence.setDate(occurrence.getDate() + 14);
+						if (item.frequency === "YEARLY") occurrence.setFullYear(occurrence.getFullYear() + 1);
+						if (item.frequency === "MONTHLY")
+							occurrence = new Date(
+								occurrence.getFullYear(),
+								occurrence.getMonth() + 1,
+								Math.min(
+									item.day,
+									new Date(occurrence.getFullYear(), occurrence.getMonth() + 2, 0).getDate(),
+								),
+								12,
+							);
+					}
+				};
+				for (const salary of salaries.filter(item => item.isActive))
+					addSchedule({
+						amount: salary.amount,
+						day: salary.payDay,
+						endDate: salary.endDate,
+						frequency: salary.frequency,
+						sourceId: salary.id,
+						startDate: salary.startDate,
+						type: "INCOME",
+					});
+				for (const subscription of subscriptions.filter(item => item.isActive))
+					addSchedule({
+						amount: subscription.amount,
+						day: subscription.billingDay,
+						endDate: subscription.endDate,
+						frequency: subscription.frequency,
+						sourceId: subscription.id,
+						startDate: subscription.startDate,
+						type: "EXPENSE",
+					});
+				for (const recurrence of recurring.filter(item => item.isActive))
+					addSchedule({
+						amount: recurrence.amount,
+						day: recurrence.dayOfMonth ?? new Date(recurrence.startDate).getDate(),
+						endDate: recurrence.endDate,
+						frequency: recurrence.frequency,
+						sourceId: recurrence.id,
+						startDate: recurrence.startDate,
+						type: recurrence.type === "INCOME" ? "INCOME" : "EXPENSE",
+					});
+				for (const statement of statements) {
+					const dueDate = new Date(`${statement.dueDate.slice(0, 10)}T12:00:00`);
+					const outstanding = Math.max(0, statement.totalAmount - statement.paidAmount);
+					if (outstanding && dueDate >= projectionStart && dueDate <= comparisonEnd)
+						projectedMovements.push({ amount: outstanding, date: dueDate, type: "EXPENSE" });
+				}
 				const creditCards = cards.map(card => {
 					const cardStatements = statements.filter(statement => statement.creditCardId === card.id);
 					const statement =
@@ -1363,17 +1453,20 @@ export const dataService = {
 							: null,
 					};
 				});
-				const duration = Math.round((rangeEnd.getTime() - rangeStart.getTime()) / 86_400_000) + 1;
+				const comparisonTransactions = [
+					...transactions.map(transaction => ({
+						...transaction,
+						date: new Date(`${transaction.date.slice(0, 10)}T12:00:00`),
+					})),
+					...projectedMovements,
+				];
 				const comparison = Array.from({ length: 13 }, (_, index) => {
 					const start = new Date(rangeStart);
 					start.setDate(start.getDate() + (index - 6) * duration);
 					const end = new Date(start);
 					end.setDate(end.getDate() + duration - 1);
-					const movements = transactions.filter(
-						item =>
-							item.type !== "TRANSFER" &&
-							new Date(`${item.date.slice(0, 10)}T12:00:00`) >= start &&
-							new Date(`${item.date.slice(0, 10)}T12:00:00`) <= end,
+					const movements = comparisonTransactions.filter(
+						item => item.type !== "TRANSFER" && item.date >= start && item.date <= end,
 					);
 					const comparisonIncome = movements
 						.filter(item => item.type === "INCOME")
@@ -1385,7 +1478,11 @@ export const dataService = {
 						endDate: dateKey(end),
 						expenses: comparisonExpenses,
 						income: comparisonIncome,
-						initialBalance: period.initialBalance,
+						initialBalance:
+							totalBalance -
+							comparisonTransactions
+								.filter(item => item.type !== "TRANSFER" && item.date >= start)
+								.reduce((sum, item) => sum + (item.type === "INCOME" ? item.amount : -item.amount), 0),
 						net: comparisonIncome - comparisonExpenses,
 						startDate: dateKey(start),
 					};
