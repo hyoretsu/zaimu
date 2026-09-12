@@ -13,7 +13,12 @@ import {
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
-import type { Transaction, TransactionImportItem, TransactionImportTransferSuggestion } from "@/lib/api";
+import type {
+	FinancialAccount,
+	Transaction,
+	TransactionImportItem,
+	TransactionImportTransferSuggestion,
+} from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
 import { sortTransactionsByMostRecent } from "@/lib/transaction-sort";
@@ -24,12 +29,23 @@ import { ImportReviewDateSection } from "./ImportReviewDateSection";
 import { ImportReviewTransactionItem } from "./ImportReviewTransactionItem";
 import { TransferSuggestionDecisionDialog } from "./TransferSuggestionDecisionDialog";
 
-function toTransaction(item: TransactionImportItem, accountNames: Map<string, string>): Transaction {
+type TransactionAccountDetails = Pick<FinancialAccount, "rewardsAccount" | "type"> & { name: string };
+
+function toTransaction(
+	item: TransactionImportItem,
+	accounts: Map<string, TransactionAccountDetails>,
+): Transaction {
 	const originName = item.originFinancialAccountId
-		? accountNames.get(item.originFinancialAccountId)
+		? accounts.get(item.originFinancialAccountId)?.name
 		: undefined;
 	const destinationName = item.destinationFinancialAccountId
-		? accountNames.get(item.destinationFinancialAccountId)
+		? accounts.get(item.destinationFinancialAccountId)?.name
+		: undefined;
+	const originAccount = item.originFinancialAccountId
+		? accounts.get(item.originFinancialAccountId)
+		: undefined;
+	const destinationAccount = item.destinationFinancialAccountId
+		? accounts.get(item.destinationFinancialAccountId)
 		: undefined;
 	return {
 		amount: item.amount,
@@ -40,10 +56,14 @@ function toTransaction(item: TransactionImportItem, accountNames: Map<string, st
 		date: item.date,
 		debtSplit: item.debtSplit,
 		description: item.description ?? undefined,
+		destinationAccountRewardsKind: destinationAccount?.rewardsAccount?.kind,
+		destinationAccountType: destinationAccount?.type,
 		destinationFinancialAccountId: item.destinationFinancialAccountId,
 		destinationName,
 		id: item.id,
 		isHidden: item.isHidden,
+		originAccountRewardsKind: originAccount?.rewardsAccount?.kind,
+		originAccountType: originAccount?.type,
 		originFinancialAccountId: item.originFinancialAccountId,
 		originName,
 		source: "FINANCIAL_ACCOUNT",
@@ -58,17 +78,19 @@ function toTransaction(item: TransactionImportItem, accountNames: Map<string, st
 
 function toTransferSuggestionTransaction(
 	suggestion: TransactionImportTransferSuggestion,
-	accountNames: Map<string, string>,
+	accounts: Map<string, TransactionAccountDetails>,
 ): Transaction {
 	const type = suggestion.type === "YIELD" ? "INCOME" : suggestion.type;
 	const originFinancialAccountId =
 		suggestion.originFinancialAccountId ?? (type === "EXPENSE" ? suggestion.financialAccountId : null);
 	const destinationFinancialAccountId =
 		suggestion.destinationFinancialAccountId ?? (type === "INCOME" ? suggestion.financialAccountId : null);
-	const originName = originFinancialAccountId ? accountNames.get(originFinancialAccountId) : undefined;
-	const destinationName = destinationFinancialAccountId
-		? accountNames.get(destinationFinancialAccountId)
+	const originAccount = originFinancialAccountId ? accounts.get(originFinancialAccountId) : undefined;
+	const destinationAccount = destinationFinancialAccountId
+		? accounts.get(destinationFinancialAccountId)
 		: undefined;
+	const originName = originAccount?.name;
+	const destinationName = destinationFinancialAccountId ? destinationAccount?.name : undefined;
 	return {
 		amount: suggestion.amount,
 		categoryColor: suggestion.categoryColor ?? undefined,
@@ -78,11 +100,15 @@ function toTransferSuggestionTransaction(
 		date: suggestion.date,
 		debtSplit: suggestion.debtSplit,
 		description: suggestion.description ?? undefined,
+		destinationAccountRewardsKind: destinationAccount?.rewardsAccount?.kind,
+		destinationAccountType: destinationAccount?.type,
 		destinationFinancialAccountId,
 		destinationName,
 		id: suggestion.id,
 		isHidden: suggestion.isHidden,
 		isSynced: true,
+		originAccountRewardsKind: originAccount?.rewardsAccount?.kind,
+		originAccountType: originAccount?.type,
 		originFinancialAccountId,
 		originName,
 		source: "FINANCIAL_ACCOUNT",
@@ -262,6 +288,16 @@ export function TransactionImportReviewDialog({
 			account.name || account.institution?.name || "Conta sem nome",
 		]),
 	);
+	const accountDetails = new Map(
+		(accounts.data ?? []).map(account => [
+			account.id,
+			{
+				name: account.name || account.institution?.name || "Conta sem nome",
+				rewardsAccount: account.rewardsAccount,
+				type: account.type,
+			},
+		]),
+	);
 	const remainingItemCount = transactionImport.data?.items.length ?? 0;
 	const remainingItemCountLabel = `${remainingItemCount} ${remainingItemCount === 1 ? "transação restante" : "transações restantes"}`;
 	const setDateCollapsed = (date: string, collapsed: boolean) => {
@@ -373,7 +409,7 @@ export function TransactionImportReviewDialog({
 												onViewTransferSuggestion={suggestion =>
 													setTransferSuggestionDecision({ item, suggestion })
 												}
-												transaction={toTransaction(item, accountNames)}
+												transaction={toTransaction(item, accountDetails)}
 											/>
 										))}
 									</ImportReviewDateSection>
@@ -460,11 +496,11 @@ export function TransactionImportReviewDialog({
 			<TransferSuggestionDecisionDialog
 				counterpartTransaction={
 					transferSuggestionDecision
-						? toTransferSuggestionTransaction(transferSuggestionDecision.suggestion, accountNames)
+						? toTransferSuggestionTransaction(transferSuggestionDecision.suggestion, accountDetails)
 						: null
 				}
 				currentTransaction={
-					transferSuggestionDecision ? toTransaction(transferSuggestionDecision.item, accountNames) : null
+					transferSuggestionDecision ? toTransaction(transferSuggestionDecision.item, accountDetails) : null
 				}
 				onAccept={() => {
 					if (!transferSuggestionDecision) return;
