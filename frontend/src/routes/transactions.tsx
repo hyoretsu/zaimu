@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { HiArrowDown, HiArrowsRightLeft, HiArrowUp, HiPlus } from "react-icons/hi2";
-import { LuFileUp } from "react-icons/lu";
+import { LuArrowLeftRight, LuFileUp } from "react-icons/lu";
 import {
 	ImportTransactionsDialog,
 	PendingTransactionImportsNotice,
@@ -58,6 +58,28 @@ function TransactionsPage() {
 		enabled: editingPurchase !== null,
 		queryFn: () => dataService.creditCards.getAll(),
 		queryKey: ["credit-cards"],
+	});
+	const transferSuggestions = (transactionsQuery.data ?? []).flatMap((transaction, index, all) =>
+		all
+			.slice(index + 1)
+			.flatMap(counterpart =>
+				transaction.date.slice(0, 10) === counterpart.date.slice(0, 10) &&
+				Number(transaction.amount) === Number(counterpart.amount) &&
+				((transaction.type === "EXPENSE" && counterpart.type === "INCOME") ||
+					(transaction.type === "INCOME" && counterpart.type === "EXPENSE")) &&
+				transaction.originFinancialAccountId !== counterpart.destinationFinancialAccountId
+					? [{ counterpart, transaction }]
+					: [],
+			),
+	);
+	const acceptTransferSuggestion = useMutation({
+		mutationFn: ({ counterpart, transaction }: { counterpart: Transaction; transaction: Transaction }) =>
+			dataService.transactions.acceptTransferSuggestion(transaction.id, counterpart.id),
+		onError: error => showToast(error.message, "negative"),
+		onSuccess: async () => {
+			await queryClient.invalidateQueries({ queryKey: ["transactions"] });
+			showToast("Movimentos combinados como transferência.", "positive");
+		},
 	});
 
 	const groupedTransactions = transactionsQuery.data
@@ -190,7 +212,13 @@ function TransactionsPage() {
 				}
 				key={transaction.id}
 				metadataPrefix={
-					transactionTime ? (
+					transferSuggestions.some(
+						item => item.transaction.id === transaction.id || item.counterpart.id === transaction.id,
+					) ? (
+						<span className="inline-flex items-center gap-1 text-primary text-xs">
+							<LuArrowLeftRight /> Transferência sugerida
+						</span>
+					) : transactionTime ? (
 						<span className="text-muted-foreground text-xs">{transactionTime}</span>
 					) : undefined
 				}
@@ -234,6 +262,38 @@ function TransactionsPage() {
 				title="Transações"
 			/>
 			<PendingTransactionImportsNotice onReview={setReviewingImportId} />
+			{transferSuggestions.length ? (
+				<section className="rounded-2xl border border-primary/40 bg-primary/10 p-4">
+					<div className="flex items-center gap-3">
+						<LuArrowLeftRight className="text-primary" />
+						<div>
+							<p className="font-semibold">Transferências sugeridas</p>
+							<p className="text-muted-foreground text-sm">
+								{transferSuggestions.length}{" "}
+								{transferSuggestions.length === 1 ? "par encontrado" : "pares encontrados"} no mesmo dia.
+							</p>
+						</div>
+					</div>
+					<div className="mt-3 space-y-2">
+						{transferSuggestions.map(({ counterpart, transaction }) => (
+							<Button
+								className="w-full cursor-pointer justify-between"
+								disabled={acceptTransferSuggestion.isPending}
+								key={`${transaction.id}-${counterpart.id}`}
+								onClick={() => acceptTransferSuggestion.mutate({ counterpart, transaction })}
+								variant="outline"
+							>
+								<span className="min-w-0 truncate">
+									{transaction.description || "Saída"} ↔ {counterpart.description || "Entrada"}
+								</span>
+								<span className="shrink-0">
+									<LuArrowLeftRight /> Combinar
+								</span>
+							</Button>
+						))}
+					</div>
+				</section>
+			) : null}
 
 			<div className="grid gap-2 rounded-2xl border bg-card p-2 sm:grid-cols-4 min-[440px]:grid-cols-2">
 				{typeOptions.map(option => (

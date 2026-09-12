@@ -2571,6 +2571,12 @@ export const dataService = {
 
 	// ============== TRANSACTIONS ==============
 	transactions: {
+		async acceptTransferSuggestion(id: string, counterpartId: string): Promise<{ success: true }> {
+			if (isGuestMode()) throw new Error("Conecte sua conta para combinar transferências.");
+			return fetchWithAuth(`/transactions/${id}/transfer-suggestions/${counterpartId}/accept`, {
+				method: "POST",
+			});
+		},
 		async create(
 			data: Omit<Transaction, "createdAt" | "debtSplit" | "id"> & {
 				debtSplit?: DebtSplitInput;

@@ -22,7 +22,7 @@ import { DebtSplitInputDTO } from "~/modules/debts/infra/elysia/DebtSplitsDTO";
 import { materializeSalaryTransactions } from "~/modules/salaries/application/materialize-salary-transactions";
 import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { HttpException } from "~/shared/errors";
-import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
+import { db, executeStatement, queryFirst, queryRows, withTransaction } from "~/shared/infra/sql";
 
 const transactionColumns = [
 	"id",
@@ -62,6 +62,95 @@ function resolveTransactionTime(value: string | null | undefined): string | null
 }
 
 export const TransactionsController = new Elysia({ prefix: "/transactions" })
+	.post(
+		"/:id/transfer-suggestions/:counterpartId/accept",
+		async ({ params, request }) => {
+			const userId = await requireUserId(request);
+			await Promise.all([
+				assertTransactionOwnership(params.id, userId),
+				assertTransactionOwnership(params.counterpartId, userId),
+			]);
+			const transactions = await queryRows(
+				db.sql.public.Transaction.select(...transactionColumns)
+					.where((fields, functions) => functions.in(fields.id, [params.id, params.counterpartId]))
+					.build(),
+			);
+			if (transactions.length !== 2) throw new HttpException("Sugestão de transferência não encontrada", 404);
+			const [left, right] = transactions;
+			if (
+				left.date.toISOString().slice(0, 10) !== right.date.toISOString().slice(0, 10) ||
+				Number(left.amount) !== Number(right.amount) ||
+				!(
+					(left.type === "EXPENSE" && right.type === "INCOME") ||
+					(left.type === "INCOME" && right.type === "EXPENSE")
+				)
+			)
+				throw new HttpException("Sugestão de transferência não encontrada", 404);
+			const references = await queryRows(
+				db.sql.public.TransactionExternalReference.select("externalId", "financialAccountId", "transactionId")
+					.where((fields, functions) => functions.in(fields.transactionId, [left.id, right.id]))
+					.build(),
+			);
+			const accountFor = (transactionId: string) =>
+				references.find(reference => reference.transactionId === transactionId)?.financialAccountId;
+			const outgoing = left.type === "EXPENSE" ? left : right;
+			const incoming = left.type === "INCOME" ? left : right;
+			const outgoingAccountId = accountFor(outgoing.id);
+			const incomingAccountId = accountFor(incoming.id);
+			if (!outgoingAccountId || !incomingAccountId || outgoingAccountId === incomingAccountId)
+				throw new HttpException("Sugestão de transferência não encontrada", 404);
+			const retained = left.createdAt <= right.createdAt ? left : right;
+			const removed = retained.id === left.id ? right : left;
+			await withTransaction(async transaction => {
+				await transaction.executeStatement(
+					transaction.db.sql.public.TagAssignment.delete()
+						.where((fields, functions) =>
+							functions.and(
+								functions.eq(fields.entityType, tagEntityType.transaction),
+								functions.eq(fields.entityId, retained.id),
+							),
+						)
+						.build(),
+				);
+				await transaction.executeStatement(
+					transaction.db.sql.public.Transaction.delete()
+						.where((fields, functions) => functions.eq(fields.id, removed.id))
+						.build(),
+				);
+				await transaction.executeStatement(
+					transaction.db.sql.public.Transaction.update({
+						categoryId: null,
+						creditCardStatementId: null,
+						destinationFinancialAccountId: incomingAccountId,
+						originFinancialAccountId: outgoingAccountId,
+						storeName: null,
+						type: "TRANSFER",
+						updatedAt: new Date(),
+					})
+						.where((fields, functions) => functions.eq(fields.id, retained.id))
+						.build(),
+				);
+				const removedReferences = references.filter(reference => reference.transactionId === removed.id);
+				if (removedReferences.length)
+					await transaction.executeStatement(
+						transaction.db.sql.public.TransactionExternalReference.insert(
+							removedReferences.map(reference => ({
+								externalId: reference.externalId,
+								financialAccountId: reference.financialAccountId,
+								transactionId: retained.id,
+							})),
+						).build(),
+					);
+			});
+			return { success: true };
+		},
+		{
+			params: t.Object({
+				counterpartId: t.String({ maxLength: 36, minLength: 1 }),
+				id: t.String({ maxLength: 36, minLength: 1 }),
+			}),
+		},
+	)
 	.get(
 		"/",
 		async ({ query, request }) => {
