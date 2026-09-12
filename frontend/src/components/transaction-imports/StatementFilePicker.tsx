@@ -5,12 +5,15 @@ import { RequiredMark } from "@/components/ui/RequiredMark";
 
 export function StatementFilePicker({
 	file,
+	inputId = "transaction-import-file",
+	label = "Extrato em PDF",
 	onFileChange,
 }: {
 	file: File | null;
+	inputId?: string;
+	label?: string;
 	onFileChange: (file: File | null) => void;
 }) {
-	const inputId = "transaction-import-file";
 	const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
 		onFileChange(event.currentTarget.files?.[0] ?? null);
 	};
@@ -19,7 +22,7 @@ export function StatementFilePicker({
 		<div className="grid content-start gap-2">
 			<Label htmlFor={inputId}>
 				<span>
-					Extrato em PDF <RequiredMark />
+					{label} <RequiredMark />
 				</span>
 			</Label>
 			<input

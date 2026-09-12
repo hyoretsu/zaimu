@@ -27,6 +27,7 @@ namespace public {
     loans             Loan[]
     salaries          Salary[]
     subscriptions     Subscription[]
+    creditCardImports CreditCardImport[]
     transactionImports TransactionImport[]
     transactionImportTransferSuggestionRejections TransactionImportTransferSuggestionRejection[]
     authAccounts      AuthAccount[]
@@ -83,6 +84,7 @@ namespace public {
     createdAt         Timestamp(3)       @default(now())
     updatedAt         Timestamp(3)       @default(now())
     creditPurchases   CreditPurchase[]
+    creditCardImportItems CreditCardImportItem[]
     recurringPayments RecurringPayment[]
     transactions      Transaction[]
     transactionImportItems TransactionImportItem[]
@@ -229,6 +231,7 @@ namespace public {
     updatedAt            Timestamp(3)          @default(now())
     creditCardHistories  CreditCardHistory[]
     creditCardStatements CreditCardStatement[]
+    creditCardImports    CreditCardImport[]
     financialAccount     FinancialAccount      @relation(name: "CreditCard_accountId_fkey", fields: [financialAccountId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditCard_accountId_fkey")
     cashbackAccount      FinancialAccount?     @relation(name: "CreditCard_cashbackAccountId_fkey", fields: [cashbackAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditCard_cashbackAccountId_fkey", index: false)
 
@@ -310,7 +313,8 @@ namespace public {
 		cashbackYieldReferencePercentage Numeric(7, 4)?
 		cashbackYieldPeriod              pg.enum(CashbackYieldPeriod)?
 		subscriptionId          VarChar(36)?
-		subscriptionOccurrenceDate Date?
+    subscriptionOccurrenceDate Date?
+    externalId              VarChar(200)?
     createdAt               Timestamp(3)            @default(now())
     updatedAt               Timestamp(3)            @default(now())
     creditPurchaseHistories CreditPurchaseHistory[]
@@ -331,6 +335,7 @@ namespace public {
 		@@index([cashbackAccountId], map: "CreditPurchase_cashbackAccountId_idx")
 		@@index([settledByPurchaseId], map: "CreditPurchase_settledByPurchaseId_idx")
 		@@index([refundOfPurchaseId], map: "CreditPurchase_refundOfPurchaseId_idx")
+		@@index([externalId], map: "CreditPurchase_externalId_key", unique: true)
 
     @@map("CreditPurchase")
   }
@@ -774,6 +779,49 @@ namespace public {
     @@map("TransactionExternalReference")
   }
 
+  model CreditCardImport {
+    id            VarChar(36)                   @id(map: "CreditCardImport_pkey") @default(dbgenerated("cuid2()"))
+    userId        VarChar(36)
+    creditCardId  VarChar(36)
+    provider      pg.enum(CreditCardImportProvider)
+    status        pg.enum(TransactionImportStatus) @default("PENDING")
+    fileName      VarChar(255)
+    statementDate Date
+    dueDate       Date
+    createdAt     Timestamp(3)                  @default(now())
+    updatedAt     Timestamp(3)                  @default(now())
+    user          User                          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditCardImport_userId_fkey", index: false)
+    creditCard    CreditCard                    @relation(fields: [creditCardId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditCardImport_creditCardId_fkey", index: false)
+    items         CreditCardImportItem[]
+
+    @@index([userId, status, createdAt], map: "CreditCardImport_userId_status_createdAt_idx")
+    @@index([creditCardId], map: "CreditCardImport_creditCardId_idx")
+    @@map("CreditCardImport")
+  }
+
+  model CreditCardImportItem {
+    id                 VarChar(36)     @id(map: "CreditCardImportItem_pkey") @default(dbgenerated("cuid2()"))
+    creditCardImportId VarChar(36)
+    externalId         VarChar(200)
+    purchaseDate       Date
+    description        VarChar(500)
+    storeName          VarChar(200)?
+    totalAmount        Numeric(12, 2)
+    installments       SmallInt        @default(1)
+    currentInstallment SmallInt        @default(1)
+    installmentAmount  Numeric(12, 2)
+    categoryId         VarChar(36)?
+    isSelected         Boolean         @default(true)
+    createdAt          Timestamp(3)    @default(now())
+    updatedAt          Timestamp(3)    @default(now())
+    creditCardImport   CreditCardImport @relation(fields: [creditCardImportId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditCardImportItem_importId_fkey", index: false)
+    category           Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditCardImportItem_categoryId_fkey", index: false)
+
+    @@index([creditCardImportId, purchaseDate], map: "CreditCardImportItem_importId_purchaseDate_idx")
+    @@index([externalId], map: "CreditCardImportItem_externalId_idx")
+    @@map("CreditCardImportItem")
+  }
+
   model TransactionImport {
     id                 VarChar(36)                         @id(map: "TransactionImport_pkey") @default(dbgenerated("cuid2()"))
     userId             VarChar(36)
@@ -967,6 +1015,10 @@ namespace public {
     BANCO_DO_BRASIL = "BANCO_DO_BRASIL"
     INTER = "INTER"
     PICPAY = "PICPAY"
+  }
+
+  native_enum CreditCardImportProvider {
+    MERCADO_PAGO = "MERCADO_PAGO"
   }
 
   native_enum TransactionImportItemType {

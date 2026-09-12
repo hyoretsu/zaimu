@@ -1,0 +1,455 @@
+[
+	{
+		"execute": [
+			{
+				"description": "create enum type \"CreditCardImportProvider\"",
+				"params": [],
+				"sql": "CREATE TYPE \"public\".\"CreditCardImportProvider\" AS ENUM ('MERCADO_PAGO')"
+			}
+		],
+		"id": "createNativeEnumType.CreditCardImportProvider",
+		"label": "Create enum type \"CreditCardImportProvider\"",
+		"operationClass": "additive",
+		"postcheck": [],
+		"precheck": [],
+		"target": {
+			"details": {
+				"name": "CreditCardImportProvider",
+				"objectType": "type",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"CreditCardImport\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"CreditCardImport\" (\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"creditCardId\" character varying(36) NOT NULL,\n  \"dueDate\" date NOT NULL,\n  \"fileName\" character varying(255) NOT NULL,\n  \"id\" character varying(36) DEFAULT (cuid2()) NOT NULL,\n  \"provider\" \"CreditCardImportProvider\" NOT NULL,\n  \"statementDate\" date NOT NULL,\n  \"status\" \"TransactionImportStatus\" DEFAULT 'PENDING'::\"TransactionImportStatus\" NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"userId\" character varying(36) NOT NULL,\n  CONSTRAINT \"CreditCardImport_pkey\" PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.CreditCardImport",
+		"label": "Create table \"CreditCardImport\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"CreditCardImport\" exists",
+				"params": ["\"public\".\"CreditCardImport\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"CreditCardImport\" does not exist",
+				"params": ["\"public\".\"CreditCardImport\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"CreditCardImport\"",
+		"target": {
+			"details": {
+				"name": "CreditCardImport",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"CreditCardImportItem\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"CreditCardImportItem\" (\n  \"categoryId\" character varying(36),\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"creditCardImportId\" character varying(36) NOT NULL,\n  \"currentInstallment\" int2 DEFAULT 1 NOT NULL,\n  \"description\" character varying(500) NOT NULL,\n  \"externalId\" character varying(200) NOT NULL,\n  \"id\" character varying(36) DEFAULT (cuid2()) NOT NULL,\n  \"installmentAmount\" numeric(12,2) NOT NULL,\n  \"installments\" int2 DEFAULT 1 NOT NULL,\n  \"isSelected\" bool DEFAULT true NOT NULL,\n  \"purchaseDate\" date NOT NULL,\n  \"storeName\" character varying(200),\n  \"totalAmount\" numeric(12,2) NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  CONSTRAINT \"CreditCardImportItem_pkey\" PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.CreditCardImportItem",
+		"label": "Create table \"CreditCardImportItem\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"CreditCardImportItem\" exists",
+				"params": ["\"public\".\"CreditCardImportItem\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"CreditCardImportItem\" does not exist",
+				"params": ["\"public\".\"CreditCardImportItem\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"CreditCardImportItem\"",
+		"target": {
+			"details": {
+				"name": "CreditCardImportItem",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"externalId\"",
+				"sql": "ALTER TABLE \"public\".\"CreditPurchase\" ADD COLUMN \"externalId\" character varying(200)"
+			}
+		],
+		"id": "column.public.CreditPurchase.externalId",
+		"label": "Add column \"externalId\" to \"CreditPurchase\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"externalId\" exists",
+				"params": ["public", "CreditPurchase", "externalId"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"externalId\" is missing",
+				"params": ["public", "CreditPurchase", "externalId"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "externalId",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditPurchase"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"CreditCardImport_creditCardId_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"CreditCardImport_creditCardId_idx\" ON \"public\".\"CreditCardImport\" (\"creditCardId\")"
+			}
+		],
+		"id": "index.CreditCardImport.CreditCardImport_creditCardId_idx",
+		"label": "Create index \"CreditCardImport_creditCardId_idx\" on \"CreditCardImport\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"CreditCardImport_creditCardId_idx\" exists",
+				"params": ["\"public\".\"CreditCardImport_creditCardId_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"CreditCardImport_creditCardId_idx\" does not exist",
+				"params": ["\"public\".\"CreditCardImport_creditCardId_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditCardImport_creditCardId_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "CreditCardImport"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"CreditCardImport_userId_status_createdAt_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"CreditCardImport_userId_status_createdAt_idx\" ON \"public\".\"CreditCardImport\" (\"userId\", \"status\", \"createdAt\")"
+			}
+		],
+		"id": "index.CreditCardImport.CreditCardImport_userId_status_createdAt_idx",
+		"label": "Create index \"CreditCardImport_userId_status_createdAt_idx\" on \"CreditCardImport\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"CreditCardImport_userId_status_createdAt_idx\" exists",
+				"params": ["\"public\".\"CreditCardImport_userId_status_createdAt_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"CreditCardImport_userId_status_createdAt_idx\" does not exist",
+				"params": ["\"public\".\"CreditCardImport_userId_status_createdAt_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditCardImport_userId_status_createdAt_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "CreditCardImport"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"CreditCardImportItem_externalId_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"CreditCardImportItem_externalId_idx\" ON \"public\".\"CreditCardImportItem\" (\"externalId\")"
+			}
+		],
+		"id": "index.CreditCardImportItem.CreditCardImportItem_externalId_idx",
+		"label": "Create index \"CreditCardImportItem_externalId_idx\" on \"CreditCardImportItem\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"CreditCardImportItem_externalId_idx\" exists",
+				"params": ["\"public\".\"CreditCardImportItem_externalId_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"CreditCardImportItem_externalId_idx\" does not exist",
+				"params": ["\"public\".\"CreditCardImportItem_externalId_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditCardImportItem_externalId_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "CreditCardImportItem"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"CreditCardImportItem_importId_purchaseDate_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"CreditCardImportItem_importId_purchaseDate_idx\" ON \"public\".\"CreditCardImportItem\" (\"creditCardImportId\", \"purchaseDate\")"
+			}
+		],
+		"id": "index.CreditCardImportItem.CreditCardImportItem_importId_purchaseDate_idx",
+		"label": "Create index \"CreditCardImportItem_importId_purchaseDate_idx\" on \"CreditCardImportItem\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"CreditCardImportItem_importId_purchaseDate_idx\" exists",
+				"params": ["\"public\".\"CreditCardImportItem_importId_purchaseDate_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"CreditCardImportItem_importId_purchaseDate_idx\" does not exist",
+				"params": ["\"public\".\"CreditCardImportItem_importId_purchaseDate_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditCardImportItem_importId_purchaseDate_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "CreditCardImportItem"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"CreditPurchase_externalId_key\"",
+				"params": [],
+				"sql": "CREATE UNIQUE INDEX \"CreditPurchase_externalId_key\" ON \"public\".\"CreditPurchase\" (\"externalId\")"
+			}
+		],
+		"id": "index.CreditPurchase.CreditPurchase_externalId_key",
+		"label": "Create index \"CreditPurchase_externalId_key\" on \"CreditPurchase\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"CreditPurchase_externalId_key\" exists",
+				"params": ["\"public\".\"CreditPurchase_externalId_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"CreditPurchase_externalId_key\" does not exist",
+				"params": ["\"public\".\"CreditPurchase_externalId_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditPurchase_externalId_key",
+				"objectType": "index",
+				"schema": "public",
+				"table": "CreditPurchase"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"CreditCardImport_userId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"CreditCardImport\"\nADD CONSTRAINT \"CreditCardImport_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"user\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.CreditCardImport.CreditCardImport_userId_fkey",
+		"label": "Add foreign key \"CreditCardImport_userId_fkey\" on \"CreditCardImport\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"CreditCardImport_userId_fkey\" exists",
+				"params": ["CreditCardImport_userId_fkey", "public", "\"public\".\"CreditCardImport\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"CreditCardImport_userId_fkey\" does not exist",
+				"params": ["CreditCardImport_userId_fkey", "public", "\"public\".\"CreditCardImport\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditCardImport_userId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "CreditCardImport"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"CreditCardImport_creditCardId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"CreditCardImport\"\nADD CONSTRAINT \"CreditCardImport_creditCardId_fkey\"\nFOREIGN KEY (\"creditCardId\")\nREFERENCES \"public\".\"CreditCard\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.CreditCardImport.CreditCardImport_creditCardId_fkey",
+		"label": "Add foreign key \"CreditCardImport_creditCardId_fkey\" on \"CreditCardImport\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"CreditCardImport_creditCardId_fkey\" exists",
+				"params": ["CreditCardImport_creditCardId_fkey", "public", "\"public\".\"CreditCardImport\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"CreditCardImport_creditCardId_fkey\" does not exist",
+				"params": ["CreditCardImport_creditCardId_fkey", "public", "\"public\".\"CreditCardImport\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditCardImport_creditCardId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "CreditCardImport"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"CreditCardImportItem_importId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"CreditCardImportItem\"\nADD CONSTRAINT \"CreditCardImportItem_importId_fkey\"\nFOREIGN KEY (\"creditCardImportId\")\nREFERENCES \"public\".\"CreditCardImport\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.CreditCardImportItem.CreditCardImportItem_importId_fkey",
+		"label": "Add foreign key \"CreditCardImportItem_importId_fkey\" on \"CreditCardImportItem\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"CreditCardImportItem_importId_fkey\" exists",
+				"params": [
+					"CreditCardImportItem_importId_fkey",
+					"public",
+					"\"public\".\"CreditCardImportItem\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"CreditCardImportItem_importId_fkey\" does not exist",
+				"params": [
+					"CreditCardImportItem_importId_fkey",
+					"public",
+					"\"public\".\"CreditCardImportItem\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditCardImportItem_importId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "CreditCardImportItem"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"CreditCardImportItem_categoryId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"CreditCardImportItem\"\nADD CONSTRAINT \"CreditCardImportItem_categoryId_fkey\"\nFOREIGN KEY (\"categoryId\")\nREFERENCES \"public\".\"Category\" (\"id\")\nON DELETE SET NULL\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.CreditCardImportItem.CreditCardImportItem_categoryId_fkey",
+		"label": "Add foreign key \"CreditCardImportItem_categoryId_fkey\" on \"CreditCardImportItem\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"CreditCardImportItem_categoryId_fkey\" exists",
+				"params": [
+					"CreditCardImportItem_categoryId_fkey",
+					"public",
+					"\"public\".\"CreditCardImportItem\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"CreditCardImportItem_categoryId_fkey\" does not exist",
+				"params": [
+					"CreditCardImportItem_categoryId_fkey",
+					"public",
+					"\"public\".\"CreditCardImportItem\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditCardImportItem_categoryId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "CreditCardImportItem"
+			},
+			"id": "postgres"
+		}
+	}
+]

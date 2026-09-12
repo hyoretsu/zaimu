@@ -9,6 +9,9 @@ import { useAuthStore } from "@/stores/auth";
 import type {
 	Category,
 	CreditCard,
+	CreditCardImport,
+	CreditCardImportCreateResult,
+	CreditCardImportItem,
 	CreditCardStatement,
 	CreditCardStatementDetail,
 	CreditPurchase,
@@ -670,6 +673,73 @@ export const dataService = {
 			});
 			await localCategories.put(category, category.id);
 			return category;
+		},
+	},
+
+	creditCardImports: {
+		async approve(id: string): Promise<{ created: number }> {
+			if (isGuestMode()) throw new Error("Conecte sua conta para importar faturas.");
+			return fetchWithAuth<{ created: number }>(`/credit-card-imports/${id}/approve`, { method: "POST" });
+		},
+		async approveItem(importId: string, itemId: string): Promise<{ created: number }> {
+			if (isGuestMode()) throw new Error("Conecte sua conta para importar faturas.");
+			return fetchWithAuth<{ created: number }>(`/credit-card-imports/${importId}/items/${itemId}/approve`, {
+				method: "POST",
+			});
+		},
+		async create({
+			creditCardId,
+			file,
+			provider,
+		}: {
+			creditCardId: string;
+			file: File;
+			provider: CreditCardImport["provider"];
+		}): Promise<CreditCardImportCreateResult> {
+			if (isGuestMode()) throw new Error("Conecte sua conta para importar faturas.");
+			const form = new FormData();
+			form.set("creditCardId", creditCardId);
+			form.set("file", file);
+			form.set("provider", provider);
+			return fetchWithAuth<CreditCardImportCreateResult>("/credit-card-imports", {
+				body: form,
+				method: "POST",
+			});
+		},
+		async delete(id: string): Promise<void> {
+			if (isGuestMode()) throw new Error("Conecte sua conta para importar faturas.");
+			await fetchWithAuth(`/credit-card-imports/${id}`, { method: "DELETE" });
+		},
+		async get(id: string): Promise<CreditCardImport> {
+			if (isGuestMode()) throw new Error("Conecte sua conta para importar faturas.");
+			return fetchWithAuth<CreditCardImport>(`/credit-card-imports/${id}`);
+		},
+		async getPending(): Promise<CreditCardImport[]> {
+			if (isGuestMode()) return [];
+			return fetchWithAuth<CreditCardImport[]>("/credit-card-imports");
+		},
+		async updateItem(
+			importId: string,
+			itemId: string,
+			data: Partial<
+				Pick<
+					CreditCardImportItem,
+					| "currentInstallment"
+					| "description"
+					| "installments"
+					| "isSelected"
+					| "purchaseDate"
+					| "storeName"
+					| "tagIds"
+					| "totalAmount"
+				>
+			>,
+		): Promise<CreditCardImport> {
+			if (isGuestMode()) throw new Error("Conecte sua conta para importar faturas.");
+			return fetchWithAuth<CreditCardImport>(`/credit-card-imports/${importId}/items/${itemId}`, {
+				body: JSON.stringify(data),
+				method: "PATCH",
+			});
 		},
 	},
 

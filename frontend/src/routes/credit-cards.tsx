@@ -1,7 +1,12 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { LuCreditCard, LuPlus } from "react-icons/lu";
+import { LuCreditCard, LuFileUp, LuPlus } from "react-icons/lu";
+import {
+	CreditCardImportReviewDialog,
+	ImportCreditCardStatementDialog,
+	PendingCreditCardImportsNotice,
+} from "@/components/credit-card-imports";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageContainer } from "@/components/ui/PageContainer";
@@ -26,6 +31,8 @@ function CreditCardsPage() {
 	const [selectedCard, setSelectedCard] = useState<CreditCard | null>(null);
 	const [statementsCard, setStatementsCard] = useState<CreditCard | null>(null);
 	const [isCreateCardOpen, setIsCreateCardOpen] = useState(false);
+	const [isImportOpen, setIsImportOpen] = useState(false);
+	const [reviewingImportId, setReviewingImportId] = useState<string | null>(null);
 	const cards = useQuery({
 		enabled: hasAccess,
 		queryFn: () => dataService.creditCards.getAll(),
@@ -87,14 +94,25 @@ function CreditCardsPage() {
 		<PageContainer className="grid gap-8">
 			<PageHeader
 				actions={
-					<Button className="h-11 cursor-pointer" onClick={() => setIsCreateCardOpen(true)}>
-						<LuPlus /> Novo cartão
-					</Button>
+					<div className="flex flex-wrap justify-end gap-2">
+						<Button
+							className="h-11 cursor-pointer"
+							disabled={!cards.data?.length}
+							onClick={() => setIsImportOpen(true)}
+							variant="outline"
+						>
+							<LuFileUp /> Importar fatura
+						</Button>
+						<Button className="h-11 cursor-pointer" onClick={() => setIsCreateCardOpen(true)}>
+							<LuPlus /> Novo cartão
+						</Button>
+					</div>
 				}
 				description="Acompanhe limite, previsão de fatura e parcelamentos."
 				eyebrow="Crédito"
 				title="Cartões e compras"
 			/>
+			<PendingCreditCardImportsNotice onReview={setReviewingImportId} />
 			<section className="grid gap-4 sm:grid-cols-2">
 				<div className="rounded-2xl bg-brand-yellow p-5 text-brand-ink shadow-card">
 					<p className="text-brand-ink/60 text-sm">Limite total</p>
@@ -169,6 +187,17 @@ function CreditCardsPage() {
 				open={isCreateCardOpen}
 				pending={createCard.isPending}
 				showTrigger={false}
+			/>
+			<ImportCreditCardStatementDialog
+				cards={cards.data ?? []}
+				onImported={setReviewingImportId}
+				onOpenChange={setIsImportOpen}
+				open={isImportOpen}
+			/>
+			<CreditCardImportReviewDialog
+				importId={reviewingImportId}
+				onOpenChange={open => !open && setReviewingImportId(null)}
+				open={reviewingImportId !== null}
 			/>
 		</PageContainer>
 	);

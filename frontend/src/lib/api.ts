@@ -314,6 +314,41 @@ export interface TransactionImportCreateResult {
 	transactionImport: TransactionImport | null;
 }
 
+export interface CreditCardImportItem {
+	id: string;
+	categoryId?: string | null;
+	createdAt: string;
+	currentInstallment: number;
+	description: string;
+	installmentAmount: number;
+	installments: number;
+	isSelected: boolean;
+	purchaseDate: string;
+	storeName?: string | null;
+	tagIds: string[];
+	tags: Tag[];
+	totalAmount: number;
+	updatedAt: string;
+}
+
+export interface CreditCardImport {
+	id: string;
+	creditCardId: string;
+	createdAt: string;
+	dueDate: string;
+	fileName: string;
+	items: CreditCardImportItem[];
+	provider: "MERCADO_PAGO";
+	statementDate: string;
+	status: "PENDING" | "APPROVED";
+	updatedAt: string;
+}
+
+export interface CreditCardImportCreateResult {
+	creditCardImport: CreditCardImport | null;
+	ignoredCount: number;
+}
+
 export interface Tag {
 	id: string;
 	name: string;

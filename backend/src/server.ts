@@ -5,6 +5,7 @@ import {
 	InstitutionsController,
 } from "./modules/accounts/infra";
 import { CategoriesController } from "./modules/categories/infra";
+import { CreditCardImportsController } from "./modules/credit-card-imports/infra";
 import { CreditCardsController } from "./modules/creditCards/infra";
 import { DashboardController } from "./modules/dashboard/infra";
 import { DebtsController } from "./modules/debts/infra";
@@ -25,6 +26,7 @@ export const server = app.use([
 	FinancialAccountYieldsController,
 	TransactionsController,
 	TransactionImportsController,
+	CreditCardImportsController,
 	CreditCardsController,
 	LoansController,
 	DebtsController,
