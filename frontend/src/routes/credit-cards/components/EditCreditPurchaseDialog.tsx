@@ -122,7 +122,7 @@ export function EditCreditPurchaseDialog({
 						{onRefund ? (
 							<Button className="cursor-pointer" onClick={onRefund} type="button" variant="outline">
 								<LuUndo2 />
-								{purchase.hasRefund ? "Editar compra" : "Reembolsar compra"}
+								{purchase.hasRefund ? "Editar reembolso" : "Reembolsar compra"}
 							</Button>
 						) : null}
 						<form className="grid gap-5" onSubmit={submit}>

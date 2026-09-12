@@ -160,6 +160,24 @@ function TransactionsPage() {
 			showToast("Reembolso registrado e faturas recalculadas.", "positive");
 		},
 	});
+	const deleteRefundPurchase = useMutation({
+		mutationFn: (transaction: Transaction) => {
+			if (!transaction.creditCardId || !transaction.refund) throw new Error("Reembolso não encontrado");
+			return dataService.creditCards.deletePurchase(transaction.creditCardId, transaction.refund.id);
+		},
+		onError: error =>
+			showToast(error instanceof Error ? error.message : "Não foi possível excluir o reembolso.", "negative"),
+		onSuccess: async () => {
+			setRefundingPurchase(null);
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: ["credit-card-statement"] }),
+				queryClient.invalidateQueries({ queryKey: ["credit-card-statements"] }),
+				queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
+			]);
+			showToast("Reembolso excluído e faturas recalculadas.", "positive");
+		},
+	});
 	const renderTransaction = (transaction: Transaction) => {
 		const transactionTime = formatLocalTime(transaction.time);
 
@@ -351,12 +369,15 @@ function TransactionsPage() {
 			) : null}
 			{refundingPurchase?.creditCardId && refundingPurchase.installmentAmount !== undefined ? (
 				<RefundCreditPurchaseDialog
+					onDelete={async () => {
+						await deleteRefundPurchase.mutateAsync(refundingPurchase);
+					}}
 					onOpenChange={open => !open && setRefundingPurchase(null)}
 					onSubmit={async data => {
 						await refundPurchase.mutateAsync({ data, transaction: refundingPurchase });
 					}}
 					open
-					pending={refundPurchase.isPending}
+					pending={refundPurchase.isPending || deleteRefundPurchase.isPending}
 					purchase={transactionToCreditPurchase(refundingPurchase)}
 					refund={refundingPurchase.refund}
 				/>

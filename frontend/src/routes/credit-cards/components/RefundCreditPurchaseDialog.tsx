@@ -1,5 +1,6 @@
 import { type SyntheticEvent, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import { DateField } from "@/components/ui/DateField";
 import {
 	Dialog,
@@ -16,6 +17,7 @@ const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "curre
 
 export function RefundCreditPurchaseDialog({
 	onOpenChange,
+	onDelete,
 	onSubmit,
 	open,
 	pending,
@@ -23,6 +25,7 @@ export function RefundCreditPurchaseDialog({
 	refund,
 }: {
 	onOpenChange: (open: boolean) => void;
+	onDelete?: () => Promise<unknown>;
 	onSubmit: (data: { amount?: number; date?: string }) => Promise<unknown>;
 	open: boolean;
 	pending: boolean;
@@ -75,6 +78,18 @@ export function RefundCreditPurchaseDialog({
 						>
 							Descartar
 						</Button>
+						{refund && onDelete ? (
+							<ConfirmActionButton
+								aria-label="Excluir reembolso"
+								className="cursor-pointer"
+								confirmation="Excluir este reembolso permanentemente?"
+								disabled={pending}
+								onConfirm={onDelete}
+								variant="destructive"
+							>
+								Excluir
+							</ConfirmActionButton>
+						) : null}
 						<Button
 							className="cursor-pointer"
 							disabled={pending || (amountValue !== undefined && amountValue <= 0)}
