@@ -18,6 +18,11 @@ const chartConfig = {
 	expenses: { color: "var(--color-rose-500)", label: "Saídas" },
 	income: { color: "var(--color-emerald-500)", label: "Entradas" },
 } satisfies ChartConfig;
+const tooltipValueColor = {
+	endingBalance: "text-primary",
+	expenses: "text-rose-500",
+	income: "text-emerald-500",
+} as const;
 
 export function DashboardComparisonChart({ comparison }: Pick<Dashboard, "comparison">) {
 	const data = comparison.map(item => ({
@@ -49,7 +54,9 @@ export function DashboardComparisonChart({ comparison }: Pick<Dashboard, "compar
 											<span className="text-muted-foreground">
 												{chartConfig[name as keyof typeof chartConfig]?.label ?? name}
 											</span>
-											<span className="font-medium font-mono text-foreground tabular-nums">
+											<span
+												className={`font-medium font-mono tabular-nums ${tooltipValueColor[name as keyof typeof tooltipValueColor] ?? "text-foreground"}`}
+											>
 												{currency.format(Number(value))}
 											</span>
 										</div>
