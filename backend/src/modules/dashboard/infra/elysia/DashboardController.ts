@@ -1,9 +1,10 @@
-import { addDays, endOfDay, startOfDay } from "date-fns";
+import { addDays, startOfDay } from "date-fns";
 import Elysia, { t } from "elysia";
 import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
 import { requireUserId } from "~/modules/auth";
 import {
 	buildComparisonPeriods,
+	comparisonRangeEnd,
 	type DashboardForecast,
 	dateKey,
 	nextOccurrence,
@@ -262,9 +263,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 			date: startOfDay(transaction.date),
 			type: transaction.type as "EXPENSE" | "INCOME" | "TRANSFER",
 		}));
-		const duration =
-			Math.round((startOfDay(range.end).getTime() - startOfDay(range.start).getTime()) / 86_400_000) + 1;
-		const comparisonEnd = endOfDay(addDays(range.end, duration * 6));
+		const comparisonEnd = comparisonRangeEnd(range);
 		const projectionStart = addDays(today, 1);
 		const linkedTransactionDates = new Set(
 			normalizedTransactions.flatMap(transaction => {

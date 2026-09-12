@@ -24,13 +24,31 @@ const tooltipValueColor = {
 	income: "text-emerald-500",
 } as const;
 
+function formatTooltipLabel(item: Dashboard["comparison"][number]) {
+	const start = new Date(`${item.startDate}T12:00:00`);
+	const end = new Date(`${item.endDate}T12:00:00`);
+	const isFullMonth =
+		start.getDate() === 1 &&
+		start.getFullYear() === end.getFullYear() &&
+		start.getMonth() === end.getMonth() &&
+		end.getDate() === new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate();
+	if (isFullMonth) {
+		const label = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(start);
+		return `${label[0]?.toUpperCase()}${label.slice(1)}`;
+	}
+	return `${item.startDate} até ${item.endDate}`;
+}
+
+function formatAxisLabel(startDate: string) {
+	const date = new Date(`${startDate}T12:00:00`);
+	return `${date.getDate()}/${date.getMonth() + 1}/${String(date.getFullYear()).slice(-2)}`;
+}
+
 export function DashboardComparisonChart({ comparison }: Pick<Dashboard, "comparison">) {
 	const data = comparison.map(item => ({
 		...item,
 		endingBalance: item.initialBalance + item.net,
-		label: new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short" }).format(
-			new Date(`${item.startDate}T12:00:00`),
-		),
+		label: formatAxisLabel(item.startDate),
 	}));
 	return (
 		<Card>
@@ -63,7 +81,7 @@ export function DashboardComparisonChart({ comparison }: Pick<Dashboard, "compar
 									)}
 									labelFormatter={(_, payload) => {
 										const item = payload[0]?.payload as (typeof data)[number] | undefined;
-										return item ? `${item.startDate} até ${item.endDate}` : "";
+										return item ? formatTooltipLabel(item) : "";
 									}}
 								/>
 							}

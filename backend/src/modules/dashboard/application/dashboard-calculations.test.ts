@@ -66,7 +66,8 @@ test("builds thirteen contiguous inclusive comparison intervals", () => {
 	const base = resolveDashboardRange("2026-03-01", "2026-03-31", new Date("2026-03-10T00:00:00"));
 	const periods = buildComparisonPeriods({ base, initialBalance: 100, transactions: [] });
 	expect(periods).toHaveLength(13);
-	expect(periods[0]?.endDate).toBe("2025-09-26");
+	expect(periods[0]?.endDate).toBe("2025-09-30");
 	expect(periods[6]?.startDate).toBe("2026-03-01");
-	expect(periods[12]?.endDate).toBe("2026-10-03");
+	expect(periods[12]?.startDate).toBe("2026-09-01");
+	expect(periods[12]?.endDate).toBe("2026-09-30");
 });

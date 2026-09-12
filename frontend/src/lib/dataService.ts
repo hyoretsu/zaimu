@@ -1333,8 +1333,18 @@ export const dataService = {
 						})),
 				].toSorted((left, right) => left.date.localeCompare(right.date));
 				const duration = Math.round((rangeEnd.getTime() - rangeStart.getTime()) / 86_400_000) + 1;
-				const comparisonEnd = new Date(rangeEnd);
-				comparisonEnd.setDate(comparisonEnd.getDate() + duration * 6);
+				const calendarMonths =
+					rangeStart.getDate() === 1 &&
+					rangeEnd.getDate() === new Date(rangeEnd.getFullYear(), rangeEnd.getMonth() + 1, 0).getDate()
+						? (rangeEnd.getFullYear() - rangeStart.getFullYear()) * 12 +
+							rangeEnd.getMonth() -
+							rangeStart.getMonth() +
+							1
+						: undefined;
+				const comparisonEnd = calendarMonths
+					? new Date(rangeStart.getFullYear(), rangeStart.getMonth() + calendarMonths * 7, 0, 23, 59, 59)
+					: new Date(rangeEnd);
+				if (!calendarMonths) comparisonEnd.setDate(comparisonEnd.getDate() + duration * 6);
 				const projectionStart = new Date(now);
 				projectionStart.setHours(12, 0, 0, 0);
 				projectionStart.setDate(projectionStart.getDate() + 1);
@@ -1461,10 +1471,14 @@ export const dataService = {
 					...projectedMovements,
 				];
 				const comparison = Array.from({ length: 13 }, (_, index) => {
-					const start = new Date(rangeStart);
-					start.setDate(start.getDate() + (index - 6) * duration);
-					const end = new Date(start);
-					end.setDate(end.getDate() + duration - 1);
+					const start = calendarMonths
+						? new Date(rangeStart.getFullYear(), rangeStart.getMonth() + (index - 6) * calendarMonths, 1)
+						: new Date(rangeStart);
+					if (!calendarMonths) start.setDate(start.getDate() + (index - 6) * duration);
+					const end = calendarMonths
+						? new Date(start.getFullYear(), start.getMonth() + calendarMonths, 0, 23, 59, 59)
+						: new Date(start);
+					if (!calendarMonths) end.setDate(end.getDate() + duration - 1);
 					const movements = comparisonTransactions.filter(
 						item => item.type !== "TRANSFER" && item.date >= start && item.date <= end,
 					);

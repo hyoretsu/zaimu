@@ -1,4 +1,15 @@
-import { addDays, addMonths, addWeeks, addYears, endOfDay, format, isAfter, startOfDay } from "date-fns";
+import {
+	addDays,
+	addMonths,
+	addWeeks,
+	addYears,
+	endOfDay,
+	endOfMonth,
+	format,
+	isAfter,
+	isSameDay,
+	startOfDay,
+} from "date-fns";
 
 export type ForecastDirection = "INCOME" | "EXPENSE";
 export type ForecastType = "CARD" | "LOAN" | "RECURRING" | "SALARY" | "SUBSCRIPTION" | "TRANSACTION";
@@ -105,10 +116,15 @@ export function buildComparisonPeriods(input: {
 	const duration =
 		Math.round((startOfDay(input.base.end).getTime() - startOfDay(input.base.start).getTime()) / 86_400_000) +
 		1;
+	const calendarMonths = completeCalendarMonths(input.base);
 	return Array.from({ length: 13 }, (_, index) => {
 		const offset = index - 6;
-		const start = addDays(input.base.start, offset * duration);
-		const end = endOfDay(addDays(start, duration - 1));
+		const start = calendarMonths
+			? startOfDay(addMonths(input.base.start, offset * calendarMonths))
+			: addDays(input.base.start, offset * duration);
+		const end = calendarMonths
+			? endOfDay(endOfMonth(addMonths(start, calendarMonths - 1)))
+			: endOfDay(addDays(start, duration - 1));
 		const movements = input.transactions.filter(
 			item => item.date >= start && item.date <= end && item.type !== "TRANSFER",
 		);
@@ -125,6 +141,14 @@ export function buildComparisonPeriods(input: {
 			...period({ end, expenses, income, initialBalance: input.initialBalance + before, start }),
 		};
 	});
+}
+
+export function comparisonRangeEnd(base: { end: Date; start: Date }) {
+	const calendarMonths = completeCalendarMonths(base);
+	if (calendarMonths) return endOfDay(endOfMonth(addMonths(base.start, calendarMonths * 6)));
+	const duration =
+		Math.round((startOfDay(base.end).getTime() - startOfDay(base.start).getTime()) / 86_400_000) + 1;
+	return endOfDay(addDays(base.end, duration * 6));
 }
 
 export function period(input: {
@@ -152,4 +176,11 @@ function monthlyDate(reference: Date, day: number) {
 function yearlyDate(reference: Date, day: number) {
 	const lastDay = new Date(reference.getFullYear(), reference.getMonth() + 1, 0).getDate();
 	return new Date(reference.getFullYear(), reference.getMonth(), Math.min(day, lastDay));
+}
+
+function completeCalendarMonths(base: { end: Date; start: Date }) {
+	const start = startOfDay(base.start);
+	const end = startOfDay(base.end);
+	if (start.getDate() !== 1 || !isSameDay(end, endOfMonth(end))) return undefined;
+	return (end.getFullYear() - start.getFullYear()) * 12 + end.getMonth() - start.getMonth() + 1;
 }
