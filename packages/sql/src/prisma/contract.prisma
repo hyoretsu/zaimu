@@ -1027,6 +1027,9 @@ namespace public {
   native_enum CreditCardImportProvider {
     MERCADO_PAGO = "MERCADO_PAGO"
     BRADESCO = "BRADESCO"
+    INTER = "INTER"
+    NUBANK = "NUBANK"
+    PICPAY = "PICPAY"
   }
 
   native_enum TransactionImportItemType {

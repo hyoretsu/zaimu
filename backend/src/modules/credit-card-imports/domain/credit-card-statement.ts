@@ -1,4 +1,4 @@
-export type CreditCardImportProvider = "MERCADO_PAGO" | "BRADESCO";
+export type CreditCardImportProvider = "MERCADO_PAGO" | "BRADESCO" | "INTER" | "NUBANK" | "PICPAY";
 
 export interface CreditCardStatementPurchase {
 	currentInstallment: number;

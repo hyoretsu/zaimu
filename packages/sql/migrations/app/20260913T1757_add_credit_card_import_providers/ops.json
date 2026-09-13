@@ -1,0 +1,119 @@
+[
+	{
+		"execute": [
+			{
+				"description": "add value \"INTER\" to enum type \"CreditCardImportProvider\"",
+				"sql": "ALTER TYPE \"public\".\"CreditCardImportProvider\" ADD VALUE 'INTER'"
+			}
+		],
+		"id": "addNativeEnumValue.CreditCardImportProvider.INTER",
+		"label": "Add value \"INTER\" to enum type \"CreditCardImportProvider\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify value \"INTER\" exists on enum type \"CreditCardImportProvider\"",
+				"params": ["public", "CreditCardImportProvider", "INTER"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure enum type \"CreditCardImportProvider\" exists",
+				"params": ["public", "CreditCardImportProvider", "e"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_type\" AS \"t\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"t\".\"typtype\" = $3)) AS \"result\""
+			},
+			{
+				"description": "ensure value \"INTER\" is absent from enum type \"CreditCardImportProvider\"",
+				"params": ["public", "CreditCardImportProvider", "INTER"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\""
+			}
+		],
+		"summary": "Adds value \"INTER\" to enum type \"CreditCardImportProvider\". A newly added enum value cannot be used until the transaction that adds it commits, so a migration that both appends a value and uses it in the same step will fail at apply.",
+		"target": {
+			"details": {
+				"name": "CreditCardImportProvider",
+				"objectType": "type",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add value \"NUBANK\" to enum type \"CreditCardImportProvider\"",
+				"sql": "ALTER TYPE \"public\".\"CreditCardImportProvider\" ADD VALUE 'NUBANK'"
+			}
+		],
+		"id": "addNativeEnumValue.CreditCardImportProvider.NUBANK",
+		"label": "Add value \"NUBANK\" to enum type \"CreditCardImportProvider\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify value \"NUBANK\" exists on enum type \"CreditCardImportProvider\"",
+				"params": ["public", "CreditCardImportProvider", "NUBANK"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure enum type \"CreditCardImportProvider\" exists",
+				"params": ["public", "CreditCardImportProvider", "e"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_type\" AS \"t\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"t\".\"typtype\" = $3)) AS \"result\""
+			},
+			{
+				"description": "ensure value \"NUBANK\" is absent from enum type \"CreditCardImportProvider\"",
+				"params": ["public", "CreditCardImportProvider", "NUBANK"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\""
+			}
+		],
+		"summary": "Adds value \"NUBANK\" to enum type \"CreditCardImportProvider\". A newly added enum value cannot be used until the transaction that adds it commits, so a migration that both appends a value and uses it in the same step will fail at apply.",
+		"target": {
+			"details": {
+				"name": "CreditCardImportProvider",
+				"objectType": "type",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add value \"PICPAY\" to enum type \"CreditCardImportProvider\"",
+				"sql": "ALTER TYPE \"public\".\"CreditCardImportProvider\" ADD VALUE 'PICPAY'"
+			}
+		],
+		"id": "addNativeEnumValue.CreditCardImportProvider.PICPAY",
+		"label": "Add value \"PICPAY\" to enum type \"CreditCardImportProvider\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify value \"PICPAY\" exists on enum type \"CreditCardImportProvider\"",
+				"params": ["public", "CreditCardImportProvider", "PICPAY"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure enum type \"CreditCardImportProvider\" exists",
+				"params": ["public", "CreditCardImportProvider", "e"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_type\" AS \"t\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"t\".\"typtype\" = $3)) AS \"result\""
+			},
+			{
+				"description": "ensure value \"PICPAY\" is absent from enum type \"CreditCardImportProvider\"",
+				"params": ["public", "CreditCardImportProvider", "PICPAY"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\""
+			}
+		],
+		"summary": "Adds value \"PICPAY\" to enum type \"CreditCardImportProvider\". A newly added enum value cannot be used until the transaction that adds it commits, so a migration that both appends a value and uses it in the same step will fail at apply.",
+		"target": {
+			"details": {
+				"name": "CreditCardImportProvider",
+				"objectType": "type",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	}
+]

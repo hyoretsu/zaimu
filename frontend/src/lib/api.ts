@@ -358,7 +358,7 @@ export interface CreditCardImport {
 	dueDate: string;
 	fileName: string;
 	items: CreditCardImportItem[];
-	provider: "MERCADO_PAGO" | "BRADESCO";
+	provider: "MERCADO_PAGO" | "BRADESCO" | "INTER" | "NUBANK" | "PICPAY";
 	statementDate: string;
 	status: "PENDING" | "APPROVED";
 	updatedAt: string;

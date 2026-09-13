@@ -21,7 +21,10 @@ import { showToast } from "@/stores";
 
 const providerOptions = [
 	{ label: "Bradesco", value: "BRADESCO" },
+	{ label: "Inter", value: "INTER" },
 	{ label: "Mercado Pago", value: "MERCADO_PAGO" },
+	{ label: "Nubank", value: "NUBANK" },
+	{ label: "PicPay", value: "PICPAY" },
 ] as const satisfies ReadonlyArray<{
 	label: string;
 	value: CreditCardImport["provider"];

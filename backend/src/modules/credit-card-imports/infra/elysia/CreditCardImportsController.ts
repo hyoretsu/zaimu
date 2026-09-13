@@ -419,7 +419,13 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 				creditCardId: t.String({ maxLength: 36, minLength: 1 }),
 				file: t.File(),
 				password: t.Optional(t.String({ maxLength: 128 })),
-				provider: t.Union([t.Literal("MERCADO_PAGO"), t.Literal("BRADESCO")]),
+				provider: t.Union([
+					t.Literal("MERCADO_PAGO"),
+					t.Literal("BRADESCO"),
+					t.Literal("INTER"),
+					t.Literal("NUBANK"),
+					t.Literal("PICPAY"),
+				]),
 			}),
 		},
 	)
