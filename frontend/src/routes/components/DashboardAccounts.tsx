@@ -9,6 +9,8 @@ import type { Dashboard } from "@/lib/api";
 import { getFinancialAccountSummaryName } from "@/lib/financial-account";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
+const mobilePreviewLimit = 4;
+const desktopPreviewLimit = 9;
 
 export function DashboardAccounts({ accounts }: Pick<Dashboard, "accounts">) {
 	const [open, setOpen] = useState(false);
@@ -18,7 +20,7 @@ export function DashboardAccounts({ accounts }: Pick<Dashboard, "accounts">) {
 			name: account.name,
 			type: account.type,
 		});
-	const ordered = accounts.toSorted((left, right) => getName(left).localeCompare(getName(right), "pt-BR"));
+	const ordered = accounts.toSorted((left, right) => right.balance - left.balance);
 	return (
 		<>
 			<Card>
@@ -31,8 +33,17 @@ export function DashboardAccounts({ accounts }: Pick<Dashboard, "accounts">) {
 					</Button>
 				</CardHeader>
 				<CardContent className="space-y-3">
-					{ordered.slice(0, 4).map(account => (
-						<div className="flex items-center justify-between rounded-xl border p-3" key={account.id}>
+					{ordered.map((account, index) => (
+						<div
+							className={
+								index >= desktopPreviewLimit
+									? "hidden"
+									: index >= mobilePreviewLimit
+										? "hidden items-center justify-between rounded-xl border p-3 lg:flex"
+										: "flex items-center justify-between rounded-xl border p-3"
+							}
+							key={account.id}
+						>
 							<span>{getName(account)}</span>
 							<strong>{currency.format(account.balance)}</strong>
 						</div>

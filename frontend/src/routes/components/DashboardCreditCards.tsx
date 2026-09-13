@@ -17,7 +17,7 @@ export function DashboardCreditCards({
 	const [open, setOpen] = useState(false);
 	const getName = (card: Dashboard["creditCards"][number]) =>
 		getCreditCardDisplayName({ accountName: card.name, institutionName: card.institutionName });
-	const ordered = creditCards.toSorted((left, right) => getName(left).localeCompare(getName(right), "pt-BR"));
+	const ordered = creditCards.toSorted((left, right) => right.availableLimit - left.availableLimit);
 	const rows = (items: typeof ordered) =>
 		items.map(card => (
 			<div className="flex items-start justify-between gap-5 rounded-xl border p-3" key={card.id}>

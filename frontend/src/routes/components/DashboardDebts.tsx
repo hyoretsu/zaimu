@@ -8,13 +8,27 @@ import { ScrollArea } from "@/components/ui/ScrollArea";
 import type { Dashboard } from "@/lib/api";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
+const mobilePreviewLimit = 4;
+const desktopPreviewLimit = 5;
 
 export function DashboardDebts({ debts }: Pick<Dashboard, "debts">) {
 	const [open, setOpen] = useState(false);
-	const people = debts.people.toSorted((left, right) => Math.abs(right.balance) - Math.abs(left.balance));
-	const rows = (items: typeof people) =>
-		items.map(person => (
-			<div className="flex items-center justify-between gap-6 rounded-xl border p-3" key={person.id}>
+	const people = debts.people.toSorted((left, right) => {
+		if (left.direction !== right.direction) return left.direction === "OWES" ? -1 : 1;
+		return Math.abs(right.balance) - Math.abs(left.balance);
+	});
+	const rows = (items: typeof people, isPreview = false) =>
+		items.map((person, index) => (
+			<div
+				className={
+					isPreview && index >= desktopPreviewLimit
+						? "hidden"
+						: isPreview && index >= mobilePreviewLimit
+							? "hidden items-center justify-between gap-6 rounded-xl border p-3 lg:flex"
+							: "flex items-center justify-between gap-6 rounded-xl border p-3"
+				}
+				key={person.id}
+			>
 				<span className="min-w-0 truncate font-medium">{person.name}</span>
 				<strong
 					className={`shrink-0 tabular-nums ${person.balance >= 0 ? "text-emerald-600" : "text-rose-600"}`}
@@ -36,7 +50,7 @@ export function DashboardDebts({ debts }: Pick<Dashboard, "debts">) {
 					</Button>
 				</CardHeader>
 				<CardContent className="space-y-3">
-					{rows(people.slice(0, 4))}
+					{rows(people, true)}
 					{!people.length && <p className="text-muted-foreground text-sm">Nenhuma dívida em aberto.</p>}
 				</CardContent>
 			</Card>
