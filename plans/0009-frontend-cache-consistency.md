@@ -1,0 +1,36 @@
+# Consistência dos caches do frontend
+
+## Objetivo
+
+Isolar caches por identidade, centralizar chaves e invalidações, corrigir atualizações após mutações e tornar a persistência IndexedDB segura entre sessões sem alterar contratos HTTP.
+
+## Restrições
+
+- Manter `staleTime` de cinco minutos.
+- Não limpar o cache global como estratégia de atualização.
+- Não sincronizar dados remotamente durante a implementação.
+- Não transferir dados de convidado para conta.
+- Preservar preferências globais de tema.
+- Preservar registros legados ambíguos, excluindo-os de leituras e sincronizações automáticas.
+
+## Etapas
+
+- [x] 1. Fundação: identidade estável, chaves tipadas e matriz central de invalidação.
+- [ ] 2. Persistência: particionamento IndexedDB, migração idempotente, snapshots e transações confiáveis.
+- [ ] 3. Sessões: cancelamento/remoção do cache anterior, bloqueio durante inicialização e reinício de estado visual.
+- [ ] 4. Consultas e mutações: migrar domínios para chaves/invalidações centralizadas e remover duplicidade de contas.
+- [ ] 5. Importações: pendências, detalhe, encerramento, skeleton/erro/retry e derivados financeiros.
+- [ ] 6. Seleções: guardar IDs e derivar objetos atuais sem perder rascunhos de edição.
+- [ ] 7. Validação: testes de identidade, IndexedDB, matriz de invalidação e fluxos de importação; build frontend.
+
+## Progresso
+
+### 2026-09-13
+
+- Inventário iniciado.
+- Confirmada chave duplicada para contas (`accounts` e `financial-accounts`).
+- Confirmadas chaves sem identidade e invalidações distribuídas pelos componentes.
+- Confirmado IndexedDB v4 com `localId` global e resolução antes do fechamento de transações.
+- Implementadas identidade de cache, chaves tipadas por domínio/parâmetro e matriz central de dependências.
+- Adicionados testes unitários da fundação, incluindo invalidação de variantes inativas e remoção de detalhe encerrado.
+- Próximo: particionar IndexedDB e migrar dados legados atribuíveis.
