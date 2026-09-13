@@ -84,7 +84,7 @@ export function DateField({
 						<LuCalendarDays className="size-4 shrink-0" />
 					</Button>
 				</PopoverTrigger>
-				<PopoverContent align="start" className="w-[20rem] gap-4 p-4">
+				<PopoverContent align="start" className="w-[20rem] gap-4 p-4" portal={false}>
 					<div className="flex items-center justify-between">
 						<Button
 							aria-label="Mês anterior"
