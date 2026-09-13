@@ -13,12 +13,12 @@ import type {
 	Subscription,
 	Transaction,
 } from "@/lib/api";
+import { type CacheIdentity, getCurrentCacheIdentity } from "@/lib/query-cache";
 
 const DB_NAME = "zaimu-local";
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 
-// Store names
-const STORES = {
+const LEGACY_STORES = {
 	accounts: "accounts",
 	categories: "categories",
 	creditCardStatements: "creditCardStatements",
@@ -27,7 +27,7 @@ const STORES = {
 	debtPeople: "debtPeople",
 	debts: "debts",
 	loans: "loans",
-	meta: "meta", // For sync timestamps, etc.
+	meta: "meta",
 	recurringPayments: "recurringPayments",
 	salaries: "salaries",
 	stores: "stores",
@@ -35,355 +35,404 @@ const STORES = {
 	transactions: "transactions",
 } as const;
 
-type StoreName = (typeof STORES)[keyof typeof STORES];
+type StoreDomain = keyof typeof LEGACY_STORES;
+type ScopedStoreName = `scoped-${(typeof LEGACY_STORES)[StoreDomain]}`;
+export type StorageOwner = CacheIdentity;
 
-// Types for local storage with sync metadata
+const scopedStoreName = (domain: StoreDomain): ScopedStoreName => `scoped-${LEGACY_STORES[domain]}`;
+
 export interface LocalData<T> {
 	data: T;
-	localId: string;
-	syncedAt?: number;
-	modifiedAt: number;
 	deleted?: boolean;
+	localId: string;
+	modifiedAt: number;
+	ownerKey: StorageOwner;
+	scopedId: string;
+	syncedAt?: number;
+}
+
+interface LegacyLocalData<T = unknown> {
+	data: T;
+	deleted?: boolean;
+	localId: string;
+	modifiedAt?: number;
+	syncedAt?: number;
 }
 
 let db: IDBDatabase | null = null;
+let migrationPromise: Promise<void> | null = null;
 
-// Initialize the database
-export async function initLocalDb(): Promise<IDBDatabase> {
-	if (db) return db;
+const scopedId = (ownerKey: StorageOwner, localId: string) => `${ownerKey}\u0000${localId}`;
 
+function requireOwner(ownerKey?: StorageOwner): StorageOwner {
+	const capturedOwner = ownerKey ?? getCurrentCacheIdentity();
+	if (!capturedOwner) throw new Error("Identidade local indisponível.");
+	return capturedOwner;
+}
+
+function requestResult<T>(request: IDBRequest<T>): Promise<T> {
 	return new Promise((resolve, reject) => {
-		const request = indexedDB.open(DB_NAME, DB_VERSION);
-
+		request.onsuccess = () => resolve(request.result);
 		request.onerror = () => reject(request.error);
-
-		request.onsuccess = () => {
-			db = request.result;
-			resolve(db);
-		};
-
-		request.onupgradeneeded = event => {
-			const database = (event.target as IDBOpenDBRequest).result;
-
-			// Create object stores with indexes
-			for (const storeName of Object.values(STORES)) {
-				if (!database.objectStoreNames.contains(storeName)) {
-					const store = database.createObjectStore(storeName, { keyPath: "localId" });
-					store.createIndex("syncedAt", "syncedAt", { unique: false });
-					store.createIndex("modifiedAt", "modifiedAt", { unique: false });
-					store.createIndex("deleted", "deleted", { unique: false });
-				}
-			}
-		};
 	});
 }
 
-// Generic CRUD operations
-async function getStore(
-	storeName: StoreName,
-	mode: IDBTransactionMode = "readonly",
-): Promise<IDBObjectStore> {
-	const database = await initLocalDb();
+function transactionDone(transaction: IDBTransaction): Promise<void> {
+	return new Promise((resolve, reject) => {
+		transaction.oncomplete = () => resolve();
+		transaction.onabort = () => reject(transaction.error ?? new Error("Transação IndexedDB cancelada."));
+		transaction.onerror = () => reject(transaction.error ?? new Error("Falha na transação IndexedDB."));
+	});
+}
+
+async function runTransaction<T>(
+	storeName: ScopedStoreName,
+	mode: IDBTransactionMode,
+	operation: (store: IDBObjectStore) => Promise<T>,
+	databaseOverride?: IDBDatabase,
+): Promise<T> {
+	const database = databaseOverride ?? (await initLocalDb());
 	const transaction = database.transaction(storeName, mode);
-	return transaction.objectStore(storeName);
-}
-
-// Get all items from a store
-export async function getAll<T>(storeName: StoreName): Promise<LocalData<T>[]> {
-	const store = await getStore(storeName);
-	return new Promise((resolve, reject) => {
-		const request = store.getAll();
-		request.onsuccess = () => {
-			// Filter out deleted items
-			const results = (request.result as LocalData<T>[]).filter(item => !item.deleted);
-			resolve(results);
-		};
-		request.onerror = () => reject(request.error);
-	});
-}
-
-// Get a single item by ID
-export async function getById<T>(storeName: StoreName, localId: string): Promise<LocalData<T> | undefined> {
-	const store = await getStore(storeName);
-	return new Promise((resolve, reject) => {
-		const request = store.get(localId);
-		request.onsuccess = () => {
-			const result = request.result as LocalData<T> | undefined;
-			if (result?.deleted) {
-				resolve(undefined);
-			} else {
-				resolve(result);
-			}
-		};
-		request.onerror = () => reject(request.error);
-	});
-}
-
-// Add or update an item
-export async function put<T>(storeName: StoreName, data: T, localId?: string): Promise<string> {
-	const store = await getStore(storeName, "readwrite");
-	const id = localId || crypto.randomUUID();
-
-	const localData: LocalData<T> = {
-		data,
-		localId: id,
-		modifiedAt: Date.now(),
-	};
-
-	return new Promise((resolve, reject) => {
-		const request = store.put(localData);
-		request.onsuccess = () => resolve(id);
-		request.onerror = () => reject(request.error);
-	});
-}
-
-// Soft delete (mark as deleted for sync)
-export async function softDelete(storeName: StoreName, localId: string): Promise<void> {
-	const store = await getStore(storeName, "readwrite");
-	return new Promise((resolve, reject) => {
-		const getRequest = store.get(localId);
-		getRequest.onsuccess = () => {
-			const item = getRequest.result;
-			if (item) {
-				item.deleted = true;
-				item.modifiedAt = Date.now();
-				const putRequest = store.put(item);
-				putRequest.onsuccess = () => resolve();
-				putRequest.onerror = () => reject(putRequest.error);
-			} else {
-				resolve();
-			}
-		};
-		getRequest.onerror = () => reject(getRequest.error);
-	});
-}
-
-// Hard delete
-export async function hardDelete(storeName: StoreName, localId: string): Promise<void> {
-	const store = await getStore(storeName, "readwrite");
-	return new Promise((resolve, reject) => {
-		const request = store.delete(localId);
-		request.onsuccess = () => resolve();
-		request.onerror = () => reject(request.error);
-	});
-}
-
-// Get items modified since last sync
-export async function getModifiedSince<T>(storeName: StoreName, since: number): Promise<LocalData<T>[]> {
-	const store = await getStore(storeName);
-	const index = store.index("modifiedAt");
-
-	return new Promise((resolve, reject) => {
-		const range = IDBKeyRange.lowerBound(since, true);
-		const request = index.getAll(range);
-		request.onsuccess = () => resolve(request.result as LocalData<T>[]);
-		request.onerror = () => reject(request.error);
-	});
-}
-
-// Bulk put items (for sync)
-export async function bulkPut<T>(
-	storeName: StoreName,
-	items: Array<{ data: T; localId: string; syncedAt?: number }>,
-): Promise<void> {
-	const store = await getStore(storeName, "readwrite");
-
-	return new Promise((resolve, reject) => {
-		let completed = 0;
-		const total = items.length;
-
-		if (total === 0) {
-			resolve();
-			return;
+	const completion = transactionDone(transaction);
+	try {
+		const result = await operation(transaction.objectStore(storeName));
+		await completion;
+		return result;
+	} catch (error) {
+		try {
+			transaction.abort();
+		} catch {
+			// Transaction may already be complete or aborted.
 		}
-
-		for (const item of items) {
-			const localData: LocalData<T> = {
-				data: item.data,
-				localId: item.localId,
-				modifiedAt: Date.now(),
-				syncedAt: item.syncedAt || Date.now(),
-			};
-
-			const request = store.put(localData);
-			request.onsuccess = () => {
-				completed++;
-				if (completed === total) resolve();
-			};
-			request.onerror = () => reject(request.error);
-		}
-	});
-}
-
-// Clear all data from a store
-export async function clearStore(storeName: StoreName): Promise<void> {
-	const store = await getStore(storeName, "readwrite");
-	return new Promise((resolve, reject) => {
-		const request = store.clear();
-		request.onsuccess = () => resolve();
-		request.onerror = () => reject(request.error);
-	});
-}
-
-// Clear all local data
-export async function clearAllLocalData(): Promise<void> {
-	for (const storeName of Object.values(STORES)) {
-		await clearStore(storeName);
+		await completion.catch(() => undefined);
+		throw error;
 	}
 }
 
-// Export specific store helpers
-export const localAccounts = {
-	bulkPut: (items: Array<{ data: FinancialAccount; localId: string; syncedAt?: number }>) =>
-		bulkPut(STORES.accounts, items),
-	clear: () => clearStore(STORES.accounts),
-	delete: (id: string) => softDelete(STORES.accounts, id),
-	getAll: () => getAll<FinancialAccount>(STORES.accounts),
-	getById: (id: string) => getById<FinancialAccount>(STORES.accounts, id),
-	getModifiedSince: (since: number) => getModifiedSince<FinancialAccount>(STORES.accounts, since),
-	put: (data: FinancialAccount, id?: string) => put(STORES.accounts, data, id),
-};
+function explicitOwner(data: unknown): StorageOwner | null {
+	if (!data || typeof data !== "object") return null;
+	const value = data as Record<string, unknown>;
+	if (typeof value.userId === "string" && value.userId) return `user:${value.userId}`;
+	if (typeof value.ownerId === "string" && value.ownerId) return `user:${value.ownerId}`;
+	if (typeof value.guestId === "string" && value.guestId) return `guest:${value.guestId}`;
+	return null;
+}
 
-export const localCategories = {
-	bulkPut: (items: Array<{ data: Category; localId: string; syncedAt?: number }>) =>
-		bulkPut(STORES.categories, items),
-	clear: () => clearStore(STORES.categories),
-	delete: (id: string) => softDelete(STORES.categories, id),
-	getAll: () => getAll<Category>(STORES.categories),
-	getById: (id: string) => getById<Category>(STORES.categories, id),
-	getModifiedSince: (since: number) => getModifiedSince<Category>(STORES.categories, since),
-	put: (data: Category, id?: string) => put(STORES.categories, data, id),
-};
+const relationshipIds = [
+	"financialAccountId",
+	"originFinancialAccountId",
+	"destinationFinancialAccountId",
+	"creditCardId",
+	"creditCardStatementId",
+	"debtPersonId",
+	"loanId",
+] as const;
 
-export const localStores = {
-	bulkPut: (items: Array<{ data: Store; localId: string; syncedAt?: number }>) =>
-		bulkPut(STORES.stores, items),
-	clear: () => clearStore(STORES.stores),
-	delete: (id: string) => softDelete(STORES.stores, id),
-	getAll: () => getAll<Store>(STORES.stores),
-	getById: (id: string) => getById<Store>(STORES.stores, id),
-	put: (data: Store, id?: string) => put(STORES.stores, data, id),
-};
+function relatedOwners(
+	data: unknown,
+	ownersByRecordId: ReadonlyMap<string, ReadonlySet<StorageOwner>>,
+): Set<StorageOwner> {
+	const owners = new Set<StorageOwner>();
+	if (!data || typeof data !== "object") return owners;
+	const value = data as Record<string, unknown>;
+	for (const relationshipId of relationshipIds) {
+		const id = value[relationshipId];
+		if (typeof id !== "string") continue;
+		for (const owner of ownersByRecordId.get(id) ?? []) owners.add(owner);
+	}
+	return owners;
+}
 
-export const localTransactions = {
-	bulkPut: (items: Array<{ data: Transaction; localId: string; syncedAt?: number }>) =>
-		bulkPut(STORES.transactions, items),
-	clear: () => clearStore(STORES.transactions),
-	delete: (id: string) => softDelete(STORES.transactions, id),
-	getAll: () => getAll<Transaction>(STORES.transactions),
-	getById: (id: string) => getById<Transaction>(STORES.transactions, id),
-	getModifiedSince: (since: number) => getModifiedSince<Transaction>(STORES.transactions, since),
-	put: (data: Transaction, id?: string) => put(STORES.transactions, data, id),
-};
+async function migrateLegacyData(database: IDBDatabase): Promise<void> {
+	const legacyDomains = (Object.keys(LEGACY_STORES) as StoreDomain[]).filter(domain =>
+		database.objectStoreNames.contains(LEGACY_STORES[domain]),
+	);
+	const records = new Map<StoreDomain, LegacyLocalData[]>();
+	for (const domain of legacyDomains) {
+		const transaction = database.transaction(LEGACY_STORES[domain], "readonly");
+		records.set(domain, await requestResult(transaction.objectStore(LEGACY_STORES[domain]).getAll()));
+	}
 
-export const localLoans = {
-	bulkPut: (items: Array<{ data: Loan; localId: string; syncedAt?: number }>) => bulkPut(STORES.loans, items),
-	clear: () => clearStore(STORES.loans),
-	delete: (id: string) => softDelete(STORES.loans, id),
-	getAll: () => getAll<Loan>(STORES.loans),
-	getById: (id: string) => getById<Loan>(STORES.loans, id),
-	getModifiedSince: (since: number) => getModifiedSince<Loan>(STORES.loans, since),
-	put: (data: Loan, id?: string) => put(STORES.loans, data, id),
-};
+	const ownersByRecordId = new Map<string, Set<StorageOwner>>();
+	for (const items of records.values()) {
+		for (const item of items) {
+			const owner = explicitOwner(item.data);
+			if (!owner) continue;
+			const owners = ownersByRecordId.get(item.localId) ?? new Set<StorageOwner>();
+			owners.add(owner);
+			ownersByRecordId.set(item.localId, owners);
+		}
+	}
 
-export const localDebts = {
-	bulkPut: (items: Array<{ data: Debt; localId: string; syncedAt?: number }>) => bulkPut(STORES.debts, items),
-	clear: () => clearStore(STORES.debts),
-	delete: (id: string) => softDelete(STORES.debts, id),
-	getAll: () => getAll<Debt>(STORES.debts),
-	getById: (id: string) => getById<Debt>(STORES.debts, id),
-	getModifiedSince: (since: number) => getModifiedSince<Debt>(STORES.debts, since),
-	put: (data: Debt, id?: string) => put(STORES.debts, data, id),
-};
+	for (const [domain, items] of records) {
+		const attributable = items.flatMap(item => {
+			const directOwner = explicitOwner(item.data);
+			const related = relatedOwners(item.data, ownersByRecordId);
+			const owner = directOwner ?? (related.size === 1 ? [...related][0] : null);
+			return owner ? [{ item, owner }] : [];
+		});
+		if (!attributable.length) continue;
+		await runTransaction(
+			scopedStoreName(domain),
+			"readwrite",
+			async store => {
+				for (const { item, owner } of attributable) {
+					const key = scopedId(owner, item.localId);
+					const existing = await requestResult(store.get(key));
+					if (existing) continue;
+					await requestResult(
+						store.put({
+							...item,
+							modifiedAt: item.modifiedAt ?? Date.now(),
+							ownerKey: owner,
+							scopedId: key,
+						}),
+					);
+				}
+			},
+			database,
+		);
+	}
+}
 
-export const localDebtPeople = {
-	bulkPut: (items: Array<{ data: DebtPerson; localId: string; syncedAt?: number }>) =>
-		bulkPut(STORES.debtPeople, items),
-	clear: () => clearStore(STORES.debtPeople),
-	delete: (id: string) => softDelete(STORES.debtPeople, id),
-	getAll: () => getAll<DebtPerson>(STORES.debtPeople),
-	getById: (id: string) => getById<DebtPerson>(STORES.debtPeople, id),
-	getModifiedSince: (since: number) => getModifiedSince<DebtPerson>(STORES.debtPeople, since),
-	put: (data: DebtPerson, id?: string) => put(STORES.debtPeople, data, id),
-};
+export async function initLocalDb(): Promise<IDBDatabase> {
+	if (db) {
+		await migrationPromise;
+		return db;
+	}
 
-export const localSalaries = {
-	bulkPut: (items: Array<{ data: Salary; localId: string; syncedAt?: number }>) =>
-		bulkPut(STORES.salaries, items),
-	clear: () => clearStore(STORES.salaries),
-	delete: (id: string) => softDelete(STORES.salaries, id),
-	getAll: () => getAll<Salary>(STORES.salaries),
-	getById: (id: string) => getById<Salary>(STORES.salaries, id),
-	getModifiedSince: (since: number) => getModifiedSince<Salary>(STORES.salaries, since),
-	put: (data: Salary, id?: string) => put(STORES.salaries, data, id),
-};
+	const database = await new Promise<IDBDatabase>((resolve, reject) => {
+		const request = indexedDB.open(DB_NAME, DB_VERSION);
+		request.onerror = () => reject(request.error);
+		request.onblocked = () => reject(new Error("Banco local bloqueado por outra aba."));
+		request.onsuccess = () => resolve(request.result);
+		request.onupgradeneeded = () => {
+			for (const domain of Object.keys(LEGACY_STORES) as StoreDomain[]) {
+				const name = scopedStoreName(domain);
+				if (request.result.objectStoreNames.contains(name)) continue;
+				const store = request.result.createObjectStore(name, { keyPath: "scopedId" });
+				store.createIndex("ownerKey", "ownerKey", { unique: false });
+				store.createIndex("syncedAt", "syncedAt", { unique: false });
+				store.createIndex("modifiedAt", "modifiedAt", { unique: false });
+				store.createIndex("deleted", "deleted", { unique: false });
+			}
+		};
+	});
+	database.onversionchange = () => {
+		database.close();
+		db = null;
+		migrationPromise = null;
+	};
+	db = database;
+	migrationPromise = migrateLegacyData(database);
+	await migrationPromise;
+	return database;
+}
 
-export const localSubscriptions = {
-	bulkPut: (items: Array<{ data: Subscription; localId: string; syncedAt?: number }>) =>
-		bulkPut(STORES.subscriptions, items),
-	clear: () => clearStore(STORES.subscriptions),
-	delete: (id: string) => softDelete(STORES.subscriptions, id),
-	getAll: () => getAll<Subscription>(STORES.subscriptions),
-	getById: (id: string) => getById<Subscription>(STORES.subscriptions, id),
-	getModifiedSince: (since: number) => getModifiedSince<Subscription>(STORES.subscriptions, since),
-	put: (data: Subscription, id?: string) => put(STORES.subscriptions, data, id),
-};
+export async function getAll<T>(domain: StoreDomain, ownerKey?: StorageOwner): Promise<LocalData<T>[]> {
+	const owner = requireOwner(ownerKey);
+	return runTransaction(scopedStoreName(domain), "readonly", async store => {
+		const results = (await requestResult(store.index("ownerKey").getAll(owner))) as LocalData<T>[];
+		return results.filter(item => !item.deleted);
+	});
+}
 
-export const localCreditCards = {
-	bulkPut: (items: Array<{ data: CreditCard; localId: string; syncedAt?: number }>) =>
-		bulkPut(STORES.creditCards, items),
-	clear: () => clearStore(STORES.creditCards),
-	delete: (id: string) => softDelete(STORES.creditCards, id),
-	getAll: () => getAll<CreditCard>(STORES.creditCards),
-	getById: (id: string) => getById<CreditCard>(STORES.creditCards, id),
-	put: (data: CreditCard, id?: string) => put(STORES.creditCards, data, id),
-};
+export async function getById<T>(
+	domain: StoreDomain,
+	localId: string,
+	ownerKey?: StorageOwner,
+): Promise<LocalData<T> | undefined> {
+	const owner = requireOwner(ownerKey);
+	return runTransaction(scopedStoreName(domain), "readonly", async store => {
+		const result = (await requestResult(store.get(scopedId(owner, localId)))) as LocalData<T> | undefined;
+		return result?.deleted ? undefined : result;
+	});
+}
 
-export const localCreditCardStatements = {
-	bulkPut: (items: Array<{ data: CreditCardStatement; localId: string; syncedAt?: number }>) =>
-		bulkPut(STORES.creditCardStatements, items),
-	clear: () => clearStore(STORES.creditCardStatements),
-	getAll: () => getAll<CreditCardStatement>(STORES.creditCardStatements),
-	getById: (id: string) => getById<CreditCardStatement>(STORES.creditCardStatements, id),
-	put: (data: CreditCardStatement, id?: string) => put(STORES.creditCardStatements, data, id),
-};
+export async function put<T>(
+	domain: StoreDomain,
+	data: T,
+	localId?: string,
+	ownerKey?: StorageOwner,
+): Promise<string> {
+	const owner = requireOwner(ownerKey);
+	const id = localId ?? crypto.randomUUID();
+	await runTransaction(scopedStoreName(domain), "readwrite", async store => {
+		await requestResult(
+			store.put({
+				data,
+				localId: id,
+				modifiedAt: Date.now(),
+				ownerKey: owner,
+				scopedId: scopedId(owner, id),
+			}),
+		);
+	});
+	return id;
+}
 
-export const localCreditPurchases = {
-	bulkPut: (items: Array<{ data: CreditPurchase; localId: string; syncedAt?: number }>) =>
-		bulkPut(STORES.creditPurchases, items),
-	clear: () => clearStore(STORES.creditPurchases),
-	delete: (id: string) => softDelete(STORES.creditPurchases, id),
-	getAll: () => getAll<CreditPurchase>(STORES.creditPurchases),
-	getById: (id: string) => getById<CreditPurchase>(STORES.creditPurchases, id),
-	put: (data: CreditPurchase, id?: string) => put(STORES.creditPurchases, data, id),
-};
+export async function softDelete(
+	domain: StoreDomain,
+	localId: string,
+	ownerKey?: StorageOwner,
+): Promise<void> {
+	const owner = requireOwner(ownerKey);
+	await runTransaction(scopedStoreName(domain), "readwrite", async store => {
+		const key = scopedId(owner, localId);
+		const item = (await requestResult(store.get(key))) as LocalData<unknown> | undefined;
+		if (!item) return;
+		await requestResult(store.put({ ...item, deleted: true, modifiedAt: Date.now() }));
+	});
+}
 
-export const localRecurringPayments = {
-	bulkPut: (items: Array<{ data: RecurringPayment; localId: string; syncedAt?: number }>) =>
-		bulkPut(STORES.recurringPayments, items),
-	clear: () => clearStore(STORES.recurringPayments),
-	delete: (id: string) => softDelete(STORES.recurringPayments, id),
-	getAll: () => getAll<RecurringPayment>(STORES.recurringPayments),
-	getById: (id: string) => getById<RecurringPayment>(STORES.recurringPayments, id),
-	put: (data: RecurringPayment, id?: string) => put(STORES.recurringPayments, data, id),
-};
+export async function hardDelete(
+	domain: StoreDomain,
+	localId: string,
+	ownerKey?: StorageOwner,
+): Promise<void> {
+	const owner = requireOwner(ownerKey);
+	await runTransaction(scopedStoreName(domain), "readwrite", async store => {
+		await requestResult(store.delete(scopedId(owner, localId)));
+	});
+}
 
-// Meta store for sync state
+export async function getModifiedSince<T>(
+	domain: StoreDomain,
+	since: number,
+	ownerKey?: StorageOwner,
+): Promise<LocalData<T>[]> {
+	return (await getAll<T>(domain, ownerKey)).filter(item => item.modifiedAt > since);
+}
+
+function isLocallyModified(item: LocalData<unknown>): boolean {
+	return item.syncedAt === undefined || item.modifiedAt > item.syncedAt;
+}
+
+export async function bulkPut<T>(
+	domain: StoreDomain,
+	items: Array<{ data: T; localId: string; syncedAt?: number }>,
+	ownerKey?: StorageOwner,
+): Promise<void> {
+	const owner = requireOwner(ownerKey);
+	await runTransaction(scopedStoreName(domain), "readwrite", async store => {
+		for (const item of items) {
+			const key = scopedId(owner, item.localId);
+			const existing = (await requestResult(store.get(key))) as LocalData<T> | undefined;
+			if (existing && isLocallyModified(existing)) continue;
+			const timestamp = item.syncedAt ?? Date.now();
+			await requestResult(
+				store.put({
+					data: item.data,
+					localId: item.localId,
+					modifiedAt: timestamp,
+					ownerKey: owner,
+					scopedId: key,
+					syncedAt: timestamp,
+				}),
+			);
+		}
+	});
+}
+
+export async function replaceRemoteSnapshot<T>(
+	domain: StoreDomain,
+	items: Array<{ data: T; localId: string; syncedAt?: number }>,
+	ownerKey?: StorageOwner,
+): Promise<void> {
+	const owner = requireOwner(ownerKey);
+	const remoteIds = new Set(items.map(item => item.localId));
+	await runTransaction(scopedStoreName(domain), "readwrite", async store => {
+		const existing = (await requestResult(store.index("ownerKey").getAll(owner))) as LocalData<T>[];
+		for (const item of existing) {
+			if (!remoteIds.has(item.localId) && !isLocallyModified(item))
+				await requestResult(store.delete(item.scopedId));
+		}
+		for (const item of items) {
+			const key = scopedId(owner, item.localId);
+			const current = existing.find(record => record.localId === item.localId);
+			if (current && isLocallyModified(current)) continue;
+			const timestamp = item.syncedAt ?? Date.now();
+			await requestResult(
+				store.put({
+					data: item.data,
+					localId: item.localId,
+					modifiedAt: timestamp,
+					ownerKey: owner,
+					scopedId: key,
+					syncedAt: timestamp,
+				}),
+			);
+		}
+	});
+}
+
+export async function clearStore(domain: StoreDomain, ownerKey?: StorageOwner): Promise<void> {
+	const owner = requireOwner(ownerKey);
+	await runTransaction(scopedStoreName(domain), "readwrite", async store => {
+		const keys = await requestResult(store.index("ownerKey").getAllKeys(owner));
+		for (const key of keys) await requestResult(store.delete(key));
+	});
+}
+
+export async function clearAllLocalData(ownerKey?: StorageOwner): Promise<void> {
+	const owner = requireOwner(ownerKey);
+	for (const domain of Object.keys(LEGACY_STORES) as StoreDomain[]) await clearStore(domain, owner);
+}
+
+interface SnapshotItem<T> {
+	data: T;
+	localId: string;
+	syncedAt?: number;
+}
+
+function createLocalStore<T>(domain: StoreDomain) {
+	return {
+		bulkPut: (items: SnapshotItem<T>[], owner?: StorageOwner) => bulkPut(domain, items, owner),
+		clear: (owner?: StorageOwner) => clearStore(domain, owner),
+		delete: (id: string, owner?: StorageOwner) => softDelete(domain, id, owner),
+		getAll: (owner?: StorageOwner) => getAll<T>(domain, owner),
+		getById: (id: string, owner?: StorageOwner) => getById<T>(domain, id, owner),
+		getModifiedSince: (since: number, owner?: StorageOwner) => getModifiedSince<T>(domain, since, owner),
+		put: (data: T, id?: string, owner?: StorageOwner) => put(domain, data, id, owner),
+		replaceSnapshot: (items: SnapshotItem<T>[], owner?: StorageOwner) =>
+			replaceRemoteSnapshot(domain, items, owner),
+	};
+}
+
+export const localAccounts = createLocalStore<FinancialAccount>("accounts");
+export const localCategories = createLocalStore<Category>("categories");
+export const localStores = createLocalStore<Store>("stores");
+export const localTransactions = createLocalStore<Transaction>("transactions");
+export const localLoans = createLocalStore<Loan>("loans");
+export const localDebts = createLocalStore<Debt>("debts");
+export const localDebtPeople = createLocalStore<DebtPerson>("debtPeople");
+export const localSalaries = createLocalStore<Salary>("salaries");
+export const localSubscriptions = createLocalStore<Subscription>("subscriptions");
+export const localCreditCards = createLocalStore<CreditCard>("creditCards");
+export const localCreditCardStatements = createLocalStore<CreditCardStatement>("creditCardStatements");
+export const localCreditPurchases = createLocalStore<CreditPurchase>("creditPurchases");
+export const localRecurringPayments = createLocalStore<RecurringPayment>("recurringPayments");
+
 export const localMeta = {
-	get: async (key: string): Promise<unknown> => {
-		const store = await getStore(STORES.meta);
-		return new Promise((resolve, reject) => {
-			const request = store.get(key);
-			request.onsuccess = () => resolve(request.result?.data);
-			request.onerror = () => reject(request.error);
+	get: async (key: string, ownerKey?: StorageOwner): Promise<unknown> => {
+		const owner = requireOwner(ownerKey);
+		return runTransaction(scopedStoreName("meta"), "readonly", async store => {
+			const result = (await requestResult(store.get(scopedId(owner, key)))) as LocalData<unknown> | undefined;
+			return result?.data;
 		});
 	},
-	set: async (key: string, value: unknown): Promise<void> => {
-		const store = await getStore(STORES.meta, "readwrite");
-		return new Promise((resolve, reject) => {
-			const request = store.put({ data: value, localId: key, modifiedAt: Date.now() });
-			request.onsuccess = () => resolve();
-			request.onerror = () => reject(request.error);
+	set: async (key: string, value: unknown, ownerKey?: StorageOwner): Promise<void> => {
+		const owner = requireOwner(ownerKey);
+		await runTransaction(scopedStoreName("meta"), "readwrite", async store => {
+			await requestResult(
+				store.put({
+					data: value,
+					localId: key,
+					modifiedAt: Date.now(),
+					ownerKey: owner,
+					scopedId: scopedId(owner, key),
+				}),
+			);
 		});
 	},
 };

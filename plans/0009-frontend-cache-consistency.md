@@ -16,7 +16,7 @@ Isolar caches por identidade, centralizar chaves e invalidações, corrigir atua
 ## Etapas
 
 - [x] 1. Fundação: identidade estável, chaves tipadas e matriz central de invalidação.
-- [ ] 2. Persistência: particionamento IndexedDB, migração idempotente, snapshots e transações confiáveis.
+- [x] 2. Persistência: particionamento IndexedDB, migração idempotente, snapshots e transações confiáveis.
 - [ ] 3. Sessões: cancelamento/remoção do cache anterior, bloqueio durante inicialização e reinício de estado visual.
 - [ ] 4. Consultas e mutações: migrar domínios para chaves/invalidações centralizadas e remover duplicidade de contas.
 - [ ] 5. Importações: pendências, detalhe, encerramento, skeleton/erro/retry e derivados financeiros.
@@ -33,4 +33,7 @@ Isolar caches por identidade, centralizar chaves e invalidações, corrigir atua
 - Confirmado IndexedDB v4 com `localId` global e resolução antes do fechamento de transações.
 - Implementadas identidade de cache, chaves tipadas por domínio/parâmetro e matriz central de dependências.
 - Adicionados testes unitários da fundação, incluindo invalidação de variantes inativas e remoção de detalhe encerrado.
-- Próximo: particionar IndexedDB e migrar dados legados atribuíveis.
+- IndexedDB atualizado para stores particionadas por proprietário, incluindo metadados e timestamps.
+- Migração copia apenas registros com proprietário explícito ou relação unívoca; legado e registros ambíguos permanecem intactos.
+- Escritas agora resolvem no fechamento da transação; snapshots completos removem somente dados remotos antigos e preservam alterações locais.
+- Próximo: capturar proprietário antes das requisições e tratar troca de sessão.
