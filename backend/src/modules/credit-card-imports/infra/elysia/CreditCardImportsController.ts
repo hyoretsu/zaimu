@@ -34,6 +34,7 @@ async function getPotentialDuplicates(
 		purchaseDate: Date | string;
 		reconciledCreditPurchaseId: null | string;
 		storeName: null | string;
+		totalAmount: number | string;
 	}>,
 ) {
 	const candidates = await queryRows(

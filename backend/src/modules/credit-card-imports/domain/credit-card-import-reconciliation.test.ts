@@ -7,6 +7,7 @@ const imported = {
 	installments: 11,
 	purchaseDate: "2026-04-26",
 	storeName: "Loja Exemplo",
+	totalAmount: 449.9,
 };
 
 describe("matchesExistingCreditPurchase", () => {
@@ -16,8 +17,10 @@ describe("matchesExistingCreditPurchase", () => {
 				description: "Compra manual",
 				existingInstallments: 3,
 				installmentAmount: "40.90",
+				installments: 11,
 				purchaseDate: new Date("2026-04-26T12:00:00"),
 				storeName: "Loja renomeada",
+				totalAmount: "449.90",
 			}),
 		).toBe(true);
 	});
@@ -28,8 +31,10 @@ describe("matchesExistingCreditPurchase", () => {
 				description: imported.description,
 				existingInstallments: 12,
 				installmentAmount: imported.installmentAmount,
+				installments: imported.installments,
 				purchaseDate: imported.purchaseDate,
 				storeName: null,
+				totalAmount: imported.totalAmount,
 			}),
 		).toBe(false);
 	});
@@ -40,8 +45,10 @@ describe("matchesExistingCreditPurchase", () => {
 				description: imported.description,
 				existingInstallments: 3,
 				installmentAmount: 41,
+				installments: imported.installments,
 				purchaseDate: "2026-04-27",
 				storeName: null,
+				totalAmount: imported.totalAmount,
 			}),
 		).toBe(false);
 	});
@@ -52,8 +59,10 @@ describe("matchesExistingCreditPurchase", () => {
 				description: imported.description,
 				existingInstallments: 3,
 				installmentAmount: 41.1,
+				installments: imported.installments,
 				purchaseDate: imported.purchaseDate,
 				storeName: null,
+				totalAmount: imported.totalAmount,
 			}),
 		).toBe(true);
 	});
@@ -64,9 +73,50 @@ describe("matchesExistingCreditPurchase", () => {
 				description: imported.description,
 				existingInstallments: 3,
 				installmentAmount: 41.11,
+				installments: imported.installments,
 				purchaseDate: imported.purchaseDate,
 				storeName: null,
+				totalAmount: imported.totalAmount,
 			}),
 		).toBe(false);
+	});
+
+	test("rejects a purchase with another installment plan or total", () => {
+		expect(
+			matchesExistingCreditPurchase(imported, {
+				description: "Compra manual",
+				existingInstallments: 1,
+				installmentAmount: imported.installmentAmount,
+				installments: 1,
+				purchaseDate: imported.purchaseDate,
+				storeName: "Outra loja",
+				totalAmount: imported.installmentAmount,
+			}),
+		).toBe(false);
+		expect(
+			matchesExistingCreditPurchase(imported, {
+				description: "Compra manual",
+				existingInstallments: 1,
+				installmentAmount: imported.installmentAmount,
+				installments: imported.installments,
+				purchaseDate: imported.purchaseDate,
+				storeName: "Outra loja",
+				totalAmount: 448.8,
+			}),
+		).toBe(false);
+	});
+
+	test("accepts a total that differs only by accumulated installment rounding", () => {
+		expect(
+			matchesExistingCreditPurchase(imported, {
+				description: "Compra manual",
+				existingInstallments: 1,
+				installmentAmount: imported.installmentAmount,
+				installments: imported.installments,
+				purchaseDate: imported.purchaseDate,
+				storeName: "Outra loja",
+				totalAmount: 449.8,
+			}),
+		).toBe(true);
 	});
 });
