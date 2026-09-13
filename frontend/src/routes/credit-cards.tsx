@@ -38,6 +38,7 @@ function CreditCardsPage() {
 		enabled: hasAccess,
 		queryFn: () => dataService.creditCards.getAll(),
 		queryKey: queryKeys.creditCards.list(identity!),
+		retry: 0,
 	});
 	const statementQueries = useQueries({
 		queries:
@@ -135,6 +136,11 @@ function CreditCardsPage() {
 				</div>
 			) : cards.isError ? (
 				<EmptyState
+					action={
+						<Button className="cursor-pointer" onClick={() => cards.refetch()} variant="outline">
+							Tentar novamente
+						</Button>
+					}
 					description="Tente novamente em instantes."
 					icon={<LuCreditCard className="size-7" />}
 					title="Não foi possível carregar cartões"
