@@ -15,4 +15,16 @@ export const CreditCardImportItemUpdateDTO = t.Object({
 
 export const CreditCardImportItemReconcileDTO = t.Object({
 	creditPurchaseId: t.Nullable(t.String({ maxLength: 36, minLength: 1 })),
+	sources: t.Optional(
+		t.Partial(
+			t.Object({
+				debtSplit: t.Union([t.Literal("duplicate"), t.Literal("imported")]),
+				description: t.Union([t.Literal("duplicate"), t.Literal("imported")]),
+				purchaseDate: t.Union([t.Literal("duplicate"), t.Literal("imported")]),
+				storeName: t.Union([t.Literal("duplicate"), t.Literal("imported")]),
+				tagIds: t.Union([t.Literal("duplicate"), t.Literal("imported")]),
+				time: t.Union([t.Literal("duplicate"), t.Literal("imported")]),
+			}),
+		),
+	),
 });

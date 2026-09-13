@@ -338,12 +338,15 @@ export interface CreditCardImportItem {
 export interface CreditCardImportPurchaseDuplicate {
 	id: string;
 	currentInstallment: number;
+	debtSplit?: DebtSplit | null;
 	description: string;
 	existingInstallments: number;
 	installmentAmount: number;
 	installments: number;
 	purchaseDate: string;
 	storeName?: string | null;
+	tagIds: string[];
+	tags: Tag[];
 	time?: string | null;
 	totalAmount: number;
 }

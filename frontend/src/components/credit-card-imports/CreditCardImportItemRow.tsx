@@ -1,4 +1,4 @@
-import { LuCheck, LuGitMerge, LuPencil } from "react-icons/lu";
+import { LuCheck, LuCircleAlert, LuGitMerge, LuPencil } from "react-icons/lu";
 import { TransactionListItem } from "@/components/transactions";
 import type { CreditCardImportItem, Transaction } from "@/lib/api";
 import { formatLocalDate } from "@/lib/date";
@@ -51,6 +51,16 @@ export function CreditCardImportItemRow({
 	return (
 		<TransactionListItem
 			actionItems={[
+				...(item.duplicates.length
+					? [
+							{
+								disabled,
+								icon: <LuCircleAlert />,
+								onClick: onReconcile,
+								text: "Resolver duplicata",
+							},
+						]
+					: []),
 				{
 					disabled: disabled || item.duplicates.length > 0,
 					icon: <LuCheck />,
@@ -58,7 +68,7 @@ export function CreditCardImportItemRow({
 					text: "Aprovar",
 				},
 				{
-					disabled: disabled || (item.duplicates.length === 0 && !item.reconciledCreditPurchaseId),
+					disabled: disabled || !item.reconciledCreditPurchaseId,
 					icon: <LuGitMerge />,
 					onClick: onReconcile,
 					text: item.reconciledCreditPurchaseId ? "Desfazer conciliação" : "Conciliar",
@@ -67,14 +77,20 @@ export function CreditCardImportItemRow({
 			]}
 			forceCompactActions
 			metadataPrefix={
-				<span className={item.duplicates.length ? "text-warning text-xs" : "text-muted-foreground text-xs"}>
-					{formatLocalDate(item.purchaseDate)} ·{" "}
-					{item.duplicates.length
-						? "Possíveis parcelas existentes"
-						: item.reconciledCreditPurchaseId
-							? "Parcelas conciliadas"
-							: "Pendente de aprovação"}
-				</span>
+				<div className="flex flex-wrap items-center gap-1.5">
+					<span className="text-muted-foreground text-xs">{formatLocalDate(item.purchaseDate)}</span>
+					{item.duplicates.length ? (
+						<span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-amber-700 text-xs">
+							<LuCircleAlert /> Possível duplicata
+						</span>
+					) : item.reconciledCreditPurchaseId ? (
+						<span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-emerald-700 text-xs">
+							<LuCheck /> Conciliada
+						</span>
+					) : (
+						<span className="text-muted-foreground text-xs">Pendente de aprovação</span>
+					)}
+				</div>
 			}
 			transaction={transaction}
 		/>

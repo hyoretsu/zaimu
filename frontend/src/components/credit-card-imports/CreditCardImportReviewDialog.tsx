@@ -85,8 +85,15 @@ export function CreditCardImportReviewDialog({
 		},
 	});
 	const reconcileItem = useMutation({
-		mutationFn: ({ creditPurchaseId, itemId }: { creditPurchaseId: string | null; itemId: string }) =>
-			dataService.creditCardImports.reconcileItem(importId!, itemId, creditPurchaseId),
+		mutationFn: ({
+			creditPurchaseId,
+			itemId,
+			sources,
+		}: {
+			creditPurchaseId: string | null;
+			itemId: string;
+			sources?: Parameters<typeof dataService.creditCardImports.reconcileItem>[2]["sources"];
+		}) => dataService.creditCardImports.reconcileItem(importId!, itemId, { creditPurchaseId, sources }),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
 			setReconcilingItem(null);
@@ -233,9 +240,13 @@ export function CreditCardImportReviewDialog({
 			<CreditPurchaseReconciliationDialog
 				item={reconcilingItem}
 				onOpenChange={nextOpen => !nextOpen && setReconcilingItem(null)}
-				onReconcile={candidate => {
+				onReconcile={async (candidate, sources) => {
 					if (!reconcilingItem) return;
-					reconcileItem.mutate({ creditPurchaseId: candidate.id, itemId: reconcilingItem.id });
+					await reconcileItem.mutateAsync({
+						creditPurchaseId: candidate.id,
+						itemId: reconcilingItem.id,
+						sources,
+					});
 				}}
 				open={reconcilingItem !== null}
 				pending={reconcileItem.isPending}

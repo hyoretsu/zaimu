@@ -721,11 +721,19 @@ export const dataService = {
 		async reconcileItem(
 			importId: string,
 			itemId: string,
-			creditPurchaseId: string | null,
+			data: {
+				creditPurchaseId: string | null;
+				sources?: Partial<
+					Record<
+						"debtSplit" | "description" | "purchaseDate" | "storeName" | "tagIds" | "time",
+						"duplicate" | "imported"
+					>
+				>;
+			},
 		): Promise<CreditCardImport> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar faturas.");
 			return fetchWithAuth<CreditCardImport>(`/credit-card-imports/${importId}/items/${itemId}/reconcile`, {
-				body: JSON.stringify({ creditPurchaseId }),
+				body: JSON.stringify(data),
 				method: "POST",
 			});
 		},

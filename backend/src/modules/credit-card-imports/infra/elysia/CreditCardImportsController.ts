@@ -4,6 +4,7 @@ import {
 	assertTagOwnership,
 	getTagsByEntity,
 	replaceEntityTags,
+	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
 import { linkPurchaseToDebt, syncPurchaseDebtEvent } from "~/modules/debts/application/debt-ledger";
 import {
@@ -152,6 +153,20 @@ async function getImportReturn(userId: string, importId: string) {
 		items.map(item => item.id),
 	);
 	const duplicates = await getPotentialDuplicates(creditCardImport.creditCardId, items);
+	const duplicateCandidates = [...duplicates.values()].flat();
+	const duplicateIds = duplicateCandidates.map(candidate => candidate.id);
+	const duplicateTags = await getTagsByEntity(tagEntityType.creditPurchase, duplicateIds);
+	const duplicateDebtSplits = new Map(
+		await Promise.all(
+			duplicateCandidates.map(
+				async candidate =>
+					[
+						candidate.id,
+						await getDebtSplitReturn({ creditPurchaseId: candidate.id }, Number(candidate.totalAmount)),
+					] as const,
+			),
+		),
+	);
 	return {
 		...creditCardImport,
 		dueDate: dateKey(creditCardImport.dueDate),
@@ -161,8 +176,11 @@ async function getImportReturn(userId: string, importId: string) {
 				debtSplit: await getDebtSplitReturn({ creditCardImportItemId: item.id }, Number(item.totalAmount)),
 				duplicates: (duplicates.get(item.id) ?? []).map(candidate => ({
 					...candidate,
+					debtSplit: duplicateDebtSplits.get(candidate.id) ?? null,
 					installmentAmount: Number(candidate.installmentAmount),
 					purchaseDate: dateKey(candidate.purchaseDate),
+					tagIds: (duplicateTags.get(candidate.id) ?? []).map(tag => tag.id),
+					tags: duplicateTags.get(candidate.id) ?? [],
 					totalAmount: Number(candidate.totalAmount),
 				})),
 				installmentAmount: Number(item.installmentAmount),
@@ -477,6 +495,8 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 					"purchaseDate",
 					"reconciledCreditPurchaseId",
 					"storeName",
+					"time",
+					"totalAmount",
 				)
 					.where((fields, functions) =>
 						functions.and(
@@ -502,16 +522,51 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 			const candidates = await getPotentialDuplicates(creditCardImport.creditCardId, [
 				{ ...item, reconciledCreditPurchaseId: null },
 			]);
-			if (!(candidates.get(item.id) ?? []).some(candidate => candidate.id === body.creditPurchaseId))
+			const duplicate = (candidates.get(item.id) ?? []).find(
+				candidate => candidate.id === body.creditPurchaseId,
+			);
+			if (!duplicate)
 				throw new HttpException("A compra selecionada não corresponde às parcelas importadas", 409);
+			const itemTags = await getTagsByEntity(importItemTagEntityType, [item.id]);
+			const duplicateTags = await getTagsByEntity(tagEntityType.creditPurchase, [duplicate.id]);
+			const source = <T>(
+				field: "debtSplit" | "description" | "purchaseDate" | "storeName" | "tagIds" | "time",
+				imported: T,
+				existing: T,
+			) => (body.sources?.[field] === "duplicate" ? existing : imported);
+			const tagIds = await assertTagOwnership(
+				source(
+					"tagIds",
+					(itemTags.get(item.id) ?? []).map(tag => tag.id),
+					(duplicateTags.get(duplicate.id) ?? []).map(tag => tag.id),
+				),
+				userId,
+			);
+			const debtSplit = source(
+				"debtSplit",
+				await getDebtSplitInput({ creditCardImportItemId: item.id }),
+				await getDebtSplitInput({ creditPurchaseId: duplicate.id }),
+			);
 			await executeStatement(
 				db.sql.public.CreditCardImportItem.update({
+					categoryId: tagIds[0] ?? null,
+					description: source("description", item.description, duplicate.description),
+					purchaseDate: source("purchaseDate", item.purchaseDate, duplicate.purchaseDate),
 					reconciledCreditPurchaseId: body.creditPurchaseId,
+					storeName: source("storeName", item.storeName, duplicate.storeName),
+					time: source("time", item.time, duplicate.time),
 					updatedAt: new Date(),
 				})
 					.where((fields, functions) => functions.eq(fields.id, item.id))
 					.build(),
 			);
+			await replaceEntityTags({ entityIds: [item.id], entityType: importItemTagEntityType, tagIds });
+			await replaceDebtSplit({
+				amount: Number(item.totalAmount),
+				split: debtSplit ?? null,
+				target: { creditCardImportItemId: item.id },
+				userId,
+			});
 			return getImportReturn(userId, params.id);
 		},
 		{

@@ -10,14 +10,14 @@ const imported = {
 };
 
 describe("matchesExistingCreditPurchase", () => {
-	test("matches a partially materialized installment group by store", () => {
+	test("matches a partially materialized installment group when its merchant was renamed", () => {
 		expect(
 			matchesExistingCreditPurchase(imported, {
-				description: "Descrição editada",
+				description: "Compra manual",
 				existingInstallments: 3,
 				installmentAmount: "40.90",
 				purchaseDate: new Date("2026-04-26T12:00:00"),
-				storeName: " loja exemplo ",
+				storeName: "Loja renomeada",
 			}),
 		).toBe(true);
 	});
@@ -41,6 +41,30 @@ describe("matchesExistingCreditPurchase", () => {
 				existingInstallments: 3,
 				installmentAmount: 41,
 				purchaseDate: "2026-04-27",
+				storeName: null,
+			}),
+		).toBe(false);
+	});
+
+	test("matches installments that differ by up to twenty cents due to provider rounding", () => {
+		expect(
+			matchesExistingCreditPurchase(imported, {
+				description: imported.description,
+				existingInstallments: 3,
+				installmentAmount: 41.1,
+				purchaseDate: imported.purchaseDate,
+				storeName: null,
+			}),
+		).toBe(true);
+	});
+
+	test("rejects installment values outside the twenty-cent rounding margin", () => {
+		expect(
+			matchesExistingCreditPurchase(imported, {
+				description: imported.description,
+				existingInstallments: 3,
+				installmentAmount: 41.11,
+				purchaseDate: imported.purchaseDate,
 				storeName: null,
 			}),
 		).toBe(false);

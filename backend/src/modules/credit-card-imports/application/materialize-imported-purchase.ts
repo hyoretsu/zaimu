@@ -2,6 +2,7 @@ import { addMonths } from "date-fns";
 import { replaceEntityTags, tagEntityType } from "~/modules/categories/application/tag-assignments";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
+import { hasCompatibleInstallmentAmount } from "../domain/credit-card-import-reconciliation";
 
 interface ImportedPurchaseInput {
 	categoryId: null | string;
@@ -81,7 +82,11 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 		existingPurchases.some(
 			purchase =>
 				purchase.currentInstallment > input.installments ||
-				Number(purchase.installmentAmount) !== input.installmentAmount,
+				!hasCompatibleInstallmentAmount(
+					input.installmentAmount,
+					purchase.installmentAmount,
+					input.installments,
+				),
 		)
 	)
 		throw new HttpException("As parcelas existentes não correspondem à compra importada", 409);
