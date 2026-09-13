@@ -21,6 +21,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import type { Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate, formatLocalTime } from "@/lib/date";
+import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { sortTransactionsByMostRecent } from "@/lib/transaction-sort";
 import { EditCreditPurchaseDialog } from "@/routes/credit-cards/components/EditCreditPurchaseDialog";
 import { RefundCreditPurchaseDialog } from "@/routes/credit-cards/components/RefundCreditPurchaseDialog";
@@ -46,18 +47,20 @@ function TransactionsPage() {
 	const [filterType, setFilterType] = useState<string>("all");
 	const [expandedHiddenGroups, setExpandedHiddenGroups] = useState<Set<string>>(() => new Set());
 	const queryClient = useQueryClient();
+	const identity = useCacheIdentity();
 
 	const transactionsQuery = useQuery({
+		enabled: identity !== null,
 		queryFn: () =>
 			dataService.transactions.getAll({
 				type: filterType === "all" ? undefined : (filterType as Transaction["type"]),
 			}),
-		queryKey: ["transactions", filterType],
+		queryKey: queryKeys.transactions.list(identity!, { type: filterType }),
 	});
 	const creditCardsQuery = useQuery({
-		enabled: editingPurchase !== null,
+		enabled: identity !== null && editingPurchase !== null,
 		queryFn: () => dataService.creditCards.getAll(),
-		queryKey: ["credit-cards"],
+		queryKey: queryKeys.creditCards.list(identity!),
 	});
 	const transferSuggestions = (transactionsQuery.data ?? []).flatMap((transaction, index, all) =>
 		all
@@ -77,7 +80,7 @@ function TransactionsPage() {
 			dataService.transactions.acceptTransferSuggestion(transaction.id, counterpart.id),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ["transactions"] });
+			await invalidateCacheOperation(queryClient, identity!, "transaction");
 			showToast("Movimentos combinados como transferência.", "positive");
 		},
 	});
@@ -97,14 +100,7 @@ function TransactionsPage() {
 		mutationFn: (id: string) => dataService.transactions.delete(id),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
-			await Promise.all([
-				queryClient.invalidateQueries({ queryKey: ["accounts"] }),
-				queryClient.invalidateQueries({ queryKey: ["credit-card-statement"] }),
-				queryClient.invalidateQueries({ queryKey: ["credit-card-statements"] }),
-				queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
-				queryClient.invalidateQueries({ queryKey: ["debts"] }),
-			]);
+			await invalidateCacheOperation(queryClient, identity!, "transaction");
 			showToast("Transação excluída.", "positive");
 		},
 	});
@@ -123,12 +119,7 @@ function TransactionsPage() {
 			showToast(error instanceof Error ? error.message : "Não foi possível editar a compra.", "negative"),
 		onSuccess: async () => {
 			setEditingPurchase(null);
-			await Promise.all([
-				queryClient.invalidateQueries({ queryKey: ["credit-card-statement"] }),
-				queryClient.invalidateQueries({ queryKey: ["credit-card-statements"] }),
-				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
-				queryClient.invalidateQueries({ queryKey: ["debts"] }),
-			]);
+			await invalidateCacheOperation(queryClient, identity!, "statement");
 			showToast("Compra atualizada.", "positive");
 		},
 	});
@@ -140,12 +131,7 @@ function TransactionsPage() {
 		onError: error =>
 			showToast(error instanceof Error ? error.message : "Não foi possível excluir a compra.", "negative"),
 		onSuccess: async () => {
-			await Promise.all([
-				queryClient.invalidateQueries({ queryKey: ["credit-card-statement"] }),
-				queryClient.invalidateQueries({ queryKey: ["credit-card-statements"] }),
-				queryClient.invalidateQueries({ queryKey: ["debts"] }),
-				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
-			]);
+			await invalidateCacheOperation(queryClient, identity!, "statement");
 			showToast("Compra excluída.", "positive");
 		},
 	});
@@ -173,12 +159,7 @@ function TransactionsPage() {
 			),
 		onSuccess: async () => {
 			setRefundingPurchase(null);
-			await Promise.all([
-				queryClient.invalidateQueries({ queryKey: ["credit-card-statement"] }),
-				queryClient.invalidateQueries({ queryKey: ["credit-card-statements"] }),
-				queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
-			]);
+			await invalidateCacheOperation(queryClient, identity!, "statement");
 			showToast("Reembolso registrado e faturas recalculadas.", "positive");
 		},
 	});
@@ -191,12 +172,7 @@ function TransactionsPage() {
 			showToast(error instanceof Error ? error.message : "Não foi possível excluir o reembolso.", "negative"),
 		onSuccess: async () => {
 			setRefundingPurchase(null);
-			await Promise.all([
-				queryClient.invalidateQueries({ queryKey: ["credit-card-statement"] }),
-				queryClient.invalidateQueries({ queryKey: ["credit-card-statements"] }),
-				queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
-			]);
+			await invalidateCacheOperation(queryClient, identity!, "statement");
 			showToast("Reembolso excluído e faturas recalculadas.", "positive");
 		},
 	});

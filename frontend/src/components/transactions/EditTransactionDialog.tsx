@@ -24,6 +24,7 @@ import {
 	getTransactionSourceAccounts,
 } from "@/lib/financial-account";
 import { getPayableCreditCardStatements } from "@/lib/payable-credit-card-statements";
+import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { getUpdatedStoreName } from "@/lib/store-name";
 import { showToast } from "@/stores";
 import { TransactionDetailsFields } from "./TransactionDetailsFields";
@@ -53,19 +54,20 @@ export function EditTransactionDialog({
 	transaction: Transaction | null;
 }) {
 	const queryClient = useQueryClient();
+	const identity = useCacheIdentity();
 	const [draft, setDraft] = useState(() => (transaction ? createDraft(transaction) : null));
 	const [isDebt, setIsDebt] = useState(Boolean(transaction?.debtSplit));
 	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>(() => debtSplitToInput(transaction?.debtSplit));
 	const [description, setDescription] = useDebouncedInput(transaction?.description ?? "", () => undefined);
 	const accountsQuery = useQuery({
-		enabled: open,
+		enabled: identity !== null && open,
 		queryFn: () => dataService.accounts.getAll(),
-		queryKey: ["accounts"],
+		queryKey: queryKeys.accounts.list(identity!),
 	});
 	const payableStatementsQuery = useQuery({
-		enabled: open && draft?.type === "EXPENSE",
+		enabled: identity !== null && open && draft?.type === "EXPENSE",
 		queryFn: () => getPayableCreditCardStatements(draft?.creditCardStatementId),
-		queryKey: ["credit-card-statements", "payable", draft?.creditCardStatementId],
+		queryKey: queryKeys.creditCardStatements.payable(identity!, draft?.creditCardStatementId),
 	});
 
 	useEffect(() => {
@@ -100,14 +102,7 @@ export function EditTransactionDialog({
 		},
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
-			await Promise.all([
-				queryClient.invalidateQueries({ queryKey: ["accounts"] }),
-				queryClient.invalidateQueries({ queryKey: ["credit-card-statement"] }),
-				queryClient.invalidateQueries({ queryKey: ["credit-card-statements"] }),
-				queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-				queryClient.invalidateQueries({ queryKey: ["debts"] }),
-				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
-			]);
+			await invalidateCacheOperation(queryClient, identity!, "transaction");
 			showToast("Transação atualizada.", "positive");
 			onOpenChange(false);
 		},

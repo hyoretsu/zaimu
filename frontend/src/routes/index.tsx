@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { dataService } from "@/lib/dataService";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { type AuthState, useAuthStore } from "@/stores";
 import {
 	DashboardAccounts,
@@ -29,11 +30,13 @@ const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "curre
 
 function DashboardPage() {
 	const user = useAuthStore((state: AuthState) => state.user);
+	const identity = useCacheIdentity();
 	const [dateRange, setDateRange] = useState<DateRangeValue>(() => getCurrentMonthRange());
 	const [reviewingImportId, setReviewingImportId] = useState<string | null>(null);
 	const dashboardQuery = useQuery({
+		enabled: identity !== null,
 		queryFn: () => dataService.dashboard.get(dateRange),
-		queryKey: ["dashboard", user?.id ?? "guest", dateRange],
+		queryKey: queryKeys.dashboard.detail(identity!, dateRange),
 	});
 	if (dashboardQuery.isPending) return <DashboardSkeleton />;
 	if (dashboardQuery.isError || !dashboardQuery.data)

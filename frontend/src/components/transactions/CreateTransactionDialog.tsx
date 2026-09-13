@@ -24,6 +24,7 @@ import {
 	getTransactionSourceAccounts,
 } from "@/lib/financial-account";
 import { getPayableCreditCardStatements } from "@/lib/payable-credit-card-statements";
+import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { TransactionDetailsFields } from "./TransactionDetailsFields";
 
@@ -48,6 +49,7 @@ export function CreateTransactionDialog({
 	open: boolean;
 }) {
 	const queryClient = useQueryClient();
+	const identity = useCacheIdentity();
 	const [draft, setDraft] = useState(initialDraft);
 	const [isDebt, setIsDebt] = useState(false);
 	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>({
@@ -62,11 +64,15 @@ export function CreateTransactionDialog({
 		setDraft(current => ({ ...current, time: getCurrentLocalTime() }));
 		setSendWithoutTime(false);
 	}, [open]);
-	const accountsQuery = useQuery({ queryFn: () => dataService.accounts.getAll(), queryKey: ["accounts"] });
+	const accountsQuery = useQuery({
+		enabled: identity !== null,
+		queryFn: () => dataService.accounts.getAll(),
+		queryKey: queryKeys.accounts.list(identity!),
+	});
 	const payableStatementsQuery = useQuery({
-		enabled: open && draft.type === "EXPENSE",
+		enabled: identity !== null && open && draft.type === "EXPENSE",
 		queryFn: () => getPayableCreditCardStatements(),
-		queryKey: ["credit-card-statements", "payable"],
+		queryKey: queryKeys.creditCardStatements.payable(identity!),
 	});
 	const destinationAccounts =
 		accountsQuery.data
@@ -123,14 +129,11 @@ export function CreateTransactionDialog({
 		},
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
-			await Promise.all([
-				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
-				queryClient.invalidateQueries({ queryKey: ["accounts"] }),
-				queryClient.invalidateQueries({ queryKey: ["credit-card-statement"] }),
-				queryClient.invalidateQueries({ queryKey: ["credit-card-statements"] }),
-				queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-				queryClient.invalidateQueries({ queryKey: ["debts"] }),
-			]);
+			await invalidateCacheOperation(
+				queryClient,
+				identity!,
+				draft.type === "YIELD" ? "yield" : "transaction",
+			);
 			showToast(
 				selectedStatement
 					? "Transação associada à fatura."

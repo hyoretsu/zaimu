@@ -14,6 +14,7 @@ import {
 	type FinancialAccountYieldEntry,
 	getFinancialAccountDisplayName,
 } from "@/lib/financial-account";
+import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { EditFinancialAccountYieldDialog } from "./EditFinancialAccountYieldDialog";
 import { FinancialAccountYieldStatementItem } from "./FinancialAccountYieldStatementItem";
@@ -44,22 +45,23 @@ export function FinancialAccountStatementDialog({
 	open: boolean;
 }) {
 	const queryClient = useQueryClient();
+	const identity = useCacheIdentity();
 	const statement = useQuery({
-		enabled: open,
+		enabled: identity !== null && open,
 		queryFn: () => dataService.transactions.getAll({ financialAccountId: account.id }),
-		queryKey: ["transactions", "financial-account", account.id],
+		queryKey: queryKeys.transactions.byAccount(identity!, account.id),
 	});
 	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 	const [editingYield, setEditingYield] = useState<FinancialAccountYieldEntry | null>(null);
 	const holidays = useQuery({
-		enabled: open,
+		enabled: identity !== null && open,
 		queryFn: () => dataService.accountYieldHolidays.getAll(),
-		queryKey: ["financial-account-yield-holidays"],
+		queryKey: queryKeys.accountYieldHolidays.all(identity!),
 	});
 	const yields = useQuery({
-		enabled: open,
+		enabled: identity !== null && open,
 		queryFn: () => dataService.accountYields.getAll(account.id),
-		queryKey: ["financial-account-yields", account.id],
+		queryKey: queryKeys.accountYields.list(identity!, account.id),
 	});
 	const groupedTransactions = groupTransactionsByDate(statement.data ?? []);
 	const yieldEntries = calculateFinancialAccountYieldEntries(
@@ -73,14 +75,7 @@ export function FinancialAccountStatementDialog({
 		...new Set([...Object.keys(groupedTransactions), ...yieldEntries.map(entry => entry.date)]),
 	].toSorted((left, right) => right.localeCompare(left));
 	const displayName = getFinancialAccountDisplayName(account);
-	const refreshStatement = async () => {
-		await Promise.all([
-			queryClient.invalidateQueries({ queryKey: ["accounts"] }),
-			queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-			queryClient.invalidateQueries({ queryKey: ["transactions"] }),
-			queryClient.invalidateQueries({ queryKey: ["financial-account-yields", account.id] }),
-		]);
-	};
+	const refreshStatement = () => invalidateCacheOperation(queryClient, identity!, "yield");
 	const removeTransaction = useMutation({
 		mutationFn: (id: string) => dataService.transactions.delete(id),
 		onError: error =>

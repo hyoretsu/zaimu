@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import { dataService } from "@/lib/dataService";
+import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 
 export function DebtPersonPicker({
@@ -26,11 +27,16 @@ export function DebtPersonPicker({
 	value?: string;
 }) {
 	const queryClient = useQueryClient();
+	const identity = useCacheIdentity();
 	const [open, setOpen] = useState(false);
 	const [inviteOpen, setInviteOpen] = useState(false);
 	const [search, setSearch] = useDebouncedInput("", () => undefined);
 	const [email, setEmail] = useDebouncedInput("", () => undefined);
-	const ledger = useQuery({ queryFn: () => dataService.debts.getLedger(), queryKey: ["debts"] });
+	const ledger = useQuery({
+		enabled: identity !== null,
+		queryFn: () => dataService.debts.getLedger(),
+		queryKey: queryKeys.debts.ledger(identity!),
+	});
 	const people = ledger.data?.people ?? [];
 	const selected = people.find(person => person.id === value);
 	const availablePeople = people.filter(person => person.id === value || !excludedIds.includes(person.id));
@@ -43,7 +49,7 @@ export function DebtPersonPicker({
 		mutationFn: (name: string) => dataService.debts.createPerson(name),
 		onError: error => showToast(error instanceof Error ? error.message : "Pessoa não criada.", "negative"),
 		onSuccess: async person => {
-			await queryClient.invalidateQueries({ queryKey: ["debts"] });
+			await invalidateCacheOperation(queryClient, identity!, "debt");
 			onValueChange(person.id);
 			setSearch("");
 			setOpen(false);
@@ -54,10 +60,7 @@ export function DebtPersonPicker({
 		mutationFn: () => dataService.debts.invitePerson(value!, email.trim()),
 		onError: error => showToast(error instanceof Error ? error.message : "Convite não enviado.", "negative"),
 		onSuccess: async () => {
-			await Promise.all([
-				queryClient.invalidateQueries({ queryKey: ["debts"] }),
-				queryClient.invalidateQueries({ queryKey: ["debt-invitations"] }),
-			]);
+			await invalidateCacheOperation(queryClient, identity!, "invitation");
 			setEmail("");
 			setInviteOpen(false);
 			showToast("Convite enviado.", "positive");

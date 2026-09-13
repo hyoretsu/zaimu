@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { DebtEvent } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
+import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import {
 	CreateDebtDialog,
@@ -18,10 +19,15 @@ import {
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 function DebtsPage() {
 	const queryClient = useQueryClient();
+	const identity = useCacheIdentity();
 	const [createOpen, setCreateOpen] = useState(false);
 	const [editing, setEditing] = useState<{ event: DebtEvent; personId: string } | null>(null);
-	const ledger = useQuery({ queryFn: () => dataService.debts.getLedger(), queryKey: ["debts"] });
-	const refresh = () => queryClient.invalidateQueries({ queryKey: ["debts"] });
+	const ledger = useQuery({
+		enabled: identity !== null,
+		queryFn: () => dataService.debts.getLedger(),
+		queryKey: queryKeys.debts.ledger(identity!),
+	});
+	const refresh = () => invalidateCacheOperation(queryClient, identity!, "debt");
 	const create = useMutation({
 		mutationFn: (draft: CreateDebtOriginDraft) => dataService.debts.createOrigin(draft),
 		onError: error =>

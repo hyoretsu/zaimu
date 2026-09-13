@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import { dataService } from "@/lib/dataService";
+import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 
 export function StorePicker({
@@ -20,11 +21,13 @@ export function StorePicker({
 	value: string;
 }) {
 	const queryClient = useQueryClient();
+	const identity = useCacheIdentity();
 	const [open, setOpen] = useState(false);
 	const [searchInput, setSearchInput] = useDebouncedInput("", () => undefined);
 	const storesQuery = useQuery({
+		enabled: identity !== null,
 		queryFn: () => dataService.stores.getAll(),
-		queryKey: ["stores"],
+		queryKey: queryKeys.stores.list(identity!),
 	});
 	const normalizedSearch = searchInput.trim().toLocaleLowerCase("pt-BR");
 	const stores = [
@@ -49,7 +52,7 @@ export function StorePicker({
 			showToast(error instanceof Error ? error.message : "Não foi possível criar a loja.", "negative"),
 		onSuccess: async store => {
 			selectStore(store.name);
-			await queryClient.invalidateQueries({ queryKey: ["stores"] });
+			await invalidateCacheOperation(queryClient, identity!, "store");
 			showToast(`Loja “${store.name}” criada.`, "positive");
 		},
 	});

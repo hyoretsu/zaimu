@@ -8,6 +8,7 @@ import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { dataService } from "@/lib/dataService";
+import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import {
 	CreateRecurringDialog,
@@ -33,6 +34,7 @@ const filterOptions = [
 
 function RecurringPage() {
 	const queryClient = useQueryClient();
+	const identity = useCacheIdentity();
 	const [filter, setFilter] = useState<DirectionFilter>("all");
 	const [expandedInactiveSections, setExpandedInactiveSections] = useState<Set<"ended" | "paused">>(
 		() => new Set(),
@@ -40,28 +42,27 @@ function RecurringPage() {
 	const [isCreateOpen, setIsCreateOpen] = useState(false);
 	const [editingItem, setEditingItem] = useState<RecurringListItemData>();
 	const [deletingItem, setDeletingItem] = useState<RecurringListItemData>();
-	const salariesQuery = useQuery({ queryFn: () => dataService.salaries.getAll(), queryKey: ["salaries"] });
-	const accountsQuery = useQuery({ queryFn: () => dataService.accounts.getAll(), queryKey: ["accounts"] });
+	const salariesQuery = useQuery({
+		enabled: identity !== null,
+		queryFn: () => dataService.salaries.getAll(),
+		queryKey: queryKeys.recurring.salaries(identity!),
+	});
+	const accountsQuery = useQuery({
+		enabled: identity !== null,
+		queryFn: () => dataService.accounts.getAll(),
+		queryKey: queryKeys.accounts.list(identity!),
+	});
 	const subscriptionsQuery = useQuery({
+		enabled: identity !== null,
 		queryFn: () => dataService.subscriptions.getAll(),
-		queryKey: ["subscriptions"],
+		queryKey: queryKeys.recurring.subscriptions(identity!),
 	});
 	const recurringQuery = useQuery({
+		enabled: identity !== null,
 		queryFn: () => dataService.recurringPayments.getAll(),
-		queryKey: ["recurring-payments"],
+		queryKey: queryKeys.recurring.payments(identity!),
 	});
-	const invalidate = async (item: RecurringListItemData) => {
-		const queryKey =
-			item.source === "salary"
-				? ["salaries"]
-				: item.source === "subscription"
-					? ["subscriptions"]
-					: ["recurring-payments"];
-		await Promise.all([
-			queryClient.invalidateQueries({ queryKey }),
-			queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-		]);
-	};
+	const invalidate = () => invalidateCacheOperation(queryClient, identity!, "recurring");
 	const toggle = useMutation({
 		mutationFn: async (item: RecurringListItemData) => {
 			if (item.source === "salary") return dataService.salaries.update(item.id, { isActive: !item.active });
@@ -71,7 +72,7 @@ function RecurringPage() {
 		},
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async (_, item) => {
-			await invalidate(item);
+			await invalidate();
 			showToast(item.active ? "Recorrência pausada." : "Recorrência retomada.", "positive");
 		},
 	});
@@ -90,11 +91,7 @@ function RecurringPage() {
 		},
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async (_, { item }) => {
-			await invalidate(item);
-			await Promise.all([
-				queryClient.invalidateQueries({ queryKey: ["accounts"] }),
-				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
-			]);
+			await invalidate();
 			setDeletingItem(undefined);
 			showToast("Recorrência excluída.", "positive");
 		},

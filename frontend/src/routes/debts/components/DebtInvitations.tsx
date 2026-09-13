@@ -3,21 +3,20 @@ import { useState } from "react";
 import { DebtPersonPicker } from "@/components/debts";
 import { Button } from "@/components/ui/Button";
 import { dataService } from "@/lib/dataService";
+import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 
 export function DebtInvitations() {
 	const queryClient = useQueryClient();
+	const identity = useCacheIdentity();
 	const [reuseForInvitationId, setReuseForInvitationId] = useState<string | null>(null);
 	const [personId, setPersonId] = useState("");
 	const invitations = useQuery({
+		enabled: identity !== null,
 		queryFn: () => dataService.debts.getInvitations(),
-		queryKey: ["debt-invitations"],
+		queryKey: queryKeys.debts.invitations(identity!),
 	});
-	const refresh = async () =>
-		Promise.all([
-			queryClient.invalidateQueries({ queryKey: ["debt-invitations"] }),
-			queryClient.invalidateQueries({ queryKey: ["debts"] }),
-		]);
+	const refresh = () => invalidateCacheOperation(queryClient, identity!, "invitation");
 	const accept = useMutation({
 		mutationFn: ({ id, selectedPersonId }: { id: string; selectedPersonId?: string }) =>
 			dataService.debts.acceptInvitation(id, selectedPersonId),

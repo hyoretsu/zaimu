@@ -9,6 +9,7 @@ import { TabsContent } from "@/components/ui/Tabs";
 import type { CreditCardStatement, CreditPurchase } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
+import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { CreditCardPaymentRow } from "./CreditCardPaymentRow";
 import { CreditPurchaseRow } from "./CreditPurchaseRow";
@@ -20,12 +21,14 @@ const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "curre
 
 export function CreditCardStatementDetails({ statement }: { statement: CreditCardStatement }) {
 	const queryClient = useQueryClient();
+	const identity = useCacheIdentity();
 	const [editingPurchase, setEditingPurchase] = useState<CreditPurchase | null>(null);
 	const [refinancingPurchase, setRefinancingPurchase] = useState<CreditPurchase | null>(null);
 	const [refundingPurchase, setRefundingPurchase] = useState<CreditPurchase | null>(null);
 	const detail = useQuery({
+		enabled: identity !== null,
 		queryFn: () => dataService.creditCards.getStatement(statement.creditCardId, statement.id),
-		queryKey: ["credit-card-statement", statement.creditCardId, statement.id],
+		queryKey: queryKeys.creditCardStatements.detail(identity!, statement.creditCardId, statement.id),
 	});
 	const entries = detail.data
 		? [
@@ -49,14 +52,7 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 				),
 			)
 		: [];
-	const refreshStatement = async () => {
-		await Promise.all([
-			queryClient.invalidateQueries({
-				queryKey: ["credit-card-statement", statement.creditCardId, statement.id],
-			}),
-			queryClient.invalidateQueries({ queryKey: ["credit-card-statements", statement.creditCardId] }),
-		]);
-	};
+	const refreshStatement = () => invalidateCacheOperation(queryClient, identity!, "statement");
 	const updatePurchase = useMutation({
 		mutationFn: ({
 			data,

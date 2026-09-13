@@ -3,14 +3,16 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import type { CreditCard } from "@/lib/api";
 import { calculateCreditCardLimit } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
 export function CreditCardAccountSummary({ card }: { card?: CreditCard }) {
+	const identity = useCacheIdentity();
 	const statements = useQuery({
-		enabled: Boolean(card),
+		enabled: identity !== null && Boolean(card),
 		queryFn: () => dataService.creditCards.getStatements(card!.id),
-		queryKey: ["credit-card-statements", card?.id, { isPaid: undefined }],
+		queryKey: queryKeys.creditCardStatements.list(identity!, card?.id ?? "unselected"),
 	});
 
 	if (!card || statements.isError) {

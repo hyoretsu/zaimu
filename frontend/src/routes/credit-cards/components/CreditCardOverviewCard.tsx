@@ -7,6 +7,7 @@ import type { CreditCard } from "@/lib/api";
 import { calculateCreditCardLimit, getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
@@ -19,9 +20,11 @@ export function CreditCardOverviewCard({
 	onAddPurchase: () => void;
 	onViewStatements: () => void;
 }) {
+	const identity = useCacheIdentity();
 	const statements = useQuery({
+		enabled: identity !== null,
 		queryFn: () => dataService.creditCards.getStatements(card.id),
-		queryKey: ["credit-card-statements", card.id, { isPaid: undefined }],
+		queryKey: queryKeys.creditCardStatements.list(identity!, card.id),
 	});
 	if (statements.isPending) return <Skeleton className="h-72" />;
 	const statement = statements.data

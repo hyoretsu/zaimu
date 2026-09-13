@@ -11,7 +11,14 @@ describe("query cache", () => {
 				guestId: "guest-a",
 				isAuthenticated: true,
 				isGuestMode: false,
-				user: { id: "user-a" },
+				user: {
+					createdAt: new Date(),
+					email: "user@example.com",
+					emailVerified: true,
+					id: "user-a",
+					name: "User",
+					updatedAt: new Date(),
+				},
 			}),
 		).toBe("user:user-a");
 		expect(
@@ -23,9 +30,9 @@ describe("query cache", () => {
 	});
 
 	test("keeps list variants under one typed domain root", () => {
-		expect(queryKeys.transactions.list(identity, { type: "EXPENSE" }).slice(0, 3)).toEqual(
-			queryKeys.transactions.all(identity),
-		);
+		expect([...queryKeys.transactions.list(identity, { type: "EXPENSE" }).slice(0, 3)]).toEqual([
+			...queryKeys.transactions.all(identity),
+		]);
 		expect(queryKeys.accounts.list(identity)).not.toEqual(queryKeys.accounts.list("user:user-b"));
 	});
 
@@ -40,7 +47,7 @@ describe("query cache", () => {
 
 		expect(queryClient.getQueryState(transactionKey)?.isInvalidated).toBeTrue();
 		expect(queryClient.getQueryState(dashboardKey)?.isInvalidated).toBeTrue();
-		expect(queryClient.getQueryData(transactionKey)).toEqual(["transaction"]);
+		expect(queryClient.getQueryData<string[]>(transactionKey)).toEqual(["transaction"]);
 	});
 
 	test("removes a closed import detail and invalidates only its pending list", async () => {

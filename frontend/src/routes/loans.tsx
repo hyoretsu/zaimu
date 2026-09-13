@@ -5,6 +5,7 @@ import { HiBanknotes, HiCalculator, HiCheck, HiCheckCircle, HiClock, HiPlus, HiX
 import { DateField } from "@/components/ui/DateField";
 import { api, type Loan } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
+import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { type AuthState, useAuthStore } from "@/stores";
 
 function formatCurrency(value: number) {
@@ -116,6 +117,7 @@ function LoanCard({
 
 function EmpréstimosPage() {
 	const queryClient = useQueryClient();
+	const identity = useCacheIdentity();
 	const user = useAuthStore((s: AuthState) => s.user);
 	const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 	const [isEarlyPayoffModalOpen, setIsEarlyPayoffModalOpen] = useState(false);
@@ -136,20 +138,21 @@ function EmpréstimosPage() {
 	});
 
 	const { data: loans, isLoading } = useQuery({
+		enabled: identity !== null,
 		queryFn: () => dataService.loans.getAll(),
-		queryKey: ["loans"],
+		queryKey: queryKeys.loans.list(identity!),
 	});
 
 	const { data: earlyPayoff, isLoading: isLoadingPayoff } = useQuery({
 		enabled: !!user?.id && !!selectedLoan && isEarlyPayoffModalOpen,
 		queryFn: () => api.getEarlyPayoff(selectedLoan!.id, { advanceType: earlyPayoffType }),
-		queryKey: ["early-payoff", selectedLoan?.id, earlyPayoffType],
+		queryKey: queryKeys.loans.earlyPayoff(identity!, selectedLoan?.id ?? null, earlyPayoffType),
 	});
 
 	const createMutation = useMutation({
 		mutationFn: (data: Parameters<typeof dataService.loans.create>[0]) => dataService.loans.create(data),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["loans"] });
+		onSuccess: async () => {
+			await invalidateCacheOperation(queryClient, identity!, "loan");
 			setIsCreateModalOpen(false);
 			resetForm();
 		},

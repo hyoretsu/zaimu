@@ -12,9 +12,9 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
-import type { CreditCard } from "@/lib/api";
 import { calculateCreditCardLimit, getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
+import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast, useAuthStore } from "@/stores";
 import { CreateFinancialAccountDialog } from "./accounts/components";
 import {
@@ -27,22 +27,26 @@ const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "curre
 
 function CreditCardsPage() {
 	const queryClient = useQueryClient();
+	const identity = useCacheIdentity();
 	const hasAccess = useAuthStore(state => state.isAuthenticated || state.isGuestMode);
-	const [selectedCard, setSelectedCard] = useState<CreditCard | null>(null);
-	const [statementsCard, setStatementsCard] = useState<CreditCard | null>(null);
+	const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+	const [statementsCardId, setStatementsCardId] = useState<string | null>(null);
 	const [isCreateCardOpen, setIsCreateCardOpen] = useState(false);
 	const [isImportOpen, setIsImportOpen] = useState(false);
 	const [reviewingImportId, setReviewingImportId] = useState<string | null>(null);
 	const cards = useQuery({
 		enabled: hasAccess,
 		queryFn: () => dataService.creditCards.getAll(),
-		queryKey: ["credit-cards"],
+		queryKey: queryKeys.creditCards.list(identity!),
 	});
 	const statementQueries = useQueries({
-		queries: (cards.data ?? []).map(card => ({
-			queryFn: () => dataService.creditCards.getStatements(card.id),
-			queryKey: ["credit-card-statements", card.id, { isPaid: undefined }],
-		})),
+		queries:
+			identity === null
+				? []
+				: (cards.data ?? []).map(card => ({
+						queryFn: () => dataService.creditCards.getStatements(card.id),
+						queryKey: queryKeys.creditCardStatements.list(identity, card.id),
+					})),
 	});
 	const purchase = useMutation({
 		mutationFn: ({
@@ -55,10 +59,7 @@ function CreditCardsPage() {
 		onError: error =>
 			showToast(error instanceof Error ? error.message : "Não foi possível registrar a compra.", "negative"),
 		onSuccess: async () => {
-			await Promise.all([
-				queryClient.invalidateQueries({ queryKey: ["credit-card-statements"] }),
-				queryClient.invalidateQueries({ queryKey: ["debts"] }),
-			]);
+			await invalidateCacheOperation(queryClient, identity!, "statement");
 			showToast("Compra registrada e faturas recalculadas.", "positive");
 		},
 	});
@@ -66,10 +67,7 @@ function CreditCardsPage() {
 		mutationFn: dataService.accounts.create,
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
-			await Promise.all([
-				queryClient.invalidateQueries({ queryKey: ["financial-accounts"] }),
-				queryClient.invalidateQueries({ queryKey: ["credit-cards"] }),
-			]);
+			await invalidateCacheOperation(queryClient, identity!, "creditCard");
 			showToast("Cartão cadastrado.", "positive");
 		},
 	});
@@ -89,6 +87,8 @@ function CreditCardsPage() {
 			sensitivity: "base",
 		}),
 	);
+	const selectedCard = cards.data?.find(card => card.id === selectedCardId) ?? null;
+	const statementsCard = cards.data?.find(card => card.id === statementsCardId) ?? null;
 
 	return (
 		<PageContainer className="grid gap-8">
@@ -145,8 +145,8 @@ function CreditCardsPage() {
 						<CreditCardOverviewCard
 							card={card}
 							key={card.id}
-							onAddPurchase={() => setSelectedCard(card)}
-							onViewStatements={() => setStatementsCard(card)}
+							onAddPurchase={() => setSelectedCardId(card.id)}
+							onViewStatements={() => setStatementsCardId(card.id)}
 						/>
 					))}
 				</section>
@@ -166,7 +166,7 @@ function CreditCardsPage() {
 				cards={cards.data ?? []}
 				initialCardId={selectedCard?.id}
 				key={selectedCard?.id ?? "purchase"}
-				onOpenChange={open => !open && setSelectedCard(null)}
+				onOpenChange={open => !open && setSelectedCardId(null)}
 				onSubmit={async (cardId, data) => {
 					await purchase.mutateAsync({
 						cardId,
@@ -178,7 +178,7 @@ function CreditCardsPage() {
 			/>
 			<CreditCardStatementsDialog
 				card={statementsCard}
-				onOpenChange={open => !open && setStatementsCard(null)}
+				onOpenChange={open => !open && setStatementsCardId(null)}
 			/>
 			<CreateFinancialAccountDialog
 				defaultType="CREDIT_CARD"

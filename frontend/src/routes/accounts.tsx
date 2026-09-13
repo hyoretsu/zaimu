@@ -10,6 +10,7 @@ import type { FinancialAccount, FinancialAccountYieldHoliday, FinancialInstituti
 import { dataService } from "@/lib/dataService";
 import { compareFinancialAccountsByTitle, getFinancialAccountCurrencyValue } from "@/lib/financial-account";
 import { getFinancialInstitutions } from "@/lib/financial-institution";
+import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast, useAuthStore } from "@/stores";
 import {
 	CreateFinancialAccountDialog,
@@ -21,24 +22,19 @@ const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "curre
 
 function AccountsPage() {
 	const queryClient = useQueryClient();
+	const identity = useCacheIdentity();
 	const hasAccess = useAuthStore(state => state.isAuthenticated || state.isGuestMode);
 	const accounts = useQuery({
 		enabled: hasAccess,
 		queryFn: () => dataService.accounts.getAll(),
-		queryKey: ["financial-accounts"],
+		queryKey: queryKeys.accounts.list(identity!),
 	});
 	const holidays = useQuery({
 		enabled: hasAccess,
 		queryFn: () => dataService.accountYieldHolidays.getAll(),
-		queryKey: ["financial-account-yield-holidays"],
+		queryKey: queryKeys.accountYieldHolidays.all(identity!),
 	});
-	const invalidateAccountData = async () => {
-		await Promise.all([
-			queryClient.invalidateQueries({ queryKey: ["financial-accounts"] }),
-			queryClient.invalidateQueries({ queryKey: ["credit-cards"] }),
-			queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-		]);
-	};
+	const invalidateAccountData = () => invalidateCacheOperation(queryClient, identity!, "account");
 	const createAccount = useMutation({
 		mutationFn: dataService.accounts.create,
 		onError: error => showToast(error.message, "negative"),
@@ -77,8 +73,7 @@ function AccountsPage() {
 		mutationFn: dataService.accountYieldHolidays.create,
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
-			await invalidateAccountData();
-			await queryClient.invalidateQueries({ queryKey: ["financial-account-yield-holidays"] });
+			await invalidateCacheOperation(queryClient, identity!, "holiday");
 			showToast("Feriado marcado. Rendimentos recalculados.", "positive");
 		},
 	});
@@ -86,8 +81,7 @@ function AccountsPage() {
 		mutationFn: dataService.accountYieldHolidays.delete,
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
-			await invalidateAccountData();
-			await queryClient.invalidateQueries({ queryKey: ["financial-account-yield-holidays"] });
+			await invalidateCacheOperation(queryClient, identity!, "holiday");
 			showToast("Feriado removido. Rendimentos recalculados.", "positive");
 		},
 	});
@@ -95,7 +89,7 @@ function AccountsPage() {
 		mutationFn: dataService.financialInstitutions.delete,
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
-			await invalidateAccountData();
+			await invalidateCacheOperation(queryClient, identity!, "institution");
 			showToast("Instituição excluída.", "positive");
 		},
 	});

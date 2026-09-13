@@ -25,7 +25,7 @@ export function RefundCreditPurchaseDialog({
 	refund,
 }: {
 	onOpenChange: (open: boolean) => void;
-	onDelete?: () => Promise<unknown>;
+	onDelete?: () => Promise<void>;
 	onSubmit: (data: { amount?: number; date?: string }) => Promise<unknown>;
 	open: boolean;
 	pending: boolean;

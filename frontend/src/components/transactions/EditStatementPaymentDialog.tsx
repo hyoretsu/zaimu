@@ -17,6 +17,7 @@ import {
 	compareFinancialAccountsByOptionLabel,
 	getFinancialAccountOptionLabel,
 } from "@/lib/financial-account";
+import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { TransactionDetailsFields } from "./TransactionDetailsFields";
 
@@ -39,12 +40,13 @@ export function EditStatementPaymentDialog({
 	transaction: Transaction | null;
 }) {
 	const queryClient = useQueryClient();
+	const identity = useCacheIdentity();
 	const [draft, setDraft] = useState(() => (transaction ? createDraft(transaction) : null));
 	const [sendWithoutTime, setSendWithoutTime] = useState(!transaction?.time);
 	const accountsQuery = useQuery({
-		enabled: open,
+		enabled: identity !== null && open,
 		queryFn: () => dataService.accounts.getAll(),
-		queryKey: ["accounts"],
+		queryKey: queryKeys.accounts.list(identity!),
 	});
 
 	useEffect(() => {
@@ -65,13 +67,7 @@ export function EditStatementPaymentDialog({
 		},
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
-			await Promise.all([
-				queryClient.invalidateQueries({ queryKey: ["accounts"] }),
-				queryClient.invalidateQueries({ queryKey: ["credit-card-statement"] }),
-				queryClient.invalidateQueries({ queryKey: ["credit-card-statements"] }),
-				queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
-			]);
+			await invalidateCacheOperation(queryClient, identity!, "statement");
 			showToast("Pagamento da fatura atualizado.", "positive");
 			onOpenChange(false);
 		},

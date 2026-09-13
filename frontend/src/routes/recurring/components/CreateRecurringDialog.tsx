@@ -23,6 +23,7 @@ import {
 	compareFinancialAccountsByDisplayName,
 	getFinancialAccountDisplayName,
 } from "@/lib/financial-account";
+import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { frequencyOptions, paymentMethodOptions, sourceOptions } from "./constants";
 import { getCreationSource } from "./creation-source";
@@ -66,12 +67,17 @@ export function CreateRecurringDialog({
 	item?: RecurringListItemData;
 }) {
 	const queryClient = useQueryClient();
+	const identity = useCacheIdentity();
 	const [draft, setDraft] = useState(() => initialDraft(item));
 	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>(() => initialDebtSplit(item));
 	const [isDebtSplitEnabled, setIsDebtSplitEnabled] = useState(Boolean(item?.debtSplit));
 	const isEditing = Boolean(item);
 	const [isPastTransactionsDialogOpen, setIsPastTransactionsDialogOpen] = useState(false);
-	const accountsQuery = useQuery({ queryFn: () => dataService.accounts.getAll(), queryKey: ["accounts"] });
+	const accountsQuery = useQuery({
+		enabled: identity !== null,
+		queryFn: () => dataService.accounts.getAll(),
+		queryKey: queryKeys.accounts.list(identity!),
+	});
 	const checkingAccounts =
 		accountsQuery.data
 			?.filter(account => account.type === "CHECKING")
@@ -285,14 +291,7 @@ export function CreateRecurringDialog({
 		},
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async (_, addPastTransactions) => {
-			await Promise.all([
-				queryClient.invalidateQueries({ queryKey: ["recurring-payments"] }),
-				queryClient.invalidateQueries({ queryKey: ["salaries"] }),
-				queryClient.invalidateQueries({ queryKey: ["subscriptions"] }),
-				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
-				queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-				queryClient.invalidateQueries({ queryKey: ["credit-card-statements"] }),
-			]);
+			await invalidateCacheOperation(queryClient, identity!, "recurring");
 			showToast(
 				isEditing
 					? "Recorrência atualizada."

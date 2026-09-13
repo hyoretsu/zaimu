@@ -8,6 +8,7 @@ import { Tabs } from "@/components/ui/Tabs";
 import type { CreditCard, CreditCardStatement } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { getLocalMonthKey } from "@/lib/date";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { CreditCardStatementDetails } from "./CreditCardStatementDetails";
 import { CreditCardStatementTabs } from "./CreditCardStatementTabs";
 
@@ -22,11 +23,12 @@ export function CreditCardStatementsDialog({
 	card: CreditCard | null;
 	onOpenChange: (open: boolean) => void;
 }) {
+	const identity = useCacheIdentity();
 	const [selectedStatementId, setSelectedStatementId] = useState<string | null>(null);
 	const statements = useQuery({
-		enabled: Boolean(card),
+		enabled: identity !== null && Boolean(card),
 		queryFn: () => dataService.creditCards.getStatements(card!.id),
-		queryKey: ["credit-card-statements", card?.id, { isPaid: undefined }],
+		queryKey: queryKeys.creditCardStatements.list(identity!, card?.id ?? "unselected"),
 	});
 	const currentMonth = getLocalMonthKey(new Date());
 	const visibleStatements = useMemo(

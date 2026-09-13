@@ -9,6 +9,7 @@ import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import { dataService } from "@/lib/dataService";
+import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 
 export function TagPicker({
@@ -21,10 +22,12 @@ export function TagPicker({
 	value: string[];
 }) {
 	const queryClient = useQueryClient();
+	const identity = useCacheIdentity();
 	const [searchInput, setSearchInput] = useDebouncedInput("", () => undefined);
 	const tagsQuery = useQuery({
+		enabled: identity !== null,
 		queryFn: () => dataService.categories.getAll(),
-		queryKey: ["categories"],
+		queryKey: queryKeys.categories.list(identity!),
 	});
 	const createTag = useMutation({
 		mutationFn: (name: string) => dataService.categories.create({ name }),
@@ -34,7 +37,7 @@ export function TagPicker({
 		onSuccess: async tag => {
 			onValueChange([...new Set([...value, tag.id])]);
 			setSearchInput("");
-			await queryClient.invalidateQueries({ queryKey: ["categories"] });
+			await invalidateCacheOperation(queryClient, identity!, "category");
 			showToast(`Tag “${tag.name}” criada.`, "positive");
 		},
 	});

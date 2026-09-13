@@ -14,6 +14,7 @@ import {
 import { MoneyField } from "@/components/ui/MoneyField";
 import { dataService } from "@/lib/dataService";
 import type { FinancialAccountYieldEntry } from "@/lib/financial-account";
+import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 
 export function EditFinancialAccountYieldDialog({
@@ -26,20 +27,12 @@ export function EditFinancialAccountYieldDialog({
 	open: boolean;
 }) {
 	const queryClient = useQueryClient();
+	const identity = useCacheIdentity();
 	const [amount, setAmount] = useState(entry ? String(entry.amount) : "");
 	useEffect(() => {
 		if (entry) setAmount(String(entry.amount));
 	}, [entry]);
-	const refresh = async () => {
-		await Promise.all([
-			queryClient.invalidateQueries({ queryKey: ["accounts"] }),
-			queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-			queryClient.invalidateQueries({ queryKey: ["financial-account-yields", entry?.financialAccountId] }),
-			queryClient.invalidateQueries({
-				queryKey: ["transactions", "financial-account", entry?.financialAccountId],
-			}),
-		]);
-	};
+	const refresh = () => invalidateCacheOperation(queryClient, identity!, "yield");
 	const save = useMutation({
 		mutationFn: async () => {
 			if (!entry) throw new Error("Rendimento não encontrado");

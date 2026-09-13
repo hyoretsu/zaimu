@@ -5,15 +5,21 @@ import { CreateTransactionDialog } from "@/components/transactions";
 import { Button } from "@/components/ui/Button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { dataService } from "@/lib/dataService";
+import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { CreatePurchaseDialog } from "../credit-cards/components";
 
 export function DashboardQuickActions() {
 	const queryClient = useQueryClient();
+	const identity = useCacheIdentity();
 	const [menuOpen, setMenuOpen] = useState(false);
 	const [transactionOpen, setTransactionOpen] = useState(false);
 	const [purchaseOpen, setPurchaseOpen] = useState(false);
-	const cards = useQuery({ queryFn: () => dataService.creditCards.getAll(), queryKey: ["credit-cards"] });
+	const cards = useQuery({
+		enabled: identity !== null,
+		queryFn: () => dataService.creditCards.getAll(),
+		queryKey: queryKeys.creditCards.list(identity!),
+	});
 	const purchase = useMutation({
 		mutationFn: ({
 			cardId,
@@ -24,12 +30,7 @@ export function DashboardQuickActions() {
 		}) => dataService.creditCards.addPurchase(cardId, data),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
-			await Promise.all([
-				queryClient.invalidateQueries({ queryKey: ["credit-card-statements"] }),
-				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
-				queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-				queryClient.invalidateQueries({ queryKey: ["debts"] }),
-			]);
+			await invalidateCacheOperation(queryClient, identity!, "statement");
 			showToast("Compra registrada e faturas recalculadas.", "positive");
 		},
 	});
