@@ -59,6 +59,7 @@ import {
 	localSubscriptions,
 	localTransactions,
 } from "./localStorage";
+import { getCurrentCacheIdentity } from "./query-cache";
 import { sortTransactionsByMostRecent } from "./transaction-sort";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3333";
@@ -201,14 +202,20 @@ function normalizeLegacyFinancialAccount(account: LegacyFinancialAccount): Finan
 
 // Generic authenticated fetch
 async function fetchWithAuth<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-	const response = await fetch(`${API_URL}${endpoint}`, {
-		...options,
-		credentials: "include",
-		headers: {
-			...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
-			...options.headers,
-		},
-	});
+	const requestIdentity = getCurrentCacheIdentity();
+	let response: Response;
+	try {
+		response = await fetch(`${API_URL}${endpoint}`, {
+			...options,
+			credentials: "include",
+			headers: {
+				...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
+				...options.headers,
+			},
+		});
+	} catch (error) {
+		throw new ConnectivityError("Servidor indisponível.", { cause: error });
+	}
 
 	if (!response.ok) {
 		if (response.status === 401) {
@@ -221,7 +228,21 @@ async function fetchWithAuth<T>(endpoint: string, options: RequestInit = {}): Pr
 		throw new Error(error.error || `HTTP ${response.status}`);
 	}
 
-	return response.json();
+	const result = (await response.json()) as T;
+	if (getCurrentCacheIdentity() !== requestIdentity) throw new SessionChangedError();
+	return result;
+}
+
+class ConnectivityError extends Error {}
+
+class SessionChangedError extends Error {
+	constructor() {
+		super("A sessão mudou durante a solicitação.");
+	}
+}
+
+function isConnectivityError(error: unknown): boolean {
+	return error instanceof ConnectivityError;
 }
 
 // ============== ACCOUNTS ==============
@@ -357,9 +378,14 @@ export const dataService = {
 					(yields as FinancialAccountYield[] | null) ?? [],
 				);
 			}
+			const owner = getCurrentCacheIdentity();
+			if (!owner) throw new Error("Identidade local indisponível.");
 			const accounts = await fetchWithAuth<FinancialAccount[]>("/financial-accounts");
 			// Cache locally
-			await localAccounts.bulkPut(accounts.map(a => ({ data: a, localId: a.id, syncedAt: Date.now() })));
+			await localAccounts.replaceSnapshot(
+				accounts.map(a => ({ data: a, localId: a.id, syncedAt: Date.now() })),
+				owner,
+			);
 			return accounts;
 		},
 
@@ -367,11 +393,14 @@ export const dataService = {
 			if (isGuestMode()) {
 				return (await this.getAll()).find(account => account.id === id) ?? null;
 			}
+			const owner = getCurrentCacheIdentity();
+			if (!owner) throw new Error("Identidade local indisponível.");
 			try {
 				return await fetchWithAuth<FinancialAccount>(`/financial-accounts/${id}`);
-			} catch {
+			} catch (error) {
+				if (!isConnectivityError(error) || getCurrentCacheIdentity() !== owner) throw error;
 				// Fallback to local cache
-				const local = await localAccounts.getById(id);
+				const local = await localAccounts.getById(id, owner);
 				return local?.data || null;
 			}
 		},
@@ -654,8 +683,13 @@ export const dataService = {
 				const local = await localCategories.getAll();
 				return local.map(item => item.data);
 			}
+			const owner = getCurrentCacheIdentity();
+			if (!owner) throw new Error("Identidade local indisponível.");
 			const categories = await fetchWithAuth<Category[]>("/categories");
-			await localCategories.bulkPut(categories.map(c => ({ data: c, localId: c.id, syncedAt: Date.now() })));
+			await localCategories.replaceSnapshot(
+				categories.map(c => ({ data: c, localId: c.id, syncedAt: Date.now() })),
+				owner,
+			);
 			return categories;
 		},
 
@@ -936,9 +970,12 @@ export const dataService = {
 					accountName: card.accountName || accounts.get(card.financialAccountId)?.institution?.name || null,
 				}));
 			}
+			const owner = getCurrentCacheIdentity();
+			if (!owner) throw new Error("Identidade local indisponível.");
 			const cards = await fetchWithAuth<CreditCard[]>("/credit-cards");
-			await localCreditCards.bulkPut(
+			await localCreditCards.replaceSnapshot(
 				cards.map(card => ({ data: card, localId: card.id, syncedAt: Date.now() })),
+				owner,
 			);
 			return cards;
 		},
@@ -999,12 +1036,15 @@ export const dataService = {
 					? statementsWithCredits
 					: statementsWithCredits.filter(statement => statement.isPaid === isPaid);
 			}
+			const owner = getCurrentCacheIdentity();
+			if (!owner) throw new Error("Identidade local indisponível.");
 			const suffix = isPaid === undefined ? "" : `?isPaid=${isPaid}`;
 			const statements = await fetchWithAuth<CreditCardStatement[]>(
 				`/credit-cards/${cardId}/statements${suffix}`,
 			);
 			await localCreditCardStatements.bulkPut(
 				statements.map(statement => ({ data: statement, localId: statement.id, syncedAt: Date.now() })),
+				owner,
 			);
 			return statements;
 		},
@@ -1769,9 +1809,12 @@ export const dataService = {
 		},
 		async getLedger(): Promise<DebtLedger> {
 			if (!isGuestMode()) {
+				const owner = getCurrentCacheIdentity();
+				if (!owner) throw new Error("Identidade local indisponível.");
 				const ledger = await fetchWithAuth<DebtLedger>("/debts");
-				await localDebtPeople.bulkPut(
+				await localDebtPeople.replaceSnapshot(
 					ledger.people.map(person => ({ data: person, localId: person.id, syncedAt: Date.now() })),
+					owner,
 				);
 				return ledger;
 			}
@@ -2020,8 +2063,13 @@ export const dataService = {
 				const local = await localLoans.getAll();
 				return local.map(item => item.data);
 			}
+			const owner = getCurrentCacheIdentity();
+			if (!owner) throw new Error("Identidade local indisponível.");
 			const loans = await fetchWithAuth<Loan[]>("/loans");
-			await localLoans.bulkPut(loans.map(l => ({ data: l, localId: l.id, syncedAt: Date.now() })));
+			await localLoans.replaceSnapshot(
+				loans.map(l => ({ data: l, localId: l.id, syncedAt: Date.now() })),
+				owner,
+			);
 			return loans;
 		},
 
@@ -2087,9 +2135,12 @@ export const dataService = {
 		},
 		async getAll(): Promise<RecurringPayment[]> {
 			if (isGuestMode()) return (await localRecurringPayments.getAll()).map(item => item.data);
+			const owner = getCurrentCacheIdentity();
+			if (!owner) throw new Error("Identidade local indisponível.");
 			const payments = await fetchWithAuth<RecurringPayment[]>("/recurring");
-			await localRecurringPayments.bulkPut(
+			await localRecurringPayments.replaceSnapshot(
 				payments.map(payment => ({ data: payment, localId: payment.id, syncedAt: Date.now() })),
+				owner,
 			);
 			return payments;
 		},
@@ -2178,8 +2229,13 @@ export const dataService = {
 				const local = await localSalaries.getAll();
 				return local.map(item => normalizeSalary(item.data as LegacySalary));
 			}
+			const owner = getCurrentCacheIdentity();
+			if (!owner) throw new Error("Identidade local indisponível.");
 			const salaries = (await fetchWithAuth<Salary[]>("/salaries")).map(normalizeSalary);
-			await localSalaries.bulkPut(salaries.map(s => ({ data: s, localId: s.id, syncedAt: Date.now() })));
+			await localSalaries.replaceSnapshot(
+				salaries.map(s => ({ data: s, localId: s.id, syncedAt: Date.now() })),
+				owner,
+			);
 			return salaries;
 		},
 
@@ -2224,8 +2280,13 @@ export const dataService = {
 
 		async getAll(): Promise<Store[]> {
 			if (isGuestMode()) return (await localStores.getAll()).map(item => item.data);
+			const owner = getCurrentCacheIdentity();
+			if (!owner) throw new Error("Identidade local indisponível.");
 			const stores = await fetchWithAuth<Store[]>("/stores");
-			await localStores.bulkPut(stores.map(store => ({ data: store, localId: store.id })));
+			await localStores.replaceSnapshot(
+				stores.map(store => ({ data: store, localId: store.id })),
+				owner,
+			);
 			return stores;
 		},
 	},
@@ -2296,10 +2357,13 @@ export const dataService = {
 				const local = await localSubscriptions.getAll();
 				return local.map(item => item.data);
 			}
+			const owner = getCurrentCacheIdentity();
+			if (!owner) throw new Error("Identidade local indisponível.");
 			const response = await fetchWithAuth<{ subscriptions: Subscription[] }>("/subscriptions");
 			const subscriptions = response.subscriptions;
-			await localSubscriptions.bulkPut(
+			await localSubscriptions.replaceSnapshot(
 				subscriptions.map(s => ({ data: s, localId: s.id, syncedAt: Date.now() })),
+				owner,
 			);
 			return subscriptions;
 		},
@@ -2356,7 +2420,8 @@ export const dataService = {
 		 */
 		async syncAll(): Promise<{ success: boolean; errors: string[] }> {
 			const state = useAuthStore.getState();
-			if (!state.isAuthenticated) {
+			const owner = getCurrentCacheIdentity();
+			if (!state.isAuthenticated || !owner?.startsWith("user:")) {
 				return { errors: ["Usuário não autenticado"], success: false };
 			}
 
@@ -2378,20 +2443,20 @@ export const dataService = {
 					yieldHolidays,
 					yields,
 				] = await Promise.all([
-					localAccounts.getAll(),
-					localCategories.getAll(),
-					localCreditCards.getAll(),
-					localCreditCardStatements.getAll(),
-					localCreditPurchases.getAll(),
-					localRecurringPayments.getAll(),
-					localTransactions.getAll(),
-					localLoans.getAll(),
-					localDebts.getAll(),
-					localDebtPeople.getAll(),
-					localSalaries.getAll(),
-					localSubscriptions.getAll(),
-					localMeta.get("financial-account-yield-holidays"),
-					localMeta.get("financial-account-yields"),
+					localAccounts.getAll(owner),
+					localCategories.getAll(owner),
+					localCreditCards.getAll(owner),
+					localCreditCardStatements.getAll(owner),
+					localCreditPurchases.getAll(owner),
+					localRecurringPayments.getAll(owner),
+					localTransactions.getAll(owner),
+					localLoans.getAll(owner),
+					localDebts.getAll(owner),
+					localDebtPeople.getAll(owner),
+					localSalaries.getAll(owner),
+					localSubscriptions.getAll(owner),
+					localMeta.get("financial-account-yield-holidays", owner),
+					localMeta.get("financial-account-yields", owner),
 				]);
 
 				// Send to server
@@ -2435,123 +2500,112 @@ export const dataService = {
 
 				// Update local with server data
 				await Promise.all([
-					localAccounts.clear().then(() =>
-						localAccounts.bulkPut(
-							response.serverData.financialAccounts.map(a => ({
-								data: a,
-								localId: a.id,
-								syncedAt: Date.now(),
-							})),
-						),
+					localAccounts.replaceSnapshot(
+						response.serverData.financialAccounts.map(a => ({
+							data: a,
+							localId: a.id,
+							syncedAt: Date.now(),
+						})),
+						owner,
 					),
 					localMeta.set(
 						"financial-account-yield-holidays",
 						response.serverData.financialAccountYieldHolidays,
+						owner,
 					),
-					localMeta.set("financial-account-yields", response.serverData.financialAccountYields),
-					localCategories.clear().then(() =>
-						localCategories.bulkPut(
-							response.serverData.categories.map(c => ({
-								data: c,
-								localId: c.id,
-								syncedAt: Date.now(),
-							})),
-						),
+					localMeta.set("financial-account-yields", response.serverData.financialAccountYields, owner),
+					localCategories.replaceSnapshot(
+						response.serverData.categories.map(c => ({
+							data: c,
+							localId: c.id,
+							syncedAt: Date.now(),
+						})),
+						owner,
 					),
-					localCreditCards.clear().then(() =>
-						localCreditCards.bulkPut(
-							response.serverData.creditCards.map(card => ({
-								data: card,
-								localId: card.id,
-								syncedAt: Date.now(),
-							})),
-						),
+					localCreditCards.replaceSnapshot(
+						response.serverData.creditCards.map(card => ({
+							data: card,
+							localId: card.id,
+							syncedAt: Date.now(),
+						})),
+						owner,
 					),
-					localCreditCardStatements.clear().then(() =>
-						localCreditCardStatements.bulkPut(
-							response.serverData.creditCardStatements.map(statement => ({
-								data: statement,
-								localId: statement.id,
-								syncedAt: Date.now(),
-							})),
-						),
+					localCreditCardStatements.replaceSnapshot(
+						response.serverData.creditCardStatements.map(statement => ({
+							data: statement,
+							localId: statement.id,
+							syncedAt: Date.now(),
+						})),
+						owner,
 					),
-					localCreditPurchases.clear().then(() =>
-						localCreditPurchases.bulkPut(
-							response.serverData.creditPurchases.map(purchase => ({
-								data: purchase,
-								localId: purchase.id,
-								syncedAt: Date.now(),
-							})),
-						),
+					localCreditPurchases.replaceSnapshot(
+						response.serverData.creditPurchases.map(purchase => ({
+							data: purchase,
+							localId: purchase.id,
+							syncedAt: Date.now(),
+						})),
+						owner,
 					),
-					localRecurringPayments.clear().then(() =>
-						localRecurringPayments.bulkPut(
-							response.serverData.recurringPayments.map(payment => ({
-								data: payment,
-								localId: payment.id,
-								syncedAt: Date.now(),
-							})),
-						),
+					localRecurringPayments.replaceSnapshot(
+						response.serverData.recurringPayments.map(payment => ({
+							data: payment,
+							localId: payment.id,
+							syncedAt: Date.now(),
+						})),
+						owner,
 					),
-					localTransactions.clear().then(() =>
-						localTransactions.bulkPut(
-							response.serverData.transactions.map(t => ({
-								data: t,
-								localId: t.id,
-								syncedAt: Date.now(),
-							})),
-						),
+					localTransactions.replaceSnapshot(
+						response.serverData.transactions.map(t => ({
+							data: t,
+							localId: t.id,
+							syncedAt: Date.now(),
+						})),
+						owner,
 					),
-					localLoans.clear().then(() =>
-						localLoans.bulkPut(
-							response.serverData.loans.map(l => ({
-								data: l,
-								localId: l.id,
-								syncedAt: Date.now(),
-							})),
-						),
+					localLoans.replaceSnapshot(
+						response.serverData.loans.map(l => ({
+							data: l,
+							localId: l.id,
+							syncedAt: Date.now(),
+						})),
+						owner,
 					),
-					localDebts.clear().then(() =>
-						localDebts.bulkPut(
-							response.serverData.debts.map(d => ({
-								data: d,
-								localId: d.id,
-								syncedAt: Date.now(),
-							})),
-						),
+					localDebts.replaceSnapshot(
+						response.serverData.debts.map(d => ({
+							data: d,
+							localId: d.id,
+							syncedAt: Date.now(),
+						})),
+						owner,
 					),
-					localDebtPeople.clear().then(() =>
-						localDebtPeople.bulkPut(
-							response.serverData.debtPeople.map(person => ({
-								data: person,
-								localId: person.id,
-								syncedAt: Date.now(),
-							})),
-						),
+					localDebtPeople.replaceSnapshot(
+						response.serverData.debtPeople.map(person => ({
+							data: person,
+							localId: person.id,
+							syncedAt: Date.now(),
+						})),
+						owner,
 					),
-					localSalaries.clear().then(() =>
-						localSalaries.bulkPut(
-							response.serverData.salaries.map(s => ({
-								data: s,
-								localId: s.id,
-								syncedAt: Date.now(),
-							})),
-						),
+					localSalaries.replaceSnapshot(
+						response.serverData.salaries.map(s => ({
+							data: s,
+							localId: s.id,
+							syncedAt: Date.now(),
+						})),
+						owner,
 					),
-					localSubscriptions.clear().then(() =>
-						localSubscriptions.bulkPut(
-							response.serverData.subscriptions.map(s => ({
-								data: s,
-								localId: s.id,
-								syncedAt: Date.now(),
-							})),
-						),
+					localSubscriptions.replaceSnapshot(
+						response.serverData.subscriptions.map(s => ({
+							data: s,
+							localId: s.id,
+							syncedAt: Date.now(),
+						})),
+						owner,
 					),
 				]);
 
 				// Save sync timestamp
-				await localMeta.set("lastSyncAt", Date.now());
+				await localMeta.set("lastSyncAt", Date.now(), owner);
 
 				// Collect errors
 				const errors: string[] = [];
@@ -2957,6 +3011,8 @@ export const dataService = {
 				return transactions;
 			}
 
+			const owner = getCurrentCacheIdentity();
+			if (!owner) throw new Error("Identidade local indisponível.");
 			const searchParams = new URLSearchParams();
 			if (params) {
 				for (const [key, value] of Object.entries(params)) {
@@ -2969,11 +3025,14 @@ export const dataService = {
 			const url = query ? `/transactions?${query}` : "/transactions";
 
 			const transactions = await fetchWithAuth<Transaction[]>(url);
-			await localTransactions.bulkPut(
-				transactions
-					.filter(transaction => transaction.source !== "CREDIT_CARD")
-					.map(t => ({ data: t, localId: t.id, syncedAt: Date.now() })),
-			);
+			const snapshot = transactions
+				.filter(transaction => transaction.source !== "CREDIT_CARD")
+				.map(t => ({ data: t, localId: t.id, syncedAt: Date.now() }));
+			if (params && Object.values(params).some(value => value !== undefined)) {
+				await localTransactions.bulkPut(snapshot, owner);
+			} else {
+				await localTransactions.replaceSnapshot(snapshot, owner);
+			}
 			return transactions;
 		},
 

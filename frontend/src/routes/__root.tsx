@@ -1,9 +1,11 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { createRootRoute, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { initLocalDb } from "@/lib/localStorage";
+import { useCacheIdentity } from "@/lib/query-cache";
 import { useAuthStore, useThemeStore } from "@/stores";
 
 function AppLoadingState() {
@@ -26,6 +28,9 @@ function AppLoadingState() {
 function RootComponent() {
 	const pathname = useLocation().pathname;
 	const navigate = useNavigate();
+	const queryClient = useQueryClient();
+	const identity = useCacheIdentity();
+	const previousIdentity = useRef(identity);
 	const initializeTheme = useThemeStore(state => state.initializeTheme);
 	const { initialize, isAuthenticated, isGuestMode, isInitialized, isRateLimited } = useAuthStore();
 	const isPublicRoute =
@@ -49,10 +54,19 @@ function RootComponent() {
 		if (isRateLimited) toast.error("Não foi possível validar a sessão agora. Tente novamente em instantes.");
 	}, [isRateLimited]);
 
+	useEffect(() => {
+		const previous = previousIdentity.current;
+		previousIdentity.current = identity;
+		if (!previous || previous === identity) return;
+		void queryClient.cancelQueries({ queryKey: ["identity", previous] }).then(() => {
+			queryClient.removeQueries({ queryKey: ["identity", previous] });
+		});
+	}, [identity, queryClient]);
+
 	if (!isPublicRoute && !isInitialized) return <AppLoadingState />;
 	if (isPublicRoute) return <Outlet />;
 	return (
-		<AppShell>
+		<AppShell key={identity}>
 			<Outlet />
 		</AppShell>
 	);

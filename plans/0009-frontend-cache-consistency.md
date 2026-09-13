@@ -17,7 +17,7 @@ Isolar caches por identidade, centralizar chaves e invalidações, corrigir atua
 
 - [x] 1. Fundação: identidade estável, chaves tipadas e matriz central de invalidação.
 - [x] 2. Persistência: particionamento IndexedDB, migração idempotente, snapshots e transações confiáveis.
-- [ ] 3. Sessões: cancelamento/remoção do cache anterior, bloqueio durante inicialização e reinício de estado visual.
+- [x] 3. Sessões: cancelamento/remoção do cache anterior, bloqueio durante inicialização e reinício de estado visual.
 - [ ] 4. Consultas e mutações: migrar domínios para chaves/invalidações centralizadas e remover duplicidade de contas.
 - [ ] 5. Importações: pendências, detalhe, encerramento, skeleton/erro/retry e derivados financeiros.
 - [ ] 6. Seleções: guardar IDs e derivar objetos atuais sem perder rascunhos de edição.
@@ -36,4 +36,8 @@ Isolar caches por identidade, centralizar chaves e invalidações, corrigir atua
 - IndexedDB atualizado para stores particionadas por proprietário, incluindo metadados e timestamps.
 - Migração copia apenas registros com proprietário explícito ou relação unívoca; legado e registros ambíguos permanecem intactos.
 - Escritas agora resolvem no fechamento da transação; snapshots completos removem somente dados remotos antigos e preservam alterações locais.
-- Próximo: capturar proprietário antes das requisições e tratar troca de sessão.
+- Requisições remotas recusam respostas de identidade antiga; fallback offline aceita somente falha de conectividade na mesma identidade.
+- Listagens completas substituem snapshots remotos; filtros atualizam apenas registros retornados.
+- Troca de identidade cancela e remove consultas anteriores e remonta a árvore privada, preservando tratamento de HTTP 429.
+- Sincronização e limpeza local permanecem restritas ao proprietário capturado.
+- Próximo: migrar consultas e mutações para a fundação central.
