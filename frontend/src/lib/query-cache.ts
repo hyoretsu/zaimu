@@ -101,7 +101,7 @@ export const queryKeys = {
 
 type CacheDomain = keyof typeof queryKeys;
 
-const relatedDomains = {
+export const cacheOperationDomains = {
 	account: ["accounts", "creditCards", "dashboard", "transactions", "accountYields"],
 	category: ["categories", "transactions", "dashboard"],
 	creditCard: ["creditCards", "creditCardStatements", "accounts", "dashboard"],
@@ -117,7 +117,7 @@ const relatedDomains = {
 	yield: ["accountYields", "accounts", "dashboard", "transactions"],
 } as const satisfies Record<string, readonly CacheDomain[]>;
 
-export type CacheOperation = keyof typeof relatedDomains;
+export type CacheOperation = keyof typeof cacheOperationDomains;
 
 export async function invalidateCacheOperation(
 	queryClient: QueryClient,
@@ -125,7 +125,7 @@ export async function invalidateCacheOperation(
 	operation: CacheOperation,
 ): Promise<void> {
 	await Promise.all(
-		relatedDomains[operation].map(domain =>
+		cacheOperationDomains[operation].map(domain =>
 			queryClient.invalidateQueries({ queryKey: queryKeys[domain].all(identity), refetchType: "active" }),
 		),
 	);

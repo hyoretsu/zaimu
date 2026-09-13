@@ -112,7 +112,8 @@ async function runTransaction<T>(
 function explicitOwner(data: unknown): StorageOwner | null {
 	if (!data || typeof data !== "object") return null;
 	const value = data as Record<string, unknown>;
-	if (typeof value.userId === "string" && value.userId) return `user:${value.userId}`;
+	if (typeof value.userId === "string" && value.userId)
+		return value.userId.startsWith("guest_") ? `guest:${value.userId}` : `user:${value.userId}`;
 	if (typeof value.ownerId === "string" && value.ownerId) return `user:${value.ownerId}`;
 	if (typeof value.guestId === "string" && value.guestId) return `guest:${value.guestId}`;
 	return null;
@@ -255,16 +256,18 @@ export async function put<T>(
 	localId?: string,
 	ownerKey?: StorageOwner,
 ): Promise<string> {
-	const owner = requireOwner(ownerKey);
+	const owner = requireOwner(ownerKey ?? explicitOwner(data) ?? undefined);
 	const id = localId ?? crypto.randomUUID();
+	const timestamp = Date.now();
 	await runTransaction(scopedStoreName(domain), "readwrite", async store => {
 		await requestResult(
 			store.put({
 				data,
 				localId: id,
-				modifiedAt: Date.now(),
+				modifiedAt: timestamp,
 				ownerKey: owner,
 				scopedId: scopedId(owner, id),
+				...(owner.startsWith("user:") && { syncedAt: timestamp }),
 			}),
 		);
 	});
@@ -279,6 +282,10 @@ export async function softDelete(
 	const owner = requireOwner(ownerKey);
 	await runTransaction(scopedStoreName(domain), "readwrite", async store => {
 		const key = scopedId(owner, localId);
+		if (owner.startsWith("user:")) {
+			await requestResult(store.delete(key));
+			return;
+		}
 		const item = (await requestResult(store.get(key))) as LocalData<unknown> | undefined;
 		if (!item) return;
 		await requestResult(store.put({ ...item, deleted: true, modifiedAt: Date.now() }));
@@ -366,6 +373,39 @@ export async function replaceRemoteSnapshot<T>(
 	});
 }
 
+export async function replaceRemoteSlice<T>(
+	domain: StoreDomain,
+	items: Array<{ data: T; localId: string; syncedAt?: number }>,
+	belongsToSlice: (data: T) => boolean,
+	ownerKey?: StorageOwner,
+): Promise<void> {
+	const owner = requireOwner(ownerKey);
+	const remoteIds = new Set(items.map(item => item.localId));
+	await runTransaction(scopedStoreName(domain), "readwrite", async store => {
+		const existing = (await requestResult(store.index("ownerKey").getAll(owner))) as LocalData<T>[];
+		for (const item of existing) {
+			if (belongsToSlice(item.data) && !remoteIds.has(item.localId) && !isLocallyModified(item))
+				await requestResult(store.delete(item.scopedId));
+		}
+		for (const item of items) {
+			const key = scopedId(owner, item.localId);
+			const current = existing.find(record => record.localId === item.localId);
+			if (current && isLocallyModified(current)) continue;
+			const timestamp = item.syncedAt ?? Date.now();
+			await requestResult(
+				store.put({
+					data: item.data,
+					localId: item.localId,
+					modifiedAt: timestamp,
+					ownerKey: owner,
+					scopedId: key,
+					syncedAt: timestamp,
+				}),
+			);
+		}
+	});
+}
+
 export async function clearStore(domain: StoreDomain, ownerKey?: StorageOwner): Promise<void> {
 	const owner = requireOwner(ownerKey);
 	await runTransaction(scopedStoreName(domain), "readwrite", async store => {
@@ -394,6 +434,8 @@ function createLocalStore<T>(domain: StoreDomain) {
 		getById: (id: string, owner?: StorageOwner) => getById<T>(domain, id, owner),
 		getModifiedSince: (since: number, owner?: StorageOwner) => getModifiedSince<T>(domain, since, owner),
 		put: (data: T, id?: string, owner?: StorageOwner) => put(domain, data, id, owner),
+		replaceSlice: (items: SnapshotItem<T>[], belongsToSlice: (data: T) => boolean, owner?: StorageOwner) =>
+			replaceRemoteSlice(domain, items, belongsToSlice, owner),
 		replaceSnapshot: (items: SnapshotItem<T>[], owner?: StorageOwner) =>
 			replaceRemoteSnapshot(domain, items, owner),
 	};

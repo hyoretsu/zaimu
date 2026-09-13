@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { QueryClient } from "@tanstack/react-query";
-import { closeImportReview, getCacheIdentity, invalidateCacheOperation, queryKeys } from "./query-cache";
+import { QueryClient, QueryObserver } from "@tanstack/react-query";
+import {
+	cacheOperationDomains,
+	closeImportReview,
+	getCacheIdentity,
+	invalidateCacheOperation,
+	queryKeys,
+} from "./query-cache";
 
 const identity = "user:user-a" as const;
 
@@ -40,14 +46,33 @@ describe("query cache", () => {
 		const queryClient = new QueryClient();
 		const transactionKey = queryKeys.transactions.list(identity, { type: "EXPENSE" });
 		const dashboardKey = queryKeys.dashboard.detail(identity, { from: "2026-01-01" });
-		queryClient.setQueryData(transactionKey, ["transaction"]);
+		let fetchCount = 0;
+		const observer = new QueryObserver(queryClient, {
+			queryFn: async () => {
+				fetchCount++;
+				return ["transaction"];
+			},
+			queryKey: transactionKey,
+		});
+		const unsubscribe = observer.subscribe(() => undefined);
+		await queryClient.ensureQueryData({ queryFn: () => ["transaction"], queryKey: transactionKey });
 		queryClient.setQueryData(dashboardKey, { balance: 100 });
 
 		await invalidateCacheOperation(queryClient, identity, "transaction");
 
-		expect(queryClient.getQueryState(transactionKey)?.isInvalidated).toBeTrue();
+		expect(fetchCount).toBeGreaterThanOrEqual(2);
 		expect(queryClient.getQueryState(dashboardKey)?.isInvalidated).toBeTrue();
 		expect(queryClient.getQueryData<string[]>(transactionKey)).toEqual(["transaction"]);
+		unsubscribe();
+	});
+
+	test("maps every mutation family to its direct and derived domains", () => {
+		expect(cacheOperationDomains.transaction).toContain("accountYields");
+		expect(cacheOperationDomains.statement).toContain("creditCards");
+		expect(cacheOperationDomains.recurring).toContain("dashboard");
+		expect(cacheOperationDomains.holiday).toContain("transactions");
+		expect(cacheOperationDomains.debt).toContain("dashboard");
+		expect(cacheOperationDomains.loan).toContain("accounts");
 	});
 
 	test("removes a closed import detail and invalidates only its pending list", async () => {

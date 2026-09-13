@@ -1042,10 +1042,18 @@ export const dataService = {
 			const statements = await fetchWithAuth<CreditCardStatement[]>(
 				`/credit-cards/${cardId}/statements${suffix}`,
 			);
-			await localCreditCardStatements.bulkPut(
-				statements.map(statement => ({ data: statement, localId: statement.id, syncedAt: Date.now() })),
-				owner,
-			);
+			const snapshot = statements.map(statement => ({
+				data: statement,
+				localId: statement.id,
+				syncedAt: Date.now(),
+			}));
+			if (isPaid === undefined)
+				await localCreditCardStatements.replaceSlice(
+					snapshot,
+					statement => statement.creditCardId === cardId,
+					owner,
+				);
+			else await localCreditCardStatements.bulkPut(snapshot, owner);
 			return statements;
 		},
 		async payStatement(
