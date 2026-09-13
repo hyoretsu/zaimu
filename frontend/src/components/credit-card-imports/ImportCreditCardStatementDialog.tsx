@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { LuFileUp } from "react-icons/lu";
 import { StatementFilePicker } from "@/components/transaction-imports";
@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/Label";
 import type { CreditCard, CreditCardImport } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 
 const providerOptions = [
@@ -41,6 +42,8 @@ export function ImportCreditCardStatementDialog({
 	onOpenChange: (open: boolean) => void;
 	open: boolean;
 }) {
+	const queryClient = useQueryClient();
+	const identity = useCacheIdentity();
 	const [creditCardId, setCreditCardId] = useState("");
 	const [file, setFile] = useState<File | null>(null);
 	const [password, setPassword] = useState("");
@@ -65,12 +68,16 @@ export function ImportCreditCardStatementDialog({
 			});
 		},
 		onError: error => showToast(error.message, "negative"),
-		onSuccess: result => {
+		onSuccess: async result => {
 			if (!result.creditCardImport) {
 				showToast("Nenhuma compra nova encontrada na fatura.", "info");
 				onOpenChange(false);
 				return;
 			}
+			await queryClient.invalidateQueries({
+				queryKey: queryKeys.creditCardImports.pending(identity!),
+				refetchType: "active",
+			});
 			onOpenChange(false);
 			onImported(result.creditCardImport.id);
 			showToast(

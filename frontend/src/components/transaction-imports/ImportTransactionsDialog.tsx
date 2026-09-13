@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { LuFileUp } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
@@ -16,6 +16,7 @@ import {
 	compareFinancialAccountsByOptionLabel,
 	getFinancialAccountOptionLabel,
 } from "@/lib/financial-account";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { StatementFilePicker } from "./StatementFilePicker";
 
@@ -39,10 +40,16 @@ export function ImportTransactionsDialog({
 	onOpenChange: (open: boolean) => void;
 	open: boolean;
 }) {
+	const queryClient = useQueryClient();
+	const identity = useCacheIdentity();
 	const [file, setFile] = useState<File | null>(null);
 	const [financialAccountId, setFinancialAccountId] = useState(defaultFinancialAccountId ?? "");
 	const [provider, setProvider] = useState<TransactionImportProvider | "">("");
-	const accounts = useQuery({ enabled: open, queryFn: dataService.accounts.getAll, queryKey: ["accounts"] });
+	const accounts = useQuery({
+		enabled: identity !== null && open,
+		queryFn: dataService.accounts.getAll,
+		queryKey: queryKeys.accounts.list(identity!),
+	});
 	useEffect(() => {
 		if (!open) return;
 		setFile(null);
@@ -64,7 +71,7 @@ export function ImportTransactionsDialog({
 			return dataService.transactionImports.create({ file, financialAccountId, provider });
 		},
 		onError: error => showToast(error.message, "negative"),
-		onSuccess: result => {
+		onSuccess: async result => {
 			setFile(null);
 			setProvider("");
 			handleOpenChange(false);
@@ -72,6 +79,10 @@ export function ImportTransactionsDialog({
 				showToast("Nenhuma transação nova encontrada no extrato.", "info");
 				return;
 			}
+			await queryClient.invalidateQueries({
+				queryKey: queryKeys.transactionImports.pending(identity!),
+				refetchType: "active",
+			});
 			onImported(result.transactionImport.id);
 			showToast(
 				result.ignoredCount

@@ -17,6 +17,13 @@ import type { CreditCardImportItem } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
+import {
+	closeImportReview,
+	invalidateCacheOperation,
+	invalidateQueryKeys,
+	queryKeys,
+	useCacheIdentity,
+} from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { CreditCardImportItemRow } from "./CreditCardImportItemRow";
 import { CreditPurchaseReconciliationDialog } from "./CreditPurchaseReconciliationDialog";
@@ -32,33 +39,30 @@ export function CreditCardImportReviewDialog({
 	open: boolean;
 }) {
 	const queryClient = useQueryClient();
+	const identity = useCacheIdentity();
 	const [editingItem, setEditingItem] = useState<CreditCardImportItem | null>(null);
 	const [reconcilingItem, setReconcilingItem] = useState<CreditCardImportItem | null>(null);
 	const [discardConfirmationOpen, setDiscardConfirmationOpen] = useState(false);
 	const creditCardImport = useQuery({
-		enabled: open && Boolean(importId),
+		enabled: identity !== null && open && Boolean(importId),
 		queryFn: () => dataService.creditCardImports.get(importId!),
-		queryKey: ["credit-card-import", importId],
+		queryKey: queryKeys.creditCardImports.detail(identity!, importId),
 	});
 	const creditCards = useQuery({
-		enabled: open,
+		enabled: identity !== null && open,
 		queryFn: () => dataService.creditCards.getAll(),
-		queryKey: ["credit-cards"],
+		queryKey: queryKeys.creditCards.list(identity!),
 	});
-	const invalidate = async () => {
-		await Promise.all([
-			queryClient.invalidateQueries({ queryKey: ["credit-card-import", importId] }),
-			queryClient.invalidateQueries({ queryKey: ["pending-credit-card-imports"] }),
+	const invalidate = () =>
+		invalidateQueryKeys(queryClient, [
+			queryKeys.creditCardImports.detail(identity!, importId),
+			queryKeys.creditCardImports.pending(identity!),
 		]);
-	};
-	const invalidateCreditCards = async () => {
-		await Promise.all([
-			invalidate(),
-			queryClient.invalidateQueries({ queryKey: ["credit-card-statements"] }),
-			queryClient.invalidateQueries({ queryKey: ["credit-cards"] }),
-			queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-			queryClient.invalidateQueries({ queryKey: ["transactions"] }),
-		]);
+	const invalidateCreditCards = () => invalidateCacheOperation(queryClient, identity!, "statement");
+	const closeFinishedReview = async () => {
+		if (!importId) return;
+		onOpenChange(false);
+		await closeImportReview(queryClient, identity!, "credit-card", importId);
 	};
 	const updateItem = useMutation({
 		mutationFn: ({
@@ -79,8 +83,9 @@ export function CreditCardImportReviewDialog({
 		mutationFn: (itemId: string) => dataService.creditCardImports.approveItem(importId!, itemId),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
-			if ((creditCardImport.data?.items.length ?? 0) === 1) onOpenChange(false);
 			await invalidateCreditCards();
+			if ((creditCardImport.data?.items.length ?? 0) === 1) await closeFinishedReview();
+			else await invalidate();
 			showToast("Compra e parcelas criadas.", "positive");
 		},
 	});
@@ -106,8 +111,9 @@ export function CreditCardImportReviewDialog({
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async result => {
 			const reviewFinished = result.created === items.length;
-			if (reviewFinished) onOpenChange(false);
 			await invalidateCreditCards();
+			if (reviewFinished) await closeFinishedReview();
+			else await invalidate();
 			showToast(
 				reviewFinished
 					? "Revisão finalizada."
@@ -121,8 +127,7 @@ export function CreditCardImportReviewDialog({
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
 			setDiscardConfirmationOpen(false);
-			onOpenChange(false);
-			await invalidate();
+			await closeFinishedReview();
 			showToast("Importação descartada.", "info");
 		},
 	});

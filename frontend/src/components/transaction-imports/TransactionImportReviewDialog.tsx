@@ -21,6 +21,13 @@ import type {
 } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
+import {
+	closeImportReview,
+	invalidateCacheOperation,
+	invalidateQueryKeys,
+	queryKeys,
+	useCacheIdentity,
+} from "@/lib/query-cache";
 import { sortTransactionsByMostRecent } from "@/lib/transaction-sort";
 import { showToast } from "@/stores";
 import { DuplicateResolutionDialog, type DuplicateResolutionSources } from "./DuplicateResolutionDialog";
@@ -131,6 +138,7 @@ export function TransactionImportReviewDialog({
 	open: boolean;
 }) {
 	const queryClient = useQueryClient();
+	const identity = useCacheIdentity();
 	const [collapsedDateKeys, setCollapsedDateKeys] = useState<Set<string>>(new Set());
 	const [collapsedItemIds, setCollapsedItemIds] = useState<Set<string>>(new Set());
 	const [approvingDateKeys, setApprovingDateKeys] = useState<Set<string>>(new Set());
@@ -143,11 +151,15 @@ export function TransactionImportReviewDialog({
 		suggestion: TransactionImportTransferSuggestion;
 	} | null>(null);
 	const transactionImport = useQuery({
-		enabled: open && Boolean(importId),
+		enabled: identity !== null && open && Boolean(importId),
 		queryFn: () => dataService.transactionImports.get(importId!),
-		queryKey: ["transaction-import", importId],
+		queryKey: queryKeys.transactionImports.detail(identity!, importId),
 	});
-	const accounts = useQuery({ enabled: open, queryFn: dataService.accounts.getAll, queryKey: ["accounts"] });
+	const accounts = useQuery({
+		enabled: identity !== null && open,
+		queryFn: dataService.accounts.getAll,
+		queryKey: queryKeys.accounts.list(identity!),
+	});
 	useEffect(() => {
 		if (!open) return;
 		setCollapsedDateKeys(new Set());
@@ -157,11 +169,15 @@ export function TransactionImportReviewDialog({
 		setDiscardConfirmationOpen(false);
 		setTransferSuggestionDecision(null);
 	}, [importId, open]);
-	const invalidate = async () => {
-		await Promise.all([
-			queryClient.invalidateQueries({ queryKey: ["pending-transaction-imports"] }),
-			queryClient.invalidateQueries({ queryKey: ["transaction-import", importId] }),
+	const invalidate = () =>
+		invalidateQueryKeys(queryClient, [
+			queryKeys.transactionImports.pending(identity!),
+			queryKeys.transactionImports.detail(identity!, importId),
 		]);
+	const closeFinishedReview = async () => {
+		if (!importId) return;
+		onOpenChange(false);
+		await closeImportReview(queryClient, identity!, "transaction", importId);
 	};
 	const updateItem = useMutation({
 		mutationFn: ({
@@ -184,7 +200,7 @@ export function TransactionImportReviewDialog({
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async result => {
 			await invalidate();
-			if (result.removedImportId === importId) onOpenChange(false);
+			if (result.removedImportId === importId) await closeFinishedReview();
 			showToast("Movimentos combinados como transferência.", "positive");
 		},
 	});
@@ -193,13 +209,9 @@ export function TransactionImportReviewDialog({
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async result => {
 			const reviewFinished = result.created === remainingItemCount;
-			await Promise.all([
-				invalidate(),
-				queryClient.invalidateQueries({ queryKey: ["accounts"] }),
-				queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
-			]);
-			if (reviewFinished) onOpenChange(false);
+			await invalidateCacheOperation(queryClient, identity!, "transaction");
+			if (reviewFinished) await closeFinishedReview();
+			else await invalidate();
 			showToast(
 				reviewFinished
 					? "Revisão finalizada."
@@ -223,13 +235,9 @@ export function TransactionImportReviewDialog({
 		},
 		onSuccess: async () => {
 			const reviewFinished = remainingItemCount === 1;
-			if (reviewFinished) onOpenChange(false);
-			await Promise.all([
-				invalidate(),
-				queryClient.invalidateQueries({ queryKey: ["accounts"] }),
-				queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
-			]);
+			await invalidateCacheOperation(queryClient, identity!, "transaction");
+			if (reviewFinished) await closeFinishedReview();
+			else await invalidate();
 			showToast(reviewFinished ? "Revisão finalizada." : "Transação aprovada.", "positive");
 		},
 	});
@@ -248,13 +256,9 @@ export function TransactionImportReviewDialog({
 		},
 		onSuccess: async result => {
 			const reviewFinished = result.created === remainingItemCount;
-			if (reviewFinished) onOpenChange(false);
-			await Promise.all([
-				invalidate(),
-				queryClient.invalidateQueries({ queryKey: ["accounts"] }),
-				queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
-			]);
+			await invalidateCacheOperation(queryClient, identity!, "transaction");
+			if (reviewFinished) await closeFinishedReview();
+			else await invalidate();
 			showToast(
 				reviewFinished
 					? "Revisão finalizada."
@@ -267,9 +271,8 @@ export function TransactionImportReviewDialog({
 		mutationFn: () => dataService.transactionImports.delete(importId!),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
-			await invalidate();
 			setDiscardConfirmationOpen(false);
-			onOpenChange(false);
+			await closeFinishedReview();
 			showToast("Importação descartada.", "info");
 		},
 	});

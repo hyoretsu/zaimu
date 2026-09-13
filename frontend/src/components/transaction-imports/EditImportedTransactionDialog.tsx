@@ -24,6 +24,7 @@ import {
 	getTransactionSourceAccounts,
 } from "@/lib/financial-account";
 import { getPayableCreditCardStatements } from "@/lib/payable-credit-card-statements";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 
 type EditableItem = Omit<
 	Pick<
@@ -74,14 +75,15 @@ export function EditImportedTransactionDialog({
 	open: boolean;
 	pending: boolean;
 }) {
+	const identity = useCacheIdentity();
 	const [draft, setDraft] = useState<EditableItem | null>(() => (item ? toDraft(item) : null));
 	const [isDebt, setIsDebt] = useState(Boolean(item?.debtSplit));
 	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>(() => debtSplitToInput(item?.debtSplit));
 	const [description, setDescription] = useDebouncedInput(item?.description ?? "", () => undefined);
 	const payableStatementsQuery = useQuery({
-		enabled: open && draft?.type === "EXPENSE",
+		enabled: identity !== null && open && draft?.type === "EXPENSE",
 		queryFn: () => getPayableCreditCardStatements(draft?.creditCardStatementId ?? undefined),
-		queryKey: ["credit-card-statements", "payable", draft?.creditCardStatementId],
+		queryKey: queryKeys.creditCardStatements.payable(identity!, draft?.creditCardStatementId ?? undefined),
 	});
 	useEffect(() => {
 		if (!item || !open) return;

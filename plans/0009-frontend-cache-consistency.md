@@ -18,9 +18,9 @@ Isolar caches por identidade, centralizar chaves e invalidações, corrigir atua
 - [x] 1. Fundação: identidade estável, chaves tipadas e matriz central de invalidação.
 - [x] 2. Persistência: particionamento IndexedDB, migração idempotente, snapshots e transações confiáveis.
 - [x] 3. Sessões: cancelamento/remoção do cache anterior, bloqueio durante inicialização e reinício de estado visual.
-- [ ] 4. Consultas e mutações: migrar domínios para chaves/invalidações centralizadas e remover duplicidade de contas.
-- [ ] 5. Importações: pendências, detalhe, encerramento, skeleton/erro/retry e derivados financeiros.
-- [ ] 6. Seleções: guardar IDs e derivar objetos atuais sem perder rascunhos de edição.
+- [x] 4. Consultas e mutações: migrar domínios para chaves/invalidações centralizadas e remover duplicidade de contas.
+- [x] 5. Importações: pendências, detalhe, encerramento, skeleton/erro/retry e derivados financeiros.
+- [x] 6. Seleções: guardar IDs e derivar objetos atuais sem perder rascunhos de edição.
 - [ ] 7. Validação: testes de identidade, IndexedDB, matriz de invalidação e fluxos de importação; build frontend.
 
 ## Progresso
@@ -40,4 +40,8 @@ Isolar caches por identidade, centralizar chaves e invalidações, corrigir atua
 - Listagens completas substituem snapshots remotos; filtros atualizam apenas registros retornados.
 - Troca de identidade cancela e remove consultas anteriores e remonta a árvore privada, preservando tratamento de HTTP 429.
 - Sincronização e limpeza local permanecem restritas ao proprietário capturado.
-- Próximo: migrar consultas e mutações para a fundação central.
+- Consultas migradas para chaves tipadas por identidade; contas agora usam uma única chave canônica.
+- Famílias de mutações usam matriz central de invalidação, cobrindo saldos, dashboard, limites, faturas, rateios e rendimentos.
+- Importações invalidam pendências na criação, preservam dados durante refetch, exibem skeleton/erro/retry e removem detalhes encerrados.
+- Seleção de cartões guarda IDs e deriva objetos atualizados das consultas; rascunhos dos formulários permanecem locais.
+- Próximo: executar testes e build frontend; corrigir falhas encontradas.

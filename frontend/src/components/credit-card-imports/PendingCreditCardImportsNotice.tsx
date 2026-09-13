@@ -2,15 +2,30 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { LuFileClock } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { dataService } from "@/lib/dataService";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { PendingCreditCardImportsDialog } from "./PendingCreditCardImportsDialog";
 
 export function PendingCreditCardImportsNotice({ onReview }: { onReview: (importId: string) => void }) {
+	const identity = useCacheIdentity();
 	const [selectionOpen, setSelectionOpen] = useState(false);
 	const imports = useQuery({
+		enabled: identity?.startsWith("user:") ?? false,
 		queryFn: dataService.creditCardImports.getPending,
-		queryKey: ["pending-credit-card-imports"],
+		queryKey: queryKeys.creditCardImports.pending(identity!),
 	});
+	if (imports.isPending && identity?.startsWith("user:"))
+		return <Skeleton className="h-[5.25rem] rounded-2xl" />;
+	if (imports.isError && !imports.data)
+		return (
+			<section className="flex items-center justify-between gap-3 rounded-2xl border border-destructive/30 p-4">
+				<p className="text-sm">Não foi possível verificar faturas pendentes.</p>
+				<Button className="cursor-pointer" onClick={() => imports.refetch()} variant="outline">
+					Tentar novamente
+				</Button>
+			</section>
+		);
 	if (!imports.data?.length) return null;
 	const purchases = imports.data.reduce((total, item) => total + item.items.length, 0);
 	return (
