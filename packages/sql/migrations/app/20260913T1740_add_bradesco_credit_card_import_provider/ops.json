@@ -1,0 +1,41 @@
+[
+	{
+		"execute": [
+			{
+				"description": "add value \"BRADESCO\" to enum type \"CreditCardImportProvider\"",
+				"sql": "ALTER TYPE \"public\".\"CreditCardImportProvider\" ADD VALUE 'BRADESCO'"
+			}
+		],
+		"id": "addNativeEnumValue.CreditCardImportProvider.BRADESCO",
+		"label": "Add value \"BRADESCO\" to enum type \"CreditCardImportProvider\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify value \"BRADESCO\" exists on enum type \"CreditCardImportProvider\"",
+				"params": ["public", "CreditCardImportProvider", "BRADESCO"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure enum type \"CreditCardImportProvider\" exists",
+				"params": ["public", "CreditCardImportProvider", "e"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_type\" AS \"t\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"t\".\"typtype\" = $3)) AS \"result\""
+			},
+			{
+				"description": "ensure value \"BRADESCO\" is absent from enum type \"CreditCardImportProvider\"",
+				"params": ["public", "CreditCardImportProvider", "BRADESCO"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\""
+			}
+		],
+		"summary": "Adds value \"BRADESCO\" to enum type \"CreditCardImportProvider\". A newly added enum value cannot be used until the transaction that adds it commits, so a migration that both appends a value and uses it in the same step will fail at apply.",
+		"target": {
+			"details": {
+				"name": "CreditCardImportProvider",
+				"objectType": "type",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	}
+]

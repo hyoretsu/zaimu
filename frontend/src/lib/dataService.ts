@@ -690,16 +690,19 @@ export const dataService = {
 		async create({
 			creditCardId,
 			file,
+			password,
 			provider,
 		}: {
 			creditCardId: string;
 			file: File;
+			password?: string;
 			provider: CreditCardImport["provider"];
 		}): Promise<CreditCardImportCreateResult> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar faturas.");
 			const form = new FormData();
 			form.set("creditCardId", creditCardId);
 			form.set("file", file);
+			if (password) form.set("password", password);
 			form.set("provider", provider);
 			return fetchWithAuth<CreditCardImportCreateResult>("/credit-card-imports", {
 				body: form,

@@ -343,7 +343,7 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 			const fileBytes = new Uint8Array(await body.file.arrayBuffer());
 			if (fileBytes.length < 5 || new TextDecoder().decode(fileBytes.slice(0, 5)) !== "%PDF-")
 				throw new HttpException("Envie um PDF válido", 400);
-			const statement = await parseCreditCardStatementPdf(fileBytes.buffer, body.provider);
+			const statement = await parseCreditCardStatementPdf(fileBytes.buffer, body.provider, body.password);
 			const purchases = assignCreditCardPurchaseExternalIds(statement.purchases, body.creditCardId);
 			const [existing, pending] = await Promise.all([
 				queryRows(
@@ -418,7 +418,8 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 			body: t.Object({
 				creditCardId: t.String({ maxLength: 36, minLength: 1 }),
 				file: t.File(),
-				provider: t.Literal("MERCADO_PAGO"),
+				password: t.Optional(t.String({ maxLength: 128 })),
+				provider: t.Union([t.Literal("MERCADO_PAGO"), t.Literal("BRADESCO")]),
 			}),
 		},
 	)

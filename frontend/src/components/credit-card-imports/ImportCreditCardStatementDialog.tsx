@@ -12,12 +12,17 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
+import { Input } from "@/components/ui/Input";
+import { Label } from "@/components/ui/Label";
 import type { CreditCard, CreditCardImport } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
 import { showToast } from "@/stores";
 
-const providerOptions = [{ label: "Mercado Pago", value: "MERCADO_PAGO" }] as const satisfies ReadonlyArray<{
+const providerOptions = [
+	{ label: "Bradesco", value: "BRADESCO" },
+	{ label: "Mercado Pago", value: "MERCADO_PAGO" },
+] as const satisfies ReadonlyArray<{
 	label: string;
 	value: CreditCardImport["provider"];
 }>;
@@ -35,11 +40,13 @@ export function ImportCreditCardStatementDialog({
 }) {
 	const [creditCardId, setCreditCardId] = useState("");
 	const [file, setFile] = useState<File | null>(null);
+	const [password, setPassword] = useState("");
 	const [provider, setProvider] = useState<CreditCardImport["provider"] | "">("");
 	useEffect(() => {
 		if (!open) return;
 		setCreditCardId(cards.length === 1 ? cards[0]!.id : "");
 		setFile(null);
+		setPassword("");
 		setProvider("");
 	}, [cards, open]);
 	const createImport = useMutation({
@@ -50,6 +57,7 @@ export function ImportCreditCardStatementDialog({
 			return dataService.creditCardImports.create({
 				creditCardId,
 				file,
+				password: password || undefined,
 				provider,
 			});
 		},
@@ -104,6 +112,21 @@ export function ImportCreditCardStatementDialog({
 						label="Fatura em PDF"
 						onFileChange={setFile}
 					/>
+					{provider === "BRADESCO" ? (
+						<div className="grid gap-2">
+							<Label htmlFor="credit-card-import-password">Senha do PDF (se houver)</Label>
+							<Input
+								autoComplete="off"
+								id="credit-card-import-password"
+								inputMode="numeric"
+								name="credit-card-import-password"
+								onChange={event => setPassword(event.currentTarget.value)}
+								placeholder="Ex: 123456"
+								type="password"
+								value={password}
+							/>
+						</div>
+					) : null}
 				</div>
 				<DialogFooter>
 					<Button className="cursor-pointer" onClick={() => onOpenChange(false)} variant="outline">
