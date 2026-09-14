@@ -8,6 +8,17 @@ describe("getTransactionTitle", () => {
 		).toBe("Jogos");
 	});
 
+	test("uses the store name instead of the default purchase description", () => {
+		expect(
+			getTransactionTitle({
+				description: "Compra",
+				source: "CREDIT_CARD",
+				storeName: "  Loja AliExpress  ",
+				type: "EXPENSE",
+			}),
+		).toBe("Loja AliExpress");
+	});
+
 	test("uses Compra for credit card purchases without a description", () => {
 		expect(getTransactionTitle({ source: "CREDIT_CARD", type: "EXPENSE" })).toBe("Compra");
 	});
