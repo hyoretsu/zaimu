@@ -1,8 +1,11 @@
 import { LuTrash2 } from "react-icons/lu";
 import { DebtPersonPicker } from "@/components/debts/DebtPersonPicker";
 import { Button } from "@/components/ui/Button";
+import { CheckboxField } from "@/components/ui/CheckboxField";
+import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { NumericField } from "@/components/ui/NumericField";
+import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { DebtSplitInput } from "@/lib/api";
 
 export function DebtSplitParticipantRow({
@@ -11,9 +14,12 @@ export function DebtSplitParticipantRow({
 	excludedPersonIds,
 	index,
 	onPersonChange,
+	onDescriptionChange,
 	onRemove,
+	onRemainderRecipientChange,
 	onValueChange,
 	participant,
+	isRemainderRecipient,
 	mode,
 }: {
 	amount?: number;
@@ -22,10 +28,14 @@ export function DebtSplitParticipantRow({
 	index: number;
 	mode: DebtSplitInput["mode"];
 	onPersonChange: (id: string) => void;
+	onDescriptionChange: (description: string) => void;
 	onRemove: () => void;
+	onRemainderRecipientChange?: (selected: boolean) => void;
 	onValueChange: (value: number) => void;
 	participant: DebtSplitInput["participants"][number];
+	isRemainderRecipient?: boolean;
 }) {
+	const [description, setDescription] = useDebouncedInput(participant.description ?? "", onDescriptionChange);
 	const numericValue =
 		mode === "SHARES"
 			? String((participant as { shares: number }).shares || "")
@@ -57,12 +67,33 @@ export function DebtSplitParticipantRow({
 					<LuTrash2 />
 				</Button>
 			</div>
+			<FormField
+				disabled={disabled}
+				id={`debt-split-description-${index}`}
+				label="Descrição da dívida"
+				name={`debt-split-description-${index}`}
+				onChange={event => setDescription(event.currentTarget.value)}
+				placeholder="Ex: Capa de celular"
+				type="text"
+				value={description}
+			/>
+			{mode !== "SHARES" ? (
+				<CheckboxField
+					checkboxProps={{
+						checked: isRemainderRecipient,
+						disabled,
+						onCheckedChange: checked => onRemainderRecipientChange?.(checked === true),
+					}}
+				>
+					Fica com o restante
+				</CheckboxField>
+			) : null}
 			{mode === "FIXED" ? (
 				<MoneyField
 					id={`debt-split-${index}`}
 					label="Valor"
 					onValueChange={value => onValueChange(Number(value))}
-					required
+					required={!isRemainderRecipient}
 					value={numericValue}
 				/>
 			) : (
@@ -72,7 +103,7 @@ export function DebtSplitParticipantRow({
 					label={mode === "SHARES" ? "Cotas" : "Porcentagem"}
 					onValueChange={value => onValueChange(Number(value))}
 					placeholder={mode === "SHARES" ? "Ex: 1" : "Ex: 25%"}
-					required
+					required={!isRemainderRecipient}
 					suffix={mode === "PERCENTAGE" ? "%" : undefined}
 					value={numericValue}
 				/>

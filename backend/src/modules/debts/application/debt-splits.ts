@@ -54,6 +54,7 @@ async function findSplit(target: DebtSplitTarget) {
 			"mode",
 			"ownerIncluded",
 			"ownerShares",
+			"remainderDebtPersonId",
 			"userId",
 			"creditCardImportItemId",
 			"transactionId",
@@ -81,6 +82,7 @@ export async function getDebtSplitInput(target: DebtSplitTarget): Promise<DebtSp
 	const participants = await queryRows(
 		db.sql.public.DebtSplitParticipant.select(
 			"debtPersonId",
+			"description",
 			"shares",
 			"percentage",
 			"fixedAmount",
@@ -96,6 +98,7 @@ export async function getDebtSplitInput(target: DebtSplitTarget): Promise<DebtSp
 			ownerShares: split.ownerIncluded ? (split.ownerShares ?? 1) : null,
 			participants: participants.map(participant => ({
 				debtPersonId: participant.debtPersonId,
+				description: participant.description ?? undefined,
 				shares: participant.shares ?? 1,
 			})),
 		};
@@ -106,8 +109,10 @@ export async function getDebtSplitInput(target: DebtSplitTarget): Promise<DebtSp
 			ownerIncluded: split.ownerIncluded,
 			participants: participants.map(participant => ({
 				debtPersonId: participant.debtPersonId,
+				description: participant.description ?? undefined,
 				percentage: Number(participant.percentage),
 			})),
+			remainderDebtPersonId: split.remainderDebtPersonId ?? undefined,
 		};
 	}
 	return {
@@ -115,8 +120,10 @@ export async function getDebtSplitInput(target: DebtSplitTarget): Promise<DebtSp
 		ownerIncluded: split.ownerIncluded,
 		participants: participants.map(participant => ({
 			debtPersonId: participant.debtPersonId,
+			description: participant.description ?? undefined,
 			fixedAmount: Number(participant.fixedAmount),
 		})),
+		remainderDebtPersonId: split.remainderDebtPersonId ?? undefined,
 	};
 }
 
@@ -154,6 +161,7 @@ export async function replaceDebtSplit(input: {
 				mode: nextSplit.mode,
 				ownerIncluded,
 				ownerShares: nextSplit.mode === "SHARES" ? nextSplit.ownerShares : undefined,
+				remainderDebtPersonId: nextSplit.mode === "SHARES" ? undefined : nextSplit.remainderDebtPersonId,
 				userId: input.userId,
 			},
 		] as never)
@@ -166,6 +174,7 @@ export async function replaceDebtSplit(input: {
 			nextSplit.participants.map((participant, sortOrder) => ({
 				debtPersonId: participant.debtPersonId,
 				debtSplitId: split.id,
+				description: participant.description?.trim() || undefined,
 				fixedAmount:
 					nextSplit.mode === "FIXED"
 						? String((participant as { fixedAmount: number }).fixedAmount)

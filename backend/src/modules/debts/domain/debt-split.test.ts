@@ -79,6 +79,21 @@ describe("calculateDebtSplit", () => {
 		expect(result.participants.map(item => item.amount)).toEqual([45.5, 70]);
 	});
 
+	test("atribui o restante para a pessoa selecionada", () => {
+		const result = calculateDebtSplit(250, {
+			mode: "FIXED",
+			ownerIncluded: false,
+			participants: [
+				{ debtPersonId: "ana", fixedAmount: 45.5 },
+				{ debtPersonId: "bia", fixedAmount: 70 },
+				{ debtPersonId: "caio", fixedAmount: 0 },
+			],
+			remainderDebtPersonId: "caio",
+		});
+		expect(result.ownerAmount).toBe(0);
+		expect(result.participants.map(item => item.amount)).toEqual([45.5, 70, 134.5]);
+	});
+
 	test("rejeita duplicidade, totais inválidos e parcelas zeradas", () => {
 		expect(() =>
 			calculateDebtSplit(10, {
@@ -97,6 +112,14 @@ describe("calculateDebtSplit", () => {
 				participants: [{ debtPersonId: "ana", percentage: 101 }],
 			}),
 		).toThrow("ultrapassar 100%");
+		expect(() =>
+			calculateDebtSplit(10, {
+				mode: "FIXED",
+				ownerIncluded: false,
+				participants: [{ debtPersonId: "ana", fixedAmount: 10 }],
+				remainderDebtPersonId: "caio",
+			}),
+		).toThrow("pessoa do rateio");
 		expect(() =>
 			calculateDebtSplit(0.01, {
 				mode: "SHARES",

@@ -13,41 +13,44 @@ const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "curre
 
 function equalSplit(
 	mode: DebtSplitInput["mode"],
-	ids: string[],
+	participants: Array<{ debtPersonId: string; description?: string }>,
 	ownerIncluded: boolean,
 	amount: number,
+	remainderDebtPersonId?: string,
 ): DebtSplitInput {
 	if (mode === "SHARES")
 		return {
 			mode,
 			ownerShares: ownerIncluded ? 1 : null,
-			participants: ids.map(debtPersonId => ({ debtPersonId, shares: 1 })),
+			participants: participants.map(participant => ({ ...participant, shares: 1 })),
 		};
 	if (mode === "PERCENTAGE") {
-		const divisor = ids.length + (ownerIncluded ? 1 : 0);
+		const divisor = participants.length + (ownerIncluded ? 1 : 0);
 		return {
 			mode,
 			ownerIncluded,
-			participants: ids.map((debtPersonId, index) => ({
-				debtPersonId,
+			...(remainderDebtPersonId ? { remainderDebtPersonId } : {}),
+			participants: participants.map((participant, index) => ({
+				...participant,
 				percentage:
-					index === ids.length - 1 && !ownerIncluded
-						? Number((100 - (Math.floor((100 / divisor) * 100) / 100) * (ids.length - 1)).toFixed(2))
+					index === participants.length - 1 && !ownerIncluded
+						? Number((100 - (Math.floor((100 / divisor) * 100) / 100) * (participants.length - 1)).toFixed(2))
 						: Math.floor((100 / divisor) * 100) / 100,
 			})),
 		};
 	}
 	const totalCents = Math.max(0, Math.round(amount * 100));
-	const divisor = ids.length + (ownerIncluded ? 1 : 0);
+	const divisor = participants.length + (ownerIncluded ? 1 : 0);
 	const equalCents = divisor ? Math.floor(totalCents / divisor) : 0;
 	return {
 		mode,
 		ownerIncluded,
-		participants: ids.map((debtPersonId, index) => ({
-			debtPersonId,
+		...(remainderDebtPersonId ? { remainderDebtPersonId } : {}),
+		participants: participants.map((participant, index) => ({
+			...participant,
 			fixedAmount:
-				!ownerIncluded && index === ids.length - 1
-					? (totalCents - equalCents * (ids.length - 1)) / 100
+				!ownerIncluded && index === participants.length - 1
+					? (totalCents - equalCents * (participants.length - 1)) / 100
 					: equalCents / 100,
 		})),
 	};
@@ -55,8 +58,15 @@ function equalSplit(
 
 export function DebtSplitEditor({ amount, disabled, onChange, value }: DebtSplitEditorProps) {
 	const customized = useRef(false);
+	const previewRemainderDebtPersonId =
+		value.mode !== "SHARES" && value.remainderDebtPersonId
+			? `preview-${value.participants.findIndex(
+					participant => participant.debtPersonId === value.remainderDebtPersonId,
+				)}`
+			: undefined;
 	const previewValue = {
 		...value,
+		...(previewRemainderDebtPersonId ? { remainderDebtPersonId: previewRemainderDebtPersonId } : {}),
 		participants: value.participants.map((participant, index) => ({
 			...participant,
 			debtPersonId: `preview-${index}`,
@@ -76,16 +86,29 @@ export function DebtSplitEditor({ amount, disabled, onChange, value }: DebtSplit
 		if (value.mode === "SHARES") onChange({ ...value, ownerShares: included ? 1 : null });
 		else onChange({ ...value, ownerIncluded: included });
 	};
-	const updateParticipant = (index: number, field: "debtPersonId" | "value", next: string | number) => {
+	const updateParticipant = (
+		index: number,
+		field: "debtPersonId" | "description" | "value",
+		next: string | number,
+	) => {
 		if (field === "value") customized.current = true;
 		const participants = value.participants.map((participant, participantIndex) => {
 			if (participantIndex !== index) return participant;
 			if (field === "debtPersonId") return { ...participant, debtPersonId: String(next) };
+			if (field === "description") return { ...participant, description: String(next) };
 			if (value.mode === "SHARES") return { ...participant, shares: Number(next) };
 			if (value.mode === "PERCENTAGE") return { ...participant, percentage: Number(next) };
 			return { ...participant, fixedAmount: Number(next) };
 		});
-		onChange({ ...value, participants } as DebtSplitInput);
+		const clearsRemainderRecipient =
+			value.mode !== "SHARES" &&
+			field === "debtPersonId" &&
+			value.remainderDebtPersonId === value.participants[index].debtPersonId;
+		onChange({
+			...value,
+			...(clearsRemainderRecipient ? { remainderDebtPersonId: undefined } : {}),
+			participants,
+		} as DebtSplitInput);
 	};
 	return (
 		<div className="grid min-w-0 max-w-full gap-4 rounded-2xl border p-3 [&>*]:min-w-0">
@@ -96,9 +119,10 @@ export function DebtSplitEditor({ amount, disabled, onChange, value }: DebtSplit
 					onChange(
 						equalSplit(
 							mode as DebtSplitInput["mode"],
-							value.participants.map(item => item.debtPersonId),
+							value.participants,
 							ownerIncluded,
 							amount,
+							value.mode === "SHARES" ? undefined : value.remainderDebtPersonId,
 						),
 					);
 				}}
@@ -113,7 +137,9 @@ export function DebtSplitEditor({ amount, disabled, onChange, value }: DebtSplit
 			<p className="text-muted-foreground text-xs">
 				Trocar a forma redistribui os valores igualmente.
 				{value.mode === "PERCENTAGE" || value.mode === "FIXED"
-					? " Valores não distribuídos ficam com você."
+					? value.remainderDebtPersonId
+						? " Valores não distribuídos ficam com a pessoa selecionada."
+						: " Valores não distribuídos ficam com você."
 					: null}
 			</p>
 			<CheckboxField
@@ -147,20 +173,40 @@ export function DebtSplitEditor({ amount, disabled, onChange, value }: DebtSplit
 						.map(item => item.debtPersonId)
 						.filter(Boolean)}
 					index={index}
+					isRemainderRecipient={
+						value.mode !== "SHARES" && value.remainderDebtPersonId === participant.debtPersonId
+					}
 					key={`${index}-${participant.debtPersonId}`}
 					mode={value.mode}
+					onDescriptionChange={description => updateParticipant(index, "description", description)}
 					onPersonChange={id => updateParticipant(index, "debtPersonId", id)}
+					onRemainderRecipientChange={selected => {
+						if (value.mode === "SHARES") return;
+						onChange({
+							...value,
+							...(selected
+								? { remainderDebtPersonId: participant.debtPersonId }
+								: { remainderDebtPersonId: undefined }),
+						});
+					}}
 					onRemove={() => {
-						const ids = value.participants
-							.filter((_, itemIndex) => itemIndex !== index)
-							.map(item => item.debtPersonId);
+						const participants = value.participants.filter((_, itemIndex) => itemIndex !== index);
+						const remainingRemainderDebtPersonId =
+							value.mode !== "SHARES" && value.remainderDebtPersonId === participant.debtPersonId
+								? undefined
+								: value.mode === "SHARES"
+									? undefined
+									: value.remainderDebtPersonId;
 						onChange(
 							customized.current
 								? ({
 										...value,
+										...(remainingRemainderDebtPersonId
+											? { remainderDebtPersonId: remainingRemainderDebtPersonId }
+											: { remainderDebtPersonId: undefined }),
 										participants: value.participants.filter((_, itemIndex) => itemIndex !== index),
 									} as DebtSplitInput)
-								: equalSplit(value.mode, ids, ownerIncluded, amount),
+								: equalSplit(value.mode, participants, ownerIncluded, amount, remainingRemainderDebtPersonId),
 						);
 					}}
 					onValueChange={next => updateParticipant(index, "value", next)}
@@ -175,9 +221,10 @@ export function DebtSplitEditor({ amount, disabled, onChange, value }: DebtSplit
 						onChange(
 							equalSplit(
 								value.mode,
-								[...value.participants.map(item => item.debtPersonId), ""],
+								[...value.participants, { debtPersonId: "" }],
 								ownerIncluded,
 								amount,
+								value.mode === "SHARES" ? undefined : value.remainderDebtPersonId,
 							),
 						);
 						return;

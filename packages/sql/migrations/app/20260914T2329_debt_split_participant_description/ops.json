@@ -1,0 +1,36 @@
+[
+	{
+		"execute": [
+			{
+				"description": "add column \"description\"",
+				"sql": "ALTER TABLE \"public\".\"DebtSplitParticipant\" ADD COLUMN \"description\" character varying(1000)"
+			}
+		],
+		"id": "column.public.DebtSplitParticipant.description",
+		"label": "Add column \"description\" to \"DebtSplitParticipant\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"description\" exists",
+				"params": ["public", "DebtSplitParticipant", "description"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"description\" is missing",
+				"params": ["public", "DebtSplitParticipant", "description"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "description",
+				"objectType": "column",
+				"schema": "public",
+				"table": "DebtSplitParticipant"
+			},
+			"id": "postgres"
+		}
+	}
+]

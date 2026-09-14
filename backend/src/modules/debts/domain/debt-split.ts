@@ -2,17 +2,19 @@ export type DebtSplitInput =
 	| {
 			mode: "SHARES";
 			ownerShares: null | number;
-			participants: Array<{ debtPersonId: string; shares: number }>;
+			participants: Array<{ debtPersonId: string; description?: string; shares: number }>;
 	  }
 	| {
 			mode: "PERCENTAGE";
 			ownerIncluded: boolean;
-			participants: Array<{ debtPersonId: string; percentage: number }>;
+			remainderDebtPersonId?: string;
+			participants: Array<{ debtPersonId: string; description?: string; percentage: number }>;
 	  }
 	| {
 			mode: "FIXED";
 			ownerIncluded: boolean;
-			participants: Array<{ debtPersonId: string; fixedAmount: number }>;
+			remainderDebtPersonId?: string;
+			participants: Array<{ debtPersonId: string; description?: string; fixedAmount: number }>;
 	  };
 
 export type CalculatedDebtSplit = DebtSplitInput & {
@@ -34,6 +36,22 @@ function assertBaseInput(totalCents: number, split: DebtSplitInput) {
 	if (ids.some(id => !id)) throw new DebtSplitValidationError("Selecione todas as pessoas do rateio");
 	if (new Set(ids).size !== ids.length)
 		throw new DebtSplitValidationError("Cada pessoa pode aparecer apenas uma vez no rateio");
+	if (split.mode !== "SHARES" && split.remainderDebtPersonId && !ids.includes(split.remainderDebtPersonId))
+		throw new DebtSplitValidationError("Selecione uma pessoa do rateio para ficar com o restante");
+}
+
+function assignRemainder(
+	participantCents: number[],
+	remainderCents: number,
+	participants: DebtSplitInput["participants"],
+	remainderDebtPersonId?: string,
+) {
+	if (!remainderDebtPersonId) return { ownerCents: remainderCents, participantCents };
+	const remainderIndex = participants.findIndex(
+		participant => participant.debtPersonId === remainderDebtPersonId,
+	);
+	participantCents[remainderIndex] += remainderCents;
+	return { ownerCents: 0, participantCents };
 }
 
 function allocateByLargestRemainder(totalCents: number, values: number[], denominator: number) {
@@ -87,7 +105,8 @@ export function calculateDebtSplit(amount: number, split: DebtSplitInput): Calcu
 			split.participants.some(
 				(participant, index) =>
 					!Number.isFinite(participant.percentage) ||
-					participant.percentage <= 0 ||
+					participant.percentage < 0 ||
+					(participant.percentage === 0 && participant.debtPersonId !== split.remainderDebtPersonId) ||
 					Math.abs(participant.percentage * 100 - percentageUnits[index]) > 1e-7,
 			)
 		)
@@ -96,14 +115,19 @@ export function calculateDebtSplit(amount: number, split: DebtSplitInput): Calcu
 		if (percentageTotal > 10_000)
 			throw new DebtSplitValidationError("Os percentuais das pessoas não podem ultrapassar 100%");
 		const participantCents = percentageUnits.map(value => Math.floor((totalCents * value) / 10_000));
-		const ownerCents = totalCents - participantCents.reduce((sum, value) => sum + value, 0);
-		assertPositiveAllocations(ownerCents, participantCents, false);
+		const { ownerCents, participantCents: allocatedParticipantCents } = assignRemainder(
+			participantCents,
+			totalCents - participantCents.reduce((sum, value) => sum + value, 0),
+			split.participants,
+			split.remainderDebtPersonId,
+		);
+		assertPositiveAllocations(ownerCents, allocatedParticipantCents, false);
 		return {
 			...split,
 			ownerAmount: fromCents(ownerCents),
 			participants: split.participants.map((participant, index) => ({
 				...participant,
-				amount: fromCents(participantCents[index]),
+				amount: fromCents(allocatedParticipantCents[index]),
 			})),
 		};
 	}
@@ -113,7 +137,8 @@ export function calculateDebtSplit(amount: number, split: DebtSplitInput): Calcu
 		split.participants.some(
 			(participant, index) =>
 				!Number.isFinite(participant.fixedAmount) ||
-				participant.fixedAmount <= 0 ||
+				participant.fixedAmount < 0 ||
+				(participant.fixedAmount === 0 && participant.debtPersonId !== split.remainderDebtPersonId) ||
 				Math.abs(participant.fixedAmount * 100 - participantCents[index]) > 1e-7,
 		)
 	)
@@ -121,14 +146,19 @@ export function calculateDebtSplit(amount: number, split: DebtSplitInput): Calcu
 	const distributedCents = participantCents.reduce((sum, value) => sum + value, 0);
 	if (distributedCents > totalCents)
 		throw new DebtSplitValidationError("Os valores das pessoas não podem ultrapassar o total");
-	const ownerCents = totalCents - distributedCents;
-	assertPositiveAllocations(ownerCents, participantCents, false);
+	const { ownerCents, participantCents: allocatedParticipantCents } = assignRemainder(
+		participantCents,
+		totalCents - distributedCents,
+		split.participants,
+		split.remainderDebtPersonId,
+	);
+	assertPositiveAllocations(ownerCents, allocatedParticipantCents, false);
 	return {
 		...split,
 		ownerAmount: fromCents(ownerCents),
 		participants: split.participants.map((participant, index) => ({
 			...participant,
-			amount: fromCents(participantCents[index]),
+			amount: fromCents(allocatedParticipantCents[index]),
 		})),
 	};
 }

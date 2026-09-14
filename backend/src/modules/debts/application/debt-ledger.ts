@@ -8,6 +8,9 @@ import { getDebtSplitInput, replaceDebtSplit } from "./debt-splits";
 
 export type DebtEventKind = "ORIGIN" | "TRANSACTION" | "PURCHASE" | "MIGRATED_SETTLEMENT";
 
+const participantDescription = (participant: { description?: string }, fallback?: string) =>
+	participant.description?.trim() || fallback;
+
 export const normalizeDebtPersonName = (name: string) =>
 	name.trim().replace(/\s+/g, " ").toLocaleLowerCase("pt-BR");
 
@@ -316,7 +319,7 @@ export async function syncTransactionDebtEvent(input: {
 				createdByUserId: input.userId,
 				date: input.date,
 				debtPersonId: participant.debtPersonId,
-				description: input.description,
+				description: participantDescription(participant, input.description),
 				effect: debtEffectForTransaction(participant.amount, input.type),
 				kind: "TRANSACTION",
 			});
@@ -333,7 +336,7 @@ export async function syncTransactionDebtEvent(input: {
 				amount: String(participant.amount),
 				connectionId: connectionId ?? null,
 				date: new Date(input.date),
-				description: input.description ?? null,
+				description: participantDescription(participant, input.description) ?? null,
 				effect: String(debtEffectForTransaction(participant.amount, input.type)),
 				updatedAt: new Date(),
 			} as never)
@@ -534,7 +537,7 @@ export async function syncPurchaseDebtEvent(input: {
 				createdByUserId: input.userId,
 				date: input.date,
 				debtPersonId: participant.debtPersonId,
-				description: input.description,
+				description: participantDescription(participant, input.description),
 				effect: participant.amount * debtEffectMultiplier,
 				kind: "PURCHASE",
 			});
@@ -556,7 +559,7 @@ export async function syncPurchaseDebtEvent(input: {
 				amount: String(participant.amount),
 				connectionId: connectionId ?? null,
 				date: new Date(input.date),
-				description: input.description ?? null,
+				description: participantDescription(participant, input.description) ?? null,
 				effect: String(participant.amount * debtEffectMultiplier),
 				updatedAt: new Date(),
 			} as never)

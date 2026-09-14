@@ -42,6 +42,22 @@ describe("calculateDebtSplit", () => {
 		expect(split?.ownerAmount).toBe(60);
 	});
 
+	test("assigns the fixed-value remainder to the selected participant", () => {
+		const split = calculateDebtSplit(120, {
+			mode: "FIXED",
+			ownerIncluded: false,
+			participants: [
+				{ debtPersonId: "a", fixedAmount: 25 },
+				{ debtPersonId: "b", fixedAmount: 35 },
+				{ debtPersonId: "c", fixedAmount: 0 },
+			],
+			remainderDebtPersonId: "c",
+		});
+
+		expect(split?.participants.map(participant => participant.amount)).toEqual([25, 35, 60]);
+		expect(split?.ownerAmount).toBe(0);
+	});
+
 	test("rejects duplicate people and totals that exceed the purchase", () => {
 		expect(
 			debtSplitError(10, {
@@ -106,12 +122,20 @@ describe("debtSplitToInput", () => {
 				mode: "SHARES",
 				ownerAmount: 5,
 				ownerShares: 1,
-				participants: [{ amount: 5, debtPersonId: "a", debtPersonName: "Ana", shares: 1 }],
+				participants: [
+					{
+						amount: 5,
+						debtPersonId: "a",
+						debtPersonName: "Ana",
+						description: "Capa de celular",
+						shares: 1,
+					},
+				],
 			}),
 		).toEqual({
 			mode: "SHARES",
 			ownerShares: 1,
-			participants: [{ debtPersonId: "a", shares: 1 }],
+			participants: [{ debtPersonId: "a", description: "Capa de celular", shares: 1 }],
 		});
 	});
 });

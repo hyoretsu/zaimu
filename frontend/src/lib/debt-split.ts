@@ -6,7 +6,14 @@ const money = (value: number) => value / 100;
 export function calculateDebtSplit(amount: number, split: DebtSplitInput): DebtSplit | null {
 	const total = cents(amount);
 	if (total <= 0 || split.participants.length === 0) return null;
+	if (split.mode !== "SHARES" && split.remainderDebtPersonId === "") return null;
 	if (new Set(split.participants.map(item => item.debtPersonId)).size !== split.participants.length)
+		return null;
+	if (
+		split.mode !== "SHARES" &&
+		split.remainderDebtPersonId &&
+		!split.participants.some(item => item.debtPersonId === split.remainderDebtPersonId)
+	)
 		return null;
 	let amounts: number[];
 	let owner = 0;
@@ -29,7 +36,8 @@ export function calculateDebtSplit(amount: number, split: DebtSplitInput): DebtS
 			split.participants.some(
 				(item, index) =>
 					!Number.isFinite(item.percentage) ||
-					item.percentage <= 0 ||
+					item.percentage < 0 ||
+					(item.percentage === 0 && item.debtPersonId !== split.remainderDebtPersonId) ||
 					Math.abs(item.percentage * 100 - values[index]) > 1e-7,
 			) ||
 			sum > 10_000
@@ -44,13 +52,22 @@ export function calculateDebtSplit(amount: number, split: DebtSplitInput): DebtS
 			split.participants.some(
 				(item, index) =>
 					!Number.isFinite(item.fixedAmount) ||
-					item.fixedAmount <= 0 ||
+					item.fixedAmount < 0 ||
+					(item.fixedAmount === 0 && item.debtPersonId !== split.remainderDebtPersonId) ||
 					Math.abs(item.fixedAmount * 100 - amounts[index]) > 1e-7,
 			) ||
 			sum > total
 		)
 			return null;
 		owner = total - sum;
+	}
+	const remainderIndex =
+		split.mode !== "SHARES" && split.remainderDebtPersonId
+			? split.participants.findIndex(item => item.debtPersonId === split.remainderDebtPersonId)
+			: -1;
+	if (remainderIndex >= 0) {
+		amounts[remainderIndex] += owner;
+		owner = 0;
 	}
 	if (
 		amounts.some(value => value < 1) ||
@@ -76,11 +93,28 @@ export function debtSplitError(amount: number, split: DebtSplitInput): string | 
 	if (split.participants.some(item => !item.debtPersonId)) return "Selecione todas as pessoas.";
 	if (new Set(split.participants.map(item => item.debtPersonId)).size !== split.participants.length)
 		return "Cada pessoa pode aparecer uma vez.";
+	if (split.mode !== "SHARES" && split.remainderDebtPersonId === "")
+		return "Selecione uma pessoa do rateio para ficar com o restante.";
+	if (
+		split.mode !== "SHARES" &&
+		split.remainderDebtPersonId &&
+		!split.participants.some(item => item.debtPersonId === split.remainderDebtPersonId)
+	)
+		return "Selecione uma pessoa do rateio para ficar com o restante.";
 	if (
 		(split.mode === "SHARES" &&
 			split.participants.some(item => !Number.isInteger(item.shares) || item.shares < 1)) ||
-		(split.mode === "PERCENTAGE" && split.participants.some(item => item.percentage <= 0)) ||
-		(split.mode === "FIXED" && split.participants.some(item => item.fixedAmount <= 0))
+		(split.mode === "PERCENTAGE" &&
+			split.participants.some(
+				item =>
+					item.percentage < 0 || (item.percentage === 0 && item.debtPersonId !== split.remainderDebtPersonId),
+			)) ||
+		(split.mode === "FIXED" &&
+			split.participants.some(
+				item =>
+					item.fixedAmount < 0 ||
+					(item.fixedAmount === 0 && item.debtPersonId !== split.remainderDebtPersonId),
+			))
 	)
 		return "Cada pessoa deve ter um valor positivo para a divisão.";
 	if (!Number.isFinite(amount) || amount <= 0) return null;
@@ -114,17 +148,31 @@ export function debtSplitToInput(split?: DebtSplit | null): DebtSplitInput {
 		return {
 			mode: split.mode,
 			ownerShares: split.ownerShares,
-			participants: split.participants.map(({ debtPersonId, shares }) => ({ debtPersonId, shares })),
+			participants: split.participants.map(({ debtPersonId, description, shares }) => ({
+				debtPersonId,
+				description,
+				shares,
+			})),
 		};
 	if (split.mode === "PERCENTAGE")
 		return {
 			mode: split.mode,
 			ownerIncluded: split.ownerIncluded,
-			participants: split.participants.map(({ debtPersonId, percentage }) => ({ debtPersonId, percentage })),
+			participants: split.participants.map(({ debtPersonId, description, percentage }) => ({
+				debtPersonId,
+				description,
+				percentage,
+			})),
+			remainderDebtPersonId: split.remainderDebtPersonId,
 		};
 	return {
 		mode: split.mode,
 		ownerIncluded: split.ownerIncluded,
-		participants: split.participants.map(({ debtPersonId, fixedAmount }) => ({ debtPersonId, fixedAmount })),
+		participants: split.participants.map(({ debtPersonId, description, fixedAmount }) => ({
+			debtPersonId,
+			description,
+			fixedAmount,
+		})),
+		remainderDebtPersonId: split.remainderDebtPersonId,
 	};
 }

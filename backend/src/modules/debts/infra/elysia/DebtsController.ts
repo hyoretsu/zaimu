@@ -216,7 +216,7 @@ async function getPersonEvents(person: { connectionId: null | string; id: string
 			...event,
 			amount: Number(event.amount),
 			createdByMe: event.createdByUserId === userId,
-			description: purchaseNamesByDebtEventId.get(event.id) ?? event.description,
+			description: event.description ?? purchaseNamesByDebtEventId.get(event.id),
 			effect: event.createdByUserId === userId ? Number(event.effect) : -Number(event.effect),
 			kind: event.kind as DebtEventType,
 		}))

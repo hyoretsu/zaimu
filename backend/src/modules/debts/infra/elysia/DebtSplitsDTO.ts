@@ -1,12 +1,22 @@
 import { t } from "elysia";
 
 const Id = t.String({ maxLength: 36, minLength: 1 });
-const SharesParticipant = t.Object({ debtPersonId: Id, shares: t.Integer({ minimum: 1 }) });
+const ParticipantDescription = t.Optional(t.String({ maxLength: 1000 }));
+const SharesParticipant = t.Object({
+	debtPersonId: Id,
+	description: ParticipantDescription,
+	shares: t.Integer({ minimum: 1 }),
+});
 const PercentageParticipant = t.Object({
 	debtPersonId: Id,
-	percentage: t.Number({ exclusiveMinimum: 0, maximum: 100 }),
+	description: ParticipantDescription,
+	percentage: t.Number({ maximum: 100, minimum: 0 }),
 });
-const FixedParticipant = t.Object({ debtPersonId: Id, fixedAmount: t.Number({ exclusiveMinimum: 0 }) });
+const FixedParticipant = t.Object({
+	debtPersonId: Id,
+	description: ParticipantDescription,
+	fixedAmount: t.Number({ minimum: 0 }),
+});
 
 export const DebtSplitInputDTO = t.Union([
 	t.Object({
@@ -18,11 +28,13 @@ export const DebtSplitInputDTO = t.Union([
 		mode: t.Literal("PERCENTAGE"),
 		ownerIncluded: t.Boolean(),
 		participants: t.Array(PercentageParticipant, { minItems: 1 }),
+		remainderDebtPersonId: t.Optional(Id),
 	}),
 	t.Object({
 		mode: t.Literal("FIXED"),
 		ownerIncluded: t.Boolean(),
 		participants: t.Array(FixedParticipant, { minItems: 1 }),
+		remainderDebtPersonId: t.Optional(Id),
 	}),
 ]);
 export type DebtSplitInputDTO = typeof DebtSplitInputDTO.static;
@@ -55,12 +67,14 @@ export const DebtSplitReturnDTO = t.Union([
 		ownerAmount: t.Number(),
 		ownerIncluded: t.Boolean(),
 		participants: t.Array(PercentageParticipantReturn),
+		remainderDebtPersonId: t.Optional(Id),
 	}),
 	t.Object({
 		mode: t.Literal("FIXED"),
 		ownerAmount: t.Number(),
 		ownerIncluded: t.Boolean(),
 		participants: t.Array(FixedParticipantReturn),
+		remainderDebtPersonId: t.Optional(Id),
 	}),
 ]);
 export type DebtSplitReturnDTO = typeof DebtSplitReturnDTO.static;

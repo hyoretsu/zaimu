@@ -116,17 +116,19 @@ export type DebtSplitInput =
 	| {
 			mode: "SHARES";
 			ownerShares: null | number;
-			participants: Array<{ debtPersonId: string; shares: number }>;
+			participants: Array<{ debtPersonId: string; description?: string; shares: number }>;
 	  }
 	| {
 			mode: "PERCENTAGE";
 			ownerIncluded: boolean;
-			participants: Array<{ debtPersonId: string; percentage: number }>;
+			remainderDebtPersonId?: string;
+			participants: Array<{ debtPersonId: string; description?: string; percentage: number }>;
 	  }
 	| {
 			mode: "FIXED";
 			ownerIncluded: boolean;
-			participants: Array<{ debtPersonId: string; fixedAmount: number }>;
+			remainderDebtPersonId?: string;
+			participants: Array<{ debtPersonId: string; description?: string; fixedAmount: number }>;
 	  };
 
 export type DebtSplit =
@@ -134,16 +136,24 @@ export type DebtSplit =
 			mode: "SHARES";
 			ownerAmount: number;
 			ownerShares: null | number;
-			participants: Array<{ amount: number; debtPersonId: string; debtPersonName: string; shares: number }>;
+			participants: Array<{
+				amount: number;
+				debtPersonId: string;
+				debtPersonName: string;
+				description?: string;
+				shares: number;
+			}>;
 	  }
 	| {
 			mode: "PERCENTAGE";
 			ownerAmount: number;
 			ownerIncluded: boolean;
+			remainderDebtPersonId?: string;
 			participants: Array<{
 				amount: number;
 				debtPersonId: string;
 				debtPersonName: string;
+				description?: string;
 				percentage: number;
 			}>;
 	  }
@@ -151,10 +161,12 @@ export type DebtSplit =
 			mode: "FIXED";
 			ownerAmount: number;
 			ownerIncluded: boolean;
+			remainderDebtPersonId?: string;
 			participants: Array<{
 				amount: number;
 				debtPersonId: string;
 				debtPersonName: string;
+				description?: string;
 				fixedAmount: number;
 			}>;
 	  };

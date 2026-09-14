@@ -1,0 +1,105 @@
+[
+	{
+		"execute": [
+			{
+				"description": "add column \"remainderDebtPersonId\"",
+				"sql": "ALTER TABLE \"public\".\"DebtSplit\" ADD COLUMN \"remainderDebtPersonId\" character varying(36)"
+			}
+		],
+		"id": "column.public.DebtSplit.remainderDebtPersonId",
+		"label": "Add column \"remainderDebtPersonId\" to \"DebtSplit\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"remainderDebtPersonId\" exists",
+				"params": ["public", "DebtSplit", "remainderDebtPersonId"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"remainderDebtPersonId\" is missing",
+				"params": ["public", "DebtSplit", "remainderDebtPersonId"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "remainderDebtPersonId",
+				"objectType": "column",
+				"schema": "public",
+				"table": "DebtSplit"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"DebtSplit_remainderDebtPersonId_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"DebtSplit_remainderDebtPersonId_idx\" ON \"public\".\"DebtSplit\" (\"remainderDebtPersonId\")"
+			}
+		],
+		"id": "index.DebtSplit.DebtSplit_remainderDebtPersonId_idx",
+		"label": "Create index \"DebtSplit_remainderDebtPersonId_idx\" on \"DebtSplit\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"DebtSplit_remainderDebtPersonId_idx\" exists",
+				"params": ["\"public\".\"DebtSplit_remainderDebtPersonId_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"DebtSplit_remainderDebtPersonId_idx\" does not exist",
+				"params": ["\"public\".\"DebtSplit_remainderDebtPersonId_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "DebtSplit_remainderDebtPersonId_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "DebtSplit"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"DebtSplit_remainderDebtPersonId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"DebtSplit\"\nADD CONSTRAINT \"DebtSplit_remainderDebtPersonId_fkey\"\nFOREIGN KEY (\"remainderDebtPersonId\")\nREFERENCES \"public\".\"DebtPerson\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.DebtSplit.DebtSplit_remainderDebtPersonId_fkey",
+		"label": "Add foreign key \"DebtSplit_remainderDebtPersonId_fkey\" on \"DebtSplit\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"DebtSplit_remainderDebtPersonId_fkey\" exists",
+				"params": ["DebtSplit_remainderDebtPersonId_fkey", "public", "\"public\".\"DebtSplit\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"DebtSplit_remainderDebtPersonId_fkey\" does not exist",
+				"params": ["DebtSplit_remainderDebtPersonId_fkey", "public", "\"public\".\"DebtSplit\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "DebtSplit_remainderDebtPersonId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "DebtSplit"
+			},
+			"id": "postgres"
+		}
+	}
+]

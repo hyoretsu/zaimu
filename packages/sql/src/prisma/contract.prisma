@@ -397,6 +397,7 @@ namespace public {
     connection     DebtConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "DebtPerson_connectionId_fkey", index: false)
     debtEvents     DebtEvent[]
     debtSplitParticipants DebtSplitParticipant[]
+    debtSplitRemainders DebtSplit[] @relation("DebtSplitRemainderPerson")
 
     @@index([userId, normalizedName], map: "DebtPerson_userId_normalizedName_key", unique: true)
     @@index([connectionId], map: "DebtPerson_connectionId_idx")
@@ -502,6 +503,7 @@ namespace public {
     mode               pg.enum(DebtSplitMode)
     ownerIncluded      Boolean                 @default(false)
     ownerShares        SmallInt?
+    remainderDebtPersonId VarChar(36)?
     transactionId      VarChar(36)?            @unique(map: "DebtSplit_transactionId_key")
     transactionImportItemId VarChar(36)?        @unique(map: "DebtSplit_transactionImportItemId_key")
     creditCardImportItemId VarChar(36)?         @unique(map: "DebtSplit_creditCardImportItemId_key")
@@ -511,6 +513,7 @@ namespace public {
     createdAt          Timestamp(3)            @default(now())
     updatedAt          Timestamp(3)            @default(now())
     user               User                    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_userId_fkey", index: false)
+    remainderDebtPerson DebtPerson?             @relation("DebtSplitRemainderPerson", fields: [remainderDebtPersonId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_remainderDebtPersonId_fkey", index: false)
     transaction        Transaction?            @relation(fields: [transactionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_transactionId_fkey", index: false)
     transactionImportItem TransactionImportItem? @relation(fields: [transactionImportItemId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_transactionImportItemId_fkey", index: false)
     creditCardImportItem CreditCardImportItem?  @relation(fields: [creditCardImportItemId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_creditCardImportItemId_fkey", index: false)
@@ -520,6 +523,7 @@ namespace public {
     participants       DebtSplitParticipant[]
 
     @@index([userId], map: "DebtSplit_userId_idx")
+    @@index([remainderDebtPersonId], map: "DebtSplit_remainderDebtPersonId_idx")
     @@map("DebtSplit")
   }
 
@@ -528,6 +532,7 @@ namespace public {
     debtSplitId  VarChar(36)
     debtPersonId VarChar(36)
     sortOrder    SmallInt
+    description  VarChar(1000)?
     shares       SmallInt?
     percentage   Numeric(5, 2)?
     fixedAmount  Numeric(12, 2)?
