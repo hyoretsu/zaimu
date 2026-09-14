@@ -73,14 +73,14 @@ export function MobileAppShell() {
 						name={`mobile-tab-${tabId}`}
 					>
 						<ScrollArea
-							className="h-dvh"
+							className="mobile-tab-scroll-area h-dvh w-full min-w-0 max-w-full"
 							key={screenPath}
 							ref={element => {
 								if (element) scrollAreas.current.set(tabId, element);
 								else scrollAreas.current.delete(tabId);
 							}}
 						>
-							<main className="min-h-dvh min-w-0 pb-24">
+							<main className="min-h-dvh w-full min-w-0 max-w-full pb-24">
 								<Screen />
 							</main>
 						</ScrollArea>

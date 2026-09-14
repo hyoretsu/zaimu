@@ -171,6 +171,12 @@
 }
 
 @layer components {
+	.mobile-tab-scroll-area [data-slot="scroll-area-viewport"] > div {
+		display: block !important;
+		width: 100% !important;
+		min-width: 0 !important;
+	}
+
 	.gradient-primary {
 		background: linear-gradient(145deg, #4f53b7 0%, #34377d 100%);
 	}
