@@ -256,6 +256,10 @@ function isConnectivityError(error: unknown): boolean {
 	return error instanceof ConnectivityError;
 }
 
+function cacheRemoteData(operation: Promise<unknown>): void {
+	void operation.catch(() => undefined);
+}
+
 // ============== ACCOUNTS ==============
 export const dataService = {
 	accounts: {
@@ -392,10 +396,11 @@ export const dataService = {
 			const owner = getCurrentCacheIdentity();
 			if (!owner) throw new Error("Identidade local indisponível.");
 			const accounts = await fetchWithAuth<FinancialAccount[]>("/financial-accounts");
-			// Cache locally
-			await localAccounts.replaceSnapshot(
-				accounts.map(a => ({ data: a, localId: a.id, syncedAt: Date.now() })),
-				owner,
+			cacheRemoteData(
+				localAccounts.replaceSnapshot(
+					accounts.map(a => ({ data: a, localId: a.id, syncedAt: Date.now() })),
+					owner,
+				),
 			);
 			return accounts;
 		},
@@ -697,9 +702,11 @@ export const dataService = {
 			const owner = getCurrentCacheIdentity();
 			if (!owner) throw new Error("Identidade local indisponível.");
 			const categories = await fetchWithAuth<Category[]>("/categories");
-			await localCategories.replaceSnapshot(
-				categories.map(c => ({ data: c, localId: c.id, syncedAt: Date.now() })),
-				owner,
+			cacheRemoteData(
+				localCategories.replaceSnapshot(
+					categories.map(c => ({ data: c, localId: c.id, syncedAt: Date.now() })),
+					owner,
+				),
 			);
 			return categories;
 		},
@@ -984,9 +991,11 @@ export const dataService = {
 			const owner = getCurrentCacheIdentity();
 			if (!owner) throw new Error("Identidade local indisponível.");
 			const cards = await fetchWithAuth<CreditCard[]>("/credit-cards");
-			await localCreditCards.replaceSnapshot(
-				cards.map(card => ({ data: card, localId: card.id, syncedAt: Date.now() })),
-				owner,
+			cacheRemoteData(
+				localCreditCards.replaceSnapshot(
+					cards.map(card => ({ data: card, localId: card.id, syncedAt: Date.now() })),
+					owner,
+				),
 			);
 			return cards;
 		},
@@ -1059,12 +1068,14 @@ export const dataService = {
 				syncedAt: Date.now(),
 			}));
 			if (isPaid === undefined)
-				await localCreditCardStatements.replaceSlice(
-					snapshot,
-					statement => statement.creditCardId === cardId,
-					owner,
+				cacheRemoteData(
+					localCreditCardStatements.replaceSlice(
+						snapshot,
+						statement => statement.creditCardId === cardId,
+						owner,
+					),
 				);
-			else await localCreditCardStatements.bulkPut(snapshot, owner);
+			else cacheRemoteData(localCreditCardStatements.bulkPut(snapshot, owner));
 			return statements;
 		},
 		async payStatement(
@@ -1831,9 +1842,11 @@ export const dataService = {
 				const owner = getCurrentCacheIdentity();
 				if (!owner) throw new Error("Identidade local indisponível.");
 				const ledger = await fetchWithAuth<DebtLedger>("/debts");
-				await localDebtPeople.replaceSnapshot(
-					ledger.people.map(person => ({ data: person, localId: person.id, syncedAt: Date.now() })),
-					owner,
+				cacheRemoteData(
+					localDebtPeople.replaceSnapshot(
+						ledger.people.map(person => ({ data: person, localId: person.id, syncedAt: Date.now() })),
+						owner,
+					),
 				);
 				return ledger;
 			}
@@ -2085,9 +2098,11 @@ export const dataService = {
 			const owner = getCurrentCacheIdentity();
 			if (!owner) throw new Error("Identidade local indisponível.");
 			const loans = await fetchWithAuth<Loan[]>("/loans");
-			await localLoans.replaceSnapshot(
-				loans.map(l => ({ data: l, localId: l.id, syncedAt: Date.now() })),
-				owner,
+			cacheRemoteData(
+				localLoans.replaceSnapshot(
+					loans.map(l => ({ data: l, localId: l.id, syncedAt: Date.now() })),
+					owner,
+				),
 			);
 			return loans;
 		},
@@ -2157,9 +2172,11 @@ export const dataService = {
 			const owner = getCurrentCacheIdentity();
 			if (!owner) throw new Error("Identidade local indisponível.");
 			const payments = await fetchWithAuth<RecurringPayment[]>("/recurring");
-			await localRecurringPayments.replaceSnapshot(
-				payments.map(payment => ({ data: payment, localId: payment.id, syncedAt: Date.now() })),
-				owner,
+			cacheRemoteData(
+				localRecurringPayments.replaceSnapshot(
+					payments.map(payment => ({ data: payment, localId: payment.id, syncedAt: Date.now() })),
+					owner,
+				),
 			);
 			return payments;
 		},
@@ -2251,9 +2268,11 @@ export const dataService = {
 			const owner = getCurrentCacheIdentity();
 			if (!owner) throw new Error("Identidade local indisponível.");
 			const salaries = (await fetchWithAuth<Salary[]>("/salaries")).map(normalizeSalary);
-			await localSalaries.replaceSnapshot(
-				salaries.map(s => ({ data: s, localId: s.id, syncedAt: Date.now() })),
-				owner,
+			cacheRemoteData(
+				localSalaries.replaceSnapshot(
+					salaries.map(s => ({ data: s, localId: s.id, syncedAt: Date.now() })),
+					owner,
+				),
 			);
 			return salaries;
 		},
@@ -2302,9 +2321,11 @@ export const dataService = {
 			const owner = getCurrentCacheIdentity();
 			if (!owner) throw new Error("Identidade local indisponível.");
 			const stores = await fetchWithAuth<Store[]>("/stores");
-			await localStores.replaceSnapshot(
-				stores.map(store => ({ data: store, localId: store.id })),
-				owner,
+			cacheRemoteData(
+				localStores.replaceSnapshot(
+					stores.map(store => ({ data: store, localId: store.id })),
+					owner,
+				),
 			);
 			return stores;
 		},
@@ -2380,9 +2401,11 @@ export const dataService = {
 			if (!owner) throw new Error("Identidade local indisponível.");
 			const response = await fetchWithAuth<{ subscriptions: Subscription[] }>("/subscriptions");
 			const subscriptions = response.subscriptions;
-			await localSubscriptions.replaceSnapshot(
-				subscriptions.map(s => ({ data: s, localId: s.id, syncedAt: Date.now() })),
-				owner,
+			cacheRemoteData(
+				localSubscriptions.replaceSnapshot(
+					subscriptions.map(s => ({ data: s, localId: s.id, syncedAt: Date.now() })),
+					owner,
+				),
 			);
 			return subscriptions;
 		},
@@ -3047,11 +3070,9 @@ export const dataService = {
 			const snapshot = transactions
 				.filter(transaction => transaction.source !== "CREDIT_CARD")
 				.map(t => ({ data: t, localId: t.id, syncedAt: Date.now() }));
-			if (params && Object.values(params).some(value => value !== undefined)) {
-				await localTransactions.bulkPut(snapshot, owner);
-			} else {
-				await localTransactions.replaceSnapshot(snapshot, owner);
-			}
+			if (params && Object.values(params).some(value => value !== undefined))
+				cacheRemoteData(localTransactions.bulkPut(snapshot, owner));
+			else cacheRemoteData(localTransactions.replaceSnapshot(snapshot, owner));
 			return transactions;
 		},
 

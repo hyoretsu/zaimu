@@ -60,6 +60,7 @@ interface LegacyLocalData<T = unknown> {
 }
 
 let db: IDBDatabase | null = null;
+let dbInitializationPromise: Promise<IDBDatabase> | null = null;
 let migrationPromise: Promise<void> | null = null;
 
 const scopedId = (ownerKey: StorageOwner, localId: string) => `${ownerKey}\u0000${localId}`;
@@ -196,12 +197,7 @@ async function migrateLegacyData(database: IDBDatabase): Promise<void> {
 	}
 }
 
-export async function initLocalDb(): Promise<IDBDatabase> {
-	if (db) {
-		await migrationPromise;
-		return db;
-	}
-
+async function openLocalDb(): Promise<IDBDatabase> {
 	const database = await new Promise<IDBDatabase>((resolve, reject) => {
 		const request = indexedDB.open(DB_NAME, DB_VERSION);
 		request.onerror = () => reject(request.error);
@@ -222,12 +218,27 @@ export async function initLocalDb(): Promise<IDBDatabase> {
 	database.onversionchange = () => {
 		database.close();
 		db = null;
+		dbInitializationPromise = null;
 		migrationPromise = null;
 	};
 	db = database;
 	migrationPromise = migrateLegacyData(database);
 	await migrationPromise;
 	return database;
+}
+
+export async function initLocalDb(): Promise<IDBDatabase> {
+	if (db) {
+		await migrationPromise;
+		return db;
+	}
+	dbInitializationPromise ??= openLocalDb();
+	try {
+		return await dbInitializationPromise;
+	} catch (error) {
+		dbInitializationPromise = null;
+		throw error;
+	}
 }
 
 export async function getAll<T>(domain: StoreDomain, ownerKey?: StorageOwner): Promise<LocalData<T>[]> {
