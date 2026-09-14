@@ -1,3 +1,4 @@
+import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./Select";
 
 interface Option {
@@ -7,6 +8,7 @@ interface Option {
 }
 
 export function CustomSelect({
+	className,
 	disabled,
 	label,
 	onValueChange,
@@ -16,6 +18,7 @@ export function CustomSelect({
 	sortOptions = true,
 	value,
 }: {
+	className?: string;
 	disabled?: boolean;
 	label: string;
 	onValueChange: (value: string) => void;
@@ -32,7 +35,7 @@ export function CustomSelect({
 		: options;
 
 	return (
-		<div className="grid gap-2">
+		<div className={cn("grid gap-2", className)}>
 			<p className="font-medium text-sm leading-none">
 				{label} {required && <span className="text-destructive">*</span>}
 			</p>

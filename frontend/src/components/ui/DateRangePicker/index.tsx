@@ -18,6 +18,7 @@ import { type DateRangeBoundary, selectDateRangeBoundary, selectDateRangePair } 
 import type { DateRangeValue } from "./types";
 
 interface DateRangePickerProps {
+	className?: string;
 	description?: string;
 	onChange: (value: DateRangeValue) => void;
 	title?: string;
@@ -25,6 +26,7 @@ interface DateRangePickerProps {
 }
 
 export function DateRangePicker({
+	className,
 	description = "Os limites são opcionais.",
 	onChange,
 	title = "Selecionar período",
@@ -86,7 +88,7 @@ export function DateRangePicker({
 	return (
 		<Popover onOpenChange={handleOpenChange} open={open}>
 			<PopoverTrigger asChild>
-				<Button className="min-w-60 cursor-pointer justify-start" variant="outline">
+				<Button className={cn("min-w-60 cursor-pointer justify-start", className)} variant="outline">
 					<LuCalendarDays />
 					<span>{formatDateRange(value)}</span>
 				</Button>
