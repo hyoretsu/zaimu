@@ -3,6 +3,7 @@ import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql"
 import type { DebtSplitInput } from "../domain";
 import { calculateDebtSplit } from "../domain";
 import { debtEffectForTransaction, isCompatibleDebtPair } from "./debt-balance";
+import { getDuplicateCreatorDebtEventIds } from "./debt-event-deduplication";
 import { getDebtSplitInput, replaceDebtSplit } from "./debt-splits";
 
 export type DebtEventKind = "ORIGIN" | "TRANSACTION" | "PURCHASE" | "MIGRATED_SETTLEMENT";
@@ -141,6 +142,11 @@ export async function linkTransactionToDebt(input: {
 	if (input.type === "TRANSFER" && (requestedSplit || input.matchEventId))
 		throw new HttpException("Transferências entre contas próprias não podem ser vinculadas a dívidas", 400);
 	if (!requestedSplit && !input.matchEventId) return;
+	if (requestedSplit)
+		return syncTransactionDebtEvent({
+			...input,
+			debtSplit: requestedSplit,
+		});
 	if (input.matchEventId) {
 		const event = await getAccessibleDebtEvent(input.matchEventId, input.userId);
 		if (!event.date) throw new HttpException("Lançamentos sem data não podem ser conciliados", 409);
@@ -164,28 +170,6 @@ export async function linkTransactionToDebt(input: {
 			]).build(),
 		);
 		return;
-	}
-	const calculated = await replaceDebtSplit({
-		amount: input.amount,
-		split: requestedSplit!,
-		target: { transactionId: input.transactionId },
-		userId: input.userId,
-	});
-	for (const participant of calculated!.participants) {
-		const event = await createDebtEvent({
-			amount: participant.amount,
-			createdByUserId: input.userId,
-			date: input.date,
-			debtPersonId: participant.debtPersonId,
-			description: input.description,
-			effect: debtEffectForTransaction(participant.amount, input.type),
-			kind: "TRANSACTION",
-		});
-		await executeStatement(
-			db.sql.public.DebtTransactionLink.insert([
-				{ eventId: event.id, isCreator: true, transactionId: input.transactionId, userId: input.userId },
-			]).build(),
-		);
 	}
 }
 
@@ -230,6 +214,15 @@ export async function syncTransactionDebtEvent(input: {
 			.where((fields, functions) => functions.eq(fields.transactionId, input.transactionId))
 			.build(),
 	);
+	const duplicateCreatorEventIds = getDuplicateCreatorDebtEventIds(links);
+	if (duplicateCreatorEventIds.size) {
+		await executeStatement(
+			db.sql.public.DebtEvent.delete()
+				.where((fields, functions) => functions.in(fields.id, [...duplicateCreatorEventIds]))
+				.build(),
+		);
+		links.splice(0, links.length, ...links.filter(link => !duplicateCreatorEventIds.has(link.eventId)));
+	}
 	if (requestedSplit === null) {
 		await replaceDebtSplit({
 			amount: input.amount,
@@ -380,6 +373,11 @@ export async function linkPurchaseToDebt(input: {
 	if (requestedSplit && input.matchEventId)
 		throw new HttpException("Rateio e conciliação não podem ser usados juntos", 400);
 	if (!requestedSplit && !input.matchEventId) return;
+	if (requestedSplit)
+		return syncPurchaseDebtEvent({
+			...input,
+			debtSplit: requestedSplit,
+		});
 	const debtEffectMultiplier = input.debtEffectMultiplier ?? 1;
 	if (input.matchEventId) {
 		const event = await getAccessibleDebtEvent(input.matchEventId, input.userId);
@@ -399,39 +397,13 @@ export async function linkPurchaseToDebt(input: {
 		);
 		return;
 	}
-	const calculated = await replaceDebtSplit({
-		amount: input.totalAmount,
-		split: requestedSplit!,
-		target: { creditPurchaseId: input.creditPurchaseId },
-		userId: input.userId,
-	});
-	for (const participant of calculated!.participants) {
-		const event = await createDebtEvent({
-			amount: participant.amount,
-			createdByUserId: input.userId,
-			date: input.date,
-			debtPersonId: participant.debtPersonId,
-			description: input.description,
-			effect: participant.amount * debtEffectMultiplier,
-			kind: "PURCHASE",
-		});
-		await executeStatement(
-			db.sql.public.DebtPurchaseLink.insert([
-				{
-					creditPurchaseId: input.creditPurchaseId,
-					eventId: event.id,
-					isCreator: true,
-					userId: input.userId,
-				},
-			]).build(),
-		);
-	}
 }
 
 export async function syncPurchaseDebtEvent(input: {
 	creditPurchaseId: string;
 	date: string;
 	debtSplit?: DebtSplitInput | null;
+	debtEffectMultiplier?: -1 | 1;
 	debtPersonId?: null | string;
 	description?: string;
 	matchEventId?: string;
@@ -450,6 +422,7 @@ export async function syncPurchaseDebtEvent(input: {
 							ownerShares: null,
 							participants: [{ debtPersonId: input.debtPersonId, shares: 1 }],
 						} satisfies DebtSplitInput);
+	const debtEffectMultiplier = input.debtEffectMultiplier ?? 1;
 	const links = await queryRows(
 		db.sql.public.DebtPurchaseLink.innerJoin(db.sql.public.DebtEvent, (fields, functions) =>
 			functions.eq(fields.DebtPurchaseLink.eventId, fields.DebtEvent.id),
@@ -467,6 +440,15 @@ export async function syncPurchaseDebtEvent(input: {
 			.where((fields, functions) => functions.eq(fields.creditPurchaseId, input.creditPurchaseId))
 			.build(),
 	);
+	const duplicateCreatorEventIds = getDuplicateCreatorDebtEventIds(links);
+	if (duplicateCreatorEventIds.size) {
+		await executeStatement(
+			db.sql.public.DebtEvent.delete()
+				.where((fields, functions) => functions.in(fields.id, [...duplicateCreatorEventIds]))
+				.build(),
+		);
+		links.splice(0, links.length, ...links.filter(link => !duplicateCreatorEventIds.has(link.eventId)));
+	}
 	if (requestedSplit === null) {
 		await replaceDebtSplit({
 			amount: input.totalAmount,
@@ -553,7 +535,7 @@ export async function syncPurchaseDebtEvent(input: {
 				date: input.date,
 				debtPersonId: participant.debtPersonId,
 				description: input.description,
-				effect: participant.amount,
+				effect: participant.amount * debtEffectMultiplier,
 				kind: "PURCHASE",
 			});
 			await executeStatement(
@@ -575,7 +557,7 @@ export async function syncPurchaseDebtEvent(input: {
 				connectionId: connectionId ?? null,
 				date: new Date(input.date),
 				description: input.description ?? null,
-				effect: String(participant.amount),
+				effect: String(participant.amount * debtEffectMultiplier),
 				updatedAt: new Date(),
 			} as never)
 				.where((fields, functions) => functions.eq(fields.id, link.eventId))

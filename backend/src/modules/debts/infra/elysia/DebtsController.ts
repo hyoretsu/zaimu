@@ -7,6 +7,7 @@ import {
 	normalizeDebtPersonName,
 	resolveDebtPersonConnection,
 } from "~/modules/debts/application";
+import { removeDuplicateSourcedDebtEvents } from "~/modules/debts/application/debt-event-deduplication";
 import { calculateDebtSplitOrThrow } from "~/modules/debts/application/debt-splits";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
@@ -123,6 +124,30 @@ async function getPurchaseNamesByDebtEventId(eventIds: string[]) {
 	);
 }
 
+async function getSourceByDebtEventId(eventIds: string[]) {
+	if (!eventIds.length) return new Map<string, string>();
+	const [transactionLinks, purchaseLinks] = await Promise.all([
+		queryRows(
+			db.sql.public.DebtTransactionLink.select("eventId", "transactionId")
+				.where((fields, functions) =>
+					functions.and(functions.eq(fields.isCreator, true), functions.in(fields.eventId, eventIds)),
+				)
+				.build(),
+		),
+		queryRows(
+			db.sql.public.DebtPurchaseLink.select("creditPurchaseId", "eventId")
+				.where((fields, functions) =>
+					functions.and(functions.eq(fields.isCreator, true), functions.in(fields.eventId, eventIds)),
+				)
+				.build(),
+		),
+	]);
+	return new Map([
+		...transactionLinks.map(link => [link.eventId, `transaction:${link.transactionId}`] as const),
+		...purchaseLinks.map(link => [link.eventId, `purchase:${link.creditPurchaseId}`] as const),
+	]);
+}
+
 async function getPersonEvents(person: { connectionId: null | string; id: string }, userId: string) {
 	const connection = await getConnection(person.connectionId);
 	const shared = connection?.status === "ACCEPTED";
@@ -136,6 +161,7 @@ async function getPersonEvents(person: { connectionId: null | string; id: string
 						createdByName: fields.user.name,
 						createdByUserId: fields.DebtEvent.createdByUserId,
 						date: fields.DebtEvent.date,
+						debtPersonId: fields.DebtEvent.debtPersonId,
 						description: fields.DebtEvent.description,
 						dueDate: fields.DebtEvent.dueDate,
 						effect: fields.DebtEvent.effect,
@@ -154,6 +180,7 @@ async function getPersonEvents(person: { connectionId: null | string; id: string
 						createdByName: fields.user.name,
 						createdByUserId: fields.DebtEvent.createdByUserId,
 						date: fields.DebtEvent.date,
+						debtPersonId: fields.DebtEvent.debtPersonId,
 						description: fields.DebtEvent.description,
 						dueDate: fields.DebtEvent.dueDate,
 						effect: fields.DebtEvent.effect,
@@ -179,10 +206,13 @@ async function getPersonEvents(person: { connectionId: null | string; id: string
 			)
 		: [];
 	const hiddenIds = new Set(hidden.filter(item => item.hiddenAt).map(item => item.eventId));
-	const purchaseNamesByDebtEventId = await getPurchaseNamesByDebtEventId(events.map(event => event.id));
-	return events
-		.filter(event => !hiddenIds.has(event.id))
-		.map(event => ({
+	const visibleEvents = events.filter(event => !hiddenIds.has(event.id));
+	const [purchaseNamesByDebtEventId, sourceByEventId] = await Promise.all([
+		getPurchaseNamesByDebtEventId(visibleEvents.map(event => event.id)),
+		getSourceByDebtEventId(visibleEvents.map(event => event.id)),
+	]);
+	return removeDuplicateSourcedDebtEvents(visibleEvents, sourceByEventId)
+		.map(({ debtPersonId: _, ...event }) => ({
 			...event,
 			amount: Number(event.amount),
 			createdByMe: event.createdByUserId === userId,
