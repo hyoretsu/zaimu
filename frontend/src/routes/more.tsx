@@ -54,7 +54,7 @@ const menuItems = [
 	},
 ];
 
-function MorePage() {
+export function MorePage() {
 	return (
 		<div className="mx-auto min-h-screen w-full max-w-5xl bg-background lg:py-10">
 			{/* Header */}

@@ -20,7 +20,7 @@ import {
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
-function AccountsPage() {
+export function AccountsPage() {
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
 	const hasAccess = useAuthStore(state => state.isAuthenticated || state.isGuestMode);

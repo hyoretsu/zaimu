@@ -28,7 +28,7 @@ import {
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
-function DashboardPage() {
+export function DashboardPage() {
 	const user = useAuthStore((state: AuthState) => state.user);
 	const identity = useCacheIdentity();
 	const [dateRange, setDateRange] = useState<DateRangeValue>(() => getCurrentMonthRange());

@@ -115,7 +115,7 @@ function LoanCard({
 	);
 }
 
-function EmpréstimosPage() {
+export function EmpréstimosPage() {
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
 	const user = useAuthStore((s: AuthState) => s.user);

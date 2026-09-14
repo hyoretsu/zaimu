@@ -28,7 +28,7 @@ const themeOptions: { id: ThemeMode; label: string; icon: typeof HiSun; descript
 	},
 ];
 
-function AjustesPage() {
+export function AjustesPage() {
 	const navigate = useNavigate();
 	const { user, logout, isGuestMode, isAuthenticated } = useAuthStore();
 	const { mode, setMode, resolvedTheme } = useThemeStore();

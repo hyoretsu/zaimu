@@ -35,7 +35,7 @@ import {
 import { transactionToCreditPurchase } from "./transactions/-transaction-to-credit-purchase";
 import { HiddenTransactionsToggle, TransactionFilters } from "./transactions/components";
 
-function TransactionsPage() {
+export function TransactionsPage() {
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [isImportOpen, setIsImportOpen] = useState(false);
 	const [reviewingImportId, setReviewingImportId] = useState<string | null>(null);

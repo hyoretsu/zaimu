@@ -32,7 +32,7 @@ const filterOptions = [
 	{ icon: HiArrowUp, id: "EXPENSE", label: "Saídas" },
 ] as const;
 
-function RecurringPage() {
+export function RecurringPage() {
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
 	const [filter, setFilter] = useState<DirectionFilter>("all");

@@ -17,7 +17,7 @@ import {
 } from "./debts/components";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
-function DebtsPage() {
+export function DebtsPage() {
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
 	const [createOpen, setCreateOpen] = useState(false);
