@@ -19,6 +19,7 @@ import { materializeImportedPurchase } from "../../application/materialize-impor
 import { assignCreditCardPurchaseExternalIds } from "../../domain/credit-card-import-identity";
 import { matchesExistingCreditPurchase } from "../../domain/credit-card-import-reconciliation";
 import { parseCreditCardStatementPdf } from "../../domain/credit-card-statement-parser";
+import { requiresCreditCardStatementPdfPassword } from "../../domain/credit-card-statement-password";
 import { CreditCardImportItemReconcileDTO, CreditCardImportItemUpdateDTO } from "./CreditCardImportsDTO";
 
 const importItemTagEntityType = "CREDIT_CARD_IMPORT_ITEM";
@@ -338,8 +339,8 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
 			await assertCreditCardOwnership(body.creditCardId, userId);
-			if (body.provider === "INTER" && !body.password)
-				throw new HttpException("Informe a senha do PDF da fatura Inter", 400);
+			if (requiresCreditCardStatementPdfPassword(body.provider) && !body.password)
+				throw new HttpException("Informe a senha do PDF", 400);
 			if (body.file.type !== "application/pdf" && !body.file.name.toLowerCase().endsWith(".pdf"))
 				throw new HttpException("Envie um arquivo PDF", 400);
 			const fileBytes = new Uint8Array(await body.file.arrayBuffer());

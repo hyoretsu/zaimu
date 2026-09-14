@@ -17,20 +17,13 @@ import { Label } from "@/components/ui/Label";
 import { RequiredMark } from "@/components/ui/RequiredMark";
 import type { CreditCard, CreditCardImport } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
+import {
+	creditCardStatementProviderOptions,
+	getCreditCardStatementPdfPasswordConfiguration,
+} from "@/lib/credit-card-imports";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
-
-const providerOptions = [
-	{ label: "Bradesco", value: "BRADESCO" },
-	{ label: "Inter", value: "INTER" },
-	{ label: "Mercado Pago", value: "MERCADO_PAGO" },
-	{ label: "Nubank", value: "NUBANK" },
-	{ label: "PicPay", value: "PICPAY" },
-] as const satisfies ReadonlyArray<{
-	label: string;
-	value: CreditCardImport["provider"];
-}>;
 
 export function ImportCreditCardStatementDialog({
 	cards,
@@ -49,7 +42,7 @@ export function ImportCreditCardStatementDialog({
 	const [file, setFile] = useState<File | null>(null);
 	const [password, setPassword] = useState("");
 	const [provider, setProvider] = useState<CreditCardImport["provider"] | "">("");
-	const requiresPassword = provider === "INTER";
+	const passwordConfiguration = getCreditCardStatementPdfPasswordConfiguration(provider);
 	useEffect(() => {
 		if (!open) return;
 		setCreditCardId(cards.length === 1 ? cards[0]!.id : "");
@@ -62,7 +55,7 @@ export function ImportCreditCardStatementDialog({
 			if (!provider) throw new Error("Selecione a instituição da fatura.");
 			if (!creditCardId) throw new Error("Selecione o cartão que receberá as compras.");
 			if (!file) throw new Error("Selecione uma fatura em PDF.");
-			if (requiresPassword && !password) throw new Error("Informe a senha do PDF da fatura Inter.");
+			if (passwordConfiguration && !password) throw new Error("Informe a senha do PDF.");
 			return dataService.creditCardImports.create({
 				creditCardId,
 				file,
@@ -105,7 +98,7 @@ export function ImportCreditCardStatementDialog({
 					<CustomSelect
 						label="Instituição"
 						onValueChange={value => setProvider(value as CreditCardImport["provider"])}
-						options={providerOptions.map(option => ({ ...option }))}
+						options={creditCardStatementProviderOptions}
 						placeholder="Selecione a instituição"
 						required
 						sortOptions={false}
@@ -125,12 +118,11 @@ export function ImportCreditCardStatementDialog({
 						label="Fatura em PDF"
 						onFileChange={setFile}
 					/>
-					{provider === "BRADESCO" || requiresPassword ? (
+					{passwordConfiguration ? (
 						<div className="grid gap-2">
 							<Label htmlFor="credit-card-import-password">
 								<span>
-									Senha do PDF{requiresPassword ? "" : " (se houver)"}{" "}
-									{requiresPassword ? <RequiredMark /> : null}
+									Senha do PDF <RequiredMark />
 								</span>
 							</Label>
 							<Input
@@ -139,8 +131,8 @@ export function ImportCreditCardStatementDialog({
 								inputMode="numeric"
 								name="credit-card-import-password"
 								onChange={event => setPassword(event.currentTarget.value)}
-								placeholder="Ex: 123456"
-								required={requiresPassword}
+								placeholder={passwordConfiguration.placeholder}
+								required
 								type="password"
 								value={password}
 							/>
@@ -154,7 +146,11 @@ export function ImportCreditCardStatementDialog({
 					<Button
 						className="cursor-pointer disabled:cursor-not-allowed"
 						disabled={
-							!provider || !creditCardId || !file || (requiresPassword && !password) || createImport.isPending
+							!provider ||
+							!creditCardId ||
+							!file ||
+							(passwordConfiguration && !password) ||
+							createImport.isPending
 						}
 						onClick={() => createImport.mutate()}
 					>
