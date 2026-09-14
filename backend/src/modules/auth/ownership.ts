@@ -70,7 +70,7 @@ export const assertCreditCardOwnership = async (creditCardId: string, userId: st
 export const assertBalanceAccountOwnership = async (
 	accountId: string,
 	userId: string,
-	{ allowCashback = false }: { allowCashback?: boolean } = {},
+	{ allowCashback = false, allowPoints = false }: { allowCashback?: boolean; allowPoints?: boolean } = {},
 ) => {
 	const account = await queryFirst(
 		db.sql.public.FinancialAccount.select("id", "type")
@@ -84,8 +84,6 @@ export const assertBalanceAccountOwnership = async (
 	if (!account) throw new HttpException("Conta financeira não encontrada", 404);
 	if (account.type === "CREDIT_CARD")
 		throw new HttpException("Cartão de crédito não possui saldo próprio", 400);
-	if (account.type === "REWARDS" && !allowCashback)
-		throw new HttpException("Conta de pontos ou cashback recebe apenas recompensas", 400);
 	if (account.type === "REWARDS") {
 		const rewardsAccount = await queryFirst(
 			db.sql.public.RewardsAccount.select("kind")
@@ -93,7 +91,9 @@ export const assertBalanceAccountOwnership = async (
 				.limit(1)
 				.build(),
 		);
-		if (rewardsAccount?.kind !== "CASHBACK")
+		if (rewardsAccount?.kind === "CASHBACK" && !allowCashback)
+			throw new HttpException("Conta de cashback não pode ser usada como saldo", 400);
+		if (rewardsAccount?.kind === "POINTS" && !allowPoints)
 			throw new HttpException("Conta de pontos não pode ser usada como saldo", 400);
 	}
 };

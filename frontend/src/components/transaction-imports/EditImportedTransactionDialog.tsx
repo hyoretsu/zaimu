@@ -93,14 +93,21 @@ export function EditImportedTransactionDialog({
 		setDescription(item.description ?? "");
 	}, [item, open, setDescription]);
 	if (!item || !draft) return null;
-	const destinationAccounts = accounts
+	const balanceDestinationAccounts = accounts
 		.filter(account => account.type !== "CREDIT_CARD" && account.type !== "REWARDS")
+		.toSorted(compareFinancialAccountsByOptionLabel);
+	const incomeDestinationAccounts = accounts
+		.filter(account => account.type !== "CREDIT_CARD")
 		.toSorted(compareFinancialAccountsByOptionLabel);
 	const sourceAccounts = getTransactionSourceAccounts(accounts).toSorted(
 		compareFinancialAccountsByOptionLabel,
 	);
 	const primaryAccounts =
-		draft.type === "INCOME" || draft.type === "YIELD" ? destinationAccounts : sourceAccounts;
+		draft.type === "INCOME"
+			? incomeDestinationAccounts
+			: draft.type === "YIELD"
+				? balanceDestinationAccounts
+				: sourceAccounts;
 	const primaryAccountId =
 		draft.type === "INCOME" || draft.type === "YIELD"
 			? draft.destinationFinancialAccountId
@@ -225,7 +232,7 @@ export function EditImportedTransactionDialog({
 							onValueChange={destinationFinancialAccountId =>
 								setDraft(current => (current ? { ...current, destinationFinancialAccountId } : current))
 							}
-							options={destinationAccounts
+							options={balanceDestinationAccounts
 								.filter(account => account.id !== draft.originFinancialAccountId)
 								.map(account => ({ label: getFinancialAccountOptionLabel(account), value: account.id }))}
 							placeholder="Selecione o destino"

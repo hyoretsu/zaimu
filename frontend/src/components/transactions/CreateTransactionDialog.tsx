@@ -74,15 +74,23 @@ export function CreateTransactionDialog({
 		queryFn: () => getPayableCreditCardStatements(),
 		queryKey: queryKeys.creditCardStatements.payable(identity!),
 	});
-	const destinationAccounts =
+	const balanceDestinationAccounts =
 		accountsQuery.data
 			?.filter(account => account.type !== "CREDIT_CARD" && account.type !== "REWARDS")
+			.toSorted(compareFinancialAccountsByOptionLabel) ?? [];
+	const incomeDestinationAccounts =
+		accountsQuery.data
+			?.filter(account => account.type !== "CREDIT_CARD")
 			.toSorted(compareFinancialAccountsByOptionLabel) ?? [];
 	const sourceAccounts = getTransactionSourceAccounts(accountsQuery.data ?? []).toSorted(
 		compareFinancialAccountsByOptionLabel,
 	);
 	const primaryAccounts =
-		draft.type === "INCOME" || draft.type === "YIELD" ? destinationAccounts : sourceAccounts;
+		draft.type === "INCOME"
+			? incomeDestinationAccounts
+			: draft.type === "YIELD"
+				? balanceDestinationAccounts
+				: sourceAccounts;
 	const selectedStatement = payableStatementsQuery.data?.find(
 		item => item.statement.id === draft.creditCardStatementId,
 	);
@@ -264,13 +272,13 @@ export function CreateTransactionDialog({
 							value={primaryAccountId}
 						/>
 					)}
-					{draft.type === "TRANSFER" && destinationAccounts.length > 0 && (
+					{draft.type === "TRANSFER" && balanceDestinationAccounts.length > 0 && (
 						<CustomSelect
 							label="Conta de destino"
 							onValueChange={destinationFinancialAccountId =>
 								setDraft(current => ({ ...current, destinationFinancialAccountId }))
 							}
-							options={destinationAccounts
+							options={balanceDestinationAccounts
 								.filter(account => account.id !== draft.originFinancialAccountId)
 								.map(account => ({ label: getFinancialAccountOptionLabel(account), value: account.id }))}
 							placeholder="Selecione o destino"

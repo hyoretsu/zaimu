@@ -656,7 +656,10 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					});
 			}
 			if (body.destinationFinancialAccountId) {
-				await assertBalanceAccountOwnership(body.destinationFinancialAccountId, userId);
+				await assertBalanceAccountOwnership(body.destinationFinancialAccountId, userId, {
+					allowCashback: (body.type ?? "EXPENSE") === "INCOME",
+					allowPoints: (body.type ?? "EXPENSE") === "INCOME",
+				});
 			}
 			const hasExplicitTags = body.tagIds !== undefined || body.categoryId !== undefined;
 			const linkedTagSource = body.recurrenceId
@@ -868,13 +871,19 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			if (!existing) {
 				throw new HttpException("Transaction not found", 404);
 			}
-			if (body.originFinancialAccountId)
-				await assertBalanceAccountOwnership(body.originFinancialAccountId, userId, {
-					allowCashback:
-						(body.type ?? existing.type) === "EXPENSE" || (body.type ?? existing.type) === "TRANSFER",
+			const transactionType = body.type ?? existing.type;
+			const originFinancialAccountId = body.originFinancialAccountId ?? existing.originFinancialAccountId;
+			const destinationFinancialAccountId =
+				body.destinationFinancialAccountId ?? existing.destinationFinancialAccountId;
+			if (originFinancialAccountId)
+				await assertBalanceAccountOwnership(originFinancialAccountId, userId, {
+					allowCashback: transactionType === "EXPENSE" || transactionType === "TRANSFER",
 				});
-			if (body.destinationFinancialAccountId)
-				await assertBalanceAccountOwnership(body.destinationFinancialAccountId, userId);
+			if (destinationFinancialAccountId)
+				await assertBalanceAccountOwnership(destinationFinancialAccountId, userId, {
+					allowCashback: transactionType === "INCOME",
+					allowPoints: transactionType === "INCOME",
+				});
 			if (
 				(existing.creditCardStatementId || body.creditCardStatementId) &&
 				(body.type ?? existing.type) !== "EXPENSE"
