@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import {
 	buildComparisonPeriods,
+	endingBalanceAtPeriodEnd,
 	nextOccurrence,
 	occurrencesInRange,
 	resolveDashboardRange,
@@ -70,4 +71,41 @@ test("builds thirteen contiguous inclusive comparison intervals", () => {
 	expect(periods[6]?.startDate).toBe("2026-03-01");
 	expect(periods[12]?.startDate).toBe("2026-09-01");
 	expect(periods[12]?.endDate).toBe("2026-09-30");
+});
+
+test("does not apply future projections to a historical period balance", () => {
+	const endingBalance = endingBalanceAtPeriodEnd({
+		currentBalance: 1_000,
+		periodEnd: new Date("2026-07-31T23:59:59"),
+		today: new Date("2026-08-03T12:00:00"),
+		transactions: [
+			{ amount: 300, date: new Date("2026-08-03T00:00:00"), type: "EXPENSE" },
+			{ amount: 500, date: new Date("2026-08-20T00:00:00"), type: "EXPENSE" },
+		],
+	});
+	expect(endingBalance).toBe(1_300);
+});
+
+test("adds scheduled movements through a future period end", () => {
+	const endingBalance = endingBalanceAtPeriodEnd({
+		currentBalance: 1_000,
+		periodEnd: new Date("2026-08-31T23:59:59"),
+		today: new Date("2026-08-03T12:00:00"),
+		transactions: [
+			{ amount: 500, date: new Date("2026-08-20T00:00:00"), type: "EXPENSE" },
+			{ amount: 700, date: new Date("2026-09-05T00:00:00"), type: "INCOME" },
+		],
+	});
+	expect(endingBalance).toBe(500);
+});
+
+test("keeps the current balance when the period ends today", () => {
+	expect(
+		endingBalanceAtPeriodEnd({
+			currentBalance: 1_000,
+			periodEnd: new Date("2026-08-03T23:59:59"),
+			today: new Date("2026-08-03T12:00:00"),
+			transactions: [{ amount: 300, date: new Date("2026-08-03T00:00:00"), type: "EXPENSE" }],
+		}),
+	).toBe(1_000);
 });

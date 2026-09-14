@@ -1409,19 +1409,6 @@ export const dataService = {
 				const totalBalance = accounts
 					.filter(account => !["CREDIT_CARD", "INVESTMENT", "REWARDS"].includes(account.type))
 					.reduce((sum, account) => sum + (account.balance ?? 0), 0);
-				const afterRange = transactions
-					.filter(
-						item => item.type !== "TRANSFER" && new Date(`${item.date.slice(0, 10)}T12:00:00`) > rangeEnd,
-					)
-					.reduce((sum, item) => sum + (item.type === "INCOME" ? item.amount : -item.amount), 0);
-				const period = {
-					endDate: dateKey(rangeEnd),
-					expenses,
-					income,
-					initialBalance: totalBalance - afterRange - income + expenses,
-					net: income - expenses,
-					startDate: dateKey(rangeStart),
-				};
 				const owedToMe = debts.filter(d => d.isOwedToMe && !d.isPaid).reduce((sum, d) => sum + d.amount, 0);
 				const iOwe = debts.filter(d => !d.isOwedToMe && !d.isPaid).reduce((sum, d) => sum + d.amount, 0);
 				const nextMonthly = (start: string, day: number) => {
@@ -1635,6 +1622,32 @@ export const dataService = {
 					})),
 					...projectedMovements,
 				];
+				const today = new Date(now);
+				today.setHours(23, 59, 59, 999);
+				const balanceMovementNet = (items: typeof comparisonTransactions) =>
+					items
+						.filter(item => item.type !== "TRANSFER")
+						.reduce((sum, item) => sum + (item.type === "INCOME" ? item.amount : -item.amount), 0);
+				const endingBalance =
+					rangeEnd < today
+						? totalBalance -
+							balanceMovementNet(
+								comparisonTransactions.filter(item => item.date > rangeEnd && item.date <= today),
+							)
+						: rangeEnd > today
+							? totalBalance +
+								balanceMovementNet(
+									comparisonTransactions.filter(item => item.date > today && item.date <= rangeEnd),
+								)
+							: totalBalance;
+				const period = {
+					endDate: dateKey(rangeEnd),
+					expenses,
+					income,
+					initialBalance: endingBalance - income + expenses,
+					net: income - expenses,
+					startDate: dateKey(rangeStart),
+				};
 				const comparison = Array.from({ length: 13 }, (_, index) => {
 					const start = calendarMonths
 						? new Date(rangeStart.getFullYear(), rangeStart.getMonth() + (index - 6) * calendarMonths, 1)

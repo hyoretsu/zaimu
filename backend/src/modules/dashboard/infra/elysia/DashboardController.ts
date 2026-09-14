@@ -7,6 +7,7 @@ import {
 	comparisonRangeEnd,
 	type DashboardForecast,
 	dateKey,
+	endingBalanceAtPeriodEnd,
 	nextOccurrence,
 	occurrencesInRange,
 	period,
@@ -352,18 +353,17 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 		const expenses = periodTransactions
 			.filter(transaction => transaction.type === "EXPENSE")
 			.reduce((sum, transaction) => sum + transaction.amount, 0);
-		const afterRange = comparisonTransactions
-			.filter(transaction => transaction.date > range.end && transaction.type !== "TRANSFER")
-			.reduce(
-				(sum, transaction) =>
-					sum + (transaction.type === "INCOME" ? transaction.amount : -transaction.amount),
-				0,
-			);
+		const endingBalance = endingBalanceAtPeriodEnd({
+			currentBalance,
+			periodEnd: range.end,
+			today,
+			transactions: comparisonTransactions,
+		});
 		const dashboardPeriod = period({
 			end: range.end,
 			expenses,
 			income,
-			initialBalance: currentBalance - afterRange - income + expenses,
+			initialBalance: endingBalance - income + expenses,
 			start: range.start,
 		});
 

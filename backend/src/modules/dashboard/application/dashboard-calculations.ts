@@ -168,6 +168,36 @@ export function period(input: {
 	};
 }
 
+export function endingBalanceAtPeriodEnd(input: {
+	currentBalance: number;
+	periodEnd: Date;
+	today: Date;
+	transactions: Array<{ amount: number; date: Date; type: "EXPENSE" | "INCOME" | "TRANSFER" }>;
+}) {
+	const today = startOfDay(input.today);
+	const periodEnd = startOfDay(input.periodEnd);
+	const movements = input.transactions.filter(transaction => transaction.type !== "TRANSFER");
+	const net = (transactions: typeof movements) =>
+		transactions.reduce(
+			(sum, transaction) => sum + (transaction.type === "INCOME" ? transaction.amount : -transaction.amount),
+			0,
+		);
+
+	if (periodEnd < today)
+		return (
+			input.currentBalance -
+			net(
+				movements.filter(transaction => transaction.date > endOfDay(periodEnd) && transaction.date <= today),
+			)
+		);
+	if (periodEnd > today)
+		return (
+			input.currentBalance +
+			net(movements.filter(transaction => transaction.date > today && transaction.date <= periodEnd))
+		);
+	return input.currentBalance;
+}
+
 function monthlyDate(reference: Date, day: number) {
 	const lastDay = new Date(reference.getFullYear(), reference.getMonth() + 1, 0).getDate();
 	return new Date(reference.getFullYear(), reference.getMonth(), Math.min(day, lastDay));
