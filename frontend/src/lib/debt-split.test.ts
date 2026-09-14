@@ -87,6 +87,16 @@ describe("debtSplitError", () => {
 			}),
 		).toBe("Cada pessoa deve ter um valor positivo para a divisão.");
 	});
+
+	test("does not show a split-value error while the total is empty", () => {
+		expect(
+			debtSplitError(0, {
+				mode: "SHARES",
+				ownerShares: null,
+				participants: [{ debtPersonId: "a", shares: 1 }],
+			}),
+		).toBeNull();
+	});
 });
 
 describe("debtSplitToInput", () => {

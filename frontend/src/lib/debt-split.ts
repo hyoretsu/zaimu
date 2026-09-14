@@ -76,6 +76,14 @@ export function debtSplitError(amount: number, split: DebtSplitInput): string | 
 	if (split.participants.some(item => !item.debtPersonId)) return "Selecione todas as pessoas.";
 	if (new Set(split.participants.map(item => item.debtPersonId)).size !== split.participants.length)
 		return "Cada pessoa pode aparecer uma vez.";
+	if (
+		(split.mode === "SHARES" &&
+			split.participants.some(item => !Number.isInteger(item.shares) || item.shares < 1)) ||
+		(split.mode === "PERCENTAGE" && split.participants.some(item => item.percentage <= 0)) ||
+		(split.mode === "FIXED" && split.participants.some(item => item.fixedAmount <= 0))
+	)
+		return "Cada pessoa deve ter um valor positivo para a divisão.";
+	if (!Number.isFinite(amount) || amount <= 0) return null;
 	if (calculateDebtSplit(amount, split)) return null;
 	if (split.mode === "PERCENTAGE") {
 		const percentageTotal = split.participants.reduce(
