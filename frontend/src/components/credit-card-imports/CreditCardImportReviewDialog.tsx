@@ -95,7 +95,7 @@ export function CreditCardImportReviewDialog({
 			itemId,
 			sources,
 		}: {
-			creditPurchaseId: string | null;
+			creditPurchaseId: string;
 			itemId: string;
 			sources?: Parameters<typeof dataService.creditCardImports.reconcileItem>[2]["sources"];
 		}) => dataService.creditCardImports.reconcileItem(importId!, itemId, { creditPurchaseId, sources }),
