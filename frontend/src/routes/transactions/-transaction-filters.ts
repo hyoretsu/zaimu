@@ -20,6 +20,18 @@ export const initialTransactionFilters: TransactionFilters = {
 	visibility: "all",
 };
 
+export function countActiveTransactionFilters(filters: TransactionFilters) {
+	return [
+		Boolean(filters.search),
+		Boolean(filters.dateRange.startDate || filters.dateRange.endDate),
+		filters.type !== initialTransactionFilters.type,
+		filters.source !== initialTransactionFilters.source,
+		filters.visibility !== initialTransactionFilters.visibility,
+		filters.accountId !== initialTransactionFilters.accountId,
+		filters.categoryId !== initialTransactionFilters.categoryId,
+	].filter(Boolean).length;
+}
+
 export function filterTransactions(transactions: Transaction[], filters: TransactionFilters) {
 	const search = normalize(filters.search);
 

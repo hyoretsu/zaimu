@@ -7,7 +7,10 @@ import { Input } from "@/components/ui/Input";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import type { Transaction } from "@/lib/api";
-import type { TransactionFilters as TransactionFiltersValue } from "../-transaction-filters";
+import {
+	countActiveTransactionFilters,
+	type TransactionFilters as TransactionFiltersValue,
+} from "../-transaction-filters";
 
 interface TransactionFiltersProps {
 	filters: TransactionFiltersValue;
@@ -34,15 +37,8 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 		if (transaction.categoryId && transaction.categoryName)
 			categories.set(transaction.categoryId, transaction.categoryName);
 	}
-	const hasFilters =
-		filters.search ||
-		filters.type !== "all" ||
-		filters.source !== "all" ||
-		filters.visibility !== "all" ||
-		filters.accountId !== "all" ||
-		filters.categoryId !== "all" ||
-		filters.dateRange.startDate ||
-		filters.dateRange.endDate;
+	const activeFilterCount = countActiveTransactionFilters(filters);
+	const hasFilters = activeFilterCount > 0;
 	const set = <Key extends keyof TransactionFiltersValue>(key: Key, value: TransactionFiltersValue[Key]) =>
 		onChange({ ...filters, [key]: value });
 
@@ -60,7 +56,7 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 					<LuSlidersHorizontal /> Filtros
 				</span>
 				<span className="flex items-center gap-2 text-muted-foreground">
-					{hasFilters ? "Ativos" : null}
+					{hasFilters ? `${activeFilterCount} ${activeFilterCount === 1 ? "ativo" : "ativos"}` : null}
 					{expanded ? <LuChevronUp /> : <LuChevronDown />}
 				</span>
 			</Button>

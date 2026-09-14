@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import type { Transaction } from "@/lib/api";
-import { filterTransactions, initialTransactionFilters } from "./-transaction-filters";
+import {
+	countActiveTransactionFilters,
+	filterTransactions,
+	initialTransactionFilters,
+} from "./-transaction-filters";
 
 const transactions: Transaction[] = [
 	{
@@ -32,6 +36,18 @@ const transactions: Transaction[] = [
 ];
 
 describe("filterTransactions", () => {
+	test("counts each non-default filter once, including a date range", () => {
+		expect(countActiveTransactionFilters(initialTransactionFilters)).toBe(0);
+		expect(
+			countActiveTransactionFilters({
+				...initialTransactionFilters,
+				dateRange: { endDate: "2026-09-30", startDate: "2026-09-01" },
+				search: "café",
+				type: "EXPENSE",
+			}),
+		).toBe(3);
+	});
+
 	test("searches every transaction value, including localized date and amount", () => {
 		expect(
 			filterTransactions(transactions, { ...initialTransactionFilters, search: "14/09/2026" }),
