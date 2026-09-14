@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import { Input } from "@/components/ui/Input";
+import { Label } from "@/components/ui/Label";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import type { Transaction } from "@/lib/api";
@@ -82,20 +83,23 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 			) : null}
 			{shouldShowFilters ? (
 				<div className="flex flex-wrap gap-3 pt-4" id={contentId}>
-					<div className="relative min-w-60 grow-[2] basis-60 self-end">
-						<LuSearch
-							aria-hidden="true"
-							className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-						/>
-						<Input
-							aria-label="Pesquisar transações"
-							className="h-10 pl-9"
-							name="transaction-search"
-							onChange={event => setSearch(event.currentTarget.value)}
-							placeholder="Pesquisar descrição, valor, conta, categoria, data..."
-							type="text"
-							value={search}
-						/>
+					<div className="grid min-w-60 grow-[2] basis-60 gap-2">
+						<Label htmlFor="transaction-search">Descrição</Label>
+						<div className="relative">
+							<LuSearch
+								aria-hidden="true"
+								className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+							/>
+							<Input
+								className="h-10 pl-9"
+								id="transaction-search"
+								name="transaction-search"
+								onChange={event => setSearch(event.currentTarget.value)}
+								placeholder="Pesquisar descrição, valor, conta, categoria, data..."
+								type="text"
+								value={search}
+							/>
+						</div>
 					</div>
 					<div className="grid min-w-44 grow basis-44 gap-2">
 						<p className="font-medium text-sm leading-none">Data</p>
@@ -175,7 +179,13 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 						value={filters.categoryId}
 					/>
 					{hasFilters ? (
-						<Button className="cursor-pointer" onClick={onClear} size="sm" type="button" variant="outline">
+						<Button
+							className="cursor-pointer self-end"
+							onClick={onClear}
+							size="sm"
+							type="button"
+							variant="outline"
+						>
 							<LuX /> Limpar filtros
 						</Button>
 					) : null}
