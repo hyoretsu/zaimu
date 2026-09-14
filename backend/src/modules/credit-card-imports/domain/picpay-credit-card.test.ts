@@ -33,7 +33,7 @@ Subtotal dos lançamentos 23,05
 				},
 				{
 					currentInstallment: 11,
-					description: "AMAZONMKTPLC*RPARC11/12",
+					description: "AMAZONMKTPLC*R",
 					installmentAmount: 6.46,
 					installments: 12,
 					purchaseDate: "2025-09-23",
@@ -41,7 +41,7 @@ Subtotal dos lançamentos 23,05
 				},
 				{
 					currentInstallment: 10,
-					description: "AMAZON MARKETPPARC10/12",
+					description: "AMAZON MARKETP",
 					installmentAmount: 16.59,
 					installments: 12,
 					purchaseDate: "2025-10-30",

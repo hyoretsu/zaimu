@@ -65,7 +65,7 @@ export function parseBradescoCreditCardStatementText(text: string): CreditCardSt
 		if (!Number.isFinite(installmentAmount)) continue;
 		purchases.push({
 			currentInstallment,
-			description,
+			description: description.replace(/\s*\(\d{1,2}\/\d{1,2}\)\s*$/u, ""),
 			installmentAmount,
 			installments,
 			purchaseDate: inferPurchaseDate(Number(match[1]), Number(match[2]), statementDate, currentInstallment),

@@ -25,7 +25,7 @@ Total parcelado para as próximas faturas R$ 567,57
 			purchases: [
 				{
 					currentInstallment: 11,
-					description: "AMAZON RETAIL BR CPI SAO PAULO(11/12)",
+					description: "AMAZON RETAIL BR CPI SAO PAULO",
 					installmentAmount: 17.12,
 					installments: 12,
 					purchaseDate: "2025-09-17",
@@ -33,7 +33,7 @@ Total parcelado para as próximas faturas R$ 567,57
 				},
 				{
 					currentInstallment: 10,
-					description: "AMAZON RETAIL CPI SAO PAULO(10/12)",
+					description: "AMAZON RETAIL CPI SAO PAULO",
 					installmentAmount: 21.66,
 					installments: 12,
 					purchaseDate: "2025-11-04",
@@ -41,7 +41,7 @@ Total parcelado para as próximas faturas R$ 567,57
 				},
 				{
 					currentInstallment: 1,
-					description: "AMAZONMKTPLC*NOVASDNCO SAO PAULO(01/05)",
+					description: "AMAZONMKTPLC*NOVASDNCO SAO PAULO",
 					installmentAmount: 11.38,
 					installments: 5,
 					purchaseDate: "2026-07-19",
@@ -49,7 +49,7 @@ Total parcelado para as próximas faturas R$ 567,57
 				},
 				{
 					currentInstallment: 1,
-					description: "AMAZON BR SAO PAULO(01/02)",
+					description: "AMAZON BR SAO PAULO",
 					installmentAmount: 13.01,
 					installments: 2,
 					purchaseDate: "2026-07-30",

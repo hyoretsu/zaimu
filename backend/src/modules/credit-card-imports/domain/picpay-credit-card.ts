@@ -54,7 +54,7 @@ export function parsePicPayCreditCardStatementText(text: string): CreditCardStat
 			if (currentInstallment < 1 || installments < currentInstallment || installments > 48) continue;
 			purchases.push({
 				currentInstallment,
-				description,
+				description: description.replace(/\s*PARC(?:ELA)?\s*0?\d{1,2}\s*(?:\/|DE)\s*0?\d{1,2}\s*$/iu, ""),
 				installmentAmount,
 				installments,
 				purchaseDate: inferPurchaseDate(
