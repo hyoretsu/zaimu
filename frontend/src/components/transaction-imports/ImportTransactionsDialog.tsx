@@ -101,7 +101,7 @@ export function ImportTransactionsDialog({
 		<Dialog onOpenChange={handleOpenChange} open={open}>
 			<DialogContent className="sm:max-w-lg">
 				<DialogHeader>
-					<DialogTitle>Importar transações</DialogTitle>
+					<DialogTitle>Importar extrato</DialogTitle>
 					<DialogDescription>Selecione manualmente a conta e a instituição do extrato.</DialogDescription>
 				</DialogHeader>
 				<div className="grid gap-4">
@@ -136,7 +136,7 @@ export function ImportTransactionsDialog({
 						disabled={!file || !financialAccountId || !provider || createImport.isPending}
 						onClick={() => createImport.mutate()}
 					>
-						<LuFileUp /> {createImport.isPending ? "Importando…" : "Importar"}
+						<LuFileUp /> {createImport.isPending ? "Importando extrato…" : "Importar extrato"}
 					</Button>
 				</DialogFooter>
 			</DialogContent>

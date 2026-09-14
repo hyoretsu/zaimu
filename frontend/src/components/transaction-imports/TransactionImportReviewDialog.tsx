@@ -191,7 +191,7 @@ export function TransactionImportReviewDialog({
 		onSuccess: async () => {
 			setEditingItem(null);
 			await invalidate();
-			showToast("Transação importada atualizada.", "positive");
+			showToast("Transação do extrato atualizada.", "positive");
 		},
 	});
 	const acceptTransferSuggestion = useMutation({
@@ -273,7 +273,7 @@ export function TransactionImportReviewDialog({
 		onSuccess: async () => {
 			setDiscardConfirmationOpen(false);
 			await closeFinishedReview();
-			showToast("Importação descartada.", "info");
+			showToast("Extrato descartado.", "info");
 		},
 	});
 	const rejectTransferSuggestion = useMutation({
@@ -342,11 +342,11 @@ export function TransactionImportReviewDialog({
 			<Dialog onOpenChange={onOpenChange} open={open}>
 				<DialogContent className="max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-2xl">
 					<DialogHeader>
-						<DialogTitle>Revisar importação</DialogTitle>
+						<DialogTitle>Revisar extrato importado</DialogTitle>
 						<DialogDescription>
 							{transactionImport.data
-								? `${transactionImport.data.fileName} · ${remainingItemCountLabel}. Apenas transações aprovadas serão importadas; transações não aprovadas não serão importadas.`
-								: "Carregando transações importadas…"}
+								? `${transactionImport.data.fileName} · ${remainingItemCountLabel}. Apenas transações aprovadas serão registradas; as demais permanecerão no extrato.`
+								: "Carregando transações do extrato…"}
 						</DialogDescription>
 					</DialogHeader>
 					{transactionImport.isPending || accounts.isPending ? (
@@ -359,7 +359,7 @@ export function TransactionImportReviewDialog({
 						<EmptyState
 							description="Tente novamente em instantes."
 							icon={<LuCircleAlert className="size-7" />}
-							title="Não foi possível carregar a importação"
+							title="Não foi possível carregar o extrato"
 						/>
 					) : transactionImport.data ? (
 						<ScrollArea className="min-h-0 pr-3">
@@ -431,7 +431,7 @@ export function TransactionImportReviewDialog({
 							}
 							onClick={() => setDiscardConfirmationOpen(true)}
 						>
-							<LuTrash2 /> Descartar lote
+							<LuTrash2 /> Descartar extrato
 						</Button>
 						<Button
 							className="cursor-pointer disabled:cursor-not-allowed"
@@ -452,9 +452,9 @@ export function TransactionImportReviewDialog({
 			<Dialog onOpenChange={setDiscardConfirmationOpen} open={discardConfirmationOpen}>
 				<DialogContent showCloseButton={false}>
 					<DialogHeader>
-						<DialogTitle>Excluir importação?</DialogTitle>
+						<DialogTitle>Excluir extrato importado?</DialogTitle>
 						<DialogDescription>
-							Esta ação excluirá todo o lote importado e não poderá ser desfeita.
+							Esta ação excluirá todas as transações deste extrato e não poderá ser desfeita.
 						</DialogDescription>
 					</DialogHeader>
 					<DialogFooter>
@@ -473,7 +473,7 @@ export function TransactionImportReviewDialog({
 							disabled={discard.isPending}
 							onClick={() => discard.mutate()}
 						>
-							<LuTrash2 /> {discard.isPending ? "Excluindo…" : "Excluir lote"}
+							<LuTrash2 /> {discard.isPending ? "Excluindo extrato…" : "Excluir extrato"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

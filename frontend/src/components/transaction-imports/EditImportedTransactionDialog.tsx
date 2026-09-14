@@ -118,7 +118,7 @@ export function EditImportedTransactionDialog({
 			<DialogContent className="max-h-[92dvh] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>Editar transação importada</DialogTitle>
-					<DialogDescription>Altere antes de aprovar a importação.</DialogDescription>
+					<DialogDescription>Altere antes de aprovar as transações do extrato.</DialogDescription>
 				</DialogHeader>
 				<div className="scrollbar-themed grid min-h-0 gap-4 overflow-y-auto pr-1">
 					<TransactionDetailsFields

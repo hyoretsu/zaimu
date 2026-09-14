@@ -4,6 +4,10 @@ import { endOfMonth, format, startOfMonth } from "date-fns";
 import { useState } from "react";
 import { LuArrowDownLeft, LuArrowUpRight, LuTrendingUp } from "react-icons/lu";
 import {
+	CreditCardImportReviewDialog,
+	PendingCreditCardImportsNotice,
+} from "@/components/credit-card-imports";
+import {
 	PendingTransactionImportsNotice,
 	TransactionImportReviewDialog,
 } from "@/components/transaction-imports";
@@ -33,6 +37,7 @@ export function DashboardPage() {
 	const identity = useCacheIdentity();
 	const [dateRange, setDateRange] = useState<DateRangeValue>(() => getCurrentMonthRange());
 	const [reviewingImportId, setReviewingImportId] = useState<string | null>(null);
+	const [reviewingCreditCardImportId, setReviewingCreditCardImportId] = useState<string | null>(null);
 	const dashboardQuery = useQuery({
 		enabled: identity !== null,
 		queryFn: () => dataService.dashboard.get(dateRange),
@@ -65,6 +70,7 @@ export function DashboardPage() {
 				title="Visão geral"
 			/>
 			<PendingTransactionImportsNotice onReview={setReviewingImportId} />
+			<PendingCreditCardImportsNotice onReview={setReviewingCreditCardImportId} />
 			<section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
 				<Card className="border-0 bg-primary text-primary-foreground shadow-primary/15 shadow-xl sm:col-span-2 xl:col-span-1">
 					<CardHeader>
@@ -119,6 +125,11 @@ export function DashboardPage() {
 				importId={reviewingImportId}
 				onOpenChange={nextOpen => !nextOpen && setReviewingImportId(null)}
 				open={reviewingImportId !== null}
+			/>
+			<CreditCardImportReviewDialog
+				importId={reviewingCreditCardImportId}
+				onOpenChange={nextOpen => !nextOpen && setReviewingCreditCardImportId(null)}
+				open={reviewingCreditCardImportId !== null}
 			/>
 		</PageContainer>
 	);

@@ -25,8 +25,8 @@ export function PendingTransactionImportsDialog({
 		<Dialog onOpenChange={onOpenChange} open={open}>
 			<DialogContent className="grid max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)] overflow-hidden sm:max-w-lg">
 				<DialogHeader>
-					<DialogTitle>Selecionar lote para revisão</DialogTitle>
-					<DialogDescription>Escolha um lote. Os mais recentes aparecem primeiro.</DialogDescription>
+					<DialogTitle>Selecionar extrato para revisão</DialogTitle>
+					<DialogDescription>Escolha um extrato. Os mais recentes aparecem primeiro.</DialogDescription>
 				</DialogHeader>
 				<ScrollArea className="min-h-0 min-w-0 pr-3">
 					<div className="min-w-0 space-y-2">

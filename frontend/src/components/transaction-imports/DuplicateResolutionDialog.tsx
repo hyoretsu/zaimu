@@ -143,8 +143,8 @@ export function DuplicateResolutionDialog({
 				<DialogHeader>
 					<DialogTitle>Resolver duplicata</DialogTitle>
 					<DialogDescription>
-						Escolha a duplicata e selecione a origem de cada dado. O item importado será atualizado e
-						permanecerá no lote até sua aprovação.
+						Escolha a duplicata e selecione a origem de cada dado. A transação do extrato será atualizada e
+						permanecerá no extrato até sua aprovação.
 					</DialogDescription>
 				</DialogHeader>
 				<ScrollArea className="min-h-0 pr-1">

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { LuFileClock } from "react-icons/lu";
+import { LuFileClock, LuFileSearch } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { dataService } from "@/lib/dataService";
@@ -16,7 +16,7 @@ export function PendingCreditCardImportsNotice({ onReview }: { onReview: (import
 		queryKey: queryKeys.creditCardImports.pending(identity!),
 	});
 	if (imports.isPending && identity?.startsWith("user:"))
-		return <Skeleton className="h-[5.25rem] rounded-2xl" />;
+		return <Skeleton className="h-[5.625rem] rounded-2xl" />;
 	if (imports.isError && !imports.data)
 		return (
 			<section className="flex items-center justify-between gap-3 rounded-2xl border border-destructive/30 p-4">
@@ -30,12 +30,12 @@ export function PendingCreditCardImportsNotice({ onReview }: { onReview: (import
 	const purchases = imports.data.reduce((total, item) => total + item.items.length, 0);
 	return (
 		<>
-			<section className="flex flex-col gap-3 rounded-2xl border border-amber-500/35 bg-amber-500/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+			<section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4">
 				<div className="flex items-center gap-3">
 					<LuFileClock className="size-5 text-amber-700" />
 					<div>
-						<p className="font-medium text-sm">Faturas aguardando revisão</p>
-						<p className="text-muted-foreground text-xs">
+						<p className="font-semibold">Faturas aguardando revisão</p>
+						<p className="text-muted-foreground text-sm">
 							{imports.data.length} {imports.data.length === 1 ? "fatura" : "faturas"} · {purchases}{" "}
 							{purchases === 1 ? "compra" : "compras"}
 						</p>
@@ -52,7 +52,7 @@ export function PendingCreditCardImportsNotice({ onReview }: { onReview: (import
 					}}
 					variant="outline"
 				>
-					Revisar
+					<LuFileSearch /> Revisar
 				</Button>
 			</section>
 			{imports.data.length > 1 && (

@@ -228,7 +228,7 @@ export function TransactionsPage() {
 							<HiPlus /> Adicionar
 						</Button>
 						<Button className="cursor-pointer" onClick={() => setIsImportOpen(true)} variant="outline">
-							<LuFileUp /> Importar
+							<LuFileUp /> Importar extrato
 						</Button>
 					</div>
 				}

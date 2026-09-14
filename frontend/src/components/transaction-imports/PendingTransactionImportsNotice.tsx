@@ -21,7 +21,7 @@ export function PendingTransactionImportsNotice({ onReview }: { onReview: (impor
 	if (imports.isError && !imports.data)
 		return (
 			<section className="flex items-center justify-between gap-3 rounded-2xl border border-destructive/30 p-4">
-				<p className="text-sm">Não foi possível verificar importações pendentes.</p>
+				<p className="text-sm">Não foi possível verificar extratos pendentes.</p>
 				<Button className="cursor-pointer" onClick={() => imports.refetch()} variant="outline">
 					Tentar novamente
 				</Button>
@@ -39,9 +39,9 @@ export function PendingTransactionImportsNotice({ onReview }: { onReview: (impor
 				<div className="flex items-center gap-3">
 					<LuClock3 className="size-5 text-amber-700" />
 					<div>
-						<p className="font-semibold">Importações aguardando revisão</p>
+						<p className="font-semibold">Extratos aguardando revisão</p>
 						<p className="text-muted-foreground text-sm">
-							{pendingImports.length} {pendingImports.length === 1 ? "lote" : "lotes"} · {itemCount}{" "}
+							{pendingImports.length} {pendingImports.length === 1 ? "extrato" : "extratos"} · {itemCount}{" "}
 							transações ainda não afetam seus saldos.
 						</p>
 					</div>
