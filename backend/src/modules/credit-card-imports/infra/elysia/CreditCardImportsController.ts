@@ -338,6 +338,8 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
 			await assertCreditCardOwnership(body.creditCardId, userId);
+			if (body.provider === "INTER" && !body.password)
+				throw new HttpException("Informe a senha do PDF da fatura Inter", 400);
 			if (body.file.type !== "application/pdf" && !body.file.name.toLowerCase().endsWith(".pdf"))
 				throw new HttpException("Envie um arquivo PDF", 400);
 			const fileBytes = new Uint8Array(await body.file.arrayBuffer());

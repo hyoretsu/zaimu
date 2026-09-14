@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/Dialog";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
+import { RequiredMark } from "@/components/ui/RequiredMark";
 import type { CreditCard, CreditCardImport } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
@@ -48,6 +49,7 @@ export function ImportCreditCardStatementDialog({
 	const [file, setFile] = useState<File | null>(null);
 	const [password, setPassword] = useState("");
 	const [provider, setProvider] = useState<CreditCardImport["provider"] | "">("");
+	const requiresPassword = provider === "INTER";
 	useEffect(() => {
 		if (!open) return;
 		setCreditCardId(cards.length === 1 ? cards[0]!.id : "");
@@ -60,6 +62,7 @@ export function ImportCreditCardStatementDialog({
 			if (!provider) throw new Error("Selecione a instituição da fatura.");
 			if (!creditCardId) throw new Error("Selecione o cartão que receberá as compras.");
 			if (!file) throw new Error("Selecione uma fatura em PDF.");
+			if (requiresPassword && !password) throw new Error("Informe a senha do PDF da fatura Inter.");
 			return dataService.creditCardImports.create({
 				creditCardId,
 				file,
@@ -122,9 +125,14 @@ export function ImportCreditCardStatementDialog({
 						label="Fatura em PDF"
 						onFileChange={setFile}
 					/>
-					{provider === "BRADESCO" ? (
+					{provider === "BRADESCO" || requiresPassword ? (
 						<div className="grid gap-2">
-							<Label htmlFor="credit-card-import-password">Senha do PDF (se houver)</Label>
+							<Label htmlFor="credit-card-import-password">
+								<span>
+									Senha do PDF{requiresPassword ? "" : " (se houver)"}{" "}
+									{requiresPassword ? <RequiredMark /> : null}
+								</span>
+							</Label>
 							<Input
 								autoComplete="off"
 								id="credit-card-import-password"
@@ -132,6 +140,7 @@ export function ImportCreditCardStatementDialog({
 								name="credit-card-import-password"
 								onChange={event => setPassword(event.currentTarget.value)}
 								placeholder="Ex: 123456"
+								required={requiresPassword}
 								type="password"
 								value={password}
 							/>
@@ -144,7 +153,9 @@ export function ImportCreditCardStatementDialog({
 					</Button>
 					<Button
 						className="cursor-pointer disabled:cursor-not-allowed"
-						disabled={!provider || !creditCardId || !file || createImport.isPending}
+						disabled={
+							!provider || !creditCardId || !file || (requiresPassword && !password) || createImport.isPending
+						}
 						onClick={() => createImport.mutate()}
 					>
 						<LuFileUp /> {createImport.isPending ? "Importando…" : "Importar"}
