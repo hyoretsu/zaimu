@@ -37,14 +37,6 @@ const fields: Field[] = [
 	{ key: "tagIds", label: "Tags" },
 	{ key: "debtSplit", label: "Dívida" },
 ];
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
-
-function formatInstallments(installments: number, installmentAmount: number) {
-	return installments === 1
-		? `À vista · ${currency.format(installmentAmount)}`
-		: `${installments}x de ${currency.format(installmentAmount)}`;
-}
-
 function formatExistingPurchase(candidate: CreditCardImportPurchaseDuplicate) {
 	const registered =
 		candidate.installments === 1
@@ -145,11 +137,6 @@ export function CreditPurchaseReconciliationDialog({
 								</div>
 							</div>
 						) : null}
-						<div className="rounded-2xl border bg-muted/30 p-3 text-sm">
-							<span className="font-medium">Fatura: </span>
-							{formatInstallments(item.installments, item.installmentAmount)} ·{" "}
-							{formatExistingPurchase(duplicate)}
-						</div>
 						<div className="overflow-hidden rounded-2xl border">
 							<div className="grid grid-cols-[4rem_minmax(0,1fr)_minmax(0,1fr)] border-b text-center font-medium text-xs sm:grid-cols-[7rem_minmax(0,1fr)_minmax(0,1fr)]">
 								<span />
