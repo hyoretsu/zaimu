@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { HiArrowDown, HiArrowsRightLeft, HiArrowUp, HiPlus } from "react-icons/hi2";
+import { HiArrowsRightLeft, HiPlus } from "react-icons/hi2";
 import { LuArrowLeftRight, LuFileUp } from "react-icons/lu";
 import {
 	ImportTransactionsDialog,
@@ -27,15 +27,13 @@ import { EditCreditPurchaseDialog } from "@/routes/credit-cards/components/EditC
 import { RefundCreditPurchaseDialog } from "@/routes/credit-cards/components/RefundCreditPurchaseDialog";
 import { showToast } from "@/stores";
 import { groupTransactionsForDisplay } from "./transactions/-transaction-display-groups";
+import {
+	filterTransactions,
+	initialTransactionFilters,
+	type TransactionFilters as TransactionFiltersValue,
+} from "./transactions/-transaction-filters";
 import { transactionToCreditPurchase } from "./transactions/-transaction-to-credit-purchase";
-import { HiddenTransactionsToggle } from "./transactions/components";
-
-const typeOptions = [
-	{ icon: null, id: "all", label: "Todas" },
-	{ icon: HiArrowUp, id: "EXPENSE", label: "Saídas" },
-	{ icon: HiArrowDown, id: "INCOME", label: "Entradas" },
-	{ icon: HiArrowsRightLeft, id: "TRANSFER", label: "Transferências" },
-] as const;
+import { HiddenTransactionsToggle, TransactionFilters } from "./transactions/components";
 
 function TransactionsPage() {
 	const [isModalOpen, setIsModalOpen] = useState(false);
@@ -44,18 +42,15 @@ function TransactionsPage() {
 	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 	const [editingPurchase, setEditingPurchase] = useState<Transaction | null>(null);
 	const [refundingPurchase, setRefundingPurchase] = useState<Transaction | null>(null);
-	const [filterType, setFilterType] = useState<string>("all");
+	const [filters, setFilters] = useState<TransactionFiltersValue>(initialTransactionFilters);
 	const [expandedHiddenGroups, setExpandedHiddenGroups] = useState<Set<string>>(() => new Set());
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
 
 	const transactionsQuery = useQuery({
 		enabled: identity !== null,
-		queryFn: () =>
-			dataService.transactions.getAll({
-				type: filterType === "all" ? undefined : (filterType as Transaction["type"]),
-			}),
-		queryKey: queryKeys.transactions.list(identity!, { type: filterType }),
+		queryFn: () => dataService.transactions.getAll(),
+		queryKey: queryKeys.transactions.list(identity!, {}),
 	});
 	const creditCardsQuery = useQuery({
 		enabled: identity !== null && editingPurchase !== null,
@@ -85,8 +80,11 @@ function TransactionsPage() {
 		},
 	});
 
-	const groupedTransactions = transactionsQuery.data
-		? sortTransactionsByMostRecent(transactionsQuery.data).reduce<Record<string, Transaction[]>>(
+	const filteredTransactions = transactionsQuery.data
+		? filterTransactions(transactionsQuery.data, filters)
+		: undefined;
+	const groupedTransactions = filteredTransactions
+		? sortTransactionsByMostRecent(filteredTransactions).reduce<Record<string, Transaction[]>>(
 				(groups, transaction) => {
 					const date = transaction.date.slice(0, 10);
 					if (!groups[date]) groups[date] = [];
@@ -271,19 +269,12 @@ function TransactionsPage() {
 				</section>
 			) : null}
 
-			<div className="grid gap-2 rounded-2xl border bg-card p-2 sm:grid-cols-4 min-[440px]:grid-cols-2">
-				{typeOptions.map(option => (
-					<Button
-						className="w-full cursor-pointer"
-						key={option.id}
-						onClick={() => setFilterType(option.id)}
-						variant={filterType === option.id ? "default" : "outline"}
-					>
-						{option.icon && <option.icon />}
-						{option.label}
-					</Button>
-				))}
-			</div>
+			<TransactionFilters
+				filters={filters}
+				onChange={setFilters}
+				onClear={() => setFilters(initialTransactionFilters)}
+				transactions={transactionsQuery.data ?? []}
+			/>
 
 			{transactionsQuery.isPending ? (
 				<div className="space-y-5">
@@ -302,9 +293,13 @@ function TransactionsPage() {
 				/>
 			) : !groupedTransactions || Object.keys(groupedTransactions).length === 0 ? (
 				<EmptyState
-					description="Registre sua primeira movimentação para começar."
+					description={
+						transactionsQuery.data?.length
+							? "Ajuste ou limpe os filtros para ver transações."
+							: "Registre sua primeira movimentação para começar."
+					}
 					icon={<HiArrowsRightLeft />}
-					title="Nenhuma transação"
+					title={transactionsQuery.data?.length ? "Nenhuma transação encontrada" : "Nenhuma transação"}
 				/>
 			) : (
 				<div className="space-y-5">

@@ -18,11 +18,18 @@ import { type DateRangeBoundary, selectDateRangeBoundary, selectDateRangePair } 
 import type { DateRangeValue } from "./types";
 
 interface DateRangePickerProps {
+	description?: string;
 	onChange: (value: DateRangeValue) => void;
+	title?: string;
 	value: DateRangeValue;
 }
 
-export function DateRangePicker({ onChange, value }: DateRangePickerProps) {
+export function DateRangePicker({
+	description = "Os limites são opcionais.",
+	onChange,
+	title = "Selecionar período",
+	value,
+}: DateRangePickerProps) {
 	const [open, setOpen] = useState(false);
 	const [draftRange, setDraftRange] = useState(value);
 	const [activeBoundary, setActiveBoundary] = useState<DateRangeBoundary>();
@@ -86,8 +93,8 @@ export function DateRangePicker({ onChange, value }: DateRangePickerProps) {
 			</PopoverTrigger>
 			<PopoverContent align="end" className="w-[22rem] gap-5 p-4">
 				<PopoverHeader>
-					<PopoverTitle>Período da dashboard</PopoverTitle>
-					<PopoverDescription>Os limites são opcionais.</PopoverDescription>
+					<PopoverTitle>{title}</PopoverTitle>
+					<PopoverDescription>{description}</PopoverDescription>
 				</PopoverHeader>
 				<div className="grid grid-cols-2 gap-2">
 					<Button
