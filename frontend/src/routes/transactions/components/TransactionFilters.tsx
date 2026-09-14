@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/Input";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import type { Transaction } from "@/lib/api";
+import { getTransactionAccountTypeLabel } from "@/lib/financial-account";
 import {
 	countActiveTransactionFilters,
 	type TransactionFilters as TransactionFiltersValue,
@@ -26,13 +27,28 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 	const [search, setSearch] = useDebouncedInput(filters.search, value =>
 		onChange({ ...filters, search: value }),
 	);
-	const accounts = new Map<string, string>();
+	const accounts = new Map<
+		string,
+		{
+			name: string;
+			rewardsKind: Transaction["originAccountRewardsKind"];
+			type: Transaction["originAccountType"];
+		}
+	>();
 	const categories = new Map<string, string>();
 	for (const transaction of transactions) {
 		if (transaction.originFinancialAccountId && transaction.originName)
-			accounts.set(transaction.originFinancialAccountId, transaction.originName);
+			accounts.set(transaction.originFinancialAccountId, {
+				name: transaction.originName,
+				rewardsKind: transaction.originAccountRewardsKind,
+				type: transaction.originAccountType,
+			});
 		if (transaction.destinationFinancialAccountId && transaction.destinationName)
-			accounts.set(transaction.destinationFinancialAccountId, transaction.destinationName);
+			accounts.set(transaction.destinationFinancialAccountId, {
+				name: transaction.destinationName,
+				rewardsKind: transaction.destinationAccountRewardsKind,
+				type: transaction.destinationAccountType,
+			});
 		for (const tag of transaction.tags ?? []) categories.set(tag.id, tag.name);
 		if (transaction.categoryId && transaction.categoryName)
 			categories.set(transaction.categoryId, transaction.categoryName);
@@ -136,7 +152,13 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 						onValueChange={value => set("accountId", value)}
 						options={[
 							{ label: "Todas as contas", value: "all" },
-							...[...accounts].map(([value, label]) => ({ label, value })),
+							...[...accounts].map(([value, account]) => ({
+								label: `${account.name} (${getTransactionAccountTypeLabel(
+									account.type ?? undefined,
+									account.rewardsKind ?? undefined,
+								)})`,
+								value,
+							})),
 						]}
 						placeholder="Todas as contas"
 						value={filters.accountId}
