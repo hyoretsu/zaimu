@@ -177,11 +177,7 @@ export function CreditCardImportReviewDialog({
 										key={item.id}
 										onApprove={() => approveItem.mutate(item.id)}
 										onEdit={() => setEditingItem(item)}
-										onReconcile={() => {
-											if (item.reconciledCreditPurchaseId)
-												reconcileItem.mutate({ creditPurchaseId: null, itemId: item.id });
-											else setReconcilingItem(item);
-										}}
+										onReconcile={() => setReconcilingItem(item)}
 									/>
 								))}
 							</div>

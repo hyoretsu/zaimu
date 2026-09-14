@@ -519,17 +519,6 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 					.build(),
 			);
 			if (!item) throw new HttpException("Compra importada não encontrada", 404);
-			if (body.creditPurchaseId === null) {
-				await executeStatement(
-					db.sql.public.CreditCardImportItem.update({
-						reconciledCreditPurchaseId: null,
-						updatedAt: new Date(),
-					})
-						.where((fields, functions) => functions.eq(fields.id, item.id))
-						.build(),
-				);
-				return getImportReturn(userId, params.id);
-			}
 			const candidates = await getPotentialDuplicates(creditCardImport.creditCardId, [
 				{ ...item, reconciledCreditPurchaseId: null },
 			]);

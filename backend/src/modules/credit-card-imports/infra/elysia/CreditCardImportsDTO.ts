@@ -14,7 +14,7 @@ export const CreditCardImportItemUpdateDTO = t.Object({
 });
 
 export const CreditCardImportItemReconcileDTO = t.Object({
-	creditPurchaseId: t.Nullable(t.String({ maxLength: 36, minLength: 1 })),
+	creditPurchaseId: t.String({ maxLength: 36, minLength: 1 }),
 	sources: t.Optional(
 		t.Partial(
 			t.Object({

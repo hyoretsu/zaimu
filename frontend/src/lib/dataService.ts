@@ -777,7 +777,7 @@ export const dataService = {
 			importId: string,
 			itemId: string,
 			data: {
-				creditPurchaseId: string | null;
+				creditPurchaseId: string;
 				sources?: Partial<
 					Record<
 						"debtSplit" | "description" | "purchaseDate" | "storeName" | "tagIds" | "time",

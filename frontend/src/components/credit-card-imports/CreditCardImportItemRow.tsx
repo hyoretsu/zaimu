@@ -1,4 +1,4 @@
-import { LuCheck, LuCircleAlert, LuGitMerge, LuPencil } from "react-icons/lu";
+import { LuCheck, LuCircleAlert, LuPencil } from "react-icons/lu";
 import { TransactionListItem } from "@/components/transactions";
 import type { CreditCardImportItem, Transaction } from "@/lib/api";
 import { formatLocalDate } from "@/lib/date";
@@ -66,12 +66,6 @@ export function CreditCardImportItemRow({
 					icon: <LuCheck />,
 					onClick: onApprove,
 					text: "Aprovar",
-				},
-				{
-					disabled: disabled || !item.reconciledCreditPurchaseId,
-					icon: <LuGitMerge />,
-					onClick: onReconcile,
-					text: item.reconciledCreditPurchaseId ? "Desfazer conciliação" : "Conciliar",
 				},
 				{ disabled, icon: <LuPencil />, onClick: onEdit, text: "Editar" },
 			]}
