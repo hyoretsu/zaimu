@@ -56,7 +56,13 @@ function equalSplit(
 	};
 }
 
-export function DebtSplitEditor({ amount, disabled, onChange, value }: DebtSplitEditorProps) {
+export function DebtSplitEditor({
+	amount,
+	disabled,
+	onChange,
+	showParticipantDescriptions = true,
+	value,
+}: DebtSplitEditorProps) {
 	const customized = useRef(false);
 	const previewRemainderDebtPersonId =
 		value.mode !== "SHARES" && value.remainderDebtPersonId
@@ -211,6 +217,7 @@ export function DebtSplitEditor({ amount, disabled, onChange, value }: DebtSplit
 					}}
 					onValueChange={next => updateParticipant(index, "value", next)}
 					participant={participant}
+					showDescription={showParticipantDescriptions}
 				/>
 			))}
 			<Button

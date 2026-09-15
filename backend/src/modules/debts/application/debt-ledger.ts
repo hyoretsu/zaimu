@@ -11,6 +11,12 @@ export type DebtEventKind = "ORIGIN" | "TRANSACTION" | "PURCHASE" | "MIGRATED_SE
 const participantDescription = (participant: { description?: string }, fallback?: string) =>
 	participant.description?.trim() || fallback;
 
+const transactionDebtDescription = (
+	participant: { description?: string },
+	type: "EXPENSE" | "INCOME" | "TRANSFER",
+	fallback?: string,
+) => (type === "EXPENSE" ? participantDescription(participant, fallback) : fallback);
+
 export const normalizeDebtPersonName = (name: string) =>
 	name.trim().replace(/\s+/g, " ").toLocaleLowerCase("pt-BR");
 
@@ -319,7 +325,7 @@ export async function syncTransactionDebtEvent(input: {
 				createdByUserId: input.userId,
 				date: input.date,
 				debtPersonId: participant.debtPersonId,
-				description: participantDescription(participant, input.description),
+				description: transactionDebtDescription(participant, input.type, input.description),
 				effect: debtEffectForTransaction(participant.amount, input.type),
 				kind: "TRANSACTION",
 			});
@@ -336,7 +342,7 @@ export async function syncTransactionDebtEvent(input: {
 				amount: String(participant.amount),
 				connectionId: connectionId ?? null,
 				date: new Date(input.date),
-				description: participantDescription(participant, input.description) ?? null,
+				description: transactionDebtDescription(participant, input.type, input.description) ?? null,
 				effect: String(debtEffectForTransaction(participant.amount, input.type)),
 				updatedAt: new Date(),
 			} as never)

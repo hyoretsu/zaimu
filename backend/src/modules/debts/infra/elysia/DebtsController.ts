@@ -124,6 +124,28 @@ async function getPurchaseNamesByDebtEventId(eventIds: string[]) {
 	);
 }
 
+async function getIncomeTransactionDescriptionsByDebtEventId(eventIds: string[]) {
+	if (!eventIds.length) return new Map<string, null | string>();
+	const transactions = await queryRows(
+		db.sql.public.DebtTransactionLink.innerJoin(db.sql.public.Transaction, (fields, functions) =>
+			functions.eq(fields.DebtTransactionLink.transactionId, fields.Transaction.id),
+		)
+			.select(fields => ({
+				description: fields.Transaction.description,
+				eventId: fields.DebtTransactionLink.eventId,
+			}))
+			.where((fields, functions) =>
+				functions.and(
+					functions.eq(fields.DebtTransactionLink.isCreator, true),
+					functions.eq(fields.Transaction.type, "INCOME"),
+					functions.in(fields.DebtTransactionLink.eventId, eventIds),
+				),
+			)
+			.build(),
+	);
+	return new Map(transactions.map(transaction => [transaction.eventId, transaction.description] as const));
+}
+
 async function getSourceByDebtEventId(eventIds: string[]) {
 	if (!eventIds.length) return new Map<string, string>();
 	const [transactionLinks, purchaseLinks] = await Promise.all([
@@ -207,16 +229,20 @@ async function getPersonEvents(person: { connectionId: null | string; id: string
 		: [];
 	const hiddenIds = new Set(hidden.filter(item => item.hiddenAt).map(item => item.eventId));
 	const visibleEvents = events.filter(event => !hiddenIds.has(event.id));
-	const [purchaseNamesByDebtEventId, sourceByEventId] = await Promise.all([
-		getPurchaseNamesByDebtEventId(visibleEvents.map(event => event.id)),
-		getSourceByDebtEventId(visibleEvents.map(event => event.id)),
-	]);
+	const [incomeTransactionDescriptionsByDebtEventId, purchaseNamesByDebtEventId, sourceByEventId] =
+		await Promise.all([
+			getIncomeTransactionDescriptionsByDebtEventId(visibleEvents.map(event => event.id)),
+			getPurchaseNamesByDebtEventId(visibleEvents.map(event => event.id)),
+			getSourceByDebtEventId(visibleEvents.map(event => event.id)),
+		]);
 	return removeDuplicateSourcedDebtEvents(visibleEvents, sourceByEventId)
 		.map(({ debtPersonId: _, ...event }) => ({
 			...event,
 			amount: Number(event.amount),
 			createdByMe: event.createdByUserId === userId,
-			description: event.description ?? purchaseNamesByDebtEventId.get(event.id),
+			description: incomeTransactionDescriptionsByDebtEventId.has(event.id)
+				? (incomeTransactionDescriptionsByDebtEventId.get(event.id) ?? null)
+				: (event.description ?? purchaseNamesByDebtEventId.get(event.id) ?? null),
 			effect: event.createdByUserId === userId ? Number(event.effect) : -Number(event.effect),
 			kind: event.kind as DebtEventType,
 		}))

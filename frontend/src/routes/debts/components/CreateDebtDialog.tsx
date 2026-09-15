@@ -143,7 +143,12 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 						{mode === "edit" ? (
 							<DebtPersonPicker onValueChange={setPersonId} required value={personId} />
 						) : (
-							<DebtSplitEditor amount={Number(amount)} onChange={setDebtSplit} value={debtSplit} />
+							<DebtSplitEditor
+								amount={Number(amount)}
+								onChange={setDebtSplit}
+								showParticipantDescriptions={false}
+								value={debtSplit}
+							/>
 						)}
 						<MoneyField
 							id="debt-origin-amount"

@@ -238,7 +238,12 @@ export function CreateTransactionDialog({
 								<span>Esta movimentação é de uma dívida</span>
 							</CheckboxField>
 							{isDebt ? (
-								<DebtSplitEditor amount={Number(draft.amount)} onChange={setDebtSplit} value={debtSplit} />
+								<DebtSplitEditor
+									amount={Number(draft.amount)}
+									onChange={setDebtSplit}
+									showParticipantDescriptions={draft.type === "EXPENSE"}
+									value={debtSplit}
+								/>
 							) : null}
 						</div>
 					) : null}

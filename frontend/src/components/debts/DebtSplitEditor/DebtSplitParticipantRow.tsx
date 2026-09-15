@@ -20,6 +20,7 @@ export function DebtSplitParticipantRow({
 	onValueChange,
 	participant,
 	isRemainderRecipient,
+	showDescription,
 	mode,
 }: {
 	amount?: number;
@@ -34,6 +35,7 @@ export function DebtSplitParticipantRow({
 	onValueChange: (value: number) => void;
 	participant: DebtSplitInput["participants"][number];
 	isRemainderRecipient?: boolean;
+	showDescription: boolean;
 }) {
 	const [description, setDescription] = useDebouncedInput(participant.description ?? "", onDescriptionChange);
 	const numericValue =
@@ -67,16 +69,18 @@ export function DebtSplitParticipantRow({
 					<LuTrash2 />
 				</Button>
 			</div>
-			<FormField
-				disabled={disabled}
-				id={`debt-split-description-${index}`}
-				label="Descrição da dívida"
-				name={`debt-split-description-${index}`}
-				onChange={event => setDescription(event.currentTarget.value)}
-				placeholder="Ex: Capa de celular"
-				type="text"
-				value={description}
-			/>
+			{showDescription ? (
+				<FormField
+					disabled={disabled}
+					id={`debt-split-description-${index}`}
+					label="Descrição da dívida"
+					name={`debt-split-description-${index}`}
+					onChange={event => setDescription(event.currentTarget.value)}
+					placeholder="Ex: Capa de celular"
+					type="text"
+					value={description}
+				/>
+			) : null}
 			{mode !== "SHARES" ? (
 				<CheckboxField
 					checkboxProps={{

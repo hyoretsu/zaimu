@@ -4,5 +4,6 @@ export interface DebtSplitEditorProps {
 	amount: number;
 	disabled?: boolean;
 	onChange: (value: DebtSplitInput) => void;
+	showParticipantDescriptions?: boolean;
 	value: DebtSplitInput;
 }
