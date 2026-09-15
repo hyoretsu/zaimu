@@ -20,7 +20,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
-import { formatLocalDate, formatLocalTime } from "@/lib/date";
+import { formatLocalDate, formatLocalTime, getLocalDateKey } from "@/lib/date";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { sortTransactionsByMostRecent } from "@/lib/transaction-sort";
 import { EditCreditPurchaseDialog } from "@/routes/credit-cards/components/EditCreditPurchaseDialog";
@@ -33,7 +33,13 @@ import {
 	type TransactionFilters as TransactionFiltersValue,
 } from "./transactions/-transaction-filters";
 import { transactionToCreditPurchase } from "./transactions/-transaction-to-credit-purchase";
-import { HiddenTransactionsToggle, TransactionFilters } from "./transactions/components";
+import {
+	HiddenTransactionsToggle,
+	TransactionDateHeader,
+	TransactionFilters,
+} from "./transactions/components";
+
+const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
 export function TransactionsPage() {
 	const [isModalOpen, setIsModalOpen] = useState(false);
@@ -51,6 +57,25 @@ export function TransactionsPage() {
 		enabled: identity !== null,
 		queryFn: () => dataService.transactions.getAll(),
 		queryKey: queryKeys.transactions.list(identity!, {}),
+	});
+	const dashboardDateRange = transactionsQuery.data?.length
+		? {
+				endDate: transactionsQuery.data.reduce(
+					(latestDate, transaction) =>
+						transaction.date.slice(0, 10) > latestDate ? transaction.date.slice(0, 10) : latestDate,
+					getLocalDateKey(),
+				),
+				startDate: transactionsQuery.data.reduce(
+					(earliestDate, transaction) =>
+						transaction.date.slice(0, 10) < earliestDate ? transaction.date.slice(0, 10) : earliestDate,
+					transactionsQuery.data[0].date.slice(0, 10),
+				),
+			}
+		: undefined;
+	const dashboardQuery = useQuery({
+		enabled: identity !== null && dashboardDateRange !== undefined,
+		queryFn: () => dataService.dashboard.get(dashboardDateRange!),
+		queryKey: queryKeys.dashboard.detail(identity!, dashboardDateRange),
 	});
 	const creditCardsQuery = useQuery({
 		enabled: identity !== null && editingPurchase !== null,
@@ -94,6 +119,9 @@ export function TransactionsPage() {
 				{},
 			)
 		: undefined;
+	const dailyEndingBalances = new Map(
+		dashboardQuery.data?.dailyBalances.map(item => [item.date, item.balance]) ?? [],
+	);
 	const remove = useMutation({
 		mutationFn: (id: string) => dataService.transactions.delete(id),
 		onError: error => showToast(error.message, "negative"),
@@ -276,7 +304,7 @@ export function TransactionsPage() {
 				transactions={transactionsQuery.data ?? []}
 			/>
 
-			{transactionsQuery.isPending ? (
+			{transactionsQuery.isPending || dashboardQuery.isPending ? (
 				<div className="space-y-5">
 					{[1, 2, 3].map(item => (
 						<div className="space-y-2" key={item}>
@@ -285,7 +313,7 @@ export function TransactionsPage() {
 						</div>
 					))}
 				</div>
-			) : transactionsQuery.isError ? (
+			) : transactionsQuery.isError || dashboardQuery.isError ? (
 				<EmptyState
 					description="Não foi possível carregar suas movimentações."
 					icon={<HiArrowsRightLeft />}
@@ -310,45 +338,45 @@ export function TransactionsPage() {
 
 						return (
 							<section className="space-y-2" key={date}>
+								<TransactionDateHeader
+									dateLabel={dayLabel}
+									endingBalance={currency.format(dailyEndingBalances.get(date) ?? 0)}
+								/>
 								{allTransactionsHidden ? (
 									<HiddenTransactionsToggle
-										dateLabel={formatLocalDate(date)}
 										expanded={expandedHiddenGroups.has(displayGroups[0].id)}
 										hiddenCount={displayGroups[0].transactions.length}
 										onClick={() => toggleHiddenGroup(displayGroups[0].id)}
 									/>
 								) : (
-									<>
-										<h2 className="font-medium text-muted-foreground text-sm">{dayLabel}</h2>
-										{displayGroups.map(group => {
-											if (group.kind === "visible") {
-												return (
-													<div
-														className="divide-y overflow-hidden rounded-2xl border bg-card shadow-sm"
-														key={group.id}
-													>
-														{group.transactions.map(renderTransaction)}
-													</div>
-												);
-											}
-
-											const isExpanded = expandedHiddenGroups.has(group.id);
+									displayGroups.map(group => {
+										if (group.kind === "visible") {
 											return (
-												<div className="space-y-2" key={group.id}>
-													<HiddenTransactionsToggle
-														expanded={isExpanded}
-														hiddenCount={group.transactions.length}
-														onClick={() => toggleHiddenGroup(group.id)}
-													/>
-													{isExpanded ? (
-														<div className="divide-y overflow-hidden rounded-2xl border bg-card shadow-sm">
-															{group.transactions.map(renderTransaction)}
-														</div>
-													) : null}
+												<div
+													className="divide-y overflow-hidden rounded-2xl border bg-card shadow-sm"
+													key={group.id}
+												>
+													{group.transactions.map(renderTransaction)}
 												</div>
 											);
-										})}
-									</>
+										}
+
+										const isExpanded = expandedHiddenGroups.has(group.id);
+										return (
+											<div className="space-y-2" key={group.id}>
+												<HiddenTransactionsToggle
+													expanded={isExpanded}
+													hiddenCount={group.transactions.length}
+													onClick={() => toggleHiddenGroup(group.id)}
+												/>
+												{isExpanded ? (
+													<div className="divide-y overflow-hidden rounded-2xl border bg-card shadow-sm">
+														{group.transactions.map(renderTransaction)}
+													</div>
+												) : null}
+											</div>
+										);
+									})
 								)}
 								{allTransactionsHidden && expandedHiddenGroups.has(displayGroups[0].id) ? (
 									<div className="divide-y overflow-hidden rounded-2xl border bg-card shadow-sm">

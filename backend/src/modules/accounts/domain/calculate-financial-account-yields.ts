@@ -123,7 +123,7 @@ export function calculateFinancialAccountYieldBalances({
 }
 
 function dateKey(date: Date) {
-	return format(date, "yyyy-MM-dd");
+	return date.toISOString().slice(0, 10);
 }
 
 export function effectiveYieldRate(settings: {

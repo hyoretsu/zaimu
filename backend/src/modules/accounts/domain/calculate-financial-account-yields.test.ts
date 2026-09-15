@@ -25,6 +25,21 @@ describe("calculateFinancialAccountYieldBalances", () => {
 		expect(balances.get("account")).toBeCloseTo(100 * (1 + dailyRate) ** 2, 4);
 	});
 
+	test("keeps database date-only timestamps on their UTC calendar date", () => {
+		const balances = calculateFinancialAccountYieldBalances({
+			accounts: [{ ...account, yieldFixedRate: null, yieldPeriod: null }],
+			cashbackCredits: [],
+			holidays: [],
+			initialRewardsBalances: new Map(),
+			today: new Date("2026-01-05T12:00:00"),
+			transactions: [
+				{ amount: 100, date: new Date("2026-01-06T00:00:00Z"), destinationFinancialAccountId: "account" },
+			],
+		});
+
+		expect(balances.get("account")).toBe(0);
+	});
+
 	test("skips all account yields on a holiday", () => {
 		const balances = calculateFinancialAccountYieldBalances({
 			accounts: [account],

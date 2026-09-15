@@ -27,6 +27,7 @@ export interface DashboardForecast {
 
 export interface DashboardPeriod {
 	endDate: string;
+	endingBalance: number;
 	expenses: number;
 	income: number;
 	initialBalance: number;
@@ -36,6 +37,23 @@ export interface DashboardPeriod {
 
 export function dateKey(value: Date) {
 	return format(value, "yyyy-MM-dd");
+}
+
+export function databaseDate(value: Date) {
+	return new Date(`${value.toISOString().slice(0, 10)}T12:00:00`);
+}
+
+export function reconcilePeriodCashFlow(input: {
+	endingBalance: number;
+	expenses: number;
+	income: number;
+	initialBalance: number;
+}) {
+	const uncategorizedChange = input.endingBalance - input.initialBalance - (input.income - input.expenses);
+	return {
+		expenses: input.expenses + Math.max(0, -uncategorizedChange),
+		income: input.income + Math.max(0, uncategorizedChange),
+	};
 }
 
 export function resolveDashboardRange(startDate?: string, endDate?: string, today = new Date()) {
@@ -160,6 +178,7 @@ export function period(input: {
 }): DashboardPeriod {
 	return {
 		endDate: dateKey(input.end),
+		endingBalance: input.initialBalance + input.income - input.expenses,
 		expenses: input.expenses,
 		income: input.income,
 		initialBalance: input.initialBalance,

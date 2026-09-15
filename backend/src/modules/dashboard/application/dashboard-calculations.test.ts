@@ -1,11 +1,27 @@
 import { expect, test } from "bun:test";
 import {
 	buildComparisonPeriods,
+	databaseDate,
+	dateKey,
 	endingBalanceAtPeriodEnd,
 	nextOccurrence,
 	occurrencesInRange,
+	reconcilePeriodCashFlow,
 	resolveDashboardRange,
 } from "./dashboard-calculations";
+
+test("preserves database date-only values in the local calendar", () => {
+	expect(dateKey(databaseDate(new Date("2026-09-05T00:00:00.000Z")))).toBe("2026-09-05");
+});
+
+test("reconciles yields and boundary movements with the displayed cash flow", () => {
+	expect(
+		reconcilePeriodCashFlow({ endingBalance: 214, expenses: 40, income: 50, initialBalance: 200 }),
+	).toEqual({ expenses: 40, income: 54 });
+	expect(
+		reconcilePeriodCashFlow({ endingBalance: 205, expenses: 40, income: 50, initialBalance: 200 }),
+	).toEqual({ expenses: 45, income: 50 });
+});
 
 test("finds next occurrence without materializing it", () => {
 	const occurrence = nextOccurrence({

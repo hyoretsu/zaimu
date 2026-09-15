@@ -1642,6 +1642,7 @@ export const dataService = {
 							: totalBalance;
 				const period = {
 					endDate: dateKey(rangeEnd),
+					endingBalance,
 					expenses,
 					income,
 					initialBalance: endingBalance - income + expenses,
@@ -1668,6 +1669,11 @@ export const dataService = {
 						.reduce((sum, item) => sum + item.amount, 0);
 					return {
 						endDate: dateKey(end),
+						endingBalance:
+							totalBalance -
+							comparisonTransactions
+								.filter(item => item.type !== "TRANSFER" && item.date > end)
+								.reduce((sum, item) => sum + (item.type === "INCOME" ? item.amount : -item.amount), 0),
 						expenses: comparisonExpenses,
 						income: comparisonIncome,
 						initialBalance:
@@ -1691,6 +1697,24 @@ export const dataService = {
 						})),
 					comparison,
 					creditCards,
+					dailyBalances: transactions
+						.filter(transaction => {
+							const date = new Date(`${transaction.date.slice(0, 10)}T12:00:00`);
+							return date >= rangeStart && date <= rangeEnd;
+						})
+						.map(transaction => transaction.date.slice(0, 10))
+						.filter((date, index, dates) => dates.indexOf(date) === index)
+						.toSorted()
+						.map(date => ({
+							balance:
+								period.initialBalance +
+								balanceMovementNet(
+									comparisonTransactions.filter(
+										item => item.date >= rangeStart && dateKey(item.date) <= date,
+									),
+								),
+							date,
+						})),
 					debts: {
 						iOwe,
 						net: owedToMe - iOwe,

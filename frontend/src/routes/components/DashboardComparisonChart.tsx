@@ -47,7 +47,6 @@ function formatAxisLabel(startDate: string) {
 export function DashboardComparisonChart({ comparison }: Pick<Dashboard, "comparison">) {
 	const data = comparison.map(item => ({
 		...item,
-		endingBalance: item.initialBalance + item.net,
 		label: formatAxisLabel(item.startDate),
 	}));
 	return (

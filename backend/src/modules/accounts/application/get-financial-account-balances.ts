@@ -22,9 +22,9 @@ export function calculateCashbackValue(
 	return amount * (1 + rate / 100) ** periods;
 }
 
-export async function getFinancialAccountBalances(accountIds: string[]) {
+async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 	const balances = new Map(accountIds.map(accountId => [accountId, 0]));
-	if (accountIds.length === 0) return balances;
+	if (accountIds.length === 0) return { balances } as const;
 	const accounts = await queryRows(
 		db.sql.public.FinancialAccount.select(
 			"id",
@@ -108,31 +108,49 @@ export async function getFinancialAccountBalances(accountIds: string[]) {
 					.build(),
 			)
 		: [];
-	return calculateFinancialAccountYieldBalances({
-		accounts: accounts.map(account => ({
-			...account,
-			yieldPeriod: account.yieldPeriod as null | YieldPeriod,
-			yieldRateHistories: (yieldRateHistoriesByAccountId.get(account.id) ?? []).map(history => ({
-				...history,
-				yieldPeriod: history.yieldPeriod as null | YieldPeriod,
+	return {
+		balances,
+		input: {
+			accounts: accounts.map(account => ({
+				...account,
+				yieldPeriod: account.yieldPeriod as null | YieldPeriod,
+				yieldRateHistories: (yieldRateHistoriesByAccountId.get(account.id) ?? []).map(history => ({
+					...history,
+					yieldPeriod: history.yieldPeriod as null | YieldPeriod,
+				})),
 			})),
-		})),
-		cashbackCredits: cashbackPurchases.map(purchase => ({
-			...purchase,
-			cashbackAmount: Number(purchase.cashbackAmount ?? 0),
-			cashbackYieldPeriod: purchase.cashbackYieldPeriod as null | YieldPeriod,
-			cashbackYieldReferencePercentage: purchase.cashbackYieldReferencePercentage,
-			cashbackYieldReferenceRate: purchase.cashbackYieldReferenceRate,
-		})),
-		holidays: holidays.map(holiday => holiday.date),
-		initialRewardsBalances: new Map(
-			rewardsAccounts.map(account => [account.financialAccountId, Number(account.initialBalance)]),
-		),
-		transactions: transactions.map(transaction => ({ ...transaction, amount: Number(transaction.amount) })),
-		yields: yields.map(yieldEntry => ({
-			...yieldEntry,
-			amount: yieldEntry.amount === null ? null : Number(yieldEntry.amount),
-			kind: yieldEntry.kind as "AUTOMATIC" | "MANUAL",
-		})),
-	});
+			cashbackCredits: cashbackPurchases.map(purchase => ({
+				...purchase,
+				cashbackAmount: Number(purchase.cashbackAmount ?? 0),
+				cashbackYieldPeriod: purchase.cashbackYieldPeriod as null | YieldPeriod,
+				cashbackYieldReferencePercentage: purchase.cashbackYieldReferencePercentage,
+				cashbackYieldReferenceRate: purchase.cashbackYieldReferenceRate,
+			})),
+			holidays: holidays.map(holiday => holiday.date),
+			initialRewardsBalances: new Map(
+				rewardsAccounts.map(account => [account.financialAccountId, Number(account.initialBalance)]),
+			),
+			transactions: transactions.map(transaction => ({ ...transaction, amount: Number(transaction.amount) })),
+			yields: yields.map(yieldEntry => ({
+				...yieldEntry,
+				amount: yieldEntry.amount === null ? null : Number(yieldEntry.amount),
+				kind: yieldEntry.kind as "AUTOMATIC" | "MANUAL",
+			})),
+		},
+	} as const;
+}
+
+export async function getFinancialAccountBalances(accountIds: string[], asOf = new Date()) {
+	const loaded = await loadFinancialAccountBalanceInput(accountIds);
+	if (!("input" in loaded)) return loaded.balances;
+	return calculateFinancialAccountYieldBalances({ ...loaded.input, today: asOf });
+}
+
+export async function getFinancialAccountBalancesAtDates(accountIds: string[], dates: Date[]) {
+	const loaded = await loadFinancialAccountBalanceInput(accountIds);
+	if (!("input" in loaded)) return dates.map(date => ({ balances: loaded.balances, date }));
+	return dates.map(date => ({
+		balances: calculateFinancialAccountYieldBalances({ ...loaded.input, today: date }),
+		date,
+	}));
 }

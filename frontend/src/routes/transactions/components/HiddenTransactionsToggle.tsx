@@ -3,12 +3,10 @@ import { Button } from "@/components/ui/Button";
 
 export function HiddenTransactionsToggle({
 	expanded,
-	dateLabel,
 	hiddenCount,
 	onClick,
 }: {
 	expanded: boolean;
-	dateLabel?: string;
 	hiddenCount: number;
 	onClick: () => void;
 }) {
@@ -23,9 +21,9 @@ export function HiddenTransactionsToggle({
 			onClick={onClick}
 			variant="outline"
 		>
-			<span className="flex items-center gap-2">
+			<span className="flex min-w-0 items-center gap-2">
 				<LuEyeOff aria-hidden="true" />
-				{dateLabel ? `${dateLabel} · ${countLabel}` : countLabel}
+				{countLabel}
 			</span>
 			{expanded ? <LuChevronUp aria-hidden="true" /> : <LuChevronDown aria-hidden="true" />}
 		</Button>

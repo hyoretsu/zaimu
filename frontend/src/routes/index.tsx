@@ -55,7 +55,7 @@ export function DashboardPage() {
 			</PageContainer>
 		);
 	const dashboard = dashboardQuery.data;
-	const endingBalance = dashboard.period.initialBalance + dashboard.period.net;
+	const endingBalance = dashboard.period.endingBalance;
 	return (
 		<PageContainer className="space-y-6">
 			<PageHeader

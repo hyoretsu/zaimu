@@ -645,6 +645,7 @@ export interface LegacyDashboard {
 
 export interface DashboardPeriod {
 	endDate: string;
+	endingBalance: number;
 	expenses: number;
 	income: number;
 	initialBalance: number;
@@ -661,6 +662,7 @@ export interface Dashboard {
 		type: "CHECKING" | "SAVINGS";
 	}>;
 	comparison: DashboardPeriod[];
+	dailyBalances: Array<{ balance: number; date: string }>;
 	creditCards: Array<{
 		availableLimit: number;
 		creditLimit: number;
