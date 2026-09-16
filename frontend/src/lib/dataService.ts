@@ -1622,6 +1622,21 @@ export const dataService = {
 					})),
 					...projectedMovements,
 				];
+				const endOfCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+				const projectedMovementsUntilMonthEnd = comparisonTransactions.filter(
+					item => item.date >= projectionStart && item.date <= endOfCurrentMonth,
+				);
+				const projectedExpenses = projectedMovementsUntilMonthEnd
+					.filter(item => item.type === "EXPENSE")
+					.reduce((sum, item) => sum + item.amount, 0);
+				const projectedIncome = projectedMovementsUntilMonthEnd
+					.filter(item => item.type === "INCOME")
+					.reduce((sum, item) => sum + item.amount, 0);
+				const projectedCashFlowUntilMonthEnd = {
+					expenses: projectedExpenses,
+					income: projectedIncome,
+					net: projectedIncome - projectedExpenses,
+				};
 				const today = new Date(now);
 				today.setHours(23, 59, 59, 999);
 				const balanceMovementNet = (items: typeof comparisonTransactions) =>
@@ -1730,6 +1745,7 @@ export const dataService = {
 					},
 					forecasts,
 					period,
+					projectedCashFlowUntilMonthEnd,
 					totalAvailableCredit: creditCards
 						.filter(card => !card.excludeFromTotals)
 						.reduce((sum, card) => sum + card.availableLimit, 0),

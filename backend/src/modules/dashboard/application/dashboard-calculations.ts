@@ -217,6 +217,24 @@ export function endingBalanceAtPeriodEnd(input: {
 	return input.currentBalance;
 }
 
+export function projectedCashFlowUntilMonthEnd(input: {
+	today: Date;
+	transactions: Array<{ amount: number; date: Date; type: "EXPENSE" | "INCOME" | "TRANSFER" }>;
+}) {
+	const today = startOfDay(input.today);
+	const monthEnd = endOfMonth(today);
+	const movements = input.transactions.filter(
+		transaction => transaction.date > endOfDay(today) && transaction.date <= monthEnd,
+	);
+	const expenses = movements
+		.filter(transaction => transaction.type === "EXPENSE")
+		.reduce((sum, transaction) => sum + transaction.amount, 0);
+	const income = movements
+		.filter(transaction => transaction.type === "INCOME")
+		.reduce((sum, transaction) => sum + transaction.amount, 0);
+	return { expenses, income, net: income - expenses };
+}
+
 function monthlyDate(reference: Date, day: number) {
 	const lastDay = new Date(reference.getFullYear(), reference.getMonth() + 1, 0).getDate();
 	return new Date(reference.getFullYear(), reference.getMonth(), Math.min(day, lastDay));

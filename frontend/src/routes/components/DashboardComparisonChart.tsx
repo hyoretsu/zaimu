@@ -44,17 +44,20 @@ function formatAxisLabel(startDate: string) {
 	return `${date.getDate()}/${date.getMonth() + 1}/${String(date.getFullYear()).slice(-2)}`;
 }
 
-export function DashboardComparisonChart({ comparison }: Pick<Dashboard, "comparison">) {
+export function DashboardComparisonChart({ comparison, period }: Pick<Dashboard, "comparison" | "period">) {
 	const data = comparison.map(item => ({
 		...item,
 		label: formatAxisLabel(item.startDate),
 	}));
+	const isDaily = period.startDate === period.endDate;
 	return (
 		<Card>
 			<CardHeader>
-				<CardTitle>Comparativo financeiro</CardTitle>
+				<CardTitle>{isDaily ? "Evolução diária" : "Comparativo financeiro"}</CardTitle>
 				<p className="text-muted-foreground text-sm">
-					Seis períodos anteriores, período selecionado e seis seguintes.
+					{isDaily
+						? "Seis dias anteriores, hoje e seis dias seguintes."
+						: "Seis períodos anteriores, período selecionado e seis seguintes."}
 				</p>
 			</CardHeader>
 			<CardContent>

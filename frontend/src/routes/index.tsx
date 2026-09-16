@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { endOfMonth, format, startOfMonth } from "date-fns";
+import { format } from "date-fns";
 import { useState } from "react";
-import { LuArrowDownLeft, LuArrowUpRight, LuTrendingUp } from "react-icons/lu";
+import { LuArrowDownLeft, LuArrowUpRight, LuCalendarClock, LuTrendingUp } from "react-icons/lu";
 import {
 	CreditCardImportReviewDialog,
 	PendingCreditCardImportsNotice,
@@ -35,7 +35,7 @@ const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "curre
 export function DashboardPage() {
 	const user = useAuthStore((state: AuthState) => state.user);
 	const identity = useCacheIdentity();
-	const [dateRange, setDateRange] = useState<DateRangeValue>(() => getCurrentMonthRange());
+	const [dateRange, setDateRange] = useState<DateRangeValue>(() => getTodayRange());
 	const [reviewingImportId, setReviewingImportId] = useState<string | null>(null);
 	const [reviewingCreditCardImportId, setReviewingCreditCardImportId] = useState<string | null>(null);
 	const dashboardQuery = useQuery({
@@ -56,6 +56,30 @@ export function DashboardPage() {
 		);
 	const dashboard = dashboardQuery.data;
 	const endingBalance = dashboard.period.endingBalance;
+	const isCurrentDay = dashboard.period.startDate === dashboard.period.endDate;
+	const projectedCashFlow = dashboard.projectedCashFlowUntilMonthEnd;
+	const projectionKind =
+		projectedCashFlow.net > 0 ? "gain" : projectedCashFlow.net < 0 ? "expense" : "neutral";
+	const projectionCopy = {
+		expense: {
+			cardClassName: "border-rose-500/30 bg-rose-500/5",
+			description: "Saídas superam entradas a partir de amanhã.",
+			title: "Gasto projetado até fim do mês",
+			valueClassName: "text-rose-600",
+		},
+		gain: {
+			cardClassName: "border-emerald-500/30 bg-emerald-500/5",
+			description: "Entradas superam saídas a partir de amanhã.",
+			title: "Ganho projetado até fim do mês",
+			valueClassName: "text-emerald-600",
+		},
+		neutral: {
+			cardClassName: "border-border bg-muted/30",
+			description: "Entradas e saídas se equilibram a partir de amanhã.",
+			title: "Fluxo projetado até fim do mês",
+			valueClassName: "text-muted-foreground",
+		},
+	}[projectionKind];
 	return (
 		<PageContainer className="space-y-6">
 			<PageHeader
@@ -71,17 +95,19 @@ export function DashboardPage() {
 			/>
 			<PendingTransactionImportsNotice onReview={setReviewingImportId} />
 			<PendingCreditCardImportsNotice onReview={setReviewingCreditCardImportId} />
-			<section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-				<Card className="border-0 bg-primary text-primary-foreground shadow-primary/15 shadow-xl sm:col-span-2 xl:col-span-1">
+			<section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+				<Card className="border-0 bg-primary text-primary-foreground shadow-primary/15 shadow-xl">
 					<CardHeader>
 						<CardTitle className="font-medium text-primary-foreground/75 text-sm">
-							Saldo final do período
+							{isCurrentDay ? "Saldo atual" : "Saldo final do período"}
 						</CardTitle>
 					</CardHeader>
 					<CardContent>
 						<p className="font-bold text-3xl tracking-tight">{currency.format(endingBalance)}</p>
 						<p className="mt-3 text-primary-foreground/70 text-xs">
-							Saldo inicial: {currency.format(dashboard.period.initialBalance)}
+							{isCurrentDay
+								? "Sem projeções futuras."
+								: `Saldo inicial: ${currency.format(dashboard.period.initialBalance)}`}
 						</p>
 					</CardContent>
 				</Card>
@@ -110,8 +136,21 @@ export function DashboardPage() {
 						</p>
 					</CardContent>
 				</Card>
+				<Card className={projectionCopy.cardClassName}>
+					<CardHeader>
+						<CardTitle className="flex items-center gap-2 font-medium text-sm">
+							<LuCalendarClock /> {projectionCopy.title}
+						</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<p className={`font-bold text-3xl tracking-tight ${projectionCopy.valueClassName}`}>
+							{currency.format(Math.abs(projectedCashFlow.net))}
+						</p>
+						<p className="mt-3 text-muted-foreground text-xs">{projectionCopy.description}</p>
+					</CardContent>
+				</Card>
 			</section>
-			<DashboardComparisonChart comparison={dashboard.comparison} />
+			<DashboardComparisonChart comparison={dashboard.comparison} period={dashboard.period} />
 			<section className="grid gap-4 xl:grid-cols-2">
 				<DashboardAccounts accounts={dashboard.accounts} />
 				<DashboardCreditCards
@@ -135,11 +174,11 @@ export function DashboardPage() {
 	);
 }
 
-function getCurrentMonthRange() {
+function getTodayRange() {
 	const now = new Date();
 	return {
-		endDate: format(endOfMonth(now), "yyyy-MM-dd"),
-		startDate: format(startOfMonth(now), "yyyy-MM-dd"),
+		endDate: format(now, "yyyy-MM-dd"),
+		startDate: format(now, "yyyy-MM-dd"),
 	};
 }
 

@@ -22,6 +22,7 @@ interface DateRangePickerProps {
 	description?: string;
 	onChange: (value: DateRangeValue) => void;
 	title?: string;
+	triggerLabel?: string;
 	value: DateRangeValue;
 }
 
@@ -30,6 +31,7 @@ export function DateRangePicker({
 	description = "Os limites são opcionais.",
 	onChange,
 	title = "Selecionar período",
+	triggerLabel,
 	value,
 }: DateRangePickerProps) {
 	const [open, setOpen] = useState(false);
@@ -90,7 +92,7 @@ export function DateRangePicker({
 			<PopoverTrigger asChild>
 				<Button className={cn("min-w-60 cursor-pointer justify-start", className)} variant="outline">
 					<LuCalendarDays />
-					<span>{formatDateRange(value)}</span>
+					<span>{triggerLabel ?? formatDateRange(value)}</span>
 				</Button>
 			</PopoverTrigger>
 			<PopoverContent align="end" className="w-[22rem] gap-5 p-4">

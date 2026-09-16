@@ -11,6 +11,7 @@ import {
 	nextOccurrence,
 	occurrencesInRange,
 	period,
+	projectedCashFlowUntilMonthEnd,
 	type RecurrenceFrequency,
 	reconcilePeriodCashFlow,
 	resolveDashboardRange,
@@ -83,6 +84,11 @@ export const DashboardReturn = t.Object({
 	}),
 	forecasts: t.Array(ForecastReturn),
 	period: PeriodReturn,
+	projectedCashFlowUntilMonthEnd: t.Object({
+		expenses: t.Number(),
+		income: t.Number(),
+		net: t.Number(),
+	}),
 	totalAvailableCredit: t.Number(),
 });
 export type DashboardReturn = typeof DashboardReturn.static;
@@ -368,6 +374,10 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 				projectedMovements.push({ amount: outstanding, date: statement.dueDate, type: "EXPENSE" });
 		}
 		const comparisonTransactions = [...normalizedTransactions, ...projectedMovements];
+		const projectedCashFlow = projectedCashFlowUntilMonthEnd({
+			today,
+			transactions: comparisonTransactions,
+		});
 		const transactionListDates = [
 			...normalizedTransactions.map(transaction => transaction.date),
 			...creditPurchaseDates.map(purchase => databaseDate(purchase.date)),
@@ -626,6 +636,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 			debts: { iOwe, net: owedToMe - iOwe, owedToMe, people },
 			forecasts: forecasts.toSorted((left, right) => left.date.localeCompare(right.date)),
 			period: dashboardPeriod,
+			projectedCashFlowUntilMonthEnd: projectedCashFlow,
 			totalAvailableCredit: cardsWithStatements
 				.filter(card => !card.excludeFromTotals)
 				.reduce((sum, card) => sum + card.availableLimit, 0),

@@ -691,6 +691,7 @@ export interface Dashboard {
 		type: "CARD" | "LOAN" | "RECURRING" | "SALARY" | "SUBSCRIPTION" | "TRANSACTION";
 	}>;
 	period: DashboardPeriod;
+	projectedCashFlowUntilMonthEnd: { expenses: number; income: number; net: number };
 	totalAvailableCredit: number;
 }
 

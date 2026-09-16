@@ -6,6 +6,7 @@ import {
 	endingBalanceAtPeriodEnd,
 	nextOccurrence,
 	occurrencesInRange,
+	projectedCashFlowUntilMonthEnd,
 	reconcilePeriodCashFlow,
 	resolveDashboardRange,
 } from "./dashboard-calculations";
@@ -124,4 +125,19 @@ test("keeps the current balance when the period ends today", () => {
 			transactions: [{ amount: 300, date: new Date("2026-08-03T00:00:00"), type: "EXPENSE" }],
 		}),
 	).toBe(1_000);
+});
+
+test("calculates projected cash flow through the current month end", () => {
+	expect(
+		projectedCashFlowUntilMonthEnd({
+			today: new Date("2026-08-03T12:00:00"),
+			transactions: [
+				{ amount: 100, date: new Date("2026-08-03T12:00:00"), type: "EXPENSE" },
+				{ amount: 200, date: new Date("2026-08-20T12:00:00"), type: "EXPENSE" },
+				{ amount: 300, date: new Date("2026-08-31T12:00:00"), type: "EXPENSE" },
+				{ amount: 400, date: new Date("2026-09-01T12:00:00"), type: "EXPENSE" },
+				{ amount: 500, date: new Date("2026-08-15T12:00:00"), type: "INCOME" },
+			],
+		}),
+	).toEqual({ expenses: 500, income: 500, net: 0 });
 });
