@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useLocation } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { LuCreditCard, LuPlus, LuReceiptText } from "react-icons/lu";
 import { CreateTransactionDialog } from "@/components/transactions";
 import { Button } from "@/components/ui/Button";
@@ -12,9 +13,17 @@ import { CreatePurchaseDialog } from "../credit-cards/components";
 export function DashboardQuickActions() {
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
+	const pathname = useLocation().pathname;
 	const [menuOpen, setMenuOpen] = useState(false);
 	const [transactionOpen, setTransactionOpen] = useState(false);
 	const [purchaseOpen, setPurchaseOpen] = useState(false);
+
+	useEffect(() => {
+		setMenuOpen(false);
+		setTransactionOpen(false);
+		setPurchaseOpen(false);
+	}, [pathname]);
+
 	const cards = useQuery({
 		enabled: identity !== null,
 		queryFn: () => dataService.creditCards.getAll(),
