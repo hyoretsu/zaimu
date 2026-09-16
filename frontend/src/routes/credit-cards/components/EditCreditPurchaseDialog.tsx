@@ -1,4 +1,4 @@
-import { type SyntheticEvent, useEffect, useState } from "react";
+import { type SyntheticEvent, useEffect, useId, useState } from "react";
 import { LuUndo2 } from "react-icons/lu";
 import { DebtSplitEditor } from "@/components/debts";
 import { StorePicker } from "@/components/stores";
@@ -27,7 +27,7 @@ import { CreditPurchaseFeeFields } from "./CreditPurchaseFeeFields";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
-interface CreditPurchaseUpdate {
+interface CreditPurchaseDetailsUpdate {
 	creditCardId?: string;
 	description: string;
 	debtSplit?: DebtSplitInput | null;
@@ -40,6 +40,7 @@ interface CreditPurchaseUpdate {
 	tagIds: string[];
 	totalAmount: number;
 }
+type CreditPurchaseUpdate = CreditPurchaseDetailsUpdate | { installmentAmount: number };
 
 export function EditCreditPurchaseDialog({
 	onOpenChange,
@@ -63,7 +64,13 @@ export function EditCreditPurchaseDialog({
 	const [description, setDescription] = useDebouncedInput(purchase.description, () => undefined);
 	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>(() => debtSplitToInput(purchase.debtSplit));
 	const [isDebt, setIsDebt] = useState(Boolean(purchase.debtSplit));
-	const [amount, setAmount] = useState(String(purchase.totalAmount - (purchase.feeAmount ?? 0)));
+	const [amount, setAmount] = useState(
+		String(
+			purchase.installments > 1
+				? purchase.installmentAmount
+				: purchase.totalAmount - (purchase.feeAmount ?? 0),
+		),
+	);
 	const [feeAmount, setFeeAmount] = useState(String(purchase.feeAmount ?? ""));
 	const [feeDescription, setFeeDescription] = useDebouncedInput(
 		purchase.feeDescription ?? "",
@@ -75,6 +82,7 @@ export function EditCreditPurchaseDialog({
 	const [tagIds, setTagIds] = useState(purchase.tagIds ?? (purchase.categoryId ? [purchase.categoryId] : []));
 	const [storeName, setStoreName] = useState(purchase.storeName ?? "");
 	const [selectedCardId, setSelectedCardId] = useState(creditCardId ?? "");
+	const installmentAmountId = useId();
 
 	useEffect(() => {
 		if (!open) return;
@@ -88,6 +96,39 @@ export function EditCreditPurchaseDialog({
 	const purchaseAmount = Number(amount);
 	const totalAmount = purchaseAmount + Number(feeAmount || 0);
 	const installments = Number.parseInt(count, 10);
+	if (purchase.installments > 1)
+		return (
+			<Dialog onOpenChange={onOpenChange} open={open}>
+				<DialogContent className="sm:max-w-md">
+					<DialogHeader>
+						<DialogTitle>Editar valor da parcela</DialogTitle>
+						<DialogDescription>
+							Altera somente esta parcela. O total da compra será recalculado pela soma das parcelas.
+						</DialogDescription>
+					</DialogHeader>
+					<MoneyField
+						id={installmentAmountId}
+						label={`Valor da parcela ${purchase.currentInstallment}/${purchase.installments}`}
+						onValueChange={setAmount}
+						placeholder="R$ 13,00"
+						required
+						value={amount}
+					/>
+					<DialogFooter>
+						<Button className="cursor-pointer" onClick={() => onOpenChange(false)} variant="outline">
+							Descartar
+						</Button>
+						<Button
+							className="cursor-pointer disabled:cursor-not-allowed"
+							disabled={pending || Number(amount) <= 0}
+							onClick={() => onSubmit({ installmentAmount: Number(amount) })}
+						>
+							{pending ? "Salvando…" : "Salvar"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+		);
 	const installmentAmount = totalAmount / (installments || 1);
 
 	const submit = async (event: SyntheticEvent<HTMLFormElement>) => {

@@ -6,6 +6,7 @@ import {
 	replaceEntityTags,
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
+import { getImportedInstallmentAmounts } from "~/modules/creditCards/domain/installment-amounts";
 import { linkPurchaseToDebt, syncPurchaseDebtEvent } from "~/modules/debts/application/debt-ledger";
 import {
 	getDebtSplitInput,
@@ -132,8 +133,8 @@ async function getImportReturn(userId: string, importId: string) {
 		db.sql.public.CreditCardImportItem.select(
 			"id",
 			"categoryId",
-			"createdAt",
 			"currentInstallment",
+			"createdAt",
 			"description",
 			"externalId",
 			"installmentAmount",
@@ -175,6 +176,7 @@ async function getImportReturn(userId: string, importId: string) {
 		items: await Promise.all(
 			items.map(async item => ({
 				...item,
+				currentInstallment: item.currentInstallment,
 				debtSplit: await getDebtSplitReturn({ creditCardImportItemId: item.id }, Number(item.totalAmount)),
 				duplicates: (duplicates.get(item.id) ?? []).map(candidate => ({
 					...candidate,
@@ -233,6 +235,7 @@ async function approveItems(userId: string, importId: string, itemId?: string) {
 		db.sql.public.CreditCardImportItem.select(
 			"id",
 			"categoryId",
+			"currentInstallment",
 			"description",
 			"externalId",
 			"installmentAmount",
@@ -443,6 +446,8 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 				db.sql.public.CreditCardImportItem.select(
 					"id",
 					"description",
+					"currentInstallment",
+					"installmentAmount",
 					"installments",
 					"isSelected",
 					"purchaseDate",
@@ -461,11 +466,24 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 			if (!current) throw new HttpException("Compra importada não encontrada", 404);
 			const installments = body.installments ?? current.installments;
 			const totalAmount = body.totalAmount ?? Number(current.totalAmount);
+			try {
+				getImportedInstallmentAmounts({
+					currentInstallment: current.currentInstallment,
+					installmentAmount: Number(current.installmentAmount),
+					installments,
+					totalAmount,
+				});
+			} catch (error) {
+				throw new HttpException(
+					error instanceof Error ? error.message : "Valores das parcelas inválidos",
+					400,
+				);
+			}
 			const tagIds = body.tagIds === undefined ? undefined : await assertTagOwnership(body.tagIds, userId);
 			await executeStatement(
 				db.sql.public.CreditCardImportItem.update({
 					description: body.description === undefined ? current.description : body.description.trim(),
-					installmentAmount: String(Math.round((totalAmount / installments) * 100) / 100),
+					installmentAmount: current.installmentAmount,
 					installments,
 					isSelected: body.isSelected ?? current.isSelected,
 					purchaseDate: body.purchaseDate ? new Date(`${body.purchaseDate}T12:00:00`) : current.purchaseDate,

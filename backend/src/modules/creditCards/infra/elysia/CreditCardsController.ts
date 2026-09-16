@@ -12,6 +12,7 @@ import {
 	replaceEntityTags,
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
+import { getEvenlyDistributedInstallmentAmounts } from "~/modules/creditCards/domain/installment-amounts";
 import {
 	deleteCreatorDebtEventForPurchase,
 	getDebtSplitInput,
@@ -1064,7 +1065,8 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			const installments = body.installments ?? 1;
 			if (body.storeName) await resolveStore(userId, body.storeName);
 			const fee = normalizePurchaseFee(body);
-			const installmentAmount = body.totalAmount / installments;
+			const installmentAmounts = getEvenlyDistributedInstallmentAmounts(body.totalAmount, installments);
+			const installmentAmount = installmentAmounts[0]!;
 			const cashback = cashbackSnapshot(card, body.totalAmount);
 
 			const { dueDate, statementDate } = getStatementDates(card, purchaseDate);
@@ -1213,6 +1215,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					.build(),
 			);
 			for (let currentInstallment = 2; currentInstallment <= installments; currentInstallment++) {
+				const installmentAmount = installmentAmounts[currentInstallment - 1]!;
 				const occurrenceDate = addMonths(purchaseDate, currentInstallment - 1);
 				const { dueDate: installmentDueDate, statementDate: installmentStatementDate } = getStatementDates(
 					card,
@@ -1249,6 +1252,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					installmentAmount: Number(installmentPurchase.installmentAmount),
 					totalAmount: Number(installmentPurchase.totalAmount),
 				});
+				const amount = param(numeric<12, 2>(installmentAmount), { codecId: "pg/numeric@1" });
 				await executeStatement(
 					db.sql.public.CreditCardStatement.update((fields, functions) => ({
 						totalAmount: functions.raw`${fields.totalAmount} + ${amount}`.returns("pg/numeric@1"),
@@ -1362,7 +1366,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				0,
 			);
 			const totalAmount = settledAmount + body.feeAmount;
-			const installmentAmount = totalAmount / body.installments;
+			const installmentAmounts = getEvenlyDistributedInstallmentAmounts(totalAmount, body.installments);
 			const purchaseDate = new Date(body.purchaseDate);
 			const source =
 				installmentsToSettle.find(item => item.id === rootPurchaseId) ?? installmentsToSettle[0]!;
@@ -1371,6 +1375,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 
 			const createdPurchases: CreditPurchaseRow[] = [];
 			for (let currentInstallment = 1; currentInstallment <= body.installments; currentInstallment++) {
+				const installmentAmount = installmentAmounts[currentInstallment - 1]!;
 				const occurrenceDate = addMonths(purchaseDate, currentInstallment - 1);
 				const { dueDate, statementDate } = getStatementDates(card, occurrenceDate);
 				let statement = await queryFirst(
@@ -1602,6 +1607,109 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			if (body.creditCardId) await assertCreditCardOwnership(body.creditCardId, userId);
 			if (body.storeName) await resolveStore(userId, body.storeName);
 			const tagIds = body.tagIds === undefined ? undefined : await assertTagOwnership(body.tagIds, userId);
+			if (body.installmentAmount !== undefined) {
+				if (purchase.installments === 1)
+					throw new HttpException("A compra não possui parcelas para editar", 400);
+				const rootPurchaseId = purchase.parentId ?? purchase.id;
+				const installments = await queryRows(
+					db.sql.public.CreditPurchase.select(...purchaseColumns)
+						.where((fields, functions) =>
+							functions.or(
+								functions.eq(fields.id, rootPurchaseId),
+								functions.eq(fields.parentId, rootPurchaseId),
+							),
+						)
+						.build(),
+				);
+				if (installments.length !== purchase.installments)
+					throw new HttpException("Não foi possível identificar todas as parcelas da compra", 409);
+				const rootPurchase = installments.find(item => item.id === rootPurchaseId);
+				if (!rootPurchase) throw new HttpException("Compra não encontrada", 404);
+				const totalAmount =
+					installments.reduce(
+						(totalInCents, installment) =>
+							totalInCents +
+							Math.round(
+								(installment.id === purchase.id
+									? body.installmentAmount!
+									: Number(installment.installmentAmount)) * 100,
+							),
+						0,
+					) / 100;
+				const cashbackAmount =
+					rootPurchase.cashbackAmount === null
+						? null
+						: String(
+								Number(
+									(Number(rootPurchase.cashbackAmount) * totalAmount) / Number(rootPurchase.totalAmount),
+								).toFixed(4),
+							);
+				const updatedPurchase = await queryFirst(
+					db.sql.public.CreditPurchase.update({
+						installmentAmount: String(body.installmentAmount),
+						totalAmount: String(totalAmount),
+						updatedAt: new Date(),
+					})
+						.where((fields, functions) => functions.eq(fields.id, purchase.id))
+						.returning(...purchaseColumns)
+						.build(),
+				);
+				if (!updatedPurchase) throw new HttpException("Compra não encontrada", 404);
+				await executeStatement(
+					db.sql.public.CreditPurchase.update({ totalAmount: String(totalAmount), updatedAt: new Date() })
+						.where((fields, functions) =>
+							functions.and(
+								functions.in(
+									fields.id,
+									installments.filter(item => item.id !== purchase.id).map(item => item.id),
+								),
+								functions.not(functions.eq(fields.id, rootPurchase.id)),
+							),
+						)
+						.build(),
+				);
+				await executeStatement(
+					db.sql.public.CreditPurchase.update({
+						cashbackAmount,
+						totalAmount: String(totalAmount),
+						updatedAt: new Date(),
+					})
+						.where((fields, functions) => functions.eq(fields.id, rootPurchase.id))
+						.build(),
+				);
+				const amountDifference = body.installmentAmount - Number(purchase.installmentAmount);
+				if (amountDifference)
+					await executeStatement(
+						db.sql.public.CreditCardStatement.update((fields, functions) => ({
+							totalAmount: functions.raw`${fields.totalAmount} + ${String(amountDifference)}`.returns(
+								"pg/numeric@1",
+							),
+							updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
+						}))
+							.where((fields, functions) => functions.eq(fields.id, purchase.statementId))
+							.build(),
+					);
+				await syncPurchaseDebtEvent({
+					creditPurchaseId: rootPurchase.id,
+					date: rootPurchase.purchaseDate.toISOString().slice(0, 10),
+					debtSplit: await getDebtSplitInput({ creditPurchaseId: rootPurchase.id }),
+					description: getCreditPurchaseName(rootPurchase),
+					totalAmount,
+					userId,
+				});
+				const tags =
+					(await getTagsByEntity(tagEntityType.creditPurchase, [updatedPurchase.id])).get(
+						updatedPurchase.id,
+					) ?? [];
+				return {
+					...updatedPurchase,
+					debtSplit: await getDebtSplitReturn({ creditPurchaseId: rootPurchase.id }, totalAmount),
+					tagIds: tags.map(tag => tag.id),
+					tags,
+				};
+			}
+			if (purchase.installments > 1)
+				throw new HttpException("Edite somente o valor da parcela selecionada", 400);
 			const previousAmount = Number(purchase.installmentAmount);
 			const fee = body.feeAmount === undefined ? undefined : normalizePurchaseFee(body);
 
@@ -1783,6 +1891,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				description: t.Optional(t.String({ maxLength: 500 })),
 				feeAmount: t.Optional(t.Number({ minimum: 0 })),
 				feeDescription: t.Optional(t.String({ maxLength: 100 })),
+				installmentAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
 				installments: t.Optional(t.Number({ maximum: 48, minimum: 1 })),
 				matchDebtEventId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				purchaseDate: t.Optional(t.String()),
@@ -1806,6 +1915,8 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			const purchase = await findPurchaseForCard(params.id, params.purchaseId);
 			if (!purchase) throw new HttpException("Purchase not found", 404);
 			if (purchase.isPaid) throw new HttpException("Paid statement purchases cannot be deleted", 409);
+			if (purchase.installments > 1)
+				throw new HttpException("Parcela não pode ser excluída; registre um reembolso", 409);
 
 			await replaceEntityTags({
 				entityIds: [purchase.id],

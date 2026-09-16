@@ -1,11 +1,16 @@
 import { addMonths } from "date-fns";
 import { replaceEntityTags, tagEntityType } from "~/modules/categories/application/tag-assignments";
+import {
+	getImportedInstallmentAmounts,
+	sumInstallmentAmounts,
+} from "~/modules/creditCards/domain/installment-amounts";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
 import { hasCompatibleInstallmentAmount } from "../domain/credit-card-import-reconciliation";
 
 interface ImportedPurchaseInput {
 	categoryId: null | string;
+	currentInstallment: number;
 	description: string;
 	externalId: string;
 	existingRootId: null | string;
@@ -65,6 +70,8 @@ async function getOrCreateStatement(card: CardSnapshot, purchaseDate: Date) {
 
 export async function materializeImportedPurchase(card: CardSnapshot, input: ImportedPurchaseInput) {
 	const createdIds: string[] = [];
+	const installmentAmounts = getImportedInstallmentAmounts(input);
+	const totalAmount = sumInstallmentAmounts(installmentAmounts);
 	let rootId = input.existingRootId;
 	const existingPurchases = rootId
 		? await queryRows(
@@ -90,7 +97,7 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 			purchase =>
 				purchase.currentInstallment > input.installments ||
 				!hasCompatibleInstallmentAmount(
-					input.installmentAmount,
+					installmentAmounts[purchase.currentInstallment - 1]!,
 					purchase.installmentAmount,
 					input.installments,
 				),
@@ -98,29 +105,30 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 	)
 		throw new HttpException("As parcelas existentes não correspondem à compra importada", 409);
 	for (let currentInstallment = 1; currentInstallment <= input.installments; currentInstallment++) {
+		const installmentAmount = installmentAmounts[currentInstallment - 1]!;
 		const existing = existingByInstallment.get(currentInstallment);
 		if (existing) {
 			const previousInstallmentAmount = Number(existing.installmentAmount);
-			const installmentAmountDifference = input.installmentAmount - previousInstallmentAmount;
+			const installmentAmountDifference = installmentAmount - previousInstallmentAmount;
 			await executeStatement(
 				db.sql.public.CreditPurchase.update({
 					...(currentInstallment === 1 &&
 						existing.cashbackAmount !== null && {
 							cashbackAmount: String(
 								Number(
-									(Number(existing.cashbackAmount) * input.totalAmount) / Number(existing.totalAmount),
+									(Number(existing.cashbackAmount) * totalAmount) / Number(existing.totalAmount),
 								).toFixed(4),
 							),
 						}),
 					categoryId: input.categoryId,
 					description: input.description,
 					...(currentInstallment === 1 && { externalId: input.externalId }),
-					installmentAmount: String(input.installmentAmount),
+					installmentAmount: String(installmentAmount),
 					installments: input.installments,
 					purchaseDate: input.purchaseDate,
 					storeName: input.storeName,
 					time: input.time,
-					totalAmount: String(input.totalAmount),
+					totalAmount: String(totalAmount),
 					updatedAt: new Date(),
 				})
 					.where((fields, functions) => functions.eq(fields.id, existing.id))
@@ -150,7 +158,7 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 					...(currentInstallment === 1 && card.cashbackAccountId && card.cashbackRate
 						? {
 								cashbackAccountId: card.cashbackAccountId,
-								cashbackAmount: String((input.totalAmount * card.cashbackRate) / 100),
+								cashbackAmount: String((totalAmount * card.cashbackRate) / 100),
 								cashbackYieldPeriod: card.cashbackYieldPeriod ?? undefined,
 								cashbackYieldReferencePercentage:
 									card.cashbackYieldReferencePercentage === null
@@ -165,14 +173,14 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 					currentInstallment,
 					description: input.description,
 					...(currentInstallment === 1 && { externalId: input.externalId }),
-					installmentAmount: String(input.installmentAmount),
+					installmentAmount: String(installmentAmount),
 					installments: input.installments,
 					...(rootId && { parentId: rootId }),
 					purchaseDate: input.purchaseDate,
 					statementId: statement.id,
 					storeName: input.storeName ?? undefined,
 					time: input.time ?? undefined,
-					totalAmount: String(input.totalAmount),
+					totalAmount: String(totalAmount),
 				},
 			])
 				.returning("id")
@@ -183,7 +191,7 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 		createdIds.push(purchase.id);
 		await executeStatement(
 			db.sql.public.CreditCardStatement.update((fields, functions) => ({
-				totalAmount: functions.raw`${fields.totalAmount} + ${String(input.installmentAmount)}`.returns(
+				totalAmount: functions.raw`${fields.totalAmount} + ${String(installmentAmount)}`.returns(
 					"pg/numeric@1",
 				),
 				updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),

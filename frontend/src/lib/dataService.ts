@@ -65,6 +65,16 @@ import { sortTransactionsByMostRecent } from "./transaction-sort";
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3333";
 const REQUEST_TIMEOUT_MS = 10_000;
 
+function getEvenlyDistributedInstallmentAmounts(totalAmount: number, installments: number) {
+	const totalInCents = Math.round(totalAmount * 100);
+	const amountInCents = Math.floor(totalInCents / installments);
+	const remainderInCents = totalInCents % installments;
+	return Array.from(
+		{ length: installments },
+		(_, index) => (amountInCents + (index < remainderInCents ? 1 : 0)) / 100,
+	);
+}
+
 type LegacySalary = Omit<Salary, "amount"> & {
 	amount?: number;
 	grossAmount?: number;
@@ -860,7 +870,7 @@ export const dataService = {
 				if (existing) return [existing.data];
 			}
 			const installments = Math.max(1, data.installments ?? 1);
-			const installmentAmount = data.totalAmount / installments;
+			const installmentAmounts = getEvenlyDistributedInstallmentAmounts(data.totalAmount, installments);
 			const cashbackAmount =
 				card.cashbackAccountId && card.cashbackRate
 					? Number(((data.totalAmount * card.cashbackRate) / 100).toFixed(4))
@@ -872,6 +882,7 @@ export const dataService = {
 			const purchases: CreditPurchase[] = [];
 			const statements = new Map<string, CreditCardStatement>();
 			for (let currentInstallment = 1; currentInstallment <= installments; currentInstallment++) {
+				const installmentAmount = installmentAmounts[currentInstallment - 1]!;
 				const occurrenceDate = new Date(purchaseDate);
 				occurrenceDate.setMonth(occurrenceDate.getMonth() + currentInstallment - 1);
 				const statementMonth = new Date(occurrenceDate);
@@ -968,6 +979,8 @@ export const dataService = {
 			const statement = (await localCreditCardStatements.getById(storedPurchase.data.statementId))?.data;
 			if (!statement || statement.creditCardId !== cardId) throw new Error("Fatura não encontrada");
 			if (statement.isPaid) throw new Error("Compras de faturas pagas não podem ser excluídas");
+			if (storedPurchase.data.installments > 1)
+				throw new Error("Parcela não pode ser excluída; registre um reembolso");
 			statement.totalAmount = storedPurchase.data.isRefund
 				? statement.totalAmount - storedPurchase.data.installmentAmount
 				: Math.max(0, statement.totalAmount - storedPurchase.data.installmentAmount);
@@ -1248,19 +1261,21 @@ export const dataService = {
 		async updatePurchase(
 			cardId: string,
 			purchaseId: string,
-			data: {
-				creditCardId?: string;
-				debtSplit?: DebtSplitInput | null;
-				description: string;
-				feeAmount?: number;
-				feeDescription?: string;
-				installments: number;
-				storeName?: string | null;
-				purchaseDate: string;
-				time?: string | null;
-				tagIds: string[];
-				totalAmount: number;
-			},
+			data:
+				| { installmentAmount: number }
+				| {
+						creditCardId?: string;
+						debtSplit?: DebtSplitInput | null;
+						description: string;
+						feeAmount?: number;
+						feeDescription?: string;
+						installments: number;
+						storeName?: string | null;
+						purchaseDate: string;
+						time?: string | null;
+						tagIds: string[];
+						totalAmount: number;
+				  },
 		): Promise<CreditPurchase> {
 			if (!isGuestMode()) {
 				return fetchWithAuth<CreditPurchase>(`/credit-cards/${cardId}/purchases/${purchaseId}`, {
@@ -1273,6 +1288,45 @@ export const dataService = {
 			const statement = (await localCreditCardStatements.getById(storedPurchase.data.statementId))?.data;
 			if (!statement || statement.creditCardId !== cardId) throw new Error("Fatura não encontrada");
 			if (statement.isPaid) throw new Error("Compras de faturas pagas não podem ser editadas");
+			if ("installmentAmount" in data) {
+				if (storedPurchase.data.installments === 1)
+					throw new Error("A compra não possui parcelas para editar");
+				const rootPurchaseId = storedPurchase.data.parentId ?? storedPurchase.data.id;
+				const installments = (await localCreditPurchases.getAll())
+					.map(item => item.data)
+					.filter(item => item.id === rootPurchaseId || item.parentId === rootPurchaseId);
+				if (installments.length !== storedPurchase.data.installments)
+					throw new Error("Não foi possível identificar todas as parcelas da compra");
+				const rootPurchase = installments.find(item => item.id === rootPurchaseId);
+				if (!rootPurchase) throw new Error("Compra não encontrada");
+				const totalAmount =
+					installments.reduce(
+						(totalInCents, installment) =>
+							totalInCents +
+							Math.round(
+								(installment.id === storedPurchase.data.id
+									? data.installmentAmount
+									: installment.installmentAmount) * 100,
+							),
+						0,
+					) / 100;
+				const rootCashbackAmount =
+					rootPurchase.cashbackAmount === null || rootPurchase.cashbackAmount === undefined
+						? rootPurchase.cashbackAmount
+						: Number(((rootPurchase.cashbackAmount * totalAmount) / rootPurchase.totalAmount).toFixed(4));
+				const updatedInstallments = installments.map(installment => ({
+					...installment,
+					...(installment.id === storedPurchase.data.id && { installmentAmount: data.installmentAmount }),
+					...(installment.id === rootPurchaseId && { cashbackAmount: rootCashbackAmount }),
+					totalAmount,
+				}));
+				statement.totalAmount += data.installmentAmount - storedPurchase.data.installmentAmount;
+				await Promise.all([
+					...updatedInstallments.map(installment => localCreditPurchases.put(installment, installment.id)),
+					localCreditCardStatements.put(statement, statement.id),
+				]);
+				return updatedInstallments.find(installment => installment.id === storedPurchase.data.id)!;
+			}
 			const targetCardId = data.creditCardId ?? cardId;
 			const targetCard = (await localCreditCards.getById(targetCardId))?.data;
 			if (!targetCard) throw new Error("Cartão não encontrado");
