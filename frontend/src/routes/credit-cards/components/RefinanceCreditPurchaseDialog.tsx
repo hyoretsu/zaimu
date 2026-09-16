@@ -13,6 +13,7 @@ import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { CreditPurchase } from "@/lib/api";
+import { getLocalDateKey } from "@/lib/date";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
@@ -31,7 +32,7 @@ export function RefinanceCreditPurchaseDialog({
 }) {
 	const [feeAmount, setFeeAmount] = useState("0");
 	const [installments, setInstallments] = useDebouncedInput("12", () => undefined);
-	const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().slice(0, 10));
+	const [purchaseDate, setPurchaseDate] = useState(getLocalDateKey);
 	const fee = Number(feeAmount);
 	const count = Number.parseInt(installments, 10);
 	const balance = purchase.installmentAmount * (purchase.installments - purchase.currentInstallment + 1);

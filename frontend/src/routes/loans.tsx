@@ -5,6 +5,7 @@ import { HiBanknotes, HiCalculator, HiCheck, HiCheckCircle, HiClock, HiPlus, HiX
 import { DateField } from "@/components/ui/DateField";
 import { api, type Loan } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
+import { getLocalDateKey } from "@/lib/date";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { type AuthState, useAuthStore } from "@/stores";
 
@@ -128,12 +129,12 @@ export function EmpréstimosPage() {
 		amortization: "PRICE",
 		description: "",
 		dueDay: "",
-		firstDueDate: new Date().toISOString().split("T")[0],
+		firstDueDate: getLocalDateKey(),
 		installmentAmount: "",
 		interestRate: "",
 		lender: "",
 		principalAmount: "",
-		startDate: new Date().toISOString().split("T")[0],
+		startDate: getLocalDateKey(),
 		totalInstallments: "",
 	});
 
@@ -163,12 +164,12 @@ export function EmpréstimosPage() {
 			amortization: "PRICE",
 			description: "",
 			dueDay: "",
-			firstDueDate: new Date().toISOString().split("T")[0],
+			firstDueDate: getLocalDateKey(),
 			installmentAmount: "",
 			interestRate: "",
 			lender: "",
 			principalAmount: "",
-			startDate: new Date().toISOString().split("T")[0],
+			startDate: getLocalDateKey(),
 			totalInstallments: "",
 		});
 	};

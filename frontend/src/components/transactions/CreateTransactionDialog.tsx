@@ -16,7 +16,7 @@ import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { DebtSplitInput, Transaction } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
-import { formatLocalMonthYear, getCurrentLocalTime } from "@/lib/date";
+import { formatLocalMonthYear, getCurrentLocalTime, getLocalDateKey } from "@/lib/date";
 import { calculateDebtSplit } from "@/lib/debt-split";
 import {
 	compareFinancialAccountsByOptionLabel,
@@ -31,7 +31,7 @@ import { TransactionDetailsFields } from "./TransactionDetailsFields";
 const initialDraft = () => ({
 	amount: "",
 	creditCardStatementId: "",
-	date: new Date().toISOString().slice(0, 10),
+	date: getLocalDateKey(),
 	destinationFinancialAccountId: "",
 	isHidden: false,
 	originFinancialAccountId: "",

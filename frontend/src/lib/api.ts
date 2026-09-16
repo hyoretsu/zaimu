@@ -1,3 +1,5 @@
+import { getLocalDateKey } from "./date";
+
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3333";
 
 interface FetchOptions {
@@ -770,7 +772,7 @@ export const api = {
 				dayOfMonth: data.day,
 				frequency: data.frequency,
 				name: data.name,
-				startDate: new Date().toISOString().slice(0, 10),
+				startDate: getLocalDateKey(),
 			},
 			method: "POST",
 		}),

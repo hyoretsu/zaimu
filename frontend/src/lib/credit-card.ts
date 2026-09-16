@@ -1,10 +1,11 @@
 import type { CreditCard, CreditCardStatement } from "./api";
+import { getLocalDateKey } from "./date";
 
 const toCents = (amount: number) => Math.round(amount * 100);
 
 export function applyStatementCredits(
 	statements: CreditCardStatement[],
-	today = new Date().toISOString().slice(0, 10),
+	today = getLocalDateKey(),
 ): CreditCardStatement[] {
 	let carriedCreditInCents = 0;
 	const effectiveById = new Map<string, Pick<CreditCardStatement, "balanceAmount" | "isPaid">>();
@@ -37,7 +38,7 @@ export function getCreditCardDisplayName(
 export function calculateCreditCardLimit(
 	card: Pick<CreditCard, "creditLimit">,
 	statements: CreditCardStatement[],
-	today = new Date().toISOString().slice(0, 10),
+	today = getLocalDateKey(),
 ) {
 	const activeStatements = statements.filter(statement => statement.dueDate.slice(0, 10) >= today);
 	const netUsedInCents = activeStatements.reduce(

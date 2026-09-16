@@ -1121,7 +1121,7 @@ export const dataService = {
 				...statement,
 				balanceAmount: statement.totalAmount - statement.paidAmount - amount,
 				isPaid:
-					statement.statementDate.slice(0, 10) <= new Date().toISOString().slice(0, 10) &&
+					statement.statementDate.slice(0, 10) <= getLocalDateKey() &&
 					statement.paidAmount + amount >= statement.totalAmount,
 				paidAmount: statement.paidAmount + amount,
 			};
@@ -2886,7 +2886,7 @@ export const dataService = {
 							...statement,
 							balanceAmount: statement.totalAmount - paidAmount,
 							isPaid:
-								statement.statementDate.slice(0, 10) <= new Date().toISOString().slice(0, 10) &&
+								statement.statementDate.slice(0, 10) <= getLocalDateKey() &&
 								paidAmount >= statement.totalAmount,
 							paidAmount,
 						},
@@ -2919,7 +2919,7 @@ export const dataService = {
 							...statement,
 							balanceAmount: statement.totalAmount - paidAmount,
 							isPaid:
-								statement.statementDate.slice(0, 10) <= new Date().toISOString().slice(0, 10) &&
+								statement.statementDate.slice(0, 10) <= getLocalDateKey() &&
 								paidAmount >= statement.totalAmount,
 							paidAmount,
 						},
@@ -3145,7 +3145,7 @@ export const dataService = {
 						...statement,
 						balanceAmount: statement.totalAmount - paidAmount,
 						isPaid:
-							statement.statementDate.slice(0, 10) <= new Date().toISOString().slice(0, 10) &&
+							statement.statementDate.slice(0, 10) <= getLocalDateKey() &&
 							paidAmount >= statement.totalAmount,
 						paidAmount,
 					};

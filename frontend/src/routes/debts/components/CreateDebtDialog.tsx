@@ -16,6 +16,7 @@ import { MoneyField } from "@/components/ui/MoneyField";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { DebtSplitInput } from "@/lib/api";
+import { getLocalDateKey } from "@/lib/date";
 import { calculateDebtSplit } from "@/lib/debt-split";
 
 interface DebtOriginFields {
@@ -61,7 +62,7 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 	const { mode, onOpenChange, open, pending } = props;
 	const initialValue = props.mode === "edit" ? props.initialValue : null;
 	const [amount, setAmount] = useState("");
-	const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+	const [date, setDate] = useState(getLocalDateKey);
 	const [sendWithoutDate, setSendWithoutDate] = useState(false);
 	const [dueDate, setDueDate] = useState("");
 	const [description, setDescription] = useDebouncedInput("", () => undefined);
@@ -80,7 +81,7 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 	}, [initialValue, open, setDescription]);
 	const reset = () => {
 		setAmount("");
-		setDate(new Date().toISOString().slice(0, 10));
+		setDate(getLocalDateKey());
 		setSendWithoutDate(false);
 		setDueDate("");
 		setDescription("");

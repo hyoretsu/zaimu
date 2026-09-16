@@ -20,7 +20,7 @@ import { ScrollArea } from "@/components/ui/ScrollArea";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { CreditCard, DebtSplitInput } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
-import { getCurrentLocalTime } from "@/lib/date";
+import { getCurrentLocalTime, getLocalDateKey } from "@/lib/date";
 import { calculateDebtSplit } from "@/lib/debt-split";
 import { CreditPurchaseFeeFields } from "./CreditPurchaseFeeFields";
 
@@ -66,7 +66,7 @@ export function CreatePurchaseDialog({
 	const [feeAmount, setFeeAmount] = useState("");
 	const [feeDescription, setFeeDescription] = useDebouncedInput("", () => undefined);
 	const [count, setCount] = useDebouncedInput("1", () => undefined);
-	const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+	const [date, setDate] = useState(getLocalDateKey);
 	const [time, setTime] = useState(getCurrentLocalTime());
 	const [sendWithoutTime, setSendWithoutTime] = useState(false);
 	useEffect(() => {
@@ -89,7 +89,7 @@ export function CreatePurchaseDialog({
 		setFeeAmount("");
 		setFeeDescription("");
 		setCount("1");
-		setDate(new Date().toISOString().slice(0, 10));
+		setDate(getLocalDateKey());
 		setTime(getCurrentLocalTime());
 		setSendWithoutTime(false);
 		setTagIds([]);

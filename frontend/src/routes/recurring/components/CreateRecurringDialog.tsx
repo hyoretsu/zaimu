@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/Dialog";
 import type { DebtSplitInput, RecurringPayment, Salary, Subscription } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
+import { getLocalDateKey } from "@/lib/date";
 import { calculateDebtSplit, debtSplitToInput } from "@/lib/debt-split";
 import {
 	compareFinancialAccountsByDisplayName,
@@ -42,7 +43,7 @@ const initialDraft = (item?: RecurringListItemData): RecurringDraft => ({
 	name: item?.title ?? "",
 	paymentMethod: item?.paymentMethod ?? "CREDIT",
 	source: item?.source ?? "subscription",
-	startDate: item?.startDate.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
+	startDate: item?.startDate.slice(0, 10) ?? getLocalDateKey(),
 	storeName: item?.storeName ?? "",
 	tagIds: item?.tags?.map(tag => tag.id) ?? [],
 });
