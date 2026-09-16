@@ -4,6 +4,7 @@ type CreditCardImportProvider = CreditCardImport["provider"];
 
 interface PdfPasswordConfiguration {
 	placeholder: string;
+	required: boolean;
 }
 
 interface CreditCardStatementProviderConfiguration {
@@ -11,12 +12,13 @@ interface CreditCardStatementProviderConfiguration {
 	pdfPassword: PdfPasswordConfiguration | null;
 }
 
-const pdfPassword = { placeholder: "Ex: 123456" } as const;
+const requiredPdfPassword = { placeholder: "Ex: 123456", required: true } as const;
+const optionalPdfPassword = { placeholder: "Ex: 123456", required: false } as const;
 
 export const creditCardStatementProviders = {
-	BRADESCO: { label: "Bradesco", pdfPassword },
-	INTER: { label: "Inter", pdfPassword },
-	MERCADO_PAGO: { label: "Mercado Pago", pdfPassword: null },
+	BRADESCO: { label: "Bradesco", pdfPassword: requiredPdfPassword },
+	INTER: { label: "Inter", pdfPassword: requiredPdfPassword },
+	MERCADO_PAGO: { label: "Mercado Pago", pdfPassword: optionalPdfPassword },
 	NUBANK: { label: "Nubank", pdfPassword: null },
 	PICPAY: { label: "PicPay", pdfPassword: null },
 } as const satisfies Record<CreditCardImportProvider, CreditCardStatementProviderConfiguration>;

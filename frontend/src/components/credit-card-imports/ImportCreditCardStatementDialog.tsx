@@ -55,7 +55,7 @@ export function ImportCreditCardStatementDialog({
 			if (!provider) throw new Error("Selecione a instituição da fatura.");
 			if (!creditCardId) throw new Error("Selecione o cartão que receberá as compras.");
 			if (!file) throw new Error("Selecione uma fatura em PDF.");
-			if (passwordConfiguration && !password) throw new Error("Informe a senha do PDF.");
+			if (passwordConfiguration?.required && !password) throw new Error("Informe a senha do PDF.");
 			return dataService.creditCardImports.create({
 				creditCardId,
 				file,
@@ -121,9 +121,7 @@ export function ImportCreditCardStatementDialog({
 					{passwordConfiguration ? (
 						<div className="grid gap-2">
 							<Label htmlFor="credit-card-import-password">
-								<span>
-									Senha do PDF <RequiredMark />
-								</span>
+								<span>Senha do PDF {passwordConfiguration.required ? <RequiredMark /> : "(opcional)"}</span>
 							</Label>
 							<Input
 								autoComplete="off"
@@ -132,7 +130,7 @@ export function ImportCreditCardStatementDialog({
 								name="credit-card-import-password"
 								onChange={event => setPassword(event.currentTarget.value)}
 								placeholder={passwordConfiguration.placeholder}
-								required
+								required={passwordConfiguration.required}
 								type="password"
 								value={password}
 							/>
@@ -149,7 +147,7 @@ export function ImportCreditCardStatementDialog({
 							!provider ||
 							!creditCardId ||
 							!file ||
-							(passwordConfiguration && !password) ||
+							(passwordConfiguration?.required && !password) ||
 							createImport.isPending
 						}
 						onClick={() => createImport.mutate()}
