@@ -298,6 +298,7 @@ namespace public {
     installments            SmallInt                @default(1)
     currentInstallment      SmallInt                @default(1)
     installmentAmount       Numeric(12, 2)
+    hasImportedAmount       Boolean                 @default(false)
     purchaseDate            Date
     time                    Time(3)?
     categoryId              VarChar(36)?

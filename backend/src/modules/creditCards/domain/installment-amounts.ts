@@ -48,5 +48,22 @@ export function getImportedInstallmentAmounts({
 	);
 }
 
+export function preserveImportedInstallmentAmounts(
+	importedAmounts: number[],
+	existingAmounts: Array<{
+		hasImportedAmount: boolean;
+		installmentAmount: number;
+		currentInstallment: number;
+	}>,
+) {
+	const existingByInstallment = new Map(
+		existingAmounts.map(installment => [installment.currentInstallment, installment]),
+	);
+	return importedAmounts.map((amount, index) => {
+		const existing = existingByInstallment.get(index + 1);
+		return existing?.hasImportedAmount ? existing.installmentAmount : amount;
+	});
+}
+
 export const sumInstallmentAmounts = (amounts: number[]) =>
 	amounts.reduce((totalInCents, amount) => totalInCents + toCents(amount), 0) / 100;

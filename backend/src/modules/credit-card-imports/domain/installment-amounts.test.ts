@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
 	getEvenlyDistributedInstallmentAmounts,
 	getImportedInstallmentAmounts,
+	preserveImportedInstallmentAmounts,
 	sumInstallmentAmounts,
 } from "../../creditCards/domain/installment-amounts";
 
@@ -32,6 +33,24 @@ describe("getImportedInstallmentAmounts", () => {
 
 	test("distributes manual installments in cents without changing their total", () => {
 		const amounts = getEvenlyDistributedInstallmentAmounts(26.01, 2);
+
+		expect(amounts).toEqual([13.01, 13]);
+		expect(sumInstallmentAmounts(amounts)).toBe(26.01);
+	});
+
+	test("never replaces an amount confirmed by a prior invoice import", () => {
+		const amounts = preserveImportedInstallmentAmounts(
+			getImportedInstallmentAmounts({
+				currentInstallment: 2,
+				installmentAmount: 13,
+				installments: 2,
+				totalAmount: 26,
+			}),
+			[
+				{ currentInstallment: 1, hasImportedAmount: true, installmentAmount: 13.01 },
+				{ currentInstallment: 2, hasImportedAmount: false, installmentAmount: 13 },
+			],
+		);
 
 		expect(amounts).toEqual([13.01, 13]);
 		expect(sumInstallmentAmounts(amounts)).toBe(26.01);

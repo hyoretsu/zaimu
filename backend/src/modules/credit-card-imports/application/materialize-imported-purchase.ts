@@ -2,6 +2,7 @@ import { addMonths } from "date-fns";
 import { replaceEntityTags, tagEntityType } from "~/modules/categories/application/tag-assignments";
 import {
 	getImportedInstallmentAmounts,
+	preserveImportedInstallmentAmounts,
 	sumInstallmentAmounts,
 } from "~/modules/creditCards/domain/installment-amounts";
 import { HttpException } from "~/shared/errors";
@@ -70,14 +71,14 @@ async function getOrCreateStatement(card: CardSnapshot, purchaseDate: Date) {
 
 export async function materializeImportedPurchase(card: CardSnapshot, input: ImportedPurchaseInput) {
 	const createdIds: string[] = [];
-	const installmentAmounts = getImportedInstallmentAmounts(input);
-	const totalAmount = sumInstallmentAmounts(installmentAmounts);
+	const importedInstallmentAmounts = getImportedInstallmentAmounts(input);
 	let rootId = input.existingRootId;
 	const existingPurchases = rootId
 		? await queryRows(
 				db.sql.public.CreditPurchase.select(
 					"cashbackAmount",
 					"currentInstallment",
+					"hasImportedAmount",
 					"id",
 					"installmentAmount",
 					"statementId",
@@ -92,15 +93,25 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 	const existingByInstallment = new Map(
 		existingPurchases.map(purchase => [purchase.currentInstallment, purchase]),
 	);
+	const installmentAmounts = preserveImportedInstallmentAmounts(
+		importedInstallmentAmounts,
+		existingPurchases.map(purchase => ({
+			currentInstallment: purchase.currentInstallment,
+			hasImportedAmount: purchase.hasImportedAmount,
+			installmentAmount: Number(purchase.installmentAmount),
+		})),
+	);
+	const totalAmount = sumInstallmentAmounts(installmentAmounts);
 	if (
 		existingPurchases.some(
 			purchase =>
 				purchase.currentInstallment > input.installments ||
-				!hasCompatibleInstallmentAmount(
-					installmentAmounts[purchase.currentInstallment - 1]!,
-					purchase.installmentAmount,
-					input.installments,
-				),
+				(!purchase.hasImportedAmount &&
+					!hasCompatibleInstallmentAmount(
+						installmentAmounts[purchase.currentInstallment - 1]!,
+						purchase.installmentAmount,
+						input.installments,
+					)),
 		)
 	)
 		throw new HttpException("As parcelas existentes não correspondem à compra importada", 409);
@@ -123,6 +134,7 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 					categoryId: input.categoryId,
 					description: input.description,
 					...(currentInstallment === 1 && { externalId: input.externalId }),
+					hasImportedAmount: existing.hasImportedAmount || currentInstallment === input.currentInstallment,
 					installmentAmount: String(installmentAmount),
 					installments: input.installments,
 					purchaseDate: input.purchaseDate,
@@ -173,6 +185,7 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 					currentInstallment,
 					description: input.description,
 					...(currentInstallment === 1 && { externalId: input.externalId }),
+					hasImportedAmount: currentInstallment === input.currentInstallment,
 					installmentAmount: String(installmentAmount),
 					installments: input.installments,
 					...(rootId && { parentId: rootId }),

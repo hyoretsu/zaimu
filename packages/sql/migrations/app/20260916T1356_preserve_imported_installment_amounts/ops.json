@@ -1,0 +1,53 @@
+[
+	{
+		"execute": [
+			{
+				"description": "add column \"hasImportedAmount\"",
+				"sql": "ALTER TABLE \"public\".\"CreditPurchase\" ADD COLUMN \"hasImportedAmount\" bool DEFAULT false NOT NULL"
+			}
+		],
+		"id": "column.public.CreditPurchase.hasImportedAmount",
+		"label": "Add column \"hasImportedAmount\" to \"CreditPurchase\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"hasImportedAmount\" exists",
+				"params": ["public", "CreditPurchase", "hasImportedAmount"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"hasImportedAmount\" is missing",
+				"params": ["public", "CreditPurchase", "hasImportedAmount"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "hasImportedAmount",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditPurchase"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "Run backfill-CreditPurchase-hasImportedAmount",
+				"params": [],
+				"sql": "\n\t\t\t\t\t\tUPDATE \"public\".\"CreditPurchase\"\n\t\t\t\t\t\tSET \"hasImportedAmount\" = true\n\t\t\t\t\t\tWHERE \"externalId\" IS NOT NULL\n\t\t\t\t\t"
+			}
+		],
+		"id": "data_migration.backfill-CreditPurchase-hasImportedAmount",
+		"label": "Data transform: backfill-CreditPurchase-hasImportedAmount",
+		"operationClass": "data",
+		"postcheck": [],
+		"precheck": [],
+		"target": {
+			"id": "postgres"
+		}
+	}
+]

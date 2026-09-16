@@ -483,7 +483,7 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 			await executeStatement(
 				db.sql.public.CreditCardImportItem.update({
 					description: body.description === undefined ? current.description : body.description.trim(),
-					installmentAmount: current.installmentAmount,
+					installmentAmount: String(current.installmentAmount),
 					installments,
 					isSelected: body.isSelected ?? current.isSelected,
 					purchaseDate: body.purchaseDate ? new Date(`${body.purchaseDate}T12:00:00`) : current.purchaseDate,

@@ -1663,7 +1663,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 									fields.id,
 									installments.filter(item => item.id !== purchase.id).map(item => item.id),
 								),
-								functions.not(functions.eq(fields.id, rootPurchase.id)),
+								functions.ne(fields.id, rootPurchase.id),
 							),
 						)
 						.build(),
