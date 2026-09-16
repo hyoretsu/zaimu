@@ -61,6 +61,7 @@ import {
 } from "./localStorage";
 import { getCurrentCacheIdentity } from "./query-cache";
 import { sortTransactionsByMostRecent } from "./transaction-sort";
+import { assertFileIsAccessible } from "./upload-file";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3333";
 const REQUEST_TIMEOUT_MS = 10_000;
@@ -761,6 +762,7 @@ export const dataService = {
 			provider: CreditCardImport["provider"];
 		}): Promise<CreditCardImportCreateResult> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar faturas.");
+			await assertFileIsAccessible(file);
 			const form = new FormData();
 			form.set("creditCardId", creditCardId);
 			form.set("file", file);
@@ -2806,6 +2808,7 @@ export const dataService = {
 			provider: TransactionImport["provider"];
 		}): Promise<TransactionImportCreateResult> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
+			await assertFileIsAccessible(file);
 			const form = new FormData();
 			form.set("file", file);
 			form.set("financialAccountId", financialAccountId);
