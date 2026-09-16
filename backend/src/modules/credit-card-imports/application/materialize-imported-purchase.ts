@@ -213,10 +213,13 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 				.build(),
 		);
 	}
-	await replaceEntityTags({
-		entityIds: createdIds,
-		entityType: tagEntityType.creditPurchase,
-		tagIds: input.tagIds,
-	});
+	// New purchases have no tag assignments yet. A reconciliation can target
+	// existing purchases, so it must still clear assignments when needed.
+	if (input.tagIds.length || input.existingRootId)
+		await replaceEntityTags({
+			entityIds: createdIds,
+			entityType: tagEntityType.creditPurchase,
+			tagIds: input.tagIds,
+		});
 	return rootId;
 }

@@ -495,8 +495,11 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 					.where((fields, functions) => functions.eq(fields.id, current.id))
 					.build(),
 			);
-			if (tagIds)
-				await replaceEntityTags({ entityIds: [current.id], entityType: importItemTagEntityType, tagIds });
+			if (tagIds) {
+				const currentTags = await getTagsByEntity(importItemTagEntityType, [current.id]);
+				if (tagIds.length || currentTags.has(current.id))
+					await replaceEntityTags({ entityIds: [current.id], entityType: importItemTagEntityType, tagIds });
+			}
 			if (body.debtSplit !== undefined)
 				await replaceDebtSplit({
 					amount: totalAmount,
