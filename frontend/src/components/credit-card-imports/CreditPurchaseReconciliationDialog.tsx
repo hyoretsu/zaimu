@@ -101,7 +101,7 @@ export function CreditPurchaseReconciliationDialog({
 	const resolutionDescription =
 		item.installments === 1
 			? "A aprovação atualiza o registro existente."
-			: "A aprovação atualiza o registro existente e cria somente parcelas ausentes.";
+			: "A aprovação atualiza o registro existente com os valores importados e cria somente parcelas ausentes.";
 
 	return (
 		<Dialog onOpenChange={onOpenChange} open={open}>
@@ -109,8 +109,8 @@ export function CreditPurchaseReconciliationDialog({
 				<DialogHeader>
 					<DialogTitle>Conciliar {purchaseLabel} existente</DialogTitle>
 					<DialogDescription>
-						Escolha a origem de cada dado. O parcelamento e os valores da fatura serão preservados.{" "}
-						{resolutionDescription}
+						Escolha a origem de cada dado. O parcelamento será preservado; os valores serão atualizados com os
+						dados importados. {resolutionDescription}
 					</DialogDescription>
 				</DialogHeader>
 				<ScrollArea className="min-h-0 pr-1">

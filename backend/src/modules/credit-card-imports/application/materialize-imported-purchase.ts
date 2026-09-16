@@ -68,7 +68,14 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 	let rootId = input.existingRootId;
 	const existingPurchases = rootId
 		? await queryRows(
-				db.sql.public.CreditPurchase.select("id", "currentInstallment", "installmentAmount")
+				db.sql.public.CreditPurchase.select(
+					"cashbackAmount",
+					"currentInstallment",
+					"id",
+					"installmentAmount",
+					"statementId",
+					"totalAmount",
+				)
 					.where((fields, functions) =>
 						functions.or(functions.eq(fields.id, rootId!), functions.eq(fields.parentId, rootId!)),
 					)
@@ -93,11 +100,22 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 	for (let currentInstallment = 1; currentInstallment <= input.installments; currentInstallment++) {
 		const existing = existingByInstallment.get(currentInstallment);
 		if (existing) {
+			const previousInstallmentAmount = Number(existing.installmentAmount);
+			const installmentAmountDifference = input.installmentAmount - previousInstallmentAmount;
 			await executeStatement(
 				db.sql.public.CreditPurchase.update({
+					...(currentInstallment === 1 &&
+						existing.cashbackAmount !== null && {
+							cashbackAmount: String(
+								Number(
+									(Number(existing.cashbackAmount) * input.totalAmount) / Number(existing.totalAmount),
+								).toFixed(4),
+							),
+						}),
 					categoryId: input.categoryId,
 					description: input.description,
 					...(currentInstallment === 1 && { externalId: input.externalId }),
+					installmentAmount: String(input.installmentAmount),
 					installments: input.installments,
 					purchaseDate: input.purchaseDate,
 					storeName: input.storeName,
@@ -108,6 +126,18 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 					.where((fields, functions) => functions.eq(fields.id, existing.id))
 					.build(),
 			);
+			if (installmentAmountDifference)
+				await executeStatement(
+					db.sql.public.CreditCardStatement.update((fields, functions) => ({
+						totalAmount:
+							functions.raw`${fields.totalAmount} + ${String(installmentAmountDifference)}`.returns(
+								"pg/numeric@1",
+							),
+						updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
+					}))
+						.where((fields, functions) => functions.eq(fields.id, existing.statementId))
+						.build(),
+				);
 			createdIds.push(existing.id);
 			continue;
 		}
