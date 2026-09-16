@@ -243,6 +243,14 @@ suite("Prisma 8 SQL query builder", () => {
 		};
 		expect(recurringTransaction.tagIds).toEqual(expect.arrayContaining([category.id, secondCategory.id]));
 		expect(recurringTransaction.storeName).toBe("Academia do bairro");
+		const hideTransactionResponse = await jsonRequest(
+			`/transactions/${recurringTransaction.id}`,
+			"PATCH",
+			{ isHidden: true },
+			owner.cookie,
+		);
+		expect(hideTransactionResponse.status).toBe(200);
+		expect((await hideTransactionResponse.json()) as { isHidden: boolean }).toMatchObject({ isHidden: true });
 		expect(
 			(
 				await jsonRequest(

@@ -950,14 +950,6 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					transactionId: params.id,
 				});
 			}
-			if (body.isHidden !== undefined && body.isHidden !== existing.isHidden) {
-				historyEntries.push({
-					field: "isHidden",
-					newValue: String(body.isHidden),
-					oldValue: String(existing.isHidden),
-					transactionId: params.id,
-				});
-			}
 			if (existing.recurrenceId || existing.salaryId || existing.subscriptionId) {
 				historyEntries.push({
 					field: "manualEdit",
