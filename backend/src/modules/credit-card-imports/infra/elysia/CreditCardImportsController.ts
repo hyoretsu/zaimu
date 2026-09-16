@@ -464,7 +464,7 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 			const tagIds = body.tagIds === undefined ? undefined : await assertTagOwnership(body.tagIds, userId);
 			await executeStatement(
 				db.sql.public.CreditCardImportItem.update({
-					description: body.description?.trim() || current.description,
+					description: body.description === undefined ? current.description : body.description.trim(),
 					installmentAmount: String(Math.round((totalAmount / installments) * 100) / 100),
 					installments,
 					isSelected: body.isSelected ?? current.isSelected,

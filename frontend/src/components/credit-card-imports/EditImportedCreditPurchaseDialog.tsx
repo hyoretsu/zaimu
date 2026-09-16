@@ -61,7 +61,6 @@ export function EditImportedCreditPurchaseDialog({
 	if (!item) return null;
 	const installmentCount = Number.parseInt(installments, 10);
 	const isValid =
-		description.trim().length > 0 &&
 		Number(totalAmount) > 0 &&
 		Number.isInteger(installmentCount) &&
 		installmentCount >= 1 &&
@@ -85,7 +84,6 @@ export function EditImportedCreditPurchaseDialog({
 								name="imported-purchase-description"
 								onChange={event => setDescription(event.currentTarget.value)}
 								placeholder="Ex: Mercado Livre"
-								required
 								type="text"
 								value={description}
 							/>

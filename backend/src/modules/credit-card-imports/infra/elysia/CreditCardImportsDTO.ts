@@ -3,7 +3,7 @@ import { DebtSplitInputDTO } from "~/modules/debts/infra/elysia/DebtSplitsDTO";
 
 export const CreditCardImportItemUpdateDTO = t.Object({
 	debtSplit: t.Optional(t.Nullable(DebtSplitInputDTO)),
-	description: t.Optional(t.String({ maxLength: 500, minLength: 1 })),
+	description: t.Optional(t.String({ maxLength: 500 })),
 	installments: t.Optional(t.Number({ maximum: 48, minimum: 1 })),
 	isSelected: t.Optional(t.Boolean()),
 	purchaseDate: t.Optional(t.String()),
