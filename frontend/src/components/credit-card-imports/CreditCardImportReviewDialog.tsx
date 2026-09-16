@@ -42,6 +42,7 @@ export function CreditCardImportReviewDialog({
 	const identity = useCacheIdentity();
 	const [editingItem, setEditingItem] = useState<CreditCardImportItem | null>(null);
 	const [reconcilingItem, setReconcilingItem] = useState<CreditCardImportItem | null>(null);
+	const [approvingItemIds, setApprovingItemIds] = useState<Set<string>>(new Set());
 	const [discardConfirmationOpen, setDiscardConfirmationOpen] = useState(false);
 	const creditCardImport = useQuery({
 		enabled: identity !== null && open && Boolean(importId),
@@ -82,6 +83,16 @@ export function CreditCardImportReviewDialog({
 	const approveItem = useMutation({
 		mutationFn: (itemId: string) => dataService.creditCardImports.approveItem(importId!, itemId),
 		onError: error => showToast(error.message, "negative"),
+		onMutate: itemId => {
+			setApprovingItemIds(current => new Set(current).add(itemId));
+		},
+		onSettled: (_data, _error, itemId) => {
+			setApprovingItemIds(current => {
+				const next = new Set(current);
+				next.delete(itemId);
+				return next;
+			});
+		},
 		onSuccess: async () => {
 			await invalidateCreditCards();
 			if ((creditCardImport.data?.items.length ?? 0) === 1) await closeFinishedReview();
@@ -134,12 +145,9 @@ export function CreditCardImportReviewDialog({
 	const items = creditCardImport.data?.items ?? [];
 	const creditCard = creditCards.data?.find(card => card.id === creditCardImport.data?.creditCardId);
 	const creditCardName = creditCard ? getCreditCardDisplayName(creditCard) : "Cartão de crédito";
-	const busy =
-		updateItem.isPending ||
-		reconcileItem.isPending ||
-		approveItem.isPending ||
-		approve.isPending ||
-		discard.isPending;
+	const reviewBusy =
+		updateItem.isPending || reconcileItem.isPending || approve.isPending || discard.isPending;
+	const hasApprovingItems = approvingItemIds.size > 0;
 
 	return (
 		<>
@@ -172,7 +180,7 @@ export function CreditCardImportReviewDialog({
 									<CreditCardImportItemRow
 										creditCardId={creditCardImport.data!.creditCardId}
 										creditCardName={creditCardName}
-										disabled={busy}
+										disabled={reviewBusy || approvingItemIds.has(item.id)}
 										item={item}
 										key={item.id}
 										onApprove={() => approveItem.mutate(item.id)}
@@ -186,14 +194,14 @@ export function CreditCardImportReviewDialog({
 					<DialogFooter className="flex-row justify-end">
 						<Button
 							className="cursor-pointer bg-destructive text-destructive-foreground hover:bg-destructive/80"
-							disabled={busy}
+							disabled={reviewBusy || hasApprovingItems}
 							onClick={() => setDiscardConfirmationOpen(true)}
 						>
 							<LuTrash2 /> Descartar lote
 						</Button>
 						<Button
 							className="cursor-pointer disabled:cursor-not-allowed"
-							disabled={busy || items.length === 0}
+							disabled={reviewBusy || hasApprovingItems || items.length === 0}
 							onClick={() => approve.mutate()}
 						>
 							<LuFileCheck2 /> {approve.isPending ? "Finalizando…" : "Finalizar revisão"}
