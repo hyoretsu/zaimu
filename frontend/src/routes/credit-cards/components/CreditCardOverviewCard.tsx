@@ -4,7 +4,11 @@ import { Button } from "@/components/ui/Button";
 import { Progress } from "@/components/ui/Progress";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { CreditCard } from "@/lib/api";
-import { calculateCreditCardLimit, getCreditCardDisplayName } from "@/lib/credit-card";
+import {
+	calculateCreditCardLimit,
+	getCreditCardDisplayName,
+	getCurrentCreditCardStatement,
+} from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
@@ -27,9 +31,7 @@ export function CreditCardOverviewCard({
 		queryKey: queryKeys.creditCardStatements.list(identity!, card.id),
 	});
 	if (statements.isPending) return <Skeleton className="h-72" />;
-	const statement = statements.data
-		?.filter(item => !item.isPaid)
-		.toSorted((left, right) => left.dueDate.localeCompare(right.dueDate))[0];
+	const statement = getCurrentCreditCardStatement(statements.data ?? [], card);
 	const currentBill = Math.max(0, statement?.balanceAmount ?? 0);
 	const limit = calculateCreditCardLimit(card, statements.data ?? []);
 	const percent =

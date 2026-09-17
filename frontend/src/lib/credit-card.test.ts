@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import type { CreditCard, CreditCardStatement } from "./api";
-import { applyStatementCredits, calculateCreditCardLimit, getCreditCardDisplayName } from "./credit-card";
+import {
+	applyStatementCredits,
+	calculateCreditCardLimit,
+	getCreditCardDisplayName,
+	getCurrentCreditCardStatement,
+} from "./credit-card";
 
 const card = { creditLimit: 1_000 } as CreditCard;
 
@@ -153,5 +158,30 @@ describe("getCreditCardDisplayName", () => {
 		expect(getCreditCardDisplayName({ accountName: null, institutionName: "Banco Exemplo" })).toBe(
 			"Banco Exemplo",
 		);
+	});
+});
+
+describe("getCurrentCreditCardStatement", () => {
+	test("selects the current cycle instead of the oldest open statement", () => {
+		const statements = [
+			statement("april", "2026-04-17", 30.66, 0),
+			statement("september", "2026-09-17", 140, 0),
+			statement("october", "2026-10-17", 80, 0),
+		];
+
+		expect(
+			getCurrentCreditCardStatement(statements, { statementDay: 17 }, new Date("2026-09-17T12:00:00")),
+		).toMatchObject({ id: "september" });
+	});
+
+	test("moves to the next cycle after the statement closes", () => {
+		const statements = [
+			statement("september", "2026-09-17", 140, 0),
+			statement("october", "2026-10-17", 80, 0),
+		];
+
+		expect(
+			getCurrentCreditCardStatement(statements, { statementDay: 17 }, new Date("2026-09-18T12:00:00")),
+		).toMatchObject({ id: "october" });
 	});
 });

@@ -35,6 +35,20 @@ export function getCreditCardDisplayName(
 	return card.accountName?.trim() || card.institutionName || "Cartão de crédito";
 }
 
+export function getCurrentCreditCardStatement(
+	statements: CreditCardStatement[],
+	card: Pick<CreditCard, "statementDay">,
+	today = new Date(),
+) {
+	const statementMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+	if (today.getDate() > card.statementDay) statementMonth.setMonth(statementMonth.getMonth() + 1);
+
+	const statementDate = new Date(statementMonth.getFullYear(), statementMonth.getMonth(), card.statementDay);
+	const statementDateKey = getLocalDateKey(statementDate);
+
+	return statements.find(statement => statement.statementDate.slice(0, 10) === statementDateKey);
+}
+
 export function calculateCreditCardLimit(
 	card: Pick<CreditCard, "creditLimit">,
 	statements: CreditCardStatement[],

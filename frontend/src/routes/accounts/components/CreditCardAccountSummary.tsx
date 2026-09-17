@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { CreditCard } from "@/lib/api";
-import { calculateCreditCardLimit } from "@/lib/credit-card";
+import { calculateCreditCardLimit, getCurrentCreditCardStatement } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 
@@ -34,9 +34,7 @@ export function CreditCardAccountSummary({ card }: { card?: CreditCard }) {
 		);
 	}
 
-	const currentStatement = statements.data
-		?.filter(statement => !statement.isPaid)
-		.toSorted((left, right) => left.dueDate.localeCompare(right.dueDate))[0];
+	const currentStatement = getCurrentCreditCardStatement(statements.data ?? [], card);
 	const currentBill = Math.max(0, currentStatement?.balanceAmount ?? 0);
 	const limit = calculateCreditCardLimit(card, statements.data ?? []);
 
