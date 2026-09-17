@@ -24,6 +24,7 @@ import {
 	withTransaction,
 } from "~/shared/infra/sql";
 import { filterExistingTransactions } from "../../domain/filter-existing-transactions";
+import { filterZeroValueTransactions } from "../../domain/filter-zero-value-transactions";
 import { matchesDuplicateTransactionShape } from "../../domain/import-reconciliation";
 import { assignStableExternalIds } from "../../domain/statement-identity";
 import { parseStatementPdf } from "../../domain/statement-parser";
@@ -849,11 +850,14 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			if (fileBytes.length < 5 || new TextDecoder().decode(fileBytes.slice(0, 5)) !== "%PDF-")
 				throw new HttpException("Envie um PDF válido", 400);
 			const statement = await parseStatementPdf(fileBytes.buffer, body.provider);
-			const statementTransactions = assignStableExternalIds(statement.transactions, {
-				financialAccountId: body.financialAccountId,
-				provider: statement.provider,
-				userId,
-			});
+			const statementTransactions = assignStableExternalIds(
+				filterZeroValueTransactions(statement.transactions),
+				{
+					financialAccountId: body.financialAccountId,
+					provider: statement.provider,
+					userId,
+				},
+			);
 			const [existingTransactions, existingYields, existingManualYields] = await Promise.all([
 				queryRows(
 					db.sql.public.TransactionExternalReference.select("externalId")

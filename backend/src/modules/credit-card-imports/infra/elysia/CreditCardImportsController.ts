@@ -21,6 +21,7 @@ import { assignCreditCardPurchaseExternalIds } from "../../domain/credit-card-im
 import { matchesExistingCreditPurchase } from "../../domain/credit-card-import-reconciliation";
 import { parseCreditCardStatementPdf } from "../../domain/credit-card-statement-parser";
 import { requiresCreditCardStatementPdfPassword } from "../../domain/credit-card-statement-password";
+import { filterZeroValuePurchases } from "../../domain/filter-zero-value-purchases";
 import { CreditCardImportItemReconcileDTO, CreditCardImportItemUpdateDTO } from "./CreditCardImportsDTO";
 
 const importItemTagEntityType = "CREDIT_CARD_IMPORT_ITEM";
@@ -350,7 +351,10 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 			if (fileBytes.length < 5 || new TextDecoder().decode(fileBytes.slice(0, 5)) !== "%PDF-")
 				throw new HttpException("Envie um PDF válido", 400);
 			const statement = await parseCreditCardStatementPdf(fileBytes.buffer, body.provider, body.password);
-			const purchases = assignCreditCardPurchaseExternalIds(statement.purchases, body.creditCardId);
+			const purchases = assignCreditCardPurchaseExternalIds(
+				filterZeroValuePurchases(statement.purchases),
+				body.creditCardId,
+			);
 			const [existing, pending] = await Promise.all([
 				queryRows(
 					db.sql.public.CreditPurchase.innerJoin(db.sql.public.CreditCardStatement, (fields, functions) =>
