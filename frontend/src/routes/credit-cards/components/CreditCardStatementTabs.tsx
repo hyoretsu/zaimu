@@ -1,12 +1,22 @@
 import { useLayoutEffect, useRef } from "react";
-import { LuCircleCheck, LuClock3 } from "react-icons/lu";
+import { LuCircleCheck, LuClock3, LuLockKeyhole, LuTriangleAlert } from "react-icons/lu";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import type { CreditCardStatement } from "@/lib/api";
-import { formatLocalMonthYear } from "@/lib/date";
+import { formatLocalMonthYear, getLocalDateKey } from "@/lib/date";
 import { cn } from "@/lib/utils";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
+
+function getStatementStatus(statement: CreditCardStatement) {
+	if (statement.isForecast) return { className: "text-muted-foreground", icon: LuClock3, label: "Futura" };
+	if (statement.isPaid) return { className: "text-amber-500", icon: LuLockKeyhole, label: "Fechada" };
+	if (statement.dueDate.slice(0, 10) < getLocalDateKey()) {
+		return { className: "text-destructive", icon: LuTriangleAlert, label: "Em atraso" };
+	}
+
+	return { className: "text-foreground", icon: LuCircleCheck, label: "Em aberto" };
+}
 
 export function CreditCardStatementTabs({
 	selectedId,
@@ -62,6 +72,8 @@ export function CreditCardStatementTabs({
 				>
 					{statements.map(statement => {
 						const selected = statement.id === selectedId;
+						const status = getStatementStatus(statement);
+						const StatusIcon = status.icon;
 						return (
 							<TabsTrigger
 								className={cn(
@@ -71,20 +83,12 @@ export function CreditCardStatementTabs({
 								key={statement.id}
 								value={statement.id}
 							>
-								<span className="grid min-w-0 flex-1 gap-1">
-									<span className="font-semibold text-sm">
+								<span className="grid min-w-0 flex-1 gap-1.5">
+									<span className="flex items-center gap-1.5 font-semibold text-sm">
 										{formatLocalMonthYear(statement.statementDate)}
-									</span>
-									<span className="font-normal text-muted-foreground text-xs">
-										{statement.isPaid ? (
-											<span className="flex items-center gap-1">
-												<LuCircleCheck /> Paga
-											</span>
-										) : (
-											<span className="flex items-center gap-1">
-												<LuClock3 /> Em aberto
-											</span>
-										)}
+										<span aria-label={status.label} className={status.className} role="img">
+											<StatusIcon aria-hidden="true" className="size-4" />
+										</span>
 									</span>
 									<strong className="truncate text-sm">{currency.format(statement.balanceAmount)}</strong>
 								</span>

@@ -119,105 +119,104 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 		},
 	});
 	return (
-		<TabsContent
-			className="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] gap-3 overflow-hidden pt-4 sm:pt-0 sm:pl-6"
-			value={statement.id}
-		>
-			<header className="grid gap-2 rounded-xl border bg-muted/30 p-3">
-				<div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
-					<p className="text-muted-foreground text-xs uppercase tracking-wide">Mês de referência</p>
-					<h3 className="font-bold text-base sm:text-lg" id={`statement-title-${statement.id}`}>
-						{formatLocalDate(statement.statementDate, { month: "long", year: "numeric" })}
-					</h3>
-				</div>
-				<div className="grid gap-2 border-t pt-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-3">
-					<div>
-						<p className="text-muted-foreground text-xs">Saldo da fatura</p>
-						<strong className="text-base sm:text-lg">{currency.format(statement.balanceAmount)}</strong>
-					</div>
-					<div className="flex flex-wrap gap-2 sm:justify-end">
-						{statement.isFullySynced && (
-							<AppBadge variant="outline">
-								<LuCloudDownload aria-hidden="true" className="text-emerald-600" />
-								<span>Sincronizada</span>
-							</AppBadge>
-						)}
-						<AppBadge className="shrink-0" variant={statement.isPaid ? "secondary" : "outline"}>
-							{statement.isPaid ? <LuCircleCheck /> : <LuClock3 />}
-							{statement.isPaid ? "Paga" : "Em aberto"}
-						</AppBadge>
-					</div>
-				</div>
-				<div className="grid grid-cols-2 gap-2 border-t pt-2">
-					<div className="min-w-0">
-						<p className="flex items-center gap-1 text-muted-foreground text-xs">
-							<LuCalendarCheck /> Fechamento
-						</p>
-						<strong className="mt-0.5 block text-sm">{formatLocalDate(statement.statementDate)}</strong>
-					</div>
-					<div className="min-w-0 border-l pl-2">
-						<p className="flex items-center gap-1 text-muted-foreground text-xs">
-							<LuCalendarClock /> Vencimento
-						</p>
-						<strong className="mt-0.5 block text-sm">{formatLocalDate(statement.dueDate)}</strong>
-					</div>
-				</div>
-			</header>
-			<div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3">
-				<div className="flex items-center justify-between gap-3">
-					<h4 className="font-semibold">Transações</h4>
-					{detail.data && (
-						<span className="text-muted-foreground text-xs">
-							{entries.length} {entries.length === 1 ? "transação" : "transações"}
-						</span>
-					)}
-				</div>
-				<ScrollArea className="min-h-0 pr-3">
-					{detail.isPending ? (
-						<div className="grid gap-2">
-							{[1, 2, 3, 4].map(item => (
-								<Skeleton className="h-16" key={item} />
-							))}
+		<TabsContent className="min-h-0 min-w-0 overflow-hidden pt-4 sm:pt-0 sm:pl-6" value={statement.id}>
+			<ScrollArea className="h-full min-h-0 pr-3">
+				<div className="grid gap-3">
+					<header className="grid gap-2 rounded-xl border bg-muted/30 p-3">
+						<div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+							<p className="text-muted-foreground text-xs uppercase tracking-wide">Mês de referência</p>
+							<h3 className="font-bold text-base sm:text-lg" id={`statement-title-${statement.id}`}>
+								{formatLocalDate(statement.statementDate, { month: "long", year: "numeric" })}
+							</h3>
 						</div>
-					) : detail.isError ? (
-						<EmptyState
-							description="Tente selecionar a fatura novamente."
-							icon={<LuReceiptText className="size-7" />}
-							title="Não foi possível carregar as transações"
-						/>
-					) : entries.length ? (
-						<div className="grid gap-2">
-							{entries.map(entry =>
-								entry.kind === "payment" ? (
-									<CreditCardPaymentRow key={entry.id} payment={entry.payment} />
-								) : (
-									<CreditPurchaseRow
-										disabled={statement.isPaid || statement.isForecast === true || deletePurchase.isPending}
-										key={entry.id}
-										onDelete={() => deletePurchase.mutateAsync(entry.purchase.id)}
-										onEdit={() => setEditingPurchase(entry.purchase)}
-										onRefinance={() => setRefinancingPurchase(entry.purchase)}
-										onRefund={() => setRefundingPurchase(entry.purchase)}
-										purchase={entry.purchase}
-										refinanceDisabled={
-											statement.isForecast === true ||
-											refinancePurchase.isPending ||
-											entry.purchase.isSettled === true
-										}
-										refundDisabled={statement.isForecast === true || refundPurchase.isPending}
-									/>
-								),
+						<div className="grid gap-2 border-t pt-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-3">
+							<div>
+								<p className="text-muted-foreground text-xs">Saldo da fatura</p>
+								<strong className="text-base sm:text-lg">{currency.format(statement.balanceAmount)}</strong>
+							</div>
+							<div className="flex flex-wrap gap-2 sm:justify-end">
+								{statement.isFullySynced && (
+									<AppBadge variant="outline">
+										<LuCloudDownload aria-hidden="true" className="text-emerald-600" />
+										<span>Sincronizada</span>
+									</AppBadge>
+								)}
+								<AppBadge className="shrink-0" variant={statement.isPaid ? "secondary" : "outline"}>
+									{statement.isPaid ? <LuCircleCheck /> : <LuClock3 />}
+									{statement.isPaid ? "Paga" : "Em aberto"}
+								</AppBadge>
+							</div>
+						</div>
+						<div className="grid grid-cols-2 gap-2 border-t pt-2">
+							<div className="min-w-0">
+								<p className="flex items-center gap-1 text-muted-foreground text-xs">
+									<LuCalendarCheck /> Fechamento
+								</p>
+								<strong className="mt-0.5 block text-sm">{formatLocalDate(statement.statementDate)}</strong>
+							</div>
+							<div className="min-w-0 border-l pl-2">
+								<p className="flex items-center gap-1 text-muted-foreground text-xs">
+									<LuCalendarClock /> Vencimento
+								</p>
+								<strong className="mt-0.5 block text-sm">{formatLocalDate(statement.dueDate)}</strong>
+							</div>
+						</div>
+					</header>
+					<div className="grid gap-3">
+						<div className="flex items-center justify-between gap-3">
+							<h4 className="font-semibold">Transações</h4>
+							{detail.data && (
+								<span className="text-muted-foreground text-xs">
+									{entries.length} {entries.length === 1 ? "transação" : "transações"}
+								</span>
 							)}
 						</div>
-					) : (
-						<EmptyState
-							description="Nenhuma transação foi vinculada a esta fatura."
-							icon={<LuReceiptText className="size-7" />}
-							title="Fatura sem transações"
-						/>
-					)}
-				</ScrollArea>
-			</div>
+						{detail.isPending ? (
+							<div className="grid gap-2">
+								{[1, 2, 3, 4].map(item => (
+									<Skeleton className="h-16" key={item} />
+								))}
+							</div>
+						) : detail.isError ? (
+							<EmptyState
+								description="Tente selecionar a fatura novamente."
+								icon={<LuReceiptText className="size-7" />}
+								title="Não foi possível carregar as transações"
+							/>
+						) : entries.length ? (
+							<div className="grid gap-2">
+								{entries.map(entry =>
+									entry.kind === "payment" ? (
+										<CreditCardPaymentRow key={entry.id} payment={entry.payment} />
+									) : (
+										<CreditPurchaseRow
+											disabled={statement.isPaid || statement.isForecast === true || deletePurchase.isPending}
+											key={entry.id}
+											onDelete={() => deletePurchase.mutateAsync(entry.purchase.id)}
+											onEdit={() => setEditingPurchase(entry.purchase)}
+											onRefinance={() => setRefinancingPurchase(entry.purchase)}
+											onRefund={() => setRefundingPurchase(entry.purchase)}
+											purchase={entry.purchase}
+											refinanceDisabled={
+												statement.isForecast === true ||
+												refinancePurchase.isPending ||
+												entry.purchase.isSettled === true
+											}
+											refundDisabled={statement.isForecast === true || refundPurchase.isPending}
+										/>
+									),
+								)}
+							</div>
+						) : (
+							<EmptyState
+								description="Nenhuma transação foi vinculada a esta fatura."
+								icon={<LuReceiptText className="size-7" />}
+								title="Fatura sem transações"
+							/>
+						)}
+					</div>
+				</div>
+			</ScrollArea>
 			{editingPurchase && (
 				<EditCreditPurchaseDialog
 					key={editingPurchase.id}
