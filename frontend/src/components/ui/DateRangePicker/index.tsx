@@ -76,6 +76,10 @@ export function DateRangePicker({
 		onChange(draftRange);
 		setOpen(false);
 	};
+	const handleClear = () => {
+		onChange({});
+		setOpen(false);
+	};
 	const handleCurrentMonth = () => {
 		const now = new Date();
 		const currentMonth = {
@@ -188,17 +192,7 @@ export function DateRangePicker({
 					/>
 				</div>
 				<div className="flex items-center justify-between gap-3 border-t pt-4">
-					<Button
-						className="cursor-pointer"
-						onClick={() => {
-							setActiveBoundary(undefined);
-							setDraftRange({});
-							setRangeStart(undefined);
-						}}
-						size="sm"
-						type="button"
-						variant="outline"
-					>
+					<Button className="cursor-pointer" onClick={handleClear} size="sm" type="button" variant="outline">
 						Limpar
 					</Button>
 					<Button className="cursor-pointer" onClick={handleApply} size="sm" type="button">
