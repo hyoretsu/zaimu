@@ -2,7 +2,9 @@ import { addMonths, format, isValid, parseISO, startOfMonth, subMonths } from "d
 import { useState } from "react";
 import { LuCalendarDays, LuChevronLeft, LuChevronRight } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/Dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 import { CalendarMonth } from "./DateRangePicker/CalendarMonth";
 import { MonthYearPicker } from "./DateRangePicker/MonthYearPicker";
@@ -46,6 +48,7 @@ export function DateField({
 	const selectedDate = toDate(value);
 	const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(selectedDate ?? new Date()));
 	const hasDescription = Boolean(description || error);
+	const isMobile = useMediaQuery("(max-width: 639px)");
 
 	const handleOpenChange = (nextOpen: boolean) => {
 		if (nextOpen) setVisibleMonth(startOfMonth(selectedDate ?? new Date()));
@@ -57,6 +60,85 @@ export function DateField({
 		onValueChange(nextValue);
 		setOpen(false);
 	};
+	const trigger = (
+		<Button
+			aria-describedby={hasDescription ? `${id}-description` : undefined}
+			aria-invalid={Boolean(error)}
+			className={cn(
+				"h-9 w-full cursor-pointer justify-between rounded-4xl border-input bg-input/30 px-3 py-1 text-left font-normal text-sm hover:bg-input/50 disabled:cursor-not-allowed",
+				!selectedDate && "text-muted-foreground",
+				className,
+			)}
+			disabled={disabled}
+			id={id}
+			type="button"
+			variant="outline"
+		>
+			<span>{selectedDate ? format(selectedDate, "dd/MM/yyyy") : placeholder}</span>
+			<LuCalendarDays className="size-4 shrink-0" />
+		</Button>
+	);
+	const calendar = (
+		<>
+			<div className="flex items-center justify-between">
+				<Button
+					aria-label="Mês anterior"
+					className="cursor-pointer"
+					onClick={() => setVisibleMonth(month => subMonths(month, 1))}
+					size="icon-sm"
+					type="button"
+					variant="outline"
+				>
+					<LuChevronLeft />
+				</Button>
+				<Button
+					className="cursor-pointer"
+					onClick={() => setVisibleMonth(startOfMonth(new Date()))}
+					size="sm"
+					type="button"
+					variant="outline"
+				>
+					Hoje
+				</Button>
+				<Button
+					aria-label="Próximo mês"
+					className="cursor-pointer"
+					onClick={() => setVisibleMonth(month => addMonths(month, 1))}
+					size="icon-sm"
+					type="button"
+					variant="outline"
+				>
+					<LuChevronRight />
+				</Button>
+			</div>
+			<MonthYearPicker month={visibleMonth} onMonthChange={setVisibleMonth} />
+			<CalendarMonth
+				activeBoundary="start"
+				month={visibleMonth}
+				onDateHover={() => undefined}
+				onDateSelect={selectDate}
+				startDate={selectedDate}
+			/>
+			<div className="flex justify-between border-t pt-4">
+				<Button
+					className="cursor-pointer"
+					disabled={!value}
+					onClick={() => {
+						onValueChange("");
+						setOpen(false);
+					}}
+					size="sm"
+					type="button"
+					variant="outline"
+				>
+					Limpar
+				</Button>
+				<Button className="cursor-pointer" onClick={() => selectDate(new Date())} size="sm" type="button">
+					Selecionar
+				</Button>
+			</div>
+		</>
+	);
 
 	return (
 		<div className="grid content-start gap-2">
@@ -66,85 +148,26 @@ export function DateField({
 				</span>
 			</Label>
 			<input autoComplete={autoComplete} name={name} readOnly type="hidden" value={value} />
-			<Popover onOpenChange={handleOpenChange} open={open}>
-				<PopoverTrigger asChild>
-					<Button
-						aria-describedby={hasDescription ? `${id}-description` : undefined}
-						aria-invalid={Boolean(error)}
-						className={cn(
-							"h-9 w-full cursor-pointer justify-between rounded-4xl border-input bg-input/30 px-3 py-1 text-left font-normal text-sm hover:bg-input/50 disabled:cursor-not-allowed",
-							!selectedDate && "text-muted-foreground",
-							className,
-						)}
-						disabled={disabled}
-						id={id}
-						type="button"
-						variant="outline"
+			{isMobile ? (
+				<Dialog onOpenChange={handleOpenChange} open={open}>
+					<DialogTrigger asChild>{trigger}</DialogTrigger>
+					<DialogContent
+						className="w-[20rem] gap-4 rounded-2xl p-4"
+						overlayClassName="bg-transparent backdrop-blur-none"
+						showCloseButton={false}
 					>
-						<span>{selectedDate ? format(selectedDate, "dd/MM/yyyy") : placeholder}</span>
-						<LuCalendarDays className="size-4 shrink-0" />
-					</Button>
-				</PopoverTrigger>
-				<PopoverContent align="start" className="w-[20rem] gap-4 p-4">
-					<div className="flex items-center justify-between">
-						<Button
-							aria-label="Mês anterior"
-							className="cursor-pointer"
-							onClick={() => setVisibleMonth(month => subMonths(month, 1))}
-							size="icon-sm"
-							type="button"
-							variant="outline"
-						>
-							<LuChevronLeft />
-						</Button>
-						<Button
-							className="cursor-pointer"
-							onClick={() => setVisibleMonth(startOfMonth(new Date()))}
-							size="sm"
-							type="button"
-							variant="outline"
-						>
-							Hoje
-						</Button>
-						<Button
-							aria-label="Próximo mês"
-							className="cursor-pointer"
-							onClick={() => setVisibleMonth(month => addMonths(month, 1))}
-							size="icon-sm"
-							type="button"
-							variant="outline"
-						>
-							<LuChevronRight />
-						</Button>
-					</div>
-					<MonthYearPicker month={visibleMonth} onMonthChange={setVisibleMonth} />
-					<CalendarMonth
-						activeBoundary="start"
-						month={visibleMonth}
-						onDateHover={() => undefined}
-						onDateSelect={selectDate}
-						startDate={selectedDate}
-					/>
-					<div className="flex justify-between border-t pt-4">
-						<Button
-							className="cursor-pointer"
-							disabled={!value}
-							onClick={() => {
-								onValueChange("");
-								setOpen(false);
-							}}
-							size="sm"
-							type="button"
-							variant="outline"
-						>
-							Limpar
-						</Button>
-						<Button className="cursor-pointer" onClick={() => selectDate(new Date())} size="sm" type="button">
-							Selecionar
-						</Button>
-					</div>
-				</PopoverContent>
-			</Popover>
+						<DialogTitle className="sr-only">Selecionar data</DialogTitle>
+						{calendar}
+					</DialogContent>
+				</Dialog>
+			) : (
+				<Popover onOpenChange={handleOpenChange} open={open}>
+					<PopoverTrigger asChild>{trigger}</PopoverTrigger>
+					<PopoverContent align="start" className="w-[20rem] gap-4 p-4">
+						{calendar}
+					</PopoverContent>
+				</Popover>
+			)}
 			{hasDescription && (
 				<p
 					className={error ? "text-destructive text-xs" : "text-muted-foreground text-xs"}
