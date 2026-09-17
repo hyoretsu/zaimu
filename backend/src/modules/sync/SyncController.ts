@@ -166,6 +166,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 			const cardIds = new Set<string>();
 			const statementIds = new Set<string>();
 			const debtPersonIds = new Set<string>();
+			const syncedCreditPurchaseIds = new Map<string, string>();
 
 			const sync = async (
 				group: string,
@@ -595,75 +596,109 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				statementIds.add(id);
 			});
 
-			await sync("creditPurchases", body.creditPurchases, async entity => {
-				const id = value<string>(entity, "id");
-				const statementId = value<string>(entity, "statementId");
-				if (!statementIds.has(statementId)) throw new Error(`Fatura ${statementId} indisponível`);
-				const tagIds = entityTagIds(entity).filter(tagId => categoryIds.has(tagId));
-				const existing = await queryFirst(
-					db.sql.public.CreditPurchase.select("id")
-						.where((f, fn) => fn.eq(f.id, id))
-						.limit(1)
-						.build(),
-				);
-				const values = {
-					cashbackAccountId: value<string | undefined>(entity, "cashbackAccountId"),
-					cashbackAmount: nullableNumeric<18, 4>(
-						value<number | null | undefined>(entity, "cashbackAmount") ?? null,
-					),
-					cashbackYieldPeriod: value<"MONTHLY" | "YEARLY" | undefined>(entity, "cashbackYieldPeriod"),
-					cashbackYieldReferencePercentage: nullableNumeric<7, 4>(
-						value<number | null | undefined>(entity, "cashbackYieldReferencePercentage") ??
-							(value<number | null | undefined>(entity, "cashbackYieldRate") ? 100 : null),
-					),
-					cashbackYieldReferenceRate: nullableNumeric<7, 4>(
-						value<number | null | undefined>(entity, "cashbackYieldReferenceRate") ??
-							value<number | null | undefined>(entity, "cashbackYieldRate") ??
-							null,
-					),
-					categoryId: tagIds[0],
-					currentInstallment: Number(value<number>(entity, "currentInstallment") ?? 1),
-					description: value<string>(entity, "description"),
-					installmentAmount: String(value<number>(entity, "installmentAmount")),
-					installments: Number(value<number>(entity, "installments") ?? 1),
-					isRefund: value<boolean>(entity, "isRefund") ?? false,
-					parentId: value<string | undefined>(entity, "parentId"),
-					purchaseDate: new Date(value<string>(entity, "purchaseDate")),
-					refundOfPurchaseId: value<string | undefined>(entity, "refundOfPurchaseId"),
-					statementId,
-					storeName: value<string | undefined>(entity, "storeName"),
-					totalAmount: String(value<number>(entity, "totalAmount")),
-					updatedAt: new Date(),
-				};
-				if (existing)
-					await executeStatement(
-						db.sql.public.CreditPurchase.update(values)
-							.where((f, fn) => fn.and(fn.eq(f.id, id), fn.in(f.statementId, [...statementIds])))
+			await sync(
+				"creditPurchases",
+				body.creditPurchases?.toSorted(
+					(left, right) =>
+						Number(Boolean(value<string | undefined>(left, "parentId"))) -
+						Number(Boolean(value<string | undefined>(right, "parentId"))),
+				),
+				async entity => {
+					const importedId = value<string>(entity, "id");
+					const statementId = value<string>(entity, "statementId");
+					if (!statementIds.has(statementId)) throw new Error(`Fatura ${statementId} indisponível`);
+					const tagIds = entityTagIds(entity).filter(tagId => categoryIds.has(tagId));
+					const currentInstallment = Number(value<number>(entity, "currentInstallment") ?? 1);
+					const importedParentId = value<string | undefined>(entity, "parentId");
+					const parentId = importedParentId
+						? (syncedCreditPurchaseIds.get(importedParentId) ?? importedParentId)
+						: undefined;
+					let existing = await queryFirst(
+						db.sql.public.CreditPurchase.select("id")
+							.where((f, fn) => fn.eq(f.id, importedId))
+							.limit(1)
 							.build(),
 					);
-				else await executeStatement(db.sql.public.CreditPurchase.insert([{ ...values, id }]).build());
-				await replaceEntityTags({
-					entityIds: [id],
-					entityType: tagEntityType.creditPurchase,
-					tagIds,
-				});
-				const debtPersonId = value<string | undefined>(entity, "debtPersonId");
-				if (debtPersonId && !debtPersonIds.has(debtPersonId))
-					throw new Error(`Pessoa da dívida ${debtPersonId} indisponível`);
-				if (Number(value<number>(entity, "currentInstallment") ?? 1) === 1)
-					await syncPurchaseDebtEvent({
-						creditPurchaseId: id,
-						date: value<string>(entity, "purchaseDate"),
-						...("debtSplit" in entity
-							? { debtSplit: value<DebtSplitInput | null>(entity, "debtSplit") }
-							: "debtPersonId" in entity
-								? { debtPersonId: debtPersonId ?? null }
-								: {}),
-						description: value<string | undefined>(entity, "description"),
-						totalAmount: Number(value<number>(entity, "totalAmount")),
-						userId,
+					if (!existing)
+						existing = await queryFirst(
+							db.sql.public.CreditPurchase.select("id")
+								.where((f, fn) =>
+									fn.and(
+										fn.eq(f.statementId, statementId),
+										fn.eq(f.currentInstallment, currentInstallment),
+										fn.eq(f.installments, Number(value<number>(entity, "installments") ?? 1)),
+										fn.eq(f.installmentAmount, String(value<number>(entity, "installmentAmount"))),
+										fn.eq(f.totalAmount, String(value<number>(entity, "totalAmount"))),
+										fn.eq(f.purchaseDate, new Date(value<string>(entity, "purchaseDate"))),
+										fn.eq(f.description, value<string>(entity, "description")),
+										fn.eq(f.storeName, value<string | null | undefined>(entity, "storeName") ?? null),
+										fn.eq(f.parentId, parentId ?? null),
+									),
+								)
+								.limit(1)
+								.build(),
+						);
+					const id = existing?.id ?? importedId;
+					syncedCreditPurchaseIds.set(importedId, id);
+					const values = {
+						cashbackAccountId: value<string | undefined>(entity, "cashbackAccountId"),
+						cashbackAmount: nullableNumeric<18, 4>(
+							value<number | null | undefined>(entity, "cashbackAmount") ?? null,
+						),
+						cashbackYieldPeriod: value<"MONTHLY" | "YEARLY" | undefined>(entity, "cashbackYieldPeriod"),
+						cashbackYieldReferencePercentage: nullableNumeric<7, 4>(
+							value<number | null | undefined>(entity, "cashbackYieldReferencePercentage") ??
+								(value<number | null | undefined>(entity, "cashbackYieldRate") ? 100 : null),
+						),
+						cashbackYieldReferenceRate: nullableNumeric<7, 4>(
+							value<number | null | undefined>(entity, "cashbackYieldReferenceRate") ??
+								value<number | null | undefined>(entity, "cashbackYieldRate") ??
+								null,
+						),
+						categoryId: tagIds[0],
+						currentInstallment,
+						description: value<string>(entity, "description"),
+						installmentAmount: String(value<number>(entity, "installmentAmount")),
+						installments: Number(value<number>(entity, "installments") ?? 1),
+						isRefund: value<boolean>(entity, "isRefund") ?? false,
+						parentId,
+						purchaseDate: new Date(value<string>(entity, "purchaseDate")),
+						refundOfPurchaseId: value<string | undefined>(entity, "refundOfPurchaseId"),
+						statementId,
+						storeName: value<string | undefined>(entity, "storeName"),
+						totalAmount: String(value<number>(entity, "totalAmount")),
+						updatedAt: new Date(),
+					};
+					if (existing)
+						await executeStatement(
+							db.sql.public.CreditPurchase.update(values)
+								.where((f, fn) => fn.and(fn.eq(f.id, id), fn.in(f.statementId, [...statementIds])))
+								.build(),
+						);
+					else await executeStatement(db.sql.public.CreditPurchase.insert([{ ...values, id }]).build());
+					await replaceEntityTags({
+						entityIds: [id],
+						entityType: tagEntityType.creditPurchase,
+						tagIds,
 					});
-			});
+					const debtPersonId = value<string | undefined>(entity, "debtPersonId");
+					if (debtPersonId && !debtPersonIds.has(debtPersonId))
+						throw new Error(`Pessoa da dívida ${debtPersonId} indisponível`);
+					if (currentInstallment === 1)
+						await syncPurchaseDebtEvent({
+							creditPurchaseId: id,
+							date: value<string>(entity, "purchaseDate"),
+							...("debtSplit" in entity
+								? { debtSplit: value<DebtSplitInput | null>(entity, "debtSplit") }
+								: "debtPersonId" in entity
+									? { debtPersonId: debtPersonId ?? null }
+									: {}),
+							description: value<string | undefined>(entity, "description"),
+							totalAmount: Number(value<number>(entity, "totalAmount")),
+							userId,
+						});
+				},
+			);
 
 			await sync("debts", body.debts, async entity => {
 				const id = value<string>(entity, "id");
@@ -909,12 +944,30 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				if (salaryId && !salaryIds.has(salaryId)) throw new Error(`Salário ${salaryId} indisponível`);
 				if (subscriptionId && !subscriptionIds.has(subscriptionId))
 					throw new Error(`Assinatura ${subscriptionId} indisponível`);
-				const existing = await queryFirst(
+				let existing = await queryFirst(
 					db.sql.public.Transaction.select("id")
 						.where((f, fn) => fn.eq(f.id, id))
 						.limit(1)
 						.build(),
 				);
+				if (!existing)
+					existing = await queryFirst(
+						db.sql.public.Transaction.select("id")
+							.where((f, fn) =>
+								fn.and(
+									fn.eq(f.amount, String(value<number>(entity, "amount"))),
+									fn.eq(f.date, new Date(value<string>(entity, "date"))),
+									fn.eq(f.description, value<string | null | undefined>(entity, "description") ?? null),
+									fn.eq(f.destinationFinancialAccountId, destinationFinancialAccountId ?? null),
+									fn.eq(f.originFinancialAccountId, originFinancialAccountId ?? null),
+									fn.eq(f.storeName, value<string | null | undefined>(entity, "storeName") ?? null),
+									fn.eq(f.type, value<"EXPENSE" | "INCOME" | "TRANSFER">(entity, "type") ?? "EXPENSE"),
+								),
+							)
+							.limit(1)
+							.build(),
+					);
+				const transactionId = existing?.id ?? id;
 				const tagIds = entityTagIds(entity).filter(tagId => categoryIds.has(tagId));
 				if (!existing) {
 					await executeStatement(
@@ -941,7 +994,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 					);
 				}
 				await replaceEntityTags({
-					entityIds: [id],
+					entityIds: [transactionId],
 					entityType: tagEntityType.transaction,
 					tagIds,
 				});
@@ -957,7 +1010,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 							? { debtPersonId: debtPersonId ?? null }
 							: {}),
 					description: value<string | undefined>(entity, "description"),
-					transactionId: id,
+					transactionId,
 					type: value<"EXPENSE" | "INCOME" | "TRANSFER">(entity, "type") ?? "EXPENSE",
 					userId,
 				});
