@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { LuChevronDown, LuPlus, LuTags } from "react-icons/lu";
-import { Badge } from "@/components/ui/Badge";
+import { AppBadge } from "@/components/ui/AppBadge";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { Input } from "@/components/ui/Input";
@@ -79,14 +79,14 @@ export function TagPicker({
 						<span className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 text-left">
 							{selectedTags.length ? (
 								selectedTags.map(tag => (
-									<Badge className="max-w-40" key={tag.id} variant="secondary">
+									<AppBadge className="max-w-40" key={tag.id} variant="secondary">
 										<span
 											aria-hidden="true"
 											className="size-2 shrink-0 rounded-full"
 											style={{ backgroundColor: tag.color || "var(--primary)" }}
 										/>
 										<span className="truncate">{tag.name}</span>
-									</Badge>
+									</AppBadge>
 								))
 							) : (
 								<span className="flex items-center gap-2 text-muted-foreground">

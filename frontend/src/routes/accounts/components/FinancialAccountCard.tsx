@@ -11,7 +11,7 @@ import {
 	LuWallet,
 } from "react-icons/lu";
 import { ImportTransactionsDialog, TransactionImportReviewDialog } from "@/components/transaction-imports";
-import { Badge } from "@/components/ui/Badge";
+import { AppBadge } from "@/components/ui/AppBadge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
@@ -69,9 +69,9 @@ export function FinancialAccountCard({
 					<div className="min-w-0">
 						<h2 className="break-words font-bold text-base leading-snug">{listName}</h2>
 						{accountHasCustomTitle && (
-							<Badge className="mt-1" variant="secondary">
+							<AppBadge className="mt-1" variant="secondary">
 								{typeLabel}
-							</Badge>
+							</AppBadge>
 						)}
 					</div>
 				</div>

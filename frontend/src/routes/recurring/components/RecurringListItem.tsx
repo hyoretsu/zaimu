@@ -1,7 +1,7 @@
 import { HiArrowDown, HiArrowUp, HiCheck, HiPause, HiPencil, HiPlay, HiTrash } from "react-icons/hi2";
 import { TransactionListItem } from "@/components/transactions";
 import type { ItemAction } from "@/components/transactions/TransactionListItem/ItemActions";
-import { Badge } from "@/components/ui/Badge";
+import { AppBadge } from "@/components/ui/AppBadge";
 import type { Transaction } from "@/lib/api";
 import { formatLocalDate } from "@/lib/date";
 import { frequencyLabels, paymentMethodLabels, sourceLabels } from "./constants";
@@ -109,9 +109,9 @@ export function RecurringListItem({
 			title={
 				<div className="flex min-w-0 flex-wrap items-center gap-2">
 					<p className="min-w-0 flex-1 truncate font-semibold leading-6">{item.title}</p>
-					<Badge variant="outline">{sourceLabels[item.source]}</Badge>
-					{!item.active && <Badge variant="secondary">Pausada</Badge>}
-					{hasEnded && <Badge variant="secondary">Encerrada</Badge>}
+					<AppBadge variant="outline">{sourceLabels[item.source]}</AppBadge>
+					{!item.active && <AppBadge variant="secondary">Pausada</AppBadge>}
+					{hasEnded && <AppBadge variant="secondary">Encerrada</AppBadge>}
 				</div>
 			}
 			transaction={transaction}

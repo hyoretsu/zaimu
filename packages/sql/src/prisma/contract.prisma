@@ -275,6 +275,7 @@ namespace public {
     totalAmount     Numeric(12, 2)   @default(dbgenerated("0"))
     paidAmount      Numeric(12, 2)   @default(dbgenerated("0"))
     isPaid          Boolean          @default(false)
+    isFullySynced   Boolean          @default(false)
     createdAt       Timestamp(3)     @default(now())
     updatedAt       Timestamp(3)     @default(now())
     creditPurchases CreditPurchase[]

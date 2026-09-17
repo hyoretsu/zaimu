@@ -36,6 +36,7 @@ const statementColumns = [
 	"totalAmount",
 	"paidAmount",
 	"isPaid",
+	"isFullySynced",
 	"createdAt",
 	"updatedAt",
 ] as const;

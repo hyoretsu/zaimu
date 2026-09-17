@@ -128,6 +128,41 @@ async function getImport(userId: string, importId: string) {
 	return creditCardImport;
 }
 
+async function markStatementAsFullySynced({
+	creditCardId,
+	dueDate,
+	statementDate,
+}: {
+	creditCardId: string;
+	dueDate: Date;
+	statementDate: Date;
+}) {
+	const statement = await queryFirst(
+		db.sql.public.CreditCardStatement.select("id")
+			.where((fields, functions) =>
+				functions.and(
+					functions.eq(fields.creditCardId, creditCardId),
+					functions.eq(fields.statementDate, statementDate),
+				),
+			)
+			.limit(1)
+			.build(),
+	);
+	if (statement) {
+		await executeStatement(
+			db.sql.public.CreditCardStatement.update({ isFullySynced: true, updatedAt: new Date() })
+				.where((fields, functions) => functions.eq(fields.id, statement.id))
+				.build(),
+		);
+		return;
+	}
+	await executeStatement(
+		db.sql.public.CreditCardStatement.insert([
+			{ creditCardId, dueDate, isFullySynced: true, statementDate, totalAmount: "0" },
+		]).build(),
+	);
+}
+
 async function getImportReturn(userId: string, importId: string) {
 	const creditCardImport = await getImport(userId, importId);
 	const items = await queryRows(
@@ -313,12 +348,14 @@ async function approveItems(userId: string, importId: string, itemId?: string) {
 			.limit(1)
 			.build(),
 	);
-	if (!remaining)
+	if (!remaining) {
 		await executeStatement(
 			db.sql.public.CreditCardImport.update({ status: "APPROVED", updatedAt: new Date() })
 				.where((fields, functions) => functions.eq(fields.id, importId))
 				.build(),
 		);
+		await markStatementAsFullySynced(creditCardImport);
+	}
 	return { created: selectedItems.length };
 }
 
@@ -395,7 +432,14 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 			);
 			const newPurchases = purchases.filter(purchase => !existingIds.has(purchase.externalId));
 			const ignoredCount = purchases.length - newPurchases.length;
-			if (!newPurchases.length) return { creditCardImport: null, ignoredCount };
+			if (!newPurchases.length) {
+				await markStatementAsFullySynced({
+					creditCardId: body.creditCardId,
+					dueDate: new Date(`${statement.dueDate}T12:00:00`),
+					statementDate: new Date(`${statement.statementDate}T12:00:00`),
+				});
+				return { creditCardImport: null, ignoredCount };
+			}
 			const creditCardImport = await queryFirst(
 				db.sql.public.CreditCardImport.insert([
 					{

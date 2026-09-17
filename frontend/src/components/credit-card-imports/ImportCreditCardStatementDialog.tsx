@@ -22,7 +22,7 @@ import {
 	getCreditCardStatementPdfPasswordConfiguration,
 } from "@/lib/credit-card-imports";
 import { dataService } from "@/lib/dataService";
-import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 
 export function ImportCreditCardStatementDialog({
@@ -66,7 +66,8 @@ export function ImportCreditCardStatementDialog({
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async result => {
 			if (!result.creditCardImport) {
-				showToast("Nenhuma compra nova encontrada na fatura.", "info");
+				await invalidateCacheOperation(queryClient, identity!, "statement");
+				showToast("Fatura sincronizada por completo.", "positive");
 				onOpenChange(false);
 				return;
 			}

@@ -1,0 +1,36 @@
+[
+	{
+		"execute": [
+			{
+				"description": "add column \"isFullySynced\"",
+				"sql": "ALTER TABLE \"public\".\"CreditCardStatement\" ADD COLUMN \"isFullySynced\" bool DEFAULT false NOT NULL"
+			}
+		],
+		"id": "column.public.CreditCardStatement.isFullySynced",
+		"label": "Add column \"isFullySynced\" to \"CreditCardStatement\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"isFullySynced\" exists",
+				"params": ["public", "CreditCardStatement", "isFullySynced"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"isFullySynced\" is missing",
+				"params": ["public", "CreditCardStatement", "isFullySynced"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "isFullySynced",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditCardStatement"
+			},
+			"id": "postgres"
+		}
+	}
+]

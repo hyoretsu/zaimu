@@ -1,7 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { LuCalendarCheck, LuCalendarClock, LuCircleCheck, LuClock3, LuReceiptText } from "react-icons/lu";
-import { Badge } from "@/components/ui/Badge";
+import {
+	LuCalendarCheck,
+	LuCalendarClock,
+	LuCircleCheck,
+	LuClock3,
+	LuCloudDownload,
+	LuReceiptText,
+} from "react-icons/lu";
+import { AppBadge } from "@/components/ui/AppBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -123,15 +130,23 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 						{formatLocalDate(statement.statementDate, { month: "long", year: "numeric" })}
 					</h3>
 				</div>
-				<div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t pt-2">
+				<div className="grid gap-2 border-t pt-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-3">
 					<div>
 						<p className="text-muted-foreground text-xs">Saldo da fatura</p>
 						<strong className="text-base sm:text-lg">{currency.format(statement.balanceAmount)}</strong>
 					</div>
-					<Badge className="shrink-0" variant={statement.isPaid ? "secondary" : "outline"}>
-						{statement.isPaid ? <LuCircleCheck /> : <LuClock3 />}
-						{statement.isPaid ? "Paga" : "Em aberto"}
-					</Badge>
+					<div className="flex flex-wrap gap-2 sm:justify-end">
+						{statement.isFullySynced && (
+							<AppBadge variant="outline">
+								<LuCloudDownload aria-hidden="true" className="text-emerald-600" />
+								<span>Sincronizada</span>
+							</AppBadge>
+						)}
+						<AppBadge className="shrink-0" variant={statement.isPaid ? "secondary" : "outline"}>
+							{statement.isPaid ? <LuCircleCheck /> : <LuClock3 />}
+							{statement.isPaid ? "Paga" : "Em aberto"}
+						</AppBadge>
+					</div>
 				</div>
 				<div className="grid grid-cols-2 gap-2 border-t pt-2">
 					<div className="min-w-0">

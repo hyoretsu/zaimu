@@ -556,6 +556,7 @@ export interface CreditCardStatement {
 	totalAmount: number;
 	paidAmount: number;
 	isPaid: boolean;
+	isFullySynced?: boolean;
 	isForecast?: boolean;
 }
 

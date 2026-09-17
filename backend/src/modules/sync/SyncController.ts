@@ -106,6 +106,7 @@ const statementColumns = [
 	"totalAmount",
 	"paidAmount",
 	"isPaid",
+	"isFullySynced",
 	"createdAt",
 	"updatedAt",
 ] as const;
@@ -572,7 +573,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				const creditCardId = value<string>(entity, "creditCardId");
 				if (!cardIds.has(creditCardId)) throw new Error(`Cartão ${creditCardId} indisponível`);
 				const existing = await queryFirst(
-					db.sql.public.CreditCardStatement.select("id")
+					db.sql.public.CreditCardStatement.select("id", "isFullySynced")
 						.where((f, fn) => fn.eq(f.id, id))
 						.limit(1)
 						.build(),
@@ -580,6 +581,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				const values = {
 					creditCardId,
 					dueDate: new Date(value<string>(entity, "dueDate")),
+					isFullySynced: value<boolean>(entity, "isFullySynced") ?? existing?.isFullySynced ?? false,
 					isPaid: value<boolean>(entity, "isPaid") ?? false,
 					paidAmount: String(value<number>(entity, "paidAmount") ?? 0),
 					statementDate: new Date(value<string>(entity, "statementDate")),

@@ -1,6 +1,6 @@
 import { type SyntheticEvent, useState } from "react";
 import { LuLandmark, LuPencil, LuTrash2, LuWalletCards } from "react-icons/lu";
-import { Badge } from "@/components/ui/Badge";
+import { AppBadge } from "@/components/ui/AppBadge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import {
@@ -59,9 +59,9 @@ export function FinancialInstitutionGroup({
 					<div className="min-w-0">
 						<div className="flex flex-wrap items-center gap-2">
 							<h2 className="truncate font-bold text-lg">{institution?.name ?? "Sem instituição"}</h2>
-							<Badge variant="secondary">
+							<AppBadge variant="secondary">
 								{accounts.length} {accounts.length === 1 ? "produto" : "produtos"}
-							</Badge>
+							</AppBadge>
 						</div>
 						<p className="mt-0.5 text-muted-foreground text-sm">
 							Saldo consolidado: <strong className="text-foreground">{currency.format(balance)}</strong>

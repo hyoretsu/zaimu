@@ -7,7 +7,7 @@ import {
 	LuStore,
 	LuUsersRound,
 } from "react-icons/lu";
-import { Badge } from "@/components/ui/Badge";
+import { AppBadge } from "@/components/ui/AppBadge";
 import type { FinancialAccount, Tag } from "@/lib/api";
 import { formatLocalMonthYear } from "@/lib/date";
 import { getTransactionAccountTypeLabel } from "@/lib/financial-account";
@@ -18,8 +18,6 @@ export interface TransactionBadgeAccount {
 	rewardsKind?: "CASHBACK" | "POINTS";
 	type?: FinancialAccount["type"];
 }
-
-const transactionAttributeBadgeClass = "h-7 max-w-full gap-1.5 px-2.5 font-normal";
 
 export function TransactionBadges({
 	accounts,
@@ -43,7 +41,7 @@ export function TransactionBadges({
 					{index > 0 ? (
 						<LuArrowRight aria-hidden="true" className="size-3 shrink-0 text-muted-foreground" />
 					) : null}
-					<Badge className="h-7 max-w-full gap-1.5 px-2.5 font-normal" variant="outline">
+					<AppBadge variant="outline">
 						{account.type === "CREDIT_CARD" ? (
 							<LuCreditCard aria-hidden="true" />
 						) : (
@@ -55,70 +53,70 @@ export function TransactionBadges({
 							</span>{" "}
 							{account.name}
 						</span>
-					</Badge>
+					</AppBadge>
 				</li>
 			))}
 			{creditCardPayment ? (
 				<>
 					<li className="min-w-0">
-						<Badge className="h-7 max-w-full gap-1.5 px-2.5 font-normal" variant="outline">
+						<AppBadge variant="outline">
 							<LuCreditCard aria-hidden="true" />
 							<span className="min-w-0 truncate">
 								<span className="text-muted-foreground">Cartão</span> {creditCardPayment.cardName}
 							</span>
-						</Badge>
+						</AppBadge>
 					</li>
 					{creditCardPayment.statementDate ? (
 						<li className="min-w-0">
-							<Badge className="h-7 max-w-full gap-1.5 px-2.5 font-normal" variant="outline">
+							<AppBadge variant="outline">
 								<LuReceiptText aria-hidden="true" />
 								<span className="min-w-0 truncate">
 									<span className="text-muted-foreground">Fatura</span>{" "}
 									{formatLocalMonthYear(creditCardPayment.statementDate)}
 								</span>
-							</Badge>
+							</AppBadge>
 						</li>
 					) : null}
 				</>
 			) : null}
 			{storeName ? (
 				<li className="min-w-0">
-					<Badge className={transactionAttributeBadgeClass} variant="outline">
+					<AppBadge variant="outline">
 						<LuStore aria-hidden="true" />
 						<span className="min-w-0 truncate">
 							<span className="text-muted-foreground">Loja</span> {storeName}
 						</span>
-					</Badge>
+					</AppBadge>
 				</li>
 			) : null}
 			{debtPersonName ? (
 				<li className="min-w-0">
-					<Badge className={transactionAttributeBadgeClass} variant="outline">
+					<AppBadge variant="outline">
 						<LuUsersRound aria-hidden="true" />
 						<span className="truncate">
 							<span className="text-muted-foreground">Dívida</span> {debtPersonName}
 						</span>
-					</Badge>
+					</AppBadge>
 				</li>
 			) : null}
 			{isSynced ? (
 				<li>
-					<Badge className={transactionAttributeBadgeClass} variant="outline">
+					<AppBadge variant="outline">
 						<LuCloudDownload aria-hidden="true" className="text-emerald-600" />
 						<span>Sincronizada</span>
-					</Badge>
+					</AppBadge>
 				</li>
 			) : null}
 			{tags?.map(tag => (
 				<li className="min-w-0" key={tag.id}>
-					<Badge className={transactionAttributeBadgeClass} variant="outline">
+					<AppBadge variant="outline">
 						<span
 							aria-hidden="true"
 							className="size-2 shrink-0 rounded-full"
 							style={{ backgroundColor: tag.color || "var(--primary)" }}
 						/>
 						<span className="truncate">{tag.name}</span>
-					</Badge>
+					</AppBadge>
 				</li>
 			))}
 		</ul>

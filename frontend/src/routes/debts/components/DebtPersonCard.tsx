@@ -8,7 +8,7 @@ import {
 	LuUsersRound,
 	LuWalletCards,
 } from "react-icons/lu";
-import { Badge } from "@/components/ui/Badge";
+import { AppBadge } from "@/components/ui/AppBadge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import type { DebtEvent, DebtPerson } from "@/lib/api";
@@ -38,8 +38,10 @@ export function DebtPersonCard({
 				<div className="min-w-0 flex-1">
 					<div className="flex flex-wrap items-center gap-2">
 						<h2 className="truncate font-semibold">{person.name}</h2>
-						{person.isZaimuUser ? <Badge variant="secondary">Zaimu</Badge> : null}
-						{person.connectionStatus === "PENDING" ? <Badge variant="outline">Convite pendente</Badge> : null}
+						{person.isZaimuUser ? <AppBadge variant="secondary">Zaimu</AppBadge> : null}
+						{person.connectionStatus === "PENDING" ? (
+							<AppBadge variant="outline">Convite pendente</AppBadge>
+						) : null}
 					</div>
 					<p className="text-muted-foreground text-sm">
 						{person.balance > 0 ? "Deve a você" : person.balance < 0 ? "Você deve" : "Saldo quitado"}
