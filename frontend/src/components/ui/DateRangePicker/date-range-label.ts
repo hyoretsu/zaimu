@@ -4,7 +4,7 @@ import type { DateRangeValue } from "./types";
 
 export function formatDateRange({ endDate, startDate }: DateRangeValue) {
 	if (startDate && endDate) {
-		if (startDate === endDate) return formatBoundary(startDate);
+		if (startDate === endDate) return formatCompactDate(startDate);
 		return (
 			formatCompletePeriod(startDate, endDate) ?? `${formatBoundary(startDate)} — ${formatBoundary(endDate)}`
 		);
@@ -36,4 +36,8 @@ function formatCompletePeriod(startDate: string, endDate: string) {
 
 function formatBoundary(value: string) {
 	return format(parseISO(value), "dd MMM yyyy", { locale: ptBR });
+}
+
+function formatCompactDate(value: string) {
+	return format(parseISO(value), "dd/MM/yyyy");
 }

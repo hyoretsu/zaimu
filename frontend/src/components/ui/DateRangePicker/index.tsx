@@ -92,7 +92,7 @@ export function DateRangePicker({
 			<PopoverTrigger asChild>
 				<Button className={cn("min-w-60 cursor-pointer justify-start", className)} variant="outline">
 					<LuCalendarDays />
-					<span className="min-w-0 truncate">{triggerLabel ?? formatDateRange(value)}</span>
+					<span>{triggerLabel ?? formatDateRange(value)}</span>
 				</Button>
 			</PopoverTrigger>
 			<PopoverContent align="end" className="w-[22rem] gap-5 p-4">
