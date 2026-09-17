@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { cn } from "@/lib/utils";
 import { CalendarMonth } from "./DateRangePicker/CalendarMonth";
+import { MonthYearPicker } from "./DateRangePicker/MonthYearPicker";
 import { Label } from "./Label";
 import { RequiredMark } from "./RequiredMark";
 
@@ -116,6 +117,7 @@ export function DateField({
 							<LuChevronRight />
 						</Button>
 					</div>
+					<MonthYearPicker month={visibleMonth} onMonthChange={setVisibleMonth} />
 					<CalendarMonth
 						activeBoundary="start"
 						month={visibleMonth}
@@ -138,7 +140,7 @@ export function DateField({
 							Limpar
 						</Button>
 						<Button className="cursor-pointer" onClick={() => selectDate(new Date())} size="sm" type="button">
-							Selecionar hoje
+							Selecionar
 						</Button>
 					</div>
 				</PopoverContent>

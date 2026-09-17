@@ -15,6 +15,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip
 import { cn } from "@/lib/utils";
 import { CalendarMonth } from "./CalendarMonth";
 import { formatDateRange } from "./date-range-label";
+import { MonthYearPicker } from "./MonthYearPicker";
 import { type DateRangeBoundary, selectDateRangeBoundary, selectDateRangePair } from "./range-selection";
 import type { DateRangeValue } from "./types";
 
@@ -180,6 +181,7 @@ export function DateRangePicker({
 						<TooltipContent>Próximo mês</TooltipContent>
 					</Tooltip>
 				</div>
+				<MonthYearPicker month={visibleMonth} onMonthChange={setVisibleMonth} />
 				<div onMouseLeave={() => setHoveredDate(undefined)}>
 					<CalendarMonth
 						activeBoundary={activeBoundary ?? "end"}
