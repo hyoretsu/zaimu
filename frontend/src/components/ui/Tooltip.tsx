@@ -18,6 +18,7 @@ function TooltipTrigger({ ...props }: ComponentProps<typeof TooltipPrimitive.Tri
 function TooltipContent({
 	className,
 	sideOffset = 0,
+	sticky = "always",
 	children,
 	...props
 }: ComponentProps<typeof TooltipPrimitive.Content>) {
@@ -31,6 +32,7 @@ function TooltipContent({
 				collisionPadding={16}
 				data-slot="tooltip-content"
 				sideOffset={sideOffset}
+				sticky={sticky}
 				{...props}
 			>
 				{children}

@@ -15,6 +15,7 @@ function PopoverContent({
 	align = "center",
 	portal = true,
 	sideOffset = 4,
+	sticky = "always",
 	...props
 }: ComponentProps<typeof PopoverPrimitive.Content> & { portal?: boolean }) {
 	const content = (
@@ -27,6 +28,7 @@ function PopoverContent({
 			collisionPadding={16}
 			data-slot="popover-content"
 			sideOffset={sideOffset}
+			sticky={sticky}
 			{...props}
 		/>
 	);

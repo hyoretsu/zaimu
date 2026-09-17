@@ -53,6 +53,7 @@ function SelectContent({
 	children,
 	position = "item-aligned",
 	align = "center",
+	sticky = "always",
 	...props
 }: ComponentProps<typeof SelectPrimitive.Content>) {
 	return (
@@ -69,6 +70,7 @@ function SelectContent({
 				data-align-trigger={position === "item-aligned"}
 				data-slot="select-content"
 				position={position}
+				sticky={sticky}
 				{...props}
 			>
 				<SelectScrollUpButton />
