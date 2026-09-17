@@ -65,11 +65,7 @@ export function EditCreditPurchaseDialog({
 	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>(() => debtSplitToInput(purchase.debtSplit));
 	const [isDebt, setIsDebt] = useState(Boolean(purchase.debtSplit));
 	const [amount, setAmount] = useState(
-		String(
-			purchase.installments > 1
-				? purchase.installmentAmount
-				: purchase.totalAmount - (purchase.feeAmount ?? 0),
-		),
+		String(purchase.parentId ? purchase.installmentAmount : purchase.totalAmount - (purchase.feeAmount ?? 0)),
 	);
 	const [feeAmount, setFeeAmount] = useState(String(purchase.feeAmount ?? ""));
 	const [feeDescription, setFeeDescription] = useDebouncedInput(
@@ -96,7 +92,7 @@ export function EditCreditPurchaseDialog({
 	const purchaseAmount = Number(amount);
 	const totalAmount = purchaseAmount + Number(feeAmount || 0);
 	const installments = Number.parseInt(count, 10);
-	if (purchase.installments > 1)
+	if (purchase.parentId)
 		return (
 			<Dialog onOpenChange={onOpenChange} open={open}>
 				<DialogContent className="sm:max-w-md">

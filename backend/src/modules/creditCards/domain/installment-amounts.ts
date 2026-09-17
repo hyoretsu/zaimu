@@ -20,6 +20,37 @@ export function getEvenlyDistributedInstallmentAmounts(totalAmount: number, inst
 	return distributeCents(totalAmountInCents, installments).map(amountInCents => amountInCents / 100);
 }
 
+export function redistributeInstallmentAmounts(
+	totalAmount: number,
+	installments: Array<{
+		hasImportedAmount: boolean;
+		installmentAmount: number;
+		currentInstallment: number;
+	}>,
+) {
+	if (!installments.length) throw new RangeError("Parcelamento inválido");
+	const totalAmountInCents = toCents(totalAmount);
+	const importedAmountInCents = installments
+		.filter(installment => installment.hasImportedAmount)
+		.reduce((sum, installment) => sum + toCents(installment.installmentAmount), 0);
+	const adjustableInstallments = installments.filter(installment => !installment.hasImportedAmount);
+	if (!adjustableInstallments.length) {
+		if (importedAmountInCents !== totalAmountInCents)
+			throw new RangeError("O total não pode alterar parcelas importadas");
+		return installments.map(installment => installment.installmentAmount);
+	}
+	const adjustableAmountInCents = totalAmountInCents - importedAmountInCents;
+	if (adjustableAmountInCents < adjustableInstallments.length)
+		throw new RangeError("O total não comporta as parcelas ainda não importadas");
+	const adjustableAmounts = distributeCents(adjustableAmountInCents, adjustableInstallments.length);
+	let adjustableIndex = 0;
+	return installments.map(installment =>
+		installment.hasImportedAmount
+			? installment.installmentAmount
+			: adjustableAmounts[adjustableIndex++]! / 100,
+	);
+}
+
 export function getImportedInstallmentAmounts({
 	currentInstallment,
 	installmentAmount,

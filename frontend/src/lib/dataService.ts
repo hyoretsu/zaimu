@@ -1291,6 +1291,7 @@ export const dataService = {
 			if (!statement || statement.creditCardId !== cardId) throw new Error("Fatura não encontrada");
 			if (statement.isPaid) throw new Error("Compras de faturas pagas não podem ser editadas");
 			if ("installmentAmount" in data) {
+				if (!storedPurchase.data.parentId) throw new Error("Edite o valor total da compra pai");
 				if (storedPurchase.data.installments === 1)
 					throw new Error("A compra não possui parcelas para editar");
 				const rootPurchaseId = storedPurchase.data.parentId ?? storedPurchase.data.id;
@@ -1329,11 +1330,22 @@ export const dataService = {
 				]);
 				return updatedInstallments.find(installment => installment.id === storedPurchase.data.id)!;
 			}
+			if (storedPurchase.data.parentId)
+				throw new Error("Parcelas específicas permitem editar somente o valor");
 			const targetCardId = data.creditCardId ?? cardId;
 			const targetCard = (await localCreditCards.getById(targetCardId))?.data;
 			if (!targetCard) throw new Error("Cartão não encontrado");
 			const installments = Math.max(1, data.installments);
-			const installmentAmount = data.totalAmount / installments;
+			if (storedPurchase.data.installments > 1 && installments !== storedPurchase.data.installments)
+				throw new Error("Não é possível alterar a quantidade de parcelas desta compra");
+			const relatedInstallments = (await localCreditPurchases.getAll())
+				.map(item => item.data)
+				.filter(item => item.id === storedPurchase.data.id || item.parentId === storedPurchase.data.id)
+				.toSorted((left, right) => left.currentInstallment - right.currentInstallment);
+			if (relatedInstallments.length !== storedPurchase.data.installments)
+				throw new Error("Não foi possível identificar todas as parcelas da compra");
+			const installmentAmounts = getEvenlyDistributedInstallmentAmounts(data.totalAmount, installments);
+			const installmentAmount = installmentAmounts[0]!;
 			const cashback = storedPurchase.data.parentId
 				? {}
 				: targetCardId !== cardId
@@ -1419,10 +1431,32 @@ export const dataService = {
 			} else {
 				statement.totalAmount += installmentAmount - storedPurchase.data.installmentAmount;
 			}
+			const updatedInstallments = relatedInstallments.map((installment, index) =>
+				installment.id === purchaseId
+					? updatedPurchase
+					: {
+							...installment,
+							installmentAmount: installmentAmounts[index]!,
+							totalAmount: data.totalAmount,
+						},
+			);
+			const updatedChildStatements = await Promise.all(
+				relatedInstallments.slice(1).map(async (installment, index) => {
+					const amountDifference = installmentAmounts[index + 1]! - installment.installmentAmount;
+					if (!amountDifference) return undefined;
+					const childStatement = (await localCreditCardStatements.getById(installment.statementId))?.data;
+					if (!childStatement) return undefined;
+					childStatement.totalAmount += amountDifference;
+					return childStatement;
+				}),
+			);
 			await Promise.all([
-				localCreditPurchases.put(updatedPurchase, purchaseId),
+				...updatedInstallments.map(installment => localCreditPurchases.put(installment, installment.id)),
 				localCreditCardStatements.put(statement, statement.id),
 				...(changedStatement ? [localCreditCardStatements.put(targetStatement, targetStatement.id)] : []),
+				...updatedChildStatements
+					.filter((childStatement): childStatement is CreditCardStatement => childStatement !== undefined)
+					.map(childStatement => localCreditCardStatements.put(childStatement, childStatement.id)),
 			]);
 			return updatedPurchase;
 		},

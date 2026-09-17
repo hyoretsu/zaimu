@@ -419,6 +419,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						isRefund: f.CreditPurchase.isRefund,
 						originAccountType: fn.raw`'CREDIT_CARD'`.returns("sql/varchar@1"),
 						originFinancialAccountId: f.FinancialAccount.id,
+						parentId: f.CreditPurchase.parentId,
 						refundOfPurchaseId: f.CreditPurchase.refundOfPurchaseId,
 						sourceName:
 							fn.raw`COALESCE(${f.FinancialAccount.name}, ${f.FinancialInstitution.name}, 'Cartão de crédito')`.returns(

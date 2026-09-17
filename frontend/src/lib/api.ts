@@ -235,6 +235,7 @@ export interface Transaction {
 	currentInstallment?: number;
 	installmentAmount?: number;
 	installments?: number;
+	parentId?: string;
 	source?: "CREDIT_CARD" | "FINANCIAL_ACCOUNT";
 	sourceName?: string;
 }
