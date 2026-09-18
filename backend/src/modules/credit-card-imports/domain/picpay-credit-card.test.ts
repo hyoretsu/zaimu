@@ -96,3 +96,73 @@ Subtotal dos lançamentos 11,99
 		},
 	]);
 });
+
+test("links two same-merchant financings to distinct original purchases via their statement credits", () => {
+	const statement = parsePicPayCreditCardStatementText(`
+25-11-2025 | 18-11-2025 Vencimento: Fechamento:
+Picpay Card
+Transações Nacionais
+Data Estabelecimento Valor
+09/11 FIN CINEPOLIS PARC01/16 10,32
+09/11 IOF ADICIONAL PARCELADO 0,02
+09/11 FIN CINEPOLIS PARC01/11 10,52
+09/11 IOF ADICIONAL PARCELADO 0,02
+09/11 CREDITO PARCELAMENTO COMPRA -105,00
+09/11 CREDITO PARCELAMENTO COMPRA -84,00
+17/10 CINEPOLIS OPERADORA DE 105,00
+17/10 CINEPOLIS OPERADORA DE 84,00
+Total geral dos lançamentos 21,88
+`);
+	expect(statement.purchases).toHaveLength(4);
+	expect(statement.purchases[0]).toMatchObject({
+		currentInstallment: 1,
+		description: "FIN CINEPOLIS · IOF R$ 0,02",
+		financingSourceIndex: 2,
+		installmentAmount: 10.34,
+		installments: 16,
+	});
+	expect(statement.purchases[1]).toMatchObject({
+		financingSourceIndex: 3,
+		installmentAmount: 10.54,
+		installments: 11,
+	});
+	expect(statement.purchases[2]).toMatchObject({
+		description: "CINEPOLIS OPERADORA DE",
+		installmentAmount: 105,
+	});
+	expect(statement.purchases[3]).toMatchObject({
+		description: "CINEPOLIS OPERADORA DE",
+		installmentAmount: 84,
+	});
+});
+
+test("keeps an unrelated negative refund instead of mistaking it for a financing credit", () => {
+	const statement = parsePicPayCreditCardStatementText(`
+25-11-2025 | 18-11-2025 Vencimento: Fechamento:
+Picpay Card
+Transações Nacionais
+Data Estabelecimento Valor
+17/10 PAGAMENTO DE FATURA PELO PICPA -506,89
+17/10 CINEPOLIS OPERADORA DE -92,10
+17/10 ASSINATURA 18,99
+Total geral dos lançamentos 18,99
+`);
+	expect(statement.purchases).toEqual([
+		{
+			currentInstallment: 1,
+			description: "Reembolso — CINEPOLIS OPERADORA DE",
+			installmentAmount: -92.1,
+			installments: 1,
+			purchaseDate: "2025-10-17",
+			totalAmount: -92.1,
+		},
+		{
+			currentInstallment: 1,
+			description: "ASSINATURA",
+			installmentAmount: 18.99,
+			installments: 1,
+			purchaseDate: "2025-10-17",
+			totalAmount: 18.99,
+		},
+	]);
+});

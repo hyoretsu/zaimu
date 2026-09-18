@@ -21,6 +21,7 @@ import type { CreditCardImportItem } from "@/lib/api";
 import type { dataService } from "@/lib/dataService";
 import { getCurrentLocalTime } from "@/lib/date";
 import { calculateDebtSplit, debtSplitToInput } from "@/lib/debt-split";
+import { cleanFinancedDescription } from "@/lib/financing-source-reference";
 
 export function EditImportedCreditPurchaseDialog({
 	item,
@@ -47,7 +48,7 @@ export function EditImportedCreditPurchaseDialog({
 	const [time, setTime] = useState(getCurrentLocalTime());
 	useEffect(() => {
 		if (!item || !open) return;
-		setDescription(item.description);
+		setDescription(cleanFinancedDescription(item.description));
 		setInstallments(String(item.installments));
 		setDebtSplit(debtSplitToInput(item.debtSplit));
 		setIsDebt(Boolean(item.debtSplit));

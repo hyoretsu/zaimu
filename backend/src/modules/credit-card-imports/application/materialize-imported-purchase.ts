@@ -1,4 +1,3 @@
-import { addMonths } from "date-fns";
 import { replaceEntityTags, tagEntityType } from "~/modules/categories/application/tag-assignments";
 import {
 	getImportedInstallmentAmounts,
@@ -8,16 +7,20 @@ import {
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
 import { hasCompatibleInstallmentAmount } from "../domain/credit-card-import-reconciliation";
+import { withoutFinancingSource } from "../domain/financing-source-reference";
+import { importedInstallmentDates } from "../domain/imported-installment-dates";
 
 interface ImportedPurchaseInput {
 	categoryId: null | string;
 	currentInstallment: number;
 	description: string;
+	dueDate: Date;
 	externalId: string;
 	existingRootId: null | string;
 	installmentAmount: number;
 	installments: number;
 	purchaseDate: Date;
+	statementDate: Date;
 	storeName: null | string;
 	tagIds: string[];
 	time: null | string;
@@ -35,17 +38,7 @@ interface CardSnapshot {
 	statementDay: number;
 }
 
-function getStatementDates(card: Pick<CardSnapshot, "dueDay" | "statementDay">, purchaseDate: Date) {
-	const statementMonth =
-		purchaseDate.getDate() > card.statementDay ? addMonths(purchaseDate, 1) : purchaseDate;
-	const statementDate = new Date(statementMonth.getFullYear(), statementMonth.getMonth(), card.statementDay);
-	const dueDate = new Date(statementMonth.getFullYear(), statementMonth.getMonth(), card.dueDay);
-	if (dueDate <= statementDate) dueDate.setMonth(dueDate.getMonth() + 1);
-	return { dueDate, statementDate };
-}
-
-async function getOrCreateStatement(card: CardSnapshot, purchaseDate: Date) {
-	const { dueDate, statementDate } = getStatementDates(card, purchaseDate);
+async function getOrCreateStatement(card: CardSnapshot, statementDate: Date, dueDate: Date) {
 	let statement = await queryFirst(
 		db.sql.public.CreditCardStatement.select("id")
 			.where((fields, functions) =>
@@ -70,8 +63,53 @@ async function getOrCreateStatement(card: CardSnapshot, purchaseDate: Date) {
 }
 
 export async function materializeImportedPurchase(card: CardSnapshot, input: ImportedPurchaseInput) {
-	const financedFee = input.description.match(/^(FIN .+?) · IOF R\$ ([\d.]+,\d{2})$/u);
-	const description = financedFee?.[1] ?? input.description;
+	const importedDescription = withoutFinancingSource(input.description);
+	if (input.installmentAmount < 0) {
+		if (input.installments !== 1 || input.totalAmount !== input.installmentAmount)
+			throw new HttpException("Crédito da fatura com valor inválido", 400);
+		if (input.existingRootId) return input.existingRootId;
+		const statement = await getOrCreateStatement(card, input.statementDate, input.dueDate);
+		const refund = await queryFirst(
+			db.sql.public.CreditPurchase.insert([
+				{
+					categoryId: input.categoryId ?? undefined,
+					currentInstallment: 1,
+					description: importedDescription,
+					externalId: input.externalId,
+					hasImportedAmount: true,
+					installmentAmount: String(input.installmentAmount),
+					installments: 1,
+					isRefund: true,
+					purchaseDate: input.purchaseDate,
+					statementId: statement.id,
+					storeName: input.storeName ?? undefined,
+					totalAmount: String(input.totalAmount),
+				},
+			])
+				.returning("id")
+				.build(),
+		);
+		if (!refund) throw new HttpException("Não foi possível registrar o crédito da fatura", 500);
+		await executeStatement(
+			db.sql.public.CreditCardStatement.update((fields, functions) => ({
+				totalAmount: functions.raw`${fields.totalAmount} + ${String(input.installmentAmount)}`.returns(
+					"pg/numeric@1",
+				),
+				updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
+			}))
+				.where((fields, functions) => functions.eq(fields.id, statement.id))
+				.build(),
+		);
+		if (input.tagIds.length)
+			await replaceEntityTags({
+				entityIds: [refund.id],
+				entityType: tagEntityType.creditPurchase,
+				tagIds: input.tagIds,
+			});
+		return refund.id;
+	}
+	const financedFee = importedDescription.match(/^(FIN .+?) · IOF R\$ ([\d.]+,\d{2})$/u);
+	const description = financedFee?.[1] ?? importedDescription;
 	const feeAmount = financedFee ? Number(financedFee[2]!.replace(/\./g, "").replace(",", ".")) : null;
 	const createdIds: string[] = [];
 	const importedInstallmentAmounts = getImportedInstallmentAmounts(input);
@@ -120,10 +158,15 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 		throw new HttpException("As parcelas existentes não correspondem à compra importada", 409);
 	for (let currentInstallment = 1; currentInstallment <= input.installments; currentInstallment++) {
 		const installmentAmount = installmentAmounts[currentInstallment - 1]!;
+		const observed = currentInstallment === input.currentInstallment;
 		const existing = existingByInstallment.get(currentInstallment);
 		if (existing) {
 			const previousInstallmentAmount = Number(existing.installmentAmount);
 			const installmentAmountDifference = installmentAmount - previousInstallmentAmount;
+			const observedStatement = observed
+				? await getOrCreateStatement(card, input.statementDate, input.dueDate)
+				: null;
+			const movedStatement = observedStatement && observedStatement.id !== existing.statementId;
 			await executeStatement(
 				db.sql.public.CreditPurchase.update({
 					...(currentInstallment === 1 &&
@@ -146,6 +189,7 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 					installmentAmount: String(installmentAmount),
 					installments: input.installments,
 					purchaseDate: input.purchaseDate,
+					...(movedStatement && { statementId: observedStatement.id }),
 					storeName: input.storeName,
 					time: input.time,
 					totalAmount: String(totalAmount),
@@ -154,7 +198,28 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 					.where((fields, functions) => functions.eq(fields.id, existing.id))
 					.build(),
 			);
-			if (installmentAmountDifference)
+			if (movedStatement) {
+				await executeStatement(
+					db.sql.public.CreditCardStatement.update((fields, functions) => ({
+						totalAmount: functions.raw`${fields.totalAmount} - ${String(previousInstallmentAmount)}`.returns(
+							"pg/numeric@1",
+						),
+						updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
+					}))
+						.where((fields, functions) => functions.eq(fields.id, existing.statementId))
+						.build(),
+				);
+				await executeStatement(
+					db.sql.public.CreditCardStatement.update((fields, functions) => ({
+						totalAmount: functions.raw`${fields.totalAmount} + ${String(installmentAmount)}`.returns(
+							"pg/numeric@1",
+						),
+						updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
+					}))
+						.where((fields, functions) => functions.eq(fields.id, observedStatement.id))
+						.build(),
+				);
+			} else if (installmentAmountDifference)
 				await executeStatement(
 					db.sql.public.CreditCardStatement.update((fields, functions) => ({
 						totalAmount:
@@ -169,8 +234,13 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 			createdIds.push(existing.id);
 			continue;
 		}
-		const occurrenceDate = addMonths(input.purchaseDate, currentInstallment - 1);
-		const statement = await getOrCreateStatement(card, occurrenceDate);
+		const dates = importedInstallmentDates(
+			input.statementDate,
+			input.dueDate,
+			input.currentInstallment,
+			currentInstallment,
+		);
+		const statement = await getOrCreateStatement(card, dates.statementDate, dates.dueDate);
 		const purchase = await queryFirst(
 			db.sql.public.CreditPurchase.insert([
 				{

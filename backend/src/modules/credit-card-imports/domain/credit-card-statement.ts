@@ -3,6 +3,8 @@ export type CreditCardImportProvider = "MERCADO_PAGO" | "BRADESCO" | "INTER" | "
 export interface CreditCardStatementPurchase {
 	currentInstallment: number;
 	description: string;
+	/** Index of the purchase offset by this financing, when the statement contains both. */
+	financingSourceIndex?: number;
 	installmentAmount: number;
 	installments: number;
 	purchaseDate: string;

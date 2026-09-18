@@ -2,23 +2,27 @@ import { LuCheck, LuCircleAlert, LuPencil } from "react-icons/lu";
 import { TransactionListItem } from "@/components/transactions";
 import type { CreditCardImportItem, Transaction } from "@/lib/api";
 import { formatLocalDate } from "@/lib/date";
+import { cleanFinancedDescription, hasFinancingSource } from "@/lib/financing-source-reference";
 
 function toTransaction(
 	item: CreditCardImportItem,
 	creditCardId: string,
 	creditCardName: string,
 ): Transaction {
-	const financedOperation = item.description.match(/^(FIN .+?) · IOF R\$ ([\d.]+,\d{2})$/u);
+	const financedOperation = cleanFinancedDescription(item.description).match(
+		/^(FIN .+?) · IOF R\$ ([\d.]+,\d{2})$/u,
+	);
 	return {
-		amount: item.totalAmount,
+		amount: Math.abs(item.totalAmount),
 		createdAt: item.createdAt,
 		creditCardId,
 		date: item.purchaseDate,
 		debtSplit: item.debtSplit,
-		description: financedOperation?.[1]?.replace(/^FIN /u, "") ?? item.description,
+		description: financedOperation?.[1]?.replace(/^FIN /u, "") ?? cleanFinancedDescription(item.description),
 		id: item.id,
 		installmentAmount: item.installmentAmount,
 		installments: item.installments,
+		isRefund: item.installmentAmount < 0,
 		refund: undefined,
 		source: "CREDIT_CARD",
 		sourceName: creditCardName,
@@ -26,7 +30,7 @@ function toTransaction(
 		tagIds: item.tagIds,
 		tags: item.tags,
 		time: item.time,
-		type: "EXPENSE",
+		type: item.installmentAmount < 0 ? "INCOME" : "EXPENSE",
 	};
 }
 
@@ -48,7 +52,9 @@ export function CreditCardImportItemRow({
 	onReconcile: () => void;
 }) {
 	const transaction = toTransaction(item, creditCardId, creditCardName);
-	const financedOperation = item.description.match(/^(FIN .+?) · IOF R\$ ([\d.]+,\d{2})$/u);
+	const financedOperation = cleanFinancedDescription(item.description).match(
+		/^(FIN .+?) · IOF R\$ ([\d.]+,\d{2})$/u,
+	);
 
 	return (
 		<TransactionListItem
@@ -69,7 +75,9 @@ export function CreditCardImportItemRow({
 					onClick: onApprove,
 					text: "Aprovar",
 				},
-				{ disabled, icon: <LuPencil />, onClick: onEdit, text: "Editar" },
+				...(item.installmentAmount < 0
+					? []
+					: [{ disabled, icon: <LuPencil />, onClick: onEdit, text: "Editar" }]),
 			]}
 			forceCompactActions
 			metadataPrefix={
@@ -78,6 +86,11 @@ export function CreditCardImportItemRow({
 					{financedOperation ? (
 						<span className="rounded-full border bg-muted px-2 py-0.5 text-muted-foreground text-xs">
 							Crédito parcelado · IOF R$ {financedOperation[2]} incluído
+						</span>
+					) : null}
+					{hasFinancingSource(item.description) ? (
+						<span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-emerald-700 text-xs">
+							Vinculada à compra original
 						</span>
 					) : null}
 					{item.duplicates.length ? (

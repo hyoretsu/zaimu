@@ -1,6 +1,9 @@
 import type { CreditCardStatementPurchase } from "./credit-card-statement";
 
-type IdentifiedPurchase = CreditCardStatementPurchase & { externalId: string };
+type IdentifiedPurchase = CreditCardStatementPurchase & {
+	externalId: string;
+	financingSourceExternalId?: string;
+};
 
 export function selectNewImportPurchases(
 	purchases: IdentifiedPurchase[],

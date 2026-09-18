@@ -9,15 +9,14 @@ export function assignCreditCardPurchaseExternalIds(
 	creditCardId: string,
 ) {
 	const occurrences = new Map<string, number>();
-	return purchases.map(purchase => {
+	const identified = purchases.map(purchase => {
 		const financedFee = purchase.description.match(/^(FIN .+?) · IOF R\$ ([\d.]+,\d{2})$/u);
-		const fee = financedFee ? Number(financedFee[2]!.replace(/\./g, "").replace(",", ".")) : 0;
 		const identity = [
 			"credit-card-import-v1",
 			creditCardId,
 			purchase.purchaseDate,
 			normalize(financedFee?.[1] ?? purchase.description),
-			(purchase.installmentAmount - fee).toFixed(2),
+			...(financedFee ? [] : [purchase.installmentAmount.toFixed(2)]),
 			String(purchase.installments),
 		].join("|");
 		const occurrence = (occurrences.get(identity) ?? 0) + 1;
@@ -27,4 +26,10 @@ export function assignCreditCardPurchaseExternalIds(
 			externalId: `credit-card:v1:${createHash("sha256").update(`${identity}|${occurrence}`).digest("hex")}`,
 		};
 	});
+	return identified.map(({ financingSourceIndex, ...purchase }) => ({
+		...purchase,
+		...(financingSourceIndex !== undefined && {
+			financingSourceExternalId: identified[financingSourceIndex]!.externalId,
+		}),
+	}));
 }
