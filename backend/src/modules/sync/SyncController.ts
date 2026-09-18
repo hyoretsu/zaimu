@@ -849,6 +849,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 					autoGenerateFrom: new Date(
 						value<string | undefined>(entity, "autoGenerateFrom") ?? value<string>(entity, "startDate"),
 					),
+					dayOfWeek: value<number | undefined>(entity, "dayOfWeek"),
 					endDate: optionalDate(entity, "endDate"),
 					financialAccountId,
 					frequency:
@@ -890,6 +891,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				const values = {
 					amount: String(value<number>(entity, "amount")),
 					billingDay: Number(value<number>(entity, "billingDay")),
+					dayOfWeek: value<number | undefined>(entity, "dayOfWeek"),
 					endDate: optionalDate(entity, "endDate"),
 					financialAccountId,
 					frequency:
@@ -1215,6 +1217,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 					"name",
 					"amount",
 					"billingDay",
+					"dayOfWeek",
 					"frequency",
 					"paymentMethod",
 					"financialAccountId",
@@ -1345,6 +1348,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 								"amount",
 								"frequency",
 								"payDay",
+								"dayOfWeek",
 								"startDate",
 								"autoGenerateFrom",
 								"endDate",

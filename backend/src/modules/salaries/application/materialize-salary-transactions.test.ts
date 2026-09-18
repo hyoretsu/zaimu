@@ -28,4 +28,17 @@ describe("salaryOccurrenceDates", () => {
 			),
 		).toEqual(["2024-02-29", "2025-02-28", "2026-02-28", "2027-02-28", "2028-02-29"]);
 	});
+
+	test("aligns weekly salaries to an optional weekday", () => {
+		expect(
+			salaryOccurrenceDates(
+				"WEEKLY",
+				new Date("2026-09-18T12:00:00"),
+				18,
+				undefined,
+				new Date("2026-10-06T12:00:00"),
+				1,
+			),
+		).toEqual(["2026-09-21", "2026-09-28", "2026-10-05"]);
+	});
 });

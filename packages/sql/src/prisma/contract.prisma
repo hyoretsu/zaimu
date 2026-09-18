@@ -650,6 +650,7 @@ namespace public {
     amount          Numeric(12, 2)
     frequency       pg.enum(RecurrenceFrequency) @default("MONTHLY")
     payDay          SmallInt
+    dayOfWeek       SmallInt?
     startDate       Date
     autoGenerateFrom Date                @default(dbgenerated("CURRENT_DATE"))
     materializedThrough Date             @default(dbgenerated("(CURRENT_DATE - 1)"))
@@ -700,6 +701,7 @@ namespace public {
     name                  VarChar(100)
     amount                Numeric(12, 2)
     billingDay            SmallInt
+    dayOfWeek             SmallInt?
     frequency             pg.enum(RecurrenceFrequency) @default("MONTHLY")
     paymentMethod         pg.enum(PaymentMethod)       @default("CREDIT")
     financialAccountId    VarChar(36)?

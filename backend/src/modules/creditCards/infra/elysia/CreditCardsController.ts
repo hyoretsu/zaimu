@@ -227,6 +227,7 @@ type SubscriptionFrequency = "BIWEEKLY" | "DAILY" | "MONTHLY" | "WEEKLY" | "YEAR
 function subscriptionOccurrences(
 	subscription: {
 		billingDay: number;
+		dayOfWeek?: number | null;
 		endDate: Date | null;
 		frequency: SubscriptionFrequency;
 		startDate: Date;
@@ -237,6 +238,12 @@ function subscriptionOccurrences(
 	const start = startOfDay(subscription.startDate);
 	const end = startOfDay(subscription.endDate && subscription.endDate < until ? subscription.endDate : until);
 	let occurrence = start;
+	if (
+		subscription.frequency === "WEEKLY" &&
+		subscription.dayOfWeek !== null &&
+		subscription.dayOfWeek !== undefined
+	)
+		occurrence = addDays(start, (subscription.dayOfWeek - start.getDay() + 7) % 7);
 	let yearOffset = 0;
 	if (subscription.frequency === "MONTHLY") {
 		const first = new Date(
@@ -364,6 +371,7 @@ async function materializeDueSubscriptionPurchases(
 		db.sql.public.Subscription.select(
 			"amount",
 			"billingDay",
+			"dayOfWeek",
 			"endDate",
 			"frequency",
 			"id",
@@ -523,6 +531,7 @@ async function forecastSubscriptionPurchases(
 		db.sql.public.Subscription.select(
 			"amount",
 			"billingDay",
+			"dayOfWeek",
 			"endDate",
 			"frequency",
 			"id",

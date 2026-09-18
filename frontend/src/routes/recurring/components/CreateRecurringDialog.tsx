@@ -26,7 +26,7 @@ import {
 } from "@/lib/financial-account";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
-import { frequencyOptions, paymentMethodOptions, sourceOptions } from "./constants";
+import { frequencyOptions, paymentMethodOptions, sourceOptions, weekdayOptions } from "./constants";
 import { getCreationSource } from "./creation-source";
 import { DebouncedFormField } from "./DebouncedFormField";
 import { DebouncedMoneyField } from "./DebouncedMoneyField";
@@ -38,6 +38,7 @@ import type { RecurrenceFrequency, RecurringDraft, RecurringListItemData, Recurr
 const initialDraft = (item?: RecurringListItemData): RecurringDraft => ({
 	amount: item ? String(item.amount) : "",
 	day: item?.frequency === "MONTHLY" && item.day ? String(item.day) : "",
+	dayOfWeek: item?.dayOfWeek === null || item?.dayOfWeek === undefined ? "default" : String(item.dayOfWeek),
 	endDate: item?.endDate?.slice(0, 10) ?? "",
 	financialAccountId: item?.financialAccountId ?? "",
 	frequency: item?.frequency ?? "MONTHLY",
@@ -119,10 +120,15 @@ export function CreateRecurringDialog({
 			const creationSource = getCreationSource(draft);
 			const selectedDebtSplit = isDebtSplitEnabled ? debtSplit : null;
 			const day = getRecurrenceDay(draft.frequency, draft.startDate, draft.day);
+			const dayOfWeek =
+				draft.frequency === "WEEKLY" && draft.dayOfWeek !== "default"
+					? Number.parseInt(draft.dayOfWeek, 10)
+					: null;
 			if (item) {
 				if (item.source === "salary") {
 					return dataService.salaries.update(item.id, {
 						amount,
+						dayOfWeek,
 						endDate: draft.endDate || null,
 						financialAccountId: draft.financialAccountId,
 						frequency: draft.frequency,
@@ -135,6 +141,7 @@ export function CreateRecurringDialog({
 					return dataService.subscriptions.update(item.id, {
 						amount,
 						billingDay: day,
+						dayOfWeek,
 						debtSplit: selectedDebtSplit,
 						endDate: draft.endDate || null,
 						financialAccountId: draft.financialAccountId || null,
@@ -148,6 +155,7 @@ export function CreateRecurringDialog({
 				return dataService.recurringPayments.update(item.id, {
 					amount,
 					dayOfMonth: day,
+					dayOfWeek,
 					debtSplit: selectedDebtSplit,
 					endDate: draft.endDate || null,
 					financialAccountId: draft.financialAccountId || null,
@@ -163,6 +171,7 @@ export function CreateRecurringDialog({
 				const salary = await dataService.salaries.create({
 					amount,
 					autoGenerateFrom,
+					dayOfWeek,
 					endDate: draft.endDate || undefined,
 					financialAccountId: draft.financialAccountId,
 					frequency: draft.frequency,
@@ -179,6 +188,7 @@ export function CreateRecurringDialog({
 							day,
 							new Date(),
 							draft.endDate || undefined,
+							dayOfWeek ?? undefined,
 						).map(date =>
 							dataService.transactions.create({
 								amount,
@@ -199,6 +209,7 @@ export function CreateRecurringDialog({
 				const subscription = await dataService.subscriptions.create({
 					amount,
 					billingDay: day,
+					dayOfWeek,
 					debtSplit: selectedDebtSplit ?? undefined,
 					endDate: draft.endDate || undefined,
 					financialAccountId: draft.financialAccountId || undefined,
@@ -216,6 +227,7 @@ export function CreateRecurringDialog({
 						day,
 						new Date(),
 						draft.endDate || undefined,
+						dayOfWeek ?? undefined,
 					);
 					if (selectedCreditCardId) {
 						await Promise.all(
@@ -256,6 +268,7 @@ export function CreateRecurringDialog({
 			const payment = await dataService.recurringPayments.create({
 				amount,
 				dayOfMonth: day,
+				dayOfWeek,
 				debtSplit: selectedDebtSplit ?? undefined,
 				endDate: draft.endDate || undefined,
 				financialAccountId: draft.financialAccountId || undefined,
@@ -274,6 +287,7 @@ export function CreateRecurringDialog({
 						day,
 						new Date(),
 						draft.endDate || undefined,
+						dayOfWeek ?? undefined,
 					).map(date =>
 						dataService.transactions.create({
 							amount,
@@ -423,7 +437,13 @@ export function CreateRecurringDialog({
 								value={draft.financialAccountId}
 							/>
 						)}
-						<div className={draft.frequency === "MONTHLY" ? "grid gap-4 sm:grid-cols-2" : "grid gap-4"}>
+						<div
+							className={
+								draft.frequency === "MONTHLY" || draft.frequency === "WEEKLY"
+									? "grid gap-4 sm:grid-cols-2"
+									: "grid gap-4"
+							}
+						>
 							<CustomSelect
 								label="Frequência"
 								onValueChange={value => setField("frequency", value as RecurrenceFrequency)}
@@ -446,6 +466,16 @@ export function CreateRecurringDialog({
 									required
 									type="text"
 									value={draft.day}
+								/>
+							)}
+							{draft.frequency === "WEEKLY" && (
+								<CustomSelect
+									label="Dia da semana"
+									onValueChange={value => setField("dayOfWeek", value)}
+									options={[...weekdayOptions]}
+									placeholder="Usar dia da data inicial"
+									sortOptions={false}
+									value={draft.dayOfWeek}
 								/>
 							)}
 						</div>
@@ -498,7 +528,11 @@ export function CreateRecurringDialog({
 							description={
 								[
 									isEditing ? "Não pode ser alterada após a criação." : "",
-									getRecurrenceScheduleDescription(draft.frequency, draft.startDate),
+									getRecurrenceScheduleDescription(
+										draft.frequency,
+										draft.startDate,
+										draft.dayOfWeek === "default" ? null : Number.parseInt(draft.dayOfWeek, 10),
+									),
 								]
 									.filter(Boolean)
 									.join(" ") || undefined

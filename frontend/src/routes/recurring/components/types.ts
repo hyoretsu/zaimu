@@ -11,6 +11,7 @@ export interface RecurringListItemData {
 	active: boolean;
 	amount: number;
 	day: number | null;
+	dayOfWeek?: number | null;
 	debtSplit?: DebtSplit | null;
 	direction: RecurringDirection;
 	frequency: RecurrenceFrequency;
@@ -28,6 +29,7 @@ export interface RecurringListItemData {
 export interface RecurringDraft {
 	amount: string;
 	day: string;
+	dayOfWeek: string;
 	financialAccountId: string;
 	endDate: string;
 	frequency: RecurrenceFrequency;

@@ -494,6 +494,7 @@ export interface Salary {
 	amount: number;
 	frequency: "DAILY" | "WEEKLY" | "BIWEEKLY" | "MONTHLY" | "YEARLY";
 	payDay: number;
+	dayOfWeek?: number | null;
 	startDate: string;
 	autoGenerateFrom: string;
 	endDate?: string | null;
@@ -510,6 +511,7 @@ export interface Subscription {
 	amount: number;
 	debtSplit?: DebtSplit | null;
 	billingDay: number;
+	dayOfWeek?: number | null;
 	frequency: "DAILY" | "WEEKLY" | "BIWEEKLY" | "MONTHLY" | "YEARLY";
 	paymentMethod: "DEBIT" | "CREDIT" | "PIX" | "CASH" | "TRANSFER" | "BOLETO";
 	financialAccountId?: string | null;

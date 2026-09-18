@@ -1,0 +1,70 @@
+[
+	{
+		"execute": [
+			{
+				"description": "add column \"dayOfWeek\"",
+				"sql": "ALTER TABLE \"public\".\"Salary\" ADD COLUMN \"dayOfWeek\" int2"
+			}
+		],
+		"id": "column.public.Salary.dayOfWeek",
+		"label": "Add column \"dayOfWeek\" to \"Salary\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"dayOfWeek\" exists",
+				"params": ["public", "Salary", "dayOfWeek"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"dayOfWeek\" is missing",
+				"params": ["public", "Salary", "dayOfWeek"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "dayOfWeek",
+				"objectType": "column",
+				"schema": "public",
+				"table": "Salary"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"dayOfWeek\"",
+				"sql": "ALTER TABLE \"public\".\"Subscription\" ADD COLUMN \"dayOfWeek\" int2"
+			}
+		],
+		"id": "column.public.Subscription.dayOfWeek",
+		"label": "Add column \"dayOfWeek\" to \"Subscription\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"dayOfWeek\" exists",
+				"params": ["public", "Subscription", "dayOfWeek"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"dayOfWeek\" is missing",
+				"params": ["public", "Subscription", "dayOfWeek"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "dayOfWeek",
+				"objectType": "column",
+				"schema": "public",
+				"table": "Subscription"
+			},
+			"id": "postgres"
+		}
+	}
+]

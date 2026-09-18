@@ -1600,6 +1600,7 @@ export const dataService = {
 				const addSchedule = (item: {
 					amount: number;
 					day: number;
+					dayOfWeek?: null | number;
 					endDate?: string | null;
 					frequency: "BIWEEKLY" | "DAILY" | "MONTHLY" | "WEEKLY" | "YEARLY";
 					sourceId: string;
@@ -1617,6 +1618,8 @@ export const dataService = {
 							: start.getDate(),
 						12,
 					);
+					if (item.frequency === "WEEKLY" && item.dayOfWeek !== null && item.dayOfWeek !== undefined)
+						occurrence.setDate(occurrence.getDate() + ((item.dayOfWeek - occurrence.getDay() + 7) % 7));
 					while (occurrence <= comparisonEnd && occurrence <= end) {
 						if (
 							occurrence >= projectionStart &&
@@ -1652,6 +1655,7 @@ export const dataService = {
 					addSchedule({
 						amount: salary.amount,
 						day: salary.payDay,
+						dayOfWeek: salary.dayOfWeek,
 						endDate: salary.endDate,
 						frequency: salary.frequency,
 						sourceId: salary.id,
@@ -1662,6 +1666,7 @@ export const dataService = {
 					addSchedule({
 						amount: subscription.amount,
 						day: subscription.billingDay,
+						dayOfWeek: subscription.dayOfWeek,
 						endDate: subscription.endDate,
 						frequency: subscription.frequency,
 						sourceId: subscription.id,
@@ -1672,6 +1677,7 @@ export const dataService = {
 					addSchedule({
 						amount: recurrence.amount,
 						day: recurrence.dayOfMonth ?? new Date(recurrence.startDate).getDate(),
+						dayOfWeek: recurrence.dayOfWeek,
 						endDate: recurrence.endDate,
 						frequency: recurrence.frequency,
 						sourceId: recurrence.id,

@@ -150,6 +150,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 					"frequency",
 					"isActive",
 					"payDay",
+					"dayOfWeek",
 					"source",
 					"startDate",
 				)
@@ -161,6 +162,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 					"id",
 					"amount",
 					"billingDay",
+					"dayOfWeek",
 					"endDate",
 					"frequency",
 					"isActive",
@@ -331,6 +333,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 			addSchedule({
 				amount: Number(salary.amount),
 				dayOfMonth: salary.payDay,
+				dayOfWeek: salary.dayOfWeek,
 				endDate: salary.endDate,
 				frequency: salary.frequency as RecurrenceFrequency,
 				sourceId: salary.id,
@@ -341,6 +344,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 			addSchedule({
 				amount: Number(subscription.amount),
 				dayOfMonth: subscription.billingDay,
+				dayOfWeek: subscription.dayOfWeek,
 				endDate: subscription.endDate,
 				frequency: subscription.frequency as RecurrenceFrequency,
 				sourceId: subscription.id,
@@ -482,6 +486,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 		for (const salary of salaries.filter(item => item.isActive)) {
 			const occurrence = nextOccurrence({
 				dayOfMonth: salary.payDay,
+				dayOfWeek: salary.dayOfWeek,
 				endDate: salary.endDate,
 				frequency: salary.frequency as RecurrenceFrequency,
 				from: today,
@@ -501,6 +506,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 		for (const subscription of subscriptions.filter(item => item.isActive)) {
 			const occurrence = nextOccurrence({
 				dayOfMonth: subscription.billingDay,
+				dayOfWeek: subscription.dayOfWeek,
 				endDate: subscription.endDate,
 				frequency: subscription.frequency as RecurrenceFrequency,
 				from: today,

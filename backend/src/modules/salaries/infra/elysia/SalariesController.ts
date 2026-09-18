@@ -19,6 +19,7 @@ const salaryColumns = [
 	"amount",
 	"frequency",
 	"payDay",
+	"dayOfWeek",
 	"startDate",
 	"autoGenerateFrom",
 	"endDate",
@@ -127,6 +128,7 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 					{
 						amount: String(body.amount),
 						autoGenerateFrom: new Date(body.autoGenerateFrom ?? body.startDate),
+						dayOfWeek: body.dayOfWeek,
 						endDate: body.endDate ? new Date(body.endDate) : undefined,
 						financialAccountId: body.financialAccountId,
 						frequency: body.frequency ?? "MONTHLY",
@@ -151,6 +153,7 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 				amount: t.Number({ exclusiveMinimum: 0 }),
 				autoGenerateFrom: t.Optional(t.String()),
 				categoryId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
+				dayOfWeek: t.Optional(t.Nullable(t.Number({ maximum: 6, minimum: 0 }))),
 				endDate: t.Optional(t.String()),
 				financialAccountId: t.String({ maxLength: 36, minLength: 1 }),
 				frequency: t.Optional(RecurrenceFrequency),
@@ -219,6 +222,7 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 					...(body.financialAccountId && { financialAccountId: body.financialAccountId }),
 					...(body.amount !== undefined && { amount: String(body.amount) }),
 					...(body.frequency && { frequency: body.frequency }),
+					...(body.dayOfWeek !== undefined && { dayOfWeek: body.dayOfWeek }),
 					...(body.payDay !== undefined && { payDay: body.payDay }),
 					...(body.endDate !== undefined && {
 						endDate: body.endDate ? new Date(body.endDate) : null,
@@ -244,6 +248,7 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 			body: t.Object({
 				amount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
 				categoryId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
+				dayOfWeek: t.Optional(t.Nullable(t.Number({ maximum: 6, minimum: 0 }))),
 				endDate: t.Optional(t.Nullable(t.String())),
 				financialAccountId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				frequency: t.Optional(RecurrenceFrequency),

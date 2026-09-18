@@ -14,6 +14,7 @@ export function salaryOccurrenceDates(
 	payDay: number,
 	endDate?: Date | null,
 	today = new Date(),
+	dayOfWeek?: number | null,
 ): string[] {
 	const occurrences: string[] = [];
 	const currentDay = startOfDay(today);
@@ -22,6 +23,8 @@ export function salaryOccurrenceDates(
 	let monthOffset = 0;
 	let yearOffset = 0;
 	let occurrence = frequency === "MONTHLY" ? monthlyOccurrence(start, payDay) : start;
+	if (frequency === "WEEKLY" && dayOfWeek !== null && dayOfWeek !== undefined)
+		occurrence = addDays(start, (dayOfWeek - start.getDay() + 7) % 7);
 
 	while (!isAfter(occurrence, currentDay) && !isAfter(occurrence, end)) {
 		occurrences.push(format(occurrence, "yyyy-MM-dd"));
@@ -66,6 +69,7 @@ export async function materializeSalaryTransactions(userId: string) {
 			"frequency",
 			"materializedThrough",
 			"payDay",
+			"dayOfWeek",
 			"source",
 			"startDate",
 		)
@@ -99,6 +103,7 @@ export async function materializeSalaryTransactions(userId: string) {
 			salary.payDay,
 			salary.endDate,
 			today,
+			salary.dayOfWeek,
 		).filter(date => date > format(salary.materializedThrough, "yyyy-MM-dd") && !scheduledDates.has(date));
 
 		for (const date of dates) {

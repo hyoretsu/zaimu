@@ -80,6 +80,21 @@ test("aligns weekly recurrences to their configured weekday", () => {
 	expect(occurrence?.toISOString().slice(0, 10)).toBe("2026-03-02");
 });
 
+test("does not schedule a weekly payment before its start date when weekday differs", () => {
+	const occurrences = occurrencesInRange({
+		dayOfWeek: 1,
+		frequency: "WEEKLY",
+		from: new Date("2026-09-18T00:00:00"),
+		startDate: new Date("2026-09-18T00:00:00"),
+		through: new Date("2026-10-06T00:00:00"),
+	});
+	expect(occurrences.map(item => item.toISOString().slice(0, 10))).toEqual([
+		"2026-09-21",
+		"2026-09-28",
+		"2026-10-05",
+	]);
+});
+
 test("builds thirteen contiguous inclusive comparison intervals", () => {
 	const base = resolveDashboardRange("2026-03-01", "2026-03-31", new Date("2026-03-10T00:00:00"));
 	const periods = buildComparisonPeriods({ base, initialBalance: 100, transactions: [] });

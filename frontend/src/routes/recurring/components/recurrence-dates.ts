@@ -7,11 +7,14 @@ export function getPastRecurrenceDates(
 	dayOfMonth?: number,
 	today = new Date(),
 	endDate?: string,
+	dayOfWeek?: number,
 ): string[] {
 	const dates: string[] = [];
 	const cutoff = startOfDay(today);
 	const start = startOfDay(parseISO(startDate));
 	let occurrence = frequency === "MONTHLY" ? monthlyOccurrence(start, dayOfMonth) : start;
+	if (frequency === "WEEKLY" && dayOfWeek !== undefined)
+		occurrence = addDays(start, (dayOfWeek - start.getDay() + 7) % 7);
 	let monthOffset = 0;
 	let yearOffset = 0;
 

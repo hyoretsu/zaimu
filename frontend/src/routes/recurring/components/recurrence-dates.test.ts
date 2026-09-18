@@ -35,6 +35,19 @@ describe("getPastRecurrenceDates", () => {
 		]);
 	});
 
+	test("aligns weekly schedules to an optional weekday after the start date", () => {
+		expect(
+			getPastRecurrenceDates(
+				"WEEKLY",
+				"2026-09-18",
+				undefined,
+				new Date("2026-10-06T12:00:00"),
+				undefined,
+				1,
+			),
+		).toEqual(["2026-09-21", "2026-09-28", "2026-10-05"]);
+	});
+
 	test("clamps monthly payments to the last valid day without drifting", () => {
 		expect(getPastRecurrenceDates("MONTHLY", "2026-01-31", 31, new Date("2026-04-01T12:00:00"))).toEqual([
 			"2026-01-31",

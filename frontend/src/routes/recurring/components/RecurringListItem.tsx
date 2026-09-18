@@ -27,7 +27,12 @@ export function RecurringListItem({
 	const isIncome = item.direction === "INCOME";
 	const hasEnded = isRecurrenceEnded(item.endDate);
 	const paymentMethod = item.paymentMethod ? paymentMethodLabels[item.paymentMethod] : undefined;
-	const scheduleSummary = getRecurrenceScheduleSummary(item.frequency, item.startDate, item.day);
+	const scheduleSummary = getRecurrenceScheduleSummary(
+		item.frequency,
+		item.startDate,
+		item.day,
+		item.dayOfWeek,
+	);
 	const actionItems: ItemAction[] = [
 		{
 			ariaLabel: "Editar recorrência",
