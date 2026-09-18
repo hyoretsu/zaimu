@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { redistributeInstallmentAmounts } from "./installment-amounts";
+import { redistributeInstallmentAmounts, sumInstallmentAmounts } from "./installment-amounts";
 
 describe("redistributeInstallmentAmounts", () => {
 	test("redistributes the parent total without changing imported installments", () => {
@@ -19,5 +19,9 @@ describe("redistributeInstallmentAmounts", () => {
 				{ currentInstallment: 2, hasImportedAmount: true, installmentAmount: 20 },
 			]),
 		).toThrow("O total não pode alterar parcelas importadas");
+	});
+
+	test("sums installments in cents without floating-point drift", () => {
+		expect(sumInstallmentAmounts([33.33, 33.33, 33.34])).toBe(100);
 	});
 });

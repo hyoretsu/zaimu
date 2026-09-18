@@ -15,6 +15,7 @@ import {
 import {
 	getEvenlyDistributedInstallmentAmounts,
 	redistributeInstallmentAmounts,
+	sumInstallmentAmounts,
 } from "~/modules/creditCards/domain/installment-amounts";
 import {
 	deleteCreatorDebtEventForPurchase,
@@ -1649,17 +1650,11 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					throw new HttpException("Não foi possível identificar todas as parcelas da compra", 409);
 				const rootPurchase = installments.find(item => item.id === rootPurchaseId);
 				if (!rootPurchase) throw new HttpException("Compra não encontrada", 404);
-				const totalAmount =
-					installments.reduce(
-						(totalInCents, installment) =>
-							totalInCents +
-							Math.round(
-								(installment.id === purchase.id
-									? body.installmentAmount!
-									: Number(installment.installmentAmount)) * 100,
-							),
-						0,
-					) / 100;
+				const totalAmount = sumInstallmentAmounts(
+					installments.map(installment =>
+						installment.id === purchase.id ? body.installmentAmount! : Number(installment.installmentAmount),
+					),
+				);
 				const cashbackAmount =
 					rootPurchase.cashbackAmount === null
 						? null
@@ -1738,7 +1733,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			const nextInstallments = body.installments ?? purchase.installments;
 			if (nextInstallments !== purchase.installments && purchase.installments > 1)
 				throw new HttpException("Não é possível alterar a quantidade de parcelas desta compra", 409);
-			const nextTotalAmount = body.totalAmount ?? Number(purchase.totalAmount);
+			const requestedTotalAmount = body.totalAmount ?? Number(purchase.totalAmount);
 			const purchaseInstallments =
 				purchase.installments > 1
 					? await queryRows(
@@ -1761,7 +1756,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			if (body.totalAmount !== undefined && purchaseInstallments.length) {
 				try {
 					redistributedAmounts = redistributeInstallmentAmounts(
-						nextTotalAmount,
+						requestedTotalAmount,
 						sortedPurchaseInstallments.map(installment => ({
 							currentInstallment: installment.currentInstallment,
 							hasImportedAmount: installment.hasImportedAmount,
@@ -1772,6 +1767,13 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					throw new HttpException(error instanceof Error ? error.message : "Parcelamento inválido", 400);
 				}
 			}
+			const nextTotalAmount =
+				body.totalAmount === undefined
+					? requestedTotalAmount
+					: sumInstallmentAmounts(
+							redistributedAmounts ??
+								getEvenlyDistributedInstallmentAmounts(requestedTotalAmount, nextInstallments),
+						);
 			const nextAmount =
 				redistributedAmounts?.[
 					sortedPurchaseInstallments.findIndex(installment => installment.id === purchase.id)
