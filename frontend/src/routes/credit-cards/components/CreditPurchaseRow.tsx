@@ -42,14 +42,18 @@ export function CreditPurchaseRow({
 	return (
 		<div className="grid min-w-0 gap-3 rounded-xl border bg-card p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
 			<div className="min-w-0">
-				<p className="truncate font-medium">{purchase.description || purchase.storeName || "Compra"}</p>
+				<p className="truncate font-medium">
+					{purchase.feeDescription === "IOF do parcelamento"
+						? purchase.description.replace(/^FIN /u, "")
+						: purchase.description || purchase.storeName || "Compra"}
+				</p>
 				<p className="truncate text-muted-foreground text-xs">
 					{formatLocalDate(purchase.purchaseDate)}
 					{formatLocalTime(purchase.time) ? ` · ${formatLocalTime(purchase.time)}` : ""}
 					{purchase.isRefund ? " · Reembolso" : purchase.hasRefund ? " · Reembolsada" : ""}
 					{purchase.isForecast ? " · Previsão" : ""}
 					{purchase.installments > 1 ? ` · ${purchase.currentInstallment}/${purchase.installments}` : ""}
-					{purchase.isSettled ? " · Quitada por reparcelamento" : ""}
+					{purchase.isSettled ? " · Compensada pelo crédito do reparcelamento" : ""}
 				</p>
 				{purchase.feeAmount && purchase.feeDescription ? (
 					<p className="mt-1 text-muted-foreground text-xs">
@@ -68,7 +72,15 @@ export function CreditPurchaseRow({
 				) : null}
 			</div>
 			<div className="grid min-w-0 justify-items-end gap-2">
-				<strong className={purchase.isRefund ? "text-emerald-600" : undefined}>
+				<strong
+					className={
+						purchase.isRefund
+							? "text-emerald-600"
+							: purchase.isSettled
+								? "text-muted-foreground line-through"
+								: undefined
+					}
+				>
 					{currency.format(purchase.installmentAmount)}
 				</strong>
 				<div className="flex flex-wrap justify-end gap-2">

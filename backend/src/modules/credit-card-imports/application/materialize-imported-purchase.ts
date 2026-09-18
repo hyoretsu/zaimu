@@ -70,6 +70,9 @@ async function getOrCreateStatement(card: CardSnapshot, purchaseDate: Date) {
 }
 
 export async function materializeImportedPurchase(card: CardSnapshot, input: ImportedPurchaseInput) {
+	const financedFee = input.description.match(/^(FIN .+?) · IOF R\$ ([\d.]+,\d{2})$/u);
+	const description = financedFee?.[1] ?? input.description;
+	const feeAmount = financedFee ? Number(financedFee[2]!.replace(/\./g, "").replace(",", ".")) : null;
 	const createdIds: string[] = [];
 	const importedInstallmentAmounts = getImportedInstallmentAmounts(input);
 	let rootId = input.existingRootId;
@@ -132,7 +135,12 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 							),
 						}),
 					categoryId: input.categoryId,
-					description: input.description,
+					description,
+					...(financedFee &&
+						currentInstallment === input.currentInstallment && {
+							feeAmount: feeAmount ? String(feeAmount) : null,
+							feeDescription: feeAmount ? "IOF do parcelamento" : null,
+						}),
 					...(currentInstallment === 1 && { externalId: input.externalId }),
 					hasImportedAmount: existing.hasImportedAmount || currentInstallment === input.currentInstallment,
 					installmentAmount: String(installmentAmount),
@@ -183,7 +191,13 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 							}
 						: {}),
 					currentInstallment,
-					description: input.description,
+					description,
+					...(financedFee &&
+						currentInstallment === input.currentInstallment &&
+						feeAmount && {
+							feeAmount: String(feeAmount),
+							feeDescription: "IOF do parcelamento",
+						}),
 					...(currentInstallment === 1 && { externalId: input.externalId }),
 					hasImportedAmount: currentInstallment === input.currentInstallment,
 					installmentAmount: String(installmentAmount),

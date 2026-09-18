@@ -22,6 +22,7 @@ import { matchesExistingCreditPurchase } from "../../domain/credit-card-import-r
 import { parseCreditCardStatementPdf } from "../../domain/credit-card-statement-parser";
 import { requiresCreditCardStatementPdfPassword } from "../../domain/credit-card-statement-password";
 import { filterZeroValuePurchases } from "../../domain/filter-zero-value-purchases";
+import { selectNewImportPurchases } from "../../domain/select-new-import-purchases";
 import { CreditCardImportItemReconcileDTO, CreditCardImportItemUpdateDTO } from "./CreditCardImportsDTO";
 
 const importItemTagEntityType = "CREDIT_CARD_IMPORT_ITEM";
@@ -297,6 +298,13 @@ async function approveItems(userId: string, importId: string, itemId?: string) {
 	for (const item of selectedItems) {
 		if (item.storeName) await resolveStore(userId, item.storeName);
 		const debtSplit = await getDebtSplitInput({ creditCardImportItemId: item.id });
+		// An interrupted approval can have created the root before deleting the import item.
+		const importedRoot = await queryFirst(
+			db.sql.public.CreditPurchase.select("id")
+				.where((fields, functions) => functions.eq(fields.externalId, item.externalId))
+				.limit(1)
+				.build(),
+		);
 		const rootId = await materializeImportedPurchase(
 			{
 				...card,
@@ -311,7 +319,7 @@ async function approveItems(userId: string, importId: string, itemId?: string) {
 			},
 			{
 				...item,
-				existingRootId: item.reconciledCreditPurchaseId,
+				existingRootId: item.reconciledCreditPurchaseId ?? importedRoot?.id ?? null,
 				installmentAmount: Number(item.installmentAmount),
 				tagIds: (tagsByItem.get(item.id) ?? []).map(tag => tag.id),
 				totalAmount: Number(item.totalAmount),
@@ -326,7 +334,7 @@ async function approveItems(userId: string, importId: string, itemId?: string) {
 			totalAmount: Number(item.totalAmount),
 			userId,
 		};
-		if (item.reconciledCreditPurchaseId) await syncPurchaseDebtEvent(debtInput);
+		if (item.reconciledCreditPurchaseId || importedRoot) await syncPurchaseDebtEvent(debtInput);
 		else if (debtSplit) await linkPurchaseToDebt({ ...debtInput, debtSplit });
 	}
 	await cleanupItemTags(selectedItems.map(item => item.id));
@@ -397,7 +405,10 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 					db.sql.public.CreditPurchase.innerJoin(db.sql.public.CreditCardStatement, (fields, functions) =>
 						functions.eq(fields.CreditPurchase.statementId, fields.CreditCardStatement.id),
 					)
-						.select(fields => ({ externalId: fields.CreditPurchase.externalId }))
+						.select(fields => ({
+							externalId: fields.CreditPurchase.externalId,
+							id: fields.CreditPurchase.id,
+						}))
 						.where((fields, functions) =>
 							functions.and(
 								functions.eq(fields.CreditCardStatement.creditCardId, body.creditCardId),
@@ -427,17 +438,42 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 						.build(),
 				),
 			]);
-			const existingIds = new Set(
-				[...existing, ...pending].flatMap(item => (item.externalId ? [item.externalId] : [])),
+			const existingRoots = new Map(
+				existing.flatMap(item => (item.externalId ? [[item.externalId, item.id] as const] : [])),
 			);
-			const newPurchases = purchases.filter(purchase => !existingIds.has(purchase.externalId));
+			const existingInstallments = existing.length
+				? await queryRows(
+						db.sql.public.CreditPurchase.select("currentInstallment", "hasImportedAmount", "id", "parentId")
+							.where((fields, functions) =>
+								functions.or(
+									functions.in(
+										fields.id,
+										existing.map(item => item.id),
+									),
+									functions.in(
+										fields.parentId,
+										existing.map(item => item.id),
+									),
+								),
+							)
+							.build(),
+					)
+				: [];
+			const pendingIds = new Set(pending.map(item => item.externalId));
+			const newPurchases = selectNewImportPurchases(
+				purchases,
+				existingRoots,
+				existingInstallments,
+				pendingIds,
+			);
 			const ignoredCount = purchases.length - newPurchases.length;
 			if (!newPurchases.length) {
-				await markStatementAsFullySynced({
-					creditCardId: body.creditCardId,
-					dueDate: new Date(`${statement.dueDate}T12:00:00`),
-					statementDate: new Date(`${statement.statementDate}T12:00:00`),
-				});
+				if (!pending.length)
+					await markStatementAsFullySynced({
+						creditCardId: body.creditCardId,
+						dueDate: new Date(`${statement.dueDate}T12:00:00`),
+						statementDate: new Date(`${statement.statementDate}T12:00:00`),
+					});
 				return { creditCardImport: null, ignoredCount };
 			}
 			const creditCardImport = await queryFirst(
@@ -462,6 +498,9 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 						creditCardImportId: creditCardImport.id,
 						installmentAmount: String(purchase.installmentAmount),
 						purchaseDate: new Date(`${purchase.purchaseDate}T12:00:00`),
+						...(purchase.reconciledCreditPurchaseId && {
+							reconciledCreditPurchaseId: purchase.reconciledCreditPurchaseId,
+						}),
 						totalAmount: String(purchase.totalAmount),
 					})),
 				).build(),

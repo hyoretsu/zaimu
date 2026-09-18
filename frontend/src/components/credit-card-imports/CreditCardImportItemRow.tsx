@@ -8,13 +8,14 @@ function toTransaction(
 	creditCardId: string,
 	creditCardName: string,
 ): Transaction {
+	const financedOperation = item.description.match(/^(FIN .+?) · IOF R\$ ([\d.]+,\d{2})$/u);
 	return {
 		amount: item.totalAmount,
 		createdAt: item.createdAt,
 		creditCardId,
 		date: item.purchaseDate,
 		debtSplit: item.debtSplit,
-		description: item.description,
+		description: financedOperation?.[1]?.replace(/^FIN /u, "") ?? item.description,
 		id: item.id,
 		installmentAmount: item.installmentAmount,
 		installments: item.installments,
@@ -47,6 +48,7 @@ export function CreditCardImportItemRow({
 	onReconcile: () => void;
 }) {
 	const transaction = toTransaction(item, creditCardId, creditCardName);
+	const financedOperation = item.description.match(/^(FIN .+?) · IOF R\$ ([\d.]+,\d{2})$/u);
 
 	return (
 		<TransactionListItem
@@ -73,6 +75,11 @@ export function CreditCardImportItemRow({
 			metadataPrefix={
 				<div className="flex flex-wrap items-center gap-1.5">
 					<span className="text-muted-foreground text-xs">{formatLocalDate(item.purchaseDate)}</span>
+					{financedOperation ? (
+						<span className="rounded-full border bg-muted px-2 py-0.5 text-muted-foreground text-xs">
+							Crédito parcelado · IOF R$ {financedOperation[2]} incluído
+						</span>
+					) : null}
 					{item.duplicates.length ? (
 						<span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-amber-700 text-xs">
 							<LuCircleAlert /> Possível duplicata

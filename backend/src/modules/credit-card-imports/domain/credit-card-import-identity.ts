@@ -10,12 +10,14 @@ export function assignCreditCardPurchaseExternalIds(
 ) {
 	const occurrences = new Map<string, number>();
 	return purchases.map(purchase => {
+		const financedFee = purchase.description.match(/^(FIN .+?) · IOF R\$ ([\d.]+,\d{2})$/u);
+		const fee = financedFee ? Number(financedFee[2]!.replace(/\./g, "").replace(",", ".")) : 0;
 		const identity = [
 			"credit-card-import-v1",
 			creditCardId,
 			purchase.purchaseDate,
-			normalize(purchase.description),
-			purchase.installmentAmount.toFixed(2),
+			normalize(financedFee?.[1] ?? purchase.description),
+			(purchase.installmentAmount - fee).toFixed(2),
 			String(purchase.installments),
 		].join("|");
 		const occurrence = (occurrences.get(identity) ?? 0) + 1;
