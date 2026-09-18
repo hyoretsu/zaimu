@@ -41,6 +41,14 @@ const initialDraft = () => ({
 	type: "EXPENSE" as Transaction["type"] | "YIELD",
 });
 
+interface CreateTransactionInput {
+	debtSplit: DebtSplitInput;
+	description: string;
+	draft: ReturnType<typeof initialDraft>;
+	isDebt: boolean;
+	sendWithoutTime: boolean;
+}
+
 export function CreateTransactionDialog({
 	onOpenChange,
 	open,
@@ -110,7 +118,13 @@ export function CreateTransactionDialog({
 		if (!nextOpen) reset();
 	};
 	const create = useMutation({
-		mutationFn: async () => {
+		mutationFn: async ({
+			debtSplit,
+			description,
+			draft,
+			isDebt,
+			sendWithoutTime,
+		}: CreateTransactionInput) => {
 			const amount = Number.parseFloat(draft.amount);
 			if (draft.type === "YIELD") {
 				return dataService.accountYields.create({
@@ -136,23 +150,26 @@ export function CreateTransactionDialog({
 			return { statement: null, transaction };
 		},
 		onError: error => showToast(error.message, "negative"),
-		onSuccess: async () => {
+		onSuccess: async (_, { draft }) => {
 			await invalidateCacheOperation(
 				queryClient,
 				identity!,
 				draft.type === "YIELD" ? "yield" : "transaction",
 			);
 			showToast(
-				selectedStatement
+				draft.creditCardStatementId
 					? "Transação associada à fatura."
 					: draft.type === "YIELD"
 						? "Rendimento registrado."
 						: "Transação registrada.",
 				"positive",
 			);
-			handleOpenChange(false);
 		},
 	});
+	const save = () => {
+		create.mutate({ debtSplit, description, draft, isDebt, sendWithoutTime });
+		reset();
+	};
 
 	return (
 		<Dialog onOpenChange={handleOpenChange} open={open}>
@@ -304,12 +321,11 @@ export function CreateTransactionDialog({
 							!draft.amount ||
 							!primaryAccountId ||
 							(isDebt && !calculateDebtSplit(Number(draft.amount), debtSplit)) ||
-							(draft.type === "TRANSFER" && !draft.destinationFinancialAccountId) ||
-							create.isPending
+							(draft.type === "TRANSFER" && !draft.destinationFinancialAccountId)
 						}
-						onClick={() => create.mutate()}
+						onClick={save}
 					>
-						{create.isPending ? "Salvando…" : "Salvar"}
+						Salvar
 					</Button>
 				</DialogFooter>
 			</DialogContent>

@@ -22,7 +22,15 @@ import { DebtSplitInputDTO } from "~/modules/debts/infra/elysia/DebtSplitsDTO";
 import { materializeSalaryTransactions } from "~/modules/salaries/application/materialize-salary-transactions";
 import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { HttpException } from "~/shared/errors";
-import { db, executeStatement, queryFirst, queryRows, withTransaction } from "~/shared/infra/sql";
+import {
+	db,
+	executeStatement,
+	numeric,
+	param,
+	queryFirst,
+	queryRows,
+	withTransaction,
+} from "~/shared/infra/sql";
 
 const transactionColumns = [
 	"id",
@@ -49,8 +57,6 @@ const transactionColumns = [
 
 const TransactionType = t.Union([t.Literal("INCOME"), t.Literal("EXPENSE"), t.Literal("TRANSFER")]);
 const timePattern = /^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
-const toCents = (amount: number | string) => Math.round(Number(amount) * 100);
-const toDateKey = (date: Date) => date.toISOString().slice(0, 10);
 
 function resolveTransactionTime(value: string | null | undefined): string | null {
 	if (value === null) return null;
@@ -59,6 +65,24 @@ function resolveTransactionTime(value: string | null | undefined): string | null
 		return value;
 	}
 	return new Date().toTimeString().slice(0, 5);
+}
+
+async function adjustCreditCardStatementPaidAmount(statementId: string, amountDifference: number) {
+	const amount = param(numeric<12, 2>(amountDifference), { codecId: "pg/numeric@1" });
+	const statement = await queryFirst(
+		db.sql.public.CreditCardStatement.update((fields, functions) => ({
+			isPaid: functions.raw`
+				${fields.statementDate} <= CURRENT_DATE
+				AND ${fields.paidAmount} + ${amount} >= ${fields.totalAmount}
+			`.returns("pg/bool@1"),
+			paidAmount: functions.raw`GREATEST(0, ${fields.paidAmount} + ${amount})`.returns("pg/numeric@1"),
+			updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
+		}))
+			.where((fields, functions) => functions.eq(fields.id, statementId))
+			.returning("id")
+			.build(),
+	);
+	if (!statement) throw new HttpException("Fatura não encontrada", 404);
 }
 
 export const TransactionsController = new Elysia({ prefix: "/transactions" })
@@ -587,7 +611,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 		"/",
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
-			let statement: { id: string; paidAmount: number; statementDate: Date; totalAmount: number } | undefined;
+			let statement: { id: string } | undefined;
 			if (body.creditCardStatementId) {
 				if ((body.type ?? "EXPENSE") !== "EXPENSE") {
 					throw new HttpException("Apenas saídas podem pagar uma fatura", 400);
@@ -601,9 +625,6 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						)
 						.select(fields => ({
 							id: fields.CreditCardStatement.id,
-							paidAmount: fields.CreditCardStatement.paidAmount,
-							statementDate: fields.CreditCardStatement.statementDate,
-							totalAmount: fields.CreditCardStatement.totalAmount,
 						}))
 						.where((fields, functions) =>
 							functions.and(
@@ -783,18 +804,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			if (!transaction) throw new HttpException("Transaction not created", 500);
 			if (wasCreated) {
 				if (statement) {
-					const paidAmount = (toCents(statement.paidAmount) + toCents(body.amount)) / 100;
-					await executeStatement(
-						db.sql.public.CreditCardStatement.update({
-							isPaid:
-								toDateKey(statement.statementDate) <= toDateKey(new Date()) &&
-								toCents(paidAmount) >= toCents(statement.totalAmount),
-							paidAmount: String(paidAmount),
-							updatedAt: new Date(),
-						})
-							.where((fields, functions) => functions.eq(fields.id, statement!.id))
-							.build(),
-					);
+					await adjustCreditCardStatementPaidAmount(statement.id, body.amount);
 				}
 				await replaceEntityTags({
 					entityIds: [transaction.id],
@@ -993,29 +1003,15 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			const nextStatementId = transaction.creditCardStatementId;
 			if (previousStatementId || nextStatementId) {
 				const statementIds = [...new Set([previousStatementId, nextStatementId].filter(Boolean))];
-				const statements = await queryRows(
-					db.sql.public.CreditCardStatement.select("id", "paidAmount", "statementDate", "totalAmount")
-						.where((fields, functions) => functions.in(fields.id, statementIds))
-						.build(),
+				await Promise.all(
+					statementIds.map(statementId =>
+						adjustCreditCardStatementPaidAmount(
+							statementId,
+							(statementId === previousStatementId ? -Number(existing.amount) : 0) +
+								(statementId === nextStatementId ? Number(transaction.amount) : 0),
+						),
+					),
 				);
-				for (const statement of statements) {
-					const paidAmount =
-						(toCents(statement.paidAmount) -
-							(statement.id === previousStatementId ? toCents(existing.amount) : 0) +
-							(statement.id === nextStatementId ? toCents(transaction.amount) : 0)) /
-						100;
-					await executeStatement(
-						db.sql.public.CreditCardStatement.update({
-							isPaid:
-								toDateKey(statement.statementDate) <= toDateKey(new Date()) &&
-								toCents(paidAmount) >= toCents(statement.totalAmount),
-							paidAmount: String(Math.max(0, paidAmount)),
-							updatedAt: new Date(),
-						})
-							.where((fields, functions) => functions.eq(fields.id, statement.id))
-							.build(),
-					);
-				}
 			}
 			await syncTransactionDebtEvent({
 				amount: Number(transaction.amount),
@@ -1083,25 +1079,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				throw new HttpException("Transaction not found", 404);
 			}
 			if (existing.creditCardStatementId) {
-				const statement = await queryFirst(
-					db.sql.public.CreditCardStatement.select("id", "paidAmount", "statementDate", "totalAmount")
-						.where((fields, functions) => functions.eq(fields.id, existing.creditCardStatementId!))
-						.limit(1)
-						.build(),
-				);
-				if (!statement) throw new HttpException("Fatura não encontrada", 404);
-				const paidAmount = Math.max(0, (toCents(statement.paidAmount) - toCents(existing.amount)) / 100);
-				await executeStatement(
-					db.sql.public.CreditCardStatement.update({
-						isPaid:
-							toDateKey(statement.statementDate) <= toDateKey(new Date()) &&
-							toCents(paidAmount) >= toCents(statement.totalAmount),
-						paidAmount: String(paidAmount),
-						updatedAt: new Date(),
-					})
-						.where((fields, functions) => functions.eq(fields.id, statement.id))
-						.build(),
-				);
+				await adjustCreditCardStatementPaidAmount(existing.creditCardStatementId, -Number(existing.amount));
 			}
 
 			await replaceEntityTags({

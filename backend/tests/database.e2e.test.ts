@@ -868,6 +868,32 @@ suite("Prisma 8 SQL query builder", () => {
 				}),
 			]),
 		);
+		const concurrentPayments = await Promise.all(
+			[10, 20].map(amount =>
+				jsonRequest(
+					"/transactions/",
+					"POST",
+					{
+						amount,
+						creditCardStatementId: statementToPay.id,
+						date: "2026-08-25",
+						originFinancialAccountId: account.id,
+						type: "EXPENSE",
+					},
+					owner.cookie,
+				),
+			),
+		);
+		expect(concurrentPayments.map(response => response.status)).toEqual([200, 200]);
+		const statementAfterConcurrentPayments = (await (
+			await jsonRequest(
+				`/credit-cards/${cardAccount.creditCard.id}/statements/${statementToPay.id}`,
+				"GET",
+				undefined,
+				owner.cookie,
+			)
+		).json()) as { paidAmount: number };
+		expect(statementAfterConcurrentPayments.paidAmount).toBe(70);
 
 		const lifecycleCases = [
 			{
