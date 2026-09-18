@@ -119,7 +119,7 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 		},
 	});
 	return (
-		<TabsContent className="min-h-0 min-w-0 overflow-hidden pt-4 sm:pt-0 sm:pl-6" value={statement.id}>
+		<TabsContent className="min-h-0 min-w-0 overflow-hidden sm:pl-6" value={statement.id}>
 			<ScrollArea className="h-full min-h-0 pr-3">
 				<div className="grid gap-3">
 					<header className="grid gap-2 rounded-xl border bg-muted/30 p-3">
