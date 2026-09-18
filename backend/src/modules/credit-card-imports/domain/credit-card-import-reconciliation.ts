@@ -18,28 +18,27 @@ interface ExistingPurchaseShape {
 }
 
 const dateKey = (value: Date | string) => new Date(value).toISOString().slice(0, 10);
+const reconciliationToleranceInCents = 100;
 
 export function hasCompatibleInstallmentAmount(
 	importedAmount: number | string,
 	existingAmount: number | string,
-	installments: number,
+	_installments: number,
 ) {
-	const toleranceInCents = installments > 1 ? 20 : 0;
 	return (
 		Math.abs(Math.round(Number(importedAmount) * 100) - Math.round(Number(existingAmount) * 100)) <=
-		toleranceInCents
+		reconciliationToleranceInCents
 	);
 }
 
 function hasCompatibleTotalAmount(
 	importedAmount: number | string,
 	existingAmount: number | string,
-	installments: number,
+	_installments: number,
 ) {
-	const toleranceInCents = Math.max(0, installments - 1);
 	return (
 		Math.abs(Math.round(Number(importedAmount) * 100) - Math.round(Number(existingAmount) * 100)) <=
-		toleranceInCents
+		reconciliationToleranceInCents
 	);
 }
 

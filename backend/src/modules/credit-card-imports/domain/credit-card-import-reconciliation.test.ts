@@ -25,6 +25,30 @@ describe("matchesExistingCreditPurchase", () => {
 		).toBe(true);
 	});
 
+	test("matches a single-installment purchase with a provider amount adjustment", () => {
+		expect(
+			matchesExistingCreditPurchase(
+				{
+					description: "ASSINATURA",
+					installmentAmount: 11.99,
+					installments: 1,
+					purchaseDate: "2026-08-07",
+					storeName: null,
+					totalAmount: 11.99,
+				},
+				{
+					description: "PicPay Mais",
+					existingInstallments: 1,
+					installmentAmount: 11.9,
+					installments: 1,
+					purchaseDate: "2026-08-07",
+					storeName: null,
+					totalAmount: 11.9,
+				},
+			),
+		).toBe(true);
+	});
+
 	test("rejects groups that cannot fit the imported parcel plan", () => {
 		expect(
 			matchesExistingCreditPurchase(imported, {
@@ -53,12 +77,12 @@ describe("matchesExistingCreditPurchase", () => {
 		).toBe(false);
 	});
 
-	test("matches installments that differ by up to twenty cents due to provider rounding", () => {
+	test("matches installments that differ by up to one real due to provider rounding", () => {
 		expect(
 			matchesExistingCreditPurchase(imported, {
 				description: imported.description,
 				existingInstallments: 3,
-				installmentAmount: 41.1,
+				installmentAmount: 41.9,
 				installments: imported.installments,
 				purchaseDate: imported.purchaseDate,
 				storeName: null,
@@ -67,12 +91,12 @@ describe("matchesExistingCreditPurchase", () => {
 		).toBe(true);
 	});
 
-	test("rejects installment values outside the twenty-cent rounding margin", () => {
+	test("rejects installment values outside the one-real rounding margin", () => {
 		expect(
 			matchesExistingCreditPurchase(imported, {
 				description: imported.description,
 				existingInstallments: 3,
-				installmentAmount: 41.11,
+				installmentAmount: 41.91,
 				installments: imported.installments,
 				purchaseDate: imported.purchaseDate,
 				storeName: null,
@@ -117,6 +141,23 @@ describe("matchesExistingCreditPurchase", () => {
 				storeName: "Outra loja",
 				totalAmount: 449.8,
 			}),
+		).toBe(true);
+	});
+
+	test("matches a total up to one real apart when installments are reconstructed", () => {
+		expect(
+			matchesExistingCreditPurchase(
+				{ ...imported, totalAmount: 249.28 },
+				{
+					description: "Compra manual",
+					existingInstallments: 1,
+					installmentAmount: imported.installmentAmount,
+					installments: imported.installments,
+					purchaseDate: imported.purchaseDate,
+					storeName: "Outra loja",
+					totalAmount: 249,
+				},
+			),
 		).toBe(true);
 	});
 });
