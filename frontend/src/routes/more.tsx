@@ -4,26 +4,14 @@ import {
 	HiChevronRight,
 	HiClipboardDocumentList,
 	HiCog6Tooth,
-	HiCreditCard,
 	HiUsers,
-	HiWallet,
 } from "react-icons/hi2";
+import { mobileNavigation, primaryNavigation, utilityNavigation } from "@/components/layout/navigation";
+
+const desktopNavigationPaths = new Set([...primaryNavigation, ...utilityNavigation].map(item => item.to));
+const mobileNavigationPaths = new Set(mobileNavigation.map(item => item.to));
 
 const menuItems = [
-	{
-		color: "bg-primary-500/10 text-primary-500",
-		description: "Gerencie suas contas bancárias",
-		icon: HiWallet,
-		label: "Contas",
-		to: "/accounts",
-	},
-	{
-		color: "bg-primary-500/10 text-primary-500",
-		description: "Acompanhe compras no crédito",
-		icon: HiCreditCard,
-		label: "Cartões",
-		to: "/credit-cards",
-	},
 	{
 		color: "bg-danger/10 text-danger",
 		description: "Acompanhe dívidas pessoais",
@@ -54,6 +42,31 @@ const menuItems = [
 	},
 ];
 
+function renderMenuItems(items: typeof menuItems) {
+	return items.map((item, idx) => (
+		<Link className="block" key={item.to} to={item.to}>
+			<div
+				className={`flex items-center gap-4 p-4 transition-colors hover:bg-background-card/50 active:bg-background-card ${
+					idx < items.length - 1 ? "border-border-light border-b" : ""
+				}`}
+				style={{ animationDelay: `${idx * 0.05}s` }}
+			>
+				<div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${item.color}`}>
+					<item.icon className="h-6 w-6" />
+				</div>
+				<div className="min-w-0 flex-1">
+					<p className="font-semibold text-foreground">{item.label}</p>
+					<p className="truncate text-foreground-muted text-sm">{item.description}</p>
+				</div>
+				<HiChevronRight className="h-5 w-5 text-foreground-muted" />
+			</div>
+		</Link>
+	));
+}
+
+const desktopMenuItems = menuItems.filter(item => !desktopNavigationPaths.has(item.to));
+const mobileMenuItems = menuItems.filter(item => !mobileNavigationPaths.has(item.to));
+
 export function MorePage() {
 	return (
 		<div className="mx-auto min-h-screen w-full max-w-5xl bg-background lg:py-10">
@@ -71,25 +84,8 @@ export function MorePage() {
 			{/* Menu List */}
 			<div className="-mt-12 px-4 pb-8">
 				<div className="card animate-fade-in overflow-hidden">
-					{menuItems.map((item, idx) => (
-						<Link className="block" key={item.to} to={item.to as string}>
-							<div
-								className={`flex items-center gap-4 p-4 transition-colors hover:bg-background-card/50 active:bg-background-card ${
-									idx < menuItems.length - 1 ? "border-border-light border-b" : ""
-								}`}
-								style={{ animationDelay: `${idx * 0.05}s` }}
-							>
-								<div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${item.color}`}>
-									<item.icon className="h-6 w-6" />
-								</div>
-								<div className="min-w-0 flex-1">
-									<p className="font-semibold text-foreground">{item.label}</p>
-									<p className="truncate text-foreground-muted text-sm">{item.description}</p>
-								</div>
-								<HiChevronRight className="h-5 w-5 text-foreground-muted" />
-							</div>
-						</Link>
-					))}
+					<div className="lg:hidden">{renderMenuItems(mobileMenuItems)}</div>
+					<div className="hidden lg:block">{renderMenuItems(desktopMenuItems)}</div>
 				</div>
 			</div>
 		</div>

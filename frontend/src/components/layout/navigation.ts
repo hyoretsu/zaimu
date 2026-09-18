@@ -20,4 +20,12 @@ export const primaryNavigation = [
 
 export const utilityNavigation = [{ icon: LuSettings2, label: "Ajustes", to: "/settings" }] as const;
 
+export const mobileNavigation = [
+	{ ...primaryNavigation[0], tabId: "overview" },
+	{ ...primaryNavigation[1], tabId: "transactions" },
+	{ ...primaryNavigation[2], tabId: "accounts" },
+	{ ...primaryNavigation[3], tabId: "creditCards" },
+	{ ...primaryNavigation[5], tabId: "more" },
+] as const;
+
 export { LuWalletCards };

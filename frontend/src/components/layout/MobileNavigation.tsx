@@ -1,14 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { type MobileTabId, type MobileTabRoutes, resolveMobileTabDestination } from "./mobile-tabs";
-import { primaryNavigation } from "./navigation";
-
-const mobileItems = [
-	{ ...primaryNavigation[0], tabId: "overview" },
-	{ ...primaryNavigation[1], tabId: "transactions" },
-	{ ...primaryNavigation[2], tabId: "accounts" },
-	{ ...primaryNavigation[3], tabId: "creditCards" },
-	{ ...primaryNavigation[5], tabId: "more" },
-] as const satisfies ReadonlyArray<(typeof primaryNavigation)[number] & { tabId: MobileTabId }>;
+import { mobileNavigation } from "./navigation";
 
 interface MobileNavigationProps {
 	activeTab: MobileTabId;
@@ -23,7 +15,7 @@ export function MobileNavigation({ activeTab, onReselect, routes }: MobileNaviga
 			className="safe-area-bottom fixed right-0 bottom-0 left-0 z-40 border-border border-t bg-card/95 px-2 pt-2 shadow-[0_-12px_36px_-26px_rgba(36,36,36,.45)] backdrop-blur-xl"
 		>
 			<div className="mx-auto flex max-w-xl justify-around">
-				{mobileItems.map(item => {
+				{mobileNavigation.map(item => {
 					const isActive = item.tabId === activeTab;
 					const destination = resolveMobileTabDestination(routes, activeTab, item.tabId);
 					return (
