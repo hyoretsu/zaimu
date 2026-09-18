@@ -1,4 +1,5 @@
 import Elysia, { t } from "elysia";
+import { getFinancialAccountBalancesAtDates } from "~/modules/accounts/application/get-financial-account-balances";
 import {
 	assertBalanceAccountOwnership,
 	assertDirectOwnership,
@@ -531,6 +532,49 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					new Date(right.date).getTime() - new Date(left.date).getTime() ||
 					new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
 			);
+			if (query.view === "daily") {
+				const page =
+					query.limit === undefined && query.offset === undefined
+						? sortedTransactions
+						: sortedTransactions.slice(
+								query.offset ?? 0,
+								(query.offset ?? 0) + (query.limit ?? sortedTransactions.length),
+							);
+				const transactionDateKey = (transaction: (typeof page)[number]) =>
+					new Date(transaction.date).toISOString().slice(0, 10);
+				const dates = [...new Set(page.map(transactionDateKey))];
+				const accounts = await queryRows(
+					db.sql.public.FinancialAccount.select("id", "type")
+						.where((fields, functions) => functions.eq(fields.userId, userId))
+						.build(),
+				);
+				const monetaryAccountIds = new Set(
+					accounts
+						.filter(account => !["CREDIT_CARD", "INVESTMENT", "REWARDS"].includes(account.type))
+						.map(account => account.id),
+				);
+				const balances = await getFinancialAccountBalancesAtDates(
+					accounts.map(account => account.id),
+					dates.map(date => new Date(`${date}T12:00:00`)),
+				);
+				const endingBalanceByDate = new Map(
+					balances.map(({ balances: accountBalances, date }) => [
+						date.toISOString().slice(0, 10),
+						[...accountBalances].reduce(
+							(total, [accountId, balance]) => total + (monetaryAccountIds.has(accountId) ? balance : 0),
+							0,
+						),
+					]),
+				);
+				return {
+					days: dates.map(date => ({
+						date,
+						endingBalance: endingBalanceByDate.get(date) ?? 0,
+						transactions: page.filter(transaction => transactionDateKey(transaction) === date),
+					})),
+					hasMore: page.length > 0,
+				};
+			}
 
 			if (query.limit === undefined && query.offset === undefined) return sortedTransactions;
 
@@ -549,6 +593,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				offset: t.Optional(t.Number({ minimum: 0 })),
 				startDate: t.Optional(t.String()),
 				type: t.Optional(TransactionType),
+				view: t.Optional(t.Literal("daily")),
 			}),
 		},
 	)

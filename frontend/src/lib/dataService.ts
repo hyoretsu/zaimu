@@ -3235,6 +3235,33 @@ export const dataService = {
 			else cacheRemoteData(localTransactions.replaceSnapshot(snapshot, owner));
 			return transactions;
 		},
+		async getDailyPage(params: {
+			endDate: string;
+			limit?: number;
+			offset?: number;
+			startDate?: string;
+		}): Promise<{
+			days: Array<{ date: string; endingBalance: number; transactions: Transaction[] }>;
+			hasMore: boolean;
+		}> {
+			if (isGuestMode()) {
+				const transactions = await this.getAll(params);
+				const dates = [...new Set(transactions.map(transaction => transaction.date.slice(0, 10)))];
+				return {
+					days: dates.map(date => ({
+						date,
+						endingBalance: 0,
+						transactions: transactions.filter(transaction => transaction.date.slice(0, 10) === date),
+					})),
+					hasMore: transactions.length > 0,
+				};
+			}
+			const searchParams = new URLSearchParams({ view: "daily" });
+			for (const [key, value] of Object.entries(params)) {
+				if (value !== undefined) searchParams.set(key, String(value));
+			}
+			return fetchWithAuth(`/transactions?${searchParams}`);
+		},
 
 		async update(
 			id: string,

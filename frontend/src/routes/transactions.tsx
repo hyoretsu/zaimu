@@ -52,6 +52,10 @@ interface TransactionsPageParam {
 	offset?: number;
 	startDate?: string;
 }
+interface TransactionsDailyPage {
+	days: Array<{ date: string; endingBalance: number; transactions: Transaction[] }>;
+	hasMore: boolean;
+}
 
 function getInitialTransactionsPage(): TransactionsPageParam {
 	const today = new Date();
@@ -81,15 +85,15 @@ export function TransactionsPage() {
 	const identity = useCacheIdentity();
 
 	const transactionsQuery = useInfiniteQuery<
-		Transaction[],
+		TransactionsDailyPage,
 		Error,
-		InfiniteData<Transaction[]>,
+		InfiniteData<TransactionsDailyPage>,
 		ReturnType<typeof queryKeys.transactions.list>,
 		TransactionsPageParam
 	>({
 		enabled: identity !== null,
 		getNextPageParam: (lastPage, _pages, lastPageParam) => {
-			if (lastPage.length === 0) return undefined;
+			if (!lastPage.hasMore) return undefined;
 			if (lastPageParam.startDate) return { endDate: getDayBefore(lastPageParam.startDate) };
 			return lastPage.length === transactionsPageSize
 				? { endDate: lastPageParam.endDate, offset: (lastPageParam.offset ?? 0) + transactionsPageSize }
@@ -97,31 +101,13 @@ export function TransactionsPage() {
 		},
 		initialPageParam: getInitialTransactionsPage(),
 		queryFn: ({ pageParam }) =>
-			dataService.transactions.getAll(
+			dataService.transactions.getDailyPage(
 				pageParam.startDate ? pageParam : { limit: transactionsPageSize, ...pageParam },
 			),
 		queryKey: queryKeys.transactions.list(identity!, {}),
 	});
-	const transactions = transactionsQuery.data?.pages.flat() ?? [];
-	const dashboardDateRange = transactions.length
-		? {
-				endDate: transactions.reduce(
-					(latestDate, transaction) =>
-						transaction.date.slice(0, 10) > latestDate ? transaction.date.slice(0, 10) : latestDate,
-					getLocalDateKey(),
-				),
-				startDate: transactions.reduce(
-					(earliestDate, transaction) =>
-						transaction.date.slice(0, 10) < earliestDate ? transaction.date.slice(0, 10) : earliestDate,
-					transactions[0].date.slice(0, 10),
-				),
-			}
-		: undefined;
-	const dashboardQuery = useQuery({
-		enabled: identity !== null && dashboardDateRange !== undefined,
-		queryFn: () => dataService.dashboard.get(dashboardDateRange!),
-		queryKey: queryKeys.dashboard.detail(identity!, dashboardDateRange),
-	});
+	const transactionDays = transactionsQuery.data?.pages.flatMap(page => page.days) ?? [];
+	const transactions = transactionDays.flatMap(day => day.transactions);
 	const creditCardsQuery = useQuery({
 		enabled: identity !== null && editingPurchase !== null,
 		queryFn: () => dataService.creditCards.getAll(),
@@ -180,9 +166,7 @@ export function TransactionsPage() {
 				{},
 			)
 		: undefined;
-	const dailyEndingBalances = new Map(
-		dashboardQuery.data?.dailyBalances.map(item => [item.date, item.balance]) ?? [],
-	);
+	const dailyEndingBalances = new Map(transactionDays.map(day => [day.date, day.endingBalance]));
 	const remove = useMutation({
 		mutationFn: (id: string) => dataService.transactions.delete(id),
 		onError: error => showToast(error.message, "negative"),
@@ -365,7 +349,7 @@ export function TransactionsPage() {
 				transactions={transactions}
 			/>
 
-			{transactionsQuery.isPending || (dashboardQuery.isPending && !dashboardQuery.data) ? (
+			{transactionsQuery.isPending ? (
 				<div className="space-y-5">
 					{[1, 2, 3].map(item => (
 						<div className="space-y-2" key={item}>
@@ -374,7 +358,7 @@ export function TransactionsPage() {
 						</div>
 					))}
 				</div>
-			) : transactionsQuery.isError || dashboardQuery.isError ? (
+			) : transactionsQuery.isError ? (
 				<EmptyState
 					description="Não foi possível carregar suas movimentações."
 					icon={<HiArrowsRightLeft />}
