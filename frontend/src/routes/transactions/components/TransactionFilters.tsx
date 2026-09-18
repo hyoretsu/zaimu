@@ -106,7 +106,6 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 						<DateRangePicker
 							className="w-full min-w-0"
 							onChange={value => set("dateRange", value)}
-							title="Filtrar por data"
 							value={filters.dateRange}
 						/>
 					</div>
