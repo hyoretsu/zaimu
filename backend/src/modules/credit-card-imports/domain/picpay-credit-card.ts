@@ -69,27 +69,25 @@ function parseInvoiceDates(text: string) {
 			dueDate: parseFullDate(compactHeader[1]!.replaceAll("-", "/")),
 			statementDate: parseFullDate(compactHeader[2]!.replaceAll("-", "/")),
 		};
-	const dueDate = text.match(/Vencimento:\s*(\d{2}\/\d{2}\/\d{4})/iu);
-	const statementDate = text.match(/Fechamento(?:\s+da\s+fatura)?:\s*(\d{2}\/\d{2}\/\d{4})/iu);
+	const dueDate = text.match(/Vencimento:\s*(\d{2}[/-]\d{2}[/-]\d{4})/iu);
+	const statementDate = text.match(/Fechamento(?:\s+da\s+fatura)?:\s*(\d{2}[/-]\d{2}[/-]\d{4})/iu);
 	if (!dueDate || !statementDate)
 		throw new Error("Não foi possível identificar vencimento e fechamento da fatura");
-	return { dueDate: parseFullDate(dueDate[1]!), statementDate: parseFullDate(statementDate[1]!) };
+	return {
+		dueDate: parseFullDate(dueDate[1]!.replaceAll("-", "/")),
+		statementDate: parseFullDate(statementDate[1]!.replaceAll("-", "/")),
+	};
 }
 
-export function parsePicPayCreditCardStatementText(text: string): CreditCardStatement {
-	const { dueDate, statementDate } = parseInvoiceDates(text);
-	const start = text.search(/Picpay Card\s+(?:Transações\s+Nacionais|Operações\s+de\s+crédito)/iu);
-	const end = text.indexOf("Total geral dos lançamentos", start);
-	const entries = start >= 0 ? text.slice(start, end > start ? end : undefined) : text;
+function parseFinancedOperations(text: string, statementDate: Date) {
 	const purchases: CreditCardStatementPurchase[] = [];
-	const credits: number[] = [];
 	let lastFinanced: {
 		baseCents: number;
 		date: string;
 		feeCents: number;
 		purchase: CreditCardStatementPurchase;
 	} | null = null;
-	for (const match of entries.matchAll(/^(\d{2})\/(\d{2})\s+(.+?)\s+(-?[\d.]+,\d{2})$/gimu)) {
+	for (const match of text.matchAll(/^(\d{2})\/(\d{2})\s+(.+?)\s+(-?[\d.]+,\d{2})$/gimu)) {
 		const amount = moneyToNumber(match[4]!);
 		if (!Number.isFinite(amount)) continue;
 		const description = match[3]!.trim();
@@ -104,57 +102,81 @@ export function parsePicPayCreditCardStatementText(text: string): CreditCardStat
 			continue;
 		}
 		lastFinanced = null;
-		if (/^CREDITO PARCELAMENTO COMPRA$/iu.test(description) && amount < 0) {
-			credits.push(Math.round(-amount * 100));
-			continue;
-		}
-		if (amount < 0 && /PAGAMENTO\s+(?:DE\s+)?FATURA/iu.test(description)) continue;
-		if (amount === 0) continue;
-		if (amount < 0) {
-			purchases.push({
-				currentInstallment: 1,
-				description: `Reembolso — ${description}`,
-				installmentAmount: amount,
-				installments: 1,
-				purchaseDate: inferPurchaseDate(Number(match[1]), Number(match[2]), statementDate, 1),
-				totalAmount: amount,
-			});
-			continue;
-		}
 		const financed = description.match(
 			/^FIN\s+(.+?)\s*PARC(?:ELA)?\s*0?(\d{1,2})\s*(?:\/|DE)\s*0?(\d{1,2})$/iu,
 		);
-		const installment = description.match(/PARC(?:ELA)?\s*0?(\d{1,2})\s*(?:\/|DE)\s*0?(\d{1,2})/iu);
-		const currentInstallment = Number(installment?.[1] ?? 1);
-		const installments = Number(installment?.[2] ?? 1);
+		if (!financed || amount <= 0) continue;
+		const currentInstallment = Number(financed[2]);
+		const installments = Number(financed[3]);
 		if (currentInstallment < 1 || installments < currentInstallment || installments > 48) continue;
 		const purchase: CreditCardStatementPurchase = {
 			currentInstallment,
-			description: financed
-				? `FIN ${financed[1]!.trim()} · IOF R$ 0,00`
-				: description.replace(/\s*PARC(?:ELA)?\s*0?\d{1,2}\s*(?:\/|DE)\s*0?\d{1,2}\s*$/iu, ""),
+			description: `FIN ${financed[1]!.trim()} · IOF R$ 0,00`,
 			installmentAmount: amount,
 			installments,
 			purchaseDate: inferPurchaseDate(Number(match[1]), Number(match[2]), statementDate, currentInstallment),
 			totalAmount: Math.round(amount * installments * 100) / 100,
 		};
 		purchases.push(purchase);
-		if (financed) lastFinanced = { baseCents: Math.round(amount * 100), date, feeCents: 0, purchase };
+		lastFinanced = { baseCents: Math.round(amount * 100), date, feeCents: 0, purchase };
 	}
-	// International entries in this PicPay layout split the merchant and BRL amount over multiple lines.
-	const internationalCredit = entries.match(
-		/\d{2}\/\d{2}\s+CREDITO PARCELAMEN RA\s+Câmbio do dia:[^\n]*\n-?[\d.]+,\d{2}\s+(-[\d.]+,\d{2})/iu,
-	);
-	if (internationalCredit) credits.push(Math.round(-moneyToNumber(internationalCredit[1]!) * 100));
-	const internationalPurchase = entries.match(
+	return purchases;
+}
+
+export function parsePicPayCreditCardStatementText(text: string): CreditCardStatement {
+	const { dueDate, statementDate } = parseInvoiceDates(text);
+	const sectionPattern =
+		/Transações\s+Nacionais\s+Data\s+Estabelecimento\s+Valor(?:\s+\(R\$\))?\s*([\s\S]*?)(?=Subtotal\s+dos\s+lançamentos|Total\s+geral\s+dos\s+lançamentos)/giu;
+	const purchasePattern = /^(\d{2})\/(\d{2})\s+(.+?)\s+(-?[\d.]+,\d{2})$/gimu;
+	const purchases = parseFinancedOperations(text, statementDate);
+	const nationalSections = [...text.matchAll(sectionPattern)].map(match => match[1]!);
+	for (const section of nationalSections.length ? nationalSections : [text]) {
+		for (const match of section.matchAll(purchasePattern)) {
+			const installmentAmount = moneyToNumber(match[4]!);
+			if (!Number.isFinite(installmentAmount)) continue;
+			const description = match[3]!.trim();
+			if (/^(?:FIN\s+|IOF\s+(?:DIARIO|DIÁRIO|ADICIONAL)\s+PARCELADO$)/iu.test(description)) continue;
+			if (/^CREDITO PARCELAMENTO COMPRA$/iu.test(description)) continue;
+			if (/^PAGAMENTO DE FATURA/iu.test(description)) continue;
+			if (installmentAmount < 0) {
+				purchases.push({
+					currentInstallment: 1,
+					description: `Reembolso — ${description}`,
+					installmentAmount,
+					installments: 1,
+					purchaseDate: inferPurchaseDate(Number(match[1]), Number(match[2]), statementDate, 1),
+					totalAmount: installmentAmount,
+				});
+				continue;
+			}
+			const installment = description.match(/PARC(?:ELA)?\s*0?(\d{1,2})\s*(?:\/|DE)\s*0?(\d{1,2})/iu);
+			const currentInstallment = Number(installment?.[1] ?? 1);
+			const installments = Number(installment?.[2] ?? 1);
+			if (currentInstallment < 1 || installments < currentInstallment || installments > 48) continue;
+			purchases.push({
+				currentInstallment,
+				description: description.replace(/\s*PARC(?:ELA)?\s*0?\d{1,2}\s*(?:\/|DE)\s*0?\d{1,2}\s*$/iu, ""),
+				installmentAmount,
+				installments,
+				purchaseDate: inferPurchaseDate(
+					Number(match[1]),
+					Number(match[2]),
+					statementDate,
+					currentInstallment,
+				),
+				totalAmount: Math.round(installmentAmount * installments * 100) / 100,
+			});
+		}
+	}
+	const internationalPurchase = text.match(
 		/(\d{2})\/(\d{2})\s*\n\s*(GTFCHARGE)\s*\n(?:[^\n]*\n){1,3}[\d.]+,\d{2}\s+([\d.]+,\d{2})/iu,
 	);
 	if (internationalPurchase) {
-		const amount = moneyToNumber(internationalPurchase[4]!);
+		const installmentAmount = moneyToNumber(internationalPurchase[4]!);
 		purchases.push({
 			currentInstallment: 1,
 			description: internationalPurchase[3]!,
-			installmentAmount: amount,
+			installmentAmount,
 			installments: 1,
 			purchaseDate: inferPurchaseDate(
 				Number(internationalPurchase[1]),
@@ -162,9 +184,16 @@ export function parsePicPayCreditCardStatementText(text: string): CreditCardStat
 				statementDate,
 				1,
 			),
-			totalAmount: amount,
+			totalAmount: installmentAmount,
 		});
 	}
+	const credits = [
+		...text.matchAll(/^\d{2}\/\d{2}\s+CREDITO PARCELAMENTO COMPRA\s+(-[\d.]+,\d{2})$/gimu),
+	].map(match => Math.round(-moneyToNumber(match[1]!) * 100));
+	for (const match of text.matchAll(
+		/^\d{2}\/\d{2}\s+CREDITO PARCELAMEN RA\s*\n(?:[^\n]*\n)*?-[\d.]+,\d{2}\s+(-[\d.]+,\d{2})$/gimu,
+	))
+		credits.push(Math.round(-moneyToNumber(match[1]!) * 100));
 	if (credits.length) linkFinancedSources(purchases, credits);
 	if (!purchases.length) throw new Error("Nenhuma compra foi encontrada na fatura");
 	return { dueDate: dateKey(dueDate), provider: "PICPAY", purchases, statementDate: dateKey(statementDate) };

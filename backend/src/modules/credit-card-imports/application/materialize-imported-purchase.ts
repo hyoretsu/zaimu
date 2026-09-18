@@ -7,7 +7,7 @@ import {
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
 import { hasCompatibleInstallmentAmount } from "../domain/credit-card-import-reconciliation";
-import { withoutFinancingSource } from "../domain/financing-source-reference";
+import { withoutFinancingReferences } from "../domain/financing-source-reference";
 import { importedInstallmentDates } from "../domain/imported-installment-dates";
 
 interface ImportedPurchaseInput {
@@ -63,7 +63,7 @@ async function getOrCreateStatement(card: CardSnapshot, statementDate: Date, due
 }
 
 export async function materializeImportedPurchase(card: CardSnapshot, input: ImportedPurchaseInput) {
-	const importedDescription = withoutFinancingSource(input.description);
+	const importedDescription = withoutFinancingReferences(input.description);
 	if (input.installmentAmount < 0) {
 		if (input.installments !== 1 || input.totalAmount !== input.installmentAmount)
 			throw new HttpException("Crédito da fatura com valor inválido", 400);

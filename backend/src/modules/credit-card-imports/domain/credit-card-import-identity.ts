@@ -26,10 +26,20 @@ export function assignCreditCardPurchaseExternalIds(
 			externalId: `credit-card:v1:${createHash("sha256").update(`${identity}|${occurrence}`).digest("hex")}`,
 		};
 	});
-	return identified.map(({ financingSourceIndex, ...purchase }) => ({
-		...purchase,
-		...(financingSourceIndex !== undefined && {
-			financingSourceExternalId: identified[financingSourceIndex]!.externalId,
-		}),
-	}));
+	const financingBySourceIndex = new Map(
+		identified.flatMap((purchase, index) =>
+			purchase.financingSourceIndex === undefined
+				? []
+				: [[purchase.financingSourceIndex, identified[index]!.externalId] as const],
+		),
+	);
+	return identified.map(({ financingSourceIndex, ...purchase }, index) => {
+		const source = financingSourceIndex === undefined ? null : identified[financingSourceIndex]!;
+		const financingExternalId = financingBySourceIndex.get(index);
+		return {
+			...purchase,
+			...(source && { financingSourceExternalId: source.externalId }),
+			...(financingExternalId && { financingTargetExternalId: financingExternalId }),
+		};
+	});
 }

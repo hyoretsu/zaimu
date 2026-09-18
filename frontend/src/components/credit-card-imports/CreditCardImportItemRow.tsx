@@ -1,24 +1,28 @@
 import { LuCheck, LuCircleAlert, LuPencil } from "react-icons/lu";
 import { TransactionListItem } from "@/components/transactions";
+import { AppBadge } from "@/components/ui/AppBadge";
 import type { CreditCardImportItem, Transaction } from "@/lib/api";
 import { formatLocalDate } from "@/lib/date";
-import { cleanFinancedDescription, hasFinancingSource } from "@/lib/financing-source-reference";
+import {
+	cleanFinancedDescription,
+	getFinancedOperation,
+	hasFinancingSource,
+	hasFinancingTarget,
+} from "@/lib/financing-source-reference";
 
 function toTransaction(
 	item: CreditCardImportItem,
 	creditCardId: string,
 	creditCardName: string,
 ): Transaction {
-	const financedOperation = cleanFinancedDescription(item.description).match(
-		/^(FIN .+?) · IOF R\$ ([\d.]+,\d{2})$/u,
-	);
+	const financedOperation = getFinancedOperation(item.description);
 	return {
 		amount: Math.abs(item.totalAmount),
 		createdAt: item.createdAt,
 		creditCardId,
 		date: item.purchaseDate,
 		debtSplit: item.debtSplit,
-		description: financedOperation?.[1]?.replace(/^FIN /u, "") ?? cleanFinancedDescription(item.description),
+		description: financedOperation?.merchant ?? cleanFinancedDescription(item.description),
 		id: item.id,
 		installmentAmount: item.installmentAmount,
 		installments: item.installments,
@@ -52,9 +56,7 @@ export function CreditCardImportItemRow({
 	onReconcile: () => void;
 }) {
 	const transaction = toTransaction(item, creditCardId, creditCardName);
-	const financedOperation = cleanFinancedDescription(item.description).match(
-		/^(FIN .+?) · IOF R\$ ([\d.]+,\d{2})$/u,
-	);
+	const financedOperation = getFinancedOperation(item.description);
 
 	return (
 		<TransactionListItem
@@ -84,14 +86,13 @@ export function CreditCardImportItemRow({
 				<div className="flex flex-wrap items-center gap-1.5">
 					<span className="text-muted-foreground text-xs">{formatLocalDate(item.purchaseDate)}</span>
 					{financedOperation ? (
-						<span className="rounded-full border bg-muted px-2 py-0.5 text-muted-foreground text-xs">
-							Crédito parcelado · IOF R$ {financedOperation[2]} incluído
-						</span>
+						<AppBadge variant="outline">Crédito parcelado · IOF R$ {financedOperation.iof} incluído</AppBadge>
 					) : null}
 					{hasFinancingSource(item.description) ? (
-						<span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-emerald-700 text-xs">
-							Vinculada à compra original
-						</span>
+						<AppBadge variant="outline">Vinculada à compra original</AppBadge>
+					) : null}
+					{hasFinancingTarget(item.description) ? (
+						<AppBadge variant="outline">Será compensada pelo crédito parcelado</AppBadge>
 					) : null}
 					{item.duplicates.length ? (
 						<span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-amber-700 text-xs">

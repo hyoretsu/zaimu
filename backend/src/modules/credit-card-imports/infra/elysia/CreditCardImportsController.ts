@@ -24,8 +24,10 @@ import { requiresCreditCardStatementPdfPassword } from "../../domain/credit-card
 import { filterZeroValuePurchases } from "../../domain/filter-zero-value-purchases";
 import {
 	getFinancingSource,
+	getFinancingTarget,
+	preserveFinancedOperation,
 	withFinancingSource,
-	withoutFinancingSource,
+	withFinancingTarget,
 } from "../../domain/financing-source-reference";
 import { matchLegacyFinancingRoots } from "../../domain/legacy-financing-roots";
 import { selectNewImportPurchases } from "../../domain/select-new-import-purchases";
@@ -321,6 +323,7 @@ async function approveItems(userId: string, importId: string, itemId?: string) {
 	for (const item of selectedItems) {
 		if (item.storeName) await resolveStore(userId, item.storeName);
 		const financingSourceId = getFinancingSource(item.description);
+		const financingTargetId = getFinancingTarget(item.description);
 		const financingSource = financingSourceId
 			? await queryFirst(
 					db.sql.public.CreditPurchase.select("id", "installmentAmount", "statementId")
@@ -331,6 +334,14 @@ async function approveItems(userId: string, importId: string, itemId?: string) {
 			: null;
 		if (financingSourceId && !financingSource)
 			throw new HttpException("Aprove a compra original antes de aprovar o parcelamento", 409);
+		const financingTarget = financingTargetId
+			? await queryFirst(
+					db.sql.public.CreditPurchase.select("id")
+						.where((fields, functions) => functions.eq(fields.externalId, financingTargetId))
+						.limit(1)
+						.build(),
+				)
+			: null;
 		const debtSplit = await getDebtSplitInput({ creditCardImportItemId: item.id });
 		// An interrupted approval can have created the root before deleting the import item.
 		const importedRoot = await queryFirst(
@@ -362,17 +373,28 @@ async function approveItems(userId: string, importId: string, itemId?: string) {
 			},
 		);
 		if (!rootId) throw new HttpException("Não foi possível identificar a compra criada", 500);
-		if (financingSource) {
+		const settlementSource =
+			financingSource ??
+			(financingTarget
+				? await queryFirst(
+						db.sql.public.CreditPurchase.select("id", "installmentAmount", "statementId")
+							.where((fields, functions) => functions.eq(fields.id, rootId))
+							.limit(1)
+							.build(),
+					)
+				: null);
+		const settlementRootId = financingTarget?.id ?? rootId;
+		if (settlementSource) {
 			await withTransaction(async ({ db: transaction, executeStatement: execute, queryFirst: first }) => {
 				const settled = await first(
 					transaction.sql.public.CreditPurchase.update({
 						isSettled: true,
-						settledByPurchaseId: rootId,
+						settledByPurchaseId: settlementRootId,
 						updatedAt: new Date(),
 					})
 						.where((fields, functions) =>
 							functions.and(
-								functions.eq(fields.id, financingSource.id),
+								functions.eq(fields.id, settlementSource.id),
 								functions.eq(fields.isSettled, false),
 							),
 						)
@@ -382,23 +404,23 @@ async function approveItems(userId: string, importId: string, itemId?: string) {
 				if (!settled) {
 					const current = await first(
 						transaction.sql.public.CreditPurchase.select("settledByPurchaseId")
-							.where((fields, functions) => functions.eq(fields.id, financingSource.id))
+							.where((fields, functions) => functions.eq(fields.id, settlementSource.id))
 							.limit(1)
 							.build(),
 					);
-					if (current?.settledByPurchaseId !== rootId)
+					if (current?.settledByPurchaseId !== settlementRootId)
 						throw new HttpException("Compra original vinculada a outro parcelamento", 409);
 					return;
 				}
 				await execute(
 					transaction.sql.public.CreditCardStatement.update((fields, functions) => ({
 						totalAmount:
-							functions.raw`${fields.totalAmount} - ${String(financingSource.installmentAmount)}`.returns(
+							functions.raw`${fields.totalAmount} - ${String(settlementSource.installmentAmount)}`.returns(
 								"pg/numeric@1",
 							),
 						updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
 					}))
-						.where((fields, functions) => functions.eq(fields.id, financingSource.statementId))
+						.where((fields, functions) => functions.eq(fields.id, settlementSource.statementId))
 						.build(),
 				);
 			});
@@ -599,12 +621,14 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 			if (!creditCardImport) throw new HttpException("Não foi possível criar a importação", 500);
 			await executeStatement(
 				db.sql.public.CreditCardImportItem.insert(
-					newPurchases.map(({ financingSourceExternalId, ...purchase }) => ({
+					newPurchases.map(({ financingSourceExternalId, financingTargetExternalId, ...purchase }) => ({
 						...purchase,
 						creditCardImportId: creditCardImport.id,
 						description: financingSourceExternalId
 							? withFinancingSource(purchase.description, financingSourceExternalId)
-							: purchase.description,
+							: financingTargetExternalId
+								? withFinancingTarget(purchase.description, financingTargetExternalId)
+								: purchase.description,
 						installmentAmount: String(purchase.installmentAmount),
 						purchaseDate: new Date(`${purchase.purchaseDate}T12:00:00`),
 						...(purchase.reconciledCreditPurchaseId && {
@@ -677,17 +701,20 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 				);
 			}
 			const tagIds = body.tagIds === undefined ? undefined : await assertTagOwnership(body.tagIds, userId);
+			const description = preserveFinancedOperation(
+				current.description,
+				body.description?.trim() ?? current.description,
+			);
 			await executeStatement(
 				db.sql.public.CreditCardImportItem.update({
 					description:
 						body.description === undefined
 							? current.description
 							: getFinancingSource(current.description)
-								? withFinancingSource(
-										withoutFinancingSource(body.description.trim()),
-										getFinancingSource(current.description)!,
-									)
-								: body.description.trim(),
+								? withFinancingSource(description, getFinancingSource(current.description)!)
+								: getFinancingTarget(current.description)
+									? withFinancingTarget(description, getFinancingTarget(current.description)!)
+									: description,
 					installmentAmount: String(current.installmentAmount),
 					installments,
 					isSelected: body.isSelected ?? current.isSelected,

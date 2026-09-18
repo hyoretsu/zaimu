@@ -56,4 +56,5 @@ Total geral dos lançamentos 10,34
 	);
 	expect(first[0]!.externalId).toBe(later[0]!.externalId);
 	expect(first[0]!.financingSourceExternalId).toBe(first[1]!.externalId);
+	expect(first[1]!.financingTargetExternalId).toBe(first[0]!.externalId);
 });
