@@ -39,6 +39,7 @@ import {
 	type TransactionFilters as TransactionFiltersValue,
 } from "./transactions/-transaction-filters";
 import { transactionToCreditPurchase } from "./transactions/-transaction-to-credit-purchase";
+import { getTransferSuggestions } from "./transactions/-transfer-suggestions";
 import {
 	HiddenTransactionsToggle,
 	TransactionDateHeader,
@@ -131,19 +132,7 @@ export function TransactionsPage() {
 		};
 	}, [transactionsQuery.fetchNextPage, transactionsQuery.hasNextPage, transactionsQuery.isFetchingNextPage]);
 
-	const transferSuggestions = transactions.flatMap((transaction, index, all) =>
-		all
-			.slice(index + 1)
-			.flatMap(counterpart =>
-				transaction.date.slice(0, 10) === counterpart.date.slice(0, 10) &&
-				Number(transaction.amount) === Number(counterpart.amount) &&
-				((transaction.type === "EXPENSE" && counterpart.type === "INCOME") ||
-					(transaction.type === "INCOME" && counterpart.type === "EXPENSE")) &&
-				transaction.originFinancialAccountId !== counterpart.destinationFinancialAccountId
-					? [{ counterpart, transaction }]
-					: [],
-			),
-	);
+	const transferSuggestions = getTransferSuggestions(transactions);
 	const acceptTransferSuggestion = useMutation({
 		mutationFn: ({ counterpart, transaction }: { counterpart: Transaction; transaction: Transaction }) =>
 			dataService.transactions.acceptTransferSuggestion(transaction.id, counterpart.id),
