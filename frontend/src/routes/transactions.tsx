@@ -1,8 +1,14 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+	type InfiniteData,
+	useInfiniteQuery,
+	useMutation,
+	useQuery,
+	useQueryClient,
+} from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { HiArrowsRightLeft, HiPlus } from "react-icons/hi2";
-import { LuArrowLeftRight, LuFileUp } from "react-icons/lu";
+import { LuArrowLeftRight, LuFileUp, LuLoaderCircle } from "react-icons/lu";
 import {
 	ImportTransactionsDialog,
 	PendingTransactionImportsNotice,
@@ -40,6 +46,26 @@ import {
 } from "./transactions/components";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
+const transactionsPageSize = 50;
+interface TransactionsPageParam {
+	endDate: string;
+	offset?: number;
+	startDate?: string;
+}
+
+function getInitialTransactionsPage(): TransactionsPageParam {
+	const today = new Date();
+	const daysSinceMonday = (today.getDay() + 6) % 7;
+	const previousWeekStart = new Date(today);
+	previousWeekStart.setDate(today.getDate() - daysSinceMonday - 7);
+	return { endDate: getLocalDateKey(today), startDate: getLocalDateKey(previousWeekStart) };
+}
+
+function getDayBefore(date: string): string {
+	const previousDay = new Date(`${date}T12:00:00`);
+	previousDay.setDate(previousDay.getDate() - 1);
+	return getLocalDateKey(previousDay);
+}
 
 export function TransactionsPage() {
 	const [isModalOpen, setIsModalOpen] = useState(false);
@@ -50,25 +76,44 @@ export function TransactionsPage() {
 	const [refundingPurchase, setRefundingPurchase] = useState<Transaction | null>(null);
 	const [filters, setFilters] = useState<TransactionFiltersValue>(initialTransactionFilters);
 	const [expandedHiddenGroups, setExpandedHiddenGroups] = useState<Set<string>>(() => new Set());
+	const loadMoreRef = useRef<HTMLDivElement>(null);
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
 
-	const transactionsQuery = useQuery({
+	const transactionsQuery = useInfiniteQuery<
+		Transaction[],
+		Error,
+		InfiniteData<Transaction[]>,
+		ReturnType<typeof queryKeys.transactions.list>,
+		TransactionsPageParam
+	>({
 		enabled: identity !== null,
-		queryFn: () => dataService.transactions.getAll(),
+		getNextPageParam: (lastPage, _pages, lastPageParam) => {
+			if (lastPage.length === 0) return undefined;
+			if (lastPageParam.startDate) return { endDate: getDayBefore(lastPageParam.startDate) };
+			return lastPage.length === transactionsPageSize
+				? { endDate: lastPageParam.endDate, offset: (lastPageParam.offset ?? 0) + transactionsPageSize }
+				: undefined;
+		},
+		initialPageParam: getInitialTransactionsPage(),
+		queryFn: ({ pageParam }) =>
+			dataService.transactions.getAll(
+				pageParam.startDate ? pageParam : { limit: transactionsPageSize, ...pageParam },
+			),
 		queryKey: queryKeys.transactions.list(identity!, {}),
 	});
-	const dashboardDateRange = transactionsQuery.data?.length
+	const transactions = transactionsQuery.data?.pages.flat() ?? [];
+	const dashboardDateRange = transactions.length
 		? {
-				endDate: transactionsQuery.data.reduce(
+				endDate: transactions.reduce(
 					(latestDate, transaction) =>
 						transaction.date.slice(0, 10) > latestDate ? transaction.date.slice(0, 10) : latestDate,
 					getLocalDateKey(),
 				),
-				startDate: transactionsQuery.data.reduce(
+				startDate: transactions.reduce(
 					(earliestDate, transaction) =>
 						transaction.date.slice(0, 10) < earliestDate ? transaction.date.slice(0, 10) : earliestDate,
-					transactionsQuery.data[0].date.slice(0, 10),
+					transactions[0].date.slice(0, 10),
 				),
 			}
 		: undefined;
@@ -82,7 +127,25 @@ export function TransactionsPage() {
 		queryFn: () => dataService.creditCards.getAll(),
 		queryKey: queryKeys.creditCards.list(identity!),
 	});
-	const transferSuggestions = (transactionsQuery.data ?? []).flatMap((transaction, index, all) =>
+	useEffect(() => {
+		if (!transactionsQuery.hasNextPage || transactionsQuery.isFetchingNextPage) return;
+
+		const loadMoreWhenNearEnd = () => {
+			const loadMoreElement = loadMoreRef.current;
+			if (!loadMoreElement || loadMoreElement.getBoundingClientRect().top > window.innerHeight + 1200) return;
+			void transactionsQuery.fetchNextPage();
+		};
+
+		loadMoreWhenNearEnd();
+		window.addEventListener("resize", loadMoreWhenNearEnd);
+		window.addEventListener("scroll", loadMoreWhenNearEnd, { capture: true, passive: true });
+		return () => {
+			window.removeEventListener("resize", loadMoreWhenNearEnd);
+			window.removeEventListener("scroll", loadMoreWhenNearEnd, true);
+		};
+	}, [transactionsQuery.fetchNextPage, transactionsQuery.hasNextPage, transactionsQuery.isFetchingNextPage]);
+
+	const transferSuggestions = transactions.flatMap((transaction, index, all) =>
 		all
 			.slice(index + 1)
 			.flatMap(counterpart =>
@@ -105,9 +168,7 @@ export function TransactionsPage() {
 		},
 	});
 
-	const filteredTransactions = transactionsQuery.data
-		? filterTransactions(transactionsQuery.data, filters)
-		: undefined;
+	const filteredTransactions = transactionsQuery.data ? filterTransactions(transactions, filters) : undefined;
 	const groupedTransactions = filteredTransactions
 		? sortTransactionsByMostRecent(filteredTransactions).reduce<Record<string, Transaction[]>>(
 				(groups, transaction) => {
@@ -301,10 +362,10 @@ export function TransactionsPage() {
 				filters={filters}
 				onChange={setFilters}
 				onClear={() => setFilters(initialTransactionFilters)}
-				transactions={transactionsQuery.data ?? []}
+				transactions={transactions}
 			/>
 
-			{transactionsQuery.isPending || dashboardQuery.isPending ? (
+			{transactionsQuery.isPending || (dashboardQuery.isPending && !dashboardQuery.data) ? (
 				<div className="space-y-5">
 					{[1, 2, 3].map(item => (
 						<div className="space-y-2" key={item}>
@@ -322,12 +383,12 @@ export function TransactionsPage() {
 			) : !groupedTransactions || Object.keys(groupedTransactions).length === 0 ? (
 				<EmptyState
 					description={
-						transactionsQuery.data?.length
+						transactions.length
 							? "Ajuste ou limpe os filtros para ver transações."
 							: "Registre sua primeira movimentação para começar."
 					}
 					icon={<HiArrowsRightLeft />}
-					title={transactionsQuery.data?.length ? "Nenhuma transação encontrada" : "Nenhuma transação"}
+					title={transactions.length ? "Nenhuma transação encontrada" : "Nenhuma transação"}
 				/>
 			) : (
 				<div className="space-y-5">
@@ -386,6 +447,16 @@ export function TransactionsPage() {
 							</section>
 						);
 					})}
+					{transactionsQuery.hasNextPage ? (
+						<div aria-live="polite" className="flex h-14 items-center justify-center" ref={loadMoreRef}>
+							{transactionsQuery.isFetchingNextPage ? (
+								<span className="flex items-center gap-2 text-muted-foreground text-sm">
+									<LuLoaderCircle aria-hidden className="animate-spin" />
+									Carregando transações anteriores…
+								</span>
+							) : null}
+						</div>
+					) : null}
 				</div>
 			)}
 
