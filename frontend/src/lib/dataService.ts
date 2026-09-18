@@ -1608,6 +1608,7 @@ export const dataService = {
 				}) => {
 					const start = new Date(`${item.startDate.slice(0, 10)}T12:00:00`);
 					const end = item.endDate ? new Date(`${item.endDate.slice(0, 10)}T12:00:00`) : comparisonEnd;
+					let yearOffset = 0;
 					let occurrence = new Date(
 						start.getFullYear(),
 						start.getMonth(),
@@ -1625,7 +1626,16 @@ export const dataService = {
 						if (item.frequency === "DAILY") occurrence.setDate(occurrence.getDate() + 1);
 						if (item.frequency === "WEEKLY") occurrence.setDate(occurrence.getDate() + 7);
 						if (item.frequency === "BIWEEKLY") occurrence.setDate(occurrence.getDate() + 14);
-						if (item.frequency === "YEARLY") occurrence.setFullYear(occurrence.getFullYear() + 1);
+						if (item.frequency === "YEARLY") {
+							yearOffset += 1;
+							const year = start.getFullYear() + yearOffset;
+							occurrence = new Date(
+								year,
+								start.getMonth(),
+								Math.min(start.getDate(), new Date(year, start.getMonth() + 1, 0).getDate()),
+								12,
+							);
+						}
 						if (item.frequency === "MONTHLY")
 							occurrence = new Date(
 								occurrence.getFullYear(),

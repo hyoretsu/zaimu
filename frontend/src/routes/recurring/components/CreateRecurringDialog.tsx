@@ -32,11 +32,12 @@ import { DebouncedFormField } from "./DebouncedFormField";
 import { DebouncedMoneyField } from "./DebouncedMoneyField";
 import { PastTransactionsDialog } from "./PastTransactionsDialog";
 import { getPastRecurrenceDates } from "./recurrence-dates";
+import { getRecurrenceDay, getRecurrenceScheduleDescription } from "./recurrence-schedule";
 import type { RecurrenceFrequency, RecurringDraft, RecurringListItemData, RecurringSource } from "./types";
 
 const initialDraft = (item?: RecurringListItemData): RecurringDraft => ({
 	amount: item ? String(item.amount) : "",
-	day: item?.day ? String(item.day) : "",
+	day: item?.frequency === "MONTHLY" && item.day ? String(item.day) : "",
 	endDate: item?.endDate?.slice(0, 10) ?? "",
 	financialAccountId: item?.financialAccountId ?? "",
 	frequency: item?.frequency ?? "MONTHLY",
@@ -117,7 +118,7 @@ export function CreateRecurringDialog({
 			const amount = Number.parseFloat(draft.amount);
 			const creationSource = getCreationSource(draft);
 			const selectedDebtSplit = isDebtSplitEnabled ? debtSplit : null;
-			const day = Number.parseInt(draft.day, 10);
+			const day = getRecurrenceDay(draft.frequency, draft.startDate, draft.day);
 			if (item) {
 				if (item.source === "salary") {
 					return dataService.salaries.update(item.id, {
@@ -314,7 +315,10 @@ export function CreateRecurringDialog({
 				: "Ex: Aluguel";
 	const dayLabel = draft.source === "salary" ? "Dia do pagamento" : "Dia da cobrança";
 	const day = Number.parseInt(draft.day, 10);
-	const dayError = draft.day && (day < 1 || day > 31) ? "Informe um dia entre 1 e 31." : undefined;
+	const dayError =
+		draft.frequency === "MONTHLY" && draft.day && (day < 1 || day > 31)
+			? "Informe um dia entre 1 e 31."
+			: undefined;
 	const endDateError =
 		draft.endDate && draft.endDate < draft.startDate
 			? "A data final deve ser igual ou posterior à inicial."
@@ -323,7 +327,7 @@ export function CreateRecurringDialog({
 	const canSubmit =
 		draft.name.trim() &&
 		draft.amount &&
-		draft.day &&
+		(draft.frequency !== "MONTHLY" || draft.day) &&
 		!dayError &&
 		!endDateError &&
 		draft.startDate &&
@@ -419,7 +423,7 @@ export function CreateRecurringDialog({
 								value={draft.financialAccountId}
 							/>
 						)}
-						<div className="grid gap-4 sm:grid-cols-2">
+						<div className={draft.frequency === "MONTHLY" ? "grid gap-4 sm:grid-cols-2" : "grid gap-4"}>
 							<CustomSelect
 								label="Frequência"
 								onValueChange={value => setField("frequency", value as RecurrenceFrequency)}
@@ -428,20 +432,22 @@ export function CreateRecurringDialog({
 								required
 								value={draft.frequency}
 							/>
-							<DebouncedFormField
-								autoComplete="off"
-								error={dayError}
-								id="recurring-day"
-								inputMode="numeric"
-								label={dayLabel}
-								maxLength={2}
-								name="recurring-day"
-								onValueChange={value => setField("day", value.replace(/\D/g, "").slice(0, 2))}
-								placeholder="Ex: 10"
-								required
-								type="text"
-								value={draft.day}
-							/>
+							{draft.frequency === "MONTHLY" && (
+								<DebouncedFormField
+									autoComplete="off"
+									error={dayError}
+									id="recurring-day"
+									inputMode="numeric"
+									label={dayLabel}
+									maxLength={2}
+									name="recurring-day"
+									onValueChange={value => setField("day", value.replace(/\D/g, "").slice(0, 2))}
+									placeholder="Ex: 10"
+									required
+									type="text"
+									value={draft.day}
+								/>
+							)}
 						</div>
 						{draft.source !== "salary" && (
 							<CustomSelect
@@ -489,7 +495,14 @@ export function CreateRecurringDialog({
 							/>
 						)}
 						<DateField
-							description={isEditing ? "Não pode ser alterada após a criação." : undefined}
+							description={
+								[
+									isEditing ? "Não pode ser alterada após a criação." : "",
+									getRecurrenceScheduleDescription(draft.frequency, draft.startDate),
+								]
+									.filter(Boolean)
+									.join(" ") || undefined
+							}
 							disabled={isEditing}
 							id="recurring-start-date"
 							label="Data inicial"

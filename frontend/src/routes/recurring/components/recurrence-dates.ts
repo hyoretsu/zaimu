@@ -13,6 +13,7 @@ export function getPastRecurrenceDates(
 	const start = startOfDay(parseISO(startDate));
 	let occurrence = frequency === "MONTHLY" ? monthlyOccurrence(start, dayOfMonth) : start;
 	let monthOffset = 0;
+	let yearOffset = 0;
 
 	const end = endDate ? startOfDay(parseISO(endDate)) : undefined;
 	while (isBefore(occurrence, cutoff) && (!end || !isBefore(end, occurrence))) {
@@ -32,7 +33,8 @@ export function getPastRecurrenceDates(
 				occurrence = monthlyOccurrence(start, dayOfMonth, monthOffset);
 				break;
 			case "YEARLY":
-				occurrence = addYears(occurrence, 1);
+				yearOffset += 1;
+				occurrence = addYears(start, yearOffset);
 				break;
 		}
 	}

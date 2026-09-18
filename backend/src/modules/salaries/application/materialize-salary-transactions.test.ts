@@ -16,4 +16,16 @@ describe("salaryOccurrenceDates", () => {
 			"2026-08-03",
 		]);
 	});
+
+	test("keeps the annual start date, restoring February 29 in leap years", () => {
+		expect(
+			salaryOccurrenceDates(
+				"YEARLY",
+				new Date("2024-02-29T12:00:00"),
+				29,
+				undefined,
+				new Date("2028-03-01T12:00:00"),
+			),
+		).toEqual(["2024-02-29", "2025-02-28", "2026-02-28", "2027-02-28", "2028-02-29"]);
+	});
 });

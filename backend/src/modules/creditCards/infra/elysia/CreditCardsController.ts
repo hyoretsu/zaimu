@@ -237,6 +237,7 @@ function subscriptionOccurrences(
 	const start = startOfDay(subscription.startDate);
 	const end = startOfDay(subscription.endDate && subscription.endDate < until ? subscription.endDate : until);
 	let occurrence = start;
+	let yearOffset = 0;
 	if (subscription.frequency === "MONTHLY") {
 		const first = new Date(
 			start.getFullYear(),
@@ -280,7 +281,8 @@ function subscriptionOccurrences(
 				break;
 			}
 			case "YEARLY":
-				occurrence = addYears(occurrence, 1);
+				yearOffset += 1;
+				occurrence = addYears(start, yearOffset);
 				break;
 		}
 	}

@@ -21,12 +21,32 @@ describe("getPastRecurrenceDates", () => {
 		);
 	});
 
+	test("anchors weekly and fortnightly schedules to the start date, ignoring monthly day", () => {
+		expect(getPastRecurrenceDates("WEEKLY", "2026-09-04", 20, new Date("2026-09-26T12:00:00"))).toEqual([
+			"2026-09-04",
+			"2026-09-11",
+			"2026-09-18",
+			"2026-09-25",
+		]);
+		expect(getPastRecurrenceDates("BIWEEKLY", "2026-09-04", 20, new Date("2026-10-03T12:00:00"))).toEqual([
+			"2026-09-04",
+			"2026-09-18",
+			"2026-10-02",
+		]);
+	});
+
 	test("clamps monthly payments to the last valid day without drifting", () => {
 		expect(getPastRecurrenceDates("MONTHLY", "2026-01-31", 31, new Date("2026-04-01T12:00:00"))).toEqual([
 			"2026-01-31",
 			"2026-02-28",
 			"2026-03-31",
 		]);
+	});
+
+	test("keeps the annual start date, restoring February 29 in leap years", () => {
+		expect(
+			getPastRecurrenceDates("YEARLY", "2024-02-29", undefined, new Date("2029-01-01T12:00:00")),
+		).toEqual(["2024-02-29", "2025-02-28", "2026-02-28", "2027-02-28", "2028-02-29"]);
 	});
 
 	test("stops at the optional end date", () => {

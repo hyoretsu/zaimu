@@ -20,6 +20,7 @@ export function salaryOccurrenceDates(
 	const end = endDate ? startOfDay(endDate) : currentDay;
 	const start = startOfDay(startDate);
 	let monthOffset = 0;
+	let yearOffset = 0;
 	let occurrence = frequency === "MONTHLY" ? monthlyOccurrence(start, payDay) : start;
 
 	while (!isAfter(occurrence, currentDay) && !isAfter(occurrence, end)) {
@@ -39,7 +40,8 @@ export function salaryOccurrenceDates(
 				occurrence = monthlyOccurrence(start, payDay, monthOffset);
 				break;
 			case "YEARLY":
-				occurrence = addYears(occurrence, 1);
+				yearOffset += 1;
+				occurrence = addYears(start, yearOffset);
 				break;
 		}
 	}

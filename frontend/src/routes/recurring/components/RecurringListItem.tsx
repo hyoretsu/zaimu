@@ -6,6 +6,7 @@ import type { Transaction } from "@/lib/api";
 import { formatLocalDate } from "@/lib/date";
 import { frequencyLabels, paymentMethodLabels, sourceLabels } from "./constants";
 import { isRecurrenceEnded } from "./recurrence-dates";
+import { getRecurrenceScheduleSummary } from "./recurrence-schedule";
 import type { RecurringListItemData } from "./types";
 
 export function RecurringListItem({
@@ -26,6 +27,7 @@ export function RecurringListItem({
 	const isIncome = item.direction === "INCOME";
 	const hasEnded = isRecurrenceEnded(item.endDate);
 	const paymentMethod = item.paymentMethod ? paymentMethodLabels[item.paymentMethod] : undefined;
+	const scheduleSummary = getRecurrenceScheduleSummary(item.frequency, item.startDate, item.day);
 	const actionItems: ItemAction[] = [
 		{
 			ariaLabel: "Editar recorrência",
@@ -100,7 +102,7 @@ export function RecurringListItem({
 			metadataPrefix={
 				<span className="text-muted-foreground text-xs">
 					{frequencyLabels[item.frequency]}
-					{item.day ? ` · dia ${item.day}` : ""}
+					{scheduleSummary ? ` · ${scheduleSummary}` : ""}
 					{paymentMethod ? ` · ${paymentMethod}` : ""}
 					{item.startDate ? ` · inicia ${formatLocalDate(item.startDate)}` : ""}
 					{item.endDate ? ` · até ${formatLocalDate(item.endDate)}` : ""}
