@@ -3236,13 +3236,15 @@ export const dataService = {
 			return transactions;
 		},
 		async getDailyPage(params: {
-			endDate: string;
+			endDate?: string;
 			limit?: number;
 			offset?: number;
+			search?: string;
 			startDate?: string;
 		}): Promise<{
 			days: Array<{ date: string; endingBalance: number; transactions: Transaction[] }>;
 			hasMore: boolean;
+			resultCount: number;
 		}> {
 			if (isGuestMode()) {
 				const transactions = await this.getAll(params);
@@ -3254,6 +3256,7 @@ export const dataService = {
 						transactions: transactions.filter(transaction => transaction.date.slice(0, 10) === date),
 					})),
 					hasMore: transactions.length > 0,
+					resultCount: transactions.length,
 				};
 			}
 			const searchParams = new URLSearchParams({ view: "daily" });

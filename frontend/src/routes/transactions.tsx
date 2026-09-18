@@ -48,22 +48,31 @@ import {
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 const transactionsPageSize = 50;
+const searchResultsPageSize = 10;
 interface TransactionsPageParam {
-	endDate: string;
+	endDate?: string;
+	limit?: number;
 	offset?: number;
+	search?: string;
 	startDate?: string;
 }
 interface TransactionsDailyPage {
 	days: Array<{ date: string; endingBalance: number; transactions: Transaction[] }>;
 	hasMore: boolean;
+	resultCount: number;
 }
 
-function getInitialTransactionsPage(): TransactionsPageParam {
+function getInitialTransactionsPage(search: string): TransactionsPageParam {
+	if (search) return { limit: searchResultsPageSize, search };
+
 	const today = new Date();
 	const daysSinceMonday = (today.getDay() + 6) % 7;
 	const previousWeekStart = new Date(today);
 	previousWeekStart.setDate(today.getDate() - daysSinceMonday - 7);
-	return { endDate: getLocalDateKey(today), startDate: getLocalDateKey(previousWeekStart) };
+	return {
+		endDate: getLocalDateKey(today),
+		startDate: getLocalDateKey(previousWeekStart),
+	};
 }
 
 function getDayBefore(date: string): string {
@@ -95,17 +104,24 @@ export function TransactionsPage() {
 		enabled: identity !== null,
 		getNextPageParam: (lastPage, _pages, lastPageParam) => {
 			if (!lastPage.hasMore) return undefined;
-			if (lastPageParam.startDate) return { endDate: getDayBefore(lastPageParam.startDate) };
-			return lastPage.length === transactionsPageSize
-				? { endDate: lastPageParam.endDate, offset: (lastPageParam.offset ?? 0) + transactionsPageSize }
+			if (lastPageParam.limit && lastPage.resultCount === lastPageParam.limit)
+				return { ...lastPageParam, offset: (lastPageParam.offset ?? 0) + lastPageParam.limit };
+			if (lastPageParam.startDate)
+				return {
+					endDate: getDayBefore(lastPageParam.startDate),
+					limit: lastPageParam.search ? searchResultsPageSize : transactionsPageSize,
+					search: lastPageParam.search,
+				};
+			return lastPage.resultCount === transactionsPageSize
+				? { ...lastPageParam, offset: (lastPageParam.offset ?? 0) + transactionsPageSize }
 				: undefined;
 		},
-		initialPageParam: getInitialTransactionsPage(),
+		initialPageParam: getInitialTransactionsPage(filters.search),
 		queryFn: ({ pageParam }) =>
 			dataService.transactions.getDailyPage(
 				pageParam.startDate ? pageParam : { limit: transactionsPageSize, ...pageParam },
 			),
-		queryKey: queryKeys.transactions.list(identity!, {}),
+		queryKey: queryKeys.transactions.list(identity!, { search: filters.search }),
 	});
 	const transactionDays = transactionsQuery.data?.pages.flatMap(page => page.days) ?? [];
 	const transactions = transactionDays.flatMap(day => day.transactions);

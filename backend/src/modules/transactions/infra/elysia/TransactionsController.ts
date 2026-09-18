@@ -59,6 +59,15 @@ const transactionColumns = [
 const TransactionType = t.Union([t.Literal("INCOME"), t.Literal("EXPENSE"), t.Literal("TRANSFER")]);
 const timePattern = /^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
 
+function normalizeSearch(value: string) {
+	return value
+		.normalize("NFD")
+		.replace(/\p{Diacritic}/gu, "")
+		.toLocaleLowerCase("pt-BR")
+		.replace(/\s+/gu, " ")
+		.trim();
+}
+
 function resolveTransactionTime(value: string | null | undefined): string | null {
 	if (value === null) return null;
 	if (value !== undefined) {
@@ -527,11 +536,28 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				)
 			).filter(purchase => !query.categoryId || purchase.tagIds.includes(query.categoryId));
 
-			const sortedTransactions = [...normalizedTransactions, ...normalizedPurchases].sort(
-				(left, right) =>
-					new Date(right.date).getTime() - new Date(left.date).getTime() ||
-					new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
-			);
+			const search = query.search ? normalizeSearch(query.search) : undefined;
+			const sortedTransactions = [...normalizedTransactions, ...normalizedPurchases]
+				.filter(
+					transaction =>
+						!search ||
+						normalizeSearch(
+							[
+								transaction.amount,
+								transaction.categoryName,
+								transaction.description,
+								transaction.destinationName,
+								transaction.originName,
+								transaction.storeName,
+								...(transaction.tags?.map(tag => tag.name) ?? []),
+							].join(" "),
+						).includes(search),
+				)
+				.sort(
+					(left, right) =>
+						new Date(right.date).getTime() - new Date(left.date).getTime() ||
+						new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
+				);
 			if (query.view === "daily") {
 				const page =
 					query.limit === undefined && query.offset === undefined
@@ -573,6 +599,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						transactions: page.filter(transaction => transactionDateKey(transaction) === date),
 					})),
 					hasMore: page.length > 0,
+					resultCount: page.length,
 				};
 			}
 
@@ -591,6 +618,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				financialAccountId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				limit: t.Optional(t.Number({ maximum: 500, minimum: 1 })),
 				offset: t.Optional(t.Number({ minimum: 0 })),
+				search: t.Optional(t.String({ maxLength: 200 })),
 				startDate: t.Optional(t.String()),
 				type: t.Optional(TransactionType),
 				view: t.Optional(t.Literal("daily")),
