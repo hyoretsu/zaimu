@@ -503,7 +503,6 @@ export function CreateRecurringDialog({
 							error={endDateError}
 							id="recurring-end-date"
 							label="Data final"
-							min={draft.startDate}
 							name="end-date"
 							onValueChange={value => setField("endDate", value)}
 							value={draft.endDate}
