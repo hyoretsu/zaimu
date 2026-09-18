@@ -104,7 +104,13 @@ export function ImportTransactionsDialog({
 					<DialogTitle>Importar extrato</DialogTitle>
 					<DialogDescription>Selecione manualmente a conta e a instituição do extrato.</DialogDescription>
 				</DialogHeader>
-				<div className="grid gap-4">
+				<form
+					className="grid gap-4"
+					onSubmit={event => {
+						event.preventDefault();
+						createImport.mutate();
+					}}
+				>
 					<CustomSelect
 						label="Instituição"
 						onValueChange={value => setProvider(value as TransactionImportProvider)}
@@ -126,19 +132,24 @@ export function ImportTransactionsDialog({
 						value={financialAccountId}
 					/>
 					<StatementFilePicker file={file} onFileChange={setFile} />
-				</div>
-				<DialogFooter>
-					<Button className="cursor-pointer" onClick={() => handleOpenChange(false)} variant="outline">
-						Descartar
-					</Button>
-					<Button
-						className="cursor-pointer disabled:cursor-not-allowed"
-						disabled={!file || !financialAccountId || !provider || createImport.isPending}
-						onClick={() => createImport.mutate()}
-					>
-						<LuFileUp /> {createImport.isPending ? "Importando extrato…" : "Importar extrato"}
-					</Button>
-				</DialogFooter>
+					<DialogFooter>
+						<Button
+							className="cursor-pointer"
+							onClick={() => handleOpenChange(false)}
+							type="button"
+							variant="outline"
+						>
+							Descartar
+						</Button>
+						<Button
+							className="cursor-pointer disabled:cursor-not-allowed"
+							disabled={!file || !financialAccountId || !provider || createImport.isPending}
+							type="submit"
+						>
+							<LuFileUp /> {createImport.isPending ? "Importando extrato…" : "Importar extrato"}
+						</Button>
+					</DialogFooter>
+				</form>
 			</DialogContent>
 		</Dialog>
 	);
