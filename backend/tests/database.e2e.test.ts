@@ -86,6 +86,14 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(account.balance).toBe(0);
 		expect(typeof account.balance).toBe("number");
 		expect(account.institution.name).toBe("Mercado Pago");
+		const cashAccountResponse = await jsonRequest(
+			"/financial-accounts/",
+			"POST",
+			{ name: `Dinheiro ${crypto.randomUUID()}`, type: "CASH" },
+			owner.cookie,
+		);
+		expect(cashAccountResponse.status).toBe(200);
+		const cashAccount = (await cashAccountResponse.json()) as { id: string };
 
 		const unnamedAccountResponse = await jsonRequest(
 			"/financial-accounts/",
@@ -211,6 +219,7 @@ suite("Prisma 8 SQL query builder", () => {
 			{
 				amount: 80,
 				dayOfMonth: 10,
+				financialAccountId: cashAccount.id,
 				frequency: "MONTHLY",
 				name: "Recorrência com tags",
 				startDate: "2026-08-01",
@@ -313,6 +322,19 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(salaryResponse.status).toBe(200);
 		const salary = (await salaryResponse.json()) as { id: string; tagIds: string[] };
 		expect(salary.tagIds).toEqual([category.id]);
+		const salaryToCashResponse = await jsonRequest(
+			"/salaries/",
+			"POST",
+			{
+				amount: 5000,
+				financialAccountId: cashAccount.id,
+				payDay: 10,
+				source: "Salário em dinheiro",
+				startDate: "2026-08-01",
+			},
+			owner.cookie,
+		);
+		expect(salaryToCashResponse.status).toBe(200);
 		const salaryToSavingsResponse = await jsonRequest(
 			"/salaries/",
 			"POST",

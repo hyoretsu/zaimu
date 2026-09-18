@@ -98,21 +98,21 @@ export const assertBalanceAccountOwnership = async (
 	}
 };
 
-export const assertCheckingAccountOwnership = async (accountId: string, userId: string) => {
+export const assertCheckingOrCashAccountOwnership = async (accountId: string, userId: string) => {
 	const account = await queryFirst(
 		db.sql.public.FinancialAccount.select("id")
 			.where((fields, functions) =>
 				functions.and(
 					functions.eq(fields.id, accountId),
 					functions.eq(fields.userId, userId),
-					functions.eq(fields.type, "CHECKING"),
+					functions.or(functions.eq(fields.type, "CHECKING"), functions.eq(fields.type, "CASH")),
 				),
 			)
 			.limit(1)
 			.build(),
 	);
 
-	if (!account) throw new HttpException("Selecione uma conta corrente", 400);
+	if (!account) throw new HttpException("Selecione uma conta corrente ou Dinheiro", 400);
 };
 
 export const assertPaymentAccountOwnership = async (
@@ -132,8 +132,8 @@ export const assertPaymentAccountOwnership = async (
 	if (!account) throw new HttpException("Conta financeira não encontrada", 404);
 	if (paymentMethod === "CREDIT" && account.type !== "CREDIT_CARD")
 		throw new HttpException("Selecione um cartão de crédito", 400);
-	if (paymentMethod !== "CREDIT" && account.type !== "CHECKING")
-		throw new HttpException("Selecione uma conta corrente", 400);
+	if (paymentMethod !== "CREDIT" && account.type !== "CHECKING" && account.type !== "CASH")
+		throw new HttpException("Selecione uma conta corrente ou Dinheiro", 400);
 };
 
 export const assertTransactionOwnership = async (transactionId: string, userId: string) => {

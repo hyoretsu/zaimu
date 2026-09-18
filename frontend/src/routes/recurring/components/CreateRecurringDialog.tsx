@@ -80,15 +80,15 @@ export function CreateRecurringDialog({
 		queryFn: () => dataService.accounts.getAll(),
 		queryKey: queryKeys.accounts.list(identity!),
 	});
-	const checkingAccounts =
+	const checkingAndCashAccounts =
 		accountsQuery.data
-			?.filter(account => account.type === "CHECKING")
+			?.filter(account => account.type === "CHECKING" || account.type === "CASH")
 			.toSorted(compareFinancialAccountsByDisplayName) ?? [];
 	const compatibleAccounts =
 		draft.source === "salary"
-			? checkingAccounts
+			? checkingAndCashAccounts
 			: draft.paymentMethod !== "CREDIT"
-				? checkingAccounts
+				? checkingAndCashAccounts
 				: (accountsQuery.data
 						?.filter(account => account.type === "CREDIT_CARD")
 						.toSorted(compareFinancialAccountsByDisplayName) ?? []);
