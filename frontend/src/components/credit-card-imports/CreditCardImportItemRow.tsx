@@ -86,7 +86,12 @@ export function CreditCardImportItemRow({
 				<div className="flex flex-wrap items-center gap-1.5">
 					<span className="text-muted-foreground text-xs">{formatLocalDate(item.purchaseDate)}</span>
 					{financedOperation ? (
-						<AppBadge variant="outline">Crédito parcelado · IOF R$ {financedOperation.iof} incluído</AppBadge>
+						<AppBadge
+							className="h-auto min-h-7 whitespace-normal break-words py-1 leading-4"
+							variant="outline"
+						>
+							Crédito parcelado · IOF R$ {financedOperation.iof} incluído
+						</AppBadge>
 					) : null}
 					{hasFinancingSource(item.description) ? (
 						<AppBadge variant="outline">Vinculada à compra original</AppBadge>
