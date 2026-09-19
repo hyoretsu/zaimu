@@ -45,6 +45,11 @@ export function getPastRecurrenceDates(
 	return dates;
 }
 
+export function getMissingRecurrenceDates(dates: string[], existingDates: Iterable<string>): string[] {
+	const existing = new Set(existingDates);
+	return dates.filter(date => !existing.has(date));
+}
+
 export function isRecurrenceEnded(endDate?: string | null, today = new Date()): boolean {
 	if (!endDate) return false;
 

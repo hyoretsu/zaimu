@@ -227,8 +227,11 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 					...(body.endDate !== undefined && {
 						endDate: body.endDate ? new Date(body.endDate) : null,
 					}),
+					...(body.startDate !== undefined && { startDate: new Date(body.startDate) }),
 					...(body.isActive !== undefined && { isActive: body.isActive }),
-					materializedThrough: subDays(startOfDay(new Date()), 1),
+					...(body.startDate === undefined && {
+						materializedThrough: subDays(startOfDay(new Date()), 1),
+					}),
 					updatedAt: new Date(),
 				} as never)
 					.where((fields, functions) => functions.eq(fields.id, params.id))
@@ -255,6 +258,7 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 				isActive: t.Optional(t.Boolean()),
 				payDay: t.Optional(t.Number({ maximum: 31, minimum: 1 })),
 				source: t.Optional(t.String({ maxLength: 100 })),
+				startDate: t.Optional(t.String()),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
 			}),
 			detail: { tags: ["Salaries"] },

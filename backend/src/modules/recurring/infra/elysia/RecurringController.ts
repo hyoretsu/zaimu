@@ -294,6 +294,7 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 					}),
 					...(body.paymentMethod && { paymentMethod: body.paymentMethod }),
 					...(body.storeName !== undefined && { storeName: body.storeName }),
+					...(body.startDate !== undefined && { startDate: new Date(body.startDate) }),
 					...(body.isActive !== undefined && { isActive: body.isActive }),
 					updatedAt: new Date(),
 				} as never)
@@ -339,6 +340,7 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 				isActive: t.Optional(t.Boolean()),
 				name: t.Optional(t.String({ maxLength: 100 })),
 				paymentMethod: t.Optional(PaymentMethod),
+				startDate: t.Optional(t.String()),
 				storeName: t.Optional(t.Nullable(t.String({ maxLength: 200 }))),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
 			}),

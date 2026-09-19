@@ -1,5 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { getPastRecurrenceDates, isRecurrenceEnded } from "./recurrence-dates";
+import { getMissingRecurrenceDates, getPastRecurrenceDates, isRecurrenceEnded } from "./recurrence-dates";
+
+describe("getMissingRecurrenceDates", () => {
+	test("keeps only occurrences not already materialized", () => {
+		expect(
+			getMissingRecurrenceDates(["2024-01-10", "2024-02-10", "2024-03-10", "2024-04-10"], ["2024-04-10"]),
+		).toEqual(["2024-01-10", "2024-02-10", "2024-03-10"]);
+	});
+});
 
 describe("getPastRecurrenceDates", () => {
 	test("returns each past monthly occurrence and excludes today", () => {

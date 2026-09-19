@@ -2372,6 +2372,7 @@ export const dataService = {
 	salaries: {
 		async create(data: {
 			amount: number;
+			dayOfWeek?: Salary["dayOfWeek"];
 			endDate?: string;
 			financialAccountId: string;
 			frequency: Salary["frequency"];

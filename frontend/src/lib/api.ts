@@ -532,7 +532,7 @@ export interface RecurringPayment {
 	debtSplit?: DebtSplit | null;
 	frequency: "DAILY" | "WEEKLY" | "BIWEEKLY" | "MONTHLY" | "YEARLY";
 	dayOfMonth?: number;
-	dayOfWeek?: number;
+	dayOfWeek?: number | null;
 	startDate: string;
 	endDate?: string | null;
 	categoryId?: string;

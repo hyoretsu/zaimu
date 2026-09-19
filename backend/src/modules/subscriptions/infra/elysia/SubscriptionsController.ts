@@ -319,8 +319,11 @@ export const SubscriptionsController = new Elysia({ prefix: "/subscriptions" })
 					...(body.endDate !== undefined && {
 						endDate: body.endDate ? new Date(body.endDate) : null,
 					}),
+					...(body.startDate !== undefined && { startDate: new Date(body.startDate) }),
 					...(body.isActive !== undefined && { isActive: body.isActive }),
-					materializedThrough: subDays(startOfDay(new Date()), 1),
+					...(body.startDate === undefined && {
+						materializedThrough: subDays(startOfDay(new Date()), 1),
+					}),
 					updatedAt: new Date(),
 				} as never)
 					.where((fields, functions) => functions.eq(fields.id, params.id))
@@ -365,6 +368,7 @@ export const SubscriptionsController = new Elysia({ prefix: "/subscriptions" })
 				isActive: t.Optional(t.Boolean()),
 				name: t.Optional(t.String({ maxLength: 100 })),
 				paymentMethod: t.Optional(PaymentMethod),
+				startDate: t.Optional(t.String()),
 				storeName: t.Optional(t.Nullable(t.String({ maxLength: 200 }))),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
 			}),

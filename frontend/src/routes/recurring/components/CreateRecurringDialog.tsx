@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
 import { useEffect, useState } from "react";
 import { DebtSplitEditor } from "@/components/debts";
 import { StorePicker } from "@/components/stores";
@@ -31,7 +31,7 @@ import { getCreationSource } from "./creation-source";
 import { DebouncedFormField } from "./DebouncedFormField";
 import { DebouncedMoneyField } from "./DebouncedMoneyField";
 import { PastTransactionsDialog } from "./PastTransactionsDialog";
-import { getPastRecurrenceDates } from "./recurrence-dates";
+import { getMissingRecurrenceDates, getPastRecurrenceDates } from "./recurrence-dates";
 import { getRecurrenceDay, getRecurrenceScheduleDescription } from "./recurrence-schedule";
 import type { RecurrenceFrequency, RecurringDraft, RecurringListItemData, RecurringSource } from "./types";
 
@@ -113,12 +113,43 @@ export function CreateRecurringDialog({
 			setIsPastTransactionsDialogOpen(false);
 		}
 	};
+	const getMissingPastDates = async (recurrenceId: string) => {
+		const dates = getPastRecurrenceDates(
+			draft.frequency,
+			draft.startDate,
+			getRecurrenceDay(draft.frequency, draft.startDate, draft.day),
+			new Date(),
+			draft.endDate || undefined,
+			draft.frequency === "WEEKLY" && draft.dayOfWeek !== "default"
+				? Number.parseInt(draft.dayOfWeek, 10)
+				: undefined,
+		);
+		const transactions = await dataService.transactions.getAll({
+			endDate: format(subDays(new Date(), 1), "yyyy-MM-dd"),
+			startDate: draft.startDate,
+		});
+		const existingDates = transactions.flatMap(transaction => {
+			if (draft.source === "salary" && transaction.salaryId === recurrenceId)
+				return transaction.salaryOccurrenceDate ? [transaction.salaryOccurrenceDate.slice(0, 10)] : [];
+			if (draft.source === "subscription" && transaction.subscriptionId === recurrenceId)
+				return transaction.subscriptionOccurrenceDate
+					? [transaction.subscriptionOccurrenceDate.slice(0, 10)]
+					: [];
+			if (draft.source === "recurring" && transaction.recurrenceId === recurrenceId)
+				return transaction.recurrenceOccurrenceDate
+					? [transaction.recurrenceOccurrenceDate.slice(0, 10)]
+					: [];
+			return [];
+		});
+		return getMissingRecurrenceDates(dates, existingDates);
+	};
 
 	const create = useMutation<RecurringPayment | Salary | Subscription, Error, boolean>({
 		mutationFn: async (addPastTransactions = false) => {
 			const amount = Number.parseFloat(draft.amount);
 			const creationSource = getCreationSource(draft);
 			const selectedDebtSplit = isDebtSplitEnabled ? debtSplit : null;
+			const startDateChanged = item ? draft.startDate !== item.startDate.slice(0, 10) : false;
 			const day = getRecurrenceDay(draft.frequency, draft.startDate, draft.day);
 			const dayOfWeek =
 				draft.frequency === "WEEKLY" && draft.dayOfWeek !== "default"
@@ -126,7 +157,7 @@ export function CreateRecurringDialog({
 					: null;
 			if (item) {
 				if (item.source === "salary") {
-					return dataService.salaries.update(item.id, {
+					const salary = await dataService.salaries.update(item.id, {
 						amount,
 						dayOfWeek,
 						endDate: draft.endDate || null,
@@ -134,11 +165,30 @@ export function CreateRecurringDialog({
 						frequency: draft.frequency,
 						payDay: day,
 						source: draft.name.trim(),
+						...(startDateChanged && { startDate: draft.startDate }),
 						tagIds: draft.tagIds,
 					});
+					if (addPastTransactions) {
+						const dates = await getMissingPastDates(salary.id);
+						await Promise.all(
+							dates.map(date =>
+								dataService.transactions.create({
+									amount,
+									date,
+									description: draft.name.trim(),
+									destinationFinancialAccountId: draft.financialAccountId,
+									salaryId: salary.id,
+									salaryOccurrenceDate: date,
+									time: null,
+									type: "INCOME",
+								}),
+							),
+						);
+					}
+					return salary;
 				}
 				if (item.source === "subscription") {
-					return dataService.subscriptions.update(item.id, {
+					const subscription = await dataService.subscriptions.update(item.id, {
 						amount,
 						billingDay: day,
 						dayOfWeek,
@@ -148,11 +198,49 @@ export function CreateRecurringDialog({
 						frequency: draft.frequency,
 						name: draft.name.trim(),
 						paymentMethod: draft.paymentMethod,
+						...(startDateChanged && { startDate: draft.startDate }),
 						storeName: draft.storeName.trim() || null,
 						tagIds: draft.tagIds,
 					});
+					if (addPastTransactions) {
+						const dates = await getMissingPastDates(subscription.id);
+						if (selectedCreditCardId) {
+							await Promise.all(
+								dates.map(purchaseDate =>
+									dataService.creditCards.addPurchase(selectedCreditCardId, {
+										debtSplit: selectedDebtSplit ?? undefined,
+										description: draft.name.trim(),
+										purchaseDate,
+										storeName: draft.storeName.trim() || undefined,
+										subscriptionId: subscription.id,
+										subscriptionOccurrenceDate: purchaseDate,
+										tagIds: draft.tagIds,
+										time: null,
+										totalAmount: amount,
+									}),
+								),
+							);
+						} else {
+							await Promise.all(
+								dates.map(date =>
+									dataService.transactions.create({
+										amount,
+										date,
+										debtSplit: selectedDebtSplit ?? undefined,
+										description: draft.name.trim(),
+										storeName: draft.storeName.trim() || undefined,
+										subscriptionId: subscription.id,
+										subscriptionOccurrenceDate: date,
+										time: null,
+										type: "EXPENSE",
+									}),
+								),
+							);
+						}
+					}
+					return subscription;
 				}
-				return dataService.recurringPayments.update(item.id, {
+				const payment = await dataService.recurringPayments.update(item.id, {
 					amount,
 					dayOfMonth: day,
 					dayOfWeek,
@@ -162,9 +250,29 @@ export function CreateRecurringDialog({
 					frequency: draft.frequency,
 					name: draft.name.trim(),
 					paymentMethod: draft.paymentMethod,
+					...(startDateChanged && { startDate: draft.startDate }),
 					storeName: draft.storeName.trim() || null,
 					tagIds: draft.tagIds,
 				});
+				if (addPastTransactions) {
+					const dates = await getMissingPastDates(payment.id);
+					await Promise.all(
+						dates.map(date =>
+							dataService.transactions.create({
+								amount,
+								date,
+								debtSplit: selectedDebtSplit ?? undefined,
+								description: draft.name.trim(),
+								recurrenceId: payment.id,
+								recurrenceOccurrenceDate: date,
+								storeName: draft.storeName.trim() || undefined,
+								time: null,
+								type: "EXPENSE",
+							}),
+						),
+					);
+				}
+				return payment;
 			}
 			if (draft.source === "salary") {
 				const autoGenerateFrom = addPastTransactions ? draft.startDate : format(new Date(), "yyyy-MM-dd");
@@ -349,7 +457,7 @@ export function CreateRecurringDialog({
 		(!isDebtSplitEnabled || Boolean(calculateDebtSplit(Number.parseFloat(draft.amount), debtSplit)));
 	const isStartDateInPast = draft.startDate < format(new Date(), "yyyy-MM-dd");
 	const handleSave = () => {
-		if (!isEditing && isStartDateInPast) {
+		if (isStartDateInPast && (!item || draft.startDate < item.startDate.slice(0, 10))) {
 			setIsPastTransactionsDialogOpen(true);
 			return;
 		}
@@ -527,7 +635,6 @@ export function CreateRecurringDialog({
 						<DateField
 							description={
 								[
-									isEditing ? "Não pode ser alterada após a criação." : "",
 									getRecurrenceScheduleDescription(
 										draft.frequency,
 										draft.startDate,
@@ -537,7 +644,6 @@ export function CreateRecurringDialog({
 									.filter(Boolean)
 									.join(" ") || undefined
 							}
-							disabled={isEditing}
 							id="recurring-start-date"
 							label="Data inicial"
 							name="start-date"
