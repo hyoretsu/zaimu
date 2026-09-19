@@ -70,7 +70,6 @@ function getInitialTransactionsPage(search: string): TransactionsPageParam {
 	const previousWeekStart = new Date(today);
 	previousWeekStart.setDate(today.getDate() - daysSinceMonday - 7);
 	return {
-		endDate: getLocalDateKey(today),
 		startDate: getLocalDateKey(previousWeekStart),
 	};
 }
