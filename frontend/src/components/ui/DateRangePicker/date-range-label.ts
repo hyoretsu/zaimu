@@ -1,12 +1,11 @@
 import { endOfMonth, format, isSameDay, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import type { DateRangeValue } from "./types";
 
 export function formatDateRange({ endDate, startDate }: DateRangeValue) {
 	if (startDate && endDate) {
 		if (startDate === endDate) return formatCompactDate(startDate);
 		return (
-			formatCompletePeriod(startDate, endDate) ?? `${formatBoundary(startDate)} — ${formatBoundary(endDate)}`
+			formatCompletePeriod(startDate, endDate) ?? `${formatBoundary(startDate)} - ${formatBoundary(endDate)}`
 		);
 	}
 	if (startDate) return `A partir de ${formatBoundary(startDate)}`;
@@ -35,7 +34,7 @@ function formatCompletePeriod(startDate: string, endDate: string) {
 }
 
 function formatBoundary(value: string) {
-	return format(parseISO(value), "dd MMM yyyy", { locale: ptBR });
+	return formatCompactDate(value);
 }
 
 function formatCompactDate(value: string) {

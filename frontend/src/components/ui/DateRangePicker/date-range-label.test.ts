@@ -8,7 +8,7 @@ describe("date range label", () => {
 
 	test("keeps both boundaries for a multi-day period", () => {
 		expect(formatDateRange({ endDate: "2026-07-31", startDate: "2026-07-30" })).toBe(
-			"30 jul 2026 — 31 jul 2026",
+			"30/07/2026 - 31/07/2026",
 		);
 	});
 });
