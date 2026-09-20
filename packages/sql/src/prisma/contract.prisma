@@ -45,10 +45,42 @@ namespace public {
     createdAt      Timestamp(3)       @default(now())
     updatedAt      Timestamp(3)       @default(now())
     financialAccounts FinancialAccount[]
+    yieldPolicies     FinancialInstitutionYieldPolicy[]
     user           User               @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "FinancialInstitution_userId_fkey", index: false)
 
     @@index([userId, normalizedName], map: "FinancialInstitution_userId_normalizedName_key", unique: true)
     @@map("FinancialInstitution")
+  }
+
+  model FinancialInstitutionYieldPolicy {
+    id                     VarChar(36)                              @id(map: "FinancialInstitutionYieldPolicy_pkey") @default(dbgenerated("cuid2()"))
+    financialInstitutionId VarChar(36)
+    effectiveDate          Date
+    yieldPeriod            pg.enum(FinancialAccountYieldPeriod)?
+    yieldTaxRate           Numeric(5, 2)?
+    createdAt              Timestamp(3)                             @default(now())
+    updatedAt              Timestamp(3)                             @default(now())
+    financialInstitution   FinancialInstitution                    @relation(fields: [financialInstitutionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "FinancialInstitutionYieldPolicy_financialInstitutionId_fkey", index: false)
+    rules                  FinancialInstitutionYieldRule[]
+
+    @@index([financialInstitutionId, effectiveDate], map: "FinancialInstitutionYieldPolicy_institutionId_effectiveDate_key", unique: true)
+    @@map("FinancialInstitutionYieldPolicy")
+  }
+
+  model FinancialInstitutionYieldRule {
+    id                       VarChar(36)                       @id(map: "FinancialInstitutionYieldRule_pkey") @default(dbgenerated("cuid2()"))
+    financialYieldPolicyId   VarChar(36)
+    position                 SmallInt
+    upToBalance              Numeric(12, 2)?
+    yieldReferenceRate       Numeric(7, 4)?
+    yieldReferencePercentage Numeric(7, 4)?
+    yieldFixedRate           Numeric(7, 4)?
+    createdAt                Timestamp(3)                      @default(now())
+    updatedAt                Timestamp(3)                      @default(now())
+    financialYieldPolicy     FinancialInstitutionYieldPolicy   @relation(fields: [financialYieldPolicyId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "FinancialInstitutionYieldRule_financialYieldPolicyId_fkey", index: false)
+
+    @@index([financialYieldPolicyId, position], map: "FinancialInstitutionYieldRule_policyId_position_key", unique: true)
+    @@map("FinancialInstitutionYieldRule")
   }
 
   model AuthAccount {

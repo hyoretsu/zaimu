@@ -168,4 +168,68 @@ describe("calculateFinancialAccountYieldBalances", () => {
 		const dailyRate = 1.1 ** (1 / 21) - 1;
 		expect(balances.get("account")).toBeCloseTo(101 * (1 + dailyRate) + 2, 4);
 	});
+
+	test("uses progressive institution brackets when the account has no specific rule", () => {
+		const balances = calculateFinancialAccountYieldBalances({
+			accounts: [
+				{
+					...account,
+					institutionYieldPolicies: [
+						{
+							effectiveDate: new Date("2026-01-05T12:00:00"),
+							rules: [
+								{ upToBalance: 10_000, yieldFixedRate: 10 },
+								{ upToBalance: null, yieldFixedRate: 20 },
+							],
+							yieldPeriod: "YEARLY",
+						},
+					],
+					yieldFixedRate: null,
+					yieldPeriod: null,
+				},
+			],
+			cashbackCredits: [],
+			holidays: [],
+			initialRewardsBalances: new Map(),
+			today: new Date("2026-01-05T12:00:00"),
+			transactions: [
+				{
+					amount: 15_000,
+					date: new Date("2026-01-05T12:00:00"),
+					destinationFinancialAccountId: "account",
+				},
+			],
+		});
+		const expected = 15_000 + 10_000 * (1.1 ** (1 / 252) - 1) + 5_000 * (1.2 ** (1 / 252) - 1);
+		expect(balances.get("account")).toBeCloseTo(expected, 4);
+	});
+
+	test("prefers the account rule over the institution policy", () => {
+		const balances = calculateFinancialAccountYieldBalances({
+			accounts: [
+				{
+					...account,
+					institutionYieldPolicies: [
+						{
+							effectiveDate: new Date("2026-01-05T12:00:00"),
+							rules: [{ upToBalance: null, yieldFixedRate: 50 }],
+							yieldPeriod: "MONTHLY",
+						},
+					],
+				},
+			],
+			cashbackCredits: [],
+			holidays: [],
+			initialRewardsBalances: new Map(),
+			today: new Date("2026-01-05T12:00:00"),
+			transactions: [
+				{
+					amount: 100,
+					date: new Date("2026-01-05T12:00:00"),
+					destinationFinancialAccountId: "account",
+				},
+			],
+		});
+		expect(balances.get("account")).toBeCloseTo(100 * 1.1 ** (1 / 21), 4);
+	});
 });

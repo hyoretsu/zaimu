@@ -1,18 +1,29 @@
 import Elysia, { t } from "elysia";
+import { tomorrow } from "~/modules/accounts/application/schedule-financial-account-yield-rate";
+import { scheduleFinancialInstitutionYieldPolicy } from "~/modules/accounts/application/schedule-financial-institution-yield-policy";
+import { assertFinancialInstitutionYieldPolicy } from "~/modules/accounts/domain/assert-financial-institution-yield-policy";
 import { normalizeFinancialInstitutionName } from "~/modules/accounts/domain/normalize-financial-institution-name";
 import { requireUserId } from "~/modules/auth";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, queryFirst } from "~/shared/infra/sql";
 
 const Id = t.String({ maxLength: 36, minLength: 1 });
+const YieldPeriod = t.Union([t.Literal("MONTHLY"), t.Literal("YEARLY")]);
+const YieldRule = t.Object({
+	upToBalance: t.Nullable(t.Number({ exclusiveMinimum: 0 })),
+	yieldFixedRate: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
+	yieldReferencePercentage: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
+	yieldReferenceRate: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
+});
 
 export const InstitutionsController = new Elysia({ prefix: "/financial-institutions" })
 	.patch(
 		"/:id",
 		async ({ body, params, request }) => {
 			const userId = await requireUserId(request);
-			const { name, normalizedName } = normalizeFinancialInstitutionName(body.name);
-			if (!name) throw new HttpException("Informe o nome da instituição", 400);
+			const normalized = body.name === undefined ? null : normalizeFinancialInstitutionName(body.name);
+			if (normalized && !normalized.name) throw new HttpException("Informe o nome da instituição", 400);
+			if (body.yieldPolicy) assertFinancialInstitutionYieldPolicy(body.yieldPolicy);
 			const existing = await queryFirst(
 				db.sql.public.FinancialInstitution.select("id")
 					.where((fields, functions) =>
@@ -22,17 +33,19 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 					.build(),
 			);
 			if (!existing) throw new HttpException("Instituição financeira não encontrada", 404);
-			const matching = await queryFirst(
-				db.sql.public.FinancialInstitution.select("id", "name")
-					.where((fields, functions) =>
-						functions.and(
-							functions.eq(fields.userId, userId),
-							functions.eq(fields.normalizedName, normalizedName),
-						),
+			const matching = normalized
+				? await queryFirst(
+						db.sql.public.FinancialInstitution.select("id", "name")
+							.where((fields, functions) =>
+								functions.and(
+									functions.eq(fields.userId, userId),
+									functions.eq(fields.normalizedName, normalized.normalizedName),
+								),
+							)
+							.limit(1)
+							.build(),
 					)
-					.limit(1)
-					.build(),
-			);
+				: null;
 			if (matching && matching.id !== params.id) {
 				await executeStatement(
 					db.sql.public.FinancialAccount.update({ institutionId: matching.id, updatedAt: new Date() })
@@ -46,17 +59,44 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 				);
 				return matching;
 			}
-			const institution = await queryFirst(
-				db.sql.public.FinancialInstitution.update({ name, normalizedName, updatedAt: new Date() })
-					.where((fields, functions) => functions.eq(fields.id, params.id))
-					.returning("id", "name")
-					.build(),
-			);
+			const institution = normalized
+				? await queryFirst(
+						db.sql.public.FinancialInstitution.update({
+							name: normalized.name,
+							normalizedName: normalized.normalizedName,
+							updatedAt: new Date(),
+						})
+							.where((fields, functions) => functions.eq(fields.id, params.id))
+							.returning("id", "name")
+							.build(),
+					)
+				: await queryFirst(
+						db.sql.public.FinancialInstitution.select("id", "name")
+							.where((fields, functions) => functions.eq(fields.id, params.id))
+							.limit(1)
+							.build(),
+					);
 			if (!institution) throw new HttpException("Instituição financeira não encontrada", 404);
-			return institution;
+			if (body.yieldPolicy)
+				await scheduleFinancialInstitutionYieldPolicy({
+					effectiveDate: body.recalculateCurrentDay ? new Date() : tomorrow(),
+					financialInstitutionId: institution.id,
+					...body.yieldPolicy,
+				});
+			return { ...institution, ...(body.yieldPolicy && { yieldPolicy: body.yieldPolicy }) };
 		},
 		{
-			body: t.Object({ name: t.String({ maxLength: 100, minLength: 1 }) }),
+			body: t.Object({
+				name: t.Optional(t.String({ maxLength: 100, minLength: 1 })),
+				recalculateCurrentDay: t.Optional(t.Boolean()),
+				yieldPolicy: t.Optional(
+					t.Object({
+						rules: t.Array(YieldRule, { maxItems: 20 }),
+						yieldPeriod: t.Optional(t.Nullable(YieldPeriod)),
+						yieldTaxRate: t.Optional(t.Nullable(t.Number({ maximum: 100, minimum: 0 }))),
+					}),
+				),
+			}),
 			detail: { tags: ["Institutions"] },
 			params: t.Object({ id: Id }),
 		},

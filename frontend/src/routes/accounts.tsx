@@ -61,8 +61,13 @@ export function AccountsPage() {
 		},
 	});
 	const updateInstitution = useMutation({
-		mutationFn: ({ id, name }: { id: string; name: string }) =>
-			dataService.financialInstitutions.update(id, name),
+		mutationFn: ({
+			data,
+			id,
+		}: {
+			data: Parameters<typeof dataService.financialInstitutions.update>[1];
+			id: string;
+		}) => dataService.financialInstitutions.update(id, data),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
 			await invalidateAccountData();
@@ -177,7 +182,10 @@ export function AccountsPage() {
 							onDeleteInstitution={institution => deleteInstitution.mutateAsync(institution.id)}
 							onUpdate={(id, data) => updateAccount.mutateAsync({ data, id })}
 							onUpdateInstitution={(institution, name) =>
-								updateInstitution.mutateAsync({ id: institution.id, name })
+								updateInstitution.mutateAsync({ data: { name }, id: institution.id })
+							}
+							onUpdateInstitutionYield={(institution, yieldPolicy) =>
+								updateInstitution.mutateAsync({ data: { yieldPolicy }, id: institution.id })
 							}
 							pending={createAccount.isPending}
 							rewardAccounts={rewardAccounts}

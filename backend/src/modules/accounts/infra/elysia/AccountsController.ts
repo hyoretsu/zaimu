@@ -1,6 +1,7 @@
 import { startOfDay } from "date-fns";
 import Elysia, { t } from "elysia";
 import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
+import { getFinancialInstitutionYieldPolicies } from "~/modules/accounts/application/get-financial-institution-yield-policies";
 import { resolveFinancialInstitution } from "~/modules/accounts/application/resolve-financial-institution";
 import {
 	scheduleFinancialAccountYieldRate,
@@ -100,6 +101,13 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					.where((fields, functions) => functions.eq(fields.userId, userId))
 					.build(),
 			);
+			const institutionYieldPolicies = await getFinancialInstitutionYieldPolicies(
+				institutions.map(institution => institution.id),
+			);
+			const institutionsWithYieldPolicies = institutions.map(institution => ({
+				...institution,
+				yieldPolicies: institutionYieldPolicies.get(institution.id) ?? [],
+			}));
 			const creditCards = accounts.length
 				? await queryRows(
 						db.sql.public.CreditCard.select(
@@ -169,7 +177,9 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 							.build(),
 					)
 				: [];
-			const institutionsById = new Map(institutions.map(institution => [institution.id, institution]));
+			const institutionsById = new Map(
+				institutionsWithYieldPolicies.map(institution => [institution.id, institution]),
+			);
 			const creditCardsByAccountId = new Map(
 				creditCards.map(creditCard => [creditCard.financialAccountId, creditCard]),
 			);
@@ -243,6 +253,13 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 							.build(),
 					)
 				: null;
+			const institutionWithYieldPolicies = institution
+				? {
+						...institution,
+						yieldPolicies:
+							(await getFinancialInstitutionYieldPolicies([institution.id])).get(institution.id) ?? [],
+					}
+				: null;
 
 			// If it's a credit card, get the credit card details
 			const balance =
@@ -286,7 +303,13 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						.build(),
 				);
 
-				return { ...account, balance, creditCard, institution, yieldRateHistories };
+				return {
+					...account,
+					balance,
+					creditCard,
+					institution: institutionWithYieldPolicies,
+					yieldRateHistories,
+				};
 			}
 			if (account.type === "REWARDS") {
 				const rewardsAccount = await queryFirst(
@@ -304,10 +327,16 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						.limit(1)
 						.build(),
 				);
-				return { ...account, balance, institution, rewardsAccount, yieldRateHistories };
+				return {
+					...account,
+					balance,
+					institution: institutionWithYieldPolicies,
+					rewardsAccount,
+					yieldRateHistories,
+				};
 			}
 
-			return { ...account, balance, institution, yieldRateHistories };
+			return { ...account, balance, institution: institutionWithYieldPolicies, yieldRateHistories };
 		},
 		{
 			detail: { tags: ["Accounts"] },

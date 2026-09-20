@@ -4,6 +4,7 @@ import {
 	type YieldPeriod,
 } from "~/modules/accounts/domain/calculate-financial-account-yields";
 import { db, queryRows } from "~/shared/infra/sql";
+import { getFinancialInstitutionYieldPolicies } from "./get-financial-institution-yield-policies";
 
 export function calculateCashbackValue(
 	amount: number,
@@ -24,10 +25,11 @@ export function calculateCashbackValue(
 
 async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 	const balances = new Map(accountIds.map(accountId => [accountId, 0]));
-	if (accountIds.length === 0) return { balances } as const;
+	if (accountIds.length === 0) return { balances, input: null } as const;
 	const accounts = await queryRows(
 		db.sql.public.FinancialAccount.select(
 			"id",
+			"institutionId",
 			"userId",
 			"type",
 			"createdAt",
@@ -40,6 +42,9 @@ async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 			.where((fields, functions) => functions.in(fields.id, accountIds))
 			.build(),
 	);
+	const institutionYieldPolicies = await getFinancialInstitutionYieldPolicies([
+		...new Set(accounts.flatMap(account => (account.institutionId ? [account.institutionId] : []))),
+	]);
 	const transactions = await queryRows(
 		db.sql.public.Transaction.select(
 			"amount",
@@ -113,6 +118,9 @@ async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 		input: {
 			accounts: accounts.map(account => ({
 				...account,
+				institutionYieldPolicies: account.institutionId
+					? (institutionYieldPolicies.get(account.institutionId) ?? [])
+					: [],
 				yieldPeriod: account.yieldPeriod as null | YieldPeriod,
 				yieldRateHistories: (yieldRateHistoriesByAccountId.get(account.id) ?? []).map(history => ({
 					...history,
@@ -142,13 +150,13 @@ async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 
 export async function getFinancialAccountBalances(accountIds: string[], asOf = new Date()) {
 	const loaded = await loadFinancialAccountBalanceInput(accountIds);
-	if (!("input" in loaded)) return loaded.balances;
+	if (!loaded.input) return loaded.balances;
 	return calculateFinancialAccountYieldBalances({ ...loaded.input, today: asOf });
 }
 
 export async function getFinancialAccountBalancesAtDates(accountIds: string[], dates: Date[]) {
 	const loaded = await loadFinancialAccountBalanceInput(accountIds);
-	if (!("input" in loaded)) return dates.map(date => ({ balances: loaded.balances, date }));
+	if (!loaded.input) return dates.map(date => ({ balances: loaded.balances, date }));
 	return dates.map(date => ({
 		balances: calculateFinancialAccountYieldBalances({ ...loaded.input, today: date }),
 		date,

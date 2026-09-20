@@ -14,10 +14,11 @@ import {
 } from "@/components/ui/Dialog";
 import { FormField } from "@/components/ui/FormField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
-import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
+import type { FinancialAccount, FinancialInstitution, FinancialInstitutionYieldPolicy } from "@/lib/api";
 import { getFinancialAccountCurrencyValue } from "@/lib/financial-account";
 import { CreateFinancialAccountDialog } from "./CreateFinancialAccountDialog";
 import { FinancialAccountCard } from "./FinancialAccountCard";
+import { InstitutionYieldDialog } from "./InstitutionYieldDialog";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
@@ -29,6 +30,7 @@ export function FinancialInstitutionGroup({
 	onDelete,
 	onUpdate,
 	onUpdateInstitution,
+	onUpdateInstitutionYield,
 	onDeleteInstitution,
 	pending,
 	rewardAccounts,
@@ -40,6 +42,10 @@ export function FinancialInstitutionGroup({
 	onDelete: (account: FinancialAccount) => void | Promise<void>;
 	onUpdate: NonNullable<Parameters<typeof CreateFinancialAccountDialog>[0]["onUpdate"]>;
 	onUpdateInstitution: (institution: FinancialInstitution, name: string) => Promise<unknown>;
+	onUpdateInstitutionYield: (
+		institution: FinancialInstitution,
+		policy: Omit<FinancialInstitutionYieldPolicy, "effectiveDate">,
+	) => Promise<unknown>;
 	onDeleteInstitution: (institution: FinancialInstitution) => Promise<unknown>;
 	pending: boolean;
 	rewardAccounts: FinancialAccount[];
@@ -74,6 +80,7 @@ export function FinancialInstitutionGroup({
 							institution={institution}
 							onDelete={onDeleteInstitution}
 							onUpdate={onUpdateInstitution}
+							onUpdateYield={onUpdateInstitutionYield}
 						/>
 					)}
 					<CreateFinancialAccountDialog
@@ -106,13 +113,19 @@ function InstitutionActions({
 	institution,
 	onDelete,
 	onUpdate,
+	onUpdateYield,
 }: {
 	institution: FinancialInstitution;
 	onDelete: (institution: FinancialInstitution) => Promise<unknown>;
 	onUpdate: (institution: FinancialInstitution, name: string) => Promise<unknown>;
+	onUpdateYield: (
+		institution: FinancialInstitution,
+		policy: Omit<FinancialInstitutionYieldPolicy, "effectiveDate">,
+	) => Promise<unknown>;
 }) {
 	return (
 		<>
+			<InstitutionYieldDialog institution={institution} onUpdate={onUpdateYield} />
 			<EditInstitutionDialog institution={institution} onUpdate={onUpdate} />
 			<ConfirmActionButton
 				aria-label={`Excluir ${institution.name}`}

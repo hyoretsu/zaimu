@@ -106,6 +106,19 @@ export interface RewardsAccount {
 export interface FinancialInstitution {
 	id: string;
 	name: string;
+	yieldPolicies?: FinancialInstitutionYieldPolicy[];
+}
+export interface FinancialInstitutionYieldPolicy {
+	effectiveDate: string;
+	rules: FinancialInstitutionYieldRule[];
+	yieldPeriod?: "MONTHLY" | "YEARLY" | null;
+	yieldTaxRate?: number | null;
+}
+export interface FinancialInstitutionYieldRule {
+	upToBalance?: number | null;
+	yieldFixedRate?: number | null;
+	yieldReferencePercentage?: number | null;
+	yieldReferenceRate?: number | null;
 }
 
 export interface Store {

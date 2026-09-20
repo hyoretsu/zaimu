@@ -5,6 +5,7 @@ export type YieldPeriod = "MONTHLY" | "YEARLY";
 export interface YieldAccount {
 	createdAt: Date;
 	id: string;
+	institutionYieldPolicies?: InstitutionYieldPolicy[];
 	type: string;
 	yieldFixedRate?: null | number;
 	yieldPeriod?: null | YieldPeriod;
@@ -12,6 +13,20 @@ export interface YieldAccount {
 	yieldReferenceRate?: null | number;
 	yieldTaxRate?: null | number;
 	yieldRateHistories?: YieldRateHistory[];
+}
+
+export interface InstitutionYieldPolicy {
+	effectiveDate: Date;
+	rules: InstitutionYieldRule[];
+	yieldPeriod?: null | YieldPeriod;
+	yieldTaxRate?: null | number;
+}
+
+export interface InstitutionYieldRule {
+	upToBalance?: null | number;
+	yieldFixedRate?: null | number;
+	yieldReferencePercentage?: null | number;
+	yieldReferenceRate?: null | number;
 }
 
 export interface YieldRateHistory {
@@ -185,17 +200,8 @@ function calculateYieldedBalance(
 			yieldEntry => yieldEntry.kind === "AUTOMATIC" && dateKey(yieldEntry.date) === key,
 		);
 		if (balance > 0 && !automaticYield?.isExcluded) {
-			const grossAmount =
-				balance *
-				dailyRate(
-					{
-						fixedRate: yieldSettings.yieldFixedRate,
-						referencePercentage: yieldSettings.yieldReferencePercentage,
-						referenceRate: yieldSettings.yieldReferenceRate,
-					},
-					yieldSettings.yieldPeriod,
-				);
-			const calculatedAmount = grossAmount * (1 - (yieldSettings.yieldTaxRate ?? 0) / 100);
+			const grossAmount = calculateGrossYield(balance, yieldSettings);
+			const calculatedAmount = grossAmount * (1 - (yieldSettings?.yieldTaxRate ?? 0) / 100);
 			balance += automaticYield?.amount ?? calculatedAmount;
 		}
 		for (const [rate, cashbackBalance] of cashbackBalances) {
@@ -213,13 +219,60 @@ function getYieldSettings(account: YieldAccount, day: string) {
 		?.filter(item => dateKey(item.effectiveDate) <= day)
 		.toSorted((left, right) => left.effectiveDate.valueOf() - right.effectiveDate.valueOf())
 		.at(-1);
-	return (
-		history ?? {
-			yieldFixedRate: account.yieldFixedRate,
-			yieldPeriod: account.yieldPeriod,
-			yieldReferencePercentage: account.yieldReferencePercentage,
-			yieldReferenceRate: account.yieldReferenceRate,
-			yieldTaxRate: account.yieldTaxRate,
-		}
-	);
+	const accountSettings = history ?? {
+		yieldFixedRate: account.yieldFixedRate,
+		yieldPeriod: account.yieldPeriod,
+		yieldReferencePercentage: account.yieldReferencePercentage,
+		yieldReferenceRate: account.yieldReferenceRate,
+		yieldTaxRate: account.yieldTaxRate,
+	};
+	if (
+		accountSettings.yieldPeriod &&
+		effectiveYieldRate({
+			fixedRate: accountSettings.yieldFixedRate,
+			referencePercentage: accountSettings.yieldReferencePercentage,
+			referenceRate: accountSettings.yieldReferenceRate,
+		})
+	)
+		return accountSettings;
+	if (account.type !== "CHECKING" && account.type !== "SAVINGS") return accountSettings;
+	return account.institutionYieldPolicies
+		?.filter(policy => dateKey(policy.effectiveDate) <= day)
+		.toSorted((left, right) => left.effectiveDate.valueOf() - right.effectiveDate.valueOf())
+		.at(-1);
+}
+
+function calculateGrossYield(balance: number, settings: ReturnType<typeof getYieldSettings>) {
+	if (!settings?.yieldPeriod) return 0;
+	if (!("rules" in settings))
+		return (
+			balance *
+			dailyRate(
+				{
+					fixedRate: settings.yieldFixedRate,
+					referencePercentage: settings.yieldReferencePercentage,
+					referenceRate: settings.yieldReferenceRate,
+				},
+				settings.yieldPeriod,
+			)
+		);
+	let previousLimit = 0;
+	let grossYield = 0;
+	for (const rule of settings.rules) {
+		const upperLimit = rule.upToBalance ?? balance;
+		const amountInBracket = Math.max(0, Math.min(balance, upperLimit) - previousLimit);
+		grossYield +=
+			amountInBracket *
+			dailyRate(
+				{
+					fixedRate: rule.yieldFixedRate,
+					referencePercentage: rule.yieldReferencePercentage,
+					referenceRate: rule.yieldReferenceRate,
+				},
+				settings.yieldPeriod,
+			);
+		previousLimit = upperLimit;
+		if (previousLimit >= balance) break;
+	}
+	return grossYield;
 }

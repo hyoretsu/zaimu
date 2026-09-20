@@ -343,4 +343,36 @@ describe("calculateFinancialAccountBalances", () => {
 		const dailyRate = 1.05 ** (1 / 21) - 1;
 		expect(accounts[0]?.balance).toBeCloseTo(100 + 10 * (1 + dailyRate), 4);
 	});
+
+	test("uses institution brackets for checking accounts without a specific rule", () => {
+		const accounts = calculateFinancialAccountBalances(
+			[
+				{
+					balance: 0,
+					id: "checking",
+					institution: {
+						id: "bank",
+						name: "Banco",
+						yieldPolicies: [
+							{
+								effectiveDate: "2026-01-05",
+								rules: [
+									{ upToBalance: 10_000, yieldFixedRate: 10 },
+									{ upToBalance: null, yieldFixedRate: 20 },
+								],
+								yieldPeriod: "YEARLY",
+							},
+						],
+					},
+					type: "CHECKING",
+				},
+			] as never,
+			[{ amount: 15_000, date: "2026-01-05", destinationFinancialAccountId: "checking" }],
+			[],
+			[],
+			new Date("2026-01-05T12:00:00"),
+		);
+		const expected = 15_000 + 10_000 * (1.1 ** (1 / 252) - 1) + 5_000 * (1.2 ** (1 / 252) - 1);
+		expect(accounts[0]?.balance).toBeCloseTo(expected, 4);
+	});
 });

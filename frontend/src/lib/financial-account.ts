@@ -179,8 +179,8 @@ export function calculateFinancialAccountYieldEntries(
 		);
 		if (balance > 0 && !automaticYield?.isExcluded) {
 			const settings = getYieldSettings(account, key);
-			const grossAmount = balance * getDailyYieldRate(settings, settings.yieldPeriod);
-			const calculatedAmount = grossAmount * (1 - (settings.yieldTaxRate ?? 0) / 100);
+			const grossAmount = calculateGrossYield(balance, settings);
+			const calculatedAmount = grossAmount * (1 - (settings?.yieldTaxRate ?? 0) / 100);
 			const amount = automaticYield?.amount ?? calculatedAmount;
 			if (amount > 0) {
 				entries.push({
@@ -286,8 +286,8 @@ function calculateYieldedBalance(
 			yieldEntry => yieldEntry.kind === "AUTOMATIC" && yieldEntry.date.slice(0, 10) === key,
 		);
 		if (balance > 0 && !automaticYield?.isExcluded) {
-			const grossAmount = balance * getDailyYieldRate(yieldSettings, yieldSettings.yieldPeriod);
-			const calculatedAmount = grossAmount * (1 - (yieldSettings.yieldTaxRate ?? 0) / 100);
+			const grossAmount = calculateGrossYield(balance, yieldSettings);
+			const calculatedAmount = grossAmount * (1 - (yieldSettings?.yieldTaxRate ?? 0) / 100);
 			balance += automaticYield?.amount ?? calculatedAmount;
 		}
 		for (const [dailyRate, cashbackBalance] of cashbackBalances) {
@@ -303,15 +303,34 @@ function getYieldSettings(account: FinancialAccount, day: string) {
 		?.filter(item => item.effectiveDate.slice(0, 10) <= day)
 		.toSorted((left, right) => left.effectiveDate.localeCompare(right.effectiveDate))
 		.at(-1);
-	return (
-		history ?? {
-			yieldFixedRate: account.yieldFixedRate,
-			yieldPeriod: account.yieldPeriod,
-			yieldReferencePercentage: account.yieldReferencePercentage,
-			yieldReferenceRate: account.yieldReferenceRate,
-			yieldTaxRate: account.yieldTaxRate,
-		}
-	);
+	const accountSettings = history ?? {
+		yieldFixedRate: account.yieldFixedRate,
+		yieldPeriod: account.yieldPeriod,
+		yieldReferencePercentage: account.yieldReferencePercentage,
+		yieldReferenceRate: account.yieldReferenceRate,
+		yieldTaxRate: account.yieldTaxRate,
+	};
+	if (accountSettings.yieldPeriod && getEffectiveYieldRate(accountSettings) > 0) return accountSettings;
+	if (account.type !== "CHECKING" && account.type !== "SAVINGS") return accountSettings;
+	return account.institution?.yieldPolicies
+		?.filter(policy => policy.effectiveDate.slice(0, 10) <= day)
+		.toSorted((left, right) => left.effectiveDate.localeCompare(right.effectiveDate))
+		.at(-1);
+}
+
+function calculateGrossYield(balance: number, settings: ReturnType<typeof getYieldSettings>) {
+	if (!settings?.yieldPeriod) return 0;
+	if (!("rules" in settings)) return balance * getDailyYieldRate(settings, settings.yieldPeriod);
+	let previousLimit = 0;
+	let grossYield = 0;
+	for (const rule of settings.rules) {
+		const upperLimit = rule.upToBalance ?? balance;
+		const amountInBracket = Math.max(0, Math.min(balance, upperLimit) - previousLimit);
+		grossYield += amountInBracket * getDailyYieldRate(rule, settings.yieldPeriod);
+		previousLimit = upperLimit;
+		if (previousLimit >= balance) break;
+	}
+	return grossYield;
 }
 
 const financialAccountTypeLabels = {

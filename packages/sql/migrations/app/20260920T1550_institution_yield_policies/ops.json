@@ -1,0 +1,226 @@
+[
+	{
+		"execute": [
+			{
+				"description": "create table \"FinancialInstitutionYieldPolicy\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"FinancialInstitutionYieldPolicy\" (\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"effectiveDate\" date NOT NULL,\n  \"financialInstitutionId\" character varying(36) NOT NULL,\n  \"id\" character varying(36) DEFAULT (cuid2()) NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"yieldPeriod\" \"FinancialAccountYieldPeriod\",\n  \"yieldTaxRate\" numeric(5,2),\n  CONSTRAINT \"FinancialInstitutionYieldPolicy_pkey\" PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.FinancialInstitutionYieldPolicy",
+		"label": "Create table \"FinancialInstitutionYieldPolicy\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"FinancialInstitutionYieldPolicy\" exists",
+				"params": ["\"public\".\"FinancialInstitutionYieldPolicy\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"FinancialInstitutionYieldPolicy\" does not exist",
+				"params": ["\"public\".\"FinancialInstitutionYieldPolicy\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"FinancialInstitutionYieldPolicy\"",
+		"target": {
+			"details": {
+				"name": "FinancialInstitutionYieldPolicy",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"FinancialInstitutionYieldRule\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"FinancialInstitutionYieldRule\" (\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"financialYieldPolicyId\" character varying(36) NOT NULL,\n  \"id\" character varying(36) DEFAULT (cuid2()) NOT NULL,\n  \"position\" int2 NOT NULL,\n  \"upToBalance\" numeric(12,2),\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"yieldFixedRate\" numeric(7,4),\n  \"yieldReferencePercentage\" numeric(7,4),\n  \"yieldReferenceRate\" numeric(7,4),\n  CONSTRAINT \"FinancialInstitutionYieldRule_pkey\" PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.FinancialInstitutionYieldRule",
+		"label": "Create table \"FinancialInstitutionYieldRule\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"FinancialInstitutionYieldRule\" exists",
+				"params": ["\"public\".\"FinancialInstitutionYieldRule\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"FinancialInstitutionYieldRule\" does not exist",
+				"params": ["\"public\".\"FinancialInstitutionYieldRule\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"FinancialInstitutionYieldRule\"",
+		"target": {
+			"details": {
+				"name": "FinancialInstitutionYieldRule",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"FinancialInstitutionYieldPolicy_institutionId_effectiveDate_key\"",
+				"params": [],
+				"sql": "CREATE UNIQUE INDEX \"FinancialInstitutionYieldPolicy_institutionId_effectiveDate_key\" ON \"public\".\"FinancialInstitutionYieldPolicy\" (\"financialInstitutionId\", \"effectiveDate\")"
+			}
+		],
+		"id": "index.FinancialInstitutionYieldPolicy.FinancialInstitutionYieldPolicy_institutionId_effectiveDate_key",
+		"label": "Create index \"FinancialInstitutionYieldPolicy_institutionId_effectiveDate_key\" on \"FinancialInstitutionYieldPolicy\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"FinancialInstitutionYieldPolicy_institutionId_effectiveDate_key\" exists",
+				"params": ["\"public\".\"FinancialInstitutionYieldPolicy_institutionId_effectiveDate_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"FinancialInstitutionYieldPolicy_institutionId_effectiveDate_key\" does not exist",
+				"params": ["\"public\".\"FinancialInstitutionYieldPolicy_institutionId_effectiveDate_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "FinancialInstitutionYieldPolicy_institutionId_effectiveDate_key",
+				"objectType": "index",
+				"schema": "public",
+				"table": "FinancialInstitutionYieldPolicy"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"FinancialInstitutionYieldRule_policyId_position_key\"",
+				"params": [],
+				"sql": "CREATE UNIQUE INDEX \"FinancialInstitutionYieldRule_policyId_position_key\" ON \"public\".\"FinancialInstitutionYieldRule\" (\"financialYieldPolicyId\", \"position\")"
+			}
+		],
+		"id": "index.FinancialInstitutionYieldRule.FinancialInstitutionYieldRule_policyId_position_key",
+		"label": "Create index \"FinancialInstitutionYieldRule_policyId_position_key\" on \"FinancialInstitutionYieldRule\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"FinancialInstitutionYieldRule_policyId_position_key\" exists",
+				"params": ["\"public\".\"FinancialInstitutionYieldRule_policyId_position_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"FinancialInstitutionYieldRule_policyId_position_key\" does not exist",
+				"params": ["\"public\".\"FinancialInstitutionYieldRule_policyId_position_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "FinancialInstitutionYieldRule_policyId_position_key",
+				"objectType": "index",
+				"schema": "public",
+				"table": "FinancialInstitutionYieldRule"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"FinancialInstitutionYieldPolicy_financialInstitutionId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialInstitutionYieldPolicy\"\nADD CONSTRAINT \"FinancialInstitutionYieldPolicy_financialInstitutionId_fkey\"\nFOREIGN KEY (\"financialInstitutionId\")\nREFERENCES \"public\".\"FinancialInstitution\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.FinancialInstitutionYieldPolicy.FinancialInstitutionYieldPolicy_financialInstitutionId_fkey",
+		"label": "Add foreign key \"FinancialInstitutionYieldPolicy_financialInstitutionId_fkey\" on \"FinancialInstitutionYieldPolicy\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"FinancialInstitutionYieldPolicy_financialInstitutionId_fkey\" exists",
+				"params": [
+					"FinancialInstitutionYieldPolicy_financialInstitutionId_fkey",
+					"public",
+					"\"public\".\"FinancialInstitutionYieldPolicy\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"FinancialInstitutionYieldPolicy_financialInstitutionId_fkey\" does not exist",
+				"params": [
+					"FinancialInstitutionYieldPolicy_financialInstitutionId_fkey",
+					"public",
+					"\"public\".\"FinancialInstitutionYieldPolicy\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "FinancialInstitutionYieldPolicy_financialInstitutionId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "FinancialInstitutionYieldPolicy"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"FinancialInstitutionYieldRule_financialYieldPolicyId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialInstitutionYieldRule\"\nADD CONSTRAINT \"FinancialInstitutionYieldRule_financialYieldPolicyId_fkey\"\nFOREIGN KEY (\"financialYieldPolicyId\")\nREFERENCES \"public\".\"FinancialInstitutionYieldPolicy\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.FinancialInstitutionYieldRule.FinancialInstitutionYieldRule_financialYieldPolicyId_fkey",
+		"label": "Add foreign key \"FinancialInstitutionYieldRule_financialYieldPolicyId_fkey\" on \"FinancialInstitutionYieldRule\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"FinancialInstitutionYieldRule_financialYieldPolicyId_fkey\" exists",
+				"params": [
+					"FinancialInstitutionYieldRule_financialYieldPolicyId_fkey",
+					"public",
+					"\"public\".\"FinancialInstitutionYieldRule\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"FinancialInstitutionYieldRule_financialYieldPolicyId_fkey\" does not exist",
+				"params": [
+					"FinancialInstitutionYieldRule_financialYieldPolicyId_fkey",
+					"public",
+					"\"public\".\"FinancialInstitutionYieldRule\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "FinancialInstitutionYieldRule_financialYieldPolicyId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "FinancialInstitutionYieldRule"
+			},
+			"id": "postgres"
+		}
+	}
+]

@@ -2194,12 +2194,32 @@ export const dataService = {
 			}
 			await fetchWithAuth(`/financial-institutions/${id}`, { method: "DELETE" });
 		},
-		async update(id: string, name: string): Promise<FinancialInstitution> {
+		async update(
+			id: string,
+			data: {
+				name?: string;
+				yieldPolicy?: Omit<import("./api").FinancialInstitutionYieldPolicy, "effectiveDate">;
+			},
+		): Promise<FinancialInstitution> {
 			if (isGuestMode()) {
 				const accounts = await localAccounts.getAll();
 				const institution = accounts.find(item => item.data.institutionId === id)?.data.institution;
 				if (!institution) throw new Error("Instituição financeira não encontrada");
-				const updated = { ...institution, name: name.normalize("NFKC").trim().replace(/\s+/gu, " ") };
+				const effectiveDate = new Date();
+				effectiveDate.setDate(effectiveDate.getDate() + 1);
+				const effectiveDateKey = effectiveDate.toISOString().slice(0, 10);
+				const updated = {
+					...institution,
+					...(data.name !== undefined && { name: data.name.normalize("NFKC").trim().replace(/\s+/gu, " ") }),
+					...(data.yieldPolicy && {
+						yieldPolicies: [
+							...(institution.yieldPolicies ?? []).filter(
+								policy => policy.effectiveDate.slice(0, 10) < effectiveDateKey,
+							),
+							{ ...data.yieldPolicy, effectiveDate: effectiveDateKey },
+						],
+					}),
+				};
 				await Promise.all(
 					accounts
 						.filter(item => item.data.institutionId === id)
@@ -2213,7 +2233,7 @@ export const dataService = {
 				return updated;
 			}
 			return fetchWithAuth<FinancialInstitution>(`/financial-institutions/${id}`, {
-				body: JSON.stringify({ name }),
+				body: JSON.stringify(data),
 				method: "PATCH",
 			});
 		},
