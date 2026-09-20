@@ -856,6 +856,7 @@ suite("Prisma 8 SQL query builder", () => {
 			"PATCH",
 			{
 				amount: 40,
+				creditCardStatementId: statementToPay.id,
 				date: "2026-08-24",
 				originFinancialAccountId: account.id,
 				time: "20:15",
