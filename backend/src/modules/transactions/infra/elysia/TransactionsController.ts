@@ -121,19 +121,17 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				)
 			)
 				throw new HttpException("Sugestão de transferência não encontrada", 404);
+			const outgoing = left.type === "EXPENSE" ? left : right;
+			const incoming = left.type === "INCOME" ? left : right;
+			const outgoingAccountId = outgoing.originFinancialAccountId;
+			const incomingAccountId = incoming.destinationFinancialAccountId;
+			if (!outgoingAccountId || !incomingAccountId || outgoingAccountId === incomingAccountId)
+				throw new HttpException("Sugestão de transferência não encontrada", 404);
 			const references = await queryRows(
 				db.sql.public.TransactionExternalReference.select("externalId", "financialAccountId", "transactionId")
 					.where((fields, functions) => functions.in(fields.transactionId, [left.id, right.id]))
 					.build(),
 			);
-			const accountFor = (transactionId: string) =>
-				references.find(reference => reference.transactionId === transactionId)?.financialAccountId;
-			const outgoing = left.type === "EXPENSE" ? left : right;
-			const incoming = left.type === "INCOME" ? left : right;
-			const outgoingAccountId = accountFor(outgoing.id);
-			const incomingAccountId = accountFor(incoming.id);
-			if (!outgoingAccountId || !incomingAccountId || outgoingAccountId === incomingAccountId)
-				throw new HttpException("Sugestão de transferência não encontrada", 404);
 			const retained = left.createdAt <= right.createdAt ? left : right;
 			const removed = retained.id === left.id ? right : left;
 			await withTransaction(async transaction => {

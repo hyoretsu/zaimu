@@ -291,9 +291,12 @@ export function TransactionsPage() {
 					visibleTransferSuggestions.some(
 						item => item.transaction.id === transaction.id || item.counterpart.id === transaction.id,
 					) ? (
-						<span className="inline-flex items-center gap-1 text-primary text-xs">
-							<LuArrowLeftRight /> Transferência sugerida
-						</span>
+						<div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+							<span className="inline-flex items-center gap-1 text-primary">
+								<LuArrowLeftRight /> Transferência sugerida
+							</span>
+							{transactionTime ? <span className="text-muted-foreground">{transactionTime}</span> : null}
+						</div>
 					) : transactionTime ? (
 						<span className="text-muted-foreground text-xs">{transactionTime}</span>
 					) : undefined
