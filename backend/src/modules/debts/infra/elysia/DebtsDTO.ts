@@ -43,9 +43,11 @@ export const DebtLedgerReturn = t.Object({
 export const DebtSummaryReturn = DebtLedgerReturn.properties.people;
 
 export const DebtInvitationReturn = t.Object({
+	balance: t.Number(),
 	counterpartyName: t.String(),
 	createdAt: t.Date(),
 	direction: t.Union([t.Literal("RECEIVED"), t.Literal("SENT")]),
+	events: t.Array(DebtEventReturn),
 	id: Id,
 	status: ConnectionStatus,
 });

@@ -495,10 +495,12 @@ export interface DebtLedger {
 }
 
 export interface DebtInvitation {
+	balance: number;
 	id: string;
 	createdAt: string;
 	counterpartyName: string;
 	direction: "RECEIVED" | "SENT";
+	events: DebtEvent[];
 	status: "PENDING" | "ACCEPTED" | "DECLINED";
 }
 
