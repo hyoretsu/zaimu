@@ -3131,6 +3131,7 @@ export const dataService = {
 									accounts.get(card.financialAccountId)?.institution?.name ||
 									"Cartão de crédito",
 								storeName: purchase.storeName,
+								subscriptionId: purchase.subscriptionId,
 								tagIds,
 								tags,
 								time: purchase.time,

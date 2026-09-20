@@ -418,6 +418,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				refundOfPurchaseId: string | null;
 				statementId: string;
 				storeName: string | null;
+				subscriptionId: string | null;
 				time: string | null;
 				sourceName: string;
 			}> = [];
@@ -461,6 +462,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 							),
 						statementId: f.CreditPurchase.statementId,
 						storeName: f.CreditPurchase.storeName,
+						subscriptionId: f.CreditPurchase.subscriptionId,
 						time: f.CreditPurchase.time,
 					}))
 					.where((f, fn) =>
