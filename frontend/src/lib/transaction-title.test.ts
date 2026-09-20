@@ -23,6 +23,18 @@ describe("getTransactionTitle", () => {
 		expect(getTransactionTitle({ source: "CREDIT_CARD", type: "EXPENSE" })).toBe("Compra");
 	});
 
+	test("uses the card and statement reference for a statement payment without a description", () => {
+		expect(
+			getTransactionTitle({
+				creditCardName: "Cartão Inter",
+				creditCardStatementDate: "2026-09-20",
+				creditCardStatementId: "statement-id",
+				source: "FINANCIAL_ACCOUNT",
+				type: "EXPENSE",
+			}),
+		).toBe("Fatura Cartão Inter — Set/26");
+	});
+
 	test("uses Transferência for transfers without a description", () => {
 		expect(getTransactionTitle({ source: "FINANCIAL_ACCOUNT", type: "TRANSFER" })).toBe("Transferência");
 	});
