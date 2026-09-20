@@ -13,6 +13,7 @@ import {
 	ImportTransactionsDialog,
 	PendingTransactionImportsNotice,
 	TransactionImportReviewDialog,
+	TransferSuggestionsDialog,
 } from "@/components/transaction-imports";
 import { TransferSuggestionDecisionDialog } from "@/components/transaction-imports/TransferSuggestionDecisionDialog";
 import {
@@ -20,6 +21,7 @@ import {
 	EditTransactionDialog,
 	TransactionListItem,
 } from "@/components/transactions";
+import { ActionNotice } from "@/components/ui/ActionNotice";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageContainer } from "@/components/ui/PageContainer";
@@ -89,6 +91,7 @@ export function TransactionsPage() {
 	const [refundingPurchase, setRefundingPurchase] = useState<Transaction | null>(null);
 	const [filters, setFilters] = useState<TransactionFiltersValue>(initialTransactionFilters);
 	const [expandedHiddenGroups, setExpandedHiddenGroups] = useState<Set<string>>(() => new Set());
+	const [transferSuggestionsOpen, setTransferSuggestionsOpen] = useState(false);
 	const [transferSuggestionDecision, setTransferSuggestionDecision] = useState<{
 		counterpart: Transaction;
 		transaction: Transaction;
@@ -342,50 +345,30 @@ export function TransactionsPage() {
 			/>
 			<PendingTransactionImportsNotice onReview={setReviewingImportId} />
 			{visibleTransferSuggestions.length ? (
-				<section className="rounded-2xl border border-primary/40 bg-primary/10 p-4">
-					<div className="flex items-center gap-3">
-						<LuArrowLeftRight className="text-primary" />
-						<div>
-							<p className="font-semibold">Transferências sugeridas</p>
-							<p className="text-muted-foreground text-sm">
-								{visibleTransferSuggestions.length}{" "}
-								{visibleTransferSuggestions.length === 1 ? "par encontrado" : "pares encontrados"} no mesmo
-								dia.
-							</p>
-						</div>
-					</div>
-					<div className="mt-3 space-y-2">
-						{visibleTransferSuggestions.map(({ counterpart, transaction }) => (
-							<div
-								className="flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-background/40 p-3 sm:flex-row sm:items-center sm:justify-between"
-								key={`${transaction.id}-${counterpart.id}`}
-							>
-								<div className="min-w-0 space-y-1">
-									<p className="break-words font-medium">
-										{transaction.description || "Saída"} ↔ {counterpart.description || "Entrada"}
-									</p>
-									<p className="text-muted-foreground text-xs">
-										{formatLocalDate(transaction.date)} · {currency.format(Number(transaction.amount))} ·{" "}
-										{formatLocalTime(transaction.time) ?? "Sem horário"}
-										{counterpart.time ? ` ↔ ${formatLocalTime(counterpart.time)}` : ""}
-									</p>
-								</div>
-								<div className="flex shrink-0 flex-wrap gap-2">
-									<Button
-										className="cursor-pointer disabled:cursor-not-allowed"
-										disabled={acceptTransferSuggestion.isPending}
-										onClick={() => setTransferSuggestionDecision({ counterpart, transaction })}
-										size="sm"
-										variant="outline"
-									>
-										<LuEye aria-hidden="true" /> Ver 2 transações
-									</Button>
-								</div>
-							</div>
-						))}
-					</div>
-				</section>
+				<ActionNotice
+					action={
+						<Button
+							className="cursor-pointer"
+							onClick={() => setTransferSuggestionsOpen(true)}
+							variant="outline"
+						>
+							<LuEye aria-hidden="true" /> Ver transferências
+						</Button>
+					}
+					description={`${visibleTransferSuggestions.length} ${visibleTransferSuggestions.length === 1 ? "par encontrado" : "pares encontrados"} no mesmo dia.`}
+					icon={<LuArrowLeftRight aria-hidden="true" className="size-5 text-primary" />}
+					title="Transferências sugeridas"
+				/>
 			) : null}
+			<TransferSuggestionsDialog
+				onOpenChange={setTransferSuggestionsOpen}
+				onSelect={suggestion => {
+					setTransferSuggestionsOpen(false);
+					setTransferSuggestionDecision(suggestion);
+				}}
+				open={transferSuggestionsOpen}
+				suggestions={visibleTransferSuggestions}
+			/>
 			<TransferSuggestionDecisionDialog
 				counterpartTransaction={transferSuggestionDecision?.counterpart ?? null}
 				currentTransaction={transferSuggestionDecision?.transaction ?? null}

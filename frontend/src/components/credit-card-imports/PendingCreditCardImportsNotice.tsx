@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { LuFileClock, LuFileSearch } from "react-icons/lu";
+import { ActionNotice } from "@/components/ui/ActionNotice";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { dataService } from "@/lib/dataService";
@@ -30,31 +31,32 @@ export function PendingCreditCardImportsNotice({ onReview }: { onReview: (import
 	const purchases = imports.data.reduce((total, item) => total + item.items.length, 0);
 	return (
 		<>
-			<section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4">
-				<div className="flex items-center gap-3">
-					<LuFileClock className="size-5 text-amber-700" />
-					<div>
-						<p className="font-semibold">Faturas aguardando revisão</p>
-						<p className="text-muted-foreground text-sm">
-							{imports.data.length} {imports.data.length === 1 ? "fatura" : "faturas"} · {purchases}{" "}
-							{purchases === 1 ? "compra" : "compras"}
-						</p>
-					</div>
-				</div>
-				<Button
-					className="cursor-pointer"
-					onClick={() => {
-						if (imports.data.length === 1) {
-							onReview(imports.data[0]!.id);
-							return;
-						}
-						setSelectionOpen(true);
-					}}
-					variant="outline"
-				>
-					<LuFileSearch /> Revisar
-				</Button>
-			</section>
+			<ActionNotice
+				action={
+					<Button
+						className="cursor-pointer"
+						onClick={() => {
+							if (imports.data.length === 1) {
+								onReview(imports.data[0]!.id);
+								return;
+							}
+							setSelectionOpen(true);
+						}}
+						variant="outline"
+					>
+						<LuFileSearch /> Revisar
+					</Button>
+				}
+				description={
+					<>
+						{imports.data.length} {imports.data.length === 1 ? "fatura" : "faturas"} · {purchases}{" "}
+						{purchases === 1 ? "compra" : "compras"}
+					</>
+				}
+				icon={<LuFileClock aria-hidden="true" className="size-5 text-amber-700" />}
+				title="Faturas aguardando revisão"
+				tone="warning"
+			/>
 			{imports.data.length > 1 && (
 				<PendingCreditCardImportsDialog
 					imports={imports.data}
