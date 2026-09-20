@@ -241,6 +241,7 @@ export interface Transaction {
 	destinationName?: null | string;
 	createdAt: string;
 	externalIds?: string[];
+	isFullySynced?: boolean;
 	isSynced?: boolean;
 	creditCardId?: string;
 	creditCardName?: string | null;
@@ -588,6 +589,8 @@ export interface CreditPurchase {
 	installments: number;
 	currentInstallment: number;
 	installmentAmount: number;
+	isFullySynced?: boolean;
+	isSynced?: boolean;
 	purchaseDate: string;
 	time?: string | null;
 	categoryId?: string;

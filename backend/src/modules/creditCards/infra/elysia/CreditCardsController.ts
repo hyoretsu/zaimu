@@ -12,6 +12,7 @@ import {
 	replaceEntityTags,
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
+import { getCreditPurchaseSyncStatus } from "~/modules/creditCards/domain/credit-purchase-sync-status";
 import {
 	getEvenlyDistributedInstallmentAmounts,
 	redistributeInstallmentAmounts,
@@ -936,6 +937,20 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					.orderBy("purchaseDate", { direction: "desc" })
 					.build(),
 			);
+			const purchaseSyncRows = await queryRows(
+				db.sql.public.CreditPurchase.innerJoin(db.sql.public.CreditCardStatement, (fields, functions) =>
+					functions.eq(fields.CreditPurchase.statementId, fields.CreditCardStatement.id),
+				)
+					.select(fields => ({
+						hasImportedAmount: fields.CreditPurchase.hasImportedAmount,
+						id: fields.CreditPurchase.id,
+						parentId: fields.CreditPurchase.parentId,
+						statementDate: fields.CreditCardStatement.statementDate,
+					}))
+					.where((fields, functions) => functions.eq(fields.CreditCardStatement.creditCardId, params.id))
+					.build(),
+			);
+			const purchaseSyncStatus = getCreditPurchaseSyncStatus(purchaseSyncRows);
 			const payments = await queryRows(
 				db.sql.public.Transaction.select(
 					"amount",
@@ -979,6 +994,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						const tags = tagsByPurchase.get(purchase.id) ?? [];
 						return {
 							...purchase,
+							...purchaseSyncStatus.get(purchase.id),
 							categoryColor: tags[0]?.color,
 							categoryName: tags[0]?.name,
 							debtSplit: await getDebtSplitReturn(

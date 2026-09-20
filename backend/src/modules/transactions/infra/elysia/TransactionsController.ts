@@ -12,6 +12,7 @@ import {
 	replaceEntityTags,
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
+import { getCreditPurchaseSyncStatus } from "~/modules/creditCards/domain/credit-purchase-sync-status";
 import {
 	deleteCreatorDebtEventForTransaction,
 	getDebtSplitInput,
@@ -200,8 +201,14 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						),
 					),
 				)
-					.select(fields => ({
-						accountName: fields.FinancialAccount.name,
+					.outerLeftJoin(db.sql.public.FinancialInstitution, (fields, functions) =>
+						functions.eq(fields.FinancialAccount.institutionId, fields.FinancialInstitution.id),
+					)
+					.select((fields, functions) => ({
+						accountName:
+							functions.raw`COALESCE(${fields.FinancialAccount.name}, ${fields.FinancialInstitution.name})`.returns(
+								"sql/varchar@1",
+							),
 						accountType: fields.FinancialAccount.type,
 						amount: fields.Transaction.amount,
 						createdAt: fields.Transaction.createdAt,
@@ -576,6 +583,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						description: f.CreditPurchase.description,
 						feeAmount: f.CreditPurchase.feeAmount,
 						feeDescription: f.CreditPurchase.feeDescription,
+						hasImportedAmount: f.CreditPurchase.hasImportedAmount,
 						id: f.CreditPurchase.id,
 						installmentAmount: f.CreditPurchase.installmentAmount,
 						installments: f.CreditPurchase.installments,
@@ -614,6 +622,29 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					purchaseQuery = purchaseQuery.where((f, fn) => fn.eq(f.CreditPurchase.isRefund, true));
 				purchases = await queryRows(purchaseQuery.build());
 			}
+			const rootPurchaseIdsForSync = purchases.map(purchase => purchase.id);
+			const purchaseSyncStatus = rootPurchaseIdsForSync.length
+				? getCreditPurchaseSyncStatus(
+						await queryRows(
+							db.sql.public.CreditPurchase.innerJoin(db.sql.public.CreditCardStatement, (fields, functions) =>
+								functions.eq(fields.CreditPurchase.statementId, fields.CreditCardStatement.id),
+							)
+								.select(fields => ({
+									hasImportedAmount: fields.CreditPurchase.hasImportedAmount,
+									id: fields.CreditPurchase.id,
+									parentId: fields.CreditPurchase.parentId,
+									statementDate: fields.CreditCardStatement.statementDate,
+								}))
+								.where((fields, functions) =>
+									functions.or(
+										functions.in(fields.CreditPurchase.id, rootPurchaseIdsForSync),
+										functions.in(fields.CreditPurchase.parentId, rootPurchaseIdsForSync),
+									),
+								)
+								.build(),
+						),
+					)
+				: new Map();
 			const purchaseTags = await getTagsByEntity(
 				tagEntityType.creditPurchase,
 				purchases.map(purchase => purchase.id),
@@ -637,6 +668,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						const tags = purchaseTags.get(purchase.id) ?? [];
 						return {
 							...purchase,
+							...purchaseSyncStatus.get(purchase.id),
 							amount: purchase.isRefund ? Math.abs(Number(purchase.amount)) : Number(purchase.amount),
 							creditCardStatementId: purchase.statementId,
 							debtSplit: await getDebtSplitReturn(

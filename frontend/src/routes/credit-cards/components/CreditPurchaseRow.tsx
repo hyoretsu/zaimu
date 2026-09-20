@@ -60,12 +60,19 @@ export function CreditPurchaseRow({
 						Inclui {purchase.feeDescription}: {currency.format(purchase.feeAmount)}
 					</p>
 				) : null}
-				{purchase.storeName || debtPersonName || tags?.length || purchase.subscriptionId ? (
+				{purchase.storeName ||
+				debtPersonName ||
+				tags?.length ||
+				purchase.subscriptionId ||
+				purchase.isSynced ||
+				purchase.isFullySynced ? (
 					<div className="mt-2">
 						<TransactionBadges
 							accounts={[]}
 							debtPersonName={debtPersonName}
+							isFullySynced={purchase.isFullySynced}
 							isSubscription={Boolean(purchase.subscriptionId)}
+							isSynced={purchase.isSynced}
 							storeName={purchase.storeName}
 							tags={tags}
 						/>
