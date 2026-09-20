@@ -28,6 +28,7 @@ const FinancialAccountType = t.Union([
 
 const CashbackYieldPeriod = t.Union([t.Literal("MONTHLY"), t.Literal("YEARLY")]);
 const FinancialAccountYieldPeriod = t.Union([t.Literal("MONTHLY"), t.Literal("YEARLY")]);
+const ReferenceRateType = t.Union([t.Literal("CDI"), t.Literal("SELIC")]);
 const RewardsAccountKind = t.Union([t.Literal("POINTS"), t.Literal("CASHBACK")]);
 const RewardsAccountCreate = t.Object({
 	conversionAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
@@ -87,7 +88,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					"yieldFixedRate",
 					"yieldPeriod",
 					"yieldReferencePercentage",
-					"yieldReferenceRate",
+					"yieldReferenceType",
 					"yieldTaxRate",
 					"createdAt",
 					"updatedAt",
@@ -165,7 +166,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 							"yieldFixedRate",
 							"yieldPeriod",
 							"yieldReferencePercentage",
-							"yieldReferenceRate",
+							"yieldReferenceType",
 							"yieldTaxRate",
 						)
 							.where((fields, functions) =>
@@ -224,7 +225,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					"yieldFixedRate",
 					"yieldPeriod",
 					"yieldReferencePercentage",
-					"yieldReferenceRate",
+					"yieldReferenceType",
 					"yieldTaxRate",
 					"createdAt",
 					"updatedAt",
@@ -272,7 +273,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					"yieldFixedRate",
 					"yieldPeriod",
 					"yieldReferencePercentage",
-					"yieldReferenceRate",
+					"yieldReferenceType",
 					"yieldTaxRate",
 				)
 					.where((fields, functions) => functions.eq(fields.financialAccountId, account.id))
@@ -364,7 +365,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				yieldFixedRate: body.yieldFixedRate,
 				yieldPeriod: body.yieldPeriod,
 				yieldReferencePercentage: body.yieldReferencePercentage,
-				yieldReferenceRate: body.yieldReferenceRate,
+				yieldReferenceType: body.yieldReferenceType,
 				yieldTaxRate: body.yieldTaxRate,
 			});
 			if (body.creditCard) {
@@ -462,9 +463,9 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 							body.yieldReferencePercentage !== null && {
 								yieldReferencePercentage: String(body.yieldReferencePercentage),
 							}),
-						...(body.yieldReferenceRate !== undefined &&
-							body.yieldReferenceRate !== null && {
-								yieldReferenceRate: String(body.yieldReferenceRate),
+						...(body.yieldReferenceType !== undefined &&
+							body.yieldReferenceType !== null && {
+								yieldReferenceType: body.yieldReferenceType,
 							}),
 						...(body.yieldTaxRate !== undefined &&
 							body.yieldTaxRate !== null && { yieldTaxRate: String(body.yieldTaxRate) }),
@@ -479,7 +480,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						"yieldFixedRate",
 						"yieldPeriod",
 						"yieldReferencePercentage",
-						"yieldReferenceRate",
+						"yieldReferenceType",
 						"yieldTaxRate",
 						"createdAt",
 						"updatedAt",
@@ -487,14 +488,14 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					.build(),
 			);
 			if (!account) throw new HttpException("FinancialAccount not created", 500);
-			if (type !== "CREDIT_CARD" && body.yieldPeriod) {
+			if (type !== "CREDIT_CARD" && (body.yieldFixedRate || body.yieldReferenceType)) {
 				await scheduleFinancialAccountYieldRate({
 					effectiveDate: new Date(),
 					financialAccountId: account.id,
 					yieldFixedRate: body.yieldFixedRate,
 					yieldPeriod: body.yieldPeriod,
 					yieldReferencePercentage: body.yieldReferencePercentage,
-					yieldReferenceRate: body.yieldReferenceRate,
+					yieldReferenceType: body.yieldReferenceType,
 					yieldTaxRate: body.yieldTaxRate,
 				});
 			}
@@ -594,7 +595,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				yieldFixedRate: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
 				yieldPeriod: t.Optional(t.Nullable(FinancialAccountYieldPeriod)),
 				yieldReferencePercentage: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
-				yieldReferenceRate: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
+				yieldReferenceType: t.Optional(t.Nullable(ReferenceRateType)),
 				yieldTaxRate: t.Optional(t.Nullable(t.Number({ maximum: 100, minimum: 0 }))),
 			}),
 			detail: { tags: ["Accounts"] },
@@ -615,7 +616,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					"yieldFixedRate",
 					"yieldPeriod",
 					"yieldReferencePercentage",
-					"yieldReferenceRate",
+					"yieldReferenceType",
 					"yieldTaxRate",
 				)
 					.where((fields, functions) => functions.eq(fields.id, params.id))
@@ -638,8 +639,8 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					body.yieldReferencePercentage === undefined
 						? existing.yieldReferencePercentage
 						: body.yieldReferencePercentage,
-				yieldReferenceRate:
-					body.yieldReferenceRate === undefined ? existing.yieldReferenceRate : body.yieldReferenceRate,
+				yieldReferenceType:
+					body.yieldReferenceType === undefined ? existing.yieldReferenceType : body.yieldReferenceType,
 				yieldTaxRate: body.yieldTaxRate === undefined ? existing.yieldTaxRate : body.yieldTaxRate,
 			});
 			const institution =
@@ -695,8 +696,8 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					...(body.yieldReferencePercentage !== undefined && {
 						yieldReferencePercentage: nullableNumeric<7, 4>(body.yieldReferencePercentage),
 					}),
-					...(body.yieldReferenceRate !== undefined && {
-						yieldReferenceRate: nullableNumeric<7, 4>(body.yieldReferenceRate),
+					...(body.yieldReferenceType !== undefined && {
+						yieldReferenceType: body.yieldReferenceType,
 					}),
 					...(body.yieldTaxRate !== undefined && {
 						yieldTaxRate: nullableNumeric<5, 2>(body.yieldTaxRate),
@@ -713,7 +714,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						"yieldFixedRate",
 						"yieldPeriod",
 						"yieldReferencePercentage",
-						"yieldReferenceRate",
+						"yieldReferenceType",
 						"yieldTaxRate",
 						"createdAt",
 						"updatedAt",
@@ -725,7 +726,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				body.yieldPeriod !== undefined ||
 				body.yieldFixedRate !== undefined ||
 				body.yieldReferencePercentage !== undefined ||
-				body.yieldReferenceRate !== undefined ||
+				body.yieldReferenceType !== undefined ||
 				body.yieldTaxRate !== undefined;
 			if (yieldChanged) {
 				await scheduleFinancialAccountYieldRate({
@@ -739,8 +740,10 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						body.yieldReferencePercentage === undefined
 							? existing.yieldReferencePercentage
 							: body.yieldReferencePercentage,
-					yieldReferenceRate:
-						body.yieldReferenceRate === undefined ? existing.yieldReferenceRate : body.yieldReferenceRate,
+					yieldReferenceType:
+						body.yieldReferenceType === undefined
+							? (existing.yieldReferenceType as "CDI" | "SELIC" | null)
+							: body.yieldReferenceType,
 					yieldTaxRate: body.yieldTaxRate === undefined ? existing.yieldTaxRate : body.yieldTaxRate,
 				});
 				if (body.recalculateCurrentDay)
@@ -965,7 +968,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				yieldFixedRate: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
 				yieldPeriod: t.Optional(t.Nullable(FinancialAccountYieldPeriod)),
 				yieldReferencePercentage: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
-				yieldReferenceRate: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
+				yieldReferenceType: t.Optional(t.Nullable(ReferenceRateType)),
 				yieldTaxRate: t.Optional(t.Nullable(t.Number({ maximum: 100, minimum: 0 }))),
 			}),
 			detail: { tags: ["Accounts"] },

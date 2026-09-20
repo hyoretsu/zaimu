@@ -3,7 +3,8 @@ import type {
 	InstitutionYieldRule,
 	YieldPeriod,
 } from "~/modules/accounts/domain/calculate-financial-account-yields";
-import { db, executeStatement, nullableNumeric, param, queryFirst } from "~/shared/infra/sql";
+import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
+import { db, executeStatement, nullableNumeric, param, queryFirst, queryRows } from "~/shared/infra/sql";
 
 export async function scheduleFinancialInstitutionYieldPolicy({
 	effectiveDate,
@@ -74,27 +75,33 @@ export async function scheduleFinancialInstitutionYieldPolicy({
 		);
 		policyId = policy?.id;
 	}
-	if (!policyId || rules.length === 0) return;
-	await executeStatement(
-		db.sql.public.FinancialInstitutionYieldRule.insert(
-			rules.map((rule, position) => ({
-				financialYieldPolicyId: policyId!,
-				position,
-				upToBalance:
-					rule.upToBalance === null || rule.upToBalance === undefined ? undefined : String(rule.upToBalance),
-				yieldFixedRate:
-					rule.yieldFixedRate === null || rule.yieldFixedRate === undefined
-						? undefined
-						: String(rule.yieldFixedRate),
-				yieldReferencePercentage:
-					rule.yieldReferencePercentage === null || rule.yieldReferencePercentage === undefined
-						? undefined
-						: String(rule.yieldReferencePercentage),
-				yieldReferenceRate:
-					rule.yieldReferenceRate === null || rule.yieldReferenceRate === undefined
-						? undefined
-						: String(rule.yieldReferenceRate),
-			})),
-		).build(),
+	if (policyId && rules.length > 0)
+		await executeStatement(
+			db.sql.public.FinancialInstitutionYieldRule.insert(
+				rules.map((rule, position) => ({
+					financialYieldPolicyId: policyId!,
+					position,
+					upToBalance:
+						rule.upToBalance === null || rule.upToBalance === undefined
+							? undefined
+							: String(rule.upToBalance),
+					yieldFixedRate:
+						rule.yieldFixedRate === null || rule.yieldFixedRate === undefined
+							? undefined
+							: String(rule.yieldFixedRate),
+					yieldReferencePercentage:
+						rule.yieldReferencePercentage === null || rule.yieldReferencePercentage === undefined
+							? undefined
+							: String(rule.yieldReferencePercentage),
+					yieldReferenceType: rule.yieldReferenceType ?? undefined,
+				})),
+			).build(),
+		);
+	const accounts = await queryRows(
+		db.sql.public.FinancialAccount.select("id")
+			.where((fields, functions) => functions.eq(fields.institutionId, financialInstitutionId))
+			.build(),
 	);
+	for (const account of accounts)
+		await enqueueAccountYieldRecalculation(account.id, date, `institution:${Date.now()}`);
 }

@@ -8,8 +8,10 @@ import {
 } from "react-icons/hi2";
 import { mobileNavigation, primaryNavigation, utilityNavigation } from "@/components/layout/navigation";
 
-const desktopNavigationPaths = new Set([...primaryNavigation, ...utilityNavigation].map(item => item.to));
-const mobileNavigationPaths = new Set(mobileNavigation.map(item => item.to));
+const desktopNavigationPaths = new Set<string>(
+	[...primaryNavigation, ...utilityNavigation].map(item => item.to),
+);
+const mobileNavigationPaths = new Set<string>(mobileNavigation.map(item => item.to));
 
 const menuItems = [
 	{
@@ -40,9 +42,9 @@ const menuItems = [
 		label: "Ajustes",
 		to: "/settings",
 	},
-];
+] as const;
 
-function renderMenuItems(items: typeof menuItems) {
+function renderMenuItems(items: readonly (typeof menuItems)[number][]) {
 	return items.map((item, idx) => (
 		<Link className="block" key={item.to} to={item.to}>
 			<div

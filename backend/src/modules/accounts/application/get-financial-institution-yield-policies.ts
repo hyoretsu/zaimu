@@ -27,7 +27,7 @@ export async function getFinancialInstitutionYieldPolicies(institutionIds: strin
 					"upToBalance",
 					"yieldFixedRate",
 					"yieldReferencePercentage",
-					"yieldReferenceRate",
+					"yieldReferenceType",
 				)
 					.where((fields, functions) =>
 						functions.in(
@@ -54,7 +54,7 @@ export async function getFinancialInstitutionYieldPolicies(institutionIds: strin
 				yieldFixedRate: rule.yieldFixedRate === null ? null : Number(rule.yieldFixedRate),
 				yieldReferencePercentage:
 					rule.yieldReferencePercentage === null ? null : Number(rule.yieldReferencePercentage),
-				yieldReferenceRate: rule.yieldReferenceRate === null ? null : Number(rule.yieldReferenceRate),
+				yieldReferenceType: rule.yieldReferenceType as "CDI" | "SELIC" | null,
 			})),
 			yieldPeriod: policy.yieldPeriod as null | YieldPeriod,
 			yieldTaxRate: policy.yieldTaxRate === null ? null : Number(policy.yieldTaxRate),

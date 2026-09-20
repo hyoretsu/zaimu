@@ -235,7 +235,10 @@ async function getPersonEvents(person: { connectionId: null | string; id: string
 			getPurchaseNamesByDebtEventId(visibleEvents.map(event => event.id)),
 			getSourceByDebtEventId(visibleEvents.map(event => event.id)),
 		]);
-	return removeDuplicateSourcedDebtEvents(visibleEvents, sourceByEventId)
+	return removeDuplicateSourcedDebtEvents(
+		visibleEvents as Array<(typeof visibleEvents)[number] & { debtPersonId: string }>,
+		sourceByEventId,
+	)
 		.map(({ debtPersonId: _, ...event }) => ({
 			...event,
 			amount: Number(event.amount),

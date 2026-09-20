@@ -23,7 +23,7 @@ const createRule = (): EditableYieldRule => ({
 	fixedRate: "",
 	id: crypto.randomUUID(),
 	referencePercentage: "100",
-	referenceRate: "",
+	referenceType: "",
 	upToBalance: "",
 });
 
@@ -48,7 +48,7 @@ export function InstitutionYieldDialog({
 				fixedRate: String(rule.yieldFixedRate ?? ""),
 				id: crypto.randomUUID(),
 				referencePercentage: String(rule.yieldReferencePercentage ?? 100),
-				referenceRate: String(rule.yieldReferenceRate ?? ""),
+				referenceType: rule.yieldReferenceType ?? "",
 				upToBalance: String(rule.upToBalance ?? ""),
 			})) ?? [createRule()],
 	);
@@ -62,7 +62,7 @@ export function InstitutionYieldDialog({
 				fixedRate: String(rule.yieldFixedRate ?? ""),
 				id: crypto.randomUUID(),
 				referencePercentage: String(rule.yieldReferencePercentage ?? 100),
-				referenceRate: String(rule.yieldReferenceRate ?? ""),
+				referenceType: rule.yieldReferenceType ?? "",
 				upToBalance: String(rule.upToBalance ?? ""),
 			})) ?? [createRule()],
 		);
@@ -76,11 +76,11 @@ export function InstitutionYieldDialog({
 				? rules.map((rule, index) => ({
 						upToBalance: index === rules.length - 1 ? null : Number(rule.upToBalance),
 						yieldFixedRate: rule.fixedRate ? Number(rule.fixedRate) : null,
-						yieldReferencePercentage: rule.referenceRate ? Number(rule.referencePercentage) : null,
-						yieldReferenceRate: rule.referenceRate ? Number(rule.referenceRate) : null,
+						yieldReferencePercentage: rule.referenceType ? Number(rule.referencePercentage) : null,
+						yieldReferenceType: rule.referenceType || null,
 					}))
 				: [],
-			yieldPeriod: enabled ? period : null,
+			yieldPeriod: enabled && rules.some(rule => Boolean(rule.fixedRate)) ? period : null,
 			yieldTaxRate: enabled && taxRate ? Number(taxRate) : null,
 		});
 		setOpen(false);
@@ -123,7 +123,7 @@ export function InstitutionYieldDialog({
 											{ label: "Anual (252 dias úteis)", value: "YEARLY" },
 										]}
 										placeholder="Selecione"
-										required
+										required={rules.some(rule => Boolean(rule.fixedRate))}
 										sortOptions={false}
 										value={period}
 									/>
@@ -180,7 +180,7 @@ export function InstitutionYieldDialog({
 								enabled &&
 								rules.some(
 									(rule, index) =>
-										(!rule.fixedRate && !rule.referenceRate) ||
+										(!rule.fixedRate && !rule.referenceType) ||
 										(index < rules.length - 1 && !rule.upToBalance),
 								)
 							}

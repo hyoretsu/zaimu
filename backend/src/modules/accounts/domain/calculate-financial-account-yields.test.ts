@@ -1,5 +1,28 @@
 import { describe, expect, test } from "bun:test";
-import { calculateFinancialAccountYieldBalances } from "./calculate-financial-account-yields";
+import {
+	calculateFinancialAccountYieldBalances,
+	calculateGrossYield,
+} from "./calculate-financial-account-yields";
+
+test("adds fixed daily yield to the BCB daily reference portion", () => {
+	const gross = calculateGrossYield(
+		1000,
+		{
+			effectiveDate: new Date("2026-09-17T12:00:00"),
+			rules: [
+				{
+					yieldFixedRate: 1,
+					yieldReferencePercentage: 105,
+					yieldReferenceType: "CDI",
+				},
+			],
+			yieldPeriod: "MONTHLY",
+		},
+		{ CDI: 0.050788 },
+	);
+	const fixedDaily = 1.01 ** (1 / 21) - 1;
+	expect(gross).toBeCloseTo(1000 * (fixedDaily + (0.050788 / 100) * 1.05), 8);
+});
 
 describe("calculateFinancialAccountYieldBalances", () => {
 	const account = {
@@ -55,7 +78,7 @@ describe("calculateFinancialAccountYieldBalances", () => {
 		expect(balances.get("account")).toBeCloseTo(100 * (1 + dailyRate), 4);
 	});
 
-	test("adds the referenced and fixed portions before daily compounding", () => {
+	test("uses only the materialized value for a reference-linked day", () => {
 		const balances = calculateFinancialAccountYieldBalances({
 			accounts: [
 				{
@@ -63,7 +86,7 @@ describe("calculateFinancialAccountYieldBalances", () => {
 					yieldFixedRate: 0.5,
 					yieldPeriod: "YEARLY",
 					yieldReferencePercentage: 105,
-					yieldReferenceRate: 10,
+					yieldReferenceType: "CDI",
 				},
 			],
 			cashbackCredits: [],
@@ -73,9 +96,18 @@ describe("calculateFinancialAccountYieldBalances", () => {
 			transactions: [
 				{ amount: 100, date: new Date("2026-01-05T12:00:00"), destinationFinancialAccountId: "account" },
 			],
+			yields: [
+				{
+					amount: 0.055,
+					date: new Date("2026-01-05T12:00:00"),
+					financialAccountId: "account",
+					isExcluded: false,
+					kind: "AUTOMATIC",
+					origin: "SYSTEM",
+				},
+			],
 		});
-		const effectiveRate = 10 * 1.05 + 0.5;
-		expect(balances.get("account")).toBeCloseTo(100 * (1 + effectiveRate / 100) ** (1 / 252), 4);
+		expect(balances.get("account")).toBe(100.055);
 	});
 
 	test("reduces automatic yields by the configured tax rate", () => {

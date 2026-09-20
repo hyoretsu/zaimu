@@ -1,5 +1,6 @@
 import { LuTrash2 } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 import { NumericField } from "@/components/ui/NumericField";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
@@ -23,9 +24,6 @@ export function InstitutionYieldRuleRow({
 	);
 	const [fixedRate, setFixedRate] = useDebouncedInput(rule.fixedRate, value =>
 		onChange({ ...rule, fixedRate: value }),
-	);
-	const [referenceRate, setReferenceRate] = useDebouncedInput(rule.referenceRate, value =>
-		onChange({ ...rule, referenceRate: value }),
 	);
 	const [referencePercentage, setReferencePercentage] = useDebouncedInput(rule.referencePercentage, value =>
 		onChange({ ...rule, referencePercentage: value }),
@@ -77,19 +75,22 @@ export function InstitutionYieldRuleRow({
 					suffix="%"
 					value={fixedRate}
 				/>
-				<NumericField
-					id={`institution-yield-reference-${rule.id}`}
+				<CustomSelect
 					label="Taxa de referência"
-					onValueChange={setReferenceRate}
-					placeholder="Ex: 14,90%"
-					suffix="%"
-					value={referenceRate}
+					onValueChange={value => onChange({ ...rule, referenceType: value as "CDI" | "SELIC" })}
+					options={[
+						{ label: "CDI", value: "CDI" },
+						{ label: "Taxa Selic", value: "SELIC" },
+					]}
+					placeholder="Selecione CDI ou Selic"
+					value={rule.referenceType}
 				/>
 				<NumericField
 					id={`institution-yield-percentage-${rule.id}`}
 					label="Percentual da referência"
 					onValueChange={setReferencePercentage}
 					placeholder="Ex: 100,00%"
+					required={Boolean(rule.referenceType)}
 					suffix="%"
 					value={referencePercentage}
 				/>

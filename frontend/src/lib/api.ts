@@ -64,7 +64,7 @@ export interface FinancialAccount {
 	yieldPeriod?: "MONTHLY" | "YEARLY" | null;
 	yieldFixedRate?: number | null;
 	yieldReferencePercentage?: number | null;
-	yieldReferenceRate?: number | null;
+	yieldReferenceType?: "CDI" | "SELIC" | null;
 	yieldTaxRate?: number | null;
 	yieldRateHistories?: FinancialAccountYieldRateHistory[];
 	creditCard?: CreditCard;
@@ -76,7 +76,7 @@ export interface FinancialAccountYieldRateHistory {
 	yieldPeriod?: "MONTHLY" | "YEARLY" | null;
 	yieldFixedRate?: number | null;
 	yieldReferencePercentage?: number | null;
-	yieldReferenceRate?: number | null;
+	yieldReferenceType?: "CDI" | "SELIC" | null;
 	yieldTaxRate?: number | null;
 }
 
@@ -92,6 +92,7 @@ export interface FinancialAccountYield {
 	id: string;
 	isExcluded: boolean;
 	kind: "AUTOMATIC" | "MANUAL";
+	origin?: "SYSTEM" | "USER";
 }
 
 export interface RewardsAccount {
@@ -118,7 +119,7 @@ export interface FinancialInstitutionYieldRule {
 	upToBalance?: number | null;
 	yieldFixedRate?: number | null;
 	yieldReferencePercentage?: number | null;
-	yieldReferenceRate?: number | null;
+	yieldReferenceType?: "CDI" | "SELIC" | null;
 }
 
 export interface Store {

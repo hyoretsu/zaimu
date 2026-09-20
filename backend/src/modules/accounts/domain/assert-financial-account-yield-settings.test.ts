@@ -12,9 +12,8 @@ describe("assertFinancialAccountYieldSettings", () => {
 		expect(() =>
 			assertFinancialAccountYieldSettings({
 				type: "SAVINGS",
-				yieldPeriod: "YEARLY",
 				yieldReferencePercentage: 105,
-				yieldReferenceRate: 13.9,
+				yieldReferenceType: "CDI",
 			}),
 		).not.toThrow();
 		expect(() =>
@@ -23,7 +22,7 @@ describe("assertFinancialAccountYieldSettings", () => {
 				yieldFixedRate: 0.5,
 				yieldPeriod: "YEARLY",
 				yieldReferencePercentage: 105,
-				yieldReferenceRate: 13.9,
+				yieldReferenceType: "SELIC",
 			}),
 		).not.toThrow();
 	});
@@ -32,8 +31,7 @@ describe("assertFinancialAccountYieldSettings", () => {
 		expect(() =>
 			assertFinancialAccountYieldSettings({
 				type: "SAVINGS",
-				yieldPeriod: "YEARLY",
-				yieldReferenceRate: 13.9,
+				yieldReferenceType: "CDI",
 			}),
 		).toThrow("Informe a taxa de referência e o percentual juntos");
 	});

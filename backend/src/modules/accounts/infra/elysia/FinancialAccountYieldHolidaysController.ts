@@ -1,5 +1,6 @@
 import Elysia, { t } from "elysia";
 import { requireUserId } from "~/modules/auth";
+import { enqueueUserYieldRecalculations } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
 
@@ -40,6 +41,7 @@ export const FinancialAccountYieldHolidaysController = new Elysia({
 				db.sql.public.FinancialAccountYieldHoliday.insert([{ date, userId }]).returning("id", "date").build(),
 			);
 			if (!holiday) throw new HttpException("Feriado não criado", 500);
+			await enqueueUserYieldRecalculations(userId, date, `holiday:${holiday.id}`);
 			return holiday;
 		},
 		{ body: t.Object({ date: HolidayDate }), detail: { tags: ["Accounts"] } },
@@ -49,7 +51,7 @@ export const FinancialAccountYieldHolidaysController = new Elysia({
 		async ({ params, request }) => {
 			const userId = await requireUserId(request);
 			const existing = await queryFirst(
-				db.sql.public.FinancialAccountYieldHoliday.select("id")
+				db.sql.public.FinancialAccountYieldHoliday.select("id", "date")
 					.where((fields, functions) =>
 						functions.and(functions.eq(fields.id, params.id), functions.eq(fields.userId, userId)),
 					)
@@ -62,6 +64,7 @@ export const FinancialAccountYieldHolidaysController = new Elysia({
 					.where((fields, functions) => functions.eq(fields.id, existing.id))
 					.build(),
 			);
+			await enqueueUserYieldRecalculations(userId, existing.date, `holiday-delete:${existing.id}`);
 			return { success: true };
 		},
 		{ detail: { tags: ["Accounts"] }, params: t.Object({ id: t.String({ maxLength: 36, minLength: 1 }) }) },

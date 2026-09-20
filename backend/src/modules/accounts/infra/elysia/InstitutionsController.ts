@@ -9,11 +9,12 @@ import { db, executeStatement, queryFirst } from "~/shared/infra/sql";
 
 const Id = t.String({ maxLength: 36, minLength: 1 });
 const YieldPeriod = t.Union([t.Literal("MONTHLY"), t.Literal("YEARLY")]);
+const ReferenceRateType = t.Union([t.Literal("CDI"), t.Literal("SELIC")]);
 const YieldRule = t.Object({
 	upToBalance: t.Nullable(t.Number({ exclusiveMinimum: 0 })),
 	yieldFixedRate: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
 	yieldReferencePercentage: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
-	yieldReferenceRate: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
+	yieldReferenceType: t.Optional(t.Nullable(ReferenceRateType)),
 });
 
 export const InstitutionsController = new Elysia({ prefix: "/financial-institutions" })

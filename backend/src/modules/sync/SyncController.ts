@@ -66,7 +66,7 @@ const accountColumns = [
 	"yieldFixedRate",
 	"yieldPeriod",
 	"yieldReferencePercentage",
-	"yieldReferenceRate",
+	"yieldReferenceType",
 	"yieldTaxRate",
 	"createdAt",
 	"updatedAt",
@@ -218,9 +218,9 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 					yieldReferencePercentage: nullableNumeric<7, 4>(
 						value<number | null | undefined>(entity, "yieldReferencePercentage") ?? null,
 					),
-					yieldReferenceRate: nullableNumeric<7, 4>(
-						value<number | null | undefined>(entity, "yieldReferenceRate") ?? null,
-					),
+					yieldReferenceType:
+						value<"CDI" | "SELIC" | null | undefined>(entity, "yieldReferenceType") ??
+						(value<number | null | undefined>(entity, "yieldReferenceRate") ? "CDI" : null),
 					yieldTaxRate: nullableNumeric<5, 2>(
 						value<number | null | undefined>(entity, "yieldTaxRate") ?? null,
 					),
@@ -241,6 +241,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 						yieldRate?: number | null;
 						yieldReferencePercentage?: number | null;
 						yieldReferenceRate?: number | null;
+						yieldReferenceType?: "CDI" | "SELIC" | null;
 						yieldTaxRate?: number | null;
 					}>
 				>(entity, "yieldRateHistories");
@@ -265,7 +266,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 						yieldFixedRate: nullableNumeric<7, 4>(history.yieldFixedRate ?? history.yieldRate ?? null),
 						yieldPeriod: history.yieldPeriod as never,
 						yieldReferencePercentage: nullableNumeric<7, 4>(history.yieldReferencePercentage ?? null),
-						yieldReferenceRate: nullableNumeric<7, 4>(history.yieldReferenceRate ?? null),
+						yieldReferenceType: history.yieldReferenceType ?? (history.yieldReferenceRate ? "CDI" : null),
 						yieldTaxRate: nullableNumeric<5, 2>(history.yieldTaxRate ?? null),
 					};
 					if (existingHistory)
@@ -342,18 +343,20 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				);
 				if (!account || account.type === "CREDIT_CARD") throw new Error("Conta de rendimento indisponível");
 				const existing = await queryFirst(
-					db.sql.public.FinancialAccountYield.select("id", "financialAccountId")
+					db.sql.public.FinancialAccountYield.select("id", "financialAccountId", "origin")
 						.where((fields, functions) => functions.eq(fields.id, id))
 						.limit(1)
 						.build(),
 				);
 				if (existing && existing.financialAccountId !== financialAccountId)
 					throw new Error(`Rendimento ${id} pertence a outra conta`);
+				if (existing?.origin === "SYSTEM") return;
 				const values = {
 					amount: nullableNumeric<12, 4>(value<number | null | undefined>(entity, "amount") ?? null),
 					date,
 					isExcluded: value<boolean | undefined>(entity, "isExcluded") ?? false,
 					kind,
+					origin: "USER" as const,
 					updatedAt: new Date(),
 				};
 				if (existing)
@@ -1044,6 +1047,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 							"amount",
 							"kind",
 							"isExcluded",
+							"origin",
 						)
 							.where((fields, functions) =>
 								functions.in(
@@ -1062,7 +1066,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 							"yieldPeriod",
 							"yieldFixedRate",
 							"yieldReferencePercentage",
-							"yieldReferenceRate",
+							"yieldReferenceType",
 							"yieldTaxRate",
 						)
 							.where((fields, functions) =>

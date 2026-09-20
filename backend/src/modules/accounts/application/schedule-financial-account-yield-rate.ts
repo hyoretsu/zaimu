@@ -1,4 +1,5 @@
 import { addDays, startOfDay } from "date-fns";
+import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { db, executeStatement, nullableNumeric, param, queryFirst } from "~/shared/infra/sql";
 import type { YieldPeriod } from "../domain/calculate-financial-account-yields";
 
@@ -8,7 +9,7 @@ export async function scheduleFinancialAccountYieldRate({
 	yieldFixedRate,
 	yieldPeriod,
 	yieldReferencePercentage,
-	yieldReferenceRate,
+	yieldReferenceType,
 	yieldTaxRate,
 }: {
 	effectiveDate: Date;
@@ -16,7 +17,7 @@ export async function scheduleFinancialAccountYieldRate({
 	yieldFixedRate?: null | number;
 	yieldPeriod?: null | YieldPeriod;
 	yieldReferencePercentage?: null | number;
-	yieldReferenceRate?: null | number;
+	yieldReferenceType?: "CDI" | "SELIC" | null;
 	yieldTaxRate?: null | number;
 }) {
 	const date = startOfDay(effectiveDate);
@@ -49,7 +50,7 @@ export async function scheduleFinancialAccountYieldRate({
 		yieldFixedRate: nullableNumeric<7, 4>(yieldFixedRate ?? null),
 		yieldPeriod: yieldPeriod ?? null,
 		yieldReferencePercentage: nullableNumeric<7, 4>(yieldReferencePercentage ?? null),
-		yieldReferenceRate: nullableNumeric<7, 4>(yieldReferenceRate ?? null),
+		yieldReferenceType: yieldReferenceType ?? null,
 		yieldTaxRate: nullableNumeric<5, 2>(yieldTaxRate ?? null),
 	};
 	if (existing) {
@@ -58,11 +59,13 @@ export async function scheduleFinancialAccountYieldRate({
 				.where((fields, functions) => functions.eq(fields.id, existing.id))
 				.build(),
 		);
+		await enqueueAccountYieldRecalculation(financialAccountId, date, `settings:${Date.now()}`);
 		return;
 	}
 	await executeStatement(
 		db.sql.public.FinancialAccountYieldRateHistory.insert([{ ...values, financialAccountId }]).build(),
 	);
+	await enqueueAccountYieldRecalculation(financialAccountId, date, `settings:${Date.now()}`);
 }
 
 export const tomorrow = () => addDays(startOfDay(new Date()), 1);

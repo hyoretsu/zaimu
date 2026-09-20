@@ -1,6 +1,7 @@
 import { addDays, format, isWeekend, startOfDay } from "date-fns";
 
 export type YieldPeriod = "MONTHLY" | "YEARLY";
+export type ReferenceRateType = "CDI" | "SELIC";
 
 export interface YieldAccount {
 	createdAt: Date;
@@ -10,7 +11,7 @@ export interface YieldAccount {
 	yieldFixedRate?: null | number;
 	yieldPeriod?: null | YieldPeriod;
 	yieldReferencePercentage?: null | number;
-	yieldReferenceRate?: null | number;
+	yieldReferenceType?: null | ReferenceRateType;
 	yieldTaxRate?: null | number;
 	yieldRateHistories?: YieldRateHistory[];
 }
@@ -26,7 +27,7 @@ export interface InstitutionYieldRule {
 	upToBalance?: null | number;
 	yieldFixedRate?: null | number;
 	yieldReferencePercentage?: null | number;
-	yieldReferenceRate?: null | number;
+	yieldReferenceType?: null | ReferenceRateType;
 }
 
 export interface YieldRateHistory {
@@ -34,7 +35,7 @@ export interface YieldRateHistory {
 	yieldFixedRate?: null | number;
 	yieldPeriod?: null | YieldPeriod;
 	yieldReferencePercentage?: null | number;
-	yieldReferenceRate?: null | number;
+	yieldReferenceType?: null | ReferenceRateType;
 	yieldTaxRate?: null | number;
 }
 
@@ -60,6 +61,7 @@ export interface FinancialAccountYield {
 	financialAccountId: string;
 	isExcluded: boolean;
 	kind: "AUTOMATIC" | "MANUAL";
+	origin?: "SYSTEM" | "USER";
 }
 
 export function calculateFinancialAccountYieldBalances({
@@ -151,6 +153,20 @@ export function effectiveYieldRate(settings: {
 	);
 }
 
+function fixedDailyRate(fixedRate?: null | number, period?: null | YieldPeriod) {
+	if (!fixedRate || !period) return 0;
+	return (1 + fixedRate / 100) ** (1 / (period === "MONTHLY" ? 21 : 252)) - 1;
+}
+
+function referenceDailyRate(
+	type: null | ReferenceRateType | undefined,
+	percentage: null | number | undefined,
+	referenceRates: Partial<Record<ReferenceRateType, number>>,
+) {
+	if (!type || !percentage || referenceRates[type] === undefined) return null;
+	return (referenceRates[type]! / 100) * (percentage / 100);
+}
+
 function dailyRate(settings: Parameters<typeof effectiveYieldRate>[0], period?: null | YieldPeriod) {
 	const rate = effectiveYieldRate(settings);
 	if (!rate || !period) return 0;
@@ -200,9 +216,12 @@ function calculateYieldedBalance(
 			yieldEntry => yieldEntry.kind === "AUTOMATIC" && dateKey(yieldEntry.date) === key,
 		);
 		if (balance > 0 && !automaticYield?.isExcluded) {
-			const grossAmount = calculateGrossYield(balance, yieldSettings);
+			const hasReference = settingsRequireReference(yieldSettings);
+			const grossAmount = hasReference ? 0 : calculateGrossYield(balance, yieldSettings, {});
 			const calculatedAmount = grossAmount * (1 - (yieldSettings?.yieldTaxRate ?? 0) / 100);
-			balance += automaticYield?.amount ?? calculatedAmount;
+			if (automaticYield?.amount !== null && automaticYield?.amount !== undefined)
+				balance += automaticYield.amount;
+			else if (!hasReference) balance += calculatedAmount;
 		}
 		for (const [rate, cashbackBalance] of cashbackBalances) {
 			if (cashbackBalance > 0) cashbackBalances.set(rate, cashbackBalance * (1 + rate));
@@ -223,17 +242,10 @@ function getYieldSettings(account: YieldAccount, day: string) {
 		yieldFixedRate: account.yieldFixedRate,
 		yieldPeriod: account.yieldPeriod,
 		yieldReferencePercentage: account.yieldReferencePercentage,
-		yieldReferenceRate: account.yieldReferenceRate,
+		yieldReferenceType: account.yieldReferenceType,
 		yieldTaxRate: account.yieldTaxRate,
 	};
-	if (
-		accountSettings.yieldPeriod &&
-		effectiveYieldRate({
-			fixedRate: accountSettings.yieldFixedRate,
-			referencePercentage: accountSettings.yieldReferencePercentage,
-			referenceRate: accountSettings.yieldReferenceRate,
-		})
-	)
+	if (accountSettings.yieldPeriod && (accountSettings.yieldFixedRate || accountSettings.yieldReferenceType))
 		return accountSettings;
 	if (account.type !== "CHECKING" && account.type !== "SAVINGS") return accountSettings;
 	return account.institutionYieldPolicies
@@ -242,37 +254,44 @@ function getYieldSettings(account: YieldAccount, day: string) {
 		.at(-1);
 }
 
-function calculateGrossYield(balance: number, settings: ReturnType<typeof getYieldSettings>) {
-	if (!settings?.yieldPeriod) return 0;
-	if (!("rules" in settings))
-		return (
-			balance *
-			dailyRate(
-				{
-					fixedRate: settings.yieldFixedRate,
-					referencePercentage: settings.yieldReferencePercentage,
-					referenceRate: settings.yieldReferenceRate,
-				},
-				settings.yieldPeriod,
-			)
-		);
+export function settingsRequireReference(settings: ReturnType<typeof getYieldSettings>) {
+	if (!settings) return false;
+	return "rules" in settings
+		? settings.rules.some(rule => Boolean(rule.yieldReferenceType))
+		: Boolean(settings.yieldReferenceType);
+}
+
+export function calculateGrossYield(
+	balance: number,
+	settings: ReturnType<typeof getYieldSettings>,
+	referenceRates: Partial<Record<ReferenceRateType, number>>,
+) {
+	if (!settings) return 0;
+	if (!("rules" in settings)) return balance * ruleDailyRate(settings, settings.yieldPeriod, referenceRates);
 	let previousLimit = 0;
 	let grossYield = 0;
 	for (const rule of settings.rules) {
 		const upperLimit = rule.upToBalance ?? balance;
 		const amountInBracket = Math.max(0, Math.min(balance, upperLimit) - previousLimit);
-		grossYield +=
-			amountInBracket *
-			dailyRate(
-				{
-					fixedRate: rule.yieldFixedRate,
-					referencePercentage: rule.yieldReferencePercentage,
-					referenceRate: rule.yieldReferenceRate,
-				},
-				settings.yieldPeriod,
-			);
+		grossYield += amountInBracket * ruleDailyRate(rule, settings.yieldPeriod, referenceRates);
 		previousLimit = upperLimit;
 		if (previousLimit >= balance) break;
 	}
 	return grossYield;
 }
+
+function ruleDailyRate(
+	rule: InstitutionYieldRule,
+	period: null | YieldPeriod | undefined,
+	referenceRates: Partial<Record<ReferenceRateType, number>>,
+) {
+	const reference = referenceDailyRate(
+		rule.yieldReferenceType,
+		rule.yieldReferencePercentage,
+		referenceRates,
+	);
+	if (rule.yieldReferenceType && reference === null) return 0;
+	return fixedDailyRate(rule.yieldFixedRate, period) + (reference ?? 0);
+}
+
+export { getYieldSettings };

@@ -572,6 +572,7 @@ async function forecastSubscriptionPurchases(
 				description: subscription.name,
 				feeAmount: null,
 				feeDescription: null,
+				hasImportedAmount: false,
 				id: `subscription-${subscription.id}-${occurrenceDate.toISOString().slice(0, 10)}`,
 				installmentAmount: Number(subscription.amount),
 				installments: 1,

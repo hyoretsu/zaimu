@@ -1,0 +1,481 @@
+[
+	{
+		"execute": [
+			{
+				"description": "create enum type \"FinancialAccountYieldOrigin\"",
+				"params": [],
+				"sql": "CREATE TYPE \"public\".\"FinancialAccountYieldOrigin\" AS ENUM ('SYSTEM', 'USER')"
+			}
+		],
+		"id": "createNativeEnumType.FinancialAccountYieldOrigin",
+		"label": "Create enum type \"FinancialAccountYieldOrigin\"",
+		"operationClass": "additive",
+		"postcheck": [],
+		"precheck": [],
+		"target": {
+			"details": {
+				"name": "FinancialAccountYieldOrigin",
+				"objectType": "type",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create enum type \"ReferenceRateJobKind\"",
+				"params": [],
+				"sql": "CREATE TYPE \"public\".\"ReferenceRateJobKind\" AS ENUM ('FETCH_RATES', 'RECALCULATE_ACCOUNT')"
+			}
+		],
+		"id": "createNativeEnumType.ReferenceRateJobKind",
+		"label": "Create enum type \"ReferenceRateJobKind\"",
+		"operationClass": "additive",
+		"postcheck": [],
+		"precheck": [],
+		"target": {
+			"details": {
+				"name": "ReferenceRateJobKind",
+				"objectType": "type",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create enum type \"ReferenceRateType\"",
+				"params": [],
+				"sql": "CREATE TYPE \"public\".\"ReferenceRateType\" AS ENUM ('CDI', 'SELIC')"
+			}
+		],
+		"id": "createNativeEnumType.ReferenceRateType",
+		"label": "Create enum type \"ReferenceRateType\"",
+		"operationClass": "additive",
+		"postcheck": [],
+		"precheck": [],
+		"target": {
+			"details": {
+				"name": "ReferenceRateType",
+				"objectType": "type",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "drop column \"yieldReferenceRate\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialAccount\" DROP COLUMN \"yieldReferenceRate\""
+			}
+		],
+		"id": "dropColumn.FinancialAccount.yieldReferenceRate",
+		"label": "Drop column \"yieldReferenceRate\" from \"FinancialAccount\"",
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"yieldReferenceRate\" does not exist",
+				"params": ["public", "FinancialAccount", "yieldReferenceRate"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"yieldReferenceRate\" exists",
+				"params": ["public", "FinancialAccount", "yieldReferenceRate"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "yieldReferenceRate",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialAccount"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "drop column \"yieldReferenceRate\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialAccountYieldRateHistory\" DROP COLUMN \"yieldReferenceRate\""
+			}
+		],
+		"id": "dropColumn.FinancialAccountYieldRateHistory.yieldReferenceRate",
+		"label": "Drop column \"yieldReferenceRate\" from \"FinancialAccountYieldRateHistory\"",
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"yieldReferenceRate\" does not exist",
+				"params": ["public", "FinancialAccountYieldRateHistory", "yieldReferenceRate"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"yieldReferenceRate\" exists",
+				"params": ["public", "FinancialAccountYieldRateHistory", "yieldReferenceRate"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "yieldReferenceRate",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialAccountYieldRateHistory"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "drop column \"yieldReferenceRate\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialInstitutionYieldRule\" DROP COLUMN \"yieldReferenceRate\""
+			}
+		],
+		"id": "dropColumn.FinancialInstitutionYieldRule.yieldReferenceRate",
+		"label": "Drop column \"yieldReferenceRate\" from \"FinancialInstitutionYieldRule\"",
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"yieldReferenceRate\" does not exist",
+				"params": ["public", "FinancialInstitutionYieldRule", "yieldReferenceRate"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"yieldReferenceRate\" exists",
+				"params": ["public", "FinancialInstitutionYieldRule", "yieldReferenceRate"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "yieldReferenceRate",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialInstitutionYieldRule"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"ReferenceRate\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"ReferenceRate\" (\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"date\" date NOT NULL,\n  \"id\" character varying(36) DEFAULT (cuid2()) NOT NULL,\n  \"type\" \"ReferenceRateType\" NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"value\" numeric(12,8) NOT NULL,\n  CONSTRAINT \"ReferenceRate_pkey\" PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.ReferenceRate",
+		"label": "Create table \"ReferenceRate\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"ReferenceRate\" exists",
+				"params": ["\"public\".\"ReferenceRate\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"ReferenceRate\" does not exist",
+				"params": ["\"public\".\"ReferenceRate\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"ReferenceRate\"",
+		"target": {
+			"details": {
+				"name": "ReferenceRate",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"ReferenceRateJob\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"ReferenceRateJob\" (\n  \"attempts\" int4 DEFAULT 0 NOT NULL,\n  \"availableAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"completedAt\" timestamp(3),\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"deduplicationKey\" character varying(240) NOT NULL,\n  \"endDate\" date,\n  \"financialAccountId\" character varying(36),\n  \"fromDate\" date,\n  \"id\" character varying(36) DEFAULT (cuid2()) NOT NULL,\n  \"kind\" \"ReferenceRateJobKind\" NOT NULL,\n  \"lastError\" text,\n  \"lockedUntil\" timestamp(3),\n  \"referenceType\" \"ReferenceRateType\",\n  \"startDate\" date,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  CONSTRAINT \"ReferenceRateJob_pkey\" PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.ReferenceRateJob",
+		"label": "Create table \"ReferenceRateJob\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"ReferenceRateJob\" exists",
+				"params": ["\"public\".\"ReferenceRateJob\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"ReferenceRateJob\" does not exist",
+				"params": ["\"public\".\"ReferenceRateJob\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"ReferenceRateJob\"",
+		"target": {
+			"details": {
+				"name": "ReferenceRateJob",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"yieldReferenceType\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialAccount\" ADD COLUMN \"yieldReferenceType\" \"ReferenceRateType\""
+			}
+		],
+		"id": "column.public.FinancialAccount.yieldReferenceType",
+		"label": "Add column \"yieldReferenceType\" to \"FinancialAccount\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"yieldReferenceType\" exists",
+				"params": ["public", "FinancialAccount", "yieldReferenceType"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"yieldReferenceType\" is missing",
+				"params": ["public", "FinancialAccount", "yieldReferenceType"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "yieldReferenceType",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialAccount"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"origin\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialAccountYield\" ADD COLUMN \"origin\" \"FinancialAccountYieldOrigin\" DEFAULT 'USER'::\"FinancialAccountYieldOrigin\" NOT NULL"
+			}
+		],
+		"id": "column.public.FinancialAccountYield.origin",
+		"label": "Add column \"origin\" to \"FinancialAccountYield\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"origin\" exists",
+				"params": ["public", "FinancialAccountYield", "origin"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"origin\" is missing",
+				"params": ["public", "FinancialAccountYield", "origin"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "origin",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialAccountYield"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"yieldReferenceType\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialAccountYieldRateHistory\" ADD COLUMN \"yieldReferenceType\" \"ReferenceRateType\""
+			}
+		],
+		"id": "column.public.FinancialAccountYieldRateHistory.yieldReferenceType",
+		"label": "Add column \"yieldReferenceType\" to \"FinancialAccountYieldRateHistory\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"yieldReferenceType\" exists",
+				"params": ["public", "FinancialAccountYieldRateHistory", "yieldReferenceType"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"yieldReferenceType\" is missing",
+				"params": ["public", "FinancialAccountYieldRateHistory", "yieldReferenceType"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "yieldReferenceType",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialAccountYieldRateHistory"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"yieldReferenceType\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialInstitutionYieldRule\" ADD COLUMN \"yieldReferenceType\" \"ReferenceRateType\""
+			}
+		],
+		"id": "column.public.FinancialInstitutionYieldRule.yieldReferenceType",
+		"label": "Add column \"yieldReferenceType\" to \"FinancialInstitutionYieldRule\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"yieldReferenceType\" exists",
+				"params": ["public", "FinancialInstitutionYieldRule", "yieldReferenceType"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"yieldReferenceType\" is missing",
+				"params": ["public", "FinancialInstitutionYieldRule", "yieldReferenceType"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "yieldReferenceType",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialInstitutionYieldRule"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"ReferenceRate_type_date_key\"",
+				"params": [],
+				"sql": "CREATE UNIQUE INDEX \"ReferenceRate_type_date_key\" ON \"public\".\"ReferenceRate\" (\"type\", \"date\")"
+			}
+		],
+		"id": "index.ReferenceRate.ReferenceRate_type_date_key",
+		"label": "Create index \"ReferenceRate_type_date_key\" on \"ReferenceRate\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"ReferenceRate_type_date_key\" exists",
+				"params": ["\"public\".\"ReferenceRate_type_date_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"ReferenceRate_type_date_key\" does not exist",
+				"params": ["\"public\".\"ReferenceRate_type_date_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "ReferenceRate_type_date_key",
+				"objectType": "index",
+				"schema": "public",
+				"table": "ReferenceRate"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"ReferenceRateJob_availableAt_lockedUntil_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"ReferenceRateJob_availableAt_lockedUntil_idx\" ON \"public\".\"ReferenceRateJob\" (\"availableAt\", \"lockedUntil\")"
+			}
+		],
+		"id": "index.ReferenceRateJob.ReferenceRateJob_availableAt_lockedUntil_idx",
+		"label": "Create index \"ReferenceRateJob_availableAt_lockedUntil_idx\" on \"ReferenceRateJob\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"ReferenceRateJob_availableAt_lockedUntil_idx\" exists",
+				"params": ["\"public\".\"ReferenceRateJob_availableAt_lockedUntil_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"ReferenceRateJob_availableAt_lockedUntil_idx\" does not exist",
+				"params": ["\"public\".\"ReferenceRateJob_availableAt_lockedUntil_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "ReferenceRateJob_availableAt_lockedUntil_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "ReferenceRateJob"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"ReferenceRateJob_deduplicationKey_key\"",
+				"params": [],
+				"sql": "CREATE UNIQUE INDEX \"ReferenceRateJob_deduplicationKey_key\" ON \"public\".\"ReferenceRateJob\" (\"deduplicationKey\")"
+			}
+		],
+		"id": "index.ReferenceRateJob.ReferenceRateJob_deduplicationKey_key",
+		"label": "Create index \"ReferenceRateJob_deduplicationKey_key\" on \"ReferenceRateJob\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"ReferenceRateJob_deduplicationKey_key\" exists",
+				"params": ["\"public\".\"ReferenceRateJob_deduplicationKey_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"ReferenceRateJob_deduplicationKey_key\" does not exist",
+				"params": ["\"public\".\"ReferenceRateJob_deduplicationKey_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "ReferenceRateJob_deduplicationKey_key",
+				"objectType": "index",
+				"schema": "public",
+				"table": "ReferenceRateJob"
+			},
+			"id": "postgres"
+		}
+	}
+]

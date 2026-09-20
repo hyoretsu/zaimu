@@ -20,6 +20,7 @@ import {
 	syncTransactionDebtEvent,
 } from "~/modules/debts/application";
 import { DebtSplitInputDTO } from "~/modules/debts/infra/elysia/DebtSplitsDTO";
+import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { materializeSalaryTransactions } from "~/modules/salaries/application/materialize-salary-transactions";
 import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { HttpException } from "~/shared/errors";
@@ -904,6 +905,17 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			}
 
 			const tagsByTransaction = await getTagsByEntity(tagEntityType.transaction, [transaction.id]);
+			if (wasCreated)
+				for (const accountId of [
+					transaction.originFinancialAccountId,
+					transaction.destinationFinancialAccountId,
+				])
+					if (accountId)
+						await enqueueAccountYieldRecalculation(
+							accountId,
+							transaction.date,
+							`transaction:${transaction.id}`,
+						);
 			const tags = tagsByTransaction.get(transaction.id) ?? [];
 			return {
 				...transaction,
@@ -1077,7 +1089,9 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			const previousStatementId = existing.creditCardStatementId;
 			const nextStatementId = transaction.creditCardStatementId;
 			if (previousStatementId || nextStatementId) {
-				const statementIds = [...new Set([previousStatementId, nextStatementId].filter(Boolean))];
+				const statementIds = [
+					...new Set([previousStatementId, nextStatementId].filter((id): id is string => Boolean(id))),
+				];
 				await Promise.all(
 					statementIds.map(statementId =>
 						adjustCreditCardStatementPaidAmount(
@@ -1105,6 +1119,20 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					tagIds,
 				});
 			}
+			const recalculationDate = existing.date < transaction.date ? existing.date : transaction.date;
+			for (const accountId of new Set(
+				[
+					existing.originFinancialAccountId,
+					existing.destinationFinancialAccountId,
+					transaction.originFinancialAccountId,
+					transaction.destinationFinancialAccountId,
+				].filter((id): id is string => Boolean(id)),
+			))
+				await enqueueAccountYieldRecalculation(
+					accountId,
+					recalculationDate,
+					`transaction:${transaction.id}:${Date.now()}`,
+				);
 
 			const tagsByTransaction = await getTagsByEntity(tagEntityType.transaction, [transaction.id]);
 			const tags = tagsByTransaction.get(transaction.id) ?? [];
@@ -1168,6 +1196,13 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					.where((f, fn) => fn.eq(f.id, params.id))
 					.build(),
 			);
+			for (const accountId of [existing.originFinancialAccountId, existing.destinationFinancialAccountId])
+				if (accountId)
+					await enqueueAccountYieldRecalculation(
+						accountId,
+						existing.date,
+						`transaction-delete:${existing.id}`,
+					);
 			return { success: true };
 		},
 		{

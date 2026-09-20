@@ -286,9 +286,12 @@ function calculateYieldedBalance(
 			yieldEntry => yieldEntry.kind === "AUTOMATIC" && yieldEntry.date.slice(0, 10) === key,
 		);
 		if (balance > 0 && !automaticYield?.isExcluded) {
-			const grossAmount = calculateGrossYield(balance, yieldSettings);
+			const hasReference = settingsRequireReference(yieldSettings);
+			const grossAmount = hasReference ? 0 : calculateGrossYield(balance, yieldSettings);
 			const calculatedAmount = grossAmount * (1 - (yieldSettings?.yieldTaxRate ?? 0) / 100);
-			balance += automaticYield?.amount ?? calculatedAmount;
+			if (automaticYield?.amount !== null && automaticYield?.amount !== undefined)
+				balance += automaticYield.amount;
+			else if (!hasReference) balance += calculatedAmount;
 		}
 		for (const [dailyRate, cashbackBalance] of cashbackBalances) {
 			if (cashbackBalance > 0) cashbackBalances.set(dailyRate, cashbackBalance * (1 + dailyRate));
@@ -307,10 +310,10 @@ function getYieldSettings(account: FinancialAccount, day: string) {
 		yieldFixedRate: account.yieldFixedRate,
 		yieldPeriod: account.yieldPeriod,
 		yieldReferencePercentage: account.yieldReferencePercentage,
-		yieldReferenceRate: account.yieldReferenceRate,
+		yieldReferenceType: account.yieldReferenceType,
 		yieldTaxRate: account.yieldTaxRate,
 	};
-	if (accountSettings.yieldPeriod && getEffectiveYieldRate(accountSettings) > 0) return accountSettings;
+	if (accountSettings.yieldFixedRate || accountSettings.yieldReferenceType) return accountSettings;
 	if (account.type !== "CHECKING" && account.type !== "SAVINGS") return accountSettings;
 	return account.institution?.yieldPolicies
 		?.filter(policy => policy.effectiveDate.slice(0, 10) <= day)
@@ -331,6 +334,13 @@ function calculateGrossYield(balance: number, settings: ReturnType<typeof getYie
 		if (previousLimit >= balance) break;
 	}
 	return grossYield;
+}
+
+function settingsRequireReference(settings: ReturnType<typeof getYieldSettings>) {
+	if (!settings) return false;
+	return "rules" in settings
+		? settings.rules.some(rule => Boolean(rule.yieldReferenceType))
+		: Boolean(settings.yieldReferenceType);
 }
 
 const financialAccountTypeLabels = {

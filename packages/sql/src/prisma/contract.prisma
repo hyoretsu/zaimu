@@ -72,7 +72,7 @@ namespace public {
     financialYieldPolicyId   VarChar(36)
     position                 SmallInt
     upToBalance              Numeric(12, 2)?
-    yieldReferenceRate       Numeric(7, 4)?
+    yieldReferenceType       pg.enum(ReferenceRateType)?
     yieldReferencePercentage Numeric(7, 4)?
     yieldFixedRate           Numeric(7, 4)?
     createdAt                Timestamp(3)                      @default(now())
@@ -165,7 +165,7 @@ namespace public {
     type                    pg.enum(FinancialAccountType) @default("CHECKING")
     balance                 Numeric(12, 2)?               @default(dbgenerated("0"))
     institutionId           VarChar(36)?
-    yieldReferenceRate       Numeric(7, 4)?
+    yieldReferenceType       pg.enum(ReferenceRateType)?
     yieldReferencePercentage Numeric(7, 4)?
     yieldFixedRate           Numeric(7, 4)?
     yieldTaxRate             Numeric(5, 2)?
@@ -215,7 +215,7 @@ namespace public {
     id                 VarChar(36)                         @id(map: "FinancialAccountYieldRateHistory_pkey") @default(dbgenerated("cuid2()"))
     financialAccountId VarChar(36)
     effectiveDate      Date
-    yieldReferenceRate       Numeric(7, 4)?
+    yieldReferenceType       pg.enum(ReferenceRateType)?
     yieldReferencePercentage Numeric(7, 4)?
     yieldFixedRate           Numeric(7, 4)?
     yieldTaxRate             Numeric(5, 2)?
@@ -235,6 +235,7 @@ namespace public {
     amount             Numeric(12, 4)?
     externalId         VarChar(200)?
     kind               pg.enum(FinancialAccountYieldKind)
+    origin             pg.enum(FinancialAccountYieldOrigin) @default("USER")
     isExcluded         Boolean                           @default(false)
     createdAt          Timestamp(3)                      @default(now())
     updatedAt          Timestamp(3)                      @default(now())
@@ -243,6 +244,40 @@ namespace public {
     @@index([financialAccountId, date, kind], map: "FinancialAccountYield_accountId_date_kind_key", unique: true)
     @@index([externalId], map: "FinancialAccountYield_externalId_idx")
     @@map("FinancialAccountYield")
+  }
+
+  model ReferenceRate {
+    id        VarChar(36)                  @id(map: "ReferenceRate_pkey") @default(dbgenerated("cuid2()"))
+    type      pg.enum(ReferenceRateType)
+    date      Date
+    value     Numeric(12, 8)
+    createdAt Timestamp(3)                 @default(now())
+    updatedAt Timestamp(3)                 @default(now())
+
+    @@index([type, date], map: "ReferenceRate_type_date_key", unique: true)
+    @@map("ReferenceRate")
+  }
+
+  model ReferenceRateJob {
+    id                 VarChar(36)                       @id(map: "ReferenceRateJob_pkey") @default(dbgenerated("cuid2()"))
+    kind               pg.enum(ReferenceRateJobKind)
+    deduplicationKey   VarChar(240)
+    referenceType      pg.enum(ReferenceRateType)?
+    startDate          Date?
+    endDate            Date?
+    financialAccountId VarChar(36)?
+    fromDate           Date?
+    attempts           Int                               @default(0)
+    availableAt        Timestamp(3)                      @default(now())
+    lockedUntil        Timestamp(3)?
+    completedAt        Timestamp(3)?
+    lastError          String?
+    createdAt          Timestamp(3)                      @default(now())
+    updatedAt          Timestamp(3)                      @default(now())
+
+    @@index([deduplicationKey], map: "ReferenceRateJob_deduplicationKey_key", unique: true)
+    @@index([availableAt, lockedUntil], map: "ReferenceRateJob_availableAt_lockedUntil_idx")
+    @@map("ReferenceRateJob")
   }
 
   model CreditCard {
@@ -1017,6 +1052,21 @@ namespace public {
   native_enum FinancialAccountYieldKind {
     AUTOMATIC = "AUTOMATIC"
     MANUAL = "MANUAL"
+  }
+
+  native_enum FinancialAccountYieldOrigin {
+    SYSTEM = "SYSTEM"
+    USER = "USER"
+  }
+
+  native_enum ReferenceRateType {
+    CDI = "CDI"
+    SELIC = "SELIC"
+  }
+
+  native_enum ReferenceRateJobKind {
+    FETCH_RATES = "FETCH_RATES"
+    RECALCULATE_ACCOUNT = "RECALCULATE_ACCOUNT"
   }
 
   native_enum FinancialAccountType {

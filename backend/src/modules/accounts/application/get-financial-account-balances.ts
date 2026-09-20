@@ -34,7 +34,7 @@ async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 			"type",
 			"createdAt",
 			"yieldFixedRate",
-			"yieldReferenceRate",
+			"yieldReferenceType",
 			"yieldReferencePercentage",
 			"yieldPeriod",
 			"yieldTaxRate",
@@ -70,7 +70,7 @@ async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 			"financialAccountId",
 			"effectiveDate",
 			"yieldFixedRate",
-			"yieldReferenceRate",
+			"yieldReferenceType",
 			"yieldReferencePercentage",
 			"yieldPeriod",
 			"yieldTaxRate",
@@ -79,7 +79,14 @@ async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 			.build(),
 	);
 	const yields = await queryRows(
-		db.sql.public.FinancialAccountYield.select("amount", "date", "financialAccountId", "isExcluded", "kind")
+		db.sql.public.FinancialAccountYield.select(
+			"amount",
+			"date",
+			"financialAccountId",
+			"isExcluded",
+			"kind",
+			"origin",
+		)
 			.where((fields, functions) => functions.in(fields.financialAccountId, accountIds))
 			.build(),
 	);
@@ -125,7 +132,9 @@ async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 				yieldRateHistories: (yieldRateHistoriesByAccountId.get(account.id) ?? []).map(history => ({
 					...history,
 					yieldPeriod: history.yieldPeriod as null | YieldPeriod,
+					yieldReferenceType: history.yieldReferenceType as "CDI" | "SELIC" | null,
 				})),
+				yieldReferenceType: account.yieldReferenceType as "CDI" | "SELIC" | null,
 			})),
 			cashbackCredits: cashbackPurchases.map(purchase => ({
 				...purchase,
@@ -143,6 +152,7 @@ async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 				...yieldEntry,
 				amount: yieldEntry.amount === null ? null : Number(yieldEntry.amount),
 				kind: yieldEntry.kind as "AUTOMATIC" | "MANUAL",
+				origin: yieldEntry.origin as "SYSTEM" | "USER",
 			})),
 		},
 	} as const;

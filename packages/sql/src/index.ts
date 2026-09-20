@@ -7,6 +7,7 @@ import postgres from "@prisma/orm-postgres/runtime";
 export { and, or } from "@prisma/orm-postgres/orm-client";
 
 import type { Numeric, Timestamp, Timestamptz } from "@prisma/orm-postgres/target/codec-types";
+import type { PoolClient, QueryResultRow } from "pg";
 import { Pool, types } from "pg";
 import type { Contract } from "../out/prisma/contract";
 import contractJson from "../out/prisma/contract.json" with { type: "json" };
@@ -34,6 +35,30 @@ const pool = new Pool({
 	max: Number(process.env.PRISMA_POOL_MAX ?? 20),
 	min: Number(process.env.PRISMA_POOL_MIN ?? 0),
 });
+export const queryRaw = async <Row extends Record<string, unknown>>(text: string, values: unknown[] = []) =>
+	(await pool.query<Row>(text, values)).rows;
+export const executeRaw = async (text: string, values: unknown[] = []) => pool.query(text, values);
+export const withRawTransaction = async <Result>(
+	operation: (
+		query: <Row extends QueryResultRow>(text: string, values?: unknown[]) => Promise<Row[]>,
+	) => Promise<Result>,
+) => {
+	const client: PoolClient = await pool.connect();
+	try {
+		await client.query("BEGIN");
+		const result = await operation(
+			async <Row extends QueryResultRow>(text: string, values: unknown[] = []) =>
+				(await client.query<Row>(text, values)).rows,
+		);
+		await client.query("COMMIT");
+		return result;
+	} catch (error) {
+		await client.query("ROLLBACK");
+		throw error;
+	} finally {
+		client.release();
+	}
+};
 
 export const db = postgres<Contract>({ contractJson, pg: pool });
 

@@ -1,5 +1,6 @@
 import Elysia, { t } from "elysia";
 import { requireUserId } from "~/modules/auth";
+import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, nullableNumeric, queryFirst, queryRows } from "~/shared/infra/sql";
 
@@ -33,6 +34,7 @@ function serializeYield(yieldEntry: {
 	id: string;
 	isExcluded: boolean;
 	kind: string;
+	origin: string;
 }) {
 	return {
 		...yieldEntry,
@@ -55,6 +57,7 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 					"amount",
 					"kind",
 					"isExcluded",
+					"origin",
 				)
 					.where((fields, functions) => functions.eq(fields.financialAccountId, query.financialAccountId))
 					.orderBy("date", { direction: "asc" })
@@ -93,6 +96,7 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 				date,
 				isExcluded: body.isExcluded ?? false,
 				kind: body.kind,
+				origin: "USER" as const,
 				updatedAt: new Date(),
 			};
 			if (existing)
@@ -115,6 +119,7 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 					"amount",
 					"kind",
 					"isExcluded",
+					"origin",
 				)
 					.where((fields, functions) =>
 						functions.and(
@@ -127,6 +132,11 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 					.build(),
 			);
 			if (!saved) throw new HttpException("Rendimento não criado", 500);
+			await enqueueAccountYieldRecalculation(
+				body.financialAccountId,
+				date,
+				`yield:${saved.id}:${Date.now()}`,
+			);
 			return serializeYield(saved);
 		},
 		{
@@ -162,6 +172,18 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 					.where((fields, functions) => functions.eq(fields.id, existing.id))
 					.build(),
 			);
+			const changed = await queryFirst(
+				db.sql.public.FinancialAccountYield.select("date")
+					.where((fields, functions) => functions.eq(fields.id, existing.id))
+					.limit(1)
+					.build(),
+			);
+			if (changed)
+				await enqueueAccountYieldRecalculation(
+					existing.financialAccountId,
+					changed.date,
+					`yield:${existing.id}:${Date.now()}`,
+				);
 			return { success: true };
 		},
 		{
@@ -175,7 +197,7 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 		async ({ params, request }) => {
 			const userId = await requireUserId(request);
 			const existing = await queryFirst(
-				db.sql.public.FinancialAccountYield.select("id", "financialAccountId")
+				db.sql.public.FinancialAccountYield.select("id", "financialAccountId", "date")
 					.where((fields, functions) => functions.eq(fields.id, params.id))
 					.limit(1)
 					.build(),
@@ -186,6 +208,11 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 				db.sql.public.FinancialAccountYield.delete()
 					.where((fields, functions) => functions.eq(fields.id, existing.id))
 					.build(),
+			);
+			await enqueueAccountYieldRecalculation(
+				existing.financialAccountId,
+				existing.date,
+				`yield-delete:${existing.id}`,
 			);
 			return { success: true };
 		},

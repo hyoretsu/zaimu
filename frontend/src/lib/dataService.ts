@@ -156,7 +156,7 @@ export interface FinancialAccountUpdateDraft {
 	yieldPeriod?: FinancialAccount["yieldPeriod"];
 	yieldFixedRate?: FinancialAccount["yieldFixedRate"];
 	yieldReferencePercentage?: FinancialAccount["yieldReferencePercentage"];
-	yieldReferenceRate?: FinancialAccount["yieldReferenceRate"];
+	yieldReferenceType?: FinancialAccount["yieldReferenceType"];
 	yieldTaxRate?: FinancialAccount["yieldTaxRate"];
 }
 
@@ -309,7 +309,7 @@ export const dataService = {
 								yieldFixedRate: data.yieldFixedRate,
 								yieldPeriod: data.yieldPeriod,
 								yieldReferencePercentage: data.yieldReferencePercentage,
-								yieldReferenceRate: data.yieldReferenceRate,
+								yieldReferenceType: data.yieldReferenceType,
 								yieldTaxRate: data.yieldTaxRate,
 							},
 						],
@@ -454,7 +454,7 @@ export const dataService = {
 					data.yieldPeriod !== undefined ||
 					data.yieldFixedRate !== undefined ||
 					data.yieldReferencePercentage !== undefined ||
-					data.yieldReferenceRate !== undefined ||
+					data.yieldReferenceType !== undefined ||
 					data.yieldTaxRate !== undefined;
 				const effectiveDate = new Date();
 				if (!recalculateCurrentDay) effectiveDate.setDate(effectiveDate.getDate() + 1);
@@ -473,10 +473,10 @@ export const dataService = {
 									data.yieldReferencePercentage === undefined
 										? existing.data.yieldReferencePercentage
 										: data.yieldReferencePercentage,
-								yieldReferenceRate:
-									data.yieldReferenceRate === undefined
-										? existing.data.yieldReferenceRate
-										: data.yieldReferenceRate,
+								yieldReferenceType:
+									data.yieldReferenceType === undefined
+										? existing.data.yieldReferenceType
+										: data.yieldReferenceType,
 								yieldTaxRate:
 									data.yieldTaxRate === undefined ? existing.data.yieldTaxRate : data.yieldTaxRate,
 							},
@@ -2709,7 +2709,9 @@ export const dataService = {
 						debts: debts.map(d => d.data),
 						financialAccounts: accounts.map(a => a.data),
 						financialAccountYieldHolidays: (yieldHolidays as FinancialAccountYieldHoliday[] | null) ?? [],
-						financialAccountYields: (yields as FinancialAccountYield[] | null) ?? [],
+						financialAccountYields: ((yields as FinancialAccountYield[] | null) ?? []).filter(
+							yieldEntry => yieldEntry.origin !== "SYSTEM",
+						),
 						loans: loans.map(l => l.data),
 						recurringPayments: recurringPayments.map(payment => payment.data),
 						salaries: salaries.map(s => normalizeSalary(s.data as LegacySalary)),
