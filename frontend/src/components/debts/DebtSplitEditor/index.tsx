@@ -5,56 +5,16 @@ import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { NumericField } from "@/components/ui/NumericField";
 import type { DebtSplitInput } from "@/lib/api";
-import { calculateDebtSplit, debtSplitError, remainingDebtSplitAmount } from "@/lib/debt-split";
+import {
+	calculateDebtSplit,
+	createEqualDebtSplit,
+	debtSplitError,
+	remainingDebtSplitAmount,
+} from "@/lib/debt-split";
 import { DebtSplitParticipantRow } from "./DebtSplitParticipantRow";
 import type { DebtSplitEditorProps } from "./types";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
-
-function equalSplit(
-	mode: DebtSplitInput["mode"],
-	participants: Array<{ debtPersonId: string; description?: string }>,
-	ownerIncluded: boolean,
-	amount: number,
-	remainderDebtPersonId?: string,
-): DebtSplitInput {
-	if (mode === "SHARES")
-		return {
-			mode,
-			ownerShares: ownerIncluded ? 1 : null,
-			participants: participants.map(participant => ({ ...participant, shares: 1 })),
-		};
-	if (mode === "PERCENTAGE") {
-		const divisor = participants.length + (ownerIncluded ? 1 : 0);
-		return {
-			mode,
-			ownerIncluded,
-			...(remainderDebtPersonId ? { remainderDebtPersonId } : {}),
-			participants: participants.map((participant, index) => ({
-				...participant,
-				percentage:
-					index === participants.length - 1 && !ownerIncluded
-						? Number((100 - (Math.floor((100 / divisor) * 100) / 100) * (participants.length - 1)).toFixed(2))
-						: Math.floor((100 / divisor) * 100) / 100,
-			})),
-		};
-	}
-	const totalCents = Math.max(0, Math.round(amount * 100));
-	const divisor = participants.length + (ownerIncluded ? 1 : 0);
-	const equalCents = divisor ? Math.floor(totalCents / divisor) : 0;
-	return {
-		mode,
-		ownerIncluded,
-		...(remainderDebtPersonId ? { remainderDebtPersonId } : {}),
-		participants: participants.map((participant, index) => ({
-			...participant,
-			fixedAmount:
-				!ownerIncluded && index === participants.length - 1
-					? (totalCents - equalCents * (participants.length - 1)) / 100
-					: equalCents / 100,
-		})),
-	};
-}
 
 export function DebtSplitEditor({
 	amount,
@@ -124,7 +84,7 @@ export function DebtSplitEditor({
 				onValueChange={mode => {
 					customized.current = false;
 					onChange(
-						equalSplit(
+						createEqualDebtSplit(
 							mode as DebtSplitInput["mode"],
 							value.participants,
 							ownerIncluded,
@@ -213,7 +173,13 @@ export function DebtSplitEditor({
 											: { remainderDebtPersonId: undefined }),
 										participants: value.participants.filter((_, itemIndex) => itemIndex !== index),
 									} as DebtSplitInput)
-								: equalSplit(value.mode, participants, ownerIncluded, amount, remainingRemainderDebtPersonId),
+								: createEqualDebtSplit(
+										value.mode,
+										participants,
+										ownerIncluded,
+										amount,
+										remainingRemainderDebtPersonId,
+									),
 						);
 					}}
 					onValueChange={next => updateParticipant(index, "value", next)}
@@ -227,7 +193,7 @@ export function DebtSplitEditor({
 				onClick={() => {
 					if (!customized.current) {
 						onChange(
-							equalSplit(
+							createEqualDebtSplit(
 								value.mode,
 								[...value.participants, { debtPersonId: "" }],
 								ownerIncluded,

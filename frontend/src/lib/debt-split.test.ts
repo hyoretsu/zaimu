@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
 	calculateDebtSplit,
+	createEqualDebtSplit,
 	debtSplitError,
 	debtSplitToInput,
 	formatDebtSplitBadge,
@@ -82,6 +83,31 @@ describe("calculateDebtSplit", () => {
 				participants: [{ debtPersonId: "a", percentage: 100.01 }],
 			}),
 		).toBeNull();
+	});
+
+	test("rejects a participant without a selected person", () => {
+		expect(
+			calculateDebtSplit(25.31, {
+				mode: "FIXED",
+				ownerIncluded: false,
+				participants: [
+					{ debtPersonId: "person-id", fixedAmount: 12.65 },
+					{ debtPersonId: "", fixedAmount: 5.31 },
+				],
+			}),
+		).toBeNull();
+	});
+});
+
+describe("createEqualDebtSplit", () => {
+	test("removes allocation fields left by the previous mode", () => {
+		const participants = [{ debtPersonId: "person-id", description: "Conta", shares: 1 }];
+
+		expect(createEqualDebtSplit("FIXED", participants, false, 25.31)).toEqual({
+			mode: "FIXED",
+			ownerIncluded: false,
+			participants: [{ debtPersonId: "person-id", description: "Conta", fixedAmount: 25.31 }],
+		});
 	});
 });
 

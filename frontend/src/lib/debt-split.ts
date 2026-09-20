@@ -3,6 +3,55 @@ import type { DebtSplit, DebtSplitInput } from "./api";
 const cents = (value: number) => Math.round(value * 100);
 const money = (value: number) => value / 100;
 
+export function createEqualDebtSplit(
+	mode: DebtSplitInput["mode"],
+	participants: Array<{ debtPersonId: string; description?: string }>,
+	ownerIncluded: boolean,
+	amount: number,
+	remainderDebtPersonId?: string,
+): DebtSplitInput {
+	const participantFields = ({ debtPersonId, description }: (typeof participants)[number]) => ({
+		debtPersonId,
+		...(description === undefined ? {} : { description }),
+	});
+	if (mode === "SHARES")
+		return {
+			mode,
+			ownerShares: ownerIncluded ? 1 : null,
+			participants: participants.map(participant => ({ ...participantFields(participant), shares: 1 })),
+		};
+	if (mode === "PERCENTAGE") {
+		const divisor = participants.length + (ownerIncluded ? 1 : 0);
+		return {
+			mode,
+			ownerIncluded,
+			...(remainderDebtPersonId ? { remainderDebtPersonId } : {}),
+			participants: participants.map((participant, index) => ({
+				...participantFields(participant),
+				percentage:
+					index === participants.length - 1 && !ownerIncluded
+						? Number((100 - (Math.floor((100 / divisor) * 100) / 100) * (participants.length - 1)).toFixed(2))
+						: Math.floor((100 / divisor) * 100) / 100,
+			})),
+		};
+	}
+	const totalCents = Math.max(0, Math.round(amount * 100));
+	const divisor = participants.length + (ownerIncluded ? 1 : 0);
+	const equalCents = divisor ? Math.floor(totalCents / divisor) : 0;
+	return {
+		mode,
+		ownerIncluded,
+		...(remainderDebtPersonId ? { remainderDebtPersonId } : {}),
+		participants: participants.map((participant, index) => ({
+			...participantFields(participant),
+			fixedAmount:
+				!ownerIncluded && index === participants.length - 1
+					? (totalCents - equalCents * (participants.length - 1)) / 100
+					: equalCents / 100,
+		})),
+	};
+}
+
 export function formatDebtSplitBadge(
 	split: DebtSplit | null | undefined,
 	formatAmount: (amount: number) => string,
@@ -23,6 +72,7 @@ export function remainingDebtSplitAmount(
 export function calculateDebtSplit(amount: number, split: DebtSplitInput): DebtSplit | null {
 	const total = cents(amount);
 	if (total <= 0 || split.participants.length === 0) return null;
+	if (split.participants.some(item => !item.debtPersonId)) return null;
 	if (split.mode !== "SHARES" && split.remainderDebtPersonId === "") return null;
 	if (new Set(split.participants.map(item => item.debtPersonId)).size !== split.participants.length)
 		return null;
