@@ -24,6 +24,7 @@ import { DebtSplitInputDTO } from "~/modules/debts/infra/elysia/DebtSplitsDTO";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { materializeSalaryTransactions } from "~/modules/salaries/application/materialize-salary-transactions";
 import { resolveStore } from "~/modules/stores/application/resolve-store";
+import { areTransferSuggestionTimesCompatible } from "~/modules/transaction-imports/domain/transfer-suggestions";
 import { HttpException } from "~/shared/errors";
 import {
 	db,
@@ -114,7 +115,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			if (transactions.length !== 2) throw new HttpException("Sugestão de transferência não encontrada", 404);
 			const [left, right] = transactions;
 			if (
-				left.date.toISOString().slice(0, 10) !== right.date.toISOString().slice(0, 10) ||
+				!areTransferSuggestionTimesCompatible(left, right) ||
 				Number(left.amount) !== Number(right.amount) ||
 				!(
 					(left.type === "EXPENSE" && right.type === "INCOME") ||
@@ -257,7 +258,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						? counterpart.destinationFinancialAccountId
 						: counterpart.originFinancialAccountId;
 				const key = [transaction.id, counterpart.id].sort().join(":");
-				return transaction.date.toISOString().slice(0, 10) === counterpart.date.toISOString().slice(0, 10) &&
+				return areTransferSuggestionTimesCompatible(transaction, counterpart) &&
 					transaction.amount === counterpart.amount &&
 					transactionAccountId !== counterpartAccountId &&
 					((transaction.type === "EXPENSE" && counterpart.type === "INCOME") ||
@@ -284,7 +285,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			if (transactions.length !== 2) throw new HttpException("Sugestão de transferência não encontrada", 404);
 			const [left, right] = transactions;
 			if (
-				left.date.toISOString().slice(0, 10) !== right.date.toISOString().slice(0, 10) ||
+				!areTransferSuggestionTimesCompatible(left, right) ||
 				Number(left.amount) !== Number(right.amount) ||
 				!(
 					(left.type === "EXPENSE" && right.type === "INCOME") ||

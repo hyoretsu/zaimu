@@ -8,6 +8,7 @@ const expense: Transaction = {
 	date: "2026-09-17",
 	id: "expense",
 	originFinancialAccountId: "account-a",
+	time: "13:29",
 	type: "EXPENSE",
 };
 
@@ -17,6 +18,7 @@ const income: Transaction = {
 	date: "2026-09-17",
 	destinationFinancialAccountId: "account-b",
 	id: "income",
+	time: "13:30",
 	type: "INCOME",
 };
 
@@ -40,5 +42,10 @@ describe("getTransferSuggestions", () => {
 		expect(
 			getTransferSuggestions([expense, { ...income, destinationFinancialAccountId: "account-a" }]),
 		).toEqual([]);
+	});
+
+	test("does not suggest movements without a time or more than one minute apart", () => {
+		expect(getTransferSuggestions([{ ...expense, time: undefined }, income])).toEqual([]);
+		expect(getTransferSuggestions([expense, { ...income, time: "13:30:01" }])).toEqual([]);
 	});
 });

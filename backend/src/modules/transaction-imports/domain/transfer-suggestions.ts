@@ -7,6 +7,7 @@ export interface TransferSuggestionItem {
 	financialAccountId: string;
 	id: string;
 	source: "IMPORT_ITEM" | "TRANSACTION";
+	time?: string | null;
 	type: TransferSuggestionItemType;
 	transferCounterpartExternalId?: string | null;
 }
@@ -25,11 +26,25 @@ export interface TransferSuggestion<Item extends TransferSuggestionItem = Transf
 
 const dateKey = (value: Date | string) => new Date(value).toISOString().slice(0, 10);
 
-const daysApart = (left: Date | string, right: Date | string) => {
-	const leftDay = Date.parse(`${dateKey(left)}T00:00:00.000Z`);
-	const rightDay = Date.parse(`${dateKey(right)}T00:00:00.000Z`);
-	return Math.abs(leftDay - rightDay) / 86_400_000;
-};
+const timePattern = /^(?<hours>[01]\d|2[0-3]):(?<minutes>[0-5]\d)(?::(?<seconds>[0-5]\d))?$/;
+
+function timeInSeconds(value: string | null | undefined) {
+	const match = value?.match(timePattern);
+	if (!match?.groups) return null;
+	return (
+		Number(match.groups.hours) * 3_600 + Number(match.groups.minutes) * 60 + Number(match.groups.seconds ?? 0)
+	);
+}
+
+export function areTransferSuggestionTimesCompatible(
+	left: Pick<TransferSuggestionItem, "date" | "time">,
+	right: Pick<TransferSuggestionItem, "date" | "time">,
+) {
+	if (dateKey(left.date) !== dateKey(right.date)) return false;
+	const leftTime = timeInSeconds(left.time);
+	const rightTime = timeInSeconds(right.time);
+	return leftTime !== null && rightTime !== null && Math.abs(leftTime - rightTime) <= 60;
+}
 
 export function transferSuggestionRejectionKey(rejection: TransferSuggestionRejection) {
 	return JSON.stringify([
@@ -47,7 +62,8 @@ export function getTransferSuggestionPair<Item extends TransferSuggestionItem>(
 	if (!left.externalId || !right.externalId) return null;
 	if (left.financialAccountId === right.financialAccountId) return null;
 	if (left.transferCounterpartExternalId || right.transferCounterpartExternalId) return null;
-	if (Number(left.amount) !== Number(right.amount) || daysApart(left.date, right.date) > 1) return null;
+	if (Number(left.amount) !== Number(right.amount) || !areTransferSuggestionTimesCompatible(left, right))
+		return null;
 	if (left.type === "EXPENSE" && right.type === "INCOME") return { incoming: right, outgoing: left };
 	if (left.type === "INCOME" && right.type === "EXPENSE") return { incoming: left, outgoing: right };
 	return null;
