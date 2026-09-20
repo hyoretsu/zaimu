@@ -5,3 +5,7 @@ Scrollbars must remain contained within their own scrollable div. Inset vertical
 # Dynamic listing selects
 
 Every `CustomSelect` whose options come from a user-managed listing (accounts, cards, institutions, statements, categories, or equivalent) must use `searchable`. Fixed, small option sets remain non-searchable.
+
+# Typography
+
+Always use hyphens (`-`) instead of em dashes (`—`). For example: `Fatura Inter - Set/26`.
