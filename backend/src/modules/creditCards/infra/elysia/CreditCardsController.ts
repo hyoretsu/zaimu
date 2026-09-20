@@ -657,6 +657,24 @@ const findPurchaseForCard = (creditCardId: string, purchaseId: string) =>
 			.build(),
 	);
 
+const isCreditPurchaseSynced = async (creditCardId: string, purchaseId: string) => {
+	const purchaseSyncRows = await queryRows(
+		db.sql.public.CreditPurchase.innerJoin(db.sql.public.CreditCardStatement, (fields, functions) =>
+			functions.eq(fields.CreditPurchase.statementId, fields.CreditCardStatement.id),
+		)
+			.select(fields => ({
+				hasImportedAmount: fields.CreditPurchase.hasImportedAmount,
+				id: fields.CreditPurchase.id,
+				installments: fields.CreditPurchase.installments,
+				parentId: fields.CreditPurchase.parentId,
+				statementDate: fields.CreditCardStatement.statementDate,
+			}))
+			.where((fields, functions) => functions.eq(fields.CreditCardStatement.creditCardId, creditCardId))
+			.build(),
+	);
+	return getCreditPurchaseSyncStatus(purchaseSyncRows).get(purchaseId)?.isSynced ?? false;
+};
+
 export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 	.get(
 		"/",
@@ -1640,21 +1658,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			await assertCreditCardOwnership(params.id, userId);
 			const purchase = await findPurchaseForCard(params.id, params.purchaseId);
 			if (!purchase) throw new HttpException("Purchase not found", 404);
-			const purchaseSyncRows = await queryRows(
-				db.sql.public.CreditPurchase.innerJoin(db.sql.public.CreditCardStatement, (fields, functions) =>
-					functions.eq(fields.CreditPurchase.statementId, fields.CreditCardStatement.id),
-				)
-					.select(fields => ({
-						hasImportedAmount: fields.CreditPurchase.hasImportedAmount,
-						id: fields.CreditPurchase.id,
-						installments: fields.CreditPurchase.installments,
-						parentId: fields.CreditPurchase.parentId,
-						statementDate: fields.CreditCardStatement.statementDate,
-					}))
-					.where((fields, functions) => functions.eq(fields.CreditCardStatement.creditCardId, params.id))
-					.build(),
-			);
-			const isSynced = getCreditPurchaseSyncStatus(purchaseSyncRows).get(purchase.id)?.isSynced ?? false;
+			const isSynced = await isCreditPurchaseSynced(params.id, purchase.id);
 			const changesAmount =
 				(body.installmentAmount !== undefined &&
 					body.installmentAmount !== Number(purchase.installmentAmount)) ||
@@ -2128,7 +2132,8 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			await assertCreditCardOwnership(params.id, userId);
 			const purchase = await findPurchaseForCard(params.id, params.purchaseId);
 			if (!purchase) throw new HttpException("Purchase not found", 404);
-			if (purchase.isPaid) throw new HttpException("Paid statement purchases cannot be deleted", 409);
+			if (await isCreditPurchaseSynced(params.id, purchase.id))
+				throw new HttpException("Synced purchases cannot be deleted", 409);
 			if (purchase.installments > 1)
 				throw new HttpException("Parcela não pode ser excluída; registre um reembolso", 409);
 

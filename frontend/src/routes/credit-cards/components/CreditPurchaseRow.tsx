@@ -10,7 +10,8 @@ import { formatDebtSplitBadge } from "@/lib/debt-split";
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
 export function CreditPurchaseRow({
-	disabled,
+	deleteDisabled,
+	editDisabled,
 	refinanceDisabled,
 	refundDisabled,
 	onDelete,
@@ -19,7 +20,8 @@ export function CreditPurchaseRow({
 	onRefund,
 	purchase,
 }: {
-	disabled: boolean;
+	deleteDisabled: boolean;
+	editDisabled: boolean;
 	refinanceDisabled: boolean;
 	refundDisabled: boolean;
 	onDelete: () => void | Promise<void>;
@@ -113,7 +115,7 @@ export function CreditPurchaseRow({
 							<Button
 								aria-label={`Editar ${purchase.description}`}
 								className="cursor-pointer"
-								disabled={disabled}
+								disabled={editDisabled}
 								onClick={onEdit}
 								size="icon-sm"
 								variant="outline"
@@ -148,7 +150,7 @@ export function CreditPurchaseRow({
 										aria-label={`Excluir ${purchase.description}`}
 										className="cursor-pointer"
 										confirmation="Excluir esta compra permanentemente?"
-										disabled={disabled}
+										disabled={deleteDisabled}
 										onConfirm={onDelete}
 										size="icon-sm"
 										variant="destructive"
