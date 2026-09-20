@@ -5,6 +5,7 @@ import { RequiredMark } from "./RequiredMark";
 
 export function NumericField({
 	decimalScale = 4,
+	disabled,
 	description,
 	id,
 	label,
@@ -15,6 +16,7 @@ export function NumericField({
 	value,
 }: {
 	decimalScale?: number;
+	disabled?: boolean;
 	description?: string;
 	id: string;
 	label: string;
@@ -37,6 +39,7 @@ export function NumericField({
 				customInput={Input}
 				decimalScale={decimalScale}
 				decimalSeparator=","
+				disabled={disabled}
 				id={id}
 				name={id}
 				onValueChange={values => onValueChange(values.value)}

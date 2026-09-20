@@ -94,6 +94,7 @@ export function DebtSplitParticipantRow({
 			) : null}
 			{mode === "FIXED" ? (
 				<MoneyField
+					disabled={disabled || isRemainderRecipient}
 					id={`debt-split-${index}`}
 					label="Valor"
 					onValueChange={value => onValueChange(Number(value))}
@@ -103,6 +104,7 @@ export function DebtSplitParticipantRow({
 			) : (
 				<NumericField
 					decimalScale={mode === "PERCENTAGE" ? 2 : 0}
+					disabled={disabled || isRemainderRecipient}
 					id={`debt-split-${index}`}
 					label={mode === "SHARES" ? "Cotas" : "Porcentagem"}
 					onValueChange={value => onValueChange(Number(value))}
