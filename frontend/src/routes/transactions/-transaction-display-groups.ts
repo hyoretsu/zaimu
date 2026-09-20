@@ -1,19 +1,22 @@
 interface DisplayableTransaction {
+	date: string;
 	id: string;
 	isHidden?: boolean;
 }
 
 export interface TransactionDisplayGroup<T extends DisplayableTransaction> {
 	id: string;
-	kind: "hidden" | "visible";
+	kind: "future" | "hidden" | "visible";
 	transactions: T[];
 }
 
 export function groupTransactionsForDisplay<T extends DisplayableTransaction>(
 	transactions: T[],
+	today: string,
 ): TransactionDisplayGroup<T>[] {
 	return transactions.reduce<TransactionDisplayGroup<T>[]>((groups, transaction) => {
-		const kind = transaction.isHidden ? "hidden" : "visible";
+		const kind =
+			transaction.date.slice(0, 10) > today ? "future" : transaction.isHidden ? "hidden" : "visible";
 		const previousGroup = groups.at(-1);
 
 		if (previousGroup?.kind === kind) {

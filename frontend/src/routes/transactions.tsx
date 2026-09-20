@@ -43,9 +43,9 @@ import {
 } from "./transactions/-transaction-filters";
 import { transactionToCreditPurchase } from "./transactions/-transaction-to-credit-purchase";
 import {
-	HiddenTransactionsToggle,
 	TransactionDateHeader,
 	TransactionFilters,
+	TransactionsGroupToggle,
 } from "./transactions/components";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
@@ -90,7 +90,7 @@ export function TransactionsPage() {
 	const [editingPurchase, setEditingPurchase] = useState<Transaction | null>(null);
 	const [refundingPurchase, setRefundingPurchase] = useState<Transaction | null>(null);
 	const [filters, setFilters] = useState<TransactionFiltersValue>(initialTransactionFilters);
-	const [expandedHiddenGroups, setExpandedHiddenGroups] = useState<Set<string>>(() => new Set());
+	const [expandedTransactionGroups, setExpandedTransactionGroups] = useState<Set<string>>(() => new Set());
 	const [transferSuggestionsOpen, setTransferSuggestionsOpen] = useState(false);
 	const [transferSuggestionDecision, setTransferSuggestionDecision] = useState<{
 		counterpart: Transaction;
@@ -199,6 +199,7 @@ export function TransactionsPage() {
 			)
 		: undefined;
 	const dailyEndingBalances = new Map(transactionDays.map(day => [day.date, day.endingBalance]));
+	const today = getLocalDateKey(new Date());
 	const remove = useMutation({
 		mutationFn: (id: string) => dataService.transactions.delete(id),
 		onError: error => showToast(error.message, "negative"),
@@ -318,8 +319,8 @@ export function TransactionsPage() {
 			/>
 		);
 	};
-	const toggleHiddenGroup = (groupId: string) => {
-		setExpandedHiddenGroups(current => {
+	const toggleTransactionGroup = (groupId: string) => {
+		setExpandedTransactionGroups(current => {
 			const next = new Set(current);
 			if (next.has(groupId)) next.delete(groupId);
 			else next.add(groupId);
@@ -421,8 +422,9 @@ export function TransactionsPage() {
 			) : (
 				<div className="space-y-5">
 					{Object.entries(groupedTransactions).map(([date, transactions]) => {
-						const displayGroups = groupTransactionsForDisplay(transactions);
-						const allTransactionsHidden = displayGroups[0]?.kind === "hidden" && displayGroups.length === 1;
+						const displayGroups = groupTransactionsForDisplay(transactions, today);
+						const singleCollapsedGroup =
+							displayGroups.length === 1 && displayGroups[0]?.kind !== "visible" ? displayGroups[0] : null;
 						const dayLabel = `${formatLocalDate(date, { weekday: "long" }).replace(/^./, character => character.toUpperCase())}, ${formatLocalDate(date)}`;
 
 						return (
@@ -431,11 +433,12 @@ export function TransactionsPage() {
 									dateLabel={dayLabel}
 									endingBalance={currency.format(dailyEndingBalances.get(date) ?? 0)}
 								/>
-								{allTransactionsHidden ? (
-									<HiddenTransactionsToggle
-										expanded={expandedHiddenGroups.has(displayGroups[0].id)}
-										hiddenCount={displayGroups[0].transactions.length}
-										onClick={() => toggleHiddenGroup(displayGroups[0].id)}
+								{singleCollapsedGroup ? (
+									<TransactionsGroupToggle
+										expanded={expandedTransactionGroups.has(singleCollapsedGroup.id)}
+										kind={singleCollapsedGroup.kind}
+										onClick={() => toggleTransactionGroup(singleCollapsedGroup.id)}
+										transactionCount={singleCollapsedGroup.transactions.length}
 									/>
 								) : (
 									displayGroups.map(group => {
@@ -450,13 +453,14 @@ export function TransactionsPage() {
 											);
 										}
 
-										const isExpanded = expandedHiddenGroups.has(group.id);
+										const isExpanded = expandedTransactionGroups.has(group.id);
 										return (
 											<div className="space-y-2" key={group.id}>
-												<HiddenTransactionsToggle
+												<TransactionsGroupToggle
 													expanded={isExpanded}
-													hiddenCount={group.transactions.length}
-													onClick={() => toggleHiddenGroup(group.id)}
+													kind={group.kind}
+													onClick={() => toggleTransactionGroup(group.id)}
+													transactionCount={group.transactions.length}
 												/>
 												{isExpanded ? (
 													<div className="divide-y overflow-hidden rounded-2xl border bg-card shadow-sm">
@@ -467,9 +471,9 @@ export function TransactionsPage() {
 										);
 									})
 								)}
-								{allTransactionsHidden && expandedHiddenGroups.has(displayGroups[0].id) ? (
+								{singleCollapsedGroup && expandedTransactionGroups.has(singleCollapsedGroup.id) ? (
 									<div className="divide-y overflow-hidden rounded-2xl border bg-card shadow-sm">
-										{displayGroups[0].transactions.map(renderTransaction)}
+										{singleCollapsedGroup.transactions.map(renderTransaction)}
 									</div>
 								) : null}
 							</section>
