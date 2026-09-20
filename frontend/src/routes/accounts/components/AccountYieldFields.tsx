@@ -54,7 +54,7 @@ export function AccountYieldFields({
 					<p className="text-muted-foreground text-xs">
 						Preencha a taxa de referência, a taxa fixa ou ambas.
 					</p>
-					<div className="grid gap-4 sm:grid-cols-2">
+					<div className="@container grid @md:grid-cols-2 gap-4">
 						{allowReference && (
 							<CustomSelect
 								label="Taxa de referência"
