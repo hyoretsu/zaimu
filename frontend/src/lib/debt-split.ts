@@ -3,6 +3,14 @@ import type { DebtSplit, DebtSplitInput } from "./api";
 const cents = (value: number) => Math.round(value * 100);
 const money = (value: number) => value / 100;
 
+export function remainingDebtSplitAmount(
+	totalAmount: number,
+	distributedAmount: number,
+	ownerAmount: number,
+) {
+	return money(cents(totalAmount) - cents(distributedAmount) - cents(ownerAmount));
+}
+
 export function calculateDebtSplit(amount: number, split: DebtSplitInput): DebtSplit | null {
 	const total = cents(amount);
 	if (total <= 0 || split.participants.length === 0) return null;

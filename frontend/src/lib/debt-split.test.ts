@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { calculateDebtSplit, debtSplitError, debtSplitToInput } from "./debt-split";
+import { calculateDebtSplit, debtSplitError, debtSplitToInput, remainingDebtSplitAmount } from "./debt-split";
 
 describe("calculateDebtSplit", () => {
 	test("distributes equal shares and uses stable order for remaining cents", () => {
@@ -112,6 +112,12 @@ describe("debtSplitError", () => {
 				participants: [{ debtPersonId: "a", shares: 1 }],
 			}),
 		).toBeNull();
+	});
+});
+
+describe("remainingDebtSplitAmount", () => {
+	test("keeps a fully distributed amount at zero", () => {
+		expect(remainingDebtSplitAmount(19.99, 9.99, 10)).toBe(0);
 	});
 });
 

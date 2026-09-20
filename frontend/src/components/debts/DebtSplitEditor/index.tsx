@@ -5,7 +5,7 @@ import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { NumericField } from "@/components/ui/NumericField";
 import type { DebtSplitInput } from "@/lib/api";
-import { calculateDebtSplit, debtSplitError } from "@/lib/debt-split";
+import { calculateDebtSplit, debtSplitError, remainingDebtSplitAmount } from "@/lib/debt-split";
 import { DebtSplitParticipantRow } from "./DebtSplitParticipantRow";
 import type { DebtSplitEditorProps } from "./types";
 
@@ -88,6 +88,7 @@ export function DebtSplitEditor({
 			: value.mode === "PERCENTAGE"
 				? (amount * value.participants.reduce((sum, participant) => sum + participant.percentage, 0)) / 100
 				: 0);
+	const remaining = remainingDebtSplitAmount(amount, distributed, preview?.ownerAmount ?? 0);
 	const updateOwner = (included: boolean) => {
 		if (value.mode === "SHARES") onChange({ ...value, ownerShares: included ? 1 : null });
 		else onChange({ ...value, ownerIncluded: included });
@@ -258,9 +259,7 @@ export function DebtSplitEditor({
 				</span>
 				<span className="min-w-0 overflow-hidden">
 					Restante
-					<strong className="block text-sm">
-						{currency.format(amount - distributed - (preview?.ownerAmount ?? 0))}
-					</strong>
+					<strong className="block text-sm">{currency.format(remaining)}</strong>
 				</span>
 			</div>
 			{error ? <p className="text-destructive text-xs">{error}</p> : null}
