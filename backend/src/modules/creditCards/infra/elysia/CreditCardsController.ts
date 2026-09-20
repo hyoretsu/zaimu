@@ -1735,8 +1735,10 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			if (nextInstallments !== purchase.installments && purchase.installments > 1)
 				throw new HttpException("Não é possível alterar a quantidade de parcelas desta compra", 409);
 			const requestedTotalAmount = body.totalAmount ?? Number(purchase.totalAmount);
+			const totalAmountChanged =
+				body.totalAmount !== undefined && requestedTotalAmount !== Number(purchase.totalAmount);
 			const purchaseInstallments =
-				purchase.installments > 1
+				purchase.installments > 1 && totalAmountChanged
 					? await queryRows(
 							db.sql.public.CreditPurchase.select(...purchaseColumns)
 								.where((fields, functions) =>
@@ -1748,7 +1750,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 								.build(),
 						)
 					: [];
-			if (purchaseInstallments.length && purchaseInstallments.length !== purchase.installments)
+			if (totalAmountChanged && purchaseInstallments.length !== purchase.installments)
 				throw new HttpException("Não foi possível identificar todas as parcelas da compra", 409);
 			const sortedPurchaseInstallments = purchaseInstallments.toSorted(
 				(left, right) => left.currentInstallment - right.currentInstallment,
@@ -1775,10 +1777,11 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 							redistributedAmounts ??
 								getEvenlyDistributedInstallmentAmounts(requestedTotalAmount, nextInstallments),
 						);
-			const nextAmount =
-				redistributedAmounts?.[
-					sortedPurchaseInstallments.findIndex(installment => installment.id === purchase.id)
-				] ?? nextTotalAmount / nextInstallments;
+			const nextAmount = totalAmountChanged
+				? (redistributedAmounts?.[
+						sortedPurchaseInstallments.findIndex(installment => installment.id === purchase.id)
+					] ?? nextTotalAmount / nextInstallments)
+				: previousAmount;
 			const nextPurchaseDate = body.purchaseDate ? new Date(body.purchaseDate) : purchase.purchaseDate;
 			let nextStatementId = purchase.statementId;
 			let nextCashback = {
@@ -1866,7 +1869,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					...(body.description !== undefined && { description: body.description }),
 					...(fee && fee),
 					...(body.storeName !== undefined && { storeName: body.storeName }),
-					...((body.totalAmount !== undefined || body.installments !== undefined) && {
+					...(totalAmountChanged && {
 						installmentAmount: String(nextAmount),
 						installments: nextInstallments,
 						totalAmount: String(nextTotalAmount),

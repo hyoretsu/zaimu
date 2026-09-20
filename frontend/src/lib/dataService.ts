@@ -1338,13 +1338,18 @@ export const dataService = {
 			const installments = Math.max(1, data.installments);
 			if (storedPurchase.data.installments > 1 && installments !== storedPurchase.data.installments)
 				throw new Error("Não é possível alterar a quantidade de parcelas desta compra");
-			const relatedInstallments = (await localCreditPurchases.getAll())
-				.map(item => item.data)
-				.filter(item => item.id === storedPurchase.data.id || item.parentId === storedPurchase.data.id)
-				.toSorted((left, right) => left.currentInstallment - right.currentInstallment);
-			if (relatedInstallments.length !== storedPurchase.data.installments)
+			const totalAmountChanged = data.totalAmount !== storedPurchase.data.totalAmount;
+			const relatedInstallments = totalAmountChanged
+				? (await localCreditPurchases.getAll())
+						.map(item => item.data)
+						.filter(item => item.id === storedPurchase.data.id || item.parentId === storedPurchase.data.id)
+						.toSorted((left, right) => left.currentInstallment - right.currentInstallment)
+				: [storedPurchase.data];
+			if (totalAmountChanged && relatedInstallments.length !== storedPurchase.data.installments)
 				throw new Error("Não foi possível identificar todas as parcelas da compra");
-			const installmentAmounts = getEvenlyDistributedInstallmentAmounts(data.totalAmount, installments);
+			const installmentAmounts = totalAmountChanged
+				? getEvenlyDistributedInstallmentAmounts(data.totalAmount, installments)
+				: [storedPurchase.data.installmentAmount];
 			const installmentAmount = installmentAmounts[0]!;
 			const cashback = storedPurchase.data.parentId
 				? {}
