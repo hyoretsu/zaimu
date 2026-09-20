@@ -17,7 +17,7 @@ function LoginPage() {
 	const handleSubmit = async (event: SyntheticEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		if (!(await login(email.trim(), password))) return;
-		await dataService.sync.syncAll();
+		void dataService.sync.syncAll();
 		await navigate({ to: "/" });
 	};
 
