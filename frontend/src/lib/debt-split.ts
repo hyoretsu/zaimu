@@ -3,6 +3,15 @@ import type { DebtSplit, DebtSplitInput } from "./api";
 const cents = (value: number) => Math.round(value * 100);
 const money = (value: number) => value / 100;
 
+export function formatDebtSplitBadge(
+	split: DebtSplit | null | undefined,
+	formatAmount: (amount: number) => string,
+) {
+	if (!split) return undefined;
+	if (split.participants.length === 1 && split.ownerAmount === 0) return split.participants[0].debtPersonName;
+	return split.participants.map(item => `${item.debtPersonName}: ${formatAmount(item.amount)}`).join(" · ");
+}
+
 export function remainingDebtSplitAmount(
 	totalAmount: number,
 	distributedAmount: number,

@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { calculateDebtSplit, debtSplitError, debtSplitToInput, remainingDebtSplitAmount } from "./debt-split";
+import {
+	calculateDebtSplit,
+	debtSplitError,
+	debtSplitToInput,
+	formatDebtSplitBadge,
+	remainingDebtSplitAmount,
+} from "./debt-split";
 
 describe("calculateDebtSplit", () => {
 	test("distributes equal shares and uses stable order for remaining cents", () => {
@@ -118,6 +124,38 @@ describe("debtSplitError", () => {
 describe("remainingDebtSplitAmount", () => {
 	test("keeps a fully distributed amount at zero", () => {
 		expect(remainingDebtSplitAmount(19.99, 9.99, 10)).toBe(0);
+	});
+});
+
+describe("formatDebtSplitBadge", () => {
+	const formatAmount = (amount: number) => `R$ ${amount.toFixed(2)}`;
+
+	test("hides the amount when a single person owes the entire transaction", () => {
+		expect(
+			formatDebtSplitBadge(
+				{
+					mode: "SHARES",
+					ownerAmount: 0,
+					ownerShares: null,
+					participants: [{ amount: 119, debtPersonId: "vitoria", debtPersonName: "Vitória", shares: 1 }],
+				},
+				formatAmount,
+			),
+		).toBe("Vitória");
+	});
+
+	test("keeps values when the debt is partial or split between people", () => {
+		expect(
+			formatDebtSplitBadge(
+				{
+					mode: "SHARES",
+					ownerAmount: 20,
+					ownerShares: 1,
+					participants: [{ amount: 80, debtPersonId: "vitoria", debtPersonName: "Vitória", shares: 4 }],
+				},
+				formatAmount,
+			),
+		).toBe("Vitória: R$ 80.00");
 	});
 });
 

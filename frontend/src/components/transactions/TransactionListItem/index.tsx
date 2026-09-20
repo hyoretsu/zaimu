@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { LuDollarSign, LuLandmark, LuPencil, LuTrash2 } from "react-icons/lu";
 import { ListItemLayout } from "@/components/ui/ListItemLayout";
 import type { Transaction } from "@/lib/api";
+import { formatDebtSplitBadge } from "@/lib/debt-split";
 import { getTransactionTitle } from "@/lib/transaction-title";
 import { InstallmentPurchaseDetails } from "./InstallmentPurchaseDetails";
 import { type ItemAction, ItemActions } from "./ItemActions";
@@ -159,9 +160,7 @@ export function TransactionListItem({
 					<TransactionBadges
 						accounts={accounts}
 						creditCardPayment={creditCardPayment}
-						debtPersonName={transaction.debtSplit?.participants
-							.map(item => `${item.debtPersonName}: ${formatCurrency(item.amount)}`)
-							.join(" · ")}
+						debtPersonName={formatDebtSplitBadge(transaction.debtSplit, formatCurrency)}
 						isFullySynced={transaction.isFullySynced}
 						isSalary={Boolean(transaction.salaryId)}
 						isSubscription={Boolean(transaction.subscriptionId)}

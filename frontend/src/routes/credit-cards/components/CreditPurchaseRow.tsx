@@ -5,6 +5,7 @@ import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import type { CreditPurchase } from "@/lib/api";
 import { formatLocalDate, formatLocalTime } from "@/lib/date";
+import { formatDebtSplitBadge } from "@/lib/debt-split";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
@@ -35,9 +36,7 @@ export function CreditPurchaseRow({
 			}
 		: undefined;
 	const tags = purchase.tags?.length ? purchase.tags : fallbackTag ? [fallbackTag] : undefined;
-	const debtPersonName = purchase.debtSplit?.participants
-		.map(item => `${item.debtPersonName}: ${currency.format(item.amount)}`)
-		.join(" · ");
+	const debtPersonName = formatDebtSplitBadge(purchase.debtSplit, amount => currency.format(amount));
 
 	return (
 		<div className="grid min-w-0 gap-3 rounded-xl border bg-card p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
