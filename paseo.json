@@ -1,0 +1,7 @@
+{
+	"scripts": {
+		"Dev": {
+			"command": "bun -F sql migrate:deploy && bun dev"
+		}
+	}
+}
