@@ -542,6 +542,7 @@ export function CreateRecurringDialog({
 								}))}
 								placeholder={accountsQuery.isPending ? "Carregando contas…" : "Selecione a conta"}
 								required
+								searchable
 								value={draft.financialAccountId}
 							/>
 						)}
@@ -626,6 +627,7 @@ export function CreateRecurringDialog({
 											: "Selecione a conta"
 								}
 								required={draft.paymentMethod === "CREDIT"}
+								searchable
 								value={
 									draft.financialAccountId ||
 									(draft.paymentMethod === "CREDIT" ? undefined : noFinancialAccountValue)

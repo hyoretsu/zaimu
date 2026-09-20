@@ -248,6 +248,7 @@ export function CreateTransactionDialog({
 								value: statement.id,
 							}))}
 							placeholder="Nenhuma fatura selecionada"
+							searchable
 							sortOptions={false}
 							value={draft.creditCardStatementId}
 						/>
@@ -302,6 +303,7 @@ export function CreateTransactionDialog({
 							}))}
 							placeholder="Selecione a conta"
 							required
+							searchable
 							value={primaryAccountId}
 						/>
 					)}
@@ -316,6 +318,7 @@ export function CreateTransactionDialog({
 								.map(account => ({ label: getFinancialAccountOptionLabel(account), value: account.id }))}
 							placeholder="Selecione o destino"
 							required
+							searchable
 							value={draft.destinationFinancialAccountId}
 						/>
 					)}

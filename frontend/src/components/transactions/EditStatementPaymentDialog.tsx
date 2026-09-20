@@ -133,6 +133,7 @@ export function EditStatementPaymentDialog({
 									}))}
 									placeholder="Selecione a conta"
 									required
+									searchable
 									value={draft.originFinancialAccountId}
 								/>
 							) : (

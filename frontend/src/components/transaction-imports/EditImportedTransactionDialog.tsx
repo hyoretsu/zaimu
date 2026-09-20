@@ -189,6 +189,7 @@ export function EditImportedTransactionDialog({
 								value: statement.id,
 							}))}
 							placeholder="Nenhuma fatura selecionada"
+							searchable
 							sortOptions={false}
 							value={draft.creditCardStatementId ?? ""}
 						/>
@@ -231,6 +232,7 @@ export function EditImportedTransactionDialog({
 						}))}
 						placeholder="Selecione a conta"
 						required
+						searchable
 						value={primaryAccountId ?? ""}
 					/>
 					{draft.type === "TRANSFER" ? (
@@ -244,6 +246,7 @@ export function EditImportedTransactionDialog({
 								.map(account => ({ label: getFinancialAccountOptionLabel(account), value: account.id }))}
 							placeholder="Selecione o destino"
 							required
+							searchable
 							value={draft.destinationFinancialAccountId ?? ""}
 						/>
 					) : null}

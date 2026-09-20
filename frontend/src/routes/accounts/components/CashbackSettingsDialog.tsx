@@ -140,6 +140,7 @@ export function CashbackSettingsDialog({
 									})),
 								]}
 								placeholder="Selecione a conta de recompensa"
+								searchable
 								value={cashbackAccountId}
 							/>
 							{cashbackAccountId === automaticAccountValue && (

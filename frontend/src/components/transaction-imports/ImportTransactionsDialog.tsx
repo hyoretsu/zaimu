@@ -129,6 +129,7 @@ export function ImportTransactionsDialog({
 						}))}
 						placeholder="Selecione manualmente a conta"
 						required
+						searchable
 						value={financialAccountId}
 					/>
 					<StatementFilePicker file={file} onFileChange={setFile} />

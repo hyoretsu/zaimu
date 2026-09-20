@@ -111,6 +111,7 @@ export function ImportCreditCardStatementDialog({
 						options={cards.map(card => ({ label: getCreditCardDisplayName(card), value: card.id }))}
 						placeholder="Selecione o cartão"
 						required
+						searchable
 						value={creditCardId}
 					/>
 					<StatementFilePicker

@@ -164,6 +164,7 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 							})),
 						]}
 						placeholder="Todas as contas"
+						searchable
 						value={filters.accountId}
 					/>
 					<CustomSelect
@@ -175,6 +176,7 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 							...[...categories].map(([value, label]) => ({ label, value })),
 						]}
 						placeholder="Todas as categorias"
+						searchable
 						value={filters.categoryId}
 					/>
 					{hasFilters ? (

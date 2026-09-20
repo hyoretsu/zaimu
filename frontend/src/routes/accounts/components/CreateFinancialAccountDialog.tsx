@@ -373,6 +373,7 @@ export function CreateFinancialAccountDialog({
 									})),
 								]}
 								placeholder="Selecione uma instituição"
+								searchable
 								sortOptions={false}
 								value={institutionId}
 							/>
@@ -633,6 +634,7 @@ export function CreateFinancialAccountDialog({
 											)}
 											<CustomSelect
 												label="Conta de destino"
+												searchable
 												onValueChange={setCashbackAccountId}
 												options={[
 													{ label: "Criar ou reutilizar automaticamente", value: AUTO_REWARDS_ACCOUNT },

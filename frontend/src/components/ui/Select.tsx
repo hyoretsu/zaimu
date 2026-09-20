@@ -1,7 +1,7 @@
 import { ArrowDown01Icon, ArrowUp01Icon, Tick02Icon, UnfoldMoreIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Select as SelectPrimitive } from "radix-ui";
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 function Select({ ...props }: ComponentProps<typeof SelectPrimitive.Root>) {
@@ -51,17 +51,25 @@ function SelectTrigger({
 function SelectContent({
 	className,
 	children,
+	header,
 	position = "item-aligned",
+	scrollButtons = true,
 	align = "center",
 	sticky = "always",
+	viewportClassName,
 	...props
-}: ComponentProps<typeof SelectPrimitive.Content>) {
+}: ComponentProps<typeof SelectPrimitive.Content> & {
+	header?: ReactNode;
+	scrollButtons?: boolean;
+	viewportClassName?: string;
+}) {
 	return (
 		<SelectPrimitive.Portal>
 			<SelectPrimitive.Content
 				align={align}
 				className={cn(
-					"scrollbar-themed data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 relative z-50 max-h-(--radix-select-content-available-height) min-w-36 max-w-[calc(100vw-2rem)] origin-(--radix-select-content-transform-origin) overflow-y-auto overflow-x-hidden rounded-2xl bg-popover text-popover-foreground shadow-2xl ring-1 ring-foreground/5 duration-100 data-[align-trigger=true]:animate-none data-closed:animate-out data-open:animate-in",
+					"scrollbar-themed data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 relative z-50 max-h-(--radix-select-content-available-height) min-w-36 max-w-[calc(100vw-2rem)] origin-(--radix-select-content-transform-origin) rounded-2xl bg-popover text-popover-foreground shadow-2xl ring-1 ring-foreground/5 duration-100 data-[align-trigger=true]:animate-none data-closed:animate-out data-open:animate-in",
+					header ? "overflow-hidden" : "overflow-y-auto overflow-x-hidden",
 					position === "popper" &&
 						"data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1",
 					className,
@@ -73,17 +81,19 @@ function SelectContent({
 				sticky={sticky}
 				{...props}
 			>
-				<SelectScrollUpButton />
+				{scrollButtons && <SelectScrollUpButton />}
+				{header}
 				<SelectPrimitive.Viewport
 					className={cn(
 						"data-[position=popper]:h-(--radix-select-trigger-height) data-[position=popper]:w-full data-[position=popper]:min-w-(--radix-select-trigger-width)",
 						position === "popper" && "",
+						viewportClassName,
 					)}
 					data-position={position}
 				>
 					{children}
 				</SelectPrimitive.Viewport>
-				<SelectScrollDownButton />
+				{scrollButtons && <SelectScrollDownButton />}
 			</SelectPrimitive.Content>
 		</SelectPrimitive.Portal>
 	);
