@@ -30,6 +30,7 @@ namespace public {
     creditCardImports CreditCardImport[]
     transactionImports TransactionImport[]
     transactionImportTransferSuggestionRejections TransactionImportTransferSuggestionRejection[]
+    transactionTransferSuggestionRejections TransactionTransferSuggestionRejection[]
     authAccounts      AuthAccount[]
     sessions          Session[]
 
@@ -835,6 +836,8 @@ namespace public {
     subscription                  Subscription?            @relation(fields: [subscriptionId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_subscriptionId_fkey", index: false)
     externalReferences            TransactionExternalReference[]
     reconciledImportItems         TransactionImportItem[] @relation(name: "TransactionImportItem_reconciledTransactionId_fkey")
+    firstTransferSuggestionRejections TransactionTransferSuggestionRejection[] @relation(name: "TransactionTransferSuggestionRejection_firstTransactionId_fkey")
+    secondTransferSuggestionRejections TransactionTransferSuggestionRejection[] @relation(name: "TransactionTransferSuggestionRejection_secondTransactionId_fkey")
 
     @@index([recurrenceId, recurrenceOccurrenceDate], map: "Transaction_recurrenceId_occurrenceDate_key", unique: true)
     @@index([salaryId, salaryOccurrenceDate], map: "Transaction_salaryId_occurrenceDate_key", unique: true)
@@ -983,6 +986,21 @@ namespace public {
 
     @@index([userId, outgoingFinancialAccountId, outgoingExternalId, incomingFinancialAccountId, incomingExternalId], map: "TransactionImportTransferSuggestionRejection_pair_key", unique: true)
     @@map("TransactionImportTransferSuggestionRejection")
+  }
+
+  model TransactionTransferSuggestionRejection {
+    id                  VarChar(36)  @id(map: "TransactionTransferSuggestionRejection_pkey") @default(dbgenerated("cuid2()"))
+    userId              VarChar(36)
+    firstTransactionId  VarChar(36)
+    secondTransactionId VarChar(36)
+    createdAt           Timestamp(3) @default(now())
+    updatedAt           Timestamp(3) @default(now())
+    user                User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionTransferSuggestionRejection_userId_fkey", index: false)
+    firstTransaction    Transaction  @relation(name: "TransactionTransferSuggestionRejection_firstTransactionId_fkey", fields: [firstTransactionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionTransferSuggestionRejection_firstTransactionId_fkey", index: false)
+    secondTransaction   Transaction  @relation(name: "TransactionTransferSuggestionRejection_secondTransactionId_fkey", fields: [secondTransactionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionTransferSuggestionRejection_secondTransactionId_fkey", index: false)
+
+    @@index([userId, firstTransactionId, secondTransactionId], map: "TransactionTransferSuggestionRejection_pair_key", unique: true)
+    @@map("TransactionTransferSuggestionRejection")
   }
 
   model TransactionHistory {

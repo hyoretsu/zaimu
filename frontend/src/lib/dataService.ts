@@ -3288,6 +3288,16 @@ export const dataService = {
 			}
 			return fetchWithAuth(`/transactions?${searchParams}`);
 		},
+		async getTransferSuggestions(): Promise<Array<{ counterpart: Transaction; transaction: Transaction }>> {
+			if (isGuestMode()) return [];
+			return fetchWithAuth("/transactions/transfer-suggestions");
+		},
+		async rejectTransferSuggestion(id: string, counterpartId: string): Promise<{ success: true }> {
+			if (isGuestMode()) throw new Error("Conecte sua conta para ignorar sugestões de transferência.");
+			return fetchWithAuth(`/transactions/${id}/transfer-suggestions/${counterpartId}/reject`, {
+				method: "POST",
+			});
+		},
 
 		async update(
 			id: string,

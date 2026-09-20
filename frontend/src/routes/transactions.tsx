@@ -40,7 +40,6 @@ import {
 	type TransactionFilters as TransactionFiltersValue,
 } from "./transactions/-transaction-filters";
 import { transactionToCreditPurchase } from "./transactions/-transaction-to-credit-purchase";
-import { getTransferSuggestions } from "./transactions/-transfer-suggestions";
 import {
 	HiddenTransactionsToggle,
 	TransactionDateHeader,
@@ -90,7 +89,6 @@ export function TransactionsPage() {
 	const [refundingPurchase, setRefundingPurchase] = useState<Transaction | null>(null);
 	const [filters, setFilters] = useState<TransactionFiltersValue>(initialTransactionFilters);
 	const [expandedHiddenGroups, setExpandedHiddenGroups] = useState<Set<string>>(() => new Set());
-	const [ignoredTransferSuggestions, setIgnoredTransferSuggestions] = useState<Set<string>>(() => new Set());
 	const [transferSuggestionDecision, setTransferSuggestionDecision] = useState<{
 		counterpart: Transaction;
 		transaction: Transaction;
@@ -153,19 +151,12 @@ export function TransactionsPage() {
 		};
 	}, [transactionsQuery.fetchNextPage, transactionsQuery.hasNextPage, transactionsQuery.isFetchingNextPage]);
 
-	const transferSuggestions = getTransferSuggestions(transactions);
-	const getTransferSuggestionKey = (transaction: Transaction, counterpart: Transaction) =>
-		[transaction.id, counterpart.id].sort().join(":");
-	const visibleTransferSuggestions = transferSuggestions.filter(
-		({ counterpart, transaction }) =>
-			!ignoredTransferSuggestions.has(getTransferSuggestionKey(transaction, counterpart)),
-	);
-	const ignoreTransferSuggestion = (transaction: Transaction, counterpart: Transaction) => {
-		setIgnoredTransferSuggestions(current =>
-			new Set(current).add(getTransferSuggestionKey(transaction, counterpart)),
-		);
-		showToast("Sugestão de transferência ignorada.", "info");
-	};
+	const transferSuggestionsQuery = useQuery({
+		enabled: identity !== null,
+		queryFn: () => dataService.transactions.getTransferSuggestions(),
+		queryKey: [...queryKeys.transactions.list(identity!, {}), "transfer-suggestions"],
+	});
+	const visibleTransferSuggestions = transferSuggestionsQuery.data ?? [];
 	const acceptTransferSuggestion = useMutation({
 		mutationFn: ({ counterpart, transaction }: { counterpart: Transaction; transaction: Transaction }) =>
 			dataService.transactions.acceptTransferSuggestion(transaction.id, counterpart.id),
@@ -173,7 +164,22 @@ export function TransactionsPage() {
 		onSuccess: async () => {
 			setTransferSuggestionDecision(null);
 			await invalidateCacheOperation(queryClient, identity!, "transaction");
+			await queryClient.invalidateQueries({
+				queryKey: [...queryKeys.transactions.list(identity!, {}), "transfer-suggestions"],
+			});
 			showToast("Movimentos combinados como transferência.", "positive");
+		},
+	});
+	const rejectTransferSuggestion = useMutation({
+		mutationFn: ({ counterpart, transaction }: { counterpart: Transaction; transaction: Transaction }) =>
+			dataService.transactions.rejectTransferSuggestion(transaction.id, counterpart.id),
+		onError: error => showToast(error.message, "negative"),
+		onSuccess: async () => {
+			setTransferSuggestionDecision(null);
+			await queryClient.invalidateQueries({
+				queryKey: [...queryKeys.transactions.list(identity!, {}), "transfer-suggestions"],
+			});
+			showToast("Sugestão de transferência ignorada.", "info");
 		},
 	});
 
@@ -386,14 +392,10 @@ export function TransactionsPage() {
 				onOpenChange={open => !open && setTransferSuggestionDecision(null)}
 				onReject={() => {
 					if (!transferSuggestionDecision) return;
-					ignoreTransferSuggestion(
-						transferSuggestionDecision.transaction,
-						transferSuggestionDecision.counterpart,
-					);
-					setTransferSuggestionDecision(null);
+					rejectTransferSuggestion.mutate(transferSuggestionDecision);
 				}}
 				open={transferSuggestionDecision !== null}
-				pending={acceptTransferSuggestion.isPending}
+				pending={acceptTransferSuggestion.isPending || rejectTransferSuggestion.isPending}
 				rejectConfirmation={null}
 				rejectLabel="Ignorar"
 			/>

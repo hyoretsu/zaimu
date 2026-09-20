@@ -186,6 +186,135 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			}),
 		},
 	)
+	.get("/transfer-suggestions", async ({ request }) => {
+		const userId = await requireUserId(request);
+		const [transactions, rejections] = await Promise.all([
+			queryRows(
+				db.sql.public.Transaction.innerJoin(db.sql.public.FinancialAccount, (fields, functions) =>
+					functions.or(
+						functions.and(
+							functions.eq(fields.Transaction.type, "EXPENSE"),
+							functions.eq(fields.Transaction.originFinancialAccountId, fields.FinancialAccount.id),
+						),
+						functions.and(
+							functions.eq(fields.Transaction.type, "INCOME"),
+							functions.eq(fields.Transaction.destinationFinancialAccountId, fields.FinancialAccount.id),
+						),
+					),
+				)
+					.select(fields => ({
+						accountName: fields.FinancialAccount.name,
+						accountType: fields.FinancialAccount.type,
+						amount: fields.Transaction.amount,
+						createdAt: fields.Transaction.createdAt,
+						date: fields.Transaction.date,
+						description: fields.Transaction.description,
+						destinationFinancialAccountId: fields.Transaction.destinationFinancialAccountId,
+						id: fields.Transaction.id,
+						isHidden: fields.Transaction.isHidden,
+						originFinancialAccountId: fields.Transaction.originFinancialAccountId,
+						storeName: fields.Transaction.storeName,
+						time: fields.Transaction.time,
+						type: fields.Transaction.type,
+					}))
+					.where((fields, functions) => functions.eq(fields.FinancialAccount.userId, userId))
+					.build(),
+			),
+			queryRows(
+				db.sql.public.TransactionTransferSuggestionRejection.select(
+					"firstTransactionId",
+					"secondTransactionId",
+				)
+					.where((fields, functions) => functions.eq(fields.userId, userId))
+					.build(),
+			),
+		]);
+		const rejectedPairs = new Set(
+			rejections.map(rejection => `${rejection.firstTransactionId}:${rejection.secondTransactionId}`),
+		);
+		const candidates = transactions.map(transaction => ({
+			...transaction,
+			amount: Number(transaction.amount),
+			destinationAccountType: transaction.type === "INCOME" ? transaction.accountType : null,
+			destinationName: transaction.type === "INCOME" ? transaction.accountName : null,
+			originAccountType: transaction.type === "EXPENSE" ? transaction.accountType : null,
+			originName: transaction.type === "EXPENSE" ? transaction.accountName : null,
+			source: "FINANCIAL_ACCOUNT" as const,
+		}));
+		return candidates.flatMap((transaction, index) =>
+			candidates.slice(index + 1).flatMap(counterpart => {
+				const transactionAccountId =
+					transaction.type === "INCOME"
+						? transaction.destinationFinancialAccountId
+						: transaction.originFinancialAccountId;
+				const counterpartAccountId =
+					counterpart.type === "INCOME"
+						? counterpart.destinationFinancialAccountId
+						: counterpart.originFinancialAccountId;
+				const key = [transaction.id, counterpart.id].sort().join(":");
+				return transaction.date.toISOString().slice(0, 10) === counterpart.date.toISOString().slice(0, 10) &&
+					transaction.amount === counterpart.amount &&
+					transactionAccountId !== counterpartAccountId &&
+					((transaction.type === "EXPENSE" && counterpart.type === "INCOME") ||
+						(transaction.type === "INCOME" && counterpart.type === "EXPENSE")) &&
+					!rejectedPairs.has(key)
+					? [{ counterpart, transaction }]
+					: [];
+			}),
+		);
+	})
+	.post(
+		"/:id/transfer-suggestions/:counterpartId/reject",
+		async ({ params, request }) => {
+			const userId = await requireUserId(request);
+			await Promise.all([
+				assertTransactionOwnership(params.id, userId),
+				assertTransactionOwnership(params.counterpartId, userId),
+			]);
+			const transactions = await queryRows(
+				db.sql.public.Transaction.select(...transactionColumns)
+					.where((fields, functions) => functions.in(fields.id, [params.id, params.counterpartId]))
+					.build(),
+			);
+			if (transactions.length !== 2) throw new HttpException("Sugestão de transferência não encontrada", 404);
+			const [left, right] = transactions;
+			if (
+				left.date.toISOString().slice(0, 10) !== right.date.toISOString().slice(0, 10) ||
+				Number(left.amount) !== Number(right.amount) ||
+				!(
+					(left.type === "EXPENSE" && right.type === "INCOME") ||
+					(left.type === "INCOME" && right.type === "EXPENSE")
+				)
+			)
+				throw new HttpException("Sugestão de transferência não encontrada", 404);
+			const [firstTransactionId, secondTransactionId] = [left.id, right.id].sort();
+			const existing = await queryFirst(
+				db.sql.public.TransactionTransferSuggestionRejection.select("id")
+					.where((fields, functions) =>
+						functions.and(
+							functions.eq(fields.userId, userId),
+							functions.eq(fields.firstTransactionId, firstTransactionId),
+							functions.eq(fields.secondTransactionId, secondTransactionId),
+						),
+					)
+					.limit(1)
+					.build(),
+			);
+			if (!existing)
+				await executeStatement(
+					db.sql.public.TransactionTransferSuggestionRejection.insert([
+						{ firstTransactionId, secondTransactionId, userId },
+					]).build(),
+				);
+			return { success: true };
+		},
+		{
+			params: t.Object({
+				counterpartId: t.String({ maxLength: 36, minLength: 1 }),
+				id: t.String({ maxLength: 36, minLength: 1 }),
+			}),
+		},
+	)
 	.get(
 		"/",
 		async ({ query, request }) => {

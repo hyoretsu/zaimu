@@ -1,0 +1,198 @@
+[
+	{
+		"execute": [
+			{
+				"description": "create table \"TransactionTransferSuggestionRejection\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"TransactionTransferSuggestionRejection\" (\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"firstTransactionId\" character varying(36) NOT NULL,\n  \"id\" character varying(36) DEFAULT (cuid2()) NOT NULL,\n  \"secondTransactionId\" character varying(36) NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"userId\" character varying(36) NOT NULL,\n  CONSTRAINT \"TransactionTransferSuggestionRejection_pkey\" PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.TransactionTransferSuggestionRejection",
+		"label": "Create table \"TransactionTransferSuggestionRejection\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"TransactionTransferSuggestionRejection\" exists",
+				"params": ["\"public\".\"TransactionTransferSuggestionRejection\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"TransactionTransferSuggestionRejection\" does not exist",
+				"params": ["\"public\".\"TransactionTransferSuggestionRejection\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"TransactionTransferSuggestionRejection\"",
+		"target": {
+			"details": {
+				"name": "TransactionTransferSuggestionRejection",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"TransactionTransferSuggestionRejection_pair_key\"",
+				"params": [],
+				"sql": "CREATE UNIQUE INDEX \"TransactionTransferSuggestionRejection_pair_key\" ON \"public\".\"TransactionTransferSuggestionRejection\" (\"userId\", \"firstTransactionId\", \"secondTransactionId\")"
+			}
+		],
+		"id": "index.TransactionTransferSuggestionRejection.TransactionTransferSuggestionRejection_pair_key",
+		"label": "Create index \"TransactionTransferSuggestionRejection_pair_key\" on \"TransactionTransferSuggestionRejection\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"TransactionTransferSuggestionRejection_pair_key\" exists",
+				"params": ["\"public\".\"TransactionTransferSuggestionRejection_pair_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"TransactionTransferSuggestionRejection_pair_key\" does not exist",
+				"params": ["\"public\".\"TransactionTransferSuggestionRejection_pair_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "TransactionTransferSuggestionRejection_pair_key",
+				"objectType": "index",
+				"schema": "public",
+				"table": "TransactionTransferSuggestionRejection"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"TransactionTransferSuggestionRejection_userId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"TransactionTransferSuggestionRejection\"\nADD CONSTRAINT \"TransactionTransferSuggestionRejection_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"user\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.TransactionTransferSuggestionRejection.TransactionTransferSuggestionRejection_userId_fkey",
+		"label": "Add foreign key \"TransactionTransferSuggestionRejection_userId_fkey\" on \"TransactionTransferSuggestionRejection\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"TransactionTransferSuggestionRejection_userId_fkey\" exists",
+				"params": [
+					"TransactionTransferSuggestionRejection_userId_fkey",
+					"public",
+					"\"public\".\"TransactionTransferSuggestionRejection\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"TransactionTransferSuggestionRejection_userId_fkey\" does not exist",
+				"params": [
+					"TransactionTransferSuggestionRejection_userId_fkey",
+					"public",
+					"\"public\".\"TransactionTransferSuggestionRejection\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "TransactionTransferSuggestionRejection_userId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "TransactionTransferSuggestionRejection"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"TransactionTransferSuggestionRejection_firstTransactionId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"TransactionTransferSuggestionRejection\"\nADD CONSTRAINT \"TransactionTransferSuggestionRejection_firstTransactionId_fkey\"\nFOREIGN KEY (\"firstTransactionId\")\nREFERENCES \"public\".\"Transaction\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.TransactionTransferSuggestionRejection.TransactionTransferSuggestionRejection_firstTransactionId_fkey",
+		"label": "Add foreign key \"TransactionTransferSuggestionRejection_firstTransactionId_fkey\" on \"TransactionTransferSuggestionRejection\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"TransactionTransferSuggestionRejection_firstTransactionId_fkey\" exists",
+				"params": [
+					"TransactionTransferSuggestionRejection_firstTransactionId_fkey",
+					"public",
+					"\"public\".\"TransactionTransferSuggestionRejection\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"TransactionTransferSuggestionRejection_firstTransactionId_fkey\" does not exist",
+				"params": [
+					"TransactionTransferSuggestionRejection_firstTransactionId_fkey",
+					"public",
+					"\"public\".\"TransactionTransferSuggestionRejection\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "TransactionTransferSuggestionRejection_firstTransactionId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "TransactionTransferSuggestionRejection"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"TransactionTransferSuggestionRejection_secondTransactionId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"TransactionTransferSuggestionRejection\"\nADD CONSTRAINT \"TransactionTransferSuggestionRejection_secondTransactionId_fkey\"\nFOREIGN KEY (\"secondTransactionId\")\nREFERENCES \"public\".\"Transaction\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.TransactionTransferSuggestionRejection.TransactionTransferSuggestionRejection_secondTransactionId_fkey",
+		"label": "Add foreign key \"TransactionTransferSuggestionRejection_secondTransactionId_fkey\" on \"TransactionTransferSuggestionRejection\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"TransactionTransferSuggestionRejection_secondTransactionId_fkey\" exists",
+				"params": [
+					"TransactionTransferSuggestionRejection_secondTransactionId_fkey",
+					"public",
+					"\"public\".\"TransactionTransferSuggestionRejection\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"TransactionTransferSuggestionRejection_secondTransactionId_fkey\" does not exist",
+				"params": [
+					"TransactionTransferSuggestionRejection_secondTransactionId_fkey",
+					"public",
+					"\"public\".\"TransactionTransferSuggestionRejection\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "TransactionTransferSuggestionRejection_secondTransactionId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "TransactionTransferSuggestionRejection"
+			},
+			"id": "postgres"
+		}
+	}
+]
