@@ -14,14 +14,18 @@ const currency = new Intl.NumberFormat("pt-BR", {
 	style: "currency",
 });
 const chartConfig = {
-	endingBalance: { color: "var(--color-primary)", label: "Saldo final" },
+	accountBalance: { color: "var(--color-sky-500)", label: "Em conta" },
+	endingBalance: { color: "var(--color-primary)", label: "Saldo total" },
 	expenses: { color: "var(--color-rose-500)", label: "Saídas" },
 	income: { color: "var(--color-emerald-500)", label: "Entradas" },
+	savingsBalance: { color: "var(--color-amber-500)", label: "Poupanças" },
 } satisfies ChartConfig;
 const tooltipValueColor = {
+	accountBalance: "text-sky-500",
 	endingBalance: "text-primary",
 	expenses: "text-rose-500",
 	income: "text-emerald-500",
+	savingsBalance: "text-amber-500",
 } as const;
 
 function formatTooltipLabel(item: Dashboard["comparison"][number]) {
@@ -89,10 +93,24 @@ export function DashboardComparisonChart({ comparison }: Pick<Dashboard, "compar
 						<Bar dataKey="income" fill="var(--color-income)" radius={4} />
 						<Bar dataKey="expenses" fill="var(--color-expenses)" radius={4} />
 						<Line
+							dataKey="accountBalance"
+							dot={false}
+							stroke="var(--color-accountBalance)"
+							strokeWidth={2}
+							type="monotone"
+						/>
+						<Line
 							dataKey="endingBalance"
 							dot={false}
 							stroke="var(--color-endingBalance)"
 							strokeWidth={3}
+							type="monotone"
+						/>
+						<Line
+							dataKey="savingsBalance"
+							dot={false}
+							stroke="var(--color-savingsBalance)"
+							strokeWidth={2}
 							type="monotone"
 						/>
 					</ComposedChart>

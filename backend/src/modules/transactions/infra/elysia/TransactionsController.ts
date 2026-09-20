@@ -708,7 +708,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				);
 				const monetaryAccountIds = new Set(
 					accounts
-						.filter(account => !["CREDIT_CARD", "INVESTMENT", "REWARDS"].includes(account.type))
+						.filter(account => !["CREDIT_CARD", "INVESTMENT", "REWARDS", "SAVINGS"].includes(account.type))
 						.map(account => account.id),
 				);
 				const balances = await getFinancialAccountBalancesAtDates(

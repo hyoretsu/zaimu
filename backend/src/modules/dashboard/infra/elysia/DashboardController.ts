@@ -37,12 +37,14 @@ const ForecastReturn = t.Object({
 	]),
 });
 const PeriodReturn = t.Object({
+	accountBalance: t.Number(),
 	endDate: t.String(),
 	endingBalance: t.Number(),
 	expenses: t.Number(),
 	income: t.Number(),
 	initialBalance: t.Number(),
 	net: t.Number(),
+	savingsBalance: t.Number(),
 	startDate: t.String(),
 });
 export const DashboardReturn = t.Object({
@@ -55,6 +57,7 @@ export const DashboardReturn = t.Object({
 			type: t.String(),
 		}),
 	),
+	balanceBreakdown: t.Object({ accountBalance: t.Number(), savingsBalance: t.Number() }),
 	comparison: t.Array(PeriodReturn),
 	creditCards: t.Array(
 		t.Object({
@@ -291,6 +294,8 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 			account =>
 				account.type !== "CREDIT_CARD" && account.type !== "INVESTMENT" && account.type !== "REWARDS",
 		);
+		const savingsAccounts = monetaryAccounts.filter(account => account.type === "SAVINGS");
+		const accountAccounts = monetaryAccounts.filter(account => account.type !== "SAVINGS");
 		const normalizedTransactions = transactions.map(transaction => ({
 			...transaction,
 			amount: Number(transaction.amount),
@@ -386,10 +391,16 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 			...normalizedTransactions.map(transaction => transaction.date),
 			...creditPurchaseDates.map(purchase => databaseDate(purchase.date)),
 		];
+		const comparisonPeriods = buildComparisonPeriods({
+			base: range,
+			initialBalance: 0,
+			transactions: comparisonTransactions,
+		});
 		const requestedBalanceDates = [
 			today,
 			addDays(range.start, -1),
 			range.end,
+			...comparisonPeriods.map(item => new Date(`${item.endDate}T12:00:00`)),
 			...transactionListDates.filter(date => date >= range.start && date <= range.end),
 		];
 		const todayKey = dateKey(today);
@@ -407,11 +418,27 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 				monetaryAccounts.reduce((sum, account) => sum + (dateBalances.get(account.id) ?? 0), 0),
 			]),
 		);
+		const historicalBalanceBreakdowns = new Map(
+			historicalBalances.map(({ balances: dateBalances, date }) => [
+				dateKey(date),
+				{
+					accountBalance: accountAccounts.reduce(
+						(sum, account) => sum + (dateBalances.get(account.id) ?? 0),
+						0,
+					),
+					savingsBalance: savingsAccounts.reduce(
+						(sum, account) => sum + (dateBalances.get(account.id) ?? 0),
+						0,
+					),
+				},
+			]),
+		);
 		const balances =
 			historicalBalances.find(item => dateKey(item.date) === dateKey(today))?.balances ??
 			new Map<string, number>();
 		const currentBalance = historicalMonetaryBalances.get(dateKey(today)) ?? 0;
 		const monetaryAccountIds = new Set(monetaryAccounts.map(account => account.id));
+		const savingsAccountIds = new Set(savingsAccounts.map(account => account.id));
 		const transactionBalanceEffect = (transaction: (typeof normalizedTransactions)[number]) => {
 			let effect = 0;
 			if (
@@ -446,6 +473,33 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 				);
 			return currentBalance + transactionEffect + projectionEffect;
 		};
+		const balanceBreakdownAt = (date: Date) => {
+			const key = dateKey(date);
+			const historical = historicalBalanceBreakdowns.get(key);
+			if (key <= todayKey && historical) return historical;
+			const currentSavings = historicalBalanceBreakdowns.get(todayKey)?.savingsBalance ?? 0;
+			const savingsTransactionEffect = normalizedTransactions
+				.filter(transaction => {
+					const transactionKey = dateKey(transaction.date);
+					return transactionKey > todayKey && transactionKey <= key;
+				})
+				.reduce((sum, transaction) => {
+					let effect = 0;
+					if (
+						transaction.destinationFinancialAccountId &&
+						savingsAccountIds.has(transaction.destinationFinancialAccountId)
+					)
+						effect += transaction.amount;
+					if (
+						transaction.originFinancialAccountId &&
+						savingsAccountIds.has(transaction.originFinancialAccountId)
+					)
+						effect -= transaction.amount;
+					return sum + effect;
+				}, 0);
+			const savingsBalance = currentSavings + savingsTransactionEffect;
+			return { accountBalance: balanceAt(date) - savingsBalance, savingsBalance };
+		};
 		const periodTransactions = comparisonTransactions.filter(
 			transaction =>
 				transaction.date >= range.start && transaction.date <= range.end && transaction.type !== "TRANSFER",
@@ -472,6 +526,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 			start: range.start,
 		});
 		dashboardPeriod.endingBalance = endingBalance;
+		const balanceBreakdown = balanceBreakdownAt(range.end);
 		const dailyBalances = [
 			...new Set(
 				transactionListDates
@@ -632,16 +687,17 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 				name: account.name,
 				type: account.type,
 			})),
+			balanceBreakdown,
 			comparison: buildComparisonPeriods({
 				base: range,
 				initialBalance: dashboardPeriod.initialBalance,
 				transactions: comparisonTransactions,
-			}),
+			}).map(item => ({ ...item, ...balanceBreakdownAt(new Date(`${item.endDate}T12:00:00`)) })),
 			creditCards: cardsWithStatements,
 			dailyBalances,
 			debts: { iOwe, net: owedToMe - iOwe, owedToMe, people },
 			forecasts: forecasts.toSorted((left, right) => left.date.localeCompare(right.date)),
-			period: dashboardPeriod,
+			period: { ...dashboardPeriod, ...balanceBreakdown },
 			projectedCashFlowUntilMonthEnd: projectedCashFlow,
 			totalAvailableCredit: cardsWithStatements
 				.filter(card => !card.excludeFromTotals)

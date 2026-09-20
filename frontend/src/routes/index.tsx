@@ -61,6 +61,7 @@ export function DashboardPage() {
 			</PageContainer>
 		);
 	const dashboard = dashboardQuery.data;
+	const { accountBalance, savingsBalance } = dashboard.balanceBreakdown;
 	const endingBalance = dashboard.period.endingBalance;
 	const isCurrentDay = dashboard.period.startDate === dashboard.period.endDate;
 	const projectedCashFlow = dashboard.projectedCashFlowUntilMonthEnd;
@@ -111,11 +112,15 @@ export function DashboardPage() {
 					</CardHeader>
 					<CardContent>
 						<p className="font-bold text-3xl tracking-tight">{currency.format(endingBalance)}</p>
-						<p className="mt-3 text-primary-foreground/70 text-xs">
-							{isCurrentDay
-								? "Sem projeções futuras."
-								: `Saldo inicial: ${currency.format(dashboard.period.initialBalance)}`}
-						</p>
+						<div className="mt-3 space-y-1 text-primary-foreground/70 text-xs">
+							<p>Em conta: {currency.format(accountBalance)}</p>
+							<p>Poupanças: {currency.format(savingsBalance)}</p>
+							<p>
+								{isCurrentDay
+									? "Sem projeções futuras."
+									: `Saldo inicial: ${currency.format(dashboard.period.initialBalance)}`}
+							</p>
+						</div>
 					</CardContent>
 				</Card>
 				<Card className="border-0 bg-brand-yellow text-brand-ink shadow-brand-yellow/20 shadow-xl">

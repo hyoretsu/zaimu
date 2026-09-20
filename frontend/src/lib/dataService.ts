@@ -1499,6 +1499,10 @@ export const dataService = {
 				const totalBalance = accounts
 					.filter(account => !["CREDIT_CARD", "INVESTMENT", "REWARDS"].includes(account.type))
 					.reduce((sum, account) => sum + (account.balance ?? 0), 0);
+				const savingsBalance = accounts
+					.filter(account => account.type === "SAVINGS")
+					.reduce((sum, account) => sum + (account.balance ?? 0), 0);
+				const accountBalance = totalBalance - savingsBalance;
 				const owedToMe = debts.filter(d => d.isOwedToMe && !d.isPaid).reduce((sum, d) => sum + d.amount, 0);
 				const iOwe = debts.filter(d => !d.isOwedToMe && !d.isPaid).reduce((sum, d) => sum + d.amount, 0);
 				const nextMonthly = (start: string, day: number) => {
@@ -1763,12 +1767,14 @@ export const dataService = {
 								)
 							: totalBalance;
 				const period = {
+					accountBalance,
 					endDate: dateKey(rangeEnd),
 					endingBalance,
 					expenses,
 					income,
 					initialBalance: endingBalance - income + expenses,
 					net: income - expenses,
+					savingsBalance,
 					startDate: dateKey(rangeStart),
 				};
 				const comparison = Array.from({ length: 13 }, (_, index) => {
@@ -1788,6 +1794,7 @@ export const dataService = {
 						.filter(item => item.type === "EXPENSE")
 						.reduce((sum, item) => sum + item.amount, 0);
 					return {
+						accountBalance,
 						endDate: dateKey(end),
 						endingBalance:
 							totalBalance -
@@ -1802,6 +1809,7 @@ export const dataService = {
 								.filter(item => item.type !== "TRANSFER" && item.date >= start)
 								.reduce((sum, item) => sum + (item.type === "INCOME" ? item.amount : -item.amount), 0),
 						net: comparisonIncome - comparisonExpenses,
+						savingsBalance,
 						startDate: dateKey(start),
 					};
 				});
@@ -1815,6 +1823,7 @@ export const dataService = {
 							name: account.name,
 							type: account.type as "CHECKING" | "SAVINGS",
 						})),
+					balanceBreakdown: { accountBalance, savingsBalance },
 					comparison,
 					creditCards,
 					dailyBalances: transactions
