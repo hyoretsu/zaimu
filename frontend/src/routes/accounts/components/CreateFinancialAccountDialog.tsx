@@ -18,6 +18,7 @@ import { NumericField } from "@/components/ui/NumericField";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
+import { useAuthStore } from "@/stores/auth";
 import { AccountYieldFields } from "./AccountYieldFields";
 import { CashbackSettingsDialog } from "./CashbackSettingsDialog";
 import { RecalculateCurrentDayYieldDialog } from "./RecalculateCurrentDayYieldDialog";
@@ -75,6 +76,7 @@ export function CreateFinancialAccountDialog({
 		defaultInstitutionId ??
 		(defaultInstitutionId === null ? NO_INSTITUTION : undefined);
 	const [internalOpen, setInternalOpen] = useState(false);
+	const isGuestMode = useAuthStore(state => state.isGuestMode);
 	const open = controlledOpen ?? internalOpen;
 	const [institutionId, setInstitutionId] = useState<string | undefined>(initialInstitution);
 	const [newInstitutionName, setNewInstitutionName] = useDebouncedInput("", () => undefined);
@@ -87,15 +89,14 @@ export function CreateFinancialAccountDialog({
 	const [workingDueDate, setWorkingDueDate] = useState(account?.creditCard?.workingDueDate ?? false);
 	const [excludeFromTotals, setExcludeFromTotals] = useState(account?.creditCard?.excludeFromTotals ?? false);
 	const [yieldEnabled, setYieldEnabled] = useState(
-		Boolean(account?.yieldFixedRate || account?.yieldReferenceRate),
+		Boolean(account?.yieldFixedRate || (!isGuestMode && account?.yieldReferenceType)),
 	);
 	const [yieldFixedRate, setYieldFixedRate] = useDebouncedInput(
 		String(account?.yieldFixedRate ?? ""),
 		() => undefined,
 	);
-	const [yieldReferenceRate, setYieldReferenceRate] = useDebouncedInput(
-		String(account?.yieldReferenceRate ?? ""),
-		() => undefined,
+	const [yieldReferenceType, setYieldReferenceType] = useState<"" | "CDI" | "SELIC">(
+		isGuestMode ? "" : (account?.yieldReferenceType ?? ""),
 	);
 	const [yieldReferencePercentage, setYieldReferencePercentage] = useDebouncedInput(
 		String(account?.yieldReferencePercentage ?? 100),
@@ -165,9 +166,9 @@ export function CreateFinancialAccountDialog({
 		setDueDay(String(account?.creditCard?.dueDay ?? 17));
 		setWorkingDueDate(account?.creditCard?.workingDueDate ?? false);
 		setExcludeFromTotals(account?.creditCard?.excludeFromTotals ?? false);
-		setYieldEnabled(Boolean(account?.yieldFixedRate || account?.yieldReferenceRate));
+		setYieldEnabled(Boolean(account?.yieldFixedRate || (!isGuestMode && account?.yieldReferenceType)));
 		setYieldFixedRate(String(account?.yieldFixedRate ?? ""));
-		setYieldReferenceRate(String(account?.yieldReferenceRate ?? ""));
+		setYieldReferenceType(isGuestMode ? "" : (account?.yieldReferenceType ?? ""));
 		setYieldReferencePercentage(String(account?.yieldReferencePercentage ?? 100));
 		setYieldTaxRate(String(account?.yieldTaxRate ?? ""));
 		setYieldPeriod(account?.yieldPeriod ?? "MONTHLY");
@@ -203,11 +204,11 @@ export function CreateFinancialAccountDialog({
 		if (!account || type === "CREDIT_CARD") return false;
 		return (
 			(yieldEnabled && yieldFixedRate ? Number(yieldFixedRate) : null) !== (account.yieldFixedRate ?? null) ||
-			(yieldEnabled ? yieldPeriod : null) !== (account.yieldPeriod ?? null) ||
-			(yieldEnabled && yieldReferenceRate ? Number(yieldReferencePercentage) : null) !==
+			(yieldEnabled && yieldFixedRate ? yieldPeriod : null) !== (account.yieldPeriod ?? null) ||
+			(yieldEnabled && yieldReferenceType ? Number(yieldReferencePercentage) : null) !==
 				(account.yieldReferencePercentage ?? null) ||
-			(yieldEnabled && yieldReferenceRate ? Number(yieldReferenceRate) : null) !==
-				(account.yieldReferenceRate ?? null) ||
+			(yieldEnabled && yieldReferenceType ? yieldReferenceType : null) !==
+				(account.yieldReferenceType ?? null) ||
 			(yieldEnabled && yieldTaxRate !== "" ? Number(yieldTaxRate) : null) !== (account.yieldTaxRate ?? null)
 		);
 	};
@@ -294,16 +295,17 @@ export function CreateFinancialAccountDialog({
 						: account
 							? null
 							: undefined,
-				yieldPeriod: type !== "CREDIT_CARD" && yieldEnabled ? yieldPeriod : account ? null : undefined,
+				yieldPeriod:
+					type !== "CREDIT_CARD" && yieldEnabled && yieldFixedRate ? yieldPeriod : account ? null : undefined,
 				yieldReferencePercentage:
-					type !== "CREDIT_CARD" && yieldEnabled && yieldReferenceRate
+					type !== "CREDIT_CARD" && !isGuestMode && yieldEnabled && yieldReferenceType
 						? Number(yieldReferencePercentage)
 						: account
 							? null
 							: undefined,
-				yieldReferenceRate:
-					type !== "CREDIT_CARD" && yieldEnabled && yieldReferenceRate
-						? Number(yieldReferenceRate)
+				yieldReferenceType:
+					type !== "CREDIT_CARD" && !isGuestMode && yieldEnabled && yieldReferenceType
+						? yieldReferenceType
 						: account
 							? null
 							: undefined,
@@ -420,17 +422,18 @@ export function CreateFinancialAccountDialog({
 							)}
 							{type !== "CREDIT_CARD" && (
 								<AccountYieldFields
+									allowReference={!isGuestMode}
 									enabled={yieldEnabled}
 									fixedRate={yieldFixedRate}
 									onEnabledChange={setYieldEnabled}
 									onFixedRateChange={setYieldFixedRate}
 									onPeriodChange={setYieldPeriod}
 									onReferencePercentageChange={setYieldReferencePercentage}
-									onReferenceRateChange={setYieldReferenceRate}
+									onReferenceTypeChange={setYieldReferenceType}
 									onTaxRateChange={setYieldTaxRate}
 									period={yieldPeriod}
 									referencePercentage={yieldReferencePercentage}
-									referenceRate={yieldReferenceRate}
+									referenceType={yieldReferenceType}
 									taxRate={yieldTaxRate}
 								/>
 							)}
@@ -788,10 +791,10 @@ export function CreateFinancialAccountDialog({
 											(!cashbackPoints || !cashbackSpendAmount)) ||
 										(type === "CREDIT_CARD" && cashbackYieldEnabled && !cashbackYieldReferenceRate) ||
 										(type === "CREDIT_CARD" && cashbackYieldEnabled && !cashbackYieldReferencePercentage) ||
-										(type !== "CREDIT_CARD" && yieldEnabled && !yieldFixedRate && !yieldReferenceRate) ||
+										(type !== "CREDIT_CARD" && yieldEnabled && !yieldFixedRate && !yieldReferenceType) ||
 										(type !== "CREDIT_CARD" &&
 											yieldEnabled &&
-											yieldReferenceRate &&
+											yieldReferenceType &&
 											!yieldReferencePercentage) ||
 										(type === "CREDIT_CARD" &&
 											cashbackEnabled &&

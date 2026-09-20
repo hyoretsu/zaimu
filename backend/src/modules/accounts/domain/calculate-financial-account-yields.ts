@@ -245,7 +245,7 @@ function getYieldSettings(account: YieldAccount, day: string) {
 		yieldReferenceType: account.yieldReferenceType,
 		yieldTaxRate: account.yieldTaxRate,
 	};
-	if (accountSettings.yieldPeriod && (accountSettings.yieldFixedRate || accountSettings.yieldReferenceType))
+	if (accountSettings.yieldReferenceType || (accountSettings.yieldFixedRate && accountSettings.yieldPeriod))
 		return accountSettings;
 	if (account.type !== "CHECKING" && account.type !== "SAVINGS") return accountSettings;
 	return account.institutionYieldPolicies

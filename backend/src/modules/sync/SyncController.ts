@@ -18,6 +18,10 @@ import {
 	syncTransactionDebtEvent,
 } from "~/modules/debts/application";
 import type { DebtSplitInput } from "~/modules/debts/domain";
+import {
+	enqueueAccountYieldRecalculation,
+	enqueueUserYieldRecalculations,
+} from "~/modules/reference-rates/application/reference-rate-jobs";
 import { db, executeStatement, nullableNumeric, queryFirst, queryRows } from "~/shared/infra/sql";
 import { SyncBody, SyncReturn } from "./SyncDTO";
 
@@ -51,6 +55,10 @@ const optionalDate = (entity: InputEntity, field: string) => {
 	const input = value<null | string | undefined>(entity, field);
 	return input ? new Date(input) : null;
 };
+const syncRevision = (entity: InputEntity) =>
+	value<string | undefined>(entity, "updatedAt") ??
+	value<string | undefined>(entity, "createdAt") ??
+	String(Date.now());
 const entityTagIds = (entity: InputEntity) =>
 	normalizeTagIds(
 		value<string[] | undefined>(entity, "tagIds") ??
@@ -324,6 +332,19 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 							db.sql.public.RewardsAccount.insert([{ ...rewardsValues, financialAccountId: id }]).build(),
 						);
 				}
+				if (type !== "CREDIT_CARD") {
+					const recalculationDates = [
+						optionalDate(entity, "createdAt"),
+						...(yieldRateHistories ?? []).map(history =>
+							history.effectiveDate ? new Date(`${history.effectiveDate.slice(0, 10)}T00:00:00`) : null,
+						),
+					].filter((date): date is Date => Boolean(date && !Number.isNaN(date.valueOf())));
+					await enqueueAccountYieldRecalculation(
+						id,
+						recalculationDates.toSorted((left, right) => left.valueOf() - right.valueOf())[0] ?? new Date(),
+						`sync-account:${id}:${syncRevision(entity)}`,
+					);
+				}
 				accountIds.add(id);
 			});
 
@@ -369,6 +390,11 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 					await executeStatement(
 						db.sql.public.FinancialAccountYield.insert([{ ...values, financialAccountId, id }]).build(),
 					);
+				await enqueueAccountYieldRecalculation(
+					financialAccountId,
+					date,
+					`sync-yield:${id}:${syncRevision(entity)}`,
+				);
 			});
 
 			await sync("financialAccountYieldHolidays", body.financialAccountYieldHolidays, async entity => {
@@ -393,6 +419,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 					await executeStatement(
 						db.sql.public.FinancialAccountYieldHoliday.insert([{ ...values, id }]).build(),
 					);
+				await enqueueUserYieldRecalculations(userId, date, `sync-holiday:${id}:${syncRevision(entity)}`);
 			});
 
 			await sync("categories", body.categories, async entity => {
@@ -1021,6 +1048,15 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 					type: value<"EXPENSE" | "INCOME" | "TRANSFER">(entity, "type") ?? "EXPENSE",
 					userId,
 				});
+				const transactionDate = new Date(value<string>(entity, "date"));
+				for (const accountId of [originFinancialAccountId, destinationFinancialAccountId]) {
+					if (!accountId) continue;
+					await enqueueAccountYieldRecalculation(
+						accountId,
+						transactionDate,
+						`sync-transaction:${transactionId}:${syncRevision(entity)}`,
+					);
+				}
 			});
 
 			const financialAccounts = await queryRows(

@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
 	calculateFinancialAccountYieldBalances,
 	calculateGrossYield,
+	getYieldSettings,
 } from "./calculate-financial-account-yields";
 
 test("adds fixed daily yield to the BCB daily reference portion", () => {
@@ -32,6 +33,24 @@ describe("calculateFinancialAccountYieldBalances", () => {
 		yieldFixedRate: 10,
 		yieldPeriod: "MONTHLY" as const,
 	};
+
+	test("keeps a reference-only account rule without requiring fixed-rate periodicity", () => {
+		const settings = getYieldSettings(
+			{
+				...account,
+				institutionYieldPolicies: [
+					{ effectiveDate: new Date("2026-01-01T12:00:00"), rules: [], yieldPeriod: "MONTHLY" },
+				],
+				yieldFixedRate: null,
+				yieldPeriod: null,
+				yieldReferencePercentage: 100,
+				yieldReferenceType: "CDI",
+			},
+			"2026-01-05",
+		);
+
+		expect(settings).toMatchObject({ yieldReferencePercentage: 100, yieldReferenceType: "CDI" });
+	});
 
 	test("compounds only on weekdays", () => {
 		const balances = calculateFinancialAccountYieldBalances({
