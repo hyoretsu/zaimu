@@ -15,6 +15,7 @@ import {
 import { getCreditPurchaseSyncStatus } from "~/modules/creditCards/domain/credit-purchase-sync-status";
 import {
 	getEvenlyDistributedInstallmentAmounts,
+	getMissingInstallmentNumbers,
 	redistributeInstallmentAmounts,
 	sumInstallmentAmounts,
 } from "~/modules/creditCards/domain/installment-amounts";
@@ -1752,8 +1753,6 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			if (nextInstallments !== purchase.installments && purchase.installments > 1)
 				throw new HttpException("Não é possível alterar a quantidade de parcelas desta compra", 409);
 			const requestedTotalAmount = body.totalAmount ?? Number(purchase.totalAmount);
-			const totalAmountChanged =
-				body.totalAmount !== undefined && requestedTotalAmount !== Number(purchase.totalAmount);
 			const purchaseInstallments =
 				purchase.installments > 1
 					? await queryRows(
@@ -1773,10 +1772,9 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			const purchaseInstallmentsByNumber = new Map(
 				sortedPurchaseInstallments.map(installment => [installment.currentInstallment, installment]),
 			);
-			const missingInstallmentNumbers = Array.from(
-				{ length: purchase.installments },
-				(_, index) => index + 1,
-			).filter(currentInstallment => !purchaseInstallmentsByNumber.has(currentInstallment));
+			const missingInstallmentNumbers = getMissingInstallmentNumbers(purchase.installments, [
+				...purchaseInstallmentsByNumber.keys(),
+			]);
 			const shouldReconcileInstallments =
 				body.totalAmount !== undefined || missingInstallmentNumbers.length > 0;
 			let redistributedAmounts: number[] | undefined;

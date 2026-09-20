@@ -1,5 +1,19 @@
 import { describe, expect, test } from "bun:test";
-import { redistributeInstallmentAmounts, sumInstallmentAmounts } from "./installment-amounts";
+import {
+	getMissingInstallmentNumbers,
+	redistributeInstallmentAmounts,
+	sumInstallmentAmounts,
+} from "./installment-amounts";
+
+describe("getMissingInstallmentNumbers", () => {
+	test("does not treat a single parent purchase as a missing installment", () => {
+		expect(getMissingInstallmentNumbers(1, [])).toEqual([]);
+	});
+
+	test("finds gaps in multi-installment purchases", () => {
+		expect(getMissingInstallmentNumbers(4, [1, 3])).toEqual([2, 4]);
+	});
+});
 
 describe("redistributeInstallmentAmounts", () => {
 	test("redistributes the parent total without changing imported installments", () => {

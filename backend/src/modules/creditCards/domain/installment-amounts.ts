@@ -20,6 +20,14 @@ export function getEvenlyDistributedInstallmentAmounts(totalAmount: number, inst
 	return distributeCents(totalAmountInCents, installments).map(amountInCents => amountInCents / 100);
 }
 
+export function getMissingInstallmentNumbers(installments: number, existingInstallmentNumbers: number[]) {
+	if (installments <= 1) return [];
+	const existingNumbers = new Set(existingInstallmentNumbers);
+	return Array.from({ length: installments }, (_, index) => index + 1).filter(
+		currentInstallment => !existingNumbers.has(currentInstallment),
+	);
+}
+
 export function redistributeInstallmentAmounts(
 	totalAmount: number,
 	installments: Array<{
