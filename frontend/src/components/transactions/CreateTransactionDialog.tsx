@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { DebtSplitEditor } from "@/components/debts";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
@@ -149,26 +150,34 @@ export function CreateTransactionDialog({
 			});
 			return { statement: null, transaction };
 		},
-		onError: error => showToast(error.message, "negative"),
-		onSuccess: async (_, { draft }) => {
+		onError: (error, _, context) => {
+			toast.dismiss(context?.toastId);
+			showToast(error.message, "negative");
+		},
+		onMutate: () => {
+			handleOpenChange(false);
+			return {
+				toastId: toast.loading("Salvando transação…", { position: "bottom-right" }),
+			};
+		},
+		onSuccess: async (_, { draft }, context) => {
 			await invalidateCacheOperation(
 				queryClient,
 				identity!,
 				draft.type === "YIELD" ? "yield" : "transaction",
 			);
-			showToast(
+			toast.success(
 				draft.creditCardStatementId
 					? "Transação associada à fatura."
 					: draft.type === "YIELD"
 						? "Rendimento registrado."
 						: "Transação registrada.",
-				"positive",
+				{ id: context?.toastId, position: "bottom-right" },
 			);
 		},
 	});
 	const save = () => {
 		create.mutate({ debtSplit, description, draft, isDebt, sendWithoutTime });
-		reset();
 	};
 
 	return (
