@@ -41,7 +41,10 @@ export function CreditCardImportReviewDialog({
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
 	const [editingItem, setEditingItem] = useState<CreditCardImportItem | null>(null);
-	const [reconcilingItem, setReconcilingItem] = useState<CreditCardImportItem | null>(null);
+	const [reconcilingImport, setReconcilingImport] = useState<{
+		id: string;
+		item: CreditCardImportItem;
+	} | null>(null);
 	const [approvingItemIds, setApprovingItemIds] = useState<Set<string>>(new Set());
 	const [discardConfirmationOpen, setDiscardConfirmationOpen] = useState(false);
 	const creditCardImport = useQuery({
@@ -54,11 +57,15 @@ export function CreditCardImportReviewDialog({
 		queryFn: () => dataService.creditCards.getAll(),
 		queryKey: queryKeys.creditCards.list(identity!),
 	});
-	const invalidate = () =>
+	const invalidate = (targetImportId = importId) =>
 		invalidateQueryKeys(queryClient, [
-			queryKeys.creditCardImports.detail(identity!, importId),
+			queryKeys.creditCardImports.detail(identity!, targetImportId),
 			queryKeys.creditCardImports.pending(identity!),
 		]);
+	const handleReviewOpenChange = (nextOpen: boolean) => {
+		if (!nextOpen && (editingItem || reconcilingImport || discardConfirmationOpen)) return;
+		onOpenChange(nextOpen);
+	};
 	const invalidateCreditCards = () => invalidateCacheOperation(queryClient, identity!, "statement");
 	const closeFinishedReview = async () => {
 		if (!importId) return;
@@ -103,17 +110,23 @@ export function CreditCardImportReviewDialog({
 	const reconcileItem = useMutation({
 		mutationFn: ({
 			creditPurchaseId,
+			importId: reconciliationImportId,
 			itemId,
 			sources,
 		}: {
 			creditPurchaseId: string;
+			importId: string;
 			itemId: string;
 			sources?: Parameters<typeof dataService.creditCardImports.reconcileItem>[2]["sources"];
-		}) => dataService.creditCardImports.reconcileItem(importId!, itemId, { creditPurchaseId, sources }),
+		}) =>
+			dataService.creditCardImports.reconcileItem(reconciliationImportId, itemId, {
+				creditPurchaseId,
+				sources,
+			}),
 		onError: error => showToast(error.message, "negative"),
-		onSuccess: async () => {
-			setReconcilingItem(null);
-			await invalidate();
+		onSuccess: async (_data, variables) => {
+			setReconcilingImport(null);
+			await invalidate(variables.importId);
 			showToast("Conciliação atualizada.", "positive");
 		},
 	});
@@ -151,7 +164,7 @@ export function CreditCardImportReviewDialog({
 
 	return (
 		<>
-			<Dialog onOpenChange={onOpenChange} open={open}>
+			<Dialog onOpenChange={handleReviewOpenChange} open={open}>
 				<DialogContent className="max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-2xl">
 					<DialogHeader>
 						<DialogTitle>Revisar fatura importada</DialogTitle>
@@ -185,7 +198,10 @@ export function CreditCardImportReviewDialog({
 										key={item.id}
 										onApprove={() => approveItem.mutate(item.id)}
 										onEdit={() => setEditingItem(item)}
-										onReconcile={() => setReconcilingItem(item)}
+										onReconcile={() => {
+											if (!importId) return;
+											setReconcilingImport({ id: importId, item });
+										}}
 									/>
 								))}
 							</div>
@@ -247,17 +263,18 @@ export function CreditCardImportReviewDialog({
 				pending={updateItem.isPending}
 			/>
 			<CreditPurchaseReconciliationDialog
-				item={reconcilingItem}
-				onOpenChange={nextOpen => !nextOpen && setReconcilingItem(null)}
+				item={reconcilingImport?.item ?? null}
+				onOpenChange={nextOpen => !nextOpen && setReconcilingImport(null)}
 				onReconcile={async (candidate, sources) => {
-					if (!reconcilingItem) return;
+					if (!reconcilingImport) return;
 					await reconcileItem.mutateAsync({
 						creditPurchaseId: candidate.id,
-						itemId: reconcilingItem.id,
+						importId: reconcilingImport.id,
+						itemId: reconcilingImport.item.id,
 						sources,
 					});
 				}}
-				open={reconcilingItem !== null}
+				open={reconcilingImport !== null}
 				pending={reconcileItem.isPending}
 			/>
 		</>
