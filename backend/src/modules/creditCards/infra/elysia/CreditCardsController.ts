@@ -1640,7 +1640,30 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			await assertCreditCardOwnership(params.id, userId);
 			const purchase = await findPurchaseForCard(params.id, params.purchaseId);
 			if (!purchase) throw new HttpException("Purchase not found", 404);
-			if (purchase.isPaid) throw new HttpException("Paid statement purchases cannot be edited", 409);
+			const purchaseSyncRows = await queryRows(
+				db.sql.public.CreditPurchase.innerJoin(db.sql.public.CreditCardStatement, (fields, functions) =>
+					functions.eq(fields.CreditPurchase.statementId, fields.CreditCardStatement.id),
+				)
+					.select(fields => ({
+						hasImportedAmount: fields.CreditPurchase.hasImportedAmount,
+						id: fields.CreditPurchase.id,
+						installments: fields.CreditPurchase.installments,
+						parentId: fields.CreditPurchase.parentId,
+						statementDate: fields.CreditCardStatement.statementDate,
+					}))
+					.where((fields, functions) => functions.eq(fields.CreditCardStatement.creditCardId, params.id))
+					.build(),
+			);
+			const isSynced = getCreditPurchaseSyncStatus(purchaseSyncRows).get(purchase.id)?.isSynced ?? false;
+			const changesAmount =
+				(body.installmentAmount !== undefined &&
+					body.installmentAmount !== Number(purchase.installmentAmount)) ||
+				(body.totalAmount !== undefined && body.totalAmount !== Number(purchase.totalAmount));
+			const changesDate =
+				body.purchaseDate !== undefined &&
+				body.purchaseDate !== purchase.purchaseDate.toISOString().slice(0, 10);
+			if (isSynced && (changesAmount || changesDate))
+				throw new HttpException("Synced purchases cannot have their amount or date edited", 409);
 			if (body.creditCardId) await assertCreditCardOwnership(body.creditCardId, userId);
 			if (body.storeName) await resolveStore(userId, body.storeName);
 			const tagIds = body.tagIds === undefined ? undefined : await assertTagOwnership(body.tagIds, userId);

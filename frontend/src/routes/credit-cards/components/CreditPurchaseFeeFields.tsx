@@ -6,11 +6,13 @@ import { MoneyField } from "@/components/ui/MoneyField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 
 export function CreditPurchaseFeeFields({
+	amountDisabled = false,
 	feeAmount,
 	feeDescription,
 	onFeeAmountChange,
 	onFeeDescriptionChange,
 }: {
+	amountDisabled?: boolean;
 	feeAmount: string;
 	feeDescription: string;
 	onFeeAmountChange: (value: string) => void;
@@ -31,6 +33,7 @@ export function CreditPurchaseFeeFields({
 			<CheckboxField
 				checkboxProps={{
 					checked: hasFee,
+					disabled: amountDisabled,
 					id: "purchase-has-fee",
 					onCheckedChange: checked => {
 						const nextHasFee = checked === true;
@@ -60,6 +63,7 @@ export function CreditPurchaseFeeFields({
 						value={localFeeDescription}
 					/>
 					<MoneyField
+						disabled={amountDisabled}
 						id="purchase-fee-amount"
 						label="Valor da taxa"
 						onValueChange={onFeeAmountChange}

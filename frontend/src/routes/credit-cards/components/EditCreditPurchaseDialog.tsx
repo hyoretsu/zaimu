@@ -61,6 +61,7 @@ export function EditCreditPurchaseDialog({
 	pending: boolean;
 	purchase: CreditPurchase;
 }) {
+	const isSynced = purchase.isSynced === true;
 	const [description, setDescription] = useDebouncedInput(purchase.description, () => undefined);
 	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>(() => debtSplitToInput(purchase.debtSplit));
 	const [isDebt, setIsDebt] = useState(Boolean(purchase.debtSplit));
@@ -103,6 +104,7 @@ export function EditCreditPurchaseDialog({
 						</DialogDescription>
 					</DialogHeader>
 					<MoneyField
+						disabled={isSynced}
 						id={installmentAmountId}
 						label={`Valor da parcela ${purchase.currentInstallment}/${purchase.installments}`}
 						onValueChange={setAmount}
@@ -137,11 +139,11 @@ export function EditCreditPurchaseDialog({
 			feeAmount: Number(feeAmount || 0),
 			feeDescription: feeAmount ? feeDescription.trim() || undefined : undefined,
 			installments,
-			purchaseDate: date,
+			...(isSynced ? {} : { purchaseDate: date }),
 			...(updatedStoreName !== undefined && { storeName: updatedStoreName }),
 			tagIds,
 			time: time || null,
-			totalAmount,
+			...(isSynced ? {} : { totalAmount }),
 		});
 	};
 
@@ -186,6 +188,7 @@ export function EditCreditPurchaseDialog({
 							/>
 							<StorePicker onValueChange={setStoreName} value={storeName} />
 							<MoneyField
+								disabled={isSynced}
 								id="credit-purchase-amount"
 								label="Valor da compra"
 								onValueChange={setAmount}
@@ -194,6 +197,7 @@ export function EditCreditPurchaseDialog({
 								value={amount}
 							/>
 							<CreditPurchaseFeeFields
+								amountDisabled={isSynced}
 								feeAmount={feeAmount}
 								feeDescription={feeDescription}
 								onFeeAmountChange={setFeeAmount}
@@ -214,6 +218,8 @@ export function EditCreditPurchaseDialog({
 								/>
 								<DateField
 									autoComplete="off"
+									description={isSynced ? "Compras sincronizadas não permitem alterar a data." : undefined}
+									disabled={isSynced}
 									id="credit-purchase-date"
 									label="Data da compra"
 									name="credit-purchase-date"

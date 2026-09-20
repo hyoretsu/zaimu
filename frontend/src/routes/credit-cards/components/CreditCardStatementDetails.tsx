@@ -190,7 +190,7 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 										<CreditCardPaymentRow key={entry.id} payment={entry.payment} />
 									) : (
 										<CreditPurchaseRow
-											disabled={statement.isPaid || statement.isForecast === true || deletePurchase.isPending}
+											disabled={statement.isForecast === true || deletePurchase.isPending}
 											key={entry.id}
 											onDelete={() => deletePurchase.mutateAsync(entry.purchase.id)}
 											onEdit={() => setEditingPurchase(entry.purchase)}
