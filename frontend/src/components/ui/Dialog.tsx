@@ -5,8 +5,8 @@ import type { ComponentProps } from "react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 
-function Dialog({ ...props }: ComponentProps<typeof DialogPrimitive.Root>) {
-	return <DialogPrimitive.Root data-slot="dialog" {...props} />;
+function Dialog({ modal = false, ...props }: ComponentProps<typeof DialogPrimitive.Root>) {
+	return <DialogPrimitive.Root data-slot="dialog" modal={modal} {...props} />;
 }
 
 function DialogTrigger({ ...props }: ComponentProps<typeof DialogPrimitive.Trigger>) {
@@ -21,9 +21,9 @@ function DialogClose({ ...props }: ComponentProps<typeof DialogPrimitive.Close>)
 	return <DialogPrimitive.Close data-slot="dialog-close" {...props} />;
 }
 
-function DialogOverlay({ className, ...props }: ComponentProps<typeof DialogPrimitive.Overlay>) {
+function DialogOverlay({ className, ...props }: ComponentProps<"div">) {
 	return (
-		<DialogPrimitive.Overlay
+		<div
 			className={cn(
 				"data-open:fade-in-0 data-closed:fade-out-0 fixed inset-0 isolate z-50 bg-black/80 duration-100 data-closed:animate-out data-open:animate-in supports-backdrop-filter:backdrop-blur-xs",
 				className,
