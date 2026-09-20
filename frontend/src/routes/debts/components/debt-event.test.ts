@@ -1,8 +1,12 @@
 import { expect, test } from "bun:test";
 import type { DebtEvent } from "@/lib/api";
-import { compareDebtEventsByDateThenLabel, getDebtEventCreatorLabel, getDebtEventLabel } from "./debt-event";
+import {
+	compareDebtEventsByDateTimeThenLabel,
+	getDebtEventCreatorLabel,
+	getDebtEventLabel,
+} from "./debt-event";
 
-const event = (id: string, date: string, description: string): DebtEvent => ({
+const event = (id: string, date: string, description: string, time: null | string = null): DebtEvent => ({
 	amount: 1,
 	createdByMe: true,
 	createdByName: "Você",
@@ -12,18 +16,21 @@ const event = (id: string, date: string, description: string): DebtEvent => ({
 	effect: -1,
 	id,
 	kind: "TRANSACTION",
+	time,
 });
 
-test("ordena lançamentos da dívida por data e descrição em caso de empate", () => {
+test("ordena lançamentos da dívida por data, horário e descrição", () => {
 	const events = [
-		event("iphone", "2026-09-01", "iPhone 17"),
-		event("abafador", "2026-09-01", "Abafador de ruído"),
+		event("iphone", "2026-09-01", "iPhone 17", "18:30:00"),
+		event("abafador", "2026-09-01", "Abafador de ruído", "20:15:00"),
+		event("café", "2026-09-01", "Café"),
 		event("água", "2026-08-03", "Água"),
 	];
 
-	expect(events.toSorted(compareDebtEventsByDateThenLabel).map(getDebtEventLabel)).toEqual([
+	expect(events.toSorted(compareDebtEventsByDateTimeThenLabel).map(getDebtEventLabel)).toEqual([
 		"Abafador de ruído",
 		"iPhone 17",
+		"Café",
 		"Água",
 	]);
 });

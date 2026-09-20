@@ -22,6 +22,7 @@ export const DebtEventReturn = t.Object({
 	effect: t.Number(),
 	id: Id,
 	kind: EventKind,
+	time: NullableString,
 });
 
 export const DebtLedgerReturn = t.Object({

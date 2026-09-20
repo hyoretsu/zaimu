@@ -17,13 +17,21 @@ export function getDebtEventCreatorLabel(event: DebtEvent) {
 	return `Criado por ${firstName}`;
 }
 
-export function compareDebtEventsByDateThenLabel(left: DebtEvent, right: DebtEvent) {
+export function compareDebtEventsByDateTimeThenLabel(left: DebtEvent, right: DebtEvent) {
 	if (left.date && right.date) {
 		const dateComparison = right.date.localeCompare(left.date);
 		if (dateComparison) return dateComparison;
 	} else if (left.date) {
 		return -1;
 	} else if (right.date) {
+		return 1;
+	}
+	if (left.time && right.time) {
+		const timeComparison = right.time.localeCompare(left.time);
+		if (timeComparison) return timeComparison;
+	} else if (left.time) {
+		return -1;
+	} else if (right.time) {
 		return 1;
 	}
 

@@ -13,8 +13,12 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import type { DebtEvent, DebtPerson } from "@/lib/api";
-import { formatLocalDate } from "@/lib/date";
-import { compareDebtEventsByDateThenLabel, getDebtEventCreatorLabel, getDebtEventLabel } from "./debt-event";
+import { formatLocalDate, formatLocalTime } from "@/lib/date";
+import {
+	compareDebtEventsByDateTimeThenLabel,
+	getDebtEventCreatorLabel,
+	getDebtEventLabel,
+} from "./debt-event";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
@@ -99,7 +103,7 @@ export function DebtPersonCard({
 			</div>
 			{expanded ? (
 				<div className="mt-4 grid gap-2 border-t pt-4">
-					{person.events.toSorted(compareDebtEventsByDateThenLabel).map(event => (
+					{person.events.toSorted(compareDebtEventsByDateTimeThenLabel).map(event => (
 						<div
 							className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-2 rounded-xl border p-3 sm:flex sm:gap-3"
 							key={event.id}
@@ -110,7 +114,9 @@ export function DebtPersonCard({
 							<div className="min-w-0 flex-1">
 								<p className="truncate font-medium text-sm">{getDebtEventLabel(event)}</p>
 								<p className="text-muted-foreground text-xs">
-									{event.date ? `${formatLocalDate(event.date)} · ` : ""}
+									{event.date ? formatLocalDate(event.date) : ""}
+									{formatLocalTime(event.time) ? ` · ${formatLocalTime(event.time)}` : ""}
+									{event.date || event.time ? " · " : ""}
 									{getDebtEventCreatorLabel(event)}
 								</p>
 							</div>

@@ -474,6 +474,7 @@ export interface DebtEvent {
 	dueDate?: string | null;
 	description?: string | null;
 	kind: "ORIGIN" | "TRANSACTION" | "PURCHASE" | "MIGRATED_SETTLEMENT";
+	time: string | null;
 	createdByUserId: string;
 	createdByName: string;
 	createdByMe: boolean;

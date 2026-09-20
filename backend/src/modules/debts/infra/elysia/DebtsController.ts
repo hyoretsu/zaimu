@@ -30,8 +30,8 @@ type DebtConnectionState = "PENDING" | "ACCEPTED" | "DECLINED";
 type DebtEventType = "ORIGIN" | "TRANSACTION" | "PURCHASE" | "MIGRATED_SETTLEMENT";
 
 function compareDebtEvents(
-	left: { date: Date | null; description: null | string; kind: DebtEventType },
-	right: { date: Date | null; description: null | string; kind: DebtEventType },
+	left: { date: Date | null; description: null | string; kind: DebtEventType; time: null | string },
+	right: { date: Date | null; description: null | string; kind: DebtEventType; time: null | string },
 ) {
 	if (left.date && right.date) {
 		const dateComparison = right.date.getTime() - left.date.getTime();
@@ -39,6 +39,14 @@ function compareDebtEvents(
 	} else if (left.date) {
 		return -1;
 	} else if (right.date) {
+		return 1;
+	}
+	if (left.time && right.time) {
+		const timeComparison = right.time.localeCompare(left.time);
+		if (timeComparison) return timeComparison;
+	} else if (left.time) {
+		return -1;
+	} else if (right.time) {
 		return 1;
 	}
 	const labels: Record<DebtEventType, string> = {
@@ -171,6 +179,39 @@ async function getSourceByDebtEventId(eventIds: string[]) {
 	]);
 }
 
+async function getTimeByDebtEventId(eventIds: string[]) {
+	if (!eventIds.length) return new Map<string, null | string>();
+	const [transactions, purchases] = await Promise.all([
+		queryRows(
+			db.sql.public.DebtTransactionLink.innerJoin(db.sql.public.Transaction, (fields, functions) =>
+				functions.eq(fields.DebtTransactionLink.transactionId, fields.Transaction.id),
+			)
+				.select(fields => ({ eventId: fields.DebtTransactionLink.eventId, time: fields.Transaction.time }))
+				.where((fields, functions) =>
+					functions.and(
+						functions.eq(fields.DebtTransactionLink.isCreator, true),
+						functions.in(fields.DebtTransactionLink.eventId, eventIds),
+					),
+				)
+				.build(),
+		),
+		queryRows(
+			db.sql.public.DebtPurchaseLink.innerJoin(db.sql.public.CreditPurchase, (fields, functions) =>
+				functions.eq(fields.DebtPurchaseLink.creditPurchaseId, fields.CreditPurchase.id),
+			)
+				.select(fields => ({ eventId: fields.DebtPurchaseLink.eventId, time: fields.CreditPurchase.time }))
+				.where((fields, functions) =>
+					functions.and(
+						functions.eq(fields.DebtPurchaseLink.isCreator, true),
+						functions.in(fields.DebtPurchaseLink.eventId, eventIds),
+					),
+				)
+				.build(),
+		),
+	]);
+	return new Map([...transactions, ...purchases].map(item => [item.eventId, item.time] as const));
+}
+
 async function getPersonEvents(person: { connectionId: null | string; id: string }, userId: string) {
 	const connection = await getConnection(person.connectionId);
 	const shared = connection?.status === "ACCEPTED";
@@ -230,12 +271,17 @@ async function getPersonEvents(person: { connectionId: null | string; id: string
 		: [];
 	const hiddenIds = new Set(hidden.filter(item => item.hiddenAt).map(item => item.eventId));
 	const visibleEvents = events.filter(event => !hiddenIds.has(event.id));
-	const [incomeTransactionDescriptionsByDebtEventId, purchaseNamesByDebtEventId, sourceByEventId] =
-		await Promise.all([
-			getIncomeTransactionDescriptionsByDebtEventId(visibleEvents.map(event => event.id)),
-			getPurchaseNamesByDebtEventId(visibleEvents.map(event => event.id)),
-			getSourceByDebtEventId(visibleEvents.map(event => event.id)),
-		]);
+	const [
+		incomeTransactionDescriptionsByDebtEventId,
+		purchaseNamesByDebtEventId,
+		sourceByEventId,
+		timeByEventId,
+	] = await Promise.all([
+		getIncomeTransactionDescriptionsByDebtEventId(visibleEvents.map(event => event.id)),
+		getPurchaseNamesByDebtEventId(visibleEvents.map(event => event.id)),
+		getSourceByDebtEventId(visibleEvents.map(event => event.id)),
+		getTimeByDebtEventId(visibleEvents.map(event => event.id)),
+	]);
 	return removeDuplicateSourcedDebtEvents(
 		visibleEvents as Array<(typeof visibleEvents)[number] & { debtPersonId: string }>,
 		sourceByEventId,
@@ -249,6 +295,7 @@ async function getPersonEvents(person: { connectionId: null | string; id: string
 				: (event.description ?? purchaseNamesByDebtEventId.get(event.id) ?? null),
 			effect: event.createdByUserId === userId ? Number(event.effect) : -Number(event.effect),
 			kind: event.kind as DebtEventType,
+			time: timeByEventId.get(event.id) ?? null,
 		}))
 		.toSorted(compareDebtEvents);
 }
