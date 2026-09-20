@@ -336,7 +336,7 @@ export function CreateFinancialAccountDialog({
 	};
 
 	return (
-		<Dialog onOpenChange={handleOpenChange} open={open}>
+		<Dialog modal onOpenChange={handleOpenChange} open={open}>
 			{showTrigger && (
 				<DialogTrigger asChild>
 					<Button

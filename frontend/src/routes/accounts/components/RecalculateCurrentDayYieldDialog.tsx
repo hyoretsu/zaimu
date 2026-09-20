@@ -20,7 +20,7 @@ export function RecalculateCurrentDayYieldDialog({
 	open: boolean;
 }) {
 	return (
-		<Dialog onOpenChange={onOpenChange} open={open}>
+		<Dialog modal onOpenChange={onOpenChange} open={open}>
 			<DialogContent showCloseButton={false}>
 				<DialogHeader>
 					<DialogTitle>Recalcular o rendimento de hoje?</DialogTitle>
