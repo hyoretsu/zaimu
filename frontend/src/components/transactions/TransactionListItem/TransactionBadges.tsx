@@ -4,6 +4,7 @@ import {
 	LuCreditCard,
 	LuLandmark,
 	LuReceiptText,
+	LuRepeat2,
 	LuStore,
 	LuUsersRound,
 } from "react-icons/lu";
@@ -24,6 +25,7 @@ export function TransactionBadges({
 	creditCardPayment,
 	debtPersonName,
 	isSynced = false,
+	isSubscription = false,
 	storeName,
 	tags,
 }: {
@@ -31,6 +33,7 @@ export function TransactionBadges({
 	creditCardPayment?: { cardName: string; statementDate?: string };
 	debtPersonName?: string;
 	isSynced?: boolean;
+	isSubscription?: boolean;
 	storeName?: string | null;
 	tags?: Tag[];
 }) {
@@ -104,6 +107,14 @@ export function TransactionBadges({
 					<AppBadge variant="outline">
 						<LuCloudDownload aria-hidden="true" className="text-emerald-600" />
 						<span>Sincronizada</span>
+					</AppBadge>
+				</li>
+			) : null}
+			{isSubscription ? (
+				<li>
+					<AppBadge variant="outline">
+						<LuRepeat2 aria-hidden="true" className="text-primary" />
+						<span>Assinatura</span>
 					</AppBadge>
 				</li>
 			) : null}
