@@ -20,6 +20,8 @@ export function TransferSuggestionDecisionDialog({
 	onReject,
 	open,
 	pending,
+	rejectConfirmation = "Nunca sugerir este par novamente?",
+	rejectLabel = "Recusar",
 }: {
 	counterpartTransaction: Transaction | null;
 	currentTransaction: Transaction | null;
@@ -28,6 +30,8 @@ export function TransferSuggestionDecisionDialog({
 	onReject: () => void;
 	open: boolean;
 	pending: boolean;
+	rejectConfirmation?: string | null;
+	rejectLabel?: string;
 }) {
 	if (!currentTransaction || !counterpartTransaction) return null;
 	return (
@@ -53,20 +57,31 @@ export function TransferSuggestionDecisionDialog({
 					>
 						Cancelar
 					</Button>
-					<ConfirmActionButton
-						className="w-full cursor-pointer disabled:cursor-not-allowed"
-						confirmation="Nunca sugerir este par novamente?"
-						confirmChildren={
-							<>
-								<LuX aria-hidden="true" /> Confirmar
-							</>
-						}
-						disabled={pending}
-						onConfirm={onReject}
-						variant="outline"
-					>
-						<LuX aria-hidden="true" /> Recusar
-					</ConfirmActionButton>
+					{rejectConfirmation ? (
+						<ConfirmActionButton
+							className="w-full cursor-pointer disabled:cursor-not-allowed"
+							confirmation={rejectConfirmation}
+							confirmChildren={
+								<>
+									<LuX aria-hidden="true" /> Confirmar
+								</>
+							}
+							disabled={pending}
+							onConfirm={onReject}
+							variant="outline"
+						>
+							<LuX aria-hidden="true" /> {rejectLabel}
+						</ConfirmActionButton>
+					) : (
+						<Button
+							className="w-full cursor-pointer disabled:cursor-not-allowed"
+							disabled={pending}
+							onClick={onReject}
+							variant="outline"
+						>
+							<LuX aria-hidden="true" /> {rejectLabel}
+						</Button>
+					)}
 					<Button
 						className="w-full cursor-pointer disabled:cursor-not-allowed"
 						disabled={pending}

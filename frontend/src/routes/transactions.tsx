@@ -8,12 +8,13 @@ import {
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { HiArrowsRightLeft, HiPlus } from "react-icons/hi2";
-import { LuArrowLeftRight, LuFileUp, LuLoaderCircle } from "react-icons/lu";
+import { LuArrowLeftRight, LuEye, LuFileUp, LuLoaderCircle } from "react-icons/lu";
 import {
 	ImportTransactionsDialog,
 	PendingTransactionImportsNotice,
 	TransactionImportReviewDialog,
 } from "@/components/transaction-imports";
+import { TransferSuggestionDecisionDialog } from "@/components/transaction-imports/TransferSuggestionDecisionDialog";
 import {
 	CreateTransactionDialog,
 	EditTransactionDialog,
@@ -89,6 +90,11 @@ export function TransactionsPage() {
 	const [refundingPurchase, setRefundingPurchase] = useState<Transaction | null>(null);
 	const [filters, setFilters] = useState<TransactionFiltersValue>(initialTransactionFilters);
 	const [expandedHiddenGroups, setExpandedHiddenGroups] = useState<Set<string>>(() => new Set());
+	const [ignoredTransferSuggestions, setIgnoredTransferSuggestions] = useState<Set<string>>(() => new Set());
+	const [transferSuggestionDecision, setTransferSuggestionDecision] = useState<{
+		counterpart: Transaction;
+		transaction: Transaction;
+	} | null>(null);
 	const loadMoreRef = useRef<HTMLDivElement>(null);
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
@@ -148,11 +154,24 @@ export function TransactionsPage() {
 	}, [transactionsQuery.fetchNextPage, transactionsQuery.hasNextPage, transactionsQuery.isFetchingNextPage]);
 
 	const transferSuggestions = getTransferSuggestions(transactions);
+	const getTransferSuggestionKey = (transaction: Transaction, counterpart: Transaction) =>
+		[transaction.id, counterpart.id].sort().join(":");
+	const visibleTransferSuggestions = transferSuggestions.filter(
+		({ counterpart, transaction }) =>
+			!ignoredTransferSuggestions.has(getTransferSuggestionKey(transaction, counterpart)),
+	);
+	const ignoreTransferSuggestion = (transaction: Transaction, counterpart: Transaction) => {
+		setIgnoredTransferSuggestions(current =>
+			new Set(current).add(getTransferSuggestionKey(transaction, counterpart)),
+		);
+		showToast("Sugestão de transferência ignorada.", "info");
+	};
 	const acceptTransferSuggestion = useMutation({
 		mutationFn: ({ counterpart, transaction }: { counterpart: Transaction; transaction: Transaction }) =>
 			dataService.transactions.acceptTransferSuggestion(transaction.id, counterpart.id),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
+			setTransferSuggestionDecision(null);
 			await invalidateCacheOperation(queryClient, identity!, "transaction");
 			showToast("Movimentos combinados como transferência.", "positive");
 		},
@@ -263,7 +282,7 @@ export function TransactionsPage() {
 				}
 				key={transaction.id}
 				metadataPrefix={
-					transferSuggestions.some(
+					visibleTransferSuggestions.some(
 						item => item.transaction.id === transaction.id || item.counterpart.id === transaction.id,
 					) ? (
 						<span className="inline-flex items-center gap-1 text-primary text-xs">
@@ -313,38 +332,71 @@ export function TransactionsPage() {
 				title="Transações"
 			/>
 			<PendingTransactionImportsNotice onReview={setReviewingImportId} />
-			{transferSuggestions.length ? (
+			{visibleTransferSuggestions.length ? (
 				<section className="rounded-2xl border border-primary/40 bg-primary/10 p-4">
 					<div className="flex items-center gap-3">
 						<LuArrowLeftRight className="text-primary" />
 						<div>
 							<p className="font-semibold">Transferências sugeridas</p>
 							<p className="text-muted-foreground text-sm">
-								{transferSuggestions.length}{" "}
-								{transferSuggestions.length === 1 ? "par encontrado" : "pares encontrados"} no mesmo dia.
+								{visibleTransferSuggestions.length}{" "}
+								{visibleTransferSuggestions.length === 1 ? "par encontrado" : "pares encontrados"} no mesmo
+								dia.
 							</p>
 						</div>
 					</div>
 					<div className="mt-3 space-y-2">
-						{transferSuggestions.map(({ counterpart, transaction }) => (
-							<Button
-								className="w-full cursor-pointer justify-between"
-								disabled={acceptTransferSuggestion.isPending}
+						{visibleTransferSuggestions.map(({ counterpart, transaction }) => (
+							<div
+								className="flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-background/40 p-3 sm:flex-row sm:items-center sm:justify-between"
 								key={`${transaction.id}-${counterpart.id}`}
-								onClick={() => acceptTransferSuggestion.mutate({ counterpart, transaction })}
-								variant="outline"
 							>
-								<span className="min-w-0 truncate">
-									{transaction.description || "Saída"} ↔ {counterpart.description || "Entrada"}
-								</span>
-								<span className="shrink-0">
-									<LuArrowLeftRight /> Combinar
-								</span>
-							</Button>
+								<div className="min-w-0 space-y-1">
+									<p className="break-words font-medium">
+										{transaction.description || "Saída"} ↔ {counterpart.description || "Entrada"}
+									</p>
+									<p className="text-muted-foreground text-xs">
+										{formatLocalDate(transaction.date)} · {currency.format(Number(transaction.amount))} ·{" "}
+										{formatLocalTime(transaction.time) ?? "Sem horário"}
+										{counterpart.time ? ` ↔ ${formatLocalTime(counterpart.time)}` : ""}
+									</p>
+								</div>
+								<div className="flex shrink-0 flex-wrap gap-2">
+									<Button
+										className="cursor-pointer disabled:cursor-not-allowed"
+										disabled={acceptTransferSuggestion.isPending}
+										onClick={() => setTransferSuggestionDecision({ counterpart, transaction })}
+										size="sm"
+										variant="outline"
+									>
+										<LuEye aria-hidden="true" /> Ver 2 transações
+									</Button>
+								</div>
+							</div>
 						))}
 					</div>
 				</section>
 			) : null}
+			<TransferSuggestionDecisionDialog
+				counterpartTransaction={transferSuggestionDecision?.counterpart ?? null}
+				currentTransaction={transferSuggestionDecision?.transaction ?? null}
+				onAccept={() => {
+					if (transferSuggestionDecision) acceptTransferSuggestion.mutate(transferSuggestionDecision);
+				}}
+				onOpenChange={open => !open && setTransferSuggestionDecision(null)}
+				onReject={() => {
+					if (!transferSuggestionDecision) return;
+					ignoreTransferSuggestion(
+						transferSuggestionDecision.transaction,
+						transferSuggestionDecision.counterpart,
+					);
+					setTransferSuggestionDecision(null);
+				}}
+				open={transferSuggestionDecision !== null}
+				pending={acceptTransferSuggestion.isPending}
+				rejectConfirmation={null}
+				rejectLabel="Ignorar"
+			/>
 
 			<TransactionFilters
 				filters={filters}

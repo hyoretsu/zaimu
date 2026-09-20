@@ -12,6 +12,7 @@ function formatCurrency(value: number) {
 }
 
 export function TransactionListItem({
+	additionalActionItems,
 	actionItems,
 	amount,
 	className,
@@ -24,6 +25,7 @@ export function TransactionListItem({
 	title,
 	transaction,
 }: {
+	additionalActionItems?: ItemAction[];
 	actionItems?: ItemAction[];
 	amount?: ReactNode;
 	className?: string;
@@ -113,12 +115,13 @@ export function TransactionListItem({
 				]
 			: []),
 	];
+	const allActionItems = actionItems ?? [...(additionalActionItems ?? []), ...defaultActionItems];
 
 	return (
 		<ListItemLayout
 			actions={
-				actionItems || defaultActionItems.length ? (
-					<ItemActions actions={actionItems ?? defaultActionItems} forceCompact={forceCompactActions} />
+				allActionItems.length ? (
+					<ItemActions actions={allActionItems} forceCompact={forceCompactActions} />
 				) : undefined
 			}
 			amount={
