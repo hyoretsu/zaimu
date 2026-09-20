@@ -4,7 +4,7 @@ import { useState } from "react";
 import { LuPlus, LuUsersRound } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
-import type { DebtEvent } from "@/lib/api";
+import type { DebtEvent, DebtPerson } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
@@ -13,6 +13,7 @@ import {
 	type CreateDebtOriginDraft,
 	DebtInvitations,
 	DebtPersonCard,
+	EditDebtPersonDialog,
 	type UpdateDebtOriginDraft,
 } from "./debts/components";
 
@@ -22,6 +23,7 @@ export function DebtsPage() {
 	const identity = useCacheIdentity();
 	const [createOpen, setCreateOpen] = useState(false);
 	const [editing, setEditing] = useState<{ event: DebtEvent; personId: string } | null>(null);
+	const [editingPerson, setEditingPerson] = useState<DebtPerson | null>(null);
 	const ledger = useQuery({
 		enabled: identity !== null,
 		queryFn: () => dataService.debts.getLedger(),
@@ -60,6 +62,21 @@ export function DebtsPage() {
 			await refresh();
 			setEditing(null);
 			showToast("Lançamento atualizado.", "positive");
+		},
+	});
+	const updatePerson = useMutation({
+		mutationFn: async ({ accountEmail, id, name }: { accountEmail: string; id: string; name: string }) => {
+			const normalizedEmail = accountEmail.trim().toLowerCase();
+			await dataService.debts.updatePerson(id, { accountEmail: normalizedEmail || null, name: name.trim() });
+			if (normalizedEmail && normalizedEmail !== editingPerson?.accountEmail)
+				await dataService.debts.invitePerson(id, normalizedEmail);
+		},
+		onError: error =>
+			showToast(error instanceof Error ? error.message : "Pessoa não atualizada.", "negative"),
+		onSuccess: async () => {
+			await refresh();
+			setEditingPerson(null);
+			showToast("Pessoa atualizada.", "positive");
 		},
 	});
 	const people = ledger.data?.people ?? [];
@@ -114,6 +131,7 @@ export function DebtsPage() {
 							onDeleteEvent={id => deleteEvent.mutate(id)}
 							onDeletePerson={id => deletePerson.mutate(id)}
 							onEditEvent={(event, personId) => setEditing({ event, personId })}
+							onEditPerson={setEditingPerson}
 							person={person}
 						/>
 					))
@@ -151,6 +169,17 @@ export function DebtsPage() {
 					onSubmit={draft => update.mutateAsync({ draft, id: editing.event.id })}
 					open
 					pending={update.isPending}
+				/>
+			) : null}
+			{editingPerson ? (
+				<EditDebtPersonDialog
+					onOpenChange={open => {
+						if (!open) setEditingPerson(null);
+					}}
+					onSubmit={draft => updatePerson.mutateAsync({ ...draft, id: editingPerson.id })}
+					open
+					pending={updatePerson.isPending}
+					person={editingPerson}
 				/>
 			) : null}
 		</main>

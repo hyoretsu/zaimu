@@ -27,6 +27,7 @@ export const DebtEventReturn = t.Object({
 export const DebtLedgerReturn = t.Object({
 	people: t.Array(
 		t.Object({
+			accountEmail: t.Union([t.String({ format: "email" }), t.Null()]),
 			balance: t.Number(),
 			connectionStatus: t.Union([ConnectionStatus, t.Null()]),
 			events: t.Array(DebtEventReturn),

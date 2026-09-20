@@ -92,7 +92,7 @@ export const authEmailHtml = ({ actionLabel, preview, subject, url }: Omit<AuthE
 		</html>`;
 };
 
-const sendAuthEmail = async ({ actionLabel, preview, subject, to, url }: AuthEmail) => {
+export const sendEmail = async ({ actionLabel, preview, subject, to, url }: AuthEmail) => {
 	const from = process.env.SMTP_FROM ?? "Zaimu <nao-responda@zaimu.app>";
 	await createTransport().sendMail({
 		from,
@@ -110,7 +110,7 @@ export const resetPasswordUrl = (token: string) =>
 	`${publicWebUrl()}/auth/reset-password?token=${encodeURIComponent(token)}`;
 
 export const sendVerificationEmail = (email: string, token: string) =>
-	sendAuthEmail({
+	sendEmail({
 		actionLabel: "Confirmar e-mail",
 		preview: "Confirme seu e-mail para proteger seus dados financeiros e concluir a criação da conta.",
 		subject: "Confirme seu e-mail",
@@ -119,7 +119,7 @@ export const sendVerificationEmail = (email: string, token: string) =>
 	});
 
 export const sendPasswordResetEmail = (email: string, token: string) =>
-	sendAuthEmail({
+	sendEmail({
 		actionLabel: "Redefinir senha",
 		preview:
 			"Recebemos uma solicitação para redefinir sua senha. Ignore esta mensagem caso não tenha sido você.",

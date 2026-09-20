@@ -1954,6 +1954,7 @@ export const dataService = {
 				);
 				if (existing) return existing.data;
 				const person: DebtPerson = {
+					accountEmail: null,
 					balance: 0,
 					connectionStatus: null,
 					events: [],
@@ -2041,6 +2042,7 @@ export const dataService = {
 				}
 				if (!person) {
 					person = {
+						accountEmail: null,
 						balance: 0,
 						connectionStatus: null,
 						events: [],
@@ -2188,6 +2190,18 @@ export const dataService = {
 				return;
 			}
 			await fetchWithAuth(`/debts/events/${id}`, { body: JSON.stringify(data), method: "PATCH" });
+		},
+		async updatePerson(id: string, data: { accountEmail?: null | string; name: string }): Promise<void> {
+			if (isGuestMode()) {
+				const existing = await localDebtPeople.getById(id);
+				if (!existing) throw new Error("Pessoa não encontrada.");
+				await localDebtPeople.put({ ...existing.data, ...data }, id);
+				return;
+			}
+			await fetchWithAuth(`/debts/people/${id}`, {
+				body: JSON.stringify(data),
+				method: "PATCH",
+			});
 		},
 	},
 	financialInstitutions: {

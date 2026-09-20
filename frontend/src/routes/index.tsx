@@ -30,6 +30,7 @@ import {
 	DashboardComparisonChart,
 	DashboardCreditCards,
 	DashboardDateFilter,
+	DashboardDebtInvitations,
 	DashboardDebts,
 	DashboardForecasts,
 	DashboardQuickActions,
@@ -170,6 +171,7 @@ export function DashboardPage() {
 					totalAvailableCredit={dashboard.totalAvailableCredit}
 				/>
 				<DashboardForecasts forecasts={dashboard.forecasts} />
+				<DashboardDebtInvitations />
 				<DashboardDebts debts={dashboard.debts} />
 			</section>
 			<TransactionImportReviewDialog

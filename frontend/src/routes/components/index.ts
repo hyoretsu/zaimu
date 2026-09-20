@@ -2,6 +2,7 @@ export * from "./DashboardAccounts";
 export * from "./DashboardComparisonChart";
 export * from "./DashboardCreditCards";
 export * from "./DashboardDateFilter";
+export * from "./DashboardDebtInvitations";
 export * from "./DashboardDebts";
 export * from "./DashboardForecasts";
 export * from "./DashboardQuickActions";

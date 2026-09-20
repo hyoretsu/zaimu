@@ -9,6 +9,7 @@ import {
 } from "~/modules/debts/application";
 import { removeDuplicateSourcedDebtEvents } from "~/modules/debts/application/debt-event-deduplication";
 import { calculateDebtSplitOrThrow } from "~/modules/debts/application/debt-splits";
+import { sendDebtInvitationEmail } from "~/modules/debts/application/email";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
 import { DebtSplitInputDTO } from "./DebtSplitsDTO";
@@ -267,7 +268,19 @@ async function getPeopleLedger(userId: string) {
 				getPersonEvents(person, userId),
 				getConnection(person.connectionId),
 			]);
+			const linkedUserId =
+				connection?.requesterId === userId ? connection.recipientId : connection?.requesterId;
+			const linkedUser = linkedUserId
+				? await queryFirst(
+						db.sql.public.user
+							.select("email")
+							.where((fields, functions) => functions.eq(fields.id, linkedUserId))
+							.limit(1)
+							.build(),
+					)
+				: undefined;
 			return {
+				accountEmail: linkedUser?.email ?? null,
 				balance: events.reduce((sum, event) => sum + event.effect, 0),
 				connectionStatus: connection?.status ?? null,
 				events,
@@ -360,6 +373,35 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 			response: DebtPersonReturn,
 		},
 	)
+	.patch(
+		"/people/:id",
+		async ({ body, params, request }) => {
+			const userId = await requireUserId(request);
+			const person = await getOwnedDebtPerson(params.id, userId);
+			const name = body.name.trim().replace(/\s+/g, " ");
+			if (!name) throw new HttpException("Nome obrigatório", 400);
+			await executeStatement(
+				db.sql.public.DebtPerson.update({
+					connectionId: body.accountEmail === null ? null : person.connectionId,
+					name,
+					normalizedName: normalizeDebtPersonName(name),
+					updatedAt: new Date(),
+				})
+					.where((fields, functions) => functions.eq(fields.id, person.id))
+					.build(),
+			);
+			return { success: true };
+		},
+		{
+			body: t.Object({
+				accountEmail: t.Optional(t.Union([t.String({ format: "email", maxLength: 320 }), t.Null()])),
+				name: t.String({ maxLength: 100, minLength: 1 }),
+			}),
+			detail: { tags: ["Debts"] },
+			params: PersonIdParams,
+			response: DebtSuccessReturn,
+		},
+	)
 	.post(
 		"/people/:id/invite",
 		async ({ body, params, request }) => {
@@ -418,6 +460,17 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 					.where((fields, functions) => functions.eq(fields.id, person.id))
 					.build(),
 			);
+			const requester = await queryFirst(
+				db.sql.public.user
+					.select("name")
+					.where((fields, functions) => functions.eq(fields.id, userId))
+					.limit(1)
+					.build(),
+			);
+			await sendDebtInvitationEmail({
+				recipientEmail: recipient.email,
+				requesterName: requester?.name ?? "Uma pessoa no Zaimu",
+			});
 			return {
 				...connection,
 				recipientName: recipient.name,

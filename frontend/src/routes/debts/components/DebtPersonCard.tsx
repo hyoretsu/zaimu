@@ -11,6 +11,7 @@ import {
 import { AppBadge } from "@/components/ui/AppBadge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import type { DebtEvent, DebtPerson } from "@/lib/api";
 import { formatLocalDate } from "@/lib/date";
 import { compareDebtEventsByDateThenLabel, getDebtEventCreatorLabel, getDebtEventLabel } from "./debt-event";
@@ -21,11 +22,13 @@ export function DebtPersonCard({
 	onDeleteEvent,
 	onDeletePerson,
 	onEditEvent,
+	onEditPerson,
 	person,
 }: {
 	onDeleteEvent: (id: string) => void;
 	onDeletePerson: (id: string) => void;
 	onEditEvent: (event: DebtEvent, personId: string) => void;
+	onEditPerson: (person: DebtPerson) => void;
 	person: DebtPerson;
 }) {
 	const [expanded, setExpanded] = useState(false);
@@ -68,6 +71,21 @@ export function DebtPersonCard({
 				>
 					{expanded ? <LuChevronUp /> : <LuChevronDown />} {expanded ? "Minimizar" : "Expandir"}
 				</Button>
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button
+							aria-label={`Editar ${person.name}`}
+							className="cursor-pointer"
+							onClick={() => onEditPerson(person)}
+							size="icon"
+							type="button"
+							variant="outline"
+						>
+							<LuPencil />
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>Editar pessoa</TooltipContent>
+				</Tooltip>
 				<ConfirmActionButton
 					aria-label={`Excluir ${person.name}`}
 					className="cursor-pointer"
