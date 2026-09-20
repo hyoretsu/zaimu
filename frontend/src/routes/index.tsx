@@ -103,6 +103,7 @@ export function DashboardPage() {
 			/>
 			<PendingTransactionImportsNotice onReview={setReviewingImportId} />
 			<PendingCreditCardImportsNotice onReview={setReviewingCreditCardImportId} />
+			<DashboardDebtInvitations />
 			<section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
 				<Card className="border-0 bg-primary text-primary-foreground shadow-primary/15 shadow-xl">
 					<CardHeader>
@@ -171,7 +172,6 @@ export function DashboardPage() {
 					totalAvailableCredit={dashboard.totalAvailableCredit}
 				/>
 				<DashboardForecasts forecasts={dashboard.forecasts} />
-				<DashboardDebtInvitations />
 				<DashboardDebts debts={dashboard.debts} />
 			</section>
 			<TransactionImportReviewDialog
