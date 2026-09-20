@@ -1,0 +1,179 @@
+# Otimização ponta a ponta com RabbitMQ e cache distribuído
+
+## Objetivo
+
+Levar endpoints com cache frio a p95 inferior a 1 segundo e hits de cache a p95 inferior a 100 ms. Cada tela deve fazer no máximo três requests iniciais, sem requests ou queries proporcionais à quantidade de registros exibidos.
+
+PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox. RabbitMQ executa filas e jobs. Redis fornece cache distribuído com invalidação orientada a eventos. API e worker são processos separados.
+
+## Decisões
+
+- PostgreSQL nunca será usado como fila de processamento.
+- RabbitMQ usará exchanges duráveis `zaimu.events` e `zaimu.commands`, quorum queues, retries e DLQs.
+- Entrega será `at-least-once`; todos os consumidores serão idempotentes.
+- O transactional outbox garantirá atomicidade entre mutações e publicação de eventos.
+- Redis usará cache-aside, gerações por namespace, write fences, ETags e coalescing contra stampede.
+- Cache não terá TTL de frescor: continuará válido até evento relevante avançar sua geração. Evicção poderá ocorrer apenas por proteção operacional.
+- Redis indisponível causará bypass. Na reconexão, um novo epoch global impedirá uso de entradas anteriores.
+- Não haverá cache L1 de dados de usuário.
+- Listagens grandes usarão cursor opaco. Pesquisa continuará substring, sem acentos e sem diferença de caixa.
+- DTOs de resumo, detalhe e mutação serão separados. Listagens retornarão somente campos necessários ao primeiro render.
+- Trocas de contrato serão atômicas entre backend e frontend; contratos antigos não serão mantidos.
+- `/sync` será exceção explícita por transferir snapshots necessários ao modo offline.
+- Bundle, renderização React, imagens e startup Tauri/mobile ficam fora deste plano.
+- Nenhuma migração remota, deploy, push ou mutação de serviço externo será executada sem solicitação específica.
+
+## Contratos-alvo
+
+- Coleções grandes recebem `cursor?`, `limit` e filtros; retornam `{ items, nextCursor, hasMore }`.
+- Transações diárias retornam `{ days, nextCursor, hasMore }` com ordenação estável por data, criação, origem e ID.
+- `GET /credit-card-imports` retorna somente `{ id, fileName, pendingItemCount }[]`.
+- `GET /credit-card-imports/:id` retorna metadados usados pela revisão e itens paginados somente quando o modal abrir.
+- Importações de transações seguem a mesma divisão entre resumo e detalhe.
+- `GET /credit-cards` retorna cartões com resumo de limite e fatura atual. A tela não dispara uma consulta por cartão.
+- `GET /transactions` retorna itens compactos; rateio completo e campos exclusivos de edição ficam no detalhe lazy.
+- Assinaturas, recorrências e salários não carregam rateio completo nas listagens.
+- Contas não carregam histórico de taxas na listagem.
+- Dívidas retornam pessoas e saldos no resumo; eventos são paginados.
+- Empréstimos retornam totais agregados sem pagamentos individuais.
+- Frontend e IndexedDB guest implementam os mesmos DTOs e cursores.
+
+## Arquitetura de eventos e jobs
+
+- Envelope padrão: `eventId`, `eventType`, `aggregateType`, `aggregateId`, `userIds`, `occurredAt`, `schemaVersion` e correlação, sem valores financeiros desnecessários.
+- Exchanges:
+  - `zaimu.events` para eventos de domínio e invalidação.
+  - `zaimu.commands` para comandos assíncronos.
+- Filas principais:
+  - `cache-invalidation`
+  - `schedule-materialization`
+  - `reference-rate-fetch`
+  - `account-yield-recalculation`
+  - retries com TTL/dead-letter e DLQ por consumidor
+- Mutação e outbox serão gravados na mesma transação PostgreSQL.
+- Publisher usará publisher confirms e marcará evento publicado somente após confirmação do RabbitMQ.
+- API continuará aceitando mutações durante falha do broker; publicação retomará pelo outbox.
+- Materialização de salários, assinaturas, recorrências e faturas sairá dos GETs.
+- Scheduler publicará comandos de recuperação; constraints de ocorrência manterão idempotência.
+- SLA de materialização: até dois minutos. Criação e edição de agenda enfileiram imediatamente.
+- `ReferenceRateJob` será drenada e removida após migração integral para RabbitMQ.
+
+## Cache distribuído
+
+- Cada GET autenticado cacheável declara namespace e dependências. Auth, health, uploads/downloads e `/sync` ficam fora do middleware genérico.
+- Chaves incluem versão do formato, epoch global, usuário, namespace, geração e hash de parâmetros canônicos. Tokens e cookies nunca entram na chave.
+- Namespaces iniciais: `transactions:list`, `transactions:detail:{id}`, `credit-cards:overview`, `credit-cards:{id}:statements`, `dashboard`, `accounts:list`, `imports:pending` e `imports:detail:{id}`.
+- Cache hit executa zero queries SQL. ETag permite `304` sem PostgreSQL.
+- Gerações avançam atomicamente; nenhuma invalidação usa `SCAN`.
+- Chaves antigas ficam inalcançáveis e serão removidas assincronamente com `UNLINK` usando registro por geração.
+- Lock Redis curto e coalescing garantem um único recálculo por chave ausente.
+- Write fence por namespace:
+  1. Marcar namespaces como `dirty` antes da mutação.
+  2. GET sob fence ignora cache e não repopula.
+  3. Executar mutação e inserir outbox na mesma transação.
+  4. Após commit, avançar gerações e remover fence atomicamente.
+  5. Consumidor do outbox finaliza invalidação após crash.
+  6. Rollback deixa o lease expirar e preserva a geração anterior.
+- Matriz central de dependências cobrirá transações, contas, saldos, dashboard, sugestões, cartões, faturas, compras, dívidas, categorias, tags, agendas, rendimentos, empréstimos, importações e sync.
+- Eventos compartilhados de dívida invalidarão todos os usuários afetados.
+- Sync emitirá evento consolidado por usuário e domínio.
+
+## Banco e consultas
+
+- Adicionar `userId NOT NULL` a `Transaction` e `CreditPurchase`, fazer backfill e atualizar todos os caminhos de escrita.
+- Habilitar `pg_trgm` e `unaccent`; criar função imutável de normalização e GIN trigram para descrição, estabelecimento, categoria, tag, conta e instituição pesquisáveis.
+- Índices iniciais:
+  - `Transaction(userId, date DESC, createdAt DESC, id DESC)`
+  - `Transaction(userId, originFinancialAccountId, date DESC, id)`
+  - `Transaction(userId, destinationFinancialAccountId, date DESC, id)`
+  - `CreditPurchase(userId, purchaseDate DESC, createdAt DESC, id DESC)`
+  - `CreditPurchase(statementId, purchaseDate DESC, id)`
+  - `LoanPayment(loanId, paidDate)`
+  - `LoanPayment(loanId, installmentNumber)`
+  - agendas por proprietário, estado e cursor de materialização
+  - FKs de históricos consultados por entidade
+- Validar todo índice com `EXPLAIN (ANALYZE, BUFFERS)` em fixture volumosa antes de mantê-lo.
+- Transações usarão `UNION ALL` indexável entre movimentações e compras, com filtros e cursor no SQL. Buscar `limit + 1`; hidratar tags, referências e rateios em lote somente para a página.
+- Saldos serão agregados set-based no SQL em vez de reproduzir todo histórico em JavaScript.
+- Dashboard consultará apenas intervalo e agregados necessários.
+- Remover N+1 de rateios, empréstimos, dívidas, cartões e importações com loaders em lote, `GROUP BY` e consultas por conjuntos de IDs.
+- Endpoints agregadores usarão um único cliente do pool durante a leitura.
+- Configurar timeouts de conexão/query/statement e limitar concorrência dos workers.
+
+## Etapas
+
+- [ ] 1. Fundação
+  - [ ] Adicionar Docker Compose local com Redis e RabbitMQ.
+  - [ ] Criar ports/adapters de cache, broker e outbox.
+  - [ ] Instrumentar duração de request, query count, tempo SQL, espera por conexão, cache e filas.
+  - [ ] Criar fixture com 100 mil lançamentos, 20 cartões, cinco anos de faturas e dados associados.
+  - [ ] Registrar baseline por endpoint e orçamento de queries.
+- [ ] 2. Outbox e RabbitMQ
+  - [ ] Criar contrato SQL do outbox e migração.
+  - [ ] Implementar publisher com confirms, correlação e recuperação após falha.
+  - [ ] Declarar exchanges, quorum queues, retries e DLQs.
+  - [ ] Criar worker separado e deduplicação de consumidores.
+  - [ ] Cobrir crash, duplicação, retry, DLQ, restart e ordem por agregado.
+- [ ] 3. Cache distribuído
+  - [ ] Implementar namespaces, chaves canônicas, gerações e epoch global.
+  - [ ] Implementar cache-aside, ETag, coalescing e locks contra stampede.
+  - [ ] Implementar write fences e matriz central de invalidação.
+  - [ ] Emitir eventos em todas as mutações e workers.
+  - [ ] Cobrir indisponibilidade/reconexão do Redis e invalidação multiusuário.
+- [ ] 4. Transações
+  - [ ] Adicionar proprietário direto e índices.
+  - [ ] Implementar `UNION ALL`, pesquisa no banco e cursor opaco.
+  - [ ] Hidratar página em lote e tornar detalhe lazy.
+  - [ ] Substituir cálculo de saldo por agregação SQL.
+  - [ ] Migrar frontend, cache e guest mode para o novo contrato.
+- [ ] 5. Cartões
+  - [ ] Criar payload agregado de cartão, limite e fatura atual.
+  - [ ] Remover `useQueries` e qualquer request por cartão.
+  - [ ] Fazer histórico/detalhe lazy e paginado.
+  - [ ] Consultar faturas, compras, pagamentos e previsões por conjunto de cartões.
+  - [ ] Mover materialização de faturas e assinaturas para o worker.
+- [ ] 6. Importações
+  - [ ] Reduzir listagem de importações de cartão a `id`, `fileName` e `pendingItemCount`.
+  - [ ] Paginar detalhes e itens somente quando a revisão abrir.
+  - [ ] Aplicar o mesmo padrão às importações de transações.
+  - [ ] Substituir `getImportReturn` por item por contagens e loaders em lote.
+- [ ] 7. Agendas e taxas
+  - [ ] Retirar materializações de todos os GETs.
+  - [ ] Migrar salários, assinaturas e recorrências para comandos RabbitMQ.
+  - [ ] Migrar taxas de referência e recálculos de rendimento.
+  - [ ] Drenar e remover `ReferenceRateJob` e worker PostgreSQL antigo.
+- [ ] 8. Demais domínios
+  - [ ] Otimizar dashboard e contas.
+  - [ ] Otimizar dívidas e invalidação entre usuários.
+  - [ ] Otimizar empréstimos, históricos, categorias, lojas e rendimentos.
+  - [ ] Integrar eventos consolidados do sync.
+- [ ] 9. Limpeza e aceite final
+  - [ ] Remover contratos, tipos, queries e helpers antigos.
+  - [ ] Remover código de fila PostgreSQL e invalidação obsoleta.
+  - [ ] Validar metas de latência, requests, queries, regressão e build.
+
+## Critérios de aceite
+
+- Cache frio: p95 inferior a 1 segundo no dataset de desempenho.
+- Cache quente: p95 inferior a 100 ms e zero queries SQL.
+- Nenhuma tela faz mais de três requests iniciais.
+- Tela de cartões faz uma request de cartões/resumos e zero requests por cartão.
+- Query count permanece igual com 10 ou 100 mil registros.
+- Resumo de importação contém somente `id`, `fileName` e `pendingItemCount`.
+- Alteração não relacionada preserva caches válidos.
+- Mutação seguida de leitura nunca entrega versão anterior.
+- GET concorrente com mutação respeita write fence.
+- Falha do Redis causa bypass; reconexão troca o epoch.
+- Crash entre commit e publish, confirm perdido e entrega duplicada não perdem trabalho nem duplicam efeitos.
+- Cursor cobre empates, inserção concorrente, fim, troca de filtro, cursor inválido e isolamento por usuário.
+- Pesquisa cobre acentos, caixa, substring, valor, categoria, tag, conta, instituição e estabelecimento.
+- Regressão cobre saldos, limite, pagamentos excedentes, previsões, rateios, importações, sync e guest mode.
+- Testes backend/frontend, integração via Compose e builds dos pacotes afetados passam.
+
+## Progresso
+
+### 2026-09-20
+
+- Plano aprovado e versionado.
+- Implementação ainda não iniciada.
+- Próxima etapa: fundação e baseline.
