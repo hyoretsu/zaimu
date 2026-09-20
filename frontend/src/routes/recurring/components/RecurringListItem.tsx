@@ -115,7 +115,7 @@ export function RecurringListItem({
 			}
 			title={
 				<div className="flex min-w-0 flex-wrap items-center gap-2">
-					<p className="min-w-0 flex-1 truncate font-semibold leading-6">{item.title}</p>
+					<p className="w-fit max-w-full shrink-0 truncate font-semibold leading-6">{item.title}</p>
 					<AppBadge variant="outline">{sourceLabels[item.source]}</AppBadge>
 					{!item.active && <AppBadge variant="secondary">Pausada</AppBadge>}
 					{hasEnded && <AppBadge variant="secondary">Encerrada</AppBadge>}
