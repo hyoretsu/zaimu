@@ -2,7 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { useState } from "react";
-import { LuArrowDownLeft, LuArrowUpRight, LuCalendarClock, LuTrendingUp } from "react-icons/lu";
+import {
+	LuArrowDownLeft,
+	LuArrowUpRight,
+	LuCalendarClock,
+	LuTrendingUp,
+	LuWalletCards,
+} from "react-icons/lu";
 import {
 	CreditCardImportReviewDialog,
 	PendingCreditCardImportsNotice,
@@ -98,8 +104,9 @@ export function DashboardPage() {
 			<section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
 				<Card className="border-0 bg-primary text-primary-foreground shadow-primary/15 shadow-xl">
 					<CardHeader>
-						<CardTitle className="font-medium text-primary-foreground/75 text-sm">
-							{isCurrentDay ? "Saldo atual" : "Saldo final do período"}
+						<CardTitle className="flex items-start gap-2 font-medium text-primary-foreground/75 text-sm">
+							<LuWalletCards aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+							<span>{isCurrentDay ? "Saldo atual" : "Saldo final do período"}</span>
 						</CardTitle>
 					</CardHeader>
 					<CardContent>
@@ -114,7 +121,7 @@ export function DashboardPage() {
 				<Card className="border-0 bg-brand-yellow text-brand-ink shadow-brand-yellow/20 shadow-xl">
 					<CardHeader>
 						<CardTitle className="flex items-center gap-2 font-medium text-sm">
-							<LuArrowDownLeft /> Entradas do período
+							<LuArrowDownLeft aria-hidden="true" className="size-4 shrink-0" /> Entradas do período
 						</CardTitle>
 					</CardHeader>
 					<CardContent>
@@ -124,7 +131,7 @@ export function DashboardPage() {
 				<Card>
 					<CardHeader>
 						<CardTitle className="flex items-center gap-2 font-medium text-muted-foreground text-sm">
-							<LuArrowUpRight /> Saídas do período
+							<LuArrowUpRight aria-hidden="true" className="size-4 shrink-0" /> Saídas do período
 						</CardTitle>
 					</CardHeader>
 					<CardContent>
@@ -139,7 +146,7 @@ export function DashboardPage() {
 				<Card className={projectionCopy.cardClassName}>
 					<CardHeader>
 						<CardTitle className="flex items-center gap-2 font-medium text-sm">
-							<LuCalendarClock /> {projectionCopy.title}
+							<LuCalendarClock aria-hidden="true" className="size-4 shrink-0" /> {projectionCopy.title}
 						</CardTitle>
 					</CardHeader>
 					<CardContent>
