@@ -944,6 +944,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					.select(fields => ({
 						hasImportedAmount: fields.CreditPurchase.hasImportedAmount,
 						id: fields.CreditPurchase.id,
+						installments: fields.CreditPurchase.installments,
 						parentId: fields.CreditPurchase.parentId,
 						statementDate: fields.CreditCardStatement.statementDate,
 					}))
@@ -1754,7 +1755,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			const totalAmountChanged =
 				body.totalAmount !== undefined && requestedTotalAmount !== Number(purchase.totalAmount);
 			const purchaseInstallments =
-				purchase.installments > 1 && totalAmountChanged
+				purchase.installments > 1
 					? await queryRows(
 							db.sql.public.CreditPurchase.select(...purchaseColumns)
 								.where((fields, functions) =>
@@ -1766,37 +1767,45 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 								.build(),
 						)
 					: [];
-			if (totalAmountChanged && purchaseInstallments.length !== purchase.installments)
-				throw new HttpException("Não foi possível identificar todas as parcelas da compra", 409);
 			const sortedPurchaseInstallments = purchaseInstallments.toSorted(
 				(left, right) => left.currentInstallment - right.currentInstallment,
 			);
+			const purchaseInstallmentsByNumber = new Map(
+				sortedPurchaseInstallments.map(installment => [installment.currentInstallment, installment]),
+			);
+			const missingInstallmentNumbers = Array.from(
+				{ length: purchase.installments },
+				(_, index) => index + 1,
+			).filter(currentInstallment => !purchaseInstallmentsByNumber.has(currentInstallment));
+			const shouldReconcileInstallments =
+				body.totalAmount !== undefined || missingInstallmentNumbers.length > 0;
 			let redistributedAmounts: number[] | undefined;
-			if (body.totalAmount !== undefined && purchaseInstallments.length) {
+			if (shouldReconcileInstallments && purchaseInstallments.length) {
 				try {
 					redistributedAmounts = redistributeInstallmentAmounts(
 						requestedTotalAmount,
-						sortedPurchaseInstallments.map(installment => ({
-							currentInstallment: installment.currentInstallment,
-							hasImportedAmount: installment.hasImportedAmount,
-							installmentAmount: Number(installment.installmentAmount),
-						})),
+						Array.from({ length: purchase.installments }, (_, index) => {
+							const currentInstallment = index + 1;
+							const installment = purchaseInstallmentsByNumber.get(currentInstallment);
+							return {
+								currentInstallment,
+								hasImportedAmount: installment?.hasImportedAmount ?? false,
+								installmentAmount: installment ? Number(installment.installmentAmount) : 0,
+							};
+						}),
 					);
 				} catch (error) {
 					throw new HttpException(error instanceof Error ? error.message : "Parcelamento inválido", 400);
 				}
 			}
-			const nextTotalAmount =
-				body.totalAmount === undefined
-					? requestedTotalAmount
-					: sumInstallmentAmounts(
-							redistributedAmounts ??
-								getEvenlyDistributedInstallmentAmounts(requestedTotalAmount, nextInstallments),
-						);
-			const nextAmount = totalAmountChanged
-				? (redistributedAmounts?.[
-						sortedPurchaseInstallments.findIndex(installment => installment.id === purchase.id)
-					] ?? nextTotalAmount / nextInstallments)
+			const nextTotalAmount = !shouldReconcileInstallments
+				? requestedTotalAmount
+				: sumInstallmentAmounts(
+						redistributedAmounts ??
+							getEvenlyDistributedInstallmentAmounts(requestedTotalAmount, nextInstallments),
+					);
+			const nextAmount = shouldReconcileInstallments
+				? (redistributedAmounts?.[purchase.currentInstallment - 1] ?? nextTotalAmount / nextInstallments)
 				: previousAmount;
 			const nextPurchaseDate = body.purchaseDate ? new Date(body.purchaseDate) : purchase.purchaseDate;
 			let nextStatementId = purchase.statementId;
@@ -1872,6 +1881,63 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					};
 				}
 			}
+			const createdInstallments: CreditPurchaseRow[] = [];
+			if (missingInstallmentNumbers.length) {
+				const installmentCardId = body.creditCardId ?? params.id;
+				const installmentCard = await queryFirst(
+					db.sql.public.CreditCard.select("dueDay", "statementDay")
+						.where((fields, functions) => functions.eq(fields.id, installmentCardId))
+						.limit(1)
+						.build(),
+				);
+				if (!installmentCard) throw new HttpException("Credit card not found", 404);
+				for (const currentInstallment of missingInstallmentNumbers) {
+					const installmentAmount = redistributedAmounts?.[currentInstallment - 1];
+					if (installmentAmount === undefined) throw new HttpException("Parcelamento inválido", 400);
+					const occurrenceDate = addMonths(nextPurchaseDate, currentInstallment - 1);
+					const { dueDate, statementDate } = getStatementDates(installmentCard, occurrenceDate);
+					const statement = await getOrCreateStatement(installmentCardId, dueDate, statementDate);
+					if (statement.isPaid)
+						throw new HttpException("Não é possível restaurar parcela em fatura paga", 409);
+					const createdInstallment = await queryFirst(
+						db.sql.public.CreditPurchase.insert([
+							{
+								categoryId: tagIds?.[0] ?? purchase.categoryId,
+								currentInstallment,
+								description: body.description ?? purchase.description,
+								feeAmount: fee ? fee.feeAmount : purchase.feeAmount,
+								feeDescription: fee ? fee.feeDescription : purchase.feeDescription,
+								hasImportedAmount: false,
+								installmentAmount: String(installmentAmount),
+								installments: nextInstallments,
+								parentId: purchase.id,
+								purchaseDate: nextPurchaseDate,
+								statementId: statement.id,
+								storeName: body.storeName ?? purchase.storeName,
+								time: body.time ?? purchase.time,
+								totalAmount: String(nextTotalAmount),
+							},
+						])
+							.returning(...purchaseColumns)
+							.build(),
+					);
+					if (!createdInstallment) throw new HttpException("Purchase not created", 500);
+					createdInstallments.push({
+						...createdInstallment,
+						installmentAmount: Number(createdInstallment.installmentAmount),
+						totalAmount: Number(createdInstallment.totalAmount),
+					});
+					const amount = param(numeric<12, 2>(installmentAmount), { codecId: "pg/numeric@1" });
+					await executeStatement(
+						db.sql.public.CreditCardStatement.update((fields, functions) => ({
+							totalAmount: functions.raw`${fields.totalAmount} + ${amount}`.returns("pg/numeric@1"),
+							updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
+						}))
+							.where((fields, functions) => functions.eq(fields.id, statement.id))
+							.build(),
+					);
+				}
+			}
 			const updatedPurchase = await queryFirst(
 				db.sql.public.CreditPurchase.update({
 					...(!purchase.parentId &&
@@ -1885,7 +1951,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					...(body.description !== undefined && { description: body.description }),
 					...(fee && fee),
 					...(body.storeName !== undefined && { storeName: body.storeName }),
-					...(totalAmountChanged && {
+					...(shouldReconcileInstallments && {
 						installmentAmount: String(nextAmount),
 						installments: nextInstallments,
 						totalAmount: String(nextTotalAmount),
@@ -1902,9 +1968,9 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			);
 			if (!updatedPurchase) throw new HttpException("Purchase not found", 404);
 			const redistributedAmountByPurchaseId = new Map(
-				sortedPurchaseInstallments.map((installment, index) => [
+				sortedPurchaseInstallments.map(installment => [
 					installment.id,
-					redistributedAmounts?.[index],
+					redistributedAmounts?.[installment.currentInstallment - 1],
 				]),
 			);
 			if (redistributedAmounts) {
@@ -1986,11 +2052,16 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					);
 				}
 			}
-			if (tagIds !== undefined) {
+			if (tagIds !== undefined || createdInstallments.length) {
+				const installmentTagIds =
+					tagIds ??
+					((await getTagsByEntity(tagEntityType.creditPurchase, [purchase.id])).get(purchase.id) ?? []).map(
+						tag => tag.id,
+					);
 				await replaceEntityTags({
-					entityIds: [updatedPurchase.id],
+					entityIds: [updatedPurchase.id, ...createdInstallments.map(installment => installment.id)],
 					entityType: tagEntityType.creditPurchase,
-					tagIds,
+					tagIds: installmentTagIds,
 				});
 			}
 

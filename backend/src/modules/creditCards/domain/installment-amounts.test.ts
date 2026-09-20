@@ -24,4 +24,16 @@ describe("redistributeInstallmentAmounts", () => {
 	test("sums installments in cents without floating-point drift", () => {
 		expect(sumInstallmentAmounts([33.33, 33.33, 33.34])).toBe(100);
 	});
+
+	test("allocates missing installments while retaining synchronized amounts", () => {
+		expect(
+			redistributeInstallmentAmounts(65.45, [
+				{ currentInstallment: 1, hasImportedAmount: true, installmentAmount: 13.09 },
+				{ currentInstallment: 2, hasImportedAmount: false, installmentAmount: 0 },
+				{ currentInstallment: 3, hasImportedAmount: false, installmentAmount: 0 },
+				{ currentInstallment: 4, hasImportedAmount: false, installmentAmount: 0 },
+				{ currentInstallment: 5, hasImportedAmount: false, installmentAmount: 0 },
+			]),
+		).toEqual([13.09, 13.09, 13.09, 13.09, 13.09]);
+	});
 });

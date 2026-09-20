@@ -632,6 +632,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 								.select(fields => ({
 									hasImportedAmount: fields.CreditPurchase.hasImportedAmount,
 									id: fields.CreditPurchase.id,
+									installments: fields.CreditPurchase.installments,
 									parentId: fields.CreditPurchase.parentId,
 									statementDate: fields.CreditCardStatement.statementDate,
 								}))
