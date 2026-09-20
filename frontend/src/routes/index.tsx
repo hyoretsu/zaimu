@@ -150,7 +150,7 @@ export function DashboardPage() {
 					</CardContent>
 				</Card>
 			</section>
-			<DashboardComparisonChart comparison={dashboard.comparison} period={dashboard.period} />
+			<DashboardComparisonChart comparison={dashboard.comparison} />
 			<section className="grid gap-4 xl:grid-cols-2">
 				<DashboardAccounts accounts={dashboard.accounts} />
 				<DashboardCreditCards

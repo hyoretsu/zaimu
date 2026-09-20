@@ -105,6 +105,26 @@ test("builds thirteen contiguous inclusive comparison intervals", () => {
 	expect(periods[12]?.endDate).toBe("2026-09-30");
 });
 
+test("uses complete months and anchors balances to the selected period", () => {
+	const base = resolveDashboardRange("2026-03-14", "2026-03-14", new Date("2026-03-14T00:00:00"));
+	const periods = buildComparisonPeriods({
+		base,
+		initialBalance: 1_100,
+		transactions: [
+			{ amount: 100, date: new Date("2026-03-02T12:00:00"), type: "INCOME" },
+			{ amount: 50, date: new Date("2026-03-10T12:00:00"), type: "EXPENSE" },
+			{ amount: 200, date: new Date("2026-04-01T12:00:00"), type: "EXPENSE" },
+		],
+	});
+	expect(periods[6]).toMatchObject({
+		endDate: "2026-03-31",
+		endingBalance: 1_100,
+		initialBalance: 1_050,
+		startDate: "2026-03-01",
+	});
+	expect(periods[7]).toMatchObject({ endingBalance: 900, initialBalance: 1_100, startDate: "2026-04-01" });
+});
+
 test("does not apply future projections to a historical period balance", () => {
 	const endingBalance = endingBalanceAtPeriodEnd({
 		currentBalance: 1_000,

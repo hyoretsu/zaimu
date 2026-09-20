@@ -131,18 +131,12 @@ export function buildComparisonPeriods(input: {
 	initialBalance: number;
 	transactions: Array<{ amount: number; date: Date; type: "EXPENSE" | "INCOME" | "TRANSFER" }>;
 }) {
-	const duration =
-		Math.round((startOfDay(input.base.end).getTime() - startOfDay(input.base.start).getTime()) / 86_400_000) +
-		1;
-	const calendarMonths = completeCalendarMonths(input.base);
+	const base = comparisonBase(input.base);
+	const calendarMonths = completeCalendarMonths(base)!;
 	return Array.from({ length: 13 }, (_, index) => {
 		const offset = index - 6;
-		const start = calendarMonths
-			? startOfDay(addMonths(input.base.start, offset * calendarMonths))
-			: addDays(input.base.start, offset * duration);
-		const end = calendarMonths
-			? endOfDay(endOfMonth(addMonths(start, calendarMonths - 1)))
-			: endOfDay(addDays(start, duration - 1));
+		const start = startOfDay(addMonths(base.start, offset * calendarMonths));
+		const end = endOfDay(endOfMonth(addMonths(start, calendarMonths - 1)));
 		const movements = input.transactions.filter(
 			item => item.date >= start && item.date <= end && item.type !== "TRANSFER",
 		);
@@ -152,21 +146,40 @@ export function buildComparisonPeriods(input: {
 		const expenses = movements
 			.filter(item => item.type === "EXPENSE")
 			.reduce((sum, item) => sum + item.amount, 0);
-		const before = input.transactions
-			.filter(item => item.date < start && item.type !== "TRANSFER")
-			.reduce((sum, item) => sum + (item.type === "INCOME" ? item.amount : -item.amount), 0);
 		return {
-			...period({ end, expenses, income, initialBalance: input.initialBalance + before, start }),
+			...period({
+				end,
+				expenses,
+				income,
+				initialBalance: balanceAtPeriodStart(input, start),
+				start,
+			}),
 		};
 	});
 }
 
 export function comparisonRangeEnd(base: { end: Date; start: Date }) {
-	const calendarMonths = completeCalendarMonths(base);
-	if (calendarMonths) return endOfDay(endOfMonth(addMonths(base.start, calendarMonths * 6)));
-	const duration =
-		Math.round((startOfDay(base.end).getTime() - startOfDay(base.start).getTime()) / 86_400_000) + 1;
-	return endOfDay(addDays(base.end, duration * 6));
+	const comparison = comparisonBase(base);
+	const calendarMonths = completeCalendarMonths(comparison)!;
+	return endOfDay(endOfMonth(addMonths(comparison.start, calendarMonths * 6)));
+}
+
+function comparisonBase(base: { end: Date; start: Date }) {
+	return {
+		end: endOfDay(endOfMonth(base.end)),
+		start: startOfDay(new Date(base.start.getFullYear(), base.start.getMonth(), 1)),
+	};
+}
+
+function balanceAtPeriodStart(input: Parameters<typeof buildComparisonPeriods>[0], periodStart: Date) {
+	const referenceStart = startOfDay(input.base.start);
+	const net = (from: Date, to: Date) =>
+		input.transactions
+			.filter(item => item.date >= from && item.date < to && item.type !== "TRANSFER")
+			.reduce((sum, item) => sum + (item.type === "INCOME" ? item.amount : -item.amount), 0);
+	return periodStart < referenceStart
+		? input.initialBalance - net(periodStart, referenceStart)
+		: input.initialBalance + net(referenceStart, periodStart);
 }
 
 export function period(input: {
