@@ -7,6 +7,7 @@ import {
 	LuRepeat2,
 	LuStore,
 	LuUsersRound,
+	LuWalletCards,
 } from "react-icons/lu";
 import { AppBadge } from "@/components/ui/AppBadge";
 import type { FinancialAccount, Tag } from "@/lib/api";
@@ -25,6 +26,7 @@ export function TransactionBadges({
 	creditCardPayment,
 	debtPersonName,
 	isSynced = false,
+	isSalary = false,
 	isSubscription = false,
 	storeName,
 	tags,
@@ -33,6 +35,7 @@ export function TransactionBadges({
 	creditCardPayment?: { cardName: string; statementDate?: string };
 	debtPersonName?: string;
 	isSynced?: boolean;
+	isSalary?: boolean;
 	isSubscription?: boolean;
 	storeName?: string | null;
 	tags?: Tag[];
@@ -115,6 +118,14 @@ export function TransactionBadges({
 					<AppBadge variant="outline">
 						<LuRepeat2 aria-hidden="true" className="text-primary" />
 						<span>Assinatura</span>
+					</AppBadge>
+				</li>
+			) : null}
+			{isSalary ? (
+				<li>
+					<AppBadge variant="outline">
+						<LuWalletCards aria-hidden="true" className="text-emerald-600" />
+						<span>Salário</span>
 					</AppBadge>
 				</li>
 			) : null}

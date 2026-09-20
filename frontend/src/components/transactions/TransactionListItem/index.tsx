@@ -162,6 +162,7 @@ export function TransactionListItem({
 						debtPersonName={transaction.debtSplit?.participants
 							.map(item => `${item.debtPersonName}: ${formatCurrency(item.amount)}`)
 							.join(" · ")}
+						isSalary={Boolean(transaction.salaryId)}
 						isSubscription={Boolean(transaction.subscriptionId)}
 						isSynced={transaction.isSynced ?? Boolean(transaction.externalIds?.length)}
 						storeName={transaction.storeName}
