@@ -22,6 +22,7 @@ function formatCurrency(value: number) {
 export function ImportReviewTransactionItem({
 	collapsed,
 	disabled,
+	isIgnoringDuplicate,
 	item,
 	accountNames,
 	onApprove,
@@ -35,6 +36,7 @@ export function ImportReviewTransactionItem({
 	accountNames: Map<string, string>;
 	collapsed: boolean;
 	disabled: boolean;
+	isIgnoringDuplicate: boolean;
 	item: TransactionImportItem;
 	onApprove: () => void;
 	onCollapsedChange: (collapsed: boolean) => void;
@@ -91,7 +93,7 @@ export function ImportReviewTransactionItem({
 				...(item.duplicates.length
 					? [
 							{
-								disabled,
+								disabled: disabled || isIgnoringDuplicate,
 								icon: <LuCircleAlert />,
 								onClick: onResolveDuplicate,
 								text: "Resolver duplicata",
@@ -101,7 +103,7 @@ export function ImportReviewTransactionItem({
 				...(item.duplicateReason
 					? [
 							{
-								disabled,
+								disabled: disabled || isIgnoringDuplicate,
 								icon: <LuShieldOff />,
 								onClick: onIgnoreDuplicate,
 								text: "Ignorar alerta",
@@ -119,7 +121,12 @@ export function ImportReviewTransactionItem({
 							},
 						]
 					: []),
-				{ disabled, icon: <LuPencil />, onClick: onEdit, text: "Editar" },
+				{
+					disabled: disabled || isIgnoringDuplicate,
+					icon: <LuPencil />,
+					onClick: onEdit,
+					text: "Editar",
+				},
 				{
 					ariaLabel: collapseLabel,
 					disabled,
@@ -133,7 +140,7 @@ export function ImportReviewTransactionItem({
 				<div className="space-y-2">
 					<TransferSuggestionActions
 						accountNames={accountNames}
-						disabled={disabled}
+						disabled={disabled || isIgnoringDuplicate}
 						onView={onViewTransferSuggestion}
 						suggestions={item.transferSuggestions}
 					/>

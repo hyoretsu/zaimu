@@ -6,6 +6,10 @@ Scrollbars must remain contained within their own scrollable div. Inset vertical
 
 Every `CustomSelect` whose options come from a user-managed listing (accounts, cards, institutions, statements, categories, or equivalent) must use `searchable`. Fixed, small option sets remain non-searchable.
 
+# Pending actions
+
+Pending actions block only their own conflict scope. Never disable unrelated controls from a shared mutation `isPending`. In lists, track pending record IDs; disable sibling controls only when they mutate the same record or an overlapping batch. Navigation, collapse, other rows, and unrelated actions stay enabled.
+
 # Typography
 
 Always use hyphens (`-`) instead of em dashes (`—`). For example: `Fatura Inter - Set/26`.

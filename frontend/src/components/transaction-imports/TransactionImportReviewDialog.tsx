@@ -144,6 +144,7 @@ export function TransactionImportReviewDialog({
 	const [collapsedItemIds, setCollapsedItemIds] = useState<Set<string>>(new Set());
 	const [approvingDateKeys, setApprovingDateKeys] = useState<Set<string>>(new Set());
 	const [approvingItemIds, setApprovingItemIds] = useState<Set<string>>(new Set());
+	const [ignoringDuplicateItemIds, setIgnoringDuplicateItemIds] = useState<Set<string>>(new Set());
 	const [discardConfirmationOpen, setDiscardConfirmationOpen] = useState(false);
 	const [editingItem, setEditingItem] = useState<TransactionImportItem | null>(null);
 	const [resolvingItem, setResolvingItem] = useState<TransactionImportItem | null>(null);
@@ -174,6 +175,7 @@ export function TransactionImportReviewDialog({
 		setCollapsedItemIds(new Set());
 		setApprovingDateKeys(new Set());
 		setApprovingItemIds(new Set());
+		setIgnoringDuplicateItemIds(new Set());
 		setDiscardConfirmationOpen(false);
 		setTransferSuggestionDecision(null);
 	}, [importId, open]);
@@ -357,8 +359,22 @@ export function TransactionImportReviewDialog({
 		showToast("Transação importada conciliada. Aprove-a para atualizar o registro existente.", "positive");
 	};
 	const ignoreDuplicate = async (item: TransactionImportItem) => {
-		await updateItem.mutateAsync({ data: { isDuplicateIgnored: true }, item });
-		showToast("Alerta de possível duplicata ignorado.", "info");
+		setIgnoringDuplicateItemIds(current => new Set(current).add(item.id));
+		try {
+			await dataService.transactionImports.updateItem(getReviewedImportId(), item.id, {
+				isDuplicateIgnored: true,
+			});
+			await invalidate();
+			showToast("Alerta de possível duplicata ignorado.", "info");
+		} catch (error) {
+			showToast(error instanceof Error ? error.message : "Não foi possível ignorar o alerta.", "negative");
+		} finally {
+			setIgnoringDuplicateItemIds(current => {
+				const next = new Set(current);
+				next.delete(item.id);
+				return next;
+			});
+		}
 	};
 
 	return (
@@ -407,10 +423,10 @@ export function TransactionImportReviewDialog({
 								).map(([date, items]) => (
 									<ImportReviewDateSection
 										approveAllDisabled={
-											updateItem.isPending ||
 											approve.isPending ||
 											discard.isPending ||
 											items.some(item => approvingItemIds.has(item.id)) ||
+											items.some(item => ignoringDuplicateItemIds.has(item.id)) ||
 											approvingDateKeys.has(date) ||
 											!items.some(item => !item.duplicateReason)
 										}
@@ -426,13 +442,8 @@ export function TransactionImportReviewDialog({
 											<ImportReviewTransactionItem
 												accountNames={accountNames}
 												collapsed={collapsedItemIds.has(item.id)}
-												disabled={
-													updateItem.isPending ||
-													acceptTransferSuggestion.isPending ||
-													rejectTransferSuggestion.isPending ||
-													approvingItemIds.has(item.id) ||
-													approvingDateKeys.has(date)
-												}
+												disabled={approvingItemIds.has(item.id) || approvingDateKeys.has(date)}
+												isIgnoringDuplicate={ignoringDuplicateItemIds.has(item.id)}
 												item={item}
 												key={item.id}
 												onApprove={() => approveItem.mutate(item.id)}
