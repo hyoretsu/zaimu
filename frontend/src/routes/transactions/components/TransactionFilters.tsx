@@ -82,8 +82,11 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 				</Button>
 			) : null}
 			{shouldShowFilters ? (
-				<div className="flex flex-wrap gap-3 pt-4" id={contentId}>
-					<div className="grid min-w-60 grow-[2] basis-60 gap-2">
+				<div
+					className="grid grid-cols-2 gap-3 pt-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6"
+					id={contentId}
+				>
+					<div className="col-span-2 grid min-w-0 gap-2 sm:col-span-3 lg:col-span-2 xl:col-span-2">
 						<Label htmlFor="transaction-search">Descrição</Label>
 						<div className="relative">
 							<LuSearch
@@ -101,16 +104,16 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 							/>
 						</div>
 					</div>
-					<div className="grid min-w-44 grow basis-44 gap-2">
+					<div className="grid min-w-0 gap-2">
 						<p className="font-medium text-sm leading-none">Data</p>
 						<DateRangePicker
-							className="w-full min-w-0"
+							className="w-full min-w-0 max-w-full overflow-hidden [&>span]:truncate"
 							onChange={value => set("dateRange", value)}
 							value={filters.dateRange}
 						/>
 					</div>
 					<CustomSelect
-						className="min-w-36 grow basis-36"
+						className="min-w-0"
 						label="Tipo"
 						onValueChange={value => set("type", value as TransactionFiltersValue["type"])}
 						options={[
@@ -124,7 +127,7 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 						value={filters.type}
 					/>
 					<CustomSelect
-						className="min-w-36 grow basis-36"
+						className="min-w-0"
 						label="Origem"
 						onValueChange={value => set("source", value as TransactionFiltersValue["source"])}
 						options={[
@@ -137,7 +140,7 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 						value={filters.source}
 					/>
 					<CustomSelect
-						className="min-w-36 grow basis-36"
+						className="min-w-0"
 						label="Visibilidade"
 						onValueChange={value => set("visibility", value as TransactionFiltersValue["visibility"])}
 						options={[
@@ -150,7 +153,7 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 						value={filters.visibility}
 					/>
 					<CustomSelect
-						className="min-w-36 grow basis-36"
+						className="min-w-0"
 						label="Conta"
 						onValueChange={value => set("accountId", value)}
 						options={[
@@ -168,7 +171,7 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 						value={filters.accountId}
 					/>
 					<CustomSelect
-						className="min-w-36 grow basis-36"
+						className="min-w-0"
 						label="Categoria"
 						onValueChange={value => set("categoryId", value)}
 						options={[
@@ -181,7 +184,7 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 					/>
 					{hasFilters ? (
 						<Button
-							className="cursor-pointer self-end"
+							className="col-span-2 cursor-pointer justify-self-start sm:col-span-1 sm:self-end"
 							onClick={onClear}
 							size="sm"
 							type="button"
