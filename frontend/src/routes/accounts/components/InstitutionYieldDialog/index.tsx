@@ -98,14 +98,14 @@ export function InstitutionYieldDialog({
 					<LuBadgePercent /> Rendimento
 				</Button>
 			</DialogTrigger>
-			<DialogContent className="flex max-h-[min(90vh,52rem)] flex-col sm:max-w-3xl">
+			<DialogContent className="grid max-h-[min(90dvh,52rem)] grid-rows-[auto_minmax(0,1fr)] overflow-hidden sm:max-w-3xl">
 				<DialogHeader>
 					<DialogTitle>Rendimento de {institution.name}</DialogTitle>
 					<DialogDescription>
 						Aplicado por faixas progressivas em contas correntes e poupanças sem regra própria.
 					</DialogDescription>
 				</DialogHeader>
-				<form className="flex min-h-0 flex-1 flex-col gap-5" onSubmit={submit}>
+				<form className="flex min-h-0 flex-col gap-5" onSubmit={submit}>
 					<CheckboxField
 						checkboxProps={{ checked: enabled, onCheckedChange: checked => setEnabled(checked === true) }}
 					>
@@ -116,7 +116,7 @@ export function InstitutionYieldDialog({
 							<div className="grid gap-4 pb-2">
 								<div className="grid gap-4 sm:grid-cols-2">
 									<CustomSelect
-										label="Periodicidade"
+										label="Periodicidade da taxa fixa"
 										onValueChange={value => setPeriod(value as "MONTHLY" | "YEARLY")}
 										options={[
 											{ label: "Mensal (21 dias úteis)", value: "MONTHLY" },
