@@ -30,7 +30,6 @@ export function StatementFilePicker({
 				aria-describedby={`${inputId}-description`}
 				className="sr-only"
 				id={inputId}
-				key={file?.name ?? "empty"}
 				name="statement"
 				onChange={handleFileChange}
 				required
