@@ -20,6 +20,29 @@ export const initialTransactionFilters: TransactionFilters = {
 	visibility: "all",
 };
 
+export interface TransactionQueryFilters {
+	categoryId?: string;
+	endDate?: string;
+	financialAccountId?: string;
+	search?: string;
+	source?: NonNullable<Transaction["source"]>;
+	startDate?: string;
+	type?: Transaction["type"];
+	visibility?: Exclude<TransactionFilters["visibility"], "all">;
+}
+
+export function toTransactionQueryFilters(filters: TransactionFilters): TransactionQueryFilters {
+	return {
+		...(filters.accountId !== "all" && { financialAccountId: filters.accountId }),
+		...(filters.categoryId !== "all" && { categoryId: filters.categoryId }),
+		...filters.dateRange,
+		...(filters.search && { search: filters.search }),
+		...(filters.source !== "all" && { source: filters.source }),
+		...(filters.type !== "all" && { type: filters.type }),
+		...(filters.visibility !== "all" && { visibility: filters.visibility }),
+	};
+}
+
 export function countActiveTransactionFilters(filters: TransactionFilters) {
 	return [
 		Boolean(filters.search),
@@ -30,49 +53,4 @@ export function countActiveTransactionFilters(filters: TransactionFilters) {
 		filters.accountId !== initialTransactionFilters.accountId,
 		filters.categoryId !== initialTransactionFilters.categoryId,
 	].filter(Boolean).length;
-}
-
-export function filterTransactions(transactions: Transaction[], filters: TransactionFilters) {
-	const search = normalize(filters.search);
-
-	return transactions.filter(transaction => {
-		if (filters.type !== "all" && transaction.type !== filters.type) return false;
-		if (filters.source !== "all" && transaction.source !== filters.source) return false;
-		if (filters.visibility === "hidden" && !transaction.isHidden) return false;
-		if (filters.visibility === "visible" && transaction.isHidden) return false;
-		if (filters.dateRange.startDate && transaction.date.slice(0, 10) < filters.dateRange.startDate)
-			return false;
-		if (filters.dateRange.endDate && transaction.date.slice(0, 10) > filters.dateRange.endDate) return false;
-		if (
-			filters.accountId !== "all" &&
-			transaction.originFinancialAccountId !== filters.accountId &&
-			transaction.destinationFinancialAccountId !== filters.accountId
-		)
-			return false;
-		if (
-			filters.categoryId !== "all" &&
-			!(transaction.tagIds ?? (transaction.categoryId ? [transaction.categoryId] : [])).includes(
-				filters.categoryId,
-			)
-		)
-			return false;
-		return !search || normalize(getTransactionSearchText(transaction)).includes(search);
-	});
-}
-
-function getTransactionSearchText(transaction: Transaction) {
-	const brazilianDate = transaction.date.slice(0, 10).split("-").reverse().join("/");
-	const amount = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(
-		transaction.amount,
-	);
-	return [JSON.stringify(transaction), brazilianDate, amount].join(" ");
-}
-
-function normalize(value: string) {
-	return value
-		.normalize("NFD")
-		.replace(/\p{Diacritic}/gu, "")
-		.toLocaleLowerCase("pt-BR")
-		.replace(/\s+/gu, " ")
-		.trim();
 }

@@ -1,41 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import type { Transaction } from "@/lib/api";
 import {
 	countActiveTransactionFilters,
-	filterTransactions,
 	initialTransactionFilters,
+	toTransactionQueryFilters,
 } from "./-transaction-filters";
 
-const transactions: Transaction[] = [
-	{
-		amount: 42.5,
-		categoryId: "food",
-		categoryName: "Alimentação",
-		createdAt: "2026-09-14T12:00:00.000Z",
-		date: "2026-09-14",
-		description: "Almoço no café",
-		destinationFinancialAccountId: "wallet",
-		id: "income",
-		originFinancialAccountId: "nubank",
-		originName: "Nubank",
-		tagIds: ["food"],
-		type: "EXPENSE",
-	},
-	{
-		amount: 100,
-		createdAt: "2026-09-15T12:00:00.000Z",
-		date: "2026-09-15",
-		destinationFinancialAccountId: "wallet",
-		destinationName: "Carteira",
-		id: "transfer",
-		isHidden: true,
-		originFinancialAccountId: "nubank",
-		source: "FINANCIAL_ACCOUNT",
-		type: "TRANSFER",
-	},
-];
-
-describe("filterTransactions", () => {
+describe("transaction filters", () => {
 	test("counts each non-default filter once, including a date range", () => {
 		expect(countActiveTransactionFilters(initialTransactionFilters)).toBe(0);
 		expect(
@@ -48,26 +18,27 @@ describe("filterTransactions", () => {
 		).toBe(3);
 	});
 
-	test("searches every transaction value, including localized date and amount", () => {
+	test("maps every active filter to query parameters", () => {
 		expect(
-			filterTransactions(transactions, { ...initialTransactionFilters, search: "14/09/2026" }),
-		).toHaveLength(1);
-		expect(
-			filterTransactions(transactions, { ...initialTransactionFilters, search: "R$ 42,50" }),
-		).toHaveLength(1);
-		expect(
-			filterTransactions(transactions, { ...initialTransactionFilters, search: "alimentacao" }),
-		).toHaveLength(1);
-	});
-
-	test("combines date, account, type and visibility filters", () => {
-		const result = filterTransactions(transactions, {
-			...initialTransactionFilters,
-			accountId: "wallet",
-			dateRange: { startDate: "2026-09-15" },
-			type: "TRANSFER",
+			toTransactionQueryFilters({
+				...initialTransactionFilters,
+				accountId: "account-id",
+				categoryId: "category-id",
+				dateRange: { endDate: "2026-09-30", startDate: "2026-09-01" },
+				search: "café",
+				source: "CREDIT_CARD",
+				type: "EXPENSE",
+				visibility: "hidden",
+			}),
+		).toEqual({
+			categoryId: "category-id",
+			endDate: "2026-09-30",
+			financialAccountId: "account-id",
+			search: "café",
+			source: "CREDIT_CARD",
+			startDate: "2026-09-01",
+			type: "EXPENSE",
 			visibility: "hidden",
 		});
-		expect(result.map(transaction => transaction.id)).toEqual(["transfer"]);
 	});
 });

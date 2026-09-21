@@ -60,6 +60,8 @@ const transactionColumns = [
 ] as const;
 
 const TransactionType = t.Union([t.Literal("INCOME"), t.Literal("EXPENSE"), t.Literal("TRANSFER")]);
+const TransactionSource = t.Union([t.Literal("CREDIT_CARD"), t.Literal("FINANCIAL_ACCOUNT")]);
+const TransactionVisibility = t.Union([t.Literal("hidden"), t.Literal("visible")]);
 const timePattern = /^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
 
 function normalizeSearch(value: string) {
@@ -69,6 +71,33 @@ function normalizeSearch(value: string) {
 		.toLocaleLowerCase("pt-BR")
 		.replace(/\s+/gu, " ")
 		.trim();
+}
+
+function getTransactionSearchText(transaction: {
+	amount: number;
+	categoryName?: string | null;
+	date: Date;
+	description?: string | null;
+	destinationName?: string | null;
+	originName?: string | null;
+	storeName?: string | null;
+	tags?: Array<{ name: string }>;
+}) {
+	const brazilianDate = transaction.date.toISOString().slice(0, 10).split("-").reverse().join("/");
+	const amount = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(
+		transaction.amount,
+	);
+	return [
+		transaction.amount,
+		amount,
+		brazilianDate,
+		transaction.categoryName,
+		transaction.description,
+		transaction.destinationName,
+		transaction.originName,
+		transaction.storeName,
+		...(transaction.tags?.map(tag => tag.name) ?? []),
+	].join(" ");
 }
 
 function resolveTransactionTime(value: string | null | undefined): string | null {
@@ -465,13 +494,22 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				queryBuilder = queryBuilder.where((f, fn) => fn.gte(f.Transaction.date, new Date(query.startDate!)));
 			}
 			if (query.endDate) {
-				queryBuilder = queryBuilder.where((f, fn) => fn.lte(f.Transaction.date, new Date(query.endDate!)));
+				queryBuilder = queryBuilder.where((f, fn) =>
+					fn.lte(f.Transaction.date, new Date(`${query.endDate!}T23:59:59.999`)),
+				);
 			}
 			if (query.type) {
 				queryBuilder = queryBuilder.where((f, fn) => fn.eq(f.Transaction.type, query.type!));
 			}
-			if (query.categoryId && taggedTransactionIds?.length) {
-				queryBuilder = queryBuilder.where((f, fn) => fn.in(f.Transaction.id, taggedTransactionIds!));
+			if (query.categoryId) {
+				queryBuilder = queryBuilder.where((f, fn) =>
+					taggedTransactionIds?.length
+						? fn.or(
+								fn.in(f.Transaction.id, taggedTransactionIds),
+								fn.eq(f.Transaction.categoryId, query.categoryId!),
+							)
+						: fn.eq(f.Transaction.categoryId, query.categoryId!),
+				);
 			}
 			if (query.financialAccountId) {
 				queryBuilder = queryBuilder.where((f, fn) =>
@@ -481,8 +519,14 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					),
 				);
 			}
+			if (query.visibility === "hidden") {
+				queryBuilder = queryBuilder.where((f, fn) => fn.eq(f.Transaction.isHidden, true));
+			}
+			if (query.visibility === "visible") {
+				queryBuilder = queryBuilder.where((f, fn) => fn.eq(f.Transaction.isHidden, false));
+			}
 
-			const transactions = taggedTransactionIds?.length === 0 ? [] : await queryRows(queryBuilder.build());
+			const transactions = await queryRows(queryBuilder.build());
 			const [tagsByTransaction, externalReferences] = await Promise.all([
 				getTagsByEntity(
 					tagEntityType.transaction,
@@ -537,6 +581,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 
 			let purchases: Array<{
 				amount: unknown;
+				categoryId: string | null;
 				categoryColor: string | null;
 				categoryName: string | null;
 				creditCardId: string;
@@ -558,7 +603,11 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				time: string | null;
 				sourceName: string;
 			}> = [];
-			if (!query.type || query.type === "EXPENSE" || query.type === "INCOME") {
+			if (
+				query.source !== "FINANCIAL_ACCOUNT" &&
+				query.visibility !== "hidden" &&
+				(!query.type || query.type === "EXPENSE" || query.type === "INCOME")
+			) {
 				let purchaseQuery = db.sql.public.CreditPurchase.innerJoin(
 					db.sql.public.CreditCardStatement,
 					(f, fn) => fn.eq(f.CreditPurchase.statementId, f.CreditCardStatement.id),
@@ -576,6 +625,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					.select((f, fn) => ({
 						amount: f.CreditPurchase.totalAmount,
 						categoryColor: f.Category.color,
+						categoryId: f.CreditPurchase.categoryId,
 						categoryName: f.Category.name,
 						createdAt: f.CreditPurchase.createdAt,
 						creditCardId: f.CreditCard.id,
@@ -611,7 +661,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					);
 				if (query.endDate)
 					purchaseQuery = purchaseQuery.where((f, fn) =>
-						fn.lte(f.CreditPurchase.purchaseDate, new Date(query.endDate!)),
+						fn.lte(f.CreditPurchase.purchaseDate, new Date(`${query.endDate!}T23:59:59.999`)),
 					);
 				if (query.financialAccountId)
 					purchaseQuery = purchaseQuery.where((f, fn) =>
@@ -698,24 +748,19 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						};
 					}),
 				)
-			).filter(purchase => !query.categoryId || purchase.tagIds.includes(query.categoryId));
+			).filter(
+				purchase =>
+					!query.categoryId ||
+					purchase.tagIds.includes(query.categoryId) ||
+					purchase.categoryId === query.categoryId,
+			);
 
 			const search = query.search ? normalizeSearch(query.search) : undefined;
 			const sortedTransactions = [...normalizedTransactions, ...normalizedPurchases]
 				.filter(
 					transaction =>
-						!search ||
-						normalizeSearch(
-							[
-								transaction.amount,
-								transaction.categoryName,
-								transaction.description,
-								transaction.destinationName,
-								transaction.originName,
-								transaction.storeName,
-								...(transaction.tags?.map(tag => tag.name) ?? []),
-							].join(" "),
-						).includes(search),
+						(!query.source || transaction.source === query.source) &&
+						(!search || normalizeSearch(getTransactionSearchText(transaction)).includes(search)),
 				)
 				.sort(
 					(left, right) =>
@@ -783,9 +828,11 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				limit: t.Optional(t.Number({ maximum: 500, minimum: 1 })),
 				offset: t.Optional(t.Number({ minimum: 0 })),
 				search: t.Optional(t.String({ maxLength: 200 })),
+				source: t.Optional(TransactionSource),
 				startDate: t.Optional(t.String()),
 				type: t.Optional(TransactionType),
 				view: t.Optional(t.Literal("daily")),
+				visibility: t.Optional(TransactionVisibility),
 			}),
 		},
 	)

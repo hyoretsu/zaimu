@@ -37,9 +37,10 @@ import { RefundCreditPurchaseDialog } from "@/routes/credit-cards/components/Ref
 import { showToast } from "@/stores";
 import { groupTransactionsForDisplay } from "./transactions/-transaction-display-groups";
 import {
-	filterTransactions,
 	initialTransactionFilters,
 	type TransactionFilters as TransactionFiltersValue,
+	type TransactionQueryFilters,
+	toTransactionQueryFilters,
 } from "./transactions/-transaction-filters";
 import { transactionToCreditPurchase } from "./transactions/-transaction-to-credit-purchase";
 import {
@@ -51,12 +52,9 @@ import {
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 const transactionsPageSize = 50;
 const searchResultsPageSize = 10;
-interface TransactionsPageParam {
-	endDate?: string;
+interface TransactionsPageParam extends TransactionQueryFilters {
 	limit?: number;
 	offset?: number;
-	search?: string;
-	startDate?: string;
 }
 interface TransactionsDailyPage {
 	days: Array<{ date: string; endingBalance: number; transactions: Transaction[] }>;
@@ -64,8 +62,10 @@ interface TransactionsDailyPage {
 	resultCount: number;
 }
 
-function getInitialTransactionsPage(search: string): TransactionsPageParam {
-	if (search) return { limit: searchResultsPageSize, search };
+function getInitialTransactionsPage(filters: TransactionFiltersValue): TransactionsPageParam {
+	const queryFilters = toTransactionQueryFilters(filters);
+	if (Object.keys(queryFilters).length > 0)
+		return { ...queryFilters, limit: filters.search ? searchResultsPageSize : transactionsPageSize };
 
 	const today = new Date();
 	const daysSinceMonday = (today.getDay() + 6) % 7;
@@ -122,12 +122,12 @@ export function TransactionsPage() {
 				? { ...lastPageParam, offset: (lastPageParam.offset ?? 0) + transactionsPageSize }
 				: undefined;
 		},
-		initialPageParam: getInitialTransactionsPage(filters.search),
+		initialPageParam: getInitialTransactionsPage(filters),
 		queryFn: ({ pageParam }) =>
 			dataService.transactions.getDailyPage(
 				pageParam.startDate ? pageParam : { limit: transactionsPageSize, ...pageParam },
 			),
-		queryKey: queryKeys.transactions.list(identity!, { search: filters.search }),
+		queryKey: queryKeys.transactions.list(identity!, toTransactionQueryFilters(filters)),
 	});
 	const transactionDays = transactionsQuery.data?.pages.flatMap(page => page.days) ?? [];
 	const transactions = transactionDays.flatMap(day => day.transactions);
@@ -186,7 +186,7 @@ export function TransactionsPage() {
 		},
 	});
 
-	const filteredTransactions = transactionsQuery.data ? filterTransactions(transactions, filters) : undefined;
+	const filteredTransactions = transactionsQuery.data ? transactions : undefined;
 	const groupedTransactions = filteredTransactions
 		? sortTransactionsByMostRecent(filteredTransactions).reduce<Record<string, Transaction[]>>(
 				(groups, transaction) => {
@@ -423,8 +423,12 @@ export function TransactionsPage() {
 				<div className="space-y-5">
 					{Object.entries(groupedTransactions).map(([date, transactions]) => {
 						const displayGroups = groupTransactionsForDisplay(transactions, today);
+						const [onlyDisplayGroup] = displayGroups;
 						const singleCollapsedGroup =
-							displayGroups.length === 1 && displayGroups[0]?.kind !== "visible" ? displayGroups[0] : null;
+							displayGroups.length === 1 &&
+							(onlyDisplayGroup?.kind === "hidden" || onlyDisplayGroup?.kind === "future")
+								? onlyDisplayGroup
+								: null;
 						const dayLabel = `${formatLocalDate(date, { weekday: "long" }).replace(/^./, character => character.toUpperCase())}, ${formatLocalDate(date)}`;
 
 						return (
@@ -436,7 +440,7 @@ export function TransactionsPage() {
 								{singleCollapsedGroup ? (
 									<TransactionsGroupToggle
 										expanded={expandedTransactionGroups.has(singleCollapsedGroup.id)}
-										kind={singleCollapsedGroup.kind}
+										kind={singleCollapsedGroup.kind === "future" ? "future" : "hidden"}
 										onClick={() => toggleTransactionGroup(singleCollapsedGroup.id)}
 										transactionCount={singleCollapsedGroup.transactions.length}
 									/>

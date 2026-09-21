@@ -66,6 +66,15 @@ import { assertFileIsAccessible } from "./upload-file";
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3333";
 const REQUEST_TIMEOUT_MS = 10_000;
 
+function normalizeTransactionSearch(value: string) {
+	return value
+		.normalize("NFD")
+		.replace(/\p{Diacritic}/gu, "")
+		.toLocaleLowerCase("pt-BR")
+		.replace(/\s+/gu, " ")
+		.trim();
+}
+
 function getEvenlyDistributedInstallmentAmounts(totalAmount: number, installments: number) {
 	const totalInCents = Math.round(totalAmount * 100);
 	const amountInCents = Math.floor(totalInCents / installments);
@@ -3107,13 +3116,16 @@ export const dataService = {
 			await localTransactions.delete(id);
 		},
 		async getAll(params?: {
-			startDate?: string;
-			endDate?: string;
-			type?: Transaction["type"];
 			categoryId?: string;
+			endDate?: string;
 			financialAccountId?: string;
 			limit?: number;
 			offset?: number;
+			search?: string;
+			source?: NonNullable<Transaction["source"]>;
+			startDate?: string;
+			type?: Transaction["type"];
+			visibility?: "hidden" | "visible";
 		}): Promise<Transaction[]> {
 			if (isGuestMode()) {
 				const [local, storedPurchases, storedStatements, storedCards, storedCategories, storedAccounts] =
@@ -3251,6 +3263,25 @@ export const dataService = {
 							t.destinationFinancialAccountId === params.financialAccountId,
 					);
 				}
+				if (params?.source) transactions = transactions.filter(t => t.source === params.source);
+				if (params?.visibility === "hidden") transactions = transactions.filter(t => t.isHidden);
+				if (params?.visibility === "visible") transactions = transactions.filter(t => !t.isHidden);
+				if (params?.search) {
+					const search = normalizeTransactionSearch(params.search);
+					transactions = transactions.filter(transaction =>
+						normalizeTransactionSearch(
+							[
+								transaction.amount,
+								transaction.categoryName,
+								transaction.description,
+								transaction.destinationName,
+								transaction.originName,
+								transaction.storeName,
+								...(transaction.tags?.map(tag => tag.name) ?? []),
+							].join(" "),
+						).includes(search),
+					);
+				}
 
 				transactions = sortTransactionsByMostRecent(transactions);
 
@@ -3288,11 +3319,16 @@ export const dataService = {
 			return transactions;
 		},
 		async getDailyPage(params: {
+			categoryId?: string;
 			endDate?: string;
+			financialAccountId?: string;
 			limit?: number;
 			offset?: number;
 			search?: string;
+			source?: NonNullable<Transaction["source"]>;
 			startDate?: string;
+			type?: Transaction["type"];
+			visibility?: "hidden" | "visible";
 		}): Promise<{
 			days: Array<{ date: string; endingBalance: number; transactions: Transaction[] }>;
 			hasMore: boolean;
