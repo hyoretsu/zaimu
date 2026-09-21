@@ -1,6 +1,6 @@
 import { addMonths, format, isValid, parseISO, startOfMonth, subMonths } from "date-fns";
 import { useState } from "react";
-import { LuCalendarDays, LuChevronLeft, LuChevronRight } from "react-icons/lu";
+import { LuChevronDown, LuChevronLeft, LuChevronRight } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/Dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
@@ -75,7 +75,7 @@ export function DateField({
 			variant="outline"
 		>
 			<span>{selectedDate ? format(selectedDate, "dd/MM/yyyy") : placeholder}</span>
-			<LuCalendarDays className="size-4 shrink-0" />
+			<LuChevronDown className="size-4 shrink-0" />
 		</Button>
 	);
 	const calendar = (

@@ -114,7 +114,7 @@ export function EditImportedTransactionDialog({
 			: draft.originFinancialAccountId;
 
 	return (
-		<Dialog onOpenChange={onOpenChange} open={open}>
+		<Dialog modal onOpenChange={onOpenChange} open={open}>
 			<DialogContent className="max-h-[92dvh] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>Editar transação importada</DialogTitle>
