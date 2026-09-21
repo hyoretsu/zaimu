@@ -34,7 +34,7 @@ export function EditDebtPersonDialog({
 	}, [open, person.accountEmail, person.name, setAccountEmail, setName]);
 	return (
 		<Dialog onOpenChange={onOpenChange} open={open}>
-			<DialogContent>
+			<DialogContent className="sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>Editar pessoa</DialogTitle>
 					<DialogDescription>

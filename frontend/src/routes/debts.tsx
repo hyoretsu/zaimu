@@ -8,10 +8,10 @@ import type { DebtEvent, DebtPerson } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
+import { DashboardDebtInvitations } from "./components";
 import {
 	CreateDebtDialog,
 	type CreateDebtOriginDraft,
-	DebtInvitations,
 	DebtPersonCard,
 	EditDebtPersonDialog,
 	type UpdateDebtOriginDraft,
@@ -121,7 +121,7 @@ export function DebtsPage() {
 				</div>
 			</header>
 			<div className="mt-5">
-				<DebtInvitations />
+				<DashboardDebtInvitations showSent />
 			</div>
 			<section className="grid min-w-0 gap-3 px-4 pt-4">
 				{people.length ? (
