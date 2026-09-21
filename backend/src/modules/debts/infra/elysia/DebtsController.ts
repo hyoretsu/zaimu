@@ -339,7 +339,7 @@ async function getPeopleLedger(userId: string) {
 	);
 }
 
-async function getInvitationPreview(connectionId: string, requesterId: string) {
+async function getInvitationPreview(connectionId: string, requesterId: string, viewerId: string) {
 	const person = await queryFirst(
 		db.sql.public.DebtPerson.select("id", "name", "normalizedName", "connectionId", "hiddenAt")
 			.where((fields, functions) =>
@@ -352,7 +352,7 @@ async function getInvitationPreview(connectionId: string, requesterId: string) {
 			.build(),
 	);
 	if (!person || person.hiddenAt) return { balance: 0, events: [] };
-	const events = await getPersonEvents(person, requesterId);
+	const events = await getPersonEvents(person, viewerId);
 	return { balance: events.reduce((sum, event) => sum + event.effect, 0), events };
 }
 
@@ -416,7 +416,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 			);
 			return Promise.all(
 				invitations.map(async invitation => ({
-					...(await getInvitationPreview(invitation.id, invitation.requesterId)),
+					...(await getInvitationPreview(invitation.id, invitation.requesterId, userId)),
 					counterpartyName:
 						invitation.requesterId === userId ? invitation.recipientName : invitation.requesterName,
 					createdAt: invitation.createdAt,

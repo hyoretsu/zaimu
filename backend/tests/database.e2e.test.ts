@@ -1112,6 +1112,7 @@ suite("Prisma 8 SQL query builder", () => {
 		const invitations = (await invitationsResponse.json()) as Record<string, unknown>[];
 		expect(invitationsResponse.status).toBe(200);
 		expect(invitations[0]).toMatchObject({ direction: "RECEIVED", status: "PENDING" });
+		expect(invitations[0]).toMatchObject({ balance: -150 });
 		expect(invitations[0]).not.toHaveProperty("requesterEmail");
 
 		const privateLedger = await jsonRequest("/debts", "GET", undefined, peer.cookie);
