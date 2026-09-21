@@ -2,7 +2,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { LuShoppingCart, LuUsersRound, LuWalletCards } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
-import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import {
 	Dialog,
 	DialogContent,
@@ -19,6 +18,7 @@ import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { getDebtEventLabel } from "../../debts/components/debt-event";
 import { DebtInvitationAssociationDialog } from "./DebtInvitationAssociationDialog";
+import { DebtInvitationDeclineDialog } from "./DebtInvitationDeclineDialog";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
@@ -35,7 +35,7 @@ export function DebtInvitationDialog({
 }) {
 	const identity = useCacheIdentity();
 	const queryClient = useQueryClient();
-	const [associationOpen, setAssociationOpen] = useState(false);
+	const [step, setStep] = useState<"details" | "association" | "decline">("details");
 	const accept = useMutation({
 		mutationFn: (personId?: string) => dataService.debts.acceptInvitation(invitation.id, personId),
 		onError: error =>
@@ -57,7 +57,23 @@ export function DebtInvitationDialog({
 		},
 	});
 	const isPending = accept.isPending || decline.isPending;
-	return (
+	const returnToDetails = () => setStep("details");
+	const dismissInvitation = () => onOpenChange(false);
+	return step === "association" ? (
+		<DebtInvitationAssociationDialog
+			onApprove={personId => accept.mutate(personId)}
+			onOpenChange={nextOpen => (nextOpen ? setStep("association") : returnToDetails())}
+			open
+			pending={isPending}
+		/>
+	) : step === "decline" ? (
+		<DebtInvitationDeclineDialog
+			onDecline={() => decline.mutate()}
+			onDismiss={dismissInvitation}
+			open
+			pending={isPending}
+		/>
+	) : (
 		<Dialog onOpenChange={onOpenChange} open={open}>
 			<DialogContent className="grid max-h-[calc(100dvh-2rem)] grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-4 overflow-hidden p-4 sm:max-w-lg sm:p-6">
 				<DialogHeader>
@@ -128,32 +144,25 @@ export function DebtInvitationDialog({
 					</div>
 				</ScrollArea>
 				<DialogFooter className="!grid sm:!grid shrink-0 grid-cols-2 gap-2">
-					<ConfirmActionButton
+					<Button
 						className="w-full cursor-pointer"
-						confirmation="Recusar este convite?"
 						disabled={isPending}
-						onConfirm={() => decline.mutate()}
+						onClick={() => setStep("decline")}
 						type="button"
 						variant="outline"
 					>
 						Recusar
-					</ConfirmActionButton>
+					</Button>
 					<Button
 						className="w-full cursor-pointer"
 						disabled={isPending}
-						onClick={() => setAssociationOpen(true)}
+						onClick={() => setStep("association")}
 						type="button"
 					>
 						Aprovar
 					</Button>
 				</DialogFooter>
 			</DialogContent>
-			<DebtInvitationAssociationDialog
-				onApprove={personId => accept.mutate(personId)}
-				onOpenChange={setAssociationOpen}
-				open={associationOpen}
-				pending={isPending}
-			/>
 		</Dialog>
 	);
 }
