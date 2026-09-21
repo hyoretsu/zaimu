@@ -3,6 +3,8 @@ import { useState } from "react";
 import { LuShoppingCart, LuUsersRound, LuWalletCards } from "react-icons/lu";
 import { DebtPersonPicker } from "@/components/debts";
 import { Button } from "@/components/ui/Button";
+import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 import {
 	Dialog,
 	DialogContent,
@@ -35,7 +37,8 @@ export function DebtInvitationDialog({
 	const identity = useCacheIdentity();
 	const queryClient = useQueryClient();
 	const [personId, setPersonId] = useState("");
-	const [reusePerson, setReusePerson] = useState(false);
+	const [associationMode, setAssociationMode] = useState<"existing" | "new">("new");
+	const reusePerson = associationMode === "existing";
 	const accept = useMutation({
 		mutationFn: (personId?: string) => dataService.debts.acceptInvitation(invitation.id, personId),
 		onError: error =>
@@ -56,9 +59,10 @@ export function DebtInvitationDialog({
 			onResolved();
 		},
 	});
+	const isPending = accept.isPending || decline.isPending;
 	return (
 		<Dialog onOpenChange={onOpenChange} open={open}>
-			<DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-4 overflow-hidden p-4 sm:max-w-lg sm:p-6">
+			<DialogContent className="grid max-h-[calc(100dvh-2rem)] grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-4 overflow-hidden p-4 sm:max-w-lg sm:p-6">
 				<DialogHeader>
 					<DialogTitle>{invitation.counterpartyName} quer compartilhar uma dívida</DialogTitle>
 					<DialogDescription>
@@ -88,78 +92,91 @@ export function DebtInvitationDialog({
 						{currency.format(Math.abs(invitation.balance))}
 					</strong>
 				</div>
-				<ScrollArea className="min-h-0 w-full flex-1">
-					<div className="space-y-2">
-						{invitation.events.map(event => (
-							<div
-								className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border p-3"
-								key={event.id}
-							>
-								<div className="text-muted-foreground">
-									{event.kind === "PURCHASE" ? <LuShoppingCart /> : <LuWalletCards />}
-								</div>
-								<div className="min-w-0 flex-1">
-									<p className="truncate font-medium text-sm">{getDebtEventLabel(event)}</p>
-									<p className="truncate text-muted-foreground text-xs">
-										{event.date ? formatLocalDate(event.date) : "Sem data"}
-										{formatLocalTime(event.time) ? ` · ${formatLocalTime(event.time)}` : ""}· Criado por{" "}
-										{event.createdByName.trim().split(/\s+/)[0]}
-									</p>
-								</div>
-								<span
-									className={
-										event.effect >= 0
-											? "shrink-0 text-right text-emerald-600 text-sm sm:text-base"
-											: "shrink-0 text-right text-rose-600 text-sm sm:text-base"
-									}
+				<ScrollArea className="min-h-0 w-full">
+					<div className="space-y-4 pr-3">
+						<div className="space-y-2">
+							{invitation.events.map(event => (
+								<div
+									className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border p-3"
+									key={event.id}
 								>
-									{event.effect >= 0 ? "+" : "−"}
-									{currency.format(Math.abs(event.effect))}
-								</span>
-							</div>
-						))}
-						{!invitation.events.length ? (
-							<p className="rounded-xl border border-dashed p-4 text-muted-foreground text-sm">
-								Nenhum lançamento será associado.
-							</p>
-						) : null}
+									<div className="text-muted-foreground">
+										{event.kind === "PURCHASE" ? <LuShoppingCart /> : <LuWalletCards />}
+									</div>
+									<div className="min-w-0 flex-1">
+										<p className="truncate font-medium text-sm">{getDebtEventLabel(event)}</p>
+										<p className="truncate text-muted-foreground text-xs">
+											{event.date ? formatLocalDate(event.date) : "Sem data"}
+											{formatLocalTime(event.time) ? ` · ${formatLocalTime(event.time)}` : ""}· Criado por{" "}
+											{event.createdByName.trim().split(/\s+/)[0]}
+										</p>
+									</div>
+									<span
+										className={
+											event.effect >= 0
+												? "shrink-0 text-right text-emerald-600 text-sm sm:text-base"
+												: "shrink-0 text-right text-rose-600 text-sm sm:text-base"
+										}
+									>
+										{event.effect >= 0 ? "+" : "−"}
+										{currency.format(Math.abs(event.effect))}
+									</span>
+								</div>
+							))}
+							{!invitation.events.length ? (
+								<p className="rounded-xl border border-dashed p-4 text-muted-foreground text-sm">
+									Nenhum lançamento será associado.
+								</p>
+							) : null}
+						</div>
+						<div className="grid gap-3 rounded-2xl border bg-muted/30 p-4">
+							<CustomSelect
+								disabled={isPending}
+								label="Associar como"
+								onValueChange={value => {
+									setAssociationMode(value as "existing" | "new");
+									setPersonId("");
+								}}
+								options={[
+									{ label: "Criar nova pessoa", value: "new" },
+									{ label: "Usar pessoa existente", value: "existing" },
+								]}
+								placeholder="Selecione como associar"
+								value={associationMode}
+							/>
+							{reusePerson ? (
+								<DebtPersonPicker onValueChange={setPersonId} required value={personId} />
+							) : null}
+						</div>
 					</div>
 				</ScrollArea>
-				{reusePerson ? (
-					<div className="grid shrink-0 gap-3 rounded-2xl border bg-muted/30 p-4">
-						<DebtPersonPicker onValueChange={setPersonId} required value={personId} />
-						<Button
-							className="cursor-pointer"
-							disabled={!personId || accept.isPending || decline.isPending}
-							onClick={() => accept.mutate(personId)}
-						>
-							Confirmar associação
-						</Button>
-					</div>
-				) : null}
 				<DialogFooter className="shrink-0">
 					<Button
 						className="cursor-pointer"
-						disabled={accept.isPending || decline.isPending}
-						onClick={() => accept.mutate()}
-					>
-						Criar nova pessoa
-					</Button>
-					<Button
-						className="cursor-pointer"
-						disabled={accept.isPending || decline.isPending}
-						onClick={() => setReusePerson(current => !current)}
+						disabled={isPending}
+						onClick={() => onOpenChange(false)}
+						type="button"
 						variant="outline"
 					>
-						Usar pessoa existente
+						Cancelar
 					</Button>
-					<Button
+					<ConfirmActionButton
 						className="cursor-pointer"
-						disabled={accept.isPending || decline.isPending}
-						onClick={() => decline.mutate()}
+						confirmation="Recusar este convite?"
+						disabled={isPending}
+						onConfirm={() => decline.mutate()}
+						type="button"
 						variant="outline"
 					>
 						Recusar
+					</ConfirmActionButton>
+					<Button
+						className="cursor-pointer"
+						disabled={isPending || (reusePerson && !personId)}
+						onClick={() => accept.mutate(reusePerson ? personId : undefined)}
+						type="button"
+					>
+						{reusePerson ? "Confirmar associação" : "Criar nova pessoa"}
 					</Button>
 				</DialogFooter>
 			</DialogContent>
