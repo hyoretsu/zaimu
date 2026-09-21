@@ -38,7 +38,7 @@ export function DebtPersonCard({
 	const [expanded, setExpanded] = useState(false);
 	return (
 		<article className="min-w-0 max-w-full overflow-x-clip rounded-2xl border bg-card p-4 shadow-sm">
-			<div className="flex items-start gap-3">
+			<div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3">
 				<div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
 					<LuUsersRound />
 				</div>
@@ -57,18 +57,18 @@ export function DebtPersonCard({
 				<strong
 					className={
 						person.balance > 0
-							? "text-emerald-600"
+							? "whitespace-nowrap text-emerald-600"
 							: person.balance < 0
-								? "text-rose-600"
-								: "text-muted-foreground"
+								? "whitespace-nowrap text-rose-600"
+								: "whitespace-nowrap text-muted-foreground"
 					}
 				>
 					{currency.format(Math.abs(person.balance))}
 				</strong>
 			</div>
-			<div className="mt-3 flex gap-2">
+			<div className="mt-3 grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] gap-2">
 				<Button
-					className="flex-1 cursor-pointer"
+					className="min-w-0 cursor-pointer"
 					onClick={() => setExpanded(current => !current)}
 					type="button"
 					variant="outline"

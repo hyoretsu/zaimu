@@ -60,13 +60,19 @@ export function DashboardDebtInvitations({ showSent = false }: { showSent?: bool
 				/>
 			) : null}
 			{showSent && sent.length ? (
-				<section aria-label="Convites de dívida enviados" className="mt-3 rounded-2xl border bg-card p-4">
+				<section
+					aria-label="Convites de dívida enviados"
+					className="mt-3 min-w-0 max-w-full rounded-2xl border bg-card p-4"
+				>
 					<h2 className="font-semibold">Convites enviados</h2>
 					<div className="mt-3 grid gap-2">
 						{sent.map(invitation => (
-							<div className="flex items-center justify-between gap-3 text-sm" key={invitation.id}>
-								<span className="truncate">{invitation.counterpartyName}</span>
-								<span className="rounded-full border px-2 py-1 text-muted-foreground text-xs">
+							<div
+								className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-sm"
+								key={invitation.id}
+							>
+								<span className="min-w-0 truncate">{invitation.counterpartyName}</span>
+								<span className="whitespace-nowrap rounded-full border px-2 py-1 text-muted-foreground text-xs">
 									{invitation.status === "PENDING"
 										? "Pendente"
 										: invitation.status === "ACCEPTED"

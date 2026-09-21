@@ -120,7 +120,7 @@ export function DebtsPage() {
 					</div>
 				</div>
 			</header>
-			<div className="mt-5">
+			<div className="mt-5 min-w-0 px-4">
 				<DashboardDebtInvitations showSent />
 			</div>
 			<section className="grid min-w-0 gap-3 px-4 pt-4">
