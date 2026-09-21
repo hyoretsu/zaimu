@@ -7,7 +7,8 @@ export function PastTransactionsDialog({ onAddAll, onSkip }: { onAddAll: () => v
 			<DialogHeader>
 				<DialogTitle>Adicionar transações passadas?</DialogTitle>
 				<DialogDescription>
-					Esta recorrência começa no passado. Deseja adicionar todas as transações desde a data inicial?
+					Esta recorrência começa no passado. Deseja adicionar somente as transações inexistentes desde a data
+					inicial?
 				</DialogDescription>
 			</DialogHeader>
 			<DialogFooter>
