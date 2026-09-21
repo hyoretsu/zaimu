@@ -233,6 +233,21 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(recurring.tagIds).toEqual(expect.arrayContaining([category.id, secondCategory.id]));
 		expect(recurring.storeName).toBe("Academia do bairro");
 
+		const recurringWithoutWeekdayResponse = await jsonRequest(
+			"/recurring/",
+			"POST",
+			{
+				amount: 80,
+				dayOfMonth: 10,
+				dayOfWeek: null,
+				frequency: "MONTHLY",
+				name: "Recorrência mensal sem dia da semana",
+				startDate: "2026-08-01",
+			},
+			owner.cookie,
+		);
+		expect(recurringWithoutWeekdayResponse.status).toBe(200);
+
 		const recurringTransactionResponse = await jsonRequest(
 			"/transactions/",
 			"POST",

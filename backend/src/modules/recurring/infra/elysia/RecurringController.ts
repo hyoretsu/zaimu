@@ -207,7 +207,7 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 				amount: t.Number(),
 				categoryId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				dayOfMonth: t.Optional(t.Number({ maximum: 31, minimum: 1 })),
-				dayOfWeek: t.Optional(t.Number({ maximum: 6, minimum: 0 })),
+				dayOfWeek: t.Optional(t.Nullable(t.Number({ maximum: 6, minimum: 0 }))),
 				debtSplit: t.Optional(DebtSplitInputDTO),
 				endDate: t.Optional(t.String()),
 				financialAccountId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
