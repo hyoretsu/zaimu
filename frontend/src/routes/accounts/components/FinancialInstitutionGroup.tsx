@@ -56,8 +56,8 @@ export function FinancialInstitutionGroup({
 	const Icon = institution ? LuLandmark : LuWalletCards;
 
 	return (
-		<section className="grid gap-4 rounded-3xl border bg-card/35 p-4 shadow-card sm:p-5">
-			<header className="flex flex-wrap items-center justify-between gap-4 border-border/70 border-b pb-4">
+		<section className="grid min-w-0 max-w-full gap-4 overflow-x-clip rounded-3xl border bg-card/35 p-4 shadow-card sm:p-5">
+			<header className="grid min-w-0 gap-4 border-border/70 border-b pb-4 sm:flex sm:flex-wrap sm:items-center sm:justify-between">
 				<div className="flex min-w-0 items-center gap-3">
 					<span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
 						<Icon className="size-5" />
@@ -74,7 +74,7 @@ export function FinancialInstitutionGroup({
 						</p>
 					</div>
 				</div>
-				<div className="ml-auto flex items-center gap-2">
+				<div className="flex flex-wrap items-center gap-2 sm:ml-auto sm:justify-end">
 					{institution && (
 						<InstitutionActions
 							institution={institution}
