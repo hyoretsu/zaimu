@@ -90,7 +90,7 @@ export function DebtInvitationDialog({
 					</strong>
 				</div>
 				<ScrollArea className="min-h-0 w-full">
-					<div className="space-y-4 pr-3">
+					<div className="space-y-4">
 						<div className="space-y-2">
 							{invitation.events.map(event => (
 								<div
@@ -104,8 +104,7 @@ export function DebtInvitationDialog({
 										<p className="truncate font-medium text-sm">{getDebtEventLabel(event)}</p>
 										<p className="truncate text-muted-foreground text-xs">
 											{event.date ? formatLocalDate(event.date) : "Sem data"}
-											{formatLocalTime(event.time) ? ` · ${formatLocalTime(event.time)}` : ""}· Criado por{" "}
-											{event.createdByName.trim().split(/\s+/)[0]}
+											{formatLocalTime(event.time) ? ` · ${formatLocalTime(event.time)}` : ""}
 										</p>
 									</div>
 									<span
@@ -128,7 +127,7 @@ export function DebtInvitationDialog({
 						</div>
 					</div>
 				</ScrollArea>
-				<DialogFooter className="grid shrink-0 grid-cols-2">
+				<DialogFooter className="!grid sm:!grid shrink-0 grid-cols-2 gap-2">
 					<ConfirmActionButton
 						className="w-full cursor-pointer"
 						confirmation="Recusar este convite?"
