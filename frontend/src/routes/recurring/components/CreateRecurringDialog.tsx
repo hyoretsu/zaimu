@@ -465,237 +465,245 @@ export function CreateRecurringDialog({
 	};
 
 	return (
-		<>
-			<Dialog onOpenChange={handleOpenChange} open={open}>
-				<DialogContent className="max-h-[92dvh] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-lg">
-					<DialogHeader>
-						<DialogTitle>{isEditing ? "Editar recorrência" : "Nova recorrência"}</DialogTitle>
-						<DialogDescription>
-							{isEditing
-								? "Atualize os dados da recorrência."
-								: "Cadastre uma entrada ou saída que se repete."}
-						</DialogDescription>
-					</DialogHeader>
-					<div className="scrollbar-themed grid min-h-0 min-w-0 max-w-full gap-4 overflow-y-auto overflow-x-hidden pr-1">
-						{!isEditing && (
-							<CustomSelect
-								label="Tipo"
-								onValueChange={value =>
-									setDraft(current => ({
-										...current,
-										financialAccountId: "",
-										source: value as RecurringSource,
-									}))
-								}
-								options={sourceOptions}
-								placeholder="Selecione o tipo"
-								required
-								value={draft.source}
-							/>
-						)}
-						<DebouncedFormField
-							autoComplete={draft.source === "salary" ? "organization" : "off"}
-							id="recurring-name"
-							label={nameLabel}
-							name={draft.source === "salary" ? "organization" : "recurring-name"}
-							onValueChange={value => setField("name", value)}
-							placeholder={namePlaceholder}
-							required
-							type="text"
-							value={draft.name}
-						/>
-						<div className="grid gap-4">
-							<DebouncedMoneyField
-								id="recurring-amount"
-								label="Valor"
-								onValueChange={value => setField("amount", value)}
-								required
-								value={draft.amount}
-							/>
-						</div>
-						{draft.source !== "salary" && (
-							<div className="grid gap-3">
-								<CheckboxField
-									checkboxProps={{
-										checked: isDebtSplitEnabled,
-										onCheckedChange: checked => setIsDebtSplitEnabled(checked === true),
-									}}
-								>
-									Dividir com outras pessoas
-								</CheckboxField>
-								{isDebtSplitEnabled ? (
-									<DebtSplitEditor
-										amount={Number.parseFloat(draft.amount) || 0}
-										onChange={setDebtSplit}
-										value={debtSplit}
-									/>
-								) : null}
-							</div>
-						)}
-						{draft.source === "salary" && (
-							<CustomSelect
-								label="Conta de destino"
-								onValueChange={value => setField("financialAccountId", value)}
-								options={compatibleAccounts.map(account => ({
-									label: getFinancialAccountDisplayName(account),
-									value: account.id,
-								}))}
-								placeholder={accountsQuery.isPending ? "Carregando contas…" : "Selecione a conta"}
-								required
-								searchable
-								value={draft.financialAccountId}
-							/>
-						)}
-						<div
-							className={
-								draft.frequency === "MONTHLY" || draft.frequency === "WEEKLY"
-									? "grid gap-4 sm:grid-cols-2"
-									: "grid gap-4"
+		<Dialog onOpenChange={handleOpenChange} open={open}>
+			<DialogContent
+				className={
+					isPastTransactionsDialogOpen
+						? "sm:max-w-lg"
+						: "max-h-[92dvh] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-lg"
+				}
+			>
+				<DialogHeader className={isPastTransactionsDialogOpen ? "hidden" : undefined}>
+					<DialogTitle>{isEditing ? "Editar recorrência" : "Nova recorrência"}</DialogTitle>
+					<DialogDescription>
+						{isEditing ? "Atualize os dados da recorrência." : "Cadastre uma entrada ou saída que se repete."}
+					</DialogDescription>
+				</DialogHeader>
+				<div
+					className={
+						isPastTransactionsDialogOpen
+							? "hidden"
+							: "scrollbar-themed grid min-h-0 min-w-0 max-w-full gap-4 overflow-y-auto overflow-x-hidden pr-1"
+					}
+				>
+					{!isEditing && (
+						<CustomSelect
+							label="Tipo"
+							onValueChange={value =>
+								setDraft(current => ({
+									...current,
+									financialAccountId: "",
+									source: value as RecurringSource,
+								}))
 							}
-						>
-							<CustomSelect
-								label="Frequência"
-								onValueChange={value => setField("frequency", value as RecurrenceFrequency)}
-								options={frequencyOptions}
-								placeholder="Selecione a frequência"
-								required
-								value={draft.frequency}
-							/>
-							{draft.frequency === "MONTHLY" && (
-								<DebouncedFormField
-									autoComplete="off"
-									error={dayError}
-									id="recurring-day"
-									inputMode="numeric"
-									label={dayLabel}
-									maxLength={2}
-									name="recurring-day"
-									onValueChange={value => setField("day", value.replace(/\D/g, "").slice(0, 2))}
-									placeholder="Ex: 10"
-									required
-									type="text"
-									value={draft.day}
-								/>
-							)}
-							{draft.frequency === "WEEKLY" && (
-								<CustomSelect
-									label="Dia da semana"
-									onValueChange={value => setField("dayOfWeek", value)}
-									options={[...weekdayOptions]}
-									placeholder="Usar dia da data inicial"
-									sortOptions={false}
-									value={draft.dayOfWeek}
-								/>
-							)}
-						</div>
-						{draft.source !== "salary" && (
-							<CustomSelect
-								label="Forma de pagamento"
-								onValueChange={value =>
-									setDraft(current => ({
-										...current,
-										financialAccountId: "",
-										paymentMethod: value as RecurringDraft["paymentMethod"],
-									}))
-								}
-								options={[...paymentMethodOptions]}
-								placeholder="Selecione a forma"
-								required
-								value={draft.paymentMethod}
-							/>
-						)}
-						{draft.source !== "salary" && compatibleAccounts.length > 0 && (
-							<CustomSelect
-								label={draft.paymentMethod === "CREDIT" ? "Cartão de cobrança" : "Conta de saída"}
-								onValueChange={value =>
-									setField("financialAccountId", value === noFinancialAccountValue ? "" : value)
-								}
-								options={[
-									...(draft.paymentMethod === "CREDIT"
-										? []
-										: [{ label: "Sem conta específica", value: noFinancialAccountValue }]),
-									...compatibleAccounts.map(account => ({
-										label: getFinancialAccountDisplayName(account),
-										value: account.id,
-									})),
-								]}
-								placeholder={
-									accountsQuery.isPending
-										? "Carregando contas…"
-										: draft.paymentMethod === "CREDIT"
-											? "Selecione o cartão"
-											: "Selecione a conta"
-								}
-								required={draft.paymentMethod === "CREDIT"}
-								searchable
-								value={
-									draft.financialAccountId ||
-									(draft.paymentMethod === "CREDIT" ? undefined : noFinancialAccountValue)
-								}
-							/>
-						)}
-						<DateField
-							description={
-								[
-									getRecurrenceScheduleDescription(
-										draft.frequency,
-										draft.startDate,
-										draft.dayOfWeek === "default" ? null : Number.parseInt(draft.dayOfWeek, 10),
-									),
-								]
-									.filter(Boolean)
-									.join(" ") || undefined
-							}
-							id="recurring-start-date"
-							label="Data inicial"
-							name="start-date"
-							onValueChange={value => setField("startDate", value)}
+							options={sourceOptions}
+							placeholder="Selecione o tipo"
 							required
-							value={draft.startDate}
+							value={draft.source}
 						/>
-						<DateField
-							description="Deixe vazio para continuar sem prazo."
-							error={endDateError}
-							id="recurring-end-date"
-							label="Data final"
-							name="end-date"
-							onValueChange={value => setField("endDate", value)}
-							value={draft.endDate}
+					)}
+					<DebouncedFormField
+						autoComplete={draft.source === "salary" ? "organization" : "off"}
+						id="recurring-name"
+						label={nameLabel}
+						name={draft.source === "salary" ? "organization" : "recurring-name"}
+						onValueChange={value => setField("name", value)}
+						placeholder={namePlaceholder}
+						required
+						type="text"
+						value={draft.name}
+					/>
+					<div className="grid gap-4">
+						<DebouncedMoneyField
+							id="recurring-amount"
+							label="Valor"
+							onValueChange={value => setField("amount", value)}
+							required
+							value={draft.amount}
 						/>
-						<TagPicker onValueChange={tagIds => setField("tagIds", tagIds)} value={draft.tagIds} />
-						{draft.source !== "salary" && (
-							<StorePicker
-								onValueChange={storeName => setField("storeName", storeName)}
-								value={draft.storeName}
+					</div>
+					{draft.source !== "salary" && (
+						<div className="grid gap-3">
+							<CheckboxField
+								checkboxProps={{
+									checked: isDebtSplitEnabled,
+									onCheckedChange: checked => setIsDebtSplitEnabled(checked === true),
+								}}
+							>
+								Dividir com outras pessoas
+							</CheckboxField>
+							{isDebtSplitEnabled ? (
+								<DebtSplitEditor
+									amount={Number.parseFloat(draft.amount) || 0}
+									onChange={setDebtSplit}
+									value={debtSplit}
+								/>
+							) : null}
+						</div>
+					)}
+					{draft.source === "salary" && (
+						<CustomSelect
+							label="Conta de destino"
+							onValueChange={value => setField("financialAccountId", value)}
+							options={compatibleAccounts.map(account => ({
+								label: getFinancialAccountDisplayName(account),
+								value: account.id,
+							}))}
+							placeholder={accountsQuery.isPending ? "Carregando contas…" : "Selecione a conta"}
+							required
+							searchable
+							value={draft.financialAccountId}
+						/>
+					)}
+					<div
+						className={
+							draft.frequency === "MONTHLY" || draft.frequency === "WEEKLY"
+								? "grid gap-4 sm:grid-cols-2"
+								: "grid gap-4"
+						}
+					>
+						<CustomSelect
+							label="Frequência"
+							onValueChange={value => setField("frequency", value as RecurrenceFrequency)}
+							options={frequencyOptions}
+							placeholder="Selecione a frequência"
+							required
+							value={draft.frequency}
+						/>
+						{draft.frequency === "MONTHLY" && (
+							<DebouncedFormField
+								autoComplete="off"
+								error={dayError}
+								id="recurring-day"
+								inputMode="numeric"
+								label={dayLabel}
+								maxLength={2}
+								name="recurring-day"
+								onValueChange={value => setField("day", value.replace(/\D/g, "").slice(0, 2))}
+								placeholder="Ex: 10"
+								required
+								type="text"
+								value={draft.day}
+							/>
+						)}
+						{draft.frequency === "WEEKLY" && (
+							<CustomSelect
+								label="Dia da semana"
+								onValueChange={value => setField("dayOfWeek", value)}
+								options={[...weekdayOptions]}
+								placeholder="Usar dia da data inicial"
+								sortOptions={false}
+								value={draft.dayOfWeek}
 							/>
 						)}
 					</div>
-					<DialogFooter>
-						<Button className="cursor-pointer" onClick={() => handleOpenChange(false)} variant="outline">
-							Descartar
-						</Button>
-						<Button
-							className="cursor-pointer disabled:cursor-not-allowed"
-							disabled={!canSubmit || create.isPending}
-							onClick={handleSave}
-						>
-							{create.isPending ? "Salvando…" : "Salvar"}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
-			<PastTransactionsDialog
-				onAddAll={() => {
-					setIsPastTransactionsDialogOpen(false);
-					create.mutate(true);
-				}}
-				onOpenChange={setIsPastTransactionsDialogOpen}
-				onSkip={() => {
-					setIsPastTransactionsDialogOpen(false);
-					create.mutate(false);
-				}}
-				open={isPastTransactionsDialogOpen}
-			/>
-		</>
+					{draft.source !== "salary" && (
+						<CustomSelect
+							label="Forma de pagamento"
+							onValueChange={value =>
+								setDraft(current => ({
+									...current,
+									financialAccountId: "",
+									paymentMethod: value as RecurringDraft["paymentMethod"],
+								}))
+							}
+							options={[...paymentMethodOptions]}
+							placeholder="Selecione a forma"
+							required
+							value={draft.paymentMethod}
+						/>
+					)}
+					{draft.source !== "salary" && compatibleAccounts.length > 0 && (
+						<CustomSelect
+							label={draft.paymentMethod === "CREDIT" ? "Cartão de cobrança" : "Conta de saída"}
+							onValueChange={value =>
+								setField("financialAccountId", value === noFinancialAccountValue ? "" : value)
+							}
+							options={[
+								...(draft.paymentMethod === "CREDIT"
+									? []
+									: [{ label: "Sem conta específica", value: noFinancialAccountValue }]),
+								...compatibleAccounts.map(account => ({
+									label: getFinancialAccountDisplayName(account),
+									value: account.id,
+								})),
+							]}
+							placeholder={
+								accountsQuery.isPending
+									? "Carregando contas…"
+									: draft.paymentMethod === "CREDIT"
+										? "Selecione o cartão"
+										: "Selecione a conta"
+							}
+							required={draft.paymentMethod === "CREDIT"}
+							searchable
+							value={
+								draft.financialAccountId ||
+								(draft.paymentMethod === "CREDIT" ? undefined : noFinancialAccountValue)
+							}
+						/>
+					)}
+					<DateField
+						description={
+							[
+								getRecurrenceScheduleDescription(
+									draft.frequency,
+									draft.startDate,
+									draft.dayOfWeek === "default" ? null : Number.parseInt(draft.dayOfWeek, 10),
+								),
+							]
+								.filter(Boolean)
+								.join(" ") || undefined
+						}
+						id="recurring-start-date"
+						label="Data inicial"
+						name="start-date"
+						onValueChange={value => setField("startDate", value)}
+						required
+						value={draft.startDate}
+					/>
+					<DateField
+						description="Deixe vazio para continuar sem prazo."
+						error={endDateError}
+						id="recurring-end-date"
+						label="Data final"
+						name="end-date"
+						onValueChange={value => setField("endDate", value)}
+						value={draft.endDate}
+					/>
+					<TagPicker onValueChange={tagIds => setField("tagIds", tagIds)} value={draft.tagIds} />
+					{draft.source !== "salary" && (
+						<StorePicker
+							onValueChange={storeName => setField("storeName", storeName)}
+							value={draft.storeName}
+						/>
+					)}
+				</div>
+				<DialogFooter className={isPastTransactionsDialogOpen ? "hidden" : undefined}>
+					<Button className="cursor-pointer" onClick={() => handleOpenChange(false)} variant="outline">
+						Descartar
+					</Button>
+					<Button
+						className="cursor-pointer disabled:cursor-not-allowed"
+						disabled={!canSubmit || create.isPending}
+						onClick={handleSave}
+					>
+						{create.isPending ? "Salvando…" : "Salvar"}
+					</Button>
+				</DialogFooter>
+				{isPastTransactionsDialogOpen && (
+					<PastTransactionsDialog
+						onAddAll={() => {
+							setIsPastTransactionsDialogOpen(false);
+							create.mutate(true);
+						}}
+						onSkip={() => {
+							setIsPastTransactionsDialogOpen(false);
+							create.mutate(false);
+						}}
+					/>
+				)}
+			</DialogContent>
+		</Dialog>
 	);
 }
