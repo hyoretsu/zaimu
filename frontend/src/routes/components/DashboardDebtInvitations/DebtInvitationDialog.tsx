@@ -88,7 +88,7 @@ export function DebtInvitationDialog({
 						{currency.format(Math.abs(invitation.balance))}
 					</strong>
 				</div>
-				<ScrollArea className="min-h-0 w-full flex-1 pr-3">
+				<ScrollArea className="min-h-0 w-full flex-1">
 					<div className="space-y-2">
 						{invitation.events.map(event => (
 							<div

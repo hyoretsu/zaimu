@@ -28,7 +28,7 @@ export function DebtInvitationPickerDialog({
 					<DialogTitle>Selecionar convite de dívida</DialogTitle>
 					<DialogDescription>Revise o saldo e os lançamentos antes de associar uma pessoa.</DialogDescription>
 				</DialogHeader>
-				<ScrollArea className="min-h-0 min-w-0 pr-3">
+				<ScrollArea className="min-h-0 min-w-0">
 					<div className="min-w-0 space-y-2">
 						{sortedInvitations.map(invitation => (
 							<Button
