@@ -1,4 +1,5 @@
 import { endOfMonth, format, isSameDay, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import type { DateRangeValue } from "./types";
 
 export function formatDateRange({ endDate, startDate }: DateRangeValue) {
