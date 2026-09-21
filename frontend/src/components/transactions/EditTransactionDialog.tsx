@@ -66,8 +66,8 @@ export function EditTransactionDialog({
 	});
 	const payableStatementsQuery = useQuery({
 		enabled: identity !== null && open && draft?.type === "EXPENSE",
-		queryFn: () => getPayableCreditCardStatements(draft?.creditCardStatementId),
-		queryKey: queryKeys.creditCardStatements.payable(identity!, draft?.creditCardStatementId),
+		queryFn: () => getPayableCreditCardStatements(transaction?.creditCardStatementId),
+		queryKey: queryKeys.creditCardStatements.payable(identity!, transaction?.creditCardStatementId),
 	});
 
 	useEffect(() => {

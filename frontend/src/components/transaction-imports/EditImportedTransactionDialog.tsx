@@ -82,8 +82,8 @@ export function EditImportedTransactionDialog({
 	const [description, setDescription] = useDebouncedInput(item?.description ?? "", () => undefined);
 	const payableStatementsQuery = useQuery({
 		enabled: identity !== null && open && draft?.type === "EXPENSE",
-		queryFn: () => getPayableCreditCardStatements(draft?.creditCardStatementId ?? undefined),
-		queryKey: queryKeys.creditCardStatements.payable(identity!, draft?.creditCardStatementId ?? undefined),
+		queryFn: () => getPayableCreditCardStatements(item?.creditCardStatementId ?? undefined),
+		queryKey: queryKeys.creditCardStatements.payable(identity!, item?.creditCardStatementId ?? undefined),
 	});
 	useEffect(() => {
 		if (!item || !open) return;
