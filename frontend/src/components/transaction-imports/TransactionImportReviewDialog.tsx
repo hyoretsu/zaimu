@@ -356,6 +356,10 @@ export function TransactionImportReviewDialog({
 		await Promise.all([invalidate()]);
 		showToast("Transação importada conciliada. Aprove-a para atualizar o registro existente.", "positive");
 	};
+	const ignoreDuplicate = async (item: TransactionImportItem) => {
+		await updateItem.mutateAsync({ data: { isDuplicateIgnored: true }, item });
+		showToast("Alerta de possível duplicata ignorado.", "info");
+	};
 
 	return (
 		<>
@@ -434,6 +438,7 @@ export function TransactionImportReviewDialog({
 												onApprove={() => approveItem.mutate(item.id)}
 												onCollapsedChange={collapsed => setItemCollapsed(item.id, collapsed)}
 												onEdit={() => setEditingItem(item)}
+												onIgnoreDuplicate={() => ignoreDuplicate(item)}
 												onResolveDuplicate={() => setResolvingItem(item)}
 												onViewTransferSuggestion={suggestion =>
 													setTransferSuggestionDecision({ item, suggestion })

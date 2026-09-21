@@ -944,6 +944,7 @@ namespace public {
     originFinancialAccountId      VarChar(36)?
     destinationFinancialAccountId VarChar(36)?
     isHidden            Boolean                  @default(false)
+    isDuplicateIgnored  Boolean                  @default(false)
     isReconciled        Boolean                  @default(false)
     reconciledTransactionId VarChar(36)?
     reconciledImportItemId VarChar(36)?

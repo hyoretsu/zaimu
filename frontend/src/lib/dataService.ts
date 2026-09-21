@@ -2964,6 +2964,7 @@ export const dataService = {
 						| "debtSplit"
 						| "description"
 						| "destinationFinancialAccountId"
+						| "isDuplicateIgnored"
 						| "isHidden"
 						| "isSelected"
 						| "originFinancialAccountId"

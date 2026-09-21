@@ -1,4 +1,12 @@
-import { LuCheck, LuChevronDown, LuChevronUp, LuCircleAlert, LuLandmark, LuPencil } from "react-icons/lu";
+import {
+	LuCheck,
+	LuChevronDown,
+	LuChevronUp,
+	LuCircleAlert,
+	LuLandmark,
+	LuPencil,
+	LuShieldOff,
+} from "react-icons/lu";
 import { TransactionListItem } from "@/components/transactions";
 import { Button } from "@/components/ui/Button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
@@ -19,6 +27,7 @@ export function ImportReviewTransactionItem({
 	onApprove,
 	onCollapsedChange,
 	onEdit,
+	onIgnoreDuplicate,
 	onViewTransferSuggestion,
 	onResolveDuplicate,
 	transaction,
@@ -30,6 +39,7 @@ export function ImportReviewTransactionItem({
 	onApprove: () => void;
 	onCollapsedChange: (collapsed: boolean) => void;
 	onEdit: () => void;
+	onIgnoreDuplicate: () => void;
 	onViewTransferSuggestion: (suggestion: TransactionImportItem["transferSuggestions"][number]) => void;
 	onResolveDuplicate: () => void;
 	transaction: Transaction;
@@ -85,6 +95,16 @@ export function ImportReviewTransactionItem({
 								icon: <LuCircleAlert />,
 								onClick: onResolveDuplicate,
 								text: "Resolver duplicata",
+							},
+						]
+					: []),
+				...(item.duplicateReason
+					? [
+							{
+								disabled,
+								icon: <LuShieldOff />,
+								onClick: onIgnoreDuplicate,
+								text: "Ignorar alerta",
 							},
 						]
 					: []),

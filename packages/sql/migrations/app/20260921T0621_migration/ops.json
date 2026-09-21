@@ -1,0 +1,36 @@
+[
+	{
+		"execute": [
+			{
+				"description": "add column \"isDuplicateIgnored\"",
+				"sql": "ALTER TABLE \"public\".\"TransactionImportItem\" ADD COLUMN \"isDuplicateIgnored\" bool DEFAULT false NOT NULL"
+			}
+		],
+		"id": "column.public.TransactionImportItem.isDuplicateIgnored",
+		"label": "Add column \"isDuplicateIgnored\" to \"TransactionImportItem\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"isDuplicateIgnored\" exists",
+				"params": ["public", "TransactionImportItem", "isDuplicateIgnored"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"isDuplicateIgnored\" is missing",
+				"params": ["public", "TransactionImportItem", "isDuplicateIgnored"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "isDuplicateIgnored",
+				"objectType": "column",
+				"schema": "public",
+				"table": "TransactionImportItem"
+			},
+			"id": "postgres"
+		}
+	}
+]

@@ -243,6 +243,7 @@ async function getPotentialDuplicates(
 		destinationFinancialAccountId: string | null;
 		externalId: string | null;
 		id: string;
+		isDuplicateIgnored?: boolean;
 		isReconciled?: boolean;
 		originFinancialAccountId: string | null;
 		type: ImportItemType;
@@ -285,6 +286,7 @@ async function getPotentialDuplicates(
 					destinationFinancialAccountId: fields.TransactionImportItem.destinationFinancialAccountId,
 					externalId: fields.TransactionImportItem.externalId,
 					id: fields.TransactionImportItem.id,
+					isDuplicateIgnored: fields.TransactionImportItem.isDuplicateIgnored,
 					isHidden: fields.TransactionImportItem.isHidden,
 					isReconciled: fields.TransactionImportItem.isReconciled,
 					originFinancialAccountId: fields.TransactionImportItem.originFinancialAccountId,
@@ -370,7 +372,7 @@ async function getPotentialDuplicates(
 	);
 	return new Map<string, PotentialDuplicates | null>(
 		items.map(item => {
-			if (item.isReconciled) return [item.id, null] as const;
+			if (item.isDuplicateIgnored || item.isReconciled) return [item.id, null] as const;
 			const isSameAccount = (candidate: {
 				destinationFinancialAccountId: string | null;
 				originFinancialAccountId: string | null;
@@ -422,6 +424,7 @@ async function getImportReturn(userId: string, importId: string) {
 			"description",
 			"destinationFinancialAccountId",
 			"externalId",
+			"isDuplicateIgnored",
 			"isHidden",
 			"isReconciled",
 			"isSelected",
@@ -978,6 +981,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					"description",
 					"destinationFinancialAccountId",
 					"externalId",
+					"isDuplicateIgnored",
 					"transferCounterpartExternalId",
 					"isHidden",
 					"isSelected",
@@ -1012,6 +1016,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 						? current.destinationFinancialAccountId
 						: body.destinationFinancialAccountId,
 				externalId: current.externalId,
+				isDuplicateIgnored: body.isDuplicateIgnored ?? current.isDuplicateIgnored,
 				isHidden: body.isHidden ?? current.isHidden,
 				isSelected: body.isSelected ?? current.isSelected,
 				originFinancialAccountId:
@@ -1190,6 +1195,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					"description",
 					"destinationFinancialAccountId",
 					"externalId",
+					"isDuplicateIgnored",
 					"transferCounterpartExternalId",
 					"isHidden",
 					"isReconciled",
@@ -1275,6 +1281,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					"description",
 					"destinationFinancialAccountId",
 					"externalId",
+					"isDuplicateIgnored",
 					"transferCounterpartExternalId",
 					"isHidden",
 					"isReconciled",
@@ -1383,6 +1390,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					"description",
 					"destinationFinancialAccountId",
 					"externalId",
+					"isDuplicateIgnored",
 					"isHidden",
 					"originFinancialAccountId",
 					"storeName",

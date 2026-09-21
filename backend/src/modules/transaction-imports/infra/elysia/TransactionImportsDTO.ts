@@ -9,6 +9,7 @@ export const TransactionImportItemUpdateDTO = t.Object({
 	debtSplit: t.Optional(t.Nullable(DebtSplitInputDTO)),
 	description: t.Optional(t.Nullable(t.String({ maxLength: 1000 }))),
 	destinationFinancialAccountId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
+	isDuplicateIgnored: t.Optional(t.Boolean()),
 	isHidden: t.Optional(t.Boolean()),
 	isSelected: t.Optional(t.Boolean()),
 	originFinancialAccountId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
