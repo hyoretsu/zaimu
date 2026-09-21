@@ -169,6 +169,11 @@ export function TransactionImportReviewDialog({
 		queryFn: dataService.accounts.getAll,
 		queryKey: queryKeys.accounts.list(identity!),
 	});
+	const handleReviewOpenChange = (nextOpen: boolean) => {
+		if (!nextOpen && (discardConfirmationOpen || editingItem || resolvingItem || transferSuggestionDecision))
+			return;
+		onOpenChange(nextOpen);
+	};
 	useEffect(() => {
 		if (!open) return;
 		setCollapsedDateKeys(new Set());
@@ -379,7 +384,7 @@ export function TransactionImportReviewDialog({
 
 	return (
 		<>
-			<Dialog onOpenChange={onOpenChange} open={open}>
+			<Dialog onOpenChange={handleReviewOpenChange} open={open}>
 				<DialogContent
 					className="max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-2xl"
 					onInteractOutside={event => {
