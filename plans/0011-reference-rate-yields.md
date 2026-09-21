@@ -18,9 +18,14 @@ Persistir CDI e Selic diários, materializar rendimentos pós-fixados somente ap
 - [x] Atualizar APIs, sincronização e interface CDI/Selic.
 - [x] Cobrir cenários e validar pacotes afetados.
 - [x] Criar commit atômico local.
+- [x] Diagnosticar falha de persistência observada após publicação.
+- [x] Corrigir casts de data, fanout redundante, prioridade e bootstrap ausente.
+- [x] Criar migração corretiva sem alterar migração aplicada.
+- [x] Tornar a migração corretiva alcançável pelo ref `db` com índice de claim e novo contrato.
+- [x] Validar coleta, fanout e rollback em PostgreSQL descartável.
 
 ## Estado atual
-Implementação, validação e preparação do commit concluídas.
+Implementação original concluída. Correção operacional validada após identificar rollback do lote por parâmetro de data sem cast e operações data-only ausentes no artefato da migração. A migração corretiva agora possui transição de contrato própria e entra na rota normal de deploy.
 
 ## Próximo passo
 Aplicar migrações somente no ambiente desejado durante a publicação.

@@ -22,6 +22,7 @@ import {
 import { fetchBcbReferenceRates } from "../domain/bcb-reference-rates";
 
 type JobKind = "FETCH_RATES" | "RECALCULATE_ACCOUNT";
+type FetchReferenceRates = typeof fetchBcbReferenceRates;
 interface ClaimedJob {
 	[key: string]: unknown;
 	attempts: number;
@@ -37,6 +38,8 @@ interface ClaimedJob {
 const schedulerTimezone = "America/Recife";
 const leaseMilliseconds = 10 * 60_000;
 const retryMinutes = [1, 5, 15, 60, 360];
+const bootstrapStartDate = new Date("2020-01-01T12:00:00");
+const bootstrapEndDate = new Date("2026-09-17T12:00:00");
 const dateKey = (date: Date) => format(date, "yyyy-MM-dd");
 
 function schedulerClock(now = new Date()) {
@@ -85,6 +88,15 @@ export async function enqueueUserYieldRecalculations(userId: string, fromDate: D
 	);
 	for (const account of accounts) await enqueueAccountYieldRecalculation(account.id, fromDate, cause);
 }
+export async function ensureReferenceRateBootstrapJobs() {
+	for (const type of ["CDI", "SELIC"] as const)
+		await enqueueReferenceRateFetch(
+			type,
+			bootstrapStartDate,
+			bootstrapEndDate,
+			`bootstrap:v2:${type}:2020-01-01:2026-09-17`,
+		);
+}
 async function enqueueDailyFetches(now = new Date()) {
 	const clock = schedulerClock(now);
 	const scheduleDate = clock.hour >= 6 ? clock.date : subDays(clock.date, 1);
@@ -95,31 +107,48 @@ async function enqueueDailyFetches(now = new Date()) {
 }
 async function claimJob() {
 	const [job] = await queryRaw<ClaimedJob>(
-		`WITH candidate AS (SELECT "id" FROM "public"."ReferenceRateJob" WHERE "availableAt" <= now() AND "completedAt" IS NULL AND ("lockedUntil" IS NULL OR "lockedUntil" < now()) ORDER BY "availableAt", "createdAt" LIMIT 1 FOR UPDATE SKIP LOCKED) UPDATE "public"."ReferenceRateJob" AS job SET "lockedUntil" = now() + ($1 * interval '1 millisecond'), "updatedAt" = now() FROM candidate WHERE job."id" = candidate."id" RETURNING job."id", job."kind", job."deduplicationKey", job."referenceType", job."startDate", job."endDate", job."financialAccountId", job."fromDate", job."attempts"`,
+		`WITH candidate AS (SELECT "id" FROM "public"."ReferenceRateJob" WHERE "availableAt" <= now() AND "completedAt" IS NULL AND ("lockedUntil" IS NULL OR "lockedUntil" < now()) ORDER BY CASE WHEN "kind" = 'FETCH_RATES' THEN 0 ELSE 1 END, "availableAt", "createdAt" LIMIT 1 FOR UPDATE SKIP LOCKED) UPDATE "public"."ReferenceRateJob" AS job SET "lockedUntil" = now() + ($1 * interval '1 millisecond'), "updatedAt" = now() FROM candidate WHERE job."id" = candidate."id" RETURNING job."id", job."kind", job."deduplicationKey", job."referenceType", job."startDate", job."endDate", job."financialAccountId", job."fromDate", job."attempts"`,
 		[leaseMilliseconds],
 	);
 	return job;
 }
-async function processFetchJob(job: ClaimedJob) {
+async function processFetchJob(job: ClaimedJob, fetchRates: FetchReferenceRates) {
 	if (!job.referenceType || !job.startDate || !job.endDate) throw new Error("Job de taxa incompleto");
-	const rates = await fetchBcbReferenceRates(job.referenceType, job.startDate, job.endDate);
+	const rates = await fetchRates(job.referenceType, job.startDate, job.endDate);
 	await withRawTransaction(async query => {
+		let earliestChangedDate: Date | null = null;
 		for (const rate of rates) {
 			const changed = await query<{ id: string }>(
-				`INSERT INTO "public"."ReferenceRate" ("type", "date", "value") VALUES ($1, $2, $3) ON CONFLICT ("type", "date") DO UPDATE SET "value" = EXCLUDED."value", "updatedAt" = now() WHERE "ReferenceRate"."value" IS DISTINCT FROM EXCLUDED."value" RETURNING "id"`,
+				`INSERT INTO "public"."ReferenceRate" ("type", "date", "value") VALUES ($1, $2::date, $3) ON CONFLICT ("type", "date") DO UPDATE SET "value" = EXCLUDED."value", "updatedAt" = now() WHERE "ReferenceRate"."value" IS DISTINCT FROM EXCLUDED."value" RETURNING "id"`,
 				[job.referenceType, dateKey(rate.date), rate.value],
 			);
-			if (changed.length === 0) continue;
-			await query(
-				`INSERT INTO "public"."ReferenceRateJob" ("kind", "deduplicationKey", "financialAccountId", "fromDate") SELECT 'RECALCULATE_ACCOUNT', 'rate:' || $1 || ':' || $2 || ':' || $3 || ':' || account."id", account."id", $2 FROM "public"."FinancialAccount" account WHERE account."type" <> 'CREDIT_CARD' ON CONFLICT ("deduplicationKey") DO NOTHING`,
-				[job.referenceType, dateKey(rate.date), String(rate.value)],
-			);
+			if (changed.length > 0 && (!earliestChangedDate || rate.date < earliestChangedDate))
+				earliestChangedDate = rate.date;
 		}
+		if (!earliestChangedDate) return;
 		await query(
-			`INSERT INTO "public"."ReferenceRateJob" ("kind", "deduplicationKey", "financialAccountId", "fromDate") SELECT 'RECALCULATE_ACCOUNT', 'audit:' || $1 || ':' || account."id", account."id", $2 FROM "public"."FinancialAccount" account WHERE account."type" <> 'CREDIT_CARD' ON CONFLICT ("deduplicationKey") DO NOTHING`,
-			[job.deduplicationKey, dateKey(job.startDate!)],
+			`INSERT INTO "public"."ReferenceRateJob" ("kind", "deduplicationKey", "financialAccountId", "fromDate")
+			 SELECT 'RECALCULATE_ACCOUNT', 'fetch:' || $1 || ':' || account."id", account."id", $3::date
+			 FROM "public"."FinancialAccount" account
+			 WHERE account."type" <> 'CREDIT_CARD'
+			   AND (
+			     account."yieldReferenceType" = $2::"ReferenceRateType"
+			     OR EXISTS (
+			       SELECT 1 FROM "public"."FinancialAccountYieldRateHistory" history
+			       WHERE history."financialAccountId" = account."id" AND history."yieldReferenceType" = $2::"ReferenceRateType"
+			     )
+			     OR EXISTS (
+			       SELECT 1
+			       FROM "public"."FinancialInstitutionYieldRule" rule
+			       INNER JOIN "public"."FinancialInstitutionYieldPolicy" policy ON policy."id" = rule."financialYieldPolicyId"
+			       WHERE policy."financialInstitutionId" = account."institutionId" AND rule."yieldReferenceType" = $2::"ReferenceRateType"
+			     )
+			   )
+			 ON CONFLICT ("deduplicationKey") DO NOTHING`,
+			[job.deduplicationKey, job.referenceType, dateKey(earliestChangedDate)],
 		);
 	});
+	return rates.length;
 }
 async function loadYieldAccount(accountId: string): Promise<YieldAccount | null> {
 	const account = await queryFirst(
@@ -267,25 +296,35 @@ function retryDelay(job: ClaimedJob, error: unknown) {
 		error instanceof Error ? (error as Error & { retryAfter?: string }).retryAfter : undefined,
 	);
 }
-export async function runNextReferenceRateJob() {
+export async function runNextReferenceRateJob(fetchRates: FetchReferenceRates = fetchBcbReferenceRates) {
 	const job = await claimJob();
 	if (!job) return false;
 	try {
-		if (job.kind === "FETCH_RATES") await processFetchJob(job);
-		else await processAccountRecalculation(job);
+		const rateCount = job.kind === "FETCH_RATES" ? await processFetchJob(job, fetchRates) : null;
+		if (job.kind === "RECALCULATE_ACCOUNT") await processAccountRecalculation(job);
 		await executeRaw(
 			`UPDATE "public"."ReferenceRateJob" SET "completedAt" = now(), "lockedUntil" = NULL, "lastError" = NULL, "updatedAt" = now() WHERE "id" = $1`,
 			[job.id],
 		);
+		if (rateCount !== null)
+			console.info("Reference-rate fetch completed", {
+				job: job.deduplicationKey,
+				rateCount,
+				referenceType: job.referenceType,
+			});
 	} catch (error) {
+		const nextAttempt = new Date(Date.now() + retryDelay(job, error));
+		const message = error instanceof Error ? error.message : String(error);
 		await executeRaw(
 			`UPDATE "public"."ReferenceRateJob" SET "attempts" = "attempts" + 1, "availableAt" = $2, "lockedUntil" = NULL, "lastError" = $3, "updatedAt" = now() WHERE "id" = $1`,
-			[
-				job.id,
-				new Date(Date.now() + retryDelay(job, error)),
-				error instanceof Error ? error.message : String(error),
-			],
+			[job.id, nextAttempt, message],
 		);
+		console.error("Reference-rate job failed", {
+			attempt: job.attempts + 1,
+			error: message,
+			job: job.deduplicationKey,
+			nextAttempt: nextAttempt.toISOString(),
+		});
 	}
 	return true;
 }
@@ -295,6 +334,7 @@ export function startReferenceRateWorker() {
 	workerStarted = true;
 	const tick = async () => {
 		try {
+			await ensureReferenceRateBootstrapJobs();
 			await enqueueDailyFetches();
 			while (await runNextReferenceRateJob()) {}
 		} catch (error) {

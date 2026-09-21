@@ -18,6 +18,8 @@ describe("BCB reference rates", () => {
 		expect(parseBcbReferenceRateResponse([{ data: "17/09/2026", valor: "0.050788" }])).toEqual([
 			{ date: new Date("2026-09-17T12:00:00"), value: 0.050788 },
 		]));
+	test("accepts an empty period while the BCB has no published values", () =>
+		expect(parseBcbReferenceRateResponse([])).toEqual([]));
 	test("rejects malformed records", () =>
 		expect(() => parseBcbReferenceRateResponse([{ data: "2026-09-17", valor: "x" }])).toThrow());
 });

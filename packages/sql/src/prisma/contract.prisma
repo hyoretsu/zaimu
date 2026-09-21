@@ -277,6 +277,7 @@ namespace public {
     updatedAt          Timestamp(3)                      @default(now())
 
     @@index([deduplicationKey], map: "ReferenceRateJob_deduplicationKey_key", unique: true)
+    @@index([completedAt, kind, availableAt, lockedUntil], map: "ReferenceRateJob_claim_idx")
     @@index([availableAt, lockedUntil], map: "ReferenceRateJob_availableAt_lockedUntil_idx")
     @@map("ReferenceRateJob")
   }
