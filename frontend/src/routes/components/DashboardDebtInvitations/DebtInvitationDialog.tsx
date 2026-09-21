@@ -1,10 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { LuShoppingCart, LuUsersRound, LuWalletCards } from "react-icons/lu";
-import { DebtPersonPicker } from "@/components/debts";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
-import { CustomSelect } from "@/components/ui/CustomSelect";
 import {
 	Dialog,
 	DialogContent,
@@ -20,6 +18,7 @@ import { formatLocalDate, formatLocalTime } from "@/lib/date";
 import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { getDebtEventLabel } from "../../debts/components/debt-event";
+import { DebtInvitationAssociationDialog } from "./DebtInvitationAssociationDialog";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
@@ -36,9 +35,7 @@ export function DebtInvitationDialog({
 }) {
 	const identity = useCacheIdentity();
 	const queryClient = useQueryClient();
-	const [personId, setPersonId] = useState("");
-	const [associationMode, setAssociationMode] = useState<"existing" | "new">("new");
-	const reusePerson = associationMode === "existing";
+	const [associationOpen, setAssociationOpen] = useState(false);
 	const accept = useMutation({
 		mutationFn: (personId?: string) => dataService.debts.acceptInvitation(invitation.id, personId),
 		onError: error =>
@@ -129,39 +126,11 @@ export function DebtInvitationDialog({
 								</p>
 							) : null}
 						</div>
-						<div className="grid gap-3 rounded-2xl border bg-muted/30 p-4">
-							<CustomSelect
-								disabled={isPending}
-								label="Associar como"
-								onValueChange={value => {
-									setAssociationMode(value as "existing" | "new");
-									setPersonId("");
-								}}
-								options={[
-									{ label: "Criar nova pessoa", value: "new" },
-									{ label: "Usar pessoa existente", value: "existing" },
-								]}
-								placeholder="Selecione como associar"
-								value={associationMode}
-							/>
-							{reusePerson ? (
-								<DebtPersonPicker onValueChange={setPersonId} required value={personId} />
-							) : null}
-						</div>
 					</div>
 				</ScrollArea>
-				<DialogFooter className="shrink-0">
-					<Button
-						className="cursor-pointer"
-						disabled={isPending}
-						onClick={() => onOpenChange(false)}
-						type="button"
-						variant="outline"
-					>
-						Cancelar
-					</Button>
+				<DialogFooter className="grid shrink-0 grid-cols-2">
 					<ConfirmActionButton
-						className="cursor-pointer"
+						className="w-full cursor-pointer"
 						confirmation="Recusar este convite?"
 						disabled={isPending}
 						onConfirm={() => decline.mutate()}
@@ -171,15 +140,21 @@ export function DebtInvitationDialog({
 						Recusar
 					</ConfirmActionButton>
 					<Button
-						className="cursor-pointer"
-						disabled={isPending || (reusePerson && !personId)}
-						onClick={() => accept.mutate(reusePerson ? personId : undefined)}
+						className="w-full cursor-pointer"
+						disabled={isPending}
+						onClick={() => setAssociationOpen(true)}
 						type="button"
 					>
-						{reusePerson ? "Confirmar associação" : "Criar nova pessoa"}
+						Aprovar
 					</Button>
 				</DialogFooter>
 			</DialogContent>
+			<DebtInvitationAssociationDialog
+				onApprove={personId => accept.mutate(personId)}
+				onOpenChange={setAssociationOpen}
+				open={associationOpen}
+				pending={isPending}
+			/>
 		</Dialog>
 	);
 }
