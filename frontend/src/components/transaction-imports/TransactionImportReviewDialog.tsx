@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LuCircleAlert, LuFileCheck2, LuLoaderCircle, LuTrash2 } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import {
@@ -139,6 +139,7 @@ export function TransactionImportReviewDialog({
 }) {
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
+	const reviewedImportId = useRef<string | null>(importId);
 	const [collapsedDateKeys, setCollapsedDateKeys] = useState<Set<string>>(new Set());
 	const [collapsedItemIds, setCollapsedItemIds] = useState<Set<string>>(new Set());
 	const [approvingDateKeys, setApprovingDateKeys] = useState<Set<string>>(new Set());
@@ -155,6 +156,13 @@ export function TransactionImportReviewDialog({
 		queryFn: () => dataService.transactionImports.get(importId!),
 		queryKey: queryKeys.transactionImports.detail(identity!, importId),
 	});
+	useEffect(() => {
+		if (importId) reviewedImportId.current = importId;
+	}, [importId]);
+	const getReviewedImportId = () => {
+		if (!reviewedImportId.current) throw new Error("Importação não encontrada");
+		return reviewedImportId.current;
+	};
 	const accounts = useQuery({
 		enabled: identity !== null && open,
 		queryFn: dataService.accounts.getAll,
@@ -169,15 +177,15 @@ export function TransactionImportReviewDialog({
 		setDiscardConfirmationOpen(false);
 		setTransferSuggestionDecision(null);
 	}, [importId, open]);
-	const invalidate = () =>
+	const invalidate = (targetImportId = getReviewedImportId()) =>
 		invalidateQueryKeys(queryClient, [
 			queryKeys.transactionImports.pending(identity!),
-			queryKeys.transactionImports.detail(identity!, importId),
+			queryKeys.transactionImports.detail(identity!, targetImportId),
 		]);
 	const closeFinishedReview = async () => {
-		if (!importId) return;
+		const targetImportId = getReviewedImportId();
 		onOpenChange(false);
-		await closeImportReview(queryClient, identity!, "transaction", importId);
+		await closeImportReview(queryClient, identity!, "transaction", targetImportId);
 	};
 	const updateItem = useMutation({
 		mutationFn: ({
@@ -186,26 +194,30 @@ export function TransactionImportReviewDialog({
 		}: {
 			item: TransactionImportItem;
 			data: Parameters<typeof dataService.transactionImports.updateItem>[2];
-		}) => dataService.transactionImports.updateItem(importId!, item.id, data),
+		}) => dataService.transactionImports.updateItem(getReviewedImportId(), item.id, data),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
 			setEditingItem(null);
 			await invalidate();
-			showToast("Transação do extrato atualizada.", "positive");
+			showToast("Transação importada atualizada.", "positive");
 		},
 	});
 	const acceptTransferSuggestion = useMutation({
 		mutationFn: ({ counterpartItemId, itemId }: { counterpartItemId: string; itemId: string }) =>
-			dataService.transactionImports.acceptTransferSuggestion(importId!, itemId, counterpartItemId),
+			dataService.transactionImports.acceptTransferSuggestion(
+				getReviewedImportId(),
+				itemId,
+				counterpartItemId,
+			),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async result => {
 			await invalidate();
-			if (result.removedImportId === importId) await closeFinishedReview();
+			if (result.removedImportId === getReviewedImportId()) await closeFinishedReview();
 			showToast("Movimentos combinados como transferência.", "positive");
 		},
 	});
 	const approve = useMutation({
-		mutationFn: () => dataService.transactionImports.approve(importId!),
+		mutationFn: () => dataService.transactionImports.approve(getReviewedImportId()),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async result => {
 			const reviewFinished = result.created === remainingItemCount;
@@ -221,7 +233,7 @@ export function TransactionImportReviewDialog({
 		},
 	});
 	const approveItem = useMutation({
-		mutationFn: (itemId: string) => dataService.transactionImports.approveItem(importId!, itemId),
+		mutationFn: (itemId: string) => dataService.transactionImports.approveItem(getReviewedImportId(), itemId),
 		onError: error => showToast(error.message, "negative"),
 		onMutate: itemId => {
 			setApprovingItemIds(current => new Set(current).add(itemId));
@@ -242,7 +254,7 @@ export function TransactionImportReviewDialog({
 		},
 	});
 	const approveDay = useMutation({
-		mutationFn: (date: string) => dataService.transactionImports.approveDay(importId!, date),
+		mutationFn: (date: string) => dataService.transactionImports.approveDay(getReviewedImportId(), date),
 		onError: error => showToast(error.message, "negative"),
 		onMutate: date => {
 			setApprovingDateKeys(current => new Set(current).add(date));
@@ -268,7 +280,7 @@ export function TransactionImportReviewDialog({
 		},
 	});
 	const discard = useMutation({
-		mutationFn: () => dataService.transactionImports.delete(importId!),
+		mutationFn: () => dataService.transactionImports.delete(getReviewedImportId()),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
 			setDiscardConfirmationOpen(false);
@@ -278,7 +290,11 @@ export function TransactionImportReviewDialog({
 	});
 	const rejectTransferSuggestion = useMutation({
 		mutationFn: ({ counterpartItemId, itemId }: { counterpartItemId: string; itemId: string }) =>
-			dataService.transactionImports.rejectTransferSuggestion(importId!, itemId, counterpartItemId),
+			dataService.transactionImports.rejectTransferSuggestion(
+				getReviewedImportId(),
+				itemId,
+				counterpartItemId,
+			),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
 			await invalidate();
@@ -327,11 +343,15 @@ export function TransactionImportReviewDialog({
 		duplicate: TransactionImportItem["duplicates"][number],
 		sources: DuplicateResolutionSources,
 	) => {
-		const reconciledImport = await dataService.transactionImports.reconcileItem(importId!, item.id, {
-			duplicateId: duplicate.id,
-			duplicateSource: duplicate.source,
-			sources,
-		});
+		const reconciledImport = await dataService.transactionImports.reconcileItem(
+			getReviewedImportId(),
+			item.id,
+			{
+				duplicateId: duplicate.id,
+				duplicateSource: duplicate.source,
+				sources,
+			},
+		);
 		setResolvingItem(null);
 		await Promise.all([invalidate()]);
 		showToast("Transação importada conciliada. Aprove-a para atualizar o registro existente.", "positive");
@@ -340,7 +360,13 @@ export function TransactionImportReviewDialog({
 	return (
 		<>
 			<Dialog onOpenChange={onOpenChange} open={open}>
-				<DialogContent className="max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-2xl">
+				<DialogContent
+					className="max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-2xl"
+					onInteractOutside={event => {
+						if (discardConfirmationOpen || editingItem || resolvingItem || transferSuggestionDecision)
+							event.preventDefault();
+					}}
+				>
 					<DialogHeader>
 						<DialogTitle>Revisar extrato importado</DialogTitle>
 						<DialogDescription>
