@@ -138,7 +138,7 @@ export function DuplicateResolutionDialog({
 	};
 	const isSourceSelected = (source: Source) => fields.every(field => sources[field.key] === source);
 	return (
-		<Dialog onOpenChange={onOpenChange} open={open}>
+		<Dialog modal onOpenChange={onOpenChange} open={open}>
 			<DialogContent className="max-h-[92dvh] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-3xl">
 				<DialogHeader>
 					<DialogTitle>Resolver duplicata</DialogTitle>

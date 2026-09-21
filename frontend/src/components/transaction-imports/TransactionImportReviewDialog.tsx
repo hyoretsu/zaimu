@@ -384,7 +384,7 @@ export function TransactionImportReviewDialog({
 
 	return (
 		<>
-			<Dialog onOpenChange={handleReviewOpenChange} open={open}>
+			<Dialog modal onOpenChange={handleReviewOpenChange} open={open}>
 				<DialogContent
 					className="max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-2xl"
 					onInteractOutside={event => {
