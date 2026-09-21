@@ -662,29 +662,11 @@ export async function getDebtBalanceTotals(userId: string) {
 								.where((fields, functions) => functions.eq(fields.debtPersonId, person.id as never))
 								.build(),
 						);
-			const hidden = events.length
-				? await queryRows(
-						db.sql.public.DebtEventVisibility.select("eventId", "hiddenAt")
-							.where((fields, functions) =>
-								functions.and(
-									functions.eq(fields.userId, userId),
-									functions.in(
-										fields.eventId,
-										events.map(event => event.id),
-									),
-								),
-							)
-							.build(),
-					)
-				: [];
-			const hiddenIds = new Set(hidden.filter(item => item.hiddenAt).map(item => item.eventId));
-			return events
-				.filter(event => !hiddenIds.has(event.id))
-				.reduce(
-					(sum, event) =>
-						sum + (event.createdByUserId === userId ? Number(event.effect) : -Number(event.effect)),
-					0,
-				);
+			return events.reduce(
+				(sum, event) =>
+					sum + (event.createdByUserId === userId ? Number(event.effect) : -Number(event.effect)),
+				0,
+			);
 		}),
 	);
 	return balances.reduce(

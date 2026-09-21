@@ -254,36 +254,19 @@ async function getPersonEvents(person: { connectionId: null | string; id: string
 					.where((fields, functions) => functions.eq(fields.DebtEvent.debtPersonId, person.id as never))
 					.build(),
 			);
-	const hidden = events.length
-		? await queryRows(
-				db.sql.public.DebtEventVisibility.select("eventId", "hiddenAt")
-					.where((fields, functions) =>
-						functions.and(
-							functions.eq(fields.userId, userId),
-							functions.in(
-								fields.eventId,
-								events.map(event => event.id),
-							),
-						),
-					)
-					.build(),
-			)
-		: [];
-	const hiddenIds = new Set(hidden.filter(item => item.hiddenAt).map(item => item.eventId));
-	const visibleEvents = events.filter(event => !hiddenIds.has(event.id));
 	const [
 		incomeTransactionDescriptionsByDebtEventId,
 		purchaseNamesByDebtEventId,
 		sourceByEventId,
 		timeByEventId,
 	] = await Promise.all([
-		getIncomeTransactionDescriptionsByDebtEventId(visibleEvents.map(event => event.id)),
-		getPurchaseNamesByDebtEventId(visibleEvents.map(event => event.id)),
-		getSourceByDebtEventId(visibleEvents.map(event => event.id)),
-		getTimeByDebtEventId(visibleEvents.map(event => event.id)),
+		getIncomeTransactionDescriptionsByDebtEventId(events.map(event => event.id)),
+		getPurchaseNamesByDebtEventId(events.map(event => event.id)),
+		getSourceByDebtEventId(events.map(event => event.id)),
+		getTimeByDebtEventId(events.map(event => event.id)),
 	]);
 	return removeDuplicateSourcedDebtEvents(
-		visibleEvents as Array<(typeof visibleEvents)[number] & { debtPersonId: string }>,
+		events as Array<(typeof events)[number] & { debtPersonId: string }>,
 		sourceByEventId,
 	)
 		.map(({ debtPersonId: _, ...event }) => ({
@@ -760,7 +743,12 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 			const userId = await requireUserId(request);
 			await getOwnedDebtPerson(params.id, userId);
 			await executeStatement(
-				db.sql.public.DebtPerson.update({ hiddenAt: new Date(), updatedAt: new Date() })
+				db.sql.public.DebtEvent.delete()
+					.where((fields, functions) => functions.eq(fields.debtPersonId, params.id))
+					.build(),
+			);
+			await executeStatement(
+				db.sql.public.DebtPerson.delete()
 					.where((fields, functions) => functions.eq(fields.id, params.id))
 					.build(),
 			);
@@ -773,27 +761,13 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 		async ({ params, request }) => {
 			const userId = await requireUserId(request);
 			const event = await getAccessibleDebtEvent(params.eventId, userId);
-			const existing = await queryFirst(
-				db.sql.public.DebtEventVisibility.select("id")
-					.where((fields, functions) =>
-						functions.and(functions.eq(fields.eventId, event.id), functions.eq(fields.userId, userId)),
-					)
-					.limit(1)
+			if (event.createdByUserId !== userId || event.kind !== "ORIGIN")
+				throw new HttpException("Somente o criador pode excluir um lançamento manual", 403);
+			await executeStatement(
+				db.sql.public.DebtEvent.delete()
+					.where((fields, functions) => functions.eq(fields.id, event.id))
 					.build(),
 			);
-			if (existing) {
-				await executeStatement(
-					db.sql.public.DebtEventVisibility.update({ hiddenAt: new Date(), updatedAt: new Date() })
-						.where((fields, functions) => functions.eq(fields.id, existing.id))
-						.build(),
-				);
-			} else {
-				await executeStatement(
-					db.sql.public.DebtEventVisibility.insert([
-						{ eventId: event.id, hiddenAt: new Date(), userId },
-					]).build(),
-				);
-			}
 			return { success: true };
 		},
 		{ detail: { tags: ["Debts"] }, params: EventIdParams, response: DebtSuccessReturn },

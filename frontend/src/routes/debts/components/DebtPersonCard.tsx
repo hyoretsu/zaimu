@@ -137,7 +137,7 @@ export function DebtPersonCard({
 										<LuPencil />
 									</Button>
 								) : null}
-								{event.kind === "ORIGIN" ? (
+								{event.kind === "ORIGIN" && event.createdByMe ? (
 									<ConfirmActionButton
 										aria-label="Excluir lançamento"
 										className="cursor-pointer"
