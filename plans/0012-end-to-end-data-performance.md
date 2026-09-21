@@ -17,6 +17,7 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Redis indisponível causará bypass. Na reconexão, um novo epoch global impedirá uso de entradas anteriores.
 - Não haverá cache L1 de dados de usuário.
 - Listagens grandes usarão cursor opaco. Pesquisa continuará substring, sem acentos e sem diferença de caixa.
+- Filtros, buscas, ordenação, agregação e paginação serão executados no banco sempre que possível. Exceções exigem filtro complexo demais para SQL ou evidência de que buscas concorrentes executadas diretamente no servidor são mais rápidas.
 - DTOs de resumo, detalhe e mutação serão separados. Listagens retornarão somente campos necessários ao primeiro render.
 - Trocas de contrato serão atômicas entre backend e frontend; contratos antigos não serão mantidos.
 - `/sync` será exceção explícita por transferir snapshots necessários ao modo offline.
@@ -80,6 +81,7 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 
 ## Banco e consultas
 
+- Aplicar filtros antes de buscar ou hidratar registros. Filtragem em memória será permitida somente quando a consulta no banco for complexa demais ou benchmarks demonstrarem melhor desempenho com buscas concorrentes executadas diretamente no servidor.
 - Adicionar `userId NOT NULL` a `Transaction` e `CreditPurchase`, fazer backfill e atualizar todos os caminhos de escrita.
 - Habilitar `pg_trgm` e `unaccent`; criar função imutável de normalização e GIN trigram para descrição, estabelecimento, categoria, tag, conta e instituição pesquisáveis.
 - Índices iniciais:
