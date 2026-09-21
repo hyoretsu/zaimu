@@ -58,35 +58,44 @@ export function DebtInvitationDialog({
 	});
 	return (
 		<Dialog onOpenChange={onOpenChange} open={open}>
-			<DialogContent className="grid max-h-[calc(100dvh-2rem)] grid-rows-[auto_auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-lg">
+			<DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-4 overflow-hidden p-4 sm:max-w-lg sm:p-6">
 				<DialogHeader>
 					<DialogTitle>{invitation.counterpartyName} quer compartilhar uma dívida</DialogTitle>
 					<DialogDescription>
 						Confira os lançamentos atuais. Ao aceitar, o saldo e o histórico ficam visíveis nos dois lados.
 					</DialogDescription>
 				</DialogHeader>
-				<div className="flex items-center justify-between gap-3 rounded-2xl border bg-muted/30 p-4">
+				<div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border bg-muted/30 p-4">
 					<div className="flex items-center gap-3">
 						<div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
 							<LuUsersRound className="size-5" />
 						</div>
-						<div>
+						<div className="min-w-0">
 							<p className="font-medium text-sm">Saldo atual de {invitation.counterpartyName}</p>
 							<p className="text-muted-foreground text-xs">
 								{invitation.events.length} {invitation.events.length === 1 ? "lançamento" : "lançamentos"}
 							</p>
 						</div>
 					</div>
-					<strong className={invitation.balance >= 0 ? "text-emerald-600" : "text-rose-600"}>
+					<strong
+						className={
+							invitation.balance >= 0
+								? "shrink-0 text-right text-emerald-600 text-sm sm:text-base"
+								: "shrink-0 text-right text-rose-600 text-sm sm:text-base"
+						}
+					>
 						{invitation.balance >= 0 ? "+" : "−"}
 						{currency.format(Math.abs(invitation.balance))}
 					</strong>
 				</div>
-				<ScrollArea className="min-h-0 pr-3">
+				<ScrollArea className="min-h-0 w-full flex-1 pr-3">
 					<div className="space-y-2">
 						{invitation.events.map(event => (
-							<div className="flex items-center gap-3 rounded-xl border p-3" key={event.id}>
-								<div className="shrink-0 text-muted-foreground">
+							<div
+								className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border p-3"
+								key={event.id}
+							>
+								<div className="text-muted-foreground">
 									{event.kind === "PURCHASE" ? <LuShoppingCart /> : <LuWalletCards />}
 								</div>
 								<div className="min-w-0 flex-1">
@@ -97,7 +106,13 @@ export function DebtInvitationDialog({
 										{event.createdByName.trim().split(/\s+/)[0]}
 									</p>
 								</div>
-								<span className={event.effect >= 0 ? "shrink-0 text-emerald-600" : "shrink-0 text-rose-600"}>
+								<span
+									className={
+										event.effect >= 0
+											? "shrink-0 text-right text-emerald-600 text-sm sm:text-base"
+											: "shrink-0 text-right text-rose-600 text-sm sm:text-base"
+									}
+								>
 									{event.effect >= 0 ? "+" : "−"}
 									{currency.format(Math.abs(event.effect))}
 								</span>
@@ -111,7 +126,7 @@ export function DebtInvitationDialog({
 					</div>
 				</ScrollArea>
 				{reusePerson ? (
-					<div className="grid gap-3 rounded-2xl border bg-muted/30 p-4">
+					<div className="grid shrink-0 gap-3 rounded-2xl border bg-muted/30 p-4">
 						<DebtPersonPicker onValueChange={setPersonId} required value={personId} />
 						<Button
 							className="cursor-pointer"
@@ -122,7 +137,7 @@ export function DebtInvitationDialog({
 						</Button>
 					</div>
 				) : null}
-				<DialogFooter>
+				<DialogFooter className="shrink-0">
 					<Button
 						className="cursor-pointer"
 						disabled={accept.isPending || decline.isPending}
