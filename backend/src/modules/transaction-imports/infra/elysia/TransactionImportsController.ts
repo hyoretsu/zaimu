@@ -824,12 +824,13 @@ async function finalizeImportWhenEmpty(transaction: SqlExecutor, importId: strin
 			.limit(1)
 			.build(),
 	);
-	if (remainingItem) return;
+	if (remainingItem) return false;
 	await transaction.executeStatement(
 		transaction.db.sql.public.TransactionImport.update({ status: "APPROVED", updatedAt: new Date() })
 			.where((fields, functions) => functions.eq(fields.id, importId))
 			.build(),
 	);
+	return true;
 }
 
 export const TransactionImportsController = new Elysia({ prefix: "/transaction-imports" })
@@ -1242,8 +1243,8 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					? null
 					: await persistImportItem(transaction, importItem, tagIds, transactionImport.financialAccountId);
 				await removeImportItem(transaction, item.id);
-				await finalizeImportWhenEmpty(transaction, transactionImport.id);
-				return { reconciledTarget, transactionId };
+				const finished = await finalizeImportWhenEmpty(transaction, transactionImport.id);
+				return { finished, reconciledTarget, transactionId };
 			});
 			if (result.reconciledTarget) {
 				await replaceEntityTags({
@@ -1267,7 +1268,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					type: importItem.type as TransactionType,
 					userId,
 				});
-			return { created: 1 };
+			return { created: 1, finished: result.finished };
 		},
 		{ params: t.Object({ id: t.String(), itemId: t.String() }) },
 	)
@@ -1343,10 +1344,10 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					await removeImportItem(transaction, item.id);
 					results.push({ item, reconciledTarget, transactionId });
 				}
-				await finalizeImportWhenEmpty(transaction, transactionImport.id);
-				return results;
+				const finished = await finalizeImportWhenEmpty(transaction, transactionImport.id);
+				return { finished, results };
 			});
-			for (const { item, reconciledTarget, transactionId } of importedTransactions) {
+			for (const { item, reconciledTarget, transactionId } of importedTransactions.results) {
 				const debtSplit = debtSplitsByItem.get(item.id);
 				if (reconciledTarget) {
 					await replaceEntityTags({
@@ -1371,7 +1372,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 						userId,
 					});
 			}
-			return { created: approvableItems.length };
+			return { created: approvableItems.length, finished: importedTransactions.finished };
 		},
 		{
 			params: t.Object({
@@ -1575,10 +1576,10 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					await removeImportItem(transaction, item.id);
 					results.push({ item, reconciledTarget, transactionId });
 				}
-				await finalizeImportWhenEmpty(transaction, transactionImport.id);
-				return results;
+				const finished = await finalizeImportWhenEmpty(transaction, transactionImport.id);
+				return { finished, results };
 			});
-			for (const { item, reconciledTarget, transactionId } of importedTransactions) {
+			for (const { item, reconciledTarget, transactionId } of importedTransactions.results) {
 				const debtSplit = debtSplitsByItem.get(item.id);
 				if (reconciledTarget) {
 					await replaceEntityTags({
@@ -1603,7 +1604,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 						userId,
 					});
 			}
-			return { created: approvableItems.length };
+			return { created: approvableItems.length, finished: importedTransactions.finished };
 		},
 		{ params: t.Object({ id: t.String() }) },
 	)

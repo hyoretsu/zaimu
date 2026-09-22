@@ -227,7 +227,7 @@ export function TransactionImportReviewDialog({
 		mutationFn: () => dataService.transactionImports.approve(getReviewedImportId()),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async result => {
-			const reviewFinished = result.created === remainingItemCount;
+			const reviewFinished = result.finished;
 			await invalidateCacheOperation(queryClient, identity!, "transaction");
 			if (reviewFinished) await closeFinishedReview();
 			else await invalidate();
@@ -252,8 +252,8 @@ export function TransactionImportReviewDialog({
 				return next;
 			});
 		},
-		onSuccess: async () => {
-			const reviewFinished = remainingItemCount === 1;
+		onSuccess: async result => {
+			const reviewFinished = result.finished;
 			await invalidateCacheOperation(queryClient, identity!, "transaction");
 			if (reviewFinished) await closeFinishedReview();
 			else await invalidate();
@@ -274,7 +274,7 @@ export function TransactionImportReviewDialog({
 			});
 		},
 		onSuccess: async result => {
-			const reviewFinished = result.created === remainingItemCount;
+			const reviewFinished = result.finished;
 			await invalidateCacheOperation(queryClient, identity!, "transaction");
 			if (reviewFinished) await closeFinishedReview();
 			else await invalidate();

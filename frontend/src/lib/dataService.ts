@@ -2891,21 +2891,29 @@ export const dataService = {
 				{ method: "POST" },
 			);
 		},
-		async approve(id: string): Promise<{ created: number }> {
+		async approve(id: string): Promise<{ created: number; finished: boolean }> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
-			return fetchWithAuth<{ created: number }>(`/transaction-imports/${id}/approve`, { method: "POST" });
-		},
-		async approveDay(importId: string, date: string): Promise<{ created: number }> {
-			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
-			return fetchWithAuth<{ created: number }>(`/transaction-imports/${importId}/days/${date}/approve`, {
+			return fetchWithAuth<{ created: number; finished: boolean }>(`/transaction-imports/${id}/approve`, {
 				method: "POST",
 			});
 		},
-		async approveItem(importId: string, itemId: string): Promise<{ created: number }> {
+		async approveDay(importId: string, date: string): Promise<{ created: number; finished: boolean }> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
-			return fetchWithAuth<{ created: number }>(`/transaction-imports/${importId}/items/${itemId}/approve`, {
-				method: "POST",
-			});
+			return fetchWithAuth<{ created: number; finished: boolean }>(
+				`/transaction-imports/${importId}/days/${date}/approve`,
+				{
+					method: "POST",
+				},
+			);
+		},
+		async approveItem(importId: string, itemId: string): Promise<{ created: number; finished: boolean }> {
+			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
+			return fetchWithAuth<{ created: number; finished: boolean }>(
+				`/transaction-imports/${importId}/items/${itemId}/approve`,
+				{
+					method: "POST",
+				},
+			);
 		},
 		async create({
 			file,
