@@ -108,8 +108,8 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
   - [x] Adicionar Docker Compose local com Redis e RabbitMQ.
   - [x] Criar ports/adapters de cache, broker e outbox.
   - [ ] Instrumentar duração de request, query count, tempo SQL, espera por conexão, cache e filas. (request/SQL/conexão concluídos; cache/filas pendentes)
-  - [ ] Criar fixture com 100 mil lançamentos, 20 cartões, cinco anos de faturas e dados associados.
-  - [ ] Registrar baseline por endpoint e orçamento de queries.
+  - [x] Criar fixture com 100 mil lançamentos, 20 cartões, cinco anos de faturas e dados associados.
+  - [ ] Registrar baseline por endpoint e orçamento de queries. (runner e orçamentos concluídos; captura depende do banco local de desempenho)
 - [ ] 2. Outbox e RabbitMQ
   - [x] Criar contrato SQL do outbox e migração.
   - [x] Implementar publisher com confirms, correlação e recuperação após falha.
@@ -196,4 +196,5 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Listagem de importações de cartão agora retorna somente o resumo mínimo; detalhes usam cursor opaco e carregamento incremental dentro do modal de revisão.
 - Importações de transações agora expõem resumo mínimo, paginam itens por cursor estável e carregam páginas adicionais somente dentro do modal de revisão.
 - Rateios das revisões de cartão e transação agora são hidratados em lote, incluindo candidatos de duplicidade e sugestões de transferência; o custo de leitura deixou de crescer por item.
-- Próxima etapa: criar fixture/baseline, depois integrar outbox, fences e cache aos demais endpoints.
+- Fixture local determinística criada com 100 mil transações, 20 cartões, cinco anos de faturas, compras e tags; runner mede cold start, p95 quente, tempo SQL e query count contra orçamentos versionados.
+- Próxima etapa: capturar baseline quando `PERFORMANCE_DATABASE_URL` estiver disponível, depois integrar outbox, fences e cache aos demais endpoints.

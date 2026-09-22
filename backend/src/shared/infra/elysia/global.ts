@@ -5,6 +5,12 @@ import { HttpException } from "~/shared/errors";
 export const GlobalPlugin = new Elysia({ name: "GlobalPlugin" })
 	.derive(() => ({ requestStartedAt: performance.now() }))
 	.onRequest(() => beginQueryMetrics())
+	.onAfterHandle(({ set }) => {
+		if (process.env.PERFORMANCE_METRICS_HEADERS !== "true") return;
+		const metrics = getQueryMetrics();
+		set.headers["x-performance-query-count"] = String(metrics?.queryCount ?? 0);
+		set.headers["x-performance-sql-duration-ms"] = String(Number((metrics?.sqlDurationMs ?? 0).toFixed(2)));
+	})
 	.onAfterResponse(({ request, requestStartedAt }) => {
 		const metrics = getQueryMetrics();
 		console.info(

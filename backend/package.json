@@ -7,6 +7,8 @@
 		"check-types": "tsc --noEmit",
 		"dev": "bun --watch src/main.ts",
 		"dev:worker": "bun --watch src/worker.ts",
+		"performance:benchmark": "bun run performance/benchmark.ts",
+		"performance:seed": "bun run performance/seed.ts",
 		"start": "NODE_ENV=production bun dist/main.js",
 		"start:worker": "NODE_ENV=production bun dist/worker.js",
 		"test": "bun test",
