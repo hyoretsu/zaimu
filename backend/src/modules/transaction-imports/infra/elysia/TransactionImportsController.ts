@@ -338,6 +338,7 @@ async function getPotentialDuplicates(
 				...transaction,
 				externalIds: externalIdsByTransaction.get(transaction.id) ?? [],
 			})),
+			transaction => transaction.type === "TRANSFER",
 		).map(transaction => {
 			const tags = transactionTags.get(transaction.id) ?? [];
 			return {

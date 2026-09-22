@@ -10,4 +10,15 @@ describe("filterSynchronizedTransactions", () => {
 
 		expect(filterSynchronizedTransactions(transactions)).toEqual([{ externalIds: [], id: "manual" }]);
 	});
+
+	test("keeps synchronized transfers when requested", () => {
+		const transactions = [
+			{ externalIds: ["nubank-123"], id: "synchronized-income", type: "INCOME" },
+			{ externalIds: ["nubank-456"], id: "synchronized-transfer", type: "TRANSFER" },
+		];
+
+		expect(
+			filterSynchronizedTransactions(transactions, transaction => transaction.type === "TRANSFER"),
+		).toEqual([{ externalIds: ["nubank-456"], id: "synchronized-transfer", type: "TRANSFER" }]);
+	});
 });
