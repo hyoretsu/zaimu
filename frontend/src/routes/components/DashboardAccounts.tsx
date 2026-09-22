@@ -6,13 +6,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import type { Dashboard } from "@/lib/api";
+import { formatLocalDate } from "@/lib/date";
 import { getFinancialAccountSummaryName } from "@/lib/financial-account";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 const mobilePreviewLimit = 4;
 const desktopPreviewLimit = 9;
 
-export function DashboardAccounts({ accounts }: Pick<Dashboard, "accounts">) {
+interface DashboardAccountsProps extends Pick<Dashboard, "accounts"> {
+	endDate: string;
+}
+
+export function DashboardAccounts({ accounts, endDate }: DashboardAccountsProps) {
 	const [open, setOpen] = useState(false);
 	const getName = (account: Dashboard["accounts"][number]) =>
 		getFinancialAccountSummaryName({
@@ -25,9 +30,12 @@ export function DashboardAccounts({ accounts }: Pick<Dashboard, "accounts">) {
 		<>
 			<Card>
 				<CardHeader className="flex-row items-center justify-between">
-					<CardTitle className="flex items-center gap-2">
-						<LuLandmark className="text-primary" /> Contas
-					</CardTitle>
+					<div>
+						<CardTitle className="flex items-center gap-2">
+							<LuLandmark className="text-primary" /> Contas
+						</CardTitle>
+						<p className="mt-1 text-muted-foreground text-xs">Saldos em {formatLocalDate(endDate)}</p>
+					</div>
 					<Button className="cursor-pointer" onClick={() => setOpen(true)} size="sm" variant="outline">
 						Ver todas <LuArrowRight />
 					</Button>
@@ -57,7 +65,9 @@ export function DashboardAccounts({ accounts }: Pick<Dashboard, "accounts">) {
 				<DialogContent className="max-h-[calc(100dvh-2rem)] sm:max-w-lg">
 					<DialogHeader>
 						<DialogTitle>Todas as contas</DialogTitle>
-						<DialogDescription>Contas correntes e poupanças incluídas no saldo.</DialogDescription>
+						<DialogDescription>
+							Contas correntes e poupanças incluídas no saldo em {formatLocalDate(endDate)}.
+						</DialogDescription>
 					</DialogHeader>
 					<ScrollArea className="max-h-[min(30rem,calc(100dvh-14rem))] pr-3">
 						<div className="space-y-3">

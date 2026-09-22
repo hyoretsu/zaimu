@@ -1499,6 +1499,20 @@ export const dataService = {
 				const rangeEnd = new Date(
 					`${dateRange?.endDate ?? new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10)}T23:59:59`,
 				);
+				const [accountRecords, cashbackPurchases, holidays, yields] = await Promise.all([
+					localAccounts.getAll(),
+					localCreditPurchases.getAll(),
+					localMeta.get("financial-account-yield-holidays"),
+					localMeta.get("financial-account-yields"),
+				]);
+				const accountsAtRangeEnd = calculateFinancialAccountBalances(
+					accountRecords.map(item => normalizeLegacyFinancialAccount(item.data)),
+					transactions,
+					cashbackPurchases.map(item => normalizeLegacyCreditPurchase(item.data)),
+					(holidays as FinancialAccountYieldHoliday[] | null)?.map(holiday => holiday.date) ?? [],
+					rangeEnd,
+					(yields as FinancialAccountYield[] | null) ?? [],
+				);
 				const dateKey = (value: Date | string) => new Date(value).toISOString().slice(0, 10);
 				const periodTransactions = transactions.filter(transaction => {
 					const date = new Date(`${transaction.date.slice(0, 10)}T12:00:00`);
@@ -1828,7 +1842,7 @@ export const dataService = {
 					};
 				});
 				return {
-					accounts: accounts
+					accounts: accountsAtRangeEnd
 						.filter(account => account.type === "CHECKING" || account.type === "SAVINGS")
 						.map(account => ({
 							balance: account.balance ?? 0,

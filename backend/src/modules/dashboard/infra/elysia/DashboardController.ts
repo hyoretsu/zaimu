@@ -433,8 +433,9 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 				},
 			]),
 		);
-		const balances =
-			historicalBalances.find(item => dateKey(item.date) === dateKey(today))?.balances ??
+		const balancesAtRangeEnd =
+			historicalBalances.find(item => dateKey(item.date) === dateKey(range.end))?.balances ??
+			(await getFinancialAccountBalancesAtDates(accountIds, [startOfDay(range.end)]))[0]?.balances ??
 			new Map<string, number>();
 		const currentBalance = historicalMonetaryBalances.get(dateKey(today)) ?? 0;
 		const monetaryAccountIds = new Set(monetaryAccounts.map(account => account.id));
@@ -681,7 +682,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 			.reduce((sum, person) => sum + Math.abs(person.balance), 0);
 		return {
 			accounts: monetaryAccounts.map(account => ({
-				balance: balances.get(account.id) ?? 0,
+				balance: balancesAtRangeEnd.get(account.id) ?? 0,
 				id: account.id,
 				institutionName: institutionNameForAccount(account.id),
 				name: account.name,
