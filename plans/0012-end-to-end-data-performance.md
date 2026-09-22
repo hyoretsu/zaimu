@@ -135,8 +135,8 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
   - [ ] Consultar faturas, compras, pagamentos e previsões por conjunto de cartões.
   - [ ] Mover materialização de faturas e assinaturas para o worker.
 - [ ] 6. Importações
-  - [ ] Reduzir listagem de importações de cartão a `id`, `fileName` e `pendingItemCount`.
-  - [ ] Paginar detalhes e itens somente quando a revisão abrir.
+  - [x] Reduzir listagem de importações de cartão a `id`, `fileName` e `pendingItemCount`.
+  - [x] Paginar detalhes e itens somente quando a revisão abrir.
   - [ ] Aplicar o mesmo padrão às importações de transações.
   - [ ] Substituir `getImportReturn` por item por contagens e loaders em lote.
 - [ ] 7. Agendas e taxas
@@ -193,4 +193,5 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Listagem diária passou a filtrar, pesquisar, unir e paginar no PostgreSQL com `UNION ALL`, `limit + 1` e cursor opaco vinculado aos filtros; tags, referências e sincronização são hidratadas por página.
 - Frontend e modo guest passaram a consumir `{ days, nextCursor, hasMore }` sem paginação por offset.
 - Listagem diária recebeu cache-aside Redis, ETag/304 e diagnóstico `X-Cache`; mutações de transações agora abrem write fences e avançam gerações antes de responder.
+- Listagem de importações de cartão agora retorna somente o resumo mínimo; detalhes usam cursor opaco e carregamento incremental dentro do modal de revisão.
 - Próxima etapa: fixture/baseline e integração do outbox, fences e cache aos endpoints.

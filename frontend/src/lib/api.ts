@@ -388,11 +388,20 @@ export interface CreditCardImport {
 	createdAt: string;
 	dueDate: string;
 	fileName: string;
+	hasMore: boolean;
 	items: CreditCardImportItem[];
+	nextCursor: string | null;
+	pendingItemCount: number;
 	provider: "MERCADO_PAGO" | "BRADESCO" | "INTER" | "NUBANK" | "PICPAY";
 	statementDate: string;
 	status: "PENDING" | "APPROVED";
 	updatedAt: string;
+}
+
+export interface CreditCardImportSummary {
+	id: string;
+	fileName: string;
+	pendingItemCount: number;
 }
 
 export interface CreditCardImportCreateResult {

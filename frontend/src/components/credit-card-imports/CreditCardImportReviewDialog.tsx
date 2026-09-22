@@ -1,4 +1,10 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+	type InfiniteData,
+	useInfiniteQuery,
+	useMutation,
+	useQuery,
+	useQueryClient,
+} from "@tanstack/react-query";
 import { useState } from "react";
 import { LuCircleAlert, LuFileCheck2, LuTrash2 } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
@@ -13,7 +19,7 @@ import {
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
-import type { CreditCardImportItem } from "@/lib/api";
+import type { CreditCardImport, CreditCardImportItem } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
@@ -47,11 +53,21 @@ export function CreditCardImportReviewDialog({
 	} | null>(null);
 	const [approvingItemIds, setApprovingItemIds] = useState<Set<string>>(new Set());
 	const [discardConfirmationOpen, setDiscardConfirmationOpen] = useState(false);
-	const creditCardImport = useQuery({
+	const creditCardImport = useInfiniteQuery<
+		CreditCardImport,
+		Error,
+		InfiniteData<CreditCardImport>,
+		ReturnType<typeof queryKeys.creditCardImports.detail>,
+		string | undefined
+	>({
 		enabled: identity !== null && open && Boolean(importId),
-		queryFn: () => dataService.creditCardImports.get(importId!),
+		getNextPageParam: lastPage => (lastPage.hasMore ? (lastPage.nextCursor ?? undefined) : undefined),
+		initialPageParam: undefined as string | undefined,
+		queryFn: ({ pageParam }) => dataService.creditCardImports.get(importId!, pageParam),
 		queryKey: queryKeys.creditCardImports.detail(identity!, importId),
 	});
+	const creditCardImportData = creditCardImport.data?.pages[0];
+	const items = creditCardImport.data?.pages.flatMap(page => page.items) ?? [];
 	const creditCards = useQuery({
 		enabled: identity !== null && open,
 		queryFn: () => dataService.creditCards.getAll(),
@@ -102,7 +118,7 @@ export function CreditCardImportReviewDialog({
 		},
 		onSuccess: async () => {
 			await invalidateCreditCards();
-			if ((creditCardImport.data?.items.length ?? 0) === 1) await closeFinishedReview();
+			if ((creditCardImportData?.pendingItemCount ?? 0) === 1) await closeFinishedReview();
 			else await invalidate();
 			showToast("Compra e parcelas criadas.", "positive");
 		},
@@ -134,7 +150,7 @@ export function CreditCardImportReviewDialog({
 		mutationFn: () => dataService.creditCardImports.approve(importId!),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async result => {
-			const reviewFinished = result.created === items.length;
+			const reviewFinished = result.created === creditCardImportData?.pendingItemCount;
 			await invalidateCreditCards();
 			if (reviewFinished) await closeFinishedReview();
 			else await invalidate();
@@ -155,8 +171,7 @@ export function CreditCardImportReviewDialog({
 			showToast("Importação descartada.", "info");
 		},
 	});
-	const items = creditCardImport.data?.items ?? [];
-	const creditCard = creditCards.data?.find(card => card.id === creditCardImport.data?.creditCardId);
+	const creditCard = creditCards.data?.find(card => card.id === creditCardImportData?.creditCardId);
 	const creditCardName = creditCard ? getCreditCardDisplayName(creditCard) : "Cartão de crédito";
 	const reviewBusy =
 		updateItem.isPending || reconcileItem.isPending || approve.isPending || discard.isPending;
@@ -174,8 +189,8 @@ export function CreditCardImportReviewDialog({
 					<DialogHeader>
 						<DialogTitle>Revisar fatura importada</DialogTitle>
 						<DialogDescription>
-							{creditCardImport.data
-								? `${creditCardImport.data.fileName} · fecha em ${formatLocalDate(creditCardImport.data.statementDate)}. Compras parceladas serão criadas na data da primeira parcela.`
+							{creditCardImportData
+								? `${creditCardImportData.fileName} · fecha em ${formatLocalDate(creditCardImportData.statementDate)}. Compras parceladas serão criadas na data da primeira parcela.`
 								: "Carregando compras da fatura…"}
 						</DialogDescription>
 					</DialogHeader>
@@ -196,7 +211,7 @@ export function CreditCardImportReviewDialog({
 							<div className="divide-y rounded-2xl border bg-card shadow-sm">
 								{items.map(item => (
 									<CreditCardImportItemRow
-										creditCardId={creditCardImport.data!.creditCardId}
+										creditCardId={creditCardImportData!.creditCardId}
 										creditCardName={creditCardName}
 										disabled={reviewBusy || approvingItemIds.has(item.id)}
 										item={item}
@@ -209,6 +224,18 @@ export function CreditCardImportReviewDialog({
 										}}
 									/>
 								))}
+								{creditCardImport.hasNextPage && (
+									<div className="flex justify-center p-3">
+										<Button
+											className="cursor-pointer disabled:cursor-not-allowed"
+											disabled={creditCardImport.isFetchingNextPage}
+											onClick={() => creditCardImport.fetchNextPage()}
+											variant="outline"
+										>
+											{creditCardImport.isFetchingNextPage ? "Carregando…" : "Carregar mais"}
+										</Button>
+									</div>
+								)}
 							</div>
 						</ScrollArea>
 					)}

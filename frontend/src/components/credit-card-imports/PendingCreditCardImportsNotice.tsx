@@ -28,7 +28,7 @@ export function PendingCreditCardImportsNotice({ onReview }: { onReview: (import
 			</section>
 		);
 	if (!imports.data?.length) return null;
-	const purchases = imports.data.reduce((total, item) => total + item.items.length, 0);
+	const purchases = imports.data.reduce((total, item) => total + item.pendingItemCount, 0);
 	return (
 		<>
 			<ActionNotice

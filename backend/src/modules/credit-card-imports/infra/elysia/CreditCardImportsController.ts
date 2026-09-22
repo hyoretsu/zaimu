@@ -15,7 +15,7 @@ import {
 } from "~/modules/debts/application/debt-splits";
 import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { HttpException } from "~/shared/errors";
-import { db, executeStatement, queryFirst, queryRows, withTransaction } from "~/shared/infra/sql";
+import { db, executeStatement, queryFirst, queryRaw, queryRows, withTransaction } from "~/shared/infra/sql";
 import { materializeImportedPurchase } from "../../application/materialize-imported-purchase";
 import { assignCreditCardPurchaseExternalIds } from "../../domain/credit-card-import-identity";
 import { matchesExistingCreditPurchase } from "../../domain/credit-card-import-reconciliation";
@@ -172,30 +172,78 @@ async function markStatementAsFullySynced({
 	);
 }
 
-async function getImportReturn(userId: string, importId: string) {
-	const creditCardImport = await getImport(userId, importId);
-	const items = await queryRows(
-		db.sql.public.CreditCardImportItem.select(
-			"id",
-			"categoryId",
-			"currentInstallment",
-			"createdAt",
-			"description",
-			"externalId",
-			"installmentAmount",
-			"installments",
-			"isSelected",
-			"purchaseDate",
-			"reconciledCreditPurchaseId",
-			"storeName",
-			"time",
-			"totalAmount",
-			"updatedAt",
+interface ImportItemsCursor {
+	createdAt: string;
+	id: string;
+	purchaseDate: string;
+}
+
+const decodeImportItemsCursor = (cursor?: string): ImportItemsCursor | null => {
+	if (!cursor) return null;
+	try {
+		const parsed = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as ImportItemsCursor;
+		if (
+			!parsed.id ||
+			Number.isNaN(Date.parse(parsed.createdAt)) ||
+			Number.isNaN(Date.parse(parsed.purchaseDate))
 		)
-			.where((fields, functions) => functions.eq(fields.creditCardImportId, importId))
-			.orderBy("purchaseDate", { direction: "desc" })
-			.build(),
+			throw new Error("invalid cursor");
+		return parsed;
+	} catch {
+		throw new HttpException("Cursor inválido", 400);
+	}
+};
+
+async function getImportReturn(
+	userId: string,
+	importId: string,
+	page: { cursor?: string; limit?: number } = {},
+) {
+	const creditCardImport = await getImport(userId, importId);
+	const limit = Math.min(page.limit ?? 50, 100);
+	const cursor = decodeImportItemsCursor(page.cursor);
+	const itemPage = await queryRaw<{
+		[key: string]: unknown;
+		createdAt: Date;
+		id: string;
+		purchaseDate: Date;
+		totalCount: number;
+	}>(
+		`SELECT "id", "createdAt", "purchaseDate", count(*) OVER()::integer AS "totalCount"
+		 FROM "CreditCardImportItem"
+		 WHERE "creditCardImportId" = $1
+		   AND ($2::date IS NULL OR ("purchaseDate", "createdAt", "id") < ($2::date, $3::timestamp, $4::text))
+		 ORDER BY "purchaseDate" DESC, "createdAt" DESC, "id" DESC
+		 LIMIT $5`,
+		[importId, cursor?.purchaseDate ?? null, cursor?.createdAt ?? null, cursor?.id ?? null, limit + 1],
 	);
+	const pageRows = itemPage.slice(0, limit);
+	const itemIds = pageRows.map(item => item.id);
+	const items = itemIds.length
+		? await queryRows(
+				db.sql.public.CreditCardImportItem.select(
+					"id",
+					"categoryId",
+					"currentInstallment",
+					"createdAt",
+					"description",
+					"externalId",
+					"installmentAmount",
+					"installments",
+					"isSelected",
+					"purchaseDate",
+					"reconciledCreditPurchaseId",
+					"storeName",
+					"time",
+					"totalAmount",
+					"updatedAt",
+				)
+					.where((fields, functions) => functions.in(fields.id, itemIds))
+					.build(),
+			)
+		: [];
+	const itemOrder = new Map(itemIds.map((id, index) => [id, index]));
+	items.sort((left, right) => (itemOrder.get(left.id) ?? 0) - (itemOrder.get(right.id) ?? 0));
 	const tags = await getTagsByEntity(
 		importItemTagEntityType,
 		items.map(item => item.id),
@@ -218,6 +266,7 @@ async function getImportReturn(userId: string, importId: string) {
 	return {
 		...creditCardImport,
 		dueDate: dateKey(creditCardImport.dueDate),
+		hasMore: itemPage.length > limit,
 		items: await Promise.all(
 			items.map(async item => ({
 				...item,
@@ -239,6 +288,19 @@ async function getImportReturn(userId: string, importId: string) {
 				totalAmount: Number(item.totalAmount),
 			})),
 		),
+		nextCursor: (() => {
+			const last = pageRows.at(-1);
+			return itemPage.length > limit && last
+				? Buffer.from(
+						JSON.stringify({
+							createdAt: last.createdAt.toISOString(),
+							id: last.id,
+							purchaseDate: last.purchaseDate.toISOString(),
+						}),
+					).toString("base64url")
+				: null;
+		})(),
+		pendingItemCount: itemPage[0]?.totalCount ?? 0,
 		statementDate: dateKey(creditCardImport.statementDate),
 	};
 }
@@ -471,19 +533,27 @@ async function approveItems(userId: string, importId: string, itemId?: string) {
 export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-imports" })
 	.get("/", async ({ request }) => {
 		const userId = await requireUserId(request);
-		const imports = await queryRows(
-			db.sql.public.CreditCardImport.select("id")
-				.where((fields, functions) =>
-					functions.and(functions.eq(fields.userId, userId), functions.eq(fields.status, "PENDING")),
-				)
-				.orderBy("createdAt", { direction: "desc" })
-				.build(),
+		return queryRaw<{ id: string; fileName: string; pendingItemCount: number } & Record<string, unknown>>(
+			`SELECT import."id", import."fileName", count(item."id")::integer AS "pendingItemCount"
+			 FROM "CreditCardImport" import
+			 LEFT JOIN "CreditCardImportItem" item ON item."creditCardImportId" = import."id"
+			 WHERE import."userId" = $1 AND import."status" = 'PENDING'
+			 GROUP BY import."id", import."fileName", import."createdAt"
+			 ORDER BY import."createdAt" DESC`,
+			[userId],
 		);
-		return Promise.all(imports.map(item => getImportReturn(userId, item.id)));
 	})
-	.get("/:id", async ({ params, request }) => getImportReturn(await requireUserId(request), params.id), {
-		params: t.Object({ id: t.String({ maxLength: 36, minLength: 1 }) }),
-	})
+	.get(
+		"/:id",
+		async ({ params, query, request }) => getImportReturn(await requireUserId(request), params.id, query),
+		{
+			params: t.Object({ id: t.String({ maxLength: 36, minLength: 1 }) }),
+			query: t.Object({
+				cursor: t.Optional(t.String({ maxLength: 2048, minLength: 1 })),
+				limit: t.Optional(t.Number({ maximum: 100, minimum: 1 })),
+			}),
+		},
+	)
 	.post(
 		"/",
 		async ({ body, request }) => {

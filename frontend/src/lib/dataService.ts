@@ -12,6 +12,7 @@ import type {
 	CreditCardImport,
 	CreditCardImportCreateResult,
 	CreditCardImportItem,
+	CreditCardImportSummary,
 	CreditCardStatement,
 	CreditCardStatementDetail,
 	CreditPurchase,
@@ -786,13 +787,14 @@ export const dataService = {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar faturas.");
 			await fetchWithAuth(`/credit-card-imports/${id}`, { method: "DELETE" });
 		},
-		async get(id: string): Promise<CreditCardImport> {
+		async get(id: string, cursor?: string): Promise<CreditCardImport> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar faturas.");
-			return fetchWithAuth<CreditCardImport>(`/credit-card-imports/${id}`);
+			const suffix = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+			return fetchWithAuth<CreditCardImport>(`/credit-card-imports/${id}${suffix}`);
 		},
-		async getPending(): Promise<CreditCardImport[]> {
+		async getPending(): Promise<CreditCardImportSummary[]> {
 			if (isGuestMode()) return [];
-			return fetchWithAuth<CreditCardImport[]>("/credit-card-imports");
+			return fetchWithAuth<CreditCardImportSummary[]>("/credit-card-imports");
 		},
 		async reconcileItem(
 			importId: string,
