@@ -202,6 +202,13 @@ export interface CreditCard {
 	cashbackYieldReferencePercentage?: number | null;
 	cashbackYieldReferenceRate?: number | null;
 	accountName?: string | null;
+	currentStatement: CreditCardStatement | null;
+	limit: {
+		availableLimit: number;
+		effectiveLimit: number;
+		temporaryCredit: number;
+		usedLimit: number;
+	};
 }
 
 export interface Transaction {

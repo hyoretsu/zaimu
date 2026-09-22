@@ -1,17 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
 import { LuCalendarClock, LuPlus, LuReceiptText, LuWalletCards } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import { Progress } from "@/components/ui/Progress";
-import { Skeleton } from "@/components/ui/Skeleton";
 import type { CreditCard } from "@/lib/api";
-import {
-	calculateCreditCardLimit,
-	getCreditCardDisplayName,
-	getCurrentCreditCardStatement,
-} from "@/lib/credit-card";
-import { dataService } from "@/lib/dataService";
+import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { formatLocalDate } from "@/lib/date";
-import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
@@ -24,16 +16,9 @@ export function CreditCardOverviewCard({
 	onAddPurchase: () => void;
 	onViewStatements: () => void;
 }) {
-	const identity = useCacheIdentity();
-	const statements = useQuery({
-		enabled: identity !== null,
-		queryFn: () => dataService.creditCards.getStatements(card.id),
-		queryKey: queryKeys.creditCardStatements.list(identity!, card.id),
-	});
-	if (statements.isPending) return <Skeleton className="h-72" />;
-	const statement = getCurrentCreditCardStatement(statements.data ?? [], card);
+	const statement = card.currentStatement;
 	const currentBill = Math.max(0, statement?.balanceAmount ?? 0);
-	const limit = calculateCreditCardLimit(card, statements.data ?? []);
+	const limit = card.limit;
 	const percent =
 		limit.effectiveLimit > 0 ? Math.min(100, (limit.usedLimit / limit.effectiveLimit) * 100) : 0;
 

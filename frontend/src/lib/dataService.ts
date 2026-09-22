@@ -39,7 +39,11 @@ import type {
 	TransactionImportItem,
 	TransactionImportSummary,
 } from "./api";
-import { applyStatementCredits } from "./credit-card";
+import {
+	applyStatementCredits,
+	calculateCreditCardLimit,
+	getCurrentCreditCardStatement,
+} from "./credit-card";
 import { getCurrentLocalTime, getLocalDateKey } from "./date";
 import { calculateDebtSplit } from "./debt-split";
 import { calculateFinancialAccountBalances } from "./financial-account";
@@ -972,10 +976,17 @@ export const dataService = {
 				cashbackYieldReferencePercentage: details.cashbackYieldReferencePercentage ?? null,
 				cashbackYieldReferenceRate: details.cashbackYieldReferenceRate ?? null,
 				creditLimit: details.creditLimit,
+				currentStatement: null,
 				dueDay: details.dueDay,
 				excludeFromTotals: details.excludeFromTotals ?? false,
 				financialAccountId: account.id,
 				id: crypto.randomUUID(),
+				limit: {
+					availableLimit: details.creditLimit,
+					effectiveLimit: details.creditLimit,
+					temporaryCredit: 0,
+					usedLimit: 0,
+				},
 				securityDeposit: details.securityDeposit ?? null,
 				statementDay: details.statementDay,
 				workingDueDate: details.workingDueDate,
@@ -1005,15 +1016,25 @@ export const dataService = {
 		},
 		async getAll(): Promise<CreditCard[]> {
 			if (isGuestMode()) {
-				const [storedCards, storedAccounts] = await Promise.all([
+				const [storedCards, storedAccounts, storedStatements] = await Promise.all([
 					localCreditCards.getAll(),
 					localAccounts.getAll(),
+					localCreditCardStatements.getAll(),
 				]);
 				const accounts = new Map(storedAccounts.map(item => [item.data.id, item.data]));
-				return storedCards.map(({ data: card }) => ({
-					...card,
-					accountName: card.accountName || accounts.get(card.financialAccountId)?.institution?.name || null,
-				}));
+				const statementsByCard = Map.groupBy(
+					storedStatements.map(item => item.data),
+					statement => statement.creditCardId,
+				);
+				return storedCards.map(({ data: card }) => {
+					const statements = applyStatementCredits(statementsByCard.get(card.id) ?? []);
+					return {
+						...card,
+						accountName: card.accountName || accounts.get(card.financialAccountId)?.institution?.name || null,
+						currentStatement: getCurrentCreditCardStatement(statements, card) ?? null,
+						limit: calculateCreditCardLimit(card, statements),
+					};
+				});
 			}
 			const owner = getCurrentCacheIdentity();
 			if (!owner) throw new Error("Identidade local indisponível.");

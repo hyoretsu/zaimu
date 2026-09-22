@@ -129,8 +129,8 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
   - [x] Substituir cálculo de saldo por agregação SQL.
   - [ ] Migrar frontend, cache e guest mode para o novo contrato.
 - [ ] 5. Cartões
-  - [ ] Criar payload agregado de cartão, limite e fatura atual.
-  - [ ] Remover `useQueries` e qualquer request por cartão.
+  - [x] Criar payload agregado de cartão, limite e fatura atual.
+  - [x] Remover `useQueries` e qualquer request por cartão.
   - [ ] Fazer histórico/detalhe lazy e paginado.
   - [ ] Consultar faturas, compras, pagamentos e previsões por conjunto de cartões.
   - [ ] Mover materialização de faturas e assinaturas para o worker.
@@ -198,4 +198,5 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Rateios das revisões de cartão e transação agora são hidratados em lote, incluindo candidatos de duplicidade e sugestões de transferência; o custo de leitura deixou de crescer por item.
 - Fixture local determinística criada com 100 mil transações, 20 cartões, cinco anos de faturas, compras e tags; runner mede cold start, p95 quente, tempo SQL e query count contra orçamentos versionados.
 - Saldos diários da listagem de transações agora usam agregação e janela cumulativa no PostgreSQL, sem carregar todo o histórico em JavaScript.
-- Próxima etapa: reduzir o DTO de transações e tornar detalhes de compra lazy; depois otimizar cartões.
+- Listagem de cartões agora entrega limite agregado e fatura atual em duas consultas set-based; tela deixou de disparar uma consulta de faturas por cartão, inclusive no modo guest.
+- Próxima etapa: paginar histórico/detalhe de faturas e retirar sua materialização dos GETs.

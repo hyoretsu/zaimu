@@ -713,7 +713,46 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					.orderBy(fields => fields.FinancialAccount.name, { direction: "asc" })
 					.build(),
 			);
-			return cards;
+			if (cards.length === 0) return [];
+			const statements = await queryRows(
+				db.sql.public.CreditCardStatement.select(...statementColumns)
+					.where((fields, functions) =>
+						functions.in(
+							fields.creditCardId,
+							cards.map(card => card.id),
+						),
+					)
+					.orderBy("statementDate", { direction: "desc" })
+					.build(),
+			);
+			const statementsByCard = Map.groupBy(statements, statement => statement.creditCardId);
+			return cards.map(card => {
+				const effectiveStatements = applyStatementCredits(statementsByCard.get(card.id) ?? []);
+				const currentStatementDate = toDateKey(getStatementDates(card, new Date()).statementDate);
+				const currentStatement =
+					effectiveStatements.find(
+						statement => toDateKey(statement.statementDate) === currentStatementDate,
+					) ?? null;
+				const netUsedInCents = effectiveStatements
+					.filter(statement => toDateKey(statement.dueDate) >= toDateKey(new Date()))
+					.reduce(
+						(total, statement) => total + toCents(statement.totalAmount) - toCents(statement.paidAmount),
+						0,
+					);
+				const temporaryCreditInCents = Math.max(0, -netUsedInCents);
+				const usedLimitInCents = Math.max(0, netUsedInCents);
+				const effectiveLimitInCents = toCents(card.creditLimit) + temporaryCreditInCents;
+				return {
+					...card,
+					currentStatement,
+					limit: {
+						availableLimit: Math.max(0, effectiveLimitInCents - usedLimitInCents) / 100,
+						effectiveLimit: effectiveLimitInCents / 100,
+						temporaryCredit: temporaryCreditInCents / 100,
+						usedLimit: usedLimitInCents / 100,
+					},
+				};
+			});
 		},
 		{
 			detail: { tags: ["Credit Cards"] },
