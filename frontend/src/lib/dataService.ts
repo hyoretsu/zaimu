@@ -3342,10 +3342,10 @@ export const dataService = {
 		},
 		async getDailyPage(params: {
 			categoryId?: string;
+			cursor?: string;
 			endDate?: string;
 			financialAccountId?: string;
 			limit?: number;
-			offset?: number;
 			search?: string;
 			source?: NonNullable<Transaction["source"]>;
 			startDate?: string;
@@ -3354,19 +3354,28 @@ export const dataService = {
 		}): Promise<{
 			days: Array<{ date: string; endingBalance: number; transactions: Transaction[] }>;
 			hasMore: boolean;
-			resultCount: number;
+			nextCursor: null | string;
 		}> {
 			if (isGuestMode()) {
-				const transactions = await this.getAll(params);
+				let offset = 0;
+				if (params.cursor)
+					try {
+						offset = Number(JSON.parse(atob(params.cursor)).offset ?? 0);
+					} catch {
+						throw new Error("Cursor inválido para estes filtros");
+					}
+				const { cursor: _cursor, ...filters } = params;
+				const transactions = await this.getAll({ ...filters, offset });
 				const dates = [...new Set(transactions.map(transaction => transaction.date.slice(0, 10)))];
+				const hasMore = Boolean(params.limit && transactions.length === params.limit);
 				return {
 					days: dates.map(date => ({
 						date,
 						endingBalance: 0,
 						transactions: transactions.filter(transaction => transaction.date.slice(0, 10) === date),
 					})),
-					hasMore: transactions.length > 0,
-					resultCount: transactions.length,
+					hasMore,
+					nextCursor: hasMore ? btoa(JSON.stringify({ offset: offset + transactions.length })) : null,
 				};
 			}
 			const searchParams = new URLSearchParams({ view: "daily" });

@@ -25,6 +25,7 @@ import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/appl
 import { materializeSalaryTransactions } from "~/modules/salaries/application/materialize-salary-transactions";
 import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { areTransferSuggestionTimesCompatible } from "~/modules/transaction-imports/domain/transfer-suggestions";
+import { listTransactionsPage } from "~/modules/transactions/application/list-transactions-page";
 import { HttpException } from "~/shared/errors";
 import {
 	db,
@@ -354,11 +355,12 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 		"/",
 		async ({ query, request }) => {
 			const userId = await requireUserId(request);
-			await materializeSalaryTransactions(userId);
 			if (query.financialAccountId) {
 				await assertDirectOwnership("FinancialAccount", query.financialAccountId, userId);
 			}
 			if (query.categoryId) await assertDirectOwnership("Category", query.categoryId, userId);
+			if (query.view === "daily") return listTransactionsPage(userId, query);
+			await materializeSalaryTransactions(userId);
 			const origin = db.sql.public.FinancialAccount.select(
 				"id",
 				"institutionId",
@@ -823,6 +825,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			detail: { tags: ["Transactions"] },
 			query: t.Object({
 				categoryId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
+				cursor: t.Optional(t.String({ maxLength: 2048, minLength: 1 })),
 				endDate: t.Optional(t.String()),
 				financialAccountId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				limit: t.Optional(t.Number({ maximum: 500, minimum: 1 })),

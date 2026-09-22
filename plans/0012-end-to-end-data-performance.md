@@ -124,8 +124,8 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
   - [ ] Cobrir indisponibilidade/reconexão do Redis e invalidação multiusuário.
 - [ ] 4. Transações
   - [x] Adicionar proprietário direto e índices.
-  - [ ] Implementar `UNION ALL`, pesquisa no banco e cursor opaco.
-  - [ ] Hidratar página em lote e tornar detalhe lazy.
+  - [x] Implementar `UNION ALL`, pesquisa no banco e cursor opaco.
+  - [ ] Hidratar página em lote e tornar detalhe lazy. (hidratação em lote concluída; redução final do DTO e detalhe de compra pendentes)
   - [ ] Substituir cálculo de saldo por agregação SQL.
   - [ ] Migrar frontend, cache e guest mode para o novo contrato.
 - [ ] 5. Cartões
@@ -190,4 +190,6 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Consumidor de invalidação conectado ao worker, com deduplicação persistente, lease, retry limitado e DLQ.
 - Coalescing agora usa lock Redis entre processos; matriz central relaciona eventos aos namespaces afetados.
 - `Transaction` e `CreditPurchase` receberam proprietário direto, backfill, FKs, índices de paginação e índices trigram normalizados; todos os caminhos de escrita passaram a persistir `userId`.
+- Listagem diária passou a filtrar, pesquisar, unir e paginar no PostgreSQL com `UNION ALL`, `limit + 1` e cursor opaco vinculado aos filtros; tags, referências e sincronização são hidratadas por página.
+- Frontend e modo guest passaram a consumir `{ days, nextCursor, hasMore }` sem paginação por offset.
 - Próxima etapa: fixture/baseline e integração do outbox, fences e cache aos endpoints.

@@ -53,13 +53,13 @@ const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "curre
 const transactionsPageSize = 50;
 const searchResultsPageSize = 10;
 interface TransactionsPageParam extends TransactionQueryFilters {
+	cursor?: string;
 	limit?: number;
-	offset?: number;
 }
 interface TransactionsDailyPage {
 	days: Array<{ date: string; endingBalance: number; transactions: Transaction[] }>;
 	hasMore: boolean;
-	resultCount: number;
+	nextCursor: null | string;
 }
 
 function getInitialTransactionsPage(filters: TransactionFiltersValue): TransactionsPageParam {
@@ -67,19 +67,7 @@ function getInitialTransactionsPage(filters: TransactionFiltersValue): Transacti
 	if (Object.keys(queryFilters).length > 0)
 		return { ...queryFilters, limit: filters.search ? searchResultsPageSize : transactionsPageSize };
 
-	const today = new Date();
-	const daysSinceMonday = (today.getDay() + 6) % 7;
-	const previousWeekStart = new Date(today);
-	previousWeekStart.setDate(today.getDate() - daysSinceMonday - 7);
-	return {
-		startDate: getLocalDateKey(previousWeekStart),
-	};
-}
-
-function getDayBefore(date: string): string {
-	const previousDay = new Date(`${date}T12:00:00`);
-	previousDay.setDate(previousDay.getDate() - 1);
-	return getLocalDateKey(previousDay);
+	return { limit: transactionsPageSize };
 }
 
 export function TransactionsPage() {
@@ -108,20 +96,8 @@ export function TransactionsPage() {
 		TransactionsPageParam
 	>({
 		enabled: identity !== null,
-		getNextPageParam: (lastPage, _pages, lastPageParam) => {
-			if (!lastPage.hasMore) return undefined;
-			if (lastPageParam.limit && lastPage.resultCount === lastPageParam.limit)
-				return { ...lastPageParam, offset: (lastPageParam.offset ?? 0) + lastPageParam.limit };
-			if (lastPageParam.startDate)
-				return {
-					endDate: getDayBefore(lastPageParam.startDate),
-					limit: lastPageParam.search ? searchResultsPageSize : transactionsPageSize,
-					search: lastPageParam.search,
-				};
-			return lastPage.resultCount === transactionsPageSize
-				? { ...lastPageParam, offset: (lastPageParam.offset ?? 0) + transactionsPageSize }
-				: undefined;
-		},
+		getNextPageParam: (lastPage, _pages, lastPageParam) =>
+			lastPage.hasMore && lastPage.nextCursor ? { ...lastPageParam, cursor: lastPage.nextCursor } : undefined,
 		initialPageParam: getInitialTransactionsPage(filters),
 		queryFn: ({ pageParam }) =>
 			dataService.transactions.getDailyPage(
