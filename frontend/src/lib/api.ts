@@ -331,13 +331,22 @@ export interface TransactionImport {
 	id: string;
 	financialAccountId: string;
 	fileName: string;
+	hasMore: boolean;
 	items: TransactionImportItem[];
+	nextCursor: string | null;
+	pendingItemCount: number;
 	periodEnd?: string | null;
 	periodStart?: string | null;
 	provider: "MERCADO_PAGO" | "NUBANK" | "BANCO_DO_BRASIL" | "INTER" | "PICPAY";
 	status: "PENDING" | "APPROVED";
 	createdAt: string;
 	updatedAt: string;
+}
+
+export interface TransactionImportSummary {
+	id: string;
+	fileName: string;
+	pendingItemCount: number;
 }
 
 export interface TransactionImportCreateResult {

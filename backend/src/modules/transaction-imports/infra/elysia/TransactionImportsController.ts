@@ -19,6 +19,7 @@ import {
 	db,
 	executeStatement,
 	queryFirst,
+	queryRaw,
 	queryRows,
 	type SqlExecutor,
 	withTransaction,
@@ -416,35 +417,79 @@ async function getPotentialDuplicates(
 	);
 }
 
-async function getImportReturn(userId: string, importId: string) {
+interface ImportItemsCursor {
+	createdAt: string;
+	date: string;
+	id: string;
+}
+
+const decodeImportItemsCursor = (cursor?: string): ImportItemsCursor | null => {
+	if (!cursor) return null;
+	try {
+		const parsed = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as ImportItemsCursor;
+		if (!parsed.id || Number.isNaN(Date.parse(parsed.createdAt)) || Number.isNaN(Date.parse(parsed.date)))
+			throw new Error("invalid cursor");
+		return parsed;
+	} catch {
+		throw new HttpException("Cursor inválido", 400);
+	}
+};
+
+async function getImportReturn(
+	userId: string,
+	importId: string,
+	page: { cursor?: string; limit?: number } = {},
+) {
 	const transactionImport = await getImport(userId, importId);
-	const items = await queryRows(
-		db.sql.public.TransactionImportItem.select(
-			"id",
-			"amount",
-			"balanceAfter",
-			"categoryId",
-			"creditCardStatementId",
-			"createdAt",
-			"date",
-			"description",
-			"destinationFinancialAccountId",
-			"externalId",
-			"isDuplicateIgnored",
-			"isHidden",
-			"isReconciled",
-			"isSelected",
-			"originFinancialAccountId",
-			"storeName",
-			"time",
-			"transferCounterpartExternalId",
-			"type",
-			"updatedAt",
-		)
-			.where((fields, functions) => functions.eq(fields.transactionImportId, importId))
-			.orderBy("date", { direction: "desc" })
-			.build(),
+	const limit = Math.min(page.limit ?? 50, 100);
+	const cursor = decodeImportItemsCursor(page.cursor);
+	const itemPage = await queryRaw<{
+		[key: string]: unknown;
+		createdAt: Date;
+		date: Date;
+		id: string;
+		totalCount: number;
+	}>(
+		`SELECT "id", "createdAt", "date", count(*) OVER()::integer AS "totalCount"
+		 FROM "TransactionImportItem"
+		 WHERE "transactionImportId" = $1
+		   AND ($2::date IS NULL OR ("date", "createdAt", "id") < ($2::date, $3::timestamp, $4::text))
+		 ORDER BY "date" DESC, "createdAt" DESC, "id" DESC
+		 LIMIT $5`,
+		[importId, cursor?.date ?? null, cursor?.createdAt ?? null, cursor?.id ?? null, limit + 1],
 	);
+	const pageRows = itemPage.slice(0, limit);
+	const itemIds = pageRows.map(item => item.id);
+	const items = itemIds.length
+		? await queryRows(
+				db.sql.public.TransactionImportItem.select(
+					"id",
+					"amount",
+					"balanceAfter",
+					"categoryId",
+					"creditCardStatementId",
+					"createdAt",
+					"date",
+					"description",
+					"destinationFinancialAccountId",
+					"externalId",
+					"isDuplicateIgnored",
+					"isHidden",
+					"isReconciled",
+					"isSelected",
+					"originFinancialAccountId",
+					"storeName",
+					"time",
+					"transferCounterpartExternalId",
+					"type",
+					"updatedAt",
+				)
+					.where((fields, functions) => functions.in(fields.id, itemIds))
+					.build(),
+			)
+		: [];
+	const itemOrder = new Map(itemIds.map((id, index) => [id, index]));
+	items.sort((left, right) => (itemOrder.get(left.id) ?? 0) - (itemOrder.get(right.id) ?? 0));
 	const [tagsByItem, duplicates, transferSuggestions] = await Promise.all([
 		getTagsByEntity(
 			importItemTagEntityType,
@@ -493,6 +538,7 @@ async function getImportReturn(userId: string, importId: string) {
 	const creditCardStatementsById = new Map(creditCardStatements.map(statement => [statement.id, statement]));
 	return {
 		...transactionImport,
+		hasMore: itemPage.length > limit,
 		items: await Promise.all(
 			items.map(async item => {
 				const { externalId: _, transferCounterpartExternalId: __, ...visibleItem } = item;
@@ -541,6 +587,19 @@ async function getImportReturn(userId: string, importId: string) {
 				};
 			}),
 		),
+		nextCursor: (() => {
+			const last = pageRows.at(-1);
+			return itemPage.length > limit && last
+				? Buffer.from(
+						JSON.stringify({
+							createdAt: last.createdAt.toISOString(),
+							date: last.date.toISOString(),
+							id: last.id,
+						}),
+					).toString("base64url")
+				: null;
+		})(),
+		pendingItemCount: itemPage[0]?.totalCount ?? 0,
 	};
 }
 
@@ -838,19 +897,27 @@ async function finalizeImportWhenEmpty(transaction: SqlExecutor, importId: strin
 export const TransactionImportsController = new Elysia({ prefix: "/transaction-imports" })
 	.get("/", async ({ request }) => {
 		const userId = await requireUserId(request);
-		const imports = await queryRows(
-			db.sql.public.TransactionImport.select("id")
-				.where((fields, functions) =>
-					functions.and(functions.eq(fields.userId, userId), functions.eq(fields.status, "PENDING")),
-				)
-				.orderBy("createdAt", { direction: "desc" })
-				.build(),
+		return queryRaw<{ id: string; fileName: string; pendingItemCount: number } & Record<string, unknown>>(
+			`SELECT import."id", import."fileName", count(item."id")::integer AS "pendingItemCount"
+			 FROM "TransactionImport" import
+			 LEFT JOIN "TransactionImportItem" item ON item."transactionImportId" = import."id"
+			 WHERE import."userId" = $1 AND import."status" = 'PENDING'
+			 GROUP BY import."id", import."fileName", import."createdAt"
+			 ORDER BY import."createdAt" DESC`,
+			[userId],
 		);
-		return Promise.all(imports.map(transactionImport => getImportReturn(userId, transactionImport.id)));
 	})
-	.get("/:id", async ({ params, request }) => getImportReturn(await requireUserId(request), params.id), {
-		params: t.Object({ id: t.String({ maxLength: 36, minLength: 1 }) }),
-	})
+	.get(
+		"/:id",
+		async ({ params, query, request }) => getImportReturn(await requireUserId(request), params.id, query),
+		{
+			params: t.Object({ id: t.String({ maxLength: 36, minLength: 1 }) }),
+			query: t.Object({
+				cursor: t.Optional(t.String({ maxLength: 2048, minLength: 1 })),
+				limit: t.Optional(t.Number({ maximum: 100, minimum: 1 })),
+			}),
+		},
+	)
 	.post(
 		"/",
 		async ({ body, request }) => {

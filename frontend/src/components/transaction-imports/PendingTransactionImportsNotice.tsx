@@ -31,7 +31,7 @@ export function PendingTransactionImportsNotice({ onReview }: { onReview: (impor
 	const pendingImports = imports.data;
 	if (!pendingImports?.length) return null;
 	const itemCount = pendingImports.reduce(
-		(sum, transactionImport) => sum + transactionImport.items.length,
+		(sum, transactionImport) => sum + transactionImport.pendingItemCount,
 		0,
 	);
 	return (

@@ -37,6 +37,7 @@ import type {
 	TransactionImport,
 	TransactionImportCreateResult,
 	TransactionImportItem,
+	TransactionImportSummary,
 } from "./api";
 import { applyStatementCredits } from "./credit-card";
 import { getCurrentLocalTime, getLocalDateKey } from "./date";
@@ -2955,13 +2956,14 @@ export const dataService = {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
 			await fetchWithAuth(`/transaction-imports/${id}`, { method: "DELETE" });
 		},
-		async get(id: string): Promise<TransactionImport> {
+		async get(id: string, cursor?: string): Promise<TransactionImport> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
-			return fetchWithAuth<TransactionImport>(`/transaction-imports/${id}`);
+			const suffix = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+			return fetchWithAuth<TransactionImport>(`/transaction-imports/${id}${suffix}`);
 		},
-		async getPending(): Promise<TransactionImport[]> {
+		async getPending(): Promise<TransactionImportSummary[]> {
 			if (isGuestMode()) return [];
-			return fetchWithAuth<TransactionImport[]>("/transaction-imports");
+			return fetchWithAuth<TransactionImportSummary[]>("/transaction-imports");
 		},
 		async reconcileItem(
 			importId: string,

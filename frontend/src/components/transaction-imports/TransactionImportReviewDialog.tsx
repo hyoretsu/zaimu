@@ -1,4 +1,10 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+	type InfiniteData,
+	useInfiniteQuery,
+	useMutation,
+	useQuery,
+	useQueryClient,
+} from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { LuCircleAlert, LuFileCheck2, LuLoaderCircle, LuTrash2 } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
@@ -16,6 +22,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import type {
 	FinancialAccount,
 	Transaction,
+	TransactionImport,
 	TransactionImportItem,
 	TransactionImportTransferSuggestion,
 } from "@/lib/api";
@@ -152,11 +159,21 @@ export function TransactionImportReviewDialog({
 		item: TransactionImportItem;
 		suggestion: TransactionImportTransferSuggestion;
 	} | null>(null);
-	const transactionImport = useQuery({
+	const transactionImport = useInfiniteQuery<
+		TransactionImport,
+		Error,
+		InfiniteData<TransactionImport>,
+		ReturnType<typeof queryKeys.transactionImports.detail>,
+		string | undefined
+	>({
 		enabled: identity !== null && open && Boolean(importId),
-		queryFn: () => dataService.transactionImports.get(importId!),
+		getNextPageParam: lastPage => (lastPage.hasMore ? (lastPage.nextCursor ?? undefined) : undefined),
+		initialPageParam: undefined as string | undefined,
+		queryFn: ({ pageParam }) => dataService.transactionImports.get(importId!, pageParam),
 		queryKey: queryKeys.transactionImports.detail(identity!, importId),
 	});
+	const transactionImportData = transactionImport.data?.pages[0];
+	const items = transactionImport.data?.pages.flatMap(page => page.items) ?? [];
 	useEffect(() => {
 		if (importId) reviewedImportId.current = importId;
 	}, [importId]);
@@ -324,7 +341,7 @@ export function TransactionImportReviewDialog({
 			},
 		]),
 	);
-	const remainingItemCount = transactionImport.data?.items.length ?? 0;
+	const remainingItemCount = transactionImportData?.pendingItemCount ?? 0;
 	const remainingItemCountLabel = `${remainingItemCount} ${remainingItemCount === 1 ? "transação restante" : "transações restantes"}`;
 	const setDateCollapsed = (date: string, collapsed: boolean) => {
 		setCollapsedDateKeys(current => {
@@ -395,8 +412,8 @@ export function TransactionImportReviewDialog({
 					<DialogHeader>
 						<DialogTitle>Revisar extrato importado</DialogTitle>
 						<DialogDescription>
-							{transactionImport.data
-								? `${transactionImport.data.fileName} · ${remainingItemCountLabel}. Apenas transações aprovadas serão registradas; as demais permanecerão no extrato.`
+							{transactionImportData
+								? `${transactionImportData.fileName} · ${remainingItemCountLabel}. Apenas transações aprovadas serão registradas; as demais permanecerão no extrato.`
 								: "Carregando transações do extrato…"}
 						</DialogDescription>
 					</DialogHeader>
@@ -412,19 +429,20 @@ export function TransactionImportReviewDialog({
 							icon={<LuCircleAlert className="size-7" />}
 							title="Não foi possível carregar o extrato"
 						/>
-					) : transactionImport.data ? (
+					) : transactionImportData ? (
 						<ScrollArea className="min-h-0 pr-3">
 							<div className="space-y-5">
 								{Object.entries(
-									sortTransactionsByMostRecent(transactionImport.data.items).reduce<
-										Record<string, TransactionImportItem[]>
-									>((groups, item) => {
-										const date = item.date.slice(0, 10);
-										const itemsForDate = groups[date] ?? [];
-										itemsForDate.push(item);
-										groups[date] = itemsForDate;
-										return groups;
-									}, {}),
+									sortTransactionsByMostRecent(items).reduce<Record<string, TransactionImportItem[]>>(
+										(groups, item) => {
+											const date = item.date.slice(0, 10);
+											const itemsForDate = groups[date] ?? [];
+											itemsForDate.push(item);
+											groups[date] = itemsForDate;
+											return groups;
+										},
+										{},
+									),
 								).map(([date, items]) => (
 									<ImportReviewDateSection
 										approveAllDisabled={
@@ -464,6 +482,18 @@ export function TransactionImportReviewDialog({
 										))}
 									</ImportReviewDateSection>
 								))}
+								{transactionImport.hasNextPage && (
+									<div className="flex justify-center">
+										<Button
+											className="cursor-pointer disabled:cursor-not-allowed"
+											disabled={transactionImport.isFetchingNextPage}
+											onClick={() => transactionImport.fetchNextPage()}
+											variant="outline"
+										>
+											{transactionImport.isFetchingNextPage ? "Carregando…" : "Carregar mais"}
+										</Button>
+									</div>
+								)}
 							</div>
 						</ScrollArea>
 					) : null}

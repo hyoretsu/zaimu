@@ -137,7 +137,7 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - [ ] 6. Importações
   - [x] Reduzir listagem de importações de cartão a `id`, `fileName` e `pendingItemCount`.
   - [x] Paginar detalhes e itens somente quando a revisão abrir.
-  - [ ] Aplicar o mesmo padrão às importações de transações.
+  - [x] Aplicar o mesmo padrão às importações de transações.
   - [ ] Substituir `getImportReturn` por item por contagens e loaders em lote.
 - [ ] 7. Agendas e taxas
   - [ ] Retirar materializações de todos os GETs.
@@ -194,4 +194,5 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Frontend e modo guest passaram a consumir `{ days, nextCursor, hasMore }` sem paginação por offset.
 - Listagem diária recebeu cache-aside Redis, ETag/304 e diagnóstico `X-Cache`; mutações de transações agora abrem write fences e avançam gerações antes de responder.
 - Listagem de importações de cartão agora retorna somente o resumo mínimo; detalhes usam cursor opaco e carregamento incremental dentro do modal de revisão.
-- Próxima etapa: fixture/baseline e integração do outbox, fences e cache aos endpoints.
+- Importações de transações agora expõem resumo mínimo, paginam itens por cursor estável e carregam páginas adicionais somente dentro do modal de revisão.
+- Próxima etapa: remover o N+1 restante dos rateios de importação, depois avançar fixture/baseline e integração do outbox, fences e cache aos endpoints.
