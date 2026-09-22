@@ -23,6 +23,7 @@ export function parseMercadoPagoStatementText(text: string): Statement {
 	const movementsText = (movementStart >= 0 ? text.slice(movementStart) : text)
 		.replace(/Data de geração:[\s\S]*?Data\s+Descrição\s+ID da operação\s+Valor\s+Saldo/gu, "")
 		.replace(/(?:\d+\/\d+\s+)?Data\s+Descrição\s+ID da operação\s+Valor\s+Saldo/gu, "")
+		.replace(/^\s*\d+\/\d+\s*$/gmu, "")
 		.replace(/--\s+\d+\s+of\s+\d+\s+--/gu, "");
 	const transactions: Statement["transactions"] = [];
 	let previousMatchEnd = 0;
