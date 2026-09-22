@@ -24,6 +24,7 @@ import {
 	withTransaction,
 } from "~/shared/infra/sql";
 import { filterExistingTransactions } from "../../domain/filter-existing-transactions";
+import { filterSynchronizedTransactions } from "../../domain/filter-synchronized-transactions";
 import { filterZeroValueTransactions } from "../../domain/filter-zero-value-transactions";
 import { matchesDuplicateTransactionShape } from "../../domain/import-reconciliation";
 import { assignStableExternalIds } from "../../domain/statement-identity";
@@ -332,11 +333,15 @@ async function getPotentialDuplicates(
 		externalIdsByTransaction.set(reference.transactionId, externalIds);
 	}
 	const candidates: DuplicateCandidate[] = [
-		...transactions.map(transaction => {
+		...filterSynchronizedTransactions(
+			transactions.map(transaction => ({
+				...transaction,
+				externalIds: externalIdsByTransaction.get(transaction.id) ?? [],
+			})),
+		).map(transaction => {
 			const tags = transactionTags.get(transaction.id) ?? [];
 			return {
 				...transaction,
-				externalIds: externalIdsByTransaction.get(transaction.id) ?? [],
 				source: "TRANSACTION" as const,
 				sourceImportId: null,
 				tagIds: tags.map(tag => tag.id),
