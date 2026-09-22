@@ -73,4 +73,35 @@ Data Descrição ID da operação Valor Saldo
 			},
 		]);
 	});
+	test("descarta rodapé completo que precede a próxima página", () => {
+		const statement = parseMercadoPagoStatementText(`
+EXTRATO DE CONTA
+Data Descrição ID da operação Valor Saldo
+20-09-2026 Dinheiro reservado Faturas 180016995316 R$ -758,52 R$ 3.884,14
+-- 3 of 4 --
+Data de geração: 21-09-2026
+Você tem alguma dúvida? Conte com o nosso Portal de ajuda para encontrar informações sobre nossos produtos e serviços. Se deseja falar com o nosso SAC, ligue para 0800 637 7246.
+Mercado Pago Instituição de Pagamento Ltda. CNPJ n.º 10.573.521/0001-91. Encontre nossos canais de consulta em:www.mercadopago.com.br 4/4
+20-09-2026 Dinheiro reservado Faturas 180017422920 R$ -98,11 R$ 3.786,03
+`);
+
+		expect(statement.transactions).toEqual([
+			{
+				amount: 758.52,
+				balanceAfter: 3884.14,
+				date: "2026-09-20",
+				description: "Dinheiro reservado Faturas",
+				externalId: "180016995316",
+				type: "EXPENSE",
+			},
+			{
+				amount: 98.11,
+				balanceAfter: 3786.03,
+				date: "2026-09-20",
+				description: "Dinheiro reservado Faturas",
+				externalId: "180017422920",
+				type: "EXPENSE",
+			},
+		]);
+	});
 });

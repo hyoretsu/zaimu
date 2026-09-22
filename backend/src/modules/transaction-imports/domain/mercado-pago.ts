@@ -22,6 +22,10 @@ export function parseMercadoPagoStatementText(text: string): Statement {
 	const movementStart = text.indexOf("ID da operação");
 	const movementsText = (movementStart >= 0 ? text.slice(movementStart) : text)
 		.replace(/Data de geração:[\s\S]*?Data\s+Descrição\s+ID da operação\s+Valor\s+Saldo/gu, "")
+		.replace(
+			/Data de geração:[\s\S]*?(?:\d+\/\d+|--\s+\d+\s+of\s+\d+\s+--)(?=\s*(?:\d{2}-\d{2}-\d{4}|$))/gu,
+			"",
+		)
 		.replace(/(?:\d+\/\d+\s+)?Data\s+Descrição\s+ID da operação\s+Valor\s+Saldo/gu, "")
 		.replace(/^\s*\d+\/\d+\s*$/gmu, "")
 		.replace(/--\s+\d+\s+of\s+\d+\s+--/gu, "");
