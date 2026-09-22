@@ -27,6 +27,7 @@ import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { areTransferSuggestionTimesCompatible } from "~/modules/transaction-imports/domain/transfer-suggestions";
 import { listTransactionsPage } from "~/modules/transactions/application/list-transactions-page";
 import { HttpException } from "~/shared/errors";
+import { distributedCache } from "~/shared/infra/cache";
 import {
 	db,
 	executeStatement,
@@ -353,13 +354,24 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 	)
 	.get(
 		"/",
-		async ({ query, request }) => {
+		async ({ query, request, set }) => {
 			const userId = await requireUserId(request);
 			if (query.financialAccountId) {
 				await assertDirectOwnership("FinancialAccount", query.financialAccountId, userId);
 			}
 			if (query.categoryId) await assertDirectOwnership("Category", query.categoryId, userId);
-			if (query.view === "daily") return listTransactionsPage(userId, query);
+			if (query.view === "daily") {
+				const cached = await distributedCache.remember(userId, "transactions:list", query, () =>
+					listTransactionsPage(userId, query),
+				);
+				set.headers.etag = cached.etag;
+				set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+				if (request.headers.get("if-none-match") === cached.etag) {
+					set.status = 304;
+					return null;
+				}
+				return cached.value;
+			}
 			await materializeSalaryTransactions(userId);
 			const origin = db.sql.public.FinancialAccount.select(
 				"id",

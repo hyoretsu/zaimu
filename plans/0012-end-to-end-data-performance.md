@@ -192,4 +192,5 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - `Transaction` e `CreditPurchase` receberam proprietário direto, backfill, FKs, índices de paginação e índices trigram normalizados; todos os caminhos de escrita passaram a persistir `userId`.
 - Listagem diária passou a filtrar, pesquisar, unir e paginar no PostgreSQL com `UNION ALL`, `limit + 1` e cursor opaco vinculado aos filtros; tags, referências e sincronização são hidratadas por página.
 - Frontend e modo guest passaram a consumir `{ days, nextCursor, hasMore }` sem paginação por offset.
+- Listagem diária recebeu cache-aside Redis, ETag/304 e diagnóstico `X-Cache`; mutações de transações agora abrem write fences e avançam gerações antes de responder.
 - Próxima etapa: fixture/baseline e integração do outbox, fences e cache aos endpoints.
