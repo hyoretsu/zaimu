@@ -18,6 +18,8 @@ interface CacheEntry<Value> {
 	value: Value;
 }
 const localCoalescing = new Map<string, Promise<unknown>>();
+const LOCK_LEASE_MS = 10_000;
+const LOCK_WAIT_MS = 2_000;
 
 const stableValue = (value: unknown): unknown => {
 	if (Array.isArray(value)) return value.map(stableValue);
@@ -56,8 +58,9 @@ export class DistributedCache {
 			this.epoch = current;
 			return current;
 		}
-		const created = await this.safely(() => this.cache.increment("zaimu:cache:epoch"));
-		const epoch = String(created ?? crypto.randomUUID());
+		await this.safely(() => this.cache.set("zaimu:cache:epoch", "1", { onlyIfAbsent: true }));
+		const created = await this.safely(() => this.cache.get("zaimu:cache:epoch"));
+		const epoch = created ?? crypto.randomUUID();
 		this.epoch = epoch;
 		return epoch;
 	}
@@ -100,6 +103,20 @@ export class DistributedCache {
 		const key = await this.key(userId, namespace, parameters);
 		const existing = localCoalescing.get(key) as Promise<CacheEntry<Value>> | undefined;
 		if (existing) return { ...(await existing), hit: false as const };
+		const lockKey = `${key}:lock`;
+		const lockOwner = crypto.randomUUID();
+		const ownsLock =
+			(await this.safely(() =>
+				this.cache.set(lockKey, lockOwner, { onlyIfAbsent: true, ttlMs: LOCK_LEASE_MS }),
+			)) ?? false;
+		if (!ownsLock) {
+			const deadline = performance.now() + LOCK_WAIT_MS;
+			while (performance.now() < deadline) {
+				await Bun.sleep(25);
+				const filled = await this.read<Value>(userId, namespace, parameters);
+				if (filled) return { ...filled, hit: true as const };
+			}
+		}
 		const pending = (async () => {
 			const value = await load();
 			const encoded = JSON.stringify(value);
@@ -113,6 +130,7 @@ export class DistributedCache {
 			return { ...(await pending), hit: false as const };
 		} finally {
 			localCoalescing.delete(key);
+			if (ownsLock) await this.safely(() => this.cache.releaseLock(lockKey, lockOwner));
 		}
 	}
 	async beginWrite(userId: string, namespaces: CacheNamespace[]) {

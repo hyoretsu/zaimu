@@ -279,6 +279,19 @@ namespace public {
     @@index([aggregateType, aggregateId, occurredAt], map: "OutboxEvent_aggregate_idx")
     @@map("OutboxEvent")
   }
+  model ConsumerReceipt {
+    consumer    VarChar(120)
+    eventId     VarChar(36)
+    attempts    Int          @default(0)
+    lockedUntil Timestamp(3)?
+    completedAt Timestamp(3)?
+    lastError   String?
+    createdAt   Timestamp(3) @default(now())
+    updatedAt   Timestamp(3) @default(now())
+    @@id([consumer, eventId], map: "ConsumerReceipt_pkey")
+    @@index([completedAt, createdAt], map: "ConsumerReceipt_cleanup_idx")
+    @@map("ConsumerReceipt")
+  }
   model ReferenceRateJob {
     id                 VarChar(36)                       @id(map: "ReferenceRateJob_pkey") @default(dbgenerated("cuid2()"))
     kind               pg.enum(ReferenceRateJobKind)

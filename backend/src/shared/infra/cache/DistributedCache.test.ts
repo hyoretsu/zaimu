@@ -15,6 +15,9 @@ class MemoryCache implements CachePort {
 		this.data.set(key, String(next));
 		return next;
 	}
+	async releaseLock(key: string, owner: string) {
+		if (this.data.get(key) === owner) this.data.delete(key);
+	}
 	async set(key: string, value: string, options: { onlyIfAbsent?: boolean } = {}) {
 		if (options.onlyIfAbsent && this.data.has(key)) return false;
 		this.data.set(key, value);
@@ -47,6 +50,25 @@ describe("DistributedCache", () => {
 			cache.remember("user", "transactions:list", {}, load),
 			cache.remember("user", "transactions:list", {}, load),
 		]);
+		expect(loads).toBe(1);
+	});
+
+	test("coalesces cold reads across cache instances with a distributed lock", async () => {
+		const storage = new MemoryCache();
+		const firstCache = new DistributedCache(storage);
+		const secondCache = new DistributedCache(storage);
+		let loads = 0;
+		const load = async () => {
+			loads += 1;
+			await Bun.sleep(20);
+			return "value";
+		};
+		const [first, second] = await Promise.all([
+			firstCache.remember("user", "dashboard", {}, load),
+			secondCache.remember("user", "dashboard", {}, load),
+		]);
+		expect(first.value).toBe("value");
+		expect(second.value).toBe("value");
 		expect(loads).toBe(1);
 	});
 

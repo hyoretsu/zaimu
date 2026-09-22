@@ -4,11 +4,13 @@ export interface CachePort {
 	delete(key: string): Promise<void>;
 	get(key: string): Promise<string | null>;
 	increment(key: string): Promise<number>;
+	releaseLock(key: string, owner: string): Promise<void>;
 	set(key: string, value: string, options?: { onlyIfAbsent?: boolean; ttlMs?: number }): Promise<boolean>;
 }
 
 export interface EventBrokerPort {
 	close(): Promise<void>;
+	consume(queue: string, handler: (event: EventEnvelope) => Promise<void>): Promise<void>;
 	publish(
 		exchange: "zaimu.commands" | "zaimu.events",
 		routingKey: string,

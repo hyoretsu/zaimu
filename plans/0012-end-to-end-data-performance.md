@@ -114,12 +114,12 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
   - [x] Criar contrato SQL do outbox e migração.
   - [x] Implementar publisher com confirms, correlação e recuperação após falha.
   - [x] Declarar exchanges, quorum queues, retries e DLQs.
-  - [ ] Criar worker separado e deduplicação de consumidores. (processo e publisher separados concluídos; consumidores pendentes)
+  - [x] Criar worker separado e deduplicação de consumidores.
   - [ ] Cobrir crash, duplicação, retry, DLQ, restart e ordem por agregado.
 - [ ] 3. Cache distribuído
   - [x] Implementar namespaces, chaves canônicas, gerações e epoch global.
-  - [ ] Implementar cache-aside, ETag, coalescing e locks contra stampede. (cache-aside, ETag e coalescing local concluídos; lock distribuído pendente)
-  - [ ] Implementar write fences e matriz central de invalidação. (write fences concluídos; matriz pendente)
+  - [x] Implementar cache-aside, ETag, coalescing e locks contra stampede.
+  - [x] Implementar write fences e matriz central de invalidação.
   - [ ] Emitir eventos em todas as mutações e workers.
   - [ ] Cobrir indisponibilidade/reconexão do Redis e invalidação multiusuário.
 - [ ] 4. Transações
@@ -187,4 +187,6 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Topologia durável criada com exchanges, quorum queues, retries e DLQs.
 - Cache distribuído base criado com chaves canônicas, epoch, gerações, ETag, coalescing local, bypass em falha e write fences.
 - Instrumentação base registra duração, query count, tempo SQL e espera por conexão; timeouts do pool configurados.
-- Próxima etapa: fixture/baseline, consumidores idempotentes e integração do cache/invalidação aos endpoints.
+- Consumidor de invalidação conectado ao worker, com deduplicação persistente, lease, retry limitado e DLQ.
+- Coalescing agora usa lock Redis entre processos; matriz central relaciona eventos aos namespaces afetados.
+- Próxima etapa: fixture/baseline e integração do outbox, fences e cache aos endpoints.
