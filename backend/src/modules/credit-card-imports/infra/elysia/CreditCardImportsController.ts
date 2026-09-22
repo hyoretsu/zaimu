@@ -10,7 +10,7 @@ import { getImportedInstallmentAmounts } from "~/modules/creditCards/domain/inst
 import { linkPurchaseToDebt, syncPurchaseDebtEvent } from "~/modules/debts/application/debt-ledger";
 import {
 	getDebtSplitInput,
-	getDebtSplitReturn,
+	getDebtSplitReturns,
 	replaceDebtSplit,
 } from "~/modules/debts/application/debt-splits";
 import { resolveStore } from "~/modules/stores/application/resolve-store";
@@ -252,42 +252,39 @@ async function getImportReturn(
 	const duplicateCandidates = [...duplicates.values()].flat();
 	const duplicateIds = duplicateCandidates.map(candidate => candidate.id);
 	const duplicateTags = await getTagsByEntity(tagEntityType.creditPurchase, duplicateIds);
-	const duplicateDebtSplits = new Map(
-		await Promise.all(
-			duplicateCandidates.map(
-				async candidate =>
-					[
-						candidate.id,
-						await getDebtSplitReturn({ creditPurchaseId: candidate.id }, Number(candidate.totalAmount)),
-					] as const,
-			),
+	const [duplicateDebtSplits, itemDebtSplits] = await Promise.all([
+		getDebtSplitReturns(
+			"creditPurchaseId",
+			duplicateCandidates.map(candidate => ({ amount: Number(candidate.totalAmount), id: candidate.id })),
 		),
-	);
+		getDebtSplitReturns(
+			"creditCardImportItemId",
+			items.map(item => ({ amount: Number(item.totalAmount), id: item.id })),
+		),
+	]);
 	return {
 		...creditCardImport,
 		dueDate: dateKey(creditCardImport.dueDate),
 		hasMore: itemPage.length > limit,
-		items: await Promise.all(
-			items.map(async item => ({
-				...item,
-				currentInstallment: item.currentInstallment,
-				debtSplit: await getDebtSplitReturn({ creditCardImportItemId: item.id }, Number(item.totalAmount)),
-				duplicates: (duplicates.get(item.id) ?? []).map(candidate => ({
-					...candidate,
-					debtSplit: duplicateDebtSplits.get(candidate.id) ?? null,
-					installmentAmount: Number(candidate.installmentAmount),
-					purchaseDate: dateKey(candidate.purchaseDate),
-					tagIds: (duplicateTags.get(candidate.id) ?? []).map(tag => tag.id),
-					tags: duplicateTags.get(candidate.id) ?? [],
-					totalAmount: Number(candidate.totalAmount),
-				})),
-				installmentAmount: Number(item.installmentAmount),
-				purchaseDate: dateKey(item.purchaseDate),
-				tagIds: (tags.get(item.id) ?? []).map(tag => tag.id),
-				tags: tags.get(item.id) ?? [],
-				totalAmount: Number(item.totalAmount),
+		items: items.map(item => ({
+			...item,
+			currentInstallment: item.currentInstallment,
+			debtSplit: itemDebtSplits.get(item.id) ?? null,
+			duplicates: (duplicates.get(item.id) ?? []).map(candidate => ({
+				...candidate,
+				debtSplit: duplicateDebtSplits.get(candidate.id) ?? null,
+				installmentAmount: Number(candidate.installmentAmount),
+				purchaseDate: dateKey(candidate.purchaseDate),
+				tagIds: (duplicateTags.get(candidate.id) ?? []).map(tag => tag.id),
+				tags: duplicateTags.get(candidate.id) ?? [],
+				totalAmount: Number(candidate.totalAmount),
 			})),
-		),
+			installmentAmount: Number(item.installmentAmount),
+			purchaseDate: dateKey(item.purchaseDate),
+			tagIds: (tags.get(item.id) ?? []).map(tag => tag.id),
+			tags: tags.get(item.id) ?? [],
+			totalAmount: Number(item.totalAmount),
+		})),
 		nextCursor: (() => {
 			const last = pageRows.at(-1);
 			return itemPage.length > limit && last

@@ -1,4 +1,4 @@
-import type { DebtSplitInput } from "~/modules/debts/domain";
+import type { CalculatedDebtSplit, DebtSplitInput } from "~/modules/debts/domain";
 import { calculateDebtSplit, DebtSplitValidationError } from "~/modules/debts/domain";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
@@ -11,14 +11,18 @@ export type DebtSplitTarget =
 	| { transactionImportItemId: string }
 	| { transactionId: string };
 
-type TargetField =
+export type DebtSplitTargetField =
 	| "creditCardImportItemId"
 	| "creditPurchaseId"
 	| "recurringPaymentId"
 	| "subscriptionId"
 	| "transactionImportItemId"
 	| "transactionId";
-const targetEntry = (target: DebtSplitTarget) => Object.entries(target)[0] as [TargetField, string];
+const targetEntry = (target: DebtSplitTarget) => Object.entries(target)[0] as [DebtSplitTargetField, string];
+
+export type DebtSplitReturn = Omit<CalculatedDebtSplit, "participants"> & {
+	participants: Array<CalculatedDebtSplit["participants"][number] & { debtPersonName: string }>;
+};
 
 export function calculateDebtSplitOrThrow(amount: number, split: DebtSplitInput) {
 	try {
@@ -192,23 +196,119 @@ export async function replaceDebtSplit(input: {
 }
 
 export async function getDebtSplitReturn(target: DebtSplitTarget, amount: number) {
-	const split = await getDebtSplitInput(target);
-	if (!split) return null;
-	const calculated = calculateDebtSplitOrThrow(amount, split);
-	const ids = calculated.participants.map(participant => participant.debtPersonId);
-	const people = await queryRows(
-		db.sql.public.DebtPerson.select("id", "name")
-			.where((fields, functions) => functions.in(fields.id, ids))
+	const [field, id] = targetEntry(target);
+	return (await getDebtSplitReturns(field, [{ amount, id }])).get(id) ?? null;
+}
+
+export async function getDebtSplitReturns(
+	field: DebtSplitTargetField,
+	entries: ReadonlyArray<{ amount: number; id: string }>,
+): Promise<Map<string, DebtSplitReturn>> {
+	if (entries.length === 0) return new Map();
+	const ids = [...new Set(entries.map(entry => entry.id))];
+	const splits = await queryRows(
+		db.sql.public.DebtSplit.select(
+			"id",
+			"mode",
+			"ownerIncluded",
+			"ownerShares",
+			"remainderDebtPersonId",
+			"creditCardImportItemId",
+			"transactionId",
+			"transactionImportItemId",
+			"creditPurchaseId",
+			"subscriptionId",
+			"recurringPaymentId",
+		)
+			.where((fields, functions) => {
+				if (field === "creditCardImportItemId") return functions.in(fields.creditCardImportItemId, ids);
+				if (field === "creditPurchaseId") return functions.in(fields.creditPurchaseId, ids);
+				if (field === "recurringPaymentId") return functions.in(fields.recurringPaymentId, ids);
+				if (field === "subscriptionId") return functions.in(fields.subscriptionId, ids);
+				if (field === "transactionImportItemId") return functions.in(fields.transactionImportItemId, ids);
+				return functions.in(fields.transactionId, ids);
+			})
 			.build(),
 	);
+	if (splits.length === 0) return new Map();
+	const participants = await queryRows(
+		db.sql.public.DebtSplitParticipant.select(
+			"debtSplitId",
+			"debtPersonId",
+			"description",
+			"shares",
+			"percentage",
+			"fixedAmount",
+			"sortOrder",
+		)
+			.where((fields, functions) =>
+				functions.in(
+					fields.debtSplitId,
+					splits.map(split => split.id),
+				),
+			)
+			.orderBy("sortOrder", { direction: "asc" })
+			.build(),
+	);
+	const people = await queryRows(
+		db.sql.public.DebtPerson.select("id", "name")
+			.where((fields, functions) =>
+				functions.in(fields.id, [...new Set(participants.map(participant => participant.debtPersonId))]),
+			)
+			.build(),
+	);
+	const participantsBySplit = Map.groupBy(participants, participant => participant.debtSplitId);
 	const names = new Map(people.map(person => [person.id, person.name]));
-	return {
-		...calculated,
-		participants: calculated.participants.map(participant => ({
-			...participant,
-			debtPersonName: names.get(participant.debtPersonId) ?? "Pessoa removida",
-		})),
-	};
+	const amounts = new Map(entries.map(entry => [entry.id, entry.amount]));
+	const results = new Map<string, DebtSplitReturn>();
+	for (const split of splits) {
+		const targetId = split[field];
+		if (!targetId) continue;
+		const splitParticipants = participantsBySplit.get(split.id) ?? [];
+		let input: DebtSplitInput;
+		if (split.mode === "SHARES") {
+			input = {
+				mode: "SHARES",
+				ownerShares: split.ownerIncluded ? (split.ownerShares ?? 1) : null,
+				participants: splitParticipants.map(participant => ({
+					debtPersonId: participant.debtPersonId,
+					description: participant.description ?? undefined,
+					shares: participant.shares ?? 1,
+				})),
+			};
+		} else if (split.mode === "PERCENTAGE") {
+			input = {
+				mode: "PERCENTAGE",
+				ownerIncluded: split.ownerIncluded,
+				participants: splitParticipants.map(participant => ({
+					debtPersonId: participant.debtPersonId,
+					description: participant.description ?? undefined,
+					percentage: Number(participant.percentage),
+				})),
+				remainderDebtPersonId: split.remainderDebtPersonId ?? undefined,
+			};
+		} else {
+			input = {
+				mode: "FIXED",
+				ownerIncluded: split.ownerIncluded,
+				participants: splitParticipants.map(participant => ({
+					debtPersonId: participant.debtPersonId,
+					description: participant.description ?? undefined,
+					fixedAmount: Number(participant.fixedAmount),
+				})),
+				remainderDebtPersonId: split.remainderDebtPersonId ?? undefined,
+			};
+		}
+		const calculated = calculateDebtSplitOrThrow(amounts.get(targetId) ?? 0, input);
+		results.set(targetId, {
+			...calculated,
+			participants: calculated.participants.map(participant => ({
+				...participant,
+				debtPersonName: names.get(participant.debtPersonId) ?? "Pessoa removida",
+			})),
+		});
+	}
+	return results;
 }
 
 export async function copyDebtSplit(input: {

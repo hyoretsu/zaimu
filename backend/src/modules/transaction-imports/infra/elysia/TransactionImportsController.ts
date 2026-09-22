@@ -9,7 +9,8 @@ import {
 } from "~/modules/categories/application/tag-assignments";
 import {
 	getDebtSplitInput,
-	getDebtSplitReturn,
+	type getDebtSplitReturn,
+	getDebtSplitReturns,
 	linkTransactionToDebt,
 	replaceDebtSplit,
 } from "~/modules/debts/application";
@@ -191,21 +192,23 @@ async function getTransferSuggestionPairs(userId: string, itemIds: string[]) {
 		tagEntityType.transaction,
 		candidates.map(candidate => candidate.id),
 	);
-	const materializedCandidates: TransferSuggestionCandidate[] = await Promise.all(
-		candidates.map(async candidate => {
-			const tags = transactionTags.get(candidate.id) ?? [];
-			return {
-				...candidate,
-				amount: Number(candidate.amount),
-				debtSplit: await getDebtSplitReturn({ transactionId: candidate.id }, Number(candidate.amount)),
-				source: "TRANSACTION" as const,
-				tagIds: tags.map(tag => tag.id),
-				tags,
-				transactionImportId: null,
-				type: candidate.type as TransactionType,
-			};
-		}),
+	const candidateDebtSplits = await getDebtSplitReturns(
+		"transactionId",
+		candidates.map(candidate => ({ amount: Number(candidate.amount), id: candidate.id })),
 	);
+	const materializedCandidates: TransferSuggestionCandidate[] = candidates.map(candidate => {
+		const tags = transactionTags.get(candidate.id) ?? [];
+		return {
+			...candidate,
+			amount: Number(candidate.amount),
+			debtSplit: candidateDebtSplits.get(candidate.id) ?? null,
+			source: "TRANSACTION" as const,
+			tagIds: tags.map(tag => tag.id),
+			tags,
+			transactionImportId: null,
+			type: candidate.type as TransactionType,
+		};
+	});
 	return new Map<string, TransferSuggestion<TransferSuggestionCandidate>[]>(
 		itemIds.map(itemId => {
 			const item = activeItems.find(candidate => candidate.id === itemId);
@@ -366,17 +369,26 @@ async function getPotentialDuplicates(
 				};
 			}),
 	];
-	const candidatesWithDebtSplits = await Promise.all(
-		candidates.map(async candidate => ({
-			...candidate,
-			debtSplit: await getDebtSplitReturn(
-				candidate.source === "TRANSACTION"
-					? { transactionId: candidate.id }
-					: { transactionImportItemId: candidate.id },
-				Number(candidate.amount),
-			),
-		})),
-	);
+	const [transactionDebtSplits, importItemDebtSplits] = await Promise.all([
+		getDebtSplitReturns(
+			"transactionId",
+			candidates
+				.filter(candidate => candidate.source === "TRANSACTION")
+				.map(candidate => ({ amount: Number(candidate.amount), id: candidate.id })),
+		),
+		getDebtSplitReturns(
+			"transactionImportItemId",
+			candidates
+				.filter(candidate => candidate.source === "IMPORT_ITEM")
+				.map(candidate => ({ amount: Number(candidate.amount), id: candidate.id })),
+		),
+	]);
+	const candidatesWithDebtSplits = candidates.map(candidate => ({
+		...candidate,
+		debtSplit:
+			(candidate.source === "TRANSACTION" ? transactionDebtSplits : importItemDebtSplits).get(candidate.id) ??
+			null,
+	}));
 	return new Map<string, PotentialDuplicates | null>(
 		items.map(item => {
 			if (item.isDuplicateIgnored || item.isReconciled) return [item.id, null] as const;
@@ -490,7 +502,7 @@ async function getImportReturn(
 		: [];
 	const itemOrder = new Map(itemIds.map((id, index) => [id, index]));
 	items.sort((left, right) => (itemOrder.get(left.id) ?? 0) - (itemOrder.get(right.id) ?? 0));
-	const [tagsByItem, duplicates, transferSuggestions] = await Promise.all([
+	const [tagsByItem, duplicates, transferSuggestions, debtSplitsByItem] = await Promise.all([
 		getTagsByEntity(
 			importItemTagEntityType,
 			items.map(item => item.id),
@@ -502,6 +514,10 @@ async function getImportReturn(
 		getTransferSuggestionPairs(
 			userId,
 			items.map(item => item.id),
+		),
+		getDebtSplitReturns(
+			"transactionImportItemId",
+			items.map(item => ({ amount: Number(item.amount), id: item.id })),
 		),
 	]);
 	const creditCardStatementIds = items.flatMap(item =>
@@ -539,29 +555,24 @@ async function getImportReturn(
 	return {
 		...transactionImport,
 		hasMore: itemPage.length > limit,
-		items: await Promise.all(
-			items.map(async item => {
-				const { externalId: _, transferCounterpartExternalId: __, ...visibleItem } = item;
-				const tags = tagsByItem.get(item.id) ?? [];
-				const duplicateCandidates = duplicates.get(item.id)?.candidates ?? [];
-				const creditCardStatement = item.creditCardStatementId
-					? creditCardStatementsById.get(item.creditCardStatementId)
-					: undefined;
-				return {
-					...visibleItem,
-					creditCardName: creditCardStatement?.creditCardName ?? null,
-					creditCardStatementDate: creditCardStatement?.statementDate ?? null,
-					debtSplit: await getDebtSplitReturn({ transactionImportItemId: item.id }, Number(item.amount)),
-					duplicateReason: duplicates.get(item.id)?.reason ?? null,
-					duplicates: duplicateCandidates.map(
-						({ externalIds: _, externalId: __, ...duplicate }) => duplicate,
-					),
-					tagIds: tags.map(tag => tag.id),
-					tags,
-					transferSuggestions: (duplicateCandidates.length
-						? []
-						: (transferSuggestions.get(item.id) ?? [])
-					).map(pair => {
+		items: items.map(item => {
+			const { externalId: _, transferCounterpartExternalId: __, ...visibleItem } = item;
+			const tags = tagsByItem.get(item.id) ?? [];
+			const duplicateCandidates = duplicates.get(item.id)?.candidates ?? [];
+			const creditCardStatement = item.creditCardStatementId
+				? creditCardStatementsById.get(item.creditCardStatementId)
+				: undefined;
+			return {
+				...visibleItem,
+				creditCardName: creditCardStatement?.creditCardName ?? null,
+				creditCardStatementDate: creditCardStatement?.statementDate ?? null,
+				debtSplit: debtSplitsByItem.get(item.id) ?? null,
+				duplicateReason: duplicates.get(item.id)?.reason ?? null,
+				duplicates: duplicateCandidates.map(({ externalIds: _, externalId: __, ...duplicate }) => duplicate),
+				tagIds: tags.map(tag => tag.id),
+				tags,
+				transferSuggestions: (duplicateCandidates.length ? [] : (transferSuggestions.get(item.id) ?? [])).map(
+					pair => {
 						const counterpart = pair.outgoing.id === item.id ? pair.incoming : pair.outgoing;
 						return {
 							amount: Number(counterpart.amount),
@@ -583,10 +594,10 @@ async function getImportReturn(
 							time: counterpart.time,
 							type: counterpart.type,
 						};
-					}),
-				};
-			}),
-		),
+					},
+				),
+			};
+		}),
 		nextCursor: (() => {
 			const last = pageRows.at(-1);
 			return itemPage.length > limit && last
