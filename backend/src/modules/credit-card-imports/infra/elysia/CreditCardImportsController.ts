@@ -361,6 +361,7 @@ async function approveItems(userId: string, importId: string, itemId?: string) {
 						: Number(card.cashbackYieldReferencePercentage),
 				cashbackYieldReferenceRate:
 					card.cashbackYieldReferenceRate === null ? null : Number(card.cashbackYieldReferenceRate),
+				userId,
 			},
 			{
 				...item,

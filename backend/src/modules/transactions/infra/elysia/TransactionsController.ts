@@ -1074,6 +1074,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 										? null
 										: resolveTransactionTime(body.time),
 								type: body.type ?? "EXPENSE",
+								userId,
 							},
 						])
 							.returning(...transactionColumns)

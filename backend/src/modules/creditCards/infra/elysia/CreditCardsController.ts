@@ -461,9 +461,10 @@ async function materializeDueSubscriptionPurchases(
 						"statementId",
 						"storeName",
 						"subscriptionId",
-						"subscriptionOccurrenceDate",
-						"time",
-						"totalAmount"
+							"subscriptionOccurrenceDate",
+							"time",
+							"totalAmount",
+							"userId"
 					)
 					VALUES (
 						${param(card.cashbackAccountId, { codecId: "sql/varchar@1" })},
@@ -480,8 +481,9 @@ async function materializeDueSubscriptionPurchases(
 						${param(subscription.storeName, { codecId: "sql/varchar@1" })},
 						${param(subscription.id, { codecId: "sql/varchar@1" })},
 						${param(occurrenceDate, { codecId: "pg/date@1" })},
-						NULL,
-						${param(numeric<12, 2>(subscription.amount), { codecId: "pg/numeric@1" })}
+							NULL,
+							${param(numeric<12, 2>(subscription.amount), { codecId: "pg/numeric@1" })},
+							${param(subscription.userId, { codecId: "sql/varchar@1" })}
 					)
 					ON CONFLICT ("subscriptionId", "subscriptionOccurrenceDate") DO NOTHING
 					RETURNING "id"
@@ -1177,6 +1179,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 								storeName: body.storeName,
 								time,
 								totalAmount: String(body.totalAmount),
+								userId,
 							},
 						])
 							.returning(...purchaseColumns)
@@ -1189,7 +1192,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						"cashbackAccountId", "cashbackAmount", "cashbackYieldPeriod", "cashbackYieldReferencePercentage", "cashbackYieldReferenceRate",
 						"categoryId", "currentInstallment", "description", "installmentAmount", "installments",
 							"purchaseDate", "statementId", "storeName", "subscriptionId",
-							"subscriptionOccurrenceDate", "time", "totalAmount"
+								"subscriptionOccurrenceDate", "time", "totalAmount", "userId"
 						)
 					VALUES (
 						${param(card.cashbackAccountId, { codecId: "sql/varchar@1" })},
@@ -1206,7 +1209,8 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 							${param(body.subscriptionId, { codecId: "sql/varchar@1" })},
 							${param(new Date(body.subscriptionOccurrenceDate), { codecId: "pg/date@1" })},
 							${param(time, { codecId: "pg/time@1" })},
-							${param(numeric<12, 2>(body.totalAmount), { codecId: "pg/numeric@1" })}
+								${param(numeric<12, 2>(body.totalAmount), { codecId: "pg/numeric@1" })},
+								${param(userId, { codecId: "sql/varchar@1" })}
 						)
 						ON CONFLICT ("subscriptionId", "subscriptionOccurrenceDate") DO NOTHING
 						RETURNING "id"
@@ -1296,6 +1300,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 							storeName: body.storeName,
 							time,
 							totalAmount: String(body.totalAmount),
+							userId,
 						},
 					])
 						.returning(...purchaseColumns)
@@ -1470,6 +1475,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 							storeName: source.storeName,
 							time: source.time,
 							totalAmount: String(totalAmount),
+							userId,
 						},
 					])
 						.returning(...purchaseColumns)
@@ -1600,6 +1606,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						storeName: sourcePurchase.storeName,
 						time: resolvePurchaseTime(undefined),
 						totalAmount: String(-refundAmount),
+						userId,
 					},
 				])
 					.returning(...purchaseColumns)
@@ -1945,6 +1952,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 								storeName: body.storeName ?? purchase.storeName,
 								time: body.time ?? purchase.time,
 								totalAmount: String(nextTotalAmount),
+								userId,
 							},
 						])
 							.returning(...purchaseColumns)
@@ -2234,6 +2242,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						originFinancialAccountId: body.financialAccountId,
 						time: resolvePurchaseTime(body.time),
 						type: "EXPENSE",
+						userId,
 					},
 				])
 					.returning(

@@ -630,6 +630,7 @@ async function persistImportItem(
 	item: ImportItemToApprove,
 	tagIds: string[],
 	financialAccountId: string,
+	userId: string,
 ) {
 	if (item.type === "YIELD") {
 		const existingYield = await transaction.queryFirst(
@@ -684,6 +685,7 @@ async function persistImportItem(
 				storeName: item.storeName,
 				time: item.time,
 				type: item.type as TransactionType,
+				userId,
 			},
 		])
 			.returning("id")
@@ -1241,7 +1243,13 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					: null;
 				const transactionId = reconciledTarget
 					? null
-					: await persistImportItem(transaction, importItem, tagIds, transactionImport.financialAccountId);
+					: await persistImportItem(
+							transaction,
+							importItem,
+							tagIds,
+							transactionImport.financialAccountId,
+							userId,
+						);
 				await removeImportItem(transaction, item.id);
 				const finished = await finalizeImportWhenEmpty(transaction, transactionImport.id);
 				return { finished, reconciledTarget, transactionId };
@@ -1340,6 +1348,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 								item,
 								tagIdsByItem.get(item.id) ?? [],
 								transactionImport.financialAccountId,
+								userId,
 							);
 					await removeImportItem(transaction, item.id);
 					results.push({ item, reconciledTarget, transactionId });
@@ -1572,6 +1581,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 								item,
 								tagIdsByItem.get(item.id) ?? [],
 								transactionImport.financialAccountId,
+								userId,
 							);
 					await removeImportItem(transaction, item.id);
 					results.push({ item, reconciledTarget, transactionId });

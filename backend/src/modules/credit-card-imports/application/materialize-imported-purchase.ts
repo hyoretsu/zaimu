@@ -36,6 +36,7 @@ interface CardSnapshot {
 	dueDay: number;
 	id: string;
 	statementDay: number;
+	userId: string;
 }
 
 async function getOrCreateStatement(card: CardSnapshot, statementDate: Date, dueDate: Date) {
@@ -84,6 +85,7 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 					statementId: statement.id,
 					storeName: input.storeName ?? undefined,
 					totalAmount: String(input.totalAmount),
+					userId: card.userId,
 				},
 			])
 				.returning("id")
@@ -278,6 +280,7 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 					storeName: input.storeName ?? undefined,
 					time: input.time ?? undefined,
 					totalAmount: String(totalAmount),
+					userId: card.userId,
 				},
 			])
 				.returning("id")

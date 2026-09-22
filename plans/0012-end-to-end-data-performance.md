@@ -123,7 +123,7 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
   - [ ] Emitir eventos em todas as mutações e workers.
   - [ ] Cobrir indisponibilidade/reconexão do Redis e invalidação multiusuário.
 - [ ] 4. Transações
-  - [ ] Adicionar proprietário direto e índices.
+  - [x] Adicionar proprietário direto e índices.
   - [ ] Implementar `UNION ALL`, pesquisa no banco e cursor opaco.
   - [ ] Hidratar página em lote e tornar detalhe lazy.
   - [ ] Substituir cálculo de saldo por agregação SQL.
@@ -189,4 +189,5 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Instrumentação base registra duração, query count, tempo SQL e espera por conexão; timeouts do pool configurados.
 - Consumidor de invalidação conectado ao worker, com deduplicação persistente, lease, retry limitado e DLQ.
 - Coalescing agora usa lock Redis entre processos; matriz central relaciona eventos aos namespaces afetados.
+- `Transaction` e `CreditPurchase` receberam proprietário direto, backfill, FKs, índices de paginação e índices trigram normalizados; todos os caminhos de escrita passaram a persistir `userId`.
 - Próxima etapa: fixture/baseline e integração do outbox, fences e cache aos endpoints.

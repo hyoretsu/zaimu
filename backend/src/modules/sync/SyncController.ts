@@ -217,6 +217,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 					name: value<string>(entity, "name"),
 					type,
 					updatedAt: new Date(),
+					userId,
 					yieldFixedRate: nullableNumeric<7, 4>(
 						value<number | null | undefined>(entity, "yieldFixedRate") ??
 							value<number | null | undefined>(entity, "yieldRate") ??
@@ -1023,6 +1024,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 								subscriptionId,
 								subscriptionOccurrenceDate: optionalDate(entity, "subscriptionOccurrenceDate"),
 								type: value<"EXPENSE" | "INCOME" | "TRANSFER">(entity, "type") ?? "EXPENSE",
+								userId,
 							},
 						]).build(),
 					);

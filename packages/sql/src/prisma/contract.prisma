@@ -31,6 +31,8 @@ namespace public {
     transactionImports TransactionImport[]
     transactionImportTransferSuggestionRejections TransactionImportTransferSuggestionRejection[]
     transactionTransferSuggestionRejections TransactionTransferSuggestionRejection[]
+    transactions      Transaction[]
+    creditPurchases   CreditPurchase[]
     authAccounts      AuthAccount[]
     sessions          Session[]
 
@@ -392,6 +394,7 @@ namespace public {
 
   model CreditPurchase {
     id                      VarChar(36)             @id(map: "CreditPurchase_pkey") @default(dbgenerated("cuid2()"))
+    userId                  VarChar(36)
     statementId             VarChar(36)
     description             VarChar(500)
     storeName               VarChar(200)?
@@ -434,6 +437,7 @@ namespace public {
 		settledPurchases        CreditPurchase[]        @relation(name: "CreditPurchase_settledByPurchaseId_fkey")
     cashbackAccount         FinancialAccount?       @relation(name: "CreditPurchase_cashbackAccountId_fkey", fields: [cashbackAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditPurchase_cashbackAccountId_fkey", index: false)
     statement               CreditCardStatement     @relation(fields: [statementId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditPurchase_statementId_fkey", index: false)
+		user                    User                    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditPurchase_userId_fkey", index: false)
 		subscription            Subscription?           @relation(fields: [subscriptionId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditPurchase_subscriptionId_fkey", index: false)
 
 		@@index([subscriptionId, subscriptionOccurrenceDate], map: "CreditPurchase_subscriptionId_occurrenceDate_key", unique: true)
@@ -441,6 +445,8 @@ namespace public {
 		@@index([settledByPurchaseId], map: "CreditPurchase_settledByPurchaseId_idx")
 		@@index([refundOfPurchaseId], map: "CreditPurchase_refundOfPurchaseId_idx")
 		@@index([externalId], map: "CreditPurchase_externalId_key", unique: true)
+		@@index([userId, purchaseDate, createdAt, id], map: "CreditPurchase_userId_purchaseDate_createdAt_id_idx")
+		@@index([statementId, purchaseDate, id], map: "CreditPurchase_statementId_purchaseDate_id_idx")
 
     @@map("CreditPurchase")
   }
@@ -839,6 +845,7 @@ namespace public {
 
   model Transaction {
     id                            VarChar(36)              @id(map: "Transaction_pkey") @default(dbgenerated("cuid2()"))
+    userId                        VarChar(36)
     amount                        Numeric(12, 2)
     date                          Date
     time                          Time(3)?
@@ -868,6 +875,7 @@ namespace public {
     recurrence                    RecurringPayment?        @relation(fields: [recurrenceId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_recurrenceId_fkey", index: false)
     salary                        Salary?                  @relation(fields: [salaryId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_salaryId_fkey", index: false)
     subscription                  Subscription?            @relation(fields: [subscriptionId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_subscriptionId_fkey", index: false)
+    user                          User                     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Transaction_userId_fkey", index: false)
     externalReferences            TransactionExternalReference[]
     reconciledImportItems         TransactionImportItem[] @relation(name: "TransactionImportItem_reconciledTransactionId_fkey")
     firstTransferSuggestionRejections TransactionTransferSuggestionRejection[] @relation(name: "TransactionTransferSuggestionRejection_firstTransactionId_fkey")
@@ -877,6 +885,9 @@ namespace public {
     @@index([salaryId, salaryOccurrenceDate], map: "Transaction_salaryId_occurrenceDate_key", unique: true)
     @@index([subscriptionId, subscriptionOccurrenceDate], map: "Transaction_subscriptionId_occurrenceDate_key", unique: true)
     @@index([creditCardStatementId], map: "Transaction_creditCardStatementId_idx")
+    @@index([userId, date, createdAt, id], map: "Transaction_userId_date_createdAt_id_idx")
+    @@index([userId, originFinancialAccountId, date, id], map: "Transaction_userId_origin_date_id_idx")
+    @@index([userId, destinationFinancialAccountId, date, id], map: "Transaction_userId_destination_date_id_idx")
     @@map("Transaction")
   }
 
