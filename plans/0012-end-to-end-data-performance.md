@@ -107,7 +107,7 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - [ ] 1. Fundação
   - [x] Adicionar Docker Compose local com Redis e RabbitMQ.
   - [x] Criar ports/adapters de cache, broker e outbox.
-  - [ ] Instrumentar duração de request, query count, tempo SQL, espera por conexão, cache e filas. (request/SQL/conexão concluídos; cache/filas pendentes)
+  - [x] Instrumentar duração de request, query count, tempo SQL, espera por conexão, cache e filas.
   - [x] Criar fixture com 100 mil lançamentos, 20 cartões, cinco anos de faturas e dados associados.
   - [ ] Registrar baseline por endpoint e orçamento de queries. (runner e orçamentos concluídos; captura depende do banco local de desempenho)
 - [ ] 2. Outbox e RabbitMQ
@@ -199,4 +199,5 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Fixture local determinística criada com 100 mil transações, 20 cartões, cinco anos de faturas, compras e tags; runner mede cold start, p95 quente, tempo SQL e query count contra orçamentos versionados.
 - Saldos diários da listagem de transações agora usam agregação e janela cumulativa no PostgreSQL, sem carregar todo o histórico em JavaScript.
 - Listagem de cartões agora entrega limite agregado e fatura atual em duas consultas set-based; tela deixou de disparar uma consulta de faturas por cartão, inclusive no modo guest.
+- Cache, publicação, consumo e lotes do outbox agora emitem métricas estruturadas de duração e resultado, completando a instrumentação da fundação.
 - Próxima etapa: paginar histórico/detalhe de faturas e retirar sua materialização dos GETs.

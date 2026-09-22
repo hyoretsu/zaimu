@@ -21,6 +21,16 @@ const localCoalescing = new Map<string, Promise<unknown>>();
 const LOCK_LEASE_MS = 10_000;
 const LOCK_WAIT_MS = 2_000;
 
+const logCacheOperation = (namespace: CacheNamespace, result: "bypass" | "hit" | "miss", startedAt: number) =>
+	console.info(
+		JSON.stringify({
+			durationMs: Number((performance.now() - startedAt).toFixed(2)),
+			namespace,
+			result,
+			type: "cache_operation",
+		}),
+	);
+
 const stableValue = (value: unknown): unknown => {
 	if (Array.isArray(value)) return value.map(stableValue);
 	if (value && typeof value === "object")
@@ -98,11 +108,19 @@ export class DistributedCache {
 		parameters: unknown,
 		load: () => Promise<Value>,
 	) {
+		const startedAt = performance.now();
 		const cached = await this.read<Value>(userId, namespace, parameters);
-		if (cached) return { ...cached, hit: true as const };
+		if (cached) {
+			logCacheOperation(namespace, "hit", startedAt);
+			return { ...cached, hit: true as const };
+		}
 		const key = await this.key(userId, namespace, parameters);
 		const existing = localCoalescing.get(key) as Promise<CacheEntry<Value>> | undefined;
-		if (existing) return { ...(await existing), hit: false as const };
+		if (existing) {
+			const entry = await existing;
+			logCacheOperation(namespace, "miss", startedAt);
+			return { ...entry, hit: false as const };
+		}
 		const lockKey = `${key}:lock`;
 		const lockOwner = crypto.randomUUID();
 		const ownsLock =
@@ -114,7 +132,10 @@ export class DistributedCache {
 			while (performance.now() < deadline) {
 				await Bun.sleep(25);
 				const filled = await this.read<Value>(userId, namespace, parameters);
-				if (filled) return { ...filled, hit: true as const };
+				if (filled) {
+					logCacheOperation(namespace, "hit", startedAt);
+					return { ...filled, hit: true as const };
+				}
 			}
 		}
 		const pending = (async () => {
@@ -127,7 +148,9 @@ export class DistributedCache {
 		})();
 		localCoalescing.set(key, pending);
 		try {
-			return { ...(await pending), hit: false as const };
+			const entry = await pending;
+			logCacheOperation(namespace, this.available ? "miss" : "bypass", startedAt);
+			return { ...entry, hit: false as const };
 		} finally {
 			localCoalescing.delete(key);
 			if (ownsLock) await this.safely(() => this.cache.releaseLock(lockKey, lockOwner));

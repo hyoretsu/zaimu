@@ -8,15 +8,28 @@ export class OutboxPublisher {
 		private readonly outbox = new PostgresOutbox(),
 	) {}
 	async publishBatch() {
+		const startedAt = performance.now();
 		const events = await this.outbox.claim();
+		let failed = 0;
 		for (const event of events) {
 			try {
 				await this.broker.publish("zaimu.events", `domain.${event.aggregateType}.${event.eventType}`, event);
 				await this.outbox.markPublished(event.eventId);
 			} catch (error) {
+				failed++;
 				await this.outbox.release(event.eventId, error);
 			}
 		}
+		if (events.length > 0)
+			console.info(
+				JSON.stringify({
+					claimed: events.length,
+					durationMs: Number((performance.now() - startedAt).toFixed(2)),
+					failed,
+					published: events.length - failed,
+					type: "outbox_batch",
+				}),
+			);
 		return events.length;
 	}
 	async run(pollIntervalMs = 500) {
