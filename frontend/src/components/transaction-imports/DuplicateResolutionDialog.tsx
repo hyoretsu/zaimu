@@ -11,24 +11,20 @@ import {
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import type { TransactionImportDuplicate, TransactionImportItem } from "@/lib/api";
 import { formatLocalTime } from "@/lib/date";
+import {
+	DuplicateCandidateList,
+	type DuplicateField,
+	DuplicateFieldComparison,
+	type DuplicateFieldOption,
+	type DuplicateResolutionSources,
+	type DuplicateSource,
+} from "./components";
 
-export type DuplicateField =
-	| "amount"
-	| "date"
-	| "debtSplit"
-	| "description"
-	| "destinationFinancialAccountId"
-	| "isHidden"
-	| "originFinancialAccountId"
-	| "storeName"
-	| "tagIds"
-	| "time"
-	| "type";
-export type DuplicateSource = "duplicate" | "imported";
-export type DuplicateResolutionSources = Partial<Record<DuplicateField, DuplicateSource>>;
+export type { DuplicateResolutionSources } from "./components";
+
 type Field = DuplicateField;
 type Source = DuplicateSource;
-const baseFields: Array<{ key: Field; label: string }> = [
+const baseFields: DuplicateFieldOption[] = [
 	{ key: "amount", label: "Valor" },
 	{ key: "date", label: "Data" },
 	{ key: "debtSplit", label: "Dívida" },
@@ -38,7 +34,7 @@ const baseFields: Array<{ key: Field; label: string }> = [
 	{ key: "storeName", label: "Loja" },
 	{ key: "tagIds", label: "Tags" },
 ];
-const transferAccountFields: Array<{ key: Field; label: string }> = [
+const transferAccountFields: DuplicateFieldOption[] = [
 	{ key: "originFinancialAccountId", label: "Conta de origem" },
 	{ key: "destinationFinancialAccountId", label: "Conta de destino" },
 ];
@@ -139,7 +135,7 @@ export function DuplicateResolutionDialog({
 	const isSourceSelected = (source: Source) => fields.every(field => sources[field.key] === source);
 	return (
 		<Dialog modal onOpenChange={onOpenChange} open={open}>
-			<DialogContent className="max-h-[92dvh] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-3xl">
+			<DialogContent className="max-h-[92dvh] grid-rows-[auto_minmax(0,1fr)_auto] gap-4 overflow-hidden p-5 sm:max-w-3xl sm:p-6">
 				<DialogHeader>
 					<DialogTitle>Resolver duplicata</DialogTitle>
 					<DialogDescription>
@@ -147,81 +143,29 @@ export function DuplicateResolutionDialog({
 						permanecerá no extrato até sua aprovação.
 					</DialogDescription>
 				</DialogHeader>
-				<ScrollArea className="min-h-0 pr-1">
-					<div className="space-y-4 pr-3">
+				<ScrollArea className="min-h-0">
+					<div className="space-y-4 pr-4">
 						{item.duplicates.length > 1 ? (
-							<div className="space-y-2">
-								<p className="font-medium text-sm">Duplicatas encontradas ({item.duplicates.length})</p>
-								<div className="flex flex-wrap gap-2">
-									{item.duplicates.map((candidate, index) => (
-										<Button
-											aria-pressed={candidate.id === duplicate.id}
-											className="cursor-pointer"
-											key={`${candidate.source}-${candidate.id}`}
-											onClick={() => {
-												setSelectedDuplicateId(candidate.id);
-												setSources(
-													Object.fromEntries(getFields(candidate.type).map(field => [field.key, "imported"])),
-												);
-											}}
-											type="button"
-											variant={candidate.id === duplicate.id ? "default" : "outline"}
-										>
-											Duplicata {index + 1}: {formatDuplicateCandidate(candidate)}
-										</Button>
-									))}
-								</div>
-							</div>
+							<DuplicateCandidateList
+								candidates={item.duplicates}
+								formatCandidate={formatDuplicateCandidate}
+								onSelect={candidate => {
+									setSelectedDuplicateId(candidate.id);
+									setSources(
+										Object.fromEntries(getFields(candidate.type).map(field => [field.key, "imported"])),
+									);
+								}}
+								selectedId={duplicate.id}
+							/>
 						) : null}
-						<div className="overflow-hidden rounded-2xl border">
-							<div className="grid grid-cols-[4rem_minmax(0,1fr)_minmax(0,1fr)] border-b text-center font-medium text-xs sm:grid-cols-[7rem_minmax(0,1fr)_minmax(0,1fr)]">
-								<span />
-								<Button
-									aria-pressed={isSourceSelected("imported")}
-									className="h-auto min-h-10 w-full cursor-pointer rounded-none border-border px-2 py-3 text-xs sm:px-3"
-									onClick={() => selectAllFrom("imported")}
-									type="button"
-									variant={isSourceSelected("imported") ? "default" : "outline"}
-								>
-									Nova
-								</Button>
-								<Button
-									aria-pressed={isSourceSelected("duplicate")}
-									className="h-auto min-h-10 w-full cursor-pointer rounded-none border-border border-l px-2 py-3 text-xs sm:px-3"
-									onClick={() => selectAllFrom("duplicate")}
-									type="button"
-									variant={isSourceSelected("duplicate") ? "default" : "outline"}
-								>
-									Existente
-								</Button>
-							</div>
-							{fields.map(field => (
-								<div
-									className="grid grid-cols-[4rem_minmax(0,1fr)_minmax(0,1fr)] border-b last:border-0 sm:grid-cols-[7rem_minmax(0,1fr)_minmax(0,1fr)]"
-									key={field.key}
-								>
-									<span className="flex items-center break-words px-2 font-medium text-xs sm:px-3">
-										{field.label}
-									</span>
-									<Button
-										className="h-auto min-h-11 min-w-0 cursor-pointer justify-start whitespace-normal break-words rounded-none border-x-0 border-y-0 border-l px-2 text-left text-xs sm:px-3"
-										onClick={() => setSources(current => ({ ...current, [field.key]: "imported" }))}
-										size="sm"
-										variant={sources[field.key] === "imported" ? "default" : "outline"}
-									>
-										{value("imported", field.key)}
-									</Button>
-									<Button
-										className="h-auto min-h-11 min-w-0 cursor-pointer justify-start whitespace-normal break-words rounded-none border-0 px-2 text-left text-xs sm:px-3"
-										onClick={() => setSources(current => ({ ...current, [field.key]: "duplicate" }))}
-										size="sm"
-										variant={sources[field.key] === "duplicate" ? "default" : "outline"}
-									>
-										{value("duplicate", field.key)}
-									</Button>
-								</div>
-							))}
-						</div>
+						<DuplicateFieldComparison
+							fields={fields}
+							isSourceSelected={isSourceSelected}
+							onSelectAll={selectAllFrom}
+							onSelectField={(field, source) => setSources(current => ({ ...current, [field]: source }))}
+							sources={sources}
+							value={value}
+						/>
 					</div>
 				</ScrollArea>
 				<DialogFooter>
