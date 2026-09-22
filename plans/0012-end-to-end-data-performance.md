@@ -105,21 +105,21 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 ## Etapas
 
 - [ ] 1. Fundação
-  - [ ] Adicionar Docker Compose local com Redis e RabbitMQ.
-  - [ ] Criar ports/adapters de cache, broker e outbox.
-  - [ ] Instrumentar duração de request, query count, tempo SQL, espera por conexão, cache e filas.
+  - [x] Adicionar Docker Compose local com Redis e RabbitMQ.
+  - [x] Criar ports/adapters de cache, broker e outbox.
+  - [ ] Instrumentar duração de request, query count, tempo SQL, espera por conexão, cache e filas. (request/SQL/conexão concluídos; cache/filas pendentes)
   - [ ] Criar fixture com 100 mil lançamentos, 20 cartões, cinco anos de faturas e dados associados.
   - [ ] Registrar baseline por endpoint e orçamento de queries.
 - [ ] 2. Outbox e RabbitMQ
-  - [ ] Criar contrato SQL do outbox e migração.
-  - [ ] Implementar publisher com confirms, correlação e recuperação após falha.
-  - [ ] Declarar exchanges, quorum queues, retries e DLQs.
-  - [ ] Criar worker separado e deduplicação de consumidores.
+  - [x] Criar contrato SQL do outbox e migração.
+  - [x] Implementar publisher com confirms, correlação e recuperação após falha.
+  - [x] Declarar exchanges, quorum queues, retries e DLQs.
+  - [ ] Criar worker separado e deduplicação de consumidores. (processo e publisher separados concluídos; consumidores pendentes)
   - [ ] Cobrir crash, duplicação, retry, DLQ, restart e ordem por agregado.
 - [ ] 3. Cache distribuído
-  - [ ] Implementar namespaces, chaves canônicas, gerações e epoch global.
-  - [ ] Implementar cache-aside, ETag, coalescing e locks contra stampede.
-  - [ ] Implementar write fences e matriz central de invalidação.
+  - [x] Implementar namespaces, chaves canônicas, gerações e epoch global.
+  - [ ] Implementar cache-aside, ETag, coalescing e locks contra stampede. (cache-aside, ETag e coalescing local concluídos; lock distribuído pendente)
+  - [ ] Implementar write fences e matriz central de invalidação. (write fences concluídos; matriz pendente)
   - [ ] Emitir eventos em todas as mutações e workers.
   - [ ] Cobrir indisponibilidade/reconexão do Redis e invalidação multiusuário.
 - [ ] 4. Transações
@@ -179,3 +179,12 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Plano aprovado e versionado.
 - Implementação ainda não iniciada.
 - Próxima etapa: fundação e baseline.
+
+### 2026-09-22
+
+- Compose local recebeu Redis persistente e RabbitMQ com console de administração.
+- Criados ports e adapters de Redis, RabbitMQ e transactional outbox, incluindo publisher confirms, leases e processo worker separado.
+- Topologia durável criada com exchanges, quorum queues, retries e DLQs.
+- Cache distribuído base criado com chaves canônicas, epoch, gerações, ETag, coalescing local, bypass em falha e write fences.
+- Instrumentação base registra duração, query count, tempo SQL e espera por conexão; timeouts do pool configurados.
+- Próxima etapa: fixture/baseline, consumidores idempotentes e integração do cache/invalidação aos endpoints.

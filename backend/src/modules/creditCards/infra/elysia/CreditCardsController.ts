@@ -1930,7 +1930,11 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 								categoryId: tagIds?.[0] ?? purchase.categoryId,
 								currentInstallment,
 								description: body.description ?? purchase.description,
-								feeAmount: fee ? fee.feeAmount : purchase.feeAmount,
+								feeAmount: fee
+									? fee.feeAmount
+									: purchase.feeAmount === null
+										? null
+										: String(purchase.feeAmount),
 								feeDescription: fee ? fee.feeDescription : purchase.feeDescription,
 								hasImportedAmount: false,
 								installmentAmount: String(installmentAmount),

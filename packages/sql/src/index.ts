@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { AsyncLocalStorage } from "node:async_hooks";
 import type { ResultType } from "@prisma/orm-postgres/components/runtime";
 import type { SqlOrmPlan } from "@prisma/orm-postgres/relational-core";
 import { param } from "@prisma/orm-postgres/relational-core/expression";
@@ -31,24 +32,54 @@ types.setTypeParser(types.builtins.NUMERIC, value => Number(value));
 
 const pool = new Pool({
 	connectionString: process.env.DATABASE_URL,
+	connectionTimeoutMillis: Number(process.env.DATABASE_CONNECTION_TIMEOUT_MS ?? 5_000),
 	idleTimeoutMillis: Number(process.env.PRISMA_POOL_IDLE_TIMEOUT_MS ?? 30_000),
 	max: Number(process.env.PRISMA_POOL_MAX ?? 20),
 	min: Number(process.env.PRISMA_POOL_MIN ?? 0),
+	query_timeout: Number(process.env.DATABASE_QUERY_TIMEOUT_MS ?? 15_000),
+	statement_timeout: Number(process.env.DATABASE_STATEMENT_TIMEOUT_MS ?? 15_000),
 });
+export interface QueryMetrics {
+	connectionWaitMs: number;
+	queryCount: number;
+	sqlDurationMs: number;
+}
+const queryMetricsStorage = new AsyncLocalStorage<QueryMetrics>();
+const measureQuery = async <Result>(operation: () => PromiseLike<Result>) => {
+	const startedAt = performance.now();
+	try {
+		return await Promise.resolve(operation());
+	} finally {
+		const metrics = queryMetricsStorage.getStore();
+		if (metrics) {
+			metrics.queryCount += 1;
+			metrics.sqlDurationMs += performance.now() - startedAt;
+		}
+	}
+};
+export const withQueryMetrics = <Result>(operation: () => Result) =>
+	queryMetricsStorage.run({ connectionWaitMs: 0, queryCount: 0, sqlDurationMs: 0 }, operation);
+export const beginQueryMetrics = () =>
+	queryMetricsStorage.enterWith({ connectionWaitMs: 0, queryCount: 0, sqlDurationMs: 0 });
+export const getQueryMetrics = () => queryMetricsStorage.getStore();
 export const queryRaw = async <Row extends Record<string, unknown>>(text: string, values: unknown[] = []) =>
-	(await pool.query<Row>(text, values)).rows;
-export const executeRaw = async (text: string, values: unknown[] = []) => pool.query(text, values);
+	(await measureQuery(() => pool.query<Row>(text, values))).rows;
+export const executeRaw = async (text: string, values: unknown[] = []) =>
+	measureQuery(() => pool.query(text, values));
 export const withRawTransaction = async <Result>(
 	operation: (
 		query: <Row extends QueryResultRow>(text: string, values?: unknown[]) => Promise<Row[]>,
 	) => Promise<Result>,
 ) => {
+	const connectionStartedAt = performance.now();
 	const client: PoolClient = await pool.connect();
+	const metrics = queryMetricsStorage.getStore();
+	if (metrics) metrics.connectionWaitMs += performance.now() - connectionStartedAt;
 	try {
 		await client.query("BEGIN");
 		const result = await operation(
 			async <Row extends QueryResultRow>(text: string, values: unknown[] = []) =>
-				(await client.query<Row>(text, values)).rows,
+				(await measureQuery(() => client.query<Row>(text, values))).rows,
 		);
 		await client.query("COMMIT");
 		return result;
@@ -98,12 +129,14 @@ const normalizeNumericColumns = <Row>(plan: QueryPlan, rows: Row[]) => {
 
 const createExecutor = (client: ExecutorClient) => {
 	const queryRows = async <Plan extends QueryPlan>(plan: Plan) => {
-		const rows = await client.query<ResultType<Plan>>(plan as unknown as SqlOrmPlan<ResultType<Plan>>);
+		const rows = await measureQuery(() =>
+			client.query<ResultType<Plan>>(plan as unknown as SqlOrmPlan<ResultType<Plan>>),
+		);
 		return normalizeNumericColumns(plan, rows) as NormalizeDatabaseValue<ResultType<Plan>>[];
 	};
 	return {
 		db: client,
-		executeStatement: (plan: StatementPlan) => client.execute(plan),
+		executeStatement: (plan: StatementPlan) => measureQuery(() => client.execute(plan)),
 		queryFirst: async <Plan extends QueryPlan>(plan: Plan) => (await queryRows(plan))[0],
 		queryRows,
 	};

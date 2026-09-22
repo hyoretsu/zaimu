@@ -259,6 +259,26 @@ namespace public {
     @@map("ReferenceRate")
   }
 
+  model OutboxEvent {
+    id            VarChar(36)  @id(map: "OutboxEvent_pkey")
+    eventType     VarChar(120)
+    aggregateType VarChar(80)
+    aggregateId   VarChar(36)
+    userIds       VarChar(36)[]
+    occurredAt    Timestamp(3)
+    schemaVersion Int          @default(1)
+    correlationId VarChar(36)
+    payload       Json         @default("{}")
+    attempts      Int          @default(0)
+    lockedUntil   Timestamp(3)?
+    publishedAt   Timestamp(3)?
+    lastError     String?
+    createdAt     Timestamp(3) @default(now())
+    updatedAt     Timestamp(3) @default(now())
+    @@index([publishedAt, lockedUntil, occurredAt, id], map: "OutboxEvent_pending_idx")
+    @@index([aggregateType, aggregateId, occurredAt], map: "OutboxEvent_aggregate_idx")
+    @@map("OutboxEvent")
+  }
   model ReferenceRateJob {
     id                 VarChar(36)                       @id(map: "ReferenceRateJob_pkey") @default(dbgenerated("cuid2()"))
     kind               pg.enum(ReferenceRateJobKind)
