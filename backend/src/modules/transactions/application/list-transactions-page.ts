@@ -1,4 +1,4 @@
-import { getFinancialAccountBalancesAtDates } from "~/modules/accounts/application/get-financial-account-balances";
+import { getMonetaryBalancesAtDates } from "~/modules/accounts/application/get-monetary-balances-at-dates";
 import { getTagsByEntity, tagEntityType } from "~/modules/categories/application/tag-assignments";
 import { getCreditPurchaseSyncStatus } from "~/modules/creditCards/domain/credit-purchase-sync-status";
 import { HttpException } from "~/shared/errors";
@@ -287,28 +287,9 @@ export async function listTransactionsPage(userId: string, input: ListTransactio
 		};
 	});
 	const dates = [...new Set(page.map(row => row.date.toISOString().slice(0, 10)))];
-	const accounts = await queryRows(
-		db.sql.public.FinancialAccount.select("id", "type")
-			.where((fields, functions) => functions.eq(fields.userId, userId))
-			.build(),
-	);
-	const monetaryAccountIds = new Set(
-		accounts
-			.filter(account => !["CREDIT_CARD", "INVESTMENT", "REWARDS", "SAVINGS"].includes(account.type))
-			.map(account => account.id),
-	);
-	const balances = await getFinancialAccountBalancesAtDates(
-		accounts.map(account => account.id),
+	const endingBalanceByDate = await getMonetaryBalancesAtDates(
+		userId,
 		dates.map(date => new Date(`${date}T12:00:00`)),
-	);
-	const endingBalanceByDate = new Map(
-		balances.map(({ balances: accountBalances, date }) => [
-			date.toISOString().slice(0, 10),
-			[...accountBalances].reduce(
-				(total, [accountId, balance]) => total + (monetaryAccountIds.has(accountId) ? balance : 0),
-				0,
-			),
-		]),
 	);
 	const last = page.at(-1);
 	return {

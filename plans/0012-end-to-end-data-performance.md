@@ -126,7 +126,7 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
   - [x] Adicionar proprietário direto e índices.
   - [x] Implementar `UNION ALL`, pesquisa no banco e cursor opaco.
   - [ ] Hidratar página em lote e tornar detalhe lazy. (hidratação em lote concluída; redução final do DTO e detalhe de compra pendentes)
-  - [ ] Substituir cálculo de saldo por agregação SQL.
+  - [x] Substituir cálculo de saldo por agregação SQL.
   - [ ] Migrar frontend, cache e guest mode para o novo contrato.
 - [ ] 5. Cartões
   - [ ] Criar payload agregado de cartão, limite e fatura atual.
@@ -197,4 +197,5 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Importações de transações agora expõem resumo mínimo, paginam itens por cursor estável e carregam páginas adicionais somente dentro do modal de revisão.
 - Rateios das revisões de cartão e transação agora são hidratados em lote, incluindo candidatos de duplicidade e sugestões de transferência; o custo de leitura deixou de crescer por item.
 - Fixture local determinística criada com 100 mil transações, 20 cartões, cinco anos de faturas, compras e tags; runner mede cold start, p95 quente, tempo SQL e query count contra orçamentos versionados.
-- Próxima etapa: capturar baseline quando `PERFORMANCE_DATABASE_URL` estiver disponível, depois integrar outbox, fences e cache aos demais endpoints.
+- Saldos diários da listagem de transações agora usam agregação e janela cumulativa no PostgreSQL, sem carregar todo o histórico em JavaScript.
+- Próxima etapa: reduzir o DTO de transações e tornar detalhes de compra lazy; depois otimizar cartões.
