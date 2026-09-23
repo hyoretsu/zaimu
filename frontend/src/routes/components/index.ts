@@ -5,5 +5,6 @@ export * from "./DashboardDateFilter";
 export * from "./DashboardDebtInvitations";
 export * from "./DashboardDebts";
 export * from "./DashboardForecasts";
+export * from "./DashboardPeriodFlowCard";
 export * from "./DashboardQuickActions";
 export * from "./DashboardSkeleton";

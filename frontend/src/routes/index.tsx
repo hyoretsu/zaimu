@@ -2,13 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { useState } from "react";
-import {
-	LuArrowDownLeft,
-	LuArrowUpRight,
-	LuCalendarClock,
-	LuTrendingUp,
-	LuWalletCards,
-} from "react-icons/lu";
+import { LuCalendarClock, LuTrendingUp, LuWalletCards } from "react-icons/lu";
 import {
 	CreditCardImportReviewDialog,
 	PendingCreditCardImportsNotice,
@@ -33,6 +27,7 @@ import {
 	DashboardDebtInvitations,
 	DashboardDebts,
 	DashboardForecasts,
+	DashboardPeriodFlowCard,
 	DashboardQuickActions,
 	DashboardSkeleton,
 } from "./components";
@@ -104,17 +99,17 @@ export function DashboardPage() {
 			<PendingTransactionImportsNotice onReview={setReviewingImportId} />
 			<PendingCreditCardImportsNotice onReview={setReviewingCreditCardImportId} />
 			<DashboardDebtInvitations />
-			<section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-				<Card className="col-span-2 gap-3 border-0 bg-primary py-4 text-primary-foreground shadow-primary/15 shadow-xl [--card-spacing:--spacing(4)] sm:gap-6 sm:py-6 xl:col-span-1 sm:[--card-spacing:--spacing(6)]">
+			<section className="grid gap-3 sm:gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] xl:grid-rows-[auto_auto]">
+				<Card className="gap-3 border-0 bg-primary py-4 text-primary-foreground shadow-primary/15 shadow-xl [--card-spacing:--spacing(4)] sm:gap-6 sm:py-6 xl:row-span-2 sm:[--card-spacing:--spacing(6)]">
 					<CardHeader>
-						<CardTitle className="flex items-start gap-2 font-medium text-primary-foreground/75 text-xs sm:text-sm">
+						<CardTitle className="flex items-start gap-2 font-medium text-primary-foreground text-xs sm:text-sm">
 							<LuWalletCards aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
 							<span>{isCurrentDay ? "Saldo atual" : "Saldo final do período"}</span>
 						</CardTitle>
 					</CardHeader>
 					<CardContent>
 						<p className="font-bold text-2xl tracking-tight sm:text-3xl">{currency.format(endingBalance)}</p>
-						<div className="mt-2 space-y-0.5 text-primary-foreground/70 text-xs sm:mt-3 sm:space-y-1">
+						<div className="mt-2 space-y-0.5 text-primary-foreground text-xs sm:mt-3 sm:space-y-1">
 							<p>Em conta: {currency.format(accountBalance)}</p>
 							<p>Poupanças: {currency.format(savingsBalance)}</p>
 							<p>
@@ -125,48 +120,24 @@ export function DashboardPage() {
 						</div>
 					</CardContent>
 				</Card>
-				<Card className="gap-3 border-0 bg-brand-yellow py-4 text-brand-ink shadow-brand-yellow/20 shadow-xl [--card-spacing:--spacing(4)] sm:gap-6 sm:py-6 sm:[--card-spacing:--spacing(6)]">
-					<CardHeader>
-						<CardTitle className="flex items-center gap-1.5 font-medium text-xs leading-tight sm:gap-2 sm:text-sm">
-							<LuArrowDownLeft aria-hidden="true" className="size-4 shrink-0" /> Entradas do período
-						</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<p className="font-bold text-2xl tracking-tight sm:text-3xl">
-							{currency.format(dashboard.period.income)}
-						</p>
-					</CardContent>
-				</Card>
-				<Card className="gap-3 py-4 [--card-spacing:--spacing(4)] sm:gap-6 sm:py-6 sm:[--card-spacing:--spacing(6)]">
-					<CardHeader>
-						<CardTitle className="flex items-center gap-1.5 font-medium text-muted-foreground text-xs leading-tight sm:gap-2 sm:text-sm">
-							<LuArrowUpRight aria-hidden="true" className="size-4 shrink-0" /> Saídas do período
-						</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<p className="font-bold text-2xl tracking-tight sm:text-3xl">
-							{currency.format(dashboard.period.expenses)}
-						</p>
-						<p
-							className={`mt-2 font-semibold text-xs sm:mt-3 ${dashboard.period.net >= 0 ? "text-emerald-600" : "text-rose-600"}`}
-						>
-							Resultado: {currency.format(dashboard.period.net)}
-						</p>
-					</CardContent>
-				</Card>
+				<DashboardPeriodFlowCard
+					expenses={dashboard.period.expenses}
+					income={dashboard.period.income}
+					net={dashboard.period.net}
+				/>
 				<Card
-					className={`col-span-2 gap-3 py-4 [--card-spacing:--spacing(4)] sm:gap-6 sm:py-6 xl:col-span-1 sm:[--card-spacing:--spacing(6)] ${projectionCopy.cardClassName}`}
+					className={`gap-2 py-3 [--card-spacing:--spacing(4)] sm:py-4 xl:flex-row xl:items-center xl:justify-between xl:gap-6 sm:[--card-spacing:--spacing(6)] ${projectionCopy.cardClassName}`}
 				>
 					<CardHeader>
 						<CardTitle className="flex items-center gap-1.5 font-medium text-xs leading-tight sm:gap-2 sm:text-sm">
 							<LuCalendarClock aria-hidden="true" className="size-4 shrink-0" /> {projectionCopy.title}
 						</CardTitle>
 					</CardHeader>
-					<CardContent>
-						<p className={`font-bold text-2xl tracking-tight sm:text-3xl ${projectionCopy.valueClassName}`}>
+					<CardContent className="xl:flex xl:items-center xl:gap-5">
+						<p className={`font-bold text-xl tracking-tight sm:text-2xl ${projectionCopy.valueClassName}`}>
 							{currency.format(Math.abs(projectedCashFlow.net))}
 						</p>
-						<p className="mt-2 text-muted-foreground text-xs sm:mt-3">{projectionCopy.description}</p>
+						<p className="mt-1 text-muted-foreground text-xs xl:mt-0">{projectionCopy.description}</p>
 					</CardContent>
 				</Card>
 			</section>
