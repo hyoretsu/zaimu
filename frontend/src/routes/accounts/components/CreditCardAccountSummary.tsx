@@ -1,42 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
-import { Skeleton } from "@/components/ui/Skeleton";
 import type { CreditCard } from "@/lib/api";
-import { calculateCreditCardLimit, getCurrentCreditCardStatement } from "@/lib/credit-card";
-import { dataService } from "@/lib/dataService";
-import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
 export function CreditCardAccountSummary({ card }: { card?: CreditCard }) {
-	const identity = useCacheIdentity();
-	const statements = useQuery({
-		enabled: identity !== null && Boolean(card),
-		queryFn: () => dataService.creditCards.getStatements(card!.id),
-		queryKey: queryKeys.creditCardStatements.list(identity!, card?.id ?? "unselected"),
-	});
-
-	if (!card || statements.isError) {
+	if (!card) {
 		return <p className="text-muted-foreground text-sm">Dados do cartão indisponíveis.</p>;
 	}
-
-	if (statements.isPending) {
-		return (
-			<div className="grid gap-4 min-[420px]:grid-cols-2">
-				<div className="grid gap-2">
-					<Skeleton className="h-3 w-20" />
-					<Skeleton className="h-7 w-28" />
-				</div>
-				<div className="grid gap-2">
-					<Skeleton className="h-3 w-28" />
-					<Skeleton className="h-7 w-28" />
-				</div>
-			</div>
-		);
-	}
-
-	const currentStatement = getCurrentCreditCardStatement(statements.data ?? [], card);
-	const currentBill = Math.max(0, currentStatement?.balanceAmount ?? 0);
-	const limit = calculateCreditCardLimit(card, statements.data ?? []);
+	const currentBill = Math.max(0, card.currentStatement?.balanceAmount ?? 0);
+	const limit = card.limit;
 
 	return (
 		<div className="grid gap-4 min-[420px]:grid-cols-2">

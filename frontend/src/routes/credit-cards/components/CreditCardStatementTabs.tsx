@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from "react";
 import { LuCircleCheck, LuClock3, LuLockKeyhole, LuTriangleAlert } from "react-icons/lu";
+import { Button } from "@/components/ui/Button";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import type { CreditCardStatement } from "@/lib/api";
@@ -19,9 +20,15 @@ function getStatementStatus(statement: CreditCardStatement) {
 }
 
 export function CreditCardStatementTabs({
+	hasMore,
+	isLoadingMore,
+	onLoadMore,
 	selectedId,
 	statements,
 }: {
+	hasMore: boolean;
+	isLoadingMore: boolean;
+	onLoadMore: () => void;
 	selectedId: string;
 	statements: CreditCardStatement[];
 }) {
@@ -95,6 +102,16 @@ export function CreditCardStatementTabs({
 							</TabsTrigger>
 						);
 					})}
+					{hasMore && (
+						<Button
+							className="h-full w-36 shrink-0 cursor-pointer disabled:cursor-not-allowed sm:h-10 sm:w-full"
+							disabled={isLoadingMore}
+							onClick={onLoadMore}
+							variant="outline"
+						>
+							{isLoadingMore ? "Carregando…" : "Carregar mais"}
+						</Button>
+					)}
 				</TabsList>
 			</ScrollArea>
 		</div>

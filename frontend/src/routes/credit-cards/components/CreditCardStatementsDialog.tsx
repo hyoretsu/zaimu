@@ -1,11 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { type InfiniteData, useInfiniteQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { LuReceiptText } from "react-icons/lu";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tabs } from "@/components/ui/Tabs";
-import type { CreditCard, CreditCardStatement } from "@/lib/api";
+import type { CreditCard, CreditCardStatement, CreditCardStatementPage } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { getLocalMonthKey } from "@/lib/date";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
@@ -25,14 +25,25 @@ export function CreditCardStatementsDialog({
 }) {
 	const identity = useCacheIdentity();
 	const [selectedStatementId, setSelectedStatementId] = useState<string | null>(null);
-	const statements = useQuery({
+	const statements = useInfiniteQuery<
+		CreditCardStatementPage,
+		Error,
+		InfiniteData<CreditCardStatementPage>,
+		ReturnType<typeof queryKeys.creditCardStatements.list>,
+		string | undefined
+	>({
 		enabled: identity !== null && Boolean(card),
-		queryFn: () => dataService.creditCards.getStatements(card!.id),
+		getNextPageParam: lastPage => (lastPage.hasMore ? (lastPage.nextCursor ?? undefined) : undefined),
+		initialPageParam: undefined as string | undefined,
+		queryFn: ({ pageParam }) => dataService.creditCards.getStatementPage(card!.id, { cursor: pageParam }),
 		queryKey: queryKeys.creditCardStatements.list(identity!, card?.id ?? "unselected"),
 	});
 	const currentMonth = getLocalMonthKey(new Date());
 	const visibleStatements = useMemo(
-		() => statements.data?.toSorted((left, right) => left.dueDate.localeCompare(right.dueDate)),
+		() =>
+			(statements.data?.pages.flatMap(page => page.items) ?? []).toSorted((left, right) =>
+				left.dueDate.localeCompare(right.dueDate),
+			),
 		[statements.data],
 	);
 	const currentStatement = visibleStatements?.find(
@@ -72,7 +83,13 @@ export function CreditCardStatementsDialog({
 						orientation="vertical"
 						value={selectedStatement.id}
 					>
-						<CreditCardStatementTabs selectedId={selectedStatement.id} statements={visibleStatements ?? []} />
+						<CreditCardStatementTabs
+							hasMore={statements.hasNextPage}
+							isLoadingMore={statements.isFetchingNextPage}
+							onLoadMore={() => statements.fetchNextPage()}
+							selectedId={selectedStatement.id}
+							statements={visibleStatements}
+						/>
 						<CreditCardStatementDetails key={selectedStatement.id} statement={selectedStatement} />
 					</Tabs>
 				) : (

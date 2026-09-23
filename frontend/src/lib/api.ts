@@ -606,6 +606,12 @@ export interface CreditCardStatement {
 	isForecast?: boolean;
 }
 
+export interface CreditCardStatementPage {
+	hasMore: boolean;
+	items: CreditCardStatement[];
+	nextCursor: string | null;
+}
+
 export interface CreditPurchase {
 	id: string;
 	statementId: string;
@@ -879,7 +885,7 @@ export const api = {
 		fetchApi<CreditCardStatementDetail>(`/credit-cards/${cardId}/statements/${statementId}`),
 
 	getCreditCardStatements: (cardId: string, isPaid?: boolean) =>
-		fetchApi<CreditCardStatement[]>(`/credit-cards/${cardId}/statements`, {
+		fetchApi<CreditCardStatementPage>(`/credit-cards/${cardId}/statements`, {
 			params: { isPaid },
 		}),
 

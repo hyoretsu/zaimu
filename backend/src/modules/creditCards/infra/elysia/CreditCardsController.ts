@@ -12,6 +12,11 @@ import {
 	replaceEntityTags,
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
+import {
+	decodeStatementCursor,
+	encodeStatementCursor,
+	statementFilterKey,
+} from "~/modules/creditCards/application/statement-cursor";
 import { getCreditPurchaseSyncStatus } from "~/modules/creditCards/domain/credit-purchase-sync-status";
 import {
 	getEvenlyDistributedInstallmentAmounts,
@@ -812,6 +817,8 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 		"/:id/statements",
 		async ({ params, query, request }) => {
 			const userId = await requireUserId(request);
+			const limit = Math.min(query.limit ?? 24, 100);
+			const cursor = decodeStatementCursor(query.cursor, query.isPaid);
 			await assertCreditCardOwnership(params.id, userId);
 			const card = await queryFirst(
 				db.sql.public.CreditCard.select(
@@ -885,9 +892,38 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					updatedAt: new Date(),
 				}));
 			const statementsWithCredits = applyStatementCredits([...statements, ...forecasts]);
-			return query.isPaid === undefined
-				? statementsWithCredits
-				: statementsWithCredits.filter(statement => statement.isPaid === query.isPaid);
+			const filteredStatements = (
+				query.isPaid === undefined
+					? statementsWithCredits
+					: statementsWithCredits.filter(statement => statement.isPaid === query.isPaid)
+			)
+				.toSorted(
+					(left, right) =>
+						right.statementDate.getTime() - left.statementDate.getTime() || right.id.localeCompare(left.id),
+				)
+				.filter(
+					statement =>
+						!cursor ||
+						statement.statementDate < new Date(cursor.statementDate) ||
+						(statement.statementDate.getTime() === new Date(cursor.statementDate).getTime() &&
+							statement.id < cursor.id),
+				);
+			const page = filteredStatements.slice(0, limit + 1);
+			const items = page.slice(0, limit);
+			const hasMore = page.length > limit;
+			const last = items.at(-1);
+			return {
+				hasMore,
+				items,
+				nextCursor:
+					hasMore && last
+						? encodeStatementCursor({
+								filter: statementFilterKey(query.isPaid),
+								id: last.id,
+								statementDate: last.statementDate.toISOString(),
+							})
+						: null,
+			};
 		},
 		{
 			detail: { tags: ["Credit Cards"] },
@@ -895,7 +931,9 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				id: t.String({ maxLength: 36, minLength: 1 }),
 			}),
 			query: t.Object({
+				cursor: t.Optional(t.String({ maxLength: 2048, minLength: 1 })),
 				isPaid: t.Optional(t.Boolean()),
+				limit: t.Optional(t.Number({ maximum: 100, minimum: 1 })),
 			}),
 		},
 	)

@@ -131,7 +131,7 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - [ ] 5. Cartões
   - [x] Criar payload agregado de cartão, limite e fatura atual.
   - [x] Remover `useQueries` e qualquer request por cartão.
-  - [ ] Fazer histórico/detalhe lazy e paginado.
+  - [x] Fazer histórico/detalhe lazy e paginado.
   - [ ] Consultar faturas, compras, pagamentos e previsões por conjunto de cartões.
   - [ ] Mover materialização de faturas e assinaturas para o worker.
 - [ ] 6. Importações
@@ -200,4 +200,5 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Saldos diários da listagem de transações agora usam agregação e janela cumulativa no PostgreSQL, sem carregar todo o histórico em JavaScript.
 - Listagem de cartões agora entrega limite agregado e fatura atual em duas consultas set-based; tela deixou de disparar uma consulta de faturas por cartão, inclusive no modo guest.
 - Cache, publicação, consumo e lotes do outbox agora emitem métricas estruturadas de duração e resultado, completando a instrumentação da fundação.
-- Próxima etapa: paginar histórico/detalhe de faturas e retirar sua materialização dos GETs.
+- Histórico de faturas agora usa cursor opaco vinculado ao filtro e carregamento incremental; detalhes continuam lazy, e o resumo de cartão na tela de contas deixou de buscar faturas separadamente.
+- Próxima etapa: mover materialização de faturas e assinaturas dos GETs para o worker RabbitMQ.

@@ -15,6 +15,7 @@ import type {
 	CreditCardImportSummary,
 	CreditCardStatement,
 	CreditCardStatementDetail,
+	CreditCardStatementPage,
 	CreditPurchase,
 	Dashboard,
 	Debt,
@@ -1093,37 +1094,76 @@ export const dataService = {
 			}
 			return fetchWithAuth<CreditCardStatementDetail>(`/credit-cards/${cardId}/statements/${statementId}`);
 		},
-		async getStatements(cardId: string, isPaid?: boolean): Promise<CreditCardStatement[]> {
+		async getStatementPage(
+			cardId: string,
+			options: { cursor?: string; isPaid?: boolean; limit?: number } = {},
+		): Promise<CreditCardStatementPage> {
 			if (isGuestMode()) {
 				const statements = (await localCreditCardStatements.getAll())
 					.map(item => item.data)
 					.filter(statement => statement.creditCardId === cardId)
 					.sort((left, right) => right.statementDate.localeCompare(left.statementDate));
 				const statementsWithCredits = applyStatementCredits(statements);
-				return isPaid === undefined
-					? statementsWithCredits
-					: statementsWithCredits.filter(statement => statement.isPaid === isPaid);
+				const filtered =
+					options.isPaid === undefined
+						? statementsWithCredits
+						: statementsWithCredits.filter(statement => statement.isPaid === options.isPaid);
+				const start = options.cursor
+					? Math.max(0, filtered.findIndex(statement => statement.id === options.cursor) + 1)
+					: 0;
+				const limit = options.limit ?? 24;
+				const items = filtered.slice(start, start + limit);
+				const hasMore = start + items.length < filtered.length;
+				return { hasMore, items, nextCursor: hasMore ? (items.at(-1)?.id ?? null) : null };
 			}
 			const owner = getCurrentCacheIdentity();
 			if (!owner) throw new Error("Identidade local indisponível.");
-			const suffix = isPaid === undefined ? "" : `?isPaid=${isPaid}`;
-			const statements = await fetchWithAuth<CreditCardStatement[]>(
+			const search = new URLSearchParams();
+			if (options.cursor) search.set("cursor", options.cursor);
+			if (options.isPaid !== undefined) search.set("isPaid", String(options.isPaid));
+			if (options.limit !== undefined) search.set("limit", String(options.limit));
+			const suffix = search.size ? `?${search}` : "";
+			const page = await fetchWithAuth<CreditCardStatementPage>(
 				`/credit-cards/${cardId}/statements${suffix}`,
 			);
-			const snapshot = statements.map(statement => ({
-				data: statement,
-				localId: statement.id,
-				syncedAt: Date.now(),
-			}));
-			if (isPaid === undefined)
-				cacheRemoteData(
-					localCreditCardStatements.replaceSlice(
-						snapshot,
-						statement => statement.creditCardId === cardId,
-						owner,
-					),
-				);
-			else cacheRemoteData(localCreditCardStatements.bulkPut(snapshot, owner));
+			cacheRemoteData(
+				localCreditCardStatements.bulkPut(
+					page.items.map(statement => ({
+						data: statement,
+						localId: statement.id,
+						syncedAt: Date.now(),
+					})),
+					owner,
+				),
+			);
+			return page;
+		},
+		async getStatements(cardId: string, isPaid?: boolean): Promise<CreditCardStatement[]> {
+			const statements: CreditCardStatement[] = [];
+			let cursor: string | undefined;
+			do {
+				const page = await this.getStatementPage(cardId, { cursor, isPaid, limit: 100 });
+				statements.push(...page.items);
+				cursor = page.hasMore ? (page.nextCursor ?? undefined) : undefined;
+			} while (cursor);
+			if (!isGuestMode()) {
+				const owner = getCurrentCacheIdentity();
+				if (!owner) throw new Error("Identidade local indisponível.");
+				const snapshot = statements.map(statement => ({
+					data: statement,
+					localId: statement.id,
+					syncedAt: Date.now(),
+				}));
+				if (isPaid === undefined)
+					cacheRemoteData(
+						localCreditCardStatements.replaceSlice(
+							snapshot,
+							statement => statement.creditCardId === cardId,
+							owner,
+						),
+					);
+				else cacheRemoteData(localCreditCardStatements.bulkPut(snapshot, owner));
+			}
 			return statements;
 		},
 		async payStatement(
