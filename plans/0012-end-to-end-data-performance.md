@@ -201,4 +201,5 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Listagem de cartões agora entrega limite agregado e fatura atual em duas consultas set-based; tela deixou de disparar uma consulta de faturas por cartão, inclusive no modo guest.
 - Cache, publicação, consumo e lotes do outbox agora emitem métricas estruturadas de duração e resultado, completando a instrumentação da fundação.
 - Histórico de faturas agora usa cursor opaco vinculado ao filtro e carregamento incremental; detalhes continuam lazy, e o resumo de cartão na tela de contas deixou de buscar faturas separadamente.
+- Visão geral de cartões agora usa cache distribuído com ETag; fences cobrem mutações de cartões, contas e importações, além de transações.
 - Próxima etapa: mover materialização de faturas e assinaturas dos GETs para o worker RabbitMQ.

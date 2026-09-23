@@ -34,6 +34,7 @@ import {
 import { DebtSplitInputDTO } from "~/modules/debts/infra/elysia/DebtSplitsDTO";
 import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { HttpException } from "~/shared/errors";
+import { distributedCache } from "~/shared/infra/cache";
 import { db, executeStatement, numeric, param, queryFirst, queryRows } from "~/shared/infra/sql";
 
 const statementColumns = [
@@ -685,79 +686,88 @@ const isCreditPurchaseSynced = async (creditCardId: string, purchaseId: string) 
 export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 	.get(
 		"/",
-		async ({ request }) => {
+		async ({ request, set }) => {
 			const userId = await requireUserId(request);
-			const cards = await queryRows(
-				db.sql.public.CreditCard.innerJoin(db.sql.public.FinancialAccount, (fields, functions) =>
-					functions.eq(fields.CreditCard.financialAccountId, fields.FinancialAccount.id),
-				)
-					.outerLeftJoin(db.sql.public.FinancialInstitution, (fields, functions) =>
-						functions.eq(fields.FinancialAccount.institutionId, fields.FinancialInstitution.id),
+			const cached = await distributedCache.remember(userId, "credit-cards:overview", {}, async () => {
+				const cards = await queryRows(
+					db.sql.public.CreditCard.innerJoin(db.sql.public.FinancialAccount, (fields, functions) =>
+						functions.eq(fields.CreditCard.financialAccountId, fields.FinancialAccount.id),
 					)
-					.select((fields, functions) => ({
-						accountName:
-							functions.raw`COALESCE(${fields.FinancialAccount.name}, ${fields.FinancialInstitution.name}, 'Cartão de crédito')`.returns(
-								"sql/varchar@1",
+						.outerLeftJoin(db.sql.public.FinancialInstitution, (fields, functions) =>
+							functions.eq(fields.FinancialAccount.institutionId, fields.FinancialInstitution.id),
+						)
+						.select((fields, functions) => ({
+							accountName:
+								functions.raw`COALESCE(${fields.FinancialAccount.name}, ${fields.FinancialInstitution.name}, 'Cartão de crédito')`.returns(
+									"sql/varchar@1",
+								),
+							cashbackAccountId: fields.CreditCard.cashbackAccountId,
+							cashbackRate: fields.CreditCard.cashbackRate,
+							cashbackYieldPeriod: fields.CreditCard.cashbackYieldPeriod,
+							cashbackYieldReferencePercentage: fields.CreditCard.cashbackYieldReferencePercentage,
+							cashbackYieldReferenceRate: fields.CreditCard.cashbackYieldReferenceRate,
+							createdAt: fields.CreditCard.createdAt,
+							creditLimit: fields.CreditCard.creditLimit,
+							dueDay: fields.CreditCard.dueDay,
+							excludeFromTotals: fields.CreditCard.excludeFromTotals,
+							financialAccountId: fields.CreditCard.financialAccountId,
+							id: fields.CreditCard.id,
+							securityDeposit: fields.CreditCard.securityDeposit,
+							statementDay: fields.CreditCard.statementDay,
+							workingDueDate: fields.CreditCard.workingDueDate,
+						}))
+						.where((fields, functions) => functions.eq(fields.FinancialAccount.userId, userId))
+						.orderBy(fields => fields.FinancialAccount.name, { direction: "asc" })
+						.build(),
+				);
+				if (cards.length === 0) return [];
+				const statements = await queryRows(
+					db.sql.public.CreditCardStatement.select(...statementColumns)
+						.where((fields, functions) =>
+							functions.in(
+								fields.creditCardId,
+								cards.map(card => card.id),
 							),
-						cashbackAccountId: fields.CreditCard.cashbackAccountId,
-						cashbackRate: fields.CreditCard.cashbackRate,
-						cashbackYieldPeriod: fields.CreditCard.cashbackYieldPeriod,
-						cashbackYieldReferencePercentage: fields.CreditCard.cashbackYieldReferencePercentage,
-						cashbackYieldReferenceRate: fields.CreditCard.cashbackYieldReferenceRate,
-						createdAt: fields.CreditCard.createdAt,
-						creditLimit: fields.CreditCard.creditLimit,
-						dueDay: fields.CreditCard.dueDay,
-						excludeFromTotals: fields.CreditCard.excludeFromTotals,
-						financialAccountId: fields.CreditCard.financialAccountId,
-						id: fields.CreditCard.id,
-						securityDeposit: fields.CreditCard.securityDeposit,
-						statementDay: fields.CreditCard.statementDay,
-						workingDueDate: fields.CreditCard.workingDueDate,
-					}))
-					.where((fields, functions) => functions.eq(fields.FinancialAccount.userId, userId))
-					.orderBy(fields => fields.FinancialAccount.name, { direction: "asc" })
-					.build(),
-			);
-			if (cards.length === 0) return [];
-			const statements = await queryRows(
-				db.sql.public.CreditCardStatement.select(...statementColumns)
-					.where((fields, functions) =>
-						functions.in(
-							fields.creditCardId,
-							cards.map(card => card.id),
-						),
-					)
-					.orderBy("statementDate", { direction: "desc" })
-					.build(),
-			);
-			const statementsByCard = Map.groupBy(statements, statement => statement.creditCardId);
-			return cards.map(card => {
-				const effectiveStatements = applyStatementCredits(statementsByCard.get(card.id) ?? []);
-				const currentStatementDate = toDateKey(getStatementDates(card, new Date()).statementDate);
-				const currentStatement =
-					effectiveStatements.find(
-						statement => toDateKey(statement.statementDate) === currentStatementDate,
-					) ?? null;
-				const netUsedInCents = effectiveStatements
-					.filter(statement => toDateKey(statement.dueDate) >= toDateKey(new Date()))
-					.reduce(
-						(total, statement) => total + toCents(statement.totalAmount) - toCents(statement.paidAmount),
-						0,
-					);
-				const temporaryCreditInCents = Math.max(0, -netUsedInCents);
-				const usedLimitInCents = Math.max(0, netUsedInCents);
-				const effectiveLimitInCents = toCents(card.creditLimit) + temporaryCreditInCents;
-				return {
-					...card,
-					currentStatement,
-					limit: {
-						availableLimit: Math.max(0, effectiveLimitInCents - usedLimitInCents) / 100,
-						effectiveLimit: effectiveLimitInCents / 100,
-						temporaryCredit: temporaryCreditInCents / 100,
-						usedLimit: usedLimitInCents / 100,
-					},
-				};
+						)
+						.orderBy("statementDate", { direction: "desc" })
+						.build(),
+				);
+				const statementsByCard = Map.groupBy(statements, statement => statement.creditCardId);
+				return cards.map(card => {
+					const effectiveStatements = applyStatementCredits(statementsByCard.get(card.id) ?? []);
+					const currentStatementDate = toDateKey(getStatementDates(card, new Date()).statementDate);
+					const currentStatement =
+						effectiveStatements.find(
+							statement => toDateKey(statement.statementDate) === currentStatementDate,
+						) ?? null;
+					const netUsedInCents = effectiveStatements
+						.filter(statement => toDateKey(statement.dueDate) >= toDateKey(new Date()))
+						.reduce(
+							(total, statement) => total + toCents(statement.totalAmount) - toCents(statement.paidAmount),
+							0,
+						);
+					const temporaryCreditInCents = Math.max(0, -netUsedInCents);
+					const usedLimitInCents = Math.max(0, netUsedInCents);
+					const effectiveLimitInCents = toCents(card.creditLimit) + temporaryCreditInCents;
+					return {
+						...card,
+						currentStatement,
+						limit: {
+							availableLimit: Math.max(0, effectiveLimitInCents - usedLimitInCents) / 100,
+							effectiveLimit: effectiveLimitInCents / 100,
+							temporaryCredit: temporaryCreditInCents / 100,
+							usedLimit: usedLimitInCents / 100,
+						},
+					};
+				});
 			});
+			set.headers.etag = cached.etag;
+			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+			if (request.headers.get("if-none-match") === cached.etag) {
+				set.status = 304;
+				return null;
+			}
+			return cached.value;
 		},
 		{
 			detail: { tags: ["Credit Cards"] },
