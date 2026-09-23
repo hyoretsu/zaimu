@@ -1,8 +1,30 @@
-import type { CreditCard } from "@/lib/api";
+import { useQuery } from "@tanstack/react-query";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { dataService } from "@/lib/dataService";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
-export function CreditCardAccountSummary({ card }: { card?: CreditCard }) {
+export function CreditCardAccountSummary({ accountId }: { accountId: string }) {
+	const identity = useCacheIdentity();
+	const cards = useQuery({
+		enabled: Boolean(identity),
+		queryFn: () => dataService.creditCards.getAll(),
+		queryKey: queryKeys.creditCards.list(identity!),
+	});
+	if (cards.isPending) {
+		return (
+			<div className="grid gap-4 min-[420px]:grid-cols-2">
+				{[1, 2].map(item => (
+					<div className="grid gap-2" key={item}>
+						<Skeleton className="h-3 w-24" />
+						<Skeleton className="h-7 w-32" />
+					</div>
+				))}
+			</div>
+		);
+	}
+	const card = cards.data?.find(item => item.financialAccountId === accountId);
 	if (!card) {
 		return <p className="text-muted-foreground text-sm">Dados do cartão indisponíveis.</p>;
 	}

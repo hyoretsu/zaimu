@@ -99,7 +99,7 @@ export function FinancialAccountCard({
 			</div>
 			<div className="mt-6 border-border/70 border-t pt-4">
 				{account.type === "CREDIT_CARD" ? (
-					<CreditCardAccountSummary card={account.creditCard} />
+					<CreditCardAccountSummary accountId={account.id} />
 				) : account.type === "REWARDS" ? (
 					<>
 						<p className="text-muted-foreground text-xs">
