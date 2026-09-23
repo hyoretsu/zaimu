@@ -1,0 +1,614 @@
+[
+	{
+		"execute": [
+			{
+				"description": "create table \"ConsumerReceipt\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"ConsumerReceipt\" (\n  \"attempts\" int4 DEFAULT 0 NOT NULL,\n  \"completedAt\" timestamp(3),\n  \"consumer\" character varying(120) NOT NULL,\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"eventId\" character varying(36) NOT NULL,\n  \"lastError\" text,\n  \"lockedUntil\" timestamp(3),\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  CONSTRAINT \"ConsumerReceipt_pkey\" PRIMARY KEY (\"consumer\", \"eventId\")\n)"
+			}
+		],
+		"id": "table.ConsumerReceipt",
+		"label": "Create table \"ConsumerReceipt\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"ConsumerReceipt\" exists",
+				"params": ["\"public\".\"ConsumerReceipt\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"ConsumerReceipt\" does not exist",
+				"params": ["\"public\".\"ConsumerReceipt\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"ConsumerReceipt\"",
+		"target": {
+			"details": {
+				"name": "ConsumerReceipt",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"OutboxEvent\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"OutboxEvent\" (\n  \"aggregateId\" character varying(36) NOT NULL,\n  \"aggregateType\" character varying(80) NOT NULL,\n  \"attempts\" int4 DEFAULT 0 NOT NULL,\n  \"correlationId\" character varying(36) NOT NULL,\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"eventType\" character varying(120) NOT NULL,\n  \"id\" character varying(36) NOT NULL,\n  \"lastError\" text,\n  \"lockedUntil\" timestamp(3),\n  \"occurredAt\" timestamp(3) NOT NULL,\n  \"payload\" json DEFAULT '\"{}\"'::json NOT NULL,\n  \"publishedAt\" timestamp(3),\n  \"schemaVersion\" int4 DEFAULT 1 NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"userIds\" character varying(36)[] NOT NULL,\n  CONSTRAINT \"OutboxEvent_pkey\" PRIMARY KEY (\"id\"),\n  CONSTRAINT \"OutboxEvent_userIds_elem_not_null_ca18f62d\" CHECK (array_position(\"userIds\", NULL) IS NULL)\n)"
+			}
+		],
+		"id": "table.OutboxEvent",
+		"label": "Create table \"OutboxEvent\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"OutboxEvent\" exists",
+				"params": ["\"public\".\"OutboxEvent\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"OutboxEvent\" does not exist",
+				"params": ["\"public\".\"OutboxEvent\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"OutboxEvent\"",
+		"target": {
+			"details": {
+				"name": "OutboxEvent",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"userId\"",
+				"sql": "ALTER TABLE \"public\".\"CreditPurchase\" ADD COLUMN \"userId\" character varying(36)"
+			}
+		],
+		"id": "column.public.CreditPurchase.userId",
+		"label": "Add column \"userId\" to \"CreditPurchase\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"userId\" exists",
+				"params": ["public", "CreditPurchase", "userId"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"userId\" is missing",
+				"params": ["public", "CreditPurchase", "userId"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "userId",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditPurchase"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "Derive owner from statement card account",
+				"sql": "UPDATE \"public\".\"CreditPurchase\" purchase\nSET \"userId\" = account.\"userId\"\nFROM \"public\".\"CreditCardStatement\" statement\nJOIN \"public\".\"CreditCard\" card ON card.\"id\" = statement.\"creditCardId\"\nJOIN \"public\".\"FinancialAccount\" account ON account.\"id\" = card.\"financialAccountId\"\nWHERE statement.\"id\" = purchase.\"statementId\";\nDO $$ BEGIN\n  IF EXISTS (SELECT 1 FROM \"public\".\"CreditPurchase\" WHERE \"userId\" IS NULL) THEN\n    RAISE EXCEPTION 'Cannot backfill CreditPurchase.userId';\n  END IF;\nEND $$;"
+			}
+		],
+		"id": "backfill-CreditPurchase-userId",
+		"label": "Backfill credit purchase owners",
+		"operationClass": "data",
+		"postcheck": [],
+		"precheck": [],
+		"target": {
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "set NOT NULL on \"userId\"",
+				"sql": "ALTER TABLE \"public\".\"CreditPurchase\" ALTER COLUMN \"userId\" SET NOT NULL"
+			}
+		],
+		"id": "alterNullability.setNotNull.CreditPurchase.userId",
+		"label": "Set NOT NULL on \"CreditPurchase\".\"userId\"",
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"userId\" is NOT NULL",
+				"params": ["public", "CreditPurchase", "userId", "NO"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"userId\" exists",
+				"params": ["public", "CreditPurchase", "userId"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			},
+			{
+				"description": "ensure no NULL values in \"userId\"",
+				"params": [],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"public\".\"CreditPurchase\" WHERE \"userId\" IS NULL) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "userId",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditPurchase"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"userId\"",
+				"sql": "ALTER TABLE \"public\".\"Transaction\" ADD COLUMN \"userId\" character varying(36)"
+			}
+		],
+		"id": "column.public.Transaction.userId",
+		"label": "Add column \"userId\" to \"Transaction\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"userId\" exists",
+				"params": ["public", "Transaction", "userId"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"userId\" is missing",
+				"params": ["public", "Transaction", "userId"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "userId",
+				"objectType": "column",
+				"schema": "public",
+				"table": "Transaction"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "Derive owner from linked financial records",
+				"sql": "UPDATE \"public\".\"Transaction\" transaction\nSET \"userId\" = COALESCE(\n  (SELECT account.\"userId\" FROM \"public\".\"FinancialAccount\" account WHERE account.\"id\" = transaction.\"originFinancialAccountId\"),\n  (SELECT account.\"userId\" FROM \"public\".\"FinancialAccount\" account WHERE account.\"id\" = transaction.\"destinationFinancialAccountId\"),\n  (SELECT account.\"userId\" FROM \"public\".\"CreditCardStatement\" statement\n    JOIN \"public\".\"CreditCard\" card ON card.\"id\" = statement.\"creditCardId\"\n    JOIN \"public\".\"FinancialAccount\" account ON account.\"id\" = card.\"financialAccountId\"\n    WHERE statement.\"id\" = transaction.\"creditCardStatementId\"),\n  (SELECT recurring.\"userId\" FROM \"public\".\"RecurringPayment\" recurring WHERE recurring.\"id\" = transaction.\"recurrenceId\"),\n  (SELECT salary.\"userId\" FROM \"public\".\"Salary\" salary WHERE salary.\"id\" = transaction.\"salaryId\"),\n  (SELECT subscription.\"userId\" FROM \"public\".\"Subscription\" subscription WHERE subscription.\"id\" = transaction.\"subscriptionId\")\n);\nDO $$ BEGIN\n  IF EXISTS (SELECT 1 FROM \"public\".\"Transaction\" WHERE \"userId\" IS NULL) THEN\n    RAISE EXCEPTION 'Cannot backfill Transaction.userId';\n  END IF;\nEND $$;"
+			}
+		],
+		"id": "backfill-Transaction-userId",
+		"label": "Backfill transaction owners",
+		"operationClass": "data",
+		"postcheck": [],
+		"precheck": [],
+		"target": {
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "set NOT NULL on \"userId\"",
+				"sql": "ALTER TABLE \"public\".\"Transaction\" ALTER COLUMN \"userId\" SET NOT NULL"
+			}
+		],
+		"id": "alterNullability.setNotNull.Transaction.userId",
+		"label": "Set NOT NULL on \"Transaction\".\"userId\"",
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"userId\" is NOT NULL",
+				"params": ["public", "Transaction", "userId", "NO"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"userId\" exists",
+				"params": ["public", "Transaction", "userId"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			},
+			{
+				"description": "ensure no NULL values in \"userId\"",
+				"params": [],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"public\".\"Transaction\" WHERE \"userId\" IS NULL) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "userId",
+				"objectType": "column",
+				"schema": "public",
+				"table": "Transaction"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"ConsumerReceipt_cleanup_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"ConsumerReceipt_cleanup_idx\" ON \"public\".\"ConsumerReceipt\" (\"completedAt\", \"createdAt\")"
+			}
+		],
+		"id": "index.ConsumerReceipt.ConsumerReceipt_cleanup_idx",
+		"label": "Create index \"ConsumerReceipt_cleanup_idx\" on \"ConsumerReceipt\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"ConsumerReceipt_cleanup_idx\" exists",
+				"params": ["\"public\".\"ConsumerReceipt_cleanup_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"ConsumerReceipt_cleanup_idx\" does not exist",
+				"params": ["\"public\".\"ConsumerReceipt_cleanup_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "ConsumerReceipt_cleanup_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "ConsumerReceipt"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"CreditPurchase_statementId_purchaseDate_id_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"CreditPurchase_statementId_purchaseDate_id_idx\" ON \"public\".\"CreditPurchase\" (\"statementId\", \"purchaseDate\", \"id\")"
+			}
+		],
+		"id": "index.CreditPurchase.CreditPurchase_statementId_purchaseDate_id_idx",
+		"label": "Create index \"CreditPurchase_statementId_purchaseDate_id_idx\" on \"CreditPurchase\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"CreditPurchase_statementId_purchaseDate_id_idx\" exists",
+				"params": ["\"public\".\"CreditPurchase_statementId_purchaseDate_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"CreditPurchase_statementId_purchaseDate_id_idx\" does not exist",
+				"params": ["\"public\".\"CreditPurchase_statementId_purchaseDate_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditPurchase_statementId_purchaseDate_id_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "CreditPurchase"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"CreditPurchase_userId_purchaseDate_createdAt_id_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"CreditPurchase_userId_purchaseDate_createdAt_id_idx\" ON \"public\".\"CreditPurchase\" (\"userId\", \"purchaseDate\", \"createdAt\", \"id\")"
+			}
+		],
+		"id": "index.CreditPurchase.CreditPurchase_userId_purchaseDate_createdAt_id_idx",
+		"label": "Create index \"CreditPurchase_userId_purchaseDate_createdAt_id_idx\" on \"CreditPurchase\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"CreditPurchase_userId_purchaseDate_createdAt_id_idx\" exists",
+				"params": ["\"public\".\"CreditPurchase_userId_purchaseDate_createdAt_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"CreditPurchase_userId_purchaseDate_createdAt_id_idx\" does not exist",
+				"params": ["\"public\".\"CreditPurchase_userId_purchaseDate_createdAt_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditPurchase_userId_purchaseDate_createdAt_id_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "CreditPurchase"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"OutboxEvent_aggregate_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"OutboxEvent_aggregate_idx\" ON \"public\".\"OutboxEvent\" (\"aggregateType\", \"aggregateId\", \"occurredAt\")"
+			}
+		],
+		"id": "index.OutboxEvent.OutboxEvent_aggregate_idx",
+		"label": "Create index \"OutboxEvent_aggregate_idx\" on \"OutboxEvent\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"OutboxEvent_aggregate_idx\" exists",
+				"params": ["\"public\".\"OutboxEvent_aggregate_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"OutboxEvent_aggregate_idx\" does not exist",
+				"params": ["\"public\".\"OutboxEvent_aggregate_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "OutboxEvent_aggregate_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "OutboxEvent"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"OutboxEvent_pending_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"OutboxEvent_pending_idx\" ON \"public\".\"OutboxEvent\" (\"publishedAt\", \"lockedUntil\", \"occurredAt\", \"id\")"
+			}
+		],
+		"id": "index.OutboxEvent.OutboxEvent_pending_idx",
+		"label": "Create index \"OutboxEvent_pending_idx\" on \"OutboxEvent\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"OutboxEvent_pending_idx\" exists",
+				"params": ["\"public\".\"OutboxEvent_pending_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"OutboxEvent_pending_idx\" does not exist",
+				"params": ["\"public\".\"OutboxEvent_pending_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "OutboxEvent_pending_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "OutboxEvent"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"Transaction_userId_date_createdAt_id_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"Transaction_userId_date_createdAt_id_idx\" ON \"public\".\"Transaction\" (\"userId\", \"date\", \"createdAt\", \"id\")"
+			}
+		],
+		"id": "index.Transaction.Transaction_userId_date_createdAt_id_idx",
+		"label": "Create index \"Transaction_userId_date_createdAt_id_idx\" on \"Transaction\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"Transaction_userId_date_createdAt_id_idx\" exists",
+				"params": ["\"public\".\"Transaction_userId_date_createdAt_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"Transaction_userId_date_createdAt_id_idx\" does not exist",
+				"params": ["\"public\".\"Transaction_userId_date_createdAt_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "Transaction_userId_date_createdAt_id_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "Transaction"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"Transaction_userId_destination_date_id_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"Transaction_userId_destination_date_id_idx\" ON \"public\".\"Transaction\" (\"userId\", \"destinationFinancialAccountId\", \"date\", \"id\")"
+			}
+		],
+		"id": "index.Transaction.Transaction_userId_destination_date_id_idx",
+		"label": "Create index \"Transaction_userId_destination_date_id_idx\" on \"Transaction\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"Transaction_userId_destination_date_id_idx\" exists",
+				"params": ["\"public\".\"Transaction_userId_destination_date_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"Transaction_userId_destination_date_id_idx\" does not exist",
+				"params": ["\"public\".\"Transaction_userId_destination_date_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "Transaction_userId_destination_date_id_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "Transaction"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"Transaction_userId_origin_date_id_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"Transaction_userId_origin_date_id_idx\" ON \"public\".\"Transaction\" (\"userId\", \"originFinancialAccountId\", \"date\", \"id\")"
+			}
+		],
+		"id": "index.Transaction.Transaction_userId_origin_date_id_idx",
+		"label": "Create index \"Transaction_userId_origin_date_id_idx\" on \"Transaction\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"Transaction_userId_origin_date_id_idx\" exists",
+				"params": ["\"public\".\"Transaction_userId_origin_date_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"Transaction_userId_origin_date_id_idx\" does not exist",
+				"params": ["\"public\".\"Transaction_userId_origin_date_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "Transaction_userId_origin_date_id_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "Transaction"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"CreditPurchase_userId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"CreditPurchase\"\nADD CONSTRAINT \"CreditPurchase_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"user\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.CreditPurchase.CreditPurchase_userId_fkey",
+		"label": "Add foreign key \"CreditPurchase_userId_fkey\" on \"CreditPurchase\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"CreditPurchase_userId_fkey\" exists",
+				"params": ["CreditPurchase_userId_fkey", "public", "\"public\".\"CreditPurchase\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"CreditPurchase_userId_fkey\" does not exist",
+				"params": ["CreditPurchase_userId_fkey", "public", "\"public\".\"CreditPurchase\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditPurchase_userId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "CreditPurchase"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"Transaction_userId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"Transaction\"\nADD CONSTRAINT \"Transaction_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"user\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.Transaction.Transaction_userId_fkey",
+		"label": "Add foreign key \"Transaction_userId_fkey\" on \"Transaction\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"Transaction_userId_fkey\" exists",
+				"params": ["Transaction_userId_fkey", "public", "\"public\".\"Transaction\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"Transaction_userId_fkey\" does not exist",
+				"params": ["Transaction_userId_fkey", "public", "\"public\".\"Transaction\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "Transaction_userId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "Transaction"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "Install search extensions, function, and indexes",
+				"sql": "CREATE EXTENSION IF NOT EXISTS pg_trgm;\nCREATE EXTENSION IF NOT EXISTS unaccent;\nCREATE OR REPLACE FUNCTION public.normalize_search(value TEXT)\nRETURNS TEXT LANGUAGE SQL IMMUTABLE PARALLEL SAFE\nRETURN lower(public.unaccent('public.unaccent', coalesce(value, '')));\nCREATE INDEX \"Transaction_description_search_idx\" ON \"public\".\"Transaction\" USING GIN (public.normalize_search(\"description\") gin_trgm_ops);\nCREATE INDEX \"Transaction_storeName_search_idx\" ON \"public\".\"Transaction\" USING GIN (public.normalize_search(\"storeName\") gin_trgm_ops);\nCREATE INDEX \"CreditPurchase_description_search_idx\" ON \"public\".\"CreditPurchase\" USING GIN (public.normalize_search(\"description\") gin_trgm_ops);\nCREATE INDEX \"CreditPurchase_storeName_search_idx\" ON \"public\".\"CreditPurchase\" USING GIN (public.normalize_search(\"storeName\") gin_trgm_ops);"
+			}
+		],
+		"id": "transaction-search-indexes",
+		"label": "Create normalized transaction search indexes",
+		"operationClass": "additive",
+		"postcheck": [],
+		"precheck": [],
+		"target": {
+			"id": "postgres"
+		}
+	}
+]
