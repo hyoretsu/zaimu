@@ -127,7 +127,7 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
   - [x] Implementar `UNION ALL`, pesquisa no banco e cursor opaco.
   - [ ] Hidratar página em lote e tornar detalhe lazy. (hidratação em lote concluída; redução final do DTO e detalhe de compra pendentes)
   - [x] Substituir cálculo de saldo por agregação SQL.
-  - [ ] Migrar frontend, cache e guest mode para o novo contrato.
+  - [x] Migrar frontend, cache e guest mode para o novo contrato.
 - [ ] 5. Cartões
   - [x] Criar payload agregado de cartão, limite e fatura atual.
   - [x] Remover `useQueries` e qualquer request por cartão.
@@ -202,4 +202,5 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Cache, publicação, consumo e lotes do outbox agora emitem métricas estruturadas de duração e resultado, completando a instrumentação da fundação.
 - Histórico de faturas agora usa cursor opaco vinculado ao filtro e carregamento incremental; detalhes continuam lazy, e o resumo de cartão na tela de contas deixou de buscar faturas separadamente.
 - Visão geral de cartões agora usa cache distribuído com ETag; fences cobrem mutações de cartões, contas e importações, além de transações.
+- Detalhe lazy de fatura agora hidrata rateios de todas as compras em lote, removendo o N+1 restante dessa leitura.
 - Próxima etapa: mover materialização de faturas e assinaturas dos GETs para o worker RabbitMQ.

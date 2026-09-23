@@ -28,6 +28,7 @@ import {
 	deleteCreatorDebtEventForPurchase,
 	getDebtSplitInput,
 	getDebtSplitReturn,
+	getDebtSplitReturns,
 	linkPurchaseToDebt,
 	syncPurchaseDebtEvent,
 } from "~/modules/debts/application";
@@ -1094,28 +1095,30 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					purchase.refundOfPurchaseId ? [purchase.refundOfPurchaseId] : [],
 				),
 			);
+			const debtSplitsByPurchase = await getDebtSplitReturns(
+				"creditPurchaseId",
+				purchases.map(purchase => ({
+					amount: Math.abs(Number(purchase.totalAmount)),
+					id: purchase.parentId ?? purchase.id,
+				})),
+			);
 			return {
 				...statement,
 				balanceAmount: Number(statement.totalAmount) - Number(statement.paidAmount),
 				payments,
-				purchases: await Promise.all(
-					purchases.map(async purchase => {
-						const tags = tagsByPurchase.get(purchase.id) ?? [];
-						return {
-							...purchase,
-							...purchaseSyncStatus.get(purchase.id),
-							categoryColor: tags[0]?.color,
-							categoryName: tags[0]?.name,
-							debtSplit: await getDebtSplitReturn(
-								{ creditPurchaseId: purchase.parentId ?? purchase.id },
-								Math.abs(Number(purchase.totalAmount)),
-							),
-							hasRefund: !purchase.isRefund && refundedPurchaseIds.has(purchase.parentId ?? purchase.id),
-							tagIds: tags.map(tag => tag.id),
-							tags,
-						};
-					}),
-				),
+				purchases: purchases.map(purchase => {
+					const tags = tagsByPurchase.get(purchase.id) ?? [];
+					return {
+						...purchase,
+						...purchaseSyncStatus.get(purchase.id),
+						categoryColor: tags[0]?.color,
+						categoryName: tags[0]?.name,
+						debtSplit: debtSplitsByPurchase.get(purchase.parentId ?? purchase.id) ?? null,
+						hasRefund: !purchase.isRefund && refundedPurchaseIds.has(purchase.parentId ?? purchase.id),
+						tagIds: tags.map(tag => tag.id),
+						tags,
+					};
+				}),
 			};
 		},
 		{
