@@ -269,13 +269,10 @@ export function CreditCardImportReviewDialog({
 						<Button
 							className="cursor-pointer"
 							disabled={discard.isPending}
-							onClick={() => {
-								setDiscardConfirmationOpen(false);
-								onOpenChange(false);
-							}}
+							onClick={() => setDiscardConfirmationOpen(false)}
 							variant="outline"
 						>
-							Fechar modal
+							Cancelar
 						</Button>
 						<Button
 							className="cursor-pointer bg-destructive text-destructive-foreground hover:bg-destructive/80"
