@@ -70,11 +70,10 @@ export function ImportTransactionsDialog({
 			financialAccountId,
 			provider,
 		}: {
-			file: File | null;
+			file: File;
 			financialAccountId: string;
 			provider: TransactionImportProvider | "";
 		}) => {
-			if (!file) throw new Error("Selecione um PDF de extrato.");
 			if (!financialAccountId) throw new Error("Selecione a conta que receberá as transações.");
 			if (!provider) throw new Error("Selecione a instituição do extrato.");
 			return dataService.transactionImports.create({ file, financialAccountId, provider });
@@ -84,7 +83,6 @@ export function ImportTransactionsDialog({
 			showToast(error.message, "negative");
 		},
 		onMutate: () => {
-			handleOpenChange(false);
 			return { toastId: toast.loading("Importando extrato…", { position: "bottom-right" }) };
 		},
 		onSettled: (_, __, ___, context) => toast.dismiss(context?.toastId),
@@ -125,6 +123,7 @@ export function ImportTransactionsDialog({
 					className="grid gap-4"
 					onSubmit={event => {
 						event.preventDefault();
+						if (!file) return;
 						createImport.mutate({ file, financialAccountId, provider });
 					}}
 				>
