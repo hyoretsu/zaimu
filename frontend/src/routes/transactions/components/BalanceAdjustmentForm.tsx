@@ -71,13 +71,14 @@ export function BalanceAdjustmentForm({
 				</DialogHeader>
 				<div className="grid gap-4">
 					<CustomSelect
-						label="Conta *"
+						label="Conta"
 						onValueChange={setFinancialAccountId}
 						options={accounts.map(account => ({
 							label: getFinancialAccountOptionLabel(account),
 							value: account.id,
 						}))}
 						placeholder="Selecione a conta"
+						required
 						searchable
 						value={financialAccountId}
 					/>
