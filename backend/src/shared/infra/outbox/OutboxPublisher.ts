@@ -13,7 +13,14 @@ export class OutboxPublisher {
 		let failed = 0;
 		for (const event of events) {
 			try {
-				await this.broker.publish("zaimu.events", `domain.${event.aggregateType}.${event.eventType}`, event);
+				const command = event.eventType.startsWith("command.");
+				await this.broker.publish(
+					command ? "zaimu.commands" : "zaimu.events",
+					command
+						? event.eventType.slice("command.".length)
+						: `domain.${event.aggregateType}.${event.eventType}`,
+					event,
+				);
 				await this.outbox.markPublished(event.eventId);
 			} catch (error) {
 				failed++;

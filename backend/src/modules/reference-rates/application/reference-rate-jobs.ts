@@ -9,6 +9,8 @@ import {
 	type YieldAccount,
 	type YieldPeriod,
 } from "~/modules/accounts/domain/calculate-financial-account-yields";
+import { createEventEnvelope, type EventEnvelope } from "~/shared/application/events";
+import { PostgresOutbox } from "~/shared/infra/outbox";
 import {
 	db,
 	executeRaw,
@@ -41,6 +43,31 @@ const retryMinutes = [1, 5, 15, 60, 360];
 const bootstrapStartDate = new Date("2020-01-01T12:00:00");
 const bootstrapEndDate = new Date("2026-09-17T12:00:00");
 const dateKey = (date: Date) => format(date, "yyyy-MM-dd");
+const outbox = new PostgresOutbox();
+const commandId = (key: string) => {
+	const value = new Bun.CryptoHasher("sha256").update(key).digest("hex").slice(0, 32);
+	return `${value.slice(0, 8)}-${value.slice(8, 12)}-${value.slice(12, 16)}-${value.slice(16, 20)}-${value.slice(20)}`;
+};
+
+async function appendCommand(
+	routingKey: "account-yield-recalculation" | "reference-rate-fetch",
+	deduplicationKey: string,
+	aggregateId: string,
+	payload: Record<string, unknown>,
+) {
+	const id = commandId(`${routingKey}:${deduplicationKey}`);
+	await outbox.append(
+		createEventEnvelope({
+			aggregateId,
+			aggregateType: "referenceRate",
+			correlationId: id,
+			eventId: id,
+			eventType: `command.${routingKey}`,
+			payload,
+			userIds: [],
+		}),
+	);
+}
 
 function schedulerClock(now = new Date()) {
 	const parts = new Intl.DateTimeFormat("en-CA", {
@@ -64,16 +91,20 @@ export async function enqueueReferenceRateFetch(
 	endDate: Date,
 	deduplicationKey: string,
 ) {
-	await executeRaw(
-		`INSERT INTO "public"."ReferenceRateJob" ("kind", "deduplicationKey", "referenceType", "startDate", "endDate") VALUES ('FETCH_RATES', $1, $2, $3, $4) ON CONFLICT ("deduplicationKey") DO NOTHING`,
-		[deduplicationKey, type, dateKey(startDate), dateKey(endDate)],
-	);
+	await appendCommand("reference-rate-fetch", deduplicationKey, type, {
+		deduplicationKey,
+		endDate: dateKey(endDate),
+		referenceType: type,
+		startDate: dateKey(startDate),
+	});
 }
 export async function enqueueAccountYieldRecalculation(accountId: string, fromDate: Date, cause: string) {
-	await executeRaw(
-		`INSERT INTO "public"."ReferenceRateJob" ("kind", "deduplicationKey", "financialAccountId", "fromDate") VALUES ('RECALCULATE_ACCOUNT', $1, $2, $3) ON CONFLICT ("deduplicationKey") DO NOTHING`,
-		[`account:${accountId}:${dateKey(fromDate)}:${cause}`, accountId, dateKey(fromDate)],
-	);
+	const deduplicationKey = `account:${accountId}:${dateKey(fromDate)}:${cause}`;
+	await appendCommand("account-yield-recalculation", deduplicationKey, accountId, {
+		deduplicationKey,
+		financialAccountId: accountId,
+		fromDate: dateKey(fromDate),
+	});
 }
 export async function enqueueUserYieldRecalculations(userId: string, fromDate: Date, cause: string) {
 	const accounts = await queryRows(
@@ -97,7 +128,7 @@ export async function ensureReferenceRateBootstrapJobs() {
 			`bootstrap:v2:${type}:2020-01-01:2026-09-17`,
 		);
 }
-async function enqueueDailyFetches(now = new Date()) {
+export async function enqueueDailyReferenceRateFetches(now = new Date()) {
 	const clock = schedulerClock(now);
 	const scheduleDate = clock.hour >= 6 ? clock.date : subDays(clock.date, 1);
 	const endDate = subDays(scheduleDate, 1);
@@ -115,7 +146,7 @@ async function claimJob() {
 async function processFetchJob(job: ClaimedJob, fetchRates: FetchReferenceRates) {
 	if (!job.referenceType || !job.startDate || !job.endDate) throw new Error("Job de taxa incompleto");
 	const rates = await fetchRates(job.referenceType, job.startDate, job.endDate);
-	await withRawTransaction(async query => {
+	const earliestChangedDate = await withRawTransaction(async query => {
 		let earliestChangedDate: Date | null = null;
 		for (const rate of rates) {
 			const changed = await query<{ id: string }>(
@@ -125,29 +156,23 @@ async function processFetchJob(job: ClaimedJob, fetchRates: FetchReferenceRates)
 			if (changed.length > 0 && (!earliestChangedDate || rate.date < earliestChangedDate))
 				earliestChangedDate = rate.date;
 		}
-		if (!earliestChangedDate) return;
-		await query(
-			`INSERT INTO "public"."ReferenceRateJob" ("kind", "deduplicationKey", "financialAccountId", "fromDate")
-			 SELECT 'RECALCULATE_ACCOUNT', 'fetch:' || $1 || ':' || account."id", account."id", $3::date
-			 FROM "public"."FinancialAccount" account
-			 WHERE account."type" <> 'CREDIT_CARD'
-			   AND (
-			     account."yieldReferenceType" = $2::"ReferenceRateType"
-			     OR EXISTS (
-			       SELECT 1 FROM "public"."FinancialAccountYieldRateHistory" history
-			       WHERE history."financialAccountId" = account."id" AND history."yieldReferenceType" = $2::"ReferenceRateType"
-			     )
-			     OR EXISTS (
-			       SELECT 1
-			       FROM "public"."FinancialInstitutionYieldRule" rule
-			       INNER JOIN "public"."FinancialInstitutionYieldPolicy" policy ON policy."id" = rule."financialYieldPolicyId"
-			       WHERE policy."financialInstitutionId" = account."institutionId" AND rule."yieldReferenceType" = $2::"ReferenceRateType"
-			     )
-			   )
-			 ON CONFLICT ("deduplicationKey") DO NOTHING`,
-			[job.deduplicationKey, job.referenceType, dateKey(earliestChangedDate)],
-		);
+		return earliestChangedDate;
 	});
+	if (earliestChangedDate) {
+		const accounts = await queryRaw<{ id: string }>(
+			`SELECT account."id" FROM "public"."FinancialAccount" account
+			 WHERE account."type" <> 'CREDIT_CARD' AND (
+			 account."yieldReferenceType" = $1::"ReferenceRateType"
+			 OR EXISTS (SELECT 1 FROM "public"."FinancialAccountYieldRateHistory" history WHERE history."financialAccountId" = account."id" AND history."yieldReferenceType" = $1::"ReferenceRateType")
+			 OR EXISTS (SELECT 1 FROM "public"."FinancialInstitutionYieldRule" rule INNER JOIN "public"."FinancialInstitutionYieldPolicy" policy ON policy."id" = rule."financialYieldPolicyId" WHERE policy."financialInstitutionId" = account."institutionId" AND rule."yieldReferenceType" = $1::"ReferenceRateType"))`,
+			[job.referenceType],
+		);
+		await Promise.all(
+			accounts.map(account =>
+				enqueueAccountYieldRecalculation(account.id, earliestChangedDate, `fetch:${job.deduplicationKey}`),
+			),
+		);
+	}
 	return rates.length;
 }
 async function loadYieldAccount(accountId: string): Promise<YieldAccount | null> {
@@ -277,6 +302,47 @@ async function processAccountRecalculation(job: ClaimedJob) {
 		);
 	}
 }
+
+const requiredString = (payload: unknown, key: string) => {
+	const value = (payload as Record<string, unknown> | null)?.[key];
+	if (typeof value !== "string" || value.length === 0) throw new Error(`Comando requer ${key}`);
+	return value;
+};
+
+export async function handleReferenceRateFetchCommand(
+	event: EventEnvelope,
+	fetchRates: FetchReferenceRates = fetchBcbReferenceRates,
+) {
+	const rawReferenceType = requiredString(event.payload, "referenceType");
+	if (rawReferenceType !== "CDI" && rawReferenceType !== "SELIC") throw new Error("Tipo de taxa inválido");
+	const referenceType: ReferenceRateType = rawReferenceType;
+	const job = {
+		attempts: 0,
+		deduplicationKey: requiredString(event.payload, "deduplicationKey"),
+		endDate: new Date(`${requiredString(event.payload, "endDate")}T12:00:00`),
+		financialAccountId: null,
+		fromDate: null,
+		id: event.eventId,
+		kind: "FETCH_RATES" as const,
+		referenceType,
+		startDate: new Date(`${requiredString(event.payload, "startDate")}T12:00:00`),
+	};
+	return processFetchJob(job, fetchRates);
+}
+
+export async function handleAccountYieldRecalculationCommand(event: EventEnvelope) {
+	return processAccountRecalculation({
+		attempts: 0,
+		deduplicationKey: requiredString(event.payload, "deduplicationKey"),
+		endDate: null,
+		financialAccountId: requiredString(event.payload, "financialAccountId"),
+		fromDate: new Date(`${requiredString(event.payload, "fromDate")}T12:00:00`),
+		id: event.eventId,
+		kind: "RECALCULATE_ACCOUNT",
+		referenceType: null,
+		startDate: null,
+	});
+}
 export function getReferenceRateRetryDelay(
 	attempt: number,
 	retryAfter: string | undefined,
@@ -335,7 +401,7 @@ export function startReferenceRateWorker() {
 	const tick = async () => {
 		try {
 			await ensureReferenceRateBootstrapJobs();
-			await enqueueDailyFetches();
+			await enqueueDailyReferenceRateFetches();
 			while (await runNextReferenceRateJob()) {}
 		} catch (error) {
 			console.error("Reference-rate worker failed", error);
