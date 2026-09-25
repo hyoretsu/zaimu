@@ -7,7 +7,7 @@ const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "curre
 
 function centsToDecimal(value: string) {
 	const isNegative = value.includes("-");
-	const digits = value.replace(/\D/g, "").replace(/^0+/, "");
+	const digits = value.replace(/\D/g, "");
 	if (!digits) return "";
 
 	const decimal = (Number(digits) / 100).toFixed(2);
@@ -46,7 +46,7 @@ export function MoneyField({
 				placeholder="R$ 1.500,00"
 				required={required}
 				type="text"
-				value={value ? currency.format(Number(value)) : ""}
+				value={value === "" ? "" : currency.format(Number(value))}
 				{...props}
 			/>
 		</div>
