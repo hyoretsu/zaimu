@@ -25,7 +25,9 @@ export function DashboardAccounts({ accounts, endDate }: DashboardAccountsProps)
 			name: account.name,
 			type: account.type,
 		});
-	const ordered = accounts.toSorted((left, right) => right.balance - left.balance);
+	const ordered = accounts
+		.filter(account => account.balance !== 0)
+		.toSorted((left, right) => right.balance - left.balance);
 	return (
 		<>
 			<Card>
@@ -56,9 +58,7 @@ export function DashboardAccounts({ accounts, endDate }: DashboardAccountsProps)
 							<strong>{currency.format(account.balance)}</strong>
 						</div>
 					))}
-					{!ordered.length && (
-						<p className="text-muted-foreground text-sm">Nenhuma conta corrente ou poupança.</p>
-					)}
+					{!ordered.length && <p className="text-muted-foreground text-sm">Nenhuma conta com saldo.</p>}
 				</CardContent>
 			</Card>
 			<Dialog onOpenChange={setOpen} open={open}>
@@ -71,6 +71,7 @@ export function DashboardAccounts({ accounts, endDate }: DashboardAccountsProps)
 					</DialogHeader>
 					<ScrollArea className="max-h-[min(30rem,calc(100dvh-14rem))] pr-3">
 						<div className="space-y-3">
+							{!ordered.length && <p className="text-muted-foreground text-sm">Nenhuma conta com saldo.</p>}
 							{ordered.map(account => (
 								<div
 									className="flex items-center justify-between gap-3 rounded-xl border p-3"
