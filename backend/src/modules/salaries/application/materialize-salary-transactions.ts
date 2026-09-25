@@ -150,4 +150,5 @@ export async function materializeSalaryTransactions(asOf = new Date(), userId?: 
 				.build(),
 		);
 	}
+	return { salaries: salaries.length, userIds: [...new Set(salaries.map(salary => salary.userId))] };
 }

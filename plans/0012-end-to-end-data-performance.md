@@ -120,7 +120,7 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
   - [x] Implementar namespaces, chaves canônicas, gerações e epoch global.
   - [x] Implementar cache-aside, ETag, coalescing e locks contra stampede.
   - [x] Implementar write fences e matriz central de invalidação.
-  - [ ] Emitir eventos em todas as mutações e workers.
+  - [x] Emitir eventos em todas as mutações e workers.
   - [ ] Cobrir indisponibilidade/reconexão do Redis e invalidação multiusuário.
 - [ ] 4. Transações
   - [x] Adicionar proprietário direto e índices.
@@ -207,4 +207,6 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Salários e recorrências agora são materializados pelo mesmo comando RabbitMQ, em todos os usuários, com ocorrências idempotentes; dashboard e listagem de transações não escrevem mais durante GETs.
 - Busca de taxas de referência e recálculos de rendimento agora usam comandos duráveis no RabbitMQ, publicados pelo outbox e consumidos pelo worker separado.
 - Migração de banco drena jobs PostgreSQL pendentes para o outbox antes de remover `ReferenceRateJob`, seu enum, polling e worker embutido na API.
-- Próxima etapa: completar emissão de eventos e invalidação para todas as mutações e workers.
+- Plugin global de consistência agora abre fences e grava eventos duráveis no outbox para todas as rotas de mutação dos domínios; a matriz cobre agendas, taxas, sync e demais caches compartilhados.
+- Workers de agendas e rendimentos agora emitem eventos consolidados após materialização, incluindo todos os usuários afetados, para invalidação distribuída.
+- Próxima etapa: cobrir indisponibilidade/reconexão do Redis, invalidação multiusuário de dívidas e cenários de falha do broker.

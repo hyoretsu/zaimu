@@ -15,6 +15,9 @@ export const cacheInvalidationMatrix: Record<string, NamespaceResolver> = {
 	debt: () => ["dashboard", "transactions:list"],
 	financialAccount: () => ["accounts:list", "dashboard", "transactions:list"],
 	loan: () => ["dashboard", "transactions:list"],
+	referenceRate: () => ["accounts:list", "dashboard", "transactions:list"],
+	schedule: () => ["accounts:list", "credit-cards:overview", "dashboard", "transactions:list"],
+	sync: () => ["accounts:list", "credit-cards:overview", "dashboard", "imports:pending", "transactions:list"],
 	transaction: event => [
 		"accounts:list",
 		"dashboard",

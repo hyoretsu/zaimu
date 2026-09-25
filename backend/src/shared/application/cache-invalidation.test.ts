@@ -31,4 +31,21 @@ describe("namespacesForEvent", () => {
 		});
 		expect(namespacesForEvent(event)).toEqual([]);
 	});
+
+	test("invalidates every cache affected by schedule workers", () => {
+		const event = createEventEnvelope({
+			aggregateId: "schedule",
+			aggregateType: "schedule",
+			correlationId: "correlation-id",
+			eventType: "materialized",
+			payload: {},
+			userIds: ["user-id"],
+		});
+		expect(namespacesForEvent(event)).toEqual([
+			"accounts:list",
+			"credit-cards:overview",
+			"dashboard",
+			"transactions:list",
+		]);
+	});
 });

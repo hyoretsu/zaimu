@@ -30,7 +30,7 @@ export async function materializeRecurringTransactions(asOf = new Date()) {
 			.where((fields, functions) => functions.eq(fields.isActive, true))
 			.build(),
 	);
-	if (recurringPayments.length === 0) return { payments: 0, transactions: 0 };
+	if (recurringPayments.length === 0) return { payments: 0, transactions: 0, userIds: [] };
 	const paymentIds = recurringPayments.map(payment => payment.id);
 	const existing = await queryRows(
 		db.sql.public.Transaction.select("recurrenceId", "recurrenceOccurrenceDate")
@@ -99,5 +99,9 @@ export async function materializeRecurringTransactions(asOf = new Date()) {
 			});
 		}
 	}
-	return { payments: recurringPayments.length, transactions: created };
+	return {
+		payments: recurringPayments.length,
+		transactions: created,
+		userIds: [...new Set(recurringPayments.map(payment => payment.userId))],
+	};
 }

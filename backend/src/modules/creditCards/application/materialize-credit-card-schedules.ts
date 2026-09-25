@@ -307,5 +307,15 @@ export async function materializeCreditCardSchedules(asOf = new Date()) {
 		await materializeMonthlyStatements(card.id, card, asOf);
 		await materializeDueSubscriptionPurchases(card.id, card.financialAccountId, card, asOf);
 	}
-	return { cards: cards.length };
+	const accounts = await queryRows(
+		db.sql.public.FinancialAccount.select("id", "userId")
+			.where((fields, functions) =>
+				functions.in(
+					fields.id,
+					cards.map(card => card.financialAccountId),
+				),
+			)
+			.build(),
+	);
+	return { cards: cards.length, userIds: [...new Set(accounts.map(account => account.userId))] };
 }

@@ -287,6 +287,16 @@ async function processAccountRecalculation(job: ClaimedJob) {
 			]).build(),
 		);
 	}
+	await outbox.append(
+		createEventEnvelope({
+			aggregateId: account.id,
+			aggregateType: "financialAccount",
+			correlationId: commandId(job.deduplicationKey),
+			eventType: "yieldRecalculated",
+			payload: { fromDate: dateKey(fromDate) },
+			userIds: [(account as YieldAccount & { userId: string }).userId],
+		}),
+	);
 }
 
 const requiredString = (payload: unknown, key: string) => {

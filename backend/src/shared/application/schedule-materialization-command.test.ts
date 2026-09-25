@@ -1,4 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
+import type { EventEnvelope } from "~/shared/application/events";
 import type { EventBrokerPort } from "~/shared/application/ports";
 import {
 	handleScheduleMaterialization,
@@ -16,14 +17,13 @@ describe("schedule materialization commands", () => {
 		expect(publish.mock.calls[0]?.[0]).toBe("zaimu.commands");
 		expect(publish.mock.calls[0]?.[1]).toBe("schedule-materialization");
 		expect(publish.mock.calls[0]?.[2]).toMatchObject({
-			eventId: "schedule-materialization:2026-09-25T12:34:00.000Z",
 			eventType: scheduleMaterializationEventType,
 			payload: { asOf: "2026-09-25T12:34:00.000Z" },
 		});
 	});
 
 	test("validates and dispatches the requested cutoff", async () => {
-		const materialize = mock(async () => {});
+		const materialize = mock(async () => [{ userIds: [] }]);
 		await handleScheduleMaterialization(
 			{
 				aggregateId: "schedule",
@@ -41,6 +41,30 @@ describe("schedule materialization commands", () => {
 		expect(materialize).toHaveBeenCalledWith(new Date("2026-09-25T12:34:00.000Z"));
 	});
 
+	test("emits one consolidated event for affected users", async () => {
+		const append = mock(async (_event: EventEnvelope) => {});
+		await handleScheduleMaterialization(
+			{
+				aggregateId: "schedule",
+				aggregateType: "schedule",
+				correlationId: "correlation",
+				eventId: "event",
+				eventType: scheduleMaterializationEventType,
+				occurredAt: "2026-09-25T12:34:00.000Z",
+				payload: { asOf: "2026-09-25T12:34:00.000Z" },
+				schemaVersion: 1,
+				userIds: [],
+			},
+			async () => [{ userIds: ["user-1"] }, { userIds: ["user-1", "user-2"] }],
+			append,
+		);
+		expect(append).toHaveBeenCalledTimes(1);
+		expect(append.mock.calls[0]?.[0]).toMatchObject({
+			aggregateType: "schedule",
+			userIds: ["user-1", "user-2"],
+		});
+	});
+
 	test("rejects malformed cutoffs", () =>
 		expect(
 			handleScheduleMaterialization(
@@ -55,7 +79,7 @@ describe("schedule materialization commands", () => {
 					schemaVersion: 1,
 					userIds: [],
 				},
-				async () => {},
+				async () => [{ userIds: [] }],
 			),
 		).rejects.toThrow("invalid asOf"));
 });
