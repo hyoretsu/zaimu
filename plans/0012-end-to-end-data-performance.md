@@ -140,8 +140,8 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
   - [x] Aplicar o mesmo padrão às importações de transações.
   - [x] Substituir `getImportReturn` por item por contagens e loaders em lote.
 - [ ] 7. Agendas e taxas
-  - [ ] Retirar materializações de todos os GETs.
-  - [ ] Migrar salários, assinaturas e recorrências para comandos RabbitMQ.
+  - [x] Retirar materializações de todos os GETs.
+  - [x] Migrar salários, assinaturas e recorrências para comandos RabbitMQ.
   - [ ] Migrar taxas de referência e recálculos de rendimento.
   - [ ] Drenar e remover `ReferenceRateJob` e worker PostgreSQL antigo.
 - [ ] 8. Demais domínios
@@ -204,4 +204,5 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Visão geral de cartões agora usa cache distribuído com ETag; fences cobrem mutações de cartões, contas e importações, além de transações.
 - Detalhe lazy de fatura agora hidrata rateios de todas as compras em lote, removendo o N+1 restante dessa leitura.
 - Materialização de faturas e compras de assinaturas saiu dos GETs: um serviço independente e idempotente agora roda no worker pela fila `schedule-materialization`, com comando de recuperação a cada minuto e deduplicação determinística entre instâncias.
-- Próxima etapa: migrar materializações de salários e recorrências para comandos RabbitMQ.
+- Salários e recorrências agora são materializados pelo mesmo comando RabbitMQ, em todos os usuários, com ocorrências idempotentes; dashboard e listagem de transações não escrevem mais durante GETs.
+- Próxima etapa: migrar taxas de referência e recálculos de rendimento para RabbitMQ e remover `ReferenceRateJob`.

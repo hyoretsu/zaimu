@@ -58,26 +58,23 @@ function monthlyOccurrence(start: Date, payDay: number, monthOffset = 0): Date {
 	return new Date(month.getFullYear(), month.getMonth(), Math.min(payDay, lastDay));
 }
 
-export async function materializeSalaryTransactions(userId: string) {
-	const today = startOfDay(new Date());
-	const salaries = await queryRows(
-		db.sql.public.Salary.select(
-			"id",
-			"amount",
-			"endDate",
-			"financialAccountId",
-			"frequency",
-			"materializedThrough",
-			"payDay",
-			"dayOfWeek",
-			"source",
-			"startDate",
-		)
-			.where((fields, functions) =>
-				functions.and(functions.eq(fields.userId, userId), functions.eq(fields.isActive, true)),
-			)
-			.build(),
-	);
+export async function materializeSalaryTransactions(asOf = new Date(), userId?: string) {
+	const today = startOfDay(asOf);
+	let salaryQuery = db.sql.public.Salary.select(
+		"id",
+		"userId",
+		"amount",
+		"endDate",
+		"financialAccountId",
+		"frequency",
+		"materializedThrough",
+		"payDay",
+		"dayOfWeek",
+		"source",
+		"startDate",
+	).where((fields, functions) => functions.eq(fields.isActive, true));
+	if (userId) salaryQuery = salaryQuery.where((fields, functions) => functions.eq(fields.userId, userId));
+	const salaries = await queryRows(salaryQuery.build());
 	const tagsBySalary = await getTagsByEntity(
 		tagEntityType.salary,
 		salaries.map(salary => salary.id),
@@ -132,7 +129,7 @@ export async function materializeSalaryTransactions(userId: string) {
 						${param(new Date(date), { codecId: "pg/date@1" })},
 						NULL,
 							${param("INCOME", { codecId: "pg/text@1" })}::"TransactionType",
-							${param(userId, { codecId: "sql/varchar@1" })}
+						${param(salary.userId, { codecId: "sql/varchar@1" })}
 					)
 					ON CONFLICT ("salaryId", "salaryOccurrenceDate") DO NOTHING
 					RETURNING "id"

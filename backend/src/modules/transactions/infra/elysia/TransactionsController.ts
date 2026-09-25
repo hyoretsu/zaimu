@@ -22,7 +22,6 @@ import {
 } from "~/modules/debts/application";
 import { DebtSplitInputDTO } from "~/modules/debts/infra/elysia/DebtSplitsDTO";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
-import { materializeSalaryTransactions } from "~/modules/salaries/application/materialize-salary-transactions";
 import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { areTransferSuggestionTimesCompatible } from "~/modules/transaction-imports/domain/transfer-suggestions";
 import { listTransactionsPage } from "~/modules/transactions/application/list-transactions-page";
@@ -372,7 +371,6 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				}
 				return cached.value;
 			}
-			await materializeSalaryTransactions(userId);
 			const origin = db.sql.public.FinancialAccount.select(
 				"id",
 				"institutionId",

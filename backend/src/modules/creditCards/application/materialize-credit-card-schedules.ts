@@ -21,7 +21,7 @@ const statementColumns = [
 	"updatedAt",
 ] as const;
 
-type SubscriptionFrequency = "BIWEEKLY" | "DAILY" | "MONTHLY" | "WEEKLY" | "YEARLY";
+export type SubscriptionFrequency = "BIWEEKLY" | "DAILY" | "MONTHLY" | "WEEKLY" | "YEARLY";
 
 export function subscriptionOccurrences(
 	subscription: {

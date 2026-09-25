@@ -1,7 +1,7 @@
 import {
 	handleScheduleMaterialization,
 	publishScheduleMaterialization,
-} from "./modules/creditCards/application/schedule-materialization-command";
+} from "./shared/application/schedule-materialization-command";
 import { RabbitMqBroker } from "./shared/infra/broker";
 import { CacheInvalidationConsumer, DistributedCache, RedisCache } from "./shared/infra/cache";
 import { OutboxPublisher } from "./shared/infra/outbox";

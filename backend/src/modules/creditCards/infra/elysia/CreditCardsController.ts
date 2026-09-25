@@ -15,6 +15,7 @@ import {
 import {
 	getOrCreateStatement,
 	getStatementDates,
+	type SubscriptionFrequency,
 	subscriptionOccurrences,
 } from "~/modules/creditCards/application/materialize-credit-card-schedules";
 import {

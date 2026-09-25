@@ -8,7 +8,7 @@ import {
 
 describe("schedule materialization commands", () => {
 	test("publishes a durable command routing envelope", async () => {
-		const publish = mock(async () => {});
+		const publish = mock(async (_exchange: string, _routingKey: string, _event: unknown) => {});
 		const broker = { publish } as unknown as EventBrokerPort;
 		const now = new Date("2026-09-25T12:34:42.123Z");
 		await publishScheduleMaterialization(broker, now);

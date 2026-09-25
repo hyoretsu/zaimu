@@ -16,7 +16,6 @@ import {
 	reconcilePeriodCashFlow,
 	resolveDashboardRange,
 } from "~/modules/dashboard/application";
-import { materializeSalaryTransactions } from "~/modules/salaries/application/materialize-salary-transactions";
 import { db, queryRows } from "~/shared/infra/sql";
 
 const DateQuery = t.Optional(t.String({ format: "date" }));
@@ -100,7 +99,6 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 	"/",
 	async ({ query, request }) => {
 		const userId = await requireUserId(request);
-		await materializeSalaryTransactions(userId);
 		const now = new Date();
 		const today = startOfDay(now);
 		const range = resolveDashboardRange(query.startDate, query.endDate, now);

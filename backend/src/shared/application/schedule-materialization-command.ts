@@ -1,6 +1,8 @@
-import type { EventEnvelope } from "~/shared/application/events";
-import type { EventBrokerPort } from "~/shared/application/ports";
-import { materializeCreditCardSchedules } from "./materialize-credit-card-schedules";
+import { materializeCreditCardSchedules } from "~/modules/creditCards/application/materialize-credit-card-schedules";
+import { materializeRecurringTransactions } from "~/modules/recurring/application/materialize-recurring-transactions";
+import { materializeSalaryTransactions } from "~/modules/salaries/application/materialize-salary-transactions";
+import type { EventEnvelope } from "./events";
+import type { EventBrokerPort } from "./ports";
 
 export const scheduleMaterializationEventType = "schedule.materialize";
 
@@ -28,7 +30,12 @@ export async function publishScheduleMaterialization(broker: EventBrokerPort, no
 
 export async function handleScheduleMaterialization(
 	event: EventEnvelope,
-	materialize: (asOf: Date) => Promise<unknown> = materializeCreditCardSchedules,
+	materialize: (asOf: Date) => Promise<unknown> = async asOf =>
+		Promise.all([
+			materializeCreditCardSchedules(asOf),
+			materializeSalaryTransactions(asOf),
+			materializeRecurringTransactions(asOf),
+		]),
 ) {
 	if (event.eventType !== scheduleMaterializationEventType)
 		throw new Error(`Unsupported schedule materialization command: ${event.eventType}`);
