@@ -213,6 +213,7 @@ export function FinancialAccountStatementDialog({
 					open={creatingTransaction}
 				/>
 				<EditTransactionDialog
+					account={account}
 					onOpenChange={nextOpen => !nextOpen && setEditingTransaction(null)}
 					open={editingTransaction !== null}
 					transaction={editingTransaction}

@@ -14,7 +14,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/Dialog";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
-import type { DebtSplitInput, Transaction } from "@/lib/api";
+import type { DebtSplitInput, FinancialAccount, Transaction } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
 import { formatLocalMonthYear } from "@/lib/date";
@@ -46,10 +46,12 @@ function createDraft(transaction: Transaction) {
 }
 
 export function EditTransactionDialog({
+	account,
 	onOpenChange,
 	open,
 	transaction,
 }: {
+	account?: FinancialAccount;
 	onOpenChange: (open: boolean) => void;
 	open: boolean;
 	transaction: Transaction | null;
@@ -251,7 +253,18 @@ export function EditTransactionDialog({
 									current
 										? current.type === "INCOME"
 											? { ...current, destinationFinancialAccountId: accountId }
-											: { ...current, originFinancialAccountId: accountId }
+											: {
+													...current,
+													destinationFinancialAccountId:
+														current.type === "TRANSFER"
+															? account && accountId !== account.id
+																? account.id
+																: current.destinationFinancialAccountId === accountId
+																	? ""
+																	: current.destinationFinancialAccountId
+															: current.destinationFinancialAccountId,
+													originFinancialAccountId: accountId,
+												}
 										: current,
 								)
 							}
@@ -269,7 +282,18 @@ export function EditTransactionDialog({
 						<CustomSelect
 							label="Conta de destino"
 							onValueChange={destinationFinancialAccountId =>
-								setDraft(current => (current ? { ...current, destinationFinancialAccountId } : current))
+								setDraft(current =>
+									current
+										? {
+												...current,
+												destinationFinancialAccountId,
+												originFinancialAccountId:
+													account && destinationFinancialAccountId !== account.id
+														? account.id
+														: current.originFinancialAccountId,
+											}
+										: current,
+								)
 							}
 							options={balanceDestinationAccounts
 								.filter(account => account.id !== draft.originFinancialAccountId)

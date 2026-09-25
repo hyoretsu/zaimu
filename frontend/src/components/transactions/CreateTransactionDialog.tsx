@@ -311,7 +311,13 @@ export function CreateTransactionDialog({
 										: {
 												...current,
 												destinationFinancialAccountId:
-													current.type === "TRANSFER" ? current.destinationFinancialAccountId : "",
+													current.type === "TRANSFER"
+														? account && accountId !== account.id
+															? account.id
+															: current.destinationFinancialAccountId === accountId
+																? ""
+																: current.destinationFinancialAccountId
+														: "",
 												originFinancialAccountId: accountId,
 											},
 								)
@@ -330,7 +336,14 @@ export function CreateTransactionDialog({
 						<CustomSelect
 							label="Conta de destino"
 							onValueChange={destinationFinancialAccountId =>
-								setDraft(current => ({ ...current, destinationFinancialAccountId }))
+								setDraft(current => ({
+									...current,
+									destinationFinancialAccountId,
+									originFinancialAccountId:
+										account && destinationFinancialAccountId !== account.id
+											? account.id
+											: current.originFinancialAccountId,
+								}))
 							}
 							options={balanceDestinationAccounts
 								.filter(account => account.id !== draft.originFinancialAccountId)
