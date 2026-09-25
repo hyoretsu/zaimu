@@ -5,7 +5,7 @@ Persistir CDI e Selic diários, materializar rendimentos pós-fixados somente ap
 
 ## Decisões
 - SGS 12 representa CDI e SGS 11 representa Selic; ambos retornam percentual diário.
-- Bootstrap consulta 01/01/2020–17/09/2026 em uma requisição por série.
+- Bootstrap consulta 01/01/2020-17/09/2026 em uma requisição por série.
 - Worker embutido usa fila PostgreSQL, lease, deduplicação e retry persistente.
 - Taxa fixa diária soma com a parcela diária da referência.
 - Cashback e modo guest permanecem sem referências automáticas.

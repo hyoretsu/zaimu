@@ -1386,7 +1386,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					{
 						categoryId: sourcePurchase.categoryId,
 						currentInstallment: 1,
-						description: `Reembolso — ${sourcePurchase.description || sourcePurchase.storeName || "Compra"}`,
+						description: `Reembolso - ${sourcePurchase.description || sourcePurchase.storeName || "Compra"}`,
 						installmentAmount: String(-refundAmount),
 						installments: 1,
 						isRefund: true,
@@ -2028,7 +2028,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						amount: String(paymentAmount),
 						creditCardStatementId: params.statementId,
 						date: new Date(body.date),
-						description: `Pagamento da fatura — ${card.accountName}`,
+						description: `Pagamento da fatura - ${card.accountName}`,
 						originFinancialAccountId: body.financialAccountId,
 						time: resolvePurchaseTime(body.time),
 						type: "EXPENSE",

@@ -18,7 +18,7 @@ export function AuthShell({
 				<div className="absolute -top-24 -right-20 size-72 rounded-full bg-brand-yellow/20 blur-2xl" />
 				<div className="absolute -bottom-32 -left-24 size-80 rounded-full bg-white/10 blur-3xl" />
 				<div className="relative w-full max-w-md rounded-3xl bg-white px-7 py-5 shadow-[0_24px_64px_rgba(20,22,80,.3)]">
-					<img alt="Zaimu — the app for finances" className="h-auto w-full" src="/brand/zaimu-banner.svg" />
+					<img alt="Zaimu - the app for finances" className="h-auto w-full" src="/brand/zaimu-banner.svg" />
 				</div>
 				<div className="relative max-w-lg space-y-8">
 					<p className="font-semibold text-4xl leading-tight">Contas, cartões e compras em um só lugar.</p>

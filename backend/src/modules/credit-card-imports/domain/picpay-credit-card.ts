@@ -141,7 +141,7 @@ export function parsePicPayCreditCardStatementText(text: string): CreditCardStat
 			if (installmentAmount < 0) {
 				purchases.push({
 					currentInstallment: 1,
-					description: `Reembolso — ${description}`,
+					description: `Reembolso - ${description}`,
 					installmentAmount,
 					installments: 1,
 					purchaseDate: inferPurchaseDate(Number(match[1]), Number(match[2]), statementDate, 1),

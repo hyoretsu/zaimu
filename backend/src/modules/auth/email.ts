@@ -57,7 +57,7 @@ export const authEmailHtml = ({ actionLabel, preview, subject, url }: Omit<AuthE
 								<tr>
 									<td align="center" style="padding:32px 32px 28px">
 										<a href="${appUrl}" style="display:inline-block;text-decoration:none" target="_blank">
-											<img src="${bannerUrl}" width="360" alt="Zaimu — the app for finances" style="display:block;width:100%;max-width:360px;height:auto;border:0">
+											<img src="${bannerUrl}" width="360" alt="Zaimu - the app for finances" style="display:block;width:100%;max-width:360px;height:auto;border:0">
 										</a>
 									</td>
 								</tr>

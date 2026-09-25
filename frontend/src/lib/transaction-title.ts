@@ -27,7 +27,7 @@ export function getTransactionTitle({
 	if (creditCardStatementId) {
 		const cardName = creditCardName?.trim() || "Cartão de crédito";
 		const statementName = creditCardStatementDate ? formatLocalMonthYear(creditCardStatementDate) : "Fatura";
-		return `Fatura ${cardName} — ${statementName}`;
+		return `Fatura ${cardName} - ${statementName}`;
 	}
 	if (source === "CREDIT_CARD") return "Compra";
 	if (type === "TRANSFER") return "Transferência";

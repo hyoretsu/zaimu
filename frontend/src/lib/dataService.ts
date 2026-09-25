@@ -1218,7 +1218,7 @@ export const dataService = {
 				createdAt: new Date().toISOString(),
 				creditCardStatementId: statementId,
 				date: data.date,
-				description: `Pagamento da fatura — ${storedCard.data.accountName || "Cartão de crédito"}`,
+				description: `Pagamento da fatura - ${storedCard.data.accountName || "Cartão de crédito"}`,
 				id: crypto.randomUUID(),
 				originFinancialAccountId: data.financialAccountId,
 				time: data.time === undefined ? getCurrentLocalTime() : data.time,
@@ -1310,7 +1310,7 @@ export const dataService = {
 			const refund: CreditPurchase = {
 				categoryId: sourcePurchase.categoryId,
 				currentInstallment: 1,
-				description: `Reembolso — ${sourcePurchase.description || sourcePurchase.storeName || "Compra"}`,
+				description: `Reembolso - ${sourcePurchase.description || sourcePurchase.storeName || "Compra"}`,
 				id: crypto.randomUUID(),
 				installmentAmount: -refundAmount,
 				installments: 1,

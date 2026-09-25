@@ -150,7 +150,7 @@ Total geral dos lançamentos 18,99
 	expect(statement.purchases).toEqual([
 		{
 			currentInstallment: 1,
-			description: "Reembolso — CINEPOLIS OPERADORA DE",
+			description: "Reembolso - CINEPOLIS OPERADORA DE",
 			installmentAmount: -92.1,
 			installments: 1,
 			purchaseDate: "2025-10-17",

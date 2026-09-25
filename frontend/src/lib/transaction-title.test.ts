@@ -32,7 +32,7 @@ describe("getTransactionTitle", () => {
 				source: "FINANCIAL_ACCOUNT",
 				type: "EXPENSE",
 			}),
-		).toBe("Fatura Cartão Inter — Set/26");
+		).toBe("Fatura Cartão Inter - Set/26");
 	});
 
 	test("uses Transferência for transfers without a description", () => {

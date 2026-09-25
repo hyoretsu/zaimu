@@ -12,4 +12,4 @@ Pending actions block only their own conflict scope. Never disable unrelated con
 
 # Typography
 
-Always use hyphens (`-`) instead of em dashes (`—`). For example: `Fatura Inter - Set/26`.
+Use only normal hyphens (`-`) in all user-facing text, generated descriptions, documentation, and tests. Replace em dashes and en dashes with normal hyphens. Example: `Fatura Inter - Set/26`.

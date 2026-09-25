@@ -145,8 +145,8 @@ export function CreateRecurringDialog({
 		return getMissingRecurrenceDates(dates, existingDates);
 	};
 
-	const create = useMutation<RecurringPayment | Salary | Subscription, Error, boolean>({
-		mutationFn: async (addPastTransactions = false) => {
+	const create = useMutation({
+		mutationFn: async (addPastTransactions = false): Promise<RecurringPayment | Salary | Subscription> => {
 			const amount = Number.parseFloat(draft.amount);
 			const creationSource = getCreationSource(draft);
 			const selectedDebtSplit = isDebtSplitEnabled ? debtSplit : null;
