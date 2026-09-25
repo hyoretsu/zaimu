@@ -91,8 +91,10 @@ export interface FinancialAccountYield {
 	financialAccountId: string;
 	id: string;
 	isExcluded: boolean;
+	isHidden?: boolean;
 	kind: "AUTOMATIC" | "MANUAL";
 	origin?: "SYSTEM" | "USER";
+	time?: string | null;
 }
 
 export interface RewardsAccount {

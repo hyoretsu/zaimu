@@ -152,6 +152,7 @@ export function FinancialAccountStatementDialog({
 													key={`yield-${entry.date}`}
 													onDelete={() => removeYield.mutateAsync(entry)}
 													onEdit={() => setEditingYield(entry)}
+													time={entry.time}
 												/>
 											))}
 										{(groupedTransactions[date] ?? []).map(transaction => (

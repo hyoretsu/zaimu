@@ -7,6 +7,7 @@ import { db, executeStatement, nullableNumeric, queryFirst, queryRows } from "~/
 const Id = t.String({ maxLength: 36, minLength: 1 });
 const DateKey = t.String({ pattern: "^\\d{4}-\\d{2}-\\d{2}$" });
 const YieldKind = t.Union([t.Literal("AUTOMATIC"), t.Literal("MANUAL")]);
+const YieldTime = t.Union([t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d$" }), t.Null()]);
 
 function parseDate(date: string) {
 	const value = new Date(`${date}T12:00:00`);
@@ -33,8 +34,10 @@ function serializeYield(yieldEntry: {
 	financialAccountId: string;
 	id: string;
 	isExcluded: boolean;
+	isHidden: boolean;
 	kind: string;
 	origin: string;
+	time: null | string;
 }) {
 	return {
 		...yieldEntry,
@@ -57,7 +60,9 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 					"amount",
 					"kind",
 					"isExcluded",
+					"isHidden",
 					"origin",
+					"time",
 				)
 					.where((fields, functions) => functions.eq(fields.financialAccountId, query.financialAccountId))
 					.orderBy("date", { direction: "asc" })
@@ -95,8 +100,10 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 				amount: body.isExcluded ? null : nullableNumeric<12, 4>(body.amount ?? null),
 				date,
 				isExcluded: body.isExcluded ?? false,
+				isHidden: body.kind === "MANUAL" ? (body.isHidden ?? false) : false,
 				kind: body.kind,
 				origin: "USER" as const,
+				time: body.kind === "MANUAL" ? (body.time ?? null) : null,
 				updatedAt: new Date(),
 			};
 			if (existing)
@@ -119,7 +126,9 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 					"amount",
 					"kind",
 					"isExcluded",
+					"isHidden",
 					"origin",
+					"time",
 				)
 					.where((fields, functions) =>
 						functions.and(
@@ -145,7 +154,9 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 				date: DateKey,
 				financialAccountId: Id,
 				isExcluded: t.Optional(t.Boolean()),
+				isHidden: t.Optional(t.Boolean()),
 				kind: YieldKind,
+				time: t.Optional(YieldTime),
 			}),
 			detail: { tags: ["Accounts"] },
 		},
@@ -155,7 +166,7 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 		async ({ body, params, request }) => {
 			const userId = await requireUserId(request);
 			const existing = await queryFirst(
-				db.sql.public.FinancialAccountYield.select("id", "financialAccountId", "kind")
+				db.sql.public.FinancialAccountYield.select("id", "financialAccountId", "kind", "date")
 					.where((fields, functions) => functions.eq(fields.id, params.id))
 					.limit(1)
 					.build(),
@@ -167,6 +178,9 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 			await executeStatement(
 				db.sql.public.FinancialAccountYield.update({
 					amount: nullableNumeric<12, 4>(body.amount),
+					...(body.date !== undefined && { date: parseDate(body.date) }),
+					...(body.isHidden !== undefined && { isHidden: body.isHidden }),
+					...(body.time !== undefined && { time: body.time }),
 					updatedAt: new Date(),
 				})
 					.where((fields, functions) => functions.eq(fields.id, existing.id))
@@ -181,13 +195,18 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 			if (changed)
 				await enqueueAccountYieldRecalculation(
 					existing.financialAccountId,
-					changed.date,
+					new Date(Math.min(existing.date.getTime(), changed.date.getTime())),
 					`yield:${existing.id}:${Date.now()}`,
 				);
 			return { success: true };
 		},
 		{
-			body: t.Object({ amount: t.Number({ exclusiveMinimum: 0 }) }),
+			body: t.Object({
+				amount: t.Number({ exclusiveMinimum: 0 }),
+				date: t.Optional(DateKey),
+				isHidden: t.Optional(t.Boolean()),
+				time: t.Optional(YieldTime),
+			}),
 			detail: { tags: ["Accounts"] },
 			params: t.Object({ id: Id }),
 		},

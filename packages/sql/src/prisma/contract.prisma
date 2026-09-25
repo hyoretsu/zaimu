@@ -252,7 +252,9 @@ namespace public {
     id                 VarChar(36)                       @id(map: "FinancialAccountYield_pkey") @default(dbgenerated("cuid2()"))
     financialAccountId VarChar(36)
     date               Date
+    time               Time(3)?
     amount             Numeric(12, 4)?
+    isHidden           Boolean                           @default(false)
     externalId         VarChar(200)?
     kind               pg.enum(FinancialAccountYieldKind)
     origin             pg.enum(FinancialAccountYieldOrigin) @default("USER")

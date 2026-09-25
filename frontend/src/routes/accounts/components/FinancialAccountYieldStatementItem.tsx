@@ -2,17 +2,20 @@ import { LuPencil, LuTrash2, LuTrendingUp } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
+import { formatLocalTime } from "@/lib/date";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
 export function FinancialAccountYieldStatementItem({
 	amount,
 	deleting = false,
+	time,
 	onDelete,
 	onEdit,
 }: {
 	amount: number;
 	deleting?: boolean;
+	time?: string | null;
 	onDelete: () => void | Promise<void>;
 	onEdit: () => void;
 }) {
@@ -22,7 +25,12 @@ export function FinancialAccountYieldStatementItem({
 				<LuTrendingUp />
 			</span>
 			<div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 sm:contents">
-				<p className="min-w-0 flex-1 font-semibold">Rendimento</p>
+				<div className="min-w-0 flex-1">
+					<p className="font-semibold">Rendimento</p>
+					{formatLocalTime(time) ? (
+						<p className="text-muted-foreground text-xs">{formatLocalTime(time)}</p>
+					) : null}
+				</div>
 				<p className="whitespace-nowrap font-bold text-emerald-600">
 					{amount > 0 ? "+" : ""}
 					{currency.format(amount)}

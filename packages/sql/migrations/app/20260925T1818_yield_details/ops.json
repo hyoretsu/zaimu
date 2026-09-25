@@ -1,0 +1,70 @@
+[
+	{
+		"execute": [
+			{
+				"description": "add column \"isHidden\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialAccountYield\" ADD COLUMN \"isHidden\" bool DEFAULT false NOT NULL"
+			}
+		],
+		"id": "column.public.FinancialAccountYield.isHidden",
+		"label": "Add column \"isHidden\" to \"FinancialAccountYield\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"isHidden\" exists",
+				"params": ["public", "FinancialAccountYield", "isHidden"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"isHidden\" is missing",
+				"params": ["public", "FinancialAccountYield", "isHidden"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "isHidden",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialAccountYield"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"time\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialAccountYield\" ADD COLUMN \"time\" time(3)"
+			}
+		],
+		"id": "column.public.FinancialAccountYield.time",
+		"label": "Add column \"time\" to \"FinancialAccountYield\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"time\" exists",
+				"params": ["public", "FinancialAccountYield", "time"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"time\" is missing",
+				"params": ["public", "FinancialAccountYield", "time"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "time",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialAccountYield"
+			},
+			"id": "postgres"
+		}
+	}
+]

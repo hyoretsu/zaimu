@@ -588,6 +588,8 @@ export const dataService = {
 			amount: number;
 			date: string;
 			financialAccountId: string;
+			isHidden?: boolean;
+			time?: string | null;
 		}): Promise<FinancialAccountYield> {
 			if (!isGuestMode()) {
 				return fetchWithAuth<FinancialAccountYield>("/financial-account-yields", {
@@ -609,7 +611,9 @@ export const dataService = {
 				financialAccountId: data.financialAccountId,
 				id: existing?.id ?? crypto.randomUUID(),
 				isExcluded: false,
+				isHidden: data.isHidden ?? false,
 				kind: "MANUAL",
+				time: data.time ?? null,
 			};
 			await localMeta.set(
 				"financial-account-yields",
@@ -640,10 +644,13 @@ export const dataService = {
 				((await localMeta.get("financial-account-yields")) as FinancialAccountYield[] | null) ?? [];
 			return yields.filter(yieldEntry => yieldEntry.financialAccountId === financialAccountId);
 		},
-		async update(id: string, amount: number): Promise<void> {
+		async update(
+			id: string,
+			data: { amount: number; date: string; isHidden: boolean; time: string | null },
+		): Promise<void> {
 			if (!isGuestMode()) {
 				await fetchWithAuth(`/financial-account-yields/${id}`, {
-					body: JSON.stringify({ amount }),
+					body: JSON.stringify(data),
 					method: "PATCH",
 				});
 				return;
@@ -652,7 +659,7 @@ export const dataService = {
 				((await localMeta.get("financial-account-yields")) as FinancialAccountYield[] | null) ?? [];
 			await localMeta.set(
 				"financial-account-yields",
-				yields.map(yieldEntry => (yieldEntry.id === id ? { ...yieldEntry, amount } : yieldEntry)),
+				yields.map(yieldEntry => (yieldEntry.id === id ? { ...yieldEntry, ...data } : yieldEntry)),
 			);
 		},
 		async upsertAutomatic(data: {

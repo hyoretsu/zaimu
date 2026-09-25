@@ -22,6 +22,8 @@ export interface FinancialAccountYieldEntry {
 	financialAccountId: string;
 	id: string;
 	kind: "AUTOMATIC" | "MANUAL";
+	isHidden?: boolean;
+	time?: string | null;
 }
 
 export function calculateCashbackValue(

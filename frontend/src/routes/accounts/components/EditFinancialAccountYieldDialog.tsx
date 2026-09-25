@@ -3,7 +3,9 @@ import { useEffect, useState } from "react";
 import { LuTrash2 } from "react-icons/lu";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
+import { CheckboxField } from "@/components/ui/CheckboxField";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
+import { DateField } from "@/components/ui/DateField";
 import {
 	Dialog,
 	DialogContent,
@@ -12,6 +14,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
+import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { dataService } from "@/lib/dataService";
 import type { FinancialAccountYieldEntry } from "@/lib/financial-account";
@@ -30,21 +33,37 @@ export function EditFinancialAccountYieldDialog({
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
 	const [amount, setAmount] = useState(entry ? String(entry.amount) : "");
+	const [date, setDate] = useState(entry?.date ?? "");
+	const [time, setTime] = useState(entry?.time ?? "");
+	const [isHidden, setIsHidden] = useState(entry?.isHidden ?? false);
 	useEffect(() => {
-		if (entry) setAmount(String(entry.amount));
+		if (!entry) return;
+		setAmount(String(entry.amount));
+		setDate(entry.date);
+		setTime(entry.time ?? "");
+		setIsHidden(entry.isHidden ?? false);
 	}, [entry]);
 	const refresh = () => invalidateCacheOperation(queryClient, identity!, "yield");
 	const save = useMutation({
-		mutationFn: async () => {
-			if (!entry) throw new Error("Rendimento não encontrado");
-			const value = Number.parseFloat(amount);
-			if (entry.kind === "AUTOMATIC")
+		mutationFn: async (values: {
+			amount: number;
+			date: string;
+			entry: FinancialAccountYieldEntry;
+			isHidden: boolean;
+			time: string | null;
+		}) => {
+			if (values.entry.kind === "AUTOMATIC")
 				return dataService.accountYields.upsertAutomatic({
-					amount: value,
-					date: entry.date,
-					financialAccountId: entry.financialAccountId,
+					amount: values.amount,
+					date: values.entry.date,
+					financialAccountId: values.entry.financialAccountId,
 				});
-			return dataService.accountYields.update(entry.id, value);
+			return dataService.accountYields.update(values.entry.id, {
+				amount: values.amount,
+				date: values.date,
+				isHidden: values.isHidden,
+				time: values.time,
+			});
 		},
 		onError: (error, _, context) => {
 			toast.dismiss(context?.toastId);
@@ -83,7 +102,7 @@ export function EditFinancialAccountYieldDialog({
 			<DialogContent className="sm:max-w-sm">
 				<DialogHeader>
 					<DialogTitle>Editar rendimento</DialogTitle>
-					<DialogDescription>Altere somente o valor deste rendimento.</DialogDescription>
+					<DialogDescription>Atualize os dados do rendimento.</DialogDescription>
 				</DialogHeader>
 				<MoneyField
 					id="financial-account-yield-amount"
@@ -92,6 +111,35 @@ export function EditFinancialAccountYieldDialog({
 					required
 					value={amount}
 				/>
+				{entry?.kind === "MANUAL" ? (
+					<>
+						<DateField
+							id="financial-account-yield-date"
+							label="Data"
+							name="date"
+							onValueChange={setDate}
+							required
+							value={date}
+						/>
+						<FormField
+							id="financial-account-yield-time"
+							label="Horário"
+							name="time"
+							onChange={event => setTime(event.currentTarget.value)}
+							type="time"
+							value={time}
+						/>
+						<CheckboxField
+							checkboxProps={{
+								checked: isHidden,
+								id: "financial-account-yield-hidden",
+								onCheckedChange: checked => setIsHidden(checked === true),
+							}}
+						>
+							<span>Ocultar na lista do dia</span>
+						</CheckboxField>
+					</>
+				) : null}
 				<DialogFooter className="gap-2 sm:justify-between">
 					<ConfirmActionButton
 						aria-label="Excluir rendimento"
@@ -111,8 +159,17 @@ export function EditFinancialAccountYieldDialog({
 						</Button>
 						<Button
 							className="cursor-pointer disabled:cursor-not-allowed"
-							disabled={!amount || save.isPending}
-							onClick={() => save.mutate()}
+							disabled={!amount || !date || save.isPending}
+							onClick={() => {
+								if (!entry) return;
+								save.mutate({
+									amount: Number.parseFloat(amount),
+									date,
+									entry,
+									isHidden,
+									time: time || null,
+								});
+							}}
 						>
 							{save.isPending ? "Salvando…" : "Salvar"}
 						</Button>

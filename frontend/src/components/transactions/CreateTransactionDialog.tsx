@@ -144,6 +144,8 @@ export function CreateTransactionDialog({
 					amount,
 					date: draft.date,
 					financialAccountId: destinationFinancialAccountId,
+					isHidden: draft.isHidden,
+					time: sendWithoutTime ? null : draft.time || null,
 				});
 			}
 			const transaction = await dataService.transactions.create({
