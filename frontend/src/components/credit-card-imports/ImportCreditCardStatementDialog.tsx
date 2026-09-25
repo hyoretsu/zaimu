@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { LuFileUp } from "react-icons/lu";
+import { toast } from "sonner";
 import { StatementFilePicker } from "@/components/transaction-imports";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
@@ -64,6 +65,11 @@ export function ImportCreditCardStatementDialog({
 			});
 		},
 		onError: error => showToast(error.message, "negative"),
+		onMutate: () => {
+			onOpenChange(false);
+			return { toastId: toast.loading("Importando fatura…", { position: "bottom-right" }) };
+		},
+		onSettled: (_, __, ___, context) => toast.dismiss(context?.toastId),
 		onSuccess: async result => {
 			if (!result.creditCardImport) {
 				await invalidateCacheOperation(queryClient, identity!, "statement");
