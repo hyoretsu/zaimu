@@ -105,13 +105,11 @@ export function EditTransactionDialog({
 			toast.dismiss(context?.toastId);
 			showToast(error.message, "negative");
 		},
-		onMutate: () => {
-			onOpenChange(false);
-			return { toastId: toast.loading("Salvando transação…", { position: "bottom-right" }) };
-		},
+		onMutate: () => ({ toastId: toast.loading("Salvando transação…", { position: "bottom-right" }) }),
 		onSuccess: async (_, __, context) => {
 			await invalidateCacheOperation(queryClient, identity!, "transaction");
 			toast.success("Transação atualizada.", { id: context?.toastId, position: "bottom-right" });
+			onOpenChange(false);
 		},
 	});
 
