@@ -115,13 +115,13 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
   - [x] Implementar publisher com confirms, correlação e recuperação após falha.
   - [x] Declarar exchanges, quorum queues, retries e DLQs.
   - [x] Criar worker separado e deduplicação de consumidores.
-  - [ ] Cobrir crash, duplicação, retry, DLQ, restart e ordem por agregado.
+  - [x] Cobrir crash, duplicação, retry, DLQ, restart e ordem por agregado.
 - [ ] 3. Cache distribuído
   - [x] Implementar namespaces, chaves canônicas, gerações e epoch global.
   - [x] Implementar cache-aside, ETag, coalescing e locks contra stampede.
   - [x] Implementar write fences e matriz central de invalidação.
   - [x] Emitir eventos em todas as mutações e workers.
-  - [ ] Cobrir indisponibilidade/reconexão do Redis e invalidação multiusuário.
+  - [x] Cobrir indisponibilidade/reconexão do Redis e invalidação multiusuário.
 - [ ] 4. Transações
   - [x] Adicionar proprietário direto e índices.
   - [x] Implementar `UNION ALL`, pesquisa no banco e cursor opaco.
@@ -209,4 +209,7 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Migração de banco drena jobs PostgreSQL pendentes para o outbox antes de remover `ReferenceRateJob`, seu enum, polling e worker embutido na API.
 - Plugin global de consistência agora abre fences e grava eventos duráveis no outbox para todas as rotas de mutação dos domínios; a matriz cobre agendas, taxas, sync e demais caches compartilhados.
 - Workers de agendas e rendimentos agora emitem eventos consolidados após materialização, incluindo todos os usuários afetados, para invalidação distribuída.
-- Próxima etapa: cobrir indisponibilidade/reconexão do Redis, invalidação multiusuário de dívidas e cenários de falha do broker.
+- Falha do Redis agora faz bypass imediato, sem espera pelo lock; a primeira operação após reconexão avança o epoch global e torna entradas antigas inalcançáveis.
+- Mutações de dívidas resolvem participantes, conexões e visibilidades para abrir fences e invalidar todos os usuários afetados.
+- Testes de falha cobrem confirmação perdida do publisher, recuperação pelo outbox, crash do consumidor, duplicação, retry, DLQ, restart e ordenação entre efeito, receipt e ACK.
+- Próxima etapa: otimizar os demais domínios e executar o aceite final de performance.

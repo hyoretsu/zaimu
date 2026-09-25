@@ -1,0 +1,119 @@
+import { describe, expect, mock, test } from "bun:test";
+import type { ConfirmChannel, ConsumeMessage } from "amqplib";
+import { createEventEnvelope } from "~/shared/application/events";
+import type { ConsumerDeduplicatorPort } from "./process-broker-message";
+import { processBrokerMessage } from "./process-broker-message";
+
+const event = createEventEnvelope({
+	aggregateId: "aggregate",
+	aggregateType: "transaction",
+	correlationId: "correlation",
+	eventId: "event",
+	eventType: "updated",
+	payload: {},
+	userIds: ["user"],
+});
+
+const message = (content: string, retries = 0) =>
+	({
+		content: Buffer.from(content),
+		properties: { headers: retries ? { "x-death": [{ count: retries }] } : {} },
+	}) as ConsumeMessage;
+
+const channel = () => ({ ack: mock(() => {}), reject: mock(() => {}), sendToQueue: mock(() => true) });
+
+const deduplicator = (claim: "busy" | "claimed" | "completed" = "claimed") => ({
+	claim: mock(async () => claim),
+	complete: mock(async () => {}),
+	release: mock(async () => {}),
+});
+
+describe("processBrokerMessage", () => {
+	test("acks completion only after recording the receipt", async () => {
+		const calls: string[] = [];
+		const brokerChannel = channel();
+		brokerChannel.ack = mock(() => calls.push("ack"));
+		const receipts = deduplicator();
+		receipts.complete = mock(async () => {
+			calls.push("complete");
+		});
+		const result = await processBrokerMessage(
+			"queue",
+			message(JSON.stringify(event)),
+			brokerChannel as unknown as Pick<ConfirmChannel, "ack" | "reject" | "sendToQueue">,
+			receipts,
+			async () => {
+				calls.push("handler");
+			},
+			3,
+		);
+		expect(result.result).toBe("completed");
+		expect(calls).toEqual(["handler", "complete", "ack"]);
+	});
+
+	test("acks duplicates after restart without repeating effects", async () => {
+		const brokerChannel = channel();
+		const handler = mock(async () => {});
+		const result = await processBrokerMessage(
+			"queue",
+			message(JSON.stringify(event)),
+			brokerChannel as never,
+			deduplicator("completed"),
+			handler,
+			3,
+		);
+		expect(result.result).toBe("duplicate");
+		expect(handler).not.toHaveBeenCalled();
+		expect(brokerChannel.ack).toHaveBeenCalledTimes(1);
+	});
+
+	test("releases failed claims and retries below the limit", async () => {
+		const brokerChannel = channel();
+		const receipts = deduplicator();
+		const result = await processBrokerMessage(
+			"queue",
+			message(JSON.stringify(event), 2),
+			brokerChannel as never,
+			receipts,
+			async () => {
+				throw new Error("crash");
+			},
+			3,
+		);
+		expect(result).toMatchObject({ result: "failed_retry", retries: 2 });
+		expect(receipts.release).toHaveBeenCalledTimes(1);
+		expect(brokerChannel.reject).toHaveBeenCalledWith(expect.anything(), false);
+	});
+
+	test("moves exhausted and malformed deliveries to the DLQ", async () => {
+		const exhaustedChannel = channel();
+		const exhausted = await processBrokerMessage(
+			"queue",
+			message(JSON.stringify(event), 3),
+			exhaustedChannel as never,
+			deduplicator(),
+			async () => {
+				throw new Error("still failing");
+			},
+			3,
+		);
+		expect(exhausted.result).toBe("failed_dlq");
+		expect(exhaustedChannel.sendToQueue).toHaveBeenCalledWith(
+			"queue.dlq",
+			expect.anything(),
+			expect.anything(),
+		);
+
+		const malformedChannel = channel();
+		const malformed = await processBrokerMessage(
+			"queue",
+			message("not-json"),
+			malformedChannel as never,
+			deduplicator() as ConsumerDeduplicatorPort,
+			async () => {},
+			3,
+		);
+		expect(malformed.result).toBe("invalid_dlq");
+		expect(malformedChannel.ack).toHaveBeenCalledTimes(1);
+	});
+});
