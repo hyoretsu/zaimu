@@ -11,7 +11,7 @@ function centsToDecimal(value: string) {
 	if (!digits) return "";
 
 	const decimal = (Number(digits) / 100).toFixed(2);
-	return isNegative ? `-${decimal}` : decimal;
+	return isNegative && Number(decimal) > 0 ? `-${decimal}` : decimal;
 }
 
 export function MoneyField({
@@ -46,7 +46,9 @@ export function MoneyField({
 				placeholder="R$ 1.500,00"
 				required={required}
 				type="text"
-				value={value === "" ? "" : currency.format(Number(value))}
+				value={
+					value === "" ? "" : currency.format(Number(value) < 0 ? Number(value) : Math.abs(Number(value)))
+				}
 				{...props}
 			/>
 		</div>

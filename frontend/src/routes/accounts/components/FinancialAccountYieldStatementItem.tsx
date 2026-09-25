@@ -23,7 +23,10 @@ export function FinancialAccountYieldStatementItem({
 			</span>
 			<div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 sm:contents">
 				<p className="min-w-0 flex-1 font-semibold">Rendimento</p>
-				<p className="whitespace-nowrap font-bold text-emerald-600">+{currency.format(amount)}</p>
+				<p className="whitespace-nowrap font-bold text-emerald-600">
+					{amount > 0 ? "+" : ""}
+					{currency.format(amount)}
+				</p>
 			</div>
 			<div className="col-start-2 flex justify-end gap-2 sm:contents">
 				<Tooltip>

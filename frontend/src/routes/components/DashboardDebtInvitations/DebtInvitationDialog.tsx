@@ -101,7 +101,7 @@ export function DebtInvitationDialog({
 								: "shrink-0 text-right text-rose-600 text-sm sm:text-base"
 						}
 					>
-						{invitation.balance >= 0 ? "+" : "−"}
+						{invitation.balance === 0 ? "" : invitation.balance > 0 ? "+" : "−"}
 						{currency.format(Math.abs(invitation.balance))}
 					</strong>
 				</div>
@@ -130,7 +130,7 @@ export function DebtInvitationDialog({
 												: "shrink-0 text-right text-rose-600 text-sm sm:text-base"
 										}
 									>
-										{event.effect >= 0 ? "+" : "−"}
+										{event.effect === 0 ? "" : event.effect > 0 ? "+" : "−"}
 										{currency.format(Math.abs(event.effect))}
 									</span>
 								</div>

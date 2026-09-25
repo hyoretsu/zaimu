@@ -46,7 +46,14 @@ export function ImportReviewTransactionItem({
 	onResolveDuplicate: () => void;
 	transaction: Transaction;
 }) {
-	const amountPrefix = transaction.type === "INCOME" ? "+" : transaction.type === "EXPENSE" ? "−" : "";
+	const amountPrefix =
+		Number(transaction.amount) === 0
+			? ""
+			: transaction.type === "INCOME"
+				? "+"
+				: transaction.type === "EXPENSE"
+					? "−"
+					: "";
 	const amountColor = transaction.type === "INCOME" ? "text-emerald-600" : "text-rose-600";
 	const expandLabel = `Expandir ${getTransactionTitle(transaction)}`;
 	const collapseLabel = `Minimizar ${getTransactionTitle(transaction)}`;

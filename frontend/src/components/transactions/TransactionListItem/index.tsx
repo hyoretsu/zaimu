@@ -40,7 +40,14 @@ export function TransactionListItem({
 	transaction: Transaction;
 }) {
 	const isCreditCardPurchase = transaction.source === "CREDIT_CARD";
-	const amountPrefix = transaction.type === "INCOME" ? "+" : transaction.type === "EXPENSE" ? "−" : "";
+	const amountPrefix =
+		Number(transaction.amount) === 0
+			? ""
+			: transaction.type === "INCOME"
+				? "+"
+				: transaction.type === "EXPENSE"
+					? "−"
+					: "";
 	const amountColor = isCreditCardPurchase
 		? "text-primary"
 		: transaction.type === "INCOME"
@@ -129,7 +136,8 @@ export function TransactionListItem({
 				amount ??
 				(isCreditCardPurchase && transaction.isRefund ? (
 					<p className="whitespace-nowrap font-bold text-emerald-600">
-						+{formatCurrency(Number(transaction.amount))}
+						{Number(transaction.amount) === 0 ? "" : "+"}
+						{formatCurrency(Number(transaction.amount))}
 					</p>
 				) : isCreditCardPurchase && transaction.installments && transaction.installmentAmount ? (
 					<InstallmentPurchaseDetails

@@ -33,7 +33,7 @@ export function DashboardDebts({ debts }: Pick<Dashboard, "debts">) {
 				<strong
 					className={`shrink-0 tabular-nums ${person.balance >= 0 ? "text-emerald-600" : "text-rose-600"}`}
 				>
-					{person.balance >= 0 ? "+" : "−"}
+					{person.balance === 0 ? "" : person.balance > 0 ? "+" : "−"}
 					{currency.format(Math.abs(person.balance))}
 				</strong>
 			</div>

@@ -122,7 +122,7 @@ export function DebtPersonCard({
 							</div>
 							<div className="col-span-2 flex items-center justify-end gap-2 border-t pt-2 sm:col-auto sm:ml-auto sm:border-0 sm:pt-0">
 								<span className={event.effect >= 0 ? "text-emerald-600" : "text-rose-600"}>
-									{event.effect >= 0 ? "+" : "−"}
+									{event.effect === 0 ? "" : event.effect > 0 ? "+" : "−"}
 									{currency.format(Math.abs(event.effect))}
 								</span>
 								{event.kind === "ORIGIN" && event.createdByMe ? (

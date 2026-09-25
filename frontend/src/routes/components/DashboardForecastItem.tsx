@@ -22,7 +22,7 @@ export function DashboardForecastItem({
 }) {
 	const occurrence = new Date(`${forecast.date}T12:00:00`);
 	const isIncome = forecast.direction === "INCOME";
-	const amount = `${isIncome ? "+" : "−"}${currency.format(forecast.amount)}`;
+	const amount = `${forecast.amount === 0 ? "" : isIncome ? "+" : "−"}${currency.format(Math.abs(forecast.amount))}`;
 	const amountClassName = isIncome ? "text-emerald-600" : "text-rose-600";
 	if (variant === "detailed") {
 		return (
