@@ -142,8 +142,8 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - [ ] 7. Agendas e taxas
   - [x] Retirar materializações de todos os GETs.
   - [x] Migrar salários, assinaturas e recorrências para comandos RabbitMQ.
-  - [ ] Migrar taxas de referência e recálculos de rendimento.
-  - [ ] Drenar e remover `ReferenceRateJob` e worker PostgreSQL antigo.
+  - [x] Migrar taxas de referência e recálculos de rendimento.
+  - [x] Drenar e remover `ReferenceRateJob` e worker PostgreSQL antigo.
 - [ ] 8. Demais domínios
   - [ ] Otimizar dashboard e contas.
   - [ ] Otimizar dívidas e invalidação entre usuários.
@@ -205,4 +205,6 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Detalhe lazy de fatura agora hidrata rateios de todas as compras em lote, removendo o N+1 restante dessa leitura.
 - Materialização de faturas e compras de assinaturas saiu dos GETs: um serviço independente e idempotente agora roda no worker pela fila `schedule-materialization`, com comando de recuperação a cada minuto e deduplicação determinística entre instâncias.
 - Salários e recorrências agora são materializados pelo mesmo comando RabbitMQ, em todos os usuários, com ocorrências idempotentes; dashboard e listagem de transações não escrevem mais durante GETs.
-- Próxima etapa: migrar taxas de referência e recálculos de rendimento para RabbitMQ e remover `ReferenceRateJob`.
+- Busca de taxas de referência e recálculos de rendimento agora usam comandos duráveis no RabbitMQ, publicados pelo outbox e consumidos pelo worker separado.
+- Migração de banco drena jobs PostgreSQL pendentes para o outbox antes de remover `ReferenceRateJob`, seu enum, polling e worker embutido na API.
+- Próxima etapa: completar emissão de eventos e invalidação para todas as mutações e workers.

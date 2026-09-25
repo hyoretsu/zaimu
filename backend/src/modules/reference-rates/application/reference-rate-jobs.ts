@@ -23,23 +23,16 @@ import {
 } from "~/shared/infra/sql";
 import { fetchBcbReferenceRates } from "../domain/bcb-reference-rates";
 
-type JobKind = "FETCH_RATES" | "RECALCULATE_ACCOUNT";
 type FetchReferenceRates = typeof fetchBcbReferenceRates;
 interface ClaimedJob {
-	[key: string]: unknown;
-	attempts: number;
 	deduplicationKey: string;
 	endDate: Date | null;
 	financialAccountId: string | null;
 	fromDate: Date | null;
-	id: string;
-	kind: JobKind;
 	referenceType: ReferenceRateType | null;
 	startDate: Date | null;
 }
 const schedulerTimezone = "America/Recife";
-const leaseMilliseconds = 10 * 60_000;
-const retryMinutes = [1, 5, 15, 60, 360];
 const bootstrapStartDate = new Date("2020-01-01T12:00:00");
 const bootstrapEndDate = new Date("2026-09-17T12:00:00");
 const dateKey = (date: Date) => format(date, "yyyy-MM-dd");
@@ -135,13 +128,6 @@ export async function enqueueDailyReferenceRateFetches(now = new Date()) {
 	const startDate = subDays(endDate, 6);
 	for (const type of ["CDI", "SELIC"] as const)
 		await enqueueReferenceRateFetch(type, startDate, endDate, `daily:${type}:${dateKey(scheduleDate)}`);
-}
-async function claimJob() {
-	const [job] = await queryRaw<ClaimedJob>(
-		`WITH candidate AS (SELECT "id" FROM "public"."ReferenceRateJob" WHERE "availableAt" <= now() AND "completedAt" IS NULL AND ("lockedUntil" IS NULL OR "lockedUntil" < now()) ORDER BY CASE WHEN "kind" = 'FETCH_RATES' THEN 0 ELSE 1 END, "availableAt", "createdAt" LIMIT 1 FOR UPDATE SKIP LOCKED) UPDATE "public"."ReferenceRateJob" AS job SET "lockedUntil" = now() + ($1 * interval '1 millisecond'), "updatedAt" = now() FROM candidate WHERE job."id" = candidate."id" RETURNING job."id", job."kind", job."deduplicationKey", job."referenceType", job."startDate", job."endDate", job."financialAccountId", job."fromDate", job."attempts"`,
-		[leaseMilliseconds],
-	);
-	return job;
 }
 async function processFetchJob(job: ClaimedJob, fetchRates: FetchReferenceRates) {
 	if (!job.referenceType || !job.startDate || !job.endDate) throw new Error("Job de taxa incompleto");
@@ -317,13 +303,10 @@ export async function handleReferenceRateFetchCommand(
 	if (rawReferenceType !== "CDI" && rawReferenceType !== "SELIC") throw new Error("Tipo de taxa inválido");
 	const referenceType: ReferenceRateType = rawReferenceType;
 	const job = {
-		attempts: 0,
 		deduplicationKey: requiredString(event.payload, "deduplicationKey"),
 		endDate: new Date(`${requiredString(event.payload, "endDate")}T12:00:00`),
 		financialAccountId: null,
 		fromDate: null,
-		id: event.eventId,
-		kind: "FETCH_RATES" as const,
 		referenceType,
 		startDate: new Date(`${requiredString(event.payload, "startDate")}T12:00:00`),
 	};
@@ -332,82 +315,11 @@ export async function handleReferenceRateFetchCommand(
 
 export async function handleAccountYieldRecalculationCommand(event: EventEnvelope) {
 	return processAccountRecalculation({
-		attempts: 0,
 		deduplicationKey: requiredString(event.payload, "deduplicationKey"),
 		endDate: null,
 		financialAccountId: requiredString(event.payload, "financialAccountId"),
 		fromDate: new Date(`${requiredString(event.payload, "fromDate")}T12:00:00`),
-		id: event.eventId,
-		kind: "RECALCULATE_ACCOUNT",
 		referenceType: null,
 		startDate: null,
 	});
-}
-export function getReferenceRateRetryDelay(
-	attempt: number,
-	retryAfter: string | undefined,
-	now = Date.now(),
-) {
-	if (retryAfter) {
-		const seconds = Number(retryAfter);
-		if (Number.isFinite(seconds)) return Math.max(60_000, seconds * 1000);
-		const date = new Date(retryAfter);
-		if (!Number.isNaN(date.valueOf())) return Math.max(60_000, date.valueOf() - now);
-	}
-	return (retryMinutes[attempt] ?? 24 * 60) * 60_000;
-}
-function retryDelay(job: ClaimedJob, error: unknown) {
-	return getReferenceRateRetryDelay(
-		job.attempts,
-		error instanceof Error ? (error as Error & { retryAfter?: string }).retryAfter : undefined,
-	);
-}
-export async function runNextReferenceRateJob(fetchRates: FetchReferenceRates = fetchBcbReferenceRates) {
-	const job = await claimJob();
-	if (!job) return false;
-	try {
-		const rateCount = job.kind === "FETCH_RATES" ? await processFetchJob(job, fetchRates) : null;
-		if (job.kind === "RECALCULATE_ACCOUNT") await processAccountRecalculation(job);
-		await executeRaw(
-			`UPDATE "public"."ReferenceRateJob" SET "completedAt" = now(), "lockedUntil" = NULL, "lastError" = NULL, "updatedAt" = now() WHERE "id" = $1`,
-			[job.id],
-		);
-		if (rateCount !== null)
-			console.info("Reference-rate fetch completed", {
-				job: job.deduplicationKey,
-				rateCount,
-				referenceType: job.referenceType,
-			});
-	} catch (error) {
-		const nextAttempt = new Date(Date.now() + retryDelay(job, error));
-		const message = error instanceof Error ? error.message : String(error);
-		await executeRaw(
-			`UPDATE "public"."ReferenceRateJob" SET "attempts" = "attempts" + 1, "availableAt" = $2, "lockedUntil" = NULL, "lastError" = $3, "updatedAt" = now() WHERE "id" = $1`,
-			[job.id, nextAttempt, message],
-		);
-		console.error("Reference-rate job failed", {
-			attempt: job.attempts + 1,
-			error: message,
-			job: job.deduplicationKey,
-			nextAttempt: nextAttempt.toISOString(),
-		});
-	}
-	return true;
-}
-let workerStarted = false;
-export function startReferenceRateWorker() {
-	if (workerStarted || process.env.NODE_ENV === "test") return;
-	workerStarted = true;
-	const tick = async () => {
-		try {
-			await ensureReferenceRateBootstrapJobs();
-			await enqueueDailyReferenceRateFetches();
-			while (await runNextReferenceRateJob()) {}
-		} catch (error) {
-			console.error("Reference-rate worker failed", error);
-		} finally {
-			setTimeout(tick, 60_000).unref();
-		}
-	};
-	void tick();
 }

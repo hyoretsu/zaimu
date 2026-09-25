@@ -294,29 +294,6 @@ namespace public {
     @@index([completedAt, createdAt], map: "ConsumerReceipt_cleanup_idx")
     @@map("ConsumerReceipt")
   }
-  model ReferenceRateJob {
-    id                 VarChar(36)                       @id(map: "ReferenceRateJob_pkey") @default(dbgenerated("cuid2()"))
-    kind               pg.enum(ReferenceRateJobKind)
-    deduplicationKey   VarChar(240)
-    referenceType      pg.enum(ReferenceRateType)?
-    startDate          Date?
-    endDate            Date?
-    financialAccountId VarChar(36)?
-    fromDate           Date?
-    attempts           Int                               @default(0)
-    availableAt        Timestamp(3)                      @default(now())
-    lockedUntil        Timestamp(3)?
-    completedAt        Timestamp(3)?
-    lastError          String?
-    createdAt          Timestamp(3)                      @default(now())
-    updatedAt          Timestamp(3)                      @default(now())
-
-    @@index([deduplicationKey], map: "ReferenceRateJob_deduplicationKey_key", unique: true)
-    @@index([completedAt, kind, availableAt, lockedUntil], map: "ReferenceRateJob_claim_idx")
-    @@index([availableAt, lockedUntil], map: "ReferenceRateJob_availableAt_lockedUntil_idx")
-    @@map("ReferenceRateJob")
-  }
-
   model CreditCard {
     id                   VarChar(36)           @id(map: "CreditCard_pkey") @default(dbgenerated("cuid2()"))
     financialAccountId   VarChar(36)
@@ -1126,11 +1103,6 @@ namespace public {
   native_enum ReferenceRateType {
     CDI = "CDI"
     SELIC = "SELIC"
-  }
-
-  native_enum ReferenceRateJobKind {
-    FETCH_RATES = "FETCH_RATES"
-    RECALCULATE_ACCOUNT = "RECALCULATE_ACCOUNT"
   }
 
   native_enum FinancialAccountType {

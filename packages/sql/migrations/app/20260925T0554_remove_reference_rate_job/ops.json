@@ -1,0 +1,71 @@
+[
+	{
+		"execute": [
+			{
+				"description": "copy pending jobs to RabbitMQ command outbox",
+				"sql": "INSERT INTO \"public\".\"OutboxEvent\" (\"id\", \"eventType\", \"aggregateType\", \"aggregateId\", \"userIds\", \"occurredAt\", \"schemaVersion\", \"correlationId\", \"payload\") SELECT job.\"id\", CASE job.\"kind\" WHEN 'FETCH_RATES' THEN 'command.reference-rate-fetch' ELSE 'command.account-yield-recalculation' END, 'referenceRate', COALESCE(job.\"financialAccountId\", job.\"referenceType\"::text), ARRAY[]::varchar(36)[], job.\"createdAt\", 1, job.\"id\", CASE job.\"kind\" WHEN 'FETCH_RATES' THEN json_build_object('deduplicationKey', job.\"deduplicationKey\", 'referenceType', job.\"referenceType\", 'startDate', job.\"startDate\", 'endDate', job.\"endDate\") ELSE json_build_object('deduplicationKey', job.\"deduplicationKey\", 'financialAccountId', job.\"financialAccountId\", 'fromDate', job.\"fromDate\") END FROM \"public\".\"ReferenceRateJob\" job WHERE job.\"completedAt\" IS NULL ON CONFLICT (\"id\") DO NOTHING;"
+			}
+		],
+		"id": "drainReferenceRateJobs.data",
+		"label": "Drain pending reference-rate jobs into the outbox",
+		"operationClass": "data",
+		"postcheck": [],
+		"precheck": [],
+		"target": { "details": { "objectType": "data-migration" }, "id": "postgres" }
+	},
+	{
+		"execute": [
+			{
+				"description": "drop table \"ReferenceRateJob\"",
+				"sql": "DROP TABLE \"public\".\"ReferenceRateJob\""
+			}
+		],
+		"id": "dropTable.ReferenceRateJob",
+		"label": "Drop table \"ReferenceRateJob\"",
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify table \"ReferenceRateJob\" does not exist",
+				"params": ["\"public\".\"ReferenceRateJob\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"ReferenceRateJob\" exists",
+				"params": ["\"public\".\"ReferenceRateJob\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "ReferenceRateJob",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "drop enum type \"ReferenceRateJobKind\"",
+				"params": [],
+				"sql": "DROP TYPE \"public\".\"ReferenceRateJobKind\""
+			}
+		],
+		"id": "dropNativeEnumType.ReferenceRateJobKind",
+		"label": "Drop enum type \"ReferenceRateJobKind\"",
+		"operationClass": "destructive",
+		"postcheck": [],
+		"precheck": [],
+		"target": {
+			"details": {
+				"name": "ReferenceRateJobKind",
+				"objectType": "type",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	}
+]
