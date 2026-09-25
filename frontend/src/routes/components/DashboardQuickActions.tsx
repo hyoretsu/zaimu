@@ -64,9 +64,7 @@ export function DashboardQuickActions() {
 						<LuReceiptText /> Nova transação
 					</Button>
 					<p className="px-1 pt-2 font-medium text-muted-foreground text-xs">Compra no cartão</p>
-					{cards.isPending ? (
-						<p className="px-1 text-muted-foreground text-sm">Carregando cartões…</p>
-					) : cards.data?.length ? (
+					{cards.isPending || cards.isError || cards.data?.length ? (
 						<Button
 							className="w-full cursor-pointer justify-start"
 							onClick={() => {
@@ -85,7 +83,10 @@ export function DashboardQuickActions() {
 			<CreateTransactionDialog onOpenChange={setTransactionOpen} open={transactionOpen} />
 			<CreatePurchaseDialog
 				cards={cards.data ?? []}
+				cardsError={cards.isError}
+				cardsLoading={cards.isPending}
 				onOpenChange={setPurchaseOpen}
+				onRetryCards={() => void cards.refetch()}
 				onSubmit={async (cardId, data) => {
 					await purchase.mutateAsync({ cardId, data });
 				}}

@@ -43,15 +43,21 @@ interface PurchaseDraft {
 
 export function CreatePurchaseDialog({
 	cards,
+	cardsError = false,
+	cardsLoading = false,
 	initialCardId,
 	onOpenChange,
+	onRetryCards,
 	onSubmit,
 	open,
 	pending,
 }: {
 	cards: CreditCard[];
+	cardsError?: boolean;
+	cardsLoading?: boolean;
 	initialCardId?: string;
 	onOpenChange: (open: boolean) => void;
+	onRetryCards?: () => void;
 	onSubmit: (cardId: string, draft: PurchaseDraft) => Promise<void>;
 	open: boolean;
 	pending: boolean;
@@ -131,14 +137,27 @@ export function CreatePurchaseDialog({
 						</DialogHeader>
 						<form className="grid gap-5" onSubmit={submit}>
 							<CustomSelect
+								disabled={cardsLoading || cardsError || cards.length === 0}
 								label="Cartão"
 								onValueChange={setCardId}
 								options={cards.map(card => ({ label: getCreditCardDisplayName(card), value: card.id }))}
-								placeholder="Selecione o cartão"
+								placeholder={cardsLoading ? "Carregando cartões..." : "Selecione o cartão"}
 								required
 								searchable
 								value={cardId}
 							/>
+							{cardsError ? (
+								<div className="flex items-center justify-between gap-3 text-muted-foreground text-sm">
+									<span>Não foi possível carregar cartões.</span>
+									{onRetryCards ? (
+										<Button onClick={onRetryCards} type="button" variant="outline">
+											Tentar novamente
+										</Button>
+									) : null}
+								</div>
+							) : !cardsLoading && cards.length === 0 ? (
+								<p className="text-muted-foreground text-sm">Nenhum cartão cadastrado.</p>
+							) : null}
 							<FormField
 								autoComplete="off"
 								id="purchase-description"
