@@ -80,8 +80,19 @@ export function EditTransactionDialog({
 	}, [open, setDescription, transaction]);
 
 	const update = useMutation({
-		mutationFn: () => {
-			if (!transaction || !draft) throw new Error("Transação não encontrada");
+		mutationFn: ({
+			transaction,
+			draft,
+			isDebt,
+			debtSplit,
+			description,
+		}: {
+			transaction: Transaction;
+			draft: ReturnType<typeof createDraft>;
+			isDebt: boolean;
+			debtSplit: DebtSplitInput;
+			description: string;
+		}) => {
 			const storeName = getUpdatedStoreName(
 				transaction.storeName,
 				draft.type === "EXPENSE" ? draft.storeName : null,
@@ -105,11 +116,13 @@ export function EditTransactionDialog({
 			toast.dismiss(context?.toastId);
 			showToast(error.message, "negative");
 		},
-		onMutate: () => ({ toastId: toast.loading("Salvando transação…", { position: "bottom-right" }) }),
+		onMutate: () => {
+			onOpenChange(false);
+			return { toastId: toast.loading("Salvando transação…", { position: "bottom-right" }) };
+		},
 		onSuccess: async (_, __, context) => {
 			await invalidateCacheOperation(queryClient, identity!, "transaction");
 			toast.success("Transação atualizada.", { id: context?.toastId, position: "bottom-right" });
-			onOpenChange(false);
 		},
 	});
 
@@ -281,7 +294,7 @@ export function EditTransactionDialog({
 							(draft.type === "TRANSFER" && !draft.destinationFinancialAccountId) ||
 							update.isPending
 						}
-						onClick={() => update.mutate()}
+						onClick={() => update.mutate({ debtSplit, description, draft, isDebt, transaction })}
 					>
 						{update.isPending ? "Salvando…" : "Salvar"}
 					</Button>
