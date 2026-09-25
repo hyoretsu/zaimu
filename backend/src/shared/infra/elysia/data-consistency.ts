@@ -4,8 +4,35 @@ import { createEventEnvelope } from "~/shared/application/events";
 import type { CacheNamespace } from "~/shared/infra/cache";
 import { distributedCache } from "~/shared/infra/cache";
 import { PostgresOutbox } from "~/shared/infra/outbox";
+import { queryRaw } from "~/shared/infra/sql";
 
 const outbox = new PostgresOutbox();
+
+export const debtResourceId = (pathname: string) =>
+	pathname.match(/^\/debts\/(?:events|people|invitations)\/([^/]+)/)?.[1];
+
+async function debtAffectedUserIds(resourceId: string | undefined) {
+	if (!resourceId) return [];
+	const rows = await queryRaw<{ userId: string }>(
+		`WITH target_event AS (
+			SELECT "createdByUserId", "connectionId", "debtPersonId" FROM "public"."DebtEvent" WHERE "id" = $1
+		), target_person AS (
+			SELECT "userId", "connectionId" FROM "public"."DebtPerson" WHERE "id" = $1
+		), target_connections AS (
+			SELECT "id", "requesterId", "recipientId" FROM "public"."DebtConnection"
+			WHERE "id" = $1
+			   OR "id" IN (SELECT "connectionId" FROM target_event WHERE "connectionId" IS NOT NULL)
+			   OR "id" IN (SELECT "connectionId" FROM target_person WHERE "connectionId" IS NOT NULL)
+		)
+		SELECT "createdByUserId" AS "userId" FROM target_event
+		UNION SELECT "userId" FROM target_person
+		UNION SELECT "requesterId" FROM target_connections
+		UNION SELECT "recipientId" FROM target_connections
+		UNION SELECT visibility."userId" FROM "public"."DebtEventVisibility" visibility WHERE visibility."eventId" = $1`,
+		[resourceId],
+	);
+	return rows.map(row => row.userId);
+}
 
 const transactionNamespaces = (pathname: string): CacheNamespace[] => {
 	const id = pathname.match(/^\/transactions\/([^/]+)/)?.[1];
@@ -109,12 +136,24 @@ export const DataConsistencyPlugin = new Elysia({ name: "DataConsistencyPlugin" 
 		const namespaces = writeNamespaces(pathname);
 		if (namespaces.length === 0) return { cacheWriteFence: null };
 		const userId = await requireUserId(request);
-		await distributedCache.beginWrite(userId, namespaces);
-		return { cacheWriteFence: { namespaces, pathname, userId } };
+		const affectedUserIds = pathname.startsWith("/debts")
+			? await debtAffectedUserIds(debtResourceId(pathname))
+			: [];
+		const userIds = [...new Set([userId, ...affectedUserIds])];
+		await Promise.all(userIds.map(affectedUserId => distributedCache.beginWrite(affectedUserId, namespaces)));
+		return { cacheWriteFence: { namespaces, pathname, userId, userIds } };
 	})
-	.onAfterHandle(async ({ cacheWriteFence, request, set }) => {
+	.onAfterHandle(async ({ cacheWriteFence, request, response, set }) => {
 		if (!cacheWriteFence || Number(set.status ?? 200) >= 400) return;
 		const aggregate = aggregateForPath(cacheWriteFence.pathname);
+		const responseId =
+			response && typeof response === "object" && "id" in response && typeof response.id === "string"
+				? response.id
+				: undefined;
+		const debtUserIds = cacheWriteFence.pathname.startsWith("/debts")
+			? await debtAffectedUserIds(responseId ?? debtResourceId(cacheWriteFence.pathname))
+			: [];
+		const userIds = [...new Set([...cacheWriteFence.userIds, ...debtUserIds])];
 		const eventId = crypto.randomUUID();
 		await outbox.append(
 			createEventEnvelope({
@@ -124,9 +163,11 @@ export const DataConsistencyPlugin = new Elysia({ name: "DataConsistencyPlugin" 
 				eventId,
 				eventType: eventTypeForMethod(request.method),
 				payload: { method: request.method, pathname: cacheWriteFence.pathname },
-				userIds: [cacheWriteFence.userId],
+				userIds,
 			}),
 		);
-		await distributedCache.finishWrite(cacheWriteFence.userId, cacheWriteFence.namespaces);
+		await Promise.all(
+			userIds.map(userId => distributedCache.finishWrite(userId, cacheWriteFence.namespaces)),
+		);
 	})
 	.as("global");

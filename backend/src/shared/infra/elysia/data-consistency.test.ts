@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { writeNamespaces } from "./data-consistency";
+import { debtResourceId, writeNamespaces } from "./data-consistency";
 
 describe("writeNamespaces", () => {
 	test("scopes credit card writes to overview and card statements", () => {
@@ -37,5 +37,13 @@ describe("writeNamespaces", () => {
 
 	test("ignores domains without declared cache dependencies", () => {
 		expect(writeNamespaces("/auth/sign-in")).toEqual([]);
+	});
+});
+
+describe("debtResourceId", () => {
+	test("extracts shared debt resources for pre-mutation invalidation", () => {
+		expect(debtResourceId("/debts/events/event-1")).toBe("event-1");
+		expect(debtResourceId("/debts/people/person-1/invite")).toBe("person-1");
+		expect(debtResourceId("/debts/events")).toBeUndefined();
 	});
 });
