@@ -16,6 +16,7 @@ import { NumericField } from "@/components/ui/NumericField";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { FinancialInstitution, FinancialInstitutionYieldPolicy } from "@/lib/api";
+import { runDialogSave } from "@/lib/dialog-save";
 import { InstitutionYieldRuleRow } from "./InstitutionYieldRuleRow";
 import type { EditableYieldRule } from "./types";
 
@@ -71,7 +72,7 @@ export function InstitutionYieldDialog({
 		setRules(current => current.map(item => (item.id === id ? rule : item)));
 	const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		await onUpdate(institution, {
+		const operation = onUpdate(institution, {
 			rules: enabled
 				? rules.map((rule, index) => ({
 						upToBalance: index === rules.length - 1 ? null : Number(rule.upToBalance),
@@ -83,7 +84,7 @@ export function InstitutionYieldDialog({
 			yieldPeriod: enabled && rules.some(rule => Boolean(rule.fixedRate)) ? period : null,
 			yieldTaxRate: enabled && taxRate ? Number(taxRate) : null,
 		});
-		setOpen(false);
+		runDialogSave(operation, () => setOpen(false), "Salvando rendimento…");
 	};
 	return (
 		<Dialog

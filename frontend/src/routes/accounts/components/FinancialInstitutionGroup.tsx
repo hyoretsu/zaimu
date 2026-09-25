@@ -15,6 +15,7 @@ import {
 import { FormField } from "@/components/ui/FormField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { FinancialAccount, FinancialInstitution, FinancialInstitutionYieldPolicy } from "@/lib/api";
+import { runDialogSave } from "@/lib/dialog-save";
 import { getFinancialAccountCurrencyValue } from "@/lib/financial-account";
 import { CreateFinancialAccountDialog } from "./CreateFinancialAccountDialog";
 import { FinancialAccountCard } from "./FinancialAccountCard";
@@ -155,8 +156,7 @@ function EditInstitutionDialog({
 	const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		try {
-			await onUpdate(institution, name.trim());
-			setOpen(false);
+			runDialogSave(onUpdate(institution, name.trim()), () => setOpen(false), "Salvando instituição…");
 		} catch {
 			return;
 		}

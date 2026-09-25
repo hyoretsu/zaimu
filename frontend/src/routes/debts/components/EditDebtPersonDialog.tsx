@@ -11,6 +11,7 @@ import {
 import { Input } from "@/components/ui/Input";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { DebtPerson } from "@/lib/api";
+import { runDialogSave } from "@/lib/dialog-save";
 
 export function EditDebtPersonDialog({
 	onOpenChange,
@@ -45,7 +46,7 @@ export function EditDebtPersonDialog({
 					className="grid gap-4"
 					onSubmit={event => {
 						event.preventDefault();
-						void onSubmit({ accountEmail, name });
+						runDialogSave(onSubmit({ accountEmail, name }), () => onOpenChange(false), "Salvando pessoa…");
 					}}
 				>
 					<label className="grid gap-2 font-medium" htmlFor="debt-person-name">
