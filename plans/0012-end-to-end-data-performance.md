@@ -133,7 +133,7 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
   - [x] Remover `useQueries` e qualquer request por cartão.
   - [x] Fazer histórico/detalhe lazy e paginado.
   - [ ] Consultar faturas, compras, pagamentos e previsões por conjunto de cartões.
-  - [ ] Mover materialização de faturas e assinaturas para o worker.
+  - [x] Mover materialização de faturas e assinaturas para o worker.
 - [ ] 6. Importações
   - [x] Reduzir listagem de importações de cartão a `id`, `fileName` e `pendingItemCount`.
   - [x] Paginar detalhes e itens somente quando a revisão abrir.
@@ -203,4 +203,5 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Histórico de faturas agora usa cursor opaco vinculado ao filtro e carregamento incremental; detalhes continuam lazy, e o resumo de cartão na tela de contas deixou de buscar faturas separadamente.
 - Visão geral de cartões agora usa cache distribuído com ETag; fences cobrem mutações de cartões, contas e importações, além de transações.
 - Detalhe lazy de fatura agora hidrata rateios de todas as compras em lote, removendo o N+1 restante dessa leitura.
-- Próxima etapa: mover materialização de faturas e assinaturas dos GETs para o worker RabbitMQ.
+- Materialização de faturas e compras de assinaturas saiu dos GETs: um serviço independente e idempotente agora roda no worker pela fila `schedule-materialization`, com comando de recuperação a cada minuto e deduplicação determinística entre instâncias.
+- Próxima etapa: migrar materializações de salários e recorrências para comandos RabbitMQ.
