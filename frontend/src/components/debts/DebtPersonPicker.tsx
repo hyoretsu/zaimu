@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { LuChevronDown, LuLink, LuPlus, LuUserRound, LuUsersRound } from "react-icons/lu";
+import { LuChevronDown, LuPlus, LuUserRound } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
@@ -16,22 +16,18 @@ export function DebtPersonPicker({
 	excludedIds = [],
 	onValueChange,
 	required,
-	selectionOnly = false,
 	value,
 }: {
 	disabled?: boolean;
 	excludedIds?: string[];
 	onValueChange: (personId: string) => void;
 	required?: boolean;
-	selectionOnly?: boolean;
 	value?: string;
 }) {
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
 	const [open, setOpen] = useState(false);
-	const [inviteOpen, setInviteOpen] = useState(false);
 	const [search, setSearch] = useDebouncedInput("", () => undefined);
-	const [email, setEmail] = useDebouncedInput("", () => undefined);
 	const ledger = useQuery({
 		enabled: identity !== null,
 		queryFn: () => dataService.debts.getLedger(),
@@ -54,16 +50,6 @@ export function DebtPersonPicker({
 			setSearch("");
 			setOpen(false);
 			showToast(`Pessoa “${person.name}” adicionada.`, "positive");
-		},
-	});
-	const invite = useMutation({
-		mutationFn: () => dataService.debts.invitePerson(value!, email.trim()),
-		onError: error => showToast(error instanceof Error ? error.message : "Convite não enviado.", "negative"),
-		onSuccess: async () => {
-			await invalidateCacheOperation(queryClient, identity!, "invitation");
-			setEmail("");
-			setInviteOpen(false);
-			showToast("Convite enviado.", "positive");
 		},
 	});
 	const choose = (personId: string) => {
@@ -96,11 +82,7 @@ export function DebtPersonPicker({
 						variant="outline"
 					>
 						<span className="flex min-w-0 flex-1 items-center gap-2">
-							{selected?.isZaimuUser ? (
-								<LuUsersRound className="shrink-0" />
-							) : (
-								<LuUserRound className="shrink-0" />
-							)}
+							<LuUserRound className="shrink-0" />
 							<span className={selected ? "min-w-0 truncate" : "min-w-0 truncate text-muted-foreground"}>
 								{selected?.name ?? "Selecione uma pessoa"}
 							</span>
@@ -155,11 +137,8 @@ export function DebtPersonPicker({
 										type="button"
 										variant={value === person.id ? "secondary" : "outline"}
 									>
-										{person.isZaimuUser ? <LuUsersRound /> : <LuUserRound />}
+										<LuUserRound />
 										<span className="truncate">{person.name}</span>
-										{person.isZaimuUser ? (
-											<span className="ml-auto text-muted-foreground text-xs">Zaimu</span>
-										) : null}
 									</Button>
 								))}
 							</div>
@@ -167,41 +146,6 @@ export function DebtPersonPicker({
 					</ScrollArea>
 				</PopoverContent>
 			</Popover>
-			{!selectionOnly ? (
-				selected && !selected.isZaimuUser && selected.connectionStatus !== "PENDING" ? (
-					inviteOpen ? (
-						<div className="flex gap-2 rounded-2xl border p-2">
-							<Input
-								autoComplete="email"
-								name="debt-person-email"
-								onChange={event => setEmail(event.currentTarget.value)}
-								placeholder="pessoa@exemplo.com"
-								type="email"
-								value={email}
-							/>
-							<Button
-								className="cursor-pointer"
-								disabled={!email.trim() || invite.isPending}
-								onClick={() => invite.mutate()}
-								type="button"
-							>
-								Enviar
-							</Button>
-						</div>
-					) : (
-						<Button
-							className="cursor-pointer justify-start"
-							onClick={() => setInviteOpen(true)}
-							type="button"
-							variant="outline"
-						>
-							<LuLink /> Associar conta Zaimu
-						</Button>
-					)
-				) : selected?.connectionStatus === "PENDING" ? (
-					<p className="text-muted-foreground text-xs">Convite Zaimu pendente.</p>
-				) : null
-			) : null}
 		</div>
 	);
 }

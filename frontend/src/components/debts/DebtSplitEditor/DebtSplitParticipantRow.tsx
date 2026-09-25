@@ -53,7 +53,6 @@ export function DebtSplitParticipantRow({
 						excludedIds={excludedPersonIds}
 						onValueChange={onPersonChange}
 						required
-						selectionOnly
 						value={participant.debtPersonId}
 					/>
 				</div>
