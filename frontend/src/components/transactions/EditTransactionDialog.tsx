@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { DebtSplitEditor } from "@/components/debts";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
@@ -100,11 +101,17 @@ export function EditTransactionDialog({
 				type: draft.type,
 			});
 		},
-		onError: error => showToast(error.message, "negative"),
-		onSuccess: async () => {
-			await invalidateCacheOperation(queryClient, identity!, "transaction");
-			showToast("Transação atualizada.", "positive");
+		onError: (error, _, context) => {
+			toast.dismiss(context?.toastId);
+			showToast(error.message, "negative");
+		},
+		onMutate: () => {
 			onOpenChange(false);
+			return { toastId: toast.loading("Salvando transação…", { position: "bottom-right" }) };
+		},
+		onSuccess: async (_, __, context) => {
+			await invalidateCacheOperation(queryClient, identity!, "transaction");
+			toast.success("Transação atualizada.", { id: context?.toastId, position: "bottom-right" });
 		},
 	});
 

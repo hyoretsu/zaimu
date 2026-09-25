@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { LuTrash2 } from "react-icons/lu";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import {
@@ -45,11 +46,17 @@ export function EditFinancialAccountYieldDialog({
 				});
 			return dataService.accountYields.update(entry.id, value);
 		},
-		onError: error => showToast(error.message, "negative"),
-		onSuccess: async () => {
-			await refresh();
-			showToast("Rendimento atualizado.", "positive");
+		onError: (error, _, context) => {
+			toast.dismiss(context?.toastId);
+			showToast(error.message, "negative");
+		},
+		onMutate: () => {
 			onOpenChange(false);
+			return { toastId: toast.loading("Salvando rendimento…", { position: "bottom-right" }) };
+		},
+		onSuccess: async (_, __, context) => {
+			await refresh();
+			toast.success("Rendimento atualizado.", { id: context?.toastId, position: "bottom-right" });
 		},
 	});
 	const remove = useMutation({

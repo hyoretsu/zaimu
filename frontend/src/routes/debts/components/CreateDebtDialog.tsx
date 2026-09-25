@@ -18,6 +18,7 @@ import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { DebtSplitInput } from "@/lib/api";
 import { getLocalDateKey } from "@/lib/date";
 import { calculateDebtSplit } from "@/lib/debt-split";
+import { runDialogSave } from "@/lib/dialog-save";
 
 interface DebtOriginFields {
 	amount: number;
@@ -102,9 +103,11 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 			dueDate: dueDate || undefined,
 			isOwedToMe,
 		};
-		if (props.mode === "edit") await props.onSubmit({ ...fields, personId });
-		else await props.onSubmit({ ...fields, debtSplit });
-		handleOpenChange(false);
+		const operation =
+			props.mode === "edit"
+				? props.onSubmit({ ...fields, personId })
+				: props.onSubmit({ ...fields, debtSplit });
+		runDialogSave(operation, () => handleOpenChange(false), "Salvando lançamento…");
 	};
 	const hasValidSplit = Boolean(calculateDebtSplit(Number(amount), debtSplit));
 

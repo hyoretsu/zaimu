@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import {
@@ -65,11 +66,17 @@ export function EditStatementPaymentDialog({
 				time: sendWithoutTime ? null : draft.time || null,
 			});
 		},
-		onError: error => showToast(error.message, "negative"),
-		onSuccess: async () => {
-			await invalidateCacheOperation(queryClient, identity!, "statement");
-			showToast("Pagamento da fatura atualizado.", "positive");
+		onError: (error, _, context) => {
+			toast.dismiss(context?.toastId);
+			showToast(error.message, "negative");
+		},
+		onMutate: () => {
 			onOpenChange(false);
+			return { toastId: toast.loading("Salvando pagamento…", { position: "bottom-right" }) };
+		},
+		onSuccess: async (_, __, context) => {
+			await invalidateCacheOperation(queryClient, identity!, "statement");
+			toast.success("Pagamento da fatura atualizado.", { id: context?.toastId, position: "bottom-right" });
 		},
 	});
 

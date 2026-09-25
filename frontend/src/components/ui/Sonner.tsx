@@ -20,6 +20,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
 				success: <HugeiconsIcon className="size-4" icon={CheckmarkCircle02Icon} strokeWidth={2} />,
 				warning: <HugeiconsIcon className="size-4" icon={Alert02Icon} strokeWidth={2} />,
 			}}
+			mobileOffset={{ bottom: "calc(5.5rem + env(safe-area-inset-bottom))", left: "1rem", right: "1rem" }}
 			style={
 				{
 					"--border-radius": "var(--radius)",

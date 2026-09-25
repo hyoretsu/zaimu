@@ -22,6 +22,7 @@ import type { CreditCard, DebtSplitInput } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { getCurrentLocalTime, getLocalDateKey } from "@/lib/date";
 import { calculateDebtSplit } from "@/lib/debt-split";
+import { runDialogSave } from "@/lib/dialog-save";
 import { CreditPurchaseFeeFields } from "./CreditPurchaseFeeFields";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
@@ -104,7 +105,7 @@ export function CreatePurchaseDialog({
 	const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		if (!Number.isInteger(installmentCount) || installmentCount < 1 || installmentCount > 48) return;
-		await onSubmit(cardId, {
+		const operation = onSubmit(cardId, {
 			debtSplit: isDebt ? debtSplit : undefined,
 			description: description.trim(),
 			feeAmount: Number(feeAmount || 0) || undefined,
@@ -116,7 +117,7 @@ export function CreatePurchaseDialog({
 			time: sendWithoutTime ? null : time || undefined,
 			totalAmount: total,
 		});
-		handleOpenChange(false);
+		runDialogSave(operation, () => handleOpenChange(false), "Salvando compra…");
 	};
 
 	return (

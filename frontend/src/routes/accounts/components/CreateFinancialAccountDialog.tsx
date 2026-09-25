@@ -18,6 +18,7 @@ import { NumericField } from "@/components/ui/NumericField";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
+import { runDialogSave } from "@/lib/dialog-save";
 import { useAuthStore } from "@/stores/auth";
 import { AccountYieldFields } from "./AccountYieldFields";
 import { CashbackSettingsDialog } from "./CashbackSettingsDialog";
@@ -316,14 +317,17 @@ export function CreateFinancialAccountDialog({
 							? null
 							: undefined,
 			};
-			if (account && onUpdate) {
-				const { type: _, ...updateData } = data;
-				await onUpdate(account.id, updateData);
-			} else await onCreate(data as Draft);
+			const operation =
+				account && onUpdate
+					? (() => {
+							const { type: _, ...updateData } = data;
+							return onUpdate(account.id, updateData);
+						})()
+					: onCreate(data as Draft);
+			runDialogSave(operation, () => handleOpenChange(false), "Salvando conta…");
 		} catch {
 			return;
 		}
-		handleOpenChange(false);
 	};
 	const handleSubmit = (event: SyntheticEvent<HTMLFormElement>) => {
 		event.preventDefault();

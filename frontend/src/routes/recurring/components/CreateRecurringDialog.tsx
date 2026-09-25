@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, subDays } from "date-fns";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { DebtSplitEditor } from "@/components/debts";
 import { StorePicker } from "@/components/stores";
 import { TagPicker } from "@/components/tags";
@@ -413,18 +414,27 @@ export function CreateRecurringDialog({
 			}
 			return payment;
 		},
-		onError: error => showToast(error.message, "negative"),
-		onSuccess: async (_, addPastTransactions) => {
+		onError: (error, _, context) => {
+			toast.dismiss(context?.toastId);
+			showToast(error.message, "negative");
+		},
+		onMutate: () => {
+			handleOpenChange(false);
+			return {
+				source: getCreationSource(draft),
+				toastId: toast.loading("Salvando recorrência…", { position: "bottom-right" }),
+			};
+		},
+		onSuccess: async (_, addPastTransactions, context) => {
 			await invalidateCacheOperation(queryClient, identity!, "recurring");
-			showToast(
+			toast.success(
 				isEditing
 					? "Recorrência atualizada."
 					: addPastTransactions
-						? `${successMessages[getCreationSource(draft)].replace(".", "")} e transações passadas adicionadas.`
-						: successMessages[getCreationSource(draft)],
-				"positive",
+						? `${successMessages[context.source].replace(".", "")} e transações passadas adicionadas.`
+						: successMessages[context.source],
+				{ id: context?.toastId, position: "bottom-right" },
 			);
-			handleOpenChange(false);
 		},
 	});
 
