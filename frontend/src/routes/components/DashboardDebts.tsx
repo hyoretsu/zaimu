@@ -59,8 +59,9 @@ export function DashboardDebts({ debts }: Pick<Dashboard, "debts">) {
 					<DialogHeader>
 						<DialogTitle>Dívidas em aberto</DialogTitle>
 						<DialogDescription>
-							A receber: {currency.format(debts.owedToMe)} · A pagar: {currency.format(debts.iOwe)} · Líquido:{" "}
-							{currency.format(debts.net)}
+							<span className="block">A receber: {currency.format(debts.owedToMe)}</span>
+							<span className="block">A pagar: {currency.format(debts.iOwe)}</span>
+							<span className="block">Líquido: {currency.format(debts.net)}</span>
 						</DialogDescription>
 					</DialogHeader>
 					<ScrollArea className="max-h-[min(30rem,calc(100dvh-14rem))] pr-3">

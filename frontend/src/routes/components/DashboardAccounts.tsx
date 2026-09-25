@@ -76,15 +76,15 @@ export function DashboardAccounts({ accounts, endDate }: DashboardAccountsProps)
 									className="flex items-center justify-between gap-3 rounded-xl border p-3"
 									key={account.id}
 								>
-									<div>
+									<div className="min-w-0">
 										<p className="font-medium">{getName(account)}</p>
 										<p className="text-muted-foreground text-xs">
 											{account.type === "SAVINGS" ? "Poupança" : "Conta corrente"}
 										</p>
 									</div>
-									<div className="text-right">
-										<strong>{currency.format(account.balance)}</strong>
-										<Button asChild className="mt-2 cursor-pointer" size="sm" variant="outline">
+									<div className="flex shrink-0 flex-col items-end gap-2 text-right">
+										<strong className="tabular-nums">{currency.format(account.balance)}</strong>
+										<Button asChild className="cursor-pointer" size="sm" variant="outline">
 											<Link to="/accounts">
 												Extrato <LuArrowRight />
 											</Link>

@@ -1,8 +1,8 @@
 import type { Dashboard } from "@/lib/api";
+import { formatLocalDate } from "@/lib/date";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 const compactDate = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short" });
-const detailedDate = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
 
 const forecastTypeLabels = {
 	CARD: "Fatura do cartão",
@@ -39,7 +39,8 @@ export function DashboardForecastItem({
 				<div className="min-w-0">
 					<p className="truncate font-medium">{forecast.name}</p>
 					<p className="mt-0.5 text-muted-foreground text-xs">
-						{forecastTypeLabels[forecast.type]} · {detailedDate.format(occurrence)}
+						{forecastTypeLabels[forecast.type]} ·{" "}
+						{formatLocalDate(forecast.date, { day: "2-digit", month: "2-digit", year: "numeric" })}
 					</p>
 				</div>
 				<strong className={`text-right text-sm tabular-nums ${amountClassName}`}>{amount}</strong>
