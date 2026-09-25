@@ -45,6 +45,7 @@ const transactionNamespaces = (pathname: string): CacheNamespace[] => {
 };
 
 export const writeNamespaces = (pathname: string): CacheNamespace[] => {
+	if (pathname.startsWith("/balance-adjustments")) return ["accounts:list", "dashboard", "transactions:list"];
 	if (pathname.startsWith("/transactions")) return transactionNamespaces(pathname);
 	if (pathname.startsWith("/credit-cards")) {
 		const cardId = pathname.match(/^\/credit-cards\/([^/]+)/)?.[1];

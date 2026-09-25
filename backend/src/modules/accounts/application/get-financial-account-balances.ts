@@ -90,6 +90,11 @@ async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 			.where((fields, functions) => functions.in(fields.financialAccountId, accountIds))
 			.build(),
 	);
+	const adjustments = await queryRows(
+		db.sql.public.BalanceAdjustment.select("balance", "date", "financialAccountId")
+			.where((fields, functions) => functions.in(fields.financialAccountId, accountIds))
+			.build(),
+	);
 	const yieldRateHistoriesByAccountId = new Map<string, typeof yieldRateHistories>();
 	for (const history of yieldRateHistories) {
 		const accountHistories = yieldRateHistoriesByAccountId.get(history.financialAccountId) ?? [];
@@ -136,6 +141,7 @@ async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 				})),
 				yieldReferenceType: account.yieldReferenceType as "CDI" | "SELIC" | null,
 			})),
+			adjustments: adjustments.map(adjustment => ({ ...adjustment, balance: Number(adjustment.balance) })),
 			cashbackCredits: cashbackPurchases.map(purchase => ({
 				...purchase,
 				cashbackAmount: Number(purchase.cashbackAmount ?? 0),

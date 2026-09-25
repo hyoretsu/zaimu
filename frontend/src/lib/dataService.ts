@@ -40,6 +40,7 @@ import type {
 	TransactionImportItem,
 	TransactionImportSummary,
 } from "./api";
+import type { BalanceAdjustment } from "./balance-adjustment";
 import {
 	applyStatementCredits,
 	calculateCreditCardLimit,
@@ -689,6 +690,32 @@ export const dataService = {
 					: [...yields, saved],
 			);
 			return saved;
+		},
+	},
+
+	// ============== TRANSACTIONS ==============
+	balanceAdjustments: {
+		async create(data: Pick<BalanceAdjustment, "balance" | "date" | "financialAccountId">) {
+			if (isGuestMode()) throw new Error("Entre na sua conta para registrar ajustes de saldo.");
+			return fetchWithAuth<BalanceAdjustment>("/balance-adjustments", {
+				body: JSON.stringify(data),
+				method: "POST",
+			});
+		},
+		async delete(id: string) {
+			if (isGuestMode()) throw new Error("Entre na sua conta para excluir ajustes de saldo.");
+			return fetchWithAuth<{ success: true }>(`/balance-adjustments/${id}`, { method: "DELETE" });
+		},
+		async getAll(): Promise<BalanceAdjustment[]> {
+			if (isGuestMode()) return [];
+			return fetchWithAuth("/balance-adjustments");
+		},
+		async update(id: string, data: Pick<BalanceAdjustment, "balance" | "date" | "financialAccountId">) {
+			if (isGuestMode()) throw new Error("Entre na sua conta para alterar ajustes de saldo.");
+			return fetchWithAuth<BalanceAdjustment>(`/balance-adjustments/${id}`, {
+				body: JSON.stringify(data),
+				method: "PATCH",
+			});
 		},
 	},
 

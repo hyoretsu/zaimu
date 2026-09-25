@@ -1,5 +1,6 @@
 import {
 	AccountsController,
+	BalanceAdjustmentsController,
 	FinancialAccountYieldHolidaysController,
 	FinancialAccountYieldsController,
 	InstitutionsController,
@@ -21,6 +22,7 @@ import { app } from "./shared/infra/elysia";
 
 export const server = app.use([
 	AccountsController,
+	BalanceAdjustmentsController,
 	InstitutionsController,
 	FinancialAccountYieldHolidaysController,
 	FinancialAccountYieldsController,

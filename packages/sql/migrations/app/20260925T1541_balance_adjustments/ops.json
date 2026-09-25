@@ -1,0 +1,148 @@
+[
+	{
+		"execute": [
+			{
+				"description": "create table \"BalanceAdjustment\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"BalanceAdjustment\" (\n  \"balance\" numeric(12,2) NOT NULL,\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"date\" date NOT NULL,\n  \"financialAccountId\" character varying(36) NOT NULL,\n  \"id\" character varying(36) DEFAULT (cuid2()) NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"userId\" character varying(36) NOT NULL,\n  CONSTRAINT \"BalanceAdjustment_pkey\" PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.BalanceAdjustment",
+		"label": "Create table \"BalanceAdjustment\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"BalanceAdjustment\" exists",
+				"params": ["\"public\".\"BalanceAdjustment\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"BalanceAdjustment\" does not exist",
+				"params": ["\"public\".\"BalanceAdjustment\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"BalanceAdjustment\"",
+		"target": {
+			"details": {
+				"name": "BalanceAdjustment",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"BalanceAdjustment_userId_account_date_key\"",
+				"params": [],
+				"sql": "CREATE UNIQUE INDEX \"BalanceAdjustment_userId_account_date_key\" ON \"public\".\"BalanceAdjustment\" (\"userId\", \"financialAccountId\", \"date\")"
+			}
+		],
+		"id": "index.BalanceAdjustment.BalanceAdjustment_userId_account_date_key",
+		"label": "Create index \"BalanceAdjustment_userId_account_date_key\" on \"BalanceAdjustment\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"BalanceAdjustment_userId_account_date_key\" exists",
+				"params": ["\"public\".\"BalanceAdjustment_userId_account_date_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"BalanceAdjustment_userId_account_date_key\" does not exist",
+				"params": ["\"public\".\"BalanceAdjustment_userId_account_date_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "BalanceAdjustment_userId_account_date_key",
+				"objectType": "index",
+				"schema": "public",
+				"table": "BalanceAdjustment"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"BalanceAdjustment_userId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"BalanceAdjustment\"\nADD CONSTRAINT \"BalanceAdjustment_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"user\" (\"id\")\nON DELETE CASCADE"
+			}
+		],
+		"id": "foreignKey.BalanceAdjustment.BalanceAdjustment_userId_fkey",
+		"label": "Add foreign key \"BalanceAdjustment_userId_fkey\" on \"BalanceAdjustment\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"BalanceAdjustment_userId_fkey\" exists",
+				"params": ["BalanceAdjustment_userId_fkey", "public", "\"public\".\"BalanceAdjustment\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"BalanceAdjustment_userId_fkey\" does not exist",
+				"params": ["BalanceAdjustment_userId_fkey", "public", "\"public\".\"BalanceAdjustment\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "BalanceAdjustment_userId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "BalanceAdjustment"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"BalanceAdjustment_financialAccountId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"BalanceAdjustment\"\nADD CONSTRAINT \"BalanceAdjustment_financialAccountId_fkey\"\nFOREIGN KEY (\"financialAccountId\")\nREFERENCES \"public\".\"FinancialAccount\" (\"id\")\nON DELETE CASCADE"
+			}
+		],
+		"id": "foreignKey.BalanceAdjustment.BalanceAdjustment_financialAccountId_fkey",
+		"label": "Add foreign key \"BalanceAdjustment_financialAccountId_fkey\" on \"BalanceAdjustment\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"BalanceAdjustment_financialAccountId_fkey\" exists",
+				"params": [
+					"BalanceAdjustment_financialAccountId_fkey",
+					"public",
+					"\"public\".\"BalanceAdjustment\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"BalanceAdjustment_financialAccountId_fkey\" does not exist",
+				"params": [
+					"BalanceAdjustment_financialAccountId_fkey",
+					"public",
+					"\"public\".\"BalanceAdjustment\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "BalanceAdjustment_financialAccountId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "BalanceAdjustment"
+			},
+			"id": "postgres"
+		}
+	}
+]

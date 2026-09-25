@@ -22,6 +22,7 @@ namespace public {
     requestedDebtConnections DebtConnection[] @relation(name: "DebtConnection_requesterId_fkey")
     receivedDebtConnections DebtConnection[] @relation(name: "DebtConnection_recipientId_fkey")
     financialAccounts FinancialAccount[]
+    balanceAdjustments BalanceAdjustment[]
     financialAccountYieldHolidays FinancialAccountYieldHoliday[]
     financialInstitutions FinancialInstitution[]
     loans             Loan[]
@@ -179,6 +180,7 @@ namespace public {
     cashbackCreditCards     CreditCard[]                     @relation(name: "CreditCard_cashbackAccountId_fkey")
     cashbackPurchases       CreditPurchase[]                 @relation(name: "CreditPurchase_cashbackAccountId_fkey")
     yields                  FinancialAccountYield[]
+    balanceAdjustments      BalanceAdjustment[]
     yieldRateHistories      FinancialAccountYieldRateHistory[]
     loanPayments            LoanPayment[]
     rewardsAccount          RewardsAccount?
@@ -212,6 +214,21 @@ namespace public {
 
     @@index([userId, date], map: "FinancialAccountYieldHoliday_userId_date_key", unique: true)
     @@map("FinancialAccountYieldHoliday")
+  }
+
+  model BalanceAdjustment {
+    id                 VarChar(36) @id(map: "BalanceAdjustment_pkey") @default(dbgenerated("cuid2()"))
+    userId             VarChar(36)
+    financialAccountId VarChar(36)
+    date               Date
+    balance            Numeric(12, 2)
+    createdAt          Timestamp(3) @default(now())
+    updatedAt          Timestamp(3) @default(now())
+    user               User @relation(fields: [userId], references: [id], onDelete: Cascade, map: "BalanceAdjustment_userId_fkey", index: false)
+    financialAccount   FinancialAccount @relation(fields: [financialAccountId], references: [id], onDelete: Cascade, map: "BalanceAdjustment_financialAccountId_fkey", index: false)
+
+    @@index([userId, financialAccountId, date], map: "BalanceAdjustment_userId_account_date_key", unique: true)
+    @@map("BalanceAdjustment")
   }
 
   model FinancialAccountYieldRateHistory {

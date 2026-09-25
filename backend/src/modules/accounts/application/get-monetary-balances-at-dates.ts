@@ -12,35 +12,28 @@ export async function getMonetaryBalancesAtDates(userId: string, dates: Date[]) 
 	const rows = await queryRaw<MonetaryBalanceRow>(
 		`WITH requested_dates AS (
 		   SELECT unnest($2::date[]) AS date
-		 ), daily_movements AS (
-		   SELECT t."date",
-		          sum(
-		            CASE WHEN destination."type" NOT IN ('CREDIT_CARD', 'INVESTMENT', 'REWARDS', 'SAVINGS')
-		                 THEN t."amount" ELSE 0 END
-		            - CASE WHEN origin."type" NOT IN ('CREDIT_CARD', 'INVESTMENT', 'REWARDS', 'SAVINGS')
-		                   THEN t."amount" ELSE 0 END
-		          ) AS amount
-		   FROM "Transaction" t
-		   LEFT JOIN "FinancialAccount" origin
-		     ON origin."id" = t."originFinancialAccountId"
-		   LEFT JOIN "FinancialAccount" destination
-		     ON destination."id" = t."destinationFinancialAccountId"
-		   WHERE t."userId" = $1
-		     AND t."date" <= (SELECT max(date) FROM requested_dates)
-		   GROUP BY t."date"
-		 ), cumulative_balances AS (
-		   SELECT "date", sum(amount) OVER (ORDER BY "date") AS balance
-		   FROM daily_movements
 		 )
 		 SELECT requested.date,
-		        COALESCE((
-		          SELECT cumulative.balance
-		          FROM cumulative_balances cumulative
-		          WHERE cumulative."date" <= requested.date
-		          ORDER BY cumulative."date" DESC
-		          LIMIT 1
-		        ), 0)::numeric AS balance
+		        COALESCE(sum(COALESCE(adjustment."balance", 0) + COALESCE(movements.amount, 0)), 0)::numeric AS balance
 		 FROM requested_dates requested
+		 CROSS JOIN "FinancialAccount" account
+		 LEFT JOIN LATERAL (
+		   SELECT checkpoint."date", checkpoint."balance"
+		   FROM "BalanceAdjustment" checkpoint
+		   WHERE checkpoint."userId" = $1 AND checkpoint."financialAccountId" = account."id"
+		     AND checkpoint."date" <= requested.date
+		   ORDER BY checkpoint."date" DESC LIMIT 1
+		 ) adjustment ON true
+		 LEFT JOIN LATERAL (
+		   SELECT sum(CASE WHEN t."destinationFinancialAccountId" = account."id" THEN t."amount" ELSE 0 END
+		            - CASE WHEN t."originFinancialAccountId" = account."id" THEN t."amount" ELSE 0 END) AS amount
+		   FROM "Transaction" t
+		   WHERE t."userId" = $1 AND t."date" <= requested.date
+		     AND (adjustment."date" IS NULL OR t."date" > adjustment."date")
+		     AND (t."originFinancialAccountId" = account."id" OR t."destinationFinancialAccountId" = account."id")
+		 ) movements ON true
+		 WHERE account."userId" = $1 AND account."type" IN ('CHECKING', 'CASH')
+		 GROUP BY requested.date
 		 ORDER BY requested.date`,
 		[userId, dateKeys],
 	);
