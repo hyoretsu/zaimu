@@ -65,13 +65,24 @@ export function ImportTransactionsDialog({
 		onOpenChange(nextOpen);
 	};
 	const createImport = useMutation({
-		mutationFn: () => {
+		mutationFn: ({
+			file,
+			financialAccountId,
+			provider,
+		}: {
+			file: File | null;
+			financialAccountId: string;
+			provider: TransactionImportProvider | "";
+		}) => {
 			if (!file) throw new Error("Selecione um PDF de extrato.");
 			if (!financialAccountId) throw new Error("Selecione a conta que receberá as transações.");
 			if (!provider) throw new Error("Selecione a instituição do extrato.");
 			return dataService.transactionImports.create({ file, financialAccountId, provider });
 		},
-		onError: error => showToast(error.message, "negative"),
+		onError: (error, _, __, context) => {
+			toast.dismiss(context?.toastId);
+			showToast(error.message, "negative");
+		},
 		onMutate: () => {
 			handleOpenChange(false);
 			return { toastId: toast.loading("Importando extrato…", { position: "bottom-right" }) };
@@ -114,7 +125,7 @@ export function ImportTransactionsDialog({
 					className="grid gap-4"
 					onSubmit={event => {
 						event.preventDefault();
-						createImport.mutate();
+						createImport.mutate({ file, financialAccountId, provider });
 					}}
 				>
 					<CustomSelect
