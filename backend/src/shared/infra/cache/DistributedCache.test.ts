@@ -25,6 +25,33 @@ class MemoryCache implements CachePort {
 	}
 }
 
+class FlakyCache extends MemoryCache {
+	available = true;
+	private assertAvailable() {
+		if (!this.available) throw new Error("Redis unavailable");
+	}
+	override async delete(key: string) {
+		this.assertAvailable();
+		return super.delete(key);
+	}
+	override async get(key: string) {
+		this.assertAvailable();
+		return super.get(key);
+	}
+	override async increment(key: string) {
+		this.assertAvailable();
+		return super.increment(key);
+	}
+	override async releaseLock(key: string, owner: string) {
+		this.assertAvailable();
+		return super.releaseLock(key, owner);
+	}
+	override async set(key: string, value: string, options: { onlyIfAbsent?: boolean } = {}) {
+		this.assertAvailable();
+		return super.set(key, value, options);
+	}
+}
+
 describe("DistributedCache", () => {
 	test("canonicalizes parameters and returns cache hits without loading", async () => {
 		const cache = new DistributedCache(new MemoryCache());
@@ -81,5 +108,24 @@ describe("DistributedCache", () => {
 		await cache.finishWrite("user", ["accounts:list"]);
 		const afterWrite = await cache.remember("user", "accounts:list", {}, async () => "new");
 		expect(afterWrite.value).toBe("new");
+	});
+
+	test("bypasses failures and advances the epoch after reconnecting", async () => {
+		const storage = new FlakyCache();
+		const cache = new DistributedCache(storage);
+		let loads = 0;
+		await cache.remember("user", "dashboard", {}, async () => `value-${++loads}`);
+		storage.available = false;
+		const startedAt = performance.now();
+		const bypassed = await cache.remember("user", "dashboard", {}, async () => `value-${++loads}`);
+		expect(bypassed.value).toBe("value-2");
+		expect(performance.now() - startedAt).toBeLessThan(100);
+		storage.available = true;
+		const reconnected = await cache.remember("user", "dashboard", {}, async () => `value-${++loads}`);
+		const hit = await cache.remember("user", "dashboard", {}, async () => `value-${++loads}`);
+		expect(storage.data.get("zaimu:cache:epoch")).toBe("2");
+		expect(reconnected.value).toBe("value-3");
+		expect(hit).toEqual({ ...reconnected, hit: true });
+		expect(loads).toBe(3);
 	});
 });

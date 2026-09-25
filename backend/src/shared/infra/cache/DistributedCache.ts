@@ -123,11 +123,11 @@ export class DistributedCache {
 		}
 		const lockKey = `${key}:lock`;
 		const lockOwner = crypto.randomUUID();
-		const ownsLock =
-			(await this.safely(() =>
-				this.cache.set(lockKey, lockOwner, { onlyIfAbsent: true, ttlMs: LOCK_LEASE_MS }),
-			)) ?? false;
-		if (!ownsLock) {
+		const lockResult = await this.safely(() =>
+			this.cache.set(lockKey, lockOwner, { onlyIfAbsent: true, ttlMs: LOCK_LEASE_MS }),
+		);
+		const ownsLock = lockResult === true;
+		if (lockResult === false) {
 			const deadline = performance.now() + LOCK_WAIT_MS;
 			while (performance.now() < deadline) {
 				await Bun.sleep(25);
