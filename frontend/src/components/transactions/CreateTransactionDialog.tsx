@@ -14,7 +14,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/Dialog";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
-import type { DebtSplitInput, Transaction } from "@/lib/api";
+import type { DebtSplitInput, FinancialAccount, Transaction } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
 import { formatLocalMonthYear, getCurrentLocalTime, getLocalDateKey } from "@/lib/date";
@@ -51,9 +51,11 @@ interface CreateTransactionInput {
 }
 
 export function CreateTransactionDialog({
+	account,
 	onOpenChange,
 	open,
 }: {
+	account?: FinancialAccount;
 	onOpenChange: (open: boolean) => void;
 	open: boolean;
 }) {
@@ -70,9 +72,13 @@ export function CreateTransactionDialog({
 	const [sendWithoutTime, setSendWithoutTime] = useState(false);
 	useEffect(() => {
 		if (!open) return;
-		setDraft(current => ({ ...current, time: getCurrentLocalTime() }));
+		setDraft(current => ({
+			...current,
+			originFinancialAccountId: account?.id ?? current.originFinancialAccountId,
+			time: getCurrentLocalTime(),
+		}));
 		setSendWithoutTime(false);
-	}, [open]);
+	}, [account?.id, open]);
 	const accountsQuery = useQuery({
 		enabled: identity !== null,
 		queryFn: () => dataService.accounts.getAll(),
@@ -105,8 +111,10 @@ export function CreateTransactionDialog({
 	);
 	const primaryAccountId =
 		draft.type === "INCOME" || draft.type === "YIELD"
-			? draft.destinationFinancialAccountId
-			: draft.originFinancialAccountId;
+			? (account?.id ?? draft.destinationFinancialAccountId)
+			: draft.type === "TRANSFER"
+				? draft.originFinancialAccountId
+				: (account?.id ?? draft.originFinancialAccountId);
 	const reset = () => {
 		setDraft(initialDraft());
 		setDescription("");
@@ -127,11 +135,15 @@ export function CreateTransactionDialog({
 			sendWithoutTime,
 		}: CreateTransactionInput) => {
 			const amount = Number.parseFloat(draft.amount);
+			const originFinancialAccountId =
+				account && draft.type !== "TRANSFER" ? account.id : draft.originFinancialAccountId;
+			const destinationFinancialAccountId =
+				account && draft.type !== "TRANSFER" ? account.id : draft.destinationFinancialAccountId;
 			if (draft.type === "YIELD") {
 				return dataService.accountYields.create({
 					amount,
 					date: draft.date,
-					financialAccountId: draft.destinationFinancialAccountId,
+					financialAccountId: destinationFinancialAccountId,
 				});
 			}
 			const transaction = await dataService.transactions.create({
@@ -140,9 +152,12 @@ export function CreateTransactionDialog({
 				date: draft.date,
 				debtSplit: isDebt ? debtSplit : undefined,
 				description: description.trim() || undefined,
-				destinationFinancialAccountId: draft.destinationFinancialAccountId || undefined,
+				destinationFinancialAccountId:
+					draft.type === "INCOME" || draft.type === "TRANSFER"
+						? destinationFinancialAccountId || undefined
+						: undefined,
 				isHidden: draft.isHidden,
-				originFinancialAccountId: draft.originFinancialAccountId || undefined,
+				originFinancialAccountId: draft.type === "INCOME" ? undefined : originFinancialAccountId || undefined,
 				storeName: draft.type === "EXPENSE" ? draft.storeName.trim() || undefined : undefined,
 				tagIds: draft.tagIds,
 				time: sendWithoutTime ? null : draft.time || undefined,
@@ -214,7 +229,9 @@ export function CreateTransactionDialog({
 											: current.destinationFinancialAccountId
 										: "",
 								originFinancialAccountId:
-									type === "INCOME" || type === "YIELD" ? "" : current.originFinancialAccountId,
+									type === "INCOME" || type === "YIELD"
+										? ""
+										: current.originFinancialAccountId || account?.id || "",
 								type,
 							}));
 						}}
@@ -276,7 +293,7 @@ export function CreateTransactionDialog({
 							) : null}
 						</div>
 					) : null}
-					{primaryAccounts.length > 0 && (
+					{(account === undefined || draft.type === "TRANSFER") && primaryAccounts.length > 0 && (
 						<CustomSelect
 							label={
 								draft.type === "INCOME" || draft.type === "YIELD"

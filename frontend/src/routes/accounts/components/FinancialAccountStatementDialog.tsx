@@ -1,7 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { LuLandmark } from "react-icons/lu";
-import { EditTransactionDialog, TransactionListItem } from "@/components/transactions";
+import { LuLandmark, LuPlus } from "react-icons/lu";
+import {
+	CreateTransactionDialog,
+	EditTransactionDialog,
+	TransactionListItem,
+} from "@/components/transactions";
+import { Button } from "@/components/ui/Button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ScrollArea } from "@/components/ui/ScrollArea";
@@ -52,6 +57,7 @@ export function FinancialAccountStatementDialog({
 		queryKey: queryKeys.transactions.byAccount(identity!, account.id),
 	});
 	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+	const [creatingTransaction, setCreatingTransaction] = useState(false);
 	const [editingYield, setEditingYield] = useState<FinancialAccountYieldEntry | null>(null);
 	const holidays = useQuery({
 		enabled: identity !== null && open,
@@ -111,7 +117,7 @@ export function FinancialAccountStatementDialog({
 
 	return (
 		<Dialog onOpenChange={onOpenChange} open={open}>
-			<DialogContent className="grid max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)] gap-4 overflow-hidden sm:max-w-xl">
+			<DialogContent className="grid max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] gap-4 overflow-hidden sm:max-w-xl">
 				<DialogHeader>
 					<DialogTitle>Extrato · {displayName}</DialogTitle>
 					<DialogDescription>Movimentações que compõem saldo desta conta.</DialogDescription>
@@ -182,6 +188,14 @@ export function FinancialAccountStatementDialog({
 						title="Extrato vazio"
 					/>
 				)}
+				<Button className="w-full cursor-pointer" onClick={() => setCreatingTransaction(true)}>
+					<LuPlus /> Nova transação
+				</Button>
+				<CreateTransactionDialog
+					account={account}
+					onOpenChange={setCreatingTransaction}
+					open={creatingTransaction}
+				/>
 				<EditTransactionDialog
 					onOpenChange={nextOpen => !nextOpen && setEditingTransaction(null)}
 					open={editingTransaction !== null}
