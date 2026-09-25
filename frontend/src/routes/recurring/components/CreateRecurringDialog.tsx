@@ -146,7 +146,7 @@ export function CreateRecurringDialog({
 	};
 
 	const create = useMutation({
-		mutationFn: async (addPastTransactions = false): Promise<RecurringPayment | Salary | Subscription> => {
+		mutationFn: async (addPastTransactions: boolean): Promise<RecurringPayment | Salary | Subscription> => {
 			const amount = Number.parseFloat(draft.amount);
 			const creationSource = getCreationSource(draft);
 			const selectedDebtSplit = isDebtSplitEnabled ? debtSplit : null;
