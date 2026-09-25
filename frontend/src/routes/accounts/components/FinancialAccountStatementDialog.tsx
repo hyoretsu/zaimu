@@ -30,14 +30,27 @@ const dateFormatter = new Intl.DateTimeFormat("pt-BR", {
 	year: "numeric",
 });
 
-function groupTransactionsByDate(transactions: Transaction[]) {
-	return transactions.reduce<Record<string, Transaction[]>>((groups, transaction) => {
+function groupStatementByDate(transactions: Transaction[], yields: FinancialAccountYieldEntry[]) {
+	const groups: Record<
+		string,
+		Array<{ kind: "transaction"; value: Transaction } | { kind: "yield"; value: FinancialAccountYieldEntry }>
+	> = {};
+	for (const transaction of transactions) {
 		const date = transaction.date.slice(0, 10);
-		const transactionsForDate = groups[date] ?? [];
-		transactionsForDate.push(transaction);
-		groups[date] = transactionsForDate;
-		return groups;
-	}, {});
+		const entries = groups[date] ?? [];
+		entries.push({ kind: "transaction", value: transaction });
+		groups[date] = entries;
+	}
+	for (const entry of yields) {
+		const entries = groups[entry.date] ?? [];
+		entries.push({ kind: "yield", value: entry });
+		groups[entry.date] = entries;
+	}
+	for (const entries of Object.values(groups))
+		entries.sort((left, right) =>
+			(formatLocalTime(right.value.time) ?? "").localeCompare(formatLocalTime(left.value.time) ?? ""),
+		);
+	return groups;
 }
 
 export function FinancialAccountStatementDialog({
@@ -69,7 +82,6 @@ export function FinancialAccountStatementDialog({
 		queryFn: () => dataService.accountYields.getAll(account.id),
 		queryKey: queryKeys.accountYields.list(identity!, account.id),
 	});
-	const groupedTransactions = groupTransactionsByDate(statement.data ?? []);
 	const yieldEntries = calculateFinancialAccountYieldEntries(
 		account,
 		statement.data ?? [],
@@ -77,9 +89,8 @@ export function FinancialAccountStatementDialog({
 		undefined,
 		yields.data ?? [],
 	);
-	const dates = [
-		...new Set([...Object.keys(groupedTransactions), ...yieldEntries.map(entry => entry.date)]),
-	].toSorted((left, right) => right.localeCompare(left));
+	const groupedEntries = groupStatementByDate(statement.data ?? [], yieldEntries);
+	const dates = Object.keys(groupedEntries).toSorted((left, right) => right.localeCompare(left));
 	const displayName = getFinancialAccountDisplayName(account);
 	const refreshStatement = () => invalidateCacheOperation(queryClient, identity!, "yield");
 	const removeTransaction = useMutation({
@@ -143,40 +154,44 @@ export function FinancialAccountStatementDialog({
 										{dateFormatter.format(new Date(`${date}T12:00:00`))}
 									</h3>
 									<div className="divide-y rounded-2xl border bg-card shadow-sm">
-										{yieldEntries
-											.filter(entry => entry.date === date)
-											.map(entry => (
-												<FinancialAccountYieldStatementItem
-													amount={entry.amount}
-													deleting={removeYield.isPending && removeYield.variables?.id === entry.id}
-													key={`yield-${entry.date}`}
-													onDelete={() => removeYield.mutateAsync(entry)}
-													onEdit={() => setEditingYield(entry)}
-													time={entry.time}
+										{groupedEntries[date]?.map(item => {
+											if (item.kind === "yield") {
+												const entry = item.value;
+												return (
+													<FinancialAccountYieldStatementItem
+														amount={entry.amount}
+														deleting={removeYield.isPending && removeYield.variables?.id === entry.id}
+														key={`yield-${entry.id}`}
+														onDelete={() => removeYield.mutateAsync(entry)}
+														onEdit={() => setEditingYield(entry)}
+														time={entry.time}
+													/>
+												);
+											}
+											const transaction = item.value;
+											return (
+												<TransactionListItem
+													deleting={
+														removeTransaction.isPending && removeTransaction.variables === transaction.id
+													}
+													key={transaction.id}
+													metadataPrefix={
+														formatLocalTime(transaction.time) ? (
+															<span className="text-muted-foreground text-xs">
+																{formatLocalTime(transaction.time)}
+															</span>
+														) : undefined
+													}
+													onDelete={
+														transaction.creditCardStatementId
+															? undefined
+															: () => removeTransaction.mutateAsync(transaction.id)
+													}
+													onEdit={() => editTransaction(transaction)}
+													transaction={transaction}
 												/>
-											))}
-										{(groupedTransactions[date] ?? []).map(transaction => (
-											<TransactionListItem
-												deleting={
-													removeTransaction.isPending && removeTransaction.variables === transaction.id
-												}
-												key={transaction.id}
-												metadataPrefix={
-													formatLocalTime(transaction.time) ? (
-														<span className="text-muted-foreground text-xs">
-															{formatLocalTime(transaction.time)}
-														</span>
-													) : undefined
-												}
-												onDelete={
-													transaction.creditCardStatementId
-														? undefined
-														: () => removeTransaction.mutateAsync(transaction.id)
-												}
-												onEdit={() => editTransaction(transaction)}
-												transaction={transaction}
-											/>
-										))}
+											);
+										})}
 									</div>
 								</section>
 							))}
