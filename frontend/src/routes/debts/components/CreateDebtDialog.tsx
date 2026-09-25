@@ -15,6 +15,7 @@ import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
+import { useDialogCloseReset } from "@/hooks/use-dialog-close-reset";
 import type { DebtSplitInput } from "@/lib/api";
 import { getLocalDateKey } from "@/lib/date";
 import { calculateDebtSplit } from "@/lib/debt-split";
@@ -90,9 +91,9 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 		setDebtSplit(initialDebtSplit());
 		setIsOwedToMe(true);
 	};
+	useDialogCloseReset(open, reset);
 	const handleOpenChange = (nextOpen: boolean) => {
 		onOpenChange(nextOpen);
-		if (!nextOpen) reset();
 	};
 	const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
 		event.preventDefault();

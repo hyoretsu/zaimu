@@ -14,6 +14,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/Dialog";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
+import { useDialogCloseReset } from "@/hooks/use-dialog-close-reset";
 import type { DebtSplitInput, FinancialAccount, Transaction } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
@@ -122,9 +123,9 @@ export function CreateTransactionDialog({
 		setDebtSplit({ mode: "SHARES", ownerShares: null, participants: [{ debtPersonId: "", shares: 1 }] });
 		setSendWithoutTime(false);
 	};
+	useDialogCloseReset(open, reset);
 	const handleOpenChange = (nextOpen: boolean) => {
 		onOpenChange(nextOpen);
-		if (!nextOpen) reset();
 	};
 	const create = useMutation({
 		mutationFn: async ({

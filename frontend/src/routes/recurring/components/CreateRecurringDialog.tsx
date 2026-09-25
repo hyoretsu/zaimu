@@ -17,6 +17,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
+import { useDialogCloseReset } from "@/hooks/use-dialog-close-reset";
 import type { DebtSplitInput, RecurringPayment, Salary, Subscription } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { getLocalDateKey } from "@/lib/date";
@@ -105,14 +106,14 @@ export function CreateRecurringDialog({
 	const setField = <Key extends keyof RecurringDraft>(field: Key, value: RecurringDraft[Key]) => {
 		setDraft(current => ({ ...current, [field]: value }));
 	};
+	useDialogCloseReset(open, () => {
+		setDraft(initialDraft(item));
+		setDebtSplit(initialDebtSplit(item));
+		setIsDebtSplitEnabled(Boolean(item?.debtSplit));
+		setIsPastTransactionsDialogOpen(false);
+	});
 	const handleOpenChange = (nextOpen: boolean) => {
 		onOpenChange(nextOpen);
-		if (!nextOpen) {
-			setDraft(initialDraft(item));
-			setDebtSplit(initialDebtSplit(item));
-			setIsDebtSplitEnabled(Boolean(item?.debtSplit));
-			setIsPastTransactionsDialogOpen(false);
-		}
 	};
 	const getMissingPastDates = async (recurrenceId: string) => {
 		const dates = getPastRecurrenceDates(

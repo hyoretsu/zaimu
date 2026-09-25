@@ -12,6 +12,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
+import { useDialogCloseReset } from "@/hooks/use-dialog-close-reset";
 import { dataService } from "@/lib/dataService";
 import {
 	compareFinancialAccountsByOptionLabel,
@@ -57,13 +58,11 @@ export function ImportTransactionsDialog({
 		setFinancialAccountId(defaultFinancialAccountId ?? "");
 		setProvider("");
 	}, [defaultFinancialAccountId, open]);
-	const handleOpenChange = (nextOpen: boolean) => {
-		if (!nextOpen) {
-			setFile(null);
-			setProvider("");
-		}
-		onOpenChange(nextOpen);
-	};
+	useDialogCloseReset(open, () => {
+		setFile(null);
+		setProvider("");
+	});
+	const handleOpenChange = onOpenChange;
 	const createImport = useMutation({
 		mutationFn: ({
 			file,
@@ -87,8 +86,6 @@ export function ImportTransactionsDialog({
 		},
 		onSettled: (_, __, ___, context) => toast.dismiss(context?.toastId),
 		onSuccess: async result => {
-			setFile(null);
-			setProvider("");
 			handleOpenChange(false);
 			if (!result.transactionImport) {
 				showToast("Nenhuma transação nova encontrada no extrato.", "info");

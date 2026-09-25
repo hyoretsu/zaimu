@@ -17,6 +17,7 @@ import { MoneyField } from "@/components/ui/MoneyField";
 import { NumericField } from "@/components/ui/NumericField";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
+import { useDialogCloseReset } from "@/hooks/use-dialog-close-reset";
 import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
 import { runDialogSave } from "@/lib/dialog-save";
 import { useAuthStore } from "@/stores/auth";
@@ -196,10 +197,10 @@ export function CreateFinancialAccountDialog({
 		setCashbackYieldReferencePercentage(String(account?.creditCard?.cashbackYieldReferencePercentage ?? 100));
 		setCashbackYieldPeriod(account?.creditCard?.cashbackYieldPeriod ?? "MONTHLY");
 	};
+	useDialogCloseReset(open, reset);
 	const handleOpenChange = (nextOpen: boolean) => {
 		setInternalOpen(nextOpen);
 		onOpenChange?.(nextOpen);
-		if (!nextOpen) reset();
 	};
 	const yieldConfigurationChanged = () => {
 		if (!account || type === "CREDIT_CARD") return false;
