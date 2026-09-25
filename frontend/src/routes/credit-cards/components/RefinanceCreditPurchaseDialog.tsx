@@ -14,6 +14,7 @@ import { MoneyField } from "@/components/ui/MoneyField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { CreditPurchase } from "@/lib/api";
 import { getLocalDateKey } from "@/lib/date";
+import { runDialogSave } from "@/lib/dialog-save";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
@@ -39,7 +40,11 @@ export function RefinanceCreditPurchaseDialog({
 	const total = balance + fee;
 	const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		await onSubmit({ feeAmount: fee, installments: count, purchaseDate });
+		runDialogSave(
+			onSubmit({ feeAmount: fee, installments: count, purchaseDate }),
+			() => onOpenChange(false),
+			"Reparcelando compra…",
+		);
 	};
 	return (
 		<Dialog onOpenChange={onOpenChange} open={open}>

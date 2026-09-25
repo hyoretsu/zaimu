@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/Dialog";
 import { MoneyField } from "@/components/ui/MoneyField";
 import type { CreditPurchase } from "@/lib/api";
+import { runDialogSave } from "@/lib/dialog-save";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
@@ -40,7 +41,11 @@ export function RefundCreditPurchaseDialog({
 
 	const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		await onSubmit({ ...(amountValue !== undefined && { amount: amountValue }), ...(date && { date }) });
+		runDialogSave(
+			onSubmit({ ...(amountValue !== undefined && { amount: amountValue }), ...(date && { date }) }),
+			() => onOpenChange(false),
+			"Salvando reembolso…",
+		);
 	};
 
 	return (

@@ -22,6 +22,7 @@ import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { CreditCard, CreditPurchase, DebtSplitInput } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { calculateDebtSplit, debtSplitToInput } from "@/lib/debt-split";
+import { runDialogSave } from "@/lib/dialog-save";
 import { getUpdatedStoreName } from "@/lib/store-name";
 import { CreditPurchaseFeeFields } from "./CreditPurchaseFeeFields";
 
@@ -119,7 +120,13 @@ export function EditCreditPurchaseDialog({
 						<Button
 							className="cursor-pointer disabled:cursor-not-allowed"
 							disabled={pending || Number(amount) <= 0}
-							onClick={() => onSubmit({ installmentAmount: Number(amount) })}
+							onClick={() =>
+								runDialogSave(
+									onSubmit({ installmentAmount: Number(amount) }),
+									() => onOpenChange(false),
+									"Salvando compra…",
+								)
+							}
 						>
 							{pending ? "Salvando…" : "Salvar"}
 						</Button>
@@ -132,7 +139,7 @@ export function EditCreditPurchaseDialog({
 	const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		const updatedStoreName = getUpdatedStoreName(purchase.storeName, storeName);
-		await onSubmit({
+		const operation = onSubmit({
 			...(selectedCardId && selectedCardId !== creditCardId && { creditCardId: selectedCardId }),
 			debtSplit: isDebt ? debtSplit : null,
 			description: description.trim(),
@@ -145,6 +152,7 @@ export function EditCreditPurchaseDialog({
 			time: time || null,
 			...(isSynced ? {} : { totalAmount }),
 		});
+		runDialogSave(operation, () => onOpenChange(false), "Salvando compra…");
 	};
 
 	return (
