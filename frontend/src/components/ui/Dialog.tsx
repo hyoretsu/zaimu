@@ -3,6 +3,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import type { ComponentProps } from "react";
 import { Button } from "@/components/ui/Button";
+import { usePageScrollLock } from "@/hooks/use-page-scroll-lock";
 import { cn } from "@/lib/utils";
 
 function Dialog({ modal = false, ...props }: ComponentProps<typeof DialogPrimitive.Root>) {
@@ -22,6 +23,8 @@ function DialogClose({ ...props }: ComponentProps<typeof DialogPrimitive.Close>)
 }
 
 function DialogOverlay({ className, ...props }: ComponentProps<"div">) {
+	usePageScrollLock();
+
 	return (
 		<div
 			className={cn(
