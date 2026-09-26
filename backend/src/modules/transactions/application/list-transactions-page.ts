@@ -1,6 +1,7 @@
 import { getMonetaryBalancesAtDates } from "~/modules/accounts/application/get-monetary-balances-at-dates";
 import { getTagsByEntity, tagEntityType } from "~/modules/categories/application/tag-assignments";
 import { getCreditPurchaseSyncStatus } from "~/modules/creditCards/domain/credit-purchase-sync-status";
+import { getDebtSplitReturns } from "~/modules/debts/application/debt-splits";
 import { HttpException } from "~/shared/errors";
 import { db, queryRaw, queryRows } from "~/shared/infra/sql";
 
@@ -235,7 +236,14 @@ export async function listTransactionsPage(userId: string, input: ListTransactio
 	const page = rows.slice(0, limit);
 	const transactionIds = page.filter(row => row.sourceRank === 0).map(row => row.id);
 	const purchaseIds = page.filter(row => row.sourceRank === 1).map(row => row.id);
-	const [transactionTags, purchaseTags, externalReferences, purchaseInstallments] = await Promise.all([
+	const [
+		transactionTags,
+		purchaseTags,
+		externalReferences,
+		purchaseInstallments,
+		transactionDebtSplits,
+		purchaseDebtSplits,
+	] = await Promise.all([
 		getTagsByEntity(tagEntityType.transaction, transactionIds),
 		getTagsByEntity(tagEntityType.creditPurchase, purchaseIds),
 		transactionIds.length
@@ -266,6 +274,14 @@ export async function listTransactionsPage(userId: string, input: ListTransactio
 						.build(),
 				)
 			: [],
+		getDebtSplitReturns(
+			"transactionId",
+			page.filter(row => row.sourceRank === 0).map(row => ({ amount: Number(row.amount), id: row.id })),
+		),
+		getDebtSplitReturns(
+			"creditPurchaseId",
+			page.filter(row => row.sourceRank === 1).map(row => ({ amount: Number(row.amount), id: row.id })),
+		),
 	]);
 	const externalIds = new Map<string, string[]>();
 	for (const reference of externalReferences)
@@ -280,6 +296,7 @@ export async function listTransactionsPage(userId: string, input: ListTransactio
 		return {
 			...row,
 			...(sourceRank === 1 ? purchaseSyncStatus.get(row.id) : {}),
+			debtSplit: (sourceRank === 0 ? transactionDebtSplits : purchaseDebtSplits).get(row.id) ?? null,
 			externalIds: references,
 			isSynced: sourceRank === 0 ? references.length > 0 : undefined,
 			tagIds: tags.map(tag => tag.id),
