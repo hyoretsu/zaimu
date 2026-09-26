@@ -10,7 +10,10 @@ import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import type { Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
-import { getFinancialAccountDisplayName, getTransactionAccountTypeLabel } from "@/lib/financial-account";
+import {
+	compareFinancialAccountsByOptionLabel,
+	getFinancialAccountOptionLabel,
+} from "@/lib/financial-account";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import {
 	countActiveTransactionFilters,
@@ -148,16 +151,14 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 						onValueChange={value => set("accountId", value)}
 						options={[
 							{ label: "Todas as contas", value: "all" },
-							...(accountsQuery.data ?? []).map(account => ({
-								label: `${getFinancialAccountDisplayName(account)} (${getTransactionAccountTypeLabel(
-									account.type,
-									account.rewardsAccount?.kind,
-								)})`,
+							...(accountsQuery.data ?? []).toSorted(compareFinancialAccountsByOptionLabel).map(account => ({
+								label: getFinancialAccountOptionLabel(account),
 								value: account.id,
 							})),
 						]}
 						placeholder="Todas as contas"
 						searchable
+						sortOptions={false}
 						value={filters.accountId}
 					/>
 					<CustomSelect

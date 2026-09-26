@@ -24,7 +24,7 @@ import { getLocalDateKey } from "@/lib/date";
 import { calculateDebtSplit, debtSplitToInput } from "@/lib/debt-split";
 import {
 	compareFinancialAccountsByDisplayName,
-	getFinancialAccountDisplayName,
+	getFinancialAccountOptionLabel,
 } from "@/lib/financial-account";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
@@ -557,7 +557,7 @@ export function CreateRecurringDialog({
 							label="Conta de destino"
 							onValueChange={value => setField("financialAccountId", value)}
 							options={compatibleAccounts.map(account => ({
-								label: getFinancialAccountDisplayName(account),
+								label: getFinancialAccountOptionLabel(account),
 								value: account.id,
 							}))}
 							placeholder={accountsQuery.isPending ? "Carregando contas…" : "Selecione a conta"}
@@ -635,7 +635,7 @@ export function CreateRecurringDialog({
 									? []
 									: [{ label: "Sem conta específica", value: noFinancialAccountValue }]),
 								...compatibleAccounts.map(account => ({
-									label: getFinancialAccountDisplayName(account),
+									label: getFinancialAccountOptionLabel(account),
 									value: account.id,
 								})),
 							]}
