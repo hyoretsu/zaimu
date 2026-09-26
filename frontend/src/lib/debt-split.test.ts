@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+	addDebtSplitParticipant,
 	calculateDebtSplit,
 	createEqualDebtSplit,
 	debtSplitError,
@@ -96,6 +97,21 @@ describe("calculateDebtSplit", () => {
 				],
 			}),
 		).toBeNull();
+	});
+});
+
+describe("addDebtSplitParticipant", () => {
+	test("keeps existing and owner shares when adding a person", () => {
+		const split = {
+			mode: "SHARES" as const,
+			ownerShares: 3,
+			participants: [{ debtPersonId: "vitoria", shares: 2 }],
+		};
+
+		expect(addDebtSplitParticipant(split, false, 19.99)).toEqual({
+			...split,
+			participants: [...split.participants, { debtPersonId: "", shares: 1 }],
+		});
 	});
 });
 

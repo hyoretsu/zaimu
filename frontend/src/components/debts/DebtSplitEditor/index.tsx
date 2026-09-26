@@ -6,6 +6,7 @@ import { CustomSelect } from "@/components/ui/CustomSelect";
 import { NumericField } from "@/components/ui/NumericField";
 import type { DebtSplitInput } from "@/lib/api";
 import {
+	addDebtSplitParticipant,
 	calculateDebtSplit,
 	createEqualDebtSplit,
 	debtSplitError,
@@ -165,7 +166,7 @@ export function DebtSplitEditor({
 									? undefined
 									: value.remainderDebtPersonId;
 						onChange(
-							customized.current
+							value.mode === "SHARES" || customized.current
 								? ({
 										...value,
 										...(remainingRemainderDebtPersonId
@@ -191,25 +192,7 @@ export function DebtSplitEditor({
 				className="cursor-pointer"
 				disabled={disabled}
 				onClick={() => {
-					if (!customized.current) {
-						onChange(
-							createEqualDebtSplit(
-								value.mode,
-								[...value.participants, { debtPersonId: "" }],
-								ownerIncluded,
-								amount,
-								value.mode === "SHARES" ? undefined : value.remainderDebtPersonId,
-							),
-						);
-						return;
-					}
-					const participant =
-						value.mode === "SHARES"
-							? { debtPersonId: "", shares: 1 }
-							: value.mode === "PERCENTAGE"
-								? { debtPersonId: "", percentage: 0 }
-								: { debtPersonId: "", fixedAmount: 0 };
-					onChange({ ...value, participants: [...value.participants, participant] } as DebtSplitInput);
+					onChange(addDebtSplitParticipant(value, customized.current, amount));
 				}}
 				type="button"
 				variant="outline"

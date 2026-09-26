@@ -52,6 +52,29 @@ export function createEqualDebtSplit(
 	};
 }
 
+export function addDebtSplitParticipant(
+	split: DebtSplitInput,
+	customized: boolean,
+	amount: number,
+): DebtSplitInput {
+	if (split.mode === "SHARES")
+		return {
+			...split,
+			participants: [...split.participants, { debtPersonId: "", shares: 1 }],
+		};
+	if (!customized)
+		return createEqualDebtSplit(
+			split.mode,
+			[...split.participants, { debtPersonId: "" }],
+			split.ownerIncluded,
+			amount,
+			split.remainderDebtPersonId,
+		);
+	const participant =
+		split.mode === "PERCENTAGE" ? { debtPersonId: "", percentage: 0 } : { debtPersonId: "", fixedAmount: 0 };
+	return { ...split, participants: [...split.participants, participant] } as DebtSplitInput;
+}
+
 export function formatDebtSplitBadge(
 	split: DebtSplit | null | undefined,
 	formatAmount: (amount: number) => string,
