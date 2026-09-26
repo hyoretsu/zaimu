@@ -45,6 +45,27 @@ describe("namespacesForEvent", () => {
 			"accounts:list",
 			"credit-cards:overview",
 			"dashboard",
+			"schedules:detail",
+			"schedules:history",
+			"schedules:overview",
+			"transactions:list",
+		]);
+	});
+
+	test("invalidates every debt reader for all affected users", () => {
+		const event = createEventEnvelope({
+			aggregateId: "debt-id",
+			aggregateType: "debt",
+			correlationId: "correlation-id",
+			eventType: "updated",
+			payload: {},
+			userIds: ["user-1", "user-2"],
+		});
+		expect(namespacesForEvent(event)).toEqual([
+			"debts:events",
+			"debts:invitations",
+			"debts:overview",
+			"dashboard",
 			"transactions:list",
 		]);
 	});

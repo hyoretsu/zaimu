@@ -1,5 +1,6 @@
 import Elysia from "elysia";
 import { requireUserId } from "~/modules/auth";
+import { syncCacheNamespaces } from "~/shared/application/cache-invalidation";
 import { createEventEnvelope } from "~/shared/application/events";
 import type { CacheNamespace } from "~/shared/infra/cache";
 import { distributedCache } from "~/shared/infra/cache";
@@ -83,18 +84,43 @@ export const writeNamespaces = (pathname: string): CacheNamespace[] => {
 		pathname.startsWith("/financial-account-yield-holidays") ||
 		pathname.startsWith("/financial-account-yields")
 	)
-		return ["accounts:list", "dashboard", "transactions:list"];
+		return [
+			"accounts:detail",
+			"accounts:list",
+			"accounts:rate-history",
+			"accounts:yields",
+			"dashboard",
+			"transactions:list",
+		];
+	if (pathname.startsWith("/categories"))
+		return ["categories:list", "dashboard", "schedules:overview", "transactions:list"];
+	if (pathname.startsWith("/stores")) return ["stores:list", "transactions:list"];
 	if (
-		pathname.startsWith("/categories") ||
-		pathname.startsWith("/stores") ||
 		pathname.startsWith("/salaries") ||
 		pathname.startsWith("/subscriptions") ||
-		pathname.startsWith("/recurring") ||
-		pathname.startsWith("/loans") ||
-		pathname.startsWith("/debts") ||
-		pathname.startsWith("/sync")
+		pathname.startsWith("/recurring")
 	)
-		return ["accounts:list", "credit-cards:overview", "dashboard", "transactions:list"];
+		return [
+			"accounts:list",
+			"credit-cards:overview",
+			"dashboard",
+			"schedules:detail",
+			"schedules:history",
+			"schedules:overview",
+			"transactions:list",
+		];
+	if (pathname.startsWith("/loans"))
+		return [
+			"dashboard",
+			"loans:detail",
+			"loans:history",
+			"loans:installments",
+			"loans:list",
+			"transactions:list",
+		];
+	if (pathname.startsWith("/debts"))
+		return ["debts:events", "debts:invitations", "debts:overview", "dashboard", "transactions:list"];
+	if (pathname.startsWith("/sync")) return syncCacheNamespaces;
 	return [];
 };
 
@@ -114,7 +140,7 @@ const aggregateForPath = (pathname: string) => {
 				loans: "loan",
 				recurring: "schedule",
 				salaries: "schedule",
-				stores: "category",
+				stores: "store",
 				subscriptions: "schedule",
 				sync: "sync",
 				"transaction-imports": "transactionImport",

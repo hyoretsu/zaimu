@@ -21,15 +21,22 @@ if (migration.exitCode !== 0) process.exit(migration.exitCode);
 
 const { closeDatabase, withRawTransaction } = await import("sql");
 const userId = "performance-user";
+const peerUserId = "performance-peer";
 const anchorDate = "2026-09-22";
 
 try {
 	await withRawTransaction(async query => {
+		await query('DELETE FROM "user" WHERE "id" = $1', [peerUserId]);
 		await query('DELETE FROM "user" WHERE "id" = $1', [userId]);
 		await query(
 			`INSERT INTO "user" ("id", "email", "name", "emailVerified")
 			 VALUES ($1, 'performance@zaimu.local', 'Performance Fixture', true)`,
 			[userId],
+		);
+		await query(
+			`INSERT INTO "user" ("id", "email", "name", "emailVerified")
+			 VALUES ($1, 'performance-peer@zaimu.local', 'Performance Peer', true)`,
+			[peerUserId],
 		);
 		await query(
 			`INSERT INTO "FinancialInstitution" ("id", "userId", "name", "normalizedName")
@@ -52,6 +59,15 @@ try {
 			          ELSE '#9333ea'
 			        END
 			 FROM generate_series(1, 12) AS series`,
+			[userId],
+		);
+		await query(
+			`INSERT INTO "Store" ("id", "userId", "name", "normalizedName")
+			 SELECT 'perf-store-' || lpad(series::text, 4, '0'),
+			        $1,
+			        'Loja ' || lpad(series::text, 4, '0'),
+			        'loja ' || lpad(series::text, 4, '0')
+			 FROM generate_series(1, 500) AS series`,
 			[userId],
 		);
 		await query(
@@ -82,6 +98,28 @@ try {
 			        17,
 			        false
 			 FROM generate_series(1, 20) AS series`,
+		);
+		await query(
+			`INSERT INTO "FinancialAccountYieldRateHistory"
+			 ("id", "financialAccountId", "effectiveDate", "yieldPeriod", "yieldReferenceType",
+			  "yieldReferencePercentage", "yieldFixedRate", "yieldTaxRate")
+			 SELECT 'perf-rate-' || lpad(series::text, 4, '0'),
+			        'perf-account-main',
+			        (date_trunc('month', $1::date) - make_interval(months => series))::date,
+			        'MONTHLY', 'CDI', 100, 0, 22.5
+			 FROM generate_series(0, 59) AS series`,
+			[anchorDate],
+		);
+		await query(
+			`INSERT INTO "FinancialAccountYield"
+			 ("id", "financialAccountId", "date", "amount", "kind", "origin")
+			 SELECT 'perf-yield-' || lpad(series::text, 5, '0'),
+			        'perf-account-main',
+			        $1::date - series,
+			        ((series % 500) + 1)::numeric / 100,
+			        'AUTOMATIC', 'SYSTEM'
+			 FROM generate_series(0, 1825) AS series`,
+			[anchorDate],
 		);
 		await query(
 			`INSERT INTO "CreditCardStatement"
@@ -163,15 +201,108 @@ try {
 			        'perf-tx-' || lpad(series::text, 10, '0')
 			 FROM generate_series(10, 100000, 10) AS series`,
 		);
-		await query('ANALYZE "Transaction", "CreditPurchase", "CreditCardStatement", "TagAssignment"');
+		await query(
+			`INSERT INTO "DebtConnection" ("id", "requesterId", "recipientId", "status", "respondedAt")
+			 VALUES ('perf-debt-connection', $1, $2, 'ACCEPTED', now())`,
+			[userId, peerUserId],
+		);
+		await query(
+			`INSERT INTO "DebtPerson" ("id", "userId", "name", "normalizedName", "connectionId") VALUES
+			 ('perf-debt-person-owner', $1, 'Performance Peer', 'performance peer', 'perf-debt-connection'),
+			 ('perf-debt-person-peer', $2, 'Performance Fixture', 'performance fixture', 'perf-debt-connection')`,
+			[userId, peerUserId],
+		);
+		await query(
+			`INSERT INTO "DebtEvent"
+			 ("id", "debtPersonId", "connectionId", "createdByUserId", "kind", "amount", "effect", "date", "description")
+			 SELECT 'perf-debt-event-' || lpad(series::text, 5, '0'),
+			        CASE WHEN series % 2 = 0 THEN 'perf-debt-person-owner' ELSE 'perf-debt-person-peer' END,
+			        'perf-debt-connection',
+			        CASE WHEN series % 2 = 0 THEN $1 ELSE $2 END,
+			        'ORIGIN', ((series % 30000) + 100)::numeric / 100,
+			        CASE WHEN series % 3 = 0 THEN -1 ELSE 1 END * ((series % 30000) + 100)::numeric / 100,
+			        $3::date - (series % 1826)::integer,
+			        'Lançamento de desempenho ' || series
+			 FROM generate_series(1, 5000) AS series`,
+			[userId, peerUserId, anchorDate],
+		);
+		await query(
+			`INSERT INTO "Loan"
+			 ("id", "userId", "lender", "principalAmount", "interestRate", "totalInstallments",
+			  "installmentAmount", "dueDay", "startDate", "firstDueDate", "amortization")
+			 SELECT 'perf-loan-' || lpad(series::text, 3, '0'), $1, 'Banco ' || series,
+			        10000 + series * 100, 0.015, 60, 250 + series, 10,
+			        ($2::date - make_interval(months => 24))::date,
+			        ($2::date - make_interval(months => 23))::date,
+			        CASE WHEN series % 2 = 0 THEN 'PRICE'::"AmortizationType" ELSE 'SAC'::"AmortizationType" END
+			 FROM generate_series(1, 25) AS series`,
+			[userId, anchorDate],
+		);
+		await query(
+			`INSERT INTO "LoanPayment"
+			 ("id", "loanId", "installmentNumber", "principalPaid", "interestPaid", "totalPaid", "dueDate", "paidDate")
+			 SELECT 'perf-loan-payment-' || lpad(loan::text, 3, '0') || '-' || lpad(installment::text, 2, '0'),
+			        'perf-loan-' || lpad(loan::text, 3, '0'), installment, 200, 50, 250,
+			        ($1::date - make_interval(months => 24 - installment))::date,
+			        CASE WHEN installment <= 24 THEN ($1::date - make_interval(months => 24 - installment))::date ELSE NULL END
+			 FROM generate_series(1, 25) AS loan CROSS JOIN generate_series(1, 60) AS installment`,
+			[anchorDate],
+		);
+		await query(
+			`INSERT INTO "LoanHistory" ("id", "loanId", "field", "oldValue", "newValue", "changedAt")
+			 SELECT 'perf-loan-history-' || lpad(loan::text, 3, '0') || '-' || lpad(item::text, 2, '0'),
+			        'perf-loan-' || lpad(loan::text, 3, '0'), 'interestRate', '0.014', '0.015',
+			        $1::timestamp - make_interval(days => item)
+			 FROM generate_series(1, 25) AS loan CROSS JOIN generate_series(1, 20) AS item`,
+			[anchorDate],
+		);
+		await query(
+			`INSERT INTO "Salary"
+			 ("id", "userId", "financialAccountId", "source", "amount", "frequency", "payDay", "startDate", "isActive")
+			 SELECT 'perf-salary-' || lpad(series::text, 3, '0'), $1, 'perf-account-main',
+			        'Salário ' || series, 3000 + series * 10, 'MONTHLY', 5, ($2::date - interval '2 years')::date, true
+			 FROM generate_series(1, 40) AS series`,
+			[userId, anchorDate],
+		);
+		await query(
+			`INSERT INTO "Subscription"
+			 ("id", "userId", "name", "amount", "billingDay", "frequency", "paymentMethod",
+			  "financialAccountId", "startDate", "isActive")
+			 SELECT 'perf-subscription-' || lpad(series::text, 3, '0'), $1, 'Assinatura ' || series,
+			        20 + series, 15, 'MONTHLY', 'DEBIT', 'perf-account-main', ($2::date - interval '2 years')::date, true
+			 FROM generate_series(1, 100) AS series`,
+			[userId, anchorDate],
+		);
+		await query(
+			`INSERT INTO "RecurringPayment"
+			 ("id", "userId", "name", "amount", "frequency", "dayOfMonth", "startDate",
+			  "financialAccountId", "paymentMethod", "isActive")
+			 SELECT 'perf-recurring-' || lpad(series::text, 3, '0'), $1, 'Recorrência ' || series,
+			        50 + series, 'MONTHLY', 20, ($2::date - interval '2 years')::date,
+			        'perf-account-main', 'DEBIT', true
+			 FROM generate_series(1, 100) AS series`,
+			[userId, anchorDate],
+		);
+		await query(
+			`ANALYZE "Transaction", "CreditPurchase", "CreditCardStatement", "TagAssignment",
+			 "FinancialAccountYield", "DebtEvent", "Loan", "LoanPayment", "LoanHistory",
+			 "Salary", "Subscription", "RecurringPayment", "Store"`,
+		);
 	});
 	console.log(
 		JSON.stringify({
 			creditCards: 20,
 			creditPurchases: 12000,
+			debtEvents: 5000,
+			loans: 25,
+			recurringPayments: 100,
+			salaries: 40,
 			statements: 1200,
+			stores: 500,
+			subscriptions: 100,
 			transactions: 100000,
 			userId,
+			yields: 1826,
 		}),
 	);
 } finally {

@@ -1,10 +1,25 @@
 import type { CachePort } from "~/shared/application/ports";
 
 export const cacheNamespaces = [
+	"accounts:detail",
 	"accounts:list",
+	"accounts:rate-history",
+	"accounts:yields",
+	"categories:list",
 	"credit-cards:overview",
 	"dashboard",
+	"debts:invitations",
+	"debts:events",
+	"debts:overview",
 	"imports:pending",
+	"loans:list",
+	"loans:detail",
+	"loans:history",
+	"loans:installments",
+	"schedules:detail",
+	"schedules:history",
+	"schedules:overview",
+	"stores:list",
 	"transactions:list",
 ] as const;
 export type CacheNamespace =

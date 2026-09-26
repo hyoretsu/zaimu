@@ -35,6 +35,16 @@ describe("writeNamespaces", () => {
 		);
 	});
 
+	test("fences every debt cache before a shared mutation", () => {
+		expect(writeNamespaces("/debts/events/event-1")).toEqual([
+			"debts:events",
+			"debts:invitations",
+			"debts:overview",
+			"dashboard",
+			"transactions:list",
+		]);
+	});
+
 	test("ignores domains without declared cache dependencies", () => {
 		expect(writeNamespaces("/auth/sign-in")).toEqual([]);
 	});

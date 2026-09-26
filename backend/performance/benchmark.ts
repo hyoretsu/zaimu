@@ -44,7 +44,10 @@ for (const [name, budget] of Object.entries(performanceBudgets)) {
 	const hotP95Ms = percentile95(hot.map(sample => sample.durationMs));
 	const hotQueryCount = Math.max(...hot.map(sample => sample.queryCount ?? Number.POSITIVE_INFINITY));
 	const passed =
-		cold.durationMs < budget.coldP95Ms && hotP95Ms < budget.hotP95Ms && hotQueryCount <= budget.hotQueryCount;
+		cold.durationMs < budget.coldP95Ms &&
+		(cold.queryCount ?? Number.POSITIVE_INFINITY) <= budget.coldQueryCount &&
+		hotP95Ms < budget.hotP95Ms &&
+		hotQueryCount <= budget.hotQueryCount;
 	failed ||= !passed;
 	results[name] = {
 		budget,

@@ -1,0 +1,527 @@
+[
+	{
+		"execute": [
+			{
+				"description": "drop index \"DebtEvent_connectionId_date_idx\"",
+				"params": [],
+				"sql": "DROP INDEX \"public\".\"DebtEvent_connectionId_date_idx\""
+			}
+		],
+		"id": "dropIndex.DebtEvent.DebtEvent_connectionId_date_idx",
+		"label": "Drop index \"DebtEvent_connectionId_date_idx\"",
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify index \"DebtEvent_connectionId_date_idx\" does not exist",
+				"params": ["\"public\".\"DebtEvent_connectionId_date_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"DebtEvent_connectionId_date_idx\" exists",
+				"params": ["\"public\".\"DebtEvent_connectionId_date_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "DebtEvent_connectionId_date_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "DebtEvent"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "drop index \"DebtEvent_debtPersonId_date_idx\"",
+				"params": [],
+				"sql": "DROP INDEX \"public\".\"DebtEvent_debtPersonId_date_idx\""
+			}
+		],
+		"id": "dropIndex.DebtEvent.DebtEvent_debtPersonId_date_idx",
+		"label": "Drop index \"DebtEvent_debtPersonId_date_idx\"",
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify index \"DebtEvent_debtPersonId_date_idx\" does not exist",
+				"params": ["\"public\".\"DebtEvent_debtPersonId_date_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"DebtEvent_debtPersonId_date_idx\" exists",
+				"params": ["\"public\".\"DebtEvent_debtPersonId_date_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "DebtEvent_debtPersonId_date_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "DebtEvent"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"DebtEvent_connectionId_date_id_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"DebtEvent_connectionId_date_id_idx\" ON \"public\".\"DebtEvent\" (\"connectionId\", \"date\", \"id\")"
+			}
+		],
+		"id": "index.DebtEvent.DebtEvent_connectionId_date_id_idx",
+		"label": "Create index \"DebtEvent_connectionId_date_id_idx\" on \"DebtEvent\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"DebtEvent_connectionId_date_id_idx\" exists",
+				"params": ["\"public\".\"DebtEvent_connectionId_date_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"DebtEvent_connectionId_date_id_idx\" does not exist",
+				"params": ["\"public\".\"DebtEvent_connectionId_date_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "DebtEvent_connectionId_date_id_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "DebtEvent"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"DebtEvent_debtPersonId_date_id_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"DebtEvent_debtPersonId_date_id_idx\" ON \"public\".\"DebtEvent\" (\"debtPersonId\", \"date\", \"id\")"
+			}
+		],
+		"id": "index.DebtEvent.DebtEvent_debtPersonId_date_id_idx",
+		"label": "Create index \"DebtEvent_debtPersonId_date_id_idx\" on \"DebtEvent\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"DebtEvent_debtPersonId_date_id_idx\" exists",
+				"params": ["\"public\".\"DebtEvent_debtPersonId_date_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"DebtEvent_debtPersonId_date_id_idx\" does not exist",
+				"params": ["\"public\".\"DebtEvent_debtPersonId_date_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "DebtEvent_debtPersonId_date_id_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "DebtEvent"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"DebtPerson_userId_hiddenAt_name_id_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"DebtPerson_userId_hiddenAt_name_id_idx\" ON \"public\".\"DebtPerson\" (\"userId\", \"hiddenAt\", \"name\", \"id\")"
+			}
+		],
+		"id": "index.DebtPerson.DebtPerson_userId_hiddenAt_name_id_idx",
+		"label": "Create index \"DebtPerson_userId_hiddenAt_name_id_idx\" on \"DebtPerson\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"DebtPerson_userId_hiddenAt_name_id_idx\" exists",
+				"params": ["\"public\".\"DebtPerson_userId_hiddenAt_name_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"DebtPerson_userId_hiddenAt_name_id_idx\" does not exist",
+				"params": ["\"public\".\"DebtPerson_userId_hiddenAt_name_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "DebtPerson_userId_hiddenAt_name_id_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "DebtPerson"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"Loan_userId_startDate_id_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"Loan_userId_startDate_id_idx\" ON \"public\".\"Loan\" (\"userId\", \"startDate\", \"id\")"
+			}
+		],
+		"id": "index.Loan.Loan_userId_startDate_id_idx",
+		"label": "Create index \"Loan_userId_startDate_id_idx\" on \"Loan\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"Loan_userId_startDate_id_idx\" exists",
+				"params": ["\"public\".\"Loan_userId_startDate_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"Loan_userId_startDate_id_idx\" does not exist",
+				"params": ["\"public\".\"Loan_userId_startDate_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "Loan_userId_startDate_id_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "Loan"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"LoanHistory_loanId_changedAt_id_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"LoanHistory_loanId_changedAt_id_idx\" ON \"public\".\"LoanHistory\" (\"loanId\", \"changedAt\", \"id\")"
+			}
+		],
+		"id": "index.LoanHistory.LoanHistory_loanId_changedAt_id_idx",
+		"label": "Create index \"LoanHistory_loanId_changedAt_id_idx\" on \"LoanHistory\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"LoanHistory_loanId_changedAt_id_idx\" exists",
+				"params": ["\"public\".\"LoanHistory_loanId_changedAt_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"LoanHistory_loanId_changedAt_id_idx\" does not exist",
+				"params": ["\"public\".\"LoanHistory_loanId_changedAt_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "LoanHistory_loanId_changedAt_id_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "LoanHistory"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"LoanPayment_loanId_installmentNumber_key\"",
+				"params": [],
+				"sql": "CREATE UNIQUE INDEX \"LoanPayment_loanId_installmentNumber_key\" ON \"public\".\"LoanPayment\" (\"loanId\", \"installmentNumber\")"
+			}
+		],
+		"id": "index.LoanPayment.LoanPayment_loanId_installmentNumber_key",
+		"label": "Create index \"LoanPayment_loanId_installmentNumber_key\" on \"LoanPayment\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"LoanPayment_loanId_installmentNumber_key\" exists",
+				"params": ["\"public\".\"LoanPayment_loanId_installmentNumber_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"LoanPayment_loanId_installmentNumber_key\" does not exist",
+				"params": ["\"public\".\"LoanPayment_loanId_installmentNumber_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "LoanPayment_loanId_installmentNumber_key",
+				"objectType": "index",
+				"schema": "public",
+				"table": "LoanPayment"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"LoanPayment_loanId_paidDate_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"LoanPayment_loanId_paidDate_idx\" ON \"public\".\"LoanPayment\" (\"loanId\", \"paidDate\")"
+			}
+		],
+		"id": "index.LoanPayment.LoanPayment_loanId_paidDate_idx",
+		"label": "Create index \"LoanPayment_loanId_paidDate_idx\" on \"LoanPayment\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"LoanPayment_loanId_paidDate_idx\" exists",
+				"params": ["\"public\".\"LoanPayment_loanId_paidDate_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"LoanPayment_loanId_paidDate_idx\" does not exist",
+				"params": ["\"public\".\"LoanPayment_loanId_paidDate_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "LoanPayment_loanId_paidDate_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "LoanPayment"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"RecurringPayment_userId_active_name_id_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"RecurringPayment_userId_active_name_id_idx\" ON \"public\".\"RecurringPayment\" (\"userId\", \"isActive\", \"name\", \"id\")"
+			}
+		],
+		"id": "index.RecurringPayment.RecurringPayment_userId_active_name_id_idx",
+		"label": "Create index \"RecurringPayment_userId_active_name_id_idx\" on \"RecurringPayment\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"RecurringPayment_userId_active_name_id_idx\" exists",
+				"params": ["\"public\".\"RecurringPayment_userId_active_name_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"RecurringPayment_userId_active_name_id_idx\" does not exist",
+				"params": ["\"public\".\"RecurringPayment_userId_active_name_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "RecurringPayment_userId_active_name_id_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "RecurringPayment"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"RecurringPaymentHistory_paymentId_changedAt_id_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"RecurringPaymentHistory_paymentId_changedAt_id_idx\" ON \"public\".\"RecurringPaymentHistory\" (\"recurringPaymentId\", \"changedAt\", \"id\")"
+			}
+		],
+		"id": "index.RecurringPaymentHistory.RecurringPaymentHistory_paymentId_changedAt_id_idx",
+		"label": "Create index \"RecurringPaymentHistory_paymentId_changedAt_id_idx\" on \"RecurringPaymentHistory\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"RecurringPaymentHistory_paymentId_changedAt_id_idx\" exists",
+				"params": ["\"public\".\"RecurringPaymentHistory_paymentId_changedAt_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"RecurringPaymentHistory_paymentId_changedAt_id_idx\" does not exist",
+				"params": ["\"public\".\"RecurringPaymentHistory_paymentId_changedAt_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "RecurringPaymentHistory_paymentId_changedAt_id_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "RecurringPaymentHistory"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"Salary_userId_active_source_id_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"Salary_userId_active_source_id_idx\" ON \"public\".\"Salary\" (\"userId\", \"isActive\", \"source\", \"id\")"
+			}
+		],
+		"id": "index.Salary.Salary_userId_active_source_id_idx",
+		"label": "Create index \"Salary_userId_active_source_id_idx\" on \"Salary\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"Salary_userId_active_source_id_idx\" exists",
+				"params": ["\"public\".\"Salary_userId_active_source_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"Salary_userId_active_source_id_idx\" does not exist",
+				"params": ["\"public\".\"Salary_userId_active_source_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "Salary_userId_active_source_id_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "Salary"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"SalaryHistory_salaryId_changedAt_id_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"SalaryHistory_salaryId_changedAt_id_idx\" ON \"public\".\"SalaryHistory\" (\"salaryId\", \"changedAt\", \"id\")"
+			}
+		],
+		"id": "index.SalaryHistory.SalaryHistory_salaryId_changedAt_id_idx",
+		"label": "Create index \"SalaryHistory_salaryId_changedAt_id_idx\" on \"SalaryHistory\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"SalaryHistory_salaryId_changedAt_id_idx\" exists",
+				"params": ["\"public\".\"SalaryHistory_salaryId_changedAt_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"SalaryHistory_salaryId_changedAt_id_idx\" does not exist",
+				"params": ["\"public\".\"SalaryHistory_salaryId_changedAt_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "SalaryHistory_salaryId_changedAt_id_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "SalaryHistory"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"Subscription_userId_active_name_id_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"Subscription_userId_active_name_id_idx\" ON \"public\".\"Subscription\" (\"userId\", \"isActive\", \"name\", \"id\")"
+			}
+		],
+		"id": "index.Subscription.Subscription_userId_active_name_id_idx",
+		"label": "Create index \"Subscription_userId_active_name_id_idx\" on \"Subscription\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"Subscription_userId_active_name_id_idx\" exists",
+				"params": ["\"public\".\"Subscription_userId_active_name_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"Subscription_userId_active_name_id_idx\" does not exist",
+				"params": ["\"public\".\"Subscription_userId_active_name_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "Subscription_userId_active_name_id_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "Subscription"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"SubscriptionHistory_subscriptionId_changedAt_id_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"SubscriptionHistory_subscriptionId_changedAt_id_idx\" ON \"public\".\"SubscriptionHistory\" (\"subscriptionId\", \"changedAt\", \"id\")"
+			}
+		],
+		"id": "index.SubscriptionHistory.SubscriptionHistory_subscriptionId_changedAt_id_idx",
+		"label": "Create index \"SubscriptionHistory_subscriptionId_changedAt_id_idx\" on \"SubscriptionHistory\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"SubscriptionHistory_subscriptionId_changedAt_id_idx\" exists",
+				"params": ["\"public\".\"SubscriptionHistory_subscriptionId_changedAt_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"SubscriptionHistory_subscriptionId_changedAt_id_idx\" does not exist",
+				"params": ["\"public\".\"SubscriptionHistory_subscriptionId_changedAt_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "SubscriptionHistory_subscriptionId_changedAt_id_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "SubscriptionHistory"
+			},
+			"id": "postgres"
+		}
+	}
+]

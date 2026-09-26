@@ -506,6 +506,7 @@ namespace public {
     debtSplitRemainders DebtSplit[] @relation("DebtSplitRemainderPerson")
 
     @@index([userId, normalizedName], map: "DebtPerson_userId_normalizedName_key", unique: true)
+		@@index([userId, hiddenAt, name, id], map: "DebtPerson_userId_hiddenAt_name_id_idx")
     @@index([connectionId], map: "DebtPerson_connectionId_idx")
     @@map("DebtPerson")
   }
@@ -548,8 +549,8 @@ namespace public {
     transactionLinks DebtTransactionLink[]
     purchaseLinks   DebtPurchaseLink[]
 
-    @@index([debtPersonId, date], map: "DebtEvent_debtPersonId_date_idx")
-    @@index([connectionId, date], map: "DebtEvent_connectionId_date_idx")
+		@@index([debtPersonId, date, id], map: "DebtEvent_debtPersonId_date_id_idx")
+		@@index([connectionId, date, id], map: "DebtEvent_connectionId_date_id_idx")
     @@index([createdByUserId], map: "DebtEvent_createdByUserId_idx")
     @@map("DebtEvent")
   }
@@ -672,6 +673,7 @@ namespace public {
     loanPayments      LoanPayment[]
     user              User                      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Loan_userId_fkey", index: false)
 
+		@@index([userId, startDate, id], map: "Loan_userId_startDate_id_idx")
     @@map("Loan")
   }
 
@@ -684,6 +686,7 @@ namespace public {
     changedAt Timestamp(3) @default(now())
     loan      Loan         @relation(fields: [loanId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "LoanHistory_loanId_fkey", index: false)
 
+		@@index([loanId, changedAt, id], map: "LoanHistory_loanId_changedAt_id_idx")
     @@map("LoanHistory")
   }
 
@@ -704,6 +707,8 @@ namespace public {
     financialAccount   FinancialAccount?     @relation(fields: [financialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "LoanPayment_accountId_fkey", index: false)
     loan               Loan                  @relation(fields: [loanId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "LoanPayment_loanId_fkey", index: false)
 
+		@@index([loanId, paidDate], map: "LoanPayment_loanId_paidDate_idx")
+		@@index([loanId, installmentNumber], map: "LoanPayment_loanId_installmentNumber_key", unique: true)
     @@map("LoanPayment")
   }
 
@@ -731,6 +736,7 @@ namespace public {
     financialAccount          FinancialAccount?            @relation(fields: [financialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "RecurringPayment_financialAccountId_fkey", index: false)
 
     @@index([financialAccountId], map: "RecurringPayment_financialAccountId_idx")
+		@@index([userId, isActive, name, id], map: "RecurringPayment_userId_active_name_id_idx")
     @@map("RecurringPayment")
   }
 
@@ -743,6 +749,7 @@ namespace public {
     changedAt          Timestamp(3)     @default(now())
     recurringPayment   RecurringPayment @relation(fields: [recurringPaymentId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "RecurringPaymentHistory_recurringPaymentId_fkey", index: false)
 
+		@@index([recurringPaymentId, changedAt, id], map: "RecurringPaymentHistory_paymentId_changedAt_id_idx")
     @@map("RecurringPaymentHistory")
   }
 
@@ -768,6 +775,7 @@ namespace public {
     user            User                         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Salary_userId_fkey", index: false)
 
     @@index([financialAccountId], map: "Salary_financialAccountId_idx")
+		@@index([userId, isActive, source, id], map: "Salary_userId_active_source_id_idx")
     @@map("Salary")
   }
 
@@ -780,6 +788,7 @@ namespace public {
     changedAt Timestamp(3) @default(now())
     salary    Salary       @relation(fields: [salaryId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "SalaryHistory_salaryId_fkey", index: false)
 
+		@@index([salaryId, changedAt, id], map: "SalaryHistory_salaryId_changedAt_id_idx")
     @@map("SalaryHistory")
   }
 
@@ -824,6 +833,7 @@ namespace public {
     financialAccount      FinancialAccount?            @relation(fields: [financialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Subscription_financialAccountId_fkey", index: false)
 
     @@index([financialAccountId], map: "Subscription_financialAccountId_idx")
+		@@index([userId, isActive, name, id], map: "Subscription_userId_active_name_id_idx")
     @@map("Subscription")
   }
 
@@ -836,6 +846,7 @@ namespace public {
     changedAt      Timestamp(3) @default(now())
     subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "SubscriptionHistory_subscriptionId_fkey", index: false)
 
+		@@index([subscriptionId, changedAt, id], map: "SubscriptionHistory_subscriptionId_changedAt_id_idx")
     @@map("SubscriptionHistory")
   }
 

@@ -213,3 +213,11 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Mutações de dívidas resolvem participantes, conexões e visibilidades para abrir fences e invalidar todos os usuários afetados.
 - Testes de falha cobrem confirmação perdida do publisher, recuperação pelo outbox, crash do consumidor, duplicação, retry, DLQ, restart e ordenação entre efeito, receipt e ACK.
 - Próxima etapa: otimizar os demais domínios e executar o aceite final de performance.
+
+### 2026-09-26
+
+- Fundação dos domínios restantes recebeu cursores opacos compartilhados vinculados a usuário e filtros, namespaces de cache e matriz completa de invalidação.
+- Fixture de desempenho passou a cobrir rendimentos, dívidas multiusuário, empréstimos, parcelas, históricos, agendas e catálogos.
+- Orçamentos agora falham também quando o cache frio excede o limite de queries do endpoint.
+- Contrato SQL recebeu índices para paginação e agregação de dívidas, empréstimos, pagamentos, históricos e agendas; validação com `EXPLAIN` depende do banco local de desempenho.
+- Próxima etapa: otimizar dashboard, contas e rendimentos.
