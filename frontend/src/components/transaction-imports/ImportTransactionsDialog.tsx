@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { LuFileUp } from "react-icons/lu";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import {
@@ -77,14 +76,9 @@ export function ImportTransactionsDialog({
 			if (!provider) throw new Error("Selecione a instituição do extrato.");
 			return dataService.transactionImports.create({ file, financialAccountId, provider });
 		},
-		onError: (error, _, __, context) => {
-			toast.dismiss(context?.toastId);
+		onError: error => {
 			showToast(error.message, "negative");
 		},
-		onMutate: () => {
-			return { toastId: toast.loading("Importando extrato…", { position: "bottom-right" }) };
-		},
-		onSettled: (_, __, ___, context) => toast.dismiss(context?.toastId),
 		onSuccess: async result => {
 			handleOpenChange(false);
 			if (!result.transactionImport) {
