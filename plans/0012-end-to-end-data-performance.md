@@ -226,4 +226,6 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Resumo de dívidas agora agrega pessoas e saldos em uma consulta SQL, sem eventos embutidos ou N+1 por pessoa.
 - Eventos de cada pessoa passaram a carregar somente ao expandir, com cursor opaco, hidratação SQL set-based, cache e paridade guest.
 - Invalidação multiusuário cobre resumo e páginas de eventos para todos os participantes conectados; previews lazy de convites permanecem pendentes.
-- Próxima etapa: reduzir consultas frias do dashboard e otimizar empréstimos, históricos e catálogos.
+- Empréstimos agora agregam parcelas, total pago e saldo principal numa única consulta, com cache e zero SQL em hit.
+- Payoff antecipado passou a consultar apenas a contagem paga; adiantamento atualiza parcelas em lote e histórico usa cursor opaco.
+- Próxima etapa: concluir previews de convites, detalhes de empréstimos e catálogos.

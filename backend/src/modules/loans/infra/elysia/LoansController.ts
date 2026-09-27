@@ -1,8 +1,14 @@
 import { addMonths, differenceInMonths } from "date-fns";
 import Elysia, { t } from "elysia";
 import { assertBalanceAccountOwnership, assertDirectOwnership, requireUserId } from "~/modules/auth";
+import {
+	decodePaginationCursor,
+	encodePaginationCursor,
+	paginationFilterHash,
+} from "~/shared/application/pagination-cursor";
 import { HttpException } from "~/shared/errors";
-import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
+import { distributedCache } from "~/shared/infra/cache";
+import { db, executeStatement, queryFirst, queryRaw, queryRows } from "~/shared/infra/sql";
 
 const loanColumns = [
 	"id",
@@ -38,6 +44,35 @@ const loanPaymentColumns = [
 
 const AmortizationType = t.Union([t.Literal("PRICE"), t.Literal("SAC"), t.Literal("SACRE")]);
 const AdvanceType = t.Union([t.Literal("FRONT"), t.Literal("BACK")]);
+interface LoanHistoryCursor {
+	changedAt: string;
+	id: string;
+}
+
+interface LoanListRow {
+	amortization: "PRICE" | "SAC" | "SACRE";
+	description: null | string;
+	dueDay: number;
+	firstDueDate: Date;
+	id: string;
+	installmentAmount: string;
+	interestRate: string;
+	lender: string;
+	paidInstallments: string;
+	principalAmount: string;
+	remainingInstallments: string;
+	remainingPrincipal: string;
+	startDate: Date;
+	totalInstallments: number;
+	totalPaid: string;
+	userId: string;
+}
+
+const isLoanHistoryCursor = (value: unknown): value is LoanHistoryCursor => {
+	if (!value || typeof value !== "object") return false;
+	const candidate = value as Record<string, unknown>;
+	return typeof candidate.changedAt === "string" && typeof candidate.id === "string";
+};
 
 /**
  * Calculate loan amortization schedule
@@ -138,8 +173,6 @@ function calculateEarlyPayoff(
 	const remainingPrincipal =
 		paidInstallments > 0 ? schedule[paidInstallments - 1].remainingBalance : Number(loan.principalAmount);
 
-	const remainingInstallments = loan.totalInstallments - paidInstallments;
-
 	if (advanceType === "BACK") {
 		// Back advance: Pay remaining principal without future interest
 		const totalFutureInterest = schedule
@@ -170,43 +203,35 @@ function calculateEarlyPayoff(
 export const LoansController = new Elysia({ prefix: "/loans" })
 	.get(
 		"/",
-		async ({ request }) => {
+		async ({ request, set }) => {
 			const userId = await requireUserId(request);
-			const loans = await queryRows(
-				db.sql.public.Loan.select(...loanColumns)
-					.where((fields, functions) => functions.eq(fields.userId, userId))
-					.orderBy("startDate", { direction: "desc" })
-					.build(),
-			);
-
-			// Get payment info for each loan
-			const loansWithPayments = await Promise.all(
-				loans.map(async loan => {
-					const payments = await queryRows(
-						db.sql.public.LoanPayment.select(...loanPaymentColumns)
-							.where((fields, functions) =>
-								functions.and(
-									functions.eq(fields.loanId, loan.id),
-									functions.raw`${fields.paidDate} IS NOT NULL`.returns("pg/bool@1"),
-								),
-							)
-							.build(),
-					);
-
-					const paidInstallments = payments.length;
-					const remainingInstallments = loan.totalInstallments - paidInstallments;
-					const totalPaid = payments.reduce((sum, p) => sum + Number(p.totalPaid), 0);
-
-					return {
-						...loan,
-						paidInstallments,
-						remainingInstallments,
-						totalPaid,
-					};
-				}),
-			);
-
-			return loansWithPayments;
+			const cached = await distributedCache.remember(userId, "loans:list", {}, async () => {
+				const loans = await queryRaw<LoanListRow>(
+					`SELECT loan.*, COUNT(payment."id") FILTER (WHERE payment."paidDate" IS NOT NULL) AS "paidInstallments",
+					        loan."totalInstallments" - COUNT(payment."id") FILTER (WHERE payment."paidDate" IS NOT NULL) AS "remainingInstallments",
+					        COALESCE(SUM(payment."totalPaid") FILTER (WHERE payment."paidDate" IS NOT NULL), 0) AS "totalPaid",
+					        COALESCE(SUM(payment."principalPaid") FILTER (WHERE payment."paidDate" IS NULL), 0) AS "remainingPrincipal"
+					 FROM "public"."Loan" loan
+					 LEFT JOIN "public"."LoanPayment" payment ON payment."loanId" = loan."id"
+					 WHERE loan."userId" = $1
+					 GROUP BY loan."id"
+					 ORDER BY loan."startDate" DESC, loan."id" DESC`,
+					[userId],
+				);
+				return loans.map(loan => ({
+					...loan,
+					installmentAmount: Number(loan.installmentAmount),
+					interestRate: Number(loan.interestRate),
+					paidInstallments: Number(loan.paidInstallments),
+					principalAmount: Number(loan.principalAmount),
+					remainingInstallments: Number(loan.remainingInstallments),
+					remainingPrincipal: Number(loan.remainingPrincipal),
+					totalPaid: Number(loan.totalPaid),
+				}));
+			});
+			set.headers.etag = cached.etag;
+			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+			return cached.value;
 		},
 		{
 			detail: { tags: ["Loans"] },
@@ -275,16 +300,12 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 				throw new HttpException("Loan not found", 404);
 			}
 
-			const paidPayments = await queryRows(
-				db.sql.public.LoanPayment.select(...loanPaymentColumns)
-					.where((fields, functions) =>
-						functions.and(
-							functions.eq(fields.loanId, params.id),
-							functions.raw`${fields.paidDate} IS NOT NULL`.returns("pg/bool@1"),
-						),
-					)
-					.build(),
+			const [paidPaymentCount] = await queryRaw<{ count: string }>(
+				`SELECT COUNT(*) AS "count" FROM "public"."LoanPayment"
+				 WHERE "loanId" = $1 AND "paidDate" IS NOT NULL`,
+				[params.id],
 			);
+			const paidInstallments = Number(paidPaymentCount?.count ?? 0);
 
 			const targetDate = query.targetDate ? new Date(query.targetDate) : new Date();
 			const advanceType = query.advanceType ?? "BACK";
@@ -298,7 +319,7 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 					startDate: new Date(loan.startDate),
 					totalInstallments: loan.totalInstallments,
 				},
-				paidPayments.length,
+				paidInstallments,
 				targetDate,
 				advanceType,
 			);
@@ -306,7 +327,7 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 			return {
 				advanceType,
 				loanId: loan.id,
-				paidInstallments: paidPayments.length,
+				paidInstallments,
 				targetDate,
 				...payoff,
 			};
@@ -498,19 +519,22 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 			// Mark installments as paid with advance
 			const paidDate = body.paidDate ? new Date(body.paidDate) : new Date();
 
-			for (const payment of unpaidPayments) {
-				await executeStatement(
-					db.sql.public.LoanPayment.update({
-						advanceType: body.advanceType,
-						financialAccountId: body.financialAccountId,
-						isAdvanced: true,
-						paidDate,
-						updatedAt: new Date(),
-					})
-						.where((fields, functions) => functions.eq(fields.id, payment.id))
-						.build(),
-				);
-			}
+			await executeStatement(
+				db.sql.public.LoanPayment.update({
+					advanceType: body.advanceType,
+					financialAccountId: body.financialAccountId,
+					isAdvanced: true,
+					paidDate,
+					updatedAt: new Date(),
+				})
+					.where((fields, functions) =>
+						functions.in(
+							fields.id,
+							unpaidPayments.map(payment => payment.id),
+						),
+					)
+					.build(),
+			);
 
 			// Calculate total paid
 			const totalPaid = unpaidPayments.reduce((sum, p) => sum + Number(p.totalPaid), 0);
@@ -536,22 +560,64 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 	)
 	.get(
 		"/:id/history",
-		async ({ params, request }) => {
+		async ({ params, query, request, set }) => {
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("Loan", params.id, userId);
-			const history = await queryRows(
-				db.sql.public.LoanHistory.select("id", "loanId", "field", "oldValue", "newValue", "changedAt")
-					.where((fields, functions) => functions.eq(fields.loanId, params.id))
-					.orderBy("changedAt", { direction: "desc" })
-					.build(),
+			const limit = Math.min(query.limit ?? 50, 100);
+			const filterHash = paginationFilterHash(userId, { loanId: params.id });
+			const cursor = decodePaginationCursor(query.cursor, filterHash, isLoanHistoryCursor);
+			const cached = await distributedCache.remember(
+				userId,
+				"loans:history",
+				{ cursor: query.cursor, limit, loanId: params.id },
+				async () => {
+					const history = await queryRows(
+						db.sql.public.LoanHistory.select("id", "loanId", "field", "oldValue", "newValue", "changedAt")
+							.where((fields, functions) =>
+								functions.and(
+									functions.eq(fields.loanId, params.id),
+									...(cursor
+										? [
+												functions.raw`(${fields.changedAt}, ${fields.id}) < (${cursor.changedAt}::timestamp, ${cursor.id})`.returns(
+													"pg/bool@1",
+												),
+											]
+										: []),
+								),
+							)
+							.orderBy("changedAt", { direction: "desc" })
+							.orderBy("id", { direction: "desc" })
+							.limit(limit + 1)
+							.build(),
+					);
+					const hasMore = history.length > limit;
+					const items = history.slice(0, limit);
+					const last = items.at(-1);
+					return {
+						hasMore,
+						items,
+						nextCursor:
+							hasMore && last
+								? encodePaginationCursor({
+										filterHash,
+										value: { changedAt: last.changedAt.toISOString(), id: last.id },
+									})
+								: null,
+					};
+				},
 			);
-
-			return history;
+			set.headers.etag = cached.etag;
+			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+			return cached.value;
 		},
 		{
 			detail: { tags: ["Loans"] },
 			params: t.Object({
 				id: t.String({ maxLength: 36, minLength: 1 }),
+			}),
+			query: t.Object({
+				cursor: t.Optional(t.String()),
+				limit: t.Optional(t.Integer({ maximum: 100, minimum: 1 })),
 			}),
 		},
 	);
