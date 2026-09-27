@@ -1,13 +1,7 @@
 import { useEffect, useState } from "react";
+import { ImportDialog, ImportDialogContent } from "@/components/imports";
 import { Button } from "@/components/ui/Button";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/Dialog";
+import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import type { CreditCardImportItem, CreditCardImportPurchaseDuplicate } from "@/lib/api";
 import { formatLocalDate, formatLocalTime } from "@/lib/date";
@@ -104,8 +98,8 @@ export function CreditPurchaseReconciliationDialog({
 			: "A aprovação atualiza o registro existente com os valores importados e cria somente parcelas ausentes.";
 
 	return (
-		<Dialog onOpenChange={onOpenChange} open={open}>
-			<DialogContent className="max-h-[92dvh] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-3xl">
+		<ImportDialog onOpenChange={onOpenChange} open={open}>
+			<ImportDialogContent className="max-h-[92dvh] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-3xl">
 				<DialogHeader>
 					<DialogTitle>Conciliar {purchaseLabel} existente</DialogTitle>
 					<DialogDescription>
@@ -196,7 +190,7 @@ export function CreditPurchaseReconciliationDialog({
 						Salvar
 					</Button>
 				</DialogFooter>
-			</DialogContent>
-		</Dialog>
+			</ImportDialogContent>
+		</ImportDialog>
 	);
 }

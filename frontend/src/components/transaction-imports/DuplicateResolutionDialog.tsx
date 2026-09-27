@@ -1,13 +1,7 @@
 import { useEffect, useState } from "react";
+import { ImportDialog, ImportDialogContent } from "@/components/imports";
 import { Button } from "@/components/ui/Button";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/Dialog";
+import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import type { TransactionImportDuplicate, TransactionImportItem } from "@/lib/api";
 import { formatLocalTime } from "@/lib/date";
@@ -134,8 +128,8 @@ export function DuplicateResolutionDialog({
 	};
 	const isSourceSelected = (source: Source) => fields.every(field => sources[field.key] === source);
 	return (
-		<Dialog modal onOpenChange={onOpenChange} open={open}>
-			<DialogContent className="max-h-[92dvh] grid-rows-[auto_minmax(0,1fr)_auto] gap-4 overflow-hidden p-5 sm:max-w-3xl sm:p-6">
+		<ImportDialog onOpenChange={onOpenChange} open={open}>
+			<ImportDialogContent className="max-h-[92dvh] grid-rows-[auto_minmax(0,1fr)_auto] gap-4 overflow-hidden p-5 sm:max-w-3xl sm:p-6">
 				<DialogHeader>
 					<DialogTitle>Resolver duplicata</DialogTitle>
 					<DialogDescription>
@@ -176,7 +170,7 @@ export function DuplicateResolutionDialog({
 						Salvar
 					</Button>
 				</DialogFooter>
-			</DialogContent>
-		</Dialog>
+			</ImportDialogContent>
+		</ImportDialog>
 	);
 }

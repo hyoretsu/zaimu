@@ -1,14 +1,8 @@
 import { LuArrowLeftRight, LuX } from "react-icons/lu";
+import { ImportDialog, ImportDialogContent } from "@/components/imports";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/Dialog";
+import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import type { Transaction } from "@/lib/api";
 import { TransferSuggestionTransactionSummary } from "./TransferSuggestionTransactionSummary";
 
@@ -35,8 +29,8 @@ export function TransferSuggestionDecisionDialog({
 }) {
 	if (!currentTransaction || !counterpartTransaction) return null;
 	return (
-		<Dialog onOpenChange={onOpenChange} open={open}>
-			<DialogContent>
+		<ImportDialog onOpenChange={onOpenChange} open={open}>
+			<ImportDialogContent>
 				<DialogHeader>
 					<DialogTitle>Transferência sugerida</DialogTitle>
 					<DialogDescription>Confira a transação e sua possível transferência.</DialogDescription>
@@ -90,7 +84,7 @@ export function TransferSuggestionDecisionDialog({
 						<LuArrowLeftRight aria-hidden="true" /> {pending ? "Combinando…" : "Combinar"}
 					</Button>
 				</DialogFooter>
-			</DialogContent>
-		</Dialog>
+			</ImportDialogContent>
+		</ImportDialog>
 	);
 }

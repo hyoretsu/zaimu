@@ -1,18 +1,12 @@
 import { useEffect, useState } from "react";
 import { DebtSplitEditor } from "@/components/debts";
+import { ImportDialog, ImportDialogContent } from "@/components/imports";
 import { StorePicker } from "@/components/stores";
 import { TagPicker } from "@/components/tags";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { DateField } from "@/components/ui/DateField";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/Dialog";
+import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { ScrollArea } from "@/components/ui/ScrollArea";
@@ -69,8 +63,8 @@ export function EditImportedCreditPurchaseDialog({
 		(!isDebt || Boolean(calculateDebtSplit(Number(totalAmount), debtSplit)));
 
 	return (
-		<Dialog onOpenChange={onOpenChange} open={open}>
-			<DialogContent className="max-h-[92dvh] overflow-hidden p-0 sm:max-w-lg">
+		<ImportDialog onOpenChange={onOpenChange} open={open}>
+			<ImportDialogContent className="max-h-[92dvh] overflow-hidden p-0 sm:max-w-lg">
 				<ScrollArea className="max-h-[92dvh]">
 					<div className="grid gap-6 p-6">
 						<DialogHeader>
@@ -170,7 +164,7 @@ export function EditImportedCreditPurchaseDialog({
 						</DialogFooter>
 					</div>
 				</ScrollArea>
-			</DialogContent>
-		</Dialog>
+			</ImportDialogContent>
+		</ImportDialog>
 	);
 }

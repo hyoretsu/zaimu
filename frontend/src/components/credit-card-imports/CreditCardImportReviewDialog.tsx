@@ -7,15 +7,9 @@ import {
 } from "@tanstack/react-query";
 import { useState } from "react";
 import { LuCircleAlert, LuFileCheck2, LuTrash2 } from "react-icons/lu";
+import { ImportDialog, ImportDialogContent } from "@/components/imports";
 import { Button } from "@/components/ui/Button";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/Dialog";
+import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -78,10 +72,6 @@ export function CreditCardImportReviewDialog({
 			queryKeys.creditCardImports.detail(identity!, targetImportId),
 			queryKeys.creditCardImports.pending(identity!),
 		]);
-	const handleReviewOpenChange = (nextOpen: boolean) => {
-		if (!nextOpen && (editingItem || reconcilingImport || discardConfirmationOpen)) return;
-		onOpenChange(nextOpen);
-	};
 	const invalidateCreditCards = () => invalidateCacheOperation(queryClient, identity!, "statement");
 	const closeFinishedReview = async () => {
 		if (!importId) return;
@@ -179,13 +169,12 @@ export function CreditCardImportReviewDialog({
 
 	return (
 		<>
-			<Dialog onOpenChange={handleReviewOpenChange} open={open}>
-				<DialogContent
-					className="max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-2xl"
-					onInteractOutside={event => {
-						if (discardConfirmationOpen || editingItem || reconcilingImport) event.preventDefault();
-					}}
-				>
+			<ImportDialog
+				childDialogOpen={Boolean(editingItem || reconcilingImport || discardConfirmationOpen)}
+				onOpenChange={onOpenChange}
+				open={open}
+			>
+				<ImportDialogContent className="max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-2xl">
 					<DialogHeader>
 						<DialogTitle>Revisar fatura importada</DialogTitle>
 						<DialogDescription>
@@ -255,10 +244,10 @@ export function CreditCardImportReviewDialog({
 							<LuFileCheck2 /> {approve.isPending ? "Finalizando…" : "Finalizar revisão"}
 						</Button>
 					</DialogFooter>
-				</DialogContent>
-			</Dialog>
-			<Dialog onOpenChange={setDiscardConfirmationOpen} open={discardConfirmationOpen}>
-				<DialogContent showCloseButton={false}>
+				</ImportDialogContent>
+			</ImportDialog>
+			<ImportDialog onOpenChange={setDiscardConfirmationOpen} open={discardConfirmationOpen}>
+				<ImportDialogContent showCloseButton={false}>
 					<DialogHeader>
 						<DialogTitle>Excluir importação?</DialogTitle>
 						<DialogDescription>
@@ -282,8 +271,8 @@ export function CreditCardImportReviewDialog({
 							<LuTrash2 /> {discard.isPending ? "Excluindo…" : "Excluir lote"}
 						</Button>
 					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+				</ImportDialogContent>
+			</ImportDialog>
 			<EditImportedCreditPurchaseDialog
 				item={editingItem}
 				onOpenChange={nextOpen => !nextOpen && setEditingItem(null)}

@@ -1,18 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { DebtSplitEditor } from "@/components/debts";
+import { ImportDialog, ImportDialogContent } from "@/components/imports";
 import { TransactionDetailsFields } from "@/components/transactions/TransactionDetailsFields";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/Dialog";
+import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { DebtSplitInput, FinancialAccount, TransactionImportItem } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
@@ -114,8 +108,8 @@ export function EditImportedTransactionDialog({
 			: draft.originFinancialAccountId;
 
 	return (
-		<Dialog modal onOpenChange={onOpenChange} open={open}>
-			<DialogContent className="max-h-[92dvh] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-lg">
+		<ImportDialog onOpenChange={onOpenChange} open={open}>
+			<ImportDialogContent className="max-h-[92dvh] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>Editar transação importada</DialogTitle>
 					<DialogDescription>Altere antes de aprovar as transações do extrato.</DialogDescription>
@@ -276,7 +270,7 @@ export function EditImportedTransactionDialog({
 						{pending ? "Salvando…" : "Salvar"}
 					</Button>
 				</DialogFooter>
-			</DialogContent>
-		</Dialog>
+			</ImportDialogContent>
+		</ImportDialog>
 	);
 }

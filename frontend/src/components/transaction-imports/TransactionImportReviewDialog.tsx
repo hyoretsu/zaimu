@@ -7,15 +7,9 @@ import {
 } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { LuCircleAlert, LuFileCheck2, LuLoaderCircle, LuTrash2 } from "react-icons/lu";
+import { ImportDialog, ImportDialogContent } from "@/components/imports";
 import { Button } from "@/components/ui/Button";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/Dialog";
+import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -186,11 +180,6 @@ export function TransactionImportReviewDialog({
 		queryFn: dataService.accounts.getAll,
 		queryKey: queryKeys.accounts.list(identity!),
 	});
-	const handleReviewOpenChange = (nextOpen: boolean) => {
-		if (!nextOpen && (discardConfirmationOpen || editingItem || resolvingItem || transferSuggestionDecision))
-			return;
-		onOpenChange(nextOpen);
-	};
 	useEffect(() => {
 		if (!open) return;
 		setCollapsedDateKeys(new Set());
@@ -401,14 +390,14 @@ export function TransactionImportReviewDialog({
 
 	return (
 		<>
-			<Dialog modal onOpenChange={handleReviewOpenChange} open={open}>
-				<DialogContent
-					className="max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-2xl"
-					onInteractOutside={event => {
-						if (discardConfirmationOpen || editingItem || resolvingItem || transferSuggestionDecision)
-							event.preventDefault();
-					}}
-				>
+			<ImportDialog
+				childDialogOpen={Boolean(
+					discardConfirmationOpen || editingItem || resolvingItem || transferSuggestionDecision,
+				)}
+				onOpenChange={onOpenChange}
+				open={open}
+			>
+				<ImportDialogContent className="max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-2xl">
 					<DialogHeader>
 						<DialogTitle>Revisar extrato importado</DialogTitle>
 						<DialogDescription>
@@ -524,10 +513,10 @@ export function TransactionImportReviewDialog({
 							{approve.isPending ? "Finalizando…" : "Finalizar revisão"}
 						</Button>
 					</DialogFooter>
-				</DialogContent>
-			</Dialog>
-			<Dialog onOpenChange={setDiscardConfirmationOpen} open={discardConfirmationOpen}>
-				<DialogContent showCloseButton={false}>
+				</ImportDialogContent>
+			</ImportDialog>
+			<ImportDialog onOpenChange={setDiscardConfirmationOpen} open={discardConfirmationOpen}>
+				<ImportDialogContent showCloseButton={false}>
 					<DialogHeader>
 						<DialogTitle>Excluir extrato importado?</DialogTitle>
 						<DialogDescription>
@@ -553,8 +542,8 @@ export function TransactionImportReviewDialog({
 							<LuTrash2 /> {discard.isPending ? "Excluindo extrato…" : "Excluir extrato"}
 						</Button>
 					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+				</ImportDialogContent>
+			</ImportDialog>
 			<EditImportedTransactionDialog
 				accounts={accounts.data ?? []}
 				item={editingItem}
