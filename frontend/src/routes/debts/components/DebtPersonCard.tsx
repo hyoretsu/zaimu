@@ -1,3 +1,4 @@
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import {
 	LuChevronDown,
@@ -13,7 +14,9 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import type { DebtEvent, DebtPerson } from "@/lib/api";
+import { dataService } from "@/lib/dataService";
 import { formatLocalDate, formatLocalTime } from "@/lib/date";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import {
 	compareDebtEventsByDateTimeThenLabel,
 	getDebtEventCreatorLabel,
@@ -36,6 +39,15 @@ export function DebtPersonCard({
 	person: DebtPerson;
 }) {
 	const [expanded, setExpanded] = useState(false);
+	const identity = useCacheIdentity();
+	const eventsQuery = useInfiniteQuery({
+		enabled: expanded && identity !== null,
+		getNextPageParam: page => page.nextCursor ?? undefined,
+		initialPageParam: null as null | string,
+		queryFn: ({ pageParam }) => dataService.debts.getEventPage(person.id, pageParam),
+		queryKey: queryKeys.debts.events(identity!, person.id),
+	});
+	const events = eventsQuery.data?.pages.flatMap(page => page.items) ?? person.events;
 	return (
 		<article className="min-w-0 max-w-full overflow-x-clip rounded-2xl border bg-card p-4 shadow-sm">
 			<div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3">
@@ -103,7 +115,10 @@ export function DebtPersonCard({
 			</div>
 			{expanded ? (
 				<div className="mt-4 grid gap-2 border-t pt-4">
-					{person.events.toSorted(compareDebtEventsByDateTimeThenLabel).map(event => (
+					{eventsQuery.isPending ? (
+						<p className="text-muted-foreground text-sm">Carregando lançamentos...</p>
+					) : null}
+					{events.toSorted(compareDebtEventsByDateTimeThenLabel).map(event => (
 						<div
 							className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-2 rounded-xl border p-3 sm:flex sm:gap-3"
 							key={event.id}
@@ -152,6 +167,16 @@ export function DebtPersonCard({
 							</div>
 						</div>
 					))}
+					{eventsQuery.hasNextPage ? (
+						<Button
+							className="w-full cursor-pointer"
+							disabled={eventsQuery.isFetchingNextPage}
+							onClick={() => eventsQuery.fetchNextPage()}
+							variant="outline"
+						>
+							{eventsQuery.isFetchingNextPage ? "Carregando..." : "Carregar mais"}
+						</Button>
+					) : null}
 				</div>
 			) : null}
 		</article>

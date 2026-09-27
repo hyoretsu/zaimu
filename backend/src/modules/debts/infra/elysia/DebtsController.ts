@@ -10,11 +10,18 @@ import {
 import { removeDuplicateSourcedDebtEvents } from "~/modules/debts/application/debt-event-deduplication";
 import { calculateDebtSplitOrThrow } from "~/modules/debts/application/debt-splits";
 import { sendDebtInvitationEmail } from "~/modules/debts/application/email";
+import {
+	decodePaginationCursor,
+	encodePaginationCursor,
+	paginationFilterHash,
+} from "~/shared/application/pagination-cursor";
 import { HttpException } from "~/shared/errors";
-import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
+import { distributedCache } from "~/shared/infra/cache";
+import { db, executeStatement, queryFirst, queryRaw, queryRows } from "~/shared/infra/sql";
 import { DebtSplitInputDTO } from "./DebtSplitsDTO";
 import {
 	DebtConnectionReturn,
+	DebtEventPageReturn,
 	DebtInvitationReturn,
 	DebtLedgerReturn,
 	DebtMutationEventReturn,
@@ -28,6 +35,16 @@ const PersonIdParams = t.Object({ id: t.String({ maxLength: 36, minLength: 1 }) 
 const EventIdParams = t.Object({ eventId: t.String({ maxLength: 36, minLength: 1 }) });
 type DebtConnectionState = "PENDING" | "ACCEPTED" | "DECLINED";
 type DebtEventType = "ORIGIN" | "TRANSACTION" | "PURCHASE" | "MIGRATED_SETTLEMENT";
+interface DebtEventCursor {
+	date: null | string;
+	id: string;
+}
+
+const isDebtEventCursor = (value: unknown): value is DebtEventCursor => {
+	if (!value || typeof value !== "object") return false;
+	const candidate = value as Record<string, unknown>;
+	return (candidate.date === null || typeof candidate.date === "string") && typeof candidate.id === "string";
+};
 
 function compareDebtEvents(
 	left: { date: Date | null; description: null | string; kind: DebtEventType; time: null | string },
@@ -284,42 +301,90 @@ async function getPersonEvents(person: { connectionId: null | string; id: string
 }
 
 async function getPeopleLedger(userId: string) {
-	const people = (
-		await queryRows(
-			db.sql.public.DebtPerson.select("id", "name", "normalizedName", "connectionId", "hiddenAt")
-				.where((fields, functions) => functions.eq(fields.userId, userId))
-				.orderBy("name", { direction: "asc" })
-				.build(),
-		)
-	).filter(person => !person.hiddenAt);
-	return Promise.all(
-		people.map(async person => {
-			const [events, connection] = await Promise.all([
-				getPersonEvents(person, userId),
-				getConnection(person.connectionId),
-			]);
-			const linkedUserId =
-				connection?.requesterId === userId ? connection.recipientId : connection?.requesterId;
-			const linkedUser = linkedUserId
-				? await queryFirst(
-						db.sql.public.user
-							.select("email")
-							.where((fields, functions) => functions.eq(fields.id, linkedUserId))
-							.limit(1)
-							.build(),
-					)
-				: undefined;
-			return {
-				accountEmail: linkedUser?.email ?? null,
-				balance: events.reduce((sum, event) => sum + event.effect, 0),
-				connectionStatus: connection?.status ?? null,
-				events,
-				id: person.id,
-				isZaimuUser: connection?.status === "ACCEPTED",
-				name: person.name,
-			};
-		}),
+	const people = await queryRaw<{
+		accountEmail: null | string;
+		balance: string;
+		connectionStatus: DebtConnectionState | null;
+		id: string;
+		isZaimuUser: boolean;
+		name: string;
+	}>(
+		`SELECT person."id", person."name", connection."status" AS "connectionStatus",
+		        connection."status" = 'ACCEPTED' AS "isZaimuUser",
+		        linked_user."email" AS "accountEmail",
+		        COALESCE(SUM(CASE WHEN event."createdByUserId" = $1 THEN event."effect" ELSE -event."effect" END), 0) AS "balance"
+		 FROM "public"."DebtPerson" person
+		 LEFT JOIN "public"."DebtConnection" connection ON connection."id" = person."connectionId"
+		 LEFT JOIN "public"."user" linked_user ON linked_user."id" = CASE
+		   WHEN connection."requesterId" = $1 THEN connection."recipientId" ELSE connection."requesterId" END
+		 LEFT JOIN "public"."DebtEvent" event ON
+		   (connection."status" = 'ACCEPTED' AND event."connectionId" = connection."id") OR
+		   (connection."status" IS DISTINCT FROM 'ACCEPTED' AND event."debtPersonId" = person."id")
+		 WHERE person."userId" = $1 AND person."hiddenAt" IS NULL
+		 GROUP BY person."id", person."name", connection."status", linked_user."email"
+		 ORDER BY person."name" ASC, person."id" ASC`,
+		[userId],
 	);
+	return people.map(person => ({ ...person, balance: Number(person.balance) }));
+}
+
+async function getPersonEventPage(userId: string, personId: string, cursorValue?: string, pageLimit = 50) {
+	const person = await getOwnedDebtPerson(personId, userId);
+	const connection = await getConnection(person.connectionId);
+	const connectionId = connection?.status === "ACCEPTED" ? connection.id : null;
+	const filterHash = paginationFilterHash(userId, { connectionId, personId });
+	const cursor = decodePaginationCursor(cursorValue, filterHash, isDebtEventCursor);
+	const rows = await queryRaw<{
+		amount: string;
+		createdByName: string;
+		createdByUserId: string;
+		date: Date | null;
+		description: null | string;
+		dueDate: Date | null;
+		effect: string;
+		id: string;
+		kind: DebtEventType;
+		time: null | string;
+	}>(
+		`SELECT event."id", event."amount", event."createdByUserId", creator."name" AS "createdByName",
+		        event."date", event."dueDate", event."kind",
+		        CASE WHEN event."createdByUserId" = $1 THEN event."effect" ELSE -event."effect" END AS "effect",
+		        COALESCE(income_transaction."description", event."description", purchase."description", purchase."storeName") AS "description",
+		        COALESCE(source_transaction."time", purchase."time") AS "time"
+		 FROM "public"."DebtEvent" event
+		 JOIN "public"."user" creator ON creator."id" = event."createdByUserId"
+		 LEFT JOIN "public"."DebtTransactionLink" transaction_link ON transaction_link."eventId" = event."id" AND transaction_link."isCreator" = true
+		 LEFT JOIN "public"."Transaction" source_transaction ON source_transaction."id" = transaction_link."transactionId"
+		 LEFT JOIN "public"."Transaction" income_transaction ON income_transaction."id" = transaction_link."transactionId" AND income_transaction."type" = 'INCOME'
+		 LEFT JOIN "public"."DebtPurchaseLink" purchase_link ON purchase_link."eventId" = event."id" AND purchase_link."isCreator" = true
+		 LEFT JOIN "public"."CreditPurchase" purchase ON purchase."id" = purchase_link."creditPurchaseId"
+		 WHERE ${connectionId ? 'event."connectionId" = $2' : 'event."debtPersonId" = $2'}
+		   AND ($4 = '' OR
+		        ($3::date IS NULL AND event."date" IS NULL AND event."id" < $4) OR
+		        ($3::date IS NOT NULL AND (event."date" IS NULL OR (event."date", event."id") < ($3::date, $4))))
+		 ORDER BY event."date" DESC NULLS LAST, event."id" DESC
+		 LIMIT $5`,
+		[userId, connectionId ?? personId, cursor?.date ?? null, cursor?.id ?? "", pageLimit + 1],
+	);
+	const hasMore = rows.length > pageLimit;
+	const items = rows.slice(0, pageLimit).map(row => ({
+		...row,
+		amount: Number(row.amount),
+		createdByMe: row.createdByUserId === userId,
+		effect: Number(row.effect),
+	}));
+	const last = items.at(-1);
+	return {
+		hasMore,
+		items,
+		nextCursor:
+			hasMore && last
+				? encodePaginationCursor({
+						filterHash,
+						value: { date: last.date?.toISOString() ?? null, id: last.id },
+					})
+				: null,
+	};
 }
 
 async function getInvitationPreview(connectionId: string, requesterId: string, viewerId: string) {
@@ -342,21 +407,51 @@ async function getInvitationPreview(connectionId: string, requesterId: string, v
 export const DebtsController = new Elysia({ prefix: "/debts" })
 	.get(
 		"/",
-		async ({ request }) => {
+		async ({ request, set }) => {
 			const userId = await requireUserId(request);
-			const people = await getPeopleLedger(userId);
-			const totals = people.reduce(
-				(result, person) => {
-					if (person.balance > 0) result.owedToMe += person.balance;
-					if (person.balance < 0) result.iOwe += Math.abs(person.balance);
-					result.net += person.balance;
-					return result;
-				},
-				{ iOwe: 0, net: 0, owedToMe: 0 },
-			);
-			return { people, totals };
+			const cached = await distributedCache.remember(userId, "debts:overview", {}, async () => {
+				const people = await getPeopleLedger(userId);
+				const totals = people.reduce(
+					(result, person) => {
+						if (person.balance > 0) result.owedToMe += person.balance;
+						if (person.balance < 0) result.iOwe += Math.abs(person.balance);
+						result.net += person.balance;
+						return result;
+					},
+					{ iOwe: 0, net: 0, owedToMe: 0 },
+				);
+				return { people, totals };
+			});
+			set.headers.etag = cached.etag;
+			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+			return cached.value;
 		},
 		{ detail: { tags: ["Debts"] }, response: DebtLedgerReturn },
+	)
+	.get(
+		"/people/:id/events",
+		async ({ params, query, request, set }) => {
+			const userId = await requireUserId(request);
+			const limit = Math.min(query.limit ?? 50, 100);
+			const cached = await distributedCache.remember(
+				userId,
+				"debts:events",
+				{ cursor: query.cursor, limit, personId: params.id },
+				() => getPersonEventPage(userId, params.id, query.cursor, limit),
+			);
+			set.headers.etag = cached.etag;
+			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+			return cached.value;
+		},
+		{
+			detail: { tags: ["Debts"] },
+			params: PersonIdParams,
+			query: t.Object({
+				cursor: t.Optional(t.String()),
+				limit: t.Optional(t.Integer({ maximum: 100, minimum: 1 })),
+			}),
+			response: DebtEventPageReturn,
+		},
 	)
 	.get(
 		"/summary",

@@ -146,7 +146,7 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
   - [x] Drenar e remover `ReferenceRateJob` e worker PostgreSQL antigo.
 - [ ] 8. Demais domínios
   - [ ] Otimizar dashboard e contas.
-  - [ ] Otimizar dívidas e invalidação entre usuários.
+  - [ ] Otimizar dívidas e invalidação entre usuários. (resumo, eventos lazy e invalidação concluídos; convites ainda carregam previews completos)
   - [ ] Otimizar empréstimos, históricos, categorias, lojas e rendimentos.
   - [ ] Integrar eventos consolidados do sync.
 - [ ] 9. Limpeza e aceite final
@@ -223,4 +223,7 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Dashboard, lista e detalhe de contas receberam cache distribuído com ETag e zero SQL em hit.
 - Lista de contas deixou de transportar históricos de taxa; detalhe mantém configuração completa sob demanda.
 - Rendimentos agora usam cursor opaco, páginas de até 100 registros e carregamento incremental no extrato, com paridade no modo guest.
-- Próxima etapa: reduzir consultas frias do dashboard e otimizar dívidas multiusuário.
+- Resumo de dívidas agora agrega pessoas e saldos em uma consulta SQL, sem eventos embutidos ou N+1 por pessoa.
+- Eventos de cada pessoa passaram a carregar somente ao expandir, com cursor opaco, hidratação SQL set-based, cache e paridade guest.
+- Invalidação multiusuário cobre resumo e páginas de eventos para todos os participantes conectados; previews lazy de convites permanecem pendentes.
+- Próxima etapa: reduzir consultas frias do dashboard e otimizar empréstimos, históricos e catálogos.

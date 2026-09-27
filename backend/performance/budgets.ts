@@ -36,6 +36,7 @@ export const performanceBudgets: Record<string, PerformanceBudget> = {
 		path: "/credit-cards/",
 	},
 	dashboard: { coldP95Ms: 1000, coldQueryCount: 4, hotP95Ms: 100, hotQueryCount: 0, path: "/dashboard/" },
+	debts: { coldP95Ms: 1000, coldQueryCount: 4, hotP95Ms: 100, hotQueryCount: 0, path: "/debts/" },
 	transactionImports: {
 		coldP95Ms: 1000,
 		coldQueryCount: 3,

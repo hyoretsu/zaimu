@@ -64,6 +64,8 @@ export const queryKeys = {
 	},
 	debts: {
 		all: (identity: CacheIdentity) => domainKey(identity, "debts"),
+		events: (identity: CacheIdentity, personId: string) =>
+			[...domainKey(identity, "debts"), "events", personId] as const,
 		invitations: (identity: CacheIdentity) => [...domainKey(identity, "debts"), "invitations"] as const,
 		ledger: (identity: CacheIdentity) => [...domainKey(identity, "debts"), "ledger"] as const,
 	},

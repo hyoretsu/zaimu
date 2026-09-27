@@ -31,7 +31,6 @@ export const DebtLedgerReturn = t.Object({
 			accountEmail: t.Union([t.String({ format: "email" }), t.Null()]),
 			balance: t.Number(),
 			connectionStatus: t.Union([ConnectionStatus, t.Null()]),
-			events: t.Array(DebtEventReturn),
 			id: Id,
 			isZaimuUser: t.Boolean(),
 			name: t.String(),
@@ -41,6 +40,12 @@ export const DebtLedgerReturn = t.Object({
 });
 
 export const DebtSummaryReturn = DebtLedgerReturn.properties.people;
+
+export const DebtEventPageReturn = t.Object({
+	hasMore: t.Boolean(),
+	items: t.Array(DebtEventReturn),
+	nextCursor: t.Union([t.String(), t.Null()]),
+});
 
 export const DebtInvitationReturn = t.Object({
 	balance: t.Number(),

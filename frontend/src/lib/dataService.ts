@@ -77,6 +77,12 @@ export interface FinancialAccountYieldPage {
 	nextCursor: null | string;
 }
 
+export interface DebtEventPage {
+	hasMore: boolean;
+	items: DebtEvent[];
+	nextCursor: null | string;
+}
+
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3333";
 const REQUEST_TIMEOUT_MS = 10_000;
 
@@ -2153,6 +2159,23 @@ export const dataService = {
 			}
 			return [];
 		},
+		async getEventPage(personId: string, cursor?: null | string, limit = 50): Promise<DebtEventPage> {
+			if (!isGuestMode()) {
+				const params = new URLSearchParams({ limit: String(limit) });
+				if (cursor) params.set("cursor", cursor);
+				return fetchWithAuth<DebtEventPage>(`/debts/people/${personId}/events?${params}`);
+			}
+			const person = (await this.getLedger()).people.find(item => item.id === personId);
+			const events = person?.events ?? [];
+			const offset = cursor ? Number.parseInt(cursor, 10) : 0;
+			const items = events.slice(offset, offset + limit);
+			const nextOffset = offset + items.length;
+			return {
+				hasMore: nextOffset < events.length,
+				items,
+				nextCursor: nextOffset < events.length ? String(nextOffset) : null,
+			};
+		},
 		async getInvitations(): Promise<DebtInvitation[]> {
 			if (isGuestMode()) return [];
 			return fetchWithAuth<DebtInvitation[]>("/debts/invitations");
@@ -2161,7 +2184,13 @@ export const dataService = {
 			if (!isGuestMode()) {
 				const owner = getCurrentCacheIdentity();
 				if (!owner) throw new Error("Identidade local indisponível.");
-				const ledger = await fetchWithAuth<DebtLedger>("/debts");
+				const summary = await fetchWithAuth<
+					Omit<DebtLedger, "people"> & { people: Omit<DebtPerson, "events">[] }
+				>("/debts");
+				const ledger: DebtLedger = {
+					...summary,
+					people: summary.people.map(person => ({ ...person, events: [] })),
+				};
 				cacheRemoteData(
 					localDebtPeople.replaceSnapshot(
 						ledger.people.map(person => ({ data: person, localId: person.id, syncedAt: Date.now() })),
