@@ -17,6 +17,7 @@ import {
 import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { ScrollArea } from "@/components/ui/ScrollArea";
+import { TimeField } from "@/components/ui/TimeField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import { useDialogCloseReset } from "@/hooks/use-dialog-close-reset";
 import type { CreditCard, DebtSplitInput } from "@/lib/api";
@@ -76,11 +77,9 @@ export function CreatePurchaseDialog({
 	const [count, setCount] = useDebouncedInput("1", () => undefined);
 	const [date, setDate] = useState(getLocalDateKey);
 	const [time, setTime] = useState(getCurrentLocalTime());
-	const [sendWithoutTime, setSendWithoutTime] = useState(false);
 	useEffect(() => {
 		if (!open) return;
 		setTime(getCurrentLocalTime());
-		setSendWithoutTime(false);
 	}, [open]);
 	const [tagIds, setTagIds] = useState<string[]>([]);
 	const [storeName, setStoreName] = useState("");
@@ -99,7 +98,6 @@ export function CreatePurchaseDialog({
 		setCount("1");
 		setDate(getLocalDateKey());
 		setTime(getCurrentLocalTime());
-		setSendWithoutTime(false);
 		setTagIds([]);
 		setStoreName("");
 		setCardId(initialCardId ?? "");
@@ -121,7 +119,7 @@ export function CreatePurchaseDialog({
 			purchaseDate: date,
 			storeName: storeName.trim() || undefined,
 			tagIds,
-			time: sendWithoutTime ? null : time || undefined,
+			time: time || null,
 			totalAmount: total,
 		});
 		runDialogSave(operation, () => handleOpenChange(false), "Salvando compra…");
@@ -207,26 +205,15 @@ export function CreatePurchaseDialog({
 									required
 									value={date}
 								/>
-								<FormField
-									disabled={sendWithoutTime}
+								<TimeField
 									id="purchase-time"
 									label="Horário"
 									name="purchase-time"
-									onChange={event => setTime(event.currentTarget.value)}
-									type="time"
-									value={sendWithoutTime ? "" : time}
+									onValueChange={setTime}
+									placeholder="Ex: 14:30"
+									value={time}
 								/>
 							</div>
-							<CheckboxField
-								align="start"
-								checkboxProps={{
-									checked: sendWithoutTime,
-									id: "purchase-without-time",
-									onCheckedChange: checked => setSendWithoutTime(checked === true),
-								}}
-							>
-								<span className="font-medium text-foreground-muted">Enviar sem horário</span>
-							</CheckboxField>
 							<TagPicker onValueChange={setTagIds} value={tagIds} />
 							<div className="grid gap-3 rounded-2xl border p-3">
 								<CheckboxField

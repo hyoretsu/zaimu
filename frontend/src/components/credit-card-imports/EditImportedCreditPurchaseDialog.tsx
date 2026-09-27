@@ -16,10 +16,10 @@ import {
 import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { ScrollArea } from "@/components/ui/ScrollArea";
+import { TimeField } from "@/components/ui/TimeField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { CreditCardImportItem } from "@/lib/api";
 import type { dataService } from "@/lib/dataService";
-import { getCurrentLocalTime } from "@/lib/date";
 import { calculateDebtSplit, debtSplitToInput } from "@/lib/debt-split";
 import { cleanFinancedDescription, getFinancedOperation } from "@/lib/financing-source-reference";
 
@@ -41,11 +41,10 @@ export function EditImportedCreditPurchaseDialog({
 	const [debtSplit, setDebtSplit] = useState(() => debtSplitToInput());
 	const [isDebt, setIsDebt] = useState(false);
 	const [purchaseDate, setPurchaseDate] = useState("");
-	const [sendWithoutTime, setSendWithoutTime] = useState(true);
 	const [storeName, setStoreName] = useState("");
 	const [tagIds, setTagIds] = useState<string[]>([]);
 	const [totalAmount, setTotalAmount] = useState("");
-	const [time, setTime] = useState(getCurrentLocalTime());
+	const [time, setTime] = useState("");
 	useEffect(() => {
 		if (!item || !open) return;
 		setDescription(
@@ -55,11 +54,10 @@ export function EditImportedCreditPurchaseDialog({
 		setDebtSplit(debtSplitToInput(item.debtSplit));
 		setIsDebt(Boolean(item.debtSplit));
 		setPurchaseDate(item.purchaseDate);
-		setSendWithoutTime(!item.time);
 		setStoreName(item.storeName ?? "");
 		setTagIds(item.tagIds);
 		setTotalAmount(String(item.totalAmount));
-		setTime(item.time ?? getCurrentLocalTime());
+		setTime(item.time ?? "");
 	}, [item, open, setDescription, setInstallments]);
 	if (!item) return null;
 	const installmentCount = Number.parseInt(installments, 10);
@@ -122,26 +120,15 @@ export function EditImportedCreditPurchaseDialog({
 									required
 									value={purchaseDate}
 								/>
-								<FormField
-									disabled={sendWithoutTime}
+								<TimeField
 									id="imported-purchase-time"
 									label="Horário"
 									name="imported-purchase-time"
-									onChange={event => setTime(event.currentTarget.value)}
-									type="time"
-									value={sendWithoutTime ? "" : time}
+									onValueChange={setTime}
+									placeholder="Ex: 14:30"
+									value={time}
 								/>
 							</div>
-							<CheckboxField
-								align="start"
-								checkboxProps={{
-									checked: sendWithoutTime,
-									id: "imported-purchase-without-time",
-									onCheckedChange: checked => setSendWithoutTime(checked === true),
-								}}
-							>
-								<span className="font-medium text-foreground-muted">Enviar sem horário</span>
-							</CheckboxField>
 							<TagPicker onValueChange={setTagIds} value={tagIds} />
 							<div className="grid gap-3 rounded-2xl border p-3">
 								<CheckboxField
@@ -173,7 +160,7 @@ export function EditImportedCreditPurchaseDialog({
 										purchaseDate,
 										storeName: storeName.trim() || null,
 										tagIds,
-										time: sendWithoutTime ? null : time,
+										time: time || null,
 										totalAmount: Number(totalAmount),
 									})
 								}

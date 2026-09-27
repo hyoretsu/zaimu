@@ -48,7 +48,6 @@ interface CreateTransactionInput {
 	description: string;
 	draft: ReturnType<typeof initialDraft>;
 	isDebt: boolean;
-	sendWithoutTime: boolean;
 }
 
 export function CreateTransactionDialog({
@@ -70,7 +69,6 @@ export function CreateTransactionDialog({
 		participants: [{ debtPersonId: "", shares: 1 }],
 	});
 	const [description, setDescription] = useDebouncedInput("", () => undefined);
-	const [sendWithoutTime, setSendWithoutTime] = useState(false);
 	useEffect(() => {
 		if (!open) return;
 		setDraft(current => ({
@@ -78,7 +76,6 @@ export function CreateTransactionDialog({
 			originFinancialAccountId: account?.id ?? current.originFinancialAccountId,
 			time: getCurrentLocalTime(),
 		}));
-		setSendWithoutTime(false);
 	}, [account?.id, open]);
 	const accountsQuery = useQuery({
 		enabled: identity !== null,
@@ -121,20 +118,13 @@ export function CreateTransactionDialog({
 		setDescription("");
 		setIsDebt(false);
 		setDebtSplit({ mode: "SHARES", ownerShares: null, participants: [{ debtPersonId: "", shares: 1 }] });
-		setSendWithoutTime(false);
 	};
 	useDialogCloseReset(open, reset);
 	const handleOpenChange = (nextOpen: boolean) => {
 		onOpenChange(nextOpen);
 	};
 	const create = useMutation({
-		mutationFn: async ({
-			debtSplit,
-			description,
-			draft,
-			isDebt,
-			sendWithoutTime,
-		}: CreateTransactionInput) => {
+		mutationFn: async ({ debtSplit, description, draft, isDebt }: CreateTransactionInput) => {
 			const amount = Number.parseFloat(draft.amount);
 			const originFinancialAccountId =
 				account && draft.type !== "TRANSFER" ? account.id : draft.originFinancialAccountId;
@@ -146,7 +136,7 @@ export function CreateTransactionDialog({
 					date: draft.date,
 					financialAccountId: destinationFinancialAccountId,
 					isHidden: draft.isHidden,
-					time: sendWithoutTime ? null : draft.time || null,
+					time: draft.time || null,
 				});
 			}
 			const transaction = await dataService.transactions.create({
@@ -163,7 +153,7 @@ export function CreateTransactionDialog({
 				originFinancialAccountId: draft.type === "INCOME" ? undefined : originFinancialAccountId || undefined,
 				storeName: draft.type === "EXPENSE" ? draft.storeName.trim() || undefined : undefined,
 				tagIds: draft.tagIds,
-				time: sendWithoutTime ? null : draft.time || undefined,
+				time: draft.time || null,
 				type: draft.type,
 			});
 			return { statement: null, transaction };
@@ -195,7 +185,7 @@ export function CreateTransactionDialog({
 		},
 	});
 	const save = () => {
-		create.mutate({ debtSplit, description, draft, isDebt, sendWithoutTime });
+		create.mutate({ debtSplit, description, draft, isDebt });
 	};
 
 	return (
@@ -216,7 +206,6 @@ export function CreateTransactionDialog({
 						onDateChange={date => setDraft(current => ({ ...current, date }))}
 						onDescriptionChange={setDescription}
 						onIsHiddenChange={isHidden => setDraft(current => ({ ...current, isHidden }))}
-						onSendWithoutTimeChange={setSendWithoutTime}
 						onStoreNameChange={storeName => setDraft(current => ({ ...current, storeName }))}
 						onTagIdsChange={tagIds => setDraft(current => ({ ...current, tagIds }))}
 						onTimeChange={time => setDraft(current => ({ ...current, time }))}
@@ -238,7 +227,6 @@ export function CreateTransactionDialog({
 								type,
 							}));
 						}}
-						sendWithoutTime={sendWithoutTime}
 						showDescription={draft.type !== "YIELD"}
 						showStore={draft.type === "EXPENSE"}
 						showTags={draft.type !== "TRANSFER" && draft.type !== "YIELD"}

@@ -43,7 +43,6 @@ export function EditStatementPaymentDialog({
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
 	const [draft, setDraft] = useState(() => (transaction ? createDraft(transaction) : null));
-	const [sendWithoutTime, setSendWithoutTime] = useState(!transaction?.time);
 	const accountsQuery = useQuery({
 		enabled: identity !== null && open,
 		queryFn: () => dataService.accounts.getAll(),
@@ -53,7 +52,6 @@ export function EditStatementPaymentDialog({
 	useEffect(() => {
 		if (!open || !transaction) return;
 		setDraft(createDraft(transaction));
-		setSendWithoutTime(!transaction.time);
 	}, [open, transaction]);
 
 	const update = useMutation({
@@ -63,7 +61,7 @@ export function EditStatementPaymentDialog({
 				amount: Number.parseFloat(draft.amount),
 				date: draft.date,
 				originFinancialAccountId: draft.originFinancialAccountId,
-				time: sendWithoutTime ? null : draft.time || null,
+				time: draft.time || null,
 			});
 		},
 		onError: (error, _, context) => {
@@ -113,12 +111,10 @@ export function EditStatementPaymentDialog({
 								onAmountChange={amount => setDraft(current => (current ? { ...current, amount } : current))}
 								onDateChange={date => setDraft(current => (current ? { ...current, date } : current))}
 								onDescriptionChange={() => undefined}
-								onSendWithoutTimeChange={setSendWithoutTime}
 								onStoreNameChange={() => undefined}
 								onTagIdsChange={() => undefined}
 								onTimeChange={time => setDraft(current => (current ? { ...current, time } : current))}
 								onTypeChange={() => undefined}
-								sendWithoutTime={sendWithoutTime}
 								showDescription={false}
 								showStore={false}
 								showTags={false}

@@ -5,6 +5,7 @@ import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
 import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
+import { TimeField } from "@/components/ui/TimeField";
 import type { Transaction } from "@/lib/api";
 
 type TransactionFormType = Transaction["type"] | "YIELD";
@@ -16,7 +17,6 @@ export function TransactionDetailsFields({
 	onAmountChange,
 	onDateChange,
 	onIsHiddenChange,
-	onSendWithoutTimeChange,
 	onTimeChange,
 	onDescriptionChange,
 	onStoreNameChange,
@@ -26,7 +26,6 @@ export function TransactionDetailsFields({
 	showTags = true,
 	showStore = false,
 	storeName,
-	sendWithoutTime = false,
 	isHidden = false,
 	includeYield = false,
 	showType = true,
@@ -40,7 +39,6 @@ export function TransactionDetailsFields({
 	onAmountChange: (amount: string) => void;
 	onDateChange: (date: string) => void;
 	onIsHiddenChange?: (isHidden: boolean) => void;
-	onSendWithoutTimeChange?: (sendWithoutTime: boolean) => void;
 	onTimeChange: (time: string) => void;
 	onDescriptionChange: (description: string) => void;
 	onStoreNameChange: (storeName: string) => void;
@@ -50,7 +48,6 @@ export function TransactionDetailsFields({
 	showTags?: boolean;
 	showStore?: boolean;
 	storeName: string;
-	sendWithoutTime?: boolean;
 	isHidden?: boolean;
 	includeYield?: boolean;
 	showType?: boolean;
@@ -104,28 +101,15 @@ export function TransactionDetailsFields({
 					required
 					value={date}
 				/>
-				<FormField
-					disabled={sendWithoutTime}
+				<TimeField
 					id="transaction-time"
 					label="Horário"
 					name="time"
-					onChange={event => onTimeChange(event.currentTarget.value)}
-					type="time"
-					value={sendWithoutTime ? "" : time}
+					onValueChange={onTimeChange}
+					placeholder="Ex: 14:30"
+					value={time}
 				/>
 			</div>
-			{onSendWithoutTimeChange ? (
-				<CheckboxField
-					align="start"
-					checkboxProps={{
-						checked: sendWithoutTime,
-						id: "transaction-without-time",
-						onCheckedChange: checked => onSendWithoutTimeChange(checked === true),
-					}}
-				>
-					<span className="font-medium text-foreground-muted">Enviar sem horário</span>
-				</CheckboxField>
-			) : null}
 			{onIsHiddenChange ? (
 				<CheckboxField
 					align="start"

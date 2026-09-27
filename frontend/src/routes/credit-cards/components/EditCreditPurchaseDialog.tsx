@@ -18,6 +18,7 @@ import {
 import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { ScrollArea } from "@/components/ui/ScrollArea";
+import { TimeField } from "@/components/ui/TimeField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { CreditCard, CreditPurchase, DebtSplitInput } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
@@ -235,12 +236,12 @@ export function EditCreditPurchaseDialog({
 									required
 									value={date}
 								/>
-								<FormField
+								<TimeField
 									id="credit-purchase-time"
 									label="Horário (opcional)"
 									name="credit-purchase-time"
-									onChange={event => setTime(event.currentTarget.value)}
-									type="time"
+									onValueChange={setTime}
+									placeholder="Ex: 14:30"
 									value={time}
 								/>
 							</div>
