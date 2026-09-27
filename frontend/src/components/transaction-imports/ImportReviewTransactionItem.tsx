@@ -7,11 +7,10 @@ import {
 	LuPencil,
 	LuShieldOff,
 } from "react-icons/lu";
-import { TransactionListItem } from "@/components/transactions";
+import { ImportItemDateTime, TransactionListItem } from "@/components/transactions";
 import { Button } from "@/components/ui/Button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import type { Transaction, TransactionImportItem } from "@/lib/api";
-import { formatLocalTime } from "@/lib/date";
 import { getTransactionTitle } from "@/lib/transaction-title";
 import { TransferSuggestionActions } from "./TransferSuggestionActions";
 
@@ -152,9 +151,7 @@ export function ImportReviewTransactionItem({
 						suggestions={item.transferSuggestions}
 					/>
 					<div className="flex flex-wrap items-center gap-1.5">
-						{formatLocalTime(item.time) ? (
-							<span className="text-muted-foreground text-xs">{formatLocalTime(item.time)}</span>
-						) : null}
+						<ImportItemDateTime time={item.time} />
 						{item.duplicateReason ? (
 							<span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-amber-700 text-xs">
 								<LuCircleAlert /> Possível duplicata

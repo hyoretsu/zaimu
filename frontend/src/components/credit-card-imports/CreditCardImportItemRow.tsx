@@ -1,8 +1,7 @@
 import { LuCheck, LuCircleAlert, LuPencil } from "react-icons/lu";
-import { TransactionListItem } from "@/components/transactions";
+import { ImportItemDateTime, TransactionListItem } from "@/components/transactions";
 import { AppBadge } from "@/components/ui/AppBadge";
 import type { CreditCardImportItem, Transaction } from "@/lib/api";
-import { formatLocalDate } from "@/lib/date";
 import {
 	cleanFinancedDescription,
 	getFinancedOperation,
@@ -84,7 +83,7 @@ export function CreditCardImportItemRow({
 			forceCompactActions
 			metadataPrefix={
 				<div className="flex flex-wrap items-center gap-1.5">
-					<span className="text-muted-foreground text-xs">{formatLocalDate(item.purchaseDate)}</span>
+					<ImportItemDateTime date={item.purchaseDate} originalPurchase time={item.time} />
 					{financedOperation ? (
 						<AppBadge
 							className="h-auto min-h-7 whitespace-normal break-words py-1 leading-4"
