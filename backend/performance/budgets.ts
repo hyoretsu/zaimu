@@ -14,6 +14,13 @@ export const performanceBudgets: Record<string, PerformanceBudget> = {
 		hotQueryCount: 0,
 		path: "/financial-accounts/",
 	},
+	accountYields: {
+		coldP95Ms: 1000,
+		coldQueryCount: 2,
+		hotP95Ms: 100,
+		hotQueryCount: 0,
+		path: "/financial-account-yields/?financialAccountId=perf-account-main&limit=100",
+	},
 	creditCardImports: {
 		coldP95Ms: 1000,
 		coldQueryCount: 3,

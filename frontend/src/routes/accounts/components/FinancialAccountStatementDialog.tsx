@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { LuLandmark, LuPlus } from "react-icons/lu";
 import {
@@ -77,17 +77,20 @@ export function FinancialAccountStatementDialog({
 		queryFn: () => dataService.accountYieldHolidays.getAll(),
 		queryKey: queryKeys.accountYieldHolidays.all(identity!),
 	});
-	const yields = useQuery({
+	const yields = useInfiniteQuery({
 		enabled: identity !== null && open,
-		queryFn: () => dataService.accountYields.getAll(account.id),
+		getNextPageParam: page => page.nextCursor ?? undefined,
+		initialPageParam: null as null | string,
+		queryFn: ({ pageParam }) => dataService.accountYields.getPage(account.id, pageParam),
 		queryKey: queryKeys.accountYields.list(identity!, account.id),
 	});
+	const yieldItems = yields.data?.pages.flatMap(page => page.items) ?? [];
 	const yieldEntries = calculateFinancialAccountYieldEntries(
 		account,
 		statement.data ?? [],
 		holidays.data?.map(holiday => holiday.date) ?? [],
 		undefined,
-		yields.data ?? [],
+		yieldItems,
 	);
 	const groupedEntries = groupStatementByDate(statement.data ?? [], yieldEntries);
 	const dates = Object.keys(groupedEntries).toSorted((left, right) => right.localeCompare(left));
@@ -195,6 +198,16 @@ export function FinancialAccountStatementDialog({
 									</div>
 								</section>
 							))}
+							{yields.hasNextPage ? (
+								<Button
+									className="w-full cursor-pointer"
+									disabled={yields.isFetchingNextPage}
+									onClick={() => yields.fetchNextPage()}
+									variant="outline"
+								>
+									{yields.isFetchingNextPage ? "Carregando..." : "Carregar mais"}
+								</Button>
+							) : null}
 						</div>
 					</ScrollArea>
 				) : (

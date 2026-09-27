@@ -1,13 +1,47 @@
 import Elysia, { t } from "elysia";
 import { requireUserId } from "~/modules/auth";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
+import {
+	decodePaginationCursor,
+	encodePaginationCursor,
+	paginationFilterHash,
+} from "~/shared/application/pagination-cursor";
 import { HttpException } from "~/shared/errors";
+import { distributedCache } from "~/shared/infra/cache";
 import { db, executeStatement, nullableNumeric, queryFirst, queryRows } from "~/shared/infra/sql";
 
 const Id = t.String({ maxLength: 36, minLength: 1 });
 const DateKey = t.String({ pattern: "^\\d{4}-\\d{2}-\\d{2}$" });
 const YieldKind = t.Union([t.Literal("AUTOMATIC"), t.Literal("MANUAL")]);
 const YieldTime = t.Union([t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d$" }), t.Null()]);
+const YieldCursorValue = t.Object({ date: t.String(), id: Id, kind: YieldKind });
+type YieldCursorValue = typeof YieldCursorValue.static;
+const YieldReturn = t.Object({
+	amount: t.Nullable(t.Number()),
+	date: t.Date(),
+	financialAccountId: Id,
+	id: Id,
+	isExcluded: t.Boolean(),
+	isHidden: t.Boolean(),
+	kind: YieldKind,
+	origin: t.String(),
+	time: YieldTime,
+});
+const YieldPageReturn = t.Object({
+	hasMore: t.Boolean(),
+	items: t.Array(YieldReturn),
+	nextCursor: t.Nullable(t.String()),
+});
+
+const isYieldCursorValue = (value: unknown): value is YieldCursorValue => {
+	if (!value || typeof value !== "object") return false;
+	const candidate = value as Record<string, unknown>;
+	return (
+		typeof candidate.date === "string" &&
+		typeof candidate.id === "string" &&
+		(candidate.kind === "AUTOMATIC" || candidate.kind === "MANUAL")
+	);
+};
 
 function parseDate(date: string) {
 	const value = new Date(`${date}T12:00:00`);
@@ -49,28 +83,80 @@ function serializeYield(yieldEntry: {
 export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial-account-yields" })
 	.get(
 		"/",
-		async ({ query, request }) => {
+		async ({ query, request, set }) => {
 			const userId = await requireUserId(request);
 			await assertYieldAccount(query.financialAccountId, userId);
-			const yields = await queryRows(
-				db.sql.public.FinancialAccountYield.select(
-					"id",
-					"financialAccountId",
-					"date",
-					"amount",
-					"kind",
-					"isExcluded",
-					"isHidden",
-					"origin",
-					"time",
-				)
-					.where((fields, functions) => functions.eq(fields.financialAccountId, query.financialAccountId))
-					.orderBy("date", { direction: "asc" })
-					.build(),
+			const limit = Math.min(query.limit ?? 100, 100);
+			const filterHash = paginationFilterHash(userId, { financialAccountId: query.financialAccountId });
+			const cursor = decodePaginationCursor(query.cursor, filterHash, isYieldCursorValue);
+			const cached = await distributedCache.remember(
+				userId,
+				"accounts:yields",
+				{ cursor: query.cursor, financialAccountId: query.financialAccountId, limit },
+				async () => {
+					const yields = await queryRows(
+						db.sql.public.FinancialAccountYield.select(
+							"id",
+							"financialAccountId",
+							"date",
+							"amount",
+							"kind",
+							"isExcluded",
+							"isHidden",
+							"origin",
+							"time",
+						)
+							.where((fields, functions) =>
+								functions.and(
+									functions.eq(fields.financialAccountId, query.financialAccountId),
+									...(cursor
+										? [
+												functions.raw`(${fields.date}, ${fields.kind}, ${fields.id}) < (${cursor.date}::date, ${cursor.kind}::"FinancialAccountYieldKind", ${cursor.id})`.returns(
+													"pg/bool@1",
+												),
+											]
+										: []),
+								),
+							)
+							.orderBy("date", { direction: "desc" })
+							.orderBy("kind", { direction: "desc" })
+							.orderBy("id", { direction: "desc" })
+							.limit(limit + 1)
+							.build(),
+					);
+					const hasMore = yields.length > limit;
+					const items = yields.slice(0, limit).map(serializeYield);
+					const last = items.at(-1);
+					return {
+						hasMore,
+						items,
+						nextCursor:
+							hasMore && last
+								? encodePaginationCursor({
+										filterHash,
+										value: { date: last.date.toISOString(), id: last.id, kind: last.kind },
+									})
+								: null,
+					};
+				},
 			);
-			return yields.map(serializeYield);
+			set.headers.etag = cached.etag;
+			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+			if (request.headers.get("if-none-match") === cached.etag) {
+				set.status = 304;
+				return null;
+			}
+			return cached.value;
 		},
-		{ detail: { tags: ["Accounts"] }, query: t.Object({ financialAccountId: Id }) },
+		{
+			detail: { tags: ["Accounts"] },
+			query: t.Object({
+				cursor: t.Optional(t.String()),
+				financialAccountId: Id,
+				limit: t.Optional(t.Integer({ maximum: 100, minimum: 1 })),
+			}),
+			response: YieldPageReturn,
+		},
 	)
 	.post(
 		"/",

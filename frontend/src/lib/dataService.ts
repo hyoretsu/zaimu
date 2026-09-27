@@ -71,6 +71,12 @@ import { getCurrentCacheIdentity } from "./query-cache";
 import { sortTransactionsByMostRecent } from "./transaction-sort";
 import { assertFileIsAccessible } from "./upload-file";
 
+export interface FinancialAccountYieldPage {
+	hasMore: boolean;
+	items: FinancialAccountYield[];
+	nextCursor: null | string;
+}
+
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3333";
 const REQUEST_TIMEOUT_MS = 10_000;
 
@@ -635,14 +641,34 @@ export const dataService = {
 				yields.filter(yieldEntry => yieldEntry.id !== id),
 			);
 		},
-		async getAll(financialAccountId: string): Promise<FinancialAccountYield[]> {
-			if (!isGuestMode())
-				return fetchWithAuth<FinancialAccountYield[]>(
-					`/financial-account-yields?financialAccountId=${encodeURIComponent(financialAccountId)}`,
-				);
+		async getPage(
+			financialAccountId: string,
+			cursor?: null | string,
+			limit = 100,
+		): Promise<FinancialAccountYieldPage> {
+			if (!isGuestMode()) {
+				const params = new URLSearchParams({ financialAccountId, limit: String(limit) });
+				if (cursor) params.set("cursor", cursor);
+				return fetchWithAuth<FinancialAccountYieldPage>(`/financial-account-yields?${params}`);
+			}
 			const yields =
 				((await localMeta.get("financial-account-yields")) as FinancialAccountYield[] | null) ?? [];
-			return yields.filter(yieldEntry => yieldEntry.financialAccountId === financialAccountId);
+			const sorted = yields
+				.filter(yieldEntry => yieldEntry.financialAccountId === financialAccountId)
+				.toSorted(
+					(left, right) =>
+						right.date.localeCompare(left.date) ||
+						right.kind.localeCompare(left.kind) ||
+						right.id.localeCompare(left.id),
+				);
+			const offset = cursor ? Number.parseInt(cursor, 10) : 0;
+			const items = sorted.slice(offset, offset + limit);
+			const nextOffset = offset + items.length;
+			return {
+				hasMore: nextOffset < sorted.length,
+				items,
+				nextCursor: nextOffset < sorted.length ? String(nextOffset) : null,
+			};
 		},
 		async update(
 			id: string,

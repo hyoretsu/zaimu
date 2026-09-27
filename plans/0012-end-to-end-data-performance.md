@@ -220,4 +220,7 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Fixture de desempenho passou a cobrir rendimentos, dívidas multiusuário, empréstimos, parcelas, históricos, agendas e catálogos.
 - Orçamentos agora falham também quando o cache frio excede o limite de queries do endpoint.
 - Contrato SQL recebeu índices para paginação e agregação de dívidas, empréstimos, pagamentos, históricos e agendas; validação com `EXPLAIN` depende do banco local de desempenho.
-- Próxima etapa: otimizar dashboard, contas e rendimentos.
+- Dashboard, lista e detalhe de contas receberam cache distribuído com ETag e zero SQL em hit.
+- Lista de contas deixou de transportar históricos de taxa; detalhe mantém configuração completa sob demanda.
+- Rendimentos agora usam cursor opaco, páginas de até 100 registros e carregamento incremental no extrato, com paridade no modo guest.
+- Próxima etapa: reduzir consultas frias do dashboard e otimizar dívidas multiusuário.
