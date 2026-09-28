@@ -50,3 +50,5 @@
 - PostgreSQL temporário encerrado e diretórios dos testes removidos; nenhum banco remoto acessado, nenhum ref de banco avançado por esta tarefa.
 - Hook local `git pull` removido com aprovação explícita do usuário; validações `lint-staged` mantidas.
 - Migração de backfill aplicada com dados de exemplo em PostgreSQL descartável local: 1 migração, 10 operações. Sete testes SQL passaram, incluindo preservação das referências/dados, equivalência com transformação compartilhada, meses curtos, rejeição de dados inválidos e rollback após falha tardia. Nenhum banco remoto acessado.
+
+- Agregado compartilhado de cartão concluído: planos completos, ocorrências somente devidas, metadados herdados, reembolsos múltiplos com tombstones, replay e distribuição proporcional cumulativa de rateios em centavos. Cinco testes novos passaram. Integração ativa continua pendente.

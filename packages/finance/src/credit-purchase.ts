@@ -42,6 +42,7 @@ export interface CreditInstallment {
 	statementId: string;
 	occurrenceDate: string;
 	hasImportedAmount: boolean;
+	isSettled?: boolean;
 	settledByPurchaseId: string | null;
 }
 
