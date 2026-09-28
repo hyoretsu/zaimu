@@ -30,6 +30,7 @@ import {
 	DebtSuccessReturn,
 	DebtSummaryReturn,
 } from "./DebtsDTO";
+import { normalizeDebtLedgerPerson } from "./debt-ledger-person";
 
 const PersonIdParams = t.Object({ id: t.String({ maxLength: 36, minLength: 1 }) });
 const EventIdParams = t.Object({ eventId: t.String({ maxLength: 36, minLength: 1 }) });
@@ -284,11 +285,9 @@ async function getPeopleLedger(userId: string) {
 		balance: string;
 		connectionStatus: DebtConnectionState | null;
 		id: string;
-		isZaimuUser: boolean;
 		name: string;
 	}>(
 		`SELECT person."id", person."name", connection."status" AS "connectionStatus",
-		        connection."status" = 'ACCEPTED' AS "isZaimuUser",
 		        linked_user."email" AS "accountEmail",
 		        COALESCE(SUM(CASE WHEN event."createdByUserId" = $1 THEN event."effect" ELSE -event."effect" END), 0) AS "balance"
 		 FROM "public"."DebtPerson" person
@@ -303,7 +302,7 @@ async function getPeopleLedger(userId: string) {
 		 ORDER BY person."name" ASC, person."id" ASC`,
 		[userId],
 	);
-	return people.map(person => ({ ...person, balance: Number(person.balance) }));
+	return people.map(normalizeDebtLedgerPerson);
 }
 
 async function getPersonEventPage(userId: string, personId: string, cursorValue?: string, pageLimit = 50) {
@@ -387,7 +386,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 		"/",
 		async ({ request, set }) => {
 			const userId = await requireUserId(request);
-			const cached = await distributedCache.remember(userId, "debts:overview", {}, async () => {
+			const cached = await distributedCache.remember(userId, "debts:overview", { version: 2 }, async () => {
 				const people = await getPeopleLedger(userId);
 				const totals = people.reduce(
 					(result, person) => {
