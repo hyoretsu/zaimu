@@ -2,6 +2,7 @@ import {
 	type CreditBook,
 	creditBookEntries,
 	materializeBookInstallments,
+	moveBookPurchase,
 	replayCreditBook,
 } from "@zaimu/finance/credit-book";
 import { currentDateKey, statementEntryKind } from "@zaimu/finance/credit-card";
@@ -698,28 +699,24 @@ export async function mutateLocalCreditBook<T>(
 		materializeBookInstallments(book, asOf);
 		if (institutionId && oldPolicy !== book.card.refundPolicy)
 			await requestResult(
-				tx
-					.objectStore("scoped-meta")
-					.put({
-						data: book.card.refundPolicy,
-						localId: `refund-policy-${institutionId}`,
-						modifiedAt: Date.now(),
-						ownerKey: owner,
-						scopedId: policyKey,
-					}),
+				tx.objectStore("scoped-meta").put({
+					data: book.card.refundPolicy,
+					localId: `refund-policy-${institutionId}`,
+					modifiedAt: Date.now(),
+					ownerKey: owner,
+					scopedId: policyKey,
+				}),
 			);
 		const now = Math.max(Date.now(), (stored?.modifiedAt ?? 0) + 1);
 		await requestResult(
-			tx
-				.objectStore("scoped-creditBooks")
-				.put({
-					...stored,
-					data: book,
-					localId: cardId,
-					modifiedAt: now,
-					ownerKey: owner,
-					scopedId: scopedId(owner, cardId),
-				}),
+			tx.objectStore("scoped-creditBooks").put({
+				...stored,
+				data: book,
+				localId: cardId,
+				modifiedAt: now,
+				ownerKey: owner,
+				scopedId: scopedId(owner, cardId),
+			}),
 		);
 		if (reviewIdToDelete)
 			await requestResult(
@@ -729,18 +726,87 @@ export async function mutateLocalCreditBook<T>(
 			book.statements.some(old => old.id === s.id),
 		))
 			await requestResult(
-				tx
-					.objectStore("scoped-creditCardStatements")
-					.put({
-						data: { ...s, totalAmount: Number(s.totalAmount) + s.chargesAmount },
-						localId: s.id,
-						modifiedAt: now,
-						ownerKey: owner,
-						scopedId: scopedId(owner, s.id),
-					}),
+				tx.objectStore("scoped-creditCardStatements").put({
+					data: { ...s, totalAmount: Number(s.totalAmount) + s.chargesAmount },
+					localId: s.id,
+					modifiedAt: now,
+					ownerKey: owner,
+					scopedId: scopedId(owner, s.id),
+				}),
 			);
 		await done;
 		return result;
+	} catch (error) {
+		try {
+			tx.abort();
+		} catch {}
+		await done.catch(() => undefined);
+		throw error;
+	}
+}
+
+export async function transferLocalCreditBookPurchase(
+	sourceCardId: string,
+	destinationCardId: string,
+	purchaseId: string,
+	update: (book: CreditBook, card: CreditCard) => void,
+) {
+	const owner = requireOwner();
+	const [source, destination] = await Promise.all([
+		readLocalCreditBook(sourceCardId, owner),
+		readLocalCreditBook(destinationCardId, owner),
+	]);
+	const database = await initLocalDb();
+	const tx = database.transaction(
+		["scoped-creditBooks", "scoped-creditCards", "scoped-creditCardStatements"],
+		"readwrite",
+	);
+	const done = transactionDone(tx);
+	try {
+		const store = tx.objectStore("scoped-creditBooks");
+		const [sourceRow, destinationRow, cardRow] = await Promise.all([
+			requestResult(store.get(scopedId(owner, sourceCardId))) as Promise<LocalData<CreditBook> | undefined>,
+			requestResult(store.get(scopedId(owner, destinationCardId))) as Promise<
+				LocalData<CreditBook> | undefined
+			>,
+			requestResult(tx.objectStore("scoped-creditCards").get(scopedId(owner, destinationCardId))) as Promise<
+				LocalData<CreditCard> | undefined
+			>,
+		]);
+		if (!cardRow || cardRow.deleted) throw new Error("Cartão de destino não encontrado");
+		moveBookPurchase(source, destination, purchaseId);
+		update(destination, cardRow.data);
+		materializeBookInstallments(source);
+		materializeBookInstallments(destination);
+		const now = Date.now();
+		for (const [id, book, previous] of [
+			[sourceCardId, source, sourceRow],
+			[destinationCardId, destination, destinationRow],
+		] as const) {
+			await requestResult(
+				store.put({
+					...previous,
+					data: book,
+					localId: id,
+					modifiedAt: Math.max(now, (previous?.modifiedAt ?? 0) + 1),
+					ownerKey: owner,
+					scopedId: scopedId(owner, id),
+				}),
+			);
+			for (const statement of replayCreditBook(book).statements.filter(item =>
+				book.statements.some(saved => saved.id === item.id),
+			))
+				await requestResult(
+					tx.objectStore("scoped-creditCardStatements").put({
+						data: { ...statement, totalAmount: Number(statement.totalAmount) + statement.chargesAmount },
+						localId: statement.id,
+						modifiedAt: now,
+						ownerKey: owner,
+						scopedId: scopedId(owner, statement.id),
+					}),
+				);
+		}
+		await done;
 	} catch (error) {
 		try {
 			tx.abort();

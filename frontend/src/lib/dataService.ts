@@ -25,6 +25,7 @@ import {
 	mutateLocalCreditBook,
 	readLocalCreditBook,
 	toPurchasePresentation,
+	transferLocalCreditBookPurchase,
 } from "./localStorage";
 /**
  * Data Service - Abstracts local vs remote data operations
@@ -942,9 +943,7 @@ export const dataService = {
 				method: "POST",
 			});
 		},
-		async refundSources(
-			importId: string,
-		): Promise<
+		async refundSources(importId: string): Promise<
 			Array<{
 				id: string;
 				description: string;
@@ -1464,9 +1463,8 @@ export const dataService = {
 					method: "PATCH",
 				});
 			}
-			await mutateLocalCreditBook(cardId, book => {
-				if ("creditCardId" in data && data.creditCardId && data.creditCardId !== cardId)
-					throw new Error("Revise cartão e calendário antes de transferir compra");
+			const destinationCardId = "creditCardId" in data ? (data.creditCardId ?? cardId) : cardId;
+			const update = (book: CreditBook) => {
 				const id = book.installments.find(i => i.id === purchaseId)?.purchaseId ?? purchaseId;
 				const p = bookPurchase(book, id);
 				if ("installmentAmount" in data) {
@@ -1508,9 +1506,25 @@ export const dataService = {
 					}
 				}
 				p.updatedAt = new Date().toISOString();
-			});
+			};
+			if (destinationCardId === cardId) await mutateLocalCreditBook(cardId, update);
+			else {
+				await transferLocalCreditBookPurchase(cardId, destinationCardId, purchaseId, (book, card) => {
+					update(book);
+					const purchase = bookPurchase(book, purchaseId);
+					purchase.cashbackAccountId = card.cashbackAccountId ?? null;
+					purchase.cashbackAmount =
+						card.cashbackAccountId && card.cashbackRate
+							? Number((((purchase.totalAmountCents / 100) * card.cashbackRate) / 100).toFixed(4))
+							: null;
+					purchase.cashbackYieldPeriod = card.cashbackYieldPeriod ?? null;
+					purchase.cashbackYieldReferencePercentage = card.cashbackYieldReferencePercentage ?? null;
+					purchase.cashbackYieldReferenceRate = card.cashbackYieldReferenceRate ?? null;
+				});
+			}
+
 			return toPurchasePresentation(
-				creditBookEntries(await readLocalCreditBook(cardId)).find(
+				creditBookEntries(await readLocalCreditBook(destinationCardId)).find(
 					row => row.id === purchaseId || row.purchaseId === purchaseId,
 				)!,
 			);

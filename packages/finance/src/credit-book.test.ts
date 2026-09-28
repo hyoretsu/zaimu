@@ -6,6 +6,7 @@ import {
 	creditBookEntries,
 	creditBookRewards,
 	materializeBookInstallments,
+	moveBookPurchase,
 	newBookPurchase,
 	refinanceBookPurchase,
 	refundDebtAmounts,
@@ -36,6 +37,53 @@ function emptyBook(): CreditBook {
 }
 
 describe("normalized credit book", () => {
+	test("moves manual purchases from closed invoices with installments and refunds intact", () => {
+		const source = emptyBook();
+		const destination = emptyBook();
+		destination.card.id = "another-card";
+		destination.card.statementDay = 10;
+		const purchase = newBookPurchase(source, {
+			description: "Compra antiga",
+			installments: 2,
+			purchaseDate: "2025-01-01",
+			totalAmount: 100,
+		});
+		materializeBookInstallments(source, "2025-03-01");
+		const refund = addBookRefund(source, purchase.id, { amount: 20, creditDate: "2025-02-15" });
+		moveBookPurchase(source, destination, purchase.id);
+		expect(source.purchases).toHaveLength(0);
+		expect(source.installments).toHaveLength(0);
+		expect(source.refunds).toHaveLength(0);
+		expect(destination.purchases[0]).toMatchObject({ creditCardId: "another-card", id: purchase.id });
+		expect(destination.installments.map(item => item.id)).toHaveLength(2);
+		expect(
+			destination.installments.every(item =>
+				destination.statements.some(statement => statement.id === item.statementId),
+			),
+		).toBe(true);
+		expect(destination.refunds[0]).toMatchObject({ id: refund.id, purchaseId: purchase.id });
+		expect(
+			replayCreditBook(destination, "2025-03-01").statements.some(item => item.totalAmount > 0),
+		).toBe(true);
+	});
+	test("rejects a purchase when any installment was imported", () => {
+		const source = emptyBook();
+		const destination = emptyBook();
+		destination.card.id = "another-card";
+		const purchase = newBookPurchase(source, {
+			description: "Importada",
+			installments: 2,
+			purchaseDate: "2025-01-01",
+			totalAmount: 100,
+		});
+		materializeBookInstallments(source, "2025-02-01");
+		source.installments[0]!.hasImportedAmount = true;
+		expect(() => moveBookPurchase(source, destination, purchase.id)).toThrow(
+			"Compras sincronizadas não podem mudar de cartão",
+		);
+		expect(source.purchases).toHaveLength(1);
+		expect(destination.purchases).toHaveLength(0);
+	});
 	test("net consumption and reward reversals retain distinct purchase and credit dates", () => {
 		const book = emptyBook();
 		const purchase = newBookPurchase(book, {

@@ -5,6 +5,7 @@ import {
 	creditBookEntries,
 	materializeBookInstallments,
 	moneyCents,
+	moveBookPurchase,
 	newBookPurchase,
 	replayCreditBook,
 } from "@zaimu/finance/credit-book";
@@ -199,11 +200,18 @@ async function upsert(
 	);
 }
 
-export async function saveCreditBook(query: RawQuery, book: CreditBook, previous: CreditBook) {
+export async function saveCreditBook(
+	query: RawQuery,
+	book: CreditBook,
+	previous: CreditBook,
+	transferredPurchaseIds: ReadonlySet<string> = new Set(),
+) {
 	const deletedPurchases = [
 		...new Set([
 			...(book.deletedPurchaseIds ?? []),
-			...previous.purchases.filter(p => !book.purchases.some(next => next.id === p.id)).map(p => p.id),
+			...previous.purchases
+				.filter(p => !transferredPurchaseIds.has(p.id) && !book.purchases.some(next => next.id === p.id))
+				.map(p => p.id),
 		]),
 	];
 	const deletedCharges = [
@@ -320,7 +328,9 @@ export async function saveCreditBook(query: RawQuery, book: CreditBook, previous
 		);
 		if (!changed.length) throw new HttpException("Política de reembolso da instituição já definida", 409);
 	}
-	for (const p of previous.purchases.filter(p => !book.purchases.some(next => next.id === p.id))) {
+	for (const p of previous.purchases.filter(
+		p => !transferredPurchaseIds.has(p.id) && !book.purchases.some(next => next.id === p.id),
+	)) {
 		await deleteCreatorDebtEventForPurchase(p.id, book.card.userId);
 		for (const r of previous.refunds.filter(r => r.purchaseId === p.id))
 			await deleteCreatorDebtEventForPurchase(r.id, book.card.userId);
@@ -591,6 +601,40 @@ export async function mutateCreditBook<T>(
 			const result = await mutation(book, query);
 			materializeBookInstallments(book, asOf);
 			await saveCreditBook(query, book, previous);
+			return result;
+		} catch (error) {
+			if (error instanceof RangeError) throw new HttpException(error.message, 400);
+			throw error;
+		}
+	});
+}
+
+export async function transferCreditBookPurchase<T>(
+	userId: string,
+	sourceCardId: string,
+	destinationCardId: string,
+	purchaseId: string,
+	mutation: (book: CreditBook, query: RawQuery) => T | Promise<T>,
+) {
+	return withRawTransaction(async query => {
+		const ids = [sourceCardId, destinationCardId].sort();
+		const books: CreditBook[] = [];
+		for (const id of ids) books.push(await loadCreditBook(query, userId, id, true));
+		const source = books[ids.indexOf(sourceCardId)]!;
+		const destination = books[ids.indexOf(destinationCardId)]!;
+		const sourceBefore = structuredClone(source);
+		const destinationBefore = structuredClone(destination);
+		try {
+			const purchase = moveBookPurchase(source, destination, purchaseId);
+			const result = await mutation(destination, query);
+			materializeBookInstallments(source);
+			materializeBookInstallments(destination);
+			await query(
+				`UPDATE "CreditPurchaseRecord" SET "creditCardId"=$1 WHERE "id"=$2 AND "userId"=$3 AND "creditCardId"=$4`,
+				[destinationCardId, purchase.id, userId, sourceCardId],
+			);
+			await saveCreditBook(query, source, sourceBefore, new Set([purchaseId]));
+			await saveCreditBook(query, destination, destinationBefore);
 			return result;
 		} catch (error) {
 			if (error instanceof RangeError) throw new HttpException(error.message, 400);

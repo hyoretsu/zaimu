@@ -677,6 +677,37 @@ export function updateBookPurchaseDate(book: CreditBook, purchaseId: string, pur
 	}
 }
 
+/** Move a manual purchase with its concrete installments and refunds between card ledgers. */
+export function moveBookPurchase(source: CreditBook, destination: CreditBook, purchaseId: string) {
+	const purchase = bookPurchase(source, purchaseId);
+	const installments = source.installments.filter(item => item.purchaseId === purchaseId);
+	const refunds = source.refunds.filter(item => item.purchaseId === purchaseId);
+	if (
+		purchase.externalId ||
+		purchase.installmentImportedNumbers?.length ||
+		installments.some(item => item.hasImportedAmount) ||
+		refunds.some(item => item.externalId)
+	)
+		throw new RangeError("Compras sincronizadas não podem mudar de cartão");
+	if (source.card.userId !== destination.card.userId)
+		throw new RangeError("Cartões pertencem a usuários diferentes");
+	source.purchases = source.purchases.filter(item => item.id !== purchaseId);
+	source.installments = source.installments.filter(item => item.purchaseId !== purchaseId);
+	source.refunds = source.refunds.filter(item => item.purchaseId !== purchaseId);
+	purchase.creditCardId = destination.card.id;
+	purchase.installmentStatementDates = purchase.installmentAmountsCents.map(() => null);
+	destination.purchases.push(purchase);
+	for (const installment of installments) {
+		installment.statementId = ensureBookStatement(destination, installment.occurrenceDate).id;
+		destination.installments.push(installment);
+	}
+	for (const refund of refunds) {
+		refund.creditStatementId = ensureBookStatement(destination, refund.creditDate).id;
+		destination.refunds.push(refund);
+	}
+	return purchase;
+}
+
 export function refinanceBookPurchase(
 	book: CreditBook,
 	purchaseId: string,

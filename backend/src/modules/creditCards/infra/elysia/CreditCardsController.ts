@@ -1,5 +1,6 @@
 import {
 	addBookRefund,
+	type CreditBook,
 	ensureBookStatement,
 	moneyCents,
 	refinanceBookPurchase,
@@ -17,6 +18,7 @@ import {
 	presentCreditBook,
 	readCreditBook,
 	resolveBookPurchase,
+	transferCreditBookPurchase,
 } from "~/modules/creditCards/application/normalized-credit-book";
 import {
 	createNormalizedRefund,
@@ -538,9 +540,8 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 		"/:id/purchases/:purchaseId",
 		async ({ params, body, request }) => {
 			const userId = await requireUserId(request);
-			await mutateCreditBook(userId, params.id, book => {
-				if (body.creditCardId && body.creditCardId !== params.id)
-					throw new HttpException("Transferência de compra exige cartão e calendário revisados", 409);
+			const destinationCardId = body.creditCardId ?? params.id;
+			const update = (book: CreditBook) => {
 				const p = resolveBookPurchase(book, params.purchaseId);
 				if (body.installmentAmount !== undefined) {
 					const i = book.installments.find(row => row.id === params.purchaseId);
@@ -578,8 +579,35 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					p.feeDescription = body.feeAmount ? (body.feeDescription ?? p.feeDescription) : null;
 				}
 				p.updatedAt = new Date().toISOString();
-			});
-			return (await presentCreditBook(await readCreditBook(userId, params.id))).find(
+			};
+			if (destinationCardId === params.id) await mutateCreditBook(userId, params.id, update);
+			else
+				await transferCreditBookPurchase(
+					userId,
+					params.id,
+					destinationCardId,
+					params.purchaseId,
+					async (book, query) => {
+						update(book);
+						const [card] = await query<CashbackCard>(
+							`SELECT "cashbackAccountId","cashbackRate","cashbackYieldPeriod","cashbackYieldReferencePercentage","cashbackYieldReferenceRate" FROM "CreditCard" WHERE "id"=$1`,
+							[destinationCardId],
+						);
+						const purchase = resolveBookPurchase(book, params.purchaseId);
+						Object.assign(
+							purchase,
+							{
+								cashbackAccountId: null,
+								cashbackAmount: null,
+								cashbackYieldPeriod: null,
+								cashbackYieldReferencePercentage: null,
+								cashbackYieldReferenceRate: null,
+							},
+							rewardSnapshot(card!, purchase.totalAmountCents / 100),
+						);
+					},
+				);
+			return (await presentCreditBook(await readCreditBook(userId, destinationCardId))).find(
 				row => row.id === params.purchaseId || row.purchaseId === params.purchaseId,
 			);
 		},

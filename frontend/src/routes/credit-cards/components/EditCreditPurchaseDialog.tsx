@@ -6,6 +6,7 @@ import { StorePicker } from "@/components/stores";
 import { TagPicker } from "@/components/tags";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
 import {
 	Dialog,
@@ -22,6 +23,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { TimeField } from "@/components/ui/TimeField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { CreditCard, CreditPurchase, DebtSplitInput } from "@/lib/api";
+import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
 import { calculateDebtSplit, debtSplitToInput } from "@/lib/debt-split";
 import { runDialogSave } from "@/lib/dialog-save";
@@ -47,6 +49,7 @@ interface CreditPurchaseDetailsUpdate {
 type CreditPurchaseUpdate = CreditPurchaseDetailsUpdate | { installmentAmount: number };
 
 export function EditCreditPurchaseDialog({
+	cards,
 	onOpenChange,
 	onRefund,
 	onSubmit,
@@ -66,6 +69,12 @@ export function EditCreditPurchaseDialog({
 }) {
 	const identity = useCacheIdentity();
 	const sourceCardId = creditCardId ?? purchase.creditCardId;
+	const cardsQuery = useQuery({
+		enabled: open && Boolean(identity) && !cards && !purchase.parentId && !purchase.isStatementCharge,
+		queryFn: () => dataService.creditCards.getAll(),
+		queryKey: queryKeys.creditCards.list(identity!),
+	});
+	const availableCards = cards ?? cardsQuery.data ?? [];
 	const canonical = useQuery({
 		enabled: open && Boolean(identity) && Boolean(sourceCardId) && !purchase.isStatementCharge,
 		queryFn: () => dataService.creditCards.getBook(sourceCardId!),
@@ -77,7 +86,10 @@ export function EditCreditPurchaseDialog({
 	const canonicalPending = Boolean(
 		sourceCardId && !purchase.isStatementCharge && (canonical.isPending || canonical.isError),
 	);
-	const isSynced = purchase.isSynced === true;
+	const isSynced =
+		purchase.isSynced === true ||
+		Boolean(original?.externalId || original?.installmentImportedNumbers?.length);
+	const [selectedCardId, setSelectedCardId] = useState(sourceCardId ?? "");
 	const [description, setDescription] = useDebouncedInput(purchase.description, () => undefined);
 	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>(() => debtSplitToInput(purchase.debtSplit));
 	const [isDebt, setIsDebt] = useState(Boolean(purchase.debtSplit));
@@ -160,6 +172,7 @@ export function EditCreditPurchaseDialog({
 		event.preventDefault();
 		const updatedStoreName = getUpdatedStoreName(purchase.storeName, storeName);
 		const operation = onSubmit({
+			creditCardId: selectedCardId,
 			debtSplit: isDebt && !purchase.isStatementCharge ? debtSplit : null,
 			description: description.trim(),
 			feeAmount: Number(feeAmount || 0),
@@ -200,6 +213,23 @@ export function EditCreditPurchaseDialog({
 								<Skeleton className="h-10" />
 							) : canonical.isError ? (
 								<p className="text-destructive text-sm">Não foi possível carregar a compra original.</p>
+							) : null}
+							{!purchase.isStatementCharge && sourceCardId ? (
+								<CustomSelect
+									disabled={
+										isSynced || (!cards && (cardsQuery.isPending || cardsQuery.isError)) || canonicalPending
+									}
+									label="Cartão"
+									onValueChange={setSelectedCardId}
+									options={availableCards.map(card => ({
+										label: getCreditCardDisplayName(card),
+										value: card.id,
+									}))}
+									placeholder="Selecione o cartão"
+									required
+									searchable
+									value={selectedCardId}
+								/>
 							) : null}
 							<FormField
 								autoComplete="off"
