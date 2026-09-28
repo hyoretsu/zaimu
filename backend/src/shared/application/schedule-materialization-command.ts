@@ -12,7 +12,15 @@ interface ScheduleMaterializationPayload {
 	asOf: string;
 }
 
-export async function publishScheduleMaterialization(broker: EventBrokerPort, now = new Date()) {
+interface PublishScheduleMaterializationOptions {
+	force?: boolean;
+}
+
+export async function publishScheduleMaterialization(
+	broker: EventBrokerPort,
+	now = new Date(),
+	options: PublishScheduleMaterializationOptions = {},
+) {
 	const cutoff = new Date(now);
 	cutoff.setUTCSeconds(0, 0);
 	const asOf = cutoff.toISOString();
@@ -20,7 +28,8 @@ export async function publishScheduleMaterialization(broker: EventBrokerPort, no
 		.update(`schedule-materialization:${asOf}`)
 		.digest("hex")
 		.slice(0, 32);
-	const commandId = `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20)}`;
+	const deterministicCommandId = `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20)}`;
+	const commandId = options.force ? crypto.randomUUID() : deterministicCommandId;
 	await broker.publish("zaimu.commands", "schedule-materialization", {
 		aggregateId: commandId,
 		aggregateType: "schedule",

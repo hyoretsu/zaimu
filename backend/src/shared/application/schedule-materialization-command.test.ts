@@ -22,6 +22,19 @@ describe("schedule materialization commands", () => {
 		});
 	});
 
+	test("publishes forced replays with a fresh command identity", async () => {
+		const publish = mock(async (_exchange: string, _routingKey: string, _event: unknown) => {});
+		const broker = { publish } as unknown as EventBrokerPort;
+		const now = new Date("2026-09-25T12:34:42.123Z");
+		await publishScheduleMaterialization(broker, now, { force: true });
+		await publishScheduleMaterialization(broker, now, { force: true });
+		const firstEvent = publish.mock.calls[0]?.[2] as EventEnvelope;
+		const secondEvent = publish.mock.calls[1]?.[2] as EventEnvelope;
+		expect(firstEvent.eventId).not.toBe(secondEvent.eventId);
+		expect(firstEvent.payload).toEqual({ asOf: "2026-09-25T12:34:00.000Z" });
+		expect(secondEvent.payload).toEqual(firstEvent.payload);
+	});
+
 	test("validates and dispatches the requested cutoff", async () => {
 		const materialize = mock(async () => [{ userIds: [] }]);
 		await handleScheduleMaterialization(

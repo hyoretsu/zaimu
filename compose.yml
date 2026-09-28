@@ -39,6 +39,14 @@ services:
       caddy: api.zaimu.hyoretsu.com
       caddy.reverse_proxy: "{{upstreams 3333}}"
 
+  worker:
+    image: ghcr.io/hyoretsu/zaimu_backend:latest
+    command: ["bun", "dist/worker.js"]
+    env_file: .env
+    networks:
+      - postgres
+    restart: always
+
   frontend:
     image: ghcr.io/hyoretsu/zaimu_frontend:latest
     depends_on:
