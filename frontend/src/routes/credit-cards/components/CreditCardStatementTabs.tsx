@@ -10,8 +10,10 @@ import { cn } from "@/lib/utils";
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
 function getStatementStatus(statement: CreditCardStatement) {
+	if (statement.status === "CARRIED")
+		return { className: "text-amber-500", icon: LuLockKeyhole, label: "Saldo transposto" };
 	if (statement.isForecast) return { className: "text-muted-foreground", icon: LuClock3, label: "Futura" };
-	if (statement.isPaid) return { className: "text-amber-500", icon: LuLockKeyhole, label: "Fechada" };
+	if (statement.isPaid) return { className: "text-amber-500", icon: LuLockKeyhole, label: "Paga" };
 	if (statement.dueDate.slice(0, 10) < getLocalDateKey()) {
 		return { className: "text-destructive", icon: LuTriangleAlert, label: "Em atraso" };
 	}
@@ -92,7 +94,7 @@ export function CreditCardStatementTabs({
 							>
 								<span className="grid min-w-0 flex-1 gap-1.5">
 									<span className="flex items-center gap-1.5 font-semibold text-sm">
-										{formatLocalMonthYear(statement.statementDate)}
+										{formatLocalMonthYear(statement.dueDate)}
 										<span aria-label={status.label} className={status.className} role="img">
 											<StatusIcon aria-hidden="true" className="size-4" />
 										</span>

@@ -1,11 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import type { CreditCard, CreditCardStatement } from "./api";
 import {
-	applyStatementCredits,
+	applyStatementCredits as calculate,
 	calculateCreditCardLimit,
 	getCreditCardDisplayName,
 	getCurrentCreditCardStatement,
 } from "./credit-card";
+
+const applyStatementCredits = (rows: CreditCardStatement[]) => calculate(rows, undefined, "2026-08-01");
 
 const card = { creditLimit: 1_000 } as CreditCard;
 
@@ -17,7 +19,7 @@ const statement = (
 ): CreditCardStatement => ({
 	balanceAmount: totalAmount - paidAmount,
 	creditCardId: "card-id",
-	dueDate: statementDate,
+	dueDate: `${statementDate.slice(0, 8)}25`,
 	id,
 	isPaid: false,
 	paidAmount,
@@ -168,7 +170,7 @@ describe("getCurrentCreditCardStatement", () => {
 		).toMatchObject({ id: "september" });
 	});
 
-	test("moves to the next cycle after the statement closes", () => {
+	test("keeps the invoice after closing and advances only after due", () => {
 		const statements = [
 			statement("september", "2026-09-17", 140, 0),
 			statement("october", "2026-10-17", 80, 0),
@@ -176,6 +178,9 @@ describe("getCurrentCreditCardStatement", () => {
 
 		expect(
 			getCurrentCreditCardStatement(statements, { statementDay: 17 }, new Date("2026-09-18T12:00:00")),
+		).toMatchObject({ id: "september" });
+		expect(
+			getCurrentCreditCardStatement(statements, { statementDay: 17 }, new Date("2026-09-26T12:00:00")),
 		).toMatchObject({ id: "october" });
 	});
 });

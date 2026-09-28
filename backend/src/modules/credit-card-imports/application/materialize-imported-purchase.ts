@@ -1,3 +1,4 @@
+import { statementEntryKind } from "@zaimu/finance/credit-card";
 import { replaceEntityTags, tagEntityType } from "~/modules/categories/application/tag-assignments";
 import {
 	getImportedInstallmentAmounts,
@@ -11,6 +12,7 @@ import { withoutFinancingReferences } from "../domain/financing-source-reference
 import { importedInstallmentDates } from "../domain/imported-installment-dates";
 
 interface ImportedPurchaseInput {
+	isStatementCharge?: boolean;
 	categoryId: null | string;
 	currentInstallment: number;
 	description: string;
@@ -65,6 +67,9 @@ async function getOrCreateStatement(card: CardSnapshot, statementDate: Date, due
 
 export async function materializeImportedPurchase(card: CardSnapshot, input: ImportedPurchaseInput) {
 	const importedDescription = withoutFinancingReferences(input.description);
+	const isStatementCharge = input.isStatementCharge ?? statementEntryKind(importedDescription) === "CHARGE";
+	if (isStatementCharge && input.installments !== 1)
+		throw new HttpException("Encargos não permitem parcelamento automático", 400);
 	if (input.installmentAmount < 0) {
 		if (input.installments !== 1 || input.totalAmount !== input.installmentAmount)
 			throw new HttpException("Crédito da fatura com valor inválido", 400);
@@ -81,6 +86,7 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 					installmentAmount: String(input.installmentAmount),
 					installments: 1,
 					isRefund: true,
+					isStatementCharge,
 					purchaseDate: input.purchaseDate,
 					statementId: statement.id,
 					storeName: input.storeName ?? undefined,
@@ -171,7 +177,10 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 			const movedStatement = observedStatement && observedStatement.id !== existing.statementId;
 			await executeStatement(
 				db.sql.public.CreditPurchase.update({
+					...((isStatementCharge || financedFee) && { cashbackAccountId: null, cashbackAmount: null }),
 					...(currentInstallment === 1 &&
+						!isStatementCharge &&
+						!financedFee &&
 						existing.cashbackAmount !== null && {
 							cashbackAmount: String(
 								Number(
@@ -181,6 +190,7 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 						}),
 					categoryId: input.categoryId,
 					description,
+					isStatementCharge,
 					...(financedFee &&
 						currentInstallment === input.currentInstallment && {
 							feeAmount: feeAmount ? String(feeAmount) : null,
@@ -247,7 +257,12 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 			db.sql.public.CreditPurchase.insert([
 				{
 					categoryId: input.categoryId ?? undefined,
-					...(currentInstallment === 1 && card.cashbackAccountId && card.cashbackRate
+					isStatementCharge,
+					...(currentInstallment === 1 &&
+					!isStatementCharge &&
+					!financedFee &&
+					card.cashbackAccountId &&
+					card.cashbackRate
 						? {
 								cashbackAccountId: card.cashbackAccountId,
 								cashbackAmount: String((totalAmount * card.cashbackRate) / 100),

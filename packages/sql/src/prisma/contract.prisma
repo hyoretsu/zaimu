@@ -401,6 +401,7 @@ namespace public {
     currentInstallment      SmallInt                @default(1)
     installmentAmount       Numeric(12, 2)
     hasImportedAmount       Boolean                 @default(false)
+    isStatementCharge       Boolean                 @default(false)
     purchaseDate            Date
     time                    Time(3)?
     categoryId              VarChar(36)?
@@ -921,6 +922,7 @@ namespace public {
     status        pg.enum(TransactionImportStatus) @default("PENDING")
     fileName      VarChar(255)
     statementDate Date
+    reportedPreviousBalance Numeric(12, 2)?
     dueDate       Date
     createdAt     Timestamp(3)                  @default(now())
     updatedAt     Timestamp(3)                  @default(now())
@@ -946,6 +948,7 @@ namespace public {
     currentInstallment SmallInt        @default(1)
     installmentAmount  Numeric(12, 2)
     categoryId         VarChar(36)?
+    isStatementCharge  Boolean         @default(false)
     isSelected         Boolean         @default(true)
     reconciledCreditPurchaseId VarChar(36)? @unique(map: "CreditCardImportItem_reconciledCreditPurchaseId_key")
     createdAt          Timestamp(3)    @default(now())

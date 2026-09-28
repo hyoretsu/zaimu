@@ -2,6 +2,217 @@
 	{
 		"execute": [
 			{
+				"description": "add column \"paymentCreditCardId\"",
+				"sql": "ALTER TABLE \"public\".\"Transaction\" ADD COLUMN \"paymentCreditCardId\" character varying(36)"
+			}
+		],
+		"id": "column.public.Transaction.paymentCreditCardId",
+		"label": "Add column \"paymentCreditCardId\" to \"Transaction\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"paymentCreditCardId\" exists",
+				"params": ["public", "Transaction", "paymentCreditCardId"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"paymentCreditCardId\" is missing",
+				"params": ["public", "Transaction", "paymentCreditCardId"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "paymentCreditCardId",
+				"objectType": "column",
+				"schema": "public",
+				"table": "Transaction"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"paymentCreditCardId\"",
+				"sql": "ALTER TABLE \"public\".\"TransactionImportItem\" ADD COLUMN \"paymentCreditCardId\" character varying(36)"
+			}
+		],
+		"id": "column.public.TransactionImportItem.paymentCreditCardId",
+		"label": "Add column \"paymentCreditCardId\" to \"TransactionImportItem\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"paymentCreditCardId\" exists",
+				"params": ["public", "TransactionImportItem", "paymentCreditCardId"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"paymentCreditCardId\" is missing",
+				"params": ["public", "TransactionImportItem", "paymentCreditCardId"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "paymentCreditCardId",
+				"objectType": "column",
+				"schema": "public",
+				"table": "TransactionImportItem"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"isStatementCharge\"",
+				"sql": "ALTER TABLE \"public\".\"CreditPurchase\" ADD COLUMN \"isStatementCharge\" bool DEFAULT false NOT NULL"
+			}
+		],
+		"id": "column.public.CreditPurchase.isStatementCharge",
+		"label": "Add column \"isStatementCharge\" to \"CreditPurchase\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"isStatementCharge\" exists",
+				"params": ["public", "CreditPurchase", "isStatementCharge"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"isStatementCharge\" is missing",
+				"params": ["public", "CreditPurchase", "isStatementCharge"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "isStatementCharge",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditPurchase"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"isStatementCharge\"",
+				"sql": "ALTER TABLE \"public\".\"CreditCardImportItem\" ADD COLUMN \"isStatementCharge\" bool DEFAULT false NOT NULL"
+			}
+		],
+		"id": "column.public.CreditCardImportItem.isStatementCharge",
+		"label": "Add column \"isStatementCharge\" to \"CreditCardImportItem\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"isStatementCharge\" exists",
+				"params": ["public", "CreditCardImportItem", "isStatementCharge"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"isStatementCharge\" is missing",
+				"params": ["public", "CreditCardImportItem", "isStatementCharge"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "isStatementCharge",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditCardImportItem"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"reportedPreviousBalance\"",
+				"sql": "ALTER TABLE \"public\".\"CreditCardImport\" ADD COLUMN \"reportedPreviousBalance\" numeric(12,2)"
+			}
+		],
+		"id": "column.public.CreditCardImport.reportedPreviousBalance",
+		"label": "Add column \"reportedPreviousBalance\" to \"CreditCardImport\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"reportedPreviousBalance\" exists",
+				"params": ["public", "CreditCardImport", "reportedPreviousBalance"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"reportedPreviousBalance\" is missing",
+				"params": ["public", "CreditCardImport", "reportedPreviousBalance"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "reportedPreviousBalance",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditCardImport"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "Backfill card IDs, preserving every existing payment field",
+				"sql": "\n     UPDATE \"Transaction\" payment SET \"paymentCreditCardId\" = statement.\"creditCardId\"\n      FROM \"CreditCardStatement\" statement WHERE payment.\"creditCardStatementId\" = statement.\"id\";\n     UPDATE \"TransactionImportItem\" payment SET \"paymentCreditCardId\" = statement.\"creditCardId\"\n      FROM \"CreditCardStatement\" statement WHERE payment.\"creditCardStatementId\" = statement.\"id\";\n     UPDATE \"CreditPurchase\" SET \"isStatementCharge\" = true,\n       \"cashbackAccountId\" = NULL, \"cashbackAmount\" = NULL\n      WHERE btrim(\"description\") ~* '^(juros|multa|mora|encargos|iof)([[:space:][:punct:]]|$)';\n     UPDATE \"CreditCardImportItem\" SET \"isStatementCharge\" = true\n      WHERE btrim(\"description\") ~* '^(juros|multa|mora|encargos|iof)([[:space:][:punct:]]|$)';\n    "
+			}
+		],
+		"id": "cardPayments.backfill",
+		"label": "Preserve legacy card payments before dropping statement links",
+		"operationClass": "data",
+		"postcheck": [
+			{
+				"description": "Every old statement link resolves to the same card",
+				"sql": "SELECT\n     NOT EXISTS (SELECT 1 FROM \"Transaction\" p LEFT JOIN \"CreditCardStatement\" s ON s.\"id\" = p.\"creditCardStatementId\"\n      WHERE p.\"creditCardStatementId\" IS NOT NULL AND (s.\"id\" IS NULL OR p.\"paymentCreditCardId\" IS DISTINCT FROM s.\"creditCardId\"))\n     AND NOT EXISTS (SELECT 1 FROM \"TransactionImportItem\" p LEFT JOIN \"CreditCardStatement\" s ON s.\"id\" = p.\"creditCardStatementId\"\n      WHERE p.\"creditCardStatementId\" IS NOT NULL AND (s.\"id\" IS NULL OR p.\"paymentCreditCardId\" IS DISTINCT FROM s.\"creditCardId\")) AS result"
+			}
+		],
+		"precheck": [],
+		"target": {
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "Fill monthly gaps while preserving existing statement dates",
+				"sql": "\n     WITH events AS (\n      SELECT c.\"id\", c.\"statementDay\", c.\"dueDay\", p.\"date\" AS date\n       FROM \"CreditCard\" c JOIN \"Transaction\" p ON p.\"paymentCreditCardId\" = c.\"id\"\n      UNION ALL\n      SELECT c.\"id\", c.\"statementDay\", c.\"dueDay\", CURRENT_DATE FROM \"CreditCard\" c\n       WHERE EXISTS (SELECT 1 FROM \"CreditCardStatement\" s WHERE s.\"creditCardId\" = c.\"id\")\n        OR EXISTS (SELECT 1 FROM \"Transaction\" p WHERE p.\"paymentCreditCardId\" = c.\"id\")\n     ), event_months AS (\n      SELECT \"id\", \"statementDay\", \"dueDay\", date_trunc('month', date)\n       + CASE WHEN EXTRACT(day FROM date) > \"dueDay\" THEN INTERVAL '1 month' ELSE INTERVAL '0 month' END\n       - CASE WHEN \"dueDay\" <= \"statementDay\" THEN INTERVAL '1 month' ELSE INTERVAL '0 month' END AS month\n      FROM events\n      UNION ALL\n      SELECT c.\"id\", c.\"statementDay\", c.\"dueDay\", date_trunc('month', s.\"statementDate\")\n       FROM \"CreditCard\" c JOIN \"CreditCardStatement\" s ON s.\"creditCardId\" = c.\"id\"\n     ), starts AS (\n      SELECT \"id\", \"statementDay\", \"dueDay\", MIN(month) AS first_date, MAX(month) AS last_date\n      FROM event_months GROUP BY \"id\", \"statementDay\", \"dueDay\"\n     ), dates AS (\n      SELECT starts.*, month,\n       (month + (LEAST(\"statementDay\", EXTRACT(day FROM month + INTERVAL '1 month - 1 day')) - 1) * INTERVAL '1 day')::date AS closing,\n       month + CASE WHEN \"dueDay\" <= \"statementDay\" THEN INTERVAL '1 month' ELSE INTERVAL '0 month' END AS due_month\n      FROM starts CROSS JOIN LATERAL generate_series(date_trunc('month', first_date), date_trunc('month', last_date), INTERVAL '1 month') month\n     )\n     INSERT INTO \"CreditCardStatement\" (\"creditCardId\", \"statementDate\", \"dueDate\", \"totalAmount\")\n      SELECT \"id\", closing,\n       (due_month + (LEAST(\"dueDay\", EXTRACT(day FROM due_month + INTERVAL '1 month - 1 day')) - 1) * INTERVAL '1 day')::date, 0\n      FROM dates WHERE NOT EXISTS (SELECT 1 FROM \"CreditCardStatement\" s WHERE s.\"creditCardId\" = dates.\"id\"\n       AND date_trunc('month', s.\"statementDate\") = month)\n      ON CONFLICT (\"creditCardId\", \"statementDate\") DO NOTHING;\n    "
+			},
+			{
+				"description": "Replay dated payments without retroactively paying overdue invoices",
+				"sql": "\n     WITH RECURSIVE ordered AS (\n      SELECT s.*, ROW_NUMBER() OVER (PARTITION BY s.\"creditCardId\" ORDER BY s.\"dueDate\", s.\"id\") AS rn,\n       (SELECT COALESCE(SUM(p.\"amount\"), 0) FROM \"Transaction\" p WHERE p.\"paymentCreditCardId\" = s.\"creditCardId\"\n        AND p.\"date\" <= CURRENT_DATE AND s.\"id\" = (SELECT target.\"id\" FROM \"CreditCardStatement\" target\n         WHERE target.\"creditCardId\" = s.\"creditCardId\" AND target.\"dueDate\" >= p.\"date\" ORDER BY target.\"dueDate\", target.\"id\" LIMIT 1)) AS payment\n      FROM \"CreditCardStatement\" s\n     ), replay AS (\n      SELECT s.\"id\", s.\"creditCardId\", s.rn, s.\"dueDate\", s.\"totalAmount\"::numeric AS amount_due, s.payment,\n       (s.\"totalAmount\" - s.payment)::numeric AS remaining, 0::numeric AS incoming\n      FROM ordered s WHERE s.rn = 1\n      UNION ALL\n      SELECT s.\"id\", s.\"creditCardId\", s.rn, s.\"dueDate\",\n       s.\"totalAmount\" + GREATEST(carry.amount, 0), s.payment,\n       (s.\"totalAmount\" + carry.amount - s.payment)::numeric, carry.amount\n      FROM replay previous JOIN ordered s ON s.\"creditCardId\" = previous.\"creditCardId\" AND s.rn = previous.rn + 1\n      CROSS JOIN LATERAL (SELECT CASE WHEN previous.remaining < 0 OR previous.\"dueDate\" < CURRENT_DATE\n       THEN previous.remaining ELSE 0 END AS amount) carry\n     )\n     UPDATE \"CreditCardStatement\" s SET\n      \"paidAmount\" = GREATEST(0, LEAST(GREATEST(replay.amount_due, 0), replay.payment + GREATEST(-replay.incoming, 0))),\n      \"isPaid\" = replay.remaining <= 0 AND (replay.amount_due <> 0 OR replay.payment > 0 OR replay.incoming < 0)\n     FROM replay WHERE replay.\"id\" = s.\"id\";\n    "
+			}
+		],
+		"id": "cardPayments.cycles",
+		"label": "Create historical due-date cycles and replay payments chronologically",
+		"operationClass": "data",
+		"postcheck": [],
+		"precheck": [],
+		"target": {
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
 				"description": "drop constraint \"Transaction_creditCardStatementId_fkey\"",
 				"sql": "ALTER TABLE \"public\".\"Transaction\" DROP CONSTRAINT \"Transaction_creditCardStatementId_fkey\""
 			}
@@ -206,74 +417,6 @@
 		"target": {
 			"details": {
 				"name": "creditCardStatementId",
-				"objectType": "column",
-				"schema": "public",
-				"table": "TransactionImportItem"
-			},
-			"id": "postgres"
-		}
-	},
-	{
-		"execute": [
-			{
-				"description": "add column \"paymentCreditCardId\"",
-				"sql": "ALTER TABLE \"public\".\"Transaction\" ADD COLUMN \"paymentCreditCardId\" character varying(36)"
-			}
-		],
-		"id": "column.public.Transaction.paymentCreditCardId",
-		"label": "Add column \"paymentCreditCardId\" to \"Transaction\"",
-		"operationClass": "additive",
-		"postcheck": [
-			{
-				"description": "verify column \"paymentCreditCardId\" exists",
-				"params": ["public", "Transaction", "paymentCreditCardId"],
-				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
-			}
-		],
-		"precheck": [
-			{
-				"description": "ensure column \"paymentCreditCardId\" is missing",
-				"params": ["public", "Transaction", "paymentCreditCardId"],
-				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
-			}
-		],
-		"target": {
-			"details": {
-				"name": "paymentCreditCardId",
-				"objectType": "column",
-				"schema": "public",
-				"table": "Transaction"
-			},
-			"id": "postgres"
-		}
-	},
-	{
-		"execute": [
-			{
-				"description": "add column \"paymentCreditCardId\"",
-				"sql": "ALTER TABLE \"public\".\"TransactionImportItem\" ADD COLUMN \"paymentCreditCardId\" character varying(36)"
-			}
-		],
-		"id": "column.public.TransactionImportItem.paymentCreditCardId",
-		"label": "Add column \"paymentCreditCardId\" to \"TransactionImportItem\"",
-		"operationClass": "additive",
-		"postcheck": [
-			{
-				"description": "verify column \"paymentCreditCardId\" exists",
-				"params": ["public", "TransactionImportItem", "paymentCreditCardId"],
-				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
-			}
-		],
-		"precheck": [
-			{
-				"description": "ensure column \"paymentCreditCardId\" is missing",
-				"params": ["public", "TransactionImportItem", "paymentCreditCardId"],
-				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
-			}
-		],
-		"target": {
-			"details": {
-				"name": "paymentCreditCardId",
 				"objectType": "column",
 				"schema": "public",
 				"table": "TransactionImportItem"

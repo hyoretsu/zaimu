@@ -6,6 +6,7 @@ import { parseInterCreditCardStatementText } from "./inter-credit-card";
 import { parseMercadoPagoCreditCardStatementText } from "./mercado-pago-credit-card";
 import { parseNubankCreditCardStatementText } from "./nubank-credit-card";
 import { parsePicPayCreditCardStatementText } from "./picpay-credit-card";
+import { statementPreviousBalance } from "./statement-previous-balance";
 
 export async function parseCreditCardStatementPdf(
 	data: ArrayBuffer,
@@ -16,11 +17,16 @@ export async function parseCreditCardStatementPdf(
 	try {
 		const { text } = await parser.getText();
 		if (!text.trim()) throw new HttpException("Não foi possível extrair texto do PDF", 400);
-		if (provider === "MERCADO_PAGO") return parseMercadoPagoCreditCardStatementText(text);
-		if (provider === "BRADESCO") return parseBradescoCreditCardStatementText(text);
-		if (provider === "INTER") return parseInterCreditCardStatementText(text);
-		if (provider === "NUBANK") return parseNubankCreditCardStatementText(text);
-		if (provider === "PICPAY") return parsePicPayCreditCardStatementText(text);
+		const withPreviousBalance = (statement: ReturnType<typeof parseNubankCreditCardStatementText>) => ({
+			...statement,
+			reportedPreviousBalance: statementPreviousBalance(text),
+		});
+		if (provider === "MERCADO_PAGO")
+			return withPreviousBalance(parseMercadoPagoCreditCardStatementText(text));
+		if (provider === "BRADESCO") return withPreviousBalance(parseBradescoCreditCardStatementText(text));
+		if (provider === "INTER") return withPreviousBalance(parseInterCreditCardStatementText(text));
+		if (provider === "NUBANK") return withPreviousBalance(parseNubankCreditCardStatementText(text));
+		if (provider === "PICPAY") return withPreviousBalance(parsePicPayCreditCardStatementText(text));
 		throw new HttpException("Instituição de cartão não suportada", 400);
 	} catch (error) {
 		if (error instanceof HttpException) throw error;

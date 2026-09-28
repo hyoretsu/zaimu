@@ -29,6 +29,8 @@ import { CreditCardImportItemRow } from "./CreditCardImportItemRow";
 import { CreditPurchaseReconciliationDialog } from "./CreditPurchaseReconciliationDialog";
 import { EditImportedCreditPurchaseDialog } from "./EditImportedCreditPurchaseDialog";
 
+const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
+
 export function CreditCardImportReviewDialog({
 	importId,
 	onOpenChange,
@@ -197,6 +199,15 @@ export function CreditCardImportReviewDialog({
 						/>
 					) : (
 						<ScrollArea className="min-h-0 pr-3">
+							{creditCardImportData?.previousBalanceCheck && (
+								<p className="mb-3 rounded-xl border p-3 text-sm">
+									Saldo anterior informado:{" "}
+									{currency.format(creditCardImportData.previousBalanceCheck.reported)}.{" "}
+									{creditCardImportData.previousBalanceCheck.matches
+										? "Confere com a transposição do histórico."
+										: `Histórico calcula ${currency.format(creditCardImportData.previousBalanceCheck.calculated)}. Confira compras e pagamentos anteriores.`}
+								</p>
+							)}
 							<div className="divide-y rounded-2xl border bg-card shadow-sm">
 								{items.map(item => (
 									<CreditCardImportItemRow

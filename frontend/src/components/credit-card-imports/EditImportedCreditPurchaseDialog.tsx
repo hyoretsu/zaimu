@@ -33,6 +33,7 @@ export function EditImportedCreditPurchaseDialog({
 	const [description, setDescription] = useDebouncedInput("", () => undefined);
 	const [installments, setInstallments] = useDebouncedInput("1", () => undefined);
 	const [debtSplit, setDebtSplit] = useState(() => debtSplitToInput());
+	const [isStatementCharge, setIsStatementCharge] = useState(false);
 	const [isDebt, setIsDebt] = useState(false);
 	const [purchaseDate, setPurchaseDate] = useState("");
 	const [storeName, setStoreName] = useState("");
@@ -46,7 +47,8 @@ export function EditImportedCreditPurchaseDialog({
 		);
 		setInstallments(String(item.installments));
 		setDebtSplit(debtSplitToInput(item.debtSplit));
-		setIsDebt(Boolean(item.debtSplit));
+		setIsDebt(!item.isStatementCharge && Boolean(item.debtSplit));
+		setIsStatementCharge(item.isStatementCharge ?? false);
 		setPurchaseDate(item.purchaseDate);
 		setStoreName(item.storeName ?? "");
 		setTagIds(item.tagIds);
@@ -54,7 +56,7 @@ export function EditImportedCreditPurchaseDialog({
 		setTime(item.time ?? "");
 	}, [item, open, setDescription, setInstallments]);
 	if (!item) return null;
-	const installmentCount = Number.parseInt(installments, 10);
+	const installmentCount = isStatementCharge ? 1 : Number.parseInt(installments, 10);
 	const isValid =
 		Number(totalAmount) > 0 &&
 		Number.isInteger(installmentCount) &&
@@ -93,6 +95,7 @@ export function EditImportedCreditPurchaseDialog({
 							<div className="grid gap-4 sm:grid-cols-3">
 								<FormField
 									autoComplete="off"
+									disabled={isStatementCharge}
 									id="imported-purchase-installments"
 									inputMode="numeric"
 									label="Total de parcelas"
@@ -103,7 +106,7 @@ export function EditImportedCreditPurchaseDialog({
 									placeholder="Ex: 12"
 									required
 									type="text"
-									value={installments}
+									value={isStatementCharge ? "1" : installments}
 								/>
 								<DateField
 									autoComplete="off"
@@ -124,10 +127,23 @@ export function EditImportedCreditPurchaseDialog({
 								/>
 							</div>
 							<TagPicker onValueChange={setTagIds} value={tagIds} />
+							<CheckboxField
+								checkboxProps={{
+									checked: isStatementCharge,
+									id: "imported-purchase-is-charge",
+									onCheckedChange: checked => {
+										setIsStatementCharge(checked === true);
+										if (checked) setIsDebt(false);
+									},
+								}}
+							>
+								Encargo da fatura (juros, multa ou IOF)
+							</CheckboxField>
 							<div className="grid gap-3 rounded-2xl border p-3">
 								<CheckboxField
 									checkboxProps={{
 										checked: isDebt,
+										disabled: isStatementCharge,
 										id: "imported-purchase-is-debt",
 										onCheckedChange: checked => setIsDebt(checked === true),
 									}}
@@ -148,9 +164,10 @@ export function EditImportedCreditPurchaseDialog({
 								disabled={!isValid || pending}
 								onClick={() =>
 									onSubmit({
-										debtSplit: isDebt ? debtSplit : null,
+										debtSplit: isDebt && !isStatementCharge ? debtSplit : null,
 										description: description.trim(),
 										installments: installmentCount,
+										isStatementCharge,
 										purchaseDate,
 										storeName: storeName.trim() || null,
 										tagIds,

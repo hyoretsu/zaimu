@@ -20,7 +20,7 @@ function toTransaction(
 		createdAt: item.createdAt,
 		creditCardId,
 		date: item.purchaseDate,
-		debtSplit: item.debtSplit,
+		debtSplit: item.isStatementCharge ? null : item.debtSplit,
 		description: financedOperation?.merchant ?? cleanFinancedDescription(item.description),
 		id: item.id,
 		installmentAmount: item.installmentAmount,
@@ -84,6 +84,7 @@ export function CreditCardImportItemRow({
 			metadataPrefix={
 				<div className="flex flex-wrap items-center gap-1.5">
 					<ImportItemDateTime date={item.purchaseDate} originalPurchase time={item.time} />
+					{item.isStatementCharge && <AppBadge variant="outline">Encargo da fatura</AppBadge>}
 					{financedOperation ? (
 						<AppBadge
 							className="h-auto min-h-7 whitespace-normal break-words py-1 leading-4"

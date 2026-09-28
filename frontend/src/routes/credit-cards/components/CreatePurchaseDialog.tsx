@@ -30,6 +30,7 @@ import { CreditPurchaseFeeFields } from "./CreditPurchaseFeeFields";
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
 interface PurchaseDraft {
+	isStatementCharge?: boolean;
 	debtSplit?: DebtSplitInput;
 	description: string;
 	feeAmount?: number;
@@ -70,6 +71,7 @@ export function CreatePurchaseDialog({
 		ownerShares: null,
 		participants: [{ debtPersonId: "", shares: 1 }],
 	});
+	const [isStatementCharge, setIsStatementCharge] = useState(false);
 	const [isDebt, setIsDebt] = useState(false);
 	const [amount, setAmount] = useState("");
 	const [feeAmount, setFeeAmount] = useState("");
@@ -86,12 +88,13 @@ export function CreatePurchaseDialog({
 	const [cardId, setCardId] = useState(initialCardId ?? "");
 	const purchaseAmount = Number(amount || 0);
 	const total = purchaseAmount + Number(feeAmount || 0);
-	const installmentCount = Number.parseInt(count, 10);
+	const installmentCount = isStatementCharge ? 1 : Number.parseInt(count, 10);
 	const installmentValue = total / (installmentCount || 1);
 	const reset = () => {
 		setDescription("");
 		setDebtSplit({ mode: "SHARES", ownerShares: null, participants: [{ debtPersonId: "", shares: 1 }] });
 		setIsDebt(false);
+		setIsStatementCharge(false);
 		setAmount("");
 		setFeeAmount("");
 		setFeeDescription("");
@@ -111,11 +114,12 @@ export function CreatePurchaseDialog({
 		event.preventDefault();
 		if (!Number.isInteger(installmentCount) || installmentCount < 1 || installmentCount > 48) return;
 		const operation = onSubmit(cardId, {
-			debtSplit: isDebt ? debtSplit : undefined,
+			debtSplit: isDebt && !isStatementCharge ? debtSplit : undefined,
 			description: description.trim(),
 			feeAmount: Number(feeAmount || 0) || undefined,
 			feeDescription: feeAmount ? feeDescription.trim() || undefined : undefined,
-			installments: installmentCount,
+			installments: isStatementCharge ? 1 : installmentCount,
+			isStatementCharge,
 			purchaseDate: date,
 			storeName: storeName.trim() || undefined,
 			tagIds,
@@ -186,6 +190,7 @@ export function CreatePurchaseDialog({
 								<FormField
 									autoComplete="off"
 									description="Informe 1 para compra à vista."
+									disabled={isStatementCharge}
 									id="purchase-installments"
 									inputMode="numeric"
 									label="Parcelas"
@@ -194,7 +199,7 @@ export function CreatePurchaseDialog({
 									placeholder="Ex: 12"
 									required
 									type="text"
-									value={count}
+									value={isStatementCharge ? "1" : count}
 								/>
 								<DateField
 									autoComplete="off"
@@ -215,10 +220,23 @@ export function CreatePurchaseDialog({
 								/>
 							</div>
 							<TagPicker onValueChange={setTagIds} value={tagIds} />
+							<CheckboxField
+								checkboxProps={{
+									checked: isStatementCharge,
+									id: "purchase-is-charge",
+									onCheckedChange: checked => {
+										setIsStatementCharge(checked === true);
+										if (checked) setIsDebt(false);
+									},
+								}}
+							>
+								<span>Encargo da fatura (juros, multa ou IOF)</span>
+							</CheckboxField>
 							<div className="grid gap-3 rounded-2xl border p-3">
 								<CheckboxField
 									checkboxProps={{
 										checked: isDebt,
+										disabled: isStatementCharge,
 										id: "purchase-is-debt",
 										onCheckedChange: checked => {
 											setIsDebt(checked === true);

@@ -1,3 +1,12 @@
+import {
+	calculateStatementBalances,
+	paymentStatement,
+	statementCharges,
+	statementCycles,
+	statementEntryKind,
+	toCents,
+} from "@zaimu/finance/credit-card";
+import { hasUnresolvedLegacyCardPayment } from "./legacy-card-payments";
 /**
  * Data Service - Abstracts local vs remote data operations
  *
@@ -19,6 +28,7 @@ import type {
 	CreditPurchase,
 	Dashboard,
 	Debt,
+	DebtEvent,
 	DebtInvitation,
 	DebtLedger,
 	DebtPerson,
@@ -301,46 +311,32 @@ function cacheRemoteData(operation: Promise<unknown>): void {
 }
 
 // ============== ACCOUNTS ==============
-function getGuestStatementDate(date: string, statementDay: number) {
-	const value = new Date(`${date.slice(0, 10)}T12:00:00`);
-	const nextMonth = value.getDate() > statementDay ? 1 : 0;
-	return getLocalDateKey(new Date(value.getFullYear(), value.getMonth() + nextMonth, statementDay, 12));
-}
-
 async function withGuestCardPayments(cardId: string, statements: CreditCardStatement[]) {
-	const payments = (await localTransactions.getAll())
-		.map(item => item.data)
-		.filter(item => item.paymentCreditCardId === cardId);
-	const card = (await localCreditCards.getById(cardId))?.data;
-	const dates = new Set(statements.map(item => item.statementDate.slice(0, 10)));
-	const generated = card
-		? payments
-				.map(item => getGuestStatementDate(item.date, card.statementDay))
-				.filter(date => !dates.has(date))
-				.filter((date, index, all) => all.indexOf(date) === index)
-				.map(
-					date =>
-						({
-							balanceAmount: 0,
-							creditCardId: cardId,
-							dueDate: (() => {
-								const closing = new Date(`${date}T12:00:00`);
-								const due = new Date(closing.getFullYear(), closing.getMonth(), card.dueDay, 12);
-								if (due <= closing) due.setMonth(due.getMonth() + 1);
-								return getLocalDateKey(due);
-							})(),
-							id: `guest-payment-${cardId}-${date}`,
-							isPaid: false,
-							paidAmount: 0,
-							statementDate: date,
-							totalAmount: 0,
-						}) as CreditCardStatement,
-				)
-		: [];
-	const all = [...statements, ...generated];
-	if (!all.length) return all;
-	const paidAmount = payments.reduce((sum, item) => sum + item.amount, 0);
-	return all.map((item, index) => ({ ...item, paidAmount: index === 0 ? paidAmount : 0 }));
+	const [storedPayments, storedCard, purchases] = await Promise.all([
+		localTransactions.getAll(),
+		localCreditCards.getById(cardId),
+		localCreditPurchases.getAll(),
+	]);
+	const payments = storedPayments.map(item => item.data).filter(item => item.paymentCreditCardId === cardId);
+	const card = storedCard?.data;
+	if (!card) return statements;
+	const charges = statementCharges(purchases.map(item => item.data));
+	const group = statements.map(statement => {
+		const chargesAmount = (charges.get(statement.id) ?? 0) / 100;
+		return { ...statement, chargesAmount, totalAmount: statement.totalAmount - chargesAmount };
+	});
+	const cycles = statementCycles(group, card, payments, dates => ({
+		balanceAmount: 0,
+		chargesAmount: 0,
+		creditCardId: cardId,
+		dueDate: dates.dueDate,
+		id: `cycle-${dates.statementDate}`,
+		isPaid: false,
+		paidAmount: 0,
+		statementDate: dates.statementDate,
+		totalAmount: 0,
+	}));
+	return calculateStatementBalances(cycles, payments);
 }
 
 export const dataService = {
@@ -939,6 +935,7 @@ export const dataService = {
 						| "description"
 						| "installments"
 						| "isSelected"
+						| "isStatementCharge"
 						| "purchaseDate"
 						| "storeName"
 						| "tagIds"
@@ -961,6 +958,7 @@ export const dataService = {
 		async addPurchase(
 			cardId: string,
 			data: {
+				isStatementCharge?: boolean;
 				categoryId?: string;
 				debtSplit?: DebtSplitInput;
 				description?: string;
@@ -998,8 +996,14 @@ export const dataService = {
 			}
 			const installments = Math.max(1, data.installments ?? 1);
 			const installmentAmounts = getEvenlyDistributedInstallmentAmounts(data.totalAmount, installments);
+			const isStatementCharge =
+				data.isStatementCharge ?? statementEntryKind(data.description ?? "") === "CHARGE";
+			if (statementEntryKind(data.description ?? "") === "BALANCE")
+				throw new Error("Saldo anterior é calculado automaticamente");
+			if (isStatementCharge && (data.debtSplit || installments !== 1))
+				throw new Error("Encargos não permitem rateio ou parcelamento automático");
 			const cashbackAmount =
-				card.cashbackAccountId && card.cashbackRate
+				!isStatementCharge && card.cashbackAccountId && card.cashbackRate
 					? Number(((data.totalAmount * card.cashbackRate) / 100).toFixed(4))
 					: undefined;
 			const rootPurchaseId = crypto.randomUUID();
@@ -1047,6 +1051,7 @@ export const dataService = {
 							: undefined,
 						cashbackYieldReferenceRate: cashbackAmount ? card.cashbackYieldReferenceRate : undefined,
 						debtSplit,
+						isStatementCharge,
 					}),
 					categoryId: data.tagIds?.[0] ?? data.categoryId,
 					currentInstallment,
@@ -1112,7 +1117,7 @@ export const dataService = {
 			if (!storedPurchase) throw new Error("Compra não encontrada");
 			const statement = (await localCreditCardStatements.getById(storedPurchase.data.statementId))?.data;
 			if (!statement || statement.creditCardId !== cardId) throw new Error("Fatura não encontrada");
-			if (statement.isPaid) throw new Error("Compras de faturas pagas não podem ser excluídas");
+
 			if (storedPurchase.data.installments > 1)
 				throw new Error("Parcela não pode ser excluída; registre um reembolso");
 			statement.totalAmount = storedPurchase.data.isRefund
@@ -1195,14 +1200,13 @@ export const dataService = {
 						};
 					})
 					.sort((left, right) => right.purchaseDate.localeCompare(left.purchaseDate));
+				const allStatements = await this.getStatements(cardId);
 				const payments = storedTransactions
 					.map(item => item.data)
 					.filter(
-						transaction =>
-							transaction.paymentCreditCardId === cardId &&
-							storedCard &&
-							getGuestStatementDate(transaction.date, storedCard.data.statementDay) ===
-								statement.statementDate.slice(0, 10),
+						payment =>
+							payment.paymentCreditCardId === cardId &&
+							paymentStatement(allStatements, payment.date)?.id === statementId,
 					)
 					.sort((left, right) => right.date.localeCompare(left.date));
 				return {
@@ -1222,7 +1226,9 @@ export const dataService = {
 					.map(item => item.data)
 					.filter(statement => statement.creditCardId === cardId)
 					.sort((left, right) => right.statementDate.localeCompare(left.statementDate));
-				const statementsWithCredits = applyStatementCredits(await withGuestCardPayments(cardId, statements));
+				const statementsWithCredits = (await withGuestCardPayments(cardId, statements)).toSorted(
+					(a, b) => b.statementDate.localeCompare(a.statementDate) || b.id.localeCompare(a.id),
+				);
 				const filtered =
 					options.isPaid === undefined
 						? statementsWithCredits
@@ -1404,6 +1410,7 @@ export const dataService = {
 				installmentAmount: -refundAmount,
 				installments: 1,
 				isRefund: true,
+				isStatementCharge: sourcePurchase.isStatementCharge,
 				purchaseDate: refundDate,
 				refundOfPurchaseId: rootPurchaseId,
 				statementId,
@@ -1451,7 +1458,7 @@ export const dataService = {
 			if (!storedPurchase) throw new Error("Compra não encontrada");
 			const statement = (await localCreditCardStatements.getById(storedPurchase.data.statementId))?.data;
 			if (!statement || statement.creditCardId !== cardId) throw new Error("Fatura não encontrada");
-			if (statement.isPaid) throw new Error("Compras de faturas pagas não podem ser editadas");
+
 			if ("installmentAmount" in data) {
 				if (!storedPurchase.data.parentId) throw new Error("Edite o valor total da compra pai");
 				if (storedPurchase.data.installments === 1)
@@ -1498,6 +1505,8 @@ export const dataService = {
 			const targetCard = (await localCreditCards.getById(targetCardId))?.data;
 			if (!targetCard) throw new Error("Cartão não encontrado");
 			const installments = Math.max(1, data.installments);
+			if (storedPurchase.data.isStatementCharge && (installments !== 1 || data.debtSplit))
+				throw new Error("Encargos não permitem rateio ou parcelamento automático");
 			if (storedPurchase.data.installments > 1 && installments !== storedPurchase.data.installments)
 				throw new Error("Não é possível alterar a quantidade de parcelas desta compra");
 			const totalAmountChanged = data.totalAmount !== storedPurchase.data.totalAmount;
@@ -1516,7 +1525,7 @@ export const dataService = {
 			const cashback = storedPurchase.data.parentId
 				? {}
 				: targetCardId !== cardId
-					? targetCard.cashbackAccountId && targetCard.cashbackRate
+					? !storedPurchase.data.isStatementCharge && targetCard.cashbackAccountId && targetCard.cashbackRate
 						? {
 								cashbackAccountId: targetCard.cashbackAccountId,
 								cashbackAmount: Number(((data.totalAmount * targetCard.cashbackRate) / 100).toFixed(4)),
@@ -1903,7 +1912,7 @@ export const dataService = {
 						cardStatements
 							.toSorted((left, right) => left.dueDate.localeCompare(right.dueDate))
 							.find(item => item.dueDate >= dateKey(now)) ?? cardStatements.at(-1);
-					const used = cardStatements.reduce((sum, item) => sum + item.totalAmount - item.paidAmount, 0);
+					const used = cardStatements.reduce((sum, item) => sum + toCents(item.balanceAmount), 0) / 100;
 					return {
 						availableLimit: Math.max(0, card.creditLimit - used),
 						creditLimit: card.creditLimit,
@@ -2281,6 +2290,7 @@ export const dataService = {
 					effect,
 					id: debt.id,
 					kind: "ORIGIN",
+					time: null,
 				});
 				if (!debt.isPaid) person.balance += effect;
 			}
@@ -2302,6 +2312,7 @@ export const dataService = {
 						effect,
 						id: `transaction:${transaction.id}:${participant.debtPersonId}`,
 						kind: "TRANSACTION",
+						time: transaction.time ?? null,
 					});
 				}
 			}
@@ -2322,6 +2333,7 @@ export const dataService = {
 						effect: participant.amount,
 						id: `purchase:${purchase.id}:${participant.debtPersonId}`,
 						kind: "PURCHASE",
+						time: purchase.time ?? null,
 					});
 				}
 			}
@@ -2924,6 +2936,10 @@ export const dataService = {
 					localMeta.get("financial-account-yield-holidays", owner),
 					localMeta.get("financial-account-yields", owner),
 				]);
+				if (transactions.some(item => hasUnresolvedLegacyCardPayment(item.data)))
+					throw new Error(
+						"Pagamento antigo sem cartão identificado. Restaure a fatura de origem antes de sincronizar.",
+					);
 
 				// Send to server
 				const response = await fetchWithAuth<{
@@ -3396,19 +3412,17 @@ export const dataService = {
 						const paymentCard = item.data.paymentCreditCardId
 							? cards.get(item.data.paymentCreditCardId)
 							: undefined;
-						const paymentStatement = paymentCard
-							? [...statements.values()].find(
-									statement =>
-										statement.creditCardId === paymentCard.id &&
-										statement.statementDate.slice(0, 10) ===
-											getGuestStatementDate(item.data.date, paymentCard.statementDay),
+						const paymentCycle = paymentCard
+							? paymentStatement(
+									[...statements.values()].filter(statement => statement.creditCardId === paymentCard.id),
+									item.data.date,
 								)
 							: undefined;
 
 						return {
 							...item.data,
 							creditCardName: paymentCard?.accountName,
-							creditCardStatementDate: paymentStatement?.statementDate,
+							creditCardStatementDate: paymentCycle?.statementDate,
 							destinationAccountRewardsKind: destinationAccount?.rewardsAccount?.kind,
 							destinationAccountType: destinationAccount?.type,
 							destinationName,

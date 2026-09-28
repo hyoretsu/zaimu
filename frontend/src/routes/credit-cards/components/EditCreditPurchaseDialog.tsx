@@ -142,16 +142,16 @@ export function EditCreditPurchaseDialog({
 		const updatedStoreName = getUpdatedStoreName(purchase.storeName, storeName);
 		const operation = onSubmit({
 			...(selectedCardId && selectedCardId !== creditCardId && { creditCardId: selectedCardId }),
-			debtSplit: isDebt ? debtSplit : null,
+			debtSplit: isDebt && !purchase.isStatementCharge ? debtSplit : null,
 			description: description.trim(),
 			feeAmount: Number(feeAmount || 0),
 			feeDescription: feeAmount ? feeDescription.trim() || undefined : undefined,
 			installments,
-			...(isSynced ? {} : { purchaseDate: date }),
+			purchaseDate: isSynced ? purchase.purchaseDate : date,
 			...(updatedStoreName !== undefined && { storeName: updatedStoreName }),
 			tagIds,
 			time: time || null,
-			...(isSynced ? {} : { totalAmount }),
+			totalAmount: isSynced ? purchase.totalAmount : totalAmount,
 		});
 		runDialogSave(operation, () => onOpenChange(false), "Salvando compra…");
 	};
@@ -215,6 +215,7 @@ export function EditCreditPurchaseDialog({
 							<div className="grid gap-4 sm:grid-cols-3">
 								<FormField
 									autoComplete="off"
+									disabled={purchase.isStatementCharge}
 									id="credit-purchase-installments"
 									inputMode="numeric"
 									label="Parcelas"
@@ -266,6 +267,7 @@ export function EditCreditPurchaseDialog({
 								<CheckboxField
 									checkboxProps={{
 										checked: isDebt,
+										disabled: purchase.isStatementCharge,
 										id: "edit-purchase-is-debt",
 										onCheckedChange: checked => {
 											setIsDebt(checked === true);

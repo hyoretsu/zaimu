@@ -641,10 +641,8 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 						.filter(item => item.dueDate >= today)
 						.toSorted((left, right) => left.dueDate.getTime() - right.dueDate.getTime())[0] ??
 					cardStatements.toSorted((left, right) => right.dueDate.getTime() - left.dueDate.getTime())[0];
-				const used = cardStatements.reduce(
-					(sum, item) => sum + Number(item.totalAmount) - Number(item.paidAmount),
-					0,
-				);
+				const used =
+					cardStatements.reduce((sum, item) => sum + Math.round(Number(item.balanceAmount) * 100), 0) / 100;
 				return {
 					availableLimit: Math.max(0, Number(card.creditLimit) - used),
 					creditLimit: Number(card.creditLimit),

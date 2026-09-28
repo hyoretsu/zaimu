@@ -365,6 +365,7 @@ export interface TransactionImportCreateResult {
 }
 
 export interface CreditCardImportItem {
+	isStatementCharge?: boolean;
 	id: string;
 	categoryId?: string | null;
 	createdAt: string;
@@ -402,6 +403,7 @@ export interface CreditCardImportPurchaseDuplicate {
 }
 
 export interface CreditCardImport {
+	previousBalanceCheck?: { reported: number; calculated: number; matches: boolean } | null;
 	id: string;
 	creditCardId: string;
 	createdAt: string;
@@ -597,6 +599,13 @@ export interface RecurringPayment {
 }
 
 export interface CreditCardStatement {
+	amountDue?: number;
+	carriedInAmount?: number;
+	carriedOutAmount?: number;
+	chargesAmount?: number;
+	creditInAmount?: number;
+	periodPaymentAmount?: number;
+	status?: "OPEN" | "PAID" | "CARRIED";
 	balanceAmount: number;
 	id: string;
 	creditCardId: string;
@@ -616,6 +625,7 @@ export interface CreditCardStatementPage {
 }
 
 export interface CreditPurchase {
+	isStatementCharge?: boolean;
 	id: string;
 	statementId: string;
 	description: string;

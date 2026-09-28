@@ -1,3 +1,4 @@
+import { paymentStatement, statementEntryKind } from "@zaimu/finance/credit-card";
 import { addMonths, isAfter, startOfDay } from "date-fns";
 import Elysia, { t } from "elysia";
 import {
@@ -86,6 +87,7 @@ const purchaseColumns = [
 	"currentInstallment",
 	"installmentAmount",
 	"hasImportedAmount",
+	"isStatementCharge",
 	"purchaseDate",
 	"time",
 	"categoryId",
@@ -152,6 +154,7 @@ function forecastInstallments(
 	return forecasts;
 }
 interface CreditPurchaseRow {
+	isStatementCharge?: boolean;
 	id: string;
 	statementId: string;
 	cashbackAccountId?: string | null;
@@ -333,6 +336,7 @@ const findPurchaseForCard = (creditCardId: string, purchaseId: string) =>
 				installments: fields.CreditPurchase.installments,
 				isPaid: fields.CreditCardStatement.isPaid,
 				isRefund: fields.CreditPurchase.isRefund,
+				isStatementCharge: fields.CreditPurchase.isStatementCharge,
 				parentId: fields.CreditPurchase.parentId,
 				purchaseDate: fields.CreditPurchase.purchaseDate,
 				refundOfPurchaseId: fields.CreditPurchase.refundOfPurchaseId,
@@ -424,13 +428,9 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				);
 				return cards.map(card => {
 					const effectiveStatements = applyStatementCredits(statementsByCard.get(card.id) ?? []);
-					const currentStatementDate = toDateKey(getStatementDates(card, new Date()).statementDate);
-					const currentStatement =
-						effectiveStatements.find(
-							statement => toDateKey(statement.statementDate) === currentStatementDate,
-						) ?? null;
+					const currentStatement = paymentStatement(effectiveStatements, new Date()) ?? null;
 					const netUsedInCents = effectiveStatements.reduce(
-						(total, statement) => total + toCents(statement.totalAmount) - toCents(statement.paidAmount),
+						(total, statement) => total + toCents(statement.balanceAmount),
 						0,
 					);
 					const temporaryCreditInCents = Math.max(0, -netUsedInCents);
@@ -586,10 +586,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					),
 					updatedAt: new Date(),
 				}));
-			const statementsWithCredits = applyStatementCredits([
-				...(await withStatementPayments(statements)),
-				...forecasts,
-			]);
+			const statementsWithCredits = await withStatementPayments([...statements, ...forecasts]);
 			const filteredStatements = (
 				query.isPaid === undefined
 					? statementsWithCredits
@@ -640,6 +637,27 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 		async ({ params, request }) => {
 			const userId = await requireUserId(request);
 			await assertCreditCardOwnership(params.id, userId);
+			if (params.statementId.startsWith("cycle-")) {
+				const cycles = await withStatementPayments(
+					await queryRows(
+						db.sql.public.CreditCardStatement.select(...statementColumns)
+							.where((f, fn) => fn.eq(f.creditCardId, params.id))
+							.build(),
+					),
+				);
+				const cycle = cycles.find(item => item.id === params.statementId);
+				if (!cycle) throw new HttpException("Statement not found", 404);
+				const payments = await queryRows(
+					db.sql.public.Transaction.select("id", "amount", "date", "time", "description")
+						.where((f, fn) => fn.eq(f.paymentCreditCardId, params.id))
+						.build(),
+				);
+				return {
+					...cycle,
+					payments: payments.filter(p => paymentStatement(cycles, p.date)?.id === cycle.id),
+					purchases: [],
+				};
+			}
 			if (params.statementId.startsWith("forecast-")) {
 				const statementDate = new Date(`${params.statementId.slice("forecast-".length)}T12:00:00Z`);
 				if (Number.isNaN(statementDate.getTime())) throw new HttpException("Statement not found", 404);
@@ -701,16 +719,17 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					.filter(item => !concrete.some(s => toDateKey(s.statementDate) === toDateKey(item.statementDate)))
 					.map(item => ({
 						creditCardId: params.id,
+						dueDate: item.dueDate,
 						id: forecastStatementId(item.statementDate),
 						paidAmount: 0,
 						statementDate: item.statementDate,
 						totalAmount: item.purchases.reduce((sum, p) => sum + p.installmentAmount, 0),
 					}));
-				const effective = applyStatementCredits([
-					...(await withStatementPayments(concrete)),
-					...forecastRows,
-				]).find(item => item.id === params.statementId)!;
+				const effective = (await withStatementPayments([...concrete, ...forecastRows])).find(
+					item => item.id === params.statementId,
+				)!;
 				return {
+					...effective,
 					balanceAmount: effective.balanceAmount,
 					createdAt: new Date(),
 					creditCardId: params.id,
@@ -781,17 +800,15 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					.orderBy("date", { direction: "desc" })
 					.build(),
 			);
-			const card = await queryFirst(
-				db.sql.public.CreditCard.select("statementDay", "dueDay")
-					.where((f, fn) => fn.eq(f.id, params.id))
-					.build(),
+			const effectiveStatements = await withStatementPayments(
+				await queryRows(
+					db.sql.public.CreditCardStatement.select(...statementColumns)
+						.where((f, fn) => fn.eq(f.creditCardId, params.id))
+						.build(),
+				),
 			);
 			const payments = cardPayments.filter(
-				payment =>
-					card &&
-					toDateKey(
-						getStatementDates(card, new Date(`${toDateKey(payment.date)}T12:00:00`)).statementDate,
-					) === toDateKey(statement.statementDate),
+				payment => paymentStatement(effectiveStatements, payment.date)?.id === statement.id,
 			);
 
 			const tagsByPurchase = await getTagsByEntity(
@@ -939,7 +956,16 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			const fee = normalizePurchaseFee(body);
 			const installmentAmounts = getEvenlyDistributedInstallmentAmounts(body.totalAmount, installments);
 			const installmentAmount = installmentAmounts[0]!;
-			const cashback = cashbackSnapshot(card, body.totalAmount);
+			const isStatementCharge =
+				body.isStatementCharge ?? statementEntryKind(body.description ?? "") === "CHARGE";
+			if (statementEntryKind(body.description ?? "") === "BALANCE")
+				throw new HttpException("Saldo anterior é calculado automaticamente", 400);
+			if (
+				isStatementCharge &&
+				(body.debtSplit || body.matchDebtEventId || body.subscriptionId || installments !== 1)
+			)
+				throw new HttpException("Encargos não permitem rateio, assinatura ou parcelamento automático", 400);
+			const cashback = isStatementCharge ? {} : cashbackSnapshot(card, body.totalAmount);
 
 			const { dueDate, statementDate } = getStatementDates(card, purchaseDate);
 			let statement = await queryFirst(
@@ -986,6 +1012,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 								...cashback,
 								currentInstallment: 1,
 								description: body.description ?? "",
+								isStatementCharge,
 								...fee,
 								installmentAmount: String(installmentAmount),
 								installments,
@@ -1183,6 +1210,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				feeAmount: t.Optional(t.Number({ minimum: 0 })),
 				feeDescription: t.Optional(t.String({ maxLength: 100 })),
 				installments: t.Optional(t.Number({ maximum: 48, minimum: 1 })),
+				isStatementCharge: t.Optional(t.Boolean()),
 				matchDebtEventId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				purchaseDate: t.String(),
 				storeName: t.Optional(t.String({ maxLength: 200 })),
@@ -1205,6 +1233,8 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			await assertCreditCardOwnership(params.id, userId);
 			const selectedPurchase = await findPurchaseForCard(params.id, params.purchaseId);
 			if (!selectedPurchase) throw new HttpException("Purchase not found", 404);
+			if (selectedPurchase.isStatementCharge && !selectedPurchase.isRefund)
+				throw new HttpException("Encargos não permitem parcelamento automático", 400);
 			const rootPurchaseId = selectedPurchase.parentId ?? selectedPurchase.id;
 			const card = await queryFirst(
 				db.sql.public.CreditCard.select("dueDay", "statementDay")
@@ -1275,7 +1305,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					);
 				}
 				if (!statement) throw new HttpException("Statement not created", 500);
-				if (statement.isPaid) throw new HttpException("Cannot add refinancing to a paid statement", 409);
+
 				const refinancingPurchase = await queryFirst(
 					db.sql.public.CreditPurchase.insert([
 						{
@@ -1417,6 +1447,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						installmentAmount: String(-refundAmount),
 						installments: 1,
 						isRefund: true,
+						isStatementCharge: sourcePurchase.isStatementCharge,
 						purchaseDate: refundDate,
 						refundOfPurchaseId: rootPurchaseId,
 						statementId,
@@ -1603,6 +1634,8 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			const fee = body.feeAmount === undefined ? undefined : normalizePurchaseFee(body);
 
 			const nextInstallments = body.installments ?? purchase.installments;
+			if (purchase.isStatementCharge && (nextInstallments !== 1 || body.debtSplit))
+				throw new HttpException("Encargos não permitem rateio ou parcelamento automático", 400);
 			if (nextInstallments !== purchase.installments && purchase.installments > 1)
 				throw new HttpException("Não é possível alterar a quantidade de parcelas desta compra", 409);
 			const requestedTotalAmount = body.totalAmount ?? Number(purchase.totalAmount);
@@ -1720,11 +1753,10 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					);
 				}
 				if (!statement) throw new HttpException("Statement not created", 500);
-				if (statement.isPaid && statement.id !== purchase.statementId)
-					throw new HttpException("Cannot move a purchase to a paid statement", 409);
+
 				nextStatementId = statement.id;
 				if (!purchase.parentId && targetCardId !== params.id) {
-					const snapshot = cashbackSnapshot(card, nextTotalAmount);
+					const snapshot = purchase.isStatementCharge ? {} : cashbackSnapshot(card, nextTotalAmount);
 					nextCashback = {
 						cashbackAccountId: snapshot.cashbackAccountId ?? null,
 						cashbackAmount: snapshot.cashbackAmount ?? null,
@@ -1750,8 +1782,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					const occurrenceDate = addMonths(nextPurchaseDate, currentInstallment - 1);
 					const { dueDate, statementDate } = getStatementDates(installmentCard, occurrenceDate);
 					const statement = await getOrCreateStatement(installmentCardId, dueDate, statementDate);
-					if (statement.isPaid)
-						throw new HttpException("Não é possível restaurar parcela em fatura paga", 409);
+
 					const createdInstallment = await queryFirst(
 						db.sql.public.CreditPurchase.insert([
 							{

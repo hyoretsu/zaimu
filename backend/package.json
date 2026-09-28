@@ -21,6 +21,7 @@
 		"@elysiajs/cors": "^1.4.2",
 		"@elysiajs/jwt": "^1.4.2",
 		"@elysiajs/openapi": "^1.4.15",
+		"@zaimu/finance": "workspace:*",
 		"amqplib": "^2.0.1",
 		"better-auth": "1.7.1",
 		"cron-validate": "^1.5.3",

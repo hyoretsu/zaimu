@@ -1,3 +1,4 @@
+import { statementEntryKind } from "@zaimu/finance/credit-card";
 import type {
 	Category,
 	CreditCard,
@@ -14,9 +15,10 @@ import type {
 	Transaction,
 } from "@/lib/api";
 import { type CacheIdentity, getCurrentCacheIdentity } from "@/lib/query-cache";
+import { migrateLegacyCardPayments } from "./legacy-card-payments";
 
 const DB_NAME = "zaimu-local";
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 
 const LEGACY_STORES = {
 	accounts: "accounts",
@@ -126,6 +128,7 @@ const relationshipIds = [
 	"destinationFinancialAccountId",
 	"creditCardId",
 	"paymentCreditCardId",
+	"creditCardStatementId",
 	"debtPersonId",
 	"loanId",
 ] as const;
@@ -197,6 +200,38 @@ async function migrateLegacyData(database: IDBDatabase): Promise<void> {
 	}
 }
 
+async function migrateCardPayments(database: IDBDatabase): Promise<void> {
+	const transaction = database.transaction(
+		[
+			scopedStoreName("transactions"),
+			scopedStoreName("creditCardStatements"),
+			scopedStoreName("creditPurchases"),
+		],
+		"readwrite",
+	);
+	const completion = transactionDone(transaction);
+	const paymentsStore = transaction.objectStore(scopedStoreName("transactions"));
+	const purchasesStore = transaction.objectStore(scopedStoreName("creditPurchases"));
+	const [payments, statements, purchases] = await Promise.all([
+		requestResult(paymentsStore.getAll()),
+		requestResult(transaction.objectStore(scopedStoreName("creditCardStatements")).getAll()),
+		requestResult(purchasesStore.getAll()),
+	]);
+	const migrated = migrateLegacyCardPayments(payments, statements);
+	for (let index = 0; index < payments.length; index++)
+		if (payments[index] !== migrated[index]) paymentsStore.put(migrated[index]);
+	for (const row of purchases)
+		if (
+			row.data.isStatementCharge === undefined &&
+			statementEntryKind(row.data.description ?? "") === "CHARGE"
+		)
+			purchasesStore.put({
+				...row,
+				data: { ...row.data, cashbackAccountId: null, cashbackAmount: null, isStatementCharge: true },
+			});
+	await completion;
+}
+
 async function openLocalDb(): Promise<IDBDatabase> {
 	const database = await new Promise<IDBDatabase>((resolve, reject) => {
 		const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -222,7 +257,7 @@ async function openLocalDb(): Promise<IDBDatabase> {
 		migrationPromise = null;
 	};
 	db = database;
-	migrationPromise = migrateLegacyData(database);
+	migrationPromise = migrateLegacyData(database).then(() => migrateCardPayments(database));
 	await migrationPromise;
 	return database;
 }

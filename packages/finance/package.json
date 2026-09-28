@@ -1,0 +1,16 @@
+{
+	"name": "@zaimu/finance",
+	"private": true,
+	"type": "module",
+	"exports": {
+		"./credit-card": "./src/credit-card.ts"
+	},
+	"scripts": {
+		"check-types": "tsc --noEmit",
+		"test": "bun test src"
+	},
+	"devDependencies": {
+		"@hyoretsu/configs": "^1.2.37",
+		"typescript": "^6.0.3"
+	}
+}

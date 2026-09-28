@@ -14,6 +14,7 @@ test("counts all card payments in cents, including imported payments", () => {
 	expect(amounts.get("other")).toBe(10000);
 	const [statement] = applyStatementCredits([
 		{
+			dueDate: new Date("2026-08-25"),
 			id: "card",
 			isPaid: false,
 			paidAmount: amounts.get("card")! / 100,

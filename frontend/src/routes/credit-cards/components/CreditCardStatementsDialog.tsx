@@ -13,7 +13,7 @@ import { CreditCardStatementDetails } from "./CreditCardStatementDetails";
 import { CreditCardStatementTabs } from "./CreditCardStatementTabs";
 
 function getStatementReferenceDate(statement: CreditCardStatement) {
-	return statement.isPaid ? statement.statementDate : statement.dueDate;
+	return statement.dueDate;
 }
 
 export function CreditCardStatementsDialog({

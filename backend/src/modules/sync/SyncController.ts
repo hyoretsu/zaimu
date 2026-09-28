@@ -1,3 +1,4 @@
+import { statementEntryKind } from "@zaimu/finance/credit-card";
 import Elysia from "elysia";
 import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
 import { resolveFinancialInstitution } from "~/modules/accounts/application/resolve-financial-institution";
@@ -127,6 +128,7 @@ const statementColumns = [
 	"updatedAt",
 ] as const;
 const purchaseColumns = [
+	"isStatementCharge",
 	"id",
 	"statementId",
 	"cashbackAccountId",
@@ -679,12 +681,19 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 								.limit(1)
 								.build(),
 						);
+					const isStatementCharge =
+						value<boolean | undefined>(entity, "isStatementCharge") ??
+						statementEntryKind(value<string>(entity, "description")) === "CHARGE";
+					if (isStatementCharge && Number(value<number>(entity, "installments") ?? 1) !== 1)
+						throw new Error("Encargos não permitem parcelamento automático");
 					const id = existing?.id ?? importedId;
 					syncedCreditPurchaseIds.set(importedId, id);
 					const values = {
-						cashbackAccountId: value<string | undefined>(entity, "cashbackAccountId"),
+						cashbackAccountId: isStatementCharge
+							? null
+							: value<string | undefined>(entity, "cashbackAccountId"),
 						cashbackAmount: nullableNumeric<18, 4>(
-							value<number | null | undefined>(entity, "cashbackAmount") ?? null,
+							isStatementCharge ? null : (value<number | null | undefined>(entity, "cashbackAmount") ?? null),
 						),
 						cashbackYieldPeriod: value<"MONTHLY" | "YEARLY" | undefined>(entity, "cashbackYieldPeriod"),
 						cashbackYieldReferencePercentage: nullableNumeric<7, 4>(
@@ -702,6 +711,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 						installmentAmount: String(value<number>(entity, "installmentAmount")),
 						installments: Number(value<number>(entity, "installments") ?? 1),
 						isRefund: value<boolean>(entity, "isRefund") ?? false,
+						isStatementCharge,
 						parentId,
 						purchaseDate: new Date(value<string>(entity, "purchaseDate")),
 						refundOfPurchaseId: value<string | undefined>(entity, "refundOfPurchaseId"),
@@ -725,7 +735,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 					const debtPersonId = value<string | undefined>(entity, "debtPersonId");
 					if (debtPersonId && !debtPersonIds.has(debtPersonId))
 						throw new Error(`Pessoa da dívida ${debtPersonId} indisponível`);
-					if (currentInstallment === 1)
+					if (currentInstallment === 1 && !isStatementCharge)
 						await syncPurchaseDebtEvent({
 							creditPurchaseId: id,
 							date: value<string>(entity, "purchaseDate"),
