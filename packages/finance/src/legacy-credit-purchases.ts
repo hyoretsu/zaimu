@@ -1,9 +1,11 @@
 import {
 	assertCents,
+	assertDateKey,
 	type CreditInstallment,
 	type CreditPurchase,
 	distributePurchaseCents,
 	installmentOccurrenceDate,
+	sumCents,
 } from "./credit-purchase";
 import type { CreditRefund } from "./credit-refund";
 
@@ -59,8 +61,12 @@ export function normalizeLegacyCreditPurchases(
 	statements: readonly LegacyStatement[],
 ): LegacyPurchaseMigration {
 	const byId = new Map(rows.map(row => [row.id, row]));
-	if (byId.size !== rows.length) throw new RangeError("ID de lançamento duplicado");
-	const statementDates = new Map(statements.map(statement => [statement.id, statement.statementDate]));
+	if (byId.size !== rows.length || rows.some(row => !row.id))
+		throw new RangeError("ID de lançamento duplicado ou inválido");
+	for (const row of rows) assertDateKey(row.purchaseDate);
+	const statementDates = new Map(
+		statements.map(statement => [statement.id, assertDateKey(statement.statementDate)]),
+	);
 	if (statementDates.size !== statements.length) throw new RangeError("Fatura duplicada");
 	const purchases: CreditPurchase[] = [];
 	const installments: CreditInstallment[] = [];
@@ -68,12 +74,12 @@ export function normalizeLegacyCreditPurchases(
 	const unlinkedRefunds: LegacyCreditPurchase[] = [];
 	const statementCharges: LegacyCreditPurchase[] = [];
 	for (const root of rows.filter(row => !row.parentId && !row.isRefund)) {
+		const members = rows.filter(row => row.id === root.id || row.parentId === root.id);
 		if (root.isStatementCharge) {
-			statementCharges.push(root);
+			statementCharges.push(...members);
 			continue;
 		}
-		const members = rows.filter(row => row.id === root.id || row.parentId === root.id);
-		const imported = new Map<number, number>();
+		const knownAmounts = new Map<number, number>();
 		const numbers = new Set<number>();
 		for (const member of members) {
 			if (member.isRefund || member.creditCardId !== root.creditCardId)
@@ -88,14 +94,14 @@ export function normalizeLegacyCreditPurchases(
 			numbers.add(member.currentInstallment);
 			if (!statementDates.has(member.statementId))
 				throw new RangeError("Fatura da parcela não encontrada");
-			if (member.hasImportedAmount)
-				imported.set(member.currentInstallment, cents(member.installmentAmount));
+			// Migration must not rewrite any historical amount, imported or manually edited.
+			knownAmounts.set(member.currentInstallment, cents(member.installmentAmount));
 		}
 		const totalAmountCents = cents(root.totalAmount);
 		const installmentAmountsCents = distributePurchaseCents(
 			totalAmountCents,
 			root.installments,
-			imported,
+			knownAmounts,
 		);
 		const purchase: CreditPurchase = {
 			categoryId: root.categoryId,
@@ -123,13 +129,20 @@ export function normalizeLegacyCreditPurchases(
 		}
 	}
 	for (const row of rows) {
-		if (row.parentId && !byId.has(row.parentId)) throw new RangeError("Parcela sem compra original");
+		if (row.parentId) {
+			const parent = byId.get(row.parentId);
+			if (!parent || parent.parentId || parent.isRefund || parent.creditCardId !== row.creditCardId)
+				throw new RangeError("Parcela sem compra original válida");
+		}
 		if (!row.isRefund) continue;
-		const root = row.refundOfPurchaseId ? byId.get(row.refundOfPurchaseId) : undefined;
+		const source = row.refundOfPurchaseId ? byId.get(row.refundOfPurchaseId) : undefined;
+		const root = source?.parentId ? byId.get(source.parentId) : source;
 		if (!root || root.isRefund || root.isStatementCharge) {
 			unlinkedRefunds.push(row);
 			continue;
 		}
+		if (root.creditCardId !== row.creditCardId)
+			throw new RangeError("Reembolso vinculado a outro cartão");
 		if (!statementDates.has(row.statementId)) throw new RangeError("Fatura do reembolso não encontrada");
 		refunds.push({
 			amountCents: cents(Math.abs(row.totalAmount)),
@@ -140,6 +153,14 @@ export function normalizeLegacyCreditPurchases(
 			policy: "KEEP_INSTALLMENTS",
 			purchaseId: root.id,
 		});
+	}
+	for (const purchase of purchases) {
+		if (
+			sumCents(
+				refunds.filter(refund => refund.purchaseId === purchase.id).map(refund => refund.amountCents),
+			) > purchase.totalAmountCents
+		)
+			throw new RangeError("Reembolsos legados excedem o total da compra; revisão necessária");
 	}
 	return { installments, purchases, refunds, statementCharges, unlinkedRefunds };
 }

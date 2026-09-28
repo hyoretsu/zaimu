@@ -179,6 +179,9 @@ export function editCreditRefund(
 	if (!current || refunds.some(refund => refund.purchaseId !== purchase.id))
 		throw new RangeError("Reembolso não encontrado");
 	const edited = { ...current, ...changes };
+	// Once a partial restitution exists, later edits cannot promote it to cancellation.
+	edited.cancellationEligible =
+		current.cancellationEligible && edited.amountCents === purchase.totalAmountCents;
 	assertDateKey(edited.creditDate);
 	refundAmountCents(
 		purchase.totalAmountCents,

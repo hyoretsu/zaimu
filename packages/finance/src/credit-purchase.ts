@@ -55,7 +55,12 @@ export interface InstallmentProjection {
 export function assertPurchase(purchase: CreditPurchase) {
 	assertDateKey(purchase.purchaseDate);
 	assertCents(purchase.totalAmountCents, 1);
-	if (!purchase.id || !purchase.creditCardId || !purchase.installmentAmountsCents.length)
+	if (
+		!purchase.id ||
+		!purchase.creditCardId ||
+		!purchase.installmentAmountsCents.length ||
+		purchase.installmentAmountsCents.length > 48
+	)
 		throw new RangeError("Compra inválida");
 	for (const amount of purchase.installmentAmountsCents) assertCents(amount, 1);
 	if (sumCents(purchase.installmentAmountsCents) !== purchase.totalAmountCents)

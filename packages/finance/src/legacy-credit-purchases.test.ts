@@ -62,3 +62,38 @@ test("rejects duplicate materialized installments instead of silently overwritin
 		),
 	).toThrow();
 });
+
+test("preserves manually edited historical values, even without imported flag", () => {
+	const manuallyEdited = { ...root, hasImportedAmount: false, installmentAmount: 8.99 };
+	const result = normalizeLegacyCreditPurchases([manuallyEdited], statements);
+	expect(result.purchases[0]?.installmentAmountsCents).toEqual([899, 1051, 1051]);
+	expect(result.installments[0]?.amountCents).toBe(899);
+});
+
+test("rejects crossed card links and over-refunded legacy purchases", () => {
+	expect(() =>
+		normalizeLegacyCreditPurchases(
+			[
+				root,
+				{
+					...root,
+					creditCardId: "other-card",
+					currentInstallment: 2,
+					id: "child",
+					parentId: root.id,
+				},
+			],
+			statements,
+		),
+	).toThrow();
+	const refund = {
+		...root,
+		id: "refund",
+		installmentAmount: -30.02,
+		installments: 1,
+		isRefund: true,
+		refundOfPurchaseId: root.id,
+		totalAmount: -30.02,
+	};
+	expect(() => normalizeLegacyCreditPurchases([root, refund], statements)).toThrow();
+});
