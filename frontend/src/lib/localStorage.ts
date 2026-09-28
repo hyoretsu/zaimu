@@ -758,7 +758,7 @@ export async function transferLocalCreditBookPurchase(
 	]);
 	const database = await initLocalDb();
 	const tx = database.transaction(
-		["scoped-creditBooks", "scoped-creditCards", "scoped-creditCardStatements"],
+		["scoped-creditBooks", "scoped-creditCards", "scoped-creditCardStatements", "scoped-transactions"],
 		"readwrite",
 	);
 	const done = transactionDone(tx);
@@ -774,6 +774,18 @@ export async function transferLocalCreditBookPurchase(
 			>,
 		]);
 		if (!cardRow || cardRow.deleted) throw new Error("Cartão de destino não encontrado");
+		// Refresh ledger contents inside the write transaction so concurrent edits survive.
+		if (sourceRow && !sourceRow.deleted)
+			Object.assign(source, { ...structuredClone(sourceRow.data), card: source.card });
+		if (destinationRow && !destinationRow.deleted)
+			Object.assign(destination, { ...structuredClone(destinationRow.data), card: destination.card });
+		const transactions = (await requestResult(
+			tx.objectStore("scoped-transactions").index("ownerKey").getAll(owner),
+		)) as LocalData<Transaction>[];
+		for (const book of [source, destination])
+			book.payments = transactions
+				.filter(row => !row.deleted && row.data.paymentCreditCardId === book.card.id)
+				.map(row => ({ amount: row.data.amount, date: row.data.date.slice(0, 10), id: row.data.id }));
 		moveBookPurchase(source, destination, purchaseId);
 		update(destination, cardRow.data);
 		materializeBookInstallments(source);

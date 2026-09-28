@@ -633,8 +633,12 @@ export async function transferCreditBookPurchase<T>(
 				`UPDATE "CreditPurchaseRecord" SET "creditCardId"=$1 WHERE "id"=$2 AND "userId"=$3 AND "creditCardId"=$4`,
 				[destinationCardId, purchase.id, userId, sourceCardId],
 			);
-			await saveCreditBook(query, source, sourceBefore, new Set([purchaseId]));
+			await saveCreditBook(query, source, sourceBefore, new Set([purchase.id]));
 			await saveCreditBook(query, destination, destinationBefore);
+			await query(
+				`INSERT INTO "CreditPurchaseHistory" ("creditPurchaseId","field","oldValue","newValue") VALUES ($1,'creditCardId',$2,$3)`,
+				[purchase.id, sourceCardId, destinationCardId],
+			);
 			return result;
 		} catch (error) {
 			if (error instanceof RangeError) throw new HttpException(error.message, 400);

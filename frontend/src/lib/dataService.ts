@@ -1511,7 +1511,8 @@ export const dataService = {
 			else {
 				await transferLocalCreditBookPurchase(cardId, destinationCardId, purchaseId, (book, card) => {
 					update(book);
-					const purchase = bookPurchase(book, purchaseId);
+					const rootId = book.installments.find(item => item.id === purchaseId)?.purchaseId ?? purchaseId;
+					const purchase = bookPurchase(book, rootId);
 					purchase.cashbackAccountId = card.cashbackAccountId ?? null;
 					purchase.cashbackAmount =
 						card.cashbackAccountId && card.cashbackRate

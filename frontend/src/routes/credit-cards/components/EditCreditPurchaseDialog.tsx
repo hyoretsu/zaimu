@@ -86,9 +86,9 @@ export function EditCreditPurchaseDialog({
 	const canonicalPending = Boolean(
 		sourceCardId && !purchase.isStatementCharge && (canonical.isPending || canonical.isError),
 	);
-	const isSynced =
-		purchase.isSynced === true ||
-		Boolean(original?.externalId || original?.installmentImportedNumbers?.length);
+	const isSynced = purchase.isSynced === true;
+	const cardLocked =
+		isSynced || Boolean(original?.externalId || original?.installmentImportedNumbers?.length);
 	const [selectedCardId, setSelectedCardId] = useState(sourceCardId ?? "");
 	const [description, setDescription] = useDebouncedInput(purchase.description, () => undefined);
 	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>(() => debtSplitToInput(purchase.debtSplit));
@@ -217,7 +217,7 @@ export function EditCreditPurchaseDialog({
 							{!purchase.isStatementCharge && sourceCardId ? (
 								<CustomSelect
 									disabled={
-										isSynced || (!cards && (cardsQuery.isPending || cardsQuery.isError)) || canonicalPending
+										cardLocked || (!cards && (cardsQuery.isPending || cardsQuery.isError)) || canonicalPending
 									}
 									label="Cartão"
 									onValueChange={setSelectedCardId}

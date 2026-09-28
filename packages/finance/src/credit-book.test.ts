@@ -50,12 +50,13 @@ describe("normalized credit book", () => {
 		});
 		materializeBookInstallments(source, "2025-03-01");
 		const refund = addBookRefund(source, purchase.id, { amount: 20, creditDate: "2025-02-15" });
-		moveBookPurchase(source, destination, purchase.id);
+		const installmentIds = source.installments.map(item => item.id);
+		moveBookPurchase(source, destination, installmentIds[0]!);
 		expect(source.purchases).toHaveLength(0);
 		expect(source.installments).toHaveLength(0);
 		expect(source.refunds).toHaveLength(0);
 		expect(destination.purchases[0]).toMatchObject({ creditCardId: "another-card", id: purchase.id });
-		expect(destination.installments.map(item => item.id)).toHaveLength(2);
+		expect(destination.installments.map(item => item.id)).toEqual(installmentIds);
 		expect(
 			destination.installments.every(item =>
 				destination.statements.some(statement => statement.id === item.statementId),
