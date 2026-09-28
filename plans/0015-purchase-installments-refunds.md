@@ -58,3 +58,5 @@
 - Projeção CreditConsumption ativa: compra aparece uma vez com gasto líquido; reembolso mantém tipo próprio e data efetiva. Transações raw/ORM compartilham a mesma conexão, incluindo tags e eventos de dívida no rollback.
 - Exclusões normalizadas possuem tombstones persistentes por cartão/usuário. Sync rejeita recriação por cliente desatualizado; IndexedDB conserva exclusões e clocks na conversão.
 - Validação de SQL: cutover e rollback passaram; migration check offline passou para contrato com tombstones. Serviço ativo passou seis integrações locais, incluindo HTTP autenticado, concorrência de importação e rollback de reconstrução.
+
+- Cálculos compartilhados concluídos para gasto líquido, estorno cumulativo de recompensas em quatro casas, recomposição explícita de datas preservando IDs/calendários importados e reparcelamento sem principal cancelado. Nove testes do agregado passaram; 40 testes financeiros no total.

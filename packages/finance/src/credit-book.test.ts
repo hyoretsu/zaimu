@@ -2,12 +2,16 @@ import { describe, expect, test } from "bun:test";
 import {
 	addBookRefund,
 	type CreditBook,
+	creditBookConsumption,
 	creditBookEntries,
+	creditBookRewards,
 	materializeBookInstallments,
 	newBookPurchase,
+	refinanceBookPurchase,
 	refundDebtAmounts,
 	removeBookRefund,
 	replayCreditBook,
+	updateBookPurchaseDate,
 	updateBookRefund,
 } from "./credit-book";
 
@@ -32,6 +36,99 @@ function emptyBook(): CreditBook {
 }
 
 describe("normalized credit book", () => {
+	test("net consumption and reward reversals retain distinct purchase and credit dates", () => {
+		const book = emptyBook();
+		const purchase = newBookPurchase(book, {
+			cashbackAccountId: "rewards",
+			cashbackAmount: 3,
+			description: "Compra",
+			installments: 3,
+			purchaseDate: "2025-01-01",
+			totalAmount: 300,
+		});
+		const first = addBookRefund(book, purchase.id, { amount: 75, creditDate: "2025-02-01" });
+		const second = addBookRefund(book, purchase.id, { amount: 25, creditDate: "2025-03-01" });
+		expect(
+			creditBookConsumption(book)
+				.filter(row => !row.isRefund)
+				.map(row => [row.purchaseDate, row.totalAmount]),
+		).toEqual([["2025-01-01", 200]]);
+		expect(creditBookRewards(book).map(row => [row.purchaseDate, row.cashbackAmount])).toEqual([
+			["2025-01-01", 3],
+			["2025-02-01", -0.75],
+			["2025-03-01", -0.25],
+		]);
+		updateBookRefund(book, purchase.id, first.id, { amount: 100 });
+		removeBookRefund(book, purchase.id, second.id);
+		expect(creditBookRewards(book).map(row => row.cashbackAmount)).toEqual([3, -1]);
+	});
+	test("canceled first occurrence retains zero net consumption and cumulative reward rounding", () => {
+		const book = emptyBook();
+		const p = newBookPurchase(book, {
+			cashbackAccountId: "rewards",
+			cashbackAmount: 1,
+			description: "Compra",
+			installments: 3,
+			purchaseDate: "2025-02-01",
+			totalAmount: 3,
+		});
+		addBookRefund(book, p.id, { creditDate: "2025-01-10", policy: "CANCEL_FUTURE_INSTALLMENTS" });
+		expect(
+			creditBookConsumption(book).find(row => row.purchaseId === p.id && !row.isRefund)?.totalAmount,
+		).toBe(0);
+		const partial = emptyBook();
+		const q = newBookPurchase(partial, {
+			cashbackAccountId: "rewards",
+			cashbackAmount: 1,
+			description: "Compra",
+			installments: 1,
+			purchaseDate: "2025-01-01",
+			totalAmount: 3,
+		});
+		for (let i = 0; i < 3; i++)
+			addBookRefund(partial, q.id, { amount: 1, creditDate: `2025-01-${10 + i}` });
+		expect(creditBookRewards(partial).map(row => row.cashbackAmount)).toEqual([
+			1, -0.3333, -0.3334, -0.3333,
+		]);
+	});
+	test("explicit date edits preserve IDs and imported statement calendars", () => {
+		const book = emptyBook();
+		const p = newBookPurchase(book, {
+			description: "Compra",
+			installments: 2,
+			purchaseDate: "2025-01-01",
+			totalAmount: 100,
+		});
+		const ids = book.installments.map(i => i.id);
+		p.installmentImportedNumbers = [2];
+		p.installmentStatementDates = [null, { dueDate: "2025-02-28", statementDate: "2025-02-18" }];
+		updateBookPurchaseDate(book, p.id, "2025-01-25");
+		expect(book.installments.map(i => i.id)).toEqual(ids);
+		expect(book.installments.map(i => i.occurrenceDate)).toEqual(["2025-01-25", "2025-02-25"]);
+		expect(book.statements.find(s => s.id === book.installments[1]!.statementId)?.statementDate).toBe(
+			"2025-02-18",
+		);
+	});
+	test("refinancing ignores canceled principal and preserves settlement references", () => {
+		const book = emptyBook();
+		const p = newBookPurchase(book, {
+			description: "Compra",
+			installments: 3,
+			purchaseDate: "2025-01-01",
+			totalAmount: 300,
+		});
+		addBookRefund(book, p.id, { creditDate: "2025-01-10", policy: "CANCEL_FUTURE_INSTALLMENTS" });
+		const result = refinanceBookPurchase(book, p.id, {
+			feeAmount: 5,
+			installments: 2,
+			purchaseDate: "2025-01-15",
+		});
+		expect(result).toEqual({ settledAmount: 100, totalAmount: 105 });
+		expect(book.installments.filter(i => i.purchaseId === p.id && i.isSettled)).toHaveLength(1);
+		expect(book.installments.find(i => i.purchaseId === p.id && i.isSettled)?.settledByPurchaseId).toBe(
+			book.purchases.at(-1)!.id,
+		);
+	});
 	test("only due installments become records; forecasts inherit canonical metadata", () => {
 		const book = emptyBook();
 		const p = newBookPurchase(book, {

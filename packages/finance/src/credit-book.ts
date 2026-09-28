@@ -61,6 +61,8 @@ export interface BookPurchase extends CreditPurchase {
 }
 
 export interface BookRefund extends CreditRefund {
+	externalId?: string | null;
+	time?: string | null;
 	deletedAt: string | null;
 	createdAt: string;
 	updatedAt: string;
@@ -91,6 +93,8 @@ export interface BookStatement {
 }
 
 export interface CreditBook {
+	deletedPurchaseIds?: string[];
+	deletedChargeIds?: string[];
 	card: {
 		id: string;
 		userId: string;
@@ -123,6 +127,71 @@ export function bookPurchase(book: CreditBook, id: string) {
 
 export function activePurchaseRefunds(book: CreditBook, purchaseId: string) {
 	return book.refunds.filter(refund => refund.purchaseId === purchaseId && !refund.deletedAt);
+}
+
+/** Reward reversals happen on the effective refund date, including canceled principal. */
+export function creditBookRewards(book: CreditBook) {
+	return book.purchases.flatMap(purchase => {
+		if (!purchase.cashbackAccountId || !purchase.cashbackAmount) return [];
+		const award = {
+			cashbackAccountId: purchase.cashbackAccountId,
+			cashbackAmount: purchase.cashbackAmount,
+			cashbackYieldPeriod: purchase.cashbackYieldPeriod,
+			cashbackYieldReferencePercentage: purchase.cashbackYieldReferencePercentage,
+			cashbackYieldReferenceRate: purchase.cashbackYieldReferenceRate,
+			purchaseDate: purchase.purchaseDate,
+		};
+		let refunded = 0;
+		return [
+			award,
+			...activePurchaseRefunds(book, purchase.id)
+				.toSorted(
+					(a, b) =>
+						a.creditDate.localeCompare(b.creditDate) ||
+						a.createdAt.localeCompare(b.createdAt) ||
+						a.id.localeCompare(b.id),
+				)
+				.map(refund => {
+					const before = Math.round(
+						((purchase.cashbackAmount! * refunded) / purchase.totalAmountCents) * 10000,
+					);
+					refunded += refund.amountCents;
+					const after = Math.round(
+						((purchase.cashbackAmount! * refunded) / purchase.totalAmountCents) * 10000,
+					);
+					return {
+						...award,
+						cashbackAmount: -(after - before) / 10000,
+						purchaseDate: refund.creditDate,
+					};
+				}),
+		];
+	});
+}
+
+/** One net consumption record per purchase; refund credits retain their effective date. */
+export function creditBookConsumption(book: CreditBook) {
+	const entries = creditBookEntries(book);
+	const originals = creditBookEntries({ ...book, refunds: [] })
+		.filter(entry => entry.currentInstallment === 1 && !entry.isRefund && !entry.isStatementCharge)
+		.map(entry => {
+			const refundedAmount =
+				sumCents(activePurchaseRefunds(book, entry.purchaseId!).map(r => r.amountCents)) / 100;
+			return {
+				...entry,
+				hasRefund: refundedAmount > 0,
+				id: entry.purchaseId!,
+				refundableAmount: entry.totalAmount - refundedAmount,
+				refundedAmount,
+				totalAmount: entry.totalAmount - refundedAmount,
+			};
+		});
+	return [
+		...originals,
+		...entries
+			.filter(entry => entry.isRefund || entry.isStatementCharge)
+			.map(entry => (entry.isRefund ? { ...entry, totalAmount: entry.installmentAmount } : entry)),
+	];
 }
 
 export function ensureBookStatement(
@@ -182,7 +251,7 @@ export function creditBookPlan(book: CreditBook) {
 				statement = {
 					...dates,
 					creditCardId: book.card.id,
-					id: `forecast-${dates.statementDate}`,
+					id: `forecast-${book.card.id}-${dates.statementDate}`,
 					isForecast: true,
 					isFullySynced: false,
 					isPaid: false,
@@ -279,7 +348,7 @@ export function replayCreditBook(book: CreditBook, asOf = currentDateKey()) {
 			...dates,
 			chargesAmount: 0,
 			creditCardId: book.card.id,
-			id: `forecast-${dates.statementDate}`,
+			id: `forecast-${book.card.id}-${dates.statementDate}`,
 			isForecast: true,
 			isFullySynced: false,
 			isPaid: false,
@@ -586,4 +655,63 @@ export function creditBookEntries(book: CreditBook, includeForecasts = true) {
 		totalAmount: charge.amountCents / 100,
 	}));
 	return [...entries, ...refunds, ...charges];
+}
+
+/** Explicit historical recomposition preserves occurrence IDs and imported calendars. */
+export function updateBookPurchaseDate(book: CreditBook, purchaseId: string, purchaseDate: string) {
+	assertDateKey(purchaseDate);
+	const purchase = bookPurchase(book, purchaseId);
+	purchase.purchaseDate = purchaseDate;
+	purchase.installmentStatementDates = purchase.installmentAmountsCents.map((_, index) =>
+		purchase.installmentImportedNumbers?.includes(index + 1)
+			? (purchase.installmentStatementDates?.[index] ?? null)
+			: null,
+	);
+	for (const installment of book.installments.filter(i => i.purchaseId === purchaseId)) {
+		installment.occurrenceDate = installmentOccurrenceDate(purchaseDate, installment.number);
+		installment.statementId = ensureBookStatement(
+			book,
+			installment.occurrenceDate,
+			purchase.installmentStatementDates[installment.number - 1] ?? undefined,
+		).id;
+	}
+}
+
+export function refinanceBookPurchase(
+	book: CreditBook,
+	purchaseId: string,
+	input: { feeAmount: number; installments: number; purchaseDate: string },
+) {
+	const source = bookPurchase(book, purchaseId);
+	const ledger = replayCreditBook(book).statements;
+	const activeIds = new Set(
+		creditBookEntries(book, false)
+			.filter(row => !row.isRefund && !row.isStatementCharge)
+			.map(row => row.id),
+	);
+	const selected = book.installments.filter(
+		i =>
+			i.purchaseId === source.id &&
+			activeIds.has(i.id) &&
+			!i.isSettled &&
+			!i.settledByPurchaseId &&
+			!ledger.find(s => s.id === i.statementId)?.isPaid,
+	);
+	if (!selected.length) throw new RangeError("Não há parcelas disponíveis");
+	const settledCents = sumCents(selected.map(i => i.amountCents));
+	const totalAmount = (settledCents + moneyCents(input.feeAmount)) / 100;
+	const purchase = newBookPurchase(book, {
+		description: `Parcelamento - ${source.description}`,
+		installments: input.installments,
+		purchaseDate: input.purchaseDate,
+		refinancingFeeAmount: input.feeAmount,
+		storeName: source.storeName,
+		tagIds: source.tagIds,
+		totalAmount,
+	});
+	for (const installment of selected) {
+		installment.isSettled = true;
+		installment.settledByPurchaseId = purchase.id;
+	}
+	return { settledAmount: settledCents / 100, totalAmount };
 }
