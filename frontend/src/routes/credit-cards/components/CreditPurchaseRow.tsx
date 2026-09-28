@@ -50,7 +50,9 @@ export function CreditPurchaseRow({
 				</p>
 				<p className="truncate text-muted-foreground text-xs">
 					{formatLocalDate(purchase.purchaseDate)}
-					{formatLocalTime(purchase.time) ? ` · ${formatLocalTime(purchase.time)}` : ""}
+					{purchase.currentInstallment === 1 && formatLocalTime(purchase.time)
+						? ` · ${formatLocalTime(purchase.time)}`
+						: ""}
 					{purchase.isRefund ? " · Reembolso" : purchase.hasRefund ? " · Reembolsada" : ""}
 					{purchase.isForecast ? " · Previsão" : ""}
 					{purchase.installments > 1 ? ` · ${purchase.currentInstallment}/${purchase.installments}` : ""}
