@@ -25,7 +25,7 @@ export async function withStatementPayments<T extends StatementInput & { creditC
 				.build(),
 		),
 		rows(
-			sql.sql.public.CreditCard.select("id", "statementDay", "dueDay")
+			sql.sql.public.CreditCard.select("id", "statementDay", "dueDay", "ignoreStatementsBefore")
 				.where((f, fn) => fn.in(f.id, ids))
 				.build(),
 		),
@@ -78,7 +78,7 @@ export async function withStatementPayments<T extends StatementInput & { creditC
 			}),
 			asOf,
 		);
-		return calculateStatementBalances(cycles, cardPayments, asOf);
+		return calculateStatementBalances(cycles, cardPayments, asOf, card.ignoreStatementsBefore);
 	});
 }
 
@@ -102,7 +102,7 @@ export async function recalculateStatementPayments(transaction: SqlExecutor, car
 			.build(),
 	);
 	const cards = await transaction.queryRows(
-		transaction.db.sql.public.CreditCard.select("id", "statementDay", "dueDay")
+		transaction.db.sql.public.CreditCard.select("id", "statementDay", "dueDay", "ignoreStatementsBefore")
 			.where((f, fn) => fn.in(f.id, cardIds))
 			.build(),
 	);

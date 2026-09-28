@@ -108,6 +108,7 @@ export function calculateStatementBalances<T extends StatementInput>(
 	statements: T[],
 	payments?: CardPayment[],
 	asOf: FinancialDate = currentDateKey(),
+	ignoreBefore?: FinancialDate | null,
 ): Array<T & StatementBalance> {
 	const chronological = statements.toSorted(
 		(a, b) => dateKey(a.dueDate).localeCompare(dateKey(b.dueDate)) || a.id.localeCompare(b.id),
@@ -126,6 +127,13 @@ export function calculateStatementBalances<T extends StatementInput>(
 	let carry = 0;
 	const balances = new Map<string, StatementBalance>();
 	for (const [index, statement] of chronological.entries()) {
+		const ignored = Boolean(ignoreBefore && dateKey(statement.statementDate) < dateKey(ignoreBefore));
+		if (
+			ignoreBefore &&
+			!ignored &&
+			(index === 0 || dateKey(chronological[index - 1]!.statementDate) < dateKey(ignoreBefore))
+		)
+			carry = 0;
 		const hasNext = index < chronological.length - 1;
 		const charges = toCents(statement.chargesAmount ?? 0);
 		const incomingDebt = Math.max(0, carry);
@@ -143,7 +151,7 @@ export function calculateStatementBalances<T extends StatementInput>(
 				: "OPEN";
 		balances.set(statement.id, {
 			amountDue: amountDue / 100,
-			balanceAmount: transferred || (remaining < 0 && hasNext) ? 0 : remaining / 100,
+			balanceAmount: ignored || transferred || (remaining < 0 && hasNext) ? 0 : remaining / 100,
 			carriedInAmount: incomingDebt / 100,
 			carriedOutAmount: transferred ? remaining / 100 : 0,
 			chargesAmount: charges / 100,

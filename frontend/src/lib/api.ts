@@ -195,6 +195,7 @@ export interface CreditCard {
 	creditLimit: number;
 	securityDeposit?: number | null;
 	excludeFromTotals: boolean;
+	ignoreStatementsBefore?: string | null;
 	statementDay: number;
 	dueDay: number;
 	workingDueDate: boolean;

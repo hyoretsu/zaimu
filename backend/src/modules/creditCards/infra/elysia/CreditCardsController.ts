@@ -35,7 +35,6 @@ import {
 	redistributeInstallmentAmounts,
 	sumInstallmentAmounts,
 } from "~/modules/creditCards/domain/installment-amounts";
-import { applyStatementCredits } from "~/modules/creditCards/domain/statement-balance";
 import {
 	deleteCreatorDebtEventForPurchase,
 	getDebtSplitInput,
@@ -402,6 +401,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 							excludeFromTotals: fields.CreditCard.excludeFromTotals,
 							financialAccountId: fields.CreditCard.financialAccountId,
 							id: fields.CreditCard.id,
+							ignoreStatementsBefore: fields.CreditCard.ignoreStatementsBefore,
 							securityDeposit: fields.CreditCard.securityDeposit,
 							statementDay: fields.CreditCard.statementDay,
 							workingDueDate: fields.CreditCard.workingDueDate,
@@ -427,7 +427,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					statement => statement.creditCardId,
 				);
 				return cards.map(card => {
-					const effectiveStatements = applyStatementCredits(statementsByCard.get(card.id) ?? []);
+					const effectiveStatements = statementsByCard.get(card.id) ?? [];
 					const currentStatement = paymentStatement(effectiveStatements, new Date()) ?? null;
 					const netUsedInCents = effectiveStatements.reduce(
 						(total, statement) => total + toCents(statement.balanceAmount),
@@ -488,6 +488,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						excludeFromTotals: fields.CreditCard.excludeFromTotals,
 						financialAccountId: fields.CreditCard.financialAccountId,
 						id: fields.CreditCard.id,
+						ignoreStatementsBefore: fields.CreditCard.ignoreStatementsBefore,
 						securityDeposit: fields.CreditCard.securityDeposit,
 						statementDay: fields.CreditCard.statementDay,
 						workingDueDate: fields.CreditCard.workingDueDate,
@@ -508,6 +509,42 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			params: t.Object({
 				id: t.String({ maxLength: 36, minLength: 1 }),
 			}),
+		},
+	)
+	.patch(
+		"/:id/statement-cutoff",
+		async ({ body, params, request }) => {
+			const userId = await requireUserId(request);
+			await assertCreditCardOwnership(params.id, userId);
+			if (body.statementDate) {
+				const statement = await queryFirst(
+					db.sql.public.CreditCardStatement.select("id")
+						.where((fields, functions) =>
+							functions.and(
+								functions.eq(fields.creditCardId, params.id),
+								functions.eq(fields.statementDate, new Date(`${body.statementDate}T12:00:00Z`)),
+							),
+						)
+						.limit(1)
+						.build(),
+				);
+				if (!statement) throw new HttpException("Fatura não encontrada", 404);
+			}
+			await executeStatement(
+				db.sql.public.CreditCard.update({
+					ignoreStatementsBefore: body.statementDate ? new Date(`${body.statementDate}T12:00:00Z`) : null,
+					updatedAt: new Date(),
+				})
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.build(),
+			);
+			return { ignoreStatementsBefore: body.statementDate };
+		},
+		{
+			body: t.Object({
+				statementDate: t.Nullable(t.String({ pattern: "^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$" })),
+			}),
+			params: t.Object({ id: t.String({ maxLength: 36, minLength: 1 }) }),
 		},
 	)
 	.get(
@@ -838,14 +875,14 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				})),
 			);
 			return {
-				...applyStatementCredits(
+				...(
 					await withStatementPayments(
 						await queryRows(
 							db.sql.public.CreditCardStatement.select(...statementColumns)
 								.where((fields, functions) => functions.eq(fields.creditCardId, params.id))
 								.build(),
 						),
-					),
+					)
 				).find(item => item.id === statement.id)!,
 				payments,
 				purchases: purchases.map(purchase => {

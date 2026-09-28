@@ -1,7 +1,7 @@
 import { addDays, startOfDay } from "date-fns";
 import Elysia, { t } from "elysia";
 import { requireUserId } from "~/modules/auth";
-import { applyStatementCredits } from "~/modules/creditCards/domain/statement-balance";
+import { withStatementPayments } from "~/modules/creditCards/application/statement-payments";
 import {
 	buildComparisonPeriods,
 	comparisonRangeEnd,
@@ -122,8 +122,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 				today,
 			});
 			const { accounts, cards, salaries, subscriptions, recurring, loanPayments: payments } = loaded;
-			const statementGroups = Map.groupBy(loaded.statements, statement => statement.creditCardId);
-			const statements = [...statementGroups.values()].flatMap(group => applyStatementCredits(group));
+			const statements = await withStatementPayments(loaded.statements);
 			const monetaryAccounts = accounts.filter(
 				account =>
 					account.type !== "CREDIT_CARD" && account.type !== "INVESTMENT" && account.type !== "REWARDS",

@@ -322,6 +322,7 @@ namespace public {
     creditLimit          Numeric(12, 2)
     securityDeposit      Numeric(12, 2)?
     excludeFromTotals    Boolean               @default(false)
+    ignoreStatementsBefore Date?
     statementDay         SmallInt
     dueDay               SmallInt
     workingDueDate       Boolean               @default(false)

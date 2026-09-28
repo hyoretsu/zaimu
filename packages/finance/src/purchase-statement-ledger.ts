@@ -18,6 +18,7 @@ export function rebuildPurchaseStatementLedger<T extends StatementInput>(input: 
 	statements: readonly T[];
 	payments: readonly CardPayment[];
 	asOf: string;
+	ignoreBefore?: string | null;
 }) {
 	assertDateKey(input.asOf);
 	const purchases = new Map(input.purchases.map(purchase => [purchase.id, assertPurchase(purchase)]));
@@ -75,6 +76,7 @@ export function rebuildPurchaseStatementLedger<T extends StatementInput>(input: 
 			})),
 			[...input.payments],
 			input.asOf,
+			input.ignoreBefore,
 		),
 	};
 }

@@ -18,6 +18,30 @@ const invoice = (month: string, totalAmount: number, chargesAmount = 0) => ({
 });
 
 describe("due-date card ledger", () => {
+	test("starts selected invoice without older debt or surplus credit", () => {
+		const rows = [invoice("07", 100), invoice("08", 50), invoice("09", 20)];
+		const payments = [{ amount: 150, date: "2024-07-10" }];
+		const balances = calculateStatementBalances(rows, payments, "2024-09-30", "2024-08-15");
+		expect(balances[1]).toMatchObject({ amountDue: 50, carriedInAmount: 0, creditInAmount: 0 });
+		expect(balances[2]).toMatchObject({ amountDue: 70, carriedInAmount: 50 });
+		expect(balances[0]?.balanceAmount).toBe(0);
+		expect(
+			calculateStatementBalances([invoice("07", 100)], [], "2024-09-30", "2024-08-15")[0]
+				?.balanceAmount,
+		).toBe(0);
+		expect(
+			calculateStatementBalances(
+				rows,
+				[{ amount: 50, date: "2024-08-20" }],
+				"2024-09-30",
+				"2024-08-15",
+			)[2],
+		).toMatchObject({ amountDue: 20, carriedInAmount: 0 });
+		expect(calculateStatementBalances(rows, [], "2024-09-30", "2024-08-15")[1]).toMatchObject({
+			amountDue: 50,
+			carriedInAmount: 0,
+		});
+	});
 	test("selects the due date inclusively rather than the purchase closing cycle", () => {
 		expect(paymentStatementDates(calendar, "2024-08-20")).toEqual({
 			dueDate: "2024-08-25",

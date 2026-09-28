@@ -51,11 +51,7 @@ import type {
 	TransactionImportSummary,
 } from "./api";
 import type { BalanceAdjustment } from "./balance-adjustment";
-import {
-	applyStatementCredits,
-	calculateCreditCardLimit,
-	getCurrentCreditCardStatement,
-} from "./credit-card";
+import { calculateCreditCardLimit, getCurrentCreditCardStatement } from "./credit-card";
 import { getCurrentLocalTime, getLocalDateKey } from "./date";
 import { calculateDebtSplit } from "./debt-split";
 import { calculateFinancialAccountBalances } from "./financial-account";
@@ -336,7 +332,7 @@ async function withGuestCardPayments(cardId: string, statements: CreditCardState
 		statementDate: dates.statementDate,
 		totalAmount: 0,
 	}));
-	return calculateStatementBalances(cycles, payments);
+	return calculateStatementBalances(cycles, payments, undefined, card.ignoreStatementsBefore);
 }
 
 export const dataService = {
@@ -1142,9 +1138,7 @@ export const dataService = {
 				);
 				return Promise.all(
 					storedCards.map(async ({ data: card }) => {
-						const statements = applyStatementCredits(
-							await withGuestCardPayments(card.id, statementsByCard.get(card.id) ?? []),
-						);
+						const statements = await withGuestCardPayments(card.id, statementsByCard.get(card.id) ?? []);
 						return {
 							...card,
 							accountName:
@@ -1429,6 +1423,18 @@ export const dataService = {
 			]);
 			return refund;
 		},
+		async setStatementCutoff(cardId: string, statementDate: string | null): Promise<void> {
+			if (isGuestMode()) {
+				const stored = await localCreditCards.getById(cardId);
+				if (!stored) throw new Error("Cartão não encontrado.");
+				await localCreditCards.put({ ...stored.data, ignoreStatementsBefore: statementDate }, cardId);
+				return;
+			}
+			await fetchWithAuth(`/credit-cards/${cardId}/statement-cutoff`, {
+				body: JSON.stringify({ statementDate }),
+				method: "PATCH",
+			});
+		},
 		async updatePurchase(
 			cardId: string,
 			purchaseId: string,
@@ -1666,11 +1672,9 @@ export const dataService = {
 				const statements = (
 					await Promise.all(
 						cards.map(async card =>
-							applyStatementCredits(
-								await withGuestCardPayments(
-									card.id,
-									rawStatements.filter(item => item.creditCardId === card.id),
-								),
+							withGuestCardPayments(
+								card.id,
+								rawStatements.filter(item => item.creditCardId === card.id),
 							),
 						),
 					)

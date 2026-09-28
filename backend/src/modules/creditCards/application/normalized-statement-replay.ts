@@ -18,6 +18,7 @@ interface CardRow {
 	id: string;
 	dueDay: number;
 	statementDay: number;
+	ignoreStatementsBefore: string | null;
 }
 interface PurchaseRow {
 	id: string;
@@ -68,7 +69,7 @@ const cents = (amount: number) => Math.round(amount * 100);
 /** Rebuilds the complete chronological card chain inside the same locked refund transaction. */
 export async function replayNormalizedCard(query: RawQuery, cardId: string) {
 	const [card] = await query<CardRow>(
-		`SELECT "id", "dueDay", "statementDay" FROM "CreditCard" WHERE "id" = $1`,
+		`SELECT "id", "dueDay", "statementDay", "ignoreStatementsBefore"::text AS "ignoreStatementsBefore" FROM "CreditCard" WHERE "id" = $1`,
 		[cardId],
 	);
 	if (!card) throw new HttpException("Cartão não encontrado", 404);
@@ -195,6 +196,7 @@ export async function replayNormalizedCard(query: RawQuery, cardId: string) {
 	}));
 	const replayed = rebuildPurchaseStatementLedger({
 		asOf,
+		ignoreBefore: card.ignoreStatementsBefore,
 		installments,
 		payments,
 		purchases,

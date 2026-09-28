@@ -1,0 +1,36 @@
+[
+	{
+		"execute": [
+			{
+				"description": "add column \"ignoreStatementsBefore\"",
+				"sql": "ALTER TABLE \"public\".\"CreditCard\" ADD COLUMN \"ignoreStatementsBefore\" date"
+			}
+		],
+		"id": "column.public.CreditCard.ignoreStatementsBefore",
+		"label": "Add column \"ignoreStatementsBefore\" to \"CreditCard\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"ignoreStatementsBefore\" exists",
+				"params": ["public", "CreditCard", "ignoreStatementsBefore"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"ignoreStatementsBefore\" is missing",
+				"params": ["public", "CreditCard", "ignoreStatementsBefore"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "ignoreStatementsBefore",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditCard"
+			},
+			"id": "postgres"
+		}
+	}
+]

@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { LuCalendarCheck, LuCalendarClock, LuCloudDownload, LuReceiptText } from "react-icons/lu";
+import { LuCalendarCheck, LuCalendarClock, LuCloudDownload, LuHistory, LuReceiptText } from "react-icons/lu";
 import { AppBadge } from "@/components/ui/AppBadge";
+import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -24,9 +25,15 @@ const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "curre
 export function CreditCardStatementDetails({
 	statement,
 	isEmptyCycle = false,
+	ignoreBefore,
+	onSetIgnoreBefore,
+	cutoffPending,
 }: {
 	statement: CreditCardStatement;
 	isEmptyCycle?: boolean;
+	ignoreBefore: string | null;
+	onSetIgnoreBefore: (date: string | null) => void;
+	cutoffPending: boolean;
 }) {
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
@@ -42,7 +49,10 @@ export function CreditCardStatementDetails({
 	const displayedStatement = detail.data ?? statement;
 	const displayBalance = getCreditCardStatementDisplayBalance(displayedStatement);
 	const invoiceAmount = displayedStatement.amountDue ?? displayedStatement.totalAmount;
-	const status = getCreditCardStatementStatus(displayedStatement);
+	const isIgnored = Boolean(ignoreBefore && statement.statementDate.slice(0, 10) < ignoreBefore);
+	const status = isIgnored
+		? { className: "text-muted-foreground", icon: LuReceiptText, label: "Desconsiderada" }
+		: getCreditCardStatementStatus(displayedStatement);
 	const StatusIcon = status.icon;
 	const entries = detail.data
 		? [
@@ -147,10 +157,33 @@ export function CreditCardStatementDetails({
 								</AppBadge>
 							</div>
 						</div>
+						{!isEmptyCycle && !statement.isForecast && (
+							<div className="flex flex-wrap items-center gap-2">
+								<Button
+									className="cursor-pointer"
+									disabled={cutoffPending}
+									onClick={() =>
+										onSetIgnoreBefore(
+											ignoreBefore === statement.statementDate.slice(0, 10)
+												? null
+												: statement.statementDate.slice(0, 10),
+										)
+									}
+									size="sm"
+									variant="outline"
+								>
+									<LuHistory aria-hidden="true" />
+									{ignoreBefore === statement.statementDate.slice(0, 10)
+										? "Voltar a considerar faturas anteriores"
+										: "Desconsiderar faturas anteriores"}
+								</Button>
+								<span className="text-muted-foreground text-xs">Compras e importações são preservadas.</span>
+							</div>
+						)}
 						<div>
 							<p className="text-muted-foreground text-xs">Valor da fatura</p>
 							<strong className="block text-2xl tabular-nums">{currency.format(invoiceAmount)}</strong>
-							{Math.abs(invoiceAmount - displayBalance) > 0.001 && (
+							{!isIgnored && Math.abs(invoiceAmount - displayBalance) > 0.001 && (
 								<p className="mt-1 text-muted-foreground text-sm">
 									{displayBalance < 0 ? "Crédito" : "Restante a pagar"}:{" "}
 									{currency.format(Math.abs(displayBalance))}

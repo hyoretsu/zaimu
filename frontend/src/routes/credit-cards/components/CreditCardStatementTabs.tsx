@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
+import { LuReceiptText } from "react-icons/lu";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import type { CreditCardStatement } from "@/lib/api";
@@ -10,6 +11,7 @@ import { getStatementWindowRadius } from "./credit-card-statement-window";
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
 export function CreditCardStatementTabs({
+	ignoreBefore,
 	isDesktop,
 	onLoadNext,
 	onLoadPrevious,
@@ -17,6 +19,7 @@ export function CreditCardStatementTabs({
 	selectedId,
 	statements,
 }: {
+	ignoreBefore: string | null;
 	isDesktop: boolean;
 	onLoadNext: () => void;
 	onLoadPrevious: () => void;
@@ -111,7 +114,10 @@ export function CreditCardStatementTabs({
 				>
 					{statements.map(statement => {
 						const selected = statement.id === selectedId;
-						const status = getCreditCardStatementStatus(statement);
+						const status =
+							ignoreBefore && statement.statementDate.slice(0, 10) < ignoreBefore
+								? { className: "text-muted-foreground", icon: LuReceiptText, label: "Desconsiderada" }
+								: getCreditCardStatementStatus(statement);
 						const StatusIcon = status.icon;
 						return (
 							<TabsTrigger
