@@ -484,6 +484,7 @@ namespace public {
     installmentPlan      CreditInstallmentPlan[]
     installments         CreditInstallmentRecord[]
     refunds              CreditRefundRecord[]
+    legacyEntries        CreditPurchaseLegacyEntry[]
 
     @@index([userId, purchaseDate, createdAt, id], map: "CreditPurchaseRecord_userId_date_idx")
     @@index([creditCardId, purchaseDate], map: "CreditPurchaseRecord_creditCardId_date_idx")
@@ -520,6 +521,8 @@ namespace public {
     purchase              CreditPurchaseRecord @relation(fields: [purchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditInstallmentRecord_purchaseId_fkey", index: false)
     statement             CreditCardStatement @relation(fields: [statementId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditInstallmentRecord_statementId_fkey", index: false)
 
+    legacyEntry           CreditPurchaseLegacyEntry? @relation("LegacyInstallment")
+
     @@index([purchaseId, number], map: "CreditInstallmentRecord_purchase_number_key", unique: true)
     @@index([statementId, occurrenceDate], map: "CreditInstallmentRecord_statement_date_idx")
     @@map("CreditInstallmentRecord")
@@ -539,6 +542,8 @@ namespace public {
     purchase             CreditPurchaseRecord @relation(fields: [purchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditRefundRecord_purchaseId_fkey", index: false)
     statement            CreditCardStatement @relation(fields: [statementId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditRefundRecord_statementId_fkey", index: false)
 
+    legacyEntry          CreditPurchaseLegacyEntry? @relation("LegacyRefund")
+
     @@index([purchaseId, creditDate], map: "CreditRefundRecord_purchase_date_idx")
     @@index([statementId, creditDate], map: "CreditRefundRecord_statement_date_idx")
     @@map("CreditRefundRecord")
@@ -555,8 +560,31 @@ namespace public {
     updatedAt   Timestamp(3) @default(now())
     statement   CreditCardStatement @relation(fields: [statementId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditStatementCharge_statementId_fkey", index: false)
 
+    legacyEntry CreditPurchaseLegacyEntry? @relation("LegacyCharge")
+
     @@index([statementId, chargeDate], map: "CreditStatementCharge_statement_date_idx")
     @@map("CreditStatementCharge")
+  }
+
+  // Migration provenance and unresolved imported credits. Never used as purchase metadata.
+  // Legacy reference IDs resolve through this record until the contract cutover remaps their FKs.
+  model CreditPurchaseLegacyEntry {
+    id                   VarChar(36) @id(map: "CreditPurchaseLegacyEntry_pkey")
+    purchaseId           VarChar(36)?
+    installmentId        VarChar(36)? @unique(map: "CreditPurchaseLegacyEntry_installmentId_key")
+    refundId             VarChar(36)? @unique(map: "CreditPurchaseLegacyEntry_refundId_key")
+    chargeId             VarChar(36)? @unique(map: "CreditPurchaseLegacyEntry_chargeId_key")
+    requiresRefundReview Boolean @default(false)
+    original             Json
+    createdAt            Timestamp(3) @default(now())
+    updatedAt            Timestamp(3) @default(now())
+    purchase             CreditPurchaseRecord? @relation(fields: [purchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditPurchaseLegacyEntry_purchaseId_fkey", index: false)
+    installment          CreditInstallmentRecord? @relation("LegacyInstallment", fields: [installmentId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditPurchaseLegacyEntry_installmentId_fkey", index: false)
+    refund               CreditRefundRecord? @relation("LegacyRefund", fields: [refundId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditPurchaseLegacyEntry_refundId_fkey", index: false)
+    charge               CreditStatementCharge? @relation("LegacyCharge", fields: [chargeId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditPurchaseLegacyEntry_chargeId_fkey", index: false)
+
+    @@index([purchaseId], map: "CreditPurchaseLegacyEntry_purchaseId_idx")
+    @@map("CreditPurchaseLegacyEntry")
   }
 
   model CreditPurchaseHistory {

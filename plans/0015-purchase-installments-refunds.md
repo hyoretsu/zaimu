@@ -37,6 +37,8 @@
 - Schema aditivo de compra, plano, parcela, reembolso e encargo criado. Migração de criação e constraints aplicada em PostgreSQL 18 descartável local; 65 migrações passaram. Backfill, remapeamento de referências e remoção do legado ainda pendentes.
 - Serviço normalizado de reembolsos criado, ainda sem ligação aos endpoints ativos: criação limitada sob lock por cartão/compra, política institucional compare-and-set, edição preservando ID, exclusão lógica preservando histórico e replay na mesma transação.
 - Testes de integração do serviço em PostgreSQL descartável local: limite sob concorrência, rollback após falha de replay e edição/exclusão. 66 migrações aplicadas no banco de teste. Integração de dívidas/recompensas ainda necessária antes de ativar endpoints.
+- Backfill SQL transacional criado: preserva IDs concretos, centavos importados, snapshots de cashback, taxas, datas, histórico original e referências legadas; entradas negativas sem vínculo ficam marcadas para revisão. Tabela de proveniência liga cada ID legado à compra, parcela, reembolso ou encargo normalizado. O legado e suas FKs continuam intactos até remapeamento e troca do contrato ativo.
+- Backfill rejeita dados impossíveis (duplicidade, valores incompatíveis, vínculos cruzados, reembolsos acima do total) antes de copiar. A aplicação real fica condicionada ao tratamento dos casos rejeitados; não usar a migração em banco compartilhado antes disso.
 
 ## Validação parcial
 
@@ -47,3 +49,4 @@
 - Type-check backend continua falhando nos três erros anteriores: `FinancialAccountYieldsController`, `DashboardController` e `LoansController`. Nenhum diagnóstico nos módulos novos.
 - PostgreSQL temporário encerrado e diretórios dos testes removidos; nenhum banco remoto acessado, nenhum ref de banco avançado por esta tarefa.
 - Hook local `git pull` removido com aprovação explícita do usuário; validações `lint-staged` mantidas.
+- Migração de backfill aplicada com dados de exemplo em PostgreSQL descartável local: 1 migração, 10 operações. Sete testes SQL passaram, incluindo preservação das referências/dados, equivalência com transformação compartilhada, meses curtos, rejeição de dados inválidos e rollback após falha tardia. Nenhum banco remoto acessado.

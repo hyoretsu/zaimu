@@ -1,0 +1,387 @@
+[
+	{
+		"execute": [
+			{
+				"description": "create table \"CreditPurchaseLegacyEntry\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"CreditPurchaseLegacyEntry\" (\n  \"chargeId\" character varying(36),\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"id\" character varying(36) NOT NULL,\n  \"installmentId\" character varying(36),\n  \"original\" json NOT NULL,\n  \"purchaseId\" character varying(36),\n  \"refundId\" character varying(36),\n  \"requiresRefundReview\" bool DEFAULT false NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  CONSTRAINT \"CreditPurchaseLegacyEntry_pkey\" PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.CreditPurchaseLegacyEntry",
+		"label": "Create table \"CreditPurchaseLegacyEntry\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"CreditPurchaseLegacyEntry\" exists",
+				"params": ["\"public\".\"CreditPurchaseLegacyEntry\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"CreditPurchaseLegacyEntry\" does not exist",
+				"params": ["\"public\".\"CreditPurchaseLegacyEntry\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"CreditPurchaseLegacyEntry\"",
+		"target": {
+			"details": {
+				"name": "CreditPurchaseLegacyEntry",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add unique constraint \"CreditPurchaseLegacyEntry_chargeId_key\"",
+				"sql": "ALTER TABLE \"public\".\"CreditPurchaseLegacyEntry\" ADD CONSTRAINT \"CreditPurchaseLegacyEntry_chargeId_key\" UNIQUE (\"chargeId\")"
+			}
+		],
+		"id": "unique.CreditPurchaseLegacyEntry.CreditPurchaseLegacyEntry_chargeId_key",
+		"label": "Add unique constraint on \"CreditPurchaseLegacyEntry\" (chargeId)",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify constraint \"CreditPurchaseLegacyEntry_chargeId_key\" exists",
+				"params": [
+					"CreditPurchaseLegacyEntry_chargeId_key",
+					"public",
+					"\"public\".\"CreditPurchaseLegacyEntry\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure constraint \"CreditPurchaseLegacyEntry_chargeId_key\" does not exist",
+				"params": [
+					"CreditPurchaseLegacyEntry_chargeId_key",
+					"public",
+					"\"public\".\"CreditPurchaseLegacyEntry\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditPurchaseLegacyEntry_chargeId_key",
+				"objectType": "unique",
+				"schema": "public",
+				"table": "CreditPurchaseLegacyEntry"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add unique constraint \"CreditPurchaseLegacyEntry_installmentId_key\"",
+				"sql": "ALTER TABLE \"public\".\"CreditPurchaseLegacyEntry\" ADD CONSTRAINT \"CreditPurchaseLegacyEntry_installmentId_key\" UNIQUE (\"installmentId\")"
+			}
+		],
+		"id": "unique.CreditPurchaseLegacyEntry.CreditPurchaseLegacyEntry_installmentId_key",
+		"label": "Add unique constraint on \"CreditPurchaseLegacyEntry\" (installmentId)",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify constraint \"CreditPurchaseLegacyEntry_installmentId_key\" exists",
+				"params": [
+					"CreditPurchaseLegacyEntry_installmentId_key",
+					"public",
+					"\"public\".\"CreditPurchaseLegacyEntry\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure constraint \"CreditPurchaseLegacyEntry_installmentId_key\" does not exist",
+				"params": [
+					"CreditPurchaseLegacyEntry_installmentId_key",
+					"public",
+					"\"public\".\"CreditPurchaseLegacyEntry\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditPurchaseLegacyEntry_installmentId_key",
+				"objectType": "unique",
+				"schema": "public",
+				"table": "CreditPurchaseLegacyEntry"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add unique constraint \"CreditPurchaseLegacyEntry_refundId_key\"",
+				"sql": "ALTER TABLE \"public\".\"CreditPurchaseLegacyEntry\" ADD CONSTRAINT \"CreditPurchaseLegacyEntry_refundId_key\" UNIQUE (\"refundId\")"
+			}
+		],
+		"id": "unique.CreditPurchaseLegacyEntry.CreditPurchaseLegacyEntry_refundId_key",
+		"label": "Add unique constraint on \"CreditPurchaseLegacyEntry\" (refundId)",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify constraint \"CreditPurchaseLegacyEntry_refundId_key\" exists",
+				"params": [
+					"CreditPurchaseLegacyEntry_refundId_key",
+					"public",
+					"\"public\".\"CreditPurchaseLegacyEntry\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure constraint \"CreditPurchaseLegacyEntry_refundId_key\" does not exist",
+				"params": [
+					"CreditPurchaseLegacyEntry_refundId_key",
+					"public",
+					"\"public\".\"CreditPurchaseLegacyEntry\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditPurchaseLegacyEntry_refundId_key",
+				"objectType": "unique",
+				"schema": "public",
+				"table": "CreditPurchaseLegacyEntry"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"CreditPurchaseLegacyEntry_purchaseId_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"CreditPurchaseLegacyEntry_purchaseId_idx\" ON \"public\".\"CreditPurchaseLegacyEntry\" (\"purchaseId\")"
+			}
+		],
+		"id": "index.CreditPurchaseLegacyEntry.CreditPurchaseLegacyEntry_purchaseId_idx",
+		"label": "Create index \"CreditPurchaseLegacyEntry_purchaseId_idx\" on \"CreditPurchaseLegacyEntry\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"CreditPurchaseLegacyEntry_purchaseId_idx\" exists",
+				"params": ["\"public\".\"CreditPurchaseLegacyEntry_purchaseId_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"CreditPurchaseLegacyEntry_purchaseId_idx\" does not exist",
+				"params": ["\"public\".\"CreditPurchaseLegacyEntry_purchaseId_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditPurchaseLegacyEntry_purchaseId_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "CreditPurchaseLegacyEntry"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"CreditPurchaseLegacyEntry_purchaseId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"CreditPurchaseLegacyEntry\"\nADD CONSTRAINT \"CreditPurchaseLegacyEntry_purchaseId_fkey\"\nFOREIGN KEY (\"purchaseId\")\nREFERENCES \"public\".\"CreditPurchaseRecord\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.CreditPurchaseLegacyEntry.CreditPurchaseLegacyEntry_purchaseId_fkey",
+		"label": "Add foreign key \"CreditPurchaseLegacyEntry_purchaseId_fkey\" on \"CreditPurchaseLegacyEntry\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"CreditPurchaseLegacyEntry_purchaseId_fkey\" exists",
+				"params": [
+					"CreditPurchaseLegacyEntry_purchaseId_fkey",
+					"public",
+					"\"public\".\"CreditPurchaseLegacyEntry\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"CreditPurchaseLegacyEntry_purchaseId_fkey\" does not exist",
+				"params": [
+					"CreditPurchaseLegacyEntry_purchaseId_fkey",
+					"public",
+					"\"public\".\"CreditPurchaseLegacyEntry\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditPurchaseLegacyEntry_purchaseId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "CreditPurchaseLegacyEntry"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"CreditPurchaseLegacyEntry_installmentId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"CreditPurchaseLegacyEntry\"\nADD CONSTRAINT \"CreditPurchaseLegacyEntry_installmentId_fkey\"\nFOREIGN KEY (\"installmentId\")\nREFERENCES \"public\".\"CreditInstallmentRecord\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.CreditPurchaseLegacyEntry.CreditPurchaseLegacyEntry_installmentId_fkey",
+		"label": "Add foreign key \"CreditPurchaseLegacyEntry_installmentId_fkey\" on \"CreditPurchaseLegacyEntry\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"CreditPurchaseLegacyEntry_installmentId_fkey\" exists",
+				"params": [
+					"CreditPurchaseLegacyEntry_installmentId_fkey",
+					"public",
+					"\"public\".\"CreditPurchaseLegacyEntry\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"CreditPurchaseLegacyEntry_installmentId_fkey\" does not exist",
+				"params": [
+					"CreditPurchaseLegacyEntry_installmentId_fkey",
+					"public",
+					"\"public\".\"CreditPurchaseLegacyEntry\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditPurchaseLegacyEntry_installmentId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "CreditPurchaseLegacyEntry"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"CreditPurchaseLegacyEntry_refundId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"CreditPurchaseLegacyEntry\"\nADD CONSTRAINT \"CreditPurchaseLegacyEntry_refundId_fkey\"\nFOREIGN KEY (\"refundId\")\nREFERENCES \"public\".\"CreditRefundRecord\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.CreditPurchaseLegacyEntry.CreditPurchaseLegacyEntry_refundId_fkey",
+		"label": "Add foreign key \"CreditPurchaseLegacyEntry_refundId_fkey\" on \"CreditPurchaseLegacyEntry\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"CreditPurchaseLegacyEntry_refundId_fkey\" exists",
+				"params": [
+					"CreditPurchaseLegacyEntry_refundId_fkey",
+					"public",
+					"\"public\".\"CreditPurchaseLegacyEntry\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"CreditPurchaseLegacyEntry_refundId_fkey\" does not exist",
+				"params": [
+					"CreditPurchaseLegacyEntry_refundId_fkey",
+					"public",
+					"\"public\".\"CreditPurchaseLegacyEntry\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditPurchaseLegacyEntry_refundId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "CreditPurchaseLegacyEntry"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"CreditPurchaseLegacyEntry_chargeId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"CreditPurchaseLegacyEntry\"\nADD CONSTRAINT \"CreditPurchaseLegacyEntry_chargeId_fkey\"\nFOREIGN KEY (\"chargeId\")\nREFERENCES \"public\".\"CreditStatementCharge\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.CreditPurchaseLegacyEntry.CreditPurchaseLegacyEntry_chargeId_fkey",
+		"label": "Add foreign key \"CreditPurchaseLegacyEntry_chargeId_fkey\" on \"CreditPurchaseLegacyEntry\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"CreditPurchaseLegacyEntry_chargeId_fkey\" exists",
+				"params": [
+					"CreditPurchaseLegacyEntry_chargeId_fkey",
+					"public",
+					"\"public\".\"CreditPurchaseLegacyEntry\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"CreditPurchaseLegacyEntry_chargeId_fkey\" does not exist",
+				"params": [
+					"CreditPurchaseLegacyEntry_chargeId_fkey",
+					"public",
+					"\"public\".\"CreditPurchaseLegacyEntry\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditPurchaseLegacyEntry_chargeId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "CreditPurchaseLegacyEntry"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "Transactional normalized credit purchase backfill",
+				"sql": "-- Run with the schema migration, before enabling normalized writes. All-or-nothing.\nLOCK TABLE \"CreditPurchase\" IN ACCESS EXCLUSIVE MODE;\nLOCK TABLE \"CreditPurchaseRecord\", \"CreditInstallmentPlan\", \"CreditInstallmentRecord\",\n \"CreditRefundRecord\", \"CreditStatementCharge\", \"CreditPurchaseLegacyEntry\" IN ACCESS EXCLUSIVE MODE;\n\nDO $backfill$\nBEGIN\n IF EXISTS (SELECT 1 FROM \"CreditPurchaseRecord\")\n  OR EXISTS (SELECT 1 FROM \"CreditInstallmentRecord\")\n  OR EXISTS (SELECT 1 FROM \"CreditRefundRecord\")\n  OR EXISTS (SELECT 1 FROM \"CreditStatementCharge\")\n  OR EXISTS (SELECT 1 FROM \"CreditPurchaseLegacyEntry\") THEN\n  RAISE EXCEPTION 'Normalized credit storage must be empty before backfill';\n END IF;\n IF EXISTS (\n  SELECT 1 FROM \"CreditPurchase\" p\n  JOIN \"CreditCardStatement\" s ON s.\"id\" = p.\"statementId\"\n  JOIN \"CreditCard\" c ON c.\"id\" = s.\"creditCardId\"\n  JOIN \"FinancialAccount\" a ON a.\"id\" = c.\"financialAccountId\"\n  LEFT JOIN \"CreditPurchase\" root ON root.\"id\" = p.\"parentId\"\n  LEFT JOIN \"CreditCardStatement\" rs ON rs.\"id\" = root.\"statementId\"\n  WHERE p.\"userId\" <> a.\"userId\"\n   OR (p.\"parentId\" IS NOT NULL AND (root.\"id\" IS NULL OR root.\"parentId\" IS NOT NULL\n    OR root.\"isRefund\" OR p.\"isRefund\" OR root.\"userId\" <> p.\"userId\"\n    OR rs.\"creditCardId\" <> s.\"creditCardId\" OR root.\"isStatementCharge\" <> p.\"isStatementCharge\"))\n   OR (NOT p.\"isRefund\" AND (p.\"totalAmount\" <= 0 OR p.\"installmentAmount\" <= 0))\n   OR (p.\"isRefund\" AND (p.\"totalAmount\" >= 0 OR p.\"installmentAmount\" <> p.\"totalAmount\"\n    OR p.\"installments\" <> 1 OR p.\"currentInstallment\" <> 1))\n ) THEN RAISE EXCEPTION 'Invalid legacy purchase ownership, parent or amount - review required'; END IF;\n IF EXISTS (\n  SELECT 1 FROM \"CreditPurchase\" p JOIN \"CreditPurchase\" root ON root.\"id\" = COALESCE(p.\"parentId\", p.\"id\")\n  WHERE NOT p.\"isRefund\" AND NOT root.\"isStatementCharge\"\n   AND (root.\"installments\" NOT BETWEEN 1 AND 48\n    OR p.\"currentInstallment\" NOT BETWEEN 1 AND root.\"installments\")\n ) OR EXISTS (\n  SELECT 1 FROM \"CreditPurchase\" p WHERE NOT p.\"isRefund\" AND NOT p.\"isStatementCharge\"\n  GROUP BY COALESCE(p.\"parentId\", p.\"id\"), p.\"currentInstallment\" HAVING COUNT(*) > 1\n ) THEN RAISE EXCEPTION 'Invalid or duplicate legacy installment - review required'; END IF;\n IF EXISTS (\n  SELECT 1 FROM \"CreditPurchase\" root JOIN \"CreditPurchase\" p ON COALESCE(p.\"parentId\", p.\"id\") = root.\"id\"\n  WHERE root.\"parentId\" IS NULL AND NOT root.\"isRefund\" AND NOT root.\"isStatementCharge\"\n  GROUP BY root.\"id\", root.\"totalAmount\", root.\"installments\"\n  HAVING (root.\"totalAmount\" - SUM(p.\"installmentAmount\")) * 100 < root.\"installments\" - COUNT(*)\n   OR (root.\"installments\" = COUNT(*) AND root.\"totalAmount\" <> SUM(p.\"installmentAmount\"))\n ) THEN RAISE EXCEPTION 'Legacy purchase total does not fit historical installments - review required'; END IF;\n IF EXISTS (\n  SELECT 1 FROM \"CreditPurchase\" r JOIN \"CreditPurchase\" source ON source.\"id\" = r.\"refundOfPurchaseId\"\n  JOIN \"CreditPurchase\" root ON root.\"id\" = COALESCE(source.\"parentId\", source.\"id\")\n  JOIN \"CreditCardStatement\" rs ON rs.\"id\" = r.\"statementId\"\n  JOIN \"CreditCardStatement\" ps ON ps.\"id\" = root.\"statementId\"\n  WHERE r.\"isRefund\" AND (rs.\"creditCardId\" <> ps.\"creditCardId\" OR r.\"userId\" <> root.\"userId\")\n ) THEN RAISE EXCEPTION 'Legacy refund belongs to another owner or card - review required'; END IF;\n IF EXISTS (\n  SELECT 1 FROM \"CreditPurchase\" r JOIN \"CreditPurchase\" source ON source.\"id\" = r.\"refundOfPurchaseId\"\n  JOIN \"CreditPurchase\" root ON root.\"id\" = COALESCE(source.\"parentId\", source.\"id\")\n  WHERE r.\"isRefund\" AND NOT root.\"isRefund\" AND NOT root.\"isStatementCharge\"\n  GROUP BY root.\"id\", root.\"totalAmount\" HAVING SUM(ABS(r.\"totalAmount\")) > root.\"totalAmount\"\n ) THEN RAISE EXCEPTION 'Legacy refunds exceed purchase total - review required'; END IF;\n IF EXISTS (\n  SELECT 1 FROM \"CreditPurchase\" p JOIN \"CreditPurchase\" settled ON settled.\"id\" = p.\"settledByPurchaseId\"\n  JOIN \"CreditPurchase\" root ON root.\"id\" = COALESCE(settled.\"parentId\", settled.\"id\")\n  JOIN \"CreditCardStatement\" ps ON ps.\"id\" = p.\"statementId\"\n  JOIN \"CreditCardStatement\" rs ON rs.\"id\" = root.\"statementId\"\n  WHERE root.\"isRefund\" OR root.\"isStatementCharge\" OR root.\"userId\" <> p.\"userId\"\n   OR rs.\"creditCardId\" <> ps.\"creditCardId\"\n ) THEN RAISE EXCEPTION 'Invalid legacy refinancing link - review required'; END IF;\nEND $backfill$;\n\nINSERT INTO \"CreditPurchaseRecord\" (\"id\", \"userId\", \"creditCardId\", \"description\", \"storeName\", \"purchaseDate\",\n \"time\", \"totalAmount\", \"feeDescription\", \"feeAmount\", \"categoryId\", \"cashbackAccountId\", \"cashbackAmount\",\n \"cashbackYieldReferenceRate\", \"cashbackYieldReferencePercentage\", \"cashbackYieldPeriod\",\n \"subscriptionId\", \"subscriptionOccurrenceDate\", \"externalId\", \"createdAt\", \"updatedAt\")\nSELECT p.\"id\", p.\"userId\", s.\"creditCardId\", p.\"description\", p.\"storeName\", p.\"purchaseDate\",\n p.\"time\", p.\"totalAmount\", p.\"feeDescription\", p.\"feeAmount\", p.\"categoryId\", p.\"cashbackAccountId\", p.\"cashbackAmount\",\n p.\"cashbackYieldReferenceRate\", p.\"cashbackYieldReferencePercentage\", p.\"cashbackYieldPeriod\",\n p.\"subscriptionId\", p.\"subscriptionOccurrenceDate\", p.\"externalId\", p.\"createdAt\", p.\"updatedAt\"\nFROM \"CreditPurchase\" p JOIN \"CreditCardStatement\" s ON s.\"id\" = p.\"statementId\"\nWHERE p.\"parentId\" IS NULL AND NOT p.\"isRefund\" AND NOT p.\"isStatementCharge\";\n\n-- Keep every historical amount. Allocate only missing occurrences, in integer cents.\nWITH balances AS (\n SELECT root.\"id\", root.\"installments\", root.\"createdAt\", root.\"updatedAt\",\n  ((root.\"totalAmount\" - SUM(p.\"installmentAmount\")) * 100)::bigint AS remaining,\n  root.\"installments\" - COUNT(*) AS missing\n FROM \"CreditPurchase\" root JOIN \"CreditPurchase\" p ON COALESCE(p.\"parentId\", p.\"id\") = root.\"id\"\n WHERE root.\"parentId\" IS NULL AND NOT root.\"isRefund\" AND NOT root.\"isStatementCharge\"\n GROUP BY root.\"id\", root.\"installments\", root.\"totalAmount\", root.\"createdAt\", root.\"updatedAt\"\n), numbered AS (\n SELECT b.*, n.number, p.\"installmentAmount\", p.\"hasImportedAmount\",\n  COUNT(*) FILTER (WHERE p.\"id\" IS NULL) OVER (PARTITION BY b.\"id\" ORDER BY n.number) AS missing_number\n FROM balances b CROSS JOIN LATERAL generate_series(1, b.\"installments\") n(number)\n LEFT JOIN \"CreditPurchase\" p ON COALESCE(p.\"parentId\", p.\"id\") = b.\"id\" AND p.\"currentInstallment\" = n.number\n)\nINSERT INTO \"CreditInstallmentPlan\" (\"purchaseId\", \"number\", \"amount\", \"hasImportedAmount\", \"createdAt\", \"updatedAt\")\nSELECT \"id\", number, COALESCE(\"installmentAmount\",\n (remaining / NULLIF(missing, 0) + CASE WHEN missing_number <= remaining % NULLIF(missing, 0) THEN 1 ELSE 0 END)::numeric / 100),\n COALESCE(\"hasImportedAmount\", false), \"createdAt\", \"updatedAt\" FROM numbered;\n\nINSERT INTO \"CreditInstallmentRecord\" (\"id\", \"purchaseId\", \"statementId\", \"number\", \"amount\", \"occurrenceDate\",\n \"hasImportedAmount\", \"settledByPurchaseId\", \"createdAt\", \"updatedAt\")\nSELECT p.\"id\", root.\"id\", p.\"statementId\", p.\"currentInstallment\", p.\"installmentAmount\",\n (date_trunc('month', root.\"purchaseDate\") + (p.\"currentInstallment\" - 1) * INTERVAL '1 month'\n+ (LEAST(EXTRACT(day FROM root.\"purchaseDate\"), EXTRACT(day FROM date_trunc('month', root.\"purchaseDate\")\n+   + p.\"currentInstallment\" * INTERVAL '1 month' - INTERVAL '1 day')) - 1) * INTERVAL '1 day')::date,\n p.\"hasImportedAmount\", COALESCE(settled.\"parentId\", settled.\"id\"), p.\"createdAt\", p.\"updatedAt\"\nFROM \"CreditPurchase\" p JOIN \"CreditPurchaseRecord\" root ON root.\"id\" = COALESCE(p.\"parentId\", p.\"id\")\nLEFT JOIN \"CreditPurchase\" settled ON settled.\"id\" = p.\"settledByPurchaseId\";\n\nINSERT INTO \"CreditRefundRecord\" (\"id\", \"purchaseId\", \"statementId\", \"creditDate\", \"amount\", \"policy\",\n \"cancellationEligible\", \"createdAt\", \"updatedAt\")\nSELECT r.\"id\", root.\"id\", r.\"statementId\", r.\"purchaseDate\", ABS(r.\"totalAmount\"), 'KEEP_INSTALLMENTS',\n false, r.\"createdAt\", r.\"updatedAt\"\nFROM \"CreditPurchase\" r JOIN \"CreditPurchase\" source ON source.\"id\" = r.\"refundOfPurchaseId\"\nJOIN \"CreditPurchaseRecord\" root ON root.\"id\" = COALESCE(source.\"parentId\", source.\"id\") WHERE r.\"isRefund\";\n\nINSERT INTO \"CreditStatementCharge\" (\"id\", \"statementId\", \"description\", \"amount\", \"chargeDate\", \"isSettled\", \"createdAt\", \"updatedAt\")\nSELECT p.\"id\", p.\"statementId\", p.\"description\", p.\"installmentAmount\",\n (date_trunc('month', root.\"purchaseDate\") + (p.\"currentInstallment\" - 1) * INTERVAL '1 month'\n+ (LEAST(EXTRACT(day FROM root.\"purchaseDate\"), EXTRACT(day FROM date_trunc('month', root.\"purchaseDate\")\n+   + p.\"currentInstallment\" * INTERVAL '1 month' - INTERVAL '1 day')) - 1) * INTERVAL '1 day')::date,\n p.\"isSettled\", p.\"createdAt\", p.\"updatedAt\"\nFROM \"CreditPurchase\" p JOIN \"CreditPurchase\" root ON root.\"id\" = COALESCE(p.\"parentId\", p.\"id\")\nWHERE root.\"isStatementCharge\" AND NOT p.\"isRefund\";\n\n-- One source ID maps to one normalized entry, or an explicit refund review.\n-- Archive source payload for auditing; active metadata always comes from the purchase.\nINSERT INTO \"CreditPurchaseLegacyEntry\" (\"id\", \"purchaseId\", \"installmentId\", \"refundId\", \"chargeId\",\n \"requiresRefundReview\", \"original\", \"createdAt\", \"updatedAt\")\nSELECT p.\"id\", COALESCE(i.\"purchaseId\", r.\"purchaseId\"), i.\"id\", r.\"id\", c.\"id\",\n p.\"isRefund\" AND r.\"id\" IS NULL,\n to_jsonb(p) || jsonb_build_object('tags', COALESCE((SELECT jsonb_agg(to_jsonb(t) ORDER BY t.\"id\")\n  FROM \"TagAssignment\" t WHERE t.\"entityType\" = 'CREDIT_PURCHASE' AND t.\"entityId\" = p.\"id\"), '[]'::jsonb)),\n p.\"createdAt\", p.\"updatedAt\"\nFROM \"CreditPurchase\" p LEFT JOIN \"CreditInstallmentRecord\" i ON i.\"id\" = p.\"id\"\nLEFT JOIN \"CreditRefundRecord\" r ON r.\"id\" = p.\"id\" LEFT JOIN \"CreditStatementCharge\" c ON c.\"id\" = p.\"id\";\n\nALTER TABLE \"CreditPurchaseLegacyEntry\" ADD CONSTRAINT \"CreditPurchaseLegacyEntry_target_check\"\n CHECK ((\"requiresRefundReview\" AND \"purchaseId\" IS NULL AND \"installmentId\" IS NULL AND \"refundId\" IS NULL AND \"chargeId\" IS NULL)\n  OR (NOT \"requiresRefundReview\" AND num_nonnulls(\"installmentId\", \"refundId\", \"chargeId\") = 1\n   AND ((\"chargeId\" IS NOT NULL AND \"purchaseId\" IS NULL) OR (\"chargeId\" IS NULL AND \"purchaseId\" IS NOT NULL))));"
+			}
+		],
+		"id": "creditPurchases.backfill",
+		"label": "Copy legacy credit entries to normalized storage with audit mapping",
+		"operationClass": "data",
+		"postcheck": [
+			{
+				"description": "Every legacy entry has a normalized target or explicit review",
+				"sql": "SELECT NOT EXISTS (SELECT 1 FROM \"CreditPurchase\" p LEFT JOIN \"CreditPurchaseLegacyEntry\" m ON m.\"id\" = p.\"id\" WHERE m.\"id\" IS NULL) AS result"
+			}
+		],
+		"precheck": [],
+		"target": {
+			"id": "postgres"
+		}
+	}
+]
