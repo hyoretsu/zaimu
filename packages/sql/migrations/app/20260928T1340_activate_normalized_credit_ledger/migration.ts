@@ -397,6 +397,26 @@ UNION ALL
 SELECT ch."id", NULL, 'CHARGE', a."userId", s."creditCardId", ch."statementId", ch."description", NULL, ch."chargeDate", ch."chargeDate", ch."time", ch."amount", 1::smallint, 1::smallint, ch."amount", ch."externalId" IS NOT NULL,
  NULL, false, true, NULL, ch."isSettled", ch."settledByPurchaseId", NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, ch."externalId", ch."createdAt", ch."updatedAt"
 FROM "CreditStatementCharge" ch JOIN "CreditCardStatement" s ON s."id" = ch."statementId" JOIN "CreditCard" c ON c."id" = s."creditCardId" JOIN "FinancialAccount" a ON a."id" = c."financialAccountId";
+CREATE VIEW "CreditConsumption" AS
+SELECT p."id", p."id" AS "purchaseId", 'INSTALLMENT'::text AS "entryKind", p."userId", p."creditCardId", i."statementId",
+ p."description", p."storeName", p."purchaseDate", i."occurrenceDate", p."time", p."totalAmount" - COALESCE((SELECT sum(r."amount") FROM "CreditRefundRecord" r WHERE r."purchaseId"=p."id" AND r."deletedAt" IS NULL AND r."creditDate"<=CURRENT_DATE),0) AS "totalAmount",
+ (SELECT count(*)::smallint FROM "CreditInstallmentPlan" plan WHERE plan."purchaseId" = p."id") AS "installments",
+ 1::smallint AS "currentInstallment", COALESCE(i."amount",(SELECT "amount" FROM "CreditInstallmentPlan" WHERE "purchaseId"=p."id" AND "number"=1)) AS "installmentAmount", i."hasImportedAmount",
+ NULL::varchar AS "parentId", false AS "isRefund", false AS "isStatementCharge",
+ NULL::varchar AS "refundOfPurchaseId", i."isSettled", i."settledByPurchaseId", p."feeAmount", p."feeDescription", p."refinancingFeeAmount", p."categoryId",
+ p."cashbackAccountId" AS "cashbackAccountId",
+ p."cashbackAmount" AS "cashbackAmount",
+ p."cashbackYieldPeriod", p."cashbackYieldReferencePercentage", p."cashbackYieldReferenceRate",
+ p."subscriptionId", p."subscriptionOccurrenceDate", p."externalId", p."createdAt", p."updatedAt" AS "updatedAt"
+FROM "CreditPurchaseRecord" p LEFT JOIN LATERAL (SELECT * FROM "CreditInstallmentRecord" i WHERE i."purchaseId"=p."id" ORDER BY i."number" LIMIT 1) i ON true
+UNION ALL
+SELECT r."id", p."id", 'REFUND', p."userId", p."creditCardId", r."statementId", p."description", p."storeName", r."creditDate", r."creditDate", r."time", -(r."amount" - r."canceledAmount"), 1::smallint, 1::smallint, -(r."amount" - r."canceledAmount"), r."externalId" IS NOT NULL,
+ NULL, true, false, p."id", false, NULL, NULL, NULL, NULL, p."categoryId", NULL, NULL, p."cashbackYieldPeriod", p."cashbackYieldReferencePercentage", p."cashbackYieldReferenceRate", NULL, NULL, r."externalId", r."createdAt", greatest(r."updatedAt", p."updatedAt")
+FROM "CreditRefundEffect" r JOIN "CreditPurchaseRecord" p ON p."id" = r."purchaseId"
+UNION ALL
+SELECT ch."id", NULL, 'CHARGE', a."userId", s."creditCardId", ch."statementId", ch."description", NULL, ch."chargeDate", ch."chargeDate", ch."time", ch."amount", 1::smallint, 1::smallint, ch."amount", ch."externalId" IS NOT NULL,
+ NULL, false, true, NULL, ch."isSettled", ch."settledByPurchaseId", NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, ch."externalId", ch."createdAt", ch."updatedAt"
+FROM "CreditStatementCharge" ch JOIN "CreditCardStatement" s ON s."id" = ch."statementId" JOIN "CreditCard" c ON c."id" = s."creditCardId" JOIN "FinancialAccount" a ON a."id" = c."financialAccountId";
 `,
 					},
 				],

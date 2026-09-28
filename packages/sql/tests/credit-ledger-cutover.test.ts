@@ -71,6 +71,14 @@ describe.skipIf(!url)("credit ledger SQL cutover", () => {
 			(await client.query(`SELECT count(*)::int AS n FROM "TagAssignment" WHERE "entityId" = 'child'`))
 				.rows[0].n,
 		).toBe(0);
+		expect(
+			(await client.query(`SELECT "totalAmount" FROM "CreditConsumption" WHERE "id"='purchase'`))
+				.rows[0].totalAmount,
+		).toBe("25.01");
+		expect(
+			(await client.query(`SELECT "totalAmount" FROM "CreditConsumption" WHERE "id"='refund'`)).rows[0]
+				.totalAmount,
+		).toBe("-5.00");
 		await client.query("SET CONSTRAINTS ALL IMMEDIATE");
 	});
 	test("deferred integrity rejects excess refunds and broken installment plans", async () => {

@@ -1,0 +1,183 @@
+[
+	{
+		"execute": [
+			{
+				"description": "create table \"CreditBookTombstone\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"CreditBookTombstone\" (\n  \"creditCardId\" character varying(36) NOT NULL,\n  \"deletedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"entryKind\" character varying(16) NOT NULL,\n  \"id\" character varying(36) NOT NULL,\n  \"userId\" character varying(36) NOT NULL,\n  CONSTRAINT \"CreditBookTombstone_pkey\" PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.CreditBookTombstone",
+		"label": "Create table \"CreditBookTombstone\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"CreditBookTombstone\" exists",
+				"params": ["\"public\".\"CreditBookTombstone\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"CreditBookTombstone\" does not exist",
+				"params": ["\"public\".\"CreditBookTombstone\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"CreditBookTombstone\"",
+		"target": {
+			"details": {
+				"name": "CreditBookTombstone",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"CreditBookTombstone_creditCardId_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"CreditBookTombstone_creditCardId_idx\" ON \"public\".\"CreditBookTombstone\" (\"creditCardId\")"
+			}
+		],
+		"id": "index.CreditBookTombstone.CreditBookTombstone_creditCardId_idx",
+		"label": "Create index \"CreditBookTombstone_creditCardId_idx\" on \"CreditBookTombstone\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"CreditBookTombstone_creditCardId_idx\" exists",
+				"params": ["\"public\".\"CreditBookTombstone_creditCardId_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"CreditBookTombstone_creditCardId_idx\" does not exist",
+				"params": ["\"public\".\"CreditBookTombstone_creditCardId_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditBookTombstone_creditCardId_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "CreditBookTombstone"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"CreditBookTombstone_userId_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"CreditBookTombstone_userId_idx\" ON \"public\".\"CreditBookTombstone\" (\"userId\")"
+			}
+		],
+		"id": "index.CreditBookTombstone.CreditBookTombstone_userId_idx",
+		"label": "Create index \"CreditBookTombstone_userId_idx\" on \"CreditBookTombstone\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"CreditBookTombstone_userId_idx\" exists",
+				"params": ["\"public\".\"CreditBookTombstone_userId_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"CreditBookTombstone_userId_idx\" does not exist",
+				"params": ["\"public\".\"CreditBookTombstone_userId_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditBookTombstone_userId_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "CreditBookTombstone"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"CreditBookTombstone_userId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"CreditBookTombstone\"\nADD CONSTRAINT \"CreditBookTombstone_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"user\" (\"id\")\nON DELETE CASCADE"
+			}
+		],
+		"id": "foreignKey.CreditBookTombstone.CreditBookTombstone_userId_fkey",
+		"label": "Add foreign key \"CreditBookTombstone_userId_fkey\" on \"CreditBookTombstone\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"CreditBookTombstone_userId_fkey\" exists",
+				"params": ["CreditBookTombstone_userId_fkey", "public", "\"public\".\"CreditBookTombstone\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"CreditBookTombstone_userId_fkey\" does not exist",
+				"params": ["CreditBookTombstone_userId_fkey", "public", "\"public\".\"CreditBookTombstone\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditBookTombstone_userId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "CreditBookTombstone"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"CreditBookTombstone_creditCardId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"CreditBookTombstone\"\nADD CONSTRAINT \"CreditBookTombstone_creditCardId_fkey\"\nFOREIGN KEY (\"creditCardId\")\nREFERENCES \"public\".\"CreditCard\" (\"id\")\nON DELETE CASCADE"
+			}
+		],
+		"id": "foreignKey.CreditBookTombstone.CreditBookTombstone_creditCardId_fkey",
+		"label": "Add foreign key \"CreditBookTombstone_creditCardId_fkey\" on \"CreditBookTombstone\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"CreditBookTombstone_creditCardId_fkey\" exists",
+				"params": [
+					"CreditBookTombstone_creditCardId_fkey",
+					"public",
+					"\"public\".\"CreditBookTombstone\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"CreditBookTombstone_creditCardId_fkey\" does not exist",
+				"params": [
+					"CreditBookTombstone_creditCardId_fkey",
+					"public",
+					"\"public\".\"CreditBookTombstone\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditBookTombstone_creditCardId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "CreditBookTombstone"
+			},
+			"id": "postgres"
+		}
+	}
+]

@@ -54,3 +54,7 @@
 - Agregado compartilhado de cartão concluído: planos completos, ocorrências somente devidas, metadados herdados, reembolsos múltiplos com tombstones, replay e distribuição proporcional cumulativa de rateios em centavos. Cinco testes novos passaram. Integração ativa continua pendente.
 
 - Cutover SQL criado e validado: referências estáveis remapeadas antes da remoção do legado, flags de quitação e calendários importados preservados, metadados herdados pela projeção somente leitura CreditEntry. Constraints diferidas conferem plano, limite de restituição e titularidade; política institucional imutável no banco. Cadeia completa de 69 migrações e três testes de remapeamento/rollback passaram em PostgreSQL descartável local. Callers ativos ainda em adaptação.
+
+- Projeção CreditConsumption ativa: compra aparece uma vez com gasto líquido; reembolso mantém tipo próprio e data efetiva. Transações raw/ORM compartilham a mesma conexão, incluindo tags e eventos de dívida no rollback.
+- Exclusões normalizadas possuem tombstones persistentes por cartão/usuário. Sync rejeita recriação por cliente desatualizado; IndexedDB conserva exclusões e clocks na conversão.
+- Validação de SQL: cutover e rollback passaram; migration check offline passou para contrato com tombstones. Serviço ativo passou seis integrações locais, incluindo HTTP autenticado, concorrência de importação e rollback de reconstrução.

@@ -39,6 +39,38 @@ const pool = new Pool({
 	query_timeout: Number(process.env.DATABASE_QUERY_TIMEOUT_MS ?? 15_000),
 	statement_timeout: Number(process.env.DATABASE_STATEMENT_TIMEOUT_MS ?? 15_000),
 });
+// Domain helpers participate in the caller's transaction, including ORM statements.
+// This keeps debt events, tags, refunds and invoice replay on one connection.
+const transactionConnection = new AsyncLocalStorage<PoolClient>();
+const borrowedConnections = new WeakMap<PoolClient, PoolClient>();
+const transactionalPool = new Proxy(pool, {
+	get(target, property) {
+		if (property === "connect")
+			return async () => {
+				const connection = transactionConnection.getStore();
+				if (!connection) return target.connect();
+				let borrowed = borrowedConnections.get(connection);
+				if (!borrowed) {
+					borrowed = new Proxy(connection, {
+						get(client, key) {
+							if (key === "release") return () => undefined;
+							const value = Reflect.get(client, key);
+							return typeof value === "function" ? value.bind(client) : value;
+						},
+					});
+					borrowedConnections.set(connection, borrowed);
+				}
+				return borrowed;
+			};
+		if (property === "query")
+			return (...args: unknown[]) => {
+				const connection = transactionConnection.getStore() ?? target;
+				return Reflect.apply(connection.query, connection, args);
+			};
+		const value = Reflect.get(target, property);
+		return typeof value === "function" ? value.bind(target) : value;
+	},
+});
 export interface QueryMetrics {
 	connectionWaitMs: number;
 	queryCount: number;
@@ -63,23 +95,31 @@ export const beginQueryMetrics = () =>
 	queryMetricsStorage.enterWith({ connectionWaitMs: 0, queryCount: 0, sqlDurationMs: 0 });
 export const getQueryMetrics = () => queryMetricsStorage.getStore();
 export const queryRaw = async <Row extends Record<string, unknown>>(text: string, values: unknown[] = []) =>
-	(await measureQuery(() => pool.query<Row>(text, values))).rows;
+	(await measureQuery(() => transactionalPool.query<Row>(text, values))).rows;
 export const executeRaw = async (text: string, values: unknown[] = []) =>
-	measureQuery(() => pool.query(text, values));
+	measureQuery(() => transactionalPool.query(text, values));
 export const withRawTransaction = async <Result>(
 	operation: (
 		query: <Row extends QueryResultRow>(text: string, values?: unknown[]) => Promise<Row[]>,
 	) => Promise<Result>,
 ) => {
+	const existing = transactionConnection.getStore();
+	if (existing)
+		return operation(
+			async <Row extends QueryResultRow>(text: string, values: unknown[] = []) =>
+				(await measureQuery(() => existing.query<Row>(text, values))).rows,
+		);
 	const connectionStartedAt = performance.now();
 	const client: PoolClient = await pool.connect();
 	const metrics = queryMetricsStorage.getStore();
 	if (metrics) metrics.connectionWaitMs += performance.now() - connectionStartedAt;
 	try {
 		await client.query("BEGIN");
-		const result = await operation(
-			async <Row extends QueryResultRow>(text: string, values: unknown[] = []) =>
-				(await measureQuery(() => client.query<Row>(text, values))).rows,
+		const result = await transactionConnection.run(client, () =>
+			operation(
+				async <Row extends QueryResultRow>(text: string, values: unknown[] = []) =>
+					(await measureQuery(() => client.query<Row>(text, values))).rows,
+			),
 		);
 		await client.query("COMMIT");
 		return result;
@@ -91,7 +131,7 @@ export const withRawTransaction = async <Result>(
 	}
 };
 
-export const db = postgres<Contract>({ contractJson, pg: pool });
+export const db = postgres<Contract>({ contractJson, pg: transactionalPool });
 
 type QueryPlan = SqlOrmPlan<unknown>;
 type StatementPlan = Parameters<ReturnType<typeof db.runtime>["execute"]>[0];
@@ -152,7 +192,7 @@ export const { executeStatement, queryFirst, queryRows } = executor;
 export type SqlExecutor = ReturnType<typeof createExecutor>;
 
 export const withTransaction = async <Result>(operation: (transaction: SqlExecutor) => Promise<Result>) =>
-	db.transaction(transaction => operation(createExecutor(transaction)));
+	transactionConnection.getStore() ? operation(executor) : withRawTransaction(() => operation(executor));
 
 export const numeric = <Precision extends number, Scale extends number | undefined>(value: number | string) =>
 	String(value) as Numeric<Precision, Scale>;

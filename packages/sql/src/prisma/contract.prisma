@@ -33,6 +33,7 @@ namespace public {
     transactionImportTransferSuggestionRejections TransactionImportTransferSuggestionRejection[]
     transactionTransferSuggestionRejections TransactionTransferSuggestionRejection[]
     transactions      Transaction[]
+    creditBookTombstones CreditBookTombstone[]
     normalizedCreditPurchases CreditPurchaseRecord[]
     authAccounts      AuthAccount[]
     sessions          Session[]
@@ -334,6 +335,7 @@ namespace public {
     creditCardHistories  CreditCardHistory[]
     creditCardStatements CreditCardStatement[]
     normalizedPurchases CreditPurchaseRecord[]
+    tombstones CreditBookTombstone[]
     creditCardImports    CreditCardImport[]
     payments Transaction[]
     importedPayments TransactionImportItem[]
@@ -394,6 +396,19 @@ namespace public {
   }
 
   // Canonical purchases and their independent invoice occurrences.
+  model CreditBookTombstone {
+    id VarChar(36) @id(map: "CreditBookTombstone_pkey")
+    userId VarChar(36)
+    creditCardId VarChar(36)
+    entryKind VarChar(16)
+    deletedAt Timestamp(3) @default(now())
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade, map: "CreditBookTombstone_userId_fkey", index: false)
+    creditCard CreditCard @relation(fields: [creditCardId], references: [id], onDelete: Cascade, map: "CreditBookTombstone_creditCardId_fkey", index: false)
+    @@index([creditCardId], map: "CreditBookTombstone_creditCardId_idx")
+    @@index([userId], map: "CreditBookTombstone_userId_idx")
+    @@map("CreditBookTombstone")
+  }
+
   model CreditPurchaseRecord {
     id                   VarChar(36) @id(map: "CreditPurchaseRecord_pkey")
     userId               VarChar(36)
