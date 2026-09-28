@@ -7,7 +7,8 @@
 		"./credit-purchase": "./src/credit-purchase.ts",
 		"./credit-refund": "./src/credit-refund.ts",
 		"./legacy-credit-purchases": "./src/legacy-credit-purchases.ts",
-		"./purchase-reports": "./src/purchase-reports.ts"
+		"./purchase-reports": "./src/purchase-reports.ts",
+		"./purchase-statement-ledger": "./src/purchase-statement-ledger.ts"
 	},
 	"scripts": {
 		"check-types": "tsc --noEmit",
