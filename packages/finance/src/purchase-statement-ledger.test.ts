@@ -89,3 +89,25 @@ test("keeps real charges while canceling future principal", () => {
 	expect(result.statements.map(statement => statement.chargesAmount)).toEqual([12, 12, 12]);
 	expect(result.statements[0]?.amountDue).toBe(12);
 });
+
+test("surplus refund credit and other purchases are order independent", () => {
+	const other = { ...purchase, id: "other", installmentAmountsCents: [5000], totalAmountCents: 5000 };
+	const otherInstallment = { amountCents: 5000, number: 1, purchaseId: other.id, statementId: "09" };
+	const laterRefund = {
+		...refund,
+		creditDate: "2024-09-20",
+		creditStatementId: "09",
+		policy: "KEEP_INSTALLMENTS" as const,
+	};
+	const replay = (purchases: CreditPurchase[]) =>
+		rebuildPurchaseStatementLedger({
+			asOf: "2024-09-25",
+			installments: [...installments, otherInstallment],
+			payments: [],
+			purchases,
+			refunds: [laterRefund],
+			statements,
+		}).statements;
+	expect(replay([purchase, other])).toEqual(replay([other, purchase]));
+	expect(replay([purchase, other])[1]?.totalAmount).toBe(-150);
+});

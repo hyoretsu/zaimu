@@ -52,9 +52,9 @@ export function rebuildPurchaseStatementLedger<T extends StatementInput>(input: 
 		const canceledNumbers = new Set(purchaseEffects.flatMap(effect => effect.canceledInstallmentNumbers));
 		for (const installment of installments) {
 			if (installment.isSettled || canceledNumbers.has(installment.number)) continue;
-			const amount = assertCents(
-				(invoiceTotals.get(installment.statementId) ?? 0) + installment.amountCents,
-			);
+			assertCents(installment.amountCents, 1);
+			const amount = (invoiceTotals.get(installment.statementId) ?? 0) + installment.amountCents;
+			if (!Number.isSafeInteger(amount)) throw new RangeError("Total da fatura inválido");
 			invoiceTotals.set(installment.statementId, amount);
 		}
 		const byId = new Map(purchaseEffects.map(effect => [effect.refundId, effect]));
