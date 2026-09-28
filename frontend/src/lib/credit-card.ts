@@ -3,10 +3,7 @@ import { getLocalDateKey } from "./date";
 
 const toCents = (amount: number) => Math.round(amount * 100);
 
-export function applyStatementCredits(
-	statements: CreditCardStatement[],
-	today = getLocalDateKey(),
-): CreditCardStatement[] {
+export function applyStatementCredits(statements: CreditCardStatement[]): CreditCardStatement[] {
 	let carriedCreditInCents = 0;
 	const effectiveById = new Map<string, Pick<CreditCardStatement, "balanceAmount" | "isPaid">>();
 
@@ -17,12 +14,11 @@ export function applyStatementCredits(
 		const paidAmountInCents = toCents(statement.paidAmount);
 		const appliedAmountInCents = paidAmountInCents + carriedCreditInCents;
 		const rawBalanceInCents = toCents(statement.totalAmount) - appliedAmountInCents;
-		const isClosed = statement.statementDate.slice(0, 10) <= today;
 		const balanceAmount = (paidAmountInCents > 0 ? Math.max(0, rawBalanceInCents) : rawBalanceInCents) / 100;
 		carriedCreditInCents = Math.max(0, -rawBalanceInCents);
 		effectiveById.set(statement.id, {
 			balanceAmount,
-			isPaid: isClosed && appliedAmountInCents > 0 && rawBalanceInCents <= 0,
+			isPaid: appliedAmountInCents > 0 && rawBalanceInCents <= 0,
 		});
 	}
 

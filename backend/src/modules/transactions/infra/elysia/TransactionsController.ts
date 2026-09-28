@@ -115,7 +115,7 @@ async function adjustCreditCardStatementPaidAmount(statementId: string, amountDi
 	const statement = await queryFirst(
 		db.sql.public.CreditCardStatement.update((fields, functions) => ({
 			isPaid: functions.raw`
-				${fields.statementDate} <= CURRENT_DATE
+				${fields.paidAmount} + ${amount} > 0
 				AND ${fields.paidAmount} + ${amount} >= ${fields.totalAmount}
 			`.returns("pg/bool@1"),
 			paidAmount: functions.raw`GREATEST(0, ${fields.paidAmount} + ${amount})`.returns("pg/numeric@1"),

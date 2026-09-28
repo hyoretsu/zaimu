@@ -7,6 +7,7 @@ import {
 	type TagSummary,
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
+import { recalculateStatementPayments } from "~/modules/creditCards/application/statement-payments";
 import {
 	getDebtSplitInput,
 	type getDebtSplitReturn,
@@ -817,11 +818,19 @@ async function persistReconciledImportItem(
 		updatedAt: new Date(),
 	};
 	if (item.reconciledTransactionId) {
+		const previous = await transaction.queryFirst(
+			transaction.db.sql.public.Transaction.select("creditCardStatementId")
+				.where((fields, functions) => functions.eq(fields.id, item.reconciledTransactionId!))
+				.limit(1)
+				.build(),
+		);
 		await transaction.executeStatement(
 			transaction.db.sql.public.Transaction.update(values)
 				.where((fields, functions) => functions.eq(fields.id, item.reconciledTransactionId!))
 				.build(),
 		);
+		if (previous?.creditCardStatementId && previous.creditCardStatementId !== item.creditCardStatementId)
+			await recalculateStatementPayments(transaction, [previous.creditCardStatementId]);
 		if (item.externalId)
 			await transaction.executeStatement(
 				transaction.db.sql.public.TransactionExternalReference.insert([
@@ -1329,6 +1338,8 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 							userId,
 						);
 				await removeImportItem(transaction, item.id);
+				if (importItem.creditCardStatementId)
+					await recalculateStatementPayments(transaction, [importItem.creditCardStatementId]);
 				const finished = await finalizeImportWhenEmpty(transaction, transactionImport.id);
 				return { finished, reconciledTarget, transactionId };
 			});
@@ -1431,6 +1442,11 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					await removeImportItem(transaction, item.id);
 					results.push({ item, reconciledTarget, transactionId });
 				}
+				await recalculateStatementPayments(transaction, [
+					...new Set(
+						approvableItems.flatMap(item => (item.creditCardStatementId ? [item.creditCardStatementId] : [])),
+					),
+				]);
 				const finished = await finalizeImportWhenEmpty(transaction, transactionImport.id);
 				return { finished, results };
 			});
@@ -1664,6 +1680,11 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					await removeImportItem(transaction, item.id);
 					results.push({ item, reconciledTarget, transactionId });
 				}
+				await recalculateStatementPayments(transaction, [
+					...new Set(
+						approvableItems.flatMap(item => (item.creditCardStatementId ? [item.creditCardStatementId] : [])),
+					),
+				]);
 				const finished = await finalizeImportWhenEmpty(transaction, transactionImport.id);
 				return { finished, results };
 			});

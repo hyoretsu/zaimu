@@ -23,6 +23,7 @@ import {
 	encodeStatementCursor,
 	statementFilterKey,
 } from "~/modules/creditCards/application/statement-cursor";
+import { withStatementPayments } from "~/modules/creditCards/application/statement-payments";
 import { getCreditPurchaseSyncStatus } from "~/modules/creditCards/domain/credit-purchase-sync-status";
 import {
 	getEvenlyDistributedInstallmentAmounts,
@@ -30,6 +31,7 @@ import {
 	redistributeInstallmentAmounts,
 	sumInstallmentAmounts,
 } from "~/modules/creditCards/domain/installment-amounts";
+import { applyStatementCredits } from "~/modules/creditCards/domain/statement-balance";
 import {
 	deleteCreatorDebtEventForPurchase,
 	getDebtSplitInput,
@@ -93,38 +95,6 @@ const toCents = (amount: number | string) => Math.round(Number(amount) * 100);
 const toDateKey = (date: Date) => date.toISOString().slice(0, 10);
 const getCreditPurchaseName = (purchase: Pick<CreditPurchaseRow, "description" | "storeName">) =>
 	purchase.description || purchase.storeName || "Compra";
-
-function applyStatementCredits<
-	T extends {
-		id: string;
-		isPaid: boolean;
-		paidAmount: number | string;
-		statementDate: Date;
-		totalAmount: number | string;
-	},
->(statements: T[], today = new Date()): Array<T & { balanceAmount: number }> {
-	let carriedCreditInCents = 0;
-	const effectiveById = new Map<string, { balanceAmount: number; isPaid: boolean }>();
-	const todayKey = toDateKey(today);
-
-	const chronologicalStatements = statements.toSorted(
-		(left, right) => left.statementDate.getTime() - right.statementDate.getTime(),
-	);
-	for (const statement of chronologicalStatements) {
-		const paidAmountInCents = toCents(statement.paidAmount);
-		const appliedAmountInCents = paidAmountInCents + carriedCreditInCents;
-		const rawBalanceInCents = toCents(statement.totalAmount) - appliedAmountInCents;
-		const isClosed = toDateKey(statement.statementDate) <= todayKey;
-		const balanceAmount = (paidAmountInCents > 0 ? Math.max(0, rawBalanceInCents) : rawBalanceInCents) / 100;
-		carriedCreditInCents = Math.max(0, -rawBalanceInCents);
-		effectiveById.set(statement.id, {
-			balanceAmount,
-			isPaid: isClosed && appliedAmountInCents > 0 && rawBalanceInCents <= 0,
-		});
-	}
-
-	return statements.map(statement => ({ ...statement, ...effectiveById.get(statement.id)! }));
-}
 
 function resolvePurchaseTime(value: string | null | undefined): string | null {
 	if (value === null) return null;
@@ -437,7 +407,10 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						.orderBy("statementDate", { direction: "desc" })
 						.build(),
 				);
-				const statementsByCard = Map.groupBy(statements, statement => statement.creditCardId);
+				const statementsByCard = Map.groupBy(
+					await withStatementPayments(statements),
+					statement => statement.creditCardId,
+				);
 				return cards.map(card => {
 					const effectiveStatements = applyStatementCredits(statementsByCard.get(card.id) ?? []);
 					const currentStatementDate = toDateKey(getStatementDates(card, new Date()).statementDate);
@@ -604,7 +577,10 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					),
 					updatedAt: new Date(),
 				}));
-			const statementsWithCredits = applyStatementCredits([...statements, ...forecasts]);
+			const statementsWithCredits = applyStatementCredits([
+				...(await withStatementPayments(statements)),
+				...forecasts,
+			]);
 			const filteredStatements = (
 				query.isPaid === undefined
 					? statementsWithCredits
@@ -803,8 +779,15 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				})),
 			);
 			return {
-				...statement,
-				balanceAmount: Number(statement.totalAmount) - Number(statement.paidAmount),
+				...applyStatementCredits(
+					await withStatementPayments(
+						await queryRows(
+							db.sql.public.CreditCardStatement.select(...statementColumns)
+								.where((fields, functions) => functions.eq(fields.creditCardId, params.id))
+								.build(),
+						),
+					),
+				).find(item => item.id === statement.id)!,
 				payments,
 				purchases: purchases.map(purchase => {
 					const tags = tagsByPurchase.get(purchase.id) ?? [];
@@ -1995,16 +1978,15 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				throw new HttpException("Statement not found", 404);
 			}
 
-			const remainingAmount = Number(statement.totalAmount) - Number(statement.paidAmount);
+			const paidAmount = (await withStatementPayments([statement]))[0]!.paidAmount;
+			const remainingAmount = Number(statement.totalAmount) - Number(paidAmount);
 			const paymentAmount = body.amount ?? remainingAmount;
 			if (paymentAmount <= 0) {
 				throw new HttpException("Informe um valor maior que zero para a fatura", 400);
 			}
 
-			const amount = param(numeric<12, 2>(paymentAmount), { codecId: "pg/numeric@1" });
-			const isPaid =
-				toDateKey(statement.statementDate) <= toDateKey(new Date()) &&
-				toCents(statement.paidAmount) + toCents(paymentAmount) >= toCents(statement.totalAmount);
+			const nextPaidAmount = (toCents(paidAmount) + toCents(paymentAmount)) / 100;
+			const isPaid = toCents(nextPaidAmount) >= toCents(statement.totalAmount);
 			const card = await queryFirst(
 				db.sql.public.CreditCard.innerJoin(db.sql.public.FinancialAccount, (fields, functions) =>
 					functions.eq(fields.CreditCard.financialAccountId, fields.FinancialAccount.id),
@@ -2053,7 +2035,10 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			const updatedStatement = await queryFirst(
 				db.sql.public.CreditCardStatement.update((fields, functions) => ({
 					isPaid: functions.raw`${isPaid}`.returns("pg/bool@1"),
-					paidAmount: functions.raw`${fields.paidAmount} + ${amount}`.returns("pg/numeric@1"),
+					paidAmount:
+						functions.raw`${param(numeric<12, 2>(nextPaidAmount), { codecId: "pg/numeric@1" })}`.returns(
+							"pg/numeric@1",
+						),
 					updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
 				}))
 					.where((fields, functions) => functions.eq(fields.id, params.statementId))

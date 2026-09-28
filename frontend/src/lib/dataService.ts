@@ -1152,8 +1152,7 @@ export const dataService = {
 					.filter(transaction => transaction.creditCardStatementId === statementId)
 					.sort((left, right) => right.date.localeCompare(left.date));
 				return {
-					...statement,
-					balanceAmount: statement.totalAmount - statement.paidAmount,
+					...(await this.getStatements(cardId)).find(item => item.id === statementId)!,
 					payments,
 					purchases,
 				};
@@ -1274,9 +1273,7 @@ export const dataService = {
 			const updatedStatement: CreditCardStatement = {
 				...statement,
 				balanceAmount: statement.totalAmount - statement.paidAmount - amount,
-				isPaid:
-					statement.statementDate.slice(0, 10) <= getLocalDateKey() &&
-					statement.paidAmount + amount >= statement.totalAmount,
+				isPaid: Math.round((statement.paidAmount + amount) * 100) >= Math.round(statement.totalAmount * 100),
 				paidAmount: statement.paidAmount + amount,
 			};
 			const transaction: Transaction = {
@@ -3245,8 +3242,7 @@ export const dataService = {
 							...statement,
 							balanceAmount: statement.totalAmount - paidAmount,
 							isPaid:
-								statement.statementDate.slice(0, 10) <= getLocalDateKey() &&
-								paidAmount >= statement.totalAmount,
+								paidAmount > 0 && Math.round(paidAmount * 100) >= Math.round(statement.totalAmount * 100),
 							paidAmount,
 						},
 						statement.id,
@@ -3278,8 +3274,7 @@ export const dataService = {
 							...statement,
 							balanceAmount: statement.totalAmount - paidAmount,
 							isPaid:
-								statement.statementDate.slice(0, 10) <= getLocalDateKey() &&
-								paidAmount >= statement.totalAmount,
+								paidAmount > 0 && Math.round(paidAmount * 100) >= Math.round(statement.totalAmount * 100),
 							paidAmount,
 						},
 						statement.id,
@@ -3580,9 +3575,7 @@ export const dataService = {
 					const updatedStatement: CreditCardStatement = {
 						...statement,
 						balanceAmount: statement.totalAmount - paidAmount,
-						isPaid:
-							statement.statementDate.slice(0, 10) <= getLocalDateKey() &&
-							paidAmount >= statement.totalAmount,
+						isPaid: paidAmount > 0 && Math.round(paidAmount * 100) >= Math.round(statement.totalAmount * 100),
 						paidAmount,
 					};
 					const updated: Transaction = {
