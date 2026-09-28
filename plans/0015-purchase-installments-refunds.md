@@ -24,10 +24,10 @@
 
 - [x] Modelo/cálculos compartilhados, testes de invariantes e transformação determinística dos registros legados.
 - [x] Schema e migração SQL com preservação de referências e verificação em PostgreSQL descartável local.
-- [ ] Serviços transacionais, política institucional imutável, endpoints novos e reconstrução de faturas.
+- [x] Serviços transacionais, política institucional imutável, endpoints novos e reconstrução de faturas.
 - [ ] IndexedDB, modo visitante e sync no contrato normalizado.
 - [ ] UI de parcelas/reembolsos, edição atômica e filtros/relatórios.
-- [ ] Importações com revisão de vínculo/reconstrução.
+- [x] Importações com revisão de vínculo/reconstrução.
 - [ ] Testes integrados, documentação de comportamento ativo e commits locais com hooks.
 
 ## Decisões de execução
@@ -60,3 +60,7 @@
 - Validação de SQL: cutover e rollback passaram; migration check offline passou para contrato com tombstones. Serviço ativo passou seis integrações locais, incluindo HTTP autenticado, concorrência de importação e rollback de reconstrução.
 
 - Cálculos compartilhados concluídos para gasto líquido, estorno cumulativo de recompensas em quatro casas, recomposição explícita de datas preservando IDs/calendários importados e reparcelamento sem principal cancelado. Nove testes do agregado passaram; 40 testes financeiros no total.
+
+- Backend ativado: endpoints de livro e CRUD de reembolsos, política institucional imutável, lock por cartão, replay atômico, metadados herdados, rateios persistidos inclusive em compras futuras, estornos de dívidas/recompensas e invalidação de caches do titular e contrapartes.
+- Aprovação de crédito importado exige vínculo ou reconstrução revisada; aprovação convencional/em lote mantém negativos pendentes. Revisão de órfãos migrados preserva ID antigo e dados originais. Transação protege aprovação concorrente, rateios e fechamento do lote.
+- Leituras de dashboard e pagamentos usam replay normalizado completo, incluindo planos futuros. Materialização periódica cria somente parcelas devidas, mesmo em cartões sem assinaturas.

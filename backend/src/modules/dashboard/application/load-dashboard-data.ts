@@ -87,7 +87,7 @@ WITH purchase_charge_input AS (
            PARTITION BY COALESCE(purchase."parentId", purchase."id")
            ORDER BY purchase."currentInstallment", purchase."id"
          ) AS cumulative_amount
-  FROM "CreditPurchase" purchase
+  FROM "CreditEntry" purchase
   WHERE purchase."userId" = $1 AND NOT purchase."isSettled"
 ), purchase_charge_allocations AS (
   SELECT input.*,
@@ -209,7 +209,7 @@ WHERE transaction."userId" = $1 AND transaction."date" BETWEEN $5::date AND $6::
 GROUP BY transaction."date"
 UNION ALL
 SELECT 'activityDate', jsonb_build_object('date', purchase."purchaseDate")
-FROM "CreditPurchase" purchase
+FROM "CreditEntry" purchase
 WHERE purchase."userId" = $1 AND purchase."currentInstallment" = 1
   AND purchase."purchaseDate" BETWEEN $5::date AND $6::date
 GROUP BY purchase."purchaseDate"`;

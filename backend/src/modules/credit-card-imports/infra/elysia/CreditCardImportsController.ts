@@ -1,3 +1,4 @@
+import { addBookRefund } from "@zaimu/finance/credit-book";
 import { statementEntryKind } from "@zaimu/finance/credit-card";
 import Elysia, { t } from "elysia";
 import { assertCreditCardOwnership, requireUserId } from "~/modules/auth";
@@ -7,6 +8,12 @@ import {
 	replaceEntityTags,
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
+import { type CreditReadRow, readCreditEntries } from "~/modules/creditCards/application/credit-entry-reader";
+import {
+	mutateCreditBook,
+	newBookPurchase,
+	readCreditBook,
+} from "~/modules/creditCards/application/normalized-credit-book";
 import {
 	recalculateStatementPayments,
 	withStatementPayments,
@@ -20,7 +27,15 @@ import {
 } from "~/modules/debts/application/debt-splits";
 import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { HttpException } from "~/shared/errors";
-import { db, executeStatement, queryFirst, queryRaw, queryRows, withTransaction } from "~/shared/infra/sql";
+import {
+	db,
+	executeStatement,
+	queryFirst,
+	queryRaw,
+	queryRows,
+	withRawTransaction,
+	withTransaction,
+} from "~/shared/infra/sql";
 import { materializeImportedPurchase } from "../../application/materialize-imported-purchase";
 import { assignCreditCardPurchaseExternalIds } from "../../domain/credit-card-import-identity";
 import { matchesExistingCreditPurchase } from "../../domain/credit-card-import-reconciliation";
@@ -54,44 +69,9 @@ async function getPotentialDuplicates(
 		totalAmount: number | string;
 	}>,
 ) {
-	const candidates = await queryRows(
-		db.sql.public.CreditPurchase.innerJoin(db.sql.public.CreditCardStatement, (fields, functions) =>
-			functions.eq(fields.CreditPurchase.statementId, fields.CreditCardStatement.id),
-		)
-			.select(fields => ({
-				currentInstallment: fields.CreditPurchase.currentInstallment,
-				description: fields.CreditPurchase.description,
-				id: fields.CreditPurchase.id,
-				installmentAmount: fields.CreditPurchase.installmentAmount,
-				installments: fields.CreditPurchase.installments,
-				parentId: fields.CreditPurchase.parentId,
-				purchaseDate: fields.CreditPurchase.purchaseDate,
-				storeName: fields.CreditPurchase.storeName,
-				time: fields.CreditPurchase.time,
-				totalAmount: fields.CreditPurchase.totalAmount,
-			}))
-			.where((fields, functions) =>
-				functions.and(
-					functions.eq(fields.CreditCardStatement.creditCardId, creditCardId),
-					functions.eq(fields.CreditPurchase.parentId, null),
-					functions.eq(fields.CreditPurchase.externalId, null),
-					functions.eq(fields.CreditPurchase.isRefund, false),
-				),
-			)
-			.build(),
-	);
-	const children = candidates.length
-		? await queryRows(
-				db.sql.public.CreditPurchase.select("parentId")
-					.where((fields, functions) =>
-						functions.in(
-							fields.parentId,
-							candidates.map(candidate => candidate.id),
-						),
-					)
-					.build(),
-			)
-		: [];
+	const entries = await readCreditEntries(creditCardId);
+	const candidates = entries.filter(p => !p.parentId && !p.externalId && !p.isRefund);
+	const children = entries.filter(p => p.parentId && candidates.some(c => c.id === p.parentId));
 	const reconciledItems = await queryRows(
 		db.sql.public.CreditCardImportItem.select("reconciledCreditPurchaseId").build(),
 	);
@@ -355,6 +335,10 @@ async function cleanupItemTags(itemIds: string[]) {
 }
 
 async function approveItems(userId: string, importId: string, itemId?: string) {
+	return withRawTransaction(() => approveItemsImpl(userId, importId, itemId));
+}
+
+async function approveItemsImpl(userId: string, importId: string, itemId?: string) {
 	const creditCardImport = await getImport(userId, importId);
 	if (creditCardImport.status !== "PENDING") throw new HttpException("Esta importação já foi aprovada", 400);
 	const card = await queryFirst(
@@ -394,7 +378,9 @@ async function approveItems(userId: string, importId: string, itemId?: string) {
 	);
 	const duplicates = await getPotentialDuplicates(creditCardImport.creditCardId, allItems);
 	const selectedItems = allItems
-		.filter(item => (itemId ? item.id === itemId : !duplicates.has(item.id)))
+		.filter(item =>
+			itemId ? item.id === itemId : !duplicates.has(item.id) && Number(item.installmentAmount) >= 0,
+		)
 		.toSorted(
 			(left, right) =>
 				Number(!!getFinancingSource(left.description)) - Number(!!getFinancingSource(right.description)),
@@ -407,15 +393,18 @@ async function approveItems(userId: string, importId: string, itemId?: string) {
 		selectedItems.map(item => item.id),
 	);
 	const selectedExternalIds = new Set(selectedItems.map(item => item.externalId));
+	for (const item of selectedItems)
+		if (Number(item.installmentAmount) < 0)
+			throw new HttpException("Vincule e aprove cada reembolso na revisão", 409);
 	for (const item of selectedItems) {
 		const sourceExternalId = getFinancingSource(item.description);
 		if (!sourceExternalId || selectedExternalIds.has(sourceExternalId)) continue;
-		const source = await queryFirst(
-			db.sql.public.CreditPurchase.select("id")
-				.where((fields, functions) => functions.eq(fields.externalId, sourceExternalId))
-				.limit(1)
-				.build(),
-		);
+		const source = (
+			await queryRaw<CreditReadRow>(
+				`SELECT * FROM "CreditEntry" WHERE "externalId"=$1 AND "creditCardId"=$2 LIMIT 1`,
+				[sourceExternalId, creditCardImport.creditCardId],
+			)
+		)[0];
 		if (!source) throw new HttpException("Aprove a compra original antes de aprovar o parcelamento", 409);
 	}
 	for (const item of selectedItems) {
@@ -423,31 +412,31 @@ async function approveItems(userId: string, importId: string, itemId?: string) {
 		const financingSourceId = getFinancingSource(item.description);
 		const financingTargetId = getFinancingTarget(item.description);
 		const financingSource = financingSourceId
-			? await queryFirst(
-					db.sql.public.CreditPurchase.select("id", "installmentAmount", "statementId")
-						.where((fields, functions) => functions.eq(fields.externalId, financingSourceId))
-						.limit(1)
-						.build(),
-				)
+			? (
+					await queryRaw<CreditReadRow>(
+						`SELECT * FROM "CreditEntry" WHERE "externalId"=$1 AND "creditCardId"=$2 LIMIT 1`,
+						[financingSourceId, creditCardImport.creditCardId],
+					)
+				)[0]
 			: null;
 		if (financingSourceId && !financingSource)
 			throw new HttpException("Aprove a compra original antes de aprovar o parcelamento", 409);
 		const financingTarget = financingTargetId
-			? await queryFirst(
-					db.sql.public.CreditPurchase.select("id")
-						.where((fields, functions) => functions.eq(fields.externalId, financingTargetId))
-						.limit(1)
-						.build(),
-				)
+			? (
+					await queryRaw<CreditReadRow>(
+						`SELECT * FROM "CreditEntry" WHERE "externalId"=$1 AND "creditCardId"=$2 LIMIT 1`,
+						[financingTargetId, creditCardImport.creditCardId],
+					)
+				)[0]
 			: null;
 		const debtSplit = await getDebtSplitInput({ creditCardImportItemId: item.id });
 		// An interrupted approval can have created the root before deleting the import item.
-		const importedRoot = await queryFirst(
-			db.sql.public.CreditPurchase.select("id")
-				.where((fields, functions) => functions.eq(fields.externalId, item.externalId))
-				.limit(1)
-				.build(),
-		);
+		const importedRoot = (
+			await queryRaw<CreditReadRow>(
+				`SELECT * FROM "CreditEntry" WHERE "externalId"=$1 AND "creditCardId"=$2 LIMIT 1`,
+				[item.externalId, creditCardImport.creditCardId],
+			)
+		)[0];
 		const rootId = await materializeImportedPurchase(
 			{
 				...card,
@@ -463,6 +452,7 @@ async function approveItems(userId: string, importId: string, itemId?: string) {
 			},
 			{
 				...item,
+				debtSplitRule: debtSplit ?? null,
 				dueDate: creditCardImport.dueDate,
 				existingRootId: item.reconciledCreditPurchaseId ?? importedRoot?.id ?? null,
 				installmentAmount: Number(item.installmentAmount),
@@ -475,55 +465,23 @@ async function approveItems(userId: string, importId: string, itemId?: string) {
 		const settlementSource =
 			financingSource ??
 			(financingTarget
-				? await queryFirst(
-						db.sql.public.CreditPurchase.select("id", "installmentAmount", "statementId")
-							.where((fields, functions) => functions.eq(fields.id, rootId))
-							.limit(1)
-							.build(),
-					)
+				? (
+						await queryRaw<CreditReadRow>(
+							`SELECT * FROM "CreditEntry" WHERE "id"=$1 AND "creditCardId"=$2 LIMIT 1`,
+							[rootId, creditCardImport.creditCardId],
+						)
+					)[0]
 				: null);
 		const settlementRootId = financingTarget?.id ?? rootId;
-		if (settlementSource) {
-			await withTransaction(async ({ db: transaction, executeStatement: execute, queryFirst: first }) => {
-				const settled = await first(
-					transaction.sql.public.CreditPurchase.update({
-						isSettled: true,
-						settledByPurchaseId: settlementRootId,
-						updatedAt: new Date(),
-					})
-						.where((fields, functions) =>
-							functions.and(
-								functions.eq(fields.id, settlementSource.id),
-								functions.eq(fields.isSettled, false),
-							),
-						)
-						.returning("id")
-						.build(),
-				);
-				if (!settled) {
-					const current = await first(
-						transaction.sql.public.CreditPurchase.select("settledByPurchaseId")
-							.where((fields, functions) => functions.eq(fields.id, settlementSource.id))
-							.limit(1)
-							.build(),
-					);
-					if (current?.settledByPurchaseId !== settlementRootId)
-						throw new HttpException("Compra original vinculada a outro parcelamento", 409);
-					return;
-				}
-				await execute(
-					transaction.sql.public.CreditCardStatement.update((fields, functions) => ({
-						totalAmount:
-							functions.raw`${fields.totalAmount} - ${String(settlementSource.installmentAmount)}`.returns(
-								"pg/numeric@1",
-							),
-						updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
-					}))
-						.where((fields, functions) => functions.eq(fields.id, settlementSource.statementId))
-						.build(),
-				);
+		if (settlementSource)
+			await mutateCreditBook(userId, card.id, book => {
+				const source = book.installments.find(i => i.id === settlementSource.id);
+				if (!source) throw new HttpException("Parcela original não encontrada", 409);
+				if (source.settledByPurchaseId && source.settledByPurchaseId !== settlementRootId)
+					throw new HttpException("Compra vinculada a outro parcelamento", 409);
+				source.isSettled = true;
+				source.settledByPurchaseId = settlementRootId;
 			});
-		}
 		if (Number(item.installmentAmount) < 0 || item.isStatementCharge || /^FIN /u.test(item.description))
 			continue;
 		const debtInput = {
@@ -620,24 +578,9 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 				body.creditCardId,
 			);
 			const [existing, pending] = await Promise.all([
-				queryRows(
-					db.sql.public.CreditPurchase.innerJoin(db.sql.public.CreditCardStatement, (fields, functions) =>
-						functions.eq(fields.CreditPurchase.statementId, fields.CreditCardStatement.id),
-					)
-						.select(fields => ({
-							externalId: fields.CreditPurchase.externalId,
-							id: fields.CreditPurchase.id,
-						}))
-						.where((fields, functions) =>
-							functions.and(
-								functions.eq(fields.CreditCardStatement.creditCardId, body.creditCardId),
-								functions.in(
-									fields.CreditPurchase.externalId,
-									purchases.map(purchase => purchase.externalId),
-								),
-							),
-						)
-						.build(),
+				queryRaw<CreditReadRow>(
+					`SELECT * FROM "CreditEntry" WHERE "creditCardId"=$1 AND "externalId"=ANY($2)`,
+					[body.creditCardId, purchases.map(p => p.externalId)],
 				),
 				queryRows(
 					db.sql.public.CreditCardImportItem.innerJoin(db.sql.public.CreditCardImport, (fields, functions) =>
@@ -664,28 +607,11 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 				purchase => purchase.description.startsWith("FIN ") && !existingRoots.has(purchase.externalId),
 			);
 			if (unmatchedFinancings.length) {
-				const candidates = await queryRows(
-					db.sql.public.CreditPurchase.innerJoin(db.sql.public.CreditCardStatement, (fields, functions) =>
-						functions.eq(fields.CreditPurchase.statementId, fields.CreditCardStatement.id),
-					)
-						.select(fields => ({
-							description: fields.CreditPurchase.description,
-							id: fields.CreditPurchase.id,
-							installments: fields.CreditPurchase.installments,
-							purchaseDate: fields.CreditPurchase.purchaseDate,
-						}))
-						.where((fields, functions) =>
-							functions.and(
-								functions.eq(fields.CreditCardStatement.creditCardId, body.creditCardId),
-								functions.eq(fields.CreditPurchase.parentId, null),
-								functions.eq(fields.CreditPurchase.isRefund, false),
-								functions.in(
-									fields.CreditPurchase.purchaseDate,
-									unmatchedFinancings.map(purchase => new Date(`${purchase.purchaseDate}T12:00:00`)),
-								),
-							),
-						)
-						.build(),
+				const candidates = (await readCreditEntries(body.creditCardId)).filter(
+					p =>
+						!p.parentId &&
+						!p.isRefund &&
+						unmatchedFinancings.some(f => dateKey(p.purchaseDate) === f.purchaseDate),
 				);
 				try {
 					matchLegacyFinancingRoots(unmatchedFinancings, candidates, existingRoots);
@@ -694,18 +620,9 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 				}
 			}
 			const existingRootIds = [...new Set(existingRoots.values())];
-			const existingInstallments = existingRootIds.length
-				? await queryRows(
-						db.sql.public.CreditPurchase.select("currentInstallment", "hasImportedAmount", "id", "parentId")
-							.where((fields, functions) =>
-								functions.or(
-									functions.in(fields.id, existingRootIds),
-									functions.in(fields.parentId, existingRootIds),
-								),
-							)
-							.build(),
-					)
-				: [];
+			const existingInstallments = (await readCreditEntries(body.creditCardId)).filter(p =>
+				existingRootIds.includes(p.purchaseId ?? p.id),
+			);
 			const pendingIds = new Set(pending.map(item => item.externalId));
 			const newPurchases = selectNewImportPurchases(
 				purchases,
@@ -975,4 +892,98 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 				.build(),
 		);
 		return { success: true };
-	});
+	})
+	.get("/:id/refund-sources", async ({ params, request }) => {
+		const userId = await requireUserId(request);
+		const imported = await getImport(userId, params.id);
+		const book = await readCreditBook(userId, imported.creditCardId);
+		return book.purchases.map(p => ({
+			description: p.description,
+			id: p.id,
+			installments: p.installmentAmountsCents.length,
+			purchaseDate: p.purchaseDate,
+			refundableAmount:
+				(p.totalAmountCents -
+					book.refunds
+						.filter(r => r.purchaseId === p.id && !r.deletedAt)
+						.reduce((sum, r) => sum + r.amountCents, 0)) /
+				100,
+			totalAmount: p.totalAmountCents / 100,
+		}));
+	})
+	.post(
+		"/:id/items/:itemId/approve-refund",
+		async ({ params, body, request }) => {
+			if (Boolean(body.purchaseId) === Boolean(body.purchase))
+				throw new HttpException("Vincule ou reconstrua a compra original", 400);
+			const userId = await requireUserId(request);
+			return withRawTransaction(async query => {
+				const imported = await getImport(userId, params.id);
+				if (imported.status !== "PENDING") throw new HttpException("Importação já aprovada", 409);
+				const [item] = await query<{
+					id: string;
+					installmentAmount: number;
+					purchaseDate: Date;
+					externalId: string;
+					time: string | null;
+				}>(`SELECT * FROM "CreditCardImportItem" WHERE "id"=$1 AND "creditCardImportId"=$2 FOR UPDATE`, [
+					params.itemId,
+					params.id,
+				]);
+				if (!item || Number(item.installmentAmount) >= 0)
+					throw new HttpException("Reembolso importado não encontrado", 404);
+				await mutateCreditBook(userId, imported.creditCardId, book => {
+					const p = body.purchaseId
+						? book.purchases.find(p => p.id === body.purchaseId)
+						: body.purchase
+							? newBookPurchase(book, {
+									...body.purchase,
+									installments: body.purchase.installments,
+									storeName: body.purchase.storeName ?? null,
+									tagIds: body.purchase.tagIds ?? [],
+								})
+							: null;
+					if (!p) throw new HttpException("Vincule ou revise a compra original", 400);
+					const r = addBookRefund(book, p.id, {
+						amount: Math.abs(Number(item.installmentAmount)),
+						creditDate: dateKey(item.purchaseDate),
+						policy: body.policy,
+					});
+					r.externalId = item.externalId;
+					r.time = item.time;
+				});
+				await cleanupItemTags([item.id]);
+				await query(`DELETE FROM "CreditCardImportItem" WHERE "id"=$1`, [item.id]);
+				const [{ remaining }] = await query<{ remaining: number }>(
+					`SELECT count(*)::int AS remaining FROM "CreditCardImportItem" WHERE "creditCardImportId"=$1`,
+					[params.id],
+				);
+				if (remaining === 0) {
+					await query(
+						`UPDATE "CreditCardImport" SET "status"='APPROVED', "updatedAt"=CURRENT_TIMESTAMP WHERE "id"=$1`,
+						[params.id],
+					);
+					await markStatementAsFullySynced(imported);
+				}
+				return { created: 1, finished: remaining === 0 };
+			});
+		},
+		{
+			body: t.Object({
+				policy: t.Optional(
+					t.Union([t.Literal("KEEP_INSTALLMENTS"), t.Literal("CANCEL_FUTURE_INSTALLMENTS")]),
+				),
+				purchase: t.Optional(
+					t.Object({
+						description: t.String({ maxLength: 500, minLength: 1 }),
+						installments: t.Integer({ maximum: 48, minimum: 1 }),
+						purchaseDate: t.String({ format: "date" }),
+						storeName: t.Optional(t.String({ maxLength: 200 })),
+						tagIds: t.Optional(t.Array(t.String())),
+						totalAmount: t.Number({ exclusiveMinimum: 0 }),
+					}),
+				),
+				purchaseId: t.Optional(t.String()),
+			}),
+		},
+	);

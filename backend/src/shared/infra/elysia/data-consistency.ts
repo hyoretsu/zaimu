@@ -35,6 +35,14 @@ async function debtAffectedUserIds(resourceId: string | undefined) {
 	return rows.map(row => row.userId);
 }
 
+async function creditAffectedUserIds(userId: string) {
+	const rows = await queryRaw<{ userId: string }>(
+		`SELECT CASE WHEN "requesterId"=$1 THEN "recipientId" ELSE "requesterId" END AS "userId" FROM "DebtConnection" WHERE "status"='ACCEPTED' AND ("requesterId"=$1 OR "recipientId"=$1)`,
+		[userId],
+	);
+	return rows.map(row => row.userId);
+}
+
 const transactionNamespaces = (pathname: string): CacheNamespace[] => {
 	const id = pathname.match(/^\/transactions\/([^/]+)/)?.[1];
 	return [
@@ -53,6 +61,8 @@ export const writeNamespaces = (pathname: string): CacheNamespace[] => {
 		return [
 			"accounts:list",
 			"credit-cards:overview",
+			"debts:events",
+			"debts:overview",
 			"dashboard",
 			"transactions:list",
 			...(cardId ? ([`credit-cards:${cardId}:statements`] as const) : []),
@@ -63,7 +73,11 @@ export const writeNamespaces = (pathname: string): CacheNamespace[] => {
 	if (pathname.startsWith("/credit-card-imports")) {
 		const importId = pathname.match(/^\/credit-card-imports\/([^/]+)/)?.[1];
 		return [
+			"accounts:list",
 			"credit-cards:overview",
+			"debts:events",
+			"debts:overview",
+			"dashboard",
 			"imports:pending",
 			"transactions:list",
 			...(importId ? ([`imports:detail:${importId}`] as const) : []),
@@ -103,6 +117,8 @@ export const writeNamespaces = (pathname: string): CacheNamespace[] => {
 		return [
 			"accounts:list",
 			"credit-cards:overview",
+			"debts:events",
+			"debts:overview",
 			"dashboard",
 			"schedules:detail",
 			"schedules:history",
@@ -165,7 +181,9 @@ export const DataConsistencyPlugin = new Elysia({ name: "DataConsistencyPlugin" 
 		const userId = await requireUserId(request);
 		const affectedUserIds = pathname.startsWith("/debts")
 			? await debtAffectedUserIds(debtResourceId(pathname))
-			: [];
+			: pathname.startsWith("/credit-cards") || pathname.startsWith("/credit-card-imports")
+				? await creditAffectedUserIds(userId)
+				: [];
 		const userIds = [...new Set([userId, ...affectedUserIds])];
 		await Promise.all(userIds.map(affectedUserId => distributedCache.beginWrite(affectedUserId, namespaces)));
 		return { cacheWriteFence: { namespaces, pathname, userId, userIds } };

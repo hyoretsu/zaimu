@@ -1,5 +1,5 @@
 import { HttpException } from "~/shared/errors";
-import { db, executeStatement, queryRows } from "~/shared/infra/sql";
+import { db, executeStatement, queryRaw, queryRows } from "~/shared/infra/sql";
 
 export const tagEntityType = {
 	creditPurchase: "CREDIT_PURCHASE",
@@ -79,6 +79,24 @@ export async function getTagsByEntity(entityType: string, entityIds: readonly st
 	const tagsByEntity = new Map<string, TagSummary[]>();
 	if (normalizedEntityIds.length === 0) return tagsByEntity;
 
+	if (entityType === tagEntityType.creditPurchase) {
+		const rows = await queryRaw<{
+			color: null | string;
+			icon: null | string;
+			id: string;
+			name: string;
+			entityId: string;
+		}>(
+			`SELECT source.id AS "entityId",tag."id",tag."name",tag."color",tag."icon" FROM unnest($1::varchar[]) AS source(id) LEFT JOIN "CreditEntryReference" reference ON reference."id"=source.id JOIN "TagAssignment" assignment ON assignment."entityId"=COALESCE(reference."purchaseId",source.id) AND assignment."entityType"='CREDIT_PURCHASE' JOIN "Category" tag ON tag."id"=assignment."categoryId" ORDER BY tag."name"`,
+			[normalizedEntityIds],
+		);
+		for (const row of rows)
+			tagsByEntity.set(row.entityId, [
+				...(tagsByEntity.get(row.entityId) ?? []),
+				{ color: row.color, icon: row.icon, id: row.id, name: row.name },
+			]);
+		return tagsByEntity;
+	}
 	const assignments = await queryRows(
 		db.sql.public.TagAssignment.innerJoin(db.sql.public.Category, (fields, functions) =>
 			functions.eq(fields.TagAssignment.categoryId, fields.Category.id),

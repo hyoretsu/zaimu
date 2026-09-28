@@ -1,61 +1,48 @@
+import {
+	addBookRefund,
+	ensureBookStatement,
+	moneyCents,
+	refinanceBookPurchase,
+	removeBookRefund,
+	replayCreditBook,
+	updateBookPurchaseDate,
+} from "@zaimu/finance/credit-book";
 import { paymentStatement, statementEntryKind } from "@zaimu/finance/credit-card";
-import { addMonths, isAfter, startOfDay } from "date-fns";
 import Elysia, { t } from "elysia";
+import { assertBalanceAccountOwnership, assertCreditCardOwnership, requireUserId } from "~/modules/auth";
 import {
-	assertBalanceAccountOwnership,
-	assertCreditCardOwnership,
-	assertDirectOwnership,
-	requireUserId,
-} from "~/modules/auth";
+	distributePurchaseCents,
+	mutateCreditBook,
+	newBookPurchase,
+	presentCreditBook,
+	readCreditBook,
+	resolveBookPurchase,
+} from "~/modules/creditCards/application/normalized-credit-book";
 import {
-	assertTagOwnership,
-	getTagsByEntity,
-	replaceEntityTags,
-	tagEntityType,
-} from "~/modules/categories/application/tag-assignments";
-import {
-	getOrCreateStatement,
-	getStatementDates,
-	type SubscriptionFrequency,
-	subscriptionOccurrences,
-} from "~/modules/creditCards/application/materialize-credit-card-schedules";
+	createNormalizedRefund,
+	deleteNormalizedRefund,
+	editNormalizedRefund,
+} from "~/modules/creditCards/application/normalized-refunds";
 import {
 	decodeStatementCursor,
 	encodeStatementCursor,
 	statementFilterKey,
 } from "~/modules/creditCards/application/statement-cursor";
-import {
-	recalculateStatementPayments,
-	withStatementPayments,
-} from "~/modules/creditCards/application/statement-payments";
-import { getCreditPurchaseSyncStatus } from "~/modules/creditCards/domain/credit-purchase-sync-status";
-import {
-	getEvenlyDistributedInstallmentAmounts,
-	getMissingInstallmentNumbers,
-	redistributeInstallmentAmounts,
-	sumInstallmentAmounts,
-} from "~/modules/creditCards/domain/installment-amounts";
-import {
-	deleteCreatorDebtEventForPurchase,
-	getDebtSplitInput,
-	getDebtSplitReturn,
-	getDebtSplitReturns,
-	linkPurchaseToDebt,
-	syncPurchaseDebtEvent,
-} from "~/modules/debts/application";
+import { recalculateStatementPayments } from "~/modules/creditCards/application/statement-payments";
+import { linkPurchaseToDebt } from "~/modules/debts/application";
 import { DebtSplitInputDTO } from "~/modules/debts/infra/elysia/DebtSplitsDTO";
-import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
 import {
 	db,
 	executeStatement,
-	numeric,
-	param,
 	queryFirst,
+	queryRaw,
 	queryRows,
+	withRawTransaction,
 	withTransaction,
 } from "~/shared/infra/sql";
+import { CreditBookDTO } from "./CreditBookDTO";
 
 const statementColumns = [
 	"id",
@@ -69,309 +56,56 @@ const statementColumns = [
 	"createdAt",
 	"updatedAt",
 ] as const;
-const purchaseColumns = [
-	"id",
-	"statementId",
-	"cashbackAccountId",
-	"cashbackAmount",
-	"cashbackYieldPeriod",
-	"cashbackYieldReferencePercentage",
-	"cashbackYieldReferenceRate",
-	"description",
-	"storeName",
-	"feeDescription",
-	"feeAmount",
-	"totalAmount",
-	"installments",
-	"currentInstallment",
-	"installmentAmount",
-	"hasImportedAmount",
-	"isStatementCharge",
-	"purchaseDate",
-	"time",
-	"categoryId",
-	"parentId",
-	"refundOfPurchaseId",
-	"isRefund",
-	"settledByPurchaseId",
-	"isSettled",
-	"refinancingFeeAmount",
-	"subscriptionId",
-	"subscriptionOccurrenceDate",
-	"createdAt",
-	"updatedAt",
-] as const;
-const forecastStatementId = (statementDate: Date) => `forecast-${statementDate.toISOString().slice(0, 10)}`;
-const timePattern = /^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
 const toCents = (amount: number | string) => Math.round(Number(amount) * 100);
-const toDateKey = (date: Date) => date.toISOString().slice(0, 10);
-const getCreditPurchaseName = (purchase: Pick<CreditPurchaseRow, "description" | "storeName">) =>
-	purchase.description || purchase.storeName || "Compra";
-
-function resolvePurchaseTime(value: string | null | undefined): string | null {
-	if (value === null) return null;
-	if (value !== undefined) {
-		if (!timePattern.test(value)) throw new HttpException("Informe um horário válido", 400);
-		return value;
-	}
-	return new Date().toTimeString().slice(0, 5);
+function resolvePurchaseTime(value?: string | null) {
+	return value === undefined ? new Date().toTimeString().slice(0, 5) : value;
 }
-
-function normalizePurchaseFee(input: { feeAmount?: number; feeDescription?: string }) {
-	const feeAmount = input.feeAmount ?? 0;
-	if (feeAmount === 0) return { feeAmount: null, feeDescription: null };
-	const feeDescription = input.feeDescription?.trim();
-	if (!feeDescription) throw new HttpException("Informe o nome da taxa", 400);
-	return { feeAmount: String(feeAmount), feeDescription };
-}
-
-function forecastInstallments(
-	card: { dueDay: number; statementDay: number },
-	purchases: CreditPurchaseRow[],
-) {
-	const forecasts = new Map<string, { dueDate: Date; purchases: CreditPurchaseRow[]; statementDate: Date }>();
-	for (const purchase of purchases.filter(
-		item => !item.parentId && item.installments > item.currentInstallment,
-	)) {
-		for (
-			let installment = purchase.currentInstallment + 1;
-			installment <= purchase.installments;
-			installment++
-		) {
-			const occurrenceDate = addMonths(purchase.purchaseDate, installment - 1);
-			const { dueDate, statementDate } = getStatementDates(card, occurrenceDate);
-			const key = statementDate.toISOString().slice(0, 10);
-			const forecast = forecasts.get(key) ?? { dueDate, purchases: [], statementDate };
-			forecast.purchases.push({
-				...purchase,
-				currentInstallment: installment,
-				statementId: forecastStatementId(statementDate),
-			});
-			forecasts.set(key, forecast);
-		}
-	}
-	return forecasts;
-}
-interface CreditPurchaseRow {
-	isStatementCharge?: boolean;
-	id: string;
-	statementId: string;
-	cashbackAccountId?: string | null;
-	cashbackAmount?: number | null;
-	cashbackYieldPeriod?: string | null;
-	cashbackYieldReferencePercentage?: number | null;
-	cashbackYieldReferenceRate?: number | null;
-	description: string;
-	storeName: string | null;
-	feeDescription: string | null;
-	feeAmount: number | null;
-	totalAmount: number;
-	installments: number;
-	currentInstallment: number;
-	installmentAmount: number;
-	hasImportedAmount: boolean;
-	purchaseDate: Date;
-	time: string | null;
-	categoryId: string | null;
-	parentId: string | null;
-	refundOfPurchaseId: string | null;
-	isRefund: boolean;
-	settledByPurchaseId: string | null;
-	isSettled: boolean;
-	refinancingFeeAmount: number | null;
-	subscriptionId?: string | null;
-	subscriptionOccurrenceDate?: Date | null;
-	createdAt: Date;
-	debtSplit?: Awaited<ReturnType<typeof getDebtSplitReturn>>;
-	updatedAt: Date;
-}
-
 interface CashbackCard {
 	cashbackAccountId: string | null;
 	cashbackRate: number | null;
-	cashbackYieldPeriod: string | null;
+	cashbackYieldPeriod: "MONTHLY" | "YEARLY" | null;
 	cashbackYieldReferencePercentage: number | null;
 	cashbackYieldReferenceRate: number | null;
 }
-
-interface CashbackSnapshot {
-	cashbackAccountId?: string;
-	cashbackAmount?: string;
-	cashbackYieldPeriod?: "MONTHLY" | "YEARLY";
-	cashbackYieldReferencePercentage?: string;
-	cashbackYieldReferenceRate?: string;
+function rewardSnapshot(card: CashbackCard, total: number) {
+	return card.cashbackAccountId && card.cashbackRate
+		? {
+				cashbackAccountId: card.cashbackAccountId,
+				cashbackAmount: Number(((total * card.cashbackRate) / 100).toFixed(4)),
+				cashbackYieldPeriod: card.cashbackYieldPeriod,
+				cashbackYieldReferencePercentage: card.cashbackYieldReferencePercentage,
+				cashbackYieldReferenceRate: card.cashbackYieldReferenceRate,
+			}
+		: {};
 }
-
-function cashbackSnapshot(card: CashbackCard, totalAmount: number): CashbackSnapshot {
-	if (!card.cashbackAccountId || !card.cashbackRate) return {};
-	const cashbackYieldPeriod =
-		card.cashbackYieldPeriod === "MONTHLY" || card.cashbackYieldPeriod === "YEARLY"
-			? card.cashbackYieldPeriod
-			: undefined;
-	return {
-		cashbackAccountId: card.cashbackAccountId,
-		cashbackAmount: String(Number(((totalAmount * card.cashbackRate) / 100).toFixed(4))),
-		cashbackYieldPeriod,
-		...(card.cashbackYieldReferencePercentage !== null && {
-			cashbackYieldReferencePercentage: String(card.cashbackYieldReferencePercentage),
-		}),
-		...(card.cashbackYieldReferenceRate !== null && {
-			cashbackYieldReferenceRate: String(card.cashbackYieldReferenceRate),
-		}),
-	};
-}
-
-async function forecastSubscriptionPurchases(
-	financialAccountId: string,
-	card: { dueDay: number; statementDay: number },
-	today = new Date(),
-) {
-	const subscriptions = await queryRows(
-		db.sql.public.Subscription.select(
-			"amount",
-			"billingDay",
-			"dayOfWeek",
-			"endDate",
-			"frequency",
-			"id",
-			"name",
-			"startDate",
-			"storeName",
-		)
-			.where((fields, functions) =>
-				functions.and(
-					functions.eq(fields.financialAccountId, financialAccountId),
-					functions.eq(fields.isActive, true),
-					functions.eq(fields.paymentMethod, "CREDIT"),
-				),
-			)
-			.build(),
-	);
-	const forecasts = new Map<string, { dueDate: Date; purchases: CreditPurchaseRow[]; statementDate: Date }>();
-	const horizon = addMonths(startOfDay(today), 12);
-	for (const subscription of subscriptions) {
-		const debtSplit = await getDebtSplitReturn(
-			{ subscriptionId: subscription.id },
-			Number(subscription.amount),
-		);
-		for (const occurrenceDate of subscriptionOccurrences(
-			subscription as typeof subscription & { frequency: SubscriptionFrequency },
-			horizon,
-		)) {
-			if (!isAfter(occurrenceDate, startOfDay(today))) continue;
-			const { dueDate, statementDate } = getStatementDates(card, occurrenceDate);
-			const key = statementDate.toISOString().slice(0, 10);
-			const forecast = forecasts.get(key) ?? { dueDate, purchases: [], statementDate };
-			forecast.purchases.push({
-				categoryId: null,
-				createdAt: new Date(),
-				currentInstallment: 1,
-				debtSplit,
-				description: subscription.name,
-				feeAmount: null,
-				feeDescription: null,
-				hasImportedAmount: false,
-				id: `subscription-${subscription.id}-${occurrenceDate.toISOString().slice(0, 10)}`,
-				installmentAmount: Number(subscription.amount),
-				installments: 1,
-				isRefund: false,
-				isSettled: false,
-				parentId: null,
-				purchaseDate: occurrenceDate,
-				refinancingFeeAmount: null,
-				refundOfPurchaseId: null,
-				settledByPurchaseId: null,
-				statementId: forecastStatementId(statementDate),
-				storeName: subscription.storeName,
-				subscriptionId: subscription.id,
-				subscriptionOccurrenceDate: occurrenceDate,
-				time: null,
-				totalAmount: Number(subscription.amount),
-				updatedAt: new Date(),
-			});
-			forecasts.set(key, forecast);
-		}
-	}
-	return forecasts;
-}
-
-function mergeForecasts(
-	...forecasts: Map<string, { dueDate: Date; purchases: CreditPurchaseRow[]; statementDate: Date }>[]
-) {
-	const merged = new Map<string, { dueDate: Date; purchases: CreditPurchaseRow[]; statementDate: Date }>();
-	for (const source of forecasts) {
-		for (const [key, forecast] of source) {
-			const current = merged.get(key) ?? {
-				dueDate: forecast.dueDate,
-				purchases: [],
-				statementDate: forecast.statementDate,
-			};
-			current.purchases.push(...forecast.purchases);
-			merged.set(key, current);
-		}
-	}
-	return merged;
-}
-
-const findPurchaseForCard = (creditCardId: string, purchaseId: string) =>
-	queryFirst(
-		db.sql.public.CreditPurchase.innerJoin(db.sql.public.CreditCardStatement, (fields, functions) =>
-			functions.eq(fields.CreditPurchase.statementId, fields.CreditCardStatement.id),
-		)
-			.select(fields => ({
-				cashbackAccountId: fields.CreditPurchase.cashbackAccountId,
-				cashbackAmount: fields.CreditPurchase.cashbackAmount,
-				cashbackYieldPeriod: fields.CreditPurchase.cashbackYieldPeriod,
-				cashbackYieldReferencePercentage: fields.CreditPurchase.cashbackYieldReferencePercentage,
-				cashbackYieldReferenceRate: fields.CreditPurchase.cashbackYieldReferenceRate,
-				categoryId: fields.CreditPurchase.categoryId,
-				creditCardId: fields.CreditCardStatement.creditCardId,
-				currentInstallment: fields.CreditPurchase.currentInstallment,
-				description: fields.CreditPurchase.description,
-				feeAmount: fields.CreditPurchase.feeAmount,
-				feeDescription: fields.CreditPurchase.feeDescription,
-				id: fields.CreditPurchase.id,
-				installmentAmount: fields.CreditPurchase.installmentAmount,
-				installments: fields.CreditPurchase.installments,
-				isPaid: fields.CreditCardStatement.isPaid,
-				isRefund: fields.CreditPurchase.isRefund,
-				isStatementCharge: fields.CreditPurchase.isStatementCharge,
-				parentId: fields.CreditPurchase.parentId,
-				purchaseDate: fields.CreditPurchase.purchaseDate,
-				refundOfPurchaseId: fields.CreditPurchase.refundOfPurchaseId,
-				statementId: fields.CreditPurchase.statementId,
-				storeName: fields.CreditPurchase.storeName,
-				time: fields.CreditPurchase.time,
-				totalAmount: fields.CreditPurchase.totalAmount,
-			}))
-			.where((fields, functions) =>
-				functions.and(
-					functions.eq(fields.CreditPurchase.id, purchaseId),
-					functions.eq(fields.CreditCardStatement.creditCardId, creditCardId),
-				),
-			)
-			.limit(1)
-			.build(),
-	);
-
-const isCreditPurchaseSynced = async (creditCardId: string, purchaseId: string) => {
-	const purchaseSyncRows = await queryRows(
-		db.sql.public.CreditPurchase.innerJoin(db.sql.public.CreditCardStatement, (fields, functions) =>
-			functions.eq(fields.CreditPurchase.statementId, fields.CreditCardStatement.id),
-		)
-			.select(fields => ({
-				hasImportedAmount: fields.CreditPurchase.hasImportedAmount,
-				id: fields.CreditPurchase.id,
-				installments: fields.CreditPurchase.installments,
-				parentId: fields.CreditPurchase.parentId,
-				statementDate: fields.CreditCardStatement.statementDate,
-			}))
-			.where((fields, functions) => functions.eq(fields.CreditCardStatement.creditCardId, creditCardId))
-			.build(),
-	);
-	return getCreditPurchaseSyncStatus(purchaseSyncRows).get(purchaseId)?.isSynced ?? false;
+const RefundPolicyDTO = t.Union([t.Literal("KEEP_INSTALLMENTS"), t.Literal("CANCEL_FUTURE_INSTALLMENTS")]);
+const PurchaseFields = {
+	debtSplit: t.Optional(t.Nullable(DebtSplitInputDTO)),
+	description: t.Optional(t.String({ maxLength: 500 })),
+	feeAmount: t.Optional(t.Number({ minimum: 0 })),
+	feeDescription: t.Optional(t.String({ maxLength: 100 })),
+	installments: t.Optional(t.Integer({ maximum: 48, minimum: 1 })),
+	storeName: t.Optional(t.Nullable(t.String({ maxLength: 200 }))),
+	tagIds: t.Optional(t.Array(t.String(), { maxItems: 20 })),
+	time: t.Optional(t.Nullable(t.String())),
 };
-
+const CreatePurchaseBody = t.Object({
+	...PurchaseFields,
+	categoryId: t.Optional(t.String()),
+	isStatementCharge: t.Optional(t.Boolean()),
+	matchDebtEventId: t.Optional(t.String()),
+	purchaseDate: t.String({ format: "date" }),
+	subscriptionId: t.Optional(t.String()),
+	subscriptionOccurrenceDate: t.Optional(t.String({ format: "date" })),
+	totalAmount: t.Number({ exclusiveMinimum: 0 }),
+});
+const UpdatePurchaseBody = t.Object({
+	...PurchaseFields,
+	creditCardId: t.Optional(t.String()),
+	installmentAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
+	purchaseDate: t.Optional(t.String({ format: "date" })),
+	totalAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
+});
 export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 	.get(
 		"/",
@@ -411,42 +145,29 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						.build(),
 				);
 				if (cards.length === 0) return [];
-				const statements = await queryRows(
-					db.sql.public.CreditCardStatement.select(...statementColumns)
-						.where((fields, functions) =>
-							functions.in(
-								fields.creditCardId,
-								cards.map(card => card.id),
-							),
-						)
-						.orderBy("statementDate", { direction: "desc" })
-						.build(),
+				return Promise.all(
+					cards.map(async card => {
+						const effectiveStatements = replayCreditBook(await readCreditBook(userId, card.id)).statements;
+						const currentStatement = paymentStatement(effectiveStatements, new Date()) ?? null;
+						const netUsedInCents = effectiveStatements.reduce(
+							(total, statement) => total + toCents(statement.balanceAmount),
+							0,
+						);
+						const temporaryCreditInCents = Math.max(0, -netUsedInCents);
+						const usedLimitInCents = Math.max(0, netUsedInCents);
+						const effectiveLimitInCents = toCents(card.creditLimit) + temporaryCreditInCents;
+						return {
+							...card,
+							currentStatement,
+							limit: {
+								availableLimit: Math.max(0, effectiveLimitInCents - usedLimitInCents) / 100,
+								effectiveLimit: effectiveLimitInCents / 100,
+								temporaryCredit: temporaryCreditInCents / 100,
+								usedLimit: usedLimitInCents / 100,
+							},
+						};
+					}),
 				);
-				const statementsByCard = Map.groupBy(
-					await withStatementPayments(statements),
-					statement => statement.creditCardId,
-				);
-				return cards.map(card => {
-					const effectiveStatements = statementsByCard.get(card.id) ?? [];
-					const currentStatement = paymentStatement(effectiveStatements, new Date()) ?? null;
-					const netUsedInCents = effectiveStatements.reduce(
-						(total, statement) => total + toCents(statement.balanceAmount),
-						0,
-					);
-					const temporaryCreditInCents = Math.max(0, -netUsedInCents);
-					const usedLimitInCents = Math.max(0, netUsedInCents);
-					const effectiveLimitInCents = toCents(card.creditLimit) + temporaryCreditInCents;
-					return {
-						...card,
-						currentStatement,
-						limit: {
-							availableLimit: Math.max(0, effectiveLimitInCents - usedLimitInCents) / 100,
-							effectiveLimit: effectiveLimitInCents / 100,
-							temporaryCredit: temporaryCreditInCents / 100,
-							usedLimit: usedLimitInCents / 100,
-						},
-					};
-				});
 			});
 			set.headers.etag = cached.etag;
 			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
@@ -547,103 +268,112 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			params: t.Object({ id: t.String({ maxLength: 36, minLength: 1 }) }),
 		},
 	)
+	.get("/:id/refund-reviews", async ({ params, request }) => {
+		const userId = await requireUserId(request);
+		return queryRaw<{ id: string; original: Record<string, unknown> }>(
+			`SELECT r."id", archive."original" FROM "CreditEntryReference" r JOIN "CreditPurchaseLegacyEntry" archive ON archive."id"=r."id" JOIN "CreditCardStatement" s ON s."id"=(archive."original"->>'statementId') JOIN "CreditCard" c ON c."id"=s."creditCardId" JOIN "FinancialAccount" a ON a."id"=c."financialAccountId" WHERE r."requiresRefundReview" AND c."id"=$1 AND a."userId"=$2 ORDER BY archive."createdAt"`,
+			[params.id, userId],
+		);
+	})
+	.post(
+		"/:id/refund-reviews/:reviewId/approve",
+		async ({ params, body, request }) => {
+			const userId = await requireUserId(request);
+			return withRawTransaction(async query => {
+				const [review] = await query<{
+					id: string;
+					original: {
+						purchaseDate: string;
+						totalAmount: number;
+						time: string | null;
+						externalId: string | null;
+					};
+				}>(
+					`SELECT r."id", archive."original" FROM "CreditEntryReference" r JOIN "CreditPurchaseLegacyEntry" archive ON archive."id"=r."id" JOIN "CreditCardStatement" s ON s."id"=(archive."original"->>'statementId') JOIN "CreditCard" c ON c."id"=s."creditCardId" JOIN "FinancialAccount" a ON a."id"=c."financialAccountId" WHERE r."id"=$1 AND r."requiresRefundReview" AND c."id"=$2 AND a."userId"=$3 FOR UPDATE OF r`,
+					[params.reviewId, params.id, userId],
+				);
+				if (!review) throw new HttpException("Reembolso pendente não encontrado", 404);
+				if (Boolean(body.purchaseId) === Boolean(body.purchase))
+					throw new HttpException("Vincule ou reconstrua a compra original", 400);
+				const amount = Math.abs(Number(review.original.totalAmount));
+				if (!Number.isFinite(amount) || amount <= 0)
+					throw new HttpException("Valor original do reembolso inválido", 400);
+				let purchaseId = "";
+				await mutateCreditBook(userId, params.id, book => {
+					const purchase = body.purchaseId
+						? book.purchases.find(p => p.id === body.purchaseId)
+						: body.purchase
+							? newBookPurchase(book, {
+									...body.purchase,
+									storeName: body.purchase.storeName ?? null,
+									tagIds: body.purchase.tagIds ?? [],
+								})
+							: null;
+					if (!purchase) throw new HttpException("Compra original não encontrada", 404);
+					purchaseId = purchase.id;
+					const refund = addBookRefund(book, purchase.id, {
+						amount,
+						creditDate: String(review.original.purchaseDate).slice(0, 10),
+						id: review.id,
+						policy: body.policy,
+					});
+					refund.time = review.original.time ?? null;
+					refund.externalId = review.original.externalId ?? null;
+				});
+				return { id: review.id, purchaseId };
+			});
+		},
+		{
+			body: t.Object({
+				policy: t.Optional(RefundPolicyDTO),
+				purchase: t.Optional(
+					t.Object({
+						description: t.String({ maxLength: 500, minLength: 1 }),
+						installments: t.Integer({ maximum: 48, minimum: 1 }),
+						purchaseDate: t.String({ format: "date" }),
+						storeName: t.Optional(t.String()),
+						tagIds: t.Optional(t.Array(t.String())),
+						totalAmount: t.Number({ exclusiveMinimum: 0 }),
+					}),
+				),
+				purchaseId: t.Optional(t.String()),
+			}),
+		},
+	)
+	.get(
+		"/:id/book",
+		async ({ params, request }) => {
+			const book = await readCreditBook(await requireUserId(request), params.id);
+			const response: CreditBookDTO = {
+				...book,
+				purchases: book.purchases.map(p => ({
+					...p,
+					installmentAmountsCents: [...p.installmentAmountsCents],
+					tagIds: [...p.tagIds],
+				})),
+			};
+			return response;
+		},
+		{ response: CreditBookDTO },
+	)
 	.get(
 		"/:id/statements",
-		async ({ params, query, request }) => {
-			const userId = await requireUserId(request);
-			const limit = Math.min(query.limit ?? 24, 100);
-			const cursor = decodeStatementCursor(query.cursor, query.isPaid);
-			await assertCreditCardOwnership(params.id, userId);
-			const card = await queryFirst(
-				db.sql.public.CreditCard.select(
-					"cashbackAccountId",
-					"cashbackRate",
-					"cashbackYieldPeriod",
-					"cashbackYieldReferencePercentage",
-					"cashbackYieldReferenceRate",
-					"createdAt",
-					"dueDay",
-					"financialAccountId",
-					"statementDay",
-				)
-					.where((fields, functions) => functions.eq(fields.id, params.id))
-					.limit(1)
-					.build(),
-			);
-			if (!card) throw new HttpException("Credit card not found", 404);
-			const queryBuilder = db.sql.public.CreditCardStatement.select(...statementColumns).where(
-				(fields, functions) => functions.eq(fields.creditCardId, params.id),
-			);
-			const statements = await queryRows(
-				queryBuilder.orderBy("statementDate", { direction: "desc" }).build(),
-			);
-			const purchases = (await queryRows(
-				db.sql.public.CreditPurchase.innerJoin(db.sql.public.CreditCardStatement, (fields, functions) =>
-					functions.eq(fields.CreditPurchase.statementId, fields.CreditCardStatement.id),
-				)
-					.select(fields => ({
-						categoryId: fields.CreditPurchase.categoryId,
-						createdAt: fields.CreditPurchase.createdAt,
-						currentInstallment: fields.CreditPurchase.currentInstallment,
-						description: fields.CreditPurchase.description,
-						id: fields.CreditPurchase.id,
-						installmentAmount: fields.CreditPurchase.installmentAmount,
-						installments: fields.CreditPurchase.installments,
-						parentId: fields.CreditPurchase.parentId,
-						purchaseDate: fields.CreditPurchase.purchaseDate,
-						statementId: fields.CreditPurchase.statementId,
-						time: fields.CreditPurchase.time,
-						totalAmount: fields.CreditPurchase.totalAmount,
-						updatedAt: fields.CreditPurchase.updatedAt,
-					}))
-					.where((fields, functions) => functions.eq(fields.CreditCardStatement.creditCardId, params.id))
-					.build(),
-			)) as unknown as CreditPurchaseRow[];
-			const statementDates = new Set(
-				statements.map(statement => statement.statementDate.toISOString().slice(0, 10)),
-			);
-			const forecasts = [
-				...mergeForecasts(
-					forecastInstallments(card, purchases),
-					await forecastSubscriptionPurchases(card.financialAccountId, card),
-				).values(),
-			]
-				.filter(forecast => !statementDates.has(forecast.statementDate.toISOString().slice(0, 10)))
-				.map(forecast => ({
-					createdAt: new Date(),
-					creditCardId: params.id,
-					dueDate: forecast.dueDate,
-					id: forecastStatementId(forecast.statementDate),
-					isForecast: true,
-					isPaid: false,
-					paidAmount: 0,
-					statementDate: forecast.statementDate,
-					totalAmount: String(
-						forecast.purchases.reduce((total, purchase) => total + purchase.installmentAmount, 0),
-					),
-					updatedAt: new Date(),
-				}));
-			const statementsWithCredits = await withStatementPayments([...statements, ...forecasts]);
-			const filteredStatements = (
-				query.isPaid === undefined
-					? statementsWithCredits
-					: statementsWithCredits.filter(statement => statement.isPaid === query.isPaid)
-			)
-				.toSorted(
-					(left, right) =>
-						right.statementDate.getTime() - left.statementDate.getTime() || right.id.localeCompare(left.id),
-				)
+		async ({ params, request, query }) => {
+			const book = await readCreditBook(await requireUserId(request), params.id);
+			const cursor = query.cursor ? decodeStatementCursor(query.cursor, query.isPaid) : null;
+			const rows = replayCreditBook(book)
+				.statements.filter(s => query.isPaid === undefined || s.isPaid === query.isPaid)
+				.toSorted((a, b) => b.statementDate.localeCompare(a.statementDate) || b.id.localeCompare(a.id))
 				.filter(
-					statement =>
+					s =>
 						!cursor ||
-						statement.statementDate < new Date(cursor.statementDate) ||
-						(statement.statementDate.getTime() === new Date(cursor.statementDate).getTime() &&
-							statement.id < cursor.id),
+						s.statementDate < cursor.statementDate.slice(0, 10) ||
+						(s.statementDate === cursor.statementDate.slice(0, 10) && s.id < cursor.id),
 				);
-			const page = filteredStatements.slice(0, limit + 1);
-			const items = page.slice(0, limit);
-			const hasMore = page.length > limit;
+			const limit = query.limit ?? 24;
+			const items = rows.slice(0, limit);
 			const last = items.at(-1);
+			const hasMore = rows.length > limit;
 			return {
 				hasMore,
 				items,
@@ -652,773 +382,241 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						? encodeStatementCursor({
 								filter: statementFilterKey(query.isPaid),
 								id: last.id,
-								statementDate: last.statementDate.toISOString(),
+								statementDate: last.statementDate,
 							})
 						: null,
 			};
 		},
 		{
-			detail: { tags: ["Credit Cards"] },
-			params: t.Object({
-				id: t.String({ maxLength: 36, minLength: 1 }),
-			}),
 			query: t.Object({
-				cursor: t.Optional(t.String({ maxLength: 2048, minLength: 1 })),
+				cursor: t.Optional(t.String()),
 				isPaid: t.Optional(t.Boolean()),
 				limit: t.Optional(t.Number({ maximum: 100, minimum: 1 })),
 			}),
 		},
 	)
-	.get(
-		"/:id/statements/:statementId",
-		async ({ params, request }) => {
-			const userId = await requireUserId(request);
-			await assertCreditCardOwnership(params.id, userId);
-			if (params.statementId.startsWith("cycle-")) {
-				const cycles = await withStatementPayments(
-					await queryRows(
-						db.sql.public.CreditCardStatement.select(...statementColumns)
-							.where((f, fn) => fn.eq(f.creditCardId, params.id))
-							.build(),
-					),
-				);
-				const cycle = cycles.find(item => item.id === params.statementId);
-				if (!cycle) throw new HttpException("Statement not found", 404);
-				const payments = await queryRows(
-					db.sql.public.Transaction.select("id", "amount", "date", "time", "description")
-						.where((f, fn) => fn.eq(f.paymentCreditCardId, params.id))
-						.build(),
-				);
-				return {
-					...cycle,
-					payments: payments.filter(p => paymentStatement(cycles, p.date)?.id === cycle.id),
-					purchases: [],
-				};
-			}
-			if (params.statementId.startsWith("forecast-")) {
-				const statementDate = new Date(`${params.statementId.slice("forecast-".length)}T12:00:00Z`);
-				if (Number.isNaN(statementDate.getTime())) throw new HttpException("Statement not found", 404);
-				const card = await queryFirst(
-					db.sql.public.CreditCard.select(
-						"cashbackAccountId",
-						"cashbackRate",
-						"cashbackYieldPeriod",
-						"cashbackYieldReferencePercentage",
-						"cashbackYieldReferenceRate",
-						"createdAt",
-						"dueDay",
-						"financialAccountId",
-						"statementDay",
-					)
-						.where((fields, functions) => functions.eq(fields.id, params.id))
-						.limit(1)
-						.build(),
-				);
-				if (!card) throw new HttpException("Credit card not found", 404);
-				const purchases = (await queryRows(
-					db.sql.public.CreditPurchase.innerJoin(db.sql.public.CreditCardStatement, (fields, functions) =>
-						functions.eq(fields.CreditPurchase.statementId, fields.CreditCardStatement.id),
-					)
-						.select(fields => ({
-							categoryId: fields.CreditPurchase.categoryId,
-							createdAt: fields.CreditPurchase.createdAt,
-							currentInstallment: fields.CreditPurchase.currentInstallment,
-							description: fields.CreditPurchase.description,
-							id: fields.CreditPurchase.id,
-							installmentAmount: fields.CreditPurchase.installmentAmount,
-							installments: fields.CreditPurchase.installments,
-							parentId: fields.CreditPurchase.parentId,
-							purchaseDate: fields.CreditPurchase.purchaseDate,
-							statementId: fields.CreditPurchase.statementId,
-							time: fields.CreditPurchase.time,
-							totalAmount: fields.CreditPurchase.totalAmount,
-							updatedAt: fields.CreditPurchase.updatedAt,
-						}))
-						.where((fields, functions) => functions.eq(fields.CreditCardStatement.creditCardId, params.id))
-						.build(),
-				)) as unknown as CreditPurchaseRow[];
-				const forecast = mergeForecasts(
-					forecastInstallments(card, purchases),
-					await forecastSubscriptionPurchases(card.financialAccountId, card),
-				).get(statementDate.toISOString().slice(0, 10));
-				if (!forecast) throw new HttpException("Statement not found", 404);
-				const concrete = await queryRows(
-					db.sql.public.CreditCardStatement.select(...statementColumns)
-						.where((f, fn) => fn.eq(f.creditCardId, params.id))
-						.build(),
-				);
-				const forecastRows = [
-					...mergeForecasts(
-						forecastInstallments(card, purchases),
-						await forecastSubscriptionPurchases(card.financialAccountId, card),
-					).values(),
-				]
-					.filter(item => !concrete.some(s => toDateKey(s.statementDate) === toDateKey(item.statementDate)))
-					.map(item => ({
-						creditCardId: params.id,
-						dueDate: item.dueDate,
-						id: forecastStatementId(item.statementDate),
-						paidAmount: 0,
-						statementDate: item.statementDate,
-						totalAmount: item.purchases.reduce((sum, p) => sum + p.installmentAmount, 0),
-					}));
-				const effective = (await withStatementPayments([...concrete, ...forecastRows])).find(
-					item => item.id === params.statementId,
-				)!;
-				return {
-					...effective,
-					balanceAmount: effective.balanceAmount,
-					createdAt: new Date(),
-					creditCardId: params.id,
-					dueDate: forecast.dueDate,
-					id: params.statementId,
-					isForecast: true,
-					isPaid: effective.isPaid,
-					paidAmount: effective.paidAmount,
-					payments: [],
-					purchases: forecast.purchases.map(purchase => ({ ...purchase, isForecast: true })),
-					statementDate: forecast.statementDate,
-					totalAmount: String(
-						forecast.purchases.reduce((total, purchase) => total + purchase.installmentAmount, 0),
-					),
-					updatedAt: new Date(),
-				};
-			}
-			const statement = await queryFirst(
-				db.sql.public.CreditCardStatement.select(...statementColumns)
-					.where((fields, functions) =>
-						functions.and(
-							functions.eq(fields.id, params.statementId),
-							functions.eq(fields.creditCardId, params.id),
-						),
-					)
-					.limit(1)
-					.build(),
-			);
-
-			if (!statement) {
-				throw new HttpException("Statement not found", 404);
-			}
-
-			const purchases = await queryRows(
-				db.sql.public.CreditPurchase.select(...purchaseColumns)
-					.where((fields, functions) => functions.eq(fields.statementId, params.statementId))
-					.orderBy("purchaseDate", { direction: "desc" })
-					.build(),
-			);
-			const purchaseSyncRows = await queryRows(
-				db.sql.public.CreditPurchase.innerJoin(db.sql.public.CreditCardStatement, (fields, functions) =>
-					functions.eq(fields.CreditPurchase.statementId, fields.CreditCardStatement.id),
-				)
-					.select(fields => ({
-						hasImportedAmount: fields.CreditPurchase.hasImportedAmount,
-						id: fields.CreditPurchase.id,
-						installments: fields.CreditPurchase.installments,
-						parentId: fields.CreditPurchase.parentId,
-						statementDate: fields.CreditCardStatement.statementDate,
-					}))
-					.where((fields, functions) => functions.eq(fields.CreditCardStatement.creditCardId, params.id))
-					.build(),
-			);
-			const purchaseSyncStatus = getCreditPurchaseSyncStatus(purchaseSyncRows);
-			const cardPayments = await queryRows(
-				db.sql.public.Transaction.select(
-					"amount",
-					"createdAt",
-					"paymentCreditCardId",
-					"originFinancialAccountId",
-					"date",
-					"description",
-					"id",
-					"time",
-					"type",
-				)
-					.where((fields, functions) => functions.eq(fields.paymentCreditCardId, params.id))
-					.orderBy("date", { direction: "desc" })
-					.build(),
-			);
-			const effectiveStatements = await withStatementPayments(
-				await queryRows(
-					db.sql.public.CreditCardStatement.select(...statementColumns)
-						.where((f, fn) => fn.eq(f.creditCardId, params.id))
-						.build(),
-				),
-			);
-			const payments = cardPayments.filter(
-				payment => paymentStatement(effectiveStatements, payment.date)?.id === statement.id,
-			);
-
-			const tagsByPurchase = await getTagsByEntity(
-				tagEntityType.creditPurchase,
-				purchases.map(purchase => purchase.id),
-			);
-			const rootPurchaseIds = purchases
-				.filter(purchase => !purchase.isRefund)
-				.map(purchase => purchase.parentId ?? purchase.id);
-			const refundedPurchases = rootPurchaseIds.length
-				? await queryRows(
-						db.sql.public.CreditPurchase.select("refundOfPurchaseId")
-							.where((fields, functions) => functions.in(fields.refundOfPurchaseId, rootPurchaseIds))
-							.build(),
-					)
-				: [];
-			const refundedPurchaseIds = new Set(
-				refundedPurchases.flatMap(purchase =>
-					purchase.refundOfPurchaseId ? [purchase.refundOfPurchaseId] : [],
-				),
-			);
-			const debtSplitsByPurchase = await getDebtSplitReturns(
-				"creditPurchaseId",
-				purchases.map(purchase => ({
-					amount: Math.abs(Number(purchase.totalAmount)),
-					id: purchase.parentId ?? purchase.id,
-				})),
-			);
-			return {
-				...(
-					await withStatementPayments(
-						await queryRows(
-							db.sql.public.CreditCardStatement.select(...statementColumns)
-								.where((fields, functions) => functions.eq(fields.creditCardId, params.id))
-								.build(),
-						),
-					)
-				).find(item => item.id === statement.id)!,
-				payments,
-				purchases: purchases.map(purchase => {
-					const tags = tagsByPurchase.get(purchase.id) ?? [];
-					return {
-						...purchase,
-						...purchaseSyncStatus.get(purchase.id),
-						categoryColor: tags[0]?.color,
-						categoryName: tags[0]?.name,
-						debtSplit: debtSplitsByPurchase.get(purchase.parentId ?? purchase.id) ?? null,
-						hasRefund: !purchase.isRefund && refundedPurchaseIds.has(purchase.parentId ?? purchase.id),
-						tagIds: tags.map(tag => tag.id),
-						tags,
-					};
-				}),
-			};
-		},
-		{
-			detail: { tags: ["Credit Cards"] },
-			params: t.Object({
-				id: t.String({ maxLength: 36, minLength: 1 }),
-				statementId: t.String({ maxLength: 36, minLength: 1 }),
-			}),
-		},
-	)
+	.get("/:id/statements/:statementId", async ({ params, request }) => {
+		const book = await readCreditBook(await requireUserId(request), params.id);
+		const statements = replayCreditBook(book).statements;
+		const statement = statements.find(s => s.id === params.statementId);
+		if (!statement) throw new HttpException("Fatura não encontrada", 404);
+		const paymentRows = await queryRaw<{
+			id: string;
+			amount: number;
+			date: Date;
+			time: string | null;
+			description: string | null;
+		}>(
+			`SELECT "id","amount","date","time","description" FROM "Transaction" WHERE "paymentCreditCardId"=$1 AND "userId"=$2`,
+			[params.id, book.card.userId],
+		);
+		return {
+			...statement,
+			payments: paymentRows
+				.filter(p => paymentStatement(statements, p.date)?.id === statement.id)
+				.map(p => ({ ...p, amount: Number(p.amount), paymentCreditCardId: params.id, type: "EXPENSE" })),
+			purchases: (await presentCreditBook(book)).filter(row => row.statementId === statement.id),
+			totalAmount: Number(statement.totalAmount) + statement.chargesAmount,
+		};
+	})
 	.post(
 		"/:id/purchases",
 		async ({ params, body, request }) => {
 			const userId = await requireUserId(request);
-			await assertCreditCardOwnership(params.id, userId);
-			const tagIds = await assertTagOwnership(
-				body.tagIds ?? (body.categoryId ? [body.categoryId] : []),
-				userId,
-			);
-			const card = await queryFirst(
-				db.sql.public.CreditCard.select(
-					"cashbackAccountId",
-					"cashbackRate",
-					"cashbackYieldPeriod",
-					"cashbackYieldReferencePercentage",
-					"cashbackYieldReferenceRate",
-					"id",
-					"statementDay",
-					"dueDay",
-					"financialAccountId",
-				)
-					.where((fields, functions) => functions.eq(fields.id, params.id))
-					.limit(1)
-					.build(),
-			);
-
-			if (!card) {
-				throw new HttpException("Credit card not found", 404);
-			}
-			if ((body.subscriptionId === undefined) !== (body.subscriptionOccurrenceDate === undefined)) {
-				throw new HttpException("Informe a assinatura e a data da ocorrência juntas", 400);
-			}
-			if (body.subscriptionId && body.subscriptionOccurrenceDate) {
-				await assertDirectOwnership("Subscription", body.subscriptionId, userId);
-				const subscription = await queryFirst(
-					db.sql.public.Subscription.select("financialAccountId")
-						.where((fields, functions) => functions.eq(fields.id, body.subscriptionId!))
-						.limit(1)
-						.build(),
-				);
-				if (subscription?.financialAccountId !== card.financialAccountId) {
-					throw new HttpException("A assinatura não pertence a este cartão", 400);
-				}
-				if ((body.installments ?? 1) !== 1) {
-					throw new HttpException("Uma ocorrência de assinatura não pode ser parcelada", 400);
-				}
-				const existingPurchase = await queryFirst(
-					db.sql.public.CreditPurchase.select(...purchaseColumns)
-						.where((fields, functions) =>
-							functions.and(
-								functions.eq(fields.subscriptionId, body.subscriptionId!),
-								functions.eq(fields.subscriptionOccurrenceDate, new Date(body.subscriptionOccurrenceDate!)),
-							),
-						)
-						.limit(1)
-						.build(),
-				);
-				if (existingPurchase) {
-					const tags =
-						(await getTagsByEntity(tagEntityType.creditPurchase, [existingPurchase.id])).get(
-							existingPurchase.id,
-						) ?? [];
-					return [
-						{
-							...existingPurchase,
-							debtSplit: await getDebtSplitReturn(
-								{ creditPurchaseId: existingPurchase.parentId ?? existingPurchase.id },
-								Number(existingPurchase.totalAmount),
-							),
-							installmentAmount: Number(existingPurchase.installmentAmount),
-							tagIds: tags.map(tag => tag.id),
-							tags,
-							totalAmount: Number(existingPurchase.totalAmount),
-						},
-					];
-				}
-			}
-
-			const purchaseDate = new Date(body.purchaseDate);
-			const time = body.subscriptionId ? null : resolvePurchaseTime(body.time);
-			const installments = body.installments ?? 1;
-			if (body.storeName) await resolveStore(userId, body.storeName);
-			const fee = normalizePurchaseFee(body);
-			const installmentAmounts = getEvenlyDistributedInstallmentAmounts(body.totalAmount, installments);
-			const installmentAmount = installmentAmounts[0]!;
-			const isStatementCharge =
-				body.isStatementCharge ?? statementEntryKind(body.description ?? "") === "CHARGE";
-			if (statementEntryKind(body.description ?? "") === "BALANCE")
-				throw new HttpException("Saldo anterior é calculado automaticamente", 400);
-			if (
-				isStatementCharge &&
-				(body.debtSplit || body.matchDebtEventId || body.subscriptionId || installments !== 1)
-			)
-				throw new HttpException("Encargos não permitem rateio, assinatura ou parcelamento automático", 400);
-			const cashback = isStatementCharge ? {} : cashbackSnapshot(card, body.totalAmount);
-
-			const { dueDate, statementDate } = getStatementDates(card, purchaseDate);
-			let statement = await queryFirst(
-				db.sql.public.CreditCardStatement.select(...statementColumns)
-					.where((fields, functions) =>
-						functions.and(
-							functions.eq(fields.creditCardId, params.id),
-							functions.eq(fields.statementDate, statementDate),
-						),
-					)
-					.limit(1)
-					.build(),
-			);
-			if (!statement) {
-				try {
-					statement = await queryFirst(
-						db.sql.public.CreditCardStatement.insert([
-							{ creditCardId: params.id, dueDate, statementDate, totalAmount: "0" },
-						])
-							.returning(...statementColumns)
-							.build(),
-					);
-				} catch {
-					statement = await queryFirst(
-						db.sql.public.CreditCardStatement.select(...statementColumns)
-							.where((fields, functions) =>
-								functions.and(
-									functions.eq(fields.creditCardId, params.id),
-									functions.eq(fields.statementDate, statementDate),
-								),
+			const createdId = await withRawTransaction(async () => {
+				if (body.matchDebtEventId && body.debtSplit)
+					throw new HttpException("Rateio e conciliação não podem ser usados juntos", 400);
+				const id = await mutateCreditBook(userId, params.id, async (book, query) => {
+					if (statementEntryKind(body.description ?? "") === "BALANCE")
+						throw new HttpException("Saldo anterior é calculado automaticamente", 400);
+					if (body.isStatementCharge) {
+						if (body.debtSplit || (body.installments ?? 1) !== 1)
+							throw new HttpException("Encargos não permitem rateio ou parcelamento", 400);
+						const s = ensureBookStatement(book, body.purchaseDate);
+						book.charges.push({
+							amountCents: moneyCents(body.totalAmount, 1),
+							chargeDate: body.purchaseDate,
+							description: body.description ?? "Encargo",
+							externalId: null,
+							id: crypto.randomUUID(),
+							isSettled: false,
+							settledByPurchaseId: null,
+							statementId: s.id,
+							time: resolvePurchaseTime(body.time),
+						});
+						return book.charges.at(-1)!.id;
+					}
+					const existing = body.subscriptionId
+						? book.purchases.find(
+								p =>
+									p.subscriptionId === body.subscriptionId &&
+									p.subscriptionOccurrenceDate === body.subscriptionOccurrenceDate,
 							)
-							.limit(1)
-							.build(),
+						: null;
+					if (existing) return existing.id;
+					const [card] = await query<CashbackCard>(
+						`SELECT "cashbackAccountId","cashbackRate","cashbackYieldPeriod","cashbackYieldReferencePercentage","cashbackYieldReferenceRate" FROM "CreditCard" WHERE "id"=$1`,
+						[params.id],
 					);
-				}
-				if (!statement) throw new HttpException("Statement not created", 500);
-			}
-			let purchase = body.subscriptionId
-				? undefined
-				: await queryFirst(
-						db.sql.public.CreditPurchase.insert([
-							{
-								categoryId: tagIds[0],
-								...cashback,
-								currentInstallment: 1,
-								description: body.description ?? "",
-								isStatementCharge,
-								...fee,
-								installmentAmount: String(installmentAmount),
-								installments,
-								purchaseDate,
-								statementId: statement.id,
-								storeName: body.storeName,
-								time,
-								totalAmount: String(body.totalAmount),
-								userId,
-							},
-						])
-							.returning(...purchaseColumns)
-							.build(),
-					);
-			if (body.subscriptionId && body.subscriptionOccurrenceDate) {
-				const inserted = await queryFirst(
-					db.raw.sql`
-					INSERT INTO "CreditPurchase" (
-						"cashbackAccountId", "cashbackAmount", "cashbackYieldPeriod", "cashbackYieldReferencePercentage", "cashbackYieldReferenceRate",
-						"categoryId", "currentInstallment", "description", "installmentAmount", "installments",
-							"purchaseDate", "statementId", "storeName", "subscriptionId",
-								"subscriptionOccurrenceDate", "time", "totalAmount", "userId"
-						)
-					VALUES (
-						${param(card.cashbackAccountId, { codecId: "sql/varchar@1" })},
-						${param(card.cashbackAccountId && card.cashbackRate ? numeric<18, 4>((body.totalAmount * card.cashbackRate) / 100) : null, { codecId: "pg/numeric@1" })},
-						${param(card.cashbackAccountId ? card.cashbackYieldPeriod : null, { codecId: "sql/varchar@1" })}::"CashbackYieldPeriod",
-						${param(card.cashbackAccountId && card.cashbackYieldReferencePercentage !== null ? numeric<7, 4>(card.cashbackYieldReferencePercentage) : null, { codecId: "pg/numeric@1" })},
-						${param(card.cashbackAccountId && card.cashbackYieldReferenceRate !== null ? numeric<7, 4>(card.cashbackYieldReferenceRate) : null, { codecId: "pg/numeric@1" })},
-						${param(tagIds[0] ?? null, { codecId: "sql/varchar@1" })}, 1,
-							${param(body.description ?? "", { codecId: "sql/varchar@1" })},
-							${param(numeric<12, 2>(installmentAmount), { codecId: "pg/numeric@1" })}, 1,
-							${param(purchaseDate, { codecId: "pg/date@1" })},
-							${param(statement.id, { codecId: "sql/varchar@1" })},
-							${param(body.storeName ?? null, { codecId: "sql/varchar@1" })},
-							${param(body.subscriptionId, { codecId: "sql/varchar@1" })},
-							${param(new Date(body.subscriptionOccurrenceDate), { codecId: "pg/date@1" })},
-							${param(time, { codecId: "pg/time@1" })},
-								${param(numeric<12, 2>(body.totalAmount), { codecId: "pg/numeric@1" })},
-								${param(userId, { codecId: "sql/varchar@1" })}
-						)
-						ON CONFLICT ("subscriptionId", "subscriptionOccurrenceDate") DO NOTHING
-						RETURNING "id"
-					`
-						.returnsRow({ id: db.sql.public.CreditPurchase.columns.id })
-						.build(),
-				);
-				if (!inserted) {
-					const existingPurchase = await queryFirst(
-						db.sql.public.CreditPurchase.select(...purchaseColumns)
-							.where((fields, functions) =>
-								functions.and(
-									functions.eq(fields.subscriptionId, body.subscriptionId!),
-									functions.eq(fields.subscriptionOccurrenceDate, new Date(body.subscriptionOccurrenceDate!)),
-								),
-							)
-							.limit(1)
-							.build(),
-					);
-					if (!existingPurchase) throw new HttpException("Purchase not created", 500);
-					const tags =
-						(await getTagsByEntity(tagEntityType.creditPurchase, [existingPurchase.id])).get(
-							existingPurchase.id,
-						) ?? [];
-					return [
-						{
-							...existingPurchase,
-							debtSplit: await getDebtSplitReturn(
-								{ creditPurchaseId: existingPurchase.parentId ?? existingPurchase.id },
-								Number(existingPurchase.totalAmount),
-							),
-							installmentAmount: Number(existingPurchase.installmentAmount),
-							tagIds: tags.map(tag => tag.id),
-							tags,
-							totalAmount: Number(existingPurchase.totalAmount),
-						},
-					];
-				}
-				purchase = await queryFirst(
-					db.sql.public.CreditPurchase.select(...purchaseColumns)
-						.where((fields, functions) => functions.eq(fields.id, inserted.id))
-						.limit(1)
-						.build(),
-				);
-			}
-			if (!purchase) throw new HttpException("Purchase not created", 500);
-			const createdPurchases: CreditPurchaseRow[] = [
-				{
-					...purchase,
-					installmentAmount: Number(purchase.installmentAmount),
-					totalAmount: Number(purchase.totalAmount),
-				},
-			];
-			const amount = param(numeric<12, 2>(installmentAmount), { codecId: "pg/numeric@1" });
-			await executeStatement(
-				db.sql.public.CreditCardStatement.update((fields, functions) => ({
-					totalAmount: functions.raw`${fields.totalAmount} + ${amount}`.returns("pg/numeric@1"),
-					updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
-				}))
-					.where((fields, functions) => functions.eq(fields.id, statement.id))
-					.build(),
-			);
-			for (let currentInstallment = 2; currentInstallment <= installments; currentInstallment++) {
-				const installmentAmount = installmentAmounts[currentInstallment - 1]!;
-				const occurrenceDate = addMonths(purchaseDate, currentInstallment - 1);
-				const { dueDate: installmentDueDate, statementDate: installmentStatementDate } = getStatementDates(
-					card,
-					occurrenceDate,
-				);
-				const installmentStatement = await getOrCreateStatement(
-					params.id,
-					installmentDueDate,
-					installmentStatementDate,
-				);
-				const installmentPurchase = await queryFirst(
-					db.sql.public.CreditPurchase.insert([
-						{
-							categoryId: tagIds[0],
-							currentInstallment,
-							description: body.description ?? "",
-							...fee,
-							installmentAmount: String(installmentAmount),
-							installments,
-							parentId: purchase.id,
-							purchaseDate,
-							statementId: installmentStatement.id,
-							storeName: body.storeName,
-							time,
-							totalAmount: String(body.totalAmount),
-							userId,
-						},
-					])
-						.returning(...purchaseColumns)
-						.build(),
-				);
-				if (!installmentPurchase) throw new HttpException("Purchase not created", 500);
-				createdPurchases.push({
-					...installmentPurchase,
-					installmentAmount: Number(installmentPurchase.installmentAmount),
-					totalAmount: Number(installmentPurchase.totalAmount),
+					return newBookPurchase(book, {
+						...body,
+						categoryId: body.categoryId ?? null,
+						debtSplitRule: body.debtSplit ?? null,
+						description: body.description ?? "",
+						installments: body.installments ?? 1,
+						storeName: body.storeName ?? null,
+						tagIds: body.tagIds ?? [],
+						time: resolvePurchaseTime(body.time),
+						...rewardSnapshot(card!, body.totalAmount),
+					}).id;
 				});
-				const amount = param(numeric<12, 2>(installmentAmount), { codecId: "pg/numeric@1" });
-				await executeStatement(
-					db.sql.public.CreditCardStatement.update((fields, functions) => ({
-						totalAmount: functions.raw`${fields.totalAmount} + ${amount}`.returns("pg/numeric@1"),
-						updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
-					}))
-						.where((fields, functions) => functions.eq(fields.id, installmentStatement.id))
-						.build(),
-				);
-			}
-			await replaceEntityTags({
-				entityIds: createdPurchases.map(purchase => purchase.id),
-				entityType: tagEntityType.creditPurchase,
-				tagIds,
+				if (body.matchDebtEventId)
+					await linkPurchaseToDebt({
+						creditPurchaseId: id,
+						date: body.purchaseDate,
+						description: body.description,
+						matchEventId: body.matchDebtEventId,
+						totalAmount: body.totalAmount,
+						userId,
+					});
+				return id;
 			});
-			const tagsByPurchase = await getTagsByEntity(
-				tagEntityType.creditPurchase,
-				createdPurchases.map(purchase => purchase.id),
+			return (await presentCreditBook(await readCreditBook(userId, params.id))).filter(
+				row => row.purchaseId === createdId || row.id === createdId,
 			);
-			const inheritedDebtSplit = body.subscriptionId
-				? await getDebtSplitInput({ subscriptionId: body.subscriptionId })
-				: undefined;
-			await linkPurchaseToDebt({
-				creditPurchaseId: purchase.id,
-				date: body.purchaseDate,
-				debtSplit: inheritedDebtSplit ?? body.debtSplit,
-				description: getCreditPurchaseName(purchase),
-				matchEventId: body.matchDebtEventId,
-				totalAmount: body.totalAmount,
-				userId,
-			});
-
-			await withTransaction(executor => recalculateStatementPayments(executor, [params.id]));
-			return Promise.all(
-				createdPurchases.map(async purchase => {
-					const tags = tagsByPurchase.get(purchase.id) ?? [];
-					return {
-						...purchase,
-						debtSplit: await getDebtSplitReturn(
-							{ creditPurchaseId: purchase.parentId ?? purchase.id },
-							Number(purchase.totalAmount),
-						),
-						tagIds: tags.map(tag => tag.id),
-						tags,
-					};
-				}),
+		},
+		{ body: CreatePurchaseBody },
+	)
+	.post(
+		"/:id/purchases/:purchaseId/refunds",
+		async ({ params, body, request }) => {
+			const userId = await requireUserId(request);
+			const refund = await createNormalizedRefund(
+				{ cardId: params.id, purchaseId: params.purchaseId, userId },
+				{ amount: body.amount, creditDate: body.purchaseDate, policy: body.policy },
+			);
+			return (await presentCreditBook(await readCreditBook(userId, params.id))).find(
+				row => row.id === refund.id,
 			);
 		},
 		{
 			body: t.Object({
-				categoryId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
-				debtSplit: t.Optional(DebtSplitInputDTO),
-				description: t.Optional(t.String({ maxLength: 500 })),
-				feeAmount: t.Optional(t.Number({ minimum: 0 })),
-				feeDescription: t.Optional(t.String({ maxLength: 100 })),
-				installments: t.Optional(t.Number({ maximum: 48, minimum: 1 })),
-				isStatementCharge: t.Optional(t.Boolean()),
-				matchDebtEventId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
-				purchaseDate: t.String(),
-				storeName: t.Optional(t.String({ maxLength: 200 })),
-				subscriptionId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
-				subscriptionOccurrenceDate: t.Optional(t.String()),
-				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
-				time: t.Optional(t.Nullable(t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" }))),
-				totalAmount: t.Number(),
-			}),
-			detail: { tags: ["Credit Cards"] },
-			params: t.Object({
-				id: t.String({ maxLength: 36, minLength: 1 }),
+				amount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
+				policy: t.Optional(RefundPolicyDTO),
+				purchaseDate: t.String({ format: "date" }),
 			}),
 		},
 	)
+	.patch(
+		"/:id/purchases/:purchaseId/refunds/:refundId",
+		async ({ params, body, request }) => {
+			const userId = await requireUserId(request);
+			await editNormalizedRefund(
+				{ cardId: params.id, purchaseId: params.purchaseId, userId },
+				params.refundId,
+				{ amount: body.amount, creditDate: body.purchaseDate },
+			);
+			return (await presentCreditBook(await readCreditBook(userId, params.id))).find(
+				row => row.id === params.refundId,
+			);
+		},
+		{
+			body: t.Object({
+				amount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
+				purchaseDate: t.Optional(t.String({ format: "date" })),
+			}),
+		},
+	)
+	.delete("/:id/purchases/:purchaseId/refunds/:refundId", async ({ params, request }) => {
+		await deleteNormalizedRefund(
+			{ cardId: params.id, purchaseId: params.purchaseId, userId: await requireUserId(request) },
+			params.refundId,
+		);
+		return { success: true };
+	})
+	.patch(
+		"/:id/purchases/:purchaseId",
+		async ({ params, body, request }) => {
+			const userId = await requireUserId(request);
+			await mutateCreditBook(userId, params.id, book => {
+				if (body.creditCardId && body.creditCardId !== params.id)
+					throw new HttpException("Transferência de compra exige cartão e calendário revisados", 409);
+				const p = resolveBookPurchase(book, params.purchaseId);
+				if (body.installmentAmount !== undefined) {
+					const i = book.installments.find(row => row.id === params.purchaseId);
+					if (!i) throw new HttpException("Parcela não encontrada", 404);
+					const amounts = [...p.installmentAmountsCents];
+					amounts[i.number - 1] = moneyCents(body.installmentAmount, 1);
+					p.installmentAmountsCents = amounts;
+					p.totalAmountCents = amounts.reduce((a, b) => a + b, 0);
+					i.amountCents = amounts[i.number - 1]!;
+				} else {
+					const count = body.installments ?? p.installmentAmountsCents.length;
+					if (book.installments.some(i => i.purchaseId === p.id && i.number > count))
+						throw new HttpException("Parcelas históricas não podem ser removidas", 409);
+					if (body.totalAmount !== undefined || body.installments !== undefined) {
+						const total = moneyCents(body.totalAmount ?? p.totalAmountCents / 100, 1);
+						const known = new Map(
+							book.installments
+								.filter(i => i.purchaseId === p.id && i.hasImportedAmount)
+								.map(i => [i.number, i.amountCents]),
+						);
+						p.installmentAmountsCents = distributePurchaseCents(total, count, known);
+						p.totalAmountCents = total;
+						for (const i of book.installments.filter(i => i.purchaseId === p.id))
+							i.amountCents = p.installmentAmountsCents[i.number - 1]!;
+					}
+				}
+				if (body.description !== undefined) p.description = body.description;
+				if (body.storeName !== undefined) p.storeName = body.storeName;
+				if (body.time !== undefined) p.time = body.time;
+				if (body.tagIds !== undefined) p.tagIds = body.tagIds;
+				if (body.debtSplit !== undefined) p.debtSplitRule = body.debtSplit;
+				if (body.purchaseDate !== undefined) updateBookPurchaseDate(book, p.id, body.purchaseDate);
+				if (body.feeAmount !== undefined) {
+					p.feeAmount = body.feeAmount || null;
+					p.feeDescription = body.feeAmount ? (body.feeDescription ?? p.feeDescription) : null;
+				}
+				p.updatedAt = new Date().toISOString();
+			});
+			return (await presentCreditBook(await readCreditBook(userId, params.id))).find(
+				row => row.id === params.purchaseId || row.purchaseId === params.purchaseId,
+			);
+		},
+		{ body: UpdatePurchaseBody },
+	)
+	.delete("/:id/purchases/:purchaseId", async ({ params, request }) => {
+		await mutateCreditBook(await requireUserId(request), params.id, book => {
+			const refund = book.refunds.find(r => r.id === params.purchaseId);
+			if (refund) {
+				removeBookRefund(book, refund.purchaseId, refund.id);
+				return;
+			}
+			const charge = book.charges.find(ch => ch.id === params.purchaseId);
+			if (charge) {
+				book.charges = book.charges.filter(ch => ch.id !== charge.id);
+				return;
+			}
+			const p = resolveBookPurchase(book, params.purchaseId);
+			book.purchases = book.purchases.filter(row => row.id !== p.id);
+			book.installments = book.installments.filter(i => i.purchaseId !== p.id);
+			book.refunds = book.refunds.filter(r => r.purchaseId !== p.id);
+		});
+		return { success: true };
+	})
 	.post(
 		"/:id/purchases/:purchaseId/refinance",
 		async ({ params, body, request }) => {
 			const userId = await requireUserId(request);
-			await assertCreditCardOwnership(params.id, userId);
-			const selectedPurchase = await findPurchaseForCard(params.id, params.purchaseId);
-			if (!selectedPurchase) throw new HttpException("Purchase not found", 404);
-			if (selectedPurchase.isStatementCharge && !selectedPurchase.isRefund)
-				throw new HttpException("Encargos não permitem parcelamento automático", 400);
-			const rootPurchaseId = selectedPurchase.parentId ?? selectedPurchase.id;
-			const card = await queryFirst(
-				db.sql.public.CreditCard.select("dueDay", "statementDay")
-					.where((fields, functions) => functions.eq(fields.id, params.id))
-					.limit(1)
-					.build(),
-			);
-			if (!card) throw new HttpException("Credit card not found", 404);
-
-			const installmentsToSettle = (await queryRows(
-				db.sql.public.CreditPurchase.innerJoin(db.sql.public.CreditCardStatement, (fields, functions) =>
-					functions.eq(fields.CreditPurchase.statementId, fields.CreditCardStatement.id),
-				)
-					.select((fields, functions) => ({
-						...Object.fromEntries(purchaseColumns.map(column => [column, fields.CreditPurchase[column]])),
-						isPaid: fields.CreditCardStatement.isPaid,
-					}))
-					.where((fields, functions) =>
-						functions.and(
-							functions.eq(fields.CreditCardStatement.creditCardId, params.id),
-							functions.or(
-								functions.eq(fields.CreditPurchase.id, rootPurchaseId),
-								functions.eq(fields.CreditPurchase.parentId, rootPurchaseId),
-							),
-							functions.eq(fields.CreditPurchase.isSettled, false),
-							functions.eq(fields.CreditCardStatement.isPaid, false),
-						),
-					)
-					.build(),
-			)) as Array<CreditPurchaseRow & { isPaid: boolean }>;
-			if (!installmentsToSettle.length) throw new HttpException("No open installments to refinance", 409);
-
-			const settledAmount = installmentsToSettle.reduce(
-				(total, installment) => total + Number(installment.installmentAmount),
-				0,
-			);
-			const totalAmount = settledAmount + body.feeAmount;
-			const installmentAmounts = getEvenlyDistributedInstallmentAmounts(totalAmount, body.installments);
-			const purchaseDate = new Date(body.purchaseDate);
-			const source =
-				installmentsToSettle.find(item => item.id === rootPurchaseId) ?? installmentsToSettle[0]!;
-			const sourceTags = await getTagsByEntity(tagEntityType.creditPurchase, [source.id]);
-			const tagIds = (sourceTags.get(source.id) ?? []).map(tag => tag.id);
-
-			const createdPurchases: CreditPurchaseRow[] = [];
-			for (let currentInstallment = 1; currentInstallment <= body.installments; currentInstallment++) {
-				const installmentAmount = installmentAmounts[currentInstallment - 1]!;
-				const occurrenceDate = addMonths(purchaseDate, currentInstallment - 1);
-				const { dueDate, statementDate } = getStatementDates(card, occurrenceDate);
-				let statement = await queryFirst(
-					db.sql.public.CreditCardStatement.select(...statementColumns)
-						.where((fields, functions) =>
-							functions.and(
-								functions.eq(fields.creditCardId, params.id),
-								functions.eq(fields.statementDate, statementDate),
-							),
-						)
-						.limit(1)
-						.build(),
-				);
-				if (!statement) {
-					statement = await queryFirst(
-						db.sql.public.CreditCardStatement.insert([
-							{ creditCardId: params.id, dueDate, statementDate, totalAmount: "0" },
-						])
-							.returning(...statementColumns)
-							.build(),
-					);
-				}
-				if (!statement) throw new HttpException("Statement not created", 500);
-
-				const refinancingPurchase = await queryFirst(
-					db.sql.public.CreditPurchase.insert([
-						{
-							categoryId: tagIds[0],
-							currentInstallment,
-							description: source.description,
-							installmentAmount: String(installmentAmount),
-							installments: body.installments,
-							...(currentInstallment > 1 && { parentId: createdPurchases[0]!.id }),
-							purchaseDate,
-							...(currentInstallment === 1 && { refinancingFeeAmount: String(body.feeAmount) }),
-							statementId: statement.id,
-							storeName: source.storeName,
-							time: source.time,
-							totalAmount: String(totalAmount),
-							userId,
-						},
-					])
-						.returning(...purchaseColumns)
-						.build(),
-				);
-				if (!refinancingPurchase) throw new HttpException("Refinancing purchase not created", 500);
-				createdPurchases.push({
-					...refinancingPurchase,
-					installmentAmount: Number(refinancingPurchase.installmentAmount),
-					totalAmount: Number(refinancingPurchase.totalAmount),
-				});
-				const amount = param(numeric<12, 2>(installmentAmount), { codecId: "pg/numeric@1" });
-				await executeStatement(
-					db.sql.public.CreditCardStatement.update((fields, functions) => ({
-						totalAmount: functions.raw`${fields.totalAmount} + ${amount}`.returns("pg/numeric@1"),
-						updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
-					}))
-						.where((fields, functions) => functions.eq(fields.id, statement.id))
-						.build(),
-				);
-			}
-
-			await replaceEntityTags({
-				entityIds: createdPurchases.map(purchase => purchase.id),
-				entityType: tagEntityType.creditPurchase,
-				tagIds,
+			let settledAmount = 0;
+			let totalAmount = 0;
+			await mutateCreditBook(userId, params.id, book => {
+				const result = refinanceBookPurchase(book, resolveBookPurchase(book, params.purchaseId).id, body);
+				settledAmount = result.settledAmount;
+				totalAmount = result.totalAmount;
 			});
-			for (const installment of installmentsToSettle) {
-				await executeStatement(
-					db.sql.public.CreditPurchase.update({
-						isSettled: true,
-						settledByPurchaseId: createdPurchases[0]!.id,
-						updatedAt: new Date(),
-					})
-						.where((fields, functions) => functions.eq(fields.id, installment.id))
-						.build(),
-				);
-				const amount = param(numeric<12, 2>(installment.installmentAmount), { codecId: "pg/numeric@1" });
-				await executeStatement(
-					db.sql.public.CreditCardStatement.update((fields, functions) => ({
-						totalAmount: functions.raw`GREATEST(0, ${fields.totalAmount} - ${amount})`.returns(
-							"pg/numeric@1",
-						),
-						updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
-					}))
-						.where((fields, functions) => functions.eq(fields.id, installment.statementId))
-						.build(),
-				);
-			}
-			const tagsByPurchase = await getTagsByEntity(
-				tagEntityType.creditPurchase,
-				createdPurchases.map(purchase => purchase.id),
-			);
-			await withTransaction(executor => recalculateStatementPayments(executor, [params.id]));
 			return {
-				purchases: createdPurchases.map(purchase => ({
-					...purchase,
-					tagIds: (tagsByPurchase.get(purchase.id) ?? []).map(tag => tag.id),
-					tags: tagsByPurchase.get(purchase.id) ?? [],
-				})),
+				purchases: await presentCreditBook(await readCreditBook(userId, params.id)),
 				settledAmount,
 				totalAmount,
 			};
@@ -1426,651 +624,8 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 		{
 			body: t.Object({
 				feeAmount: t.Number({ minimum: 0 }),
-				installments: t.Number({ maximum: 48, minimum: 1 }),
-				purchaseDate: t.String(),
-			}),
-			detail: { tags: ["Credit Cards"] },
-			params: t.Object({
-				id: t.String({ maxLength: 36, minLength: 1 }),
-				purchaseId: t.String({ maxLength: 36, minLength: 1 }),
-			}),
-		},
-	)
-	.post(
-		"/:id/purchases/:purchaseId/refunds",
-		async ({ params, body, request }) => {
-			const userId = await requireUserId(request);
-			await assertCreditCardOwnership(params.id, userId);
-			const selectedPurchase = await findPurchaseForCard(params.id, params.purchaseId);
-			if (!selectedPurchase) throw new HttpException("Purchase not found", 404);
-			if (selectedPurchase.isRefund) throw new HttpException("Refunds cannot be refunded", 409);
-
-			const rootPurchaseId = selectedPurchase.parentId ?? selectedPurchase.id;
-			const sourcePurchase =
-				rootPurchaseId === selectedPurchase.id
-					? selectedPurchase
-					: await findPurchaseForCard(params.id, rootPurchaseId);
-			if (!sourcePurchase) throw new HttpException("Purchase not found", 404);
-			const refunds = await queryRows(
-				db.sql.public.CreditPurchase.select("totalAmount")
-					.where((fields, functions) => functions.eq(fields.refundOfPurchaseId, rootPurchaseId))
-					.build(),
-			);
-			if (refunds.length) throw new HttpException("This purchase has already been refunded", 409);
-			const refundedAmount = refunds.reduce((sum, refund) => sum + Math.abs(Number(refund.totalAmount)), 0);
-			const remainingAmount = Math.round((Number(sourcePurchase.totalAmount) - refundedAmount) * 100) / 100;
-			const refundAmount = body.amount ?? remainingAmount;
-			if (refundAmount <= 0) throw new HttpException("Refund amount must be greater than zero", 400);
-
-			const card = await queryFirst(
-				db.sql.public.CreditCard.select("dueDay", "statementDay")
-					.where((fields, functions) => functions.eq(fields.id, params.id))
-					.limit(1)
-					.build(),
-			);
-			if (!card) throw new HttpException("Credit card not found", 404);
-			const refundDate = body.date ? new Date(body.date) : sourcePurchase.purchaseDate;
-			let statementId = sourcePurchase.statementId;
-			if (body.date) {
-				const { dueDate, statementDate } = getStatementDates(card, refundDate);
-				statementId = (await getOrCreateStatement(params.id, dueDate, statementDate)).id;
-			}
-			const refund = await queryFirst(
-				db.sql.public.CreditPurchase.insert([
-					{
-						categoryId: sourcePurchase.categoryId,
-						currentInstallment: 1,
-						description: `Reembolso - ${sourcePurchase.description || sourcePurchase.storeName || "Compra"}`,
-						installmentAmount: String(-refundAmount),
-						installments: 1,
-						isRefund: true,
-						isStatementCharge: sourcePurchase.isStatementCharge,
-						purchaseDate: refundDate,
-						refundOfPurchaseId: rootPurchaseId,
-						statementId,
-						storeName: sourcePurchase.storeName,
-						time: resolvePurchaseTime(undefined),
-						totalAmount: String(-refundAmount),
-						userId,
-					},
-				])
-					.returning(...purchaseColumns)
-					.build(),
-			);
-			if (!refund) throw new HttpException("Refund not created", 500);
-			const debtSplit = await getDebtSplitInput({ creditPurchaseId: rootPurchaseId });
-			if (debtSplit)
-				await linkPurchaseToDebt({
-					creditPurchaseId: refund.id,
-					date: toDateKey(refundDate),
-					debtEffectMultiplier: -1,
-					debtSplit,
-					description: refund.description,
-					totalAmount: refundAmount,
-					userId,
-				});
-			const sourceTags = await getTagsByEntity(tagEntityType.creditPurchase, [rootPurchaseId]);
-			const tagIds = (sourceTags.get(rootPurchaseId) ?? []).map(tag => tag.id);
-			await replaceEntityTags({ entityIds: [refund.id], entityType: tagEntityType.creditPurchase, tagIds });
-			const amount = param(numeric<12, 2>(-refundAmount), { codecId: "pg/numeric@1" });
-			await executeStatement(
-				db.sql.public.CreditCardStatement.update((fields, functions) => ({
-					totalAmount: functions.raw`${fields.totalAmount} + ${amount}`.returns("pg/numeric@1"),
-					updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
-				}))
-					.where((fields, functions) => functions.eq(fields.id, statementId))
-					.build(),
-			);
-			const tags = (await getTagsByEntity(tagEntityType.creditPurchase, [refund.id])).get(refund.id) ?? [];
-			await withTransaction(executor => recalculateStatementPayments(executor, [params.id]));
-			return {
-				...refund,
-				debtSplit: await getDebtSplitReturn({ creditPurchaseId: refund.id }, refundAmount),
-				installmentAmount: Number(refund.installmentAmount),
-				tagIds: tags.map(tag => tag.id),
-				tags,
-				totalAmount: Number(refund.totalAmount),
-			};
-		},
-		{
-			body: t.Object({
-				amount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
-				date: t.Optional(t.String()),
-			}),
-			detail: { tags: ["Credit Cards"] },
-			params: t.Object({
-				id: t.String({ maxLength: 36, minLength: 1 }),
-				purchaseId: t.String({ maxLength: 36, minLength: 1 }),
-			}),
-		},
-	)
-	.patch(
-		"/:id/purchases/:purchaseId",
-		async ({ params, body, request }) => {
-			const userId = await requireUserId(request);
-			await assertCreditCardOwnership(params.id, userId);
-			const purchase = await findPurchaseForCard(params.id, params.purchaseId);
-			if (!purchase) throw new HttpException("Purchase not found", 404);
-			const isSynced = await isCreditPurchaseSynced(params.id, purchase.id);
-			const changesAmount =
-				(body.installmentAmount !== undefined &&
-					body.installmentAmount !== Number(purchase.installmentAmount)) ||
-				(body.totalAmount !== undefined && body.totalAmount !== Number(purchase.totalAmount));
-			const changesDate =
-				body.purchaseDate !== undefined &&
-				body.purchaseDate !== purchase.purchaseDate.toISOString().slice(0, 10);
-			if (isSynced && (changesAmount || changesDate))
-				throw new HttpException("Synced purchases cannot have their amount or date edited", 409);
-			if (body.creditCardId) await assertCreditCardOwnership(body.creditCardId, userId);
-			if (body.storeName) await resolveStore(userId, body.storeName);
-			const tagIds = body.tagIds === undefined ? undefined : await assertTagOwnership(body.tagIds, userId);
-			const hasParentFields = Object.entries(body).some(
-				([field, value]) => field !== "installmentAmount" && value !== undefined,
-			);
-			if (purchase.parentId && (body.installmentAmount === undefined || hasParentFields))
-				throw new HttpException("Parcelas específicas permitem editar somente o valor", 400);
-			if (!purchase.parentId && body.installmentAmount !== undefined)
-				throw new HttpException("Edite o valor total da compra pai", 400);
-			if (body.installmentAmount !== undefined) {
-				if (purchase.installments === 1)
-					throw new HttpException("A compra não possui parcelas para editar", 400);
-				const rootPurchaseId = purchase.parentId ?? purchase.id;
-				const installments = await queryRows(
-					db.sql.public.CreditPurchase.select(...purchaseColumns)
-						.where((fields, functions) =>
-							functions.or(
-								functions.eq(fields.id, rootPurchaseId),
-								functions.eq(fields.parentId, rootPurchaseId),
-							),
-						)
-						.build(),
-				);
-				if (installments.length !== purchase.installments)
-					throw new HttpException("Não foi possível identificar todas as parcelas da compra", 409);
-				const rootPurchase = installments.find(item => item.id === rootPurchaseId);
-				if (!rootPurchase) throw new HttpException("Compra não encontrada", 404);
-				const totalAmount = sumInstallmentAmounts(
-					installments.map(installment =>
-						installment.id === purchase.id ? body.installmentAmount! : Number(installment.installmentAmount),
-					),
-				);
-				const cashbackAmount =
-					rootPurchase.cashbackAmount === null
-						? null
-						: String(
-								Number(
-									(Number(rootPurchase.cashbackAmount) * totalAmount) / Number(rootPurchase.totalAmount),
-								).toFixed(4),
-							);
-				const updatedPurchase = await queryFirst(
-					db.sql.public.CreditPurchase.update({
-						installmentAmount: String(body.installmentAmount),
-						totalAmount: String(totalAmount),
-						updatedAt: new Date(),
-					})
-						.where((fields, functions) => functions.eq(fields.id, purchase.id))
-						.returning(...purchaseColumns)
-						.build(),
-				);
-				if (!updatedPurchase) throw new HttpException("Compra não encontrada", 404);
-				await executeStatement(
-					db.sql.public.CreditPurchase.update({ totalAmount: String(totalAmount), updatedAt: new Date() })
-						.where((fields, functions) =>
-							functions.and(
-								functions.in(
-									fields.id,
-									installments.filter(item => item.id !== purchase.id).map(item => item.id),
-								),
-								functions.ne(fields.id, rootPurchase.id),
-							),
-						)
-						.build(),
-				);
-				await executeStatement(
-					db.sql.public.CreditPurchase.update({
-						cashbackAmount,
-						totalAmount: String(totalAmount),
-						updatedAt: new Date(),
-					})
-						.where((fields, functions) => functions.eq(fields.id, rootPurchase.id))
-						.build(),
-				);
-				const amountDifference = body.installmentAmount - Number(purchase.installmentAmount);
-				if (amountDifference)
-					await executeStatement(
-						db.sql.public.CreditCardStatement.update((fields, functions) => ({
-							totalAmount: functions.raw`${fields.totalAmount} + ${String(amountDifference)}`.returns(
-								"pg/numeric@1",
-							),
-							updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
-						}))
-							.where((fields, functions) => functions.eq(fields.id, purchase.statementId))
-							.build(),
-					);
-				await syncPurchaseDebtEvent({
-					creditPurchaseId: rootPurchase.id,
-					date: rootPurchase.purchaseDate.toISOString().slice(0, 10),
-					debtSplit: await getDebtSplitInput({ creditPurchaseId: rootPurchase.id }),
-					description: getCreditPurchaseName(rootPurchase),
-					totalAmount,
-					userId,
-				});
-				const tags =
-					(await getTagsByEntity(tagEntityType.creditPurchase, [updatedPurchase.id])).get(
-						updatedPurchase.id,
-					) ?? [];
-				await withTransaction(executor => recalculateStatementPayments(executor, [params.id]));
-				return {
-					...updatedPurchase,
-					debtSplit: await getDebtSplitReturn({ creditPurchaseId: rootPurchase.id }, totalAmount),
-					tagIds: tags.map(tag => tag.id),
-					tags,
-				};
-			}
-			const previousAmount = Number(purchase.installmentAmount);
-			const fee = body.feeAmount === undefined ? undefined : normalizePurchaseFee(body);
-
-			const nextInstallments = body.installments ?? purchase.installments;
-			if (purchase.isStatementCharge && (nextInstallments !== 1 || body.debtSplit))
-				throw new HttpException("Encargos não permitem rateio ou parcelamento automático", 400);
-			if (nextInstallments !== purchase.installments && purchase.installments > 1)
-				throw new HttpException("Não é possível alterar a quantidade de parcelas desta compra", 409);
-			const requestedTotalAmount = body.totalAmount ?? Number(purchase.totalAmount);
-			const purchaseInstallments =
-				purchase.installments > 1
-					? await queryRows(
-							db.sql.public.CreditPurchase.select(...purchaseColumns)
-								.where((fields, functions) =>
-									functions.or(
-										functions.eq(fields.id, purchase.id),
-										functions.eq(fields.parentId, purchase.id),
-									),
-								)
-								.build(),
-						)
-					: [];
-			const sortedPurchaseInstallments = purchaseInstallments.toSorted(
-				(left, right) => left.currentInstallment - right.currentInstallment,
-			);
-			const purchaseInstallmentsByNumber = new Map(
-				sortedPurchaseInstallments.map(installment => [installment.currentInstallment, installment]),
-			);
-			const missingInstallmentNumbers = getMissingInstallmentNumbers(purchase.installments, [
-				...purchaseInstallmentsByNumber.keys(),
-			]);
-			const shouldReconcileInstallments =
-				body.totalAmount !== undefined || missingInstallmentNumbers.length > 0;
-			let redistributedAmounts: number[] | undefined;
-			if (shouldReconcileInstallments && purchaseInstallments.length) {
-				try {
-					redistributedAmounts = redistributeInstallmentAmounts(
-						requestedTotalAmount,
-						Array.from({ length: purchase.installments }, (_, index) => {
-							const currentInstallment = index + 1;
-							const installment = purchaseInstallmentsByNumber.get(currentInstallment);
-							return {
-								currentInstallment,
-								hasImportedAmount: installment?.hasImportedAmount ?? false,
-								installmentAmount: installment ? Number(installment.installmentAmount) : 0,
-							};
-						}),
-					);
-				} catch (error) {
-					throw new HttpException(error instanceof Error ? error.message : "Parcelamento inválido", 400);
-				}
-			}
-			const nextTotalAmount = !shouldReconcileInstallments
-				? requestedTotalAmount
-				: sumInstallmentAmounts(
-						redistributedAmounts ??
-							getEvenlyDistributedInstallmentAmounts(requestedTotalAmount, nextInstallments),
-					);
-			const nextAmount = shouldReconcileInstallments
-				? (redistributedAmounts?.[purchase.currentInstallment - 1] ?? nextTotalAmount / nextInstallments)
-				: previousAmount;
-			const nextPurchaseDate = body.purchaseDate ? new Date(body.purchaseDate) : purchase.purchaseDate;
-			let nextStatementId = purchase.statementId;
-			let nextCashback = {
-				cashbackAccountId: purchase.cashbackAccountId,
-				cashbackAmount:
-					purchase.cashbackAmount === null || purchase.cashbackAmount === undefined
-						? null
-						: String(
-								Number(
-									(Number(purchase.cashbackAmount) * nextTotalAmount) / Number(purchase.totalAmount),
-								).toFixed(4),
-							),
-				cashbackYieldPeriod: purchase.cashbackYieldPeriod,
-				cashbackYieldReferencePercentage:
-					purchase.cashbackYieldReferencePercentage === null ||
-					purchase.cashbackYieldReferencePercentage === undefined
-						? null
-						: String(purchase.cashbackYieldReferencePercentage),
-				cashbackYieldReferenceRate:
-					purchase.cashbackYieldReferenceRate === null || purchase.cashbackYieldReferenceRate === undefined
-						? null
-						: String(purchase.cashbackYieldReferenceRate),
-			};
-			if (!purchase.parentId) {
-				const targetCardId = body.creditCardId ?? params.id;
-				const card = await queryFirst(
-					db.sql.public.CreditCard.select(
-						"cashbackAccountId",
-						"cashbackRate",
-						"cashbackYieldPeriod",
-						"cashbackYieldReferencePercentage",
-						"cashbackYieldReferenceRate",
-						"dueDay",
-						"statementDay",
-					)
-						.where((fields, functions) => functions.eq(fields.id, targetCardId))
-						.limit(1)
-						.build(),
-				);
-				if (!card) throw new HttpException("Credit card not found", 404);
-				const { dueDate, statementDate } = getStatementDates(card, nextPurchaseDate);
-				let statement = await queryFirst(
-					db.sql.public.CreditCardStatement.select(...statementColumns)
-						.where((fields, functions) =>
-							functions.and(
-								functions.eq(fields.creditCardId, targetCardId),
-								functions.eq(fields.statementDate, statementDate),
-							),
-						)
-						.limit(1)
-						.build(),
-				);
-				if (!statement) {
-					statement = await queryFirst(
-						db.sql.public.CreditCardStatement.insert([
-							{ creditCardId: targetCardId, dueDate, statementDate, totalAmount: "0" },
-						])
-							.returning(...statementColumns)
-							.build(),
-					);
-				}
-				if (!statement) throw new HttpException("Statement not created", 500);
-
-				nextStatementId = statement.id;
-				if (!purchase.parentId && targetCardId !== params.id) {
-					const snapshot = purchase.isStatementCharge ? {} : cashbackSnapshot(card, nextTotalAmount);
-					nextCashback = {
-						cashbackAccountId: snapshot.cashbackAccountId ?? null,
-						cashbackAmount: snapshot.cashbackAmount ?? null,
-						cashbackYieldPeriod: snapshot.cashbackYieldPeriod ?? null,
-						cashbackYieldReferencePercentage: snapshot.cashbackYieldReferencePercentage ?? null,
-						cashbackYieldReferenceRate: snapshot.cashbackYieldReferenceRate ?? null,
-					};
-				}
-			}
-			const createdInstallments: CreditPurchaseRow[] = [];
-			if (missingInstallmentNumbers.length) {
-				const installmentCardId = body.creditCardId ?? params.id;
-				const installmentCard = await queryFirst(
-					db.sql.public.CreditCard.select("dueDay", "statementDay")
-						.where((fields, functions) => functions.eq(fields.id, installmentCardId))
-						.limit(1)
-						.build(),
-				);
-				if (!installmentCard) throw new HttpException("Credit card not found", 404);
-				for (const currentInstallment of missingInstallmentNumbers) {
-					const installmentAmount = redistributedAmounts?.[currentInstallment - 1];
-					if (installmentAmount === undefined) throw new HttpException("Parcelamento inválido", 400);
-					const occurrenceDate = addMonths(nextPurchaseDate, currentInstallment - 1);
-					const { dueDate, statementDate } = getStatementDates(installmentCard, occurrenceDate);
-					const statement = await getOrCreateStatement(installmentCardId, dueDate, statementDate);
-
-					const createdInstallment = await queryFirst(
-						db.sql.public.CreditPurchase.insert([
-							{
-								categoryId: tagIds?.[0] ?? purchase.categoryId,
-								currentInstallment,
-								description: body.description ?? purchase.description,
-								feeAmount: fee
-									? fee.feeAmount
-									: purchase.feeAmount === null
-										? null
-										: String(purchase.feeAmount),
-								feeDescription: fee ? fee.feeDescription : purchase.feeDescription,
-								hasImportedAmount: false,
-								installmentAmount: String(installmentAmount),
-								installments: nextInstallments,
-								parentId: purchase.id,
-								purchaseDate: nextPurchaseDate,
-								statementId: statement.id,
-								storeName: body.storeName ?? purchase.storeName,
-								time: body.time ?? purchase.time,
-								totalAmount: String(nextTotalAmount),
-								userId,
-							},
-						])
-							.returning(...purchaseColumns)
-							.build(),
-					);
-					if (!createdInstallment) throw new HttpException("Purchase not created", 500);
-					createdInstallments.push({
-						...createdInstallment,
-						installmentAmount: Number(createdInstallment.installmentAmount),
-						totalAmount: Number(createdInstallment.totalAmount),
-					});
-					const amount = param(numeric<12, 2>(installmentAmount), { codecId: "pg/numeric@1" });
-					await executeStatement(
-						db.sql.public.CreditCardStatement.update((fields, functions) => ({
-							totalAmount: functions.raw`${fields.totalAmount} + ${amount}`.returns("pg/numeric@1"),
-							updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
-						}))
-							.where((fields, functions) => functions.eq(fields.id, statement.id))
-							.build(),
-					);
-				}
-			}
-			const updatedPurchase = await queryFirst(
-				db.sql.public.CreditPurchase.update({
-					...(!purchase.parentId &&
-						(body.totalAmount !== undefined || nextStatementId !== purchase.statementId) && {
-							cashbackAccountId: nextCashback.cashbackAccountId,
-							cashbackAmount: nextCashback.cashbackAmount,
-							cashbackYieldPeriod: nextCashback.cashbackYieldPeriod,
-							cashbackYieldReferencePercentage: nextCashback.cashbackYieldReferencePercentage,
-							cashbackYieldReferenceRate: nextCashback.cashbackYieldReferenceRate,
-						}),
-					...(body.description !== undefined && { description: body.description }),
-					...(fee && fee),
-					...(body.storeName !== undefined && { storeName: body.storeName }),
-					...(shouldReconcileInstallments && {
-						installmentAmount: String(nextAmount),
-						installments: nextInstallments,
-						totalAmount: String(nextTotalAmount),
-					}),
-					...(body.purchaseDate !== undefined && { purchaseDate: nextPurchaseDate }),
-					...(body.time !== undefined && { time: body.time }),
-					...(nextStatementId !== purchase.statementId && { statementId: nextStatementId }),
-					...(tagIds !== undefined && { categoryId: tagIds[0] ?? null }),
-					updatedAt: new Date(),
-				} as never)
-					.where((fields, functions) => functions.eq(fields.id, params.purchaseId))
-					.returning(...purchaseColumns)
-					.build(),
-			);
-			if (!updatedPurchase) throw new HttpException("Purchase not found", 404);
-			const redistributedAmountByPurchaseId = new Map(
-				sortedPurchaseInstallments.map(installment => [
-					installment.id,
-					redistributedAmounts?.[installment.currentInstallment - 1],
-				]),
-			);
-			if (redistributedAmounts) {
-				await Promise.all(
-					sortedPurchaseInstallments
-						.filter(installment => installment.id !== purchase.id)
-						.map(installment =>
-							executeStatement(
-								db.sql.public.CreditPurchase.update({
-									installmentAmount: String(redistributedAmountByPurchaseId.get(installment.id)),
-									totalAmount: String(nextTotalAmount),
-									updatedAt: new Date(),
-								})
-									.where((fields, functions) => functions.eq(fields.id, installment.id))
-									.build(),
-							),
-						),
-				);
-			}
-			await syncPurchaseDebtEvent({
-				creditPurchaseId: purchase.parentId ?? purchase.id,
-				date: updatedPurchase.purchaseDate.toISOString().slice(0, 10),
-				debtSplit: body.debtSplit,
-				description: getCreditPurchaseName(updatedPurchase),
-				matchEventId: body.matchDebtEventId,
-				totalAmount: Number(updatedPurchase.totalAmount),
-				userId,
-			});
-
-			if (nextStatementId !== purchase.statementId) {
-				const previousStatementAmount = param(numeric<12, 2>(previousAmount), { codecId: "pg/numeric@1" });
-				const nextStatementAmount = param(numeric<12, 2>(nextAmount), { codecId: "pg/numeric@1" });
-				await executeStatement(
-					db.sql.public.CreditCardStatement.update((fields, functions) => ({
-						totalAmount:
-							functions.raw`GREATEST(0, ${fields.totalAmount} - ${previousStatementAmount})`.returns(
-								"pg/numeric@1",
-							),
-						updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
-					}))
-						.where((fields, functions) => functions.eq(fields.id, purchase.statementId))
-						.build(),
-				);
-				await executeStatement(
-					db.sql.public.CreditCardStatement.update((fields, functions) => ({
-						totalAmount: functions.raw`${fields.totalAmount} + ${nextStatementAmount}`.returns(
-							"pg/numeric@1",
-						),
-						updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
-					}))
-						.where((fields, functions) => functions.eq(fields.id, nextStatementId))
-						.build(),
-				);
-			} else if (nextAmount !== previousAmount) {
-				const amount = param(numeric<12, 2>(nextAmount - previousAmount), { codecId: "pg/numeric@1" });
-				await executeStatement(
-					db.sql.public.CreditCardStatement.update((fields, functions) => ({
-						totalAmount: functions.raw`${fields.totalAmount} + ${amount}`.returns("pg/numeric@1"),
-						updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
-					}))
-						.where((fields, functions) => functions.eq(fields.id, purchase.statementId))
-						.build(),
-				);
-			}
-			if (redistributedAmounts) {
-				for (const installment of sortedPurchaseInstallments) {
-					if (installment.id === purchase.id) continue;
-					const nextInstallmentAmount = redistributedAmountByPurchaseId.get(installment.id)!;
-					const amountDifference = nextInstallmentAmount - Number(installment.installmentAmount);
-					if (!amountDifference) continue;
-					const amount = param(numeric<12, 2>(amountDifference), { codecId: "pg/numeric@1" });
-					await executeStatement(
-						db.sql.public.CreditCardStatement.update((fields, functions) => ({
-							totalAmount: functions.raw`${fields.totalAmount} + ${amount}`.returns("pg/numeric@1"),
-							updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
-						}))
-							.where((fields, functions) => functions.eq(fields.id, installment.statementId))
-							.build(),
-					);
-				}
-			}
-			if (tagIds !== undefined || createdInstallments.length) {
-				const installmentTagIds =
-					tagIds ??
-					((await getTagsByEntity(tagEntityType.creditPurchase, [purchase.id])).get(purchase.id) ?? []).map(
-						tag => tag.id,
-					);
-				await replaceEntityTags({
-					entityIds: [updatedPurchase.id, ...createdInstallments.map(installment => installment.id)],
-					entityType: tagEntityType.creditPurchase,
-					tagIds: installmentTagIds,
-				});
-			}
-
-			const tagsByPurchase = await getTagsByEntity(tagEntityType.creditPurchase, [updatedPurchase.id]);
-			const tags = tagsByPurchase.get(updatedPurchase.id) ?? [];
-			await withTransaction(executor =>
-				recalculateStatementPayments(executor, [params.id, body.creditCardId ?? params.id]),
-			);
-			return {
-				...updatedPurchase,
-				debtSplit: await getDebtSplitReturn(
-					{ creditPurchaseId: purchase.parentId ?? purchase.id },
-					Math.abs(Number(updatedPurchase.totalAmount)),
-				),
-				tagIds: tags.map(tag => tag.id),
-				tags,
-			};
-		},
-		{
-			body: t.Object({
-				creditCardId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
-				debtSplit: t.Optional(t.Nullable(DebtSplitInputDTO)),
-				description: t.Optional(t.String({ maxLength: 500 })),
-				feeAmount: t.Optional(t.Number({ minimum: 0 })),
-				feeDescription: t.Optional(t.String({ maxLength: 100 })),
-				installmentAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
-				installments: t.Optional(t.Number({ maximum: 48, minimum: 1 })),
-				matchDebtEventId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
-				purchaseDate: t.Optional(t.String()),
-				storeName: t.Optional(t.Nullable(t.String({ maxLength: 200 }))),
-				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
-				time: t.Optional(t.Nullable(t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" }))),
-				totalAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
-			}),
-			detail: { tags: ["Credit Cards"] },
-			params: t.Object({
-				id: t.String({ maxLength: 36, minLength: 1 }),
-				purchaseId: t.String({ maxLength: 36, minLength: 1 }),
-			}),
-		},
-	)
-	.delete(
-		"/:id/purchases/:purchaseId",
-		async ({ params, request }) => {
-			const userId = await requireUserId(request);
-			await assertCreditCardOwnership(params.id, userId);
-			const purchase = await findPurchaseForCard(params.id, params.purchaseId);
-			if (!purchase) throw new HttpException("Purchase not found", 404);
-			if (await isCreditPurchaseSynced(params.id, purchase.id))
-				throw new HttpException("Synced purchases cannot be deleted", 409);
-			if (purchase.installments > 1)
-				throw new HttpException("Parcela não pode ser excluída; registre um reembolso", 409);
-
-			await replaceEntityTags({
-				entityIds: [purchase.id],
-				entityType: tagEntityType.creditPurchase,
-				tagIds: [],
-			});
-			if (!purchase.parentId) await deleteCreatorDebtEventForPurchase(purchase.id, userId);
-			await executeStatement(
-				db.sql.public.CreditPurchase.delete()
-					.where((fields, functions) => functions.eq(fields.id, purchase.id))
-					.build(),
-			);
-			const amount = param(numeric<12, 2>(purchase.installmentAmount), { codecId: "pg/numeric@1" });
-			await executeStatement(
-				db.sql.public.CreditCardStatement.update((fields, functions) => ({
-					totalAmount: purchase.isRefund
-						? functions.raw`${fields.totalAmount} - ${amount}`.returns("pg/numeric@1")
-						: functions.raw`GREATEST(0, ${fields.totalAmount} - ${amount})`.returns("pg/numeric@1"),
-					updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
-				}))
-					.where((fields, functions) => functions.eq(fields.id, purchase.statementId))
-					.build(),
-			);
-			await withTransaction(executor => recalculateStatementPayments(executor, [params.id]));
-			return { success: true };
-		},
-		{
-			detail: { tags: ["Credit Cards"] },
-			params: t.Object({
-				id: t.String({ maxLength: 36, minLength: 1 }),
-				purchaseId: t.String({ maxLength: 36, minLength: 1 }),
+				installments: t.Integer({ maximum: 48, minimum: 1 }),
+				purchaseDate: t.String({ format: "date" }),
 			}),
 		},
 	)

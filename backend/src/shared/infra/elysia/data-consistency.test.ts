@@ -6,6 +6,8 @@ describe("writeNamespaces", () => {
 		expect(writeNamespaces("/credit-cards/card-1/purchases")).toEqual([
 			"accounts:list",
 			"credit-cards:overview",
+			"debts:events",
+			"debts:overview",
 			"dashboard",
 			"transactions:list",
 			"credit-cards:card-1:statements",
@@ -43,6 +45,18 @@ describe("writeNamespaces", () => {
 			"dashboard",
 			"transactions:list",
 		]);
+	});
+
+	test("refund import writes invalidate rewards, debts and consumption", () => {
+		const namespaces = writeNamespaces("/credit-card-imports/import-1/items/item-1/approve-refund");
+		for (const namespace of [
+			"accounts:list",
+			"debts:events",
+			"debts:overview",
+			"dashboard",
+			"transactions:list",
+		] as const)
+			expect(namespaces).toContain(namespace);
 	});
 
 	test("ignores domains without declared cache dependencies", () => {

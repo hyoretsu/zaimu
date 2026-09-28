@@ -13,6 +13,7 @@ import {
 	replaceEntityTags,
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
+import type { CreditReadRow } from "~/modules/creditCards/application/credit-entry-reader";
 import { recalculateStatementPayments } from "~/modules/creditCards/application/statement-payments";
 import { getCreditPurchaseSyncStatus } from "~/modules/creditCards/domain/credit-purchase-sync-status";
 import {
@@ -29,7 +30,7 @@ import { areTransferSuggestionTimesCompatible } from "~/modules/transaction-impo
 import { listTransactionsPage } from "~/modules/transactions/application/list-transactions-page";
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
-import { db, executeStatement, queryFirst, queryRows, withTransaction } from "~/shared/infra/sql";
+import { db, executeStatement, queryFirst, queryRaw, queryRows, withTransaction } from "~/shared/infra/sql";
 
 const transactionColumns = [
 	"id",
@@ -54,6 +55,12 @@ const transactionColumns = [
 	"updatedAt",
 ] as const;
 
+const TransactionFilterType = t.Union([
+	t.Literal("INCOME"),
+	t.Literal("EXPENSE"),
+	t.Literal("TRANSFER"),
+	t.Literal("REFUND"),
+]);
 const TransactionType = t.Union([t.Literal("INCOME"), t.Literal("EXPENSE"), t.Literal("TRANSFER")]);
 const TransactionSource = t.Union([t.Literal("CREDIT_CARD"), t.Literal("FINANCIAL_ACCOUNT")]);
 const TransactionVisibility = t.Union([t.Literal("hidden"), t.Literal("visible")]);
@@ -484,7 +491,9 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				);
 			}
 			if (query.type) {
-				queryBuilder = queryBuilder.where((f, fn) => fn.eq(f.Transaction.type, query.type!));
+				queryBuilder = queryBuilder.where((f, fn) =>
+					fn.eq(f.Transaction.type, (query.type === "REFUND" ? "INCOME" : query.type)!),
+				);
 			}
 			if (query.categoryId) {
 				queryBuilder = queryBuilder.where((f, fn) =>
@@ -591,109 +600,34 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			if (
 				query.source !== "FINANCIAL_ACCOUNT" &&
 				query.visibility !== "hidden" &&
-				(!query.type || query.type === "EXPENSE" || query.type === "INCOME")
+				query.type !== "TRANSFER"
 			) {
-				let purchaseQuery = db.sql.public.CreditPurchase.innerJoin(
-					db.sql.public.CreditCardStatement,
-					(f, fn) => fn.eq(f.CreditPurchase.statementId, f.CreditCardStatement.id),
-				)
-					.innerJoin(db.sql.public.CreditCard, (f, fn) =>
-						fn.eq(f.CreditCardStatement.creditCardId, f.CreditCard.id),
-					)
-					.innerJoin(db.sql.public.FinancialAccount, (f, fn) =>
-						fn.eq(f.CreditCard.financialAccountId, f.FinancialAccount.id),
-					)
-					.outerLeftJoin(db.sql.public.FinancialInstitution, (f, fn) =>
-						fn.eq(f.FinancialAccount.institutionId, f.FinancialInstitution.id),
-					)
-					.outerLeftJoin(db.sql.public.Category, (f, fn) => fn.eq(f.CreditPurchase.categoryId, f.Category.id))
-					.select((f, fn) => ({
-						amount: f.CreditPurchase.totalAmount,
-						categoryColor: f.Category.color,
-						categoryId: f.CreditPurchase.categoryId,
-						categoryName: f.Category.name,
-						createdAt: f.CreditPurchase.createdAt,
-						creditCardId: f.CreditCard.id,
-						currentInstallment: f.CreditPurchase.currentInstallment,
-						date: f.CreditPurchase.purchaseDate,
-						description: f.CreditPurchase.description,
-						feeAmount: f.CreditPurchase.feeAmount,
-						feeDescription: f.CreditPurchase.feeDescription,
-						hasImportedAmount: f.CreditPurchase.hasImportedAmount,
-						id: f.CreditPurchase.id,
-						installmentAmount: f.CreditPurchase.installmentAmount,
-						installments: f.CreditPurchase.installments,
-						isRefund: f.CreditPurchase.isRefund,
-						originAccountType: fn.raw`'CREDIT_CARD'`.returns("sql/varchar@1"),
-						originFinancialAccountId: f.FinancialAccount.id,
-						parentId: f.CreditPurchase.parentId,
-						refundOfPurchaseId: f.CreditPurchase.refundOfPurchaseId,
-						sourceName:
-							fn.raw`COALESCE(${f.FinancialAccount.name}, ${f.FinancialInstitution.name}, 'Cartão de crédito')`.returns(
-								"sql/varchar@1",
-							),
-						statementId: f.CreditPurchase.statementId,
-						storeName: f.CreditPurchase.storeName,
-						subscriptionId: f.CreditPurchase.subscriptionId,
-						time: f.CreditPurchase.time,
-					}))
-					.where((f, fn) =>
-						fn.and(fn.eq(f.FinancialAccount.userId, userId), fn.eq(f.CreditPurchase.currentInstallment, 1)),
-					);
-				if (query.startDate)
-					purchaseQuery = purchaseQuery.where((f, fn) =>
-						fn.gte(f.CreditPurchase.purchaseDate, new Date(query.startDate!)),
-					);
-				if (query.endDate)
-					purchaseQuery = purchaseQuery.where((f, fn) =>
-						fn.lte(f.CreditPurchase.purchaseDate, new Date(`${query.endDate!}T23:59:59.999`)),
-					);
-				if (query.financialAccountId)
-					purchaseQuery = purchaseQuery.where((f, fn) =>
-						fn.eq(f.FinancialAccount.id, query.financialAccountId!),
-					);
-				if (query.type === "EXPENSE")
-					purchaseQuery = purchaseQuery.where((f, fn) => fn.eq(f.CreditPurchase.isRefund, false));
-				if (query.type === "INCOME")
-					purchaseQuery = purchaseQuery.where((f, fn) => fn.eq(f.CreditPurchase.isRefund, true));
-				purchases = await queryRows(purchaseQuery.build());
+				purchases = await queryRaw<(typeof purchases)[number] & Record<string, unknown>>(
+					`SELECT p.*,p."totalAmount" AS "amount",p."purchaseDate" AS "date",a."id" AS "originFinancialAccountId",COALESCE(a."name",i."name",'Cartão de crédito') AS "sourceName",cat."name" AS "categoryName",cat."color" AS "categoryColor" FROM "CreditConsumption" p JOIN "CreditCard" c ON c."id"=p."creditCardId" JOIN "FinancialAccount" a ON a."id"=c."financialAccountId" LEFT JOIN "FinancialInstitution" i ON i."id"=a."institutionId" LEFT JOIN "Category" cat ON cat."id"=p."categoryId" WHERE p."userId"=$1 AND ($2::date IS NULL OR p."purchaseDate">=$2) AND ($3::date IS NULL OR p."purchaseDate"<=$3) AND ($4::text IS NULL OR a."id"=$4) AND ($5::text IS NULL OR ($5='EXPENSE' AND NOT p."isRefund") OR ($5='REFUND' AND p."isRefund"))`,
+					[
+						userId,
+						query.startDate ?? null,
+						query.endDate ?? null,
+						query.financialAccountId ?? null,
+						query.type ?? null,
+					],
+				);
 			}
-			const rootPurchaseIdsForSync = purchases.map(purchase => purchase.id);
-			const purchaseSyncStatus = rootPurchaseIdsForSync.length
-				? getCreditPurchaseSyncStatus(
-						await queryRows(
-							db.sql.public.CreditPurchase.innerJoin(db.sql.public.CreditCardStatement, (fields, functions) =>
-								functions.eq(fields.CreditPurchase.statementId, fields.CreditCardStatement.id),
-							)
-								.select(fields => ({
-									hasImportedAmount: fields.CreditPurchase.hasImportedAmount,
-									id: fields.CreditPurchase.id,
-									installments: fields.CreditPurchase.installments,
-									parentId: fields.CreditPurchase.parentId,
-									statementDate: fields.CreditCardStatement.statementDate,
-								}))
-								.where((fields, functions) =>
-									functions.or(
-										functions.in(fields.CreditPurchase.id, rootPurchaseIdsForSync),
-										functions.in(fields.CreditPurchase.parentId, rootPurchaseIdsForSync),
-									),
-								)
-								.build(),
-						),
-					)
-				: new Map();
+			const purchaseSyncStatus = getCreditPurchaseSyncStatus(
+				await queryRaw<CreditReadRow & { statementDate: Date }>(
+					`SELECT p.*,s."statementDate" FROM "CreditEntry" p JOIN "CreditCardStatement" s ON s."id"=p."statementId" WHERE p."userId"=$1`,
+					[userId],
+				),
+			);
 			const purchaseTags = await getTagsByEntity(
 				tagEntityType.creditPurchase,
 				purchases.map(purchase => purchase.id),
 			);
 			const purchaseIds = purchases.filter(purchase => !purchase.isRefund).map(purchase => purchase.id);
-			const refundedPurchases = purchaseIds.length
-				? await queryRows(
-						db.sql.public.CreditPurchase.select("id", "purchaseDate", "refundOfPurchaseId", "totalAmount")
-							.where((fields, functions) => functions.in(fields.refundOfPurchaseId, purchaseIds))
-							.build(),
-					)
-				: [];
+			const refundedPurchases = await queryRaw<CreditReadRow>(
+				`SELECT * FROM "CreditEntry" WHERE "refundOfPurchaseId"=ANY($1)`,
+				[purchaseIds],
+			);
 			const refundsByPurchaseId = new Map(
 				refundedPurchases.flatMap(purchase =>
 					purchase.refundOfPurchaseId ? [[purchase.refundOfPurchaseId, purchase] as const] : [],
@@ -730,7 +664,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 							statementId: purchase.statementId,
 							tagIds: tags.map(tag => tag.id),
 							tags,
-							type: purchase.isRefund ? ("INCOME" as const) : ("EXPENSE" as const),
+							type: purchase.isRefund ? ("REFUND" as const) : ("EXPENSE" as const),
 						};
 					}),
 				)
@@ -817,7 +751,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				search: t.Optional(t.String({ maxLength: 200 })),
 				source: t.Optional(TransactionSource),
 				startDate: t.Optional(t.String()),
-				type: t.Optional(TransactionType),
+				type: t.Optional(TransactionFilterType),
 				view: t.Optional(t.Literal("daily")),
 				visibility: t.Optional(TransactionVisibility),
 			}),

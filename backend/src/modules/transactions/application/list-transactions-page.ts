@@ -14,7 +14,7 @@ interface ListTransactionsPageInput {
 	search?: string;
 	source?: "CREDIT_CARD" | "FINANCIAL_ACCOUNT";
 	startDate?: string;
-	type?: "EXPENSE" | "INCOME" | "TRANSFER";
+	type?: "EXPENSE" | "INCOME" | "REFUND" | "TRANSFER";
 	visibility?: "hidden" | "visible";
 }
 
@@ -70,7 +70,7 @@ interface TransactionSummaryRow {
 	subscriptionId: null | string;
 	subscriptionOccurrenceDate: Date | null;
 	time: null | string;
-	type: "EXPENSE" | "INCOME" | "TRANSFER";
+	type: "EXPENSE" | "INCOME" | "REFUND" | "TRANSFER";
 }
 
 export const transactionPageFilterHash = (input: ListTransactionsPageInput) =>
@@ -165,7 +165,7 @@ WITH combined AS (
   SELECT
     purchase."id", abs(purchase."totalAmount")::numeric AS "amount", purchase."purchaseDate" AS "date",
     purchase."time"::text AS "time", purchase."description", purchase."storeName", false AS "isHidden",
-    CASE WHEN purchase."isRefund" THEN 'INCOME' ELSE 'EXPENSE' END AS "type", purchase."categoryId",
+    CASE WHEN purchase."isRefund" THEN 'REFUND' ELSE 'EXPENSE' END AS "type", purchase."categoryId",
     category."name" AS "categoryName", category."color" AS "categoryColor", purchase."createdAt",
     account."id" AS "originFinancialAccountId", NULL::text AS "destinationFinancialAccountId",
     'CREDIT_CARD' AS "originAccountType", NULL::text AS "destinationAccountType",
@@ -178,17 +178,17 @@ WITH combined AS (
     COALESCE(account."name", institution."name", 'Cartão de crédito') AS "creditCardName",
     'CREDIT_CARD' AS "source", COALESCE(account."name", institution."name", 'Cartão de crédito') AS "sourceName",
     purchase."feeAmount", purchase."feeDescription", purchase."isRefund",
-    EXISTS (SELECT 1 FROM "CreditPurchase" refund WHERE refund."refundOfPurchaseId" = purchase."id") AS "hasRefund",
+    EXISTS (SELECT 1 FROM "CreditEntry" refund WHERE refund."refundOfPurchaseId" = purchase."id") AS "hasRefund",
     purchase."refundOfPurchaseId", purchase."currentInstallment", purchase."installments",
     purchase."installmentAmount", purchase."parentId", purchase."statementId", 1 AS "sourceRank",
     concat_ws(' ', purchase."totalAmount"::text, to_char(purchase."purchaseDate", 'DD/MM/YYYY'),
       purchase."description", purchase."storeName", category."name", account."name", institution."name",
       (SELECT string_agg(tag."name", ' ') FROM "TagAssignment" assignment
        JOIN "Category" tag ON tag."id" = assignment."categoryId"
-       WHERE assignment."entityType" = 'CREDIT_PURCHASE' AND assignment."entityId" = purchase."id")) AS search_text
-  FROM "CreditPurchase" purchase
-  JOIN "CreditCardStatement" statement ON statement."id" = purchase."statementId"
-  JOIN "CreditCard" card ON card."id" = statement."creditCardId"
+       WHERE assignment."entityType" = 'CREDIT_PURCHASE' AND assignment."entityId" = purchase."purchaseId")) AS search_text
+  FROM "CreditConsumption" purchase
+  LEFT JOIN "CreditCardStatement" statement ON statement."id" = purchase."statementId"
+  JOIN "CreditCard" card ON card."id" = purchase."creditCardId"
   JOIN "FinancialAccount" account ON account."id" = card."financialAccountId"
   LEFT JOIN "FinancialInstitution" institution ON institution."id" = account."institutionId"
   LEFT JOIN "Category" category ON category."id" = purchase."categoryId"
@@ -200,7 +200,7 @@ WHERE ($2::date IS NULL OR "date" >= $2::date)
   AND ($4::text IS NULL OR "type" = $4::text)
   AND ($5::text IS NULL OR "categoryId" = $5::text OR EXISTS (
     SELECT 1 FROM "TagAssignment" assignment
-    WHERE assignment."entityId" = combined."id" AND assignment."categoryId" = $5::text
+    WHERE assignment."entityId" = CASE WHEN combined."sourceRank"=0 THEN combined."id" ELSE COALESCE((SELECT "purchaseId" FROM "CreditEntryReference" WHERE "id"=combined."id"),combined."id") END AND assignment."categoryId" = $5::text
       AND assignment."entityType" = CASE WHEN combined."sourceRank" = 0 THEN 'TRANSACTION' ELSE 'CREDIT_PURCHASE' END
   ))
   AND ($6::text IS NULL OR "originFinancialAccountId" = $6::text OR "destinationFinancialAccountId" = $6::text)
@@ -252,27 +252,16 @@ export async function listTransactionsPage(userId: string, input: ListTransactio
 						.build(),
 				)
 			: [],
-		purchaseIds.length
-			? queryRows(
-					db.sql.public.CreditPurchase.innerJoin(db.sql.public.CreditCardStatement, (fields, functions) =>
-						functions.eq(fields.CreditPurchase.statementId, fields.CreditCardStatement.id),
-					)
-						.select(fields => ({
-							hasImportedAmount: fields.CreditPurchase.hasImportedAmount,
-							id: fields.CreditPurchase.id,
-							installments: fields.CreditPurchase.installments,
-							parentId: fields.CreditPurchase.parentId,
-							statementDate: fields.CreditCardStatement.statementDate,
-						}))
-						.where((fields, functions) =>
-							functions.or(
-								functions.in(fields.CreditPurchase.id, purchaseIds),
-								functions.in(fields.CreditPurchase.parentId, purchaseIds),
-							),
-						)
-						.build(),
-				)
-			: [],
+		queryRaw<{
+			id: string;
+			parentId: string | null;
+			hasImportedAmount: boolean;
+			installments: number;
+			statementDate: Date;
+		}>(
+			`SELECT p."id",p."parentId",p."hasImportedAmount",p."installments",s."statementDate" FROM "CreditEntry" p JOIN "CreditCardStatement" s ON s."id"=p."statementId" WHERE p."purchaseId"=ANY($1)`,
+			[purchaseIds],
+		),
 		getDebtSplitReturns(
 			"transactionId",
 			page.filter(row => row.sourceRank === 0).map(row => ({ amount: Number(row.amount), id: row.id })),

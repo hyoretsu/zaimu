@@ -1,4 +1,3 @@
-import { statementEntryKind } from "@zaimu/finance/credit-card";
 import Elysia from "elysia";
 import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
 import { resolveFinancialInstitution } from "~/modules/accounts/application/resolve-financial-institution";
@@ -11,12 +10,13 @@ import {
 	replaceEntityTags,
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
+import { readCreditBook } from "~/modules/creditCards/application/normalized-credit-book";
 import { recalculateStatementPayments } from "~/modules/creditCards/application/statement-payments";
+import { syncCreditBook } from "~/modules/creditCards/application/sync-credit-book";
 import {
 	getDebtSplitReturn,
 	normalizeDebtPersonName,
 	replaceDebtSplit,
-	syncPurchaseDebtEvent,
 	syncTransactionDebtEvent,
 } from "~/modules/debts/application";
 import type { DebtSplitInput } from "~/modules/debts/domain";
@@ -639,118 +639,6 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				statementIds.add(id);
 			});
 
-			await sync(
-				"creditPurchases",
-				body.creditPurchases?.toSorted(
-					(left, right) =>
-						Number(Boolean(value<string | undefined>(left, "parentId"))) -
-						Number(Boolean(value<string | undefined>(right, "parentId"))),
-				),
-				async entity => {
-					const importedId = value<string>(entity, "id");
-					const statementId = value<string>(entity, "statementId");
-					if (!statementIds.has(statementId)) throw new Error(`Fatura ${statementId} indisponível`);
-					const tagIds = entityTagIds(entity).filter(tagId => categoryIds.has(tagId));
-					const currentInstallment = Number(value<number>(entity, "currentInstallment") ?? 1);
-					const importedParentId = value<string | undefined>(entity, "parentId");
-					const parentId = importedParentId
-						? (syncedCreditPurchaseIds.get(importedParentId) ?? importedParentId)
-						: undefined;
-					let existing = await queryFirst(
-						db.sql.public.CreditPurchase.select("id")
-							.where((f, fn) => fn.eq(f.id, importedId))
-							.limit(1)
-							.build(),
-					);
-					if (!existing)
-						existing = await queryFirst(
-							db.sql.public.CreditPurchase.select("id")
-								.where((f, fn) =>
-									fn.and(
-										fn.eq(f.statementId, statementId),
-										fn.eq(f.currentInstallment, currentInstallment),
-										fn.eq(f.installments, Number(value<number>(entity, "installments") ?? 1)),
-										fn.eq(f.installmentAmount, String(value<number>(entity, "installmentAmount"))),
-										fn.eq(f.totalAmount, String(value<number>(entity, "totalAmount"))),
-										fn.eq(f.purchaseDate, new Date(value<string>(entity, "purchaseDate"))),
-										fn.eq(f.description, value<string>(entity, "description")),
-										fn.eq(f.storeName, value<string | null | undefined>(entity, "storeName") ?? null),
-										fn.eq(f.parentId, parentId ?? null),
-									),
-								)
-								.limit(1)
-								.build(),
-						);
-					const isStatementCharge =
-						value<boolean | undefined>(entity, "isStatementCharge") ??
-						statementEntryKind(value<string>(entity, "description")) === "CHARGE";
-					if (isStatementCharge && Number(value<number>(entity, "installments") ?? 1) !== 1)
-						throw new Error("Encargos não permitem parcelamento automático");
-					const id = existing?.id ?? importedId;
-					syncedCreditPurchaseIds.set(importedId, id);
-					const values = {
-						cashbackAccountId: isStatementCharge
-							? null
-							: value<string | undefined>(entity, "cashbackAccountId"),
-						cashbackAmount: nullableNumeric<18, 4>(
-							isStatementCharge ? null : (value<number | null | undefined>(entity, "cashbackAmount") ?? null),
-						),
-						cashbackYieldPeriod: value<"MONTHLY" | "YEARLY" | undefined>(entity, "cashbackYieldPeriod"),
-						cashbackYieldReferencePercentage: nullableNumeric<7, 4>(
-							value<number | null | undefined>(entity, "cashbackYieldReferencePercentage") ??
-								(value<number | null | undefined>(entity, "cashbackYieldRate") ? 100 : null),
-						),
-						cashbackYieldReferenceRate: nullableNumeric<7, 4>(
-							value<number | null | undefined>(entity, "cashbackYieldReferenceRate") ??
-								value<number | null | undefined>(entity, "cashbackYieldRate") ??
-								null,
-						),
-						categoryId: tagIds[0],
-						currentInstallment,
-						description: value<string>(entity, "description"),
-						installmentAmount: String(value<number>(entity, "installmentAmount")),
-						installments: Number(value<number>(entity, "installments") ?? 1),
-						isRefund: value<boolean>(entity, "isRefund") ?? false,
-						isStatementCharge,
-						parentId,
-						purchaseDate: new Date(value<string>(entity, "purchaseDate")),
-						refundOfPurchaseId: value<string | undefined>(entity, "refundOfPurchaseId"),
-						statementId,
-						storeName: value<string | undefined>(entity, "storeName"),
-						totalAmount: String(value<number>(entity, "totalAmount")),
-						updatedAt: new Date(),
-					};
-					if (existing)
-						await executeStatement(
-							db.sql.public.CreditPurchase.update(values)
-								.where((f, fn) => fn.and(fn.eq(f.id, id), fn.in(f.statementId, [...statementIds])))
-								.build(),
-						);
-					else await executeStatement(db.sql.public.CreditPurchase.insert([{ ...values, id }]).build());
-					await replaceEntityTags({
-						entityIds: [id],
-						entityType: tagEntityType.creditPurchase,
-						tagIds,
-					});
-					const debtPersonId = value<string | undefined>(entity, "debtPersonId");
-					if (debtPersonId && !debtPersonIds.has(debtPersonId))
-						throw new Error(`Pessoa da dívida ${debtPersonId} indisponível`);
-					if (currentInstallment === 1 && !isStatementCharge)
-						await syncPurchaseDebtEvent({
-							creditPurchaseId: id,
-							date: value<string>(entity, "purchaseDate"),
-							...("debtSplit" in entity
-								? { debtSplit: value<DebtSplitInput | null>(entity, "debtSplit") }
-								: "debtPersonId" in entity
-									? { debtPersonId: debtPersonId ?? null }
-									: {}),
-							description: value<string | undefined>(entity, "description"),
-							totalAmount: Number(value<number>(entity, "totalAmount")),
-							userId,
-						});
-				},
-			);
-
 			await sync("debts", body.debts, async entity => {
 				const id = value<string>(entity, "id");
 				const existing = await queryFirst(
@@ -1079,6 +967,17 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				}
 			});
 
+			const creditResult = { errors: [] as string[], synced: 0 };
+			for (const book of body.creditBooks ?? []) {
+				try {
+					await syncCreditBook(userId, book);
+					creditResult.synced++;
+				} catch (error) {
+					creditResult.errors.push(error instanceof Error ? error.message : "Falha ao sincronizar cartão");
+				}
+			}
+			syncResults.creditBooks = creditResult;
+
 			const financialAccounts = await queryRows(
 				db.sql.public.FinancialAccount.select(...accountColumns)
 					.where((f, fn) => fn.eq(f.userId, userId))
@@ -1193,14 +1092,16 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 							.build(),
 					)
 				: [];
-			const serverStatementIds = creditCardStatements.map(statement => statement.id);
-			const creditPurchases = serverStatementIds.length
-				? await queryRows(
-						db.sql.public.CreditPurchase.select(...purchaseColumns)
-							.where((f, fn) => fn.in(f.statementId, serverStatementIds))
-							.build(),
-					)
-				: [];
+			const creditBooks: SyncReturn["serverData"]["creditBooks"] = (
+				await Promise.all(serverCardIds.map(cardId => readCreditBook(userId, cardId)))
+			).map(book => ({
+				...book,
+				purchases: book.purchases.map(p => ({
+					...p,
+					installmentAmountsCents: [...p.installmentAmountsCents],
+					tagIds: [...p.tagIds],
+				})),
+			}));
 			let transactionQueryBuilder = db.sql.public.Transaction.outerLeftJoin(
 				db.sql.public.RecurringPayment,
 				(f, fn) => fn.eq(f.Transaction.recurrenceId, f.RecurringPayment.id),
@@ -1290,11 +1191,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 					.where((fields, functions) => functions.eq(fields.userId, userId))
 					.build(),
 			);
-			const [purchaseTags, recurringTags, salaryTags, subscriptionTags, transactionTags] = await Promise.all([
-				getTagsByEntity(
-					tagEntityType.creditPurchase,
-					creditPurchases.map(purchase => purchase.id),
-				),
+			const [recurringTags, salaryTags, subscriptionTags, transactionTags] = await Promise.all([
 				getTagsByEntity(
 					tagEntityType.recurringPayment,
 					recurringPayments.map(payment => payment.id),
@@ -1329,19 +1226,9 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 							.where((f, fn) => fn.eq(f.userId, userId))
 							.build(),
 					),
+					creditBooks,
 					creditCardStatements,
 					creditCards,
-					creditPurchases: await Promise.all(
-						creditPurchases.map(async purchase => ({
-							...purchase,
-							debtSplit: await getDebtSplitReturn(
-								{ creditPurchaseId: purchase.id },
-								Math.abs(Number(purchase.totalAmount)),
-							),
-							tagIds: (purchaseTags.get(purchase.id) ?? []).map(tag => tag.id),
-							tags: purchaseTags.get(purchase.id) ?? [],
-						})),
-					),
 					debtPeople: (
 						await queryRows(
 							db.sql.public.DebtPerson.select("id", "name", "normalizedName", "connectionId", "hiddenAt")

@@ -128,22 +128,9 @@ async function getConnection(connectionId: string | null | undefined) {
 
 async function getPurchaseNamesByDebtEventId(eventIds: string[]) {
 	if (!eventIds.length) return new Map<string, string>();
-	const purchases = await queryRows(
-		db.sql.public.DebtPurchaseLink.innerJoin(db.sql.public.CreditPurchase, (fields, functions) =>
-			functions.eq(fields.DebtPurchaseLink.creditPurchaseId, fields.CreditPurchase.id),
-		)
-			.select(fields => ({
-				description: fields.CreditPurchase.description,
-				eventId: fields.DebtPurchaseLink.eventId,
-				storeName: fields.CreditPurchase.storeName,
-			}))
-			.where((fields, functions) =>
-				functions.and(
-					functions.eq(fields.DebtPurchaseLink.isCreator, true),
-					functions.in(fields.DebtPurchaseLink.eventId, eventIds),
-				),
-			)
-			.build(),
+	const purchases = await queryRaw<{ eventId: string; description: string; storeName: string | null }>(
+		`SELECT l."eventId", p."description", p."storeName" FROM "DebtPurchaseLink" l JOIN "CreditEntryReference" r ON r."id"=l."creditPurchaseId" JOIN "CreditPurchaseRecord" p ON p."id"=r."purchaseId" WHERE l."isCreator" AND l."eventId"=ANY($1)`,
+		[eventIds],
 	);
 	return new Map(
 		purchases.map(purchase => [purchase.eventId, purchase.description || purchase.storeName || "Compra"]),
@@ -212,18 +199,9 @@ async function getTimeByDebtEventId(eventIds: string[]) {
 				)
 				.build(),
 		),
-		queryRows(
-			db.sql.public.DebtPurchaseLink.innerJoin(db.sql.public.CreditPurchase, (fields, functions) =>
-				functions.eq(fields.DebtPurchaseLink.creditPurchaseId, fields.CreditPurchase.id),
-			)
-				.select(fields => ({ eventId: fields.DebtPurchaseLink.eventId, time: fields.CreditPurchase.time }))
-				.where((fields, functions) =>
-					functions.and(
-						functions.eq(fields.DebtPurchaseLink.isCreator, true),
-						functions.in(fields.DebtPurchaseLink.eventId, eventIds),
-					),
-				)
-				.build(),
+		queryRaw<{ eventId: string; time: string | null }>(
+			`SELECT l."eventId", COALESCE(refund."time",p."time") AS "time" FROM "DebtPurchaseLink" l JOIN "CreditEntryReference" r ON r."id"=l."creditPurchaseId" JOIN "CreditPurchaseRecord" p ON p."id"=r."purchaseId" LEFT JOIN "CreditRefundRecord" refund ON refund."id"=r."refundId" WHERE l."isCreator" AND l."eventId"=ANY($1)`,
+			[eventIds],
 		),
 	]);
 	return new Map([...transactions, ...purchases].map(item => [item.eventId, item.time] as const));

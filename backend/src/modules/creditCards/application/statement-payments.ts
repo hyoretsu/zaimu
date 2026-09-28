@@ -1,85 +1,46 @@
+import { replayCreditBook } from "@zaimu/finance/credit-book";
 import {
-	calculateStatementBalances,
 	currentDateKey,
 	type FinancialDate,
 	type StatementInput,
-	statementCharges,
 	statementCycles,
-	toCents,
 } from "@zaimu/finance/credit-card";
-import { db, numeric, queryRows, type SqlExecutor } from "~/shared/infra/sql";
+import { numeric, queryRaw, type SqlExecutor } from "~/shared/infra/sql";
+import { readCreditBook } from "./normalized-credit-book";
 
 export async function withStatementPayments<T extends StatementInput & { creditCardId: string }>(
 	statements: T[],
 	executor?: SqlExecutor,
 	asOf: FinancialDate = currentDateKey(),
 ) {
-	if (!statements.length) return calculateStatementBalances(statements, [], asOf);
-	const sql = executor?.db ?? db;
-	const rows = executor?.queryRows ?? queryRows;
+	if (!statements.length) return [];
 	const ids = [...new Set(statements.map(s => s.creditCardId))];
-	const [payments, cards, charges] = await Promise.all([
-		rows(
-			sql.sql.public.Transaction.select("amount", "date", "paymentCreditCardId")
-				.where((f, fn) => fn.in(f.paymentCreditCardId, ids))
-				.build(),
-		),
-		rows(
-			sql.sql.public.CreditCard.select("id", "statementDay", "dueDay", "ignoreStatementsBefore")
-				.where((f, fn) => fn.in(f.id, ids))
-				.build(),
-		),
-		rows(
-			sql.sql.public.CreditPurchase.innerJoin(sql.sql.public.CreditCardStatement, (f, fn) =>
-				fn.eq(f.CreditPurchase.statementId, f.CreditCardStatement.id),
-			)
-				.select(f => ({
-					currentInstallment: f.CreditPurchase.currentInstallment,
-					feeAmount: f.CreditPurchase.feeAmount,
-					feeDescription: f.CreditPurchase.feeDescription,
-					id: f.CreditPurchase.id,
-					installmentAmount: f.CreditPurchase.installmentAmount,
-					isSettled: f.CreditPurchase.isSettled,
-					isStatementCharge: f.CreditPurchase.isStatementCharge,
-					parentId: f.CreditPurchase.parentId,
-					refinancingFeeAmount: f.CreditPurchase.refinancingFeeAmount,
-					statementId: f.CreditPurchase.statementId,
-				}))
-				.where((f, fn) => fn.in(f.CreditCardStatement.creditCardId, ids))
-				.build(),
-		),
-	]);
-	const chargesByStatement = statementCharges(charges);
-	return cards.flatMap(card => {
-		const group = statements
-			.filter(s => s.creditCardId === card.id)
-			.map(s => ({
-				...s,
-				chargesAmount: (chargesByStatement.get(s.id) ?? 0) / 100,
-				totalAmount: (toCents(s.totalAmount) - (chargesByStatement.get(s.id) ?? 0)) / 100,
-			}));
-		const cardPayments = payments.filter(p => p.paymentCreditCardId === card.id);
-		const cycles = statementCycles(
-			group,
-			card,
-			cardPayments,
-			dates => ({
-				...group[0]!,
-				chargesAmount: 0,
-				creditCardId: card.id,
-				dueDate: new Date(`${dates.dueDate}T12:00:00Z`),
-				id: `cycle-${dates.statementDate}`,
-				isForecast: false,
-				isFullySynced: false,
-				isPaid: false,
-				paidAmount: 0,
-				statementDate: new Date(`${dates.statementDate}T12:00:00Z`),
-				totalAmount: 0,
+	const owners = await queryRaw<{ id: string; userId: string }>(
+		`SELECT c."id",a."userId" FROM "CreditCard" c JOIN "FinancialAccount" a ON a."id"=c."financialAccountId" WHERE c."id"=ANY($1)`,
+		[ids],
+	);
+	const dateKey =
+		asOf instanceof Date
+			? `${asOf.getFullYear()}-${String(asOf.getMonth() + 1).padStart(2, "0")}-${String(asOf.getDate()).padStart(2, "0")}`
+			: asOf.slice(0, 10);
+	return (
+		await Promise.all(
+			owners.map(async owner => {
+				const book = await readCreditBook(owner.userId, owner.id);
+				const template = statements.find(s => s.creditCardId === owner.id)!;
+				return replayCreditBook(book, dateKey).statements.map(statement => ({
+					...template,
+					...statement,
+					dueDate:
+						template.dueDate instanceof Date ? new Date(`${statement.dueDate}T12:00:00Z`) : statement.dueDate,
+					statementDate:
+						template.statementDate instanceof Date
+							? new Date(`${statement.statementDate}T12:00:00Z`)
+							: statement.statementDate,
+				}));
 			}),
-			asOf,
-		);
-		return calculateStatementBalances(cycles, cardPayments, asOf, card.ignoreStatementsBefore);
-	});
+		)
+	).flat();
 }
 
 export async function recalculateStatementPayments(transaction: SqlExecutor, cardIds: string[]) {
@@ -142,7 +103,7 @@ export async function recalculateStatementPayments(transaction: SqlExecutor, car
 		}
 	}
 	for (const statement of await withStatementPayments(statements, transaction)) {
-		if (statement.id.startsWith("cycle-")) continue;
+		if (statement.id.startsWith("cycle-") || statement.isForecast) continue;
 		await transaction.executeStatement(
 			transaction.db.sql.public.CreditCardStatement.update({
 				isPaid: statement.isPaid,

@@ -1,13 +1,14 @@
 import { t } from "elysia";
+import { CreditBookDTO } from "~/modules/creditCards/infra/elysia/CreditBookDTO";
 
 const Id = t.String({ maxLength: 36, minLength: 1 });
 const Entity = t.Record(t.String(), t.Unknown());
 
 export const SyncBody = t.Object({
 	categories: t.Optional(t.Array(Entity)),
+	creditBooks: t.Optional(t.Array(CreditBookDTO)),
 	creditCardStatements: t.Optional(t.Array(Entity)),
 	creditCards: t.Optional(t.Array(Entity)),
-	creditPurchases: t.Optional(t.Array(Entity)),
 	debtPeople: t.Optional(t.Array(Entity)),
 	debts: t.Optional(t.Array(Entity)),
 	financialAccounts: t.Optional(t.Array(Entity)),
@@ -24,9 +25,9 @@ export type SyncBody = typeof SyncBody.static;
 export const SyncReturn = t.Object({
 	serverData: t.Object({
 		categories: t.Array(Entity),
+		creditBooks: t.Array(CreditBookDTO),
 		creditCardStatements: t.Array(Entity),
 		creditCards: t.Array(Entity),
-		creditPurchases: t.Array(Entity),
 		debtPeople: t.Array(Entity),
 		debts: t.Array(Entity),
 		financialAccounts: t.Array(Entity),

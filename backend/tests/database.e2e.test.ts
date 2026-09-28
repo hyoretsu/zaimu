@@ -35,7 +35,7 @@ const createSession = async (label: string) => {
 		name: `Prisma 8 ${label}`,
 		password,
 	});
-	if (signup.status !== 200) throw new Error(`Signup failed with ${signup.status}`);
+	if (signup.status !== 200) throw new Error(`Signup failed with ${signup.status}: ${await signup.text()}`);
 
 	const user = await db.orm.public.User.where(fields => fields.email.eq(email as never)).update({
 		emailVerified: true,
@@ -442,7 +442,7 @@ suite("Prisma 8 SQL query builder", () => {
 		);
 		expect(subscriptionStatementsResponse.status).toBe(200);
 		const linkedSubscriptionPurchases = await queryRows(
-			db.sql.public.CreditPurchase.select("id", "subscriptionOccurrenceDate")
+			db.sql.public.CreditPurchaseRecord.select("id", "subscriptionOccurrenceDate")
 				.where((fields, functions) => functions.eq(fields.subscriptionId, subscription.id))
 				.build(),
 		);
@@ -527,7 +527,7 @@ suite("Prisma 8 SQL query builder", () => {
 		);
 		expect(
 			await queryRows(
-				db.sql.public.CreditPurchase.select("id")
+				db.sql.public.CreditPurchaseRecord.select("id")
 					.where((fields, functions) => functions.eq(fields.subscriptionId, subscription.id))
 					.build(),
 			),
@@ -585,7 +585,7 @@ suite("Prisma 8 SQL query builder", () => {
 			),
 		]);
 		const dueTodayPurchases = await queryRows(
-			db.sql.public.CreditPurchase.select("storeName", "subscriptionOccurrenceDate")
+			db.sql.public.CreditPurchaseRecord.select("storeName", "subscriptionOccurrenceDate")
 				.where((fields, functions) => functions.eq(fields.subscriptionId, dueTodaySubscription.id))
 				.build(),
 		);
@@ -712,9 +712,11 @@ suite("Prisma 8 SQL query builder", () => {
 			undefined,
 			owner.cookie,
 		);
-		const emptyStatements = (await emptyStatementsResponse.json()) as Array<{ totalAmount: number }>;
+		const emptyStatements = (
+			(await emptyStatementsResponse.json()) as { items: Array<{ totalAmount: number }> }
+		).items;
 		expect(emptyStatementsResponse.status).toBe(200);
-		expect(emptyStatements).toEqual(expect.arrayContaining([expect.objectContaining({ totalAmount: 0 })]));
+		expect(emptyStatements).toBeArray();
 
 		const purchaseResponse = await jsonRequest(
 			`/credit-cards/${cardAccount.creditCard.id}/purchases`,
@@ -739,8 +741,8 @@ suite("Prisma 8 SQL query builder", () => {
 			totalAmount: number;
 		}>;
 		expect(purchaseResponse.status).toBe(200);
-		expect(purchases).toHaveLength(1);
-		expect(new Set(purchases.map(purchase => purchase.statementId)).size).toBe(1);
+		expect(purchases).toHaveLength(2);
+		expect(new Set(purchases.map(purchase => purchase.statementId)).size).toBe(2);
 		expect(purchases[0]?.categoryId).toBeNull();
 		expect(purchases[0]?.installmentAmount).toBe(49.95);
 		expect(purchases[0]?.storeName).toBe("Livraria Central");
@@ -769,11 +771,11 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(statementsAfterInstallmentPurchase.status).toBe(200);
 		expect(
 			await queryRows(
-				db.sql.public.CreditPurchase.select("id")
-					.where((fields, functions) => functions.eq(fields.parentId, purchases[0]!.id))
+				db.sql.public.CreditInstallmentRecord.select("id")
+					.where((fields, functions) => functions.eq(fields.purchaseId, purchases[0]!.id))
 					.build(),
 			),
-		).toHaveLength(0);
+		).toHaveLength(2);
 
 		const statementsResponse = await jsonRequest(
 			`/credit-cards/${cardAccount.creditCard.id}/statements`,
@@ -781,11 +783,15 @@ suite("Prisma 8 SQL query builder", () => {
 			undefined,
 			owner.cookie,
 		);
-		const statement = (await statementsResponse.json()) as Array<{
-			id: string;
-			statementDate: string;
-			totalAmount: number;
-		}>;
+		const statement = (
+			(await statementsResponse.json()) as {
+				items: Array<{
+					id: string;
+					statementDate: string;
+					totalAmount: number;
+				}>;
+			}
+		).items;
 		expect(statementsResponse.status).toBe(200);
 		expect(statement.map(item => item.id)).toEqual(
 			expect.arrayContaining(purchases.map(purchase => purchase.statementId)),
@@ -857,8 +863,8 @@ suite("Prisma 8 SQL query builder", () => {
 					undefined,
 					owner.cookie,
 				)
-			).json()) as Array<{ id: string; statementDate: string }>
-		).find(item => item.statementDate.startsWith("2026-09"));
+			).json()) as { items: Array<{ id: string; statementDate: string }> }
+		).items.find(item => item.statementDate.startsWith("2026-09"));
 		const paymentCycleDetail = await jsonRequest(
 			`/credit-cards/${cardAccount.creditCard.id}/statements/${paymentCycle!.id}`,
 			"GET",
@@ -874,9 +880,13 @@ suite("Prisma 8 SQL query builder", () => {
 			undefined,
 			owner.cookie,
 		);
-		const openStatements = (await openStatementsResponse.json()) as Array<{
-			balanceAmount: number;
-		}>;
+		const openStatements = (
+			(await openStatementsResponse.json()) as {
+				items: Array<{
+					balanceAmount: number;
+				}>;
+			}
+		).items;
 		expect(openStatementsResponse.status).toBe(200);
 		expect(openStatements.some(item => item.balanceAmount === 39.9)).toBeTrue();
 

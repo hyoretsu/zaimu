@@ -1,12 +1,11 @@
-import { addDays, addMonths, addWeeks, addYears, isAfter, startOfDay } from "date-fns";
-import {
-	getTagsByEntity,
-	replaceEntityTags,
-	tagEntityType,
-} from "~/modules/categories/application/tag-assignments";
-import { getDebtSplitInput, linkPurchaseToDebt } from "~/modules/debts/application";
+import { materializeBookInstallments } from "@zaimu/finance/credit-book";
+import { purchaseStatementDates } from "@zaimu/finance/credit-purchase";
+import { addDays, addMonths, addWeeks, addYears, format, isAfter, startOfDay } from "date-fns";
+import { getTagsByEntity, tagEntityType } from "~/modules/categories/application/tag-assignments";
+import { getDebtSplitInput } from "~/modules/debts/application";
 import { HttpException } from "~/shared/errors";
-import { db, executeStatement, numeric, param, queryFirst, queryRows } from "~/shared/infra/sql";
+import { db, executeStatement, param, queryFirst, queryRows } from "~/shared/infra/sql";
+import { mutateCreditBook, newBookPurchase, readCreditBook } from "./normalized-credit-book";
 
 const statementColumns = [
 	"id",
@@ -96,12 +95,11 @@ export function subscriptionOccurrences(
 }
 
 export function getStatementDates(card: { dueDay: number; statementDay: number }, purchaseDate: Date) {
-	const statementMonth =
-		purchaseDate.getDate() > card.statementDay ? addMonths(purchaseDate, 1) : purchaseDate;
-	const statementDate = new Date(statementMonth.getFullYear(), statementMonth.getMonth(), card.statementDay);
-	const dueDate = new Date(statementMonth.getFullYear(), statementMonth.getMonth(), card.dueDay);
-	if (dueDate <= statementDate) dueDate.setMonth(dueDate.getMonth() + 1);
-	return { dueDate, statementDate };
+	const dates = purchaseStatementDates(card, purchaseDate.toISOString().slice(0, 10));
+	return {
+		dueDate: new Date(`${dates.dueDate}T12:00:00Z`),
+		statementDate: new Date(`${dates.statementDate}T12:00:00Z`),
+	};
 }
 
 export async function getOrCreateStatement(creditCardId: string, dueDate: Date, statementDate: Date) {
@@ -197,95 +195,53 @@ async function materializeDueSubscriptionPurchases(
 			.build(),
 	);
 	if (subscriptions.length === 0) return;
-	const existing = await queryRows(
-		db.sql.public.CreditPurchase.select("subscriptionId", "subscriptionOccurrenceDate")
-			.where((fields, functions) =>
-				functions.in(
-					fields.subscriptionId,
-					subscriptions.map(item => item.id),
-				),
-			)
-			.build(),
-	);
-	const materialized = new Set(
-		existing.flatMap(purchase =>
-			purchase.subscriptionId && purchase.subscriptionOccurrenceDate
-				? [`${purchase.subscriptionId}:${purchase.subscriptionOccurrenceDate.toISOString().slice(0, 10)}`]
-				: [],
-		),
-	);
 	const tagsBySubscription = await getTagsByEntity(
 		tagEntityType.subscription,
-		subscriptions.map(item => item.id),
+		subscriptions.map(s => s.id),
 	);
-	for (const subscription of subscriptions) {
-		for (const occurrenceDate of subscriptionOccurrences(
-			subscription as typeof subscription & { frequency: SubscriptionFrequency },
-			today,
-		)) {
-			if (!isAfter(occurrenceDate, startOfDay(subscription.materializedThrough))) continue;
-			const occurrenceKey = `${subscription.id}:${occurrenceDate.toISOString().slice(0, 10)}`;
-			if (materialized.has(occurrenceKey)) continue;
-			const { dueDate, statementDate } = getStatementDates(card, occurrenceDate);
-			const statement = await getOrCreateStatement(creditCardId, dueDate, statementDate);
-			const purchase = await queryFirst(
-				db.raw.sql`
-					INSERT INTO "CreditPurchase" (
-						"cashbackAccountId", "cashbackAmount", "cashbackYieldPeriod",
-						"cashbackYieldReferencePercentage", "cashbackYieldReferenceRate", "currentInstallment",
-						"description", "installmentAmount", "installments", "purchaseDate", "statementId",
-						"storeName", "subscriptionId", "subscriptionOccurrenceDate", "time", "totalAmount", "userId"
-					) VALUES (
-						${param(card.cashbackAccountId, { codecId: "sql/varchar@1" })},
-						${param(card.cashbackAccountId && card.cashbackRate ? numeric<18, 4>((Number(subscription.amount) * card.cashbackRate) / 100) : null, { codecId: "pg/numeric@1" })},
-						${param(card.cashbackYieldPeriod, { codecId: "sql/varchar@1" })}::"CashbackYieldPeriod",
-						${param(card.cashbackYieldReferencePercentage === null ? null : numeric<7, 4>(card.cashbackYieldReferencePercentage), { codecId: "pg/numeric@1" })},
-						${param(card.cashbackYieldReferenceRate === null ? null : numeric<7, 4>(card.cashbackYieldReferenceRate), { codecId: "pg/numeric@1" })},
-						1, ${param(subscription.name, { codecId: "sql/varchar@1" })},
-						${param(numeric<12, 2>(subscription.amount), { codecId: "pg/numeric@1" })}, 1,
-						${param(occurrenceDate, { codecId: "pg/date@1" })}, ${param(statement.id, { codecId: "sql/varchar@1" })},
-						${param(subscription.storeName, { codecId: "sql/varchar@1" })}, ${param(subscription.id, { codecId: "sql/varchar@1" })},
-						${param(occurrenceDate, { codecId: "pg/date@1" })}, NULL,
-						${param(numeric<12, 2>(subscription.amount), { codecId: "pg/numeric@1" })},
-						${param(subscription.userId, { codecId: "sql/varchar@1" })}
-					) ON CONFLICT ("subscriptionId", "subscriptionOccurrenceDate") DO NOTHING RETURNING "id"
-				`
-					.returnsRow({ id: db.sql.public.CreditPurchase.columns.id })
-					.build(),
-			);
-			if (!purchase) continue;
-			materialized.add(occurrenceKey);
+	if (!subscriptions.length) return;
+	await mutateCreditBook(subscriptions[0]!.userId, creditCardId, async book => {
+		for (const subscription of subscriptions) {
 			const debtSplit = await getDebtSplitInput({ subscriptionId: subscription.id });
-			if (debtSplit)
-				await linkPurchaseToDebt({
-					creditPurchaseId: purchase.id,
-					date: occurrenceDate.toISOString().slice(0, 10),
-					debtSplit,
+			for (const occurrence of subscriptionOccurrences(
+				subscription as typeof subscription & { frequency: SubscriptionFrequency },
+				today,
+			)) {
+				if (!isAfter(occurrence, startOfDay(subscription.materializedThrough))) continue;
+				const key = occurrence.toISOString().slice(0, 10);
+				if (
+					book.purchases.some(
+						p => p.subscriptionId === subscription.id && p.subscriptionOccurrenceDate === key,
+					)
+				)
+					continue;
+				newBookPurchase(book, {
+					cashbackAccountId: card.cashbackAccountId,
+					cashbackAmount:
+						card.cashbackAccountId && card.cashbackRate
+							? Number(((Number(subscription.amount) * card.cashbackRate) / 100).toFixed(4))
+							: null,
+					cashbackYieldPeriod: card.cashbackYieldPeriod as "MONTHLY" | "YEARLY" | null,
+					cashbackYieldReferencePercentage: card.cashbackYieldReferencePercentage,
+					cashbackYieldReferenceRate: card.cashbackYieldReferenceRate,
+					debtSplitRule: debtSplit ?? null,
 					description: subscription.name,
+					installments: 1,
+					purchaseDate: key,
+					storeName: subscription.storeName,
+					subscriptionId: subscription.id,
+					subscriptionOccurrenceDate: key,
+					tagIds: (tagsBySubscription.get(subscription.id) ?? []).map(t => t.id),
 					totalAmount: Number(subscription.amount),
-					userId: subscription.userId,
 				});
-			await replaceEntityTags({
-				entityIds: [purchase.id],
-				entityType: tagEntityType.creditPurchase,
-				tagIds: (tagsBySubscription.get(subscription.id) ?? []).map(tag => tag.id),
-			});
-			const amount = param(numeric<12, 2>(subscription.amount), { codecId: "pg/numeric@1" });
+			}
 			await executeStatement(
-				db.sql.public.CreditCardStatement.update((fields, functions) => ({
-					totalAmount: functions.raw`${fields.totalAmount} + ${amount}`.returns("pg/numeric@1"),
-					updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
-				}))
-					.where((fields, functions) => functions.eq(fields.id, statement.id))
+				db.sql.public.Subscription.update({ materializedThrough: startOfDay(today) } as never)
+					.where((f, fn) => fn.eq(f.id, subscription.id))
 					.build(),
 			);
 		}
-		await executeStatement(
-			db.sql.public.Subscription.update({ materializedThrough: startOfDay(today) } as never)
-				.where((fields, functions) => functions.eq(fields.id, subscription.id))
-				.build(),
-		);
-	}
+	});
 }
 
 export async function materializeCreditCardSchedules(asOf = new Date()) {
@@ -303,10 +259,6 @@ export async function materializeCreditCardSchedules(asOf = new Date()) {
 			"statementDay",
 		).build(),
 	);
-	for (const card of cards) {
-		await materializeMonthlyStatements(card.id, card, asOf);
-		await materializeDueSubscriptionPurchases(card.id, card.financialAccountId, card, asOf);
-	}
 	const accounts = await queryRows(
 		db.sql.public.FinancialAccount.select("id", "userId")
 			.where((fields, functions) =>
@@ -317,5 +269,16 @@ export async function materializeCreditCardSchedules(asOf = new Date()) {
 			)
 			.build(),
 	);
+	const owners = new Map(accounts.map(account => [account.id, account.userId]));
+	for (const card of cards) {
+		await materializeMonthlyStatements(card.id, card, asOf);
+		await materializeDueSubscriptionPurchases(card.id, card.financialAccountId, card, asOf);
+		const owner = owners.get(card.financialAccountId)!;
+		const book = await readCreditBook(owner, card.id);
+		const before = book.installments.length;
+		materializeBookInstallments(book, format(asOf, "yyyy-MM-dd"));
+		if (book.installments.length !== before)
+			await mutateCreditBook(owner, card.id, () => undefined, format(asOf, "yyyy-MM-dd"));
+	}
 	return { cards: cards.length, userIds: [...new Set(accounts.map(account => account.userId))] };
 }

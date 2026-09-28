@@ -3,7 +3,7 @@ import {
 	calculateFinancialAccountYieldBalances,
 	type YieldPeriod,
 } from "~/modules/accounts/domain/calculate-financial-account-yields";
-import { db, queryRows } from "~/shared/infra/sql";
+import { db, queryRaw, queryRows } from "~/shared/infra/sql";
 import { getFinancialInstitutionYieldPolicies } from "./get-financial-institution-yield-policies";
 
 export function calculateCashbackValue(
@@ -103,17 +103,22 @@ async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 	}
 	const rewardsAccountIds = rewardsAccounts.map(account => account.financialAccountId);
 	const cashbackPurchases = rewardsAccountIds.length
-		? await queryRows(
-				db.sql.public.CreditPurchase.select(
-					"cashbackAccountId",
-					"cashbackAmount",
-					"cashbackYieldPeriod",
-					"cashbackYieldReferenceRate",
-					"cashbackYieldReferencePercentage",
-					"purchaseDate",
-				)
-					.where((fields, functions) => functions.in(fields.cashbackAccountId, rewardsAccountIds))
-					.build(),
+		? await queryRaw<{
+				cashbackAccountId: string;
+				cashbackAmount: number;
+				cashbackYieldPeriod: string | null;
+				cashbackYieldReferenceRate: number | null;
+				cashbackYieldReferencePercentage: number | null;
+				purchaseDate: Date;
+			}>(
+				`
+ WITH refunds AS (
+  SELECT r.*, sum(r."amount") OVER (PARTITION BY r."purchaseId" ORDER BY r."creditDate",r."createdAt",r."id") AS cumulative
+  FROM "CreditRefundRecord" r WHERE r."deletedAt" IS NULL
+ )
+ SELECT p."cashbackAccountId",p."cashbackAmount",p."cashbackYieldPeriod",p."cashbackYieldReferenceRate",p."cashbackYieldReferencePercentage",p."purchaseDate" FROM "CreditPurchaseRecord" p WHERE p."cashbackAccountId"=ANY($1) AND p."purchaseDate"<=CURRENT_DATE
+ UNION ALL SELECT p."cashbackAccountId",-(round(p."cashbackAmount"*r.cumulative/p."totalAmount",4)-round(p."cashbackAmount"*(r.cumulative-r."amount")/p."totalAmount",4)),p."cashbackYieldPeriod",p."cashbackYieldReferenceRate",p."cashbackYieldReferencePercentage",r."creditDate" FROM refunds r JOIN "CreditPurchaseRecord" p ON p."id"=r."purchaseId" WHERE p."cashbackAccountId"=ANY($1) AND r."creditDate"<=CURRENT_DATE`,
+				[rewardsAccountIds],
 			)
 		: [];
 	const holidays = accounts.length
