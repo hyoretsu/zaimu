@@ -1,0 +1,70 @@
+[
+	{
+		"execute": [
+			{
+				"description": "add column \"deletedAt\"",
+				"sql": "ALTER TABLE \"public\".\"CreditRefundRecord\" ADD COLUMN \"deletedAt\" timestamp(3)"
+			}
+		],
+		"id": "column.public.CreditRefundRecord.deletedAt",
+		"label": "Add column \"deletedAt\" to \"CreditRefundRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"deletedAt\" exists",
+				"params": ["public", "CreditRefundRecord", "deletedAt"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"deletedAt\" is missing",
+				"params": ["public", "CreditRefundRecord", "deletedAt"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "deletedAt",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditRefundRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"isSettled\"",
+				"sql": "ALTER TABLE \"public\".\"CreditStatementCharge\" ADD COLUMN \"isSettled\" bool DEFAULT false NOT NULL"
+			}
+		],
+		"id": "column.public.CreditStatementCharge.isSettled",
+		"label": "Add column \"isSettled\" to \"CreditStatementCharge\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"isSettled\" exists",
+				"params": ["public", "CreditStatementCharge", "isSettled"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"isSettled\" is missing",
+				"params": ["public", "CreditStatementCharge", "isSettled"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "isSettled",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditStatementCharge"
+			},
+			"id": "postgres"
+		}
+	}
+]
