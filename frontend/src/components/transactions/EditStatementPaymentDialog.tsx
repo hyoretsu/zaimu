@@ -11,7 +11,6 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
-import { Skeleton } from "@/components/ui/Skeleton";
 import type { Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import {
@@ -83,6 +82,19 @@ export function EditStatementPaymentDialog({
 		accountsQuery.data
 			?.filter(account => account.type !== "CREDIT_CARD" && account.type !== "REWARDS")
 			.toSorted(compareFinancialAccountsByOptionLabel) ?? [];
+	const accountOptions = balanceAccounts.map(account => ({
+		label: getFinancialAccountOptionLabel(account),
+		value: account.id,
+	}));
+	if (
+		draft.originFinancialAccountId &&
+		!accountOptions.some(option => option.value === draft.originFinancialAccountId)
+	) {
+		accountOptions.unshift({
+			label: transaction.originName || "Conta atual",
+			value: draft.originFinancialAccountId,
+		});
+	}
 
 	return (
 		<Dialog onOpenChange={onOpenChange} open={open}>
@@ -92,59 +104,43 @@ export function EditStatementPaymentDialog({
 					<DialogDescription>O saldo e a situação da fatura são recalculados ao salvar.</DialogDescription>
 				</DialogHeader>
 				<div className="scrollbar-themed grid min-h-0 gap-4 overflow-y-auto pr-1">
-					{accountsQuery.isPending ? (
-						<div className="grid gap-4">
-							<Skeleton className="h-16" />
-							<Skeleton className="h-16" />
-							<Skeleton className="h-16" />
-						</div>
-					) : accountsQuery.isError ? (
-						<p className="rounded-xl border border-destructive/30 p-3 text-destructive text-sm">
-							Não foi possível carregar as contas pagadoras.
-						</p>
+					<TransactionDetailsFields
+						amount={draft.amount}
+						date={draft.date}
+						description=""
+						onAmountChange={amount => setDraft(current => (current ? { ...current, amount } : current))}
+						onDateChange={date => setDraft(current => (current ? { ...current, date } : current))}
+						onDescriptionChange={() => undefined}
+						onStoreNameChange={() => undefined}
+						onTagIdsChange={() => undefined}
+						onTimeChange={time => setDraft(current => (current ? { ...current, time } : current))}
+						onTypeChange={() => undefined}
+						showDescription={false}
+						showStore={false}
+						showTags={false}
+						showType={false}
+						storeName=""
+						tagIds={[]}
+						time={draft.time}
+						type="EXPENSE"
+					/>
+					{accountOptions.length ? (
+						<CustomSelect
+							disabled={accountsQuery.isPending || accountsQuery.isError}
+							label="Conta pagadora"
+							onValueChange={originFinancialAccountId =>
+								setDraft(current => (current ? { ...current, originFinancialAccountId } : current))
+							}
+							options={accountOptions}
+							placeholder="Selecione a conta"
+							required
+							searchable
+							value={draft.originFinancialAccountId}
+						/>
 					) : (
-						<>
-							<TransactionDetailsFields
-								amount={draft.amount}
-								date={draft.date}
-								description=""
-								onAmountChange={amount => setDraft(current => (current ? { ...current, amount } : current))}
-								onDateChange={date => setDraft(current => (current ? { ...current, date } : current))}
-								onDescriptionChange={() => undefined}
-								onStoreNameChange={() => undefined}
-								onTagIdsChange={() => undefined}
-								onTimeChange={time => setDraft(current => (current ? { ...current, time } : current))}
-								onTypeChange={() => undefined}
-								showDescription={false}
-								showStore={false}
-								showTags={false}
-								showType={false}
-								storeName=""
-								tagIds={[]}
-								time={draft.time}
-								type="EXPENSE"
-							/>
-							{balanceAccounts.length ? (
-								<CustomSelect
-									label="Conta pagadora"
-									onValueChange={originFinancialAccountId =>
-										setDraft(current => (current ? { ...current, originFinancialAccountId } : current))
-									}
-									options={balanceAccounts.map(account => ({
-										label: getFinancialAccountOptionLabel(account),
-										value: account.id,
-									}))}
-									placeholder="Selecione a conta"
-									required
-									searchable
-									value={draft.originFinancialAccountId}
-								/>
-							) : (
-								<p className="rounded-xl border p-3 text-muted-foreground text-sm">
-									Nenhuma conta com saldo próprio disponível.
-								</p>
-							)}
-						</>
+						<p className="rounded-xl border p-3 text-muted-foreground text-sm">
+							Nenhuma conta com saldo próprio disponível.
+						</p>
 					)}
 				</div>
 				<DialogFooter>
@@ -153,13 +149,7 @@ export function EditStatementPaymentDialog({
 					</Button>
 					<Button
 						className="cursor-pointer disabled:cursor-not-allowed"
-						disabled={
-							accountsQuery.isPending ||
-							accountsQuery.isError ||
-							!draft.amount ||
-							!draft.originFinancialAccountId ||
-							update.isPending
-						}
+						disabled={!draft.amount || !draft.originFinancialAccountId || update.isPending}
 						onClick={() => update.mutate()}
 					>
 						{update.isPending ? "Salvando…" : "Salvar"}

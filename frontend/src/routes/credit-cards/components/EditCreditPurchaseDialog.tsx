@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { type SyntheticEvent, useEffect, useId, useState } from "react";
+import { type SyntheticEvent, useEffect, useId, useRef, useState } from "react";
 import { LuUndo2 } from "react-icons/lu";
 import { DebtSplitEditor } from "@/components/debts";
 import { StorePicker } from "@/components/stores";
@@ -19,7 +19,6 @@ import {
 import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { ScrollArea } from "@/components/ui/ScrollArea";
-import { Skeleton } from "@/components/ui/Skeleton";
 import { TimeField } from "@/components/ui/TimeField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { CreditCard, CreditPurchase, DebtSplitInput } from "@/lib/api";
@@ -50,6 +49,7 @@ type CreditPurchaseUpdate = CreditPurchaseDetailsUpdate | { installmentAmount: n
 
 export function EditCreditPurchaseDialog({
 	cards,
+	currentCard,
 	onOpenChange,
 	onRefund,
 	onSubmit,
@@ -59,6 +59,7 @@ export function EditCreditPurchaseDialog({
 	creditCardId,
 }: {
 	cards?: CreditCard[];
+	currentCard?: CreditCard;
 	creditCardId?: string;
 	onOpenChange: (open: boolean) => void;
 	onRefund?: () => void;
@@ -75,6 +76,16 @@ export function EditCreditPurchaseDialog({
 		queryKey: queryKeys.creditCards.list(identity!),
 	});
 	const availableCards = cards ?? cardsQuery.data ?? [];
+	const cardOptions = availableCards.map(card => ({
+		label: getCreditCardDisplayName(card),
+		value: card.id,
+	}));
+	if (sourceCardId && !cardOptions.some(option => option.value === sourceCardId)) {
+		cardOptions.unshift({
+			label: currentCard ? getCreditCardDisplayName(currentCard) : "Cartão atual",
+			value: sourceCardId,
+		});
+	}
 	const canonical = useQuery({
 		enabled: open && Boolean(identity) && Boolean(sourceCardId) && !purchase.isStatementCharge,
 		queryFn: () => dataService.creditCards.getBook(sourceCardId!),
@@ -83,7 +94,7 @@ export function EditCreditPurchaseDialog({
 	const original = canonical.data?.purchases.find(
 		p => p.id === (purchase.purchaseId ?? purchase.parentId ?? purchase.id),
 	);
-	const canonicalPending = Boolean(
+	const cardOptionsUnavailable = Boolean(
 		sourceCardId && !purchase.isStatementCharge && (canonical.isPending || canonical.isError),
 	);
 	const isSynced = purchase.isSynced === true;
@@ -103,6 +114,8 @@ export function EditCreditPurchaseDialog({
 	);
 	const [count, setCount] = useDebouncedInput(String(purchase.installments), () => undefined);
 	const [date, setDate] = useState(purchase.purchaseDate.slice(0, 10));
+	const amountEdited = useRef(false);
+	const dateEdited = useRef(false);
 	const [time, setTime] = useState(purchase.time ?? "");
 	const [tagIds, setTagIds] = useState(purchase.tagIds ?? (purchase.categoryId ? [purchase.categoryId] : []));
 	const [storeName, setStoreName] = useState(purchase.storeName ?? "");
@@ -119,8 +132,9 @@ export function EditCreditPurchaseDialog({
 	}, [open, purchase.debtSplit, purchase.storeName, purchase.time]);
 	useEffect(() => {
 		if (open && original && !purchase.parentId) {
-			setAmount(String(original.totalAmountCents / 100 - (original.feeAmount ?? 0)));
-			setDate(original.purchaseDate);
+			if (!amountEdited.current)
+				setAmount(String(original.totalAmountCents / 100 - (original.feeAmount ?? 0)));
+			if (!dateEdited.current) setDate(original.purchaseDate);
 		}
 	}, [open, original?.id, original?.totalAmountCents, original?.purchaseDate]);
 	const purchaseAmount = Number(amount);
@@ -151,7 +165,7 @@ export function EditCreditPurchaseDialog({
 						</Button>
 						<Button
 							className="cursor-pointer disabled:cursor-not-allowed"
-							disabled={pending || canonicalPending || Number(amount) <= 0}
+							disabled={pending || Number(amount) <= 0}
 							onClick={() =>
 								runDialogSave(
 									onSubmit({ installmentAmount: Number(amount) }),
@@ -209,22 +223,19 @@ export function EditCreditPurchaseDialog({
 							</Button>
 						) : null}
 						<form className="grid gap-5" onSubmit={submit}>
-							{canonical.isPending && sourceCardId ? (
-								<Skeleton className="h-10" />
-							) : canonical.isError ? (
-								<p className="text-destructive text-sm">Não foi possível carregar a compra original.</p>
+							{canonical.isError ? (
+								<p className="text-destructive text-sm">Não foi possível verificar a troca de cartão.</p>
 							) : null}
 							{!purchase.isStatementCharge && sourceCardId ? (
 								<CustomSelect
 									disabled={
-										cardLocked || (!cards && (cardsQuery.isPending || cardsQuery.isError)) || canonicalPending
+										cardLocked ||
+										(!cards && (cardsQuery.isPending || cardsQuery.isError)) ||
+										cardOptionsUnavailable
 									}
 									label="Cartão"
 									onValueChange={setSelectedCardId}
-									options={availableCards.map(card => ({
-										label: getCreditCardDisplayName(card),
-										value: card.id,
-									}))}
+									options={cardOptions}
 									placeholder="Selecione o cartão"
 									required
 									searchable
@@ -246,7 +257,10 @@ export function EditCreditPurchaseDialog({
 								disabled={isSynced}
 								id="credit-purchase-amount"
 								label="Valor da compra"
-								onValueChange={setAmount}
+								onValueChange={value => {
+									amountEdited.current = true;
+									setAmount(value);
+								}}
 								placeholder="R$ 120,00"
 								required
 								value={amount}
@@ -279,7 +293,10 @@ export function EditCreditPurchaseDialog({
 									id="credit-purchase-date"
 									label="Data da compra"
 									name="credit-purchase-date"
-									onValueChange={setDate}
+									onValueChange={value => {
+										dateEdited.current = true;
+										setDate(value);
+									}}
 									required
 									value={date}
 								/>
@@ -339,7 +356,6 @@ export function EditCreditPurchaseDialog({
 									className="cursor-pointer"
 									disabled={
 										pending ||
-										canonicalPending ||
 										(isDebt && !calculateDebtSplit(totalAmount, debtSplit)) ||
 										totalAmount <= 0 ||
 										!Number.isInteger(installments) ||

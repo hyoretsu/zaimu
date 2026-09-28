@@ -111,6 +111,7 @@ export function CreditCardStatementBrowser({ card }: { card: CreditCard }) {
 				statements={visibleStatements}
 			/>
 			<CreditCardStatementDetails
+				card={card}
 				cutoffPending={cutoff.isPending}
 				ignoreBefore={ignoreBefore}
 				isEmptyCycle={selectedStatement.isEmptyCycle}

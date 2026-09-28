@@ -86,6 +86,16 @@ export function EditImportedTransactionDialog({
 		setDescription(item.description ?? "");
 	}, [item, open, setDescription]);
 	if (!item || !draft) return null;
+	const paymentCardOptions = (payableStatementsQuery.data ?? []).map(card => ({
+		label: getCreditCardDisplayName(card),
+		value: card.id,
+	}));
+	if (
+		draft.paymentCreditCardId &&
+		!paymentCardOptions.some(option => option.value === draft.paymentCreditCardId)
+	) {
+		paymentCardOptions.unshift({ label: "Cartão atual", value: draft.paymentCreditCardId });
+	}
 	const balanceDestinationAccounts = accounts
 		.filter(account => account.type !== "CREDIT_CARD" && account.type !== "REWARDS")
 		.toSorted(compareFinancialAccountsByOptionLabel);
@@ -173,10 +183,7 @@ export function EditImportedTransactionDialog({
 								);
 								setIsDebt(false);
 							}}
-							options={(payableStatementsQuery.data ?? []).map(card => ({
-								label: getCreditCardDisplayName(card),
-								value: card.id,
-							}))}
+							options={paymentCardOptions}
 							placeholder="Nenhum cartão selecionado"
 							searchable
 							sortOptions={false}

@@ -8,7 +8,7 @@ import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { TabsContent } from "@/components/ui/Tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
-import type { CreditCardStatement, CreditPurchase } from "@/lib/api";
+import type { CreditCard, CreditCardStatement, CreditPurchase } from "@/lib/api";
 import { getCreditCardStatementDisplayBalance } from "@/lib/credit-card-statement-balance";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
@@ -24,12 +24,14 @@ import { RefundCreditPurchaseDialog } from "./RefundCreditPurchaseDialog";
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
 export function CreditCardStatementDetails({
+	card,
 	statement,
 	isEmptyCycle = false,
 	ignoreBefore,
 	onSetIgnoreBefore,
 	cutoffPending,
 }: {
+	card: CreditCard;
 	statement: CreditCardStatement;
 	isEmptyCycle?: boolean;
 	ignoreBefore: string | null;
@@ -338,6 +340,7 @@ export function CreditCardStatementDetails({
 			</ScrollArea>
 			{editingPurchase && (
 				<EditCreditPurchaseDialog
+					currentCard={card}
 					key={editingPurchase.id}
 					onOpenChange={open => !open && setEditingPurchase(null)}
 					onSubmit={async data => {

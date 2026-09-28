@@ -141,6 +141,30 @@ export function EditTransactionDialog({
 	const primaryAccounts = draft.type === "INCOME" ? incomeDestinationAccounts : sourceAccounts;
 	const primaryAccountId =
 		draft.type === "INCOME" ? draft.destinationFinancialAccountId : draft.originFinancialAccountId;
+	const primaryAccountOptions = primaryAccounts.map(account => ({
+		label: getFinancialAccountOptionLabel(account),
+		value: account.id,
+	}));
+	if (primaryAccountId && !primaryAccountOptions.some(option => option.value === primaryAccountId)) {
+		primaryAccountOptions.unshift({
+			label:
+				(draft.type === "INCOME" ? transaction.destinationName : transaction.originName) || "Conta atual",
+			value: primaryAccountId,
+		});
+	}
+	const paymentCardOptions = (payableStatementsQuery.data ?? []).map(card => ({
+		label: getCreditCardDisplayName(card),
+		value: card.id,
+	}));
+	if (
+		draft.paymentCreditCardId &&
+		!paymentCardOptions.some(option => option.value === draft.paymentCreditCardId)
+	) {
+		paymentCardOptions.unshift({
+			label: transaction.creditCardName || "Cartão atual",
+			value: draft.paymentCreditCardId,
+		});
+	}
 
 	return (
 		<Dialog onOpenChange={onOpenChange} open={open}>
@@ -205,10 +229,7 @@ export function EditTransactionDialog({
 								);
 								setIsDebt(false);
 							}}
-							options={(payableStatementsQuery.data ?? []).map(card => ({
-								label: getCreditCardDisplayName(card),
-								value: card.id,
-							}))}
+							options={paymentCardOptions}
 							placeholder="Nenhum cartão selecionado"
 							searchable
 							sortOptions={false}
@@ -238,8 +259,9 @@ export function EditTransactionDialog({
 							) : null}
 						</div>
 					) : null}
-					{primaryAccounts.length > 0 ? (
+					{primaryAccountOptions.length > 0 ? (
 						<CustomSelect
+							disabled={accountsQuery.isPending || accountsQuery.isError}
 							label={draft.type === "INCOME" ? "Conta de destino" : "Conta de origem"}
 							onValueChange={accountId =>
 								setDraft(current =>
@@ -261,18 +283,17 @@ export function EditTransactionDialog({
 										: current,
 								)
 							}
-							options={primaryAccounts.map(account => ({
-								label: getFinancialAccountOptionLabel(account),
-								value: account.id,
-							}))}
+							options={primaryAccountOptions}
 							placeholder="Selecione a conta"
 							required
 							searchable
 							value={primaryAccountId}
 						/>
 					) : null}
-					{draft.type === "TRANSFER" && balanceDestinationAccounts.length > 0 ? (
+					{draft.type === "TRANSFER" &&
+					(balanceDestinationAccounts.length > 0 || draft.destinationFinancialAccountId) ? (
 						<CustomSelect
+							disabled={accountsQuery.isPending || accountsQuery.isError}
 							label="Conta de destino"
 							onValueChange={destinationFinancialAccountId =>
 								setDraft(current =>
@@ -288,9 +309,22 @@ export function EditTransactionDialog({
 										: current,
 								)
 							}
-							options={balanceDestinationAccounts
-								.filter(account => account.id !== draft.originFinancialAccountId)
-								.map(account => ({ label: getFinancialAccountOptionLabel(account), value: account.id }))}
+							options={[
+								...balanceDestinationAccounts
+									.filter(account => account.id !== draft.originFinancialAccountId)
+									.map(account => ({ label: getFinancialAccountOptionLabel(account), value: account.id })),
+								...(draft.destinationFinancialAccountId &&
+								!balanceDestinationAccounts.some(
+									account => account.id === draft.destinationFinancialAccountId,
+								)
+									? [
+											{
+												label: transaction.destinationName || "Conta atual",
+												value: draft.destinationFinancialAccountId,
+											},
+										]
+									: []),
+							]}
 							placeholder="Selecione o destino"
 							required
 							searchable
