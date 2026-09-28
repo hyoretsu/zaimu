@@ -21,14 +21,21 @@ import { RefundCreditPurchaseDialog } from "./RefundCreditPurchaseDialog";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
-export function CreditCardStatementDetails({ statement }: { statement: CreditCardStatement }) {
+export function CreditCardStatementDetails({
+	statement,
+	isEmptyCycle = false,
+}: {
+	statement: CreditCardStatement;
+	isEmptyCycle?: boolean;
+}) {
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
 	const [editingPurchase, setEditingPurchase] = useState<CreditPurchase | null>(null);
 	const [refinancingPurchase, setRefinancingPurchase] = useState<CreditPurchase | null>(null);
 	const [refundingPurchase, setRefundingPurchase] = useState<CreditPurchase | null>(null);
 	const detail = useQuery({
-		enabled: identity !== null,
+		enabled: identity !== null && !isEmptyCycle,
+		initialData: isEmptyCycle ? { ...statement, payments: [], purchases: [] } : undefined,
 		queryFn: () => dataService.creditCards.getStatement(statement.creditCardId, statement.id),
 		queryKey: queryKeys.creditCardStatements.detail(identity!, statement.creditCardId, statement.id),
 	});

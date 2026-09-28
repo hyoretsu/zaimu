@@ -1,61 +1,103 @@
-import { useLayoutEffect, useRef } from "react";
-import { Button } from "@/components/ui/Button";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import type { CreditCardStatement } from "@/lib/api";
 import { formatLocalMonthYear } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import { getCreditCardStatementStatus } from "./credit-card-statement-status";
+import { getStatementWindowRadius } from "./credit-card-statement-window";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
 export function CreditCardStatementTabs({
-	hasMore,
-	isLoadingMore,
-	onLoadMore,
+	isDesktop,
+	onLoadNext,
+	onLoadPrevious,
+	onRadiusChange,
 	selectedId,
 	statements,
 }: {
-	hasMore: boolean;
-	isLoadingMore: boolean;
-	onLoadMore: () => void;
+	isDesktop: boolean;
+	onLoadNext: () => void;
+	onLoadPrevious: () => void;
+	onRadiusChange: (radius: number) => void;
 	selectedId: string;
 	statements: CreditCardStatement[];
 }) {
 	const scrollAreaRef = useRef<HTMLDivElement>(null);
+	const pendingPrepend = useRef<{ size: number; offset: number } | null>(null);
+	const centeredId = useRef<string | null>(null);
+	const previousDesktop = useRef(isDesktop);
 
 	useLayoutEffect(() => {
-		const scrollArea = scrollAreaRef.current;
-		const viewport = scrollArea?.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]');
-		const activeTab = scrollArea?.querySelector<HTMLElement>(
+		const viewport = scrollAreaRef.current?.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]');
+		const activeTab = scrollAreaRef.current?.querySelector<HTMLElement>(
 			'[data-slot="tabs-trigger"][data-state="active"]',
 		);
-
 		if (!viewport || !activeTab) return;
-
-		const viewportRect = viewport.getBoundingClientRect();
-		const activeTabRect = activeTab.getBoundingClientRect();
-		if (viewport.scrollHeight > viewport.clientHeight) {
-			const targetTop =
-				viewport.scrollTop +
-				activeTabRect.top -
-				viewportRect.top -
-				(viewportRect.height - activeTabRect.height) / 2;
-
-			viewport.scrollTo({ behavior: "auto", top: Math.max(0, targetTop) });
+		const prepend = pendingPrepend.current;
+		if (prepend) {
+			if (isDesktop) viewport.scrollTop = prepend.offset + viewport.scrollHeight - prepend.size;
+			else viewport.scrollLeft = prepend.offset + viewport.scrollWidth - prepend.size;
+			pendingPrepend.current = null;
+		} else if (centeredId.current === selectedId && previousDesktop.current === isDesktop) {
 			return;
 		}
-
-		if (viewport.scrollWidth > viewport.clientWidth) {
-			const targetLeft =
-				viewport.scrollLeft +
-				activeTabRect.left -
-				viewportRect.left -
-				(viewportRect.width - activeTabRect.width) / 2;
-
-			viewport.scrollTo({ behavior: "auto", left: Math.max(0, targetLeft) });
+		if (centeredId.current !== selectedId || previousDesktop.current !== isDesktop) {
+			const viewportRect = viewport.getBoundingClientRect();
+			const tabRect = activeTab.getBoundingClientRect();
+			if (isDesktop)
+				viewport.scrollTop += tabRect.top - viewportRect.top - (viewportRect.height - tabRect.height) / 2;
+			else viewport.scrollLeft += tabRect.left - viewportRect.left - (viewportRect.width - tabRect.width) / 2;
+			centeredId.current = selectedId;
+			previousDesktop.current = isDesktop;
 		}
-	}, [selectedId]);
+	}, [isDesktop, selectedId, statements]);
+
+	useEffect(() => {
+		const viewport = scrollAreaRef.current?.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]');
+		const tab = scrollAreaRef.current?.querySelector<HTMLElement>('[data-slot="tabs-trigger"]');
+		if (!viewport || !tab) return;
+		const resizeObserver = new ResizeObserver(() => {
+			if (!isDesktop) return;
+			onRadiusChange(
+				getStatementWindowRadius(true, viewport.clientHeight, tab.getBoundingClientRect().height),
+			);
+		});
+		resizeObserver.observe(viewport);
+		resizeObserver.observe(tab);
+		return () => resizeObserver.disconnect();
+	}, [isDesktop, onRadiusChange]);
+
+	useEffect(() => {
+		const viewport = scrollAreaRef.current?.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]');
+		if (!viewport) return;
+		let frame: number | null = null;
+		const onScroll = () => {
+			if (frame !== null) return;
+			frame = requestAnimationFrame(() => {
+				frame = null;
+				const tab = scrollAreaRef.current?.querySelector<HTMLElement>('[data-slot="tabs-trigger"]');
+				if (!tab || pendingPrepend.current) return;
+				const offset = isDesktop ? viewport.scrollTop : viewport.scrollLeft;
+				const size = isDesktop ? viewport.scrollHeight : viewport.scrollWidth;
+				const visibleSize = isDesktop ? viewport.clientHeight : viewport.clientWidth;
+				const threshold =
+					(isDesktop ? tab.getBoundingClientRect().height : tab.getBoundingClientRect().width) + 8;
+				if (offset < threshold) {
+					pendingPrepend.current = { offset, size };
+					onLoadPrevious();
+				} else if (size - visibleSize - offset < threshold) {
+					onLoadNext();
+				}
+			});
+		};
+		viewport.addEventListener("scroll", onScroll, { passive: true });
+		return () => {
+			viewport.removeEventListener("scroll", onScroll);
+			if (frame !== null) cancelAnimationFrame(frame);
+		};
+	}, [isDesktop, onLoadNext, onLoadPrevious]);
 
 	return (
 		<div className="h-full min-w-0" ref={scrollAreaRef}>
@@ -94,16 +136,6 @@ export function CreditCardStatementTabs({
 							</TabsTrigger>
 						);
 					})}
-					{hasMore && (
-						<Button
-							className="h-full w-36 shrink-0 cursor-pointer disabled:cursor-not-allowed sm:h-10 sm:w-full"
-							disabled={isLoadingMore}
-							onClick={onLoadMore}
-							variant="outline"
-						>
-							{isLoadingMore ? "Carregando…" : "Carregar mais"}
-						</Button>
-					)}
 				</TabsList>
 			</ScrollArea>
 		</div>
