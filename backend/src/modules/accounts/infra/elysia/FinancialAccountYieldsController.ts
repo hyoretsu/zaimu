@@ -83,7 +83,7 @@ function serializeYield(yieldEntry: {
 export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial-account-yields" })
 	.get(
 		"/",
-		async ({ query, request, set }) => {
+		async ({ query, request, set, status }) => {
 			const userId = await requireUserId(request);
 			await assertYieldAccount(query.financialAccountId, userId);
 			const limit = Math.min(query.limit ?? 100, 100);
@@ -143,8 +143,7 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 			set.headers.etag = cached.etag;
 			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
 			if (request.headers.get("if-none-match") === cached.etag) {
-				set.status = 304;
-				return null;
+				return status(304, null);
 			}
 			return cached.value;
 		},
@@ -155,7 +154,7 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 				financialAccountId: Id,
 				limit: t.Optional(t.Integer({ maximum: 100, minimum: 1 })),
 			}),
-			response: YieldPageReturn,
+			response: { 200: YieldPageReturn, 304: t.Null() },
 		},
 	)
 	.post(

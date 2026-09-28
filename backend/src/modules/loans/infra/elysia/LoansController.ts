@@ -49,7 +49,7 @@ interface LoanHistoryCursor {
 	id: string;
 }
 
-interface LoanListRow {
+interface LoanListRow extends Record<string, unknown> {
 	amortization: "PRICE" | "SAC" | "SACRE";
 	description: null | string;
 	dueDay: number;
