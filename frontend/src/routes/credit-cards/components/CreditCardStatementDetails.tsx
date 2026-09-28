@@ -14,6 +14,7 @@ import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { TabsContent } from "@/components/ui/Tabs";
 import type { CreditCardStatement, CreditPurchase } from "@/lib/api";
+import { getCreditCardStatementDisplayBalance } from "@/lib/credit-card-statement-balance";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
@@ -38,6 +39,7 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 		queryKey: queryKeys.creditCardStatements.detail(identity!, statement.creditCardId, statement.id),
 	});
 	const displayedStatement = detail.data ?? statement;
+	const displayBalance = getCreditCardStatementDisplayBalance(displayedStatement);
 	const entries = detail.data
 		? [
 				...detail.data.purchases.map(purchase => ({
@@ -133,7 +135,7 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 						<div className="grid gap-2 border-t pt-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-3">
 							<div className="grid grid-cols-2 gap-x-3 gap-y-2">
 								<div className="min-w-0">
-									<p className="text-muted-foreground text-xs">Compras da fatura</p>
+									<p className="text-muted-foreground text-xs">Total da fatura</p>
 									<strong className="block text-base tabular-nums sm:text-lg">
 										{currency.format(displayedStatement.totalAmount)}
 									</strong>
@@ -141,7 +143,7 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 								<div className="min-w-0">
 									<p className="text-muted-foreground text-xs">Saldo após pagamentos</p>
 									<strong className="block text-base tabular-nums sm:text-lg">
-										{currency.format(displayedStatement.balanceAmount)}
+										{currency.format(displayBalance)}
 									</strong>
 								</div>
 							</div>
@@ -162,34 +164,6 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 								</AppBadge>
 							</div>
 						</div>
-						<dl className="grid grid-cols-2 gap-x-3 gap-y-1 border-t pt-2 text-sm">
-							<dt>Saldo anterior</dt>
-							<dd className="text-right tabular-nums">
-								{currency.format(displayedStatement.carriedInAmount ?? 0)}
-							</dd>
-							<dt>Encargos</dt>
-							<dd className="text-right tabular-nums">
-								{currency.format(displayedStatement.chargesAmount ?? 0)}
-							</dd>
-							<dt>Total exigível</dt>
-							<dd className="text-right tabular-nums">
-								{currency.format(displayedStatement.amountDue ?? displayedStatement.totalAmount)}
-							</dd>
-							<dt>Crédito anterior</dt>
-							<dd className="text-right tabular-nums">
-								{currency.format(displayedStatement.creditInAmount ?? 0)}
-							</dd>
-							<dt>Pagamentos aplicados</dt>
-							<dd className="text-right tabular-nums">{currency.format(displayedStatement.paidAmount)}</dd>
-							{(displayedStatement.carriedOutAmount ?? 0) > 0 && (
-								<>
-									<dt>Saldo transposto</dt>
-									<dd className="text-right tabular-nums">
-										{currency.format(displayedStatement.carriedOutAmount!)}
-									</dd>
-								</>
-							)}
-						</dl>
 						<div className="grid grid-cols-2 gap-2 border-t pt-2">
 							<div className="min-w-0">
 								<p className="flex items-center gap-1 text-muted-foreground text-xs">

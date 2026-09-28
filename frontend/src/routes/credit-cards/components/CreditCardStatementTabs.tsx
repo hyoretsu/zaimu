@@ -86,7 +86,7 @@ export function CreditCardStatementTabs({
 						return (
 							<TabsTrigger
 								className={cn(
-									"sm:!w-full h-full w-44 shrink-0 cursor-pointer items-start justify-start whitespace-normal rounded-xl border-border p-3 text-left sm:h-auto",
+									"sm:!w-full h-full w-36 shrink-0 cursor-pointer items-start justify-start whitespace-normal rounded-xl border-border p-3 text-left sm:h-auto",
 									selected && "border-primary bg-primary/10 ring-1 ring-primary/30",
 								)}
 								key={statement.id}
@@ -99,19 +99,14 @@ export function CreditCardStatementTabs({
 											<StatusIcon aria-hidden="true" className="size-4" />
 										</span>
 									</span>
-									<span className="truncate text-muted-foreground text-xs">
-										Total {currency.format(statement.totalAmount)}
-									</span>
-									<strong className="truncate text-sm">
-										Saldo {currency.format(statement.balanceAmount)}
-									</strong>
+									<strong className="truncate text-sm">{currency.format(statement.totalAmount)}</strong>
 								</span>
 							</TabsTrigger>
 						);
 					})}
 					{hasMore && (
 						<Button
-							className="h-full w-44 shrink-0 cursor-pointer disabled:cursor-not-allowed sm:h-10 sm:w-full"
+							className="h-full w-36 shrink-0 cursor-pointer disabled:cursor-not-allowed sm:h-10 sm:w-full"
 							disabled={isLoadingMore}
 							onClick={onLoadMore}
 							variant="outline"
