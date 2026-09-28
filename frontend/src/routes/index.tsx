@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { useState } from "react";
-import { LuCalendarClock, LuTrendingUp, LuWalletCards } from "react-icons/lu";
+import { LuTrendingUp, LuWalletCards } from "react-icons/lu";
 import {
 	CreditCardImportReviewDialog,
 	PendingCreditCardImportsNotice,
@@ -28,6 +28,7 @@ import {
 	DashboardDebts,
 	DashboardForecasts,
 	DashboardPeriodFlowCard,
+	DashboardProjectedCashFlowCard,
 	DashboardQuickActions,
 	DashboardSkeleton,
 } from "./components";
@@ -61,28 +62,6 @@ export function DashboardPage() {
 	const endingBalance = dashboard.period.endingBalance;
 	const isCurrentDay = dashboard.period.startDate === dashboard.period.endDate;
 	const projectedCashFlow = dashboard.projectedCashFlowUntilMonthEnd;
-	const projectionKind =
-		projectedCashFlow.net > 0 ? "gain" : projectedCashFlow.net < 0 ? "expense" : "neutral";
-	const projectionCopy = {
-		expense: {
-			cardClassName: "border-rose-500/30 bg-rose-500/5",
-			description: "Saídas superam entradas a partir de amanhã.",
-			title: "Gasto projetado até fim do mês",
-			valueClassName: "text-rose-600",
-		},
-		gain: {
-			cardClassName: "border-emerald-500/30 bg-emerald-500/5",
-			description: "Entradas superam saídas a partir de amanhã.",
-			title: "Ganho projetado até fim do mês",
-			valueClassName: "text-emerald-600",
-		},
-		neutral: {
-			cardClassName: "border-border bg-muted/30",
-			description: "Entradas e saídas se equilibram a partir de amanhã.",
-			title: "Fluxo projetado até fim do mês",
-			valueClassName: "text-muted-foreground",
-		},
-	}[projectionKind];
 	return (
 		<PageContainer className="space-y-6">
 			<PageHeader
@@ -125,21 +104,11 @@ export function DashboardPage() {
 					income={dashboard.period.income}
 					net={dashboard.period.net}
 				/>
-				<Card
-					className={`gap-2 py-3 [--card-spacing:--spacing(4)] sm:py-4 xl:flex-row xl:items-center xl:justify-between xl:gap-6 sm:[--card-spacing:--spacing(6)] ${projectionCopy.cardClassName}`}
-				>
-					<CardHeader>
-						<CardTitle className="flex items-center gap-1.5 font-medium text-xs leading-tight sm:gap-2 sm:text-sm">
-							<LuCalendarClock aria-hidden="true" className="size-4 shrink-0" /> {projectionCopy.title}
-						</CardTitle>
-					</CardHeader>
-					<CardContent className="xl:flex xl:items-center xl:gap-5">
-						<p className={`font-bold text-xl tracking-tight sm:text-2xl ${projectionCopy.valueClassName}`}>
-							{currency.format(Math.abs(projectedCashFlow.net))}
-						</p>
-						<p className="mt-1 text-muted-foreground text-xs xl:mt-0">{projectionCopy.description}</p>
-					</CardContent>
-				</Card>
+				<DashboardProjectedCashFlowCard
+					expenses={projectedCashFlow.expenses}
+					income={projectedCashFlow.income}
+					net={projectedCashFlow.net}
+				/>
 			</section>
 			<DashboardComparisonChart comparison={dashboard.comparison} />
 			<section className="grid gap-4 xl:grid-cols-2">
