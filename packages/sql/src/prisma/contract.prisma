@@ -34,6 +34,7 @@ namespace public {
     transactionTransferSuggestionRejections TransactionTransferSuggestionRejection[]
     transactions      Transaction[]
     creditPurchases   CreditPurchase[]
+    normalizedCreditPurchases CreditPurchaseRecord[]
     authAccounts      AuthAccount[]
     sessions          Session[]
 
@@ -50,6 +51,7 @@ namespace public {
     updatedAt      Timestamp(3)       @default(now())
     financialAccounts FinancialAccount[]
     yieldPolicies     FinancialInstitutionYieldPolicy[]
+    creditRefundPolicy pg.enum(CreditRefundPolicy)?
     user           User               @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "FinancialInstitution_userId_fkey", index: false)
 
     @@index([userId, normalizedName], map: "FinancialInstitution_userId_normalizedName_key", unique: true)
@@ -121,6 +123,7 @@ namespace public {
     updatedAt         Timestamp(3)       @default(now())
     creditPurchases   CreditPurchase[]
     creditCardImportItems CreditCardImportItem[]
+    normalizedCreditPurchases CreditPurchaseRecord[]
     recurringPayments RecurringPayment[]
     transactions      Transaction[]
     transactionImportItems TransactionImportItem[]
@@ -331,6 +334,7 @@ namespace public {
     updatedAt            Timestamp(3)          @default(now())
     creditCardHistories  CreditCardHistory[]
     creditCardStatements CreditCardStatement[]
+    normalizedPurchases CreditPurchaseRecord[]
     creditCardImports    CreditCardImport[]
     payments Transaction[]
     importedPayments TransactionImportItem[]
@@ -381,6 +385,9 @@ namespace public {
     createdAt       Timestamp(3)     @default(now())
     updatedAt       Timestamp(3)     @default(now())
     creditPurchases CreditPurchase[]
+    normalizedInstallments CreditInstallmentRecord[]
+    normalizedRefunds CreditRefundRecord[]
+    statementCharges CreditStatementCharge[]
     creditCard      CreditCard       @relation(fields: [creditCardId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditCardStatement_creditCardId_fkey", index: false)
 
     @@index([creditCardId, statementDate], map: "CreditCardStatement_creditCardId_statementDate_key", unique: true)
@@ -446,6 +453,108 @@ namespace public {
 		@@index([statementId, purchaseDate, id], map: "CreditPurchase_statementId_purchaseDate_id_idx")
 
     @@map("CreditPurchase")
+  }
+
+  // Additive normalized storage. Legacy CreditPurchase remains until reference remapping.
+  model CreditPurchaseRecord {
+    id                   VarChar(36) @id(map: "CreditPurchaseRecord_pkey")
+    userId               VarChar(36)
+    creditCardId         VarChar(36)
+    description          VarChar(500)
+    storeName            VarChar(200)?
+    purchaseDate         Date
+    time                 Time(3)?
+    totalAmount          Numeric(12, 2)
+    feeDescription       VarChar(100)?
+    feeAmount            Numeric(12, 2)?
+    categoryId           VarChar(36)?
+    cashbackAccountId    VarChar(36)?
+    cashbackAmount       Numeric(18, 4)?
+    cashbackYieldReferenceRate       Numeric(7, 4)?
+    cashbackYieldReferencePercentage Numeric(7, 4)?
+    cashbackYieldPeriod              pg.enum(CashbackYieldPeriod)?
+    subscriptionId       VarChar(36)?
+    subscriptionOccurrenceDate Date?
+    externalId           VarChar(200)?
+    createdAt            Timestamp(3) @default(now())
+    updatedAt            Timestamp(3) @default(now())
+    user                 User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditPurchaseRecord_userId_fkey", index: false)
+    creditCard           CreditCard @relation(fields: [creditCardId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditPurchaseRecord_creditCardId_fkey", index: false)
+    category             Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditPurchaseRecord_categoryId_fkey", index: false)
+    installmentPlan      CreditInstallmentPlan[]
+    installments         CreditInstallmentRecord[]
+    refunds              CreditRefundRecord[]
+
+    @@index([userId, purchaseDate, createdAt, id], map: "CreditPurchaseRecord_userId_date_idx")
+    @@index([creditCardId, purchaseDate], map: "CreditPurchaseRecord_creditCardId_date_idx")
+    @@index([categoryId], map: "CreditPurchaseRecord_categoryId_idx")
+    @@index([externalId], map: "CreditPurchaseRecord_externalId_key", unique: true)
+    @@index([subscriptionId, subscriptionOccurrenceDate], map: "CreditPurchaseRecord_subscription_occurrence_key", unique: true)
+    @@map("CreditPurchaseRecord")
+  }
+
+  model CreditInstallmentPlan {
+    purchaseId       VarChar(36)
+    number           SmallInt
+    amount           Numeric(12, 2)
+    hasImportedAmount Boolean @default(false)
+    createdAt        Timestamp(3) @default(now())
+    updatedAt        Timestamp(3) @default(now())
+    purchase         CreditPurchaseRecord @relation(fields: [purchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditInstallmentPlan_purchaseId_fkey", index: false)
+
+    @@id([purchaseId, number], map: "CreditInstallmentPlan_pkey")
+    @@map("CreditInstallmentPlan")
+  }
+
+  model CreditInstallmentRecord {
+    id                    VarChar(36) @id(map: "CreditInstallmentRecord_pkey")
+    purchaseId            VarChar(36)
+    statementId           VarChar(36)
+    number                SmallInt
+    amount                Numeric(12, 2)
+    occurrenceDate        Date
+    hasImportedAmount     Boolean @default(false)
+    settledByPurchaseId   VarChar(36)?
+    createdAt             Timestamp(3) @default(now())
+    updatedAt             Timestamp(3) @default(now())
+    purchase              CreditPurchaseRecord @relation(fields: [purchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditInstallmentRecord_purchaseId_fkey", index: false)
+    statement             CreditCardStatement @relation(fields: [statementId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditInstallmentRecord_statementId_fkey", index: false)
+
+    @@index([purchaseId, number], map: "CreditInstallmentRecord_purchase_number_key", unique: true)
+    @@index([statementId, occurrenceDate], map: "CreditInstallmentRecord_statement_date_idx")
+    @@map("CreditInstallmentRecord")
+  }
+
+  model CreditRefundRecord {
+    id                   VarChar(36) @id(map: "CreditRefundRecord_pkey")
+    purchaseId           VarChar(36)
+    statementId          VarChar(36)
+    creditDate           Date
+    amount               Numeric(12, 2)
+    policy               pg.enum(CreditRefundPolicy)
+    cancellationEligible Boolean @default(false)
+    createdAt            Timestamp(3) @default(now())
+    updatedAt            Timestamp(3) @default(now())
+    purchase             CreditPurchaseRecord @relation(fields: [purchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditRefundRecord_purchaseId_fkey", index: false)
+    statement            CreditCardStatement @relation(fields: [statementId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditRefundRecord_statementId_fkey", index: false)
+
+    @@index([purchaseId, creditDate], map: "CreditRefundRecord_purchase_date_idx")
+    @@index([statementId, creditDate], map: "CreditRefundRecord_statement_date_idx")
+    @@map("CreditRefundRecord")
+  }
+
+  model CreditStatementCharge {
+    id          VarChar(36) @id(map: "CreditStatementCharge_pkey")
+    statementId VarChar(36)
+    description VarChar(500)
+    amount      Numeric(12, 2)
+    chargeDate  Date
+    createdAt   Timestamp(3) @default(now())
+    updatedAt   Timestamp(3) @default(now())
+    statement   CreditCardStatement @relation(fields: [statementId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditStatementCharge_statementId_fkey", index: false)
+
+    @@index([statementId, chargeDate], map: "CreditStatementCharge_statement_date_idx")
+    @@map("CreditStatementCharge")
   }
 
   model CreditPurchaseHistory {
@@ -1190,6 +1299,11 @@ namespace public {
     INTER = "INTER"
     NUBANK = "NUBANK"
     PICPAY = "PICPAY"
+  }
+
+  native_enum CreditRefundPolicy {
+    KEEP_INSTALLMENTS = "KEEP_INSTALLMENTS"
+    CANCEL_FUTURE_INSTALLMENTS = "CANCEL_FUTURE_INSTALLMENTS"
   }
 
   native_enum TransactionImportItemType {

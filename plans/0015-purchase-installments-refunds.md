@@ -34,3 +34,4 @@
 
 - Crédito importado sem compra: exigir revisão de data, valor, parcelamento e metadados, sem inventar dívida automaticamente.
 - Modelo novo será integrado por etapas; módulos de domínio isolados não significam migração concluída nem mudança já disponível na interface.
+- Schema aditivo de compra, plano, parcela, reembolso e encargo criado. Migração de criação e constraints aplicada em PostgreSQL 18 descartável local; 65 migrações passaram. Backfill, remapeamento de referências e remoção do legado ainda pendentes.

@@ -1,0 +1,975 @@
+[
+	{
+		"execute": [
+			{
+				"description": "create enum type \"CreditRefundPolicy\"",
+				"params": [],
+				"sql": "CREATE TYPE \"public\".\"CreditRefundPolicy\" AS ENUM ('KEEP_INSTALLMENTS', 'CANCEL_FUTURE_INSTALLMENTS')"
+			}
+		],
+		"id": "createNativeEnumType.CreditRefundPolicy",
+		"label": "Create enum type \"CreditRefundPolicy\"",
+		"operationClass": "additive",
+		"postcheck": [],
+		"precheck": [],
+		"target": {
+			"details": {
+				"name": "CreditRefundPolicy",
+				"objectType": "type",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"CreditInstallmentPlan\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"CreditInstallmentPlan\" (\n  \"amount\" numeric(12,2) NOT NULL,\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"hasImportedAmount\" bool DEFAULT false NOT NULL,\n  \"number\" int2 NOT NULL,\n  \"purchaseId\" character varying(36) NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  CONSTRAINT \"CreditInstallmentPlan_pkey\" PRIMARY KEY (\"purchaseId\", \"number\")\n)"
+			}
+		],
+		"id": "table.CreditInstallmentPlan",
+		"label": "Create table \"CreditInstallmentPlan\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"CreditInstallmentPlan\" exists",
+				"params": ["\"public\".\"CreditInstallmentPlan\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"CreditInstallmentPlan\" does not exist",
+				"params": ["\"public\".\"CreditInstallmentPlan\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"CreditInstallmentPlan\"",
+		"target": {
+			"details": {
+				"name": "CreditInstallmentPlan",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"CreditInstallmentRecord\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"CreditInstallmentRecord\" (\n  \"amount\" numeric(12,2) NOT NULL,\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"hasImportedAmount\" bool DEFAULT false NOT NULL,\n  \"id\" character varying(36) NOT NULL,\n  \"number\" int2 NOT NULL,\n  \"occurrenceDate\" date NOT NULL,\n  \"purchaseId\" character varying(36) NOT NULL,\n  \"settledByPurchaseId\" character varying(36),\n  \"statementId\" character varying(36) NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  CONSTRAINT \"CreditInstallmentRecord_pkey\" PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.CreditInstallmentRecord",
+		"label": "Create table \"CreditInstallmentRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"CreditInstallmentRecord\" exists",
+				"params": ["\"public\".\"CreditInstallmentRecord\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"CreditInstallmentRecord\" does not exist",
+				"params": ["\"public\".\"CreditInstallmentRecord\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"CreditInstallmentRecord\"",
+		"target": {
+			"details": {
+				"name": "CreditInstallmentRecord",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"CreditPurchaseRecord\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"CreditPurchaseRecord\" (\n  \"cashbackAccountId\" character varying(36),\n  \"cashbackAmount\" numeric(18,4),\n  \"cashbackYieldPeriod\" \"CashbackYieldPeriod\",\n  \"cashbackYieldReferencePercentage\" numeric(7,4),\n  \"cashbackYieldReferenceRate\" numeric(7,4),\n  \"categoryId\" character varying(36),\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"creditCardId\" character varying(36) NOT NULL,\n  \"description\" character varying(500) NOT NULL,\n  \"externalId\" character varying(200),\n  \"feeAmount\" numeric(12,2),\n  \"feeDescription\" character varying(100),\n  \"id\" character varying(36) NOT NULL,\n  \"purchaseDate\" date NOT NULL,\n  \"storeName\" character varying(200),\n  \"subscriptionId\" character varying(36),\n  \"subscriptionOccurrenceDate\" date,\n  \"time\" time(3),\n  \"totalAmount\" numeric(12,2) NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"userId\" character varying(36) NOT NULL,\n  CONSTRAINT \"CreditPurchaseRecord_pkey\" PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.CreditPurchaseRecord",
+		"label": "Create table \"CreditPurchaseRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"CreditPurchaseRecord\" exists",
+				"params": ["\"public\".\"CreditPurchaseRecord\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"CreditPurchaseRecord\" does not exist",
+				"params": ["\"public\".\"CreditPurchaseRecord\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"CreditPurchaseRecord\"",
+		"target": {
+			"details": {
+				"name": "CreditPurchaseRecord",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"CreditRefundRecord\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"CreditRefundRecord\" (\n  \"amount\" numeric(12,2) NOT NULL,\n  \"cancellationEligible\" bool DEFAULT false NOT NULL,\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"creditDate\" date NOT NULL,\n  \"id\" character varying(36) NOT NULL,\n  \"policy\" \"CreditRefundPolicy\" NOT NULL,\n  \"purchaseId\" character varying(36) NOT NULL,\n  \"statementId\" character varying(36) NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  CONSTRAINT \"CreditRefundRecord_pkey\" PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.CreditRefundRecord",
+		"label": "Create table \"CreditRefundRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"CreditRefundRecord\" exists",
+				"params": ["\"public\".\"CreditRefundRecord\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"CreditRefundRecord\" does not exist",
+				"params": ["\"public\".\"CreditRefundRecord\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"CreditRefundRecord\"",
+		"target": {
+			"details": {
+				"name": "CreditRefundRecord",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"CreditStatementCharge\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"CreditStatementCharge\" (\n  \"amount\" numeric(12,2) NOT NULL,\n  \"chargeDate\" date NOT NULL,\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"description\" character varying(500) NOT NULL,\n  \"id\" character varying(36) NOT NULL,\n  \"statementId\" character varying(36) NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  CONSTRAINT \"CreditStatementCharge_pkey\" PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.CreditStatementCharge",
+		"label": "Create table \"CreditStatementCharge\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"CreditStatementCharge\" exists",
+				"params": ["\"public\".\"CreditStatementCharge\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"CreditStatementCharge\" does not exist",
+				"params": ["\"public\".\"CreditStatementCharge\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"CreditStatementCharge\"",
+		"target": {
+			"details": {
+				"name": "CreditStatementCharge",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"creditRefundPolicy\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialInstitution\" ADD COLUMN \"creditRefundPolicy\" \"CreditRefundPolicy\""
+			}
+		],
+		"id": "column.public.FinancialInstitution.creditRefundPolicy",
+		"label": "Add column \"creditRefundPolicy\" to \"FinancialInstitution\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"creditRefundPolicy\" exists",
+				"params": ["public", "FinancialInstitution", "creditRefundPolicy"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"creditRefundPolicy\" is missing",
+				"params": ["public", "FinancialInstitution", "creditRefundPolicy"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "creditRefundPolicy",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialInstitution"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"CreditInstallmentRecord_purchase_number_key\"",
+				"params": [],
+				"sql": "CREATE UNIQUE INDEX \"CreditInstallmentRecord_purchase_number_key\" ON \"public\".\"CreditInstallmentRecord\" (\"purchaseId\", \"number\")"
+			}
+		],
+		"id": "index.CreditInstallmentRecord.CreditInstallmentRecord_purchase_number_key",
+		"label": "Create index \"CreditInstallmentRecord_purchase_number_key\" on \"CreditInstallmentRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"CreditInstallmentRecord_purchase_number_key\" exists",
+				"params": ["\"public\".\"CreditInstallmentRecord_purchase_number_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"CreditInstallmentRecord_purchase_number_key\" does not exist",
+				"params": ["\"public\".\"CreditInstallmentRecord_purchase_number_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditInstallmentRecord_purchase_number_key",
+				"objectType": "index",
+				"schema": "public",
+				"table": "CreditInstallmentRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"CreditInstallmentRecord_statement_date_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"CreditInstallmentRecord_statement_date_idx\" ON \"public\".\"CreditInstallmentRecord\" (\"statementId\", \"occurrenceDate\")"
+			}
+		],
+		"id": "index.CreditInstallmentRecord.CreditInstallmentRecord_statement_date_idx",
+		"label": "Create index \"CreditInstallmentRecord_statement_date_idx\" on \"CreditInstallmentRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"CreditInstallmentRecord_statement_date_idx\" exists",
+				"params": ["\"public\".\"CreditInstallmentRecord_statement_date_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"CreditInstallmentRecord_statement_date_idx\" does not exist",
+				"params": ["\"public\".\"CreditInstallmentRecord_statement_date_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditInstallmentRecord_statement_date_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "CreditInstallmentRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"CreditPurchaseRecord_categoryId_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"CreditPurchaseRecord_categoryId_idx\" ON \"public\".\"CreditPurchaseRecord\" (\"categoryId\")"
+			}
+		],
+		"id": "index.CreditPurchaseRecord.CreditPurchaseRecord_categoryId_idx",
+		"label": "Create index \"CreditPurchaseRecord_categoryId_idx\" on \"CreditPurchaseRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"CreditPurchaseRecord_categoryId_idx\" exists",
+				"params": ["\"public\".\"CreditPurchaseRecord_categoryId_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"CreditPurchaseRecord_categoryId_idx\" does not exist",
+				"params": ["\"public\".\"CreditPurchaseRecord_categoryId_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditPurchaseRecord_categoryId_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "CreditPurchaseRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"CreditPurchaseRecord_creditCardId_date_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"CreditPurchaseRecord_creditCardId_date_idx\" ON \"public\".\"CreditPurchaseRecord\" (\"creditCardId\", \"purchaseDate\")"
+			}
+		],
+		"id": "index.CreditPurchaseRecord.CreditPurchaseRecord_creditCardId_date_idx",
+		"label": "Create index \"CreditPurchaseRecord_creditCardId_date_idx\" on \"CreditPurchaseRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"CreditPurchaseRecord_creditCardId_date_idx\" exists",
+				"params": ["\"public\".\"CreditPurchaseRecord_creditCardId_date_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"CreditPurchaseRecord_creditCardId_date_idx\" does not exist",
+				"params": ["\"public\".\"CreditPurchaseRecord_creditCardId_date_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditPurchaseRecord_creditCardId_date_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "CreditPurchaseRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"CreditPurchaseRecord_externalId_key\"",
+				"params": [],
+				"sql": "CREATE UNIQUE INDEX \"CreditPurchaseRecord_externalId_key\" ON \"public\".\"CreditPurchaseRecord\" (\"externalId\")"
+			}
+		],
+		"id": "index.CreditPurchaseRecord.CreditPurchaseRecord_externalId_key",
+		"label": "Create index \"CreditPurchaseRecord_externalId_key\" on \"CreditPurchaseRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"CreditPurchaseRecord_externalId_key\" exists",
+				"params": ["\"public\".\"CreditPurchaseRecord_externalId_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"CreditPurchaseRecord_externalId_key\" does not exist",
+				"params": ["\"public\".\"CreditPurchaseRecord_externalId_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditPurchaseRecord_externalId_key",
+				"objectType": "index",
+				"schema": "public",
+				"table": "CreditPurchaseRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"CreditPurchaseRecord_subscription_occurrence_key\"",
+				"params": [],
+				"sql": "CREATE UNIQUE INDEX \"CreditPurchaseRecord_subscription_occurrence_key\" ON \"public\".\"CreditPurchaseRecord\" (\"subscriptionId\", \"subscriptionOccurrenceDate\")"
+			}
+		],
+		"id": "index.CreditPurchaseRecord.CreditPurchaseRecord_subscription_occurrence_key",
+		"label": "Create index \"CreditPurchaseRecord_subscription_occurrence_key\" on \"CreditPurchaseRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"CreditPurchaseRecord_subscription_occurrence_key\" exists",
+				"params": ["\"public\".\"CreditPurchaseRecord_subscription_occurrence_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"CreditPurchaseRecord_subscription_occurrence_key\" does not exist",
+				"params": ["\"public\".\"CreditPurchaseRecord_subscription_occurrence_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditPurchaseRecord_subscription_occurrence_key",
+				"objectType": "index",
+				"schema": "public",
+				"table": "CreditPurchaseRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"CreditPurchaseRecord_userId_date_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"CreditPurchaseRecord_userId_date_idx\" ON \"public\".\"CreditPurchaseRecord\" (\"userId\", \"purchaseDate\", \"createdAt\", \"id\")"
+			}
+		],
+		"id": "index.CreditPurchaseRecord.CreditPurchaseRecord_userId_date_idx",
+		"label": "Create index \"CreditPurchaseRecord_userId_date_idx\" on \"CreditPurchaseRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"CreditPurchaseRecord_userId_date_idx\" exists",
+				"params": ["\"public\".\"CreditPurchaseRecord_userId_date_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"CreditPurchaseRecord_userId_date_idx\" does not exist",
+				"params": ["\"public\".\"CreditPurchaseRecord_userId_date_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditPurchaseRecord_userId_date_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "CreditPurchaseRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"CreditRefundRecord_purchase_date_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"CreditRefundRecord_purchase_date_idx\" ON \"public\".\"CreditRefundRecord\" (\"purchaseId\", \"creditDate\")"
+			}
+		],
+		"id": "index.CreditRefundRecord.CreditRefundRecord_purchase_date_idx",
+		"label": "Create index \"CreditRefundRecord_purchase_date_idx\" on \"CreditRefundRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"CreditRefundRecord_purchase_date_idx\" exists",
+				"params": ["\"public\".\"CreditRefundRecord_purchase_date_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"CreditRefundRecord_purchase_date_idx\" does not exist",
+				"params": ["\"public\".\"CreditRefundRecord_purchase_date_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditRefundRecord_purchase_date_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "CreditRefundRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"CreditRefundRecord_statement_date_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"CreditRefundRecord_statement_date_idx\" ON \"public\".\"CreditRefundRecord\" (\"statementId\", \"creditDate\")"
+			}
+		],
+		"id": "index.CreditRefundRecord.CreditRefundRecord_statement_date_idx",
+		"label": "Create index \"CreditRefundRecord_statement_date_idx\" on \"CreditRefundRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"CreditRefundRecord_statement_date_idx\" exists",
+				"params": ["\"public\".\"CreditRefundRecord_statement_date_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"CreditRefundRecord_statement_date_idx\" does not exist",
+				"params": ["\"public\".\"CreditRefundRecord_statement_date_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditRefundRecord_statement_date_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "CreditRefundRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"CreditStatementCharge_statement_date_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"CreditStatementCharge_statement_date_idx\" ON \"public\".\"CreditStatementCharge\" (\"statementId\", \"chargeDate\")"
+			}
+		],
+		"id": "index.CreditStatementCharge.CreditStatementCharge_statement_date_idx",
+		"label": "Create index \"CreditStatementCharge_statement_date_idx\" on \"CreditStatementCharge\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"CreditStatementCharge_statement_date_idx\" exists",
+				"params": ["\"public\".\"CreditStatementCharge_statement_date_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"CreditStatementCharge_statement_date_idx\" does not exist",
+				"params": ["\"public\".\"CreditStatementCharge_statement_date_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditStatementCharge_statement_date_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "CreditStatementCharge"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"CreditInstallmentPlan_purchaseId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"CreditInstallmentPlan\"\nADD CONSTRAINT \"CreditInstallmentPlan_purchaseId_fkey\"\nFOREIGN KEY (\"purchaseId\")\nREFERENCES \"public\".\"CreditPurchaseRecord\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.CreditInstallmentPlan.CreditInstallmentPlan_purchaseId_fkey",
+		"label": "Add foreign key \"CreditInstallmentPlan_purchaseId_fkey\" on \"CreditInstallmentPlan\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"CreditInstallmentPlan_purchaseId_fkey\" exists",
+				"params": [
+					"CreditInstallmentPlan_purchaseId_fkey",
+					"public",
+					"\"public\".\"CreditInstallmentPlan\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"CreditInstallmentPlan_purchaseId_fkey\" does not exist",
+				"params": [
+					"CreditInstallmentPlan_purchaseId_fkey",
+					"public",
+					"\"public\".\"CreditInstallmentPlan\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditInstallmentPlan_purchaseId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "CreditInstallmentPlan"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"CreditInstallmentRecord_purchaseId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"CreditInstallmentRecord\"\nADD CONSTRAINT \"CreditInstallmentRecord_purchaseId_fkey\"\nFOREIGN KEY (\"purchaseId\")\nREFERENCES \"public\".\"CreditPurchaseRecord\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.CreditInstallmentRecord.CreditInstallmentRecord_purchaseId_fkey",
+		"label": "Add foreign key \"CreditInstallmentRecord_purchaseId_fkey\" on \"CreditInstallmentRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"CreditInstallmentRecord_purchaseId_fkey\" exists",
+				"params": [
+					"CreditInstallmentRecord_purchaseId_fkey",
+					"public",
+					"\"public\".\"CreditInstallmentRecord\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"CreditInstallmentRecord_purchaseId_fkey\" does not exist",
+				"params": [
+					"CreditInstallmentRecord_purchaseId_fkey",
+					"public",
+					"\"public\".\"CreditInstallmentRecord\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditInstallmentRecord_purchaseId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "CreditInstallmentRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"CreditInstallmentRecord_statementId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"CreditInstallmentRecord\"\nADD CONSTRAINT \"CreditInstallmentRecord_statementId_fkey\"\nFOREIGN KEY (\"statementId\")\nREFERENCES \"public\".\"CreditCardStatement\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.CreditInstallmentRecord.CreditInstallmentRecord_statementId_fkey",
+		"label": "Add foreign key \"CreditInstallmentRecord_statementId_fkey\" on \"CreditInstallmentRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"CreditInstallmentRecord_statementId_fkey\" exists",
+				"params": [
+					"CreditInstallmentRecord_statementId_fkey",
+					"public",
+					"\"public\".\"CreditInstallmentRecord\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"CreditInstallmentRecord_statementId_fkey\" does not exist",
+				"params": [
+					"CreditInstallmentRecord_statementId_fkey",
+					"public",
+					"\"public\".\"CreditInstallmentRecord\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditInstallmentRecord_statementId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "CreditInstallmentRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"CreditPurchaseRecord_userId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"CreditPurchaseRecord\"\nADD CONSTRAINT \"CreditPurchaseRecord_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"user\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.CreditPurchaseRecord.CreditPurchaseRecord_userId_fkey",
+		"label": "Add foreign key \"CreditPurchaseRecord_userId_fkey\" on \"CreditPurchaseRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"CreditPurchaseRecord_userId_fkey\" exists",
+				"params": [
+					"CreditPurchaseRecord_userId_fkey",
+					"public",
+					"\"public\".\"CreditPurchaseRecord\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"CreditPurchaseRecord_userId_fkey\" does not exist",
+				"params": [
+					"CreditPurchaseRecord_userId_fkey",
+					"public",
+					"\"public\".\"CreditPurchaseRecord\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditPurchaseRecord_userId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "CreditPurchaseRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"CreditPurchaseRecord_creditCardId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"CreditPurchaseRecord\"\nADD CONSTRAINT \"CreditPurchaseRecord_creditCardId_fkey\"\nFOREIGN KEY (\"creditCardId\")\nREFERENCES \"public\".\"CreditCard\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.CreditPurchaseRecord.CreditPurchaseRecord_creditCardId_fkey",
+		"label": "Add foreign key \"CreditPurchaseRecord_creditCardId_fkey\" on \"CreditPurchaseRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"CreditPurchaseRecord_creditCardId_fkey\" exists",
+				"params": [
+					"CreditPurchaseRecord_creditCardId_fkey",
+					"public",
+					"\"public\".\"CreditPurchaseRecord\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"CreditPurchaseRecord_creditCardId_fkey\" does not exist",
+				"params": [
+					"CreditPurchaseRecord_creditCardId_fkey",
+					"public",
+					"\"public\".\"CreditPurchaseRecord\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditPurchaseRecord_creditCardId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "CreditPurchaseRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"CreditPurchaseRecord_categoryId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"CreditPurchaseRecord\"\nADD CONSTRAINT \"CreditPurchaseRecord_categoryId_fkey\"\nFOREIGN KEY (\"categoryId\")\nREFERENCES \"public\".\"Category\" (\"id\")\nON DELETE SET NULL\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.CreditPurchaseRecord.CreditPurchaseRecord_categoryId_fkey",
+		"label": "Add foreign key \"CreditPurchaseRecord_categoryId_fkey\" on \"CreditPurchaseRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"CreditPurchaseRecord_categoryId_fkey\" exists",
+				"params": [
+					"CreditPurchaseRecord_categoryId_fkey",
+					"public",
+					"\"public\".\"CreditPurchaseRecord\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"CreditPurchaseRecord_categoryId_fkey\" does not exist",
+				"params": [
+					"CreditPurchaseRecord_categoryId_fkey",
+					"public",
+					"\"public\".\"CreditPurchaseRecord\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditPurchaseRecord_categoryId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "CreditPurchaseRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"CreditRefundRecord_purchaseId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"CreditRefundRecord\"\nADD CONSTRAINT \"CreditRefundRecord_purchaseId_fkey\"\nFOREIGN KEY (\"purchaseId\")\nREFERENCES \"public\".\"CreditPurchaseRecord\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.CreditRefundRecord.CreditRefundRecord_purchaseId_fkey",
+		"label": "Add foreign key \"CreditRefundRecord_purchaseId_fkey\" on \"CreditRefundRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"CreditRefundRecord_purchaseId_fkey\" exists",
+				"params": [
+					"CreditRefundRecord_purchaseId_fkey",
+					"public",
+					"\"public\".\"CreditRefundRecord\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"CreditRefundRecord_purchaseId_fkey\" does not exist",
+				"params": [
+					"CreditRefundRecord_purchaseId_fkey",
+					"public",
+					"\"public\".\"CreditRefundRecord\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditRefundRecord_purchaseId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "CreditRefundRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"CreditRefundRecord_statementId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"CreditRefundRecord\"\nADD CONSTRAINT \"CreditRefundRecord_statementId_fkey\"\nFOREIGN KEY (\"statementId\")\nREFERENCES \"public\".\"CreditCardStatement\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.CreditRefundRecord.CreditRefundRecord_statementId_fkey",
+		"label": "Add foreign key \"CreditRefundRecord_statementId_fkey\" on \"CreditRefundRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"CreditRefundRecord_statementId_fkey\" exists",
+				"params": [
+					"CreditRefundRecord_statementId_fkey",
+					"public",
+					"\"public\".\"CreditRefundRecord\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"CreditRefundRecord_statementId_fkey\" does not exist",
+				"params": [
+					"CreditRefundRecord_statementId_fkey",
+					"public",
+					"\"public\".\"CreditRefundRecord\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditRefundRecord_statementId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "CreditRefundRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"CreditStatementCharge_statementId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"CreditStatementCharge\"\nADD CONSTRAINT \"CreditStatementCharge_statementId_fkey\"\nFOREIGN KEY (\"statementId\")\nREFERENCES \"public\".\"CreditCardStatement\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.CreditStatementCharge.CreditStatementCharge_statementId_fkey",
+		"label": "Add foreign key \"CreditStatementCharge_statementId_fkey\" on \"CreditStatementCharge\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"CreditStatementCharge_statementId_fkey\" exists",
+				"params": [
+					"CreditStatementCharge_statementId_fkey",
+					"public",
+					"\"public\".\"CreditStatementCharge\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"CreditStatementCharge_statementId_fkey\" does not exist",
+				"params": [
+					"CreditStatementCharge_statementId_fkey",
+					"public",
+					"\"public\".\"CreditStatementCharge\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditStatementCharge_statementId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "CreditStatementCharge"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "Validate normalized positive amounts and installment numbers",
+				"sql": "ALTER TABLE \"CreditPurchaseRecord\" ADD CONSTRAINT \"CreditPurchaseRecord_totalAmount_positive\" CHECK (\"totalAmount\" > 0); ALTER TABLE \"CreditInstallmentPlan\" ADD CONSTRAINT \"CreditInstallmentPlan_amount_positive\" CHECK (\"amount\" > 0 AND \"number\" BETWEEN 1 AND 48); ALTER TABLE \"CreditInstallmentRecord\" ADD CONSTRAINT \"CreditInstallmentRecord_amount_positive\" CHECK (\"amount\" > 0 AND \"number\" BETWEEN 1 AND 48); ALTER TABLE \"CreditRefundRecord\" ADD CONSTRAINT \"CreditRefundRecord_amount_positive\" CHECK (\"amount\" > 0); ALTER TABLE \"CreditStatementCharge\" ADD CONSTRAINT \"CreditStatementCharge_amount_positive\" CHECK (\"amount\" > 0);"
+			}
+		],
+		"id": "normalizedCreditPurchases.checks",
+		"label": "Constrain purchase, installment, refund and charge amounts",
+		"operationClass": "additive",
+		"postcheck": [],
+		"precheck": [],
+		"target": { "id": "postgres" }
+	}
+]
