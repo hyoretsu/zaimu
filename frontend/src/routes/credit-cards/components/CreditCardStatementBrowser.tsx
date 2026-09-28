@@ -12,7 +12,7 @@ import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/que
 import { showToast } from "@/stores";
 import { CreditCardStatementDetails } from "./CreditCardStatementDetails";
 import { CreditCardStatementTabs } from "./CreditCardStatementTabs";
-import { getStatementWindow } from "./credit-card-statement-window";
+import { getFirstNonZeroStatementMonth, getStatementWindow } from "./credit-card-statement-window";
 
 export function CreditCardStatementBrowser({ card }: { card: CreditCard }) {
 	const queryClient = useQueryClient();
@@ -57,10 +57,11 @@ export function CreditCardStatementBrowser({ card }: { card: CreditCard }) {
 			),
 		[card, statements.data, currentMonth, radius, extra],
 	);
+	const firstMonth = getFirstNonZeroStatementMonth(statements.data ?? []) ?? currentMonth;
 	const selectedStatement =
 		visibleStatements.find(
 			statement => getLocalMonthKey(statement.dueDate) === (selectedMonth ?? currentMonth),
-		) ?? visibleStatements.find(statement => getLocalMonthKey(statement.dueDate) === currentMonth)!;
+		) ?? visibleStatements[0]!;
 	const loadPrevious = useCallback(
 		() => setExtra(value => ({ ...value, previous: value.previous + radius })),
 		[radius],
@@ -100,6 +101,7 @@ export function CreditCardStatementBrowser({ card }: { card: CreditCard }) {
 			value={selectedStatement.id}
 		>
 			<CreditCardStatementTabs
+				canLoadPrevious={getLocalMonthKey(visibleStatements[0]!.dueDate) > firstMonth}
 				ignoreBefore={ignoreBefore}
 				isDesktop={isDesktop}
 				onLoadNext={loadNext}

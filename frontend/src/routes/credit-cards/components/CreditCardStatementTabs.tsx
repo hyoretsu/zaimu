@@ -11,6 +11,7 @@ import { getStatementWindowRadius } from "./credit-card-statement-window";
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
 export function CreditCardStatementTabs({
+	canLoadPrevious,
 	ignoreBefore,
 	isDesktop,
 	onLoadNext,
@@ -19,6 +20,7 @@ export function CreditCardStatementTabs({
 	selectedId,
 	statements,
 }: {
+	canLoadPrevious: boolean;
 	ignoreBefore: string | null;
 	isDesktop: boolean;
 	onLoadNext: () => void;
@@ -87,7 +89,7 @@ export function CreditCardStatementTabs({
 				const visibleSize = isDesktop ? viewport.clientHeight : viewport.clientWidth;
 				const threshold =
 					(isDesktop ? tab.getBoundingClientRect().height : tab.getBoundingClientRect().width) + 8;
-				if (offset < threshold) {
+				if (canLoadPrevious && offset < threshold) {
 					pendingPrepend.current = { offset, size };
 					onLoadPrevious();
 				} else if (size - visibleSize - offset < threshold) {
@@ -100,7 +102,7 @@ export function CreditCardStatementTabs({
 			viewport.removeEventListener("scroll", onScroll);
 			if (frame !== null) cancelAnimationFrame(frame);
 		};
-	}, [isDesktop, onLoadNext, onLoadPrevious]);
+	}, [canLoadPrevious, isDesktop, onLoadNext, onLoadPrevious]);
 
 	return (
 		<div className="h-full min-w-0" ref={scrollAreaRef}>

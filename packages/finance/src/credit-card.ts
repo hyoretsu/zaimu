@@ -83,7 +83,15 @@ export function statementCycles<T extends StatementInput>(
 		...statements.map(statement => dateKey(statement.statementDate)),
 		...targets.map(t => t.statementDate),
 	].toSorted();
-	const first = closingDates[0];
+	const first = [
+		...statements
+			.filter(
+				statement =>
+					toCents(statement.totalAmount) !== 0 || toCents(statement.chargesAmount ?? 0) !== 0,
+			)
+			.map(statement => dateKey(statement.statementDate)),
+		...payments.map(payment => paymentStatementDates(card, payment.date).statementDate),
+	].toSorted()[0];
 	const last = closingDates.at(-1);
 	if (!first || !last) return statements;
 	const result = [...statements];
