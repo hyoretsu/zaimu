@@ -1,25 +1,13 @@
 import { useLayoutEffect, useRef } from "react";
-import { LuCircleCheck, LuClock3, LuLockKeyhole, LuTriangleAlert } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import type { CreditCardStatement } from "@/lib/api";
-import { formatLocalMonthYear, getLocalDateKey } from "@/lib/date";
+import { formatLocalMonthYear } from "@/lib/date";
 import { cn } from "@/lib/utils";
+import { getCreditCardStatementStatus } from "./credit-card-statement-status";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
-
-function getStatementStatus(statement: CreditCardStatement) {
-	if (statement.status === "CARRIED")
-		return { className: "text-amber-500", icon: LuLockKeyhole, label: "Saldo transposto" };
-	if (statement.isForecast) return { className: "text-muted-foreground", icon: LuClock3, label: "Futura" };
-	if (statement.isPaid) return { className: "text-amber-500", icon: LuLockKeyhole, label: "Paga" };
-	if (statement.dueDate.slice(0, 10) < getLocalDateKey()) {
-		return { className: "text-destructive", icon: LuTriangleAlert, label: "Em atraso" };
-	}
-
-	return { className: "text-foreground", icon: LuCircleCheck, label: "Em aberto" };
-}
 
 export function CreditCardStatementTabs({
 	hasMore,
@@ -81,7 +69,7 @@ export function CreditCardStatementTabs({
 				>
 					{statements.map(statement => {
 						const selected = statement.id === selectedId;
-						const status = getStatementStatus(statement);
+						const status = getCreditCardStatementStatus(statement);
 						const StatusIcon = status.icon;
 						return (
 							<TabsTrigger
@@ -99,7 +87,9 @@ export function CreditCardStatementTabs({
 											<StatusIcon aria-hidden="true" className="size-4" />
 										</span>
 									</span>
-									<strong className="truncate text-sm">{currency.format(statement.totalAmount)}</strong>
+									<strong className="truncate text-sm">
+										{currency.format(statement.amountDue ?? statement.totalAmount)}
+									</strong>
 								</span>
 							</TabsTrigger>
 						);

@@ -1,13 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import {
-	LuCalendarCheck,
-	LuCalendarClock,
-	LuCircleCheck,
-	LuClock3,
-	LuCloudDownload,
-	LuReceiptText,
-} from "react-icons/lu";
+import { LuCalendarCheck, LuCalendarClock, LuCloudDownload, LuReceiptText } from "react-icons/lu";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ScrollArea } from "@/components/ui/ScrollArea";
@@ -21,6 +14,7 @@ import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/que
 import { showToast } from "@/stores";
 import { CreditCardPaymentRow } from "./CreditCardPaymentRow";
 import { CreditPurchaseRow } from "./CreditPurchaseRow";
+import { getCreditCardStatementStatus } from "./credit-card-statement-status";
 import { EditCreditPurchaseDialog } from "./EditCreditPurchaseDialog";
 import { RefinanceCreditPurchaseDialog } from "./RefinanceCreditPurchaseDialog";
 import { RefundCreditPurchaseDialog } from "./RefundCreditPurchaseDialog";
@@ -40,6 +34,9 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 	});
 	const displayedStatement = detail.data ?? statement;
 	const displayBalance = getCreditCardStatementDisplayBalance(displayedStatement);
+	const invoiceAmount = displayedStatement.amountDue ?? displayedStatement.totalAmount;
+	const status = getCreditCardStatementStatus(displayedStatement);
+	const StatusIcon = status.icon;
 	const entries = detail.data
 		? [
 				...detail.data.purchases.map(purchase => ({
@@ -125,44 +122,33 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 		<TabsContent className="min-h-0 min-w-0 overflow-hidden sm:pl-6" value={statement.id}>
 			<ScrollArea className="h-full min-h-0 pr-3">
 				<div className="grid gap-3">
-					<header className="grid gap-2 rounded-xl border bg-muted/30 p-3">
-						<div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
-							<p className="text-muted-foreground text-xs uppercase tracking-wide">Mês de referência</p>
+					<header className="grid gap-3 rounded-xl border bg-muted/30 p-4">
+						<div className="flex flex-wrap items-center justify-between gap-2">
 							<h3 className="font-bold text-base sm:text-lg" id={`statement-title-${statement.id}`}>
-								{formatLocalDate(statement.dueDate, { month: "long", year: "numeric" })}
+								Fatura de {formatLocalDate(statement.dueDate, { month: "long", year: "numeric" })}
 							</h3>
-						</div>
-						<div className="grid gap-2 border-t pt-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-3">
-							<div className="grid grid-cols-2 gap-x-3 gap-y-2">
-								<div className="min-w-0">
-									<p className="text-muted-foreground text-xs">Total da fatura</p>
-									<strong className="block text-base tabular-nums sm:text-lg">
-										{currency.format(displayedStatement.totalAmount)}
-									</strong>
-								</div>
-								<div className="min-w-0">
-									<p className="text-muted-foreground text-xs">Saldo após pagamentos</p>
-									<strong className="block text-base tabular-nums sm:text-lg">
-										{currency.format(displayBalance)}
-									</strong>
-								</div>
-							</div>
-							<div className="flex flex-wrap gap-2 sm:justify-end">
+							<div className="flex flex-wrap gap-2">
 								{statement.isFullySynced && (
 									<AppBadge variant="outline">
 										<LuCloudDownload aria-hidden="true" className="text-emerald-600" />
 										<span>Sincronizada</span>
 									</AppBadge>
 								)}
-								<AppBadge className="shrink-0" variant={displayedStatement.isPaid ? "secondary" : "outline"}>
-									{displayedStatement.isPaid ? <LuCircleCheck /> : <LuClock3 />}
-									{displayedStatement.status === "CARRIED"
-										? "Saldo transposto"
-										: displayedStatement.isPaid
-											? "Paga"
-											: "Em aberto"}
+								<AppBadge className="shrink-0" variant="outline">
+									<StatusIcon aria-hidden="true" className={status.className} />
+									{status.label}
 								</AppBadge>
 							</div>
+						</div>
+						<div>
+							<p className="text-muted-foreground text-xs">Valor da fatura</p>
+							<strong className="block text-2xl tabular-nums">{currency.format(invoiceAmount)}</strong>
+							{Math.abs(invoiceAmount - displayBalance) > 0.001 && (
+								<p className="mt-1 text-muted-foreground text-sm">
+									{displayBalance < 0 ? "Crédito" : "Restante a pagar"}:{" "}
+									{currency.format(Math.abs(displayBalance))}
+								</p>
+							)}
 						</div>
 						<div className="grid grid-cols-2 gap-2 border-t pt-2">
 							<div className="min-w-0">
