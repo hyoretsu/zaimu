@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { TabsContent } from "@/components/ui/Tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import type { CreditCardStatement, CreditPurchase } from "@/lib/api";
 import { getCreditCardStatementDisplayBalance } from "@/lib/credit-card-statement-balance";
 import { dataService } from "@/lib/dataService";
@@ -187,7 +188,10 @@ export function CreditCardStatementDetails({
 					<header className="grid gap-3 rounded-xl border bg-muted/30 p-4">
 						<div className="flex flex-wrap items-center justify-between gap-2">
 							<h3 className="font-bold text-base sm:text-lg" id={`statement-title-${statement.id}`}>
-								Fatura de {formatLocalDate(statement.dueDate, { month: "long", year: "numeric" })}
+								{formatLocalDate(statement.dueDate, { month: "long", year: "numeric" }).replace(
+									/^./,
+									letter => letter.toLocaleUpperCase("pt-BR"),
+								)}
 							</h3>
 							<div className="flex flex-wrap gap-2">
 								{statement.isFullySynced && (
@@ -203,26 +207,31 @@ export function CreditCardStatementDetails({
 							</div>
 						</div>
 						{!isEmptyCycle && !statement.isForecast && (
-							<div className="flex flex-wrap items-center gap-2">
-								<Button
-									className="cursor-pointer"
-									disabled={cutoffPending}
-									onClick={() =>
-										onSetIgnoreBefore(
-											ignoreBefore === statement.statementDate.slice(0, 10)
-												? null
-												: statement.statementDate.slice(0, 10),
-										)
-									}
-									size="sm"
-									variant="outline"
-								>
-									<LuHistory aria-hidden="true" />
-									{ignoreBefore === statement.statementDate.slice(0, 10)
-										? "Voltar a considerar faturas anteriores"
-										: "Desconsiderar faturas anteriores"}
-								</Button>
-								<span className="text-muted-foreground text-xs">Compras e importações são preservadas.</span>
+							<div>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<Button
+											aria-description="Compras e importações são preservadas."
+											className="cursor-pointer"
+											disabled={cutoffPending}
+											onClick={() =>
+												onSetIgnoreBefore(
+													ignoreBefore === statement.statementDate.slice(0, 10)
+														? null
+														: statement.statementDate.slice(0, 10),
+												)
+											}
+											size="sm"
+											variant="outline"
+										>
+											<LuHistory aria-hidden="true" />
+											{ignoreBefore === statement.statementDate.slice(0, 10)
+												? "Considerar anteriores"
+												: "Desconsiderar anteriores"}
+										</Button>
+									</TooltipTrigger>
+									<TooltipContent>Compras e importações são preservadas.</TooltipContent>
+								</Tooltip>
 							</div>
 						)}
 						<div>

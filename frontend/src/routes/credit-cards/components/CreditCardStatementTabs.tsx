@@ -112,7 +112,7 @@ export function CreditCardStatementTabs({
 			>
 				<TabsList
 					aria-label="Faturas"
-					className="!flex-row sm:!grid sm:!h-auto sm:!w-full sm:!grid-cols-1 h-full w-max min-w-full gap-2 bg-transparent py-1 pr-1 pl-0"
+					className="!h-auto !flex-row sm:!grid sm:!w-full sm:!grid-cols-1 w-max min-w-full gap-2 bg-transparent py-1 pr-1 pl-0"
 				>
 					{statements.map(statement => {
 						const selected = statement.id === selectedId;
@@ -124,7 +124,7 @@ export function CreditCardStatementTabs({
 						return (
 							<TabsTrigger
 								className={cn(
-									"sm:!w-full h-full w-36 shrink-0 cursor-pointer items-start justify-start whitespace-normal rounded-xl border-border p-3 text-left sm:h-auto",
+									"sm:!w-full h-20 w-36 shrink-0 cursor-pointer items-start justify-start whitespace-normal rounded-xl border-border p-3 text-left sm:h-auto sm:min-h-20",
 									selected && "border-primary bg-primary/10 ring-1 ring-primary/30",
 								)}
 								key={statement.id}
