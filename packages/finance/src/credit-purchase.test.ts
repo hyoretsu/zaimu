@@ -6,6 +6,7 @@ import {
 	dueInstallments,
 	installmentOccurrenceDate,
 	projectInstallments,
+	purchaseStatementDates,
 } from "./credit-purchase";
 
 const purchase: CreditPurchase = {
@@ -21,6 +22,20 @@ const purchase: CreditPurchase = {
 };
 
 describe("normalized purchase installments", () => {
+	test("closing dates clamp short months, use inclusive closing and advance after closing", () => {
+		expect(purchaseStatementDates({ dueDay: 5, statementDay: 31 }, "2024-09-10")).toEqual({
+			dueDate: "2024-10-05",
+			statementDate: "2024-09-30",
+		});
+		expect(purchaseStatementDates({ dueDay: 31, statementDay: 15 }, "2024-02-15")).toEqual({
+			dueDate: "2024-02-29",
+			statementDate: "2024-02-15",
+		});
+		expect(purchaseStatementDates({ dueDay: 31, statementDay: 15 }, "2024-02-16")).toEqual({
+			dueDate: "2024-03-31",
+			statementDate: "2024-03-15",
+		});
+	});
 	test("projects future cycles without persisting them", () => {
 		expect(projectInstallments(purchase)).toEqual([
 			{ amountCents: 10001, number: 1, occurrenceDate: "2024-01-31", purchaseId: "purchase" },

@@ -79,6 +79,29 @@ export function installmentOccurrenceDate(purchaseDate: string, number: number) 
 	return target.toISOString().slice(0, 10);
 }
 
+/** Purchase/refund credits use the next closing date; payments use due dates instead. */
+export function purchaseStatementDates(
+	card: { statementDay: number; dueDay: number },
+	occurrenceDate: string,
+) {
+	assertDateKey(occurrenceDate);
+	if (![card.statementDay, card.dueDay].every(day => Number.isInteger(day) && day >= 1 && day <= 31))
+		throw new RangeError("Calendário do cartão inválido");
+	const date = new Date(`${occurrenceDate}T12:00:00Z`);
+	const monthDay = (year: number, month: number, day: number) => {
+		const first = new Date(Date.UTC(year, month, 1, 12));
+		const last = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
+		first.setUTCDate(Math.min(day, last));
+		return first;
+	};
+	let closing = monthDay(date.getUTCFullYear(), date.getUTCMonth(), card.statementDay);
+	if (closing.toISOString().slice(0, 10) < occurrenceDate)
+		closing = monthDay(date.getUTCFullYear(), date.getUTCMonth() + 1, card.statementDay);
+	let due = monthDay(closing.getUTCFullYear(), closing.getUTCMonth(), card.dueDay);
+	if (due <= closing) due = monthDay(closing.getUTCFullYear(), closing.getUTCMonth() + 1, card.dueDay);
+	return { dueDate: due.toISOString().slice(0, 10), statementDate: closing.toISOString().slice(0, 10) };
+}
+
 /** Preserve exact imported values. Only unknown installments divide the remaining cents. */
 export function distributePurchaseCents(
 	totalAmountCents: number,
