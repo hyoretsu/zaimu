@@ -3,7 +3,11 @@
 	"private": true,
 	"type": "module",
 	"exports": {
-		"./credit-card": "./src/credit-card.ts"
+		"./credit-card": "./src/credit-card.ts",
+		"./credit-purchase": "./src/credit-purchase.ts",
+		"./credit-refund": "./src/credit-refund.ts",
+		"./legacy-credit-purchases": "./src/legacy-credit-purchases.ts",
+		"./purchase-reports": "./src/purchase-reports.ts"
 	},
 	"scripts": {
 		"check-types": "tsc --noEmit",
