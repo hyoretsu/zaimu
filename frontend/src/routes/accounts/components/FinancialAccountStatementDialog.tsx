@@ -186,7 +186,7 @@ export function FinancialAccountStatementDialog({
 														) : undefined
 													}
 													onDelete={
-														transaction.creditCardStatementId
+														transaction.paymentCreditCardId
 															? undefined
 															: () => removeTransaction.mutateAsync(transaction.id)
 													}

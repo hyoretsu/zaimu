@@ -1,0 +1,430 @@
+[
+	{
+		"execute": [
+			{
+				"description": "drop constraint \"Transaction_creditCardStatementId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"Transaction\" DROP CONSTRAINT \"Transaction_creditCardStatementId_fkey\""
+			}
+		],
+		"id": "dropConstraint.Transaction.Transaction_creditCardStatementId_fkey",
+		"label": "Drop constraint \"Transaction_creditCardStatementId_fkey\" on \"Transaction\"",
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify constraint \"Transaction_creditCardStatementId_fkey\" does not exist",
+				"params": ["Transaction_creditCardStatementId_fkey", "public", "\"public\".\"Transaction\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure constraint \"Transaction_creditCardStatementId_fkey\" exists",
+				"params": ["Transaction_creditCardStatementId_fkey", "public", "\"public\".\"Transaction\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "Transaction_creditCardStatementId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "Transaction"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "drop index \"Transaction_creditCardStatementId_idx\"",
+				"params": [],
+				"sql": "DROP INDEX \"public\".\"Transaction_creditCardStatementId_idx\""
+			}
+		],
+		"id": "dropIndex.Transaction.Transaction_creditCardStatementId_idx",
+		"label": "Drop index \"Transaction_creditCardStatementId_idx\"",
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify index \"Transaction_creditCardStatementId_idx\" does not exist",
+				"params": ["\"public\".\"Transaction_creditCardStatementId_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"Transaction_creditCardStatementId_idx\" exists",
+				"params": ["\"public\".\"Transaction_creditCardStatementId_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "Transaction_creditCardStatementId_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "Transaction"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "drop column \"creditCardStatementId\"",
+				"sql": "ALTER TABLE \"public\".\"Transaction\" DROP COLUMN \"creditCardStatementId\""
+			}
+		],
+		"id": "dropColumn.Transaction.creditCardStatementId",
+		"label": "Drop column \"creditCardStatementId\" from \"Transaction\"",
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"creditCardStatementId\" does not exist",
+				"params": ["public", "Transaction", "creditCardStatementId"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"creditCardStatementId\" exists",
+				"params": ["public", "Transaction", "creditCardStatementId"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "creditCardStatementId",
+				"objectType": "column",
+				"schema": "public",
+				"table": "Transaction"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "drop constraint \"TransactionImportItem_creditCardStatementId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"TransactionImportItem\" DROP CONSTRAINT \"TransactionImportItem_creditCardStatementId_fkey\""
+			}
+		],
+		"id": "dropConstraint.TransactionImportItem.TransactionImportItem_creditCardStatementId_fkey",
+		"label": "Drop constraint \"TransactionImportItem_creditCardStatementId_fkey\" on \"TransactionImportItem\"",
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify constraint \"TransactionImportItem_creditCardStatementId_fkey\" does not exist",
+				"params": [
+					"TransactionImportItem_creditCardStatementId_fkey",
+					"public",
+					"\"public\".\"TransactionImportItem\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure constraint \"TransactionImportItem_creditCardStatementId_fkey\" exists",
+				"params": [
+					"TransactionImportItem_creditCardStatementId_fkey",
+					"public",
+					"\"public\".\"TransactionImportItem\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "TransactionImportItem_creditCardStatementId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "TransactionImportItem"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "drop index \"TransactionImportItem_creditCardStatementId_idx\"",
+				"params": [],
+				"sql": "DROP INDEX \"public\".\"TransactionImportItem_creditCardStatementId_idx\""
+			}
+		],
+		"id": "dropIndex.TransactionImportItem.TransactionImportItem_creditCardStatementId_idx",
+		"label": "Drop index \"TransactionImportItem_creditCardStatementId_idx\"",
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify index \"TransactionImportItem_creditCardStatementId_idx\" does not exist",
+				"params": ["\"public\".\"TransactionImportItem_creditCardStatementId_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"TransactionImportItem_creditCardStatementId_idx\" exists",
+				"params": ["\"public\".\"TransactionImportItem_creditCardStatementId_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "TransactionImportItem_creditCardStatementId_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "TransactionImportItem"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "drop column \"creditCardStatementId\"",
+				"sql": "ALTER TABLE \"public\".\"TransactionImportItem\" DROP COLUMN \"creditCardStatementId\""
+			}
+		],
+		"id": "dropColumn.TransactionImportItem.creditCardStatementId",
+		"label": "Drop column \"creditCardStatementId\" from \"TransactionImportItem\"",
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"creditCardStatementId\" does not exist",
+				"params": ["public", "TransactionImportItem", "creditCardStatementId"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"creditCardStatementId\" exists",
+				"params": ["public", "TransactionImportItem", "creditCardStatementId"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "creditCardStatementId",
+				"objectType": "column",
+				"schema": "public",
+				"table": "TransactionImportItem"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"paymentCreditCardId\"",
+				"sql": "ALTER TABLE \"public\".\"Transaction\" ADD COLUMN \"paymentCreditCardId\" character varying(36)"
+			}
+		],
+		"id": "column.public.Transaction.paymentCreditCardId",
+		"label": "Add column \"paymentCreditCardId\" to \"Transaction\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"paymentCreditCardId\" exists",
+				"params": ["public", "Transaction", "paymentCreditCardId"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"paymentCreditCardId\" is missing",
+				"params": ["public", "Transaction", "paymentCreditCardId"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "paymentCreditCardId",
+				"objectType": "column",
+				"schema": "public",
+				"table": "Transaction"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"paymentCreditCardId\"",
+				"sql": "ALTER TABLE \"public\".\"TransactionImportItem\" ADD COLUMN \"paymentCreditCardId\" character varying(36)"
+			}
+		],
+		"id": "column.public.TransactionImportItem.paymentCreditCardId",
+		"label": "Add column \"paymentCreditCardId\" to \"TransactionImportItem\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"paymentCreditCardId\" exists",
+				"params": ["public", "TransactionImportItem", "paymentCreditCardId"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"paymentCreditCardId\" is missing",
+				"params": ["public", "TransactionImportItem", "paymentCreditCardId"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "paymentCreditCardId",
+				"objectType": "column",
+				"schema": "public",
+				"table": "TransactionImportItem"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"Transaction_paymentCreditCardId_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"Transaction_paymentCreditCardId_idx\" ON \"public\".\"Transaction\" (\"paymentCreditCardId\")"
+			}
+		],
+		"id": "index.Transaction.Transaction_paymentCreditCardId_idx",
+		"label": "Create index \"Transaction_paymentCreditCardId_idx\" on \"Transaction\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"Transaction_paymentCreditCardId_idx\" exists",
+				"params": ["\"public\".\"Transaction_paymentCreditCardId_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"Transaction_paymentCreditCardId_idx\" does not exist",
+				"params": ["\"public\".\"Transaction_paymentCreditCardId_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "Transaction_paymentCreditCardId_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "Transaction"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"TransactionImportItem_paymentCreditCardId_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"TransactionImportItem_paymentCreditCardId_idx\" ON \"public\".\"TransactionImportItem\" (\"paymentCreditCardId\")"
+			}
+		],
+		"id": "index.TransactionImportItem.TransactionImportItem_paymentCreditCardId_idx",
+		"label": "Create index \"TransactionImportItem_paymentCreditCardId_idx\" on \"TransactionImportItem\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"TransactionImportItem_paymentCreditCardId_idx\" exists",
+				"params": ["\"public\".\"TransactionImportItem_paymentCreditCardId_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"TransactionImportItem_paymentCreditCardId_idx\" does not exist",
+				"params": ["\"public\".\"TransactionImportItem_paymentCreditCardId_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "TransactionImportItem_paymentCreditCardId_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "TransactionImportItem"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"Transaction_paymentCreditCardId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"Transaction\"\nADD CONSTRAINT \"Transaction_paymentCreditCardId_fkey\"\nFOREIGN KEY (\"paymentCreditCardId\")\nREFERENCES \"public\".\"CreditCard\" (\"id\")\nON DELETE SET NULL\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.Transaction.Transaction_paymentCreditCardId_fkey",
+		"label": "Add foreign key \"Transaction_paymentCreditCardId_fkey\" on \"Transaction\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"Transaction_paymentCreditCardId_fkey\" exists",
+				"params": ["Transaction_paymentCreditCardId_fkey", "public", "\"public\".\"Transaction\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"Transaction_paymentCreditCardId_fkey\" does not exist",
+				"params": ["Transaction_paymentCreditCardId_fkey", "public", "\"public\".\"Transaction\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "Transaction_paymentCreditCardId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "Transaction"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"TransactionImportItem_paymentCreditCardId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"TransactionImportItem\"\nADD CONSTRAINT \"TransactionImportItem_paymentCreditCardId_fkey\"\nFOREIGN KEY (\"paymentCreditCardId\")\nREFERENCES \"public\".\"CreditCard\" (\"id\")\nON DELETE SET NULL\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.TransactionImportItem.TransactionImportItem_paymentCreditCardId_fkey",
+		"label": "Add foreign key \"TransactionImportItem_paymentCreditCardId_fkey\" on \"TransactionImportItem\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"TransactionImportItem_paymentCreditCardId_fkey\" exists",
+				"params": [
+					"TransactionImportItem_paymentCreditCardId_fkey",
+					"public",
+					"\"public\".\"TransactionImportItem\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"TransactionImportItem_paymentCreditCardId_fkey\" does not exist",
+				"params": [
+					"TransactionImportItem_paymentCreditCardId_fkey",
+					"public",
+					"\"public\".\"TransactionImportItem\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "TransactionImportItem_paymentCreditCardId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "TransactionImportItem"
+			},
+			"id": "postgres"
+		}
+	}
+]

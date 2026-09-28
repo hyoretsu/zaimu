@@ -7,7 +7,6 @@ describe("transactionToCreditPurchase", () => {
 		const transaction: Transaction = {
 			amount: 2480,
 			createdAt: "2026-07-17T12:00:00.000Z",
-			creditCardStatementId: "statement-id",
 			currentInstallment: 1,
 			date: "2026-07-17",
 			debtSplit: {
@@ -20,7 +19,9 @@ describe("transactionToCreditPurchase", () => {
 			id: "purchase-id",
 			installmentAmount: 248,
 			installments: 10,
+			paymentCreditCardId: undefined,
 			source: "CREDIT_CARD",
+			statementId: "statement-id",
 			type: "EXPENSE",
 		};
 
@@ -28,6 +29,7 @@ describe("transactionToCreditPurchase", () => {
 			debtSplit: expect.objectContaining({ mode: "SHARES" }),
 			id: "purchase-id",
 			installments: 10,
+			statementId: "statement-id",
 		});
 	});
 });

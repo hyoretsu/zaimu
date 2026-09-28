@@ -301,6 +301,48 @@ function cacheRemoteData(operation: Promise<unknown>): void {
 }
 
 // ============== ACCOUNTS ==============
+function getGuestStatementDate(date: string, statementDay: number) {
+	const value = new Date(`${date.slice(0, 10)}T12:00:00`);
+	const nextMonth = value.getDate() > statementDay ? 1 : 0;
+	return getLocalDateKey(new Date(value.getFullYear(), value.getMonth() + nextMonth, statementDay, 12));
+}
+
+async function withGuestCardPayments(cardId: string, statements: CreditCardStatement[]) {
+	const payments = (await localTransactions.getAll())
+		.map(item => item.data)
+		.filter(item => item.paymentCreditCardId === cardId);
+	const card = (await localCreditCards.getById(cardId))?.data;
+	const dates = new Set(statements.map(item => item.statementDate.slice(0, 10)));
+	const generated = card
+		? payments
+				.map(item => getGuestStatementDate(item.date, card.statementDay))
+				.filter(date => !dates.has(date))
+				.filter((date, index, all) => all.indexOf(date) === index)
+				.map(
+					date =>
+						({
+							balanceAmount: 0,
+							creditCardId: cardId,
+							dueDate: (() => {
+								const closing = new Date(`${date}T12:00:00`);
+								const due = new Date(closing.getFullYear(), closing.getMonth(), card.dueDay, 12);
+								if (due <= closing) due.setMonth(due.getMonth() + 1);
+								return getLocalDateKey(due);
+							})(),
+							id: `guest-payment-${cardId}-${date}`,
+							isPaid: false,
+							paidAmount: 0,
+							statementDate: date,
+							totalAmount: 0,
+						}) as CreditCardStatement,
+				)
+		: [];
+	const all = [...statements, ...generated];
+	if (!all.length) return all;
+	const paidAmount = payments.reduce((sum, item) => sum + item.amount, 0);
+	return all.map((item, index) => ({ ...item, paidAmount: index === 0 ? paidAmount : 0 }));
+}
+
 export const dataService = {
 	accounts: {
 		async create(data: FinancialAccountDraft): Promise<FinancialAccount> {
@@ -1093,15 +1135,20 @@ export const dataService = {
 					storedStatements.map(item => item.data),
 					statement => statement.creditCardId,
 				);
-				return storedCards.map(({ data: card }) => {
-					const statements = applyStatementCredits(statementsByCard.get(card.id) ?? []);
-					return {
-						...card,
-						accountName: card.accountName || accounts.get(card.financialAccountId)?.institution?.name || null,
-						currentStatement: getCurrentCreditCardStatement(statements, card) ?? null,
-						limit: calculateCreditCardLimit(card, statements),
-					};
-				});
+				return Promise.all(
+					storedCards.map(async ({ data: card }) => {
+						const statements = applyStatementCredits(
+							await withGuestCardPayments(card.id, statementsByCard.get(card.id) ?? []),
+						);
+						return {
+							...card,
+							accountName:
+								card.accountName || accounts.get(card.financialAccountId)?.institution?.name || null,
+							currentStatement: getCurrentCreditCardStatement(statements, card) ?? null,
+							limit: calculateCreditCardLimit(card, statements),
+						};
+					}),
+				);
 			}
 			const owner = getCurrentCacheIdentity();
 			if (!owner) throw new Error("Identidade local indisponível.");
@@ -1116,12 +1163,13 @@ export const dataService = {
 		},
 		async getStatement(cardId: string, statementId: string): Promise<CreditCardStatementDetail> {
 			if (isGuestMode()) {
-				const statement = (await localCreditCardStatements.getById(statementId))?.data;
+				const statement = (await this.getStatements(cardId)).find(item => item.id === statementId);
 				if (!statement || statement.creditCardId !== cardId) throw new Error("Fatura não encontrada");
-				const [storedPurchases, storedCategories, storedTransactions] = await Promise.all([
+				const [storedPurchases, storedCategories, storedTransactions, storedCard] = await Promise.all([
 					localCreditPurchases.getAll(),
 					localCategories.getAll(),
 					localTransactions.getAll(),
+					localCreditCards.getById(cardId),
 				]);
 				const categories = new Map(storedCategories.map(item => [item.data.id, item.data]));
 				const refundedPurchaseIds = new Set(
@@ -1149,7 +1197,13 @@ export const dataService = {
 					.sort((left, right) => right.purchaseDate.localeCompare(left.purchaseDate));
 				const payments = storedTransactions
 					.map(item => item.data)
-					.filter(transaction => transaction.creditCardStatementId === statementId)
+					.filter(
+						transaction =>
+							transaction.paymentCreditCardId === cardId &&
+							storedCard &&
+							getGuestStatementDate(transaction.date, storedCard.data.statementDay) ===
+								statement.statementDate.slice(0, 10),
+					)
 					.sort((left, right) => right.date.localeCompare(left.date));
 				return {
 					...(await this.getStatements(cardId)).find(item => item.id === statementId)!,
@@ -1168,7 +1222,7 @@ export const dataService = {
 					.map(item => item.data)
 					.filter(statement => statement.creditCardId === cardId)
 					.sort((left, right) => right.statementDate.localeCompare(left.statementDate));
-				const statementsWithCredits = applyStatementCredits(statements);
+				const statementsWithCredits = applyStatementCredits(await withGuestCardPayments(cardId, statements));
 				const filtered =
 					options.isPaid === undefined
 						? statementsWithCredits
@@ -1231,67 +1285,39 @@ export const dataService = {
 			}
 			return statements;
 		},
-		async payStatement(
+		async payCard(
 			cardId: string,
-			statementId: string,
-			data: { amount?: number; date: string; financialAccountId: string; time?: string | null },
-		): Promise<{ statement: CreditCardStatement; transaction: Transaction }> {
+			data: { amount: number; date: string; financialAccountId: string; time?: string | null },
+		): Promise<{ transaction: Transaction }> {
 			if (!isGuestMode()) {
-				const payment = await fetchWithAuth<{ statement: CreditCardStatement; transaction: Transaction }>(
-					`/credit-cards/${cardId}/statements/${statementId}/pay`,
-					{ body: JSON.stringify(data), method: "POST" },
-				);
-				await Promise.all([
-					localCreditCardStatements.put(payment.statement, payment.statement.id),
-					localTransactions.put(payment.transaction, payment.transaction.id),
-				]);
-				return payment;
+				const result = await fetchWithAuth<{ transaction: Transaction }>(`/credit-cards/${cardId}/payments`, {
+					body: JSON.stringify(data),
+					method: "POST",
+				});
+				await localTransactions.put(result.transaction, result.transaction.id);
+				return result;
 			}
-
-			const [storedStatement, storedCard, storedAccount] = await Promise.all([
-				localCreditCardStatements.getById(statementId),
+			const [card, account] = await Promise.all([
 				localCreditCards.getById(cardId),
 				localAccounts.getById(data.financialAccountId),
 			]);
-			const statement = storedStatement?.data;
-			if (!statement || statement.creditCardId !== cardId) throw new Error("Fatura não encontrada");
-			if (statement.isPaid) throw new Error("Esta fatura já foi paga");
-			if (!storedCard) throw new Error("Cartão não encontrado");
-			if (
-				!storedAccount ||
-				storedAccount.data.type === "CREDIT_CARD" ||
-				storedAccount.data.type === "REWARDS" ||
-				storedAccount.data.balance === null
-			) {
+			if (!card) throw new Error("Cartão não encontrado");
+			if (!account || account.data.type === "CREDIT_CARD" || account.data.type === "REWARDS")
 				throw new Error("Selecione uma conta com saldo próprio");
-			}
-
-			const remainingAmount = statement.totalAmount - statement.paidAmount;
-			const amount = data.amount ?? remainingAmount;
-			if (amount <= 0) throw new Error("Informe um valor maior que zero para a fatura");
-
-			const updatedStatement: CreditCardStatement = {
-				...statement,
-				balanceAmount: statement.totalAmount - statement.paidAmount - amount,
-				isPaid: Math.round((statement.paidAmount + amount) * 100) >= Math.round(statement.totalAmount * 100),
-				paidAmount: statement.paidAmount + amount,
-			};
+			if (data.amount <= 0) throw new Error("Informe um valor maior que zero");
 			const transaction: Transaction = {
-				amount,
+				amount: data.amount,
 				createdAt: new Date().toISOString(),
-				creditCardStatementId: statementId,
 				date: data.date,
-				description: `Pagamento da fatura - ${storedCard.data.accountName || "Cartão de crédito"}`,
+				description: "Pagamento do cartão",
 				id: crypto.randomUUID(),
 				originFinancialAccountId: data.financialAccountId,
+				paymentCreditCardId: cardId,
 				time: data.time === undefined ? getCurrentLocalTime() : data.time,
 				type: "EXPENSE",
 			};
-			await Promise.all([
-				localCreditCardStatements.put(updatedStatement, updatedStatement.id),
-				localTransactions.put(transaction, transaction.id),
-			]);
-			return { statement: updatedStatement, transaction };
+			await localTransactions.put(transaction, transaction.id);
+			return { transaction };
 		},
 		async refinancePurchase(
 			cardId: string,
@@ -1607,18 +1633,39 @@ export const dataService = {
 	dashboard: {
 		async get(dateRange?: { endDate?: string; startDate?: string }): Promise<Dashboard> {
 			if (isGuestMode()) {
-				const [accounts, transactions, loans, debts, subscriptions, salaries, recurring, cards, statements] =
-					await Promise.all([
-						dataService.accounts.getAll(),
-						dataService.transactions.getAll(),
-						dataService.loans.getAll(),
-						dataService.debts.getAll(),
-						dataService.subscriptions.getAll(),
-						dataService.salaries.getAll(),
-						dataService.recurringPayments.getAll(),
-						localCreditCards.getAll().then(items => items.map(item => item.data)),
-						localCreditCardStatements.getAll().then(items => items.map(item => item.data)),
-					]);
+				const [
+					accounts,
+					transactions,
+					loans,
+					debts,
+					subscriptions,
+					salaries,
+					recurring,
+					cards,
+					rawStatements,
+				] = await Promise.all([
+					dataService.accounts.getAll(),
+					dataService.transactions.getAll(),
+					dataService.loans.getAll(),
+					dataService.debts.getAll(),
+					dataService.subscriptions.getAll(),
+					dataService.salaries.getAll(),
+					dataService.recurringPayments.getAll(),
+					localCreditCards.getAll().then(items => items.map(item => item.data)),
+					localCreditCardStatements.getAll().then(items => items.map(item => item.data)),
+				]);
+				const statements = (
+					await Promise.all(
+						cards.map(async card =>
+							applyStatementCredits(
+								await withGuestCardPayments(
+									card.id,
+									rawStatements.filter(item => item.creditCardId === card.id),
+								),
+							),
+						),
+					)
+				).flat();
 				const now = new Date();
 				const rangeStart = new Date(
 					`${dateRange?.startDate ?? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`}T00:00:00`,
@@ -1846,7 +1893,7 @@ export const dataService = {
 					});
 				for (const statement of statements) {
 					const dueDate = new Date(`${statement.dueDate.slice(0, 10)}T12:00:00`);
-					const outstanding = Math.max(0, statement.totalAmount - statement.paidAmount);
+					const outstanding = Math.max(0, statement.balanceAmount);
 					if (outstanding && dueDate >= projectionStart && dueDate <= comparisonEnd)
 						projectedMovements.push({ amount: outstanding, date: dueDate, type: "EXPENSE" });
 				}
@@ -1856,10 +1903,7 @@ export const dataService = {
 						cardStatements
 							.toSorted((left, right) => left.dueDate.localeCompare(right.dueDate))
 							.find(item => item.dueDate >= dateKey(now)) ?? cardStatements.at(-1);
-					const used = cardStatements.reduce(
-						(sum, item) => sum + Math.max(0, item.totalAmount - item.paidAmount),
-						0,
-					);
+					const used = cardStatements.reduce((sum, item) => sum + item.totalAmount - item.paidAmount, 0);
 					return {
 						availableLimit: Math.max(0, card.creditLimit - used),
 						creditLimit: card.creditLimit,
@@ -1874,7 +1918,7 @@ export const dataService = {
 							null,
 						statement: statement
 							? {
-									balanceAmount: Math.max(0, statement.totalAmount - statement.paidAmount),
+									balanceAmount: Math.max(0, statement.balanceAmount),
 									dueDate: statement.dueDate.slice(0, 10),
 									id: statement.id,
 								}
@@ -3232,22 +3276,6 @@ export const dataService = {
 					tagIds,
 					time: data.time === undefined ? getCurrentLocalTime() : data.time,
 				};
-				if (data.creditCardStatementId) {
-					const storedStatement = await localCreditCardStatements.getById(data.creditCardStatementId);
-					const statement = storedStatement?.data;
-					if (!statement) throw new Error("Fatura não encontrada");
-					const paidAmount = statement.paidAmount + data.amount;
-					await localCreditCardStatements.put(
-						{
-							...statement,
-							balanceAmount: statement.totalAmount - paidAmount,
-							isPaid:
-								paidAmount > 0 && Math.round(paidAmount * 100) >= Math.round(statement.totalAmount * 100),
-							paidAmount,
-						},
-						statement.id,
-					);
-				}
 				await localTransactions.put(newTransaction, newTransaction.id);
 				return newTransaction;
 			}
@@ -3261,25 +3289,6 @@ export const dataService = {
 
 		async delete(id: string): Promise<void> {
 			if (isGuestMode()) {
-				const existing = await localTransactions.getById(id);
-				if (existing?.data.creditCardStatementId) {
-					const storedStatement = await localCreditCardStatements.getById(
-						existing.data.creditCardStatementId,
-					);
-					const statement = storedStatement?.data;
-					if (!statement) throw new Error("Fatura não encontrada");
-					const paidAmount = Math.max(0, statement.paidAmount - existing.data.amount);
-					await localCreditCardStatements.put(
-						{
-							...statement,
-							balanceAmount: statement.totalAmount - paidAmount,
-							isPaid:
-								paidAmount > 0 && Math.round(paidAmount * 100) >= Math.round(statement.totalAmount * 100),
-							paidAmount,
-						},
-						statement.id,
-					);
-				}
 				await localTransactions.delete(id);
 				return;
 			}
@@ -3341,7 +3350,6 @@ export const dataService = {
 								categoryName: tags[0]?.name,
 								createdAt: purchase.purchaseDate,
 								creditCardId: card.id,
-								creditCardStatementId: purchase.statementId,
 								currentInstallment: purchase.currentInstallment,
 								date: purchase.purchaseDate,
 								debtSplit: purchase.debtSplit,
@@ -3357,12 +3365,14 @@ export const dataService = {
 									accounts.get(card.financialAccountId)?.name ||
 									accounts.get(card.financialAccountId)?.institution?.name ||
 									"Cartão de crédito",
+								paymentCreditCardId: undefined,
 								refundOfPurchaseId: purchase.refundOfPurchaseId,
 								source: "CREDIT_CARD" as const,
 								sourceName:
 									card.accountName ||
 									accounts.get(card.financialAccountId)?.institution?.name ||
 									"Cartão de crédito",
+								statementId: purchase.statementId,
 								storeName: purchase.storeName,
 								subscriptionId: purchase.subscriptionId,
 								tagIds,
@@ -3383,10 +3393,17 @@ export const dataService = {
 						const originName = originAccount?.name || originAccount?.institution?.name;
 						const destinationName = destinationAccount?.name || destinationAccount?.institution?.name;
 						const paymentAccount = item.data.type === "INCOME" ? destinationAccount : originAccount;
-						const paymentStatement = item.data.creditCardStatementId
-							? statements.get(item.data.creditCardStatementId)
+						const paymentCard = item.data.paymentCreditCardId
+							? cards.get(item.data.paymentCreditCardId)
 							: undefined;
-						const paymentCard = paymentStatement ? cards.get(paymentStatement.creditCardId) : undefined;
+						const paymentStatement = paymentCard
+							? [...statements.values()].find(
+									statement =>
+										statement.creditCardId === paymentCard.id &&
+										statement.statementDate.slice(0, 10) ===
+											getGuestStatementDate(item.data.date, paymentCard.statementDay),
+								)
+							: undefined;
 
 						return {
 							...item.data,
@@ -3546,61 +3563,22 @@ export const dataService = {
 
 		async update(
 			id: string,
-			data: Omit<Partial<Transaction>, "creditCardStatementId" | "debtSplit" | "storeName"> & {
-				creditCardStatementId?: string | null;
+			data: Omit<Partial<Transaction>, "paymentCreditCardId" | "debtSplit" | "storeName"> & {
+				paymentCreditCardId?: string | null;
 				debtSplit?: DebtSplitInput | null;
 				storeName?: string | null;
 			},
 		): Promise<Transaction> {
 			if (isGuestMode()) {
-				const { creditCardStatementId, debtSplit: debtSplitInput, ...transactionChanges } = data;
+				const { paymentCreditCardId, debtSplit: debtSplitInput, ...transactionChanges } = data;
 				const existing = await localTransactions.getById(id);
 				if (!existing) throw new Error("Transação não encontrada");
-				if (existing.data.creditCardStatementId) {
-					const amount = data.amount ?? existing.data.amount;
-					if (amount <= 0) throw new Error("Informe um valor maior que zero");
-					const originFinancialAccountId =
-						data.originFinancialAccountId ?? existing.data.originFinancialAccountId;
-					if (!originFinancialAccountId) throw new Error("Selecione a conta pagadora");
-					const storedStatement = await localCreditCardStatements.getById(
-						existing.data.creditCardStatementId,
-					);
-					const statement = storedStatement?.data;
-					if (!statement) throw new Error("Fatura não encontrada");
-					const paidAmount =
-						(Math.round(statement.paidAmount * 100) -
-							Math.round(existing.data.amount * 100) +
-							Math.round(amount * 100)) /
-						100;
-					const updatedStatement: CreditCardStatement = {
-						...statement,
-						balanceAmount: statement.totalAmount - paidAmount,
-						isPaid: paidAmount > 0 && Math.round(paidAmount * 100) >= Math.round(statement.totalAmount * 100),
-						paidAmount,
-					};
-					const updated: Transaction = {
-						...existing.data,
-						...transactionChanges,
-						amount,
-						originFinancialAccountId,
-						...(creditCardStatementId !== undefined && {
-							creditCardStatementId: creditCardStatementId ?? undefined,
-						}),
-						...(debtSplitInput !== undefined && {
-							debtSplit: await hydrateLocalDebtSplit(amount, debtSplitInput),
-						}),
-					};
-					await Promise.all([
-						localCreditCardStatements.put(updatedStatement, updatedStatement.id),
-						localTransactions.put(updated, id),
-					]);
-					return updated;
-				}
+
 				const updated: Transaction = {
 					...existing.data,
 					...transactionChanges,
-					...(creditCardStatementId !== undefined && {
-						creditCardStatementId: creditCardStatementId ?? undefined,
+					...(paymentCreditCardId !== undefined && {
+						paymentCreditCardId: paymentCreditCardId ?? undefined,
 					}),
 					...(debtSplitInput !== undefined && {
 						debtSplit: await hydrateLocalDebtSplit(data.amount ?? existing.data.amount, debtSplitInput),

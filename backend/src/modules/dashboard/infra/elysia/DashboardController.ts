@@ -2,6 +2,8 @@ import { addDays, startOfDay } from "date-fns";
 import Elysia, { t } from "elysia";
 import { getFinancialAccountBalancesAtDates } from "~/modules/accounts/application/get-financial-account-balances";
 import { requireUserId } from "~/modules/auth";
+import { withStatementPayments } from "~/modules/creditCards/application/statement-payments";
+import { applyStatementCredits } from "~/modules/creditCards/domain/statement-balance";
 import {
 	buildComparisonPeriods,
 	comparisonRangeEnd,
@@ -246,7 +248,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 				const account = accounts.find(item => item.id === accountId);
 				return account?.institutionId ? (institutionsById.get(account.institutionId) ?? null) : null;
 			};
-			const [statements, payments, debtEvents] = await Promise.all([
+			const [rawStatements, payments, debtEvents] = await Promise.all([
 				cards.length
 					? queryRows(
 							db.sql.public.CreditCardStatement.select(
@@ -254,6 +256,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 								"dueDate",
 								"id",
 								"paidAmount",
+								"statementDate",
 								"totalAmount",
 							)
 								.where((f, fn) =>
@@ -290,6 +293,8 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 						)
 					: [],
 			]);
+			const statementGroups = Map.groupBy(await withStatementPayments(rawStatements), s => s.creditCardId);
+			const statements = [...statementGroups.values()].flatMap(group => applyStatementCredits(group));
 			const monetaryAccounts = accounts.filter(
 				account =>
 					account.type !== "CREDIT_CARD" && account.type !== "INVESTMENT" && account.type !== "REWARDS",
@@ -378,7 +383,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 			for (const statement of statements.filter(
 				item => item.dueDate >= projectionStart && item.dueDate <= comparisonEnd,
 			)) {
-				const outstanding = Math.max(0, Number(statement.totalAmount) - Number(statement.paidAmount));
+				const outstanding = Math.max(0, statement.balanceAmount);
 				if (outstanding)
 					projectedMovements.push({ amount: outstanding, date: statement.dueDate, type: "EXPENSE" });
 			}
@@ -637,7 +642,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 						.toSorted((left, right) => left.dueDate.getTime() - right.dueDate.getTime())[0] ??
 					cardStatements.toSorted((left, right) => right.dueDate.getTime() - left.dueDate.getTime())[0];
 				const used = cardStatements.reduce(
-					(sum, item) => sum + Math.max(0, Number(item.totalAmount) - Number(item.paidAmount)),
+					(sum, item) => sum + Number(item.totalAmount) - Number(item.paidAmount),
 					0,
 				);
 				return {
@@ -650,7 +655,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 					name: card.name,
 					statement: statement
 						? {
-								balanceAmount: Math.max(0, Number(statement.totalAmount) - Number(statement.paidAmount)),
+								balanceAmount: Math.max(0, statement.balanceAmount),
 								dueDate: dateKey(statement.dueDate),
 								id: statement.id,
 							}

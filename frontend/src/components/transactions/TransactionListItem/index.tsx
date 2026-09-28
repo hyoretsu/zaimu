@@ -100,7 +100,7 @@ export function TransactionListItem({
 				];
 	const tags = transaction.tags?.length ? transaction.tags : fallbackTag ? [fallbackTag] : undefined;
 	const creditCardPayment =
-		transaction.source !== "CREDIT_CARD" && transaction.creditCardStatementId
+		transaction.source !== "CREDIT_CARD" && transaction.paymentCreditCardId
 			? {
 					cardName: transaction.creditCardName || "Cartão de crédito",
 					statementDate: transaction.creditCardStatementDate ?? undefined,

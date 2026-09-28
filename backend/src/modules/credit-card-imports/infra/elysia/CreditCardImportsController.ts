@@ -6,6 +6,7 @@ import {
 	replaceEntityTags,
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
+import { recalculateStatementPayments } from "~/modules/creditCards/application/statement-payments";
 import { getImportedInstallmentAmounts } from "~/modules/creditCards/domain/installment-amounts";
 import { linkPurchaseToDebt, syncPurchaseDebtEvent } from "~/modules/debts/application/debt-ledger";
 import {
@@ -524,6 +525,10 @@ async function approveItems(userId: string, importId: string, itemId?: string) {
 		);
 		await markStatementAsFullySynced(creditCardImport);
 	}
+	if (selectedItems.length)
+		await withTransaction(executor =>
+			recalculateStatementPayments(executor, [creditCardImport.creditCardId]),
+		);
 	return { created: selectedItems.length };
 }
 

@@ -64,7 +64,7 @@ const normalizeText = (value: null | string | undefined) => value?.trim() || nul
 interface DuplicateCandidate {
 	amount: number;
 	createdAt: Date;
-	creditCardStatementId: string | null;
+	paymentCreditCardId: string | null;
 	date: Date;
 	description: string | null;
 	destinationFinancialAccountId: string | null;
@@ -261,7 +261,7 @@ async function getPotentialDuplicates(
 				"id",
 				"amount",
 				"createdAt",
-				"creditCardStatementId",
+				"paymentCreditCardId",
 				"date",
 				"description",
 				"isHidden",
@@ -286,7 +286,6 @@ async function getPotentialDuplicates(
 				.select(fields => ({
 					amount: fields.TransactionImportItem.amount,
 					createdAt: fields.TransactionImportItem.createdAt,
-					creditCardStatementId: fields.TransactionImportItem.creditCardStatementId,
 					date: fields.TransactionImportItem.date,
 					description: fields.TransactionImportItem.description,
 					destinationFinancialAccountId: fields.TransactionImportItem.destinationFinancialAccountId,
@@ -296,6 +295,7 @@ async function getPotentialDuplicates(
 					isHidden: fields.TransactionImportItem.isHidden,
 					isReconciled: fields.TransactionImportItem.isReconciled,
 					originFinancialAccountId: fields.TransactionImportItem.originFinancialAccountId,
+					paymentCreditCardId: fields.TransactionImportItem.paymentCreditCardId,
 					storeName: fields.TransactionImportItem.storeName,
 					time: fields.TransactionImportItem.time,
 					transactionImportId: fields.TransactionImportItem.transactionImportId,
@@ -480,7 +480,7 @@ async function getImportReturn(
 					"amount",
 					"balanceAfter",
 					"categoryId",
-					"creditCardStatementId",
+					"paymentCreditCardId",
 					"createdAt",
 					"date",
 					"description",
@@ -521,17 +521,14 @@ async function getImportReturn(
 			items.map(item => ({ amount: Number(item.amount), id: item.id })),
 		),
 	]);
-	const creditCardStatementIds = items.flatMap(item =>
-		item.creditCardStatementId ? [item.creditCardStatementId] : [],
+	const paymentCreditCardIds = items.flatMap(item =>
+		item.paymentCreditCardId ? [item.paymentCreditCardId] : [],
 	);
-	const creditCardStatements = creditCardStatementIds.length
+	const creditCardStatements = paymentCreditCardIds.length
 		? await queryRows(
-				db.sql.public.CreditCardStatement.innerJoin(db.sql.public.CreditCard, (fields, functions) =>
-					functions.eq(fields.CreditCardStatement.creditCardId, fields.CreditCard.id),
+				db.sql.public.CreditCard.innerJoin(db.sql.public.FinancialAccount, (fields, functions) =>
+					functions.eq(fields.CreditCard.financialAccountId, fields.FinancialAccount.id),
 				)
-					.innerJoin(db.sql.public.FinancialAccount, (fields, functions) =>
-						functions.eq(fields.CreditCard.financialAccountId, fields.FinancialAccount.id),
-					)
 					.outerLeftJoin(db.sql.public.FinancialInstitution, (fields, functions) =>
 						functions.eq(fields.FinancialAccount.institutionId, fields.FinancialInstitution.id),
 					)
@@ -540,12 +537,12 @@ async function getImportReturn(
 							functions.raw`COALESCE(${fields.FinancialAccount.name}, ${fields.FinancialInstitution.name})`.returns(
 								"sql/varchar@1",
 							),
-						id: fields.CreditCardStatement.id,
-						statementDate: fields.CreditCardStatement.statementDate,
+						id: fields.CreditCard.id,
+						statementDate: functions.raw`NULL::date`.returns("pg/date@1"),
 					}))
 					.where((fields, functions) =>
 						functions.and(
-							functions.in(fields.CreditCardStatement.id, creditCardStatementIds),
+							functions.in(fields.CreditCard.id, paymentCreditCardIds),
 							functions.eq(fields.FinancialAccount.userId, userId),
 						),
 					)
@@ -560,8 +557,8 @@ async function getImportReturn(
 			const { externalId: _, transferCounterpartExternalId: __, ...visibleItem } = item;
 			const tags = tagsByItem.get(item.id) ?? [];
 			const duplicateCandidates = duplicates.get(item.id)?.candidates ?? [];
-			const creditCardStatement = item.creditCardStatementId
-				? creditCardStatementsById.get(item.creditCardStatementId)
+			const creditCardStatement = item.paymentCreditCardId
+				? creditCardStatementsById.get(item.paymentCreditCardId)
 				: undefined;
 			return {
 				...visibleItem,
@@ -638,30 +635,23 @@ async function validateItemAccounts(
 	}
 }
 
-async function assertCreditCardStatementOwnership(creditCardStatementId: string, userId: string) {
-	const statement = await queryFirst(
-		db.sql.public.CreditCardStatement.innerJoin(db.sql.public.CreditCard, (fields, functions) =>
-			functions.eq(fields.CreditCardStatement.creditCardId, fields.CreditCard.id),
+async function assertCreditCardStatementOwnership(paymentCreditCardId: string, userId: string) {
+	const card = await queryFirst(
+		db.sql.public.CreditCard.innerJoin(db.sql.public.FinancialAccount, (f, fn) =>
+			fn.eq(f.CreditCard.financialAccountId, f.FinancialAccount.id),
 		)
-			.innerJoin(db.sql.public.FinancialAccount, (fields, functions) =>
-				functions.eq(fields.CreditCard.financialAccountId, fields.FinancialAccount.id),
+			.select(f => ({ id: f.CreditCard.id }))
+			.where((f, fn) =>
+				fn.and(fn.eq(f.CreditCard.id, paymentCreditCardId), fn.eq(f.FinancialAccount.userId, userId)),
 			)
-			.select(fields => ({ id: fields.CreditCardStatement.id }))
-			.where((fields, functions) =>
-				functions.and(
-					functions.eq(fields.CreditCardStatement.id, creditCardStatementId),
-					functions.eq(fields.FinancialAccount.userId, userId),
-				),
-			)
-			.limit(1)
 			.build(),
 	);
-	if (!statement) throw new HttpException("Fatura não encontrada", 404);
+	if (!card) throw new HttpException("Cartão não encontrado", 404);
 }
 
 interface ImportItemToApprove {
 	amount: number;
-	creditCardStatementId: string | null;
+	paymentCreditCardId: string | null;
 	date: Date;
 	description: string | null;
 	destinationFinancialAccountId: string | null;
@@ -747,12 +737,12 @@ async function persistImportItem(
 			{
 				amount: String(item.amount),
 				categoryId: tagIds[0],
-				creditCardStatementId: item.creditCardStatementId,
 				date: item.date,
 				description: item.description,
 				destinationFinancialAccountId: item.destinationFinancialAccountId,
 				isHidden: item.isHidden,
 				originFinancialAccountId: item.originFinancialAccountId,
+				paymentCreditCardId: item.paymentCreditCardId,
 				storeName: item.storeName,
 				time: item.time,
 				type: item.type as TransactionType,
@@ -806,12 +796,12 @@ async function persistReconciledImportItem(
 	const values = {
 		amount: String(item.amount),
 		categoryId: tagIds[0] ?? null,
-		creditCardStatementId: item.creditCardStatementId,
 		date: item.date,
 		description: item.description,
 		destinationFinancialAccountId: item.destinationFinancialAccountId,
 		isHidden: item.isHidden,
 		originFinancialAccountId: item.originFinancialAccountId,
+		paymentCreditCardId: item.paymentCreditCardId,
 		storeName: item.storeName,
 		time: item.time,
 		type: item.type as TransactionType,
@@ -819,7 +809,7 @@ async function persistReconciledImportItem(
 	};
 	if (item.reconciledTransactionId) {
 		const previous = await transaction.queryFirst(
-			transaction.db.sql.public.Transaction.select("creditCardStatementId")
+			transaction.db.sql.public.Transaction.select("paymentCreditCardId")
 				.where((fields, functions) => functions.eq(fields.id, item.reconciledTransactionId!))
 				.limit(1)
 				.build(),
@@ -829,8 +819,8 @@ async function persistReconciledImportItem(
 				.where((fields, functions) => functions.eq(fields.id, item.reconciledTransactionId!))
 				.build(),
 		);
-		if (previous?.creditCardStatementId && previous.creditCardStatementId !== item.creditCardStatementId)
-			await recalculateStatementPayments(transaction, [previous.creditCardStatementId]);
+		if (previous?.paymentCreditCardId && previous.paymentCreditCardId !== item.paymentCreditCardId)
+			await recalculateStatementPayments(transaction, [previous.paymentCreditCardId]);
 		if (item.externalId)
 			await transaction.executeStatement(
 				transaction.db.sql.public.TransactionExternalReference.insert([
@@ -1073,7 +1063,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					"id",
 					"amount",
 					"date",
-					"creditCardStatementId",
+					"paymentCreditCardId",
 					"description",
 					"destinationFinancialAccountId",
 					"externalId",
@@ -1099,12 +1089,6 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			const type = (body.type ?? current.type) as ImportItemType;
 			const next = {
 				amount: body.amount ?? Number(current.amount),
-				creditCardStatementId:
-					type === "EXPENSE"
-						? body.creditCardStatementId === undefined
-							? current.creditCardStatementId
-							: body.creditCardStatementId
-						: null,
 				date: body.date ?? toDateKey(current.date),
 				description: body.description === undefined ? current.description : normalizeText(body.description),
 				destinationFinancialAccountId:
@@ -1119,6 +1103,12 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					body.originFinancialAccountId === undefined
 						? current.originFinancialAccountId
 						: body.originFinancialAccountId,
+				paymentCreditCardId:
+					type === "EXPENSE"
+						? body.paymentCreditCardId === undefined
+							? current.paymentCreditCardId
+							: body.paymentCreditCardId
+						: null,
 				storeName: body.storeName === undefined ? current.storeName : normalizeText(body.storeName),
 				time: body.time === undefined ? current.time : body.time,
 				transferCounterpartExternalId: current.transferCounterpartExternalId,
@@ -1134,8 +1124,8 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			if (body.debtSplit !== undefined && body.debtSplit !== null && type === "TRANSFER")
 				throw new HttpException("Transferências não podem ser vinculadas a dívidas", 400);
 			await validateItemAccounts(next, userId);
-			if (next.creditCardStatementId)
-				await assertCreditCardStatementOwnership(next.creditCardStatementId, userId);
+			if (next.paymentCreditCardId)
+				await assertCreditCardStatementOwnership(next.paymentCreditCardId, userId);
 			if (next.storeName && next.type !== "EXPENSE")
 				throw new HttpException("Loja só pode ser informada em saídas", 400);
 			if (next.storeName) await resolveStore(userId, next.storeName);
@@ -1201,9 +1191,9 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				await transaction.executeStatement(
 					transaction.db.sql.public.Transaction.update({
 						categoryId: null,
-						creditCardStatementId: null,
 						destinationFinancialAccountId: pair.incoming.financialAccountId,
 						originFinancialAccountId: pair.outgoing.financialAccountId,
+						paymentCreditCardId: null,
 						storeName: null,
 						type: "TRANSFER",
 						updatedAt: new Date(),
@@ -1286,7 +1276,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				db.sql.public.TransactionImportItem.select(
 					"id",
 					"amount",
-					"creditCardStatementId",
+					"paymentCreditCardId",
 					"date",
 					"description",
 					"destinationFinancialAccountId",
@@ -1338,8 +1328,8 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 							userId,
 						);
 				await removeImportItem(transaction, item.id);
-				if (importItem.creditCardStatementId)
-					await recalculateStatementPayments(transaction, [importItem.creditCardStatementId]);
+				if (importItem.paymentCreditCardId)
+					await recalculateStatementPayments(transaction, [importItem.paymentCreditCardId]);
 				const finished = await finalizeImportWhenEmpty(transaction, transactionImport.id);
 				return { finished, reconciledTarget, transactionId };
 			});
@@ -1380,7 +1370,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				db.sql.public.TransactionImportItem.select(
 					"id",
 					"amount",
-					"creditCardStatementId",
+					"paymentCreditCardId",
 					"date",
 					"description",
 					"destinationFinancialAccountId",
@@ -1444,7 +1434,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				}
 				await recalculateStatementPayments(transaction, [
 					...new Set(
-						approvableItems.flatMap(item => (item.creditCardStatementId ? [item.creditCardStatementId] : [])),
+						approvableItems.flatMap(item => (item.paymentCreditCardId ? [item.paymentCreditCardId] : [])),
 					),
 				]);
 				const finished = await finalizeImportWhenEmpty(transaction, transactionImport.id);
@@ -1495,7 +1485,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				db.sql.public.TransactionImportItem.select(
 					"id",
 					"amount",
-					"creditCardStatementId",
+					"paymentCreditCardId",
 					"date",
 					"description",
 					"destinationFinancialAccountId",
@@ -1533,7 +1523,6 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			const type = source("type", item.type as ImportItemType, duplicate.type);
 			const values = {
 				amount: source("amount", item.amount, duplicate.amount),
-				creditCardStatementId: type === "EXPENSE" ? duplicate.creditCardStatementId : null,
 				date: source("date", item.date, duplicate.date),
 				description: source("description", item.description, duplicate.description),
 				destinationFinancialAccountId: source(
@@ -1547,6 +1536,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					item.originFinancialAccountId,
 					duplicate.originFinancialAccountId,
 				),
+				paymentCreditCardId: type === "EXPENSE" ? duplicate.paymentCreditCardId : null,
 				storeName: source("storeName", item.storeName, duplicate.storeName),
 				time: source("time", item.time, duplicate.time),
 				type,
@@ -1563,8 +1553,8 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				),
 				userId,
 			);
-			if (values.creditCardStatementId)
-				await assertCreditCardStatementOwnership(values.creditCardStatementId, userId);
+			if (values.paymentCreditCardId)
+				await assertCreditCardStatementOwnership(values.paymentCreditCardId, userId);
 			const duplicateDebtTarget =
 				duplicate.source === "TRANSACTION"
 					? {
@@ -1623,7 +1613,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					db.sql.public.TransactionImportItem.select(
 						"id",
 						"amount",
-						"creditCardStatementId",
+						"paymentCreditCardId",
 						"date",
 						"description",
 						"destinationFinancialAccountId",
@@ -1682,7 +1672,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				}
 				await recalculateStatementPayments(transaction, [
 					...new Set(
-						approvableItems.flatMap(item => (item.creditCardStatementId ? [item.creditCardStatementId] : [])),
+						approvableItems.flatMap(item => (item.paymentCreditCardId ? [item.paymentCreditCardId] : [])),
 					),
 				]);
 				const finished = await finalizeImportWhenEmpty(transaction, transactionImport.id);

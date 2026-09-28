@@ -10,21 +10,20 @@ import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/co
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { DebtSplitInput, FinancialAccount, TransactionImportItem } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
-import { formatLocalMonthYear } from "@/lib/date";
+import { dataService } from "@/lib/dataService";
 import { calculateDebtSplit, debtSplitToInput } from "@/lib/debt-split";
 import {
 	compareFinancialAccountsByOptionLabel,
 	getFinancialAccountOptionLabel,
 	getTransactionSourceAccounts,
 } from "@/lib/financial-account";
-import { getPayableCreditCardStatements } from "@/lib/payable-credit-card-statements";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 
 type EditableItem = Omit<
 	Pick<
 		TransactionImportItem,
 		| "amount"
-		| "creditCardStatementId"
+		| "paymentCreditCardId"
 		| "date"
 		| "debtSplit"
 		| "description"
@@ -41,13 +40,13 @@ type EditableItem = Omit<
 
 const toDraft = (item: TransactionImportItem): EditableItem => ({
 	amount: item.amount,
-	creditCardStatementId: item.creditCardStatementId ?? null,
 	date: item.date.slice(0, 10),
 	debtSplit: debtSplitToInput(item.debtSplit),
 	description: item.description ?? "",
 	destinationFinancialAccountId: item.destinationFinancialAccountId ?? null,
 	isHidden: item.isHidden,
 	originFinancialAccountId: item.originFinancialAccountId ?? null,
+	paymentCreditCardId: item.paymentCreditCardId ?? null,
 	storeName: item.storeName ?? "",
 	tagIds: item.tagIds,
 	time: item.time ?? "",
@@ -76,8 +75,8 @@ export function EditImportedTransactionDialog({
 	const [description, setDescription] = useDebouncedInput(item?.description ?? "", () => undefined);
 	const payableStatementsQuery = useQuery({
 		enabled: identity !== null && open && draft?.type === "EXPENSE",
-		queryFn: () => getPayableCreditCardStatements(item?.creditCardStatementId ?? undefined),
-		queryKey: queryKeys.creditCardStatements.payable(identity!, item?.creditCardStatementId ?? undefined),
+		queryFn: () => dataService.creditCards.getAll(),
+		queryKey: queryKeys.creditCards.list(identity!),
 	});
 	useEffect(() => {
 		if (!item || !open) return;
@@ -138,7 +137,6 @@ export function EditImportedTransactionDialog({
 								current
 									? {
 											...current,
-											creditCardStatementId: type === "EXPENSE" ? current.creditCardStatementId : null,
 											destinationFinancialAccountId:
 												type === "INCOME" || type === "YIELD" || type === "TRANSFER"
 													? type === "INCOME" && current.type === "EXPENSE"
@@ -147,6 +145,7 @@ export function EditImportedTransactionDialog({
 													: null,
 											originFinancialAccountId:
 												type === "INCOME" || type === "YIELD" ? null : current.originFinancialAccountId,
+											paymentCreditCardId: type === "EXPENSE" ? current.paymentCreditCardId : null,
 											type,
 										}
 									: current,
@@ -162,33 +161,29 @@ export function EditImportedTransactionDialog({
 					{draft.type === "EXPENSE" ? (
 						<CustomSelect
 							disabled={payableStatementsQuery.isPending}
-							label="Fatura para pagar"
-							onValueChange={creditCardStatementId => {
-								const selected = payableStatementsQuery.data?.find(
-									item => item.statement.id === creditCardStatementId,
-								);
+							label="Cartão para pagar"
+							onValueChange={paymentCreditCardId => {
 								setDraft(current =>
 									current
 										? {
 												...current,
-												amount: current.amount || selected?.statement.balanceAmount || current.amount,
-												creditCardStatementId,
+												paymentCreditCardId,
 											}
 										: current,
 								);
 								setIsDebt(false);
 							}}
-							options={(payableStatementsQuery.data ?? []).map(({ card, statement }) => ({
-								label: `${getCreditCardDisplayName(card)} · ${formatLocalMonthYear(statement.statementDate)} · ${new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(statement.balanceAmount)}`,
-								value: statement.id,
+							options={(payableStatementsQuery.data ?? []).map(card => ({
+								label: getCreditCardDisplayName(card),
+								value: card.id,
 							}))}
-							placeholder="Nenhuma fatura selecionada"
+							placeholder="Nenhum cartão selecionado"
 							searchable
 							sortOptions={false}
-							value={draft.creditCardStatementId ?? ""}
+							value={draft.paymentCreditCardId ?? ""}
 						/>
 					) : null}
-					{draft.type !== "TRANSFER" && draft.type !== "YIELD" && !draft.creditCardStatementId ? (
+					{draft.type !== "TRANSFER" && draft.type !== "YIELD" && !draft.paymentCreditCardId ? (
 						<div className="grid gap-3 rounded-2xl border p-3">
 							<CheckboxField
 								checkboxProps={{

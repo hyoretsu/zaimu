@@ -36,7 +36,7 @@ interface TransactionSummaryRow {
 	creditCardId: null | string;
 	creditCardName: null | string;
 	creditCardStatementDate: Date | null;
-	creditCardStatementId: null | string;
+	paymentCreditCardId: null | string;
 	currentInstallment: number | null;
 	date: Date;
 	description: null | string;
@@ -128,8 +128,8 @@ WITH combined AS (
     COALESCE(origin."name", origin_institution."name") AS "originName",
     COALESCE(destination."name", destination_institution."name") AS "destinationName",
     t."recurrenceId", t."recurrenceOccurrenceDate", t."salaryId", t."salaryOccurrenceDate",
-    t."subscriptionId", t."subscriptionOccurrenceDate", t."creditCardStatementId",
-    payment_statement."statementDate" AS "creditCardStatementDate",
+    t."subscriptionId", t."subscriptionOccurrenceDate", t."paymentCreditCardId",
+    NULL::date AS "creditCardStatementDate",
     payment_card."id" AS "creditCardId",
     COALESCE(payment_account."name", payment_institution."name") AS "creditCardName",
     CASE WHEN t."type" <> 'TRANSFER'
@@ -155,8 +155,7 @@ WITH combined AS (
   LEFT JOIN "FinancialAccount" destination ON destination."id" = t."destinationFinancialAccountId"
   LEFT JOIN "FinancialInstitution" destination_institution ON destination_institution."id" = destination."institutionId"
   LEFT JOIN "RewardsAccount" destination_rewards ON destination_rewards."financialAccountId" = destination."id"
-  LEFT JOIN "CreditCardStatement" payment_statement ON payment_statement."id" = t."creditCardStatementId"
-  LEFT JOIN "CreditCard" payment_card ON payment_card."id" = payment_statement."creditCardId"
+  LEFT JOIN "CreditCard" payment_card ON payment_card."id" = t."paymentCreditCardId"
   LEFT JOIN "FinancialAccount" payment_account ON payment_account."id" = payment_card."financialAccountId"
   LEFT JOIN "FinancialInstitution" payment_institution ON payment_institution."id" = payment_account."institutionId"
   WHERE t."userId" = $1
@@ -174,7 +173,7 @@ WITH combined AS (
     COALESCE(account."name", institution."name", 'Cartão de crédito') AS "originName",
     NULL::text AS "destinationName", NULL::text AS "recurrenceId", NULL::date AS "recurrenceOccurrenceDate",
     NULL::text AS "salaryId", NULL::date AS "salaryOccurrenceDate", purchase."subscriptionId",
-    purchase."subscriptionOccurrenceDate", purchase."statementId" AS "creditCardStatementId",
+    purchase."subscriptionOccurrenceDate", NULL::text AS "paymentCreditCardId",
     statement."statementDate" AS "creditCardStatementDate", card."id" AS "creditCardId",
     COALESCE(account."name", institution."name", 'Cartão de crédito') AS "creditCardName",
     'CREDIT_CARD' AS "source", COALESCE(account."name", institution."name", 'Cartão de crédito') AS "sourceName",
@@ -290,7 +289,7 @@ export async function listTransactionsPage(userId: string, input: ListTransactio
 			reference.externalId,
 		]);
 	const purchaseSyncStatus = getCreditPurchaseSyncStatus(purchaseInstallments);
-	const items = page.map(({ sourceRank, statementId: _statementId, ...row }) => {
+	const items = page.map(({ sourceRank, ...row }) => {
 		const tags = (sourceRank === 0 ? transactionTags : purchaseTags).get(row.id) ?? [];
 		const references = externalIds.get(row.id) ?? [];
 		return {

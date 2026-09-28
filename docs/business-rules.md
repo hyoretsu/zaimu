@@ -48,11 +48,11 @@ Feriados são individuais por usuário e data. Um feriado exclui rendimento de t
 
 Uma compra no cartão pode ter uma taxa nomeada, como IOF. A taxa compõe o total cobrado, cada parcela, a fatura, o limite utilizado, cashback e eventual rateio de dívida. O lançamento preserva nome e valor da taxa para explicar a composição do total.
 
-## Pagamentos excedentes de fatura
+## Pagamentos de cartão de crédito
 
-Pagamento de fatura pode exceder o saldo atual e sempre aparece entre as transações da fatura, na ordem cronológica dos lançamentos. Pagamentos parciais reduzem o saldo pendente sem marcar a fatura como paga. Assim que pagamentos e créditos anteriores cobrirem todo o total lançado, a fatura fica paga, inclusive antes do fechamento. Pagamentos importados e conciliados contam no total pago, e remover ou alterar um pagamento recalcula saldo e status. Novas compras podem reabrir uma fatura se o total superar o valor pago. Qualquer excedente consome cronologicamente os totais das faturas seguintes, mesmo antes do fechamento: a fatura diretamente paga fica zerada, e cada fatura posterior exibe seu saldo negativo após consumir suas próprias compras. Compras lançadas depois recalculam toda a cadeia e reduzem ou puxam de volta o crédito das faturas posteriores. O valor pago nunca deve ser limitado pelo total já lançado, pois compras e reembolsos podem ser preenchidos após o pagamento.
+Cada pagamento pertence ao cartão, sem associação a uma fatura a quitar. O lançamento aparece nas transações da fatura do ciclo de compras correspondente à data do pagamento, segundo o dia de fechamento do cartão. O valor quita primeiro a fatura mais antiga em aberto, incluindo faturas atrasadas; pagamentos parciais reduzem seu saldo. Qualquer sobra quita as faturas seguintes, inclusive antes do fechamento, e o crédito restante aumenta temporariamente o limite. Compras posteriores, edições, exclusões, importações e conciliações recalculam toda a distribuição. A fatura coberta integralmente fica paga e sai das opções de pagamento, mas permanece na consulta de histórico.
 
-Todo pagamento reduz o limite utilizado. Se os pagamentos superarem o valor total de todas as faturas restantes, somente essa diferença aumenta temporariamente o limite do cartão. Compras posteriores consomem primeiro esse aumento. Esse crédito pago é distinto do valor em garantia do limite: não pode ser sacado nem tratado como saldo disponível em conta.
+O pagamento reduz o limite utilizado do cartão. O crédito excedente é distinto do valor em garantia do limite: não pode ser sacado nem tratado como saldo disponível em conta.
 
 ## Cashback e contas de recompensas
 

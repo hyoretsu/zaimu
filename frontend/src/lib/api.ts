@@ -254,7 +254,8 @@ export interface Transaction {
 	isSynced?: boolean;
 	creditCardId?: string;
 	creditCardName?: string | null;
-	creditCardStatementId?: string;
+	paymentCreditCardId?: string;
+	statementId?: string | null;
 	creditCardStatementDate?: string | null;
 	currentInstallment?: number;
 	installmentAmount?: number;
@@ -270,7 +271,7 @@ export interface TransactionImportDuplicate {
 	id: string;
 	amount: number;
 	createdAt: string;
-	creditCardStatementId?: string | null;
+	paymentCreditCardId?: string | null;
 	date: string;
 	debtSplit?: DebtSplit | null;
 	description?: string | null;
@@ -312,7 +313,7 @@ export interface TransactionImportItem {
 	amount: number;
 	balanceAfter?: number | null;
 	categoryId?: string | null;
-	creditCardStatementId?: string | null;
+	paymentCreditCardId?: string | null;
 	creditCardName?: string | null;
 	creditCardStatementDate?: string | null;
 	createdAt: string;
@@ -958,6 +959,15 @@ export const api = {
 		offset?: number;
 	}) => fetchApi<Transaction[]>("/transactions", { params }),
 
+	payCard: (
+		cardId: string,
+		data: { amount: number; date: string; financialAccountId: string; time?: string | null },
+	) =>
+		fetchApi(`/credit-cards/${cardId}/payments`, {
+			body: data,
+			method: "POST",
+		}),
+
 	payLoanInstallment: (
 		loanId: string,
 		installmentNumber: number,
@@ -969,16 +979,6 @@ export const api = {
 		},
 	) =>
 		fetchApi(`/loans/${loanId}/payments/${installmentNumber}/pay`, {
-			body: data,
-			method: "POST",
-		}),
-
-	payStatement: (
-		cardId: string,
-		statementId: string,
-		data: { amount?: number; date: string; financialAccountId: string; time?: string | null },
-	) =>
-		fetchApi(`/credit-cards/${cardId}/statements/${statementId}/pay`, {
 			body: data,
 			method: "POST",
 		}),

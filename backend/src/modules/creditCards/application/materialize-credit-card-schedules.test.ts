@@ -8,6 +8,12 @@ describe("credit card schedule dates", () => {
 		expect(dates.dueDate).toEqual(new Date(2026, 9, 10));
 	});
 
+	test("shows a payment after closing in the next purchase cycle", () => {
+		const paymentDate = new Date(2026, 7, 20, 12);
+		const dates = getStatementDates({ dueDay: 20, statementDay: 15 }, paymentDate);
+		expect(dates.statementDate).toEqual(new Date(2026, 8, 15));
+	});
+
 	test("moves due dates after statement dates when due day is earlier", () => {
 		const dates = getStatementDates({ dueDay: 3, statementDay: 25 }, new Date(2026, 8, 20, 12));
 		expect(dates.statementDate).toEqual(new Date(2026, 8, 25));

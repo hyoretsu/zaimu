@@ -16,7 +16,7 @@ export const transactionToCreditPurchase = (transaction: Transaction): CreditPur
 	purchaseDate: transaction.date,
 	refund: transaction.refund,
 	refundOfPurchaseId: transaction.refundOfPurchaseId,
-	statementId: transaction.creditCardStatementId ?? "",
+	statementId: transaction.statementId ?? "",
 	storeName: transaction.storeName,
 	tagIds: transaction.tagIds,
 	tags: transaction.tags,

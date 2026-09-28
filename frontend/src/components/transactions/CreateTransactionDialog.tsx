@@ -18,25 +18,24 @@ import { useDialogCloseReset } from "@/hooks/use-dialog-close-reset";
 import type { DebtSplitInput, FinancialAccount, Transaction } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
-import { formatLocalMonthYear, getCurrentLocalTime, getLocalDateKey } from "@/lib/date";
+import { getCurrentLocalTime, getLocalDateKey } from "@/lib/date";
 import { calculateDebtSplit } from "@/lib/debt-split";
 import {
 	compareFinancialAccountsByOptionLabel,
 	getFinancialAccountOptionLabel,
 	getTransactionSourceAccounts,
 } from "@/lib/financial-account";
-import { getPayableCreditCardStatements } from "@/lib/payable-credit-card-statements";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { TransactionDetailsFields } from "./TransactionDetailsFields";
 
 const initialDraft = () => ({
 	amount: "",
-	creditCardStatementId: "",
 	date: getLocalDateKey(),
 	destinationFinancialAccountId: "",
 	isHidden: false,
 	originFinancialAccountId: "",
+	paymentCreditCardId: "",
 	storeName: "",
 	tagIds: [] as string[],
 	time: getCurrentLocalTime(),
@@ -84,8 +83,8 @@ export function CreateTransactionDialog({
 	});
 	const payableStatementsQuery = useQuery({
 		enabled: identity !== null && open && draft.type === "EXPENSE",
-		queryFn: () => getPayableCreditCardStatements(),
-		queryKey: queryKeys.creditCardStatements.payable(identity!),
+		queryFn: () => dataService.creditCards.getAll(),
+		queryKey: queryKeys.creditCards.list(identity!),
 	});
 	const balanceDestinationAccounts =
 		accountsQuery.data
@@ -104,9 +103,7 @@ export function CreateTransactionDialog({
 			: draft.type === "YIELD"
 				? balanceDestinationAccounts
 				: sourceAccounts;
-	const selectedStatement = payableStatementsQuery.data?.find(
-		item => item.statement.id === draft.creditCardStatementId,
-	);
+	const selectedStatement = payableStatementsQuery.data?.find(item => item.id === draft.paymentCreditCardId);
 	const primaryAccountId =
 		draft.type === "INCOME" || draft.type === "YIELD"
 			? (account?.id ?? draft.destinationFinancialAccountId)
@@ -141,7 +138,6 @@ export function CreateTransactionDialog({
 			}
 			const transaction = await dataService.transactions.create({
 				amount,
-				creditCardStatementId: draft.creditCardStatementId || undefined,
 				date: draft.date,
 				debtSplit: isDebt ? debtSplit : undefined,
 				description: description.trim() || undefined,
@@ -151,6 +147,7 @@ export function CreateTransactionDialog({
 						: undefined,
 				isHidden: draft.isHidden,
 				originFinancialAccountId: draft.type === "INCOME" ? undefined : originFinancialAccountId || undefined,
+				paymentCreditCardId: draft.paymentCreditCardId || undefined,
 				storeName: draft.type === "EXPENSE" ? draft.storeName.trim() || undefined : undefined,
 				tagIds: draft.tagIds,
 				time: draft.time || null,
@@ -175,7 +172,7 @@ export function CreateTransactionDialog({
 				draft.type === "YIELD" ? "yield" : "transaction",
 			);
 			toast.success(
-				draft.creditCardStatementId
+				draft.paymentCreditCardId
 					? "Transação associada à fatura."
 					: draft.type === "YIELD"
 						? "Rendimento registrado."
@@ -213,7 +210,6 @@ export function CreateTransactionDialog({
 							if (type === "TRANSFER") setIsDebt(false);
 							setDraft(current => ({
 								...current,
-								creditCardStatementId: type === "EXPENSE" ? current.creditCardStatementId : "",
 								destinationFinancialAccountId:
 									type === "INCOME" || type === "YIELD" || type === "TRANSFER"
 										? type === "INCOME" && current.type === "EXPENSE"
@@ -224,6 +220,7 @@ export function CreateTransactionDialog({
 									type === "INCOME" || type === "YIELD"
 										? ""
 										: current.originFinancialAccountId || account?.id || "",
+								paymentCreditCardId: type === "EXPENSE" ? current.paymentCreditCardId : "",
 								type,
 							}));
 						}}
@@ -238,27 +235,22 @@ export function CreateTransactionDialog({
 					{draft.type === "EXPENSE" ? (
 						<CustomSelect
 							disabled={payableStatementsQuery.isPending}
-							label="Fatura para pagar"
-							onValueChange={creditCardStatementId => {
-								const selectedPayableStatement = payableStatementsQuery.data?.find(
-									item => item.statement.id === creditCardStatementId,
-								);
-								const remainingAmount = selectedPayableStatement?.statement.balanceAmount ?? null;
+							label="Cartão para pagar"
+							onValueChange={paymentCreditCardId => {
 								setDraft(current => ({
 									...current,
-									amount: current.amount || (remainingAmount === null ? "" : remainingAmount.toFixed(2)),
-									creditCardStatementId,
+									paymentCreditCardId,
 								}));
 								setIsDebt(false);
 							}}
-							options={(payableStatementsQuery.data ?? []).map(({ card, statement }) => ({
-								label: `${getCreditCardDisplayName(card)} · ${formatLocalMonthYear(statement.statementDate)} · ${new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(statement.balanceAmount)}`,
-								value: statement.id,
+							options={(payableStatementsQuery.data ?? []).map(card => ({
+								label: getCreditCardDisplayName(card),
+								value: card.id,
 							}))}
-							placeholder="Nenhuma fatura selecionada"
+							placeholder="Nenhum cartão selecionado"
 							searchable
 							sortOptions={false}
-							value={draft.creditCardStatementId}
+							value={draft.paymentCreditCardId}
 						/>
 					) : null}
 					{draft.type !== "TRANSFER" && draft.type !== "YIELD" && !selectedStatement ? (

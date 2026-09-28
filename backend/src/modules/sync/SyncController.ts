@@ -10,6 +10,7 @@ import {
 	replaceEntityTags,
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
+import { recalculateStatementPayments } from "~/modules/creditCards/application/statement-payments";
 import {
 	getDebtSplitReturn,
 	normalizeDebtPersonName,
@@ -22,7 +23,14 @@ import {
 	enqueueAccountYieldRecalculation,
 	enqueueUserYieldRecalculations,
 } from "~/modules/reference-rates/application/reference-rate-jobs";
-import { db, executeStatement, nullableNumeric, queryFirst, queryRows } from "~/shared/infra/sql";
+import {
+	db,
+	executeStatement,
+	nullableNumeric,
+	queryFirst,
+	queryRows,
+	withTransaction,
+} from "~/shared/infra/sql";
 import { SyncBody, SyncReturn } from "./SyncDTO";
 
 type InputEntity = Record<string, unknown>;
@@ -148,7 +156,7 @@ const transactionColumns = [
 	"storeName",
 	"type",
 	"categoryId",
-	"creditCardStatementId",
+	"paymentCreditCardId",
 	"recurrenceId",
 	"recurrenceOccurrenceDate",
 	"salaryId",
@@ -958,7 +966,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 
 			await sync("transactions", body.transactions, async entity => {
 				const id = value<string>(entity, "id");
-				const creditCardStatementId = value<string | undefined>(entity, "creditCardStatementId");
+				const paymentCreditCardId = value<string | undefined>(entity, "paymentCreditCardId");
 				const originFinancialAccountId = value<string | undefined>(entity, "originFinancialAccountId");
 				const destinationFinancialAccountId = value<string | undefined>(
 					entity,
@@ -972,8 +980,8 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 					throw new Error(`Conta de origem ${originFinancialAccountId} indisponível`);
 				if (destinationFinancialAccountId && !accountIds.has(destinationFinancialAccountId))
 					throw new Error(`Conta de destino ${destinationFinancialAccountId} indisponível`);
-				if (creditCardStatementId && !statementIds.has(creditCardStatementId))
-					throw new Error(`Fatura ${creditCardStatementId} indisponível`);
+				if (paymentCreditCardId && !cardIds.has(paymentCreditCardId))
+					throw new Error(`Cartão ${paymentCreditCardId} indisponível`);
 				if (recurrenceId && !recurringIds.has(recurrenceId))
 					throw new Error(`Recorrência ${recurrenceId} indisponível`);
 				if (salaryId && !salaryIds.has(salaryId)) throw new Error(`Salário ${salaryId} indisponível`);
@@ -1010,12 +1018,12 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 							{
 								amount: String(value<number>(entity, "amount")),
 								categoryId: tagIds[0],
-								creditCardStatementId,
 								date: new Date(value<string>(entity, "date")),
 								description: value<string | undefined>(entity, "description"),
 								destinationFinancialAccountId,
 								id,
 								originFinancialAccountId,
+								paymentCreditCardId,
 								recurrenceId,
 								recurrenceOccurrenceDate,
 								salaryId,
@@ -1195,12 +1203,12 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 					amount: f.Transaction.amount,
 					categoryId: f.Transaction.categoryId,
 					createdAt: f.Transaction.createdAt,
-					creditCardStatementId: f.Transaction.creditCardStatementId,
 					date: f.Transaction.date,
 					description: f.Transaction.description,
 					destinationFinancialAccountId: f.Transaction.destinationFinancialAccountId,
 					id: f.Transaction.id,
 					originFinancialAccountId: f.Transaction.originFinancialAccountId,
+					paymentCreditCardId: f.Transaction.paymentCreditCardId,
 					recurrenceId: f.Transaction.recurrenceId,
 					recurrenceOccurrenceDate: f.Transaction.recurrenceOccurrenceDate,
 					salaryId: f.Transaction.salaryId,
@@ -1300,6 +1308,9 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 					transactions.map(transaction => transaction.id),
 				),
 			]);
+
+			if (cardIds.size)
+				await withTransaction(executor => recalculateStatementPayments(executor, [...cardIds]));
 
 			return {
 				serverData: {

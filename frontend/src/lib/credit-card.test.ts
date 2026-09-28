@@ -77,7 +77,7 @@ describe("applyStatementCredits", () => {
 
 		expect(result).toEqual([
 			expect.objectContaining({ balanceAmount: 0, id: "first" }),
-			expect.objectContaining({ balanceAmount: -170, id: "second" }),
+			expect.objectContaining({ balanceAmount: 0, id: "second" }),
 			expect.objectContaining({ balanceAmount: -150, id: "third" }),
 		]);
 	});
@@ -91,7 +91,7 @@ describe("applyStatementCredits", () => {
 
 		expect(result).toEqual([
 			expect.objectContaining({ balanceAmount: 0, id: "september", isPaid: true }),
-			expect.objectContaining({ balanceAmount: -2639.84, id: "october", isPaid: true }),
+			expect.objectContaining({ balanceAmount: 0, id: "october", isPaid: true }),
 			expect.objectContaining({ balanceAmount: -2391.84, id: "november", isPaid: true }),
 		]);
 	});
@@ -120,17 +120,17 @@ describe("calculateCreditCardLimit", () => {
 		});
 	});
 
-	test("ignores overdue statements when calculating the current limit", () => {
+	test("includes overdue debt when calculating the current limit", () => {
 		const statements = [
 			statement("overdue", "2026-08-01", 900, 0),
 			statement("current", "2026-09-01", 100, 200),
 		];
 
 		expect(calculateCreditCardLimit(card, statements, "2026-09-01")).toEqual({
-			availableLimit: 1_100,
-			effectiveLimit: 1_100,
-			temporaryCredit: 100,
-			usedLimit: 0,
+			availableLimit: 200,
+			effectiveLimit: 1_000,
+			temporaryCredit: 0,
+			usedLimit: 800,
 		});
 	});
 

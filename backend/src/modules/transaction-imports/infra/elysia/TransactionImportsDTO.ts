@@ -4,7 +4,6 @@ import { DebtSplitInputDTO } from "~/modules/debts/infra/elysia/DebtSplitsDTO";
 export const TransactionImportItemUpdateDTO = t.Object({
 	amount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
 	categoryId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
-	creditCardStatementId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 	date: t.Optional(t.String()),
 	debtSplit: t.Optional(t.Nullable(DebtSplitInputDTO)),
 	description: t.Optional(t.Nullable(t.String({ maxLength: 1000 }))),
@@ -13,6 +12,7 @@ export const TransactionImportItemUpdateDTO = t.Object({
 	isHidden: t.Optional(t.Boolean()),
 	isSelected: t.Optional(t.Boolean()),
 	originFinancialAccountId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
+	paymentCreditCardId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 	storeName: t.Optional(t.Nullable(t.String({ maxLength: 200 }))),
 	tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }))),
 	time: t.Optional(t.Nullable(t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" }))),

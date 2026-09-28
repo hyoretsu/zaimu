@@ -2,6 +2,7 @@ import Elysia, { t } from "elysia";
 import { getFinancialAccountBalancesAtDates } from "~/modules/accounts/application/get-financial-account-balances";
 import {
 	assertBalanceAccountOwnership,
+	assertCreditCardOwnership,
 	assertDirectOwnership,
 	assertTransactionOwnership,
 	requireUserId,
@@ -12,6 +13,7 @@ import {
 	replaceEntityTags,
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
+import { recalculateStatementPayments } from "~/modules/creditCards/application/statement-payments";
 import { getCreditPurchaseSyncStatus } from "~/modules/creditCards/domain/credit-purchase-sync-status";
 import {
 	deleteCreatorDebtEventForTransaction,
@@ -27,15 +29,7 @@ import { areTransferSuggestionTimesCompatible } from "~/modules/transaction-impo
 import { listTransactionsPage } from "~/modules/transactions/application/list-transactions-page";
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
-import {
-	db,
-	executeStatement,
-	numeric,
-	param,
-	queryFirst,
-	queryRows,
-	withTransaction,
-} from "~/shared/infra/sql";
+import { db, executeStatement, queryFirst, queryRows, withTransaction } from "~/shared/infra/sql";
 
 const transactionColumns = [
 	"id",
@@ -47,7 +41,7 @@ const transactionColumns = [
 	"isHidden",
 	"type",
 	"categoryId",
-	"creditCardStatementId",
+	"paymentCreditCardId",
 	"recurrenceId",
 	"recurrenceOccurrenceDate",
 	"salaryId",
@@ -110,22 +104,8 @@ function resolveTransactionTime(value: string | null | undefined): string | null
 	return new Date().toTimeString().slice(0, 5);
 }
 
-async function adjustCreditCardStatementPaidAmount(statementId: string, amountDifference: number) {
-	const amount = param(numeric<12, 2>(amountDifference), { codecId: "pg/numeric@1" });
-	const statement = await queryFirst(
-		db.sql.public.CreditCardStatement.update((fields, functions) => ({
-			isPaid: functions.raw`
-				${fields.paidAmount} + ${amount} > 0
-				AND ${fields.paidAmount} + ${amount} >= ${fields.totalAmount}
-			`.returns("pg/bool@1"),
-			paidAmount: functions.raw`GREATEST(0, ${fields.paidAmount} + ${amount})`.returns("pg/numeric@1"),
-			updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
-		}))
-			.where((fields, functions) => functions.eq(fields.id, statementId))
-			.returning("id")
-			.build(),
-	);
-	if (!statement) throw new HttpException("Fatura não encontrada", 404);
+async function refreshCardPayments(cardIds: string[]) {
+	await withTransaction(transaction => recalculateStatementPayments(transaction, cardIds));
 }
 
 export const TransactionsController = new Elysia({ prefix: "/transactions" })
@@ -185,9 +165,9 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				await transaction.executeStatement(
 					transaction.db.sql.public.Transaction.update({
 						categoryId: null,
-						creditCardStatementId: null,
 						destinationFinancialAccountId: incomingAccountId,
 						originFinancialAccountId: outgoingAccountId,
+						paymentCreditCardId: null,
 						storeName: null,
 						type: "TRANSFER",
 						updatedAt: new Date(),
@@ -397,11 +377,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			const destinationRewards = db.sql.public.RewardsAccount.select("financialAccountId", "kind").as(
 				"destinationRewards",
 			);
-			const paymentStatement = db.sql.public.CreditCardStatement.select(
-				"id",
-				"creditCardId",
-				"statementDate",
-			).as("paymentStatement");
+
 			const paymentCard = db.sql.public.CreditCard.select("id", "financialAccountId").as("paymentCard");
 			const paymentCardAccount = db.sql.public.FinancialAccount.select("id", "institutionId", "name").as(
 				"paymentCardAccount",
@@ -438,10 +414,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				.outerLeftJoin(destinationRewards, (f, fn) =>
 					fn.eq(f.destination.id, f.destinationRewards.financialAccountId),
 				)
-				.outerLeftJoin(paymentStatement, (f, fn) =>
-					fn.eq(f.Transaction.creditCardStatementId, f.paymentStatement.id),
-				)
-				.outerLeftJoin(paymentCard, (f, fn) => fn.eq(f.paymentStatement.creditCardId, f.paymentCard.id))
+				.outerLeftJoin(paymentCard, (f, fn) => fn.eq(f.Transaction.paymentCreditCardId, f.paymentCard.id))
 				.outerLeftJoin(paymentCardAccount, (f, fn) =>
 					fn.eq(f.paymentCard.financialAccountId, f.paymentCardAccount.id),
 				)
@@ -464,8 +437,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						fn.raw`COALESCE(${f.paymentCardAccount.name}, ${f.paymentCardInstitution.name})`.returns(
 							"sql/varchar@1",
 						),
-					creditCardStatementDate: f.paymentStatement.statementDate,
-					creditCardStatementId: f.Transaction.creditCardStatementId,
+					creditCardStatementDate: fn.raw`NULL::date`.returns("pg/date@1"),
 					date: f.Transaction.date,
 					description: f.Transaction.description,
 					destinationAccountRewardsKind: f.destinationRewards.kind,
@@ -482,6 +454,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					originName: fn.raw`COALESCE(${f.origin.name}, ${f.originInstitution.name})`.returns(
 						"sql/varchar@1",
 					),
+					paymentCreditCardId: f.Transaction.paymentCreditCardId,
 					recurrenceId: f.Transaction.recurrenceId,
 					recurrenceOccurrenceDate: f.Transaction.recurrenceOccurrenceDate,
 					salaryId: f.Transaction.salaryId,
@@ -734,7 +707,6 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 							...purchase,
 							...purchaseSyncStatus.get(purchase.id),
 							amount: purchase.isRefund ? Math.abs(Number(purchase.amount)) : Number(purchase.amount),
-							creditCardStatementId: purchase.statementId,
 							debtSplit: await getDebtSplitReturn(
 								{ creditPurchaseId: purchase.id },
 								Math.abs(Number(purchase.amount)),
@@ -743,6 +715,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 							destinationName: null,
 							hasRefund: !purchase.isRefund && refundsByPurchaseId.has(purchase.id),
 							originName: purchase.sourceName,
+							paymentCreditCardId: null,
 							refund: (() => {
 								const refund = refundsByPurchaseId.get(purchase.id);
 								return refund
@@ -754,6 +727,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 									: undefined;
 							})(),
 							source: "CREDIT_CARD" as const,
+							statementId: purchase.statementId,
 							tagIds: tags.map(tag => tag.id),
 							tags,
 							type: purchase.isRefund ? ("INCOME" as const) : ("EXPENSE" as const),
@@ -908,31 +882,10 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 		"/",
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
-			let statement: { id: string } | undefined;
-			if (body.creditCardStatementId) {
-				if ((body.type ?? "EXPENSE") !== "EXPENSE") {
-					throw new HttpException("Apenas saídas podem pagar uma fatura", 400);
-				}
-				statement = await queryFirst(
-					db.sql.public.CreditCardStatement.innerJoin(db.sql.public.CreditCard, (fields, functions) =>
-						functions.eq(fields.CreditCardStatement.creditCardId, fields.CreditCard.id),
-					)
-						.innerJoin(db.sql.public.FinancialAccount, (fields, functions) =>
-							functions.eq(fields.CreditCard.financialAccountId, fields.FinancialAccount.id),
-						)
-						.select(fields => ({
-							id: fields.CreditCardStatement.id,
-						}))
-						.where((fields, functions) =>
-							functions.and(
-								functions.eq(fields.CreditCardStatement.id, body.creditCardStatementId!),
-								functions.eq(fields.FinancialAccount.userId, userId),
-							),
-						)
-						.limit(1)
-						.build(),
-				);
-				if (!statement) throw new HttpException("Fatura não encontrada", 404);
+			if (body.paymentCreditCardId) {
+				if ((body.type ?? "EXPENSE") !== "EXPENSE")
+					throw new HttpException("Apenas saídas podem pagar um cartão", 400);
+				await assertCreditCardOwnership(body.paymentCreditCardId, userId);
 			}
 			if (body.recurrenceId) await assertDirectOwnership("RecurringPayment", body.recurrenceId, userId);
 			if (body.salaryId) await assertDirectOwnership("Salary", body.salaryId, userId);
@@ -1069,12 +1022,12 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 							{
 								amount: String(body.amount),
 								categoryId: tagIds[0],
-								creditCardStatementId: body.creditCardStatementId,
 								date: new Date(body.date),
 								description: body.description,
 								destinationFinancialAccountId: body.destinationFinancialAccountId,
 								isHidden: body.isHidden ?? false,
 								originFinancialAccountId,
+								paymentCreditCardId: body.paymentCreditCardId,
 								recurrenceId: body.recurrenceId,
 								recurrenceOccurrenceDate,
 								salaryId: body.salaryId,
@@ -1101,9 +1054,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			}
 			if (!transaction) throw new HttpException("Transaction not created", 500);
 			if (wasCreated) {
-				if (statement) {
-					await adjustCreditCardStatementPaidAmount(statement.id, body.amount);
-				}
+				if (body.paymentCreditCardId) await refreshCardPayments([body.paymentCreditCardId]);
 				await replaceEntityTags({
 					entityIds: [transaction.id],
 					entityType: tagEntityType.transaction,
@@ -1150,7 +1101,6 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			body: t.Object({
 				amount: t.Number(),
 				categoryId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
-				creditCardStatementId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				date: t.String(),
 				debtSplit: t.Optional(DebtSplitInputDTO),
 				description: t.Optional(t.String({ maxLength: 1000 })),
@@ -1158,6 +1108,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				isHidden: t.Optional(t.Boolean()),
 				matchDebtEventId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				originFinancialAccountId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
+				paymentCreditCardId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				recurrenceId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				recurrenceOccurrenceDate: t.Optional(t.String()),
 				salaryId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
@@ -1205,31 +1156,12 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					allowPoints: transactionType === "INCOME",
 				});
 			if (
-				(existing.creditCardStatementId || body.creditCardStatementId) &&
+				(existing.paymentCreditCardId || body.paymentCreditCardId) &&
 				(body.type ?? existing.type) !== "EXPENSE"
 			) {
 				throw new HttpException("A transação vinculada à fatura deve ser uma saída", 400);
 			}
-			if (body.creditCardStatementId) {
-				const statement = await queryFirst(
-					db.sql.public.CreditCardStatement.innerJoin(db.sql.public.CreditCard, (fields, functions) =>
-						functions.eq(fields.CreditCardStatement.creditCardId, fields.CreditCard.id),
-					)
-						.innerJoin(db.sql.public.FinancialAccount, (fields, functions) =>
-							functions.eq(fields.CreditCard.financialAccountId, fields.FinancialAccount.id),
-						)
-						.select(fields => ({ id: fields.CreditCardStatement.id }))
-						.where((fields, functions) =>
-							functions.and(
-								functions.eq(fields.CreditCardStatement.id, body.creditCardStatementId!),
-								functions.eq(fields.FinancialAccount.userId, userId),
-							),
-						)
-						.limit(1)
-						.build(),
-				);
-				if (!statement) throw new HttpException("Fatura não encontrada", 404);
-			}
+			if (body.paymentCreditCardId) await assertCreditCardOwnership(body.paymentCreditCardId, userId);
 			if (body.amount !== undefined && body.amount <= 0) {
 				throw new HttpException("Informe um valor maior que zero", 400);
 			}
@@ -1291,8 +1223,8 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					...(body.storeName !== undefined && { storeName: body.storeName }),
 					...(body.isHidden !== undefined && { isHidden: body.isHidden }),
 					...(body.type && { type: body.type }),
-					...(body.creditCardStatementId !== undefined && {
-						creditCardStatementId: body.creditCardStatementId,
+					...(body.paymentCreditCardId !== undefined && {
+						paymentCreditCardId: body.paymentCreditCardId,
 					}),
 					...(body.originFinancialAccountId !== undefined && {
 						originFinancialAccountId: body.originFinancialAccountId,
@@ -1308,22 +1240,14 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					.build(),
 			);
 			if (!transaction) throw new HttpException("Transaction not found", 404);
-			const previousStatementId = existing.creditCardStatementId;
-			const nextStatementId = transaction.creditCardStatementId;
-			if (previousStatementId || nextStatementId) {
-				const statementIds = [
-					...new Set([previousStatementId, nextStatementId].filter((id): id is string => Boolean(id))),
-				];
-				await Promise.all(
-					statementIds.map(statementId =>
-						adjustCreditCardStatementPaidAmount(
-							statementId,
-							(statementId === previousStatementId ? -Number(existing.amount) : 0) +
-								(statementId === nextStatementId ? Number(transaction.amount) : 0),
-						),
+			const changedCards = [
+				...new Set(
+					[existing.paymentCreditCardId, transaction.paymentCreditCardId].filter((id): id is string =>
+						Boolean(id),
 					),
-				);
-			}
+				),
+			];
+			if (changedCards.length) await refreshCardPayments(changedCards);
 			await syncTransactionDebtEvent({
 				amount: Number(transaction.amount),
 				date: transaction.date.toISOString().slice(0, 10),
@@ -1369,7 +1293,6 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			body: t.Object({
 				amount: t.Optional(t.Number()),
 				categoryId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
-				creditCardStatementId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 				date: t.Optional(t.String()),
 				debtSplit: t.Optional(t.Nullable(DebtSplitInputDTO)),
 				description: t.Optional(t.String({ maxLength: 1000 })),
@@ -1377,6 +1300,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				isHidden: t.Optional(t.Boolean()),
 				matchDebtEventId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				originFinancialAccountId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
+				paymentCreditCardId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 				storeName: t.Optional(t.Nullable(t.String({ maxLength: 200 }))),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
 				time: t.Optional(t.Nullable(t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" }))),
@@ -1403,9 +1327,6 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			if (!existing) {
 				throw new HttpException("Transaction not found", 404);
 			}
-			if (existing.creditCardStatementId) {
-				await adjustCreditCardStatementPaidAmount(existing.creditCardStatementId, -Number(existing.amount));
-			}
 
 			await replaceEntityTags({
 				entityIds: [params.id],
@@ -1418,6 +1339,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					.where((f, fn) => fn.eq(f.id, params.id))
 					.build(),
 			);
+			if (existing.paymentCreditCardId) await refreshCardPayments([existing.paymentCreditCardId]);
 			for (const accountId of [existing.originFinancialAccountId, existing.destinationFinancialAccountId])
 				if (accountId)
 					await enqueueAccountYieldRecalculation(

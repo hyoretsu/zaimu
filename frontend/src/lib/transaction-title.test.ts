@@ -28,11 +28,11 @@ describe("getTransactionTitle", () => {
 			getTransactionTitle({
 				creditCardName: "Cartão Inter",
 				creditCardStatementDate: "2026-09-20",
-				creditCardStatementId: "statement-id",
+				paymentCreditCardId: "statement-id",
 				source: "FINANCIAL_ACCOUNT",
 				type: "EXPENSE",
 			}),
-		).toBe("Fatura Cartão Inter - Set/26");
+		).toBe("Pagamento do cartão - Cartão Inter");
 	});
 
 	test("uses Transferência for transfers without a description", () => {

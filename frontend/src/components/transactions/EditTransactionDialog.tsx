@@ -17,14 +17,12 @@ import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { DebtSplitInput, FinancialAccount, Transaction } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
-import { formatLocalMonthYear } from "@/lib/date";
 import { calculateDebtSplit, debtSplitToInput } from "@/lib/debt-split";
 import {
 	compareFinancialAccountsByOptionLabel,
 	getFinancialAccountOptionLabel,
 	getTransactionSourceAccounts,
 } from "@/lib/financial-account";
-import { getPayableCreditCardStatements } from "@/lib/payable-credit-card-statements";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { getUpdatedStoreName } from "@/lib/store-name";
 import { showToast } from "@/stores";
@@ -33,11 +31,11 @@ import { TransactionDetailsFields } from "./TransactionDetailsFields";
 function createDraft(transaction: Transaction) {
 	return {
 		amount: String(transaction.amount),
-		creditCardStatementId: transaction.creditCardStatementId ?? "",
 		date: transaction.date.slice(0, 10),
 		destinationFinancialAccountId: transaction.destinationFinancialAccountId ?? "",
 		isHidden: transaction.isHidden ?? false,
 		originFinancialAccountId: transaction.originFinancialAccountId ?? "",
+		paymentCreditCardId: transaction.paymentCreditCardId ?? "",
 		storeName: transaction.storeName ?? "",
 		tagIds: transaction.tagIds ?? transaction.tags?.map(tag => tag.id) ?? [],
 		time: transaction.time ?? "",
@@ -69,8 +67,8 @@ export function EditTransactionDialog({
 	});
 	const payableStatementsQuery = useQuery({
 		enabled: identity !== null && open && draft?.type === "EXPENSE",
-		queryFn: () => getPayableCreditCardStatements(transaction?.creditCardStatementId),
-		queryKey: queryKeys.creditCardStatements.payable(identity!, transaction?.creditCardStatementId),
+		queryFn: () => dataService.creditCards.getAll(),
+		queryKey: queryKeys.creditCards.list(identity!),
 	});
 
 	useEffect(() => {
@@ -101,13 +99,13 @@ export function EditTransactionDialog({
 			);
 			return dataService.transactions.update(transaction.id, {
 				amount: Number.parseFloat(draft.amount),
-				creditCardStatementId: draft.creditCardStatementId || null,
 				date: draft.date,
 				debtSplit: isDebt ? debtSplit : null,
 				description: description.trim() || undefined,
 				destinationFinancialAccountId: draft.destinationFinancialAccountId || null,
 				isHidden: draft.isHidden,
 				originFinancialAccountId: draft.originFinancialAccountId || null,
+				paymentCreditCardId: draft.paymentCreditCardId || null,
 				...(storeName !== undefined && { storeName }),
 				tagIds: draft.tagIds,
 				time: draft.time || null,
@@ -173,7 +171,6 @@ export function EditTransactionDialog({
 								current
 									? {
 											...current,
-											creditCardStatementId: type === "EXPENSE" ? current.creditCardStatementId : "",
 											destinationFinancialAccountId:
 												type === "INCOME" || type === "TRANSFER"
 													? type === "INCOME" && current.type === "EXPENSE"
@@ -181,6 +178,7 @@ export function EditTransactionDialog({
 														: current.destinationFinancialAccountId
 													: "",
 											originFinancialAccountId: type === "INCOME" ? "" : current.originFinancialAccountId,
+											paymentCreditCardId: type === "EXPENSE" ? current.paymentCreditCardId : "",
 											type,
 										}
 									: current,
@@ -195,31 +193,26 @@ export function EditTransactionDialog({
 					{draft.type === "EXPENSE" ? (
 						<CustomSelect
 							disabled={payableStatementsQuery.isPending}
-							label="Fatura para pagar"
-							onValueChange={creditCardStatementId => {
-								const selected = payableStatementsQuery.data?.find(
-									item => item.statement.id === creditCardStatementId,
-								);
+							label="Cartão para pagar"
+							onValueChange={paymentCreditCardId => {
 								setDraft(current =>
 									current
 										? {
 												...current,
-												amount:
-													current.amount || (selected ? selected.statement.balanceAmount.toFixed(2) : ""),
-												creditCardStatementId,
+												paymentCreditCardId,
 											}
 										: current,
 								);
 								setIsDebt(false);
 							}}
-							options={(payableStatementsQuery.data ?? []).map(({ card, statement }) => ({
-								label: `${getCreditCardDisplayName(card)} · ${formatLocalMonthYear(statement.statementDate)} · ${new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(statement.balanceAmount)}`,
-								value: statement.id,
+							options={(payableStatementsQuery.data ?? []).map(card => ({
+								label: getCreditCardDisplayName(card),
+								value: card.id,
 							}))}
-							placeholder="Nenhuma fatura selecionada"
+							placeholder="Nenhum cartão selecionado"
 							searchable
 							sortOptions={false}
-							value={draft.creditCardStatementId}
+							value={draft.paymentCreditCardId}
 						/>
 					) : null}
 					{draft.type !== "TRANSFER" ? (

@@ -1,52 +1,92 @@
 import { db, numeric, queryRows, type SqlExecutor } from "~/shared/infra/sql";
-import { getPaidAmountsByStatement } from "../domain/statement-payments";
+import { applyStatementCredits } from "../domain/statement-balance";
+import { getPaidAmountsByCard } from "../domain/statement-payments";
+import { getStatementDates } from "./materialize-credit-card-schedules";
 
-const toCents = (amount: number | string) => Math.round(Number(amount) * 100);
-
-export async function withStatementPayments<T extends { id: string; paidAmount: number }>(
-	statements: T[],
-): Promise<T[]> {
+export async function withStatementPayments<
+	T extends { id: string; creditCardId: string; paidAmount: number | string },
+>(statements: T[], executor?: SqlExecutor) {
 	if (!statements.length) return statements;
-	const payments = await queryRows(
-		db.sql.public.Transaction.select("amount", "creditCardStatementId")
-			.where((fields, functions) =>
-				functions.in(
-					fields.creditCardStatementId,
-					statements.map(statement => statement.id),
-				),
-			)
+	const payments = await (executor?.queryRows ?? queryRows)(
+		(executor?.db ?? db).sql.public.Transaction.select("amount", "paymentCreditCardId")
+			.where((f, fn) => fn.in(f.paymentCreditCardId, [...new Set(statements.map(s => s.creditCardId))]))
 			.build(),
 	);
-	const paidByStatement = getPaidAmountsByStatement(payments);
+	const amounts = getPaidAmountsByCard(payments);
+	const seen = new Set<string>();
 	return statements.map(statement => {
-		const paidAmount = (paidByStatement.get(statement.id) ?? 0) / 100;
+		const paidAmount = seen.has(statement.creditCardId)
+			? 0
+			: (amounts.get(statement.creditCardId) ?? 0) / 100;
+		seen.add(statement.creditCardId);
 		return { ...statement, paidAmount };
 	});
 }
 
-export async function recalculateStatementPayments(transaction: SqlExecutor, statementIds: string[]) {
-	if (!statementIds.length) return;
-	const statements = await transaction.queryRows(
-		transaction.db.sql.public.CreditCardStatement.select("id", "paidAmount", "totalAmount")
-			.where((fields, functions) => functions.in(fields.id, statementIds))
+export async function recalculateStatementPayments(transaction: SqlExecutor, cardIds: string[]) {
+	if (!cardIds.length) return;
+	// Serialize recomputation for concurrent payments on the same card.
+	await transaction.executeStatement(
+		transaction.db.sql.public.CreditCard.update({ updatedAt: new Date() })
+			.where((f, fn) => fn.in(f.id, [...new Set(cardIds)].sort()))
 			.build(),
 	);
 	const payments = await transaction.queryRows(
-		transaction.db.sql.public.Transaction.select("amount", "creditCardStatementId")
-			.where((fields, functions) => functions.in(fields.creditCardStatementId, statementIds))
+		transaction.db.sql.public.Transaction.select("paymentCreditCardId", "date")
+			.where((f, fn) => fn.in(f.paymentCreditCardId, cardIds))
 			.build(),
 	);
-	const paidByStatement = getPaidAmountsByStatement(payments);
-	for (const statement of statements) {
-		const paidInCents = paidByStatement.get(statement.id) ?? 0;
-		await transaction.executeStatement(
-			transaction.db.sql.public.CreditCardStatement.update({
-				isPaid: paidInCents > 0 && paidInCents >= toCents(statement.totalAmount),
-				paidAmount: numeric<12, 2>(paidInCents / 100),
-				updatedAt: new Date(),
-			})
-				.where((fields, functions) => functions.eq(fields.id, statement.id))
-				.build(),
+	const cards = await transaction.queryRows(
+		transaction.db.sql.public.CreditCard.select("id", "statementDay", "dueDay")
+			.where((f, fn) => fn.in(f.id, cardIds))
+			.build(),
+	);
+	const existingDates = await transaction.queryRows(
+		transaction.db.sql.public.CreditCardStatement.select("creditCardId", "statementDate")
+			.where((f, fn) => fn.in(f.creditCardId, cardIds))
+			.build(),
+	);
+	const knownDates = new Set(
+		existingDates.map(item => `${item.creditCardId}:${item.statementDate.toISOString().slice(0, 10)}`),
+	);
+	for (const payment of payments) {
+		const card = cards.find(c => c.id === payment.paymentCreditCardId);
+		if (!card) continue;
+		const { dueDate, statementDate } = getStatementDates(
+			card,
+			new Date(`${payment.date.toISOString().slice(0, 10)}T12:00:00`),
 		);
+		const key = `${card.id}:${statementDate.toISOString().slice(0, 10)}`;
+		if (knownDates.has(key)) continue;
+		await transaction.executeStatement(
+			transaction.db.sql.public.CreditCardStatement.insert([
+				{ creditCardId: card.id, dueDate, statementDate, totalAmount: "0" },
+			]).build(),
+		);
+		knownDates.add(key);
 	}
+	const statements = await transaction.queryRows(
+		transaction.db.sql.public.CreditCardStatement.select(
+			"id",
+			"creditCardId",
+			"statementDate",
+			"totalAmount",
+			"paidAmount",
+		)
+			.where((f, fn) => fn.in(f.creditCardId, cardIds))
+			.build(),
+	);
+	const groups = Map.groupBy(await withStatementPayments(statements, transaction), s => s.creditCardId);
+	for (const group of groups.values())
+		for (const statement of applyStatementCredits(group)) {
+			await transaction.executeStatement(
+				transaction.db.sql.public.CreditCardStatement.update({
+					isPaid: statement.isPaid,
+					paidAmount: numeric<12, 2>(statement.paidAmount),
+					updatedAt: new Date(),
+				})
+					.where((f, fn) => fn.eq(f.id, statement.id))
+					.build(),
+			);
+		}
 }

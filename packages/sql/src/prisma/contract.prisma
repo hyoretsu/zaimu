@@ -332,6 +332,8 @@ namespace public {
     creditCardHistories  CreditCardHistory[]
     creditCardStatements CreditCardStatement[]
     creditCardImports    CreditCardImport[]
+    payments Transaction[]
+    importedPayments TransactionImportItem[]
     financialAccount     FinancialAccount      @relation(name: "CreditCard_accountId_fkey", fields: [financialAccountId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditCard_accountId_fkey")
     cashbackAccount      FinancialAccount?     @relation(name: "CreditCard_cashbackAccountId_fkey", fields: [cashbackAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditCard_cashbackAccountId_fkey", index: false)
 
@@ -379,8 +381,6 @@ namespace public {
     createdAt       Timestamp(3)     @default(now())
     updatedAt       Timestamp(3)     @default(now())
     creditPurchases CreditPurchase[]
-    payments        Transaction[]
-    importedPayments TransactionImportItem[]
     creditCard      CreditCard       @relation(fields: [creditCardId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditCardStatement_creditCardId_fkey", index: false)
 
     @@index([creditCardId, statementDate], map: "CreditCardStatement_creditCardId_statementDate_key", unique: true)
@@ -867,7 +867,7 @@ namespace public {
     salaryOccurrenceDate          Date?
     subscriptionId                VarChar(36)?
     subscriptionOccurrenceDate    Date?
-    creditCardStatementId         VarChar(36)?
+    paymentCreditCardId         VarChar(36)?
     originFinancialAccountId      VarChar(36)?
     destinationFinancialAccountId VarChar(36)?
     createdAt                     Timestamp(3)             @default(now())
@@ -876,7 +876,7 @@ namespace public {
     debtTransactionLinks          DebtTransactionLink[]
     debtSplit                     DebtSplit?
     category                      Category?                @relation(fields: [categoryId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_categoryId_fkey", index: false)
-    creditCardStatement           CreditCardStatement?     @relation(fields: [creditCardStatementId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_creditCardStatementId_fkey", index: false)
+    paymentCreditCard             CreditCard?     @relation(fields: [paymentCreditCardId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_paymentCreditCardId_fkey", index: false)
     destinationFinancialAccount   FinancialAccount?        @relation(name: "Transaction_destinationId_fkey", fields: [destinationFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_destinationId_fkey", index: false)
     originFinancialAccount        FinancialAccount?        @relation(name: "Transaction_originId_fkey", fields: [originFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_originId_fkey", index: false)
     recurrence                    RecurringPayment?        @relation(fields: [recurrenceId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_recurrenceId_fkey", index: false)
@@ -891,7 +891,7 @@ namespace public {
     @@index([recurrenceId, recurrenceOccurrenceDate], map: "Transaction_recurrenceId_occurrenceDate_key", unique: true)
     @@index([salaryId, salaryOccurrenceDate], map: "Transaction_salaryId_occurrenceDate_key", unique: true)
     @@index([subscriptionId, subscriptionOccurrenceDate], map: "Transaction_subscriptionId_occurrenceDate_key", unique: true)
-    @@index([creditCardStatementId], map: "Transaction_creditCardStatementId_idx")
+    @@index([paymentCreditCardId], map: "Transaction_paymentCreditCardId_idx")
     @@index([userId, date, createdAt, id], map: "Transaction_userId_date_createdAt_id_idx")
     @@index([userId, originFinancialAccountId, date, id], map: "Transaction_userId_origin_date_id_idx")
     @@index([userId, destinationFinancialAccountId, date, id], map: "Transaction_userId_destination_date_id_idx")
@@ -992,7 +992,7 @@ namespace public {
     storeName           VarChar(200)?
     type                pg.enum(TransactionImportItemType)
     categoryId          VarChar(36)?
-    creditCardStatementId         VarChar(36)?
+    paymentCreditCardId         VarChar(36)?
     originFinancialAccountId      VarChar(36)?
     destinationFinancialAccountId VarChar(36)?
     isHidden            Boolean                  @default(false)
@@ -1006,7 +1006,7 @@ namespace public {
     updatedAt           Timestamp(3)             @default(now())
     transactionImport   TransactionImport         @relation(fields: [transactionImportId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionImportItem_importId_fkey", index: false)
     category            Category?                 @relation(fields: [categoryId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "TransactionImportItem_categoryId_fkey", index: false)
-    creditCardStatement  CreditCardStatement?      @relation(fields: [creditCardStatementId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "TransactionImportItem_creditCardStatementId_fkey", index: false)
+    paymentCreditCard    CreditCard?      @relation(fields: [paymentCreditCardId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "TransactionImportItem_paymentCreditCardId_fkey", index: false)
     originFinancialAccount FinancialAccount?      @relation(name: "TransactionImportItem_originId_fkey", fields: [originFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "TransactionImportItem_originId_fkey", index: false)
     destinationFinancialAccount FinancialAccount? @relation(name: "TransactionImportItem_destinationId_fkey", fields: [destinationFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "TransactionImportItem_destinationId_fkey", index: false)
     reconciledTransaction Transaction? @relation(name: "TransactionImportItem_reconciledTransactionId_fkey", fields: [reconciledTransactionId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "TransactionImportItem_reconciledTransactionId_fkey", index: false)
@@ -1016,7 +1016,7 @@ namespace public {
 
     @@index([transactionImportId, date], map: "TransactionImportItem_importId_date_idx")
     @@index([externalId], map: "TransactionImportItem_externalId_idx")
-    @@index([creditCardStatementId], map: "TransactionImportItem_creditCardStatementId_idx")
+    @@index([paymentCreditCardId], map: "TransactionImportItem_paymentCreditCardId_idx")
     @@index([originFinancialAccountId], map: "TransactionImportItem_originId_idx")
     @@index([destinationFinancialAccountId], map: "TransactionImportItem_destinationId_idx")
     @@index([reconciledTransactionId], map: "TransactionImportItem_reconciledTransactionId_idx")

@@ -795,7 +795,7 @@ suite("Prisma 8 SQL query builder", () => {
 			.toSorted((left, right) => left.statementDate.localeCompare(right.statementDate))[0]!;
 		expect(statementToPay.totalAmount).toBe(49.95);
 		const statementPaymentResponse = await jsonRequest(
-			`/credit-cards/${cardAccount.creditCard.id}/statements/${statementToPay.id}/pay`,
+			`/credit-cards/${cardAccount.creditCard.id}/payments`,
 			"POST",
 			{
 				amount: 60,
@@ -807,22 +807,19 @@ suite("Prisma 8 SQL query builder", () => {
 		);
 		expect(statementPaymentResponse.status).toBe(200);
 		const statementPayment = (await statementPaymentResponse.json()) as {
-			statement: { isPaid: boolean; paidAmount: number };
 			transaction: {
 				amount: number;
-				creditCardStatementId: string;
+				paymentCreditCardId: string;
 				description: string;
 				id: string;
 				time: string;
 				type: string;
 			};
 		};
-		expect(statementPayment.statement.paidAmount).toBe(60);
-		expect(statementPayment.statement.isPaid).toBeTrue();
 		expect(statementPayment.transaction).toMatchObject({
 			amount: 60,
-			creditCardStatementId: statementToPay.id,
-			description: expect.stringContaining("Pagamento da fatura"),
+			description: "Pagamento do cartão",
+			paymentCreditCardId: cardAccount.creditCard.id,
 			time: expect.stringMatching(/^18:45/),
 			type: "EXPENSE",
 		});
@@ -839,7 +836,7 @@ suite("Prisma 8 SQL query builder", () => {
 			),
 		).toMatchObject({
 			creditCardName: cardAccountName,
-			creditCardStatementDate: statementToPay.statementDate,
+			creditCardStatementDate: null,
 		});
 		const paidStatementDetailResponse = await jsonRequest(
 			`/credit-cards/${cardAccount.creditCard.id}/statements/${statementToPay.id}`,
@@ -851,8 +848,25 @@ suite("Prisma 8 SQL query builder", () => {
 			payments: Array<{ amount: number; id: string }>;
 		};
 		expect(paidStatementDetailResponse.status).toBe(200);
-		expect(paidStatementDetail.payments).toEqual(
-			expect.arrayContaining([expect.objectContaining({ amount: 60, id: statementPayment.transaction.id })]),
+		expect(paidStatementDetail.payments).toEqual([]);
+		const paymentCycle = (
+			(await (
+				await jsonRequest(
+					`/credit-cards/${cardAccount.creditCard.id}/statements`,
+					"GET",
+					undefined,
+					owner.cookie,
+				)
+			).json()) as Array<{ id: string; statementDate: string }>
+		).find(item => item.statementDate.startsWith("2026-09"));
+		const paymentCycleDetail = await jsonRequest(
+			`/credit-cards/${cardAccount.creditCard.id}/statements/${paymentCycle!.id}`,
+			"GET",
+			undefined,
+			owner.cookie,
+		);
+		expect(((await paymentCycleDetail.json()) as { payments: Array<{ id: string }> }).payments).toEqual(
+			expect.arrayContaining([expect.objectContaining({ id: statementPayment.transaction.id })]),
 		);
 		const openStatementsResponse = await jsonRequest(
 			`/credit-cards/${cardAccount.creditCard.id}/statements?isPaid=false`,
@@ -871,9 +885,9 @@ suite("Prisma 8 SQL query builder", () => {
 			"PATCH",
 			{
 				amount: 40,
-				creditCardStatementId: statementToPay.id,
 				date: "2026-08-24",
 				originFinancialAccountId: account.id,
+				paymentCreditCardId: cardAccount.creditCard.id,
 				time: "20:15",
 			},
 			owner.cookie,
@@ -895,17 +909,7 @@ suite("Prisma 8 SQL query builder", () => {
 			paidAmount: number;
 			payments: Array<{ amount: number; date: string; id: string; time: string }>;
 		};
-		expect(statementAfterPaymentEdit).toMatchObject({ isPaid: false, paidAmount: 40 });
-		expect(statementAfterPaymentEdit.payments).toEqual(
-			expect.arrayContaining([
-				expect.objectContaining({
-					amount: 40,
-					date: expect.stringContaining("2026-08-24"),
-					id: statementPayment.transaction.id,
-					time: expect.stringMatching(/^20:15/),
-				}),
-			]),
-		);
+		expect(statementAfterPaymentEdit).toMatchObject({ isPaid: false, paidAmount: 40, payments: [] });
 		const concurrentPayments = await Promise.all(
 			[10, 20].map(amount =>
 				jsonRequest(
@@ -913,9 +917,9 @@ suite("Prisma 8 SQL query builder", () => {
 					"POST",
 					{
 						amount,
-						creditCardStatementId: statementToPay.id,
 						date: "2026-08-25",
 						originFinancialAccountId: account.id,
+						paymentCreditCardId: cardAccount.creditCard.id,
 						type: "EXPENSE",
 					},
 					owner.cookie,
@@ -931,7 +935,7 @@ suite("Prisma 8 SQL query builder", () => {
 				owner.cookie,
 			)
 		).json()) as { paidAmount: number };
-		expect(statementAfterConcurrentPayments.paidAmount).toBe(70);
+		expect(statementAfterConcurrentPayments.paidAmount).toBe(49.95);
 
 		const lifecycleCases = [
 			{

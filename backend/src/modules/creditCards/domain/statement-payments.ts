@@ -1,13 +1,13 @@
-export function getPaidAmountsByStatement(
-	payments: Array<{ amount: number | string; creditCardStatementId: string | null }>,
+export function getPaidAmountsByCard(
+	payments: Array<{ amount: number | string; paymentCreditCardId: string | null }>,
 ) {
-	const paidByStatement = new Map<string, number>();
+	const paidByCard = new Map<string, number>();
 	for (const payment of payments) {
-		if (!payment.creditCardStatementId) continue;
-		paidByStatement.set(
-			payment.creditCardStatementId,
-			(paidByStatement.get(payment.creditCardStatementId) ?? 0) + Math.round(Number(payment.amount) * 100),
+		if (!payment.paymentCreditCardId) continue;
+		paidByCard.set(
+			payment.paymentCreditCardId,
+			(paidByCard.get(payment.paymentCreditCardId) ?? 0) + Math.round(Number(payment.amount) * 100),
 		);
 	}
-	return paidByStatement;
+	return paidByCard;
 }

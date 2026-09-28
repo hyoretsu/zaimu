@@ -125,7 +125,7 @@ const relationshipIds = [
 	"originFinancialAccountId",
 	"destinationFinancialAccountId",
 	"creditCardId",
-	"creditCardStatementId",
+	"paymentCreditCardId",
 	"debtPersonId",
 	"loanId",
 ] as const;
