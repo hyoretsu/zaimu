@@ -23,7 +23,7 @@
 ## Progresso
 
 - [x] Modelo/cálculos compartilhados, testes de invariantes e transformação determinística dos registros legados.
-- [ ] Schema e migração SQL com preservação de referências e verificação em PostgreSQL descartável local.
+- [x] Schema e migração SQL com preservação de referências e verificação em PostgreSQL descartável local.
 - [ ] Serviços transacionais, política institucional imutável, endpoints novos e reconstrução de faturas.
 - [ ] IndexedDB, modo visitante e sync no contrato normalizado.
 - [ ] UI de parcelas/reembolsos, edição atômica e filtros/relatórios.
@@ -52,3 +52,5 @@
 - Migração de backfill aplicada com dados de exemplo em PostgreSQL descartável local: 1 migração, 10 operações. Sete testes SQL passaram, incluindo preservação das referências/dados, equivalência com transformação compartilhada, meses curtos, rejeição de dados inválidos e rollback após falha tardia. Nenhum banco remoto acessado.
 
 - Agregado compartilhado de cartão concluído: planos completos, ocorrências somente devidas, metadados herdados, reembolsos múltiplos com tombstones, replay e distribuição proporcional cumulativa de rateios em centavos. Cinco testes novos passaram. Integração ativa continua pendente.
+
+- Cutover SQL criado e validado: referências estáveis remapeadas antes da remoção do legado, flags de quitação e calendários importados preservados, metadados herdados pela projeção somente leitura CreditEntry. Constraints diferidas conferem plano, limite de restituição e titularidade; política institucional imutável no banco. Cadeia completa de 69 migrações e três testes de remapeamento/rollback passaram em PostgreSQL descartável local. Callers ativos ainda em adaptação.

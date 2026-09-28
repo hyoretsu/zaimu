@@ -33,7 +33,6 @@ namespace public {
     transactionImportTransferSuggestionRejections TransactionImportTransferSuggestionRejection[]
     transactionTransferSuggestionRejections TransactionTransferSuggestionRejection[]
     transactions      Transaction[]
-    creditPurchases   CreditPurchase[]
     normalizedCreditPurchases CreditPurchaseRecord[]
     authAccounts      AuthAccount[]
     sessions          Session[]
@@ -121,7 +120,6 @@ namespace public {
     parentId          VarChar(36)?
     createdAt         Timestamp(3)       @default(now())
     updatedAt         Timestamp(3)       @default(now())
-    creditPurchases   CreditPurchase[]
     creditCardImportItems CreditCardImportItem[]
     normalizedCreditPurchases CreditPurchaseRecord[]
     recurringPayments RecurringPayment[]
@@ -181,11 +179,11 @@ namespace public {
     updatedAt               Timestamp(3)                  @default(now())
     creditCards             CreditCard[]                     @relation(name: "CreditCard_accountId_fkey")
     cashbackCreditCards     CreditCard[]                     @relation(name: "CreditCard_cashbackAccountId_fkey")
-    cashbackPurchases       CreditPurchase[]                 @relation(name: "CreditPurchase_cashbackAccountId_fkey")
     yields                  FinancialAccountYield[]
     balanceAdjustments      BalanceAdjustment[]
     yieldRateHistories      FinancialAccountYieldRateHistory[]
     loanPayments            LoanPayment[]
+    purchaseCashback        CreditPurchaseRecord[] @relation("PurchaseCashback")
     rewardsAccount          RewardsAccount?
     salaries                Salary[]
     recurringPayments       RecurringPayment[]
@@ -385,7 +383,6 @@ namespace public {
     isFullySynced   Boolean          @default(false)
     createdAt       Timestamp(3)     @default(now())
     updatedAt       Timestamp(3)     @default(now())
-    creditPurchases CreditPurchase[]
     normalizedInstallments CreditInstallmentRecord[]
     normalizedRefunds CreditRefundRecord[]
     statementCharges CreditStatementCharge[]
@@ -396,67 +393,7 @@ namespace public {
     @@map("CreditCardStatement")
   }
 
-  model CreditPurchase {
-    id                      VarChar(36)             @id(map: "CreditPurchase_pkey") @default(dbgenerated("cuid2()"))
-    userId                  VarChar(36)
-    statementId             VarChar(36)
-    description             VarChar(500)
-    storeName               VarChar(200)?
-    feeDescription          VarChar(100)?
-    feeAmount               Numeric(12, 2)?
-    totalAmount             Numeric(12, 2)
-    installments            SmallInt                @default(1)
-    currentInstallment      SmallInt                @default(1)
-    installmentAmount       Numeric(12, 2)
-    hasImportedAmount       Boolean                 @default(false)
-    isStatementCharge       Boolean                 @default(false)
-    purchaseDate            Date
-    time                    Time(3)?
-    categoryId              VarChar(36)?
-    parentId                VarChar(36)?
-		refundOfPurchaseId      VarChar(36)?
-		isRefund                Boolean                 @default(false)
-		settledByPurchaseId     VarChar(36)?
-		isSettled               Boolean                 @default(false)
-		refinancingFeeAmount    Numeric(12, 2)?
-		cashbackAccountId       VarChar(36)?
-		cashbackAmount          Numeric(18, 4)?
-		cashbackYieldReferenceRate       Numeric(7, 4)?
-		cashbackYieldReferencePercentage Numeric(7, 4)?
-		cashbackYieldPeriod              pg.enum(CashbackYieldPeriod)?
-		subscriptionId          VarChar(36)?
-    subscriptionOccurrenceDate Date?
-    externalId              VarChar(200)?
-    createdAt               Timestamp(3)            @default(now())
-    updatedAt               Timestamp(3)            @default(now())
-    creditPurchaseHistories CreditPurchaseHistory[]
-    debtPurchaseLinks       DebtPurchaseLink[]
-    debtSplit               DebtSplit?
-    reconciledImportItems   CreditCardImportItem[] @relation(name: "CreditCardImportItem_reconciledCreditPurchaseId_fkey")
-    category                Category?               @relation(fields: [categoryId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditPurchase_categoryId_fkey", index: false)
-    parent                  CreditPurchase?         @relation(name: "CreditPurchase_parentId_fkey", fields: [parentId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditPurchase_parentId_fkey", index: false)
-    creditPurchases         CreditPurchase[]        @relation(name: "CreditPurchase_parentId_fkey")
-		refundOfPurchase        CreditPurchase?         @relation(name: "CreditPurchase_refundOfPurchaseId_fkey", fields: [refundOfPurchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditPurchase_refundOfPurchaseId_fkey", index: false)
-		refunds                 CreditPurchase[]        @relation(name: "CreditPurchase_refundOfPurchaseId_fkey")
-		settledByPurchase       CreditPurchase?         @relation(name: "CreditPurchase_settledByPurchaseId_fkey", fields: [settledByPurchaseId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditPurchase_settledByPurchaseId_fkey", index: false)
-		settledPurchases        CreditPurchase[]        @relation(name: "CreditPurchase_settledByPurchaseId_fkey")
-    cashbackAccount         FinancialAccount?       @relation(name: "CreditPurchase_cashbackAccountId_fkey", fields: [cashbackAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditPurchase_cashbackAccountId_fkey", index: false)
-    statement               CreditCardStatement     @relation(fields: [statementId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditPurchase_statementId_fkey", index: false)
-		user                    User                    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditPurchase_userId_fkey", index: false)
-		subscription            Subscription?           @relation(fields: [subscriptionId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditPurchase_subscriptionId_fkey", index: false)
-
-		@@index([subscriptionId, subscriptionOccurrenceDate], map: "CreditPurchase_subscriptionId_occurrenceDate_key", unique: true)
-		@@index([cashbackAccountId], map: "CreditPurchase_cashbackAccountId_idx")
-		@@index([settledByPurchaseId], map: "CreditPurchase_settledByPurchaseId_idx")
-		@@index([refundOfPurchaseId], map: "CreditPurchase_refundOfPurchaseId_idx")
-		@@index([externalId], map: "CreditPurchase_externalId_key", unique: true)
-		@@index([userId, purchaseDate, createdAt, id], map: "CreditPurchase_userId_purchaseDate_createdAt_id_idx")
-		@@index([statementId, purchaseDate, id], map: "CreditPurchase_statementId_purchaseDate_id_idx")
-
-    @@map("CreditPurchase")
-  }
-
-  // Additive normalized storage. Legacy CreditPurchase remains until reference remapping.
+  // Canonical purchases and their independent invoice occurrences.
   model CreditPurchaseRecord {
     id                   VarChar(36) @id(map: "CreditPurchaseRecord_pkey")
     userId               VarChar(36)
@@ -468,6 +405,7 @@ namespace public {
     totalAmount          Numeric(12, 2)
     feeDescription       VarChar(100)?
     feeAmount            Numeric(12, 2)?
+    refinancingFeeAmount Numeric(12, 2)?
     categoryId           VarChar(36)?
     cashbackAccountId    VarChar(36)?
     cashbackAmount       Numeric(18, 4)?
@@ -483,8 +421,13 @@ namespace public {
     creditCard           CreditCard @relation(fields: [creditCardId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditPurchaseRecord_creditCardId_fkey", index: false)
     category             Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditPurchaseRecord_categoryId_fkey", index: false)
     installmentPlan      CreditInstallmentPlan[]
-    installments         CreditInstallmentRecord[]
+    installments         CreditInstallmentRecord[] @relation("PurchaseInstallments")
     refunds              CreditRefundRecord[]
+    entryReferences      CreditEntryReference[]
+    settledInstallments  CreditInstallmentRecord[] @relation("SettledInstallments")
+    settledCharges       CreditStatementCharge[] @relation("SettledCharges")
+    cashbackAccount      FinancialAccount? @relation("PurchaseCashback", fields: [cashbackAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditPurchaseRecord_cashbackAccountId_fkey", index: false)
+    subscription         Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditPurchaseRecord_subscriptionId_fkey", index: false)
     legacyEntries        CreditPurchaseLegacyEntry[]
 
     @@index([userId, purchaseDate, createdAt, id], map: "CreditPurchaseRecord_userId_date_idx")
@@ -500,6 +443,8 @@ namespace public {
     number           SmallInt
     amount           Numeric(12, 2)
     hasImportedAmount Boolean @default(false)
+    statementDate     Date?
+    dueDate           Date?
     createdAt        Timestamp(3) @default(now())
     updatedAt        Timestamp(3) @default(now())
     purchase         CreditPurchaseRecord @relation(fields: [purchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditInstallmentPlan_purchaseId_fkey", index: false)
@@ -517,9 +462,12 @@ namespace public {
     occurrenceDate        Date
     hasImportedAmount     Boolean @default(false)
     settledByPurchaseId   VarChar(36)?
+    isSettled             Boolean @default(false)
+    settledByPurchase     CreditPurchaseRecord? @relation("SettledInstallments", fields: [settledByPurchaseId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditInstallmentRecord_settledByPurchaseId_fkey", index: false)
+    entryReference        CreditEntryReference? @relation("EntryInstallment")
     createdAt             Timestamp(3) @default(now())
     updatedAt             Timestamp(3) @default(now())
-    purchase              CreditPurchaseRecord @relation(fields: [purchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditInstallmentRecord_purchaseId_fkey", index: false)
+    purchase              CreditPurchaseRecord @relation("PurchaseInstallments", fields: [purchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditInstallmentRecord_purchaseId_fkey", index: false)
     statement             CreditCardStatement @relation(fields: [statementId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditInstallmentRecord_statementId_fkey", index: false)
 
     legacyEntry           CreditPurchaseLegacyEntry? @relation("LegacyInstallment")
@@ -536,6 +484,9 @@ namespace public {
     creditDate           Date
     amount               Numeric(12, 2)
     policy               pg.enum(CreditRefundPolicy)
+    time                 Time(3)?
+    externalId           VarChar(200)? @unique(map: "CreditRefundRecord_externalId_key")
+    entryReference       CreditEntryReference? @relation("EntryRefund")
     cancellationEligible Boolean @default(false)
     deletedAt            Timestamp(3)?
     createdAt            Timestamp(3) @default(now())
@@ -556,6 +507,11 @@ namespace public {
     description VarChar(500)
     amount      Numeric(12, 2)
     chargeDate  Date
+    time        Time(3)?
+    externalId  VarChar(200)? @unique(map: "CreditStatementCharge_externalId_key")
+    settledByPurchaseId VarChar(36)?
+    settledByPurchase CreditPurchaseRecord? @relation("SettledCharges", fields: [settledByPurchaseId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditStatementCharge_settledByPurchaseId_fkey", index: false)
+    entryReference CreditEntryReference? @relation("EntryCharge")
     isSettled   Boolean @default(false)
     createdAt   Timestamp(3) @default(now())
     updatedAt   Timestamp(3) @default(now())
@@ -588,6 +544,27 @@ namespace public {
     @@map("CreditPurchaseLegacyEntry")
   }
 
+  // Stable reference for history, debt events and bank reconciliation, including reviewed credits.
+  model CreditEntryReference {
+    id             VarChar(36) @id(map: "CreditEntryReference_pkey")
+    purchaseId     VarChar(36)?
+    installmentId  VarChar(36)? @unique(map: "CreditEntryReference_installmentId_key")
+    refundId       VarChar(36)? @unique(map: "CreditEntryReference_refundId_key")
+    chargeId       VarChar(36)? @unique(map: "CreditEntryReference_chargeId_key")
+    requiresRefundReview Boolean @default(false)
+    purchase       CreditPurchaseRecord? @relation(fields: [purchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditEntryReference_purchaseId_fkey", index: false)
+    installment    CreditInstallmentRecord? @relation("EntryInstallment", fields: [installmentId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditEntryReference_installmentId_fkey", index: false)
+    refund         CreditRefundRecord? @relation("EntryRefund", fields: [refundId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditEntryReference_refundId_fkey", index: false)
+    charge         CreditStatementCharge? @relation("EntryCharge", fields: [chargeId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditEntryReference_chargeId_fkey", index: false)
+    histories      CreditPurchaseHistory[]
+    debtLinks      DebtPurchaseLink[]
+    debtSplit      DebtSplit?
+    importItems    CreditCardImportItem[] @relation("CreditCardImportItem_reconciledCreditPurchaseId_fkey")
+
+    @@index([purchaseId], map: "CreditEntryReference_purchaseId_idx")
+    @@map("CreditEntryReference")
+  }
+
   model CreditPurchaseHistory {
     id               VarChar(36)    @id(map: "CreditPurchaseHistory_pkey") @default(dbgenerated("cuid2()"))
     creditPurchaseId VarChar(36)
@@ -595,7 +572,7 @@ namespace public {
     oldValue         String?
     newValue         String?
     changedAt        Timestamp(3)   @default(now())
-    creditPurchase   CreditPurchase @relation(fields: [creditPurchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditPurchaseHistory_creditPurchaseId_fkey", index: false)
+    creditPurchase   CreditEntryReference @relation(fields: [creditPurchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditPurchaseHistory_creditPurchaseId_fkey", index: false)
 
     @@map("CreditPurchaseHistory")
   }
@@ -737,7 +714,7 @@ namespace public {
     createdAt        Timestamp(3)   @default(now())
     updatedAt        Timestamp(3)   @default(now())
     event            DebtEvent      @relation(fields: [eventId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtPurchaseLink_eventId_fkey", index: false)
-    creditPurchase   CreditPurchase @relation(fields: [creditPurchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtPurchaseLink_creditPurchaseId_fkey", index: false)
+    creditPurchase   CreditEntryReference @relation(fields: [creditPurchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtPurchaseLink_creditPurchaseId_fkey", index: false)
     user             User           @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtPurchaseLink_userId_fkey", index: false)
 
     @@index([eventId, userId], map: "DebtPurchaseLink_eventId_userId_key", unique: true)
@@ -765,7 +742,7 @@ namespace public {
     transaction        Transaction?            @relation(fields: [transactionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_transactionId_fkey", index: false)
     transactionImportItem TransactionImportItem? @relation(fields: [transactionImportItemId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_transactionImportItemId_fkey", index: false)
     creditCardImportItem CreditCardImportItem?  @relation(fields: [creditCardImportItemId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_creditCardImportItemId_fkey", index: false)
-    creditPurchase     CreditPurchase?         @relation(fields: [creditPurchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_creditPurchaseId_fkey", index: false)
+    creditPurchase     CreditEntryReference?         @relation(fields: [creditPurchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_creditPurchaseId_fkey", index: false)
     subscription       Subscription?           @relation(fields: [subscriptionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_subscriptionId_fkey", index: false)
     recurringPayment   RecurringPayment?       @relation(fields: [recurringPaymentId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_recurringPaymentId_fkey", index: false)
     participants       DebtSplitParticipant[]
@@ -968,7 +945,7 @@ namespace public {
     updatedAt             Timestamp(3)                 @default(now())
     subscriptionHistories SubscriptionHistory[]
     transactions          Transaction[]
-		creditPurchases       CreditPurchase[]
+    normalizedPurchases   CreditPurchaseRecord[]
     debtSplit             DebtSplit?
     user                  User                         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Subscription_userId_fkey", index: false)
     financialAccount      FinancialAccount?            @relation(fields: [financialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Subscription_financialAccountId_fkey", index: false)
@@ -1096,7 +1073,7 @@ namespace public {
     creditCardImport   CreditCardImport @relation(fields: [creditCardImportId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditCardImportItem_importId_fkey", index: false)
     category           Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditCardImportItem_categoryId_fkey", index: false)
     debtSplit          DebtSplit?
-    reconciledCreditPurchase CreditPurchase? @relation(name: "CreditCardImportItem_reconciledCreditPurchaseId_fkey", fields: [reconciledCreditPurchaseId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditCardImportItem_reconciledCreditPurchaseId_fkey", index: false)
+    reconciledCreditPurchase CreditEntryReference? @relation(name: "CreditCardImportItem_reconciledCreditPurchaseId_fkey", fields: [reconciledCreditPurchaseId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditCardImportItem_reconciledCreditPurchaseId_fkey", index: false)
 
     @@index([creditCardImportId, purchaseDate], map: "CreditCardImportItem_importId_purchaseDate_idx")
     @@index([externalId], map: "CreditCardImportItem_externalId_idx")
