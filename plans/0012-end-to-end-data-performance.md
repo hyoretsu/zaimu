@@ -145,7 +145,7 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
   - [x] Migrar taxas de referência e recálculos de rendimento.
   - [x] Drenar e remover `ReferenceRateJob` e worker PostgreSQL antigo.
 - [ ] 8. Demais domínios
-  - [ ] Otimizar dashboard e contas.
+  - [x] Otimizar dashboard e contas.
   - [ ] Otimizar dívidas e invalidação entre usuários. (resumo, eventos lazy e invalidação concluídos; convites ainda carregam previews completos)
   - [ ] Otimizar empréstimos, históricos, categorias, lojas e rendimentos.
   - [ ] Integrar eventos consolidados do sync.
@@ -228,4 +228,12 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Invalidação multiusuário cobre resumo e páginas de eventos para todos os participantes conectados; previews lazy de convites permanecem pendentes.
 - Empréstimos agora agregam parcelas, total pago e saldo principal numa única consulta, com cache e zero SQL em hit.
 - Payoff antecipado passou a consultar apenas a contagem paga; adiantamento atualiza parcelas em lote e histórico usa cursor opaco.
+- Próxima etapa: concluir previews de convites, detalhes de empréstimos e catálogos.
+
+### 2026-09-28
+
+- Dashboard passou a carregar visão geral, agendas, fluxos agregados e saldos em quatro consultas usando um único cliente do pool.
+- Consultas deixaram de hidratar 100 mil transações, eventos de dívida, pagamentos e compras completas para montar o primeiro render.
+- Fluxos são agregados por dia no PostgreSQL; saldos usam checkpoints, movimentações e rendimentos set-based somente nas datas necessárias.
+- Leitura local caiu para 415 ms com 16 datas de saldo, mantendo cache distribuído e ETag; medição com 100 mil lançamentos segue bloqueada pelo fixture incompatível com constraints atuais.
 - Próxima etapa: concluir previews de convites, detalhes de empréstimos e catálogos.
