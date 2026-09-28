@@ -69,3 +69,19 @@ Cartão pode recompensar por percentual de cashback em dinheiro ou por pontos ga
 Conta de recompensas guarda saldo na unidade escolhida: pontos ou reais de cashback. Transações de entrada podem creditar diretamente qualquer uma dessas contas; pontos e cashback não podem ser destino de transferências. Conta de pontos pode declarar opcionalmente uma conversão completa no formato `X pontos = Y reais`; os dois valores devem existir juntos e ser positivos. A conversão serve apenas para exibir equivalente monetário: saldo continua armazenado em pontos. Sem conversão, pontos nunca entram em totais monetários. Cashback em reais entra nesses totais pelo valor nominal.
 
 Rendimento de cashback é opcional e pós-fixado: exige taxa de referência manual positiva, percentual positivo sobre essa taxa e periodicidade mensal ou anual, sem parcela fixa. Cada recompensa rende de forma composta após períodos completos desde a data da compra, usando o snapshot da regra vigente quando foi criada.
+
+## Compras, parcelas e reembolsos normalizados
+
+A compra concentra valor total original, estabelecimento, categoria e tags. Parcelas e reembolsos herdam esses metadados. O plano conserva valores e calendários importados, enquanto somente parcelas devidas viram registros concretos. Inicialização e processamento periódico retomam a materialização de forma idempotente, inclusive no modo visitante.
+
+Uma compra admite vários reembolsos parciais. A soma das restituições ativas nunca supera o total original; validação ocorre em centavos na mesma transação que reconstrói faturas, saldos, recompensas e dívidas. Edição mantém o ID do reembolso, inclusive em faturas pagas. Exclusão conserva histórico e impede recriação por sincronização desatualizada.
+
+Restituição parcial sempre gera crédito. Na primeira restituição integral, havendo ciclos posteriores ao ciclo do crédito, a política pode manter parcelas e creditar tudo ou cancelar parcelas posteriores e creditar somente a diferença. R$ 300 restituídos com R$ 200 em parcelas canceladas geram R$ 100 de crédito. Parcelas do próprio ciclo do crédito permanecem. Completar o total após uma restituição parcial não promove cancelamento de parcelas.
+
+A instituição guarda a primeira política escolhida, sem edição posterior pela interface. Cartão sem instituição solicita política em cada operação integral relevante. Edição de reembolso preserva a política escolhida e reconstrói seus efeitos pela nova data e valor.
+
+Relatórios de consumo apresentam cada compra uma vez, na data original, pelo gasto líquido após restituições. Reembolso possui tipo próprio e data efetiva de crédito; pagamentos do cartão não duplicam despesas. Recompensas estornam proporcionalmente o snapshot original com arredondamento cumulativo em quatro casas. Dívidas estornam as participações originais proporcionalmente, com distribuição cumulativa em centavos e IDs de eventos preservados. Planos futuros guardam regras de rateio; previsões não geram eventos concretos.
+
+Crédito importado exige vínculo com compra. Sem correspondência, usuário revisa data, total, parcelas, estabelecimento e tags antes de reconstruir a compra. Aprovação comum ou em lote mantém créditos negativos pendentes. Créditos legados sem vínculo ficam numa revisão explícita, com ID e dados originais preservados.
+
+Migração SQL preserva referências de histórico, conciliação e dívida antes de remover registros legados. IndexedDB converte atomicamente por proprietário, arquiva originais e clocks, preserva exclusões e interrompe conversão diante de referências inválidas. Sincronização mantém tombstones e não sobrescreve uma edição local ocorrida enquanto a requisição estava em andamento.

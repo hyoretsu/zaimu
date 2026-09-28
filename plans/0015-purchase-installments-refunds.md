@@ -28,9 +28,11 @@
 - [x] IndexedDB, modo visitante e sync no contrato normalizado.
 - [x] UI de parcelas/reembolsos, edição atômica e filtros/relatórios.
 - [x] Importações com revisão de vínculo/reconstrução.
-- [ ] Testes integrados, documentação de comportamento ativo e commits locais com hooks.
+- [x] Testes integrados, documentação de comportamento ativo e commits locais com hooks.
 
-## Decisões de execução
+## Histórico de execução
+
+Registros abaixo descrevem marcos intermediários. Estado atual e validação final constam ao fim.
 
 - Crédito importado sem compra: exigir revisão de data, valor, parcelamento e metadados, sem inventar dívida automaticamente.
 - Modelo novo será integrado por etapas; módulos de domínio isolados não significam migração concluída nem mudança já disponível na interface.
@@ -40,7 +42,7 @@
 - Backfill SQL transacional criado: preserva IDs concretos, centavos importados, snapshots de cashback, taxas, datas, histórico original e referências legadas; entradas negativas sem vínculo ficam marcadas para revisão. Tabela de proveniência liga cada ID legado à compra, parcela, reembolso ou encargo normalizado. O legado e suas FKs continuam intactos até remapeamento e troca do contrato ativo.
 - Backfill rejeita dados impossíveis (duplicidade, valores incompatíveis, vínculos cruzados, reembolsos acima do total) antes de copiar. A aplicação real fica condicionada ao tratamento dos casos rejeitados; não usar a migração em banco compartilhado antes disso.
 
-## Validação parcial
+## Validação dos marcos intermediários
 
 - `bun test packages/finance/src`: 30 testes passaram.
 - Serviço normalizado em PostgreSQL local: 3 testes passaram, incluindo concorrência real e rollback.
@@ -68,3 +70,19 @@
 - IndexedDB v7 e sync normalizados concluídos: conversão atômica por proprietário, arquivo dos registros/clocks legados, revisão de créditos órfãos, tombstones e acknowledge que preserva edição concorrente. Livros criados depois da migração sobrevivem à recarga.
 - Modo visitante materializa somente parcelas devidas na inicialização, retorno à janela e processamento periódico. Leituras permanecem sem efeitos de escrita.
 - Interface concluída para múltiplos reembolsos, edição/exclusão com identidade preservada, saldo disponível, política institucional e revisão de créditos importados. Filtros exibem reembolso como tipo próprio. Controles pendentes bloqueiam somente a compra ou linha afetada.
+
+## Conclusão e validação final
+
+Escopo aprovado concluído em SQL, domínio compartilhado, backend, IndexedDB, sync e interface. Migrações aplicadas somente em PostgreSQL descartável local. Nenhuma operação em banco remoto, push ou deploy.
+
+- Backend: `bun run check-types` e `bun run build` passaram. Erros de tipagem registrados nos marcos anteriores foram corrigidos.
+- Frontend: `bun run build` passou, incluindo `tsc -b`. Vite informa aviso de tamanho do bundle, sem falha de build.
+- Finance: 40 testes, 120 assertions passaram.
+- Backend normalizado e invalidação de caches: 14 testes, 75 assertions passaram. Incluem HTTP autenticado, concorrência real, ownership, rollback de importação/replay, tombstones, rateios futuros, dívida conciliada e recompensas cumulativas.
+- Cutover SQL: 3 testes, 13 assertions passaram, incluindo projeção de consumo, referências preservadas, constraints diferidas e rollback tardio.
+- IndexedDB/visitante: 1 integração, 32 assertions passaram, incluindo upgrade, isolamento de proprietários, edição concorrente no acknowledge, múltiplos refunds e materialização idempotente.
+- Playwright local: recarga do visitante, limite após compra, dois reembolsos e edição preservando ID passaram; capturas desktop e mobile revisadas.
+- `bun run migration:check` offline passou para o contrato final. PostgreSQL descartável e servidor Vite de validação encerrados.
+- Hooks normais executados em todos os commits. Mudanças preexistentes preservadas fora dos commits da tarefa.
+
+A suíte E2E histórica geral tem contratos anteriores desatualizados de tags recorrentes e consultas de dívidas; não representa um gate aprovado nesta execução. A suíte integrada específica acima verifica o contrato normalizado ativo. Transferência de compra entre cartões exige fluxo próprio de revisão de calendário; edição atual não oferece esse controle e API rejeita tentativa explicitamente.
