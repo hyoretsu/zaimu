@@ -35,3 +35,15 @@
 - Crédito importado sem compra: exigir revisão de data, valor, parcelamento e metadados, sem inventar dívida automaticamente.
 - Modelo novo será integrado por etapas; módulos de domínio isolados não significam migração concluída nem mudança já disponível na interface.
 - Schema aditivo de compra, plano, parcela, reembolso e encargo criado. Migração de criação e constraints aplicada em PostgreSQL 18 descartável local; 65 migrações passaram. Backfill, remapeamento de referências e remoção do legado ainda pendentes.
+- Serviço normalizado de reembolsos criado, ainda sem ligação aos endpoints ativos: criação limitada sob lock por cartão/compra, política institucional compare-and-set, edição preservando ID, exclusão lógica preservando histórico e replay na mesma transação.
+- Testes de integração do serviço em PostgreSQL descartável local: limite sob concorrência, rollback após falha de replay e edição/exclusão. 66 migrações aplicadas no banco de teste. Integração de dívidas/recompensas ainda necessária antes de ativar endpoints.
+
+## Validação parcial
+
+- `bun test packages/finance/src`: 30 testes passaram.
+- Serviço normalizado em PostgreSQL local: 3 testes passaram, incluindo concorrência real e rollback.
+- `migration check` offline passou para criação das tabelas; ambas as novas migrações executadas dentro da cadeia completa em banco local descartável.
+- Build backend passou. Type-check do pacote financeiro passou.
+- Type-check backend continua falhando nos três erros anteriores: `FinancialAccountYieldsController`, `DashboardController` e `LoansController`. Nenhum diagnóstico nos módulos novos.
+- PostgreSQL temporário encerrado e diretórios dos testes removidos; nenhum banco remoto acessado, nenhum ref de banco avançado por esta tarefa.
+- Hook local `git pull` removido com aprovação explícita do usuário; validações `lint-staged` mantidas.
