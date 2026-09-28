@@ -6,6 +6,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip
 import type { CreditPurchase } from "@/lib/api";
 import { formatLocalDate, formatLocalTime } from "@/lib/date";
 import { formatDebtSplitBadge } from "@/lib/debt-split";
+import { CreditPurchaseRefundSummary } from "./CreditPurchaseRefundSummary";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
@@ -18,6 +19,7 @@ export function CreditPurchaseRow({
 	onEdit,
 	onRefinance,
 	onRefund,
+	onEditRefund,
 	purchase,
 }: {
 	deleteDisabled: boolean;
@@ -28,6 +30,7 @@ export function CreditPurchaseRow({
 	onEdit: () => void;
 	onRefinance: () => void;
 	onRefund: () => void;
+	onEditRefund: (refund: NonNullable<CreditPurchase["refunds"]>[number]) => void;
 	purchase: CreditPurchase;
 }) {
 	const fallbackTag = purchase.categoryName
@@ -64,6 +67,18 @@ export function CreditPurchaseRow({
 					<p className="mt-1 text-muted-foreground text-xs">
 						Inclui {purchase.feeDescription}: {currency.format(purchase.feeAmount)}
 					</p>
+				) : null}
+				{!purchase.isRefund && purchase.refunds?.length ? (
+					<div className="mt-2 grid gap-2">
+						{purchase.refunds.map(refund => (
+							<CreditPurchaseRefundSummary
+								disabled={refundDisabled}
+								key={refund.id}
+								onEdit={() => onEditRefund(refund)}
+								refund={refund}
+							/>
+						))}
+					</div>
 				) : null}
 				{purchase.storeName ||
 				debtPersonName ||
@@ -111,7 +126,7 @@ export function CreditPurchaseRow({
 									<LuUndo2 />
 								</Button>
 							</TooltipTrigger>
-							<TooltipContent>{purchase.hasRefund ? "Editar reembolso" : "Reembolsar"}</TooltipContent>
+							<TooltipContent>Registrar reembolso</TooltipContent>
 						</Tooltip>
 					) : null}
 					<Tooltip>

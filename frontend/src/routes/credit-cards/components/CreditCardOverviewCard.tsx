@@ -4,6 +4,7 @@ import { Progress } from "@/components/ui/Progress";
 import type { CreditCard } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { formatLocalDate } from "@/lib/date";
+import { PendingRefundReviews } from "./PendingRefundReviews";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
@@ -48,6 +49,7 @@ export function CreditCardOverviewCard({
 				</div>
 			</div>
 			<div className="flex flex-1 flex-col gap-5 p-5">
+				<PendingRefundReviews cardId={card.id} />
 				<div>
 					<div className="mb-2 flex justify-between gap-3 text-sm">
 						<span className="text-muted-foreground">Limite utilizado</span>

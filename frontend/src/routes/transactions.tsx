@@ -226,13 +226,15 @@ export function TransactionsPage() {
 			transaction: Transaction;
 		}) => {
 			if (!transaction.creditCardId) throw new Error("Cartão da compra não encontrado");
-			return transaction.refund
-				? dataService.creditCards
-						.deletePurchase(transaction.creditCardId, transaction.refund.id)
-						.then(() =>
-							dataService.creditCards.refundPurchase(transaction.creditCardId!, transaction.id, data),
-						)
-				: dataService.creditCards.refundPurchase(transaction.creditCardId, transaction.id, data);
+			const refundId = transaction.isRefund ? transaction.id : undefined;
+			const purchaseId = transaction.isRefund ? transaction.refundOfPurchaseId : transaction.id;
+			if (!purchaseId) throw new Error("Compra do reembolso não encontrada");
+			return refundId
+				? dataService.creditCards.updateRefund(transaction.creditCardId, purchaseId, refundId, {
+						amount: data.amount ?? transaction.refund?.amount ?? transaction.amount,
+						date: data.date ?? transaction.refund?.date.slice(0, 10) ?? transaction.date.slice(0, 10),
+					})
+				: dataService.creditCards.refundPurchase(transaction.creditCardId, purchaseId, data);
 		},
 		onError: error =>
 			showToast(
@@ -247,8 +249,9 @@ export function TransactionsPage() {
 	});
 	const deleteRefundPurchase = useMutation({
 		mutationFn: (transaction: Transaction) => {
-			if (!transaction.creditCardId || !transaction.refund) throw new Error("Reembolso não encontrado");
-			return dataService.creditCards.deletePurchase(transaction.creditCardId, transaction.refund.id);
+			const refundId = transaction.isRefund ? transaction.id : transaction.refund?.id;
+			if (!transaction.creditCardId || !refundId) throw new Error("Reembolso não encontrado");
+			return dataService.creditCards.deletePurchase(transaction.creditCardId, refundId);
 		},
 		onError: error =>
 			showToast(error instanceof Error ? error.message : "Não foi possível excluir o reembolso.", "negative"),
@@ -290,7 +293,8 @@ export function TransactionsPage() {
 				}
 				onEdit={
 					transaction.source === "CREDIT_CARD"
-						? () => setEditingPurchase(transaction)
+						? () =>
+								transaction.isRefund ? setRefundingPurchase(transaction) : setEditingPurchase(transaction)
 						: () => setEditingTransaction(transaction)
 				}
 				transaction={transaction}
@@ -531,7 +535,8 @@ export function TransactionsPage() {
 					open
 					pending={refundPurchase.isPending || deleteRefundPurchase.isPending}
 					purchase={transactionToCreditPurchase(refundingPurchase)}
-					refund={refundingPurchase.refund}
+					refund={refundingPurchase.isRefund ? refundingPurchase.refund : undefined}
+					refundId={refundingPurchase.isRefund ? refundingPurchase.id : undefined}
 				/>
 			) : null}
 		</PageContainer>

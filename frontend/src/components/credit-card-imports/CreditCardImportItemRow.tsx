@@ -33,7 +33,7 @@ function toTransaction(
 		tagIds: item.tagIds,
 		tags: item.tags,
 		time: item.time,
-		type: item.installmentAmount < 0 ? "INCOME" : "EXPENSE",
+		type: item.installmentAmount < 0 ? "REFUND" : "EXPENSE",
 	};
 }
 
@@ -71,10 +71,10 @@ export function CreditCardImportItemRow({
 						]
 					: []),
 				{
-					disabled: disabled || item.duplicates.length > 0,
+					disabled: disabled || (item.installmentAmount >= 0 && item.duplicates.length > 0),
 					icon: <LuCheck />,
 					onClick: onApprove,
-					text: "Aprovar",
+					text: item.installmentAmount < 0 ? "Revisar reembolso" : "Aprovar",
 				},
 				...(item.installmentAmount < 0
 					? []

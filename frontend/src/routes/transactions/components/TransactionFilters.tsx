@@ -112,6 +112,7 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 							{ label: "Todos", value: "all" },
 							{ label: "Entradas", value: "INCOME" },
 							{ label: "Saídas", value: "EXPENSE" },
+							{ label: "Reembolsos", value: "REFUND" },
 							{ label: "Transferências", value: "TRANSFER" },
 						]}
 						placeholder="Todos os tipos"

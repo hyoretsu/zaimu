@@ -35,6 +35,7 @@ const transferAccountFields: DuplicateFieldOption[] = [
 const transactionTypeLabels = {
 	EXPENSE: "Saída",
 	INCOME: "Entrada",
+	REFUND: "Reembolso",
 	TRANSFER: "Transferência",
 	YIELD: "Rendimento",
 } as const;

@@ -1,12 +1,31 @@
 import {
-	calculateStatementBalances,
-	paymentStatement,
-	statementCharges,
-	statementCycles,
-	statementEntryKind,
-	toCents,
-} from "@zaimu/finance/credit-card";
+	addBookRefund,
+	bookPurchase,
+	type CreditBook,
+	creditBookConsumption,
+	creditBookEntries,
+	creditBookRewards,
+	ensureBookStatement,
+	moneyCents,
+	newBookPurchase,
+	refinanceBookPurchase,
+	refundDebtAmounts,
+	removeBookRefund,
+	replayCreditBook,
+	updateBookPurchaseDate,
+	updateBookRefund,
+} from "@zaimu/finance/credit-book";
+import { paymentStatement, toCents } from "@zaimu/finance/credit-card";
+import { distributePurchaseCents } from "@zaimu/finance/credit-purchase";
 import { hasUnresolvedLegacyCardPayment } from "./legacy-card-payments";
+import {
+	acknowledgeCreditBookSync,
+	localCreditBooks,
+	localCreditRefundReviews,
+	mutateLocalCreditBook,
+	readLocalCreditBook,
+	toPurchasePresentation,
+} from "./localStorage";
 /**
  * Data Service - Abstracts local vs remote data operations
  *
@@ -307,32 +326,12 @@ function cacheRemoteData(operation: Promise<unknown>): void {
 }
 
 // ============== ACCOUNTS ==============
-async function withGuestCardPayments(cardId: string, statements: CreditCardStatement[]) {
-	const [storedPayments, storedCard, purchases] = await Promise.all([
-		localTransactions.getAll(),
-		localCreditCards.getById(cardId),
-		localCreditPurchases.getAll(),
-	]);
-	const payments = storedPayments.map(item => item.data).filter(item => item.paymentCreditCardId === cardId);
-	const card = storedCard?.data;
-	if (!card) return statements;
-	const charges = statementCharges(purchases.map(item => item.data));
-	const group = statements.map(statement => {
-		const chargesAmount = (charges.get(statement.id) ?? 0) / 100;
-		return { ...statement, chargesAmount, totalAmount: statement.totalAmount - chargesAmount };
-	});
-	const cycles = statementCycles(group, card, payments, dates => ({
-		balanceAmount: 0,
-		chargesAmount: 0,
-		creditCardId: cardId,
-		dueDate: dates.dueDate,
-		id: `cycle-${dates.statementDate}`,
-		isPaid: false,
-		paidAmount: 0,
-		statementDate: dates.statementDate,
-		totalAmount: 0,
+async function withGuestCardPayments(cardId: string, _statements: CreditCardStatement[]) {
+	const book = await readLocalCreditBook(cardId);
+	return replayCreditBook(book).statements.map(statement => ({
+		...statement,
+		totalAmount: Number(statement.totalAmount) + statement.chargesAmount,
 	}));
-	return calculateStatementBalances(cycles, payments, undefined, card.ignoreStatementsBefore);
 }
 
 export const dataService = {
@@ -454,14 +453,14 @@ export const dataService = {
 				const [local, transactions, cashbackPurchases, holidays, yields] = await Promise.all([
 					localAccounts.getAll(),
 					localTransactions.getAll(),
-					localCreditPurchases.getAll(),
+					localCreditBooks.getAll(),
 					localMeta.get("financial-account-yield-holidays"),
 					localMeta.get("financial-account-yields"),
 				]);
 				return calculateFinancialAccountBalances(
 					local.map(item => normalizeLegacyFinancialAccount(item.data)),
 					transactions.map(item => item.data),
-					cashbackPurchases.map(item => normalizeLegacyCreditPurchase(item.data)),
+					cashbackPurchases.flatMap(item => creditBookRewards(item.data)),
 					(holidays as FinancialAccountYieldHoliday[] | null)?.map(holiday => holiday.date) ?? [],
 					undefined,
 					(yields as FinancialAccountYield[] | null) ?? [],
@@ -866,6 +865,28 @@ export const dataService = {
 				method: "POST",
 			});
 		},
+		async approveRefund(
+			importId: string,
+			itemId: string,
+			data: {
+				purchaseId?: string;
+				purchase?: {
+					description: string;
+					storeName?: string;
+					purchaseDate: string;
+					totalAmount: number;
+					installments: number;
+					tagIds?: string[];
+				};
+				policy?: "KEEP_INSTALLMENTS" | "CANCEL_FUTURE_INSTALLMENTS";
+			},
+		): Promise<{ created: number; finished: boolean }> {
+			if (isGuestMode()) throw new Error("Conecte sua conta para revisar reembolsos.");
+			return fetchWithAuth(`/credit-card-imports/${importId}/items/${itemId}/approve-refund`, {
+				body: JSON.stringify(data),
+				method: "POST",
+			});
+		},
 		async create({
 			creditCardId,
 			file,
@@ -920,6 +941,21 @@ export const dataService = {
 				body: JSON.stringify(data),
 				method: "POST",
 			});
+		},
+		async refundSources(
+			importId: string,
+		): Promise<
+			Array<{
+				id: string;
+				description: string;
+				purchaseDate: string;
+				totalAmount: number;
+				refundableAmount: number;
+				installments: number;
+			}>
+		> {
+			if (isGuestMode()) throw new Error("Conecte sua conta para revisar reembolsos.");
+			return fetchWithAuth(`/credit-card-imports/${importId}/refund-sources`);
 		},
 		async updateItem(
 			importId: string,
@@ -979,100 +1015,111 @@ export const dataService = {
 			}
 			const card = (await localCreditCards.getById(cardId))?.data;
 			if (!card) throw new Error("Cartão não encontrado");
-			if ((data.subscriptionId === undefined) !== (data.subscriptionOccurrenceDate === undefined)) {
-				throw new Error("Informe a assinatura e a data da ocorrência juntas");
-			}
-			if (data.subscriptionId && data.subscriptionOccurrenceDate) {
-				const existing = (await localCreditPurchases.getAll()).find(
-					item =>
-						item.data.subscriptionId === data.subscriptionId &&
-						item.data.subscriptionOccurrenceDate === data.subscriptionOccurrenceDate,
-				);
-				if (existing) return [existing.data];
-			}
-			const installments = Math.max(1, data.installments ?? 1);
-			const installmentAmounts = getEvenlyDistributedInstallmentAmounts(data.totalAmount, installments);
-			const isStatementCharge =
-				data.isStatementCharge ?? statementEntryKind(data.description ?? "") === "CHARGE";
-			if (statementEntryKind(data.description ?? "") === "BALANCE")
-				throw new Error("Saldo anterior é calculado automaticamente");
-			if (isStatementCharge && (data.debtSplit || installments !== 1))
-				throw new Error("Encargos não permitem rateio ou parcelamento automático");
-			const cashbackAmount =
-				!isStatementCharge && card.cashbackAccountId && card.cashbackRate
-					? Number(((data.totalAmount * card.cashbackRate) / 100).toFixed(4))
-					: undefined;
-			const rootPurchaseId = crypto.randomUUID();
-			const purchaseDate = new Date(`${data.purchaseDate}T12:00:00`);
-			const debtSplit = await hydrateLocalDebtSplit(data.totalAmount, data.debtSplit);
-			const time = data.time === undefined ? getCurrentLocalTime() : data.time;
-			const purchases: CreditPurchase[] = [];
-			const statements = new Map<string, CreditCardStatement>();
-			for (let currentInstallment = 1; currentInstallment <= installments; currentInstallment++) {
-				const installmentAmount = installmentAmounts[currentInstallment - 1]!;
-				const occurrenceDate = new Date(purchaseDate);
-				occurrenceDate.setMonth(occurrenceDate.getMonth() + currentInstallment - 1);
-				const statementMonth = new Date(occurrenceDate);
-				if (statementMonth.getDate() > card.statementDay)
-					statementMonth.setMonth(statementMonth.getMonth() + 1);
-				const statementDate = new Date(
-					statementMonth.getFullYear(),
-					statementMonth.getMonth(),
-					card.statementDay,
-				);
-				const statementKey = `${cardId}:${statementDate.toISOString().slice(0, 10)}`;
-				const storedStatement = await localCreditCardStatements.getById(statementKey);
-				const dueDate = new Date(statementDate.getFullYear(), statementDate.getMonth(), card.dueDay);
-				if (dueDate <= statementDate) dueDate.setMonth(dueDate.getMonth() + 1);
-				const statement = statements.get(statementKey) ??
-					storedStatement?.data ?? {
-						balanceAmount: 0,
-						creditCardId: cardId,
-						dueDate: dueDate.toISOString(),
-						id: statementKey,
-						isPaid: false,
-						paidAmount: 0,
-						statementDate: statementDate.toISOString(),
-						totalAmount: 0,
-					};
-				statement.totalAmount += installmentAmount;
-				statements.set(statementKey, statement);
-				purchases.push({
-					...(currentInstallment === 1 && {
-						cashbackAccountId: cashbackAmount ? card.cashbackAccountId : undefined,
-						cashbackAmount,
-						cashbackYieldPeriod: cashbackAmount ? card.cashbackYieldPeriod : undefined,
-						cashbackYieldReferencePercentage: cashbackAmount
-							? card.cashbackYieldReferencePercentage
-							: undefined,
-						cashbackYieldReferenceRate: cashbackAmount ? card.cashbackYieldReferenceRate : undefined,
-						debtSplit,
-						isStatementCharge,
-					}),
-					categoryId: data.tagIds?.[0] ?? data.categoryId,
-					currentInstallment,
+			let purchaseId = "";
+			await mutateLocalCreditBook(cardId, book => {
+				if (data.isStatementCharge) {
+					if (data.debtSplit || (data.installments ?? 1) !== 1)
+						throw new Error("Encargos não permitem rateio ou parcelamento");
+					const statement = ensureBookStatement(book, data.purchaseDate);
+					purchaseId = crypto.randomUUID();
+					book.charges.push({
+						amountCents: moneyCents(data.totalAmount, 1),
+						chargeDate: data.purchaseDate,
+						description: data.description ?? "Encargo",
+						externalId: null,
+						id: purchaseId,
+						isSettled: false,
+						settledByPurchaseId: null,
+						statementId: statement.id,
+						time: data.time ?? getCurrentLocalTime(),
+					});
+					return;
+				}
+				const existing = data.subscriptionId
+					? book.purchases.find(
+							p =>
+								p.subscriptionId === data.subscriptionId &&
+								p.subscriptionOccurrenceDate === data.subscriptionOccurrenceDate,
+						)
+					: null;
+				if (existing) {
+					purchaseId = existing.id;
+					return;
+				}
+				const p = newBookPurchase(book, {
+					...data,
+					cashbackAccountId: card.cashbackAccountId ?? null,
+					cashbackAmount:
+						card.cashbackAccountId && card.cashbackRate
+							? Number(((data.totalAmount * card.cashbackRate) / 100).toFixed(4))
+							: null,
+					cashbackYieldPeriod: card.cashbackYieldPeriod ?? null,
+					cashbackYieldReferencePercentage: card.cashbackYieldReferencePercentage ?? null,
+					cashbackYieldReferenceRate: card.cashbackYieldReferenceRate ?? null,
+					categoryId: data.categoryId ?? null,
+					debtSplitRule: data.debtSplit ?? null,
 					description: data.description ?? "",
-					feeAmount: data.feeAmount || undefined,
-					feeDescription: data.feeAmount ? data.feeDescription : undefined,
-					id: currentInstallment === 1 ? rootPurchaseId : crypto.randomUUID(),
-					installmentAmount,
-					installments,
-					...(currentInstallment > 1 && { parentId: rootPurchaseId }),
-					purchaseDate: data.purchaseDate,
-					statementId: statement.id,
-					storeName: data.storeName,
-					subscriptionId: data.subscriptionId,
-					subscriptionOccurrenceDate: data.subscriptionOccurrenceDate,
-					tagIds: data.tagIds,
-					time,
-					totalAmount: data.totalAmount,
+					installments: data.installments ?? 1,
+					storeName: data.storeName ?? null,
+					tagIds: data.tagIds ?? [],
+					time: data.time ?? getCurrentLocalTime(),
 				});
+				purchaseId = p.id;
+			});
+			return creditBookEntries(await readLocalCreditBook(cardId))
+				.filter(row => row.purchaseId === purchaseId || row.id === purchaseId)
+				.map(toPurchasePresentation);
+		},
+		async approveRefundReview(
+			cardId: string,
+			reviewId: string,
+			data: {
+				purchaseId?: string;
+				purchase?: {
+					description: string;
+					storeName?: string;
+					purchaseDate: string;
+					totalAmount: number;
+					installments: number;
+					tagIds?: string[];
+				};
+				policy?: "KEEP_INSTALLMENTS" | "CANCEL_FUTURE_INSTALLMENTS";
+			},
+		): Promise<void> {
+			if (!isGuestMode()) {
+				await fetchWithAuth(`/credit-cards/${cardId}/refund-reviews/${reviewId}/approve`, {
+					body: JSON.stringify(data),
+					method: "POST",
+				});
+				return;
 			}
-			await Promise.all([
-				...statements.values().map(statement => localCreditCardStatements.put(statement, statement.id)),
-				...purchases.map(purchase => localCreditPurchases.put(purchase, purchase.id)),
-			]);
-			return purchases;
+			const review = (await localCreditRefundReviews.getById(reviewId))?.data;
+			if (!review || review.creditCardId !== cardId) throw new Error("Reembolso pendente não encontrado");
+			await mutateLocalCreditBook(
+				cardId,
+				book => {
+					const purchase = data.purchaseId
+						? book.purchases.find(p => p.id === data.purchaseId)
+						: data.purchase
+							? newBookPurchase(book, {
+									...data.purchase,
+									storeName: data.purchase.storeName ?? null,
+									tagIds: data.purchase.tagIds ?? [],
+								})
+							: null;
+					if (!purchase) throw new Error("Vincule ou revise a compra original");
+					const original = review.original;
+					const refund = addBookRefund(book, purchase.id, {
+						amount: Math.abs(original.totalAmount),
+						creditDate: original.purchaseDate.slice(0, 10),
+						id: reviewId,
+						policy: data.policy,
+					});
+					refund.time = original.time ?? null;
+				},
+				undefined,
+				reviewId,
+			);
 		},
 		async createFromAccount(
 			account: FinancialAccount,
@@ -1109,20 +1156,24 @@ export const dataService = {
 				await fetchWithAuth(`/credit-cards/${cardId}/purchases/${purchaseId}`, { method: "DELETE" });
 				return;
 			}
-			const storedPurchase = await localCreditPurchases.getById(purchaseId);
-			if (!storedPurchase) throw new Error("Compra não encontrada");
-			const statement = (await localCreditCardStatements.getById(storedPurchase.data.statementId))?.data;
-			if (!statement || statement.creditCardId !== cardId) throw new Error("Fatura não encontrada");
-
-			if (storedPurchase.data.installments > 1)
-				throw new Error("Parcela não pode ser excluída; registre um reembolso");
-			statement.totalAmount = storedPurchase.data.isRefund
-				? statement.totalAmount - storedPurchase.data.installmentAmount
-				: Math.max(0, statement.totalAmount - storedPurchase.data.installmentAmount);
-			await Promise.all([
-				localCreditPurchases.delete(purchaseId),
-				localCreditCardStatements.put(statement, statement.id),
-			]);
+			await mutateLocalCreditBook(cardId, book => {
+				const r = book.refunds.find(r => r.id === purchaseId);
+				if (r) {
+					removeBookRefund(book, r.purchaseId, r.id);
+					return;
+				}
+				if (book.charges.some(ch => ch.id === purchaseId)) {
+					book.deletedChargeIds = [...new Set([...(book.deletedChargeIds ?? []), purchaseId])];
+					book.charges = book.charges.filter(ch => ch.id !== purchaseId);
+					return;
+				}
+				const id = book.installments.find(i => i.id === purchaseId)?.purchaseId ?? purchaseId;
+				bookPurchase(book, id);
+				book.deletedPurchaseIds = [...new Set([...(book.deletedPurchaseIds ?? []), id])];
+				book.purchases = book.purchases.filter(p => p.id !== id);
+				book.installments = book.installments.filter(i => i.purchaseId !== id);
+				book.refunds = book.refunds.filter(r => r.purchaseId !== id);
+			});
 		},
 		async getAll(): Promise<CreditCard[]> {
 			if (isGuestMode()) {
@@ -1142,7 +1193,10 @@ export const dataService = {
 						return {
 							...card,
 							accountName:
-								card.accountName || accounts.get(card.financialAccountId)?.institution?.name || null,
+								card.accountName ||
+								accounts.get(card.financialAccountId)?.name ||
+								accounts.get(card.financialAccountId)?.institution?.name ||
+								null,
 							currentStatement: getCurrentCreditCardStatement(statements, card) ?? null,
 							limit: calculateCreditCardLimit(card, statements),
 						};
@@ -1160,80 +1214,89 @@ export const dataService = {
 			);
 			return cards;
 		},
-		async getStatement(cardId: string, statementId: string): Promise<CreditCardStatementDetail> {
-			if (isGuestMode()) {
-				const statement = (await this.getStatements(cardId)).find(item => item.id === statementId);
-				if (!statement || statement.creditCardId !== cardId) throw new Error("Fatura não encontrada");
-				const [storedPurchases, storedCategories, storedTransactions, storedCard] = await Promise.all([
-					localCreditPurchases.getAll(),
-					localCategories.getAll(),
-					localTransactions.getAll(),
-					localCreditCards.getById(cardId),
-				]);
-				const categories = new Map(storedCategories.map(item => [item.data.id, item.data]));
-				const refundedPurchaseIds = new Set(
-					storedPurchases.flatMap(item =>
-						item.data.refundOfPurchaseId ? [item.data.refundOfPurchaseId] : [],
-					),
-				);
-				const purchases = storedPurchases
-					.map(item => item.data)
-					.filter(purchase => purchase.statementId === statementId)
-					.map(purchase => {
-						const tagIds = purchase.tagIds ?? (purchase.categoryId ? [purchase.categoryId] : []);
-						const tags = tagIds.flatMap(tagId => {
-							const tag = categories.get(tagId);
-							return tag ? [tag] : [];
-						});
-						return {
-							...purchase,
-							categoryColor: tags[0]?.color ?? undefined,
-							categoryName: tags[0]?.name,
-							hasRefund: !purchase.isRefund && refundedPurchaseIds.has(purchase.parentId ?? purchase.id),
-							tags,
-						};
-					})
-					.sort((left, right) => right.purchaseDate.localeCompare(left.purchaseDate));
-				const allStatements = await this.getStatements(cardId);
-				const payments = storedTransactions
-					.map(item => item.data)
-					.filter(
-						payment =>
-							payment.paymentCreditCardId === cardId &&
-							paymentStatement(allStatements, payment.date)?.id === statementId,
+		async getBook(cardId: string): Promise<CreditBook> {
+			return isGuestMode()
+				? readLocalCreditBook(cardId)
+				: fetchWithAuth<CreditBook>(`/credit-cards/${cardId}/book`);
+		},
+		async getRefundReviews(
+			cardId: string,
+		): Promise<Array<{ id: string; original: CreditPurchase; creditCardId: string }>> {
+			if (!isGuestMode())
+				return (
+					await fetchWithAuth<Array<{ id: string; original: CreditPurchase }>>(
+						`/credit-cards/${cardId}/refund-reviews`,
 					)
-					.sort((left, right) => right.date.localeCompare(left.date));
-				return {
-					...(await this.getStatements(cardId)).find(item => item.id === statementId)!,
-					payments,
-					purchases,
-				};
-			}
-			return fetchWithAuth<CreditCardStatementDetail>(`/credit-cards/${cardId}/statements/${statementId}`);
+				).map(row => ({ ...row, creditCardId: cardId }));
+			return (await localCreditRefundReviews.getAll())
+				.filter(row => !row.deleted && row.data.creditCardId === cardId)
+				.map(row => ({ creditCardId: cardId, id: row.localId, original: row.data.original }));
+		},
+		async getStatement(cardId: string, statementId: string): Promise<CreditCardStatementDetail> {
+			if (!isGuestMode())
+				return fetchWithAuth<CreditCardStatementDetail>(`/credit-cards/${cardId}/statements/${statementId}`);
+			const book = await readLocalCreditBook(cardId);
+			const statements = replayCreditBook(book).statements;
+			const statement = statements.find(s => s.id === statementId);
+			if (!statement) throw new Error("Fatura não encontrada");
+			const categories = new Map((await localCategories.getAll()).map(row => [row.data.id, row.data]));
+			const purchases = await Promise.all(
+				creditBookEntries(book)
+					.filter(row => row.statementId === statement.id)
+					.map(async row => {
+						const p = toPurchasePresentation(row);
+						const rule = row.purchaseId
+							? book.purchases.find(p => p.id === row.purchaseId)?.debtSplitRule
+							: null;
+						return {
+							...p,
+							debtSplit: rule
+								? await hydrateLocalDebtSplit(
+										bookPurchase(book, row.purchaseId!).totalAmountCents / 100,
+										rule,
+									)
+								: null,
+							tagIds: p.tagIds ?? [],
+							tags: (p.tagIds ?? []).flatMap(id => {
+								const tag = categories.get(id);
+								return tag ? [tag] : [];
+							}),
+						};
+					}),
+			);
+			const payments = (await localTransactions.getAll())
+				.filter(
+					row =>
+						!row.deleted &&
+						row.data.paymentCreditCardId === cardId &&
+						paymentStatement(statements, row.data.date)?.id === statement.id,
+				)
+				.map(row => row.data);
+			return {
+				...statement,
+				payments,
+				purchases,
+				totalAmount: Number(statement.totalAmount) + statement.chargesAmount,
+			} as CreditCardStatementDetail;
 		},
 		async getStatementPage(
 			cardId: string,
 			options: { cursor?: string; isPaid?: boolean; limit?: number } = {},
 		): Promise<CreditCardStatementPage> {
 			if (isGuestMode()) {
-				const statements = (await localCreditCardStatements.getAll())
-					.map(item => item.data)
-					.filter(statement => statement.creditCardId === cardId)
-					.sort((left, right) => right.statementDate.localeCompare(left.statementDate));
-				const statementsWithCredits = (await withGuestCardPayments(cardId, statements)).toSorted(
-					(a, b) => b.statementDate.localeCompare(a.statementDate) || b.id.localeCompare(a.id),
-				);
-				const filtered =
-					options.isPaid === undefined
-						? statementsWithCredits
-						: statementsWithCredits.filter(statement => statement.isPaid === options.isPaid);
-				const start = options.cursor
-					? Math.max(0, filtered.findIndex(statement => statement.id === options.cursor) + 1)
-					: 0;
+				const rows = replayCreditBook(await readLocalCreditBook(cardId))
+					.statements.filter(s => options.isPaid === undefined || s.isPaid === options.isPaid)
+					.toSorted((a, b) => b.statementDate.localeCompare(a.statementDate) || b.id.localeCompare(a.id));
+				const start = options.cursor ? Math.max(0, rows.findIndex(s => s.id === options.cursor) + 1) : 0;
 				const limit = options.limit ?? 24;
-				const items = filtered.slice(start, start + limit);
-				const hasMore = start + items.length < filtered.length;
-				return { hasMore, items, nextCursor: hasMore ? (items.at(-1)?.id ?? null) : null };
+				const items = rows
+					.slice(start, start + limit)
+					.map(s => ({ ...s, totalAmount: Number(s.totalAmount) + s.chargesAmount }));
+				return {
+					hasMore: start + items.length < rows.length,
+					items,
+					nextCursor: start + items.length < rows.length ? (items.at(-1)?.id ?? null) : null,
+				};
 			}
 			const owner = getCurrentCacheIdentity();
 			if (!owner) throw new Error("Identidade local indisponível.");
@@ -1324,8 +1387,19 @@ export const dataService = {
 			purchaseId: string,
 			data: { feeAmount: number; installments: number; purchaseDate: string },
 		): Promise<{ purchases: CreditPurchase[]; settledAmount: number; totalAmount: number }> {
-			if (isGuestMode())
-				throw new Error("Parcelamento de compra ainda não está disponível no modo visitante");
+			if (isGuestMode()) {
+				const result = await mutateLocalCreditBook(cardId, book =>
+					refinanceBookPurchase(
+						book,
+						book.installments.find(i => i.id === purchaseId)?.purchaseId ?? purchaseId,
+						data,
+					),
+				);
+				return {
+					...result,
+					purchases: creditBookEntries(await readLocalCreditBook(cardId)).map(toPurchasePresentation),
+				};
+			}
 			return fetchWithAuth(`/credit-cards/${cardId}/purchases/${purchaseId}/refinance`, {
 				body: JSON.stringify(data),
 				method: "POST",
@@ -1334,94 +1408,24 @@ export const dataService = {
 		async refundPurchase(
 			cardId: string,
 			purchaseId: string,
-			data: { amount?: number; date?: string },
+			data: { amount?: number; date?: string; policy?: "KEEP_INSTALLMENTS" | "CANCEL_FUTURE_INSTALLMENTS" },
 		): Promise<CreditPurchase> {
-			if (!isGuestMode()) {
+			const date = data.date ?? new Date().toISOString().slice(0, 10);
+			if (!isGuestMode())
 				return fetchWithAuth<CreditPurchase>(`/credit-cards/${cardId}/purchases/${purchaseId}/refunds`, {
-					body: JSON.stringify(data),
+					body: JSON.stringify({ amount: data.amount, policy: data.policy, purchaseDate: date }),
 					method: "POST",
 				});
-			}
-			const selectedPurchase = await localCreditPurchases.getById(purchaseId);
-			if (!selectedPurchase) throw new Error("Compra não encontrada");
-			if (selectedPurchase.data.isRefund) throw new Error("Um reembolso não pode ser reembolsado");
-			const rootPurchaseId = selectedPurchase.data.parentId ?? selectedPurchase.data.id;
-			const sourcePurchase =
-				rootPurchaseId === selectedPurchase.data.id
-					? selectedPurchase.data
-					: (await localCreditPurchases.getById(rootPurchaseId))?.data;
-			if (!sourcePurchase) throw new Error("Compra original não encontrada");
-			const card = (await localCreditCards.getById(cardId))?.data;
-			if (!card) throw new Error("Cartão não encontrado");
-			const allPurchases = (await localCreditPurchases.getAll()).map(item => item.data);
-			if (allPurchases.some(purchase => purchase.refundOfPurchaseId === rootPurchaseId))
-				throw new Error("Esta compra já foi reembolsada");
-			const refundedAmount = allPurchases
-				.filter(purchase => purchase.refundOfPurchaseId === rootPurchaseId)
-				.reduce((sum, purchase) => sum + Math.abs(purchase.totalAmount), 0);
-			const remainingAmount = Math.round((sourcePurchase.totalAmount - refundedAmount) * 100) / 100;
-			const refundAmount = data.amount ?? remainingAmount;
-			if (refundAmount <= 0) throw new Error("Informe um valor maior que zero para o reembolso");
-			const refundDate = data.date ?? sourcePurchase.purchaseDate.slice(0, 10);
-			let statementId = sourcePurchase.statementId;
-			if (data.date) {
-				const purchaseDate = new Date(`${refundDate}T12:00:00`);
-				const statementMonth = new Date(purchaseDate);
-				if (purchaseDate.getDate() > card.statementDay)
-					statementMonth.setMonth(statementMonth.getMonth() + 1);
-				const statementDate = new Date(
-					statementMonth.getFullYear(),
-					statementMonth.getMonth(),
-					card.statementDay,
-				);
-				statementId = `${cardId}:${statementDate.toISOString().slice(0, 10)}`;
-				const storedStatement = await localCreditCardStatements.getById(statementId);
-				if (!storedStatement) {
-					const dueDate = new Date(statementDate.getFullYear(), statementDate.getMonth(), card.dueDay);
-					if (dueDate <= statementDate) dueDate.setMonth(dueDate.getMonth() + 1);
-					await localCreditCardStatements.put(
-						{
-							balanceAmount: 0,
-							creditCardId: cardId,
-							dueDate: dueDate.toISOString(),
-							id: statementId,
-							isPaid: false,
-							paidAmount: 0,
-							statementDate: statementDate.toISOString(),
-							totalAmount: 0,
-						},
-						statementId,
-					);
-				}
-			}
-			const statement = (await localCreditCardStatements.getById(statementId))?.data;
-			if (!statement || statement.creditCardId !== cardId) throw new Error("Fatura não encontrada");
-			const refund: CreditPurchase = {
-				categoryId: sourcePurchase.categoryId,
-				currentInstallment: 1,
-				description: `Reembolso - ${sourcePurchase.description || sourcePurchase.storeName || "Compra"}`,
-				id: crypto.randomUUID(),
-				installmentAmount: -refundAmount,
-				installments: 1,
-				isRefund: true,
-				isStatementCharge: sourcePurchase.isStatementCharge,
-				purchaseDate: refundDate,
-				refundOfPurchaseId: rootPurchaseId,
-				statementId,
-				storeName: sourcePurchase.storeName,
-				tagIds: sourcePurchase.tagIds,
-				tags: sourcePurchase.tags,
-				time: getCurrentLocalTime(),
-				totalAmount: -refundAmount,
-			};
-			await Promise.all([
-				localCreditPurchases.put(refund, refund.id),
-				localCreditCardStatements.put(
-					{ ...statement, totalAmount: statement.totalAmount - refundAmount },
-					statement.id,
-				),
-			]);
-			return refund;
+			const refund = await mutateLocalCreditBook(cardId, book =>
+				addBookRefund(book, book.installments.find(i => i.id === purchaseId)?.purchaseId ?? purchaseId, {
+					amount: data.amount,
+					creditDate: date,
+					policy: data.policy,
+				}),
+			);
+			return toPurchasePresentation(
+				creditBookEntries(await readLocalCreditBook(cardId)).find(row => row.id === refund.id)!,
+			);
 		},
 		async setStatementCutoff(cardId: string, statementDate: string | null): Promise<void> {
 			if (isGuestMode()) {
@@ -1460,187 +1464,74 @@ export const dataService = {
 					method: "PATCH",
 				});
 			}
-			const storedPurchase = await localCreditPurchases.getById(purchaseId);
-			if (!storedPurchase) throw new Error("Compra não encontrada");
-			const statement = (await localCreditCardStatements.getById(storedPurchase.data.statementId))?.data;
-			if (!statement || statement.creditCardId !== cardId) throw new Error("Fatura não encontrada");
-
-			if ("installmentAmount" in data) {
-				if (!storedPurchase.data.parentId) throw new Error("Edite o valor total da compra pai");
-				if (storedPurchase.data.installments === 1)
-					throw new Error("A compra não possui parcelas para editar");
-				const rootPurchaseId = storedPurchase.data.parentId ?? storedPurchase.data.id;
-				const installments = (await localCreditPurchases.getAll())
-					.map(item => item.data)
-					.filter(item => item.id === rootPurchaseId || item.parentId === rootPurchaseId);
-				if (installments.length !== storedPurchase.data.installments)
-					throw new Error("Não foi possível identificar todas as parcelas da compra");
-				const rootPurchase = installments.find(item => item.id === rootPurchaseId);
-				if (!rootPurchase) throw new Error("Compra não encontrada");
-				const totalAmount =
-					installments.reduce(
-						(totalInCents, installment) =>
-							totalInCents +
-							Math.round(
-								(installment.id === storedPurchase.data.id
-									? data.installmentAmount
-									: installment.installmentAmount) * 100,
+			await mutateLocalCreditBook(cardId, book => {
+				if ("creditCardId" in data && data.creditCardId && data.creditCardId !== cardId)
+					throw new Error("Revise cartão e calendário antes de transferir compra");
+				const id = book.installments.find(i => i.id === purchaseId)?.purchaseId ?? purchaseId;
+				const p = bookPurchase(book, id);
+				if ("installmentAmount" in data) {
+					const i = book.installments.find(i => i.id === purchaseId);
+					if (!i) throw new Error("Parcela não encontrada");
+					const amounts = [...p.installmentAmountsCents];
+					amounts[i.number - 1] = moneyCents(data.installmentAmount, 1);
+					p.installmentAmountsCents = amounts;
+					p.totalAmountCents = amounts.reduce((a, b) => a + b, 0);
+					i.amountCents = amounts[i.number - 1]!;
+				} else {
+					const count = data.installments ?? p.installmentAmountsCents.length;
+					if (book.installments.some(i => i.purchaseId === p.id && i.number > count))
+						throw new Error("Parcelas históricas não podem ser removidas");
+					const total = moneyCents(data.totalAmount ?? p.totalAmountCents / 100, 1);
+					if (data.totalAmount !== undefined || data.installments !== undefined) {
+						p.installmentAmountsCents = distributePurchaseCents(
+							total,
+							count,
+							new Map(
+								book.installments
+									.filter(i => i.purchaseId === p.id && i.hasImportedAmount)
+									.map(i => [i.number, i.amountCents]),
 							),
-						0,
-					) / 100;
-				const rootCashbackAmount =
-					rootPurchase.cashbackAmount === null || rootPurchase.cashbackAmount === undefined
-						? rootPurchase.cashbackAmount
-						: Number(((rootPurchase.cashbackAmount * totalAmount) / rootPurchase.totalAmount).toFixed(4));
-				const updatedInstallments = installments.map(installment => ({
-					...installment,
-					...(installment.id === storedPurchase.data.id && { installmentAmount: data.installmentAmount }),
-					...(installment.id === rootPurchaseId && { cashbackAmount: rootCashbackAmount }),
-					totalAmount,
-				}));
-				statement.totalAmount += data.installmentAmount - storedPurchase.data.installmentAmount;
-				await Promise.all([
-					...updatedInstallments.map(installment => localCreditPurchases.put(installment, installment.id)),
-					localCreditCardStatements.put(statement, statement.id),
-				]);
-				return updatedInstallments.find(installment => installment.id === storedPurchase.data.id)!;
-			}
-			if (storedPurchase.data.parentId)
-				throw new Error("Parcelas específicas permitem editar somente o valor");
-			const targetCardId = data.creditCardId ?? cardId;
-			const targetCard = (await localCreditCards.getById(targetCardId))?.data;
-			if (!targetCard) throw new Error("Cartão não encontrado");
-			const installments = Math.max(1, data.installments);
-			if (storedPurchase.data.isStatementCharge && (installments !== 1 || data.debtSplit))
-				throw new Error("Encargos não permitem rateio ou parcelamento automático");
-			if (storedPurchase.data.installments > 1 && installments !== storedPurchase.data.installments)
-				throw new Error("Não é possível alterar a quantidade de parcelas desta compra");
-			const totalAmountChanged = data.totalAmount !== storedPurchase.data.totalAmount;
-			const relatedInstallments = totalAmountChanged
-				? (await localCreditPurchases.getAll())
-						.map(item => item.data)
-						.filter(item => item.id === storedPurchase.data.id || item.parentId === storedPurchase.data.id)
-						.toSorted((left, right) => left.currentInstallment - right.currentInstallment)
-				: [storedPurchase.data];
-			if (totalAmountChanged && relatedInstallments.length !== storedPurchase.data.installments)
-				throw new Error("Não foi possível identificar todas as parcelas da compra");
-			const installmentAmounts = totalAmountChanged
-				? getEvenlyDistributedInstallmentAmounts(data.totalAmount, installments)
-				: [storedPurchase.data.installmentAmount];
-			const installmentAmount = installmentAmounts[0]!;
-			const cashback = storedPurchase.data.parentId
-				? {}
-				: targetCardId !== cardId
-					? !storedPurchase.data.isStatementCharge && targetCard.cashbackAccountId && targetCard.cashbackRate
-						? {
-								cashbackAccountId: targetCard.cashbackAccountId,
-								cashbackAmount: Number(((data.totalAmount * targetCard.cashbackRate) / 100).toFixed(4)),
-								cashbackYieldPeriod: targetCard.cashbackYieldPeriod,
-								cashbackYieldReferencePercentage: targetCard.cashbackYieldReferencePercentage,
-								cashbackYieldReferenceRate: targetCard.cashbackYieldReferenceRate,
-							}
-						: {
-								cashbackAccountId: null,
-								cashbackAmount: null,
-								cashbackYieldPeriod: null,
-								cashbackYieldReferencePercentage: null,
-								cashbackYieldReferenceRate: null,
-							}
-					: {
-							cashbackAmount: storedPurchase.data.cashbackAmount
-								? Number(
-										(
-											(storedPurchase.data.cashbackAmount * data.totalAmount) /
-											storedPurchase.data.totalAmount
-										).toFixed(4),
-									)
-								: storedPurchase.data.cashbackAmount,
-						};
-			const purchaseDate = new Date(`${data.purchaseDate}T12:00:00`);
-			const statementMonth = new Date(purchaseDate);
-			if (purchaseDate.getDate() > targetCard.statementDay)
-				statementMonth.setMonth(statementMonth.getMonth() + 1);
-			const targetStatementDate = new Date(
-				statementMonth.getFullYear(),
-				statementMonth.getMonth(),
-				targetCard.statementDay,
+						);
+						p.totalAmountCents = total;
+						for (const i of book.installments.filter(i => i.purchaseId === p.id))
+							i.amountCents = p.installmentAmountsCents[i.number - 1]!;
+					}
+					if (data.description !== undefined) p.description = data.description;
+					if (data.storeName !== undefined) p.storeName = data.storeName ?? null;
+					if (data.purchaseDate !== undefined) updateBookPurchaseDate(book, p.id, data.purchaseDate);
+					if (data.time !== undefined) p.time = data.time;
+					if (data.tagIds !== undefined) p.tagIds = data.tagIds;
+					if (data.debtSplit !== undefined) p.debtSplitRule = data.debtSplit;
+					if (data.feeAmount !== undefined) {
+						p.feeAmount = data.feeAmount || null;
+						p.feeDescription = data.feeAmount ? (data.feeDescription ?? p.feeDescription) : null;
+					}
+				}
+				p.updatedAt = new Date().toISOString();
+			});
+			return toPurchasePresentation(
+				creditBookEntries(await readLocalCreditBook(cardId)).find(
+					row => row.id === purchaseId || row.purchaseId === purchaseId,
+				)!,
 			);
-			const targetStatementId = `${targetCardId}:${targetStatementDate.toISOString().slice(0, 10)}`;
-			const storedTargetStatement = await localCreditCardStatements.getById(targetStatementId);
-			const targetDueDate = new Date(
-				targetStatementDate.getFullYear(),
-				targetStatementDate.getMonth(),
-				targetCard.dueDay,
+		},
+		async updateRefund(
+			cardId: string,
+			purchaseId: string,
+			refundId: string,
+			data: { amount: number; date: string },
+		): Promise<CreditPurchase> {
+			if (!isGuestMode())
+				return fetchWithAuth<CreditPurchase>(
+					`/credit-cards/${cardId}/purchases/${purchaseId}/refunds/${refundId}`,
+					{ body: JSON.stringify({ amount: data.amount, purchaseDate: data.date }), method: "PATCH" },
+				);
+			await mutateLocalCreditBook(cardId, book =>
+				updateBookRefund(book, purchaseId, refundId, { amount: data.amount, creditDate: data.date }),
 			);
-			if (targetDueDate <= targetStatementDate) targetDueDate.setMonth(targetDueDate.getMonth() + 1);
-			const targetStatement: CreditCardStatement = storedTargetStatement?.data ?? {
-				balanceAmount: 0,
-				creditCardId: targetCardId,
-				dueDate: targetDueDate.toISOString(),
-				id: targetStatementId,
-				isPaid: false,
-				paidAmount: 0,
-				statementDate: targetStatementDate.toISOString(),
-				totalAmount: 0,
-			};
-			if (targetStatement.isPaid && targetStatement.id !== statement.id)
-				throw new Error("Não é possível mover uma compra para uma fatura paga");
-			const updatedPurchase: CreditPurchase = {
-				...storedPurchase.data,
-				...cashback,
-				categoryId: data.tagIds[0],
-				description: data.description,
-				...(data.feeAmount !== undefined && {
-					feeAmount: data.feeAmount || undefined,
-					feeDescription: data.feeAmount ? data.feeDescription : undefined,
-				}),
-				...(data.debtSplit !== undefined && {
-					debtSplit: await hydrateLocalDebtSplit(data.totalAmount, data.debtSplit),
-				}),
-				...(data.storeName !== undefined && { storeName: data.storeName }),
-				installmentAmount,
-				installments,
-				purchaseDate: data.purchaseDate,
-				statementId: targetStatement.id,
-				tagIds: data.tagIds,
-				...(data.time !== undefined && { time: data.time }),
-				totalAmount: data.totalAmount,
-			};
-			const changedStatement = statement.id !== targetStatement.id;
-			if (changedStatement) {
-				statement.totalAmount = Math.max(0, statement.totalAmount - storedPurchase.data.installmentAmount);
-				targetStatement.totalAmount += installmentAmount;
-			} else {
-				statement.totalAmount += installmentAmount - storedPurchase.data.installmentAmount;
-			}
-			const updatedInstallments = relatedInstallments.map((installment, index) =>
-				installment.id === purchaseId
-					? updatedPurchase
-					: {
-							...installment,
-							installmentAmount: installmentAmounts[index]!,
-							totalAmount: data.totalAmount,
-						},
+			return toPurchasePresentation(
+				creditBookEntries(await readLocalCreditBook(cardId)).find(row => row.id === refundId)!,
 			);
-			const updatedChildStatements = await Promise.all(
-				relatedInstallments.slice(1).map(async (installment, index) => {
-					const amountDifference = installmentAmounts[index + 1]! - installment.installmentAmount;
-					if (!amountDifference) return undefined;
-					const childStatement = (await localCreditCardStatements.getById(installment.statementId))?.data;
-					if (!childStatement) return undefined;
-					childStatement.totalAmount += amountDifference;
-					return childStatement;
-				}),
-			);
-			await Promise.all([
-				...updatedInstallments.map(installment => localCreditPurchases.put(installment, installment.id)),
-				localCreditCardStatements.put(statement, statement.id),
-				...(changedStatement ? [localCreditCardStatements.put(targetStatement, targetStatement.id)] : []),
-				...updatedChildStatements
-					.filter((childStatement): childStatement is CreditCardStatement => childStatement !== undefined)
-					.map(childStatement => localCreditCardStatements.put(childStatement, childStatement.id)),
-			]);
-			return updatedPurchase;
 		},
 	},
 
@@ -1688,14 +1579,14 @@ export const dataService = {
 				);
 				const [accountRecords, cashbackPurchases, holidays, yields] = await Promise.all([
 					localAccounts.getAll(),
-					localCreditPurchases.getAll(),
+					localCreditBooks.getAll(),
 					localMeta.get("financial-account-yield-holidays"),
 					localMeta.get("financial-account-yields"),
 				]);
 				const accountsAtRangeEnd = calculateFinancialAccountBalances(
 					accountRecords.map(item => normalizeLegacyFinancialAccount(item.data)),
 					transactions,
-					cashbackPurchases.map(item => normalizeLegacyCreditPurchase(item.data)),
+					cashbackPurchases.flatMap(item => creditBookRewards(item.data)),
 					(holidays as FinancialAccountYieldHoliday[] | null)?.map(holiday => holiday.date) ?? [],
 					rangeEnd,
 					(yields as FinancialAccountYield[] | null) ?? [],
@@ -2257,7 +2148,7 @@ export const dataService = {
 				localDebtPeople.getAll(),
 				localDebts.getAll(),
 				localTransactions.getAll(),
-				localCreditPurchases.getAll(),
+				localCreditBooks.getAll(),
 			]);
 			const people = new Map<string, DebtPerson>(
 				storedPeople.map(item => [item.data.id, { ...item.data, balance: 0, events: [] }]),
@@ -2321,24 +2212,55 @@ export const dataService = {
 				}
 			}
 			for (const item of storedPurchases) {
-				const purchase = item.data;
-				if (!purchase.debtSplit || purchase.currentInstallment !== 1) continue;
-				for (const participant of purchase.debtSplit.participants) {
-					const person = people.get(participant.debtPersonId);
-					if (!person) continue;
-					person.balance += participant.amount;
-					person.events.push({
-						amount: participant.amount,
-						createdByMe: true,
-						createdByName: "Você",
-						createdByUserId: getUserId(),
-						date: purchase.purchaseDate,
-						description: purchase.description || purchase.storeName || "Compra",
-						effect: participant.amount,
-						id: `purchase:${purchase.id}:${participant.debtPersonId}`,
-						kind: "PURCHASE",
-						time: purchase.time ?? null,
-					});
+				const book = item.data;
+				for (const purchase of book.purchases) {
+					if (purchase.purchaseDate > getLocalDateKey() || !purchase.debtSplitRule) continue;
+					const split = calculateDebtSplit(purchase.totalAmountCents / 100, purchase.debtSplitRule);
+					if (!split) continue;
+					const push = (
+						id: string,
+						date: string,
+						description: string,
+						amounts: number[],
+						sign: number,
+						time: string | null,
+					) => {
+						split.participants.forEach((participant, index) => {
+							const person = people.get(participant.debtPersonId);
+							const amount = amounts[index]! / 100;
+							if (!person || !amount) return;
+							const effect = sign * amount;
+							person.balance += effect;
+							person.events.push({
+								amount,
+								createdByMe: true,
+								createdByName: "Você",
+								createdByUserId: getUserId(),
+								date,
+								description,
+								effect,
+								id: `purchase:${id}:${participant.debtPersonId}`,
+								kind: "PURCHASE",
+								time,
+							});
+						});
+					};
+					const amounts = split.participants.map(p => moneyCents(p.amount));
+					push(purchase.id, purchase.purchaseDate, purchase.description, amounts, 1, purchase.time);
+					let refunded = 0;
+					for (const refund of book.refunds
+						.filter(r => r.purchaseId === purchase.id && !r.deletedAt && r.creditDate <= getLocalDateKey())
+						.toSorted((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))) {
+						push(
+							refund.id,
+							refund.creditDate,
+							`Reembolso - ${purchase.description}`,
+							refundDebtAmounts(purchase.totalAmountCents, amounts, refunded, refund.amountCents),
+							-1,
+							refund.time ?? null,
+						);
+						refunded += refund.amountCents;
+					}
 				}
 			}
 			const result = [...people.values()].map(person => ({
@@ -2914,7 +2836,7 @@ export const dataService = {
 					categories,
 					creditCards,
 					creditCardStatements,
-					creditPurchases,
+					creditBooks,
 					recurringPayments,
 					transactions,
 					loans,
@@ -2929,7 +2851,7 @@ export const dataService = {
 					localCategories.getAll(owner),
 					localCreditCards.getAll(owner),
 					localCreditCardStatements.getAll(owner),
-					localCreditPurchases.getAll(owner),
+					localCreditBooks.getAll(owner),
 					localRecurringPayments.getAll(owner),
 					localTransactions.getAll(owner),
 					localLoans.getAll(owner),
@@ -2955,7 +2877,7 @@ export const dataService = {
 						categories: Category[];
 						creditCards: CreditCard[];
 						creditCardStatements: CreditCardStatement[];
-						creditPurchases: CreditPurchase[];
+						creditBooks: CreditBook[];
 						recurringPayments: RecurringPayment[];
 						transactions: Transaction[];
 						loans: Loan[];
@@ -2967,9 +2889,9 @@ export const dataService = {
 				}>("/sync", {
 					body: JSON.stringify({
 						categories: categories.map(c => c.data),
+						creditBooks: creditBooks.map(purchase => purchase.data),
 						creditCardStatements: creditCardStatements.map(statement => statement.data),
 						creditCards: creditCards.map(card => card.data),
-						creditPurchases: creditPurchases.map(purchase => purchase.data),
 						debtPeople: debtPeople.map(person => person.data),
 						debts: debts.map(d => d.data),
 						financialAccounts: accounts.map(a => a.data),
@@ -3026,14 +2948,9 @@ export const dataService = {
 						})),
 						owner,
 					),
-					localCreditPurchases.replaceSnapshot(
-						response.serverData.creditPurchases.map(purchase => ({
-							data: purchase,
-							localId: purchase.id,
-							syncedAt: Date.now(),
-						})),
-						owner,
-					),
+					response.syncResults.creditBooks?.errors.length
+						? Promise.resolve()
+						: acknowledgeCreditBookSync(creditBooks, response.serverData.creditBooks, owner),
 					localRecurringPayments.replaceSnapshot(
 						response.serverData.recurringPayments.map(payment => ({
 							data: payment,
@@ -3331,7 +3248,7 @@ export const dataService = {
 				const [local, storedPurchases, storedStatements, storedCards, storedCategories, storedAccounts] =
 					await Promise.all([
 						localTransactions.getAll(),
-						localCreditPurchases.getAll(),
+						localCreditBooks.getAll(),
 						localCreditCardStatements.getAll(),
 						localCreditCards.getAll(),
 						localCategories.getAll(),
@@ -3341,65 +3258,41 @@ export const dataService = {
 				const cards = new Map(storedCards.map(item => [item.data.id, item.data]));
 				const categories = new Map(storedCategories.map(item => [item.data.id, item.data]));
 				const accounts = new Map(storedAccounts.map(item => [item.data.id, item.data]));
-				const refundedPurchaseIds = new Set(
-					storedPurchases.flatMap(item =>
-						item.data.refundOfPurchaseId ? [item.data.refundOfPurchaseId] : [],
-					),
+				const flattened = storedPurchases.flatMap(item =>
+					creditBookConsumption(item.data).map(toPurchasePresentation),
 				);
-				const purchases: Transaction[] = storedPurchases
-					.map(item => item.data)
+				const refundedPurchaseIds = new Set(
+					flattened.flatMap(p => (p.refundOfPurchaseId ? [p.refundOfPurchaseId] : [])),
+				);
+				const purchases: Transaction[] = flattened
 					.filter(
-						purchase =>
-							purchase.currentInstallment === 1 &&
-							(!params?.type || params.type === (purchase.isRefund ? "INCOME" : "EXPENSE")),
+						p =>
+							p.currentInstallment === 1 &&
+							(!params?.type || params.type === (p.isRefund ? "REFUND" : "EXPENSE")),
 					)
-					.flatMap(purchase => {
-						const statement = statements.get(purchase.statementId);
-						const card = statement ? cards.get(statement.creditCardId) : undefined;
+					.flatMap(p => {
+						const statement = statements.get(p.statementId);
+						const card = cards.get(p.creditCardId ?? statement?.creditCardId ?? "");
 						if (!card) return [];
-						const tagIds = purchase.tagIds ?? (purchase.categoryId ? [purchase.categoryId] : []);
-						const tags = tagIds.flatMap(tagId => {
-							const tag = categories.get(tagId);
+						const tags = (p.tagIds ?? []).flatMap(id => {
+							const tag = categories.get(id);
 							return tag ? [tag] : [];
 						});
 						return [
 							{
-								amount: purchase.isRefund ? Math.abs(purchase.totalAmount) : purchase.totalAmount,
-								categoryColor: tags[0]?.color ?? undefined,
-								categoryId: purchase.categoryId,
-								categoryName: tags[0]?.name,
-								createdAt: purchase.purchaseDate,
-								creditCardId: card.id,
-								currentInstallment: purchase.currentInstallment,
-								date: purchase.purchaseDate,
-								debtSplit: purchase.debtSplit,
-								description: purchase.description,
-								hasRefund: !purchase.isRefund && refundedPurchaseIds.has(purchase.id),
-								id: purchase.id,
-								installmentAmount: purchase.installmentAmount,
-								installments: purchase.installments,
-								isRefund: purchase.isRefund,
+								...p,
+								amount: Math.abs(p.totalAmount),
+								createdAt: p.purchaseDate,
+								date: p.purchaseDate,
+								debtSplit: null,
+								hasRefund: !p.isRefund && refundedPurchaseIds.has(p.id),
 								originFinancialAccountId: card.financialAccountId,
-								originName:
-									card.accountName ||
-									accounts.get(card.financialAccountId)?.name ||
-									accounts.get(card.financialAccountId)?.institution?.name ||
-									"Cartão de crédito",
-								paymentCreditCardId: undefined,
-								refundOfPurchaseId: purchase.refundOfPurchaseId,
+								originName: card.accountName ?? "Cartão de crédito",
 								source: "CREDIT_CARD" as const,
-								sourceName:
-									card.accountName ||
-									accounts.get(card.financialAccountId)?.institution?.name ||
-									"Cartão de crédito",
-								statementId: purchase.statementId,
-								storeName: purchase.storeName,
-								subscriptionId: purchase.subscriptionId,
-								tagIds,
+								sourceName: card.accountName ?? "Cartão de crédito",
 								tags,
-								time: purchase.time,
-								type: purchase.isRefund ? ("INCOME" as const) : ("EXPENSE" as const),
-							},
+								type: (p.isRefund ? "REFUND" : "EXPENSE") as "REFUND" | "EXPENSE",
+							} as Transaction,
 						];
 					});
 				let transactions = [

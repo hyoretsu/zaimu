@@ -55,7 +55,11 @@ export const queryKeys = {
 	},
 	creditCards: {
 		all: (identity: CacheIdentity) => domainKey(identity, "credit-cards"),
+		book: (identity: CacheIdentity, cardId: string) =>
+			[...domainKey(identity, "credit-cards"), "book", cardId] as const,
 		list: (identity: CacheIdentity) => [...domainKey(identity, "credit-cards"), "list"] as const,
+		refundReviews: (identity: CacheIdentity, cardId: string) =>
+			[...domainKey(identity, "credit-cards"), "refund-reviews", cardId] as const,
 	},
 	dashboard: {
 		all: (identity: CacheIdentity) => domainKey(identity, "dashboard"),

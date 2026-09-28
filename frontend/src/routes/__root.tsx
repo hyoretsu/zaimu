@@ -4,8 +4,8 @@ import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { initLocalDb } from "@/lib/localStorage";
-import { useCacheIdentity } from "@/lib/query-cache";
+import { initLocalDb, materializeLocalCreditBooks } from "@/lib/localStorage";
+import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
 import { useAuthStore, useThemeStore } from "@/stores";
 
 function AppLoadingState() {
@@ -44,6 +44,31 @@ function RootComponent() {
 		void initLocalDb();
 		void initialize();
 	}, [initialize, initializeTheme]);
+
+	useEffect(() => {
+		if (!identity || !isGuestMode) return;
+		let active = true;
+		const materialize = async () => {
+			try {
+				const changed = await materializeLocalCreditBooks(identity);
+				if (active && changed) await invalidateCacheOperation(queryClient, identity, "statement");
+			} catch (error) {
+				if (active)
+					toast.error(error instanceof Error ? error.message : "Não foi possível atualizar parcelas locais.");
+			}
+		};
+		void materialize();
+		const timer = setInterval(() => void materialize(), 60000);
+		const onVisible = () => {
+			if (document.visibilityState === "visible") void materialize();
+		};
+		document.addEventListener("visibilitychange", onVisible);
+		return () => {
+			active = false;
+			clearInterval(timer);
+			document.removeEventListener("visibilitychange", onVisible);
+		};
+	}, [identity, isGuestMode, queryClient]);
 
 	useEffect(() => {
 		if (!isInitialized || isPublicRoute || isRateLimited || isAuthenticated || isGuestMode) return;

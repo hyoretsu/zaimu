@@ -215,6 +215,8 @@ export interface CreditCard {
 }
 
 export interface Transaction {
+	entryKind?: "INSTALLMENT" | "REFUND" | "CHARGE";
+
 	id: string;
 	amount: number;
 	date: string;
@@ -230,7 +232,7 @@ export interface Transaction {
 	isRefund?: boolean;
 	hasRefund?: boolean;
 	refund?: { amount: number; date: string; id: string };
-	type: "INCOME" | "EXPENSE" | "TRANSFER";
+	type: "INCOME" | "EXPENSE" | "REFUND" | "TRANSFER";
 	categoryId?: string;
 	categoryName?: string;
 	categoryColor?: string;
@@ -626,6 +628,20 @@ export interface CreditCardStatementPage {
 }
 
 export interface CreditPurchase {
+	purchaseId?: string;
+	creditCardId?: string;
+	entryKind?: "INSTALLMENT" | "REFUND" | "CHARGE";
+	refundableAmount?: number;
+	refundedAmount?: number;
+	refunds?: {
+		id: string;
+		amount: number;
+		date: string;
+		policy: "KEEP_INSTALLMENTS" | "CANCEL_FUTURE_INSTALLMENTS";
+		creditAmount: number;
+		canceledAmount: number;
+	}[];
+
 	isStatementCharge?: boolean;
 	id: string;
 	statementId: string;

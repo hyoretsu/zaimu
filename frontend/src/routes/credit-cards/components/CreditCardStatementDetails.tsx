@@ -37,6 +37,7 @@ export function CreditCardStatementDetails({
 }) {
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
+	const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<string>>(new Set());
 	const [editingPurchase, setEditingPurchase] = useState<CreditPurchase | null>(null);
 	const [refinancingPurchase, setRefinancingPurchase] = useState<CreditPurchase | null>(null);
 	const [refundingPurchase, setRefundingPurchase] = useState<CreditPurchase | null>(null);
@@ -76,6 +77,10 @@ export function CreditCardStatementDetails({
 				),
 			)
 		: [];
+	const rootId = (id: string | undefined) => {
+		const p = detail.data?.purchases.find(p => p.id === id);
+		return p?.purchaseId ?? p?.refundOfPurchaseId ?? p?.parentId ?? id;
+	};
 	const refreshStatement = () => invalidateCacheOperation(queryClient, identity!, "statement");
 	const updatePurchase = useMutation({
 		mutationFn: ({
@@ -100,6 +105,13 @@ export function CreditCardStatementDetails({
 		onError: error => {
 			showToast(error instanceof Error ? error.message : "Não foi possível excluir a transação.", "negative");
 		},
+		onMutate: id => setPendingDeleteIds(current => new Set(current).add(id)),
+		onSettled: (_data, _error, id) =>
+			setPendingDeleteIds(current => {
+				const next = new Set(current);
+				next.delete(id);
+				return next;
+			}),
 		onSuccess: async () => {
 			await refreshStatement();
 			showToast("Transação excluída.", "positive");
@@ -122,8 +134,21 @@ export function CreditCardStatementDetails({
 		},
 	});
 	const refundPurchase = useMutation({
-		mutationFn: ({ data, purchaseId }: { data: { amount?: number; date?: string }; purchaseId: string }) =>
-			dataService.creditCards.refundPurchase(statement.creditCardId, purchaseId, data),
+		mutationFn: ({
+			data,
+			purchase,
+		}: {
+			data: { amount?: number; date?: string; policy?: "KEEP_INSTALLMENTS" | "CANCEL_FUTURE_INSTALLMENTS" };
+			purchase: CreditPurchase;
+		}) => {
+			const purchaseId = purchase.purchaseId ?? purchase.refundOfPurchaseId ?? purchase.id;
+			return purchase.isRefund
+				? dataService.creditCards.updateRefund(statement.creditCardId, purchaseId, purchase.id, {
+						amount: data.amount ?? Math.abs(purchase.totalAmount),
+						date: data.date ?? purchase.purchaseDate.slice(0, 10),
+					})
+				: dataService.creditCards.refundPurchase(statement.creditCardId, purchaseId, data);
+		},
 		onError: error =>
 			showToast(
 				error instanceof Error ? error.message : "Não foi possível registrar o reembolso.",
@@ -135,6 +160,26 @@ export function CreditCardStatementDetails({
 			showToast("Reembolso registrado e faturas recalculadas.", "positive");
 		},
 	});
+	const deleteRefund = useMutation({
+		mutationFn: (refundId: string) =>
+			dataService.creditCards.deletePurchase(statement.creditCardId, refundId),
+		onError: error =>
+			showToast(error instanceof Error ? error.message : "Não foi possível excluir o reembolso.", "negative"),
+		onSuccess: async () => {
+			setRefundingPurchase(null);
+			await refreshStatement();
+			showToast("Reembolso excluído e faturas recalculadas.", "positive");
+		},
+	});
+	const pendingRootIds = new Set([
+		...[...pendingDeleteIds].map(rootId),
+		...(updatePurchase.isPending ? [rootId(updatePurchase.variables?.purchaseId)] : []),
+		...(refinancePurchase.isPending ? [rootId(refinancePurchase.variables?.purchaseId)] : []),
+		...(refundPurchase.isPending ? [rootId(refundPurchase.variables?.purchase.id)] : []),
+		...(deleteRefund.isPending ? [rootId(deleteRefund.variables)] : []),
+	]);
+	const rowPending = (p: CreditPurchase) =>
+		pendingRootIds.has(p.purchaseId ?? p.refundOfPurchaseId ?? p.parentId ?? p.id);
 	return (
 		<TabsContent className="min-h-0 min-w-0 overflow-hidden sm:pl-6" value={statement.id}>
 			<ScrollArea className="h-full min-h-0 pr-3">
@@ -236,22 +281,38 @@ export function CreditCardStatementDetails({
 											deleteDisabled={
 												entry.purchase.isSynced === true ||
 												statement.isForecast === true ||
-												deletePurchase.isPending
+												rowPending(entry.purchase)
 											}
-											editDisabled={statement.isForecast === true || deletePurchase.isPending}
+											editDisabled={statement.isForecast === true || rowPending(entry.purchase)}
 											key={entry.id}
 											onDelete={() => deletePurchase.mutateAsync(entry.purchase.id)}
-											onEdit={() => setEditingPurchase(entry.purchase)}
+											onEdit={() =>
+												entry.purchase.isRefund
+													? setRefundingPurchase(entry.purchase)
+													: setEditingPurchase(entry.purchase)
+											}
+											onEditRefund={refund =>
+												setRefundingPurchase({
+													...entry.purchase,
+													id: refund.id,
+													installmentAmount: -refund.creditAmount,
+													isRefund: true,
+													purchaseDate: refund.date,
+													purchaseId: entry.purchase.purchaseId ?? entry.purchase.id,
+													refund,
+													totalAmount: -refund.amount,
+												})
+											}
 											onRefinance={() => setRefinancingPurchase(entry.purchase)}
 											onRefund={() => setRefundingPurchase(entry.purchase)}
 											purchase={entry.purchase}
 											refinanceDisabled={
 												statement.isForecast === true ||
-												refinancePurchase.isPending ||
+												rowPending(entry.purchase) ||
 												entry.purchase.isStatementCharge === true ||
 												entry.purchase.isSettled === true
 											}
-											refundDisabled={statement.isForecast === true || refundPurchase.isPending}
+											refundDisabled={statement.isForecast === true || rowPending(entry.purchase)}
 										/>
 									),
 								)}
@@ -291,13 +352,21 @@ export function CreditCardStatementDetails({
 			)}
 			{refundingPurchase && (
 				<RefundCreditPurchaseDialog
+					onDelete={
+						refundingPurchase.isRefund
+							? async () => {
+									await deleteRefund.mutateAsync(refundingPurchase.id);
+								}
+							: undefined
+					}
 					onOpenChange={open => !open && setRefundingPurchase(null)}
 					onSubmit={async data => {
-						await refundPurchase.mutateAsync({ data, purchaseId: refundingPurchase.id });
+						await refundPurchase.mutateAsync({ data, purchase: refundingPurchase });
 					}}
 					open
-					pending={refundPurchase.isPending}
+					pending={refundPurchase.isPending || deleteRefund.isPending}
 					purchase={refundingPurchase}
+					refundId={refundingPurchase.isRefund ? refundingPurchase.id : undefined}
 				/>
 			)}
 		</TabsContent>

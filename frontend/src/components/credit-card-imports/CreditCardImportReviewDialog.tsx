@@ -28,6 +28,7 @@ import { showToast } from "@/stores";
 import { CreditCardImportItemRow } from "./CreditCardImportItemRow";
 import { CreditPurchaseReconciliationDialog } from "./CreditPurchaseReconciliationDialog";
 import { EditImportedCreditPurchaseDialog } from "./EditImportedCreditPurchaseDialog";
+import { RefundImportReviewDialog } from "./RefundImportReviewDialog";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
@@ -43,6 +44,7 @@ export function CreditCardImportReviewDialog({
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
 	const [editingItem, setEditingItem] = useState<CreditCardImportItem | null>(null);
+	const [reviewingRefund, setReviewingRefund] = useState<CreditCardImportItem | null>(null);
 	const [reconcilingImport, setReconcilingImport] = useState<{
 		id: string;
 		item: CreditCardImportItem;
@@ -115,6 +117,18 @@ export function CreditCardImportReviewDialog({
 			showToast("Compra e parcelas criadas.", "positive");
 		},
 	});
+	const approveRefund = useMutation({
+		mutationFn: (data: Parameters<typeof dataService.creditCardImports.approveRefund>[2]) =>
+			dataService.creditCardImports.approveRefund(importId!, reviewingRefund!.id, data),
+		onError: error => showToast(error.message, "negative"),
+		onSuccess: async result => {
+			setReviewingRefund(null);
+			await invalidateCreditCards();
+			if (result.finished) await closeFinishedReview();
+			else await invalidate();
+			showToast("Reembolso aprovado e faturas recalculadas.", "positive");
+		},
+	});
 	const reconcileItem = useMutation({
 		mutationFn: ({
 			creditPurchaseId,
@@ -165,14 +179,22 @@ export function CreditCardImportReviewDialog({
 	});
 	const creditCard = creditCards.data?.find(card => card.id === creditCardImportData?.creditCardId);
 	const creditCardName = creditCard ? getCreditCardDisplayName(creditCard) : "Cartão de crédito";
-	const reviewBusy =
-		updateItem.isPending || reconcileItem.isPending || approve.isPending || discard.isPending;
-	const hasApprovingItems = approvingItemIds.size > 0;
+	const reviewBusy = approve.isPending || discard.isPending;
+	const rowBusy = (id: string) =>
+		reviewBusy ||
+		approvingItemIds.has(id) ||
+		(updateItem.isPending && updateItem.variables?.itemId === id) ||
+		(reconcileItem.isPending && reconcileItem.variables?.itemId === id) ||
+		(approveRefund.isPending && reviewingRefund?.id === id);
+	const hasApprovingItems =
+		approvingItemIds.size > 0 || updateItem.isPending || reconcileItem.isPending || approveRefund.isPending;
 
 	return (
 		<>
 			<ImportDialog
-				childDialogOpen={Boolean(editingItem || reconcilingImport || discardConfirmationOpen)}
+				childDialogOpen={Boolean(
+					editingItem || reviewingRefund || reconcilingImport || discardConfirmationOpen,
+				)}
 				onOpenChange={onOpenChange}
 				open={open}
 			>
@@ -213,10 +235,12 @@ export function CreditCardImportReviewDialog({
 									<CreditCardImportItemRow
 										creditCardId={creditCardImportData!.creditCardId}
 										creditCardName={creditCardName}
-										disabled={reviewBusy || approvingItemIds.has(item.id)}
+										disabled={rowBusy(item.id)}
 										item={item}
 										key={item.id}
-										onApprove={() => approveItem.mutate(item.id)}
+										onApprove={() =>
+											item.installmentAmount < 0 ? setReviewingRefund(item) : approveItem.mutate(item.id)
+										}
 										onEdit={() => setEditingItem(item)}
 										onReconcile={() => {
 											if (!importId) return;
@@ -291,6 +315,18 @@ export function CreditCardImportReviewDialog({
 				open={editingItem !== null}
 				pending={updateItem.isPending}
 			/>
+			{reviewingRefund && creditCardImportData ? (
+				<RefundImportReviewDialog
+					cardId={creditCardImportData.creditCardId}
+					item={reviewingRefund}
+					key={reviewingRefund.id}
+					loadSources={() => dataService.creditCardImports.refundSources(importId!)}
+					onOpenChange={nextOpen => !nextOpen && setReviewingRefund(null)}
+					onSubmit={data => approveRefund.mutateAsync(data)}
+					pending={approveRefund.isPending}
+					reviewKey={importId!}
+				/>
+			) : null}
 			<CreditPurchaseReconciliationDialog
 				item={reconcilingImport?.item ?? null}
 				onOpenChange={nextOpen => !nextOpen && setReconcilingImport(null)}

@@ -25,8 +25,8 @@
 - [x] Modelo/cálculos compartilhados, testes de invariantes e transformação determinística dos registros legados.
 - [x] Schema e migração SQL com preservação de referências e verificação em PostgreSQL descartável local.
 - [x] Serviços transacionais, política institucional imutável, endpoints novos e reconstrução de faturas.
-- [ ] IndexedDB, modo visitante e sync no contrato normalizado.
-- [ ] UI de parcelas/reembolsos, edição atômica e filtros/relatórios.
+- [x] IndexedDB, modo visitante e sync no contrato normalizado.
+- [x] UI de parcelas/reembolsos, edição atômica e filtros/relatórios.
 - [x] Importações com revisão de vínculo/reconstrução.
 - [ ] Testes integrados, documentação de comportamento ativo e commits locais com hooks.
 
@@ -64,3 +64,7 @@
 - Backend ativado: endpoints de livro e CRUD de reembolsos, política institucional imutável, lock por cartão, replay atômico, metadados herdados, rateios persistidos inclusive em compras futuras, estornos de dívidas/recompensas e invalidação de caches do titular e contrapartes.
 - Aprovação de crédito importado exige vínculo ou reconstrução revisada; aprovação convencional/em lote mantém negativos pendentes. Revisão de órfãos migrados preserva ID antigo e dados originais. Transação protege aprovação concorrente, rateios e fechamento do lote.
 - Leituras de dashboard e pagamentos usam replay normalizado completo, incluindo planos futuros. Materialização periódica cria somente parcelas devidas, mesmo em cartões sem assinaturas.
+
+- IndexedDB v7 e sync normalizados concluídos: conversão atômica por proprietário, arquivo dos registros/clocks legados, revisão de créditos órfãos, tombstones e acknowledge que preserva edição concorrente. Livros criados depois da migração sobrevivem à recarga.
+- Modo visitante materializa somente parcelas devidas na inicialização, retorno à janela e processamento periódico. Leituras permanecem sem efeitos de escrita.
+- Interface concluída para múltiplos reembolsos, edição/exclusão com identidade preservada, saldo disponível, política institucional e revisão de créditos importados. Filtros exibem reembolso como tipo próprio. Controles pendentes bloqueiam somente a compra ou linha afetada.
