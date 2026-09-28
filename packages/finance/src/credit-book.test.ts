@@ -4,7 +4,9 @@ import {
 	type CreditBook,
 	creditBookConsumption,
 	creditBookEntries,
+	creditBookPlan,
 	creditBookRewards,
+	ensureBookStatement,
 	materializeBookInstallments,
 	moveBookPurchase,
 	newBookPurchase,
@@ -37,6 +39,22 @@ function emptyBook(): CreditBook {
 }
 
 describe("normalized credit book", () => {
+	test("assigns closing-day purchases to the next invoice in plans and materialized records", () => {
+		const book = emptyBook();
+		const current = ensureBookStatement(book, "2025-01-19");
+		const purchase = newBookPurchase(book, {
+			description: "Compra no fechamento",
+			installments: 1,
+			purchaseDate: "2025-01-20",
+			totalAmount: 100,
+		});
+		const installment = book.installments.find(item => item.purchaseId === purchase.id)!;
+		expect(book.statements.find(item => item.id === installment.statementId)?.statementDate).toBe(
+			"2025-02-20",
+		);
+		expect(creditBookPlan(book).installments[0]?.statementId).toBe(installment.statementId);
+		expect(installment.statementId).not.toBe(current.id);
+	});
 	test("moves manual purchases from closed invoices with installments and refunds intact", () => {
 		const source = emptyBook();
 		const destination = emptyBook();

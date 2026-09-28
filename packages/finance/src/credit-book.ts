@@ -207,8 +207,8 @@ export function ensureBookStatement(
 				.toSorted((a, b) => a.statementDate.localeCompare(b.statementDate))
 				.find(
 					statement =>
-						statement.statementDate >= date &&
-						statement.statementDate.slice(0, 7) <= dates.statementDate.slice(0, 7),
+						statement.statementDate > date &&
+						statement.statementDate.slice(0, 7) === dates.statementDate.slice(0, 7),
 				);
 	if (existing) return existing;
 	const statement: BookStatement = {
@@ -243,8 +243,8 @@ export function creditBookPlan(book: CreditBook) {
 						.toSorted((a, b) => a.statementDate.localeCompare(b.statementDate))
 						.find(
 							item =>
-								item.statementDate >= date &&
-								item.statementDate.slice(0, 7) <= dates.statementDate.slice(0, 7),
+								item.statementDate > date &&
+								item.statementDate.slice(0, 7) === dates.statementDate.slice(0, 7),
 						);
 			if (occurrence && !statement) throw new RangeError("Fatura da parcela não encontrada");
 			if (!statement) {

@@ -22,18 +22,26 @@ const purchase: CreditPurchase = {
 };
 
 describe("normalized purchase installments", () => {
-	test("closing dates clamp short months, use inclusive closing and advance after closing", () => {
+	test("closing dates clamp short months and advance purchases made on closing day", () => {
 		expect(purchaseStatementDates({ dueDay: 5, statementDay: 31 }, "2024-09-10")).toEqual({
 			dueDate: "2024-10-05",
 			statementDate: "2024-09-30",
 		});
 		expect(purchaseStatementDates({ dueDay: 31, statementDay: 15 }, "2024-02-15")).toEqual({
+			dueDate: "2024-03-31",
+			statementDate: "2024-03-15",
+		});
+		expect(purchaseStatementDates({ dueDay: 31, statementDay: 15 }, "2024-02-14")).toEqual({
 			dueDate: "2024-02-29",
 			statementDate: "2024-02-15",
 		});
 		expect(purchaseStatementDates({ dueDay: 31, statementDay: 15 }, "2024-02-16")).toEqual({
 			dueDate: "2024-03-31",
 			statementDate: "2024-03-15",
+		});
+		expect(purchaseStatementDates({ dueDay: 5, statementDay: 31 }, "2024-02-29")).toEqual({
+			dueDate: "2024-04-05",
+			statementDate: "2024-03-31",
 		});
 	});
 	test("projects future cycles without persisting them", () => {

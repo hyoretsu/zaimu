@@ -80,7 +80,7 @@ export function installmentOccurrenceDate(purchaseDate: string, number: number) 
 	return target.toISOString().slice(0, 10);
 }
 
-/** Purchase/refund credits use the next closing date; payments use due dates instead. */
+/** Purchases and refund credits on a closing date belong to the next cycle. */
 export function purchaseStatementDates(
 	card: { statementDay: number; dueDay: number },
 	occurrenceDate: string,
@@ -96,7 +96,7 @@ export function purchaseStatementDates(
 		return first;
 	};
 	let closing = monthDay(date.getUTCFullYear(), date.getUTCMonth(), card.statementDay);
-	if (closing.toISOString().slice(0, 10) < occurrenceDate)
+	if (closing.toISOString().slice(0, 10) <= occurrenceDate)
 		closing = monthDay(date.getUTCFullYear(), date.getUTCMonth() + 1, card.statementDay);
 	let due = monthDay(closing.getUTCFullYear(), closing.getUTCMonth(), card.dueDay);
 	if (due <= closing) due = monthDay(closing.getUTCFullYear(), closing.getUTCMonth() + 1, card.dueDay);

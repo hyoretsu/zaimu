@@ -74,6 +74,8 @@ Rendimento de cashback é opcional e pós-fixado: exige taxa de referência manu
 
 A compra concentra valor total original, estabelecimento, categoria e tags. Parcelas e reembolsos herdam esses metadados. O plano conserva valores e calendários importados, enquanto somente parcelas devidas viram registros concretos. Inicialização e processamento periódico retomam a materialização de forma idempotente, inclusive no modo visitante.
 
+Compras feitas na data de fechamento do cartão entram na fatura seguinte. A regra também vale quando o fechamento configurado cai no último dia de um mês mais curto; compras anteriores ao fechamento permanecem na fatura corrente.
+
 Uma compra admite vários reembolsos parciais. A soma das restituições ativas nunca supera o total original; validação ocorre em centavos na mesma transação que reconstrói faturas, saldos, recompensas e dívidas. Edição mantém o ID do reembolso, inclusive em faturas pagas. Exclusão conserva histórico e impede recriação por sincronização desatualizada.
 
 Restituição parcial sempre gera crédito. Na primeira restituição integral, havendo ciclos posteriores ao ciclo do crédito, a política pode manter parcelas e creditar tudo ou cancelar parcelas posteriores e creditar somente a diferença. R$ 300 restituídos com R$ 200 em parcelas canceladas geram R$ 100 de crédito. Parcelas do próprio ciclo do crédito permanecem. Completar o total após uma restituição parcial não promove cancelamento de parcelas.
