@@ -12,7 +12,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { FinancialAccount, Transaction } from "@/lib/api";
-import { dataService } from "@/lib/dataService";
+import { dataService, type FinancialAccountYieldPage } from "@/lib/dataService";
 import { formatLocalTime } from "@/lib/date";
 import {
 	calculateFinancialAccountYieldEntries,
@@ -79,7 +79,7 @@ export function FinancialAccountStatementDialog({
 	});
 	const yields = useInfiniteQuery({
 		enabled: identity !== null && open,
-		getNextPageParam: page => page.nextCursor ?? undefined,
+		getNextPageParam: (page: FinancialAccountYieldPage) => page.nextCursor ?? undefined,
 		initialPageParam: null as null | string,
 		queryFn: ({ pageParam }) => dataService.accountYields.getPage(account.id, pageParam),
 		queryKey: queryKeys.accountYields.list(identity!, account.id),

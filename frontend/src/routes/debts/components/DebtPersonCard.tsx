@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import type { DebtEvent, DebtPerson } from "@/lib/api";
-import { dataService } from "@/lib/dataService";
+import { type DebtEventPage, dataService } from "@/lib/dataService";
 import { formatLocalDate, formatLocalTime } from "@/lib/date";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import {
@@ -42,7 +42,7 @@ export function DebtPersonCard({
 	const identity = useCacheIdentity();
 	const eventsQuery = useInfiniteQuery({
 		enabled: expanded && identity !== null,
-		getNextPageParam: page => page.nextCursor ?? undefined,
+		getNextPageParam: (page: DebtEventPage) => page.nextCursor ?? undefined,
 		initialPageParam: null as null | string,
 		queryFn: ({ pageParam }) => dataService.debts.getEventPage(person.id, pageParam),
 		queryKey: queryKeys.debts.events(identity!, person.id),
