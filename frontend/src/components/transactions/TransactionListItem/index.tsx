@@ -169,7 +169,7 @@ export function TransactionListItem({
 						accounts={accounts}
 						creditCardPayment={creditCardPayment}
 						debtPersonName={formatDebtSplitBadge(transaction.debtSplit, formatCurrency)}
-						isFullySynced={transaction.isFullySynced}
+						isFullySynced={Boolean(transaction.isFullySynced && (transaction.installments ?? 0) > 1)}
 						isSalary={Boolean(transaction.salaryId)}
 						isSubscription={Boolean(transaction.subscriptionId)}
 						isSynced={transaction.isSynced ?? Boolean(transaction.externalIds?.length)}

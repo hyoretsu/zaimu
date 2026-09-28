@@ -39,6 +39,7 @@ export function CreditPurchaseRow({
 		: undefined;
 	const tags = purchase.tags?.length ? purchase.tags : fallbackTag ? [fallbackTag] : undefined;
 	const debtPersonName = formatDebtSplitBadge(purchase.debtSplit, amount => currency.format(amount));
+	const hasSyncedInstallments = purchase.isFullySynced && purchase.installments > 1;
 
 	return (
 		<div className="grid min-w-0 gap-3 rounded-xl border bg-card p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
@@ -68,12 +69,12 @@ export function CreditPurchaseRow({
 				tags?.length ||
 				purchase.subscriptionId ||
 				purchase.isSynced ||
-				purchase.isFullySynced ? (
+				hasSyncedInstallments ? (
 					<div className="mt-2">
 						<TransactionBadges
 							accounts={[]}
 							debtPersonName={debtPersonName}
-							isFullySynced={purchase.isFullySynced}
+							isFullySynced={hasSyncedInstallments}
 							isSubscription={Boolean(purchase.subscriptionId)}
 							isSynced={purchase.isSynced}
 							storeName={purchase.storeName}
