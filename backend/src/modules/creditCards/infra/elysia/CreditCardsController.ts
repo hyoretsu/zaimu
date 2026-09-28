@@ -1652,7 +1652,8 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						? null
 						: String(purchase.cashbackYieldReferenceRate),
 			};
-			if (body.creditCardId && body.creditCardId !== params.id) {
+			if (!purchase.parentId) {
+				const targetCardId = body.creditCardId ?? params.id;
 				const card = await queryFirst(
 					db.sql.public.CreditCard.select(
 						"cashbackAccountId",
@@ -1663,7 +1664,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						"dueDay",
 						"statementDay",
 					)
-						.where((fields, functions) => functions.eq(fields.id, body.creditCardId!))
+						.where((fields, functions) => functions.eq(fields.id, targetCardId))
 						.limit(1)
 						.build(),
 				);
@@ -1673,7 +1674,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					db.sql.public.CreditCardStatement.select(...statementColumns)
 						.where((fields, functions) =>
 							functions.and(
-								functions.eq(fields.creditCardId, body.creditCardId!),
+								functions.eq(fields.creditCardId, targetCardId),
 								functions.eq(fields.statementDate, statementDate),
 							),
 						)
@@ -1683,16 +1684,17 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				if (!statement) {
 					statement = await queryFirst(
 						db.sql.public.CreditCardStatement.insert([
-							{ creditCardId: body.creditCardId, dueDate, statementDate, totalAmount: "0" },
+							{ creditCardId: targetCardId, dueDate, statementDate, totalAmount: "0" },
 						])
 							.returning(...statementColumns)
 							.build(),
 					);
 				}
 				if (!statement) throw new HttpException("Statement not created", 500);
-				if (statement.isPaid) throw new HttpException("Cannot move a purchase to a paid statement", 409);
+				if (statement.isPaid && statement.id !== purchase.statementId)
+					throw new HttpException("Cannot move a purchase to a paid statement", 409);
 				nextStatementId = statement.id;
-				if (!purchase.parentId) {
+				if (!purchase.parentId && targetCardId !== params.id) {
 					const snapshot = cashbackSnapshot(card, nextTotalAmount);
 					nextCashback = {
 						cashbackAccountId: snapshot.cashbackAccountId ?? null,
