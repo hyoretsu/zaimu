@@ -226,7 +226,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 				});
 				const transactionListDates = [...loaded.activityDates];
 				const todayKey = dateKey(today);
-				const balanceRowsByDate = Map.groupBy(loaded.balanceRows, row => dateKey(row.date));
+				const balanceRowsByDate = Map.groupBy(loaded.balanceRows, row => row.date);
 				const historicalBalances = [...balanceRowsByDate].map(([date, rows]) => ({
 					balances: new Map(rows.map(row => [row.accountId, Number(row.balance)])),
 					date: new Date(`${date}T12:00:00`),

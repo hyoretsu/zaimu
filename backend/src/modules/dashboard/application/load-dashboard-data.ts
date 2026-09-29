@@ -1,3 +1,4 @@
+import { monetaryBalancesSql } from "~/modules/accounts/application/monetary-balances-sql";
 import { withRawTransaction } from "~/shared/infra/sql";
 import { dateKey } from "./dashboard-calculations";
 
@@ -11,7 +12,7 @@ interface DataRow extends Record<string, unknown> {
 export interface DashboardBalanceRow extends Record<string, unknown> {
 	accountId: string;
 	balance: number;
-	date: Date;
+	date: string;
 }
 
 export interface DashboardAccount {
@@ -214,39 +215,6 @@ WHERE purchase."userId" = $1 AND purchase."currentInstallment" = 1
   AND purchase."purchaseDate" BETWEEN $5::date AND $6::date
 GROUP BY purchase."purchaseDate"`;
 
-const balancesSql = `
-WITH requested_dates AS (
-  SELECT unnest($2::date[]) AS date
-)
-SELECT requested.date, account."id" AS "accountId",
-       (COALESCE(adjustment."balance", 0) + COALESCE(movements.amount, 0) + COALESCE(yields.amount, 0))::numeric AS balance
-FROM requested_dates requested
-CROSS JOIN "FinancialAccount" account
-LEFT JOIN LATERAL (
-  SELECT checkpoint."date", checkpoint."balance"
-  FROM "BalanceAdjustment" checkpoint
-  WHERE checkpoint."userId" = $1 AND checkpoint."financialAccountId" = account."id"
-    AND checkpoint."date" <= requested.date
-  ORDER BY checkpoint."date" DESC LIMIT 1
-) adjustment ON true
-LEFT JOIN LATERAL (
-  SELECT sum(CASE WHEN transaction."destinationFinancialAccountId" = account."id" THEN transaction."amount" ELSE 0 END
-           - CASE WHEN transaction."originFinancialAccountId" = account."id" THEN transaction."amount" ELSE 0 END) AS amount
-  FROM "Transaction" transaction
-  WHERE transaction."userId" = $1 AND transaction."date" <= requested.date
-    AND (adjustment."date" IS NULL OR transaction."date" > adjustment."date")
-    AND (transaction."originFinancialAccountId" = account."id" OR transaction."destinationFinancialAccountId" = account."id")
-) movements ON true
-LEFT JOIN LATERAL (
-  SELECT sum(entry."amount") AS amount
-  FROM "FinancialAccountYield" entry
-  WHERE entry."financialAccountId" = account."id" AND entry."date" <= requested.date
-    AND (adjustment."date" IS NULL OR entry."date" > adjustment."date")
-    AND NOT entry."isExcluded" AND entry."amount" IS NOT NULL
-) yields ON true
-WHERE account."userId" = $1 AND account."type" IN ('CHECKING', 'CASH', 'SAVINGS')
-ORDER BY requested.date, account."id"`;
-
 const rowsByKind = (rows: DataRow[], kind: string) =>
 	rows.filter(row => row.kind === kind).map(row => row.data);
 const asDate = (value: unknown) => new Date(`${String(value).slice(0, 10)}T12:00:00`);
@@ -281,7 +249,7 @@ export async function loadDashboardData(userId: string, range: DashboardDataRang
 		]);
 		const activityDates = rowsByKind(movementRows, "activityDate").map(row => asDate(row.date));
 		const balanceDates = [...range.balanceDates, ...activityDates];
-		const balanceRows = await query<DashboardBalanceRow>(balancesSql, [
+		const balanceRows = await query<DashboardBalanceRow>(monetaryBalancesSql, [
 			userId,
 			[...new Set(balanceDates.map(dateKey))],
 		]);
