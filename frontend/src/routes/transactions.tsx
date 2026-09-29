@@ -464,7 +464,7 @@ export function TransactionsPage() {
 				transactions={transactions}
 			/>
 
-			{transactionsQuery.isPending || yieldsQuery.isPending ? (
+			{transactionsQuery.isPending || (yieldsQuery.isPending && transactions.length === 0) ? (
 				<div className="space-y-5">
 					{[1, 2, 3].map(item => (
 						<div className="space-y-2" key={item}>
@@ -473,7 +473,7 @@ export function TransactionsPage() {
 						</div>
 					))}
 				</div>
-			) : transactionsQuery.isError || yieldsQuery.isError ? (
+			) : transactionsQuery.isError || (yieldsQuery.isError && transactions.length === 0) ? (
 				<EmptyState
 					description="Não foi possível carregar suas movimentações."
 					icon={<HiArrowsRightLeft />}
