@@ -135,7 +135,11 @@ export function BalanceAdjustmentsDialog({
 								))}
 						</div>
 					</ScrollArea>
-					<Button className="cursor-pointer" onClick={() => setEditing("new")}>
+					<Button
+						className="cursor-pointer disabled:cursor-not-allowed"
+						disabled={!adjustmentsQuery.isSuccess || adjustmentsQuery.isFetching}
+						onClick={() => setEditing("new")}
+					>
 						<LuPlus /> Novo ajuste
 					</Button>
 				</DialogContent>
@@ -143,6 +147,7 @@ export function BalanceAdjustmentsDialog({
 			{editing !== null ? (
 				<BalanceAdjustmentForm
 					adjustment={editing === "new" ? null : editing}
+					existingAdjustments={adjustmentsQuery.data ?? []}
 					key={editing === "new" ? "new" : editing.id}
 					onClose={() => setEditing(null)}
 				/>

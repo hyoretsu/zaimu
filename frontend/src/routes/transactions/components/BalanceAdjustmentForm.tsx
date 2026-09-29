@@ -24,9 +24,11 @@ import { showToast } from "@/stores";
 
 export function BalanceAdjustmentForm({
 	adjustment,
+	existingAdjustments,
 	onClose,
 }: {
 	adjustment: BalanceAdjustment | null;
+	existingAdjustments: BalanceAdjustment[];
 	onClose: () => void;
 }) {
 	const identity = useCacheIdentity();
@@ -34,13 +36,22 @@ export function BalanceAdjustmentForm({
 	const [balance, setBalance] = useState(adjustment ? String(adjustment.balance) : "");
 	const [date, setDate] = useState(adjustment?.date.slice(0, 10) ?? getLocalDateKey());
 	const [financialAccountId, setFinancialAccountId] = useState(adjustment?.financialAccountId ?? "");
+	// Keep the available accounts stable while the form is open, even if adjustments refetch.
+	const [adjustedAccountIds] = useState(
+		() => new Set(existingAdjustments.map(existing => existing.financialAccountId)),
+	);
 	const accountsQuery = useQuery({
 		enabled: identity !== null,
 		queryFn: () => dataService.accounts.getAll(),
 		queryKey: queryKeys.accounts.list(identity!),
 	});
 	const accounts = (accountsQuery.data ?? [])
-		.filter(account => account.type !== "CREDIT_CARD" && account.type !== "REWARDS")
+		.filter(
+			account =>
+				account.type !== "CREDIT_CARD" &&
+				account.type !== "REWARDS" &&
+				(adjustment !== null || !adjustedAccountIds.has(account.id)),
+		)
 		.toSorted(compareFinancialAccountsByOptionLabel);
 	const save = useMutation({
 		mutationFn: () => {
