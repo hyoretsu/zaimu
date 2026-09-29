@@ -9,7 +9,10 @@ import { importedAnticipation, withoutImportedAnticipation } from "@zaimu/financ
 import { mutateCreditBook, newBookPurchase } from "~/modules/creditCards/application/normalized-credit-book";
 import { HttpException } from "~/shared/errors";
 import { withoutFinancingReferences } from "../domain/financing-source-reference";
-import { importedInstallmentDates } from "../domain/imported-installment-dates";
+import {
+	assertImportedInstallmentChronology,
+	importedInstallmentDates,
+} from "../domain/imported-installment-dates";
 
 interface ImportedPurchaseInput {
 	debtSplitRule?: BookPurchase["debtSplitRule"];
@@ -88,6 +91,14 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 				time: input.time,
 			});
 			return id;
+		}
+		try {
+			assertImportedInstallmentChronology(input.purchaseDate, input.statementDate, input.currentInstallment);
+		} catch (error) {
+			throw new HttpException(
+				error instanceof Error ? error.message : "Calendário de parcelas inválido",
+				409,
+			);
 		}
 		const existing = book.purchases.find(p => p.id === input.existingRootId) ?? duplicate;
 		const anticipated = importedAnticipation(input.description);

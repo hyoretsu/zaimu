@@ -39,6 +39,32 @@ function emptyBook(): CreditBook {
 }
 
 describe("normalized credit book", () => {
+	test("starts an August 26 purchase in September when the card closes August 15", () => {
+		const book = emptyBook();
+		book.card.statementDay = 15;
+		book.card.dueDay = 20;
+		const purchase = newBookPurchase(book, {
+			description: "AliExpress",
+			installments: 12,
+			purchaseDate: "2026-08-26",
+			totalAmount: 413.52,
+		});
+		const plan = creditBookPlan(book);
+		expect(
+			plan.installments
+				.slice(0, 3)
+				.map(
+					installment =>
+						plan.statements.find(statement => statement.id === installment.statementId)
+							?.statementDate,
+				),
+		).toEqual(["2026-09-15", "2026-10-15", "2026-11-15"]);
+		expect(creditBookEntries(book).filter(entry => entry.purchaseId === purchase.id)[0]).toMatchObject({
+			currentInstallment: 1,
+			installmentAmount: 34.46,
+			purchaseDate: "2026-08-26",
+		});
+	});
 	test("assigns closing-day purchases to the next invoice in plans and materialized records", () => {
 		const book = emptyBook();
 		const current = ensureBookStatement(book, "2025-01-19");
