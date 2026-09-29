@@ -33,6 +33,8 @@ interface TransactionSummaryRow {
 	categoryId: null | string;
 	categoryName: null | string;
 	createdAt: Date;
+	cursorCreatedAt: string;
+	cursorDate: string;
 	creditCardId: null | string;
 	creditCardName: null | string;
 	creditCardStatementDate: Date | null;
@@ -222,7 +224,10 @@ WITH combined AS (
   LEFT JOIN "DebtSplit" debt_split ON debt_split."creditPurchaseId" = purchase."id" AND debt_split."userId" = purchase."userId"
   WHERE purchase."userId" = $1 AND purchase."currentInstallment" = 1
 )
-SELECT * FROM combined
+-- Preserve the database's timestamp without time zone for the next page boundary.
+SELECT combined.*, to_char("date", 'YYYY-MM-DD') AS "cursorDate",
+  to_char("createdAt", 'YYYY-MM-DD HH24:MI:SS.MS') AS "cursorCreatedAt"
+FROM combined
 WHERE ($2::date IS NULL OR "date" >= $2::date)
   AND ($3::date IS NULL OR "date" <= $3::date)
   AND ($4::text IS NULL OR "type" = $4::text)
@@ -306,19 +311,21 @@ export async function listTransactionsPage(userId: string, input: ListTransactio
 			reference.externalId,
 		]);
 	const purchaseSyncStatus = getCreditPurchaseSyncStatus(purchaseInstallments);
-	const items = page.map(({ sourceRank, ...row }) => {
-		const tags = (sourceRank === 0 ? transactionTags : purchaseTags).get(row.id) ?? [];
-		const references = externalIds.get(row.id) ?? [];
-		return {
-			...row,
-			...(sourceRank === 1 ? purchaseSyncStatus.get(row.id) : {}),
-			debtSplit: (sourceRank === 0 ? transactionDebtSplits : purchaseDebtSplits).get(row.id) ?? null,
-			externalIds: references,
-			isSynced: sourceRank === 0 ? references.length > 0 : undefined,
-			tagIds: tags.map(tag => tag.id),
-			tags,
-		};
-	});
+	const items = page.map(
+		({ sourceRank, cursorCreatedAt: _cursorCreatedAt, cursorDate: _cursorDate, ...row }) => {
+			const tags = (sourceRank === 0 ? transactionTags : purchaseTags).get(row.id) ?? [];
+			const references = externalIds.get(row.id) ?? [];
+			return {
+				...row,
+				...(sourceRank === 1 ? purchaseSyncStatus.get(row.id) : {}),
+				debtSplit: (sourceRank === 0 ? transactionDebtSplits : purchaseDebtSplits).get(row.id) ?? null,
+				externalIds: references,
+				isSynced: sourceRank === 0 ? references.length > 0 : undefined,
+				tagIds: tags.map(tag => tag.id),
+				tags,
+			};
+		},
+	);
 	const dates = [...new Set(page.map(row => row.date.toISOString().slice(0, 10)))];
 	const endingBalanceByDate = await getMonetaryBalancesAtDates(
 		userId,
@@ -335,8 +342,8 @@ export async function listTransactionsPage(userId: string, input: ListTransactio
 		nextCursor:
 			hasMore && last
 				? encodeTransactionCursor({
-						createdAt: last.createdAt.toISOString(),
-						date: last.date.toISOString(),
+						createdAt: last.cursorCreatedAt,
+						date: last.cursorDate,
 						filterHash: currentFilterHash,
 						id: last.id,
 						sourceRank: last.sourceRank,

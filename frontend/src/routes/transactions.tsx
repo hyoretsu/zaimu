@@ -43,6 +43,7 @@ import {
 	toTransactionQueryFilters,
 } from "./transactions/-transaction-filters";
 import { transactionToCreditPurchase } from "./transactions/-transaction-to-credit-purchase";
+import { uniqueTransactions } from "./transactions/-unique-transactions";
 import {
 	BalanceAdjustmentsDialog,
 	TransactionDateHeader,
@@ -108,7 +109,7 @@ export function TransactionsPage() {
 		queryKey: queryKeys.transactions.list(identity!, toTransactionQueryFilters(filters)),
 	});
 	const transactionDays = transactionsQuery.data?.pages.flatMap(page => page.days) ?? [];
-	const transactions = transactionDays.flatMap(day => day.transactions);
+	const transactions = uniqueTransactions(transactionDays.map(day => day.transactions));
 	const creditCardsQuery = useQuery({
 		enabled: identity !== null && editingPurchase !== null,
 		queryFn: () => dataService.creditCards.getAll(),
