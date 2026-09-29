@@ -67,14 +67,14 @@ export function BalanceAdjustmentsDialog({
 					<DialogHeader>
 						<DialogTitle>Ajustes de saldo</DialogTitle>
 						<DialogDescription>
-							Registre quanto havia em uma conta ao fim de um dia. O ajuste compensa automaticamente
-							transações importadas antes dessa data.
+							Compare o saldo calculado com o saldo corrigido ao fim de cada dia. O ajuste compensa
+							movimentações anteriores automaticamente.
 						</DialogDescription>
 					</DialogHeader>
 					<ScrollArea className="max-h-[60dvh] min-h-0 pr-3" type="always">
 						<div className="grid gap-2">
 							{adjustmentsQuery.isPending || accountsQuery.isPending ? (
-								<Skeleton className="h-20 rounded-xl" />
+								<Skeleton className="h-28 rounded-xl" />
 							) : null}
 							{adjustmentsQuery.isError || accountsQuery.isError ? (
 								<p className="text-destructive text-sm">Não foi possível carregar os ajustes.</p>
@@ -93,8 +93,12 @@ export function BalanceAdjustmentsDialog({
 											<p className="truncate font-medium">
 												{accountNames.get(adjustment.financialAccountId) ?? adjustment.name ?? "Conta"}
 											</p>
+											<p className="text-muted-foreground text-sm">{formatLocalDate(adjustment.date)}</p>
 											<p className="text-muted-foreground text-sm">
-												{formatLocalDate(adjustment.date)} - {currency.format(adjustment.balance)}
+												Saldo sem ajuste: {currency.format(Number(adjustment.calculatedBalance))}
+											</p>
+											<p className="text-sm">
+												Saldo corrigido: {currency.format(Number(adjustment.balance))}
 											</p>
 										</div>
 										<div className="flex shrink-0 gap-1">

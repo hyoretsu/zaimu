@@ -38,6 +38,7 @@ export const BalanceAdjustmentsController = new Elysia({ prefix: "/balance-adjus
 			const userId = await requireUserId(request);
 			return queryRaw<{
 				balance: number;
+				calculatedBalance: number;
 				createdAt: Date;
 				date: Date;
 				financialAccountId: string;
@@ -45,10 +46,38 @@ export const BalanceAdjustmentsController = new Elysia({ prefix: "/balance-adjus
 				name: null | string;
 			}>(
 				`SELECT adjustment."id", adjustment."date", adjustment."balance", adjustment."financialAccountId",
-				        adjustment."createdAt", COALESCE(account."name", institution."name") AS "name"
+				        adjustment."createdAt", COALESCE(account."name", institution."name") AS "name",
+				        (COALESCE(previous."balance", 0) + COALESCE(movements.amount, 0)
+				          + COALESCE(yields.amount, 0))::numeric AS "calculatedBalance"
 				 FROM "BalanceAdjustment" adjustment
 				 JOIN "FinancialAccount" account ON account."id" = adjustment."financialAccountId"
 				 LEFT JOIN "FinancialInstitution" institution ON institution."id" = account."institutionId"
+				 LEFT JOIN LATERAL (
+				   SELECT checkpoint."date", checkpoint."balance"
+				   FROM "BalanceAdjustment" checkpoint
+				   WHERE checkpoint."userId" = $1 AND checkpoint."financialAccountId" = adjustment."financialAccountId"
+				     AND checkpoint."date" < adjustment."date"
+				   ORDER BY checkpoint."date" DESC LIMIT 1
+				 ) previous ON true
+				 LEFT JOIN LATERAL (
+				   SELECT sum(CASE WHEN transaction."destinationFinancialAccountId" = adjustment."financialAccountId"
+				                     THEN transaction."amount" ELSE 0 END
+				              - CASE WHEN transaction."originFinancialAccountId" = adjustment."financialAccountId"
+				                     THEN transaction."amount" ELSE 0 END) AS amount
+				   FROM "Transaction" transaction
+				   WHERE transaction."userId" = $1 AND transaction."date" <= adjustment."date"
+				     AND (previous."date" IS NULL OR transaction."date" > previous."date")
+				     AND (transaction."originFinancialAccountId" = adjustment."financialAccountId"
+				       OR transaction."destinationFinancialAccountId" = adjustment."financialAccountId")
+				 ) movements ON true
+				 LEFT JOIN LATERAL (
+				   SELECT sum(entry."amount") AS amount
+				   FROM "FinancialAccountYield" entry
+				   WHERE entry."financialAccountId" = adjustment."financialAccountId"
+				     AND entry."date" <= adjustment."date"
+				     AND (previous."date" IS NULL OR entry."date" > previous."date")
+				     AND NOT entry."isExcluded" AND entry."amount" IS NOT NULL
+				 ) yields ON true
 				 WHERE adjustment."userId" = $1
 				 ORDER BY adjustment."date" DESC, adjustment."createdAt" DESC`,
 				[userId],

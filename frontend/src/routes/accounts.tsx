@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo } from "react";
-import { LuLandmark, LuWalletCards } from "react-icons/lu";
+import { useMemo, useState } from "react";
+import { LuLandmark, LuScale, LuWalletCards } from "react-icons/lu";
+import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -13,6 +14,7 @@ import { getFinancialInstitutions } from "@/lib/financial-institution";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast, useAuthStore } from "@/stores";
 import {
+	BalanceAdjustmentsDialog,
 	CreateFinancialAccountDialog,
 	FinancialAccountYieldHolidaysDialog,
 	FinancialInstitutionGroup,
@@ -21,6 +23,7 @@ import {
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
 export function AccountsPage() {
+	const [isBalanceAdjustmentsOpen, setIsBalanceAdjustmentsOpen] = useState(false);
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
 	const hasAccess = useAuthStore(state => state.isAuthenticated || state.isGuestMode);
@@ -125,6 +128,13 @@ export function AccountsPage() {
 			<PageHeader
 				actions={
 					<div className="flex flex-wrap gap-2">
+						<Button
+							className="cursor-pointer"
+							onClick={() => setIsBalanceAdjustmentsOpen(true)}
+							variant="outline"
+						>
+							<LuScale /> Ajustes de saldo
+						</Button>
 						<FinancialAccountYieldHolidaysDialog
 							holidays={holidays.data ?? ([] as FinancialAccountYieldHoliday[])}
 							onCreate={date => createHoliday.mutateAsync(date)}
@@ -207,6 +217,7 @@ export function AccountsPage() {
 					title="Nenhuma conta cadastrada"
 				/>
 			)}
+			<BalanceAdjustmentsDialog onOpenChange={setIsBalanceAdjustmentsOpen} open={isBalanceAdjustmentsOpen} />
 		</PageContainer>
 	);
 }

@@ -8,7 +8,7 @@ import {
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { HiArrowsRightLeft, HiPlus } from "react-icons/hi2";
-import { LuArrowLeftRight, LuEye, LuFileUp, LuLoaderCircle, LuScale } from "react-icons/lu";
+import { LuArrowLeftRight, LuEye, LuFileUp, LuLoaderCircle } from "react-icons/lu";
 import {
 	ImportTransactionsDialog,
 	PendingTransactionImportsNotice,
@@ -51,7 +51,6 @@ import {
 import { transactionToCreditPurchase } from "./transactions/-transaction-to-credit-purchase";
 import { uniqueTransactions } from "./transactions/-unique-transactions";
 import {
-	BalanceAdjustmentsDialog,
 	TransactionDateHeader,
 	TransactionFilters,
 	TransactionsGroupToggle,
@@ -81,7 +80,6 @@ function getInitialTransactionsPage(filters: TransactionFiltersValue): Transacti
 export function TransactionsPage() {
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [isImportOpen, setIsImportOpen] = useState(false);
-	const [isBalanceAdjustmentsOpen, setIsBalanceAdjustmentsOpen] = useState(false);
 	const [reviewingImportId, setReviewingImportId] = useState<string | null>(null);
 	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 	const [editingYield, setEditingYield] = useState<FinancialAccountYieldEntry | null>(null);
@@ -402,13 +400,6 @@ export function TransactionsPage() {
 						<Button className="cursor-pointer" onClick={() => setIsImportOpen(true)} variant="outline">
 							<LuFileUp /> Importar extrato
 						</Button>
-						<Button
-							className="cursor-pointer"
-							onClick={() => setIsBalanceAdjustmentsOpen(true)}
-							variant="outline"
-						>
-							<LuScale /> Ajustes de saldo
-						</Button>
 					</div>
 				}
 				description="Acompanhe entradas, saídas e transferências."
@@ -587,7 +578,6 @@ export function TransactionsPage() {
 				onOpenChange={open => !open && setEditingYield(null)}
 				open={editingYield !== null}
 			/>
-			<BalanceAdjustmentsDialog onOpenChange={setIsBalanceAdjustmentsOpen} open={isBalanceAdjustmentsOpen} />
 			<ImportTransactionsDialog
 				onImported={setReviewingImportId}
 				onOpenChange={setIsImportOpen}

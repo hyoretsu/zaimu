@@ -1,3 +1,4 @@
+export * from "./BalanceAdjustmentsDialog";
 export * from "./CreateFinancialAccountDialog";
 export * from "./EditFinancialAccountYieldDialog";
 export * from "./FinancialAccountCard";
