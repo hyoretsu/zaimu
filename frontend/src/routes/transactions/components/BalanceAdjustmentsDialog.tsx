@@ -4,6 +4,7 @@ import { LuPencil, LuPlus, LuTrash2 } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
+import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import type { BalanceAdjustment } from "@/lib/balance-adjustment";
@@ -62,7 +63,7 @@ export function BalanceAdjustmentsDialog({
 	return (
 		<>
 			<Dialog onOpenChange={onOpenChange} open={open && editing === null}>
-				<DialogContent className="max-h-[90dvh] sm:max-w-lg">
+				<DialogContent className="max-h-[90dvh] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-lg">
 					<DialogHeader>
 						<DialogTitle>Ajustes de saldo</DialogTitle>
 						<DialogDescription>
@@ -70,68 +71,70 @@ export function BalanceAdjustmentsDialog({
 							transações importadas antes dessa data.
 						</DialogDescription>
 					</DialogHeader>
-					<div className="scrollbar-themed grid max-h-[60dvh] gap-2 overflow-y-auto pr-1">
-						{adjustmentsQuery.isPending || accountsQuery.isPending ? (
-							<Skeleton className="h-20 rounded-xl" />
-						) : null}
-						{adjustmentsQuery.isError || accountsQuery.isError ? (
-							<p className="text-destructive text-sm">Não foi possível carregar os ajustes.</p>
-						) : null}
-						{!accountsQuery.isPending && adjustments?.length === 0 ? (
-							<p className="text-muted-foreground text-sm">Nenhum ajuste registrado.</p>
-						) : null}
-						{!accountsQuery.isPending &&
-							!accountsQuery.isError &&
-							adjustments?.map(adjustment => (
-								<div
-									className="flex items-center justify-between gap-3 rounded-xl border p-3"
-									key={adjustment.id}
-								>
-									<div className="min-w-0">
-										<p className="truncate font-medium">
-											{accountNames.get(adjustment.financialAccountId) ?? adjustment.name ?? "Conta"}
-										</p>
-										<p className="text-muted-foreground text-sm">
-											{formatLocalDate(adjustment.date)} - {currency.format(adjustment.balance)}
-										</p>
-									</div>
-									<div className="flex shrink-0 gap-1">
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<Button
-													aria-label="Editar ajuste"
-													className="cursor-pointer"
-													onClick={() => setEditing(adjustment)}
-													size="icon-sm"
-													variant="outline"
-												>
-													<LuPencil />
-												</Button>
-											</TooltipTrigger>
-											<TooltipContent>Editar</TooltipContent>
-										</Tooltip>
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<span>
-													<ConfirmActionButton
-														aria-label="Excluir ajuste"
+					<ScrollArea className="max-h-[60dvh] min-h-0 pr-3" type="always">
+						<div className="grid gap-2">
+							{adjustmentsQuery.isPending || accountsQuery.isPending ? (
+								<Skeleton className="h-20 rounded-xl" />
+							) : null}
+							{adjustmentsQuery.isError || accountsQuery.isError ? (
+								<p className="text-destructive text-sm">Não foi possível carregar os ajustes.</p>
+							) : null}
+							{!accountsQuery.isPending && adjustments?.length === 0 ? (
+								<p className="text-muted-foreground text-sm">Nenhum ajuste registrado.</p>
+							) : null}
+							{!accountsQuery.isPending &&
+								!accountsQuery.isError &&
+								adjustments?.map(adjustment => (
+									<div
+										className="flex items-center justify-between gap-3 rounded-xl border p-3"
+										key={adjustment.id}
+									>
+										<div className="min-w-0">
+											<p className="truncate font-medium">
+												{accountNames.get(adjustment.financialAccountId) ?? adjustment.name ?? "Conta"}
+											</p>
+											<p className="text-muted-foreground text-sm">
+												{formatLocalDate(adjustment.date)} - {currency.format(adjustment.balance)}
+											</p>
+										</div>
+										<div className="flex shrink-0 gap-1">
+											<Tooltip>
+												<TooltipTrigger asChild>
+													<Button
+														aria-label="Editar ajuste"
 														className="cursor-pointer"
-														confirmation="Excluir este ajuste permanentemente?"
-														disabled={remove.isPending && remove.variables === adjustment.id}
-														onConfirm={() => remove.mutate(adjustment.id)}
+														onClick={() => setEditing(adjustment)}
 														size="icon-sm"
 														variant="outline"
 													>
-														<LuTrash2 />
-													</ConfirmActionButton>
-												</span>
-											</TooltipTrigger>
-											<TooltipContent>Excluir</TooltipContent>
-										</Tooltip>
+														<LuPencil />
+													</Button>
+												</TooltipTrigger>
+												<TooltipContent>Editar</TooltipContent>
+											</Tooltip>
+											<Tooltip>
+												<TooltipTrigger asChild>
+													<span>
+														<ConfirmActionButton
+															aria-label="Excluir ajuste"
+															className="cursor-pointer"
+															confirmation="Excluir este ajuste permanentemente?"
+															disabled={remove.isPending && remove.variables === adjustment.id}
+															onConfirm={() => remove.mutate(adjustment.id)}
+															size="icon-sm"
+															variant="outline"
+														>
+															<LuTrash2 />
+														</ConfirmActionButton>
+													</span>
+												</TooltipTrigger>
+												<TooltipContent>Excluir</TooltipContent>
+											</Tooltip>
+										</div>
 									</div>
-								</div>
-							))}
-					</div>
+								))}
+						</div>
+					</ScrollArea>
 					<Button className="cursor-pointer" onClick={() => setEditing("new")}>
 						<LuPlus /> Novo ajuste
 					</Button>
