@@ -136,7 +136,7 @@ export function AccountsPage() {
 							onCreate={async data => {
 								await createAccount.mutateAsync(data);
 							}}
-							pending={createAccount.isPending}
+							pending={false}
 							rewardAccounts={rewardAccounts}
 						/>
 					</div>
@@ -187,7 +187,7 @@ export function AccountsPage() {
 							onUpdateInstitutionYield={(institution, yieldPolicy) =>
 								updateInstitution.mutateAsync({ data: { yieldPolicy }, id: institution.id })
 							}
-							pending={createAccount.isPending}
+							pending={false}
 							rewardAccounts={rewardAccounts}
 						/>
 					))}
@@ -199,7 +199,7 @@ export function AccountsPage() {
 							onCreate={async data => {
 								await createAccount.mutateAsync(data);
 							}}
-							pending={createAccount.isPending}
+							pending={false}
 						/>
 					}
 					description="Comece com sua conta principal ou cadastre um cartão de crédito diretamente."

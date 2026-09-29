@@ -24,6 +24,8 @@ export function DebtsPage() {
 	const [createOpen, setCreateOpen] = useState(false);
 	const [editing, setEditing] = useState<{ event: DebtEvent; personId: string } | null>(null);
 	const [editingPerson, setEditingPerson] = useState<DebtPerson | null>(null);
+	const [pendingEventIds, setPendingEventIds] = useState<Set<string>>(new Set());
+	const [pendingPersonIds, setPendingPersonIds] = useState<Set<string>>(new Set());
 	const ledger = useQuery({
 		enabled: identity !== null,
 		queryFn: () => dataService.debts.getLedger(),
@@ -58,24 +60,46 @@ export function DebtsPage() {
 			dataService.debts.updateOrigin(id, draft),
 		onError: error =>
 			showToast(error instanceof Error ? error.message : "Lançamento não atualizado.", "negative"),
+		onMutate: ({ id }) => setPendingEventIds(current => new Set(current).add(id)),
+		onSettled: (_data, _error, { id }) =>
+			setPendingEventIds(current => {
+				const next = new Set(current);
+				next.delete(id);
+				return next;
+			}),
 		onSuccess: async () => {
 			await refresh();
-			setEditing(null);
 			showToast("Lançamento atualizado.", "positive");
 		},
 	});
 	const updatePerson = useMutation({
-		mutationFn: async ({ accountEmail, id, name }: { accountEmail: string; id: string; name: string }) => {
+		mutationFn: async ({
+			accountEmail,
+			id,
+			name,
+			previousAccountEmail,
+		}: {
+			accountEmail: string;
+			id: string;
+			name: string;
+			previousAccountEmail?: string | null;
+		}) => {
 			const normalizedEmail = accountEmail.trim().toLowerCase();
 			await dataService.debts.updatePerson(id, { accountEmail: normalizedEmail || null, name: name.trim() });
-			if (normalizedEmail && normalizedEmail !== editingPerson?.accountEmail)
+			if (normalizedEmail && normalizedEmail !== previousAccountEmail)
 				await dataService.debts.invitePerson(id, normalizedEmail);
 		},
 		onError: error =>
 			showToast(error instanceof Error ? error.message : "Pessoa não atualizada.", "negative"),
+		onMutate: ({ id }) => setPendingPersonIds(current => new Set(current).add(id)),
+		onSettled: (_data, _error, { id }) =>
+			setPendingPersonIds(current => {
+				const next = new Set(current);
+				next.delete(id);
+				return next;
+			}),
 		onSuccess: async () => {
 			await refresh();
-			setEditingPerson(null);
 			showToast("Pessoa atualizada.", "positive");
 		},
 	});
@@ -150,7 +174,7 @@ export function DebtsPage() {
 				onOpenChange={setCreateOpen}
 				onSubmit={draft => create.mutateAsync(draft)}
 				open={createOpen}
-				pending={create.isPending}
+				pending={false}
 			/>
 			{editing ? (
 				<CreateDebtDialog
@@ -168,7 +192,7 @@ export function DebtsPage() {
 					}}
 					onSubmit={draft => update.mutateAsync({ draft, id: editing.event.id })}
 					open
-					pending={update.isPending}
+					pending={pendingEventIds.has(editing.event.id)}
 				/>
 			) : null}
 			{editingPerson ? (
@@ -176,9 +200,15 @@ export function DebtsPage() {
 					onOpenChange={open => {
 						if (!open) setEditingPerson(null);
 					}}
-					onSubmit={draft => updatePerson.mutateAsync({ ...draft, id: editingPerson.id })}
+					onSubmit={draft =>
+						updatePerson.mutateAsync({
+							...draft,
+							id: editingPerson.id,
+							previousAccountEmail: editingPerson.accountEmail,
+						})
+					}
 					open
-					pending={updatePerson.isPending}
+					pending={pendingPersonIds.has(editingPerson.id)}
 					person={editingPerson}
 				/>
 			) : null}

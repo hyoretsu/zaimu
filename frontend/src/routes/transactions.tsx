@@ -79,6 +79,7 @@ export function TransactionsPage() {
 	const [reviewingImportId, setReviewingImportId] = useState<string | null>(null);
 	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 	const [editingPurchase, setEditingPurchase] = useState<Transaction | null>(null);
+	const [pendingPurchaseUpdateIds, setPendingPurchaseUpdateIds] = useState<Set<string>>(new Set());
 	const [refundingPurchase, setRefundingPurchase] = useState<Transaction | null>(null);
 	const [filters, setFilters] = useState<TransactionFiltersValue>(initialTransactionFilters);
 	const [expandedTransactionGroups, setExpandedTransactionGroups] = useState<Set<string>>(() => new Set());
@@ -200,8 +201,15 @@ export function TransactionsPage() {
 		},
 		onError: error =>
 			showToast(error instanceof Error ? error.message : "Não foi possível editar a compra.", "negative"),
+		onMutate: ({ transaction }) =>
+			setPendingPurchaseUpdateIds(current => new Set(current).add(transaction.id)),
+		onSettled: (_data, _error, { transaction }) =>
+			setPendingPurchaseUpdateIds(current => {
+				const next = new Set(current);
+				next.delete(transaction.id);
+				return next;
+			}),
 		onSuccess: async () => {
-			setEditingPurchase(null);
 			await invalidateCacheOperation(queryClient, identity!, "statement");
 			showToast("Compra atualizada.", "positive");
 		},
@@ -520,7 +528,7 @@ export function TransactionsPage() {
 						await updatePurchase.mutateAsync({ data, transaction: editingPurchase });
 					}}
 					open
-					pending={updatePurchase.isPending}
+					pending={pendingPurchaseUpdateIds.has(editingPurchase.id)}
 					purchase={transactionToCreditPurchase(editingPurchase)}
 				/>
 			) : null}

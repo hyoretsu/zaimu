@@ -163,7 +163,7 @@ export function CreditCardsPage() {
 					});
 				}}
 				open={Boolean(selectedCard)}
-				pending={purchase.isPending}
+				pending={false}
 			/>
 			<CreditCardStatementsDialog
 				card={statementsCard}

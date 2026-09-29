@@ -41,6 +41,7 @@ export function CreditCardStatementDetails({
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
 	const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<string>>(new Set());
+	const [pendingUpdateIds, setPendingUpdateIds] = useState<Set<string>>(new Set());
 	const [editingPurchase, setEditingPurchase] = useState<CreditPurchase | null>(null);
 	const [refinancingPurchase, setRefinancingPurchase] = useState<CreditPurchase | null>(null);
 	const [refundingPurchase, setRefundingPurchase] = useState<CreditPurchase | null>(null);
@@ -96,8 +97,14 @@ export function CreditCardStatementDetails({
 		onError: error => {
 			showToast(error instanceof Error ? error.message : "Não foi possível editar a transação.", "negative");
 		},
+		onMutate: ({ purchaseId }) => setPendingUpdateIds(current => new Set(current).add(purchaseId)),
+		onSettled: (_data, _error, { purchaseId }) =>
+			setPendingUpdateIds(current => {
+				const next = new Set(current);
+				next.delete(purchaseId);
+				return next;
+			}),
 		onSuccess: async () => {
-			setEditingPurchase(null);
 			await refreshStatement();
 			showToast("Transação atualizada.", "positive");
 		},
@@ -176,7 +183,7 @@ export function CreditCardStatementDetails({
 	});
 	const pendingRootIds = new Set([
 		...[...pendingDeleteIds].map(rootId),
-		...(updatePurchase.isPending ? [rootId(updatePurchase.variables?.purchaseId)] : []),
+		...[...pendingUpdateIds].map(rootId),
 		...(refinancePurchase.isPending ? [rootId(refinancePurchase.variables?.purchaseId)] : []),
 		...(refundPurchase.isPending ? [rootId(refundPurchase.variables?.purchase.id)] : []),
 		...(deleteRefund.isPending ? [rootId(deleteRefund.variables)] : []),
@@ -347,7 +354,7 @@ export function CreditCardStatementDetails({
 						await updatePurchase.mutateAsync({ data, purchaseId: editingPurchase.id });
 					}}
 					open
-					pending={updatePurchase.isPending}
+					pending={pendingUpdateIds.has(editingPurchase.id)}
 					purchase={editingPurchase}
 				/>
 			)}
