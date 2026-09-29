@@ -79,7 +79,7 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 					id={contentId}
 				>
 					<div className="col-span-2 grid min-w-0 gap-2 sm:col-span-3 lg:col-span-2 xl:col-span-2">
-						<Label htmlFor="transaction-search">Descrição</Label>
+						<Label htmlFor="transaction-search">Pesquisar transações</Label>
 						<div className="relative">
 							<LuSearch
 								aria-hidden="true"
@@ -90,7 +90,7 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 								id="transaction-search"
 								name="transaction-search"
 								onChange={event => setSearch(event.currentTarget.value)}
-								placeholder="Pesquisar descrição, valor, conta, categoria, data..."
+								placeholder="Descrição, valor, horário, data, dívida, conta..."
 								type="text"
 								value={search}
 							/>

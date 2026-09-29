@@ -142,8 +142,22 @@ WITH combined AS (
     NULL::boolean AS "hasRefund", NULL::text AS "refundOfPurchaseId", NULL::smallint AS "currentInstallment",
     NULL::smallint AS "installments", NULL::numeric AS "installmentAmount", NULL::text AS "parentId",
     NULL::text AS "statementId", 0 AS "sourceRank",
-    concat_ws(' ', t."amount"::text, to_char(t."date", 'DD/MM/YYYY'), t."description", t."storeName",
-      category."name", origin."name", origin_institution."name", destination."name", destination_institution."name",
+    concat_ws(' ', t."amount"::text,
+      concat('R$ ', translate(to_char(t."amount", 'FM999,999,999,990.00'), ',.', '.,')),
+      to_char(t."date", 'DD/MM/YYYY'), to_char(t."date", 'YYYY-MM-DD'), t."time"::text,
+      t."description", t."storeName", category."name",
+      CASE t."type" WHEN 'INCOME' THEN 'Entrada' WHEN 'EXPENSE' THEN 'Saída'
+        WHEN 'TRANSFER' THEN 'Transferência' ELSE 'Reembolso' END,
+      CASE WHEN t."isHidden" THEN 'Oculta' ELSE 'Visível' END,
+      CASE WHEN t."subscriptionId" IS NOT NULL THEN 'Assinatura' END,
+      CASE WHEN t."salaryId" IS NOT NULL THEN 'Salário' END,
+      origin."name", origin_institution."name", destination."name", destination_institution."name",
+      payment_account."name", payment_institution."name",
+      CASE WHEN debt_split."id" IS NOT NULL THEN 'Dívida' END,
+      (SELECT string_agg(concat_ws(' ', person."name", participant."description"), ' ')
+       FROM "DebtSplitParticipant" participant
+       JOIN "DebtPerson" person ON person."id" = participant."debtPersonId"
+       WHERE participant."debtSplitId" = debt_split."id"),
       (SELECT string_agg(tag."name", ' ') FROM "TagAssignment" assignment
        JOIN "Category" tag ON tag."id" = assignment."categoryId"
        WHERE assignment."entityType" = 'TRANSACTION' AND assignment."entityId" = t."id")) AS search_text
@@ -158,6 +172,7 @@ WITH combined AS (
   LEFT JOIN "CreditCard" payment_card ON payment_card."id" = t."paymentCreditCardId"
   LEFT JOIN "FinancialAccount" payment_account ON payment_account."id" = payment_card."financialAccountId"
   LEFT JOIN "FinancialInstitution" payment_institution ON payment_institution."id" = payment_account."institutionId"
+  LEFT JOIN "DebtSplit" debt_split ON debt_split."transactionId" = t."id" AND debt_split."userId" = t."userId"
   WHERE t."userId" = $1
 
   UNION ALL
@@ -181,8 +196,20 @@ WITH combined AS (
     EXISTS (SELECT 1 FROM "CreditEntry" refund WHERE refund."refundOfPurchaseId" = purchase."id") AS "hasRefund",
     purchase."refundOfPurchaseId", purchase."currentInstallment", purchase."installments",
     purchase."installmentAmount", purchase."parentId", purchase."statementId", 1 AS "sourceRank",
-    concat_ws(' ', purchase."totalAmount"::text, to_char(purchase."purchaseDate", 'DD/MM/YYYY'),
-      purchase."description", purchase."storeName", category."name", account."name", institution."name",
+    concat_ws(' ', purchase."totalAmount"::text,
+      concat('R$ ', translate(to_char(abs(purchase."totalAmount"), 'FM999,999,999,990.00'), ',.', '.,')),
+      to_char(purchase."purchaseDate", 'DD/MM/YYYY'), to_char(purchase."purchaseDate", 'YYYY-MM-DD'),
+      purchase."time"::text, purchase."description", purchase."storeName", category."name",
+      CASE WHEN purchase."isRefund" THEN 'Reembolso' ELSE 'Saída' END,
+      account."name", institution."name", purchase."feeDescription", purchase."feeAmount"::text,
+      to_char(statement."statementDate", 'MM/YYYY'), purchase."installments"::text,
+      CASE WHEN purchase."installments" IS NOT NULL THEN concat(purchase."installments", 'x') END,
+      purchase."installmentAmount"::text,
+      CASE WHEN debt_split."id" IS NOT NULL THEN 'Dívida' END,
+      (SELECT string_agg(concat_ws(' ', person."name", participant."description"), ' ')
+       FROM "DebtSplitParticipant" participant
+       JOIN "DebtPerson" person ON person."id" = participant."debtPersonId"
+       WHERE participant."debtSplitId" = debt_split."id"),
       (SELECT string_agg(tag."name", ' ') FROM "TagAssignment" assignment
        JOIN "Category" tag ON tag."id" = assignment."categoryId"
        WHERE assignment."entityType" = 'CREDIT_PURCHASE' AND assignment."entityId" = purchase."purchaseId")) AS search_text
@@ -192,6 +219,7 @@ WITH combined AS (
   JOIN "FinancialAccount" account ON account."id" = card."financialAccountId"
   LEFT JOIN "FinancialInstitution" institution ON institution."id" = account."institutionId"
   LEFT JOIN "Category" category ON category."id" = purchase."categoryId"
+  LEFT JOIN "DebtSplit" debt_split ON debt_split."creditPurchaseId" = purchase."id" AND debt_split."userId" = purchase."userId"
   WHERE purchase."userId" = $1 AND purchase."currentInstallment" = 1
 )
 SELECT * FROM combined

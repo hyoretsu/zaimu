@@ -94,6 +94,7 @@ import {
 	localTransactions,
 } from "./localStorage";
 import { getCurrentCacheIdentity } from "./query-cache";
+import { getTransactionSearchText, normalizeTransactionSearch } from "./transaction-search";
 import { sortTransactionsByMostRecent } from "./transaction-sort";
 import { assertFileIsAccessible } from "./upload-file";
 
@@ -111,15 +112,6 @@ export interface DebtEventPage {
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3333";
 const REQUEST_TIMEOUT_MS = 10_000;
-
-function normalizeTransactionSearch(value: string) {
-	return value
-		.normalize("NFD")
-		.replace(/\p{Diacritic}/gu, "")
-		.toLocaleLowerCase("pt-BR")
-		.replace(/\s+/gu, " ")
-		.trim();
-}
 
 function getEvenlyDistributedInstallmentAmounts(totalAmount: number, installments: number) {
 	const totalInCents = Math.round(totalAmount * 100);
@@ -3383,17 +3375,7 @@ export const dataService = {
 				if (params?.search) {
 					const search = normalizeTransactionSearch(params.search);
 					transactions = transactions.filter(transaction =>
-						normalizeTransactionSearch(
-							[
-								transaction.amount,
-								transaction.categoryName,
-								transaction.description,
-								transaction.destinationName,
-								transaction.originName,
-								transaction.storeName,
-								...(transaction.tags?.map(tag => tag.name) ?? []),
-							].join(" "),
-						).includes(search),
+						getTransactionSearchText(transaction).includes(search),
 					);
 				}
 
