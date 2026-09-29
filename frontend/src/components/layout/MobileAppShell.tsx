@@ -1,6 +1,8 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "@tanstack/react-router";
-import { Activity, type ComponentType, useEffect, useRef, useState } from "react";
+import { Activity, type ComponentType, useEffect, useState } from "react";
 import { ScrollArea } from "@/components/ui/ScrollArea";
+import { useCacheIdentity } from "@/lib/query-cache";
 import { AccountsPage } from "@/routes/accounts";
 import { CreditCardsPage } from "@/routes/credit-cards";
 import { DebtsPage } from "@/routes/debts";
@@ -34,6 +36,8 @@ const screenByPath = {
 
 export function MobileAppShell() {
 	const pathname = useLocation().pathname;
+	const queryClient = useQueryClient();
+	const identity = useCacheIdentity();
 	const currentRoute = resolveMobileRoute(pathname) ?? {
 		screenPath: "/" as const,
 		tabId: "overview" as const,
@@ -42,14 +46,20 @@ export function MobileAppShell() {
 	const [visitedTabs, setVisitedTabs] = useState<Set<(typeof mobileTabIds)[number]>>(
 		() => new Set([currentRoute.tabId]),
 	);
-	const scrollAreas = useRef(new Map<MobileTabId, HTMLDivElement>());
+	const [refreshVersions, setRefreshVersions] = useState<Record<MobileTabId, number>>({
+		accounts: 0,
+		creditCards: 0,
+		more: 0,
+		overview: 0,
+		transactions: 0,
+	});
 	const renderedRoutes = updateMobileTabRoute(tabRoutes, pathname);
 
-	const scrollToTabTop = (tabId: MobileTabId) => {
-		const viewport = scrollAreas.current
-			.get(tabId)
-			?.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]');
-		viewport?.scrollTo({ behavior: "auto", top: 0 });
+	const refreshTab = (tabId: MobileTabId, staysOnScreen: boolean) => {
+		if (identity) queryClient.removeQueries({ queryKey: ["identity", identity] });
+		if (staysOnScreen) {
+			setRefreshVersions(versions => ({ ...versions, [tabId]: versions[tabId] + 1 }));
+		}
 	};
 
 	useEffect(() => {
@@ -74,11 +84,7 @@ export function MobileAppShell() {
 					>
 						<ScrollArea
 							className="mobile-tab-scroll-area h-dvh w-full min-w-0 max-w-full"
-							key={screenPath}
-							ref={element => {
-								if (element) scrollAreas.current.set(tabId, element);
-								else scrollAreas.current.delete(tabId);
-							}}
+							key={`${screenPath}:${refreshVersions[tabId]}`}
 						>
 							<main className="min-h-dvh w-full min-w-0 max-w-full pb-24">
 								<Screen />
@@ -87,7 +93,7 @@ export function MobileAppShell() {
 					</Activity>
 				);
 			})}
-			<MobileNavigation activeTab={currentRoute.tabId} onReselect={scrollToTabTop} routes={renderedRoutes} />
+			<MobileNavigation activeTab={currentRoute.tabId} onReselect={refreshTab} routes={renderedRoutes} />
 		</div>
 	);
 }

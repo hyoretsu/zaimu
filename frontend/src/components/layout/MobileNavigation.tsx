@@ -4,7 +4,7 @@ import { mobileNavigation } from "./navigation";
 
 interface MobileNavigationProps {
 	activeTab: MobileTabId;
-	onReselect: (tabId: MobileTabId) => void;
+	onReselect: (tabId: MobileTabId, staysOnScreen: boolean) => void;
 	routes: MobileTabRoutes;
 }
 
@@ -28,9 +28,10 @@ export function MobileNavigation({ activeTab, onReselect, routes }: MobileNaviga
 							}
 							key={item.tabId}
 							onClick={event => {
-								if (!isActive || destination !== routes[item.tabId]) return;
-								event.preventDefault();
-								onReselect(item.tabId);
+								if (!isActive) return;
+								const staysOnScreen = destination === routes[item.tabId];
+								if (staysOnScreen) event.preventDefault();
+								onReselect(item.tabId, staysOnScreen);
 							}}
 							resetScroll={false}
 							to={destination}
