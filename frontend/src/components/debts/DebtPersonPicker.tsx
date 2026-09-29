@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import { dataService } from "@/lib/dataService";
+import { compareDebtPersonNames } from "@/lib/debt-split";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 
@@ -37,9 +38,9 @@ export function DebtPersonPicker({
 	const selected = people.find(person => person.id === value);
 	const availablePeople = people.filter(person => person.id === value || !excludedIds.includes(person.id));
 	const normalizedSearch = search.trim().toLocaleLowerCase("pt-BR");
-	const filtered = availablePeople.filter(person =>
-		person.name.toLocaleLowerCase("pt-BR").includes(normalizedSearch),
-	);
+	const filtered = availablePeople
+		.filter(person => person.name.toLocaleLowerCase("pt-BR").includes(normalizedSearch))
+		.toSorted((left, right) => compareDebtPersonNames(left.name, right.name));
 	const exact = people.find(person => person.name.toLocaleLowerCase("pt-BR") === normalizedSearch);
 	const createPerson = useMutation({
 		mutationFn: (name: string) => dataService.debts.createPerson(name),

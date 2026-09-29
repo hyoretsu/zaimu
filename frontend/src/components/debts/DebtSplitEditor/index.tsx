@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { useRef } from "react";
 import { LuPlus } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
@@ -5,14 +6,17 @@ import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { NumericField } from "@/components/ui/NumericField";
 import type { DebtSplitInput } from "@/lib/api";
+import { dataService } from "@/lib/dataService";
 import {
 	addDebtSplitParticipant,
 	calculateDebtSplit,
+	compareDebtPersonNames,
 	createEqualDebtSplit,
 	debtSplitError,
 	remainingDebtSplitAmount,
 	selectDebtSplitRemainder,
 } from "@/lib/debt-split";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { DebtSplitParticipantRow } from "./DebtSplitParticipantRow";
 import type { DebtSplitEditorProps } from "./types";
 
@@ -26,6 +30,22 @@ export function DebtSplitEditor({
 	value,
 }: DebtSplitEditorProps) {
 	const customized = useRef(false);
+	const identity = useCacheIdentity();
+	const ledger = useQuery({
+		enabled: identity !== null,
+		queryFn: () => dataService.debts.getLedger(),
+		queryKey: queryKeys.debts.ledger(identity!),
+	});
+	const names = new Map(ledger.data?.people.map(person => [person.id, person.name]));
+	const sortedParticipants = value.participants
+		.map((participant, index) => ({ index, participant }))
+		.toSorted((left, right) => {
+			const leftName = names.get(left.participant.debtPersonId);
+			const rightName = names.get(right.participant.debtPersonId);
+			if (!leftName) return rightName ? 1 : left.index - right.index;
+			if (!rightName) return -1;
+			return compareDebtPersonNames(leftName, rightName) || left.index - right.index;
+		});
 	const previewRemainderDebtPersonId =
 		value.mode !== "SHARES" && value.remainderDebtPersonId
 			? `preview-${value.participants.findIndex(
@@ -137,7 +157,7 @@ export function DebtSplitEditor({
 					value={String(value.ownerShares)}
 				/>
 			) : null}
-			{value.participants.map((participant, index) => (
+			{sortedParticipants.map(({ participant, index }) => (
 				<DebtSplitParticipantRow
 					amount={preview?.participants[index]?.amount}
 					disabled={disabled}
