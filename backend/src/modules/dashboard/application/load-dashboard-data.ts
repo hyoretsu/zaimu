@@ -25,11 +25,13 @@ export interface DashboardAccount {
 
 export interface DashboardCard {
 	creditLimit: number;
+	dueDay: number;
 	excludeFromTotals: boolean;
 	financialAccountId: string;
 	id: string;
 	institutionName: null | string;
 	name: null | string;
+	statementDay: number;
 }
 
 export interface DashboardStatement {
@@ -51,6 +53,8 @@ export interface DashboardSchedule {
 	frequency: string;
 	id: string;
 	name?: string;
+	financialAccountId?: null | string;
+	paymentMethod?: string;
 	payDay?: null | number;
 	source?: string;
 	startDate: Date;
@@ -123,6 +127,7 @@ WHERE account."userId" = $1
 UNION ALL
 SELECT 'card', jsonb_build_object(
   'creditLimit', card."creditLimit", 'excludeFromTotals', card."excludeFromTotals",
+  'dueDay', card."dueDay", 'statementDay', card."statementDay",
   'financialAccountId', card."financialAccountId", 'id', card."id",
   'institutionName', institution."name", 'name', account."name"
 )
@@ -160,7 +165,7 @@ FROM (
 UNION ALL
 SELECT 'subscription', to_jsonb(schedule)
 FROM (
-  SELECT "id", "amount", "billingDay", "dayOfWeek", "endDate", "frequency"::text, "name", "startDate"
+  SELECT "id", "amount", "billingDay", "dayOfWeek", "endDate", "frequency"::text, "name", "startDate", "paymentMethod"::text, "financialAccountId"
   FROM "Subscription" WHERE "userId" = $1 AND "isActive"
 ) schedule
 UNION ALL

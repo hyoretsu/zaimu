@@ -1,3 +1,4 @@
+import { purchaseStatementDates } from "@zaimu/finance/credit-purchase";
 import { addDays, startOfDay } from "date-fns";
 import Elysia, { t } from "elysia";
 import { requireUserId } from "~/modules/auth";
@@ -130,6 +131,9 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 					today,
 				});
 				const { accounts, cards, salaries, subscriptions, recurring, loanPayments: payments } = loaded;
+				const cardsByAccountId = new Map(cards.map(card => [card.financialAccountId, card]));
+				const isCardSubscription = (subscription: (typeof subscriptions)[number]) =>
+					subscription.paymentMethod === "CREDIT";
 				const statements = await withStatementPayments(loaded.statements);
 				const monetaryAccounts = accounts.filter(
 					account =>
@@ -154,6 +158,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 				}> = [];
 				const addSchedule = (schedule: {
 					amount: number;
+					card?: (typeof cards)[number];
 					dayOfMonth?: null | number;
 					dayOfWeek?: null | number;
 					endDate?: Date | null;
@@ -167,8 +172,13 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 						from: projectionStart,
 						through: comparisonEnd,
 					})) {
-						if (!linkedTransactionDates.has(`${schedule.sourceId}:${dateKey(occurrence)}`))
-							projectedMovements.push({ amount: schedule.amount, date: occurrence, type: schedule.type });
+						if (!linkedTransactionDates.has(`${schedule.sourceId}:${dateKey(occurrence)}`)) {
+							const date = schedule.card
+								? new Date(`${purchaseStatementDates(schedule.card, dateKey(occurrence)).dueDate}T12:00:00`)
+								: occurrence;
+							if (date <= comparisonEnd)
+								projectedMovements.push({ amount: schedule.amount, date, type: schedule.type });
+						}
 					}
 				};
 				for (const salary of salaries)
@@ -185,6 +195,10 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 				for (const subscription of subscriptions)
 					addSchedule({
 						amount: Number(subscription.amount),
+						card:
+							isCardSubscription(subscription) && subscription.financialAccountId
+								? cardsByAccountId.get(subscription.financialAccountId)
+								: undefined,
 						dayOfMonth: subscription.billingDay,
 						dayOfWeek: subscription.dayOfWeek,
 						endDate: subscription.endDate,
@@ -347,10 +361,16 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 						from: today,
 						startDate: subscription.startDate,
 					});
+					const card = subscription.financialAccountId
+						? cardsByAccountId.get(subscription.financialAccountId)
+						: undefined;
 					if (occurrence)
 						forecasts.push({
 							amount: Number(subscription.amount),
-							date: dateKey(occurrence),
+							date:
+								card && isCardSubscription(subscription)
+									? purchaseStatementDates(card, dateKey(occurrence)).dueDate
+									: dateKey(occurrence),
 							direction: "EXPENSE",
 							id: `subscription-${subscription.id}`,
 							name: subscription.name ?? "Assinatura",
