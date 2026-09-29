@@ -30,8 +30,14 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import type { Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate, formatLocalTime, getLocalDateKey } from "@/lib/date";
+import {
+	calculateFinancialAccountYieldEntries,
+	type FinancialAccountYieldEntry,
+} from "@/lib/financial-account";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { sortTransactionsByMostRecent } from "@/lib/transaction-sort";
+import { EditFinancialAccountYieldDialog } from "@/routes/accounts/components/EditFinancialAccountYieldDialog";
+import { FinancialAccountYieldStatementItem } from "@/routes/accounts/components/FinancialAccountYieldStatementItem";
 import { EditCreditPurchaseDialog } from "@/routes/credit-cards/components/EditCreditPurchaseDialog";
 import { RefundCreditPurchaseDialog } from "@/routes/credit-cards/components/RefundCreditPurchaseDialog";
 import { showToast } from "@/stores";
@@ -78,6 +84,7 @@ export function TransactionsPage() {
 	const [isBalanceAdjustmentsOpen, setIsBalanceAdjustmentsOpen] = useState(false);
 	const [reviewingImportId, setReviewingImportId] = useState<string | null>(null);
 	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+	const [editingYield, setEditingYield] = useState<FinancialAccountYieldEntry | null>(null);
 	const [editingPurchase, setEditingPurchase] = useState<Transaction | null>(null);
 	const [pendingPurchaseUpdateIds, setPendingPurchaseUpdateIds] = useState<Set<string>>(new Set());
 	const [refundingPurchase, setRefundingPurchase] = useState<Transaction | null>(null);
@@ -108,6 +115,51 @@ export function TransactionsPage() {
 				pageParam.startDate ? pageParam : { limit: transactionsPageSize, ...pageParam },
 			),
 		queryKey: queryKeys.transactions.list(identity!, toTransactionQueryFilters(filters)),
+	});
+	const yieldsQuery = useQuery({
+		enabled: identity !== null,
+		queryFn: async () => {
+			const [accounts, transactions, holidays] = await Promise.all([
+				dataService.accounts.getAll(),
+				dataService.transactions.getAll(),
+				dataService.accountYieldHolidays.getAll(),
+			]);
+			return (
+				await Promise.all(
+					accounts
+						.filter(account => account.type !== "CREDIT_CARD")
+						.map(async account => {
+							const items = [];
+							let cursor: string | null = null;
+							do {
+								const page = await dataService.accountYields.getPage(account.id, cursor);
+								items.push(...page.items);
+								cursor = page.nextCursor;
+							} while (cursor);
+							return calculateFinancialAccountYieldEntries(
+								account,
+								transactions.filter(transaction => transaction.source !== "CREDIT_CARD"),
+								holidays.map(holiday => holiday.date),
+								undefined,
+								items,
+							);
+						}),
+				)
+			).flat();
+		},
+		queryKey: [...queryKeys.accountYields.all(identity!), "transaction-list"],
+	});
+	const yieldEntries = (yieldsQuery.data ?? []).filter(entry => {
+		if (filters.type !== "all" && filters.type !== "INCOME") return false;
+		if (filters.source === "CREDIT_CARD" || filters.categoryId !== "all") return false;
+		if (filters.accountId !== "all" && filters.accountId !== entry.financialAccountId) return false;
+		if (filters.visibility !== "all" && filters.visibility !== (entry.isHidden ? "hidden" : "visible"))
+			return false;
+		if (filters.dateRange.startDate && entry.date < filters.dateRange.startDate) return false;
+		if (filters.dateRange.endDate && entry.date > filters.dateRange.endDate) return false;
+		if (filters.search && !"rendimento".includes(filters.search.trim().toLocaleLowerCase("pt-BR")))
+			return false;
+		return true;
 	});
 	const transactionDays = transactionsQuery.data?.pages.flatMap(page => page.days) ?? [];
 	const transactions = uniqueTransactions(transactionDays.map(day => day.transactions));
@@ -180,6 +232,26 @@ export function TransactionsPage() {
 		: undefined;
 	const dailyEndingBalances = new Map(transactionDays.map(day => [day.date, day.endingBalance]));
 	const today = getLocalDateKey(new Date());
+	const yieldsByDate = Map.groupBy(yieldEntries, entry => entry.date);
+	const displayDates = [
+		...new Set([...Object.keys(groupedTransactions ?? {}), ...yieldsByDate.keys()]),
+	].toSorted((a, b) => b.localeCompare(a));
+	const removeYield = useMutation({
+		mutationFn: async (entry: FinancialAccountYieldEntry) => {
+			if (entry.kind === "AUTOMATIC")
+				await dataService.accountYields.upsertAutomatic({
+					date: entry.date,
+					financialAccountId: entry.financialAccountId,
+					isExcluded: true,
+				});
+			else await dataService.accountYields.delete(entry.id);
+		},
+		onError: error => showToast(error.message, "negative"),
+		onSuccess: async () => {
+			await invalidateCacheOperation(queryClient, identity!, "yield");
+			showToast("Rendimento excluído.", "positive");
+		},
+	});
 	const remove = useMutation({
 		mutationFn: (id: string) => dataService.transactions.delete(id),
 		onError: error => showToast(error.message, "negative"),
@@ -392,7 +464,7 @@ export function TransactionsPage() {
 				transactions={transactions}
 			/>
 
-			{transactionsQuery.isPending ? (
+			{transactionsQuery.isPending || yieldsQuery.isPending ? (
 				<div className="space-y-5">
 					{[1, 2, 3].map(item => (
 						<div className="space-y-2" key={item}>
@@ -401,13 +473,13 @@ export function TransactionsPage() {
 						</div>
 					))}
 				</div>
-			) : transactionsQuery.isError ? (
+			) : transactionsQuery.isError || yieldsQuery.isError ? (
 				<EmptyState
 					description="Não foi possível carregar suas movimentações."
 					icon={<HiArrowsRightLeft />}
 					title="Falha ao carregar transações"
 				/>
-			) : !groupedTransactions || Object.keys(groupedTransactions).length === 0 ? (
+			) : displayDates.length === 0 ? (
 				<EmptyState
 					description={
 						transactions.length
@@ -419,7 +491,8 @@ export function TransactionsPage() {
 				/>
 			) : (
 				<div className="space-y-5">
-					{Object.entries(groupedTransactions).map(([date, transactions]) => {
+					{displayDates.map(date => {
+						const transactions = groupedTransactions?.[date] ?? [];
 						const displayGroups = groupTransactionsForDisplay(transactions, today);
 						const [onlyDisplayGroup] = displayGroups;
 						const singleCollapsedGroup =
@@ -435,6 +508,20 @@ export function TransactionsPage() {
 									dateLabel={dayLabel}
 									endingBalance={currency.format(dailyEndingBalances.get(date) ?? 0)}
 								/>
+								{yieldsByDate.get(date)?.length ? (
+									<div className="divide-y overflow-hidden rounded-2xl border bg-card shadow-sm">
+										{yieldsByDate.get(date)?.map(entry => (
+											<FinancialAccountYieldStatementItem
+												amount={entry.amount}
+												deleting={removeYield.isPending && removeYield.variables?.id === entry.id}
+												key={`yield-${entry.id}`}
+												onDelete={() => removeYield.mutateAsync(entry)}
+												onEdit={() => setEditingYield(entry)}
+												time={entry.time}
+											/>
+										))}
+									</div>
+								) : null}
 								{singleCollapsedGroup ? (
 									<TransactionsGroupToggle
 										expanded={expandedTransactionGroups.has(singleCollapsedGroup.id)}
@@ -495,6 +582,11 @@ export function TransactionsPage() {
 			)}
 
 			<CreateTransactionDialog onOpenChange={setIsModalOpen} open={isModalOpen} />
+			<EditFinancialAccountYieldDialog
+				entry={editingYield}
+				onOpenChange={open => !open && setEditingYield(null)}
+				open={editingYield !== null}
+			/>
 			<BalanceAdjustmentsDialog onOpenChange={setIsBalanceAdjustmentsOpen} open={isBalanceAdjustmentsOpen} />
 			<ImportTransactionsDialog
 				onImported={setReviewingImportId}
