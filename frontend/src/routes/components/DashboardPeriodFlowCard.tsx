@@ -7,11 +7,21 @@ interface DashboardPeriodFlowCardProps {
 	income: number;
 	expenses: number;
 	net: number;
+	isCurrentMonth?: boolean;
 }
 
-export function DashboardPeriodFlowCard({ income, expenses, net }: DashboardPeriodFlowCardProps) {
+export function DashboardPeriodFlowCard({
+	income,
+	expenses,
+	net,
+	isCurrentMonth = false,
+}: DashboardPeriodFlowCardProps) {
 	return (
-		<Card aria-label="Fluxo do período" className="gap-0 py-0 xl:grid xl:grid-cols-3" role="group">
+		<Card
+			aria-label={isCurrentMonth ? "Fluxo do mês" : "Fluxo do período"}
+			className="gap-0 py-0 xl:grid xl:grid-cols-3"
+			role="group"
+		>
 			<div className="grid grid-cols-2 xl:col-span-2">
 				<div className="min-w-0 bg-brand-yellow px-4 py-3 text-brand-ink sm:px-6 sm:py-4">
 					<p className="flex items-center gap-1.5 text-xs sm:text-sm">
@@ -31,7 +41,7 @@ export function DashboardPeriodFlowCard({ income, expenses, net }: DashboardPeri
 				</div>
 			</div>
 			<div className="flex items-center justify-between gap-2 border-t px-4 py-2 text-xs sm:px-6 xl:flex-col xl:items-start xl:justify-center xl:border-t-0 xl:border-l xl:py-4 xl:text-sm">
-				<span className="text-muted-foreground">Resultado do período</span>
+				<span className="text-muted-foreground">Resultado {isCurrentMonth ? "do mês" : "do período"}</span>
 				<strong className={`text-right xl:text-xl ${net >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
 					{currency.format(net)}
 				</strong>

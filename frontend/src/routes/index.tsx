@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { format } from "date-fns";
+import { format, startOfMonth } from "date-fns";
 import { useState } from "react";
 import { LuTrendingUp, LuWalletCards } from "react-icons/lu";
 import {
@@ -41,10 +41,15 @@ export function DashboardPage() {
 	const [dateRange, setDateRange] = useState<DateRangeValue>(() => getTodayRange());
 	const [reviewingImportId, setReviewingImportId] = useState<string | null>(null);
 	const [reviewingCreditCardImportId, setReviewingCreditCardImportId] = useState<string | null>(null);
+	const today = format(new Date(), "yyyy-MM-dd");
+	const isToday = dateRange.startDate === today && dateRange.endDate === today;
+	const dashboardRange = isToday
+		? { ...dateRange, startDate: format(startOfMonth(new Date()), "yyyy-MM-dd") }
+		: dateRange;
 	const dashboardQuery = useQuery({
 		enabled: identity !== null,
-		queryFn: () => dataService.dashboard.get(dateRange),
-		queryKey: queryKeys.dashboard.detail(identity!, dateRange),
+		queryFn: () => dataService.dashboard.get(dashboardRange),
+		queryKey: queryKeys.dashboard.detail(identity!, dashboardRange),
 	});
 	if (dashboardQuery.isPending) return <DashboardSkeleton />;
 	if (dashboardQuery.isError || !dashboardQuery.data)
@@ -60,7 +65,7 @@ export function DashboardPage() {
 	const dashboard = dashboardQuery.data;
 	const { accountBalance, savingsBalance } = dashboard.balanceBreakdown;
 	const endingBalance = dashboard.period.endingBalance;
-	const isCurrentDay = dashboard.period.startDate === dashboard.period.endDate;
+	const isCurrentDay = isToday;
 	const projectedCashFlow = dashboard.projectedCashFlowUntilMonthEnd;
 	return (
 		<PageContainer className="space-y-6">
@@ -102,6 +107,7 @@ export function DashboardPage() {
 				<DashboardPeriodFlowCard
 					expenses={dashboard.period.expenses}
 					income={dashboard.period.income}
+					isCurrentMonth={isToday}
 					net={dashboard.period.net}
 				/>
 				<DashboardProjectedCashFlowCard
