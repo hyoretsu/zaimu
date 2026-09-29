@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { LuLandmark, LuScale, LuWalletCards } from "react-icons/lu";
+import { LuCalendarDays, LuLandmark, LuPlus, LuScale, LuWalletCards } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageContainer } from "@/components/ui/PageContainer";
@@ -23,6 +23,8 @@ import {
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
 export function AccountsPage() {
+	const [isCreateAccountOpen, setIsCreateAccountOpen] = useState(false);
+	const [isHolidaysOpen, setIsHolidaysOpen] = useState(false);
 	const [isBalanceAdjustmentsOpen, setIsBalanceAdjustmentsOpen] = useState(false);
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
@@ -139,6 +141,8 @@ export function AccountsPage() {
 							holidays={holidays.data ?? ([] as FinancialAccountYieldHoliday[])}
 							onCreate={date => createHoliday.mutateAsync(date)}
 							onDelete={id => deleteHoliday.mutateAsync(id)}
+							onOpenChange={setIsHolidaysOpen}
+							open={isHolidaysOpen}
 							pending={createHoliday.isPending || deleteHoliday.isPending}
 						/>
 						<CreateFinancialAccountDialog
@@ -146,6 +150,8 @@ export function AccountsPage() {
 							onCreate={async data => {
 								await createAccount.mutateAsync(data);
 							}}
+							onOpenChange={setIsCreateAccountOpen}
+							open={isCreateAccountOpen}
 							pending={false}
 							rewardAccounts={rewardAccounts}
 						/>
@@ -153,6 +159,11 @@ export function AccountsPage() {
 				}
 				description="Organize bancos, dinheiro, investimentos e cartões sem misturar a tabela de autenticação."
 				eyebrow="Patrimônio"
+				mobileActions={[
+					{ icon: LuScale, label: "Ajustes de saldo", onClick: () => setIsBalanceAdjustmentsOpen(true) },
+					{ icon: LuCalendarDays, label: "Feriados", onClick: () => setIsHolidaysOpen(true) },
+					{ icon: LuPlus, label: "Nova conta", onClick: () => setIsCreateAccountOpen(true) },
+				]}
 				title="Contas financeiras"
 			/>
 			<section className="grid gap-4 sm:grid-cols-2">

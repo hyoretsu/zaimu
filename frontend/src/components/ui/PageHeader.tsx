@@ -1,14 +1,18 @@
 import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
+import { type MobilePageAction, MobilePageActions } from "./MobilePageActions";
 
 export function PageHeader({
 	actions,
 	description,
 	eyebrow,
+	mobileActions,
 	title,
 }: {
 	actions?: ReactNode;
 	description?: string;
 	eyebrow?: string;
+	mobileActions?: MobilePageAction[];
 	title: string;
 }) {
 	return (
@@ -21,10 +25,16 @@ export function PageHeader({
 				{description && <p className="mt-2 max-w-2xl text-muted-foreground">{description}</p>}
 			</div>
 			{actions && (
-				<div className="flex w-full shrink-0 items-center gap-2 sm:w-auto [&>*]:w-full sm:[&>*]:w-auto">
+				<div
+					className={cn(
+						"flex w-full shrink-0 items-center gap-2 sm:w-auto [&>*]:w-full sm:[&>*]:w-auto",
+						mobileActions && "hidden lg:flex",
+					)}
+				>
 					{actions}
 				</div>
 			)}
+			{mobileActions && <MobilePageActions actions={mobileActions} />}
 		</header>
 	);
 }

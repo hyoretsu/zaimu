@@ -20,13 +20,22 @@ export function FinancialAccountYieldHolidaysDialog({
 	onCreate,
 	onDelete,
 	pending,
+	open: controlledOpen,
+	onOpenChange,
 }: {
 	holidays: FinancialAccountYieldHoliday[];
 	onCreate: (date: string) => Promise<unknown>;
 	onDelete: (id: string) => Promise<unknown>;
 	pending: boolean;
+	open?: boolean;
+	onOpenChange?: (open: boolean) => void;
 }) {
-	const [open, setOpen] = useState(false);
+	const [internalOpen, setInternalOpen] = useState(false);
+	const open = controlledOpen ?? internalOpen;
+	const setOpen = (nextOpen: boolean) => {
+		setInternalOpen(nextOpen);
+		onOpenChange?.(nextOpen);
+	};
 	const [date, setDate] = useState("");
 	const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
 		event.preventDefault();

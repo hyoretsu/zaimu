@@ -403,6 +403,10 @@ export function TransactionsPage() {
 					</div>
 				}
 				description="Acompanhe entradas, saídas e transferências."
+				mobileActions={[
+					{ icon: HiPlus, label: "Adicionar", onClick: () => setIsModalOpen(true) },
+					{ icon: LuFileUp, label: "Importar extrato", onClick: () => setIsImportOpen(true) },
+				]}
 				title="Transações"
 			/>
 			<PendingTransactionImportsNotice onReview={setReviewingImportId} />

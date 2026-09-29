@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { LuCreditCard, LuPlus, LuReceiptText } from "react-icons/lu";
 import { CreateTransactionDialog } from "@/components/transactions";
 import { Button } from "@/components/ui/Button";
+import { MobilePageActions } from "@/components/ui/MobilePageActions";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { dataService } from "@/lib/dataService";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
@@ -46,9 +47,17 @@ export function DashboardQuickActions() {
 
 	return (
 		<>
+			<MobilePageActions
+				actions={[
+					{ icon: LuPlus, label: "Nova transação", onClick: () => setTransactionOpen(true) },
+					...(cards.isPending || cards.isError || cards.data?.length
+						? [{ icon: LuCreditCard, label: "Nova compra", onClick: () => setPurchaseOpen(true) }]
+						: []),
+				]}
+			/>
 			<Popover onOpenChange={setMenuOpen} open={menuOpen}>
 				<PopoverTrigger asChild>
-					<Button className="cursor-pointer">
+					<Button className="hidden cursor-pointer lg:inline-flex">
 						<LuPlus /> Adicionar
 					</Button>
 				</PopoverTrigger>

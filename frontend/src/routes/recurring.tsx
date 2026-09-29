@@ -157,6 +157,7 @@ export function RecurringPage() {
 					</Button>
 				}
 				description="Centralize salários, assinaturas e pagamentos que se repetem."
+				mobileActions={[{ icon: HiPlus, label: "Adicionar", onClick: () => setIsCreateOpen(true) }]}
 				title="Recorrências"
 			/>
 

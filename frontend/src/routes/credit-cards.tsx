@@ -94,6 +94,15 @@ export function CreditCardsPage() {
 				}
 				description="Acompanhe limite, previsão de fatura e parcelamentos."
 				eyebrow="Crédito"
+				mobileActions={[
+					{
+						disabled: !cards.data?.length,
+						icon: LuFileUp,
+						label: "Importar fatura",
+						onClick: () => setIsImportOpen(true),
+					},
+					{ icon: LuPlus, label: "Novo cartão", onClick: () => setIsCreateCardOpen(true) },
+				]}
 				title="Cartões e compras"
 			/>
 			<PendingCreditCardImportsNotice onReview={setReviewingImportId} />

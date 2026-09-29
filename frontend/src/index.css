@@ -142,6 +142,10 @@
 }
 
 @layer base {
+	:root {
+		--mobile-navigation-height: calc(4rem + 1px + max(env(safe-area-inset-bottom), 0.5rem));
+	}
+
 	* {
 		@apply border-border outline-ring/50;
 	}

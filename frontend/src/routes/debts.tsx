@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { LuPlus, LuUsersRound } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
+import { MobilePageActions } from "@/components/ui/MobilePageActions";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { DebtEvent, DebtPerson } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
@@ -120,6 +121,9 @@ export function DebtsPage() {
 
 	return (
 		<main className="mx-auto min-h-screen w-full max-w-5xl overflow-x-clip bg-background pt-6 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:py-10">
+			<MobilePageActions
+				actions={[{ icon: LuPlus, label: "Adicionar lançamento", onClick: () => setCreateOpen(true) }]}
+			/>
 			<header className="mx-4 min-w-0 rounded-3xl bg-gradient-to-br from-primary to-primary/75 p-5 text-primary-foreground shadow-lg sm:p-6 lg:p-8">
 				<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 					<div>
@@ -129,7 +133,7 @@ export function DebtsPage() {
 						</h1>
 					</div>
 					<Button
-						className="w-full cursor-pointer sm:w-auto"
+						className="hidden w-full cursor-pointer lg:inline-flex lg:w-auto"
 						onClick={() => setCreateOpen(true)}
 						variant="secondary"
 					>

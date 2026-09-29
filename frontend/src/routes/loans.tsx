@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { HiBanknotes, HiCalculator, HiCheck, HiCheckCircle, HiClock, HiPlus, HiXMark } from "react-icons/hi2";
 import { DateField } from "@/components/ui/DateField";
+import { MobilePageActions } from "@/components/ui/MobilePageActions";
 import { api, type Loan } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { getLocalDateKey } from "@/lib/date";
@@ -226,6 +227,9 @@ export function EmpréstimosPage() {
 
 	return (
 		<div className="mx-auto min-h-screen w-full max-w-5xl bg-background lg:py-10">
+			<MobilePageActions
+				actions={[{ icon: HiPlus, label: "Adicionar empréstimo", onClick: () => setIsCreateModalOpen(true) }]}
+			/>
 			{/* Header */}
 			<div className="gradient-primary relative overflow-hidden px-4 pt-12 pb-24 lg:rounded-3xl lg:px-8">
 				<div className="absolute top-0 right-0 h-48 w-48 translate-x-1/4 -translate-y-1/2 rounded-full bg-primary-500/20" />
@@ -235,7 +239,7 @@ export function EmpréstimosPage() {
 					<div className="mb-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
 						<h1 className="font-bold text-2xl text-white">Empréstimos</h1>
 						<button
-							className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent-300 px-4 py-2 font-semibold text-primary-900 transition-all hover:bg-accent-200 active:scale-95 sm:w-auto"
+							className="hidden w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-accent-300 bg-accent-300 px-4 py-2 font-semibold text-primary-900 transition-all hover:bg-accent-200 active:scale-95 lg:flex lg:w-auto"
 							onClick={() => setIsCreateModalOpen(true)}
 						>
 							<HiPlus className="h-5 w-5" />

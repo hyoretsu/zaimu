@@ -86,7 +86,7 @@ export function MobileAppShell() {
 							className="mobile-tab-scroll-area h-dvh w-full min-w-0 max-w-full"
 							key={`${screenPath}:${refreshVersions[tabId]}`}
 						>
-							<main className="min-h-dvh w-full min-w-0 max-w-full pb-24">
+							<main className="min-h-dvh w-full min-w-0 max-w-full pb-[calc(var(--mobile-navigation-height)+5.5rem)]">
 								<Screen />
 							</main>
 						</ScrollArea>
