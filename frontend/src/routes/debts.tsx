@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { DebtEvent, DebtPerson } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
+import { compareDebtPersonNames } from "@/lib/debt-split";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { DashboardDebtInvitations } from "./components";
@@ -103,7 +104,9 @@ export function DebtsPage() {
 			showToast("Pessoa atualizada.", "positive");
 		},
 	});
-	const people = ledger.data?.people ?? [];
+	const people = (ledger.data?.people ?? []).toSorted((left, right) =>
+		compareDebtPersonNames(left.name, right.name),
+	);
 
 	if (ledger.isPending)
 		return (

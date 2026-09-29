@@ -20,6 +20,8 @@ Uma saída pendente e uma entrada já materializada, de contas distintas do mesm
 
 ## Rateio de dívidas
 
+Pessoas vinculadas a dívidas são sempre exibidas em ordem alfabética pelo nome, com comparação `pt-BR` que ignora diferenças de caixa e acentuação. A regra vale para badges, criação e edição de rateios, seletores, conciliação de importações, listagens, dashboard e convites. A ordenação visual preserva valores, regras de divisão e a ordem usada nos cálculos de arredondamento.
+
 Transações, compras, assinaturas, pagamentos recorrentes e lançamentos manuais podem repartir seu valor entre várias pessoas por um único método: cotas, percentuais ou valores fixos. O titular pode participar; por padrão, ele absorve diferenças de arredondamento e qualquer restante não distribuído. O titular pode enviar esse restante para uma pessoa já participante do rateio. Percentuais das pessoas não podem ultrapassar 100%, e valores fixos não podem ultrapassar o total. Cada participante externo recebe um evento independente e privado no próprio livro.
 
 Assinaturas e pagamentos recorrentes guardam somente a regra do rateio. Cada ocorrência concreta recebe um snapshot da regra vigente e gera seus eventos; previsões nunca alteram o livro de dívidas. Alterações posteriores na agenda não reescrevem ocorrências passadas. Compras parceladas geram o efeito da dívida somente uma vez, pelo valor total da parcela raiz. Dívidas geradas por compra no cartão ou saída exibem a descrição específica do participante, quando informada; sem ela, exibem sempre o título atual da compra vinculada - descrição, estabelecimento ou `Compra` - inclusive para eventos históricos. Entradas usam somente a própria descrição da movimentação.

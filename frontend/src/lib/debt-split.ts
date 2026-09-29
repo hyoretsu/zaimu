@@ -6,6 +6,13 @@ const money = (value: number) => value / 100;
 export const compareDebtPersonNames = (left: string, right: string) =>
 	left.localeCompare(right, "pt-BR", { sensitivity: "base" });
 
+export function formatDebtSplitNames(split: DebtSplit | null | undefined) {
+	return split?.participants
+		.toSorted((left, right) => compareDebtPersonNames(left.debtPersonName, right.debtPersonName))
+		.map(participant => participant.debtPersonName)
+		.join(", ");
+}
+
 export function createEqualDebtSplit(
 	mode: DebtSplitInput["mode"],
 	participants: Array<{ debtPersonId: string; description?: string }>,

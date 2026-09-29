@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/Button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import type { DebtInvitation } from "@/lib/api";
+import { compareDebtPersonNames } from "@/lib/debt-split";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 const dateFormatter = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" });
@@ -19,7 +20,7 @@ export function DebtInvitationPickerDialog({
 	open: boolean;
 }) {
 	const sortedInvitations = invitations.toSorted((left, right) =>
-		right.createdAt.localeCompare(left.createdAt),
+		compareDebtPersonNames(left.counterpartyName, right.counterpartyName),
 	);
 	return (
 		<Dialog onOpenChange={onOpenChange} open={open}>

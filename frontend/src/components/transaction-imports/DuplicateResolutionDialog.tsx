@@ -5,6 +5,7 @@ import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/co
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import type { TransactionImportDuplicate, TransactionImportItem } from "@/lib/api";
 import { formatLocalTime } from "@/lib/date";
+import { formatDebtSplitNames } from "@/lib/debt-split";
 import {
 	DuplicateCandidateList,
 	type DuplicateField,
@@ -100,9 +101,7 @@ export function DuplicateResolutionDialog({
 		if (field === "date") return formatDate(selected);
 		if (field === "debtSplit") {
 			const debtSplit = selected as TransactionImportItem["debtSplit"];
-			return debtSplit
-				? debtSplit.participants.map(participant => participant.debtPersonName).join(", ")
-				: "Sem dívida";
+			return formatDebtSplitNames(debtSplit) ?? "Sem dívida";
 		}
 		if (field === "time") return formatLocalTime(selected ? String(selected) : undefined) ?? "Não informado";
 		if (field === "originFinancialAccountId" || field === "destinationFinancialAccountId")

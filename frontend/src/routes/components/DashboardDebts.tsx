@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import type { Dashboard } from "@/lib/api";
+import { compareDebtPersonNames } from "@/lib/debt-split";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 const mobilePreviewLimit = 4;
@@ -13,10 +14,7 @@ const desktopPreviewLimit = 5;
 
 export function DashboardDebts({ debts }: Pick<Dashboard, "debts">) {
 	const [open, setOpen] = useState(false);
-	const people = debts.people.toSorted((left, right) => {
-		if (left.direction !== right.direction) return left.direction === "OWES" ? -1 : 1;
-		return Math.abs(right.balance) - Math.abs(left.balance);
-	});
+	const people = debts.people.toSorted((left, right) => compareDebtPersonNames(left.name, right.name));
 	const rows = (items: typeof people, isPreview = false) =>
 		items.map((person, index) => (
 			<div

@@ -6,6 +6,7 @@ import {
 	debtSplitError,
 	debtSplitToInput,
 	formatDebtSplitBadge,
+	formatDebtSplitNames,
 	remainingDebtSplitAmount,
 	selectDebtSplitRemainder,
 } from "./debt-split";
@@ -201,6 +202,22 @@ describe("remainingDebtSplitAmount", () => {
 	});
 });
 
+describe("formatDebtSplitNames", () => {
+	test("sorts reconciliation names alphabetically without mutating participants", () => {
+		const participants = [
+			{ amount: 10, debtPersonId: "e", debtPersonName: "Eduarda", shares: 1 },
+			{ amount: 20, debtPersonId: "v", debtPersonName: "Vitória", shares: 2 },
+			{ amount: 10, debtPersonId: "p", debtPersonName: "Painho", shares: 1 },
+		];
+		expect(formatDebtSplitNames({ mode: "SHARES", ownerAmount: 0, ownerShares: null, participants })).toBe(
+			"Eduarda, Painho, Vitória",
+		);
+		expect(participants.map(person => person.debtPersonId)).toEqual(["e", "v", "p"]);
+		expect(formatDebtSplitNames(null)).toBeUndefined();
+		expect(formatDebtSplitNames(undefined)).toBeUndefined();
+	});
+});
+
 describe("formatDebtSplitBadge", () => {
 	const formatAmount = (amount: number) => `R$ ${amount.toFixed(2)}`;
 
@@ -338,7 +355,12 @@ describe("selectDebtSplitRemainder", () => {
 			"a",
 		);
 		const unchecked = selectDebtSplitRemainder(input);
-		expect(unchecked).toEqual({ ...input, remainderDebtPersonId: undefined });
+		expect(unchecked).toEqual({
+			mode: "FIXED",
+			ownerIncluded: false,
+			participants: [{ debtPersonId: "a", fixedAmount: 0 }],
+			remainderDebtPersonId: undefined,
+		});
 		expect(debtSplitError(30, unchecked)).toBe("Cada pessoa deve ter um valor positivo para a divisão.");
 	});
 

@@ -5,6 +5,7 @@ import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/co
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import type { CreditCardImportItem, CreditCardImportPurchaseDuplicate } from "@/lib/api";
 import { formatLocalDate, formatLocalTime } from "@/lib/date";
+import { formatDebtSplitNames } from "@/lib/debt-split";
 
 export type CreditPurchaseReconciliationField =
 	| "debtSplit"
@@ -74,10 +75,7 @@ export function CreditPurchaseReconciliationDialog({
 		if (field === "time") return formatLocalTime(record.time ?? undefined) ?? "Não informado";
 		if (field === "tagIds")
 			return record.tags.length ? record.tags.map(tag => tag.name).join(", ") : "Sem tags";
-		if (field === "debtSplit")
-			return record.debtSplit
-				? record.debtSplit.participants.map(participant => participant.debtPersonName).join(", ")
-				: "Sem dívida";
+		if (field === "debtSplit") return formatDebtSplitNames(record.debtSplit) ?? "Sem dívida";
 		return record[field] || "Não informado";
 	};
 	const selectAllFrom = (source: Source) =>

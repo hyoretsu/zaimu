@@ -5,6 +5,7 @@ import { ActionNotice } from "@/components/ui/ActionNotice";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { dataService } from "@/lib/dataService";
+import { compareDebtPersonNames } from "@/lib/debt-split";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { DebtInvitationDialog } from "./DebtInvitationDialog";
 import { DebtInvitationPickerDialog } from "./DebtInvitationPickerDialog";
@@ -31,7 +32,9 @@ export function DashboardDebtInvitations({ showSent = false }: { showSent?: bool
 	const received = (invitations.data ?? []).filter(
 		invitation => invitation.direction === "RECEIVED" && invitation.status === "PENDING",
 	);
-	const sent = (invitations.data ?? []).filter(invitation => invitation.direction === "SENT");
+	const sent = (invitations.data ?? [])
+		.filter(invitation => invitation.direction === "SENT")
+		.toSorted((left, right) => compareDebtPersonNames(left.counterpartyName, right.counterpartyName));
 	const selectedInvitation = received.find(invitation => invitation.id === selectedInvitationId) ?? null;
 	if (!received.length && (!showSent || !sent.length)) return null;
 	return (
