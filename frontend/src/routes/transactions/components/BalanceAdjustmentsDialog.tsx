@@ -9,11 +9,13 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip
 import type { BalanceAdjustment } from "@/lib/balance-adjustment";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
-import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
+import { getFinancialAccountOptionLabel } from "@/lib/financial-account";
+import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { BalanceAdjustmentForm } from "./BalanceAdjustmentForm";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
+const nameCollator = new Intl.Collator("pt-BR", { sensitivity: "base" });
 
 export function BalanceAdjustmentsDialog({
 	onOpenChange,
@@ -30,6 +32,21 @@ export function BalanceAdjustmentsDialog({
 		enabled: open && identity !== null,
 		queryFn: () => dataService.balanceAdjustments.getAll(),
 		queryKey: adjustmentsKey,
+	});
+	const accountsQuery = useQuery({
+		enabled: open && identity !== null,
+		queryFn: () => dataService.accounts.getAll(),
+		queryKey: queryKeys.accounts.list(identity!),
+	});
+	const accountNames = new Map(
+		(accountsQuery.data ?? []).map(account => [account.id, getFinancialAccountOptionLabel(account)]),
+	);
+	const adjustments = adjustmentsQuery.data?.toSorted((left, right) => {
+		const byName = nameCollator.compare(
+			accountNames.get(left.financialAccountId) ?? left.name ?? "Conta",
+			accountNames.get(right.financialAccountId) ?? right.name ?? "Conta",
+		);
+		return byName || right.date.localeCompare(left.date);
 	});
 	const remove = useMutation({
 		mutationFn: (id: string) => dataService.balanceAdjustments.delete(id),
@@ -54,60 +71,66 @@ export function BalanceAdjustmentsDialog({
 						</DialogDescription>
 					</DialogHeader>
 					<div className="scrollbar-themed grid max-h-[60dvh] gap-2 overflow-y-auto pr-1">
-						{adjustmentsQuery.isPending ? <Skeleton className="h-20 rounded-xl" /> : null}
-						{adjustmentsQuery.isError ? (
+						{adjustmentsQuery.isPending || accountsQuery.isPending ? (
+							<Skeleton className="h-20 rounded-xl" />
+						) : null}
+						{adjustmentsQuery.isError || accountsQuery.isError ? (
 							<p className="text-destructive text-sm">Não foi possível carregar os ajustes.</p>
 						) : null}
-						{adjustmentsQuery.data?.length === 0 ? (
+						{!accountsQuery.isPending && adjustments?.length === 0 ? (
 							<p className="text-muted-foreground text-sm">Nenhum ajuste registrado.</p>
 						) : null}
-						{adjustmentsQuery.data?.map(adjustment => (
-							<div
-								className="flex items-center justify-between gap-3 rounded-xl border p-3"
-								key={adjustment.id}
-							>
-								<div className="min-w-0">
-									<p className="truncate font-medium">{adjustment.name || "Conta"}</p>
-									<p className="text-muted-foreground text-sm">
-										{formatLocalDate(adjustment.date)} - {currency.format(adjustment.balance)}
-									</p>
-								</div>
-								<div className="flex shrink-0 gap-1">
-									<Tooltip>
-										<TooltipTrigger asChild>
-											<Button
-												aria-label="Editar ajuste"
-												className="cursor-pointer"
-												onClick={() => setEditing(adjustment)}
-												size="icon-sm"
-												variant="outline"
-											>
-												<LuPencil />
-											</Button>
-										</TooltipTrigger>
-										<TooltipContent>Editar</TooltipContent>
-									</Tooltip>
-									<Tooltip>
-										<TooltipTrigger asChild>
-											<span>
-												<ConfirmActionButton
-													aria-label="Excluir ajuste"
+						{!accountsQuery.isPending &&
+							!accountsQuery.isError &&
+							adjustments?.map(adjustment => (
+								<div
+									className="flex items-center justify-between gap-3 rounded-xl border p-3"
+									key={adjustment.id}
+								>
+									<div className="min-w-0">
+										<p className="truncate font-medium">
+											{accountNames.get(adjustment.financialAccountId) ?? adjustment.name ?? "Conta"}
+										</p>
+										<p className="text-muted-foreground text-sm">
+											{formatLocalDate(adjustment.date)} - {currency.format(adjustment.balance)}
+										</p>
+									</div>
+									<div className="flex shrink-0 gap-1">
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<Button
+													aria-label="Editar ajuste"
 													className="cursor-pointer"
-													confirmation="Excluir este ajuste permanentemente?"
-													disabled={remove.isPending && remove.variables === adjustment.id}
-													onConfirm={() => remove.mutate(adjustment.id)}
+													onClick={() => setEditing(adjustment)}
 													size="icon-sm"
 													variant="outline"
 												>
-													<LuTrash2 />
-												</ConfirmActionButton>
-											</span>
-										</TooltipTrigger>
-										<TooltipContent>Excluir</TooltipContent>
-									</Tooltip>
+													<LuPencil />
+												</Button>
+											</TooltipTrigger>
+											<TooltipContent>Editar</TooltipContent>
+										</Tooltip>
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<span>
+													<ConfirmActionButton
+														aria-label="Excluir ajuste"
+														className="cursor-pointer"
+														confirmation="Excluir este ajuste permanentemente?"
+														disabled={remove.isPending && remove.variables === adjustment.id}
+														onConfirm={() => remove.mutate(adjustment.id)}
+														size="icon-sm"
+														variant="outline"
+													>
+														<LuTrash2 />
+													</ConfirmActionButton>
+												</span>
+											</TooltipTrigger>
+											<TooltipContent>Excluir</TooltipContent>
+										</Tooltip>
+									</div>
 								</div>
-							</div>
-						))}
+							))}
 					</div>
 					<Button className="cursor-pointer" onClick={() => setEditing("new")}>
 						<LuPlus /> Novo ajuste
