@@ -10,6 +10,7 @@ import type { DebtSplitInput } from "@/lib/api";
 
 export function DebtSplitParticipantRow({
 	amount,
+	totalAmount,
 	disabled,
 	excludedPersonIds,
 	index,
@@ -24,6 +25,7 @@ export function DebtSplitParticipantRow({
 	mode,
 }: {
 	amount?: number;
+	totalAmount: number;
 	disabled?: boolean;
 	excludedPersonIds?: string[];
 	index: number;
@@ -38,8 +40,13 @@ export function DebtSplitParticipantRow({
 	showDescription: boolean;
 }) {
 	const [description, setDescription] = useDebouncedInput(participant.description ?? "", onDescriptionChange);
-	const numericValue =
-		mode === "SHARES"
+	const numericValue = isRemainderRecipient
+		? amount === undefined
+			? ""
+			: mode === "PERCENTAGE"
+				? String(totalAmount > 0 ? Number(((amount / totalAmount) * 100).toFixed(2)) : 0)
+				: String(amount)
+		: mode === "SHARES"
 			? String((participant as { shares: number }).shares || "")
 			: mode === "PERCENTAGE"
 				? String((participant as { percentage: number }).percentage || "")

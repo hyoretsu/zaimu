@@ -7,6 +7,7 @@ import {
 	debtSplitToInput,
 	formatDebtSplitBadge,
 	remainingDebtSplitAmount,
+	selectDebtSplitRemainder,
 } from "./debt-split";
 
 describe("calculateDebtSplit", () => {
@@ -108,9 +109,40 @@ describe("addDebtSplitParticipant", () => {
 			participants: [{ debtPersonId: "vitoria", shares: 2 }],
 		};
 
-		expect(addDebtSplitParticipant(split, false, 19.99)).toEqual({
+		expect(addDebtSplitParticipant(split)).toEqual({
 			...split,
 			participants: [...split.participants, { debtPersonId: "", shares: 1 }],
+		});
+	});
+
+	test("preserves fixed debts when adding a person, including an automatic remainder", () => {
+		const split = {
+			mode: "FIXED" as const,
+			ownerIncluded: false,
+			participants: [
+				{ debtPersonId: "ana", fixedAmount: 60 },
+				{ debtPersonId: "bia", fixedAmount: 0 },
+			],
+			remainderDebtPersonId: "bia",
+		};
+
+		expect(addDebtSplitParticipant(split)).toEqual({
+			...split,
+			participants: [...split.participants, { debtPersonId: "", fixedAmount: 0 }],
+		});
+		expect(split.participants[0].fixedAmount).toBe(60);
+	});
+
+	test("preserves percentages when adding a person", () => {
+		const split = {
+			mode: "PERCENTAGE" as const,
+			ownerIncluded: false,
+			participants: [{ debtPersonId: "ana", percentage: 75 }],
+		};
+
+		expect(addDebtSplitParticipant(split)).toEqual({
+			...split,
+			participants: [...split.participants, { debtPersonId: "", percentage: 0 }],
 		});
 	});
 });
@@ -223,5 +255,124 @@ describe("debtSplitToInput", () => {
 			ownerShares: 1,
 			participants: [{ debtPersonId: "a", description: "Capa de celular", shares: 1 }],
 		});
+	});
+});
+
+describe("selectDebtSplitRemainder", () => {
+	test("replaces a fixed amount with the remainder even when the previous total exceeded the purchase", () => {
+		const original = {
+			mode: "FIXED" as const,
+			ownerIncluded: false,
+			participants: [
+				{ debtPersonId: "a", fixedAmount: 22.8 },
+				{ debtPersonId: "b", description: "Almoço", fixedAmount: 16.4 },
+			],
+		};
+		const input = selectDebtSplitRemainder(original, "b");
+		expect(input.participants[1]).toEqual({ debtPersonId: "b", description: "Almoço", fixedAmount: 0 });
+		expect(original.participants[1].fixedAmount).toBe(16.4);
+		expect(debtSplitError(32.8, input)).toBeNull();
+		expect(calculateDebtSplit(32.8, input)?.participants.map(item => item.amount)).toEqual([22.8, 10]);
+		expect(calculateDebtSplit(40, input)?.participants.map(item => item.amount)).toEqual([22.8, 17.2]);
+		expect(calculateDebtSplit(32.8, input)?.ownerAmount).toBe(0);
+	});
+
+	test("replaces a percentage with the automatically calculated remainder", () => {
+		const input = selectDebtSplitRemainder(
+			{
+				mode: "PERCENTAGE",
+				ownerIncluded: true,
+				participants: [
+					{ debtPersonId: "a", percentage: 70 },
+					{ debtPersonId: "b", percentage: 50 },
+				],
+			},
+			"b",
+		);
+		expect(input.participants[1]).toEqual({ debtPersonId: "b", percentage: 0 });
+		expect(debtSplitError(99.99, input)).toBeNull();
+		expect(calculateDebtSplit(99.99, input)?.participants.map(item => item.amount)).toEqual([69.99, 30]);
+		expect(calculateDebtSplit(99.99, input)?.ownerAmount).toBe(0);
+	});
+
+	test("keeps automatic allocation when other participants change", () => {
+		const input = selectDebtSplitRemainder(
+			{
+				mode: "FIXED",
+				ownerIncluded: false,
+				participants: [
+					{ debtPersonId: "a", fixedAmount: 15 },
+					{ debtPersonId: "b", fixedAmount: 10 },
+				],
+			},
+			"b",
+		);
+		const updated = {
+			...input,
+			participants: [{ debtPersonId: "a", fixedAmount: 20 }, input.participants[1]],
+		};
+		expect(calculateDebtSplit(30, updated as typeof input)?.participants.map(item => item.amount)).toEqual([
+			20, 10,
+		]);
+	});
+
+	test("returns to manual entry when unchecked without restoring the discarded amount", () => {
+		const input = selectDebtSplitRemainder(
+			{
+				mode: "FIXED",
+				ownerIncluded: false,
+				participants: [{ debtPersonId: "a", fixedAmount: 10 }],
+			},
+			"a",
+		);
+		const unchecked = selectDebtSplitRemainder(input);
+		expect(unchecked).toEqual({ ...input, remainderDebtPersonId: undefined });
+		expect(debtSplitError(30, unchecked)).toBe("Cada pessoa deve ter um valor positivo para a divisão.");
+	});
+
+	test("still rejects allocations that leave no positive remainder", () => {
+		for (const fixedAmount of [30, 40]) {
+			const input = selectDebtSplitRemainder(
+				{
+					mode: "FIXED",
+					ownerIncluded: false,
+					participants: [
+						{ debtPersonId: "a", fixedAmount },
+						{ debtPersonId: "b", fixedAmount: 10 },
+					],
+				},
+				"b",
+			);
+			expect(calculateDebtSplit(30, input)).toBeNull();
+			expect(debtSplitError(30, input)).not.toBeNull();
+		}
+	});
+});
+
+describe("automatic remainder across editing and mode changes", () => {
+	test("keeps the recipient automatic when redistributing or switching modes", () => {
+		const participants = [{ debtPersonId: "a" }, { debtPersonId: "b" }];
+		for (const mode of ["FIXED", "PERCENTAGE"] as const) {
+			const input = createEqualDebtSplit(mode, participants, false, 32.8, "b");
+			expect(input.participants[1]).toEqual(
+				mode === "FIXED" ? { debtPersonId: "b", fixedAmount: 0 } : { debtPersonId: "b", percentage: 0 },
+			);
+			expect(calculateDebtSplit(32.8, input)?.participants.map(item => item.amount)).toEqual([16.4, 16.4]);
+		}
+	});
+
+	test("clears the recipient's stored value when reopening an existing split", () => {
+		const input = debtSplitToInput({
+			mode: "FIXED",
+			ownerAmount: 0,
+			ownerIncluded: false,
+			participants: [
+				{ amount: 22.8, debtPersonId: "a", debtPersonName: "Ana", fixedAmount: 22.8 },
+				{ amount: 10, debtPersonId: "b", debtPersonName: "Bia", fixedAmount: 5 },
+			],
+			remainderDebtPersonId: "b",
+		});
+		expect(input.participants[1]).toEqual({ debtPersonId: "b", description: undefined, fixedAmount: 0 });
+		expect(calculateDebtSplit(32.8, input)?.participants.map(item => item.amount)).toEqual([22.8, 10]);
 	});
 });

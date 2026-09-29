@@ -11,6 +11,7 @@ import {
 	createEqualDebtSplit,
 	debtSplitError,
 	remainingDebtSplitAmount,
+	selectDebtSplitRemainder,
 } from "@/lib/debt-split";
 import { DebtSplitParticipantRow } from "./DebtSplitParticipantRow";
 import type { DebtSplitEditorProps } from "./types";
@@ -59,7 +60,11 @@ export function DebtSplitEditor({
 		field: "debtPersonId" | "description" | "value",
 		next: string | number,
 	) => {
-		if (field === "value") customized.current = true;
+		if (field === "value") {
+			if (value.mode !== "SHARES" && value.participants[index].debtPersonId === value.remainderDebtPersonId)
+				return;
+			customized.current = true;
+		}
 		const participants = value.participants.map((participant, participantIndex) => {
 			if (participantIndex !== index) return participant;
 			if (field === "debtPersonId") return { ...participant, debtPersonId: String(next) };
@@ -150,12 +155,8 @@ export function DebtSplitEditor({
 					onPersonChange={id => updateParticipant(index, "debtPersonId", id)}
 					onRemainderRecipientChange={selected => {
 						if (value.mode === "SHARES") return;
-						onChange({
-							...value,
-							...(selected
-								? { remainderDebtPersonId: participant.debtPersonId }
-								: { remainderDebtPersonId: undefined }),
-						});
+						customized.current = true;
+						onChange(selectDebtSplitRemainder(value, selected ? participant.debtPersonId : undefined));
 					}}
 					onRemove={() => {
 						const participants = value.participants.filter((_, itemIndex) => itemIndex !== index);
@@ -186,13 +187,14 @@ export function DebtSplitEditor({
 					onValueChange={next => updateParticipant(index, "value", next)}
 					participant={participant}
 					showDescription={showParticipantDescriptions}
+					totalAmount={amount}
 				/>
 			))}
 			<Button
 				className="cursor-pointer"
 				disabled={disabled}
 				onClick={() => {
-					onChange(addDebtSplitParticipant(value, customized.current, amount));
+					onChange(addDebtSplitParticipant(value));
 				}}
 				type="button"
 				variant="outline"

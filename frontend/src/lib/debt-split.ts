@@ -22,6 +22,7 @@ export function createEqualDebtSplit(
 		};
 	if (mode === "PERCENTAGE") {
 		const divisor = participants.length + (ownerIncluded ? 1 : 0);
+		const regularPercentage = divisor ? Math.floor((100 / divisor) * 100) / 100 : 0;
 		return {
 			mode,
 			ownerIncluded,
@@ -29,9 +30,11 @@ export function createEqualDebtSplit(
 			participants: participants.map((participant, index) => ({
 				...participantFields(participant),
 				percentage:
-					index === participants.length - 1 && !ownerIncluded
-						? Number((100 - (Math.floor((100 / divisor) * 100) / 100) * (participants.length - 1)).toFixed(2))
-						: Math.floor((100 / divisor) * 100) / 100,
+					participant.debtPersonId === remainderDebtPersonId
+						? 0
+						: index === participants.length - 1 && !ownerIncluded && !remainderDebtPersonId
+							? Number((100 - regularPercentage * (participants.length - 1)).toFixed(2))
+							: regularPercentage,
 			})),
 		};
 	}
@@ -45,31 +48,45 @@ export function createEqualDebtSplit(
 		participants: participants.map((participant, index) => ({
 			...participantFields(participant),
 			fixedAmount:
-				!ownerIncluded && index === participants.length - 1
-					? (totalCents - equalCents * (participants.length - 1)) / 100
-					: equalCents / 100,
+				participant.debtPersonId === remainderDebtPersonId
+					? 0
+					: !ownerIncluded && index === participants.length - 1 && !remainderDebtPersonId
+						? (totalCents - equalCents * (participants.length - 1)) / 100
+						: equalCents / 100,
 		})),
+	};
+}
+
+export function selectDebtSplitRemainder(
+	split: DebtSplitInput,
+	remainderDebtPersonId?: string,
+): DebtSplitInput {
+	if (split.mode === "SHARES") return split;
+	if (split.mode === "PERCENTAGE")
+		return {
+			...split,
+			participants: split.participants.map(participant =>
+				participant.debtPersonId === remainderDebtPersonId ? { ...participant, percentage: 0 } : participant,
+			),
+			remainderDebtPersonId,
+		};
+	return {
+		...split,
+		participants: split.participants.map(participant =>
+			participant.debtPersonId === remainderDebtPersonId ? { ...participant, fixedAmount: 0 } : participant,
+		),
+		remainderDebtPersonId,
 	};
 }
 
 export function addDebtSplitParticipant(
 	split: DebtSplitInput,
-	customized: boolean,
-	amount: number,
 ): DebtSplitInput {
 	if (split.mode === "SHARES")
 		return {
 			...split,
 			participants: [...split.participants, { debtPersonId: "", shares: 1 }],
 		};
-	if (!customized)
-		return createEqualDebtSplit(
-			split.mode,
-			[...split.participants, { debtPersonId: "" }],
-			split.ownerIncluded,
-			amount,
-			split.remainderDebtPersonId,
-		);
 	const participant =
 		split.mode === "PERCENTAGE" ? { debtPersonId: "", percentage: 0 } : { debtPersonId: "", fixedAmount: 0 };
 	return { ...split, participants: [...split.participants, participant] } as DebtSplitInput;
@@ -251,7 +268,7 @@ export function debtSplitToInput(split?: DebtSplit | null): DebtSplitInput {
 			participants: split.participants.map(({ debtPersonId, description, percentage }) => ({
 				debtPersonId,
 				description,
-				percentage,
+				percentage: debtPersonId === split.remainderDebtPersonId ? 0 : percentage,
 			})),
 			remainderDebtPersonId: split.remainderDebtPersonId,
 		};
@@ -261,7 +278,7 @@ export function debtSplitToInput(split?: DebtSplit | null): DebtSplitInput {
 		participants: split.participants.map(({ debtPersonId, description, fixedAmount }) => ({
 			debtPersonId,
 			description,
-			fixedAmount,
+			fixedAmount: debtPersonId === split.remainderDebtPersonId ? 0 : fixedAmount,
 		})),
 		remainderDebtPersonId: split.remainderDebtPersonId,
 	};
