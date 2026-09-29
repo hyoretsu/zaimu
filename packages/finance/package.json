@@ -3,6 +3,7 @@
 	"private": true,
 	"type": "module",
 	"exports": {
+		"./imported-anticipation": "./src/imported-anticipation.ts",
 		"./credit-card": "./src/credit-card.ts",
 		"./credit-purchase": "./src/credit-purchase.ts",
 		"./credit-refund": "./src/credit-refund.ts",

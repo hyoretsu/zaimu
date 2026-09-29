@@ -1,3 +1,4 @@
+import { importedAnticipation, withoutImportedAnticipation } from "@zaimu/finance/imported-anticipation";
 import { LuCheck, LuCircleAlert, LuPencil } from "react-icons/lu";
 import { ImportItemDateTime, TransactionListItem } from "@/components/transactions";
 import { AppBadge } from "@/components/ui/AppBadge";
@@ -21,7 +22,8 @@ function toTransaction(
 		creditCardId,
 		date: item.purchaseDate,
 		debtSplit: item.isStatementCharge ? null : item.debtSplit,
-		description: financedOperation?.merchant ?? cleanFinancedDescription(item.description),
+		description:
+			financedOperation?.merchant ?? withoutImportedAnticipation(cleanFinancedDescription(item.description)),
 		id: item.id,
 		installmentAmount: item.installmentAmount,
 		installments: item.installments,
@@ -56,6 +58,9 @@ export function CreditCardImportItemRow({
 }) {
 	const transaction = toTransaction(item, creditCardId, creditCardName);
 	const financedOperation = getFinancedOperation(item.description);
+	const anticipated = importedAnticipation(item.description);
+	const anticipatedAmount = anticipated?.reduce((sum, installment) => sum + installment.amountCents, 0) ?? 0;
+	const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
 	return (
 		<TransactionListItem
@@ -66,12 +71,15 @@ export function CreditCardImportItemRow({
 								disabled,
 								icon: <LuCircleAlert />,
 								onClick: onReconcile,
-								text: "Resolver duplicata",
+								text: anticipated ? "Vincular compra original" : "Resolver duplicata",
 							},
 						]
 					: []),
 				{
-					disabled: disabled || (item.installmentAmount >= 0 && item.duplicates.length > 0),
+					disabled:
+						disabled ||
+						(item.installmentAmount >= 0 &&
+							(item.duplicates.length > 0 || Boolean(anticipated && !item.reconciledCreditPurchaseId))),
 					icon: <LuCheck />,
 					onClick: onApprove,
 					text: item.installmentAmount < 0 ? "Revisar reembolso" : "Aprovar",
@@ -80,11 +88,28 @@ export function CreditCardImportItemRow({
 					? []
 					: [{ disabled, icon: <LuPencil />, onClick: onEdit, text: "Editar" }]),
 			]}
+			amount={
+				anticipated ? (
+					<span className="whitespace-nowrap font-semibold text-foreground text-sm">
+						{currency.format(anticipatedAmount / 100)} nesta fatura
+					</span>
+				) : undefined
+			}
 			forceCompactActions
 			metadataPrefix={
 				<div className="flex flex-wrap items-center gap-1.5">
-					<ImportItemDateTime date={item.purchaseDate} originalPurchase time={item.time} />
+					<ImportItemDateTime
+						date={anticipated && !item.reconciledCreditPurchaseId ? undefined : item.purchaseDate}
+						originalPurchase={!anticipated || Boolean(item.reconciledCreditPurchaseId)}
+						time={item.time}
+					/>
 					{item.isStatementCharge && <AppBadge variant="outline">Encargo da fatura</AppBadge>}
+					{anticipated && <AppBadge variant="outline">Antecipação de {anticipated.length} parcelas</AppBadge>}
+					{anticipated && !item.reconciledCreditPurchaseId && (
+						<AppBadge variant="outline">
+							{item.duplicates.length ? "Vincule à compra original" : "Importe a compra original"}
+						</AppBadge>
+					)}
 					{financedOperation ? (
 						<AppBadge
 							className="h-auto min-h-7 whitespace-normal break-words py-1 leading-4"
@@ -101,7 +126,7 @@ export function CreditCardImportItemRow({
 					) : null}
 					{item.duplicates.length ? (
 						<span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-amber-700 text-xs">
-							<LuCircleAlert /> Possível duplicata
+							<LuCircleAlert /> {anticipated ? "Escolha a compra original" : "Possível duplicata"}
 						</span>
 					) : item.reconciledCreditPurchaseId ? (
 						<span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-emerald-700 text-xs">
@@ -109,6 +134,13 @@ export function CreditCardImportItemRow({
 						</span>
 					) : null}
 				</div>
+			}
+			title={
+				anticipated ? (
+					<p className="min-w-0 flex-1 truncate font-semibold leading-6">
+						Antecipação - {withoutImportedAnticipation(cleanFinancedDescription(item.description))}
+					</p>
+				) : undefined
 			}
 			transaction={transaction}
 		/>

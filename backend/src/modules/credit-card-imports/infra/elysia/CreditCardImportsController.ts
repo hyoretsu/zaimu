@@ -1,5 +1,10 @@
 import { addBookRefund } from "@zaimu/finance/credit-book";
 import { statementEntryKind } from "@zaimu/finance/credit-card";
+import {
+	importedAnticipation,
+	withImportedAnticipation,
+	withoutImportedAnticipation,
+} from "@zaimu/finance/imported-anticipation";
 import Elysia, { t } from "elysia";
 import { assertCreditCardOwnership, requireUserId } from "~/modules/auth";
 import {
@@ -70,7 +75,7 @@ async function getPotentialDuplicates(
 	}>,
 ) {
 	const entries = await readCreditEntries(creditCardId);
-	const candidates = entries.filter(p => !p.parentId && !p.externalId && !p.isRefund);
+	const candidates = entries.filter(p => !p.parentId && !p.isRefund && !p.isStatementCharge);
 	const children = entries.filter(p => p.parentId && candidates.some(c => c.id === p.parentId));
 	const reconciledItems = await queryRows(
 		db.sql.public.CreditCardImportItem.select("reconciledCreditPurchaseId").build(),
@@ -93,7 +98,17 @@ async function getPotentialDuplicates(
 	const result = new Map<string, typeof candidatesWithCounts>();
 	for (const item of items) {
 		if (item.reconciledCreditPurchaseId) continue;
-		const matches = candidatesWithCounts.filter(candidate => matchesExistingCreditPurchase(item, candidate));
+		const matches = candidatesWithCounts.filter(candidate =>
+			importedAnticipation(item.description)
+				? candidate.installments === item.installments &&
+					(candidate.description.normalize("NFKC").trim().toLocaleLowerCase("pt-BR") ===
+						withoutImportedAnticipation(item.description)
+							.normalize("NFKC")
+							.trim()
+							.toLocaleLowerCase("pt-BR") ||
+						Math.abs(Number(candidate.totalAmount) - Number(item.totalAmount)) <= 1)
+				: !candidate.externalId && matchesExistingCreditPurchase(item, candidate),
+		);
 		if (matches.length) result.set(item.id, matches);
 	}
 	return result;
@@ -236,6 +251,14 @@ async function getImportReturn(
 		items.map(item => item.id),
 	);
 	const duplicates = await getPotentialDuplicates(creditCardImport.creditCardId, items);
+
+	for (const item of items)
+		if (
+			importedAnticipation(item.description) &&
+			!item.reconciledCreditPurchaseId &&
+			!duplicates.has(item.id)
+		)
+			duplicates.set(item.id, []);
 	const duplicateCandidates = [...duplicates.values()].flat();
 	const duplicateIds = duplicateCandidates.map(candidate => candidate.id);
 	const duplicateTags = await getTagsByEntity(tagEntityType.creditPurchase, duplicateIds);
@@ -377,6 +400,14 @@ async function approveItemsImpl(userId: string, importId: string, itemId?: strin
 			.build(),
 	);
 	const duplicates = await getPotentialDuplicates(creditCardImport.creditCardId, allItems);
+
+	for (const item of allItems)
+		if (
+			importedAnticipation(item.description) &&
+			!item.reconciledCreditPurchaseId &&
+			!duplicates.has(item.id)
+		)
+			duplicates.set(item.id, []);
 	const selectedItems = allItems
 		.filter(item =>
 			itemId ? item.id === itemId : !duplicates.has(item.id) && Number(item.installmentAmount) >= 0,
@@ -385,7 +416,8 @@ async function approveItemsImpl(userId: string, importId: string, itemId?: strin
 			(left, right) =>
 				Number(!!getFinancingSource(left.description)) - Number(!!getFinancingSource(right.description)),
 		);
-	if (itemId && !selectedItems.length) throw new HttpException("Compra importada não encontrada", 404);
+	if (itemId && !selectedItems.length)
+		throw new HttpException("Concilie a antecipação ou a compra existente antes de aprovar", 409);
 	if (itemId && duplicates.has(itemId))
 		throw new HttpException("Concilie as possíveis parcelas existentes antes de aprovar", 400);
 	const tagsByItem = await getTagsByEntity(
@@ -437,6 +469,8 @@ async function approveItemsImpl(userId: string, importId: string, itemId?: strin
 				[item.externalId, creditCardImport.creditCardId],
 			)
 		)[0];
+		if (importedAnticipation(item.description) && !item.reconciledCreditPurchaseId && !importedRoot)
+			throw new HttpException("Vincule a antecipação à compra original antes de aprovar", 409);
 		const rootId = await materializeImportedPurchase(
 			{
 				...card,
@@ -630,6 +664,53 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 				existingInstallments,
 				pendingIds,
 			);
+			const existingCardEntries = await readCreditEntries(body.creditCardId);
+			for (const purchase of newPurchases) {
+				if (!importedAnticipation(purchase.description) || purchase.reconciledCreditPurchaseId) continue;
+				const matches = existingCardEntries.filter(
+					entry =>
+						!entry.parentId &&
+						!entry.isRefund &&
+						!entry.isStatementCharge &&
+						entry.installments === purchase.installments &&
+						entry.description.normalize("NFKC").trim().toLocaleLowerCase("pt-BR") ===
+							withoutImportedAnticipation(purchase.description)
+								.normalize("NFKC")
+								.trim()
+								.toLocaleLowerCase("pt-BR") &&
+						Math.abs(Number(entry.totalAmount) - purchase.totalAmount) <= 1,
+				);
+				if (matches.length === 1) {
+					purchase.reconciledCreditPurchaseId = matches[0]!.id;
+					purchase.purchaseDate = dateKey(matches[0]!.purchaseDate);
+					purchase.totalAmount = Number(matches[0]!.totalAmount);
+				}
+			}
+			const statementId = (
+				await queryRaw<{ id: string }>(
+					`SELECT "id" FROM "CreditCardStatement" WHERE "creditCardId"=$1 AND "statementDate"=$2::date LIMIT 1`,
+					[body.creditCardId, statement.statementDate],
+				)
+			)[0]?.id;
+			for (let index = newPurchases.length - 1; index >= 0; index--) {
+				const purchase = newPurchases[index]!;
+				const anticipated = importedAnticipation(purchase.description);
+				if (!anticipated || !purchase.reconciledCreditPurchaseId || !statementId) continue;
+				const rootId = purchase.reconciledCreditPurchaseId;
+				if (
+					anticipated.every(installment =>
+						existingCardEntries.some(
+							entry =>
+								(entry.id === rootId || entry.parentId === rootId) &&
+								entry.currentInstallment === installment.number &&
+								entry.hasImportedAmount &&
+								entry.statementId === statementId &&
+								Math.round(Number(entry.installmentAmount) * 100) === installment.amountCents,
+						),
+					)
+				)
+					newPurchases.splice(index, 1);
+			}
 			const ignoredCount = purchases.length - newPurchases.length;
 			if (!newPurchases.length) {
 				if (!pending.length)
@@ -727,6 +808,11 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 			const installments = body.installments ?? current.installments;
 			const totalAmount = body.totalAmount ?? Number(current.totalAmount);
 			const isStatementCharge = body.isStatementCharge ?? current.isStatementCharge;
+			if (
+				importedAnticipation(current.description) &&
+				(isStatementCharge || installments !== current.installments)
+			)
+				throw new HttpException("Antecipação não permite alterar o parcelamento nem virar encargo", 400);
 			if (isStatementCharge && (installments !== 1 || body.debtSplit))
 				throw new HttpException("Encargos não permitem rateio ou parcelamento automático", 400);
 			try {
@@ -748,16 +834,20 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 				current.description,
 				body.description?.trim() ?? current.description,
 			);
+			const preservedDescription =
+				importedAnticipation(current.description) && body.description !== undefined
+					? withImportedAnticipation(description, importedAnticipation(current.description)!)
+					: description;
 			await executeStatement(
 				db.sql.public.CreditCardImportItem.update({
 					description:
 						body.description === undefined
 							? current.description
 							: getFinancingSource(current.description)
-								? withFinancingSource(description, getFinancingSource(current.description)!)
+								? withFinancingSource(preservedDescription, getFinancingSource(current.description)!)
 								: getFinancingTarget(current.description)
-									? withFinancingTarget(description, getFinancingTarget(current.description)!)
-									: description,
+									? withFinancingTarget(preservedDescription, getFinancingTarget(current.description)!)
+									: preservedDescription,
 					installmentAmount: String(current.installmentAmount),
 					installments,
 					isSelected: body.isSelected ?? current.isSelected,
@@ -848,11 +938,20 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 			await executeStatement(
 				db.sql.public.CreditCardImportItem.update({
 					categoryId: tagIds[0] ?? null,
-					description: source("description", item.description, duplicate.description),
-					purchaseDate: source("purchaseDate", item.purchaseDate, duplicate.purchaseDate),
+					description: importedAnticipation(item.description)
+						? withImportedAnticipation(duplicate.description, importedAnticipation(item.description)!)
+						: source("description", item.description, duplicate.description),
+					purchaseDate: importedAnticipation(item.description)
+						? duplicate.purchaseDate
+						: source("purchaseDate", item.purchaseDate, duplicate.purchaseDate),
 					reconciledCreditPurchaseId: body.creditPurchaseId,
-					storeName: source("storeName", item.storeName, duplicate.storeName),
+					storeName: importedAnticipation(item.description)
+						? duplicate.storeName
+						: source("storeName", item.storeName, duplicate.storeName),
 					time: source("time", item.time, duplicate.time),
+					totalAmount: importedAnticipation(item.description)
+						? String(duplicate.totalAmount)
+						: String(item.totalAmount),
 					updatedAt: new Date(),
 				})
 					.where((fields, functions) => functions.eq(fields.id, item.id))

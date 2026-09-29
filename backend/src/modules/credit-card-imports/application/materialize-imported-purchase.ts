@@ -5,6 +5,7 @@ import {
 	moneyCents,
 } from "@zaimu/finance/credit-book";
 import { distributePurchaseCents, installmentOccurrenceDate } from "@zaimu/finance/credit-purchase";
+import { importedAnticipation, withoutImportedAnticipation } from "@zaimu/finance/imported-anticipation";
 import { mutateCreditBook, newBookPurchase } from "~/modules/creditCards/application/normalized-credit-book";
 import { HttpException } from "~/shared/errors";
 import { withoutFinancingReferences } from "../domain/financing-source-reference";
@@ -89,18 +90,32 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 			return id;
 		}
 		const existing = book.purchases.find(p => p.id === input.existingRootId) ?? duplicate;
+		const anticipated = importedAnticipation(input.description);
+		if (anticipated && !existing) throw new HttpException("Vincule a antecipação à compra original", 409);
 		const known = new Map(
 			book.installments
 				.filter(i => i.purchaseId === existing?.id && i.hasImportedAmount)
 				.map(i => [i.number, i.amountCents]),
 		);
+		if (anticipated?.some(i => i.number > input.installments))
+			throw new HttpException("Antecipação incompatível com o parcelamento", 409);
+		for (const i of anticipated ?? []) {
+			if (known.has(i.number) && known.get(i.number) !== i.amountCents)
+				throw new HttpException("Valor importado já registrado para esta parcela", 409);
+			known.set(i.number, i.amountCents);
+		}
 		if (
 			known.has(input.currentInstallment) &&
 			known.get(input.currentInstallment) !== moneyCents(input.installmentAmount, 1)
 		)
 			throw new HttpException("Valor importado já registrado para esta parcela", 409);
 		known.set(input.currentInstallment, moneyCents(input.installmentAmount, 1));
-		const amounts = distributePurchaseCents(moneyCents(input.totalAmount, 1), input.installments, known);
+		const totalCents = anticipated
+			? known.size === input.installments
+				? [...known.values()].reduce((sum, amount) => sum + amount, 0)
+				: existing!.totalAmountCents
+			: moneyCents(input.totalAmount, 1);
+		const amounts = distributePurchaseCents(totalCents, input.installments, known);
 		const p =
 			existing ??
 			newBookPurchase(book, {
@@ -112,28 +127,45 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 				cashbackYieldPeriod: card.cashbackYieldPeriod,
 				cashbackYieldReferencePercentage: card.cashbackYieldReferencePercentage,
 				cashbackYieldReferenceRate: card.cashbackYieldReferenceRate,
-				description: withoutFinancingReferences(input.description),
+				description: withoutImportedAnticipation(withoutFinancingReferences(input.description)),
 				externalId: input.externalId,
 				installmentAmountsCents: amounts,
 				installments: input.installments,
 				purchaseDate: input.purchaseDate.toISOString().slice(0, 10),
 				totalAmount: input.totalAmount,
 			});
-		Object.assign(p, {
-			categoryId: input.categoryId,
-			debtSplitRule: input.debtSplitRule === undefined ? p.debtSplitRule : input.debtSplitRule,
-			description: withoutFinancingReferences(input.description),
-			externalId: input.externalId,
-			installmentAmountsCents: amounts,
-			installmentImportedNumbers: [...known.keys()],
-			purchaseDate: input.purchaseDate.toISOString().slice(0, 10),
-			storeName: input.storeName,
-			tagIds: input.tagIds,
-			time: input.time,
-			totalAmountCents: moneyCents(input.totalAmount, 1),
-			updatedAt: new Date().toISOString(),
-		});
+		Object.assign(
+			p,
+			anticipated
+				? {
+						installmentAmountsCents: amounts,
+						installmentImportedNumbers: [...known.keys()],
+						totalAmountCents: totalCents,
+						updatedAt: new Date().toISOString(),
+					}
+				: {
+						categoryId: input.categoryId,
+						debtSplitRule: input.debtSplitRule === undefined ? p.debtSplitRule : input.debtSplitRule,
+						description: withoutImportedAnticipation(withoutFinancingReferences(input.description)),
+						externalId: input.externalId,
+						installmentAmountsCents: amounts,
+						installmentImportedNumbers: [...known.keys()],
+						purchaseDate: input.purchaseDate.toISOString().slice(0, 10),
+						storeName: input.storeName,
+						tagIds: input.tagIds,
+						time: input.time,
+						totalAmountCents: totalCents,
+						updatedAt: new Date().toISOString(),
+					},
+		);
 		p.installmentStatementDates = amounts.map((_, index) => {
+			const previous = existing?.installmentStatementDates?.[index];
+			if (anticipated?.some(i => i.number === index + 1))
+				return {
+					dueDate: input.dueDate.toISOString().slice(0, 10),
+					statementDate: input.statementDate.toISOString().slice(0, 10),
+				};
+			if (previous) return previous;
 			const dates = importedInstallmentDates(
 				input.statementDate,
 				input.dueDate,
@@ -145,7 +177,11 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 				statementDate: dates.statementDate.toISOString().slice(0, 10),
 			};
 		});
-		for (let number = 1; number <= input.currentInstallment; number++) {
+		for (
+			let number = 1;
+			number <= Math.max(input.currentInstallment, ...(anticipated?.map(i => i.number) ?? []));
+			number++
+		) {
 			const occurrence = book.installments.find(i => i.purchaseId === p.id && i.number === number);
 			const s = ensureBookStatement(
 				book,

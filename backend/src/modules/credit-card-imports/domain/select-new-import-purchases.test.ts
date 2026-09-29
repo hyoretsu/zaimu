@@ -29,3 +29,16 @@ test("a subsequent financed installment reconciles with its root, but repeating 
 		),
 	).toEqual([]);
 });
+
+test("an anticipated installment remains eligible when its root is already imported", () => {
+	const anticipated = {
+		...purchase,
+		description: "MP*ALIEXPRESS [[anticipated:2:3446;3:3446]]",
+		externalId: "anticipated-key",
+	};
+	const root = new Map([[anticipated.externalId, "root-id"]]);
+	const imported = [{ currentInstallment: 2, hasImportedAmount: true, id: "child-2", parentId: "root-id" }];
+	expect(selectNewImportPurchases([anticipated], root, imported, new Set())).toEqual([
+		{ ...anticipated, reconciledCreditPurchaseId: "root-id" },
+	]);
+});

@@ -1,3 +1,4 @@
+import { groupAnticipatedInstallments } from "./anticipated-installments";
 import type { CreditCardStatement, CreditCardStatementPurchase } from "./credit-card-statement";
 
 const monthNumbers: Record<string, number> = {
@@ -79,9 +80,15 @@ export function parseNubankCreditCardStatementText(text: string): CreditCardStat
 				statementDate,
 				currentInstallment,
 			),
+			statementPurchaseDate: `${match[1]}/${match[2]}`,
 			totalAmount: Math.round(installmentAmount * installments * 100) / 100,
 		});
 	}
 	if (!purchases.length) throw new Error("Nenhuma compra foi encontrada na fatura");
-	return { dueDate: dateKey(dueDate), provider: "NUBANK", purchases, statementDate: dateKey(statementDate) };
+	return {
+		dueDate: dateKey(dueDate),
+		provider: "NUBANK",
+		purchases: groupAnticipatedInstallments(purchases),
+		statementDate: dateKey(statementDate),
+	};
 }

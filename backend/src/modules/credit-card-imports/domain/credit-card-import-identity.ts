@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { withoutImportedAnticipation } from "@zaimu/finance/imported-anticipation";
 import type { CreditCardStatementPurchase } from "./credit-card-statement";
 
 const normalize = (value: string) =>
@@ -15,7 +16,7 @@ export function assignCreditCardPurchaseExternalIds(
 			"credit-card-import-v1",
 			creditCardId,
 			purchase.purchaseDate,
-			normalize(financedFee?.[1] ?? purchase.description),
+			normalize(financedFee?.[1] ?? withoutImportedAnticipation(purchase.description)),
 			...(financedFee ? [] : [purchase.installmentAmount.toFixed(2)]),
 			String(purchase.installments),
 		].join("|");

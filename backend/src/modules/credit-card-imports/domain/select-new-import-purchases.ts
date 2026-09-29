@@ -1,3 +1,4 @@
+import { importedAnticipation } from "@zaimu/finance/imported-anticipation";
 import type { CreditCardStatementPurchase } from "./credit-card-statement";
 
 type IdentifiedPurchase = CreditCardStatementPurchase & {
@@ -21,14 +22,18 @@ export function selectNewImportPurchases(
 		if (pendingIds.has(purchase.externalId)) return [];
 		const rootId = existingRoots.get(purchase.externalId);
 		if (!rootId) return [{ ...purchase, reconciledCreditPurchaseId: null }];
+		const anticipated = importedAnticipation(purchase.description);
+		const importedNumbers = new Set(
+			existingInstallments
+				.filter(
+					installment =>
+						(installment.id === rootId || installment.parentId === rootId) && installment.hasImportedAmount,
+				)
+				.map(installment => installment.currentInstallment),
+		);
 		if (
-			!purchase.description.startsWith("FIN ") ||
-			existingInstallments.some(
-				installment =>
-					(installment.id === rootId || installment.parentId === rootId) &&
-					installment.currentInstallment === purchase.currentInstallment &&
-					installment.hasImportedAmount,
-			)
+			(!purchase.description.startsWith("FIN ") && !anticipated) ||
+			(!anticipated && importedNumbers.has(purchase.currentInstallment))
 		)
 			return [];
 		return [{ ...purchase, reconciledCreditPurchaseId: rootId }];

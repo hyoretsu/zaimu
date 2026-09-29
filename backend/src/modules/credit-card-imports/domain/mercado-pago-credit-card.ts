@@ -1,3 +1,4 @@
+import { groupAnticipatedInstallments } from "./anticipated-installments";
 import type { CreditCardStatement, CreditCardStatementPurchase } from "./credit-card-statement";
 
 const moneyToNumber = (value: string) => Number(value.replace(/\./g, "").replace(",", "."));
@@ -55,6 +56,7 @@ export function parseMercadoPagoCreditCardStatementText(text: string): CreditCar
 			installmentAmount,
 			installments,
 			purchaseDate: inferPurchaseDate(Number(match[1]), Number(match[2]), statementDate, currentInstallment),
+			statementPurchaseDate: `${match[1]}/${match[2]}`,
 			totalAmount: Math.round(installmentAmount * installments * 100) / 100,
 		});
 	}
@@ -62,7 +64,7 @@ export function parseMercadoPagoCreditCardStatementText(text: string): CreditCar
 	return {
 		dueDate: dateKey(dueDate.getDate(), dueDate.getMonth() + 1, dueDate.getFullYear()),
 		provider: "MERCADO_PAGO",
-		purchases,
+		purchases: groupAnticipatedInstallments(purchases),
 		statementDate: dateKey(
 			statementDate.getDate(),
 			statementDate.getMonth() + 1,

@@ -1,3 +1,4 @@
+import { withoutImportedAnticipation } from "@zaimu/finance/imported-anticipation";
 import { useEffect, useState } from "react";
 import { DebtSplitEditor } from "@/components/debts";
 import { ImportDialog, ImportDialogContent } from "@/components/imports";
@@ -43,7 +44,8 @@ export function EditImportedCreditPurchaseDialog({
 	useEffect(() => {
 		if (!item || !open) return;
 		setDescription(
-			getFinancedOperation(item.description)?.merchant ?? cleanFinancedDescription(item.description),
+			getFinancedOperation(item.description)?.merchant ??
+				withoutImportedAnticipation(cleanFinancedDescription(item.description)),
 		);
 		setInstallments(String(item.installments));
 		setDebtSplit(debtSplitToInput(item.debtSplit));

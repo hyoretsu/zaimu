@@ -1,3 +1,4 @@
+import { groupAnticipatedInstallments } from "./anticipated-installments";
 import type { CreditCardStatement, CreditCardStatementPurchase } from "./credit-card-statement";
 
 const moneyToNumber = (value: string) => Number(value.replace(/\./g, "").replace(",", "."));
@@ -115,6 +116,7 @@ function parseFinancedOperations(text: string, statementDate: Date) {
 			installmentAmount: amount,
 			installments,
 			purchaseDate: inferPurchaseDate(Number(match[1]), Number(match[2]), statementDate, currentInstallment),
+			statementPurchaseDate: `${match[1]}/${match[2]}`,
 			totalAmount: Math.round(amount * installments * 100) / 100,
 		};
 		purchases.push(purchase);
@@ -164,6 +166,7 @@ export function parsePicPayCreditCardStatementText(text: string): CreditCardStat
 					statementDate,
 					currentInstallment,
 				),
+				statementPurchaseDate: `${match[1]}/${match[2]}`,
 				totalAmount: Math.round(installmentAmount * installments * 100) / 100,
 			});
 		}
@@ -196,5 +199,10 @@ export function parsePicPayCreditCardStatementText(text: string): CreditCardStat
 		credits.push(Math.round(-moneyToNumber(match[1]!) * 100));
 	if (credits.length) linkFinancedSources(purchases, credits);
 	if (!purchases.length) throw new Error("Nenhuma compra foi encontrada na fatura");
-	return { dueDate: dateKey(dueDate), provider: "PICPAY", purchases, statementDate: dateKey(statementDate) };
+	return {
+		dueDate: dateKey(dueDate),
+		provider: "PICPAY",
+		purchases: groupAnticipatedInstallments(purchases),
+		statementDate: dateKey(statementDate),
+	};
 }

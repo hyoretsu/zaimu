@@ -51,6 +51,18 @@ ${footer}`);
 		]);
 	});
 
+	test("recognizes several installments posted together as an anticipation", () => {
+		const result = parseMercadoPagoCreditCardStatementText(`${header}
+26/08 MP*ALIEXPRESS Parcela 1 de 12 R$ 34,50
+26/08 MP*ALIEXPRESS Parcela 2 de 12 R$ 34,46
+26/08 MP*ALIEXPRESS Parcela 3 de 12 R$ 34,46
+26/08 MP*ALIEXPRESS Parcela 1 de 12 R$ 34,71
+${footer}`);
+		expect(result.purchases).toHaveLength(2);
+		expect(result.purchases[0]!.description).toContain("[[anticipated:1:3450;2:3446;3:3446]]");
+		expect(result.purchases[1]!.description).toBe("MP*ALIEXPRESS");
+	});
+
 	test("does not import the invoice payment", () => {
 		const result = parseMercadoPagoCreditCardStatementText(`
 Vence em 20/08/2026

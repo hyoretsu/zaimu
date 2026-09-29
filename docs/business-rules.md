@@ -72,6 +72,10 @@ Conta de recompensas guarda saldo na unidade escolhida: pontos ou reais de cashb
 
 Rendimento de cashback é opcional e pós-fixado: exige taxa de referência manual positiva, percentual positivo sobre essa taxa e periodicidade mensal ou anual, sem parcela fixa. Cada recompensa rende de forma composta após períodos completos desde a data da compra, usando o snapshot da regra vigente quando foi criada.
 
+## Antecipação de parcelas nas faturas importadas
+
+Quando uma fatura traz números distintos de parcelas da mesma compra, com mesma descrição, mesmo total de parcelas e mesma data de lançamento, os lançamentos representam antecipação das parcelas no ciclo atual, inclusive quando o banco os mostra como compras separadas. A importação agrupa os números e os valores reais de cada parcela, vincula automaticamente à compra original quando a correspondência é inequívoca e move somente essas parcelas para a fatura importada. A compra original e seus metadados, recompensas e dívida permanecem vinculados ao mesmo registro; valores importados corrigem o total pela soma das parcelas concretas, sem criar nova despesa nem nova compra. Se houver várias compras candidatas, a revisão solicita a escolha da original; sem vínculo seguro, a antecipação permanece pendente e não é aprovada em lote. Reimportar a mesma fatura não repete a antecipação. Parcelas normais de meses distintos e grupos que repetem o mesmo número de parcela continuam separados.
+
 ## Compras, parcelas e reembolsos normalizados
 
 A compra concentra valor total original, estabelecimento, categoria e tags. Parcelas e reembolsos herdam esses metadados. O plano conserva valores e calendários importados, enquanto somente parcelas devidas viram registros concretos. Inicialização e processamento periódico retomam a materialização de forma idempotente, inclusive no modo visitante.

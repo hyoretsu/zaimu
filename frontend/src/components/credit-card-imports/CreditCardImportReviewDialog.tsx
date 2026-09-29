@@ -5,6 +5,7 @@ import {
 	useQuery,
 	useQueryClient,
 } from "@tanstack/react-query";
+import { importedAnticipation } from "@zaimu/finance/imported-anticipation";
 import { useState } from "react";
 import { LuCircleAlert, LuFileCheck2, LuTrash2 } from "react-icons/lu";
 import { ImportDialog, ImportDialogContent } from "@/components/imports";
@@ -114,7 +115,12 @@ export function CreditCardImportReviewDialog({
 			await invalidateCreditCards();
 			if ((creditCardImportData?.pendingItemCount ?? 0) === 1) await closeFinishedReview();
 			else await invalidate();
-			showToast("Compra e parcelas criadas.", "positive");
+			showToast(
+				importedAnticipation(items.find(item => item.id === approveItem.variables)?.description ?? "")
+					? "Parcelas antecipadas movidas para esta fatura."
+					: "Compra e parcelas criadas.",
+				"positive",
+			);
 		},
 	});
 	const approveRefund = useMutation({
@@ -203,7 +209,7 @@ export function CreditCardImportReviewDialog({
 						<DialogTitle>Revisar fatura importada</DialogTitle>
 						<DialogDescription>
 							{creditCardImportData
-								? `${creditCardImportData.fileName} · fecha em ${formatLocalDate(creditCardImportData.statementDate)}. Compras parceladas serão criadas na data da primeira parcela.`
+								? `${creditCardImportData.fileName} · fecha em ${formatLocalDate(creditCardImportData.statementDate)}. Compras parceladas serão criadas na data da primeira parcela. Antecipações serão vinculadas à compra original.`
 								: "Carregando compras da fatura…"}
 						</DialogDescription>
 					</DialogHeader>

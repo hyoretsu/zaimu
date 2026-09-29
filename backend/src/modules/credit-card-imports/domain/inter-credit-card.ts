@@ -1,3 +1,4 @@
+import { groupAnticipatedInstallments } from "./anticipated-installments";
 import type { CreditCardStatement, CreditCardStatementPurchase } from "./credit-card-statement";
 
 const monthNumbers: Record<string, number> = {
@@ -74,6 +75,7 @@ export function parseInterCreditCardStatementText(text: string): CreditCardState
 			installmentAmount,
 			installments,
 			purchaseDate: dateKey(new Date(Number(match[3]), month - 1, Number(match[1]))),
+			statementPurchaseDate: `${match[1]}/${match[2]}/${match[3]}`,
 			totalAmount: Math.round(installmentAmount * installments * 100) / 100,
 		});
 	}
@@ -81,7 +83,7 @@ export function parseInterCreditCardStatementText(text: string): CreditCardState
 	return {
 		dueDate: dateKey(dueDate),
 		provider: "INTER",
-		purchases,
+		purchases: groupAnticipatedInstallments(purchases),
 		statementDate: dateKey(statementDate),
 	};
 }
