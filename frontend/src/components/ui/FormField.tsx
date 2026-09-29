@@ -8,6 +8,7 @@ type FormFieldProps = ComponentProps<typeof Input> & {
 	error?: string;
 	label: string;
 	leading?: ReactNode;
+	trailing?: ReactNode;
 };
 
 export function FormField({
@@ -16,6 +17,7 @@ export function FormField({
 	id,
 	label,
 	leading,
+	trailing,
 	required,
 	className,
 	...inputProps
@@ -41,6 +43,7 @@ export function FormField({
 					required={required}
 					{...inputProps}
 				/>
+				{trailing}
 			</div>
 			{(error || description) && (
 				<p
