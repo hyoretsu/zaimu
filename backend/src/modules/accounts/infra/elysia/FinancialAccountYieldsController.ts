@@ -8,7 +8,7 @@ import {
 } from "~/shared/application/pagination-cursor";
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
-import { db, executeStatement, nullableNumeric, queryFirst, queryRows } from "~/shared/infra/sql";
+import { db, executeStatement, nullableNumeric, queryFirst, queryRaw } from "~/shared/infra/sql";
 
 const Id = t.String({ maxLength: 36, minLength: 1 });
 const DateKey = t.String({ pattern: "^\\d{4}-\\d{2}-\\d{2}$" });
@@ -96,36 +96,28 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 				"accounts:yields",
 				{ cursor: query.cursor, financialAccountId: query.financialAccountId, limit },
 				async () => {
-					const yields = await queryRows(
-						db.sql.public.FinancialAccountYield.select(
-							"id",
-							"financialAccountId",
-							"date",
-							"amount",
-							"kind",
-							"isExcluded",
-							"isHidden",
-							"origin",
-							"time",
-						)
-							.where((fields, functions) =>
-								functions.and(
-									functions.eq(fields.financialAccountId, query.financialAccountId),
-									...(cursor
-										? [
-												functions.raw`(${fields.date}, ${fields.kind}, ${fields.id}) < (${cursor.date}::date, ${cursor.kind}::"FinancialAccountYieldKind", ${cursor.id})`.returns(
-													"pg/bool@1",
-												),
-											]
-										: []),
-								),
-							)
-							.orderBy("date", { direction: "desc" })
-							.orderBy("kind", { direction: "desc" })
-							.orderBy("id", { direction: "desc" })
-							.limit(limit + 1)
-							.build(),
+					const yields = await queryRaw<{
+						amount: null | string;
+						date: Date;
+						financialAccountId: string;
+						id: string;
+						isExcluded: boolean;
+						isHidden: boolean;
+						kind: "AUTOMATIC" | "MANUAL";
+						origin: string;
+						time: null | string;
+					}>(
+						`SELECT "id", "financialAccountId", "date", "amount", "kind", "isExcluded", "isHidden", "origin", "time"
+						 FROM "public"."FinancialAccountYield"
+						 WHERE "financialAccountId" = $1
+						 ${cursor ? 'AND ("date", "kind"::text, "id") < ($2::date, $3::text, $4)' : ""}
+						 ORDER BY "date" DESC, "kind"::text DESC, "id" DESC
+						 LIMIT $${cursor ? 5 : 2}`,
+						cursor
+							? [query.financialAccountId, cursor.date, cursor.kind, cursor.id, limit + 1]
+							: [query.financialAccountId, limit + 1],
 					);
+
 					const hasMore = yields.length > limit;
 					const items = yields.slice(0, limit).map(serializeYield);
 					const last = items.at(-1);
