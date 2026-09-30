@@ -116,7 +116,6 @@ export interface DebtEventPage {
 }
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3333";
-const REQUEST_TIMEOUT_MS = 10_000;
 
 function getEvenlyDistributedInstallmentAmounts(totalAmount: number, installments: number) {
 	const totalInCents = Math.round(totalAmount * 100);
@@ -268,10 +267,6 @@ function normalizeLegacyFinancialAccount(account: LegacyFinancialAccount): Finan
 // Generic authenticated fetch
 async function fetchWithAuth<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
 	const requestIdentity = getCurrentCacheIdentity();
-	const controller = new AbortController();
-	const abortRequest = () => controller.abort(options.signal?.reason);
-	const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-	options.signal?.addEventListener("abort", abortRequest, { once: true });
 	let response: Response;
 	try {
 		response = await fetch(`${API_URL}${endpoint}`, {
@@ -281,15 +276,9 @@ async function fetchWithAuth<T>(endpoint: string, options: RequestInit = {}): Pr
 				...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
 				...options.headers,
 			},
-			signal: controller.signal,
 		});
 	} catch (error) {
-		if (controller.signal.aborted && !options.signal?.aborted)
-			throw new ConnectivityError("A solicitação demorou demais. Tente novamente.", { cause: error });
 		throw new ConnectivityError("Servidor indisponível.", { cause: error });
-	} finally {
-		window.clearTimeout(timeoutId);
-		options.signal?.removeEventListener("abort", abortRequest);
 	}
 
 	if (!response.ok) {
