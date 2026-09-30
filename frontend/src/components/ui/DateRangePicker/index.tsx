@@ -132,7 +132,7 @@ export function DateRangePicker({ className, onChange, triggerLabel, value }: Da
 				<MonthYearPicker month={visibleMonth} onMonthChange={setVisibleMonth} />
 				<div onMouseLeave={() => setHoveredDate(undefined)}>
 					<CalendarMonth
-						activeBoundary={activeBoundary ?? "end"}
+						activeBoundary={rangeStart ? "end" : activeBoundary}
 						endDate={endDate}
 						hoveredDate={hoveredDate}
 						month={visibleMonth}

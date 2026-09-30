@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 
 interface CalendarMonthProps {
-	activeBoundary: "end" | "start";
+	activeBoundary?: "end" | "start";
 	endDate?: Date;
 	hoveredDate?: Date;
 	month: Date;
@@ -41,14 +41,10 @@ export function CalendarMonth({
 		end: addDays(calendarStart, 41),
 		start: calendarStart,
 	});
-	const previewStart =
-		hoveredDate && (activeBoundary === "end" ? startDate : endDate)
-			? min([hoveredDate, activeBoundary === "end" ? startDate! : endDate!])
-			: undefined;
-	const previewEnd =
-		hoveredDate && (activeBoundary === "end" ? startDate : endDate)
-			? max([hoveredDate, activeBoundary === "end" ? startDate! : endDate!])
-			: undefined;
+	const previewAnchor =
+		activeBoundary === "end" ? startDate : activeBoundary === "start" ? endDate : undefined;
+	const previewStart = hoveredDate && previewAnchor ? min([hoveredDate, previewAnchor]) : undefined;
+	const previewEnd = hoveredDate && previewAnchor ? max([hoveredDate, previewAnchor]) : undefined;
 
 	return (
 		<div className="space-y-3">
