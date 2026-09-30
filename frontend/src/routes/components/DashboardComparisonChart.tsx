@@ -1,11 +1,7 @@
-import { Bar, CartesianGrid, ComposedChart, Legend, Line, Tooltip, XAxis, YAxis } from "recharts";
+import { format } from "date-fns";
+import { Bar, CartesianGrid, ComposedChart, Line, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import {
-	type ChartConfig,
-	ChartContainer,
-	ChartLegendContent,
-	ChartTooltipContent,
-} from "@/components/ui/chart";
+import { type ChartConfig, ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
 import type { Dashboard } from "@/lib/api";
 
 const currency = new Intl.NumberFormat("pt-BR", {
@@ -27,6 +23,13 @@ const tooltipValueColor = {
 	income: "text-emerald-500",
 	savingsBalance: "text-amber-500",
 } as const;
+const legendItems = [
+	{ key: "accountBalance", kind: "line" },
+	{ key: "endingBalance", kind: "line" },
+	{ key: "savingsBalance", kind: "line" },
+	{ key: "income", kind: "bar" },
+	{ key: "expenses", kind: "bar" },
+] as const;
 
 function formatTooltipLabel(item: Dashboard["comparison"][number]) {
 	const start = new Date(`${item.startDate}T12:00:00`);
@@ -49,10 +52,12 @@ function formatAxisLabel(startDate: string) {
 }
 
 export function DashboardComparisonChart({ comparison }: Pick<Dashboard, "comparison">) {
+	const today = format(new Date(), "yyyy-MM-dd");
 	const data = comparison.map(item => ({
 		...item,
 		label: formatAxisLabel(item.startDate),
 	}));
+	const currentMonth = data.find(item => item.startDate <= today && today <= item.endDate);
 	return (
 		<Card>
 			<CardHeader>
@@ -65,6 +70,20 @@ export function DashboardComparisonChart({ comparison }: Pick<Dashboard, "compar
 				<ChartContainer className="h-72 w-full" config={chartConfig}>
 					<ComposedChart data={data}>
 						<CartesianGrid strokeDasharray="3 3" vertical={false} />
+						{currentMonth && (
+							<ReferenceLine
+								label={{
+									fill: "var(--color-foreground)",
+									fontSize: 11,
+									position: "insideTopRight",
+									value: "Mês atual",
+								}}
+								stroke="var(--color-foreground)"
+								strokeDasharray="4 4"
+								strokeOpacity={0.6}
+								x={currentMonth.label}
+							/>
+						)}
 						<XAxis dataKey="label" tickLine={false} />
 						<YAxis tickFormatter={value => currency.format(value)} width={76} />
 						<Tooltip
@@ -89,7 +108,6 @@ export function DashboardComparisonChart({ comparison }: Pick<Dashboard, "compar
 								/>
 							}
 						/>
-						<Legend content={<ChartLegendContent />} />
 						<Bar dataKey="income" fill="var(--color-income)" radius={4} />
 						<Bar dataKey="expenses" fill="var(--color-expenses)" radius={4} />
 						<Line
@@ -115,6 +133,21 @@ export function DashboardComparisonChart({ comparison }: Pick<Dashboard, "compar
 						/>
 					</ComposedChart>
 				</ChartContainer>
+				<ul
+					aria-label="Legenda do gráfico"
+					className="mt-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-muted-foreground text-xs"
+				>
+					{legendItems.map(({ key, kind }) => (
+						<li className="flex items-center gap-2 whitespace-nowrap" key={key}>
+							<span
+								aria-hidden="true"
+								className={kind === "line" ? "h-0.5 w-4 rounded-full" : "size-2.5 rounded-[2px]"}
+								style={{ backgroundColor: chartConfig[key].color }}
+							/>
+							{chartConfig[key].label}
+						</li>
+					))}
+				</ul>
 			</CardContent>
 		</Card>
 	);
