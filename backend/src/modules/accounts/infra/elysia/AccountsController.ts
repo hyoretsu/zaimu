@@ -13,6 +13,7 @@ import { assertFinancialAccountYieldSettings } from "~/modules/accounts/domain/a
 import { assertRewardsAccountDetails } from "~/modules/accounts/domain/assert-rewards-account-details";
 import type { YieldPeriod } from "~/modules/accounts/domain/calculate-financial-account-yields";
 import { assertDirectOwnership, requireUserId } from "~/modules/auth";
+import { recalculateCreditCardDueDates } from "~/modules/creditCards/application/normalized-credit-book";
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
 import { db, executeStatement, nullableNumeric, queryFirst, queryRows } from "~/shared/infra/sql";
@@ -772,6 +773,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						"cashbackYieldReferenceRate",
 						"statementDay",
 						"dueDay",
+						"workingDueDate",
 					)
 						.where((fields, functions) => functions.eq(fields.financialAccountId, params.id))
 						.limit(1)
@@ -867,6 +869,12 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						.build(),
 				);
 				if (!creditCard) throw new HttpException("CreditCard not found", 404);
+				if (
+					creditCard.dueDay !== existingCreditCard.dueDay ||
+					creditCard.statementDay !== existingCreditCard.statementDay ||
+					creditCard.workingDueDate !== existingCreditCard.workingDueDate
+				)
+					await recalculateCreditCardDueDates(userId, creditCard.id, existingCreditCard);
 
 				return { ...account, balance: null, creditCard, institution };
 			}

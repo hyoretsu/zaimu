@@ -1,3 +1,5 @@
+import { statementDueDate } from "./credit-card";
+
 /** Money in normalized purchase records is an integer number of cents. */
 export function assertCents(value: number, minimum = 0) {
 	if (!Number.isSafeInteger(value) || value < minimum) throw new RangeError("Valor monetário inválido");
@@ -82,7 +84,7 @@ export function installmentOccurrenceDate(purchaseDate: string, number: number) 
 
 /** Purchases and refund credits on a closing date belong to the next cycle. */
 export function purchaseStatementDates(
-	card: { statementDay: number; dueDay: number },
+	card: { statementDay: number; dueDay: number; workingDueDate?: boolean },
 	occurrenceDate: string,
 ) {
 	assertDateKey(occurrenceDate);
@@ -98,9 +100,7 @@ export function purchaseStatementDates(
 	let closing = monthDay(date.getUTCFullYear(), date.getUTCMonth(), card.statementDay);
 	if (closing.toISOString().slice(0, 10) <= occurrenceDate)
 		closing = monthDay(date.getUTCFullYear(), date.getUTCMonth() + 1, card.statementDay);
-	let due = monthDay(closing.getUTCFullYear(), closing.getUTCMonth(), card.dueDay);
-	if (due <= closing) due = monthDay(closing.getUTCFullYear(), closing.getUTCMonth() + 1, card.dueDay);
-	return { dueDate: due.toISOString().slice(0, 10), statementDate: closing.toISOString().slice(0, 10) };
+	return { dueDate: statementDueDate(card, closing), statementDate: closing.toISOString().slice(0, 10) };
 }
 
 /** Preserve exact imported values. Only unknown installments divide the remaining cents. */

@@ -9,7 +9,7 @@ import {
 	newBookPurchase,
 	replayCreditBook,
 } from "@zaimu/finance/credit-book";
-import { currentDateKey } from "@zaimu/finance/credit-card";
+import { currentDateKey, recalculateStatementDueDate } from "@zaimu/finance/credit-card";
 import { assertPurchase, distributePurchaseCents } from "@zaimu/finance/credit-purchase";
 import {
 	assertTagOwnership,
@@ -42,7 +42,7 @@ export async function loadCreditBook(
 	lock = false,
 ): Promise<CreditBook> {
 	const [card] = await query<CreditBook["card"]>(
-		`SELECT c."id", a."userId", c."statementDay", c."dueDay", c."ignoreStatementsBefore"::text AS "ignoreStatementsBefore", a."institutionId", i."creditRefundPolicy" AS "refundPolicy" FROM "CreditCard" c JOIN "FinancialAccount" a ON a."id" = c."financialAccountId" LEFT JOIN "FinancialInstitution" i ON i."id" = a."institutionId" WHERE c."id" = $1 AND a."userId" = $2 ${lock ? "FOR UPDATE OF c" : ""}`,
+		`SELECT c."id", a."userId", c."statementDay", c."dueDay", c."workingDueDate", c."ignoreStatementsBefore"::text AS "ignoreStatementsBefore", a."institutionId", i."creditRefundPolicy" AS "refundPolicy" FROM "CreditCard" c JOIN "FinancialAccount" a ON a."id" = c."financialAccountId" LEFT JOIN "FinancialInstitution" i ON i."id" = a."institutionId" WHERE c."id" = $1 AND a."userId" = $2 ${lock ? "FOR UPDATE OF c" : ""}`,
 		[cardId, userId],
 	);
 	if (!card) throw new HttpException("Cartão não encontrado", 404);
@@ -606,6 +606,22 @@ export async function mutateCreditBook<T>(
 			if (error instanceof RangeError) throw new HttpException(error.message, 400);
 			throw error;
 		}
+	});
+}
+
+export async function recalculateCreditCardDueDates(
+	userId: string,
+	cardId: string,
+	previousCard: { dueDay: number; statementDay: number; workingDueDate: boolean },
+) {
+	await mutateCreditBook(userId, cardId, book => {
+		for (const statement of book.statements)
+			statement.dueDate = recalculateStatementDueDate(
+				book.card,
+				statement.statementDate,
+				statement.dueDate,
+				previousCard,
+			);
 	});
 }
 

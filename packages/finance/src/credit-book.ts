@@ -1,4 +1,4 @@
-import { currentDateKey, statementCycles } from "./credit-card";
+import { currentDateKey, recalculateStatementDueDate, statementCycles } from "./credit-card";
 import {
 	assertCents,
 	assertDateKey,
@@ -100,6 +100,7 @@ export interface CreditBook {
 		userId: string;
 		statementDay: number;
 		dueDay: number;
+		workingDueDate?: boolean;
 		ignoreStatementsBefore: string | null;
 		institutionId: string | null;
 		refundPolicy: RefundPolicy | null;
@@ -341,6 +342,7 @@ export function replayCreditBook(book: CreditBook, asOf = currentDateKey()) {
 						.filter(charge => charge.statementId === statement.id && !charge.isSettled)
 						.map(charge => charge.amountCents),
 				) / 100,
+			dueDate: recalculateStatementDueDate(book.card, statement.statementDate, statement.dueDate),
 		})),
 		book.card,
 		book.payments,

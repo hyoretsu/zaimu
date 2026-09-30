@@ -94,7 +94,10 @@ export function subscriptionOccurrences(
 	return occurrences;
 }
 
-export function getStatementDates(card: { dueDay: number; statementDay: number }, purchaseDate: Date) {
+export function getStatementDates(
+	card: { dueDay: number; statementDay: number; workingDueDate?: boolean },
+	purchaseDate: Date,
+) {
 	const dates = purchaseStatementDates(card, purchaseDate.toISOString().slice(0, 10));
 	return {
 		dueDate: new Date(`${dates.dueDate}T12:00:00Z`),
@@ -135,7 +138,7 @@ export async function getOrCreateStatement(creditCardId: string, dueDate: Date, 
 
 async function materializeMonthlyStatements(
 	creditCardId: string,
-	card: { createdAt: Date; dueDay: number; statementDay: number },
+	card: { createdAt: Date; dueDay: number; statementDay: number; workingDueDate?: boolean },
 	today: Date,
 ) {
 	const oldestStatement = await queryFirst(
@@ -257,6 +260,7 @@ export async function materializeCreditCardSchedules(asOf = new Date()) {
 			"financialAccountId",
 			"id",
 			"statementDay",
+			"workingDueDate",
 		).build(),
 	);
 	const accounts = await queryRows(

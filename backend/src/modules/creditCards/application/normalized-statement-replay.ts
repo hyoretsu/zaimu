@@ -17,6 +17,7 @@ export type RawQuery = Parameters<Parameters<typeof withRawTransaction>[0]>[0];
 interface CardRow {
 	id: string;
 	dueDay: number;
+	workingDueDate: boolean;
 	statementDay: number;
 	ignoreStatementsBefore: string | null;
 }
@@ -69,7 +70,7 @@ const cents = (amount: number) => Math.round(amount * 100);
 /** Rebuilds the complete chronological card chain inside the same locked refund transaction. */
 export async function replayNormalizedCard(query: RawQuery, cardId: string) {
 	const [card] = await query<CardRow>(
-		`SELECT "id", "dueDay", "statementDay", "ignoreStatementsBefore"::text AS "ignoreStatementsBefore" FROM "CreditCard" WHERE "id" = $1`,
+		`SELECT "id", "dueDay", "statementDay", "workingDueDate", "ignoreStatementsBefore"::text AS "ignoreStatementsBefore" FROM "CreditCard" WHERE "id" = $1`,
 		[cardId],
 	);
 	if (!card) throw new HttpException("Cartão não encontrado", 404);

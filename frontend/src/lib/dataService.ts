@@ -15,7 +15,7 @@ import {
 	updateBookPurchaseDate,
 	updateBookRefund,
 } from "@zaimu/finance/credit-book";
-import { paymentStatement, toCents } from "@zaimu/finance/credit-card";
+import { paymentStatement, recalculateStatementDueDate, toCents } from "@zaimu/finance/credit-card";
 import { distributePurchaseCents } from "@zaimu/finance/credit-purchase";
 import { hasUnresolvedLegacyCardPayment } from "./legacy-card-payments";
 import {
@@ -559,6 +559,24 @@ export const dataService = {
 					yieldRateHistories: nextYieldHistory,
 				};
 				await localAccounts.put(updated, id);
+				if (updated.creditCard && data.creditCard) {
+					const card = updated.creditCard;
+					await localCreditCards.put(card, card.id);
+					if (
+						card.dueDay !== existing.data.creditCard?.dueDay ||
+						card.statementDay !== existing.data.creditCard?.statementDay ||
+						card.workingDueDate !== existing.data.creditCard?.workingDueDate
+					)
+						await mutateLocalCreditBook(card.id, book => {
+							for (const statement of book.statements)
+								statement.dueDate = recalculateStatementDueDate(
+									book.card,
+									statement.statementDate,
+									statement.dueDate,
+									existing.data.creditCard!,
+								);
+						});
+				}
 				if (yieldChanged && recalculateCurrentDay) {
 					const yields =
 						((await localMeta.get("financial-account-yields")) as FinancialAccountYield[] | null) ?? [];

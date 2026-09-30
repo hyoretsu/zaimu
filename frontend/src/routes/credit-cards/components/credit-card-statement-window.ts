@@ -25,7 +25,7 @@ export function getStatementWindowRadius(isDesktop: boolean, viewportSize: numbe
 }
 
 export function getStatementWindow(
-	card: Pick<CreditCard, "id" | "dueDay" | "statementDay">,
+	card: Pick<CreditCard, "id" | "dueDay" | "statementDay"> & Partial<Pick<CreditCard, "workingDueDate">>,
 	statements: CreditCardStatement[],
 	month: string,
 	previous: number,

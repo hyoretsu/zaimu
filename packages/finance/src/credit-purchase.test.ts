@@ -22,6 +22,14 @@ const purchase: CreditPurchase = {
 };
 
 describe("normalized purchase installments", () => {
+	test("moves a Sunday invoice to Monday without changing its closing date", () => {
+		expect(
+			purchaseStatementDates({ dueDay: 20, statementDay: 15, workingDueDate: true }, "2026-09-12"),
+		).toEqual({
+			dueDate: "2026-09-21",
+			statementDate: "2026-09-15",
+		});
+	});
 	test("closing dates clamp short months and advance purchases made on closing day", () => {
 		expect(purchaseStatementDates({ dueDay: 5, statementDay: 31 }, "2024-09-10")).toEqual({
 			dueDate: "2024-10-05",

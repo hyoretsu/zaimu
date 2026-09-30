@@ -63,7 +63,13 @@ export async function recalculateStatementPayments(transaction: SqlExecutor, car
 			.build(),
 	);
 	const cards = await transaction.queryRows(
-		transaction.db.sql.public.CreditCard.select("id", "statementDay", "dueDay", "ignoreStatementsBefore")
+		transaction.db.sql.public.CreditCard.select(
+			"id",
+			"statementDay",
+			"dueDay",
+			"workingDueDate",
+			"ignoreStatementsBefore",
+		)
 			.where((f, fn) => fn.in(f.id, cardIds))
 			.build(),
 	);

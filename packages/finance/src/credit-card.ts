@@ -11,6 +11,7 @@ export function currentDateKey() {
 export interface CardCalendar {
 	statementDay: number;
 	dueDay: number;
+	workingDueDate?: boolean;
 }
 export interface StatementInput {
 	id: string;
@@ -47,15 +48,55 @@ function monthDate(year: number, month: number, day: number) {
 	);
 }
 
+export function dueDateForMonth(card: CardCalendar, year: number, month: number) {
+	const due = monthDate(year, month, card.dueDay);
+	if (card.workingDueDate) {
+		if (due.getUTCDay() === 6) due.setUTCDate(due.getUTCDate() + 2);
+		if (due.getUTCDay() === 0) due.setUTCDate(due.getUTCDate() + 1);
+	}
+	return dateKey(due);
+}
+
+export function statementDueDate(card: CardCalendar, statementDate: FinancialDate) {
+	const closing = new Date(`${dateKey(statementDate)}T12:00:00Z`);
+	const offset = card.dueDay <= card.statementDay ? 1 : 0;
+	return dueDateForMonth(card, closing.getUTCFullYear(), closing.getUTCMonth() + offset);
+}
+
+export function recalculateStatementDueDate(
+	card: CardCalendar,
+	statementDate: FinancialDate,
+	currentDueDate: FinancialDate,
+	previousCard: CardCalendar = card,
+) {
+	const current = dateKey(currentDueDate);
+	const previousNominal = statementDueDate({ ...previousCard, workingDueDate: false }, statementDate);
+	const previousAdjusted = statementDueDate({ ...previousCard, workingDueDate: true }, statementDate);
+	const nominal = statementDueDate({ ...card, workingDueDate: false }, statementDate);
+	const adjusted = statementDueDate({ ...card, workingDueDate: true }, statementDate);
+	if (
+		current === previousNominal ||
+		current === previousAdjusted ||
+		current === nominal ||
+		current === adjusted
+	)
+		return card.workingDueDate ? adjusted : nominal;
+	if (!card.workingDueDate) return current;
+	const date = new Date(`${current}T12:00:00Z`);
+	if (date.getUTCDay() === 6) date.setUTCDate(date.getUTCDate() + 2);
+	if (date.getUTCDay() === 0) date.setUTCDate(date.getUTCDate() + 1);
+	return dateKey(date);
+}
+
 /** Purchases use closing dates; payments use the next due date, inclusive. */
 export function paymentStatementDates(card: CardCalendar, paymentDate: FinancialDate) {
 	const date = new Date(`${dateKey(paymentDate)}T12:00:00Z`);
-	let due = monthDate(date.getUTCFullYear(), date.getUTCMonth(), card.dueDay);
-	if (dateKey(due) < dateKey(date))
-		due = monthDate(date.getUTCFullYear(), date.getUTCMonth() + 1, card.dueDay);
-	const closingMonth = due.getUTCMonth() - (card.dueDay <= card.statementDay ? 1 : 0);
+	let dueMonth = date.getUTCMonth();
+	if (dueDateForMonth(card, date.getUTCFullYear(), dueMonth) < dateKey(date)) dueMonth++;
+	const due = monthDate(date.getUTCFullYear(), dueMonth, card.dueDay);
+	const closingMonth = dueMonth - (card.dueDay <= card.statementDay ? 1 : 0);
 	return {
-		dueDate: dateKey(due),
+		dueDate: dueDateForMonth(card, date.getUTCFullYear(), dueMonth),
 		statementDate: dateKey(monthDate(due.getUTCFullYear(), closingMonth, card.statementDay)),
 	};
 }
@@ -99,13 +140,10 @@ export function statementCycles<T extends StatementInput>(
 	const cursor = new Date(`${first.slice(0, 7)}-01T12:00:00Z`);
 	while (dateKey(cursor).slice(0, 7) <= last.slice(0, 7)) {
 		const closing = monthDate(cursor.getUTCFullYear(), cursor.getUTCMonth(), card.statementDay);
-		const due = monthDate(
-			cursor.getUTCFullYear(),
-			cursor.getUTCMonth() + (card.dueDay <= card.statementDay ? 1 : 0),
-			card.dueDay,
-		);
 		if (!known.has(dateKey(closing).slice(0, 7)))
-			result.push(create({ dueDate: dateKey(due), statementDate: dateKey(closing) }));
+			result.push(
+				create({ dueDate: statementDueDate(card, closing), statementDate: dateKey(closing) }),
+			);
 		cursor.setUTCMonth(cursor.getUTCMonth() + 1);
 	}
 	return result;

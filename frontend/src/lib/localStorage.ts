@@ -649,6 +649,7 @@ export async function mutateLocalCreditBook<T>(
 				refundPolicy: null,
 				statementDay: card.statementDay,
 				userId: owner.split(":").slice(1).join(":"),
+				workingDueDate: card.workingDueDate,
 			},
 			charges: [],
 			installments: [],
@@ -663,6 +664,7 @@ export async function mutateLocalCreditBook<T>(
 			institutionId,
 			refundPolicy: policy?.data ?? book.card.refundPolicy,
 			statementDay: card.statementDay,
+			workingDueDate: card.workingDueDate,
 		});
 		const transactions = (await requestResult(
 			tx.objectStore("scoped-transactions").index("ownerKey").getAll(owner),
@@ -850,6 +852,7 @@ export async function readLocalCreditBook(cardId: string, owner?: StorageOwner):
 						refundPolicy: null,
 						statementDay: card.statementDay,
 						userId: requireOwner(owner).split(":").slice(1).join(":"),
+						workingDueDate: card.workingDueDate,
 					},
 					charges: [],
 					installments: [],
@@ -864,6 +867,7 @@ export async function readLocalCreditBook(cardId: string, owner?: StorageOwner):
 		institutionId,
 		refundPolicy: policy ?? book.card.refundPolicy,
 		statementDay: card.statementDay,
+		workingDueDate: card.workingDueDate,
 	});
 	book.payments = transactions
 		.filter(row => !row.deleted && row.data.paymentCreditCardId === cardId)

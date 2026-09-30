@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
 	calculateStatementBalances,
 	paymentStatementDates,
+	recalculateStatementDueDate,
 	statementCharges,
 	statementCycles,
 	statementEntryKind,
@@ -86,6 +87,30 @@ describe("due-date card ledger", () => {
 			dueDate: "2024-02-29",
 			statementDate: "2024-01-31",
 		});
+	});
+	test("moves weekend due dates and keeps Monday payments in the same cycle", () => {
+		const workingCard = { dueDay: 20, statementDay: 15, workingDueDate: true };
+		expect(paymentStatementDates(workingCard, "2026-09-21")).toEqual({
+			dueDate: "2026-09-21",
+			statementDate: "2026-09-15",
+		});
+		expect(paymentStatementDates(workingCard, "2026-09-22").dueDate).toBe("2026-10-20");
+		expect(paymentStatementDates(workingCard, "2026-08-24").dueDate).toBe("2026-09-21");
+		expect(paymentStatementDates({ ...workingCard, workingDueDate: false }, "2026-09-21").dueDate).toBe(
+			"2026-10-20",
+		);
+	});
+	test("recalculates saved schedules while preserving bank supplied weekday dates", () => {
+		const workingCard = { dueDay: 20, statementDay: 15, workingDueDate: true };
+		expect(recalculateStatementDueDate(workingCard, "2026-09-15", "2026-09-20")).toBe("2026-09-21");
+		expect(recalculateStatementDueDate(workingCard, "2026-09-15", "2026-09-23")).toBe("2026-09-23");
+		expect(
+			recalculateStatementDueDate(
+				{ ...workingCard, workingDueDate: false },
+				"2026-09-15",
+				"2026-09-21",
+			),
+		).toBe("2026-09-20");
 	});
 	test("keeps exact, partial and surplus payments in their historical cycle", () => {
 		const rows = [invoice("08", 100), invoice("09", 80)];
