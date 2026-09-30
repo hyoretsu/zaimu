@@ -27,11 +27,8 @@ export const sourceOptions: Array<{ label: string; value: RecurringSource }> = [
 
 export const paymentMethodOptions = [
 	{ label: "Cartão de crédito", value: "CREDIT" },
-	{ label: "Débito", value: "DEBIT" },
-	{ label: "Pix", value: "PIX" },
 	{ label: "Dinheiro", value: "CASH" },
 	{ label: "Transferência", value: "TRANSFER" },
-	{ label: "Boleto", value: "BOLETO" },
 ] as const;
 
 export const frequencyLabels = Object.fromEntries(
@@ -44,6 +41,11 @@ export const sourceLabels: Record<RecurringSource, string> = {
 	subscription: "Assinatura",
 };
 
-export const paymentMethodLabels = Object.fromEntries(
-	paymentMethodOptions.map(option => [option.value, option.label]),
-) as Record<(typeof paymentMethodOptions)[number]["value"], string>;
+export const paymentMethodLabels = {
+	BOLETO: "Boleto",
+	CASH: "Dinheiro",
+	CREDIT: "Cartão de crédito",
+	DEBIT: "Débito",
+	PIX: "Transferência",
+	TRANSFER: "Transferência",
+} as const;

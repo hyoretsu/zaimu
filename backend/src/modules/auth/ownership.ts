@@ -105,14 +105,18 @@ export const assertCheckingOrCashAccountOwnership = async (accountId: string, us
 				functions.and(
 					functions.eq(fields.id, accountId),
 					functions.eq(fields.userId, userId),
-					functions.or(functions.eq(fields.type, "CHECKING"), functions.eq(fields.type, "CASH")),
+					functions.or(
+						functions.eq(fields.type, "CHECKING"),
+						functions.eq(fields.type, "SAVINGS"),
+						functions.eq(fields.type, "CASH"),
+					),
 				),
 			)
 			.limit(1)
 			.build(),
 	);
 
-	if (!account) throw new HttpException("Selecione uma conta corrente ou Dinheiro", 400);
+	if (!account) throw new HttpException("Selecione uma conta corrente, poupança ou Dinheiro", 400);
 };
 
 export const assertPaymentAccountOwnership = async (
@@ -132,8 +136,13 @@ export const assertPaymentAccountOwnership = async (
 	if (!account) throw new HttpException("Conta financeira não encontrada", 404);
 	if (paymentMethod === "CREDIT" && account.type !== "CREDIT_CARD")
 		throw new HttpException("Selecione um cartão de crédito", 400);
-	if (paymentMethod !== "CREDIT" && account.type !== "CHECKING" && account.type !== "CASH")
-		throw new HttpException("Selecione uma conta corrente ou Dinheiro", 400);
+	if (
+		paymentMethod !== "CREDIT" &&
+		account.type !== "CHECKING" &&
+		account.type !== "SAVINGS" &&
+		account.type !== "CASH"
+	)
+		throw new HttpException("Selecione uma conta corrente, poupança ou Dinheiro", 400);
 };
 
 export const assertTransactionOwnership = async (transactionId: string, userId: string) => {

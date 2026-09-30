@@ -34,6 +34,10 @@ Salários, assinaturas, pagamentos recorrentes e parcelamentos devem prever sald
 
 Quando um seletor de contas em uma transação apresentar mais de um tipo de conta, cada opção deve começar pelo tipo resumido para evitar ambiguidade. Exemplos: `Poupança Mercado Pago`, `Conta Mercado Pago` e `Conta Nubank`. O rótulo comum da conta fora desses seletores permanece sem esse prefixo.
 
+## Formas de pagamento recorrente
+
+Novas assinaturas e pagamentos recorrentes usam cartão de crédito, dinheiro ou transferência. Pix é tratado como transferência, inclusive na exibição de registros antigos. Débito e boleto não são oferecidos para novos cadastros; registros antigos conservam seus rótulos históricos até serem editados. A conta de saída e a conta de destino de salário podem ser conta corrente, poupança ou dinheiro. Cartão de crédito continua exigindo um cartão.
+
 ## Rendimento de contas
 
 Toda conta exceto cartão de crédito pode ter rendimento composto opcional prefixado, pós-fixado ou misto. A parcela pós-fixada escolhe CDI ou Taxa Selic e informa o percentual contratado; o valor diário oficial vem do Banco Central. A parcela fixa opcional é mensal ou anual e vira taxa diária usando 21 ou 252 dias úteis. O rendimento diário soma as parcelas fixa e pós-fixada e incide ao fim de cada segunda a sexta-feira sobre saldo positivo. A conta pode declarar uma alíquota total de imposto opcional entre 0% e 100%, descontada de cada rendimento automático diário; ajustes automáticos editados e rendimentos manuais não sofrem novo desconto.

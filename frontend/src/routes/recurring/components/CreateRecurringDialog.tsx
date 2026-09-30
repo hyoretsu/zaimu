@@ -45,7 +45,12 @@ const initialDraft = (item?: RecurringListItemData): RecurringDraft => ({
 	financialAccountId: item?.financialAccountId ?? "",
 	frequency: item?.frequency ?? "MONTHLY",
 	name: item?.title ?? "",
-	paymentMethod: item?.paymentMethod ?? "CREDIT",
+	paymentMethod:
+		item?.paymentMethod === "CREDIT" || item?.paymentMethod === "CASH"
+			? item.paymentMethod
+			: item?.paymentMethod
+				? "TRANSFER"
+				: "CREDIT",
 	source: item?.source ?? "subscription",
 	startDate: item?.startDate.slice(0, 10) ?? getLocalDateKey(),
 	storeName: item?.storeName ?? "",
@@ -83,15 +88,17 @@ export function CreateRecurringDialog({
 		queryFn: () => dataService.accounts.getAll(),
 		queryKey: queryKeys.accounts.list(identity!),
 	});
-	const checkingAndCashAccounts =
+	const balanceAccounts =
 		accountsQuery.data
-			?.filter(account => account.type === "CHECKING" || account.type === "CASH")
+			?.filter(
+				account => account.type === "CHECKING" || account.type === "SAVINGS" || account.type === "CASH",
+			)
 			.toSorted(compareFinancialAccountsByDisplayName) ?? [];
 	const compatibleAccounts =
 		draft.source === "salary"
-			? checkingAndCashAccounts
+			? balanceAccounts
 			: draft.paymentMethod !== "CREDIT"
-				? checkingAndCashAccounts
+				? balanceAccounts
 				: (accountsQuery.data
 						?.filter(account => account.type === "CREDIT_CARD")
 						.toSorted(compareFinancialAccountsByDisplayName) ?? []);
