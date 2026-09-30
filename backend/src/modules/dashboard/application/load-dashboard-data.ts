@@ -1,10 +1,11 @@
+import { type BookPurchase, type CreditBook, moneyCents, replayCreditBook } from "@zaimu/finance/credit-book";
 import { monetaryBalancesSql } from "~/modules/accounts/application/monetary-balances-sql";
 import { withRawTransaction } from "~/shared/infra/sql";
 import { dateKey } from "./dashboard-calculations";
 
 type Query = <Row extends Record<string, unknown>>(text: string, values?: unknown[]) => Promise<Row[]>;
 
-interface DataRow extends Record<string, unknown> {
+export interface DashboardDataRow extends Record<string, unknown> {
 	data: Record<string, unknown>;
 	kind: string;
 }
@@ -29,12 +30,17 @@ export interface DashboardCard {
 	excludeFromTotals: boolean;
 	financialAccountId: string;
 	id: string;
+	ignoreStatementsBefore: null | string;
+	institutionId: null | string;
 	institutionName: null | string;
 	name: null | string;
+	refundPolicy: CreditBook["card"]["refundPolicy"];
 	statementDay: number;
+	workingDueDate: boolean;
 }
 
 export interface DashboardStatement {
+	balanceAmount: number;
 	chargesAmount: number;
 	creditCardId: string;
 	dueDate: Date;
@@ -81,41 +87,23 @@ export interface DashboardLoanPayment {
 }
 
 const overviewSql = `
-WITH purchase_charge_input AS (
-  SELECT purchase."statementId", purchase."installmentAmount", purchase."currentInstallment",
-         purchase."isStatementCharge", purchase."description", purchase."feeAmount", purchase."feeDescription",
-         COALESCE(purchase."parentId", purchase."id") AS group_id,
-         sum(purchase."installmentAmount") OVER (PARTITION BY COALESCE(purchase."parentId", purchase."id")) AS group_total,
-         max(purchase."refinancingFeeAmount") FILTER (WHERE purchase."parentId" IS NULL)
-           OVER (PARTITION BY COALESCE(purchase."parentId", purchase."id")) AS group_fee,
-         sum(purchase."installmentAmount") OVER (
-           PARTITION BY COALESCE(purchase."parentId", purchase."id")
-           ORDER BY purchase."currentInstallment", purchase."id"
-         ) AS cumulative_amount
-  FROM "CreditEntry" purchase
-  WHERE purchase."userId" = $1 AND NOT purchase."isSettled"
-), purchase_charge_allocations AS (
-  SELECT input.*,
-         round(COALESCE(input.group_fee, 0) * input.cumulative_amount / NULLIF(input.group_total, 0), 2) AS allocated_fee
-  FROM purchase_charge_input input
-), purchase_charge_deltas AS (
-  SELECT allocated.*,
-         lag(allocated.allocated_fee) OVER (
-           PARTITION BY allocated.group_id ORDER BY allocated."currentInstallment", allocated."statementId"
-         ) AS previous_allocated_fee
-  FROM purchase_charge_allocations allocated
-), statement_charges AS (
-  SELECT allocated."statementId",
-         sum(CASE
-           WHEN allocated."isStatementCharge"
-             OR public.normalize_search(allocated."description") ~ '^(juros|multa|mora|encargos|iof)( |$)'
-             OR public.normalize_search(allocated."description") ~ '^imposto.*operac'
-             THEN allocated."installmentAmount"
-           WHEN allocated."feeDescription" = 'IOF do parcelamento' THEN COALESCE(allocated."feeAmount", 0)
-           ELSE allocated.allocated_fee - COALESCE(allocated.previous_allocated_fee, 0)
-         END) AS amount
-  FROM purchase_charge_deltas allocated
-  GROUP BY allocated."statementId"
+WITH visible_cards AS (
+  SELECT card.*, account."userId", account."institutionId", institution."creditRefundPolicy" AS "refundPolicy"
+  FROM "CreditCard" card
+  JOIN "FinancialAccount" account ON account."id" = card."financialAccountId"
+  LEFT JOIN "FinancialInstitution" institution ON institution."id" = account."institutionId"
+  WHERE account."userId" = $1 AND NOT account."isHidden"
+), purchase_plans AS (
+  SELECT purchase."id" AS "purchaseId",
+         jsonb_agg(plan."amount" ORDER BY plan."number") AS "installmentAmounts",
+         jsonb_agg(plan."number" ORDER BY plan."number") FILTER (WHERE plan."hasImportedAmount") AS "importedNumbers",
+         jsonb_agg(CASE WHEN plan."statementDate" IS NULL THEN NULL ELSE jsonb_build_object(
+           'statementDate', plan."statementDate", 'dueDate', plan."dueDate"
+         ) END ORDER BY plan."number") AS "statementDates"
+  FROM "CreditPurchaseRecord" purchase
+  JOIN visible_cards card ON card."id" = purchase."creditCardId"
+  JOIN "CreditInstallmentPlan" plan ON plan."purchaseId" = purchase."id"
+  GROUP BY purchase."id"
 )
 SELECT 'account' AS kind, jsonb_build_object(
   'id', account."id", 'institutionId', account."institutionId", 'institutionName', institution."name",
@@ -129,23 +117,51 @@ SELECT 'card', jsonb_build_object(
   'creditLimit', card."creditLimit", 'excludeFromTotals', card."excludeFromTotals",
   'dueDay', card."dueDay", 'statementDay', card."statementDay",
   'financialAccountId', card."financialAccountId", 'id', card."id",
-  'institutionName', institution."name", 'name', account."name"
+  'ignoreStatementsBefore', card."ignoreStatementsBefore", 'institutionId', card."institutionId",
+  'institutionName', institution."name", 'name', account."name", 'refundPolicy', card."refundPolicy",
+  'workingDueDate', card."workingDueDate"
 )
-FROM "CreditCard" card
+FROM visible_cards card
 JOIN "FinancialAccount" account ON account."id" = card."financialAccountId"
 LEFT JOIN "FinancialInstitution" institution ON institution."id" = account."institutionId"
-WHERE account."userId" = $1 AND NOT account."isHidden"
 UNION ALL
 SELECT 'statement', jsonb_build_object(
   'creditCardId', statement."creditCardId", 'dueDate', statement."dueDate", 'id', statement."id",
   'paidAmount', statement."paidAmount", 'statementDate', statement."statementDate",
-  'totalAmount', statement."totalAmount", 'chargesAmount', COALESCE(charges.amount, 0)
+  'totalAmount', statement."totalAmount", 'isPaid', statement."isPaid", 'isFullySynced', statement."isFullySynced"
 )
 FROM "CreditCardStatement" statement
-JOIN "CreditCard" card ON card."id" = statement."creditCardId"
-JOIN "FinancialAccount" account ON account."id" = card."financialAccountId"
-LEFT JOIN statement_charges charges ON charges."statementId" = statement."id"
-WHERE account."userId" = $1 AND NOT account."isHidden"
+JOIN visible_cards card ON card."id" = statement."creditCardId"
+UNION ALL
+SELECT 'purchase', to_jsonb(purchase) || jsonb_build_object(
+  'installmentAmounts', plans."installmentAmounts", 'importedNumbers', COALESCE(plans."importedNumbers", '[]'::jsonb),
+  'statementDates', plans."statementDates"
+)
+FROM "CreditPurchaseRecord" purchase
+JOIN visible_cards card ON card."id" = purchase."creditCardId"
+JOIN purchase_plans plans ON plans."purchaseId" = purchase."id"
+UNION ALL
+SELECT 'installment', to_jsonb(installment) || jsonb_build_object('creditCardId', purchase."creditCardId")
+FROM "CreditInstallmentRecord" installment
+JOIN "CreditPurchaseRecord" purchase ON purchase."id" = installment."purchaseId"
+JOIN visible_cards card ON card."id" = purchase."creditCardId"
+UNION ALL
+SELECT 'refund', to_jsonb(refund) || jsonb_build_object('creditCardId', purchase."creditCardId")
+FROM "CreditRefundRecord" refund
+JOIN "CreditPurchaseRecord" purchase ON purchase."id" = refund."purchaseId"
+JOIN visible_cards card ON card."id" = purchase."creditCardId"
+UNION ALL
+SELECT 'charge', to_jsonb(charge) || jsonb_build_object('creditCardId', statement."creditCardId")
+FROM "CreditStatementCharge" charge
+JOIN "CreditCardStatement" statement ON statement."id" = charge."statementId"
+JOIN visible_cards card ON card."id" = statement."creditCardId"
+UNION ALL
+SELECT 'payment', jsonb_build_object(
+  'amount', payment."amount", 'creditCardId', payment."paymentCreditCardId", 'date', payment."date", 'id', payment."id"
+)
+FROM "Transaction" payment
+JOIN visible_cards card ON card."id" = payment."paymentCreditCardId"
+WHERE payment."userId" = $1
 UNION ALL
 SELECT 'debt', jsonb_build_object(
   'balance', COALESCE(sum(CASE WHEN event."createdByUserId" = $1 THEN event."effect" ELSE -event."effect" END), 0),
@@ -215,20 +231,138 @@ WHERE transaction."userId" = $1 AND transaction."date" BETWEEN $5::date AND $6::
 GROUP BY transaction."date"
 UNION ALL
 SELECT 'activityDate', jsonb_build_object('date', purchase."purchaseDate")
-FROM "CreditEntry" purchase
-WHERE purchase."userId" = $1 AND purchase."currentInstallment" = 1
+FROM "CreditPurchaseRecord" purchase
+WHERE purchase."userId" = $1
   AND purchase."purchaseDate" BETWEEN $5::date AND $6::date
 GROUP BY purchase."purchaseDate"`;
 
-const rowsByKind = (rows: DataRow[], kind: string) =>
+const rowsByKind = (rows: DashboardDataRow[], kind: string) =>
 	rows.filter(row => row.kind === kind).map(row => row.data);
 const asDate = (value: unknown) => new Date(`${String(value).slice(0, 10)}T12:00:00`);
+const asDateKey = (value: unknown) => String(value).slice(0, 10);
+const asTimestamp = (value: unknown) => (value instanceof Date ? value.toISOString() : String(value));
 const asSchedule = (row: Record<string, unknown>) =>
 	({
 		...row,
 		endDate: row.endDate ? asDate(row.endDate) : null,
 		startDate: asDate(row.startDate),
 	}) as unknown as DashboardSchedule;
+
+const groupByCard = (rows: DashboardDataRow[], kind: string) => {
+	const grouped = new Map<string, Record<string, unknown>[]>();
+	for (const row of rows) {
+		if (row.kind !== kind) continue;
+		const cardId = String(row.data.creditCardId);
+		const group = grouped.get(cardId) ?? [];
+		group.push(row.data);
+		grouped.set(cardId, group);
+	}
+	return grouped;
+};
+
+export function replayDashboardStatements(
+	userId: string,
+	cards: DashboardCard[],
+	rows: DashboardDataRow[],
+	asOf: string,
+): DashboardStatement[] {
+	const purchasesByCard = groupByCard(rows, "purchase");
+	const installmentsByCard = groupByCard(rows, "installment");
+	const refundsByCard = groupByCard(rows, "refund");
+	const chargesByCard = groupByCard(rows, "charge");
+	const statementsByCard = groupByCard(rows, "statement");
+	const paymentsByCard = groupByCard(rows, "payment");
+	return cards.flatMap(card => {
+		const purchases = (purchasesByCard.get(card.id) ?? []).map(row => ({
+			...row,
+			createdAt: asTimestamp(row.createdAt),
+			debtSplitRule: null,
+			installmentAmountsCents: (row.installmentAmounts as unknown[]).map(amount =>
+				moneyCents(Number(amount), 1),
+			),
+			installmentImportedNumbers: (row.importedNumbers as unknown[]).map(Number),
+			installmentStatementDates: (row.statementDates as Array<Record<string, unknown> | null>).map(dates =>
+				dates ? { dueDate: asDateKey(dates.dueDate), statementDate: asDateKey(dates.statementDate) } : null,
+			),
+			purchaseDate: asDateKey(row.purchaseDate),
+			subscriptionOccurrenceDate: row.subscriptionOccurrenceDate
+				? asDateKey(row.subscriptionOccurrenceDate)
+				: null,
+			tagIds: [],
+			totalAmountCents: moneyCents(Number(row.totalAmount), 1),
+			updatedAt: asTimestamp(row.updatedAt),
+		})) as unknown as BookPurchase[];
+		const book: CreditBook = {
+			card: {
+				dueDay: Number(card.dueDay),
+				id: card.id,
+				ignoreStatementsBefore: card.ignoreStatementsBefore ? asDateKey(card.ignoreStatementsBefore) : null,
+				institutionId: card.institutionId,
+				refundPolicy: card.refundPolicy,
+				statementDay: Number(card.statementDay),
+				userId,
+				workingDueDate: Boolean(card.workingDueDate),
+			},
+			charges: (chargesByCard.get(card.id) ?? []).map(row => ({
+				amountCents: moneyCents(Number(row.amount), 1),
+				chargeDate: asDateKey(row.chargeDate),
+				description: String(row.description),
+				externalId: row.externalId as string | null,
+				id: String(row.id),
+				isSettled: Boolean(row.isSettled),
+				settledByPurchaseId: row.settledByPurchaseId as string | null,
+				statementId: String(row.statementId),
+				time: row.time as string | null,
+			})),
+			installments: (installmentsByCard.get(card.id) ?? []).map(row => ({
+				amountCents: moneyCents(Number(row.amount), 1),
+				hasImportedAmount: Boolean(row.hasImportedAmount),
+				id: String(row.id),
+				isSettled: Boolean(row.isSettled),
+				number: Number(row.number),
+				occurrenceDate: asDateKey(row.occurrenceDate),
+				purchaseId: String(row.purchaseId),
+				settledByPurchaseId: row.settledByPurchaseId as string | null,
+				statementId: String(row.statementId),
+			})),
+			payments: (paymentsByCard.get(card.id) ?? []).map(row => ({
+				amount: Number(row.amount),
+				date: asDateKey(row.date),
+				id: String(row.id),
+			})),
+			purchases,
+			refunds: (refundsByCard.get(card.id) ?? []).map(row => ({
+				amountCents: moneyCents(Number(row.amount), 1),
+				cancellationEligible: Boolean(row.cancellationEligible),
+				createdAt: asTimestamp(row.createdAt),
+				creditDate: asDateKey(row.creditDate),
+				creditStatementId: String(row.statementId),
+				deletedAt: row.deletedAt ? asTimestamp(row.deletedAt) : null,
+				externalId: row.externalId as string | null,
+				id: String(row.id),
+				policy: row.policy as CreditBook["refunds"][number]["policy"],
+				purchaseId: String(row.purchaseId),
+				time: row.time as string | null,
+				updatedAt: asTimestamp(row.updatedAt),
+			})),
+			statements: (statementsByCard.get(card.id) ?? []).map(row => ({
+				creditCardId: card.id,
+				dueDate: asDateKey(row.dueDate),
+				id: String(row.id),
+				isFullySynced: Boolean(row.isFullySynced),
+				isPaid: Boolean(row.isPaid),
+				paidAmount: Number(row.paidAmount),
+				statementDate: asDateKey(row.statementDate),
+				totalAmount: Number(row.totalAmount),
+			})),
+		};
+		return replayCreditBook(book, asOf).statements.map(statement => ({
+			...statement,
+			dueDate: asDate(statement.dueDate),
+			statementDate: asDate(statement.statementDate),
+		})) as DashboardStatement[];
+	});
+}
 
 export interface DashboardDataRange {
 	balanceDates: Date[];
@@ -242,9 +376,9 @@ export interface DashboardDataRange {
 
 export async function loadDashboardData(userId: string, range: DashboardDataRange) {
 	return withRawTransaction(async (query: Query) => {
-		const overviewRows = await query<DataRow>(overviewSql, [userId]);
-		const scheduleRows = await query<DataRow>(schedulesSql, [userId, dateKey(range.today)]);
-		const movementRows = await query<DataRow>(movementsSql, [
+		const overviewRows = await query<DashboardDataRow>(overviewSql, [userId]);
+		const scheduleRows = await query<DashboardDataRow>(schedulesSql, [userId, dateKey(range.today)]);
+		const movementRows = await query<DashboardDataRow>(movementsSql, [
 			userId,
 			dateKey(range.comparisonStart),
 			dateKey(range.comparisonEnd),
@@ -258,11 +392,12 @@ export async function loadDashboardData(userId: string, range: DashboardDataRang
 			userId,
 			[...new Set(balanceDates.map(dateKey))],
 		]);
+		const cards = rowsByKind(overviewRows, "card") as unknown as DashboardCard[];
 		return {
 			accounts: rowsByKind(overviewRows, "account") as unknown as DashboardAccount[],
 			activityDates,
 			balanceRows,
-			cards: rowsByKind(overviewRows, "card") as unknown as DashboardCard[],
+			cards,
 			debts: rowsByKind(overviewRows, "debt") as unknown as Array<{
 				balance: number;
 				id: string;
@@ -284,11 +419,7 @@ export async function loadDashboardData(userId: string, range: DashboardDataRang
 			})) as unknown as DashboardLoanPayment[],
 			recurring: rowsByKind(scheduleRows, "recurring").map(asSchedule),
 			salaries: rowsByKind(scheduleRows, "salary").map(asSchedule),
-			statements: rowsByKind(overviewRows, "statement").map(row => ({
-				...(row as unknown as Omit<DashboardStatement, "dueDate" | "statementDate">),
-				dueDate: asDate(row.dueDate),
-				statementDate: asDate(row.statementDate),
-			})),
+			statements: replayDashboardStatements(userId, cards, overviewRows, dateKey(range.today)),
 			subscriptions: rowsByKind(scheduleRows, "subscription").map(asSchedule),
 		};
 	});

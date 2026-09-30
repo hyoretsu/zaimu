@@ -237,3 +237,11 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Fluxos são agregados por dia no PostgreSQL; saldos usam checkpoints, movimentações e rendimentos set-based somente nas datas necessárias.
 - Leitura local caiu para 415 ms com 16 datas de saldo, mantendo cache distribuído e ETag; medição com 100 mil lançamentos segue bloqueada pelo fixture incompatível com constraints atuais.
 - Próxima etapa: concluir previews de convites, detalhes de empréstimos e catálogos.
+
+### 2026-09-30
+
+- Corrigida regressão que fazia o dashboard reabrir o livro normalizado uma vez por cartão, chegando a 423 queries e 18 segundos.
+- Cartões, compras, planos, parcelas, reembolsos, encargos, faturas e pagamentos agora são lidos em lote na consulta agregada do dashboard.
+- Replay de faturas permanece no domínio financeiro, mas sem hidratar tags ou rateios não usados pelo dashboard e sem queries proporcionais ao número de cartões.
+- Orçamento frio do dashboard permanece em quatro queries; teste cobre isolamento do replay em lote entre cartões.
+- Próxima etapa: validar p95 com o dataset de desempenho e concluir previews de convites, detalhes de empréstimos e catálogos.

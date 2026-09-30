@@ -2,7 +2,6 @@ import { purchaseStatementDates } from "@zaimu/finance/credit-purchase";
 import { addDays, startOfDay } from "date-fns";
 import Elysia, { t } from "elysia";
 import { requireUserId } from "~/modules/auth";
-import { withStatementPayments } from "~/modules/creditCards/application/statement-payments";
 import {
 	buildComparisonPeriods,
 	comparisonRangeEnd,
@@ -134,7 +133,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 				const cardsByAccountId = new Map(cards.map(card => [card.financialAccountId, card]));
 				const isCardSubscription = (subscription: (typeof subscriptions)[number]) =>
 					subscription.paymentMethod === "CREDIT";
-				const statements = await withStatementPayments(loaded.statements);
+				const statements = loaded.statements;
 				const monetaryAccounts = accounts.filter(
 					account =>
 						account.type !== "CREDIT_CARD" && account.type !== "INVESTMENT" && account.type !== "REWARDS",
