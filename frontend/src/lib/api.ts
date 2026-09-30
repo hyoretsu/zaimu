@@ -516,6 +516,7 @@ export interface DebtEvent {
 }
 
 export interface DebtPerson {
+	accountEmail: string | null;
 	id: string;
 	name: string;
 	balance: number;
