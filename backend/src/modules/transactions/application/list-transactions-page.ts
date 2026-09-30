@@ -266,6 +266,7 @@ export async function listTransactionsPage(userId: string, input: ListTransactio
 	]);
 	const hasMore = rows.length > limit;
 	const page = rows.slice(0, limit);
+	if (page.length === 0) return { days: [], hasMore: false, nextCursor: null };
 	const transactionIds = page.filter(row => row.sourceRank === 0).map(row => row.id);
 	const purchaseIds = page.filter(row => row.sourceRank === 1).map(row => row.id);
 	const [
