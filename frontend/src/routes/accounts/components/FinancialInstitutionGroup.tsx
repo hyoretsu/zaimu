@@ -29,6 +29,7 @@ export function FinancialInstitutionGroup({
 	institutions,
 	onCreate,
 	onDelete,
+	onHide,
 	onUpdate,
 	onUpdateInstitution,
 	onUpdateInstitutionYield,
@@ -41,6 +42,7 @@ export function FinancialInstitutionGroup({
 	institutions: FinancialInstitution[];
 	onCreate: Parameters<typeof CreateFinancialAccountDialog>[0]["onCreate"];
 	onDelete: (account: FinancialAccount) => void | Promise<void>;
+	onHide: (account: FinancialAccount) => void;
 	onUpdate: NonNullable<Parameters<typeof CreateFinancialAccountDialog>[0]["onUpdate"]>;
 	onUpdateInstitution: (institution: FinancialInstitution, name: string) => Promise<unknown>;
 	onUpdateInstitutionYield: (
@@ -101,6 +103,7 @@ export function FinancialInstitutionGroup({
 						institutions={institutions}
 						key={account.id}
 						onDelete={() => onDelete(account)}
+						onHide={() => onHide(account)}
 						onUpdate={onUpdate}
 						rewardAccounts={rewardAccounts}
 					/>

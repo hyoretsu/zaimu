@@ -1,0 +1,36 @@
+[
+	{
+		"execute": [
+			{
+				"description": "add column \"isHidden\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialAccount\" ADD COLUMN \"isHidden\" bool DEFAULT false NOT NULL"
+			}
+		],
+		"id": "column.public.FinancialAccount.isHidden",
+		"label": "Add column \"isHidden\" to \"FinancialAccount\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"isHidden\" exists",
+				"params": ["public", "FinancialAccount", "isHidden"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"isHidden\" is missing",
+				"params": ["public", "FinancialAccount", "isHidden"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "isHidden",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialAccount"
+			},
+			"id": "postgres"
+		}
+	}
+]

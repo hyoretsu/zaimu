@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
 	LuBanknote,
 	LuCreditCard,
+	LuEyeOff,
 	LuFileUp,
 	LuLandmark,
 	LuPiggyBank,
@@ -14,6 +15,7 @@ import { ImportTransactionsDialog, TransactionImportReviewDialog } from "@/compo
 import { AppBadge } from "@/components/ui/AppBadge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
 import {
 	getFinancialAccountCurrencyValue,
@@ -41,12 +43,14 @@ export function FinancialAccountCard({
 	account,
 	institutions,
 	onDelete,
+	onHide,
 	onUpdate,
 	rewardAccounts,
 }: {
 	account: FinancialAccount;
 	institutions: FinancialInstitution[];
 	onDelete: () => void | Promise<void>;
+	onHide: () => void;
 	onUpdate: Parameters<typeof CreateFinancialAccountDialog>[0]["onUpdate"];
 	rewardAccounts: FinancialAccount[];
 }) {
@@ -76,6 +80,20 @@ export function FinancialAccountCard({
 					</div>
 				</div>
 				<div className="flex shrink-0 gap-2">
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								aria-label={`Esconder ${displayName}`}
+								className="cursor-pointer"
+								onClick={onHide}
+								size="icon-sm"
+								variant="outline"
+							>
+								<LuEyeOff />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>Esconder conta</TooltipContent>
+					</Tooltip>
 					<CreateFinancialAccountDialog
 						account={account}
 						contextual

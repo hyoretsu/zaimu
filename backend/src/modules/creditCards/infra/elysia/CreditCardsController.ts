@@ -142,7 +142,12 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 							statementDay: fields.CreditCard.statementDay,
 							workingDueDate: fields.CreditCard.workingDueDate,
 						}))
-						.where((fields, functions) => functions.eq(fields.FinancialAccount.userId, userId))
+						.where((fields, functions) =>
+							functions.and(
+								functions.eq(fields.FinancialAccount.userId, userId),
+								functions.eq(fields.FinancialAccount.isHidden, false),
+							),
+						)
 						.orderBy(fields => fields.FinancialAccount.name, { direction: "asc" })
 						.build(),
 				);

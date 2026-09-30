@@ -195,6 +195,7 @@ export type FinancialAccountDraft = Omit<
 };
 
 export interface FinancialAccountUpdateDraft {
+	isHidden?: boolean;
 	creditCard?: FinancialAccountDraft["creditCard"];
 	institutionName?: string;
 	name?: string | null;
@@ -442,6 +443,9 @@ export const dataService = {
 			await localAccounts.delete(id);
 		},
 		async getAll(): Promise<FinancialAccount[]> {
+			return (await dataService.accounts.getAllIncludingHidden()).filter(account => !account.isHidden);
+		},
+		async getAllIncludingHidden(): Promise<FinancialAccount[]> {
 			if (isGuestMode()) {
 				const [local, transactions, cashbackPurchases, holidays, yields] = await Promise.all([
 					localAccounts.getAll(),
@@ -450,7 +454,7 @@ export const dataService = {
 					localMeta.get("financial-account-yield-holidays"),
 					localMeta.get("financial-account-yields"),
 				]);
-				return calculateFinancialAccountBalances(
+				const accounts = calculateFinancialAccountBalances(
 					local.map(item => normalizeLegacyFinancialAccount(item.data)),
 					transactions.map(item => item.data),
 					cashbackPurchases.flatMap(item => creditBookRewards(item.data)),
@@ -458,6 +462,7 @@ export const dataService = {
 					undefined,
 					(yields as FinancialAccountYield[] | null) ?? [],
 				);
+				return accounts;
 			}
 			const owner = getCurrentCacheIdentity();
 			if (!owner) throw new Error("Identidade local indisponível.");
@@ -1179,19 +1184,21 @@ export const dataService = {
 					statement => statement.creditCardId,
 				);
 				return Promise.all(
-					storedCards.map(async ({ data: card }) => {
-						const statements = await withGuestCardPayments(card.id, statementsByCard.get(card.id) ?? []);
-						return {
-							...card,
-							accountName:
-								card.accountName ||
-								accounts.get(card.financialAccountId)?.name ||
-								accounts.get(card.financialAccountId)?.institution?.name ||
-								null,
-							currentStatement: getCurrentCreditCardStatement(statements, card) ?? null,
-							limit: calculateCreditCardLimit(card, statements),
-						};
-					}),
+					storedCards
+						.filter(({ data: card }) => !accounts.get(card.financialAccountId)?.isHidden)
+						.map(async ({ data: card }) => {
+							const statements = await withGuestCardPayments(card.id, statementsByCard.get(card.id) ?? []);
+							return {
+								...card,
+								accountName:
+									card.accountName ||
+									accounts.get(card.financialAccountId)?.name ||
+									accounts.get(card.financialAccountId)?.institution?.name ||
+									null,
+								currentStatement: getCurrentCreditCardStatement(statements, card) ?? null,
+								limit: calculateCreditCardLimit(card, statements),
+							};
+						}),
 				);
 			}
 			const owner = getCurrentCacheIdentity();
@@ -1564,7 +1571,7 @@ export const dataService = {
 					dataService.subscriptions.getAll(),
 					dataService.salaries.getAll(),
 					dataService.recurringPayments.getAll(),
-					localCreditCards.getAll().then(items => items.map(item => item.data)),
+					dataService.creditCards.getAll(),
 					localCreditCardStatements.getAll().then(items => items.map(item => item.data)),
 				]);
 				const statements = (
@@ -1591,7 +1598,9 @@ export const dataService = {
 					localMeta.get("financial-account-yields"),
 				]);
 				const accountsAtRangeEnd = calculateFinancialAccountBalances(
-					accountRecords.map(item => normalizeLegacyFinancialAccount(item.data)),
+					accountRecords
+						.filter(item => !item.data.isHidden)
+						.map(item => normalizeLegacyFinancialAccount(item.data)),
 					transactions,
 					cashbackPurchases.flatMap(item => creditBookRewards(item.data)),
 					(holidays as FinancialAccountYieldHoliday[] | null)?.map(holiday => holiday.date) ?? [],

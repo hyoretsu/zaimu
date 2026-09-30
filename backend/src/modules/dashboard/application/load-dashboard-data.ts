@@ -123,7 +123,7 @@ SELECT 'account' AS kind, jsonb_build_object(
 ) AS data
 FROM "FinancialAccount" account
 LEFT JOIN "FinancialInstitution" institution ON institution."id" = account."institutionId"
-WHERE account."userId" = $1
+WHERE account."userId" = $1 AND NOT account."isHidden"
 UNION ALL
 SELECT 'card', jsonb_build_object(
   'creditLimit', card."creditLimit", 'excludeFromTotals', card."excludeFromTotals",
@@ -134,7 +134,7 @@ SELECT 'card', jsonb_build_object(
 FROM "CreditCard" card
 JOIN "FinancialAccount" account ON account."id" = card."financialAccountId"
 LEFT JOIN "FinancialInstitution" institution ON institution."id" = account."institutionId"
-WHERE account."userId" = $1
+WHERE account."userId" = $1 AND NOT account."isHidden"
 UNION ALL
 SELECT 'statement', jsonb_build_object(
   'creditCardId', statement."creditCardId", 'dueDate', statement."dueDate", 'id', statement."id",
@@ -145,7 +145,7 @@ FROM "CreditCardStatement" statement
 JOIN "CreditCard" card ON card."id" = statement."creditCardId"
 JOIN "FinancialAccount" account ON account."id" = card."financialAccountId"
 LEFT JOIN statement_charges charges ON charges."statementId" = statement."id"
-WHERE account."userId" = $1
+WHERE account."userId" = $1 AND NOT account."isHidden"
 UNION ALL
 SELECT 'debt', jsonb_build_object(
   'balance', COALESCE(sum(CASE WHEN event."createdByUserId" = $1 THEN event."effect" ELSE -event."effect" END), 0),

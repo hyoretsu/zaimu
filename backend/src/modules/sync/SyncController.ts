@@ -77,6 +77,7 @@ const entityTagIds = (entity: InputEntity) =>
 const accountColumns = [
 	"id",
 	"userId",
+	"isHidden",
 	"name",
 	"type",
 	"institutionId",
@@ -224,6 +225,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				);
 				const values = {
 					institutionId: institution?.id,
+					isHidden: value<boolean | undefined>(entity, "isHidden") ?? false,
 					name: value<string>(entity, "name"),
 					type,
 					updatedAt: new Date(),

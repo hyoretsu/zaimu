@@ -1,6 +1,8 @@
-import { LuTrash2 } from "react-icons/lu";
+import { LuEyeOff, LuTrash2 } from "react-icons/lu";
+import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import type { CreditCard, FinancialAccount, FinancialInstitution } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import type { FinancialAccountUpdateDraft } from "@/lib/dataService";
@@ -12,6 +14,7 @@ export function CreditCardManagementActions({
 	card,
 	institutions,
 	onDelete,
+	onHide,
 	onUpdate,
 	rewardAccounts,
 }: {
@@ -20,6 +23,7 @@ export function CreditCardManagementActions({
 	card: CreditCard;
 	institutions: FinancialInstitution[];
 	onDelete: (accountId: string) => Promise<unknown>;
+	onHide: (accountId: string) => Promise<unknown>;
 	onUpdate: (accountId: string, data: FinancialAccountUpdateDraft) => Promise<unknown>;
 	rewardAccounts: FinancialAccount[];
 }) {
@@ -38,6 +42,20 @@ export function CreditCardManagementActions({
 				pending={false}
 				rewardAccounts={rewardAccounts}
 			/>
+			<Tooltip>
+				<TooltipTrigger asChild>
+					<Button
+						aria-label={`Esconder ${getCreditCardDisplayName(card)}`}
+						className="cursor-pointer"
+						onClick={() => void onHide(account.id)}
+						size="icon-sm"
+						variant="outline"
+					>
+						<LuEyeOff />
+					</Button>
+				</TooltipTrigger>
+				<TooltipContent>Esconder cartão</TooltipContent>
+			</Tooltip>
 			<ConfirmActionButton
 				aria-label={`Excluir ${getCreditCardDisplayName(card)}`}
 				confirmation={`Excluir ${getCreditCardDisplayName(card)} permanentemente?`}

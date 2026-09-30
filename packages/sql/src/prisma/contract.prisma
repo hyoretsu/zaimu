@@ -169,6 +169,7 @@ namespace public {
     userId                  VarChar(36)
     name                    VarChar(70)?
     type                    pg.enum(FinancialAccountType) @default("CHECKING")
+    isHidden                Boolean                      @default(false)
     balance                 Numeric(12, 2)?               @default(dbgenerated("0"))
     institutionId           VarChar(36)?
     yieldReferenceType       pg.enum(ReferenceRateType)?

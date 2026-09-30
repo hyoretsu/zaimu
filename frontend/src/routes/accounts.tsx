@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { LuCalendarDays, LuLandmark, LuPlus, LuScale, LuWalletCards } from "react-icons/lu";
+import { LuCalendarDays, LuEye, LuLandmark, LuPlus, LuScale, LuWalletCards } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageContainer } from "@/components/ui/PageContainer";
@@ -9,7 +9,11 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { FinancialAccount, FinancialAccountYieldHoliday, FinancialInstitution } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
-import { compareFinancialAccountsByTitle, getFinancialAccountCurrencyValue } from "@/lib/financial-account";
+import {
+	compareFinancialAccountsByTitle,
+	getFinancialAccountCurrencyValue,
+	getFinancialAccountOptionLabel,
+} from "@/lib/financial-account";
 import { getFinancialInstitutions } from "@/lib/financial-institution";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast, useAuthStore } from "@/stores";
@@ -31,8 +35,8 @@ export function AccountsPage() {
 	const hasAccess = useAuthStore(state => state.isAuthenticated || state.isGuestMode);
 	const accounts = useQuery({
 		enabled: hasAccess,
-		queryFn: () => dataService.accounts.getAll(),
-		queryKey: queryKeys.accounts.list(identity!),
+		queryFn: () => dataService.accounts.getAllIncludingHidden(),
+		queryKey: [...queryKeys.accounts.list(identity!), "including-hidden"],
 	});
 	const holidays = useQuery({
 		enabled: hasAccess,
@@ -63,6 +67,15 @@ export function AccountsPage() {
 		onSuccess: async () => {
 			await invalidateAccountData();
 			showToast("Conta atualizada.", "positive");
+		},
+	});
+	const setAccountHidden = useMutation({
+		mutationFn: ({ id, isHidden }: { id: string; isHidden: boolean }) =>
+			dataService.accounts.update(id, { isHidden }),
+		onError: error => showToast(error.message, "negative"),
+		onSuccess: async account => {
+			await invalidateAccountData();
+			showToast(account.isHidden ? "Conta escondida." : "Conta exibida novamente.", "positive");
 		},
 	});
 	const updateInstitution = useMutation({
@@ -105,13 +118,14 @@ export function AccountsPage() {
 	});
 	const totalBalance =
 		accounts.data
-			?.filter(account => account.type !== "CREDIT_CARD")
+			?.filter(account => account.type !== "CREDIT_CARD" && !account.isHidden)
 			.reduce((sum, account) => sum + getFinancialAccountCurrencyValue(account), 0) ?? 0;
 	const visibleAccounts = useMemo(
-		() => accounts.data?.filter(account => account.type !== "CREDIT_CARD") ?? [],
+		() => accounts.data?.filter(account => account.type !== "CREDIT_CARD" && !account.isHidden) ?? [],
 		[accounts.data],
 	);
 	const rewardAccounts = visibleAccounts.filter(account => account.type === "REWARDS");
+	const hiddenAccounts = accounts.data?.filter(account => account.isHidden) ?? [];
 	const organization = useMemo(() => {
 		const allAccounts = visibleAccounts;
 		const institutions = getFinancialInstitutions(accounts.data ?? []);
@@ -207,6 +221,7 @@ export function AccountsPage() {
 							}}
 							onDelete={account => deleteAccount.mutateAsync(account.id)}
 							onDeleteInstitution={institution => deleteInstitution.mutateAsync(institution.id)}
+							onHide={account => setAccountHidden.mutate({ id: account.id, isHidden: true })}
 							onUpdate={(id, data) => updateAccount.mutateAsync({ data, id })}
 							onUpdateInstitution={(institution, name) =>
 								updateInstitution.mutateAsync({ data: { name }, id: institution.id })
@@ -231,8 +246,30 @@ export function AccountsPage() {
 					}
 					description="Comece cadastrando sua conta principal."
 					icon={<LuWalletCards className="size-7" />}
-					title="Nenhuma conta cadastrada"
+					title={hiddenAccounts.length ? "Nenhuma conta visível" : "Nenhuma conta cadastrada"}
 				/>
+			)}
+			{hiddenAccounts.length > 0 && (
+				<section className="grid gap-3">
+					<h2 className="font-bold text-lg">Contas escondidas</h2>
+					{hiddenAccounts.map(account => (
+						<div
+							className="flex items-center justify-between gap-3 rounded-xl border bg-card p-3"
+							key={account.id}
+						>
+							<span className="truncate">{getFinancialAccountOptionLabel(account)}</span>
+							<Button
+								className="cursor-pointer"
+								disabled={setAccountHidden.isPending && setAccountHidden.variables?.id === account.id}
+								onClick={() => setAccountHidden.mutate({ id: account.id, isHidden: false })}
+								size="sm"
+								variant="outline"
+							>
+								<LuEye /> Mostrar
+							</Button>
+						</div>
+					))}
+				</section>
 			)}
 			<BalanceAdjustmentsDialog onOpenChange={setIsBalanceAdjustmentsOpen} open={isBalanceAdjustmentsOpen} />
 		</PageContainer>

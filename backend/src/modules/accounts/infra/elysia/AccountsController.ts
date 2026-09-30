@@ -84,6 +84,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					db.sql.public.FinancialAccount.select(
 						"id",
 						"userId",
+						"isHidden",
 						"name",
 						"type",
 						"institutionId",
@@ -207,6 +208,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						db.sql.public.FinancialAccount.select(
 							"id",
 							"userId",
+							"isHidden",
 							"name",
 							"type",
 							"institutionId",
@@ -686,6 +688,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					}),
 					// Prisma 8 currently omits null from nullable varchar write types.
 					...(body.name !== undefined && { name: name as never }),
+					...(body.isHidden !== undefined && { isHidden: body.isHidden }),
 					...(body.yieldPeriod !== undefined && { yieldPeriod: body.yieldPeriod }),
 					...(body.yieldFixedRate !== undefined && {
 						yieldFixedRate: nullableNumeric<7, 4>(body.yieldFixedRate),
@@ -705,6 +708,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					.returning(
 						"id",
 						"userId",
+						"isHidden",
 						"name",
 						"type",
 						"institutionId",
@@ -952,6 +956,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					}),
 				),
 				institutionName: t.Optional(t.String({ maxLength: 100 })),
+				isHidden: t.Optional(t.Boolean()),
 				name: t.Optional(t.Union([t.String({ maxLength: 70 }), t.Null()])),
 				recalculateCurrentDay: t.Optional(t.Boolean()),
 				rewardsAccount: t.Optional(

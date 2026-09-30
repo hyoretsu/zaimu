@@ -89,6 +89,14 @@ export function CreditCardsPage() {
 			showToast("Cartão excluído.", "positive");
 		},
 	});
+	const hideCard = useMutation({
+		mutationFn: (id: string) => dataService.accounts.update(id, { isHidden: true }),
+		onError: error => showToast(error.message, "negative"),
+		onSuccess: async () => {
+			await invalidateCacheOperation(queryClient, identity!, "creditCard");
+			showToast("Cartão escondido. Mostre novamente em Contas financeiras.", "positive");
+		},
+	});
 	const totalLimit =
 		cards.data?.reduce((sum, card) => sum + (card.excludeFromTotals ? 0 : card.limit.effectiveLimit), 0) ?? 0;
 	const ownCardsCount = cards.data?.filter(card => !card.excludeFromTotals).length ?? 0;
@@ -176,6 +184,7 @@ export function CreditCardsPage() {
 									card={card}
 									institutions={institutions}
 									onDelete={id => deleteCard.mutateAsync(id)}
+									onHide={id => hideCard.mutateAsync(id)}
 									onUpdate={(id, data) => updateCard.mutateAsync({ data, id })}
 									rewardAccounts={rewardAccounts}
 								/>

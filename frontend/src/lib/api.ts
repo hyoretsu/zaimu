@@ -53,6 +53,7 @@ export interface User {
 
 export interface FinancialAccount {
 	id: string;
+	isHidden?: boolean;
 	userId: string;
 	name: string | null;
 	type: "CHECKING" | "SAVINGS" | "INVESTMENT" | "CASH" | "CREDIT_CARD" | "REWARDS";
