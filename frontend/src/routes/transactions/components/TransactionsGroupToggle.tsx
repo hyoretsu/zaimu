@@ -5,16 +5,16 @@ export function TransactionsGroupToggle({
 	expanded,
 	kind,
 	onClick,
-	transactionCount,
+	entryCount,
 }: {
 	expanded: boolean;
 	kind: "future" | "hidden";
 	onClick: () => void;
-	transactionCount: number;
+	entryCount: number;
 }) {
-	const singularDescription = kind === "future" ? "transação futura" : "transação oculta";
-	const pluralDescription = kind === "future" ? "transações futuras" : "transações ocultas";
-	const countLabel = `${transactionCount} ${transactionCount === 1 ? singularDescription : pluralDescription}`;
+	const singularDescription = kind === "future" ? "movimentação futura" : "movimentação oculta";
+	const pluralDescription = kind === "future" ? "movimentações futuras" : "movimentações ocultas";
+	const countLabel = `${entryCount} ${entryCount === 1 ? singularDescription : pluralDescription}`;
 	const actionLabel = `${expanded ? "Minimizar" : "Expandir"} ${pluralDescription}`;
 	const Icon = kind === "future" ? LuCalendarClock : LuEyeOff;
 

@@ -7,12 +7,14 @@ import { formatLocalTime } from "@/lib/date";
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
 export function FinancialAccountYieldStatementItem({
+	accountName,
 	amount,
 	deleting = false,
 	time,
 	onDelete,
 	onEdit,
 }: {
+	accountName?: string;
 	amount: number;
 	deleting?: boolean;
 	time?: string | null;
@@ -27,6 +29,7 @@ export function FinancialAccountYieldStatementItem({
 			<div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 sm:contents">
 				<div className="min-w-0 flex-1">
 					<p className="font-semibold">Rendimento</p>
+					{accountName ? <p className="truncate text-muted-foreground text-xs">{accountName}</p> : null}
 					{formatLocalTime(time) ? (
 						<p className="text-muted-foreground text-xs">{formatLocalTime(time)}</p>
 					) : null}

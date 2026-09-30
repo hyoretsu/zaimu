@@ -33,6 +33,7 @@ import { formatLocalDate, formatLocalTime, getLocalDateKey } from "@/lib/date";
 import {
 	calculateFinancialAccountYieldEntries,
 	type FinancialAccountYieldEntry,
+	getFinancialAccountOptionLabel,
 } from "@/lib/financial-account";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { sortTransactionsByMostRecent } from "@/lib/transaction-sort";
@@ -43,6 +44,7 @@ import { RefundCreditPurchaseDialog } from "@/routes/credit-cards/components/Ref
 import { showToast } from "@/stores";
 import { groupTransactionsForDisplay } from "./transactions/-transaction-display-groups";
 import {
+	countActiveTransactionFilters,
 	initialTransactionFilters,
 	type TransactionFilters as TransactionFiltersValue,
 	type TransactionQueryFilters,
@@ -68,6 +70,23 @@ interface TransactionsDailyPage {
 	hasMore: boolean;
 	nextCursor: null | string;
 }
+type TransactionDisplayEntry =
+	| {
+			date: string;
+			id: string;
+			isHidden?: boolean;
+			kind: "transaction";
+			time?: string | null;
+			value: Transaction;
+	  }
+	| {
+			date: string;
+			id: string;
+			isHidden?: boolean;
+			kind: "yield";
+			time?: string | null;
+			value: FinancialAccountYieldEntry;
+	  };
 
 function getInitialTransactionsPage(filters: TransactionFiltersValue): TransactionsPageParam {
 	const queryFilters = toTransactionQueryFilters(filters);
@@ -122,7 +141,7 @@ export function TransactionsPage() {
 				dataService.transactions.getAll(),
 				dataService.accountYieldHolidays.getAll(),
 			]);
-			return (
+			const entries = (
 				await Promise.all(
 					accounts
 						.filter(account => account.type !== "CREDIT_CARD")
@@ -144,10 +163,19 @@ export function TransactionsPage() {
 						}),
 				)
 			).flat();
+			return {
+				accountNames: new Map(accounts.map(account => [account.id, getFinancialAccountOptionLabel(account)])),
+				entries,
+			};
 		},
 		queryKey: [...queryKeys.accountYields.all(identity!), "transaction-list"],
 	});
-	const yieldEntries = (yieldsQuery.data ?? []).filter(entry => {
+	const yieldsMatchFilters =
+		(filters.type === "all" || filters.type === "INCOME") &&
+		filters.source !== "CREDIT_CARD" &&
+		filters.categoryId === "all" &&
+		(!filters.search || "rendimento".includes(filters.search.trim().toLocaleLowerCase("pt-BR")));
+	const yieldEntries = (yieldsQuery.data?.entries ?? []).filter(entry => {
 		if (filters.type !== "all" && filters.type !== "INCOME") return false;
 		if (filters.source === "CREDIT_CARD" || filters.categoryId !== "all") return false;
 		if (filters.accountId !== "all" && filters.accountId !== entry.financialAccountId) return false;
@@ -161,6 +189,7 @@ export function TransactionsPage() {
 	});
 	const transactionDays = transactionsQuery.data?.pages.flatMap(page => page.days) ?? [];
 	const transactions = uniqueTransactions(transactionDays.map(day => day.transactions));
+	const hasActiveFilters = countActiveTransactionFilters(filters) > 0;
 	const creditCardsQuery = useQuery({
 		enabled: identity !== null && editingPurchase !== null,
 		queryFn: () => dataService.creditCards.getAll(),
@@ -380,6 +409,20 @@ export function TransactionsPage() {
 			/>
 		);
 	};
+	const renderEntry = (entry: TransactionDisplayEntry) =>
+		entry.kind === "transaction" ? (
+			renderTransaction(entry.value)
+		) : (
+			<FinancialAccountYieldStatementItem
+				accountName={yieldsQuery.data?.accountNames.get(entry.value.financialAccountId)}
+				amount={entry.value.amount}
+				deleting={removeYield.isPending && removeYield.variables?.id === entry.value.id}
+				key={`yield-${entry.value.id}`}
+				onDelete={() => removeYield.mutateAsync(entry.value)}
+				onEdit={() => setEditingYield(entry.value)}
+				time={entry.value.time}
+			/>
+		);
 	const toggleTransactionGroup = (groupId: string) => {
 		setExpandedTransactionGroups(current => {
 			const next = new Set(current);
@@ -402,7 +445,7 @@ export function TransactionsPage() {
 						</Button>
 					</div>
 				}
-				description="Acompanhe entradas, saídas e transferências."
+				description="Acompanhe entradas, saídas, transferências e rendimentos."
 				mobileActions={[
 					{ icon: HiPlus, label: "Adicionar", onClick: () => setIsModalOpen(true) },
 					{ icon: LuFileUp, label: "Importar extrato", onClick: () => setIsImportOpen(true) },
@@ -459,7 +502,7 @@ export function TransactionsPage() {
 				transactions={transactions}
 			/>
 
-			{transactionsQuery.isPending || (yieldsQuery.isPending && transactions.length === 0) ? (
+			{transactionsQuery.isPending || (yieldsMatchFilters && yieldsQuery.isPending) ? (
 				<div className="space-y-5">
 					{[1, 2, 3].map(item => (
 						<div className="space-y-2" key={item}>
@@ -468,7 +511,7 @@ export function TransactionsPage() {
 						</div>
 					))}
 				</div>
-			) : transactionsQuery.isError || (yieldsQuery.isError && transactions.length === 0) ? (
+			) : transactionsQuery.isError || (yieldsMatchFilters && yieldsQuery.isError) ? (
 				<EmptyState
 					description="Não foi possível carregar suas movimentações."
 					icon={<HiArrowsRightLeft />}
@@ -477,18 +520,38 @@ export function TransactionsPage() {
 			) : displayDates.length === 0 ? (
 				<EmptyState
 					description={
-						transactions.length
+						hasActiveFilters
 							? "Ajuste ou limpe os filtros para ver transações."
 							: "Registre sua primeira movimentação para começar."
 					}
 					icon={<HiArrowsRightLeft />}
-					title={transactions.length ? "Nenhuma transação encontrada" : "Nenhuma transação"}
+					title={hasActiveFilters ? "Nenhuma transação encontrada" : "Nenhuma transação"}
 				/>
 			) : (
 				<div className="space-y-5">
 					{displayDates.map(date => {
 						const transactions = groupedTransactions?.[date] ?? [];
-						const displayGroups = groupTransactionsForDisplay(transactions, today);
+						const entries: TransactionDisplayEntry[] = [
+							...transactions.map(transaction => ({
+								date,
+								id: transaction.id,
+								isHidden: transaction.isHidden,
+								kind: "transaction" as const,
+								time: transaction.time,
+								value: transaction,
+							})),
+							...(yieldsByDate.get(date) ?? []).map(entry => ({
+								date,
+								id: `yield-${entry.id}`,
+								isHidden: entry.isHidden,
+								kind: "yield" as const,
+								time: entry.time,
+								value: entry,
+							})),
+						].toSorted((left, right) =>
+							(formatLocalTime(right.time) ?? "").localeCompare(formatLocalTime(left.time) ?? ""),
+						);
+						const displayGroups = groupTransactionsForDisplay(entries, today);
 						const [onlyDisplayGroup] = displayGroups;
 						const singleCollapsedGroup =
 							displayGroups.length === 1 &&
@@ -501,28 +564,18 @@ export function TransactionsPage() {
 							<section className="space-y-2" key={date}>
 								<TransactionDateHeader
 									dateLabel={dayLabel}
-									endingBalance={currency.format(dailyEndingBalances.get(date) ?? 0)}
+									endingBalance={
+										dailyEndingBalances.has(date)
+											? currency.format(dailyEndingBalances.get(date)!)
+											: undefined
+									}
 								/>
-								{yieldsByDate.get(date)?.length ? (
-									<div className="divide-y overflow-hidden rounded-2xl border bg-card shadow-sm">
-										{yieldsByDate.get(date)?.map(entry => (
-											<FinancialAccountYieldStatementItem
-												amount={entry.amount}
-												deleting={removeYield.isPending && removeYield.variables?.id === entry.id}
-												key={`yield-${entry.id}`}
-												onDelete={() => removeYield.mutateAsync(entry)}
-												onEdit={() => setEditingYield(entry)}
-												time={entry.time}
-											/>
-										))}
-									</div>
-								) : null}
 								{singleCollapsedGroup ? (
 									<TransactionsGroupToggle
+										entryCount={singleCollapsedGroup.transactions.length}
 										expanded={expandedTransactionGroups.has(singleCollapsedGroup.id)}
 										kind={singleCollapsedGroup.kind === "future" ? "future" : "hidden"}
 										onClick={() => toggleTransactionGroup(singleCollapsedGroup.id)}
-										transactionCount={singleCollapsedGroup.transactions.length}
 									/>
 								) : (
 									displayGroups.map(group => {
@@ -532,7 +585,7 @@ export function TransactionsPage() {
 													className="divide-y overflow-hidden rounded-2xl border bg-card shadow-sm"
 													key={group.id}
 												>
-													{group.transactions.map(renderTransaction)}
+													{group.transactions.map(renderEntry)}
 												</div>
 											);
 										}
@@ -541,14 +594,14 @@ export function TransactionsPage() {
 										return (
 											<div className="space-y-2" key={group.id}>
 												<TransactionsGroupToggle
+													entryCount={group.transactions.length}
 													expanded={isExpanded}
 													kind={group.kind}
 													onClick={() => toggleTransactionGroup(group.id)}
-													transactionCount={group.transactions.length}
 												/>
 												{isExpanded ? (
 													<div className="divide-y overflow-hidden rounded-2xl border bg-card shadow-sm">
-														{group.transactions.map(renderTransaction)}
+														{group.transactions.map(renderEntry)}
 													</div>
 												) : null}
 											</div>
@@ -557,7 +610,7 @@ export function TransactionsPage() {
 								)}
 								{singleCollapsedGroup && expandedTransactionGroups.has(singleCollapsedGroup.id) ? (
 									<div className="divide-y overflow-hidden rounded-2xl border bg-card shadow-sm">
-										{singleCollapsedGroup.transactions.map(renderTransaction)}
+										{singleCollapsedGroup.transactions.map(renderEntry)}
 									</div>
 								) : null}
 							</section>

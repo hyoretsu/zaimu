@@ -190,6 +190,7 @@ export function calculateFinancialAccountYieldEntries(
 					date: key,
 					financialAccountId: account.id,
 					id: automaticYield?.id ?? `automatic-yield-${account.id}-${key}`,
+					isHidden: automaticYield?.isHidden,
 					kind: "AUTOMATIC",
 				});
 				balance += amount;

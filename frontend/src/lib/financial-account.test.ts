@@ -314,6 +314,28 @@ describe("calculateFinancialAccountBalances", () => {
 		]);
 	});
 
+	test("preserves visibility of edited automatic yields", () => {
+		const entries = calculateFinancialAccountYieldEntries(
+			{ id: "checking", type: "CHECKING", yieldFixedRate: 10, yieldPeriod: "MONTHLY" } as never,
+			[{ amount: 100, date: "2026-01-05", destinationFinancialAccountId: "checking" }],
+			[],
+			new Date("2026-01-05T12:00:00"),
+			[
+				{
+					amount: 1,
+					date: "2026-01-05",
+					financialAccountId: "checking",
+					id: "hidden-yield",
+					isExcluded: false,
+					isHidden: true,
+					kind: "AUTOMATIC",
+				},
+			],
+		);
+
+		expect(entries[0]?.isHidden).toBe(true);
+	});
+
 	test("keeps rewards in native units and compounds cashback", () => {
 		const today = new Date("2026-01-05T12:00:00");
 		const accounts = calculateFinancialAccountBalances(
