@@ -16,6 +16,7 @@ import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { NumericField } from "@/components/ui/NumericField";
 import { ScrollArea } from "@/components/ui/ScrollArea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import { useDialogCloseReset } from "@/hooks/use-dialog-close-reset";
 import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
@@ -345,18 +346,22 @@ export function CreateFinancialAccountDialog({
 	return (
 		<Dialog modal onOpenChange={handleOpenChange} open={open}>
 			{showTrigger && (
-				<DialogTrigger asChild>
-					<Button
-						aria-label={account ? `Editar ${account.name ?? "conta"}` : undefined}
-						className={contextual ? "cursor-pointer" : "h-11 cursor-pointer"}
-						size={iconOnly ? "icon-sm" : contextual ? "sm" : "default"}
-						title={iconOnly && account ? `Editar ${account.name ?? "conta"}` : undefined}
-						variant={contextual ? "outline" : "default"}
-					>
-						{account ? <LuPencil /> : <LuPlus />}
-						{!iconOnly && ` ${account ? "Editar" : contextual ? "Adicionar conta" : "Nova conta"}`}
-					</Button>
-				</DialogTrigger>
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<DialogTrigger asChild>
+							<Button
+								aria-label={account ? `Editar ${account.name ?? "conta"}` : "Adicionar conta"}
+								className={contextual ? "cursor-pointer" : "h-11 cursor-pointer"}
+								size={iconOnly ? "icon-sm" : contextual ? "sm" : "default"}
+								variant={contextual ? "outline" : "default"}
+							>
+								{account ? <LuPencil /> : <LuPlus />}
+								{!iconOnly && ` ${account ? "Editar" : contextual ? "Adicionar conta" : "Nova conta"}`}
+							</Button>
+						</DialogTrigger>
+					</TooltipTrigger>
+					{iconOnly && <TooltipContent>{account ? "Editar conta" : "Adicionar conta"}</TooltipContent>}
+				</Tooltip>
 			)}
 			<DialogContent className="max-h-[92dvh] overflow-hidden p-0 sm:max-w-lg">
 				<ScrollArea className="max-h-[92dvh]">

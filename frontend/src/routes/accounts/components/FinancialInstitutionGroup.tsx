@@ -13,6 +13,7 @@ import {
 	DialogTrigger,
 } from "@/components/ui/Dialog";
 import { FormField } from "@/components/ui/FormField";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { FinancialAccount, FinancialInstitution, FinancialInstitutionYieldPolicy } from "@/lib/api";
 import { runDialogSave } from "@/lib/dialog-save";
@@ -89,6 +90,7 @@ export function FinancialInstitutionGroup({
 					<CreateFinancialAccountDialog
 						contextual
 						defaultInstitutionId={institution?.id ?? null}
+						iconOnly
 						institutions={institutions}
 						onCreate={onCreate}
 						pending={pending}
@@ -131,18 +133,25 @@ function InstitutionActions({
 		<>
 			<InstitutionYieldDialog institution={institution} onUpdate={onUpdateYield} />
 			<EditInstitutionDialog institution={institution} onUpdate={onUpdate} />
-			<ConfirmActionButton
-				aria-label={`Excluir ${institution.name}`}
-				className="cursor-pointer"
-				confirmation={`Excluir ${institution.name}? Produtos serão mantidos sem instituição.`}
-				onConfirm={async () => {
-					await onDelete(institution);
-				}}
-				size="sm"
-				variant="destructive"
-			>
-				<LuTrash2 /> Excluir
-			</ConfirmActionButton>
+			<Tooltip>
+				<TooltipTrigger asChild>
+					<span className="inline-flex">
+						<ConfirmActionButton
+							aria-label={`Excluir ${institution.name}`}
+							className="cursor-pointer"
+							confirmation={`Excluir ${institution.name}? Produtos serão mantidos sem instituição.`}
+							onConfirm={async () => {
+								await onDelete(institution);
+							}}
+							size="icon-sm"
+							variant="destructive"
+						>
+							<LuTrash2 />
+						</ConfirmActionButton>
+					</span>
+				</TooltipTrigger>
+				<TooltipContent>Excluir instituição</TooltipContent>
+			</Tooltip>
 		</>
 	);
 }
@@ -166,16 +175,21 @@ function EditInstitutionDialog({
 	};
 	return (
 		<Dialog onOpenChange={setOpen} open={open}>
-			<DialogTrigger asChild>
-				<Button
-					aria-label={`Editar ${institution.name}`}
-					className="cursor-pointer"
-					size="sm"
-					variant="outline"
-				>
-					<LuPencil /> Editar
-				</Button>
-			</DialogTrigger>
+			<Tooltip>
+				<TooltipTrigger asChild>
+					<DialogTrigger asChild>
+						<Button
+							aria-label={`Editar ${institution.name}`}
+							className="cursor-pointer"
+							size="icon-sm"
+							variant="outline"
+						>
+							<LuPencil />
+						</Button>
+					</DialogTrigger>
+				</TooltipTrigger>
+				<TooltipContent>Editar instituição</TooltipContent>
+			</Tooltip>
 			<DialogContent className="sm:max-w-md">
 				<DialogHeader>
 					<DialogTitle>Editar instituição</DialogTitle>

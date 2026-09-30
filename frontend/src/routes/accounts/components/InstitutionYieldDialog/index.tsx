@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/Dialog";
 import { NumericField } from "@/components/ui/NumericField";
 import { ScrollArea } from "@/components/ui/ScrollArea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { FinancialInstitution, FinancialInstitutionYieldPolicy } from "@/lib/api";
 import { runDialogSave } from "@/lib/dialog-save";
@@ -94,11 +95,21 @@ export function InstitutionYieldDialog({
 			}}
 			open={open}
 		>
-			<DialogTrigger asChild>
-				<Button className="cursor-pointer" size="sm" variant="outline">
-					<LuBadgePercent /> Rendimento
-				</Button>
-			</DialogTrigger>
+			<Tooltip>
+				<TooltipTrigger asChild>
+					<DialogTrigger asChild>
+						<Button
+							aria-label={`Rendimento de ${institution.name}`}
+							className="cursor-pointer"
+							size="icon-sm"
+							variant="outline"
+						>
+							<LuBadgePercent />
+						</Button>
+					</DialogTrigger>
+				</TooltipTrigger>
+				<TooltipContent>Rendimento</TooltipContent>
+			</Tooltip>
 			<DialogContent className="grid max-h-[min(90dvh,52rem)] grid-rows-[auto_minmax(0,1fr)] overflow-hidden sm:max-w-3xl">
 				<DialogHeader>
 					<DialogTitle>Rendimento de {institution.name}</DialogTitle>
