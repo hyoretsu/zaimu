@@ -26,6 +26,7 @@ export function DashboardPeriodFlowCard({
 				<div className="min-w-0 bg-brand-yellow px-4 py-3 text-brand-ink sm:px-6 sm:py-4">
 					<p className="flex items-center gap-1.5 text-xs sm:text-sm">
 						<LuArrowDownLeft aria-hidden="true" className="size-4 shrink-0" /> Entradas
+						{isCurrentMonth ? " do mês" : ""}
 					</p>
 					<p className="mt-2 break-words font-bold text-xl tracking-tight sm:text-2xl">
 						{currency.format(income)}
@@ -34,6 +35,7 @@ export function DashboardPeriodFlowCard({
 				<div className="min-w-0 px-4 py-3 sm:px-6 sm:py-4">
 					<p className="flex items-center gap-1.5 text-muted-foreground text-xs sm:text-sm">
 						<LuArrowUpRight aria-hidden="true" className="size-4 shrink-0" /> Saídas
+						{isCurrentMonth ? " do mês" : ""}
 					</p>
 					<p className="mt-2 break-words font-bold text-xl tracking-tight sm:text-2xl">
 						{currency.format(expenses)}
