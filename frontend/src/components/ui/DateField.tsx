@@ -2,7 +2,6 @@ import { addMonths, format, isValid, parseISO, startOfMonth, subMonths } from "d
 import { useState } from "react";
 import { LuChevronDown, LuChevronLeft, LuChevronRight } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
-import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/Dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
@@ -147,26 +146,47 @@ export function DateField({
 					{label} {required && <RequiredMark />}
 				</span>
 			</Label>
-			<input autoComplete={autoComplete} name={name} readOnly type="hidden" value={value} />
 			{isMobile ? (
-				<Dialog onOpenChange={handleOpenChange} open={open}>
-					<DialogTrigger asChild>{trigger}</DialogTrigger>
-					<DialogContent
-						className="w-[20rem] gap-4 rounded-2xl p-4"
-						overlayClassName="bg-transparent backdrop-blur-none"
-						showCloseButton={false}
+				<div className="relative rounded-4xl focus-within:ring-[3px] focus-within:ring-ring/50">
+					<div
+						aria-hidden="true"
+						className={cn(
+							"flex h-9 w-full items-center justify-between rounded-4xl border border-input bg-input/30 px-3 py-1 text-sm",
+							!selectedDate && "text-muted-foreground",
+							disabled && "opacity-50",
+							className,
+						)}
 					>
-						<DialogTitle className="sr-only">Selecionar data</DialogTitle>
-						{calendar}
-					</DialogContent>
-				</Dialog>
+						<span>{selectedDate ? format(selectedDate, "dd/MM/yyyy") : placeholder}</span>
+						<LuChevronDown className="size-4 shrink-0" />
+					</div>
+					<input
+						aria-describedby={hasDescription ? `${id}-description` : undefined}
+						aria-invalid={Boolean(error)}
+						autoComplete={autoComplete}
+						className="absolute inset-0 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+						disabled={disabled}
+						id={id}
+						max={max}
+						min={min}
+						name={name}
+						onChange={event => onValueChange(event.currentTarget.value)}
+						onClick={event => event.currentTarget.showPicker?.()}
+						required={required}
+						type="date"
+						value={value}
+					/>
+				</div>
 			) : (
-				<Popover onOpenChange={handleOpenChange} open={open}>
-					<PopoverTrigger asChild>{trigger}</PopoverTrigger>
-					<PopoverContent align="start" className="w-[20rem] gap-4 p-4">
-						{calendar}
-					</PopoverContent>
-				</Popover>
+				<>
+					<input autoComplete={autoComplete} name={name} readOnly type="hidden" value={value} />
+					<Popover onOpenChange={handleOpenChange} open={open}>
+						<PopoverTrigger asChild>{trigger}</PopoverTrigger>
+						<PopoverContent align="start" className="w-[20rem] gap-4 p-4">
+							{calendar}
+						</PopoverContent>
+					</Popover>
+				</>
 			)}
 			{hasDescription && (
 				<p
