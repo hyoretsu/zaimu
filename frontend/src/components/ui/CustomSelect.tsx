@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 export interface Option {
 	disabled?: boolean;
 	label: string;
+	special?: boolean;
 	value: string;
 }
 
@@ -31,11 +32,10 @@ export function CustomSelect({
 	sortOptions?: boolean;
 	value?: string;
 }) {
-	const displayedOptions = sortOptions
-		? options.toSorted((left, right) =>
-				left.label.localeCompare(right.label, "pt-BR", { sensitivity: "base" }),
-			)
-		: options;
+	const displayedOptions = options.toSorted((left, right) => {
+		if (left.special !== right.special) return left.special ? -1 : 1;
+		return sortOptions ? left.label.localeCompare(right.label, "pt-BR", { sensitivity: "base" }) : 0;
+	});
 
 	if (searchable) {
 		return (

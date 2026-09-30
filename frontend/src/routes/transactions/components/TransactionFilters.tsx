@@ -151,7 +151,7 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 						label="Conta"
 						onValueChange={value => set("accountId", value)}
 						options={[
-							{ label: "Todas as contas", value: "all" },
+							{ label: "Todas as contas", special: true, value: "all" },
 							...(accountsQuery.data ?? []).toSorted(compareFinancialAccountsByOptionLabel).map(account => ({
 								label: getFinancialAccountOptionLabel(account),
 								value: account.id,
@@ -167,7 +167,7 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 						label="Categoria"
 						onValueChange={value => set("categoryId", value)}
 						options={[
-							{ label: "Todas as categorias", value: "all" },
+							{ label: "Todas as categorias", special: true, value: "all" },
 							...[...categories].map(([value, label]) => ({ label, value })),
 						]}
 						placeholder="Todas as categorias"

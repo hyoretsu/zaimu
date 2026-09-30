@@ -133,7 +133,11 @@ export function CashbackSettingsDialog({
 								label="Conta de destino"
 								onValueChange={setCashbackAccountId}
 								options={[
-									{ label: "Criar ou reutilizar automaticamente", value: automaticAccountValue },
+									{
+										label: "Criar ou reutilizar automaticamente",
+										special: true,
+										value: automaticAccountValue,
+									},
 									...rewardAccounts.map(account => ({
 										label: getFinancialAccountOptionLabel(account),
 										value: account.id,

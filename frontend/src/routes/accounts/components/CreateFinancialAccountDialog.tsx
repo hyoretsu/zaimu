@@ -389,8 +389,8 @@ export function CreateFinancialAccountDialog({
 								label="Instituição"
 								onValueChange={setInstitutionId}
 								options={[
-									{ label: "Nova instituição", value: NEW_INSTITUTION },
-									{ label: "Sem instituição", value: NO_INSTITUTION },
+									{ label: "Nova instituição", special: true, value: NEW_INSTITUTION },
+									{ label: "Sem instituição", special: true, value: NO_INSTITUTION },
 									...institutions.map(institution => ({
 										label: institution.name,
 										value: institution.id,
@@ -666,7 +666,7 @@ export function CreateFinancialAccountDialog({
 												searchable
 												onValueChange={setCashbackAccountId}
 												options={[
-													{ label: "Criar ou reutilizar automaticamente", value: AUTO_REWARDS_ACCOUNT },
+													{ label: "Criar ou reutilizar automaticamente", special: true, value: AUTO_REWARDS_ACCOUNT },
 													...rewardAccounts.map(rewardAccount => ({
 														label: getFinancialAccountOptionLabel(rewardAccount),
 														value: rewardAccount.id,

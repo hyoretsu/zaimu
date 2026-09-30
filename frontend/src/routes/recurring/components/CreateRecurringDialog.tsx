@@ -640,7 +640,7 @@ export function CreateRecurringDialog({
 							options={[
 								...(draft.paymentMethod === "CREDIT"
 									? []
-									: [{ label: "Sem conta específica", value: noFinancialAccountValue }]),
+									: [{ label: "Sem conta específica", special: true, value: noFinancialAccountValue }]),
 								...compatibleAccounts.map(account => ({
 									label: getFinancialAccountOptionLabel(account),
 									value: account.id,

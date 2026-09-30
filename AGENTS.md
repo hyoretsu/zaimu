@@ -12,6 +12,8 @@ Buttons in the same action group must share height, border radius, icon size, an
 
 Every `CustomSelect` whose options come from a user-managed listing (accounts, cards, institutions, statements, categories, or equivalent) must use `searchable`. Fixed, small option sets remain non-searchable.
 
+Special select options (such as "Sem conta específica", "Todas as categorias", or "Criar automaticamente") must always appear at the top, before options from user-managed listings. Mark them with `special: true` in `CustomSelect` options. Preserve the order of multiple special options as supplied by the caller when `sortOptions={false}`.
+
 # Pending actions
 
 Pending actions block only their own conflict scope. Never disable unrelated controls from a shared mutation `isPending`. In lists, track pending record IDs; disable sibling controls only when they mutate the same record or an overlapping batch. Navigation, collapse, other rows, and unrelated actions stay enabled.
