@@ -15,7 +15,12 @@ import {
 	updateBookPurchaseDate,
 	updateBookRefund,
 } from "@zaimu/finance/credit-book";
-import { paymentStatement, recalculateStatementDueDate, toCents } from "@zaimu/finance/credit-card";
+import {
+	paymentStatement,
+	recalculateStatementDueDate,
+	statementCutoffAfter,
+	toCents,
+} from "@zaimu/finance/credit-card";
 import { distributePurchaseCents } from "@zaimu/finance/credit-purchase";
 import { hasUnresolvedLegacyCardPayment } from "./legacy-card-payments";
 import {
@@ -1447,7 +1452,19 @@ export const dataService = {
 			if (isGuestMode()) {
 				const stored = await localCreditCards.getById(cardId);
 				if (!stored) throw new Error("Cartão não encontrado.");
-				await localCreditCards.put({ ...stored.data, ignoreStatementsBefore: statementDate }, cardId);
+				if (statementDate) {
+					const statement = (await this.getStatements(cardId)).find(
+						row => !row.isForecast && row.statementDate.slice(0, 10) === statementDate,
+					);
+					if (!statement) throw new Error("Fatura não encontrada.");
+				}
+				await localCreditCards.put(
+					{
+						...stored.data,
+						ignoreStatementsBefore: statementDate ? statementCutoffAfter(statementDate) : null,
+					},
+					cardId,
+				);
 				return;
 			}
 			await fetchWithAuth(`/credit-cards/${cardId}/statement-cutoff`, {

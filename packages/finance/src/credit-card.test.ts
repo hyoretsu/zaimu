@@ -4,6 +4,7 @@ import {
 	paymentStatementDates,
 	recalculateStatementDueDate,
 	statementCharges,
+	statementCutoffAfter,
 	statementCycles,
 	statementEntryKind,
 } from "./credit-card";
@@ -42,6 +43,19 @@ describe("due-date card ledger", () => {
 			amountDue: 50,
 			carriedInAmount: 0,
 		});
+	});
+	test("ignores the chosen invoice and isolates later installments and payments", () => {
+		const rows = [invoice("07", 100), invoice("08", 50), invoice("09", 20)];
+		const cutoff = statementCutoffAfter("2024-08-15");
+		const balances = calculateStatementBalances(
+			rows,
+			[{ amount: 150, date: "2024-07-10" }],
+			"2024-09-30",
+			cutoff,
+		);
+		expect(balances[0]?.balanceAmount).toBe(0);
+		expect(balances[1]?.balanceAmount).toBe(0);
+		expect(balances[2]).toMatchObject({ amountDue: 20, carriedInAmount: 0, creditInAmount: 0 });
 	});
 	test("keeps a fully paid invoice open until its closing date", () => {
 		const rows = [invoice("08", 100)];

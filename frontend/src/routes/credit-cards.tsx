@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { LuCreditCard, LuFileUp, LuPlus } from "react-icons/lu";
+import { LuCreditCard, LuFileUp, LuPlus, LuScale } from "react-icons/lu";
 import {
 	CreditCardImportReviewDialog,
 	ImportCreditCardStatementDialog,
@@ -19,6 +19,7 @@ import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/que
 import { showToast, useAuthStore } from "@/stores";
 import { CreateFinancialAccountDialog } from "./accounts/components";
 import {
+	CardAdjustmentsDialog,
 	CreatePurchaseDialog,
 	CreditCardManagementActions,
 	CreditCardOverviewCard,
@@ -35,6 +36,7 @@ export function CreditCardsPage() {
 	const [statementsCardId, setStatementsCardId] = useState<string | null>(null);
 	const [isCreateCardOpen, setIsCreateCardOpen] = useState(false);
 	const [isImportOpen, setIsImportOpen] = useState(false);
+	const [isCardAdjustmentsOpen, setIsCardAdjustmentsOpen] = useState(false);
 	const [reviewingImportId, setReviewingImportId] = useState<string | null>(null);
 	const cards = useQuery({
 		enabled: hasAccess,
@@ -116,6 +118,14 @@ export function CreditCardsPage() {
 						<Button
 							className="h-11 cursor-pointer"
 							disabled={!cards.data?.length}
+							onClick={() => setIsCardAdjustmentsOpen(true)}
+							variant="outline"
+						>
+							<LuScale /> Ajustes de cartões
+						</Button>
+						<Button
+							className="h-11 cursor-pointer"
+							disabled={!cards.data?.length}
 							onClick={() => setIsImportOpen(true)}
 							variant="outline"
 						>
@@ -129,6 +139,12 @@ export function CreditCardsPage() {
 				description="Acompanhe limite, previsão de fatura e parcelamentos."
 				eyebrow="Crédito"
 				mobileActions={[
+					{
+						disabled: !cards.data?.length,
+						icon: LuScale,
+						label: "Ajustes de cartões",
+						onClick: () => setIsCardAdjustmentsOpen(true),
+					},
 					{
 						disabled: !cards.data?.length,
 						icon: LuFileUp,
@@ -223,6 +239,11 @@ export function CreditCardsPage() {
 			<CreditCardStatementsDialog
 				card={statementsCard}
 				onOpenChange={open => !open && setStatementsCardId(null)}
+			/>
+			<CardAdjustmentsDialog
+				cards={cards.data ?? []}
+				onOpenChange={setIsCardAdjustmentsOpen}
+				open={isCardAdjustmentsOpen}
 			/>
 			<CreateFinancialAccountDialog
 				cardOnly

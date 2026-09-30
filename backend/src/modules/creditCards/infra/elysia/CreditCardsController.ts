@@ -8,7 +8,7 @@ import {
 	replayCreditBook,
 	updateBookPurchaseDate,
 } from "@zaimu/finance/credit-book";
-import { paymentStatement, statementEntryKind } from "@zaimu/finance/credit-card";
+import { paymentStatement, statementCutoffAfter, statementEntryKind } from "@zaimu/finance/credit-card";
 import Elysia, { t } from "elysia";
 import { assertBalanceAccountOwnership, assertCreditCardOwnership, requireUserId } from "~/modules/auth";
 import {
@@ -258,15 +258,16 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				);
 				if (!statement) throw new HttpException("Fatura não encontrada", 404);
 			}
+			const cutoff = body.statementDate ? statementCutoffAfter(body.statementDate) : null;
 			await executeStatement(
 				db.sql.public.CreditCard.update({
-					ignoreStatementsBefore: body.statementDate ? new Date(`${body.statementDate}T12:00:00Z`) : null,
+					ignoreStatementsBefore: cutoff ? new Date(`${cutoff}T12:00:00Z`) : null,
 					updatedAt: new Date(),
 				})
 					.where((fields, functions) => functions.eq(fields.id, params.id))
 					.build(),
 			);
-			return { ignoreStatementsBefore: body.statementDate };
+			return { ignoreStatementsBefore: cutoff };
 		},
 		{
 			body: t.Object({

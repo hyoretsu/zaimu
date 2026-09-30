@@ -1,13 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { LuCalendarCheck, LuCalendarClock, LuCloudDownload, LuHistory, LuReceiptText } from "react-icons/lu";
+import { LuCalendarCheck, LuCalendarClock, LuCloudDownload, LuReceiptText } from "react-icons/lu";
 import { AppBadge } from "@/components/ui/AppBadge";
-import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { TabsContent } from "@/components/ui/Tabs";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import type { CreditCard, CreditCardStatement, CreditPurchase } from "@/lib/api";
 import { getCreditCardStatementDisplayBalance } from "@/lib/credit-card-statement-balance";
 import { dataService } from "@/lib/dataService";
@@ -28,15 +26,11 @@ export function CreditCardStatementDetails({
 	statement,
 	isEmptyCycle = false,
 	ignoreBefore,
-	onSetIgnoreBefore,
-	cutoffPending,
 }: {
 	card: CreditCard;
 	statement: CreditCardStatement;
 	isEmptyCycle?: boolean;
 	ignoreBefore: string | null;
-	onSetIgnoreBefore: (date: string | null) => void;
-	cutoffPending: boolean;
 }) {
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
@@ -215,34 +209,6 @@ export function CreditCardStatementDetails({
 								</AppBadge>
 							</div>
 						</div>
-						{!isEmptyCycle && !statement.isForecast && (
-							<div>
-								<Tooltip>
-									<TooltipTrigger asChild>
-										<Button
-											aria-description="Compras e importações são preservadas."
-											className="cursor-pointer"
-											disabled={cutoffPending}
-											onClick={() =>
-												onSetIgnoreBefore(
-													ignoreBefore === statement.statementDate.slice(0, 10)
-														? null
-														: statement.statementDate.slice(0, 10),
-												)
-											}
-											size="sm"
-											variant="outline"
-										>
-											<LuHistory aria-hidden="true" />
-											{ignoreBefore === statement.statementDate.slice(0, 10)
-												? "Considerar anteriores"
-												: "Desconsiderar anteriores"}
-										</Button>
-									</TooltipTrigger>
-									<TooltipContent>Compras e importações são preservadas.</TooltipContent>
-								</Tooltip>
-							</div>
-						)}
 						<div>
 							<p className="text-muted-foreground text-xs">Valor da fatura</p>
 							<strong className="block text-2xl tabular-nums">{currency.format(invoiceAmount)}</strong>

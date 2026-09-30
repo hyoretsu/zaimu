@@ -3,6 +3,13 @@ export const dateKey = (value: FinancialDate) =>
 	typeof value === "string" ? value.slice(0, 10) : value.toISOString().slice(0, 10);
 export const toCents = (value: number | string) => Math.round(Number(value) * 100);
 
+/** Stored cutoff is exclusive; the selected invoice is included in the ignored history. */
+export function statementCutoffAfter(statementDate: FinancialDate) {
+	const next = new Date(`${dateKey(statementDate)}T12:00:00Z`);
+	next.setUTCDate(next.getUTCDate() + 1);
+	return dateKey(next);
+}
+
 export function currentDateKey() {
 	const now = new Date();
 	return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;

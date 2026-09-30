@@ -56,7 +56,7 @@ Uma compra no cartão pode ter uma taxa nomeada, como IOF. A taxa compõe o tota
 
 ## Pagamentos de cartão de crédito
 
-Cada cartão pode definir uma fatura como início do histórico considerado. Faturas anteriores permanecem disponíveis para consulta e importação, mas não afetam limite, pendências ou dashboard; saldo devedor e crédito anteriores não passam para a fatura escolhida. Parcelas que pertençam à fatura escolhida ou a ciclos posteriores continuam consideradas, mesmo quando a compra começou antes. A configuração é reversível e não registra pagamentos nem exclui compras.
+Cada cartão pode ter um ajuste que define a última fatura desconsiderada. A fatura escolhida e todas as anteriores permanecem disponíveis para consulta e importação, mas não afetam limite, pendências ou dashboard; saldo devedor e crédito anteriores não passam para o ciclo seguinte. Parcelas que pertençam a ciclos posteriores continuam consideradas, mesmo quando a compra começou antes. A configuração é reversível e não registra pagamentos nem exclui compras. Ajustes existentes preservam seus efeitos financeiros.
 
 Cada pagamento pertence ao cartão, sem associação a uma fatura a quitar. O lançamento aparece na primeira fatura cujo vencimento seja igual ou posterior à data do pagamento, inclusive no próprio dia do vencimento. Vencimentos registrados têm prioridade sobre o calendário configurado, usado para ciclos ausentes. Com fechamento em 15/08/2024 e vencimento em 25/08/2024, pagamento de 20/08 aparece em agosto; pagamento de 26/08 aparece em setembro. Cadastro posterior não muda a data financeira: pagamentos de 2024 permanecem nos ciclos de 2024.
 

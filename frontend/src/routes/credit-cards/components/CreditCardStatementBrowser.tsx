@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 import { LuReceiptText } from "react-icons/lu";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -8,33 +8,14 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import type { CreditCard } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { getLocalMonthKey } from "@/lib/date";
-import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
-import { showToast } from "@/stores";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { CreditCardStatementDetails } from "./CreditCardStatementDetails";
 import { CreditCardStatementTabs } from "./CreditCardStatementTabs";
 import { getFirstNonZeroStatementMonth, getStatementWindow } from "./credit-card-statement-window";
 
 export function CreditCardStatementBrowser({ card }: { card: CreditCard }) {
-	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
-	const [ignoreBefore, setIgnoreBefore] = useState(card.ignoreStatementsBefore?.slice(0, 10) ?? null);
-	const cutoff = useMutation({
-		mutationFn: (statementDate: string | null) =>
-			dataService.creditCards.setStatementCutoff(card.id, statementDate),
-		onError: error =>
-			showToast(
-				error instanceof Error ? error.message : "Não foi possível atualizar as faturas.",
-				"negative",
-			),
-		onSuccess: async (_, statementDate) => {
-			setIgnoreBefore(statementDate);
-			await invalidateCacheOperation(queryClient, identity!, "creditCard");
-			showToast(
-				statementDate ? "Faturas anteriores desconsideradas." : "Histórico de faturas restaurado.",
-				"positive",
-			);
-		},
-	});
+	const ignoreBefore = card.ignoreStatementsBefore?.slice(0, 10) ?? null;
 	const isDesktop = useMediaQuery("(min-width: 640px)");
 	const [desktopRadius, setDesktopRadius] = useState(6);
 	const radius = isDesktop ? desktopRadius : 3;
@@ -112,11 +93,9 @@ export function CreditCardStatementBrowser({ card }: { card: CreditCard }) {
 			/>
 			<CreditCardStatementDetails
 				card={card}
-				cutoffPending={cutoff.isPending}
 				ignoreBefore={ignoreBefore}
 				isEmptyCycle={selectedStatement.isEmptyCycle}
 				key={selectedStatement.id}
-				onSetIgnoreBefore={date => cutoff.mutate(date)}
 				statement={selectedStatement}
 			/>
 		</Tabs>
