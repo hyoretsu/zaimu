@@ -113,6 +113,7 @@ export function RecurringListItem({
 					{item.endDate ? ` · até ${formatLocalDate(item.endDate)}` : ""}
 				</span>
 			}
+			showAccountBadge={Boolean(item.accountName)}
 			title={
 				<div className="flex min-w-0 flex-wrap items-center gap-2">
 					<p className="w-fit max-w-full shrink-0 truncate font-semibold leading-6">{item.title}</p>

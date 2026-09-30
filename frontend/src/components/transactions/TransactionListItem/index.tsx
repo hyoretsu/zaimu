@@ -23,6 +23,7 @@ export function TransactionListItem({
 	metadataPrefix,
 	onDelete,
 	onEdit,
+	showAccountBadge = true,
 	title,
 	transaction,
 }: {
@@ -36,6 +37,7 @@ export function TransactionListItem({
 	metadataPrefix?: ReactNode;
 	onDelete?: () => void;
 	onEdit?: () => void;
+	showAccountBadge?: boolean;
 	title?: ReactNode;
 	transaction: Transaction;
 }) {
@@ -166,7 +168,7 @@ export function TransactionListItem({
 				<div className="min-w-0 space-y-3">
 					{metadataPrefix ? <div>{metadataPrefix}</div> : null}
 					<TransactionBadges
-						accounts={accounts}
+						accounts={showAccountBadge ? accounts : []}
 						creditCardPayment={creditCardPayment}
 						debtPersonName={formatDebtSplitBadge(transaction.debtSplit, formatCurrency)}
 						isFullySynced={Boolean(transaction.isFullySynced && (transaction.installments ?? 0) > 1)}
