@@ -61,7 +61,7 @@ export function FinancialAccountCard({
 	const accountHasCustomTitle = Boolean(account.name?.trim() && listName !== typeLabel);
 	return (
 		<article className="group rounded-2xl border bg-card p-5 shadow-card transition hover:-translate-y-0.5 hover:border-primary/30">
-			<div className="flex items-start justify-between gap-4">
+			<div className="flex min-h-[54px] items-start justify-between gap-4">
 				<div className="flex min-w-0 flex-1 items-start gap-3">
 					<span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
 						<Icon className="size-5" />
