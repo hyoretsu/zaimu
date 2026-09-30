@@ -42,6 +42,35 @@ describe("due-date card ledger", () => {
 			carriedInAmount: 0,
 		});
 	});
+	test("keeps a fully paid invoice open until its closing date", () => {
+		const rows = [invoice("08", 100)];
+		const payments = [{ amount: 100, date: "2024-08-10" }];
+		expect(calculateStatementBalances(rows, payments, "2024-08-14")[0]).toMatchObject({
+			balanceAmount: 0,
+			isPaid: false,
+			paidAmount: 100,
+			status: "OPEN",
+		});
+		for (const asOf of ["2024-08-15", "2024-08-16"])
+			expect(calculateStatementBalances(rows, payments, asOf)[0]).toMatchObject({
+				balanceAmount: 0,
+				isPaid: true,
+				status: "PAID",
+			});
+	});
+	test("keeps credit-covered future invoices open and preserves excess credit", () => {
+		const rows = [invoice("08", 100), invoice("09", 80)];
+		const payments = [{ amount: 200, date: "2024-08-10" }];
+		expect(calculateStatementBalances(rows, payments, "2024-08-15")).toEqual([
+			expect.objectContaining({ balanceAmount: 0, isPaid: true, status: "PAID" }),
+			expect.objectContaining({ balanceAmount: -20, isPaid: false, status: "OPEN" }),
+		]);
+		expect(calculateStatementBalances(rows, payments, "2024-09-15")[1]).toMatchObject({
+			balanceAmount: -20,
+			isPaid: true,
+			status: "PAID",
+		});
+	});
 	test("selects the due date inclusively rather than the purchase closing cycle", () => {
 		expect(paymentStatementDates(calendar, "2024-08-20")).toEqual({
 			dueDate: "2024-08-25",

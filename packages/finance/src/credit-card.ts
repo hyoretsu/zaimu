@@ -154,7 +154,9 @@ export function calculateStatementBalances<T extends StatementInput>(
 		const transferred = remaining > 0 && dateKey(statement.dueDate) < dateKey(asOf) && hasNext;
 		const status: StatementStatus = transferred
 			? "CARRIED"
-			: remaining <= 0 && (amountDue !== 0 || incomingCredit > 0 || periodPayment > 0)
+			: dateKey(statement.statementDate) <= dateKey(asOf) &&
+					remaining <= 0 &&
+					(amountDue !== 0 || incomingCredit > 0 || periodPayment > 0)
 				? "PAID"
 				: "OPEN";
 		balances.set(statement.id, {

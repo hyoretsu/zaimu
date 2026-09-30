@@ -52,14 +52,14 @@ describe("applyStatementCredits", () => {
 		]);
 	});
 
-	test("marks fully paid statements immediately and advances excess credit", () => {
+	test("keeps paid balances open before closing and advances excess credit", () => {
 		const result = applyStatementCredits([
 			statement("current", "2026-09-04", 100, 150),
 			statement("next", "2026-10-04", 80, 0),
 		]);
 
 		expect(result).toEqual([
-			expect.objectContaining({ balanceAmount: 0, id: "current", isPaid: true }),
+			expect.objectContaining({ balanceAmount: 0, id: "current", isPaid: false }),
 			expect.objectContaining({ balanceAmount: 30, id: "next", isPaid: false }),
 		]);
 	});
@@ -92,9 +92,9 @@ describe("applyStatementCredits", () => {
 		]);
 
 		expect(result).toEqual([
-			expect.objectContaining({ balanceAmount: 0, id: "september", isPaid: true }),
-			expect.objectContaining({ balanceAmount: 0, id: "october", isPaid: true }),
-			expect.objectContaining({ balanceAmount: -2391.84, id: "november", isPaid: true }),
+			expect.objectContaining({ balanceAmount: 0, id: "september", isPaid: false }),
+			expect.objectContaining({ balanceAmount: 0, id: "october", isPaid: false }),
+			expect.objectContaining({ balanceAmount: -2391.84, id: "november", isPaid: false }),
 		]);
 	});
 });
