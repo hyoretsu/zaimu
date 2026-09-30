@@ -691,19 +691,20 @@ export const dataService = {
 			);
 		},
 		async getPage(
-			financialAccountId: string,
+			financialAccountId?: string,
 			cursor?: null | string,
 			limit = 100,
 		): Promise<FinancialAccountYieldPage> {
 			if (!isGuestMode()) {
-				const params = new URLSearchParams({ financialAccountId, limit: String(limit) });
+				const params = new URLSearchParams({ limit: String(limit) });
+				if (financialAccountId) params.set("financialAccountId", financialAccountId);
 				if (cursor) params.set("cursor", cursor);
 				return fetchWithAuth<FinancialAccountYieldPage>(`/financial-account-yields?${params}`);
 			}
 			const yields =
 				((await localMeta.get("financial-account-yields")) as FinancialAccountYield[] | null) ?? [];
 			const sorted = yields
-				.filter(yieldEntry => yieldEntry.financialAccountId === financialAccountId)
+				.filter(yieldEntry => !financialAccountId || yieldEntry.financialAccountId === financialAccountId)
 				.toSorted(
 					(left, right) =>
 						right.date.localeCompare(left.date) ||

@@ -87,9 +87,11 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 		"/",
 		async ({ query, request, set, status }) => {
 			const userId = await requireUserId(request);
-			await assertYieldAccount(query.financialAccountId, userId);
+			if (query.financialAccountId) await assertYieldAccount(query.financialAccountId, userId);
 			const limit = Math.min(query.limit ?? 100, 100);
-			const filterHash = paginationFilterHash(userId, { financialAccountId: query.financialAccountId });
+			const filterHash = paginationFilterHash(userId, {
+				financialAccountId: query.financialAccountId ?? null,
+			});
 			const cursor = decodePaginationCursor(query.cursor, filterHash, isYieldCursorValue);
 			const cached = await distributedCache.remember(
 				userId,
@@ -107,15 +109,20 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 						origin: string;
 						time: null | string;
 					}>(
-						`SELECT "id", "financialAccountId", "date", "amount", "kind", "isExcluded", "isHidden", "origin", "time"
-						 FROM "public"."FinancialAccountYield"
-						 WHERE "financialAccountId" = $1
-						 ${cursor ? 'AND ("date", "kind"::text, "id") < ($2::date, $3::text, $4)' : ""}
-						 ORDER BY "date" DESC, "kind"::text DESC, "id" DESC
-						 LIMIT $${cursor ? 5 : 2}`,
-						cursor
-							? [query.financialAccountId, cursor.date, cursor.kind, cursor.id, limit + 1]
-							: [query.financialAccountId, limit + 1],
+						`SELECT entry."id", entry."financialAccountId", entry."date", entry."amount", entry."kind", entry."isExcluded", entry."isHidden", entry."origin", entry."time"
+						 FROM "public"."FinancialAccountYield" entry
+						 JOIN "public"."FinancialAccount" account ON account."id" = entry."financialAccountId"
+						 WHERE account."userId" = $1
+						 ${query.financialAccountId ? 'AND entry."financialAccountId" = $2' : ""}
+						 ${cursor ? `AND (entry."date", entry."kind"::text, entry."id") < ($${query.financialAccountId ? 3 : 2}::date, $${query.financialAccountId ? 4 : 3}::text, $${query.financialAccountId ? 5 : 4})` : ""}
+						 ORDER BY entry."date" DESC, entry."kind"::text DESC, entry."id" DESC
+						 LIMIT $${(query.financialAccountId ? 2 : 1) + (cursor ? 3 : 0) + 1}`,
+						[
+							userId,
+							...(query.financialAccountId ? [query.financialAccountId] : []),
+							...(cursor ? [cursor.date, cursor.kind, cursor.id] : []),
+							limit + 1,
+						],
 					);
 
 					const hasMore = yields.length > limit;
@@ -145,7 +152,7 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 			detail: { tags: ["Accounts"] },
 			query: t.Object({
 				cursor: t.Optional(t.String()),
-				financialAccountId: Id,
+				financialAccountId: t.Optional(Id),
 				limit: t.Optional(t.Integer({ maximum: 100, minimum: 1 })),
 			}),
 			response: { 200: YieldPageReturn, 304: t.Null() },

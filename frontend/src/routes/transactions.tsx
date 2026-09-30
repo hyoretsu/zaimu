@@ -27,7 +27,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
-import type { Transaction } from "@/lib/api";
+import type { FinancialAccountYield, Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate, formatLocalTime, getLocalDateKey } from "@/lib/date";
 import {
@@ -133,36 +133,39 @@ export function TransactionsPage() {
 			),
 		queryKey: queryKeys.transactions.list(identity!, toTransactionQueryFilters(filters)),
 	});
+	const yieldsMatchFilters =
+		(filters.type === "all" || filters.type === "INCOME") &&
+		filters.source !== "CREDIT_CARD" &&
+		filters.categoryId === "all" &&
+		(!filters.search || "rendimento".includes(filters.search.trim().toLocaleLowerCase("pt-BR")));
 	const yieldsQuery = useQuery({
-		enabled: identity !== null,
+		enabled: identity !== null && yieldsMatchFilters,
 		queryFn: async () => {
 			const [accounts, transactions, holidays] = await Promise.all([
 				dataService.accounts.getAll(),
 				dataService.transactions.getAll(),
 				dataService.accountYieldHolidays.getAll(),
 			]);
-			const entries = (
-				await Promise.all(
-					accounts
-						.filter(account => account.type !== "CREDIT_CARD")
-						.map(async account => {
-							const items = [];
-							let cursor: string | null = null;
-							do {
-								const page = await dataService.accountYields.getPage(account.id, cursor);
-								items.push(...page.items);
-								cursor = page.nextCursor;
-							} while (cursor);
-							return calculateFinancialAccountYieldEntries(
-								account,
-								transactions.filter(transaction => transaction.source !== "CREDIT_CARD"),
-								holidays.map(holiday => holiday.date),
-								undefined,
-								items,
-							);
-						}),
-				)
-			).flat();
+			const yields: FinancialAccountYield[] = [];
+			let cursor: string | null = null;
+			do {
+				const page = await dataService.accountYields.getPage(undefined, cursor);
+				yields.push(...page.items);
+				cursor = page.nextCursor;
+			} while (cursor);
+			const accountTransactions = transactions.filter(transaction => transaction.source !== "CREDIT_CARD");
+			const holidayDates = holidays.map(holiday => holiday.date);
+			const entries = accounts
+				.filter(account => account.type !== "CREDIT_CARD")
+				.flatMap(account =>
+					calculateFinancialAccountYieldEntries(
+						account,
+						accountTransactions,
+						holidayDates,
+						undefined,
+						yields.filter(yieldEntry => yieldEntry.financialAccountId === account.id),
+					),
+				);
 			return {
 				accountNames: new Map(accounts.map(account => [account.id, getFinancialAccountOptionLabel(account)])),
 				entries,
@@ -170,11 +173,6 @@ export function TransactionsPage() {
 		},
 		queryKey: [...queryKeys.accountYields.all(identity!), "transaction-list"],
 	});
-	const yieldsMatchFilters =
-		(filters.type === "all" || filters.type === "INCOME") &&
-		filters.source !== "CREDIT_CARD" &&
-		filters.categoryId === "all" &&
-		(!filters.search || "rendimento".includes(filters.search.trim().toLocaleLowerCase("pt-BR")));
 	const yieldEntries = (yieldsQuery.data?.entries ?? []).filter(entry => {
 		if (filters.type !== "all" && filters.type !== "INCOME") return false;
 		if (filters.source === "CREDIT_CARD" || filters.categoryId !== "all") return false;
