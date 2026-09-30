@@ -151,7 +151,7 @@ export function AccountsPage() {
 				actions={
 					<div className="flex flex-wrap gap-2">
 						<Button
-							className="cursor-pointer"
+							className="h-11 cursor-pointer"
 							onClick={() => setIsBalanceAdjustmentsOpen(true)}
 							variant="outline"
 						>
