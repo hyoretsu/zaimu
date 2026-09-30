@@ -48,6 +48,7 @@ export function CreateFinancialAccountDialog({
 	contextual = false,
 	account,
 	defaultType,
+	cardOnly = false,
 	defaultInstitutionId,
 	institutions = [],
 	rewardAccounts = [],
@@ -62,6 +63,7 @@ export function CreateFinancialAccountDialog({
 	account?: FinancialAccount;
 	contextual?: boolean;
 	defaultType?: FinancialAccount["type"];
+	cardOnly?: boolean;
 	defaultInstitutionId?: string | null;
 	institutions?: FinancialInstitution[];
 	rewardAccounts?: FinancialAccount[];
@@ -360,11 +362,21 @@ export function CreateFinancialAccountDialog({
 				<ScrollArea className="max-h-[92dvh]">
 					<div className="grid gap-6 p-6">
 						<DialogHeader>
-							<DialogTitle>{account ? "Editar conta" : "Cadastrar conta"}</DialogTitle>
+							<DialogTitle>
+								{account
+									? cardOnly
+										? "Editar cartão"
+										: "Editar conta"
+									: cardOnly
+										? "Cadastrar cartão"
+										: "Cadastrar conta"}
+							</DialogTitle>
 							<DialogDescription>
 								{account
 									? "Atualize os dados desta conta."
-									: "Inclua conta bancária, dinheiro, investimento, cartão ou recompensas."}
+									: cardOnly
+										? "Configure os dados do cartão de crédito."
+										: "Inclua conta bancária, dinheiro, investimento ou recompensas."}
 							</DialogDescription>
 						</DialogHeader>
 						<form className="grid gap-5" onSubmit={handleSubmit}>
@@ -404,7 +416,7 @@ export function CreateFinancialAccountDialog({
 								label="Nome da conta (opcional)"
 								name="account-name"
 								onChange={event => setName(event.currentTarget.value)}
-								placeholder="Ex: Principal ou Cartão Gold"
+								placeholder={cardOnly ? "Ex: Cartão Gold" : "Ex: Conta principal"}
 								type="text"
 								value={name}
 							/>
@@ -419,7 +431,11 @@ export function CreateFinancialAccountDialog({
 								<CustomSelect
 									label="Tipo"
 									onValueChange={value => setType(value as FinancialAccount["type"])}
-									options={types}
+									options={
+										cardOnly
+											? types.filter(item => item.value === "CREDIT_CARD")
+											: types.filter(item => item.value !== "CREDIT_CARD")
+									}
 									placeholder="Selecione o tipo"
 									required
 									value={type}

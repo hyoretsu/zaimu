@@ -14,11 +14,13 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
+import { getFinancialInstitutions } from "@/lib/financial-institution";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast, useAuthStore } from "@/stores";
 import { CreateFinancialAccountDialog } from "./accounts/components";
 import {
 	CreatePurchaseDialog,
+	CreditCardManagementActions,
 	CreditCardOverviewCard,
 	CreditCardStatementsDialog,
 } from "./credit-cards/components";
@@ -40,6 +42,13 @@ export function CreditCardsPage() {
 		queryKey: queryKeys.creditCards.list(identity!),
 		retry: 0,
 	});
+	const accounts = useQuery({
+		enabled: hasAccess,
+		queryFn: () => dataService.accounts.getAll(),
+		queryKey: queryKeys.accounts.list(identity!),
+	});
+	const institutions = getFinancialInstitutions(accounts.data ?? []);
+	const rewardAccounts = accounts.data?.filter(account => account.type === "REWARDS") ?? [];
 	const purchase = useMutation({
 		mutationFn: ({
 			cardId,
@@ -61,6 +70,23 @@ export function CreditCardsPage() {
 		onSuccess: async () => {
 			await invalidateCacheOperation(queryClient, identity!, "creditCard");
 			showToast("Cartão cadastrado.", "positive");
+		},
+	});
+	const updateCard = useMutation({
+		mutationFn: ({ data, id }: { id: string; data: Parameters<typeof dataService.accounts.update>[1] }) =>
+			dataService.accounts.update(id, data),
+		onError: error => showToast(error.message, "negative"),
+		onSuccess: async () => {
+			await invalidateCacheOperation(queryClient, identity!, "creditCard");
+			showToast("Cartão atualizado.", "positive");
+		},
+	});
+	const deleteCard = useMutation({
+		mutationFn: dataService.accounts.delete,
+		onError: error => showToast(error.message, "negative"),
+		onSuccess: async () => {
+			await invalidateCacheOperation(queryClient, identity!, "creditCard");
+			showToast("Cartão excluído.", "positive");
 		},
 	});
 	const totalLimit =
@@ -143,6 +169,17 @@ export function CreditCardsPage() {
 						<CreditCardOverviewCard
 							card={card}
 							key={card.id}
+							managementActions={
+								<CreditCardManagementActions
+									account={accounts.data?.find(item => item.id === card.financialAccountId)}
+									accountsPending={accounts.isPending}
+									card={card}
+									institutions={institutions}
+									onDelete={id => deleteCard.mutateAsync(id)}
+									onUpdate={(id, data) => updateCard.mutateAsync({ data, id })}
+									rewardAccounts={rewardAccounts}
+								/>
+							}
 							onAddPurchase={() => setSelectedCardId(card.id)}
 							onViewStatements={() => setStatementsCardId(card.id)}
 						/>
@@ -179,11 +216,14 @@ export function CreditCardsPage() {
 				onOpenChange={open => !open && setStatementsCardId(null)}
 			/>
 			<CreateFinancialAccountDialog
+				cardOnly
 				defaultType="CREDIT_CARD"
+				institutions={institutions}
 				onCreate={data => createCard.mutateAsync(data)}
 				onOpenChange={setIsCreateCardOpen}
 				open={isCreateCardOpen}
 				pending={createCard.isPending}
+				rewardAccounts={rewardAccounts}
 				showTrigger={false}
 			/>
 			<ImportCreditCardStatementDialog

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { LuCalendarClock, LuPlus, LuReceiptText, LuWalletCards } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import { Progress } from "@/components/ui/Progress";
@@ -12,10 +13,12 @@ export function CreditCardOverviewCard({
 	card,
 	onAddPurchase,
 	onViewStatements,
+	managementActions,
 }: {
 	card: CreditCard;
 	onAddPurchase: () => void;
 	onViewStatements: () => void;
+	managementActions?: ReactNode;
 }) {
 	const statement = card.currentStatement;
 	const currentBill = Math.max(0, statement?.balanceAmount ?? 0);
@@ -47,6 +50,7 @@ export function CreditCardOverviewCard({
 						)}
 					</div>
 				</div>
+				{managementActions && <div className="relative mt-4 flex justify-end gap-2">{managementActions}</div>}
 			</div>
 			<div className="flex flex-1 flex-col gap-5 p-5">
 				<PendingRefundReviews cardId={card.id} />

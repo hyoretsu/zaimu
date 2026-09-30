@@ -1,4 +1,5 @@
 export * from "./CreatePurchaseDialog";
+export * from "./CreditCardManagementActions";
 export * from "./CreditCardOverviewCard";
 export * from "./CreditCardStatementsDialog";
 export * from "./CreditPurchaseRefundSummary";

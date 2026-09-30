@@ -107,23 +107,29 @@ export function AccountsPage() {
 		accounts.data
 			?.filter(account => account.type !== "CREDIT_CARD")
 			.reduce((sum, account) => sum + getFinancialAccountCurrencyValue(account), 0) ?? 0;
-	const rewardAccounts = accounts.data?.filter(account => account.type === "REWARDS") ?? [];
+	const visibleAccounts = useMemo(
+		() => accounts.data?.filter(account => account.type !== "CREDIT_CARD") ?? [],
+		[accounts.data],
+	);
+	const rewardAccounts = visibleAccounts.filter(account => account.type === "REWARDS");
 	const organization = useMemo(() => {
-		const allAccounts = accounts.data ?? [];
-		const institutions = getFinancialInstitutions(allAccounts);
+		const allAccounts = visibleAccounts;
+		const institutions = getFinancialInstitutions(accounts.data ?? []);
 		const groups: Array<{ accounts: FinancialAccount[]; institution: FinancialInstitution | null }> =
-			institutions.map(institution => ({
-				accounts: allAccounts
-					.filter(account => account.institutionId === institution.id)
-					.toSorted(compareFinancialAccountsByTitle),
-				institution,
-			}));
+			institutions
+				.map(institution => ({
+					accounts: allAccounts
+						.filter(account => account.institutionId === institution.id)
+						.toSorted(compareFinancialAccountsByTitle),
+					institution,
+				}))
+				.filter(group => group.accounts.length > 0);
 		const unassigned = allAccounts
 			.filter(account => !account.institutionId)
 			.toSorted(compareFinancialAccountsByTitle);
 		if (unassigned.length) groups.push({ accounts: unassigned, institution: null });
 		return { groups, institutions };
-	}, [accounts.data]);
+	}, [accounts.data, visibleAccounts]);
 
 	return (
 		<PageContainer className="grid gap-8">
@@ -157,7 +163,7 @@ export function AccountsPage() {
 						/>
 					</div>
 				}
-				description="Organize bancos, dinheiro, investimentos e cartões sem misturar a tabela de autenticação."
+				description="Organize contas bancárias, dinheiro, investimentos e recompensas."
 				eyebrow="Patrimônio"
 				mobileActions={[
 					{ icon: LuScale, label: "Ajustes de saldo", onClick: () => setIsBalanceAdjustmentsOpen(true) },
@@ -173,7 +179,7 @@ export function AccountsPage() {
 				</div>
 				<div className="rounded-2xl border bg-brand-yellow p-5 text-brand-ink shadow-card">
 					<p className="text-brand-ink/65 text-sm">Contas cadastradas</p>
-					<p className="mt-2 font-bold text-3xl">{accounts.data?.length ?? 0}</p>
+					<p className="mt-2 font-bold text-3xl">{visibleAccounts.length}</p>
 				</div>
 			</section>
 			{accounts.isPending ? (
@@ -188,7 +194,7 @@ export function AccountsPage() {
 					icon={<LuLandmark className="size-6" />}
 					title="Não foi possível carregar suas contas"
 				/>
-			) : accounts.data?.length ? (
+			) : visibleAccounts.length ? (
 				<section className="grid gap-6">
 					{organization.groups.map(group => (
 						<FinancialInstitutionGroup
@@ -223,7 +229,7 @@ export function AccountsPage() {
 							pending={false}
 						/>
 					}
-					description="Comece com sua conta principal ou cadastre um cartão de crédito diretamente."
+					description="Comece cadastrando sua conta principal."
 					icon={<LuWalletCards className="size-7" />}
 					title="Nenhuma conta cadastrada"
 				/>
