@@ -7,6 +7,7 @@ WORKDIR /app
 COPY package.json bun.lock ./
 COPY backend/package.json backend/package.json
 COPY frontend/package.json frontend/package.json
+COPY packages/finance/package.json packages/finance/package.json
 COPY packages/sql/package.json packages/sql/package.json
 COPY patches patches
 
