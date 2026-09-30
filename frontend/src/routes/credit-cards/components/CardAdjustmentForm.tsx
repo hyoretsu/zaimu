@@ -98,6 +98,7 @@ export function CardAdjustmentForm({
 							placeholder={availableStatements.length ? "Selecione a fatura" : "Nenhuma fatura histórica"}
 							required
 							searchable
+							sortOptions={false}
 							value={chosenDate}
 						/>
 					) : null}
