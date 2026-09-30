@@ -16,9 +16,9 @@ const YieldKind = t.Union([t.Literal("AUTOMATIC"), t.Literal("MANUAL")]);
 const YieldTime = t.Union([t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d$" }), t.Null()]);
 const YieldCursorValue = t.Object({ date: t.String(), id: Id, kind: YieldKind });
 type YieldCursorValue = typeof YieldCursorValue.static;
-const YieldReturn = t.Object({
+export const YieldReturn = t.Object({
 	amount: t.Nullable(t.Number()),
-	date: t.Date(),
+	date: t.String({ format: "date-time" }),
 	financialAccountId: Id,
 	id: Id,
 	isExcluded: t.Boolean(),
@@ -62,7 +62,7 @@ async function assertYieldAccount(accountId: string, userId: string) {
 	if (account.type === "CREDIT_CARD") throw new HttpException("Cartão de crédito não possui rendimento", 400);
 }
 
-function serializeYield(yieldEntry: {
+export function serializeYield(yieldEntry: {
 	amount: null | number | string;
 	date: Date;
 	financialAccountId: string;
@@ -76,7 +76,9 @@ function serializeYield(yieldEntry: {
 	return {
 		...yieldEntry,
 		amount: yieldEntry.amount === null ? null : Number(yieldEntry.amount),
+		date: yieldEntry.date.toISOString(),
 		kind: yieldEntry.kind as "AUTOMATIC" | "MANUAL",
+		time: yieldEntry.time?.slice(0, 5) ?? null,
 	};
 }
 
@@ -134,7 +136,7 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 							hasMore && last
 								? encodePaginationCursor({
 										filterHash,
-										value: { date: last.date.toISOString(), id: last.id, kind: last.kind },
+										value: { date: last.date, id: last.id, kind: last.kind },
 									})
 								: null,
 					};
