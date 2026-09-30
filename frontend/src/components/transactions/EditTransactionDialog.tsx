@@ -259,7 +259,7 @@ export function EditTransactionDialog({
 							) : null}
 						</div>
 					) : null}
-					{primaryAccountOptions.length > 0 ? (
+					{accountsQuery.isPending || primaryAccountOptions.length > 0 ? (
 						<CustomSelect
 							disabled={accountsQuery.isPending || accountsQuery.isError}
 							label={draft.type === "INCOME" ? "Conta de destino" : "Conta de origem"}
@@ -291,7 +291,9 @@ export function EditTransactionDialog({
 						/>
 					) : null}
 					{draft.type === "TRANSFER" &&
-					(balanceDestinationAccounts.length > 0 || draft.destinationFinancialAccountId) ? (
+					(accountsQuery.isPending ||
+						balanceDestinationAccounts.length > 0 ||
+						draft.destinationFinancialAccountId) ? (
 						<CustomSelect
 							disabled={accountsQuery.isPending || accountsQuery.isError}
 							label="Conta de destino"

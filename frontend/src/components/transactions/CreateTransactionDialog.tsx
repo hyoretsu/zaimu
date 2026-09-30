@@ -276,65 +276,69 @@ export function CreateTransactionDialog({
 							) : null}
 						</div>
 					) : null}
-					{(account === undefined || draft.type === "TRANSFER") && primaryAccounts.length > 0 && (
-						<CustomSelect
-							label={
-								draft.type === "INCOME" || draft.type === "YIELD"
-									? "Conta de destino"
-									: draft.type === "TRANSFER"
-										? "Conta de origem"
-										: "Conta"
-							}
-							onValueChange={accountId =>
-								setDraft(current =>
-									current.type === "INCOME" || current.type === "YIELD"
-										? { ...current, destinationFinancialAccountId: accountId, originFinancialAccountId: "" }
-										: {
-												...current,
-												destinationFinancialAccountId:
-													current.type === "TRANSFER"
-														? account && accountId !== account.id
-															? account.id
-															: current.destinationFinancialAccountId === accountId
-																? ""
-																: current.destinationFinancialAccountId
-														: "",
-												originFinancialAccountId: accountId,
-											},
-								)
-							}
-							options={primaryAccounts.map(account => ({
-								label: getFinancialAccountOptionLabel(account),
-								value: account.id,
-							}))}
-							placeholder="Selecione a conta"
-							required
-							searchable
-							value={primaryAccountId}
-						/>
-					)}
-					{draft.type === "TRANSFER" && balanceDestinationAccounts.length > 0 && (
-						<CustomSelect
-							label="Conta de destino"
-							onValueChange={destinationFinancialAccountId =>
-								setDraft(current => ({
-									...current,
-									destinationFinancialAccountId,
-									originFinancialAccountId:
-										account && destinationFinancialAccountId !== account.id
-											? account.id
-											: current.originFinancialAccountId,
-								}))
-							}
-							options={balanceDestinationAccounts
-								.filter(account => account.id !== draft.originFinancialAccountId)
-								.map(account => ({ label: getFinancialAccountOptionLabel(account), value: account.id }))}
-							placeholder="Selecione o destino"
-							required
-							searchable
-							value={draft.destinationFinancialAccountId}
-						/>
-					)}
+					{(account === undefined || draft.type === "TRANSFER") &&
+						(accountsQuery.isPending || primaryAccounts.length > 0) && (
+							<CustomSelect
+								disabled={accountsQuery.isPending || accountsQuery.isError}
+								label={
+									draft.type === "INCOME" || draft.type === "YIELD"
+										? "Conta de destino"
+										: draft.type === "TRANSFER"
+											? "Conta de origem"
+											: "Conta"
+								}
+								onValueChange={accountId =>
+									setDraft(current =>
+										current.type === "INCOME" || current.type === "YIELD"
+											? { ...current, destinationFinancialAccountId: accountId, originFinancialAccountId: "" }
+											: {
+													...current,
+													destinationFinancialAccountId:
+														current.type === "TRANSFER"
+															? account && accountId !== account.id
+																? account.id
+																: current.destinationFinancialAccountId === accountId
+																	? ""
+																	: current.destinationFinancialAccountId
+															: "",
+													originFinancialAccountId: accountId,
+												},
+									)
+								}
+								options={primaryAccounts.map(account => ({
+									label: getFinancialAccountOptionLabel(account),
+									value: account.id,
+								}))}
+								placeholder="Selecione a conta"
+								required
+								searchable
+								value={primaryAccountId}
+							/>
+						)}
+					{draft.type === "TRANSFER" &&
+						(accountsQuery.isPending || balanceDestinationAccounts.length > 0) && (
+							<CustomSelect
+								disabled={accountsQuery.isPending || accountsQuery.isError}
+								label="Conta de destino"
+								onValueChange={destinationFinancialAccountId =>
+									setDraft(current => ({
+										...current,
+										destinationFinancialAccountId,
+										originFinancialAccountId:
+											account && destinationFinancialAccountId !== account.id
+												? account.id
+												: current.originFinancialAccountId,
+									}))
+								}
+								options={balanceDestinationAccounts
+									.filter(account => account.id !== draft.originFinancialAccountId)
+									.map(account => ({ label: getFinancialAccountOptionLabel(account), value: account.id }))}
+								placeholder="Selecione o destino"
+								required
+								searchable
+								value={draft.destinationFinancialAccountId}
+							/>
+						)}
 				</div>
 				<DialogFooter>
 					<Button className="cursor-pointer" onClick={() => handleOpenChange(false)} variant="outline">
