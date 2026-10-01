@@ -35,6 +35,8 @@ DO $$ BEGIN
  IF EXISTS (SELECT 1 FROM "Transaction" t LEFT JOIN "Recurrence" r ON r."id"=t."recurrenceId" WHERE t."recurrenceId" IS NOT NULL AND r."id" IS NULL) THEN RAISE EXCEPTION 'Unresolved recurrence transaction'; END IF;
  IF EXISTS (SELECT 1 FROM "CreditPurchaseRecord" p LEFT JOIN "Recurrence" r ON r."id"=p."subscriptionId" WHERE p."subscriptionId" IS NOT NULL AND r."id" IS NULL) THEN RAISE EXCEPTION 'Unresolved recurrence purchase'; END IF;
 END $$;
+-- Flush deferred FK checks from the backfill before creating triggers or altering tables.
+SET CONSTRAINTS ALL IMMEDIATE;
 -- Legacy rows remain read-only archives for verification and rollback. Runtime uses Recurrence only.
 CREATE FUNCTION "markDeletedRecurrenceTransaction"() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
  UPDATE "RecurrenceOccurrence" SET "deletedAt"=CURRENT_TIMESTAMP WHERE "transactionId"=OLD."id";

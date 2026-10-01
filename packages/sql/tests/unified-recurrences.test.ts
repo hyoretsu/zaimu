@@ -29,6 +29,7 @@ INSERT INTO "DebtSplit" ("id","userId","mode","subscriptionId") VALUES ('split',
 INSERT INTO "DebtSplitParticipant" ("id","debtSplitId","debtPersonId","shares","sortOrder") VALUES ('participant','split','person',1,0);
 INSERT INTO "TagAssignment" ("categoryId","entityId","entityType") VALUES ('tag','same','SUBSCRIPTION'),('tag','same','SALARY');
 INSERT INTO "SalaryHistory" ("id","salaryId","field","oldValue","newValue") VALUES ('history','same','amount','5','10');
+ALTER TABLE "CreditPurchaseRecord" ALTER CONSTRAINT "CreditPurchaseRecord_creditCardId_fkey" DEFERRABLE INITIALLY DEFERRED;
 `);
 			for (const operation of operations)
 				for (const statement of operation.execute)
