@@ -10,6 +10,9 @@ if (!/(performance|benchmark|test)/i.test(databaseName))
 	throw new Error("O nome do banco deve conter performance, benchmark ou test");
 
 process.env.DATABASE_URL = performanceDatabaseUrl;
+// Bulk fixture writes are larger than API requests; keep a finite, seed-only budget.
+process.env.DATABASE_QUERY_TIMEOUT_MS ??= "180000";
+process.env.DATABASE_STATEMENT_TIMEOUT_MS ??= "180000";
 
 const migration = Bun.spawnSync(["bun", "x", "--no-install", "prisma-cli", "migrate"], {
 	cwd: new URL("../../packages/sql", import.meta.url).pathname,
@@ -102,11 +105,11 @@ try {
 		await query(
 			`INSERT INTO "FinancialAccountYieldRateHistory"
 			 ("id", "financialAccountId", "effectiveDate", "yieldPeriod", "yieldReferenceType",
-			  "yieldReferenceRate", "yieldReferencePercentage", "yieldFixedRate", "yieldTaxRate")
+			  "yieldReferencePercentage", "yieldFixedRate", "yieldTaxRate")
 			 SELECT 'perf-rate-' || lpad(series::text, 4, '0'),
 			        'perf-account-main',
 			        (date_trunc('month', $1::date) - make_interval(months => series))::date,
-			        'MONTHLY', 'CDI', 0.9, 100, NULL, 22.5
+			        'MONTHLY', 'CDI', 100, NULL, 22.5
 			 FROM generate_series(0, 59) AS series`,
 			[anchorDate],
 		);
@@ -151,7 +154,7 @@ try {
 			          ELSE 'Pagamento mensal'
 			        END || ' ' || series,
 			        CASE WHEN series % 2 = 0 THEN 'Loja ' || (series % 200) ELSE NULL END,
-			        CASE WHEN series % 5 = 1 THEN 'INCOME' ELSE 'EXPENSE' END,
+			        (CASE WHEN series % 5 = 1 THEN 'INCOME' ELSE 'EXPENSE' END)::"TransactionType",
 			        'perf-category-' || ((series % 12) + 1),
 			        CASE WHEN series % 5 = 1 THEN NULL ELSE 'perf-account-main' END,
 			        CASE WHEN series % 5 = 1 THEN 'perf-account-main' ELSE NULL END,

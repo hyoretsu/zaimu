@@ -7,7 +7,7 @@ export interface PerformanceSample {
 export async function measureRequest(
 	url: URL,
 	cookie: string,
-	request: typeof fetch = fetch,
+	request: (input: URL, init: RequestInit) => Promise<Response> = fetch,
 ): Promise<PerformanceSample> {
 	const startedAt = performance.now();
 	const response = await request(url, { headers: { cookie } });

@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { measureRequest } from "./sample";
 
 test("request timing includes receiving the complete response body", async () => {
-	const request = (async () =>
+	const request = async () =>
 		new Response(
 			new ReadableStream({
 				async start(controller) {
@@ -12,7 +12,7 @@ test("request timing includes receiving the complete response body", async () =>
 				},
 			}),
 			{ headers: { "x-performance-query-count": "4", "x-performance-sql-duration-ms": "12.5" } },
-		)) as typeof fetch;
+		);
 	const result = await measureRequest(new URL("http://127.0.0.1/dashboard/"), "session=test", request);
 	expect(result.durationMs).toBeGreaterThanOrEqual(35);
 	expect(result.queryCount).toBe(4);
@@ -20,7 +20,7 @@ test("request timing includes receiving the complete response body", async () =>
 });
 
 test("missing SQL metrics cannot be mistaken for a zero-query cache hit", async () => {
-	const request = (async () => new Response("{}")) as typeof fetch;
+	const request = async () => new Response("{}");
 	const result = await measureRequest(new URL("http://127.0.0.1/dashboard/"), "session=test", request);
 	expect(result.queryCount).toBeNull();
 	expect(result.sqlDurationMs).toBeNull();
