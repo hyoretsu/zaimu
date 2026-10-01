@@ -62,7 +62,12 @@ export function validateRecurrenceSchedule(schedule: RecurrenceSchedule) {
 	)
 		throw new Error("Dia da semana inválido.");
 }
-export function recurrenceDates(schedule: RecurrenceSchedule, from: string, through: string): string[] {
+export function recurrenceDates(
+	schedule: RecurrenceSchedule,
+	from: string,
+	through: string,
+	maximum = Number.POSITIVE_INFINITY,
+): string[] {
 	validateRecurrenceSchedule(schedule);
 	const start = parseDate(schedule.startDate);
 	const lower = parseDate(from);
@@ -113,6 +118,7 @@ export function recurrenceDates(schedule: RecurrenceSchedule, from: string, thro
 		}
 		if (!Number.isFinite(occurrence.getTime()) || occurrence.getTime() > limit) break;
 		if (occurrence >= start && occurrence >= lower) dates.push(occurrence.toISOString().slice(0, 10));
+		if (dates.length >= maximum) break;
 		index++;
 	}
 	return dates;
@@ -160,4 +166,36 @@ export function recurrenceNeedsConfiguration(
 		case "CARD_PAYMENT":
 			return !recurrence.originFinancialAccountId || !recurrence.creditCardId;
 	}
+}
+
+export function nextRecurrenceDate(schedule: RecurrenceSchedule, from: string) {
+	return recurrenceDates(schedule, from, "9999-12-31", 1)[0];
+}
+
+/** Account effects of forecasts, including both sides of own-account transfers. */
+export function recurrenceAccountEffects(
+	recurrences: RecurrenceDefinition[],
+	from: string,
+	through: string,
+	processed: ReadonlySet<string> = new Set(),
+) {
+	const cents = new Map<string, number>();
+	const add = (id: string | null | undefined, amount: number) => {
+		if (id) cents.set(id, (cents.get(id) ?? 0) + amount);
+	};
+	for (const recurrence of recurrences) {
+		if (
+			!recurrence.isActive ||
+			recurrenceNeedsConfiguration(recurrence) ||
+			recurrence.movement === "CARD_PURCHASE"
+		)
+			continue;
+		for (const date of recurrenceDates(recurrence, from, through)) {
+			if (processed.has(`${recurrence.id}:${date}`)) continue;
+			const amount = Math.round(recurrence.amount * 100);
+			add(recurrence.originFinancialAccountId, -amount);
+			add(recurrence.destinationFinancialAccountId, amount);
+		}
+	}
+	return new Map([...cents].map(([id, amount]) => [id, amount / 100]));
 }

@@ -303,7 +303,7 @@ export async function saveCreditBook(
 		await assertTagOwnership([...p.tagIds, ...(p.categoryId ? [p.categoryId] : [])], book.card.userId);
 		for (const [table, id] of [
 			["FinancialAccount", p.cashbackAccountId],
-			["Subscription", p.subscriptionId],
+			["Recurrence", p.subscriptionId],
 		] as const) {
 			if (
 				id &&

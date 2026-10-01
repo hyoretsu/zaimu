@@ -1,0 +1,660 @@
+[
+	{
+		"execute": [
+			{
+				"description": "drop constraint \"CreditPurchaseRecord_subscriptionId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"CreditPurchaseRecord\" DROP CONSTRAINT \"CreditPurchaseRecord_subscriptionId_fkey\""
+			}
+		],
+		"id": "dropConstraint.CreditPurchaseRecord.CreditPurchaseRecord_subscriptionId_fkey",
+		"label": "Drop constraint \"CreditPurchaseRecord_subscriptionId_fkey\" on \"CreditPurchaseRecord\"",
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify constraint \"CreditPurchaseRecord_subscriptionId_fkey\" does not exist",
+				"params": [
+					"CreditPurchaseRecord_subscriptionId_fkey",
+					"public",
+					"\"public\".\"CreditPurchaseRecord\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure constraint \"CreditPurchaseRecord_subscriptionId_fkey\" exists",
+				"params": [
+					"CreditPurchaseRecord_subscriptionId_fkey",
+					"public",
+					"\"public\".\"CreditPurchaseRecord\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditPurchaseRecord_subscriptionId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "CreditPurchaseRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "drop constraint \"DebtSplit_recurringPaymentId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"DebtSplit\" DROP CONSTRAINT \"DebtSplit_recurringPaymentId_fkey\""
+			}
+		],
+		"id": "dropConstraint.DebtSplit.DebtSplit_recurringPaymentId_fkey",
+		"label": "Drop constraint \"DebtSplit_recurringPaymentId_fkey\" on \"DebtSplit\"",
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify constraint \"DebtSplit_recurringPaymentId_fkey\" does not exist",
+				"params": ["DebtSplit_recurringPaymentId_fkey", "public", "\"public\".\"DebtSplit\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure constraint \"DebtSplit_recurringPaymentId_fkey\" exists",
+				"params": ["DebtSplit_recurringPaymentId_fkey", "public", "\"public\".\"DebtSplit\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "DebtSplit_recurringPaymentId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "DebtSplit"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "drop constraint \"Transaction_recurrenceId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"Transaction\" DROP CONSTRAINT \"Transaction_recurrenceId_fkey\""
+			}
+		],
+		"id": "dropConstraint.Transaction.Transaction_recurrenceId_fkey",
+		"label": "Drop constraint \"Transaction_recurrenceId_fkey\" on \"Transaction\"",
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify constraint \"Transaction_recurrenceId_fkey\" does not exist",
+				"params": ["Transaction_recurrenceId_fkey", "public", "\"public\".\"Transaction\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure constraint \"Transaction_recurrenceId_fkey\" exists",
+				"params": ["Transaction_recurrenceId_fkey", "public", "\"public\".\"Transaction\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "Transaction_recurrenceId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "Transaction"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"Recurrence\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"Recurrence\" (\n  \"amount\" numeric(12,2) NOT NULL,\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"creditCardId\" character varying(36),\n  \"dayOfMonth\" int2,\n  \"dayOfWeek\" int2,\n  \"destinationFinancialAccountId\" character varying(36),\n  \"endDate\" date,\n  \"id\" character varying(36) DEFAULT (cuid2()) NOT NULL,\n  \"interval\" int4 DEFAULT 1 NOT NULL,\n  \"isActive\" bool DEFAULT true NOT NULL,\n  \"legacyId\" character varying(36),\n  \"legacySource\" character varying(20),\n  \"materializedThrough\" date DEFAULT ((CURRENT_DATE - 1)) NOT NULL,\n  \"movement\" character varying(20) NOT NULL,\n  \"name\" character varying(100) NOT NULL,\n  \"originFinancialAccountId\" character varying(36),\n  \"startDate\" date NOT NULL,\n  \"storeName\" character varying(200),\n  \"unit\" character varying(5) NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"userId\" character varying(36) NOT NULL,\n  CONSTRAINT \"Recurrence_pkey\" PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.Recurrence",
+		"label": "Create table \"Recurrence\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"Recurrence\" exists",
+				"params": ["\"public\".\"Recurrence\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"Recurrence\" does not exist",
+				"params": ["\"public\".\"Recurrence\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"Recurrence\"",
+		"target": {
+			"details": {
+				"name": "Recurrence",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"RecurrenceHistory\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"RecurrenceHistory\" (\n  \"changedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"field\" character varying(50) NOT NULL,\n  \"id\" character varying(36) DEFAULT (cuid2()) NOT NULL,\n  \"newValue\" text,\n  \"oldValue\" text,\n  \"recurrenceId\" character varying(36) NOT NULL,\n  CONSTRAINT \"RecurrenceHistory_pkey\" PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.RecurrenceHistory",
+		"label": "Create table \"RecurrenceHistory\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"RecurrenceHistory\" exists",
+				"params": ["\"public\".\"RecurrenceHistory\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"RecurrenceHistory\" does not exist",
+				"params": ["\"public\".\"RecurrenceHistory\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"RecurrenceHistory\"",
+		"target": {
+			"details": {
+				"name": "RecurrenceHistory",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"RecurrenceOccurrence\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"RecurrenceOccurrence\" (\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"date\" date NOT NULL,\n  \"deletedAt\" timestamp(3),\n  \"purchaseId\" character varying(36),\n  \"recurrenceId\" character varying(36) NOT NULL,\n  \"transactionId\" character varying(36),\n  CONSTRAINT \"RecurrenceOccurrence_pkey\" PRIMARY KEY (\"recurrenceId\", \"date\")\n)"
+			}
+		],
+		"id": "table.RecurrenceOccurrence",
+		"label": "Create table \"RecurrenceOccurrence\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"RecurrenceOccurrence\" exists",
+				"params": ["\"public\".\"RecurrenceOccurrence\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"RecurrenceOccurrence\" does not exist",
+				"params": ["\"public\".\"RecurrenceOccurrence\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"RecurrenceOccurrence\"",
+		"target": {
+			"details": {
+				"name": "RecurrenceOccurrence",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"Recurrence_legacy_key\"",
+				"params": [],
+				"sql": "CREATE UNIQUE INDEX \"Recurrence_legacy_key\" ON \"public\".\"Recurrence\" (\"legacySource\", \"legacyId\")"
+			}
+		],
+		"id": "index.Recurrence.Recurrence_legacy_key",
+		"label": "Create index \"Recurrence_legacy_key\" on \"Recurrence\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"Recurrence_legacy_key\" exists",
+				"params": ["\"public\".\"Recurrence_legacy_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"Recurrence_legacy_key\" does not exist",
+				"params": ["\"public\".\"Recurrence_legacy_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "Recurrence_legacy_key",
+				"objectType": "index",
+				"schema": "public",
+				"table": "Recurrence"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"Recurrence_user_active_name_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"Recurrence_user_active_name_idx\" ON \"public\".\"Recurrence\" (\"userId\", \"isActive\", \"name\", \"id\")"
+			}
+		],
+		"id": "index.Recurrence.Recurrence_user_active_name_idx",
+		"label": "Create index \"Recurrence_user_active_name_idx\" on \"Recurrence\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"Recurrence_user_active_name_idx\" exists",
+				"params": ["\"public\".\"Recurrence_user_active_name_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"Recurrence_user_active_name_idx\" does not exist",
+				"params": ["\"public\".\"Recurrence_user_active_name_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "Recurrence_user_active_name_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "Recurrence"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"RecurrenceHistory_recurrence_date_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"RecurrenceHistory_recurrence_date_idx\" ON \"public\".\"RecurrenceHistory\" (\"recurrenceId\", \"changedAt\", \"id\")"
+			}
+		],
+		"id": "index.RecurrenceHistory.RecurrenceHistory_recurrence_date_idx",
+		"label": "Create index \"RecurrenceHistory_recurrence_date_idx\" on \"RecurrenceHistory\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"RecurrenceHistory_recurrence_date_idx\" exists",
+				"params": ["\"public\".\"RecurrenceHistory_recurrence_date_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"RecurrenceHistory_recurrence_date_idx\" does not exist",
+				"params": ["\"public\".\"RecurrenceHistory_recurrence_date_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "RecurrenceHistory_recurrence_date_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "RecurrenceHistory"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "recurrence.backfill",
+				"sql": "LOCK TABLE \"Salary\", \"Subscription\", \"RecurringPayment\", \"Transaction\", \"CreditPurchaseRecord\", \"DebtSplit\", \"TagAssignment\" IN SHARE ROW EXCLUSIVE MODE;\nINSERT INTO \"Recurrence\" (\"id\",\"userId\",\"name\",\"amount\",\"movement\",\"unit\",\"interval\",\"dayOfMonth\",\"dayOfWeek\",\"startDate\",\"endDate\",\"originFinancialAccountId\",\"destinationFinancialAccountId\",\"creditCardId\",\"storeName\",\"isActive\",\"materializedThrough\",\"legacySource\",\"legacyId\",\"createdAt\",\"updatedAt\")\nSELECT p.\"id\",p.\"userId\",p.\"name\",p.\"amount\",CASE WHEN p.\"paymentMethod\"='CREDIT' THEN 'CARD_PURCHASE' ELSE 'EXPENSE' END,\nCASE p.\"frequency\" WHEN 'DAILY' THEN 'DAY' WHEN 'WEEKLY' THEN 'WEEK' WHEN 'BIWEEKLY' THEN 'WEEK' WHEN 'YEARLY' THEN 'YEAR' ELSE 'MONTH' END,\nCASE WHEN p.\"frequency\"='BIWEEKLY' THEN 2 ELSE 1 END,p.\"dayOfMonth\",p.\"dayOfWeek\",p.\"startDate\",p.\"endDate\",\nCASE WHEN p.\"paymentMethod\"='CREDIT' THEN NULL ELSE p.\"financialAccountId\" END,NULL,c.\"id\",p.\"storeName\",p.\"isActive\",CURRENT_DATE-1,'recurring',p.\"id\",p.\"createdAt\",p.\"updatedAt\"\nFROM \"RecurringPayment\" p LEFT JOIN \"CreditCard\" c ON c.\"financialAccountId\"=p.\"financialAccountId\" AND p.\"paymentMethod\"='CREDIT';\nINSERT INTO \"Recurrence\" (\"id\",\"userId\",\"name\",\"amount\",\"movement\",\"unit\",\"interval\",\"dayOfMonth\",\"dayOfWeek\",\"startDate\",\"endDate\",\"originFinancialAccountId\",\"destinationFinancialAccountId\",\"creditCardId\",\"storeName\",\"isActive\",\"materializedThrough\",\"legacySource\",\"legacyId\",\"createdAt\",\"updatedAt\")\nSELECT CASE WHEN EXISTS (SELECT 1 FROM \"Recurrence\" r WHERE r.\"id\"=s.\"id\") THEN md5('subscription:'||s.\"id\") ELSE s.\"id\" END,s.\"userId\",s.\"name\",s.\"amount\",CASE WHEN s.\"paymentMethod\"='CREDIT' THEN 'CARD_PURCHASE' ELSE 'EXPENSE' END,\nCASE s.\"frequency\" WHEN 'DAILY' THEN 'DAY' WHEN 'WEEKLY' THEN 'WEEK' WHEN 'BIWEEKLY' THEN 'WEEK' WHEN 'YEARLY' THEN 'YEAR' ELSE 'MONTH' END,\nCASE WHEN s.\"frequency\"='BIWEEKLY' THEN 2 ELSE 1 END,s.\"billingDay\",s.\"dayOfWeek\",s.\"startDate\",s.\"endDate\",\nCASE WHEN s.\"paymentMethod\"='CREDIT' THEN NULL ELSE s.\"financialAccountId\" END,NULL,c.\"id\",s.\"storeName\",s.\"isActive\",s.\"materializedThrough\",'subscription',s.\"id\",s.\"createdAt\",s.\"updatedAt\"\nFROM \"Subscription\" s LEFT JOIN \"CreditCard\" c ON c.\"financialAccountId\"=s.\"financialAccountId\" AND s.\"paymentMethod\"='CREDIT';\nINSERT INTO \"Recurrence\" (\"id\",\"userId\",\"name\",\"amount\",\"movement\",\"unit\",\"interval\",\"dayOfMonth\",\"dayOfWeek\",\"startDate\",\"endDate\",\"destinationFinancialAccountId\",\"isActive\",\"materializedThrough\",\"legacySource\",\"legacyId\",\"createdAt\",\"updatedAt\")\nSELECT CASE WHEN EXISTS (SELECT 1 FROM \"Recurrence\" r WHERE r.\"id\"=s.\"id\") THEN md5('salary:'||s.\"id\") ELSE s.\"id\" END,s.\"userId\",s.\"source\",s.\"amount\",'INCOME',\nCASE s.\"frequency\" WHEN 'DAILY' THEN 'DAY' WHEN 'WEEKLY' THEN 'WEEK' WHEN 'BIWEEKLY' THEN 'WEEK' WHEN 'YEARLY' THEN 'YEAR' ELSE 'MONTH' END,\nCASE WHEN s.\"frequency\"='BIWEEKLY' THEN 2 ELSE 1 END,s.\"payDay\",s.\"dayOfWeek\",s.\"startDate\",s.\"endDate\",s.\"financialAccountId\",s.\"isActive\",s.\"materializedThrough\",'salary',s.\"id\",s.\"createdAt\",s.\"updatedAt\" FROM \"Salary\" s;\nUPDATE \"Transaction\" t SET \"recurrenceId\"=r.\"id\" FROM \"Recurrence\" r WHERE r.\"legacySource\"='recurring' AND r.\"legacyId\"=t.\"recurrenceId\";\nUPDATE \"Transaction\" t SET \"recurrenceId\"=r.\"id\",\"recurrenceOccurrenceDate\"=COALESCE(t.\"salaryOccurrenceDate\",t.\"date\"),\"salaryId\"=NULL,\"salaryOccurrenceDate\"=NULL FROM \"Recurrence\" r WHERE r.\"legacySource\"='salary' AND r.\"legacyId\"=t.\"salaryId\";\nUPDATE \"Transaction\" t SET \"recurrenceId\"=r.\"id\",\"recurrenceOccurrenceDate\"=COALESCE(t.\"subscriptionOccurrenceDate\",t.\"date\"),\"subscriptionId\"=NULL,\"subscriptionOccurrenceDate\"=NULL FROM \"Recurrence\" r WHERE r.\"legacySource\"='subscription' AND r.\"legacyId\"=t.\"subscriptionId\";\nUPDATE \"Transaction\" SET \"recurrenceOccurrenceDate\"=\"date\" WHERE \"recurrenceId\" IS NOT NULL AND \"recurrenceOccurrenceDate\" IS NULL;\nUPDATE \"CreditPurchaseRecord\" p SET \"subscriptionId\"=r.\"id\" FROM \"Recurrence\" r WHERE r.\"legacySource\"='subscription' AND r.\"legacyId\"=p.\"subscriptionId\";\nUPDATE \"DebtSplit\" s SET \"recurringPaymentId\"=r.\"id\" FROM \"Recurrence\" r WHERE r.\"legacySource\"='recurring' AND r.\"legacyId\"=s.\"recurringPaymentId\";\nUPDATE \"DebtSplit\" s SET \"recurringPaymentId\"=r.\"id\",\"subscriptionId\"=NULL FROM \"Recurrence\" r WHERE r.\"legacySource\"='subscription' AND r.\"legacyId\"=s.\"subscriptionId\";\nUPDATE \"TagAssignment\" a SET \"entityId\"=r.\"id\",\"entityType\"='RECURRENCE' FROM \"Recurrence\" r WHERE r.\"legacyId\"=a.\"entityId\" AND ((r.\"legacySource\"='salary' AND a.\"entityType\"='SALARY') OR (r.\"legacySource\"='subscription' AND a.\"entityType\"='SUBSCRIPTION') OR (r.\"legacySource\"='recurring' AND a.\"entityType\"='RECURRING_PAYMENT'));\nINSERT INTO \"RecurrenceHistory\" (\"id\",\"recurrenceId\",\"field\",\"oldValue\",\"newValue\",\"changedAt\")\nSELECT md5('recurring:'||h.\"id\"),r.\"id\",h.\"field\",h.\"oldValue\",h.\"newValue\",h.\"changedAt\" FROM \"RecurringPaymentHistory\" h JOIN \"Recurrence\" r ON r.\"legacySource\"='recurring' AND r.\"legacyId\"=h.\"recurringPaymentId\"\nUNION ALL SELECT md5('salary:'||h.\"id\"),r.\"id\",h.\"field\",h.\"oldValue\",h.\"newValue\",h.\"changedAt\" FROM \"SalaryHistory\" h JOIN \"Recurrence\" r ON r.\"legacySource\"='salary' AND r.\"legacyId\"=h.\"salaryId\"\nUNION ALL SELECT md5('subscription:'||h.\"id\"),r.\"id\",h.\"field\",h.\"oldValue\",h.\"newValue\",h.\"changedAt\" FROM \"SubscriptionHistory\" h JOIN \"Recurrence\" r ON r.\"legacySource\"='subscription' AND r.\"legacyId\"=h.\"subscriptionId\";\nINSERT INTO \"RecurrenceOccurrence\" (\"recurrenceId\",\"date\",\"transactionId\") SELECT \"recurrenceId\",\"recurrenceOccurrenceDate\",\"id\" FROM \"Transaction\" WHERE \"recurrenceId\" IS NOT NULL;\nINSERT INTO \"RecurrenceOccurrence\" (\"recurrenceId\",\"date\",\"purchaseId\") SELECT \"subscriptionId\",COALESCE(\"subscriptionOccurrenceDate\",\"purchaseDate\"),\"id\" FROM \"CreditPurchaseRecord\" WHERE \"subscriptionId\" IS NOT NULL\nON CONFLICT (\"recurrenceId\",\"date\") DO UPDATE SET \"purchaseId\"=EXCLUDED.\"purchaseId\";\nDO $$ BEGIN\n IF (SELECT count(*) FROM \"Recurrence\") <> (SELECT count(*) FROM \"RecurringPayment\")+(SELECT count(*) FROM \"Salary\")+(SELECT count(*) FROM \"Subscription\") THEN RAISE EXCEPTION 'Recurrence migration count mismatch'; END IF;\n IF EXISTS (SELECT 1 FROM \"Transaction\" t LEFT JOIN \"Recurrence\" r ON r.\"id\"=t.\"recurrenceId\" WHERE t.\"recurrenceId\" IS NOT NULL AND r.\"id\" IS NULL) THEN RAISE EXCEPTION 'Unresolved recurrence transaction'; END IF;\n IF EXISTS (SELECT 1 FROM \"CreditPurchaseRecord\" p LEFT JOIN \"Recurrence\" r ON r.\"id\"=p.\"subscriptionId\" WHERE p.\"subscriptionId\" IS NOT NULL AND r.\"id\" IS NULL) THEN RAISE EXCEPTION 'Unresolved recurrence purchase'; END IF;\nEND $$;\n-- Legacy rows remain read-only archives for verification and rollback. Runtime uses Recurrence only.\nCREATE FUNCTION \"markDeletedRecurrenceTransaction\"() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN\n UPDATE \"RecurrenceOccurrence\" SET \"deletedAt\"=CURRENT_TIMESTAMP WHERE \"transactionId\"=OLD.\"id\";\n RETURN OLD;\nEND $$;\nCREATE TRIGGER \"RecurrenceTransactionDeleted\" BEFORE DELETE ON \"Transaction\" FOR EACH ROW EXECUTE FUNCTION \"markDeletedRecurrenceTransaction\"();\nCREATE FUNCTION \"markDeletedRecurrencePurchase\"() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN\n UPDATE \"RecurrenceOccurrence\" SET \"deletedAt\"=CURRENT_TIMESTAMP WHERE \"purchaseId\"=OLD.\"id\";\n RETURN OLD;\nEND $$;\nCREATE TRIGGER \"RecurrencePurchaseDeleted\" BEFORE DELETE ON \"CreditPurchaseRecord\" FOR EACH ROW EXECUTE FUNCTION \"markDeletedRecurrencePurchase\"();\n"
+			}
+		],
+		"id": "recurrence.backfill",
+		"label": "Convert legacy schedules and preserve occurrence identities",
+		"operationClass": "data",
+		"postcheck": [],
+		"precheck": [],
+		"target": {
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"Recurrence_userId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"Recurrence\"\nADD CONSTRAINT \"Recurrence_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"user\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.Recurrence.Recurrence_userId_fkey",
+		"label": "Add foreign key \"Recurrence_userId_fkey\" on \"Recurrence\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"Recurrence_userId_fkey\" exists",
+				"params": ["Recurrence_userId_fkey", "public", "\"public\".\"Recurrence\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"Recurrence_userId_fkey\" does not exist",
+				"params": ["Recurrence_userId_fkey", "public", "\"public\".\"Recurrence\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "Recurrence_userId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "Recurrence"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"Recurrence_origin_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"Recurrence\"\nADD CONSTRAINT \"Recurrence_origin_fkey\"\nFOREIGN KEY (\"originFinancialAccountId\")\nREFERENCES \"public\".\"FinancialAccount\" (\"id\")\nON DELETE SET NULL\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.Recurrence.Recurrence_origin_fkey",
+		"label": "Add foreign key \"Recurrence_origin_fkey\" on \"Recurrence\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"Recurrence_origin_fkey\" exists",
+				"params": ["Recurrence_origin_fkey", "public", "\"public\".\"Recurrence\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"Recurrence_origin_fkey\" does not exist",
+				"params": ["Recurrence_origin_fkey", "public", "\"public\".\"Recurrence\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "Recurrence_origin_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "Recurrence"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"Recurrence_destination_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"Recurrence\"\nADD CONSTRAINT \"Recurrence_destination_fkey\"\nFOREIGN KEY (\"destinationFinancialAccountId\")\nREFERENCES \"public\".\"FinancialAccount\" (\"id\")\nON DELETE SET NULL\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.Recurrence.Recurrence_destination_fkey",
+		"label": "Add foreign key \"Recurrence_destination_fkey\" on \"Recurrence\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"Recurrence_destination_fkey\" exists",
+				"params": ["Recurrence_destination_fkey", "public", "\"public\".\"Recurrence\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"Recurrence_destination_fkey\" does not exist",
+				"params": ["Recurrence_destination_fkey", "public", "\"public\".\"Recurrence\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "Recurrence_destination_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "Recurrence"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"Recurrence_card_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"Recurrence\"\nADD CONSTRAINT \"Recurrence_card_fkey\"\nFOREIGN KEY (\"creditCardId\")\nREFERENCES \"public\".\"CreditCard\" (\"id\")\nON DELETE SET NULL\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.Recurrence.Recurrence_card_fkey",
+		"label": "Add foreign key \"Recurrence_card_fkey\" on \"Recurrence\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"Recurrence_card_fkey\" exists",
+				"params": ["Recurrence_card_fkey", "public", "\"public\".\"Recurrence\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"Recurrence_card_fkey\" does not exist",
+				"params": ["Recurrence_card_fkey", "public", "\"public\".\"Recurrence\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "Recurrence_card_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "Recurrence"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"CreditPurchaseRecord_subscriptionId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"CreditPurchaseRecord\"\nADD CONSTRAINT \"CreditPurchaseRecord_subscriptionId_fkey\"\nFOREIGN KEY (\"subscriptionId\")\nREFERENCES \"public\".\"Recurrence\" (\"id\")\nON DELETE SET NULL\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.CreditPurchaseRecord.CreditPurchaseRecord_subscriptionId_fkey",
+		"label": "Add foreign key \"CreditPurchaseRecord_subscriptionId_fkey\" on \"CreditPurchaseRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"CreditPurchaseRecord_subscriptionId_fkey\" exists",
+				"params": [
+					"CreditPurchaseRecord_subscriptionId_fkey",
+					"public",
+					"\"public\".\"CreditPurchaseRecord\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"CreditPurchaseRecord_subscriptionId_fkey\" does not exist",
+				"params": [
+					"CreditPurchaseRecord_subscriptionId_fkey",
+					"public",
+					"\"public\".\"CreditPurchaseRecord\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditPurchaseRecord_subscriptionId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "CreditPurchaseRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"DebtSplit_recurringPaymentId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"DebtSplit\"\nADD CONSTRAINT \"DebtSplit_recurringPaymentId_fkey\"\nFOREIGN KEY (\"recurringPaymentId\")\nREFERENCES \"public\".\"Recurrence\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.DebtSplit.DebtSplit_recurringPaymentId_fkey",
+		"label": "Add foreign key \"DebtSplit_recurringPaymentId_fkey\" on \"DebtSplit\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"DebtSplit_recurringPaymentId_fkey\" exists",
+				"params": ["DebtSplit_recurringPaymentId_fkey", "public", "\"public\".\"DebtSplit\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"DebtSplit_recurringPaymentId_fkey\" does not exist",
+				"params": ["DebtSplit_recurringPaymentId_fkey", "public", "\"public\".\"DebtSplit\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "DebtSplit_recurringPaymentId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "DebtSplit"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"RecurrenceHistory_recurrence_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"RecurrenceHistory\"\nADD CONSTRAINT \"RecurrenceHistory_recurrence_fkey\"\nFOREIGN KEY (\"recurrenceId\")\nREFERENCES \"public\".\"Recurrence\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.RecurrenceHistory.RecurrenceHistory_recurrence_fkey",
+		"label": "Add foreign key \"RecurrenceHistory_recurrence_fkey\" on \"RecurrenceHistory\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"RecurrenceHistory_recurrence_fkey\" exists",
+				"params": ["RecurrenceHistory_recurrence_fkey", "public", "\"public\".\"RecurrenceHistory\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"RecurrenceHistory_recurrence_fkey\" does not exist",
+				"params": ["RecurrenceHistory_recurrence_fkey", "public", "\"public\".\"RecurrenceHistory\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "RecurrenceHistory_recurrence_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "RecurrenceHistory"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"RecurrenceOccurrence_recurrence_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"RecurrenceOccurrence\"\nADD CONSTRAINT \"RecurrenceOccurrence_recurrence_fkey\"\nFOREIGN KEY (\"recurrenceId\")\nREFERENCES \"public\".\"Recurrence\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.RecurrenceOccurrence.RecurrenceOccurrence_recurrence_fkey",
+		"label": "Add foreign key \"RecurrenceOccurrence_recurrence_fkey\" on \"RecurrenceOccurrence\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"RecurrenceOccurrence_recurrence_fkey\" exists",
+				"params": [
+					"RecurrenceOccurrence_recurrence_fkey",
+					"public",
+					"\"public\".\"RecurrenceOccurrence\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"RecurrenceOccurrence_recurrence_fkey\" does not exist",
+				"params": [
+					"RecurrenceOccurrence_recurrence_fkey",
+					"public",
+					"\"public\".\"RecurrenceOccurrence\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "RecurrenceOccurrence_recurrence_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "RecurrenceOccurrence"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"Transaction_recurrenceId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"Transaction\"\nADD CONSTRAINT \"Transaction_recurrenceId_fkey\"\nFOREIGN KEY (\"recurrenceId\")\nREFERENCES \"public\".\"Recurrence\" (\"id\")\nON DELETE SET NULL\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.Transaction.Transaction_recurrenceId_fkey",
+		"label": "Add foreign key \"Transaction_recurrenceId_fkey\" on \"Transaction\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"Transaction_recurrenceId_fkey\" exists",
+				"params": ["Transaction_recurrenceId_fkey", "public", "\"public\".\"Transaction\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"Transaction_recurrenceId_fkey\" does not exist",
+				"params": ["Transaction_recurrenceId_fkey", "public", "\"public\".\"Transaction\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "Transaction_recurrenceId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "Transaction"
+			},
+			"id": "postgres"
+		}
+	}
+]

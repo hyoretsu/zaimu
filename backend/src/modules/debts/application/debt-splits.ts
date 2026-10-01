@@ -1,7 +1,8 @@
-import type { CalculatedDebtSplit, DebtSplitInput } from "~/modules/debts/domain";
+import type { DebtSplitInput } from "~/modules/debts/domain";
 import { calculateDebtSplit, DebtSplitValidationError } from "~/modules/debts/domain";
 import { HttpException } from "~/shared/errors";
 import { db, queryFirst, queryRaw, queryRows, withRawTransaction } from "~/shared/infra/sql";
+import type { DebtSplitReturnDTO } from "../infra/elysia/DebtSplitsDTO";
 
 export type DebtSplitTarget =
 	| { creditCardImportItemId: string }
@@ -20,9 +21,7 @@ export type DebtSplitTargetField =
 	| "transactionId";
 const targetEntry = (target: DebtSplitTarget) => Object.entries(target)[0] as [DebtSplitTargetField, string];
 
-export type DebtSplitReturn = Omit<CalculatedDebtSplit, "participants"> & {
-	participants: Array<CalculatedDebtSplit["participants"][number] & { debtPersonName: string }>;
-};
+export type DebtSplitReturn = typeof DebtSplitReturnDTO.static;
 
 export function calculateDebtSplitOrThrow(amount: number, split: DebtSplitInput) {
 	try {
@@ -320,7 +319,7 @@ export async function getDebtSplitReturns(
 				...participant,
 				debtPersonName: names.get(participant.debtPersonId) ?? "Pessoa removida",
 			})),
-		});
+		} as DebtSplitReturn);
 	}
 	return results;
 }

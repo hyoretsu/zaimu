@@ -1,6 +1,8 @@
 import { replaceEntityTags, tagEntityType } from "~/modules/categories/application/tag-assignments";
+import { recalculateStatementPayments } from "~/modules/creditCards/application/statement-payments";
 import { deleteCreatorDebtEventForTransaction } from "~/modules/debts/application";
-import { db, executeStatement, queryRows } from "~/shared/infra/sql";
+import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
+import { db, executeStatement, queryRows, withTransaction } from "~/shared/infra/sql";
 
 type TransactionLink = "recurrenceId" | "salaryId" | "subscriptionId";
 
@@ -13,6 +15,8 @@ export async function deleteLinkedTransactions(
 		db.sql.public.Transaction.select(
 			"id",
 			"amount",
+			"date",
+			"paymentCreditCardId",
 			"originFinancialAccountId",
 			"destinationFinancialAccountId",
 		)
@@ -36,5 +40,12 @@ export async function deleteLinkedTransactions(
 			.where((fields, functions) => functions.in(fields.id, transactionIds))
 			.build(),
 	);
+	const cards = [
+		...new Set(transactions.flatMap(row => (row.paymentCreditCardId ? [row.paymentCreditCardId] : []))),
+	];
+	if (cards.length) await withTransaction(executor => recalculateStatementPayments(executor, cards));
+	for (const row of transactions)
+		for (const accountId of [row.originFinancialAccountId, row.destinationFinancialAccountId])
+			if (accountId) await enqueueAccountYieldRecalculation(accountId, row.date, "recurrence-deleted");
 	return transactionIds.length;
 }

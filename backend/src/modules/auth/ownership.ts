@@ -6,6 +6,7 @@ type DirectlyOwnedTable =
 	| "Debt"
 	| "FinancialAccount"
 	| "Loan"
+	| "Recurrence"
 	| "RecurringPayment"
 	| "Salary"
 	| "Subscription";
@@ -34,6 +35,9 @@ export const assertDirectOwnership = async (table: DirectlyOwnedTable, id: strin
 			break;
 		case "Loan":
 			resource = await owns(db.sql.public.Loan as unknown as typeof db.sql.public.Category);
+			break;
+		case "Recurrence":
+			resource = await owns(db.sql.public.Recurrence as unknown as typeof db.sql.public.Category);
 			break;
 		case "RecurringPayment":
 			resource = await owns(db.sql.public.RecurringPayment as unknown as typeof db.sql.public.Category);
@@ -155,8 +159,8 @@ export const assertTransactionOwnership = async (transactionId: string, userId: 
 			.outerLeftJoin(destination, (fields, functions) =>
 				functions.eq(fields.Transaction.destinationFinancialAccountId, fields.destination.id),
 			)
-			.outerLeftJoin(db.sql.public.RecurringPayment, (fields, functions) =>
-				functions.eq(fields.Transaction.recurrenceId, fields.RecurringPayment.id),
+			.outerLeftJoin(db.sql.public.Recurrence, (fields, functions) =>
+				functions.eq(fields.Transaction.recurrenceId, fields.Recurrence.id),
 			)
 			.outerLeftJoin(db.sql.public.Salary, (fields, functions) =>
 				functions.eq(fields.Transaction.salaryId, fields.Salary.id),
@@ -171,7 +175,7 @@ export const assertTransactionOwnership = async (transactionId: string, userId: 
 					functions.or(
 						functions.eq(fields.origin.userId, userId),
 						functions.eq(fields.destination.userId, userId),
-						functions.eq(fields.RecurringPayment.userId, userId),
+						functions.eq(fields.Recurrence.userId, userId),
 						functions.eq(fields.Salary.userId, userId),
 						functions.eq(fields.Subscription.userId, userId),
 					),

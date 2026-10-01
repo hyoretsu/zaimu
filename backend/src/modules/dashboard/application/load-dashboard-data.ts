@@ -1,5 +1,8 @@
 import { type BookPurchase, type CreditBook, moneyCents, replayCreditBook } from "@zaimu/finance/credit-book";
+import type { RecurrenceDefinition } from "@zaimu/finance/recurrence";
+import { projectRecurrenceCreditBook } from "@zaimu/finance/recurrence-projection";
 import { monetaryBalancesSql } from "~/modules/accounts/application/monetary-balances-sql";
+import { normalizeRecurrence } from "~/modules/recurring/application/recurrences";
 import { withRawTransaction } from "~/shared/infra/sql";
 import { dateKey } from "./dashboard-calculations";
 
@@ -173,23 +176,8 @@ WHERE person."userId" = $1 AND person."hiddenAt" IS NULL
 GROUP BY person."id", person."name"`;
 
 const schedulesSql = `
-SELECT 'salary' AS kind, to_jsonb(schedule) AS data
-FROM (
-  SELECT "id", "amount", "endDate", "frequency"::text, "payDay", "dayOfWeek", "source", "startDate"
-  FROM "Salary" WHERE "userId" = $1 AND "isActive"
-) schedule
-UNION ALL
-SELECT 'subscription', to_jsonb(schedule)
-FROM (
-  SELECT "id", "amount", "billingDay", "dayOfWeek", "endDate", "frequency"::text, "name", "startDate", "paymentMethod"::text, "financialAccountId"
-  FROM "Subscription" WHERE "userId" = $1 AND "isActive"
-) schedule
-UNION ALL
-SELECT 'recurring', to_jsonb(schedule)
-FROM (
-  SELECT "id", "amount", "dayOfMonth", "dayOfWeek", "endDate", "frequency"::text, "name", "startDate"
-  FROM "RecurringPayment" WHERE "userId" = $1 AND "isActive"
-) schedule
+SELECT 'recurrence' AS kind, to_jsonb(schedule) AS data
+FROM "Recurrence" schedule WHERE "userId" = $1 AND "isActive"
 UNION ALL
 SELECT 'loanPayment', jsonb_build_object(
   'dueDate', payment."dueDate", 'id', payment."id", 'paidDate', payment."paidDate",
@@ -265,6 +253,8 @@ export function replayDashboardStatements(
 	cards: DashboardCard[],
 	rows: DashboardDataRow[],
 	asOf: string,
+	recurrences: RecurrenceDefinition[] = [],
+	through = asOf,
 ): DashboardStatement[] {
 	const purchasesByCard = groupByCard(rows, "purchase");
 	const installmentsByCard = groupByCard(rows, "installment");
@@ -356,7 +346,17 @@ export function replayDashboardStatements(
 				totalAmount: Number(row.totalAmount),
 			})),
 		};
-		return replayCreditBook(book, asOf).statements.map(statement => ({
+		return replayCreditBook(
+			projectRecurrenceCreditBook(
+				book,
+				recurrences,
+				asOf < through
+					? new Date(new Date(`${asOf}T00:00:00Z`).getTime() + 86400000).toISOString().slice(0, 10)
+					: asOf,
+				through,
+			),
+			asOf,
+		).statements.map(statement => ({
 			...statement,
 			dueDate: asDate(statement.dueDate),
 			statementDate: asDate(statement.statementDate),
@@ -393,6 +393,7 @@ export async function loadDashboardData(userId: string, range: DashboardDataRang
 			[...new Set(balanceDates.map(dateKey))],
 		]);
 		const cards = rowsByKind(overviewRows, "card") as unknown as DashboardCard[];
+		const recurrences = rowsByKind(scheduleRows, "recurrence").map(normalizeRecurrence);
 		return {
 			accounts: rowsByKind(overviewRows, "account") as unknown as DashboardAccount[],
 			activityDates,
@@ -417,10 +418,19 @@ export async function loadDashboardData(userId: string, range: DashboardDataRang
 				dueDate: asDate(row.dueDate),
 				paidDate: row.paidDate ? asDate(row.paidDate) : null,
 			})) as unknown as DashboardLoanPayment[],
-			recurring: rowsByKind(scheduleRows, "recurring").map(asSchedule),
-			salaries: rowsByKind(scheduleRows, "salary").map(asSchedule),
+			projectedStatements: replayDashboardStatements(
+				userId,
+				cards,
+				overviewRows,
+				dateKey(range.today),
+				recurrences,
+				dateKey(range.comparisonEnd),
+			),
+			recurrences,
+			recurring: [],
+			salaries: [],
 			statements: replayDashboardStatements(userId, cards, overviewRows, dateKey(range.today)),
-			subscriptions: rowsByKind(scheduleRows, "subscription").map(asSchedule),
+			subscriptions: [],
 		};
 	});
 }

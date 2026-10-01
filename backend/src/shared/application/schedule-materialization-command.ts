@@ -1,6 +1,5 @@
 import { materializeCreditCardSchedules } from "~/modules/creditCards/application/materialize-credit-card-schedules";
-import { materializeRecurringTransactions } from "~/modules/recurring/application/materialize-recurring-transactions";
-import { materializeSalaryTransactions } from "~/modules/salaries/application/materialize-salary-transactions";
+import { materializeAllRecurrences } from "~/modules/recurring/application/recurrences";
 import { PostgresOutbox } from "~/shared/infra/outbox";
 import type { EventEnvelope } from "./events";
 import { createEventEnvelope } from "./events";
@@ -46,11 +45,7 @@ export async function publishScheduleMaterialization(
 export async function handleScheduleMaterialization(
 	event: EventEnvelope,
 	materialize: (asOf: Date) => Promise<Array<{ userIds: string[] }>> = async asOf =>
-		Promise.all([
-			materializeCreditCardSchedules(asOf),
-			materializeSalaryTransactions(asOf),
-			materializeRecurringTransactions(asOf),
-		]),
+		Promise.all([materializeCreditCardSchedules(asOf), materializeAllRecurrences(asOf)]),
 	appendEvent: (event: EventEnvelope) => Promise<void> = event => new PostgresOutbox().append(event),
 ) {
 	if (event.eventType !== scheduleMaterializationEventType)

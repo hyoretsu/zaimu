@@ -1,11 +1,9 @@
 import { materializeBookInstallments } from "@zaimu/finance/credit-book";
 import { purchaseStatementDates } from "@zaimu/finance/credit-purchase";
 import { addDays, addMonths, addWeeks, addYears, format, isAfter, startOfDay } from "date-fns";
-import { getTagsByEntity, tagEntityType } from "~/modules/categories/application/tag-assignments";
-import { getDebtSplitInput } from "~/modules/debts/application";
 import { HttpException } from "~/shared/errors";
-import { db, executeStatement, param, queryFirst, queryRows } from "~/shared/infra/sql";
-import { mutateCreditBook, newBookPurchase, readCreditBook } from "./normalized-credit-book";
+import { db, param, queryFirst, queryRows } from "~/shared/infra/sql";
+import { mutateCreditBook, readCreditBook } from "./normalized-credit-book";
 
 const statementColumns = [
 	"id",
@@ -160,93 +158,6 @@ async function materializeMonthlyStatements(
 	}
 }
 
-async function materializeDueSubscriptionPurchases(
-	creditCardId: string,
-	financialAccountId: string,
-	card: {
-		cashbackAccountId: string | null;
-		cashbackRate: number | null;
-		cashbackYieldPeriod: string | null;
-		cashbackYieldReferencePercentage: number | null;
-		cashbackYieldReferenceRate: number | null;
-		dueDay: number;
-		statementDay: number;
-	},
-	today: Date,
-) {
-	const subscriptions = await queryRows(
-		db.sql.public.Subscription.select(
-			"amount",
-			"billingDay",
-			"dayOfWeek",
-			"endDate",
-			"frequency",
-			"id",
-			"materializedThrough",
-			"name",
-			"startDate",
-			"storeName",
-			"userId",
-		)
-			.where((fields, functions) =>
-				functions.and(
-					functions.eq(fields.financialAccountId, financialAccountId),
-					functions.eq(fields.isActive, true),
-					functions.eq(fields.paymentMethod, "CREDIT"),
-				),
-			)
-			.build(),
-	);
-	if (subscriptions.length === 0) return;
-	const tagsBySubscription = await getTagsByEntity(
-		tagEntityType.subscription,
-		subscriptions.map(s => s.id),
-	);
-	if (!subscriptions.length) return;
-	await mutateCreditBook(subscriptions[0]!.userId, creditCardId, async book => {
-		for (const subscription of subscriptions) {
-			const debtSplit = await getDebtSplitInput({ subscriptionId: subscription.id });
-			for (const occurrence of subscriptionOccurrences(
-				subscription as typeof subscription & { frequency: SubscriptionFrequency },
-				today,
-			)) {
-				if (!isAfter(occurrence, startOfDay(subscription.materializedThrough))) continue;
-				const key = occurrence.toISOString().slice(0, 10);
-				if (
-					book.purchases.some(
-						p => p.subscriptionId === subscription.id && p.subscriptionOccurrenceDate === key,
-					)
-				)
-					continue;
-				newBookPurchase(book, {
-					cashbackAccountId: card.cashbackAccountId,
-					cashbackAmount:
-						card.cashbackAccountId && card.cashbackRate
-							? Number(((Number(subscription.amount) * card.cashbackRate) / 100).toFixed(4))
-							: null,
-					cashbackYieldPeriod: card.cashbackYieldPeriod as "MONTHLY" | "YEARLY" | null,
-					cashbackYieldReferencePercentage: card.cashbackYieldReferencePercentage,
-					cashbackYieldReferenceRate: card.cashbackYieldReferenceRate,
-					debtSplitRule: debtSplit ?? null,
-					description: subscription.name,
-					installments: 1,
-					purchaseDate: key,
-					storeName: subscription.storeName,
-					subscriptionId: subscription.id,
-					subscriptionOccurrenceDate: key,
-					tagIds: (tagsBySubscription.get(subscription.id) ?? []).map(t => t.id),
-					totalAmount: Number(subscription.amount),
-				});
-			}
-			await executeStatement(
-				db.sql.public.Subscription.update({ materializedThrough: startOfDay(today) } as never)
-					.where((f, fn) => fn.eq(f.id, subscription.id))
-					.build(),
-			);
-		}
-	});
-}
-
 export async function materializeCreditCardSchedules(asOf = new Date()) {
 	const cards = await queryRows(
 		db.sql.public.CreditCard.select(
@@ -276,7 +187,6 @@ export async function materializeCreditCardSchedules(asOf = new Date()) {
 	const owners = new Map(accounts.map(account => [account.id, account.userId]));
 	for (const card of cards) {
 		await materializeMonthlyStatements(card.id, card, asOf);
-		await materializeDueSubscriptionPurchases(card.id, card.financialAccountId, card, asOf);
 		const owner = owners.get(card.financialAccountId)!;
 		const book = await readCreditBook(owner, card.id);
 		const before = book.installments.length;

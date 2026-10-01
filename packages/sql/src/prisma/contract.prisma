@@ -26,6 +26,7 @@ namespace public {
     financialAccountYieldHolidays FinancialAccountYieldHoliday[]
     financialInstitutions FinancialInstitution[]
     loans             Loan[]
+    recurrences       Recurrence[]
     salaries          Salary[]
     subscriptions     Subscription[]
     creditCardImports CreditCardImport[]
@@ -188,6 +189,8 @@ namespace public {
     purchaseCashback        CreditPurchaseRecord[] @relation("PurchaseCashback")
     rewardsAccount          RewardsAccount?
     salaries                Salary[]
+    recurrenceOrigins       Recurrence[] @relation("RecurrenceOrigin")
+    recurrenceDestinations  Recurrence[] @relation("RecurrenceDestination")
     recurringPayments       RecurringPayment[]
     subscriptions           Subscription[]
     user                    User                          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Account_userId_fkey", index: false)
@@ -343,6 +346,8 @@ namespace public {
     financialAccount     FinancialAccount      @relation(name: "CreditCard_accountId_fkey", fields: [financialAccountId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditCard_accountId_fkey")
     cashbackAccount      FinancialAccount?     @relation(name: "CreditCard_cashbackAccountId_fkey", fields: [cashbackAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditCard_cashbackAccountId_fkey", index: false)
 
+    recurrences Recurrence[]
+
     @@index([financialAccountId], map: "CreditCard_accountId_key", unique: true)
     @@index([cashbackAccountId], map: "CreditCard_cashbackAccountId_idx")
 
@@ -443,7 +448,7 @@ namespace public {
     settledInstallments  CreditInstallmentRecord[] @relation("SettledInstallments")
     settledCharges       CreditStatementCharge[] @relation("SettledCharges")
     cashbackAccount      FinancialAccount? @relation("PurchaseCashback", fields: [cashbackAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditPurchaseRecord_cashbackAccountId_fkey", index: false)
-    subscription         Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditPurchaseRecord_subscriptionId_fkey", index: false)
+    subscription         Recurrence? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditPurchaseRecord_subscriptionId_fkey", index: false)
     legacyEntries        CreditPurchaseLegacyEntry[]
 
     @@index([userId, purchaseDate, createdAt, id], map: "CreditPurchaseRecord_userId_date_idx")
@@ -760,7 +765,7 @@ namespace public {
     creditCardImportItem CreditCardImportItem?  @relation(fields: [creditCardImportItemId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_creditCardImportItemId_fkey", index: false)
     creditPurchase     CreditEntryReference?         @relation(fields: [creditPurchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_creditPurchaseId_fkey", index: false)
     subscription       Subscription?           @relation(fields: [subscriptionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_subscriptionId_fkey", index: false)
-    recurringPayment   RecurringPayment?       @relation(fields: [recurringPaymentId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_recurringPaymentId_fkey", index: false)
+    recurringPayment   Recurrence?       @relation(fields: [recurringPaymentId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_recurringPaymentId_fkey", index: false)
     participants       DebtSplitParticipant[]
 
     @@index([userId], map: "DebtSplit_userId_idx")
@@ -846,6 +851,66 @@ namespace public {
     @@map("LoanPayment")
   }
 
+  model Recurrence {
+    id VarChar(36) @id(map: "Recurrence_pkey") @default(dbgenerated("cuid2()"))
+    userId VarChar(36)
+    name VarChar(100)
+    amount Numeric(12, 2)
+    movement VarChar(20)
+    unit VarChar(5)
+    interval Int @default(1)
+    dayOfMonth SmallInt?
+    dayOfWeek SmallInt?
+    startDate Date
+    endDate Date?
+    originFinancialAccountId VarChar(36)?
+    destinationFinancialAccountId VarChar(36)?
+    creditCardId VarChar(36)?
+    storeName VarChar(200)?
+    isActive Boolean @default(true)
+    materializedThrough Date @default(dbgenerated("(CURRENT_DATE - 1)"))
+    legacySource VarChar(20)?
+    legacyId VarChar(36)?
+    createdAt Timestamp(3) @default(now())
+    updatedAt Timestamp(3) @default(now())
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Recurrence_userId_fkey", index: false)
+    origin FinancialAccount? @relation("RecurrenceOrigin", fields: [originFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Recurrence_origin_fkey", index: false)
+    destination FinancialAccount? @relation("RecurrenceDestination", fields: [destinationFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Recurrence_destination_fkey", index: false)
+    creditCard CreditCard? @relation(fields: [creditCardId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Recurrence_card_fkey", index: false)
+    histories RecurrenceHistory[]
+    occurrences RecurrenceOccurrence[]
+    transactions Transaction[]
+    purchases CreditPurchaseRecord[]
+    debtSplit DebtSplit?
+    @@index([userId, isActive, name, id], map: "Recurrence_user_active_name_idx")
+    @@index([legacySource, legacyId], map: "Recurrence_legacy_key", unique: true)
+    @@map("Recurrence")
+  }
+
+  model RecurrenceHistory {
+    id VarChar(36) @id(map: "RecurrenceHistory_pkey") @default(dbgenerated("cuid2()"))
+    recurrenceId VarChar(36)
+    field VarChar(50)
+    oldValue String?
+    newValue String?
+    changedAt Timestamp(3) @default(now())
+    recurrence Recurrence @relation(fields: [recurrenceId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "RecurrenceHistory_recurrence_fkey", index: false)
+    @@index([recurrenceId, changedAt, id], map: "RecurrenceHistory_recurrence_date_idx")
+    @@map("RecurrenceHistory")
+  }
+
+  model RecurrenceOccurrence {
+    recurrenceId VarChar(36)
+    date Date
+    transactionId VarChar(36)?
+    purchaseId VarChar(36)?
+    deletedAt Timestamp(3)?
+    createdAt Timestamp(3) @default(now())
+    recurrence Recurrence @relation(fields: [recurrenceId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "RecurrenceOccurrence_recurrence_fkey", index: false)
+    @@id([recurrenceId, date], map: "RecurrenceOccurrence_pkey")
+    @@map("RecurrenceOccurrence")
+  }
+
   model RecurringPayment {
     id                        VarChar(36)                  @id(map: "RecurringPayment_pkey") @default(dbgenerated("cuid2()"))
     userId                    VarChar(36)
@@ -864,8 +929,6 @@ namespace public {
     createdAt                 Timestamp(3)                 @default(now())
     updatedAt                 Timestamp(3)                 @default(now())
     recurringPaymentHistories RecurringPaymentHistory[]
-    transactions              Transaction[]
-    debtSplit                 DebtSplit?
     category                  Category?                    @relation(fields: [categoryId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "RecurringPayment_categoryId_fkey", index: false)
     financialAccount          FinancialAccount?            @relation(fields: [financialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "RecurringPayment_financialAccountId_fkey", index: false)
 
@@ -961,7 +1024,6 @@ namespace public {
     updatedAt             Timestamp(3)                 @default(now())
     subscriptionHistories SubscriptionHistory[]
     transactions          Transaction[]
-    normalizedPurchases   CreditPurchaseRecord[]
     debtSplit             DebtSplit?
     user                  User                         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Subscription_userId_fkey", index: false)
     financialAccount      FinancialAccount?            @relation(fields: [financialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Subscription_financialAccountId_fkey", index: false)
@@ -1013,7 +1075,7 @@ namespace public {
     paymentCreditCard             CreditCard?     @relation(fields: [paymentCreditCardId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_paymentCreditCardId_fkey", index: false)
     destinationFinancialAccount   FinancialAccount?        @relation(name: "Transaction_destinationId_fkey", fields: [destinationFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_destinationId_fkey", index: false)
     originFinancialAccount        FinancialAccount?        @relation(name: "Transaction_originId_fkey", fields: [originFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_originId_fkey", index: false)
-    recurrence                    RecurringPayment?        @relation(fields: [recurrenceId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_recurrenceId_fkey", index: false)
+    recurrence                    Recurrence?        @relation(fields: [recurrenceId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_recurrenceId_fkey", index: false)
     salary                        Salary?                  @relation(fields: [salaryId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_salaryId_fkey", index: false)
     subscription                  Subscription?            @relation(fields: [subscriptionId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_subscriptionId_fkey", index: false)
     user                          User                     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Transaction_userId_fkey", index: false)

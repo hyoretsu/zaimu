@@ -11,8 +11,8 @@ sem vínculo ficam pendentes. Quitações por pessoa mantêm valor após saldo z
 ## Etapas
 
 - [x] Agenda e contratos compartilhados, com testes de calendário.
-- [ ] Modelo SQL, conversão dos legados e serviço atômico de ocorrências.
-- [ ] API única, adaptadores antigos e integração de processamento/previsões.
+- [x] Modelo SQL, conversão dos legados e serviço atômico de ocorrências.
+- [x] API única, adaptadores antigos e integração de processamento/previsões.
 - [ ] Armazenamento local, conversão por proprietário e sincronização.
 - [ ] Formulário/listagem únicos, dashboard e faturas.
 - [ ] Testes de integração, builds, documentação e revisão final.
@@ -36,3 +36,7 @@ externa, push ou deploy. Commits atômicos, usuário local e coautoria Codex.
 
 Alterações preexistentes preservadas: packages/sql/migrations/app/refs/db.json e
 frontend/src/routes/recurring/components/RecurringListItem.test.tsx.
+
+## Validação do modelo e API
+
+Migração SQL executada somente em PostgreSQL descartável local: colisões de IDs, históricos, tags, rateios, vínculos, cursores e marcadores de exclusão preservados. Processador validado nas cinco movimentações, concorrência, troca de meio, rollback, recuperação após indisponibilidade, pausa/retomada e dívida com snapshot. Projeções compartilhadas verificam transferências e pagamento fixo sem dupla contagem. Próxima etapa: concluir armazenamento local, interface e validação de sincronização.

@@ -1,10 +1,6 @@
 import { addDays, addWeeks, addYears, format, isAfter, startOfDay } from "date-fns";
-import {
-	getTagsByEntity,
-	replaceEntityTags,
-	tagEntityType,
-} from "~/modules/categories/application/tag-assignments";
-import { db, executeStatement, numeric, param, queryFirst, queryRows } from "~/shared/infra/sql";
+import { materializeRecurrence } from "~/modules/recurring/application/recurrences";
+import { queryRaw } from "~/shared/infra/sql";
 
 type SalaryFrequency = "BIWEEKLY" | "DAILY" | "MONTHLY" | "WEEKLY" | "YEARLY";
 
@@ -58,97 +54,14 @@ function monthlyOccurrence(start: Date, payDay: number, monthOffset = 0): Date {
 	return new Date(month.getFullYear(), month.getMonth(), Math.min(payDay, lastDay));
 }
 
+/** Compatibility entrypoint; salary is a generic incoming recurrence. */
 export async function materializeSalaryTransactions(asOf = new Date(), userId?: string) {
-	const today = startOfDay(asOf);
-	let salaryQuery = db.sql.public.Salary.select(
-		"id",
-		"userId",
-		"amount",
-		"endDate",
-		"financialAccountId",
-		"frequency",
-		"materializedThrough",
-		"payDay",
-		"dayOfWeek",
-		"source",
-		"startDate",
-	).where((fields, functions) => functions.eq(fields.isActive, true));
-	if (userId) salaryQuery = salaryQuery.where((fields, functions) => functions.eq(fields.userId, userId));
-	const salaries = await queryRows(salaryQuery.build());
-	const tagsBySalary = await getTagsByEntity(
-		tagEntityType.salary,
-		salaries.map(salary => salary.id),
+	const rows = await queryRaw<{ id: string; userId: string }>(
+		`SELECT "id","userId" FROM "Recurrence" WHERE "movement"='INCOME' AND "isActive"=true${userId ? ' AND "userId"=$1' : ""}`,
+		userId ? [userId] : [],
 	);
-
-	for (const salary of salaries) {
-		if (!salary.financialAccountId) continue;
-		const transactions = await queryRows(
-			db.sql.public.Transaction.select("salaryOccurrenceDate")
-				.where((fields, functions) => functions.eq(fields.salaryId, salary.id))
-				.build(),
-		);
-		const scheduledDates = new Set(
-			transactions.flatMap(transaction =>
-				transaction.salaryOccurrenceDate
-					? [format(new Date(transaction.salaryOccurrenceDate), "yyyy-MM-dd")]
-					: [],
-			),
-		);
-		const dates = salaryOccurrenceDates(
-			salary.frequency as SalaryFrequency,
-			salary.startDate,
-			salary.payDay,
-			salary.endDate,
-			today,
-			salary.dayOfWeek,
-		).filter(date => date > format(salary.materializedThrough, "yyyy-MM-dd") && !scheduledDates.has(date));
-
-		for (const date of dates) {
-			const tagIds = (tagsBySalary.get(salary.id) ?? []).map(tag => tag.id);
-			const inserted = await queryFirst(
-				db.raw.sql`
-					INSERT INTO "Transaction" (
-						"amount",
-						"categoryId",
-						"date",
-						"description",
-						"destinationFinancialAccountId",
-						"salaryId",
-						"salaryOccurrenceDate",
-							"time",
-							"type",
-							"userId"
-					)
-					VALUES (
-						${param(numeric<12, 2>(salary.amount), { codecId: "pg/numeric@1" })},
-						${param(tagIds[0] ?? null, { codecId: "sql/varchar@1" })},
-						${param(new Date(date), { codecId: "pg/date@1" })},
-						${param(salary.source, { codecId: "sql/varchar@1" })},
-						${param(salary.financialAccountId, { codecId: "sql/varchar@1" })},
-						${param(salary.id, { codecId: "sql/varchar@1" })},
-						${param(new Date(date), { codecId: "pg/date@1" })},
-						NULL,
-							${param("INCOME", { codecId: "pg/text@1" })}::"TransactionType",
-						${param(salary.userId, { codecId: "sql/varchar@1" })}
-					)
-					ON CONFLICT ("salaryId", "salaryOccurrenceDate") DO NOTHING
-					RETURNING "id"
-				`
-					.returnsRow({ id: db.sql.public.Transaction.columns.id })
-					.build(),
-			);
-			if (!inserted) continue;
-			await replaceEntityTags({
-				entityIds: [inserted.id],
-				entityType: tagEntityType.transaction,
-				tagIds,
-			});
-		}
-		await executeStatement(
-			db.sql.public.Salary.update({ materializedThrough: today } as never)
-				.where((fields, functions) => functions.eq(fields.id, salary.id))
-				.build(),
-		);
-	}
-	return { salaries: salaries.length, userIds: [...new Set(salaries.map(salary => salary.userId))] };
+	let transactions = 0;
+	for (const row of rows)
+		transactions += await materializeRecurrence(row.userId, row.id, format(asOf, "yyyy-MM-dd"));
+	return { salaries: rows.length, transactions, userIds: [...new Set(rows.map(row => row.userId))] };
 }

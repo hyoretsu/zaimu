@@ -24,6 +24,7 @@ import {
 	syncTransactionDebtEvent,
 } from "~/modules/debts/application";
 import { DebtSplitInputDTO } from "~/modules/debts/infra/elysia/DebtSplitsDTO";
+import { materializeRecurrence } from "~/modules/recurring/application/recurrences";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { areTransferSuggestionTimesCompatible } from "~/modules/transaction-imports/domain/transfer-suggestions";
@@ -428,8 +429,8 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				.outerLeftJoin(paymentCardInstitution, (f, fn) =>
 					fn.eq(f.paymentCardAccount.institutionId, f.paymentCardInstitution.id),
 				)
-				.outerLeftJoin(db.sql.public.RecurringPayment, (f, fn) =>
-					fn.eq(f.Transaction.recurrenceId, f.RecurringPayment.id),
+				.outerLeftJoin(db.sql.public.Recurrence, (f, fn) =>
+					fn.eq(f.Transaction.recurrenceId, f.Recurrence.id),
 				)
 				.outerLeftJoin(db.sql.public.Salary, (f, fn) => fn.eq(f.Transaction.salaryId, f.Salary.id))
 				.outerLeftJoin(db.sql.public.Subscription, (f, fn) =>
@@ -476,7 +477,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					fn.or(
 						fn.eq(f.origin.userId, userId),
 						fn.eq(f.destination.userId, userId),
-						fn.eq(f.RecurringPayment.userId, userId),
+						fn.eq(f.Recurrence.userId, userId),
 						fn.eq(f.Salary.userId, userId),
 						fn.eq(f.Subscription.userId, userId),
 					),
@@ -821,7 +822,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					throw new HttpException("Apenas saídas podem pagar um cartão", 400);
 				await assertCreditCardOwnership(body.paymentCreditCardId, userId);
 			}
-			if (body.recurrenceId) await assertDirectOwnership("RecurringPayment", body.recurrenceId, userId);
+			if (body.recurrenceId) await assertDirectOwnership("Recurrence", body.recurrenceId, userId);
 			if (body.salaryId) await assertDirectOwnership("Salary", body.salaryId, userId);
 			if (body.subscriptionId) await assertDirectOwnership("Subscription", body.subscriptionId, userId);
 			let originFinancialAccountId = body.originFinancialAccountId;
@@ -829,14 +830,14 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			let inheritedStoreName: string | null | undefined;
 			if (body.recurrenceId) {
 				const recurringPayment = await queryFirst(
-					db.sql.public.RecurringPayment.select("financialAccountId", "storeName")
+					db.sql.public.Recurrence.select("originFinancialAccountId", "storeName")
 						.where((fields, functions) => functions.eq(fields.id, body.recurrenceId!))
 						.limit(1)
 						.build(),
 				);
 				inheritedStoreName = recurringPayment?.storeName;
 				if (!originFinancialAccountId && !body.destinationFinancialAccountId) {
-					originFinancialAccountId = recurringPayment?.financialAccountId ?? undefined;
+					originFinancialAccountId = recurringPayment?.originFinancialAccountId ?? undefined;
 					inheritedPaymentAccount = Boolean(originFinancialAccountId);
 				}
 			}
@@ -869,7 +870,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			}
 			const hasExplicitTags = body.tagIds !== undefined || body.categoryId !== undefined;
 			const linkedTagSource = body.recurrenceId
-				? { entityId: body.recurrenceId, entityType: tagEntityType.recurringPayment }
+				? { entityId: body.recurrenceId, entityType: "RECURRENCE" }
 				: body.salaryId
 					? { entityId: body.salaryId, entityType: tagEntityType.salary }
 					: body.subscriptionId
@@ -947,6 +948,16 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				}
 				return Promise.resolve(undefined);
 			};
+			if (body.recurrenceId && recurrenceOccurrenceDate) {
+				const scheduledDate = recurrenceOccurrenceDate.toISOString().slice(0, 10);
+				await materializeRecurrence(userId, body.recurrenceId, scheduledDate, {
+					from: scheduledDate,
+					through: scheduledDate,
+				});
+				const concrete = await findExistingOccurrence();
+				if (!concrete)
+					throw new HttpException("Ocorrência indisponível, excluída ou pertencente ao cartão", 409);
+			}
 			let transaction = await findExistingOccurrence();
 			let wasCreated = false;
 			if (!transaction) {

@@ -11,7 +11,8 @@
 		"./purchase-reports": "./src/purchase-reports.ts",
 		"./purchase-statement-ledger": "./src/purchase-statement-ledger.ts",
 		"./credit-book": "./src/credit-book.ts",
-		"./recurrence": "./src/recurrence.ts"
+		"./recurrence": "./src/recurrence.ts",
+		"./recurrence-projection": "./src/recurrence-projection.ts"
 	},
 	"scripts": {
 		"check-types": "tsc --noEmit",

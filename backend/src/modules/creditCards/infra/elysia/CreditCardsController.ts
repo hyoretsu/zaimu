@@ -33,6 +33,7 @@ import {
 import { recalculateStatementPayments } from "~/modules/creditCards/application/statement-payments";
 import { linkPurchaseToDebt } from "~/modules/debts/application";
 import { DebtSplitInputDTO } from "~/modules/debts/infra/elysia/DebtSplitsDTO";
+import { projectRecurringCreditBook } from "~/modules/recurring/application/project-credit-book";
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
 import {
@@ -367,7 +368,9 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 	.get(
 		"/:id/statements",
 		async ({ params, request, query }) => {
-			const book = await readCreditBook(await requireUserId(request), params.id);
+			const book = await projectRecurringCreditBook(
+				await readCreditBook(await requireUserId(request), params.id),
+			);
 			const cursor = query.cursor ? decodeStatementCursor(query.cursor, query.isPaid) : null;
 			const rows = replayCreditBook(book)
 				.statements.filter(s => query.isPaid === undefined || s.isPaid === query.isPaid)
@@ -404,7 +407,9 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 		},
 	)
 	.get("/:id/statements/:statementId", async ({ params, request }) => {
-		const book = await readCreditBook(await requireUserId(request), params.id);
+		const book = await projectRecurringCreditBook(
+			await readCreditBook(await requireUserId(request), params.id),
+		);
 		const statements = replayCreditBook(book).statements;
 		const statement = statements.find(s => s.id === params.statementId);
 		if (!statement) throw new HttpException("Fatura não encontrada", 404);

@@ -1,4 +1,9 @@
-import { purchaseStatementDates } from "@zaimu/finance/credit-purchase";
+import {
+	nextRecurrenceDate,
+	recurrenceAccountEffects,
+	recurrenceDates,
+	recurrenceNeedsConfiguration,
+} from "@zaimu/finance/recurrence";
 import { addDays, startOfDay } from "date-fns";
 import Elysia, { t } from "elysia";
 import { requireUserId } from "~/modules/auth";
@@ -8,11 +13,8 @@ import {
 	type DashboardForecast,
 	dateKey,
 	loadDashboardData,
-	nextOccurrence,
-	occurrencesInRange,
 	period,
 	projectedCashFlowUntilMonthEnd,
-	type RecurrenceFrequency,
 	reconcilePeriodCashFlow,
 	resolveDashboardRange,
 } from "~/modules/dashboard/application";
@@ -129,10 +131,8 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 					projectionStart,
 					today,
 				});
-				const { accounts, cards, salaries, subscriptions, recurring, loanPayments: payments } = loaded;
+				const { accounts, cards, recurrences, loanPayments: payments } = loaded;
 				const cardsByAccountId = new Map(cards.map(card => [card.financialAccountId, card]));
-				const isCardSubscription = (subscription: (typeof subscriptions)[number]) =>
-					subscription.paymentMethod === "CREDIT";
 				const statements = loaded.statements;
 				const monetaryAccounts = accounts.filter(
 					account =>
@@ -155,68 +155,22 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 					date: Date;
 					type: "EXPENSE" | "INCOME";
 				}> = [];
-				const addSchedule = (schedule: {
-					amount: number;
-					card?: (typeof cards)[number];
-					dayOfMonth?: null | number;
-					dayOfWeek?: null | number;
-					endDate?: Date | null;
-					frequency: RecurrenceFrequency;
-					sourceId: string;
-					startDate: Date;
-					type: "EXPENSE" | "INCOME";
-				}) => {
-					for (const occurrence of occurrencesInRange({
-						...schedule,
-						from: projectionStart,
-						through: comparisonEnd,
-					})) {
-						if (!linkedTransactionDates.has(`${schedule.sourceId}:${dateKey(occurrence)}`)) {
-							const date = schedule.card
-								? new Date(`${purchaseStatementDates(schedule.card, dateKey(occurrence)).dueDate}T12:00:00`)
-								: occurrence;
-							if (date <= comparisonEnd)
-								projectedMovements.push({ amount: schedule.amount, date, type: schedule.type });
-						}
-					}
-				};
-				for (const salary of salaries)
-					addSchedule({
-						amount: Number(salary.amount),
-						dayOfMonth: salary.payDay,
-						dayOfWeek: salary.dayOfWeek,
-						endDate: salary.endDate,
-						frequency: salary.frequency as RecurrenceFrequency,
-						sourceId: salary.id,
-						startDate: salary.startDate,
-						type: "INCOME",
-					});
-				for (const subscription of subscriptions)
-					addSchedule({
-						amount: Number(subscription.amount),
-						card:
-							isCardSubscription(subscription) && subscription.financialAccountId
-								? cardsByAccountId.get(subscription.financialAccountId)
-								: undefined,
-						dayOfMonth: subscription.billingDay,
-						dayOfWeek: subscription.dayOfWeek,
-						endDate: subscription.endDate,
-						frequency: subscription.frequency as RecurrenceFrequency,
-						sourceId: subscription.id,
-						startDate: subscription.startDate,
-						type: "EXPENSE",
-					});
-				for (const recurrence of recurring)
-					addSchedule({
-						amount: Number(recurrence.amount),
-						dayOfMonth: recurrence.dayOfMonth,
-						dayOfWeek: recurrence.dayOfWeek,
-						endDate: recurrence.endDate,
-						frequency: recurrence.frequency as RecurrenceFrequency,
-						sourceId: recurrence.id,
-						startDate: recurrence.startDate,
-						type: "EXPENSE",
-					});
+
+				for (const recurrence of recurrences) {
+					if (
+						recurrenceNeedsConfiguration(recurrence) ||
+						recurrence.movement === "TRANSFER" ||
+						recurrence.movement === "CARD_PURCHASE"
+					)
+						continue;
+					for (const date of recurrenceDates(recurrence, dateKey(projectionStart), dateKey(comparisonEnd)))
+						if (!linkedTransactionDates.has(`${recurrence.id}:${date}`))
+							projectedMovements.push({
+								amount: recurrence.amount,
+								date: new Date(`${date}T12:00:00`),
+								type: recurrence.movement === "INCOME" ? "INCOME" : "EXPENSE",
+							});
+				}
 				for (const payment of payments.filter(
 					item => !item.paidDate && item.dueDate >= projectionStart && item.dueDate <= comparisonEnd,
 				))
@@ -225,7 +179,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 						date: payment.dueDate,
 						type: "EXPENSE",
 					});
-				for (const statement of statements.filter(
+				for (const statement of loaded.projectedStatements.filter(
 					item => item.dueDate >= projectionStart && item.dueDate <= comparisonEnd,
 				)) {
 					const outstanding = Math.max(0, statement.balanceAmount);
@@ -288,7 +242,19 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 					const key = dateKey(date);
 					const historical = historicalBalanceBreakdowns.get(key);
 					if (key <= todayKey && historical) return historical;
-					const savingsBalance = historicalBalanceBreakdowns.get(key)?.savingsBalance ?? 0;
+					const effects = recurrenceAccountEffects(
+						recurrences,
+						dateKey(projectionStart),
+						key,
+						linkedTransactionDates,
+					);
+					const savingsBalance =
+						(historicalBalanceBreakdowns.get(key)?.savingsBalance ??
+							historicalBalanceBreakdowns.get(todayKey)?.savingsBalance ??
+							0) +
+						loaded.accounts
+							.filter(account => account.type === "SAVINGS")
+							.reduce((sum, account) => sum + (effects.get(account.id) ?? 0), 0);
 					return { accountBalance: balanceAt(date) - savingsBalance, savingsBalance };
 				};
 				const periodTransactions = comparisonTransactions.filter(
@@ -331,68 +297,17 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 					.map(date => ({ balance: balanceAt(new Date(`${date}T12:00:00`)), date }));
 
 				const forecasts: DashboardForecast[] = [];
-				for (const salary of salaries) {
-					const occurrence = nextOccurrence({
-						dayOfMonth: salary.payDay,
-						dayOfWeek: salary.dayOfWeek,
-						endDate: salary.endDate,
-						frequency: salary.frequency as RecurrenceFrequency,
-						from: today,
-						startDate: salary.startDate,
-					});
-					if (occurrence)
+
+				for (const recurrence of recurrences) {
+					if (recurrenceNeedsConfiguration(recurrence) || recurrence.movement === "TRANSFER") continue;
+					const date = nextRecurrenceDate(recurrence, dateKey(projectionStart));
+					if (date)
 						forecasts.push({
-							amount: Number(salary.amount),
-							date: dateKey(occurrence),
-							direction: "INCOME",
-							id: `salary-${salary.id}`,
-							name: salary.source ?? "Salário",
-							sourceId: salary.id,
-							type: "SALARY",
-						});
-				}
-				for (const subscription of subscriptions) {
-					const occurrence = nextOccurrence({
-						dayOfMonth: subscription.billingDay,
-						dayOfWeek: subscription.dayOfWeek,
-						endDate: subscription.endDate,
-						frequency: subscription.frequency as RecurrenceFrequency,
-						from: today,
-						startDate: subscription.startDate,
-					});
-					const card = subscription.financialAccountId
-						? cardsByAccountId.get(subscription.financialAccountId)
-						: undefined;
-					if (occurrence)
-						forecasts.push({
-							amount: Number(subscription.amount),
-							date:
-								card && isCardSubscription(subscription)
-									? purchaseStatementDates(card, dateKey(occurrence)).dueDate
-									: dateKey(occurrence),
-							direction: "EXPENSE",
-							id: `subscription-${subscription.id}`,
-							name: subscription.name ?? "Assinatura",
-							sourceId: subscription.id,
-							type: "SUBSCRIPTION",
-						});
-				}
-				for (const recurrence of recurring) {
-					const occurrence = nextOccurrence({
-						dayOfMonth: recurrence.dayOfMonth,
-						dayOfWeek: recurrence.dayOfWeek,
-						endDate: recurrence.endDate,
-						frequency: recurrence.frequency as RecurrenceFrequency,
-						from: today,
-						startDate: recurrence.startDate,
-					});
-					if (occurrence)
-						forecasts.push({
-							amount: Number(recurrence.amount),
-							date: dateKey(occurrence),
-							direction: "EXPENSE",
-							id: `recurring-${recurrence.id}`,
-							name: recurrence.name ?? "Recorrência",
+							amount: recurrence.amount,
+							date,
+							direction: recurrence.movement === "INCOME" ? "INCOME" : "EXPENSE",
+							id: `recurrence-${recurrence.id}`,
+							name: recurrence.name,
 							sourceId: recurrence.id,
 							type: "RECURRING",
 						});
@@ -463,7 +378,14 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 					.reduce((sum, person) => sum + Math.abs(person.balance), 0);
 				return {
 					accounts: monetaryAccounts.map(account => ({
-						balance: balancesAtRangeEnd.get(account.id) ?? 0,
+						balance:
+							(balancesAtRangeEnd.get(account.id) ?? 0) +
+							(recurrenceAccountEffects(
+								recurrences,
+								dateKey(projectionStart),
+								dateKey(range.end),
+								linkedTransactionDates,
+							).get(account.id) ?? 0),
 						id: account.id,
 						institutionName: account.institutionName,
 						name: account.name,
