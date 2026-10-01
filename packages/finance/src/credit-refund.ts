@@ -82,8 +82,27 @@ export function calculateRefundEffects(
 	invoices: readonly RefundInvoice[],
 ): RefundEffect[] {
 	assertCents(purchase.totalAmountCents, 1);
+	return createRefundCalculator(invoices)(purchase, refunds, installments);
+}
+
+/** Validate a ledger's invoice dates once, retaining per-purchase financial checks. */
+export function createRefundCalculator(invoices: readonly RefundInvoice[]) {
 	const invoiceDates = new Map(invoices.map(invoice => [invoice.id, assertDateKey(invoice.statementDate)]));
 	if (invoiceDates.size !== invoices.length) throw new RangeError("Fatura duplicada");
+	return (
+		purchase: Pick<CreditPurchase, "id" | "totalAmountCents">,
+		refunds: readonly CreditRefund[],
+		installments: readonly RefundInstallment[],
+	): RefundEffect[] => calculateRefundEffectsWithInvoices(purchase, refunds, installments, invoiceDates);
+}
+
+function calculateRefundEffectsWithInvoices(
+	purchase: Pick<CreditPurchase, "id" | "totalAmountCents">,
+	refunds: readonly CreditRefund[],
+	installments: readonly RefundInstallment[],
+	invoiceDates: ReadonlyMap<string, string>,
+): RefundEffect[] {
+	assertCents(purchase.totalAmountCents, 1);
 	const refundIds = new Set<string>();
 	for (const refund of refunds) {
 		if (refund.purchaseId !== purchase.id || !refund.id || refundIds.has(refund.id))

@@ -227,6 +227,13 @@ export function ensureBookStatement(
 
 /** Complete invoice plan for calculations. Projections are never persisted as occurrences. */
 export function creditBookPlan(book: CreditBook) {
+	if (
+		book.purchases.length &&
+		![book.card.statementDay, book.card.dueDay].every(
+			day => Number.isInteger(day) && day >= 1 && day <= 31,
+		)
+	)
+		throw new RangeError("Calendário do cartão inválido");
 	const statements = book.statements.map(statement => ({ ...statement }));
 	const statementsById = new Map(statements.map(statement => [statement.id, statement]));
 	const occurrences = new Map(book.installments.map(item => [`${item.purchaseId}:${item.number}`, item]));
@@ -236,33 +243,35 @@ export function creditBookPlan(book: CreditBook) {
 		purchase.installmentAmountsCents.forEach((amountCents, index) => {
 			const number = index + 1;
 			const occurrence = occurrences.get(`${purchase.id}:${number}`);
-			const date = installmentOccurrenceDate(purchase.purchaseDate, number);
-			const dates =
-				purchase.installmentStatementDates?.[index] ?? purchaseStatementDates(book.card, date);
-			let statement = occurrence
-				? statementsById.get(occurrence.statementId)
-				: statements
-						.toSorted((a, b) => a.statementDate.localeCompare(b.statementDate))
-						.find(
-							item =>
-								item.statementDate > date &&
-								item.statementDate.slice(0, 7) === dates.statementDate.slice(0, 7),
-						);
+			let statement = occurrence ? statementsById.get(occurrence.statementId) : undefined;
 			if (occurrence && !statement) throw new RangeError("Fatura da parcela não encontrada");
-			if (!statement) {
-				statement = {
-					...dates,
-					creditCardId: book.card.id,
-					id: `forecast-${book.card.id}-${dates.statementDate}`,
-					isForecast: true,
-					isFullySynced: false,
-					isPaid: false,
-					paidAmount: 0,
-					totalAmount: 0,
-				};
-				statements.push(statement);
-				statementsById.set(statement.id, statement);
+			if (!occurrence) {
+				const date = installmentOccurrenceDate(purchase.purchaseDate, number);
+				const dates =
+					purchase.installmentStatementDates?.[index] ?? purchaseStatementDates(book.card, date);
+				statement = statements
+					.toSorted((a, b) => a.statementDate.localeCompare(b.statementDate))
+					.find(
+						item =>
+							item.statementDate > date &&
+							item.statementDate.slice(0, 7) === dates.statementDate.slice(0, 7),
+					);
+				if (!statement) {
+					statement = {
+						...dates,
+						creditCardId: book.card.id,
+						id: `forecast-${book.card.id}-${dates.statementDate}`,
+						isForecast: true,
+						isFullySynced: false,
+						isPaid: false,
+						paidAmount: 0,
+						totalAmount: 0,
+					};
+					statements.push(statement);
+					statementsById.set(statement.id, statement);
+				}
 			}
+			if (!statement) throw new RangeError("Fatura da parcela não encontrada");
 			installments.push({
 				amountCents,
 				isSettled: Boolean(occurrence?.isSettled || occurrence?.settledByPurchaseId),

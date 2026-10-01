@@ -1,6 +1,6 @@
 import { type CardPayment, calculateStatementBalances, type StatementInput } from "./credit-card";
 import { assertCents, assertDateKey, assertPurchase, type CreditPurchase } from "./credit-purchase";
-import { type CreditRefund, calculateRefundEffects, type RefundInstallment } from "./credit-refund";
+import { type CreditRefund, createRefundCalculator, type RefundInstallment } from "./credit-refund";
 
 export interface PurchaseInvoiceInstallment extends RefundInstallment {
 	purchaseId: string;
@@ -52,11 +52,12 @@ export function rebuildPurchaseStatementLedger<T extends StatementInput>(input: 
 				? statement.statementDate.slice(0, 10)
 				: statement.statementDate.toISOString().slice(0, 10),
 	}));
+	const calculateEffects = createRefundCalculator(invoices);
 	const effects = [];
 	for (const purchase of purchases.values()) {
 		const installments = installmentsByPurchase.get(purchase.id) ?? [];
 		const refunds = refundsByPurchase.get(purchase.id) ?? [];
-		const purchaseEffects = calculateRefundEffects(purchase, refunds, installments, invoices);
+		const purchaseEffects = calculateEffects(purchase, refunds, installments);
 		effects.push(...purchaseEffects);
 		const canceledNumbers = new Set(purchaseEffects.flatMap(effect => effect.canceledInstallmentNumbers));
 		for (const installment of installments) {
