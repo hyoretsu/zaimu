@@ -15,7 +15,7 @@ sem vínculo ficam pendentes. Quitações por pessoa mantêm valor após saldo z
 - [x] API única, adaptadores antigos e integração de processamento/previsões.
 - [x] Armazenamento local, conversão por proprietário e sincronização.
 - [x] Formulário/listagem únicos, dashboard e faturas.
-- [ ] Testes de integração, builds, documentação e revisão final.
+- [x] Testes de integração, builds, documentação e revisão final.
 
 ## Invariantes
 
@@ -44,3 +44,9 @@ Migração SQL executada somente em PostgreSQL descartável local: colisões de 
 ## Validação local e interface
 
 Conversão local por proprietário preserva colisões, cursores, alterações pendentes e exclusões. IndexedDB valida commit atômico, concorrência de edição e exclusão sem recriação. Sincronização reconhece revisões enviadas sem sobrescrever edições posteriores. Cadastro de recebimento genérico com intervalo de dois meses e descarte de edição conferidos no navegador isolado. Modal móvel 390x844: sem overflow horizontal, scrollbar própria funcional e limites contidos. Faltam conferência HTTP/sync e builds finais.
+
+## Conferência final
+
+Builds backend e frontend passaram. Agenda/projeções/conversão: 12 testes, 35 verificações; IndexedDB: 2 testes, 13 verificações. Integração PostgreSQL descartável: 5 testes, 41 verificações, incluindo contrato HTTP, adaptador legado e sincronização repetida com rollback. Migração SQL validada em banco local e `migration:check` sem falhas. Cadastro e descarte conferidos em desktop e mobile, scrollbar contida.
+
+Suíte backend: 197 passaram, 16 ignorados sem banco de integração, 1 falha preexistente em CacheInvalidationConsumer.test.ts (expectativa de namespaces desatualizada). Verificação de tipos permanece limitada por três erros preexistentes em debt-ledger-person.test.ts. Arquivos preexistentes preservados. Nenhuma migração externa, push ou deploy executados. Tabelas antigas mantidas para conferência do backfill; remoção depende da aplicação e auditoria pelo usuário.
