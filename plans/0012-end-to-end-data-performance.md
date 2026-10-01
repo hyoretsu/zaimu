@@ -250,3 +250,4 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 
 - Benchmark agora mede duração até receber o corpo completo da resposta, evitando subestimar payloads grandes; regressão cobre resposta transmitida com atraso e ausência de métricas SQL.
 - Aceite de p95 permanece pendente: captura exige fixture atualizada, API local e sessão do usuário de desempenho.
+- Fixture atualizada para `CreditPurchaseRecord`, planos/parcelas/referências normalizados e 240 `Recurrence`; configurações de rendimento respeitam constraints atuais. Migração do seed deixou de avançar referências Git. Execução volumosa ainda exige banco local dedicado.

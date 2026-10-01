@@ -8,7 +8,7 @@ PERFORMANCE_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/zaimu_per
   bun run performance:seed
 ```
 
-O dataset determinístico contém 100 mil transações em cinco anos, 20 cartões, 1.200 faturas, 12 mil compras, 10 mil vínculos de tags, 5 mil eventos de dívida, 25 empréstimos com 1.500 parcelas, agendas, rendimentos, categorias e lojas. Rodar novamente substitui somente os usuários locais `performance-user` e `performance-peer` e seus dados.
+O dataset determinístico contém 100 mil transações em cinco anos, 20 cartões, 1.200 faturas, 12 mil compras canônicas com planos, parcelas e referências normalizadas, 10 mil vínculos de tags, 5 mil eventos de dívida, 25 empréstimos com 1.500 parcelas, 240 recorrências unificadas (40 receitas e 200 despesas), rendimentos, categorias e lojas. Rodar novamente substitui somente os usuários locais `performance-user` e `performance-peer` e seus dados. As migrações locais são aplicadas sem avançar referências versionadas do banco.
 
 Inicie a API apontando para o mesmo banco, com métricas de benchmark habilitadas:
 
