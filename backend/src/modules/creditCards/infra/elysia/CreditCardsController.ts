@@ -37,7 +37,7 @@ import {
 	statementFilterKey,
 } from "~/modules/creditCards/application/statement-cursor";
 import { recalculateStatementPayments } from "~/modules/creditCards/application/statement-payments";
-import { linkPurchaseToDebt } from "~/modules/debts/application";
+import { getDebtSplitReturn, linkPurchaseToDebt } from "~/modules/debts/application";
 import { DebtSplitInputDTO } from "~/modules/debts/infra/elysia/DebtSplitsDTO";
 import { projectRecurringCreditBook } from "~/modules/recurring/application/project-credit-book";
 import { HttpException } from "~/shared/errors";
@@ -52,6 +52,7 @@ import {
 	withTransaction,
 } from "~/shared/infra/sql";
 import { CreditBookDTO } from "./CreditBookDTO";
+import { CreditPurchaseEditReturn } from "./CreditPurchaseEditReturn";
 
 const statementColumns = [
 	"id",
@@ -368,6 +369,52 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				purchaseId: t.Optional(t.String()),
 			}),
 		},
+	)
+	.get(
+		"/:id/purchases/:purchaseId",
+		async ({ params, request, set }) => {
+			const userId = await requireUserId(request);
+			const cached = await distributedCache.remember(
+				userId,
+				"credit-cards:overview",
+				{ domain: "purchase-edit", ...params },
+				async () => {
+					const rows = await queryRaw<{
+						id: string;
+						totalAmount: number;
+						purchaseDate: Date;
+						externalId: string | null;
+						feeAmount: number | null;
+						installmentImportedNumbers: number[];
+					}>(
+						`
+				SELECT p."id", p."totalAmount", p."purchaseDate", p."externalId", p."feeAmount",
+				COALESCE((SELECT jsonb_agg(plan."number" ORDER BY plan."number") FROM "CreditInstallmentPlan" plan WHERE plan."purchaseId"=p."id" AND plan."hasImportedAmount"), '[]'::jsonb) AS "installmentImportedNumbers"
+				FROM "CreditPurchaseRecord" p WHERE p."id"=$1 AND p."creditCardId"=$2 AND p."userId"=$3`,
+						[params.purchaseId, params.id, userId],
+					);
+					const row = rows[0];
+					if (!row) throw new HttpException("Compra não encontrada", 404);
+					return {
+						debtSplit: await getDebtSplitReturn({ creditPurchaseId: row.id }, Number(row.totalAmount)),
+						externalId: row.externalId,
+						feeAmount: row.feeAmount,
+						id: row.id,
+						installmentImportedNumbers: row.installmentImportedNumbers,
+						purchaseDate: row.purchaseDate.toISOString().slice(0, 10),
+						totalAmountCents: moneyCents(Number(row.totalAmount), 1),
+					};
+				},
+			);
+			set.headers.etag = cached.etag;
+			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+			if (request.headers.get("if-none-match") === cached.etag) {
+				set.status = 304;
+				return null;
+			}
+			return cached.value;
+		},
+		{ response: t.Union([CreditPurchaseEditReturn, t.Null()]) },
 	)
 	.get(
 		"/:id/book",

@@ -222,7 +222,13 @@ export interface CreditCard {
 	};
 }
 
+export interface DebtSplitSummary {
+	ownerAmount: number;
+	participants: Array<{ amount: number; debtPersonName: string }>;
+}
+
 export interface Transaction {
+	debtSplitSummary?: DebtSplitSummary | null;
 	entryKind?: "INSTALLMENT" | "REFUND" | "CHARGE";
 
 	id: string;
@@ -652,6 +658,16 @@ export interface CreditCardStatementPage {
 	hasMore: boolean;
 	items: CreditCardStatement[];
 	nextCursor: string | null;
+}
+
+export interface CreditPurchaseEditDetails {
+	id: string;
+	totalAmountCents: number;
+	purchaseDate: string;
+	externalId: string | null;
+	feeAmount?: number | null;
+	installmentImportedNumbers: readonly number[];
+	debtSplit: DebtSplit | null;
 }
 
 export interface CreditPurchase {

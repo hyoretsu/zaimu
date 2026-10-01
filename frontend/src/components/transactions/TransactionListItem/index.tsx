@@ -170,7 +170,10 @@ export function TransactionListItem({
 					<TransactionBadges
 						accounts={showAccountBadge ? accounts : []}
 						creditCardPayment={creditCardPayment}
-						debtPersonName={formatDebtSplitBadge(transaction.debtSplit, formatCurrency)}
+						debtPersonName={formatDebtSplitBadge(
+							transaction.debtSplitSummary ?? transaction.debtSplit,
+							formatCurrency,
+						)}
 						isFullySynced={Boolean(transaction.isFullySynced && (transaction.installments ?? 0) > 1)}
 						isSalary={Boolean(transaction.salaryId)}
 						isSubscription={Boolean(transaction.subscriptionId)}

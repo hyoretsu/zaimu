@@ -125,7 +125,7 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - [ ] 4. Transações
   - [x] Adicionar proprietário direto e índices.
   - [x] Implementar `UNION ALL`, pesquisa no banco e cursor opaco.
-  - [ ] Hidratar página em lote e tornar detalhe lazy. (hidratação em lote concluída; redução final do DTO e detalhe de compra pendentes)
+  - [x] Hidratar página em lote e tornar detalhe lazy. (rateio compacto na lista; edição busca detalhe isolado de transação/compra)
   - [x] Substituir cálculo de saldo por agregação SQL.
   - [x] Migrar frontend, cache e guest mode para o novo contrato.
 - [ ] 5. Cartões
@@ -289,3 +289,4 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Atomicidade global corrigida: mutações HTTP e outbox compartilham transação de request; resposta de erro força rollback. Fences finalizam após commit, inclusive sync; falha/rollback mantém lease. Quatro testes cobrem ordem, rollback HTTP, falha de commit e integração do wrapper Elysia.
 - Captura diagnóstica versionada registra p95 frio real com cinco amostras e cache limpo em Redis dedicado, além de p95 quente concorrente. Todos os hits medidos fizeram zero SQL; latências de vários endpoints ainda excedem metas. Runner preserva relatório mesmo após erro por endpoint.
 - Replay financeiro passou a agrupar parcelas/reembolsos por compra uma vez e indexar faturas por ID. Regressão completa de finanças: 64 testes passaram. Teste local de falha forçada no outbox confirmou HTTP 500 com zero lojas persistidas; trigger de teste removido após verificação.
+- Listagem de transações passou a retornar rateio compacto e omitir referências externas de edição. Formulário carrega detalhe completo sob demanda, com skeleton/retry e cache por ID. Edição de compra busca metadados somente da compra selecionada, com autorização no SQL, rateio completo e paridade guest. Builds backend/frontend e 25 testes de rateio passaram.

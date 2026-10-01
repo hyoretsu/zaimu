@@ -66,6 +66,7 @@ import type {
 	CreditCardStatementDetail,
 	CreditCardStatementPage,
 	CreditPurchase,
+	CreditPurchaseEditDetails,
 	Dashboard,
 	Debt,
 	DebtEvent,
@@ -101,6 +102,7 @@ import { calculateDebtSplit, debtSplitToInput } from "./debt-split";
 import {
 	calculateFinancialAccountBalances,
 	calculateFinancialAccountYieldEntries,
+	type FinancialAccountYieldEntry,
 	getFinancialAccountOptionLabel,
 } from "./financial-account";
 import { normalizeInstitutionName } from "./financial-institution";
@@ -730,7 +732,12 @@ export const dataService = {
 			financialAccountId?: string,
 			cursor?: string,
 			filters: { startDate?: string; endDate?: string; visibility?: "hidden" | "visible" } = {},
-		) {
+		): Promise<{
+			items: FinancialAccountYieldEntry[];
+			hasMore: boolean;
+			nextCursor: string | null;
+			accountNames: Array<readonly [string, string]>;
+		}> {
 			if (!isGuestMode()) {
 				const page = await dataService.accountYields.getPage(financialAccountId, cursor, 100, {
 					...filters,
@@ -1362,6 +1369,23 @@ export const dataService = {
 			return isGuestMode()
 				? readLocalCreditBook(cardId)
 				: fetchWithAuth<CreditBook>(`/credit-cards/${cardId}/book`);
+		},
+		async getPurchaseEditDetails(cardId: string, purchaseId: string): Promise<CreditPurchaseEditDetails> {
+			if (!isGuestMode()) return fetchWithAuth(`/credit-cards/${cardId}/purchases/${purchaseId}`);
+			const book = await readLocalCreditBook(cardId);
+			const purchase = book.purchases.find(row => row.id === purchaseId);
+			if (!purchase) throw new Error("Compra não encontrada");
+			return {
+				debtSplit: purchase.debtSplitRule
+					? ((await hydrateLocalDebtSplit(purchase.totalAmountCents / 100, purchase.debtSplitRule)) ?? null)
+					: null,
+				externalId: purchase.externalId ?? null,
+				feeAmount: purchase.feeAmount,
+				id: purchase.id,
+				installmentImportedNumbers: purchase.installmentImportedNumbers ?? [],
+				purchaseDate: purchase.purchaseDate,
+				totalAmountCents: purchase.totalAmountCents,
+			};
 		},
 		async getRefundReviews(
 			cardId: string,
@@ -3421,6 +3445,12 @@ export const dataService = {
 				if (value !== undefined) searchParams.set(key, String(value));
 			}
 			return fetchWithAuth(`/transactions?${searchParams}`);
+		},
+		async getDetail(id: string): Promise<Transaction> {
+			if (!isGuestMode()) return fetchWithAuth<Transaction>(`/transactions/${id}`);
+			const row = await localTransactions.getById(id);
+			if (!row) throw new Error("Transação não encontrada");
+			return row.data;
 		},
 		async getTransferSuggestions(): Promise<Array<{ counterpart: Transaction; transaction: Transaction }>> {
 			if (isGuestMode()) return [];

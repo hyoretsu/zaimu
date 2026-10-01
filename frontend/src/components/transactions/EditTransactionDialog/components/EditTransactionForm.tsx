@@ -26,7 +26,7 @@ import {
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { getUpdatedStoreName } from "@/lib/store-name";
 import { showToast } from "@/stores";
-import { TransactionDetailsFields } from "./TransactionDetailsFields";
+import { TransactionDetailsFields } from "../../TransactionDetailsFields";
 
 function createDraft(transaction: Transaction) {
 	return {
@@ -43,7 +43,7 @@ function createDraft(transaction: Transaction) {
 	};
 }
 
-export function EditTransactionDialog({
+export function EditTransactionForm({
 	account,
 	onOpenChange,
 	open,

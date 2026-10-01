@@ -101,7 +101,7 @@ export function addDebtSplitParticipant(split: DebtSplitInput): DebtSplitInput {
 }
 
 export function formatDebtSplitBadge(
-	split: DebtSplit | null | undefined,
+	split: DebtSplit | import("./api").DebtSplitSummary | null | undefined,
 	formatAmount: (amount: number) => string,
 ) {
 	if (!split) return undefined;

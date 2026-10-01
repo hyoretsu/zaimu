@@ -340,12 +340,17 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 		"/",
 		async ({ query, request, set }) => {
 			const userId = await requireUserId(request);
-			const cached = await distributedCache.remember(userId, "transactions:list", query, async () => {
-				if (query.financialAccountId)
-					await assertDirectOwnership("FinancialAccount", query.financialAccountId, userId);
-				if (query.categoryId) await assertDirectOwnership("Category", query.categoryId, userId);
-				return listTransactionsPage(userId, query);
-			});
+			const cached = await distributedCache.remember(
+				userId,
+				"transactions:list",
+				{ format: 3, ...query },
+				async () => {
+					if (query.financialAccountId)
+						await assertDirectOwnership("FinancialAccount", query.financialAccountId, userId);
+					if (query.categoryId) await assertDirectOwnership("Category", query.categoryId, userId);
+					return listTransactionsPage(userId, query);
+				},
+			);
 			set.headers.etag = cached.etag;
 			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
 			if (request.headers.get("if-none-match") === cached.etag) {
@@ -372,23 +377,35 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 	)
 	.get(
 		"/:id",
-		async ({ params, request }) => {
+		async ({ params, request, set }) => {
 			const userId = await requireUserId(request);
-			await assertTransactionOwnership(params.id, userId);
-			const transaction = await queryFirst(
-				db.sql.public.Transaction.select(...transactionColumns)
-					.where((f, fn) => fn.eq(f.id, params.id))
-					.limit(1)
-					.build(),
+			const cached = await distributedCache.remember(
+				userId,
+				`transactions:detail:${params.id}`,
+				{ format: 2 },
+				async () => {
+					const transaction = await queryFirst(
+						db.sql.public.Transaction.select(...transactionColumns)
+							.where((f, fn) => fn.and(fn.eq(f.id, params.id), fn.eq(f.userId, userId)))
+							.limit(1)
+							.build(),
+					);
+					if (!transaction) throw new HttpException("Transaction not found", 404);
+					const [tagsByTransaction, debtSplit] = await Promise.all([
+						getTagsByEntity(tagEntityType.transaction, [transaction.id]),
+						getDebtSplitReturn({ transactionId: transaction.id }, Number(transaction.amount)),
+					]);
+					const tags = tagsByTransaction.get(transaction.id) ?? [];
+					return { ...transaction, debtSplit, tagIds: tags.map(tag => tag.id), tags };
+				},
 			);
-
-			if (!transaction) {
-				throw new HttpException("Transaction not found", 404);
+			set.headers.etag = cached.etag;
+			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+			if (request.headers.get("if-none-match") === cached.etag) {
+				set.status = 304;
+				return null;
 			}
-
-			const tagsByTransaction = await getTagsByEntity(tagEntityType.transaction, [transaction.id]);
-			const tags = tagsByTransaction.get(transaction.id) ?? [];
-			return { ...transaction, tagIds: tags.map(tag => tag.id), tags };
+			return cached.value;
 		},
 		{
 			detail: { tags: ["Transactions"] },

@@ -60,7 +60,15 @@ export function FinancialAccountStatementDialog({
 }) {
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
-	const statement = useInfiniteQuery({
+	const statement = useInfiniteQuery<
+		Awaited<ReturnType<typeof dataService.transactions.getDailyPage>>,
+		Error,
+		import("@tanstack/react-query").InfiniteData<
+			Awaited<ReturnType<typeof dataService.transactions.getDailyPage>>
+		>,
+		readonly unknown[],
+		string | undefined
+	>({
 		enabled: identity !== null && open,
 		getNextPageParam: page => page.nextCursor ?? undefined,
 		initialPageParam: undefined as string | undefined,
@@ -77,7 +85,15 @@ export function FinancialAccountStatementDialog({
 	const yieldFilters = {
 		startDate: statement.hasNextPage ? statement.data?.pages.at(-1)?.days.at(-1)?.date : undefined,
 	};
-	const yields = useInfiniteQuery({
+	const yields = useInfiniteQuery<
+		Awaited<ReturnType<typeof dataService.accountYields.getDisplayPage>>,
+		Error,
+		import("@tanstack/react-query").InfiniteData<
+			Awaited<ReturnType<typeof dataService.accountYields.getDisplayPage>>
+		>,
+		readonly unknown[],
+		string | undefined
+	>({
 		enabled: identity !== null && open && !statement.isPending,
 		getNextPageParam: page => page.nextCursor ?? undefined,
 		initialPageParam: undefined as string | undefined,

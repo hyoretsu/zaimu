@@ -360,8 +360,18 @@ export async function listTransactionsPage(userId: string, input: ListTransactio
 			return {
 				...row,
 				...(sourceRank === 1 ? purchaseSyncStatus.get(row.id) : {}),
-				debtSplit: (sourceRank === 0 ? transactionDebtSplits : purchaseDebtSplits).get(row.id) ?? null,
-				externalIds: references,
+				debtSplitSummary: (() => {
+					const split = (sourceRank === 0 ? transactionDebtSplits : purchaseDebtSplits).get(row.id);
+					return split
+						? {
+								ownerAmount: split.ownerAmount,
+								participants: split.participants.map(participant => ({
+									amount: participant.amount,
+									debtPersonName: participant.debtPersonName,
+								})),
+							}
+						: null;
+				})(),
 				isSynced: sourceRank === 0 ? references.length > 0 : undefined,
 				tagIds: tags.map(tag => tag.id),
 				tags,

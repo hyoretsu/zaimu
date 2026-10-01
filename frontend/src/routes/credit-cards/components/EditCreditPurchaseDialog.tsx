@@ -88,12 +88,19 @@ export function EditCreditPurchaseDialog({
 	}
 	const canonical = useQuery({
 		enabled: open && Boolean(identity) && Boolean(sourceCardId) && !purchase.isStatementCharge,
-		queryFn: () => dataService.creditCards.getBook(sourceCardId!),
-		queryKey: queryKeys.creditCards.book(identity!, sourceCardId!),
+		queryFn: () =>
+			dataService.creditCards.getPurchaseEditDetails(
+				sourceCardId!,
+				purchase.purchaseId ?? purchase.parentId ?? purchase.id,
+			),
+		queryKey: [
+			...queryKeys.creditCards.all(identity!),
+			"purchase-edit",
+			sourceCardId,
+			purchase.purchaseId ?? purchase.parentId ?? purchase.id,
+		],
 	});
-	const original = canonical.data?.purchases.find(
-		p => p.id === (purchase.purchaseId ?? purchase.parentId ?? purchase.id),
-	);
+	const original = canonical.data;
 	const cardOptionsUnavailable = Boolean(
 		sourceCardId && !purchase.isStatementCharge && (canonical.isPending || canonical.isError),
 	);
@@ -124,12 +131,12 @@ export function EditCreditPurchaseDialog({
 	useEffect(() => {
 		if (!open) return;
 		setStoreName(purchase.storeName ?? "");
-		setDebtSplit(debtSplitToInput(purchase.debtSplit));
-		setIsDebt(Boolean(purchase.debtSplit));
+		setDebtSplit(debtSplitToInput(original?.debtSplit ?? purchase.debtSplit));
+		setIsDebt(Boolean(original?.debtSplit ?? purchase.debtSplit));
 		setTime(purchase.time ?? "");
 		setFeeAmount(String(purchase.feeAmount ?? ""));
 		setFeeDescription(purchase.feeDescription ?? "");
-	}, [open, purchase.debtSplit, purchase.storeName, purchase.time]);
+	}, [open, original?.debtSplit, purchase.debtSplit, purchase.storeName, purchase.time]);
 	useEffect(() => {
 		if (open && original && !purchase.parentId) {
 			if (!amountEdited.current)

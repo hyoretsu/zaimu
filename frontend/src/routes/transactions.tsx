@@ -142,7 +142,15 @@ export function TransactionsPage() {
 			(transactionsQuery.hasNextPage ? transactionDays.at(-1)?.date : undefined),
 		visibility: filters.visibility === "all" ? undefined : filters.visibility,
 	} as const;
-	const yieldsQuery = useInfiniteQuery({
+	const yieldsQuery = useInfiniteQuery<
+		Awaited<ReturnType<typeof dataService.accountYields.getDisplayPage>>,
+		Error,
+		import("@tanstack/react-query").InfiniteData<
+			Awaited<ReturnType<typeof dataService.accountYields.getDisplayPage>>
+		>,
+		readonly unknown[],
+		string | undefined
+	>({
 		enabled: identity !== null && yieldsMatchFilters && !transactionsQuery.isPending,
 		getNextPageParam: page => page.nextCursor ?? undefined,
 		initialPageParam: undefined as string | undefined,
