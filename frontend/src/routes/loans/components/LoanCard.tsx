@@ -30,7 +30,7 @@ export function LoanCard({
 					<div className="min-w-0 flex-1">
 						<p className="truncate font-semibold text-foreground">{loan.lender}</p>
 						<p className="text-foreground-muted text-xs">
-							{loan.description || `${loan.interestRate}% p.m.`}
+							{loan.description || `${loan.interestRate * 100}% p.m.`}
 						</p>
 					</div>
 				</div>

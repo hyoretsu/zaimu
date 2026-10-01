@@ -284,3 +284,4 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Validação do runner: duas regressões passaram; medição de p95 e aceite permanecem pendentes.
 - Visão geral de cartões passou a usar leitura normalizada por conjunto, compartilhando replay com dashboard. Contas agregam saldos monetários no SQL e carregam metadados em uma consulta. Nove testes focados passaram; latência volumosa ainda fora do aceite.
 - Importações receberam cache de resumo/detalhe com chaves por domínio e página, ETag e autorização dentro do loader. Fences existentes invalidam listas e detalhes. Aceite volumoso ainda pendente.
+- Correção de empréstimos: taxa armazenada como fração agora exibida em porcentagem; histórico preserva enum FRONT/BACK no contrato tipado; paginação da interface recebeu tipos explícitos. Build frontend passou.

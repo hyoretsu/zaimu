@@ -7,7 +7,7 @@ import { DateField } from "@/components/ui/DateField";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
-import type { Loan } from "@/lib/api";
+import type { Loan, LoanPaymentPage } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { getLocalDateKey } from "@/lib/date";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
@@ -27,7 +27,13 @@ export function LoanPaymentsDialog({ loan, onClose }: { loan: Loan; onClose: () 
 	const [batchPending, setBatchPending] = useState(false);
 	const scopes = useRef(new Set<number>());
 	const batch = useRef(false);
-	const payments = useInfiniteQuery({
+	const payments = useInfiniteQuery<
+		LoanPaymentPage,
+		Error,
+		import("@tanstack/react-query").InfiniteData<LoanPaymentPage>,
+		readonly unknown[],
+		string | undefined
+	>({
 		enabled: identity !== null,
 		getNextPageParam: page => page.nextCursor ?? undefined,
 		initialPageParam: undefined as string | undefined,

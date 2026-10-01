@@ -276,6 +276,7 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 					return paymentPage(
 						payments.map(payment => ({
 							...payment,
+							advanceType: payment.advanceType as "FRONT" | "BACK" | null,
 							createdAt: payment.createdAt.toISOString(),
 							dueDate: payment.dueDate.toISOString(),
 							interestPaid: Number(payment.interestPaid),
