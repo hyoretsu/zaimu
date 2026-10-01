@@ -329,14 +329,16 @@ async function getPersonEventPage(userId: string, personId: string, cursorValue?
 		        event."date", event."dueDate", event."kind",
 		        CASE WHEN event."createdByUserId" = $1 THEN event."effect" ELSE -event."effect" END AS "effect",
 		        COALESCE(income_transaction."description", event."description", purchase."description", purchase."storeName") AS "description",
-		        COALESCE(source_transaction."time", purchase."time") AS "time"
+		        COALESCE(source_transaction."time", refund."time", purchase."time") AS "time"
 		 FROM "public"."DebtEvent" event
 		 JOIN "public"."user" creator ON creator."id" = event."createdByUserId"
 		 LEFT JOIN "public"."DebtTransactionLink" transaction_link ON transaction_link."eventId" = event."id" AND transaction_link."isCreator" = true
 		 LEFT JOIN "public"."Transaction" source_transaction ON source_transaction."id" = transaction_link."transactionId"
 		 LEFT JOIN "public"."Transaction" income_transaction ON income_transaction."id" = transaction_link."transactionId" AND income_transaction."type" = 'INCOME'
 		 LEFT JOIN "public"."DebtPurchaseLink" purchase_link ON purchase_link."eventId" = event."id" AND purchase_link."isCreator" = true
-		 LEFT JOIN "public"."CreditPurchase" purchase ON purchase."id" = purchase_link."creditPurchaseId"
+		 LEFT JOIN "public"."CreditEntryReference" purchase_reference ON purchase_reference."id" = purchase_link."creditPurchaseId"
+		 LEFT JOIN "public"."CreditPurchaseRecord" purchase ON purchase."id" = purchase_reference."purchaseId"
+		 LEFT JOIN "public"."CreditRefundRecord" refund ON refund."id" = purchase_reference."refundId"
 		 WHERE ${connectionId ? 'event."connectionId" = $2' : 'event."debtPersonId" = $2'}
 		   AND ($4 = '' OR
 		        ($3::date IS NULL AND event."date" IS NULL AND event."id" < $4) OR
