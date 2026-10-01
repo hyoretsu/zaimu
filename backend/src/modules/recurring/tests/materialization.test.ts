@@ -234,7 +234,7 @@ describe.skipIf(!url)("atomic recurrence processing", () => {
 			}),
 		);
 		expect(legacy.status).toBe(200);
-		const migrated = await legacy.json();
+		const migrated = (await legacy.json()) as { unit: string; interval: number };
 		expect(migrated.unit).toBe("WEEK");
 		expect(migrated.interval).toBe(2);
 		const { SyncController } = await import("~/modules/sync/SyncController");
@@ -264,7 +264,7 @@ describe.skipIf(!url)("atomic recurrence processing", () => {
 		for (let i = 0; i < 2; i++) {
 			const result = await request(data);
 			expect(result.status).toBe(200);
-			const body = await result.json();
+			const body = (await result.json()) as { syncResults: { recurrences: { errors: unknown[] } } };
 			expect(body.syncResults.recurrences.errors).toEqual([]);
 		}
 		expect((await client.query('SELECT * FROM "RecurrenceHistory"')).rows).toHaveLength(history);
