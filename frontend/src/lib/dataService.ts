@@ -32,6 +32,7 @@ import {
 } from "@zaimu/finance/recurrence";
 import { projectRecurrenceCreditBook } from "@zaimu/finance/recurrence-projection";
 import { type CatalogPageOptions, localCatalogPage } from "./catalog-pagination";
+import { guestTransactionPage } from "./guest-transaction-page";
 import { hasUnresolvedLegacyCardPayment } from "./legacy-card-payments";
 import { createLegacyRecurrenceService } from "./legacy-recurrence-service";
 import {
@@ -3419,25 +3420,32 @@ export const dataService = {
 			nextCursor: null | string;
 		}> {
 			if (isGuestMode()) {
-				let offset = 0;
-				if (params.cursor)
-					try {
-						offset = Number(JSON.parse(atob(params.cursor)).offset ?? 0);
-					} catch {
-						throw new Error("Cursor inválido para estes filtros");
-					}
-				const { cursor: _cursor, ...filters } = params;
-				const transactions = await this.getAll({ ...filters, offset });
-				const dates = [...new Set(transactions.map(transaction => transaction.date.slice(0, 10)))];
-				const hasMore = Boolean(params.limit && transactions.length === params.limit);
+				const { cursor: _cursor, limit: _limit, ...filters } = params;
+				const page = guestTransactionPage(await this.getAll(filters), getUserId(), params);
+				const dates = [...new Set(page.items.map(row => row.date.slice(0, 10)))];
+				const [accounts, transactions, holidays, yields] = await Promise.all([
+					localAccounts.getAll(),
+					localTransactions.getAll(),
+					localMeta.get("financial-account-yield-holidays"),
+					localMeta.get("financial-account-yields"),
+				]);
 				return {
 					days: dates.map(date => ({
 						date,
-						endingBalance: 0,
-						transactions: transactions.filter(transaction => transaction.date.slice(0, 10) === date),
+						endingBalance: calculateFinancialAccountBalances(
+							accounts
+								.map(row => row.data)
+								.filter(account => ["CHECKING", "CASH", "SAVINGS"].includes(account.type)),
+							transactions.map(row => row.data),
+							[],
+							(holidays ?? []) as string[],
+							new Date(`${date}T12:00:00`),
+							(yields ?? []) as FinancialAccountYield[],
+						).reduce((sum, account) => sum + (account.balance ?? 0), 0),
+						transactions: page.items.filter(row => row.date.slice(0, 10) === date),
 					})),
-					hasMore,
-					nextCursor: hasMore ? btoa(JSON.stringify({ offset: offset + transactions.length })) : null,
+					hasMore: page.hasMore,
+					nextCursor: page.nextCursor,
 				};
 			}
 			const searchParams = new URLSearchParams();

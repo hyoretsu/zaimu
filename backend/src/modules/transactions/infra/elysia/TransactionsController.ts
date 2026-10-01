@@ -64,42 +64,6 @@ const TransactionSource = t.Union([t.Literal("CREDIT_CARD"), t.Literal("FINANCIA
 const TransactionVisibility = t.Union([t.Literal("hidden"), t.Literal("visible")]);
 const timePattern = /^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
 
-function normalizeSearch(value: string) {
-	return value
-		.normalize("NFD")
-		.replace(/\p{Diacritic}/gu, "")
-		.toLocaleLowerCase("pt-BR")
-		.replace(/\s+/gu, " ")
-		.trim();
-}
-
-function getTransactionSearchText(transaction: {
-	amount: number;
-	categoryName?: string | null;
-	date: Date;
-	description?: string | null;
-	destinationName?: string | null;
-	originName?: string | null;
-	storeName?: string | null;
-	tags?: Array<{ name: string }>;
-}) {
-	const brazilianDate = transaction.date.toISOString().slice(0, 10).split("-").reverse().join("/");
-	const amount = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(
-		transaction.amount,
-	);
-	return [
-		transaction.amount,
-		amount,
-		brazilianDate,
-		transaction.categoryName,
-		transaction.description,
-		transaction.destinationName,
-		transaction.originName,
-		transaction.storeName,
-		...(transaction.tags?.map(tag => tag.name) ?? []),
-	].join(" ");
-}
-
 function resolveTransactionTime(value: string | null | undefined): string | null {
 	if (value === null) return null;
 	if (value !== undefined) {

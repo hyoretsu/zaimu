@@ -75,7 +75,7 @@ interface TransactionSummaryRow {
 	type: "EXPENSE" | "INCOME" | "REFUND" | "TRANSFER";
 }
 
-export const transactionPageFilterHash = (input: ListTransactionsPageInput) =>
+export const transactionPageFilterHash = (input: ListTransactionsPageInput, userId?: string) =>
 	new Bun.CryptoHasher("sha256")
 		.update(
 			JSON.stringify({
@@ -86,6 +86,7 @@ export const transactionPageFilterHash = (input: ListTransactionsPageInput) =>
 				source: input.source ?? null,
 				startDate: input.startDate ?? null,
 				type: input.type ?? null,
+				userId: userId ?? null,
 				visibility: input.visibility ?? null,
 			}),
 		)
@@ -246,7 +247,7 @@ LIMIT $14`;
 
 export async function listTransactionsPage(userId: string, input: ListTransactionsPageInput) {
 	const limit = Math.min(input.limit ?? 50, 100);
-	const currentFilterHash = transactionPageFilterHash(input);
+	const currentFilterHash = transactionPageFilterHash(input, userId);
 	const cursor = decodeTransactionCursor(input.cursor, currentFilterHash);
 	let sql = input.search?.trim()
 		? listSql

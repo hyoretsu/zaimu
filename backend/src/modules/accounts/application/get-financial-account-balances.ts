@@ -209,12 +209,3 @@ export async function getFinancialAccountBalances(
 	}
 	return balances;
 }
-
-export async function getFinancialAccountBalancesAtDates(accountIds: string[], dates: Date[]) {
-	const loaded = await loadFinancialAccountBalanceInput(accountIds);
-	if (!loaded.input) return dates.map(date => ({ balances: loaded.balances, date }));
-	return dates.map(date => ({
-		balances: calculateFinancialAccountYieldBalances({ ...loaded.input, today: date }),
-		date,
-	}));
-}
