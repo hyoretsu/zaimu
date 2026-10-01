@@ -8,6 +8,7 @@ import { frequencyLabels, paymentMethodLabels, sourceLabels } from "./constants"
 import { isRecurrenceEnded } from "./recurrence-dates";
 import { getRecurrenceScheduleSummary } from "./recurrence-schedule";
 import type { RecurringListItemData } from "./types";
+import { movementLabels, scheduleLabel } from "./unified-types";
 
 export function RecurringListItem({
 	deleting,
@@ -79,6 +80,11 @@ export function RecurringListItem({
 					originFinancialAccountId: item.financialAccountId,
 					originName: item.accountName,
 				}),
+		...(item.direction === "TRANSFER" && {
+			destinationAccountType: item.destinationAccountType,
+			destinationFinancialAccountId: item.recurrence?.destinationFinancialAccountId ?? undefined,
+			destinationName: item.destinationName,
+		}),
 		storeName: item.storeName,
 		tags: item.tags,
 		type: item.direction,
@@ -88,8 +94,10 @@ export function RecurringListItem({
 		<TransactionListItem
 			actionItems={actionItems}
 			amount={
-				<p className={`whitespace-nowrap font-bold ${isIncome ? "text-emerald-600" : "text-rose-600"}`}>
-					{isIncome ? "+" : "−"}
+				<p
+					className={`whitespace-nowrap font-bold ${isIncome ? "text-emerald-600" : item.direction === "TRANSFER" ? "text-primary" : "text-rose-600"}`}
+				>
+					{isIncome ? "+" : item.direction === "TRANSFER" ? "" : "-"}
 					{new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(item.amount)}
 				</p>
 			}
@@ -98,7 +106,11 @@ export function RecurringListItem({
 			icon={
 				<div
 					className={`flex size-11 shrink-0 items-center justify-center rounded-2xl ${
-						isIncome ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600"
+						isIncome
+							? "bg-emerald-500/10 text-emerald-600"
+							: item.direction === "TRANSFER"
+								? "bg-primary/10 text-primary"
+								: "bg-rose-500/10 text-rose-600"
 					}`}
 				>
 					{isIncome ? <HiArrowDown aria-hidden="true" /> : <HiArrowUp aria-hidden="true" />}
@@ -106,7 +118,9 @@ export function RecurringListItem({
 			}
 			metadataPrefix={
 				<span className="text-muted-foreground text-xs">
-					{frequencyLabels[item.frequency]}
+					{item.recurrence
+						? scheduleLabel(item.recurrence.unit, item.recurrence.interval)
+						: frequencyLabels[item.frequency]}
 					{scheduleSummary ? ` · ${scheduleSummary}` : ""}
 					{paymentMethod ? ` · ${paymentMethod}` : ""}
 					{item.startDate ? ` · inicia ${formatLocalDate(item.startDate)}` : ""}
@@ -117,7 +131,15 @@ export function RecurringListItem({
 			title={
 				<div className="flex min-w-0 flex-wrap items-center gap-2">
 					<p className="w-fit max-w-full shrink-0 truncate font-semibold leading-6">{item.title}</p>
-					<AppBadge variant="outline">{sourceLabels[item.source]}</AppBadge>
+					<AppBadge variant="outline">
+						{item.recurrence ? movementLabels[item.recurrence.movement] : sourceLabels[item.source]}
+					</AppBadge>
+					{item.recurrence?.needsConfiguration && (
+						<AppBadge variant="destructive">Configuração pendente</AppBadge>
+					)}
+					{item.direction === "TRANSFER" && (
+						<span className="text-muted-foreground text-xs">Entre contas próprias</span>
+					)}
 					{!item.active && <AppBadge variant="secondary">Pausada</AppBadge>}
 					{hasEnded && <AppBadge variant="secondary">Encerrada</AppBadge>}
 				</div>

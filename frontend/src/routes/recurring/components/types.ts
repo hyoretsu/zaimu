@@ -1,11 +1,15 @@
 import type { DebtSplit, FinancialAccount, RecurringPayment, Salary, Subscription } from "@/lib/api";
+import type { Recurrence } from "@/lib/recurrence";
 
 export type RecurringSource = "salary" | "subscription" | "recurring";
-export type RecurringDirection = "INCOME" | "EXPENSE";
+export type RecurringDirection = "INCOME" | "EXPENSE" | "TRANSFER";
 export type RecurrenceFrequency = Salary["frequency"];
 
 export interface RecurringListItemData {
+	recurrence?: Recurrence;
 	financialAccountId?: string;
+	destinationName?: string;
+	destinationAccountType?: FinancialAccount["type"];
 	accountName?: string;
 	accountType?: FinancialAccount["type"];
 	active: boolean;

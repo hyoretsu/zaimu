@@ -6,6 +6,7 @@ import { AppShell } from "@/components/layout";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { initLocalDb, materializeLocalCreditBooks } from "@/lib/localStorage";
 import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
+import { materializeLocalRecurrences } from "@/lib/recurrence-service";
 import { useAuthStore, useThemeStore } from "@/stores";
 
 function AppLoadingState() {
@@ -50,6 +51,8 @@ function RootComponent() {
 		let active = true;
 		const materialize = async () => {
 			try {
+				const recurringChanged = await materializeLocalRecurrences(identity);
+				if (active && recurringChanged) await invalidateCacheOperation(queryClient, identity, "recurring");
 				const changed = await materializeLocalCreditBooks(identity);
 				if (active && changed) await invalidateCacheOperation(queryClient, identity, "statement");
 			} catch (error) {

@@ -1,14 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { format, subDays } from "date-fns";
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
-import { DebtSplitEditor } from "@/components/debts";
-import { StorePicker } from "@/components/stores";
-import { TagPicker } from "@/components/tags";
+import type { RecurrenceMovement, RecurrenceUnit } from "@zaimu/finance/recurrence";
+import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
-import { DateField } from "@/components/ui/DateField";
 import {
 	Dialog,
 	DialogContent,
@@ -17,710 +12,260 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
+import { ScrollArea } from "@/components/ui/ScrollArea";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { useDialogCloseReset } from "@/hooks/use-dialog-close-reset";
-import type { DebtSplitInput, RecurringPayment, Salary, Subscription } from "@/lib/api";
+import type { DebtSplitInput } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { getLocalDateKey } from "@/lib/date";
-import { calculateDebtSplit, debtSplitToInput } from "@/lib/debt-split";
-import {
-	compareFinancialAccountsByDisplayName,
-	getFinancialAccountOptionLabel,
-} from "@/lib/financial-account";
+import { debtSplitToInput } from "@/lib/debt-split";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import type { Recurrence, RecurrenceInput } from "@/lib/recurrence";
 import { showToast } from "@/stores";
-import { frequencyOptions, paymentMethodOptions, sourceOptions, weekdayOptions } from "./constants";
-import { getCreationSource } from "./creation-source";
 import { DebouncedFormField } from "./DebouncedFormField";
 import { DebouncedMoneyField } from "./DebouncedMoneyField";
-import { PastTransactionsDialog } from "./PastTransactionsDialog";
-import { getMissingRecurrenceDates, getPastRecurrenceDates } from "./recurrence-dates";
-import { getRecurrenceDay, getRecurrenceScheduleDescription } from "./recurrence-schedule";
-import type { RecurrenceFrequency, RecurringDraft, RecurringListItemData, RecurringSource } from "./types";
+import { RecurrenceAccountFields } from "./RecurrenceAccountFields";
+import { RecurrenceOptionalFields } from "./RecurrenceOptionalFields";
+import { RecurrenceScheduleFields } from "./RecurrenceScheduleFields";
+import type { RecurringListItemData } from "./types";
+import { movementLabels, type UnifiedRecurringDraft } from "./unified-types";
 
-const initialDraft = (item?: RecurringListItemData): RecurringDraft => ({
-	amount: item ? String(item.amount) : "",
-	day: item?.frequency === "MONTHLY" && item.day ? String(item.day) : "",
-	dayOfWeek: item?.dayOfWeek === null || item?.dayOfWeek === undefined ? "default" : String(item.dayOfWeek),
-	endDate: item?.endDate?.slice(0, 10) ?? "",
-	financialAccountId: item?.financialAccountId ?? "",
-	frequency: item?.frequency ?? "MONTHLY",
-	name: item?.title ?? "",
-	paymentMethod:
-		item?.paymentMethod === "CREDIT" || item?.paymentMethod === "CASH"
-			? item.paymentMethod
-			: item?.paymentMethod
-				? "TRANSFER"
-				: "CREDIT",
-	source: item?.source ?? "subscription",
-	startDate: item?.startDate.slice(0, 10) ?? getLocalDateKey(),
-	storeName: item?.storeName ?? "",
-	tagIds: item?.tags?.map(tag => tag.id) ?? [],
+const initialDraft = (recurrence?: Recurrence): UnifiedRecurringDraft => ({
+	amount: recurrence ? String(recurrence.amount) : "",
+	creditCardId: recurrence?.creditCardId ?? "",
+	dayOfMonth: String(
+		recurrence?.dayOfMonth ?? Number((recurrence?.startDate ?? getLocalDateKey()).slice(8, 10)),
+	),
+	dayOfWeek: recurrence?.dayOfWeek == null ? "default" : String(recurrence.dayOfWeek),
+	destinationFinancialAccountId: recurrence?.destinationFinancialAccountId ?? "",
+	endDate: recurrence?.endDate ?? "",
+	interval: String(recurrence?.interval ?? 1),
+	movement: recurrence?.movement ?? "EXPENSE",
+	name: recurrence?.name ?? "",
+	originFinancialAccountId: recurrence?.originFinancialAccountId ?? "",
+	startDate: recurrence?.startDate ?? getLocalDateKey(),
+	storeName: recurrence?.storeName ?? "",
+	tagIds: recurrence?.tagIds ?? [],
+	unit: recurrence?.unit ?? "MONTH",
 });
-
-const noFinancialAccountValue = "__no-financial-account__";
-
-const initialDebtSplit = (item?: RecurringListItemData) => debtSplitToInput(item?.debtSplit);
-
-const successMessages: Record<RecurringSource, string> = {
-	recurring: "Recorrência criada.",
-	salary: "Salário criado.",
-	subscription: "Assinatura criada.",
-};
-
 export function CreateRecurringDialog({
-	onOpenChange,
 	open,
+	onOpenChange,
 	item,
 }: {
-	onOpenChange: (open: boolean) => void;
 	open: boolean;
+	onOpenChange: (open: boolean) => void;
 	item?: RecurringListItemData;
 }) {
-	const queryClient = useQueryClient();
+	const recurrence = item?.recurrence;
 	const identity = useCacheIdentity();
-	const [draft, setDraft] = useState(() => initialDraft(item));
-	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>(() => initialDebtSplit(item));
-	const [isDebtSplitEnabled, setIsDebtSplitEnabled] = useState(Boolean(item?.debtSplit));
-	const isEditing = Boolean(item);
-	const [isPastTransactionsDialogOpen, setIsPastTransactionsDialogOpen] = useState(false);
-	const accountsQuery = useQuery({
-		enabled: identity !== null,
+	const queryClient = useQueryClient();
+	const [draft, setDraft] = useState(() => initialDraft(recurrence));
+	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>(() => debtSplitToInput(recurrence?.debtSplit));
+	const [debtEnabled, setDebtEnabled] = useState(Boolean(recurrence?.debtSplit));
+	const [addPast, setAddPast] = useState(false);
+	const [savedRecurrenceId, setSavedRecurrenceId] = useState<string>();
+	const [progress, setProgress] = useState("");
+	const accounts = useQuery({
+		enabled: identity !== null && open,
 		queryFn: () => dataService.accounts.getAll(),
 		queryKey: queryKeys.accounts.list(identity!),
 	});
-	const balanceAccounts =
-		accountsQuery.data
-			?.filter(
-				account => account.type === "CHECKING" || account.type === "SAVINGS" || account.type === "CASH",
-			)
-			.toSorted(compareFinancialAccountsByDisplayName) ?? [];
-	const compatibleAccounts =
-		draft.source === "salary"
-			? balanceAccounts
-			: draft.paymentMethod !== "CREDIT"
-				? balanceAccounts
-				: (accountsQuery.data
-						?.filter(account => account.type === "CREDIT_CARD")
-						.toSorted(compareFinancialAccountsByDisplayName) ?? []);
-	const selectedCreditCardId = accountsQuery.data?.find(account => account.id === draft.financialAccountId)
-		?.creditCard?.id;
-	useEffect(() => {
-		if (draft.financialAccountId || compatibleAccounts.length !== 1) return;
-		setDraft(current =>
-			current.financialAccountId ? current : { ...current, financialAccountId: compatibleAccounts[0].id },
-		);
-	}, [compatibleAccounts, draft.financialAccountId]);
-	const setField = <Key extends keyof RecurringDraft>(field: Key, value: RecurringDraft[Key]) => {
-		setDraft(current => ({ ...current, [field]: value }));
-	};
 	useDialogCloseReset(open, () => {
-		setDraft(initialDraft(item));
-		setDebtSplit(initialDebtSplit(item));
-		setIsDebtSplitEnabled(Boolean(item?.debtSplit));
-		setIsPastTransactionsDialogOpen(false);
+		setDraft(initialDraft(recurrence));
+		setDebtSplit(debtSplitToInput(recurrence?.debtSplit));
+		setDebtEnabled(Boolean(recurrence?.debtSplit));
+		setAddPast(false);
+		setSavedRecurrenceId(undefined);
+		setProgress("");
 	});
-	const handleOpenChange = (nextOpen: boolean) => {
-		onOpenChange(nextOpen);
-	};
-	const getMissingPastDates = async (recurrenceId: string) => {
-		const dates = getPastRecurrenceDates(
-			draft.frequency,
-			draft.startDate,
-			getRecurrenceDay(draft.frequency, draft.startDate, draft.day),
-			new Date(),
-			draft.endDate || undefined,
-			draft.frequency === "WEEKLY" && draft.dayOfWeek !== "default"
-				? Number.parseInt(draft.dayOfWeek, 10)
-				: undefined,
-		);
-		const transactions = await dataService.transactions.getAll({
-			endDate: format(subDays(new Date(), 1), "yyyy-MM-dd"),
-			startDate: draft.startDate,
-		});
-		const existingDates = transactions.flatMap(transaction => {
-			if (draft.source === "salary" && transaction.salaryId === recurrenceId)
-				return transaction.salaryOccurrenceDate ? [transaction.salaryOccurrenceDate.slice(0, 10)] : [];
-			if (draft.source === "subscription" && transaction.subscriptionId === recurrenceId)
-				return transaction.subscriptionOccurrenceDate
-					? [transaction.subscriptionOccurrenceDate.slice(0, 10)]
-					: [];
-			if (draft.source === "recurring" && transaction.recurrenceId === recurrenceId)
-				return transaction.recurrenceOccurrenceDate
-					? [transaction.recurrenceOccurrenceDate.slice(0, 10)]
-					: [];
-			return [];
-		});
-		return getMissingRecurrenceDates(dates, existingDates);
-	};
-
-	const create = useMutation({
-		mutationFn: async (addPastTransactions: boolean): Promise<RecurringPayment | Salary | Subscription> => {
-			const amount = Number.parseFloat(draft.amount);
-			const creationSource = getCreationSource(draft);
-			const selectedDebtSplit = isDebtSplitEnabled ? debtSplit : null;
-			const startDateChanged = item ? draft.startDate !== item.startDate.slice(0, 10) : false;
-			const day = getRecurrenceDay(draft.frequency, draft.startDate, draft.day);
-			const dayOfWeek =
-				draft.frequency === "WEEKLY" && draft.dayOfWeek !== "default"
-					? Number.parseInt(draft.dayOfWeek, 10)
-					: null;
-			if (item) {
-				if (item.source === "salary") {
-					const salary = await dataService.salaries.update(item.id, {
-						amount,
-						dayOfWeek,
-						endDate: draft.endDate || null,
-						financialAccountId: draft.financialAccountId,
-						frequency: draft.frequency,
-						payDay: day,
-						source: draft.name.trim(),
-						...(startDateChanged && { startDate: draft.startDate }),
-						tagIds: draft.tagIds,
-					});
-					if (addPastTransactions) {
-						const dates = await getMissingPastDates(salary.id);
-						await Promise.all(
-							dates.map(date =>
-								dataService.transactions.create({
-									amount,
-									date,
-									description: draft.name.trim(),
-									destinationFinancialAccountId: draft.financialAccountId,
-									salaryId: salary.id,
-									salaryOccurrenceDate: date,
-									time: null,
-									type: "INCOME",
-								}),
-							),
-						);
-					}
-					return salary;
-				}
-				if (item.source === "subscription") {
-					const subscription = await dataService.subscriptions.update(item.id, {
-						amount,
-						billingDay: day,
-						dayOfWeek,
-						debtSplit: selectedDebtSplit,
-						endDate: draft.endDate || null,
-						financialAccountId: draft.financialAccountId || null,
-						frequency: draft.frequency,
-						name: draft.name.trim(),
-						paymentMethod: draft.paymentMethod,
-						...(startDateChanged && { startDate: draft.startDate }),
-						storeName: draft.storeName.trim() || null,
-						tagIds: draft.tagIds,
-					});
-					if (addPastTransactions) {
-						const dates = await getMissingPastDates(subscription.id);
-						if (selectedCreditCardId) {
-							await Promise.all(
-								dates.map(purchaseDate =>
-									dataService.creditCards.addPurchase(selectedCreditCardId, {
-										debtSplit: selectedDebtSplit ?? undefined,
-										description: draft.name.trim(),
-										purchaseDate,
-										storeName: draft.storeName.trim() || undefined,
-										subscriptionId: subscription.id,
-										subscriptionOccurrenceDate: purchaseDate,
-										tagIds: draft.tagIds,
-										time: null,
-										totalAmount: amount,
-									}),
-								),
-							);
-						} else {
-							await Promise.all(
-								dates.map(date =>
-									dataService.transactions.create({
-										amount,
-										date,
-										debtSplit: selectedDebtSplit ?? undefined,
-										description: draft.name.trim(),
-										storeName: draft.storeName.trim() || undefined,
-										subscriptionId: subscription.id,
-										subscriptionOccurrenceDate: date,
-										time: null,
-										type: "EXPENSE",
-									}),
-								),
-							);
-						}
-					}
-					return subscription;
-				}
-				const payment = await dataService.recurringPayments.update(item.id, {
-					amount,
-					dayOfMonth: day,
-					dayOfWeek,
-					debtSplit: selectedDebtSplit,
-					endDate: draft.endDate || null,
-					financialAccountId: draft.financialAccountId || null,
-					frequency: draft.frequency,
-					name: draft.name.trim(),
-					paymentMethod: draft.paymentMethod,
-					...(startDateChanged && { startDate: draft.startDate }),
-					storeName: draft.storeName.trim() || null,
-					tagIds: draft.tagIds,
-				});
-				if (addPastTransactions) {
-					const dates = await getMissingPastDates(payment.id);
-					await Promise.all(
-						dates.map(date =>
-							dataService.transactions.create({
-								amount,
-								date,
-								debtSplit: selectedDebtSplit ?? undefined,
-								description: draft.name.trim(),
-								recurrenceId: payment.id,
-								recurrenceOccurrenceDate: date,
-								storeName: draft.storeName.trim() || undefined,
-								time: null,
-								type: "EXPENSE",
-							}),
-						),
-					);
-				}
-				return payment;
+	const set = <K extends keyof UnifiedRecurringDraft>(key: K, value: UnifiedRecurringDraft[K]) =>
+		setDraft(current => ({ ...current, [key]: value }));
+	const debtAllowed = !["TRANSFER", "CARD_PAYMENT"].includes(draft.movement);
+	const save = useMutation({
+		mutationFn: async (input: RecurrenceInput) => {
+			setProgress("Salvando recorrência...");
+			const id = recurrence?.id ?? savedRecurrenceId;
+			const saved = id
+				? await dataService.recurrences.update(id, input)
+				: await dataService.recurrences.create(input);
+			setSavedRecurrenceId(saved.id);
+			if (addPast && input.startDate < getLocalDateKey()) {
+				setProgress("Recompondo ocorrências passadas...");
+				await dataService.recurrences.replay(saved.id, input.startDate, getLocalDateKey());
 			}
-			if (draft.source === "salary") {
-				const autoGenerateFrom = addPastTransactions ? draft.startDate : format(new Date(), "yyyy-MM-dd");
-				const salary = await dataService.salaries.create({
-					amount,
-					autoGenerateFrom,
-					dayOfWeek,
-					endDate: draft.endDate || undefined,
-					financialAccountId: draft.financialAccountId,
-					frequency: draft.frequency,
-					payDay: day,
-					source: draft.name.trim(),
-					startDate: draft.startDate,
-					tagIds: draft.tagIds,
-				});
-				if (addPastTransactions) {
-					await Promise.all(
-						getPastRecurrenceDates(
-							draft.frequency,
-							draft.startDate,
-							day,
-							new Date(),
-							draft.endDate || undefined,
-							dayOfWeek ?? undefined,
-						).map(date =>
-							dataService.transactions.create({
-								amount,
-								date,
-								description: draft.name.trim(),
-								destinationFinancialAccountId: draft.financialAccountId,
-								salaryId: salary.id,
-								salaryOccurrenceDate: date,
-								time: null,
-								type: "INCOME",
-							}),
-						),
-					);
-				}
-				return salary;
-			}
-			if (creationSource === "subscription") {
-				const subscription = await dataService.subscriptions.create({
-					amount,
-					billingDay: day,
-					dayOfWeek,
-					debtSplit: selectedDebtSplit ?? undefined,
-					endDate: draft.endDate || undefined,
-					financialAccountId: draft.financialAccountId || undefined,
-					frequency: draft.frequency,
-					name: draft.name.trim(),
-					paymentMethod: draft.paymentMethod,
-					startDate: draft.startDate,
-					storeName: draft.storeName.trim() || undefined,
-					tagIds: draft.tagIds,
-				});
-				if (addPastTransactions) {
-					const dates = getPastRecurrenceDates(
-						draft.frequency,
-						draft.startDate,
-						day,
-						new Date(),
-						draft.endDate || undefined,
-						dayOfWeek ?? undefined,
-					);
-					if (selectedCreditCardId) {
-						await Promise.all(
-							dates.map(purchaseDate =>
-								dataService.creditCards.addPurchase(selectedCreditCardId, {
-									debtSplit: selectedDebtSplit ?? undefined,
-									description: draft.name.trim(),
-									purchaseDate,
-									storeName: draft.storeName.trim() || undefined,
-									subscriptionId: subscription.id,
-									subscriptionOccurrenceDate: purchaseDate,
-									tagIds: draft.tagIds,
-									time: null,
-									totalAmount: amount,
-								}),
-							),
-						);
-					} else {
-						await Promise.all(
-							dates.map(date =>
-								dataService.transactions.create({
-									amount,
-									date,
-									debtSplit: selectedDebtSplit ?? undefined,
-									description: draft.name.trim(),
-									storeName: draft.storeName.trim() || undefined,
-									subscriptionId: subscription.id,
-									subscriptionOccurrenceDate: date,
-									time: null,
-									type: "EXPENSE",
-								}),
-							),
-						);
-					}
-				}
-				return subscription;
-			}
-			const payment = await dataService.recurringPayments.create({
-				amount,
-				dayOfMonth: day,
-				dayOfWeek,
-				debtSplit: selectedDebtSplit ?? undefined,
-				endDate: draft.endDate || undefined,
-				financialAccountId: draft.financialAccountId || undefined,
-				frequency: draft.frequency,
-				name: draft.name.trim(),
-				paymentMethod: draft.paymentMethod,
-				startDate: draft.startDate,
-				storeName: draft.storeName.trim() || undefined,
-				tagIds: draft.tagIds,
-			});
-			if (addPastTransactions) {
-				await Promise.all(
-					getPastRecurrenceDates(
-						draft.frequency,
-						draft.startDate,
-						day,
-						new Date(),
-						draft.endDate || undefined,
-						dayOfWeek ?? undefined,
-					).map(date =>
-						dataService.transactions.create({
-							amount,
-							date,
-							debtSplit: selectedDebtSplit ?? undefined,
-							description: draft.name.trim(),
-							recurrenceId: payment.id,
-							recurrenceOccurrenceDate: date,
-							storeName: draft.storeName.trim() || undefined,
-							time: null,
-							type: "EXPENSE",
-						}),
-					),
-				);
-			}
-			return payment;
 		},
-		onError: (error, _, context) => {
-			toast.dismiss(context?.toastId);
+		onError: error => {
+			setProgress("");
 			showToast(error.message, "negative");
 		},
-		onMutate: () => {
-			handleOpenChange(false);
-			return {
-				source: getCreationSource(draft),
-				toastId: toast.loading("Salvando recorrência…", { position: "bottom-right" }),
-			};
-		},
-		onSuccess: async (_, addPastTransactions, context) => {
+		onSuccess: async () => {
 			await invalidateCacheOperation(queryClient, identity!, "recurring");
-			toast.success(
-				isEditing
-					? "Recorrência atualizada."
-					: addPastTransactions
-						? `${successMessages[context.source].replace(".", "")} e transações passadas adicionadas.`
-						: successMessages[context.source],
-				{ id: context?.toastId, position: "bottom-right" },
-			);
+			onOpenChange(false);
+			showToast(recurrence ? "Recorrência atualizada." : "Recorrência criada.", "positive");
 		},
 	});
-
-	const nameLabel = draft.source === "salary" ? "Fonte da renda" : "Nome";
-	const namePlaceholder =
-		draft.source === "salary"
-			? "Ex: Empresa Exemplo"
-			: draft.source === "subscription"
-				? "Ex: Streaming"
-				: "Ex: Aluguel";
-	const dayLabel = draft.source === "salary" ? "Dia do pagamento" : "Dia da cobrança";
-	const day = Number.parseInt(draft.day, 10);
-	const dayError =
-		draft.frequency === "MONTHLY" && draft.day && (day < 1 || day > 31)
-			? "Informe um dia entre 1 e 31."
-			: undefined;
-	const endDateError =
-		draft.endDate && draft.endDate < draft.startDate
-			? "A data final deve ser igual ou posterior à inicial."
-			: undefined;
-	const requiresFinancialAccount = draft.source === "salary" || draft.paymentMethod === "CREDIT";
-	const canSubmit =
-		draft.name.trim() &&
-		draft.amount &&
-		(draft.frequency !== "MONTHLY" || draft.day) &&
-		!dayError &&
-		!endDateError &&
-		draft.startDate &&
-		(!requiresFinancialAccount || draft.financialAccountId) &&
-		(!isDebtSplitEnabled || Boolean(calculateDebtSplit(Number.parseFloat(draft.amount), debtSplit)));
-	const isStartDateInPast = draft.startDate < format(new Date(), "yyyy-MM-dd");
-	const handleSave = () => {
-		if (isStartDateInPast && (!item || draft.startDate < item.startDate.slice(0, 10))) {
-			setIsPastTransactionsDialogOpen(true);
-			return;
-		}
-		create.mutate(false);
-	};
-
 	return (
-		<Dialog onOpenChange={handleOpenChange} open={open}>
+		<Dialog
+			onOpenChange={next => {
+				if (!save.isPending) onOpenChange(next);
+			}}
+			open={open}
+		>
 			<DialogContent
-				className={
-					isPastTransactionsDialogOpen
-						? "sm:max-w-lg"
-						: "max-h-[92dvh] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-lg"
-				}
+				className="w-[calc(100%-2rem)] gap-0 overflow-hidden p-0 sm:max-w-2xl"
+				showCloseButton={!save.isPending}
 			>
-				<DialogHeader className={isPastTransactionsDialogOpen ? "hidden" : undefined}>
-					<DialogTitle>{isEditing ? "Editar recorrência" : "Nova recorrência"}</DialogTitle>
-					<DialogDescription>
-						{isEditing ? "Atualize os dados da recorrência." : "Cadastre uma entrada ou saída que se repete."}
-					</DialogDescription>
-				</DialogHeader>
-				<div
-					className={
-						isPastTransactionsDialogOpen
-							? "hidden"
-							: "scrollbar-themed grid min-h-0 min-w-0 max-w-full gap-4 overflow-y-auto overflow-x-hidden pr-1"
-					}
-				>
-					{!isEditing && (
-						<CustomSelect
-							label="Tipo"
-							onValueChange={value =>
-								setDraft(current => ({
-									...current,
-									financialAccountId: "",
-									source: value as RecurringSource,
-								}))
-							}
-							options={sourceOptions}
-							placeholder="Selecione o tipo"
-							required
-							value={draft.source}
-						/>
-					)}
-					<DebouncedFormField
-						autoComplete={draft.source === "salary" ? "organization" : "off"}
-						id="recurring-name"
-						label={nameLabel}
-						name={draft.source === "salary" ? "organization" : "recurring-name"}
-						onValueChange={value => setField("name", value)}
-						placeholder={namePlaceholder}
-						required
-						type="text"
-						value={draft.name}
-					/>
-					<div className="grid gap-4">
-						<DebouncedMoneyField
-							id="recurring-amount"
-							label="Valor"
-							onValueChange={value => setField("amount", value)}
-							required
-							value={draft.amount}
-						/>
-					</div>
-					{draft.source !== "salary" && (
-						<div className="grid gap-3">
-							<CheckboxField
-								checkboxProps={{
-									checked: isDebtSplitEnabled,
-									onCheckedChange: checked => setIsDebtSplitEnabled(checked === true),
+				<ScrollArea className="max-h-[calc(100dvh-2rem)] min-h-0 rounded-4xl [&>[data-slot=scroll-area-viewport]]:max-h-[calc(100dvh-2rem)]">
+					<div className="space-y-6 p-6">
+						<DialogHeader>
+							<DialogTitle>{recurrence ? "Editar recorrência" : "Adicionar recorrência"}</DialogTitle>
+							<DialogDescription>
+								Agende recebimentos, pagamentos, compras ou transferências.
+							</DialogDescription>
+						</DialogHeader>
+						{accounts.isPending ? (
+							<div className="grid gap-4 sm:grid-cols-2">
+								{[1, 2, 3, 4, 5, 6].map(key => (
+									<Skeleton className="h-20 rounded-xl" key={key} />
+								))}
+							</div>
+						) : accounts.isError ? (
+							<p role="alert">Não foi possível carregar contas.</p>
+						) : (
+							<form
+								className="space-y-5"
+								onSubmit={event => {
+									event.preventDefault();
+									const fields = new FormData(event.currentTarget);
+									const amountText = String(fields.get("recurrence-amount") ?? draft.amount);
+									const amount =
+										amountText.includes(",") || amountText.includes("R$")
+											? Number(
+													amountText
+														.replace(/[^\d,.-]/g, "")
+														.replaceAll(".", "")
+														.replace(",", "."),
+												)
+											: Number(amountText);
+									save.mutate({
+										amount,
+										creditCardId: ["CARD_PURCHASE", "CARD_PAYMENT"].includes(draft.movement)
+											? draft.creditCardId || null
+											: null,
+										dayOfMonth: ["MONTH", "YEAR"].includes(draft.unit)
+											? Number(fields.get("recurrence-day") ?? draft.dayOfMonth)
+											: null,
+										dayOfWeek:
+											draft.unit === "WEEK" && draft.dayOfWeek !== "default" ? Number(draft.dayOfWeek) : null,
+										debtSplit: debtAllowed && debtEnabled ? debtSplit : null,
+										destinationFinancialAccountId: ["INCOME", "TRANSFER"].includes(draft.movement)
+											? draft.destinationFinancialAccountId || null
+											: null,
+										endDate: draft.endDate || null,
+										interval: Number(fields.get("recurrence-interval") ?? draft.interval),
+										isActive: recurrence?.isActive ?? true,
+										movement: draft.movement,
+										name: String(fields.get("recurrence-name") ?? draft.name).trim(),
+										originFinancialAccountId: ["EXPENSE", "TRANSFER", "CARD_PAYMENT"].includes(draft.movement)
+											? draft.originFinancialAccountId || null
+											: null,
+										startDate: draft.startDate,
+										storeName: draft.storeName || null,
+										tagIds: draft.tagIds,
+										unit: draft.unit as RecurrenceUnit,
+									});
 								}}
 							>
-								Dividir com outras pessoas
-							</CheckboxField>
-							{isDebtSplitEnabled ? (
-								<DebtSplitEditor
-									amount={Number.parseFloat(draft.amount) || 0}
-									onChange={setDebtSplit}
-									value={debtSplit}
-								/>
-							) : null}
-						</div>
-					)}
-					{draft.source === "salary" && (
-						<CustomSelect
-							label="Conta de destino"
-							onValueChange={value => setField("financialAccountId", value)}
-							options={compatibleAccounts.map(account => ({
-								label: getFinancialAccountOptionLabel(account),
-								value: account.id,
-							}))}
-							placeholder={accountsQuery.isPending ? "Carregando contas…" : "Selecione a conta"}
-							required
-							searchable
-							value={draft.financialAccountId}
-						/>
-					)}
-					<div
-						className={
-							draft.frequency === "MONTHLY" || draft.frequency === "WEEKLY"
-								? "grid gap-4 sm:grid-cols-2"
-								: "grid gap-4"
-						}
-					>
-						<CustomSelect
-							label="Frequência"
-							onValueChange={value => setField("frequency", value as RecurrenceFrequency)}
-							options={frequencyOptions}
-							placeholder="Selecione a frequência"
-							required
-							value={draft.frequency}
-						/>
-						{draft.frequency === "MONTHLY" && (
-							<DebouncedFormField
-								autoComplete="off"
-								error={dayError}
-								id="recurring-day"
-								inputMode="numeric"
-								label={dayLabel}
-								maxLength={2}
-								name="recurring-day"
-								onValueChange={value => setField("day", value.replace(/\D/g, "").slice(0, 2))}
-								placeholder="Ex: 10"
-								required
-								type="text"
-								value={draft.day}
-							/>
-						)}
-						{draft.frequency === "WEEKLY" && (
-							<CustomSelect
-								label="Dia da semana"
-								onValueChange={value => setField("dayOfWeek", value)}
-								options={[...weekdayOptions]}
-								placeholder="Usar dia da data inicial"
-								sortOptions={false}
-								value={draft.dayOfWeek}
-							/>
+								<fieldset className="space-y-5" disabled={save.isPending}>
+									<div className="grid gap-4 sm:grid-cols-2">
+										<DebouncedFormField
+											id="recurrence-name"
+											label="Descrição"
+											name="recurrence-name"
+											onValueChange={value => set("name", value)}
+											placeholder="Ex: Recebimento de dívida"
+											required
+											value={draft.name}
+										/>
+										<DebouncedMoneyField
+											id="recurrence-amount"
+											label="Valor por ocorrência"
+											name="recurrence-amount"
+											onValueChange={value => set("amount", value)}
+											placeholder="R$ 150,00"
+											required
+											value={draft.amount}
+										/>
+									</div>
+									<div className="grid gap-2">
+										<CustomSelect
+											disabled={save.isPending}
+											label="Movimentação"
+											onValueChange={value =>
+												setDraft(current => ({
+													...current,
+													creditCardId: "",
+													destinationFinancialAccountId: "",
+													movement: value as RecurrenceMovement,
+													originFinancialAccountId: "",
+												}))
+											}
+											options={Object.entries(movementLabels).map(([value, label]) => ({ label, value }))}
+											placeholder="Selecione movimentação"
+											required
+											value={draft.movement}
+										/>
+									</div>
+									<RecurrenceAccountFields
+										accounts={accounts.data ?? []}
+										disabled={save.isPending}
+										draft={draft}
+										set={set}
+									/>
+									<RecurrenceScheduleFields disabled={save.isPending} draft={draft} set={set} />
+									<RecurrenceOptionalFields
+										debtEnabled={debtEnabled}
+										debtSplit={debtSplit}
+										disabled={save.isPending}
+										draft={draft}
+										set={set}
+										setDebtEnabled={setDebtEnabled}
+										setDebtSplit={setDebtSplit}
+									/>
+									{draft.startDate < getLocalDateKey() && (
+										<CheckboxField
+											checkboxProps={{
+												checked: addPast,
+												onCheckedChange: checked => setAddPast(checked === true),
+											}}
+										>
+											Recompor ocorrências passadas inexistentes
+										</CheckboxField>
+									)}
+								</fieldset>
+								{progress && (
+									<p className="text-muted-foreground text-sm" role="status">
+										{progress}
+									</p>
+								)}
+								<DialogFooter>
+									<Button
+										disabled={save.isPending}
+										onClick={() => onOpenChange(false)}
+										type="button"
+										variant="outline"
+									>
+										Descartar
+									</Button>
+									<Button disabled={save.isPending} type="submit">
+										{save.isPending ? "Salvando..." : "Salvar"}
+									</Button>
+								</DialogFooter>
+							</form>
 						)}
 					</div>
-					{draft.source !== "salary" && (
-						<CustomSelect
-							label="Forma de pagamento"
-							onValueChange={value =>
-								setDraft(current => ({
-									...current,
-									financialAccountId: "",
-									paymentMethod: value as RecurringDraft["paymentMethod"],
-								}))
-							}
-							options={[...paymentMethodOptions]}
-							placeholder="Selecione a forma"
-							required
-							value={draft.paymentMethod}
-						/>
-					)}
-					{draft.source !== "salary" && compatibleAccounts.length > 0 && (
-						<CustomSelect
-							label={draft.paymentMethod === "CREDIT" ? "Cartão de cobrança" : "Conta de saída"}
-							onValueChange={value =>
-								setField("financialAccountId", value === noFinancialAccountValue ? "" : value)
-							}
-							options={[
-								...(draft.paymentMethod === "CREDIT"
-									? []
-									: [{ label: "Sem conta específica", special: true, value: noFinancialAccountValue }]),
-								...compatibleAccounts.map(account => ({
-									label: getFinancialAccountOptionLabel(account),
-									value: account.id,
-								})),
-							]}
-							placeholder={
-								accountsQuery.isPending
-									? "Carregando contas…"
-									: draft.paymentMethod === "CREDIT"
-										? "Selecione o cartão"
-										: "Selecione a conta"
-							}
-							required={draft.paymentMethod === "CREDIT"}
-							searchable
-							value={
-								draft.financialAccountId ||
-								(draft.paymentMethod === "CREDIT" ? undefined : noFinancialAccountValue)
-							}
-						/>
-					)}
-					<DateField
-						description={
-							[
-								getRecurrenceScheduleDescription(
-									draft.frequency,
-									draft.startDate,
-									draft.dayOfWeek === "default" ? null : Number.parseInt(draft.dayOfWeek, 10),
-								),
-							]
-								.filter(Boolean)
-								.join(" ") || undefined
-						}
-						id="recurring-start-date"
-						label="Data inicial"
-						name="start-date"
-						onValueChange={value => setField("startDate", value)}
-						required
-						value={draft.startDate}
-					/>
-					<DateField
-						description="Deixe vazio para continuar sem prazo."
-						error={endDateError}
-						id="recurring-end-date"
-						label="Data final"
-						name="end-date"
-						onValueChange={value => setField("endDate", value)}
-						value={draft.endDate}
-					/>
-					<TagPicker onValueChange={tagIds => setField("tagIds", tagIds)} value={draft.tagIds} />
-					{draft.source !== "salary" && (
-						<StorePicker
-							onValueChange={storeName => setField("storeName", storeName)}
-							value={draft.storeName}
-						/>
-					)}
-				</div>
-				<DialogFooter className={isPastTransactionsDialogOpen ? "hidden" : undefined}>
-					<Button className="cursor-pointer" onClick={() => handleOpenChange(false)} variant="outline">
-						Descartar
-					</Button>
-					<Button
-						className="cursor-pointer disabled:cursor-not-allowed"
-						disabled={!canSubmit || create.isPending}
-						onClick={handleSave}
-					>
-						{create.isPending ? "Salvando…" : "Salvar"}
-					</Button>
-				</DialogFooter>
-				{isPastTransactionsDialogOpen && (
-					<PastTransactionsDialog
-						onAddAll={() => {
-							setIsPastTransactionsDialogOpen(false);
-							create.mutate(true);
-						}}
-						onSkip={() => {
-							setIsPastTransactionsDialogOpen(false);
-							create.mutate(false);
-						}}
-					/>
-				)}
+				</ScrollArea>
 			</DialogContent>
 		</Dialog>
 	);

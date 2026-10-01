@@ -25,9 +25,11 @@ import { type CacheIdentity, getCurrentCacheIdentity } from "@/lib/query-cache";
 import { calculateDebtSplit } from "./debt-split";
 import { migrateLegacyCardPayments } from "./legacy-card-payments";
 import { migrateCreditBooks } from "./migrate-credit-books";
+import { migrateLocalRecurrenceRows } from "./migrate-recurrences";
+import type { Recurrence, RecurrenceOccurrence } from "./recurrence";
 
 const DB_NAME = "zaimu-local";
-const DB_VERSION = 7;
+const DB_VERSION = 8;
 
 const LEGACY_STORES = {
 	accounts: "accounts",
@@ -41,6 +43,8 @@ const LEGACY_STORES = {
 	debts: "debts",
 	loans: "loans",
 	meta: "meta",
+	recurrenceOccurrences: "recurrenceOccurrences",
+	recurrences: "recurrences",
 	recurringPayments: "recurringPayments",
 	salaries: "salaries",
 	stores: "stores",
@@ -270,7 +274,8 @@ async function openLocalDb(): Promise<IDBDatabase> {
 	db = database;
 	migrationPromise = migrateLegacyData(database)
 		.then(() => migrateCardPayments(database))
-		.then(() => migrateCreditBooks(database));
+		.then(() => migrateCreditBooks(database))
+		.then(() => migrateRecurrences(database));
 	await migrationPromise;
 	return database;
 }
@@ -339,6 +344,42 @@ export async function softDelete(
 	ownerKey?: StorageOwner,
 ): Promise<void> {
 	const owner = requireOwner(ownerKey);
+	if (domain === "transactions") {
+		const database = await initLocalDb();
+		const tx = database.transaction(["scoped-transactions", "scoped-recurrenceOccurrences"], "readwrite");
+		const done = transactionDone(tx);
+		const store = tx.objectStore("scoped-transactions");
+		const item = (await requestResult(store.get(scopedId(owner, localId)))) as
+			| LocalData<Transaction>
+			| undefined;
+		if (item) {
+			const occurrenceId =
+				item.data.recurrenceId && item.data.recurrenceOccurrenceDate
+					? `${item.data.recurrenceId}:${item.data.recurrenceOccurrenceDate.slice(0, 10)}`
+					: null;
+			if (occurrenceId) {
+				const occurrences = tx.objectStore("scoped-recurrenceOccurrences");
+				const occurrence = (await requestResult(occurrences.get(scopedId(owner, occurrenceId)))) as
+					| LocalData<RecurrenceOccurrence>
+					| undefined;
+				if (occurrence)
+					await requestResult(
+						occurrences.put({
+							...occurrence,
+							data: { ...occurrence.data, deletedAt: new Date().toISOString() },
+							modifiedAt: Math.max(Date.now(), occurrence.modifiedAt + 1),
+						}),
+					);
+			}
+			if (owner.startsWith("user:")) await requestResult(store.delete(scopedId(owner, localId)));
+			else
+				await requestResult(
+					store.put({ ...item, deleted: true, modifiedAt: Math.max(Date.now(), item.modifiedAt + 1) }),
+				);
+		}
+		await done;
+		return;
+	}
 	await runTransaction(scopedStoreName(domain), "readwrite", async store => {
 		const key = scopedId(owner, localId);
 		if (owner.startsWith("user:")) {
@@ -507,6 +548,8 @@ export const localTransactions = createLocalStore<Transaction>("transactions");
 export const localLoans = createLocalStore<Loan>("loans");
 export const localDebts = createLocalStore<Debt>("debts");
 export const localDebtPeople = createLocalStore<DebtPerson>("debtPeople");
+export const localRecurrences = createLocalStore<Recurrence>("recurrences");
+export const localRecurrenceOccurrences = createLocalStore<RecurrenceOccurrence>("recurrenceOccurrences");
 export const localSalaries = createLocalStore<Salary>("salaries");
 export const localSubscriptions = createLocalStore<Subscription>("subscriptions");
 export const localCreditCards = createLocalStore<CreditCard>("creditCards");
@@ -620,7 +663,8 @@ export async function mutateLocalCreditBook<T>(
 			"scoped-meta",
 			"scoped-debtPeople",
 			"scoped-categories",
-			"scoped-subscriptions",
+			"scoped-recurrences",
+			"scoped-recurrenceOccurrences",
 		],
 		"readwrite",
 	);
@@ -682,7 +726,7 @@ export async function mutateLocalCreditBook<T>(
 					throw new Error("Tag indisponível");
 			for (const [store, id] of [
 				["scoped-accounts", p.cashbackAccountId],
-				["scoped-subscriptions", p.subscriptionId],
+				["scoped-recurrences", p.subscriptionId],
 			] as const)
 				if (id && !(await requestResult(tx.objectStore(store).get(scopedId(owner, id)))))
 					throw new Error("Vínculo indisponível");
@@ -709,6 +753,26 @@ export async function mutateLocalCreditBook<T>(
 					scopedId: policyKey,
 				}),
 			);
+		for (const removed of stored?.data.purchases ?? [])
+			if (
+				removed.subscriptionId &&
+				removed.subscriptionOccurrenceDate &&
+				!book.purchases.some(p => p.id === removed.id)
+			) {
+				const occurrences = tx.objectStore("scoped-recurrenceOccurrences");
+				const identity = `${removed.subscriptionId}:${removed.subscriptionOccurrenceDate}`;
+				const row = (await requestResult(occurrences.get(scopedId(owner, identity)))) as
+					| LocalData<RecurrenceOccurrence>
+					| undefined;
+				if (row)
+					await requestResult(
+						occurrences.put({
+							...row,
+							data: { ...row.data, deletedAt: new Date().toISOString() },
+							modifiedAt: Math.max(Date.now(), row.modifiedAt + 1),
+						}),
+					);
+			}
 		const now = Math.max(Date.now(), (stored?.modifiedAt ?? 0) + 1);
 		await requestResult(
 			tx.objectStore("scoped-creditBooks").put({
@@ -913,4 +977,296 @@ export async function materializeLocalCreditBooks(owner: StorageOwner, asOf = cu
 		changed++;
 	}
 	return changed;
+}
+
+async function migrateRecurrences(database: IDBDatabase) {
+	const domains = [
+		"recurrences",
+		"recurrenceOccurrences",
+		"recurringPayments",
+		"salaries",
+		"subscriptions",
+		"transactions",
+		"creditBooks",
+		"creditCards",
+	] as const;
+	const tx = database.transaction(domains.map(scopedStoreName), "readwrite");
+	const done = transactionDone(tx);
+	const snapshots = await Promise.all(
+		domains.map(domain => requestResult(tx.objectStore(scopedStoreName(domain)).getAll())),
+	);
+	try {
+		const changes = migrateLocalRecurrenceRows(
+			Object.fromEntries(domains.map((domain, index) => [domain, snapshots[index]])),
+		);
+		for (const [domain, rows] of Object.entries(changes))
+			for (const row of rows) tx.objectStore(scopedStoreName(domain as StoreDomain)).put(row);
+	} catch (error) {
+		tx.abort();
+		await done.catch(() => undefined);
+		throw error;
+	}
+	await done;
+}
+/** One IndexedDB transaction commits an occurrence, its financial effects and cursor. */
+export async function commitLocalRecurrenceChanges(
+	owner: StorageOwner,
+	expected: LocalData<Recurrence>,
+	recurrence: Recurrence,
+	occurrences: RecurrenceOccurrence[],
+	transactions: Transaction[],
+	book?: CreditBook,
+	expectedBook?: LocalData<CreditBook>,
+) {
+	const database = await initLocalDb();
+	const tx = database.transaction(
+		["scoped-recurrences", "scoped-recurrenceOccurrences", "scoped-transactions", "scoped-creditBooks"],
+		"readwrite",
+	);
+	const done = transactionDone(tx);
+	try {
+		const store = tx.objectStore("scoped-recurrences");
+		const current = (await requestResult(store.get(expected.scopedId))) as LocalData<Recurrence> | undefined;
+		if (
+			!current ||
+			current.deleted ||
+			current.modifiedAt !== expected.modifiedAt ||
+			JSON.stringify(current.data) !== JSON.stringify(expected.data)
+		)
+			throw new Error("Recorrência mudou durante processamento. Tente novamente.");
+		if (book) {
+			const currentBook = await requestResult(
+				tx.objectStore("scoped-creditBooks").get(scopedId(owner, book.card.id)),
+			);
+			if (JSON.stringify(currentBook) !== JSON.stringify(expectedBook))
+				throw new Error("Cartão mudou durante processamento. Tente novamente.");
+		}
+		const now = Math.max(Date.now(), expected.modifiedAt + 1);
+		const wrap = (data: unknown, localId: string) => ({
+			data,
+			localId,
+			modifiedAt: now,
+			ownerKey: owner,
+			scopedId: scopedId(owner, localId),
+		});
+		for (const occurrence of occurrences) {
+			if (
+				await requestResult(
+					tx.objectStore("scoped-recurrenceOccurrences").get(scopedId(owner, occurrence.id)),
+				)
+			)
+				throw new Error("Ocorrência já processada.");
+			await requestResult(
+				tx.objectStore("scoped-recurrenceOccurrences").put(wrap(occurrence, occurrence.id)),
+			);
+		}
+		for (const transaction of transactions)
+			await requestResult(tx.objectStore("scoped-transactions").put(wrap(transaction, transaction.id)));
+		if (book) await requestResult(tx.objectStore("scoped-creditBooks").put(wrap(book, book.card.id)));
+		await requestResult(store.put(wrap(recurrence, recurrence.id)));
+	} catch (error) {
+		tx.abort();
+		await done.catch(() => undefined);
+		throw error;
+	}
+	await done;
+}
+
+/** Acknowledge exact sent revisions; remap legacy collisions without overwriting newer edits. */
+export async function acknowledgeRecurrenceSync(
+	sent: LocalData<Recurrence>[],
+	received: Recurrence[],
+	sentOccurrences: LocalData<RecurrenceOccurrence>[],
+	receivedOccurrences: RecurrenceOccurrence[],
+	owner: StorageOwner,
+) {
+	const database = await initLocalDb();
+	const tx = database.transaction(
+		["scoped-recurrences", "scoped-recurrenceOccurrences", "scoped-transactions", "scoped-creditBooks"],
+		"readwrite",
+	);
+	const done = transactionDone(tx);
+	try {
+		const mappings = new Map<string, string>();
+		const store = tx.objectStore("scoped-recurrences");
+		for (const recurrence of received) {
+			const source = sent.find(
+				row =>
+					row.data.id === recurrence.id ||
+					(recurrence.legacySource &&
+						row.data.legacySource === recurrence.legacySource &&
+						row.data.legacyId === recurrence.legacyId),
+			);
+			if (source) mappings.set(source.localId, recurrence.id);
+			const current = (await requestResult(store.get(scopedId(owner, source?.localId ?? recurrence.id)))) as
+				| LocalData<Recurrence>
+				| undefined;
+			const unchanged =
+				!current ||
+				(source &&
+					current.modifiedAt === source.modifiedAt &&
+					JSON.stringify(current.data) === JSON.stringify(source.data));
+			const now = Date.now();
+			const data = unchanged ? recurrence : { ...current!.data, id: recurrence.id };
+			if (source && source.localId !== recurrence.id)
+				await requestResult(store.delete(scopedId(owner, source.localId)));
+			await requestResult(
+				store.put({
+					...(unchanged ? {} : current),
+					data,
+					localId: recurrence.id,
+					ownerKey: owner,
+					scopedId: scopedId(owner, recurrence.id),
+					...(unchanged
+						? { modifiedAt: now, syncedAt: now }
+						: { modifiedAt: Math.max(now, (current?.modifiedAt ?? 0) + 1) }),
+				}),
+			);
+		}
+		const occurrences = tx.objectStore("scoped-recurrenceOccurrences");
+		for (const row of (await requestResult(
+			occurrences.index("ownerKey").getAll(owner),
+		)) as LocalData<RecurrenceOccurrence>[]) {
+			const id = mappings.get(row.data.recurrenceId);
+			if (!id || id === row.data.recurrenceId) continue;
+			const localId = `${id}:${row.data.date}`;
+			await requestResult(occurrences.delete(row.scopedId));
+			await requestResult(
+				occurrences.put({
+					...row,
+					data: { ...row.data, id: localId, recurrenceId: id },
+					localId,
+					scopedId: scopedId(owner, localId),
+				}),
+			);
+		}
+		for (const data of receivedOccurrences) {
+			const source = sentOccurrences.find(
+				row =>
+					(mappings.get(row.data.recurrenceId) ?? row.data.recurrenceId) === data.recurrenceId &&
+					row.data.date === data.date,
+			);
+			const current = (await requestResult(occurrences.get(scopedId(owner, data.id)))) as
+				| LocalData<RecurrenceOccurrence>
+				| undefined;
+			if (current && (!source || current.modifiedAt !== source.modifiedAt)) continue;
+			const now = Date.now();
+			await requestResult(
+				occurrences.put({
+					data,
+					localId: data.id,
+					modifiedAt: now,
+					ownerKey: owner,
+					scopedId: scopedId(owner, data.id),
+					syncedAt: now,
+				}),
+			);
+		}
+		for (const row of (await requestResult(
+			tx.objectStore("scoped-transactions").index("ownerKey").getAll(owner),
+		)) as LocalData<Transaction>[])
+			if (row.data.recurrenceId && mappings.get(row.data.recurrenceId) !== undefined) {
+				const recurrenceId = mappings.get(row.data.recurrenceId)!;
+				if (recurrenceId !== row.data.recurrenceId)
+					await requestResult(
+						tx.objectStore("scoped-transactions").put({ ...row, data: { ...row.data, recurrenceId } }),
+					);
+			}
+		for (const row of (await requestResult(
+			tx.objectStore("scoped-creditBooks").index("ownerKey").getAll(owner),
+		)) as LocalData<CreditBook>[]) {
+			const purchases = row.data.purchases.map(p =>
+				p.subscriptionId && mappings.has(p.subscriptionId)
+					? { ...p, subscriptionId: mappings.get(p.subscriptionId)! }
+					: p,
+			);
+			if (JSON.stringify(purchases) !== JSON.stringify(row.data.purchases))
+				await requestResult(
+					tx.objectStore("scoped-creditBooks").put({ ...row, data: { ...row.data, purchases } }),
+				);
+		}
+	} catch (error) {
+		tx.abort();
+		await done.catch(() => undefined);
+		throw error;
+	}
+	await done;
+}
+
+/** Deletion and detachment share the same local boundary as occurrence creation. */
+export async function deleteLocalRecurrence(owner: StorageOwner, id: string, removeConcrete: boolean) {
+	const database = await initLocalDb();
+	const tx = database.transaction(
+		["scoped-recurrences", "scoped-recurrenceOccurrences", "scoped-transactions", "scoped-creditBooks"],
+		"readwrite",
+	);
+	const done = transactionDone(tx);
+	const now = Date.now();
+	try {
+		const store = tx.objectStore("scoped-recurrences");
+		const record = (await requestResult(store.get(scopedId(owner, id)))) as LocalData<Recurrence> | undefined;
+		if (!record) {
+			await done;
+			return;
+		}
+		const transactions = tx.objectStore("scoped-transactions");
+		for (const row of (await requestResult(
+			transactions.index("ownerKey").getAll(owner),
+		)) as LocalData<Transaction>[])
+			if (row.data.recurrenceId === id) {
+				const data = { ...row.data, recurrenceId: undefined, recurrenceOccurrenceDate: undefined };
+				if (removeConcrete && owner.startsWith("user:"))
+					await requestResult(transactions.delete(row.scopedId));
+				else
+					await requestResult(
+						transactions.put({
+							...row,
+							data,
+							deleted: row.deleted || removeConcrete,
+							modifiedAt: Math.max(now, row.modifiedAt + 1),
+						}),
+					);
+			}
+		const books = tx.objectStore("scoped-creditBooks");
+		for (const row of (await requestResult(
+			books.index("ownerKey").getAll(owner),
+		)) as LocalData<CreditBook>[]) {
+			const linked = new Set(row.data.purchases.filter(p => p.subscriptionId === id).map(p => p.id));
+			if (!linked.size) continue;
+			const book = structuredClone(row.data);
+			if (removeConcrete) {
+				book.deletedPurchaseIds = [...new Set([...(book.deletedPurchaseIds ?? []), ...linked])];
+				book.purchases = book.purchases.filter(p => !linked.has(p.id));
+				book.installments = book.installments.filter(i => !linked.has(i.purchaseId));
+				book.refunds = book.refunds.filter(r => !linked.has(r.purchaseId));
+			} else
+				for (const purchase of book.purchases)
+					if (linked.has(purchase.id)) {
+						purchase.subscriptionId = null;
+						purchase.subscriptionOccurrenceDate = null;
+					}
+			await requestResult(books.put({ ...row, data: book, modifiedAt: Math.max(now, row.modifiedAt + 1) }));
+		}
+		const occurrences = tx.objectStore("scoped-recurrenceOccurrences");
+		for (const row of (await requestResult(
+			occurrences.index("ownerKey").getAll(owner),
+		)) as LocalData<RecurrenceOccurrence>[])
+			if (row.data.recurrenceId === id) {
+				if (owner.startsWith("user:")) await requestResult(occurrences.delete(row.scopedId));
+				else
+					await requestResult(
+						occurrences.put({ ...row, deleted: true, modifiedAt: Math.max(now, row.modifiedAt + 1) }),
+					);
+			}
+		if (owner.startsWith("user:")) await requestResult(store.delete(record.scopedId));
+		else
+			await requestResult(
+				store.put({ ...record, deleted: true, modifiedAt: Math.max(now, record.modifiedAt + 1) }),
+			);
+	} catch (error) {
+		tx.abort();
+		await done.catch(() => undefined);
+		throw error;
+	}
+	await done;
 }

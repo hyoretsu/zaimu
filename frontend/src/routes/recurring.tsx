@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { endOfMonth, format, startOfMonth } from "date-fns";
 import { useState } from "react";
 import { HiArrowDown, HiArrowPath, HiArrowUp, HiPlus } from "react-icons/hi2";
 import { Button } from "@/components/ui/Button";
@@ -19,9 +20,7 @@ import {
 	RecurringListItem,
 	type RecurringListItemData,
 	RecurringSummary,
-	recurringPaymentToListItem,
-	salaryToListItem,
-	subscriptionToListItem,
+	recurrenceToListItem,
 } from "./recurring/components";
 
 type DirectionFilter = "all" | RecurringDirection;
@@ -30,6 +29,7 @@ const filterOptions = [
 	{ icon: null, id: "all", label: "Todas" },
 	{ icon: HiArrowDown, id: "INCOME", label: "Entradas" },
 	{ icon: HiArrowUp, id: "EXPENSE", label: "Saídas" },
+	{ icon: HiArrowPath, id: "TRANSFER", label: "Transferências" },
 ] as const;
 
 export function RecurringPage() {
@@ -39,38 +39,34 @@ export function RecurringPage() {
 	const [expandedInactiveSections, setExpandedInactiveSections] = useState<Set<"ended" | "paused">>(
 		() => new Set(),
 	);
+	const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
+	const markPending = (id: string, pending: boolean) =>
+		setPendingIds(current => {
+			const next = new Set(current);
+			if (pending) next.add(id);
+			else next.delete(id);
+			return next;
+		});
 	const [isCreateOpen, setIsCreateOpen] = useState(false);
 	const [editingItem, setEditingItem] = useState<RecurringListItemData>();
 	const [deletingItem, setDeletingItem] = useState<RecurringListItemData>();
-	const salariesQuery = useQuery({
-		enabled: identity !== null,
-		queryFn: () => dataService.salaries.getAll(),
-		queryKey: queryKeys.recurring.salaries(identity!),
-	});
 	const accountsQuery = useQuery({
 		enabled: identity !== null,
 		queryFn: () => dataService.accounts.getAll(),
 		queryKey: queryKeys.accounts.list(identity!),
 	});
-	const subscriptionsQuery = useQuery({
-		enabled: identity !== null,
-		queryFn: () => dataService.subscriptions.getAll(),
-		queryKey: queryKeys.recurring.subscriptions(identity!),
-	});
 	const recurringQuery = useQuery({
 		enabled: identity !== null,
-		queryFn: () => dataService.recurringPayments.getAll(),
-		queryKey: queryKeys.recurring.payments(identity!),
+		queryFn: () => dataService.recurrences.getAll(),
+		queryKey: queryKeys.recurring.all(identity!),
 	});
 	const invalidate = () => invalidateCacheOperation(queryClient, identity!, "recurring");
 	const toggle = useMutation({
-		mutationFn: async (item: RecurringListItemData) => {
-			if (item.source === "salary") return dataService.salaries.update(item.id, { isActive: !item.active });
-			if (item.source === "subscription")
-				return dataService.subscriptions.update(item.id, { isActive: !item.active });
-			return dataService.recurringPayments.update(item.id, { isActive: !item.active });
-		},
+		mutationFn: (item: RecurringListItemData) =>
+			dataService.recurrences.update(item.id, { isActive: !item.active }),
 		onError: error => showToast(error.message, "negative"),
+		onMutate: item => markPending(item.id, true),
+		onSettled: (_, __, item) => markPending(item.id, false),
 		onSuccess: async (_, item) => {
 			await invalidate();
 			showToast(item.active ? "Recorrência pausada." : "Recorrência retomada.", "positive");
@@ -84,12 +80,11 @@ export function RecurringPage() {
 			deleteTransactions: boolean;
 			item: RecurringListItemData;
 		}) => {
-			if (item.source === "salary") return dataService.salaries.delete(item.id, deleteTransactions);
-			if (item.source === "subscription")
-				return dataService.subscriptions.delete(item.id, deleteTransactions);
-			return dataService.recurringPayments.delete(item.id, deleteTransactions);
+			return dataService.recurrences.delete(item.id, deleteTransactions);
 		},
 		onError: error => showToast(error.message, "negative"),
+		onMutate: ({ item }) => markPending(item.id, true),
+		onSettled: (_, __, { item }) => markPending(item.id, false),
 		onSuccess: async (_, { item }) => {
 			await invalidate();
 			setDeletingItem(undefined);
@@ -97,24 +92,17 @@ export function RecurringPage() {
 		},
 	});
 
-	const isPending =
-		salariesQuery.isPending ||
-		accountsQuery.isPending ||
-		subscriptionsQuery.isPending ||
-		recurringQuery.isPending;
-	const isError =
-		salariesQuery.isError || accountsQuery.isError || subscriptionsQuery.isError || recurringQuery.isError;
-	const items = [
-		...(salariesQuery.data ?? []).map(salary => salaryToListItem(salary, accountsQuery.data ?? [])),
-		...(subscriptionsQuery.data ?? []).map(subscription =>
-			subscriptionToListItem(subscription, accountsQuery.data ?? []),
-		),
-		...(recurringQuery.data ?? []).map(payment =>
-			recurringPaymentToListItem(payment, accountsQuery.data ?? []),
-		),
-	].sort(
-		(left, right) => Number(right.active) - Number(left.active) || left.title.localeCompare(right.title),
-	);
+	const isPending = accountsQuery.isPending || recurringQuery.isPending;
+	const isError = accountsQuery.isError || recurringQuery.isError;
+	const monthStart = format(startOfMonth(new Date()), "yyyy-MM-dd");
+	const monthEnd = format(endOfMonth(new Date()), "yyyy-MM-dd");
+	const periodLabel = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(new Date());
+	const items = (recurringQuery.data ?? [])
+		.map(recurrence => recurrenceToListItem(recurrence, accountsQuery.data ?? [], monthStart, monthEnd))
+		.sort(
+			(left, right) =>
+				Number(right.active) - Number(left.active) || left.title.localeCompare(right.title, "pt-BR"),
+		);
 	const filteredItems = items.filter(item => filter === "all" || item.direction === filter);
 	const activeItems = filteredItems.filter(item => item.active && !isRecurrenceEnded(item.endDate));
 	const pausedItems = filteredItems.filter(item => !item.active && !isRecurrenceEnded(item.endDate));
@@ -135,7 +123,7 @@ export function RecurringPage() {
 			onToggle={() => {
 				if (!isRecurrenceEnded(item.endDate)) toggle.mutate(item);
 			}}
-			toggling={toggle.isPending && toggle.variables?.id === item.id}
+			toggling={pendingIds.has(item.id)}
 		/>
 	);
 	const toggleInactiveSection = (section: "ended" | "paused") => {
@@ -156,7 +144,7 @@ export function RecurringPage() {
 						Adicionar
 					</Button>
 				}
-				description="Centralize salários, assinaturas e pagamentos que se repetem."
+				description="Agende entradas, saídas, compras e transferências em um único fluxo."
 				mobileActions={[{ icon: HiPlus, label: "Adicionar", onClick: () => setIsCreateOpen(true) }]}
 				title="Recorrências"
 			/>
@@ -167,10 +155,17 @@ export function RecurringPage() {
 					<Skeleton className="h-[74px] rounded-2xl" />
 				</div>
 			) : (
-				<RecurringSummary expenses={monthlyExpenses} incomes={monthlyIncome} />
+				<RecurringSummary
+					expenses={monthlyExpenses}
+					incomes={monthlyIncome}
+					period={periodLabel}
+					transfers={items
+						.filter(item => item.active && item.direction === "TRANSFER")
+						.reduce((sum, item) => sum + item.monthlyAmount, 0)}
+				/>
 			)}
 
-			<div className="grid gap-2 rounded-2xl border bg-card p-2 min-[440px]:grid-cols-3">
+			<div className="grid gap-2 rounded-2xl border bg-card p-2 min-[440px]:grid-cols-4">
 				{filterOptions.map(option => (
 					<Button
 						className="w-full cursor-pointer"
@@ -195,7 +190,7 @@ export function RecurringPage() {
 				</div>
 			) : isError ? (
 				<EmptyState
-					description="Não foi possível carregar salários, assinaturas e recorrências."
+					description="Não foi possível carregar recorrências."
 					icon={<HiArrowPath />}
 					title="Falha ao carregar recorrências"
 				/>
