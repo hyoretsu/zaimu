@@ -11,6 +11,7 @@ describe("writeNamespaces", () => {
 			"dashboard",
 			"transactions:list",
 			"credit-cards:card-1:statements",
+			"transactions:detail",
 		]);
 	});
 
@@ -44,6 +45,7 @@ describe("writeNamespaces", () => {
 			"debts:overview",
 			"dashboard",
 			"transactions:list",
+			"transactions:detail",
 		]);
 	});
 

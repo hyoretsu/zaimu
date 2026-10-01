@@ -22,6 +22,7 @@ export const cacheNamespaces = [
 	"schedules:overview",
 	"stores:list",
 	"transactions:list",
+	"transactions:detail",
 ] as const;
 export type CacheNamespace =
 	| (typeof cacheNamespaces)[number]
@@ -61,7 +62,6 @@ const hash = (value: string) => new Bun.CryptoHasher("sha256").update(value).dig
 
 export class DistributedCache {
 	private available = true;
-	private epoch?: string;
 	constructor(private readonly cache: CachePort) {}
 	private async safely<Result>(operation: () => Promise<Result>): Promise<Result | undefined> {
 		try {
@@ -69,7 +69,7 @@ export class DistributedCache {
 			if (!this.available) {
 				this.available = true;
 				await this.cache.increment("zaimu:cache:epoch");
-				this.epoch = undefined;
+				return await operation();
 			}
 			return result;
 		} catch {
@@ -78,16 +78,13 @@ export class DistributedCache {
 		}
 	}
 	private async getEpoch() {
-		if (this.epoch) return this.epoch;
 		const current = await this.safely(() => this.cache.get("zaimu:cache:epoch"));
 		if (current) {
-			this.epoch = current;
 			return current;
 		}
 		await this.safely(() => this.cache.set("zaimu:cache:epoch", "1", { onlyIfAbsent: true }));
 		const created = await this.safely(() => this.cache.get("zaimu:cache:epoch"));
 		const epoch = created ?? crypto.randomUUID();
-		this.epoch = epoch;
 		return epoch;
 	}
 	private generationKey(userId: string, namespace: CacheNamespace) {
@@ -96,20 +93,34 @@ export class DistributedCache {
 	private fenceKey(userId: string, namespace: CacheNamespace) {
 		return `zaimu:fence:${userId}:${namespace}`;
 	}
+	private dependencies(namespace: CacheNamespace): CacheNamespace[] {
+		return namespace.startsWith("transactions:detail:") ? ["transactions:detail", namespace] : [namespace];
+	}
+	private async fenced(userId: string, namespace: CacheNamespace) {
+		const fences = await Promise.all(
+			this.dependencies(namespace).map(dependency =>
+				this.safely(() => this.cache.get(this.fenceKey(userId, dependency))),
+			),
+		);
+		return fences.some(fence => fence !== null);
+	}
 	async key(userId: string, namespace: CacheNamespace, parameters: unknown) {
 		const [epoch, generation] = await Promise.all([
 			this.getEpoch(),
-			this.safely(() => this.cache.get(this.generationKey(userId, namespace))),
+			Promise.all(
+				this.dependencies(namespace).map(dependency =>
+					this.safely(() => this.cache.get(this.generationKey(userId, dependency))),
+				),
+			),
 		]);
-		return `zaimu:v1:${epoch}:${userId}:${namespace}:${generation ?? "0"}:${hash(JSON.stringify(stableValue(parameters)))}`;
+		return `zaimu:v1:${epoch}:${userId}:${namespace}:${generation.map(value => value ?? "0").join(".")}:${hash(JSON.stringify(stableValue(parameters)))}`;
 	}
 	async read<Value>(
 		userId: string,
 		namespace: CacheNamespace,
 		parameters: unknown,
 	): Promise<CacheEntry<Value> | undefined> {
-		if ((await this.safely(() => this.cache.get(this.fenceKey(userId, namespace)))) !== null)
-			return undefined;
+		if (await this.fenced(userId, namespace)) return undefined;
 		const raw = await this.safely(async () => this.cache.get(await this.key(userId, namespace, parameters)));
 		if (!raw) return undefined;
 		try {
@@ -158,7 +169,7 @@ export class DistributedCache {
 			const value = await load();
 			const encoded = JSON.stringify(value);
 			const entry = { etag: `"${hash(encoded)}"`, value };
-			if ((await this.safely(() => this.cache.get(this.fenceKey(userId, namespace)))) === null)
+			if (!(await this.fenced(userId, namespace)))
 				await this.safely(() => this.cache.set(key, JSON.stringify(entry)));
 			return entry;
 		})();

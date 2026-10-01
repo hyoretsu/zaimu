@@ -15,6 +15,8 @@ describe("namespacesForEvent", () => {
 		expect(namespacesForEvent(event)).toEqual([
 			"accounts:list",
 			"dashboard",
+			"debts:events",
+			"debts:overview",
 			"transactions:list",
 			"transactions:detail:transaction-id",
 		]);
@@ -49,6 +51,7 @@ describe("namespacesForEvent", () => {
 			"schedules:history",
 			"schedules:overview",
 			"transactions:list",
+			"transactions:detail",
 		]);
 	});
 
@@ -67,6 +70,7 @@ describe("namespacesForEvent", () => {
 			"debts:overview",
 			"dashboard",
 			"transactions:list",
+			"transactions:detail",
 		]);
 	});
 });

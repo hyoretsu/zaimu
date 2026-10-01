@@ -23,6 +23,7 @@ test("invalidates every user affected by a shared debt event", async () => {
 		"debts:overview",
 		"dashboard",
 		"transactions:list",
+		"transactions:detail",
 	]);
 	expect(finishWrite).toHaveBeenCalledWith("user-2", [
 		"debts:events",
@@ -30,5 +31,6 @@ test("invalidates every user affected by a shared debt event", async () => {
 		"debts:overview",
 		"dashboard",
 		"transactions:list",
+		"transactions:detail",
 	]);
 });

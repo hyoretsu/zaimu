@@ -178,3 +178,29 @@ describe("catalog and loan read consistency", () => {
 		expect(await cache.read("owner", "loans:history", { limit: 50, loanId: "loan" })).toBeUndefined();
 	});
 });
+
+test("schedule mutations fence and invalidate cached transaction details", async () => {
+	const cache = new DistributedCache(new MemoryCache());
+	await cache.remember("user", "transactions:detail:transaction", {}, async () => "old tags");
+	await cache.beginWrite("user", ["transactions:detail"]);
+	expect(
+		(await cache.remember("user", "transactions:detail:transaction", {}, async () => "new tags")).hit,
+	).toBe(false);
+	await cache.finishWrite("user", ["transactions:detail"]);
+	expect(
+		(await cache.remember("user", "transactions:detail:transaction", {}, async () => "committed tags")).value,
+	).toBe("committed tags");
+});
+
+test("observes an epoch advanced by another process", async () => {
+	const storage = new FlakyCache();
+	const first = new DistributedCache(storage);
+	const second = new DistributedCache(storage);
+	await first.remember("user", "dashboard", {}, async () => "old");
+	await second.read("user", "dashboard", {});
+	storage.available = false;
+	await second.read("user", "dashboard", {});
+	storage.available = true;
+	await second.read("user", "dashboard", {});
+	expect(await first.read("user", "dashboard", {})).toBeUndefined();
+});

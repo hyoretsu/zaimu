@@ -49,12 +49,15 @@ const transactionNamespaces = (pathname: string): CacheNamespace[] => {
 	return [
 		"accounts:list",
 		"dashboard",
+		"debts:events",
+		"debts:overview",
 		"transactions:list",
+		...(!id || pathname.includes("/transfer-suggestions/") ? ["transactions:detail" as const] : []),
 		...(id && id !== "transfer-suggestions" ? ([`transactions:detail:${id}`] as const) : []),
 	];
 };
 
-export const writeNamespaces = (pathname: string): CacheNamespace[] => {
+const baseWriteNamespaces = (pathname: string): CacheNamespace[] => {
 	if (pathname.startsWith("/balance-adjustments")) return ["accounts:list", "dashboard", "transactions:list"];
 	if (pathname.startsWith("/transactions")) return transactionNamespaces(pathname);
 	if (pathname.startsWith("/credit-cards")) {
@@ -141,6 +144,13 @@ export const writeNamespaces = (pathname: string): CacheNamespace[] => {
 	return [];
 };
 
+export const writeNamespaces = (pathname: string): CacheNamespace[] => {
+	const namespaces = baseWriteNamespaces(pathname);
+	return !pathname.startsWith("/transactions") && namespaces.includes("transactions:list")
+		? [...new Set<CacheNamespace>([...namespaces, "transactions:detail"])]
+		: namespaces;
+};
+
 const aggregateForPath = (pathname: string) => {
 	const [root, id] = pathname.split("/").filter(Boolean);
 	const aggregateType =
@@ -193,6 +203,7 @@ export const DataConsistencyPlugin = new Elysia({ name: "DataConsistencyPlugin" 
 			? await debtAffectedUserIds(debtResourceId(pathname))
 			: pathname.startsWith("/credit-cards") ||
 					pathname.startsWith("/credit-card-imports") ||
+					pathname.startsWith("/transactions") ||
 					pathname.startsWith("/sync")
 				? await creditAffectedUserIds(userId)
 				: [];

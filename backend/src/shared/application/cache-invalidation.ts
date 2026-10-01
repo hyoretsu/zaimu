@@ -25,6 +25,7 @@ export const syncCacheNamespaces: CacheNamespace[] = [
 	"schedules:overview",
 	"stores:list",
 	"transactions:list",
+	"transactions:detail",
 ];
 
 const detail =
@@ -100,12 +101,22 @@ export const cacheInvalidationMatrix: Record<string, NamespaceResolver> = {
 	transaction: event => [
 		"accounts:list",
 		"dashboard",
+		"debts:events",
+		"debts:overview",
 		"transactions:list",
 		...detail("transactions:detail")(event),
 	],
 	transactionImport: event => ["imports:pending", ...detail("imports:detail")(event)],
 };
 
-export const namespacesForEvent = (event: EventEnvelope) => [
-	...new Set(cacheInvalidationMatrix[event.aggregateType]?.(event) ?? []),
-];
+export const namespacesForEvent = (event: EventEnvelope) => {
+	const namespaces = cacheInvalidationMatrix[event.aggregateType]?.(event) ?? [];
+	return [
+		...new Set<CacheNamespace>([
+			...namespaces,
+			...(event.aggregateType !== "transaction" && namespaces.includes("transactions:list")
+				? ["transactions:detail" as const]
+				: []),
+		]),
+	];
+};

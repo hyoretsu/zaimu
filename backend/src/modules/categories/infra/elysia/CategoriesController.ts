@@ -34,6 +34,7 @@ export const CategoriesController = new Elysia({ prefix: "/categories" })
 			);
 			set.headers.etag = cached.etag;
 			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+			if (request.headers.get("if-none-match") === cached.etag) return new Response(null, { status: 304 });
 			return cached.value;
 		},
 		{
@@ -67,6 +68,7 @@ export const CategoriesController = new Elysia({ prefix: "/categories" })
 			);
 			set.headers.etag = cached.etag;
 			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+			if (request.headers.get("if-none-match") === cached.etag) return new Response(null, { status: 304 });
 			return cached.value;
 		},
 		{
@@ -111,6 +113,7 @@ export const CategoriesController = new Elysia({ prefix: "/categories" })
 			);
 			set.headers.etag = cached.etag;
 			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+			if (request.headers.get("if-none-match") === cached.etag) return new Response(null, { status: 304 });
 			return cached.value;
 		},
 		{
