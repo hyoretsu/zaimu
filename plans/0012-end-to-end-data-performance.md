@@ -109,7 +109,7 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
   - [x] Criar ports/adapters de cache, broker e outbox.
   - [x] Instrumentar duração de request, query count, tempo SQL, espera por conexão, cache e filas.
   - [x] Criar fixture com 100 mil lançamentos, 20 cartões, cinco anos de faturas e dados associados.
-  - [ ] Registrar baseline por endpoint e orçamento de queries. (runner e orçamentos concluídos; captura depende do banco local de desempenho)
+  - [x] Registrar baseline por endpoint e orçamento de queries. (captura diagnóstica local com cinco amostras; aceite oficial com 25 permanece pendente)
 - [ ] 2. Outbox e RabbitMQ
   - [x] Criar contrato SQL do outbox e migração.
   - [x] Implementar publisher com confirms, correlação e recuperação após falha.
@@ -287,3 +287,4 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Correção de empréstimos: taxa armazenada como fração agora exibida em porcentagem; histórico preserva enum FRONT/BACK no contrato tipado; paginação da interface recebeu tipos explícitos. Build frontend passou.
 - Contrato autenticado integral/offset de transações removido. Extrato e rendimentos usam páginas filtradas; guest preserva cálculo offline e cursores de rendimento vinculados a proprietário/filtros. Consulta comum limita candidatos antes de hidratar página e evita texto de pesquisa sem filtro. Três testes de cursor e builds passaram; medição final pendente.
 - Atomicidade global corrigida: mutações HTTP e outbox compartilham transação de request; resposta de erro força rollback. Fences finalizam após commit, inclusive sync; falha/rollback mantém lease. Quatro testes cobrem ordem, rollback HTTP, falha de commit e integração do wrapper Elysia.
+- Captura diagnóstica versionada registra p95 frio real com cinco amostras e cache limpo em Redis dedicado, além de p95 quente concorrente. Todos os hits medidos fizeram zero SQL; latências de vários endpoints ainda excedem metas. Runner preserva relatório mesmo após erro por endpoint.

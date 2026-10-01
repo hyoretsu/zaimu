@@ -1,0 +1,294 @@
+{
+	"generatedAt": "2026-10-01T18:29:16.916Z",
+	"iterations": 5,
+	"results": {
+		"accounts": {
+			"budget": {
+				"coldP95Ms": 1000,
+				"coldQueryCount": 5,
+				"hotP95Ms": 100,
+				"hotQueryCount": 0,
+				"path": "/financial-accounts/"
+			},
+			"cold": {
+				"p95Ms": 589.6,
+				"queryCount": 3
+			},
+			"hot": {
+				"p95Ms": 320.48,
+				"queryCount": 0
+			},
+			"passed": false
+		},
+		"accountYields": {
+			"budget": {
+				"coldP95Ms": 1000,
+				"coldQueryCount": 2,
+				"hotP95Ms": 100,
+				"hotQueryCount": 0,
+				"path": "/financial-account-yields/?financialAccountId=perf-account-main&limit=100"
+			},
+			"cold": {
+				"p95Ms": 148.34,
+				"queryCount": 2
+			},
+			"hot": {
+				"p95Ms": 73.19,
+				"queryCount": 0
+			},
+			"passed": true
+		},
+		"categories": {
+			"budget": {
+				"coldP95Ms": 1000,
+				"coldQueryCount": 1,
+				"hotP95Ms": 100,
+				"hotQueryCount": 0,
+				"path": "/categories/"
+			},
+			"cold": {
+				"p95Ms": 78.65,
+				"queryCount": 1
+			},
+			"hot": {
+				"p95Ms": 90.9,
+				"queryCount": 0
+			},
+			"passed": true
+		},
+		"categoryDetail": {
+			"budget": {
+				"coldP95Ms": 1000,
+				"coldQueryCount": 1,
+				"hotP95Ms": 100,
+				"hotQueryCount": 0,
+				"path": "/categories/perf-category-1"
+			},
+			"cold": {
+				"p95Ms": 80.26,
+				"queryCount": 1
+			},
+			"hot": {
+				"p95Ms": 43.07,
+				"queryCount": 0
+			},
+			"passed": true
+		},
+		"categoryLookup": {
+			"budget": {
+				"coldP95Ms": 1000,
+				"coldQueryCount": 1,
+				"hotP95Ms": 100,
+				"hotQueryCount": 0,
+				"path": "/categories/lookup?ids=perf-category-1,perf-category-2"
+			},
+			"cold": {
+				"p95Ms": 20.77,
+				"queryCount": 1
+			},
+			"hot": {
+				"p95Ms": 53.47,
+				"queryCount": 0
+			},
+			"passed": true
+		},
+		"creditCardImports": {
+			"budget": {
+				"coldP95Ms": 1000,
+				"coldQueryCount": 3,
+				"hotP95Ms": 100,
+				"hotQueryCount": 0,
+				"path": "/credit-card-imports/"
+			},
+			"cold": {
+				"p95Ms": 18.66,
+				"queryCount": 1
+			},
+			"hot": {
+				"p95Ms": 82.43,
+				"queryCount": 0
+			},
+			"passed": true
+		},
+		"creditCards": {
+			"budget": {
+				"coldP95Ms": 1000,
+				"coldQueryCount": 4,
+				"hotP95Ms": 100,
+				"hotQueryCount": 0,
+				"path": "/credit-cards/"
+			},
+			"cold": {
+				"p95Ms": 10064.73,
+				"queryCount": 2
+			},
+			"hot": {
+				"p95Ms": 250.75,
+				"queryCount": 0
+			},
+			"passed": false
+		},
+		"dashboard": {
+			"budget": {
+				"coldP95Ms": 1000,
+				"coldQueryCount": 4,
+				"hotP95Ms": 100,
+				"hotQueryCount": 0,
+				"path": "/dashboard/"
+			},
+			"cold": {
+				"p95Ms": 15470.4,
+				"queryCount": 4
+			},
+			"hot": {
+				"p95Ms": 251.75,
+				"queryCount": 0
+			},
+			"passed": false
+		},
+		"debts": {
+			"budget": {
+				"coldP95Ms": 1000,
+				"coldQueryCount": 4,
+				"hotP95Ms": 100,
+				"hotQueryCount": 0,
+				"path": "/debts/"
+			},
+			"cold": {
+				"p95Ms": 108.9,
+				"queryCount": 1
+			},
+			"hot": {
+				"p95Ms": 173.55,
+				"queryCount": 0
+			},
+			"passed": false
+		},
+		"loanDetail": {
+			"budget": {
+				"coldP95Ms": 1000,
+				"coldQueryCount": 1,
+				"hotP95Ms": 100,
+				"hotQueryCount": 0,
+				"path": "/loans/perf-loan-001"
+			},
+			"cold": {
+				"p95Ms": 94.56,
+				"queryCount": 1
+			},
+			"hot": {
+				"p95Ms": 382.43,
+				"queryCount": 0
+			},
+			"passed": false
+		},
+		"loanHistory": {
+			"budget": {
+				"coldP95Ms": 1000,
+				"coldQueryCount": 2,
+				"hotP95Ms": 100,
+				"hotQueryCount": 0,
+				"path": "/loans/perf-loan-001/history?limit=50"
+			},
+			"cold": {
+				"p95Ms": 300.03,
+				"queryCount": 2
+			},
+			"hot": {
+				"p95Ms": 787.06,
+				"queryCount": 0
+			},
+			"passed": false
+		},
+		"loanPayments": {
+			"budget": {
+				"coldP95Ms": 1000,
+				"coldQueryCount": 2,
+				"hotP95Ms": 100,
+				"hotQueryCount": 0,
+				"path": "/loans/perf-loan-001/payments?limit=50"
+			},
+			"cold": {
+				"p95Ms": 389.86,
+				"queryCount": 2
+			},
+			"hot": {
+				"p95Ms": 210.58,
+				"queryCount": 0
+			},
+			"passed": false
+		},
+		"loans": {
+			"budget": {
+				"coldP95Ms": 1000,
+				"coldQueryCount": 1,
+				"hotP95Ms": 100,
+				"hotQueryCount": 0,
+				"path": "/loans/"
+			},
+			"cold": {
+				"p95Ms": 221.46,
+				"queryCount": 1
+			},
+			"hot": {
+				"p95Ms": 245.29,
+				"queryCount": 0
+			},
+			"passed": false
+		},
+		"stores": {
+			"budget": {
+				"coldP95Ms": 1000,
+				"coldQueryCount": 1,
+				"hotP95Ms": 100,
+				"hotQueryCount": 0,
+				"path": "/stores/"
+			},
+			"cold": {
+				"p95Ms": 384.32,
+				"queryCount": 1
+			},
+			"hot": {
+				"p95Ms": 140.83,
+				"queryCount": 0
+			},
+			"passed": false
+		},
+		"transactionImports": {
+			"budget": {
+				"coldP95Ms": 1000,
+				"coldQueryCount": 3,
+				"hotP95Ms": 100,
+				"hotQueryCount": 0,
+				"path": "/transaction-imports/"
+			},
+			"cold": {
+				"p95Ms": 235.56,
+				"queryCount": 1
+			},
+			"hot": {
+				"p95Ms": 136.54,
+				"queryCount": 0
+			},
+			"passed": false
+		},
+		"transactions": {
+			"budget": {
+				"coldP95Ms": 1000,
+				"coldQueryCount": 6,
+				"hotP95Ms": 100,
+				"hotQueryCount": 0,
+				"path": "/transactions/?limit=50"
+			},
+			"cold": {
+				"p95Ms": 1995.46,
+				"queryCount": 6
+			},
+			"hot": {
+				"p95Ms": 297.96,
+				"queryCount": 0
+			},
+			"passed": false
+		}
+	}
+}

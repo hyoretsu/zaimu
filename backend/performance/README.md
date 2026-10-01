@@ -21,7 +21,8 @@ bun run dev
 Autentique o usuário da fixture na API local e copie o header `Cookie` da sessão. Depois capture cold start, p95 quente e query count:
 
 ```bash
+PERFORMANCE_ISOLATED_REDIS_URL=redis://127.0.0.1:6395 \
 PERFORMANCE_COOKIE='better-auth.session_token=...' bun run performance:benchmark --write
 ```
 
-O primeiro request de cada endpoint representa cache frio. Três requests aquecem o cache; os próximos 25 formam o p95 quente. `--write` cria `performance/baseline.json`. Reinicie API, Redis e pool antes de uma captura oficial para manter o cold start comparável.
+Use Redis dedicado na porta local 6395, também configurado como `REDIS_URL` da API. O runner limpa somente esse banco Redis antes de cada uma das 25 amostras frias. Não use instância compartilhada. Três requests aquecem o cache; os próximos 25 concorrentes formam o p95 quente. `PERFORMANCE_ITERATIONS` permite reduzir amostras em diagnósticos (mínimo cinco); aceite oficial usa 25. `--write` cria `performance/baseline.json`, inclusive se algum endpoint falhar. Reinicie API e pool antes de captura oficial.
