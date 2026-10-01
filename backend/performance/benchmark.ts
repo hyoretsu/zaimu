@@ -1,4 +1,5 @@
 import { performanceBudgets } from "./budgets";
+import { measureRequest } from "./sample";
 
 const baseUrlValue = process.env.PERFORMANCE_BASE_URL ?? "http://127.0.0.1:3333";
 const baseUrl = new URL(baseUrlValue);
@@ -11,26 +12,7 @@ if (!cookie) throw new Error("Defina PERFORMANCE_COOKIE com a sessão do usuári
 const iterations = Number(process.env.PERFORMANCE_ITERATIONS ?? 25);
 if (!Number.isInteger(iterations) || iterations < 5) throw new Error("PERFORMANCE_ITERATIONS deve ser >= 5");
 
-interface Sample {
-	durationMs: number;
-	queryCount: number | null;
-	sqlDurationMs: number | null;
-}
-
-const request = async (path: string): Promise<Sample> => {
-	const startedAt = performance.now();
-	const response = await fetch(new URL(path, baseUrl), { headers: { cookie } });
-	const durationMs = performance.now() - startedAt;
-	if (!response.ok) throw new Error(`${path} retornou HTTP ${response.status}: ${await response.text()}`);
-	await response.arrayBuffer();
-	const queryCount = response.headers.get("x-performance-query-count");
-	const sqlDurationMs = response.headers.get("x-performance-sql-duration-ms");
-	return {
-		durationMs,
-		queryCount: queryCount === null ? null : Number(queryCount),
-		sqlDurationMs: sqlDurationMs === null ? null : Number(sqlDurationMs),
-	};
-};
+const request = (path: string) => measureRequest(new URL(path, baseUrl), cookie);
 
 const percentile95 = (values: number[]) =>
 	values.toSorted((left, right) => left - right)[Math.ceil(values.length * 0.95) - 1];

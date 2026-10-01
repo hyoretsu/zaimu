@@ -245,3 +245,8 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Replay de faturas permanece no domínio financeiro, mas sem hidratar tags ou rateios não usados pelo dashboard e sem queries proporcionais ao número de cartões.
 - Orçamento frio do dashboard permanece em quatro queries; teste cobre isolamento do replay em lote entre cartões.
 - Próxima etapa: validar p95 com o dataset de desempenho e concluir previews de convites, detalhes de empréstimos e catálogos.
+
+### 2026-10-01
+
+- Benchmark agora mede duração até receber o corpo completo da resposta, evitando subestimar payloads grandes; regressão cobre resposta transmitida com atraso e ausência de métricas SQL.
+- Aceite de p95 permanece pendente: captura exige fixture atualizada, API local e sessão do usuário de desempenho.
