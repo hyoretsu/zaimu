@@ -34,6 +34,7 @@ import {
 	enqueueAccountYieldRecalculation,
 	enqueueUserYieldRecalculations,
 } from "~/modules/reference-rates/application/reference-rate-jobs";
+import { PostgresOutbox } from "~/shared/infra/outbox";
 import {
 	db,
 	executeRaw,
@@ -46,6 +47,7 @@ import {
 	withTransaction,
 } from "~/shared/infra/sql";
 import { SyncBody, SyncReturn } from "./SyncDTO";
+import { syncEvents } from "./sync-events";
 
 type InputEntity = Record<string, unknown>;
 interface SyncGroup {
@@ -734,6 +736,64 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 					else await executeStatement(db.sql.public.Loan.insert([{ ...values, id, userId }]).build());
 				});
 
+				await sync("loanPayments", body.loanPayments, async entity => {
+					const id = value<string>(entity, "id");
+					const loanId = value<string>(entity, "loanId");
+					const number = Number(entity.installmentNumber);
+					const loan = await queryFirst(
+						db.sql.public.Loan.select("id", "totalInstallments")
+							.where((f, fn) => fn.and(fn.eq(f.id, loanId), fn.eq(f.userId, userId)))
+							.limit(1)
+							.build(),
+					);
+					if (!loan || !Number.isInteger(number) || number < 1 || number > loan.totalInstallments)
+						throw new Error("Parcela inválida");
+					const accountId = value<string | undefined>(entity, "financialAccountId");
+					if (accountId && !accountIds.has(accountId)) throw new Error("Conta de pagamento inválida");
+					const amounts = ["principalPaid", "interestPaid", "totalPaid"].map(key => Number(entity[key]));
+					if (
+						amounts.some(amount => !Number.isFinite(amount) || amount < 0) ||
+						Math.abs(amounts[0] + amounts[1] - amounts[2]) > 0.01
+					)
+						throw new Error("Valores de parcela inválidos");
+					const existing = await queryFirst(
+						db.sql.public.LoanPayment.select("id", "loanId", "paidDate")
+							.where((f, fn) => fn.eq(f.id, id))
+							.limit(1)
+							.build(),
+					);
+					if (existing && existing.loanId !== loanId) throw new Error("Parcela pertence a outro empréstimo");
+					if (existing?.paidDate) return;
+					const fields = {
+						advanceType: value<"FRONT" | "BACK" | undefined>(entity, "advanceType") ?? null,
+						financialAccountId: accountId ?? null,
+						isAdvanced: Boolean(entity.isAdvanced),
+						paidDate: optionalDate(entity, "paidDate"),
+						updatedAt: new Date(),
+					};
+					if (existing)
+						await executeStatement(
+							db.sql.public.LoanPayment.update(fields)
+								.where((f, fn) => fn.eq(f.id, id))
+								.build(),
+						);
+					else
+						await executeStatement(
+							db.sql.public.LoanPayment.insert([
+								{
+									...fields,
+									dueDate: new Date(value<string>(entity, "dueDate")),
+									id,
+									installmentNumber: number,
+									interestPaid: String(amounts[1]),
+									loanId,
+									principalPaid: String(amounts[0]),
+									totalPaid: String(amounts[2]),
+								},
+							]).build(),
+						);
+				});
+
 				const recurrenceMappings = new Map<string, string>();
 				const newRecurrenceIds = new Set<string>();
 				const legacyGroups = [
@@ -1186,6 +1246,21 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				if (cardIds.size)
 					await withTransaction(executor => recalculateStatementPayments(executor, [...cardIds]));
 
+				const peers = await queryRaw<{ userId: string }>(
+					`SELECT CASE WHEN "requesterId" = $1 THEN "recipientId" ELSE "requesterId" END AS "userId"
+					 FROM "DebtConnection" WHERE "status" = 'ACCEPTED' AND ("requesterId" = $1 OR "recipientId" = $1)`,
+					[userId],
+				);
+				const outbox = new PostgresOutbox();
+				for (const event of syncEvents(
+					userId,
+					syncResults,
+					request.headers.get("x-correlation-id")?.slice(0, 36) || crypto.randomUUID(),
+					peers.map(peer => peer.userId),
+					body,
+				))
+					await outbox.append(event);
+
 				return {
 					serverData: {
 						categories: await queryRows(
@@ -1231,6 +1306,17 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 						financialAccountYields: financialAccountYields.map(yieldEntry => ({
 							...yieldEntry,
 							amount: yieldEntry.amount === null ? null : Number(yieldEntry.amount),
+						})),
+						loanPayments: (
+							await queryRaw<Record<string, unknown>>(
+								`SELECT payment.* FROM "LoanPayment" payment JOIN "Loan" loan ON loan."id" = payment."loanId" WHERE loan."userId" = $1`,
+								[userId],
+							)
+						).map(payment => ({
+							...payment,
+							interestPaid: Number(payment.interestPaid),
+							principalPaid: Number(payment.principalPaid),
+							totalPaid: Number(payment.totalPaid),
 						})),
 						loans: await queryRows(
 							db.sql.public.Loan.select(

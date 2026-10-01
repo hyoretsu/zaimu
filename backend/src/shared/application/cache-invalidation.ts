@@ -84,7 +84,19 @@ export const cacheInvalidationMatrix: Record<string, NamespaceResolver> = {
 		"transactions:list",
 	],
 	store: () => ["stores:list", "transactions:list"],
-	sync: () => syncCacheNamespaces,
+	sync: event => {
+		const payload = event.payload as { domain?: string; aggregateIds?: string[] } | null;
+		const domain = payload?.domain;
+		if (!domain || domain === "sync" || !cacheInvalidationMatrix[domain]) return syncCacheNamespaces;
+		return [
+			...new Set([
+				...cacheInvalidationMatrix[domain](event),
+				...(payload?.aggregateIds ?? []).flatMap(aggregateId =>
+					cacheInvalidationMatrix[domain]({ ...event, aggregateId }),
+				),
+			]),
+		];
+	},
 	transaction: event => [
 		"accounts:list",
 		"dashboard",

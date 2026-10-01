@@ -15,6 +15,7 @@ import type {
 	DebtPerson,
 	FinancialAccount,
 	Loan,
+	LoanPayment,
 	RecurringPayment,
 	Salary,
 	Store,
@@ -29,7 +30,7 @@ import { migrateLocalRecurrenceRows } from "./migrate-recurrences";
 import type { Recurrence, RecurrenceOccurrence } from "./recurrence";
 
 const DB_NAME = "zaimu-local";
-const DB_VERSION = 8;
+const DB_VERSION = 9;
 
 const LEGACY_STORES = {
 	accounts: "accounts",
@@ -41,6 +42,7 @@ const LEGACY_STORES = {
 	creditRefundReviews: "creditRefundReviews",
 	debtPeople: "debtPeople",
 	debts: "debts",
+	loanPayments: "loanPayments",
 	loans: "loans",
 	meta: "meta",
 	recurrenceOccurrences: "recurrenceOccurrences",
@@ -545,6 +547,7 @@ export const localAccounts = createLocalStore<FinancialAccount>("accounts");
 export const localCategories = createLocalStore<Category>("categories");
 export const localStores = createLocalStore<Store>("stores");
 export const localTransactions = createLocalStore<Transaction>("transactions");
+export const localLoanPayments = createLocalStore<LoanPayment>("loanPayments");
 export const localLoans = createLocalStore<Loan>("loans");
 export const localDebts = createLocalStore<Debt>("debts");
 export const localDebtPeople = createLocalStore<DebtPerson>("debtPeople");
@@ -1269,4 +1272,56 @@ export async function deleteLocalRecurrence(owner: StorageOwner, id: string, rem
 		throw error;
 	}
 	await done;
+}
+
+export async function createLocalLoanWithPayments(
+	loan: Loan,
+	payments: LoanPayment[],
+	ownerKey?: StorageOwner,
+) {
+	const owner = requireOwner(ownerKey);
+	const database = await initLocalDb();
+	const tx = database.transaction(["scoped-loans", "scoped-loanPayments"], "readwrite");
+	const done = transactionDone(tx);
+	const now = Date.now();
+	const wrap = (data: Loan | LoanPayment) => ({
+		createdAt: now,
+		data,
+		localId: data.id,
+		modifiedAt: now,
+		ownerKey: owner,
+		scopedId: scopedId(owner, data.id),
+	});
+	tx.objectStore("scoped-loans").put(wrap(loan));
+	for (const payment of payments) tx.objectStore("scoped-loanPayments").put(wrap(payment));
+	await done;
+}
+
+export async function payLocalLoanInstallment(
+	loanId: string,
+	number: number,
+	paidDate: string,
+	financialAccountId?: string,
+	ownerKey?: StorageOwner,
+) {
+	const owner = requireOwner(ownerKey);
+	const database = await initLocalDb();
+	const tx = database.transaction("scoped-loanPayments", "readwrite");
+	const done = transactionDone(tx);
+	const store = tx.objectStore("scoped-loanPayments");
+	try {
+		const rows = (await requestResult(store.index("ownerKey").getAll(owner))) as LocalData<LoanPayment>[];
+		const record = rows.find(
+			row => !row.deleted && row.data.loanId === loanId && row.data.installmentNumber === number,
+		);
+		if (!record || record.data.paidDate) throw new Error("Parcela indisponível para pagamento");
+		const updated = { ...record.data, financialAccountId, paidDate };
+		store.put({ ...record, data: updated, modifiedAt: Math.max(Date.now(), record.modifiedAt + 1) });
+		await done;
+		return updated;
+	} catch (error) {
+		tx.abort();
+		await done.catch(() => undefined);
+		throw error;
+	}
 }

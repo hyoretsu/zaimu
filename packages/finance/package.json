@@ -12,7 +12,8 @@
 		"./purchase-statement-ledger": "./src/purchase-statement-ledger.ts",
 		"./credit-book": "./src/credit-book.ts",
 		"./recurrence": "./src/recurrence.ts",
-		"./recurrence-projection": "./src/recurrence-projection.ts"
+		"./recurrence-projection": "./src/recurrence-projection.ts",
+		"./loan": "./src/loan.ts"
 	},
 	"scripts": {
 		"check-types": "tsc --noEmit",

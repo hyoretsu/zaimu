@@ -1,4 +1,10 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+	type InfiniteData,
+	useInfiniteQuery,
+	useMutation,
+	useQuery,
+	useQueryClient,
+} from "@tanstack/react-query";
 import { useState } from "react";
 import { LuChevronDown, LuPlus } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
@@ -8,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
+import type { CategoryPage } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
@@ -33,7 +40,13 @@ export function TagPicker({
 		queryFn: () => dataService.categories.getByIds(selectedIds),
 		queryKey: [...queryKeys.categories.all(identity!), "selected", selectedIds],
 	});
-	const tagsQuery = useInfiniteQuery({
+	const tagsQuery = useInfiniteQuery<
+		CategoryPage,
+		Error,
+		InfiniteData<CategoryPage>,
+		readonly unknown[],
+		string | undefined
+	>({
 		enabled: open && identity !== null,
 		getNextPageParam: page => (page.hasMore ? (page.nextCursor ?? undefined) : undefined),
 		initialPageParam: undefined as string | undefined,

@@ -148,7 +148,7 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
   - [x] Otimizar dashboard e contas.
   - [x] Otimizar dívidas e invalidação entre usuários. (resumo, eventos paginados, invalidação multiusuário e previews lazy de convites concluídos)
   - [ ] Otimizar empréstimos, históricos, categorias, lojas e rendimentos.
-  - [ ] Integrar eventos consolidados do sync.
+  - [x] Integrar eventos consolidados do sync.
 - [ ] 9. Limpeza e aceite final
   - [ ] Remover contratos, tipos, queries e helpers antigos.
   - [ ] Remover código de fila PostgreSQL e invalidação obsoleta.
@@ -269,3 +269,7 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Cursores de catálogo foram compartilhados entre lojas e categorias, com domínio incluído no filtro; modo guest usa o mesmo formato de página sem substituir snapshots por resultados parciais.
 - Próxima etapa: paridade de pagamentos de empréstimos guest, eventos consolidados do sync e aceite de desempenho.
 - Validação de categorias: dez testes passaram (cursores, lookup, DTO serializado e badges selecionados); builds backend/frontend passaram.
+- Pagamentos guest receberam store IndexedDB por proprietário, criação atômica de empréstimo/parcelas PRICE e SAC, cálculo de resumo, leitura paginada e pagamento protegido contra duplicação. Contrato sync inclui parcelas e mantém pagamentos confirmados no servidor.
+- Sync grava eventos consolidados por usuário/domínio no outbox dentro da transação; consumidores invalidam dependências e detalhes dos IDs afetados. Plugin mantém fences e deixa de publicar evento genérico após commit. Dívidas/cartões/transações incluem usuários conectados.
+- Limites restantes: empréstimos guest antigos sem parcelas exigem migração específica; SACRE e antecipação guest ainda não suportados. Métodos de pagamento estão disponíveis no serviço, sem nova tela de parcelas neste passo. Aceite de desempenho e integração volumosa continuam pendentes.
+- Validação: cinco testes de amortização, IndexedDB e eventos; treze testes de eventos/fences/invalidação passaram. Builds backend e frontend passaram.

@@ -22,6 +22,7 @@ import {
 	toCents,
 } from "@zaimu/finance/credit-card";
 import { distributePurchaseCents } from "@zaimu/finance/credit-purchase";
+import { loanInstallments } from "@zaimu/finance/loan";
 import {
 	nextRecurrenceDate,
 	recurrenceAccountEffects,
@@ -80,6 +81,8 @@ import type {
 	FinancialAccountYieldRateHistory,
 	FinancialInstitution,
 	Loan,
+	LoanPayment,
+	LoanPaymentPage,
 	RecurringPayment,
 	Salary,
 	Store,
@@ -99,12 +102,14 @@ import { calculateFinancialAccountBalances } from "./financial-account";
 import { normalizeInstitutionName } from "./financial-institution";
 import {
 	clearAllLocalData,
+	createLocalLoanWithPayments,
 	localAccounts,
 	localCategories,
 	localCreditCardStatements,
 	localCreditCards,
 	localDebtPeople,
 	localDebts,
+	localLoanPayments,
 	localLoans,
 	localMeta,
 	localRecurrenceOccurrences,
@@ -114,6 +119,7 @@ import {
 	localStores,
 	localSubscriptions,
 	localTransactions,
+	payLocalLoanInstallment,
 } from "./localStorage";
 import { getCurrentCacheIdentity } from "./query-cache";
 import { getTransactionSearchText, normalizeTransactionSearch } from "./transaction-search";
@@ -2441,7 +2447,14 @@ export const dataService = {
 					id: crypto.randomUUID(),
 					userId,
 				};
-				await localLoans.put(newLoan, newLoan.id);
+				const payments = loanInstallments(newLoan).map(row => ({
+					...row,
+					id: crypto.randomUUID(),
+					isAdvanced: false,
+					loanId: newLoan.id,
+				}));
+				newLoan.installmentAmount = payments[0].totalPaid;
+				await createLocalLoanWithPayments(newLoan, payments);
 				return newLoan;
 			}
 			const loan = await fetchWithAuth<Loan>("/loans", {
@@ -2463,7 +2476,18 @@ export const dataService = {
 		async getAll(): Promise<Loan[]> {
 			if (isGuestMode()) {
 				const local = await localLoans.getAll();
-				return local.map(item => item.data);
+				const payments = (await localLoanPayments.getAll()).map(row => row.data);
+				return local.map(({ data }) => {
+					const rows = payments.filter(row => row.loanId === data.id);
+					if (!rows.length) return data;
+					const paid = rows.filter(row => row.paidDate);
+					return {
+						...data,
+						paidInstallments: paid.length,
+						remainingInstallments: data.totalInstallments - paid.length,
+						totalPaid: paid.reduce((sum, row) => sum + row.totalPaid, 0),
+					};
+				});
 			}
 			const owner = getCurrentCacheIdentity();
 			if (!owner) throw new Error("Identidade local indisponível.");
@@ -2475,6 +2499,69 @@ export const dataService = {
 				),
 			);
 			return loans;
+		},
+
+		async getPaymentPage(
+			id: string,
+			options: { cursor?: string; limit?: number } = {},
+		): Promise<LoanPaymentPage> {
+			if (!isGuestMode()) {
+				const params = new URLSearchParams();
+				if (options.cursor) params.set("cursor", options.cursor);
+				if (options.limit) params.set("limit", String(options.limit));
+				return fetchWithAuth<LoanPaymentPage>(`/loans/${id}/payments?${params}`);
+			}
+			if (!(await localLoans.getById(id))) throw new Error("Empréstimo não encontrado");
+			const rows = (await localLoanPayments.getAll())
+				.map(row => row.data)
+				.filter(row => row.loanId === id)
+				.toSorted((a, b) => a.installmentNumber - b.installmentNumber || a.id.localeCompare(b.id));
+			let position = 0;
+			if (options.cursor) {
+				const cursor = JSON.parse(atob(options.cursor));
+				if (cursor.owner !== getUserId() || cursor.loanId !== id || !Number.isInteger(cursor.number))
+					throw new Error("Cursor inválido");
+				position = rows.findIndex(row => row.id === cursor.id && row.installmentNumber === cursor.number) + 1;
+				if (!position) throw new Error("Cursor inválido");
+			}
+			const limit = options.limit ?? 50;
+			if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error("Limite inválido");
+			const items = rows.slice(position, position + limit);
+			const hasMore = position + items.length < rows.length;
+			const last = items.at(-1);
+			return {
+				hasMore,
+				items,
+				nextCursor:
+					hasMore && last
+						? btoa(
+								JSON.stringify({
+									id: last.id,
+									loanId: id,
+									number: last.installmentNumber,
+									owner: getUserId(),
+								}),
+							)
+						: null,
+			};
+		},
+		async pay(
+			id: string,
+			number: number,
+			paidDate: string,
+			financialAccountId?: string,
+		): Promise<LoanPayment> {
+			if (!isGuestMode())
+				return fetchWithAuth(`/loans/${id}/payments/${number}/pay`, {
+					body: JSON.stringify({ financialAccountId, paidDate }),
+					method: "POST",
+				});
+			if (!(await localLoans.getById(id))) throw new Error("Empréstimo não encontrado");
+			if (financialAccountId && !(await localAccounts.getById(financialAccountId)))
+				throw new Error("Conta não encontrada");
+			if (!/^\d{4}-\d{2}-\d{2}$/.test(paidDate) || Number.isNaN(Date.parse(paidDate)))
+				throw new Error("Data inválida");
+			return payLocalLoanInstallment(id, number, paidDate, financialAccountId);
 		},
 
 		async update(id: string, data: Partial<Loan>): Promise<Loan> {
@@ -2579,6 +2666,7 @@ export const dataService = {
 					recurringPayments,
 					transactions,
 					loans,
+					loanPayments,
 					debts,
 					debtPeople,
 					salaries,
@@ -2594,6 +2682,7 @@ export const dataService = {
 					localRecurringPayments.getAll(owner),
 					localTransactions.getAll(owner),
 					localLoans.getAll(owner),
+					localLoanPayments.getAll(owner),
 					localDebts.getAll(owner),
 					localDebtPeople.getAll(owner),
 					localSalaries.getAll(owner),
@@ -2639,6 +2728,7 @@ export const dataService = {
 						recurrenceOccurrences: import("./recurrence").RecurrenceOccurrence[];
 						transactions: Transaction[];
 						loans: Loan[];
+						loanPayments: LoanPayment[];
 						debts: Debt[];
 						debtPeople: DebtPerson[];
 						salaries: Salary[];
@@ -2657,6 +2747,7 @@ export const dataService = {
 						financialAccountYields: ((yields as FinancialAccountYield[] | null) ?? []).filter(
 							yieldEntry => yieldEntry.origin !== "SYSTEM",
 						),
+						loanPayments: loanPayments.map(row => row.data),
 						loans: loans.map(l => l.data),
 						recurrenceOccurrences: recurrenceOccurrences.map(row => row.data),
 						recurrences: recurrences.map(row => ({
@@ -2732,6 +2823,10 @@ export const dataService = {
 							localId: t.id,
 							syncedAt: Date.now(),
 						})),
+						owner,
+					),
+					localLoanPayments.replaceSnapshot(
+						response.serverData.loanPayments.map(data => ({ data, localId: data.id, syncedAt: Date.now() })),
 						owner,
 					),
 					localLoans.replaceSnapshot(

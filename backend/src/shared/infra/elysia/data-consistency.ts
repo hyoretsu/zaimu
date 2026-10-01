@@ -181,7 +181,9 @@ export const DataConsistencyPlugin = new Elysia({ name: "DataConsistencyPlugin" 
 		const userId = await requireUserId(request);
 		const affectedUserIds = pathname.startsWith("/debts")
 			? await debtAffectedUserIds(debtResourceId(pathname))
-			: pathname.startsWith("/credit-cards") || pathname.startsWith("/credit-card-imports")
+			: pathname.startsWith("/credit-cards") ||
+					pathname.startsWith("/credit-card-imports") ||
+					pathname.startsWith("/sync")
 				? await creditAffectedUserIds(userId)
 				: [];
 		const userIds = [...new Set([userId, ...affectedUserIds])];
@@ -200,17 +202,18 @@ export const DataConsistencyPlugin = new Elysia({ name: "DataConsistencyPlugin" 
 			: [];
 		const userIds = [...new Set([...cacheWriteFence.userIds, ...debtUserIds])];
 		const eventId = crypto.randomUUID();
-		await outbox.append(
-			createEventEnvelope({
-				aggregateId: aggregate.aggregateId ?? cacheWriteFence.userId,
-				aggregateType: aggregate.aggregateType,
-				correlationId: request.headers.get("x-correlation-id")?.slice(0, 36) || eventId,
-				eventId,
-				eventType: eventTypeForMethod(request.method),
-				payload: { method: request.method, pathname: cacheWriteFence.pathname },
-				userIds,
-			}),
-		);
+		if (!cacheWriteFence.pathname.startsWith("/sync"))
+			await outbox.append(
+				createEventEnvelope({
+					aggregateId: aggregate.aggregateId ?? cacheWriteFence.userId,
+					aggregateType: aggregate.aggregateType,
+					correlationId: request.headers.get("x-correlation-id")?.slice(0, 36) || eventId,
+					eventId,
+					eventType: eventTypeForMethod(request.method),
+					payload: { method: request.method, pathname: cacheWriteFence.pathname },
+					userIds,
+				}),
+			);
 		await Promise.all(
 			userIds.map(userId => distributedCache.finishWrite(userId, cacheWriteFence.namespaces)),
 		);
