@@ -278,3 +278,4 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Migração guest gera parcelas idempotentemente e isola registros inválidos. Histórico pago exige revisão explícita de amortização/data antes de pagamento, antecipação ou sync; confirmação grava histórico atomicamente.
 - Interface de empréstimos recebeu criação com máscaras, parcelas lazy paginadas, pagamento por parcela, antecipação FRONT/BACK e estimativa de quitação. Skeleton, retry, feedback final e bloqueios por conflito preservam controles independentes.
 - Validação: seis testes financeiros/IndexedDB passaram; build backend/frontend passou. Próxima etapa: fixture volumosa, orçamento de queries, limpeza dos contratos restantes e aceite final.
+- Regressão de eventos sync deixou de depender da ordem das propriedades de objeto: verificação identifica domínio emitido, preservando teste de consolidação e isolamento. Dois testes passaram.

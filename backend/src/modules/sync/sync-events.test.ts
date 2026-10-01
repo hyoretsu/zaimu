@@ -10,11 +10,13 @@ test("consolidates groups by domain and omits unsuccessful groups", () => {
 		["peer"],
 	);
 	expect(events).toHaveLength(2);
-	expect(events[0].payload).toEqual({ aggregateIds: [], domain: "loan" });
-	expect(events[0].userIds).toEqual(["owner"]);
-	expect(events[1].userIds).toEqual(["owner", "peer"]);
-	expect(namespacesForEvent(events[0])).toContain("loans:installments");
-	expect(namespacesForEvent(events[0])).not.toContain("categories:list");
+	const loan = events.find(event => event.payload.domain === "loan")!;
+	const debt = events.find(event => event.payload.domain === "debt")!;
+	expect(loan.payload).toEqual({ aggregateIds: [], domain: "loan" });
+	expect(loan.userIds).toEqual(["owner"]);
+	expect(debt.userIds).toEqual(["owner", "peer"]);
+	expect(namespacesForEvent(loan)).toContain("loans:installments");
+	expect(namespacesForEvent(loan)).not.toContain("categories:list");
 });
 
 test("consolidated sync invalidates each changed transaction detail", () => {
