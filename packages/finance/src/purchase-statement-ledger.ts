@@ -26,15 +26,25 @@ export function rebuildPurchaseStatementLedger<T extends StatementInput>(input: 
 	const statementIds = new Set(input.statements.map(statement => statement.id));
 	if (statementIds.size !== input.statements.length) throw new RangeError("Fatura duplicada");
 	const invoiceTotals = new Map(input.statements.map(statement => [statement.id, 0]));
+	const installmentsByPurchase = new Map<string, PurchaseInvoiceInstallment[]>();
+	const refundsByPurchase = new Map<string, CreditRefund[]>();
 	for (const installment of input.installments) {
 		const purchase = purchases.get(installment.purchaseId);
 		if (!purchase || !statementIds.has(installment.statementId))
 			throw new RangeError("Vínculo da parcela inválido");
+		const group = installmentsByPurchase.get(installment.purchaseId) ?? [];
+		group.push(installment);
+		installmentsByPurchase.set(installment.purchaseId, group);
 		if (purchase.installmentAmountsCents[installment.number - 1] !== installment.amountCents)
 			throw new RangeError("O valor da parcela não corresponde ao plano da compra");
 	}
-	for (const refund of input.refunds)
+	for (const refund of input.refunds) {
 		if (!purchases.has(refund.purchaseId)) throw new RangeError("Compra do reembolso não encontrada");
+		if (refund.creditDate > input.asOf) continue;
+		const group = refundsByPurchase.get(refund.purchaseId) ?? [];
+		group.push(refund);
+		refundsByPurchase.set(refund.purchaseId, group);
+	}
 	const invoices = input.statements.map(statement => ({
 		id: statement.id,
 		statementDate:
@@ -44,10 +54,8 @@ export function rebuildPurchaseStatementLedger<T extends StatementInput>(input: 
 	}));
 	const effects = [];
 	for (const purchase of purchases.values()) {
-		const installments = input.installments.filter(installment => installment.purchaseId === purchase.id);
-		const refunds = input.refunds.filter(
-			refund => refund.purchaseId === purchase.id && refund.creditDate <= input.asOf,
-		);
+		const installments = installmentsByPurchase.get(purchase.id) ?? [];
+		const refunds = refundsByPurchase.get(purchase.id) ?? [];
 		const purchaseEffects = calculateRefundEffects(purchase, refunds, installments, invoices);
 		effects.push(...purchaseEffects);
 		const canceledNumbers = new Set(purchaseEffects.flatMap(effect => effect.canceledInstallmentNumbers));

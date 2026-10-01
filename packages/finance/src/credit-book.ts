@@ -228,6 +228,7 @@ export function ensureBookStatement(
 /** Complete invoice plan for calculations. Projections are never persisted as occurrences. */
 export function creditBookPlan(book: CreditBook) {
 	const statements = book.statements.map(statement => ({ ...statement }));
+	const statementsById = new Map(statements.map(statement => [statement.id, statement]));
 	const occurrences = new Map(book.installments.map(item => [`${item.purchaseId}:${item.number}`, item]));
 	const installments: PurchaseInvoiceInstallment[] = [];
 	for (const purchase of book.purchases) {
@@ -239,7 +240,7 @@ export function creditBookPlan(book: CreditBook) {
 			const dates =
 				purchase.installmentStatementDates?.[index] ?? purchaseStatementDates(book.card, date);
 			let statement = occurrence
-				? statements.find(item => item.id === occurrence.statementId)
+				? statementsById.get(occurrence.statementId)
 				: statements
 						.toSorted((a, b) => a.statementDate.localeCompare(b.statementDate))
 						.find(
@@ -260,6 +261,7 @@ export function creditBookPlan(book: CreditBook) {
 					totalAmount: 0,
 				};
 				statements.push(statement);
+				statementsById.set(statement.id, statement);
 			}
 			installments.push({
 				amountCents,
