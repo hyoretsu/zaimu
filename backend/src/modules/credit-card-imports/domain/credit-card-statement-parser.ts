@@ -1,4 +1,5 @@
 import { PDFParse } from "pdf-parse";
+import "~/shared/pdf-worker";
 import { HttpException } from "~/shared/errors";
 import { parseBradescoCreditCardStatementText } from "./bradesco-credit-card";
 import type { CreditCardImportProvider } from "./credit-card-statement";

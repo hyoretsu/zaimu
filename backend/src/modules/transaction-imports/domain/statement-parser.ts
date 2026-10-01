@@ -1,4 +1,5 @@
 import { PDFParse } from "pdf-parse";
+import "~/shared/pdf-worker";
 import { HttpException } from "~/shared/errors";
 import { parseBancoDoBrasilStatementText } from "./banco-do-brasil";
 import { parseInterStatementText } from "./inter";

@@ -26,6 +26,11 @@ ENV NODE_ENV=${NODE_ENV}
 COPY . .
 
 RUN --mount=type=secret,id=DATABASE_URL DATABASE_URL="$(cat /run/secrets/DATABASE_URL)" bunx turbo -F backend build
+RUN if [ -f backend/node_modules/pdf-parse/dist/pdf-parse/esm/pdf.worker.mjs ]; then \
+      cp backend/node_modules/pdf-parse/dist/pdf-parse/esm/pdf.worker.mjs backend/dist/pdf.worker.mjs; \
+    else \
+      cp node_modules/pdf-parse/dist/pdf-parse/esm/pdf.worker.mjs backend/dist/pdf.worker.mjs; \
+    fi
 
 FROM oven/bun:1.3.12 AS runtime
 
