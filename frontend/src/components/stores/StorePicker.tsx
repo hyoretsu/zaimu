@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { LuChevronDown, LuPlus, LuStore } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
@@ -23,27 +23,24 @@ export function StorePicker({
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
 	const [open, setOpen] = useState(false);
-	const [searchInput, setSearchInput] = useDebouncedInput("", () => undefined);
-	const storesQuery = useQuery({
-		enabled: identity !== null,
-		queryFn: () => dataService.stores.getAll(),
-		queryKey: queryKeys.stores.list(identity!),
+	const [search, setSearch] = useState("");
+	const [searchInput, setSearchInput] = useDebouncedInput(search, setSearch);
+	const storesQuery = useInfiniteQuery({
+		enabled: open && identity !== null,
+		getNextPageParam: page => (page.hasMore ? (page.nextCursor ?? undefined) : undefined),
+		initialPageParam: undefined as string | undefined,
+		queryFn: ({ pageParam }) => dataService.stores.getPage({ cursor: pageParam, limit: 50, search }),
+		queryKey: [...queryKeys.stores.list(identity!), { search }],
 	});
 	const normalizedSearch = searchInput.trim().toLocaleLowerCase("pt-BR");
 	const stores = [
-		...new Set(
-			(storesQuery.data ?? [])
-				.map(store => store.name.trim())
-				.filter((storeName): storeName is string => Boolean(storeName)),
-		),
-	].toSorted((left, right) => left.localeCompare(right, "pt-BR", { sensitivity: "base" }));
-	const filteredStores = stores.filter(storeName =>
-		storeName.toLocaleLowerCase("pt-BR").includes(normalizedSearch),
-	);
+		...new Set(storesQuery.data?.pages.flatMap(page => page.items.map(store => store.name)) ?? []),
+	];
 	const exactMatch = stores.find(storeName => storeName.toLocaleLowerCase("pt-BR") === normalizedSearch);
 	const selectStore = (storeName: string) => {
 		onValueChange(storeName);
 		setSearchInput("");
+		setSearch("");
 		setOpen(false);
 	};
 	const createStore = useMutation({
@@ -58,7 +55,7 @@ export function StorePicker({
 	});
 	const createOrSelectStore = () => {
 		const storeName = searchInput.trim();
-		if (!storeName) return;
+		if (!storeName || searchInput !== search || storesQuery.isFetching) return;
 		if (exactMatch) {
 			selectStore(exactMatch);
 			return;
@@ -109,7 +106,12 @@ export function StorePicker({
 						<Button
 							aria-label={exactMatch ? "Selecionar loja" : "Adicionar loja"}
 							className="cursor-pointer"
-							disabled={!searchInput.trim() || createStore.isPending}
+							disabled={
+								!searchInput.trim() ||
+								createStore.isPending ||
+								searchInput !== search ||
+								storesQuery.isFetching
+							}
 							onClick={createOrSelectStore}
 							size="icon"
 							type="button"
@@ -117,43 +119,68 @@ export function StorePicker({
 							<LuPlus />
 						</Button>
 					</div>
-					<ScrollArea className="h-52 pr-3">
-						{storesQuery.isPending ? (
-							<div className="grid gap-2">
-								{[1, 2, 3].map(item => (
-									<Skeleton className="h-9 rounded-xl" key={item} />
-								))}
-							</div>
-						) : (
-							<div className="grid gap-1">
-								<Button
-									className="cursor-pointer justify-start rounded-xl px-2 py-2 font-normal"
-									onClick={() => selectStore("")}
-									type="button"
-									variant={value ? "outline" : "secondary"}
-								>
-									<LuStore className="text-muted-foreground" />
-									<span className="truncate">Sem loja</span>
-								</Button>
-								{filteredStores.map(storeName => (
+					<ScrollArea className="h-52 min-h-0">
+						<div className="pr-3">
+							{storesQuery.isPending ? (
+								<div className="grid gap-2">
+									{[1, 2, 3].map(item => (
+										<Skeleton className="h-9 rounded-xl" key={item} />
+									))}
+								</div>
+							) : storesQuery.isError ? (
+								<div className="grid gap-2 p-2">
+									<p className="text-sm">Não foi possível carregar lojas.</p>
+									<Button
+										className="cursor-pointer"
+										onClick={() => storesQuery.refetch()}
+										type="button"
+										variant="outline"
+									>
+										Tentar novamente
+									</Button>
+								</div>
+							) : (
+								<div className="grid gap-1">
 									<Button
 										className="cursor-pointer justify-start rounded-xl px-2 py-2 font-normal"
-										key={storeName}
-										onClick={() => selectStore(storeName)}
+										onClick={() => selectStore("")}
 										type="button"
-										variant={value === storeName ? "secondary" : "outline"}
+										variant={value ? "outline" : "secondary"}
 									>
 										<LuStore className="text-muted-foreground" />
-										<span className="truncate">{storeName}</span>
+										<span className="truncate">Sem loja</span>
 									</Button>
-								))}
-								{!filteredStores.length && (
-									<p className="px-2 py-6 text-center text-muted-foreground text-sm">
-										Nenhuma loja encontrada. Use + para adicionar.
-									</p>
-								)}
-							</div>
-						)}
+									{stores.map(storeName => (
+										<Button
+											className="cursor-pointer justify-start rounded-xl px-2 py-2 font-normal"
+											key={storeName}
+											onClick={() => selectStore(storeName)}
+											type="button"
+											variant={value === storeName ? "secondary" : "outline"}
+										>
+											<LuStore className="text-muted-foreground" />
+											<span className="truncate">{storeName}</span>
+										</Button>
+									))}
+									{storesQuery.hasNextPage && (
+										<Button
+											className="cursor-pointer"
+											disabled={storesQuery.isFetchingNextPage}
+											onClick={() => storesQuery.fetchNextPage()}
+											type="button"
+											variant="outline"
+										>
+											{storesQuery.isFetchingNextPage ? "Carregando..." : "Carregar mais"}
+										</Button>
+									)}
+									{!stores.length && (
+										<p className="px-2 py-6 text-center text-muted-foreground text-sm">
+											Nenhuma loja encontrada. Use + para adicionar.
+										</p>
+									)}
+								</div>
+							)}
+						</div>
 					</ScrollArea>
 				</PopoverContent>
 			</Popover>

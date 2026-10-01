@@ -4,26 +4,52 @@ import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { normalizeStoreName } from "~/modules/stores/domain/normalize-store-name";
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
-import { db, queryRows } from "~/shared/infra/sql";
+import { queryRaw } from "~/shared/infra/sql";
+
+import { decodeStoreCursor, storeFilterHash, storePage } from "../../application/store-pagination";
 
 export const StoresController = new Elysia({ prefix: "/stores" })
 	.get(
 		"/",
-		async ({ request, set }) => {
+		async ({ request, query, set }) => {
 			const userId = await requireUserId(request);
-			const cached = await distributedCache.remember(userId, "stores:list", {}, () =>
-				queryRows(
-					db.sql.public.Store.select("id", "name", "userId")
-						.where((fields, functions) => functions.eq(fields.userId, userId))
-						.orderBy("name", { direction: "asc" })
-						.build(),
-				),
+			const search = (query.search ?? "").trim();
+			const limit = query.limit ?? 50;
+			const hash = storeFilterHash(userId, search);
+			const cursor = decodeStoreCursor(query.cursor, hash);
+			const cached = await distributedCache.remember(
+				userId,
+				"stores:list",
+				{ cursor: query.cursor, limit, search, version: 2 },
+				async () => {
+					const rows = await queryRaw<{ id: string; name: string; userId: string }>(
+						`SELECT "id", "name", "userId" FROM "public"."Store"
+					 WHERE "userId" = $1
+					 AND strpos(public.normalize_search("name"), public.normalize_search($2)) > 0
+					 AND ($3::text IS NULL OR ("name" COLLATE "C", "id" COLLATE "C") > ($3::text COLLATE "C", $4::text COLLATE "C"))
+					 ORDER BY "name" COLLATE "C", "id" COLLATE "C" LIMIT $5`,
+						[userId, search, cursor?.name ?? null, cursor?.id ?? null, limit + 1],
+					);
+					return storePage(rows, limit, hash);
+				},
 			);
 			set.headers.etag = cached.etag;
 			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
 			return cached.value;
 		},
-		{ detail: { tags: ["Stores"] } },
+		{
+			detail: { tags: ["Stores"] },
+			query: t.Object({
+				cursor: t.Optional(t.String()),
+				limit: t.Optional(t.Integer({ maximum: 100, minimum: 1 })),
+				search: t.Optional(t.String({ maxLength: 200 })),
+			}),
+			response: t.Object({
+				hasMore: t.Boolean(),
+				items: t.Array(t.Object({ id: t.String(), name: t.String(), userId: t.String() })),
+				nextCursor: t.Union([t.String(), t.Null()]),
+			}),
+		},
 	)
 	.post(
 		"/",

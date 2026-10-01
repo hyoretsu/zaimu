@@ -125,6 +125,12 @@ export interface FinancialInstitutionYieldRule {
 	yieldReferenceType?: "CDI" | "SELIC" | null;
 }
 
+export interface StorePage {
+	items: Store[];
+	hasMore: boolean;
+	nextCursor: string | null;
+}
+
 export interface Store {
 	id: string;
 	name: string;

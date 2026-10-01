@@ -44,6 +44,7 @@ import {
 } from "./localStorage";
 import type { Recurrence } from "./recurrence";
 import { createRecurrenceService } from "./recurrence-service";
+import { localStorePage, type StorePageOptions } from "./store-pagination";
 /**
  * Data Service - Abstracts local vs remote data operations
  *
@@ -81,6 +82,7 @@ import type {
 	RecurringPayment,
 	Salary,
 	Store,
+	StorePage,
 	Subscription,
 	Transaction,
 	TransactionImport,
@@ -2496,6 +2498,15 @@ export const dataService = {
 	stores: {
 		async create(name: string): Promise<Store> {
 			if (isGuestMode()) {
+				const normalizedName = name.normalize("NFKC").trim().replace(/\s+/gu, " ");
+				if (!normalizedName) throw new Error("Informe o nome da loja");
+				const existing = (await localStores.getAll()).find(
+					row =>
+						row.data.name.normalize("NFKC").trim().replace(/\s+/gu, " ").toLocaleLowerCase("pt-BR") ===
+						normalizedName.toLocaleLowerCase("pt-BR"),
+				);
+				if (existing) return existing.data;
+				name = normalizedName;
 				const store: Store = { id: crypto.randomUUID(), name, userId: getUserId() };
 				await localStores.put(store, store.id);
 				return store;
@@ -2508,18 +2519,18 @@ export const dataService = {
 			return store;
 		},
 
-		async getAll(): Promise<Store[]> {
-			if (isGuestMode()) return (await localStores.getAll()).map(item => item.data);
-			const owner = getCurrentCacheIdentity();
-			if (!owner) throw new Error("Identidade local indisponível.");
-			const stores = await fetchWithAuth<Store[]>("/stores");
-			cacheRemoteData(
-				localStores.replaceSnapshot(
-					stores.map(store => ({ data: store, localId: store.id })),
-					owner,
-				),
-			);
-			return stores;
+		async getPage(options: StorePageOptions = {}) {
+			if (isGuestMode())
+				return localStorePage(
+					(await localStores.getAll()).map(row => row.data),
+					getUserId(),
+					options,
+				);
+			const search = new URLSearchParams();
+			if (options.cursor) search.set("cursor", options.cursor);
+			if (options.search) search.set("search", options.search);
+			if (options.limit !== undefined) search.set("limit", String(options.limit));
+			return fetchWithAuth<StorePage>(`/stores?${search}`);
 		},
 	},
 

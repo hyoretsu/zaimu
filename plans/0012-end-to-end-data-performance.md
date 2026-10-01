@@ -260,3 +260,7 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - `GET /loans/:id/payments` carrega parcelas em páginas de até 100, com cursor por número/ID vinculado ao usuário e empréstimo, cache e invalidação existente. Contrato frontend atualizado atomicamente; nenhuma tela consumia os campos removidos.
 - Paridade guest de pagamentos continua pendente: IndexedDB atual não armazena parcelas nem pagamentos de empréstimos. Paginação de catálogos e captura p95 também permanecem abertas.
 - Validação da separação de parcelas: quatro testes passaram (cursor, isolamento e DTO serializado); builds backend e frontend passaram.
+- Lojas passaram a retornar `{ items, nextCursor, hasMore }`, com busca substring normalizada no SQL, ordenação estável por nome/ID e páginas de até 100. Cache inclui pesquisa/cursor e versão do novo contrato.
+- Seletor de lojas carrega 50 registros somente ao abrir, pesquisa com debounce no servidor e oferece carregamento incremental com estados de erro/retry. Modo guest aplica busca e cursores vinculados a proprietário/filtro; páginas parciais não substituem snapshots locais.
+- Categorias permanecem pendentes: tags selecionadas precisam ter seus nomes resolvidos independentemente da página pesquisada. Próxima etapa: paginação de categorias e paridade de pagamentos guest.
+- Criação de loja guest reutiliza nome normalizado existente mesmo fora da página carregada. Validação: seis testes de paginação/normalização passaram; builds backend e frontend passaram.
