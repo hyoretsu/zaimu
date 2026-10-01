@@ -530,13 +530,16 @@ export interface DebtLedger {
 	totals: { iOwe: number; net: number; owedToMe: number };
 }
 
-export interface DebtInvitation {
+export interface DebtInvitationPreview {
 	balance: number;
+	events: DebtEvent[];
+}
+
+export interface DebtInvitation {
 	id: string;
 	createdAt: string;
 	counterpartyName: string;
 	direction: "RECEIVED" | "SENT";
-	events: DebtEvent[];
 	status: "PENDING" | "ACCEPTED" | "DECLINED";
 }
 

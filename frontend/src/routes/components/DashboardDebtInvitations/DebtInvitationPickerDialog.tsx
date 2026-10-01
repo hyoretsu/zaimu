@@ -5,7 +5,6 @@ import { ScrollArea } from "@/components/ui/ScrollArea";
 import type { DebtInvitation } from "@/lib/api";
 import { compareDebtPersonNames } from "@/lib/debt-split";
 
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 const dateFormatter = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" });
 
 export function DebtInvitationPickerDialog({
@@ -47,9 +46,7 @@ export function DebtInvitationPickerDialog({
 									<span className="flex min-w-0 items-center gap-1.5 text-muted-foreground text-xs">
 										<LuClock3 className="size-3.5 shrink-0" />
 										<span className="min-w-0 truncate">
-											{dateFormatter.format(new Date(invitation.createdAt))} · {invitation.events.length}{" "}
-											{invitation.events.length === 1 ? "lançamento" : "lançamentos"} ·{" "}
-											{currency.format(Math.abs(invitation.balance))}
+											{dateFormatter.format(new Date(invitation.createdAt))}
 										</span>
 									</span>
 								</span>

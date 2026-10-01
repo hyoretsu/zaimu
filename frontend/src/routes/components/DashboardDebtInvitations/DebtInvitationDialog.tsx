@@ -1,6 +1,5 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { LuShoppingCart, LuUsersRound, LuWalletCards } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import {
 	Dialog,
@@ -10,17 +9,14 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
-import { ScrollArea } from "@/components/ui/ScrollArea";
+import { Skeleton } from "@/components/ui/Skeleton";
 import type { DebtInvitation } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
-import { formatLocalDate, formatLocalTime } from "@/lib/date";
-import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
+import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
-import { getDebtEventLabel } from "../../debts/components/debt-event";
 import { DebtInvitationAssociationDialog } from "./DebtInvitationAssociationDialog";
 import { DebtInvitationDeclineDialog } from "./DebtInvitationDeclineDialog";
-
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
+import { DebtInvitationPreview } from "./DebtInvitationPreview";
 
 export function DebtInvitationDialog({
 	invitation,
@@ -35,6 +31,11 @@ export function DebtInvitationDialog({
 }) {
 	const identity = useCacheIdentity();
 	const queryClient = useQueryClient();
+	const preview = useQuery({
+		enabled: open && identity !== null,
+		queryFn: () => dataService.debts.getInvitationPreview(invitation.id),
+		queryKey: [...queryKeys.debts.invitations(identity!), invitation.id, "preview"],
+	});
 	const [step, setStep] = useState<"details" | "association" | "decline">("details");
 	const accept = useMutation({
 		mutationFn: (personId?: string) => dataService.debts.acceptInvitation(invitation.id, personId),
@@ -82,67 +83,28 @@ export function DebtInvitationDialog({
 						Confira os lançamentos atuais. Ao aceitar, o saldo e o histórico ficam visíveis nos dois lados.
 					</DialogDescription>
 				</DialogHeader>
-				<div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border bg-muted/30 p-4">
-					<div className="flex items-center gap-3">
-						<div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-							<LuUsersRound className="size-5" />
-						</div>
-						<div className="min-w-0">
-							<p className="font-medium text-sm">Saldo atual de {invitation.counterpartyName}</p>
-							<p className="text-muted-foreground text-xs">
-								{invitation.events.length} {invitation.events.length === 1 ? "lançamento" : "lançamentos"}
-							</p>
-						</div>
-					</div>
-					<strong
-						className={
-							invitation.balance >= 0
-								? "shrink-0 text-right text-emerald-600 text-sm sm:text-base"
-								: "shrink-0 text-right text-rose-600 text-sm sm:text-base"
-						}
-					>
-						{invitation.balance === 0 ? "" : invitation.balance > 0 ? "+" : "−"}
-						{currency.format(Math.abs(invitation.balance))}
-					</strong>
-				</div>
-				<ScrollArea className="min-h-0 w-full">
+				{preview.isPending ? (
 					<div className="space-y-4">
-						<div className="space-y-2">
-							{invitation.events.map(event => (
-								<div
-									className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border p-3"
-									key={event.id}
-								>
-									<div className="text-muted-foreground">
-										{event.kind === "PURCHASE" ? <LuShoppingCart /> : <LuWalletCards />}
-									</div>
-									<div className="min-w-0 flex-1">
-										<p className="truncate font-medium text-sm">{getDebtEventLabel(event)}</p>
-										<p className="truncate text-muted-foreground text-xs">
-											{event.date ? formatLocalDate(event.date) : "Sem data"}
-											{formatLocalTime(event.time) ? ` · ${formatLocalTime(event.time)}` : ""}
-										</p>
-									</div>
-									<span
-										className={
-											event.effect >= 0
-												? "shrink-0 text-right text-emerald-600 text-sm sm:text-base"
-												: "shrink-0 text-right text-rose-600 text-sm sm:text-base"
-										}
-									>
-										{event.effect === 0 ? "" : event.effect > 0 ? "+" : "−"}
-										{currency.format(Math.abs(event.effect))}
-									</span>
-								</div>
-							))}
-							{!invitation.events.length ? (
-								<p className="rounded-xl border border-dashed p-4 text-muted-foreground text-sm">
-									Nenhum lançamento será associado.
-								</p>
-							) : null}
-						</div>
+						<Skeleton className="h-20 rounded-2xl" />
+						{[0, 1, 2].map(index => (
+							<Skeleton className="h-16 rounded-xl" key={index} />
+						))}
 					</div>
-				</ScrollArea>
+				) : preview.isError ? (
+					<div className="space-y-3 rounded-xl border p-4">
+						<p className="text-sm">Não foi possível carregar os lançamentos.</p>
+						<Button
+							className="cursor-pointer"
+							onClick={() => preview.refetch()}
+							type="button"
+							variant="outline"
+						>
+							Tentar novamente
+						</Button>
+					</div>
+				) : preview.isSuccess ? (
+					<DebtInvitationPreview counterpartyName={invitation.counterpartyName} preview={preview.data} />
+				) : null}
 				<DialogFooter className="!grid sm:!grid shrink-0 grid-cols-2 gap-2">
 					<Button
 						className="w-full cursor-pointer"
@@ -155,7 +117,7 @@ export function DebtInvitationDialog({
 					</Button>
 					<Button
 						className="w-full cursor-pointer"
-						disabled={isPending}
+						disabled={isPending || !preview.isSuccess}
 						onClick={() => setStep("association")}
 						type="button"
 					>

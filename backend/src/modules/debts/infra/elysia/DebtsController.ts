@@ -22,6 +22,7 @@ import { DebtSplitInputDTO } from "./DebtSplitsDTO";
 import {
 	DebtConnectionReturn,
 	DebtEventPageReturn,
+	DebtInvitationPreviewReturn,
 	DebtInvitationReturn,
 	DebtLedgerReturn,
 	DebtMutationEventReturn,
@@ -30,6 +31,7 @@ import {
 	DebtSuccessReturn,
 	DebtSummaryReturn,
 } from "./DebtsDTO";
+import { requirePendingInvitationRecipient } from "./debt-invitation";
 import { normalizeDebtLedgerPerson } from "./debt-ledger-person";
 
 const PersonIdParams = t.Object({ id: t.String({ maxLength: 36, minLength: 1 }) });
@@ -469,20 +471,35 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 					.orderBy(fields => fields.DebtConnection.createdAt, { direction: "desc" })
 					.build(),
 			);
-			return Promise.all(
-				invitations.map(async invitation => ({
-					...(await getInvitationPreview(invitation.id, invitation.requesterId, userId)),
-					counterpartyName:
-						invitation.requesterId === userId ? invitation.recipientName : invitation.requesterName,
-					createdAt: invitation.createdAt,
-					direction: invitation.requesterId === userId ? ("SENT" as const) : ("RECEIVED" as const),
-					id: invitation.id,
-					status: invitation.status as DebtConnectionState,
-				})),
-			);
+			return invitations.map(invitation => ({
+				counterpartyName:
+					invitation.requesterId === userId ? invitation.recipientName : invitation.requesterName,
+				createdAt: invitation.createdAt,
+				direction: invitation.requesterId === userId ? ("SENT" as const) : ("RECEIVED" as const),
+				id: invitation.id,
+				status: invitation.status as DebtConnectionState,
+			}));
 		},
 		{ detail: { tags: ["Debts"] }, response: t.Array(DebtInvitationReturn) },
 	)
+	.get(
+		"/invitations/:id/preview",
+		async ({ params, request }) => {
+			const userId = await requireUserId(request);
+			const connection = await queryFirst(
+				db.sql.public.DebtConnection.select("id", "requesterId", "recipientId", "status")
+					.where((fields, functions) =>
+						functions.and(functions.eq(fields.id, params.id), functions.eq(fields.recipientId, userId)),
+					)
+					.limit(1)
+					.build(),
+			);
+			requirePendingInvitationRecipient(connection, userId);
+			return getInvitationPreview(connection.id, connection.requesterId, userId);
+		},
+		{ detail: { tags: ["Debts"] }, params: PersonIdParams, response: DebtInvitationPreviewReturn },
+	)
+
 	.post(
 		"/people",
 		async ({ body, request }) => {

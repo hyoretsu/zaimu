@@ -47,12 +47,15 @@ export const DebtEventPageReturn = t.Object({
 	nextCursor: t.Union([t.String(), t.Null()]),
 });
 
-export const DebtInvitationReturn = t.Object({
+export const DebtInvitationPreviewReturn = t.Object({
 	balance: t.Number(),
+	events: t.Array(DebtEventReturn),
+});
+
+export const DebtInvitationReturn = t.Object({
 	counterpartyName: t.String(),
 	createdAt: t.Date(),
 	direction: t.Union([t.Literal("RECEIVED"), t.Literal("SENT")]),
-	events: t.Array(DebtEventReturn),
 	id: Id,
 	status: ConnectionStatus,
 });

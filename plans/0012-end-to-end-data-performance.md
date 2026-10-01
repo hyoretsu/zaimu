@@ -146,7 +146,7 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
   - [x] Drenar e remover `ReferenceRateJob` e worker PostgreSQL antigo.
 - [ ] 8. Demais domínios
   - [x] Otimizar dashboard e contas.
-  - [ ] Otimizar dívidas e invalidação entre usuários. (resumo, eventos lazy e invalidação concluídos; convites ainda carregam previews completos)
+  - [x] Otimizar dívidas e invalidação entre usuários. (resumo, eventos paginados, invalidação multiusuário e previews lazy de convites concluídos)
   - [ ] Otimizar empréstimos, históricos, categorias, lojas e rendimentos.
   - [ ] Integrar eventos consolidados do sync.
 - [ ] 9. Limpeza e aceite final
@@ -251,3 +251,5 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Benchmark agora mede duração até receber o corpo completo da resposta, evitando subestimar payloads grandes; regressão cobre resposta transmitida com atraso e ausência de métricas SQL.
 - Aceite de p95 permanece pendente: captura exige fixture atualizada, API local e sessão do usuário de desempenho.
 - Fixture atualizada para `CreditPurchaseRecord`, planos/parcelas/referências normalizados e 240 `Recurrence`; configurações de rendimento respeitam constraints atuais. Migração do seed deixou de avançar referências Git. Execução volumosa ainda exige banco local dedicado.
+- Convites agora retornam somente metadados em uma consulta; saldo e lançamentos carregam ao abrir revisão, com autorização restrita ao destinatário pendente, skeleton e retry. Preview aberto ainda retorna o histórico completo.
+- Validação: testes de dívidas e medição passaram; builds backend e frontend passaram. Próxima etapa: detalhes de empréstimos, catálogos e captura de p95 com banco local dedicado.

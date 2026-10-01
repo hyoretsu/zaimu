@@ -67,6 +67,7 @@ import type {
 	Debt,
 	DebtEvent,
 	DebtInvitation,
+	DebtInvitationPreview,
 	DebtLedger,
 	DebtPerson,
 	DebtSplit,
@@ -2118,6 +2119,10 @@ export const dataService = {
 				items,
 				nextCursor: nextOffset < events.length ? String(nextOffset) : null,
 			};
+		},
+		async getInvitationPreview(id: string): Promise<DebtInvitationPreview> {
+			if (isGuestMode()) throw new Error("Convite não encontrado.");
+			return fetchWithAuth<DebtInvitationPreview>(`/debts/invitations/${encodeURIComponent(id)}/preview`);
 		},
 		async getInvitations(): Promise<DebtInvitation[]> {
 			if (isGuestMode()) return [];
