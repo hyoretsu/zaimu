@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import {
 	buildComparisonPeriods,
+	comparisonRangeEnd,
 	databaseDate,
 	dateKey,
 	endingBalanceAtPeriodEnd,
@@ -95,14 +96,24 @@ test("does not schedule a weekly payment before its start date when weekday diff
 	]);
 });
 
-test("builds thirteen contiguous inclusive comparison intervals", () => {
+test("builds twelve monthly comparison intervals across year boundaries", () => {
 	const base = resolveDashboardRange("2026-03-01", "2026-03-31", new Date("2026-03-10T00:00:00"));
 	const periods = buildComparisonPeriods({ base, initialBalance: 100, transactions: [] });
-	expect(periods).toHaveLength(13);
-	expect(periods[0]?.endDate).toBe("2025-09-30");
-	expect(periods[6]?.startDate).toBe("2026-03-01");
-	expect(periods[12]?.startDate).toBe("2026-09-01");
-	expect(periods[12]?.endDate).toBe("2026-09-30");
+	expect(periods).toHaveLength(12);
+	expect(periods[0]?.endDate).toBe("2026-02-28");
+	expect(periods[1]?.startDate).toBe("2026-03-01");
+	expect(periods[11]?.startDate).toBe("2027-01-01");
+	expect(periods[11]?.endDate).toBe("2027-01-31");
+});
+
+test("keeps annual dashboard ranges as twelve individual chart months", () => {
+	const base = resolveDashboardRange("2026-01-01", "2026-12-31");
+	const periods = buildComparisonPeriods({ base, initialBalance: 0, transactions: [] });
+	expect(periods).toHaveLength(12);
+	expect(periods[0]).toMatchObject({ endDate: "2025-12-31", startDate: "2025-12-01" });
+	expect(periods[1]).toMatchObject({ endDate: "2026-01-31", startDate: "2026-01-01" });
+	expect(periods[11]?.endDate).toBe("2026-11-30");
+	expect(dateKey(comparisonRangeEnd(base))).toBe("2026-11-30");
 });
 
 test("uses complete months and anchors balances to the selected period", () => {
@@ -116,13 +127,13 @@ test("uses complete months and anchors balances to the selected period", () => {
 			{ amount: 200, date: new Date("2026-04-01T12:00:00"), type: "EXPENSE" },
 		],
 	});
-	expect(periods[6]).toMatchObject({
+	expect(periods[1]).toMatchObject({
 		endDate: "2026-03-31",
 		endingBalance: 1_100,
 		initialBalance: 1_050,
 		startDate: "2026-03-01",
 	});
-	expect(periods[7]).toMatchObject({ endingBalance: 900, initialBalance: 1_100, startDate: "2026-04-01" });
+	expect(periods[2]).toMatchObject({ endingBalance: 900, initialBalance: 1_100, startDate: "2026-04-01" });
 });
 
 test("does not apply future projections to a historical period balance", () => {

@@ -1741,19 +1741,15 @@ export const dataService = {
 						})),
 				].toSorted((left, right) => left.date.localeCompare(right.date));
 				const comparisonStart = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1);
-				const comparisonMonths =
-					(rangeEnd.getFullYear() - comparisonStart.getFullYear()) * 12 +
-					rangeEnd.getMonth() -
-					comparisonStart.getMonth() +
-					1;
-				const comparisonEnd = new Date(
+				const comparisonRangeEnd = new Date(
 					comparisonStart.getFullYear(),
-					comparisonStart.getMonth() + comparisonMonths * 7,
+					comparisonStart.getMonth() + 11,
 					0,
 					23,
 					59,
 					59,
 				);
+				const comparisonEnd = new Date(Math.max(comparisonRangeEnd.getTime(), rangeEnd.getTime()));
 				const projectionStart = new Date(now);
 				projectionStart.setHours(12, 0, 0, 0);
 				projectionStart.setDate(projectionStart.getDate() + 1);
@@ -1881,13 +1877,9 @@ export const dataService = {
 					savingsBalance,
 					startDate: dateKey(rangeStart),
 				};
-				const comparison = Array.from({ length: 13 }, (_, index) => {
-					const start = new Date(
-						comparisonStart.getFullYear(),
-						comparisonStart.getMonth() + (index - 6) * comparisonMonths,
-						1,
-					);
-					const end = new Date(start.getFullYear(), start.getMonth() + comparisonMonths, 0, 23, 59, 59);
+				const comparison = Array.from({ length: 12 }, (_, index) => {
+					const start = new Date(comparisonStart.getFullYear(), comparisonStart.getMonth() + index - 1, 1);
+					const end = new Date(start.getFullYear(), start.getMonth() + 1, 0, 23, 59, 59);
 					const movements = comparisonTransactions.filter(
 						item => item.type !== "TRANSFER" && item.date >= start && item.date <= end,
 					);

@@ -109,7 +109,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 				const now = new Date();
 				const today = startOfDay(now);
 				const range = resolveDashboardRange(query.startDate, query.endDate, now);
-				const comparisonEnd = comparisonRangeEnd(range);
+				const comparisonEnd = new Date(Math.max(comparisonRangeEnd(range).getTime(), range.end.getTime()));
 				const comparisonPeriods = buildComparisonPeriods({
 					base: range,
 					initialBalance: 0,

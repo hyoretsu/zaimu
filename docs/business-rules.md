@@ -4,6 +4,8 @@
 
 A dashboard resume todos os domínios financeiros relevantes: contas monetárias, cartões, previsões, dívidas e comparativos por período. Ao criar um novo domínio que afete saldo, entradas, saídas, compromissos ou crédito disponível, sua integração na dashboard deve ser avaliada no mesmo trabalho. Investimentos e pontos permanecem fora do saldo monetário consolidado; cashback em reais permanece incluído.
 
+A evolução mensal exibe 12 meses completos: o mês anterior ao mês de referência, o próprio mês de referência e os dez seguintes. O filtro do gráfico seleciona mês e ano de referência independentemente do período dos demais indicadores da dashboard.
+
 ## Ajustes de saldo
 
 Um ajuste registra o saldo real de uma conta ao fim de uma data. Ele não é entrada nem saída e não participa de categorias, faturas ou dívidas. Existe no máximo um ajuste por conta e data. O saldo antes da data segue as movimentações registradas; na data, o ajuste fixa o saldo de fechamento. Movimentações anteriores ou do mesmo dia alteram automaticamente a diferença implícita do ajuste, preservando o saldo real informado. Movimentações posteriores partem desse saldo, até o próximo ajuste. Excluir o ajuste remove esse ponto de referência e recalcula o histórico.

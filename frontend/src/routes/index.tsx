@@ -116,7 +116,7 @@ export function DashboardPage() {
 					net={projectedCashFlow.net}
 				/>
 			</section>
-			<DashboardComparisonChart comparison={dashboard.comparison} />
+			<DashboardComparisonChart />
 			<section className="grid gap-4 xl:grid-cols-2">
 				<DashboardAccounts accounts={dashboard.accounts} endDate={dashboard.period.endDate} />
 				<DashboardCreditCards

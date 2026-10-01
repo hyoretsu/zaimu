@@ -7,7 +7,6 @@ import {
 	endOfMonth,
 	format,
 	isAfter,
-	isSameDay,
 	startOfDay,
 } from "date-fns";
 
@@ -132,11 +131,10 @@ export function buildComparisonPeriods(input: {
 	transactions: Array<{ amount: number; date: Date; type: "EXPENSE" | "INCOME" | "TRANSFER" }>;
 }) {
 	const base = comparisonBase(input.base);
-	const calendarMonths = completeCalendarMonths(base)!;
-	return Array.from({ length: 13 }, (_, index) => {
-		const offset = index - 6;
-		const start = startOfDay(addMonths(base.start, offset * calendarMonths));
-		const end = endOfDay(endOfMonth(addMonths(start, calendarMonths - 1)));
+	return Array.from({ length: 12 }, (_, index) => {
+		const offset = index - 1;
+		const start = startOfDay(addMonths(base.start, offset));
+		const end = endOfDay(endOfMonth(start));
 		const movements = input.transactions.filter(
 			item => item.date >= start && item.date <= end && item.type !== "TRANSFER",
 		);
@@ -160,8 +158,7 @@ export function buildComparisonPeriods(input: {
 
 export function comparisonRangeEnd(base: { end: Date; start: Date }) {
 	const comparison = comparisonBase(base);
-	const calendarMonths = completeCalendarMonths(comparison)!;
-	return endOfDay(endOfMonth(addMonths(comparison.start, calendarMonths * 6)));
+	return endOfDay(endOfMonth(addMonths(comparison.start, 10)));
 }
 
 function comparisonBase(base: { end: Date; start: Date }) {
@@ -256,11 +253,4 @@ function monthlyDate(reference: Date, day: number) {
 function yearlyDate(reference: Date, day: number) {
 	const lastDay = new Date(reference.getFullYear(), reference.getMonth() + 1, 0).getDate();
 	return new Date(reference.getFullYear(), reference.getMonth(), Math.min(day, lastDay));
-}
-
-function completeCalendarMonths(base: { end: Date; start: Date }) {
-	const start = startOfDay(base.start);
-	const end = startOfDay(base.end);
-	if (start.getDate() !== 1 || !isSameDay(end, endOfMonth(end))) return undefined;
-	return (end.getFullYear() - start.getFullYear()) * 12 + end.getMonth() - start.getMonth() + 1;
 }
