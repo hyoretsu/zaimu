@@ -5,6 +5,7 @@ export const cacheNamespaces = [
 	"accounts:list",
 	"accounts:rate-history",
 	"accounts:yields",
+	"categories:detail",
 	"categories:list",
 	"credit-cards:overview",
 	"dashboard",

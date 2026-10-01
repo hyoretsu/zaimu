@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { namespacesForEvent } from "~/shared/application/cache-invalidation";
+import { createEventEnvelope } from "~/shared/application/events";
 import type { CachePort } from "~/shared/application/ports";
 import { DistributedCache } from "./DistributedCache";
 
@@ -127,5 +129,52 @@ describe("DistributedCache", () => {
 		expect(reconnected.value).toBe("value-3");
 		expect(hit).toEqual({ ...reconnected, hit: true });
 		expect(loads).toBe(3);
+	});
+});
+
+describe("catalog and loan read consistency", () => {
+	test("category edits invalidate summary and detail while preserving other users and stores", async () => {
+		const cache = new DistributedCache(new MemoryCache());
+		await cache.remember("owner", "categories:list", {}, async () => ["old"]);
+		await cache.remember("owner", "categories:detail", { id: "category" }, async () => "old");
+		await cache.remember("peer", "categories:detail", { id: "category" }, async () => "peer");
+		await cache.remember("owner", "stores:list", {}, async () => ["store"]);
+		const namespaces = namespacesForEvent(
+			createEventEnvelope({
+				aggregateId: "category",
+				aggregateType: "category",
+				correlationId: "edit",
+				eventType: "updated",
+				payload: {},
+				userIds: ["owner"],
+			}),
+		);
+		await cache.beginWrite("owner", namespaces);
+		expect(await cache.read("owner", "categories:detail", { id: "category" })).toBeUndefined();
+		await cache.finishWrite("owner", namespaces);
+		expect(await cache.read("owner", "categories:list", {})).toBeUndefined();
+		expect(await cache.read("owner", "categories:detail", { id: "category" })).toBeUndefined();
+		expect((await cache.read("peer", "categories:detail", { id: "category" }))?.value).toBe("peer");
+		expect((await cache.read("owner", "stores:list", {}))?.value).toEqual(["store"]);
+	});
+
+	test("loan payments invalidate detail and history together", async () => {
+		const cache = new DistributedCache(new MemoryCache());
+		await cache.remember("owner", "loans:detail", { id: "loan" }, async () => "unpaid");
+		await cache.remember("owner", "loans:history", { limit: 50, loanId: "loan" }, async () => []);
+		const namespaces = namespacesForEvent(
+			createEventEnvelope({
+				aggregateId: "loan",
+				aggregateType: "loan",
+				correlationId: "payment",
+				eventType: "updated",
+				payload: {},
+				userIds: ["owner"],
+			}),
+		);
+		await cache.beginWrite("owner", namespaces);
+		await cache.finishWrite("owner", namespaces);
+		expect(await cache.read("owner", "loans:detail", { id: "loan" })).toBeUndefined();
+		expect(await cache.read("owner", "loans:history", { limit: 50, loanId: "loan" })).toBeUndefined();
 	});
 });

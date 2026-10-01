@@ -1,29 +1,34 @@
 import Elysia, { t } from "elysia";
 import { assertDirectOwnership, requireUserId } from "~/modules/auth";
 import { HttpException } from "~/shared/errors";
+import { distributedCache } from "~/shared/infra/cache";
 import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
 
 export const CategoriesController = new Elysia({ prefix: "/categories" })
 	.get(
 		"/",
-		async ({ request }) => {
+		async ({ request, set }) => {
 			const userId = await requireUserId(request);
-			const categories = await queryRows(
-				db.sql.public.Category.select(
-					"id",
-					"userId",
-					"name",
-					"color",
-					"icon",
-					"parentId",
-					"createdAt",
-					"updatedAt",
-				)
-					.where((fields, functions) => functions.eq(fields.userId, userId))
-					.orderBy("name", { direction: "asc" })
-					.build(),
+			const cached = await distributedCache.remember(userId, "categories:list", {}, () =>
+				queryRows(
+					db.sql.public.Category.select(
+						"id",
+						"userId",
+						"name",
+						"color",
+						"icon",
+						"parentId",
+						"createdAt",
+						"updatedAt",
+					)
+						.where((fields, functions) => functions.eq(fields.userId, userId))
+						.orderBy("name", { direction: "asc" })
+						.build(),
+				),
 			);
-			return categories;
+			set.headers.etag = cached.etag;
+			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+			return cached.value;
 		},
 		{
 			detail: { tags: ["Categories"] },
@@ -31,30 +36,41 @@ export const CategoriesController = new Elysia({ prefix: "/categories" })
 	)
 	.get(
 		"/:id",
-		async ({ params, request }) => {
+		async ({ params, request, set }) => {
 			const userId = await requireUserId(request);
-			await assertDirectOwnership("Category", params.id, userId);
-			const category = await queryFirst(
-				db.sql.public.Category.select(
-					"id",
-					"userId",
-					"name",
-					"color",
-					"icon",
-					"parentId",
-					"createdAt",
-					"updatedAt",
-				)
-					.where((fields, functions) => functions.eq(fields.id, params.id))
-					.limit(1)
-					.build(),
+			const cached = await distributedCache.remember(
+				userId,
+				"categories:detail",
+				{ id: params.id },
+				async () => {
+					const category = await queryFirst(
+						db.sql.public.Category.select(
+							"id",
+							"userId",
+							"name",
+							"color",
+							"icon",
+							"parentId",
+							"createdAt",
+							"updatedAt",
+						)
+							.where((fields, functions) =>
+								functions.and(functions.eq(fields.id, params.id), functions.eq(fields.userId, userId)),
+							)
+							.limit(1)
+							.build(),
+					);
+
+					if (!category) {
+						throw new HttpException("Category not found", 404);
+					}
+
+					return category;
+				},
 			);
-
-			if (!category) {
-				throw new HttpException("Category not found", 404);
-			}
-
-			return category;
+			set.headers.etag = cached.etag;
+			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+			return cached.value;
 		},
 		{
 			detail: { tags: ["Categories"] },

@@ -240,42 +240,48 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 	)
 	.get(
 		"/:id",
-		async ({ params, request }) => {
+		async ({ params, request, set }) => {
 			const userId = await requireUserId(request);
-			await assertDirectOwnership("Loan", params.id, userId);
-			const loan = await queryFirst(
-				db.sql.public.Loan.select(...loanColumns)
-					.where((fields, functions) => functions.eq(fields.id, params.id))
-					.limit(1)
-					.build(),
-			);
+			const cached = await distributedCache.remember(userId, "loans:detail", { id: params.id }, async () => {
+				const loan = await queryFirst(
+					db.sql.public.Loan.select(...loanColumns)
+						.where((fields, functions) =>
+							functions.and(functions.eq(fields.id, params.id), functions.eq(fields.userId, userId)),
+						)
+						.limit(1)
+						.build(),
+				);
 
-			if (!loan) {
-				throw new HttpException("Loan not found", 404);
-			}
+				if (!loan) {
+					throw new HttpException("Loan not found", 404);
+				}
 
-			const payments = await queryRows(
-				db.sql.public.LoanPayment.select(...loanPaymentColumns)
-					.where((fields, functions) => functions.eq(fields.loanId, params.id))
-					.orderBy("installmentNumber", { direction: "asc" })
-					.build(),
-			);
+				const payments = await queryRows(
+					db.sql.public.LoanPayment.select(...loanPaymentColumns)
+						.where((fields, functions) => functions.eq(fields.loanId, params.id))
+						.orderBy("installmentNumber", { direction: "asc" })
+						.build(),
+				);
 
-			// Generate full schedule
-			const schedule = calculateLoanSchedule(
-				Number(loan.principalAmount),
-				Number(loan.interestRate),
-				loan.totalInstallments,
-				loan.amortization as "PRICE" | "SAC",
-				new Date(loan.startDate),
-				new Date(loan.firstDueDate),
-			);
+				// Generate full schedule
+				const schedule = calculateLoanSchedule(
+					Number(loan.principalAmount),
+					Number(loan.interestRate),
+					loan.totalInstallments,
+					loan.amortization as "PRICE" | "SAC",
+					new Date(loan.startDate),
+					new Date(loan.firstDueDate),
+				);
 
-			return {
-				...loan,
-				payments,
-				schedule,
-			};
+				return {
+					...loan,
+					payments,
+					schedule,
+				};
+			});
+			set.headers.etag = cached.etag;
+			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+			return cached.value;
 		},
 		{
 			detail: { tags: ["Loans"] },
@@ -562,7 +568,6 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 		"/:id/history",
 		async ({ params, query, request, set }) => {
 			const userId = await requireUserId(request);
-			await assertDirectOwnership("Loan", params.id, userId);
 			const limit = Math.min(query.limit ?? 50, 100);
 			const filterHash = paginationFilterHash(userId, { loanId: params.id });
 			const cursor = decodePaginationCursor(query.cursor, filterHash, isLoanHistoryCursor);
@@ -571,6 +576,7 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 				"loans:history",
 				{ cursor: query.cursor, limit, loanId: params.id },
 				async () => {
+					await assertDirectOwnership("Loan", params.id, userId);
 					const history = await queryRows(
 						db.sql.public.LoanHistory.select("id", "loanId", "field", "oldValue", "newValue", "changedAt")
 							.where((fields, functions) =>
