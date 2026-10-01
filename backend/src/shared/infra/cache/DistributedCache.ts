@@ -99,10 +99,10 @@ export class DistributedCache {
 	private async fenced(userId: string, namespace: CacheNamespace) {
 		const fences = await Promise.all(
 			this.dependencies(namespace).map(dependency =>
-				this.safely(() => this.cache.get(this.fenceKey(userId, dependency))),
+				this.safely(() => this.cache.hasFence(this.fenceKey(userId, dependency))),
 			),
 		);
-		return fences.some(fence => fence !== null);
+		return fences.some(fence => fence !== false);
 	}
 	async key(userId: string, namespace: CacheNamespace, parameters: unknown) {
 		const [epoch, generation] = await Promise.all([
@@ -184,18 +184,25 @@ export class DistributedCache {
 		}
 	}
 	async beginWrite(userId: string, namespaces: CacheNamespace[]) {
+		const token = crypto.randomUUID();
 		await Promise.all(
 			namespaces.map(namespace =>
-				this.safely(() => this.cache.set(this.fenceKey(userId, namespace), "1", { ttlMs: 30_000 })),
+				this.safely(() => this.cache.beginFence(this.fenceKey(userId, namespace), token, 120_000)),
 			),
 		);
+		return token;
 	}
-	async finishWrite(userId: string, namespaces: CacheNamespace[]) {
+	async finishWrite(userId: string, namespaces: CacheNamespace[], token?: string) {
 		await Promise.all(
-			namespaces.map(async namespace => {
-				await this.safely(() => this.cache.increment(this.generationKey(userId, namespace)));
-				await this.safely(() => this.cache.delete(this.fenceKey(userId, namespace)));
-			}),
+			namespaces.map(namespace =>
+				this.safely(() =>
+					this.cache.finishFence(
+						this.generationKey(userId, namespace),
+						this.fenceKey(userId, namespace),
+						token,
+					),
+				),
+			),
 		);
 	}
 }

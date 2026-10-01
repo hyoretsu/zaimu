@@ -1,6 +1,9 @@
 import type { EventEnvelope } from "./events";
 
 export interface CachePort {
+	beginFence(key: string, token: string, leaseMs: number): Promise<void>;
+	hasFence(key: string): Promise<boolean>;
+	finishFence(generationKey: string, fenceKey: string, token?: string): Promise<void>;
 	delete(key: string): Promise<void>;
 	get(key: string): Promise<string | null>;
 	increment(key: string): Promise<number>;

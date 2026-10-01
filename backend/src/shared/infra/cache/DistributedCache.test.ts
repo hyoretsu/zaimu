@@ -6,6 +6,19 @@ import { DistributedCache } from "./DistributedCache";
 
 class MemoryCache implements CachePort {
 	data = new Map<string, string>();
+	fences = new Map<string, Set<string>>();
+	async beginFence(key: string, token: string, _leaseMs: number) {
+		const tokens = this.fences.get(key) ?? new Set<string>();
+		tokens.add(token);
+		this.fences.set(key, tokens);
+	}
+	async hasFence(key: string) {
+		return Boolean(this.fences.get(key)?.size);
+	}
+	async finishFence(generationKey: string, fenceKey: string, token?: string) {
+		await this.increment(generationKey);
+		if (token) this.fences.get(fenceKey)?.delete(token);
+	}
 	async delete(key: string) {
 		this.data.delete(key);
 	}
@@ -29,6 +42,10 @@ class MemoryCache implements CachePort {
 
 class FlakyCache extends MemoryCache {
 	available = true;
+	override async hasFence(key: string) {
+		this.assertAvailable();
+		return super.hasFence(key);
+	}
 	private assertAvailable() {
 		if (!this.available) throw new Error("Redis unavailable");
 	}
@@ -104,10 +121,10 @@ describe("DistributedCache", () => {
 	test("write fence bypasses old value and generation invalidates it", async () => {
 		const cache = new DistributedCache(new MemoryCache());
 		await cache.remember("user", "accounts:list", {}, async () => "old");
-		await cache.beginWrite("user", ["accounts:list"]);
+		const token = await cache.beginWrite("user", ["accounts:list"]);
 		const duringWrite = await cache.read("user", "accounts:list", {});
 		expect(duringWrite).toBeUndefined();
-		await cache.finishWrite("user", ["accounts:list"]);
+		await cache.finishWrite("user", ["accounts:list"], token);
 		const afterWrite = await cache.remember("user", "accounts:list", {}, async () => "new");
 		expect(afterWrite.value).toBe("new");
 	});
@@ -149,9 +166,9 @@ describe("catalog and loan read consistency", () => {
 				userIds: ["owner"],
 			}),
 		);
-		await cache.beginWrite("owner", namespaces);
+		const token = await cache.beginWrite("owner", namespaces);
 		expect(await cache.read("owner", "categories:detail", { id: "category" })).toBeUndefined();
-		await cache.finishWrite("owner", namespaces);
+		await cache.finishWrite("owner", namespaces, token);
 		expect(await cache.read("owner", "categories:list", {})).toBeUndefined();
 		expect(await cache.read("owner", "categories:detail", { id: "category" })).toBeUndefined();
 		expect((await cache.read("peer", "categories:detail", { id: "category" }))?.value).toBe("peer");
@@ -172,8 +189,8 @@ describe("catalog and loan read consistency", () => {
 				userIds: ["owner"],
 			}),
 		);
-		await cache.beginWrite("owner", namespaces);
-		await cache.finishWrite("owner", namespaces);
+		const token = await cache.beginWrite("owner", namespaces);
+		await cache.finishWrite("owner", namespaces, token);
 		expect(await cache.read("owner", "loans:detail", { id: "loan" })).toBeUndefined();
 		expect(await cache.read("owner", "loans:history", { limit: 50, loanId: "loan" })).toBeUndefined();
 	});
@@ -182,11 +199,11 @@ describe("catalog and loan read consistency", () => {
 test("schedule mutations fence and invalidate cached transaction details", async () => {
 	const cache = new DistributedCache(new MemoryCache());
 	await cache.remember("user", "transactions:detail:transaction", {}, async () => "old tags");
-	await cache.beginWrite("user", ["transactions:detail"]);
+	const token = await cache.beginWrite("user", ["transactions:detail"]);
 	expect(
 		(await cache.remember("user", "transactions:detail:transaction", {}, async () => "new tags")).hit,
 	).toBe(false);
-	await cache.finishWrite("user", ["transactions:detail"]);
+	await cache.finishWrite("user", ["transactions:detail"], token);
 	expect(
 		(await cache.remember("user", "transactions:detail:transaction", {}, async () => "committed tags")).value,
 	).toBe("committed tags");
@@ -203,4 +220,16 @@ test("observes an epoch advanced by another process", async () => {
 	storage.available = true;
 	await second.read("user", "dashboard", {});
 	expect(await first.read("user", "dashboard", {})).toBeUndefined();
+});
+
+test("one writer and delayed events cannot remove another writer's fence", async () => {
+	const cache = new DistributedCache(new MemoryCache());
+	const first = await cache.beginWrite("user", ["dashboard"]);
+	const second = await cache.beginWrite("user", ["dashboard"]);
+	await cache.finishWrite("user", ["dashboard"], first);
+	await cache.finishWrite("user", ["dashboard"]);
+	await cache.remember("user", "dashboard", {}, async () => "in progress");
+	expect(await cache.read("user", "dashboard", {})).toBeUndefined();
+	await cache.finishWrite("user", ["dashboard"], second);
+	expect((await cache.remember("user", "dashboard", {}, async () => "committed")).value).toBe("committed");
 });

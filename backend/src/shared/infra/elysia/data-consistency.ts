@@ -208,8 +208,11 @@ export const DataConsistencyPlugin = new Elysia({ name: "DataConsistencyPlugin" 
 				? await creditAffectedUserIds(userId)
 				: [];
 		const userIds = [...new Set([userId, ...affectedUserIds])];
-		await Promise.all(userIds.map(affectedUserId => distributedCache.beginWrite(affectedUserId, namespaces)));
-		return { cacheWriteFence: { namespaces, pathname, userId, userIds } };
+		const tokens = await Promise.all(
+			userIds.map(affectedUserId => distributedCache.beginWrite(affectedUserId, namespaces)),
+		);
+		const fenceTokens = Object.fromEntries(userIds.map((id, index) => [id, tokens[index]]));
+		return { cacheWriteFence: { fenceTokens, namespaces, pathname, userId, userIds } };
 	})
 	.onAfterHandle(async ({ cacheWriteFence, request, response, set }) => {
 		if (!cacheWriteFence || Number(set.status ?? 200) >= 400) return;
@@ -236,7 +239,15 @@ export const DataConsistencyPlugin = new Elysia({ name: "DataConsistencyPlugin" 
 				}),
 			);
 		afterMutationCommit(() =>
-			Promise.all(userIds.map(userId => distributedCache.finishWrite(userId, cacheWriteFence.namespaces))),
+			Promise.all(
+				userIds.map(userId =>
+					distributedCache.finishWrite(
+						userId,
+						cacheWriteFence.namespaces,
+						cacheWriteFence.fenceTokens[userId],
+					),
+				),
+			),
 		);
 	})
 	.as("global");
