@@ -32,6 +32,7 @@ import {
 } from "~/modules/debts/application/debt-splits";
 import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { HttpException } from "~/shared/errors";
+import { distributedCache } from "~/shared/infra/cache";
 import {
 	db,
 	executeStatement,
@@ -564,21 +565,49 @@ async function approveItemsImpl(userId: string, importId: string, itemId?: strin
 }
 
 export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-imports" })
-	.get("/", async ({ request }) => {
+	.get("/", async ({ request, set }) => {
 		const userId = await requireUserId(request);
-		return queryRaw<{ id: string; fileName: string; pendingItemCount: number } & Record<string, unknown>>(
-			`SELECT import."id", import."fileName", count(item."id")::integer AS "pendingItemCount"
+		const cached = await distributedCache.remember(
+			userId,
+			"imports:pending",
+			{ domain: "credit-card-imports" },
+			() =>
+				queryRaw<{ id: string; fileName: string; pendingItemCount: number } & Record<string, unknown>>(
+					`SELECT import."id", import."fileName", count(item."id")::integer AS "pendingItemCount"
 			 FROM "CreditCardImport" import
 			 LEFT JOIN "CreditCardImportItem" item ON item."creditCardImportId" = import."id"
 			 WHERE import."userId" = $1 AND import."status" = 'PENDING'
 			 GROUP BY import."id", import."fileName", import."createdAt"
 			 ORDER BY import."createdAt" DESC`,
-			[userId],
+					[userId],
+				),
 		);
+		set.headers.etag = cached.etag;
+		set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+		if (request.headers.get("if-none-match") === cached.etag) {
+			set.status = 304;
+			return null;
+		}
+		return cached.value;
 	})
 	.get(
 		"/:id",
-		async ({ params, query, request }) => getImportReturn(await requireUserId(request), params.id, query),
+		async ({ params, query, request, set }) => {
+			const userId = await requireUserId(request);
+			const cached = await distributedCache.remember(
+				userId,
+				`imports:detail:${params.id}`,
+				{ domain: "credit-card-imports", ...query },
+				() => getImportReturn(userId, params.id, query),
+			);
+			set.headers.etag = cached.etag;
+			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+			if (request.headers.get("if-none-match") === cached.etag) {
+				set.status = 304;
+				return null;
+			}
+			return cached.value;
+		},
 		{
 			params: t.Object({ id: t.String({ maxLength: 36, minLength: 1 }) }),
 			query: t.Object({

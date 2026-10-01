@@ -283,3 +283,4 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Fixture volumosa executada em banco local isolado: 100 mil transações, 20 cartões, 1.200 faturas e 12 mil compras normalizadas. Seed corrigido para contratos de rendimento e timeout próprio de carga.
 - Validação do runner: duas regressões passaram; medição de p95 e aceite permanecem pendentes.
 - Visão geral de cartões passou a usar leitura normalizada por conjunto, compartilhando replay com dashboard. Contas agregam saldos monetários no SQL e carregam metadados em uma consulta. Nove testes focados passaram; latência volumosa ainda fora do aceite.
+- Importações receberam cache de resumo/detalhe com chaves por domínio e página, ETag e autorização dentro do loader. Fences existentes invalidam listas e detalhes. Aceite volumoso ainda pendente.
