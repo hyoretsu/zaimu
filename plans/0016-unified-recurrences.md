@@ -50,3 +50,7 @@ Conversão local por proprietário preserva colisões, cursores, alterações pe
 Builds backend e frontend passaram. Agenda/projeções/conversão: 12 testes, 35 verificações; IndexedDB: 2 testes, 13 verificações. Integração PostgreSQL descartável: 5 testes, 41 verificações, incluindo contrato HTTP, adaptador legado e sincronização repetida com rollback. Migração SQL validada em banco local e `migration:check` sem falhas. Cadastro e descarte conferidos em desktop e mobile, scrollbar contida.
 
 Suíte backend: 197 passaram, 16 ignorados sem banco de integração, 1 falha preexistente em CacheInvalidationConsumer.test.ts (expectativa de namespaces desatualizada). Verificação de tipos permanece limitada por três erros preexistentes em debt-ledger-person.test.ts. Arquivos preexistentes preservados. Nenhuma migração externa, push ou deploy executados. Tabelas antigas mantidas para conferência do backfill; remoção depende da aplicação e auditoria pelo usuário.
+
+## Correção das falhas anteriores
+
+Teste de invalidação atualizado para exigir caches de eventos, convites e resumo de dívidas. Normalização do saldo declara substituição do campo original, evitando interseção impossível entre string e number; teste preserva estados literais. Suíte backend repetida: 198 passaram, 16 ignorados sem banco de integração, nenhuma falha. Build e verificação completa de tipos backend passaram.

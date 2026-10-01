@@ -17,6 +17,18 @@ test("invalidates every user affected by a shared debt event", async () => {
 		}),
 	);
 	expect(finishWrite).toHaveBeenCalledTimes(2);
-	expect(finishWrite).toHaveBeenCalledWith("user-1", ["dashboard", "transactions:list"]);
-	expect(finishWrite).toHaveBeenCalledWith("user-2", ["dashboard", "transactions:list"]);
+	expect(finishWrite).toHaveBeenCalledWith("user-1", [
+		"debts:events",
+		"debts:invitations",
+		"debts:overview",
+		"dashboard",
+		"transactions:list",
+	]);
+	expect(finishWrite).toHaveBeenCalledWith("user-2", [
+		"debts:events",
+		"debts:invitations",
+		"debts:overview",
+		"dashboard",
+		"transactions:list",
+	]);
 });

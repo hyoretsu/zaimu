@@ -4,7 +4,7 @@ import { DebtLedgerReturn, DebtSummaryReturn } from "./DebtsDTO";
 import { normalizeDebtLedgerPerson } from "./debt-ledger-person";
 
 describe("debt ledger person response", () => {
-	for (const connectionStatus of [null, "PENDING", "DECLINED", "ACCEPTED"]) {
+	for (const connectionStatus of [null, "PENDING", "DECLINED", "ACCEPTED"] as const) {
 		test(`returns valid ledger and summary for connection status ${connectionStatus}`, async () => {
 			const person = normalizeDebtLedgerPerson({
 				accountEmail: connectionStatus ? "person@example.com" : null,
