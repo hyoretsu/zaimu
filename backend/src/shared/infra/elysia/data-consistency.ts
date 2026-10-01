@@ -6,6 +6,7 @@ import type { CacheNamespace } from "~/shared/infra/cache";
 import { distributedCache } from "~/shared/infra/cache";
 import { PostgresOutbox } from "~/shared/infra/outbox";
 import { queryRaw } from "~/shared/infra/sql";
+import { afterMutationCommit, runMutationRequest } from "./mutation-transaction";
 
 const outbox = new PostgresOutbox();
 
@@ -173,6 +174,15 @@ const eventTypeForMethod = (method: string) => {
 };
 
 export const DataConsistencyPlugin = new Elysia({ name: "DataConsistencyPlugin" })
+	.wrap((handler, request) => async () => {
+		const handle = async () => (await handler(request)) as unknown as Response;
+		if (
+			["GET", "HEAD", "OPTIONS"].includes(request.method) ||
+			writeNamespaces(new URL(request.url).pathname).length === 0
+		)
+			return handle();
+		return runMutationRequest(handle);
+	})
 	.derive(async ({ request }) => {
 		const pathname = new URL(request.url).pathname;
 		if (["GET", "HEAD", "OPTIONS"].includes(request.method)) return { cacheWriteFence: null };
@@ -214,8 +224,8 @@ export const DataConsistencyPlugin = new Elysia({ name: "DataConsistencyPlugin" 
 					userIds,
 				}),
 			);
-		await Promise.all(
-			userIds.map(userId => distributedCache.finishWrite(userId, cacheWriteFence.namespaces)),
+		afterMutationCommit(() =>
+			Promise.all(userIds.map(userId => distributedCache.finishWrite(userId, cacheWriteFence.namespaces))),
 		);
 	})
 	.as("global");
