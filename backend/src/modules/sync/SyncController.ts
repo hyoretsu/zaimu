@@ -714,8 +714,10 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 					);
 					if (existing && existing.userId !== userId)
 						throw new Error(`Empréstimo ${id} pertence a outro usuário`);
+					if (entity.amortization !== "PRICE" && entity.amortization !== "SAC")
+						throw new Error("Amortização inválida");
 					const values = {
-						amortization: value<"PRICE" | "SAC" | "SACRE">(entity, "amortization") ?? "PRICE",
+						amortization: value<"PRICE" | "SAC">(entity, "amortization") ?? "PRICE",
 						description: value<string | undefined>(entity, "description"),
 						dueDay: Number(value<number>(entity, "dueDay")),
 						firstDueDate: new Date(value<string>(entity, "firstDueDate")),

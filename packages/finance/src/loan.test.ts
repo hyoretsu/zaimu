@@ -19,3 +19,10 @@ test("zero interest remains finite and SAC decreases installments", () => {
 	const rows = loanInstallments({ ...terms, amortization: "SAC" });
 	expect(rows[0].totalPaid).toBeGreaterThan(rows[2].totalPaid);
 });
+test("removed amortization and invalid monetary terms are rejected", () => {
+	expect(() => loanInstallments({ ...terms, amortization: "SACRE" as typeof terms.amortization })).toThrow(
+		"Amortização inválida",
+	);
+	for (const value of [Number.NaN, Number.POSITIVE_INFINITY, -1])
+		expect(() => loanInstallments({ ...terms, principalAmount: value })).toThrow();
+});

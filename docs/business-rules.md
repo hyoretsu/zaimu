@@ -109,3 +109,11 @@ Relatórios de consumo apresentam cada compra uma vez, na data original, pelo ga
 Crédito importado exige vínculo com compra. Sem correspondência, usuário revisa data, total, parcelas, estabelecimento e tags antes de reconstruir a compra. Aprovação comum ou em lote mantém créditos negativos pendentes. Créditos legados sem vínculo ficam numa revisão explícita, com ID e dados originais preservados.
 
 Migração SQL preserva referências de histórico, conciliação e dívida antes de remover registros legados. IndexedDB converte atomicamente por proprietário, arquiva originais e clocks, preserva exclusões e interrompe conversão diante de referências inválidas. Sincronização mantém tombstones e não sobrescreve uma edição local ocorrida enquanto a requisição estava em andamento.
+
+## Empréstimos
+
+Amortizações disponíveis: PRICE (prestação fixa) e SAC (amortização constante). SACRE foi removido. Registros legados não recebem conversão financeira automática; migração SQL recusa empréstimos ainda nessa modalidade até revisão explícita. PRICE com taxa zero divide principal pelo prazo. Vencimentos preservam dia original e ajustam meses curtos ao último dia disponível.
+
+Parcelas carregam somente ao abrir empréstimo, em páginas. Pagamento e antecipação registram valor integral previsto, data e estado da parcela. FRONT seleciona primeiras pendentes; BACK seleciona últimas pendentes. Estimativa de quitação sem juros futuros não aplica desconto ao registrar antecipação; condições efetivas dependem do credor.
+
+Migração guest gera cronograma de empréstimos antigos sem parcelas. Resumos com pagamentos históricos exigem revisão: usuário confirma amortização e data comum para primeiras parcelas declaradas pagas; totais passam a ser calculados pelo cronograma confirmado. Revisão grava parcelas e empréstimo atomicamente, sem classificar pagamentos históricos como antecipações. Sync bloqueia históricos pendentes de revisão.

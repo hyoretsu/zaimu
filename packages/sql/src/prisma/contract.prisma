@@ -1286,7 +1286,6 @@ namespace public {
   native_enum AmortizationType {
     PRICE = "PRICE"
     SAC = "SAC"
-    SACRE = "SACRE"
   }
 
   native_enum DebtConnectionStatus {

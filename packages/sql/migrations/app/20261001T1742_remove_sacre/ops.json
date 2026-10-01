@@ -1,0 +1,28 @@
+[
+	{
+		"execute": [
+			{
+				"description": "Replace enum while preserving loan records",
+				"sql": "LOCK TABLE \"Loan\" IN ACCESS EXCLUSIVE MODE;\nDO $review$ BEGIN\n IF EXISTS (SELECT 1 FROM \"Loan\" WHERE \"amortization\"::text = 'SACRE') THEN\n  RAISE EXCEPTION 'Review SACRE loans and select PRICE or SAC before this migration';\n END IF;\nEND $review$;\nALTER TABLE \"Loan\" ALTER COLUMN \"amortization\" DROP DEFAULT;\nALTER TYPE \"AmortizationType\" RENAME TO \"AmortizationType_legacy\";\nCREATE TYPE \"AmortizationType\" AS ENUM ('PRICE', 'SAC');\nALTER TABLE \"Loan\" ALTER COLUMN \"amortization\" TYPE \"AmortizationType\" USING \"amortization\"::text::\"AmortizationType\";\nALTER TABLE \"Loan\" ALTER COLUMN \"amortization\" SET DEFAULT 'PRICE'::\"AmortizationType\";\nDROP TYPE \"AmortizationType_legacy\";"
+			}
+		],
+		"id": "loans.removeSacre",
+		"label": "Remove unsupported amortization after explicit legacy review",
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "Enum exposes only supported amortizations",
+				"sql": "SELECT array_agg(e.enumlabel::text ORDER BY e.enumsortorder) = ARRAY['PRICE', 'SAC'] AS result FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid JOIN pg_namespace n ON n.oid = t.typnamespace WHERE t.typname = 'AmortizationType' AND n.nspname = 'public'"
+			}
+		],
+		"precheck": [
+			{
+				"description": "No loan still uses removed amortization",
+				"sql": "SELECT NOT EXISTS (SELECT 1 FROM \"Loan\" WHERE \"amortization\"::text = 'SACRE') AS result"
+			}
+		],
+		"target": {
+			"id": "postgres"
+		}
+	}
+]

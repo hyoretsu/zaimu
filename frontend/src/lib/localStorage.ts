@@ -6,6 +6,7 @@ import {
 	replayCreditBook,
 } from "@zaimu/finance/credit-book";
 import { currentDateKey, statementEntryKind } from "@zaimu/finance/credit-card";
+import { loanInstallments } from "@zaimu/finance/loan";
 import type {
 	Category,
 	CreditCard,
@@ -277,7 +278,8 @@ async function openLocalDb(): Promise<IDBDatabase> {
 	migrationPromise = migrateLegacyData(database)
 		.then(() => migrateCardPayments(database))
 		.then(() => migrateCreditBooks(database))
-		.then(() => migrateRecurrences(database));
+		.then(() => migrateRecurrences(database))
+		.then(() => migrateGuestLoanPayments(database));
 	await migrationPromise;
 	return database;
 }
@@ -1304,6 +1306,7 @@ export async function payLocalLoanInstallment(
 	financialAccountId?: string,
 	ownerKey?: StorageOwner,
 ) {
+	validateLoanPaidDate(paidDate);
 	const owner = requireOwner(ownerKey);
 	const database = await initLocalDb();
 	const tx = database.transaction("scoped-loanPayments", "readwrite");
@@ -1319,6 +1322,173 @@ export async function payLocalLoanInstallment(
 		store.put({ ...record, data: updated, modifiedAt: Math.max(Date.now(), record.modifiedAt + 1) });
 		await done;
 		return updated;
+	} catch (error) {
+		tx.abort();
+		await done.catch(() => undefined);
+		throw error;
+	}
+}
+
+export async function advanceLocalLoanInstallments(
+	loanId: string,
+	count: number,
+	advanceType: "FRONT" | "BACK",
+	paidDate: string,
+	ownerKey?: StorageOwner,
+) {
+	const owner = requireOwner(ownerKey);
+	validateLoanPaidDate(paidDate);
+	if (advanceType !== "FRONT" && advanceType !== "BACK") throw new Error("Tipo de antecipação inválido");
+	if (!Number.isSafeInteger(count) || count < 1) throw new Error("Quantidade inválida");
+	const database = await initLocalDb();
+	const tx = database.transaction("scoped-loanPayments", "readwrite");
+	const done = transactionDone(tx);
+	const store = tx.objectStore("scoped-loanPayments");
+	try {
+		const rows = ((await requestResult(store.index("ownerKey").getAll(owner))) as LocalData<LoanPayment>[])
+			.filter(row => !row.deleted && row.data.loanId === loanId && !row.data.paidDate)
+			.sort((a, b) =>
+				advanceType === "FRONT"
+					? a.data.installmentNumber - b.data.installmentNumber
+					: b.data.installmentNumber - a.data.installmentNumber,
+			)
+			.slice(0, count);
+		if (!rows.length) throw new Error("Não há parcelas pendentes");
+		for (const row of rows)
+			store.put({
+				...row,
+				data: { ...row.data, advanceType, isAdvanced: true, paidDate },
+				modifiedAt: Math.max(Date.now(), row.modifiedAt + 1),
+			});
+		await done;
+		return {
+			advancedInstallments: rows.length,
+			advanceType,
+			totalPaid: rows.reduce((sum, row) => sum + row.data.totalPaid, 0),
+		};
+	} catch (error) {
+		tx.abort();
+		await done.catch(() => undefined);
+		throw error;
+	}
+}
+
+export async function migrateGuestLoanPayments(database: IDBDatabase) {
+	const tx = database.transaction(["scoped-loans", "scoped-loanPayments"], "readwrite");
+	const done = transactionDone(tx);
+	try {
+		const loans = (await requestResult(tx.objectStore("scoped-loans").getAll())) as LocalData<Loan>[];
+		const store = tx.objectStore("scoped-loanPayments");
+		const payments = (await requestResult(store.getAll())) as LocalData<LoanPayment>[];
+		for (const record of loans) {
+			if (
+				record.deleted ||
+				!record.ownerKey.startsWith("guest:") ||
+				payments.some(row => row.ownerKey === record.ownerKey && row.data.loanId === record.data.id)
+			)
+				continue;
+			let schedule: ReturnType<typeof loanInstallments>;
+			try {
+				schedule = loanInstallments(record.data);
+			} catch {
+				tx.objectStore("scoped-loans").put({ ...record, data: { ...record.data, needsPaymentReview: true } });
+				continue;
+			}
+			for (const row of schedule) {
+				const id = crypto.randomUUID();
+				store.put({
+					data: { ...row, id, isAdvanced: false, loanId: record.data.id },
+					localId: id,
+					modifiedAt: record.modifiedAt,
+					ownerKey: record.ownerKey,
+					scopedId: scopedId(record.ownerKey, id),
+				});
+			}
+			tx.objectStore("scoped-loans").put({
+				...record,
+				data: {
+					...record.data,
+					needsPaymentReview: (record.data.paidInstallments ?? 0) > 0,
+					remainingInstallments: record.data.totalInstallments - (record.data.paidInstallments ?? 0),
+				},
+			});
+		}
+		await done;
+	} catch (error) {
+		tx.abort();
+		await done.catch(() => undefined);
+		throw error;
+	}
+}
+
+function validateLoanPaidDate(value: string) {
+	if (
+		!/^\d{4}-\d{2}-\d{2}$/.test(value) ||
+		!Number.isFinite(Date.parse(value)) ||
+		new Date(value).toISOString().slice(0, 10) !== value
+	)
+		throw new Error("Data inválida");
+}
+
+export async function reviewLocalLoanPayments(
+	loanId: string,
+	paidDate: string,
+	amortization: Loan["amortization"],
+	ownerKey?: StorageOwner,
+) {
+	validateLoanPaidDate(paidDate);
+	const owner = requireOwner(ownerKey);
+	const database = await initLocalDb();
+	const tx = database.transaction(["scoped-loans", "scoped-loanPayments"], "readwrite");
+	const done = transactionDone(tx);
+	try {
+		const loans = tx.objectStore("scoped-loans");
+		const record = (await requestResult(loans.get(scopedId(owner, loanId)))) as LocalData<Loan> | undefined;
+		if (!record || record.deleted || !record.data.needsPaymentReview) throw new Error("Revisão indisponível");
+		const count = record.data.paidInstallments ?? 0;
+		if (!Number.isSafeInteger(count) || count < 0 || count > record.data.totalInstallments)
+			throw new Error("Quantidade histórica inválida");
+		const store = tx.objectStore("scoped-loanPayments");
+		let rows = (
+			(await requestResult(store.index("ownerKey").getAll(owner))) as LocalData<LoanPayment>[]
+		).filter(row => !row.deleted && row.data.loanId === loanId);
+		const terms = { ...record.data, amortization };
+		if (!rows.length)
+			rows = loanInstallments(terms).map(payment => {
+				const id = crypto.randomUUID();
+				return {
+					data: { ...payment, id, isAdvanced: false, loanId },
+					localId: id,
+					modifiedAt: record.modifiedAt,
+					ownerKey: owner,
+					scopedId: scopedId(owner, id),
+				};
+			});
+		if (record.data.amortization !== amortization && rows.length) {
+			const schedule = loanInstallments(terms);
+			rows = rows.map(row => ({
+				...row,
+				data: { ...row.data, ...schedule[row.data.installmentNumber - 1] },
+			}));
+		}
+		if (rows.length !== terms.totalInstallments || rows.some(row => row.data.paidDate))
+			throw new Error("Histórico inconsistente para revisão");
+		for (const row of rows)
+			store.put({
+				...row,
+				data: {
+					...row.data,
+					isAdvanced: false,
+					paidDate: row.data.installmentNumber <= count ? paidDate : undefined,
+				},
+				modifiedAt: Math.max(Date.now(), row.modifiedAt + 1),
+			});
+		loans.put({
+			...record,
+			data: { ...terms, installmentAmount: rows[0].data.totalPaid, needsPaymentReview: false },
+			modifiedAt: Math.max(Date.now(), record.modifiedAt + 1),
+		});
+		await done;
 	} catch (error) {
 		tx.abort();
 		await done.catch(() => undefined);

@@ -459,6 +459,7 @@ export interface CategoryPage {
 }
 
 export interface Loan {
+	needsPaymentReview?: boolean;
 	id: string;
 	userId: string;
 	lender: string;
@@ -470,9 +471,10 @@ export interface Loan {
 	startDate: string;
 	firstDueDate: string;
 	description?: string;
-	amortization: "PRICE" | "SAC" | "SACRE";
+	amortization: "PRICE" | "SAC";
 	paidInstallments?: number;
 	remainingInstallments?: number;
+	remainingPrincipal?: number;
 	totalPaid?: number;
 }
 

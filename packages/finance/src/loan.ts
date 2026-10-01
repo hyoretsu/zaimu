@@ -3,17 +3,20 @@ export interface LoanTerms {
 	interestRate: number;
 	totalInstallments: number;
 	firstDueDate: string;
-	amortization: "PRICE" | "SAC" | "SACRE";
+	amortization: "PRICE" | "SAC";
 }
 export function loanInstallments(loan: LoanTerms) {
 	if (
 		!Number.isSafeInteger(loan.totalInstallments) ||
 		loan.totalInstallments < 1 ||
+		loan.totalInstallments > 1200 ||
+		!Number.isFinite(loan.principalAmount) ||
+		!Number.isFinite(loan.interestRate) ||
 		loan.principalAmount <= 0 ||
 		loan.interestRate < 0
 	)
 		throw new Error("Condições de empréstimo inválidas");
-	if (loan.amortization === "SACRE") throw new Error("Amortização SACRE não suportada");
+	if (loan.amortization !== "PRICE" && loan.amortization !== "SAC") throw new Error("Amortização inválida");
 	let balance = loan.principalAmount;
 	const rate = loan.interestRate;
 	const fixed =

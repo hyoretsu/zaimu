@@ -101,6 +101,7 @@ import { calculateDebtSplit, debtSplitToInput } from "./debt-split";
 import { calculateFinancialAccountBalances } from "./financial-account";
 import { normalizeInstitutionName } from "./financial-institution";
 import {
+	advanceLocalLoanInstallments,
 	clearAllLocalData,
 	createLocalLoanWithPayments,
 	localAccounts,
@@ -120,6 +121,7 @@ import {
 	localSubscriptions,
 	localTransactions,
 	payLocalLoanInstallment,
+	reviewLocalLoanPayments,
 } from "./localStorage";
 import { getCurrentCacheIdentity } from "./query-cache";
 import { getTransactionSearchText, normalizeTransactionSearch } from "./transaction-search";
@@ -2439,6 +2441,17 @@ export const dataService = {
 
 	// ============== LOANS ==============
 	loans: {
+		async advance(id: string, count: number, advanceType: "FRONT" | "BACK", paidDate: string) {
+			if (!isGuestMode())
+				return fetchWithAuth(`/loans/${id}/advance`, {
+					body: JSON.stringify({ advanceType, installmentsToAdvance: count, paidDate }),
+					method: "POST",
+				});
+			const loan = await localLoans.getById(id);
+			if (!loan || loan.data.needsPaymentReview)
+				throw new Error("Revise pagamentos antigos antes de antecipar");
+			return advanceLocalLoanInstallments(id, count, advanceType, paidDate);
+		},
 		async create(data: Omit<Loan, "id" | "userId">): Promise<Loan> {
 			const userId = getUserId();
 			if (isGuestMode()) {
@@ -2479,12 +2492,15 @@ export const dataService = {
 				const payments = (await localLoanPayments.getAll()).map(row => row.data);
 				return local.map(({ data }) => {
 					const rows = payments.filter(row => row.loanId === data.id);
-					if (!rows.length) return data;
+					if (!rows.length || data.needsPaymentReview) return data;
 					const paid = rows.filter(row => row.paidDate);
 					return {
 						...data,
 						paidInstallments: paid.length,
 						remainingInstallments: data.totalInstallments - paid.length,
+						remainingPrincipal: rows
+							.filter(row => !row.paidDate)
+							.reduce((sum, row) => sum + row.principalPaid, 0),
 						totalPaid: paid.reduce((sum, row) => sum + row.totalPaid, 0),
 					};
 				});
@@ -2499,6 +2515,21 @@ export const dataService = {
 				),
 			);
 			return loans;
+		},
+		async getEarlyPayoff(id: string) {
+			if (!isGuestMode())
+				return fetchWithAuth<import("./api").EarlyPayoff>(`/loans/${id}/early-payoff?advanceType=BACK`);
+			const loan = await localLoans.getById(id);
+			if (!loan || loan.data.needsPaymentReview)
+				throw new Error("Revise histórico antes de calcular quitação");
+			const rows = (await localLoanPayments.getAll()).filter(
+				row => row.data.loanId === id && !row.data.paidDate,
+			);
+			const principal = rows.reduce((sum, row) => sum + row.data.principalPaid, 0);
+			return {
+				savedInterest: rows.reduce((sum, row) => sum + row.data.interestPaid, 0),
+				totalToPay: principal,
+			};
 		},
 
 		async getPaymentPage(
@@ -2545,6 +2576,7 @@ export const dataService = {
 						: null,
 			};
 		},
+
 		async pay(
 			id: string,
 			number: number,
@@ -2556,12 +2588,17 @@ export const dataService = {
 					body: JSON.stringify({ financialAccountId, paidDate }),
 					method: "POST",
 				});
-			if (!(await localLoans.getById(id))) throw new Error("Empréstimo não encontrado");
+			const loan = await localLoans.getById(id);
+			if (!loan || loan.data.needsPaymentReview) throw new Error("Revise pagamentos antigos antes de pagar");
 			if (financialAccountId && !(await localAccounts.getById(financialAccountId)))
 				throw new Error("Conta não encontrada");
 			if (!/^\d{4}-\d{2}-\d{2}$/.test(paidDate) || Number.isNaN(Date.parse(paidDate)))
 				throw new Error("Data inválida");
 			return payLocalLoanInstallment(id, number, paidDate, financialAccountId);
+		},
+		async reviewLegacyPayments(id: string, paidDate: string, amortization: Loan["amortization"]) {
+			if (!isGuestMode()) throw new Error("Revisão indisponível");
+			await reviewLocalLoanPayments(id, paidDate, amortization);
 		},
 
 		async update(id: string, data: Partial<Loan>): Promise<Loan> {
@@ -2695,6 +2732,8 @@ export const dataService = {
 						"Pagamento antigo sem cartão identificado. Restaure a fatura de origem antes de sincronizar.",
 					);
 
+				if (loans.some(row => row.data.needsPaymentReview))
+					throw new Error("Revise pagamentos antigos de empréstimos antes de sincronizar.");
 				const recurrences = await localRecurrences.getAll(owner);
 				const recurrenceOccurrences = await localRecurrenceOccurrences.getAll(owner);
 				const recurrenceIds = new Set(recurrences.map(row => row.data.id));

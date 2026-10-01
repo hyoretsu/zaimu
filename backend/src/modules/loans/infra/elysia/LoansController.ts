@@ -1,4 +1,5 @@
-import { addMonths, differenceInMonths } from "date-fns";
+import { loanInstallments } from "@zaimu/finance/loan";
+import { differenceInMonths } from "date-fns";
 import Elysia, { t } from "elysia";
 import { assertBalanceAccountOwnership, assertDirectOwnership, requireUserId } from "~/modules/auth";
 import {
@@ -8,7 +9,14 @@ import {
 } from "~/shared/application/pagination-cursor";
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
-import { db, executeStatement, queryFirst, queryRaw, queryRows } from "~/shared/infra/sql";
+import {
+	db,
+	executeStatement,
+	queryFirst,
+	queryRaw,
+	queryRows,
+	withRawTransaction,
+} from "~/shared/infra/sql";
 
 import { LoanPaymentPageReturn } from "./LoansDTO";
 import { decodePaymentCursor, paymentFilterHash, paymentPage } from "./loan-payment-pagination";
@@ -45,7 +53,7 @@ const loanPaymentColumns = [
 	"updatedAt",
 ] as const;
 
-const AmortizationType = t.Union([t.Literal("PRICE"), t.Literal("SAC"), t.Literal("SACRE")]);
+const AmortizationType = t.Union([t.Literal("PRICE"), t.Literal("SAC")]);
 const AdvanceType = t.Union([t.Literal("FRONT"), t.Literal("BACK")]);
 interface LoanHistoryCursor {
 	changedAt: string;
@@ -53,7 +61,7 @@ interface LoanHistoryCursor {
 }
 
 interface LoanListRow extends Record<string, unknown> {
-	amortization: "PRICE" | "SAC" | "SACRE";
+	amortization: "PRICE" | "SAC";
 	description: null | string;
 	dueDay: number;
 	firstDueDate: Date;
@@ -84,61 +92,28 @@ function calculateLoanSchedule(
 	principal: number,
 	monthlyRate: number,
 	totalInstallments: number,
-	amortization: "PRICE" | "SAC" | "SACRE",
+	amortization: "PRICE" | "SAC",
 	startDate: Date,
 	firstDueDate: Date,
 ) {
-	const schedule: Array<{
-		installmentNumber: number;
-		dueDate: Date;
-		principal: number;
-		interest: number;
-		total: number;
-		remainingBalance: number;
-	}> = [];
-
 	let remainingBalance = principal;
-
-	if (amortization === "PRICE") {
-		// Price system (constant installments)
-		const installmentAmount =
-			(principal * monthlyRate * (1 + monthlyRate) ** totalInstallments) /
-			((1 + monthlyRate) ** totalInstallments - 1);
-
-		for (let i = 1; i <= totalInstallments; i++) {
-			const interest = remainingBalance * monthlyRate;
-			const principalPayment = installmentAmount - interest;
-			remainingBalance -= principalPayment;
-
-			schedule.push({
-				dueDate: addMonths(firstDueDate, i - 1),
-				installmentNumber: i,
-				interest,
-				principal: principalPayment,
-				remainingBalance: Math.max(0, remainingBalance),
-				total: installmentAmount,
-			});
-		}
-	} else if (amortization === "SAC") {
-		// SAC system (constant amortization)
-		const constantPrincipal = principal / totalInstallments;
-
-		for (let i = 1; i <= totalInstallments; i++) {
-			const interest = remainingBalance * monthlyRate;
-			remainingBalance -= constantPrincipal;
-
-			schedule.push({
-				dueDate: addMonths(firstDueDate, i - 1),
-				installmentNumber: i,
-				interest,
-				principal: constantPrincipal,
-				remainingBalance: Math.max(0, remainingBalance),
-				total: constantPrincipal + interest,
-			});
-		}
-	}
-
-	return schedule;
+	return loanInstallments({
+		amortization,
+		firstDueDate: firstDueDate.toISOString().slice(0, 10),
+		interestRate: monthlyRate,
+		principalAmount: principal,
+		totalInstallments,
+	}).map(row => {
+		remainingBalance = Math.max(0, remainingBalance - row.principalPaid);
+		return {
+			dueDate: new Date(`${row.dueDate}T12:00:00`),
+			installmentNumber: row.installmentNumber,
+			interest: row.interestPaid,
+			principal: row.principalPaid,
+			remainingBalance,
+			total: row.totalPaid,
+		};
+	});
 }
 
 /**
@@ -150,41 +125,29 @@ function calculateEarlyPayoff(
 		principalAmount: number;
 		interestRate: number;
 		totalInstallments: number;
-		amortization: "PRICE" | "SAC" | "SACRE";
+		amortization: "PRICE" | "SAC";
 		startDate: Date;
 		firstDueDate: Date;
 	},
 	paidInstallments: number,
 	targetDate: Date,
 	advanceType: "FRONT" | "BACK",
+	unpaidPrincipal: number,
+	unpaidInterest: number,
 ): {
 	totalToPay: number;
 	savedInterest: number;
 	remainingPrincipal: number;
 } {
 	const monthlyRate = Number(loan.interestRate);
-	const schedule = calculateLoanSchedule(
-		Number(loan.principalAmount),
-		monthlyRate,
-		loan.totalInstallments,
-		loan.amortization as "PRICE" | "SAC",
-		new Date(loan.startDate),
-		new Date(loan.firstDueDate),
-	);
-
-	// Calculate remaining principal after paid installments
-	const remainingPrincipal =
-		paidInstallments > 0 ? schedule[paidInstallments - 1].remainingBalance : Number(loan.principalAmount);
+	const remainingPrincipal = unpaidPrincipal;
 
 	if (advanceType === "BACK") {
 		// Back advance: Pay remaining principal without future interest
-		const totalFutureInterest = schedule
-			.slice(paidInstallments)
-			.reduce((sum, inst) => sum + inst.interest, 0);
 
 		return {
 			remainingPrincipal,
-			savedInterest: totalFutureInterest,
+			savedInterest: unpaidInterest,
 			totalToPay: remainingPrincipal,
 		};
 	}
@@ -192,13 +155,9 @@ function calculateEarlyPayoff(
 	const monthsToTarget = differenceInMonths(targetDate, new Date(loan.firstDueDate)) + 1;
 	const accruedInterest = remainingPrincipal * monthlyRate * Math.max(0, monthsToTarget - paidInstallments);
 
-	const totalFutureInterest = schedule
-		.slice(Math.max(paidInstallments, monthsToTarget))
-		.reduce((sum, inst) => sum + inst.interest, 0);
-
 	return {
 		remainingPrincipal,
-		savedInterest: totalFutureInterest,
+		savedInterest: Math.max(0, unpaidInterest - accruedInterest),
 		totalToPay: remainingPrincipal + accruedInterest,
 	};
 }
@@ -361,9 +320,11 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 				throw new HttpException("Loan not found", 404);
 			}
 
-			const [paidPaymentCount] = await queryRaw<{ count: string }>(
-				`SELECT COUNT(*) AS "count" FROM "public"."LoanPayment"
-				 WHERE "loanId" = $1 AND "paidDate" IS NOT NULL`,
+			const [paidPaymentCount] = await queryRaw<{ count: string; principal: string; interest: string }>(
+				`SELECT COUNT(*) FILTER (WHERE "paidDate" IS NOT NULL) AS "count",
+ COALESCE(SUM("principalPaid") FILTER (WHERE "paidDate" IS NULL), 0) AS "principal",
+ COALESCE(SUM("interestPaid") FILTER (WHERE "paidDate" IS NULL), 0) AS "interest"
+ FROM "public"."LoanPayment" WHERE "loanId" = $1`,
 				[params.id],
 			);
 			const paidInstallments = Number(paidPaymentCount?.count ?? 0);
@@ -383,6 +344,8 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 				paidInstallments,
 				targetDate,
 				advanceType,
+				Number(paidPaymentCount?.principal ?? 0),
+				Number(paidPaymentCount?.interest ?? 0),
 			);
 
 			return {
@@ -408,67 +371,52 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 		"/",
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
-			// Calculate installment amount if not provided
-			let installmentAmount = body.installmentAmount;
+			return withRawTransaction(async () => {
+				const schedule = calculateLoanSchedule(
+					body.principalAmount,
+					body.interestRate,
+					body.totalInstallments,
+					body.amortization ?? "PRICE",
+					new Date(body.startDate),
+					new Date(body.firstDueDate),
+				);
+				const installmentAmount = schedule[0].total;
 
-			if (!installmentAmount) {
-				const monthlyRate = body.interestRate;
-				const principal = body.principalAmount;
-				const n = body.totalInstallments;
+				const loan = await queryFirst(
+					db.sql.public.Loan.insert([
+						{
+							amortization: body.amortization ?? "PRICE",
+							description: body.description,
+							dueDay: body.dueDay,
+							firstDueDate: new Date(body.firstDueDate),
+							installmentAmount: String(installmentAmount),
+							interestRate: String(body.interestRate),
+							lender: body.lender,
+							principalAmount: String(body.principalAmount),
+							startDate: new Date(body.startDate),
+							totalInstallments: body.totalInstallments,
+							userId,
+						},
+					])
+						.returning(...loanColumns)
+						.build(),
+				);
+				if (!loan) throw new HttpException("Loan not created", 500);
 
-				if (body.amortization === "PRICE") {
-					installmentAmount =
-						(principal * monthlyRate * (1 + monthlyRate) ** n) / ((1 + monthlyRate) ** n - 1);
-				} else {
-					// SAC - first installment
-					installmentAmount = principal / n + principal * monthlyRate;
-				}
-			}
+				const paymentEntries = schedule.map(inst => ({
+					dueDate: inst.dueDate,
+					installmentNumber: inst.installmentNumber,
+					interestPaid: String(inst.interest),
+					loanId: loan.id,
+					principalPaid: String(inst.principal),
+					totalPaid: String(inst.total),
+				}));
 
-			const loan = await queryFirst(
-				db.sql.public.Loan.insert([
-					{
-						amortization: body.amortization ?? "PRICE",
-						description: body.description,
-						dueDay: body.dueDay,
-						firstDueDate: new Date(body.firstDueDate),
-						installmentAmount: String(installmentAmount),
-						interestRate: String(body.interestRate),
-						lender: body.lender,
-						principalAmount: String(body.principalAmount),
-						startDate: new Date(body.startDate),
-						totalInstallments: body.totalInstallments,
-						userId,
-					},
-				])
-					.returning(...loanColumns)
-					.build(),
-			);
-			if (!loan) throw new HttpException("Loan not created", 500);
+				if (paymentEntries.length > 0)
+					await executeStatement(db.sql.public.LoanPayment.insert(paymentEntries).build());
 
-			// Create payment schedule entries
-			const schedule = calculateLoanSchedule(
-				body.principalAmount,
-				body.interestRate,
-				body.totalInstallments,
-				(body.amortization ?? "PRICE") as "PRICE" | "SAC",
-				new Date(body.startDate),
-				new Date(body.firstDueDate),
-			);
-
-			const paymentEntries = schedule.map(inst => ({
-				dueDate: inst.dueDate,
-				installmentNumber: inst.installmentNumber,
-				interestPaid: String(inst.interest),
-				loanId: loan.id,
-				principalPaid: String(inst.principal),
-				totalPaid: String(inst.total),
-			}));
-
-			if (paymentEntries.length > 0)
-				await executeStatement(db.sql.public.LoanPayment.insert(paymentEntries).build());
-
-			return loan;
+				return loan;
+			});
 		},
 		{
 			body: t.Object({
@@ -477,11 +425,11 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 				dueDay: t.Number({ maximum: 31, minimum: 1 }),
 				firstDueDate: t.String(),
 				installmentAmount: t.Optional(t.Number()),
-				interestRate: t.Number(),
+				interestRate: t.Number({ minimum: 0 }),
 				lender: t.String({ maxLength: 100 }),
-				principalAmount: t.Number(),
+				principalAmount: t.Number({ exclusiveMinimum: 0 }),
 				startDate: t.String(),
-				totalInstallments: t.Number({ minimum: 1 }),
+				totalInstallments: t.Integer({ maximum: 1200, minimum: 1 }),
 			}),
 			detail: { tags: ["Loans"] },
 		},
@@ -490,43 +438,49 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 		"/:id/payments/:installmentNumber/pay",
 		async ({ params, body, request }) => {
 			const userId = await requireUserId(request);
-			await assertDirectOwnership("Loan", params.id, userId);
-			if (body.financialAccountId) await assertBalanceAccountOwnership(body.financialAccountId, userId);
-			const payment = await queryFirst(
-				db.sql.public.LoanPayment.select(...loanPaymentColumns)
-					.where((fields, functions) =>
-						functions.and(
-							functions.eq(fields.loanId, params.id),
-							functions.eq(fields.installmentNumber, Number(params.installmentNumber)),
-						),
-					)
-					.limit(1)
-					.build(),
-			);
+			return withRawTransaction(async () => {
+				await assertDirectOwnership("Loan", params.id, userId);
+				await queryRaw(`SELECT "id" FROM "Loan" WHERE "id" = $1 AND "userId" = $2 FOR UPDATE`, [
+					params.id,
+					userId,
+				]);
+				if (body.financialAccountId) await assertBalanceAccountOwnership(body.financialAccountId, userId);
+				const payment = await queryFirst(
+					db.sql.public.LoanPayment.select(...loanPaymentColumns)
+						.where((fields, functions) =>
+							functions.and(
+								functions.eq(fields.loanId, params.id),
+								functions.eq(fields.installmentNumber, Number(params.installmentNumber)),
+							),
+						)
+						.limit(1)
+						.build(),
+				);
 
-			if (!payment) {
-				throw new HttpException("Payment not found", 404);
-			}
+				if (!payment) {
+					throw new HttpException("Payment not found", 404);
+				}
 
-			if (payment.paidDate) {
-				throw new HttpException("Payment already made", 400);
-			}
+				if (payment.paidDate) {
+					throw new HttpException("Payment already made", 400);
+				}
 
-			const updatedPayment = await queryFirst(
-				db.sql.public.LoanPayment.update({
-					advanceType: body.advanceType,
-					financialAccountId: body.financialAccountId,
-					isAdvanced: body.isAdvanced ?? false,
-					paidDate: body.paidDate ? new Date(body.paidDate) : new Date(),
-					updatedAt: new Date(),
-				})
-					.where((fields, functions) => functions.eq(fields.id, payment.id))
-					.returning(...loanPaymentColumns)
-					.build(),
-			);
-			if (!updatedPayment) throw new HttpException("Payment not found", 404);
+				const updatedPayment = await queryFirst(
+					db.sql.public.LoanPayment.update({
+						advanceType: body.advanceType,
+						financialAccountId: body.financialAccountId,
+						isAdvanced: body.isAdvanced ?? false,
+						paidDate: body.paidDate ? new Date(body.paidDate) : new Date(),
+						updatedAt: new Date(),
+					})
+						.where((fields, functions) => functions.eq(fields.id, payment.id))
+						.returning(...loanPaymentColumns)
+						.build(),
+				);
+				if (!updatedPayment) throw new HttpException("Payment not found", 404);
 
-			return updatedPayment;
+				return updatedPayment;
+			});
 		},
 		{
 			body: t.Object({
@@ -546,71 +500,77 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 		"/:id/advance",
 		async ({ params, body, request }) => {
 			const userId = await requireUserId(request);
-			await assertDirectOwnership("Loan", params.id, userId);
-			if (body.financialAccountId) await assertBalanceAccountOwnership(body.financialAccountId, userId);
-			const loan = await queryFirst(
-				db.sql.public.Loan.select("id")
-					.where((fields, functions) => functions.eq(fields.id, params.id))
-					.limit(1)
-					.build(),
-			);
+			return withRawTransaction(async () => {
+				await assertDirectOwnership("Loan", params.id, userId);
+				await queryRaw(`SELECT "id" FROM "Loan" WHERE "id" = $1 AND "userId" = $2 FOR UPDATE`, [
+					params.id,
+					userId,
+				]);
+				if (body.financialAccountId) await assertBalanceAccountOwnership(body.financialAccountId, userId);
+				const loan = await queryFirst(
+					db.sql.public.Loan.select("id")
+						.where((fields, functions) => functions.eq(fields.id, params.id))
+						.limit(1)
+						.build(),
+				);
 
-			if (!loan) {
-				throw new HttpException("Loan not found", 404);
-			}
+				if (!loan) {
+					throw new HttpException("Loan not found", 404);
+				}
 
-			// Get unpaid installments
-			const unpaidPayments = await queryRows(
-				db.sql.public.LoanPayment.select(...loanPaymentColumns)
-					.where((fields, functions) =>
-						functions.and(
-							functions.eq(fields.loanId, params.id),
-							functions.raw`${fields.paidDate} IS NULL`.returns("pg/bool@1"),
-						),
-					)
-					.orderBy("installmentNumber", { direction: body.advanceType === "FRONT" ? "asc" : "desc" })
-					.limit(body.installmentsToAdvance)
-					.build(),
-			);
+				// Get unpaid installments
+				const unpaidPayments = await queryRows(
+					db.sql.public.LoanPayment.select(...loanPaymentColumns)
+						.where((fields, functions) =>
+							functions.and(
+								functions.eq(fields.loanId, params.id),
+								functions.raw`${fields.paidDate} IS NULL`.returns("pg/bool@1"),
+							),
+						)
+						.orderBy("installmentNumber", { direction: body.advanceType === "FRONT" ? "asc" : "desc" })
+						.limit(body.installmentsToAdvance)
+						.build(),
+				);
 
-			if (unpaidPayments.length === 0) {
-				throw new HttpException("No unpaid installments to advance", 400);
-			}
+				if (unpaidPayments.length === 0) {
+					throw new HttpException("No unpaid installments to advance", 400);
+				}
 
-			// Mark installments as paid with advance
-			const paidDate = body.paidDate ? new Date(body.paidDate) : new Date();
+				// Mark installments as paid with advance
+				const paidDate = body.paidDate ? new Date(body.paidDate) : new Date();
 
-			await executeStatement(
-				db.sql.public.LoanPayment.update({
+				await executeStatement(
+					db.sql.public.LoanPayment.update({
+						advanceType: body.advanceType,
+						financialAccountId: body.financialAccountId,
+						isAdvanced: true,
+						paidDate,
+						updatedAt: new Date(),
+					})
+						.where((fields, functions) =>
+							functions.in(
+								fields.id,
+								unpaidPayments.map(payment => payment.id),
+							),
+						)
+						.build(),
+				);
+
+				// Calculate total paid
+				const totalPaid = unpaidPayments.reduce((sum, p) => sum + Number(p.totalPaid), 0);
+
+				return {
+					advancedInstallments: unpaidPayments.length,
 					advanceType: body.advanceType,
-					financialAccountId: body.financialAccountId,
-					isAdvanced: true,
-					paidDate,
-					updatedAt: new Date(),
-				})
-					.where((fields, functions) =>
-						functions.in(
-							fields.id,
-							unpaidPayments.map(payment => payment.id),
-						),
-					)
-					.build(),
-			);
-
-			// Calculate total paid
-			const totalPaid = unpaidPayments.reduce((sum, p) => sum + Number(p.totalPaid), 0);
-
-			return {
-				advancedInstallments: unpaidPayments.length,
-				advanceType: body.advanceType,
-				totalPaid,
-			};
+					totalPaid,
+				};
+			});
 		},
 		{
 			body: t.Object({
 				advanceType: AdvanceType,
 				financialAccountId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
-				installmentsToAdvance: t.Number({ minimum: 1 }),
+				installmentsToAdvance: t.Integer({ maximum: 1200, minimum: 1 }),
 				paidDate: t.Optional(t.String()),
 			}),
 			detail: { tags: ["Loans"] },
