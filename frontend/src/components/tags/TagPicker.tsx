@@ -1,6 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { LuChevronDown, LuPlus, LuTags } from "react-icons/lu";
-import { AppBadge } from "@/components/ui/AppBadge";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { LuChevronDown, LuPlus } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { Input } from "@/components/ui/Input";
@@ -11,6 +11,7 @@ import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import { dataService } from "@/lib/dataService";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
+import { SelectedTags } from "./components";
 
 export function TagPicker({
 	disabled,
@@ -23,11 +24,21 @@ export function TagPicker({
 }) {
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
-	const [searchInput, setSearchInput] = useDebouncedInput("", () => undefined);
-	const tagsQuery = useQuery({
-		enabled: identity !== null,
-		queryFn: () => dataService.categories.getAll(),
-		queryKey: queryKeys.categories.list(identity!),
+	const [open, setOpen] = useState(false);
+	const [search, setSearch] = useState("");
+	const [searchInput, setSearchInput] = useDebouncedInput(search, setSearch);
+	const selectedIds = [...new Set(value)].sort();
+	const selectedQuery = useQuery({
+		enabled: identity !== null && selectedIds.length > 0,
+		queryFn: () => dataService.categories.getByIds(selectedIds),
+		queryKey: [...queryKeys.categories.all(identity!), "selected", selectedIds],
+	});
+	const tagsQuery = useInfiniteQuery({
+		enabled: open && identity !== null,
+		getNextPageParam: page => (page.hasMore ? (page.nextCursor ?? undefined) : undefined),
+		initialPageParam: undefined as string | undefined,
+		queryFn: ({ pageParam }) => dataService.categories.getPage({ cursor: pageParam, limit: 50, search }),
+		queryKey: [...queryKeys.categories.list(identity!), { search }],
 	});
 	const createTag = useMutation({
 		mutationFn: (name: string) => dataService.categories.create({ name }),
@@ -37,16 +48,13 @@ export function TagPicker({
 		onSuccess: async tag => {
 			onValueChange([...new Set([...value, tag.id])]);
 			setSearchInput("");
+			setSearch("");
 			await invalidateCacheOperation(queryClient, identity!, "category");
 			showToast(`Tag “${tag.name}” criada.`, "positive");
 		},
 	});
 	const normalizedSearch = searchInput.trim().toLocaleLowerCase("pt-BR");
-	const tags = (tagsQuery.data ?? []).toSorted((left, right) =>
-		left.name.localeCompare(right.name, "pt-BR", { sensitivity: "base" }),
-	);
-	const filteredTags = tags.filter(tag => tag.name.toLocaleLowerCase("pt-BR").includes(normalizedSearch));
-	const selectedTags = tags.filter(tag => value.includes(tag.id));
+	const tags = tagsQuery.data?.pages.flatMap(page => page.items) ?? [];
 	const exactMatch = tags.find(tag => tag.name.toLocaleLowerCase("pt-BR") === normalizedSearch);
 
 	const toggleTag = (tagId: string) => {
@@ -55,10 +63,11 @@ export function TagPicker({
 
 	const createOrSelectTag = () => {
 		const name = searchInput.trim();
-		if (!name) return;
+		if (!name || searchInput !== search || tagsQuery.isFetching) return;
 		if (exactMatch) {
 			if (!value.includes(exactMatch.id)) onValueChange([...value, exactMatch.id]);
 			setSearchInput("");
+			setSearch("");
 			return;
 		}
 		createTag.mutate(name);
@@ -67,7 +76,7 @@ export function TagPicker({
 	return (
 		<div className="grid gap-2">
 			<p className="font-medium text-sm">Tags</p>
-			<Popover>
+			<Popover onOpenChange={setOpen} open={open}>
 				<PopoverTrigger asChild>
 					<Button
 						aria-label="Selecionar tags"
@@ -77,22 +86,12 @@ export function TagPicker({
 						variant="outline"
 					>
 						<span className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 text-left">
-							{selectedTags.length ? (
-								selectedTags.map(tag => (
-									<AppBadge className="max-w-40" key={tag.id} variant="secondary">
-										<span
-											aria-hidden="true"
-											className="size-2 shrink-0 rounded-full"
-											style={{ backgroundColor: tag.color || "var(--primary)" }}
-										/>
-										<span className="truncate">{tag.name}</span>
-									</AppBadge>
-								))
-							) : (
-								<span className="flex items-center gap-2 text-muted-foreground">
-									<LuTags /> Selecione ou crie tags
-								</span>
-							)}
+							<SelectedTags
+								failed={selectedQuery.isError}
+								ids={selectedIds}
+								pending={selectedQuery.isPending}
+								tags={selectedQuery.data ?? []}
+							/>
 						</span>
 						<LuChevronDown className="shrink-0 text-muted-foreground" />
 					</Button>
@@ -119,7 +118,9 @@ export function TagPicker({
 						<Button
 							aria-label={exactMatch ? "Selecionar tag" : "Criar tag"}
 							className="cursor-pointer"
-							disabled={!searchInput.trim() || createTag.isPending}
+							disabled={
+								!searchInput.trim() || createTag.isPending || searchInput !== search || tagsQuery.isFetching
+							}
 							onClick={createOrSelectTag}
 							size="icon"
 							type="button"
@@ -127,44 +128,79 @@ export function TagPicker({
 							<LuPlus />
 						</Button>
 					</div>
-					<ScrollArea className="h-52 pr-3">
-						{tagsQuery.isPending ? (
-							<div className="grid gap-2">
-								{[1, 2, 3].map(item => (
-									<Skeleton className="h-9 rounded-xl" key={item} />
-								))}
-							</div>
-						) : filteredTags.length ? (
-							<div className="grid gap-1">
-								{filteredTags.map(tag => (
-									<CheckboxField
-										checkboxProps={{
-											checked: value.includes(tag.id),
-											id: `tag-${tag.id}`,
-											onCheckedChange: () => toggleTag(tag.id),
-										}}
-										className="w-full py-2"
-										key={tag.id}
+					<ScrollArea className="h-52 min-h-0">
+						<div className="pr-3">
+							{tagsQuery.isPending ? (
+								<div className="grid gap-2">
+									{[1, 2, 3].map(item => (
+										<Skeleton className="h-9 rounded-xl" key={item} />
+									))}
+								</div>
+							) : tagsQuery.isError ? (
+								<div className="grid gap-2 p-2">
+									<p className="text-sm">Não foi possível carregar tags.</p>
+									<Button
+										className="cursor-pointer"
+										onClick={() => tagsQuery.refetch()}
+										type="button"
+										variant="outline"
 									>
-										<span className="flex min-w-0 items-center gap-3">
-											<span
-												aria-hidden="true"
-												className="size-2.5 shrink-0 rounded-full"
-												style={{ backgroundColor: tag.color || "var(--primary)" }}
-											/>
-											<span className="truncate">{tag.name}</span>
-										</span>
-									</CheckboxField>
-								))}
-							</div>
-						) : (
-							<p className="px-2 py-6 text-center text-muted-foreground text-sm">
-								Nenhuma tag encontrada. Use + para criar.
-							</p>
-						)}
+										Tentar novamente
+									</Button>
+								</div>
+							) : tags.length ? (
+								<div className="grid gap-1">
+									{tags.map(tag => (
+										<CheckboxField
+											checkboxProps={{
+												checked: value.includes(tag.id),
+												id: `tag-${tag.id}`,
+												onCheckedChange: () => toggleTag(tag.id),
+											}}
+											className="w-full py-2"
+											key={tag.id}
+										>
+											<span className="flex min-w-0 items-center gap-3">
+												<span
+													aria-hidden="true"
+													className="size-2.5 shrink-0 rounded-full"
+													style={{ backgroundColor: tag.color || "var(--primary)" }}
+												/>
+												<span className="truncate">{tag.name}</span>
+											</span>
+										</CheckboxField>
+									))}
+									{tagsQuery.hasNextPage && (
+										<Button
+											className="cursor-pointer"
+											disabled={tagsQuery.isFetchingNextPage}
+											onClick={() => tagsQuery.fetchNextPage()}
+											type="button"
+											variant="outline"
+										>
+											{tagsQuery.isFetchingNextPage ? "Carregando..." : "Carregar mais"}
+										</Button>
+									)}
+								</div>
+							) : (
+								<p className="px-2 py-6 text-center text-muted-foreground text-sm">
+									Nenhuma tag encontrada. Use + para criar.
+								</p>
+							)}
+						</div>
 					</ScrollArea>
 				</PopoverContent>
 			</Popover>
+			{selectedIds.length > 0 && selectedQuery.isError && (
+				<Button
+					className="cursor-pointer"
+					onClick={() => selectedQuery.refetch()}
+					type="button"
+					variant="outline"
+				>
+					Tentar carregar tags selecionadas novamente
+				</Button>
+			)}
 		</div>
 	);
 }

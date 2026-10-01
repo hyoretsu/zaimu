@@ -29,6 +29,13 @@ export const performanceBudgets: Record<string, PerformanceBudget> = {
 		hotQueryCount: 0,
 		path: "/categories/perf-category-1",
 	},
+	categoryLookup: {
+		coldP95Ms: 1000,
+		coldQueryCount: 1,
+		hotP95Ms: 100,
+		hotQueryCount: 0,
+		path: "/categories/lookup?ids=perf-category-1,perf-category-2",
+	},
 	creditCardImports: {
 		coldP95Ms: 1000,
 		coldQueryCount: 3,

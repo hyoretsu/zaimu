@@ -30,6 +30,7 @@ import {
 	shiftRecurrenceDate,
 } from "@zaimu/finance/recurrence";
 import { projectRecurrenceCreditBook } from "@zaimu/finance/recurrence-projection";
+import { type CatalogPageOptions, localCatalogPage } from "./catalog-pagination";
 import { hasUnresolvedLegacyCardPayment } from "./legacy-card-payments";
 import { createLegacyRecurrenceService } from "./legacy-recurrence-service";
 import {
@@ -44,7 +45,6 @@ import {
 } from "./localStorage";
 import type { Recurrence } from "./recurrence";
 import { createRecurrenceService } from "./recurrence-service";
-import { localStorePage, type StorePageOptions } from "./store-pagination";
 /**
  * Data Service - Abstracts local vs remote data operations
  *
@@ -55,6 +55,7 @@ import { localStorePage, type StorePageOptions } from "./store-pagination";
 import { useAuthStore } from "@/stores/auth";
 import type {
 	Category,
+	CategoryPage,
 	CreditCard,
 	CreditCardImport,
 	CreditCardImportCreateResult,
@@ -830,6 +831,10 @@ export const dataService = {
 		async create(data: Omit<Category, "id" | "userId">): Promise<Category> {
 			const userId = getUserId();
 			if (isGuestMode()) {
+				const existing = (await localCategories.getAll()).find(
+					row => row.data.name.toLocaleLowerCase("pt-BR") === data.name.toLocaleLowerCase("pt-BR"),
+				);
+				if (existing) return existing.data;
 				const newCategory: Category = {
 					...data,
 					id: crypto.randomUUID(),
@@ -854,21 +859,28 @@ export const dataService = {
 			await fetchWithAuth(`/categories/${id}`, { method: "DELETE" });
 			await localCategories.delete(id);
 		},
-		async getAll(): Promise<Category[]> {
-			if (isGuestMode()) {
-				const local = await localCategories.getAll();
-				return local.map(item => item.data);
-			}
-			const owner = getCurrentCacheIdentity();
-			if (!owner) throw new Error("Identidade local indisponível.");
-			const categories = await fetchWithAuth<Category[]>("/categories");
-			cacheRemoteData(
-				localCategories.replaceSnapshot(
-					categories.map(c => ({ data: c, localId: c.id, syncedAt: Date.now() })),
-					owner,
-				),
+		async getByIds(ids: string[]): Promise<Category[]> {
+			const selected = [...new Set(ids)].sort();
+			if (!selected.length) return [];
+			if (isGuestMode())
+				return (await localCategories.getAll()).map(row => row.data).filter(row => selected.includes(row.id));
+			return fetchWithAuth<Category[]>(
+				`/categories/lookup?${new URLSearchParams({ ids: selected.join(",") })}`,
 			);
-			return categories;
+		},
+		async getPage(options: CatalogPageOptions = {}): Promise<CategoryPage> {
+			if (isGuestMode())
+				return localCatalogPage(
+					(await localCategories.getAll()).map(row => row.data),
+					getUserId(),
+					"categories",
+					options,
+				);
+			const query = new URLSearchParams();
+			if (options.cursor) query.set("cursor", options.cursor);
+			if (options.search) query.set("search", options.search);
+			if (options.limit !== undefined) query.set("limit", String(options.limit));
+			return fetchWithAuth<CategoryPage>(`/categories?${query}`);
 		},
 
 		async update(id: string, data: Partial<Category>): Promise<Category> {
@@ -2511,11 +2523,12 @@ export const dataService = {
 			return store;
 		},
 
-		async getPage(options: StorePageOptions = {}) {
+		async getPage(options: CatalogPageOptions = {}): Promise<StorePage> {
 			if (isGuestMode())
-				return localStorePage(
+				return localCatalogPage(
 					(await localStores.getAll()).map(row => row.data),
 					getUserId(),
+					"stores",
 					options,
 				);
 			const search = new URLSearchParams();

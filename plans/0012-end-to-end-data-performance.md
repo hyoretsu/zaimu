@@ -264,3 +264,8 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Seletor de lojas carrega 50 registros somente ao abrir, pesquisa com debounce no servidor e oferece carregamento incremental com estados de erro/retry. Modo guest aplica busca e cursores vinculados a proprietário/filtro; páginas parciais não substituem snapshots locais.
 - Categorias permanecem pendentes: tags selecionadas precisam ter seus nomes resolvidos independentemente da página pesquisada. Próxima etapa: paginação de categorias e paridade de pagamentos guest.
 - Criação de loja guest reutiliza nome normalizado existente mesmo fora da página carregada. Validação: seis testes de paginação/normalização passaram; builds backend e frontend passaram.
+- Categorias passaram a retornar páginas compactas com busca normalizada no SQL e cursor por nome/ID; lookup de IDs resolve tags selecionadas em uma consulta, com cache, limites de lote e isolamento por proprietário.
+- Seletor de tags carrega páginas somente ao abrir, pesquisa com debounce e mantém badges através de lookup independente da página. Loading e falha do lookup não são tratados como seleção vazia.
+- Cursores de catálogo foram compartilhados entre lojas e categorias, com domínio incluído no filtro; modo guest usa o mesmo formato de página sem substituir snapshots por resultados parciais.
+- Próxima etapa: paridade de pagamentos de empréstimos guest, eventos consolidados do sync e aceite de desempenho.
+- Validação de categorias: dez testes passaram (cursores, lookup, DTO serializado e badges selecionados); builds backend/frontend passaram.

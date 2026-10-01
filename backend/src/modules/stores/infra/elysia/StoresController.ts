@@ -2,11 +2,10 @@ import Elysia, { t } from "elysia";
 import { requireUserId } from "~/modules/auth";
 import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { normalizeStoreName } from "~/modules/stores/domain/normalize-store-name";
+import { catalogFilterHash, catalogPage, decodeCatalogCursor } from "~/shared/application/catalog-pagination";
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
 import { queryRaw } from "~/shared/infra/sql";
-
-import { decodeStoreCursor, storeFilterHash, storePage } from "../../application/store-pagination";
 
 export const StoresController = new Elysia({ prefix: "/stores" })
 	.get(
@@ -15,8 +14,8 @@ export const StoresController = new Elysia({ prefix: "/stores" })
 			const userId = await requireUserId(request);
 			const search = (query.search ?? "").trim();
 			const limit = query.limit ?? 50;
-			const hash = storeFilterHash(userId, search);
-			const cursor = decodeStoreCursor(query.cursor, hash);
+			const hash = catalogFilterHash(userId, "stores", search);
+			const cursor = decodeCatalogCursor(query.cursor, hash);
 			const cached = await distributedCache.remember(
 				userId,
 				"stores:list",
@@ -30,7 +29,7 @@ export const StoresController = new Elysia({ prefix: "/stores" })
 					 ORDER BY "name" COLLATE "C", "id" COLLATE "C" LIMIT $5`,
 						[userId, search, cursor?.name ?? null, cursor?.id ?? null, limit + 1],
 					);
-					return storePage(rows, limit, hash);
+					return catalogPage(rows, limit, hash);
 				},
 			);
 			set.headers.etag = cached.etag;

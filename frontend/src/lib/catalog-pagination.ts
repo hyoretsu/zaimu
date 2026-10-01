@@ -1,6 +1,4 @@
-import type { Store, StorePage } from "./api";
-
-export interface StorePageOptions {
+export interface CatalogPageOptions {
 	cursor?: string;
 	limit?: number;
 	search?: string;
@@ -13,11 +11,16 @@ const compare = (left: string, right: string) => {
 		if (a[index] !== b[index]) return a[index] - b[index];
 	return a.length - b.length;
 };
-export function localStorePage(rows: Store[], owner: string, options: StorePageOptions = {}): StorePage {
+export function localCatalogPage<Item extends { id: string; name: string; userId: string }>(
+	rows: Item[],
+	owner: string,
+	domain: string,
+	options: CatalogPageOptions = {},
+) {
 	const search = options.search?.trim() ?? "";
 	const limit = options.limit ?? 50;
 	if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error("Limite inválido");
-	const filter = JSON.stringify({ owner, search });
+	const filter = JSON.stringify({ domain, owner, search });
 	let cursor: { id: string; name: string } | undefined;
 	if (options.cursor) {
 		try {

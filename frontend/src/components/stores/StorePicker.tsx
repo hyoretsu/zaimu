@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { type InfiniteData, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { LuChevronDown, LuPlus, LuStore } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
@@ -7,6 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
+import type { StorePage } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
@@ -25,7 +26,13 @@ export function StorePicker({
 	const [open, setOpen] = useState(false);
 	const [search, setSearch] = useState("");
 	const [searchInput, setSearchInput] = useDebouncedInput(search, setSearch);
-	const storesQuery = useInfiniteQuery({
+	const storesQuery = useInfiniteQuery<
+		StorePage,
+		Error,
+		InfiniteData<StorePage>,
+		readonly unknown[],
+		string | undefined
+	>({
 		enabled: open && identity !== null,
 		getNextPageParam: page => (page.hasMore ? (page.nextCursor ?? undefined) : undefined),
 		initialPageParam: undefined as string | undefined,

@@ -449,7 +449,13 @@ export interface Tag {
 
 export interface Category extends Tag {
 	userId: string;
-	parentId?: string;
+	parentId?: string | null;
+}
+
+export interface CategoryPage {
+	items: Category[];
+	hasMore: boolean;
+	nextCursor: string | null;
 }
 
 export interface Loan {
@@ -927,7 +933,13 @@ export const api = {
 		fetchApi<{ success: boolean }>(`/transactions/${id}`, { method: "DELETE" }),
 
 	// Categories
-	getCategories: () => fetchApi<Category[]>("/categories"),
+	getCategoryPage: (params: { cursor?: string; limit?: number; search?: string } = {}) => {
+		const query = new URLSearchParams();
+		if (params.cursor) query.set("cursor", params.cursor);
+		if (params.search) query.set("search", params.search);
+		if (params.limit !== undefined) query.set("limit", String(params.limit));
+		return fetchApi<CategoryPage>(`/categories?${query}`);
+	},
 
 	getCreditCardStatement: (cardId: string, statementId: string) =>
 		fetchApi<CreditCardStatementDetail>(`/credit-cards/${cardId}/statements/${statementId}`),
