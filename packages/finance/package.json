@@ -10,7 +10,8 @@
 		"./legacy-credit-purchases": "./src/legacy-credit-purchases.ts",
 		"./purchase-reports": "./src/purchase-reports.ts",
 		"./purchase-statement-ledger": "./src/purchase-statement-ledger.ts",
-		"./credit-book": "./src/credit-book.ts"
+		"./credit-book": "./src/credit-book.ts",
+		"./recurrence": "./src/recurrence.ts"
 	},
 	"scripts": {
 		"check-types": "tsc --noEmit",
