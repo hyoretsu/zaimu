@@ -256,3 +256,7 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Listagem/detalhe de categorias, listagem de lojas e detalhe de empréstimos receberam cache distribuído com ETag; autorização de histórico de empréstimos saiu do caminho de cache hit. Consultas frias de detalhe filtram proprietário no SQL.
 - Matriz de invalidação e fences incluem detalhes de categoria, inclusive em sync. Regressão cobre edição de categoria, pagamento de empréstimo e preservação de caches de outros usuários/domínios.
 - Benchmark recebeu orçamentos de lista/detalhe de categorias, lojas, detalhe/histórico de empréstimos. Paginação dos catálogos e separação de parcelas do detalhe de empréstimos permanecem pendentes.
+- Detalhe de empréstimo agora retorna somente metadados em uma query; parcelas e cronograma completo saíram do payload. Nova versão da chave impede reutilizar o contrato anterior no Redis.
+- `GET /loans/:id/payments` carrega parcelas em páginas de até 100, com cursor por número/ID vinculado ao usuário e empréstimo, cache e invalidação existente. Contrato frontend atualizado atomicamente; nenhuma tela consumia os campos removidos.
+- Paridade guest de pagamentos continua pendente: IndexedDB atual não armazena parcelas nem pagamentos de empréstimos. Paginação de catálogos e captura p95 também permanecem abertas.
+- Validação da separação de parcelas: quatro testes passaram (cursor, isolamento e DTO serializado); builds backend e frontend passaram.

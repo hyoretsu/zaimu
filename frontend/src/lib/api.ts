@@ -467,14 +467,21 @@ export interface Loan {
 export interface LoanPayment {
 	id: string;
 	loanId: string;
+	financialAccountId?: string | null;
 	installmentNumber: number;
 	principalPaid: number;
 	interestPaid: number;
 	totalPaid: number;
 	dueDate: string;
-	paidDate?: string;
+	paidDate?: string | null;
 	isAdvanced: boolean;
-	advanceType?: "FRONT" | "BACK";
+	advanceType?: "FRONT" | "BACK" | null;
+}
+
+export interface LoanPaymentPage {
+	items: LoanPayment[];
+	nextCursor: string | null;
+	hasMore: boolean;
 }
 
 export interface EarlyPayoff {
@@ -956,7 +963,13 @@ export const api = {
 	// Accounts
 	getFinancialAccounts: () => fetchApi<FinancialAccount[]>("/financial-accounts"),
 
-	getLoan: (id: string) => fetchApi<Loan & { payments: LoanPayment[]; schedule: unknown[] }>(`/loans/${id}`),
+	getLoan: (id: string) => fetchApi<Loan>(`/loans/${id}`),
+	getLoanPayments: (id: string, params: { cursor?: string; limit?: number } = {}) => {
+		const query = new URLSearchParams();
+		if (params.cursor) query.set("cursor", params.cursor);
+		if (params.limit !== undefined) query.set("limit", String(params.limit));
+		return fetchApi<LoanPaymentPage>(`/loans/${encodeURIComponent(id)}/payments?${query}`);
+	},
 
 	// Loans
 	getLoans: () => fetchApi<Loan[]>("/loans"),

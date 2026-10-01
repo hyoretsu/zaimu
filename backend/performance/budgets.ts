@@ -47,7 +47,7 @@ export const performanceBudgets: Record<string, PerformanceBudget> = {
 	debts: { coldP95Ms: 1000, coldQueryCount: 4, hotP95Ms: 100, hotQueryCount: 0, path: "/debts/" },
 	loanDetail: {
 		coldP95Ms: 1000,
-		coldQueryCount: 2,
+		coldQueryCount: 1,
 		hotP95Ms: 100,
 		hotQueryCount: 0,
 		path: "/loans/perf-loan-001",
@@ -58,6 +58,13 @@ export const performanceBudgets: Record<string, PerformanceBudget> = {
 		hotP95Ms: 100,
 		hotQueryCount: 0,
 		path: "/loans/perf-loan-001/history?limit=50",
+	},
+	loanPayments: {
+		coldP95Ms: 1000,
+		coldQueryCount: 2,
+		hotP95Ms: 100,
+		hotQueryCount: 0,
+		path: "/loans/perf-loan-001/payments?limit=50",
 	},
 	loans: { coldP95Ms: 1000, coldQueryCount: 1, hotP95Ms: 100, hotQueryCount: 0, path: "/loans/" },
 	stores: { coldP95Ms: 1000, coldQueryCount: 1, hotP95Ms: 100, hotQueryCount: 0, path: "/stores/" },

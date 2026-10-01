@@ -10,6 +10,9 @@ import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
 import { db, executeStatement, queryFirst, queryRaw, queryRows } from "~/shared/infra/sql";
 
+import { LoanPaymentPageReturn } from "./LoansDTO";
+import { decodePaymentCursor, paymentFilterHash, paymentPage } from "./loan-payment-pagination";
+
 const loanColumns = [
 	"id",
 	"userId",
@@ -242,43 +245,32 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 		"/:id",
 		async ({ params, request, set }) => {
 			const userId = await requireUserId(request);
-			const cached = await distributedCache.remember(userId, "loans:detail", { id: params.id }, async () => {
-				const loan = await queryFirst(
-					db.sql.public.Loan.select(...loanColumns)
-						.where((fields, functions) =>
-							functions.and(functions.eq(fields.id, params.id), functions.eq(fields.userId, userId)),
-						)
-						.limit(1)
-						.build(),
-				);
+			const cached = await distributedCache.remember(
+				userId,
+				"loans:detail",
+				{ id: params.id, version: 2 },
+				async () => {
+					const loan = await queryFirst(
+						db.sql.public.Loan.select(...loanColumns)
+							.where((fields, functions) =>
+								functions.and(functions.eq(fields.id, params.id), functions.eq(fields.userId, userId)),
+							)
+							.limit(1)
+							.build(),
+					);
 
-				if (!loan) {
-					throw new HttpException("Loan not found", 404);
-				}
+					if (!loan) {
+						throw new HttpException("Loan not found", 404);
+					}
 
-				const payments = await queryRows(
-					db.sql.public.LoanPayment.select(...loanPaymentColumns)
-						.where((fields, functions) => functions.eq(fields.loanId, params.id))
-						.orderBy("installmentNumber", { direction: "asc" })
-						.build(),
-				);
-
-				// Generate full schedule
-				const schedule = calculateLoanSchedule(
-					Number(loan.principalAmount),
-					Number(loan.interestRate),
-					loan.totalInstallments,
-					loan.amortization as "PRICE" | "SAC",
-					new Date(loan.startDate),
-					new Date(loan.firstDueDate),
-				);
-
-				return {
-					...loan,
-					payments,
-					schedule,
-				};
-			});
+					return {
+						...loan,
+						installmentAmount: Number(loan.installmentAmount),
+						interestRate: Number(loan.interestRate),
+						principalAmount: Number(loan.principalAmount),
+					};
+				},
+			);
 			set.headers.etag = cached.etag;
 			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
 			return cached.value;
@@ -290,6 +282,69 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 			}),
 		},
 	)
+	.get(
+		"/:id/payments",
+		async ({ params, query, request, set }) => {
+			const userId = await requireUserId(request);
+			const limit = query.limit ?? 50;
+			const filterHash = paymentFilterHash(userId, params.id);
+			const cursor = decodePaymentCursor(query.cursor, filterHash);
+			const cached = await distributedCache.remember(
+				userId,
+				"loans:installments",
+				{ cursor: query.cursor, limit, loanId: params.id },
+				async () => {
+					await assertDirectOwnership("Loan", params.id, userId);
+					const payments = await queryRows(
+						db.sql.public.LoanPayment.select(...loanPaymentColumns)
+							.where((fields, functions) =>
+								functions.and(
+									functions.eq(fields.loanId, params.id),
+									...(cursor
+										? [
+												functions.raw`(${fields.installmentNumber}, ${fields.id}) > (${cursor.installmentNumber}, ${cursor.id})`.returns(
+													"pg/bool@1",
+												),
+											]
+										: []),
+								),
+							)
+							.orderBy("installmentNumber", { direction: "asc" })
+							.orderBy("id", { direction: "asc" })
+							.limit(limit + 1)
+							.build(),
+					);
+					return paymentPage(
+						payments.map(payment => ({
+							...payment,
+							createdAt: payment.createdAt.toISOString(),
+							dueDate: payment.dueDate.toISOString(),
+							interestPaid: Number(payment.interestPaid),
+							paidDate: payment.paidDate?.toISOString() ?? null,
+							principalPaid: Number(payment.principalPaid),
+							totalPaid: Number(payment.totalPaid),
+							updatedAt: payment.updatedAt.toISOString(),
+						})),
+						limit,
+						filterHash,
+					);
+				},
+			);
+			set.headers.etag = cached.etag;
+			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+			return cached.value;
+		},
+		{
+			detail: { tags: ["Loans"] },
+			params: t.Object({ id: t.String({ maxLength: 36, minLength: 1 }) }),
+			query: t.Object({
+				cursor: t.Optional(t.String()),
+				limit: t.Optional(t.Integer({ maximum: 100, minimum: 1 })),
+			}),
+			response: LoanPaymentPageReturn,
+		},
+	)
+
 	.get(
 		"/:id/early-payoff",
 		async ({ params, query, request }) => {
