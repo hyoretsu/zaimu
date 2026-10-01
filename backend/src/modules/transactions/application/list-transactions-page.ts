@@ -195,7 +195,7 @@ WITH combined AS (
     COALESCE(account."name", institution."name", 'Cartão de crédito') AS "creditCardName",
     'CREDIT_CARD' AS "source", COALESCE(account."name", institution."name", 'Cartão de crédito') AS "sourceName",
     purchase."feeAmount", purchase."feeDescription", purchase."isRefund",
-    EXISTS (SELECT 1 FROM "CreditEntry" refund WHERE refund."refundOfPurchaseId" = purchase."id") AS "hasRefund",
+    EXISTS (SELECT 1 FROM "CreditRefundRecord" refund WHERE refund."purchaseId" = purchase."purchaseId" AND refund."deletedAt" IS NULL) AS "hasRefund",
     purchase."refundOfPurchaseId", purchase."currentInstallment", purchase."installments",
     purchase."installmentAmount", purchase."parentId", purchase."statementId", 1 AS "sourceRank",
     concat_ws(' ', purchase."totalAmount"::text,
@@ -248,7 +248,42 @@ export async function listTransactionsPage(userId: string, input: ListTransactio
 	const limit = Math.min(input.limit ?? 50, 100);
 	const currentFilterHash = transactionPageFilterHash(input);
 	const cursor = decodeTransactionCursor(input.cursor, currentFilterHash);
-	const rows = await queryRaw<TransactionSummaryRow>(listSql, [
+	let sql = input.search?.trim()
+		? listSql
+		: listSql.replace(/ {4}concat_ws\(' ',[\s\S]*?\) AS search_text/g, "NULL::text AS search_text");
+	if (!input.search?.trim() && !input.categoryId && !input.source) {
+		const candidates = `WITH candidates AS MATERIALIZED (
+			SELECT * FROM (
+				SELECT t."id", t."date", t."createdAt", 0 AS "sourceRank"
+				FROM "Transaction" t WHERE t."userId"=$1
+				AND ($2::date IS NULL OR t."date">=$2) AND ($3::date IS NULL OR t."date"<=$3)
+				AND ($4::text IS NULL OR t."type"::text=$4)
+				AND ($6::text IS NULL OR t."originFinancialAccountId"=$6 OR t."destinationFinancialAccountId"=$6)
+				AND ($7::text IS NULL OR t."isHidden"=($7='hidden'))
+				UNION ALL
+				SELECT p."id", p."purchaseDate", p."createdAt", 1
+				FROM "CreditConsumption" p JOIN "CreditCard" c ON c."id"=p."creditCardId"
+				WHERE p."userId"=$1 AND p."currentInstallment"=1
+				AND ($2::date IS NULL OR p."purchaseDate">=$2) AND ($3::date IS NULL OR p."purchaseDate"<=$3)
+				AND ($4::text IS NULL OR CASE WHEN p."isRefund" THEN 'REFUND' ELSE 'EXPENSE' END=$4)
+				AND ($6::text IS NULL OR c."financialAccountId"=$6)
+				AND ($7::text IS NULL OR $7='visible')
+			) entries
+			WHERE ($10::date IS NULL OR ("date", "createdAt", "sourceRank", "id") < ($10::date, $11::timestamp, $12::integer, $13::text))
+			ORDER BY "date" DESC, "createdAt" DESC, "sourceRank" DESC, "id" DESC LIMIT $14
+		), combined AS (`;
+		sql = sql
+			.replace("WITH combined AS (", candidates)
+			.replace(
+				'FROM "Transaction" t\n',
+				'FROM "Transaction" t JOIN candidates candidate ON candidate."id"=t."id" AND candidate."sourceRank"=0\n',
+			)
+			.replace(
+				'FROM "CreditConsumption" purchase\n',
+				'FROM "CreditConsumption" purchase JOIN candidates candidate ON candidate."id"=purchase."id" AND candidate."sourceRank"=1\n',
+			);
+	}
+	const rows = await queryRaw<TransactionSummaryRow>(sql, [
 		userId,
 		input.startDate ?? null,
 		input.endDate ?? null,
@@ -313,7 +348,13 @@ export async function listTransactionsPage(userId: string, input: ListTransactio
 		]);
 	const purchaseSyncStatus = getCreditPurchaseSyncStatus(purchaseInstallments);
 	const items = page.map(
-		({ sourceRank, cursorCreatedAt: _cursorCreatedAt, cursorDate: _cursorDate, ...row }) => {
+		({
+			sourceRank,
+			cursorCreatedAt: _cursorCreatedAt,
+			cursorDate: _cursorDate,
+			search_text: _searchText,
+			...row
+		}) => {
 			const tags = (sourceRank === 0 ? transactionTags : purchaseTags).get(row.id) ?? [];
 			const references = externalIds.get(row.id) ?? [];
 			return {

@@ -17,6 +17,7 @@ const YieldTime = t.Union([t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d$" }
 const YieldCursorValue = t.Object({ date: t.String(), id: Id, kind: YieldKind });
 type YieldCursorValue = typeof YieldCursorValue.static;
 export const YieldReturn = t.Object({
+	accountName: t.Optional(t.String()),
 	amount: t.Nullable(t.Number()),
 	date: t.String({ format: "date-time" }),
 	financialAccountId: Id,
@@ -87,18 +88,23 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 		"/",
 		async ({ query, request, set, status }) => {
 			const userId = await requireUserId(request);
-			if (query.financialAccountId) await assertYieldAccount(query.financialAccountId, userId);
 			const limit = Math.min(query.limit ?? 100, 100);
 			const filterHash = paginationFilterHash(userId, {
+				endDate: query.endDate ?? null,
 				financialAccountId: query.financialAccountId ?? null,
+				positiveOnly: query.positiveOnly ?? false,
+				startDate: query.startDate ?? null,
+				visibility: query.visibility ?? null,
 			});
 			const cursor = decodePaginationCursor(query.cursor, filterHash, isYieldCursorValue);
 			const cached = await distributedCache.remember(
 				userId,
 				"accounts:yields",
-				{ cursor: query.cursor, financialAccountId: query.financialAccountId, limit },
+				{ ...query, format: 2, limit },
 				async () => {
+					if (query.financialAccountId) await assertYieldAccount(query.financialAccountId, userId);
 					const yields = await queryRaw<{
+						accountName: string;
 						amount: null | string;
 						date: Date;
 						financialAccountId: string;
@@ -109,18 +115,25 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 						origin: string;
 						time: null | string;
 					}>(
-						`SELECT entry."id", entry."financialAccountId", entry."date", entry."amount", entry."kind", entry."isExcluded", entry."isHidden", entry."origin", entry."time"
-						 FROM "public"."FinancialAccountYield" entry
-						 JOIN "public"."FinancialAccount" account ON account."id" = entry."financialAccountId"
-						 WHERE account."userId" = $1
-						 ${query.financialAccountId ? 'AND entry."financialAccountId" = $2' : ""}
-						 ${cursor ? `AND (entry."date", entry."kind"::text, entry."id") < ($${query.financialAccountId ? 3 : 2}::date, $${query.financialAccountId ? 4 : 3}::text, $${query.financialAccountId ? 5 : 4})` : ""}
-						 ORDER BY entry."date" DESC, entry."kind"::text DESC, entry."id" DESC
-						 LIMIT $${(query.financialAccountId ? 2 : 1) + (cursor ? 3 : 0) + 1}`,
+						`SELECT entry."id", entry."financialAccountId", entry."date", entry."amount", entry."kind", entry."isExcluded", entry."isHidden", entry."origin", entry."time", COALESCE(account."name", institution."name", 'Conta') AS "accountName"
+ FROM "FinancialAccountYield" entry JOIN "FinancialAccount" account ON account."id" = entry."financialAccountId"
+ LEFT JOIN "FinancialInstitution" institution ON institution."id" = account."institutionId"
+ WHERE account."userId" = $1 AND ($2::text IS NULL OR entry."financialAccountId" = $2)
+ AND ($3::date IS NULL OR entry."date" >= $3) AND ($4::date IS NULL OR entry."date" <= $4)
+ AND ($5::text IS NULL OR entry."isHidden" = ($5 = 'hidden'))
+ AND (NOT $6::boolean OR (NOT entry."isExcluded" AND entry."amount" > 0))
+ AND ($7::date IS NULL OR (entry."date", entry."kind"::text, entry."id") < ($7::date, $8::text, $9::text))
+ ORDER BY entry."date" DESC, entry."kind"::text DESC, entry."id" DESC LIMIT $10`,
 						[
 							userId,
-							...(query.financialAccountId ? [query.financialAccountId] : []),
-							...(cursor ? [cursor.date, cursor.kind, cursor.id] : []),
+							query.financialAccountId ?? null,
+							query.startDate ?? null,
+							query.endDate ?? null,
+							query.visibility ?? null,
+							query.positiveOnly ?? false,
+							cursor?.date ?? null,
+							cursor?.kind ?? null,
+							cursor?.id ?? null,
 							limit + 1,
 						],
 					);
@@ -152,8 +165,12 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 			detail: { tags: ["Accounts"] },
 			query: t.Object({
 				cursor: t.Optional(t.String()),
+				endDate: t.Optional(DateKey),
 				financialAccountId: t.Optional(Id),
 				limit: t.Optional(t.Integer({ maximum: 100, minimum: 1 })),
+				positiveOnly: t.Optional(t.Boolean()),
+				startDate: t.Optional(DateKey),
+				visibility: t.Optional(t.Union([t.Literal("hidden"), t.Literal("visible")])),
 			}),
 			response: { 200: YieldPageReturn, 304: t.Null() },
 		},

@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { LuLandmark, LuPlus } from "react-icons/lu";
 import {
@@ -12,13 +12,9 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { FinancialAccount, Transaction } from "@/lib/api";
-import { dataService, type FinancialAccountYieldPage } from "@/lib/dataService";
+import { dataService } from "@/lib/dataService";
 import { formatLocalTime } from "@/lib/date";
-import {
-	calculateFinancialAccountYieldEntries,
-	type FinancialAccountYieldEntry,
-	getFinancialAccountDisplayName,
-} from "@/lib/financial-account";
+import { type FinancialAccountYieldEntry, getFinancialAccountDisplayName } from "@/lib/financial-account";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { EditFinancialAccountYieldDialog } from "./EditFinancialAccountYieldDialog";
@@ -64,35 +60,32 @@ export function FinancialAccountStatementDialog({
 }) {
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
-	const statement = useQuery({
+	const statement = useInfiniteQuery({
 		enabled: identity !== null && open,
-		queryFn: () => dataService.transactions.getAll({ financialAccountId: account.id }),
+		getNextPageParam: page => page.nextCursor ?? undefined,
+		initialPageParam: undefined as string | undefined,
+		queryFn: ({ pageParam }) =>
+			dataService.transactions.getDailyPage({ cursor: pageParam, financialAccountId: account.id, limit: 50 }),
 		queryKey: queryKeys.transactions.byAccount(identity!, account.id),
 	});
+	const statementItems =
+		statement.data?.pages.flatMap(page => page.days.flatMap(day => day.transactions)) ?? [];
+
 	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 	const [creatingTransaction, setCreatingTransaction] = useState(false);
 	const [editingYield, setEditingYield] = useState<FinancialAccountYieldEntry | null>(null);
-	const holidays = useQuery({
-		enabled: identity !== null && open,
-		queryFn: () => dataService.accountYieldHolidays.getAll(),
-		queryKey: queryKeys.accountYieldHolidays.all(identity!),
-	});
+	const yieldFilters = {
+		startDate: statement.hasNextPage ? statement.data?.pages.at(-1)?.days.at(-1)?.date : undefined,
+	};
 	const yields = useInfiniteQuery({
-		enabled: identity !== null && open,
-		getNextPageParam: (page: FinancialAccountYieldPage) => page.nextCursor ?? undefined,
-		initialPageParam: null as null | string,
-		queryFn: ({ pageParam }) => dataService.accountYields.getPage(account.id, pageParam),
-		queryKey: queryKeys.accountYields.list(identity!, account.id),
+		enabled: identity !== null && open && !statement.isPending,
+		getNextPageParam: page => page.nextCursor ?? undefined,
+		initialPageParam: undefined as string | undefined,
+		queryFn: ({ pageParam }) => dataService.accountYields.getDisplayPage(account.id, pageParam, yieldFilters),
+		queryKey: [...queryKeys.accountYields.list(identity!, account.id), "statement", yieldFilters],
 	});
-	const yieldItems = yields.data?.pages.flatMap(page => page.items) ?? [];
-	const yieldEntries = calculateFinancialAccountYieldEntries(
-		account,
-		statement.data ?? [],
-		holidays.data?.map(holiday => holiday.date) ?? [],
-		undefined,
-		yieldItems,
-	);
-	const groupedEntries = groupStatementByDate(statement.data ?? [], yieldEntries);
+	const yieldEntries = yields.data?.pages.flatMap(page => page.items) ?? [];
+	const groupedEntries = groupStatementByDate(statementItems, yieldEntries);
 	const dates = Object.keys(groupedEntries).toSorted((left, right) => right.localeCompare(left));
 	const displayName = getFinancialAccountDisplayName(account);
 	const refreshStatement = () => invalidateCacheOperation(queryClient, identity!, "yield");
@@ -136,21 +129,21 @@ export function FinancialAccountStatementDialog({
 					<DialogTitle>Extrato · {displayName}</DialogTitle>
 					<DialogDescription>Movimentações que compõem saldo desta conta.</DialogDescription>
 				</DialogHeader>
-				{statement.isPending || holidays.isPending || yields.isPending ? (
+				{statement.isPending || yields.isPending ? (
 					<div className="space-y-3">
 						{[1, 2, 3].map(item => (
 							<Skeleton className="h-24 rounded-2xl" key={item} />
 						))}
 					</div>
-				) : statement.isError || holidays.isError || yields.isError ? (
+				) : statement.isError || yields.isError ? (
 					<EmptyState
 						description="Tente novamente em instantes."
 						icon={<LuLandmark className="size-7" />}
 						title="Não foi possível carregar extrato"
 					/>
 				) : dates.length ? (
-					<ScrollArea className="min-h-0 pr-3">
-						<div className="space-y-5">
+					<ScrollArea className="min-h-0">
+						<div className="space-y-5 pr-3">
 							{dates.map(date => (
 								<section className="space-y-2" key={date}>
 									<h3 className="font-medium text-muted-foreground text-sm">
@@ -198,6 +191,16 @@ export function FinancialAccountStatementDialog({
 									</div>
 								</section>
 							))}
+							{statement.hasNextPage && (
+								<Button
+									className="cursor-pointer"
+									disabled={statement.isFetchingNextPage}
+									onClick={() => void statement.fetchNextPage()}
+									variant="outline"
+								>
+									{statement.isFetchingNextPage ? "Carregando..." : "Carregar mais movimentações"}
+								</Button>
+							)}
 							{yields.hasNextPage ? (
 								<Button
 									className="w-full cursor-pointer"

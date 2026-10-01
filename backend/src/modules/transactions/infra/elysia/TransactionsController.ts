@@ -1,5 +1,4 @@
 import Elysia, { t } from "elysia";
-import { getFinancialAccountBalancesAtDates } from "~/modules/accounts/application/get-financial-account-balances";
 import {
 	assertBalanceAccountOwnership,
 	assertCreditCardOwnership,
@@ -13,9 +12,7 @@ import {
 	replaceEntityTags,
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
-import type { CreditReadRow } from "~/modules/creditCards/application/credit-entry-reader";
 import { recalculateStatementPayments } from "~/modules/creditCards/application/statement-payments";
-import { getCreditPurchaseSyncStatus } from "~/modules/creditCards/domain/credit-purchase-sync-status";
 import {
 	deleteCreatorDebtEventForTransaction,
 	getDebtSplitInput,
@@ -31,7 +28,7 @@ import { areTransferSuggestionTimesCompatible } from "~/modules/transaction-impo
 import { listTransactionsPage } from "~/modules/transactions/application/list-transactions-page";
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
-import { db, executeStatement, queryFirst, queryRaw, queryRows, withTransaction } from "~/shared/infra/sql";
+import { db, executeStatement, queryFirst, queryRows, withTransaction } from "~/shared/infra/sql";
 
 const transactionColumns = [
 	"id",
@@ -343,402 +340,19 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 		"/",
 		async ({ query, request, set }) => {
 			const userId = await requireUserId(request);
-			if (query.financialAccountId) {
-				await assertDirectOwnership("FinancialAccount", query.financialAccountId, userId);
+			const cached = await distributedCache.remember(userId, "transactions:list", query, async () => {
+				if (query.financialAccountId)
+					await assertDirectOwnership("FinancialAccount", query.financialAccountId, userId);
+				if (query.categoryId) await assertDirectOwnership("Category", query.categoryId, userId);
+				return listTransactionsPage(userId, query);
+			});
+			set.headers.etag = cached.etag;
+			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+			if (request.headers.get("if-none-match") === cached.etag) {
+				set.status = 304;
+				return null;
 			}
-			if (query.categoryId) await assertDirectOwnership("Category", query.categoryId, userId);
-			if (query.view === "daily") {
-				const cached = await distributedCache.remember(userId, "transactions:list", query, () =>
-					listTransactionsPage(userId, query),
-				);
-				set.headers.etag = cached.etag;
-				set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
-				if (request.headers.get("if-none-match") === cached.etag) {
-					set.status = 304;
-					return null;
-				}
-				return cached.value;
-			}
-			const origin = db.sql.public.FinancialAccount.select(
-				"id",
-				"institutionId",
-				"userId",
-				"name",
-				"type",
-			).as("origin");
-			const originInstitution = db.sql.public.FinancialInstitution.select("id", "name").as(
-				"originInstitution",
-			);
-			const destination = db.sql.public.FinancialAccount.select(
-				"id",
-				"institutionId",
-				"userId",
-				"name",
-				"type",
-			).as("destination");
-			const destinationInstitution = db.sql.public.FinancialInstitution.select("id", "name").as(
-				"destinationInstitution",
-			);
-			const originRewards = db.sql.public.RewardsAccount.select("financialAccountId", "kind").as(
-				"originRewards",
-			);
-			const destinationRewards = db.sql.public.RewardsAccount.select("financialAccountId", "kind").as(
-				"destinationRewards",
-			);
-
-			const paymentCard = db.sql.public.CreditCard.select("id", "financialAccountId").as("paymentCard");
-			const paymentCardAccount = db.sql.public.FinancialAccount.select("id", "institutionId", "name").as(
-				"paymentCardAccount",
-			);
-			const paymentCardInstitution = db.sql.public.FinancialInstitution.select("id", "name").as(
-				"paymentCardInstitution",
-			);
-			const taggedTransactionIds = query.categoryId
-				? (
-						await queryRows(
-							db.sql.public.TagAssignment.select("entityId")
-								.where((fields, functions) =>
-									functions.and(
-										functions.eq(fields.categoryId, query.categoryId!),
-										functions.eq(fields.entityType, tagEntityType.transaction),
-									),
-								)
-								.build(),
-						)
-					).map(assignment => assignment.entityId)
-				: undefined;
-			let queryBuilder = db.sql.public.Transaction.outerLeftJoin(db.sql.public.Category, (f, fn) =>
-				fn.eq(f.Transaction.categoryId, f.Category.id),
-			)
-				.outerLeftJoin(origin, (f, fn) => fn.eq(f.Transaction.originFinancialAccountId, f.origin.id))
-				.outerLeftJoin(originInstitution, (f, fn) => fn.eq(f.origin.institutionId, f.originInstitution.id))
-				.outerLeftJoin(originRewards, (f, fn) => fn.eq(f.origin.id, f.originRewards.financialAccountId))
-				.outerLeftJoin(destination, (f, fn) =>
-					fn.eq(f.Transaction.destinationFinancialAccountId, f.destination.id),
-				)
-				.outerLeftJoin(destinationInstitution, (f, fn) =>
-					fn.eq(f.destination.institutionId, f.destinationInstitution.id),
-				)
-				.outerLeftJoin(destinationRewards, (f, fn) =>
-					fn.eq(f.destination.id, f.destinationRewards.financialAccountId),
-				)
-				.outerLeftJoin(paymentCard, (f, fn) => fn.eq(f.Transaction.paymentCreditCardId, f.paymentCard.id))
-				.outerLeftJoin(paymentCardAccount, (f, fn) =>
-					fn.eq(f.paymentCard.financialAccountId, f.paymentCardAccount.id),
-				)
-				.outerLeftJoin(paymentCardInstitution, (f, fn) =>
-					fn.eq(f.paymentCardAccount.institutionId, f.paymentCardInstitution.id),
-				)
-				.outerLeftJoin(db.sql.public.Recurrence, (f, fn) =>
-					fn.eq(f.Transaction.recurrenceId, f.Recurrence.id),
-				)
-				.outerLeftJoin(db.sql.public.Salary, (f, fn) => fn.eq(f.Transaction.salaryId, f.Salary.id))
-				.outerLeftJoin(db.sql.public.Subscription, (f, fn) =>
-					fn.eq(f.Transaction.subscriptionId, f.Subscription.id),
-				)
-				.select((f, fn) => ({
-					amount: f.Transaction.amount,
-					categoryColor: f.Category.color,
-					categoryName: f.Category.name,
-					createdAt: f.Transaction.createdAt,
-					creditCardName:
-						fn.raw`COALESCE(${f.paymentCardAccount.name}, ${f.paymentCardInstitution.name})`.returns(
-							"sql/varchar@1",
-						),
-					creditCardStatementDate: fn.raw`NULL::date`.returns("pg/date@1"),
-					date: f.Transaction.date,
-					description: f.Transaction.description,
-					destinationAccountRewardsKind: f.destinationRewards.kind,
-					destinationAccountType: f.destination.type,
-					destinationFinancialAccountId: f.Transaction.destinationFinancialAccountId,
-					destinationName: fn.raw`COALESCE(${f.destination.name}, ${f.destinationInstitution.name})`.returns(
-						"sql/varchar@1",
-					),
-					id: f.Transaction.id,
-					isHidden: f.Transaction.isHidden,
-					originAccountRewardsKind: f.originRewards.kind,
-					originAccountType: f.origin.type,
-					originFinancialAccountId: f.Transaction.originFinancialAccountId,
-					originName: fn.raw`COALESCE(${f.origin.name}, ${f.originInstitution.name})`.returns(
-						"sql/varchar@1",
-					),
-					paymentCreditCardId: f.Transaction.paymentCreditCardId,
-					recurrenceId: f.Transaction.recurrenceId,
-					recurrenceOccurrenceDate: f.Transaction.recurrenceOccurrenceDate,
-					salaryId: f.Transaction.salaryId,
-					salaryOccurrenceDate: f.Transaction.salaryOccurrenceDate,
-					storeName: f.Transaction.storeName,
-					subscriptionId: f.Transaction.subscriptionId,
-					subscriptionOccurrenceDate: f.Transaction.subscriptionOccurrenceDate,
-					time: f.Transaction.time,
-					type: f.Transaction.type,
-				}))
-				.where((f, fn) =>
-					fn.or(
-						fn.eq(f.origin.userId, userId),
-						fn.eq(f.destination.userId, userId),
-						fn.eq(f.Recurrence.userId, userId),
-						fn.eq(f.Salary.userId, userId),
-						fn.eq(f.Subscription.userId, userId),
-					),
-				);
-
-			if (query.startDate) {
-				queryBuilder = queryBuilder.where((f, fn) => fn.gte(f.Transaction.date, new Date(query.startDate!)));
-			}
-			if (query.endDate) {
-				queryBuilder = queryBuilder.where((f, fn) =>
-					fn.lte(f.Transaction.date, new Date(`${query.endDate!}T23:59:59.999`)),
-				);
-			}
-			if (query.type) {
-				queryBuilder = queryBuilder.where((f, fn) =>
-					fn.eq(f.Transaction.type, (query.type === "REFUND" ? "INCOME" : query.type)!),
-				);
-			}
-			if (query.categoryId) {
-				queryBuilder = queryBuilder.where((f, fn) =>
-					taggedTransactionIds?.length
-						? fn.or(
-								fn.in(f.Transaction.id, taggedTransactionIds),
-								fn.eq(f.Transaction.categoryId, query.categoryId!),
-							)
-						: fn.eq(f.Transaction.categoryId, query.categoryId!),
-				);
-			}
-			if (query.financialAccountId) {
-				queryBuilder = queryBuilder.where((f, fn) =>
-					fn.or(
-						fn.eq(f.Transaction.originFinancialAccountId, query.financialAccountId!),
-						fn.eq(f.Transaction.destinationFinancialAccountId, query.financialAccountId!),
-					),
-				);
-			}
-			if (query.visibility === "hidden") {
-				queryBuilder = queryBuilder.where((f, fn) => fn.eq(f.Transaction.isHidden, true));
-			}
-			if (query.visibility === "visible") {
-				queryBuilder = queryBuilder.where((f, fn) => fn.eq(f.Transaction.isHidden, false));
-			}
-
-			const transactions = await queryRows(queryBuilder.build());
-			const [tagsByTransaction, externalReferences] = await Promise.all([
-				getTagsByEntity(
-					tagEntityType.transaction,
-					transactions.map(transaction => transaction.id),
-				),
-				queryRows(
-					db.sql.public.TransactionExternalReference.select("transactionId", "externalId")
-						.where((fields, functions) =>
-							functions.in(
-								fields.transactionId,
-								transactions.map(transaction => transaction.id),
-							),
-						)
-						.build(),
-				),
-			]);
-			const externalIdsByTransaction = new Map<string, string[]>();
-			for (const reference of externalReferences) {
-				const externalIds = externalIdsByTransaction.get(reference.transactionId) ?? [];
-				externalIds.push(reference.externalId);
-				externalIdsByTransaction.set(reference.transactionId, externalIds);
-			}
-			const normalizedTransactions = await Promise.all(
-				transactions.map(async transaction => {
-					const tags = tagsByTransaction.get(transaction.id) ?? [];
-					const paymentAccountType =
-						transaction.type === "INCOME"
-							? transaction.destinationAccountType
-							: transaction.originAccountType;
-					return {
-						...transaction,
-						debtSplit: await getDebtSplitReturn(
-							{ transactionId: transaction.id },
-							Number(transaction.amount),
-						),
-						externalIds: externalIdsByTransaction.get(transaction.id) ?? [],
-						isSynced: (externalIdsByTransaction.get(transaction.id)?.length ?? 0) > 0,
-						source:
-							transaction.type !== "TRANSFER" &&
-							paymentAccountType === "CREDIT_CARD" &&
-							!transaction.recurrenceId &&
-							!transaction.salaryId &&
-							!transaction.subscriptionId
-								? ("CREDIT_CARD" as const)
-								: ("FINANCIAL_ACCOUNT" as const),
-						sourceName: transaction.type === "INCOME" ? transaction.destinationName : transaction.originName,
-						tagIds: tags.map(tag => tag.id),
-						tags,
-					};
-				}),
-			);
-
-			let purchases: Array<{
-				amount: unknown;
-				categoryId: string | null;
-				categoryColor: string | null;
-				categoryName: string | null;
-				creditCardId: string;
-				createdAt: Date;
-				currentInstallment: number;
-				date: Date;
-				description: string;
-				feeAmount: number | null;
-				feeDescription: string | null;
-				id: string;
-				installmentAmount: unknown;
-				installments: number;
-				isRefund: boolean;
-				originFinancialAccountId: string;
-				refundOfPurchaseId: string | null;
-				statementId: string;
-				storeName: string | null;
-				subscriptionId: string | null;
-				time: string | null;
-				sourceName: string;
-			}> = [];
-			if (
-				query.source !== "FINANCIAL_ACCOUNT" &&
-				query.visibility !== "hidden" &&
-				query.type !== "TRANSFER"
-			) {
-				purchases = await queryRaw<(typeof purchases)[number] & Record<string, unknown>>(
-					`SELECT p.*,p."totalAmount" AS "amount",p."purchaseDate" AS "date",a."id" AS "originFinancialAccountId",COALESCE(a."name",i."name",'Cartão de crédito') AS "sourceName",cat."name" AS "categoryName",cat."color" AS "categoryColor" FROM "CreditConsumption" p JOIN "CreditCard" c ON c."id"=p."creditCardId" JOIN "FinancialAccount" a ON a."id"=c."financialAccountId" LEFT JOIN "FinancialInstitution" i ON i."id"=a."institutionId" LEFT JOIN "Category" cat ON cat."id"=p."categoryId" WHERE p."userId"=$1 AND ($2::date IS NULL OR p."purchaseDate">=$2) AND ($3::date IS NULL OR p."purchaseDate"<=$3) AND ($4::text IS NULL OR a."id"=$4) AND ($5::text IS NULL OR ($5='EXPENSE' AND NOT p."isRefund") OR ($5='REFUND' AND p."isRefund"))`,
-					[
-						userId,
-						query.startDate ?? null,
-						query.endDate ?? null,
-						query.financialAccountId ?? null,
-						query.type ?? null,
-					],
-				);
-			}
-			const purchaseSyncStatus = getCreditPurchaseSyncStatus(
-				await queryRaw<CreditReadRow & { statementDate: Date }>(
-					`SELECT p.*,s."statementDate" FROM "CreditEntry" p JOIN "CreditCardStatement" s ON s."id"=p."statementId" WHERE p."userId"=$1`,
-					[userId],
-				),
-			);
-			const purchaseTags = await getTagsByEntity(
-				tagEntityType.creditPurchase,
-				purchases.map(purchase => purchase.id),
-			);
-			const purchaseIds = purchases.filter(purchase => !purchase.isRefund).map(purchase => purchase.id);
-			const refundedPurchases = await queryRaw<CreditReadRow>(
-				`SELECT * FROM "CreditEntry" WHERE "refundOfPurchaseId"=ANY($1)`,
-				[purchaseIds],
-			);
-			const refundsByPurchaseId = new Map(
-				refundedPurchases.flatMap(purchase =>
-					purchase.refundOfPurchaseId ? [[purchase.refundOfPurchaseId, purchase] as const] : [],
-				),
-			);
-			const normalizedPurchases = (
-				await Promise.all(
-					purchases.map(async purchase => {
-						const tags = purchaseTags.get(purchase.id) ?? [];
-						return {
-							...purchase,
-							...purchaseSyncStatus.get(purchase.id),
-							amount: purchase.isRefund ? Math.abs(Number(purchase.amount)) : Number(purchase.amount),
-							debtSplit: await getDebtSplitReturn(
-								{ creditPurchaseId: purchase.id },
-								Math.abs(Number(purchase.amount)),
-							),
-							destinationFinancialAccountId: null,
-							destinationName: null,
-							hasRefund: !purchase.isRefund && refundsByPurchaseId.has(purchase.id),
-							originName: purchase.sourceName,
-							paymentCreditCardId: null,
-							refund: (() => {
-								const refund = refundsByPurchaseId.get(purchase.id);
-								return refund
-									? {
-											amount: Math.abs(Number(refund.totalAmount)),
-											date: refund.purchaseDate.toISOString(),
-											id: refund.id,
-										}
-									: undefined;
-							})(),
-							source: "CREDIT_CARD" as const,
-							statementId: purchase.statementId,
-							tagIds: tags.map(tag => tag.id),
-							tags,
-							type: purchase.isRefund ? ("REFUND" as const) : ("EXPENSE" as const),
-						};
-					}),
-				)
-			).filter(
-				purchase =>
-					!query.categoryId ||
-					purchase.tagIds.includes(query.categoryId) ||
-					purchase.categoryId === query.categoryId,
-			);
-
-			const search = query.search ? normalizeSearch(query.search) : undefined;
-			const sortedTransactions = [...normalizedTransactions, ...normalizedPurchases]
-				.filter(
-					transaction =>
-						(!query.source || transaction.source === query.source) &&
-						(!search || normalizeSearch(getTransactionSearchText(transaction)).includes(search)),
-				)
-				.sort(
-					(left, right) =>
-						new Date(right.date).getTime() - new Date(left.date).getTime() ||
-						new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
-				);
-			if (query.view === "daily") {
-				const page =
-					query.limit === undefined && query.offset === undefined
-						? sortedTransactions
-						: sortedTransactions.slice(
-								query.offset ?? 0,
-								(query.offset ?? 0) + (query.limit ?? sortedTransactions.length),
-							);
-				const transactionDateKey = (transaction: (typeof page)[number]) =>
-					new Date(transaction.date).toISOString().slice(0, 10);
-				const dates = [...new Set(page.map(transactionDateKey))];
-				const accounts = await queryRows(
-					db.sql.public.FinancialAccount.select("id", "type")
-						.where((fields, functions) => functions.eq(fields.userId, userId))
-						.build(),
-				);
-				const monetaryAccountIds = new Set(
-					accounts
-						.filter(account => !["CREDIT_CARD", "INVESTMENT", "REWARDS", "SAVINGS"].includes(account.type))
-						.map(account => account.id),
-				);
-				const balances = await getFinancialAccountBalancesAtDates(
-					accounts.map(account => account.id),
-					dates.map(date => new Date(`${date}T12:00:00`)),
-				);
-				const endingBalanceByDate = new Map(
-					balances.map(({ balances: accountBalances, date }) => [
-						date.toISOString().slice(0, 10),
-						[...accountBalances].reduce(
-							(total, [accountId, balance]) => total + (monetaryAccountIds.has(accountId) ? balance : 0),
-							0,
-						),
-					]),
-				);
-				return {
-					days: dates.map(date => ({
-						date,
-						endingBalance: endingBalanceByDate.get(date) ?? 0,
-						transactions: page.filter(transaction => transactionDateKey(transaction) === date),
-					})),
-					hasMore: page.length > 0,
-					resultCount: page.length,
-				};
-			}
-
-			if (query.limit === undefined && query.offset === undefined) return sortedTransactions;
-
-			return sortedTransactions.slice(
-				query.offset ?? 0,
-				(query.offset ?? 0) + (query.limit ?? sortedTransactions.length),
-			);
+			return cached.value;
 		},
 		{
 			detail: { tags: ["Transactions"] },
@@ -747,13 +361,11 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				cursor: t.Optional(t.String({ maxLength: 2048, minLength: 1 })),
 				endDate: t.Optional(t.String()),
 				financialAccountId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
-				limit: t.Optional(t.Number({ maximum: 500, minimum: 1 })),
-				offset: t.Optional(t.Number({ minimum: 0 })),
+				limit: t.Optional(t.Integer({ maximum: 100, minimum: 1 })),
 				search: t.Optional(t.String({ maxLength: 200 })),
 				source: t.Optional(TransactionSource),
 				startDate: t.Optional(t.String()),
 				type: t.Optional(TransactionFilterType),
-				view: t.Optional(t.Literal("daily")),
 				visibility: t.Optional(TransactionVisibility),
 			}),
 		},

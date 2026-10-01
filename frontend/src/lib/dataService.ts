@@ -98,7 +98,11 @@ import type { BalanceAdjustment } from "./balance-adjustment";
 import { calculateCreditCardLimit, getCurrentCreditCardStatement } from "./credit-card";
 import { getCurrentLocalTime, getLocalDateKey } from "./date";
 import { calculateDebtSplit, debtSplitToInput } from "./debt-split";
-import { calculateFinancialAccountBalances } from "./financial-account";
+import {
+	calculateFinancialAccountBalances,
+	calculateFinancialAccountYieldEntries,
+	getFinancialAccountOptionLabel,
+} from "./financial-account";
 import { normalizeInstitutionName } from "./financial-institution";
 import {
 	advanceLocalLoanInstallments,
@@ -722,15 +726,82 @@ export const dataService = {
 				yields.filter(yieldEntry => yieldEntry.id !== id),
 			);
 		},
+		async getDisplayPage(
+			financialAccountId?: string,
+			cursor?: string,
+			filters: { startDate?: string; endDate?: string; visibility?: "hidden" | "visible" } = {},
+		) {
+			if (!isGuestMode()) {
+				const page = await dataService.accountYields.getPage(financialAccountId, cursor, 100, {
+					...filters,
+					positiveOnly: true,
+				});
+				return {
+					...page,
+					accountNames: page.items.map(row => [row.financialAccountId, row.accountName ?? "Conta"] as const),
+					items: page.items.map(row => ({ ...row, amount: row.amount ?? 0, date: row.date.slice(0, 10) })),
+				};
+			}
+			const [accounts, transactions, holidays, yields] = await Promise.all([
+				dataService.accounts.getAll(),
+				dataService.transactions.getAll(),
+				dataService.accountYieldHolidays.getAll(),
+				localMeta.get("financial-account-yields"),
+			]);
+			const entries = accounts
+				.filter(account => !financialAccountId || account.id === financialAccountId)
+				.flatMap(account =>
+					calculateFinancialAccountYieldEntries(
+						account,
+						transactions.filter(row => row.source !== "CREDIT_CARD"),
+						holidays.map(row => row.date),
+						undefined,
+						((yields ?? []) as FinancialAccountYield[]).filter(row => row.financialAccountId === account.id),
+					),
+				)
+				.filter(
+					row =>
+						(!filters.startDate || row.date >= filters.startDate) &&
+						(!filters.endDate || row.date <= filters.endDate) &&
+						(!filters.visibility || Boolean(row.isHidden) === (filters.visibility === "hidden")),
+				)
+				.toSorted(
+					(a, b) => b.date.localeCompare(a.date) || b.kind.localeCompare(a.kind) || b.id.localeCompare(a.id),
+				);
+			const hash = JSON.stringify({ filters, financialAccountId, owner: getUserId() });
+			let offset = 0;
+			if (cursor) {
+				const parsed = JSON.parse(atob(cursor));
+				if (parsed.hash !== hash || !Number.isSafeInteger(parsed.offset) || parsed.offset < 0)
+					throw new Error("Cursor inválido");
+				offset = parsed.offset;
+			}
+			const items = entries.slice(offset, offset + 100);
+			const hasMore = offset + items.length < entries.length;
+			return {
+				accountNames: accounts.map(account => [account.id, getFinancialAccountOptionLabel(account)] as const),
+				hasMore,
+				items,
+				nextCursor: hasMore ? btoa(JSON.stringify({ hash, offset: offset + items.length })) : null,
+			};
+		},
 		async getPage(
 			financialAccountId?: string,
 			cursor?: null | string,
 			limit = 100,
+			filters: {
+				startDate?: string;
+				endDate?: string;
+				visibility?: "hidden" | "visible";
+				positiveOnly?: boolean;
+			} = {},
 		): Promise<FinancialAccountYieldPage> {
 			if (!isGuestMode()) {
 				const params = new URLSearchParams({ limit: String(limit) });
 				if (financialAccountId) params.set("financialAccountId", financialAccountId);
 				if (cursor) params.set("cursor", cursor);
+				for (const [key, value] of Object.entries(filters))
+					if (value !== undefined) params.set(key, String(value));
 				return fetchWithAuth<FinancialAccountYieldPage>(`/financial-account-yields?${params}`);
 			}
 			const yields =
@@ -743,13 +814,32 @@ export const dataService = {
 						right.kind.localeCompare(left.kind) ||
 						right.id.localeCompare(left.id),
 				);
-			const offset = cursor ? Number.parseInt(cursor, 10) : 0;
-			const items = sorted.slice(offset, offset + limit);
+			if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error("Limite inválido");
+			const hash = JSON.stringify({ filters, financialAccountId, owner: getUserId() });
+			let offset = 0;
+			if (cursor) {
+				try {
+					const parsed = JSON.parse(atob(cursor));
+					if (parsed.hash !== hash || !Number.isSafeInteger(parsed.offset) || parsed.offset < 0)
+						throw new Error();
+					offset = parsed.offset;
+				} catch {
+					throw new Error("Cursor inválido para estes filtros");
+				}
+			}
+			const filtered = sorted.filter(
+				row =>
+					(!filters.startDate || row.date.slice(0, 10) >= filters.startDate) &&
+					(!filters.endDate || row.date.slice(0, 10) <= filters.endDate) &&
+					(!filters.visibility || Boolean(row.isHidden) === (filters.visibility === "hidden")) &&
+					(!filters.positiveOnly || (!row.isExcluded && (row.amount ?? 0) > 0)),
+			);
+			const items = filtered.slice(offset, offset + limit);
 			const nextOffset = offset + items.length;
 			return {
-				hasMore: nextOffset < sorted.length,
+				hasMore: nextOffset < filtered.length,
 				items,
-				nextCursor: nextOffset < sorted.length ? String(nextOffset) : null,
+				nextCursor: nextOffset < filtered.length ? btoa(JSON.stringify({ hash, offset: nextOffset })) : null,
 			};
 		},
 		async update(
@@ -3286,27 +3376,7 @@ export const dataService = {
 				return transactions;
 			}
 
-			const owner = getCurrentCacheIdentity();
-			if (!owner) throw new Error("Identidade local indisponível.");
-			const searchParams = new URLSearchParams();
-			if (params) {
-				for (const [key, value] of Object.entries(params)) {
-					if (value !== undefined) {
-						searchParams.append(key, String(value));
-					}
-				}
-			}
-			const query = searchParams.toString();
-			const url = query ? `/transactions?${query}` : "/transactions";
-
-			const transactions = await fetchWithAuth<Transaction[]>(url);
-			const snapshot = transactions
-				.filter(transaction => transaction.source !== "CREDIT_CARD")
-				.map(t => ({ data: t, localId: t.id, syncedAt: Date.now() }));
-			if (params && Object.values(params).some(value => value !== undefined))
-				cacheRemoteData(localTransactions.bulkPut(snapshot, owner));
-			else cacheRemoteData(localTransactions.replaceSnapshot(snapshot, owner));
-			return transactions;
+			throw new Error("Leitura integral disponível somente no modo convidado; use getDailyPage");
 		},
 		async getDailyPage(params: {
 			categoryId?: string;
@@ -3346,7 +3416,7 @@ export const dataService = {
 					nextCursor: hasMore ? btoa(JSON.stringify({ offset: offset + transactions.length })) : null,
 				};
 			}
-			const searchParams = new URLSearchParams({ view: "daily" });
+			const searchParams = new URLSearchParams();
 			for (const [key, value] of Object.entries(params)) {
 				if (value !== undefined) searchParams.set(key, String(value));
 			}

@@ -27,14 +27,10 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
-import type { FinancialAccountYield, Transaction } from "@/lib/api";
+import type { Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate, formatLocalTime, getLocalDateKey } from "@/lib/date";
-import {
-	calculateFinancialAccountYieldEntries,
-	type FinancialAccountYieldEntry,
-	getFinancialAccountOptionLabel,
-} from "@/lib/financial-account";
+import type { FinancialAccountYieldEntry } from "@/lib/financial-account";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { sortTransactionsByMostRecent } from "@/lib/transaction-sort";
 import { EditFinancialAccountYieldDialog } from "@/routes/accounts/components/EditFinancialAccountYieldDialog";
@@ -138,42 +134,34 @@ export function TransactionsPage() {
 		filters.source !== "CREDIT_CARD" &&
 		filters.categoryId === "all" &&
 		(!filters.search || "rendimento".includes(filters.search.trim().toLocaleLowerCase("pt-BR")));
-	const yieldsQuery = useQuery({
-		enabled: identity !== null && yieldsMatchFilters,
-		queryFn: async () => {
-			const [accounts, transactions, holidays] = await Promise.all([
-				dataService.accounts.getAll(),
-				dataService.transactions.getAll(),
-				dataService.accountYieldHolidays.getAll(),
-			]);
-			const yields: FinancialAccountYield[] = [];
-			let cursor: string | null = null;
-			do {
-				const page = await dataService.accountYields.getPage(undefined, cursor);
-				yields.push(...page.items);
-				cursor = page.nextCursor;
-			} while (cursor);
-			const accountTransactions = transactions.filter(transaction => transaction.source !== "CREDIT_CARD");
-			const holidayDates = holidays.map(holiday => holiday.date);
-			const entries = accounts
-				.filter(account => account.type !== "CREDIT_CARD")
-				.flatMap(account =>
-					calculateFinancialAccountYieldEntries(
-						account,
-						accountTransactions,
-						holidayDates,
-						undefined,
-						yields.filter(yieldEntry => yieldEntry.financialAccountId === account.id),
-					),
-				);
-			return {
-				accountNames: new Map(accounts.map(account => [account.id, getFinancialAccountOptionLabel(account)])),
-				entries,
-			};
-		},
-		queryKey: [...queryKeys.accountYields.all(identity!), "transaction-list"],
+	const transactionDays = transactionsQuery.data?.pages.flatMap(page => page.days) ?? [];
+	const yieldFilters = {
+		endDate: filters.dateRange.endDate || undefined,
+		startDate:
+			filters.dateRange.startDate ||
+			(transactionsQuery.hasNextPage ? transactionDays.at(-1)?.date : undefined),
+		visibility: filters.visibility === "all" ? undefined : filters.visibility,
+	} as const;
+	const yieldsQuery = useInfiniteQuery({
+		enabled: identity !== null && yieldsMatchFilters && !transactionsQuery.isPending,
+		getNextPageParam: page => page.nextCursor ?? undefined,
+		initialPageParam: undefined as string | undefined,
+		queryFn: ({ pageParam }) =>
+			dataService.accountYields.getDisplayPage(
+				filters.accountId === "all" ? undefined : filters.accountId,
+				pageParam,
+				yieldFilters,
+			),
+		queryKey: [
+			...queryKeys.accountYields.all(identity!),
+			"transaction-list",
+			filters.accountId,
+			yieldFilters,
+		],
 	});
-	const yieldEntries = (yieldsQuery.data?.entries ?? []).filter(entry => {
+	const accountNames = new Map(yieldsQuery.data?.pages.flatMap(page => page.accountNames));
+
+	const yieldEntries = (yieldsQuery.data?.pages.flatMap(page => page.items) ?? []).filter(entry => {
 		if (filters.type !== "all" && filters.type !== "INCOME") return false;
 		if (filters.source === "CREDIT_CARD" || filters.categoryId !== "all") return false;
 		if (filters.accountId !== "all" && filters.accountId !== entry.financialAccountId) return false;
@@ -185,7 +173,6 @@ export function TransactionsPage() {
 			return false;
 		return true;
 	});
-	const transactionDays = transactionsQuery.data?.pages.flatMap(page => page.days) ?? [];
 	const transactions = uniqueTransactions(transactionDays.map(day => day.transactions));
 	const hasActiveFilters = countActiveTransactionFilters(filters) > 0;
 	const creditCardsQuery = useQuery({
@@ -412,7 +399,7 @@ export function TransactionsPage() {
 			renderTransaction(entry.value)
 		) : (
 			<FinancialAccountYieldStatementItem
-				accountName={yieldsQuery.data?.accountNames.get(entry.value.financialAccountId)}
+				accountName={accountNames.get(entry.value.financialAccountId)}
 				amount={entry.value.amount}
 				deleting={removeYield.isPending && removeYield.variables?.id === entry.value.id}
 				key={`yield-${entry.value.id}`}
@@ -614,12 +601,22 @@ export function TransactionsPage() {
 							</section>
 						);
 					})}
+					{yieldsQuery.hasNextPage && (
+						<Button
+							className="cursor-pointer"
+							disabled={yieldsQuery.isFetchingNextPage}
+							onClick={() => void yieldsQuery.fetchNextPage()}
+							variant="outline"
+						>
+							{yieldsQuery.isFetchingNextPage ? "Carregando rendimentos..." : "Carregar mais rendimentos"}
+						</Button>
+					)}
 					{transactionsQuery.hasNextPage ? (
 						<div aria-live="polite" className="flex h-14 items-center justify-center" ref={loadMoreRef}>
 							{transactionsQuery.isFetchingNextPage ? (
 								<span className="flex items-center gap-2 text-muted-foreground text-sm">
 									<LuLoaderCircle aria-hidden className="animate-spin" />
-									Carregando transações anteriores…
+									Carregando transações anteriores...
 								</span>
 							) : null}
 						</div>

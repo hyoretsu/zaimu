@@ -87,6 +87,7 @@ export interface FinancialAccountYieldHoliday {
 }
 
 export interface FinancialAccountYield {
+	accountName?: string;
 	amount: number | null;
 	date: string;
 	financialAccountId: string;
@@ -1012,17 +1013,6 @@ export const api = {
 		fetchApi<{ subscriptions: Subscription[]; totalMonthlyCost: number }>("/subscriptions", { params }),
 
 	getTransaction: (id: string) => fetchApi<Transaction>(`/transactions/${id}`),
-
-	// Transactions
-	getTransactions: (params?: {
-		startDate?: string;
-		endDate?: string;
-		type?: Transaction["type"];
-		categoryId?: string;
-		financialAccountId?: string;
-		limit?: number;
-		offset?: number;
-	}) => fetchApi<Transaction[]>("/transactions", { params }),
 
 	payCard: (
 		cardId: string,
