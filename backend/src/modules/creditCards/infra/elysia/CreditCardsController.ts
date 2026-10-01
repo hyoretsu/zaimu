@@ -12,6 +12,12 @@ import { paymentStatement, statementCutoffAfter, statementEntryKind } from "@zai
 import Elysia, { t } from "elysia";
 import { assertBalanceAccountOwnership, assertCreditCardOwnership, requireUserId } from "~/modules/auth";
 import {
+	type CreditOverviewCard,
+	type CreditOverviewRow,
+	creditOverviewSql,
+	replayOverviewStatements,
+} from "~/modules/creditCards/application/credit-overview";
+import {
 	distributePurchaseCents,
 	mutateCreditBook,
 	newBookPurchase,
@@ -153,29 +159,43 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						.build(),
 				);
 				if (cards.length === 0) return [];
-				return Promise.all(
-					cards.map(async card => {
-						const effectiveStatements = replayCreditBook(await readCreditBook(userId, card.id)).statements;
-						const currentStatement = paymentStatement(effectiveStatements, new Date()) ?? null;
-						const netUsedInCents = effectiveStatements.reduce(
-							(total, statement) => total + toCents(statement.balanceAmount),
-							0,
-						);
-						const temporaryCreditInCents = Math.max(0, -netUsedInCents);
-						const usedLimitInCents = Math.max(0, netUsedInCents);
-						const effectiveLimitInCents = toCents(card.creditLimit) + temporaryCreditInCents;
-						return {
-							...card,
-							currentStatement,
-							limit: {
-								availableLimit: Math.max(0, effectiveLimitInCents - usedLimitInCents) / 100,
-								effectiveLimit: effectiveLimitInCents / 100,
-								temporaryCredit: temporaryCreditInCents / 100,
-								usedLimit: usedLimitInCents / 100,
-							},
-						};
-					}),
+				const rows = await queryRaw<CreditOverviewRow>(creditOverviewSql, [userId]);
+				const replayCards = rows
+					.filter(row => row.kind === "card")
+					.map(row => row.data) as unknown as CreditOverviewCard[];
+				const statements = replayOverviewStatements(
+					userId,
+					replayCards,
+					rows,
+					new Date().toISOString().slice(0, 10),
 				);
+				const byCard = new Map<string, typeof statements>();
+				for (const statement of statements) {
+					const items = byCard.get(statement.creditCardId) ?? [];
+					items.push(statement);
+					byCard.set(statement.creditCardId, items);
+				}
+				return cards.map(card => {
+					const effectiveStatements = byCard.get(card.id) ?? [];
+					const currentStatement = paymentStatement(effectiveStatements, new Date()) ?? null;
+					const netUsedInCents = effectiveStatements.reduce(
+						(total, statement) => total + toCents(statement.balanceAmount),
+						0,
+					);
+					const temporaryCreditInCents = Math.max(0, -netUsedInCents);
+					const usedLimitInCents = Math.max(0, netUsedInCents);
+					const effectiveLimitInCents = toCents(card.creditLimit) + temporaryCreditInCents;
+					return {
+						...card,
+						currentStatement,
+						limit: {
+							availableLimit: Math.max(0, effectiveLimitInCents - usedLimitInCents) / 100,
+							effectiveLimit: effectiveLimitInCents / 100,
+							temporaryCredit: temporaryCreditInCents / 100,
+							usedLimit: usedLimitInCents / 100,
+						},
+					};
+				});
 			});
 			set.headers.etag = cached.etag;
 			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";

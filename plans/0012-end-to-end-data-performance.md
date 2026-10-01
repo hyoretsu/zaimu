@@ -132,7 +132,7 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
   - [x] Criar payload agregado de cartão, limite e fatura atual.
   - [x] Remover `useQueries` e qualquer request por cartão.
   - [x] Fazer histórico/detalhe lazy e paginado.
-  - [ ] Consultar faturas, compras, pagamentos e previsões por conjunto de cartões.
+  - [x] Consultar faturas, compras, pagamentos e previsões por conjunto de cartões.
   - [x] Mover materialização de faturas e assinaturas para o worker.
 - [ ] 6. Importações
   - [x] Reduzir listagem de importações de cartão a `id`, `fileName` e `pendingItemCount`.
@@ -282,3 +282,4 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 
 - Fixture volumosa executada em banco local isolado: 100 mil transações, 20 cartões, 1.200 faturas e 12 mil compras normalizadas. Seed corrigido para contratos de rendimento e timeout próprio de carga.
 - Validação do runner: duas regressões passaram; medição de p95 e aceite permanecem pendentes.
+- Visão geral de cartões passou a usar leitura normalizada por conjunto, compartilhando replay com dashboard. Contas agregam saldos monetários no SQL e carregam metadados em uma consulta. Nove testes focados passaram; latência volumosa ainda fora do aceite.

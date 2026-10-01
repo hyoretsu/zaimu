@@ -5,6 +5,7 @@ import {
 } from "~/modules/accounts/domain/calculate-financial-account-yields";
 import { db, queryRaw, queryRows } from "~/shared/infra/sql";
 import { getFinancialInstitutionYieldPolicies } from "./get-financial-institution-yield-policies";
+import { monetaryBalancesSql } from "./monetary-balances-sql";
 
 export function calculateCashbackValue(
 	amount: number,
@@ -169,10 +170,44 @@ async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 	} as const;
 }
 
-export async function getFinancialAccountBalances(accountIds: string[], asOf = new Date()) {
-	const loaded = await loadFinancialAccountBalanceInput(accountIds);
-	if (!loaded.input) return loaded.balances;
-	return calculateFinancialAccountYieldBalances({ ...loaded.input, today: asOf });
+export async function getFinancialAccountBalances(
+	accountIds: string[],
+	asOf = new Date(),
+	knownAccounts?: Array<{ id: string; userId: string; type: string }>,
+) {
+	const balances = new Map(accountIds.map(id => [id, 0]));
+	if (!accountIds.length) return balances;
+	const accounts =
+		knownAccounts ??
+		(await queryRows(
+			db.sql.public.FinancialAccount.select("id", "userId", "type")
+				.where((f, fn) => fn.in(f.id, accountIds))
+				.build(),
+		));
+	const monetary = accounts.filter(account => ["CHECKING", "CASH", "SAVINGS"].includes(account.type));
+	const userIds = [...new Set(monetary.map(account => account.userId))];
+	for (const userId of userIds) {
+		const rows = await queryRaw<{ accountId: string; balance: number }>(
+			monetaryBalancesSql.replace(
+				"ORDER BY requested.date",
+				' AND account."id" = ANY($3::text[])\nORDER BY requested.date',
+			),
+			[
+				userId,
+				[asOf.toISOString().slice(0, 10)],
+				monetary.filter(account => account.userId === userId).map(account => account.id),
+			],
+		);
+		for (const row of rows) balances.set(row.accountId, Number(row.balance));
+	}
+	const rewards = accounts.filter(account => account.type === "REWARDS").map(account => account.id);
+	if (rewards.length) {
+		const loaded = await loadFinancialAccountBalanceInput(rewards);
+		if (loaded.input)
+			for (const [id, balance] of calculateFinancialAccountYieldBalances({ ...loaded.input, today: asOf }))
+				balances.set(id, balance);
+	}
+	return balances;
 }
 
 export async function getFinancialAccountBalancesAtDates(accountIds: string[], dates: Date[]) {

@@ -16,7 +16,7 @@ import { assertDirectOwnership, requireUserId } from "~/modules/auth";
 import { recalculateCreditCardDueDates } from "~/modules/creditCards/application/normalized-credit-book";
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
-import { db, executeStatement, nullableNumeric, queryFirst, queryRows } from "~/shared/infra/sql";
+import { db, executeStatement, nullableNumeric, queryFirst, queryRaw, queryRows } from "~/shared/infra/sql";
 
 const Id = t.String({ maxLength: 36, minLength: 1 });
 const FinancialAccountType = t.Union([
@@ -81,107 +81,39 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 		async ({ request, set }) => {
 			const userId = await requireUserId(request);
 			const cached = await distributedCache.remember(userId, "accounts:list", {}, async () => {
-				const accounts = await queryRows(
-					db.sql.public.FinancialAccount.select(
-						"id",
-						"userId",
-						"isHidden",
-						"name",
-						"type",
-						"institutionId",
-						"yieldFixedRate",
-						"yieldPeriod",
-						"yieldReferencePercentage",
-						"yieldReferenceType",
-						"yieldTaxRate",
-						"createdAt",
-						"updatedAt",
-					)
-						.where((fields, functions) => functions.eq(fields.userId, userId))
-						.orderBy("name", { direction: "asc" })
-						.build(),
+				const rows = await queryRaw<{
+					account: { id: string; userId: string; type: string; institutionId: string | null };
+					institution: { id: string; name: string } | null;
+					card: Record<string, unknown> | null;
+					rewards: Record<string, unknown> | null;
+				}>(
+					`
+SELECT to_jsonb(account) - 'balance' AS account, to_jsonb(institution) AS institution,
+ to_jsonb(card) AS card, to_jsonb(rewards) AS rewards
+FROM "FinancialAccount" account
+LEFT JOIN "FinancialInstitution" institution ON institution."id" = account."institutionId"
+LEFT JOIN "CreditCard" card ON card."financialAccountId" = account."id"
+LEFT JOIN "RewardsAccount" rewards ON rewards."financialAccountId" = account."id"
+WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
+					[userId],
 				);
-				const institutions = await queryRows(
-					db.sql.public.FinancialInstitution.select("id", "name")
-						.where((fields, functions) => functions.eq(fields.userId, userId))
-						.build(),
+				const policies = await getFinancialInstitutionYieldPolicies([
+					...new Set(rows.flatMap(row => (row.institution ? [row.institution.id] : []))),
+				]);
+				const accounts = rows.map(row => row.account);
+				const balances = await getFinancialAccountBalances(
+					accounts.map(account => account.id),
+					new Date(),
+					accounts,
 				);
-				const institutionYieldPolicies = await getFinancialInstitutionYieldPolicies(
-					institutions.map(institution => institution.id),
-				);
-				const institutionsWithYieldPolicies = institutions.map(institution => ({
-					...institution,
-					yieldPolicies: institutionYieldPolicies.get(institution.id) ?? [],
-				}));
-				const creditCards = accounts.length
-					? await queryRows(
-							db.sql.public.CreditCard.select(
-								"cashbackAccountId",
-								"cashbackRate",
-								"cashbackYieldPeriod",
-								"cashbackYieldReferencePercentage",
-								"cashbackYieldReferenceRate",
-								"id",
-								"financialAccountId",
-								"creditLimit",
-								"securityDeposit",
-								"excludeFromTotals",
-								"statementDay",
-								"dueDay",
-								"workingDueDate",
-								"createdAt",
-								"updatedAt",
-							)
-								.where((fields, functions) =>
-									functions.in(
-										fields.financialAccountId,
-										accounts.map(account => account.id),
-									),
-								)
-								.build(),
-						)
-					: [];
-				const rewardsAccounts = accounts.length
-					? await queryRows(
-							db.sql.public.RewardsAccount.select(
-								"id",
-								"financialAccountId",
-								"kind",
-								"initialBalance",
-								"conversionPoints",
-								"conversionAmount",
-								"createdAt",
-								"updatedAt",
-							)
-								.where((fields, functions) =>
-									functions.in(
-										fields.financialAccountId,
-										accounts.map(account => account.id),
-									),
-								)
-								.build(),
-						)
-					: [];
-				const institutionsById = new Map(
-					institutionsWithYieldPolicies.map(institution => [institution.id, institution]),
-				);
-				const creditCardsByAccountId = new Map(
-					creditCards.map(creditCard => [creditCard.financialAccountId, creditCard]),
-				);
-				const rewardsAccountsByAccountId = new Map(
-					rewardsAccounts.map(rewardsAccount => [rewardsAccount.financialAccountId, rewardsAccount]),
-				);
-				const balances = await getFinancialAccountBalances(accounts.map(account => account.id));
-				return accounts.map(account => ({
+				return rows.map(({ account, institution, card, rewards }) => ({
 					...account,
 					balance: account.type === "CREDIT_CARD" ? null : (balances.get(account.id) ?? 0),
-					...(account.type === "CREDIT_CARD" && {
-						creditCard: creditCardsByAccountId.get(account.id) ?? null,
-					}),
-					...(account.type === "REWARDS" && {
-						rewardsAccount: rewardsAccountsByAccountId.get(account.id) ?? null,
-					}),
-					institution: account.institutionId ? (institutionsById.get(account.institutionId) ?? null) : null,
+					...(account.type === "CREDIT_CARD" ? { creditCard: card } : {}),
+					...(account.type === "REWARDS" ? { rewardsAccount: rewards } : {}),
+					institution: institution
+						? { ...institution, yieldPolicies: policies.get(institution.id) ?? [] }
+						: null,
 				}));
 			});
 			set.headers.etag = cached.etag;

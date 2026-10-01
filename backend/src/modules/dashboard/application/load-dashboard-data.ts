@@ -1,6 +1,8 @@
-import { type BookPurchase, type CreditBook, moneyCents, replayCreditBook } from "@zaimu/finance/credit-book";
-import type { RecurrenceDefinition } from "@zaimu/finance/recurrence";
-import { projectRecurrenceCreditBook } from "@zaimu/finance/recurrence-projection";
+import type { CreditBook } from "@zaimu/finance/credit-book";
+import { replayOverviewStatements as replayDashboardStatements } from "~/modules/creditCards/application/credit-overview";
+
+export { replayOverviewStatements as replayDashboardStatements } from "~/modules/creditCards/application/credit-overview";
+
 import { monetaryBalancesSql } from "~/modules/accounts/application/monetary-balances-sql";
 import { normalizeRecurrence } from "~/modules/recurring/application/recurrences";
 import { withRawTransaction } from "~/shared/infra/sql";
@@ -235,134 +237,6 @@ const asSchedule = (row: Record<string, unknown>) =>
 		endDate: row.endDate ? asDate(row.endDate) : null,
 		startDate: asDate(row.startDate),
 	}) as unknown as DashboardSchedule;
-
-const groupByCard = (rows: DashboardDataRow[], kind: string) => {
-	const grouped = new Map<string, Record<string, unknown>[]>();
-	for (const row of rows) {
-		if (row.kind !== kind) continue;
-		const cardId = String(row.data.creditCardId);
-		const group = grouped.get(cardId) ?? [];
-		group.push(row.data);
-		grouped.set(cardId, group);
-	}
-	return grouped;
-};
-
-export function replayDashboardStatements(
-	userId: string,
-	cards: DashboardCard[],
-	rows: DashboardDataRow[],
-	asOf: string,
-	recurrences: RecurrenceDefinition[] = [],
-	through = asOf,
-): DashboardStatement[] {
-	const purchasesByCard = groupByCard(rows, "purchase");
-	const installmentsByCard = groupByCard(rows, "installment");
-	const refundsByCard = groupByCard(rows, "refund");
-	const chargesByCard = groupByCard(rows, "charge");
-	const statementsByCard = groupByCard(rows, "statement");
-	const paymentsByCard = groupByCard(rows, "payment");
-	return cards.flatMap(card => {
-		const purchases = (purchasesByCard.get(card.id) ?? []).map(row => ({
-			...row,
-			createdAt: asTimestamp(row.createdAt),
-			debtSplitRule: null,
-			installmentAmountsCents: (row.installmentAmounts as unknown[]).map(amount =>
-				moneyCents(Number(amount), 1),
-			),
-			installmentImportedNumbers: (row.importedNumbers as unknown[]).map(Number),
-			installmentStatementDates: (row.statementDates as Array<Record<string, unknown> | null>).map(dates =>
-				dates ? { dueDate: asDateKey(dates.dueDate), statementDate: asDateKey(dates.statementDate) } : null,
-			),
-			purchaseDate: asDateKey(row.purchaseDate),
-			subscriptionOccurrenceDate: row.subscriptionOccurrenceDate
-				? asDateKey(row.subscriptionOccurrenceDate)
-				: null,
-			tagIds: [],
-			totalAmountCents: moneyCents(Number(row.totalAmount), 1),
-			updatedAt: asTimestamp(row.updatedAt),
-		})) as unknown as BookPurchase[];
-		const book: CreditBook = {
-			card: {
-				dueDay: Number(card.dueDay),
-				id: card.id,
-				ignoreStatementsBefore: card.ignoreStatementsBefore ? asDateKey(card.ignoreStatementsBefore) : null,
-				institutionId: card.institutionId,
-				refundPolicy: card.refundPolicy,
-				statementDay: Number(card.statementDay),
-				userId,
-				workingDueDate: Boolean(card.workingDueDate),
-			},
-			charges: (chargesByCard.get(card.id) ?? []).map(row => ({
-				amountCents: moneyCents(Number(row.amount), 1),
-				chargeDate: asDateKey(row.chargeDate),
-				description: String(row.description),
-				externalId: row.externalId as string | null,
-				id: String(row.id),
-				isSettled: Boolean(row.isSettled),
-				settledByPurchaseId: row.settledByPurchaseId as string | null,
-				statementId: String(row.statementId),
-				time: row.time as string | null,
-			})),
-			installments: (installmentsByCard.get(card.id) ?? []).map(row => ({
-				amountCents: moneyCents(Number(row.amount), 1),
-				hasImportedAmount: Boolean(row.hasImportedAmount),
-				id: String(row.id),
-				isSettled: Boolean(row.isSettled),
-				number: Number(row.number),
-				occurrenceDate: asDateKey(row.occurrenceDate),
-				purchaseId: String(row.purchaseId),
-				settledByPurchaseId: row.settledByPurchaseId as string | null,
-				statementId: String(row.statementId),
-			})),
-			payments: (paymentsByCard.get(card.id) ?? []).map(row => ({
-				amount: Number(row.amount),
-				date: asDateKey(row.date),
-				id: String(row.id),
-			})),
-			purchases,
-			refunds: (refundsByCard.get(card.id) ?? []).map(row => ({
-				amountCents: moneyCents(Number(row.amount), 1),
-				cancellationEligible: Boolean(row.cancellationEligible),
-				createdAt: asTimestamp(row.createdAt),
-				creditDate: asDateKey(row.creditDate),
-				creditStatementId: String(row.statementId),
-				deletedAt: row.deletedAt ? asTimestamp(row.deletedAt) : null,
-				externalId: row.externalId as string | null,
-				id: String(row.id),
-				policy: row.policy as CreditBook["refunds"][number]["policy"],
-				purchaseId: String(row.purchaseId),
-				time: row.time as string | null,
-				updatedAt: asTimestamp(row.updatedAt),
-			})),
-			statements: (statementsByCard.get(card.id) ?? []).map(row => ({
-				creditCardId: card.id,
-				dueDate: asDateKey(row.dueDate),
-				id: String(row.id),
-				isFullySynced: Boolean(row.isFullySynced),
-				isPaid: Boolean(row.isPaid),
-				paidAmount: Number(row.paidAmount),
-				statementDate: asDateKey(row.statementDate),
-				totalAmount: Number(row.totalAmount),
-			})),
-		};
-		return replayCreditBook(
-			projectRecurrenceCreditBook(
-				book,
-				recurrences,
-				asOf < through
-					? new Date(new Date(`${asOf}T00:00:00Z`).getTime() + 86400000).toISOString().slice(0, 10)
-					: asOf,
-				through,
-			),
-			asOf,
-		).statements.map(statement => ({
-			...statement,
-			dueDate: asDate(statement.dueDate),
-			statementDate: asDate(statement.statementDate),
-		})) as DashboardStatement[];
-	});
-}
 
 export interface DashboardDataRange {
 	balanceDates: Date[];
