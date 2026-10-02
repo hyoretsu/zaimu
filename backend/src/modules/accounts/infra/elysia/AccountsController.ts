@@ -16,6 +16,7 @@ import { assertDirectOwnership, requireUserId } from "~/modules/auth";
 import { recalculateCreditCardDueDates } from "~/modules/creditCards/application/normalized-credit-book";
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
+import { rejectLegacyFinancialFields } from "~/shared/infra/elysia/strict-json-body";
 import { db, executeStatement, nullableNumeric, queryFirst, queryRaw, queryRows } from "~/shared/infra/sql";
 
 const Id = t.String({ maxLength: 36, minLength: 1 });
@@ -76,6 +77,9 @@ async function assertRewardsAccountOwnership(accountId: string, userId: string) 
 }
 
 export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
+	.onTransform(({ body }) => {
+		rejectLegacyFinancialFields(body);
+	})
 	.get(
 		"/",
 		async ({ request, set }) => {

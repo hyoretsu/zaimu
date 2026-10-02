@@ -202,9 +202,6 @@ export interface Transaction {
 	hasRefund?: boolean;
 	refund?: { amount: number; date: string; id: string };
 	type: "INCOME" | "EXPENSE" | "REFUND" | "TRANSFER";
-	categoryId?: string;
-	categoryName?: string;
-	categoryColor?: string;
 	recurrenceId?: string;
 	recurrenceOccurrenceDate?: string;
 	tags?: Tag[];
@@ -258,9 +255,6 @@ export interface TransactionImportDuplicate {
 export interface TransactionImportTransferSuggestion {
 	id: string;
 	amount: number;
-	categoryColor?: string | null;
-	categoryId?: string | null;
-	categoryName?: string | null;
 	createdAt: string;
 	date: string;
 	description?: string | null;
@@ -280,7 +274,6 @@ export interface TransactionImportItem {
 	id: string;
 	amount: number;
 	balanceAfter?: number | null;
-	categoryId?: string | null;
 	paymentCreditCardId?: string | null;
 	creditCardName?: string | null;
 	creditCardStatementDate?: string | null;
@@ -335,7 +328,6 @@ export interface TransactionImportCreateResult {
 export interface CreditCardImportItem {
 	isStatementCharge?: boolean;
 	id: string;
-	categoryId?: string | null;
 	createdAt: string;
 	currentInstallment: number;
 	debtSplit?: DebtSplit | null;
@@ -594,9 +586,6 @@ export interface CreditPurchase {
 	isSynced?: boolean;
 	purchaseDate: string;
 	time?: string | null;
-	categoryId?: string;
-	categoryName?: string;
-	categoryColor?: string;
 	tagIds?: string[];
 	tags?: Tag[];
 	parentId?: string;

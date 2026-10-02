@@ -301,7 +301,7 @@ export async function materializeRecurrence(
 			} else {
 				const type = recurrence.movement === "CARD_PAYMENT" ? "EXPENSE" : recurrence.movement;
 				const [transaction] = await query<{ id: string }>(
-					'INSERT INTO "Transaction" ("userId","amount","date","description","storeName","type","originFinancialAccountId","destinationFinancialAccountId","paymentCreditCardId","recurrenceId","recurrenceOccurrenceDate","categoryId") VALUES ($1,$2,$3,$4,$5,$6::"TransactionType",$7,$8,$9,$10,$3,$11) RETURNING "id"',
+					'INSERT INTO "Transaction" ("userId","amount","date","description","storeName","type","originFinancialAccountId","destinationFinancialAccountId","paymentCreditCardId","recurrenceId","recurrenceOccurrenceDate") VALUES ($1,$2,$3,$4,$5,$6::"TransactionType",$7,$8,$9,$10,$3) RETURNING "id"',
 					[
 						userId,
 						recurrence.amount,
@@ -313,7 +313,6 @@ export async function materializeRecurrence(
 						recurrence.destinationFinancialAccountId ?? null,
 						recurrence.movement === "CARD_PAYMENT" ? recurrence.creditCardId : null,
 						id,
-						tagIds[0] ?? null,
 					],
 				);
 				await replaceEntityTags({

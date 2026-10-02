@@ -15,7 +15,6 @@ export const BookPurchaseDTO = t.Object({
 	cashbackYieldPeriod: t.Nullable(t.Union([t.Literal("MONTHLY"), t.Literal("YEARLY")])),
 	cashbackYieldReferencePercentage: t.Nullable(t.Number()),
 	cashbackYieldReferenceRate: t.Nullable(t.Number()),
-	categoryId: NullableId,
 	createdAt: t.String(),
 	creditCardId: Id,
 	debtSplitRule: t.Optional(t.Nullable(DebtSplitInputDTO)),

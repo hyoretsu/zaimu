@@ -42,6 +42,7 @@ import { DebtSplitInputDTO } from "~/modules/debts/infra/elysia/DebtSplitsDTO";
 import { projectRecurringCreditBook } from "~/modules/recurring/application/project-credit-book";
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
+import { rejectLegacyFinancialFields } from "~/shared/infra/elysia/strict-json-body";
 import {
 	db,
 	executeStatement,
@@ -101,7 +102,6 @@ const PurchaseFields = {
 };
 const CreatePurchaseBody = t.Object({
 	...PurchaseFields,
-	categoryId: t.Optional(t.String()),
 	isStatementCharge: t.Optional(t.Boolean()),
 	matchDebtEventId: t.Optional(t.String()),
 	purchaseDate: t.String({ format: "date" }),
@@ -117,6 +117,9 @@ const UpdatePurchaseBody = t.Object({
 	totalAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
 });
 export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
+	.onTransform(({ body }) => {
+		rejectLegacyFinancialFields(body);
+	})
 	.get(
 		"/",
 		async ({ request, set }) => {
@@ -301,7 +304,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 	.get("/:id/refund-reviews", async ({ params, request }) => {
 		const userId = await requireUserId(request);
 		return queryRaw<{ id: string; original: Record<string, unknown> }>(
-			`SELECT r."id", archive."original" FROM "CreditEntryReference" r JOIN "CreditPurchaseLegacyEntry" archive ON archive."id"=r."id" JOIN "CreditCardStatement" s ON s."id"=(archive."original"->>'statementId') JOIN "CreditCard" c ON c."id"=s."creditCardId" JOIN "FinancialAccount" a ON a."id"=c."financialAccountId" WHERE r."requiresRefundReview" AND c."id"=$1 AND a."userId"=$2 ORDER BY archive."createdAt"`,
+			`SELECT r."id", archive."original" FROM "CreditEntryReference" r JOIN "CreditRefundReview" archive ON archive."id"=r."id" WHERE r."requiresRefundReview" AND archive."approvedAt" IS NULL AND archive."creditCardId"=$1 AND archive."userId"=$2 ORDER BY archive."createdAt"`,
 			[params.id, userId],
 		);
 	})
@@ -319,7 +322,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						externalId: string | null;
 					};
 				}>(
-					`SELECT r."id", archive."original" FROM "CreditEntryReference" r JOIN "CreditPurchaseLegacyEntry" archive ON archive."id"=r."id" JOIN "CreditCardStatement" s ON s."id"=(archive."original"->>'statementId') JOIN "CreditCard" c ON c."id"=s."creditCardId" JOIN "FinancialAccount" a ON a."id"=c."financialAccountId" WHERE r."id"=$1 AND r."requiresRefundReview" AND c."id"=$2 AND a."userId"=$3 FOR UPDATE OF r`,
+					`SELECT r."id", archive."original" FROM "CreditEntryReference" r JOIN "CreditRefundReview" archive ON archive."id"=r."id" WHERE r."id"=$1 AND r."requiresRefundReview" AND archive."approvedAt" IS NULL AND archive."creditCardId"=$2 AND archive."userId"=$3 FOR UPDATE OF r`,
 					[params.reviewId, params.id, userId],
 				);
 				if (!review) throw new HttpException("Reembolso pendente não encontrado", 404);
@@ -350,6 +353,10 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					refund.time = review.original.time ?? null;
 					refund.externalId = review.original.externalId ?? null;
 				});
+				await query(
+					'UPDATE "CreditRefundReview" SET "approvedAt"=CURRENT_TIMESTAMP,"updatedAt"=CURRENT_TIMESTAMP WHERE "id"=$1 AND "userId"=$2',
+					[review.id, userId],
+				);
 				return { id: review.id, purchaseId };
 			});
 		},
@@ -540,7 +547,6 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					);
 					return newBookPurchase(book, {
 						...body,
-						categoryId: body.categoryId ?? null,
 						debtSplitRule: body.debtSplit ?? null,
 						description: body.description ?? "",
 						installments: body.installments ?? 1,

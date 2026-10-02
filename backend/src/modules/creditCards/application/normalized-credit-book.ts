@@ -169,7 +169,6 @@ const purchaseColumns = [
 	"feeDescription",
 	"feeAmount",
 	"refinancingFeeAmount",
-	"categoryId",
 	"cashbackAccountId",
 	"cashbackAmount",
 	"cashbackYieldReferenceRate",
@@ -298,7 +297,7 @@ export async function saveCreditBook(
 		assertPurchase(p);
 		if (p.userId !== book.card.userId || p.creditCardId !== book.card.id)
 			throw new HttpException("Titularidade da compra inválida", 403);
-		await assertTagOwnership([...p.tagIds, ...(p.categoryId ? [p.categoryId] : [])], book.card.userId);
+		await assertTagOwnership(p.tagIds, book.card.userId);
 		for (const [table, id] of [
 			["FinancialAccount", p.cashbackAccountId],
 			["Recurrence", p.recurrenceId],
@@ -534,7 +533,6 @@ export async function saveCreditBook(
 			"storeName",
 			"purchaseDate",
 			"time",
-			"categoryId",
 			"tagIds",
 			"feeAmount",
 			"feeDescription",

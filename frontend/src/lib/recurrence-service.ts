@@ -100,7 +100,6 @@ export async function materializeLocalRecurrences(
 				const id = crypto.randomUUID();
 				transactions.push({
 					amount: recurrence.amount,
-					categoryId: recurrence.tagIds?.[0],
 					createdAt: new Date().toISOString(),
 					date,
 					debtSplit:

@@ -33,6 +33,7 @@ import {
 import { projectRecurrenceCreditBook } from "@zaimu/finance/recurrence-projection";
 import { type CatalogPageOptions, localCatalogPage } from "./catalog-pagination";
 import { guestTransactionPage } from "./guest-transaction-page";
+import { requestResult } from "./idb";
 import { localCursorPage } from "./local-cursor-page";
 import {
 	acknowledgeCreditBookSync,
@@ -47,7 +48,6 @@ import {
 } from "./localStorage";
 import type { Recurrence } from "./recurrence";
 import { createRecurrenceService } from "./recurrence-service";
-import { hasUnresolvedLegacyCardPayment } from "./upgrades/legacy-card-payments";
 /**
  * Data Service - Abstracts local vs remote data operations
  *
@@ -124,7 +124,6 @@ import {
 	localStores,
 	localTransactions,
 	payLocalLoanInstallment,
-	reviewLocalLoanPayments,
 } from "./localStorage";
 import { getCurrentCacheIdentity } from "./query-cache";
 import { getTransactionSearchText, normalizeTransactionSearch } from "./transaction-search";
@@ -1066,7 +1065,6 @@ export const dataService = {
 			cardId: string,
 			data: {
 				isStatementCharge?: boolean;
-				categoryId?: string;
 				debtSplit?: DebtSplitInput;
 				description?: string;
 				feeAmount?: number;
@@ -1131,7 +1129,6 @@ export const dataService = {
 					cashbackYieldPeriod: card.cashbackYieldPeriod ?? null,
 					cashbackYieldReferencePercentage: card.cashbackYieldReferencePercentage ?? null,
 					cashbackYieldReferenceRate: card.cashbackYieldReferenceRate ?? null,
-					categoryId: data.categoryId ?? null,
 					debtSplitRule: data.debtSplit ?? null,
 					description: data.description ?? "",
 					installments: data.installments ?? 1,
@@ -2568,7 +2565,11 @@ export const dataService = {
 		},
 		async reviewLegacyPayments(id: string, paidDate: string, amortization: Loan["amortization"]) {
 			if (!isGuestMode()) throw new Error("Revisão indisponível");
-			await reviewLocalLoanPayments(id, paidDate, amortization);
+			await (await import("./upgrades/review-loan-payments")).reviewLocalLoanPayments(
+				id,
+				paidDate,
+				amortization,
+			);
 		},
 
 		async update(id: string, data: Partial<Loan>): Promise<Loan> {
@@ -2659,17 +2660,24 @@ export const dataService = {
 
 			try {
 				const database = await initLocalDb();
-				await (await import("./upgrades/resolve-recurrence-ids")).resolveUpgradeRecurrenceIds(
-					database,
-					owner,
-					ids => fetchWithAuth("/upgrades/recurrence-ids", { body: JSON.stringify({ ids }), method: "POST" }),
+				const upgradeRecords = await requestResult(
+					database.transaction("application-upgrade", "readonly").objectStore("application-upgrade").getAll(),
 				);
-				await (await import("./upgrades/resolve-debt-events")).resolveDebtEventUpgrade(
-					database,
-					owner,
-					records =>
-						fetchWithAuth("/upgrades/debt-origins", { body: JSON.stringify({ records }), method: "POST" }),
-				);
+				const pending = upgradeRecords.filter(row => row.ownerKey === owner && !row.resolved);
+				if (pending.some(row => row.id.startsWith("mapping:")))
+					await (await import("./upgrades/resolve-recurrence-ids")).resolveUpgradeRecurrenceIds(
+						database,
+						owner,
+						ids =>
+							fetchWithAuth("/upgrades/recurrence-ids", { body: JSON.stringify({ ids }), method: "POST" }),
+					);
+				if (pending.some(row => row.id.startsWith("debt-proof:")))
+					await (await import("./upgrades/resolve-debt-events")).resolveDebtEventUpgrade(
+						database,
+						owner,
+						records =>
+							fetchWithAuth("/upgrades/debt-origins", { body: JSON.stringify({ records }), method: "POST" }),
+					);
 				// Get all local data
 				const [
 					accounts,
@@ -2698,10 +2706,6 @@ export const dataService = {
 					localMeta.get("financial-account-yield-holidays", owner),
 					localMeta.get("financial-account-yields", owner),
 				]);
-				if (transactions.some(item => hasUnresolvedLegacyCardPayment(item.data)))
-					throw new Error(
-						"Pagamento antigo sem cartão identificado. Restaure a fatura de origem antes de sincronizar.",
-					);
 
 				if (loans.some(row => row.data.needsPaymentReview))
 					throw new Error("Revise pagamentos antigos de empréstimos antes de sincronizar.");
@@ -2839,7 +2843,9 @@ export const dataService = {
 						})),
 						owner,
 					),
-					acknowledgeDebtEventSync(debts, response.serverData.debtEvents, owner),
+					response.syncResults.debtEvents?.errors.length
+						? Promise.resolve()
+						: acknowledgeDebtEventSync(debts, response.serverData.debtEvents, owner),
 					localDebtPeople.replaceSnapshot(
 						response.serverData.debtPeople.map(person => ({
 							data: person,
@@ -2978,7 +2984,7 @@ export const dataService = {
 						| "type"
 					>,
 					"debtSplit"
-				> & { categoryId?: string | null; debtSplit?: DebtSplitInput | null }
+				> & { debtSplit?: DebtSplitInput | null }
 			>,
 		): Promise<TransactionImport> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
@@ -3016,7 +3022,7 @@ export const dataService = {
 					);
 					if (existing) return existing.data;
 				}
-				const hasExplicitTags = data.tagIds !== undefined || data.categoryId !== undefined;
+				const hasExplicitTags = data.tagIds !== undefined;
 				const linkedRecurrence = data.recurrenceId
 					? (await localRecurrences.getById(data.recurrenceId))?.data
 					: undefined;
@@ -3025,12 +3031,9 @@ export const dataService = {
 					: linkedRecurrence && "debtSplit" in linkedRecurrence
 						? linkedRecurrence.debtSplit
 						: undefined;
-				const tagIds = hasExplicitTags
-					? (data.tagIds ?? (data.categoryId ? [data.categoryId] : []))
-					: (linkedRecurrence?.tagIds ?? []);
+				const tagIds = hasExplicitTags ? (data.tagIds ?? []) : (linkedRecurrence?.tagIds ?? []);
 				const newTransaction: Transaction = {
 					...localData,
-					categoryId: tagIds[0],
 					createdAt: new Date().toISOString(),
 					debtSplit,
 					id: crypto.randomUUID(),
@@ -3174,9 +3177,7 @@ export const dataService = {
 					transactions = transactions.filter(t => t.type === params.type);
 				}
 				if (params?.categoryId) {
-					transactions = transactions.filter(t =>
-						(t.tagIds ?? (t.categoryId ? [t.categoryId] : [])).includes(params.categoryId!),
-					);
+					transactions = transactions.filter(t => (t.tagIds ?? []).includes(params.categoryId!));
 				}
 				if (params?.financialAccountId) {
 					transactions = transactions.filter(

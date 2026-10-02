@@ -37,10 +37,13 @@ export async function registerDebtUpgrade(userId: string, body: typeof UpgradeDe
 				row.debtPersonId,
 			]);
 			if (person && person.userId !== userId) throw new Error("Pessoa pertence a outro proprietário");
-			const [origin] = await queryRaw<{ createdByUserId: string; debtPersonId: string }>(
-				'SELECT "createdByUserId","debtPersonId" FROM "DebtEvent" WHERE "id"=$1',
-				[row.originId],
-			);
+			const [origin] = await queryRaw<{
+				createdByUserId: string;
+				debtPersonId: string;
+				deletedAt: string | null;
+			}>('SELECT "createdByUserId","debtPersonId","deletedAt" FROM "DebtEvent" WHERE "id"=$1', [
+				row.originId,
+			]);
 			if (origin && origin.createdByUserId !== userId) throw new Error("Colisão de origem exige revisão");
 			const [archive] = await queryRaw<{ userId: string }>(
 				'SELECT "userId" FROM "ApplicationUpgradeArchive" WHERE "source"=\'Debt\' AND "recordId"=$1',
@@ -49,7 +52,7 @@ export async function registerDebtUpgrade(userId: string, body: typeof UpgradeDe
 			if (archive && archive.userId !== userId) throw new Error("Origem pertence a outro proprietário");
 			const debtPersonId = origin?.debtPersonId ?? row.debtPersonId;
 			let id = row.settlementId;
-			const deleted = Boolean(archive && !origin);
+			const deleted = Boolean(origin?.deletedAt || (archive && !origin));
 			if (row.original.isPaid && id) {
 				const date = row.original.paidDate ?? row.original.date ?? null;
 				const effect = row.original.amount * (row.original.isOwedToMe ? -1 : 1);

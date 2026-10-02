@@ -29,9 +29,6 @@ export interface TransactionCursorPayload {
 interface TransactionSummaryRow {
 	[key: string]: unknown;
 	amount: number;
-	categoryColor: null | string;
-	categoryId: null | string;
-	categoryName: null | string;
 	createdAt: Date;
 	cursorCreatedAt: string;
 	cursorDate: string;
@@ -118,8 +115,8 @@ const listSql = `
 WITH combined AS (
   SELECT
     t."id", t."amount"::numeric AS "amount", t."date", t."time"::text AS "time",
-    t."description", t."storeName", t."isHidden", t."type"::text AS "type", t."categoryId",
-    category."name" AS "categoryName", category."color" AS "categoryColor", t."createdAt",
+    t."description", t."storeName", t."isHidden", t."type"::text AS "type",
+    t."createdAt",
     t."originFinancialAccountId", t."destinationFinancialAccountId",
     origin."type"::text AS "originAccountType", destination."type"::text AS "destinationAccountType",
     origin_rewards."kind"::text AS "originAccountRewardsKind",
@@ -143,7 +140,7 @@ WITH combined AS (
     concat_ws(' ', t."amount"::text,
       concat('R$ ', translate(to_char(t."amount", 'FM999,999,999,990.00'), ',.', '.,')),
       to_char(t."date", 'DD/MM/YYYY'), to_char(t."date", 'YYYY-MM-DD'), t."time"::text,
-      t."description", t."storeName", category."name",
+      t."description", t."storeName",
       CASE t."type" WHEN 'INCOME' THEN 'Entrada' WHEN 'EXPENSE' THEN 'Saída'
         WHEN 'TRANSFER' THEN 'Transferência' ELSE 'Reembolso' END,
       CASE WHEN t."isHidden" THEN 'Oculta' ELSE 'Visível' END,
@@ -158,7 +155,6 @@ WITH combined AS (
        JOIN "Category" tag ON tag."id" = assignment."categoryId"
        WHERE assignment."entityType" = 'TRANSACTION' AND assignment."entityId" = t."id")) AS search_text
   FROM "Transaction" t
-  LEFT JOIN "Category" category ON category."id" = t."categoryId"
   LEFT JOIN "FinancialAccount" origin ON origin."id" = t."originFinancialAccountId"
   LEFT JOIN "FinancialInstitution" origin_institution ON origin_institution."id" = origin."institutionId"
   LEFT JOIN "RewardsAccount" origin_rewards ON origin_rewards."financialAccountId" = origin."id"
@@ -176,8 +172,8 @@ WITH combined AS (
   SELECT
     purchase."id", abs(purchase."totalAmount")::numeric AS "amount", purchase."purchaseDate" AS "date",
     purchase."time"::text AS "time", purchase."description", purchase."storeName", false AS "isHidden",
-    CASE WHEN purchase."isRefund" THEN 'REFUND' ELSE 'EXPENSE' END AS "type", purchase."categoryId",
-    category."name" AS "categoryName", category."color" AS "categoryColor", purchase."createdAt",
+    CASE WHEN purchase."isRefund" THEN 'REFUND' ELSE 'EXPENSE' END AS "type",
+    purchase."createdAt",
     account."id" AS "originFinancialAccountId", NULL::text AS "destinationFinancialAccountId",
     'CREDIT_CARD' AS "originAccountType", NULL::text AS "destinationAccountType",
     NULL::text AS "originAccountRewardsKind", NULL::text AS "destinationAccountRewardsKind",
@@ -193,7 +189,7 @@ WITH combined AS (
     concat_ws(' ', purchase."totalAmount"::text,
       concat('R$ ', translate(to_char(abs(purchase."totalAmount"), 'FM999,999,999,990.00'), ',.', '.,')),
       to_char(purchase."purchaseDate", 'DD/MM/YYYY'), to_char(purchase."purchaseDate", 'YYYY-MM-DD'),
-      purchase."time"::text, purchase."description", purchase."storeName", category."name",
+      purchase."time"::text, purchase."description", purchase."storeName",
       CASE WHEN purchase."isRefund" THEN 'Reembolso' ELSE 'Saída' END,
       account."name", institution."name", purchase."feeDescription", purchase."feeAmount"::text,
       to_char(statement."statementDate", 'MM/YYYY'), purchase."installments"::text,
@@ -212,7 +208,6 @@ WITH combined AS (
   JOIN "CreditCard" card ON card."id" = purchase."creditCardId"
   JOIN "FinancialAccount" account ON account."id" = card."financialAccountId"
   LEFT JOIN "FinancialInstitution" institution ON institution."id" = account."institutionId"
-  LEFT JOIN "Category" category ON category."id" = purchase."categoryId"
   LEFT JOIN "DebtSplit" debt_split ON debt_split."creditPurchaseId" = purchase."id" AND debt_split."userId" = purchase."userId"
   WHERE purchase."userId" = $1 AND purchase."currentInstallment" = 1
 )
@@ -223,7 +218,7 @@ FROM combined
 WHERE ($2::date IS NULL OR "date" >= $2::date)
   AND ($3::date IS NULL OR "date" <= $3::date)
   AND ($4::text IS NULL OR "type" = $4::text)
-  AND ($5::text IS NULL OR "categoryId" = $5::text OR EXISTS (
+  AND ($5::text IS NULL OR EXISTS (
     SELECT 1 FROM "TagAssignment" assignment
     WHERE assignment."entityId" = CASE WHEN combined."sourceRank"=0 THEN combined."id" ELSE COALESCE((SELECT "purchaseId" FROM "CreditEntryReference" WHERE "id"=combined."id"),combined."id") END AND assignment."categoryId" = $5::text
       AND assignment."entityType" = CASE WHEN combined."sourceRank" = 0 THEN 'TRANSACTION' ELSE 'CREDIT_PURCHASE' END

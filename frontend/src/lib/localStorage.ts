@@ -6,7 +6,6 @@ import {
 	replayCreditBook,
 } from "@zaimu/finance/credit-book";
 import { currentDateKey } from "@zaimu/finance/credit-card";
-import { loanInstallments } from "@zaimu/finance/loan";
 import type {
 	Category,
 	CreditCard,
@@ -26,7 +25,7 @@ import { requestResult, transactionDone } from "./idb";
 import type { Recurrence, RecurrenceOccurrence } from "./recurrence";
 
 const DB_NAME = "zaimu-local";
-const DB_VERSION = 12;
+const DB_VERSION = 13;
 
 const LOCAL_STORES = {
 	accounts: "accounts",
@@ -110,8 +109,14 @@ function explicitOwner(data: unknown): StorageOwner | null {
 
 async function openLocalDb(): Promise<IDBDatabase> {
 	const database = await new Promise<IDBDatabase>((resolve, reject) => {
-		const request = indexedDB.open(DB_NAME, DB_VERSION);
-		request.onerror = () => reject(request.error);
+		let request = indexedDB.open(DB_NAME, DB_VERSION);
+		request.onerror = () => {
+			if (request.error?.name === "VersionError") {
+				request = indexedDB.open(DB_NAME, 14);
+				request.onerror = () => reject(request.error);
+				request.onsuccess = () => resolve(request.result);
+			} else reject(request.error);
+		};
 		request.onblocked = () => reject(new Error("Banco local bloqueado por outra aba."));
 		request.onsuccess = () => resolve(request.result);
 		request.onupgradeneeded = event => {
@@ -119,7 +124,7 @@ async function openLocalDb(): Promise<IDBDatabase> {
 				request.result.createObjectStore("application-upgrade", { keyPath: "id" });
 			request
 				.transaction!.objectStore("application-upgrade")
-				.put({ id: "state", status: event.oldVersion === 0 ? "complete" : "pending", version: 12 });
+				.put({ id: "state", status: event.oldVersion === 0 ? "complete" : "pending", version: 13 });
 			if (event.oldVersion > 0)
 				for (const domain of ["recurringPayments", "salaries", "subscriptions", "creditPurchases", "debts"]) {
 					const name = `scoped-${domain}`;
@@ -156,6 +161,39 @@ async function openLocalDb(): Promise<IDBDatabase> {
 	} catch (error) {
 		database.close();
 		throw error;
+	}
+	const retired = Array.from(database.objectStoreNames).filter(
+		name =>
+			name !== "application-upgrade" &&
+			!Object.values(LOCAL_STORES).some(domain => name === `scoped-${domain}`),
+	);
+	if (retired.length && database.version < 14) {
+		database.close();
+		const cleanup = indexedDB.open(DB_NAME, 14);
+		cleanup.onupgradeneeded = () => {
+			const tx = cleanup.transaction!;
+			const state = tx.objectStore("application-upgrade").get("state");
+			state.onsuccess = () => {
+				if (state.result?.status !== "complete" || state.result.version !== 13) {
+					tx.abort();
+					return;
+				}
+				for (const name of retired) {
+					const count = tx.objectStore(name).count();
+					count.onsuccess = () => {
+						if (count.result !== 0) tx.abort();
+						else cleanup.result.deleteObjectStore(name);
+					};
+				}
+			};
+		};
+		cleanup.onblocked = () => {
+			/* Other tabs close through onversionchange. */
+		};
+		const cleaned = await requestResult(cleanup);
+		cleaned.onversionchange = database.onversionchange;
+		db = cleaned;
+		return cleaned;
 	}
 	db = database;
 	return database;
@@ -537,7 +575,6 @@ export function toPurchasePresentation(entry: ReturnType<typeof creditBookEntrie
 			undefined,
 		cashbackYieldReferenceRate:
 			("cashbackYieldReferenceRate" in entry ? entry.cashbackYieldReferenceRate : null) ?? undefined,
-		categoryId: entry.categoryId ?? undefined,
 		creditCardId: "creditCardId" in entry ? entry.creditCardId : undefined,
 		feeAmount: ("feeAmount" in entry ? entry.feeAmount : null) ?? undefined,
 		feeDescription: ("feeDescription" in entry ? entry.feeDescription : null) ?? undefined,
@@ -633,7 +670,7 @@ export async function mutateLocalCreditBook<T>(
 		for (const p of book.purchases) {
 			if (p.userId !== book.card.userId || p.creditCardId !== cardId)
 				throw new Error("Titularidade da compra inválida");
-			for (const id of new Set([...p.tagIds, ...(p.categoryId ? [p.categoryId] : [])]))
+			for (const id of new Set(p.tagIds))
 				if (!(await requestResult(tx.objectStore("scoped-categories").get(scopedId(owner, id)))))
 					throw new Error("Tag indisponível");
 			for (const [store, id] of [
@@ -1250,72 +1287,6 @@ function validateLoanPaidDate(value: string) {
 		new Date(value).toISOString().slice(0, 10) !== value
 	)
 		throw new Error("Data inválida");
-}
-
-export async function reviewLocalLoanPayments(
-	loanId: string,
-	paidDate: string,
-	amortization: Loan["amortization"],
-	ownerKey?: StorageOwner,
-) {
-	validateLoanPaidDate(paidDate);
-	const owner = requireOwner(ownerKey);
-	const database = await initLocalDb();
-	const tx = database.transaction(["scoped-loans", "scoped-loanPayments"], "readwrite");
-	const done = transactionDone(tx);
-	try {
-		const loans = tx.objectStore("scoped-loans");
-		const record = (await requestResult(loans.get(scopedId(owner, loanId)))) as LocalData<Loan> | undefined;
-		if (!record || record.deleted || !record.data.needsPaymentReview) throw new Error("Revisão indisponível");
-		const count = record.data.paidInstallments ?? 0;
-		if (!Number.isSafeInteger(count) || count < 0 || count > record.data.totalInstallments)
-			throw new Error("Quantidade histórica inválida");
-		const store = tx.objectStore("scoped-loanPayments");
-		let rows = (
-			(await requestResult(store.index("ownerKey").getAll(owner))) as LocalData<LoanPayment>[]
-		).filter(row => !row.deleted && row.data.loanId === loanId);
-		const terms = { ...record.data, amortization };
-		if (!rows.length)
-			rows = loanInstallments(terms).map(payment => {
-				const id = crypto.randomUUID();
-				return {
-					data: { ...payment, id, isAdvanced: false, loanId },
-					localId: id,
-					modifiedAt: record.modifiedAt,
-					ownerKey: owner,
-					scopedId: scopedId(owner, id),
-				};
-			});
-		if (record.data.amortization !== amortization && rows.length) {
-			const schedule = loanInstallments(terms);
-			rows = rows.map(row => ({
-				...row,
-				data: { ...row.data, ...schedule[row.data.installmentNumber - 1] },
-			}));
-		}
-		if (rows.length !== terms.totalInstallments || rows.some(row => row.data.paidDate))
-			throw new Error("Histórico inconsistente para revisão");
-		for (const row of rows)
-			store.put({
-				...row,
-				data: {
-					...row.data,
-					isAdvanced: false,
-					paidDate: row.data.installmentNumber <= count ? paidDate : undefined,
-				},
-				modifiedAt: Math.max(Date.now(), row.modifiedAt + 1),
-			});
-		loans.put({
-			...record,
-			data: { ...terms, installmentAmount: rows[0].data.totalPaid, needsPaymentReview: false },
-			modifiedAt: Math.max(Date.now(), record.modifiedAt + 1),
-		});
-		await done;
-	} catch (error) {
-		tx.abort();
-		await done.catch(() => undefined);
-		throw error;
-	}
 }
 
 /** Capture sent clocks before the request so concurrent local edits survive acknowledgement. */

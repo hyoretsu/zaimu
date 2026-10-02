@@ -1,0 +1,76 @@
+LOCK TABLE "CreditPurchaseLegacyEntry", "CreditEntryReference", "CreditPurchaseRecord", "Transaction", "CreditCardImportItem", "TransactionImportItem", "TagAssignment" IN SHARE ROW EXCLUSIVE MODE;
+CREATE TEMP TABLE financial_legacy_totals ON COMMIT DROP AS SELECT
+ (SELECT jsonb_agg(to_jsonb(t)-'categoryId' ORDER BY "id") FROM "Transaction" t) AS transactions,
+ (SELECT jsonb_agg(to_jsonb(t)-'categoryId' ORDER BY "id") FROM "CreditPurchaseRecord" t) AS purchases,
+ (SELECT jsonb_agg(to_jsonb(t) ORDER BY "id") FROM "CreditInstallmentRecord" t) AS installments,
+ (SELECT jsonb_agg(to_jsonb(t) ORDER BY "id") FROM "CreditRefundRecord" t) AS refunds,
+ (SELECT jsonb_agg(to_jsonb(t) ORDER BY "id") FROM "CreditCardStatement" t) AS statements,
+ (SELECT jsonb_agg(to_jsonb(t) ORDER BY "id") FROM "CreditBookTombstone" t) AS tombstones;
+INSERT INTO "ApplicationUpgradeArchive" ("source","recordId","original") SELECT 'CreditPurchaseLegacyEntry',"id",to_jsonb(t) FROM "CreditPurchaseLegacyEntry" t ON CONFLICT DO NOTHING;
+DO $audit$
+BEGIN
+ IF EXISTS(SELECT 1 FROM "CreditPurchaseLegacyEntry" t LEFT JOIN "ApplicationUpgradeArchive" a ON a."source"='CreditPurchaseLegacyEntry' AND a."recordId"=t."id" WHERE a."original"::jsonb IS DISTINCT FROM to_jsonb(t)) THEN RAISE EXCEPTION 'Credit archive mismatch'; END IF;
+END $audit$;
+CREATE TABLE "CreditRefundReview" (
+ "id" varchar(36) CONSTRAINT "CreditRefundReview_pkey" PRIMARY KEY,
+ "userId" varchar(36) NOT NULL, "creditCardId" varchar(36) NOT NULL, "original" json NOT NULL,
+ "approvedAt" timestamp(3), "createdAt" timestamp(3) NOT NULL DEFAULT now(), "updatedAt" timestamp(3) NOT NULL DEFAULT now(),
+ CONSTRAINT "CreditRefundReview_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+ CONSTRAINT "CreditRefundReview_creditCardId_fkey" FOREIGN KEY ("creditCardId") REFERENCES "CreditCard"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+ CONSTRAINT "CreditRefundReview_id_fkey" FOREIGN KEY ("id") REFERENCES "CreditEntryReference"("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+CREATE INDEX "CreditRefundReview_owner_card_pending_idx" ON "CreditRefundReview"("userId","creditCardId","approvedAt");
+INSERT INTO "CreditRefundReview" ("id","userId","creditCardId","original","createdAt","updatedAt")
+SELECT r."id",a."userId",c."id",l."original",l."createdAt",l."updatedAt"
+FROM "CreditEntryReference" r JOIN "CreditPurchaseLegacyEntry" l ON l."id"=r."id" JOIN "CreditCardStatement" s ON s."id"=l."original"->>'statementId' JOIN "CreditCard" c ON c."id"=s."creditCardId" JOIN "FinancialAccount" a ON a."id"=c."financialAccountId" WHERE r."requiresRefundReview";
+DO $review$
+BEGIN
+ IF EXISTS(SELECT 1 FROM "CreditEntryReference" r WHERE r."requiresRefundReview" AND NOT EXISTS(SELECT 1 FROM "CreditRefundReview" q WHERE q."id"=r."id")) THEN RAISE EXCEPTION 'Orphan credit requires explicit owner/card review'; END IF;
+END $review$;
+DO $tags$
+DECLARE target text; entity_type text;
+BEGIN
+ FOR target,entity_type IN SELECT * FROM (VALUES ('Transaction','TRANSACTION'),('CreditPurchaseRecord','CREDIT_PURCHASE'),('CreditCardImportItem','CREDIT_CARD_IMPORT_ITEM'),('TransactionImportItem','TRANSACTION_IMPORT_ITEM')) AS sources(target,entity_type) LOOP
+  EXECUTE format('INSERT INTO "ApplicationUpgradeArchive" ("source","recordId","original") SELECT %L,t."id",to_jsonb(t) FROM %I t WHERE "categoryId" IS NOT NULL ON CONFLICT DO NOTHING','TagScalar:'||target,target);
+  EXECUTE format('INSERT INTO "TagAssignment" ("categoryId","entityType","entityId") SELECT "categoryId",%L,"id" FROM %I WHERE "categoryId" IS NOT NULL ON CONFLICT ("categoryId","entityType","entityId") DO NOTHING',entity_type,target);
+  IF EXISTS(SELECT 1 FROM "ApplicationUpgradeArchive" a WHERE a."source"='TagScalar:'||target AND NOT EXISTS(SELECT 1 FROM "TagAssignment" tags WHERE tags."categoryId"=a."original"->>'categoryId' AND tags."entityId"=a."recordId" AND tags."entityType"=entity_type)) THEN RAISE EXCEPTION 'Scalar tag conversion mismatch'; END IF;
+ END LOOP;
+END $tags$;
+-- Preserve complete financial projections; only remove retired metadata columns.
+CREATE TEMP TABLE financial_views ON COMMIT DROP AS SELECT name,pg_get_viewdef(to_regclass('"'||name||'"'),true) AS definition FROM (VALUES ('CreditEntry'),('CreditConsumption')) AS views(name) WHERE to_regclass('"'||name||'"') IS NOT NULL;
+DROP VIEW IF EXISTS "CreditConsumption";
+DROP VIEW IF EXISTS "CreditEntry";
+DO $trigger$
+DECLARE definition text;
+BEGIN
+ IF to_regprocedure('enforce_credit_purchase_integrity()') IS NOT NULL THEN
+  SELECT pg_get_functiondef('enforce_credit_purchase_integrity()'::regprocedure) INTO definition;
+  definition:=replace(definition,'(p."categoryId" IS NOT NULL AND NOT EXISTS (SELECT 1 FROM "Category" x WHERE x."id" = p."categoryId" AND x."userId" = owner_id)) OR'||chr(10)||' ','');
+  IF definition LIKE '%categoryId%' THEN RAISE EXCEPTION 'Unexpected credit integrity function; review required'; END IF;
+  EXECUTE definition;
+ END IF;
+END $trigger$;
+ALTER TABLE "Transaction" DROP COLUMN "categoryId";
+ALTER TABLE "CreditPurchaseRecord" DROP COLUMN "categoryId";
+ALTER TABLE "CreditCardImportItem" DROP COLUMN "categoryId";
+ALTER TABLE "TransactionImportItem" DROP COLUMN "categoryId";
+DROP TABLE "CreditPurchaseLegacyEntry";
+DO $views$
+DECLARE view_row record; definition text;
+BEGIN
+ FOR view_row IN SELECT * FROM financial_views ORDER BY name LOOP
+  definition:=regexp_replace(view_row.definition,'[[:space:]]*(p\."categoryId"|NULL::character varying AS "categoryId"),','','g');
+  IF definition LIKE '%categoryId%' THEN RAISE EXCEPTION 'Unexpected credit view; review required'; END IF;
+  EXECUTE format('CREATE VIEW %I AS %s',view_row.name,definition);
+ END LOOP;
+END $views$;
+DO $totals$
+BEGIN
+ IF EXISTS(SELECT 1 FROM financial_legacy_totals t WHERE
+ t.transactions IS DISTINCT FROM (SELECT jsonb_agg(to_jsonb(x) ORDER BY "id") FROM "Transaction" x) OR
+ t.purchases IS DISTINCT FROM (SELECT jsonb_agg(to_jsonb(x) ORDER BY "id") FROM "CreditPurchaseRecord" x) OR
+ t.installments IS DISTINCT FROM (SELECT jsonb_agg(to_jsonb(x) ORDER BY "id") FROM "CreditInstallmentRecord" x) OR
+ t.refunds IS DISTINCT FROM (SELECT jsonb_agg(to_jsonb(x) ORDER BY "id") FROM "CreditRefundRecord" x) OR
+ t.statements IS DISTINCT FROM (SELECT jsonb_agg(to_jsonb(x) ORDER BY "id") FROM "CreditCardStatement" x) OR
+ t.tombstones IS DISTINCT FROM (SELECT jsonb_agg(to_jsonb(x) ORDER BY "id") FROM "CreditBookTombstone" x)) THEN RAISE EXCEPTION 'Financial cutover changed ledger'; END IF;
+END $totals$;

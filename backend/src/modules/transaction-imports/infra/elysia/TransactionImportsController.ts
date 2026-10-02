@@ -18,6 +18,7 @@ import {
 import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
+import { rejectLegacyFinancialFields } from "~/shared/infra/elysia/strict-json-body";
 import {
 	db,
 	executeStatement,
@@ -90,9 +91,6 @@ interface PotentialDuplicates {
 }
 
 interface TransferSuggestionCandidate extends TransferSuggestionItem {
-	categoryColor?: string | null;
-	categoryId?: string | null;
-	categoryName?: string | null;
 	createdAt?: Date;
 	debtSplit?: Awaited<ReturnType<typeof getDebtSplitReturn>>;
 	description: string | null;
@@ -138,17 +136,11 @@ async function getTransferSuggestionPairs(userId: string, itemIds: string[]) {
 			db.sql.public.TransactionExternalReference.innerJoin(db.sql.public.Transaction, (fields, functions) =>
 				functions.eq(fields.TransactionExternalReference.transactionId, fields.Transaction.id),
 			)
-				.outerLeftJoin(db.sql.public.Category, (fields, functions) =>
-					functions.eq(fields.Transaction.categoryId, fields.Category.id),
-				)
 				.innerJoin(db.sql.public.FinancialAccount, (fields, functions) =>
 					functions.eq(fields.TransactionExternalReference.financialAccountId, fields.FinancialAccount.id),
 				)
 				.select(fields => ({
 					amount: fields.Transaction.amount,
-					categoryColor: fields.Category.color,
-					categoryId: fields.Transaction.categoryId,
-					categoryName: fields.Category.name,
 					createdAt: fields.Transaction.createdAt,
 					date: fields.Transaction.date,
 					description: fields.Transaction.description,
@@ -480,7 +472,6 @@ async function getImportReturn(
 					"id",
 					"amount",
 					"balanceAfter",
-					"categoryId",
 					"paymentCreditCardId",
 					"createdAt",
 					"date",
@@ -575,9 +566,6 @@ async function getImportReturn(
 						const counterpart = pair.outgoing.id === item.id ? pair.incoming : pair.outgoing;
 						return {
 							amount: Number(counterpart.amount),
-							categoryColor: counterpart.categoryColor,
-							categoryId: counterpart.categoryId,
-							categoryName: counterpart.categoryName,
 							createdAt: counterpart.createdAt ?? item.createdAt,
 							date: toDateKey(counterpart.date),
 							debtSplit: counterpart.debtSplit,
@@ -737,7 +725,6 @@ async function persistImportItem(
 		transaction.db.sql.public.Transaction.insert([
 			{
 				amount: String(item.amount),
-				categoryId: tagIds[0],
 				date: item.date,
 				description: item.description,
 				destinationFinancialAccountId: item.destinationFinancialAccountId,
@@ -796,7 +783,6 @@ async function persistReconciledImportItem(
 ): Promise<ReconciledImportTarget> {
 	const values = {
 		amount: String(item.amount),
-		categoryId: tagIds[0] ?? null,
 		date: item.date,
 		description: item.description,
 		destinationFinancialAccountId: item.destinationFinancialAccountId,
@@ -906,6 +892,9 @@ async function finalizeImportWhenEmpty(transaction: SqlExecutor, importId: strin
 }
 
 export const TransactionImportsController = new Elysia({ prefix: "/transaction-imports" })
+	.onTransform(({ body }) => {
+		rejectLegacyFinancialFields(body);
+	})
 	.get("/", async ({ request, set }) => {
 		const userId = await requireUserId(request);
 		const cached = await distributedCache.remember(
@@ -1163,7 +1152,6 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				db.sql.public.TransactionImportItem.update({
 					...next,
 					amount: String(next.amount),
-					categoryId: tagIds?.[0],
 					date: new Date(next.date),
 					updatedAt: new Date(),
 				})
@@ -1219,7 +1207,6 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			await withTransaction(async transaction => {
 				await transaction.executeStatement(
 					transaction.db.sql.public.Transaction.update({
-						categoryId: null,
 						destinationFinancialAccountId: pair.incoming.financialAccountId,
 						originFinancialAccountId: pair.outgoing.financialAccountId,
 						paymentCreditCardId: null,
@@ -1601,7 +1588,6 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					transaction.db.sql.public.TransactionImportItem.update({
 						...values,
 						amount: String(values.amount),
-						categoryId: tagIds[0] ?? null,
 						date: new Date(values.date),
 						isReconciled: true,
 						reconciledImportItemId: duplicate.source === "IMPORT_ITEM" ? duplicate.id : null,

@@ -4,7 +4,7 @@ import type { CreditCard, FinancialAccount, Loan, LoanPayment } from "../api";
 import { requestResult, transactionDone } from "../idb";
 import type { LocalData } from "../localStorage";
 import type { CacheIdentity } from "../query-cache";
-import { migrateLegacyCardPayments } from "./legacy-card-payments";
+import { hasUnresolvedLegacyCardPayment, migrateLegacyCardPayments } from "./legacy-card-payments";
 import { migrateCreditBooks } from "./migrate-credit-books";
 import { migrateDebts } from "./migrate-debts";
 import { migrateLocalRecurrenceRows } from "./migrate-recurrences";
@@ -153,6 +153,10 @@ async function migrateCardPayments(_database: IDBDatabase, transaction: IDBTrans
 		requestResult(purchasesStore.getAll()),
 	]);
 	const migrated = migrateLegacyCardPayments(payments, statements);
+	if (migrated.some(row => hasUnresolvedLegacyCardPayment(row.data)))
+		throw new Error(
+			"Pagamento antigo sem cartão identificado. Restaure a fatura de origem antes de continuar.",
+		);
 	for (let index = 0; index < payments.length; index++)
 		if (payments[index] !== migrated[index]) paymentsStore.put(migrated[index]);
 	for (const row of purchases)
@@ -248,12 +252,55 @@ type LegacyFinancialAccount = FinancialAccount & {
 	>;
 };
 type LegacyCreditCard = CreditCard & { cashbackYieldRate?: number | null };
-type LegacyCreditPurchase = import("../api").CreditPurchase & { cashbackYieldRate?: number | null };
+type LegacyCreditPurchase = import("../api").CreditPurchase & {
+	cashbackYieldRate?: number | null;
+	categoryId?: string | null;
+};
+
+function withoutLegacyFinancialFields<T extends object>(value: T): T {
+	const result = { ...value } as Record<string, unknown>;
+	for (const key of [
+		"yieldRate",
+		"yieldReferenceRate",
+		"cashbackYieldRate",
+		"categoryId",
+		"categoryName",
+		"categoryColor",
+	])
+		delete result[key];
+	return result as T;
+}
+
+async function migrateTagAssociations(tx: IDBTransaction) {
+	const convert = (value: Record<string, unknown>) => ({
+		...withoutLegacyFinancialFields(value),
+		tagIds: [
+			...new Set([
+				...(Array.isArray(value.tagIds) ? value.tagIds : []),
+				...(typeof value.categoryId === "string" ? [value.categoryId] : []),
+			]),
+		],
+	});
+	for (const name of ["scoped-transactions", "scoped-creditBooks"]) {
+		const store = tx.objectStore(name);
+		for (const row of await requestResult(store.getAll())) {
+			const data =
+				name === "scoped-creditBooks"
+					? {
+							...row.data,
+							charges: row.data.charges.map(convert),
+							purchases: row.data.purchases.map(convert),
+						}
+					: convert(row.data);
+			await requestResult(store.put({ ...row, data }));
+		}
+	}
+}
 
 function normalizeLegacyCreditCard(card: LegacyCreditCard): CreditCard {
 	const referenceRate = card.cashbackYieldReferenceRate ?? card.cashbackYieldRate;
 	return {
-		...card,
+		...withoutLegacyFinancialFields(card),
 		cashbackYieldReferencePercentage: card.cashbackYieldReferencePercentage ?? (referenceRate ? 100 : null),
 		cashbackYieldReferenceRate: referenceRate,
 	};
@@ -262,16 +309,17 @@ function normalizeLegacyCreditCard(card: LegacyCreditCard): CreditCard {
 function normalizeLegacyCreditPurchase(purchase: LegacyCreditPurchase): import("../api").CreditPurchase {
 	const referenceRate = purchase.cashbackYieldReferenceRate ?? purchase.cashbackYieldRate;
 	return {
-		...purchase,
+		...withoutLegacyFinancialFields(purchase),
 		cashbackYieldReferencePercentage:
 			purchase.cashbackYieldReferencePercentage ?? (referenceRate ? 100 : null),
 		cashbackYieldReferenceRate: referenceRate,
+		tagIds: [...new Set([...(purchase.tagIds ?? []), ...(purchase.categoryId ? [purchase.categoryId] : [])])],
 	};
 }
 
 function normalizeLegacyFinancialAccount(account: LegacyFinancialAccount): FinancialAccount {
 	return {
-		...account,
+		...withoutLegacyFinancialFields(account),
 		...(account.creditCard && { creditCard: normalizeLegacyCreditCard(account.creditCard) }),
 		yieldFixedRate: account.yieldFixedRate ?? account.yieldRate,
 		yieldRateHistories: account.yieldRateHistories?.map(history => {
@@ -279,7 +327,7 @@ function normalizeLegacyFinancialAccount(account: LegacyFinancialAccount): Finan
 				yieldRate?: number | null;
 			};
 			return {
-				...history,
+				...withoutLegacyFinancialFields(history),
 				yieldFixedRate: history.yieldFixedRate ?? legacyHistory.yieldRate,
 			};
 		}),
@@ -310,10 +358,14 @@ export async function upgradeLocalDatabase(database: IDBDatabase) {
 		await migrateCardPayments(database, tx);
 		await migrateCreditBooks(database, tx);
 		await migrateRecurrences(database, tx);
+		await migrateTagAssociations(tx);
 		await extractRecurrenceProvenance(tx);
 		await migrateDebts(tx);
 		await migrateGuestLoanPayments(database, tx);
-		await requestResult(stateStore.put({ id: "state", status: "complete", version: 12 }));
+		// Archived originals remain recoverable; active sources must never be imported again.
+		for (const name of Object.values(LEGACY_STORES))
+			if (database.objectStoreNames.contains(name)) await requestResult(tx.objectStore(name).clear());
+		await requestResult(stateStore.put({ id: "state", status: "complete", version: 13 }));
 		await done;
 	} catch (error) {
 		try {
@@ -387,4 +439,50 @@ async function extractRecurrenceProvenance(tx: IDBTransaction) {
 	// Sources remain in the recovery archive until a later schema upgrade removes empty stores.
 	for (const name of ["scoped-salaries", "scoped-subscriptions", "scoped-recurringPayments"])
 		await requestResult(tx.objectStore(name).clear());
+}
+
+export async function loadOwnershipReview() {
+	const database = await requestResult(indexedDB.open("zaimu-local"));
+	try {
+		const names = Object.values(LEGACY_STORES).filter(name => database.objectStoreNames.contains(name));
+		const tx = database.transaction([...names, "application-upgrade"], "readonly");
+		const rows: Array<{ domain: StoreDomain; localId: string; description: string }> = [];
+		const owners = new Set<StorageOwner>();
+		for (const name of names) {
+			for (const row of await requestResult(tx.objectStore(name).getAll())) {
+				const owner = explicitOwner(row.data);
+				if (owner) {
+					owners.add(owner);
+					continue;
+				}
+				const choice = await requestResult(
+					tx.objectStore("application-upgrade").get(`owner:${name}:${row.localId}`),
+				);
+				if (!choice)
+					rows.push({
+						description: row.data?.description ?? row.data?.name ?? row.localId,
+						domain: name as StoreDomain,
+						localId: row.localId,
+					});
+			}
+		}
+		for (const name of Array.from(database.objectStoreNames).filter(name => name.startsWith("scoped-"))) {
+			// Separate transactions because scoped stores are outside the historic snapshot.
+			for (const row of await requestResult(
+				database.transaction(name, "readonly").objectStore(name).getAll(),
+			))
+				if (row.ownerKey) owners.add(row.ownerKey);
+		}
+		return { owners: [...owners], rows };
+	} finally {
+		database.close();
+	}
+}
+export async function saveOwnershipReview(assignments: Parameters<typeof reviewLocalOwnership>[1]) {
+	const database = await requestResult(indexedDB.open("zaimu-local"));
+	try {
+		await reviewLocalOwnership(database, assignments);
+	} finally {
+		database.close();
+	}
 }

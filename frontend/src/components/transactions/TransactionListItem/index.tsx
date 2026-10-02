@@ -6,7 +6,7 @@ import { formatDebtSplitBadge } from "@/lib/debt-split";
 import { getTransactionTitle } from "@/lib/transaction-title";
 import { InstallmentPurchaseDetails } from "./InstallmentPurchaseDetails";
 import { type ItemAction, ItemActions } from "./ItemActions";
-import { type TransactionBadgeAccount, TransactionBadges } from "./TransactionBadges";
+import { TransactionBadges } from "./TransactionBadges";
 
 function formatCurrency(value: number) {
 	return new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(value);
@@ -57,50 +57,7 @@ export function TransactionListItem({
 			: transaction.type === "EXPENSE"
 				? "text-rose-600"
 				: "text-primary";
-	const fallbackTag = transaction.categoryName
-		? {
-				color: transaction.categoryColor,
-				id: transaction.categoryId || `category-${transaction.categoryName}`,
-				name: transaction.categoryName,
-			}
-		: undefined;
-	const isCreditCard = transaction.source === "CREDIT_CARD";
-	const originName = transaction.originName || transaction.sourceName;
-	const destinationName =
-		transaction.destinationName || (transaction.type === "INCOME" ? transaction.sourceName : undefined);
-	const accounts: TransactionBadgeAccount[] =
-		transaction.type === "TRANSFER"
-			? [
-					{
-						id: transaction.originFinancialAccountId || "origin",
-						name: originName || "Conta de origem",
-						rewardsKind: transaction.originAccountRewardsKind ?? undefined,
-						type: transaction.originAccountType ?? undefined,
-					},
-					{
-						id: transaction.destinationFinancialAccountId || "destination",
-						name: destinationName || "Conta de destino",
-						rewardsKind: transaction.destinationAccountRewardsKind ?? undefined,
-						type: transaction.destinationAccountType ?? undefined,
-					},
-				]
-			: [
-					{
-						id:
-							transaction.originFinancialAccountId || transaction.destinationFinancialAccountId || "account",
-						name: (transaction.type === "INCOME" ? destinationName : originName) || "Conta sem nome",
-						rewardsKind:
-							(transaction.type === "INCOME"
-								? transaction.destinationAccountRewardsKind
-								: transaction.originAccountRewardsKind) ?? undefined,
-						type: isCreditCard
-							? "CREDIT_CARD"
-							: ((transaction.type === "INCOME"
-									? transaction.destinationAccountType
-									: transaction.originAccountType) ?? undefined),
-					},
-				];
-	const tags = transaction.tags?.length ? transaction.tags : fallbackTag ? [fallbackTag] : undefined;
+	const tags = transaction.tags;
 	const creditCardPayment =
 		transaction.source !== "CREDIT_CARD" && transaction.paymentCreditCardId
 			? {

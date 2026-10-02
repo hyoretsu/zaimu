@@ -3,7 +3,6 @@ import { DebtSplitInputDTO } from "~/modules/debts/infra/elysia/DebtSplitsDTO";
 
 export const TransactionImportItemUpdateDTO = t.Object({
 	amount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
-	categoryId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 	date: t.Optional(t.String()),
 	debtSplit: t.Optional(t.Nullable(DebtSplitInputDTO)),
 	description: t.Optional(t.Nullable(t.String({ maxLength: 1000 }))),

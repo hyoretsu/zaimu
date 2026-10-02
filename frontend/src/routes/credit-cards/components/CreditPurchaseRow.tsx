@@ -33,14 +33,7 @@ export function CreditPurchaseRow({
 	onEditRefund: (refund: NonNullable<CreditPurchase["refunds"]>[number]) => void;
 	purchase: CreditPurchase;
 }) {
-	const fallbackTag = purchase.categoryName
-		? {
-				color: purchase.categoryColor,
-				id: purchase.categoryId || `category-${purchase.categoryName}`,
-				name: purchase.categoryName,
-			}
-		: undefined;
-	const tags = purchase.tags?.length ? purchase.tags : fallbackTag ? [fallbackTag] : undefined;
+	const tags = purchase.tags;
 	const debtPersonName = formatDebtSplitBadge(purchase.debtSplit, amount => currency.format(amount));
 	const hasSyncedInstallments = purchase.isFullySynced && purchase.installments > 1;
 

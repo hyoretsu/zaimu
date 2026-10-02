@@ -39,7 +39,9 @@ export async function migrateCreditBooks(db: IDBDatabase, borrowed?: IDBTransact
 			request(tx.objectStore("scoped-creditCardStatements").getAll()) as Promise<
 				LocalData<CreditCardStatement>[]
 			>,
-			request(tx.objectStore("scoped-creditPurchases").getAll()) as Promise<LocalData<CreditPurchase>[]>,
+			request(tx.objectStore("scoped-creditPurchases").getAll()) as Promise<
+				LocalData<CreditPurchase & { categoryId?: string | null }>[]
+			>,
 			request(tx.objectStore("scoped-accounts").getAll()) as Promise<LocalData<FinancialAccount>[]>,
 		]);
 		const owners = [...new Set([...cards, ...rows].map(row => row.ownerKey))];

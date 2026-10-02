@@ -104,7 +104,6 @@ export function normalizeLegacyCreditPurchases(
 			knownAmounts,
 		);
 		const purchase: CreditPurchase = {
-			categoryId: root.categoryId,
 			creditCardId: root.creditCardId,
 			description: root.description,
 			id: root.id,

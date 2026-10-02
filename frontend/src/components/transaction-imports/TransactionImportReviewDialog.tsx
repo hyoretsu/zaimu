@@ -101,9 +101,6 @@ function toTransferSuggestionTransaction(
 	const destinationName = destinationFinancialAccountId ? destinationAccount?.name : undefined;
 	return {
 		amount: suggestion.amount,
-		categoryColor: suggestion.categoryColor ?? undefined,
-		categoryId: suggestion.categoryId ?? undefined,
-		categoryName: suggestion.categoryName ?? undefined,
 		createdAt: suggestion.createdAt,
 		date: suggestion.date,
 		debtSplit: suggestion.debtSplit,

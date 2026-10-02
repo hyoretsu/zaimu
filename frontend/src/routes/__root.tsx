@@ -1,32 +1,18 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { createRootRoute, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout";
-import { Skeleton } from "@/components/ui/Skeleton";
 import { initLocalDb, materializeLocalCreditBooks } from "@/lib/localStorage";
 import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
 import { materializeLocalRecurrences } from "@/lib/recurrence-service";
 import { useAuthStore, useThemeStore } from "@/stores";
-
-function AppLoadingState() {
-	return (
-		<div className="grid min-h-dvh grid-cols-1 gap-6 p-5 lg:grid-cols-[240px_1fr] lg:p-8">
-			<Skeleton className="hidden h-full lg:block" />
-			<div className="grid content-start gap-5">
-				<Skeleton className="h-12 w-56" />
-				<div className="grid gap-4 md:grid-cols-3">
-					<Skeleton className="h-36" />
-					<Skeleton className="h-36" />
-					<Skeleton className="h-36" />
-				</div>
-				<Skeleton className="h-80" />
-			</div>
-		</div>
-	);
-}
+import { AppLoadingState } from "./components/AppLoadingState";
+import { LocalUpgradeReview } from "./components/LocalUpgradeReview";
 
 function RootComponent() {
+	const [localReady, setLocalReady] = useState(false);
+	const [localError, setLocalError] = useState<string | null>(null);
 	const pathname = useLocation().pathname;
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
@@ -42,12 +28,22 @@ function RootComponent() {
 
 	useEffect(() => {
 		initializeTheme();
-		void initLocalDb();
+		let active = true;
+		void initLocalDb()
+			.then(() => {
+				if (active) setLocalReady(true);
+			})
+			.catch(error => {
+				if (active) setLocalError(error instanceof Error ? error.message : "Falha no armazenamento local");
+			});
 		void initialize();
+		return () => {
+			active = false;
+		};
 	}, [initialize, initializeTheme]);
 
 	useEffect(() => {
-		if (!identity || !isGuestMode) return;
+		if (!localReady || !identity || !isGuestMode) return;
 		let active = true;
 		const materialize = async () => {
 			try {
@@ -71,7 +67,7 @@ function RootComponent() {
 			clearInterval(timer);
 			document.removeEventListener("visibilitychange", onVisible);
 		};
-	}, [identity, isGuestMode, queryClient]);
+	}, [identity, isGuestMode, localReady, queryClient]);
 
 	useEffect(() => {
 		if (!isInitialized || isPublicRoute || isRateLimited || isAuthenticated || isGuestMode) return;
@@ -91,6 +87,18 @@ function RootComponent() {
 		});
 	}, [identity, queryClient]);
 
+	if (localError)
+		return (
+			<LocalUpgradeReview
+				error={localError}
+				onRetry={async () => {
+					await initLocalDb();
+					setLocalReady(true);
+					setLocalError(null);
+				}}
+			/>
+		);
+	if (!localReady) return <AppLoadingState />;
 	if (!isPublicRoute && !isInitialized) return <AppLoadingState />;
 	if (isPublicRoute) return <Outlet />;
 	return (

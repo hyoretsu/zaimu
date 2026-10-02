@@ -26,7 +26,6 @@ interface PurchaseRow {
 	creditCardId: string;
 	description: string;
 	storeName: string | null;
-	categoryId: string | null;
 	purchaseDate: string;
 	totalAmount: number;
 }
@@ -76,7 +75,7 @@ export async function replayNormalizedCard(query: RawQuery, cardId: string) {
 	if (!card) throw new HttpException("Cartão não encontrado", 404);
 	const [purchaseRows, planRows, concreteRows, refundRows, existingStatements, chargeRows, payments] = [
 		await query<PurchaseRow>(
-			`SELECT "id", "creditCardId", "description", "storeName", "categoryId",
+			`SELECT "id", "creditCardId", "description", "storeName",
 				 "purchaseDate"::text AS "purchaseDate", "totalAmount"
 				 FROM "CreditPurchaseRecord" WHERE "creditCardId" = $1`,
 			[cardId],
@@ -123,7 +122,6 @@ export async function replayNormalizedCard(query: RawQuery, cardId: string) {
 	];
 	const plansByPurchase = Map.groupBy(planRows, row => row.purchaseId);
 	const purchases: CreditPurchase[] = purchaseRows.map(row => ({
-		categoryId: row.categoryId,
 		creditCardId: row.creditCardId,
 		description: row.description,
 		id: row.id,

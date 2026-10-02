@@ -27,7 +27,6 @@ export interface CreditReadRow extends Record<string, unknown> {
 	feeAmount: number | null;
 	feeDescription: string | null;
 	refinancingFeeAmount: number | null;
-	categoryId: string | null;
 	cashbackAccountId: string | null;
 	cashbackAmount: number | null;
 	cashbackYieldPeriod: "MONTHLY" | "YEARLY" | null;

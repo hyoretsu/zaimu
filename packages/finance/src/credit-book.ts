@@ -479,7 +479,6 @@ export function newBookPurchase(
 		cashbackYieldPeriod: null,
 		cashbackYieldReferencePercentage: null,
 		cashbackYieldReferenceRate: null,
-		categoryId: null,
 		debtSplitRule: null,
 		externalId: null,
 		feeAmount: null,
@@ -637,7 +636,6 @@ export function creditBookEntries(book: CreditBook, includeForecasts = true) {
 			};
 		});
 	const charges = book.charges.map(charge => ({
-		categoryId: null,
 		currentInstallment: 1,
 		description: charge.description,
 		entryKind: "CHARGE" as const,

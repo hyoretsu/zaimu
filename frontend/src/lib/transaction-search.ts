@@ -29,7 +29,6 @@ export function getTransactionSearchText(transaction: Transaction) {
 			transaction.time,
 			transaction.description,
 			transaction.storeName,
-			transaction.categoryName,
 			typeLabel[transaction.type],
 			transaction.isHidden ? "Oculta" : "Visível",
 			transaction.originName,

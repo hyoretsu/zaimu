@@ -44,8 +44,6 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 	const categories = new Map<string, string>();
 	for (const transaction of transactions) {
 		for (const tag of transaction.tags ?? []) categories.set(tag.id, tag.name);
-		if (transaction.categoryId && transaction.categoryName)
-			categories.set(transaction.categoryId, transaction.categoryName);
 	}
 	const activeFilterCount = countActiveTransactionFilters(filters);
 	const hasFilters = activeFilterCount > 0;

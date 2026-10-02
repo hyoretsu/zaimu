@@ -670,9 +670,9 @@ suite("Prisma 8 SQL query builder", () => {
 			"POST",
 			{
 				amount: 19.75,
-				categoryId: category.id,
 				date: "2026-08-23",
 				destinationFinancialAccountId: account.id,
+				tagIds: [category.id],
 				time: "08:15",
 				type: "INCOME",
 			},
@@ -809,7 +809,7 @@ suite("Prisma 8 SQL query builder", () => {
 			owner.cookie,
 		);
 		const purchases = (await purchaseResponse.json()) as Array<{
-			categoryId: null;
+			tagIds: string[];
 			id: string;
 			installmentAmount: number;
 			statementId: string;
@@ -820,7 +820,7 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(purchaseResponse.status).toBe(200);
 		expect(purchases).toHaveLength(2);
 		expect(new Set(purchases.map(purchase => purchase.statementId)).size).toBe(2);
-		expect(purchases[0]?.categoryId).toBeNull();
+		expect(purchases[0]?.tagIds).toEqual([]);
 		expect(purchases[0]?.installmentAmount).toBe(49.95);
 		expect(purchases[0]?.storeName).toBe("Livraria Central");
 		expect(purchases[0]?.time).toStartWith("14:30");

@@ -17,7 +17,6 @@ import {
 interface ImportedPurchaseInput {
 	debtSplitRule?: BookPurchase["debtSplitRule"];
 	isStatementCharge?: boolean;
-	categoryId: null | string;
 	currentInstallment: number;
 	description: string;
 	dueDate: Date;
@@ -155,7 +154,6 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 						updatedAt: new Date().toISOString(),
 					}
 				: {
-						categoryId: input.categoryId,
 						debtSplitRule: input.debtSplitRule === undefined ? p.debtSplitRule : input.debtSplitRule,
 						description: withoutImportedAnticipation(withoutFinancingReferences(input.description)),
 						externalId: input.externalId,

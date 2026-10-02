@@ -116,10 +116,22 @@ test("legacy migration is idempotent, skips signed owners and isolates invalid l
 	expect(await storage.localLoanPayments.getAll("user:test")).toHaveLength(0);
 	expect((await storage.localLoans.getById("legacy", owner))?.data.needsPaymentReview).toBe(true);
 	expect((await storage.localLoanPayments.getAll(owner)).every(row => !row.data.paidDate)).toBe(true);
-	await storage.reviewLocalLoanPayments(loan.id, "2026-09-30", "PRICE", owner);
+	await (await import("../upgrades/review-loan-payments")).reviewLocalLoanPayments(
+		loan.id,
+		"2026-09-30",
+		"PRICE",
+		owner,
+	);
 	expect((await storage.localLoans.getById("legacy", owner))?.data.needsPaymentReview).toBe(false);
 	const paid = (await storage.localLoanPayments.getAll(owner)).filter(row => row.data.paidDate);
 	expect(paid.map(row => row.data.installmentNumber).sort()).toEqual([1, 2]);
 	expect(paid.every(row => !row.data.isAdvanced)).toBe(true);
-	await expect(storage.reviewLocalLoanPayments(loan.id, "2026-09-30", "PRICE", owner)).rejects.toThrow();
+	await expect(
+		(await import("../upgrades/review-loan-payments")).reviewLocalLoanPayments(
+			loan.id,
+			"2026-09-30",
+			"PRICE",
+			owner,
+		),
+	).rejects.toThrow();
 });

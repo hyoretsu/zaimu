@@ -33,6 +33,7 @@ import {
 import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
+import { rejectLegacyFinancialFields } from "~/shared/infra/elysia/strict-json-body";
 import {
 	db,
 	executeStatement,
@@ -55,7 +56,6 @@ import {
 	withFinancingSource,
 	withFinancingTarget,
 } from "../../domain/financing-source-reference";
-import { matchLegacyFinancingRoots } from "../../domain/legacy-financing-roots";
 import { selectNewImportPurchases } from "../../domain/select-new-import-purchases";
 import { CreditCardImportItemReconcileDTO, CreditCardImportItemUpdateDTO } from "./CreditCardImportsDTO";
 
@@ -108,7 +108,11 @@ async function getPotentialDuplicates(
 							.trim()
 							.toLocaleLowerCase("pt-BR") ||
 						Math.abs(Number(candidate.totalAmount) - Number(item.totalAmount)) <= 1)
-				: !candidate.externalId && matchesExistingCreditPurchase(item, candidate),
+				: /^FIN /u.test(item.description)
+					? /^FIN /u.test(candidate.description) &&
+						candidate.installments === item.installments &&
+						dateKey(candidate.purchaseDate) === dateKey(item.purchaseDate)
+					: !candidate.externalId && matchesExistingCreditPurchase(item, candidate),
 		);
 		if (matches.length) result.set(item.id, matches);
 	}
@@ -225,7 +229,6 @@ async function getImportReturn(
 		? await queryRows(
 				db.sql.public.CreditCardImportItem.select(
 					"id",
-					"categoryId",
 					"currentInstallment",
 					"createdAt",
 					"description",
@@ -384,7 +387,6 @@ async function approveItemsImpl(userId: string, importId: string, itemId?: strin
 	const allItems = await queryRows(
 		db.sql.public.CreditCardImportItem.select(
 			"id",
-			"categoryId",
 			"currentInstallment",
 			"description",
 			"externalId",
@@ -565,6 +567,9 @@ async function approveItemsImpl(userId: string, importId: string, itemId?: strin
 }
 
 export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-imports" })
+	.onTransform(({ body }) => {
+		rejectLegacyFinancialFields(body);
+	})
 	.get("/", async ({ request, set }) => {
 		const userId = await requireUserId(request);
 		const cached = await distributedCache.remember(
@@ -666,22 +671,6 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 			const existingRoots = new Map(
 				existing.flatMap(item => (item.externalId ? [[item.externalId, item.id] as const] : [])),
 			);
-			const unmatchedFinancings = purchases.filter(
-				purchase => purchase.description.startsWith("FIN ") && !existingRoots.has(purchase.externalId),
-			);
-			if (unmatchedFinancings.length) {
-				const candidates = (await readCreditEntries(body.creditCardId)).filter(
-					p =>
-						!p.parentId &&
-						!p.isRefund &&
-						unmatchedFinancings.some(f => dateKey(p.purchaseDate) === f.purchaseDate),
-				);
-				try {
-					matchLegacyFinancingRoots(unmatchedFinancings, candidates, existingRoots);
-				} catch (error) {
-					throw new HttpException(error instanceof Error ? error.message : "Parcelamento ambíguo", 409);
-				}
-			}
 			const existingRootIds = [...new Set(existingRoots.values())];
 			const existingInstallments = (await readCreditEntries(body.creditCardId)).filter(p =>
 				existingRootIds.includes(p.purchaseId ?? p.id),
@@ -966,7 +955,6 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 			);
 			await executeStatement(
 				db.sql.public.CreditCardImportItem.update({
-					categoryId: tagIds[0] ?? null,
 					description: importedAnticipation(item.description)
 						? withImportedAnticipation(duplicate.description, importedAnticipation(item.description)!)
 						: source("description", item.description, duplicate.description),

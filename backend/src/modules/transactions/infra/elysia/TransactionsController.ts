@@ -28,6 +28,7 @@ import { areTransferSuggestionTimesCompatible } from "~/modules/transaction-impo
 import { listTransactionsPage } from "~/modules/transactions/application/list-transactions-page";
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
+import { rejectLegacyFinancialFields } from "~/shared/infra/elysia/strict-json-body";
 import { db, executeStatement, queryFirst, queryRows, withTransaction } from "~/shared/infra/sql";
 
 const transactionColumns = [
@@ -39,7 +40,6 @@ const transactionColumns = [
 	"storeName",
 	"isHidden",
 	"type",
-	"categoryId",
 	"paymentCreditCardId",
 	"recurrenceId",
 	"recurrenceOccurrenceDate",
@@ -74,6 +74,9 @@ async function refreshCardPayments(cardIds: string[]) {
 }
 
 export const TransactionsController = new Elysia({ prefix: "/transactions" })
+	.onTransform(({ body }) => {
+		rejectLegacyFinancialFields(body);
+	})
 	.post(
 		"/:id/transfer-suggestions/:counterpartId/accept",
 		async ({ params, request }) => {
@@ -129,7 +132,6 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				);
 				await transaction.executeStatement(
 					transaction.db.sql.public.Transaction.update({
-						categoryId: null,
 						destinationFinancialAccountId: incomingAccountId,
 						originFinancialAccountId: outgoingAccountId,
 						paymentCreditCardId: null,
@@ -442,12 +444,12 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					allowPoints: (body.type ?? "EXPENSE") === "INCOME",
 				});
 			}
-			const hasExplicitTags = body.tagIds !== undefined || body.categoryId !== undefined;
+			const hasExplicitTags = body.tagIds !== undefined;
 			const linkedTagSource = body.recurrenceId
 				? { entityId: body.recurrenceId, entityType: "RECURRENCE" }
 				: undefined;
 			const tagIds = hasExplicitTags
-				? await assertTagOwnership(body.tagIds ?? (body.categoryId ? [body.categoryId] : []), userId)
+				? await assertTagOwnership(body.tagIds ?? [], userId)
 				: linkedTagSource
 					? ((await getTagsByEntity(linkedTagSource.entityType, [linkedTagSource.entityId]))
 							.get(linkedTagSource.entityId)
@@ -498,7 +500,6 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						db.sql.public.Transaction.insert([
 							{
 								amount: String(body.amount),
-								categoryId: tagIds[0],
 								date: new Date(body.date),
 								description: body.description,
 								destinationFinancialAccountId: body.destinationFinancialAccountId,
@@ -568,7 +569,6 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 		{
 			body: t.Object({
 				amount: t.Number(),
-				categoryId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				date: t.String(),
 				debtSplit: t.Optional(DebtSplitInputDTO),
 				description: t.Optional(t.String({ maxLength: 1000 })),
@@ -593,9 +593,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			const userId = await requireUserId(request);
 			await assertTransactionOwnership(params.id, userId);
 			const tagIds =
-				body.tagIds !== undefined || body.categoryId !== undefined
-					? await assertTagOwnership(body.tagIds ?? (body.categoryId ? [body.categoryId] : []), userId)
-					: undefined;
+				body.tagIds !== undefined ? await assertTagOwnership(body.tagIds ?? [], userId) : undefined;
 			const existing = await queryFirst(
 				db.sql.public.Transaction.select(...transactionColumns)
 					.where((f, fn) => fn.eq(f.id, params.id))
@@ -696,7 +694,6 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					...(body.destinationFinancialAccountId !== undefined && {
 						destinationFinancialAccountId: body.destinationFinancialAccountId,
 					}),
-					...(tagIds !== undefined && { categoryId: tagIds[0] ?? null }),
 					updatedAt: new Date(),
 				} as never)
 					.where((f, fn) => fn.eq(f.id, params.id))
@@ -756,7 +753,6 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 		{
 			body: t.Object({
 				amount: t.Optional(t.Number()),
-				categoryId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 				date: t.Optional(t.String()),
 				debtSplit: t.Optional(t.Nullable(DebtSplitInputDTO)),
 				description: t.Optional(t.String({ maxLength: 1000 })),

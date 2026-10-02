@@ -21,7 +21,6 @@ export function assertDateKey(value: string) {
 export interface PurchaseMetadata {
 	description: string;
 	storeName: string | null;
-	categoryId: string | null;
 	tagIds: readonly string[];
 }
 
@@ -168,7 +167,6 @@ export function dueInstallments(
 /** One shared resolver prevents stale copied metadata in invoice/refund read models. */
 export function purchaseMetadata(purchase: CreditPurchase): PurchaseMetadata {
 	return {
-		categoryId: purchase.categoryId,
 		description: purchase.description,
 		storeName: purchase.storeName,
 		tagIds: [...purchase.tagIds],
