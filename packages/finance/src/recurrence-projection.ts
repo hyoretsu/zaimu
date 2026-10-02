@@ -7,7 +7,16 @@ export function projectRecurrenceCreditBook(
 	from: string,
 	through: string,
 ) {
-	const projected = structuredClone(book);
+	const projected: CreditBook = {
+		...book,
+		card: { ...book.card },
+		charges: [...book.charges],
+		installments: [...book.installments],
+		payments: [...book.payments],
+		purchases: [...book.purchases],
+		refunds: [...book.refunds],
+		statements: [...book.statements],
+	};
 	for (const recurrence of recurrences) {
 		if (
 			!recurrence.isActive ||
@@ -28,16 +37,21 @@ export function projectRecurrenceCreditBook(
 						purchase.subscriptionOccurrenceDate === date,
 				)
 			)
-				newBookPurchase(projected, {
-					description: recurrence.name,
-					id,
-					installments: 1,
-					purchaseDate: date,
-					storeName: recurrence.storeName ?? null,
-					subscriptionId: recurrence.id,
-					subscriptionOccurrenceDate: date,
-					totalAmount: recurrence.amount,
-				});
+				newBookPurchase(
+					projected,
+					{
+						description: recurrence.name,
+						id,
+						installments: 1,
+						purchaseDate: date,
+						storeName: recurrence.storeName ?? null,
+						subscriptionId: recurrence.id,
+						subscriptionOccurrenceDate: date,
+						totalAmount: recurrence.amount,
+					},
+					undefined,
+					{ materialize: false },
+				);
 		}
 	}
 	return projected;

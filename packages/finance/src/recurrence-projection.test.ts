@@ -83,3 +83,43 @@ test("ephemeral card purchase enters correct cycle and fixed payment reduces res
 	const replay = replayCreditBook(projected, "2026-10-31");
 	expect(replay.statements.reduce((sum, s) => sum + s.balanceAmount, 0)).toBe(110);
 });
+
+test("forecast projection leaves unmaterialized historical purchases unchanged", () => {
+	const book: CreditBook = {
+		card: {
+			dueDay: 25,
+			id: "card",
+			ignoreStatementsBefore: null,
+			institutionId: null,
+			refundPolicy: null,
+			statementDay: 15,
+			userId: "owner",
+		},
+		charges: [],
+		installments: [],
+		payments: [],
+		purchases: [],
+		refunds: [],
+		statements: [],
+	};
+	newBookPurchase(
+		book,
+		{ description: "Pending worker", installments: 1, purchaseDate: "2026-08-01", totalAmount: 100 },
+		undefined,
+		{ materialize: false },
+	);
+	const before = JSON.stringify(book);
+	const projected = projectRecurrenceCreditBook(
+		book,
+		[recurrence("CARD_PURCHASE", 50)],
+		"2026-10-01",
+		"2026-10-31",
+	);
+	expect(JSON.stringify(book)).toBe(before);
+	expect(projected.purchases).toHaveLength(2);
+	expect(projected.installments).toEqual([]);
+	expect(projected.statements).toEqual([]);
+	expect(
+		replayCreditBook(projected, "2026-10-31").statements.reduce((sum, row) => sum + row.balanceAmount, 0),
+	).toBe(150);
+});

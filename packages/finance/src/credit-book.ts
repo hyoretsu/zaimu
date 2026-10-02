@@ -470,6 +470,7 @@ export function newBookPurchase(
 	input: Pick<BookPurchase, "description" | "purchaseDate"> &
 		Partial<BookPurchase> & { totalAmount: number; installments: number },
 	now = new Date().toISOString(),
+	options: { materialize?: boolean } = {},
 ) {
 	const { totalAmount, installments, ...metadata } = input;
 	const purchase: BookPurchase = {
@@ -503,7 +504,7 @@ export function newBookPurchase(
 	assertPurchase(purchase);
 	if (book.purchases.some(item => item.id === purchase.id)) throw new RangeError("Compra duplicada");
 	book.purchases.push(purchase);
-	materializeBookInstallments(book);
+	if (options.materialize !== false) materializeBookInstallments(book);
 	return purchase;
 }
 

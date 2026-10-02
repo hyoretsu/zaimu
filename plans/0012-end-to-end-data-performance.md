@@ -308,3 +308,5 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Regressão E2E atualizada para resumos, páginas e recorrências unificadas: dois testes passaram com 232 verificações em banco local isolado. Eventos de dívida usam descrição atual da compra e descrição específica do participante; exclusão de pessoa conectada preserva histórico compartilhado. Aceite de latência permanece pendente.
 
 - Integridade de compras corrigida na migração de recorrências: trigger valida proprietário na tabela `Recurrence`, substituindo referência à tabela arquivada `Subscription`. Verificação offline da migração e E2E no banco isolado passaram.
+
+- Previsão de recorrências copia somente coleções alteradas e adiciona compras virtuais sem materializar todo histórico a cada ocorrência. Livro original permanece intacto. 65 testes financeiros passaram; consulta e replay volumosos ainda excedem orçamento de latência.
