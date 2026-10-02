@@ -322,3 +322,5 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Integração com RabbitMQ local dedicado passou: publisher confirms, persistência durante restart, reconexão automática, receipt contra duplicação, retry e DLQ. Binding de retorno do retry de cache corrigido; quorum dead-letter usa entrega confirmada. DLQ confirma publicação antes de ACK; teste de confirmação perdida preserva original. Sete testes unitários passaram.
 
 - Recorrências unificadas voltaram a cumprir contrato de resumo: tags lidas em lote, rateio fora da listagem e detalhe com cache carregado somente ao editar. Snapshots do sync preservam rateios completos com loader em lote. E2E passou com 206 verificações; detalhe guest mantém dados completos armazenados.
+
+- Históricos dos adaptadores exigidos pelas regras de negócio usam mesma paginação/cache da recorrência unificada. Resumos filtram origem no SQL e resolvem cartões em lote; sync conserva snapshots completos. E2E passou. Limpeza de legado adiada pelo usuário para plano próprio; nenhuma compatibilidade existente foi removida.

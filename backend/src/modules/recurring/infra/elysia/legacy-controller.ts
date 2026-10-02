@@ -1,6 +1,6 @@
 import Elysia, { t } from "elysia";
 import { requireUserId } from "~/modules/auth";
-import { queryRaw } from "~/shared/infra/sql";
+import { distributedCache } from "~/shared/infra/cache";
 import {
 	type LegacyRecurrenceSource,
 	listLegacyRecurrences,
@@ -8,7 +8,9 @@ import {
 	resolveLegacyRecurrenceId,
 	saveLegacyRecurrence,
 } from "../../application/legacy-recurrences";
+import { getCachedRecurrenceHistory } from "../../application/recurrence-history";
 import { deleteRecurrence, getStoredRecurrence, presentRecurrence } from "../../application/recurrences";
+import { RecurrenceHistoryQuery, RecurrenceHistoryReturn } from "./RecurrenceDTO";
 
 const entity = t.Record(t.String(), t.Unknown());
 const params = t.Object({ id: t.String({ maxLength: 36, minLength: 1 }) });
@@ -16,8 +18,17 @@ export function legacyRecurrenceController(prefix: string, source: LegacyRecurre
 	return new Elysia({ prefix })
 		.get(
 			"/",
-			async ({ request, query }) => {
-				const items = await listLegacyRecurrences(await requireUserId(request), source, query.isActive);
+			async ({ request, query, set }) => {
+				const userId = await requireUserId(request);
+				const cached = await distributedCache.remember(
+					userId,
+					"schedules:overview",
+					{ isActive: query.isActive, source, version: 2 },
+					() => listLegacyRecurrences(userId, source, query.isActive, true),
+				);
+				set.headers.etag = cached.etag;
+				set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+				const items = cached.value;
 				return source === "subscription"
 					? {
 							subscriptions: items,
@@ -77,13 +88,19 @@ export function legacyRecurrenceController(prefix: string, source: LegacyRecurre
 		)
 		.get(
 			"/:id/history",
-			async ({ request, params }) => {
+			async ({ request, params, query, set }) => {
 				const userId = await requireUserId(request);
-				return queryRaw(
-					'SELECT * FROM "RecurrenceHistory" WHERE "recurrenceId"=$1 ORDER BY "changedAt" DESC',
-					[await resolveLegacyRecurrenceId(userId, source, params.id)],
+				const cached = await getCachedRecurrenceHistory(userId, params.id, query, source, () =>
+					resolveLegacyRecurrenceId(userId, source, params.id),
 				);
+				set.headers.etag = cached.etag;
+				set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+				if (request.headers.get("if-none-match") === cached.etag) {
+					set.status = 304;
+					return undefined as never;
+				}
+				return cached.value;
 			},
-			{ params, response: t.Array(entity) },
+			{ params, query: RecurrenceHistoryQuery, response: RecurrenceHistoryReturn },
 		);
 }

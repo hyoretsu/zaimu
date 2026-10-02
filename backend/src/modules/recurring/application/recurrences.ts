@@ -63,10 +63,20 @@ export async function presentRecurrence(recurrence: StoredRecurrence) {
 		tags,
 	};
 }
-export async function listRecurrenceSummaries(userId: string, isActive?: boolean) {
+export async function listRecurrenceSummaries(userId: string, isActive?: boolean, source?: string) {
+	const parameters: unknown[] = [userId];
+	const conditions = ['"userId"=$1'];
+	if (isActive !== undefined) {
+		parameters.push(isActive);
+		conditions.push(`"isActive"=$${parameters.length}`);
+	}
+	if (source !== undefined) {
+		parameters.push(source);
+		conditions.push(`"legacySource"=$${parameters.length}`);
+	}
 	const rows = await queryRaw(
-		`SELECT * FROM "Recurrence" WHERE "userId"=$1${isActive === undefined ? "" : ' AND "isActive"=$2'} ORDER BY "name","id"`,
-		isActive === undefined ? [userId] : [userId, isActive],
+		`SELECT * FROM "Recurrence" WHERE ${conditions.join(" AND ")} ORDER BY "name","id"`,
+		parameters,
 	);
 	const tagsById = await getTagsByEntity(
 		"RECURRENCE",
@@ -84,8 +94,8 @@ export async function listRecurrenceSummaries(userId: string, isActive?: boolean
 	});
 }
 /** Full snapshots are reserved for sync; load associations once for the whole set. */
-export async function listRecurrences(userId: string, isActive?: boolean) {
-	const rows = await listRecurrenceSummaries(userId, isActive);
+export async function listRecurrences(userId: string, isActive?: boolean, source?: string) {
+	const rows = await listRecurrenceSummaries(userId, isActive, source);
 	const splits = await getDebtSplitReturns(
 		"recurringPaymentId",
 		rows.map(row => ({ amount: row.amount, id: row.id })),

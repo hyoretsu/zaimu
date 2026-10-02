@@ -1081,8 +1081,8 @@ suite("Prisma 8 SQL query builder", () => {
 				owner.cookie,
 			);
 			expect(historyResponse.status).toBe(200);
-			const history = (await historyResponse.json()) as unknown[] | { items: unknown[] };
-			expect((Array.isArray(history) ? history : history.items).length).toBeGreaterThan(0);
+			const history = (await historyResponse.json()) as { items: unknown[] };
+			expect(history.items.length).toBeGreaterThan(0);
 		}
 
 		const dashboard = await jsonRequest("/dashboard/", "GET", undefined, owner.cookie);

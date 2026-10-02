@@ -2,7 +2,13 @@ import { legacyRecurrenceSchedule } from "@zaimu/finance/recurrence";
 import { HttpException } from "~/shared/errors";
 import { queryRaw } from "~/shared/infra/sql";
 import type { RecurrenceBody } from "../infra/elysia/RecurrenceDTO";
-import { getStoredRecurrence, listRecurrences, type StoredRecurrence, saveRecurrence } from "./recurrences";
+import {
+	getStoredRecurrence,
+	listRecurrenceSummaries,
+	listRecurrences,
+	type StoredRecurrence,
+	saveRecurrence,
+} from "./recurrences";
 export type LegacyRecurrenceSource = "salary" | "subscription" | "recurring";
 export async function legacyRecurrenceInput(
 	source: LegacyRecurrenceSource,
@@ -41,15 +47,19 @@ export async function legacyRecurrenceInput(
 export async function presentLegacyRecurrence(
 	recurrence: StoredRecurrence & Record<string, unknown>,
 	source: LegacyRecurrenceSource,
+	cardAccountId?: string | null,
 ) {
-	const accountId = recurrence.creditCardId
-		? (
-				await queryRaw<{ financialAccountId: string }>(
-					'SELECT "financialAccountId" FROM "CreditCard" WHERE "id"=$1',
-					[recurrence.creditCardId],
-				)
-			)[0]?.financialAccountId
-		: (recurrence.originFinancialAccountId ?? recurrence.destinationFinancialAccountId);
+	const accountId =
+		cardAccountId !== undefined
+			? cardAccountId
+			: recurrence.creditCardId
+				? (
+						await queryRaw<{ financialAccountId: string }>(
+							'SELECT "financialAccountId" FROM "CreditCard" WHERE "id"=$1',
+							[recurrence.creditCardId],
+						)
+					)[0]?.financialAccountId
+				: (recurrence.originFinancialAccountId ?? recurrence.destinationFinancialAccountId);
 	const frequency =
 		recurrence.unit === "DAY"
 			? "DAILY"
@@ -92,12 +102,29 @@ export async function listLegacyRecurrences(
 	userId: string,
 	source: LegacyRecurrenceSource,
 	isActive?: boolean,
+	summary = false,
 ) {
-	const recurrences = await listRecurrences(userId, isActive);
+	const recurrences = (
+		await (summary
+			? listRecurrenceSummaries(userId, isActive, source)
+			: listRecurrences(userId, isActive, source))
+	).filter(item => item.legacySource === source);
+	const cardIds = [...new Set(recurrences.flatMap(item => (item.creditCardId ? [item.creditCardId] : [])))];
+	const cards = cardIds.length
+		? await queryRaw<{ id: string; financialAccountId: string }>(
+				'SELECT "id","financialAccountId" FROM "CreditCard" WHERE "id"=ANY($1)',
+				[cardIds],
+			)
+		: [];
+	const accounts = new Map(cards.map(card => [card.id, card.financialAccountId]));
 	return Promise.all(
-		recurrences
-			.filter(item => item.legacySource === source)
-			.map(item => presentLegacyRecurrence(item, source)),
+		recurrences.map(item =>
+			presentLegacyRecurrence(
+				item,
+				source,
+				item.creditCardId ? (accounts.get(item.creditCardId) ?? null) : undefined,
+			),
+		),
 	);
 }
 export async function saveLegacyRecurrence(
