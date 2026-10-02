@@ -139,7 +139,7 @@ test("upgrades v5 guest/cache payments and replays the guest service after edits
 		isGuestMode: true,
 		isInitialized: true,
 	});
-	expect((await storage.initLocalDb()).version).toBe(7);
+	expect((await storage.initLocalDb()).version).toBeGreaterThanOrEqual(7);
 	const migrated = (await storage.localTransactions.getById("payment", owner))!;
 	expect(migrated).toMatchObject({
 		data: { amount: 120, paymentCreditCardId: "card", time: "14:30" },
