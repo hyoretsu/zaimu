@@ -1,5 +1,11 @@
 import Elysia, { t } from "elysia";
 import { requireUserId } from "~/modules/auth";
+import {
+	decodePaginationCursor,
+	encodePaginationCursor,
+	paginationFilterHash,
+} from "~/shared/application/pagination-cursor";
+import { distributedCache } from "~/shared/infra/cache";
 import { queryRaw } from "~/shared/infra/sql";
 import { legacyRecurrenceInput, presentLegacyRecurrence } from "../../application/legacy-recurrences";
 import {
@@ -13,6 +19,7 @@ import {
 import {
 	LegacyRecurringBody,
 	RecurrenceBody,
+	RecurrenceHistoryQuery,
 	RecurrenceHistoryReturn,
 	RecurrenceReturn,
 	RecurrenceSuccessReturn,
@@ -86,23 +93,65 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 	)
 	.get(
 		"/:id/history",
-		async ({ request, params }) => {
+		async ({ request, params, query, set }) => {
 			const userId = await requireUserId(request);
-			await getStoredRecurrence(userId, params.id);
-			return (
-				await queryRaw<{
-					id: string;
-					recurrenceId: string;
-					field: string;
-					oldValue: string | null;
-					newValue: string | null;
-					changedAt: Date;
-				}>('SELECT * FROM "RecurrenceHistory" WHERE "recurrenceId"=$1 ORDER BY "changedAt" DESC,"id" DESC', [
-					params.id,
-				])
-			).map(row => ({ ...row, changedAt: (row.changedAt as Date).toISOString() }));
+			const limit = query.limit ?? 50;
+			const filterHash = paginationFilterHash(userId, { domain: "recurrence-history", id: params.id });
+			const cursor = decodePaginationCursor(
+				query.cursor,
+				filterHash,
+				(value): value is { changedAt: string; id: string } => {
+					if (!value || typeof value !== "object") return false;
+					const item = value as Record<string, unknown>;
+					return (
+						typeof item.id === "string" &&
+						item.id.length > 0 &&
+						typeof item.changedAt === "string" &&
+						Number.isFinite(Date.parse(item.changedAt))
+					);
+				},
+			);
+			const cached = await distributedCache.remember(
+				userId,
+				"schedules:history",
+				{ cursor: query.cursor, id: params.id, limit },
+				async () => {
+					await getStoredRecurrence(userId, params.id);
+					const rows = await queryRaw<{
+						id: string;
+						recurrenceId: string;
+						field: string;
+						oldValue: string | null;
+						newValue: string | null;
+						changedAt: Date;
+					}>(
+						`SELECT "id", "recurrenceId", "field", "oldValue", "newValue", "changedAt" FROM "RecurrenceHistory"
+ WHERE "recurrenceId"=$1 AND ($2::timestamp IS NULL OR ("changedAt", "id") < ($2::timestamp, $3::text))
+ ORDER BY "changedAt" DESC,"id" DESC LIMIT $4`,
+						[params.id, cursor?.changedAt ?? null, cursor?.id ?? null, limit + 1],
+					);
+					const hasMore = rows.length > limit;
+					const items = rows.slice(0, limit).map(row => ({ ...row, changedAt: row.changedAt.toISOString() }));
+					const last = items.at(-1);
+					return {
+						hasMore,
+						items,
+						nextCursor:
+							hasMore && last
+								? encodePaginationCursor({ filterHash, value: { changedAt: last.changedAt, id: last.id } })
+								: null,
+					};
+				},
+			);
+			set.headers.etag = cached.etag;
+			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+			if (request.headers.get("if-none-match") === cached.etag) {
+				set.status = 304;
+				return undefined as never;
+			}
+			return cached.value;
 		},
-		{ params, response: RecurrenceHistoryReturn },
+		{ params, query: RecurrenceHistoryQuery, response: RecurrenceHistoryReturn },
 	)
 	.post(
 		"/:id/replay",

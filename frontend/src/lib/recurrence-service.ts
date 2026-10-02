@@ -8,6 +8,7 @@ import {
 import type { DebtSplitInput, Transaction } from "./api";
 import { getLocalDateKey } from "./date";
 import { debtSplitToInput } from "./debt-split";
+import { type LocalPageOptions, localCursorPage } from "./local-cursor-page";
 import {
 	commitLocalRecurrenceChanges,
 	deleteLocalRecurrence,
@@ -22,7 +23,13 @@ import {
 	type StorageOwner,
 } from "./localStorage";
 import { getCurrentCacheIdentity } from "./query-cache";
-import type { Recurrence, RecurrenceInput, RecurrenceOccurrence } from "./recurrence";
+import type {
+	Recurrence,
+	RecurrenceHistoryItem,
+	RecurrenceHistoryPage,
+	RecurrenceInput,
+	RecurrenceOccurrence,
+} from "./recurrence";
 
 export async function materializeLocalRecurrences(
 	owner: StorageOwner,
@@ -252,9 +259,41 @@ export function createRecurrenceService(deps: Dependencies) {
 			);
 			return records;
 		},
-		async getHistory(id: string): Promise<unknown[]> {
-			if (!deps.isGuestMode()) return deps.fetchWithAuth(`/recurring/${id}/history`);
-			return ((await localMeta.get(`recurrence-history:${id}`)) as unknown[]) ?? [];
+		async getHistory(id: string, options: LocalPageOptions = {}): Promise<RecurrenceHistoryPage> {
+			if (!deps.isGuestMode()) {
+				const params = new URLSearchParams({ limit: String(options.limit ?? 50) });
+				if (options.cursor) params.set("cursor", options.cursor);
+				return deps.fetchWithAuth(`/recurring/${id}/history?${params}`);
+			}
+			const owner = getCurrentCacheIdentity()!;
+			if (!(await localRecurrences.getById(id, owner))) throw new Error("Recorrência não encontrada.");
+			const stored =
+				((await localMeta.get(`recurrence-history:${id}`, owner)) as Record<string, unknown>[]) ?? [];
+			const rows: RecurrenceHistoryItem[] = stored.map(row => ({
+				changedAt: String(row.changedAt),
+				field: typeof row.field === "string" ? row.field : "record",
+				id: String(row.id),
+				newValue:
+					row.newValue == null
+						? null
+						: typeof row.newValue === "string"
+							? row.newValue
+							: JSON.stringify(row.newValue),
+				oldValue:
+					row.oldValue == null
+						? null
+						: typeof row.oldValue === "string"
+							? row.oldValue
+							: JSON.stringify(row.oldValue),
+				recurrenceId: id,
+			}));
+			return localCursorPage(
+				rows,
+				deps.getUserId(),
+				{ domain: "recurrence-history", id },
+				row => [row.changedAt, row.id],
+				options,
+			);
 		},
 		async replay(id: string, from: string, through: string): Promise<{ created: number }> {
 			if (!deps.isGuestMode())

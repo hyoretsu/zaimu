@@ -356,6 +356,52 @@ suite("Prisma 8 SQL query builder", () => {
 			tagIds: [secondCategory.id],
 		});
 
+		const historyEdit = await jsonRequest(
+			`/recurring/${recurring.id}`,
+			"PATCH",
+			{ amount: 175, name: "Academia atualizada" },
+			owner.cookie,
+		);
+		expect(historyEdit.status).toBe(200);
+		const historyResponse = await jsonRequest(
+			`/recurring/${recurring.id}/history?limit=1`,
+			"GET",
+			undefined,
+			owner.cookie,
+		);
+		expect(historyResponse.status).toBe(200);
+		const historyPage = (await historyResponse.json()) as {
+			items: Array<{ id: string }>;
+			nextCursor: string;
+			hasMore: boolean;
+		};
+		expect(historyPage.items).toHaveLength(1);
+		expect(historyPage.hasMore).toBe(true);
+		const historyNext = await jsonRequest(
+			`/recurring/${recurring.id}/history?limit=1&cursor=${encodeURIComponent(historyPage.nextCursor)}`,
+			"GET",
+			undefined,
+			owner.cookie,
+		);
+		expect(historyNext.status).toBe(200);
+		expect(((await historyNext.json()) as { items: Array<{ id: string }> }).items[0]!.id).not.toBe(
+			historyPage.items[0]!.id,
+		);
+		const otherHistory = await jsonRequest(
+			`/recurring/${recurring.id}/history?cursor=${encodeURIComponent(historyPage.nextCursor)}`,
+			"GET",
+			undefined,
+			outsider.cookie,
+		);
+		expect(otherHistory.status).toBe(400);
+		const invalidHistory = await jsonRequest(
+			`/recurring/${recurring.id}/history?cursor=invalid`,
+			"GET",
+			undefined,
+			owner.cookie,
+		);
+		expect(invalidHistory.status).toBe(400);
+
 		const salaryResponse = await jsonRequest(
 			"/salaries/",
 			"POST",
@@ -1028,7 +1074,8 @@ suite("Prisma 8 SQL query builder", () => {
 				owner.cookie,
 			);
 			expect(historyResponse.status).toBe(200);
-			expect(((await historyResponse.json()) as unknown[]).length).toBeGreaterThan(0);
+			const history = (await historyResponse.json()) as unknown[] | { items: unknown[] };
+			expect((Array.isArray(history) ? history : history.items).length).toBeGreaterThan(0);
 		}
 
 		const dashboard = await jsonRequest("/dashboard/", "GET", undefined, owner.cookie);

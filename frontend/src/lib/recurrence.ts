@@ -29,3 +29,17 @@ export interface RecurrenceOccurrence {
 	purchaseId?: string;
 	deletedAt?: string;
 }
+
+export interface RecurrenceHistoryItem {
+	id: string;
+	recurrenceId: string;
+	changedAt: string;
+	field: string;
+	oldValue: string | null;
+	newValue: string | null;
+}
+export interface RecurrenceHistoryPage {
+	items: RecurrenceHistoryItem[];
+	hasMore: boolean;
+	nextCursor: string | null;
+}

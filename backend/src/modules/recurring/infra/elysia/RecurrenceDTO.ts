@@ -49,16 +49,23 @@ export const RecurrenceReturn = t.Object({
 	updatedAt: t.String(),
 	userId: Id,
 });
-export const RecurrenceHistoryReturn = t.Array(
-	t.Object({
-		changedAt: t.String(),
-		field: t.String(),
-		id: Id,
-		newValue: t.Nullable(t.String()),
-		oldValue: t.Nullable(t.String()),
-		recurrenceId: Id,
-	}),
-);
+export const RecurrenceHistoryItem = t.Object({
+	changedAt: t.String(),
+	field: t.String(),
+	id: Id,
+	newValue: t.Nullable(t.String()),
+	oldValue: t.Nullable(t.String()),
+	recurrenceId: Id,
+});
+export const RecurrenceHistoryQuery = t.Object({
+	cursor: t.Optional(t.String()),
+	limit: t.Optional(t.Integer({ maximum: 100, minimum: 1 })),
+});
+export const RecurrenceHistoryReturn = t.Object({
+	hasMore: t.Boolean(),
+	items: t.Array(RecurrenceHistoryItem),
+	nextCursor: t.Nullable(t.String()),
+});
 export const RecurrenceSuccessReturn = t.Object({ success: t.Literal(true) });
 export const ReplayRecurrenceBody = t.Object({ from: DateString, through: DateString });
 export const ReplayRecurrenceReturn = t.Object({ created: t.Integer({ minimum: 0 }) });
