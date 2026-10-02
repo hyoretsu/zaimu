@@ -273,7 +273,7 @@ async function getPersonEvents(person: { connectionId: null | string; id: string
 			createdByMe: event.createdByUserId === userId,
 			description: incomeTransactionDescriptionsByDebtEventId.has(event.id)
 				? (incomeTransactionDescriptionsByDebtEventId.get(event.id) ?? null)
-				: (event.description ?? purchaseNamesByDebtEventId.get(event.id) ?? null),
+				: (purchaseNamesByDebtEventId.get(event.id) ?? event.description ?? null),
 			effect: event.createdByUserId === userId ? Number(event.effect) : -Number(event.effect),
 			kind: event.kind as DebtEventType,
 			time: timeByEventId.get(event.id) ?? null,
@@ -328,7 +328,9 @@ async function getPersonEventPage(userId: string, personId: string, cursorValue?
 		`SELECT event."id", event."amount", event."createdByUserId", creator."name" AS "createdByName",
 		        event."date", event."dueDate", event."kind",
 		        CASE WHEN event."createdByUserId" = $1 THEN event."effect" ELSE -event."effect" END AS "effect",
-		        COALESCE(income_transaction."description", event."description", purchase."description", purchase."storeName") AS "description",
+		        CASE WHEN income_transaction."id" IS NOT NULL THEN income_transaction."description"
+		        WHEN purchase."id" IS NOT NULL THEN COALESCE(NULLIF(purchase_participant."description", ''), NULLIF(purchase."description", ''), NULLIF(purchase."storeName", ''), 'Compra')
+		        ELSE COALESCE(NULLIF(event."description", ''), NULLIF(source_transaction."description", '')) END AS "description",
 		        COALESCE(source_transaction."time", refund."time", purchase."time") AS "time"
 		 FROM "public"."DebtEvent" event
 		 JOIN "public"."user" creator ON creator."id" = event."createdByUserId"
@@ -339,6 +341,8 @@ async function getPersonEventPage(userId: string, personId: string, cursorValue?
 		 LEFT JOIN "public"."CreditEntryReference" purchase_reference ON purchase_reference."id" = purchase_link."creditPurchaseId"
 		 LEFT JOIN "public"."CreditPurchaseRecord" purchase ON purchase."id" = purchase_reference."purchaseId"
 		 LEFT JOIN "public"."CreditRefundRecord" refund ON refund."id" = purchase_reference."refundId"
+		 LEFT JOIN "public"."DebtSplit" purchase_split ON purchase_split."creditPurchaseId"=purchase."id" AND purchase_split."userId"=event."createdByUserId"
+		 LEFT JOIN "public"."DebtSplitParticipant" purchase_participant ON purchase_participant."debtSplitId"=purchase_split."id" AND purchase_participant."debtPersonId"=event."debtPersonId"
 		 WHERE ${connectionId ? 'event."connectionId" = $2' : 'event."debtPersonId" = $2'}
 		   AND ($4 = '' OR
 		        ($3::date IS NULL AND event."date" IS NULL AND event."id" < $4) OR
@@ -832,7 +836,15 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 		"/people/:id",
 		async ({ params, request }) => {
 			const userId = await requireUserId(request);
-			await getOwnedDebtPerson(params.id, userId);
+			const person = await getOwnedDebtPerson(params.id, userId);
+			if (person.connectionId) {
+				await executeStatement(
+					db.sql.public.DebtPerson.update({ hiddenAt: new Date(), updatedAt: new Date() })
+						.where((fields, functions) => functions.eq(fields.id, params.id))
+						.build(),
+				);
+				return { success: true };
+			}
 			await executeStatement(
 				db.sql.public.DebtEvent.delete()
 					.where((fields, functions) => functions.eq(fields.debtPersonId, params.id))

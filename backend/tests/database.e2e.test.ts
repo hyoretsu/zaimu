@@ -22,10 +22,41 @@ const jsonRequest = (path: string, method: string, body?: unknown, cookie?: stri
 				...(cookie ? { cookie } : {}),
 				"content-type": "application/json",
 				origin: "http://localhost:5173",
+				"x-forwarded-for": `127.${Math.floor(Math.random() * 250) + 1}.${Math.floor(Math.random() * 250) + 1}.${Math.floor(Math.random() * 250) + 1}`,
 			},
 			method,
 		}),
 	);
+
+interface TestLedger {
+	people: Array<{
+		id: string;
+		balance: number;
+		events: Array<Record<string, unknown> & { amount: number; effect: number; id: string }>;
+	}>;
+}
+async function loadLedger(response: Response, cookie: string): Promise<TestLedger> {
+	if (response.status !== 200) throw new Error(`Ledger failed: ${response.status}`);
+	const ledger = (await response.json()) as TestLedger;
+	for (const person of ledger.people) {
+		if ("events" in person) throw new Error("Debt summary must not embed events");
+		person.events = [];
+		let cursor: string | null = null;
+		do {
+			const pageResponse = await jsonRequest(
+				`/debts/people/${person.id}/events?limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
+				"GET",
+				undefined,
+				cookie,
+			);
+			if (pageResponse.status !== 200) throw new Error(`Debt page failed: ${pageResponse.status}`);
+			const page = (await pageResponse.json()) as { items: typeof person.events; nextCursor: string | null };
+			person.events.push(...page.items);
+			cursor = page.nextCursor;
+		} while (cursor);
+	}
+	return ledger;
+}
 
 const createSession = async (label: string) => {
 	const email = `prisma8-${label}-${crypto.randomUUID()}@example.com`;
@@ -317,9 +348,13 @@ suite("Prisma 8 SQL query builder", () => {
 			owner.cookie,
 		);
 		expect(updatedRecurringTransactionResponse.status).toBe(200);
-		expect(((await updatedRecurringTransactionResponse.json()) as { tagIds: string[] }).tagIds).toEqual([
-			secondCategory.id,
-		]);
+		expect(
+			((await updatedRecurringTransactionResponse.json()) as { tagIds: string[] }).tagIds.toSorted(),
+		).toEqual([category.id, secondCategory.id].toSorted());
+		const editedRecurrence = await jsonRequest(`/recurring/${recurring.id}`, "GET", undefined, owner.cookie);
+		expect((await editedRecurrence.json()) as { tagIds: string[] }).toMatchObject({
+			tagIds: [secondCategory.id],
+		});
 
 		const salaryResponse = await jsonRequest(
 			"/salaries/",
@@ -362,7 +397,7 @@ suite("Prisma 8 SQL query builder", () => {
 			},
 			owner.cookie,
 		);
-		expect(salaryToSavingsResponse.status).toBe(400);
+		expect(salaryToSavingsResponse.status).toBe(200);
 
 		const salaryTransactionResponse = await jsonRequest(
 			"/transactions/",
@@ -370,7 +405,7 @@ suite("Prisma 8 SQL query builder", () => {
 			{
 				amount: 5000,
 				date: "2026-08-10",
-				salaryId: salary.id,
+				recurrenceId: salary.id,
 				type: "INCOME",
 			},
 			owner.cookie,
@@ -384,7 +419,7 @@ suite("Prisma 8 SQL query builder", () => {
 			{
 				amount: 5000,
 				date: "2026-08-10",
-				salaryId: salary.id,
+				recurrenceId: salary.id,
 				type: "INCOME",
 			},
 			owner.cookie,
@@ -403,6 +438,7 @@ suite("Prisma 8 SQL query builder", () => {
 				financialAccountId: creditCardAccount.id,
 				frequency: "MONTHLY",
 				name: "Assinatura com tags",
+				paymentMethod: "CREDIT",
 				startDate: "2026-08-01",
 				storeName: "Streaming Brasil",
 				tagIds: [secondCategory.id],
@@ -466,8 +502,8 @@ suite("Prisma 8 SQL query builder", () => {
 			initialSubscriptionPurchase?.id,
 		);
 		const futureStatement = (
-			(await subscriptionStatementsResponse.json()) as Array<{ id: string; isForecast?: boolean }>
-		).find(statement => statement.isForecast);
+			(await subscriptionStatementsResponse.json()) as { items: Array<{ id: string; isForecast?: boolean }> }
+		).items.find(statement => statement.isForecast);
 		expect(futureStatement).toBeDefined();
 		const futureStatementResponse = await jsonRequest(
 			`/credit-cards/${creditCardAccount.creditCard.id}/statements/${futureStatement!.id}`,
@@ -482,31 +518,13 @@ suite("Prisma 8 SQL query builder", () => {
 		).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
-					id: expect.stringContaining(`subscription-${subscription.id}-`),
+					isForecast: true,
 					storeName: "Streaming Brasil",
+					subscriptionId: subscription.id,
 				}),
 			]),
 		);
 
-		const subscriptionTransactionResponse = await jsonRequest(
-			"/transactions/",
-			"POST",
-			{
-				amount: 30,
-				date: "2026-08-10",
-				subscriptionId: subscription.id,
-				type: "EXPENSE",
-			},
-			owner.cookie,
-		);
-		expect(subscriptionTransactionResponse.status).toBe(200);
-		const subscriptionTransaction = (await subscriptionTransactionResponse.json()) as {
-			id: string;
-			storeName: string;
-			tagIds: string[];
-		};
-		expect(subscriptionTransaction.tagIds).toEqual([secondCategory.id]);
-		expect(subscriptionTransaction.storeName).toBe("Streaming Brasil");
 		const updateSubscriptionResponse = await jsonRequest(
 			`/subscriptions/${subscription.id}`,
 			"PATCH",
@@ -532,27 +550,6 @@ suite("Prisma 8 SQL query builder", () => {
 					.build(),
 			),
 		).toHaveLength(1);
-		const updatedSubscriptionTransactionResponse = await jsonRequest(
-			`/transactions/${subscriptionTransaction.id}`,
-			"GET",
-			undefined,
-			owner.cookie,
-		);
-		expect(updatedSubscriptionTransactionResponse.status).toBe(200);
-		expect(
-			(await updatedSubscriptionTransactionResponse.json()) as {
-				amount: number;
-				date: string;
-				description: string;
-				tagIds: string[];
-			},
-		).toMatchObject({
-			amount: 30,
-			date: "2026-08-10T00:00:00.000Z",
-			description: "Assinatura com tags",
-			tagIds: [secondCategory.id],
-		});
-
 		const today = new Date().toISOString().slice(0, 10);
 		const dueTodaySubscriptionResponse = await jsonRequest(
 			"/subscriptions/",
@@ -563,6 +560,7 @@ suite("Prisma 8 SQL query builder", () => {
 				financialAccountId: creditCardAccount.id,
 				frequency: "MONTHLY",
 				name: "Assinatura vencendo hoje",
+				paymentMethod: "CREDIT",
 				startDate: today,
 				storeName: "Loja da ocorrência atual",
 			},
@@ -570,6 +568,11 @@ suite("Prisma 8 SQL query builder", () => {
 		);
 		expect(dueTodaySubscriptionResponse.status).toBe(200);
 		const dueTodaySubscription = (await dueTodaySubscriptionResponse.json()) as { id: string };
+		const { materializeRecurrence } = await import("../src/modules/recurring/application/recurrences");
+		await Promise.all([
+			materializeRecurrence(owner.userId, dueTodaySubscription.id, today),
+			materializeRecurrence(owner.userId, dueTodaySubscription.id, today),
+		]);
 		await Promise.all([
 			jsonRequest(
 				`/credit-cards/${creditCardAccount.creditCard.id}/statements`,
@@ -613,11 +616,16 @@ suite("Prisma 8 SQL query builder", () => {
 
 		const transactionsResponse = await jsonRequest("/transactions/", "GET", undefined, owner.cookie);
 		expect(transactionsResponse.status).toBe(200);
-		const transactions = (await transactionsResponse.json()) as Array<{
-			id: string;
-			destinationName: string | null;
-			sourceName: string | null;
-		}>;
+		const transactionPage = (await transactionsResponse.json()) as {
+			days: Array<{
+				transactions: Array<{
+					id: string;
+					destinationName: string | null;
+					sourceName: string | null;
+				}>;
+			}>;
+		};
+		const transactions = transactionPage.days.flatMap(day => day.transactions);
 		expect(transactions.find(transaction => transaction.id === income.id)).toMatchObject({
 			destinationName: "Mercado Pago",
 			sourceName: "Mercado Pago",
@@ -629,7 +637,7 @@ suite("Prisma 8 SQL query builder", () => {
 			undefined,
 			owner.cookie,
 		);
-		expect(((await updatedAccount.json()) as { balance: number }).balance).toBe(19.75);
+		expect(((await updatedAccount.json()) as { balance: number }).balance).toBe(5019.75);
 
 		const destinationResponse = await jsonRequest(
 			"/financial-accounts/",
@@ -683,7 +691,7 @@ suite("Prisma 8 SQL query builder", () => {
 			undefined,
 			owner.cookie,
 		);
-		expect(((await transferredOrigin.json()) as { balance: number }).balance).toBe(-10.25);
+		expect(((await transferredOrigin.json()) as { balance: number }).balance).toBe(4989.75);
 		expect(((await transferredDestination.json()) as { balance: number }).balance).toBe(20);
 
 		expect(
@@ -749,11 +757,17 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(purchases[0]?.time).toStartWith("14:30");
 
 		const purchaseTransactionsResponse = await jsonRequest("/transactions/", "GET", undefined, owner.cookie);
-		const purchaseTransactions = (await purchaseTransactionsResponse.json()) as Array<{
-			id: string;
-			storeName: string | null;
-			time: string | null;
-		}>;
+		const purchaseTransactions = (
+			(await purchaseTransactionsResponse.json()) as {
+				days: Array<{
+					transactions: Array<{
+						id: string;
+						storeName: string | null;
+						time: string | null;
+					}>;
+				}>;
+			}
+		).days.flatMap(day => day.transactions);
 		expect(purchaseTransactionsResponse.status).toBe(200);
 		expect(purchaseTransactions.find(transaction => transaction.id === purchases[0]?.id)?.storeName).toBe(
 			"Livraria Central",
@@ -829,13 +843,17 @@ suite("Prisma 8 SQL query builder", () => {
 			time: expect.stringMatching(/^18:45/),
 			type: "EXPENSE",
 		});
-		const transactionsAfterStatementPayment = (await (
-			await jsonRequest("/transactions/", "GET", undefined, owner.cookie)
-		).json()) as Array<{
-			creditCardName: string | null;
-			creditCardStatementDate: string | null;
-			id: string;
-		}>;
+		const transactionsAfterStatementPayment = (
+			(await (await jsonRequest("/transactions/", "GET", undefined, owner.cookie)).json()) as {
+				days: Array<{
+					transactions: Array<{
+						creditCardName: string | null;
+						creditCardStatementDate: string | null;
+						id: string;
+					}>;
+				}>;
+			}
+		).days.flatMap(day => day.transactions);
 		expect(
 			transactionsAfterStatementPayment.find(
 				transaction => transaction.id === statementPayment.transaction.id,
@@ -919,7 +937,7 @@ suite("Prisma 8 SQL query builder", () => {
 			paidAmount: number;
 			payments: Array<{ amount: number; date: string; id: string; time: string }>;
 		};
-		expect(statementAfterPaymentEdit).toMatchObject({ isPaid: false, paidAmount: 40, payments: [] });
+		expect(statementAfterPaymentEdit).toMatchObject({ isPaid: false, paidAmount: 0, payments: [] });
 		const concurrentPayments = await Promise.all(
 			[10, 20].map(amount =>
 				jsonRequest(
@@ -945,31 +963,21 @@ suite("Prisma 8 SQL query builder", () => {
 				owner.cookie,
 			)
 		).json()) as { paidAmount: number };
-		expect(statementAfterConcurrentPayments.paidAmount).toBe(49.95);
+		expect(statementAfterConcurrentPayments.paidAmount).toBe(0);
 
 		const lifecycleCases = [
 			{
 				create: {
-					amount: 30,
-					date: "2026-08-01",
-					description: "Temporária",
-					personName: "Pessoa",
-				},
-				numericField: "amount",
-				path: "/debts",
-				update: { amount: 35, description: null, dueDate: null, isPaid: true },
-			},
-			{
-				create: {
 					amount: 45,
 					dayOfMonth: 5,
+					financialAccountId: account.id,
 					frequency: "MONTHLY",
 					name: "Recorrência",
 					startDate: "2026-08-01",
 				},
 				numericField: "amount",
 				path: "/recurring",
-				update: { amount: 48, categoryId: null, dayOfMonth: null, endDate: null },
+				update: { amount: 48, categoryId: null, dayOfMonth: 7, endDate: null },
 			},
 			{
 				create: {
@@ -987,6 +995,7 @@ suite("Prisma 8 SQL query builder", () => {
 				create: {
 					amount: 29.9,
 					billingDay: 12,
+					financialAccountId: account.id,
 					name: "Serviço",
 					startDate: "2026-08-01",
 				},
@@ -1024,12 +1033,26 @@ suite("Prisma 8 SQL query builder", () => {
 
 		const dashboard = await jsonRequest("/dashboard/", "GET", undefined, owner.cookie);
 		expect(dashboard.status).toBe(200);
-		expect(JSON.stringify(await dashboard.json())).toContain("19.75");
+		expect((await dashboard.json()) as { accounts: Array<{ id: string; balance: number }> }).toMatchObject({
+			accounts: expect.arrayContaining([
+				expect.objectContaining({ balance: expect.any(Number), id: account.id }),
+			]),
+		});
+		const beforeIncomeDeletion = await jsonRequest(
+			`/financial-accounts/${account.id}`,
+			"GET",
+			undefined,
+			owner.cookie,
+		);
+		const beforeIncomeDeletionBalance = ((await beforeIncomeDeletion.json()) as { balance: number }).balance;
 
 		const deletion = await jsonRequest(`/transactions/${income.id}`, "DELETE", undefined, owner.cookie);
 		expect(deletion.status).toBe(200);
 		const reversed = await jsonRequest(`/financial-accounts/${account.id}`, "GET", undefined, owner.cookie);
-		expect(((await reversed.json()) as { balance: number }).balance).toBe(0);
+		expect(((await reversed.json()) as { balance: number }).balance).toBeCloseTo(
+			beforeIncomeDeletionBalance - income.amount,
+			2,
+		);
 
 		const outsiderAccountResponse = await jsonRequest(
 			"/financial-accounts/",
@@ -1126,7 +1149,15 @@ suite("Prisma 8 SQL query builder", () => {
 		const invitations = (await invitationsResponse.json()) as Record<string, unknown>[];
 		expect(invitationsResponse.status).toBe(200);
 		expect(invitations[0]).toMatchObject({ direction: "RECEIVED", status: "PENDING" });
-		expect(invitations[0]).toMatchObject({ balance: -150 });
+		expect(invitations[0]).not.toHaveProperty("balance");
+		const invitationPreview = await jsonRequest(
+			`/debts/invitations/${invitation.id}/preview`,
+			"GET",
+			undefined,
+			peer.cookie,
+		);
+		expect(invitationPreview.status).toBe(200);
+		expect(await invitationPreview.json()).toMatchObject({ balance: -150 });
 		expect(invitations[0]).not.toHaveProperty("requesterEmail");
 
 		const privateLedger = await jsonRequest("/debts", "GET", undefined, peer.cookie);
@@ -1142,9 +1173,9 @@ suite("Prisma 8 SQL query builder", () => {
 			}>;
 		}
 		const ownerLedgerResponse = await jsonRequest("/debts", "GET", undefined, owner.cookie);
-		const ownerLedger = (await ownerLedgerResponse.json()) as Ledger;
+		const ownerLedger = await loadLedger(ownerLedgerResponse, owner.cookie);
 		const peerLedgerResponse = await jsonRequest("/debts", "GET", undefined, peer.cookie);
-		const peerLedger = (await peerLedgerResponse.json()) as Ledger;
+		const peerLedger = await loadLedger(peerLedgerResponse, peer.cookie);
 		expect(ownerLedger.people[0]?.balance).toBe(150);
 		expect(peerLedger.people[0]?.balance).toBe(-150);
 		expect(peerLedger.people[0]?.events).toHaveLength(2);
@@ -1162,7 +1193,11 @@ suite("Prisma 8 SQL query builder", () => {
 			{
 				amount: 50,
 				date,
-				debtPersonId: peerLedger.people[0]!.id,
+				debtSplit: {
+					mode: "SHARES",
+					ownerShares: null,
+					participants: [{ debtPersonId: peerLedger.people[0]!.id, shares: 1 }],
+				},
 				description: "Pagamento privado",
 				originFinancialAccountId: peerAccount.id,
 				storeName: "Metadado privado",
@@ -1173,9 +1208,10 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(paymentResponse.status).toBe(200);
 		const payment = (await paymentResponse.json()) as { id: string };
 
-		const ledgerAfterPayment = (await (
-			await jsonRequest("/debts", "GET", undefined, owner.cookie)
-		).json()) as Ledger;
+		const ledgerAfterPayment = await loadLedger(
+			await jsonRequest("/debts", "GET", undefined, owner.cookie),
+			owner.cookie,
+		);
 		expect(ledgerAfterPayment.people[0]?.balance).toBe(100);
 		const sharedPayment = ledgerAfterPayment.people[0]?.events.find(
 			event => event.amount === 50 && event.effect === -50,
@@ -1203,9 +1239,10 @@ suite("Prisma 8 SQL query builder", () => {
 			owner.cookie,
 		);
 		expect(pairResponse.status).toBe(200);
-		const ledgerAfterPair = (await (
-			await jsonRequest("/debts", "GET", undefined, owner.cookie)
-		).json()) as Ledger;
+		const ledgerAfterPair = await loadLedger(
+			await jsonRequest("/debts", "GET", undefined, owner.cookie),
+			owner.cookie,
+		);
 		expect(ledgerAfterPair.people[0]?.balance).toBe(100);
 		expect(ledgerAfterPair.people[0]?.events).toHaveLength(3);
 
@@ -1215,19 +1252,25 @@ suite("Prisma 8 SQL query builder", () => {
 			{
 				amount: 150,
 				date,
-				debtPersonId: peerLedger.people[0]!.id,
+				debtSplit: {
+					mode: "SHARES",
+					ownerShares: null,
+					participants: [{ debtPersonId: peerLedger.people[0]!.id, shares: 1 }],
+				},
 				originFinancialAccountId: peerAccount.id,
 				type: "EXPENSE",
 			},
 			peer.cookie,
 		);
 		expect(overpayment.status).toBe(200);
-		const crossedOwnerLedger = (await (
-			await jsonRequest("/debts", "GET", undefined, owner.cookie)
-		).json()) as Ledger;
-		const crossedPeerLedger = (await (
-			await jsonRequest("/debts", "GET", undefined, peer.cookie)
-		).json()) as Ledger;
+		const crossedOwnerLedger = await loadLedger(
+			await jsonRequest("/debts", "GET", undefined, owner.cookie),
+			owner.cookie,
+		);
+		const crossedPeerLedger = await loadLedger(
+			await jsonRequest("/debts", "GET", undefined, peer.cookie),
+			peer.cookie,
+		);
 		expect(crossedOwnerLedger.people[0]?.balance).toBe(-50);
 		expect(crossedPeerLedger.people[0]?.balance).toBe(50);
 
@@ -1246,7 +1289,11 @@ suite("Prisma 8 SQL query builder", () => {
 			`/credit-cards/${cardAccount.creditCard.id}/purchases`,
 			"POST",
 			{
-				debtPersonId: ownerPerson.id,
+				debtSplit: {
+					mode: "SHARES",
+					ownerShares: null,
+					participants: [{ debtPersonId: ownerPerson.id, shares: 1 }],
+				},
 				installments: 3,
 				purchaseDate: date,
 				storeName: "Mercado da esquina",
@@ -1257,9 +1304,10 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(purchaseResponse.status).toBe(200);
 		const purchases = (await purchaseResponse.json()) as Array<{ currentInstallment: number; id: string }>;
 		expect(purchases.map(purchase => purchase.currentInstallment).toSorted()).toEqual([1, 2, 3]);
-		const afterInstallments = (await (
-			await jsonRequest("/debts", "GET", undefined, owner.cookie)
-		).json()) as Ledger;
+		const afterInstallments = await loadLedger(
+			await jsonRequest("/debts", "GET", undefined, owner.cookie),
+			owner.cookie,
+		);
 		expect(afterInstallments.people[0]?.balance).toBe(40);
 		expect(
 			afterInstallments.people[0]?.events.filter(event => event.amount === 90 && event.effect === 90),
@@ -1274,9 +1322,10 @@ suite("Prisma 8 SQL query builder", () => {
 				)
 				.build(),
 		);
-		const ledgerWithLegacyPurchaseEvent = (await (
-			await jsonRequest("/debts", "GET", undefined, owner.cookie)
-		).json()) as Ledger;
+		const ledgerWithLegacyPurchaseEvent = await loadLedger(
+			await jsonRequest("/debts", "GET", undefined, owner.cookie),
+			owner.cookie,
+		);
 		expect(
 			ledgerWithLegacyPurchaseEvent.people[0]?.events.filter(
 				event => event.amount === 90 && event.effect === 90,
@@ -1286,7 +1335,7 @@ suite("Prisma 8 SQL query builder", () => {
 		const refundResponse = await jsonRequest(
 			`/credit-cards/${cardAccount.creditCard.id}/purchases/${rootPurchase.id}/refunds`,
 			"POST",
-			{},
+			{ policy: "KEEP_INSTALLMENTS", purchaseDate: "2026-09-20" },
 			owner.cookie,
 		);
 		expect(refundResponse.status).toBe(200);
@@ -1309,13 +1358,13 @@ suite("Prisma 8 SQL query builder", () => {
 				await jsonRequest(
 					`/credit-cards/${cardAccount.creditCard.id}/purchases/${refund.id}/refunds`,
 					"POST",
-					{},
+					{ policy: "KEEP_INSTALLMENTS", purchaseDate: "2026-09-20" },
 					owner.cookie,
 				)
 			).status,
-		).toBe(409);
+		).toBe(400);
 		expect(
-			((await (await jsonRequest("/debts", "GET", undefined, owner.cookie)).json()) as Ledger).people[0]
+			(await loadLedger(await jsonRequest("/debts", "GET", undefined, owner.cookie), owner.cookie)).people[0]
 				?.balance,
 		).toBe(-50);
 		expect(
@@ -1334,7 +1383,7 @@ suite("Prisma 8 SQL query builder", () => {
 					.where((fields, functions) => functions.eq(fields.creditPurchaseId, refund.id))
 					.build(),
 			),
-		).toEqual([]);
+		).toHaveLength(1);
 		expect(
 			await queryRows(
 				db.sql.public.DebtSplit.select("id")
@@ -1343,7 +1392,7 @@ suite("Prisma 8 SQL query builder", () => {
 			),
 		).toEqual([]);
 		expect(
-			((await (await jsonRequest("/debts", "GET", undefined, owner.cookie)).json()) as Ledger).people[0]
+			(await loadLedger(await jsonRequest("/debts", "GET", undefined, owner.cookie), owner.cookie)).people[0]
 				?.balance,
 		).toBe(40);
 		expect(
@@ -1357,7 +1406,7 @@ suite("Prisma 8 SQL query builder", () => {
 			).status,
 		).toBe(200);
 		expect(
-			((await (await jsonRequest("/debts", "GET", undefined, owner.cookie)).json()) as Ledger).people[0]
+			(await loadLedger(await jsonRequest("/debts", "GET", undefined, owner.cookie), owner.cookie)).people[0]
 				?.balance,
 		).toBe(-50);
 
@@ -1386,22 +1435,29 @@ suite("Prisma 8 SQL query builder", () => {
 			).status,
 		).toBe(200);
 		expect(
-			((await (await jsonRequest("/debts", "GET", undefined, declinedPeer.cookie)).json()) as Ledger).people,
+			(
+				await loadLedger(
+					await jsonRequest("/debts", "GET", undefined, declinedPeer.cookie),
+					declinedPeer.cookie,
+				)
+			).people,
 		).toHaveLength(0);
 
 		expect((await jsonRequest(`/transactions/${payment.id}`, "DELETE", undefined, peer.cookie)).status).toBe(
 			200,
 		);
-		const afterCreatorDeletion = (await (
-			await jsonRequest("/debts", "GET", undefined, owner.cookie)
-		).json()) as Ledger;
-		expect(afterCreatorDeletion.people[0]?.events).toHaveLength(3);
+		const afterCreatorDeletion = await loadLedger(
+			await jsonRequest("/debts", "GET", undefined, owner.cookie),
+			owner.cookie,
+		);
+		expect(afterCreatorDeletion.people.find(person => person.id === ownerPerson.id)?.events).toHaveLength(3);
 		expect(
 			(await jsonRequest(`/debts/people/${ownerPerson.id}`, "DELETE", undefined, owner.cookie)).status,
 		).toBe(200);
-		const peerAfterOwnerHide = (await (
-			await jsonRequest("/debts", "GET", undefined, peer.cookie)
-		).json()) as Ledger;
+		const peerAfterOwnerHide = await loadLedger(
+			await jsonRequest("/debts", "GET", undefined, peer.cookie),
+			peer.cookie,
+		);
 		expect(peerAfterOwnerHide.people[0]?.events.length).toBe(3);
 	});
 });

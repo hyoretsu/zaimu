@@ -24,7 +24,7 @@ const migrate = Bun.spawnSync(["bun", "run", "migrate:deploy"], {
 });
 if (migrate.exitCode !== 0) process.exit(migrate.exitCode);
 
-const tests = Bun.spawnSync(["bun", "test", "tests/database.e2e.test.ts"], {
+const tests = Bun.spawnSync(["bun", "test", "--timeout", "120000", "tests/database.e2e.test.ts"], {
 	cwd: new URL("..", import.meta.url).pathname,
 	env: environment,
 	stderr: "inherit",

@@ -304,3 +304,5 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Pagamentos de cartão informam IDs anteriores/novos ao fence e outbox; edição e exclusão invalidam calendários corretos sem invalidar cartões em transações comuns. 12 testes focados passaram.
 
 - Tela de transações confirmou três requests iniciais no navegador: resumo de importações, página de transações e rendimentos. Modal fechado de criação, filtro de contas e sugestões não antecipam dados; aberturas exibem skeleton, erro e retry. Build frontend passou. Verificação das demais telas permanece em andamento.
+
+- Regressão E2E atualizada para resumos, páginas e recorrências unificadas: dois testes passaram com 232 verificações em banco local isolado. Eventos de dívida usam descrição atual da compra e descrição específica do participante; exclusão de pessoa conectada preserva histórico compartilhado. Aceite de latência permanece pendente.
