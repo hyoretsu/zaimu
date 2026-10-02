@@ -1,5 +1,6 @@
 import { materializeBookInstallments, newBookPurchase } from "@zaimu/finance/credit-book";
 import {
+	getNextRecurrenceDate,
 	recurrenceDates,
 	recurrenceNeedsConfiguration,
 	shiftRecurrenceDate,
@@ -35,10 +36,18 @@ export async function materializeLocalRecurrences(
 	owner: StorageOwner,
 	today = getLocalDateKey(),
 	replay?: { id: string; from: string; through: string },
+	advance?: { id: string; time?: string },
 ) {
+	if (advance?.time && !/^([01]\d|2[0-3]):[0-5]\d$/.test(advance.time))
+		throw new Error("Informe um horário válido.");
+	if (advance && !(await localRecurrences.getById(advance.id, owner)))
+		throw new Error("Recorrência não encontrada.");
 	let created = 0;
 	for (const record of await localRecurrences.getAll(owner)) {
 		const recurrence = record.data;
+		if (advance && recurrence.id !== advance.id) continue;
+		if (advance && (!recurrence.isActive || recurrenceNeedsConfiguration(recurrence)))
+			throw new Error("Ative e configure a recorrência antes de adiantar.");
 		if (
 			(replay && recurrence.id !== replay.id) ||
 			(!replay && !recurrence.isActive) ||
@@ -46,16 +55,21 @@ export async function materializeLocalRecurrences(
 		)
 			continue;
 		if (replay && replay.through > today) throw new Error("Ocorrências futuras são somente previsões.");
-		const dates = recurrenceDates(
-			recurrence,
-			replay?.from ?? shiftRecurrenceDate(recurrence.materializedThrough, 1),
-			replay?.through ?? today,
-		);
+		const nextDate = advance ? getNextRecurrenceDate(recurrence, today) : null;
+		if (advance && !nextDate) throw new Error("Nenhuma ocorrência futura disponível.");
+		const dates = nextDate
+			? [nextDate]
+			: recurrenceDates(
+					recurrence,
+					replay?.from ?? shiftRecurrenceDate(recurrence.materializedThrough, 1),
+					replay?.through ?? today,
+				);
 		const processed = new Set(
 			(await localRecurrenceOccurrences.getAll(owner))
 				.filter(row => row.data.recurrenceId === recurrence.id)
 				.map(row => row.data.date),
 		);
+		if (advance && processed.has(nextDate!)) throw new Error("A próxima ocorrência já foi adiantada.");
 		const pending = dates.filter(date => !processed.has(date));
 		if (!pending.length && (replay || recurrence.materializedThrough >= today)) continue;
 		const occurrences: RecurrenceOccurrence[] = [];
@@ -88,11 +102,12 @@ export async function materializeLocalRecurrences(
 					debtSplitRule: recurrence.debtSplit ? debtSplitToInput(recurrence.debtSplit) : null,
 					description: recurrence.name,
 					installments: 1,
-					purchaseDate: date,
+					purchaseDate: advance ? today : date,
 					recurrenceId: recurrence.id,
 					recurrenceOccurrenceDate: date,
 					storeName: recurrence.storeName ?? null,
 					tagIds: recurrence.tagIds ?? [],
+					time: advance?.time ?? null,
 					totalAmount: recurrence.amount,
 				});
 				occurrence.purchaseId = purchase.id;
@@ -101,7 +116,7 @@ export async function materializeLocalRecurrences(
 				transactions.push({
 					amount: recurrence.amount,
 					createdAt: new Date().toISOString(),
-					date,
+					date: advance ? today : date,
 					debtSplit:
 						recurrence.movement === "TRANSFER" || recurrence.movement === "CARD_PAYMENT"
 							? undefined
@@ -116,7 +131,7 @@ export async function materializeLocalRecurrences(
 					recurrenceOccurrenceDate: date,
 					storeName: recurrence.storeName ?? undefined,
 					tagIds: recurrence.tagIds,
-					time: null,
+					time: advance?.time ?? null,
 					type:
 						recurrence.movement === "CARD_PAYMENT"
 							? "EXPENSE"
@@ -130,7 +145,7 @@ export async function materializeLocalRecurrences(
 		await commitLocalRecurrenceChanges(
 			owner,
 			record,
-			replay ? recurrence : { ...recurrence, materializedThrough: today },
+			replay || advance ? recurrence : { ...recurrence, materializedThrough: today },
 			occurrences,
 			transactions,
 			book,
@@ -234,6 +249,17 @@ export function createRecurrenceService(deps: Dependencies) {
 		return recurrence;
 	};
 	return {
+		async advance(id: string, time?: string): Promise<{ created: number }> {
+			if (!deps.isGuestMode())
+				return deps.fetchWithAuth(`/recurring/${id}/advance`, {
+					body: JSON.stringify({ time }),
+					method: "POST",
+				});
+			const owner = getCurrentCacheIdentity()!;
+			return {
+				created: await materializeLocalRecurrences(owner, getLocalDateKey(), undefined, { id, time }),
+			};
+		},
 		async create(input: RecurrenceInput): Promise<Recurrence> {
 			if (deps.isGuestMode()) return saveLocal(input);
 			const record = await deps.fetchWithAuth<Recurrence>("/recurring", {

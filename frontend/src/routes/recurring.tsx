@@ -12,6 +12,7 @@ import { dataService } from "@/lib/dataService";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import {
+	AdvanceRecurringDialog,
 	CreateRecurringDialog,
 	DeleteRecurringDialog,
 	EditRecurringDialog,
@@ -50,6 +51,7 @@ export function RecurringPage() {
 		});
 	const [isCreateOpen, setIsCreateOpen] = useState(false);
 	const [editingItem, setEditingItem] = useState<RecurringListItemData>();
+	const [advancingItem, setAdvancingItem] = useState<RecurringListItemData>();
 	const [deletingItem, setDeletingItem] = useState<RecurringListItemData>();
 	const accountsQuery = useQuery({
 		enabled: identity !== null,
@@ -62,6 +64,18 @@ export function RecurringPage() {
 		queryKey: queryKeys.recurring.all(identity!),
 	});
 	const invalidate = () => invalidateCacheOperation(queryClient, identity!, "recurring");
+	const advance = useMutation({
+		mutationFn: ({ item, time }: { item: RecurringListItemData; time?: string }) =>
+			dataService.recurrences.advance(item.id, time),
+		onError: error => showToast(error.message, "negative"),
+		onMutate: ({ item }) => markPending(item.id, true),
+		onSettled: (_, __, { item }) => markPending(item.id, false),
+		onSuccess: async () => {
+			await invalidate();
+			setAdvancingItem(undefined);
+			showToast("Próxima ocorrência adiantada para hoje.", "positive");
+		},
+	});
 	const toggle = useMutation({
 		mutationFn: (item: RecurringListItemData) =>
 			dataService.recurrences.update(item.id, { isActive: !item.active }),
@@ -119,6 +133,7 @@ export function RecurringPage() {
 			deleting={remove.isPending && remove.variables?.item.id === item.id}
 			item={item}
 			key={`${item.source}:${item.id}`}
+			onAdvance={() => setAdvancingItem(item)}
 			onDelete={() => setDeletingItem(item)}
 			onEdit={() => setEditingItem(item)}
 			onToggle={() => {
@@ -254,6 +269,16 @@ export function RecurringPage() {
 			)}
 
 			<CreateRecurringDialog onOpenChange={setIsCreateOpen} open={isCreateOpen} />
+			{advancingItem && (
+				<AdvanceRecurringDialog
+					item={advancingItem}
+					onAdvance={time => advance.mutate({ item: advancingItem, time })}
+					onOpenChange={open => {
+						if (!open && !advance.isPending) setAdvancingItem(undefined);
+					}}
+					pending={advance.isPending}
+				/>
+			)}
 			{editingItem && (
 				<EditRecurringDialog
 					item={editingItem}

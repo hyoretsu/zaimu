@@ -181,6 +181,11 @@ const schedulesSql = `
 SELECT 'recurrence' AS kind, to_jsonb(schedule) AS data
 FROM "Recurrence" schedule WHERE "userId" = $1 AND "isActive"
 UNION ALL
+SELECT 'occurrence', jsonb_build_object('recurrenceId', occurrence."recurrenceId", 'date', occurrence."date")
+FROM "RecurrenceOccurrence" occurrence
+JOIN "Recurrence" schedule ON schedule."id" = occurrence."recurrenceId"
+WHERE schedule."userId" = $1 AND occurrence."date" >= $2::date
+UNION ALL
 SELECT 'loanPayment', jsonb_build_object(
   'dueDate', payment."dueDate", 'id', payment."id", 'paidDate', payment."paidDate",
   'totalPaid', payment."totalPaid",
@@ -286,7 +291,13 @@ export async function loadDashboardData(userId: string, range: DashboardDataRang
 				...row,
 				date: asDate(row.date),
 			})) as unknown as DashboardForecastTransaction[],
-			linkedTransactions: rowsByKind(movementRows, "linked"),
+			linkedTransactions: [
+				...rowsByKind(movementRows, "linked"),
+				...rowsByKind(scheduleRows, "occurrence").map(row => ({
+					date: row.date,
+					sourceId: row.recurrenceId,
+				})),
+			],
 			loanPayments: rowsByKind(scheduleRows, "loanPayment").map(row => ({
 				...row,
 				dueDate: asDate(row.dueDate),
@@ -299,6 +310,7 @@ export async function loadDashboardData(userId: string, range: DashboardDataRang
 				dateKey(range.today),
 				recurrences,
 				dateKey(range.comparisonEnd),
+				rowsByKind(scheduleRows, "occurrence") as unknown as Array<{ recurrenceId: string; date: string }>,
 			),
 			recurrences,
 			recurring: [],

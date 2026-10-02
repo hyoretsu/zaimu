@@ -300,7 +300,9 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 
 				for (const recurrence of recurrences) {
 					if (recurrenceNeedsConfiguration(recurrence) || recurrence.movement === "TRANSFER") continue;
-					const date = nextRecurrenceDate(recurrence, dateKey(projectionStart));
+					let date = nextRecurrenceDate(recurrence, dateKey(projectionStart));
+					while (date && linkedTransactionDates.has(`${recurrence.id}:${date}`))
+						date = nextRecurrenceDate(recurrence, dateKey(addDays(new Date(`${date}T12:00:00`), 1)));
 					if (date)
 						forecasts.push({
 							amount: recurrence.amount,

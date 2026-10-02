@@ -1,4 +1,5 @@
 import { HiArrowDown, HiArrowUp, HiCheck, HiPause, HiPencil, HiPlay, HiTrash } from "react-icons/hi2";
+import { LuCalendarClock } from "react-icons/lu";
 import { TransactionListItem } from "@/components/transactions";
 import type { ItemAction } from "@/components/transactions/TransactionListItem/ItemActions";
 import { AppBadge } from "@/components/ui/AppBadge";
@@ -12,6 +13,7 @@ import { movementLabels, scheduleLabel } from "./unified-types";
 export function RecurringListItem({
 	deleting,
 	item,
+	onAdvance,
 	onDelete,
 	onEdit,
 	onToggle,
@@ -19,6 +21,7 @@ export function RecurringListItem({
 }: {
 	deleting: boolean;
 	item: RecurringListItemData;
+	onAdvance?: () => void;
 	onDelete: () => void;
 	onEdit: () => void;
 	onToggle: () => void;
@@ -33,6 +36,17 @@ export function RecurringListItem({
 		item.dayOfWeek,
 	);
 	const actionItems: ItemAction[] = [
+		...(onAdvance && item.active && !hasEnded && !item.recurrence?.needsConfiguration
+			? [
+					{
+						ariaLabel: "Adiantar para hoje",
+						disabled: toggling || deleting,
+						icon: <LuCalendarClock />,
+						onClick: onAdvance,
+						text: "Adiantar para hoje",
+					},
+				]
+			: []),
 		{
 			ariaLabel: "Editar recorrência",
 			disabled: toggling || deleting,

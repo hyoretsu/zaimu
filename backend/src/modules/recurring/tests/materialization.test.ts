@@ -100,6 +100,41 @@ describe.skipIf(!url)("atomic recurrence processing", () => {
 		await client.query('DROP TRIGGER failure ON "Transaction"');
 		expect(await service.materializeRecurrence("owner", r.id, today)).toBe(1);
 	}, 30000);
+	test("advancing keeps scheduled identity and optional time without moving materialization cursor", async () => {
+		const today = service.recurrenceToday();
+		const scheduled = shiftRecurrenceDate(today, 2);
+		for (const movement of ["EXPENSE", "CARD_PURCHASE"] as const) {
+			const r = await service.saveRecurrence("owner", {
+				amount: 20,
+				creditCardId: movement === "CARD_PURCHASE" ? "card" : null,
+				interval: 1,
+				movement,
+				name: "Advance",
+				originFinancialAccountId: movement === "EXPENSE" ? "a" : null,
+				startDate: scheduled,
+				unit: "MONTH",
+			});
+			expect(
+				await service.materializeRecurrence("owner", r.id, undefined, undefined, { time: "14:30" }),
+			).toBe(1);
+			const table = movement === "EXPENSE" ? "Transaction" : "CreditPurchaseRecord";
+			const field = movement === "EXPENSE" ? "date" : "purchaseDate";
+			const [row] = (
+				await client.query(
+					`SELECT "${field}"::text AS "date", "time"::text, "recurrenceOccurrenceDate"::text AS "scheduled" FROM "${table}" WHERE "recurrenceId"=$1`,
+					[r.id],
+				)
+			).rows;
+			expect(row).toEqual({ date: today, scheduled, time: "14:30:00" });
+			expect((await service.getStoredRecurrence("owner", r.id)).materializedThrough).toBe(
+				r.materializedThrough,
+			);
+			await expect(service.materializeRecurrence("owner", r.id, undefined, undefined, {})).rejects.toThrow(
+				"já foi adiantada",
+			);
+			expect(await service.materializeRecurrence("owner", r.id, today)).toBe(0);
+		}
+	});
 	test("deleted concrete occurrence stays reserved despite date edit and replay", async () => {
 		const today = service.recurrenceToday();
 		const r = await service.saveRecurrence("owner", {

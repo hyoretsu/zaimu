@@ -1,4 +1,5 @@
 import {
+	getNextRecurrenceDate,
 	type RecurrenceDefinition,
 	recurrenceDateKey,
 	recurrenceDates,
@@ -238,15 +239,21 @@ export async function materializeRecurrence(
 	id: string,
 	through = recurrenceToday(),
 	replay?: { from: string; through: string },
+	advance?: { time?: string | null },
 ) {
 	return withRawTransaction(async query => {
 		const recurrence = await getStoredRecurrence(userId, id, true);
-		if (recurrenceNeedsConfiguration(recurrence) || (!replay && !recurrence.isActive)) return 0;
+		if (recurrenceNeedsConfiguration(recurrence) || (!replay && !recurrence.isActive)) {
+			if (advance) throw new HttpException("Ative e configure a recorrência antes de adiantar.", 400);
+			return 0;
+		}
 		const today = recurrenceToday();
 		if (through > today || (replay && replay.through > today))
 			throw new HttpException("Ocorrências futuras são somente previsões.", 400);
 		const from = replay?.from ?? shiftRecurrenceDate(recurrence.materializedThrough, 1);
-		const dates = recurrenceDates(recurrence, from, replay?.through ?? through);
+		const nextDate = advance ? getNextRecurrenceDate(recurrence, today) : undefined;
+		if (advance && !nextDate) throw new HttpException("Não há ocorrência futura para adiantar.", 400);
+		const dates = nextDate ? [nextDate] : recurrenceDates(recurrence, from, replay?.through ?? through);
 		const tags = (await getTagsByEntity("RECURRENCE", [id])).get(id) ?? [];
 		const tagIds = tags.map(tag => tag.id);
 		const debtSplit = await getDebtSplitInput({ recurrenceId: id });
@@ -256,7 +263,11 @@ export async function materializeRecurrence(
 				'INSERT INTO "RecurrenceOccurrence" ("recurrenceId","date") VALUES ($1,$2) ON CONFLICT DO NOTHING RETURNING "recurrenceId"',
 				[id, date],
 			);
-			if (!reserved) continue;
+			if (!reserved) {
+				if (advance) throw new HttpException("A próxima ocorrência já foi adiantada.", 409);
+				continue;
+			}
+			const financialDate = advance ? today : date;
 			if (recurrence.movement === "CARD_PURCHASE") {
 				const [settings] = await query<{
 					cashbackAccountId: string | null;
@@ -284,11 +295,12 @@ export async function materializeRecurrence(
 							debtSplitRule: debtSplit ?? null,
 							description: recurrence.name,
 							installments: 1,
-							purchaseDate: date,
+							purchaseDate: financialDate,
 							recurrenceId: id,
 							recurrenceOccurrenceDate: date,
 							storeName: recurrence.storeName ?? null,
 							tagIds,
+							time: advance?.time ?? null,
 							totalAmount: recurrence.amount,
 						});
 						await query(
@@ -301,11 +313,11 @@ export async function materializeRecurrence(
 			} else {
 				const type = recurrence.movement === "CARD_PAYMENT" ? "EXPENSE" : recurrence.movement;
 				const [transaction] = await query<{ id: string }>(
-					'INSERT INTO "Transaction" ("userId","amount","date","description","storeName","type","originFinancialAccountId","destinationFinancialAccountId","paymentCreditCardId","recurrenceId","recurrenceOccurrenceDate") VALUES ($1,$2,$3,$4,$5,$6::"TransactionType",$7,$8,$9,$10,$3) RETURNING "id"',
+					'INSERT INTO "Transaction" ("userId","amount","date","description","storeName","type","originFinancialAccountId","destinationFinancialAccountId","paymentCreditCardId","recurrenceId","recurrenceOccurrenceDate","time") VALUES ($1,$2,$3,$4,$5,$6::"TransactionType",$7,$8,$9,$10,$11,$12) RETURNING "id"',
 					[
 						userId,
 						recurrence.amount,
-						date,
+						financialDate,
 						recurrence.name,
 						recurrence.storeName ?? null,
 						type,
@@ -313,6 +325,8 @@ export async function materializeRecurrence(
 						recurrence.destinationFinancialAccountId ?? null,
 						recurrence.movement === "CARD_PAYMENT" ? recurrence.creditCardId : null,
 						id,
+						date,
+						advance?.time ?? null,
 					],
 				);
 				await replaceEntityTags({
@@ -323,7 +337,7 @@ export async function materializeRecurrence(
 				if (debtSplit && type !== "TRANSFER" && recurrence.movement !== "CARD_PAYMENT")
 					await linkTransactionToDebt({
 						amount: recurrence.amount,
-						date,
+						date: financialDate,
 						debtSplit,
 						description: recurrence.name,
 						transactionId: transaction!.id,
@@ -345,13 +359,13 @@ export async function materializeRecurrence(
 					if (accountId)
 						await enqueueAccountYieldRecalculation(
 							accountId,
-							new Date(`${date}T12:00:00`),
+							new Date(`${financialDate}T12:00:00`),
 							"recurrence-materialized",
 						);
 			}
 			created++;
 		}
-		if (!replay)
+		if (!replay && !advance)
 			await query(
 				'UPDATE "Recurrence" SET "materializedThrough"=GREATEST("materializedThrough",$1::date) WHERE "id"=$2',
 				[through, id],

@@ -199,3 +199,8 @@ export function recurrenceAccountEffects(
 	}
 	return new Map([...cents].map(([id, amount]) => [id, amount / 100]));
 }
+
+/** Next scheduled occurrence strictly after today, preserving the original schedule. */
+export function getNextRecurrenceDate(schedule: RecurrenceSchedule, today: string) {
+	return nextRecurrenceDate(schedule, shiftRecurrenceDate(today, 1));
+}

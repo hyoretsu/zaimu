@@ -42,6 +42,8 @@ Uma entidade `Recurrence` representa recebimentos, pagamentos, assinaturas e sal
 
 Agenda usa `DAY`, `WEEK`, `MONTH` ou `YEAR`, com intervalo inteiro positivo. Dia mensal e semanal permanecem escolhas explícitas. Frequência quinzenal equivale a duas semanas. Datas derivam da âncora original: dia 31 usa último dia em meses menores e volta ao 31; 29 de fevereiro volta em anos bissextos. Início e término são inclusivos.
 
+Antecipação explícita lança hoje a próxima ocorrência futura de uma recorrência ativa e configurada, com horário opcional. A identidade continua sendo a data originalmente agendada; a agenda e o cursor permanecem iguais, e a ocorrência não é repetida nem prevista novamente na data original. Uma ocorrência já antecipada não pode ser antecipada novamente.
+
 Identidade única por recorrência/data agendada independe de conta, cartão, movimentação e data editável do lançamento. Ocorrência, lançamento, dívida, recompensa e cursor persistem atomicamente. Exclusão manual mantém marcador contra recriação. Criação retroativa exige recomposição explícita. Edição, pausa e retomada preservam passado e tornam elegível o dia da alteração.
 
 Vínculo de dívida opcional atribui valor integral a uma pessoa ou utiliza rateio. Cada ocorrência recebe snapshot. Quitação mantém valor fixo após saldo zerar e pode inverter saldo. Transferências próprias e pagamentos de cartão não aceitam vínculo/rateio. Amortização automática de empréstimos não integra recorrências.

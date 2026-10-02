@@ -122,6 +122,7 @@ export function replayOverviewStatements(
 	asOf: string,
 	recurrences: RecurrenceDefinition[] = [],
 	through = asOf,
+	occurrences: Array<{ recurrenceId: string; date: string }> = [],
 ): CreditOverviewStatement[] {
 	const purchasesByCard = groupByCard(rows, "purchase");
 	const installmentsByCard = groupByCard(rows, "installment");
@@ -219,6 +220,7 @@ export function replayOverviewStatements(
 					? new Date(new Date(`${asOf}T00:00:00Z`).getTime() + 86400000).toISOString().slice(0, 10)
 					: asOf,
 				through,
+				occurrences,
 			),
 			asOf,
 		).statements.map(statement => ({

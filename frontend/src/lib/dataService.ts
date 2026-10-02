@@ -1331,6 +1331,7 @@ export const dataService = {
 				await dataService.recurrences.getAll(),
 				shiftRecurrenceDate(getLocalDateKey(), 1),
 				`${new Date().getFullYear() + 2}-12-31`,
+				(await localRecurrenceOccurrences.getAll()).map(row => row.data),
 			);
 			const statements = replayCreditBook(book).statements;
 			const statement = statements.find(s => s.id === statementId);
@@ -1386,6 +1387,7 @@ export const dataService = {
 						await dataService.recurrences.getAll(),
 						shiftRecurrenceDate(getLocalDateKey(), 1),
 						`${new Date().getFullYear() + 2}-12-31`,
+						(await localRecurrenceOccurrences.getAll()).map(row => row.data),
 					),
 				)
 					.statements.filter(s => options.isPaid === undefined || s.isPaid === options.isPaid)
@@ -1747,13 +1749,19 @@ export const dataService = {
 				const accountBalance = totalBalance - savingsBalance;
 				const { owedToMe, iOwe } = debts.totals;
 
+				const recurrenceOccurrences = (await localRecurrenceOccurrences.getAll()).map(row => row.data);
+				const processedRecurrences = new Set(
+					recurrenceOccurrences.map(row => `${row.recurrenceId}:${row.date}`),
+				);
 				const forecasts = [
 					...recurrences
 						.filter(
 							item => item.isActive && item.movement !== "TRANSFER" && !recurrenceNeedsConfiguration(item),
 						)
 						.flatMap(item => {
-							const date = nextRecurrenceDate(item, shiftRecurrenceDate(getLocalDateKey(), 1));
+							let date = nextRecurrenceDate(item, shiftRecurrenceDate(getLocalDateKey(), 1));
+							while (date && processedRecurrences.has(`${item.id}:${date}`))
+								date = nextRecurrenceDate(item, shiftRecurrenceDate(date, 1));
 							return date
 								? [
 										{
@@ -1809,12 +1817,15 @@ export const dataService = {
 				const projectionStart = new Date(now);
 				projectionStart.setHours(12, 0, 0, 0);
 				projectionStart.setDate(projectionStart.getDate() + 1);
-				const linkedTransactionDates = new Set(
-					transactions.flatMap(transaction => {
+				const linkedTransactionDates = new Set([
+					...recurrenceOccurrences.map(row => `${row.recurrenceId}:${row.date}`),
+					...transactions.flatMap(transaction => {
 						const sourceId = transaction.recurrenceId;
-						return sourceId ? [`${sourceId}:${transaction.date.slice(0, 10)}`] : [];
+						return sourceId
+							? [`${sourceId}:${transaction.recurrenceOccurrenceDate ?? transaction.date.slice(0, 10)}`]
+							: [];
 					}),
-				);
+				]);
 				const projectedMovements: Array<{ amount: number; date: Date; type: "EXPENSE" | "INCOME" }> = [];
 
 				for (const recurrence of recurrences) {
@@ -1843,6 +1854,7 @@ export const dataService = {
 										recurrences,
 										dateKey(projectionStart),
 										dateKey(comparisonEnd),
+										recurrenceOccurrences,
 									),
 								).statements,
 						),

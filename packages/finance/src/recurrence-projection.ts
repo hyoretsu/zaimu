@@ -6,6 +6,7 @@ export function projectRecurrenceCreditBook(
 	recurrences: RecurrenceDefinition[],
 	from: string,
 	through: string,
+	occurrences: Array<{ recurrenceId: string; date: string }> = [],
 ) {
 	const projected: CreditBook = {
 		...book,
@@ -17,6 +18,7 @@ export function projectRecurrenceCreditBook(
 		refunds: [...book.refunds],
 		statements: [...book.statements],
 	};
+	const processed = new Set(occurrences.map(row => `${row.recurrenceId}:${row.date}`));
 	for (const recurrence of recurrences) {
 		if (
 			!recurrence.isActive ||
@@ -25,6 +27,7 @@ export function projectRecurrenceCreditBook(
 		)
 			continue;
 		for (const date of recurrenceDates(recurrence, from, through)) {
+			if (processed.has(`${recurrence.id}:${date}`)) continue;
 			const id = `forecast:${recurrence.id}:${date}`;
 			if (recurrence.movement === "CARD_PAYMENT") {
 				if (!projected.payments.some(payment => payment.id === id))

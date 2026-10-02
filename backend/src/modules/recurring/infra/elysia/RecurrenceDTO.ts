@@ -71,3 +71,10 @@ export const RecurrenceHistoryReturn = t.Object({
 export const RecurrenceSuccessReturn = t.Object({ success: t.Literal(true) });
 export const ReplayRecurrenceBody = t.Object({ from: DateString, through: DateString });
 export const ReplayRecurrenceReturn = t.Object({ created: t.Integer({ minimum: 0 }) });
+
+export const AdvanceRecurrenceBody = t.Object(
+	{ time: t.Optional(t.Nullable(t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d$" }))) },
+	{ additionalProperties: false },
+);
+export type AdvanceRecurrenceBody = typeof AdvanceRecurrenceBody.static;
+export const AdvanceRecurrenceReturn = t.Object({ created: t.Integer({ minimum: 0 }) });

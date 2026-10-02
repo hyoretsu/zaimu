@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { legacyRecurrenceSchedule, recurrenceDates, recurrenceNeedsConfiguration } from "./recurrence";
+import {
+	getNextRecurrenceDate,
+	legacyRecurrenceSchedule,
+	recurrenceDates,
+	recurrenceNeedsConfiguration,
+} from "./recurrence";
 
 describe("recurrence calendar", () => {
 	test("restores original day after February", () => {
@@ -95,4 +100,13 @@ describe("recurrence calendar", () => {
 			}),
 		).toBe(false);
 	});
+});
+
+test("advance selects tomorrow or next scheduled date and respects schedule end", () => {
+	const schedule = { interval: 1, startDate: "2026-01-31", unit: "MONTH" as const };
+	expect(getNextRecurrenceDate(schedule, "2026-02-28")).toBe("2026-03-31");
+	expect(getNextRecurrenceDate({ ...schedule, endDate: "2026-03-30" }, "2026-02-28")).toBeUndefined();
+	expect(getNextRecurrenceDate({ interval: 1, startDate: "2026-10-02", unit: "DAY" }, "2026-10-02")).toBe(
+		"2026-10-03",
+	);
 });

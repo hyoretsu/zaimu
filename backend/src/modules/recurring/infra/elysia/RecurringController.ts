@@ -12,6 +12,8 @@ import {
 	saveRecurrence,
 } from "../../application/recurrences";
 import {
+	AdvanceRecurrenceBody,
+	AdvanceRecurrenceReturn,
 	RecurrenceBody,
 	RecurrenceHistoryQuery,
 	RecurrenceHistoryReturn,
@@ -108,6 +110,19 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 			return cached.value;
 		},
 		{ params, query: RecurrenceHistoryQuery, response: RecurrenceHistoryReturn },
+	)
+	.post(
+		"/:id/advance",
+		async ({ request, params, body }) => ({
+			created: await materializeRecurrence(
+				await requireUserId(request),
+				params.id,
+				undefined,
+				undefined,
+				body,
+			),
+		}),
+		{ body: AdvanceRecurrenceBody, params, response: AdvanceRecurrenceReturn },
 	)
 	.post(
 		"/:id/replay",

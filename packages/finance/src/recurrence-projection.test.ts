@@ -123,3 +123,37 @@ test("forecast projection leaves unmaterialized historical purchases unchanged",
 		replayCreditBook(projected, "2026-10-31").statements.reduce((sum, row) => sum + row.balanceAmount, 0),
 	).toBe(150);
 });
+
+test("advanced card occurrences never produce another forecast, including fixed payments", () => {
+	const book: CreditBook = {
+		card: {
+			dueDay: 25,
+			id: "card",
+			ignoreStatementsBefore: null,
+			institutionId: null,
+			refundPolicy: null,
+			statementDay: 15,
+			userId: "owner",
+		},
+		charges: [],
+		installments: [],
+		payments: [],
+		purchases: [],
+		refunds: [],
+		statements: [],
+	};
+	const projected = projectRecurrenceCreditBook(
+		book,
+		[recurrence("CARD_PURCHASE"), recurrence("CARD_PAYMENT")],
+		"2026-10-01",
+		"2026-11-30",
+		[
+			{ date: "2026-10-10", recurrenceId: "CARD_PURCHASE" },
+			{ date: "2026-10-10", recurrenceId: "CARD_PAYMENT" },
+		],
+	);
+	expect(projected.purchases.map(row => row.recurrenceOccurrenceDate)).toEqual(["2026-11-10"]);
+	expect(projected.payments.map(row => row.date)).toEqual(["2026-11-10"]);
+	expect(book.purchases).toHaveLength(0);
+	expect(book.payments).toHaveLength(0);
+});
