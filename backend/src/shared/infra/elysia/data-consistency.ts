@@ -1,6 +1,6 @@
 import Elysia from "elysia";
 import { requireUserId } from "~/modules/auth";
-import { syncCacheNamespaces } from "~/shared/application/cache-invalidation";
+import { namespacesForEvent, paymentCardNamespaces } from "~/shared/application/cache-invalidation";
 import { createEventEnvelope } from "~/shared/application/events";
 import type { CacheNamespace } from "~/shared/infra/cache";
 import { distributedCache } from "~/shared/infra/cache";
@@ -44,111 +44,23 @@ async function creditAffectedUserIds(userId: string) {
 	return rows.map(row => row.userId);
 }
 
-const transactionNamespaces = (pathname: string): CacheNamespace[] => {
-	const id = pathname.match(/^\/transactions\/([^/]+)/)?.[1];
-	return [
-		"accounts:list",
-		"dashboard",
-		"debts:events",
-		"debts:overview",
-		"transactions:list",
-		...(!id || pathname.includes("/transfer-suggestions/") ? ["transactions:detail" as const] : []),
-		...(id && id !== "transfer-suggestions" ? ([`transactions:detail:${id}`] as const) : []),
-	];
-};
-
-const baseWriteNamespaces = (pathname: string): CacheNamespace[] => {
-	if (pathname.startsWith("/balance-adjustments")) return ["accounts:list", "dashboard", "transactions:list"];
-	if (pathname.startsWith("/transactions")) return transactionNamespaces(pathname);
-	if (pathname.startsWith("/credit-cards")) {
-		const cardId = pathname.match(/^\/credit-cards\/([^/]+)/)?.[1];
-		return [
-			"accounts:list",
-			"credit-cards:overview",
-			"debts:events",
-			"debts:overview",
-			"dashboard",
-			"transactions:list",
-			...(cardId ? ([`credit-cards:${cardId}:statements`] as const) : []),
-		];
-	}
-	if (pathname.startsWith("/financial-accounts"))
-		return ["accounts:list", "credit-cards:overview", "dashboard", "transactions:list"];
-	if (pathname.startsWith("/credit-card-imports")) {
-		const importId = pathname.match(/^\/credit-card-imports\/([^/]+)/)?.[1];
-		return [
-			"accounts:list",
-			"credit-cards:overview",
-			"debts:events",
-			"debts:overview",
-			"dashboard",
-			"imports:pending",
-			"transactions:list",
-			...(importId ? ([`imports:detail:${importId}`] as const) : []),
-		];
-	}
-	if (pathname.startsWith("/transaction-imports")) {
-		const importId = pathname.match(/^\/transaction-imports\/([^/]+)/)?.[1];
-		return [
-			"accounts:list",
-			"dashboard",
-			"imports:pending",
-			"transactions:list",
-			...(importId ? ([`imports:detail:${importId}`] as const) : []),
-		];
-	}
-	if (
-		pathname.startsWith("/financial-institutions") ||
-		pathname.startsWith("/financial-account-yield-holidays") ||
-		pathname.startsWith("/financial-account-yields")
-	)
-		return [
-			"accounts:detail",
-			"accounts:list",
-			"accounts:rate-history",
-			"accounts:yields",
-			"dashboard",
-			"transactions:list",
-		];
-	if (pathname.startsWith("/categories"))
-		return ["categories:list", "dashboard", "schedules:overview", "transactions:list"];
-	if (pathname.startsWith("/stores")) return ["stores:list", "transactions:list"];
-	if (
-		pathname.startsWith("/salaries") ||
-		pathname.startsWith("/subscriptions") ||
-		pathname.startsWith("/recurring")
-	)
-		return [
-			"accounts:list",
-			"credit-cards:overview",
-			"debts:events",
-			"debts:overview",
-			"dashboard",
-			"schedules:detail",
-			"schedules:history",
-			"schedules:overview",
-			"transactions:list",
-		];
-	if (pathname.startsWith("/loans"))
-		return [
-			"dashboard",
-			"loans:detail",
-			"loans:history",
-			"loans:installments",
-			"loans:list",
-			"transactions:list",
-		];
-	if (pathname.startsWith("/debts"))
-		return ["debts:events", "debts:invitations", "debts:overview", "dashboard", "transactions:list"];
-	if (pathname.startsWith("/sync")) return syncCacheNamespaces;
-	return [];
-};
-
 export const writeNamespaces = (pathname: string): CacheNamespace[] => {
-	const namespaces = baseWriteNamespaces(pathname);
-	return !pathname.startsWith("/transactions") && namespaces.includes("transactions:list")
-		? [...new Set<CacheNamespace>([...namespaces, "transactions:detail"])]
-		: namespaces;
+	const { aggregateId, aggregateType } = aggregateForPath(pathname);
+	const namespaces = namespacesForEvent(
+		createEventEnvelope({
+			aggregateId: aggregateId ?? "all",
+			aggregateType,
+			correlationId: "cache-write",
+			eventType: "updated",
+			payload: {},
+			userIds: [],
+		}),
+	);
+	if (!aggregateId && (aggregateType === "creditCardImport" || aggregateType === "transactionImport"))
+		namespaces.push("imports:detail");
+	if (aggregateType === "transaction" && (!aggregateId || pathname.includes("/transfer-suggestions/")))
+		namespaces.push("transactions:detail");
+	return [...new Set(namespaces)];
 };
 
 const aggregateForPath = (pathname: string) => {
@@ -156,6 +68,7 @@ const aggregateForPath = (pathname: string) => {
 	const aggregateType =
 		(
 			{
+				"balance-adjustments": "financialAccount",
 				categories: "category",
 				"credit-card-imports": "creditCardImport",
 				"credit-cards": "creditCard",
@@ -193,12 +106,31 @@ export const DataConsistencyPlugin = new Elysia({ name: "DataConsistencyPlugin" 
 			return handle();
 		return runMutationRequest(handle);
 	})
-	.derive(async ({ request }) => {
+	.derive(async ({ request, body }) => {
 		const pathname = new URL(request.url).pathname;
 		if (["GET", "HEAD", "OPTIONS"].includes(request.method)) return { cacheWriteFence: null };
 		const namespaces = writeNamespaces(pathname);
 		if (namespaces.length === 0) return { cacheWriteFence: null };
 		const userId = await requireUserId(request);
+		const paymentCreditCardIds: string[] = [];
+		if (pathname.startsWith("/transactions")) {
+			const cardId =
+				body && typeof body === "object" && "paymentCreditCardId" in body
+					? body.paymentCreditCardId
+					: undefined;
+			if (typeof cardId === "string") paymentCreditCardIds.push(cardId);
+			const transactionId = pathname.match(/^\/transactions\/([^/]+)$/)?.[1];
+			if (transactionId && ["PATCH", "DELETE"].includes(request.method)) {
+				const rows = await queryRaw<{ paymentCreditCardId: string | null }>(
+					'SELECT "paymentCreditCardId" FROM "Transaction" WHERE "id"=$1 AND "userId"=$2',
+					[transactionId, userId],
+				);
+				for (const row of rows)
+					if (row.paymentCreditCardId) paymentCreditCardIds.push(row.paymentCreditCardId);
+			}
+			namespaces.push(...paymentCardNamespaces(paymentCreditCardIds));
+		}
+
 		const affectedUserIds = pathname.startsWith("/debts")
 			? await debtAffectedUserIds(debtResourceId(pathname))
 			: pathname.startsWith("/credit-cards") ||
@@ -212,7 +144,16 @@ export const DataConsistencyPlugin = new Elysia({ name: "DataConsistencyPlugin" 
 			userIds.map(affectedUserId => distributedCache.beginWrite(affectedUserId, namespaces)),
 		);
 		const fenceTokens = Object.fromEntries(userIds.map((id, index) => [id, tokens[index]]));
-		return { cacheWriteFence: { fenceTokens, namespaces, pathname, userId, userIds } };
+		return {
+			cacheWriteFence: {
+				fenceTokens,
+				namespaces: [...new Set(namespaces)],
+				pathname,
+				paymentCreditCardIds,
+				userId,
+				userIds,
+			},
+		};
 	})
 	.onAfterHandle(async ({ cacheWriteFence, request, response, set }) => {
 		if (!cacheWriteFence || Number(set.status ?? 200) >= 400) return;
@@ -234,7 +175,11 @@ export const DataConsistencyPlugin = new Elysia({ name: "DataConsistencyPlugin" 
 					correlationId: request.headers.get("x-correlation-id")?.slice(0, 36) || eventId,
 					eventId,
 					eventType: eventTypeForMethod(request.method),
-					payload: { method: request.method, pathname: cacheWriteFence.pathname },
+					payload: {
+						method: request.method,
+						pathname: cacheWriteFence.pathname,
+						paymentCreditCardIds: cacheWriteFence.paymentCreditCardIds,
+					},
 					userIds,
 				}),
 			);

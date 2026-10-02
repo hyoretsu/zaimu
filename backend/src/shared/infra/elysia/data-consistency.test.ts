@@ -4,13 +4,14 @@ import { debtResourceId, writeNamespaces } from "./data-consistency";
 describe("writeNamespaces", () => {
 	test("scopes credit card writes to overview and card statements", () => {
 		expect(writeNamespaces("/credit-cards/card-1/purchases")).toEqual([
+			"accounts:detail",
 			"accounts:list",
 			"credit-cards:overview",
+			"credit-cards:card-1:statements",
 			"debts:events",
 			"debts:overview",
 			"dashboard",
 			"transactions:list",
-			"credit-cards:card-1:statements",
 			"transactions:detail",
 		]);
 	});
@@ -52,6 +53,7 @@ describe("writeNamespaces", () => {
 	test("refund import writes invalidate rewards, debts and consumption", () => {
 		const namespaces = writeNamespaces("/credit-card-imports/import-1/items/item-1/approve-refund");
 		for (const namespace of [
+			"accounts:detail",
 			"accounts:list",
 			"debts:events",
 			"debts:overview",

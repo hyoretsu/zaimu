@@ -296,3 +296,9 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Consistência de detalhes: agendas, categorias e transações invalidam família de detalhes, e mutações de transações incluem participantes conectados. Epoch agora é consultado entre processos; regressão cobre reconexão em outra instância. Catálogos respondem 304 por ETag. 21 testes de cache/invalidação passaram. Fences concorrentes e limpeza de gerações continuam pendentes.
 
 - Fences concorrentes usam tokens e leases individuais; Redis avança geração e remove somente token do escritor em script atômico. Consumidor atrasado invalida sem apagar fence ativa. 22 testes de cache/invalidação e integração contra Redis dedicado passaram, incluindo expiração após rollback. Fences nos workers e limpeza de gerações ainda pendentes.
+
+### 2026-10-02
+
+- Fences HTTP e consumidor usam mesma matriz central, incluindo detalhes de conta, categorias e famílias de faturas/importações. Workers abrem fences antes dos efeitos, renovam leases e gravam efeitos/outbox na mesma transação; finalização ocorre após commit. 24 testes de cache/worker passaram; build backend passou. Aceite de cache ainda exige limpeza de gerações antigas e integração completa do broker.
+
+- Pagamentos de cartão informam IDs anteriores/novos ao fence e outbox; edição e exclusão invalidam calendários corretos sem invalidar cartões em transações comuns. 12 testes focados passaram.

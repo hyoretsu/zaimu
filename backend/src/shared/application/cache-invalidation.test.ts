@@ -13,6 +13,7 @@ describe("namespacesForEvent", () => {
 			userIds: ["user-id"],
 		});
 		expect(namespacesForEvent(event)).toEqual([
+			"accounts:detail",
 			"accounts:list",
 			"dashboard",
 			"debts:events",
@@ -44,6 +45,10 @@ describe("namespacesForEvent", () => {
 			userIds: ["user-id"],
 		});
 		expect(namespacesForEvent(event)).toEqual([
+			"credit-cards:statements",
+			"debts:events",
+			"debts:overview",
+			"accounts:detail",
 			"accounts:list",
 			"credit-cards:overview",
 			"dashboard",
@@ -73,4 +78,19 @@ describe("namespacesForEvent", () => {
 			"transactions:detail",
 		]);
 	});
+});
+
+test("payment events invalidate both card calendars while ordinary transactions preserve cards", () => {
+	const event = createEventEnvelope({
+		aggregateId: "transaction",
+		aggregateType: "transaction",
+		correlationId: "payment",
+		eventType: "updated",
+		payload: { paymentCreditCardIds: ["old-card", "new-card"] },
+		userIds: ["user"],
+	});
+	expect(namespacesForEvent(event)).toContain("credit-cards:overview");
+	expect(namespacesForEvent(event)).toContain("credit-cards:old-card:statements");
+	expect(namespacesForEvent(event)).toContain("credit-cards:new-card:statements");
+	expect(namespacesForEvent({ ...event, payload: {} })).not.toContain("credit-cards:overview");
 });

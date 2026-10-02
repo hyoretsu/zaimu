@@ -8,11 +8,13 @@ export const cacheNamespaces = [
 	"categories:detail",
 	"categories:list",
 	"credit-cards:overview",
+	"credit-cards:statements",
 	"dashboard",
 	"debts:invitations",
 	"debts:events",
 	"debts:overview",
 	"imports:pending",
+	"imports:detail",
 	"loans:list",
 	"loans:detail",
 	"loans:history",
@@ -94,7 +96,11 @@ export class DistributedCache {
 		return `zaimu:fence:${userId}:${namespace}`;
 	}
 	private dependencies(namespace: CacheNamespace): CacheNamespace[] {
-		return namespace.startsWith("transactions:detail:") ? ["transactions:detail", namespace] : [namespace];
+		if (namespace.startsWith("transactions:detail:")) return ["transactions:detail", namespace];
+		if (namespace.startsWith("imports:detail:")) return ["imports:detail", namespace];
+		if (namespace.startsWith("credit-cards:") && namespace.endsWith(":statements"))
+			return namespace === "credit-cards:statements" ? [namespace] : ["credit-cards:statements", namespace];
+		return [namespace];
 	}
 	private async fenced(userId: string, namespace: CacheNamespace) {
 		const fences = await Promise.all(
@@ -183,8 +189,7 @@ export class DistributedCache {
 			if (ownsLock) await this.safely(() => this.cache.releaseLock(lockKey, lockOwner));
 		}
 	}
-	async beginWrite(userId: string, namespaces: CacheNamespace[]) {
-		const token = crypto.randomUUID();
+	async beginWrite(userId: string, namespaces: CacheNamespace[], token = crypto.randomUUID()) {
 		await Promise.all(
 			namespaces.map(namespace =>
 				this.safely(() => this.cache.beginFence(this.fenceKey(userId, namespace), token, 120_000)),
