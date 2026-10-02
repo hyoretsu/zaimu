@@ -10,16 +10,57 @@ const exchanges = ["zaimu.events", "zaimu.commands"] as const;
 export class RabbitMqBroker implements EventBrokerPort {
 	private channel?: ConfirmChannel;
 	private connection?: ChannelModel;
+	private starting?: Promise<void>;
+	private stopped = false;
+	private retryTimer?: ReturnType<typeof setTimeout>;
+	private readonly consumers = new Map<string, (event: EventEnvelope) => Promise<void>>();
 	private readonly deduplicator = new ConsumerDeduplicator();
 	constructor(private readonly url = process.env.RABBITMQ_URL ?? "amqp://localhost:5672") {}
+	private retryConnection() {
+		if (this.stopped || this.retryTimer || !this.consumers.size) return;
+		this.retryTimer = setTimeout(() => {
+			this.retryTimer = undefined;
+			this.start().catch(() => this.retryConnection());
+		}, 1000);
+	}
 	async start() {
+		this.stopped = false;
+		if (this.starting) return this.starting;
 		if (this.channel) return;
-		const connection = await amqp.connect(this.url);
-		const channel = await connection.createConfirmChannel();
-		this.connection = connection;
-		this.channel = channel;
-		for (const exchange of exchanges) await channel.assertExchange(exchange, "topic", { durable: true });
-		await declareBrokerTopology(channel);
+		this.starting = (async () => {
+			const connection = await amqp.connect(this.url);
+			const lost = () => {
+				if (this.connection !== connection) return;
+				this.connection = undefined;
+				this.channel = undefined;
+				this.retryConnection();
+			};
+			connection.on("error", () => {});
+			connection.on("close", lost);
+			this.connection = connection;
+			try {
+				const channel = await connection.createConfirmChannel();
+				channel.on("error", () => {});
+				channel.on("close", () => {
+					lost();
+					connection.close().catch(() => {});
+				});
+				for (const exchange of exchanges) await channel.assertExchange(exchange, "topic", { durable: true });
+				await declareBrokerTopology(channel);
+				await channel.prefetch(Number(process.env.RABBITMQ_CONSUMER_PREFETCH ?? 1));
+				for (const [queue, handler] of this.consumers) await this.attachConsumer(channel, queue, handler);
+				this.channel = channel;
+			} catch (error) {
+				lost();
+				await connection.close().catch(() => {});
+				throw error;
+			}
+		})();
+		try {
+			await this.starting;
+		} finally {
+			this.starting = undefined;
+		}
 	}
 	async publish(exchange: (typeof exchanges)[number], routingKey: string, event: EventEnvelope) {
 		const startedAt = performance.now();
@@ -45,38 +86,63 @@ export class RabbitMqBroker implements EventBrokerPort {
 			}),
 		);
 	}
-	async consume(queue: string, handler: (event: EventEnvelope) => Promise<void>) {
-		await this.start();
-		const channel = this.channel!;
-		await channel.prefetch(Number(process.env.RABBITMQ_CONSUMER_PREFETCH ?? 1));
+	private async attachConsumer(
+		channel: ConfirmChannel,
+		queue: string,
+		handler: (event: EventEnvelope) => Promise<void>,
+	) {
 		await channel.consume(
 			queue,
-			async message => {
+			message => {
 				if (!message) return;
 				const startedAt = performance.now();
-				const result = await processBrokerMessage(
+				processBrokerMessage(
 					queue,
 					message,
 					channel,
 					this.deduplicator,
 					handler,
 					Number(process.env.RABBITMQ_MAX_RETRIES ?? 5),
-				);
-				console.info(
-					JSON.stringify({
-						...result,
-						durationMs: Number((performance.now() - startedAt).toFixed(2)),
-						queue,
-						type: "broker_consume",
-					}),
-				);
+				)
+					.then(result =>
+						console.info(
+							JSON.stringify({
+								...result,
+								durationMs: Number((performance.now() - startedAt).toFixed(2)),
+								queue,
+								type: "broker_consume",
+							}),
+						),
+					)
+					.catch(() => {
+						try {
+							channel.nack(message, false, true);
+						} catch {
+							/* Connection loss requeues unacknowledged messages. */
+						}
+					});
 			},
 			{ noAck: false },
 		);
 	}
+	async consume(queue: string, handler: (event: EventEnvelope) => Promise<void>) {
+		await this.start();
+		if (this.consumers.has(queue)) throw new Error(`Consumer already registered: ${queue}`);
+		this.consumers.set(queue, handler);
+		try {
+			await this.attachConsumer(this.channel!, queue, handler);
+		} catch (error) {
+			this.retryConnection();
+			throw error;
+		}
+	}
 	async close() {
-		await this.channel?.close();
-		await this.connection?.close();
+		this.stopped = true;
+		if (this.retryTimer) clearTimeout(this.retryTimer);
+		this.retryTimer = undefined;
+		if (this.starting) await this.starting.catch(() => {});
+		await this.channel?.close().catch(() => {});
+		await this.connection?.close().catch(() => {});
 		this.channel = undefined;
 		this.connection = undefined;
 	}

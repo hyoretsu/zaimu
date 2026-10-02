@@ -16,7 +16,9 @@ export async function declareBrokerTopology(channel: ConfirmChannel) {
 			arguments: {
 				"x-dead-letter-exchange": queue === "cache-invalidation" ? "zaimu.events" : "zaimu.commands",
 				"x-dead-letter-routing-key": queue,
+				"x-dead-letter-strategy": "at-least-once",
 				"x-message-ttl": 30_000,
+				"x-overflow": "reject-publish",
 				"x-queue-type": "quorum",
 			},
 			durable: true,
@@ -25,11 +27,14 @@ export async function declareBrokerTopology(channel: ConfirmChannel) {
 			arguments: {
 				"x-dead-letter-exchange": "",
 				"x-dead-letter-routing-key": retry,
+				"x-dead-letter-strategy": "at-least-once",
+				"x-overflow": "reject-publish",
 				"x-queue-type": "quorum",
 			},
 			durable: true,
 		});
 		const exchange = queue === "cache-invalidation" ? "zaimu.events" : "zaimu.commands";
-		await channel.bindQueue(queue, exchange, queue === "cache-invalidation" ? "domain.#" : queue);
+		await channel.bindQueue(queue, exchange, queue);
+		if (queue === "cache-invalidation") await channel.bindQueue(queue, exchange, "domain.#");
 	}
 }

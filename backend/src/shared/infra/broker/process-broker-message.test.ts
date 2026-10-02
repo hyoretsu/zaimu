@@ -20,7 +20,12 @@ const message = (content: string, retries = 0) =>
 		properties: { headers: retries ? { "x-death": [{ count: retries }] } : {} },
 	}) as ConsumeMessage;
 
-const channel = () => ({ ack: mock(() => {}), reject: mock(() => {}), sendToQueue: mock(() => true) });
+const channel = () => ({
+	ack: mock(() => {}),
+	reject: mock(() => {}),
+	sendToQueue: mock(() => true),
+	waitForConfirms: mock(async () => {}),
+});
 
 const deduplicator = (claim: "busy" | "claimed" | "completed" = "claimed") => ({
 	claim: mock(async () => claim),
@@ -29,6 +34,61 @@ const deduplicator = (claim: "busy" | "claimed" | "completed" = "claimed") => ({
 });
 
 describe("processBrokerMessage", () => {
+	test("valid JSON with an invalid envelope goes to DLQ before claiming", async () => {
+		const receipts = deduplicator();
+		const brokerChannel = channel();
+		expect(
+			(
+				await processBrokerMessage(
+					"queue",
+					message("{}"),
+					brokerChannel as never,
+					receipts,
+					async () => {},
+					3,
+				)
+			).result,
+		).toBe("invalid_dlq");
+		expect(receipts.claim).not.toHaveBeenCalled();
+		expect(brokerChannel.waitForConfirms).toHaveBeenCalledTimes(1);
+	});
+	test("counts rejected deliveries without counting retry queue expiry twice", async () => {
+		const delivery = message(JSON.stringify(event));
+		delivery.properties.headers = {
+			"x-death": [
+				{ count: 2, queue: "queue", reason: "rejected" },
+				{ count: 2, queue: "queue.retry", reason: "expired" },
+			],
+		};
+		const result = await processBrokerMessage(
+			"queue",
+			delivery,
+			channel() as never,
+			deduplicator(),
+			async () => {
+				throw new Error("retry");
+			},
+			3,
+		);
+		expect(result).toMatchObject({ result: "failed_retry", retries: 2 });
+	});
+	test("does not ack original delivery when DLQ confirmation fails", async () => {
+		const brokerChannel = channel();
+		brokerChannel.waitForConfirms = mock(async () => {
+			throw new Error("confirm lost");
+		});
+		await expect(
+			processBrokerMessage(
+				"queue",
+				message("invalid"),
+				brokerChannel as never,
+				deduplicator(),
+				async () => {},
+				1,
+			),
+		).rejects.toThrow("confirm lost");
+		expect(brokerChannel.ack).not.toHaveBeenCalled();
+	});
 	test("acks completion only after recording the receipt", async () => {
 		const calls: string[] = [];
 		const brokerChannel = channel();
@@ -40,7 +100,7 @@ describe("processBrokerMessage", () => {
 		const result = await processBrokerMessage(
 			"queue",
 			message(JSON.stringify(event)),
-			brokerChannel as unknown as Pick<ConfirmChannel, "ack" | "reject" | "sendToQueue">,
+			brokerChannel as unknown as Pick<ConfirmChannel, "ack" | "reject" | "sendToQueue" | "waitForConfirms">,
 			receipts,
 			async () => {
 				calls.push("handler");

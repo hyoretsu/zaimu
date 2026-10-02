@@ -15,7 +15,7 @@ export type BrokerConsumeResult =
 export async function processBrokerMessage(
 	queue: string,
 	message: ConsumeMessage,
-	channel: Pick<ConfirmChannel, "ack" | "reject" | "sendToQueue">,
+	channel: Pick<ConfirmChannel, "ack" | "reject" | "sendToQueue" | "waitForConfirms">,
 	deduplicator: ConsumerDeduplicatorPort,
 	handler: (event: EventEnvelope) => Promise<void>,
 	maxRetries: number,
@@ -23,8 +23,27 @@ export async function processBrokerMessage(
 	let event: EventEnvelope;
 	try {
 		event = JSON.parse(message.content.toString()) as EventEnvelope;
+		if (
+			!event ||
+			typeof event !== "object" ||
+			![
+				event.eventId,
+				event.eventType,
+				event.aggregateId,
+				event.aggregateType,
+				event.correlationId,
+				event.occurredAt,
+			].every(value => typeof value === "string" && value.length > 0) ||
+			!Number.isFinite(Date.parse(event.occurredAt)) ||
+			!Number.isInteger(event.schemaVersion) ||
+			event.schemaVersion < 1 ||
+			!Array.isArray(event.userIds) ||
+			!event.userIds.every(id => typeof id === "string")
+		)
+			throw new Error("Invalid event envelope");
 	} catch {
 		channel.sendToQueue(`${queue}.dlq`, message.content, message.properties);
+		await channel.waitForConfirms();
 		channel.ack(message);
 		return { result: "invalid_dlq" };
 	}
@@ -44,10 +63,16 @@ export async function processBrokerMessage(
 		return { eventType: event.eventType, result: "completed" };
 	} catch (error) {
 		await deduplicator.release(queue, event.eventId, error);
-		const deaths = message.properties.headers?.["x-death"] as { count?: number }[] | undefined;
-		const retries = deaths?.reduce((total, death) => total + Number(death.count ?? 0), 0) ?? 0;
+		const deaths = message.properties.headers?.["x-death"] as
+			| { count?: number; queue?: string; reason?: string }[]
+			| undefined;
+		const retries =
+			deaths
+				?.filter(death => !death.queue || (death.queue === queue && death.reason === "rejected"))
+				.reduce((total, death) => total + Number(death.count ?? 0), 0) ?? 0;
 		if (retries >= maxRetries) {
 			channel.sendToQueue(`${queue}.dlq`, message.content, message.properties);
+			await channel.waitForConfirms();
 			channel.ack(message);
 			return { eventType: event.eventType, result: "failed_dlq", retries };
 		}

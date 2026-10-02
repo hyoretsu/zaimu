@@ -318,3 +318,5 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Preview de convites passou a retornar saldo agregado, contagem total e eventos paginados em SQL, com cache e autorização do destinatário pendente. Interface carrega páginas adicionais sob demanda; removidos loaders integrais de histórico e descrição. E2E local passou com 203 verificações, incluindo paginação, isolamento e contratos de histórico.
 
 - Cursores guest de eventos de dívida, rendimentos, extrato de rendimentos e faturas agora usam posição estável e filtro vinculado ao proprietário, sem offset ou ID solto. Oito testes de paginação passaram, cobrindo inserção, remoção, empates e isolamento.
+
+- Integração com RabbitMQ local dedicado passou: publisher confirms, persistência durante restart, reconexão automática, receipt contra duplicação, retry e DLQ. Binding de retorno do retry de cache corrigido; quorum dead-letter usa entrega confirmada. DLQ confirma publicação antes de ACK; teste de confirmação perdida preserva original. Sete testes unitários passaram.
