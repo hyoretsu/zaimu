@@ -7,16 +7,14 @@ import type { DebtSplitReturnDTO } from "../infra/elysia/DebtSplitsDTO";
 export type DebtSplitTarget =
 	| { creditCardImportItemId: string }
 	| { creditPurchaseId: string }
-	| { recurringPaymentId: string }
-	| { subscriptionId: string }
+	| { recurrenceId: string }
 	| { transactionImportItemId: string }
 	| { transactionId: string };
 
 export type DebtSplitTargetField =
 	| "creditCardImportItemId"
 	| "creditPurchaseId"
-	| "recurringPaymentId"
-	| "subscriptionId"
+	| "recurrenceId"
 	| "transactionImportItemId"
 	| "transactionId";
 const targetEntry = (target: DebtSplitTarget) => Object.entries(target)[0] as [DebtSplitTargetField, string];
@@ -63,14 +61,12 @@ async function findSplit(target: DebtSplitTarget) {
 			"transactionId",
 			"transactionImportItemId",
 			"creditPurchaseId",
-			"subscriptionId",
-			"recurringPaymentId",
+			"recurrenceId",
 		)
 			.where((fields, functions) => {
 				if (field === "creditCardImportItemId") return functions.eq(fields.creditCardImportItemId, id);
 				if (field === "creditPurchaseId") return functions.eq(fields.creditPurchaseId, id);
-				if (field === "recurringPaymentId") return functions.eq(fields.recurringPaymentId, id);
-				if (field === "subscriptionId") return functions.eq(fields.subscriptionId, id);
+				if (field === "recurrenceId") return functions.eq(fields.recurrenceId, id);
 				if (field === "transactionImportItemId") return functions.eq(fields.transactionImportItemId, id);
 				return functions.eq(fields.transactionId, id);
 			})
@@ -222,14 +218,12 @@ export async function getDebtSplitReturns(
 			"transactionId",
 			"transactionImportItemId",
 			"creditPurchaseId",
-			"subscriptionId",
-			"recurringPaymentId",
+			"recurrenceId",
 		)
 			.where((fields, functions) => {
 				if (field === "creditCardImportItemId") return functions.in(fields.creditCardImportItemId, ids);
 				if (field === "creditPurchaseId") return functions.in(fields.creditPurchaseId, ids);
-				if (field === "recurringPaymentId") return functions.in(fields.recurringPaymentId, ids);
-				if (field === "subscriptionId") return functions.in(fields.subscriptionId, ids);
+				if (field === "recurrenceId") return functions.in(fields.recurrenceId, ids);
 				if (field === "transactionImportItemId") return functions.in(fields.transactionImportItemId, ids);
 				return functions.in(fields.transactionId, ids);
 			})

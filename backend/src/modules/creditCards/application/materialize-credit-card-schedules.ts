@@ -1,6 +1,6 @@
 import { materializeBookInstallments } from "@zaimu/finance/credit-book";
 import { purchaseStatementDates } from "@zaimu/finance/credit-purchase";
-import { addDays, addMonths, addWeeks, addYears, format, isAfter, startOfDay } from "date-fns";
+import { addMonths, format } from "date-fns";
 import { HttpException } from "~/shared/errors";
 import { db, param, queryFirst, queryRows } from "~/shared/infra/sql";
 import { mutateCreditBook, readCreditBook } from "./normalized-credit-book";
@@ -17,80 +17,6 @@ const statementColumns = [
 	"createdAt",
 	"updatedAt",
 ] as const;
-
-export type SubscriptionFrequency = "BIWEEKLY" | "DAILY" | "MONTHLY" | "WEEKLY" | "YEARLY";
-
-export function subscriptionOccurrences(
-	subscription: {
-		billingDay: number;
-		dayOfWeek?: number | null;
-		endDate: Date | null;
-		frequency: SubscriptionFrequency;
-		startDate: Date;
-	},
-	until: Date,
-) {
-	const occurrences: Date[] = [];
-	const start = startOfDay(subscription.startDate);
-	const end = startOfDay(subscription.endDate && subscription.endDate < until ? subscription.endDate : until);
-	let occurrence = start;
-	if (
-		subscription.frequency === "WEEKLY" &&
-		subscription.dayOfWeek !== null &&
-		subscription.dayOfWeek !== undefined
-	)
-		occurrence = addDays(start, (subscription.dayOfWeek - start.getDay() + 7) % 7);
-	let yearOffset = 0;
-	if (subscription.frequency === "MONTHLY") {
-		const first = new Date(
-			start.getFullYear(),
-			start.getMonth(),
-			Math.min(subscription.billingDay, new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate()),
-		);
-		occurrence =
-			first < start
-				? new Date(
-						start.getFullYear(),
-						start.getMonth() + 1,
-						Math.min(
-							subscription.billingDay,
-							new Date(start.getFullYear(), start.getMonth() + 2, 0).getDate(),
-						),
-					)
-				: first;
-	}
-	while (!isAfter(occurrence, end)) {
-		occurrences.push(occurrence);
-		switch (subscription.frequency) {
-			case "DAILY":
-				occurrence = addDays(occurrence, 1);
-				break;
-			case "WEEKLY":
-				occurrence = addWeeks(occurrence, 1);
-				break;
-			case "BIWEEKLY":
-				occurrence = addWeeks(occurrence, 2);
-				break;
-			case "MONTHLY": {
-				const nextMonth = new Date(occurrence.getFullYear(), occurrence.getMonth() + 1, 1);
-				occurrence = new Date(
-					nextMonth.getFullYear(),
-					nextMonth.getMonth(),
-					Math.min(
-						subscription.billingDay,
-						new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 1, 0).getDate(),
-					),
-				);
-				break;
-			}
-			case "YEARLY":
-				yearOffset += 1;
-				occurrence = addYears(start, yearOffset);
-				break;
-		}
-	}
-	return occurrences;
-}
 
 export function getStatementDates(
 	card: { dueDay: number; statementDay: number; workingDueDate?: boolean },

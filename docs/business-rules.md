@@ -48,7 +48,7 @@ Vínculo de dívida opcional atribui valor integral a uma pessoa ou utiliza rate
 
 Previsões nunca persistem transações, compras, recompensas ou dívidas. Transferência altera saldos das duas contas sem representar receita/despesa consolidada. Compra entra no ciclo correto. Pagamento fixo reduz saldo da origem e pendência prevista do cartão; resumos contam somente pagamento e restante da fatura, evitando duplicação.
 
-`/recurring` concentra CRUD, histórico e recomposição; `/subscriptions` redireciona para a página única. Endpoints legados são adaptadores de `Recurrence`, sem gravação paralela. Migração preserva IDs quando possível e mapeia colisões por origem; tabelas antigas permanecem arquivadas até conferência. IndexedDB converte por proprietário, preserva metadados e bloqueia sincronização de referências não resolvidas.
+`/recurring` concentra CRUD, histórico e recomposição; `/subscriptions` redireciona para a página única. Endpoints de salários e assinaturas foram removidos. `/recurring` aceita apenas `movement`, `unit` e `interval`; payloads antigos falham na validação. Transações, compras e rateios usam `recurrenceId` e `recurrenceOccurrenceDate`. Migração confere valores, vínculos e arquivo dos originais antes de remover tabelas antigas. Proveniência fica exclusivamente no registro de upgrade, por proprietário, incluindo destinos excluídos. IndexedDB carrega conversores somente com marcador pendente, arquiva originais e clocks, converte atomicamente e bloqueia sincronização de referências não resolvidas. IDs locais em colisões são resolvidos pelo endpoint autenticado de upgrade antes da sincronização. `/salaries` e `/subscriptions` permanecem como redirecionamentos frontend.
 
 ## Rendimento de contas
 

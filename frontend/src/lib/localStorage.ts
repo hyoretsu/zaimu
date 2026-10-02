@@ -17,10 +17,7 @@ import type {
 	FinancialAccount,
 	Loan,
 	LoanPayment,
-	RecurringPayment,
-	Salary,
 	Store,
-	Subscription,
 	Transaction,
 } from "@/lib/api";
 import { type CacheIdentity, getCurrentCacheIdentity } from "@/lib/query-cache";
@@ -29,15 +26,14 @@ import { requestResult, transactionDone } from "./idb";
 import type { Recurrence, RecurrenceOccurrence } from "./recurrence";
 
 const DB_NAME = "zaimu-local";
-const DB_VERSION = 10;
+const DB_VERSION = 11;
 
-const LEGACY_STORES = {
+const LOCAL_STORES = {
 	accounts: "accounts",
 	categories: "categories",
 	creditBooks: "creditBooks",
 	creditCardStatements: "creditCardStatements",
 	creditCards: "creditCards",
-	creditPurchases: "creditPurchases",
 	creditRefundReviews: "creditRefundReviews",
 	debtPeople: "debtPeople",
 	debts: "debts",
@@ -46,18 +42,15 @@ const LEGACY_STORES = {
 	meta: "meta",
 	recurrenceOccurrences: "recurrenceOccurrences",
 	recurrences: "recurrences",
-	recurringPayments: "recurringPayments",
-	salaries: "salaries",
 	stores: "stores",
-	subscriptions: "subscriptions",
 	transactions: "transactions",
 } as const;
 
-type StoreDomain = keyof typeof LEGACY_STORES;
-type ScopedStoreName = `scoped-${(typeof LEGACY_STORES)[StoreDomain]}`;
+type StoreDomain = keyof typeof LOCAL_STORES;
+type ScopedStoreName = `scoped-${(typeof LOCAL_STORES)[StoreDomain]}`;
 export type StorageOwner = CacheIdentity;
 
-const scopedStoreName = (domain: StoreDomain): ScopedStoreName => `scoped-${LEGACY_STORES[domain]}`;
+const scopedStoreName = (domain: StoreDomain): ScopedStoreName => `scoped-${LOCAL_STORES[domain]}`;
 
 export interface LocalData<T> {
 	data: T;
@@ -122,11 +115,20 @@ async function openLocalDb(): Promise<IDBDatabase> {
 		request.onblocked = () => reject(new Error("Banco local bloqueado por outra aba."));
 		request.onsuccess = () => resolve(request.result);
 		request.onupgradeneeded = event => {
-			if (!request.result.objectStoreNames.contains("application-upgrade")) {
-				const upgrade = request.result.createObjectStore("application-upgrade", { keyPath: "id" });
-				upgrade.put({ id: "state", status: event.oldVersion === 0 ? "complete" : "pending", version: 10 });
-			}
-			for (const domain of Object.keys(LEGACY_STORES) as StoreDomain[]) {
+			if (!request.result.objectStoreNames.contains("application-upgrade"))
+				request.result.createObjectStore("application-upgrade", { keyPath: "id" });
+			request
+				.transaction!.objectStore("application-upgrade")
+				.put({ id: "state", status: event.oldVersion === 0 ? "complete" : "pending", version: 11 });
+			if (event.oldVersion > 0)
+				for (const domain of ["recurringPayments", "salaries", "subscriptions", "creditPurchases"]) {
+					const name = `scoped-${domain}`;
+					if (!request.result.objectStoreNames.contains(name))
+						request.result
+							.createObjectStore(name, { keyPath: "scopedId" })
+							.createIndex("ownerKey", "ownerKey");
+				}
+			for (const domain of Object.keys(LOCAL_STORES) as StoreDomain[]) {
 				const name = scopedStoreName(domain);
 				if (request.result.objectStoreNames.contains(name)) continue;
 				const store = request.result.createObjectStore(name, { keyPath: "scopedId" });
@@ -397,7 +399,7 @@ export async function clearStore(domain: StoreDomain, ownerKey?: StorageOwner): 
 
 export async function clearAllLocalData(ownerKey?: StorageOwner): Promise<void> {
 	const owner = requireOwner(ownerKey);
-	for (const domain of Object.keys(LEGACY_STORES) as StoreDomain[]) await clearStore(domain, owner);
+	for (const domain of Object.keys(LOCAL_STORES) as StoreDomain[]) await clearStore(domain, owner);
 }
 
 interface SnapshotItem<T> {
@@ -432,8 +434,6 @@ export const localDebts = createLocalStore<Debt>("debts");
 export const localDebtPeople = createLocalStore<DebtPerson>("debtPeople");
 export const localRecurrences = createLocalStore<Recurrence>("recurrences");
 export const localRecurrenceOccurrences = createLocalStore<RecurrenceOccurrence>("recurrenceOccurrences");
-export const localSalaries = createLocalStore<Salary>("salaries");
-export const localSubscriptions = createLocalStore<Subscription>("subscriptions");
 export const localCreditCards = createLocalStore<CreditCard>("creditCards");
 export const localCreditCardStatements = createLocalStore<CreditCardStatement>("creditCardStatements");
 export const localCreditBooks = createLocalStore<CreditBook>("creditBooks");
@@ -513,12 +513,12 @@ export function toPurchasePresentation(entry: ReturnType<typeof creditBookEntrie
 		feeDescription: ("feeDescription" in entry ? entry.feeDescription : null) ?? undefined,
 		parentId: entry.parentId ?? undefined,
 		purchaseId: entry.purchaseId ?? undefined,
+		recurrenceId: ("recurrenceId" in entry ? entry.recurrenceId : null) ?? undefined,
+		recurrenceOccurrenceDate:
+			("recurrenceOccurrenceDate" in entry ? entry.recurrenceOccurrenceDate : null) ?? undefined,
 		refinancingFeeAmount: ("refinancingFeeAmount" in entry ? entry.refinancingFeeAmount : null) ?? undefined,
 		refundOfPurchaseId: entry.refundOfPurchaseId ?? undefined,
 		storeName: entry.storeName ?? undefined,
-		subscriptionId: ("subscriptionId" in entry ? entry.subscriptionId : null) ?? undefined,
-		subscriptionOccurrenceDate:
-			("subscriptionOccurrenceDate" in entry ? entry.subscriptionOccurrenceDate : null) ?? undefined,
 		tagIds: [...entry.tagIds],
 		time: entry.time ?? null,
 	};
@@ -608,7 +608,7 @@ export async function mutateLocalCreditBook<T>(
 					throw new Error("Tag indisponível");
 			for (const [store, id] of [
 				["scoped-accounts", p.cashbackAccountId],
-				["scoped-recurrences", p.subscriptionId],
+				["scoped-recurrences", p.recurrenceId],
 			] as const)
 				if (id && !(await requestResult(tx.objectStore(store).get(scopedId(owner, id)))))
 					throw new Error("Vínculo indisponível");
@@ -637,12 +637,12 @@ export async function mutateLocalCreditBook<T>(
 			);
 		for (const removed of stored?.data.purchases ?? [])
 			if (
-				removed.subscriptionId &&
-				removed.subscriptionOccurrenceDate &&
+				removed.recurrenceId &&
+				removed.recurrenceOccurrenceDate &&
 				!book.purchases.some(p => p.id === removed.id)
 			) {
 				const occurrences = tx.objectStore("scoped-recurrenceOccurrences");
-				const identity = `${removed.subscriptionId}:${removed.subscriptionOccurrenceDate}`;
+				const identity = `${removed.recurrenceId}:${removed.recurrenceOccurrenceDate}`;
 				const row = (await requestResult(occurrences.get(scopedId(owner, identity)))) as
 					| LocalData<RecurrenceOccurrence>
 					| undefined;
@@ -821,8 +821,6 @@ export async function readLocalCreditBook(cardId: string, owner?: StorageOwner):
 	return book;
 }
 
-export const localRecurringPayments = createLocalStore<RecurringPayment>("recurringPayments");
-
 export const localMeta = {
 	get: async (key: string, ownerKey?: StorageOwner): Promise<unknown> => {
 		const owner = requireOwner(ownerKey);
@@ -943,13 +941,7 @@ export async function acknowledgeRecurrenceSync(
 		const mappings = new Map<string, string>();
 		const store = tx.objectStore("scoped-recurrences");
 		for (const recurrence of received) {
-			const source = sent.find(
-				row =>
-					row.data.id === recurrence.id ||
-					(recurrence.legacySource &&
-						row.data.legacySource === recurrence.legacySource &&
-						row.data.legacyId === recurrence.legacyId),
-			);
+			const source = sent.find(row => row.data.id === recurrence.id);
 			if (source) mappings.set(source.localId, recurrence.id);
 			const current = (await requestResult(store.get(scopedId(owner, source?.localId ?? recurrence.id)))) as
 				| LocalData<Recurrence>
@@ -1029,8 +1021,8 @@ export async function acknowledgeRecurrenceSync(
 			tx.objectStore("scoped-creditBooks").index("ownerKey").getAll(owner),
 		)) as LocalData<CreditBook>[]) {
 			const purchases = row.data.purchases.map(p =>
-				p.subscriptionId && mappings.has(p.subscriptionId)
-					? { ...p, subscriptionId: mappings.get(p.subscriptionId)! }
+				p.recurrenceId && mappings.has(p.recurrenceId)
+					? { ...p, recurrenceId: mappings.get(p.recurrenceId)! }
 					: p,
 			);
 			if (JSON.stringify(purchases) !== JSON.stringify(row.data.purchases))
@@ -1084,7 +1076,7 @@ export async function deleteLocalRecurrence(owner: StorageOwner, id: string, rem
 		for (const row of (await requestResult(
 			books.index("ownerKey").getAll(owner),
 		)) as LocalData<CreditBook>[]) {
-			const linked = new Set(row.data.purchases.filter(p => p.subscriptionId === id).map(p => p.id));
+			const linked = new Set(row.data.purchases.filter(p => p.recurrenceId === id).map(p => p.id));
 			if (!linked.size) continue;
 			const book = structuredClone(row.data);
 			if (removeConcrete) {
@@ -1095,8 +1087,8 @@ export async function deleteLocalRecurrence(owner: StorageOwner, id: string, rem
 			} else
 				for (const purchase of book.purchases)
 					if (linked.has(purchase.id)) {
-						purchase.subscriptionId = null;
-						purchase.subscriptionOccurrenceDate = null;
+						purchase.recurrenceId = null;
+						purchase.recurrenceOccurrenceDate = null;
 					}
 			await requestResult(books.put({ ...row, data: book, modifiedAt: Math.max(now, row.modifiedAt + 1) }));
 		}

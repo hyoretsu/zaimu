@@ -4,7 +4,7 @@ import { deleteCreatorDebtEventForTransaction } from "~/modules/debts/applicatio
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { db, executeStatement, queryRows, withTransaction } from "~/shared/infra/sql";
 
-type TransactionLink = "recurrenceId" | "salaryId" | "subscriptionId";
+type TransactionLink = "recurrenceId";
 
 export async function deleteLinkedTransactions(
 	link: TransactionLink,
@@ -20,11 +20,9 @@ export async function deleteLinkedTransactions(
 			"originFinancialAccountId",
 			"destinationFinancialAccountId",
 		)
-			.where((fields, functions) => {
-				if (link === "recurrenceId") return functions.eq(fields.recurrenceId, linkedEntityId);
-				if (link === "salaryId") return functions.eq(fields.salaryId, linkedEntityId);
-				return functions.eq(fields.subscriptionId, linkedEntityId);
-			})
+			.where((fields, functions) =>
+				functions.and(functions.eq(fields.recurrenceId, linkedEntityId), functions.eq(fields.userId, userId)),
+			)
 			.build(),
 	);
 

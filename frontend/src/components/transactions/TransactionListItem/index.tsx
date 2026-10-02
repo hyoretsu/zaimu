@@ -175,8 +175,7 @@ export function TransactionListItem({
 							formatCurrency,
 						)}
 						isFullySynced={Boolean(transaction.isFullySynced && (transaction.installments ?? 0) > 1)}
-						isSalary={Boolean(transaction.salaryId)}
-						isSubscription={Boolean(transaction.subscriptionId)}
+						isRecurring={Boolean(transaction.recurrenceId)}
 						isSynced={transaction.isSynced ?? Boolean(transaction.externalIds?.length)}
 						storeName={transaction.storeName}
 						tags={tags}

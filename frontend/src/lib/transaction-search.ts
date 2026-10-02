@@ -32,8 +32,6 @@ export function getTransactionSearchText(transaction: Transaction) {
 			transaction.categoryName,
 			typeLabel[transaction.type],
 			transaction.isHidden ? "Oculta" : "Visível",
-			transaction.subscriptionId ? "Assinatura" : undefined,
-			transaction.salaryId ? "Salário" : undefined,
 			transaction.originName,
 			transaction.destinationName,
 			transaction.sourceName,

@@ -33,8 +33,8 @@ export interface CreditReadRow extends Record<string, unknown> {
 	cashbackYieldPeriod: "MONTHLY" | "YEARLY" | null;
 	cashbackYieldReferencePercentage: number | null;
 	cashbackYieldReferenceRate: number | null;
-	subscriptionId: string | null;
-	subscriptionOccurrenceDate: Date | null;
+	recurrenceId: string | null;
+	recurrenceOccurrenceDate: Date | null;
 	externalId: string | null;
 	createdAt: Date;
 	updatedAt: Date;

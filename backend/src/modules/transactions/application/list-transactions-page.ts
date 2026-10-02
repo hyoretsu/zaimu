@@ -62,15 +62,11 @@ interface TransactionSummaryRow {
 	recurrenceId: null | string;
 	recurrenceOccurrenceDate: Date | null;
 	refundOfPurchaseId: null | string;
-	salaryId: null | string;
-	salaryOccurrenceDate: Date | null;
 	source: "CREDIT_CARD" | "FINANCIAL_ACCOUNT";
 	sourceName: null | string;
 	sourceRank: number;
 	statementId: null | string;
 	storeName: null | string;
-	subscriptionId: null | string;
-	subscriptionOccurrenceDate: Date | null;
 	time: null | string;
 	type: "EXPENSE" | "INCOME" | "REFUND" | "TRANSFER";
 }
@@ -130,14 +126,13 @@ WITH combined AS (
     destination_rewards."kind"::text AS "destinationAccountRewardsKind",
     COALESCE(origin."name", origin_institution."name") AS "originName",
     COALESCE(destination."name", destination_institution."name") AS "destinationName",
-    t."recurrenceId", t."recurrenceOccurrenceDate", t."salaryId", t."salaryOccurrenceDate",
-    t."subscriptionId", t."subscriptionOccurrenceDate", t."paymentCreditCardId",
+    t."recurrenceId", t."recurrenceOccurrenceDate", t."paymentCreditCardId",
     NULL::date AS "creditCardStatementDate",
     payment_card."id" AS "creditCardId",
     COALESCE(payment_account."name", payment_institution."name") AS "creditCardName",
     CASE WHEN t."type" <> 'TRANSFER'
       AND COALESCE(destination."type", origin."type") = 'CREDIT_CARD'
-      AND t."recurrenceId" IS NULL AND t."salaryId" IS NULL AND t."subscriptionId" IS NULL
+      AND t."recurrenceId" IS NULL
       THEN 'CREDIT_CARD' ELSE 'FINANCIAL_ACCOUNT' END AS "source",
     CASE WHEN t."type" = 'INCOME' THEN COALESCE(destination."name", destination_institution."name")
       ELSE COALESCE(origin."name", origin_institution."name") END AS "sourceName",
@@ -152,8 +147,6 @@ WITH combined AS (
       CASE t."type" WHEN 'INCOME' THEN 'Entrada' WHEN 'EXPENSE' THEN 'Saída'
         WHEN 'TRANSFER' THEN 'Transferência' ELSE 'Reembolso' END,
       CASE WHEN t."isHidden" THEN 'Oculta' ELSE 'Visível' END,
-      CASE WHEN t."subscriptionId" IS NOT NULL THEN 'Assinatura' END,
-      CASE WHEN t."salaryId" IS NOT NULL THEN 'Salário' END,
       origin."name", origin_institution."name", destination."name", destination_institution."name",
       payment_account."name", payment_institution."name",
       CASE WHEN debt_split."id" IS NOT NULL THEN 'Dívida' END,
@@ -189,9 +182,7 @@ WITH combined AS (
     'CREDIT_CARD' AS "originAccountType", NULL::text AS "destinationAccountType",
     NULL::text AS "originAccountRewardsKind", NULL::text AS "destinationAccountRewardsKind",
     COALESCE(account."name", institution."name", 'Cartão de crédito') AS "originName",
-    NULL::text AS "destinationName", NULL::text AS "recurrenceId", NULL::date AS "recurrenceOccurrenceDate",
-    NULL::text AS "salaryId", NULL::date AS "salaryOccurrenceDate", purchase."subscriptionId",
-    purchase."subscriptionOccurrenceDate", NULL::text AS "paymentCreditCardId",
+    NULL::text AS "destinationName", purchase."recurrenceId", purchase."recurrenceOccurrenceDate", NULL::text AS "paymentCreditCardId",
     statement."statementDate" AS "creditCardStatementDate", card."id" AS "creditCardId",
     COALESCE(account."name", institution."name", 'Cartão de crédito') AS "creditCardName",
     'CREDIT_CARD' AS "source", COALESCE(account."name", institution."name", 'Cartão de crédito') AS "sourceName",

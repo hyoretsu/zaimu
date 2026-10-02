@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { LocalData } from "./localStorage";
+import type { LocalData } from "../localStorage";
 import { migrateLocalRecurrenceRows } from "./migrate-recurrences";
 
 const wrap = (data: Record<string, unknown>, owner = "user:a"): LocalData<unknown> => ({

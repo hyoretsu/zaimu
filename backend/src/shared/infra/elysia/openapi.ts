@@ -19,8 +19,6 @@ export const OpenAPI = new Elysia().use(
 				{ name: "Credit Cards" },
 				{ name: "Loans" },
 				{ name: "Debts" },
-				{ name: "Salaries" },
-				{ name: "Subscriptions" },
 				{ name: "Recurring Payments" },
 				{ name: "Categories" },
 				{ name: "Dashboard" },

@@ -263,7 +263,7 @@ test("upgrades v5 guest/cache payments and replays the guest service after edits
 		laterOwner,
 	);
 	const laterBook = (await storage.localCreditBooks.getById("later-card", laterOwner))!;
-	const { migrateCreditBooks } = await import("../migrate-credit-books");
+	const { migrateCreditBooks } = await import("../upgrades/migrate-credit-books");
 	await migrateCreditBooks(await storage.initLocalDb());
 	expect(await storage.localCreditBooks.getById("later-card", laterOwner)).toEqual(laterBook);
 

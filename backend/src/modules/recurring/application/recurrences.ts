@@ -25,16 +25,13 @@ import {
 } from "~/modules/debts/application";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { resolveStore } from "~/modules/stores/application/resolve-store";
-import { deleteLinkedSubscriptionPurchases } from "~/modules/subscriptions/application/delete-linked-subscription-purchases";
 import { deleteLinkedTransactions } from "~/modules/transactions/application/delete-linked-transactions";
 import { HttpException } from "~/shared/errors";
 import { queryRaw, withRawTransaction, withTransaction } from "~/shared/infra/sql";
 import type { RecurrenceBody, UpdateRecurrenceBody } from "../infra/elysia/RecurrenceDTO";
+import { deleteLinkedRecurrencePurchases } from "./delete-linked-recurrence-purchases";
 
-export interface StoredRecurrence extends RecurrenceDefinition {
-	legacySource?: string | null;
-	legacyId?: string | null;
-}
+export type StoredRecurrence = RecurrenceDefinition;
 export const recurrenceToday = () => format(new Date(), "yyyy-MM-dd");
 export function normalizeRecurrence(row: Record<string, unknown>): StoredRecurrence {
 	const result = { ...row };
@@ -57,22 +54,18 @@ export async function presentRecurrence(recurrence: StoredRecurrence) {
 	const tags = (await getTagsByEntity("RECURRENCE", [recurrence.id])).get(recurrence.id) ?? [];
 	return {
 		...recurrence,
-		debtSplit: await getDebtSplitReturn({ recurringPaymentId: recurrence.id }, recurrence.amount),
+		debtSplit: await getDebtSplitReturn({ recurrenceId: recurrence.id }, recurrence.amount),
 		needsConfiguration: recurrenceNeedsConfiguration(recurrence),
 		tagIds: tags.map(tag => tag.id),
 		tags,
 	};
 }
-export async function listRecurrenceSummaries(userId: string, isActive?: boolean, source?: string) {
+export async function listRecurrenceSummaries(userId: string, isActive?: boolean) {
 	const parameters: unknown[] = [userId];
 	const conditions = ['"userId"=$1'];
 	if (isActive !== undefined) {
 		parameters.push(isActive);
 		conditions.push(`"isActive"=$${parameters.length}`);
-	}
-	if (source !== undefined) {
-		parameters.push(source);
-		conditions.push(`"legacySource"=$${parameters.length}`);
 	}
 	const rows = await queryRaw(
 		`SELECT * FROM "Recurrence" WHERE ${conditions.join(" AND ")} ORDER BY "name","id"`,
@@ -94,10 +87,10 @@ export async function listRecurrenceSummaries(userId: string, isActive?: boolean
 	});
 }
 /** Full snapshots are reserved for sync; load associations once for the whole set. */
-export async function listRecurrences(userId: string, isActive?: boolean, source?: string) {
-	const rows = await listRecurrenceSummaries(userId, isActive, source);
+export async function listRecurrences(userId: string, isActive?: boolean) {
+	const rows = await listRecurrenceSummaries(userId, isActive);
 	const splits = await getDebtSplitReturns(
-		"recurringPaymentId",
+		"recurrenceId",
 		rows.map(row => ({ amount: row.amount, id: row.id })),
 	);
 	return rows.map(row => ({ ...row, debtSplit: splits.get(row.id) ?? null }));
@@ -166,13 +159,13 @@ export async function saveRecurrence(
 	userId: string,
 	input: RecurrenceBody | UpdateRecurrenceBody,
 	id?: string,
-	legacy?: { source?: string; id?: string },
+	identity?: { id?: string },
 	allowMissing = false,
 	preserveEligibility = false,
 ) {
 	return withRawTransaction(async query => {
 		const existing = id ? await getStoredRecurrence(userId, id, true) : undefined;
-		const existingSplit = existing ? await getDebtSplitInput({ recurringPaymentId: existing.id }) : undefined;
+		const existingSplit = existing ? await getDebtSplitInput({ recurrenceId: existing.id }) : undefined;
 		const next = {
 			...existing,
 			...input,
@@ -191,7 +184,7 @@ export async function saveRecurrence(
 						Object.keys(input).every(key => key === "isActive"),
 				),
 		);
-		const recurrenceId = existing?.id ?? legacy?.id ?? crypto.randomUUID();
+		const recurrenceId = existing?.id ?? identity?.id ?? crypto.randomUUID();
 		const values = writable.map(field =>
 			field === "isActive" ? (next[field] ?? true) : (next[field] ?? null),
 		);
@@ -218,15 +211,8 @@ export async function saveRecurrence(
 			);
 		} else
 			await query(
-				`INSERT INTO "Recurrence" ("id","userId",${writable.map(field => `"${field}"`).join(",")},"materializedThrough","legacySource","legacyId") VALUES (${Array.from({ length: values.length + 5 }, (_, index) => `$${index + 1}`).join(",")})`,
-				[
-					recurrenceId,
-					userId,
-					...values,
-					shiftRecurrenceDate(recurrenceToday(), -1),
-					legacy?.source ?? null,
-					legacy?.source ? (legacy.id ?? recurrenceId) : null,
-				],
+				`INSERT INTO "Recurrence" ("id","userId",${writable.map(field => `"${field}"`).join(",")},"materializedThrough") VALUES (${Array.from({ length: values.length + 3 }, (_, index) => `$${index + 1}`).join(",")})`,
+				[recurrenceId, userId, ...values, shiftRecurrenceDate(recurrenceToday(), -1)],
 			);
 		if (input.tagIds !== undefined)
 			await replaceEntityTags({ entityIds: [recurrenceId], entityType: "RECURRENCE", tagIds: input.tagIds });
@@ -241,7 +227,7 @@ export async function saveRecurrence(
 				amount: next.amount,
 				split:
 					next.movement === "TRANSFER" || next.movement === "CARD_PAYMENT" ? null : (next.debtSplit ?? null),
-				target: { recurringPaymentId: recurrenceId },
+				target: { recurrenceId },
 				userId,
 			});
 		return presentRecurrence(await getStoredRecurrence(userId, recurrenceId));
@@ -263,7 +249,7 @@ export async function materializeRecurrence(
 		const dates = recurrenceDates(recurrence, from, replay?.through ?? through);
 		const tags = (await getTagsByEntity("RECURRENCE", [id])).get(id) ?? [];
 		const tagIds = tags.map(tag => tag.id);
-		const debtSplit = await getDebtSplitInput({ recurringPaymentId: id });
+		const debtSplit = await getDebtSplitInput({ recurrenceId: id });
 		let created = 0;
 		for (const date of dates) {
 			const [reserved] = await query(
@@ -299,9 +285,9 @@ export async function materializeRecurrence(
 							description: recurrence.name,
 							installments: 1,
 							purchaseDate: date,
+							recurrenceId: id,
+							recurrenceOccurrenceDate: date,
 							storeName: recurrence.storeName ?? null,
-							subscriptionId: id,
-							subscriptionOccurrenceDate: date,
 							tagIds,
 							totalAmount: recurrence.amount,
 						});
@@ -388,12 +374,12 @@ export async function deleteRecurrence(userId: string, id: string, deleteTransac
 		const recurrence = await getStoredRecurrence(userId, id, true);
 		if (deleteTransactions) {
 			await deleteLinkedTransactions("recurrenceId", id, userId);
-			await deleteLinkedSubscriptionPurchases(id, userId);
+			await deleteLinkedRecurrencePurchases(id, userId);
 			if (recurrence.creditCardId)
 				await withTransaction(executor => recalculateStatementPayments(executor, [recurrence.creditCardId!]));
 		}
 		await replaceEntityTags({ entityIds: [id], entityType: "RECURRENCE", tagIds: [] });
-		await query('DELETE FROM "DebtSplit" WHERE "recurringPaymentId"=$1', [id]);
+		await query('DELETE FROM "DebtSplit" WHERE "recurrenceId"=$1', [id]);
 		await query('DELETE FROM "RecurrenceHistory" WHERE "recurrenceId"=$1', [id]);
 		await query('DELETE FROM "RecurrenceOccurrence" WHERE "recurrenceId"=$1', [id]);
 		await query('DELETE FROM "Recurrence" WHERE "id"=$1 AND "userId"=$2', [id, userId]);

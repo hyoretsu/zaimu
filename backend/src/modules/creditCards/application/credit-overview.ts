@@ -142,9 +142,7 @@ export function replayOverviewStatements(
 				dates ? { dueDate: asDateKey(dates.dueDate), statementDate: asDateKey(dates.statementDate) } : null,
 			),
 			purchaseDate: asDateKey(row.purchaseDate),
-			subscriptionOccurrenceDate: row.subscriptionOccurrenceDate
-				? asDateKey(row.subscriptionOccurrenceDate)
-				: null,
+			recurrenceOccurrenceDate: row.recurrenceOccurrenceDate ? asDateKey(row.recurrenceOccurrenceDate) : null,
 			tagIds: [],
 			totalAmountCents: moneyCents(Number(row.totalAmount), 1),
 			updatedAt: asTimestamp(row.updatedAt),

@@ -20,10 +20,6 @@ import {
 } from "~/modules/debts/application";
 import type { DebtSplitInput } from "~/modules/debts/domain";
 import {
-	legacyRecurrenceInput,
-	listLegacyRecurrences,
-} from "~/modules/recurring/application/legacy-recurrences";
-import {
 	getStoredRecurrence,
 	listRecurrences,
 	presentRecurrence,
@@ -177,10 +173,6 @@ const transactionColumns = [
 	"paymentCreditCardId",
 	"recurrenceId",
 	"recurrenceOccurrenceDate",
-	"salaryId",
-	"salaryOccurrenceDate",
-	"subscriptionId",
-	"subscriptionOccurrenceDate",
 	"originFinancialAccountId",
 	"destinationFinancialAccountId",
 	"createdAt",
@@ -197,8 +189,6 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				const accountIds = new Set<string>();
 				const categoryIds = new Set<string>();
 				const recurringIds = new Set<string>();
-				const salaryIds = new Set<string>();
-				const subscriptionIds = new Set<string>();
 				const cardIds = new Set<string>();
 				const statementIds = new Set<string>();
 				const debtPersonIds = new Set<string>();
@@ -798,25 +788,12 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 
 				const recurrenceMappings = new Map<string, string>();
 				const newRecurrenceIds = new Set<string>();
-				const legacyGroups = [
-					["salary", body.salaries ?? []],
-					["subscription", body.subscriptions ?? []],
-					["recurring", body.recurringPayments ?? []],
-				] as const;
-				const inputs = [...(body.recurrences ?? [])];
-				for (const [source, entities] of legacyGroups)
-					for (const entity of entities)
-						inputs.push({
-							...(await legacyRecurrenceInput(source, entity)),
-							id: entity.id,
-							legacyId: entity.id,
-							legacySource: source,
-						});
+				const inputs = body.recurrences ?? [];
 				await sync("recurrences", inputs, async entity => {
 					const inputId = value<string>(entity, "id");
 					const [existing] = await queryRaw<{ id: string; userId: string }>(
-						`SELECT "id","userId" FROM "Recurrence" WHERE "id"=$1 OR ("legacySource"=$2 AND "legacyId"=$3 AND "userId"=$4) ORDER BY CASE WHEN "id"=$1 THEN 0 ELSE 1 END LIMIT 1`,
-						[inputId, entity.legacySource ?? null, entity.legacyId ?? null, userId],
+						`SELECT "id","userId" FROM "Recurrence" WHERE "id"=$1`,
+						[inputId],
 					);
 					if (existing && existing.userId !== userId) throw new Error("Recorrência pertence a outro usuário");
 					const id = existing?.id ?? inputId;
@@ -831,39 +808,17 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 								userId,
 								entity as unknown as RecurrenceBody,
 								existing?.id,
-								existing ? undefined : { id, source: value<string | undefined>(entity, "legacySource") },
-								Boolean(entity.legacySource),
+								existing ? undefined : { id },
+								Boolean(entity.needsConfiguration),
 							);
 					if (!existing) newRecurrenceIds.add(record.id);
 					recurringIds.add(record.id);
 					recurrenceMappings.set(inputId, record.id);
-					if (entity.legacyId) recurrenceMappings.set(`${entity.legacySource}:${entity.legacyId}`, record.id);
 				});
 				for (const row of await queryRaw<{ id: string }>('SELECT "id" FROM "Recurrence" WHERE "userId"=$1', [
 					userId,
 				]))
 					recurringIds.add(row.id);
-				for (const entity of body.transactions ?? []) {
-					if (entity.salaryId || entity.subscriptionId) {
-						const source = entity.salaryId ? "salary" : "subscription";
-						entity.recurrenceId = recurrenceMappings.get(
-							`${source}:${entity.salaryId ?? entity.subscriptionId}`,
-						);
-						if (!entity.recurrenceId) throw new Error("Referência antiga de recorrência não resolvida");
-						entity.recurrenceOccurrenceDate =
-							entity.salaryOccurrenceDate ?? entity.subscriptionOccurrenceDate ?? entity.date;
-						entity.salaryId = null;
-						entity.subscriptionId = null;
-					} else if (entity.recurrenceId)
-						entity.recurrenceId = recurrenceMappings.get(String(entity.recurrenceId)) ?? entity.recurrenceId;
-				}
-				for (const book of body.creditBooks ?? [])
-					for (const purchase of book.purchases)
-						if (purchase.subscriptionId)
-							purchase.subscriptionId =
-								recurrenceMappings.get(purchase.subscriptionId) ??
-								recurrenceMappings.get(`subscription:${purchase.subscriptionId}`) ??
-								purchase.subscriptionId;
 				await sync("transactions", body.transactions, async entity => {
 					const id = value<string>(entity, "id");
 					const paymentCreditCardId = value<string | undefined>(entity, "paymentCreditCardId");
@@ -874,8 +829,6 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 					);
 					const recurrenceId = value<string | undefined>(entity, "recurrenceId");
 					const recurrenceOccurrenceDate = optionalDate(entity, "recurrenceOccurrenceDate");
-					const salaryId = value<string | undefined>(entity, "salaryId");
-					const subscriptionId = value<string | undefined>(entity, "subscriptionId");
 					if (originFinancialAccountId && !accountIds.has(originFinancialAccountId))
 						throw new Error(`Conta de origem ${originFinancialAccountId} indisponível`);
 					if (destinationFinancialAccountId && !accountIds.has(destinationFinancialAccountId))
@@ -884,9 +837,6 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 						throw new Error(`Cartão ${paymentCreditCardId} indisponível`);
 					if (recurrenceId && !recurringIds.has(recurrenceId))
 						throw new Error(`Recorrência ${recurrenceId} indisponível`);
-					if (salaryId && !salaryIds.has(salaryId)) throw new Error(`Salário ${salaryId} indisponível`);
-					if (subscriptionId && !subscriptionIds.has(subscriptionId))
-						throw new Error(`Assinatura ${subscriptionId} indisponível`);
 					if (recurrenceId && recurrenceOccurrenceDate) {
 						await getStoredRecurrence(userId, recurrenceId, true);
 						const [identity] = await queryRaw(
@@ -943,11 +893,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 									paymentCreditCardId,
 									recurrenceId,
 									recurrenceOccurrenceDate,
-									salaryId,
-									salaryOccurrenceDate: optionalDate(entity, "salaryOccurrenceDate"),
 									storeName: value<string | undefined>(entity, "storeName"),
-									subscriptionId,
-									subscriptionOccurrenceDate: optionalDate(entity, "subscriptionOccurrenceDate"),
 									type: value<"EXPENSE" | "INCOME" | "TRANSFER">(entity, "type") ?? "EXPENSE",
 									userId,
 								},
@@ -1126,53 +1072,9 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 						tagIds: [...p.tagIds],
 					})),
 				}));
-				let transactionQueryBuilder = db.sql.public.Transaction.outerLeftJoin(
-					db.sql.public.Recurrence,
-					(f, fn) => fn.eq(f.Transaction.recurrenceId, f.Recurrence.id),
-				)
-					.outerLeftJoin(db.sql.public.Salary, (f, fn) => fn.eq(f.Transaction.salaryId, f.Salary.id))
-					.outerLeftJoin(db.sql.public.Subscription, (f, fn) =>
-						fn.eq(f.Transaction.subscriptionId, f.Subscription.id),
-					)
-					.select(f => ({
-						amount: f.Transaction.amount,
-						categoryId: f.Transaction.categoryId,
-						createdAt: f.Transaction.createdAt,
-						date: f.Transaction.date,
-						description: f.Transaction.description,
-						destinationFinancialAccountId: f.Transaction.destinationFinancialAccountId,
-						id: f.Transaction.id,
-						originFinancialAccountId: f.Transaction.originFinancialAccountId,
-						paymentCreditCardId: f.Transaction.paymentCreditCardId,
-						recurrenceId: f.Transaction.recurrenceId,
-						recurrenceOccurrenceDate: f.Transaction.recurrenceOccurrenceDate,
-						salaryId: f.Transaction.salaryId,
-						salaryOccurrenceDate: f.Transaction.salaryOccurrenceDate,
-						storeName: f.Transaction.storeName,
-						subscriptionId: f.Transaction.subscriptionId,
-						subscriptionOccurrenceDate: f.Transaction.subscriptionOccurrenceDate,
-						type: f.Transaction.type,
-						updatedAt: f.Transaction.updatedAt,
-					}));
-				if (serverAccountIds.length) {
-					transactionQueryBuilder = transactionQueryBuilder.where((f, fn) =>
-						fn.or(
-							fn.in(f.Transaction.originFinancialAccountId, serverAccountIds),
-							fn.in(f.Transaction.destinationFinancialAccountId, serverAccountIds),
-							fn.eq(f.Recurrence.userId, userId),
-							fn.eq(f.Salary.userId, userId),
-							fn.eq(f.Subscription.userId, userId),
-						),
-					);
-				} else {
-					transactionQueryBuilder = transactionQueryBuilder.where((f, fn) =>
-						fn.or(
-							fn.eq(f.Recurrence.userId, userId),
-							fn.eq(f.Salary.userId, userId),
-							fn.eq(f.Subscription.userId, userId),
-						),
-					);
-				}
+				const transactionQueryBuilder = db.sql.public.Transaction.select(...transactionColumns).where(
+					(f, fn) => fn.eq(f.userId, userId),
+				);
 				const transactions = await queryRows(transactionQueryBuilder.build());
 				await sync("recurrenceOccurrences", body.recurrenceOccurrences, async entity => {
 					const recurrenceId =
@@ -1186,7 +1088,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 					)[0];
 					const purchase = (
 						await queryRaw(
-							'SELECT "id" FROM "CreditPurchaseRecord" WHERE "subscriptionId"=$1 AND "subscriptionOccurrenceDate"=$2 AND "userId"=$3',
+							'SELECT "id" FROM "CreditPurchaseRecord" WHERE "recurrenceId"=$1 AND "recurrenceOccurrenceDate"=$2 AND "userId"=$3',
 							[recurrenceId, entity.date, userId],
 						)
 					)[0];
@@ -1351,9 +1253,6 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 							id: `${row.recurrenceId}:${(row.date as Date).toISOString().slice(0, 10)}`,
 						})),
 						recurrences: await listRecurrences(userId),
-						recurringPayments: await listLegacyRecurrences(userId, "recurring"),
-						salaries: await listLegacyRecurrences(userId, "salary"),
-						subscriptions: await listLegacyRecurrences(userId, "subscription"),
 
 						transactions: await Promise.all(
 							transactions.map(async transaction => ({

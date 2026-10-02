@@ -83,7 +83,7 @@ export function CreditPurchaseRow({
 				{purchase.storeName ||
 				debtPersonName ||
 				tags?.length ||
-				purchase.subscriptionId ||
+				purchase.recurrenceId ||
 				purchase.isSynced ||
 				hasSyncedInstallments ? (
 					<div className="mt-2">
@@ -91,7 +91,7 @@ export function CreditPurchaseRow({
 							accounts={[]}
 							debtPersonName={debtPersonName}
 							isFullySynced={hasSyncedInstallments}
-							isSubscription={Boolean(purchase.subscriptionId)}
+							isRecurring={Boolean(purchase.recurrenceId)}
 							isSynced={purchase.isSynced}
 							storeName={purchase.storeName}
 							tags={tags}

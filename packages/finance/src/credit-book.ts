@@ -50,8 +50,8 @@ export interface BookPurchase extends CreditPurchase {
 	cashbackYieldPeriod: "MONTHLY" | "YEARLY" | null;
 	cashbackYieldReferencePercentage: number | null;
 	cashbackYieldReferenceRate: number | null;
-	subscriptionId: string | null;
-	subscriptionOccurrenceDate: string | null;
+	recurrenceId: string | null;
+	recurrenceOccurrenceDate: string | null;
 	externalId: string | null;
 	debtSplitRule?: PurchaseDebtRule | null;
 	createdAt: string;
@@ -484,10 +484,10 @@ export function newBookPurchase(
 		externalId: null,
 		feeAmount: null,
 		feeDescription: null,
+		recurrenceId: null,
+		recurrenceOccurrenceDate: null,
 		refinancingFeeAmount: null,
 		storeName: null,
-		subscriptionId: null,
-		subscriptionOccurrenceDate: null,
 		tagIds: [],
 		time: null,
 		...metadata,

@@ -1,7 +1,7 @@
 import type { BookPurchase, CreditBook } from "@zaimu/finance/credit-book";
 import { normalizeLegacyCreditPurchases } from "@zaimu/finance/legacy-credit-purchases";
-import type { CreditCard, CreditCardStatement, CreditPurchase, FinancialAccount } from "./api";
-import type { LocalData } from "./localStorage";
+import type { CreditCard, CreditCardStatement, CreditPurchase, FinancialAccount } from "../api";
+import type { LocalData } from "../localStorage";
 
 const request = <T>(value: IDBRequest<T>) =>
 	new Promise<T>((resolve, reject) => {
@@ -155,9 +155,17 @@ export async function migrateCreditBooks(db: IDBDatabase, borrowed?: IDBTransact
 									? { dueDate: s.dueDate.slice(0, 10), statementDate: s.statementDate.slice(0, 10) }
 									: null;
 							}),
+							recurrenceId:
+								(original as CreditPurchase & { subscriptionId?: string }).subscriptionId ??
+								original.recurrenceId ??
+								null,
+							recurrenceOccurrenceDate:
+								(
+									original as CreditPurchase & { subscriptionOccurrenceDate?: string }
+								).subscriptionOccurrenceDate?.slice(0, 10) ??
+								original.recurrenceOccurrenceDate?.slice(0, 10) ??
+								null,
 							refinancingFeeAmount: original.refinancingFeeAmount ?? null,
-							subscriptionId: original.subscriptionId ?? null,
-							subscriptionOccurrenceDate: original.subscriptionOccurrenceDate?.slice(0, 10) ?? null,
 							time: original.time ?? null,
 							updatedAt:
 								(original as CreditPurchase & { updatedAt?: string }).updatedAt ??

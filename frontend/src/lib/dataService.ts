@@ -33,12 +33,11 @@ import {
 import { projectRecurrenceCreditBook } from "@zaimu/finance/recurrence-projection";
 import { type CatalogPageOptions, localCatalogPage } from "./catalog-pagination";
 import { guestTransactionPage } from "./guest-transaction-page";
-import { hasUnresolvedLegacyCardPayment } from "./legacy-card-payments";
-import { createLegacyRecurrenceService } from "./legacy-recurrence-service";
 import { localCursorPage } from "./local-cursor-page";
 import {
 	acknowledgeCreditBookSync,
 	acknowledgeRecurrenceSync,
+	initLocalDb,
 	localCreditBooks,
 	localCreditRefundReviews,
 	mutateLocalCreditBook,
@@ -48,6 +47,7 @@ import {
 } from "./localStorage";
 import type { Recurrence } from "./recurrence";
 import { createRecurrenceService } from "./recurrence-service";
+import { hasUnresolvedLegacyCardPayment } from "./upgrades/legacy-card-payments";
 /**
  * Data Service - Abstracts local vs remote data operations
  *
@@ -85,11 +85,8 @@ import type {
 	Loan,
 	LoanPayment,
 	LoanPaymentPage,
-	RecurringPayment,
-	Salary,
 	Store,
 	StorePage,
-	Subscription,
 	Transaction,
 	TransactionImport,
 	TransactionImportCreateResult,
@@ -122,10 +119,7 @@ import {
 	localMeta,
 	localRecurrenceOccurrences,
 	localRecurrences,
-	localRecurringPayments,
-	localSalaries,
 	localStores,
-	localSubscriptions,
 	localTransactions,
 	payLocalLoanInstallment,
 	reviewLocalLoanPayments,
@@ -1079,8 +1073,8 @@ export const dataService = {
 				installments?: number;
 				matchDebtEventId?: string;
 				purchaseDate: string;
-				subscriptionId?: string;
-				subscriptionOccurrenceDate?: string;
+				recurrenceId?: string;
+				recurrenceOccurrenceDate?: string;
 				time?: string | null;
 				tagIds?: string[];
 				totalAmount: number;
@@ -1114,11 +1108,11 @@ export const dataService = {
 					});
 					return;
 				}
-				const existing = data.subscriptionId
+				const existing = data.recurrenceId
 					? book.purchases.find(
 							p =>
-								p.subscriptionId === data.subscriptionId &&
-								p.subscriptionOccurrenceDate === data.subscriptionOccurrenceDate,
+								p.recurrenceId === data.recurrenceId &&
+								p.recurrenceOccurrenceDate === data.recurrenceOccurrenceDate,
 						)
 					: null;
 				if (existing) {
@@ -1792,9 +1786,7 @@ export const dataService = {
 							item =>
 								item.type !== "TRANSFER" &&
 								new Date(`${item.date.slice(0, 10)}T12:00:00`) > now &&
-								!item.recurrenceId &&
-								!item.salaryId &&
-								!item.subscriptionId,
+								!item.recurrenceId,
 						)
 						.map(item => ({
 							amount: item.amount,
@@ -1821,7 +1813,7 @@ export const dataService = {
 				projectionStart.setDate(projectionStart.getDate() + 1);
 				const linkedTransactionDates = new Set(
 					transactions.flatMap(transaction => {
-						const sourceId = transaction.salaryId ?? transaction.subscriptionId ?? transaction.recurrenceId;
+						const sourceId = transaction.recurrenceId;
 						return sourceId ? [`${sourceId}:${transaction.date.slice(0, 10)}`] : [];
 					}),
 				);
@@ -2668,10 +2660,6 @@ export const dataService = {
 	},
 	recurrences: recurrenceService,
 
-	recurringPayments: createLegacyRecurrenceService("recurring", () => recurrenceService),
-
-	salaries: createLegacyRecurrenceService("salary", () => recurrenceService),
-
 	stores: {
 		async create(name: string): Promise<Store> {
 			if (isGuestMode()) {
@@ -2713,7 +2701,6 @@ export const dataService = {
 	},
 
 	// ============== SUBSCRIPTIONS ==============
-	subscriptions: createLegacyRecurrenceService("subscription", () => recurrenceService),
 
 	sync: {
 		/**
@@ -2742,6 +2729,12 @@ export const dataService = {
 			}
 
 			try {
+				const database = await initLocalDb();
+				await (await import("./upgrades/resolve-recurrence-ids")).resolveUpgradeRecurrenceIds(
+					database,
+					owner,
+					ids => fetchWithAuth("/upgrades/recurrence-ids", { body: JSON.stringify({ ids }), method: "POST" }),
+				);
 				// Get all local data
 				const [
 					accounts,
@@ -2749,14 +2742,11 @@ export const dataService = {
 					creditCards,
 					creditCardStatements,
 					creditBooks,
-					recurringPayments,
 					transactions,
 					loans,
 					loanPayments,
 					debts,
 					debtPeople,
-					salaries,
-					subscriptions,
 					yieldHolidays,
 					yields,
 				] = await Promise.all([
@@ -2765,14 +2755,11 @@ export const dataService = {
 					localCreditCards.getAll(owner),
 					localCreditCardStatements.getAll(owner),
 					localCreditBooks.getAll(owner),
-					localRecurringPayments.getAll(owner),
 					localTransactions.getAll(owner),
 					localLoans.getAll(owner),
 					localLoanPayments.getAll(owner),
 					localDebts.getAll(owner),
 					localDebtPeople.getAll(owner),
-					localSalaries.getAll(owner),
-					localSubscriptions.getAll(owner),
 					localMeta.get("financial-account-yield-holidays", owner),
 					localMeta.get("financial-account-yields", owner),
 				]);
@@ -2787,15 +2774,10 @@ export const dataService = {
 				const recurrenceOccurrences = await localRecurrenceOccurrences.getAll(owner);
 				const recurrenceIds = new Set(recurrences.map(row => row.data.id));
 				if (
-					transactions.some(
-						row =>
-							row.data.salaryId ||
-							row.data.subscriptionId ||
-							(row.data.recurrenceId && !recurrenceIds.has(row.data.recurrenceId)),
-					) ||
+					transactions.some(row => row.data.recurrenceId && !recurrenceIds.has(row.data.recurrenceId)) ||
 					creditBooks.some(row =>
 						row.data.purchases.some(
-							purchase => purchase.subscriptionId && !recurrenceIds.has(purchase.subscriptionId),
+							purchase => purchase.recurrenceId && !recurrenceIds.has(purchase.recurrenceId),
 						),
 					)
 				)
@@ -2811,7 +2793,6 @@ export const dataService = {
 						creditCards: CreditCard[];
 						creditCardStatements: CreditCardStatement[];
 						creditBooks: CreditBook[];
-						recurringPayments: RecurringPayment[];
 						recurrences: Recurrence[];
 						recurrenceOccurrences: import("./recurrence").RecurrenceOccurrence[];
 						transactions: Transaction[];
@@ -2819,8 +2800,6 @@ export const dataService = {
 						loanPayments: LoanPayment[];
 						debts: Debt[];
 						debtPeople: DebtPerson[];
-						salaries: Salary[];
-						subscriptions: Subscription[];
 					};
 				}>("/sync", {
 					body: JSON.stringify({
@@ -2897,14 +2876,7 @@ export const dataService = {
 					response.syncResults.creditBooks?.errors.length
 						? Promise.resolve()
 						: acknowledgeCreditBookSync(creditBooks, response.serverData.creditBooks, owner),
-					localRecurringPayments.replaceSnapshot(
-						response.serverData.recurringPayments.map(payment => ({
-							data: payment,
-							localId: payment.id,
-							syncedAt: Date.now(),
-						})),
-						owner,
-					),
+
 					localTransactions.replaceSnapshot(
 						response.serverData.transactions.map(t => ({
 							data: t,
@@ -2937,22 +2909,6 @@ export const dataService = {
 						response.serverData.debtPeople.map(person => ({
 							data: person,
 							localId: person.id,
-							syncedAt: Date.now(),
-						})),
-						owner,
-					),
-					localSalaries.replaceSnapshot(
-						response.serverData.salaries.map(s => ({
-							data: s,
-							localId: s.id,
-							syncedAt: Date.now(),
-						})),
-						owner,
-					),
-					localSubscriptions.replaceSnapshot(
-						response.serverData.subscriptions.map(s => ({
-							data: s,
-							localId: s.id,
 							syncedAt: Date.now(),
 						})),
 						owner,
@@ -3117,32 +3073,18 @@ export const dataService = {
 				const recurrenceOccurrenceDate = data.recurrenceId
 					? (data.recurrenceOccurrenceDate ?? data.date)
 					: undefined;
-				const salaryOccurrenceDate = data.salaryId ? (data.salaryOccurrenceDate ?? data.date) : undefined;
-				const subscriptionOccurrenceDate = data.subscriptionId
-					? (data.subscriptionOccurrenceDate ?? data.date)
-					: undefined;
-				if (recurrenceOccurrenceDate || salaryOccurrenceDate || subscriptionOccurrenceDate) {
+				if (recurrenceOccurrenceDate) {
 					const existing = (await localTransactions.getAll()).find(
 						item =>
-							(Boolean(recurrenceOccurrenceDate) &&
-								item.data.recurrenceId === data.recurrenceId &&
-								item.data.recurrenceOccurrenceDate === recurrenceOccurrenceDate) ||
-							(Boolean(salaryOccurrenceDate) &&
-								item.data.salaryId === data.salaryId &&
-								item.data.salaryOccurrenceDate === salaryOccurrenceDate) ||
-							(Boolean(subscriptionOccurrenceDate) &&
-								item.data.subscriptionId === data.subscriptionId &&
-								item.data.subscriptionOccurrenceDate === subscriptionOccurrenceDate),
+							item.data.recurrenceId === data.recurrenceId &&
+							item.data.recurrenceOccurrenceDate === recurrenceOccurrenceDate,
 					);
 					if (existing) return existing.data;
 				}
 				const hasExplicitTags = data.tagIds !== undefined || data.categoryId !== undefined;
-				const [recurringPayment, salary, subscription] = await Promise.all([
-					data.recurrenceId ? localRecurrences.getById(data.recurrenceId) : undefined,
-					data.salaryId ? localSalaries.getById(data.salaryId) : undefined,
-					data.subscriptionId ? localSubscriptions.getById(data.subscriptionId) : undefined,
-				]);
-				const linkedRecurrence = recurringPayment?.data ?? salary?.data ?? subscription?.data;
+				const linkedRecurrence = data.recurrenceId
+					? (await localRecurrences.getById(data.recurrenceId))?.data
+					: undefined;
 				const debtSplit = explicitDebtSplit
 					? await hydrateLocalDebtSplit(data.amount, explicitDebtSplit)
 					: linkedRecurrence && "debtSplit" in linkedRecurrence
@@ -3158,8 +3100,6 @@ export const dataService = {
 					debtSplit,
 					id: crypto.randomUUID(),
 					recurrenceOccurrenceDate,
-					salaryOccurrenceDate,
-					subscriptionOccurrenceDate,
 					tagIds,
 					time: data.time === undefined ? getCurrentLocalTime() : data.time,
 				};
@@ -3279,9 +3219,7 @@ export const dataService = {
 							source:
 								item.data.type !== "TRANSFER" &&
 								paymentAccount?.type === "CREDIT_CARD" &&
-								!item.data.recurrenceId &&
-								!item.data.salaryId &&
-								!item.data.subscriptionId
+								!item.data.recurrenceId
 									? ("CREDIT_CARD" as const)
 									: ("FINANCIAL_ACCOUNT" as const),
 							sourceName: item.data.type === "INCOME" ? destinationName : originName,

@@ -89,9 +89,9 @@ export async function materializeLocalRecurrences(
 					description: recurrence.name,
 					installments: 1,
 					purchaseDate: date,
+					recurrenceId: recurrence.id,
+					recurrenceOccurrenceDate: date,
 					storeName: recurrence.storeName ?? null,
-					subscriptionId: recurrence.id,
-					subscriptionOccurrenceDate: date,
 					tagIds: recurrence.tagIds ?? [],
 					totalAmount: recurrence.amount,
 				});

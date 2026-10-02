@@ -250,12 +250,14 @@ suite("Prisma 8 SQL query builder", () => {
 			{
 				amount: 80,
 				dayOfMonth: 10,
-				financialAccountId: cashAccount.id,
-				frequency: "MONTHLY",
+				interval: 1,
+				movement: "EXPENSE",
 				name: "Recorrência com tags",
+				originFinancialAccountId: cashAccount.id,
 				startDate: "2026-08-01",
 				storeName: "Academia do bairro",
 				tagIds: [category.id, secondCategory.id],
+				unit: "MONTH",
 			},
 			owner.cookie,
 		);
@@ -278,9 +280,12 @@ suite("Prisma 8 SQL query builder", () => {
 				amount: 80,
 				dayOfMonth: 10,
 				dayOfWeek: null,
-				frequency: "MONTHLY",
+				interval: 1,
+				movement: "EXPENSE",
 				name: "Recorrência mensal sem dia da semana",
+				originFinancialAccountId: account.id,
 				startDate: "2026-08-01",
+				unit: "MONTH",
 			},
 			owner.cookie,
 		);
@@ -410,15 +415,18 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(invalidHistory.status).toBe(400);
 
 		const salaryResponse = await jsonRequest(
-			"/salaries/",
+			"/recurring/",
 			"POST",
 			{
 				amount: 5000,
-				financialAccountId: account.id,
-				payDay: 10,
-				source: "Salário com tags",
+				dayOfMonth: 10,
+				destinationFinancialAccountId: account.id,
+				interval: 1,
+				movement: "INCOME",
+				name: "Salário com tags",
 				startDate: "2026-08-01",
 				tagIds: [category.id],
+				unit: "MONTH",
 			},
 			owner.cookie,
 		);
@@ -426,27 +434,33 @@ suite("Prisma 8 SQL query builder", () => {
 		const salary = (await salaryResponse.json()) as { id: string; tagIds: string[] };
 		expect(salary.tagIds).toEqual([category.id]);
 		const salaryToCashResponse = await jsonRequest(
-			"/salaries/",
+			"/recurring/",
 			"POST",
 			{
 				amount: 5000,
-				financialAccountId: cashAccount.id,
-				payDay: 10,
-				source: "Salário em dinheiro",
+				dayOfMonth: 10,
+				destinationFinancialAccountId: cashAccount.id,
+				interval: 1,
+				movement: "INCOME",
+				name: "Salário em dinheiro",
 				startDate: "2026-08-01",
+				unit: "MONTH",
 			},
 			owner.cookie,
 		);
 		expect(salaryToCashResponse.status).toBe(200);
 		const salaryToSavingsResponse = await jsonRequest(
-			"/salaries/",
+			"/recurring/",
 			"POST",
 			{
 				amount: 5000,
-				financialAccountId: unnamedAccount.id,
-				payDay: 10,
-				source: "Salário em poupança",
+				dayOfMonth: 10,
+				destinationFinancialAccountId: unnamedAccount.id,
+				interval: 1,
+				movement: "INCOME",
+				name: "Salário em poupança",
 				startDate: "2026-08-01",
+				unit: "MONTH",
 			},
 			owner.cookie,
 		);
@@ -483,18 +497,19 @@ suite("Prisma 8 SQL query builder", () => {
 		);
 
 		const subscriptionResponse = await jsonRequest(
-			"/subscriptions/",
+			"/recurring/",
 			"POST",
 			{
 				amount: 30,
-				billingDay: 10,
-				financialAccountId: creditCardAccount.id,
-				frequency: "MONTHLY",
+				creditCardId: creditCardAccount.creditCard.id,
+				dayOfMonth: 10,
+				interval: 1,
+				movement: "CARD_PURCHASE",
 				name: "Assinatura com tags",
-				paymentMethod: "CREDIT",
 				startDate: "2026-08-01",
 				storeName: "Streaming Brasil",
 				tagIds: [secondCategory.id],
+				unit: "MONTH",
 			},
 			owner.cookie,
 		);
@@ -512,9 +527,9 @@ suite("Prisma 8 SQL query builder", () => {
 			{
 				description: "Assinatura com tags",
 				purchaseDate: "2026-08-10",
+				recurrenceId: subscription.id,
+				recurrenceOccurrenceDate: "2026-08-10",
 				storeName: "Streaming Brasil",
-				subscriptionId: subscription.id,
-				subscriptionOccurrenceDate: "2026-08-10",
 				totalAmount: 30,
 			},
 			owner.cookie,
@@ -531,8 +546,8 @@ suite("Prisma 8 SQL query builder", () => {
 		);
 		expect(subscriptionStatementsResponse.status).toBe(200);
 		const linkedSubscriptionPurchases = await queryRows(
-			db.sql.public.CreditPurchaseRecord.select("id", "subscriptionOccurrenceDate")
-				.where((fields, functions) => functions.eq(fields.subscriptionId, subscription.id))
+			db.sql.public.CreditPurchaseRecord.select("id", "recurrenceOccurrenceDate")
+				.where((fields, functions) => functions.eq(fields.recurrenceId, subscription.id))
 				.build(),
 		);
 		expect(linkedSubscriptionPurchases).toHaveLength(1);
@@ -543,9 +558,9 @@ suite("Prisma 8 SQL query builder", () => {
 			{
 				description: "Assinatura com tags",
 				purchaseDate: "2026-08-10",
+				recurrenceId: subscription.id,
+				recurrenceOccurrenceDate: "2026-08-10",
 				storeName: "Streaming Brasil",
-				subscriptionId: subscription.id,
-				subscriptionOccurrenceDate: "2026-08-10",
 				totalAmount: 30,
 			},
 			owner.cookie,
@@ -572,14 +587,14 @@ suite("Prisma 8 SQL query builder", () => {
 			expect.arrayContaining([
 				expect.objectContaining({
 					isForecast: true,
+					recurrenceId: subscription.id,
 					storeName: "Streaming Brasil",
-					subscriptionId: subscription.id,
 				}),
 			]),
 		);
 
 		const updateSubscriptionResponse = await jsonRequest(
-			`/subscriptions/${subscription.id}`,
+			`/recurring/${subscription.id}`,
 			"PATCH",
 			{
 				amount: 45,
@@ -599,23 +614,24 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(
 			await queryRows(
 				db.sql.public.CreditPurchaseRecord.select("id")
-					.where((fields, functions) => functions.eq(fields.subscriptionId, subscription.id))
+					.where((fields, functions) => functions.eq(fields.recurrenceId, subscription.id))
 					.build(),
 			),
 		).toHaveLength(1);
 		const today = new Date().toISOString().slice(0, 10);
 		const dueTodaySubscriptionResponse = await jsonRequest(
-			"/subscriptions/",
+			"/recurring/",
 			"POST",
 			{
 				amount: 12.5,
-				billingDay: Number(today.slice(8, 10)),
-				financialAccountId: creditCardAccount.id,
-				frequency: "MONTHLY",
+				creditCardId: creditCardAccount.creditCard.id,
+				dayOfMonth: Number(today.slice(8, 10)),
+				interval: 1,
+				movement: "CARD_PURCHASE",
 				name: "Assinatura vencendo hoje",
-				paymentMethod: "CREDIT",
 				startDate: today,
 				storeName: "Loja da ocorrência atual",
+				unit: "MONTH",
 			},
 			owner.cookie,
 		);
@@ -641,13 +657,13 @@ suite("Prisma 8 SQL query builder", () => {
 			),
 		]);
 		const dueTodayPurchases = await queryRows(
-			db.sql.public.CreditPurchaseRecord.select("storeName", "subscriptionOccurrenceDate")
-				.where((fields, functions) => functions.eq(fields.subscriptionId, dueTodaySubscription.id))
+			db.sql.public.CreditPurchaseRecord.select("storeName", "recurrenceOccurrenceDate")
+				.where((fields, functions) => functions.eq(fields.recurrenceId, dueTodaySubscription.id))
 				.build(),
 		);
 		expect(dueTodayPurchases).toHaveLength(1);
 		expect(dueTodayPurchases[0]).toMatchObject({ storeName: "Loja da ocorrência atual" });
-		expect(dueTodayPurchases[0]?.subscriptionOccurrenceDate?.toISOString().slice(0, 10)).toBe(today);
+		expect(dueTodayPurchases[0]?.recurrenceOccurrenceDate?.toISOString().slice(0, 10)).toBe(today);
 
 		const incomeResponse = await jsonRequest(
 			"/transactions/",
@@ -1023,37 +1039,45 @@ suite("Prisma 8 SQL query builder", () => {
 				create: {
 					amount: 45,
 					dayOfMonth: 5,
-					financialAccountId: account.id,
-					frequency: "MONTHLY",
+					interval: 1,
+					movement: "EXPENSE",
 					name: "Recorrência",
+					originFinancialAccountId: account.id,
 					startDate: "2026-08-01",
+					unit: "MONTH",
 				},
 				numericField: "amount",
 				path: "/recurring",
-				update: { amount: 48, categoryId: null, dayOfMonth: 7, endDate: null },
+				update: { amount: 48, dayOfMonth: 7, endDate: null, tagIds: [] },
 			},
 			{
 				create: {
 					amount: 4200,
-					financialAccountId: account.id,
-					payDay: 5,
-					source: "Empresa",
+					dayOfMonth: 5,
+					destinationFinancialAccountId: account.id,
+					interval: 1,
+					movement: "INCOME",
+					name: "Empresa",
 					startDate: "2026-08-01",
+					unit: "MONTH",
 				},
 				numericField: "amount",
-				path: "/salaries",
+				path: "/recurring",
 				update: { amount: 5100, endDate: null, isActive: false },
 			},
 			{
 				create: {
 					amount: 29.9,
-					billingDay: 12,
-					financialAccountId: account.id,
+					dayOfMonth: 12,
+					interval: 1,
+					movement: "EXPENSE",
 					name: "Serviço",
+					originFinancialAccountId: account.id,
 					startDate: "2026-08-01",
+					unit: "MONTH",
 				},
 				numericField: "amount",
-				path: "/subscriptions",
+				path: "/recurring",
 				update: { amount: 32.5, endDate: null, isActive: false },
 			},
 		] as const;

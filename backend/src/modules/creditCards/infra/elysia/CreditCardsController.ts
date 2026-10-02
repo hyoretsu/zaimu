@@ -105,8 +105,8 @@ const CreatePurchaseBody = t.Object({
 	isStatementCharge: t.Optional(t.Boolean()),
 	matchDebtEventId: t.Optional(t.String()),
 	purchaseDate: t.String({ format: "date" }),
-	subscriptionId: t.Optional(t.String()),
-	subscriptionOccurrenceDate: t.Optional(t.String({ format: "date" })),
+	recurrenceId: t.Optional(t.String()),
+	recurrenceOccurrenceDate: t.Optional(t.String({ format: "date" })),
 	totalAmount: t.Number({ exclusiveMinimum: 0 }),
 });
 const UpdatePurchaseBody = t.Object({
@@ -526,11 +526,11 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						});
 						return book.charges.at(-1)!.id;
 					}
-					const existing = body.subscriptionId
+					const existing = body.recurrenceId
 						? book.purchases.find(
 								p =>
-									p.subscriptionId === body.subscriptionId &&
-									p.subscriptionOccurrenceDate === body.subscriptionOccurrenceDate,
+									p.recurrenceId === body.recurrenceId &&
+									p.recurrenceOccurrenceDate === body.recurrenceOccurrenceDate,
 							)
 						: null;
 					if (existing) return existing.id;

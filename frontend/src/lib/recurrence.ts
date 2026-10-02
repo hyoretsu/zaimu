@@ -1,8 +1,6 @@
 import type { RecurrenceDefinition } from "@zaimu/finance/recurrence";
 import type { DebtSplit, DebtSplitInput, Tag } from "./api";
 export interface Recurrence extends RecurrenceDefinition {
-	legacySource?: "salary" | "subscription" | "recurring" | null;
-	legacyId?: string | null;
 	needsConfiguration?: boolean;
 	tags?: Tag[];
 	tagIds?: string[];
@@ -18,8 +16,6 @@ export type RecurrenceInput = Omit<
 	| "needsConfiguration"
 	| "tags"
 	| "debtSplit"
-	| "legacySource"
-	| "legacyId"
 > & { debtSplit?: DebtSplitInput | null };
 export interface RecurrenceOccurrence {
 	id: string;

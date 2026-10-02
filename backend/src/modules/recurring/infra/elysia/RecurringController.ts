@@ -1,7 +1,6 @@
 import Elysia, { t } from "elysia";
 import { requireUserId } from "~/modules/auth";
 import { distributedCache } from "~/shared/infra/cache";
-import { legacyRecurrenceInput, presentLegacyRecurrence } from "../../application/legacy-recurrences";
 import { getCachedRecurrenceHistory } from "../../application/recurrence-history";
 import {
 	deleteRecurrence,
@@ -12,7 +11,6 @@ import {
 	saveRecurrence,
 } from "../../application/recurrences";
 import {
-	LegacyRecurringBody,
 	RecurrenceBody,
 	RecurrenceHistoryQuery,
 	RecurrenceHistoryReturn,
@@ -66,43 +64,15 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 		},
 		{ params, response: RecurrenceReturn },
 	)
-	.post(
-		"/",
-		async ({ request, body }) =>
-			saveRecurrence(
-				await requireUserId(request),
-				"movement" in body ? body : await legacyRecurrenceInput("recurring", body),
-				undefined,
-				"movement" in body ? undefined : { source: "recurring" },
-				!("movement" in body),
-			),
-		{
-			body: t.Union([RecurrenceBody, LegacyRecurringBody]),
-			response: RecurrenceReturn,
-		},
-	)
+	.post("/", async ({ request, body }) => saveRecurrence(await requireUserId(request), body), {
+		body: RecurrenceBody,
+		response: RecurrenceReturn,
+	})
 	.patch(
 		"/:id",
-		async ({ request, params, body }) => {
-			const userId = await requireUserId(request);
-			if ("frequency" in body || "financialAccountId" in body || "paymentMethod" in body || "day" in body) {
-				const existing = await getStoredRecurrence(userId, params.id);
-				const old = await presentLegacyRecurrence(
-					existing as typeof existing & Record<string, unknown>,
-					"recurring",
-				);
-				return saveRecurrence(
-					userId,
-					await legacyRecurrenceInput("recurring", { ...old, ...body }),
-					params.id,
-					undefined,
-					true,
-				);
-			}
-			return saveRecurrence(userId, body, params.id);
-		},
+		async ({ request, params, body }) => saveRecurrence(await requireUserId(request), body, params.id),
 		{
-			body: t.Union([UpdateRecurrenceBody, t.Partial(LegacyRecurringBody)]),
+			body: UpdateRecurrenceBody,
 			params,
 			response: RecurrenceReturn,
 		},

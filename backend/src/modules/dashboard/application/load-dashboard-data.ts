@@ -200,11 +200,11 @@ WHERE transaction."userId" = $1 AND transaction."date" BETWEEN $2::date AND $3::
 GROUP BY transaction."date", transaction."type"
 UNION ALL
 SELECT 'linked', jsonb_build_object(
-  'date', transaction."date", 'sourceId', COALESCE(transaction."salaryId", transaction."subscriptionId", transaction."recurrenceId")
+  'date', transaction."date", 'sourceId', transaction."recurrenceId"
 )
 FROM "Transaction" transaction
 WHERE transaction."userId" = $1 AND transaction."date" BETWEEN $4::date AND $3::date
-  AND (transaction."salaryId" IS NOT NULL OR transaction."subscriptionId" IS NOT NULL OR transaction."recurrenceId" IS NOT NULL)
+  AND transaction."recurrenceId" IS NOT NULL
 UNION ALL
 SELECT 'forecastTransaction', jsonb_build_object(
   'amount', transaction."amount", 'date', transaction."date", 'description', transaction."description",
@@ -212,8 +212,8 @@ SELECT 'forecastTransaction', jsonb_build_object(
 )
 FROM "Transaction" transaction
 WHERE transaction."userId" = $1 AND transaction."date" > $4::date AND transaction."date" <= $3::date
-  AND transaction."type" <> 'TRANSFER' AND transaction."salaryId" IS NULL
-  AND transaction."subscriptionId" IS NULL AND transaction."recurrenceId" IS NULL
+  AND transaction."type" <> 'TRANSFER'
+  AND transaction."recurrenceId" IS NULL
 UNION ALL
 SELECT 'activityDate', jsonb_build_object('date', transaction."date")
 FROM "Transaction" transaction

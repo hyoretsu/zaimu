@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { getStatementDates, subscriptionOccurrences } from "./materialize-credit-card-schedules";
+import { getStatementDates } from "./materialize-credit-card-schedules";
 
 describe("credit card schedule dates", () => {
 	test("moves purchases after closing day to the next statement", () => {
@@ -24,19 +24,5 @@ describe("credit card schedule dates", () => {
 		const dates = getStatementDates({ dueDay: 3, statementDay: 25 }, new Date(2026, 8, 20, 12));
 		expect(dates.statementDate.toISOString().slice(0, 10)).toBe("2026-09-25");
 		expect(dates.dueDate.toISOString().slice(0, 10)).toBe("2026-10-03");
-	});
-
-	test("clamps monthly occurrences to the last day of short months", () => {
-		const occurrences = subscriptionOccurrences(
-			{
-				billingDay: 31,
-				dayOfWeek: null,
-				endDate: null,
-				frequency: "MONTHLY",
-				startDate: new Date(2026, 0, 31, 12),
-			},
-			new Date(2026, 2, 31, 12),
-		);
-		expect(occurrences).toEqual([new Date(2026, 0, 31), new Date(2026, 1, 28), new Date(2026, 2, 31)]);
 	});
 });

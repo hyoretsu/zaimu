@@ -33,8 +33,7 @@ export function projectRecurrenceCreditBook(
 				recurrence.movement === "CARD_PURCHASE" &&
 				!projected.purchases.some(
 					purchase =>
-						purchase.subscriptionId === recurrence.id &&
-						purchase.subscriptionOccurrenceDate === date,
+						purchase.recurrenceId === recurrence.id && purchase.recurrenceOccurrenceDate === date,
 				)
 			)
 				newBookPurchase(
@@ -44,9 +43,9 @@ export function projectRecurrenceCreditBook(
 						id,
 						installments: 1,
 						purchaseDate: date,
+						recurrenceId: recurrence.id,
+						recurrenceOccurrenceDate: date,
 						storeName: recurrence.storeName ?? null,
-						subscriptionId: recurrence.id,
-						subscriptionOccurrenceDate: date,
 						totalAmount: recurrence.amount,
 					},
 					undefined,

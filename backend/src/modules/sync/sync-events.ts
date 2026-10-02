@@ -14,9 +14,6 @@ const domains: Record<string, string> = {
 	loans: "loan",
 	recurrenceOccurrences: "schedule",
 	recurrences: "schedule",
-	recurringPayments: "schedule",
-	salaries: "schedule",
-	subscriptions: "schedule",
 	transactions: "transaction",
 };
 export function syncEvents(

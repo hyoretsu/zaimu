@@ -4,7 +4,6 @@ import type { ItemAction } from "@/components/transactions/TransactionListItem/I
 import { AppBadge } from "@/components/ui/AppBadge";
 import type { Transaction } from "@/lib/api";
 import { formatLocalDate } from "@/lib/date";
-import { frequencyLabels, paymentMethodLabels, sourceLabels } from "./constants";
 import { isRecurrenceEnded } from "./recurrence-dates";
 import { getRecurrenceScheduleSummary } from "./recurrence-schedule";
 import type { RecurringListItemData } from "./types";
@@ -27,11 +26,10 @@ export function RecurringListItem({
 }) {
 	const isIncome = item.direction === "INCOME";
 	const hasEnded = isRecurrenceEnded(item.endDate);
-	const paymentMethod = item.paymentMethod ? paymentMethodLabels[item.paymentMethod] : undefined;
 	const scheduleSummary = getRecurrenceScheduleSummary(
-		item.frequency,
+		item.unit ?? "MONTH",
 		item.startDate,
-		item.day,
+		item.dayOfMonth ?? null,
 		item.dayOfWeek,
 	);
 	const actionItems: ItemAction[] = [
@@ -118,11 +116,8 @@ export function RecurringListItem({
 			}
 			metadataPrefix={
 				<span className="text-muted-foreground text-xs">
-					{item.recurrence
-						? scheduleLabel(item.recurrence.unit, item.recurrence.interval)
-						: frequencyLabels[item.frequency]}
+					{scheduleLabel(item.unit ?? "MONTH", item.interval ?? 1)}
 					{scheduleSummary ? ` · ${scheduleSummary}` : ""}
-					{paymentMethod ? ` · ${paymentMethod}` : ""}
 					{item.startDate ? ` · inicia ${formatLocalDate(item.startDate)}` : ""}
 					{item.endDate ? ` · até ${formatLocalDate(item.endDate)}` : ""}
 				</span>
@@ -131,9 +126,7 @@ export function RecurringListItem({
 			title={
 				<div className="flex min-w-0 flex-wrap items-center gap-2">
 					<p className="w-fit max-w-full shrink-0 truncate font-semibold leading-6">{item.title}</p>
-					<AppBadge variant="outline">
-						{item.recurrence ? movementLabels[item.recurrence.movement] : sourceLabels[item.source]}
-					</AppBadge>
+					<AppBadge variant="outline">{movementLabels[item.movement ?? item.direction]}</AppBadge>
 					{item.recurrence?.needsConfiguration && (
 						<AppBadge variant="destructive">Configuração pendente</AppBadge>
 					)}

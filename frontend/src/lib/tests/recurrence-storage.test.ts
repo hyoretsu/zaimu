@@ -52,7 +52,7 @@ test("local occurrence commits atomically, retries once and deletion keeps marke
 	expect(await storage.localRecurrenceOccurrences.getAll(owner)).toHaveLength(1);
 }, 30000);
 
-test("sync remaps collisions and preserves edits made after request started", async () => {
+test("sync preserves edits made after request started", async () => {
 	const s = await import("../localStorage");
 	const owner = "user:recurrence_ack";
 	const r = {
@@ -62,8 +62,6 @@ test("sync remaps collisions and preserves edits made after request started", as
 		id: "old",
 		interval: 1,
 		isActive: true,
-		legacyId: "old",
-		legacySource: "salary" as const,
 		materializedThrough: "2026-09-30",
 		movement: "INCOME" as const,
 		name: "Receipt",
@@ -88,10 +86,9 @@ test("sync remaps collisions and preserves edits made after request started", as
 		"linked",
 		owner,
 	);
-	await s.acknowledgeRecurrenceSync(sent, [{ ...r, id: "mapped" }], [], [], owner);
-	expect(await s.localRecurrences.getById("old", owner)).toBeUndefined();
-	expect((await s.localRecurrences.getById("mapped", owner))!.data.name).toBe("Newer local edit");
-	expect((await s.localTransactions.getById("linked", owner))!.data.recurrenceId).toBe("mapped");
+	await s.acknowledgeRecurrenceSync(sent, [{ ...r, id: "old" }], [], [], owner);
+	expect((await s.localRecurrences.getById("old", owner))!.data.name).toBe("Newer local edit");
+	expect((await s.localTransactions.getById("linked", owner))!.data.recurrenceId).toBe("old");
 	const current = await s.localRecurrences.getAll(owner);
 	await s.acknowledgeRecurrenceSync(
 		current,
@@ -101,9 +98,9 @@ test("sync remaps collisions and preserves edits made after request started", as
 		owner,
 	);
 	expect(await s.localRecurrences.getAll(owner)).toHaveLength(1);
-	const acknowledged = (await s.localRecurrences.getById("mapped", owner))!;
+	const acknowledged = (await s.localRecurrences.getById("old", owner))!;
 	expect(acknowledged.modifiedAt).toBe(acknowledged.syncedAt!);
-	await s.deleteLocalRecurrence(owner, "mapped", false);
+	await s.deleteLocalRecurrence(owner, "old", false);
 	expect(await s.localRecurrences.getAll(owner)).toHaveLength(0);
 	expect((await s.localTransactions.getById("linked", owner))!.data.recurrenceId).toBeUndefined();
 });

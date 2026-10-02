@@ -123,9 +123,7 @@ export async function loadCreditBook(
 						row.statementDate ? { dueDate: date(row.dueDate), statementDate: date(row.statementDate) } : null,
 					),
 					purchaseDate: date(p.purchaseDate),
-					subscriptionOccurrenceDate: p.subscriptionOccurrenceDate
-						? date(p.subscriptionOccurrenceDate)
-						: null,
+					recurrenceOccurrenceDate: p.recurrenceOccurrenceDate ? date(p.recurrenceOccurrenceDate) : null,
 					tagIds: (tags.get(String(p.id)) ?? []).map(tag => tag.id),
 					totalAmountCents: moneyCents(Number(p.totalAmount), 1),
 					updatedAt: timestamp(p.updatedAt),
@@ -177,8 +175,8 @@ const purchaseColumns = [
 	"cashbackYieldReferenceRate",
 	"cashbackYieldReferencePercentage",
 	"cashbackYieldPeriod",
-	"subscriptionId",
-	"subscriptionOccurrenceDate",
+	"recurrenceId",
+	"recurrenceOccurrenceDate",
 	"externalId",
 	"createdAt",
 	"updatedAt",
@@ -303,7 +301,7 @@ export async function saveCreditBook(
 		await assertTagOwnership([...p.tagIds, ...(p.categoryId ? [p.categoryId] : [])], book.card.userId);
 		for (const [table, id] of [
 			["FinancialAccount", p.cashbackAccountId],
-			["Recurrence", p.subscriptionId],
+			["Recurrence", p.recurrenceId],
 		] as const) {
 			if (
 				id &&

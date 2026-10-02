@@ -43,10 +43,6 @@ const transactionColumns = [
 	"paymentCreditCardId",
 	"recurrenceId",
 	"recurrenceOccurrenceDate",
-	"salaryId",
-	"salaryOccurrenceDate",
-	"subscriptionId",
-	"subscriptionOccurrenceDate",
 	"originFinancialAccountId",
 	"destinationFinancialAccountId",
 	"createdAt",
@@ -416,8 +412,6 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				await assertCreditCardOwnership(body.paymentCreditCardId, userId);
 			}
 			if (body.recurrenceId) await assertDirectOwnership("Recurrence", body.recurrenceId, userId);
-			if (body.salaryId) await assertDirectOwnership("Salary", body.salaryId, userId);
-			if (body.subscriptionId) await assertDirectOwnership("Subscription", body.subscriptionId, userId);
 			let originFinancialAccountId = body.originFinancialAccountId;
 			let inheritedPaymentAccount = false;
 			let inheritedStoreName: string | null | undefined;
@@ -431,19 +425,6 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				inheritedStoreName = recurringPayment?.storeName;
 				if (!originFinancialAccountId && !body.destinationFinancialAccountId) {
 					originFinancialAccountId = recurringPayment?.originFinancialAccountId ?? undefined;
-					inheritedPaymentAccount = Boolean(originFinancialAccountId);
-				}
-			}
-			if (body.subscriptionId) {
-				const subscription = await queryFirst(
-					db.sql.public.Subscription.select("financialAccountId", "storeName")
-						.where((fields, functions) => functions.eq(fields.id, body.subscriptionId!))
-						.limit(1)
-						.build(),
-				);
-				inheritedStoreName = subscription?.storeName;
-				if (!originFinancialAccountId && !body.destinationFinancialAccountId) {
-					originFinancialAccountId = subscription?.financialAccountId ?? undefined;
 					inheritedPaymentAccount = Boolean(originFinancialAccountId);
 				}
 			}
@@ -464,11 +445,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			const hasExplicitTags = body.tagIds !== undefined || body.categoryId !== undefined;
 			const linkedTagSource = body.recurrenceId
 				? { entityId: body.recurrenceId, entityType: "RECURRENCE" }
-				: body.salaryId
-					? { entityId: body.salaryId, entityType: tagEntityType.salary }
-					: body.subscriptionId
-						? { entityId: body.subscriptionId, entityType: tagEntityType.subscription }
-						: undefined;
+				: undefined;
 			const tagIds = hasExplicitTags
 				? await assertTagOwnership(body.tagIds ?? (body.categoryId ? [body.categoryId] : []), userId)
 				: linkedTagSource
@@ -476,13 +453,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 							.get(linkedTagSource.entityId)
 							?.map(tag => tag.id) ?? [])
 					: [];
-			if (
-				!originFinancialAccountId &&
-				!body.destinationFinancialAccountId &&
-				!body.recurrenceId &&
-				!body.salaryId &&
-				!body.subscriptionId
-			) {
+			if (!originFinancialAccountId && !body.destinationFinancialAccountId && !body.recurrenceId) {
 				throw new HttpException("Informe uma conta financeira ou recorrência", 400);
 			}
 			const storeName = body.storeName ?? inheritedStoreName;
@@ -490,14 +461,8 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				throw new HttpException("Loja só pode ser informada em transações de saída", 400);
 			}
 			if (storeName) await resolveStore(userId, storeName);
-			const salaryOccurrenceDate = body.salaryId
-				? new Date(body.salaryOccurrenceDate ?? body.date)
-				: undefined;
 			const recurrenceOccurrenceDate = body.recurrenceId
 				? new Date(body.recurrenceOccurrenceDate ?? body.date)
-				: undefined;
-			const subscriptionOccurrenceDate = body.subscriptionId
-				? new Date(body.subscriptionOccurrenceDate ?? body.date)
 				: undefined;
 			const findExistingOccurrence = () => {
 				if (body.recurrenceId && recurrenceOccurrenceDate) {
@@ -507,32 +472,6 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 								functions.and(
 									functions.eq(fields.recurrenceId, body.recurrenceId!),
 									functions.eq(fields.recurrenceOccurrenceDate, recurrenceOccurrenceDate),
-								),
-							)
-							.limit(1)
-							.build(),
-					);
-				}
-				if (body.salaryId && salaryOccurrenceDate) {
-					return queryFirst(
-						db.sql.public.Transaction.select(...transactionColumns)
-							.where((fields, functions) =>
-								functions.and(
-									functions.eq(fields.salaryId, body.salaryId!),
-									functions.eq(fields.salaryOccurrenceDate, salaryOccurrenceDate),
-								),
-							)
-							.limit(1)
-							.build(),
-					);
-				}
-				if (body.subscriptionId && subscriptionOccurrenceDate) {
-					return queryFirst(
-						db.sql.public.Transaction.select(...transactionColumns)
-							.where((fields, functions) =>
-								functions.and(
-									functions.eq(fields.subscriptionId, body.subscriptionId!),
-									functions.eq(fields.subscriptionOccurrenceDate, subscriptionOccurrenceDate),
 								),
 							)
 							.limit(1)
@@ -568,15 +507,8 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 								paymentCreditCardId: body.paymentCreditCardId,
 								recurrenceId: body.recurrenceId,
 								recurrenceOccurrenceDate,
-								salaryId: body.salaryId,
-								salaryOccurrenceDate,
 								storeName,
-								subscriptionId: body.subscriptionId,
-								subscriptionOccurrenceDate,
-								time:
-									body.recurrenceId || body.salaryId || body.subscriptionId
-										? null
-										: resolveTransactionTime(body.time),
+								time: body.recurrenceId ? null : resolveTransactionTime(body.time),
 								type: body.type ?? "EXPENSE",
 								userId,
 							},
@@ -599,10 +531,8 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					tagIds,
 				});
 				const inheritedDebtSplit = body.recurrenceId
-					? await getDebtSplitInput({ recurringPaymentId: body.recurrenceId })
-					: body.subscriptionId
-						? await getDebtSplitInput({ subscriptionId: body.subscriptionId })
-						: undefined;
+					? await getDebtSplitInput({ recurrenceId: body.recurrenceId })
+					: undefined;
 				await linkTransactionToDebt({
 					amount: body.amount,
 					date: body.date,
@@ -649,11 +579,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				paymentCreditCardId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				recurrenceId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				recurrenceOccurrenceDate: t.Optional(t.String()),
-				salaryId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
-				salaryOccurrenceDate: t.Optional(t.String()),
 				storeName: t.Optional(t.String({ maxLength: 200 })),
-				subscriptionId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
-				subscriptionOccurrenceDate: t.Optional(t.String()),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
 				time: t.Optional(t.Nullable(t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" }))),
 				type: t.Optional(TransactionType),
@@ -740,7 +666,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					transactionId: params.id,
 				});
 			}
-			if (existing.recurrenceId || existing.salaryId || existing.subscriptionId) {
+			if (existing.recurrenceId) {
 				historyEntries.push({
 					field: "manualEdit",
 					newValue: null,

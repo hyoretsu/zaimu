@@ -1,15 +1,7 @@
 import { HttpException } from "~/shared/errors";
 import { db, queryFirst } from "~/shared/infra/sql";
 
-type DirectlyOwnedTable =
-	| "Category"
-	| "Debt"
-	| "FinancialAccount"
-	| "Loan"
-	| "Recurrence"
-	| "RecurringPayment"
-	| "Salary"
-	| "Subscription";
+type DirectlyOwnedTable = "Category" | "Debt" | "FinancialAccount" | "Loan" | "Recurrence";
 
 export const assertDirectOwnership = async (table: DirectlyOwnedTable, id: string, userId: string) => {
 	const owns = async (owner: typeof db.sql.public.Category) =>
@@ -39,14 +31,6 @@ export const assertDirectOwnership = async (table: DirectlyOwnedTable, id: strin
 		case "Recurrence":
 			resource = await owns(db.sql.public.Recurrence as unknown as typeof db.sql.public.Category);
 			break;
-		case "RecurringPayment":
-			resource = await owns(db.sql.public.RecurringPayment as unknown as typeof db.sql.public.Category);
-			break;
-		case "Salary":
-			resource = await owns(db.sql.public.Salary as unknown as typeof db.sql.public.Category);
-			break;
-		case "Subscription":
-			resource = await owns(db.sql.public.Subscription as unknown as typeof db.sql.public.Category);
 	}
 
 	if (!resource) throw new HttpException("Recurso não encontrado", 404);
@@ -162,12 +146,6 @@ export const assertTransactionOwnership = async (transactionId: string, userId: 
 			.outerLeftJoin(db.sql.public.Recurrence, (fields, functions) =>
 				functions.eq(fields.Transaction.recurrenceId, fields.Recurrence.id),
 			)
-			.outerLeftJoin(db.sql.public.Salary, (fields, functions) =>
-				functions.eq(fields.Transaction.salaryId, fields.Salary.id),
-			)
-			.outerLeftJoin(db.sql.public.Subscription, (fields, functions) =>
-				functions.eq(fields.Transaction.subscriptionId, fields.Subscription.id),
-			)
 			.select(fields => ({ id: fields.Transaction.id }))
 			.where((fields, functions) =>
 				functions.and(
@@ -176,8 +154,6 @@ export const assertTransactionOwnership = async (transactionId: string, userId: 
 						functions.eq(fields.origin.userId, userId),
 						functions.eq(fields.destination.userId, userId),
 						functions.eq(fields.Recurrence.userId, userId),
-						functions.eq(fields.Salary.userId, userId),
-						functions.eq(fields.Subscription.userId, userId),
 					),
 				),
 			)

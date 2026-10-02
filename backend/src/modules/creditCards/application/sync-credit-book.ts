@@ -12,17 +12,17 @@ import { mutateCreditBook } from "./normalized-credit-book";
 export async function syncCreditBook(userId: string, input: CreditBook) {
 	await withRawTransaction(async query => {
 		const recurring = input.purchases
-			.filter(p => p.subscriptionId && p.subscriptionOccurrenceDate)
-			.toSorted((a, b) => a.subscriptionId!.localeCompare(b.subscriptionId!));
+			.filter(p => p.recurrenceId && p.recurrenceOccurrenceDate)
+			.toSorted((a, b) => a.recurrenceId!.localeCompare(b.recurrenceId!));
 		for (const purchase of recurring) {
 			const [owner] = await query('SELECT "id" FROM "Recurrence" WHERE "id"=$1 AND "userId"=$2 FOR UPDATE', [
-				purchase.subscriptionId,
+				purchase.recurrenceId,
 				userId,
 			]);
 			if (!owner) throw new HttpException("Recorrência da compra indisponível", 400);
 			const [identity] = await query(
 				'SELECT * FROM "RecurrenceOccurrence" WHERE "recurrenceId"=$1 AND "date"=$2',
-				[purchase.subscriptionId, purchase.subscriptionOccurrenceDate],
+				[purchase.recurrenceId, purchase.recurrenceOccurrenceDate],
 			);
 			if (identity && (identity.deletedAt || identity.purchaseId !== purchase.id))
 				throw new HttpException(
@@ -130,7 +130,7 @@ export async function syncCreditBook(userId: string, input: CreditBook) {
 		for (const purchase of recurring)
 			await query(
 				'INSERT INTO "RecurrenceOccurrence" ("recurrenceId","date","purchaseId") VALUES ($1,$2,$3) ON CONFLICT DO NOTHING',
-				[purchase.subscriptionId, purchase.subscriptionOccurrenceDate, purchase.id],
+				[purchase.recurrenceId, purchase.recurrenceOccurrenceDate, purchase.id],
 			);
 	});
 }

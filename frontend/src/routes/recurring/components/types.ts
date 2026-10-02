@@ -1,9 +1,8 @@
-import type { DebtSplit, FinancialAccount, RecurringPayment, Salary, Subscription } from "@/lib/api";
+import type { DebtSplit, FinancialAccount, Tag } from "@/lib/api";
 import type { Recurrence } from "@/lib/recurrence";
 
-export type RecurringSource = "salary" | "subscription" | "recurring";
+export type RecurringSource = "recurring";
 export type RecurringDirection = "INCOME" | "EXPENSE" | "TRANSFER";
-export type RecurrenceFrequency = Salary["frequency"];
 
 export interface RecurringListItemData {
 	recurrence?: Recurrence;
@@ -14,33 +13,22 @@ export interface RecurringListItemData {
 	accountType?: FinancialAccount["type"];
 	active: boolean;
 	amount: number;
-	day: number | null;
+	day?: number | null;
+	dayOfMonth?: number | null;
+	unit?: Recurrence["unit"];
+	interval?: number;
+	movement?: Recurrence["movement"];
 	dayOfWeek?: number | null;
 	debtSplit?: DebtSplit | null;
 	direction: RecurringDirection;
-	frequency: RecurrenceFrequency;
+	frequency?: string;
 	id: string;
 	monthlyAmount: number;
 	endDate?: string | null;
-	paymentMethod?: Subscription["paymentMethod"] | RecurringPayment["paymentMethod"];
+	paymentMethod?: "DEBIT" | "CREDIT" | "PIX" | "CASH" | "TRANSFER" | "BOLETO";
 	storeName?: string | null;
-	source: RecurringSource;
+	source?: string;
 	startDate: string;
-	tags?: RecurringPayment["tags"] | Salary["tags"] | Subscription["tags"];
+	tags?: Tag[];
 	title: string;
-}
-
-export interface RecurringDraft {
-	amount: string;
-	day: string;
-	dayOfWeek: string;
-	financialAccountId: string;
-	endDate: string;
-	frequency: RecurrenceFrequency;
-	name: string;
-	paymentMethod: Subscription["paymentMethod"];
-	source: RecurringSource;
-	startDate: string;
-	storeName: string;
-	tagIds: string[];
 }

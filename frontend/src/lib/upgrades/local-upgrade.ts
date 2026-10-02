@@ -2,11 +2,11 @@ import { statementEntryKind } from "@zaimu/finance/credit-card";
 import { loanInstallments } from "@zaimu/finance/loan";
 import type { CreditCard, FinancialAccount, Loan, LoanPayment } from "../api";
 import { requestResult, transactionDone } from "../idb";
-import { migrateLegacyCardPayments } from "../legacy-card-payments";
 import type { LocalData } from "../localStorage";
-import { migrateCreditBooks } from "../migrate-credit-books";
-import { migrateLocalRecurrenceRows } from "../migrate-recurrences";
 import type { CacheIdentity } from "../query-cache";
+import { migrateLegacyCardPayments } from "./legacy-card-payments";
+import { migrateCreditBooks } from "./migrate-credit-books";
+import { migrateLocalRecurrenceRows } from "./migrate-recurrences";
 
 const scopedId = (owner: StorageOwner, id: string) => `${owner}\u0000${id}`;
 const LEGACY_STORES = {
@@ -309,8 +309,9 @@ export async function upgradeLocalDatabase(database: IDBDatabase) {
 		await migrateCardPayments(database, tx);
 		await migrateCreditBooks(database, tx);
 		await migrateRecurrences(database, tx);
+		await extractRecurrenceProvenance(tx);
 		await migrateGuestLoanPayments(database, tx);
-		await requestResult(stateStore.put({ id: "state", status: "complete", version: 10 }));
+		await requestResult(stateStore.put({ id: "state", status: "complete", version: 11 }));
 		await done;
 	} catch (error) {
 		try {
@@ -364,4 +365,24 @@ export async function reviewLocalOwnership(
 		await done.catch(() => undefined);
 		throw error;
 	}
+}
+
+async function extractRecurrenceProvenance(tx: IDBTransaction) {
+	const store = tx.objectStore("scoped-recurrences");
+	const state = tx.objectStore("application-upgrade");
+	for (const row of await requestResult(store.getAll())) {
+		const { legacySource, legacyId, ...data } = row.data;
+		if (!legacySource || !legacyId) continue;
+		const id = `mapping:${row.ownerKey}\u0000${legacySource}\u0000${legacyId}`;
+		await requestResult(
+			state.put({ id, legacyId, ownerKey: row.ownerKey, recurrenceId: data.id, source: legacySource }),
+		);
+		await requestResult(store.put({ ...row, data }));
+	}
+	for (const row of await requestResult(tx.objectStore("scoped-transactions").getAll()))
+		if (row.data.salaryId || row.data.subscriptionId)
+			throw new Error("Referência de recorrência não resolvida; originais preservados");
+	// Sources remain in the recovery archive until a later schema upgrade removes empty stores.
+	for (const name of ["scoped-salaries", "scoped-subscriptions", "scoped-recurringPayments"])
+		await requestResult(tx.objectStore(name).clear());
 }

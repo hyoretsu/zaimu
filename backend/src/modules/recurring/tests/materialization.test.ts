@@ -31,6 +31,20 @@ describe.skipIf(!url)("atomic recurrence processing", () => {
 			),
 		);
 		await client.query(
+			'CREATE VIEW "CreditEntry" AS SELECT "subscriptionId","subscriptionOccurrenceDate" FROM "CreditPurchaseRecord"; CREATE VIEW "CreditConsumption" AS SELECT "subscriptionId","subscriptionOccurrenceDate" FROM "CreditPurchaseRecord"',
+		);
+		for (const name of [
+			"20261002T1640_application_upgrade_audit",
+			"20261002T1655_remove_recurrence_legacy",
+		]) {
+			const operations = await Bun.file(
+				new URL(`../../../../../packages/sql/migrations/app/${name}/ops.json`, import.meta.url),
+			).json();
+			for (const operation of operations)
+				for (const statement of operation.execute) await client.query(statement.sql);
+		}
+
+		await client.query(
 			`INSERT INTO "user" ("id","email","name") VALUES ('owner','owner@example.test','Owner'); INSERT INTO "FinancialAccount" ("id","userId","name","type") VALUES ('a','owner','A','CHECKING'),('b','owner','B','SAVINGS'),('c','owner','Card','CREDIT_CARD'); INSERT INTO "CreditCard" ("id","financialAccountId","creditLimit","statementDay","dueDay") VALUES ('card','c',1000,15,25);`,
 		);
 		service = await import("../application/recurrences");
@@ -233,10 +247,7 @@ describe.skipIf(!url)("atomic recurrence processing", () => {
 				method: "POST",
 			}),
 		);
-		expect(legacy.status).toBe(200);
-		const migrated = (await legacy.json()) as { unit: string; interval: number };
-		expect(migrated.unit).toBe("WEEK");
-		expect(migrated.interval).toBe(2);
+		expect(legacy.status).toBe(422);
 		const { SyncController } = await import("~/modules/sync/SyncController");
 		const request = (body: unknown) =>
 			SyncController.handle(

@@ -5,16 +5,27 @@ import {
 	recurrenceNeedsConfiguration,
 	shiftRecurrenceDate,
 } from "@zaimu/finance/recurrence";
-import type { CreditCard, RecurringPayment, Salary, Subscription, Transaction } from "./api";
-import { getLocalDateKey } from "./date";
-import type { LocalData } from "./localStorage";
-import type { Recurrence, RecurrenceOccurrence } from "./recurrence";
+import type { CreditCard, Transaction as CurrentTransaction } from "../api";
+import type { RecurringPayment, Salary, Subscription } from "./legacy-contracts";
+
+type Transaction = CurrentTransaction & {
+	salaryId?: string;
+	salaryOccurrenceDate?: string;
+	subscriptionId?: string;
+	subscriptionOccurrenceDate?: string;
+};
+
+import { getLocalDateKey } from "../date";
+import type { LocalData } from "../localStorage";
+import type { Recurrence, RecurrenceOccurrence } from "../recurrence";
 
 type Snapshot = Record<string, LocalData<unknown>[]>;
 const key = (owner: string, source: string, id: string) => `${owner}\u0000${source}\u0000${id}`;
 export function migrateLocalRecurrenceRows(snapshot: Snapshot, today = getLocalDateKey()): Snapshot {
 	const changes: Snapshot = { creditBooks: [], recurrenceOccurrences: [], recurrences: [], transactions: [] };
-	const current = snapshot.recurrences as LocalData<Recurrence>[];
+	const current = snapshot.recurrences as LocalData<
+		Recurrence & { legacySource?: string; legacyId?: string }
+	>[];
 	const mapped = new Map(
 		current
 			.filter(row => row.data.legacySource && row.data.legacyId)
@@ -53,7 +64,7 @@ export function migrateLocalRecurrenceRows(snapshot: Snapshot, today = getLocalD
 				"payDay" in old ? old.payDay : "billingDay" in old ? old.billingDay : (old.dayOfMonth ?? old.day),
 				old.dayOfWeek,
 			);
-			const data: Recurrence = {
+			const data: Recurrence & { legacyId?: string; legacySource?: string } = {
 				...schedule,
 				amount: Number(old.amount ?? old.netAmount ?? 0),
 				createdAt: old.createdAt ?? new Date(row.modifiedAt).toISOString(),
@@ -134,18 +145,29 @@ export function migrateLocalRecurrenceRows(snapshot: Snapshot, today = getLocalD
 		const book = structuredClone(row.data);
 		let changed = false;
 		for (const purchase of book.purchases) {
-			if (!purchase.subscriptionId) continue;
+			const oldPurchase = purchase as typeof purchase & {
+				subscriptionId?: string;
+				subscriptionOccurrenceDate?: string;
+			};
+			const sourceId = oldPurchase.subscriptionId ?? purchase.recurrenceId;
+			if (!sourceId) continue;
 			const id =
-				mapped.get(key(row.ownerKey, "subscription", purchase.subscriptionId)) ??
-				(current.some(item => item.ownerKey === row.ownerKey && item.data.id === purchase.subscriptionId)
-					? purchase.subscriptionId
+				mapped.get(key(row.ownerKey, "subscription", sourceId)) ??
+				(current.some(item => item.ownerKey === row.ownerKey && item.data.id === sourceId)
+					? sourceId
 					: undefined);
 			if (!id) continue;
-			if (purchase.subscriptionId !== id) {
-				purchase.subscriptionId = id;
+			if (purchase.recurrenceId !== id || oldPurchase.subscriptionId) {
+				purchase.recurrenceId = id;
+				purchase.recurrenceOccurrenceDate =
+					oldPurchase.subscriptionOccurrenceDate ??
+					purchase.recurrenceOccurrenceDate ??
+					purchase.purchaseDate;
+				delete oldPurchase.subscriptionId;
+				delete oldPurchase.subscriptionOccurrenceDate;
 				changed = true;
 			}
-			const date = purchase.subscriptionOccurrenceDate ?? purchase.purchaseDate;
+			const date = purchase.recurrenceOccurrenceDate ?? purchase.purchaseDate;
 			addOccurrence(
 				row.ownerKey,
 				{ date, id: `${id}:${date}`, purchaseId: purchase.id, recurrenceId: id },
