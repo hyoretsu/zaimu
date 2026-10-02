@@ -851,6 +851,31 @@ namespace public {
     @@map("LoanPayment")
   }
 
+  // Upgrade-only provenance. Destination IDs survive deletion; deliberately no destination FK.
+  model ApplicationUpgradeRecurrence {
+    userId VarChar(36)
+    source VarChar(20)
+    legacyId VarChar(36)
+    recurrenceId VarChar(36)
+    deletedAt Timestamp(3)?
+    createdAt Timestamp(3) @default(now())
+    updatedAt Timestamp(3) @default(now())
+    @@id([userId, source, legacyId], map: "ApplicationUpgradeRecurrence_pkey")
+    @@index([recurrenceId], map: "ApplicationUpgradeRecurrence_destination_idx")
+    @@map("ApplicationUpgradeRecurrence")
+  }
+
+  model ApplicationUpgradeArchive {
+    source VarChar(80)
+    recordId VarChar(36)
+    userId VarChar(36)?
+    original Json
+    archivedAt Timestamp(3) @default(now())
+    @@id([source, recordId], map: "ApplicationUpgradeArchive_pkey")
+    @@index([userId], map: "ApplicationUpgradeArchive_user_idx")
+    @@map("ApplicationUpgradeArchive")
+  }
+
   model Recurrence {
     id VarChar(36) @id(map: "Recurrence_pkey") @default(dbgenerated("cuid2()"))
     userId VarChar(36)

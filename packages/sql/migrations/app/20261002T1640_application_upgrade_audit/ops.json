@@ -1,0 +1,158 @@
+[
+	{
+		"execute": [
+			{
+				"description": "create table \"ApplicationUpgradeArchive\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"ApplicationUpgradeArchive\" (\n  \"archivedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"original\" json NOT NULL,\n  \"recordId\" character varying(36) NOT NULL,\n  \"source\" character varying(80) NOT NULL,\n  \"userId\" character varying(36),\n  CONSTRAINT \"ApplicationUpgradeArchive_pkey\" PRIMARY KEY (\"source\", \"recordId\")\n)"
+			}
+		],
+		"id": "table.ApplicationUpgradeArchive",
+		"label": "Create table \"ApplicationUpgradeArchive\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"ApplicationUpgradeArchive\" exists",
+				"params": ["\"public\".\"ApplicationUpgradeArchive\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"ApplicationUpgradeArchive\" does not exist",
+				"params": ["\"public\".\"ApplicationUpgradeArchive\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"ApplicationUpgradeArchive\"",
+		"target": {
+			"details": {
+				"name": "ApplicationUpgradeArchive",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"ApplicationUpgradeRecurrence\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"ApplicationUpgradeRecurrence\" (\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"deletedAt\" timestamp(3),\n  \"legacyId\" character varying(36) NOT NULL,\n  \"recurrenceId\" character varying(36) NOT NULL,\n  \"source\" character varying(20) NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"userId\" character varying(36) NOT NULL,\n  CONSTRAINT \"ApplicationUpgradeRecurrence_pkey\" PRIMARY KEY (\"userId\", \"source\", \"legacyId\")\n)"
+			}
+		],
+		"id": "table.ApplicationUpgradeRecurrence",
+		"label": "Create table \"ApplicationUpgradeRecurrence\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"ApplicationUpgradeRecurrence\" exists",
+				"params": ["\"public\".\"ApplicationUpgradeRecurrence\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"ApplicationUpgradeRecurrence\" does not exist",
+				"params": ["\"public\".\"ApplicationUpgradeRecurrence\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"ApplicationUpgradeRecurrence\"",
+		"target": {
+			"details": {
+				"name": "ApplicationUpgradeRecurrence",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"ApplicationUpgradeArchive_user_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"ApplicationUpgradeArchive_user_idx\" ON \"public\".\"ApplicationUpgradeArchive\" (\"userId\")"
+			}
+		],
+		"id": "index.ApplicationUpgradeArchive.ApplicationUpgradeArchive_user_idx",
+		"label": "Create index \"ApplicationUpgradeArchive_user_idx\" on \"ApplicationUpgradeArchive\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"ApplicationUpgradeArchive_user_idx\" exists",
+				"params": ["\"public\".\"ApplicationUpgradeArchive_user_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"ApplicationUpgradeArchive_user_idx\" does not exist",
+				"params": ["\"public\".\"ApplicationUpgradeArchive_user_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "ApplicationUpgradeArchive_user_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "ApplicationUpgradeArchive"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"ApplicationUpgradeRecurrence_destination_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"ApplicationUpgradeRecurrence_destination_idx\" ON \"public\".\"ApplicationUpgradeRecurrence\" (\"recurrenceId\")"
+			}
+		],
+		"id": "index.ApplicationUpgradeRecurrence.ApplicationUpgradeRecurrence_destination_idx",
+		"label": "Create index \"ApplicationUpgradeRecurrence_destination_idx\" on \"ApplicationUpgradeRecurrence\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"ApplicationUpgradeRecurrence_destination_idx\" exists",
+				"params": ["\"public\".\"ApplicationUpgradeRecurrence_destination_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"ApplicationUpgradeRecurrence_destination_idx\" does not exist",
+				"params": ["\"public\".\"ApplicationUpgradeRecurrence_destination_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "ApplicationUpgradeRecurrence_destination_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "ApplicationUpgradeRecurrence"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "Preserve evidence before legacy removal",
+				"sql": "LOCK TABLE \"Recurrence\", \"Salary\", \"Subscription\", \"RecurringPayment\" IN SHARE ROW EXCLUSIVE MODE;\nINSERT INTO \"ApplicationUpgradeRecurrence\" (\"userId\",\"source\",\"legacyId\",\"recurrenceId\")\nSELECT \"userId\",\"legacySource\",\"legacyId\",\"id\" FROM \"Recurrence\"\nWHERE \"legacySource\" IS NOT NULL AND \"legacyId\" IS NOT NULL;\n-- Historic source tables retain schedules deleted after the first conversion.\n-- Reproduce that migration's collision choices; never bind a deleted schedule to a new one.\nWITH originals AS (\n SELECT \"userId\",'recurring'::text AS source,\"id\" AS \"legacyId\",\"id\" AS destination FROM \"RecurringPayment\"\n UNION ALL\n SELECT s.\"userId\",'subscription',s.\"id\",CASE WHEN EXISTS (SELECT 1 FROM \"RecurringPayment\" r WHERE r.\"id\"=s.\"id\") THEN md5('subscription:'||s.\"id\") ELSE s.\"id\" END FROM \"Subscription\" s\n UNION ALL\n SELECT s.\"userId\",'salary',s.\"id\",CASE WHEN EXISTS (SELECT 1 FROM \"RecurringPayment\" r WHERE r.\"id\"=s.\"id\") OR EXISTS (SELECT 1 FROM \"Subscription\" r WHERE r.\"id\"=s.\"id\") THEN md5('salary:'||s.\"id\") ELSE s.\"id\" END FROM \"Salary\" s\n)\nINSERT INTO \"ApplicationUpgradeRecurrence\" (\"userId\",\"source\",\"legacyId\",\"recurrenceId\",\"deletedAt\")\nSELECT \"userId\",source,\"legacyId\",destination,CURRENT_TIMESTAMP FROM originals\nON CONFLICT (\"userId\",\"source\",\"legacyId\") DO NOTHING;\nDO $archive$\nDECLARE source_table text;\nBEGIN\n FOREACH source_table IN ARRAY ARRAY['Salary','Subscription','RecurringPayment','Debt','CreditPurchaseLegacyEntry'] LOOP\n  EXECUTE format('INSERT INTO \"ApplicationUpgradeArchive\" (\"source\",\"recordId\",\"userId\",\"original\") SELECT %L,t.\"id\",to_jsonb(t)->>''userId'',to_jsonb(t) FROM %I t ON CONFLICT DO NOTHING', source_table,source_table);\n END LOOP;\n INSERT INTO \"ApplicationUpgradeArchive\" (\"source\",\"recordId\",\"userId\",\"original\")\n SELECT 'SalaryHistory',h.\"id\",s.\"userId\",to_jsonb(h) FROM \"SalaryHistory\" h JOIN \"Salary\" s ON s.\"id\"=h.\"salaryId\"\n UNION ALL SELECT 'SubscriptionHistory',h.\"id\",s.\"userId\",to_jsonb(h) FROM \"SubscriptionHistory\" h JOIN \"Subscription\" s ON s.\"id\"=h.\"subscriptionId\"\n UNION ALL SELECT 'RecurringPaymentHistory',h.\"id\",s.\"userId\",to_jsonb(h) FROM \"RecurringPaymentHistory\" h JOIN \"RecurringPayment\" s ON s.\"id\"=h.\"recurringPaymentId\"\n UNION ALL SELECT 'DebtHistory',h.\"id\",s.\"userId\",to_jsonb(h) FROM \"DebtHistory\" h JOIN \"Debt\" s ON s.\"id\"=h.\"debtId\"\n ON CONFLICT DO NOTHING;\nEND $archive$;\nCREATE FUNCTION \"trackUpgradeRecurrence\"() RETURNS trigger LANGUAGE plpgsql AS $fn$\nBEGIN\n IF TG_OP='DELETE' THEN\n  UPDATE \"ApplicationUpgradeRecurrence\" SET \"deletedAt\"=CURRENT_TIMESTAMP,\"updatedAt\"=CURRENT_TIMESTAMP WHERE \"userId\"=OLD.\"userId\" AND \"recurrenceId\"=OLD.\"id\";\n  RETURN OLD;\n END IF;\n IF NEW.\"legacySource\" IS NOT NULL AND NEW.\"legacyId\" IS NOT NULL THEN\n  INSERT INTO \"ApplicationUpgradeRecurrence\" (\"userId\",\"source\",\"legacyId\",\"recurrenceId\")\n  VALUES (NEW.\"userId\",NEW.\"legacySource\",NEW.\"legacyId\",NEW.\"id\")\n  ON CONFLICT (\"userId\",\"source\",\"legacyId\") DO UPDATE SET \"recurrenceId\"=EXCLUDED.\"recurrenceId\",\"updatedAt\"=CURRENT_TIMESTAMP;\n END IF;\n RETURN NEW;\nEND $fn$;\nCREATE TRIGGER \"TrackUpgradeRecurrenceWrite\" AFTER INSERT OR UPDATE ON \"Recurrence\" FOR EACH ROW EXECUTE FUNCTION \"trackUpgradeRecurrence\"();\nCREATE TRIGGER \"TrackUpgradeRecurrenceDelete\" BEFORE DELETE ON \"Recurrence\" FOR EACH ROW EXECUTE FUNCTION \"trackUpgradeRecurrence\"();\nDO $verify$\nBEGIN\n IF EXISTS (SELECT 1 FROM \"Recurrence\" r WHERE r.\"legacyId\" IS NOT NULL AND NOT EXISTS (SELECT 1 FROM \"ApplicationUpgradeRecurrence\" m WHERE m.\"userId\"=r.\"userId\" AND m.\"source\"=r.\"legacySource\" AND m.\"legacyId\"=r.\"legacyId\" AND m.\"recurrenceId\"=r.\"id\" AND m.\"deletedAt\" IS NULL)) THEN\n  RAISE EXCEPTION 'Upgrade recurrence provenance mismatch';\n END IF;\nEND $verify$;\n"
+			}
+		],
+		"id": "applicationUpgrade.audit",
+		"label": "Archive legacy evidence and preserve recurrence upgrade identities",
+		"operationClass": "data",
+		"postcheck": [],
+		"precheck": [],
+		"target": {
+			"id": "postgres"
+		}
+	}
+]

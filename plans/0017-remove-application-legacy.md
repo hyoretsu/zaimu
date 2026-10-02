@@ -83,3 +83,13 @@ Registrar execução em `plans/0017-remove-application-legacy.md`, com progresso
 Commits locais atômicos por etapa, usuário local como autor e committer, trailer de coautoria Codex e hooks normais. Atualizar plano junto de cada etapa concluída.
 
 Execução e testes somente locais. Aplicação em banco externo, push e deploy ficam com usuário, mediante pedido específico.
+
+## Progresso de execução
+
+- [x] Etapa 1: inventário em `docs/application-legacy-inventory.md`; auditoria local somente leitura em `packages/sql/scripts/audit-application-legacy.ts`; migração aditiva de arquivo e mapeamento por proprietário; resolução autenticada exclusiva de upgrade em `/upgrades/recurrence-ids`.
+- [ ] Etapa 2: isolar conversores IndexedDB e controlar marcadores de upgrade.
+- [ ] Etapa 3: remover contratos e estruturas antigas de recorrências.
+- [ ] Etapa 4: unificar eventos de dívida no visitante e sync.
+- [ ] Etapa 5: remover compatibilidade financeira restante.
+
+Etapa 1 conserva fontes antigas. Registro de upgrade preserva destinos excluídos, inclusive schedules removidos após a migração anterior. Arquivo conserva JSON original e históricos. Conferência em fixtures PostgreSQL locais cobre colisões, namespace por proprietário, somas preservadas e rollback após falha tardia. Auditoria dos dados reais permanece local e deve preceder qualquer remoção destrutiva.

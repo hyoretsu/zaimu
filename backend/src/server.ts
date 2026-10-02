@@ -18,6 +18,7 @@ import { SubscriptionsController } from "./modules/subscriptions/infra";
 import { SyncController } from "./modules/sync";
 import { TransactionImportsController } from "./modules/transaction-imports/infra";
 import { TransactionsController } from "./modules/transactions/infra";
+import { UpgradeController } from "./modules/upgrades/UpgradeController";
 import { app } from "./shared/infra/elysia";
 
 export const server = app.use([
@@ -39,4 +40,5 @@ export const server = app.use([
 	StoresController,
 	DashboardController,
 	SyncController,
+	UpgradeController,
 ]);
