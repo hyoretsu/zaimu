@@ -1,3 +1,23 @@
+CREATE OR REPLACE FUNCTION enforce_credit_purchase_integrity() RETURNS trigger LANGUAGE plpgsql AS $integrity$
+DECLARE target varchar(36); total numeric; planned numeric; count_plan integer; max_plan integer; owner_id varchar(36); card_id varchar(36);
+BEGIN
+ IF TG_TABLE_NAME = 'CreditPurchaseRecord' THEN target := COALESCE(NEW."id", OLD."id");
+ ELSE target := COALESCE(NEW."purchaseId", OLD."purchaseId"); END IF;
+ SELECT "totalAmount", "userId", "creditCardId" INTO total, owner_id, card_id FROM "CreditPurchaseRecord" WHERE "id" = target FOR UPDATE;
+ IF NOT FOUND THEN RETURN NULL; END IF;
+ SELECT sum("amount"), count(*), max("number") INTO planned, count_plan, max_plan FROM "CreditInstallmentPlan" WHERE "purchaseId" = target;
+ IF planned IS DISTINCT FROM total OR count_plan <> max_plan THEN RAISE EXCEPTION 'Purchase plan must match total and contain consecutive installments'; END IF;
+ IF (SELECT COALESCE(sum("amount"), 0) FROM "CreditRefundRecord" WHERE "purchaseId" = target AND "deletedAt" IS NULL) > total THEN RAISE EXCEPTION 'Refunds exceed purchase total'; END IF;
+ IF NOT EXISTS (SELECT 1 FROM "CreditCard" c JOIN "FinancialAccount" a ON a."id" = c."financialAccountId" WHERE c."id" = card_id AND a."userId" = owner_id) THEN RAISE EXCEPTION 'Purchase card belongs to another owner'; END IF;
+ IF EXISTS (SELECT 1 FROM "CreditInstallmentRecord" i JOIN "CreditCardStatement" s ON s."id" = i."statementId" LEFT JOIN "CreditInstallmentPlan" plan ON plan."purchaseId" = i."purchaseId" AND plan."number" = i."number" WHERE i."purchaseId" = target AND (s."creditCardId" <> card_id OR plan."amount" IS DISTINCT FROM i."amount"))
+ OR EXISTS (SELECT 1 FROM "CreditRefundRecord" r JOIN "CreditCardStatement" s ON s."id" = r."statementId" WHERE r."purchaseId" = target AND s."creditCardId" <> card_id) THEN RAISE EXCEPTION 'Credit entry card or installment amount mismatch'; END IF;
+ IF EXISTS (SELECT 1 FROM "CreditPurchaseRecord" p WHERE p."id" = target AND
+ ((p."categoryId" IS NOT NULL AND NOT EXISTS (SELECT 1 FROM "Category" x WHERE x."id" = p."categoryId" AND x."userId" = owner_id)) OR
+ (p."cashbackAccountId" IS NOT NULL AND NOT EXISTS (SELECT 1 FROM "FinancialAccount" x WHERE x."id" = p."cashbackAccountId" AND x."userId" = owner_id)) OR
+ (p."subscriptionId" IS NOT NULL AND NOT EXISTS (SELECT 1 FROM "Recurrence" x WHERE x."id" = p."subscriptionId" AND x."userId" = owner_id)))) THEN RAISE EXCEPTION 'Purchase metadata belongs to another owner'; END IF;
+ RETURN NULL;
+END $integrity$;
+
 LOCK TABLE "Salary", "Subscription", "RecurringPayment", "Transaction", "CreditPurchaseRecord", "DebtSplit", "TagAssignment" IN SHARE ROW EXCLUSIVE MODE;
 INSERT INTO "Recurrence" ("id","userId","name","amount","movement","unit","interval","dayOfMonth","dayOfWeek","startDate","endDate","originFinancialAccountId","destinationFinancialAccountId","creditCardId","storeName","isActive","materializedThrough","legacySource","legacyId","createdAt","updatedAt")
 SELECT p."id",p."userId",p."name",p."amount",CASE WHEN p."paymentMethod"='CREDIT' THEN 'CARD_PURCHASE' ELSE 'EXPENSE' END,
