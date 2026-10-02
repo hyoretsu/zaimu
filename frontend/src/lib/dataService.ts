@@ -35,6 +35,7 @@ import { type CatalogPageOptions, localCatalogPage } from "./catalog-pagination"
 import { guestTransactionPage } from "./guest-transaction-page";
 import { hasUnresolvedLegacyCardPayment } from "./legacy-card-payments";
 import { createLegacyRecurrenceService } from "./legacy-recurrence-service";
+import { localCursorPage } from "./local-cursor-page";
 import {
 	acknowledgeCreditBookSync,
 	acknowledgeRecurrenceSync,
@@ -776,21 +777,16 @@ export const dataService = {
 				.toSorted(
 					(a, b) => b.date.localeCompare(a.date) || b.kind.localeCompare(a.kind) || b.id.localeCompare(a.id),
 				);
-			const hash = JSON.stringify({ filters, financialAccountId, owner: getUserId() });
-			let offset = 0;
-			if (cursor) {
-				const parsed = JSON.parse(atob(cursor));
-				if (parsed.hash !== hash || !Number.isSafeInteger(parsed.offset) || parsed.offset < 0)
-					throw new Error("Cursor inválido");
-				offset = parsed.offset;
-			}
-			const items = entries.slice(offset, offset + 100);
-			const hasMore = offset + items.length < entries.length;
+			const page = localCursorPage(
+				entries,
+				getUserId(),
+				{ domain: "yield-display", filters, financialAccountId },
+				row => [row.date, row.kind, row.id],
+				{ cursor, limit: 100 },
+			);
 			return {
+				...page,
 				accountNames: accounts.map(account => [account.id, getFinancialAccountOptionLabel(account)] as const),
-				hasMore,
-				items,
-				nextCursor: hasMore ? btoa(JSON.stringify({ hash, offset: offset + items.length })) : null,
 			};
 		},
 		async getPage(
@@ -823,18 +819,6 @@ export const dataService = {
 						right.id.localeCompare(left.id),
 				);
 			if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error("Limite inválido");
-			const hash = JSON.stringify({ filters, financialAccountId, owner: getUserId() });
-			let offset = 0;
-			if (cursor) {
-				try {
-					const parsed = JSON.parse(atob(cursor));
-					if (parsed.hash !== hash || !Number.isSafeInteger(parsed.offset) || parsed.offset < 0)
-						throw new Error();
-					offset = parsed.offset;
-				} catch {
-					throw new Error("Cursor inválido para estes filtros");
-				}
-			}
 			const filtered = sorted.filter(
 				row =>
 					(!filters.startDate || row.date.slice(0, 10) >= filters.startDate) &&
@@ -842,13 +826,13 @@ export const dataService = {
 					(!filters.visibility || Boolean(row.isHidden) === (filters.visibility === "hidden")) &&
 					(!filters.positiveOnly || (!row.isExcluded && (row.amount ?? 0) > 0)),
 			);
-			const items = filtered.slice(offset, offset + limit);
-			const nextOffset = offset + items.length;
-			return {
-				hasMore: nextOffset < filtered.length,
-				items,
-				nextCursor: nextOffset < filtered.length ? btoa(JSON.stringify({ hash, offset: nextOffset })) : null,
-			};
+			return localCursorPage(
+				filtered,
+				getUserId(),
+				{ domain: "yields", filters, financialAccountId },
+				row => [row.date.slice(0, 10), row.kind, row.id],
+				{ cursor, limit },
+			);
 		},
 		async update(
 			id: string,
@@ -1468,15 +1452,19 @@ export const dataService = {
 				)
 					.statements.filter(s => options.isPaid === undefined || s.isPaid === options.isPaid)
 					.toSorted((a, b) => b.statementDate.localeCompare(a.statementDate) || b.id.localeCompare(a.id));
-				const start = options.cursor ? Math.max(0, rows.findIndex(s => s.id === options.cursor) + 1) : 0;
-				const limit = options.limit ?? 24;
-				const items = rows
-					.slice(start, start + limit)
-					.map(s => ({ ...s, totalAmount: Number(s.totalAmount) + s.chargesAmount }));
+				const page = localCursorPage(
+					rows,
+					getUserId(),
+					{ cardId, domain: "statements", isPaid: options.isPaid },
+					row => [row.statementDate, row.id],
+					{ cursor: options.cursor, limit: options.limit ?? 24 },
+				);
 				return {
-					hasMore: start + items.length < rows.length,
-					items,
-					nextCursor: start + items.length < rows.length ? (items.at(-1)?.id ?? null) : null,
+					...page,
+					items: page.items.map(row => ({
+						...row,
+						totalAmount: Number(row.totalAmount) + row.chargesAmount,
+					})),
 				};
 			}
 			const owner = getCurrentCacheIdentity();
@@ -2240,14 +2228,13 @@ export const dataService = {
 			}
 			const person = (await this.getLedger()).people.find(item => item.id === personId);
 			const events = person?.events ?? [];
-			const offset = cursor ? Number.parseInt(cursor, 10) : 0;
-			const items = events.slice(offset, offset + limit);
-			const nextOffset = offset + items.length;
-			return {
-				hasMore: nextOffset < events.length,
-				items,
-				nextCursor: nextOffset < events.length ? String(nextOffset) : null,
-			};
+			return localCursorPage(
+				events,
+				getUserId(),
+				{ domain: "debt-events", personId },
+				row => [row.date?.slice(0, 10) ?? "", row.id],
+				{ cursor, limit },
+			);
 		},
 		async getInvitationPreview(id: string, cursor?: string, limit = 50): Promise<DebtInvitationPreview> {
 			if (isGuestMode()) throw new Error("Convite não encontrado.");

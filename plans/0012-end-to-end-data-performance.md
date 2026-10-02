@@ -316,3 +316,5 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Histórico de recorrências passou a retornar página com cursor por data/ID, proprietário e entidade vinculados ao filtro, cache e ETag. Guest retorna mesmo DTO, preservando históricos locais anteriores. Dois testes de cursor cobrem empates, inserção, remoção, fim e isolamento. E2E atualizado para novo contrato; validação final segue em andamento. Por solicitação do usuário, aceite de performance fica pendente fora desta execução.
 
 - Preview de convites passou a retornar saldo agregado, contagem total e eventos paginados em SQL, com cache e autorização do destinatário pendente. Interface carrega páginas adicionais sob demanda; removidos loaders integrais de histórico e descrição. E2E local passou com 203 verificações, incluindo paginação, isolamento e contratos de histórico.
+
+- Cursores guest de eventos de dívida, rendimentos, extrato de rendimentos e faturas agora usam posição estável e filtro vinculado ao proprietário, sem offset ou ID solto. Oito testes de paginação passaram, cobrindo inserção, remoção, empates e isolamento.
