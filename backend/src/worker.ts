@@ -41,8 +41,8 @@ async function writeCommand(event: EventEnvelope, operation: () => Promise<unkno
  UNION SELECT "userId" FROM "Recurrence" WHERE "isActive"
  ), affected AS (
  SELECT "userId" FROM owners
- UNION SELECT d."requesterId" FROM "DebtConnection" d JOIN owners o ON o."userId"=d."recipientId" WHERE d."status"='ACCEPTED'
- UNION SELECT d."recipientId" FROM "DebtConnection" d JOIN owners o ON o."userId"=d."requesterId" WHERE d."status"='ACCEPTED'
+ UNION SELECT d."requesterId" FROM "DebtConnection" d JOIN owners o ON o."userId"=d."recipientId" WHERE d."status" IN ('PENDING', 'ACCEPTED')
+ UNION SELECT d."recipientId" FROM "DebtConnection" d JOIN owners o ON o."userId"=d."requesterId" WHERE d."status" IN ('PENDING', 'ACCEPTED')
  ) SELECT affected."userId", c."id" AS "cardId" FROM affected LEFT JOIN "FinancialAccount" a ON a."userId"=affected."userId" LEFT JOIN "CreditCard" c ON c."financialAccountId"=a."id"`
 			: `SELECT DISTINCT "userId", NULL::text AS "cardId" FROM "FinancialAccount" WHERE "type" <> 'CREDIT_CARD'`,
 	);

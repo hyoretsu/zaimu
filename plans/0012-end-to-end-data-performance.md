@@ -328,3 +328,5 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Regressão IndexedDB de pagamentos passou a exigir versão mínima compatível, preservando verificação de migração de v5 e replay após edição/exclusão. Suítes completas passaram: 227 backend, 181 frontend e 65 finanças. Integrações isoladas de crédito passaram (sete testes, 52 verificações), incluindo concorrência, rollback, importação, sync, rateio e previsões. Redis passou em 15 testes de leitura/fences/limpeza/worker.
 
 - Verificação final corrigiu tipos dos handlers ETag/304 de catálogos, tokens/fences readonly e fixtures de headers RabbitMQ e resumo de dívidas. Contratos HTTP preservados; checagem final será repetida após commit.
+
+- Escopos de invalidação HTTP, sync e worker incluem destinatários de convites pendentes, preservando regras de autorização e compartilhamento. E2E com Redis local cobre preview em cache, criação e exclusão de transação rateada antes do aceite, com saldo atualizado e restaurado.

@@ -38,7 +38,7 @@ async function debtAffectedUserIds(resourceId: string | undefined) {
 
 async function creditAffectedUserIds(userId: string) {
 	const rows = await queryRaw<{ userId: string }>(
-		`SELECT CASE WHEN "requesterId"=$1 THEN "recipientId" ELSE "requesterId" END AS "userId" FROM "DebtConnection" WHERE "status"='ACCEPTED' AND ("requesterId"=$1 OR "recipientId"=$1)`,
+		`SELECT CASE WHEN "requesterId"=$1 THEN "recipientId" ELSE "requesterId" END AS "userId" FROM "DebtConnection" WHERE "status" IN ('PENDING', 'ACCEPTED') AND ("requesterId"=$1 OR "recipientId"=$1)`,
 		[userId],
 	);
 	return rows.map(row => row.userId);

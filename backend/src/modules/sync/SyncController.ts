@@ -1250,7 +1250,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 
 				const peers = await queryRaw<{ userId: string }>(
 					`SELECT CASE WHEN "requesterId" = $1 THEN "recipientId" ELSE "requesterId" END AS "userId"
-					 FROM "DebtConnection" WHERE "status" = 'ACCEPTED' AND ("requesterId" = $1 OR "recipientId" = $1)`,
+					 FROM "DebtConnection" WHERE "status" IN ('PENDING', 'ACCEPTED') AND ("requesterId" = $1 OR "recipientId" = $1)`,
 					[userId],
 				);
 				const outbox = new PostgresOutbox();

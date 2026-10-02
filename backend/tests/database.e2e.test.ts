@@ -1242,6 +1242,62 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(forbiddenPreview.status).toBe(404);
 		expect(invitations[0]).not.toHaveProperty("requesterEmail");
 
+		const cachedPreview = await jsonRequest(
+			`/debts/invitations/${invitation.id}/preview?limit=1`,
+			"GET",
+			undefined,
+			peer.cookie,
+		);
+		expect(cachedPreview.status).toBe(200);
+		if (process.env.REDIS_URL) expect(cachedPreview.headers.get("x-cache")).toBe("HIT");
+
+		const previewAccountResponse = await jsonRequest(
+			"/financial-accounts/",
+			"POST",
+			{ name: "Conta do preview pendente", type: "CHECKING" },
+			owner.cookie,
+		);
+		expect(previewAccountResponse.status).toBe(200);
+		const previewAccount = (await previewAccountResponse.json()) as { id: string };
+		const previewTransactionResponse = await jsonRequest(
+			"/transactions",
+			"POST",
+			{
+				amount: 20,
+				date,
+				debtSplit: {
+					mode: "SHARES",
+					ownerShares: null,
+					participants: [{ debtPersonId: ownerPerson.id, shares: 1 }],
+				},
+				description: "Despesa antes do aceite",
+				originFinancialAccountId: previewAccount.id,
+				type: "EXPENSE",
+			},
+			owner.cookie,
+		);
+		expect(previewTransactionResponse.status).toBe(200);
+		const previewTransaction = (await previewTransactionResponse.json()) as { id: string };
+		const refreshedPreview = await jsonRequest(
+			`/debts/invitations/${invitation.id}/preview?limit=1`,
+			"GET",
+			undefined,
+			peer.cookie,
+		);
+		expect(refreshedPreview.status).toBe(200);
+		expect(await refreshedPreview.json()).toMatchObject({ balance: -170, eventCount: 3 });
+		expect(
+			(await jsonRequest(`/transactions/${previewTransaction.id}`, "DELETE", undefined, owner.cookie)).status,
+		).toBe(200);
+		const restoredPreview = await jsonRequest(
+			`/debts/invitations/${invitation.id}/preview?limit=1`,
+			"GET",
+			undefined,
+			peer.cookie,
+		);
+		expect(restoredPreview.status).toBe(200);
+		expect(await restoredPreview.json()).toMatchObject({ balance: -150, eventCount: 2 });
+
 		const privateLedger = await jsonRequest("/debts", "GET", undefined, peer.cookie);
 		expect((await privateLedger.json()) as { people: unknown[] }).toMatchObject({ people: [] });
 		const accept = await jsonRequest(`/debts/invitations/${invitation.id}/accept`, "POST", {}, peer.cookie);
