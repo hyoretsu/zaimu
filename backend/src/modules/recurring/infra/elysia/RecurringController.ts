@@ -11,7 +11,7 @@ import { legacyRecurrenceInput, presentLegacyRecurrence } from "../../applicatio
 import {
 	deleteRecurrence,
 	getStoredRecurrence,
-	listRecurrences,
+	listRecurrenceSummaries,
 	materializeRecurrence,
 	presentRecurrence,
 	saveRecurrence,
@@ -23,6 +23,7 @@ import {
 	RecurrenceHistoryReturn,
 	RecurrenceReturn,
 	RecurrenceSuccessReturn,
+	RecurrenceSummaryReturn,
 	ReplayRecurrenceBody,
 	ReplayRecurrenceReturn,
 	UpdateRecurrenceBody,
@@ -30,14 +31,44 @@ import {
 
 const params = t.Object({ id: t.String({ maxLength: 36, minLength: 1 }) });
 export const RecurringController = new Elysia({ prefix: "/recurring" })
-	.get("/", async ({ request, query }) => listRecurrences(await requireUserId(request), query.isActive), {
-		query: t.Object({ isActive: t.Optional(t.Boolean()) }),
-		response: t.Array(RecurrenceReturn),
-	})
+	.get(
+		"/",
+		async ({ request, query, set }) => {
+			const userId = await requireUserId(request);
+			const cached = await distributedCache.remember(
+				userId,
+				"schedules:overview",
+				{ isActive: query.isActive, version: 2 },
+				() => listRecurrenceSummaries(userId, query.isActive),
+			);
+			set.headers.etag = cached.etag;
+			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+			if (request.headers.get("if-none-match") === cached.etag) {
+				set.status = 304;
+				return undefined as never;
+			}
+			return cached.value;
+		},
+		{ query: t.Object({ isActive: t.Optional(t.Boolean()) }), response: t.Array(RecurrenceSummaryReturn) },
+	)
 	.get(
 		"/:id",
-		async ({ request, params }) =>
-			presentRecurrence(await getStoredRecurrence(await requireUserId(request), params.id)),
+		async ({ request, params, set }) => {
+			const userId = await requireUserId(request);
+			const cached = await distributedCache.remember(
+				userId,
+				"schedules:detail",
+				{ id: params.id },
+				async () => presentRecurrence(await getStoredRecurrence(userId, params.id)),
+			);
+			set.headers.etag = cached.etag;
+			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+			if (request.headers.get("if-none-match") === cached.etag) {
+				set.status = 304;
+				return undefined as never;
+			}
+			return cached.value;
+		},
 		{ params, response: RecurrenceReturn },
 	)
 	.post(

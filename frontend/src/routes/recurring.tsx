@@ -14,6 +14,7 @@ import { showToast } from "@/stores";
 import {
 	CreateRecurringDialog,
 	DeleteRecurringDialog,
+	EditRecurringDialog,
 	HiddenRecurrencesToggle,
 	isRecurrenceEnded,
 	type RecurringDirection,
@@ -254,13 +255,12 @@ export function RecurringPage() {
 
 			<CreateRecurringDialog onOpenChange={setIsCreateOpen} open={isCreateOpen} />
 			{editingItem && (
-				<CreateRecurringDialog
+				<EditRecurringDialog
 					item={editingItem}
 					key={`${editingItem.source}:${editingItem.id}`}
 					onOpenChange={open => {
 						if (!open) setEditingItem(undefined);
 					}}
-					open
 				/>
 			)}
 			{deletingItem && (

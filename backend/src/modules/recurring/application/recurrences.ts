@@ -19,6 +19,7 @@ import { recalculateStatementPayments } from "~/modules/creditCards/application/
 import {
 	getDebtSplitInput,
 	getDebtSplitReturn,
+	getDebtSplitReturns,
 	linkTransactionToDebt,
 	replaceDebtSplit,
 } from "~/modules/debts/application";
@@ -62,12 +63,34 @@ export async function presentRecurrence(recurrence: StoredRecurrence) {
 		tags,
 	};
 }
-export async function listRecurrences(userId: string, isActive?: boolean) {
+export async function listRecurrenceSummaries(userId: string, isActive?: boolean) {
 	const rows = await queryRaw(
 		`SELECT * FROM "Recurrence" WHERE "userId"=$1${isActive === undefined ? "" : ' AND "isActive"=$2'} ORDER BY "name","id"`,
 		isActive === undefined ? [userId] : [userId, isActive],
 	);
-	return Promise.all(rows.map(row => presentRecurrence(normalizeRecurrence(row))));
+	const tagsById = await getTagsByEntity(
+		"RECURRENCE",
+		rows.map(row => String(row.id)),
+	);
+	return rows.map(row => {
+		const recurrence = normalizeRecurrence(row),
+			tags = tagsById.get(recurrence.id) ?? [];
+		return {
+			...recurrence,
+			needsConfiguration: recurrenceNeedsConfiguration(recurrence),
+			tagIds: tags.map(tag => tag.id),
+			tags,
+		};
+	});
+}
+/** Full snapshots are reserved for sync; load associations once for the whole set. */
+export async function listRecurrences(userId: string, isActive?: boolean) {
+	const rows = await listRecurrenceSummaries(userId, isActive);
+	const splits = await getDebtSplitReturns(
+		"recurringPaymentId",
+		rows.map(row => ({ amount: row.amount, id: row.id })),
+	);
+	return rows.map(row => ({ ...row, debtSplit: splits.get(row.id) ?? null }));
 }
 export async function validateRecurrence(userId: string, input: RecurrenceBody, allowMissing = false) {
 	try {

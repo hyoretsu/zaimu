@@ -49,6 +49,7 @@ export const RecurrenceReturn = t.Object({
 	updatedAt: t.String(),
 	userId: Id,
 });
+export const RecurrenceSummaryReturn = t.Omit(RecurrenceReturn, ["debtSplit"]);
 export const RecurrenceHistoryItem = t.Object({
 	changedAt: t.String(),
 	field: t.String(),

@@ -251,11 +251,28 @@ export function createRecurrenceService(deps: Dependencies) {
 				});
 			await deleteLocalRecurrence(getCurrentCacheIdentity()!, id, deleteTransactions);
 		},
+		async get(id: string): Promise<Recurrence> {
+			const owner = getCurrentCacheIdentity()!;
+			if (deps.isGuestMode()) {
+				const record = await localRecurrences.getById(id, owner);
+				if (!record) throw new Error("Recorrência não encontrada.");
+				return record.data;
+			}
+			const record = await deps.fetchWithAuth<Recurrence>(`/recurring/${id}`);
+			await localRecurrences.put(record, id, owner);
+			return record;
+		},
 		async getAll(): Promise<Recurrence[]> {
-			if (deps.isGuestMode()) return (await localRecurrences.getAll()).map(row => row.data);
+			if (deps.isGuestMode())
+				return (await localRecurrences.getAll()).map(({ data: { debtSplit: _, ...summary } }) => summary);
 			const records = await deps.fetchWithAuth<Recurrence[]>("/recurring");
+			const existing = new Map((await localRecurrences.getAll()).map(row => [row.data.id, row.data]));
 			await localRecurrences.replaceSnapshot(
-				records.map(data => ({ data, localId: data.id, syncedAt: Date.now() })),
+				records.map(data => ({
+					data: { ...existing.get(data.id), ...data },
+					localId: data.id,
+					syncedAt: Date.now(),
+				})),
 			);
 			return records;
 		},

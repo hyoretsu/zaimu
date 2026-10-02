@@ -320,3 +320,5 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Cursores guest de eventos de dívida, rendimentos, extrato de rendimentos e faturas agora usam posição estável e filtro vinculado ao proprietário, sem offset ou ID solto. Oito testes de paginação passaram, cobrindo inserção, remoção, empates e isolamento.
 
 - Integração com RabbitMQ local dedicado passou: publisher confirms, persistência durante restart, reconexão automática, receipt contra duplicação, retry e DLQ. Binding de retorno do retry de cache corrigido; quorum dead-letter usa entrega confirmada. DLQ confirma publicação antes de ACK; teste de confirmação perdida preserva original. Sete testes unitários passaram.
+
+- Recorrências unificadas voltaram a cumprir contrato de resumo: tags lidas em lote, rateio fora da listagem e detalhe com cache carregado somente ao editar. Snapshots do sync preservam rateios completos com loader em lote. E2E passou com 206 verificações; detalhe guest mantém dados completos armazenados.

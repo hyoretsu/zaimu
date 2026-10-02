@@ -264,6 +264,13 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(recurring.tagIds).toEqual(expect.arrayContaining([category.id, secondCategory.id]));
 		expect(recurring.storeName).toBe("Academia do bairro");
 
+		const recurrenceList = await jsonRequest("/recurring", "GET", undefined, owner.cookie);
+		expect(recurrenceList.status).toBe(200);
+		const recurrenceSummaries = (await recurrenceList.json()) as Record<string, unknown>[];
+		expect(recurrenceSummaries.find(row => row.id === recurring.id)).not.toHaveProperty("debtSplit");
+		const recurrenceDetail = await jsonRequest(`/recurring/${recurring.id}`, "GET", undefined, owner.cookie);
+		expect(await recurrenceDetail.json()).toHaveProperty("debtSplit");
+
 		const recurringWithoutWeekdayResponse = await jsonRequest(
 			"/recurring/",
 			"POST",
