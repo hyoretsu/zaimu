@@ -1,18 +1,16 @@
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createRootRoute, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout";
 import { initLocalDb, materializeLocalCreditBooks } from "@/lib/localStorage";
 import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
 import { materializeLocalRecurrences } from "@/lib/recurrence-service";
 import { useAuthStore, useThemeStore } from "@/stores";
-import { AppLoadingState } from "./components/AppLoadingState";
-import { LocalUpgradeReview } from "./components/LocalUpgradeReview";
+
+import { AppStartupGate } from "./components/AppStartupGate";
 
 function RootComponent() {
-	const [localReady, setLocalReady] = useState(false);
-	const [localError, setLocalError] = useState<string | null>(null);
 	const pathname = useLocation().pathname;
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
@@ -26,24 +24,20 @@ function RootComponent() {
 		pathname === "/privacy" ||
 		pathname === "/terms";
 
+	const localDatabase = useQuery({
+		enabled: isInitialized && isGuestMode && !isAuthenticated,
+		queryFn: initLocalDb,
+		queryKey: ["local-database"],
+		retry: false,
+	});
+
 	useEffect(() => {
 		initializeTheme();
-		let active = true;
-		void initLocalDb()
-			.then(() => {
-				if (active) setLocalReady(true);
-			})
-			.catch(error => {
-				if (active) setLocalError(error instanceof Error ? error.message : "Falha no armazenamento local");
-			});
 		void initialize();
-		return () => {
-			active = false;
-		};
 	}, [initialize, initializeTheme]);
 
 	useEffect(() => {
-		if (!localReady || !identity || !isGuestMode) return;
+		if (!localDatabase.isSuccess || !identity || !isGuestMode || isAuthenticated) return;
 		let active = true;
 		const materialize = async () => {
 			try {
@@ -67,7 +61,7 @@ function RootComponent() {
 			clearInterval(timer);
 			document.removeEventListener("visibilitychange", onVisible);
 		};
-	}, [identity, isGuestMode, localReady, queryClient]);
+	}, [identity, isAuthenticated, isGuestMode, localDatabase.isSuccess, queryClient]);
 
 	useEffect(() => {
 		if (!isInitialized || isPublicRoute || isRateLimited || isAuthenticated || isGuestMode) return;
@@ -87,24 +81,18 @@ function RootComponent() {
 		});
 	}, [identity, queryClient]);
 
-	if (localError)
-		return (
-			<LocalUpgradeReview
-				error={localError}
-				onRetry={async () => {
-					await initLocalDb();
-					setLocalReady(true);
-					setLocalError(null);
-				}}
-			/>
-		);
-	if (!localReady) return <AppLoadingState />;
-	if (!isPublicRoute && !isInitialized) return <AppLoadingState />;
 	if (isPublicRoute) return <Outlet />;
 	return (
-		<AppShell key={identity}>
-			<Outlet />
-		</AppShell>
+		<AppStartupGate
+			isAuthenticated={isAuthenticated}
+			isGuestMode={isGuestMode}
+			isInitialized={isInitialized}
+			localDatabase={localDatabase}
+		>
+			<AppShell key={identity}>
+				<Outlet />
+			</AppShell>
+		</AppStartupGate>
 	);
 }
 

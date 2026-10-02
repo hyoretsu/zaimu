@@ -404,7 +404,7 @@ export const dataService = {
 				body: JSON.stringify(data),
 				method: "POST",
 			});
-			await localAccounts.put(account, account.id);
+			cacheRemoteData(localAccounts.put(account, account.id));
 			return account;
 		},
 
@@ -414,7 +414,7 @@ export const dataService = {
 				return;
 			}
 			await fetchWithAuth(`/financial-accounts/${id}`, { method: "DELETE" });
-			await localAccounts.delete(id);
+			cacheRemoteData(localAccounts.delete(id));
 		},
 		async getAll(): Promise<FinancialAccount[]> {
 			return (await dataService.accounts.getAllIncludingHidden()).filter(account => !account.isHidden);
@@ -570,7 +570,7 @@ export const dataService = {
 				body: JSON.stringify(data),
 				method: "PATCH",
 			});
-			await localAccounts.put(account, account.id);
+			cacheRemoteData(localAccounts.put(account, account.id));
 			return account;
 		},
 	},
@@ -877,7 +877,7 @@ export const dataService = {
 				body: JSON.stringify(data),
 				method: "POST",
 			});
-			await localCategories.put(category, category.id);
+			cacheRemoteData(localCategories.put(category, category.id));
 			return category;
 		},
 
@@ -887,7 +887,7 @@ export const dataService = {
 				return;
 			}
 			await fetchWithAuth(`/categories/${id}`, { method: "DELETE" });
-			await localCategories.delete(id);
+			cacheRemoteData(localCategories.delete(id));
 		},
 		async getByIds(ids: string[]): Promise<Category[]> {
 			const selected = [...new Set(ids)].sort();
@@ -925,7 +925,7 @@ export const dataService = {
 				body: JSON.stringify(data),
 				method: "PATCH",
 			});
-			await localCategories.put(category, category.id);
+			cacheRemoteData(localCategories.put(category, category.id));
 			return category;
 		},
 	},
@@ -1466,7 +1466,7 @@ export const dataService = {
 					body: JSON.stringify(data),
 					method: "POST",
 				});
-				await localTransactions.put(result.transaction, result.transaction.id);
+				cacheRemoteData(localTransactions.put(result.transaction, result.transaction.id));
 				return result;
 			}
 			const [card, account] = await Promise.all([
@@ -2453,7 +2453,7 @@ export const dataService = {
 				body: JSON.stringify(data),
 				method: "POST",
 			});
-			await localLoans.put(loan, loan.id);
+			cacheRemoteData(localLoans.put(loan, loan.id));
 			return loan;
 		},
 
@@ -2463,7 +2463,7 @@ export const dataService = {
 				return;
 			}
 			await fetchWithAuth(`/loans/${id}`, { method: "DELETE" });
-			await localLoans.delete(id);
+			cacheRemoteData(localLoans.delete(id));
 		},
 		async getAll(): Promise<Loan[]> {
 			if (isGuestMode()) {
@@ -2596,7 +2596,7 @@ export const dataService = {
 				body: JSON.stringify(data),
 				method: "PATCH",
 			});
-			await localLoans.put(loan, loan.id);
+			cacheRemoteData(localLoans.put(loan, loan.id));
 			return loan;
 		},
 	},
@@ -2622,7 +2622,7 @@ export const dataService = {
 				body: JSON.stringify({ name }),
 				method: "POST",
 			});
-			await localStores.put(store, store.id);
+			cacheRemoteData(localStores.put(store, store.id));
 			return store;
 		},
 
@@ -3060,7 +3060,7 @@ export const dataService = {
 				body: JSON.stringify(data),
 				method: "POST",
 			});
-			await localTransactions.put(transaction, transaction.id);
+			cacheRemoteData(localTransactions.put(transaction, transaction.id));
 			return transaction;
 		},
 
@@ -3070,7 +3070,7 @@ export const dataService = {
 				return;
 			}
 			await fetchWithAuth(`/transactions/${id}`, { method: "DELETE" });
-			await localTransactions.delete(id);
+			cacheRemoteData(localTransactions.delete(id));
 		},
 		async getAll(params?: {
 			categoryId?: string;
@@ -3321,7 +3321,7 @@ export const dataService = {
 				body: JSON.stringify(data),
 				method: "PATCH",
 			});
-			await localTransactions.put(transaction, transaction.id);
+			cacheRemoteData(localTransactions.put(transaction, transaction.id));
 			return transaction;
 		},
 	},

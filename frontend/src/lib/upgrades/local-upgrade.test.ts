@@ -1,14 +1,21 @@
 import { expect, test } from "bun:test";
 import { IDBFactory } from "fake-indexeddb";
 import { requestResult, transactionDone } from "../idb";
-import { reviewLocalOwnership, upgradeLocalDatabase } from "./local-upgrade";
+import { upgradeLocalDatabase } from "./local-upgrade";
 
-async function fixture() {
-	const factory = new IDBFactory();
-	const opening = factory.open("upgrade-test", 10);
+async function fixture(factory = new IDBFactory(), name = "upgrade-test") {
+	const opening = factory.open(name, 10);
 	opening.onupgradeneeded = () => {
 		const database = opening.result;
-		database.createObjectStore("accounts", { keyPath: "localId" });
+		for (const domain of [
+			"accounts",
+			"creditCards",
+			"creditCardStatements",
+			"creditPurchases",
+			"debtPeople",
+			"meta",
+		])
+			database.createObjectStore(domain, { keyPath: "localId" });
 		database
 			.createObjectStore("application-upgrade", { keyPath: "id" })
 			.put({ id: "state", status: "pending" });
@@ -86,27 +93,42 @@ test("upgrade aborts every conversion on a late failure and retries without losi
 	}
 });
 
-test("ambiguous ownership blocks upgrade until explicit review; concurrent tabs convert once", async () => {
+test("unattributed legacy records are archived without blocking initialization or concurrent tabs", async () => {
 	const database = await fixture();
 	try {
-		const tx = database.transaction("accounts", "readwrite");
+		const tx = database.transaction(["accounts", "debtPeople"], "readwrite");
 		const done = transactionDone(tx);
 		tx.objectStore("accounts").put({
 			data: { id: "unowned", name: "Historic" },
 			localId: "unowned",
 			modifiedAt: 7,
 		});
+		tx.objectStore("debtPeople").put({
+			data: { id: "person", name: "Lucas Dantas" },
+			localId: "person",
+			modifiedAt: 9,
+			syncedAt: 9,
+		});
 		await done;
-		await expect(upgradeLocalDatabase(database)).rejects.toThrow("Proprietário ambíguo");
-		await reviewLocalOwnership(database, [
-			{ domain: "accounts", localId: "unowned", ownerKey: "user:chosen" },
-		]);
 		await Promise.all([upgradeLocalDatabase(database), upgradeLocalDatabase(database)]);
-		const check = database.transaction("scoped-accounts", "readonly");
-		expect(await requestResult(check.objectStore("scoped-accounts").count())).toBe(1);
-		expect((await requestResult(check.objectStore("scoped-accounts").getAll()))[0]).toMatchObject({
-			modifiedAt: 7,
-			ownerKey: "user:chosen",
+		await upgradeLocalDatabase(database);
+		const check = database.transaction(
+			["scoped-accounts", "scoped-debtPeople", "application-upgrade"],
+			"readonly",
+		);
+		expect(await requestResult(check.objectStore("scoped-accounts").count())).toBe(0);
+		expect(await requestResult(check.objectStore("scoped-debtPeople").count())).toBe(0);
+		expect(
+			await requestResult(check.objectStore("application-upgrade").get("archive:accounts:unowned")),
+		).toMatchObject({ original: { modifiedAt: 7 }, preservedReason: "unresolved-owner" });
+		expect(
+			await requestResult(check.objectStore("application-upgrade").get("archive:debtPeople:person")),
+		).toMatchObject({
+			original: { data: { name: "Lucas Dantas" }, modifiedAt: 9, syncedAt: 9 },
+			preservedReason: "unresolved-owner",
+		});
+		expect(await requestResult(check.objectStore("application-upgrade").get("state"))).toMatchObject({
+			status: "complete",
 		});
 	} finally {
 		database.close();
@@ -189,6 +211,224 @@ test("tags and reference yields convert while preserving clocks, tombstones and 
 				)
 			).original.data.categoryId,
 		).toBe("old");
+	} finally {
+		database.close();
+	}
+});
+
+test("upgrade resolves statement links, scoped owners and previously reviewed roots", async () => {
+	const factory = new IDBFactory();
+	const original = Object.getOwnPropertyDescriptor(globalThis, "indexedDB");
+	Object.defineProperty(globalThis, "indexedDB", { configurable: true, value: factory });
+	const database = await fixture(factory, "zaimu-local");
+	try {
+		const tx = database.transaction(Array.from(database.objectStoreNames), "readwrite");
+		const done = transactionDone(tx);
+		tx.objectStore("scoped-accounts").put({
+			data: { id: "account" },
+			localId: "account",
+			modifiedAt: 3,
+			ownerKey: "user:owner",
+			scopedId: "user:owner\u0000account",
+		});
+		tx.objectStore("creditCards").put({
+			data: { financialAccountId: "account", id: "card" },
+			deleted: true,
+			localId: "card",
+		});
+		tx.objectStore("creditCardStatements").put({
+			data: { creditCardId: "card", id: "statement" },
+			deleted: true,
+			localId: "statement",
+		});
+		tx.objectStore("creditPurchases").put({
+			data: { id: "purchase", statementId: "statement" },
+			deleted: true,
+			localId: "purchase",
+			modifiedAt: 8,
+			syncedAt: 5,
+		});
+		tx.objectStore("accounts").put({ data: { id: "root" }, localId: "root" });
+		tx.objectStore("creditCardStatements").put({
+			data: { financialAccountId: "root", id: "child" },
+			deleted: true,
+			localId: "child",
+		});
+		await done;
+		const review = database.transaction("application-upgrade", "readwrite");
+		const reviewed = transactionDone(review);
+		review.objectStore("application-upgrade").put({ id: "owner:accounts:root", ownerKey: "user:chosen" });
+		await reviewed;
+		await upgradeLocalDatabase(database);
+		const reading = database.transaction(
+			["scoped-meta", "scoped-creditCardStatements", "application-upgrade"],
+			"readonly",
+		);
+		expect(
+			await requestResult(reading.objectStore("scoped-meta").get("user:owner\u0000credit-source-purchase")),
+		).toMatchObject({
+			deleted: true,
+			modifiedAt: 8,
+			ownerKey: "user:owner",
+			syncedAt: 5,
+		});
+		expect(
+			await requestResult(reading.objectStore("scoped-creditCardStatements").get("user:chosen\u0000child")),
+		).toMatchObject({ ownerKey: "user:chosen" });
+		expect(
+			(
+				await requestResult(
+					reading.objectStore("application-upgrade").get("archive:creditPurchases:purchase"),
+				)
+			).original.data.statementId,
+		).toBe("statement");
+	} finally {
+		database.close();
+		if (original) Object.defineProperty(globalThis, "indexedDB", original);
+		else Reflect.deleteProperty(globalThis, "indexedDB");
+	}
+});
+
+test("ambiguous legacy references are archived and unrelated domains do not establish ownership", async () => {
+	const database = await fixture();
+	try {
+		const tx = database.transaction(
+			["accounts", "creditCards", "scoped-accounts", "scoped-creditCards"],
+			"readwrite",
+		);
+		const done = transactionDone(tx);
+		for (const ownerKey of ["user:a", "user:b"])
+			tx.objectStore("scoped-accounts").put({
+				data: { id: "shared" },
+				localId: "shared",
+				ownerKey,
+				scopedId: `${ownerKey}\u0000shared`,
+			});
+		tx.objectStore("scoped-creditCards").put({
+			data: { id: "unrelated" },
+			deleted: true,
+			localId: "unrelated",
+			ownerKey: "user:a",
+			scopedId: "user:a\u0000unrelated",
+		});
+		tx.objectStore("accounts").put({
+			data: { financialAccountId: "shared", id: "conflict" },
+			localId: "conflict",
+		});
+		tx.objectStore("accounts").put({
+			data: { financialAccountId: "unrelated", id: "orphan" },
+			localId: "orphan",
+		});
+		tx.objectStore("creditCards").put({
+			data: { financialAccountId: "conflict", id: "dependent", userId: "a" },
+			localId: "dependent",
+		});
+		await done;
+		await upgradeLocalDatabase(database);
+		const check = database.transaction(
+			["application-upgrade", "scoped-accounts", "scoped-creditCards"],
+			"readonly",
+		);
+		expect(await requestResult(check.objectStore("scoped-accounts").count())).toBe(2);
+		expect(await requestResult(check.objectStore("scoped-creditCards").count())).toBe(1);
+		for (const id of ["conflict", "orphan"])
+			expect(
+				await requestResult(check.objectStore("application-upgrade").get(`archive:accounts:${id}`)),
+			).toMatchObject({ preservedReason: "unresolved-owner" });
+		expect(
+			await requestResult(check.objectStore("application-upgrade").get("archive:creditCards:dependent")),
+		).toMatchObject({ preservedReason: "unresolved-reference" });
+	} finally {
+		database.close();
+	}
+});
+
+test("global sync cursor is archived without asking for an owner or copying it into account sync", async () => {
+	const database = await fixture();
+	try {
+		const tx = database.transaction("meta", "readwrite");
+		const done = transactionDone(tx);
+		tx.objectStore("meta").put({ data: 123, localId: "lastSyncAt", modifiedAt: 4 });
+		await done;
+		await upgradeLocalDatabase(database);
+		const reading = database.transaction(["application-upgrade", "scoped-meta", "meta"], "readonly");
+		expect(
+			(await requestResult(reading.objectStore("application-upgrade").get("archive:meta:lastSyncAt")))
+				.original,
+		).toEqual({ data: 123, localId: "lastSyncAt", modifiedAt: 4 });
+		expect(await requestResult(reading.objectStore("scoped-meta").count())).toBe(0);
+		expect(await requestResult(reading.objectStore("meta").count())).toBe(0);
+	} finally {
+		database.close();
+	}
+});
+
+test("people inherit ownership from linked financial records and scoped debt events", async () => {
+	const database = await fixture();
+	try {
+		const tx = database.transaction(["debtPeople", "scoped-transactions", "scoped-debtEvents"], "readwrite");
+		const done = transactionDone(tx);
+		for (const id of ["split-person", "event-person"])
+			tx.objectStore("debtPeople").put({
+				data: { id, name: "Lucas Dantas" },
+				localId: id,
+				modifiedAt: 9,
+				syncedAt: 7,
+			});
+		tx.objectStore("scoped-transactions").put({
+			data: { debtSplit: { participants: [{ debtPersonId: "split-person" }] }, id: "transaction" },
+			localId: "transaction",
+			modifiedAt: 1,
+			ownerKey: "user:owner",
+			scopedId: "user:owner\u0000transaction",
+		});
+		tx.objectStore("scoped-debtEvents").put({
+			data: { debtPersonId: "event-person", id: "event" },
+			localId: "event",
+			modifiedAt: 1,
+			ownerKey: "user:owner",
+			scopedId: "user:owner\u0000event",
+		});
+		await done;
+		await upgradeLocalDatabase(database);
+		const reading = database.transaction("scoped-debtPeople", "readonly");
+		for (const id of ["split-person", "event-person"])
+			expect(
+				await requestResult(reading.objectStore("scoped-debtPeople").get(`user:owner\u0000${id}`)),
+			).toMatchObject({ data: { name: "Lucas Dantas" }, modifiedAt: 9, ownerKey: "user:owner", syncedAt: 7 });
+	} finally {
+		database.close();
+	}
+});
+
+test("person references from multiple owners are preserved outside active stores", async () => {
+	const database = await fixture();
+	try {
+		const tx = database.transaction(["debtPeople", "scoped-debtEvents"], "readwrite");
+		const done = transactionDone(tx);
+		tx.objectStore("debtPeople").put({ data: { id: "person", name: "Lucas Dantas" }, localId: "person" });
+		for (const ownerKey of ["user:a", "user:b"])
+			tx.objectStore("scoped-debtEvents").put({
+				data: { debtPersonId: "person", id: "event" },
+				localId: "event",
+				ownerKey,
+				scopedId: `${ownerKey}\u0000event`,
+			});
+		await done;
+		await upgradeLocalDatabase(database);
+		expect(
+			await requestResult(
+				database
+					.transaction("application-upgrade", "readonly")
+					.objectStore("application-upgrade")
+					.get("archive:debtPeople:person"),
+			),
+		).toMatchObject({ preservedReason: "unresolved-owner" });
+		expect(
+			await requestResult(
+				database.transaction("scoped-debtPeople", "readonly").objectStore("scoped-debtPeople").count(),
+			),
+		).toBe(0);
 	} finally {
 		database.close();
 	}

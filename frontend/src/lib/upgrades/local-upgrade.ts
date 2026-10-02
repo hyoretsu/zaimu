@@ -56,92 +56,167 @@ function explicitOwner(data: unknown): StorageOwner | null {
 	return null;
 }
 
-const relationshipIds = [
-	"financialAccountId",
-	"originFinancialAccountId",
-	"destinationFinancialAccountId",
-	"creditCardId",
-	"paymentCreditCardId",
-	"creditCardStatementId",
-	"debtPersonId",
-	"loanId",
-] as const;
+const relationshipDomains = {
+	creditCardId: "creditCards",
+	creditCardStatementId: "creditCardStatements",
+	debtPersonId: "debtPeople",
+	destinationFinancialAccountId: "accounts",
+	financialAccountId: "accounts",
+	loanId: "loans",
+	originFinancialAccountId: "accounts",
+	paymentCreditCardId: "creditCards",
+	statementId: "creditCardStatements",
+} as const satisfies Record<string, StoreDomain>;
 
-function relatedOwners(
-	data: unknown,
-	ownersByRecordId: ReadonlyMap<string, ReadonlySet<StorageOwner>>,
-): Set<StorageOwner> {
-	const owners = new Set<StorageOwner>();
-	if (!data || typeof data !== "object") return owners;
+const recordKey = (domain: StoreDomain, id: string) => `${domain}:${id}`;
+
+// A global sync cursor cannot prove ownership or be reused as an account cursor.
+const isObsoleteSyncCursor = (domain: StoreDomain, row: LegacyLocalData) =>
+	domain === "meta" && row.localId === "lastSyncAt";
+
+function referencedPeople(data: unknown): Set<string> {
+	const ids = new Set<string>();
+	if (!data || typeof data !== "object") return ids;
 	const value = data as Record<string, unknown>;
-	for (const relationshipId of relationshipIds) {
-		const id = value[relationshipId];
-		if (typeof id !== "string") continue;
-		for (const owner of ownersByRecordId.get(id) ?? []) owners.add(owner);
-	}
-	return owners;
+	for (const field of ["debtPersonId", "personId"])
+		if (typeof value[field] === "string") ids.add(value[field]);
+	for (const field of ["debtSplit", "debtSplitRule", "participants", "events", "purchases", "charges"])
+		for (const child of Array.isArray(value[field]) ? value[field] : [value[field]])
+			for (const id of referencedPeople(child)) ids.add(id);
+	return ids;
 }
 
-async function migrateLegacyData(database: IDBDatabase, tx: IDBTransaction): Promise<void> {
-	const legacyDomains = (Object.keys(LEGACY_STORES) as StoreDomain[]).filter(domain =>
-		database.objectStoreNames.contains(LEGACY_STORES[domain]),
-	);
+/** Resolve proven ownership without using the current session. */
+async function resolveLegacyOwnership(database: IDBDatabase, tx: IDBTransaction) {
 	const records = new Map<StoreDomain, LegacyLocalData[]>();
-	for (const domain of legacyDomains) {
-		const transaction = tx;
-		records.set(domain, await requestResult(transaction.objectStore(LEGACY_STORES[domain]).getAll()));
-	}
-
 	const ownersByRecordId = new Map<string, Set<StorageOwner>>();
-	for (const items of records.values()) {
-		for (const item of items) {
-			const owner = explicitOwner(item.data);
-			if (!owner) continue;
-			const owners = ownersByRecordId.get(item.localId) ?? new Set<StorageOwner>();
-			owners.add(owner);
-			ownersByRecordId.set(item.localId, owners);
-		}
-	}
-
-	// Propagate ownership through several levels (account -> card -> statement -> purchase).
-	for (let pass = 0; pass < records.size; pass++) {
-		let changed = false;
-		for (const items of records.values())
-			for (const item of items) {
-				if (ownersByRecordId.has(item.localId)) continue;
-				const related = relatedOwners(item.data, ownersByRecordId);
-				if (related.size === 1) {
-					ownersByRecordId.set(item.localId, related);
-					changed = true;
-				}
+	const fixedOwners = new Map<string, StorageOwner>();
+	const personEvidence: Array<{ ids: Set<string>; sourceKey?: string; owner?: StorageOwner }> = [];
+	if (database.objectStoreNames.contains("scoped-debtEvents"))
+		for (const row of await requestResult(tx.objectStore("scoped-debtEvents").getAll()))
+			personEvidence.push({ ids: referencedPeople(row.data), owner: row.ownerKey });
+	for (const domain of Object.keys(LEGACY_STORES) as StoreDomain[]) {
+		const scopedName = scopedStoreName(domain);
+		if (database.objectStoreNames.contains(scopedName))
+			for (const row of await requestResult(tx.objectStore(scopedName).getAll())) {
+				const key = recordKey(domain, row.localId);
+				const candidates = ownersByRecordId.get(key) ?? new Set<StorageOwner>();
+				candidates.add(row.ownerKey);
+				ownersByRecordId.set(key, candidates);
+				if (domain !== "debtPeople")
+					personEvidence.push({ ids: referencedPeople(row.data), owner: row.ownerKey });
 			}
-		if (!changed) break;
-	}
-	for (const [domain, items] of records) {
-		const attributable = [];
+		if (!database.objectStoreNames.contains(LEGACY_STORES[domain])) continue;
+		const items: LegacyLocalData[] = await requestResult(tx.objectStore(LEGACY_STORES[domain]).getAll());
+		records.set(
+			domain,
+			items.filter(item => !isObsoleteSyncCursor(domain, item)),
+		);
 		for (const item of items) {
-			const directOwner = explicitOwner(item.data);
-			const related = relatedOwners(item.data, ownersByRecordId);
+			if (domain !== "debtPeople")
+				personEvidence.push({ ids: referencedPeople(item.data), sourceKey: recordKey(domain, item.localId) });
 			const choice = await requestResult(
 				tx.objectStore("application-upgrade").get(`owner:${domain}:${item.localId}`),
 			);
-			const owner = directOwner ?? choice?.ownerKey ?? (related.size === 1 ? [...related][0] : null);
-			if (!owner)
-				throw new Error(
-					`Proprietário ambíguo em ${domain}/${item.localId}. Revise dados locais antes de continuar.`,
-				);
-			attributable.push({ item, owner });
+			const owner: StorageOwner | undefined = explicitOwner(item.data) ?? choice?.ownerKey;
+			if (!owner) continue;
+			const key = recordKey(domain, item.localId);
+			fixedOwners.set(key, owner);
+			ownersByRecordId.set(key, new Set([owner]));
 		}
-		if (!attributable.length) continue;
-		const store = tx.objectStore(scopedStoreName(domain));
-		for (const { item, owner } of attributable) {
+	}
+
+	// Accumulate all candidates to a fixed point, including conflicts discovered later.
+	let changed = true;
+	while (changed) {
+		changed = false;
+		for (const [domain, items] of records)
+			for (const item of items) {
+				const key = recordKey(domain, item.localId);
+				if (fixedOwners.has(key) || !item.data || typeof item.data !== "object") continue;
+				const candidates = ownersByRecordId.get(key) ?? new Set<StorageOwner>();
+				const data = item.data as Record<string, unknown>;
+				for (const [field, relatedDomain] of Object.entries(relationshipDomains)) {
+					const id = data[field];
+					if (typeof id !== "string") continue;
+					for (const owner of ownersByRecordId.get(recordKey(relatedDomain, id)) ?? [])
+						if (!candidates.has(owner)) {
+							candidates.add(owner);
+							changed = true;
+						}
+				}
+				ownersByRecordId.set(key, candidates);
+			}
+		for (const evidence of personEvidence) {
+			const sourceOwners = evidence.owner
+				? [evidence.owner]
+				: (ownersByRecordId.get(evidence.sourceKey ?? "") ?? []);
+			for (const id of evidence.ids) {
+				const key = recordKey("debtPeople", id);
+				if (fixedOwners.has(key)) continue;
+				const candidates = ownersByRecordId.get(key) ?? new Set<StorageOwner>();
+				for (const owner of sourceOwners)
+					if (!candidates.has(owner)) {
+						candidates.add(owner);
+						changed = true;
+					}
+				ownersByRecordId.set(key, candidates);
+			}
+		}
+	}
+	const ownerFor = (domain: StoreDomain, item: LegacyLocalData) => {
+		const candidates = ownersByRecordId.get(recordKey(domain, item.localId));
+		return candidates?.size === 1 ? [...candidates][0] : null;
+	};
+	return { ownerFor, records };
+}
+
+async function migrateLegacyData(database: IDBDatabase, tx: IDBTransaction): Promise<void> {
+	const { records, ownerFor } = await resolveLegacyOwnership(database, tx);
+	const preserved = new Set<string>();
+	for (const [domain, items] of records)
+		for (const item of items) if (!ownerFor(domain, item)) preserved.add(recordKey(domain, item.localId));
+
+	// Keep dependent records together. An incomplete legacy graph must never enter sync.
+	let changed = true;
+	while (changed) {
+		changed = false;
+		for (const [domain, items] of records)
+			for (const item of items) {
+				const key = recordKey(domain, item.localId);
+				if (preserved.has(key) || !item.data || typeof item.data !== "object") continue;
+				const data = item.data as Record<string, unknown>;
+				const references = Object.entries(relationshipDomains).flatMap(([field, relatedDomain]) =>
+					typeof data[field] === "string" ? [recordKey(relatedDomain, data[field])] : [],
+				);
+				for (const id of referencedPeople(data)) references.push(recordKey("debtPeople", id));
+				if (references.some(reference => preserved.has(reference))) {
+					preserved.add(key);
+					changed = true;
+				}
+			}
+	}
+	for (const [domain, items] of records)
+		for (const item of items) {
+			if (preserved.has(recordKey(domain, item.localId))) {
+				const archiveId = `archive:${LEGACY_STORES[domain]}:${item.localId}`;
+				const archive = await requestResult(tx.objectStore("application-upgrade").get(archiveId));
+				await requestResult(
+					tx.objectStore("application-upgrade").put({
+						...archive,
+						preservedReason: ownerFor(domain, item) ? "unresolved-reference" : "unresolved-owner",
+					}),
+				);
+				continue;
+			}
+			const owner = ownerFor(domain, item)!;
+			const store = tx.objectStore(scopedStoreName(domain));
 			const key = scopedId(owner, item.localId);
 			if (await requestResult(store.get(key))) continue;
 			await requestResult(
 				store.put({ ...item, modifiedAt: item.modifiedAt ?? 0, ownerKey: owner, scopedId: key }),
 			);
 		}
-	}
 }
 
 async function migrateCardPayments(_database: IDBDatabase, transaction: IDBTransaction): Promise<void> {
@@ -400,37 +475,6 @@ async function normalizeFinancialRows(tx: IDBTransaction) {
 	}
 }
 
-/** Only an explicit review can assign an ambiguous historic record. */
-export async function reviewLocalOwnership(
-	database: IDBDatabase,
-	assignments: Array<{ domain: StoreDomain; localId: string; ownerKey: StorageOwner }>,
-) {
-	const tx = database.transaction(
-		["application-upgrade", ...assignments.map(a => LEGACY_STORES[a.domain])],
-		"readwrite",
-	);
-	const done = transactionDone(tx);
-	try {
-		for (const choice of assignments) {
-			if (!/^(user|guest):.+$/.test(choice.ownerKey)) throw new Error("Proprietário inválido");
-			const row = await requestResult(tx.objectStore(LEGACY_STORES[choice.domain]).get(choice.localId));
-			if (!row || explicitOwner(row.data)) throw new Error("Registro não disponível para atribuição");
-			await requestResult(
-				tx
-					.objectStore("application-upgrade")
-					.put({ id: `owner:${choice.domain}:${choice.localId}`, ownerKey: choice.ownerKey }),
-			);
-		}
-		await done;
-	} catch (error) {
-		try {
-			tx.abort();
-		} catch {}
-		await done.catch(() => undefined);
-		throw error;
-	}
-}
-
 async function extractRecurrenceProvenance(tx: IDBTransaction) {
 	const store = tx.objectStore("scoped-recurrences");
 	const state = tx.objectStore("application-upgrade");
@@ -449,50 +493,4 @@ async function extractRecurrenceProvenance(tx: IDBTransaction) {
 	// Sources remain in the recovery archive until a later schema upgrade removes empty stores.
 	for (const name of ["scoped-salaries", "scoped-subscriptions", "scoped-recurringPayments"])
 		await requestResult(tx.objectStore(name).clear());
-}
-
-export async function loadOwnershipReview() {
-	const database = await requestResult(indexedDB.open("zaimu-local"));
-	try {
-		const names = Object.values(LEGACY_STORES).filter(name => database.objectStoreNames.contains(name));
-		const tx = database.transaction([...names, "application-upgrade"], "readonly");
-		const rows: Array<{ domain: StoreDomain; localId: string; description: string }> = [];
-		const owners = new Set<StorageOwner>();
-		for (const name of names) {
-			for (const row of await requestResult(tx.objectStore(name).getAll())) {
-				const owner = explicitOwner(row.data);
-				if (owner) {
-					owners.add(owner);
-					continue;
-				}
-				const choice = await requestResult(
-					tx.objectStore("application-upgrade").get(`owner:${name}:${row.localId}`),
-				);
-				if (!choice)
-					rows.push({
-						description: row.data?.description ?? row.data?.name ?? row.localId,
-						domain: name as StoreDomain,
-						localId: row.localId,
-					});
-			}
-		}
-		for (const name of Array.from(database.objectStoreNames).filter(name => name.startsWith("scoped-"))) {
-			// Separate transactions because scoped stores are outside the historic snapshot.
-			for (const row of await requestResult(
-				database.transaction(name, "readonly").objectStore(name).getAll(),
-			))
-				if (row.ownerKey) owners.add(row.ownerKey);
-		}
-		return { owners: [...owners], rows };
-	} finally {
-		database.close();
-	}
-}
-export async function saveOwnershipReview(assignments: Parameters<typeof reviewLocalOwnership>[1]) {
-	const database = await requestResult(indexedDB.open("zaimu-local"));
-	try {
-		await reviewLocalOwnership(database, assignments);
-	} finally {
-		database.close();
-	}
 }

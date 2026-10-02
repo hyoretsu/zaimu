@@ -1,4 +1,5 @@
 export * from "./AppLoadingState";
+export * from "./AppStartupGate";
 export * from "./DashboardAccounts";
 export * from "./DashboardComparisonChart";
 export * from "./DashboardCreditCards";
@@ -10,4 +11,4 @@ export * from "./DashboardPeriodFlowCard";
 export * from "./DashboardProjectedCashFlowCard";
 export * from "./DashboardQuickActions";
 export * from "./DashboardSkeleton";
-export * from "./LocalUpgradeReview";
+export * from "./LocalStorageError";
