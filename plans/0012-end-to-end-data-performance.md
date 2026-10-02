@@ -302,3 +302,5 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Fences HTTP e consumidor usam mesma matriz central, incluindo detalhes de conta, categorias e famílias de faturas/importações. Workers abrem fences antes dos efeitos, renovam leases e gravam efeitos/outbox na mesma transação; finalização ocorre após commit. 24 testes de cache/worker passaram; build backend passou. Aceite de cache ainda exige limpeza de gerações antigas e integração completa do broker.
 
 - Pagamentos de cartão informam IDs anteriores/novos ao fence e outbox; edição e exclusão invalidam calendários corretos sem invalidar cartões em transações comuns. 12 testes focados passaram.
+
+- Tela de transações confirmou três requests iniciais no navegador: resumo de importações, página de transações e rendimentos. Modal fechado de criação, filtro de contas e sugestões não antecipam dados; aberturas exibem skeleton, erro e retry. Build frontend passou. Verificação das demais telas permanece em andamento.

@@ -8,10 +8,15 @@ import type { Option } from "./CustomSelect";
 import { Input } from "./Input";
 import { Popover, PopoverContent, PopoverTrigger } from "./Popover";
 import { ScrollArea } from "./ScrollArea";
+import { Skeleton } from "./Skeleton";
 
 export function SearchableCustomSelect({
 	className,
 	disabled,
+	isLoading = false,
+	error,
+	onRetry,
+	onOpenChange,
 	label,
 	onValueChange,
 	options,
@@ -21,6 +26,10 @@ export function SearchableCustomSelect({
 }: {
 	className?: string;
 	disabled?: boolean;
+	isLoading?: boolean;
+	error?: string;
+	onRetry?: () => void;
+	onOpenChange?: (open: boolean) => void;
 	label: string;
 	onValueChange: (value: string) => void;
 	options: Option[];
@@ -39,6 +48,7 @@ export function SearchableCustomSelect({
 	const selectedOption = options.find(option => option.value === value);
 	const changeOpen = (nextOpen: boolean) => {
 		setOpen(nextOpen);
+		onOpenChange?.(nextOpen);
 		if (!nextOpen) setSearch("");
 	};
 
@@ -135,26 +145,43 @@ export function SearchableCustomSelect({
 							}}
 							role="listbox"
 						>
-							{filteredOptions.map(option => (
-								<button
-									aria-selected={option.value === value}
-									className="relative flex w-full cursor-pointer items-center rounded-xl border border-transparent py-2 pr-8 pl-3 text-left text-sm outline-none hover:border-border hover:bg-accent focus-visible:border-ring focus-visible:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
-									disabled={option.disabled}
-									key={option.value}
-									onClick={() => {
-										onValueChange(option.value);
-										changeOpen(false);
-									}}
-									role="option"
-									type="button"
-								>
-									{option.label}
-									{option.value === value && (
-										<HugeiconsIcon className="absolute right-2 size-4" icon={Tick02Icon} strokeWidth={2} />
-									)}
-								</button>
-							))}
-							{filteredOptions.length === 0 && (
+							{isLoading ? (
+								<div aria-label="Carregando opções" className="space-y-2 p-2" role="status">
+									{[0, 1, 2].map(key => (
+										<Skeleton className="h-8 w-full" key={key} />
+									))}
+								</div>
+							) : error ? (
+								<div className="space-y-2 p-2">
+									<p className="text-destructive text-sm" role="alert">
+										{error}
+									</p>
+									<Button onClick={onRetry} variant="outline">
+										Tentar novamente
+									</Button>
+								</div>
+							) : (
+								filteredOptions.map(option => (
+									<button
+										aria-selected={option.value === value}
+										className="relative flex w-full cursor-pointer items-center rounded-xl border border-transparent py-2 pr-8 pl-3 text-left text-sm outline-none hover:border-border hover:bg-accent focus-visible:border-ring focus-visible:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+										disabled={option.disabled}
+										key={option.value}
+										onClick={() => {
+											onValueChange(option.value);
+											changeOpen(false);
+										}}
+										role="option"
+										type="button"
+									>
+										{option.label}
+										{option.value === value && (
+											<HugeiconsIcon className="absolute right-2 size-4" icon={Tick02Icon} strokeWidth={2} />
+										)}
+									</button>
+								))
+							)}
+							{!isLoading && !error && filteredOptions.length === 0 && (
 								<p className="px-3 py-6 text-center text-muted-foreground text-sm">
 									Nenhum resultado encontrado.
 								</p>

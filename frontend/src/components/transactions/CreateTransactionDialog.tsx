@@ -77,7 +77,7 @@ export function CreateTransactionDialog({
 		}));
 	}, [account?.id, open]);
 	const accountsQuery = useQuery({
-		enabled: identity !== null,
+		enabled: identity !== null && open,
 		queryFn: () => dataService.accounts.getAll(),
 		queryKey: queryKeys.accounts.list(identity!),
 	});

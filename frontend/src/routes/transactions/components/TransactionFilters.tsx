@@ -32,8 +32,9 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 	const [expanded, setExpanded] = useState(!isMobile);
 	const contentId = useId();
 	const identity = useCacheIdentity();
+	const [accountsRequested, setAccountsRequested] = useState(false);
 	const accountsQuery = useQuery({
-		enabled: identity !== null,
+		enabled: identity !== null && (accountsRequested || filters.accountId !== "all"),
 		queryFn: () => dataService.accounts.getAll(),
 		queryKey: queryKeys.accounts.list(identity!),
 	});
@@ -147,8 +148,13 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 					/>
 					<CustomSelect
 						className="min-w-0"
-						disabled={accountsQuery.isPending}
+						error={accountsQuery.error?.message}
+						isLoading={accountsRequested && accountsQuery.isPending}
 						label="Conta"
+						onOpenChange={open => {
+							if (open) setAccountsRequested(true);
+						}}
+						onRetry={() => void accountsQuery.refetch()}
 						onValueChange={value => set("accountId", value)}
 						options={[
 							{ label: "Todas as contas", special: true, value: "all" },

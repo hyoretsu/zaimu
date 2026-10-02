@@ -207,7 +207,7 @@ export function TransactionsPage() {
 	}, [transactionsQuery.fetchNextPage, transactionsQuery.hasNextPage, transactionsQuery.isFetchingNextPage]);
 
 	const transferSuggestionsQuery = useQuery({
-		enabled: identity !== null,
+		enabled: identity !== null && transferSuggestionsOpen,
 		queryFn: () => dataService.transactions.getTransferSuggestions(),
 		queryKey: [...queryKeys.transactions.list(identity!, {}), "transfer-suggestions"],
 	});
@@ -446,7 +446,7 @@ export function TransactionsPage() {
 				title="Transações"
 			/>
 			<PendingTransactionImportsNotice onReview={setReviewingImportId} />
-			{visibleTransferSuggestions.length ? (
+			{transferSuggestionsQuery.data === undefined || visibleTransferSuggestions.length ? (
 				<ActionNotice
 					action={
 						<Button
@@ -457,13 +457,20 @@ export function TransactionsPage() {
 							<LuEye aria-hidden="true" /> Ver transferências
 						</Button>
 					}
-					description={`${visibleTransferSuggestions.length} ${visibleTransferSuggestions.length === 1 ? "par encontrado" : "pares encontrados"} no mesmo dia.`}
+					description={
+						transferSuggestionsQuery.data === undefined
+							? "Busque pares de entrada e saída para revisar transferências entre contas."
+							: `${visibleTransferSuggestions.length} ${visibleTransferSuggestions.length === 1 ? "par encontrado" : "pares encontrados"} no mesmo dia.`
+					}
 					icon={<LuArrowLeftRight aria-hidden="true" className="size-5 text-primary" />}
 					title="Transferências sugeridas"
 				/>
 			) : null}
 			<TransferSuggestionsDialog
+				error={transferSuggestionsQuery.error?.message}
+				isPending={transferSuggestionsQuery.isPending}
 				onOpenChange={setTransferSuggestionsOpen}
+				onRetry={() => void transferSuggestionsQuery.refetch()}
 				onSelect={suggestion => {
 					setTransferSuggestionsOpen(false);
 					setTransferSuggestionDecision(suggestion);

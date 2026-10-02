@@ -12,6 +12,10 @@ export interface Option {
 export function CustomSelect({
 	className,
 	disabled,
+	isLoading = false,
+	error,
+	onRetry,
+	onOpenChange,
 	label,
 	onValueChange,
 	options,
@@ -23,6 +27,10 @@ export function CustomSelect({
 }: {
 	className?: string;
 	disabled?: boolean;
+	isLoading?: boolean;
+	error?: string;
+	onRetry?: () => void;
+	onOpenChange?: (open: boolean) => void;
 	label: string;
 	onValueChange: (value: string) => void;
 	options: Option[];
@@ -42,7 +50,11 @@ export function CustomSelect({
 			<SearchableCustomSelect
 				className={className}
 				disabled={disabled}
+				error={error}
+				isLoading={isLoading}
 				label={label}
+				onOpenChange={onOpenChange}
+				onRetry={onRetry}
 				onValueChange={onValueChange}
 				options={displayedOptions}
 				placeholder={placeholder}
@@ -57,7 +69,7 @@ export function CustomSelect({
 			<p className="font-medium text-sm leading-none">
 				{label} {required && <span className="text-destructive">*</span>}
 			</p>
-			<Select disabled={disabled} onValueChange={onValueChange} value={value}>
+			<Select disabled={disabled} onOpenChange={onOpenChange} onValueChange={onValueChange} value={value}>
 				<SelectTrigger aria-label={label} className="h-10 w-full cursor-pointer">
 					<SelectValue placeholder={placeholder} />
 				</SelectTrigger>
