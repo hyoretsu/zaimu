@@ -34,7 +34,10 @@ export const StoresController = new Elysia({ prefix: "/stores" })
 			);
 			set.headers.etag = cached.etag;
 			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
-			if (request.headers.get("if-none-match") === cached.etag) return new Response(null, { status: 304 });
+			if (request.headers.get("if-none-match") === cached.etag) {
+				set.status = 304;
+				return undefined as never;
+			}
 			return cached.value;
 		},
 		{

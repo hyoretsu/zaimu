@@ -210,7 +210,11 @@ export class DistributedCache {
 			if (ownsLock) await this.safely(() => this.cache.releaseLock(lockKey, lockOwner));
 		}
 	}
-	async beginWrite(userId: string, namespaces: CacheNamespace[], token = crypto.randomUUID()) {
+	async beginWrite(
+		userId: string,
+		namespaces: readonly CacheNamespace[],
+		token: string = crypto.randomUUID(),
+	) {
 		await Promise.all(
 			namespaces.map(namespace =>
 				this.safely(() => this.cache.beginFence(this.fenceKey(userId, namespace), token, 120_000)),
@@ -218,7 +222,7 @@ export class DistributedCache {
 		);
 		return token;
 	}
-	async finishWrite(userId: string, namespaces: CacheNamespace[], token?: string) {
+	async finishWrite(userId: string, namespaces: readonly CacheNamespace[], token?: string) {
 		await Promise.all(
 			namespaces.map(namespace =>
 				this.safely(() =>

@@ -39,7 +39,7 @@ async function loadLedger(response: Response, cookie: string): Promise<TestLedge
 	if (response.status !== 200) throw new Error(`Ledger failed: ${response.status}`);
 	const ledger = (await response.json()) as TestLedger;
 	for (const person of ledger.people) {
-		if ("events" in person) throw new Error("Debt summary must not embed events");
+		if (Object.hasOwn(person, "events")) throw new Error("Debt summary must not embed events");
 		person.events = [];
 		let cursor: string | null = null;
 		do {

@@ -326,3 +326,5 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Históricos dos adaptadores exigidos pelas regras de negócio usam mesma paginação/cache da recorrência unificada. Resumos filtram origem no SQL e resolvem cartões em lote; sync conserva snapshots completos. E2E passou. Limpeza de legado adiada pelo usuário para plano próprio; nenhuma compatibilidade existente foi removida.
 
 - Regressão IndexedDB de pagamentos passou a exigir versão mínima compatível, preservando verificação de migração de v5 e replay após edição/exclusão. Suítes completas passaram: 227 backend, 181 frontend e 65 finanças. Integrações isoladas de crédito passaram (sete testes, 52 verificações), incluindo concorrência, rollback, importação, sync, rateio e previsões. Redis passou em 15 testes de leitura/fences/limpeza/worker.
+
+- Verificação final corrigiu tipos dos handlers ETag/304 de catálogos, tokens/fences readonly e fixtures de headers RabbitMQ e resumo de dívidas. Contratos HTTP preservados; checagem final será repetida após commit.

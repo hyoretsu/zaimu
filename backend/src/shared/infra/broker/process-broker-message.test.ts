@@ -56,8 +56,22 @@ describe("processBrokerMessage", () => {
 		const delivery = message(JSON.stringify(event));
 		delivery.properties.headers = {
 			"x-death": [
-				{ count: 2, queue: "queue", reason: "rejected" },
-				{ count: 2, queue: "queue.retry", reason: "expired" },
+				{
+					count: 2,
+					exchange: "zaimu.events",
+					queue: "queue",
+					reason: "rejected",
+					"routing-keys": ["cache.invalidate"],
+					time: { "!": "timestamp", value: 1_759_360_000 },
+				},
+				{
+					count: 2,
+					exchange: "zaimu.events",
+					queue: "queue.retry",
+					reason: "expired",
+					"routing-keys": ["cache.invalidate.retry"],
+					time: { "!": "timestamp", value: 1_759_360_000 },
+				},
 			],
 		};
 		const result = await processBrokerMessage(
