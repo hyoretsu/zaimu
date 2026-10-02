@@ -1,6 +1,14 @@
 import type { EventEnvelope } from "./events";
 
+export interface CacheGuard {
+	generationKey: string;
+	generation: string;
+	fenceKey?: string;
+}
+
 export interface CachePort {
+	getRegistered(key: string, guards: CacheGuard[]): Promise<string | null>;
+	setRegistered(key: string, value: string, guards: CacheGuard[]): Promise<boolean>;
 	beginFence(key: string, token: string, leaseMs: number): Promise<void>;
 	hasFence(key: string): Promise<boolean>;
 	finishFence(generationKey: string, fenceKey: string, token?: string): Promise<void>;

@@ -1,11 +1,39 @@
 import { describe, expect, test } from "bun:test";
 import { namespacesForEvent } from "~/shared/application/cache-invalidation";
 import { createEventEnvelope } from "~/shared/application/events";
-import type { CachePort } from "~/shared/application/ports";
+import type { CacheGuard, CachePort } from "~/shared/application/ports";
 import { DistributedCache } from "./DistributedCache";
 
 class MemoryCache implements CachePort {
 	data = new Map<string, string>();
+	registries = new Map<string, Set<string>>();
+	async getRegistered(key: string, guards: CacheGuard[]) {
+		for (const guard of guards) {
+			if (
+				((await this.get(guard.generationKey)) ?? "0") !== guard.generation ||
+				(guard.fenceKey && (await this.hasFence(guard.fenceKey)))
+			)
+				return null;
+		}
+		return this.get(key);
+	}
+	async setRegistered(key: string, value: string, guards: CacheGuard[]) {
+		for (const guard of guards) {
+			if (
+				((await this.get(guard.generationKey)) ?? "0") !== guard.generation ||
+				(guard.fenceKey && (await this.hasFence(guard.fenceKey)))
+			)
+				return false;
+		}
+		await this.set(key, value);
+		for (const guard of guards) {
+			const registryKey = `${guard.generationKey}:entries:${guard.generation}`;
+			const registry = this.registries.get(registryKey) ?? new Set<string>();
+			registry.add(key);
+			this.registries.set(registryKey, registry);
+		}
+		return true;
+	}
 	fences = new Map<string, Set<string>>();
 	async beginFence(key: string, token: string, _leaseMs: number) {
 		const tokens = this.fences.get(key) ?? new Set<string>();
@@ -26,7 +54,11 @@ class MemoryCache implements CachePort {
 		return this.data.get(key) ?? null;
 	}
 	async increment(key: string) {
-		const next = Number(this.data.get(key) ?? 0) + 1;
+		const previous = this.data.get(key) ?? "0";
+		const registryKey = `${key}:entries:${previous}`;
+		for (const entry of this.registries.get(registryKey) ?? []) this.data.delete(entry);
+		this.registries.delete(registryKey);
+		const next = Number(previous) + 1;
 		this.data.set(key, String(next));
 		return next;
 	}
@@ -72,6 +104,33 @@ class FlakyCache extends MemoryCache {
 }
 
 describe("DistributedCache", () => {
+	test("a loader finishing after invalidation cannot repopulate the retired generation", async () => {
+		const storage = new MemoryCache();
+		const cache = new DistributedCache(storage);
+		let release!: () => void;
+		let started!: () => void;
+		const loading = new Promise<void>(resolve => {
+			started = resolve;
+		});
+		const blocked = new Promise<void>(resolve => {
+			release = resolve;
+		});
+		const pending = cache.remember("user", "transactions:detail:purchase", {}, async () => {
+			started();
+			await blocked;
+			return "old";
+		});
+		await loading;
+		const oldKey = await cache.key("user", "transactions:detail:purchase", {});
+		const token = await cache.beginWrite("user", ["transactions:detail"]);
+		await cache.finishWrite("user", ["transactions:detail"], token);
+		release();
+		await pending;
+		expect(storage.data.has(oldKey)).toBe(false);
+		expect((await cache.remember("user", "transactions:detail:purchase", {}, async () => "new")).value).toBe(
+			"new",
+		);
+	});
 	test("canonicalizes parameters and returns cache hits without loading", async () => {
 		const cache = new DistributedCache(new MemoryCache());
 		let loads = 0;

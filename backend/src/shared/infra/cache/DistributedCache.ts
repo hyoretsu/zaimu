@@ -1,4 +1,4 @@
-import type { CachePort } from "~/shared/application/ports";
+import type { CacheGuard, CachePort } from "~/shared/application/ports";
 
 export const cacheNamespaces = [
 	"accounts:detail",
@@ -110,16 +110,31 @@ export class DistributedCache {
 		);
 		return fences.some(fence => fence !== false);
 	}
-	async key(userId: string, namespace: CacheNamespace, parameters: unknown) {
+	private async snapshot(userId: string, namespace: CacheNamespace, parameters: unknown) {
+		const dependencies = this.dependencies(namespace);
 		const [epoch, generation] = await Promise.all([
 			this.getEpoch(),
 			Promise.all(
-				this.dependencies(namespace).map(dependency =>
+				dependencies.map(dependency =>
 					this.safely(() => this.cache.get(this.generationKey(userId, dependency))),
 				),
 			),
 		]);
-		return `zaimu:v1:${epoch}:${userId}:${namespace}:${generation.map(value => value ?? "0").join(".")}:${hash(JSON.stringify(stableValue(parameters)))}`;
+		const guards: CacheGuard[] = [
+			{ generation: epoch, generationKey: "zaimu:cache:epoch" },
+			...dependencies.map((dependency, index) => ({
+				fenceKey: this.fenceKey(userId, dependency),
+				generation: generation[index] ?? "0",
+				generationKey: this.generationKey(userId, dependency),
+			})),
+		];
+		return {
+			guards,
+			key: `zaimu:v2:${epoch}:${userId}:${namespace}:${generation.map(value => value ?? "0").join(".")}:${hash(JSON.stringify(stableValue(parameters)))}`,
+		};
+	}
+	async key(userId: string, namespace: CacheNamespace, parameters: unknown) {
+		return (await this.snapshot(userId, namespace, parameters)).key;
 	}
 	async read<Value>(
 		userId: string,
@@ -127,7 +142,8 @@ export class DistributedCache {
 		parameters: unknown,
 	): Promise<CacheEntry<Value> | undefined> {
 		if (await this.fenced(userId, namespace)) return undefined;
-		const raw = await this.safely(async () => this.cache.get(await this.key(userId, namespace, parameters)));
+		const { key, guards } = await this.snapshot(userId, namespace, parameters);
+		const raw = await this.safely(() => this.cache.getRegistered(key, guards));
 		if (!raw) return undefined;
 		try {
 			return JSON.parse(raw) as CacheEntry<Value>;
@@ -147,7 +163,12 @@ export class DistributedCache {
 			logCacheOperation(namespace, "hit", startedAt);
 			return { ...cached, hit: true as const };
 		}
-		const key = await this.key(userId, namespace, parameters);
+		if (await this.fenced(userId, namespace)) {
+			const value = await load();
+			logCacheOperation(namespace, "bypass", startedAt);
+			return { etag: `"${hash(JSON.stringify(value))}"`, hit: false as const, value };
+		}
+		const { key, guards } = await this.snapshot(userId, namespace, parameters);
 		const existing = localCoalescing.get(key) as Promise<CacheEntry<Value>> | undefined;
 		if (existing) {
 			const entry = await existing;
@@ -176,7 +197,7 @@ export class DistributedCache {
 			const encoded = JSON.stringify(value);
 			const entry = { etag: `"${hash(encoded)}"`, value };
 			if (!(await this.fenced(userId, namespace)))
-				await this.safely(() => this.cache.set(key, JSON.stringify(entry)));
+				await this.safely(() => this.cache.setRegistered(key, JSON.stringify(entry), guards));
 			return entry;
 		})();
 		localCoalescing.set(key, pending);
