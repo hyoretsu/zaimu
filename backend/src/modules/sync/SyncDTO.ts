@@ -9,6 +9,26 @@ const SyncRecurrence = t.Object(
 );
 
 const Id = t.String({ maxLength: 36, minLength: 1 });
+export const SyncDebtEvent = t.Object(
+	{
+		amount: t.Number({ exclusiveMinimum: 0 }),
+		baseUpdatedAt: t.Optional(t.String({ format: "date-time" })),
+		createdAt: t.String({ format: "date-time" }),
+		date: t.Nullable(t.String({ format: "date" })),
+		debtPersonId: Id,
+		deletedAt: t.Optional(t.Nullable(t.String({ format: "date-time" }))),
+		description: t.Optional(t.Nullable(t.String({ maxLength: 1000 }))),
+		dueDate: t.Optional(t.Nullable(t.String({ format: "date" }))),
+		effect: t.Number(),
+		id: Id,
+		kind: t.Union([t.Literal("ORIGIN"), t.Literal("MIGRATED_SETTLEMENT")]),
+		updatedAt: t.String({ format: "date-time" }),
+		upgradeRecordId: t.Optional(Id),
+	},
+	{ additionalProperties: false },
+);
+export type SyncDebtEvent = typeof SyncDebtEvent.static;
+
 const Entity = t.Record(t.String(), t.Unknown());
 
 export const SyncBody = t.Object(
@@ -17,8 +37,8 @@ export const SyncBody = t.Object(
 		creditBooks: t.Optional(t.Array(CreditBookDTO)),
 		creditCardStatements: t.Optional(t.Array(Entity)),
 		creditCards: t.Optional(t.Array(Entity)),
+		debtEvents: t.Optional(t.Array(SyncDebtEvent)),
 		debtPeople: t.Optional(t.Array(Entity)),
-		debts: t.Optional(t.Array(Entity)),
 		financialAccounts: t.Optional(t.Array(Entity)),
 		financialAccountYieldHolidays: t.Optional(t.Array(Entity)),
 		financialAccountYields: t.Optional(t.Array(Entity)),
@@ -38,8 +58,8 @@ export const SyncReturn = t.Object({
 		creditBooks: t.Array(CreditBookDTO),
 		creditCardStatements: t.Array(Entity),
 		creditCards: t.Array(Entity),
+		debtEvents: t.Array(SyncDebtEvent),
 		debtPeople: t.Array(Entity),
-		debts: t.Array(Entity),
 		financialAccounts: t.Array(Entity),
 		financialAccountYieldHolidays: t.Array(Entity),
 		financialAccountYields: t.Array(Entity),

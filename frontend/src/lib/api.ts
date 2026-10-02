@@ -466,18 +466,20 @@ export interface EarlyPayoff {
 	remainingPrincipal: number;
 }
 
-export interface Debt {
+export interface StoredDebtEvent {
+	baseUpdatedAt?: string;
 	id: string;
-	userId: string;
-	personName: string;
+	debtPersonId: string;
+	kind: "ORIGIN" | "MIGRATED_SETTLEMENT";
 	amount: number;
-	description?: string;
-	isOwedToMe: boolean;
-	date?: string;
-	dueDate?: string;
-	isPaid: boolean;
-	paidDate?: string;
-	personId?: string;
+	effect: number;
+	date: string | null;
+	dueDate?: string | null;
+	description?: string | null;
+	createdAt: string;
+	updatedAt: string;
+	deletedAt?: string | null;
+	upgradeRecordId?: string;
 }
 
 export interface DebtEvent {

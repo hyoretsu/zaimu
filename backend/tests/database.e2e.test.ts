@@ -598,7 +598,7 @@ suite("Prisma 8 SQL query builder", () => {
 			"PATCH",
 			{
 				amount: 45,
-				billingDay: 15,
+				dayOfMonth: 15,
 				name: "Assinatura atualizada",
 				tagIds: [category.id],
 			},
@@ -1621,5 +1621,70 @@ suite("Prisma 8 SQL query builder", () => {
 			peer.cookie,
 		);
 		expect(peerAfterOwnerHide.people[0]?.events.length).toBe(3);
+	});
+	test("manual debt sync is idempotent, rejects unproved compensation and preserves tombstones", async () => {
+		const owner = await createSession("manual-debt-sync");
+		const outsider = await createSession("manual-debt-outsider");
+		const personResponse = await jsonRequest(
+			"/debts/people",
+			"POST",
+			{ name: "Pessoa offline" },
+			owner.cookie,
+		);
+		expect(personResponse.status).toBe(200);
+		const person = (await personResponse.json()) as { id: string };
+		const event = {
+			amount: 25,
+			createdAt: new Date().toISOString(),
+			date: "2026-10-01",
+			debtPersonId: person.id,
+			effect: -25,
+			id: crypto.randomUUID(),
+			kind: "ORIGIN",
+			updatedAt: new Date().toISOString(),
+		};
+		for (let attempt = 0; attempt < 2; attempt++) {
+			const response = await jsonRequest("/sync", "POST", { debtEvents: [event] }, owner.cookie);
+			expect(response.status).toBe(200);
+			expect(
+				((await response.json()) as { syncResults: { debtEvents: { errors: string[] } } }).syncResults
+					.debtEvents.errors,
+			).toEqual([]);
+		}
+		const denied = await jsonRequest("/sync", "POST", { debtEvents: [event] }, outsider.cookie);
+		expect(denied.status).toBe(200);
+		expect(
+			((await denied.json()) as { syncResults: { debtEvents: { errors: string[] } } }).syncResults.debtEvents
+				.errors.length,
+		).toBe(1);
+		const unproved = await jsonRequest(
+			"/sync",
+			"POST",
+			{ debtEvents: [{ ...event, effect: 25, id: crypto.randomUUID(), kind: "MIGRATED_SETTLEMENT" }] },
+			owner.cookie,
+		);
+		expect(unproved.status).toBe(200);
+		expect(
+			((await unproved.json()) as { syncResults: { debtEvents: { errors: string[] } } }).syncResults
+				.debtEvents.errors.length,
+		).toBe(1);
+		const deletion = await jsonRequest(`/debts/events/${event.id}`, "DELETE", undefined, owner.cookie);
+		expect(deletion.status).toBe(200);
+		const retry = await jsonRequest("/sync", "POST", { debtEvents: [event] }, owner.cookie);
+		expect(retry.status).toBe(200);
+		expect(
+			(
+				(await retry.json()) as {
+					serverData: { debtEvents: Array<{ id: string; deletedAt: string | null }> };
+				}
+			).serverData.debtEvents.find(row => row.id === event.id)!.deletedAt,
+		).toBeTruthy();
+		const ledger = await loadLedger(
+			await jsonRequest("/debts", "GET", undefined, owner.cookie),
+			owner.cookie,
+		);
+		expect(ledger.people[0]!.balance).toBe(0);
+		expect(ledger.people[0]!.events).toHaveLength(0);
+		expect((await jsonRequest("/sync", "POST", { debts: [] }, owner.cookie)).status).toBe(422);
 	});
 });

@@ -61,3 +61,17 @@ export interface RecurringPayment {
 	day?: number;
 	type?: "INCOME" | "EXPENSE";
 }
+
+export interface Debt {
+	id: string;
+	userId: string;
+	personName: string;
+	amount: number;
+	description?: string;
+	isOwedToMe: boolean;
+	date?: string;
+	dueDate?: string;
+	isPaid: boolean;
+	paidDate?: string;
+	personId?: string;
+}

@@ -108,9 +108,9 @@ async function getPeopleLedger(userId: string) {
 		 LEFT JOIN "public"."DebtConnection" connection ON connection."id" = person."connectionId"
 		 LEFT JOIN "public"."user" linked_user ON linked_user."id" = CASE
 		   WHEN connection."requesterId" = $1 THEN connection."recipientId" ELSE connection."requesterId" END
-		 LEFT JOIN "public"."DebtEvent" event ON
+		 LEFT JOIN "public"."DebtEvent" event ON event."deletedAt" IS NULL AND (
 		   (connection."status" = 'ACCEPTED' AND event."connectionId" = connection."id") OR
-		   (connection."status" IS DISTINCT FROM 'ACCEPTED' AND event."debtPersonId" = person."id")
+		   (connection."status" IS DISTINCT FROM 'ACCEPTED' AND event."debtPersonId" = person."id"))
 		 WHERE person."userId" = $1 AND person."hiddenAt" IS NULL
 		 GROUP BY person."id", person."name", connection."status", linked_user."email"
 		 ORDER BY person."name" ASC, person."id" ASC`,
@@ -166,6 +166,7 @@ async function getPersonEventPage(
 		 LEFT JOIN "public"."DebtSplit" purchase_split ON purchase_split."creditPurchaseId"=purchase."id" AND purchase_split."userId"=event."createdByUserId"
 		 LEFT JOIN "public"."DebtSplitParticipant" purchase_participant ON purchase_participant."debtSplitId"=purchase_split."id" AND purchase_participant."debtPersonId"=event."debtPersonId"
 		 WHERE ${connectionId ? 'event."connectionId" = $2' : 'event."debtPersonId" = $2'}
+		   AND event."deletedAt" IS NULL
 		   AND ($4 = '' OR
 		        ($3::date IS NULL AND event."date" IS NULL AND event."id" < $4) OR
 		        ($3::date IS NOT NULL AND (event."date" IS NULL OR (event."date", event."id") < ($3::date, $4))))
@@ -203,7 +204,7 @@ async function getInvitationPreview(
 ) {
 	const [person] = await queryRaw<{ id: string; balance: string; eventCount: string }>(
 		`SELECT person."id", COALESCE(SUM(CASE WHEN event."createdByUserId"=$3 THEN event."effect" ELSE -event."effect" END),0) AS "balance", COUNT(event."id") AS "eventCount"
- FROM "DebtPerson" person LEFT JOIN "DebtEvent" event ON event."debtPersonId"=person."id"
+ FROM "DebtPerson" person LEFT JOIN "DebtEvent" event ON event."debtPersonId"=person."id" AND event."deletedAt" IS NULL
  WHERE person."connectionId"=$1 AND person."userId"=$2 AND person."hiddenAt" IS NULL GROUP BY person."id"`,
 		[connectionId, requesterId, viewerId],
 	);
@@ -692,21 +693,8 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 		async ({ params, request }) => {
 			const userId = await requireUserId(request);
 			const person = await getOwnedDebtPerson(params.id, userId);
-			if (person.connectionId) {
-				await executeStatement(
-					db.sql.public.DebtPerson.update({ hiddenAt: new Date(), updatedAt: new Date() })
-						.where((fields, functions) => functions.eq(fields.id, params.id))
-						.build(),
-				);
-				return { success: true };
-			}
 			await executeStatement(
-				db.sql.public.DebtEvent.delete()
-					.where((fields, functions) => functions.eq(fields.debtPersonId, params.id))
-					.build(),
-			);
-			await executeStatement(
-				db.sql.public.DebtPerson.delete()
+				db.sql.public.DebtPerson.update({ hiddenAt: new Date(), updatedAt: new Date() })
 					.where((fields, functions) => functions.eq(fields.id, params.id))
 					.build(),
 			);
@@ -722,7 +710,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 			if (event.createdByUserId !== userId || event.kind !== "ORIGIN")
 				throw new HttpException("Somente o criador pode excluir um lançamento manual", 403);
 			await executeStatement(
-				db.sql.public.DebtEvent.delete()
+				db.sql.public.DebtEvent.update({ deletedAt: new Date(), updatedAt: new Date() })
 					.where((fields, functions) => functions.eq(fields.id, event.id))
 					.build(),
 			);

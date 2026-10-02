@@ -6,6 +6,7 @@ import type { LocalData } from "../localStorage";
 import type { CacheIdentity } from "../query-cache";
 import { migrateLegacyCardPayments } from "./legacy-card-payments";
 import { migrateCreditBooks } from "./migrate-credit-books";
+import { migrateDebts } from "./migrate-debts";
 import { migrateLocalRecurrenceRows } from "./migrate-recurrences";
 
 const scopedId = (owner: StorageOwner, id: string) => `${owner}\u0000${id}`;
@@ -310,8 +311,9 @@ export async function upgradeLocalDatabase(database: IDBDatabase) {
 		await migrateCreditBooks(database, tx);
 		await migrateRecurrences(database, tx);
 		await extractRecurrenceProvenance(tx);
+		await migrateDebts(tx);
 		await migrateGuestLoanPayments(database, tx);
-		await requestResult(stateStore.put({ id: "state", status: "complete", version: 11 }));
+		await requestResult(stateStore.put({ id: "state", status: "complete", version: 12 }));
 		await done;
 	} catch (error) {
 		try {

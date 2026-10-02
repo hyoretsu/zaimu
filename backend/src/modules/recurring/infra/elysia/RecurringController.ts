@@ -1,6 +1,7 @@
 import Elysia, { t } from "elysia";
 import { requireUserId } from "~/modules/auth";
 import { distributedCache } from "~/shared/infra/cache";
+import { strictJsonBody } from "~/shared/infra/elysia/strict-json-body";
 import { getCachedRecurrenceHistory } from "../../application/recurrence-history";
 import {
 	deleteRecurrence,
@@ -24,6 +25,12 @@ import {
 
 const params = t.Object({ id: t.String({ maxLength: 36, minLength: 1 }) });
 export const RecurringController = new Elysia({ prefix: "/recurring" })
+	.onTransform(({ request, body }) => {
+		const path = new URL(request.url).pathname;
+		if (request.method === "POST" && /^\/recurring\/?$/.test(path)) strictJsonBody(body, RecurrenceBody);
+		if (request.method === "PATCH" && /^\/recurring\/[^/]+\/?$/.test(path))
+			strictJsonBody(body, UpdateRecurrenceBody);
+	})
 	.get(
 		"/",
 		async ({ request, query, set }) => {

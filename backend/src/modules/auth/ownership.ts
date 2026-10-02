@@ -1,7 +1,7 @@
 import { HttpException } from "~/shared/errors";
 import { db, queryFirst } from "~/shared/infra/sql";
 
-type DirectlyOwnedTable = "Category" | "Debt" | "FinancialAccount" | "Loan" | "Recurrence";
+type DirectlyOwnedTable = "Category" | "FinancialAccount" | "Loan" | "Recurrence";
 
 export const assertDirectOwnership = async (table: DirectlyOwnedTable, id: string, userId: string) => {
 	const owns = async (owner: typeof db.sql.public.Category) =>
@@ -18,9 +18,6 @@ export const assertDirectOwnership = async (table: DirectlyOwnedTable, id: strin
 	switch (table) {
 		case "Category":
 			resource = await owns(db.sql.public.Category);
-			break;
-		case "Debt":
-			resource = await owns(db.sql.public.Debt as unknown as typeof db.sql.public.Category);
 			break;
 		case "FinancialAccount":
 			resource = await owns(db.sql.public.FinancialAccount as unknown as typeof db.sql.public.Category);

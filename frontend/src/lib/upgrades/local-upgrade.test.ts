@@ -22,6 +22,7 @@ async function fixture() {
 			"creditRefundReviews",
 			"debtPeople",
 			"debts",
+			"debtEvents",
 			"loanPayments",
 			"loans",
 			"meta",

@@ -1,0 +1,18 @@
+[
+	{
+		"execute": [
+			{
+				"description": "Transactional audit and cutover",
+				"sql": "LOCK TABLE \"Debt\", \"DebtHistory\", \"DebtEvent\", \"DebtPerson\" IN SHARE ROW EXCLUSIVE MODE;\nCREATE TEMP TABLE debt_ledger_before ON COMMIT DROP AS SELECT \"id\",to_jsonb(e) AS original FROM \"DebtEvent\" e;\nINSERT INTO \"ApplicationUpgradeArchive\" (\"source\",\"recordId\",\"userId\",\"original\")\nSELECT 'Debt',\"id\",\"userId\",to_jsonb(d) FROM \"Debt\" d ON CONFLICT DO NOTHING;\nINSERT INTO \"ApplicationUpgradeArchive\" (\"source\",\"recordId\",\"userId\",\"original\")\nSELECT 'DebtHistory',h.\"id\",d.\"userId\",to_jsonb(h) FROM \"DebtHistory\" h JOIN \"Debt\" d ON d.\"id\"=h.\"debtId\" ON CONFLICT DO NOTHING;\nDO $audit$\nBEGIN\n IF EXISTS (SELECT 1 FROM \"Debt\" d LEFT JOIN \"ApplicationUpgradeArchive\" a ON a.\"source\"='Debt' AND a.\"recordId\"=d.\"id\" WHERE a.\"userId\" IS DISTINCT FROM d.\"userId\" OR a.\"original\"::jsonb IS DISTINCT FROM to_jsonb(d)) OR\n EXISTS (SELECT 1 FROM \"DebtHistory\" h LEFT JOIN \"ApplicationUpgradeArchive\" a ON a.\"source\"='DebtHistory' AND a.\"recordId\"=h.\"id\" WHERE a.\"original\"::jsonb IS DISTINCT FROM to_jsonb(h)) THEN\n RAISE EXCEPTION 'Debt archive mismatch'; END IF;\nEND $audit$;\nINSERT INTO \"ApplicationUpgradeArchive\" (\"source\",\"recordId\",\"userId\",\"original\")\nSELECT 'DebtEventUpgrade',\"id\",\"createdByUserId\",to_jsonb(e) FROM \"DebtEvent\" e ON CONFLICT DO NOTHING;\nALTER TABLE \"DebtEvent\" ADD COLUMN \"deletedAt\" timestamp(3);\n-- Legacy origins deleted through the current ledger must stay deleted after offline sync.\nINSERT INTO \"DebtEvent\" (\"id\",\"debtPersonId\",\"createdByUserId\",\"kind\",\"amount\",\"effect\",\"date\",\"dueDate\",\"description\",\"createdAt\",\"updatedAt\",\"deletedAt\")\nSELECT d.\"id\",p.\"id\",d.\"userId\",'ORIGIN',d.\"amount\",CASE WHEN d.\"isOwedToMe\" THEN d.\"amount\" ELSE -d.\"amount\" END,d.\"date\",d.\"dueDate\",d.\"description\",d.\"createdAt\",d.\"updatedAt\",CURRENT_TIMESTAMP\nFROM \"Debt\" d JOIN \"DebtPerson\" p ON p.\"userId\"=d.\"userId\" AND p.\"normalizedName\"=lower(regexp_replace(trim(d.\"personName\"),'\\s+',' ','g')) WHERE NOT EXISTS(SELECT 1 FROM \"DebtEvent\" e WHERE e.\"id\"=d.\"id\");\nINSERT INTO \"ApplicationUpgradeArchive\" (\"source\",\"recordId\",\"userId\",\"original\")\nSELECT 'DebtSettlementProof',e.\"id\",e.\"createdByUserId\",json_build_object('eventId',e.\"id\",'debtPersonId',e.\"debtPersonId\",'amount',e.\"amount\",'effect',e.\"effect\",'date',e.\"date\") FROM \"DebtEvent\" e WHERE e.\"kind\"='MIGRATED_SETTLEMENT' ON CONFLICT DO NOTHING;\nDROP TABLE \"DebtHistory\";\nDROP TABLE \"Debt\";\nDO $verify$\nBEGIN\n IF EXISTS (SELECT 1 FROM debt_ledger_before b LEFT JOIN \"DebtEvent\" e ON e.\"id\"=b.\"id\" WHERE b.original IS DISTINCT FROM to_jsonb(e)-'deletedAt') OR\n EXISTS (SELECT 1 FROM \"DebtEvent\" e WHERE e.\"deletedAt\" IS NULL AND NOT EXISTS(SELECT 1 FROM debt_ledger_before b WHERE b.\"id\"=e.\"id\")) THEN\n RAISE EXCEPTION 'Debt ledger changed during cutover'; END IF;\nEND $verify$;\n"
+			}
+		],
+		"id": "debt.removeLegacy",
+		"label": "Remove audited debt legacy and retain current event tombstones",
+		"operationClass": "destructive",
+		"postcheck": [],
+		"precheck": [],
+		"target": {
+			"id": "postgres"
+		}
+	}
+]

@@ -12,7 +12,6 @@ namespace public {
     image             VarChar(2048)?
     categories        Category[]
     stores            Store[]
-    debts             Debt[]
     debtPeople        DebtPerson[]
     debtEvents        DebtEvent[]
     debtEventVisibilities DebtEventVisibility[]
@@ -592,37 +591,6 @@ namespace public {
     @@map("CreditPurchaseHistory")
   }
 
-  model Debt {
-    id            VarChar(36)    @id(map: "Debt_pkey") @default(dbgenerated("cuid2()"))
-    userId        VarChar(36)
-    personName    VarChar(100)
-    amount        Numeric(12, 2)
-    description   VarChar(500)?
-    isOwedToMe    Boolean        @default(true)
-    date          Date?
-    dueDate       Date?
-    isPaid        Boolean        @default(false)
-    paidDate      Date?
-    createdAt     Timestamp(3)   @default(now())
-    updatedAt     Timestamp(3)   @default(now())
-    debtHistories DebtHistory[]
-    user          User           @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Debt_userId_fkey", index: false)
-
-    @@map("Debt")
-  }
-
-  model DebtHistory {
-    id        VarChar(36)  @id(map: "DebtHistory_pkey") @default(dbgenerated("cuid2()"))
-    debtId    VarChar(36)
-    field     VarChar(50)
-    oldValue  String?
-    newValue  String?
-    changedAt Timestamp(3) @default(now())
-    debt      Debt         @relation(fields: [debtId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtHistory_debtId_fkey", index: false)
-
-    @@map("DebtHistory")
-  }
-
   model DebtPerson {
     id             VarChar(36)  @id(map: "DebtPerson_pkey") @default(dbgenerated("cuid2()"))
     userId         VarChar(36)
@@ -675,6 +643,7 @@ namespace public {
     description     VarChar(1000)?
     createdAt       Timestamp(3)            @default(now())
     updatedAt       Timestamp(3)            @default(now())
+    deletedAt       Timestamp(3)?
     debtPerson      DebtPerson?             @relation(fields: [debtPersonId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "DebtEvent_debtPersonId_fkey", index: false)
     connection      DebtConnection?         @relation(fields: [connectionId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "DebtEvent_connectionId_fkey", index: false)
     createdByUser   User                    @relation(fields: [createdByUserId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtEvent_createdByUserId_fkey", index: false)

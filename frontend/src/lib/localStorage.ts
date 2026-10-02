@@ -12,12 +12,12 @@ import type {
 	CreditCard,
 	CreditCardStatement,
 	CreditPurchase,
-	Debt,
 	DebtPerson,
 	FinancialAccount,
 	Loan,
 	LoanPayment,
 	Store,
+	StoredDebtEvent,
 	Transaction,
 } from "@/lib/api";
 import { type CacheIdentity, getCurrentCacheIdentity } from "@/lib/query-cache";
@@ -26,7 +26,7 @@ import { requestResult, transactionDone } from "./idb";
 import type { Recurrence, RecurrenceOccurrence } from "./recurrence";
 
 const DB_NAME = "zaimu-local";
-const DB_VERSION = 11;
+const DB_VERSION = 12;
 
 const LOCAL_STORES = {
 	accounts: "accounts",
@@ -35,8 +35,8 @@ const LOCAL_STORES = {
 	creditCardStatements: "creditCardStatements",
 	creditCards: "creditCards",
 	creditRefundReviews: "creditRefundReviews",
+	debtEvents: "debtEvents",
 	debtPeople: "debtPeople",
-	debts: "debts",
 	loanPayments: "loanPayments",
 	loans: "loans",
 	meta: "meta",
@@ -119,9 +119,9 @@ async function openLocalDb(): Promise<IDBDatabase> {
 				request.result.createObjectStore("application-upgrade", { keyPath: "id" });
 			request
 				.transaction!.objectStore("application-upgrade")
-				.put({ id: "state", status: event.oldVersion === 0 ? "complete" : "pending", version: 11 });
+				.put({ id: "state", status: event.oldVersion === 0 ? "complete" : "pending", version: 12 });
 			if (event.oldVersion > 0)
-				for (const domain of ["recurringPayments", "salaries", "subscriptions", "creditPurchases"]) {
+				for (const domain of ["recurringPayments", "salaries", "subscriptions", "creditPurchases", "debts"]) {
 					const name = `scoped-${domain}`;
 					if (!request.result.objectStoreNames.contains(name))
 						request.result
@@ -185,6 +185,16 @@ export async function getAll<T>(domain: StoreDomain, ownerKey?: StorageOwner): P
 	});
 }
 
+export async function getAllWithTombstones<T>(
+	domain: StoreDomain,
+	ownerKey?: StorageOwner,
+): Promise<LocalData<T>[]> {
+	const owner = requireOwner(ownerKey);
+	return runTransaction(scopedStoreName(domain), "readonly", store =>
+		requestResult(store.index("ownerKey").getAll(owner)),
+	);
+}
+
 export async function getById<T>(
 	domain: StoreDomain,
 	localId: string,
@@ -207,14 +217,31 @@ export async function put<T>(
 	const id = localId ?? crypto.randomUUID();
 	const timestamp = Date.now();
 	await runTransaction(scopedStoreName(domain), "readwrite", async store => {
+		const existing =
+			domain === "debtEvents"
+				? ((await requestResult(store.get(scopedId(owner, id)))) as LocalData<StoredDebtEvent> | undefined)
+				: undefined;
+		if (existing?.deleted) throw new Error("Lançamento excluído");
+		const debtData = data as StoredDebtEvent;
+		const nextData =
+			domain === "debtEvents"
+				? {
+						...debtData,
+						...(existing?.syncedAt
+							? { baseUpdatedAt: existing.data.baseUpdatedAt ?? existing.data.updatedAt }
+							: {}),
+					}
+				: data;
 		await requestResult(
 			store.put({
-				data,
+				data: nextData,
 				localId: id,
-				modifiedAt: timestamp,
+				modifiedAt: Math.max(timestamp, (existing?.modifiedAt ?? 0) + 1),
 				ownerKey: owner,
 				scopedId: scopedId(owner, id),
-				...(owner.startsWith("user:") && { syncedAt: timestamp }),
+				...(domain === "debtEvents"
+					? { syncedAt: existing?.syncedAt }
+					: owner.startsWith("user:") && { syncedAt: timestamp }),
 			}),
 		);
 	});
@@ -265,13 +292,15 @@ export async function softDelete(
 	}
 	await runTransaction(scopedStoreName(domain), "readwrite", async store => {
 		const key = scopedId(owner, localId);
-		if (owner.startsWith("user:")) {
+		if (owner.startsWith("user:") && domain !== "debtEvents" && domain !== "debtPeople") {
 			await requestResult(store.delete(key));
 			return;
 		}
 		const item = (await requestResult(store.get(key))) as LocalData<unknown> | undefined;
 		if (!item) return;
-		await requestResult(store.put({ ...item, deleted: true, modifiedAt: Date.now() }));
+		await requestResult(
+			store.put({ ...item, deleted: true, modifiedAt: Math.max(Date.now(), item.modifiedAt + 1) }),
+		);
 	});
 }
 
@@ -414,6 +443,7 @@ function createLocalStore<T>(domain: StoreDomain) {
 		clear: (owner?: StorageOwner) => clearStore(domain, owner),
 		delete: (id: string, owner?: StorageOwner) => softDelete(domain, id, owner),
 		getAll: (owner?: StorageOwner) => getAll<T>(domain, owner),
+		getAllWithTombstones: (owner?: StorageOwner) => getAllWithTombstones<T>(domain, owner),
 		getById: (id: string, owner?: StorageOwner) => getById<T>(domain, id, owner),
 		getModifiedSince: (since: number, owner?: StorageOwner) => getModifiedSince<T>(domain, since, owner),
 		put: (data: T, id?: string, owner?: StorageOwner) => put(domain, data, id, owner),
@@ -430,7 +460,7 @@ export const localStores = createLocalStore<Store>("stores");
 export const localTransactions = createLocalStore<Transaction>("transactions");
 export const localLoanPayments = createLocalStore<LoanPayment>("loanPayments");
 export const localLoans = createLocalStore<Loan>("loans");
-export const localDebts = createLocalStore<Debt>("debts");
+export const localDebtEvents = createLocalStore<StoredDebtEvent>("debtEvents");
 export const localDebtPeople = createLocalStore<DebtPerson>("debtPeople");
 export const localRecurrences = createLocalStore<Recurrence>("recurrences");
 export const localRecurrenceOccurrences = createLocalStore<RecurrenceOccurrence>("recurrenceOccurrences");
@@ -1286,4 +1316,49 @@ export async function reviewLocalLoanPayments(
 		await done.catch(() => undefined);
 		throw error;
 	}
+}
+
+/** Capture sent clocks before the request so concurrent local edits survive acknowledgement. */
+export async function acknowledgeDebtEventSync(
+	sent: LocalData<StoredDebtEvent>[],
+	remote: StoredDebtEvent[],
+	ownerKey: StorageOwner,
+) {
+	await runTransaction("scoped-debtEvents", "readwrite", async store => {
+		for (const data of remote) {
+			const key = scopedId(ownerKey, data.id);
+			const current = (await requestResult(store.get(key))) as LocalData<StoredDebtEvent> | undefined;
+			const previous = sent.find(row => row.localId === data.id);
+			if (
+				current &&
+				(!previous || current.modifiedAt !== previous.modifiedAt || current.deleted !== previous.deleted)
+			)
+				continue;
+			const clock = current?.modifiedAt ?? Date.now();
+			await requestResult(
+				store.put({
+					data,
+					deleted: Boolean(data.deletedAt),
+					localId: data.id,
+					modifiedAt: clock,
+					ownerKey,
+					scopedId: key,
+					syncedAt: clock,
+				}),
+			);
+		}
+	});
+}
+
+export async function createLocalDebtOrigins(events: StoredDebtEvent[], ownerKey?: StorageOwner) {
+	const owner = requireOwner(ownerKey);
+	await runTransaction("scoped-debtEvents", "readwrite", async store => {
+		for (const data of events) {
+			const key = scopedId(owner, data.id);
+			if (await requestResult(store.get(key))) throw new Error("Origem já existe");
+			await requestResult(
+				store.put({ data, localId: data.id, modifiedAt: Date.now(), ownerKey: owner, scopedId: key }),
+			);
+		}
+	});
 }

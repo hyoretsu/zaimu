@@ -70,7 +70,6 @@ import type {
 	CreditPurchase,
 	CreditPurchaseEditDetails,
 	Dashboard,
-	Debt,
 	DebtEvent,
 	DebtInvitation,
 	DebtInvitationPreview,
@@ -86,6 +85,7 @@ import type {
 	LoanPayment,
 	LoanPaymentPage,
 	Store,
+	StoredDebtEvent,
 	StorePage,
 	Transaction,
 	TransactionImport,
@@ -105,15 +105,17 @@ import {
 } from "./financial-account";
 import { normalizeInstitutionName } from "./financial-institution";
 import {
+	acknowledgeDebtEventSync,
 	advanceLocalLoanInstallments,
 	clearAllLocalData,
+	createLocalDebtOrigins,
 	createLocalLoanWithPayments,
 	localAccounts,
 	localCategories,
 	localCreditCardStatements,
 	localCreditCards,
+	localDebtEvents,
 	localDebtPeople,
-	localDebts,
 	localLoanPayments,
 	localLoans,
 	localMeta,
@@ -1679,7 +1681,7 @@ export const dataService = {
 					dataService.accounts.getAll(),
 					dataService.transactions.getAll(),
 					dataService.loans.getAll(),
-					dataService.debts.getAll(),
+					dataService.debts.getLedger(),
 					dataService.recurrences.getAll(),
 					dataService.creditCards.getAll(),
 					localCreditCardStatements.getAll().then(items => items.map(item => item.data)),
@@ -1746,8 +1748,7 @@ export const dataService = {
 					.filter(account => account.type === "SAVINGS")
 					.reduce((sum, account) => sum + (account.balance ?? 0), 0);
 				const accountBalance = totalBalance - savingsBalance;
-				const owedToMe = debts.filter(d => d.isOwedToMe && !d.isPaid).reduce((sum, d) => sum + d.amount, 0);
-				const iOwe = debts.filter(d => !d.isOwedToMe && !d.isPaid).reduce((sum, d) => sum + d.amount, 0);
+				const { owedToMe, iOwe } = debts.totals;
 
 				const forecasts = [
 					...recurrences
@@ -2002,13 +2003,13 @@ export const dataService = {
 						iOwe,
 						net: owedToMe - iOwe,
 						owedToMe,
-						people: debts
-							.filter(item => !item.isPaid)
-							.map(item => ({
-								balance: item.isOwedToMe ? item.amount : -item.amount,
-								direction: item.isOwedToMe ? ("OWED" as const) : ("OWES" as const),
-								id: item.personId ?? item.id,
-								name: item.personName,
+						people: debts.people
+							.filter(person => person.balance !== 0)
+							.map(person => ({
+								balance: person.balance,
+								direction: person.balance > 0 ? ("OWED" as const) : ("OWES" as const),
+								id: person.id,
+								name: person.name,
 							})),
 					},
 					forecasts,
@@ -2035,27 +2036,6 @@ export const dataService = {
 				method: "POST",
 			});
 		},
-		async create(
-			data: Omit<Debt, "id" | "isPaid" | "paidDate" | "userId"> & { isPaid?: boolean; paidDate?: string },
-		): Promise<Debt> {
-			const userId = getUserId();
-			if (isGuestMode()) {
-				const newDebt: Debt = {
-					...data,
-					id: crypto.randomUUID(),
-					isPaid: data.isPaid ?? false,
-					userId,
-				};
-				await localDebts.put(newDebt, newDebt.id);
-				return newDebt;
-			}
-			const debt = await fetchWithAuth<Debt>("/debts", {
-				body: JSON.stringify(data),
-				method: "POST",
-			});
-			await localDebts.put(debt, debt.id);
-			return debt;
-		},
 		async createOrigin(data: {
 			amount: number;
 			date?: null | string;
@@ -2074,22 +2054,20 @@ export const dataService = {
 						return { amount: participant.amount, person: person.data };
 					}),
 				);
-				await Promise.all(
-					people.map(({ amount, person }) => {
-						const debt: Debt = {
-							amount,
-							date: data.date ?? undefined,
-							description: data.description,
-							dueDate: data.dueDate,
-							id: crypto.randomUUID(),
-							isOwedToMe: data.isOwedToMe,
-							isPaid: false,
-							personId: person.id,
-							personName: person.name,
-							userId: getUserId(),
-						};
-						return localDebts.put(debt, debt.id);
-					}),
+				const now = new Date().toISOString();
+				await createLocalDebtOrigins(
+					people.map(({ amount, person }) => ({
+						amount,
+						createdAt: now,
+						date: data.date ?? null,
+						debtPersonId: person.id,
+						description: data.description,
+						dueDate: data.dueDate,
+						effect: amount * (data.isOwedToMe ? 1 : -1),
+						id: crypto.randomUUID(),
+						kind: "ORIGIN",
+						updatedAt: now,
+					})),
 				);
 				return;
 			}
@@ -2124,19 +2102,11 @@ export const dataService = {
 			await fetchWithAuth(`/debts/invitations/${id}/decline`, { method: "POST" });
 		},
 
-		async delete(id: string): Promise<void> {
-			if (isGuestMode()) {
-				await localDebts.delete(id);
-				return;
-			}
-			await fetchWithAuth(`/debts/${id}`, { method: "DELETE" });
-			await localDebts.delete(id);
-		},
 		async deleteEvent(id: string): Promise<void> {
 			if (isGuestMode()) {
-				if (id.startsWith("transaction:") || id.startsWith("purchase:"))
-					throw new Error("Exclua a movimentação financeira original.");
-				await localDebts.delete(id);
+				const row = await localDebtEvents.getById(id);
+				if (row?.data.kind !== "ORIGIN") throw new Error("Exclua a movimentação financeira original.");
+				await localDebtEvents.delete(id);
 				return;
 			}
 			await fetchWithAuth(`/debts/events/${id}`, { method: "DELETE" });
@@ -2147,13 +2117,6 @@ export const dataService = {
 				return;
 			}
 			await fetchWithAuth(`/debts/people/${id}`, { method: "DELETE" });
-		},
-		async getAll(): Promise<Debt[]> {
-			if (isGuestMode()) {
-				const local = await localDebts.getAll();
-				return local.map(item => item.data);
-			}
-			return [];
 		},
 		async getEventPage(personId: string, cursor?: null | string, limit = 50): Promise<DebtEventPage> {
 			if (!isGuestMode()) {
@@ -2204,48 +2167,26 @@ export const dataService = {
 			}
 			const [storedPeople, storedDebts, storedTransactions, storedPurchases] = await Promise.all([
 				localDebtPeople.getAll(),
-				localDebts.getAll(),
+				localDebtEvents.getAll(),
 				localTransactions.getAll(),
 				localCreditBooks.getAll(),
 			]);
 			const people = new Map<string, DebtPerson>(
 				storedPeople.map(item => [item.data.id, { ...item.data, balance: 0, events: [] }]),
 			);
-			for (const debtItem of storedDebts) {
-				const debt = debtItem.data;
-				let person = debt.personId ? people.get(debt.personId) : undefined;
-				if (!person) {
-					person = [...people.values()].find(
-						item => item.name.localeCompare(debt.personName, "pt-BR", { sensitivity: "base" }) === 0,
-					);
-				}
-				if (!person) {
-					person = {
-						accountEmail: null,
-						balance: 0,
-						connectionStatus: null,
-						events: [],
-						id: debt.personId ?? `legacy:${debt.personName.toLocaleLowerCase("pt-BR")}`,
-						isZaimuUser: false,
-						name: debt.personName,
-					};
-					people.set(person.id, person);
-				}
-				const effect = Number(debt.amount) * (debt.isOwedToMe ? 1 : -1);
+			for (const row of storedDebts) {
+				const event = row.data;
+				if (event.deletedAt) continue;
+				const person = people.get(event.debtPersonId);
+				if (!person) continue;
+				person.balance += event.effect;
 				person.events.push({
-					amount: Number(debt.amount),
+					...event,
 					createdByMe: true,
 					createdByName: "Você",
 					createdByUserId: getUserId(),
-					date: debt.date ?? null,
-					description: debt.description,
-					dueDate: debt.dueDate,
-					effect,
-					id: debt.id,
-					kind: "ORIGIN",
 					time: null,
 				});
-				if (!debt.isPaid) person.balance += effect;
 			}
 			for (const item of storedTransactions) {
 				const transaction = item.data;
@@ -2360,21 +2301,6 @@ export const dataService = {
 			});
 		},
 
-		async update(id: string, data: Partial<Debt>): Promise<Debt> {
-			if (isGuestMode()) {
-				const existing = await localDebts.getById(id);
-				if (!existing) throw new Error("Debt not found");
-				const updated: Debt = { ...existing.data, ...data };
-				await localDebts.put(updated, id);
-				return updated;
-			}
-			const debt = await fetchWithAuth<Debt>(`/debts/${id}`, {
-				body: JSON.stringify(data),
-				method: "PATCH",
-			});
-			await localDebts.put(debt, debt.id);
-			return debt;
-		},
 		async updateOrigin(
 			id: string,
 			data: {
@@ -2388,15 +2314,18 @@ export const dataService = {
 		): Promise<void> {
 			if (isGuestMode()) {
 				const person = await localDebtPeople.getById(data.personId);
-				const debt = await localDebts.getById(id);
-				if (!person || !debt) throw new Error("Origem não encontrada");
-				await localDebts.put(
+				const event = await localDebtEvents.getById(id);
+				if (!person || !event || event.data.kind !== "ORIGIN") throw new Error("Origem não encontrada");
+				await localDebtEvents.put(
 					{
-						...debt.data,
-						...data,
-						date: data.date === null ? undefined : (data.date ?? debt.data.date),
-						personId: person.data.id,
-						personName: person.data.name,
+						...event.data,
+						amount: data.amount,
+						date: data.date === undefined ? event.data.date : data.date,
+						debtPersonId: person.data.id,
+						description: data.description,
+						dueDate: data.dueDate,
+						effect: data.amount * (data.isOwedToMe ? 1 : -1),
+						updatedAt: new Date().toISOString(),
 					},
 					id,
 				);
@@ -2735,6 +2664,12 @@ export const dataService = {
 					owner,
 					ids => fetchWithAuth("/upgrades/recurrence-ids", { body: JSON.stringify({ ids }), method: "POST" }),
 				);
+				await (await import("./upgrades/resolve-debt-events")).resolveDebtEventUpgrade(
+					database,
+					owner,
+					records =>
+						fetchWithAuth("/upgrades/debt-origins", { body: JSON.stringify({ records }), method: "POST" }),
+				);
 				// Get all local data
 				const [
 					accounts,
@@ -2758,8 +2693,8 @@ export const dataService = {
 					localTransactions.getAll(owner),
 					localLoans.getAll(owner),
 					localLoanPayments.getAll(owner),
-					localDebts.getAll(owner),
-					localDebtPeople.getAll(owner),
+					localDebtEvents.getAllWithTombstones(owner),
+					localDebtPeople.getAllWithTombstones(owner),
 					localMeta.get("financial-account-yield-holidays", owner),
 					localMeta.get("financial-account-yields", owner),
 				]);
@@ -2798,7 +2733,7 @@ export const dataService = {
 						transactions: Transaction[];
 						loans: Loan[];
 						loanPayments: LoanPayment[];
-						debts: Debt[];
+						debtEvents: StoredDebtEvent[];
 						debtPeople: DebtPerson[];
 					};
 				}>("/sync", {
@@ -2807,8 +2742,15 @@ export const dataService = {
 						creditBooks: creditBooks.map(purchase => purchase.data),
 						creditCardStatements: creditCardStatements.map(statement => statement.data),
 						creditCards: creditCards.map(card => card.data),
-						debtPeople: debtPeople.map(person => person.data),
-						debts: debts.map(d => d.data),
+						debtEvents: debts.map(row => ({
+							...row.data,
+							deletedAt: row.deleted ? new Date(row.modifiedAt).toISOString() : row.data.deletedAt,
+							updatedAt: new Date(row.modifiedAt).toISOString(),
+						})),
+						debtPeople: debtPeople.map(person => ({
+							...person.data,
+							hiddenAt: person.deleted ? new Date(person.modifiedAt).toISOString() : undefined,
+						})),
 						financialAccounts: accounts.map(a => a.data),
 						financialAccountYieldHolidays: (yieldHolidays as FinancialAccountYieldHoliday[] | null) ?? [],
 						financialAccountYields: ((yields as FinancialAccountYield[] | null) ?? []).filter(
@@ -2897,14 +2839,7 @@ export const dataService = {
 						})),
 						owner,
 					),
-					localDebts.replaceSnapshot(
-						response.serverData.debts.map(d => ({
-							data: d,
-							localId: d.id,
-							syncedAt: Date.now(),
-						})),
-						owner,
-					),
+					acknowledgeDebtEventSync(debts, response.serverData.debtEvents, owner),
 					localDebtPeople.replaceSnapshot(
 						response.serverData.debtPeople.map(person => ({
 							data: person,

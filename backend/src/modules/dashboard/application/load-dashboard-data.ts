@@ -173,7 +173,7 @@ SELECT 'debt', jsonb_build_object(
   'id', person."id", 'name', person."name"
 )
 FROM "DebtPerson" person
-LEFT JOIN "DebtEvent" event ON event."debtPersonId" = person."id"
+LEFT JOIN "DebtEvent" event ON event."debtPersonId" = person."id" AND event."deletedAt" IS NULL
 WHERE person."userId" = $1 AND person."hiddenAt" IS NULL
 GROUP BY person."id", person."name"`;
 

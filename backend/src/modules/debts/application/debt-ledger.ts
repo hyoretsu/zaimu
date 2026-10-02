@@ -107,6 +107,7 @@ export async function getAccessibleDebtEvent(eventId: string, userId: string) {
 			.where((fields, functions) =>
 				functions.and(
 					functions.eq(fields.DebtEvent.id, eventId),
+					functions.eq(fields.DebtEvent.deletedAt, null),
 					functions.or(
 						functions.eq(fields.DebtPerson.userId, userId),
 						functions.and(
@@ -654,12 +655,22 @@ export async function getDebtBalanceTotals(userId: string) {
 				connection?.status === "ACCEPTED"
 					? await queryRows(
 							db.sql.public.DebtEvent.select("id", "createdByUserId", "effect")
-								.where((fields, functions) => functions.eq(fields.connectionId, connection.id as never))
+								.where((fields, functions) =>
+									functions.and(
+										functions.eq(fields.connectionId, connection.id as never),
+										functions.eq(fields.deletedAt, null),
+									),
+								)
 								.build(),
 						)
 					: await queryRows(
 							db.sql.public.DebtEvent.select("id", "createdByUserId", "effect")
-								.where((fields, functions) => functions.eq(fields.debtPersonId, person.id as never))
+								.where((fields, functions) =>
+									functions.and(
+										functions.eq(fields.debtPersonId, person.id as never),
+										functions.eq(fields.deletedAt, null),
+									),
+								)
 								.build(),
 						);
 			return events.reduce(
