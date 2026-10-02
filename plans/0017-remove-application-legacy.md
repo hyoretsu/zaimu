@@ -93,3 +93,5 @@ Execução e testes somente locais. Aplicação em banco externo, push e deploy 
 - [ ] Etapa 5: remover compatibilidade financeira restante.
 
 Etapa 1 conserva fontes antigas. Registro de upgrade preserva destinos excluídos, inclusive schedules removidos após a migração anterior. Arquivo conserva JSON original e históricos. Conferência em fixtures PostgreSQL locais cobre colisões, namespace por proprietário, somas preservadas e rollback após falha tardia. Auditoria dos dados reais permanece local e deve preceder qualquer remoção destrutiva.
+
+Etapa 2, isolamento concluído: inicialização carrega conversores por import dinâmico somente com marcador pendente; fases compartilham transação, arquivam originais e preservam clocks. Proprietário ambíguo bloqueia conversão até atribuição explícita. Testes cobrem falha tardia, reexecução e concorrência de abas. Remoção dos stores e referências ainda depende das etapas 3 e 4.

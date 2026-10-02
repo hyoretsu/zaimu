@@ -5,7 +5,7 @@ import {
 	moveBookPurchase,
 	replayCreditBook,
 } from "@zaimu/finance/credit-book";
-import { currentDateKey, statementEntryKind } from "@zaimu/finance/credit-card";
+import { currentDateKey } from "@zaimu/finance/credit-card";
 import { loanInstallments } from "@zaimu/finance/loan";
 import type {
 	Category,
@@ -25,13 +25,11 @@ import type {
 } from "@/lib/api";
 import { type CacheIdentity, getCurrentCacheIdentity } from "@/lib/query-cache";
 import { calculateDebtSplit } from "./debt-split";
-import { migrateLegacyCardPayments } from "./legacy-card-payments";
-import { migrateCreditBooks } from "./migrate-credit-books";
-import { migrateLocalRecurrenceRows } from "./migrate-recurrences";
+import { requestResult, transactionDone } from "./idb";
 import type { Recurrence, RecurrenceOccurrence } from "./recurrence";
 
 const DB_NAME = "zaimu-local";
-const DB_VERSION = 9;
+const DB_VERSION = 10;
 
 const LEGACY_STORES = {
 	accounts: "accounts",
@@ -71,14 +69,6 @@ export interface LocalData<T> {
 	syncedAt?: number;
 }
 
-interface LegacyLocalData<T = unknown> {
-	data: T;
-	deleted?: boolean;
-	localId: string;
-	modifiedAt?: number;
-	syncedAt?: number;
-}
-
 let db: IDBDatabase | null = null;
 let dbInitializationPromise: Promise<IDBDatabase> | null = null;
 let migrationPromise: Promise<void> | null = null;
@@ -89,21 +79,6 @@ function requireOwner(ownerKey?: StorageOwner): StorageOwner {
 	const capturedOwner = ownerKey ?? getCurrentCacheIdentity();
 	if (!capturedOwner) throw new Error("Identidade local indisponível.");
 	return capturedOwner;
-}
-
-function requestResult<T>(request: IDBRequest<T>): Promise<T> {
-	return new Promise((resolve, reject) => {
-		request.onsuccess = () => resolve(request.result);
-		request.onerror = () => reject(request.error);
-	});
-}
-
-function transactionDone(transaction: IDBTransaction): Promise<void> {
-	return new Promise((resolve, reject) => {
-		transaction.oncomplete = () => resolve();
-		transaction.onabort = () => reject(transaction.error ?? new Error("Transação IndexedDB cancelada."));
-		transaction.onerror = () => reject(transaction.error ?? new Error("Falha na transação IndexedDB."));
-	});
 }
 
 async function runTransaction<T>(
@@ -140,123 +115,17 @@ function explicitOwner(data: unknown): StorageOwner | null {
 	return null;
 }
 
-const relationshipIds = [
-	"financialAccountId",
-	"originFinancialAccountId",
-	"destinationFinancialAccountId",
-	"creditCardId",
-	"paymentCreditCardId",
-	"creditCardStatementId",
-	"debtPersonId",
-	"loanId",
-] as const;
-
-function relatedOwners(
-	data: unknown,
-	ownersByRecordId: ReadonlyMap<string, ReadonlySet<StorageOwner>>,
-): Set<StorageOwner> {
-	const owners = new Set<StorageOwner>();
-	if (!data || typeof data !== "object") return owners;
-	const value = data as Record<string, unknown>;
-	for (const relationshipId of relationshipIds) {
-		const id = value[relationshipId];
-		if (typeof id !== "string") continue;
-		for (const owner of ownersByRecordId.get(id) ?? []) owners.add(owner);
-	}
-	return owners;
-}
-
-async function migrateLegacyData(database: IDBDatabase): Promise<void> {
-	const legacyDomains = (Object.keys(LEGACY_STORES) as StoreDomain[]).filter(domain =>
-		database.objectStoreNames.contains(LEGACY_STORES[domain]),
-	);
-	const records = new Map<StoreDomain, LegacyLocalData[]>();
-	for (const domain of legacyDomains) {
-		const transaction = database.transaction(LEGACY_STORES[domain], "readonly");
-		records.set(domain, await requestResult(transaction.objectStore(LEGACY_STORES[domain]).getAll()));
-	}
-
-	const ownersByRecordId = new Map<string, Set<StorageOwner>>();
-	for (const items of records.values()) {
-		for (const item of items) {
-			const owner = explicitOwner(item.data);
-			if (!owner) continue;
-			const owners = ownersByRecordId.get(item.localId) ?? new Set<StorageOwner>();
-			owners.add(owner);
-			ownersByRecordId.set(item.localId, owners);
-		}
-	}
-
-	for (const [domain, items] of records) {
-		const attributable = items.flatMap(item => {
-			const directOwner = explicitOwner(item.data);
-			const related = relatedOwners(item.data, ownersByRecordId);
-			const owner = directOwner ?? (related.size === 1 ? [...related][0] : null);
-			return owner ? [{ item, owner }] : [];
-		});
-		if (!attributable.length) continue;
-		await runTransaction(
-			scopedStoreName(domain),
-			"readwrite",
-			async store => {
-				for (const { item, owner } of attributable) {
-					const key = scopedId(owner, item.localId);
-					const existing = await requestResult(store.get(key));
-					if (existing) continue;
-					await requestResult(
-						store.put({
-							...item,
-							modifiedAt: item.modifiedAt ?? Date.now(),
-							ownerKey: owner,
-							scopedId: key,
-						}),
-					);
-				}
-			},
-			database,
-		);
-	}
-}
-
-async function migrateCardPayments(database: IDBDatabase): Promise<void> {
-	const transaction = database.transaction(
-		[
-			scopedStoreName("transactions"),
-			scopedStoreName("creditCardStatements"),
-			scopedStoreName("creditPurchases"),
-		],
-		"readwrite",
-	);
-	const completion = transactionDone(transaction);
-	const paymentsStore = transaction.objectStore(scopedStoreName("transactions"));
-	const purchasesStore = transaction.objectStore(scopedStoreName("creditPurchases"));
-	const [payments, statements, purchases] = await Promise.all([
-		requestResult(paymentsStore.getAll()),
-		requestResult(transaction.objectStore(scopedStoreName("creditCardStatements")).getAll()),
-		requestResult(purchasesStore.getAll()),
-	]);
-	const migrated = migrateLegacyCardPayments(payments, statements);
-	for (let index = 0; index < payments.length; index++)
-		if (payments[index] !== migrated[index]) paymentsStore.put(migrated[index]);
-	for (const row of purchases)
-		if (
-			row.data.isStatementCharge === undefined &&
-			statementEntryKind(row.data.description ?? "") === "CHARGE"
-		)
-			purchasesStore.put({
-				...row,
-				data: { ...row.data, cashbackAccountId: null, cashbackAmount: null, isStatementCharge: true },
-			});
-	await completion;
-}
-
 async function openLocalDb(): Promise<IDBDatabase> {
 	const database = await new Promise<IDBDatabase>((resolve, reject) => {
 		const request = indexedDB.open(DB_NAME, DB_VERSION);
 		request.onerror = () => reject(request.error);
 		request.onblocked = () => reject(new Error("Banco local bloqueado por outra aba."));
 		request.onsuccess = () => resolve(request.result);
-		request.onupgradeneeded = () => {
+		request.onupgradeneeded = event => {
+			if (!request.result.objectStoreNames.contains("application-upgrade")) {
+				const upgrade = request.result.createObjectStore("application-upgrade", { keyPath: "id" });
+				upgrade.put({ id: "state", status: event.oldVersion === 0 ? "complete" : "pending", version: 10 });
+			}
 			for (const domain of Object.keys(LEGACY_STORES) as StoreDomain[]) {
 				const name = scopedStoreName(domain);
 				if (request.result.objectStoreNames.contains(name)) continue;
@@ -274,13 +143,19 @@ async function openLocalDb(): Promise<IDBDatabase> {
 		dbInitializationPromise = null;
 		migrationPromise = null;
 	};
+	const tx = database.transaction("application-upgrade", "readonly");
+	const state = await requestResult(tx.objectStore("application-upgrade").get("state"));
+	migrationPromise =
+		state?.status === "complete"
+			? Promise.resolve()
+			: import("./upgrades/local-upgrade").then(({ upgradeLocalDatabase }) => upgradeLocalDatabase(database));
+	try {
+		await migrationPromise;
+	} catch (error) {
+		database.close();
+		throw error;
+	}
 	db = database;
-	migrationPromise = migrateLegacyData(database)
-		.then(() => migrateCardPayments(database))
-		.then(() => migrateCreditBooks(database))
-		.then(() => migrateRecurrences(database))
-		.then(() => migrateGuestLoanPayments(database));
-	await migrationPromise;
 	return database;
 }
 
@@ -294,6 +169,8 @@ export async function initLocalDb(): Promise<IDBDatabase> {
 		return await dbInitializationPromise;
 	} catch (error) {
 		dbInitializationPromise = null;
+		db = null;
+		migrationPromise = null;
 		throw error;
 	}
 }
@@ -984,35 +861,6 @@ export async function materializeLocalCreditBooks(owner: StorageOwner, asOf = cu
 	return changed;
 }
 
-async function migrateRecurrences(database: IDBDatabase) {
-	const domains = [
-		"recurrences",
-		"recurrenceOccurrences",
-		"recurringPayments",
-		"salaries",
-		"subscriptions",
-		"transactions",
-		"creditBooks",
-		"creditCards",
-	] as const;
-	const tx = database.transaction(domains.map(scopedStoreName), "readwrite");
-	const done = transactionDone(tx);
-	const snapshots = await Promise.all(
-		domains.map(domain => requestResult(tx.objectStore(scopedStoreName(domain)).getAll())),
-	);
-	try {
-		const changes = migrateLocalRecurrenceRows(
-			Object.fromEntries(domains.map((domain, index) => [domain, snapshots[index]])),
-		);
-		for (const [domain, rows] of Object.entries(changes))
-			for (const row of rows) tx.objectStore(scopedStoreName(domain as StoreDomain)).put(row);
-	} catch (error) {
-		tx.abort();
-		await done.catch(() => undefined);
-		throw error;
-	}
-	await done;
-}
 /** One IndexedDB transaction commits an occurrence, its financial effects and cursor. */
 export async function commitLocalRecurrenceChanges(
 	owner: StorageOwner,
@@ -1366,54 +1214,6 @@ export async function advanceLocalLoanInstallments(
 			advanceType,
 			totalPaid: rows.reduce((sum, row) => sum + row.data.totalPaid, 0),
 		};
-	} catch (error) {
-		tx.abort();
-		await done.catch(() => undefined);
-		throw error;
-	}
-}
-
-export async function migrateGuestLoanPayments(database: IDBDatabase) {
-	const tx = database.transaction(["scoped-loans", "scoped-loanPayments"], "readwrite");
-	const done = transactionDone(tx);
-	try {
-		const loans = (await requestResult(tx.objectStore("scoped-loans").getAll())) as LocalData<Loan>[];
-		const store = tx.objectStore("scoped-loanPayments");
-		const payments = (await requestResult(store.getAll())) as LocalData<LoanPayment>[];
-		for (const record of loans) {
-			if (
-				record.deleted ||
-				!record.ownerKey.startsWith("guest:") ||
-				payments.some(row => row.ownerKey === record.ownerKey && row.data.loanId === record.data.id)
-			)
-				continue;
-			let schedule: ReturnType<typeof loanInstallments>;
-			try {
-				schedule = loanInstallments(record.data);
-			} catch {
-				tx.objectStore("scoped-loans").put({ ...record, data: { ...record.data, needsPaymentReview: true } });
-				continue;
-			}
-			for (const row of schedule) {
-				const id = crypto.randomUUID();
-				store.put({
-					data: { ...row, id, isAdvanced: false, loanId: record.data.id },
-					localId: id,
-					modifiedAt: record.modifiedAt,
-					ownerKey: record.ownerKey,
-					scopedId: scopedId(record.ownerKey, id),
-				});
-			}
-			tx.objectStore("scoped-loans").put({
-				...record,
-				data: {
-					...record.data,
-					needsPaymentReview: (record.data.paidInstallments ?? 0) > 0,
-					remainingInstallments: record.data.totalInstallments - (record.data.paidInstallments ?? 0),
-				},
-			});
-		}
-		await done;
 	} catch (error) {
 		tx.abort();
 		await done.catch(() => undefined);

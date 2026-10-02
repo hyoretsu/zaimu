@@ -81,7 +81,6 @@ import type {
 	FinancialAccount,
 	FinancialAccountYield,
 	FinancialAccountYieldHoliday,
-	FinancialAccountYieldRateHistory,
 	FinancialInstitution,
 	Loan,
 	LoanPayment,
@@ -158,19 +157,6 @@ function getEvenlyDistributedInstallmentAmounts(totalAmount: number, installment
 		{ length: installments },
 		(_, index) => (amountInCents + (index < remainderInCents ? 1 : 0)) / 100,
 	);
-}
-
-type LegacySalary = Omit<Salary, "amount"> & {
-	amount?: number;
-	grossAmount?: number;
-	netAmount?: number;
-};
-
-function normalizeSalary(salary: LegacySalary): Salary {
-	const normalized = { ...salary, amount: salary.amount ?? salary.netAmount ?? 0 };
-	delete normalized.grossAmount;
-	delete normalized.netAmount;
-	return normalized;
 }
 
 async function hydrateLocalDebtSplit(
@@ -254,47 +240,6 @@ function isGuestMode(): boolean {
 function getUserId(): string {
 	const state = useAuthStore.getState();
 	return state.user?.id || state.guestId;
-}
-
-type LegacyFinancialAccount = FinancialAccount & {
-	yieldRate?: number | null;
-	yieldRateHistories?: Array<FinancialAccountYieldRateHistory & { yieldRate?: number | null }>;
-};
-type LegacyCreditCard = CreditCard & { cashbackYieldRate?: number | null };
-type LegacyCreditPurchase = CreditPurchase & { cashbackYieldRate?: number | null };
-
-function normalizeLegacyCreditCard(card: LegacyCreditCard): CreditCard {
-	const referenceRate = card.cashbackYieldReferenceRate ?? card.cashbackYieldRate;
-	return {
-		...card,
-		cashbackYieldReferencePercentage: card.cashbackYieldReferencePercentage ?? (referenceRate ? 100 : null),
-		cashbackYieldReferenceRate: referenceRate,
-	};
-}
-
-function normalizeLegacyCreditPurchase(purchase: LegacyCreditPurchase): CreditPurchase {
-	const referenceRate = purchase.cashbackYieldReferenceRate ?? purchase.cashbackYieldRate;
-	return {
-		...purchase,
-		cashbackYieldReferencePercentage:
-			purchase.cashbackYieldReferencePercentage ?? (referenceRate ? 100 : null),
-		cashbackYieldReferenceRate: referenceRate,
-	};
-}
-
-function normalizeLegacyFinancialAccount(account: LegacyFinancialAccount): FinancialAccount {
-	return {
-		...account,
-		...(account.creditCard && { creditCard: normalizeLegacyCreditCard(account.creditCard) }),
-		yieldFixedRate: account.yieldFixedRate ?? account.yieldRate,
-		yieldRateHistories: account.yieldRateHistories?.map(history => {
-			const legacyHistory = history as FinancialAccountYieldRateHistory & { yieldRate?: number | null };
-			return {
-				...history,
-				yieldFixedRate: history.yieldFixedRate ?? legacyHistory.yieldRate,
-			};
-		}),
-	};
 }
 
 // Generic authenticated fetch
@@ -489,7 +434,7 @@ export const dataService = {
 					localMeta.get("financial-account-yields"),
 				]);
 				const accounts = calculateFinancialAccountBalances(
-					local.map(item => normalizeLegacyFinancialAccount(item.data)),
+					local.map(item => item.data),
 					transactions.map(item => item.data),
 					cashbackPurchases.flatMap(item => creditBookRewards(item.data)),
 					(holidays as FinancialAccountYieldHoliday[] | null)?.map(holiday => holiday.date) ?? [],
@@ -530,7 +475,7 @@ export const dataService = {
 			if (isGuestMode()) {
 				const existing = await localAccounts.getById(id);
 				if (!existing) throw new Error("FinancialAccount not found");
-				existing.data = normalizeLegacyFinancialAccount(existing.data);
+
 				const { institutionName, recalculateCurrentDay, ...accountData } = data;
 				let institution = existing.data.institution ?? null;
 				if (institutionName !== undefined) {
@@ -1769,9 +1714,7 @@ export const dataService = {
 					localMeta.get("financial-account-yields"),
 				]);
 				const accountsAtRangeEnd = calculateFinancialAccountBalances(
-					accountRecords
-						.filter(item => !item.data.isHidden)
-						.map(item => normalizeLegacyFinancialAccount(item.data)),
+					accountRecords.filter(item => !item.data.isHidden).map(item => item.data),
 					transactions,
 					cashbackPurchases.flatMap(item => creditBookRewards(item.data)),
 					(holidays as FinancialAccountYieldHoliday[] | null)?.map(holiday => holiday.date) ?? [],

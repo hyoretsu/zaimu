@@ -11,24 +11,28 @@ const request = <T>(value: IDBRequest<T>) =>
 const key = (owner: string, id: string) => `${owner}\u0000${id}`;
 
 /** One atomic migration across every owner; archived sources preserve tombstones and clocks. */
-export async function migrateCreditBooks(db: IDBDatabase) {
-	const tx = db.transaction(
-		[
-			"scoped-creditBooks",
-			"scoped-creditPurchases",
-			"scoped-creditCards",
-			"scoped-creditCardStatements",
-			"scoped-accounts",
-			"scoped-creditRefundReviews",
-			"scoped-meta",
-		],
-		"readwrite",
-	);
-	const done = new Promise<void>((resolve, reject) => {
-		tx.oncomplete = () => resolve();
-		tx.onabort = () => reject(tx.error ?? new Error("Migração financeira cancelada"));
-		tx.onerror = () => reject(tx.error);
-	});
+export async function migrateCreditBooks(db: IDBDatabase, borrowed?: IDBTransaction) {
+	const tx =
+		borrowed ??
+		db.transaction(
+			[
+				"scoped-creditBooks",
+				"scoped-creditPurchases",
+				"scoped-creditCards",
+				"scoped-creditCardStatements",
+				"scoped-accounts",
+				"scoped-creditRefundReviews",
+				"scoped-meta",
+			],
+			"readwrite",
+		);
+	const done = borrowed
+		? undefined
+		: new Promise<void>((resolve, reject) => {
+				tx.oncomplete = () => resolve();
+				tx.onabort = () => reject(tx.error ?? new Error("Migração financeira cancelada"));
+				tx.onerror = () => reject(tx.error);
+			});
 	try {
 		const [cards, statements, rows, accounts] = await Promise.all([
 			request(tx.objectStore("scoped-creditCards").getAll()) as Promise<LocalData<CreditCard>[]>,
@@ -210,50 +214,42 @@ export async function migrateCreditBooks(db: IDBDatabase) {
 					? modifiedAt
 					: undefined;
 				await request(
-					tx
-						.objectStore("scoped-creditBooks")
-						.put({
-							...cardRow,
-							data: book,
-							localId: card.id,
-							modifiedAt,
-							scopedId: key(owner, card.id),
-							syncedAt,
-						}),
+					tx.objectStore("scoped-creditBooks").put({
+						...cardRow,
+						data: book,
+						localId: card.id,
+						modifiedAt,
+						scopedId: key(owner, card.id),
+						syncedAt,
+					}),
 				);
 				for (const review of migration.unlinkedRefunds) {
 					const row = source.find(row => row.localId === review.id)!;
 					await request(
-						tx
-							.objectStore("scoped-creditRefundReviews")
-							.put({
-								...row,
-								data: { creditCardId: card.id, original: row.data, requiresRefundReview: true },
-							}),
+						tx.objectStore("scoped-creditRefundReviews").put({
+							...row,
+							data: { creditCardId: card.id, original: row.data, requiresRefundReview: true },
+						}),
 					);
 				}
 			}
 			await request(
-				tx
-					.objectStore("scoped-meta")
-					.put({
-						data: true,
-						localId: "normalized-credit-books-v1",
-						modifiedAt: Date.now(),
-						ownerKey: owner,
-						scopedId: marker,
-					}),
+				tx.objectStore("scoped-meta").put({
+					data: true,
+					localId: "normalized-credit-books-v1",
+					modifiedAt: Date.now(),
+					ownerKey: owner,
+					scopedId: marker,
+				}),
 			);
 			// Remove active flattened source records. Archive source and clocks for migration audit.
 			for (const row of rows.filter(row => row.ownerKey === owner)) {
 				await request(
-					tx
-						.objectStore("scoped-meta")
-						.put({
-							...row,
-							localId: `credit-source-${row.localId}`,
-							scopedId: key(owner, `credit-source-${row.localId}`),
-						}),
+					tx.objectStore("scoped-meta").put({
+						...row,
+						localId: `credit-source-${row.localId}`,
+						scopedId: key(owner, `credit-source-${row.localId}`),
+					}),
 				);
 				await request(tx.objectStore("scoped-creditPurchases").delete(row.scopedId));
 			}
@@ -263,7 +259,7 @@ export async function migrateCreditBooks(db: IDBDatabase) {
 		try {
 			tx.abort();
 		} catch {}
-		await done.catch(() => undefined);
+		await done?.catch(() => undefined);
 		throw error;
 	}
 }

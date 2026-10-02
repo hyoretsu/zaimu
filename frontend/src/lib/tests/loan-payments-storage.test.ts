@@ -110,8 +110,8 @@ test("legacy migration is idempotent, skips signed owners and isolates invalid l
 	await storage.localLoans.put({ ...loan, id: "invalid", totalInstallments: 0 }, "invalid", owner);
 	await storage.localLoans.put({ ...loan, id: "signed" }, "signed", "user:test");
 	const database = await storage.initLocalDb();
-	await storage.migrateGuestLoanPayments(database);
-	await storage.migrateGuestLoanPayments(database);
+	await (await import("../upgrades/local-upgrade")).migrateGuestLoanPayments(database);
+	await (await import("../upgrades/local-upgrade")).migrateGuestLoanPayments(database);
 	expect(await storage.localLoanPayments.getAll(owner)).toHaveLength(3);
 	expect(await storage.localLoanPayments.getAll("user:test")).toHaveLength(0);
 	expect((await storage.localLoans.getById("legacy", owner))?.data.needsPaymentReview).toBe(true);
