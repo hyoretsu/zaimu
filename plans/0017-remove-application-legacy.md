@@ -87,17 +87,37 @@ Execução e testes somente locais. Aplicação em banco externo, push e deploy 
 ## Progresso de execução
 
 - [x] Etapa 1: inventário em `docs/application-legacy-inventory.md`; auditoria local somente leitura em `packages/sql/scripts/audit-application-legacy.ts`; migração aditiva de arquivo e mapeamento por proprietário; resolução autenticada exclusiva de upgrade em `/upgrades/recurrence-ids`.
-- [ ] Etapa 2: isolar conversores IndexedDB e controlar marcadores de upgrade.
+- [x] Etapa 2: isolar conversores IndexedDB e controlar marcadores de upgrade.
 - [x] Etapa 3: remover contratos e estruturas antigas de recorrências.
 - [x] Etapa 4: unificar eventos de dívida no visitante e sync.
-- [ ] Etapa 5: remover compatibilidade financeira restante.
+- [x] Etapa 5: remover compatibilidade financeira restante.
 
 Etapa 1 conserva fontes antigas. Registro de upgrade preserva destinos excluídos, inclusive schedules removidos após a migração anterior. Arquivo conserva JSON original e históricos. Conferência em fixtures PostgreSQL locais cobre colisões, namespace por proprietário, somas preservadas e rollback após falha tardia. Auditoria dos dados reais permanece local e deve preceder qualquer remoção destrutiva.
 
-Etapa 2, isolamento concluído: inicialização carrega conversores por import dinâmico somente com marcador pendente; fases compartilham transação, arquivam originais e preservam clocks. Proprietário ambíguo bloqueia conversão até atribuição explícita. Testes cobrem falha tardia, reexecução e concorrência de abas. Remoção dos stores e referências ainda depende das etapas 3 e 4.
+Etapa 2, isolamento concluído: inicialização carrega conversores por import dinâmico somente com marcador pendente; fases compartilham transação, arquivam originais e preservam clocks. Proprietário ambíguo bloqueia conversão até atribuição explícita. Testes cobrem falha tardia, reexecução e concorrência de abas. Referências foram convertidas nas etapas 3 e 4; fontes ativas são esvaziadas atomicamente e stores removidos no schema 14, após marcador completo do schema 13.
 
-Etapa 3: controllers e processadores antigos removidos; contratos atuais exclusivos no CRUD e sync. Compras e rateios usam `recurrenceId`; compras usam `recurrenceOccurrenceDate`. Migração renomeia colunas sem recriação e remove tabelas antigas somente após igualdade com arquivo e conferência financeira transacional. Histórico SQL e IndexedDB cobre falhas tardias, cinco movimentações, pausas, retomada, edições e tombstones. Resolução de IDs ocorre no módulo de upgrade antes do sync, preservando edições feitas durante consulta e destinos excluídos. Banco novo não cria stores de salários, assinaturas, pagamentos recorrentes ou compras achatadas. Stores vazios de upgrade permanecem para remoção em schema posterior. E2Es de CRUD atuais passaram em PostgreSQL e Redis locais descartáveis.
+Etapa 3: controllers e processadores antigos removidos; contratos atuais exclusivos no CRUD e sync. Compras e rateios usam `recurrenceId`; compras usam `recurrenceOccurrenceDate`. Migração renomeia colunas sem recriação e remove tabelas antigas somente após igualdade com arquivo e conferência financeira transacional. Histórico SQL e IndexedDB cobre falhas tardias, cinco movimentações, pausas, retomada, edições e tombstones. Resolução de IDs ocorre no módulo de upgrade antes do sync, preservando edições feitas durante consulta e destinos excluídos. Banco novo não cria stores de salários, assinaturas, pagamentos recorrentes ou compras achatadas. Stores vazios de upgrade são removidos no schema posterior 14, após conferência. E2Es de CRUD atuais passaram em PostgreSQL e Redis locais descartáveis.
 
 Etapa 4: visitante opera com `DebtPerson` e `StoredDebtEvent`; dashboard deriva saldos do livro. Sync tipado aceita origens próprias e compensações comprovadas pelo endpoint isolado de upgrade. Tombstones são permanentes, preservando reexecução; reconhecimento de resposta conserva edições feitas durante a requisição. Conversão arquiva originais e históricos, preserva compensações datadas e bloqueia colisões. SQL remove tabelas somente após conferência transacional, mantém livro atual e converte origens já excluídas em tombstones. Testes locais cobrem saldo, histórico, colisões, rollback, edição concorrente e privacidade. E2Es: 3 testes, 230 verificações, incluindo login existente, CRUD, bilateralidade e rejeição do grupo antigo.
 
 Etapas 2 e 5, corte final em validação: fila `CreditRefundReview` substitui consultas legadas; tags substituem categoria escalar. Migração financeira aplicada em banco descartável. Conversores de empréstimo e campos financeiros ficam isolados; revisão explícita de proprietário bloqueia telas até conferência. Fontes ativas são esvaziadas somente na transação verificada e stores removidos em schema posterior. Resolvedores de sync carregam somente com provas pendentes. Testes e aceite final ainda pendentes.
+
+Conferência final em andamento: instalação limpa local passou 77 migrações; financeiro passou 65 testes; E2E atual passou 230 verificações e revisão de reembolso passou 12. SQL financeiro passou transferência, equivalência e rollback. Teste de schema local cobre remoção posterior e reabertura sem reimportação. Tipos SQL/backend e build backend passaram. Build frontend, navegador e atualização final do aceite ainda em andamento.
+
+## Aceite final
+
+Todas as etapas implementadas. Recorrências usam contratos atuais, dívidas usam eventos e crédito órfão usa `CreditRefundReview`. Tags substituem campos escalares de transações, compras e importações. Conversões de rendimentos, cashback e empréstimos ficam no upgrade. Similaridade de financiamento somente aponta candidatos para conciliação explícita. Arquivos históricos e exceções aprovadas permanecem preservados.
+
+Inicialização local bloqueia dados ambíguos até escolha explícita, inclusive sem sessão. Conversão arquiva originais, conserva clocks e tombstones e limpa fontes somente na transação concluída. Schema posterior verifica marcador e stores vazios antes de removê-los. Reabertura e sync sem provas pendentes não carregam conversores. Erros do grupo de dívidas mantêm alterações locais pendentes.
+
+Validação local concluída:
+
+- Instalação limpa: 77 migrações aplicadas em PostgreSQL descartável. Fixtures SQL verificam equivalência, arquivo, vínculos, tombstones e rollback, incluindo corte financeiro com 2 testes e 9 verificações.
+- Financeiro: 65 testes e 188 verificações. Recorrências e dívidas conservaram testes de calendário, saldo, privacidade e edição concorrente registrados nas etapas anteriores.
+- E2E atual: 3 testes e 230 verificações. Revisão de reembolso: 12 verificações adicionais de privacidade, aprovação única, arquivo original e rejeição de campos antigos com 422.
+- IndexedDB: conversão geral com 3 testes e 16 verificações; resolvedores e conversões de recorrência/dívida com 3 testes e 25 verificações; schema posterior com 7 verificações; pagamentos de empréstimo com 3 testes e 16 verificações.
+- Navegador Chromium: proprietário sem escolha automática, revisão explícita, saldo e clocks armazenados preservados, schema 14, reabertura sem nova conversão, modo visitante e sessão ausente. Nenhum erro JavaScript; layout móvel conferido.
+- Tipos SQL, financeiro e backend passaram. Builds backend e frontend passaram; frontend executa `tsc -b` antes do Vite.
+- Busca final: nenhuma consulta normal às tabelas removidas ou leitura dos campos antigos. Conversores aparecem em chunks separados do build. Autenticação, redirecionamentos, migrações e snapshots anteriores preservados.
+
+Execução somente local. Alterações paralelas de recorrências ficaram em commit próprio. `packages/sql/migrations/app/refs/db.json` e teste preexistente não foram incluídos nos commits desta tarefa. Aplicação externa permanece com usuário.

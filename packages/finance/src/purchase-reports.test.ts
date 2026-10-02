@@ -4,7 +4,6 @@ import type { CreditRefund } from "./credit-refund";
 import { purchaseSpending, refundCreditEntry } from "./purchase-reports";
 
 const purchase: CreditPurchase = {
-	categoryId: "market",
 	creditCardId: "card",
 	description: "Compras",
 	id: "purchase",

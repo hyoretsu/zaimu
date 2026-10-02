@@ -112,3 +112,84 @@ test("ambiguous ownership blocks upgrade until explicit review; concurrent tabs 
 		database.close();
 	}
 });
+
+test("tags and reference yields convert while preserving clocks, tombstones and exact archive", async () => {
+	const database = await fixture();
+	try {
+		const tx = database.transaction(
+			["scoped-accounts", "scoped-transactions", "scoped-creditBooks"],
+			"readwrite",
+		);
+		const done = transactionDone(tx);
+		const row = (id: string, data: unknown) => ({
+			data,
+			deleted: true,
+			localId: id,
+			modifiedAt: 42,
+			ownerKey: "user:a",
+			scopedId: `user:a\u0000${id}`,
+			syncedAt: 40,
+		});
+		tx.objectStore("scoped-accounts").put(
+			row("account", {
+				id: "account",
+				yieldRateHistories: [
+					{ effectiveDate: "2026-01-01", yieldReferencePercentage: 100, yieldReferenceRate: 13 },
+				],
+				yieldReferencePercentage: 110,
+				yieldReferenceRate: 12,
+			}),
+		);
+		tx.objectStore("scoped-transactions").put(
+			row("transaction", {
+				categoryColor: "red",
+				categoryId: "old",
+				categoryName: "Old",
+				id: "transaction",
+				tagIds: ["new"],
+			}),
+		);
+		tx.objectStore("scoped-creditBooks").put(
+			row("card", {
+				charges: [],
+				purchases: [{ categoryId: "old", id: "purchase", tagIds: ["old", "new"] }],
+			}),
+		);
+		await done;
+		await upgradeLocalDatabase(database);
+		const reading = database.transaction(
+			["scoped-accounts", "scoped-transactions", "scoped-creditBooks", "application-upgrade"],
+			"readonly",
+		);
+		const account = await requestResult(reading.objectStore("scoped-accounts").get("user:a\u0000account"));
+		expect(account.data.yieldReferenceType).toBe("CDI");
+		expect(account.data).not.toHaveProperty("yieldReferenceRate");
+		expect(account.data.yieldRateHistories[0].yieldReferenceType).toBe("CDI");
+		expect(account.data.yieldRateHistories[0]).not.toHaveProperty("yieldReferenceRate");
+		const transaction = await requestResult(
+			reading.objectStore("scoped-transactions").get("user:a\u0000transaction"),
+		);
+		expect(transaction).toMatchObject({
+			data: { tagIds: ["new", "old"] },
+			deleted: true,
+			modifiedAt: 42,
+			syncedAt: 40,
+		});
+		expect(transaction.data).not.toHaveProperty("categoryId");
+		expect(
+			(await requestResult(reading.objectStore("scoped-creditBooks").get("user:a\u0000card"))).data
+				.purchases[0].tagIds,
+		).toEqual(["old", "new"]);
+		expect(
+			(
+				await requestResult(
+					reading
+						.objectStore("application-upgrade")
+						.get("archive:scoped-transactions:user:a\u0000transaction"),
+				)
+			).original.data.categoryId,
+		).toBe("old");
+	} finally {
+		database.close();
+	}
+});

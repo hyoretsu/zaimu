@@ -247,6 +247,7 @@ export async function migrateGuestLoanPayments(database: IDBDatabase, borrowed?:
 
 type LegacyFinancialAccount = FinancialAccount & {
 	yieldRate?: number | null;
+	yieldReferenceRate?: number | null;
 	yieldRateHistories?: Array<
 		import("../api").FinancialAccountYieldRateHistory & { yieldRate?: number | null }
 	>;
@@ -325,12 +326,21 @@ function normalizeLegacyFinancialAccount(account: LegacyFinancialAccount): Finan
 		yieldRateHistories: account.yieldRateHistories?.map(history => {
 			const legacyHistory = history as import("../api").FinancialAccountYieldRateHistory & {
 				yieldRate?: number | null;
+				yieldReferenceRate?: number | null;
 			};
 			return {
 				...withoutLegacyFinancialFields(history),
 				yieldFixedRate: history.yieldFixedRate ?? legacyHistory.yieldRate,
+				yieldReferenceType:
+					history.yieldReferenceType ??
+					(legacyHistory.yieldReferenceRate != null || history.yieldReferencePercentage != null
+						? "CDI"
+						: null),
 			};
 		}),
+		yieldReferenceType:
+			account.yieldReferenceType ??
+			(account.yieldReferenceRate != null || account.yieldReferencePercentage != null ? "CDI" : null),
 	};
 }
 

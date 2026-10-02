@@ -10,7 +10,6 @@ import {
 } from "./credit-purchase";
 
 const purchase: CreditPurchase = {
-	categoryId: "food",
 	creditCardId: "card",
 	description: "Mercado",
 	id: "purchase",

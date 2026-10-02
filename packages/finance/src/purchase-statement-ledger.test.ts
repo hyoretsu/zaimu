@@ -4,7 +4,6 @@ import type { CreditRefund } from "./credit-refund";
 import { rebuildPurchaseStatementLedger } from "./purchase-statement-ledger";
 
 const purchase: CreditPurchase = {
-	categoryId: null,
 	creditCardId: "card",
 	description: "Compra",
 	id: "purchase",

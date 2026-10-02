@@ -1687,4 +1687,86 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(ledger.people[0]!.events).toHaveLength(0);
 		expect((await jsonRequest("/sync", "POST", { debts: [] }, owner.cookie)).status).toBe(422);
 	});
+	test("current refund review preserves originals, ownership and one financial approval", async () => {
+		const owner = await createSession("refund-owner");
+		const outsider = await createSession("refund-outsider");
+		const accountResponse = await jsonRequest(
+			"/financial-accounts/",
+			"POST",
+			{
+				creditCard: { creditLimit: 1000, dueDay: 20, statementDay: 10 },
+				name: "Review card",
+				type: "CREDIT_CARD",
+			},
+			owner.cookie,
+		);
+		expect(accountResponse.status).toBe(200);
+		const account = (await accountResponse.json()) as { creditCard: { id: string } };
+		const cardId = account.creditCard.id;
+		const id = crypto.randomUUID();
+		const original = {
+			description: "Original refund",
+			externalId: "review-refund",
+			purchaseDate: "2026-09-01",
+			time: "12:00",
+			totalAmount: -5,
+		};
+		await executeStatement(
+			db.sql.public.CreditEntryReference.insert([{ id, requiresRefundReview: true }]).build(),
+		);
+		await executeStatement(
+			db.sql.public.CreditRefundReview.insert([
+				{ creditCardId: cardId, id, original, userId: owner.userId },
+			]).build(),
+		);
+		const path = `/credit-cards/${cardId}/refund-reviews`;
+		expect(await (await jsonRequest(path, "GET", undefined, owner.cookie)).json()).toEqual([
+			{ id, original },
+		]);
+		expect(await (await jsonRequest(path, "GET", undefined, outsider.cookie)).json()).toEqual([]);
+		const body = {
+			purchase: {
+				description: "Recovered purchase",
+				installments: 1,
+				purchaseDate: "2026-08-01",
+				tagIds: [],
+				totalAmount: 10,
+			},
+		};
+		expect((await jsonRequest(`${path}/${id}/approve`, "POST", body, outsider.cookie)).status).toBe(404);
+		const approved = await jsonRequest(`${path}/${id}/approve`, "POST", body, owner.cookie);
+		expect(approved.status).toBe(200);
+		expect((await jsonRequest(`${path}/${id}/approve`, "POST", body, owner.cookie)).status).toBe(404);
+		expect(await (await jsonRequest(path, "GET", undefined, owner.cookie)).json()).toEqual([]);
+		const refunds = await queryRows(
+			db.sql.public.CreditRefundRecord.select("id", "amount")
+				.where((fields, functions) => functions.eq(fields.id, id))
+				.build(),
+		);
+		expect(refunds).toHaveLength(1);
+		expect(refunds[0]?.amount).toBe(5);
+		expect(
+			(
+				await jsonRequest(
+					"/transactions/",
+					"POST",
+					{ amount: 10, categoryId: "old", date: "2026-10-01", type: "EXPENSE" },
+					owner.cookie,
+				)
+			).status,
+		).toBe(422);
+		expect(
+			(
+				await jsonRequest(
+					"/financial-accounts/",
+					"POST",
+					{ name: "Old", type: "CASH", yieldRate: 2 },
+					owner.cookie,
+				)
+			).status,
+		).toBe(422);
+		expect(
+			(await jsonRequest("/sync/", "POST", { transactions: [{ categoryId: "old" }] }, owner.cookie)).status,
+		).toBe(422);
+	});
 });

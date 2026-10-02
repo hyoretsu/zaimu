@@ -21,3 +21,9 @@ Referência: plano `0017-remove-application-legacy`. Inventário inicial em 2026
 | `CreditEntryReference`, tombstones, projeções atuais | histórico, conciliação, exclusões, financeiro | Atual. Preservar. |
 
 Auditoria SQL deve usar snapshot consistente e incluir IDs, valores, vínculos, históricos e tombstones. Contagens sozinhas não demonstram equivalência financeira. Arquivo de upgrade conserva o JSON original; divergência em conferência bloqueia remoção.
+
+## Estado após execução
+
+Tabelas e contratos antigos de recorrência e dívida foram removidos. Referências atuais usam `recurrenceId` e `recurrenceOccurrenceDate`; registros de upgrade mantêm mapeamentos e tombstones. `CreditRefundReview` conserva créditos pendentes por proprietário e cartão. Categoria escalar foi removida das quatro origens financeiras; `Category`, associações e filtros permanecem atuais. Cliente `api`, dashboard antigo e heurística de vínculo financeiro não possuem consumidores atuais.
+
+IndexedDB usa stores atuais e arquivo `application-upgrade`. Conversores, provas, revisão de empréstimos e identificação histórica ficam em `lib/upgrades`; o schema posterior elimina fontes esvaziadas. Migrações históricas, snapshots, Prisma 7, autenticação e redirecionamentos permanecem preservados. Campos históricos só existem nas fontes arquivadas, fixtures de upgrade e conversores isolados.

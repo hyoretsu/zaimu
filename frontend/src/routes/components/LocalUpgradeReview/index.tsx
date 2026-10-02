@@ -1,15 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { StorageOwner } from "@/lib/localStorage";
 import { useCacheIdentity } from "@/lib/query-cache";
+import { showToast, useAuthStore } from "@/stores";
 
 export function LocalUpgradeReview({ error, onRetry }: { error: string; onRetry: () => Promise<void> }) {
 	const identity = useCacheIdentity();
+	const guestOwner: StorageOwner = `guest:${useAuthStore(state => state.guestId)}`;
 	const [choices, setChoices] = useState<Record<string, StorageOwner>>({});
 	const [pending, setPending] = useState(false);
 	const review = useQuery({
@@ -17,7 +18,7 @@ export function LocalUpgradeReview({ error, onRetry }: { error: string; onRetry:
 		queryKey: ["local-upgrade-review"],
 		retry: false,
 	});
-	const owners = [...new Set([...(review.data?.owners ?? []), ...(identity ? [identity] : [])])];
+	const owners = [...new Set([...(review.data?.owners ?? []), guestOwner, ...(identity ? [identity] : [])])];
 	return (
 		<main className="mx-auto grid h-dvh max-w-3xl grid-rows-[auto_minmax(0,1fr)_auto] gap-4 p-6">
 			<div>
@@ -30,7 +31,15 @@ export function LocalUpgradeReview({ error, onRetry }: { error: string; onRetry:
 			<ScrollArea className="min-h-0 rounded-xl border">
 				<div className="space-y-4 p-4">
 					{review.isPending ? (
-						<Skeleton className="h-32 w-full" />
+						<div className="space-y-4">
+							{[0, 1, 2].map(index => (
+								<div className="space-y-3 rounded-lg border p-3" key={index}>
+									<Skeleton className="h-5 w-48" />
+									<Skeleton className="h-4 w-24" />
+									<Skeleton className="h-10 w-full" />
+								</div>
+							))}
+						</div>
 					) : review.error ? (
 						<p role="alert">{review.error.message}</p>
 					) : (
@@ -78,9 +87,12 @@ export function LocalUpgradeReview({ error, onRetry }: { error: string; onRetry:
 								})),
 							);
 						await onRetry();
-						toast.success("Revisão local salva");
+						showToast("Revisão local salva", "positive");
 					} catch (cause) {
-						toast.error(cause instanceof Error ? cause.message : "Não foi possível concluir revisão");
+						showToast(
+							cause instanceof Error ? cause.message : "Não foi possível concluir revisão",
+							"negative",
+						);
 					} finally {
 						setPending(false);
 					}

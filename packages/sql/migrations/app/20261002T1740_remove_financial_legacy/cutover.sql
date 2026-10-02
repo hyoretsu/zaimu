@@ -28,10 +28,12 @@ BEGIN
  IF EXISTS(SELECT 1 FROM "CreditEntryReference" r WHERE r."requiresRefundReview" AND NOT EXISTS(SELECT 1 FROM "CreditRefundReview" q WHERE q."id"=r."id")) THEN RAISE EXCEPTION 'Orphan credit requires explicit owner/card review'; END IF;
 END $review$;
 DO $tags$
-DECLARE target text; entity_type text;
+DECLARE target text; entity_type text; mismatch boolean;
 BEGIN
  FOR target,entity_type IN SELECT * FROM (VALUES ('Transaction','TRANSACTION'),('CreditPurchaseRecord','CREDIT_PURCHASE'),('CreditCardImportItem','CREDIT_CARD_IMPORT_ITEM'),('TransactionImportItem','TRANSACTION_IMPORT_ITEM')) AS sources(target,entity_type) LOOP
   EXECUTE format('INSERT INTO "ApplicationUpgradeArchive" ("source","recordId","original") SELECT %L,t."id",to_jsonb(t) FROM %I t WHERE "categoryId" IS NOT NULL ON CONFLICT DO NOTHING','TagScalar:'||target,target);
+  EXECUTE format('SELECT EXISTS(SELECT 1 FROM %I t LEFT JOIN "ApplicationUpgradeArchive" a ON a."source"=%L AND a."recordId"=t."id" WHERE t."categoryId" IS NOT NULL AND a."original"::jsonb IS DISTINCT FROM to_jsonb(t))',target,'TagScalar:'||target) INTO mismatch;
+  IF mismatch THEN RAISE EXCEPTION 'Scalar tag archive mismatch'; END IF;
   EXECUTE format('INSERT INTO "TagAssignment" ("categoryId","entityType","entityId") SELECT "categoryId",%L,"id" FROM %I WHERE "categoryId" IS NOT NULL ON CONFLICT ("categoryId","entityType","entityId") DO NOTHING',entity_type,target);
   IF EXISTS(SELECT 1 FROM "ApplicationUpgradeArchive" a WHERE a."source"='TagScalar:'||target AND NOT EXISTS(SELECT 1 FROM "TagAssignment" tags WHERE tags."categoryId"=a."original"->>'categoryId' AND tags."entityId"=a."recordId" AND tags."entityType"=entity_type)) THEN RAISE EXCEPTION 'Scalar tag conversion mismatch'; END IF;
  END LOOP;

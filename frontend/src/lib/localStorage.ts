@@ -191,7 +191,12 @@ async function openLocalDb(): Promise<IDBDatabase> {
 			/* Other tabs close through onversionchange. */
 		};
 		const cleaned = await requestResult(cleanup);
-		cleaned.onversionchange = database.onversionchange;
+		cleaned.onversionchange = () => {
+			cleaned.close();
+			db = null;
+			dbInitializationPromise = null;
+			migrationPromise = null;
+		};
 		db = cleaned;
 		return cleaned;
 	}
