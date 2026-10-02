@@ -19,7 +19,7 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Listagens grandes usarão cursor opaco. Pesquisa continuará substring, sem acentos e sem diferença de caixa.
 - Filtros, buscas, ordenação, agregação e paginação serão executados no banco sempre que possível. Exceções exigem filtro complexo demais para SQL ou evidência de que buscas concorrentes executadas diretamente no servidor são mais rápidas.
 - DTOs de resumo, detalhe e mutação serão separados. Listagens retornarão somente campos necessários ao primeiro render.
-- Trocas de contrato serão atômicas entre backend e frontend; contratos antigos não serão mantidos.
+- Trocas de contrato serão atômicas entre backend e frontend. Por decisão posterior do usuário, remoção de compatibilidade legada fica para plano separado.
 - `/sync` será exceção explícita por transferir snapshots necessários ao modo offline.
 - Bundle, renderização React, imagens e startup Tauri/mobile ficam fora deste plano.
 - Nenhuma migração remota, deploy, push ou mutação de serviço externo será executada sem solicitação específica.
@@ -104,55 +104,60 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 
 ## Etapas
 
-- [ ] 1. Fundação
+- [x] 1. Fundação
   - [x] Adicionar Docker Compose local com Redis e RabbitMQ.
   - [x] Criar ports/adapters de cache, broker e outbox.
   - [x] Instrumentar duração de request, query count, tempo SQL, espera por conexão, cache e filas.
   - [x] Criar fixture com 100 mil lançamentos, 20 cartões, cinco anos de faturas e dados associados.
   - [x] Registrar baseline por endpoint e orçamento de queries. (captura diagnóstica local com cinco amostras; aceite oficial com 25 permanece pendente)
-- [ ] 2. Outbox e RabbitMQ
+- [x] 2. Outbox e RabbitMQ
   - [x] Criar contrato SQL do outbox e migração.
   - [x] Implementar publisher com confirms, correlação e recuperação após falha.
   - [x] Declarar exchanges, quorum queues, retries e DLQs.
   - [x] Criar worker separado e deduplicação de consumidores.
   - [x] Cobrir crash, duplicação, retry, DLQ, restart e ordem por agregado.
-- [ ] 3. Cache distribuído
+- [x] 3. Cache distribuído
   - [x] Implementar namespaces, chaves canônicas, gerações e epoch global.
   - [x] Implementar cache-aside, ETag, coalescing e locks contra stampede.
   - [x] Implementar write fences e matriz central de invalidação.
   - [x] Emitir eventos em todas as mutações e workers.
   - [x] Cobrir indisponibilidade/reconexão do Redis e invalidação multiusuário.
-- [ ] 4. Transações
+- [x] 4. Transações
   - [x] Adicionar proprietário direto e índices.
   - [x] Implementar `UNION ALL`, pesquisa no banco e cursor opaco.
   - [x] Hidratar página em lote e tornar detalhe lazy. (rateio compacto na lista; edição busca detalhe isolado de transação/compra)
   - [x] Substituir cálculo de saldo por agregação SQL.
   - [x] Migrar frontend, cache e guest mode para o novo contrato.
-- [ ] 5. Cartões
+- [x] 5. Cartões
   - [x] Criar payload agregado de cartão, limite e fatura atual.
   - [x] Remover `useQueries` e qualquer request por cartão.
   - [x] Fazer histórico/detalhe lazy e paginado.
   - [x] Consultar faturas, compras, pagamentos e previsões por conjunto de cartões.
   - [x] Mover materialização de faturas e assinaturas para o worker.
-- [ ] 6. Importações
+- [x] 6. Importações
   - [x] Reduzir listagem de importações de cartão a `id`, `fileName` e `pendingItemCount`.
   - [x] Paginar detalhes e itens somente quando a revisão abrir.
   - [x] Aplicar o mesmo padrão às importações de transações.
   - [x] Substituir `getImportReturn` por item por contagens e loaders em lote.
-- [ ] 7. Agendas e taxas
+- [x] 7. Agendas e taxas
   - [x] Retirar materializações de todos os GETs.
   - [x] Migrar salários, assinaturas e recorrências para comandos RabbitMQ.
   - [x] Migrar taxas de referência e recálculos de rendimento.
   - [x] Drenar e remover `ReferenceRateJob` e worker PostgreSQL antigo.
-- [ ] 8. Demais domínios
+- [x] 8. Demais domínios
   - [x] Otimizar dashboard e contas.
   - [x] Otimizar dívidas e invalidação entre usuários. (resumo, eventos paginados, invalidação multiusuário e previews lazy de convites concluídos)
-  - [ ] Otimizar empréstimos, históricos, categorias, lojas e rendimentos.
+  - [x] Otimizar empréstimos, históricos, categorias, lojas e rendimentos.
   - [x] Integrar eventos consolidados do sync.
 - [ ] 9. Limpeza e aceite final
-  - [ ] Remover contratos, tipos, queries e helpers antigos.
-  - [ ] Remover código de fila PostgreSQL e invalidação obsoleta.
-  - [ ] Validar metas de latência, requests, queries, regressão e build.
+  - [ ] Remover contratos, tipos, queries, helpers e invalidação legados. (adiado pelo usuário para plano separado)
+  - [x] Remover código ativo de fila PostgreSQL após migração para RabbitMQ.
+  - [x] Validar regressões funcionais, integração local, tipos e builds dos pacotes afetados.
+  - [ ] Validar metas de latência, requests, queries e índices com EXPLAIN. (fora desta execução por solicitação do usuário)
+
+## Escopo do encerramento
+
+Implementação das etapas 1 a 8 concluída. Validação de performance, incluindo p95, orçamento de requests/queries e EXPLAIN dos índices, permanece pendente por solicitação do usuário. Capturas diagnósticas anteriores não constituem aceite. Remoção de legado será conduzida pelo usuário em plano separado.
 
 ## Critérios de aceite
 
@@ -330,3 +335,5 @@ PostgreSQL permanece fonte de verdade e armazena somente o transactional outbox.
 - Verificação final corrigiu tipos dos handlers ETag/304 de catálogos, tokens/fences readonly e fixtures de headers RabbitMQ e resumo de dívidas. Contratos HTTP preservados; checagem final será repetida após commit.
 
 - Escopos de invalidação HTTP, sync e worker incluem destinatários de convites pendentes, preservando regras de autorização e compartilhamento. E2E com Redis local cobre preview em cache, criação e exclusão de transação rateada antes do aceite, com saldo atualizado e restaurado.
+
+- Encerramento do escopo autorizado: tipos de backend/SQL/finanças passaram; builds backend e frontend passaram. E2E final com Redis passou em dois testes e 215 verificações; nove regressões focadas de broker/fences também passaram. Etapas 1 a 8 concluídas, mantendo aceite de performance e remoção de legado explicitamente pendentes fora desta execução.
