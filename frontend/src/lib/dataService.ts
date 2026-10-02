@@ -2249,9 +2249,13 @@ export const dataService = {
 				nextCursor: nextOffset < events.length ? String(nextOffset) : null,
 			};
 		},
-		async getInvitationPreview(id: string): Promise<DebtInvitationPreview> {
+		async getInvitationPreview(id: string, cursor?: string, limit = 50): Promise<DebtInvitationPreview> {
 			if (isGuestMode()) throw new Error("Convite não encontrado.");
-			return fetchWithAuth<DebtInvitationPreview>(`/debts/invitations/${encodeURIComponent(id)}/preview`);
+			const params = new URLSearchParams({ limit: String(limit) });
+			if (cursor) params.set("cursor", cursor);
+			return fetchWithAuth<DebtInvitationPreview>(
+				`/debts/invitations/${encodeURIComponent(id)}/preview?${params}`,
+			);
 		},
 		async getInvitations(): Promise<DebtInvitation[]> {
 			if (isGuestMode()) return [];

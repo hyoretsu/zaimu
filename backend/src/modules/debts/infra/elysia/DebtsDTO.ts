@@ -49,7 +49,8 @@ export const DebtEventPageReturn = t.Object({
 
 export const DebtInvitationPreviewReturn = t.Object({
 	balance: t.Number(),
-	events: t.Array(DebtEventReturn),
+	eventCount: t.Integer({ minimum: 0 }),
+	...DebtEventPageReturn.properties,
 });
 
 export const DebtInvitationReturn = t.Object({

@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import {
@@ -10,7 +10,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/Dialog";
 import { Skeleton } from "@/components/ui/Skeleton";
-import type { DebtInvitation } from "@/lib/api";
+import type { DebtInvitation, DebtInvitationPreview as InvitationPreview } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
@@ -31,9 +31,13 @@ export function DebtInvitationDialog({
 }) {
 	const identity = useCacheIdentity();
 	const queryClient = useQueryClient();
-	const preview = useQuery({
+	const preview = useInfiniteQuery({
 		enabled: open && identity !== null,
-		queryFn: () => dataService.debts.getInvitationPreview(invitation.id),
+		getNextPageParam: (last: InvitationPreview) =>
+			last.hasMore ? (last.nextCursor ?? undefined) : undefined,
+		initialPageParam: undefined as string | undefined,
+		queryFn: ({ pageParam }): Promise<InvitationPreview> =>
+			dataService.debts.getInvitationPreview(invitation.id, pageParam),
 		queryKey: [...queryKeys.debts.invitations(identity!), invitation.id, "preview"],
 	});
 	const [step, setStep] = useState<"details" | "association" | "decline">("details");
@@ -84,13 +88,13 @@ export function DebtInvitationDialog({
 					</DialogDescription>
 				</DialogHeader>
 				{preview.isPending ? (
-					<div className="space-y-4">
+					<div className="space-y-4" role="status">
 						<Skeleton className="h-20 rounded-2xl" />
 						{[0, 1, 2].map(index => (
 							<Skeleton className="h-16 rounded-xl" key={index} />
 						))}
 					</div>
-				) : preview.isError ? (
+				) : preview.isError && !preview.data ? (
 					<div className="space-y-3 rounded-xl border p-4">
 						<p className="text-sm">Não foi possível carregar os lançamentos.</p>
 						<Button
@@ -102,8 +106,15 @@ export function DebtInvitationDialog({
 							Tentar novamente
 						</Button>
 					</div>
-				) : preview.isSuccess ? (
-					<DebtInvitationPreview counterpartyName={invitation.counterpartyName} preview={preview.data} />
+				) : preview.data ? (
+					<DebtInvitationPreview
+						counterpartyName={invitation.counterpartyName}
+						hasMore={preview.hasNextPage}
+						loadingMore={preview.isFetchingNextPage}
+						loadMore={() => preview.fetchNextPage()}
+						loadMoreError={preview.isFetchNextPageError}
+						preview={{ ...preview.data.pages[0]!, items: preview.data.pages.flatMap(page => page.items) }}
+					/>
 				) : null}
 				<DialogFooter className="!grid sm:!grid shrink-0 grid-cols-2 gap-2">
 					<Button

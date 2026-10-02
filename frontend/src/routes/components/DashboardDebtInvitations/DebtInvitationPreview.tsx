@@ -1,4 +1,5 @@
 import { LuShoppingCart, LuUsersRound, LuWalletCards } from "react-icons/lu";
+import { Button } from "@/components/ui/Button";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import type { DebtInvitationPreview as InvitationPreview } from "@/lib/api";
 import { formatLocalDate, formatLocalTime } from "@/lib/date";
@@ -9,9 +10,17 @@ const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "curre
 export function DebtInvitationPreview({
 	counterpartyName,
 	preview,
+	hasMore,
+	loadingMore,
+	loadMore,
+	loadMoreError,
 }: {
 	counterpartyName: string;
 	preview: InvitationPreview;
+	hasMore: boolean;
+	loadingMore: boolean;
+	loadMore: () => void;
+	loadMoreError: boolean;
 }) {
 	return (
 		<>
@@ -23,8 +32,13 @@ export function DebtInvitationPreview({
 					<div className="min-w-0">
 						<p className="font-medium text-sm">Saldo atual de {counterpartyName}</p>
 						<p className="text-muted-foreground text-xs">
-							{preview.events.length} {preview.events.length === 1 ? "lançamento" : "lançamentos"}
+							{preview.eventCount} {preview.eventCount === 1 ? "lançamento" : "lançamentos"}
 						</p>
+						{hasMore ? (
+							<Button className="w-full" disabled={loadingMore} onClick={loadMore} variant="outline">
+								{loadingMore ? "Carregando..." : loadMoreError ? "Tentar novamente" : "Carregar mais"}
+							</Button>
+						) : null}
 					</div>
 				</div>
 				<strong
@@ -41,7 +55,7 @@ export function DebtInvitationPreview({
 			<ScrollArea className="min-h-0 w-full">
 				<div className="space-y-4">
 					<div className="space-y-2">
-						{preview.events.map(event => (
+						{preview.items.map(event => (
 							<div
 								className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border p-3"
 								key={event.id}
@@ -68,10 +82,15 @@ export function DebtInvitationPreview({
 								</span>
 							</div>
 						))}
-						{!preview.events.length ? (
+						{!preview.items.length ? (
 							<p className="rounded-xl border border-dashed p-4 text-muted-foreground text-sm">
 								Nenhum lançamento será associado.
 							</p>
+						) : null}
+						{hasMore ? (
+							<Button className="w-full" disabled={loadingMore} onClick={loadMore} variant="outline">
+								{loadingMore ? "Carregando..." : loadMoreError ? "Tentar novamente" : "Carregar mais"}
+							</Button>
 						) : null}
 					</div>
 				</div>

@@ -1198,13 +1198,41 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(invitations[0]).toMatchObject({ direction: "RECEIVED", status: "PENDING" });
 		expect(invitations[0]).not.toHaveProperty("balance");
 		const invitationPreview = await jsonRequest(
-			`/debts/invitations/${invitation.id}/preview`,
+			`/debts/invitations/${invitation.id}/preview?limit=1`,
 			"GET",
 			undefined,
 			peer.cookie,
 		);
 		expect(invitationPreview.status).toBe(200);
-		expect(await invitationPreview.json()).toMatchObject({ balance: -150 });
+		const invitationPage = (await invitationPreview.json()) as {
+			balance: number;
+			eventCount: number;
+			items: Array<{ id: string }>;
+			hasMore: boolean;
+			nextCursor: string;
+		};
+		expect(invitationPage).toMatchObject({ balance: -150, eventCount: 2, hasMore: true });
+		expect(invitationPage.items).toHaveLength(1);
+		const invitationNext = await jsonRequest(
+			`/debts/invitations/${invitation.id}/preview?limit=1&cursor=${encodeURIComponent(invitationPage.nextCursor)}`,
+			"GET",
+			undefined,
+			peer.cookie,
+		);
+		expect(invitationNext.status).toBe(200);
+		const invitationNextPage = (await invitationNext.json()) as {
+			items: Array<{ id: string }>;
+			hasMore: boolean;
+		};
+		expect(invitationNextPage.hasMore).toBe(false);
+		expect(invitationNextPage.items[0]!.id).not.toBe(invitationPage.items[0]!.id);
+		const forbiddenPreview = await jsonRequest(
+			`/debts/invitations/${invitation.id}/preview`,
+			"GET",
+			undefined,
+			owner.cookie,
+		);
+		expect(forbiddenPreview.status).toBe(404);
 		expect(invitations[0]).not.toHaveProperty("requesterEmail");
 
 		const privateLedger = await jsonRequest("/debts", "GET", undefined, peer.cookie);
