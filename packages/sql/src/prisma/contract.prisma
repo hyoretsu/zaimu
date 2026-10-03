@@ -2,7 +2,90 @@
 // Contract inferred from the live database schema. Edit as needed, then run `prisma contract emit`.
 
 namespace public {
+  model OpenFinanceConfig {
+    userId VarChar(36) @id(map: "OpenFinanceConfig_pkey")
+    encryptedCredentials String?
+    lastQueriedAt Timestamp(3)?
+    createdAt Timestamp(3) @default(now())
+    updatedAt Timestamp(3) @default(now())
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "OpenFinanceConfig_userId_fkey", index: false)
+    @@map("OpenFinanceConfig")
+  }
+  model OpenFinanceConnection {
+    id VarChar(36) @id(map: "OpenFinanceConnection_pkey")
+    userId VarChar(36)
+    itemId String
+    bankName String
+    status String
+    remoteAccounts Json
+    bankUpdatedAt Timestamp(3)?
+    createdAt Timestamp(3) @default(now())
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "OpenFinanceConnection_userId_fkey", index: false)
+    bindings OpenFinanceBinding[]
+    @@index([userId, itemId], map: "OpenFinanceConnection_user_item_key", unique: true)
+    @@map("OpenFinanceConnection")
+  }
+  model OpenFinanceBinding {
+    id VarChar(36) @id(map: "OpenFinanceBinding_pkey")
+    connectionId VarChar(36)
+    remoteAccountId String
+    financialAccountId VarChar(36)?
+    creditCardId VarChar(36)?
+    paused Boolean @default(false)
+    connection OpenFinanceConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "OpenFinanceBinding_connectionId_fkey", index: false)
+    @@index([connectionId, remoteAccountId], map: "OpenFinanceBinding_connection_account_key", unique: true)
+    @@map("OpenFinanceBinding")
+  }
+  model OpenFinanceRun {
+    id VarChar(36) @id(map: "OpenFinanceRun_pkey")
+    userId VarChar(36)
+    status String
+    processed Int @default(0)
+    imported Int @default(0)
+    linked Int @default(0)
+    pending Int @default(0)
+    errors Json @default("[]")
+    startedAt Timestamp(3) @default(now())
+    finishedAt Timestamp(3)?
+    lockedUntil Timestamp(3)?
+    workerToken VarChar(36)?
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "OpenFinanceRun_userId_fkey", index: false)
+    @@index([userId, startedAt], map: "OpenFinanceRun_user_started_idx")
+    @@map("OpenFinanceRun")
+  }
+  model OpenFinanceRecord {
+    id VarChar(36) @id(map: "OpenFinanceRecord_pkey")
+    userId VarChar(36)
+    remoteAccountId String
+    identity String
+    snapshot Json
+    appliedSnapshot Json?
+    localKind String?
+    localId VarChar(36)?
+    importId VarChar(36)?
+    reviewItemId VarChar(36)?
+    state String
+    updatedAt Timestamp(3) @default(now())
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "OpenFinanceRecord_userId_fkey", index: false)
+    identities OpenFinanceIdentity[]
+    @@index([userId, remoteAccountId, identity], map: "OpenFinanceRecord_identity_key", unique: true)
+    @@map("OpenFinanceRecord")
+  }
+  model OpenFinanceIdentity {
+    userId VarChar(36)
+    remoteAccountId String
+    externalId String
+    recordId VarChar(36)
+    record OpenFinanceRecord @relation(fields: [recordId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "OpenFinanceIdentity_recordId_fkey", index: false)
+    @@id([userId, remoteAccountId, externalId], map: "OpenFinanceIdentity_pkey")
+    @@map("OpenFinanceIdentity")
+  }
+
   model User {
+    openFinanceConfig OpenFinanceConfig?
+    openFinanceConnections OpenFinanceConnection[]
+    openFinanceRuns OpenFinanceRun[]
+    openFinanceRecords OpenFinanceRecord[]
     creditRefundReviews CreditRefundReview[]
     id                VarChar(36)        @id(map: "User_pkey") @default(dbgenerated("cuid2()"))
     email             VarChar(320)
@@ -990,7 +1073,8 @@ namespace public {
     installmentAmount  Numeric(12, 2)
     isStatementCharge  Boolean         @default(false)
     isSelected         Boolean         @default(true)
-    reconciledCreditPurchaseId VarChar(36)? @unique(map: "CreditCardImportItem_reconciledCreditPurchaseId_key")
+    metadataMissing Json @default("[]")
+    reconciledCreditPurchaseId VarChar(36)?
     createdAt          Timestamp(3)    @default(now())
     updatedAt          Timestamp(3)    @default(now())
     creditCardImport   CreditCardImport @relation(fields: [creditCardImportId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditCardImportItem_importId_fkey", index: false)
@@ -1218,6 +1302,7 @@ namespace public {
     BANCO_DO_BRASIL = "BANCO_DO_BRASIL"
     INTER = "INTER"
     PICPAY = "PICPAY"
+    MEUPLUGGY = "MEUPLUGGY"
   }
 
   native_enum CreditCardImportProvider {
@@ -1226,6 +1311,7 @@ namespace public {
     INTER = "INTER"
     NUBANK = "NUBANK"
     PICPAY = "PICPAY"
+    MEUPLUGGY = "MEUPLUGGY"
   }
 
   native_enum CreditRefundPolicy {

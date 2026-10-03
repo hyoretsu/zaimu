@@ -1,0 +1,734 @@
+[
+	{
+		"execute": [
+			{
+				"description": "add value \"MEUPLUGGY\" to enum type \"CreditCardImportProvider\"",
+				"sql": "ALTER TYPE \"public\".\"CreditCardImportProvider\" ADD VALUE 'MEUPLUGGY'"
+			}
+		],
+		"id": "addNativeEnumValue.CreditCardImportProvider.MEUPLUGGY",
+		"label": "Add value \"MEUPLUGGY\" to enum type \"CreditCardImportProvider\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify value \"MEUPLUGGY\" exists on enum type \"CreditCardImportProvider\"",
+				"params": ["public", "CreditCardImportProvider", "MEUPLUGGY"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure enum type \"CreditCardImportProvider\" exists",
+				"params": ["public", "CreditCardImportProvider", "e"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_type\" AS \"t\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"t\".\"typtype\" = $3)) AS \"result\""
+			},
+			{
+				"description": "ensure value \"MEUPLUGGY\" is absent from enum type \"CreditCardImportProvider\"",
+				"params": ["public", "CreditCardImportProvider", "MEUPLUGGY"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\""
+			}
+		],
+		"summary": "Adds value \"MEUPLUGGY\" to enum type \"CreditCardImportProvider\". A newly added enum value cannot be used until the transaction that adds it commits, so a migration that both appends a value and uses it in the same step will fail at apply.",
+		"target": {
+			"details": {
+				"name": "CreditCardImportProvider",
+				"objectType": "type",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add value \"MEUPLUGGY\" to enum type \"TransactionImportProvider\"",
+				"sql": "ALTER TYPE \"public\".\"TransactionImportProvider\" ADD VALUE 'MEUPLUGGY'"
+			}
+		],
+		"id": "addNativeEnumValue.TransactionImportProvider.MEUPLUGGY",
+		"label": "Add value \"MEUPLUGGY\" to enum type \"TransactionImportProvider\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify value \"MEUPLUGGY\" exists on enum type \"TransactionImportProvider\"",
+				"params": ["public", "TransactionImportProvider", "MEUPLUGGY"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure enum type \"TransactionImportProvider\" exists",
+				"params": ["public", "TransactionImportProvider", "e"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_type\" AS \"t\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"t\".\"typtype\" = $3)) AS \"result\""
+			},
+			{
+				"description": "ensure value \"MEUPLUGGY\" is absent from enum type \"TransactionImportProvider\"",
+				"params": ["public", "TransactionImportProvider", "MEUPLUGGY"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\""
+			}
+		],
+		"summary": "Adds value \"MEUPLUGGY\" to enum type \"TransactionImportProvider\". A newly added enum value cannot be used until the transaction that adds it commits, so a migration that both appends a value and uses it in the same step will fail at apply.",
+		"target": {
+			"details": {
+				"name": "TransactionImportProvider",
+				"objectType": "type",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "drop constraint \"CreditCardImportItem_reconciledCreditPurchaseId_key\"",
+				"sql": "ALTER TABLE \"public\".\"CreditCardImportItem\" DROP CONSTRAINT \"CreditCardImportItem_reconciledCreditPurchaseId_key\""
+			}
+		],
+		"id": "dropConstraint.CreditCardImportItem.CreditCardImportItem_reconciledCreditPurchaseId_key",
+		"label": "Drop constraint \"CreditCardImportItem_reconciledCreditPurchaseId_key\" on \"CreditCardImportItem\"",
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify constraint \"CreditCardImportItem_reconciledCreditPurchaseId_key\" does not exist",
+				"params": [
+					"CreditCardImportItem_reconciledCreditPurchaseId_key",
+					"public",
+					"\"public\".\"CreditCardImportItem\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure constraint \"CreditCardImportItem_reconciledCreditPurchaseId_key\" exists",
+				"params": [
+					"CreditCardImportItem_reconciledCreditPurchaseId_key",
+					"public",
+					"\"public\".\"CreditCardImportItem\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditCardImportItem_reconciledCreditPurchaseId_key",
+				"objectType": "unique",
+				"schema": "public",
+				"table": "CreditCardImportItem"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"OpenFinanceBinding\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"OpenFinanceBinding\" (\n  \"connectionId\" character varying(36) NOT NULL,\n  \"creditCardId\" character varying(36),\n  \"financialAccountId\" character varying(36),\n  \"id\" character varying(36) NOT NULL,\n  \"paused\" bool DEFAULT false NOT NULL,\n  \"remoteAccountId\" text NOT NULL,\n  CONSTRAINT \"OpenFinanceBinding_pkey\" PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.OpenFinanceBinding",
+		"label": "Create table \"OpenFinanceBinding\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"OpenFinanceBinding\" exists",
+				"params": ["\"public\".\"OpenFinanceBinding\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"OpenFinanceBinding\" does not exist",
+				"params": ["\"public\".\"OpenFinanceBinding\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"OpenFinanceBinding\"",
+		"target": {
+			"details": {
+				"name": "OpenFinanceBinding",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"OpenFinanceConfig\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"OpenFinanceConfig\" (\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"encryptedCredentials\" text,\n  \"lastQueriedAt\" timestamp(3),\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"userId\" character varying(36) NOT NULL,\n  CONSTRAINT \"OpenFinanceConfig_pkey\" PRIMARY KEY (\"userId\")\n)"
+			}
+		],
+		"id": "table.OpenFinanceConfig",
+		"label": "Create table \"OpenFinanceConfig\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"OpenFinanceConfig\" exists",
+				"params": ["\"public\".\"OpenFinanceConfig\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"OpenFinanceConfig\" does not exist",
+				"params": ["\"public\".\"OpenFinanceConfig\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"OpenFinanceConfig\"",
+		"target": {
+			"details": {
+				"name": "OpenFinanceConfig",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"OpenFinanceConnection\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"OpenFinanceConnection\" (\n  \"bankName\" text NOT NULL,\n  \"bankUpdatedAt\" timestamp(3),\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"id\" character varying(36) NOT NULL,\n  \"itemId\" text NOT NULL,\n  \"remoteAccounts\" json NOT NULL,\n  \"status\" text NOT NULL,\n  \"userId\" character varying(36) NOT NULL,\n  CONSTRAINT \"OpenFinanceConnection_pkey\" PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.OpenFinanceConnection",
+		"label": "Create table \"OpenFinanceConnection\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"OpenFinanceConnection\" exists",
+				"params": ["\"public\".\"OpenFinanceConnection\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"OpenFinanceConnection\" does not exist",
+				"params": ["\"public\".\"OpenFinanceConnection\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"OpenFinanceConnection\"",
+		"target": {
+			"details": {
+				"name": "OpenFinanceConnection",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"OpenFinanceIdentity\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"OpenFinanceIdentity\" (\n  \"externalId\" text NOT NULL,\n  \"recordId\" character varying(36) NOT NULL,\n  \"remoteAccountId\" text NOT NULL,\n  \"userId\" character varying(36) NOT NULL,\n  CONSTRAINT \"OpenFinanceIdentity_pkey\" PRIMARY KEY (\"userId\", \"remoteAccountId\", \"externalId\")\n)"
+			}
+		],
+		"id": "table.OpenFinanceIdentity",
+		"label": "Create table \"OpenFinanceIdentity\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"OpenFinanceIdentity\" exists",
+				"params": ["\"public\".\"OpenFinanceIdentity\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"OpenFinanceIdentity\" does not exist",
+				"params": ["\"public\".\"OpenFinanceIdentity\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"OpenFinanceIdentity\"",
+		"target": {
+			"details": {
+				"name": "OpenFinanceIdentity",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"OpenFinanceRecord\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"OpenFinanceRecord\" (\n  \"appliedSnapshot\" json,\n  \"id\" character varying(36) NOT NULL,\n  \"identity\" text NOT NULL,\n  \"importId\" character varying(36),\n  \"localId\" character varying(36),\n  \"localKind\" text,\n  \"remoteAccountId\" text NOT NULL,\n  \"reviewItemId\" character varying(36),\n  \"snapshot\" json NOT NULL,\n  \"state\" text NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"userId\" character varying(36) NOT NULL,\n  CONSTRAINT \"OpenFinanceRecord_pkey\" PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.OpenFinanceRecord",
+		"label": "Create table \"OpenFinanceRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"OpenFinanceRecord\" exists",
+				"params": ["\"public\".\"OpenFinanceRecord\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"OpenFinanceRecord\" does not exist",
+				"params": ["\"public\".\"OpenFinanceRecord\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"OpenFinanceRecord\"",
+		"target": {
+			"details": {
+				"name": "OpenFinanceRecord",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"OpenFinanceRun\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"OpenFinanceRun\" (\n  \"errors\" json DEFAULT '\"[]\"'::json NOT NULL,\n  \"finishedAt\" timestamp(3),\n  \"id\" character varying(36) NOT NULL,\n  \"imported\" int4 DEFAULT 0 NOT NULL,\n  \"linked\" int4 DEFAULT 0 NOT NULL,\n  \"lockedUntil\" timestamp(3),\n  \"pending\" int4 DEFAULT 0 NOT NULL,\n  \"processed\" int4 DEFAULT 0 NOT NULL,\n  \"startedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"status\" text NOT NULL,\n  \"userId\" character varying(36) NOT NULL,\n  \"workerToken\" character varying(36),\n  CONSTRAINT \"OpenFinanceRun_pkey\" PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.OpenFinanceRun",
+		"label": "Create table \"OpenFinanceRun\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"OpenFinanceRun\" exists",
+				"params": ["\"public\".\"OpenFinanceRun\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"OpenFinanceRun\" does not exist",
+				"params": ["\"public\".\"OpenFinanceRun\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"OpenFinanceRun\"",
+		"target": {
+			"details": {
+				"name": "OpenFinanceRun",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"metadataMissing\"",
+				"sql": "ALTER TABLE \"public\".\"CreditCardImportItem\" ADD COLUMN \"metadataMissing\" json DEFAULT '\"[]\"'::json NOT NULL"
+			}
+		],
+		"id": "column.public.CreditCardImportItem.metadataMissing",
+		"label": "Add column \"metadataMissing\" to \"CreditCardImportItem\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"metadataMissing\" exists",
+				"params": ["public", "CreditCardImportItem", "metadataMissing"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"metadataMissing\" is missing",
+				"params": ["public", "CreditCardImportItem", "metadataMissing"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "metadataMissing",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditCardImportItem"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"OpenFinanceBinding_connection_account_key\"",
+				"params": [],
+				"sql": "CREATE UNIQUE INDEX \"OpenFinanceBinding_connection_account_key\" ON \"public\".\"OpenFinanceBinding\" (\"connectionId\", \"remoteAccountId\")"
+			}
+		],
+		"id": "index.OpenFinanceBinding.OpenFinanceBinding_connection_account_key",
+		"label": "Create index \"OpenFinanceBinding_connection_account_key\" on \"OpenFinanceBinding\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"OpenFinanceBinding_connection_account_key\" exists",
+				"params": ["\"public\".\"OpenFinanceBinding_connection_account_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"OpenFinanceBinding_connection_account_key\" does not exist",
+				"params": ["\"public\".\"OpenFinanceBinding_connection_account_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "OpenFinanceBinding_connection_account_key",
+				"objectType": "index",
+				"schema": "public",
+				"table": "OpenFinanceBinding"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"OpenFinanceConnection_user_item_key\"",
+				"params": [],
+				"sql": "CREATE UNIQUE INDEX \"OpenFinanceConnection_user_item_key\" ON \"public\".\"OpenFinanceConnection\" (\"userId\", \"itemId\")"
+			}
+		],
+		"id": "index.OpenFinanceConnection.OpenFinanceConnection_user_item_key",
+		"label": "Create index \"OpenFinanceConnection_user_item_key\" on \"OpenFinanceConnection\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"OpenFinanceConnection_user_item_key\" exists",
+				"params": ["\"public\".\"OpenFinanceConnection_user_item_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"OpenFinanceConnection_user_item_key\" does not exist",
+				"params": ["\"public\".\"OpenFinanceConnection_user_item_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "OpenFinanceConnection_user_item_key",
+				"objectType": "index",
+				"schema": "public",
+				"table": "OpenFinanceConnection"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"OpenFinanceRecord_identity_key\"",
+				"params": [],
+				"sql": "CREATE UNIQUE INDEX \"OpenFinanceRecord_identity_key\" ON \"public\".\"OpenFinanceRecord\" (\"userId\", \"remoteAccountId\", \"identity\")"
+			}
+		],
+		"id": "index.OpenFinanceRecord.OpenFinanceRecord_identity_key",
+		"label": "Create index \"OpenFinanceRecord_identity_key\" on \"OpenFinanceRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"OpenFinanceRecord_identity_key\" exists",
+				"params": ["\"public\".\"OpenFinanceRecord_identity_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"OpenFinanceRecord_identity_key\" does not exist",
+				"params": ["\"public\".\"OpenFinanceRecord_identity_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "OpenFinanceRecord_identity_key",
+				"objectType": "index",
+				"schema": "public",
+				"table": "OpenFinanceRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"OpenFinanceRun_user_started_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"OpenFinanceRun_user_started_idx\" ON \"public\".\"OpenFinanceRun\" (\"userId\", \"startedAt\")"
+			}
+		],
+		"id": "index.OpenFinanceRun.OpenFinanceRun_user_started_idx",
+		"label": "Create index \"OpenFinanceRun_user_started_idx\" on \"OpenFinanceRun\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"OpenFinanceRun_user_started_idx\" exists",
+				"params": ["\"public\".\"OpenFinanceRun_user_started_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"OpenFinanceRun_user_started_idx\" does not exist",
+				"params": ["\"public\".\"OpenFinanceRun_user_started_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "OpenFinanceRun_user_started_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "OpenFinanceRun"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"OpenFinanceBinding_connectionId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"OpenFinanceBinding\"\nADD CONSTRAINT \"OpenFinanceBinding_connectionId_fkey\"\nFOREIGN KEY (\"connectionId\")\nREFERENCES \"public\".\"OpenFinanceConnection\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.OpenFinanceBinding.OpenFinanceBinding_connectionId_fkey",
+		"label": "Add foreign key \"OpenFinanceBinding_connectionId_fkey\" on \"OpenFinanceBinding\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"OpenFinanceBinding_connectionId_fkey\" exists",
+				"params": [
+					"OpenFinanceBinding_connectionId_fkey",
+					"public",
+					"\"public\".\"OpenFinanceBinding\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"OpenFinanceBinding_connectionId_fkey\" does not exist",
+				"params": [
+					"OpenFinanceBinding_connectionId_fkey",
+					"public",
+					"\"public\".\"OpenFinanceBinding\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "OpenFinanceBinding_connectionId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "OpenFinanceBinding"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"OpenFinanceConfig_userId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"OpenFinanceConfig\"\nADD CONSTRAINT \"OpenFinanceConfig_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"user\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.OpenFinanceConfig.OpenFinanceConfig_userId_fkey",
+		"label": "Add foreign key \"OpenFinanceConfig_userId_fkey\" on \"OpenFinanceConfig\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"OpenFinanceConfig_userId_fkey\" exists",
+				"params": ["OpenFinanceConfig_userId_fkey", "public", "\"public\".\"OpenFinanceConfig\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"OpenFinanceConfig_userId_fkey\" does not exist",
+				"params": ["OpenFinanceConfig_userId_fkey", "public", "\"public\".\"OpenFinanceConfig\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "OpenFinanceConfig_userId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "OpenFinanceConfig"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"OpenFinanceConnection_userId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"OpenFinanceConnection\"\nADD CONSTRAINT \"OpenFinanceConnection_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"user\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.OpenFinanceConnection.OpenFinanceConnection_userId_fkey",
+		"label": "Add foreign key \"OpenFinanceConnection_userId_fkey\" on \"OpenFinanceConnection\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"OpenFinanceConnection_userId_fkey\" exists",
+				"params": [
+					"OpenFinanceConnection_userId_fkey",
+					"public",
+					"\"public\".\"OpenFinanceConnection\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"OpenFinanceConnection_userId_fkey\" does not exist",
+				"params": [
+					"OpenFinanceConnection_userId_fkey",
+					"public",
+					"\"public\".\"OpenFinanceConnection\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "OpenFinanceConnection_userId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "OpenFinanceConnection"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"OpenFinanceIdentity_recordId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"OpenFinanceIdentity\"\nADD CONSTRAINT \"OpenFinanceIdentity_recordId_fkey\"\nFOREIGN KEY (\"recordId\")\nREFERENCES \"public\".\"OpenFinanceRecord\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.OpenFinanceIdentity.OpenFinanceIdentity_recordId_fkey",
+		"label": "Add foreign key \"OpenFinanceIdentity_recordId_fkey\" on \"OpenFinanceIdentity\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"OpenFinanceIdentity_recordId_fkey\" exists",
+				"params": [
+					"OpenFinanceIdentity_recordId_fkey",
+					"public",
+					"\"public\".\"OpenFinanceIdentity\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"OpenFinanceIdentity_recordId_fkey\" does not exist",
+				"params": [
+					"OpenFinanceIdentity_recordId_fkey",
+					"public",
+					"\"public\".\"OpenFinanceIdentity\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "OpenFinanceIdentity_recordId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "OpenFinanceIdentity"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"OpenFinanceRecord_userId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"OpenFinanceRecord\"\nADD CONSTRAINT \"OpenFinanceRecord_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"user\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.OpenFinanceRecord.OpenFinanceRecord_userId_fkey",
+		"label": "Add foreign key \"OpenFinanceRecord_userId_fkey\" on \"OpenFinanceRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"OpenFinanceRecord_userId_fkey\" exists",
+				"params": ["OpenFinanceRecord_userId_fkey", "public", "\"public\".\"OpenFinanceRecord\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"OpenFinanceRecord_userId_fkey\" does not exist",
+				"params": ["OpenFinanceRecord_userId_fkey", "public", "\"public\".\"OpenFinanceRecord\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "OpenFinanceRecord_userId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "OpenFinanceRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"OpenFinanceRun_userId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"OpenFinanceRun\"\nADD CONSTRAINT \"OpenFinanceRun_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"user\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.OpenFinanceRun.OpenFinanceRun_userId_fkey",
+		"label": "Add foreign key \"OpenFinanceRun_userId_fkey\" on \"OpenFinanceRun\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"OpenFinanceRun_userId_fkey\" exists",
+				"params": ["OpenFinanceRun_userId_fkey", "public", "\"public\".\"OpenFinanceRun\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"OpenFinanceRun_userId_fkey\" does not exist",
+				"params": ["OpenFinanceRun_userId_fkey", "public", "\"public\".\"OpenFinanceRun\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "OpenFinanceRun_userId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "OpenFinanceRun"
+			},
+			"id": "postgres"
+		}
+	}
+]
