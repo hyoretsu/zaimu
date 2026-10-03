@@ -11,6 +11,7 @@ import { CreditCardsController } from "./modules/creditCards/infra";
 import { DashboardController } from "./modules/dashboard/infra";
 import { DebtsController } from "./modules/debts/infra";
 import { LoansController } from "./modules/loans/infra";
+import { OpenFinanceController } from "./modules/open-finance/infra/OpenFinanceController";
 import { RecurringController } from "./modules/recurring/infra";
 import { StoresController } from "./modules/stores/infra";
 import { SyncController } from "./modules/sync";
@@ -20,6 +21,7 @@ import { UpgradeController } from "./modules/upgrades/UpgradeController";
 import { app } from "./shared/infra/elysia";
 
 export const server = app.use([
+	OpenFinanceController,
 	AccountsController,
 	BalanceAdjustmentsController,
 	InstitutionsController,

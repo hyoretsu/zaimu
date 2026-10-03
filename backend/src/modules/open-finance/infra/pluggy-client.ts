@@ -48,6 +48,12 @@ interface Page<T> {
 }
 type Transport = (input: string, init?: RequestInit) => Promise<Response>;
 
+export class PluggyDiscoveryUnavailable extends Error {
+	constructor() {
+		super("Listagem de conexões precisa ser habilitada pelo suporte Pluggy para sua equipe.");
+	}
+}
+
 export class PluggyClient {
 	private token: string | null = null;
 	private expiresAt = 0;
@@ -85,6 +91,16 @@ export class PluggyClient {
 			throw new HttpException("Pluggy temporariamente indisponível. Tente novamente.", 502);
 		}
 		if (response.ok) return response;
+		if (response.status === 403 && path.startsWith("/v2/items")) {
+			const body = await response.json().catch(() => null);
+			if (
+				body &&
+				typeof body === "object" &&
+				"codeDescription" in body &&
+				body.codeDescription === "LIST_ITEMS_FEATURE_NOT_ENABLED"
+			)
+				throw new PluggyDiscoveryUnavailable();
+		}
 		// Never retain response bodies, URLs with secrets, or upstream error objects.
 		if (response.status === 429)
 			throw new HttpException("Limite de consultas Pluggy atingido. Tente novamente mais tarde.", 429);
@@ -134,6 +150,24 @@ export class PluggyClient {
 	}
 	item(itemId: string) {
 		return this.get<RemoteItem>(`/items/${encodeURIComponent(itemId)}`);
+	}
+	async items() {
+		const items: RemoteItem[] = [];
+		const visited = new Set<string>();
+		let path: string | null = "/v2/items";
+		while (path) {
+			if (visited.has(path) || visited.size >= 10_000)
+				throw new HttpException("Paginação de conexões Pluggy inválida", 502);
+			visited.add(path);
+			const page: { results: RemoteItem[]; next: string | null } = await this.get(path);
+			if (!Array.isArray(page.results) || (page.next !== null && typeof page.next !== "string"))
+				throw new HttpException("Paginação de conexões Pluggy inválida", 502);
+			items.push(...page.results);
+			if (page.next !== null && (!page.next.startsWith("?") || /[\r\n#]/.test(page.next)))
+				throw new HttpException("Cursor de conexões Pluggy inválido", 502);
+			path = page.next === null ? null : `/v2/items${page.next}`;
+		}
+		return items;
 	}
 	transactions(accountId: string) {
 		return this.pages<RemoteTransaction>(`/transactions?accountId=${encodeURIComponent(accountId)}`);

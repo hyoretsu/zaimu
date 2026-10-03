@@ -15,6 +15,7 @@ import {
 } from "../domain/imported-installment-dates";
 
 interface ImportedPurchaseInput {
+	allowBankCorrection?: boolean;
 	debtSplitRule?: BookPurchase["debtSplitRule"];
 	isStatementCharge?: boolean;
 	currentInstallment: number;
@@ -116,7 +117,8 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 		}
 		if (
 			known.has(input.currentInstallment) &&
-			known.get(input.currentInstallment) !== moneyCents(input.installmentAmount, 1)
+			known.get(input.currentInstallment) !== moneyCents(input.installmentAmount, 1) &&
+			!input.allowBankCorrection
 		)
 			throw new HttpException("Valor importado já registrado para esta parcela", 409);
 		known.set(input.currentInstallment, moneyCents(input.installmentAmount, 1));
@@ -156,7 +158,7 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 				: {
 						debtSplitRule: input.debtSplitRule === undefined ? p.debtSplitRule : input.debtSplitRule,
 						description: withoutImportedAnticipation(withoutFinancingReferences(input.description)),
-						externalId: input.externalId,
+						externalId: existing?.externalId ?? input.externalId,
 						installmentAmountsCents: amounts,
 						installmentImportedNumbers: [...known.keys()],
 						purchaseDate: input.purchaseDate.toISOString().slice(0, 10),
@@ -170,6 +172,11 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 		p.installmentStatementDates = amounts.map((_, index) => {
 			const previous = existing?.installmentStatementDates?.[index];
 			if (anticipated?.some(i => i.number === index + 1))
+				return {
+					dueDate: input.dueDate.toISOString().slice(0, 10),
+					statementDate: input.statementDate.toISOString().slice(0, 10),
+				};
+			if (index + 1 === input.currentInstallment)
 				return {
 					dueDate: input.dueDate.toISOString().slice(0, 10),
 					statementDate: input.statementDate.toISOString().slice(0, 10),

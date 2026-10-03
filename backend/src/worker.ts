@@ -1,3 +1,4 @@
+import { handleOpenFinanceSync, recoverOpenFinanceRuns } from "./modules/open-finance/application/sync";
 import {
 	enqueueDailyReferenceRateFetches,
 	ensureReferenceRateBootstrapJobs,
@@ -33,6 +34,7 @@ process.on("SIGTERM", shutdown);
 
 await broker.start();
 await broker.consume("cache-invalidation", event => cacheInvalidation.handle(event));
+await broker.consume("open-finance-sync", handleOpenFinanceSync);
 async function writeCommand(event: EventEnvelope, operation: () => Promise<unknown>, aggregateType: string) {
 	const rows = await queryRaw<{ userId: string; cardId: string | null }>(
 		aggregateType === "schedule"
@@ -77,9 +79,11 @@ await broker.consume("account-yield-recalculation", async event => {
 await publishScheduleMaterialization(broker);
 await ensureReferenceRateBootstrapJobs();
 await enqueueDailyReferenceRateFetches();
+await recoverOpenFinanceRuns();
 scheduleTimer = setInterval(() => {
 	Promise.all([
 		publishScheduleMaterialization(broker),
+		recoverOpenFinanceRuns(),
 		ensureReferenceRateBootstrapJobs(),
 		enqueueDailyReferenceRateFetches(),
 	]).catch(error => console.error("Failed to publish scheduled commands", error));

@@ -39,6 +39,9 @@ describe("bank adapters", () => {
 		expect(classifyOperation({ ...tx, amount: -100, description: "Pagamento da fatura" }, true)).toBe(
 			"PAYMENT",
 		);
+		expect(classifyOperation({ ...tx, amount: -100, operationType: "CREDIT_CARD_PAYMENT" }, false)).toBe(
+			"PAYMENT",
+		);
 		expect(classifyOperation({ ...tx, amount: -100 }, true)).toBe("REFUND");
 		expect(classifyOperation({ ...tx, operationType: "INTEREST" }, true)).toBe("CHARGE");
 		expect(normalizeTransaction({ ...tx, status: "PENDING" }, false).pending).toBe(true);

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { PluggyClient } from "./pluggy-client";
+import { PluggyClient, PluggyDiscoveryUnavailable } from "./pluggy-client";
 
 const credentials = { clientId: "test", clientSecret: "secret" };
 test("fetches every page and renews expired token once", async () => {
@@ -34,4 +34,32 @@ test("concurrent reads share authentication", async () => {
 	);
 	await Promise.all([client.item("one"), client.item("two")]);
 	expect(auth).toBe(1);
+});
+test("item discovery follows the supplied cursor and rejects cycles", async () => {
+	const paths: string[] = [];
+	let cyclic = false;
+	const client = new PluggyClient(credentials, async url => {
+		const target = new URL(url);
+		if (target.pathname === "/auth") return Response.json({ apiKey: "mock" });
+		paths.push(target.pathname + target.search);
+		return Response.json({
+			next: target.search && !cyclic ? null : "?after=cursor%2Fnext",
+			results: [{ id: paths.length.toString() }],
+		});
+	});
+	expect(await client.items()).toHaveLength(2);
+	expect(paths).toEqual(["/v2/items", "/v2/items?after=cursor%2Fnext"]);
+	cyclic = true;
+	await expect(client.items()).rejects.toThrow("Paginação de conexões");
+});
+test("disabled item listing is distinct from invalid credentials and 429", async () => {
+	let status = 403;
+	const client = new PluggyClient(credentials, async url =>
+		url.endsWith("/auth")
+			? Response.json({ apiKey: "mock" })
+			: Response.json({ code: status, codeDescription: "LIST_ITEMS_FEATURE_NOT_ENABLED" }, { status }),
+	);
+	await expect(client.items()).rejects.toBeInstanceOf(PluggyDiscoveryUnavailable);
+	status = 429;
+	await expect(client.items()).rejects.toThrow("Limite de consultas");
 });

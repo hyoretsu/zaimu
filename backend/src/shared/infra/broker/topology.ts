@@ -1,6 +1,7 @@
 import type { ConfirmChannel } from "amqplib";
 
 export const queueNames = [
+	"open-finance-sync",
 	"cache-invalidation",
 	"schedule-materialization",
 	"reference-rate-fetch",

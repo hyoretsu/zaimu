@@ -63,11 +63,13 @@ Plano aprovado em 03/10/2026. Implementação local; sem push, deploy, migraçã
 ## Execução
 
 - [x] 1. Persistência, migração preparada, criptografia e cliente Pluggy com adaptadores testados.
-- [ ] 2. Serviços reutilizáveis de importação, identidade e conciliação.
-- [ ] 3. API autenticada, sincronização persistente no worker e invalidação de caches.
+- [x] 2. Serviços reutilizáveis de importação, identidade e conciliação.
+- [x] 3. API autenticada, sincronização persistente no worker e invalidação de caches.
 - [ ] 4. Assistente, vínculos, revisões e gatilhos de abertura/retorno.
 - [ ] 5. Testes locais, builds, regras de negócio e revisão final.
 
 Alterações preexistentes preservadas: `packages/sql/migrations/app/refs/db.json` e `frontend/src/routes/recurring/components/RecurringListItem.test.tsx`.
 
 Etapa 1: migração Prisma Next preparada offline; chave AES validada; 10 testes simulados passaram. Nenhuma credencial real usada.
+
+Etapas 2-3: serviços de lotes, aprovação e conciliação extraídos; API e worker com outbox, bloqueio persistente, renovação de lease e efeitos atômicos por registro. Nove testes PostgreSQL locais passaram, incluindo parcelas sucessivas e rollback/retomada. Build backend passou.

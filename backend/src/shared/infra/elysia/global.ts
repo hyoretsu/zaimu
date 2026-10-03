@@ -26,7 +26,19 @@ export const GlobalPlugin = new Elysia({ name: "GlobalPlugin" })
 		);
 	})
 	.error({ HttpException })
-	.onError(({ code, error, set }) => {
+	.onError(({ code, error, request, set }) => {
+		if (new URL(request.url).pathname.startsWith("/open-finance")) {
+			set.status =
+				code === "HttpException" ? (error as HttpException).statusCode : code === "VALIDATION" ? 422 : 500;
+			return {
+				error:
+					code === "HttpException"
+						? error.message
+						: code === "VALIDATION"
+							? "Dados Open Finance inválidos"
+							: "Não foi possível concluir a operação Open Finance",
+			};
+		}
 		if (code === "HttpException") {
 			set.status = error.statusCode;
 			return { error: error.message };

@@ -46,13 +46,13 @@ export function bankTime(value?: string) {
 		: null;
 }
 export function classifyOperation(tx: RemoteTransaction, card: boolean): Operation {
-	if (!card) return "TRANSACTION";
 	const kind = (tx.operationType ?? tx.creditCardMetadata?.type ?? "").toUpperCase();
 	if (
 		["PAYMENT", "BILL_PAYMENT", "CREDIT_CARD_PAYMENT"].includes(kind) ||
 		/^(pagamento (de |da )?fatura|pagamento recebido|payment received)$/i.test(tx.description.trim())
 	)
 		return "PAYMENT";
+	if (!card) return "TRANSACTION";
 	if (["REFUND", "REVERSAL"].includes(kind) || tx.amount < 0) return "REFUND";
 	if (["FEE", "INTEREST", "CHARGE", "IOF"].includes(kind)) return "CHARGE";
 	return "PURCHASE";
@@ -105,8 +105,8 @@ export function normalizeTransaction(
 		totalAmount,
 	};
 }
-export const externalReference = (accountId: string, identity: string) =>
-	`meupluggy:${createHash("sha256").update(`${accountId}:${identity}`).digest("hex")}`;
+export const externalReference = (userId: string, accountId: string, identity: string) =>
+	`meupluggy:${createHash("sha256").update(`${userId}:${accountId}:${identity}`).digest("hex")}`;
 export function exactMatch(a: NormalizedRecord, b: NormalizedRecord) {
 	return (
 		a.date === b.date &&
