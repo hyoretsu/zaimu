@@ -1,33 +1,6 @@
 name: zaimu
 
 services:
-  rabbitmq:
-    image: rabbitmq:4.1-management-alpine
-    profiles: [local]
-    hostname: rabbitmq
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-    volumes:
-      - rabbitmq-data:/var/lib/rabbitmq
-  redis:
-    image: redis:8.2-alpine
-    profiles: [local]
-    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "allkeys-lfu"]
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 12
-    volumes:
-      - redis-data:/data
   backend:
     image: ghcr.io/hyoretsu/zaimu_backend:latest
     env_file: .env
@@ -64,6 +37,3 @@ networks:
     external: true
   proxy:
     external: true
-volumes:
-  rabbitmq-data:
-  redis-data:
