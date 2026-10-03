@@ -8,13 +8,19 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
-import { ChartPeriodFilter, type ChartPeriodSettings } from "./components";
+import { ChartPeriodFilter, type ChartPeriodSettings, RoundedStackSegment } from "./components";
 import { DashboardChartTooltip } from "./components/DashboardChartTooltip";
 
 const currency = new Intl.NumberFormat("pt-BR", {
 	currency: "BRL",
 	maximumFractionDigits: 2,
 	minimumFractionDigits: 2,
+	style: "currency",
+});
+const compactCurrency = new Intl.NumberFormat("pt-BR", {
+	currency: "BRL",
+	maximumFractionDigits: 2,
+	notation: "compact",
 	style: "currency",
 });
 const chartConfig = {
@@ -72,6 +78,16 @@ export function DashboardComparisonChart() {
 		otherIncome: item.income - item.recurringIncome,
 		recurringCardExpenses: item.recurringCardExpenses ?? 0,
 		recurringExpenses: item.recurringExpenses - (item.recurringCardExpenses ?? 0),
+		topExpense:
+			item.expenses - item.recurringExpenses - (item.cardExpenses ?? 0) + (item.recurringCardExpenses ?? 0) >
+			0
+				? "otherExpenses"
+				: item.recurringExpenses - (item.recurringCardExpenses ?? 0) > 0
+					? "recurringExpenses"
+					: (item.cardExpenses ?? 0) - (item.recurringCardExpenses ?? 0) > 0
+						? "cardExpenses"
+						: "recurringCardExpenses",
+		topIncome: item.income - item.recurringIncome > 0 ? "otherIncome" : "recurringIncome",
 		totalCardExpenses: item.cardExpenses ?? 0,
 		totalRecurringExpenses: item.recurringExpenses,
 	}));
@@ -98,6 +114,10 @@ export function DashboardComparisonChart() {
 					</p>
 				) : (
 					<>
+						<div className="mb-2 flex justify-between gap-4 text-muted-foreground text-xs">
+							<span>Patrimônio</span>
+							<span className="text-right">Entradas e gastos</span>
+						</div>
 						<ChartContainer className="h-72 w-full" config={chartConfig}>
 							<ComposedChart data={data}>
 								<CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -113,10 +133,22 @@ export function DashboardComparisonChart() {
 										strokeDasharray="4 4"
 										strokeOpacity={0.6}
 										x={currentPeriod.label}
+										yAxisId="balances"
 									/>
 								)}
 								<XAxis dataKey="label" tickLine={false} />
-								<YAxis tickFormatter={value => currency.format(value)} width={110} />
+								<YAxis
+									orientation="left"
+									tickFormatter={value => (mobile ? compactCurrency : currency).format(value)}
+									width={mobile ? 72 : 110}
+									yAxisId="balances"
+								/>
+								<YAxis
+									orientation="right"
+									tickFormatter={value => (mobile ? compactCurrency : currency).format(value)}
+									width={mobile ? 72 : 110}
+									yAxisId="flows"
+								/>
 								<Tooltip
 									content={({ active, payload }) => (
 										<DashboardChartTooltip
@@ -137,22 +169,74 @@ export function DashboardComparisonChart() {
 								<Bar
 									dataKey="recurringCardExpenses"
 									fill="var(--color-recurringCardExpenses)"
+									shape={props => (
+										<RoundedStackSegment
+											{...props}
+											rounded={data[props.index]?.topExpense === "recurringCardExpenses"}
+										/>
+									)}
 									stackId="expenses"
+									yAxisId="flows"
 								/>
-								<Bar dataKey="cardExpenses" fill="var(--color-cardExpenses)" stackId="expenses" />
-								<Bar dataKey="recurringIncome" fill="var(--color-recurringIncome)" stackId="income" />
+								<Bar
+									dataKey="cardExpenses"
+									fill="var(--color-cardExpenses)"
+									shape={props => (
+										<RoundedStackSegment
+											{...props}
+											rounded={data[props.index]?.topExpense === "cardExpenses"}
+										/>
+									)}
+									stackId="expenses"
+									yAxisId="flows"
+								/>
+								<Bar
+									dataKey="recurringIncome"
+									fill="var(--color-recurringIncome)"
+									shape={props => (
+										<RoundedStackSegment
+											{...props}
+											rounded={data[props.index]?.topIncome === "recurringIncome"}
+										/>
+									)}
+									stackId="income"
+									yAxisId="flows"
+								/>
 								<Bar
 									dataKey="otherIncome"
 									fill="var(--color-otherIncome)"
-									radius={[4, 4, 0, 0]}
+									shape={props => (
+										<RoundedStackSegment
+											{...props}
+											rounded={data[props.index]?.topIncome === "otherIncome"}
+										/>
+									)}
 									stackId="income"
+									yAxisId="flows"
 								/>
-								<Bar dataKey="recurringExpenses" fill="var(--color-recurringExpenses)" stackId="expenses" />
+								<Bar
+									dataKey="recurringExpenses"
+									fill="var(--color-recurringExpenses)"
+									shape={props => (
+										<RoundedStackSegment
+											{...props}
+											rounded={data[props.index]?.topExpense === "recurringExpenses"}
+										/>
+									)}
+									stackId="expenses"
+									yAxisId="flows"
+								/>
 								<Bar
 									dataKey="otherExpenses"
 									fill="var(--color-otherExpenses)"
-									radius={[4, 4, 0, 0]}
+									shape={props => (
+										<RoundedStackSegment
+											{...props}
+											rounded={data[props.index]?.topExpense === "otherExpenses"}
+										/>
+									)}
 									stackId="expenses"
+									yAxisId="flows"
 								/>
 								<Line
 									dataKey="accountBalance"
@@ -160,6 +244,7 @@ export function DashboardComparisonChart() {
 									stroke="var(--color-accountBalance)"
 									strokeWidth={2}
 									type="monotone"
+									yAxisId="balances"
 								/>
 								<Line
 									dataKey="endingBalance"
@@ -167,6 +252,7 @@ export function DashboardComparisonChart() {
 									stroke="var(--color-endingBalance)"
 									strokeWidth={3}
 									type="monotone"
+									yAxisId="balances"
 								/>
 								<Line
 									dataKey="fixedIncomeBalance"
@@ -174,6 +260,7 @@ export function DashboardComparisonChart() {
 									stroke="var(--color-fixedIncomeBalance)"
 									strokeWidth={2}
 									type="monotone"
+									yAxisId="balances"
 								/>
 								<Line
 									dataKey="variableIncomeBalance"
@@ -181,6 +268,7 @@ export function DashboardComparisonChart() {
 									stroke="var(--color-variableIncomeBalance)"
 									strokeWidth={2}
 									type="monotone"
+									yAxisId="balances"
 								/>
 							</ComposedChart>
 						</ChartContainer>
