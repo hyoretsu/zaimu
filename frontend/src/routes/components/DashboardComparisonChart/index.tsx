@@ -3,54 +3,44 @@ import { endOfMonth, format, startOfMonth } from "date-fns";
 import { useState } from "react";
 import { Bar, CartesianGrid, ComposedChart, Line, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { type ChartConfig, ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
+import { type ChartConfig, ChartContainer } from "@/components/ui/chart";
 import { Skeleton } from "@/components/ui/Skeleton";
-import type { DashboardPeriod } from "@/lib/api";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { ChartPeriodFilter, type ChartPeriodSettings } from "./components";
+import { DashboardChartTooltip } from "./components/DashboardChartTooltip";
 
 const currency = new Intl.NumberFormat("pt-BR", {
 	currency: "BRL",
-	maximumFractionDigits: 0,
+	maximumFractionDigits: 2,
+	minimumFractionDigits: 2,
 	style: "currency",
 });
 const chartConfig = {
 	accountBalance: { color: "var(--color-sky-500)", label: "Em conta" },
 	endingBalance: { color: "var(--color-primary)", label: "Saldo total" },
 	expenses: { color: "var(--color-rose-500)", label: "Saídas" },
+	fixedIncomeBalance: { color: "var(--color-amber-500)", label: "Renda fixa" },
 	income: { color: "var(--color-emerald-500)", label: "Entradas" },
-	savingsBalance: { color: "var(--color-amber-500)", label: "Poupanças" },
+	otherExpenses: { color: "var(--color-rose-400)", label: "Outras saídas" },
+	otherIncome: { color: "var(--color-emerald-400)", label: "Outras entradas" },
+	recurringExpenses: { color: "var(--color-rose-700)", label: "Saídas recorrentes" },
+	recurringIncome: { color: "var(--color-emerald-700)", label: "Entradas recorrentes" },
+	variableIncomeBalance: { color: "var(--color-violet-500)", label: "Renda variável" },
 } satisfies ChartConfig;
-const tooltipValueColor = {
-	accountBalance: "text-sky-500",
-	endingBalance: "text-primary",
-	expenses: "text-rose-500",
-	income: "text-emerald-500",
-	savingsBalance: "text-amber-500",
-} as const;
 const legendItems = [
 	{ key: "accountBalance", kind: "line" },
 	{ key: "endingBalance", kind: "line" },
-	{ key: "savingsBalance", kind: "line" },
-	{ key: "income", kind: "bar" },
-	{ key: "expenses", kind: "bar" },
+	{ key: "fixedIncomeBalance", kind: "line" },
+	{ key: "variableIncomeBalance", kind: "line" },
+	{ key: "recurringIncome", kind: "bar" },
+	{ key: "otherIncome", kind: "bar" },
+	{ key: "recurringExpenses", kind: "bar" },
+	{ key: "otherExpenses", kind: "bar" },
+	{ key: "income", kind: "total" },
+	{ key: "expenses", kind: "total" },
 ] as const;
-
-function formatTooltipLabel(item: DashboardPeriod) {
-	const start = new Date(`${item.startDate}T12:00:00`);
-	const end = new Date(`${item.endDate}T12:00:00`);
-	const isFullMonth =
-		start.getDate() === 1 &&
-		start.getFullYear() === end.getFullYear() &&
-		start.getMonth() === end.getMonth() &&
-		end.getDate() === new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate();
-	if (isFullMonth) {
-		const label = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(start);
-		return `${label[0]?.toUpperCase()}${label.slice(1)}`;
-	}
-	return `${format(start, "dd/MM/yyyy")} até ${format(end, "dd/MM/yyyy")}`;
-}
 
 function formatAxisLabel(startDate: string) {
 	const date = new Date(`${startDate}T12:00:00`);
@@ -59,6 +49,7 @@ function formatAxisLabel(startDate: string) {
 
 export function DashboardComparisonChart() {
 	const identity = useCacheIdentity();
+	const mobile = useMediaQuery("(max-width: 639px)");
 	const [settings, setSettings] = useState<ChartPeriodSettings>(() => ({
 		endDate: format(endOfMonth(new Date()), "yyyy-MM-dd"),
 		periodsAfter: 10,
@@ -75,6 +66,8 @@ export function DashboardComparisonChart() {
 	const data = (query.data ?? []).map(item => ({
 		...item,
 		label: formatAxisLabel(item.startDate),
+		otherExpenses: item.expenses - item.recurringExpenses,
+		otherIncome: item.income - item.recurringIncome,
 	}));
 	const currentPeriod = data.find(item => item.startDate <= today && today <= item.endDate);
 	return (
@@ -117,31 +110,27 @@ export function DashboardComparisonChart() {
 									/>
 								)}
 								<XAxis dataKey="label" tickLine={false} />
-								<YAxis tickFormatter={value => currency.format(value)} width={76} />
+								<YAxis tickFormatter={value => currency.format(value)} width={110} />
 								<Tooltip
-									content={
-										<ChartTooltipContent
-											formatter={(value, name) => (
-												<div className="flex w-full items-center justify-between gap-6">
-													<span className="text-muted-foreground">
-														{chartConfig[name as keyof typeof chartConfig]?.label ?? name}
-													</span>
-													<span
-														className={`font-medium font-mono tabular-nums ${tooltipValueColor[name as keyof typeof tooltipValueColor] ?? "text-foreground"}`}
-													>
-														{currency.format(Number(value))}
-													</span>
-												</div>
-											)}
-											labelFormatter={(_, payload) => {
-												const item = payload[0]?.payload as (typeof data)[number] | undefined;
-												return item ? formatTooltipLabel(item) : "";
-											}}
-										/>
-									}
+									content={({ active, payload }) => (
+										<DashboardChartTooltip active={active} period={payload?.[0]?.payload} />
+									)}
+									position={mobile ? { x: 0, y: 0 } : undefined}
 								/>
-								<Bar dataKey="income" fill="var(--color-income)" radius={4} />
-								<Bar dataKey="expenses" fill="var(--color-expenses)" radius={4} />
+								<Bar dataKey="recurringIncome" fill="var(--color-recurringIncome)" stackId="income" />
+								<Bar
+									dataKey="otherIncome"
+									fill="var(--color-otherIncome)"
+									radius={[4, 4, 0, 0]}
+									stackId="income"
+								/>
+								<Bar dataKey="recurringExpenses" fill="var(--color-recurringExpenses)" stackId="expenses" />
+								<Bar
+									dataKey="otherExpenses"
+									fill="var(--color-otherExpenses)"
+									radius={[4, 4, 0, 0]}
+									stackId="expenses"
+								/>
 								<Line
 									dataKey="accountBalance"
 									dot={false}
@@ -157,9 +146,16 @@ export function DashboardComparisonChart() {
 									type="monotone"
 								/>
 								<Line
-									dataKey="savingsBalance"
+									dataKey="fixedIncomeBalance"
 									dot={false}
-									stroke="var(--color-savingsBalance)"
+									stroke="var(--color-fixedIncomeBalance)"
+									strokeWidth={2}
+									type="monotone"
+								/>
+								<Line
+									dataKey="variableIncomeBalance"
+									dot={false}
+									stroke="var(--color-variableIncomeBalance)"
 									strokeWidth={2}
 									type="monotone"
 								/>

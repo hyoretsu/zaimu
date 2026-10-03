@@ -30,6 +30,7 @@ import {
 	DashboardPeriodFlowCard,
 	DashboardProjectedCashFlowCard,
 	DashboardQuickActions,
+	DashboardReferenceRateNotice,
 	DashboardSkeleton,
 } from "./components";
 
@@ -63,7 +64,7 @@ export function DashboardPage() {
 			</PageContainer>
 		);
 	const dashboard = dashboardQuery.data;
-	const { accountBalance, savingsBalance } = dashboard.balanceBreakdown;
+	const { accountBalance, fixedIncomeBalance, variableIncomeBalance } = dashboard.balanceBreakdown;
 	const endingBalance = dashboard.period.endingBalance;
 	const isCurrentDay = isToday;
 	const projectedCashFlow = dashboard.projectedCashFlowUntilMonthEnd;
@@ -95,7 +96,8 @@ export function DashboardPage() {
 						<p className="font-bold text-2xl tracking-tight sm:text-3xl">{currency.format(endingBalance)}</p>
 						<div className="mt-2 space-y-0.5 text-primary-foreground text-xs sm:mt-3 sm:space-y-1">
 							<p>Em conta: {currency.format(accountBalance)}</p>
-							<p>Poupanças: {currency.format(savingsBalance)}</p>
+							<p>Renda fixa: {currency.format(fixedIncomeBalance)}</p>
+							<p>Renda variável: {currency.format(variableIncomeBalance)}</p>
 							<p>
 								{isCurrentDay
 									? "Sem projeções futuras."
@@ -109,13 +111,18 @@ export function DashboardPage() {
 					income={dashboard.period.income}
 					isCurrentMonth={isToday}
 					net={dashboard.period.net}
+					recurringExpenses={dashboard.period.recurringExpenses}
+					recurringIncome={dashboard.period.recurringIncome}
 				/>
 				<DashboardProjectedCashFlowCard
 					expenses={projectedCashFlow.expenses}
 					income={projectedCashFlow.income}
 					net={projectedCashFlow.net}
+					recurringExpenses={projectedCashFlow.recurringExpenses}
+					recurringIncome={projectedCashFlow.recurringIncome}
 				/>
 			</section>
+			<DashboardReferenceRateNotice available={dashboard.referenceRatesAvailable} />
 			<DashboardComparisonChart />
 			<section className="grid gap-4 xl:grid-cols-2">
 				<DashboardAccounts accounts={dashboard.accounts} endDate={dashboard.period.endDate} />

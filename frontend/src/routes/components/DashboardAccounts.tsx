@@ -66,11 +66,11 @@ export function DashboardAccounts({ accounts, endDate }: DashboardAccountsProps)
 					<DialogHeader>
 						<DialogTitle>Todas as contas</DialogTitle>
 						<DialogDescription>
-							Contas correntes e poupanças incluídas no saldo em {formatLocalDate(endDate)}.
+							Contas monetárias e investimentos incluídos no saldo em {formatLocalDate(endDate)}.
 						</DialogDescription>
 					</DialogHeader>
-					<ScrollArea className="max-h-[min(30rem,calc(100dvh-14rem))] pr-3">
-						<div className="space-y-3">
+					<ScrollArea className="max-h-[min(30rem,calc(100dvh-14rem))] min-h-0">
+						<div className="space-y-3 pr-3">
 							{!ordered.length && <p className="text-muted-foreground text-sm">Nenhuma conta com saldo.</p>}
 							{ordered.map(account => (
 								<div
@@ -80,7 +80,13 @@ export function DashboardAccounts({ accounts, endDate }: DashboardAccountsProps)
 									<div className="min-w-0">
 										<p className="font-medium">{getName(account)}</p>
 										<p className="text-muted-foreground text-xs">
-											{account.type === "SAVINGS" ? "Poupança" : "Conta corrente"}
+											{account.type === "SAVINGS"
+												? "Renda fixa"
+												: account.type === "INVESTMENT"
+													? "Renda variável"
+													: account.type === "CASH"
+														? "Dinheiro"
+														: "Conta corrente"}
 										</p>
 									</div>
 									<div className="flex shrink-0 flex-col items-end gap-2 text-right">

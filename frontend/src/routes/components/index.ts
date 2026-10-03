@@ -10,5 +10,6 @@ export * from "./DashboardForecasts";
 export * from "./DashboardPeriodFlowCard";
 export * from "./DashboardProjectedCashFlowCard";
 export * from "./DashboardQuickActions";
+export * from "./DashboardReferenceRateNotice";
 export * from "./DashboardSkeleton";
 export * from "./LocalStorageError";

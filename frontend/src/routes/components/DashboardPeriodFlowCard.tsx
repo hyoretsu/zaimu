@@ -7,6 +7,8 @@ interface DashboardPeriodFlowCardProps {
 	income: number;
 	expenses: number;
 	net: number;
+	recurringIncome: number;
+	recurringExpenses: number;
 	isCurrentMonth?: boolean;
 }
 
@@ -14,6 +16,8 @@ export function DashboardPeriodFlowCard({
 	income,
 	expenses,
 	net,
+	recurringIncome,
+	recurringExpenses,
 	isCurrentMonth = false,
 }: DashboardPeriodFlowCardProps) {
 	return (
@@ -31,6 +35,7 @@ export function DashboardPeriodFlowCard({
 					<p className="mt-2 break-words font-bold text-xl tracking-tight sm:text-2xl">
 						{currency.format(income)}
 					</p>
+					<p className="mt-1 text-xs opacity-80">Recorrentes: {currency.format(recurringIncome)}</p>
 				</div>
 				<div className="min-w-0 px-4 py-3 sm:px-6 sm:py-4">
 					<p className="flex items-center gap-1.5 text-muted-foreground text-xs sm:text-sm">
@@ -40,6 +45,7 @@ export function DashboardPeriodFlowCard({
 					<p className="mt-2 break-words font-bold text-xl tracking-tight sm:text-2xl">
 						{currency.format(expenses)}
 					</p>
+					<p className="mt-1 text-xs opacity-80">Recorrentes: {currency.format(recurringExpenses)}</p>
 				</div>
 			</div>
 			<div className="flex items-center justify-between gap-2 border-t px-4 py-2 text-xs sm:px-6 xl:flex-col xl:items-start xl:justify-center xl:border-t-0 xl:border-l xl:py-4 xl:text-sm">
