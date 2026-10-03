@@ -4,7 +4,7 @@
 
 A dashboard resume todos os domínios financeiros relevantes: contas monetárias, cartões, previsões, dívidas e comparativos por período. Ao criar um novo domínio que afete saldo, entradas, saídas, compromissos ou crédito disponível, sua integração na dashboard deve ser avaliada no mesmo trabalho. Investimentos e pontos permanecem fora do saldo monetário consolidado; cashback em reais permanece incluído.
 
-A evolução mensal exibe 12 meses completos: o mês anterior ao mês de referência, o próprio mês de referência e os dez seguintes. O filtro do gráfico seleciona mês e ano de referência independentemente do período dos demais indicadores da dashboard.
+A evolução por período permite escolher um intervalo completo no seletor de período e as quantidades de períodos anteriores e posteriores, independentemente dos demais indicadores da dashboard. O padrão é um mês, iniciado no primeiro dia do mês atual, com um período anterior e dez posteriores. A duração é inferida do intervalo: meses e anos completos preservam a duração de calendário; os demais intervalos repetem a quantidade de dias selecionada. Trimestre equivale a três meses; duas semanas equivalem a 14 dias. Limpar o seletor restaura o mês atual; escolher somente uma data compara períodos de um dia. Os intervalos são contíguos, incluem o último dia e não se sobrepõem. Meses e anos preservam o dia de referência, ajustado ao último dia de meses curtos sem propagar o ajuste aos próximos períodos. A mesma regra vale para contas conectadas e modo visitante. O gráfico usa consulta própria (`GET /dashboard/comparison`), que retorna somente os períodos comparados e não consulta dívidas nem calcula indicadores, limites, atividade diária ou listagem de previsões da dashboard.
 
 ## Ajustes de saldo
 

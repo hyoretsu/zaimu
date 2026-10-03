@@ -90,3 +90,41 @@ describe("replayDashboardStatements", () => {
 		]);
 	});
 });
+
+import { loadDashboardRows } from "./load-dashboard-data";
+
+test("comparison loads only chart data and requested balance dates", async () => {
+	const queries: Array<{ sql: string; values?: unknown[] }> = [];
+	const query = async <Row extends Record<string, unknown>>(
+		sql: string,
+		values?: unknown[],
+	): Promise<Row[]> => {
+		queries.push({ sql, values });
+		return [];
+	};
+	const date = new Date("2026-10-03T12:00:00");
+	const result = await loadDashboardRows(
+		query,
+		"chart-user",
+		{
+			balanceDates: [date],
+			comparisonEnd: date,
+			comparisonStart: date,
+			periodEnd: date,
+			periodStart: date,
+			projectionStart: date,
+			today: date,
+		},
+		true,
+	);
+	expect(queries).toHaveLength(4);
+	expect(queries[0]!.sql).not.toContain('"DebtPerson"');
+	expect(queries[0]!.sql).not.toContain('"DebtEvent"');
+	expect(queries[2]!.sql).not.toContain("forecastTransaction");
+	expect(queries[2]!.sql).not.toContain("activityDate");
+	expect(queries[2]!.values).toHaveLength(4);
+	expect(queries[3]!.values).toEqual(["chart-user", ["2026-10-03"]]);
+	expect(result.debts).toEqual([]);
+	expect(result.forecastTransactions).toEqual([]);
+	expect(result.activityDates).toEqual([]);
+});

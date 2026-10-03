@@ -635,7 +635,6 @@ export interface Dashboard {
 		type: "CHECKING" | "SAVINGS";
 	}>;
 	balanceBreakdown: { accountBalance: number; savingsBalance: number };
-	comparison: DashboardPeriod[];
 	dailyBalances: Array<{ balance: number; date: string }>;
 	creditCards: Array<{
 		availableLimit: number;

@@ -1,3 +1,4 @@
+import { comparisonIntervals } from "@zaimu/finance/comparison-periods";
 import {
 	addBookRefund,
 	bookPurchase,
@@ -70,6 +71,7 @@ import type {
 	CreditPurchase,
 	CreditPurchaseEditDetails,
 	Dashboard,
+	DashboardPeriod,
 	DebtEvent,
 	DebtInvitation,
 	DebtInvitationPreview,
@@ -95,6 +97,7 @@ import type {
 } from "./api";
 import type { BalanceAdjustment } from "./balance-adjustment";
 import { calculateCreditCardLimit, getCurrentCreditCardStatement } from "./credit-card";
+import { type DashboardComparisonParameters, getGuestDashboardComparison } from "./dashboard-comparison";
 import { getCurrentLocalTime, getLocalDateKey } from "./date";
 import { calculateDebtSplit, debtSplitToInput } from "./debt-split";
 import {
@@ -1804,16 +1807,8 @@ export const dataService = {
 							type: "TRANSACTION" as const,
 						})),
 				].toSorted((left, right) => left.date.localeCompare(right.date));
-				const comparisonStart = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1);
-				const comparisonRangeEnd = new Date(
-					comparisonStart.getFullYear(),
-					comparisonStart.getMonth() + 11,
-					0,
-					23,
-					59,
-					59,
-				);
-				const comparisonEnd = new Date(Math.max(comparisonRangeEnd.getTime(), rangeEnd.getTime()));
+				const comparisonPeriods = comparisonIntervals(rangeStart);
+				const comparisonEnd = new Date(Math.max(comparisonPeriods.at(-1)!.end.getTime(), rangeEnd.getTime()));
 				const projectionStart = new Date(now);
 				projectionStart.setHours(12, 0, 0, 0);
 				projectionStart.setDate(projectionStart.getDate() + 1);
@@ -1945,38 +1940,7 @@ export const dataService = {
 					savingsBalance,
 					startDate: dateKey(rangeStart),
 				};
-				const comparison = Array.from({ length: 12 }, (_, index) => {
-					const start = new Date(comparisonStart.getFullYear(), comparisonStart.getMonth() + index - 1, 1);
-					const end = new Date(start.getFullYear(), start.getMonth() + 1, 0, 23, 59, 59);
-					const movements = comparisonTransactions.filter(
-						item => item.type !== "TRANSFER" && item.date >= start && item.date <= end,
-					);
-					const comparisonIncome = movements
-						.filter(item => item.type === "INCOME")
-						.reduce((sum, item) => sum + item.amount, 0);
-					const comparisonExpenses = movements
-						.filter(item => item.type === "EXPENSE")
-						.reduce((sum, item) => sum + item.amount, 0);
-					return {
-						accountBalance,
-						endDate: dateKey(end),
-						endingBalance:
-							totalBalance -
-							comparisonTransactions
-								.filter(item => item.type !== "TRANSFER" && item.date > end)
-								.reduce((sum, item) => sum + (item.type === "INCOME" ? item.amount : -item.amount), 0),
-						expenses: comparisonExpenses,
-						income: comparisonIncome,
-						initialBalance:
-							totalBalance -
-							comparisonTransactions
-								.filter(item => item.type !== "TRANSFER" && item.date >= start)
-								.reduce((sum, item) => sum + (item.type === "INCOME" ? item.amount : -item.amount), 0),
-						net: comparisonIncome - comparisonExpenses,
-						savingsBalance,
-						startDate: dateKey(start),
-					};
-				});
+
 				return {
 					accounts: accountsAtRangeEnd
 						.filter(account => account.type === "CHECKING" || account.type === "SAVINGS")
@@ -1988,7 +1952,6 @@ export const dataService = {
 							type: account.type as "CHECKING" | "SAVINGS",
 						})),
 					balanceBreakdown: { accountBalance, savingsBalance },
-					comparison,
 					creditCards,
 					dailyBalances: transactions
 						.filter(transaction => {
@@ -2033,6 +1996,12 @@ export const dataService = {
 			if (dateRange?.startDate) params.set("startDate", dateRange.startDate);
 			if (dateRange?.endDate) params.set("endDate", dateRange.endDate);
 			return fetchWithAuth<Dashboard>(`/dashboard${params.size ? `?${params}` : ""}`);
+		},
+		async getComparison(parameters: DashboardComparisonParameters): Promise<DashboardPeriod[]> {
+			if (isGuestMode()) return getGuestDashboardComparison(parameters);
+			const params = new URLSearchParams();
+			for (const [key, value] of Object.entries(parameters)) params.set(key, String(value));
+			return fetchWithAuth<DashboardPeriod[]>(`/dashboard/comparison?${params}`);
 		},
 	},
 

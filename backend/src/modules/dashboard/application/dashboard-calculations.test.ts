@@ -187,3 +187,24 @@ test("calculates projected cash flow through the current month end", () => {
 		}),
 	).toEqual({ expenses: 500, income: 500, net: 0 });
 });
+
+test("custom comparison assigns boundary transactions exactly once and rolls balances forward", () => {
+	const base = resolveDashboardRange("2026-10-03", "2026-10-16");
+	const options = { comparisonSize: 2, comparisonUnit: "WEEK" as const, periodsAfter: 1, periodsBefore: 1 };
+	const periods = buildComparisonPeriods({
+		...options,
+		base,
+		initialBalance: 100,
+		transactions: [
+			{ amount: 20, date: new Date("2026-10-02T23:59:59"), type: "INCOME" },
+			{ amount: 30, date: new Date("2026-10-03T00:00:00"), type: "EXPENSE" },
+			{ amount: 50, date: new Date("2026-10-16T23:59:59"), type: "INCOME" },
+			{ amount: 10, date: new Date("2026-10-17T00:00:00"), type: "EXPENSE" },
+		],
+	});
+	expect(periods).toHaveLength(3);
+	expect(periods[0]).toMatchObject({ endingBalance: 100, income: 20, initialBalance: 80 });
+	expect(periods[1]).toMatchObject({ endingBalance: 120, expenses: 30, income: 50, initialBalance: 100 });
+	expect(periods[2]).toMatchObject({ endingBalance: 110, expenses: 10, initialBalance: 120 });
+	expect(dateKey(comparisonRangeEnd(base, options))).toBe("2026-10-30");
+});

@@ -1,3 +1,4 @@
+import { type ComparisonOptions, comparisonIntervals } from "@zaimu/finance/comparison-periods";
 import {
 	addDays,
 	addMonths,
@@ -125,16 +126,14 @@ export function occurrencesInRange(input: {
 	return occurrences;
 }
 
-export function buildComparisonPeriods(input: {
-	base: { end: Date; start: Date };
-	initialBalance: number;
-	transactions: Array<{ amount: number; date: Date; type: "EXPENSE" | "INCOME" | "TRANSFER" }>;
-}) {
-	const base = comparisonBase(input.base);
-	return Array.from({ length: 12 }, (_, index) => {
-		const offset = index - 1;
-		const start = startOfDay(addMonths(base.start, offset));
-		const end = endOfDay(endOfMonth(start));
+export function buildComparisonPeriods(
+	input: ComparisonOptions & {
+		base: { end: Date; start: Date };
+		initialBalance: number;
+		transactions: Array<{ amount: number; date: Date; type: "EXPENSE" | "INCOME" | "TRANSFER" }>;
+	},
+) {
+	return comparisonIntervals(input.base.start, input).map(({ start, end }) => {
 		const movements = input.transactions.filter(
 			item => item.date >= start && item.date <= end && item.type !== "TRANSFER",
 		);
@@ -156,16 +155,8 @@ export function buildComparisonPeriods(input: {
 	});
 }
 
-export function comparisonRangeEnd(base: { end: Date; start: Date }) {
-	const comparison = comparisonBase(base);
-	return endOfDay(endOfMonth(addMonths(comparison.start, 10)));
-}
-
-function comparisonBase(base: { end: Date; start: Date }) {
-	return {
-		end: endOfDay(endOfMonth(base.end)),
-		start: startOfDay(new Date(base.start.getFullYear(), base.start.getMonth(), 1)),
-	};
+export function comparisonRangeEnd(base: { end: Date; start: Date }, options: ComparisonOptions = {}) {
+	return comparisonIntervals(base.start, options).at(-1)!.end;
 }
 
 function balanceAtPeriodStart(input: Parameters<typeof buildComparisonPeriods>[0], periodStart: Date) {

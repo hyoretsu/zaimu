@@ -91,7 +91,7 @@ export interface DashboardLoanPayment {
 	totalPaid: number;
 }
 
-const overviewSql = `
+const comparisonOverviewSql = `
 WITH visible_cards AS (
   SELECT card.*, account."userId", account."institutionId", institution."creditRefundPolicy" AS "refundPolicy"
   FROM "CreditCard" card
@@ -167,6 +167,9 @@ SELECT 'payment', jsonb_build_object(
 FROM "Transaction" payment
 JOIN visible_cards card ON card."id" = payment."paymentCreditCardId"
 WHERE payment."userId" = $1
+`;
+
+const overviewSql = `${comparisonOverviewSql}
 UNION ALL
 SELECT 'debt', jsonb_build_object(
   'balance', COALESCE(sum(CASE WHEN event."createdByUserId" = $1 THEN event."effect" ELSE -event."effect" END), 0),
@@ -195,7 +198,7 @@ FROM "LoanPayment" payment
 JOIN "Loan" loan ON loan."id" = payment."loanId"
 WHERE loan."userId" = $1 AND payment."paidDate" IS NULL AND payment."dueDate" >= $2::date`;
 
-const movementsSql = `
+const comparisonMovementsSql = `
 SELECT 'flow' AS kind, jsonb_build_object(
   'amount', sum(transaction."amount"), 'date', transaction."date", 'type', transaction."type"::text
 ) AS data
@@ -210,6 +213,9 @@ SELECT 'linked', jsonb_build_object(
 FROM "Transaction" transaction
 WHERE transaction."userId" = $1 AND transaction."date" BETWEEN $4::date AND $3::date
   AND transaction."recurrenceId" IS NOT NULL
+`;
+
+const movementsSql = `${comparisonMovementsSql}
 UNION ALL
 SELECT 'forecastTransaction', jsonb_build_object(
   'amount', transaction."amount", 'date', transaction."date", 'description', transaction."description",
@@ -253,70 +259,80 @@ export interface DashboardDataRange {
 	today: Date;
 }
 
-export async function loadDashboardData(userId: string, range: DashboardDataRange) {
-	return withRawTransaction(async (query: Query) => {
-		const overviewRows = await query<DashboardDataRow>(overviewSql, [userId]);
-		const scheduleRows = await query<DashboardDataRow>(schedulesSql, [userId, dateKey(range.today)]);
-		const movementRows = await query<DashboardDataRow>(movementsSql, [
+export async function loadDashboardData(userId: string, range: DashboardDataRange, comparisonOnly = false) {
+	return withRawTransaction(query => loadDashboardRows(query, userId, range, comparisonOnly));
+}
+
+export async function loadDashboardRows(
+	query: Query,
+	userId: string,
+	range: DashboardDataRange,
+	comparisonOnly = false,
+) {
+	const overviewRows = await query<DashboardDataRow>(comparisonOnly ? comparisonOverviewSql : overviewSql, [
+		userId,
+	]);
+	const scheduleRows = await query<DashboardDataRow>(schedulesSql, [userId, dateKey(range.today)]);
+	const movementRows = await query<DashboardDataRow>(comparisonOnly ? comparisonMovementsSql : movementsSql, [
+		userId,
+		dateKey(range.comparisonStart),
+		dateKey(range.comparisonEnd),
+		dateKey(range.projectionStart),
+		...(comparisonOnly ? [] : [dateKey(range.periodStart), dateKey(range.periodEnd)]),
+	]);
+	const activityDates = rowsByKind(movementRows, "activityDate").map(row => asDate(row.date));
+	const balanceDates = [...range.balanceDates, ...activityDates];
+	const balanceRows = await query<DashboardBalanceRow>(monetaryBalancesSql, [
+		userId,
+		[...new Set(balanceDates.map(dateKey))],
+	]);
+	const cards = rowsByKind(overviewRows, "card") as unknown as DashboardCard[];
+	const recurrences = rowsByKind(scheduleRows, "recurrence").map(normalizeRecurrence);
+	return {
+		accounts: rowsByKind(overviewRows, "account") as unknown as DashboardAccount[],
+		activityDates,
+		balanceRows,
+		cards,
+		debts: rowsByKind(overviewRows, "debt") as unknown as Array<{
+			balance: number;
+			id: string;
+			name: string;
+		}>,
+		flows: rowsByKind(movementRows, "flow").map(row => ({
+			...row,
+			date: asDate(row.date),
+		})) as unknown as DashboardFlow[],
+		forecastTransactions: rowsByKind(movementRows, "forecastTransaction").map(row => ({
+			...row,
+			date: asDate(row.date),
+		})) as unknown as DashboardForecastTransaction[],
+		linkedTransactions: [
+			...rowsByKind(movementRows, "linked"),
+			...rowsByKind(scheduleRows, "occurrence").map(row => ({
+				date: row.date,
+				sourceId: row.recurrenceId,
+			})),
+		],
+		loanPayments: rowsByKind(scheduleRows, "loanPayment").map(row => ({
+			...row,
+			dueDate: asDate(row.dueDate),
+			paidDate: row.paidDate ? asDate(row.paidDate) : null,
+		})) as unknown as DashboardLoanPayment[],
+		projectedStatements: replayDashboardStatements(
 			userId,
-			dateKey(range.comparisonStart),
-			dateKey(range.comparisonEnd),
-			dateKey(range.projectionStart),
-			dateKey(range.periodStart),
-			dateKey(range.periodEnd),
-		]);
-		const activityDates = rowsByKind(movementRows, "activityDate").map(row => asDate(row.date));
-		const balanceDates = [...range.balanceDates, ...activityDates];
-		const balanceRows = await query<DashboardBalanceRow>(monetaryBalancesSql, [
-			userId,
-			[...new Set(balanceDates.map(dateKey))],
-		]);
-		const cards = rowsByKind(overviewRows, "card") as unknown as DashboardCard[];
-		const recurrences = rowsByKind(scheduleRows, "recurrence").map(normalizeRecurrence);
-		return {
-			accounts: rowsByKind(overviewRows, "account") as unknown as DashboardAccount[],
-			activityDates,
-			balanceRows,
 			cards,
-			debts: rowsByKind(overviewRows, "debt") as unknown as Array<{
-				balance: number;
-				id: string;
-				name: string;
-			}>,
-			flows: rowsByKind(movementRows, "flow").map(row => ({
-				...row,
-				date: asDate(row.date),
-			})) as unknown as DashboardFlow[],
-			forecastTransactions: rowsByKind(movementRows, "forecastTransaction").map(row => ({
-				...row,
-				date: asDate(row.date),
-			})) as unknown as DashboardForecastTransaction[],
-			linkedTransactions: [
-				...rowsByKind(movementRows, "linked"),
-				...rowsByKind(scheduleRows, "occurrence").map(row => ({
-					date: row.date,
-					sourceId: row.recurrenceId,
-				})),
-			],
-			loanPayments: rowsByKind(scheduleRows, "loanPayment").map(row => ({
-				...row,
-				dueDate: asDate(row.dueDate),
-				paidDate: row.paidDate ? asDate(row.paidDate) : null,
-			})) as unknown as DashboardLoanPayment[],
-			projectedStatements: replayDashboardStatements(
-				userId,
-				cards,
-				overviewRows,
-				dateKey(range.today),
-				recurrences,
-				dateKey(range.comparisonEnd),
-				rowsByKind(scheduleRows, "occurrence") as unknown as Array<{ recurrenceId: string; date: string }>,
-			),
+			overviewRows,
+			dateKey(range.today),
 			recurrences,
-			recurring: [],
-			salaries: [],
-			statements: replayDashboardStatements(userId, cards, overviewRows, dateKey(range.today)),
-			subscriptions: [],
-		};
-	});
+			dateKey(range.comparisonEnd),
+			rowsByKind(scheduleRows, "occurrence") as unknown as Array<{ recurrenceId: string; date: string }>,
+		),
+		recurrences,
+		recurring: [],
+		salaries: [],
+		statements: comparisonOnly
+			? []
+			: replayDashboardStatements(userId, cards, overviewRows, dateKey(range.today)),
+		subscriptions: [],
+	};
 }

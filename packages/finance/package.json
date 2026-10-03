@@ -3,6 +3,7 @@
 	"private": true,
 	"type": "module",
 	"exports": {
+		"./comparison-periods": "./src/comparison-periods.ts",
 		"./imported-anticipation": "./src/imported-anticipation.ts",
 		"./credit-card": "./src/credit-card.ts",
 		"./credit-purchase": "./src/credit-purchase.ts",

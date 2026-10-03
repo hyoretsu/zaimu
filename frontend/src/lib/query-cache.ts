@@ -63,6 +63,8 @@ export const queryKeys = {
 	},
 	dashboard: {
 		all: (identity: CacheIdentity) => domainKey(identity, "dashboard"),
+		comparison: (identity: CacheIdentity, parameters: unknown) =>
+			[...domainKey(identity, "dashboard"), "comparison", parameters] as const,
 		detail: (identity: CacheIdentity, parameters: unknown) =>
 			[...domainKey(identity, "dashboard"), "detail", parameters] as const,
 	},

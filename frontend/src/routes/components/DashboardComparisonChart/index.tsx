@@ -5,10 +5,10 @@ import { Bar, CartesianGrid, ComposedChart, Line, ReferenceLine, Tooltip, XAxis,
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { type ChartConfig, ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
 import { Skeleton } from "@/components/ui/Skeleton";
-import type { Dashboard } from "@/lib/api";
+import type { DashboardPeriod } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
-import { ChartMonthFilter } from "./components";
+import { ChartPeriodFilter, type ChartPeriodSettings } from "./components";
 
 const currency = new Intl.NumberFormat("pt-BR", {
 	currency: "BRL",
@@ -37,7 +37,7 @@ const legendItems = [
 	{ key: "expenses", kind: "bar" },
 ] as const;
 
-function formatTooltipLabel(item: Dashboard["comparison"][number]) {
+function formatTooltipLabel(item: DashboardPeriod) {
 	const start = new Date(`${item.startDate}T12:00:00`);
 	const end = new Date(`${item.endDate}T12:00:00`);
 	const isFullMonth =
@@ -49,7 +49,7 @@ function formatTooltipLabel(item: Dashboard["comparison"][number]) {
 		const label = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(start);
 		return `${label[0]?.toUpperCase()}${label.slice(1)}`;
 	}
-	return `${item.startDate} até ${item.endDate}`;
+	return `${format(start, "dd/MM/yyyy")} até ${format(end, "dd/MM/yyyy")}`;
 }
 
 function formatAxisLabel(startDate: string) {
@@ -59,34 +59,37 @@ function formatAxisLabel(startDate: string) {
 
 export function DashboardComparisonChart() {
 	const identity = useCacheIdentity();
-	const [referenceMonth, setReferenceMonth] = useState(() => startOfMonth(new Date()));
-	const range = {
-		endDate: format(endOfMonth(referenceMonth), "yyyy-MM-dd"),
-		startDate: format(referenceMonth, "yyyy-MM-dd"),
-	};
+	const [settings, setSettings] = useState<ChartPeriodSettings>(() => ({
+		endDate: format(endOfMonth(new Date()), "yyyy-MM-dd"),
+		periodsAfter: 10,
+		periodsBefore: 1,
+		startDate: format(startOfMonth(new Date()), "yyyy-MM-dd"),
+	}));
+
 	const query = useQuery({
 		enabled: identity !== null,
-		queryFn: () => dataService.dashboard.get(range),
-		queryKey: queryKeys.dashboard.detail(identity!, range),
+		queryFn: () => dataService.dashboard.getComparison(settings),
+		queryKey: queryKeys.dashboard.comparison(identity!, settings),
 	});
 	const today = format(new Date(), "yyyy-MM-dd");
-	const data = (query.data?.comparison ?? []).map(item => ({
+	const data = (query.data ?? []).map(item => ({
 		...item,
 		label: formatAxisLabel(item.startDate),
 	}));
-	const currentMonth = data.find(item => item.startDate <= today && today <= item.endDate);
+	const currentPeriod = data.find(item => item.startDate <= today && today <= item.endDate);
 	return (
 		<Card>
 			<CardHeader>
-				<CardTitle>Evolução mensal</CardTitle>
+				<CardTitle>Evolução por período</CardTitle>
 				<p className="text-muted-foreground text-sm">
-					12 meses: mês anterior, mês de referência e dez seguintes.
+					{settings.periodsBefore + 1 + settings.periodsAfter} períodos: {settings.periodsBefore} anteriores,
+					período de referência e {settings.periodsAfter} posteriores.
 				</p>
-				<ChartMonthFilter onChange={setReferenceMonth} value={referenceMonth} />
+				<ChartPeriodFilter onChange={setSettings} value={settings} />
 			</CardHeader>
 			<CardContent>
 				{query.isPending ? (
-					<div aria-label="Carregando evolução mensal" className="space-y-4" role="status">
+					<div aria-label="Carregando evolução por período" className="space-y-4" role="status">
 						<Skeleton className="h-72 w-full" />
 						<Skeleton className="mx-auto h-4 w-64 max-w-full" />
 					</div>
@@ -99,18 +102,18 @@ export function DashboardComparisonChart() {
 						<ChartContainer className="h-72 w-full" config={chartConfig}>
 							<ComposedChart data={data}>
 								<CartesianGrid strokeDasharray="3 3" vertical={false} />
-								{currentMonth && (
+								{currentPeriod && (
 									<ReferenceLine
 										label={{
 											fill: "var(--color-foreground)",
 											fontSize: 11,
 											position: "insideTopRight",
-											value: "Mês atual",
+											value: "Período atual",
 										}}
 										stroke="var(--color-foreground)"
 										strokeDasharray="4 4"
 										strokeOpacity={0.6}
-										x={currentMonth.label}
+										x={currentPeriod.label}
 									/>
 								)}
 								<XAxis dataKey="label" tickLine={false} />
