@@ -29,6 +29,8 @@ import { Route as AuthForgotPasswordRouteImport } from './routes/auth/forgot-pas
 import { Route as AuthRegisterRouteImport } from './routes/auth/register'
 import { Route as AuthResetPasswordRouteImport } from './routes/auth/reset-password'
 import { Route as AuthVerifyEmailRouteImport } from './routes/auth/verify-email'
+import { Route as SettingsIndexRouteImport } from './routes/settings/index'
+import { Route as SettingsOpenFinanceIndexRouteImport } from './routes/settings/open-finance/index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -130,6 +132,17 @@ const AuthVerifyEmailRoute = AuthVerifyEmailRouteImport.update({
   path: '/verify-email',
   getParentRoute: () => AuthRoute,
 } as any)
+const SettingsIndexRoute = SettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsOpenFinanceIndexRoute =
+  SettingsOpenFinanceIndexRouteImport.update({
+    id: '/open-finance/',
+    path: '/open-finance/',
+    getParentRoute: () => SettingsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -143,7 +156,7 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/recurring': typeof RecurringRoute
   '/salaries': typeof SalariesRoute
-  '/settings': typeof SettingsRoute
+  '/settings': typeof SettingsRouteWithChildren
   '/subscriptions': typeof SubscriptionsRoute
   '/terms': typeof TermsRoute
   '/transactions': typeof TransactionsRoute
@@ -152,6 +165,8 @@ export interface FileRoutesByFullPath {
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/verify-email': typeof AuthVerifyEmailRoute
   '/auth/': typeof AuthIndexRoute
+  '/settings/': typeof SettingsIndexRoute
+  '/settings/open-finance/': typeof SettingsOpenFinanceIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -164,7 +179,6 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/recurring': typeof RecurringRoute
   '/salaries': typeof SalariesRoute
-  '/settings': typeof SettingsRoute
   '/subscriptions': typeof SubscriptionsRoute
   '/terms': typeof TermsRoute
   '/transactions': typeof TransactionsRoute
@@ -173,6 +187,8 @@ export interface FileRoutesByTo {
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/verify-email': typeof AuthVerifyEmailRoute
   '/auth': typeof AuthIndexRoute
+  '/settings': typeof SettingsIndexRoute
+  '/settings/open-finance': typeof SettingsOpenFinanceIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -187,7 +203,7 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/recurring': typeof RecurringRoute
   '/salaries': typeof SalariesRoute
-  '/settings': typeof SettingsRoute
+  '/settings': typeof SettingsRouteWithChildren
   '/subscriptions': typeof SubscriptionsRoute
   '/terms': typeof TermsRoute
   '/transactions': typeof TransactionsRoute
@@ -196,6 +212,8 @@ export interface FileRoutesById {
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/verify-email': typeof AuthVerifyEmailRoute
   '/auth/': typeof AuthIndexRoute
+  '/settings/': typeof SettingsIndexRoute
+  '/settings/open-finance/': typeof SettingsOpenFinanceIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -220,6 +238,8 @@ export interface FileRouteTypes {
     | '/auth/reset-password'
     | '/auth/verify-email'
     | '/auth/'
+    | '/settings/'
+    | '/settings/open-finance/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -232,7 +252,6 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/recurring'
     | '/salaries'
-    | '/settings'
     | '/subscriptions'
     | '/terms'
     | '/transactions'
@@ -241,6 +260,8 @@ export interface FileRouteTypes {
     | '/auth/reset-password'
     | '/auth/verify-email'
     | '/auth'
+    | '/settings'
+    | '/settings/open-finance'
   id:
     | '__root__'
     | '/'
@@ -263,6 +284,8 @@ export interface FileRouteTypes {
     | '/auth/reset-password'
     | '/auth/verify-email'
     | '/auth/'
+    | '/settings/'
+    | '/settings/open-finance/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -277,7 +300,7 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   RecurringRoute: typeof RecurringRoute
   SalariesRoute: typeof SalariesRoute
-  SettingsRoute: typeof SettingsRoute
+  SettingsRoute: typeof SettingsRouteWithChildren
   SubscriptionsRoute: typeof SubscriptionsRoute
   TermsRoute: typeof TermsRoute
   TransactionsRoute: typeof TransactionsRoute
@@ -425,6 +448,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthVerifyEmailRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/settings/': {
+      id: '/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof SettingsIndexRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/open-finance/': {
+      id: '/settings/open-finance/'
+      path: '/open-finance'
+      fullPath: '/settings/open-finance/'
+      preLoaderRoute: typeof SettingsOpenFinanceIndexRouteImport
+      parentRoute: typeof SettingsRoute
+    }
   }
 }
 
@@ -446,6 +483,20 @@ const AuthRouteChildren: AuthRouteChildren = {
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
+interface SettingsRouteChildren {
+  SettingsIndexRoute: typeof SettingsIndexRoute
+  SettingsOpenFinanceIndexRoute: typeof SettingsOpenFinanceIndexRoute
+}
+
+const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsIndexRoute: SettingsIndexRoute,
+  SettingsOpenFinanceIndexRoute: SettingsOpenFinanceIndexRoute,
+}
+
+const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
+  SettingsRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountsRoute: AccountsRoute,
@@ -458,7 +509,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   RecurringRoute: RecurringRoute,
   SalariesRoute: SalariesRoute,
-  SettingsRoute: SettingsRoute,
+  SettingsRoute: SettingsRouteWithChildren,
   SubscriptionsRoute: SubscriptionsRoute,
   TermsRoute: TermsRoute,
   TransactionsRoute: TransactionsRoute,

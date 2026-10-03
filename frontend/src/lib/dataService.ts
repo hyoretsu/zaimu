@@ -238,7 +238,7 @@ function getUserId(): string {
 }
 
 // Generic authenticated fetch
-async function fetchWithAuth<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+export async function fetchWithAuth<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
 	const requestIdentity = getCurrentCacheIdentity();
 	let response: Response;
 	try {
@@ -1050,7 +1050,7 @@ export const dataService = {
 					>
 				>,
 				"debtSplit"
-			> & { debtSplit?: DebtSplitInput | null },
+			> & { debtSplit?: DebtSplitInput | null; statementDate?: string; dueDate?: string },
 		): Promise<CreditCardImport> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar faturas.");
 			return fetchWithAuth<CreditCardImport>(`/credit-card-imports/${importId}/items/${itemId}`, {

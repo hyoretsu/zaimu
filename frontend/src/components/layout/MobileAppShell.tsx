@@ -10,7 +10,8 @@ import { DashboardPage } from "@/routes/index";
 import { EmpréstimosPage } from "@/routes/loans";
 import { MorePage } from "@/routes/more";
 import { RecurringPage } from "@/routes/recurring";
-import { AjustesPage } from "@/routes/settings";
+import { AjustesPage } from "@/routes/settings/index";
+import { OpenFinancePage } from "@/routes/settings/open-finance";
 import { TransactionsPage } from "@/routes/transactions";
 import { MobileNavigation } from "./MobileNavigation";
 import {
@@ -31,6 +32,7 @@ const screenByPath = {
 	"/more": MorePage,
 	"/recurring": RecurringPage,
 	"/settings": AjustesPage,
+	"/settings/open-finance": OpenFinancePage,
 	"/transactions": TransactionsPage,
 } satisfies Record<MobileScreenPath, ComponentType>;
 

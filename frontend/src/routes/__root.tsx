@@ -3,6 +3,7 @@ import { createRootRoute, Outlet, useLocation, useNavigate } from "@tanstack/rea
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout";
+import { useOpenFinanceAutoSync } from "@/hooks/use-open-finance";
 import { initLocalDb, materializeLocalCreditBooks } from "@/lib/localStorage";
 import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
 import { materializeLocalRecurrences } from "@/lib/recurrence-service";
@@ -11,6 +12,7 @@ import { useAuthStore, useThemeStore } from "@/stores";
 import { AppStartupGate } from "./components/AppStartupGate";
 
 function RootComponent() {
+	useOpenFinanceAutoSync();
 	const pathname = useLocation().pathname;
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();

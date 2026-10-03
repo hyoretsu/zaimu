@@ -19,13 +19,14 @@ export const creditCardStatementProviders = {
 	BRADESCO: { label: "Bradesco", pdfPassword: requiredPdfPassword },
 	INTER: { label: "Inter", pdfPassword: requiredPdfPassword },
 	MERCADO_PAGO: { label: "Mercado Pago", pdfPassword: optionalPdfPassword },
+	MEUPLUGGY: { label: "MeuPluggy", pdfPassword: null },
 	NUBANK: { label: "Nubank", pdfPassword: null },
 	PICPAY: { label: "PicPay", pdfPassword: null },
 } as const satisfies Record<CreditCardImportProvider, CreditCardStatementProviderConfiguration>;
 
-export const creditCardStatementProviderOptions = Object.entries(creditCardStatementProviders).map(
-	([value, { label }]) => ({ label, value }),
-);
+export const creditCardStatementProviderOptions = Object.entries(creditCardStatementProviders)
+	.filter(([value]) => value !== "MEUPLUGGY")
+	.map(([value, { label }]) => ({ label, value }));
 
 export function getCreditCardStatementPdfPasswordConfiguration(provider: CreditCardImportProvider | "") {
 	return provider ? creditCardStatementProviders[provider].pdfPassword : null;

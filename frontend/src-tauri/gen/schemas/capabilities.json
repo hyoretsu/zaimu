@@ -1,9 +1,1 @@
-{
-	"default": {
-		"description": "Permissões da janela principal do Zaimu",
-		"identifier": "default",
-		"local": true,
-		"permissions": ["core:default", "deep-link:default"],
-		"windows": ["main"]
-	}
-}
+{"default":{"identifier":"default","description":"Permissões da janela principal do Zaimu","local":true,"windows":["main"],"permissions":["core:default","deep-link:default",{"identifier":"opener:allow-open-url","allow":[{"url":"https://meu.pluggy.ai/*"},{"url":"https://dashboard.pluggy.ai/*"}]}]}}

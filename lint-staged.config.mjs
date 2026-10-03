@@ -10,6 +10,7 @@ const isIgnoredFile = filename => {
 	return (
 		path.startsWith(".agents/") ||
 		path.startsWith(".claude/") ||
+		path.startsWith("frontend/src-tauri/gen/") ||
 		path === "skills-lock.json" ||
 		path.endsWith(".gen.ts")
 	);

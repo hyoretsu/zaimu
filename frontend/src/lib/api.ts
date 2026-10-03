@@ -1,3 +1,4 @@
+import { fetchWithAuth } from "./dataService";
 // Types
 export interface User {
 	id: string;
@@ -271,6 +272,7 @@ export interface TransactionImportTransferSuggestion {
 }
 
 export interface TransactionImportItem {
+	requiresPaymentCard?: boolean;
 	id: string;
 	amount: number;
 	balanceAfter?: number | null;
@@ -326,6 +328,7 @@ export interface TransactionImportCreateResult {
 }
 
 export interface CreditCardImportItem {
+	metadataMissing?: string[];
 	isStatementCharge?: boolean;
 	id: string;
 	createdAt: string;
@@ -373,7 +376,7 @@ export interface CreditCardImport {
 	items: CreditCardImportItem[];
 	nextCursor: string | null;
 	pendingItemCount: number;
-	provider: "MERCADO_PAGO" | "BRADESCO" | "INTER" | "NUBANK" | "PICPAY";
+	provider: "MEUPLUGGY" | "MERCADO_PAGO" | "BRADESCO" | "INTER" | "NUBANK" | "PICPAY";
 	statementDate: string;
 	status: "PENDING" | "APPROVED";
 	updatedAt: string;
@@ -663,3 +666,79 @@ export interface Dashboard {
 	projectedCashFlowUntilMonthEnd: { expenses: number; income: number; net: number };
 	totalAvailableCredit: number;
 }
+
+export interface OpenFinanceBinding {
+	id: string;
+	connectionId: string;
+	remoteAccountId: string;
+	financialAccountId: string | null;
+	creditCardId: string | null;
+	paused: boolean;
+}
+export interface OpenFinanceConnection {
+	id: string;
+	itemId: string;
+	bankName: string;
+	status: string;
+	bankUpdatedAt: string | null;
+	remoteAccounts: { id: string; name: string; type: string; currencyCode: string }[];
+	bindings: OpenFinanceBinding[];
+}
+export interface OpenFinanceConfiguration {
+	available: boolean;
+	configured: boolean;
+	lastQueriedAt: string | null;
+	connections: OpenFinanceConnection[];
+}
+export interface OpenFinanceSyncStatus {
+	run: {
+		id: string;
+		status: string;
+		processed: number;
+		imported: number;
+		linked: number;
+		pending: number;
+		startedAt: string;
+		finishedAt: string | null;
+		errors: { connectionId: string; message: string }[];
+	} | null;
+	reviews: { importId: string; kind: string; count: number }[];
+}
+export const openFinanceApi = {
+	addConnection: (itemId: string) =>
+		fetchWithAuth<OpenFinanceConfiguration>("/open-finance/connections", {
+			body: JSON.stringify({ itemId }),
+			method: "POST",
+		}),
+	configuration: () => fetchWithAuth<OpenFinanceConfiguration>("/open-finance/"),
+	disconnect: (connectionId?: string) =>
+		fetchWithAuth(connectionId ? `/open-finance/connections/${connectionId}` : "/open-finance/", {
+			method: "DELETE",
+		}),
+	discoverConnections: () =>
+		fetchWithAuth<
+			OpenFinanceConfiguration & {
+				discoveryAvailable: boolean;
+				errors: { itemId: string; message: string }[];
+			}
+		>("/open-finance/connections/discover", { method: "POST" }),
+	saveBinding: (
+		connectionId: string,
+		input: Pick<OpenFinanceBinding, "remoteAccountId" | "creditCardId" | "financialAccountId" | "paused">,
+	) =>
+		fetchWithAuth(`/open-finance/connections/${connectionId}/bindings`, {
+			body: JSON.stringify(input),
+			method: "PUT",
+		}),
+	saveCredentials: (clientId: string, clientSecret: string) =>
+		fetchWithAuth("/open-finance/credentials", {
+			body: JSON.stringify({ clientId, clientSecret }),
+			method: "PUT",
+		}),
+	status: () => fetchWithAuth<OpenFinanceSyncStatus>("/open-finance/sync"),
+	sync: (force = false) =>
+		fetchWithAuth<{ runId: string | null }>("/open-finance/sync", {
+			body: JSON.stringify({ force }),
+			method: "POST",
+		}),
+};

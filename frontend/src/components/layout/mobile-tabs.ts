@@ -12,6 +12,7 @@ export const mobileScreenPaths = [
 	"/loans",
 	"/recurring",
 	"/settings",
+	"/settings/open-finance",
 ] as const;
 
 export type MobileScreenPath = (typeof mobileScreenPaths)[number];
@@ -34,6 +35,7 @@ const tabByScreen = {
 	"/more": "more",
 	"/recurring": "more",
 	"/settings": "more",
+	"/settings/open-finance": "more",
 	"/transactions": "transactions",
 } as const satisfies Record<MobileScreenPath, MobileTabId>;
 

@@ -41,6 +41,8 @@ export function EditImportedCreditPurchaseDialog({
 	const [tagIds, setTagIds] = useState<string[]>([]);
 	const [totalAmount, setTotalAmount] = useState("");
 	const [time, setTime] = useState("");
+	const [statementDate, setStatementDate] = useState("");
+	const [dueDate, setDueDate] = useState("");
 	useEffect(() => {
 		if (!item || !open) return;
 		setDescription(
@@ -56,10 +58,13 @@ export function EditImportedCreditPurchaseDialog({
 		setTagIds(item.tagIds);
 		setTotalAmount(String(item.totalAmount));
 		setTime(item.time ?? "");
+		setStatementDate("");
+		setDueDate("");
 	}, [item, open, setDescription, setInstallments]);
 	if (!item) return null;
 	const installmentCount = isStatementCharge ? 1 : Number.parseInt(installments, 10);
 	const isValid =
+		(!item.metadataMissing?.includes("calendar") || Boolean(statementDate && dueDate)) &&
 		Number(totalAmount) > 0 &&
 		Number.isInteger(installmentCount) &&
 		installmentCount >= 1 &&
@@ -87,6 +92,32 @@ export function EditImportedCreditPurchaseDialog({
 								value={description}
 							/>
 							<StorePicker onValueChange={setStoreName} value={storeName} />
+							{item.metadataMissing?.length ? (
+								<p className="text-destructive text-sm">
+									Complete os campos obrigatórios para resolver os dados bancários incompletos.
+								</p>
+							) : null}
+							{item.metadataMissing?.includes("calendar") && (
+								<div className="grid gap-4 sm:grid-cols-2">
+									<DateField
+										id="imported-statement-date"
+										label="Fechamento da fatura"
+										name="imported-statement-date"
+										onValueChange={setStatementDate}
+										required
+										value={statementDate}
+									/>
+									<DateField
+										id="imported-due-date"
+										label="Vencimento da fatura"
+										name="imported-due-date"
+										onValueChange={setDueDate}
+										required
+										value={dueDate}
+									/>
+								</div>
+							)}
+
 							<MoneyField
 								id="imported-purchase-total"
 								label="Valor total"
@@ -175,6 +206,7 @@ export function EditImportedCreditPurchaseDialog({
 										tagIds,
 										time: time || null,
 										totalAmount: Number(totalAmount),
+										...(item.metadataMissing?.includes("calendar") ? { dueDate, statementDate } : {}),
 									})
 								}
 							>

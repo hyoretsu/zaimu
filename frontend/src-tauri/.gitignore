@@ -1,5 +1,4 @@
 /icons/
 !gen/
-/gen/schemas
 /target/
 .gradle

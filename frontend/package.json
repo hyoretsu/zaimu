@@ -15,7 +15,8 @@
 		"tauri:dev": "tauri dev",
 		"tauri:build": "bun run links:generate --strict && tauri build --config src-tauri/tauri.links.conf.json",
 		"tauri:android": "tauri android dev",
-		"tauri:ios": "tauri ios dev"
+		"tauri:ios": "tauri ios dev",
+		"test:open-finance": "playwright test --config playwright.open-finance.config.ts"
 	},
 	"dependencies": {
 		"@fontsource-variable/figtree": "^5.3.0",
@@ -26,6 +27,7 @@
 		"@tauri-apps/api": "^2.11.1",
 		"@tauri-apps/plugin-deep-link": "~2.4.9",
 		"@tauri-apps/plugin-http": "^2.5.9",
+		"@tauri-apps/plugin-opener": "^2.7.0",
 		"@tauri-apps/plugin-store": "^2.4.4",
 		"@zaimu/finance": "workspace:*",
 		"better-auth": "1.7.1",
@@ -48,6 +50,7 @@
 	},
 	"devDependencies": {
 		"@hyoretsu/configs": "^1.2.37",
+		"@playwright/test": "^1.63.0",
 		"@tailwindcss/vite": "^4.3.3",
 		"@tanstack/router-devtools": "^1.167.1",
 		"@tanstack/router-plugin": "^1.168.35",

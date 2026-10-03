@@ -65,7 +65,7 @@ Plano aprovado em 03/10/2026. Implementação local; sem push, deploy, migraçã
 - [x] 1. Persistência, migração preparada, criptografia e cliente Pluggy com adaptadores testados.
 - [x] 2. Serviços reutilizáveis de importação, identidade e conciliação.
 - [x] 3. API autenticada, sincronização persistente no worker e invalidação de caches.
-- [ ] 4. Assistente, vínculos, revisões e gatilhos de abertura/retorno.
+- [x] 4. Assistente, vínculos, revisões e gatilhos de abertura/retorno.
 - [ ] 5. Testes locais, builds, regras de negócio e revisão final.
 
 Alterações preexistentes preservadas: `packages/sql/migrations/app/refs/db.json` e `frontend/src/routes/recurring/components/RecurringListItem.test.tsx`.
@@ -73,3 +73,7 @@ Alterações preexistentes preservadas: `packages/sql/migrations/app/refs/db.jso
 Etapa 1: migração Prisma Next preparada offline; chave AES validada; 10 testes simulados passaram. Nenhuma credencial real usada.
 
 Etapas 2-3: serviços de lotes, aprovação e conciliação extraídos; API e worker com outbox, bloqueio persistente, renovação de lease e efeitos atômicos por registro. Nove testes PostgreSQL locais passaram, incluindo parcelas sucessivas e rollback/retomada. Build backend passou.
+
+Etapa 4: assistente, seletores pesquisáveis, pausa/retomada, desconexão, revisões e gatilhos testados com Playwright em desktop e mobile. Onze fluxos passaram, sem erros de página e sem segredo em localStorage. Build frontend passou e regenerou rotas.
+
+Validação ampliada: dez testes PostgreSQL passaram com Redis local e HTTP Pluggy simulado, incluindo falha 429 isolada e recuperação de lease expirado. Suite Playwright versionada em `frontend/tests/browser/open-finance.spec.ts` passou desktop/mobile. Contratos e builds seguem locais.
