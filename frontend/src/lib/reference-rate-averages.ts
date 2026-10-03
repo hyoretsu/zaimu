@@ -1,4 +1,4 @@
-import { apiUrl } from "./auth-client";
+const apiUrl = (import.meta.env.VITE_API_URL || "http://localhost:3333").replace(/\/$/, "");
 
 export interface ReferenceRateAverages {
 	averages: { CDI: number | null; SELIC: number | null };

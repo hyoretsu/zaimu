@@ -114,19 +114,23 @@ export async function enqueueUserYieldRecalculations(userId: string, fromDate: D
 export async function ensureReferenceRateBootstrapJobs(now = new Date()) {
 	for (const interval of referenceRateBootstrapIntervals(schedulerClock(now).date)) {
 		for (const type of ["CDI", "SELIC"] as const) {
-			const completed = await queryRaw<{ endDate: string | null }>(
-				`SELECT max("payload"->>'endDate') AS "endDate" FROM "public"."OutboxEvent"
-				 WHERE "eventType" = 'referenceRate.historyFetched' AND "payload"->>'referenceType' = $1
-				 AND "payload"->>'startDate' = $2`,
-				[type, dateKey(interval.startDate)],
+			const gaps = await queryRaw<{ startDate: string | null }>(
+				`SELECT to_char(min(day), 'YYYY-MM-DD') AS "startDate"
+				 FROM generate_series($2::date, $3::date, interval '1 day') day
+				 WHERE NOT EXISTS (SELECT 1 FROM "public"."OutboxEvent" event
+				 WHERE event."eventType" = 'referenceRate.historyFetched'
+				 AND event."payload"->>'referenceType' = $1
+				 AND (event."payload"->>'startDate')::date <= day::date
+				 AND (event."payload"->>'endDate')::date >= day::date)`,
+				[type, dateKey(interval.startDate), dateKey(interval.endDate)],
 			);
-			// Daily fetches extend the current-year tail after its first complete load.
-			if (completed[0]?.endDate) continue;
+			if (!gaps[0]?.startDate) continue;
+			const startDate = new Date(`${gaps[0].startDate}T12:00:00`);
 			await enqueueReferenceRateFetch(
 				type,
-				interval.startDate,
+				startDate,
 				interval.endDate,
-				`bootstrap:v3:${type}:${dateKey(interval.startDate)}:${dateKey(interval.endDate)}`,
+				`bootstrap:v3:${type}:${dateKey(startDate)}:${dateKey(interval.endDate)}`,
 			);
 		}
 	}
@@ -186,7 +190,7 @@ async function processFetchJob(job: ClaimedJob, fetchRates: FetchReferenceRates)
 	);
 	return rates.length;
 }
-async function loadYieldAccount(accountId: string): Promise<YieldAccount | null> {
+export async function loadYieldAccount(accountId: string): Promise<YieldAccount | null> {
 	const account = await queryFirst(
 		db.sql.public.FinancialAccount.select(
 			"id",
