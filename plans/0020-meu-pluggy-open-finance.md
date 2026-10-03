@@ -66,7 +66,7 @@ Plano aprovado em 03/10/2026. Implementação local; sem push, deploy, migraçã
 - [x] 2. Serviços reutilizáveis de importação, identidade e conciliação.
 - [x] 3. API autenticada, sincronização persistente no worker e invalidação de caches.
 - [x] 4. Assistente, vínculos, revisões e gatilhos de abertura/retorno.
-- [ ] 5. Testes locais, builds, regras de negócio e revisão final.
+- [x] 5. Testes locais, builds, regras de negócio e revisão final.
 
 Alterações preexistentes preservadas: `packages/sql/migrations/app/refs/db.json` e `frontend/src/routes/recurring/components/RecurringListItem.test.tsx`.
 
@@ -77,3 +77,11 @@ Etapas 2-3: serviços de lotes, aprovação e conciliação extraídos; API e wo
 Etapa 4: assistente, seletores pesquisáveis, pausa/retomada, desconexão, revisões e gatilhos testados com Playwright em desktop e mobile. Onze fluxos passaram, sem erros de página e sem segredo em localStorage. Build frontend passou e regenerou rotas.
 
 Validação ampliada: dez testes PostgreSQL passaram com Redis local e HTTP Pluggy simulado, incluindo falha 429 isolada e recuperação de lease expirado. Suite Playwright versionada em `frontend/tests/browser/open-finance.spec.ts` passou desktop/mobile. Contratos e builds seguem locais.
+
+Revisão final: 26 testes Open Finance passaram; contrato anterior reconstruído e operações reais da migração aplicadas somente no PostgreSQL descartável local. Pagamentos com vínculo obrigatório, atualização de rascunhos intactos, encargos, calendário bancário e totais incompatíveis têm regressões. Outros 139 testes financeiros e sete testes de cliente/cache passaram. Builds backend e frontend passaram; type-check backend passou. Type-check SQL passou. Playwright passou contra bundle local: assistente, credenciais/conexões inválidas, vínculos, pausa/retomada, revisões com campos obrigatórios, retorno à aba, 429 sem logout e desconexão em desktop/mobile. Type-check frontend passou dentro do build e rotas foram regeneradas.
+
+Entrega desativada até configurar chave, credenciais e vínculos. Migração externa, push e deploy não executados. Alterações preexistentes preservadas; validação com banco real não executada.
+
+Ajuste visual: removido limite interno de altura que cortava cartões do assistente. Mobile usa rolagem do shell; desktop usa ScrollArea com altura definida. Hooks, build frontend com TypeScript e regeneração de rotas passaram. Playwright confirmou rolagem até última etapa e ações finais acima da navegação móvel, além dos fluxos existentes.
+
+Ajustes de configuração: links diretos, cadastros separados, logo Meu Pluggy, guia com fotos ampliáveis e indicação explícita do botão play. Descoberta opt-in por `/v2/items` e atualização automática de contas conhecidas preservam vínculos e remoções; alternativa manual permanece quando Pluggy não habilita listagem. Seis fotos fornecidas pelo usuário foram incluídas. Outros registros visuais poderão complementar guia após esta entrega. 29 testes backend passaram; builds backend/frontend e type-checks passaram. Playwright passou desktop/mobile com links diretos, abertura externa simulada, fotos ampliáveis, fallback por itemId, descoberta ao retornar, vínculos, revisões, 429 e desconexão. Cargo check desktop passou com plugin opener e permissões limitadas aos domínios Pluggy; schemas nativos regenerados. Nenhuma chamada bancária real, migração externa, push ou deploy executado.
