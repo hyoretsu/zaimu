@@ -82,6 +82,7 @@ export async function getGuestDashboardFinancialContext(parameters: DashboardCom
 			if (!linked.has(`${recurrence.id}:${date}`))
 				projected.push({
 					amount: recurrence.amount,
+					cardPayment: recurrence.movement === "CARD_PAYMENT",
 					date: new Date(`${date}T12:00:00`),
 					destinationAccountId: recurrence.destinationFinancialAccountId,
 					originAccountId: recurrence.originFinancialAccountId,
@@ -117,6 +118,7 @@ export async function getGuestDashboardFinancialContext(parameters: DashboardCom
 		if (date >= projectionStart && date <= through && statement.balanceAmount > 0)
 			projected.push({
 				amount: statement.balanceAmount,
+				cardPayment: true,
 				date,
 				originAccountId: cards.find(card => card.id === statement.creditCardId)?.paymentAccountId,
 				recurringAmount: statement.recurringAmount,
@@ -159,6 +161,7 @@ export async function getGuestDashboardFinancialContext(parameters: DashboardCom
 			.filter(item => item.type !== "REFUND")
 			.map(item => ({
 				...item,
+				cardPayment: Boolean(item.paymentCreditCardId),
 				date: new Date(`${item.date.slice(0, 10)}T12:00:00`),
 				destinationAccountId: item.destinationFinancialAccountId,
 				originAccountId: item.originFinancialAccountId,
@@ -255,11 +258,17 @@ export async function getGuestDashboardFinancialContext(parameters: DashboardCom
 		const expenses = rows.filter(item => item.type === "EXPENSE").reduce((sum, item) => sum + item.amount, 0);
 		return {
 			...balanceAt(end),
+			cardExpenses: rows
+				.filter(item => item.type === "EXPENSE" && item.cardPayment)
+				.reduce((sum, item) => sum + item.amount, 0),
 			endDate: key(end),
 			expenses,
 			income,
 			initialBalance: balanceAt(addDays(start, -1)).endingBalance,
 			net: income - expenses,
+			recurringCardExpenses: rows
+				.filter(item => item.type === "EXPENSE" && item.cardPayment)
+				.reduce((sum, item) => sum + (item.recurringAmount ?? (item.recurring ? item.amount : 0)), 0),
 			recurringExpenses: rows
 				.filter(item => item.type === "EXPENSE")
 				.reduce((sum, item) => sum + (item.recurringAmount ?? (item.recurring ? item.amount : 0)), 0),

@@ -618,6 +618,8 @@ export interface CreditCardStatementDetail extends CreditCardStatement {
 }
 
 export interface DashboardPeriod {
+	cardExpenses?: number;
+	recurringCardExpenses?: number;
 	fixedIncomeBalance: number;
 	variableIncomeBalance: number;
 	recurringIncome: number;

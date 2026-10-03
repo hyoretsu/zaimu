@@ -1912,11 +1912,17 @@ export const dataService = {
 				initialDate.setDate(initialDate.getDate() - 1);
 				const period = {
 					...financialContext.balanceAt(rangeEnd),
+					cardExpenses: selectedMovements
+						.filter(item => item.type === "EXPENSE" && item.cardPayment)
+						.reduce((sum, item) => sum + item.amount, 0),
 					endDate: dateKey(rangeEnd),
 					expenses: totalFor("EXPENSE"),
 					income: totalFor("INCOME"),
 					initialBalance: financialContext.balanceAt(initialDate).endingBalance,
 					net: totalFor("INCOME") - totalFor("EXPENSE"),
+					recurringCardExpenses: selectedMovements
+						.filter(item => item.type === "EXPENSE" && item.cardPayment)
+						.reduce((sum, item) => sum + (item.recurringAmount ?? (item.recurring ? item.amount : 0)), 0),
 					recurringExpenses: totalFor("EXPENSE", true),
 					recurringIncome: totalFor("INCOME", true),
 					startDate: dateKey(rangeStart),

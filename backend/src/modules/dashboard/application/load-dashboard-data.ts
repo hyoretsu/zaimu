@@ -76,6 +76,7 @@ export interface DashboardSchedule {
 }
 
 export interface DashboardFlow {
+	cardPayment?: boolean;
 	id?: string;
 	recurringAmount?: number;
 	originAccountId?: null | string;
@@ -210,7 +211,7 @@ WHERE loan."userId" = $1 AND payment."paidDate" IS NULL AND payment."dueDate" >=
 
 const comparisonMovementsSql = `
 SELECT 'flow' AS kind, jsonb_build_object(
-  'id', transaction."id", 'amount', transaction."amount", 'date', transaction."date", 'type', transaction."type"::text,
+  'cardPayment', transaction."paymentCreditCardId" IS NOT NULL, 'id', transaction."id", 'amount', transaction."amount", 'date', transaction."date", 'type', transaction."type"::text,
   'originAccountId', transaction."originFinancialAccountId", 'destinationAccountId', transaction."destinationFinancialAccountId", 'recurring', transaction."recurrenceId" IS NOT NULL
 ) AS data
 FROM "Transaction" transaction

@@ -2,6 +2,7 @@ import { t } from "elysia";
 
 export const PeriodReturn = t.Object({
 	accountBalance: t.Number(),
+	cardExpenses: t.Number(),
 	endDate: t.String(),
 	endingBalance: t.Number(),
 	expenses: t.Number(),
@@ -9,6 +10,7 @@ export const PeriodReturn = t.Object({
 	income: t.Number(),
 	initialBalance: t.Number(),
 	net: t.Number(),
+	recurringCardExpenses: t.Number(),
 	recurringExpenses: t.Number(),
 	recurringIncome: t.Number(),
 	savingsBalance: t.Number(),

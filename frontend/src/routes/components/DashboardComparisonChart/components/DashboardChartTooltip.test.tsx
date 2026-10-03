@@ -47,3 +47,22 @@ test("tooltip hides absent data and preserves non-month date ranges", () => {
 		),
 	).toContain("02/10/2026 até 03/10/2026");
 });
+
+test("subscriptions and remaining invoice have distinct colors without overlap", () => {
+	const html = renderToStaticMarkup(
+		<DashboardChartTooltip
+			active
+			period={{ ...period, cardExpenses: 30.25, recurringCardExpenses: 20.15 }}
+		/>,
+	);
+	expect(html).toContain("Faturas");
+	expect(html).toContain("#f97316");
+	expect(html).toContain("Assinaturas");
+	expect(html).toContain("#d946ef");
+	expect(html).toContain("20,15");
+	expect(html).toContain("10,10");
+	expect(html).not.toContain("30,25");
+	expect(html).toContain("50,00");
+	expect(html).toContain("10,40");
+	expect(html).not.toContain("70,15");
+});

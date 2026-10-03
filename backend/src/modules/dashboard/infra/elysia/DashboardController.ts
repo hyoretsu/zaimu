@@ -154,6 +154,12 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" })
 						start: range.start,
 					});
 					dashboardPeriod.endingBalance = endingBalance;
+					dashboardPeriod.cardExpenses = periodTransactions
+						.filter(item => item.type === "EXPENSE" && item.cardPayment)
+						.reduce((sum, item) => sum + item.amount, 0);
+					dashboardPeriod.recurringCardExpenses = periodTransactions
+						.filter(item => item.type === "EXPENSE" && item.cardPayment)
+						.reduce((sum, item) => sum + (item.recurringAmount ?? (item.recurring ? item.amount : 0)), 0);
 					dashboardPeriod.recurringIncome = periodTransactions
 						.filter(transaction => transaction.type === "INCOME")
 						.reduce(

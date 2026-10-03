@@ -40,6 +40,7 @@ test("comparison response contains only selected series with calendar quarter bo
 	]);
 	expect(Object.keys(result[1]!).sort()).toEqual([
 		"accountBalance",
+		"cardExpenses",
 		"endDate",
 		"endingBalance",
 		"expenses",
@@ -47,6 +48,7 @@ test("comparison response contains only selected series with calendar quarter bo
 		"income",
 		"initialBalance",
 		"net",
+		"recurringCardExpenses",
 		"recurringExpenses",
 		"recurringIncome",
 		"savingsBalance",

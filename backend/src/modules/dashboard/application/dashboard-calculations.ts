@@ -26,6 +26,8 @@ export interface DashboardForecast {
 }
 
 export interface DashboardPeriod {
+	cardExpenses: number;
+	recurringCardExpenses: number;
 	endDate: string;
 	endingBalance: number;
 	expenses: number;
@@ -135,6 +137,7 @@ export function buildComparisonPeriods(
 		transactions: Array<{
 			amount: number;
 			date: Date;
+			cardPayment?: boolean;
 			recurring?: boolean;
 			recurringAmount?: number;
 			type: "EXPENSE" | "INCOME" | "TRANSFER";
@@ -159,6 +162,12 @@ export function buildComparisonPeriods(
 				initialBalance: balanceAtPeriodStart(input, start),
 				start,
 			}),
+			cardExpenses: movements
+				.filter(item => item.type === "EXPENSE" && item.cardPayment)
+				.reduce((sum, item) => sum + item.amount, 0),
+			recurringCardExpenses: movements
+				.filter(item => item.type === "EXPENSE" && item.cardPayment)
+				.reduce((sum, item) => sum + (item.recurringAmount ?? (item.recurring ? item.amount : 0)), 0),
 			recurringExpenses: movements
 				.filter(item => item.type === "EXPENSE")
 				.reduce((sum, item) => sum + (item.recurringAmount ?? (item.recurring ? item.amount : 0)), 0),
@@ -192,12 +201,14 @@ export function period(input: {
 	start: Date;
 }): DashboardPeriod {
 	return {
+		cardExpenses: 0,
 		endDate: dateKey(input.end),
 		endingBalance: input.initialBalance + input.income - input.expenses,
 		expenses: input.expenses,
 		income: input.income,
 		initialBalance: input.initialBalance,
 		net: input.income - input.expenses,
+		recurringCardExpenses: 0,
 		recurringExpenses: 0,
 		recurringIncome: 0,
 		startDate: dateKey(input.start),

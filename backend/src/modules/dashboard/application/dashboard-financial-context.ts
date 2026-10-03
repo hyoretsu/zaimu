@@ -34,6 +34,7 @@ export function dashboardFinancialContext(
 			if (!linkedTransactionDates.has(`${recurrence.id}:${date}`))
 				projectedMovements.push({
 					amount: recurrence.amount,
+					cardPayment: recurrence.movement === "CARD_PAYMENT",
 					date: new Date(`${date}T12:00:00`),
 					destinationAccountId: recurrence.destinationFinancialAccountId,
 					originAccountId: recurrence.originFinancialAccountId,
@@ -61,6 +62,7 @@ export function dashboardFinancialContext(
 		if (outstanding)
 			projectedMovements.push({
 				amount: outstanding,
+				cardPayment: true,
 				date: statement.dueDate,
 				originAccountId: loaded.cards.find(card => card.id === statement.creditCardId)?.paymentAccountId,
 				recurringAmount: statement.recurringAmount,

@@ -19,10 +19,12 @@ const currency = new Intl.NumberFormat("pt-BR", {
 });
 const chartConfig = {
 	accountBalance: { color: "#0ea5e9", label: "Em conta" },
+	cardExpenses: { color: "#f97316", label: "Faturas" },
 	endingBalance: { color: "var(--color-primary)", label: "Saldo total" },
 	fixedIncomeBalance: { color: "#f59e0b", label: "Renda fixa" },
 	otherExpenses: { color: "#fb7185", label: "Outras saídas" },
 	otherIncome: { color: "#34d399", label: "Outras entradas" },
+	recurringCardExpenses: { color: "#d946ef", label: "Assinaturas" },
 	recurringExpenses: { color: "#be123c", label: "Gastos recorrentes" },
 	recurringIncome: { color: "#047857", label: "Renda" },
 	variableIncomeBalance: { color: "#8b5cf6", label: "Renda variável" },
@@ -36,6 +38,8 @@ const legendItems = [
 	{ key: "otherIncome", kind: "bar" },
 	{ key: "recurringExpenses", kind: "bar" },
 	{ key: "otherExpenses", kind: "bar" },
+	{ key: "cardExpenses", kind: "bar" },
+	{ key: "recurringCardExpenses", kind: "bar" },
 ] as const;
 
 function formatAxisLabel(startDate: string) {
@@ -61,9 +65,15 @@ export function DashboardComparisonChart() {
 	const today = format(new Date(), "yyyy-MM-dd");
 	const data = (query.data ?? []).map(item => ({
 		...item,
+		cardExpenses: (item.cardExpenses ?? 0) - (item.recurringCardExpenses ?? 0),
 		label: formatAxisLabel(item.startDate),
-		otherExpenses: item.expenses - item.recurringExpenses,
+		otherExpenses:
+			item.expenses - item.recurringExpenses - (item.cardExpenses ?? 0) + (item.recurringCardExpenses ?? 0),
 		otherIncome: item.income - item.recurringIncome,
+		recurringCardExpenses: item.recurringCardExpenses ?? 0,
+		recurringExpenses: item.recurringExpenses - (item.recurringCardExpenses ?? 0),
+		totalCardExpenses: item.cardExpenses ?? 0,
+		totalRecurringExpenses: item.recurringExpenses,
 	}));
 	const currentPeriod = data.find(item => item.startDate <= today && today <= item.endDate);
 	return (
@@ -109,10 +119,27 @@ export function DashboardComparisonChart() {
 								<YAxis tickFormatter={value => currency.format(value)} width={110} />
 								<Tooltip
 									content={({ active, payload }) => (
-										<DashboardChartTooltip active={active} period={payload?.[0]?.payload} />
+										<DashboardChartTooltip
+											active={active}
+											period={
+												payload?.[0]?.payload
+													? {
+															...payload[0].payload,
+															cardExpenses: payload[0].payload.totalCardExpenses,
+															recurringExpenses: payload[0].payload.totalRecurringExpenses,
+														}
+													: undefined
+											}
+										/>
 									)}
 									position={mobile ? { x: 0, y: 0 } : undefined}
 								/>
+								<Bar
+									dataKey="recurringCardExpenses"
+									fill="var(--color-recurringCardExpenses)"
+									stackId="expenses"
+								/>
+								<Bar dataKey="cardExpenses" fill="var(--color-cardExpenses)" stackId="expenses" />
 								<Bar dataKey="recurringIncome" fill="var(--color-recurringIncome)" stackId="income" />
 								<Bar
 									dataKey="otherIncome"

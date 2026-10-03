@@ -5,6 +5,7 @@ export interface ForecastAccount {
 	type: string;
 }
 export interface ForecastMovement {
+	cardPayment?: boolean;
 	amount: number;
 	date: string;
 	destinationAccountId?: null | string;

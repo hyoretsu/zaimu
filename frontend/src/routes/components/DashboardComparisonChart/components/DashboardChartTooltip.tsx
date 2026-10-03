@@ -33,8 +33,26 @@ export function DashboardChartTooltip({ active, period }: DashboardChartTooltipP
 		{ color: "var(--color-primary)", label: "Saldo total", total: true, value: period.endingBalance },
 		{ color: "#047857", label: "Renda", value: period.recurringIncome },
 		{ color: "#34d399", label: "Outras entradas", value: period.income - period.recurringIncome },
-		{ color: "#be123c", label: "Gastos recorrentes", value: period.recurringExpenses },
-		{ color: "#fb7185", label: "Outras saídas", value: period.expenses - period.recurringExpenses },
+		{
+			color: "#be123c",
+			label: "Gastos recorrentes",
+			value: period.recurringExpenses - (period.recurringCardExpenses ?? 0),
+		},
+		{ color: "#d946ef", label: "Assinaturas", value: period.recurringCardExpenses ?? 0 },
+		{
+			color: "#f97316",
+			label: "Faturas",
+			value: (period.cardExpenses ?? 0) - (period.recurringCardExpenses ?? 0),
+		},
+		{
+			color: "#fb7185",
+			label: "Outras saídas",
+			value:
+				period.expenses -
+				period.recurringExpenses -
+				(period.cardExpenses ?? 0) +
+				(period.recurringCardExpenses ?? 0),
+		},
 	];
 	return (
 		<div className="grid w-64 max-w-[calc(100vw-4rem)] gap-1.5 rounded-lg border border-border/50 bg-background px-3 py-2 text-xs shadow-xl">
