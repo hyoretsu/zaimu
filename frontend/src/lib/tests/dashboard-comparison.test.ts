@@ -10,7 +10,9 @@ test("guest chart reads no dashboard or debt data and repeats selected dates", a
 	const { dataService } = await import("../dataService");
 	const { getGuestDashboardComparison } = await import("../dashboard-comparison");
 	const stores = await import("../localStorage");
+	const rates = await import("../reference-rate-averages");
 	const mocks = [
+		spyOn(rates, "refreshReferenceRateAverages").mockResolvedValue(null),
 		spyOn(stores.localAccounts, "getAll").mockResolvedValue([
 			{
 				data: {

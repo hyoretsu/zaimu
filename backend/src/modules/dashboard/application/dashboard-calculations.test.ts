@@ -185,7 +185,7 @@ test("calculates projected cash flow through the current month end", () => {
 				{ amount: 500, date: new Date("2026-08-15T12:00:00"), type: "INCOME" },
 			],
 		}),
-	).toEqual({ expenses: 500, income: 500, net: 0 });
+	).toEqual({ expenses: 500, income: 500, net: 0, recurringExpenses: 0, recurringIncome: 0 });
 });
 
 test("custom comparison assigns boundary transactions exactly once and rolls balances forward", () => {

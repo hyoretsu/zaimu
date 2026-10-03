@@ -1,3 +1,4 @@
+import { forecastCardPayments, recurringCardPaymentAmounts } from "@zaimu/finance/card-forecast";
 import { type BookPurchase, type CreditBook, moneyCents, replayCreditBook } from "@zaimu/finance/credit-book";
 import type { RecurrenceDefinition } from "@zaimu/finance/recurrence";
 import { projectRecurrenceCreditBook } from "@zaimu/finance/recurrence-projection";
@@ -212,18 +213,25 @@ export function replayOverviewStatements(
 				totalAmount: Number(row.totalAmount),
 			})),
 		};
-		return replayCreditBook(
-			projectRecurrenceCreditBook(
-				book,
-				recurrences,
-				asOf < through
-					? new Date(new Date(`${asOf}T00:00:00Z`).getTime() + 86400000).toISOString().slice(0, 10)
-					: asOf,
-				through,
-				occurrences,
-			),
-			asOf,
-		).statements.map(statement => ({
+		const recurringPayments = recurringCardPaymentAmounts(book);
+		for (const row of rows.filter(row => row.kind === "payment" && row.data.creditCardId === card.id))
+			row.data.recurringAmount = recurringPayments.get(String(row.data.id)) ?? 0;
+		const projectionFrom =
+			asOf < through
+				? new Date(new Date(`${asOf}T00:00:00Z`).getTime() + 86400000).toISOString().slice(0, 10)
+				: asOf;
+		const projectedBook = projectRecurrenceCreditBook(
+			book,
+			recurrences,
+			projectionFrom,
+			through,
+			occurrences,
+		);
+		const statements =
+			asOf < through
+				? forecastCardPayments(projectedBook, projectionFrom, through)
+				: replayCreditBook(projectedBook, asOf).statements;
+		return statements.map(statement => ({
 			...statement,
 			dueDate: asDate(statement.dueDate),
 			statementDate: asDate(statement.statementDate),

@@ -29,6 +29,8 @@ export interface DashboardPeriod {
 	endDate: string;
 	endingBalance: number;
 	expenses: number;
+	recurringExpenses: number;
+	recurringIncome: number;
 	income: number;
 	initialBalance: number;
 	net: number;
@@ -130,7 +132,13 @@ export function buildComparisonPeriods(
 	input: ComparisonOptions & {
 		base: { end: Date; start: Date };
 		initialBalance: number;
-		transactions: Array<{ amount: number; date: Date; type: "EXPENSE" | "INCOME" | "TRANSFER" }>;
+		transactions: Array<{
+			amount: number;
+			date: Date;
+			recurring?: boolean;
+			recurringAmount?: number;
+			type: "EXPENSE" | "INCOME" | "TRANSFER";
+		}>;
 	},
 ) {
 	return comparisonIntervals(input.base.start, input).map(({ start, end }) => {
@@ -151,6 +159,12 @@ export function buildComparisonPeriods(
 				initialBalance: balanceAtPeriodStart(input, start),
 				start,
 			}),
+			recurringExpenses: movements
+				.filter(item => item.type === "EXPENSE")
+				.reduce((sum, item) => sum + (item.recurringAmount ?? (item.recurring ? item.amount : 0)), 0),
+			recurringIncome: movements
+				.filter(item => item.type === "INCOME")
+				.reduce((sum, item) => sum + (item.recurringAmount ?? (item.recurring ? item.amount : 0)), 0),
 		};
 	});
 }
@@ -184,6 +198,8 @@ export function period(input: {
 		income: input.income,
 		initialBalance: input.initialBalance,
 		net: input.income - input.expenses,
+		recurringExpenses: 0,
+		recurringIncome: 0,
 		startDate: dateKey(input.start),
 	};
 }
@@ -192,7 +208,13 @@ export function endingBalanceAtPeriodEnd(input: {
 	currentBalance: number;
 	periodEnd: Date;
 	today: Date;
-	transactions: Array<{ amount: number; date: Date; type: "EXPENSE" | "INCOME" | "TRANSFER" }>;
+	transactions: Array<{
+		amount: number;
+		date: Date;
+		recurring?: boolean;
+		recurringAmount?: number;
+		type: "EXPENSE" | "INCOME" | "TRANSFER";
+	}>;
 }) {
 	const today = startOfDay(input.today);
 	const periodEnd = startOfDay(input.periodEnd);
@@ -220,7 +242,13 @@ export function endingBalanceAtPeriodEnd(input: {
 
 export function projectedCashFlowUntilMonthEnd(input: {
 	today: Date;
-	transactions: Array<{ amount: number; date: Date; type: "EXPENSE" | "INCOME" | "TRANSFER" }>;
+	transactions: Array<{
+		amount: number;
+		date: Date;
+		recurring?: boolean;
+		recurringAmount?: number;
+		type: "EXPENSE" | "INCOME" | "TRANSFER";
+	}>;
 }) {
 	const today = startOfDay(input.today);
 	const monthEnd = endOfMonth(today);
@@ -233,7 +261,17 @@ export function projectedCashFlowUntilMonthEnd(input: {
 	const income = movements
 		.filter(transaction => transaction.type === "INCOME")
 		.reduce((sum, transaction) => sum + transaction.amount, 0);
-	return { expenses, income, net: income - expenses };
+	return {
+		expenses,
+		income,
+		net: income - expenses,
+		recurringExpenses: movements
+			.filter(item => item.type === "EXPENSE")
+			.reduce((sum, item) => sum + (item.recurringAmount ?? (item.recurring ? item.amount : 0)), 0),
+		recurringIncome: movements
+			.filter(item => item.type === "INCOME")
+			.reduce((sum, item) => sum + (item.recurringAmount ?? (item.recurring ? item.amount : 0)), 0),
+	};
 }
 
 function monthlyDate(reference: Date, day: number) {

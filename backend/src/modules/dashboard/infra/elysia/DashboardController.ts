@@ -1,8 +1,4 @@
-import {
-	nextRecurrenceDate,
-	recurrenceAccountEffects,
-	recurrenceNeedsConfiguration,
-} from "@zaimu/finance/recurrence";
+import { nextRecurrenceDate, recurrenceNeedsConfiguration } from "@zaimu/finance/recurrence";
 import { addDays, startOfDay } from "date-fns";
 import Elysia, { t } from "elysia";
 import { requireUserId } from "~/modules/auth";
@@ -14,7 +10,6 @@ import {
 	loadDashboardData,
 	period,
 	projectedCashFlowUntilMonthEnd,
-	reconcilePeriodCashFlow,
 	resolveDashboardRange,
 } from "~/modules/dashboard/application";
 import { distributedCache } from "~/shared/infra/cache";
@@ -48,7 +43,12 @@ export const DashboardReturn = t.Object({
 			type: t.String(),
 		}),
 	),
-	balanceBreakdown: t.Object({ accountBalance: t.Number(), savingsBalance: t.Number() }),
+	balanceBreakdown: t.Object({
+		accountBalance: t.Number(),
+		fixedIncomeBalance: t.Number(),
+		savingsBalance: t.Number(),
+		variableIncomeBalance: t.Number(),
+	}),
 	creditCards: t.Array(
 		t.Object({
 			availableLimit: t.Number(),
@@ -81,7 +81,10 @@ export const DashboardReturn = t.Object({
 		expenses: t.Number(),
 		income: t.Number(),
 		net: t.Number(),
+		recurringExpenses: t.Number(),
+		recurringIncome: t.Number(),
 	}),
+	referenceRatesAvailable: t.Boolean(),
 	totalAvailableCredit: t.Number(),
 });
 export type DashboardReturn = typeof DashboardReturn.static;
@@ -141,12 +144,8 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" })
 						.reduce((sum, transaction) => sum + transaction.amount, 0);
 					const endingBalance = balanceAt(range.end);
 					const initialBalance = balanceAt(addDays(range.start, -1));
-					const { expenses, income } = reconcilePeriodCashFlow({
-						endingBalance,
-						expenses: categorizedExpenses,
-						income: categorizedIncome,
-						initialBalance,
-					});
+					const expenses = categorizedExpenses;
+					const income = categorizedIncome;
 					const dashboardPeriod = period({
 						end: range.end,
 						expenses,
@@ -155,6 +154,20 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" })
 						start: range.start,
 					});
 					dashboardPeriod.endingBalance = endingBalance;
+					dashboardPeriod.recurringIncome = periodTransactions
+						.filter(transaction => transaction.type === "INCOME")
+						.reduce(
+							(sum, transaction) =>
+								sum + (transaction.recurringAmount ?? (transaction.recurring ? transaction.amount : 0)),
+							0,
+						);
+					dashboardPeriod.recurringExpenses = periodTransactions
+						.filter(transaction => transaction.type === "EXPENSE")
+						.reduce(
+							(sum, transaction) =>
+								sum + (transaction.recurringAmount ?? (transaction.recurring ? transaction.amount : 0)),
+							0,
+						);
 					const balanceBreakdown = balanceBreakdownAt(range.end);
 					const dailyBalances = [
 						...new Set(
@@ -251,14 +264,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" })
 						.reduce((sum, person) => sum + Math.abs(person.balance), 0);
 					return {
 						accounts: monetaryAccounts.map(account => ({
-							balance:
-								(balancesAtRangeEnd.get(account.id) ?? 0) +
-								(recurrenceAccountEffects(
-									recurrences,
-									dateKey(projectionStart),
-									dateKey(range.end),
-									linkedTransactionDates,
-								).get(account.id) ?? 0),
+							balance: balancesAtRangeEnd.get(account.id) ?? 0,
 							id: account.id,
 							institutionName: account.institutionName,
 							name: account.name,
@@ -271,6 +277,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" })
 						forecasts: forecasts.toSorted((left, right) => left.date.localeCompare(right.date)),
 						period: { ...dashboardPeriod, ...balanceBreakdown },
 						projectedCashFlowUntilMonthEnd: projectedCashFlow,
+						referenceRatesAvailable: loaded.projectedYields?.available ?? false,
 						totalAvailableCredit: cardsWithStatements
 							.filter(card => !card.excludeFromTotals)
 							.reduce((sum, card) => sum + card.availableLimit, 0),

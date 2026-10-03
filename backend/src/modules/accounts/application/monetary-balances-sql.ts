@@ -3,9 +3,10 @@ WITH requested_dates AS (
   SELECT unnest($2::date[]) AS date
 )
 SELECT to_char(requested.date, 'YYYY-MM-DD') AS date, account."id" AS "accountId",
-       (COALESCE(adjustment."balance", 0) + COALESCE(movements.amount, 0) + COALESCE(yields.amount, 0))::numeric AS balance
+       (COALESCE(adjustment."balance", rewards."initialBalance", 0) + COALESCE(movements.amount, 0) + COALESCE(yields.amount, 0) + COALESCE(cashbacks.amount, 0))::numeric AS balance
 FROM requested_dates requested
 CROSS JOIN "FinancialAccount" account
+LEFT JOIN "RewardsAccount" rewards ON rewards."financialAccountId" = account."id"
 LEFT JOIN LATERAL (
   SELECT checkpoint."date", checkpoint."balance"
   FROM "BalanceAdjustment" checkpoint
@@ -28,5 +29,12 @@ LEFT JOIN LATERAL (
     AND (adjustment."date" IS NULL OR entry."date" > adjustment."date")
     AND NOT entry."isExcluded" AND entry."amount" IS NOT NULL
 ) yields ON true
-WHERE account."userId" = $1 AND account."type" IN ('CHECKING', 'CASH', 'SAVINGS')
+LEFT JOIN LATERAL (
+  SELECT sum(purchase."cashbackAmount") AS amount
+  FROM "CreditPurchaseRecord" purchase
+  WHERE purchase."userId" = $1 AND purchase."cashbackAccountId" = account."id"
+    AND purchase."purchaseDate" <= requested.date
+    AND (adjustment."date" IS NULL OR purchase."purchaseDate" > adjustment."date")
+) cashbacks ON true
+WHERE account."userId" = $1 AND (account."type" IN ('CHECKING', 'CASH', 'SAVINGS', 'INVESTMENT') OR rewards."kind" = 'CASHBACK')
 ORDER BY requested.date, account."id"`;

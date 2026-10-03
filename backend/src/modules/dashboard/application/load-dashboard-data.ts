@@ -1,5 +1,6 @@
 import type { CreditBook } from "@zaimu/finance/credit-book";
 import { replayOverviewStatements as replayDashboardStatements } from "~/modules/creditCards/application/credit-overview";
+import { projectedYieldContext } from "~/modules/reference-rates/application/projected-yield-context";
 
 export { replayOverviewStatements as replayDashboardStatements } from "~/modules/creditCards/application/credit-overview";
 
@@ -23,6 +24,7 @@ export interface DashboardBalanceRow extends Record<string, unknown> {
 
 export interface DashboardAccount {
 	id: string;
+	isPrimary?: boolean;
 	institutionId: null | string;
 	institutionName: null | string;
 	name: null | string;
@@ -30,6 +32,7 @@ export interface DashboardAccount {
 }
 
 export interface DashboardCard {
+	paymentAccountId?: null | string;
 	creditLimit: number;
 	dueDay: number;
 	excludeFromTotals: boolean;
@@ -45,6 +48,7 @@ export interface DashboardCard {
 }
 
 export interface DashboardStatement {
+	recurringAmount?: number;
 	balanceAmount: number;
 	chargesAmount: number;
 	creditCardId: string;
@@ -72,6 +76,11 @@ export interface DashboardSchedule {
 }
 
 export interface DashboardFlow {
+	id?: string;
+	recurringAmount?: number;
+	originAccountId?: null | string;
+	destinationAccountId?: null | string;
+	recurring?: boolean;
 	amount: number;
 	date: Date;
 	type: string;
@@ -112,14 +121,15 @@ WITH visible_cards AS (
 )
 SELECT 'account' AS kind, jsonb_build_object(
   'id', account."id", 'institutionId', account."institutionId", 'institutionName', institution."name",
-  'name', account."name", 'type', account."type"::text
+  'name', account."name", 'type', CASE WHEN rewards."kind" = 'CASHBACK' THEN 'CASHBACK' ELSE account."type"::text END, 'isPrimary', account."isPrimary"
 ) AS data
 FROM "FinancialAccount" account
 LEFT JOIN "FinancialInstitution" institution ON institution."id" = account."institutionId"
+LEFT JOIN "RewardsAccount" rewards ON rewards."financialAccountId" = account."id"
 WHERE account."userId" = $1 AND NOT account."isHidden"
 UNION ALL
 SELECT 'card', jsonb_build_object(
-  'creditLimit', card."creditLimit", 'excludeFromTotals', card."excludeFromTotals",
+  'creditLimit', card."creditLimit", 'excludeFromTotals', card."excludeFromTotals", 'paymentAccountId', card."paymentAccountId",
   'dueDay', card."dueDay", 'statementDay', card."statementDay",
   'financialAccountId', card."financialAccountId", 'id', card."id",
   'ignoreStatementsBefore', card."ignoreStatementsBefore", 'institutionId', card."institutionId",
@@ -200,12 +210,24 @@ WHERE loan."userId" = $1 AND payment."paidDate" IS NULL AND payment."dueDate" >=
 
 const comparisonMovementsSql = `
 SELECT 'flow' AS kind, jsonb_build_object(
-  'amount', sum(transaction."amount"), 'date', transaction."date", 'type', transaction."type"::text
+  'id', transaction."id", 'amount', transaction."amount", 'date', transaction."date", 'type', transaction."type"::text,
+  'originAccountId', transaction."originFinancialAccountId", 'destinationAccountId', transaction."destinationFinancialAccountId", 'recurring', transaction."recurrenceId" IS NOT NULL
 ) AS data
 FROM "Transaction" transaction
 WHERE transaction."userId" = $1 AND transaction."date" BETWEEN $2::date AND $3::date
-  AND transaction."type" <> 'TRANSFER'
-GROUP BY transaction."date", transaction."type"
+
+UNION ALL
+SELECT 'flow', jsonb_build_object('amount', entry."amount", 'date', entry."date", 'type', 'INCOME', 'recurring', false)
+FROM "FinancialAccountYield" entry
+JOIN "FinancialAccount" account ON account."id" = entry."financialAccountId"
+WHERE account."userId" = $1 AND entry."date" BETWEEN $2::date AND LEAST($3::date, CURRENT_DATE)
+  AND NOT entry."isExcluded" AND entry."amount" IS NOT NULL
+UNION ALL
+SELECT 'flow', jsonb_build_object('amount', purchase."cashbackAmount", 'date', purchase."purchaseDate", 'type', 'INCOME', 'recurring', false)
+FROM "CreditPurchaseRecord" purchase
+JOIN "FinancialAccount" account ON account."id" = purchase."cashbackAccountId"
+WHERE purchase."userId" = $1 AND purchase."purchaseDate" BETWEEN $2::date AND LEAST($3::date, CURRENT_DATE)
+  AND (account."type" IN ('CHECKING', 'CASH', 'SAVINGS', 'INVESTMENT') OR EXISTS (SELECT 1 FROM "RewardsAccount" r WHERE r."financialAccountId"=account."id" AND r."kind"='CASHBACK')) AND purchase."cashbackAmount" > 0
 UNION ALL
 SELECT 'linked', jsonb_build_object(
   'date', transaction."date", 'sourceId', transaction."recurrenceId"
@@ -260,7 +282,12 @@ export interface DashboardDataRange {
 }
 
 export async function loadDashboardData(userId: string, range: DashboardDataRange, comparisonOnly = false) {
-	return withRawTransaction(query => loadDashboardRows(query, userId, range, comparisonOnly));
+	const loaded = await withRawTransaction(query => loadDashboardRows(query, userId, range, comparisonOnly));
+	loaded.projectedYields = await projectedYieldContext(
+		userId,
+		loaded.accounts.map(account => account.id),
+	);
+	return loaded;
 }
 
 export async function loadDashboardRows(
@@ -288,6 +315,10 @@ export async function loadDashboardRows(
 	]);
 	const cards = rowsByKind(overviewRows, "card") as unknown as DashboardCard[];
 	const recurrences = rowsByKind(scheduleRows, "recurrence").map(normalizeRecurrence);
+	replayDashboardStatements(userId, cards, overviewRows, dateKey(range.today));
+	const recurringPayments = new Map(
+		rowsByKind(overviewRows, "payment").map(row => [String(row.id), Number(row.recurringAmount ?? 0)]),
+	);
 	return {
 		accounts: rowsByKind(overviewRows, "account") as unknown as DashboardAccount[],
 		activityDates,
@@ -300,6 +331,7 @@ export async function loadDashboardRows(
 		}>,
 		flows: rowsByKind(movementRows, "flow").map(row => ({
 			...row,
+			...(row.recurring ? {} : { recurringAmount: recurringPayments.get(String(row.id)) }),
 			date: asDate(row.date),
 		})) as unknown as DashboardFlow[],
 		forecastTransactions: rowsByKind(movementRows, "forecastTransaction").map(row => ({
@@ -327,6 +359,7 @@ export async function loadDashboardRows(
 			dateKey(range.comparisonEnd),
 			rowsByKind(scheduleRows, "occurrence") as unknown as Array<{ recurrenceId: string; date: string }>,
 		),
+		projectedYields: null as Awaited<ReturnType<typeof projectedYieldContext>> | null,
 		recurrences,
 		recurring: [],
 		salaries: [],

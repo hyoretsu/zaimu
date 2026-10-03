@@ -5,11 +5,15 @@ export const PeriodReturn = t.Object({
 	endDate: t.String(),
 	endingBalance: t.Number(),
 	expenses: t.Number(),
+	fixedIncomeBalance: t.Number(),
 	income: t.Number(),
 	initialBalance: t.Number(),
 	net: t.Number(),
+	recurringExpenses: t.Number(),
+	recurringIncome: t.Number(),
 	savingsBalance: t.Number(),
 	startDate: t.String(),
+	variableIncomeBalance: t.Number(),
 });
 
 export const DashboardComparisonQuery = t.Object({

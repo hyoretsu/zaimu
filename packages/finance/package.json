@@ -11,10 +11,14 @@
 		"./legacy-credit-purchases": "./src/legacy-credit-purchases.ts",
 		"./purchase-reports": "./src/purchase-reports.ts",
 		"./purchase-statement-ledger": "./src/purchase-statement-ledger.ts",
+		"./payment-suggestions": "./src/payment-suggestions.ts",
 		"./credit-book": "./src/credit-book.ts",
 		"./recurrence": "./src/recurrence.ts",
 		"./recurrence-projection": "./src/recurrence-projection.ts",
-		"./loan": "./src/loan.ts"
+		"./loan": "./src/loan.ts",
+		"./daily-forecast": "./src/daily-forecast.ts",
+		"./projected-yield": "./src/projected-yield.ts",
+		"./card-forecast": "./src/card-forecast.ts"
 	},
 	"scripts": {
 		"check-types": "tsc --noEmit",

@@ -6,7 +6,7 @@ test("comparison response contains only selected series with calendar quarter bo
 	let comparisonOnly: boolean | undefined;
 	const load: typeof loadDashboardData = async (_userId, range, mode) => {
 		comparisonOnly = mode;
-		expect(range.balanceDates).toHaveLength(5);
+		expect(range.balanceDates).toHaveLength(8);
 		return {
 			accounts: [],
 			activityDates: [],
@@ -18,6 +18,7 @@ test("comparison response contains only selected series with calendar quarter bo
 			linkedTransactions: [],
 			loanPayments: [],
 			projectedStatements: [],
+			projectedYields: null,
 			recurrences: [],
 			recurring: [],
 			salaries: [],
@@ -42,10 +43,14 @@ test("comparison response contains only selected series with calendar quarter bo
 		"endDate",
 		"endingBalance",
 		"expenses",
+		"fixedIncomeBalance",
 		"income",
 		"initialBalance",
 		"net",
+		"recurringExpenses",
+		"recurringIncome",
 		"savingsBalance",
 		"startDate",
+		"variableIncomeBalance",
 	]);
 });

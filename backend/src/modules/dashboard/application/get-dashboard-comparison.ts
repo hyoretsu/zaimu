@@ -22,7 +22,10 @@ export async function getDashboardComparison(
 			balanceDates: [
 				today,
 				addDays(range.start, -1),
-				...periods.map(item => new Date(`${item.endDate}T12:00:00`)),
+				...periods.flatMap(item => [
+					addDays(new Date(`${item.startDate}T12:00:00`), -1),
+					new Date(`${item.endDate}T12:00:00`),
+				]),
 			],
 			comparisonEnd,
 			comparisonStart: new Date(`${periods[0]!.startDate}T00:00:00`),
@@ -45,5 +48,10 @@ export async function getDashboardComparison(
 		base: range,
 		initialBalance: balanceAt(addDays(range.start, -1)),
 		transactions: comparisonTransactions,
-	}).map(item => ({ ...item, ...balanceBreakdownAt(new Date(`${item.endDate}T12:00:00`)) }));
+	}).map(item => ({
+		...item,
+		endingBalance: balanceAt(new Date(`${item.endDate}T12:00:00`)),
+		initialBalance: balanceAt(addDays(new Date(`${item.startDate}T12:00:00`), -1)),
+		...balanceBreakdownAt(new Date(`${item.endDate}T12:00:00`)),
+	}));
 }
