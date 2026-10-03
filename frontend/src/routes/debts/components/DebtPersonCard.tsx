@@ -57,9 +57,10 @@ export function DebtPersonCard({
 				<div className="min-w-0 flex-1">
 					<div className="flex flex-wrap items-center gap-2">
 						<h2 className="truncate font-semibold">{person.name}</h2>
-						{person.isZaimuUser ? <AppBadge variant="secondary">Zaimu</AppBadge> : null}
 						{person.connectionStatus === "PENDING" ? (
 							<AppBadge variant="outline">Convite pendente</AppBadge>
+						) : person.isZaimuUser ? (
+							<AppBadge variant="secondary">Zaimu</AppBadge>
 						) : null}
 					</div>
 					<p className="text-muted-foreground text-sm">
