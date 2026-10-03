@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { namespacesForEvent } from "~/shared/application/cache-invalidation";
 import { createEventEnvelope } from "~/shared/application/events";
 import type { CacheGuard, CachePort } from "~/shared/application/ports";
+import { cacheKey } from "../service-namespace";
 import { DistributedCache } from "./DistributedCache";
 
 class MemoryCache implements CachePort {
@@ -201,7 +202,7 @@ describe("DistributedCache", () => {
 		storage.available = true;
 		const reconnected = await cache.remember("user", "dashboard", {}, async () => `value-${++loads}`);
 		const hit = await cache.remember("user", "dashboard", {}, async () => `value-${++loads}`);
-		expect(storage.data.get("zaimu:cache:epoch")).toBe("2");
+		expect(storage.data.get(cacheKey("cache:epoch"))).toBe("2");
 		expect(reconnected.value).toBe("value-3");
 		expect(hit).toEqual({ ...reconnected, hit: true });
 		expect(loads).toBe(3);

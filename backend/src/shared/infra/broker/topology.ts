@@ -1,4 +1,5 @@
 import type { ConfirmChannel } from "amqplib";
+import { brokerExchange, brokerQueue } from "../service-namespace";
 
 export const queueNames = [
 	"open-finance-sync",
@@ -9,14 +10,17 @@ export const queueNames = [
 ] as const;
 
 export async function declareBrokerTopology(channel: ConfirmChannel) {
-	for (const queue of queueNames) {
+	for (const routingKey of queueNames) {
+		const queue = brokerQueue(routingKey);
 		const retry = `${queue}.retry`;
 		const dead = `${queue}.dlq`;
 		await channel.assertQueue(dead, { arguments: { "x-queue-type": "quorum" }, durable: true });
 		await channel.assertQueue(retry, {
 			arguments: {
-				"x-dead-letter-exchange": queue === "cache-invalidation" ? "zaimu.events" : "zaimu.commands",
-				"x-dead-letter-routing-key": queue,
+				"x-dead-letter-exchange": brokerExchange(
+					routingKey === "cache-invalidation" ? "zaimu.events" : "zaimu.commands",
+				),
+				"x-dead-letter-routing-key": routingKey,
 				"x-dead-letter-strategy": "at-least-once",
 				"x-message-ttl": 30_000,
 				"x-overflow": "reject-publish",
@@ -34,8 +38,8 @@ export async function declareBrokerTopology(channel: ConfirmChannel) {
 			},
 			durable: true,
 		});
-		const exchange = queue === "cache-invalidation" ? "zaimu.events" : "zaimu.commands";
-		await channel.bindQueue(queue, exchange, queue);
-		if (queue === "cache-invalidation") await channel.bindQueue(queue, exchange, "domain.#");
+		const exchange = brokerExchange(routingKey === "cache-invalidation" ? "zaimu.events" : "zaimu.commands");
+		await channel.bindQueue(queue, exchange, routingKey);
+		if (routingKey === "cache-invalidation") await channel.bindQueue(queue, exchange, "domain.#");
 	}
 }

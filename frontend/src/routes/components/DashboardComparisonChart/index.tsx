@@ -1,14 +1,24 @@
 import { useQuery } from "@tanstack/react-query";
 import { endOfMonth, format, startOfMonth } from "date-fns";
 import { useState } from "react";
-import { Bar, CartesianGrid, ComposedChart, Line, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
+import {
+	Bar,
+	BarStack,
+	CartesianGrid,
+	ComposedChart,
+	Line,
+	ReferenceLine,
+	Tooltip,
+	XAxis,
+	YAxis,
+} from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { type ChartConfig, ChartContainer } from "@/components/ui/chart";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
-import { ChartPeriodFilter, type ChartPeriodSettings, RoundedStackSegment } from "./components";
+import { ChartPeriodFilter, type ChartPeriodSettings } from "./components";
 import { DashboardChartTooltip } from "./components/DashboardChartTooltip";
 
 const currency = new Intl.NumberFormat("pt-BR", {
@@ -78,16 +88,6 @@ export function DashboardComparisonChart() {
 		otherIncome: item.income - item.recurringIncome,
 		recurringCardExpenses: item.recurringCardExpenses ?? 0,
 		recurringExpenses: item.recurringExpenses - (item.recurringCardExpenses ?? 0),
-		topExpense:
-			item.expenses - item.recurringExpenses - (item.cardExpenses ?? 0) + (item.recurringCardExpenses ?? 0) >
-			0
-				? "otherExpenses"
-				: item.recurringExpenses - (item.recurringCardExpenses ?? 0) > 0
-					? "recurringExpenses"
-					: (item.cardExpenses ?? 0) - (item.recurringCardExpenses ?? 0) > 0
-						? "cardExpenses"
-						: "recurringCardExpenses",
-		topIncome: item.income - item.recurringIncome > 0 ? "otherIncome" : "recurringIncome",
 		totalCardExpenses: item.cardExpenses ?? 0,
 		totalRecurringExpenses: item.recurringExpenses,
 	}));
@@ -166,78 +166,46 @@ export function DashboardComparisonChart() {
 									)}
 									position={mobile ? { x: 0, y: 0 } : undefined}
 								/>
-								<Bar
-									dataKey="recurringCardExpenses"
-									fill="var(--color-recurringCardExpenses)"
-									shape={props => (
-										<RoundedStackSegment
-											{...props}
-											rounded={data[props.index]?.topExpense === "recurringCardExpenses"}
-										/>
-									)}
-									stackId="expenses"
-									yAxisId="flows"
-								/>
-								<Bar
-									dataKey="cardExpenses"
-									fill="var(--color-cardExpenses)"
-									shape={props => (
-										<RoundedStackSegment
-											{...props}
-											rounded={data[props.index]?.topExpense === "cardExpenses"}
-										/>
-									)}
-									stackId="expenses"
-									yAxisId="flows"
-								/>
-								<Bar
-									dataKey="recurringIncome"
-									fill="var(--color-recurringIncome)"
-									shape={props => (
-										<RoundedStackSegment
-											{...props}
-											rounded={data[props.index]?.topIncome === "recurringIncome"}
-										/>
-									)}
-									stackId="income"
-									yAxisId="flows"
-								/>
-								<Bar
-									dataKey="otherIncome"
-									fill="var(--color-otherIncome)"
-									shape={props => (
-										<RoundedStackSegment
-											{...props}
-											rounded={data[props.index]?.topIncome === "otherIncome"}
-										/>
-									)}
-									stackId="income"
-									yAxisId="flows"
-								/>
-								<Bar
-									dataKey="recurringExpenses"
-									fill="var(--color-recurringExpenses)"
-									shape={props => (
-										<RoundedStackSegment
-											{...props}
-											rounded={data[props.index]?.topExpense === "recurringExpenses"}
-										/>
-									)}
-									stackId="expenses"
-									yAxisId="flows"
-								/>
-								<Bar
-									dataKey="otherExpenses"
-									fill="var(--color-otherExpenses)"
-									shape={props => (
-										<RoundedStackSegment
-											{...props}
-											rounded={data[props.index]?.topExpense === "otherExpenses"}
-										/>
-									)}
-									stackId="expenses"
-									yAxisId="flows"
-								/>
+								<BarStack radius={[4, 4, 0, 0]} stackId="income">
+									<Bar
+										dataKey="recurringIncome"
+										fill="var(--color-recurringIncome)"
+										stackId="income"
+										yAxisId="flows"
+									/>
+									<Bar
+										dataKey="otherIncome"
+										fill="var(--color-otherIncome)"
+										stackId="income"
+										yAxisId="flows"
+									/>
+								</BarStack>
+								<BarStack radius={[4, 4, 0, 0]} stackId="expenses">
+									<Bar
+										dataKey="recurringCardExpenses"
+										fill="var(--color-recurringCardExpenses)"
+										stackId="expenses"
+										yAxisId="flows"
+									/>
+									<Bar
+										dataKey="cardExpenses"
+										fill="var(--color-cardExpenses)"
+										stackId="expenses"
+										yAxisId="flows"
+									/>
+									<Bar
+										dataKey="recurringExpenses"
+										fill="var(--color-recurringExpenses)"
+										stackId="expenses"
+										yAxisId="flows"
+									/>
+									<Bar
+										dataKey="otherExpenses"
+										fill="var(--color-otherExpenses)"
+										stackId="expenses"
+										yAxisId="flows"
+									/>
+								</BarStack>
 								<Line
 									dataKey="accountBalance"
 									dot={false}

@@ -1,7 +1,8 @@
 import { RedisClient } from "bun";
 import type { CacheGuard, CachePort } from "~/shared/application/ports";
+import { cacheKey } from "../service-namespace";
 
-const CLEANUP_QUEUE = "zaimu:cache:cleanup";
+const cleanupQueue = () => cacheKey("cache:cleanup");
 
 export class RedisCache implements CachePort {
 	private cleanup: Promise<void> | undefined;
@@ -30,7 +31,7 @@ export class RedisCache implements CachePort {
  if redis.call("SCARD",registry)==0 then redis.call("UNLINK",registry); redis.call("LPOP",KEYS[1]) end;
  return redis.call("LLEN",KEYS[1])`,
 					"1",
-					CLEANUP_QUEUE,
+					cleanupQueue(),
 				]),
 			) > 0
 		)
@@ -107,7 +108,7 @@ export class RedisCache implements CachePort {
 			"3",
 			generationKey,
 			fenceKey,
-			CLEANUP_QUEUE,
+			cleanupQueue(),
 			token ?? "",
 		]);
 		this.scheduleCleanup();
@@ -124,7 +125,7 @@ export class RedisCache implements CachePort {
 				'local old=redis.call("GET",KEYS[1]) or "0"; local next=redis.call("INCR",KEYS[1]); local registry=KEYS[1]..":entries:"..old; if redis.call("EXISTS",registry)==1 then redis.call("RPUSH",KEYS[2],registry) end; return next',
 				"2",
 				key,
-				CLEANUP_QUEUE,
+				cleanupQueue(),
 			]),
 		);
 		this.scheduleCleanup();

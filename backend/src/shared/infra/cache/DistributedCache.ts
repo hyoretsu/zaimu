@@ -1,4 +1,5 @@
 import type { CacheGuard, CachePort } from "~/shared/application/ports";
+import { cacheKey } from "../service-namespace";
 
 export const cacheNamespaces = [
 	"accounts:detail",
@@ -70,7 +71,7 @@ export class DistributedCache {
 			const result = await operation();
 			if (!this.available) {
 				this.available = true;
-				await this.cache.increment("zaimu:cache:epoch");
+				await this.cache.increment(cacheKey("cache:epoch"));
 				return await operation();
 			}
 			return result;
@@ -80,20 +81,20 @@ export class DistributedCache {
 		}
 	}
 	private async getEpoch() {
-		const current = await this.safely(() => this.cache.get("zaimu:cache:epoch"));
+		const current = await this.safely(() => this.cache.get(cacheKey("cache:epoch")));
 		if (current) {
 			return current;
 		}
-		await this.safely(() => this.cache.set("zaimu:cache:epoch", "1", { onlyIfAbsent: true }));
-		const created = await this.safely(() => this.cache.get("zaimu:cache:epoch"));
+		await this.safely(() => this.cache.set(cacheKey("cache:epoch"), "1", { onlyIfAbsent: true }));
+		const created = await this.safely(() => this.cache.get(cacheKey("cache:epoch")));
 		const epoch = created ?? crypto.randomUUID();
 		return epoch;
 	}
 	private generationKey(userId: string, namespace: CacheNamespace) {
-		return `zaimu:generation:${userId}:${namespace}`;
+		return cacheKey(`generation:${userId}:${namespace}`);
 	}
 	private fenceKey(userId: string, namespace: CacheNamespace) {
-		return `zaimu:fence:${userId}:${namespace}`;
+		return cacheKey(`fence:${userId}:${namespace}`);
 	}
 	private dependencies(namespace: CacheNamespace): CacheNamespace[] {
 		if (namespace.startsWith("transactions:detail:")) return ["transactions:detail", namespace];
@@ -121,7 +122,7 @@ export class DistributedCache {
 			),
 		]);
 		const guards: CacheGuard[] = [
-			{ generation: epoch, generationKey: "zaimu:cache:epoch" },
+			{ generation: epoch, generationKey: cacheKey("cache:epoch") },
 			...dependencies.map((dependency, index) => ({
 				fenceKey: this.fenceKey(userId, dependency),
 				generation: generation[index] ?? "0",
@@ -130,7 +131,9 @@ export class DistributedCache {
 		];
 		return {
 			guards,
-			key: `zaimu:v2:${epoch}:${userId}:${namespace}:${generation.map(value => value ?? "0").join(".")}:${hash(JSON.stringify(stableValue(parameters)))}`,
+			key: cacheKey(
+				`v2:${epoch}:${userId}:${namespace}:${generation.map(value => value ?? "0").join(".")}:${hash(JSON.stringify(stableValue(parameters)))}`,
+			),
 		};
 	}
 	async key(userId: string, namespace: CacheNamespace, parameters: unknown) {
