@@ -22,6 +22,7 @@ import {
 	withRawTransaction,
 } from "~/shared/infra/sql";
 import { fetchBcbReferenceRates } from "../domain/bcb-reference-rates";
+import { referenceRateBootstrapIntervals } from "../domain/reference-rate-window";
 
 type FetchReferenceRates = typeof fetchBcbReferenceRates;
 interface ClaimedJob {
@@ -33,8 +34,6 @@ interface ClaimedJob {
 	startDate: Date | null;
 }
 const schedulerTimezone = "America/Recife";
-const bootstrapStartDate = new Date("2020-01-01T12:00:00");
-const bootstrapEndDate = new Date("2026-09-17T12:00:00");
 const dateKey = (date: Date) => format(date, "yyyy-MM-dd");
 const outbox = new PostgresOutbox();
 const commandId = (key: string) => {
@@ -112,14 +111,25 @@ export async function enqueueUserYieldRecalculations(userId: string, fromDate: D
 	);
 	for (const account of accounts) await enqueueAccountYieldRecalculation(account.id, fromDate, cause);
 }
-export async function ensureReferenceRateBootstrapJobs() {
-	for (const type of ["CDI", "SELIC"] as const)
-		await enqueueReferenceRateFetch(
-			type,
-			bootstrapStartDate,
-			bootstrapEndDate,
-			`bootstrap:v2:${type}:2020-01-01:2026-09-17`,
-		);
+export async function ensureReferenceRateBootstrapJobs(now = new Date()) {
+	for (const interval of referenceRateBootstrapIntervals(schedulerClock(now).date)) {
+		for (const type of ["CDI", "SELIC"] as const) {
+			const completed = await queryRaw<{ endDate: string | null }>(
+				`SELECT max("payload"->>'endDate') AS "endDate" FROM "public"."OutboxEvent"
+				 WHERE "eventType" = 'referenceRate.historyFetched' AND "payload"->>'referenceType' = $1
+				 AND "payload"->>'startDate' = $2`,
+				[type, dateKey(interval.startDate)],
+			);
+			// Daily fetches extend the current-year tail after its first complete load.
+			if (completed[0]?.endDate) continue;
+			await enqueueReferenceRateFetch(
+				type,
+				interval.startDate,
+				interval.endDate,
+				`bootstrap:v3:${type}:${dateKey(interval.startDate)}:${dateKey(interval.endDate)}`,
+			);
+		}
+	}
 }
 export async function enqueueDailyReferenceRateFetches(now = new Date()) {
 	const clock = schedulerClock(now);
@@ -159,6 +169,21 @@ async function processFetchJob(job: ClaimedJob, fetchRates: FetchReferenceRates)
 			),
 		);
 	}
+	await outbox.append(
+		createEventEnvelope({
+			aggregateId: job.referenceType,
+			aggregateType: "referenceRate",
+			correlationId: commandId(job.deduplicationKey),
+			eventId: commandId(`completed:${job.deduplicationKey}`),
+			eventType: "referenceRate.historyFetched",
+			payload: {
+				endDate: dateKey(job.endDate),
+				referenceType: job.referenceType,
+				startDate: dateKey(job.startDate),
+			},
+			userIds: [],
+		}),
+	);
 	return rates.length;
 }
 async function loadYieldAccount(accountId: string): Promise<YieldAccount | null> {
