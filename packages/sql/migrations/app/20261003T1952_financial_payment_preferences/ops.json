@@ -1,0 +1,173 @@
+[
+	{
+		"execute": [
+			{
+				"description": "add column \"paymentAccountId\"",
+				"sql": "ALTER TABLE \"public\".\"CreditCard\" ADD COLUMN \"paymentAccountId\" character varying(36)"
+			}
+		],
+		"id": "column.public.CreditCard.paymentAccountId",
+		"label": "Add column \"paymentAccountId\" to \"CreditCard\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"paymentAccountId\" exists",
+				"params": ["public", "CreditCard", "paymentAccountId"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"paymentAccountId\" is missing",
+				"params": ["public", "CreditCard", "paymentAccountId"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "paymentAccountId",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditCard"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"paymentSuggestionsEnabled\"",
+				"sql": "ALTER TABLE \"public\".\"CreditCard\" ADD COLUMN \"paymentSuggestionsEnabled\" bool DEFAULT true NOT NULL"
+			}
+		],
+		"id": "column.public.CreditCard.paymentSuggestionsEnabled",
+		"label": "Add column \"paymentSuggestionsEnabled\" to \"CreditCard\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"paymentSuggestionsEnabled\" exists",
+				"params": ["public", "CreditCard", "paymentSuggestionsEnabled"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"paymentSuggestionsEnabled\" is missing",
+				"params": ["public", "CreditCard", "paymentSuggestionsEnabled"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "paymentSuggestionsEnabled",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditCard"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"isPrimary\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialAccount\" ADD COLUMN \"isPrimary\" bool DEFAULT false NOT NULL"
+			}
+		],
+		"id": "column.public.FinancialAccount.isPrimary",
+		"label": "Add column \"isPrimary\" to \"FinancialAccount\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"isPrimary\" exists",
+				"params": ["public", "FinancialAccount", "isPrimary"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"isPrimary\" is missing",
+				"params": ["public", "FinancialAccount", "isPrimary"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "isPrimary",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialAccount"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"CreditCard_paymentAccountId_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"CreditCard_paymentAccountId_idx\" ON \"public\".\"CreditCard\" (\"paymentAccountId\")"
+			}
+		],
+		"id": "index.CreditCard.CreditCard_paymentAccountId_idx",
+		"label": "Create index \"CreditCard_paymentAccountId_idx\" on \"CreditCard\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"CreditCard_paymentAccountId_idx\" exists",
+				"params": ["\"public\".\"CreditCard_paymentAccountId_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"CreditCard_paymentAccountId_idx\" does not exist",
+				"params": ["\"public\".\"CreditCard_paymentAccountId_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditCard_paymentAccountId_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "CreditCard"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"CreditCard_paymentAccountId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"CreditCard\"\nADD CONSTRAINT \"CreditCard_paymentAccountId_fkey\"\nFOREIGN KEY (\"paymentAccountId\")\nREFERENCES \"public\".\"FinancialAccount\" (\"id\")\nON DELETE SET NULL\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.CreditCard.CreditCard_paymentAccountId_fkey",
+		"label": "Add foreign key \"CreditCard_paymentAccountId_fkey\" on \"CreditCard\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"CreditCard_paymentAccountId_fkey\" exists",
+				"params": ["CreditCard_paymentAccountId_fkey", "public", "\"public\".\"CreditCard\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"CreditCard_paymentAccountId_fkey\" does not exist",
+				"params": ["CreditCard_paymentAccountId_fkey", "public", "\"public\".\"CreditCard\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditCard_paymentAccountId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "CreditCard"
+			},
+			"id": "postgres"
+		}
+	}
+]

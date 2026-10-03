@@ -8,6 +8,7 @@ export interface User {
 }
 
 export interface FinancialAccount {
+	isPrimary?: boolean;
 	id: string;
 	isHidden?: boolean;
 	userId: string;
@@ -154,6 +155,8 @@ export type DebtSplit =
 	  };
 
 export interface CreditCard {
+	paymentAccountId?: string | null;
+	paymentSuggestionsEnabled?: boolean;
 	id: string;
 	financialAccountId: string;
 	creditLimit: number;
@@ -615,6 +618,10 @@ export interface CreditCardStatementDetail extends CreditCardStatement {
 }
 
 export interface DashboardPeriod {
+	fixedIncomeBalance: number;
+	variableIncomeBalance: number;
+	recurringIncome: number;
+	recurringExpenses: number;
 	accountBalance: number;
 	endDate: string;
 	endingBalance: number;
@@ -627,14 +634,20 @@ export interface DashboardPeriod {
 }
 
 export interface Dashboard {
+	referenceRatesAvailable: boolean;
 	accounts: Array<{
 		balance: number;
 		id: string;
 		institutionName: string | null;
 		name: string | null;
-		type: "CHECKING" | "SAVINGS";
+		type: "CHECKING" | "CASH" | "SAVINGS" | "INVESTMENT";
 	}>;
-	balanceBreakdown: { accountBalance: number; savingsBalance: number };
+	balanceBreakdown: {
+		accountBalance: number;
+		savingsBalance: number;
+		fixedIncomeBalance: number;
+		variableIncomeBalance: number;
+	};
 	dailyBalances: Array<{ balance: number; date: string }>;
 	creditCards: Array<{
 		availableLimit: number;
@@ -662,7 +675,13 @@ export interface Dashboard {
 		type: "CARD" | "LOAN" | "RECURRING" | "SALARY" | "SUBSCRIPTION" | "TRANSACTION";
 	}>;
 	period: DashboardPeriod;
-	projectedCashFlowUntilMonthEnd: { expenses: number; income: number; net: number };
+	projectedCashFlowUntilMonthEnd: {
+		recurringExpenses: number;
+		recurringIncome: number;
+		expenses: number;
+		income: number;
+		net: number;
+	};
 	totalAvailableCredit: number;
 }
 
@@ -741,3 +760,12 @@ export const openFinanceApi = {
 			method: "POST",
 		}),
 };
+
+export interface PaymentSuggestion {
+	amount: number;
+	cardName: string;
+	creditCardId: string;
+	dueDate: string;
+	financialAccountId: string;
+	statementId: string;
+}

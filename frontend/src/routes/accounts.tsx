@@ -22,6 +22,7 @@ import {
 	CreateFinancialAccountDialog,
 	FinancialAccountYieldHolidaysDialog,
 	FinancialInstitutionGroup,
+	PrimaryAccountSelect,
 } from "./accounts/components";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
@@ -196,6 +197,9 @@ export function AccountsPage() {
 					<p className="mt-2 font-bold text-3xl">{visibleAccounts.length}</p>
 				</div>
 			</section>
+			{!accounts.isError && (
+				<PrimaryAccountSelect accounts={accounts.data ?? []} pending={accounts.isPending} />
+			)}
 			{accounts.isPending ? (
 				<div className="grid gap-6">
 					{[1, 2].map(item => (

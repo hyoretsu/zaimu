@@ -246,6 +246,7 @@ namespace public {
     name                    VarChar(70)?
     type                    pg.enum(FinancialAccountType) @default("CHECKING")
     isHidden                Boolean                      @default(false)
+    isPrimary               Boolean                      @default(false)
     balance                 Numeric(12, 2)?               @default(dbgenerated("0"))
     institutionId           VarChar(36)?
     yieldReferenceType       pg.enum(ReferenceRateType)?
@@ -256,6 +257,7 @@ namespace public {
     createdAt               Timestamp(3)                  @default(now())
     updatedAt               Timestamp(3)                  @default(now())
     creditCards             CreditCard[]                     @relation(name: "CreditCard_accountId_fkey")
+    payerCreditCards        CreditCard[] @relation("CreditCard_paymentAccountId_fkey")
     cashbackCreditCards     CreditCard[]                     @relation(name: "CreditCard_cashbackAccountId_fkey")
     yields                  FinancialAccountYield[]
     balanceAdjustments      BalanceAdjustment[]
@@ -398,6 +400,8 @@ namespace public {
     creditLimit          Numeric(12, 2)
     securityDeposit      Numeric(12, 2)?
     excludeFromTotals    Boolean               @default(false)
+    paymentAccountId     VarChar(36)?
+    paymentSuggestionsEnabled Boolean           @default(true)
     ignoreStatementsBefore Date?
     statementDay         SmallInt
     dueDay               SmallInt
@@ -417,11 +421,13 @@ namespace public {
     payments Transaction[]
     importedPayments TransactionImportItem[]
     financialAccount     FinancialAccount      @relation(name: "CreditCard_accountId_fkey", fields: [financialAccountId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditCard_accountId_fkey")
+    paymentAccount       FinancialAccount? @relation(name: "CreditCard_paymentAccountId_fkey", fields: [paymentAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditCard_paymentAccountId_fkey", index: false)
     cashbackAccount      FinancialAccount?     @relation(name: "CreditCard_cashbackAccountId_fkey", fields: [cashbackAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditCard_cashbackAccountId_fkey", index: false)
 
     recurrences Recurrence[]
 
     @@index([financialAccountId], map: "CreditCard_accountId_key", unique: true)
+    @@index([paymentAccountId], map: "CreditCard_paymentAccountId_idx")
     @@index([cashbackAccountId], map: "CreditCard_cashbackAccountId_idx")
 
     @@map("CreditCard")

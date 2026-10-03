@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { DebtSplitEditor } from "@/components/debts";
 import { Button } from "@/components/ui/Button";
@@ -61,6 +61,7 @@ export function CreateTransactionDialog({
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
 	const [draft, setDraft] = useState(initialDraft);
+	const primaryInitialized = useRef(false);
 	const [isDebt, setIsDebt] = useState(false);
 	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>({
 		mode: "SHARES",
@@ -81,6 +82,23 @@ export function CreateTransactionDialog({
 		queryFn: () => dataService.accounts.getAll(),
 		queryKey: queryKeys.accounts.list(identity!),
 	});
+	useEffect(() => {
+		if (!open) {
+			primaryInitialized.current = false;
+			return;
+		}
+		if (!accountsQuery.data || primaryInitialized.current) return;
+		primaryInitialized.current = true;
+		const primary = accountsQuery.data.find(
+			candidate => candidate.isPrimary && ["CHECKING", "CASH"].includes(candidate.type),
+		);
+		if (!account && primary)
+			setDraft(current =>
+				current.type === "EXPENSE" && !current.originFinancialAccountId
+					? { ...current, originFinancialAccountId: primary.id }
+					: current,
+			);
+	}, [open, accountsQuery.data, account]);
 	const payableStatementsQuery = useQuery({
 		enabled: identity !== null && open && draft.type === "EXPENSE",
 		queryFn: () => dataService.creditCards.getAll(),

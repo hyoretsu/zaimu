@@ -29,7 +29,7 @@ import { listTransactionsPage } from "~/modules/transactions/application/list-tr
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
 import { rejectLegacyFinancialFields } from "~/shared/infra/elysia/strict-json-body";
-import { db, executeStatement, queryFirst, queryRows, withTransaction } from "~/shared/infra/sql";
+import { db, executeStatement, queryFirst, queryRaw, queryRows, withTransaction } from "~/shared/infra/sql";
 
 const transactionColumns = [
 	"id",
@@ -492,6 +492,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				if (!concrete)
 					throw new HttpException("Ocorrência indisponível, excluída ou pertencente ao cartão", 409);
 			}
+			await lockPaymentResources(body.paymentCreditCardId, originFinancialAccountId);
 			let transaction = await findExistingOccurrence();
 			let wasCreated = false;
 			if (!transaction) {
@@ -604,6 +605,10 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			if (!existing) {
 				throw new HttpException("Transaction not found", 404);
 			}
+			await lockPaymentResources(
+				body.paymentCreditCardId ?? existing.paymentCreditCardId,
+				body.originFinancialAccountId ?? existing.originFinancialAccountId,
+			);
 			const transactionType = body.type ?? existing.type;
 			const originFinancialAccountId = body.originFinancialAccountId ?? existing.originFinancialAccountId;
 			const destinationFinancialAccountId =
@@ -816,3 +821,8 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			}),
 		},
 	);
+
+async function lockPaymentResources(cardId: string | null | undefined, accountId: string | null | undefined) {
+	if (cardId) await queryRaw(`SELECT "id" FROM "CreditCard" WHERE "id"=$1 FOR UPDATE`, [cardId]);
+	if (accountId) await queryRaw(`SELECT "id" FROM "FinancialAccount" WHERE "id"=$1 FOR UPDATE`, [accountId]);
+}

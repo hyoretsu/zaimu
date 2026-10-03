@@ -7,6 +7,7 @@ import {
 	ImportCreditCardStatementDialog,
 	PendingCreditCardImportsNotice,
 } from "@/components/credit-card-imports";
+import { PendingPaymentSuggestions } from "@/components/payment-suggestions";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageContainer } from "@/components/ui/PageContainer";
@@ -112,6 +113,7 @@ export function CreditCardsPage() {
 
 	return (
 		<PageContainer className="grid gap-8">
+			<PendingPaymentSuggestions />
 			<PageHeader
 				actions={
 					<div className="flex flex-wrap justify-end gap-2">

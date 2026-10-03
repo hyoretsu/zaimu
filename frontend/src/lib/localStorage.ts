@@ -1,11 +1,14 @@
 import {
 	type CreditBook,
 	creditBookEntries,
+	creditBookRewards,
 	materializeBookInstallments,
+	moneyCents,
 	moveBookPurchase,
 	replayCreditBook,
 } from "@zaimu/finance/credit-book";
 import { currentDateKey } from "@zaimu/finance/credit-card";
+import { pendingStatementPayments } from "@zaimu/finance/payment-suggestions";
 import type {
 	Category,
 	CreditCard,
@@ -21,6 +24,7 @@ import type {
 } from "@/lib/api";
 import { type CacheIdentity, getCurrentCacheIdentity } from "@/lib/query-cache";
 import { calculateDebtSplit } from "./debt-split";
+import { calculateFinancialAccountBalances } from "./financial-account";
 import { requestResult, transactionDone } from "./idb";
 import type { Recurrence, RecurrenceOccurrence } from "./recurrence";
 
@@ -1337,4 +1341,152 @@ export async function createLocalDebtOrigins(events: StoredDebtEvent[], ownerKey
 			);
 		}
 	});
+}
+
+export async function setLocalPrimaryAccount(accountId: string | null) {
+	const owner = requireOwner();
+	const database = await initLocalDb();
+	const tx = database.transaction("scoped-accounts", "readwrite");
+	const done = transactionDone(tx);
+	try {
+		const store = tx.objectStore("scoped-accounts");
+		const rows = (await requestResult(
+			store.index("ownerKey").getAll(owner),
+		)) as LocalData<FinancialAccount>[];
+		if (
+			accountId &&
+			!rows.some(
+				row =>
+					row.localId === accountId &&
+					!row.deleted &&
+					!row.data.isHidden &&
+					["CHECKING", "CASH"].includes(row.data.type),
+			)
+		)
+			throw new Error("Selecione uma conta corrente ou dinheiro disponível");
+		for (const row of rows) {
+			await requestResult(
+				store.put({
+					...row,
+					data: { ...row.data, isPrimary: row.localId === accountId },
+					modifiedAt: Date.now(),
+					syncedAt: undefined,
+				}),
+			);
+		}
+		await done;
+		return { financialAccountId: accountId };
+	} catch (error) {
+		tx.abort();
+		await done.catch(() => undefined);
+		throw error;
+	}
+}
+
+export async function confirmLocalSuggestedPayment(
+	cardId: string,
+	input: {
+		amount: number;
+		attemptId: string;
+		date: string;
+		financialAccountId: string;
+		statementId: string;
+	},
+) {
+	const owner = requireOwner();
+	const database = await initLocalDb();
+	const tx = database.transaction(
+		["scoped-accounts", "scoped-transactions", "scoped-creditBooks", "scoped-creditCards", "scoped-meta"],
+		"readwrite",
+	);
+	const done = transactionDone(tx);
+	try {
+		const getRows = async <T>(name: string) =>
+			((await requestResult(tx.objectStore(name).index("ownerKey").getAll(owner))) as LocalData<T>[]).filter(
+				row => !row.deleted,
+			);
+		const transactions = await getRows<Transaction>("scoped-transactions");
+		const previous = transactions.find(row => row.localId === input.attemptId)?.data;
+		if (previous) {
+			if (
+				previous.paymentCreditCardId !== cardId ||
+				previous.originFinancialAccountId !== input.financialAccountId ||
+				moneyCents(previous.amount) !== moneyCents(input.amount) ||
+				previous.date.slice(0, 10) !== input.date
+			)
+				throw new Error("Tentativa de pagamento já utilizada");
+			await done;
+			return { transaction: previous };
+		}
+		const accounts = await getRows<FinancialAccount>("scoped-accounts");
+		const cards = await getRows<CreditCard>("scoped-creditCards");
+		const books = await getRows<CreditBook>("scoped-creditBooks");
+		const card = cards.find(row => row.localId === cardId)?.data;
+		const storedBook = books.find(row => row.localId === cardId)?.data;
+		const account = accounts.find(row => row.localId === input.financialAccountId)?.data;
+		if (!card || !storedBook) throw new Error("Cartão indisponível");
+		if (!account || account.isHidden || ["CREDIT_CARD", "REWARDS"].includes(account.type))
+			throw new Error("Conta pagadora indisponível");
+		const book = structuredClone(storedBook);
+		book.payments = transactions
+			.filter(row => row.data.paymentCreditCardId === cardId)
+			.map(row => ({ amount: row.data.amount, date: row.data.date.slice(0, 10), id: row.localId }));
+		const suggestion = pendingStatementPayments(book).find(row => row.statementId === input.statementId);
+		if (!suggestion || moneyCents(suggestion.amount) !== moneyCents(input.amount))
+			throw new Error("Saldo da fatura mudou. Revise o pagamento novamente");
+		const meta = tx.objectStore("scoped-meta");
+		const holidayData = (await requestResult(
+			meta.get(scopedId(owner, "financial-account-yield-holidays")),
+		)) as LocalData<import("./api").FinancialAccountYieldHoliday[]> | undefined;
+		const yieldData = (await requestResult(meta.get(scopedId(owner, "financial-account-yields")))) as
+			| LocalData<import("./api").FinancialAccountYield[]>
+			| undefined;
+		const datedStatement = replayCreditBook(book, input.date).statements.find(
+			row => row.id === input.statementId,
+		);
+		if (
+			!datedStatement ||
+			(datedStatement.statementDate > input.date && datedStatement.carriedInAmount <= 0) ||
+			moneyCents(Math.max(0, datedStatement.balanceAmount)) < moneyCents(input.amount)
+		)
+			throw new Error("Fatura indisponível para pagamento na data informada");
+		const balance =
+			calculateFinancialAccountBalances(
+				accounts.map(row => row.data),
+				transactions.map(row => row.data),
+				books.flatMap(row => creditBookRewards(row.data)),
+				holidayData?.data.map(row => row.date) ?? [],
+				new Date(`${input.date}T12:00:00`),
+				yieldData?.data ?? [],
+			).find(row => row.id === account.id)?.balance ?? 0;
+		if (moneyCents(balance) < moneyCents(input.amount))
+			throw new Error("Saldo insuficiente na conta pagadora na data informada");
+		const transaction: Transaction = {
+			amount: input.amount,
+			createdAt: new Date().toISOString(),
+			date: input.date,
+			description: "Pagamento do cartão",
+			id: input.attemptId,
+			originFinancialAccountId: input.financialAccountId,
+			paymentCreditCardId: cardId,
+			type: "EXPENSE",
+		};
+		await requestResult(
+			tx
+				.objectStore("scoped-transactions")
+				.put({
+					data: transaction,
+					localId: transaction.id,
+					modifiedAt: Date.now(),
+					ownerKey: owner,
+					scopedId: scopedId(owner, transaction.id),
+				}),
+		);
+		await done;
+		return { transaction };
+	} catch (error) {
+		tx.abort();
+		await done.catch(() => undefined);
+		throw error;
+	}
 }

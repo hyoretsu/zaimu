@@ -2,6 +2,7 @@ import { startOfDay } from "date-fns";
 import Elysia, { t } from "elysia";
 import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
 import { getFinancialInstitutionYieldPolicies } from "~/modules/accounts/application/get-financial-institution-yield-policies";
+import { getPrimaryAccount, setPrimaryAccount } from "~/modules/accounts/application/payment-preferences";
 import { resolveFinancialInstitution } from "~/modules/accounts/application/resolve-financial-institution";
 import {
 	scheduleFinancialAccountYieldRate,
@@ -55,10 +56,20 @@ const CreditCardCreate = t.Object({
 	creditLimit: t.Number({ minimum: 0 }),
 	dueDay: t.Number({ maximum: 31, minimum: 1 }),
 	excludeFromTotals: t.Optional(t.Boolean()),
+	paymentAccountId: t.Optional(t.Nullable(Id)),
+	paymentSuggestionsEnabled: t.Optional(t.Boolean()),
 	securityDeposit: t.Optional(t.Number({ minimum: 0 })),
 	statementDay: t.Number({ maximum: 31, minimum: 1 }),
 	workingDueDate: t.Optional(t.Boolean()),
 });
+
+async function assertPayerOwnership(accountId: string, userId: string) {
+	const [account] = await queryRaw(
+		`SELECT "id" FROM "FinancialAccount" WHERE "id"=$1 AND "userId"=$2 AND NOT "isHidden" AND "type" IN ('CHECKING','CASH','SAVINGS','INVESTMENT')`,
+		[accountId, userId],
+	);
+	if (!account) throw new HttpException("Conta pagadora indisponível", 400);
+}
 
 async function assertRewardsAccountOwnership(accountId: string, userId: string) {
 	const account = await queryFirst(
@@ -80,6 +91,17 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 	.onTransform(({ body }) => {
 		rejectLegacyFinancialFields(body);
 	})
+	.get("/primary", async ({ request }) => getPrimaryAccount(await requireUserId(request)), {
+		response: t.Object({ financialAccountId: t.Nullable(Id) }),
+	})
+	.put(
+		"/primary",
+		async ({ body, request }) => setPrimaryAccount(await requireUserId(request), body.financialAccountId),
+		{
+			body: t.Object({ financialAccountId: t.Nullable(Id) }),
+			response: t.Object({ financialAccountId: t.Nullable(Id) }),
+		},
+	)
 	.get(
 		"/",
 		async ({ request, set }) => {
@@ -146,6 +168,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 							"id",
 							"userId",
 							"isHidden",
+							"isPrimary",
 							"name",
 							"type",
 							"institutionId",
@@ -210,6 +233,8 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 					if (account.type === "CREDIT_CARD") {
 						const creditCard = await queryFirst(
 							db.sql.public.CreditCard.select(
+								"paymentAccountId",
+								"paymentSuggestionsEnabled",
 								"cashbackAccountId",
 								"cashbackRate",
 								"cashbackYieldPeriod",
@@ -305,6 +330,8 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 				yieldTaxRate: body.yieldTaxRate,
 			});
 			if (body.creditCard) {
+				if (body.creditCard.paymentAccountId)
+					await assertPayerOwnership(body.creditCard.paymentAccountId, userId);
 				assertCreditCardBillingDays(body.creditCard.statementDay, body.creditCard.dueDay);
 				assertCashbackSettings(body.creditCard);
 				if (body.creditCard.cashbackAccountId)
@@ -442,6 +469,8 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 					db.sql.public.CreditCard.insert([
 						{
 							cashbackAccountId,
+							paymentAccountId: body.creditCard.paymentAccountId ?? undefined,
+							paymentSuggestionsEnabled: body.creditCard.paymentSuggestionsEnabled ?? true,
 							...(body.creditCard.cashbackRate !== undefined && {
 								cashbackRate: String(body.creditCard.cashbackRate),
 							}),
@@ -466,6 +495,8 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 						},
 					])
 						.returning(
+							"paymentAccountId",
+							"paymentSuggestionsEnabled",
 							"cashbackAccountId",
 							"cashbackRate",
 							"cashbackYieldPeriod",
@@ -646,6 +677,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 						"id",
 						"userId",
 						"isHidden",
+						"isPrimary",
 						"name",
 						"type",
 						"institutionId",
@@ -700,8 +732,12 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 
 			// Update credit card if provided
 			if (body.creditCard && existing.type === "CREDIT_CARD") {
+				if (body.creditCard.paymentAccountId)
+					await assertPayerOwnership(body.creditCard.paymentAccountId, userId);
 				const existingCreditCard = await queryFirst(
 					db.sql.public.CreditCard.select(
+						"paymentAccountId",
+						"paymentSuggestionsEnabled",
 						"cashbackAccountId",
 						"cashbackRate",
 						"cashbackYieldPeriod",
@@ -747,6 +783,12 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 					await assertRewardsAccountOwnership(nextCashback.cashbackAccountId, userId);
 				const creditCard = await queryFirst(
 					db.sql.public.CreditCard.update({
+						...(body.creditCard.paymentAccountId !== undefined && {
+							paymentAccountId: body.creditCard.paymentAccountId as never,
+						}),
+						...(body.creditCard.paymentSuggestionsEnabled !== undefined && {
+							paymentSuggestionsEnabled: body.creditCard.paymentSuggestionsEnabled,
+						}),
 						...(body.creditCard.cashbackAccountId !== undefined && {
 							cashbackAccountId: body.creditCard.cashbackAccountId,
 						}),
@@ -786,6 +828,8 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 					})
 						.where((fields, functions) => functions.eq(fields.financialAccountId, params.id))
 						.returning(
+							"paymentAccountId",
+							"paymentSuggestionsEnabled",
 							"cashbackAccountId",
 							"cashbackRate",
 							"cashbackYieldPeriod",
@@ -894,6 +938,8 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 						creditLimit: t.Optional(t.Number({ minimum: 0 })),
 						dueDay: t.Optional(t.Number({ maximum: 31, minimum: 1 })),
 						excludeFromTotals: t.Optional(t.Boolean()),
+						paymentAccountId: t.Optional(t.Nullable(Id)),
+						paymentSuggestionsEnabled: t.Optional(t.Boolean()),
 						securityDeposit: t.Optional(t.Number({ minimum: 0 })),
 						statementDay: t.Optional(t.Number({ maximum: 31, minimum: 1 })),
 						workingDueDate: t.Optional(t.Boolean()),

@@ -1,4 +1,3 @@
-import { comparisonIntervals } from "@zaimu/finance/comparison-periods";
 import {
 	addBookRefund,
 	bookPurchase,
@@ -24,10 +23,9 @@ import {
 } from "@zaimu/finance/credit-card";
 import { distributePurchaseCents } from "@zaimu/finance/credit-purchase";
 import { loanInstallments } from "@zaimu/finance/loan";
+import { pendingStatementPayments } from "@zaimu/finance/payment-suggestions";
 import {
 	nextRecurrenceDate,
-	recurrenceAccountEffects,
-	recurrenceDates,
 	recurrenceNeedsConfiguration,
 	shiftRecurrenceDate,
 } from "@zaimu/finance/recurrence";
@@ -39,11 +37,13 @@ import { localCursorPage } from "./local-cursor-page";
 import {
 	acknowledgeCreditBookSync,
 	acknowledgeRecurrenceSync,
+	confirmLocalSuggestedPayment,
 	initLocalDb,
 	localCreditBooks,
 	localCreditRefundReviews,
 	mutateLocalCreditBook,
 	readLocalCreditBook,
+	setLocalPrimaryAccount,
 	toPurchasePresentation,
 	transferLocalCreditBookPurchase,
 } from "./localStorage";
@@ -190,6 +190,8 @@ export type FinancialAccountDraft = Omit<
 > & {
 	creditCard?: Pick<
 		CreditCard,
+		| "paymentAccountId"
+		| "paymentSuggestionsEnabled"
 		| "cashbackAccountId"
 		| "cashbackRate"
 		| "cashbackYieldPeriod"
@@ -414,6 +416,9 @@ export const dataService = {
 		async delete(id: string): Promise<void> {
 			if (isGuestMode()) {
 				await localAccounts.delete(id);
+				for (const card of await localCreditCards.getAll())
+					if (card.data.paymentAccountId === id)
+						await localCreditCards.put({ ...card.data, paymentAccountId: null }, card.localId);
 				return;
 			}
 			await fetchWithAuth(`/financial-accounts/${id}`, { method: "DELETE" });
@@ -468,6 +473,13 @@ export const dataService = {
 				return local?.data || null;
 			}
 		},
+		async setPrimary(financialAccountId: string | null) {
+			if (isGuestMode()) return setLocalPrimaryAccount(financialAccountId);
+			return fetchWithAuth<{ financialAccountId: string | null }>("/financial-accounts/primary", {
+				body: JSON.stringify({ financialAccountId }),
+				method: "PUT",
+			});
+		},
 
 		async update(id: string, data: FinancialAccountUpdateDraft): Promise<FinancialAccount> {
 			if (isGuestMode()) {
@@ -475,6 +487,11 @@ export const dataService = {
 				if (!existing) throw new Error("FinancialAccount not found");
 
 				const { institutionName, recalculateCurrentDay, ...accountData } = data;
+				if (data.creditCard?.paymentAccountId) {
+					const payer = await localAccounts.getById(data.creditCard.paymentAccountId);
+					if (!payer || payer.data.isHidden || ["CREDIT_CARD", "REWARDS"].includes(payer.data.type))
+						throw new Error("Conta pagadora indisponível");
+				}
 				let institution = existing.data.institution ?? null;
 				if (institutionName !== undefined) {
 					const normalizedName = normalizeInstitutionName(institutionName);
@@ -1196,6 +1213,22 @@ export const dataService = {
 				reviewId,
 			);
 		},
+		async confirmPaymentSuggestion(
+			cardId: string,
+			input: {
+				amount: number;
+				attemptId: string;
+				date: string;
+				financialAccountId: string;
+				statementId: string;
+			},
+		): Promise<{ transaction: Transaction }> {
+			if (isGuestMode()) return confirmLocalSuggestedPayment(cardId, input);
+			return fetchWithAuth(`/credit-cards/${cardId}/payment-suggestions/confirm`, {
+				body: JSON.stringify(input),
+				method: "POST",
+			});
+		},
 		async createFromAccount(
 			account: FinancialAccount,
 			details: NonNullable<FinancialAccountDraft["creditCard"]>,
@@ -1219,6 +1252,8 @@ export const dataService = {
 					temporaryCredit: 0,
 					usedLimit: 0,
 				},
+				paymentAccountId: details.paymentAccountId ?? null,
+				paymentSuggestionsEnabled: details.paymentSuggestionsEnabled ?? true,
 				securityDeposit: details.securityDeposit ?? null,
 				statementDay: details.statementDay,
 				workingDueDate: details.workingDueDate,
@@ -1295,6 +1330,35 @@ export const dataService = {
 			return isGuestMode()
 				? readLocalCreditBook(cardId)
 				: fetchWithAuth<CreditBook>(`/credit-cards/${cardId}/book`);
+		},
+		async getPaymentSuggestions(): Promise<import("./api").PaymentSuggestion[]> {
+			if (!isGuestMode()) return fetchWithAuth("/credit-cards/payment-suggestions");
+			const [cards, accounts] = await Promise.all([
+				dataService.creditCards.getAll(),
+				dataService.accounts.getAll(),
+			]);
+			const primary = accounts.find(
+				account => account.isPrimary && ["CHECKING", "CASH"].includes(account.type),
+			);
+			return (
+				await Promise.all(
+					cards
+						.filter(card => card.paymentSuggestionsEnabled !== false)
+						.map(async card => {
+							const payer = accounts.find(
+								account =>
+									account.id === (card.paymentAccountId ?? primary?.id) &&
+									!["CREDIT_CARD", "REWARDS"].includes(account.type),
+							);
+							if (!payer) return [];
+							return pendingStatementPayments(await readLocalCreditBook(card.id)).map(row => ({
+								...row,
+								cardName: card.accountName ?? "Cartão de crédito",
+								financialAccountId: payer.id,
+							}));
+						}),
+				)
+			).flat();
 		},
 		async getPurchaseEditDetails(cardId: string, purchaseId: string): Promise<CreditPurchaseEditDetails> {
 			if (!isGuestMode()) return fetchWithAuth(`/credit-cards/${cardId}/purchases/${purchaseId}`);
@@ -1539,6 +1603,26 @@ export const dataService = {
 				creditBookEntries(await readLocalCreditBook(cardId)).find(row => row.id === refund.id)!,
 			);
 		},
+		async setPayer(cardId: string, paymentAccountId: string | null, paymentSuggestionsEnabled: boolean) {
+			if (!isGuestMode())
+				return fetchWithAuth(`/credit-cards/${cardId}/payer`, {
+					body: JSON.stringify({ paymentAccountId, paymentSuggestionsEnabled }),
+					method: "PUT",
+				});
+			const [card, accounts] = await Promise.all([
+				localCreditCards.getById(cardId),
+				dataService.accounts.getAll(),
+			]);
+			if (!card) throw new Error("Cartão não encontrado");
+			if (
+				paymentAccountId &&
+				!accounts.some(
+					account => account.id === paymentAccountId && !["CREDIT_CARD", "REWARDS"].includes(account.type),
+				)
+			)
+				throw new Error("Conta pagadora indisponível");
+			await localCreditCards.put({ ...card.data, paymentAccountId, paymentSuggestionsEnabled }, cardId);
+		},
 		async setStatementCutoff(cardId: string, statementDate: string | null): Promise<void> {
 			if (isGuestMode()) {
 				const stored = await localCreditCards.getById(cardId);
@@ -1719,37 +1803,7 @@ export const dataService = {
 					rangeEnd,
 					(yields as FinancialAccountYield[] | null) ?? [],
 				);
-				const accountEffects = recurrenceAccountEffects(
-					recurrences,
-					shiftRecurrenceDate(getLocalDateKey(), 1),
-					rangeEnd.toISOString().slice(0, 10),
-					new Set(
-						transactions
-							.filter(tx => tx.recurrenceId && tx.recurrenceOccurrenceDate)
-							.map(tx => `${tx.recurrenceId}:${tx.recurrenceOccurrenceDate!.slice(0, 10)}`),
-					),
-				);
-				for (const account of accountsAtRangeEnd)
-					if (account.balance !== null)
-						account.balance = (account.balance ?? 0) + (accountEffects.get(account.id) ?? 0);
 				const dateKey = (value: Date | string) => new Date(value).toISOString().slice(0, 10);
-				const periodTransactions = transactions.filter(transaction => {
-					const date = new Date(`${transaction.date.slice(0, 10)}T12:00:00`);
-					return transaction.type !== "TRANSFER" && date >= rangeStart && date <= rangeEnd;
-				});
-				const income = periodTransactions
-					.filter(item => item.type === "INCOME")
-					.reduce((sum, item) => sum + item.amount, 0);
-				const expenses = periodTransactions
-					.filter(item => item.type === "EXPENSE")
-					.reduce((sum, item) => sum + item.amount, 0);
-				const totalBalance = accounts
-					.filter(account => !["CREDIT_CARD", "INVESTMENT", "REWARDS"].includes(account.type))
-					.reduce((sum, account) => sum + (account.balance ?? 0), 0);
-				const savingsBalance = accounts
-					.filter(account => account.type === "SAVINGS")
-					.reduce((sum, account) => sum + (account.balance ?? 0), 0);
-				const accountBalance = totalBalance - savingsBalance;
 				const { owedToMe, iOwe } = debts.totals;
 
 				const recurrenceOccurrences = (await localRecurrenceOccurrences.getAll()).map(row => row.data);
@@ -1807,60 +1861,6 @@ export const dataService = {
 							type: "TRANSACTION" as const,
 						})),
 				].toSorted((left, right) => left.date.localeCompare(right.date));
-				const comparisonPeriods = comparisonIntervals(rangeStart);
-				const comparisonEnd = new Date(Math.max(comparisonPeriods.at(-1)!.end.getTime(), rangeEnd.getTime()));
-				const projectionStart = new Date(now);
-				projectionStart.setHours(12, 0, 0, 0);
-				projectionStart.setDate(projectionStart.getDate() + 1);
-				const linkedTransactionDates = new Set([
-					...recurrenceOccurrences.map(row => `${row.recurrenceId}:${row.date}`),
-					...transactions.flatMap(transaction => {
-						const sourceId = transaction.recurrenceId;
-						return sourceId
-							? [`${sourceId}:${transaction.recurrenceOccurrenceDate ?? transaction.date.slice(0, 10)}`]
-							: [];
-					}),
-				]);
-				const projectedMovements: Array<{ amount: number; date: Date; type: "EXPENSE" | "INCOME" }> = [];
-
-				for (const recurrence of recurrences) {
-					if (
-						!recurrence.isActive ||
-						recurrenceNeedsConfiguration(recurrence) ||
-						recurrence.movement === "TRANSFER" ||
-						recurrence.movement === "CARD_PURCHASE"
-					)
-						continue;
-					for (const date of recurrenceDates(recurrence, dateKey(projectionStart), dateKey(comparisonEnd)))
-						if (!linkedTransactionDates.has(`${recurrence.id}:${date}`))
-							projectedMovements.push({
-								amount: recurrence.amount,
-								date: new Date(`${date}T12:00:00`),
-								type: recurrence.movement === "INCOME" ? "INCOME" : "EXPENSE",
-							});
-				}
-				const projectedStatements = (
-					await Promise.all(
-						cards.map(
-							async card =>
-								replayCreditBook(
-									projectRecurrenceCreditBook(
-										await readLocalCreditBook(card.id),
-										recurrences,
-										dateKey(projectionStart),
-										dateKey(comparisonEnd),
-										recurrenceOccurrences,
-									),
-								).statements,
-						),
-					)
-				).flat();
-				for (const statement of projectedStatements) {
-					const dueDate = new Date(`${statement.dueDate.slice(0, 10)}T12:00:00`);
-					const outstanding = Math.max(0, statement.balanceAmount);
-					if (outstanding && dueDate >= projectionStart && dueDate <= comparisonEnd)
-						projectedMovements.push({ amount: outstanding, date: dueDate, type: "EXPENSE" });
-				}
 				const creditCards = cards.map(card => {
 					const cardStatements = statements.filter(statement => statement.creditCardId === card.id);
 					const statement =
@@ -1889,86 +1889,83 @@ export const dataService = {
 							: null,
 					};
 				});
-				const comparisonTransactions = [
-					...transactions.map(transaction => ({
-						...transaction,
-						date: new Date(`${transaction.date.slice(0, 10)}T12:00:00`),
-					})),
-					...projectedMovements,
-				];
-				const endOfCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-				const projectedMovementsUntilMonthEnd = comparisonTransactions.filter(
-					item => item.date >= projectionStart && item.date <= endOfCurrentMonth,
-				);
-				const projectedExpenses = projectedMovementsUntilMonthEnd
-					.filter(item => item.type === "EXPENSE")
-					.reduce((sum, item) => sum + item.amount, 0);
-				const projectedIncome = projectedMovementsUntilMonthEnd
-					.filter(item => item.type === "INCOME")
-					.reduce((sum, item) => sum + item.amount, 0);
-				const projectedCashFlowUntilMonthEnd = {
-					expenses: projectedExpenses,
-					income: projectedIncome,
-					net: projectedIncome - projectedExpenses,
-				};
-				const today = new Date(now);
-				today.setHours(23, 59, 59, 999);
-				const balanceMovementNet = (items: typeof comparisonTransactions) =>
-					items
-						.filter(item => item.type !== "TRANSFER")
-						.reduce((sum, item) => sum + (item.type === "INCOME" ? item.amount : -item.amount), 0);
-				const endingBalance =
-					rangeEnd < today
-						? totalBalance -
-							balanceMovementNet(
-								comparisonTransactions.filter(item => item.date > rangeEnd && item.date <= today),
-							)
-						: rangeEnd > today
-							? totalBalance +
-								balanceMovementNet(
-									comparisonTransactions.filter(item => item.date > today && item.date <= rangeEnd),
-								)
-							: totalBalance;
-				const period = {
-					accountBalance,
+				const { getGuestDashboardFinancialContext } = await import("./dashboard-comparison");
+				const financialContext = await getGuestDashboardFinancialContext({
 					endDate: dateKey(rangeEnd),
-					endingBalance,
-					expenses,
-					income,
-					initialBalance: endingBalance - income + expenses,
-					net: income - expenses,
-					savingsBalance,
+					periodsAfter: 0,
+					periodsBefore: 0,
+					startDate: dateKey(rangeStart),
+				});
+				const selectedMovements = financialContext.movements.filter(
+					item => item.date >= rangeStart && item.date <= rangeEnd,
+				);
+				const totalFor = (type: "INCOME" | "EXPENSE", recurring = false) =>
+					selectedMovements
+						.filter(item => item.type === type)
+						.reduce(
+							(sum, item) =>
+								sum +
+								(recurring ? (item.recurringAmount ?? (item.recurring ? item.amount : 0)) : item.amount),
+							0,
+						);
+				const initialDate = new Date(rangeStart);
+				initialDate.setDate(initialDate.getDate() - 1);
+				const period = {
+					...financialContext.balanceAt(rangeEnd),
+					endDate: dateKey(rangeEnd),
+					expenses: totalFor("EXPENSE"),
+					income: totalFor("INCOME"),
+					initialBalance: financialContext.balanceAt(initialDate).endingBalance,
+					net: totalFor("INCOME") - totalFor("EXPENSE"),
+					recurringExpenses: totalFor("EXPENSE", true),
+					recurringIncome: totalFor("INCOME", true),
 					startDate: dateKey(rangeStart),
 				};
+				const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+				const future = financialContext.movements.filter(
+					item => dateKey(item.date) > getLocalDateKey() && item.date <= monthEnd,
+				);
+				const futureTotal = (type: "INCOME" | "EXPENSE", recurring = false) =>
+					future
+						.filter(item => item.type === type)
+						.reduce(
+							(sum, item) =>
+								sum +
+								(recurring ? (item.recurringAmount ?? (item.recurring ? item.amount : 0)) : item.amount),
+							0,
+						);
+				const projectedCashFlowUntilMonthEnd = {
+					expenses: futureTotal("EXPENSE"),
+					income: futureTotal("INCOME"),
+					net: futureTotal("INCOME") - futureTotal("EXPENSE"),
+					recurringExpenses: futureTotal("EXPENSE", true),
+					recurringIncome: futureTotal("INCOME", true),
+				};
+				const { endingBalance: _, ...balanceBreakdown } = financialContext.balanceAt(rangeEnd);
+				const forecastBalances = financialContext.balancesAt(rangeEnd);
 
 				return {
 					accounts: accountsAtRangeEnd
-						.filter(account => account.type === "CHECKING" || account.type === "SAVINGS")
+						.filter(account => ["CHECKING", "CASH", "SAVINGS", "INVESTMENT"].includes(account.type))
 						.map(account => ({
-							balance: account.balance ?? 0,
+							balance: forecastBalances.get(account.id) ?? 0,
 							id: account.id,
 							institutionName: account.institution?.name ?? null,
 							name: account.name,
-							type: account.type as "CHECKING" | "SAVINGS",
+							type: account.type as "CHECKING" | "CASH" | "SAVINGS" | "INVESTMENT",
 						})),
-					balanceBreakdown: { accountBalance, savingsBalance },
+					balanceBreakdown,
 					creditCards,
-					dailyBalances: transactions
-						.filter(transaction => {
-							const date = new Date(`${transaction.date.slice(0, 10)}T12:00:00`);
-							return date >= rangeStart && date <= rangeEnd;
-						})
-						.map(transaction => transaction.date.slice(0, 10))
-						.filter((date, index, dates) => dates.indexOf(date) === index)
+					dailyBalances: [
+						...new Set(
+							financialContext.movements
+								.filter(item => item.date >= rangeStart && item.date <= rangeEnd)
+								.map(item => dateKey(item.date)),
+						),
+					]
 						.toSorted()
 						.map(date => ({
-							balance:
-								period.initialBalance +
-								balanceMovementNet(
-									comparisonTransactions.filter(
-										item => item.date >= rangeStart && dateKey(item.date) <= date,
-									),
-								),
+							balance: financialContext.balanceAt(new Date(`${date}T12:00:00`)).endingBalance,
 							date,
 						})),
 					debts: {
@@ -1987,6 +1984,7 @@ export const dataService = {
 					forecasts,
 					period,
 					projectedCashFlowUntilMonthEnd,
+					referenceRatesAvailable: financialContext.referenceRatesAvailable,
 					totalAvailableCredit: creditCards
 						.filter(card => !card.excludeFromTotals)
 						.reduce((sum, card) => sum + card.availableLimit, 0),

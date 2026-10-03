@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { RecurrenceMovement, RecurrenceUnit } from "@zaimu/finance/recurrence";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
@@ -71,6 +71,24 @@ export function CreateRecurringDialog({
 		queryFn: () => dataService.accounts.getAll(),
 		queryKey: queryKeys.accounts.list(identity!),
 	});
+	const primaryInitialized = useRef(false);
+	useEffect(() => {
+		if (!open) {
+			primaryInitialized.current = false;
+			return;
+		}
+		if (!accounts.data || primaryInitialized.current || recurrence) return;
+		primaryInitialized.current = true;
+		const primary = accounts.data.find(
+			account => account.isPrimary && ["CHECKING", "CASH"].includes(account.type),
+		);
+		if (primary)
+			setDraft(current =>
+				current.movement === "EXPENSE" && !current.originFinancialAccountId
+					? { ...current, originFinancialAccountId: primary.id }
+					: current,
+			);
+	}, [open, accounts.data, recurrence]);
 	useDialogCloseReset(open, () => {
 		setDraft(initialDraft(recurrence));
 		setDebtSplit(debtSplitToInput(recurrence?.debtSplit));

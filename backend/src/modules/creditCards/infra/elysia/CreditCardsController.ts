@@ -10,6 +10,7 @@ import {
 } from "@zaimu/finance/credit-book";
 import { paymentStatement, statementCutoffAfter, statementEntryKind } from "@zaimu/finance/credit-card";
 import Elysia, { t } from "elysia";
+import { setCardPayer } from "~/modules/accounts/application/payment-preferences";
 import { assertBalanceAccountOwnership, assertCreditCardOwnership, requireUserId } from "~/modules/auth";
 import {
 	type CreditOverviewCard,
@@ -31,6 +32,10 @@ import {
 	deleteNormalizedRefund,
 	editNormalizedRefund,
 } from "~/modules/creditCards/application/normalized-refunds";
+import {
+	confirmSuggestedPayment,
+	getPaymentSuggestions,
+} from "~/modules/creditCards/application/payment-suggestions";
 import {
 	decodeStatementCursor,
 	encodeStatementCursor,
@@ -54,6 +59,11 @@ import {
 } from "~/shared/infra/sql";
 import { CreditBookDTO } from "./CreditBookDTO";
 import { CreditPurchaseEditReturn } from "./CreditPurchaseEditReturn";
+import {
+	ConfirmPaymentSuggestionDTO,
+	ConfirmPaymentSuggestionReturn,
+	PaymentSuggestionReturn,
+} from "./PaymentSuggestionsDTO";
 
 const statementColumns = [
 	"id",
@@ -117,6 +127,33 @@ const UpdatePurchaseBody = t.Object({
 	totalAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
 });
 export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
+	.get("/payment-suggestions", async ({ request }) => getPaymentSuggestions(await requireUserId(request)), {
+		response: t.Array(PaymentSuggestionReturn),
+	})
+	.put(
+		"/:id/payer",
+		async ({ params, body, request }) =>
+			setCardPayer(
+				await requireUserId(request),
+				params.id,
+				body.paymentAccountId,
+				body.paymentSuggestionsEnabled,
+			),
+		{
+			body: t.Object({ paymentAccountId: t.Nullable(t.String()), paymentSuggestionsEnabled: t.Boolean() }),
+			response: t.Object({
+				paymentAccountId: t.Nullable(t.String()),
+				paymentSuggestionsEnabled: t.Boolean(),
+			}),
+		},
+	)
+	.post(
+		"/:id/payment-suggestions/confirm",
+		async ({ params, body, request }) =>
+			confirmSuggestedPayment(await requireUserId(request), params.id, body),
+		{ body: ConfirmPaymentSuggestionDTO, response: ConfirmPaymentSuggestionReturn },
+	)
+
 	.onTransform(({ body }) => {
 		rejectLegacyFinancialFields(body);
 	})
@@ -149,6 +186,8 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 							financialAccountId: fields.CreditCard.financialAccountId,
 							id: fields.CreditCard.id,
 							ignoreStatementsBefore: fields.CreditCard.ignoreStatementsBefore,
+							paymentAccountId: fields.CreditCard.paymentAccountId,
+							paymentSuggestionsEnabled: fields.CreditCard.paymentSuggestionsEnabled,
 							securityDeposit: fields.CreditCard.securityDeposit,
 							statementDay: fields.CreditCard.statementDay,
 							workingDueDate: fields.CreditCard.workingDueDate,
@@ -242,6 +281,8 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						financialAccountId: fields.CreditCard.financialAccountId,
 						id: fields.CreditCard.id,
 						ignoreStatementsBefore: fields.CreditCard.ignoreStatementsBefore,
+						paymentAccountId: fields.CreditCard.paymentAccountId,
+						paymentSuggestionsEnabled: fields.CreditCard.paymentSuggestionsEnabled,
 						securityDeposit: fields.CreditCard.securityDeposit,
 						statementDay: fields.CreditCard.statementDay,
 						workingDueDate: fields.CreditCard.workingDueDate,
@@ -748,6 +789,10 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			await assertCreditCardOwnership(params.id, userId);
 			await assertBalanceAccountOwnership(body.financialAccountId, userId);
 			const transaction = await withTransaction(async executor => {
+				await queryRaw(`SELECT "id" FROM "CreditCard" WHERE "id"=$1 FOR UPDATE`, [params.id]);
+				await queryRaw(`SELECT "id" FROM "FinancialAccount" WHERE "id"=$1 FOR UPDATE`, [
+					body.financialAccountId,
+				]);
 				const payment = await executor.queryFirst(
 					executor.db.sql.public.Transaction.insert([
 						{

@@ -91,6 +91,7 @@ const accountColumns = [
 	"id",
 	"userId",
 	"isHidden",
+	"isPrimary",
 	"name",
 	"type",
 	"institutionId",
@@ -113,6 +114,8 @@ const categoryColumns = [
 	"updatedAt",
 ] as const;
 const cardColumns = [
+	"paymentAccountId",
+	"paymentSuggestionsEnabled",
 	"id",
 	"financialAccountId",
 	"cashbackAccountId",
@@ -236,7 +239,18 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 							userId,
 							value<string | undefined>(entity, "institutionName") ?? institutionInput?.name,
 						);
+						const isPrimary = value<boolean | undefined>(entity, "isPrimary");
+						if (isPrimary) {
+							if (!["CHECKING", "CASH"].includes(type))
+								throw new Error("Conta primária exige conta corrente ou dinheiro");
+							await queryRaw(`SELECT "id" FROM "user" WHERE "id"=$1 FOR UPDATE`, [userId]);
+							await queryRaw(
+								`UPDATE "FinancialAccount" SET "isPrimary"=false WHERE "userId"=$1 AND "id"<>$2`,
+								[userId, id],
+							);
+						}
 						const values = {
+							...(isPrimary !== undefined && { isPrimary }),
 							institutionId: institution?.id,
 							isHidden: value<boolean | undefined>(entity, "isHidden") ?? false,
 							name: value<string>(entity, "name"),
@@ -519,12 +533,22 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 						if (!accountIds.has(financialAccountId))
 							throw new Error(`Conta financeira ${financialAccountId} indisponível`);
 						const existing = await queryFirst(
-							db.sql.public.CreditCard.select("id")
+							db.sql.public.CreditCard.select("id", "financialAccountId")
 								.where((f, fn) => fn.eq(f.id, id))
 								.limit(1)
 								.build(),
 						);
+						if (existing && !accountIds.has(existing.financialAccountId))
+							throw new Error("Cartão pertence a outro proprietário");
 						const cashbackAccountId = value<null | string | undefined>(entity, "cashbackAccountId") ?? null;
+						const paymentAccountId = value<string | null | undefined>(entity, "paymentAccountId");
+						if (paymentAccountId) {
+							const [payer] = await queryRaw(
+								`SELECT "id" FROM "FinancialAccount" WHERE "id"=$1 AND "userId"=$2 AND NOT "isHidden" AND "type" IN ('CHECKING','CASH','SAVINGS','INVESTMENT')`,
+								[paymentAccountId, userId],
+							);
+							if (!payer) throw new Error("Conta pagadora indisponível");
+						}
 						const cashbackSettings = {
 							cashbackAccountId,
 							cashbackRate: value<null | number | undefined>(entity, "cashbackRate") ?? null,
@@ -539,6 +563,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 						if (cashbackAccountId && !accountIds.has(cashbackAccountId))
 							throw new Error(`Conta de cashback ${cashbackAccountId} indisponível`);
 						const values = {
+							...(paymentAccountId !== undefined && { paymentAccountId: paymentAccountId as never }),
 							cashbackAccountId,
 							cashbackRate: nullableNumeric<5, 2>(cashbackSettings.cashbackRate),
 							cashbackYieldPeriod: cashbackSettings.cashbackYieldPeriod,
@@ -550,6 +575,8 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 							dueDay: Number(value<number>(entity, "dueDay")),
 							excludeFromTotals: value<boolean>(entity, "excludeFromTotals") ?? false,
 							financialAccountId,
+							paymentSuggestionsEnabled:
+								value<boolean | undefined>(entity, "paymentSuggestionsEnabled") ?? true,
 							securityDeposit: nullableNumeric<12, 2>(
 								value<number | null | undefined>(entity, "securityDeposit") ?? null,
 							),
@@ -745,6 +772,12 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 							throw new Error(`Conta de destino ${destinationFinancialAccountId} indisponível`);
 						if (paymentCreditCardId && !cardIds.has(paymentCreditCardId))
 							throw new Error(`Cartão ${paymentCreditCardId} indisponível`);
+						if (paymentCreditCardId)
+							await queryRaw(`SELECT "id" FROM "CreditCard" WHERE "id"=$1 FOR UPDATE`, [paymentCreditCardId]);
+						if (originFinancialAccountId)
+							await queryRaw(`SELECT "id" FROM "FinancialAccount" WHERE "id"=$1 FOR UPDATE`, [
+								originFinancialAccountId,
+							]);
 						if (recurrenceId && !recurringIds.has(recurrenceId))
 							throw new Error(`Recorrência ${recurrenceId} indisponível`);
 						if (recurrenceId && recurrenceOccurrenceDate) {

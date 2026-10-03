@@ -23,6 +23,7 @@ import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
 import { runDialogSave } from "@/lib/dialog-save";
 import { useAuthStore } from "@/stores/auth";
 import { AccountYieldFields } from "./AccountYieldFields";
+import { CardPayerFields } from "./CardPayerFields";
 import { CashbackSettingsDialog } from "./CashbackSettingsDialog";
 import { RecalculateCurrentDayYieldDialog } from "./RecalculateCurrentDayYieldDialog";
 
@@ -87,6 +88,12 @@ export function CreateFinancialAccountDialog({
 	const [newInstitutionName, setNewInstitutionName] = useDebouncedInput("", () => undefined);
 	const [name, setName] = useDebouncedInput(account?.name ?? "", () => undefined);
 	const [type, setType] = useState<FinancialAccount["type"]>(account?.type ?? defaultType ?? "CHECKING");
+	const [paymentAccountId, setPaymentAccountId] = useState<string | null>(
+		account?.creditCard?.paymentAccountId ?? null,
+	);
+	const [paymentSuggestionsEnabled, setPaymentSuggestionsEnabled] = useState(
+		account?.creditCard?.paymentSuggestionsEnabled ?? true,
+	);
 	const [creditLimit, setCreditLimit] = useState(String(account?.creditCard?.creditLimit ?? ""));
 	const [securityDeposit, setSecurityDeposit] = useState(String(account?.creditCard?.securityDeposit ?? ""));
 	const [statementDay, setStatementDay] = useState(String(account?.creditCard?.statementDay ?? 10));
@@ -170,6 +177,8 @@ export function CreateFinancialAccountDialog({
 		setStatementDay(String(account?.creditCard?.statementDay ?? 10));
 		setDueDay(String(account?.creditCard?.dueDay ?? 17));
 		setWorkingDueDate(account?.creditCard?.workingDueDate ?? false);
+		setPaymentAccountId(account?.creditCard?.paymentAccountId ?? null);
+		setPaymentSuggestionsEnabled(account?.creditCard?.paymentSuggestionsEnabled ?? true);
 		setExcludeFromTotals(account?.creditCard?.excludeFromTotals ?? false);
 		setYieldEnabled(Boolean(account?.yieldFixedRate || (!isGuestMode && account?.yieldReferenceType)));
 		setYieldFixedRate(String(account?.yieldFixedRate ?? ""));
@@ -266,6 +275,8 @@ export function CreateFinancialAccountDialog({
 								creditLimit: Number(creditLimit),
 								dueDay: Number(dueDay),
 								excludeFromTotals,
+								paymentAccountId,
+								paymentSuggestionsEnabled,
 								securityDeposit: securityDeposit ? Number(securityDeposit) : undefined,
 								statementDay: Number(statementDay),
 								workingDueDate,
@@ -790,6 +801,14 @@ export function CreateFinancialAccountDialog({
 										</span>
 									</CheckboxField>
 								</div>
+							)}
+							{type === "CREDIT_CARD" && (
+								<CardPayerFields
+									enabled={paymentSuggestionsEnabled}
+									onEnabledChange={setPaymentSuggestionsEnabled}
+									onPayerChange={setPaymentAccountId}
+									payer={paymentAccountId}
+								/>
 							)}
 							<DialogFooter>
 								<Button

@@ -7,6 +7,7 @@ import {
 	CreditCardImportReviewDialog,
 	PendingCreditCardImportsNotice,
 } from "@/components/credit-card-imports";
+import { PendingPaymentSuggestions } from "@/components/payment-suggestions";
 import {
 	PendingTransactionImportsNotice,
 	TransactionImportReviewDialog,
@@ -84,6 +85,7 @@ export function DashboardPage() {
 			<PendingTransactionImportsNotice onReview={setReviewingImportId} />
 			<PendingCreditCardImportsNotice onReview={setReviewingCreditCardImportId} />
 			<DashboardDebtInvitations />
+			<PendingPaymentSuggestions />
 			<section className="grid gap-3 sm:gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] xl:grid-rows-[auto_auto]">
 				<Card className="gap-3 border-0 bg-primary py-4 text-primary-foreground shadow-primary/15 shadow-xl [--card-spacing:--spacing(4)] sm:gap-6 sm:py-6 xl:row-span-2 sm:[--card-spacing:--spacing(6)]">
 					<CardHeader>

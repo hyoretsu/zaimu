@@ -100,6 +100,7 @@ export async function persistImportItem(
 	financialAccountId: string,
 	userId: string,
 ) {
+	await lockImportPayment(item);
 	if (item.type === "YIELD") {
 		const existingYield = await transaction.queryFirst(
 			transaction.db.sql.public.FinancialAccountYield.select("id")
@@ -199,6 +200,7 @@ export async function persistReconciledImportItem(
 	tagIds: string[],
 	financialAccountId: string,
 ): Promise<ReconciledImportTarget> {
+	await lockImportPayment(item);
 	const values = {
 		amount: String(item.amount),
 		date: item.date,
@@ -327,4 +329,13 @@ export async function finalizeImportWhenEmpty(transaction: SqlExecutor, importId
 			.build(),
 	);
 	return true;
+}
+
+async function lockImportPayment(item: ImportItemToApprove) {
+	if (item.paymentCreditCardId)
+		await queryRaw(`SELECT "id" FROM "CreditCard" WHERE "id"=$1 FOR UPDATE`, [item.paymentCreditCardId]);
+	if (item.originFinancialAccountId)
+		await queryRaw(`SELECT "id" FROM "FinancialAccount" WHERE "id"=$1 FOR UPDATE`, [
+			item.originFinancialAccountId,
+		]);
 }
