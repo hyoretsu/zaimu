@@ -162,6 +162,9 @@ interface Dependencies {
 	hydrateLocalDebtSplit: (amount: number, split: DebtSplitInput) => Promise<Recurrence["debtSplit"]>;
 }
 export function createRecurrenceService(deps: Dependencies) {
+	const cacheRemoteData = (operation: Promise<unknown>) => {
+		void operation.catch(() => undefined);
+	};
 	const saveLocal = async (input: RecurrenceInput | Partial<RecurrenceInput>, id?: string) => {
 		const owner = getCurrentCacheIdentity()!;
 		const existing = id ? (await localRecurrences.getById(id, owner))?.data : undefined;
@@ -262,19 +265,24 @@ export function createRecurrenceService(deps: Dependencies) {
 		},
 		async create(input: RecurrenceInput): Promise<Recurrence> {
 			if (deps.isGuestMode()) return saveLocal(input);
+			const owner = getCurrentCacheIdentity()!;
 			const record = await deps.fetchWithAuth<Recurrence>("/recurring", {
 				body: JSON.stringify(input),
 				method: "POST",
 			});
-			await localRecurrences.put(record, record.id);
+			cacheRemoteData(localRecurrences.put(record, record.id, owner));
 			return record;
 		},
 		async delete(id: string, deleteTransactions = false) {
-			if (!deps.isGuestMode())
+			const owner = getCurrentCacheIdentity()!;
+			if (!deps.isGuestMode()) {
 				await deps.fetchWithAuth(`/recurring/${id}?deleteTransactions=${deleteTransactions}`, {
 					method: "DELETE",
 				});
-			await deleteLocalRecurrence(getCurrentCacheIdentity()!, id, deleteTransactions);
+				cacheRemoteData(deleteLocalRecurrence(owner, id, deleteTransactions));
+				return;
+			}
+			await deleteLocalRecurrence(owner, id, deleteTransactions);
 		},
 		async get(id: string): Promise<Recurrence> {
 			const owner = getCurrentCacheIdentity()!;
@@ -284,20 +292,28 @@ export function createRecurrenceService(deps: Dependencies) {
 				return record.data;
 			}
 			const record = await deps.fetchWithAuth<Recurrence>(`/recurring/${id}`);
-			await localRecurrences.put(record, id, owner);
+			cacheRemoteData(localRecurrences.put(record, id, owner));
 			return record;
 		},
 		async getAll(): Promise<Recurrence[]> {
 			if (deps.isGuestMode())
 				return (await localRecurrences.getAll()).map(({ data: { debtSplit: _, ...summary } }) => summary);
+			const owner = getCurrentCacheIdentity()!;
 			const records = await deps.fetchWithAuth<Recurrence[]>("/recurring");
-			const existing = new Map((await localRecurrences.getAll()).map(row => [row.data.id, row.data]));
-			await localRecurrences.replaceSnapshot(
-				records.map(data => ({
-					data: { ...existing.get(data.id), ...data },
-					localId: data.id,
-					syncedAt: Date.now(),
-				})),
+			cacheRemoteData(
+				(async () => {
+					const existing = new Map(
+						(await localRecurrences.getAll(owner)).map(row => [row.data.id, row.data]),
+					);
+					await localRecurrences.replaceSnapshot(
+						records.map(data => ({
+							data: { ...existing.get(data.id), ...data },
+							localId: data.id,
+							syncedAt: Date.now(),
+						})),
+						owner,
+					);
+				})(),
 			);
 			return records;
 		},
@@ -353,11 +369,12 @@ export function createRecurrenceService(deps: Dependencies) {
 		},
 		async update(id: string, input: Partial<RecurrenceInput>): Promise<Recurrence> {
 			if (deps.isGuestMode()) return saveLocal(input, id);
+			const owner = getCurrentCacheIdentity()!;
 			const record = await deps.fetchWithAuth<Recurrence>(`/recurring/${id}`, {
 				body: JSON.stringify(input),
 				method: "PATCH",
 			});
-			await localRecurrences.put(record, id);
+			cacheRemoteData(localRecurrences.put(record, id, owner));
 			return record;
 		},
 	};
