@@ -69,6 +69,30 @@ jobs:
           registry: ghcr.io
           password: ${{ secrets.GITHUB_TOKEN }}
 
+  ghcr-worker:
+    name: Build and publish worker image
+    needs: detect
+    if: ${{ contains(fromJSON(needs.detect.outputs.tasks).build, 'backend') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Build and publish image
+        uses: hyoretsu/gh-actions/containers@main
+        with:
+          image: ${{ github.repository }}_worker
+          dockerfile: backend/Dockerfile.worker
+          build-args: |
+            NODE_ENV=production
+          secrets: DATABASE_URL=${{ secrets.DATABASE_URL }}
+          cache-scope: worker
+          registry: ghcr.io
+          password: ${{ secrets.GITHUB_TOKEN }}
+
   ghcr-frontend:
     name: Build and publish frontend image
     needs: detect

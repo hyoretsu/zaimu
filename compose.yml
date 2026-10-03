@@ -40,8 +40,7 @@ services:
       caddy.reverse_proxy: "{{upstreams 3333}}"
 
   worker:
-    image: ghcr.io/hyoretsu/zaimu_backend:latest
-    command: ["bun", "dist/worker.js"]
+    image: ghcr.io/hyoretsu/zaimu_worker:latest
     env_file: .env
     networks:
       - postgres
