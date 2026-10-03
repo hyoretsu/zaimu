@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { type CreditBook, newBookPurchase } from "@zaimu/finance/credit-book";
 import { IDBFactory } from "fake-indexeddb";
+import { createJSONStorage } from "zustand/middleware";
 
 test("visitor payment validates balance and date, serializes attempts and isolates owners", async () => {
 	Object.defineProperty(globalThis, "indexedDB", { configurable: true, value: new IDBFactory() });
@@ -9,6 +10,18 @@ test("visitor payment validates balance and date, serializes attempts and isolat
 		value: { location: { origin: "http://localhost" } },
 	});
 	const { useAuthStore } = await import("@/stores/auth");
+	const persisted = new Map<string, string>();
+	useAuthStore.persist.setOptions({
+		storage: createJSONStorage(() => ({
+			getItem: key => persisted.get(key) ?? null,
+			removeItem: key => {
+				persisted.delete(key);
+			},
+			setItem: (key, value) => {
+				persisted.set(key, value);
+			},
+		})),
+	});
 	useAuthStore.setState({ guestId: "suggestions", isAuthenticated: false, isGuestMode: true, user: null });
 	const storage = await import("../localStorage");
 	const owner = "guest:suggestions" as const;

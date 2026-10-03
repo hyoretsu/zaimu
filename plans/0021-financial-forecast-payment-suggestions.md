@@ -8,7 +8,7 @@ Motor diário compartilhado servidor/visitante; consumo ordenado de reservas; pr
 - [x] Histórico móvel de taxas, bootstrap retomável, médias SQL e visitante offline.
 - [x] Preferências, sugestões, confirmação segura e paridade visitante.
 - [x] Gráfico com centavos, barras empilhadas, tooltips e subtotais recorrentes.
-- [ ] Regras de negócio, verificação integrada, builds e commits locais.
+- [x] Regras de negócio, verificação integrada, builds e commits locais.
 
 ## Limite local
 Preservar alterações prévias em packages/sql/migrations/app/refs/db.json e frontend/src/routes/recurring/components/RecurringListItem.test.tsx. Não executar migrações, cargas ou publicações externas.
@@ -29,3 +29,7 @@ Motor e interface: 120 testes relevantes passaram. Desktop 1280 px e mobile 390 
 Migração aditiva: `20261003T1952_financial_payment_preferences`, partindo do contrato `0b65cd30af28a84c140bdbd4e2dc1648e2e5b18cc6ae78f08b06f0a3002e161e`. Após revisar cadeia local, avançar ref db para snapshot `cefc24e812413f0dc86f6896aafa5b1e75287baca760266bf194f867c2421e96` e executar `bun run --cwd packages/sql migrate:deploy`. Aplicar também `packages/sql/scripts/financial-payment-preferences-constraints.sql` no banco escolhido para unicidade da conta primária. Ref db prévio foi preservado; nenhum comando externo executado.
 
 Preferências e sugestões implementadas em servidor e visitante. Migração aditiva preparada, sem aplicação externa. Teste visitante cobre concorrência, repetição, data editada, saldo insuficiente e isolamento. Locks compartilhados incluem pagamento manual e importação.
+
+Verificação final: 126 testes passaram em 26 arquivos. Builds frontend/backend passaram. Verificação de tipos encontrou duas incompatibilidades corrigidas (valor numérico em idempotência e contrato recorrente da fatura); nova execução aprovada nos quatro pacotes. Testes de concorrência do servidor ainda precisam de banco integrado; lógica revisada, cobertura concorrente executada no visitante.
+
+Entrega local concluída. 126 testes aprovados; check-types aprovado; builds frontend/backend aprovados; hooks normais aprovados. Workspace conserva somente duas alterações prévias. Concorrência backend não validada em integração real de pagamentos; essa verificação permanece limitação de cobertura.

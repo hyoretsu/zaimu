@@ -27,16 +27,14 @@ export function DashboardChartTooltip({ active, period }: DashboardChartTooltipP
 		? `${month[0]?.toUpperCase()}${month.slice(1)}`
 		: `${format(start, "dd/MM/yyyy")} até ${format(end, "dd/MM/yyyy")}`;
 	const rows = [
-		{ color: "text-sky-500", label: "Em conta", value: period.accountBalance },
-		{ color: "text-amber-500", label: "Renda fixa", value: period.fixedIncomeBalance },
-		{ color: "text-violet-500", label: "Renda variável", value: period.variableIncomeBalance },
-		{ color: "text-primary", label: "Saldo total", total: true, value: period.endingBalance },
-		{ color: "text-emerald-700", label: "Entradas recorrentes", value: period.recurringIncome },
-		{ color: "text-emerald-500", label: "Outras entradas", value: period.income - period.recurringIncome },
-		{ color: "text-emerald-500", label: "Entradas", total: true, value: period.income },
-		{ color: "text-rose-700", label: "Saídas recorrentes", value: period.recurringExpenses },
-		{ color: "text-rose-500", label: "Outras saídas", value: period.expenses - period.recurringExpenses },
-		{ color: "text-rose-500", label: "Saídas", total: true, value: period.expenses },
+		{ color: "#0ea5e9", label: "Em conta", value: period.accountBalance },
+		{ color: "#f59e0b", label: "Renda fixa", value: period.fixedIncomeBalance },
+		{ color: "#8b5cf6", label: "Renda variável", value: period.variableIncomeBalance },
+		{ color: "var(--color-primary)", label: "Saldo total", total: true, value: period.endingBalance },
+		{ color: "#047857", label: "Renda", value: period.recurringIncome },
+		{ color: "#34d399", label: "Outras entradas", value: period.income - period.recurringIncome },
+		{ color: "#be123c", label: "Gastos recorrentes", value: period.recurringExpenses },
+		{ color: "#fb7185", label: "Outras saídas", value: period.expenses - period.recurringExpenses },
 	];
 	return (
 		<div className="grid w-64 max-w-[calc(100vw-4rem)] gap-1.5 rounded-lg border border-border/50 bg-background px-3 py-2 text-xs shadow-xl">
@@ -47,7 +45,9 @@ export function DashboardChartTooltip({ active, period }: DashboardChartTooltipP
 					key={row.label}
 				>
 					<span className="text-muted-foreground">{row.label}</span>
-					<span className={`font-mono tabular-nums ${row.color}`}>{currency.format(row.value)}</span>
+					<span className="font-mono tabular-nums" style={{ color: row.color }}>
+						{currency.format(row.value)}
+					</span>
 				</div>
 			))}
 		</div>

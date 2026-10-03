@@ -23,6 +23,7 @@ export interface CreditOverviewCard {
 }
 
 export interface CreditOverviewStatement {
+	recurringAmount?: number;
 	balanceAmount: number;
 	chargesAmount: number;
 	creditCardId: string;

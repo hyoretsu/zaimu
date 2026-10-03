@@ -46,7 +46,7 @@ export async function confirmSuggestedPayment(userId: string, cardId: string, in
 				(previous as SuggestedPaymentTransaction & { userId: string }).userId !== userId ||
 				previous.paymentCreditCardId !== cardId ||
 				previous.originFinancialAccountId !== input.financialAccountId ||
-				moneyCents(String(previous.amount)) !== moneyCents(input.amount) ||
+				moneyCents(Number(previous.amount)) !== moneyCents(input.amount) ||
 				String(previous.date instanceof Date ? previous.date.toISOString() : previous.date).slice(0, 10) !==
 					input.date
 			)

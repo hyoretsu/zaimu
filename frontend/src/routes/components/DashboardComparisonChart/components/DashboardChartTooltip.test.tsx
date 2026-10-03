@@ -19,20 +19,22 @@ const period: DashboardPeriod = {
 	variableIncomeBalance: 46,
 };
 
-test("tooltip preserves cents, splits recurring flows, and shows independent totals", () => {
+test("tooltip preserves cents, splits recurring flows, and omits standalone flow totals", () => {
 	const html = renderToStaticMarkup(<DashboardChartTooltip active period={period} />);
 	expect(html).toContain("Outubro de 2026");
+	expect(html).not.toContain(">Entradas<");
+	expect(html).not.toContain(">Saídas<");
 	for (const label of [
 		"Renda fixa",
 		"Renda variável",
-		"Entradas recorrentes",
+		"Renda",
 		"Outras entradas",
-		"Saídas recorrentes",
+		"Gastos recorrentes",
 		"Outras saídas",
 		"Saldo total",
 	])
 		expect(html).toContain(label);
-	for (const value of ["135,85", "120,25", "100,05", "20,20", "90,65", "70,15", "20,50", "46,00", "-R$"])
+	for (const value of ["135,85", "100,05", "20,20", "70,15", "20,50", "46,00", "-R$"])
 		expect(html).toContain(value);
 });
 

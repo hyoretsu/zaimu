@@ -18,16 +18,14 @@ const currency = new Intl.NumberFormat("pt-BR", {
 	style: "currency",
 });
 const chartConfig = {
-	accountBalance: { color: "var(--color-sky-500)", label: "Em conta" },
+	accountBalance: { color: "#0ea5e9", label: "Em conta" },
 	endingBalance: { color: "var(--color-primary)", label: "Saldo total" },
-	expenses: { color: "var(--color-rose-500)", label: "Saídas" },
-	fixedIncomeBalance: { color: "var(--color-amber-500)", label: "Renda fixa" },
-	income: { color: "var(--color-emerald-500)", label: "Entradas" },
-	otherExpenses: { color: "var(--color-rose-400)", label: "Outras saídas" },
-	otherIncome: { color: "var(--color-emerald-400)", label: "Outras entradas" },
-	recurringExpenses: { color: "var(--color-rose-700)", label: "Saídas recorrentes" },
-	recurringIncome: { color: "var(--color-emerald-700)", label: "Entradas recorrentes" },
-	variableIncomeBalance: { color: "var(--color-violet-500)", label: "Renda variável" },
+	fixedIncomeBalance: { color: "#f59e0b", label: "Renda fixa" },
+	otherExpenses: { color: "#fb7185", label: "Outras saídas" },
+	otherIncome: { color: "#34d399", label: "Outras entradas" },
+	recurringExpenses: { color: "#be123c", label: "Gastos recorrentes" },
+	recurringIncome: { color: "#047857", label: "Renda" },
+	variableIncomeBalance: { color: "#8b5cf6", label: "Renda variável" },
 } satisfies ChartConfig;
 const legendItems = [
 	{ key: "accountBalance", kind: "line" },
@@ -38,8 +36,6 @@ const legendItems = [
 	{ key: "otherIncome", kind: "bar" },
 	{ key: "recurringExpenses", kind: "bar" },
 	{ key: "otherExpenses", kind: "bar" },
-	{ key: "income", kind: "total" },
-	{ key: "expenses", kind: "total" },
 ] as const;
 
 function formatAxisLabel(startDate: string) {
