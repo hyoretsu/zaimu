@@ -120,8 +120,6 @@ export function DashboardPage() {
 					expenses={projectedCashFlow.expenses}
 					income={projectedCashFlow.income}
 					net={projectedCashFlow.net}
-					recurringExpenses={projectedCashFlow.recurringExpenses}
-					recurringIncome={projectedCashFlow.recurringIncome}
 				/>
 			</section>
 			<DashboardReferenceRateNotice available={dashboard.referenceRatesAvailable} />

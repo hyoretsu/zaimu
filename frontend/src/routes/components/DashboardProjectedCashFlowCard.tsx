@@ -7,16 +7,12 @@ interface DashboardProjectedCashFlowCardProps {
 	expenses: number;
 	income: number;
 	net: number;
-	recurringIncome: number;
-	recurringExpenses: number;
 }
 
 export function DashboardProjectedCashFlowCard({
 	expenses,
 	income,
 	net,
-	recurringIncome,
-	recurringExpenses,
 }: DashboardProjectedCashFlowCardProps) {
 	const projectionKind = net > 0 ? "gain" : net < 0 ? "expense" : "neutral";
 	const copy = {
@@ -62,7 +58,6 @@ export function DashboardProjectedCashFlowCard({
 					<strong className="mt-1 block whitespace-nowrap text-base text-emerald-600 sm:text-lg">
 						{currency.format(income)}
 					</strong>
-					<p className="mt-1 text-xs opacity-80">Recorrentes: {currency.format(recurringIncome)}</p>
 				</div>
 				<div className="min-w-0 border-l px-3 py-3 sm:px-4 sm:py-4">
 					<p className="flex items-center gap-1.5 text-muted-foreground text-xs">
@@ -71,7 +66,6 @@ export function DashboardProjectedCashFlowCard({
 					<strong className="mt-1 block whitespace-nowrap text-base text-rose-600 sm:text-lg">
 						{currency.format(expenses)}
 					</strong>
-					<p className="mt-1 text-xs opacity-80">Recorrentes: {currency.format(recurringExpenses)}</p>
 				</div>
 			</div>
 
