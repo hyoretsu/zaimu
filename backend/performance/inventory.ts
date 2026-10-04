@@ -6,7 +6,9 @@ const routes: { method: string; path: string; source: string; budget: number; re
 for await (const source of new Bun.Glob("backend/src/**/*Controller.ts").scan(root)) {
 	const text = await Bun.file(`${root}/${source}`).text();
 	const prefix = text.match(/prefix:\s*["']([^"']+)["']/)?.[1] ?? "";
-	for (const match of text.matchAll(/\.(get|post|patch|put|delete)\(\s*["']([^"']+)["']/g)) {
+	for (const match of text.matchAll(
+		/(?:^\s*|new Elysia\([^\n]*\))\.(get|post|patch|put|delete)\(\s*["']([^"']+)["']/gm,
+	)) {
 		const path = `${prefix}${match[2]}`;
 		const known = Object.values(performanceBudgets).find(budget => budget.path.split("?")[0] === path);
 		routes.push({

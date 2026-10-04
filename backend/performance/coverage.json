@@ -217,27 +217,6 @@
 		{
 			"budget": 1000,
 			"method": "GET",
-			"path": "/categoriesif-none-match",
-			"result": "pending",
-			"source": "backend/src/modules/categories/infra/elysia/CategoriesController.ts"
-		},
-		{
-			"budget": 1000,
-			"method": "GET",
-			"path": "/categoriesif-none-match",
-			"result": "pending",
-			"source": "backend/src/modules/categories/infra/elysia/CategoriesController.ts"
-		},
-		{
-			"budget": 1000,
-			"method": "GET",
-			"path": "/categoriesif-none-match",
-			"result": "pending",
-			"source": "backend/src/modules/categories/infra/elysia/CategoriesController.ts"
-		},
-		{
-			"budget": 1000,
-			"method": "GET",
 			"path": "/comparison",
 			"result": "pending",
 			"source": "backend/src/modules/dashboard/infra/elysia/DashboardComparisonController.ts"
@@ -309,20 +288,6 @@
 			"budget": 1000,
 			"method": "POST",
 			"path": "/credit-card-imports/",
-			"result": "pending",
-			"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
-		},
-		{
-			"budget": 1000,
-			"method": "GET",
-			"path": "/credit-card-importsif-none-match",
-			"result": "pending",
-			"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
-		},
-		{
-			"budget": 1000,
-			"method": "GET",
-			"path": "/credit-card-importsif-none-match",
 			"result": "pending",
 			"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
 		},
@@ -476,28 +441,7 @@
 		{
 			"budget": 1000,
 			"method": "GET",
-			"path": "/credit-cardsif-none-match",
-			"result": "pending",
-			"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
-		},
-		{
-			"budget": 1000,
-			"method": "GET",
-			"path": "/credit-cardsif-none-match",
-			"result": "pending",
-			"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
-		},
-		{
-			"budget": 1000,
-			"method": "GET",
 			"path": "/dashboard/",
-			"result": "pending",
-			"source": "backend/src/modules/dashboard/infra/elysia/DashboardController.ts"
-		},
-		{
-			"budget": 1000,
-			"method": "GET",
-			"path": "/dashboardif-none-match",
 			"result": "pending",
 			"source": "backend/src/modules/dashboard/infra/elysia/DashboardController.ts"
 		},
@@ -609,13 +553,6 @@
 		{
 			"budget": 1000,
 			"method": "GET",
-			"path": "/debtsif-none-match",
-			"result": "pending",
-			"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
-		},
-		{
-			"budget": 1000,
-			"method": "GET",
 			"path": "/financial-account-yield-holidays/",
 			"result": "pending",
 			"source": "backend/src/modules/accounts/infra/elysia/FinancialAccountYieldHolidaysController.ts"
@@ -665,13 +602,6 @@
 		{
 			"budget": 1000,
 			"method": "GET",
-			"path": "/financial-account-yieldsif-none-match",
-			"result": "pending",
-			"source": "backend/src/modules/accounts/infra/elysia/FinancialAccountYieldsController.ts"
-		},
-		{
-			"budget": 1000,
-			"method": "GET",
 			"path": "/financial-accounts/",
 			"result": "pending",
 			"source": "backend/src/modules/accounts/infra/elysia/AccountsController.ts"
@@ -715,20 +645,6 @@
 			"budget": 1000,
 			"method": "PUT",
 			"path": "/financial-accounts/primary",
-			"result": "pending",
-			"source": "backend/src/modules/accounts/infra/elysia/AccountsController.ts"
-		},
-		{
-			"budget": 1000,
-			"method": "GET",
-			"path": "/financial-accountsif-none-match",
-			"result": "pending",
-			"source": "backend/src/modules/accounts/infra/elysia/AccountsController.ts"
-		},
-		{
-			"budget": 1000,
-			"method": "GET",
-			"path": "/financial-accountsif-none-match",
 			"result": "pending",
 			"source": "backend/src/modules/accounts/infra/elysia/AccountsController.ts"
 		},
@@ -924,27 +840,6 @@
 		{
 			"budget": 1000,
 			"method": "GET",
-			"path": "/recurringif-none-match",
-			"result": "pending",
-			"source": "backend/src/modules/recurring/infra/elysia/RecurringController.ts"
-		},
-		{
-			"budget": 1000,
-			"method": "GET",
-			"path": "/recurringif-none-match",
-			"result": "pending",
-			"source": "backend/src/modules/recurring/infra/elysia/RecurringController.ts"
-		},
-		{
-			"budget": 1000,
-			"method": "GET",
-			"path": "/recurringif-none-match",
-			"result": "pending",
-			"source": "backend/src/modules/recurring/infra/elysia/RecurringController.ts"
-		},
-		{
-			"budget": 1000,
-			"method": "GET",
 			"path": "/reference-rates/averages",
 			"result": "pending",
 			"source": "backend/src/modules/reference-rates/infra/ReferenceRateController.ts"
@@ -965,22 +860,8 @@
 		},
 		{
 			"budget": 1000,
-			"method": "GET",
-			"path": "/storesif-none-match",
-			"result": "pending",
-			"source": "backend/src/modules/stores/infra/elysia/StoresController.ts"
-		},
-		{
-			"budget": 1000,
 			"method": "POST",
 			"path": "/sync/",
-			"result": "pending",
-			"source": "backend/src/modules/sync/SyncController.ts"
-		},
-		{
-			"budget": 1000,
-			"method": "GET",
-			"path": "/syncx-correlation-id",
 			"result": "pending",
 			"source": "backend/src/modules/sync/SyncController.ts"
 		},
@@ -1064,20 +945,6 @@
 		{
 			"budget": 1000,
 			"method": "GET",
-			"path": "/transaction-importsif-none-match",
-			"result": "pending",
-			"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
-		},
-		{
-			"budget": 1000,
-			"method": "GET",
-			"path": "/transaction-importsif-none-match",
-			"result": "pending",
-			"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
-		},
-		{
-			"budget": 1000,
-			"method": "GET",
 			"path": "/transactions/",
 			"result": "pending",
 			"source": "backend/src/modules/transactions/infra/elysia/TransactionsController.ts"
@@ -1140,20 +1007,6 @@
 		},
 		{
 			"budget": 1000,
-			"method": "GET",
-			"path": "/transactionsif-none-match",
-			"result": "pending",
-			"source": "backend/src/modules/transactions/infra/elysia/TransactionsController.ts"
-		},
-		{
-			"budget": 1000,
-			"method": "GET",
-			"path": "/transactionsif-none-match",
-			"result": "pending",
-			"source": "backend/src/modules/transactions/infra/elysia/TransactionsController.ts"
-		},
-		{
-			"budget": 1000,
 			"method": "POST",
 			"path": "/upgrades/debt-origins",
 			"result": "pending",
@@ -1165,13 +1018,6 @@
 			"path": "/upgrades/recurrence-ids",
 			"result": "pending",
 			"source": "backend/src/modules/upgrades/UpgradeController.ts"
-		},
-		{
-			"budget": 1000,
-			"method": "GET",
-			"path": "if-none-match",
-			"result": "pending",
-			"source": "backend/src/modules/dashboard/infra/elysia/DashboardComparisonController.ts"
 		}
 	],
 	"screens": [

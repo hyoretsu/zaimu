@@ -161,9 +161,17 @@ Ambiente atual Linux não permite aceite iOS; ferramentas Android não foram det
 
 ### Instrumentação e ambiente local
 
-- Inventário inicial: 157 contratos HTTP, 22 rotas frontend e 18 jornadas. Resultados ausentes permanecem `pending` em `backend/performance/coverage.json`.
+- Inventário inicial: 135 contratos HTTP, 22 rotas frontend e 18 jornadas. Resultados ausentes permanecem `pending` em `backend/performance/coverage.json`.
 - Contagem movida à execução física do cliente PostgreSQL. Comandos de transação entram no total; orçamentos antigos de negócio serão revisados separadamente.
 - Contexto nasce antes do handler Elysia; encerramento congela contadores para tarefas posteriores. SQL acumulado e união dos intervalos SQL são métricas distintas.
 - Docker Compose dedicado usa imagens já locais, sem pulls, portas loopback 55495/6395/56795 e armazenamento PostgreSQL temporário.
 - Hook existente executava somente formatação/lint. Validação scoped de tipos e cobertura unitária backend adicionada ao hook para cumprir convenção do projeto.
 - Próximo: confirmar métricas no PostgreSQL dedicado, baseline e orçamento Redis; completar instrumentação por fase e sessões.
+
+### Fixtures e baseline diagnóstico
+
+- Fixture local validada: 20 proprietários, 10 mil transações por proprietário, 10 cartões, 240 faturas e 2.400 compras por proprietário. Rateios e parcelas mantêm valores em centavos.
+- Seed aceita perfis de 10, 10 mil e 100 mil lançamentos; somente perfil 10 mil foi executado até aqui.
+- Runner mede corpo completo, MISS/HIT/304, SQL total/auth/negócio, percentis e erros. Modo oficial configura três rodadas e cargas 1/5/20; diagnóstico tem cinco amostras.
+- Baseline diagnóstico arquivado em `backend/performance/baseline-0018.json`: hits ainda executam duas queries de autenticação. Não constitui aceite; data do processo inicial ainda não estava congelada.
+- Launcher dedicado congela data em 04/10/2026 e fixa todas as conexões locais. Jornadas sem runner continuam pendentes, sem aprovação implícita.

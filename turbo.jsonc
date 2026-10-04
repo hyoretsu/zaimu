@@ -8,6 +8,11 @@
 			"outputLogs": "new-only",
 			"outputs": ["dist/**"]
 		},
+		"backend#check-types": {
+			"dependsOn": ["^contract:emit", "generate"],
+			"inputs": ["src/**", "performance/**/*.ts", "tsconfig*.json"],
+			"outputLogs": "new-only"
+		},
 		"backend#dev": {
 			"cache": false,
 			"dependsOn": ["^contract:emit", "generate"],

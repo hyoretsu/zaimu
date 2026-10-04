@@ -1,0 +1,5187 @@
+{
+	"configuration": {
+		"iterations": 5,
+		"loads": [1],
+		"machine": {
+			"bun": "1.4.2",
+			"cpu": "Intel(R) N150",
+			"cpus": 4,
+			"memoryBytes": 16526991360
+		},
+		"namespace": "zaimu_performance",
+		"rounds": 1
+	},
+	"coverage": {
+		"journeys": [
+			{
+				"name": "web startup",
+				"result": "pending"
+			},
+			{
+				"name": "desktop startup",
+				"result": "pending"
+			},
+			{
+				"name": "Android startup",
+				"result": "pending"
+			},
+			{
+				"name": "iOS startup",
+				"result": "pending"
+			},
+			{
+				"name": "offline",
+				"result": "pending"
+			},
+			{
+				"name": "guest migration",
+				"result": "pending"
+			},
+			{
+				"name": "identity switch",
+				"result": "pending"
+			},
+			{
+				"name": "sync 100k",
+				"result": "pending"
+			},
+			{
+				"name": "statement import 1000",
+				"result": "pending"
+			},
+			{
+				"name": "invoice import 1000",
+				"result": "pending"
+			},
+			{
+				"name": "outbox",
+				"result": "pending"
+			},
+			{
+				"name": "invalidation",
+				"result": "pending"
+			},
+			{
+				"name": "materialization",
+				"result": "pending"
+			},
+			{
+				"name": "rates",
+				"result": "pending"
+			},
+			{
+				"name": "yield recalculation",
+				"result": "pending"
+			},
+			{
+				"name": "backlog/retry/DLQ",
+				"result": "pending"
+			},
+			{
+				"name": "50 navigation cycles",
+				"result": "pending"
+			},
+			{
+				"name": "deep links/background",
+				"result": "pending"
+			}
+		],
+		"routes": [
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/api/auth/delete-user",
+				"result": "pending",
+				"source": "Better Auth"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/api/auth/get-session",
+				"result": "pending",
+				"source": "Better Auth"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/api/auth/request-password-reset",
+				"result": "pending",
+				"source": "Better Auth"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/api/auth/reset-password",
+				"result": "pending",
+				"source": "Better Auth"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/api/auth/revoke-session",
+				"result": "pending",
+				"source": "Better Auth"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/api/auth/revoke-sessions",
+				"result": "pending",
+				"source": "Better Auth"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/api/auth/sign-in/email",
+				"result": "pending",
+				"source": "Better Auth"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/api/auth/sign-out",
+				"result": "pending",
+				"source": "Better Auth"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/api/auth/sign-up/email",
+				"result": "pending",
+				"source": "Better Auth"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/api/auth/verify-email",
+				"result": "pending",
+				"source": "Better Auth"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/balance-adjustments/",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/BalanceAdjustmentsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "DELETE",
+				"path": "/balance-adjustments/:id",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/BalanceAdjustmentsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PATCH",
+				"path": "/balance-adjustments/:id",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/BalanceAdjustmentsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/balance-adjustments/",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/BalanceAdjustmentsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/categories/",
+				"result": "pending",
+				"source": "backend/src/modules/categories/infra/elysia/CategoriesController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "DELETE",
+				"path": "/categories/:id",
+				"result": "pending",
+				"source": "backend/src/modules/categories/infra/elysia/CategoriesController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/categories/:id",
+				"result": "pending",
+				"source": "backend/src/modules/categories/infra/elysia/CategoriesController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PATCH",
+				"path": "/categories/:id",
+				"result": "pending",
+				"source": "backend/src/modules/categories/infra/elysia/CategoriesController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/categories/",
+				"result": "pending",
+				"source": "backend/src/modules/categories/infra/elysia/CategoriesController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/categories/lookup",
+				"result": "pending",
+				"source": "backend/src/modules/categories/infra/elysia/CategoriesController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/comparison",
+				"result": "pending",
+				"source": "backend/src/modules/dashboard/infra/elysia/DashboardComparisonController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/credit-card-imports/",
+				"result": "pending",
+				"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "DELETE",
+				"path": "/credit-card-imports/:id",
+				"result": "pending",
+				"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/credit-card-imports/:id",
+				"result": "pending",
+				"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/credit-card-imports/:id/approve",
+				"result": "pending",
+				"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PATCH",
+				"path": "/credit-card-imports/:id/items/:itemId",
+				"result": "pending",
+				"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/credit-card-imports/:id/items/:itemId/approve-refund",
+				"result": "pending",
+				"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/credit-card-imports/:id/items/:itemId/approve",
+				"result": "pending",
+				"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/credit-card-imports/:id/items/:itemId/reconcile",
+				"result": "pending",
+				"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/credit-card-imports/:id/refund-sources",
+				"result": "pending",
+				"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/credit-card-imports/",
+				"result": "pending",
+				"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/credit-cards/",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/credit-cards/:id",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/credit-cards/:id/book",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/credit-cards/:id/history",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PUT",
+				"path": "/credit-cards/:id/payer",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/credit-cards/:id/payment-suggestions/confirm",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/credit-cards/:id/payments",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/credit-cards/:id/purchases",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "DELETE",
+				"path": "/credit-cards/:id/purchases/:purchaseId",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/credit-cards/:id/purchases/:purchaseId",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PATCH",
+				"path": "/credit-cards/:id/purchases/:purchaseId",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/credit-cards/:id/purchases/:purchaseId/refinance",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/credit-cards/:id/purchases/:purchaseId/refunds",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "DELETE",
+				"path": "/credit-cards/:id/purchases/:purchaseId/refunds/:refundId",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PATCH",
+				"path": "/credit-cards/:id/purchases/:purchaseId/refunds/:refundId",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/credit-cards/:id/refund-reviews",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/credit-cards/:id/refund-reviews/:reviewId/approve",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PATCH",
+				"path": "/credit-cards/:id/statement-cutoff",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/credit-cards/:id/statements",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/credit-cards/:id/statements/:statementId",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/credit-cards/payment-suggestions",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/dashboard/",
+				"result": "pending",
+				"source": "backend/src/modules/dashboard/infra/elysia/DashboardController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/debts/",
+				"result": "pending",
+				"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/debts/",
+				"result": "pending",
+				"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/debts/events",
+				"result": "pending",
+				"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "DELETE",
+				"path": "/debts/events/:eventId",
+				"result": "pending",
+				"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PATCH",
+				"path": "/debts/events/:eventId",
+				"result": "pending",
+				"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/debts/invitations",
+				"result": "pending",
+				"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/debts/invitations/:id/accept",
+				"result": "pending",
+				"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/debts/invitations/:id/decline",
+				"result": "pending",
+				"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/debts/invitations/:id/preview",
+				"result": "pending",
+				"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/debts/people",
+				"result": "pending",
+				"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "DELETE",
+				"path": "/debts/people/:id",
+				"result": "pending",
+				"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PATCH",
+				"path": "/debts/people/:id",
+				"result": "pending",
+				"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/debts/people/:id/events",
+				"result": "pending",
+				"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/debts/people/:id/invite",
+				"result": "pending",
+				"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/debts/summary",
+				"result": "pending",
+				"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/financial-account-yield-holidays/",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/FinancialAccountYieldHolidaysController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "DELETE",
+				"path": "/financial-account-yield-holidays/:id",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/FinancialAccountYieldHolidaysController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/financial-account-yield-holidays/",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/FinancialAccountYieldHolidaysController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/financial-account-yields/",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/FinancialAccountYieldsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "DELETE",
+				"path": "/financial-account-yields/:id",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/FinancialAccountYieldsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PATCH",
+				"path": "/financial-account-yields/:id",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/FinancialAccountYieldsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/financial-account-yields/",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/FinancialAccountYieldsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/financial-accounts/",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/AccountsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "DELETE",
+				"path": "/financial-accounts/:id",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/AccountsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/financial-accounts/:id",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/AccountsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PATCH",
+				"path": "/financial-accounts/:id",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/AccountsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/financial-accounts/",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/AccountsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/financial-accounts/primary",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/AccountsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PUT",
+				"path": "/financial-accounts/primary",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/AccountsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "DELETE",
+				"path": "/financial-institutions/:id",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/InstitutionsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PATCH",
+				"path": "/financial-institutions/:id",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/InstitutionsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/loans/",
+				"result": "pending",
+				"source": "backend/src/modules/loans/infra/elysia/LoansController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/loans/:id",
+				"result": "pending",
+				"source": "backend/src/modules/loans/infra/elysia/LoansController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/loans/:id/advance",
+				"result": "pending",
+				"source": "backend/src/modules/loans/infra/elysia/LoansController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/loans/:id/early-payoff",
+				"result": "pending",
+				"source": "backend/src/modules/loans/infra/elysia/LoansController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/loans/:id/history",
+				"result": "pending",
+				"source": "backend/src/modules/loans/infra/elysia/LoansController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/loans/:id/payments",
+				"result": "pending",
+				"source": "backend/src/modules/loans/infra/elysia/LoansController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/loans/:id/payments/:installmentNumber/pay",
+				"result": "pending",
+				"source": "backend/src/modules/loans/infra/elysia/LoansController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/loans/",
+				"result": "pending",
+				"source": "backend/src/modules/loans/infra/elysia/LoansController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "DELETE",
+				"path": "/open-finance/",
+				"result": "pending",
+				"source": "backend/src/modules/open-finance/infra/OpenFinanceController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/open-finance/",
+				"result": "pending",
+				"source": "backend/src/modules/open-finance/infra/OpenFinanceController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/open-finance/connections",
+				"result": "pending",
+				"source": "backend/src/modules/open-finance/infra/OpenFinanceController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "DELETE",
+				"path": "/open-finance/connections/:id",
+				"result": "pending",
+				"source": "backend/src/modules/open-finance/infra/OpenFinanceController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PUT",
+				"path": "/open-finance/connections/:id/bindings",
+				"result": "pending",
+				"source": "backend/src/modules/open-finance/infra/OpenFinanceController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/open-finance/connections/discover",
+				"result": "pending",
+				"source": "backend/src/modules/open-finance/infra/OpenFinanceController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PUT",
+				"path": "/open-finance/credentials",
+				"result": "pending",
+				"source": "backend/src/modules/open-finance/infra/OpenFinanceController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/open-finance/sync",
+				"result": "pending",
+				"source": "backend/src/modules/open-finance/infra/OpenFinanceController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/open-finance/sync",
+				"result": "pending",
+				"source": "backend/src/modules/open-finance/infra/OpenFinanceController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/recurring/",
+				"result": "pending",
+				"source": "backend/src/modules/recurring/infra/elysia/RecurringController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "DELETE",
+				"path": "/recurring/:id",
+				"result": "pending",
+				"source": "backend/src/modules/recurring/infra/elysia/RecurringController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/recurring/:id",
+				"result": "pending",
+				"source": "backend/src/modules/recurring/infra/elysia/RecurringController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PATCH",
+				"path": "/recurring/:id",
+				"result": "pending",
+				"source": "backend/src/modules/recurring/infra/elysia/RecurringController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/recurring/:id/advance",
+				"result": "pending",
+				"source": "backend/src/modules/recurring/infra/elysia/RecurringController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/recurring/:id/history",
+				"result": "pending",
+				"source": "backend/src/modules/recurring/infra/elysia/RecurringController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/recurring/:id/replay",
+				"result": "pending",
+				"source": "backend/src/modules/recurring/infra/elysia/RecurringController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/recurring/",
+				"result": "pending",
+				"source": "backend/src/modules/recurring/infra/elysia/RecurringController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/reference-rates/averages",
+				"result": "pending",
+				"source": "backend/src/modules/reference-rates/infra/ReferenceRateController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/stores/",
+				"result": "pending",
+				"source": "backend/src/modules/stores/infra/elysia/StoresController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/stores/",
+				"result": "pending",
+				"source": "backend/src/modules/stores/infra/elysia/StoresController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/sync/",
+				"result": "pending",
+				"source": "backend/src/modules/sync/SyncController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/transaction-imports/",
+				"result": "pending",
+				"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "DELETE",
+				"path": "/transaction-imports/:id",
+				"result": "pending",
+				"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/transaction-imports/:id",
+				"result": "pending",
+				"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/transaction-imports/:id/approve",
+				"result": "pending",
+				"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/transaction-imports/:id/days/:date/approve",
+				"result": "pending",
+				"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PATCH",
+				"path": "/transaction-imports/:id/items/:itemId",
+				"result": "pending",
+				"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/transaction-imports/:id/items/:itemId/approve",
+				"result": "pending",
+				"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/transaction-imports/:id/items/:itemId/reconcile",
+				"result": "pending",
+				"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/transaction-imports/:id/items/:itemId/transfer-suggestions/:counterpartItemId/accept",
+				"result": "pending",
+				"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/transaction-imports/:id/items/:itemId/transfer-suggestions/:counterpartItemId/reject",
+				"result": "pending",
+				"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/transaction-imports/",
+				"result": "pending",
+				"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/transactions/",
+				"result": "pending",
+				"source": "backend/src/modules/transactions/infra/elysia/TransactionsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "DELETE",
+				"path": "/transactions/:id",
+				"result": "pending",
+				"source": "backend/src/modules/transactions/infra/elysia/TransactionsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/transactions/:id",
+				"result": "pending",
+				"source": "backend/src/modules/transactions/infra/elysia/TransactionsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PATCH",
+				"path": "/transactions/:id",
+				"result": "pending",
+				"source": "backend/src/modules/transactions/infra/elysia/TransactionsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/transactions/:id/history",
+				"result": "pending",
+				"source": "backend/src/modules/transactions/infra/elysia/TransactionsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/transactions/:id/transfer-suggestions/:counterpartId/accept",
+				"result": "pending",
+				"source": "backend/src/modules/transactions/infra/elysia/TransactionsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/transactions/:id/transfer-suggestions/:counterpartId/reject",
+				"result": "pending",
+				"source": "backend/src/modules/transactions/infra/elysia/TransactionsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/transactions/",
+				"result": "pending",
+				"source": "backend/src/modules/transactions/infra/elysia/TransactionsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/transactions/transfer-suggestions",
+				"result": "pending",
+				"source": "backend/src/modules/transactions/infra/elysia/TransactionsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/upgrades/debt-origins",
+				"result": "pending",
+				"source": "backend/src/modules/upgrades/UpgradeController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/upgrades/recurrence-ids",
+				"result": "pending",
+				"source": "backend/src/modules/upgrades/UpgradeController.ts"
+			}
+		],
+		"screens": [
+			{
+				"path": "/",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/index.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/accounts",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/accounts.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/auth",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/auth.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/auth/",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/auth/index.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/auth/forgot-password",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/auth/forgot-password.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/auth/register",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/auth/register.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/auth/reset-password",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/auth/reset-password.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/auth/verify-email",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/auth/verify-email.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/credit-cards",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/credit-cards.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/debts",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/debts.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/delete-account",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/delete-account.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/loans",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/loans.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/more",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/more.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/privacy",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/privacy.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/recurring",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/recurring.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/salaries",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/salaries.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/settings",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/settings.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/settings/",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/settings/index.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/settings/open-finance/",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/settings/open-finance/index.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/subscriptions",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/subscriptions.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/terms",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/terms.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/transactions",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/transactions.tsx",
+				"usableP95Ms": 1000
+			}
+		]
+	},
+	"diagnostic": true,
+	"generatedAt": "2026-10-04T23:19:42.636Z",
+	"passed": false,
+	"readScenariosPassed": false,
+	"referenceDate": "2026-09-22",
+	"results": {
+		"accounts:1:1:304": {
+			"p50Ms": 32.350619999999935,
+			"p95Ms": 33.083487000000105,
+			"p99Ms": 33.083487000000105,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.2,
+					"durationMs": 32.350619999999935,
+					"queries": 2,
+					"requestId": "65997377-bfa2-4e7d-b38d-075275fd4495",
+					"sqlDurationMs": 10.31,
+					"sqlElapsedMs": 10.31,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.2,
+					"durationMs": 33.083487000000105,
+					"queries": 2,
+					"requestId": "57634e5d-cbde-49ad-8dab-7dcdbe26c067",
+					"sqlDurationMs": 8.91,
+					"sqlElapsedMs": 8.91,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.19,
+					"durationMs": 21.989672000000155,
+					"queries": 2,
+					"requestId": "7292dba3-0d35-4bc6-a42a-521498dfed77",
+					"sqlDurationMs": 3.03,
+					"sqlElapsedMs": 3.03,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.23,
+					"durationMs": 29.826577000000043,
+					"queries": 2,
+					"requestId": "8e6c784f-4aa0-44f8-94d3-268e2fa08057",
+					"sqlDurationMs": 4.08,
+					"sqlElapsedMs": 4.08,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.5,
+					"durationMs": 32.930894999999964,
+					"queries": 2,
+					"requestId": "cdfe8b9c-dba1-4d22-837a-997172f986fa",
+					"sqlDurationMs": 7.92,
+					"sqlElapsedMs": 7.92,
+					"status": 304
+				}
+			],
+			"throughput": 33.04819701463213
+		},
+		"accounts:1:1:hot": {
+			"p50Ms": 20.499755999999934,
+			"p95Ms": 49.89246400000002,
+			"p99Ms": 49.89246400000002,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 12367,
+					"cache": "HIT",
+					"connectionWaitMs": 2.2,
+					"durationMs": 34.583319000000074,
+					"queries": 2,
+					"requestId": "58df2df6-8c98-4104-a0d1-96f6994529dc",
+					"sqlDurationMs": 9,
+					"sqlElapsedMs": 9,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 12367,
+					"cache": "HIT",
+					"connectionWaitMs": 0.19,
+					"durationMs": 19.344140000000152,
+					"queries": 2,
+					"requestId": "4dae8dad-a8ca-4173-a965-68a23175676a",
+					"sqlDurationMs": 4.63,
+					"sqlElapsedMs": 4.63,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 12367,
+					"cache": "HIT",
+					"connectionWaitMs": 0.21,
+					"durationMs": 17.038476000000173,
+					"queries": 2,
+					"requestId": "a5150561-7c53-4df7-b1b1-406312909807",
+					"sqlDurationMs": 3.9,
+					"sqlElapsedMs": 3.9,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 12367,
+					"cache": "HIT",
+					"connectionWaitMs": 0.22,
+					"durationMs": 20.499755999999934,
+					"queries": 2,
+					"requestId": "468018f7-536f-4537-a17f-2e190f017cc2",
+					"sqlDurationMs": 3.49,
+					"sqlElapsedMs": 3.49,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 12367,
+					"cache": "HIT",
+					"connectionWaitMs": 0.21,
+					"durationMs": 49.89246400000002,
+					"queries": 2,
+					"requestId": "62361f5f-b499-42c6-b95b-62324c1c0995",
+					"sqlDurationMs": 12.76,
+					"sqlElapsedMs": 12.76,
+					"status": 200
+				}
+			],
+			"throughput": 35.205925478336084
+		},
+		"accounts:1:1:redis-cold": {
+			"p50Ms": 35.34418000000005,
+			"p95Ms": 93.52595399999996,
+			"p99Ms": 93.52595399999996,
+			"passed": true,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 3,
+					"bytes": 12367,
+					"cache": "MISS",
+					"connectionWaitMs": 0.39,
+					"durationMs": 93.52595399999996,
+					"queries": 5,
+					"requestId": "967529e0-d857-4594-9bad-717ee3d2440c",
+					"sqlDurationMs": 31,
+					"sqlElapsedMs": 31,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 3,
+					"bytes": 12367,
+					"cache": "MISS",
+					"connectionWaitMs": 0.32,
+					"durationMs": 33.73018000000002,
+					"queries": 5,
+					"requestId": "51819ad8-03b4-4c94-b266-ef1b7137df34",
+					"sqlDurationMs": 19.91,
+					"sqlElapsedMs": 19.91,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 3,
+					"bytes": 12367,
+					"cache": "MISS",
+					"connectionWaitMs": 0.46,
+					"durationMs": 32.94616699999983,
+					"queries": 5,
+					"requestId": "75518b86-e37d-4674-8fb5-63b2cb2cc516",
+					"sqlDurationMs": 20.54,
+					"sqlElapsedMs": 20.54,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 3,
+					"bytes": 12367,
+					"cache": "MISS",
+					"connectionWaitMs": 0.32,
+					"durationMs": 35.34418000000005,
+					"queries": 5,
+					"requestId": "52effddd-e20b-4671-a48a-49db9e55b4a7",
+					"sqlDurationMs": 21.54,
+					"sqlElapsedMs": 21.54,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 3,
+					"bytes": 12367,
+					"cache": "MISS",
+					"connectionWaitMs": 0.33,
+					"durationMs": 42.595466000000215,
+					"queries": 5,
+					"requestId": "9bdd5062-9e03-476b-80c0-59fc2241dcc5",
+					"sqlDurationMs": 24.87,
+					"sqlElapsedMs": 24.87,
+					"status": 200
+				}
+			],
+			"throughput": 20.368457161189216
+		},
+		"accountYields:1:1:304": {
+			"p50Ms": 12.630844000000252,
+			"p95Ms": 21.180926,
+			"p99Ms": 21.180926,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.15,
+					"durationMs": 21.180926,
+					"queries": 2,
+					"requestId": "f985cfe7-5ddd-4216-b262-fdd4eb8138a2",
+					"sqlDurationMs": 3.04,
+					"sqlElapsedMs": 3.04,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.18,
+					"durationMs": 10.145142000000305,
+					"queries": 2,
+					"requestId": "1aac29f5-d7a8-4526-a819-a2ed0e895f2d",
+					"sqlDurationMs": 2.2,
+					"sqlElapsedMs": 2.2,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.16,
+					"durationMs": 17.97494500000039,
+					"queries": 2,
+					"requestId": "f1c7e115-dd7a-45a5-ab39-736cc63a9faf",
+					"sqlDurationMs": 5.36,
+					"sqlElapsedMs": 5.36,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.17,
+					"durationMs": 11.674387000000024,
+					"queries": 2,
+					"requestId": "8ba6cee9-794e-4690-8f5d-5ef3881dcf46",
+					"sqlDurationMs": 2.43,
+					"sqlElapsedMs": 2.43,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.14,
+					"durationMs": 12.630844000000252,
+					"queries": 2,
+					"requestId": "b0bd591d-c681-466a-ad08-0999ee7d4ccd",
+					"sqlDurationMs": 2.97,
+					"sqlElapsedMs": 2.97,
+					"status": 304
+				}
+			],
+			"throughput": 67.58049096658998
+		},
+		"accountYields:1:1:hot": {
+			"p50Ms": 11.963480999999774,
+			"p95Ms": 12.909967000000051,
+			"p99Ms": 12.909967000000051,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 23454,
+					"cache": "HIT",
+					"connectionWaitMs": 0.15,
+					"durationMs": 12.909967000000051,
+					"queries": 2,
+					"requestId": "cd789ee3-d8b2-438e-aba6-9ff73391d8e9",
+					"sqlDurationMs": 2.99,
+					"sqlElapsedMs": 2.99,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 23454,
+					"cache": "HIT",
+					"connectionWaitMs": 0.27,
+					"durationMs": 12.587462999999843,
+					"queries": 2,
+					"requestId": "b680199e-90bf-46a4-955c-240401ca3b92",
+					"sqlDurationMs": 2.56,
+					"sqlElapsedMs": 2.56,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 23454,
+					"cache": "HIT",
+					"connectionWaitMs": 0.15,
+					"durationMs": 10.123666999999841,
+					"queries": 2,
+					"requestId": "bbccfb34-5974-453e-a845-577bcf217283",
+					"sqlDurationMs": 2.32,
+					"sqlElapsedMs": 2.32,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 23454,
+					"cache": "HIT",
+					"connectionWaitMs": 0.13,
+					"durationMs": 9.998622000000069,
+					"queries": 2,
+					"requestId": "2d568638-9c50-40b9-af7c-adadac4556b1",
+					"sqlDurationMs": 2.33,
+					"sqlElapsedMs": 2.33,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 23454,
+					"cache": "HIT",
+					"connectionWaitMs": 0.19,
+					"durationMs": 11.963480999999774,
+					"queries": 2,
+					"requestId": "822ba5c4-4e7b-4a8a-aa6b-13e912a27972",
+					"sqlDurationMs": 3.01,
+					"sqlElapsedMs": 3.01,
+					"status": 200
+				}
+			],
+			"throughput": 85.98163356643194
+		},
+		"accountYields:1:1:redis-cold": {
+			"p50Ms": 45.29814999999985,
+			"p95Ms": 177.54481899999996,
+			"p99Ms": 177.54481899999996,
+			"passed": true,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 2,
+					"bytes": 23454,
+					"cache": "MISS",
+					"connectionWaitMs": 0.31,
+					"durationMs": 177.54481899999996,
+					"queries": 4,
+					"requestId": "208dc49d-462b-4038-9c57-e7ef30cd94fa",
+					"sqlDurationMs": 36.92,
+					"sqlElapsedMs": 36.92,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 2,
+					"bytes": 23454,
+					"cache": "MISS",
+					"connectionWaitMs": 0.59,
+					"durationMs": 47.73568,
+					"queries": 4,
+					"requestId": "395ef644-db7d-4b16-8c62-aebad7ceeeda",
+					"sqlDurationMs": 11.21,
+					"sqlElapsedMs": 11.21,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 2,
+					"bytes": 23454,
+					"cache": "MISS",
+					"connectionWaitMs": 0.3,
+					"durationMs": 45.29814999999985,
+					"queries": 4,
+					"requestId": "ac43a9ec-b578-4f80-88ff-cd326bb923ed",
+					"sqlDurationMs": 9.32,
+					"sqlElapsedMs": 9.32,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 2,
+					"bytes": 23454,
+					"cache": "MISS",
+					"connectionWaitMs": 0.32,
+					"durationMs": 22.57448999999974,
+					"queries": 4,
+					"requestId": "d3f8667b-05ed-4a10-a8e6-e2cab6410bc3",
+					"sqlDurationMs": 6.62,
+					"sqlElapsedMs": 6.62,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 2,
+					"bytes": 23454,
+					"cache": "MISS",
+					"connectionWaitMs": 0.22,
+					"durationMs": 22.71164799999997,
+					"queries": 4,
+					"requestId": "0e052302-f689-4ff4-a05c-b7b33c7adf01",
+					"sqlDurationMs": 6.57,
+					"sqlElapsedMs": 6.57,
+					"status": 200
+				}
+			],
+			"throughput": 15.553428613823668
+		},
+		"categories:1:1:304": {
+			"p50Ms": 16.356934999999794,
+			"p95Ms": 24.046874000000116,
+			"p99Ms": 24.046874000000116,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.13,
+					"durationMs": 14.261586999999963,
+					"queries": 2,
+					"requestId": "9ce0596c-135c-404d-a352-781a8f0a6fdd",
+					"sqlDurationMs": 2.74,
+					"sqlElapsedMs": 2.74,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.74,
+					"durationMs": 24.046874000000116,
+					"queries": 2,
+					"requestId": "a25d48ee-f52f-47dd-b3b7-e52317e4ab6c",
+					"sqlDurationMs": 3.48,
+					"sqlElapsedMs": 3.48,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.15,
+					"durationMs": 16.356934999999794,
+					"queries": 2,
+					"requestId": "b1be254f-95db-46cb-8da7-b68cf034a370",
+					"sqlDurationMs": 4.54,
+					"sqlElapsedMs": 4.54,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.13,
+					"durationMs": 16.25329600000032,
+					"queries": 2,
+					"requestId": "a30debe0-90c1-49f0-be98-261f23fa73dd",
+					"sqlDurationMs": 5.59,
+					"sqlElapsedMs": 5.59,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.71,
+					"durationMs": 18.042221000000154,
+					"queries": 2,
+					"requestId": "fb8fc04b-883e-4423-b243-73b4df092d54",
+					"sqlDurationMs": 4.63,
+					"sqlElapsedMs": 4.63,
+					"status": 304
+				}
+			],
+			"throughput": 55.943463804008225
+		},
+		"categories:1:1:hot": {
+			"p50Ms": 28.774069000000054,
+			"p95Ms": 69.75413900000012,
+			"p99Ms": 69.75413900000012,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 1491,
+					"cache": "HIT",
+					"connectionWaitMs": 0.44,
+					"durationMs": 31.072313000000122,
+					"queries": 2,
+					"requestId": "8c08db78-8370-4331-a968-416a1d2c05ca",
+					"sqlDurationMs": 5.46,
+					"sqlElapsedMs": 5.46,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 1491,
+					"cache": "HIT",
+					"connectionWaitMs": 0.18,
+					"durationMs": 28.774069000000054,
+					"queries": 2,
+					"requestId": "39b4789e-a297-40a1-8cea-7c56f3adf49a",
+					"sqlDurationMs": 7.02,
+					"sqlElapsedMs": 7.02,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 1491,
+					"cache": "HIT",
+					"connectionWaitMs": 0.15,
+					"durationMs": 18.729107000000113,
+					"queries": 2,
+					"requestId": "24680ebf-b857-4519-ae31-6eb0b5f298bd",
+					"sqlDurationMs": 4.24,
+					"sqlElapsedMs": 4.24,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 1491,
+					"cache": "HIT",
+					"connectionWaitMs": 0.23,
+					"durationMs": 69.75413900000012,
+					"queries": 2,
+					"requestId": "4014c271-e4c1-4ff9-a90f-c59cbf0e7a20",
+					"sqlDurationMs": 8.95,
+					"sqlElapsedMs": 8.95,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 1491,
+					"cache": "HIT",
+					"connectionWaitMs": 0.16,
+					"durationMs": 25.679395999999997,
+					"queries": 2,
+					"requestId": "dce964a4-5337-4323-82ed-5b23ab8599f4",
+					"sqlDurationMs": 7.48,
+					"sqlElapsedMs": 7.48,
+					"status": 200
+				}
+			],
+			"throughput": 28.631526144806546
+		},
+		"categories:1:1:redis-cold": {
+			"p50Ms": 26.00258299999996,
+			"p95Ms": 32.3094329999999,
+			"p99Ms": 32.3094329999999,
+			"passed": true,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 1491,
+					"cache": "MISS",
+					"connectionWaitMs": 0.12,
+					"durationMs": 26.00258299999996,
+					"queries": 3,
+					"requestId": "79024ede-fac7-430c-a175-21f53687e7d6",
+					"sqlDurationMs": 6.95,
+					"sqlElapsedMs": 6.95,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 1491,
+					"cache": "MISS",
+					"connectionWaitMs": 0.15,
+					"durationMs": 14.392073999999866,
+					"queries": 3,
+					"requestId": "3dcb2c49-e226-400c-a00b-fc768946b425",
+					"sqlDurationMs": 4.57,
+					"sqlElapsedMs": 4.57,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 1491,
+					"cache": "MISS",
+					"connectionWaitMs": 0.46,
+					"durationMs": 15.184787000000142,
+					"queries": 3,
+					"requestId": "365a0387-b173-4a2e-91ef-91509bf378d1",
+					"sqlDurationMs": 4.19,
+					"sqlElapsedMs": 4.19,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 1491,
+					"cache": "MISS",
+					"connectionWaitMs": 0.34,
+					"durationMs": 27.33786500000042,
+					"queries": 3,
+					"requestId": "5d05f08b-7ba7-4df3-a374-bbc181707a16",
+					"sqlDurationMs": 4.03,
+					"sqlElapsedMs": 4.03,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 1491,
+					"cache": "MISS",
+					"connectionWaitMs": 0.19,
+					"durationMs": 32.3094329999999,
+					"queries": 3,
+					"requestId": "620f1883-8c6b-4436-81e3-c676dc0aada2",
+					"sqlDurationMs": 12.6,
+					"sqlElapsedMs": 12.6,
+					"status": 200
+				}
+			],
+			"throughput": 41.31945003117847
+		},
+		"categoryDetail:1:1:304": {
+			"p50Ms": 8.760671000000002,
+			"p95Ms": 10.861680999999862,
+			"p99Ms": 10.861680999999862,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.13,
+					"durationMs": 10.861680999999862,
+					"queries": 2,
+					"requestId": "4abb6d61-9518-47b0-a02d-1dc193947674",
+					"sqlDurationMs": 3.09,
+					"sqlElapsedMs": 3.09,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.09,
+					"durationMs": 8.760671000000002,
+					"queries": 2,
+					"requestId": "3eb185b4-728f-43fe-9c78-cd64cdcc8658",
+					"sqlDurationMs": 2.28,
+					"sqlElapsedMs": 2.28,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.11,
+					"durationMs": 8.728432000000339,
+					"queries": 2,
+					"requestId": "f10e752a-91c6-47a2-8f74-3a1463a47720",
+					"sqlDurationMs": 2.13,
+					"sqlElapsedMs": 2.13,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.11,
+					"durationMs": 8.624676999999792,
+					"queries": 2,
+					"requestId": "e32e2d4f-d1a2-45e9-928f-f8d758916bcf",
+					"sqlDurationMs": 2.3,
+					"sqlElapsedMs": 2.3,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.11,
+					"durationMs": 10.425257000000329,
+					"queries": 2,
+					"requestId": "8227e8db-5f15-4833-b74f-07b05657594e",
+					"sqlDurationMs": 2.66,
+					"sqlElapsedMs": 2.66,
+					"status": 304
+				}
+			],
+			"throughput": 104.7697431351821
+		},
+		"categoryDetail:1:1:hot": {
+			"p50Ms": 8.924222999999984,
+			"p95Ms": 9.200350999999955,
+			"p99Ms": 9.200350999999955,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 197,
+					"cache": "HIT",
+					"connectionWaitMs": 0.13,
+					"durationMs": 8.924222999999984,
+					"queries": 2,
+					"requestId": "1892c94f-a079-4a24-b9be-ae1c96b80200",
+					"sqlDurationMs": 2.45,
+					"sqlElapsedMs": 2.45,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 197,
+					"cache": "HIT",
+					"connectionWaitMs": 0.09,
+					"durationMs": 7.55833100000018,
+					"queries": 2,
+					"requestId": "82734b97-662a-4206-a961-e281f8e445d9",
+					"sqlDurationMs": 1.87,
+					"sqlElapsedMs": 1.87,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 197,
+					"cache": "HIT",
+					"connectionWaitMs": 0.14,
+					"durationMs": 9.165599999999813,
+					"queries": 2,
+					"requestId": "c9d6309b-3c75-4445-92c5-dde9241c3714",
+					"sqlDurationMs": 2.44,
+					"sqlElapsedMs": 2.44,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 197,
+					"cache": "HIT",
+					"connectionWaitMs": 0.11,
+					"durationMs": 8.317923000000064,
+					"queries": 2,
+					"requestId": "3303d555-2857-41ad-a5ec-c84b5c030a85",
+					"sqlDurationMs": 2.26,
+					"sqlElapsedMs": 2.26,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 197,
+					"cache": "HIT",
+					"connectionWaitMs": 0.12,
+					"durationMs": 9.200350999999955,
+					"queries": 2,
+					"requestId": "db935b62-3071-4bee-95ab-7b82a0e307e1",
+					"sqlDurationMs": 2.43,
+					"sqlElapsedMs": 2.43,
+					"status": 200
+				}
+			],
+			"throughput": 114.66860783801695
+		},
+		"categoryDetail:1:1:redis-cold": {
+			"p50Ms": 31.42287099999976,
+			"p95Ms": 52.34451599999966,
+			"p99Ms": 52.34451599999966,
+			"passed": true,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 197,
+					"cache": "MISS",
+					"connectionWaitMs": 0.26,
+					"durationMs": 48.56772499999988,
+					"queries": 3,
+					"requestId": "f11cab0b-1aee-4740-82c1-476f936cc223",
+					"sqlDurationMs": 5.38,
+					"sqlElapsedMs": 5.38,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 197,
+					"cache": "MISS",
+					"connectionWaitMs": 0.59,
+					"durationMs": 24.936040999999932,
+					"queries": 3,
+					"requestId": "25a3ba66-7e52-4fa8-b085-6d6ac67a1cf8",
+					"sqlDurationMs": 5.43,
+					"sqlElapsedMs": 5.43,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 197,
+					"cache": "MISS",
+					"connectionWaitMs": 0.28,
+					"durationMs": 52.34451599999966,
+					"queries": 3,
+					"requestId": "1ede56a7-bec2-49c7-8f03-94e990c2fd44",
+					"sqlDurationMs": 14.82,
+					"sqlElapsedMs": 14.82,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 197,
+					"cache": "MISS",
+					"connectionWaitMs": 0.23,
+					"durationMs": 31.42287099999976,
+					"queries": 3,
+					"requestId": "c62cff37-4448-4653-b126-6fa7a6c66299",
+					"sqlDurationMs": 4.35,
+					"sqlElapsedMs": 4.35,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 197,
+					"cache": "MISS",
+					"connectionWaitMs": 0.21,
+					"durationMs": 15.674508999999944,
+					"queries": 3,
+					"requestId": "85dd2b0b-5009-47a3-ad94-202fd288f417",
+					"sqlDurationMs": 3.79,
+					"sqlElapsedMs": 3.79,
+					"status": 200
+				}
+			],
+			"throughput": 27.767748067175912
+		},
+		"categoryLookup:1:1:304": {
+			"p50Ms": 17.04973000000018,
+			"p95Ms": 30.827890000000025,
+			"p99Ms": 30.827890000000025,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.16,
+					"durationMs": 25.35502600000018,
+					"queries": 2,
+					"requestId": "6507a746-cd4e-4b54-b862-a9dd2abc172a",
+					"sqlDurationMs": 6.32,
+					"sqlElapsedMs": 6.32,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 2.26,
+					"durationMs": 30.827890000000025,
+					"queries": 2,
+					"requestId": "18ac242e-b69a-4e45-ad74-4fec16ed617f",
+					"sqlDurationMs": 7.08,
+					"sqlElapsedMs": 7.08,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.12,
+					"durationMs": 17.04973000000018,
+					"queries": 2,
+					"requestId": "f0fcc3a1-3cc6-43cd-a892-6c5a8299f954",
+					"sqlDurationMs": 4.38,
+					"sqlElapsedMs": 4.38,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.13,
+					"durationMs": 15.336804999999913,
+					"queries": 2,
+					"requestId": "3e0f305a-b631-449b-ac04-7ead02e33dd7",
+					"sqlDurationMs": 3.19,
+					"sqlElapsedMs": 3.19,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.13,
+					"durationMs": 11.996847000000344,
+					"queries": 2,
+					"requestId": "7d25a26d-d26f-4001-a152-a30599a31040",
+					"sqlDurationMs": 2.29,
+					"sqlElapsedMs": 2.29,
+					"status": 304
+				}
+			],
+			"throughput": 49.52987824525701
+		},
+		"categoryLookup:1:1:hot": {
+			"p50Ms": 17.54964999999993,
+			"p95Ms": 29.556369999999788,
+			"p99Ms": 29.556369999999788,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 241,
+					"cache": "HIT",
+					"connectionWaitMs": 0.1,
+					"durationMs": 13.303413999999975,
+					"queries": 2,
+					"requestId": "44d8213a-0f7d-439f-9f4b-fb08e11ca4a4",
+					"sqlDurationMs": 2.1,
+					"sqlElapsedMs": 2.1,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 241,
+					"cache": "HIT",
+					"connectionWaitMs": 0.19,
+					"durationMs": 29.556369999999788,
+					"queries": 2,
+					"requestId": "4b89c8fb-9de6-4339-8882-7045c147b0f1",
+					"sqlDurationMs": 6.12,
+					"sqlElapsedMs": 6.12,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 241,
+					"cache": "HIT",
+					"connectionWaitMs": 0.14,
+					"durationMs": 16.935725000000275,
+					"queries": 2,
+					"requestId": "a926f416-371f-402d-88af-38c1e528c1cd",
+					"sqlDurationMs": 3.96,
+					"sqlElapsedMs": 3.96,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 241,
+					"cache": "HIT",
+					"connectionWaitMs": 0.22,
+					"durationMs": 18.592483999999786,
+					"queries": 2,
+					"requestId": "e97ee85a-3497-457c-bc35-23c278e5117f",
+					"sqlDurationMs": 3.34,
+					"sqlElapsedMs": 3.34,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 241,
+					"cache": "HIT",
+					"connectionWaitMs": 0.13,
+					"durationMs": 17.54964999999993,
+					"queries": 2,
+					"requestId": "5e91de9e-4632-4fe5-a40e-85cc45b998f9",
+					"sqlDurationMs": 6.35,
+					"sqlElapsedMs": 6.35,
+					"status": 200
+				}
+			],
+			"throughput": 51.819215649220816
+		},
+		"categoryLookup:1:1:redis-cold": {
+			"p50Ms": 13.67176100000006,
+			"p95Ms": 24.259753000000273,
+			"p99Ms": 24.259753000000273,
+			"passed": true,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 241,
+					"cache": "MISS",
+					"connectionWaitMs": 0.12,
+					"durationMs": 24.259753000000273,
+					"queries": 3,
+					"requestId": "5f7ad32e-c5e8-4b77-8bea-9da38959b5af",
+					"sqlDurationMs": 3.78,
+					"sqlElapsedMs": 3.78,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 241,
+					"cache": "MISS",
+					"connectionWaitMs": 0.11,
+					"durationMs": 12.35588800000005,
+					"queries": 3,
+					"requestId": "0afe605c-c84d-4922-87f4-c77985b4485c",
+					"sqlDurationMs": 3.54,
+					"sqlElapsedMs": 3.54,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 241,
+					"cache": "MISS",
+					"connectionWaitMs": 0.1,
+					"durationMs": 13.67176100000006,
+					"queries": 3,
+					"requestId": "9cd2cdfb-378a-4784-b9e3-34f748e05153",
+					"sqlDurationMs": 3.31,
+					"sqlElapsedMs": 3.31,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 241,
+					"cache": "MISS",
+					"connectionWaitMs": 0.09,
+					"durationMs": 11.514963999999964,
+					"queries": 3,
+					"requestId": "d7648457-2a80-4c17-be34-f3fc6dc39f6e",
+					"sqlDurationMs": 3.12,
+					"sqlElapsedMs": 3.12,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 241,
+					"cache": "MISS",
+					"connectionWaitMs": 0.12,
+					"durationMs": 23.588889999999992,
+					"queries": 3,
+					"requestId": "b7efcfa3-42d4-47cc-acd0-c27dc5ba5f45",
+					"sqlDurationMs": 5.44,
+					"sqlElapsedMs": 5.44,
+					"status": 200
+				}
+			],
+			"throughput": 56.10714489703838
+		},
+		"creditCardImports:1:1:304": {
+			"p50Ms": 11.074537999999848,
+			"p95Ms": 17.882924000000003,
+			"p99Ms": 17.882924000000003,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.2,
+					"durationMs": 17.882924000000003,
+					"queries": 2,
+					"requestId": "716ed789-1cb6-414a-a47f-5329bc271740",
+					"sqlDurationMs": 2.76,
+					"sqlElapsedMs": 2.76,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.12,
+					"durationMs": 11.331646999999975,
+					"queries": 2,
+					"requestId": "dad5cfea-1415-4cd2-aefa-0d57f192ea67",
+					"sqlDurationMs": 2.7,
+					"sqlElapsedMs": 2.7,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.11,
+					"durationMs": 10.829029999999875,
+					"queries": 2,
+					"requestId": "dacd7fe0-2c19-4c1c-8375-39e51f7b8ea8",
+					"sqlDurationMs": 2.34,
+					"sqlElapsedMs": 2.34,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.13,
+					"durationMs": 11.074537999999848,
+					"queries": 2,
+					"requestId": "dac2f787-a113-46df-8c0f-5c70eac5e60b",
+					"sqlDurationMs": 3.11,
+					"sqlElapsedMs": 3.11,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.11,
+					"durationMs": 8.257666999999856,
+					"queries": 2,
+					"requestId": "41da1756-e8a0-42b3-9076-6888f78b7ce7",
+					"sqlDurationMs": 2.16,
+					"sqlElapsedMs": 2.16,
+					"status": 304
+				}
+			],
+			"throughput": 83.78975147105038
+		},
+		"creditCardImports:1:1:hot": {
+			"p50Ms": 11.1119020000001,
+			"p95Ms": 23.32112700000016,
+			"p99Ms": 23.32112700000016,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 2,
+					"cache": "HIT",
+					"connectionWaitMs": 0.09,
+					"durationMs": 8.339351999999963,
+					"queries": 2,
+					"requestId": "5052ccf9-902d-4af3-8fe2-2cb6ba2471d6",
+					"sqlDurationMs": 2.17,
+					"sqlElapsedMs": 2.17,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 2,
+					"cache": "HIT",
+					"connectionWaitMs": 0.15,
+					"durationMs": 11.1119020000001,
+					"queries": 2,
+					"requestId": "c6b39c42-ab6c-4cf2-a14e-f0a3fc558366",
+					"sqlDurationMs": 2.43,
+					"sqlElapsedMs": 2.43,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 2,
+					"cache": "HIT",
+					"connectionWaitMs": 2.32,
+					"durationMs": 23.32112700000016,
+					"queries": 2,
+					"requestId": "59761318-aef6-4599-abed-a910c18b8c86",
+					"sqlDurationMs": 5.73,
+					"sqlElapsedMs": 5.73,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 2,
+					"cache": "HIT",
+					"connectionWaitMs": 0.13,
+					"durationMs": 23.216181999999662,
+					"queries": 2,
+					"requestId": "d874212c-f78e-4599-a38b-d1ccb7c5060b",
+					"sqlDurationMs": 12.4,
+					"sqlElapsedMs": 12.4,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 2,
+					"cache": "HIT",
+					"connectionWaitMs": 0.11,
+					"durationMs": 11.000279999999748,
+					"queries": 2,
+					"requestId": "344080be-eea7-4aff-9c52-ecf1f6b11f27",
+					"sqlDurationMs": 3.76,
+					"sqlElapsedMs": 3.76,
+					"status": 200
+				}
+			],
+			"throughput": 64.69826340932667
+		},
+		"creditCardImports:1:1:redis-cold": {
+			"p50Ms": 42.09718699999985,
+			"p95Ms": 44.92686400000002,
+			"p99Ms": 44.92686400000002,
+			"passed": true,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 2,
+					"cache": "MISS",
+					"connectionWaitMs": 0.12,
+					"durationMs": 44.92686400000002,
+					"queries": 3,
+					"requestId": "a965d4ad-e8a6-4ebb-8d2f-f874320d6d6a",
+					"sqlDurationMs": 7.16,
+					"sqlElapsedMs": 7.16,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 2,
+					"cache": "MISS",
+					"connectionWaitMs": 0.13,
+					"durationMs": 23.686581999999817,
+					"queries": 3,
+					"requestId": "9c5b1a2b-0795-46ba-a7ef-01fd0a2f0675",
+					"sqlDurationMs": 10.06,
+					"sqlElapsedMs": 10.06,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 2,
+					"cache": "MISS",
+					"connectionWaitMs": 0.13,
+					"durationMs": 43.014444999999796,
+					"queries": 3,
+					"requestId": "5af60625-6b24-4ccf-864b-a6123c333284",
+					"sqlDurationMs": 7.4,
+					"sqlElapsedMs": 7.4,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 2,
+					"cache": "MISS",
+					"connectionWaitMs": 0.17,
+					"durationMs": 24.493664999999964,
+					"queries": 3,
+					"requestId": "9e128110-4f51-4584-a748-6b46e1c17780",
+					"sqlDurationMs": 7.76,
+					"sqlElapsedMs": 7.76,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 2,
+					"cache": "MISS",
+					"connectionWaitMs": 0.13,
+					"durationMs": 42.09718699999985,
+					"queries": 3,
+					"requestId": "1281fea5-f247-45ae-8990-a2b9e3366626",
+					"sqlDurationMs": 6.22,
+					"sqlElapsedMs": 6.22,
+					"status": 200
+				}
+			],
+			"throughput": 26.743036077302403
+		},
+		"creditCards:1:1:304": {
+			"p50Ms": 6.469277000000147,
+			"p95Ms": 8.940215000000535,
+			"p99Ms": 8.940215000000535,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.07,
+					"durationMs": 6.190552000000025,
+					"queries": 2,
+					"requestId": "f9b58bdb-87e1-4ff0-b579-e539f3788c7e",
+					"sqlDurationMs": 1.74,
+					"sqlElapsedMs": 1.74,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.09,
+					"durationMs": 6.469277000000147,
+					"queries": 2,
+					"requestId": "f3a4b8da-e6f6-4f19-a18d-2f36fa849333",
+					"sqlDurationMs": 1.72,
+					"sqlElapsedMs": 1.72,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.1,
+					"durationMs": 6.315754000000197,
+					"queries": 2,
+					"requestId": "58bb4ec5-7d95-4765-9d2a-f961a6d83e2b",
+					"sqlDurationMs": 1.7,
+					"sqlElapsedMs": 1.7,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.11,
+					"durationMs": 8.940215000000535,
+					"queries": 2,
+					"requestId": "a24f3b93-7095-41a4-8de6-1278ca85c063",
+					"sqlDurationMs": 3.07,
+					"sqlElapsedMs": 3.07,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.07,
+					"durationMs": 6.8157060000003185,
+					"queries": 2,
+					"requestId": "6dfcb69f-fa4c-424f-8911-e72d21fe4f88",
+					"sqlDurationMs": 1.96,
+					"sqlElapsedMs": 1.96,
+					"status": 304
+				}
+			],
+			"throughput": 142.77605421697905
+		},
+		"creditCards:1:1:hot": {
+			"p50Ms": 14.555739999999787,
+			"p95Ms": 18.949657999999545,
+			"p99Ms": 18.949657999999545,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 9931,
+					"cache": "HIT",
+					"connectionWaitMs": 0.12,
+					"durationMs": 18.949657999999545,
+					"queries": 2,
+					"requestId": "94a3e3eb-142c-4b29-ba77-07b2adbd1d3a",
+					"sqlDurationMs": 5.33,
+					"sqlElapsedMs": 5.33,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 9931,
+					"cache": "HIT",
+					"connectionWaitMs": 0.11,
+					"durationMs": 14.625858000000335,
+					"queries": 2,
+					"requestId": "3cd3dada-d408-45a0-be86-58ccb8f078cf",
+					"sqlDurationMs": 2.66,
+					"sqlElapsedMs": 2.66,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 9931,
+					"cache": "HIT",
+					"connectionWaitMs": 0.11,
+					"durationMs": 14.555739999999787,
+					"queries": 2,
+					"requestId": "330eaee5-7cb7-4580-889b-d7c541e0a0a5",
+					"sqlDurationMs": 4.11,
+					"sqlElapsedMs": 4.11,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 9931,
+					"cache": "HIT",
+					"connectionWaitMs": 0.11,
+					"durationMs": 7.714758000000074,
+					"queries": 2,
+					"requestId": "920dacac-3299-4829-b4c3-30eaa874b849",
+					"sqlDurationMs": 1.84,
+					"sqlElapsedMs": 1.84,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 9931,
+					"cache": "HIT",
+					"connectionWaitMs": 0.08,
+					"durationMs": 9.311922999999297,
+					"queries": 2,
+					"requestId": "23b0295b-f084-4d39-ae29-a40b7561975c",
+					"sqlDurationMs": 2.18,
+					"sqlElapsedMs": 2.18,
+					"status": 200
+				}
+			],
+			"throughput": 76.37757885457955
+		},
+		"creditCards:1:1:redis-cold": {
+			"p50Ms": 503.36590799999976,
+			"p95Ms": 589.1092920000001,
+			"p99Ms": 589.1092920000001,
+			"passed": true,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 2,
+					"bytes": 9931,
+					"cache": "MISS",
+					"connectionWaitMs": 0.14,
+					"durationMs": 503.36590799999976,
+					"queries": 4,
+					"requestId": "e01a3f30-f04e-49ef-8eeb-db67b36a6b8b",
+					"sqlDurationMs": 329.88,
+					"sqlElapsedMs": 329.88,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 2,
+					"bytes": 9931,
+					"cache": "MISS",
+					"connectionWaitMs": 0.21,
+					"durationMs": 543.4405989999996,
+					"queries": 4,
+					"requestId": "d17b26f3-e299-4fd1-863d-f235498d553e",
+					"sqlDurationMs": 458.87,
+					"sqlElapsedMs": 458.87,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 2,
+					"bytes": 9931,
+					"cache": "MISS",
+					"connectionWaitMs": 0.18,
+					"durationMs": 494.74013099999956,
+					"queries": 4,
+					"requestId": "17f4b9ae-f853-4cad-8e6a-aef033ab79af",
+					"sqlDurationMs": 401.04,
+					"sqlElapsedMs": 401.04,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 2,
+					"bytes": 9931,
+					"cache": "MISS",
+					"connectionWaitMs": 0.19,
+					"durationMs": 459.7467910000005,
+					"queries": 4,
+					"requestId": "36262ac6-25c5-4504-9ec6-e9314dddd846",
+					"sqlDurationMs": 404.94,
+					"sqlElapsedMs": 404.94,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 2,
+					"bytes": 9931,
+					"cache": "MISS",
+					"connectionWaitMs": 0.13,
+					"durationMs": 589.1092920000001,
+					"queries": 4,
+					"requestId": "57e7586e-fb6e-4c01-8070-5023c4231dad",
+					"sqlDurationMs": 466.09,
+					"sqlElapsedMs": 466.09,
+					"status": 200
+				}
+			],
+			"throughput": 1.9268716321822088
+		},
+		"dashboard:1:1:304": {
+			"p50Ms": 54.337619999998424,
+			"p95Ms": 87.87035399999877,
+			"p99Ms": 87.87035399999877,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.1,
+					"durationMs": 87.87035399999877,
+					"queries": 2,
+					"requestId": "29634752-022a-4996-8c31-d14e1ca9f94d",
+					"sqlDurationMs": 40.22,
+					"sqlElapsedMs": 40.22,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.19,
+					"durationMs": 54.337619999998424,
+					"queries": 2,
+					"requestId": "eff89ba0-c4d3-460d-8fb2-53788d6223c8",
+					"sqlDurationMs": 9.27,
+					"sqlElapsedMs": 9.27,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.14,
+					"durationMs": 41.96024200000102,
+					"queries": 2,
+					"requestId": "76d0bb15-bc9b-41df-8755-a74c2912080a",
+					"sqlDurationMs": 16.55,
+					"sqlElapsedMs": 16.55,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.1,
+					"durationMs": 41.66118500000448,
+					"queries": 2,
+					"requestId": "c053fb43-cc00-47ce-a5ad-f11c48982b80",
+					"sqlDurationMs": 10.56,
+					"sqlElapsedMs": 10.56,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.11,
+					"durationMs": 59.40153100000316,
+					"queries": 2,
+					"requestId": "eaf8101d-836c-4a03-801c-eaa466066fe9",
+					"sqlDurationMs": 15.43,
+					"sqlElapsedMs": 15.43,
+					"status": 304
+				}
+			],
+			"throughput": 17.50981129883006
+		},
+		"dashboard:1:1:hot": {
+			"p50Ms": 21.752324000000954,
+			"p95Ms": 92.84142700000666,
+			"p99Ms": 92.84142700000666,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 183586,
+					"cache": "HIT",
+					"connectionWaitMs": 0.06,
+					"durationMs": 13.063764999998966,
+					"queries": 2,
+					"requestId": "f4a1e0cf-151f-46d1-8b2b-b7443109bec8",
+					"sqlDurationMs": 1.83,
+					"sqlElapsedMs": 1.83,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 183586,
+					"cache": "HIT",
+					"connectionWaitMs": 0.21,
+					"durationMs": 13.092612000000372,
+					"queries": 2,
+					"requestId": "84ec7a38-9c49-4ba8-b39e-d796f3a99ddc",
+					"sqlDurationMs": 1.82,
+					"sqlElapsedMs": 1.82,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 183586,
+					"cache": "HIT",
+					"connectionWaitMs": 0.06,
+					"durationMs": 21.752324000000954,
+					"queries": 2,
+					"requestId": "6fe62afa-e64c-4934-b89a-ebe2882ea07d",
+					"sqlDurationMs": 1.77,
+					"sqlElapsedMs": 1.77,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 183586,
+					"cache": "HIT",
+					"connectionWaitMs": 0.1,
+					"durationMs": 27.07543799999985,
+					"queries": 2,
+					"requestId": "560deca1-7bc1-4d5d-9f30-30e47935fefe",
+					"sqlDurationMs": 4.06,
+					"sqlElapsedMs": 4.06,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 183586,
+					"cache": "HIT",
+					"connectionWaitMs": 0.12,
+					"durationMs": 92.84142700000666,
+					"queries": 2,
+					"requestId": "799df1d7-4aa8-48c7-a8e0-c77f2feb6196",
+					"sqlDurationMs": 3.97,
+					"sqlElapsedMs": 3.97,
+					"status": 200
+				}
+			],
+			"throughput": 29.72228000893955
+		},
+		"dashboard:1:1:redis-cold": {
+			"p50Ms": 10315.745895000004,
+			"p95Ms": 11592.295263,
+			"p99Ms": 11592.295263,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 41,
+					"bytes": 183586,
+					"cache": "MISS",
+					"connectionWaitMs": 897.55,
+					"durationMs": 9753.985822999999,
+					"queries": 43,
+					"requestId": "04a37165-e76c-45e3-88b7-e82bfbba6460",
+					"sqlDurationMs": 1032.05,
+					"sqlElapsedMs": 546.18,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 41,
+					"bytes": 183586,
+					"cache": "MISS",
+					"connectionWaitMs": 19.46,
+					"durationMs": 11592.295263,
+					"queries": 43,
+					"requestId": "c8e7858d-b9a5-43ef-8d14-5689f253ec7a",
+					"sqlDurationMs": 1701.02,
+					"sqlElapsedMs": 645.88,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 41,
+					"bytes": 183586,
+					"cache": "MISS",
+					"connectionWaitMs": 9.36,
+					"durationMs": 10315.745895000004,
+					"queries": 43,
+					"requestId": "6a757f3f-2fb7-4b67-898c-684f46044633",
+					"sqlDurationMs": 1051.91,
+					"sqlElapsedMs": 713.94,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 41,
+					"bytes": 183586,
+					"cache": "MISS",
+					"connectionWaitMs": 27.49,
+					"durationMs": 9523.738868,
+					"queries": 43,
+					"requestId": "2514119a-d671-4167-8901-d362131d1867",
+					"sqlDurationMs": 2123.48,
+					"sqlElapsedMs": 641.21,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 41,
+					"bytes": 183586,
+					"cache": "MISS",
+					"connectionWaitMs": 36.48,
+					"durationMs": 11520.752134999995,
+					"queries": 43,
+					"requestId": "5ae31401-18f6-40be-a7ec-fcd1a9427271",
+					"sqlDurationMs": 1935.51,
+					"sqlElapsedMs": 811.21,
+					"status": 200
+				}
+			],
+			"throughput": 0.09484885536720888
+		},
+		"debts:1:1:304": {
+			"p50Ms": 7.963219000004756,
+			"p95Ms": 12.894397999996727,
+			"p99Ms": 12.894397999996727,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 233,
+					"cache": "HIT",
+					"connectionWaitMs": 0.08,
+					"durationMs": 8.071097000000009,
+					"queries": 2,
+					"requestId": "3aea246e-7f1d-48ff-a36f-4ef8c28532e5",
+					"sqlDurationMs": 1.98,
+					"sqlElapsedMs": 1.98,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 233,
+					"cache": "HIT",
+					"connectionWaitMs": 0.06,
+					"durationMs": 6.983384999999544,
+					"queries": 2,
+					"requestId": "95c762cc-a1b3-439c-9b43-df2be463e5f7",
+					"sqlDurationMs": 1.91,
+					"sqlElapsedMs": 1.91,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 233,
+					"cache": "HIT",
+					"connectionWaitMs": 0.06,
+					"durationMs": 7.00430399999459,
+					"queries": 2,
+					"requestId": "1fca3444-a4bf-444d-8d79-4e8a67ff694d",
+					"sqlDurationMs": 1.78,
+					"sqlElapsedMs": 1.78,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 233,
+					"cache": "HIT",
+					"connectionWaitMs": 0.06,
+					"durationMs": 7.963219000004756,
+					"queries": 2,
+					"requestId": "208b0948-622f-4f08-bc1b-0c1c32408355",
+					"sqlDurationMs": 2.4,
+					"sqlElapsedMs": 2.4,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 233,
+					"cache": "HIT",
+					"connectionWaitMs": 0.08,
+					"durationMs": 12.894397999996727,
+					"queries": 2,
+					"requestId": "ddf51b60-44d6-42dd-a3e4-ed26f554c418",
+					"sqlDurationMs": 2.68,
+					"sqlElapsedMs": 2.68,
+					"status": 200
+				}
+			],
+			"throughput": 115.8332571922684
+		},
+		"debts:1:1:hot": {
+			"p50Ms": 9.647914000001037,
+			"p95Ms": 21.631900000000314,
+			"p99Ms": 21.631900000000314,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 233,
+					"cache": "HIT",
+					"connectionWaitMs": 0.1,
+					"durationMs": 21.631900000000314,
+					"queries": 2,
+					"requestId": "8b6f6117-7b9f-412a-8ac0-dbfc12b83b40",
+					"sqlDurationMs": 11.76,
+					"sqlElapsedMs": 11.76,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 233,
+					"cache": "HIT",
+					"connectionWaitMs": 0.11,
+					"durationMs": 9.647914000001037,
+					"queries": 2,
+					"requestId": "e46a193d-0b0e-4c30-931e-a17fe73b28a8",
+					"sqlDurationMs": 2.51,
+					"sqlElapsedMs": 2.51,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 233,
+					"cache": "HIT",
+					"connectionWaitMs": 0.1,
+					"durationMs": 11.146061999999802,
+					"queries": 2,
+					"requestId": "9fa053b1-071b-4f27-9f81-eb2e98f621c1",
+					"sqlDurationMs": 3.29,
+					"sqlElapsedMs": 3.29,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 233,
+					"cache": "HIT",
+					"connectionWaitMs": 0.08,
+					"durationMs": 8.217539999997825,
+					"queries": 2,
+					"requestId": "ca7ecaf5-304a-44a3-939f-899162651cf1",
+					"sqlDurationMs": 1.98,
+					"sqlElapsedMs": 1.98,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 233,
+					"cache": "HIT",
+					"connectionWaitMs": 0.08,
+					"durationMs": 8.368894999999611,
+					"queries": 2,
+					"requestId": "bee9d020-e4c2-45de-b075-df8469add686",
+					"sqlDurationMs": 2.13,
+					"sqlElapsedMs": 2.13,
+					"status": 200
+				}
+			],
+			"throughput": 84.12129752726786
+		},
+		"debts:1:1:redis-cold": {
+			"p50Ms": 58.00587400000222,
+			"p95Ms": 126.70150100000319,
+			"p99Ms": 126.70150100000319,
+			"passed": true,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 233,
+					"cache": "MISS",
+					"connectionWaitMs": 0.1,
+					"durationMs": 126.70150100000319,
+					"queries": 3,
+					"requestId": "f9c2c7d2-221e-42f4-9654-12e18affb07f",
+					"sqlDurationMs": 30.11,
+					"sqlElapsedMs": 30.11,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 233,
+					"cache": "MISS",
+					"connectionWaitMs": 0.1,
+					"durationMs": 63.35391199999867,
+					"queries": 3,
+					"requestId": "291af5b2-1f86-4872-b65e-a7b5a8e4faec",
+					"sqlDurationMs": 34.04,
+					"sqlElapsedMs": 34.04,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 233,
+					"cache": "MISS",
+					"connectionWaitMs": 0.13,
+					"durationMs": 58.00587400000222,
+					"queries": 3,
+					"requestId": "f0aa1b6e-0d57-49b3-bf74-7635fd13b6e3",
+					"sqlDurationMs": 20.14,
+					"sqlElapsedMs": 20.14,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 233,
+					"cache": "MISS",
+					"connectionWaitMs": 0.11,
+					"durationMs": 42.63554300000396,
+					"queries": 3,
+					"requestId": "4fb62e9c-36db-4ee6-a7b6-b93b4a133cf0",
+					"sqlDurationMs": 20.87,
+					"sqlElapsedMs": 20.87,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 233,
+					"cache": "MISS",
+					"connectionWaitMs": 0.1,
+					"durationMs": 32.90272900000127,
+					"queries": 3,
+					"requestId": "53b0433b-5cbb-4984-8f60-fc0411fecaf3",
+					"sqlDurationMs": 12.87,
+					"sqlElapsedMs": 12.87,
+					"status": 200
+				}
+			],
+			"throughput": 14.665126973030569
+		},
+		"loanDetail:1:1:304": {
+			"p50Ms": 16.29954999999609,
+			"p95Ms": 27.37024399999791,
+			"p99Ms": 27.37024399999791,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 372,
+					"cache": "HIT",
+					"connectionWaitMs": 0.12,
+					"durationMs": 19.442351000005146,
+					"queries": 2,
+					"requestId": "580fef6b-5678-4c25-98ef-dc0a4fd2db14",
+					"sqlDurationMs": 3.12,
+					"sqlElapsedMs": 3.12,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 372,
+					"cache": "HIT",
+					"connectionWaitMs": 0.11,
+					"durationMs": 15.126312000000325,
+					"queries": 2,
+					"requestId": "4d59b44f-8626-4b48-ba5c-71e839071346",
+					"sqlDurationMs": 4.15,
+					"sqlElapsedMs": 4.15,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 372,
+					"cache": "HIT",
+					"connectionWaitMs": 0.08,
+					"durationMs": 16.29954999999609,
+					"queries": 2,
+					"requestId": "01290568-4dc7-4756-96c9-c9ae7bbd6eac",
+					"sqlDurationMs": 2.65,
+					"sqlElapsedMs": 2.65,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 372,
+					"cache": "HIT",
+					"connectionWaitMs": 0.08,
+					"durationMs": 27.37024399999791,
+					"queries": 2,
+					"requestId": "c60b40ca-bf6a-4174-a256-dd1cfb0a9ffe",
+					"sqlDurationMs": 5.02,
+					"sqlElapsedMs": 5.02,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 372,
+					"cache": "HIT",
+					"connectionWaitMs": 0.08,
+					"durationMs": 13.70170700000017,
+					"queries": 2,
+					"requestId": "72452478-f2d5-41f5-907a-4a0071e56187",
+					"sqlDurationMs": 4.18,
+					"sqlElapsedMs": 4.18,
+					"status": 200
+				}
+			],
+			"throughput": 54.153168989296894
+		},
+		"loanDetail:1:1:hot": {
+			"p50Ms": 7.993031999998493,
+			"p95Ms": 11.017287000002398,
+			"p99Ms": 11.017287000002398,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 372,
+					"cache": "HIT",
+					"connectionWaitMs": 0.06,
+					"durationMs": 7.035908999998355,
+					"queries": 2,
+					"requestId": "f3fde337-7d6a-404a-8ffa-9ba8c6e66b68",
+					"sqlDurationMs": 1.87,
+					"sqlElapsedMs": 1.87,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 372,
+					"cache": "HIT",
+					"connectionWaitMs": 0.06,
+					"durationMs": 6.504539000001387,
+					"queries": 2,
+					"requestId": "0a9bf32f-0f50-430c-a11e-7085a264571e",
+					"sqlDurationMs": 1.83,
+					"sqlElapsedMs": 1.83,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 372,
+					"cache": "HIT",
+					"connectionWaitMs": 0.08,
+					"durationMs": 7.993031999998493,
+					"queries": 2,
+					"requestId": "02d0139e-cad4-46f0-ae94-59365c6bdd2f",
+					"sqlDurationMs": 2.39,
+					"sqlElapsedMs": 2.39,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 372,
+					"cache": "HIT",
+					"connectionWaitMs": 0.09,
+					"durationMs": 11.017287000002398,
+					"queries": 2,
+					"requestId": "26e0f6f9-47aa-4286-865e-cc43104e512d",
+					"sqlDurationMs": 3.16,
+					"sqlElapsedMs": 3.16,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 372,
+					"cache": "HIT",
+					"connectionWaitMs": 0.08,
+					"durationMs": 9.882776999998896,
+					"queries": 2,
+					"requestId": "807fa36d-8b43-4ac3-b3f8-14c45d66d382",
+					"sqlDurationMs": 2.31,
+					"sqlElapsedMs": 2.31,
+					"status": 200
+				}
+			],
+			"throughput": 117.13083155464082
+		},
+		"loanDetail:1:1:redis-cold": {
+			"p50Ms": 27.893824999999197,
+			"p95Ms": 53.12199099999998,
+			"p99Ms": 53.12199099999998,
+			"passed": true,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 372,
+					"cache": "MISS",
+					"connectionWaitMs": 0.16,
+					"durationMs": 36.7819559999989,
+					"queries": 3,
+					"requestId": "270a4ac4-7228-46b5-95ab-60b746ff3392",
+					"sqlDurationMs": 7.2,
+					"sqlElapsedMs": 7.2,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 372,
+					"cache": "MISS",
+					"connectionWaitMs": 0.13,
+					"durationMs": 18.131619999992836,
+					"queries": 3,
+					"requestId": "33dfb5e8-81f2-446b-b980-1a26e87dece3",
+					"sqlDurationMs": 4.44,
+					"sqlElapsedMs": 4.44,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 372,
+					"cache": "MISS",
+					"connectionWaitMs": 0.15,
+					"durationMs": 27.893824999999197,
+					"queries": 3,
+					"requestId": "0943fc41-0373-4623-a662-5bca0b2082de",
+					"sqlDurationMs": 9,
+					"sqlElapsedMs": 9,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 372,
+					"cache": "MISS",
+					"connectionWaitMs": 0.15,
+					"durationMs": 53.12199099999998,
+					"queries": 3,
+					"requestId": "52b83f2e-2b2f-4ccd-835b-bf08d5f1a1eb",
+					"sqlDurationMs": 14,
+					"sqlElapsedMs": 14,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 372,
+					"cache": "MISS",
+					"connectionWaitMs": 0.12,
+					"durationMs": 12.836793000002217,
+					"queries": 3,
+					"requestId": "808ef2ea-69d0-4454-b318-bb8245df420f",
+					"sqlDurationMs": 2.87,
+					"sqlElapsedMs": 2.87,
+					"status": 200
+				}
+			],
+			"throughput": 32.36455999639466
+		},
+		"loanHistory:1:1:304": {
+			"p50Ms": 10.055651999995462,
+			"p95Ms": 15.57002900000225,
+			"p99Ms": 15.57002900000225,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 1635,
+					"cache": "HIT",
+					"connectionWaitMs": 0.08,
+					"durationMs": 10.055651999995462,
+					"queries": 2,
+					"requestId": "800b1a32-5d30-4734-86ce-538446f01c75",
+					"sqlDurationMs": 2.37,
+					"sqlElapsedMs": 2.37,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 1635,
+					"cache": "HIT",
+					"connectionWaitMs": 0.07,
+					"durationMs": 8.620999999999185,
+					"queries": 2,
+					"requestId": "590b7758-fa77-4ce3-8e1c-d63a3657d6ae",
+					"sqlDurationMs": 2.37,
+					"sqlElapsedMs": 2.37,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 1635,
+					"cache": "HIT",
+					"connectionWaitMs": 0.08,
+					"durationMs": 9.863924000004772,
+					"queries": 2,
+					"requestId": "296ec8c2-4c15-4874-97b4-af121e7986a9",
+					"sqlDurationMs": 2.24,
+					"sqlElapsedMs": 2.24,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 1635,
+					"cache": "HIT",
+					"connectionWaitMs": 0.09,
+					"durationMs": 10.776576000003843,
+					"queries": 2,
+					"requestId": "00f6160f-3156-490d-9228-7997d8caaeeb",
+					"sqlDurationMs": 3.06,
+					"sqlElapsedMs": 3.06,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 1635,
+					"cache": "HIT",
+					"connectionWaitMs": 0.1,
+					"durationMs": 15.57002900000225,
+					"queries": 2,
+					"requestId": "10dfcdb5-4c8d-4f75-aa55-f22a53255565",
+					"sqlDurationMs": 4.11,
+					"sqlElapsedMs": 4.11,
+					"status": 200
+				}
+			],
+			"throughput": 90.54771825816644
+		},
+		"loanHistory:1:1:hot": {
+			"p50Ms": 9.547112000000197,
+			"p95Ms": 12.327181000000564,
+			"p99Ms": 12.327181000000564,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 1635,
+					"cache": "HIT",
+					"connectionWaitMs": 0.09,
+					"durationMs": 12.327181000000564,
+					"queries": 2,
+					"requestId": "329ba5a7-7f98-4c98-b7fb-e4c0009a1d84",
+					"sqlDurationMs": 3.28,
+					"sqlElapsedMs": 3.28,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 1635,
+					"cache": "HIT",
+					"connectionWaitMs": 0.16,
+					"durationMs": 11.443570999996155,
+					"queries": 2,
+					"requestId": "aaf9a9c8-b0f2-492b-9f33-3446ee322c44",
+					"sqlDurationMs": 2.9,
+					"sqlElapsedMs": 2.9,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 1635,
+					"cache": "HIT",
+					"connectionWaitMs": 0.07,
+					"durationMs": 7.768252000001667,
+					"queries": 2,
+					"requestId": "4a8b56c2-e567-4e1f-9de2-d051339f38a9",
+					"sqlDurationMs": 2.12,
+					"sqlElapsedMs": 2.12,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 1635,
+					"cache": "HIT",
+					"connectionWaitMs": 0.06,
+					"durationMs": 7.81945899999846,
+					"queries": 2,
+					"requestId": "d8899c39-e76a-44a9-b8f0-662d62bc053e",
+					"sqlDurationMs": 2.19,
+					"sqlElapsedMs": 2.19,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 1635,
+					"cache": "HIT",
+					"connectionWaitMs": 0.19,
+					"durationMs": 9.547112000000197,
+					"queries": 2,
+					"requestId": "bb618f48-baa7-42c6-b535-f685c8db4d82",
+					"sqlDurationMs": 2.07,
+					"sqlElapsedMs": 2.07,
+					"status": 200
+				}
+			],
+			"throughput": 101.52617805799606
+		},
+		"loanHistory:1:1:redis-cold": {
+			"p50Ms": 16.889257000002544,
+			"p95Ms": 56.81734800000413,
+			"p99Ms": 56.81734800000413,
+			"passed": true,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 2,
+					"bytes": 1635,
+					"cache": "MISS",
+					"connectionWaitMs": 0.22,
+					"durationMs": 56.81734800000413,
+					"queries": 4,
+					"requestId": "b269a7a9-57fd-447e-bd18-2d0c536805d6",
+					"sqlDurationMs": 11.82,
+					"sqlElapsedMs": 11.82,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 2,
+					"bytes": 1635,
+					"cache": "MISS",
+					"connectionWaitMs": 0.17,
+					"durationMs": 26.672921000004862,
+					"queries": 4,
+					"requestId": "8578db51-a527-4440-94e2-bdf92c859437",
+					"sqlDurationMs": 5.5,
+					"sqlElapsedMs": 5.5,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 2,
+					"bytes": 1635,
+					"cache": "MISS",
+					"connectionWaitMs": 0.15,
+					"durationMs": 16.889257000002544,
+					"queries": 4,
+					"requestId": "a8c966cc-7f13-487e-9767-fb8566c3b71a",
+					"sqlDurationMs": 4.57,
+					"sqlElapsedMs": 4.57,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 2,
+					"bytes": 1635,
+					"cache": "MISS",
+					"connectionWaitMs": 0.18,
+					"durationMs": 14.031674999998359,
+					"queries": 4,
+					"requestId": "28877edc-937e-489b-8353-6af6e0893567",
+					"sqlDurationMs": 4.29,
+					"sqlElapsedMs": 4.29,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 2,
+					"bytes": 1635,
+					"cache": "MISS",
+					"connectionWaitMs": 0.14,
+					"durationMs": 16.63863400000264,
+					"queries": 4,
+					"requestId": "bda65fa7-e320-45e7-91f4-064524fb1db2",
+					"sqlDurationMs": 5.01,
+					"sqlElapsedMs": 5.01,
+					"status": 200
+				}
+			],
+			"throughput": 36.59715415405808
+		},
+		"loanPayments:1:1:304": {
+			"p50Ms": 22.862723999998707,
+			"p95Ms": 41.880425000003015,
+			"p99Ms": 41.880425000003015,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 17306,
+					"cache": "HIT",
+					"connectionWaitMs": 0.11,
+					"durationMs": 17.306988999996975,
+					"queries": 2,
+					"requestId": "24ba435a-90c8-420b-8c0e-40f61bd1e2c9",
+					"sqlDurationMs": 4.98,
+					"sqlElapsedMs": 4.98,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 17306,
+					"cache": "HIT",
+					"connectionWaitMs": 0.16,
+					"durationMs": 18.402892999998585,
+					"queries": 2,
+					"requestId": "00507f8f-54e7-4576-94a5-84b035685655",
+					"sqlDurationMs": 4.27,
+					"sqlElapsedMs": 4.27,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 17306,
+					"cache": "HIT",
+					"connectionWaitMs": 0.11,
+					"durationMs": 41.880425000003015,
+					"queries": 2,
+					"requestId": "dc918f09-4231-411f-95f4-e8cdd56ccfbe",
+					"sqlDurationMs": 10.62,
+					"sqlElapsedMs": 10.62,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 17306,
+					"cache": "HIT",
+					"connectionWaitMs": 0.09,
+					"durationMs": 23.60037000000011,
+					"queries": 2,
+					"requestId": "6807791a-c9a7-4de8-bec8-881246802337",
+					"sqlDurationMs": 8.18,
+					"sqlElapsedMs": 8.18,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 17306,
+					"cache": "HIT",
+					"connectionWaitMs": 1.13,
+					"durationMs": 22.862723999998707,
+					"queries": 2,
+					"requestId": "6ff3e0ea-c768-456c-b3e1-b28a7cad47f4",
+					"sqlDurationMs": 5.05,
+					"sqlElapsedMs": 5.05,
+					"status": 200
+				}
+			],
+			"throughput": 40.16470581903451
+		},
+		"loanPayments:1:1:hot": {
+			"p50Ms": 13.87934099999984,
+			"p95Ms": 29.02220999999554,
+			"p99Ms": 29.02220999999554,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 17306,
+					"cache": "HIT",
+					"connectionWaitMs": 0.09,
+					"durationMs": 13.87934099999984,
+					"queries": 2,
+					"requestId": "55a76474-6656-4af5-8682-ee4d707109ae",
+					"sqlDurationMs": 2.8,
+					"sqlElapsedMs": 2.8,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 17306,
+					"cache": "HIT",
+					"connectionWaitMs": 0.1,
+					"durationMs": 10.456943000004685,
+					"queries": 2,
+					"requestId": "f3890595-daf4-4e33-8cd2-6d5cb35d44e3",
+					"sqlDurationMs": 2.46,
+					"sqlElapsedMs": 2.46,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 17306,
+					"cache": "HIT",
+					"connectionWaitMs": 0.09,
+					"durationMs": 9.316314999996393,
+					"queries": 2,
+					"requestId": "8836e73b-731c-4782-99be-303809803adb",
+					"sqlDurationMs": 2.47,
+					"sqlElapsedMs": 2.47,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 17306,
+					"cache": "HIT",
+					"connectionWaitMs": 0.26,
+					"durationMs": 29.02220999999554,
+					"queries": 2,
+					"requestId": "d5c9d16d-95b3-4ae8-b7ee-4ce1b67b49d7",
+					"sqlDurationMs": 4.9,
+					"sqlElapsedMs": 4.9,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 17306,
+					"cache": "HIT",
+					"connectionWaitMs": 0.26,
+					"durationMs": 14.332672999997158,
+					"queries": 2,
+					"requestId": "c52afe1f-ee0c-4dbf-ab50-066af90de80d",
+					"sqlDurationMs": 3.76,
+					"sqlElapsedMs": 3.76,
+					"status": 200
+				}
+			],
+			"throughput": 64.65041587091126
+		},
+		"loanPayments:1:1:redis-cold": {
+			"p50Ms": 28.243858000001637,
+			"p95Ms": 68.81192599999486,
+			"p99Ms": 68.81192599999486,
+			"passed": true,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 2,
+					"bytes": 17306,
+					"cache": "MISS",
+					"connectionWaitMs": 0.77,
+					"durationMs": 68.81192599999486,
+					"queries": 4,
+					"requestId": "0c3e0989-d507-418e-b8be-5f43da6ee97e",
+					"sqlDurationMs": 8.84,
+					"sqlElapsedMs": 8.84,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 2,
+					"bytes": 17306,
+					"cache": "MISS",
+					"connectionWaitMs": 0.19,
+					"durationMs": 28.243858000001637,
+					"queries": 4,
+					"requestId": "6a512f43-9093-4e62-8fcf-ddee96ffabce",
+					"sqlDurationMs": 7.41,
+					"sqlElapsedMs": 7.41,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 2,
+					"bytes": 17306,
+					"cache": "MISS",
+					"connectionWaitMs": 0.15,
+					"durationMs": 28.837782999995397,
+					"queries": 4,
+					"requestId": "7439abe3-0889-4eaf-add0-ce84c269d11d",
+					"sqlDurationMs": 5.6,
+					"sqlElapsedMs": 5.6,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 2,
+					"bytes": 17306,
+					"cache": "MISS",
+					"connectionWaitMs": 0.17,
+					"durationMs": 27.939846000001126,
+					"queries": 4,
+					"requestId": "70215aa8-a496-4fb0-b5e5-387867a3ac6e",
+					"sqlDurationMs": 6.25,
+					"sqlElapsedMs": 6.25,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 2,
+					"bytes": 17306,
+					"cache": "MISS",
+					"connectionWaitMs": 0.17,
+					"durationMs": 22.28175299999566,
+					"queries": 4,
+					"requestId": "644c7ebb-06f7-41a3-80c0-f1ca8db65825",
+					"sqlDurationMs": 6.04,
+					"sqlElapsedMs": 6.04,
+					"status": 200
+				}
+			],
+			"throughput": 27.300800189183676
+		},
+		"loans:1:1:304": {
+			"p50Ms": 7.356118999996397,
+			"p95Ms": 9.504296999999497,
+			"p99Ms": 9.504296999999497,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 11666,
+					"cache": "HIT",
+					"connectionWaitMs": 0.1,
+					"durationMs": 9.504296999999497,
+					"queries": 2,
+					"requestId": "0d82871b-8f1f-4a36-b8b4-27dbf7f63dbc",
+					"sqlDurationMs": 2.56,
+					"sqlElapsedMs": 2.56,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 11666,
+					"cache": "HIT",
+					"connectionWaitMs": 0.11,
+					"durationMs": 7.563943000001018,
+					"queries": 2,
+					"requestId": "afa33ae3-6dae-4165-8571-1869a071faba",
+					"sqlDurationMs": 1.73,
+					"sqlElapsedMs": 1.73,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 11666,
+					"cache": "HIT",
+					"connectionWaitMs": 0.06,
+					"durationMs": 7.356118999996397,
+					"queries": 2,
+					"requestId": "9b2f9821-18e9-480b-baeb-a06b69dc0671",
+					"sqlDurationMs": 1.75,
+					"sqlElapsedMs": 1.75,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 11666,
+					"cache": "HIT",
+					"connectionWaitMs": 0.05,
+					"durationMs": 6.035547999999835,
+					"queries": 2,
+					"requestId": "a94221c5-2327-4e2c-a4b5-7bd54e925b18",
+					"sqlDurationMs": 1.45,
+					"sqlElapsedMs": 1.45,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 11666,
+					"cache": "HIT",
+					"connectionWaitMs": 0.06,
+					"durationMs": 6.677262999997765,
+					"queries": 2,
+					"requestId": "d8183e4e-07f9-46fd-ba2f-1a9bd425e3eb",
+					"sqlDurationMs": 1.74,
+					"sqlElapsedMs": 1.74,
+					"status": 200
+				}
+			],
+			"throughput": 133.5455318416192
+		},
+		"loans:1:1:hot": {
+			"p50Ms": 12.885778999996546,
+			"p95Ms": 25.66332500000135,
+			"p99Ms": 25.66332500000135,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 11666,
+					"cache": "HIT",
+					"connectionWaitMs": 0.08,
+					"durationMs": 12.885778999996546,
+					"queries": 2,
+					"requestId": "5eaa8b1f-f0b6-40ad-8c1a-7aedcc125a82",
+					"sqlDurationMs": 2.19,
+					"sqlElapsedMs": 2.19,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 11666,
+					"cache": "HIT",
+					"connectionWaitMs": 0.17,
+					"durationMs": 11.429128000003402,
+					"queries": 2,
+					"requestId": "8fc5641c-757e-4d76-8815-4ea8dca5d856",
+					"sqlDurationMs": 2.15,
+					"sqlElapsedMs": 2.15,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 11666,
+					"cache": "HIT",
+					"connectionWaitMs": 0.08,
+					"durationMs": 9.446339000001899,
+					"queries": 2,
+					"requestId": "d4ab5cf6-801b-45a4-b49b-e0a7ae34b88f",
+					"sqlDurationMs": 2.34,
+					"sqlElapsedMs": 2.34,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 11666,
+					"cache": "HIT",
+					"connectionWaitMs": 0.09,
+					"durationMs": 18.45336600000155,
+					"queries": 2,
+					"requestId": "7112aa6d-17c4-424a-838d-92f2507f3aa8",
+					"sqlDurationMs": 4.98,
+					"sqlElapsedMs": 4.98,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 11666,
+					"cache": "HIT",
+					"connectionWaitMs": 0.1,
+					"durationMs": 25.66332500000135,
+					"queries": 2,
+					"requestId": "a4128e37-c2a3-4162-8f54-ee8ac771c744",
+					"sqlDurationMs": 7.22,
+					"sqlElapsedMs": 7.22,
+					"status": 200
+				}
+			],
+			"throughput": 63.79259506528659
+		},
+		"loans:1:1:redis-cold": {
+			"p50Ms": 47.481526000003214,
+			"p95Ms": 61.87586200000078,
+			"p99Ms": 61.87586200000078,
+			"passed": true,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 11666,
+					"cache": "MISS",
+					"connectionWaitMs": 0.06,
+					"durationMs": 61.87586200000078,
+					"queries": 3,
+					"requestId": "95d03a8e-4ae8-4f7f-81e0-68f58ad704e1",
+					"sqlDurationMs": 34.61,
+					"sqlElapsedMs": 34.61,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 11666,
+					"cache": "MISS",
+					"connectionWaitMs": 0.15,
+					"durationMs": 31.86618100000487,
+					"queries": 3,
+					"requestId": "68c9e16b-249e-4fe1-a434-31d3fc13430b",
+					"sqlDurationMs": 19.15,
+					"sqlElapsedMs": 19.15,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 11666,
+					"cache": "MISS",
+					"connectionWaitMs": 0.16,
+					"durationMs": 48.09305900000618,
+					"queries": 3,
+					"requestId": "56baf9a2-1331-408e-91b8-419d776e0a15",
+					"sqlDurationMs": 24.34,
+					"sqlElapsedMs": 24.34,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 11666,
+					"cache": "MISS",
+					"connectionWaitMs": 0.1,
+					"durationMs": 47.481526000003214,
+					"queries": 3,
+					"requestId": "db0c44b6-357b-46c6-bfbe-2770033e02cd",
+					"sqlDurationMs": 18.12,
+					"sqlElapsedMs": 18.12,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 11666,
+					"cache": "MISS",
+					"connectionWaitMs": 0.1,
+					"durationMs": 32.51529899999878,
+					"queries": 3,
+					"requestId": "388844e9-6594-407c-9595-a31cad877705",
+					"sqlDurationMs": 18.06,
+					"sqlElapsedMs": 18.06,
+					"status": 200
+				}
+			],
+			"throughput": 21.838262950671968
+		},
+		"stores:1:1:304": {
+			"p50Ms": 8.306751999996777,
+			"p95Ms": 9.254408000000694,
+			"p99Ms": 9.254408000000694,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.06,
+					"durationMs": 5.924997999994957,
+					"queries": 2,
+					"requestId": "32d76019-41d9-4be7-a0cf-9df9276abfa0",
+					"sqlDurationMs": 1.54,
+					"sqlElapsedMs": 1.54,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.05,
+					"durationMs": 5.392619999998715,
+					"queries": 2,
+					"requestId": "02c87627-ce7c-4a9f-b849-b706b5be81f1",
+					"sqlDurationMs": 1.38,
+					"sqlElapsedMs": 1.38,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.06,
+					"durationMs": 8.306751999996777,
+					"queries": 2,
+					"requestId": "f6456ba8-2d7a-4d76-be25-fddf6dbe290c",
+					"sqlDurationMs": 2.55,
+					"sqlElapsedMs": 2.55,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.14,
+					"durationMs": 9.254408000000694,
+					"queries": 2,
+					"requestId": "f14d1e92-0c3b-4c1f-85ce-f86bd63e1fba",
+					"sqlDurationMs": 2.14,
+					"sqlElapsedMs": 2.14,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.07,
+					"durationMs": 8.398478000002797,
+					"queries": 2,
+					"requestId": "4381b2c2-637f-45a5-8886-60206cc94529",
+					"sqlDurationMs": 2.1,
+					"sqlElapsedMs": 2.1,
+					"status": 304
+				}
+			],
+			"throughput": 133.16014347525282
+		},
+		"stores:1:1:hot": {
+			"p50Ms": 8.574714000002132,
+			"p95Ms": 10.109731999997166,
+			"p99Ms": 10.109731999997166,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 3820,
+					"cache": "HIT",
+					"connectionWaitMs": 0.09,
+					"durationMs": 8.574714000002132,
+					"queries": 2,
+					"requestId": "32ef2565-ea86-4acf-9a52-ea46cce2dc7e",
+					"sqlDurationMs": 1.87,
+					"sqlElapsedMs": 1.87,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 3820,
+					"cache": "HIT",
+					"connectionWaitMs": 0.07,
+					"durationMs": 8.946829000000434,
+					"queries": 2,
+					"requestId": "52fa3049-4f05-4837-abd1-ec96e4114ef7",
+					"sqlDurationMs": 3.07,
+					"sqlElapsedMs": 3.07,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 3820,
+					"cache": "HIT",
+					"connectionWaitMs": 0.05,
+					"durationMs": 6.792836000000534,
+					"queries": 2,
+					"requestId": "f20df625-e1c0-42e9-93a0-905777da9a3b",
+					"sqlDurationMs": 1.58,
+					"sqlElapsedMs": 1.58,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 3820,
+					"cache": "HIT",
+					"connectionWaitMs": 0.06,
+					"durationMs": 7.9969249999994645,
+					"queries": 2,
+					"requestId": "1f2ec551-655e-4f28-9c5e-9ef8213307c3",
+					"sqlDurationMs": 1.76,
+					"sqlElapsedMs": 1.76,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 3820,
+					"cache": "HIT",
+					"connectionWaitMs": 0.14,
+					"durationMs": 10.109731999997166,
+					"queries": 2,
+					"requestId": "649186d9-0e65-4e8a-838d-ba7c1c553f6b",
+					"sqlDurationMs": 2.44,
+					"sqlElapsedMs": 2.44,
+					"status": 200
+				}
+			],
+			"throughput": 117.11795846721948
+		},
+		"stores:1:1:redis-cold": {
+			"p50Ms": 14.01068800000212,
+			"p95Ms": 23.3020319999996,
+			"p99Ms": 23.3020319999996,
+			"passed": true,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 3820,
+					"cache": "MISS",
+					"connectionWaitMs": 0.07,
+					"durationMs": 23.3020319999996,
+					"queries": 3,
+					"requestId": "85c46a89-4321-4f39-ab94-48b7aae7de2b",
+					"sqlDurationMs": 8.84,
+					"sqlElapsedMs": 8.84,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 3820,
+					"cache": "MISS",
+					"connectionWaitMs": 0.07,
+					"durationMs": 14.01068800000212,
+					"queries": 3,
+					"requestId": "08b5116d-1161-4159-8063-c81b450a3c43",
+					"sqlDurationMs": 6.23,
+					"sqlElapsedMs": 6.23,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 3820,
+					"cache": "MISS",
+					"connectionWaitMs": 0.06,
+					"durationMs": 15.6581290000031,
+					"queries": 3,
+					"requestId": "8cfa6691-173f-46f0-85a5-9c3b69738ac0",
+					"sqlDurationMs": 7.8,
+					"sqlElapsedMs": 7.8,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 3820,
+					"cache": "MISS",
+					"connectionWaitMs": 0.06,
+					"durationMs": 11.790119999997842,
+					"queries": 3,
+					"requestId": "4c4f4c34-6cf4-4637-9865-7dbd85af22da",
+					"sqlDurationMs": 5.3,
+					"sqlElapsedMs": 5.3,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 3820,
+					"cache": "MISS",
+					"connectionWaitMs": 0.08,
+					"durationMs": 12.865185999995447,
+					"queries": 3,
+					"requestId": "d52b1285-c6e7-43f3-a965-0ee4e4076371",
+					"sqlDurationMs": 5.42,
+					"sqlElapsedMs": 5.42,
+					"status": 200
+				}
+			],
+			"throughput": 61.46793115380394
+		},
+		"transactionImports:1:1:304": {
+			"p50Ms": 13.89113300000463,
+			"p95Ms": 25.535618000001705,
+			"p99Ms": 25.535618000001705,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.24,
+					"durationMs": 13.89113300000463,
+					"queries": 2,
+					"requestId": "68e8ccd9-8904-4539-a78f-f5bd3b2cd1de",
+					"sqlDurationMs": 3.94,
+					"sqlElapsedMs": 3.94,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.07,
+					"durationMs": 10.005292000001646,
+					"queries": 2,
+					"requestId": "d797f51e-a5e4-4f08-95f3-654f0f836522",
+					"sqlDurationMs": 2.66,
+					"sqlElapsedMs": 2.66,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.09,
+					"durationMs": 14.017424999998184,
+					"queries": 2,
+					"requestId": "4045f1e9-0cbd-4637-9672-04cfbb6db020",
+					"sqlDurationMs": 2.59,
+					"sqlElapsedMs": 2.59,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.07,
+					"durationMs": 11.652843999996549,
+					"queries": 2,
+					"requestId": "e60dd983-2e56-4def-bf88-d0786346064c",
+					"sqlDurationMs": 2.48,
+					"sqlElapsedMs": 2.48,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.09,
+					"durationMs": 25.535618000001705,
+					"queries": 2,
+					"requestId": "0cb82f0d-5db4-4aab-9fda-84f2ad85557b",
+					"sqlDurationMs": 7.78,
+					"sqlElapsedMs": 7.78,
+					"status": 304
+				}
+			],
+			"throughput": 66.3116069144507
+		},
+		"transactionImports:1:1:hot": {
+			"p50Ms": 18.73697899999388,
+			"p95Ms": 35.96246499999688,
+			"p99Ms": 35.96246499999688,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 2,
+					"cache": "HIT",
+					"connectionWaitMs": 0.1,
+					"durationMs": 21.387849999999162,
+					"queries": 2,
+					"requestId": "3ca9047b-7be0-484d-956a-8e9ccc9109b4",
+					"sqlDurationMs": 6.09,
+					"sqlElapsedMs": 6.09,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 2,
+					"cache": "HIT",
+					"connectionWaitMs": 0.1,
+					"durationMs": 13.181682000002183,
+					"queries": 2,
+					"requestId": "493d4590-ad2e-4169-b986-491dd1f510dc",
+					"sqlDurationMs": 3.07,
+					"sqlElapsedMs": 3.07,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 2,
+					"cache": "HIT",
+					"connectionWaitMs": 0.14,
+					"durationMs": 18.73697899999388,
+					"queries": 2,
+					"requestId": "71c6574a-a177-45c3-9a08-d819b3e19b24",
+					"sqlDurationMs": 2.91,
+					"sqlElapsedMs": 2.91,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 2,
+					"cache": "HIT",
+					"connectionWaitMs": 0.11,
+					"durationMs": 16.549869000002218,
+					"queries": 2,
+					"requestId": "a634adbd-ff9f-4803-b4c2-3467cbab21cc",
+					"sqlDurationMs": 5.37,
+					"sqlElapsedMs": 5.37,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 2,
+					"cache": "HIT",
+					"connectionWaitMs": 0.15,
+					"durationMs": 35.96246499999688,
+					"queries": 2,
+					"requestId": "9a2f9515-1572-487f-ad90-7da592553535",
+					"sqlDurationMs": 3.63,
+					"sqlElapsedMs": 3.63,
+					"status": 200
+				}
+			],
+			"throughput": 46.97746121942447
+		},
+		"transactionImports:1:1:redis-cold": {
+			"p50Ms": 13.979395000002114,
+			"p95Ms": 17.273198999995657,
+			"p99Ms": 17.273198999995657,
+			"passed": true,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 2,
+					"cache": "MISS",
+					"connectionWaitMs": 0.07,
+					"durationMs": 15.60388299999613,
+					"queries": 3,
+					"requestId": "43ecf393-1e2e-4069-84e0-1f8369103f23",
+					"sqlDurationMs": 4.91,
+					"sqlElapsedMs": 4.91,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 2,
+					"cache": "MISS",
+					"connectionWaitMs": 0.07,
+					"durationMs": 10.390505999996094,
+					"queries": 3,
+					"requestId": "6b7b1af0-3f76-4c54-bcd0-3f3ebaddb2dc",
+					"sqlDurationMs": 3.07,
+					"sqlElapsedMs": 3.07,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 2,
+					"cache": "MISS",
+					"connectionWaitMs": 0.06,
+					"durationMs": 9.494936000002781,
+					"queries": 3,
+					"requestId": "6e538dc4-76e7-462a-9b52-3e3dd217c4c8",
+					"sqlDurationMs": 2.81,
+					"sqlElapsedMs": 2.81,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 2,
+					"cache": "MISS",
+					"connectionWaitMs": 0.06,
+					"durationMs": 13.979395000002114,
+					"queries": 3,
+					"requestId": "9822af90-24ed-49ba-bf7a-a8dfdc28db75",
+					"sqlDurationMs": 3.68,
+					"sqlElapsedMs": 3.68,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 1,
+					"bytes": 2,
+					"cache": "MISS",
+					"connectionWaitMs": 0.12,
+					"durationMs": 17.273198999995657,
+					"queries": 3,
+					"requestId": "a494da82-eae7-4eef-92ba-a488bdcc116d",
+					"sqlDurationMs": 5.35,
+					"sqlElapsedMs": 5.35,
+					"status": 200
+				}
+			],
+			"throughput": 72.01546661773325
+		},
+		"transactions:1:1:304": {
+			"p50Ms": 8.393605999997817,
+			"p95Ms": 9.089575999998488,
+			"p99Ms": 9.089575999998488,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.05,
+					"durationMs": 7.3482529999891995,
+					"queries": 2,
+					"requestId": "ba04142e-a106-4d23-8a5f-59d111129478",
+					"sqlDurationMs": 1.69,
+					"sqlElapsedMs": 1.69,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.05,
+					"durationMs": 7.276511000003666,
+					"queries": 2,
+					"requestId": "c90840a8-11d2-4b7b-91dc-ade5ace880a1",
+					"sqlDurationMs": 1.66,
+					"sqlElapsedMs": 1.66,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.07,
+					"durationMs": 9.089575999998488,
+					"queries": 2,
+					"requestId": "2c4b00bf-517c-4f39-ad02-1bb37f215f75",
+					"sqlDurationMs": 2.16,
+					"sqlElapsedMs": 2.16,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.06,
+					"durationMs": 8.393605999997817,
+					"queries": 2,
+					"requestId": "9304f149-ebc6-4895-b4b6-2408adbc2d93",
+					"sqlDurationMs": 1.98,
+					"sqlElapsedMs": 1.98,
+					"status": 304
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 0,
+					"cache": "HIT",
+					"connectionWaitMs": 0.06,
+					"durationMs": 8.5158250000095,
+					"queries": 2,
+					"requestId": "f8d15efb-36b6-4c41-bf35-2092410f96ba",
+					"sqlDurationMs": 1.99,
+					"sqlElapsedMs": 1.99,
+					"status": 304
+				}
+			],
+			"throughput": 122.44614383909419
+		},
+		"transactions:1:1:hot": {
+			"p50Ms": 11.5485539999936,
+			"p95Ms": 12.950453999990714,
+			"p99Ms": 12.950453999990714,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 50034,
+					"cache": "HIT",
+					"connectionWaitMs": 0.05,
+					"durationMs": 9.627986999999848,
+					"queries": 2,
+					"requestId": "0bbeecf1-810e-48ee-af5c-df8008ffd310",
+					"sqlDurationMs": 1.86,
+					"sqlElapsedMs": 1.86,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 50034,
+					"cache": "HIT",
+					"connectionWaitMs": 0.07,
+					"durationMs": 11.173859000002267,
+					"queries": 2,
+					"requestId": "7609aabd-f940-4d94-86e4-73073f37f3c5",
+					"sqlDurationMs": 2.7,
+					"sqlElapsedMs": 2.7,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 50034,
+					"cache": "HIT",
+					"connectionWaitMs": 0.08,
+					"durationMs": 11.613312000001315,
+					"queries": 2,
+					"requestId": "14ff3d6c-b29e-4d14-b7e2-a944ea368994",
+					"sqlDurationMs": 3.53,
+					"sqlElapsedMs": 3.53,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 50034,
+					"cache": "HIT",
+					"connectionWaitMs": 0.07,
+					"durationMs": 12.950453999990714,
+					"queries": 2,
+					"requestId": "3dc612b1-28eb-4caa-97db-28b7460a44f8",
+					"sqlDurationMs": 2.49,
+					"sqlElapsedMs": 2.49,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 50034,
+					"cache": "HIT",
+					"connectionWaitMs": 0.51,
+					"durationMs": 11.5485539999936,
+					"queries": 2,
+					"requestId": "d7a8ec8f-c569-477e-bfca-d9d3e1a24311",
+					"sqlDurationMs": 2.47,
+					"sqlElapsedMs": 2.47,
+					"status": 200
+				}
+			],
+			"throughput": 87.23468051712263
+		},
+		"transactions:1:1:redis-cold": {
+			"p50Ms": 706.4026039999953,
+			"p95Ms": 724.6451450000022,
+			"p99Ms": 724.6451450000022,
+			"passed": true,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 6,
+					"bytes": 50034,
+					"cache": "MISS",
+					"connectionWaitMs": 1.47,
+					"durationMs": 706.4026039999953,
+					"queries": 8,
+					"requestId": "7490f0cd-064d-4562-b961-aa70ce11eaf3",
+					"sqlDurationMs": 629.62,
+					"sqlElapsedMs": 623.52,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 6,
+					"bytes": 50034,
+					"cache": "MISS",
+					"connectionWaitMs": 0.95,
+					"durationMs": 724.6451450000022,
+					"queries": 8,
+					"requestId": "7e73395c-9b94-4464-b6c3-68dce74fe002",
+					"sqlDurationMs": 698.8,
+					"sqlElapsedMs": 691.67,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 6,
+					"bytes": 50034,
+					"cache": "MISS",
+					"connectionWaitMs": 1.3,
+					"durationMs": 704.608232999999,
+					"queries": 8,
+					"requestId": "437744be-143a-42f1-9960-ceba8463599c",
+					"sqlDurationMs": 691.49,
+					"sqlElapsedMs": 684.22,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 6,
+					"bytes": 50034,
+					"cache": "MISS",
+					"connectionWaitMs": 0.9,
+					"durationMs": 723.7432820000031,
+					"queries": 8,
+					"requestId": "4d3767ad-f563-418e-9314-92227e259907",
+					"sqlDurationMs": 714.4,
+					"sqlElapsedMs": 708.5,
+					"status": 200
+				},
+				{
+					"authQueries": 2,
+					"businessQueries": 6,
+					"bytes": 50034,
+					"cache": "MISS",
+					"connectionWaitMs": 2.23,
+					"durationMs": 679.5001509999929,
+					"queries": 8,
+					"requestId": "fd404a62-fe8a-431a-b6d4-36ba196add43",
+					"sqlDurationMs": 670.77,
+					"sqlElapsedMs": 664.11,
+					"status": 200
+				}
+			],
+			"throughput": 1.4111760146490504
+		}
+	},
+	"summaries": [
+		{
+			"load": 1,
+			"maxQueries": 5,
+			"mode": "redis-cold",
+			"name": "accounts",
+			"p95Ms": 93.52595399999996,
+			"passed": true,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2,
+			"mode": "hot",
+			"name": "accounts",
+			"p95Ms": 49.89246400000002,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2,
+			"mode": "304",
+			"name": "accounts",
+			"p95Ms": 33.083487000000105,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 4,
+			"mode": "redis-cold",
+			"name": "accountYields",
+			"p95Ms": 177.54481899999996,
+			"passed": true,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2,
+			"mode": "hot",
+			"name": "accountYields",
+			"p95Ms": 12.909967000000051,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2,
+			"mode": "304",
+			"name": "accountYields",
+			"p95Ms": 21.180926,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 3,
+			"mode": "redis-cold",
+			"name": "categories",
+			"p95Ms": 32.3094329999999,
+			"passed": true,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2,
+			"mode": "hot",
+			"name": "categories",
+			"p95Ms": 69.75413900000012,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2,
+			"mode": "304",
+			"name": "categories",
+			"p95Ms": 24.046874000000116,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 3,
+			"mode": "redis-cold",
+			"name": "categoryDetail",
+			"p95Ms": 52.34451599999966,
+			"passed": true,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2,
+			"mode": "hot",
+			"name": "categoryDetail",
+			"p95Ms": 9.200350999999955,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2,
+			"mode": "304",
+			"name": "categoryDetail",
+			"p95Ms": 10.861680999999862,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 3,
+			"mode": "redis-cold",
+			"name": "categoryLookup",
+			"p95Ms": 24.259753000000273,
+			"passed": true,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2,
+			"mode": "hot",
+			"name": "categoryLookup",
+			"p95Ms": 29.556369999999788,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2,
+			"mode": "304",
+			"name": "categoryLookup",
+			"p95Ms": 30.827890000000025,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 3,
+			"mode": "redis-cold",
+			"name": "creditCardImports",
+			"p95Ms": 44.92686400000002,
+			"passed": true,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2,
+			"mode": "hot",
+			"name": "creditCardImports",
+			"p95Ms": 23.32112700000016,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2,
+			"mode": "304",
+			"name": "creditCardImports",
+			"p95Ms": 17.882924000000003,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 4,
+			"mode": "redis-cold",
+			"name": "creditCards",
+			"p95Ms": 589.1092920000001,
+			"passed": true,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2,
+			"mode": "hot",
+			"name": "creditCards",
+			"p95Ms": 18.949657999999545,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2,
+			"mode": "304",
+			"name": "creditCards",
+			"p95Ms": 8.940215000000535,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 43,
+			"mode": "redis-cold",
+			"name": "dashboard",
+			"p95Ms": 11592.295263,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2,
+			"mode": "hot",
+			"name": "dashboard",
+			"p95Ms": 92.84142700000666,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2,
+			"mode": "304",
+			"name": "dashboard",
+			"p95Ms": 87.87035399999877,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 3,
+			"mode": "redis-cold",
+			"name": "debts",
+			"p95Ms": 126.70150100000319,
+			"passed": true,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2,
+			"mode": "hot",
+			"name": "debts",
+			"p95Ms": 21.631900000000314,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2,
+			"mode": "304",
+			"name": "debts",
+			"p95Ms": 12.894397999996727,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 3,
+			"mode": "redis-cold",
+			"name": "loanDetail",
+			"p95Ms": 53.12199099999998,
+			"passed": true,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2,
+			"mode": "hot",
+			"name": "loanDetail",
+			"p95Ms": 11.017287000002398,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2,
+			"mode": "304",
+			"name": "loanDetail",
+			"p95Ms": 27.37024399999791,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 4,
+			"mode": "redis-cold",
+			"name": "loanHistory",
+			"p95Ms": 56.81734800000413,
+			"passed": true,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2,
+			"mode": "hot",
+			"name": "loanHistory",
+			"p95Ms": 12.327181000000564,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2,
+			"mode": "304",
+			"name": "loanHistory",
+			"p95Ms": 15.57002900000225,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 4,
+			"mode": "redis-cold",
+			"name": "loanPayments",
+			"p95Ms": 68.81192599999486,
+			"passed": true,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2,
+			"mode": "hot",
+			"name": "loanPayments",
+			"p95Ms": 29.02220999999554,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2,
+			"mode": "304",
+			"name": "loanPayments",
+			"p95Ms": 41.880425000003015,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 3,
+			"mode": "redis-cold",
+			"name": "loans",
+			"p95Ms": 61.87586200000078,
+			"passed": true,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2,
+			"mode": "hot",
+			"name": "loans",
+			"p95Ms": 25.66332500000135,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2,
+			"mode": "304",
+			"name": "loans",
+			"p95Ms": 9.504296999999497,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 3,
+			"mode": "redis-cold",
+			"name": "stores",
+			"p95Ms": 23.3020319999996,
+			"passed": true,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2,
+			"mode": "hot",
+			"name": "stores",
+			"p95Ms": 10.109731999997166,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2,
+			"mode": "304",
+			"name": "stores",
+			"p95Ms": 9.254408000000694,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 3,
+			"mode": "redis-cold",
+			"name": "transactionImports",
+			"p95Ms": 17.273198999995657,
+			"passed": true,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2,
+			"mode": "hot",
+			"name": "transactionImports",
+			"p95Ms": 35.96246499999688,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2,
+			"mode": "304",
+			"name": "transactionImports",
+			"p95Ms": 25.535618000001705,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 8,
+			"mode": "redis-cold",
+			"name": "transactions",
+			"p95Ms": 724.6451450000022,
+			"passed": true,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2,
+			"mode": "hot",
+			"name": "transactions",
+			"p95Ms": 12.950453999990714,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2,
+			"mode": "304",
+			"name": "transactions",
+			"p95Ms": 9.089575999998488,
+			"passed": false,
+			"round": 1
+		}
+	],
+	"worker": "stopped"
+}
