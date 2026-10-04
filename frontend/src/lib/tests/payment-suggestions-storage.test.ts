@@ -1,9 +1,12 @@
-import { expect, test } from "bun:test";
+import { afterEach, expect, setSystemTime, test } from "bun:test";
 import { type CreditBook, newBookPurchase } from "@zaimu/finance/credit-book";
 import { IDBFactory } from "fake-indexeddb";
 import { createJSONStorage } from "zustand/middleware";
 
+afterEach(() => setSystemTime());
+
 test("visitor payment validates balance and date, serializes attempts and isolates owners", async () => {
+	setSystemTime(new Date("2026-08-26T12:00:00Z"));
 	Object.defineProperty(globalThis, "indexedDB", { configurable: true, value: new IDBFactory() });
 	Object.defineProperty(globalThis, "window", {
 		configurable: true,

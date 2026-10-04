@@ -22,7 +22,7 @@ function book(): CreditBook {
 	};
 }
 
-test("suggests only after closing and retains overdue debt once", () => {
+test("suggests carried overdue debt only when the receiving cycle closes", () => {
 	const ledger = book();
 	newBookPurchase(ledger, {
 		description: "Compra",
@@ -30,11 +30,25 @@ test("suggests only after closing and retains overdue debt once", () => {
 		purchaseDate: "2026-08-10",
 		totalAmount: 100,
 	});
+	newBookPurchase(ledger, {
+		description: "Compra do próximo ciclo",
+		installments: 1,
+		purchaseDate: "2026-09-10",
+		totalAmount: 25,
+	});
 	expect(pendingStatementPayments(ledger, "2026-08-19")).toEqual([]);
 	expect(pendingStatementPayments(ledger, "2026-08-20").map(row => row.amount)).toEqual([100]);
-	expect(pendingStatementPayments(ledger, "2026-09-03").reduce((sum, row) => sum + row.amount, 0)).toBe(
-		100,
-	);
+	expect(pendingStatementPayments(ledger, "2026-08-28")[0]).toMatchObject({
+		amount: 100,
+		dueDate: "2026-08-28",
+	});
+	expect(pendingStatementPayments(ledger, "2026-08-29")).toEqual([]);
+	expect(pendingStatementPayments(ledger, "2026-09-03")).toEqual([]);
+	expect(pendingStatementPayments(ledger, "2026-09-20")).toHaveLength(1);
+	expect(pendingStatementPayments(ledger, "2026-09-20")[0]).toMatchObject({
+		amount: 125,
+		dueDate: "2026-09-28",
+	});
 });
 
 test("partial payment, final payment and cutoff remove or reduce suggestion", () => {
