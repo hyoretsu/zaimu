@@ -32,7 +32,7 @@ test("tooltip preserves cents, splits recurring flows, and groups totals and the
 		"Gastos recorrentes",
 		"Outras saídas",
 		"Saldo total",
-		"Poupado",
+		"Patrimônio",
 	])
 		expect(html).toContain(label);
 	for (const value of [
@@ -74,7 +74,7 @@ test("invoice total includes nested subscriptions and other card expenses", () =
 	expect(html).toContain("20,15");
 	expect(html).toContain("10,10");
 	expect(html).toContain("30,25");
-	expect(html).toContain("Outros");
+	expect(html).toContain("Outras compras");
 	expect(html.indexOf(">Faturas<")).toBeLessThan(html.indexOf(">Assinaturas<"));
 	expect(html).toContain("pl-6");
 	expect(html).toContain("50,00");

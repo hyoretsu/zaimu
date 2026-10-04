@@ -34,7 +34,7 @@ export function DashboardChartTooltip({ active, period }: DashboardChartTooltipP
 				{ color: "#0ea5e9", label: "Em conta", value: period.accountBalance },
 				{
 					color: "var(--color-foreground)",
-					label: "Poupado",
+					label: "Patrimônio",
 					subtotal: true,
 					value: period.fixedIncomeBalance + period.variableIncomeBalance,
 				},
@@ -70,7 +70,7 @@ export function DashboardChartTooltip({ active, period }: DashboardChartTooltipP
 				{ color: "#d946ef", label: "Assinaturas", nested: true, value: period.recurringCardExpenses ?? 0 },
 				{
 					color: "#f97316",
-					label: "Outros",
+					label: "Outras compras",
 					nested: true,
 					value: (period.cardExpenses ?? 0) - (period.recurringCardExpenses ?? 0),
 				},
