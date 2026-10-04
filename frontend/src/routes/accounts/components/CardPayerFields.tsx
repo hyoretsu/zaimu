@@ -31,7 +31,7 @@ export function CardPayerFields({
 				label="Conta pagadora"
 				onValueChange={value => onPayerChange(value === "primary" ? null : value)}
 				options={[
-					{ label: "Usar conta primária", special: true, value: "primary" },
+					{ label: "Usar conta padrão para faturas", special: true, value: "primary" },
 					...(accounts.data ?? [])
 						.filter(account => !["CREDIT_CARD", "REWARDS"].includes(account.type))
 						.map(account => ({ label: getFinancialAccountOptionLabel(account), value: account.id })),

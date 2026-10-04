@@ -70,6 +70,7 @@ export async function getGuestDashboardFinancialContext(parameters: DashboardCom
 			.filter(row => row.recurrenceId)
 			.map(row => `${row.recurrenceId}:${row.recurrenceOccurrenceDate ?? row.date.slice(0, 10)}`),
 	]);
+	const accounts = accountRows.filter(row => !row.data.isHidden).map(row => row.data);
 	const projected: Array<Omit<ForecastMovement, "date"> & { date: Date }> = [];
 	for (const recurrence of recurrences) {
 		if (
@@ -120,7 +121,17 @@ export async function getGuestDashboardFinancialContext(parameters: DashboardCom
 				amount: statement.balanceAmount,
 				cardPayment: true,
 				date,
-				originAccountId: cards.find(card => card.id === statement.creditCardId)?.paymentAccountId,
+				originAccountId:
+					cards.find(card => card.id === statement.creditCardId)?.paymentAccountId ??
+					accounts.find(
+						account =>
+							account.isDefaultForStatements &&
+							!account.isHidden &&
+							["CHECKING", "CASH", "SAVINGS", "INVESTMENT"].includes(account.type),
+					)?.id ??
+					accounts.find(
+						account => account.isPrimary && !account.isHidden && ["CHECKING", "CASH"].includes(account.type),
+					)?.id,
 				recurringAmount: statement.recurringAmount,
 				type: "EXPENSE",
 			});
@@ -130,7 +141,6 @@ export async function getGuestDashboardFinancialContext(parameters: DashboardCom
 		if (!payment.paidDate && date >= projectionStart && date <= through)
 			projected.push({ amount: payment.totalPaid, date, type: "EXPENSE" });
 	}
-	const accounts = accountRows.filter(row => !row.data.isHidden).map(row => row.data);
 	const historicalAccountsAt = (date: Date) =>
 		calculateFinancialAccountBalances(
 			accounts,

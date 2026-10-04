@@ -9,6 +9,19 @@ test("visitor payment validates balance and date, serializes attempts and isolat
 		configurable: true,
 		value: { location: { origin: "http://localhost" } },
 	});
+	const initialStorage = new Map<string, string>();
+	Object.defineProperty(globalThis, "localStorage", {
+		configurable: true,
+		value: {
+			getItem: (key: string) => initialStorage.get(key) ?? null,
+			removeItem: (key: string) => {
+				initialStorage.delete(key);
+			},
+			setItem: (key: string, value: string) => {
+				initialStorage.set(key, value);
+			},
+		},
+	});
 	const { useAuthStore } = await import("@/stores/auth");
 	const persisted = new Map<string, string>();
 	useAuthStore.persist.setOptions({
@@ -34,7 +47,59 @@ test("visitor payment validates balance and date, serializes attempts and isolat
 		updatedAt: "2026-01-01",
 		userId: "suggestions",
 	};
-	await storage.localAccounts.put(account, "payer", owner);
+	await storage.saveLocalAccountDefaults(account, { create: true });
+	expect((await storage.localAccounts.getById("payer", owner))?.data.isPrimary).toBe(true);
+	await storage.saveLocalAccountDefaults(
+		{ ...account, id: "statement-payer" },
+		{
+			create: true,
+			isDefaultForStatements: true,
+		},
+	);
+	await storage.saveLocalAccountDefaults(
+		{ ...account, id: "next-statement-payer" },
+		{
+			create: true,
+			isDefaultForStatements: true,
+		},
+	);
+	expect(
+		(await storage.localAccounts.getAll(owner))
+			.filter(row => row.data.isDefaultForStatements)
+			.map(row => row.localId),
+	).toEqual(["next-statement-payer"]);
+	await storage.saveLocalAccountDefaults(
+		{ ...account, id: "next-statement-payer" },
+		{ isDefaultForStatements: false },
+	);
+	expect((await storage.localAccounts.getAll(owner)).some(row => row.data.isDefaultForStatements)).toBe(
+		false,
+	);
+	await expect(
+		storage.saveLocalAccountDefaults(
+			{ ...account, id: "invalid-default", type: "CREDIT_CARD" },
+			{ create: true, isPrimary: true },
+		),
+	).rejects.toThrow();
+	await storage.localAccounts.put(
+		{ ...account, id: "isolated", isDefaultForStatements: true, isPrimary: true },
+		"isolated",
+		"guest:other",
+	);
+	await Promise.all([
+		storage.saveLocalAccountDefaults({ ...account, id: "statement-payer" }, { isDefaultForStatements: true }),
+		storage.saveLocalAccountDefaults(
+			{ ...account, id: "next-statement-payer" },
+			{ isDefaultForStatements: true },
+		),
+	]);
+	expect(
+		(await storage.localAccounts.getAll(owner)).filter(row => row.data.isDefaultForStatements),
+	).toHaveLength(1);
+	expect((await storage.localAccounts.getById("isolated", "guest:other"))?.data.isDefaultForStatements).toBe(
+		true,
+	);
+	await storage.localAccounts.delete("isolated", "guest:other");
 	await storage.setLocalPrimaryAccount("payer");
 	expect((await storage.localAccounts.getById("payer", owner))?.data.isPrimary).toBe(true);
 	await storage.localAccounts.put({ ...account, id: "other-payer" }, "other-payer", owner);

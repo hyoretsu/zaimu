@@ -64,7 +64,10 @@ export function dashboardFinancialContext(
 				amount: outstanding,
 				cardPayment: true,
 				date: statement.dueDate,
-				originAccountId: loaded.cards.find(card => card.id === statement.creditCardId)?.paymentAccountId,
+				originAccountId:
+					loaded.cards.find(card => card.id === statement.creditCardId)?.paymentAccountId ??
+					accounts.find(account => account.isDefaultForStatements && !account.isHidden)?.id ??
+					accounts.find(account => account.isPrimary && !account.isHidden)?.id,
 				recurringAmount: statement.recurringAmount,
 				type: "EXPENSE",
 			});

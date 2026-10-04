@@ -1343,6 +1343,75 @@ export async function createLocalDebtOrigins(events: StoredDebtEvent[], ownerKey
 	});
 }
 
+export async function saveLocalAccountDefaults(
+	account: FinancialAccount,
+	options: { create?: boolean; isPrimary?: boolean; isDefaultForStatements?: boolean } = {},
+) {
+	const owner = requireOwner();
+	const database = await initLocalDb();
+	const tx = database.transaction("scoped-accounts", "readwrite");
+	const done = transactionDone(tx);
+	try {
+		const store = tx.objectStore("scoped-accounts");
+		const rows = (await requestResult(
+			store.index("ownerKey").getAll(owner),
+		)) as LocalData<FinancialAccount>[];
+		const eligible = !account.isHidden && ["CHECKING", "CASH"].includes(account.type);
+		const statementEligible =
+			!account.isHidden && ["CHECKING", "CASH", "SAVINGS", "INVESTMENT"].includes(account.type);
+		if ((!eligible && options.isPrimary) || (!statementEligible && options.isDefaultForStatements))
+			throw new Error("Selecione uma conta corrente ou dinheiro disponível");
+		const previous = rows.find(row => row.localId === account.id);
+		const updated = {
+			...account,
+			isDefaultForStatements:
+				statementEligible &&
+				(options.isDefaultForStatements ?? previous?.data.isDefaultForStatements ?? false),
+			isPrimary:
+				eligible &&
+				((options.create && !rows.some(row => !row.deleted && row.data.isPrimary)) ||
+					(options.isPrimary ?? previous?.data.isPrimary ?? false)),
+		};
+		for (const row of rows) {
+			if (row.localId === account.id) continue;
+			if (
+				!(updated.isPrimary && row.data.isPrimary) &&
+				!(updated.isDefaultForStatements && row.data.isDefaultForStatements)
+			)
+				continue;
+			await requestResult(
+				store.put({
+					...row,
+					data: {
+						...row.data,
+						isDefaultForStatements: updated.isDefaultForStatements ? false : row.data.isDefaultForStatements,
+						isPrimary: updated.isPrimary ? false : row.data.isPrimary,
+					},
+					modifiedAt: Date.now(),
+					syncedAt: undefined,
+				}),
+			);
+		}
+		await requestResult(
+			store.put({
+				...previous,
+				data: updated,
+				localId: account.id,
+				modifiedAt: Date.now(),
+				ownerKey: owner,
+				scopedId: scopedId(owner, account.id),
+				syncedAt: undefined,
+			}),
+		);
+		await done;
+		return updated;
+	} catch (error) {
+		tx.abort();
+		await done.catch(() => undefined);
+		throw error;
+	}
+}
+
 export async function setLocalPrimaryAccount(accountId: string | null) {
 	const owner = requireOwner();
 	const database = await initLocalDb();
@@ -1472,15 +1541,13 @@ export async function confirmLocalSuggestedPayment(
 			type: "EXPENSE",
 		};
 		await requestResult(
-			tx
-				.objectStore("scoped-transactions")
-				.put({
-					data: transaction,
-					localId: transaction.id,
-					modifiedAt: Date.now(),
-					ownerKey: owner,
-					scopedId: scopedId(owner, transaction.id),
-				}),
+			tx.objectStore("scoped-transactions").put({
+				data: transaction,
+				localId: transaction.id,
+				modifiedAt: Date.now(),
+				ownerKey: owner,
+				scopedId: scopedId(owner, transaction.id),
+			}),
 		);
 		await done;
 		return { transaction };

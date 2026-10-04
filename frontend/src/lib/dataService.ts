@@ -43,6 +43,7 @@ import {
 	localCreditRefundReviews,
 	mutateLocalCreditBook,
 	readLocalCreditBook,
+	saveLocalAccountDefaults,
 	setLocalPrimaryAccount,
 	toPurchasePresentation,
 	transferLocalCreditBookPurchase,
@@ -218,6 +219,8 @@ export type FinancialAccountDraft = Omit<
 };
 
 export interface FinancialAccountUpdateDraft {
+	isPrimary?: boolean;
+	isDefaultForStatements?: boolean;
 	isHidden?: boolean;
 	creditCard?: FinancialAccountDraft["creditCard"];
 	institutionName?: string;
@@ -362,7 +365,11 @@ export const dataService = {
 						},
 					};
 				}
-				await localAccounts.put(newAccount, newAccount.id);
+				newAccount = await saveLocalAccountDefaults(newAccount, {
+					create: true,
+					isDefaultForStatements: data.isDefaultForStatements,
+					isPrimary: data.isPrimary,
+				});
 				if (data.type === "CREDIT_CARD" && creditCard) {
 					if (creditCard.cashbackRate && !creditCard.cashbackAccountId && creditCard.cashbackRewards) {
 						const matchingReward = (await localAccounts.getAll())
@@ -536,7 +543,7 @@ export const dataService = {
 							},
 						]
 					: existing.data.yieldRateHistories;
-				const updated: FinancialAccount = {
+				let updated: FinancialAccount = {
 					...existing.data,
 					...accountData,
 					creditCard:
@@ -552,7 +559,10 @@ export const dataService = {
 					updatedAt: new Date().toISOString(),
 					yieldRateHistories: nextYieldHistory,
 				};
-				await localAccounts.put(updated, id);
+				updated = await saveLocalAccountDefaults(updated, {
+					isDefaultForStatements: data.isDefaultForStatements,
+					isPrimary: data.isPrimary,
+				});
 				if (updated.creditCard && data.creditCard) {
 					const card = updated.creditCard;
 					await localCreditCards.put(card, card.id);
@@ -1340,6 +1350,11 @@ export const dataService = {
 			const primary = accounts.find(
 				account => account.isPrimary && ["CHECKING", "CASH"].includes(account.type),
 			);
+			const statementDefault = accounts.find(
+				account =>
+					account.isDefaultForStatements &&
+					["CHECKING", "CASH", "SAVINGS", "INVESTMENT"].includes(account.type),
+			);
 			return (
 				await Promise.all(
 					cards
@@ -1347,7 +1362,7 @@ export const dataService = {
 						.map(async card => {
 							const payer = accounts.find(
 								account =>
-									account.id === (card.paymentAccountId ?? primary?.id) &&
+									account.id === (card.paymentAccountId ?? statementDefault?.id ?? primary?.id) &&
 									!["CREDIT_CARD", "REWARDS"].includes(account.type),
 							);
 							if (!payer) return [];

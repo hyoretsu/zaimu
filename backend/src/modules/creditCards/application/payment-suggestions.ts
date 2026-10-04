@@ -9,11 +9,12 @@ import { recalculateStatementPayments } from "./statement-payments";
 export async function getPaymentSuggestions(userId: string) {
 	const cards = await queryRaw<{ id: string; paymentAccountId: string; cardName: string }>(
 		`
-SELECT c."id", COALESCE(c."paymentAccountId",p."id") AS "paymentAccountId", COALESCE(a."name",i."name",'Cartão de crédito') AS "cardName"
+SELECT c."id", COALESCE(c."paymentAccountId",s."id",p."id") AS "paymentAccountId", COALESCE(a."name",i."name",'Cartão de crédito') AS "cardName"
 FROM "CreditCard" c JOIN "FinancialAccount" a ON a."id"=c."financialAccountId"
 LEFT JOIN "FinancialInstitution" i ON i."id"=a."institutionId"
+LEFT JOIN "FinancialAccount" s ON s."userId"=a."userId" AND s."isDefaultForStatements" AND NOT s."isHidden" AND s."type" IN ('CHECKING','CASH','SAVINGS','INVESTMENT')
 LEFT JOIN "FinancialAccount" p ON p."userId"=a."userId" AND p."isPrimary" AND NOT p."isHidden" AND p."type" IN ('CHECKING','CASH')
-JOIN "FinancialAccount" payer ON payer."id"=COALESCE(c."paymentAccountId",p."id") AND payer."userId"=a."userId" AND NOT payer."isHidden"
+JOIN "FinancialAccount" payer ON payer."id"=COALESCE(c."paymentAccountId",s."id",p."id") AND payer."userId"=a."userId" AND NOT payer."isHidden"
 WHERE a."userId"=$1 AND NOT a."isHidden" AND c."paymentSuggestionsEnabled"`,
 		[userId],
 	);

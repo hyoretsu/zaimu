@@ -1,5 +1,6 @@
 import Elysia from "elysia";
 import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
+import { saveAccountDefaults } from "~/modules/accounts/application/payment-preferences";
 import { resolveFinancialInstitution } from "~/modules/accounts/application/resolve-financial-institution";
 import { assertCashbackSettings } from "~/modules/accounts/domain/assert-cashback-settings";
 import { assertRewardsAccountDetails } from "~/modules/accounts/domain/assert-rewards-account-details";
@@ -92,6 +93,7 @@ const accountColumns = [
 	"userId",
 	"isHidden",
 	"isPrimary",
+	"isDefaultForStatements",
 	"name",
 	"type",
 	"institutionId",
@@ -239,18 +241,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 							userId,
 							value<string | undefined>(entity, "institutionName") ?? institutionInput?.name,
 						);
-						const isPrimary = value<boolean | undefined>(entity, "isPrimary");
-						if (isPrimary) {
-							if (!["CHECKING", "CASH"].includes(type))
-								throw new Error("Conta primária exige conta corrente ou dinheiro");
-							await queryRaw(`SELECT "id" FROM "user" WHERE "id"=$1 FOR UPDATE`, [userId]);
-							await queryRaw(
-								`UPDATE "FinancialAccount" SET "isPrimary"=false WHERE "userId"=$1 AND "id"<>$2`,
-								[userId, id],
-							);
-						}
 						const values = {
-							...(isPrimary !== undefined && { isPrimary }),
 							institutionId: institution?.id,
 							isHidden: value<boolean | undefined>(entity, "isHidden") ?? false,
 							name: value<string>(entity, "name"),
@@ -280,6 +271,15 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 							await executeStatement(
 								db.sql.public.FinancialAccount.insert([{ ...values, id, userId }]).build(),
 							);
+						await saveAccountDefaults(
+							userId,
+							id,
+							{
+								isDefaultForStatements: value<boolean | undefined>(entity, "isDefaultForStatements"),
+								isPrimary: value<boolean | undefined>(entity, "isPrimary"),
+							},
+							!existing,
+						);
 						const yieldRateHistories = value<
 							Array<{
 								effectiveDate?: string;

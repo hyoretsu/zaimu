@@ -30,7 +30,7 @@ Uma saída pendente e uma entrada já materializada, de contas distintas do mesm
 
 ## Conta primária e sugestões de pagamento
 
-Cada usuário pode selecionar uma conta primária corrente ou dinheiro. Despesas novas usam essa conta como padrão, preservando escolhas manuais e vínculos existentes. Cartão pode definir conta pagadora própria dentre os tipos permitidos para pagamento; ela prevalece sobre a primária. Selecionar conta habilita sugestões, que podem ser desligadas por cartão. Vínculos exigem mesmo proprietário e disponibilidade; exclusão limpa referência.
+Cada usuário pode selecionar uma conta primária corrente ou dinheiro. Despesas novas usam essa conta como padrão, preservando escolhas manuais e vínculos existentes. A primeira conta corrente ou dinheiro cadastrada torna-se primária automaticamente. Os padrões são definidos num único modal Contas padrão, acessível pela tela de contas. Pode haver uma conta padrão específica para faturas dentre os tipos permitidos para pagamento; sem ela, usa-se a primária. Cartão pode definir conta pagadora própria dentre os tipos permitidos para pagamento; ela prevalece sobre o padrão de faturas e a primária. Selecionar conta habilita sugestões, que podem ser desligadas por cartão. Vínculos exigem mesmo proprietário e disponibilidade; exclusão limpa referência.
 
 Faturas fechadas com saldo restante geram sugestões revisáveis, inclusive após vencimento. Sugestões não registram pagamento e desaparecem quando quitadas ou desconsideradas pelo ajuste do cartão. Revisão informa cartão, vencimento, restante e conta pagadora. Aprovar abre formulário com data de hoje editável; cancelar não produz efeito.
 

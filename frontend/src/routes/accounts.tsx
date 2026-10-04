@@ -1,7 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { LuCalendarDays, LuEye, LuLandmark, LuPlus, LuScale, LuWalletCards } from "react-icons/lu";
+import {
+	LuCalendarDays,
+	LuEye,
+	LuLandmark,
+	LuPlus,
+	LuScale,
+	LuSettings2,
+	LuWalletCards,
+} from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageContainer } from "@/components/ui/PageContainer";
@@ -18,16 +26,17 @@ import { getFinancialInstitutions } from "@/lib/financial-institution";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast, useAuthStore } from "@/stores";
 import {
+	AccountDefaultsDialog,
 	BalanceAdjustmentsDialog,
 	CreateFinancialAccountDialog,
 	FinancialAccountYieldHolidaysDialog,
 	FinancialInstitutionGroup,
-	PrimaryAccountSelect,
 } from "./accounts/components";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
 export function AccountsPage() {
+	const [isDefaultsOpen, setIsDefaultsOpen] = useState(false);
 	const [isCreateAccountOpen, setIsCreateAccountOpen] = useState(false);
 	const [isHolidaysOpen, setIsHolidaysOpen] = useState(false);
 	const [isBalanceAdjustmentsOpen, setIsBalanceAdjustmentsOpen] = useState(false);
@@ -151,6 +160,9 @@ export function AccountsPage() {
 			<PageHeader
 				actions={
 					<div className="flex flex-wrap gap-2">
+						<Button className="h-11 cursor-pointer" onClick={() => setIsDefaultsOpen(true)} variant="outline">
+							<LuSettings2 /> Contas padrão
+						</Button>
 						<Button
 							className="h-11 cursor-pointer"
 							onClick={() => setIsBalanceAdjustmentsOpen(true)}
@@ -181,6 +193,7 @@ export function AccountsPage() {
 				description="Organize contas bancárias, dinheiro, investimentos e recompensas."
 				eyebrow="Patrimônio"
 				mobileActions={[
+					{ icon: LuSettings2, label: "Contas padrão", onClick: () => setIsDefaultsOpen(true) },
 					{ icon: LuScale, label: "Ajustes de saldo", onClick: () => setIsBalanceAdjustmentsOpen(true) },
 					{ icon: LuCalendarDays, label: "Feriados", onClick: () => setIsHolidaysOpen(true) },
 					{ icon: LuPlus, label: "Nova conta", onClick: () => setIsCreateAccountOpen(true) },
@@ -197,9 +210,6 @@ export function AccountsPage() {
 					<p className="mt-2 font-bold text-3xl">{visibleAccounts.length}</p>
 				</div>
 			</section>
-			{!accounts.isError && (
-				<PrimaryAccountSelect accounts={accounts.data ?? []} pending={accounts.isPending} />
-			)}
 			{accounts.isPending ? (
 				<div className="grid gap-6">
 					{[1, 2].map(item => (
@@ -275,6 +285,7 @@ export function AccountsPage() {
 					))}
 				</section>
 			)}
+			{isDefaultsOpen && <AccountDefaultsDialog onOpenChange={setIsDefaultsOpen} />}
 			<BalanceAdjustmentsDialog onOpenChange={setIsBalanceAdjustmentsOpen} open={isBalanceAdjustmentsOpen} />
 		</PageContainer>
 	);

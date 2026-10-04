@@ -9,6 +9,7 @@ export interface User {
 
 export interface FinancialAccount {
 	isPrimary?: boolean;
+	isDefaultForStatements?: boolean;
 	id: string;
 	isHidden?: boolean;
 	userId: string;

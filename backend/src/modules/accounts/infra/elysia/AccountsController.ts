@@ -2,7 +2,11 @@ import { startOfDay } from "date-fns";
 import Elysia, { t } from "elysia";
 import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
 import { getFinancialInstitutionYieldPolicies } from "~/modules/accounts/application/get-financial-institution-yield-policies";
-import { getPrimaryAccount, setPrimaryAccount } from "~/modules/accounts/application/payment-preferences";
+import {
+	getPrimaryAccount,
+	saveAccountDefaults,
+	setPrimaryAccount,
+} from "~/modules/accounts/application/payment-preferences";
 import { resolveFinancialInstitution } from "~/modules/accounts/application/resolve-financial-institution";
 import {
 	scheduleFinancialAccountYieldRate,
@@ -18,7 +22,15 @@ import { recalculateCreditCardDueDates } from "~/modules/creditCards/application
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
 import { rejectLegacyFinancialFields } from "~/shared/infra/elysia/strict-json-body";
-import { db, executeStatement, nullableNumeric, queryFirst, queryRaw, queryRows } from "~/shared/infra/sql";
+import {
+	db,
+	executeStatement,
+	nullableNumeric,
+	queryFirst,
+	queryRaw,
+	queryRows,
+	withRawTransaction,
+} from "~/shared/infra/sql";
 
 const Id = t.String({ maxLength: 36, minLength: 1 });
 const FinancialAccountType = t.Union([
@@ -169,6 +181,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 							"userId",
 							"isHidden",
 							"isPrimary",
+							"isDefaultForStatements",
 							"name",
 							"type",
 							"institutionId",
@@ -309,253 +322,260 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 	)
 	.post(
 		"/",
-		async ({ body, request }) => {
-			const userId = await requireUserId(request);
-			const type = body.type ?? "CHECKING";
-			const name = body.name?.trim() || null;
-			if (type === "CREDIT_CARD" && !body.creditCard)
-				throw new HttpException("Informe os dados do cartão de crédito", 400);
-			if (type !== "CREDIT_CARD" && body.creditCard)
-				throw new HttpException("Dados de cartão exigem uma conta do tipo cartão de crédito", 400);
-			if (type === "REWARDS" && !body.rewardsAccount)
-				throw new HttpException("Informe os dados da conta de pontos ou cashback", 400);
-			if (type !== "REWARDS" && body.rewardsAccount)
-				throw new HttpException("Dados de recompensas exigem uma conta do tipo pontos/cashback", 400);
-			assertFinancialAccountYieldSettings({
-				type,
-				yieldFixedRate: body.yieldFixedRate,
-				yieldPeriod: body.yieldPeriod,
-				yieldReferencePercentage: body.yieldReferencePercentage,
-				yieldReferenceType: body.yieldReferenceType,
-				yieldTaxRate: body.yieldTaxRate,
-			});
-			if (body.creditCard) {
-				if (body.creditCard.paymentAccountId)
-					await assertPayerOwnership(body.creditCard.paymentAccountId, userId);
-				assertCreditCardBillingDays(body.creditCard.statementDay, body.creditCard.dueDay);
-				assertCashbackSettings(body.creditCard);
-				if (body.creditCard.cashbackAccountId)
-					await assertRewardsAccountOwnership(body.creditCard.cashbackAccountId, userId);
-			}
-			if (body.rewardsAccount)
-				assertRewardsAccountDetails({
-					...body.rewardsAccount,
-					initialBalance: body.rewardsAccount.initialBalance ?? 0,
-				});
-			const institution = await resolveFinancialInstitution(userId, body.institutionName);
-			let cashbackAccountId = body.creditCard?.cashbackAccountId;
-			if (body.creditCard?.cashbackRate && !cashbackAccountId) {
-				const cashbackRewards = body.creditCard.cashbackRewards ?? { kind: "CASHBACK" as const };
-				const existingRewards = await queryFirst(
-					db.sql.public.FinancialAccount.select("id")
-						.where((fields, functions) =>
-							functions.and(
-								functions.eq(fields.userId, userId),
-								functions.eq(fields.type, "REWARDS"),
-								institution
-									? functions.eq(fields.institutionId, institution.id)
-									: functions.raw`${fields.institutionId} IS NULL`.returns("pg/bool@1"),
-								functions.raw`${fields.name} IS NULL`.returns("pg/bool@1"),
-							),
-						)
-						.limit(1)
-						.build(),
-				);
-				if (existingRewards) cashbackAccountId = existingRewards.id;
-				else {
-					const rewardFinancialAccount = await queryFirst(
-						db.sql.public.FinancialAccount.insert([
-							{ institutionId: institution?.id, name: null as never, type: "REWARDS", userId },
-						])
-							.returning("id")
-							.build(),
-					);
-					if (!rewardFinancialAccount) throw new HttpException("Conta de recompensa não criada", 500);
-					await executeStatement(
-						db.sql.public.RewardsAccount.insert([
-							{
-								...(cashbackRewards.conversionAmount !== undefined && {
-									conversionAmount: String(cashbackRewards.conversionAmount),
-								}),
-								...(cashbackRewards.conversionPoints !== undefined && {
-									conversionPoints: String(cashbackRewards.conversionPoints),
-								}),
-								financialAccountId: rewardFinancialAccount.id,
-								initialBalance: "0",
-								kind: cashbackRewards.kind,
-							},
-						]).build(),
-					);
-					cashbackAccountId = rewardFinancialAccount.id;
-				}
-			}
-			const existing = await queryFirst(
-				db.sql.public.FinancialAccount.select("id")
-					.where((fields, functions) =>
-						functions.and(
-							functions.eq(fields.userId, userId),
-							name === null
-								? functions.raw`${fields.name} IS NULL`.returns("pg/bool@1")
-								: functions.eq(fields.name, name),
-							functions.eq(fields.type, type),
-							institution
-								? functions.eq(fields.institutionId, institution.id)
-								: functions.raw`${fields.institutionId} IS NULL`.returns("pg/bool@1"),
-						),
-					)
-					.limit(1)
-					.build(),
-			);
-
-			if (existing) {
-				throw new HttpException("Já existe uma conta desse tipo com este nome", 409);
-			}
-
-			const account = await queryFirst(
-				db.sql.public.FinancialAccount.insert([
-					{
-						institutionId: institution?.id,
-						// Prisma 8 currently omits null from nullable varchar write types.
-						name: name as never,
-						type,
-						userId,
-						yieldPeriod: body.yieldPeriod ?? undefined,
-						...(body.yieldFixedRate !== undefined &&
-							body.yieldFixedRate !== null && { yieldFixedRate: String(body.yieldFixedRate) }),
-						...(body.yieldReferencePercentage !== undefined &&
-							body.yieldReferencePercentage !== null && {
-								yieldReferencePercentage: String(body.yieldReferencePercentage),
-							}),
-						...(body.yieldReferenceType !== undefined &&
-							body.yieldReferenceType !== null && {
-								yieldReferenceType: body.yieldReferenceType,
-							}),
-						...(body.yieldTaxRate !== undefined &&
-							body.yieldTaxRate !== null && { yieldTaxRate: String(body.yieldTaxRate) }),
-					},
-				])
-					.returning(
-						"id",
-						"userId",
-						"name",
-						"type",
-						"institutionId",
-						"yieldFixedRate",
-						"yieldPeriod",
-						"yieldReferencePercentage",
-						"yieldReferenceType",
-						"yieldTaxRate",
-						"createdAt",
-						"updatedAt",
-					)
-					.build(),
-			);
-			if (!account) throw new HttpException("FinancialAccount not created", 500);
-			if (type !== "CREDIT_CARD" && (body.yieldFixedRate || body.yieldReferenceType)) {
-				await scheduleFinancialAccountYieldRate({
-					effectiveDate: new Date(),
-					financialAccountId: account.id,
+		async ({ body, request }) =>
+			withRawTransaction(async () => {
+				const userId = await requireUserId(request);
+				await queryRaw(`SELECT "id" FROM "user" WHERE "id"=$1 FOR UPDATE`, [userId]);
+				const type = body.type ?? "CHECKING";
+				const name = body.name?.trim() || null;
+				if (type === "CREDIT_CARD" && !body.creditCard)
+					throw new HttpException("Informe os dados do cartão de crédito", 400);
+				if (type !== "CREDIT_CARD" && body.creditCard)
+					throw new HttpException("Dados de cartão exigem uma conta do tipo cartão de crédito", 400);
+				if (type === "REWARDS" && !body.rewardsAccount)
+					throw new HttpException("Informe os dados da conta de pontos ou cashback", 400);
+				if (type !== "REWARDS" && body.rewardsAccount)
+					throw new HttpException("Dados de recompensas exigem uma conta do tipo pontos/cashback", 400);
+				assertFinancialAccountYieldSettings({
+					type,
 					yieldFixedRate: body.yieldFixedRate,
 					yieldPeriod: body.yieldPeriod,
 					yieldReferencePercentage: body.yieldReferencePercentage,
 					yieldReferenceType: body.yieldReferenceType,
 					yieldTaxRate: body.yieldTaxRate,
 				});
-			}
+				if (body.creditCard) {
+					if (body.creditCard.paymentAccountId)
+						await assertPayerOwnership(body.creditCard.paymentAccountId, userId);
+					assertCreditCardBillingDays(body.creditCard.statementDay, body.creditCard.dueDay);
+					assertCashbackSettings(body.creditCard);
+					if (body.creditCard.cashbackAccountId)
+						await assertRewardsAccountOwnership(body.creditCard.cashbackAccountId, userId);
+				}
+				if (body.rewardsAccount)
+					assertRewardsAccountDetails({
+						...body.rewardsAccount,
+						initialBalance: body.rewardsAccount.initialBalance ?? 0,
+					});
+				const institution = await resolveFinancialInstitution(userId, body.institutionName);
+				let cashbackAccountId = body.creditCard?.cashbackAccountId;
+				if (body.creditCard?.cashbackRate && !cashbackAccountId) {
+					const cashbackRewards = body.creditCard.cashbackRewards ?? { kind: "CASHBACK" as const };
+					const existingRewards = await queryFirst(
+						db.sql.public.FinancialAccount.select("id")
+							.where((fields, functions) =>
+								functions.and(
+									functions.eq(fields.userId, userId),
+									functions.eq(fields.type, "REWARDS"),
+									institution
+										? functions.eq(fields.institutionId, institution.id)
+										: functions.raw`${fields.institutionId} IS NULL`.returns("pg/bool@1"),
+									functions.raw`${fields.name} IS NULL`.returns("pg/bool@1"),
+								),
+							)
+							.limit(1)
+							.build(),
+					);
+					if (existingRewards) cashbackAccountId = existingRewards.id;
+					else {
+						const rewardFinancialAccount = await queryFirst(
+							db.sql.public.FinancialAccount.insert([
+								{ institutionId: institution?.id, name: null as never, type: "REWARDS", userId },
+							])
+								.returning("id")
+								.build(),
+						);
+						if (!rewardFinancialAccount) throw new HttpException("Conta de recompensa não criada", 500);
+						await executeStatement(
+							db.sql.public.RewardsAccount.insert([
+								{
+									...(cashbackRewards.conversionAmount !== undefined && {
+										conversionAmount: String(cashbackRewards.conversionAmount),
+									}),
+									...(cashbackRewards.conversionPoints !== undefined && {
+										conversionPoints: String(cashbackRewards.conversionPoints),
+									}),
+									financialAccountId: rewardFinancialAccount.id,
+									initialBalance: "0",
+									kind: cashbackRewards.kind,
+								},
+							]).build(),
+						);
+						cashbackAccountId = rewardFinancialAccount.id;
+					}
+				}
+				const existing = await queryFirst(
+					db.sql.public.FinancialAccount.select("id")
+						.where((fields, functions) =>
+							functions.and(
+								functions.eq(fields.userId, userId),
+								name === null
+									? functions.raw`${fields.name} IS NULL`.returns("pg/bool@1")
+									: functions.eq(fields.name, name),
+								functions.eq(fields.type, type),
+								institution
+									? functions.eq(fields.institutionId, institution.id)
+									: functions.raw`${fields.institutionId} IS NULL`.returns("pg/bool@1"),
+							),
+						)
+						.limit(1)
+						.build(),
+				);
 
-			// If it's a credit card, create the credit card details
-			if (type === "CREDIT_CARD" && body.creditCard) {
-				const creditCard = await queryFirst(
-					db.sql.public.CreditCard.insert([
+				if (existing) {
+					throw new HttpException("Já existe uma conta desse tipo com este nome", 409);
+				}
+
+				const account = await queryFirst(
+					db.sql.public.FinancialAccount.insert([
 						{
-							cashbackAccountId,
-							paymentAccountId: body.creditCard.paymentAccountId ?? undefined,
-							paymentSuggestionsEnabled: body.creditCard.paymentSuggestionsEnabled ?? true,
-							...(body.creditCard.cashbackRate !== undefined && {
-								cashbackRate: String(body.creditCard.cashbackRate),
-							}),
-							cashbackYieldPeriod: body.creditCard.cashbackYieldPeriod ?? undefined,
-							...(body.creditCard.cashbackYieldReferencePercentage !== undefined &&
-								body.creditCard.cashbackYieldReferencePercentage !== null && {
-									cashbackYieldReferencePercentage: String(body.creditCard.cashbackYieldReferencePercentage),
+							institutionId: institution?.id,
+							// Prisma 8 currently omits null from nullable varchar write types.
+							name: name as never,
+							type,
+							userId,
+							yieldPeriod: body.yieldPeriod ?? undefined,
+							...(body.yieldFixedRate !== undefined &&
+								body.yieldFixedRate !== null && { yieldFixedRate: String(body.yieldFixedRate) }),
+							...(body.yieldReferencePercentage !== undefined &&
+								body.yieldReferencePercentage !== null && {
+									yieldReferencePercentage: String(body.yieldReferencePercentage),
 								}),
-							...(body.creditCard.cashbackYieldReferenceRate !== undefined &&
-								body.creditCard.cashbackYieldReferenceRate !== null && {
-									cashbackYieldReferenceRate: String(body.creditCard.cashbackYieldReferenceRate),
+							...(body.yieldReferenceType !== undefined &&
+								body.yieldReferenceType !== null && {
+									yieldReferenceType: body.yieldReferenceType,
 								}),
-							creditLimit: String(body.creditCard.creditLimit),
-							dueDay: body.creditCard.dueDay,
-							excludeFromTotals: body.creditCard.excludeFromTotals ?? false,
-							financialAccountId: account.id,
-							...(body.creditCard.securityDeposit !== undefined && {
-								securityDeposit: String(body.creditCard.securityDeposit),
-							}),
-							statementDay: body.creditCard.statementDay,
-							workingDueDate: body.creditCard.workingDueDate ?? false,
+							...(body.yieldTaxRate !== undefined &&
+								body.yieldTaxRate !== null && { yieldTaxRate: String(body.yieldTaxRate) }),
 						},
 					])
 						.returning(
-							"paymentAccountId",
-							"paymentSuggestionsEnabled",
-							"cashbackAccountId",
-							"cashbackRate",
-							"cashbackYieldPeriod",
-							"cashbackYieldReferencePercentage",
-							"cashbackYieldReferenceRate",
 							"id",
-							"financialAccountId",
-							"creditLimit",
-							"securityDeposit",
-							"excludeFromTotals",
-							"statementDay",
-							"dueDay",
-							"workingDueDate",
+							"userId",
+							"name",
+							"type",
+							"institutionId",
+							"yieldFixedRate",
+							"yieldPeriod",
+							"yieldReferencePercentage",
+							"yieldReferenceType",
+							"yieldTaxRate",
 							"createdAt",
 							"updatedAt",
 						)
 						.build(),
 				);
-				if (!creditCard) throw new HttpException("CreditCard not created", 500);
+				if (!account) throw new HttpException("FinancialAccount not created", 500);
+				Object.assign(account, await saveAccountDefaults(userId, account.id, body, true));
+				if (type !== "CREDIT_CARD" && (body.yieldFixedRate || body.yieldReferenceType)) {
+					await scheduleFinancialAccountYieldRate({
+						effectiveDate: new Date(),
+						financialAccountId: account.id,
+						yieldFixedRate: body.yieldFixedRate,
+						yieldPeriod: body.yieldPeriod,
+						yieldReferencePercentage: body.yieldReferencePercentage,
+						yieldReferenceType: body.yieldReferenceType,
+						yieldTaxRate: body.yieldTaxRate,
+					});
+				}
 
-				return { ...account, balance: null, creditCard, institution };
-			}
-			if (type === "REWARDS" && body.rewardsAccount) {
-				const rewardsAccount = await queryFirst(
-					db.sql.public.RewardsAccount.insert([
-						{
-							...(body.rewardsAccount.conversionAmount !== undefined && {
-								conversionAmount: String(body.rewardsAccount.conversionAmount),
-							}),
-							...(body.rewardsAccount.conversionPoints !== undefined && {
-								conversionPoints: String(body.rewardsAccount.conversionPoints),
-							}),
-							financialAccountId: account.id,
-							initialBalance: String(body.rewardsAccount.initialBalance ?? 0),
-							kind: body.rewardsAccount.kind,
-						},
-					])
-						.returning(
-							"id",
-							"financialAccountId",
-							"kind",
-							"initialBalance",
-							"conversionPoints",
-							"conversionAmount",
-							"createdAt",
-							"updatedAt",
-						)
-						.build(),
-				);
-				if (!rewardsAccount) throw new HttpException("RewardsAccount not created", 500);
-				return { ...account, balance: Number(rewardsAccount.initialBalance), institution, rewardsAccount };
-			}
+				// If it's a credit card, create the credit card details
+				if (type === "CREDIT_CARD" && body.creditCard) {
+					const creditCard = await queryFirst(
+						db.sql.public.CreditCard.insert([
+							{
+								cashbackAccountId,
+								paymentAccountId: body.creditCard.paymentAccountId ?? undefined,
+								paymentSuggestionsEnabled: body.creditCard.paymentSuggestionsEnabled ?? true,
+								...(body.creditCard.cashbackRate !== undefined && {
+									cashbackRate: String(body.creditCard.cashbackRate),
+								}),
+								cashbackYieldPeriod: body.creditCard.cashbackYieldPeriod ?? undefined,
+								...(body.creditCard.cashbackYieldReferencePercentage !== undefined &&
+									body.creditCard.cashbackYieldReferencePercentage !== null && {
+										cashbackYieldReferencePercentage: String(
+											body.creditCard.cashbackYieldReferencePercentage,
+										),
+									}),
+								...(body.creditCard.cashbackYieldReferenceRate !== undefined &&
+									body.creditCard.cashbackYieldReferenceRate !== null && {
+										cashbackYieldReferenceRate: String(body.creditCard.cashbackYieldReferenceRate),
+									}),
+								creditLimit: String(body.creditCard.creditLimit),
+								dueDay: body.creditCard.dueDay,
+								excludeFromTotals: body.creditCard.excludeFromTotals ?? false,
+								financialAccountId: account.id,
+								...(body.creditCard.securityDeposit !== undefined && {
+									securityDeposit: String(body.creditCard.securityDeposit),
+								}),
+								statementDay: body.creditCard.statementDay,
+								workingDueDate: body.creditCard.workingDueDate ?? false,
+							},
+						])
+							.returning(
+								"paymentAccountId",
+								"paymentSuggestionsEnabled",
+								"cashbackAccountId",
+								"cashbackRate",
+								"cashbackYieldPeriod",
+								"cashbackYieldReferencePercentage",
+								"cashbackYieldReferenceRate",
+								"id",
+								"financialAccountId",
+								"creditLimit",
+								"securityDeposit",
+								"excludeFromTotals",
+								"statementDay",
+								"dueDay",
+								"workingDueDate",
+								"createdAt",
+								"updatedAt",
+							)
+							.build(),
+					);
+					if (!creditCard) throw new HttpException("CreditCard not created", 500);
 
-			return { ...account, balance: 0, institution };
-		},
+					return { ...account, balance: null, creditCard, institution };
+				}
+				if (type === "REWARDS" && body.rewardsAccount) {
+					const rewardsAccount = await queryFirst(
+						db.sql.public.RewardsAccount.insert([
+							{
+								...(body.rewardsAccount.conversionAmount !== undefined && {
+									conversionAmount: String(body.rewardsAccount.conversionAmount),
+								}),
+								...(body.rewardsAccount.conversionPoints !== undefined && {
+									conversionPoints: String(body.rewardsAccount.conversionPoints),
+								}),
+								financialAccountId: account.id,
+								initialBalance: String(body.rewardsAccount.initialBalance ?? 0),
+								kind: body.rewardsAccount.kind,
+							},
+						])
+							.returning(
+								"id",
+								"financialAccountId",
+								"kind",
+								"initialBalance",
+								"conversionPoints",
+								"conversionAmount",
+								"createdAt",
+								"updatedAt",
+							)
+							.build(),
+					);
+					if (!rewardsAccount) throw new HttpException("RewardsAccount not created", 500);
+					return { ...account, balance: Number(rewardsAccount.initialBalance), institution, rewardsAccount };
+				}
+
+				return { ...account, balance: 0, institution };
+			}),
 		{
 			body: t.Object({
 				creditCard: t.Optional(CreditCardCreate),
 				institutionName: t.Optional(t.String({ maxLength: 100 })),
+				isDefaultForStatements: t.Optional(t.Boolean()),
+				isPrimary: t.Optional(t.Boolean()),
 				name: t.Optional(t.Union([t.String({ maxLength: 70 }), t.Null()])),
 				rewardsAccount: t.Optional(RewardsAccountCreate),
 				type: t.Optional(FinancialAccountType),
@@ -570,264 +590,176 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 	)
 	.patch(
 		"/:id",
-		async ({ params, body, request }) => {
-			const userId = await requireUserId(request);
-			await assertDirectOwnership("FinancialAccount", params.id, userId);
-			const existing = await queryFirst(
-				db.sql.public.FinancialAccount.select(
-					"id",
-					"institutionId",
-					"name",
-					"type",
-					"userId",
-					"yieldFixedRate",
-					"yieldPeriod",
-					"yieldReferencePercentage",
-					"yieldReferenceType",
-					"yieldTaxRate",
-				)
-					.where((fields, functions) => functions.eq(fields.id, params.id))
-					.limit(1)
-					.build(),
-			);
-
-			if (!existing) {
-				throw new HttpException("FinancialAccount not found", 404);
-			}
-			if (body.creditCard && existing.type !== "CREDIT_CARD")
-				throw new HttpException("Dados de cartão exigem uma conta do tipo cartão de crédito", 400);
-			if (body.rewardsAccount && existing.type !== "REWARDS")
-				throw new HttpException("Dados de recompensas exigem uma conta do tipo pontos/cashback", 400);
-			assertFinancialAccountYieldSettings({
-				type: existing.type,
-				yieldFixedRate: body.yieldFixedRate === undefined ? existing.yieldFixedRate : body.yieldFixedRate,
-				yieldPeriod: body.yieldPeriod === undefined ? existing.yieldPeriod : body.yieldPeriod,
-				yieldReferencePercentage:
-					body.yieldReferencePercentage === undefined
-						? existing.yieldReferencePercentage
-						: body.yieldReferencePercentage,
-				yieldReferenceType:
-					body.yieldReferenceType === undefined ? existing.yieldReferenceType : body.yieldReferenceType,
-				yieldTaxRate: body.yieldTaxRate === undefined ? existing.yieldTaxRate : body.yieldTaxRate,
-			});
-			const institution =
-				body.institutionName === undefined
-					? existing.institutionId
-						? await queryFirst(
-								db.sql.public.FinancialInstitution.select("id", "name")
-									.where((fields, functions) =>
-										functions.and(
-											functions.eq(fields.id, existing.institutionId!),
-											functions.eq(fields.userId, userId),
-										),
-									)
-									.limit(1)
-									.build(),
-							)
-						: null
-					: await resolveFinancialInstitution(userId, body.institutionName);
-			const name = body.name === undefined ? existing.name : body.name?.trim() || null;
-			if (body.name !== undefined || body.institutionName !== undefined) {
-				const duplicate = await queryFirst(
-					db.sql.public.FinancialAccount.select("id")
-						.where((fields, functions) =>
-							functions.and(
-								functions.eq(fields.userId, existing.userId),
-								name === null
-									? functions.raw`${fields.name} IS NULL`.returns("pg/bool@1")
-									: functions.eq(fields.name, name),
-								functions.eq(fields.type, existing.type),
-								institution
-									? functions.eq(fields.institutionId, institution.id)
-									: functions.raw`${fields.institutionId} IS NULL`.returns("pg/bool@1"),
-								functions.raw`${fields.id} <> ${params.id}`.returns("pg/bool@1"),
-							),
-						)
-						.limit(1)
-						.build(),
-				);
-				if (duplicate) throw new HttpException("Já existe uma conta desse tipo com este nome", 409);
-			}
-
-			const account = await queryFirst(
-				db.sql.public.FinancialAccount.update({
-					...(body.institutionName !== undefined && {
-						institutionId: (institution?.id ?? null) as never,
-					}),
-					// Prisma 8 currently omits null from nullable varchar write types.
-					...(body.name !== undefined && { name: name as never }),
-					...(body.isHidden !== undefined && { isHidden: body.isHidden }),
-					...(body.yieldPeriod !== undefined && { yieldPeriod: body.yieldPeriod }),
-					...(body.yieldFixedRate !== undefined && {
-						yieldFixedRate: nullableNumeric<7, 4>(body.yieldFixedRate),
-					}),
-					...(body.yieldReferencePercentage !== undefined && {
-						yieldReferencePercentage: nullableNumeric<7, 4>(body.yieldReferencePercentage),
-					}),
-					...(body.yieldReferenceType !== undefined && {
-						yieldReferenceType: body.yieldReferenceType,
-					}),
-					...(body.yieldTaxRate !== undefined && {
-						yieldTaxRate: nullableNumeric<5, 2>(body.yieldTaxRate),
-					}),
-					updatedAt: new Date(),
-				})
-					.where((fields, functions) => functions.eq(fields.id, params.id))
-					.returning(
+		async ({ params, body, request }) =>
+			withRawTransaction(async () => {
+				const userId = await requireUserId(request);
+				await queryRaw(`SELECT "id" FROM "user" WHERE "id"=$1 FOR UPDATE`, [userId]);
+				await assertDirectOwnership("FinancialAccount", params.id, userId);
+				const existing = await queryFirst(
+					db.sql.public.FinancialAccount.select(
 						"id",
-						"userId",
-						"isHidden",
-						"isPrimary",
+						"institutionId",
 						"name",
 						"type",
-						"institutionId",
+						"userId",
 						"yieldFixedRate",
 						"yieldPeriod",
 						"yieldReferencePercentage",
 						"yieldReferenceType",
 						"yieldTaxRate",
-						"createdAt",
-						"updatedAt",
 					)
-					.build(),
-			);
-			if (!account) throw new HttpException("FinancialAccount not found", 404);
-			const yieldChanged =
-				body.yieldPeriod !== undefined ||
-				body.yieldFixedRate !== undefined ||
-				body.yieldReferencePercentage !== undefined ||
-				body.yieldReferenceType !== undefined ||
-				body.yieldTaxRate !== undefined;
-			if (yieldChanged) {
-				await scheduleFinancialAccountYieldRate({
-					effectiveDate: body.recalculateCurrentDay ? new Date() : tomorrow(),
-					financialAccountId: account.id,
+						.where((fields, functions) => functions.eq(fields.id, params.id))
+						.limit(1)
+						.build(),
+				);
+
+				if (!existing) {
+					throw new HttpException("FinancialAccount not found", 404);
+				}
+				if (body.creditCard && existing.type !== "CREDIT_CARD")
+					throw new HttpException("Dados de cartão exigem uma conta do tipo cartão de crédito", 400);
+				if (body.rewardsAccount && existing.type !== "REWARDS")
+					throw new HttpException("Dados de recompensas exigem uma conta do tipo pontos/cashback", 400);
+				assertFinancialAccountYieldSettings({
+					type: existing.type,
 					yieldFixedRate: body.yieldFixedRate === undefined ? existing.yieldFixedRate : body.yieldFixedRate,
-					yieldPeriod: (body.yieldPeriod === undefined
-						? existing.yieldPeriod
-						: body.yieldPeriod) as null | YieldPeriod,
+					yieldPeriod: body.yieldPeriod === undefined ? existing.yieldPeriod : body.yieldPeriod,
 					yieldReferencePercentage:
 						body.yieldReferencePercentage === undefined
 							? existing.yieldReferencePercentage
 							: body.yieldReferencePercentage,
 					yieldReferenceType:
-						body.yieldReferenceType === undefined
-							? (existing.yieldReferenceType as "CDI" | "SELIC" | null)
-							: body.yieldReferenceType,
+						body.yieldReferenceType === undefined ? existing.yieldReferenceType : body.yieldReferenceType,
 					yieldTaxRate: body.yieldTaxRate === undefined ? existing.yieldTaxRate : body.yieldTaxRate,
 				});
-				if (body.recalculateCurrentDay)
-					await executeStatement(
-						db.sql.public.FinancialAccountYield.delete()
+				const institution =
+					body.institutionName === undefined
+						? existing.institutionId
+							? await queryFirst(
+									db.sql.public.FinancialInstitution.select("id", "name")
+										.where((fields, functions) =>
+											functions.and(
+												functions.eq(fields.id, existing.institutionId!),
+												functions.eq(fields.userId, userId),
+											),
+										)
+										.limit(1)
+										.build(),
+								)
+							: null
+						: await resolveFinancialInstitution(userId, body.institutionName);
+				const name = body.name === undefined ? existing.name : body.name?.trim() || null;
+				if (body.name !== undefined || body.institutionName !== undefined) {
+					const duplicate = await queryFirst(
+						db.sql.public.FinancialAccount.select("id")
 							.where((fields, functions) =>
 								functions.and(
-									functions.eq(fields.financialAccountId, account.id),
-									functions.eq(fields.date, startOfDay(new Date())),
-									functions.eq(fields.kind, "AUTOMATIC"),
+									functions.eq(fields.userId, existing.userId),
+									name === null
+										? functions.raw`${fields.name} IS NULL`.returns("pg/bool@1")
+										: functions.eq(fields.name, name),
+									functions.eq(fields.type, existing.type),
+									institution
+										? functions.eq(fields.institutionId, institution.id)
+										: functions.raw`${fields.institutionId} IS NULL`.returns("pg/bool@1"),
+									functions.raw`${fields.id} <> ${params.id}`.returns("pg/bool@1"),
 								),
 							)
+							.limit(1)
 							.build(),
 					);
-			}
+					if (duplicate) throw new HttpException("Já existe uma conta desse tipo com este nome", 409);
+				}
 
-			// Update credit card if provided
-			if (body.creditCard && existing.type === "CREDIT_CARD") {
-				if (body.creditCard.paymentAccountId)
-					await assertPayerOwnership(body.creditCard.paymentAccountId, userId);
-				const existingCreditCard = await queryFirst(
-					db.sql.public.CreditCard.select(
-						"paymentAccountId",
-						"paymentSuggestionsEnabled",
-						"cashbackAccountId",
-						"cashbackRate",
-						"cashbackYieldPeriod",
-						"cashbackYieldReferencePercentage",
-						"cashbackYieldReferenceRate",
-						"statementDay",
-						"dueDay",
-						"workingDueDate",
-					)
-						.where((fields, functions) => functions.eq(fields.financialAccountId, params.id))
-						.limit(1)
-						.build(),
-				);
-				if (!existingCreditCard) throw new HttpException("CreditCard not found", 404);
-				assertCreditCardBillingDays(
-					body.creditCard.statementDay ?? existingCreditCard.statementDay,
-					body.creditCard.dueDay ?? existingCreditCard.dueDay,
-				);
-				const nextCashback = {
-					cashbackAccountId:
-						body.creditCard.cashbackAccountId === undefined
-							? existingCreditCard.cashbackAccountId
-							: body.creditCard.cashbackAccountId,
-					cashbackRate:
-						body.creditCard.cashbackRate === undefined
-							? existingCreditCard.cashbackRate
-							: body.creditCard.cashbackRate,
-					cashbackYieldPeriod:
-						body.creditCard.cashbackYieldPeriod === undefined
-							? existingCreditCard.cashbackYieldPeriod
-							: body.creditCard.cashbackYieldPeriod,
-					cashbackYieldReferencePercentage:
-						body.creditCard.cashbackYieldReferencePercentage === undefined
-							? existingCreditCard.cashbackYieldReferencePercentage
-							: body.creditCard.cashbackYieldReferencePercentage,
-					cashbackYieldReferenceRate:
-						body.creditCard.cashbackYieldReferenceRate === undefined
-							? existingCreditCard.cashbackYieldReferenceRate
-							: body.creditCard.cashbackYieldReferenceRate,
-				};
-				assertCashbackSettings(nextCashback);
-				if (nextCashback.cashbackAccountId)
-					await assertRewardsAccountOwnership(nextCashback.cashbackAccountId, userId);
-				const creditCard = await queryFirst(
-					db.sql.public.CreditCard.update({
-						...(body.creditCard.paymentAccountId !== undefined && {
-							paymentAccountId: body.creditCard.paymentAccountId as never,
+				const account = await queryFirst(
+					db.sql.public.FinancialAccount.update({
+						...(body.institutionName !== undefined && {
+							institutionId: (institution?.id ?? null) as never,
 						}),
-						...(body.creditCard.paymentSuggestionsEnabled !== undefined && {
-							paymentSuggestionsEnabled: body.creditCard.paymentSuggestionsEnabled,
+						// Prisma 8 currently omits null from nullable varchar write types.
+						...(body.name !== undefined && { name: name as never }),
+						...(body.isHidden !== undefined && { isHidden: body.isHidden }),
+						...(body.yieldPeriod !== undefined && { yieldPeriod: body.yieldPeriod }),
+						...(body.yieldFixedRate !== undefined && {
+							yieldFixedRate: nullableNumeric<7, 4>(body.yieldFixedRate),
 						}),
-						...(body.creditCard.cashbackAccountId !== undefined && {
-							cashbackAccountId: body.creditCard.cashbackAccountId,
+						...(body.yieldReferencePercentage !== undefined && {
+							yieldReferencePercentage: nullableNumeric<7, 4>(body.yieldReferencePercentage),
 						}),
-						...(body.creditCard.cashbackRate !== undefined && {
-							cashbackRate: nullableNumeric<5, 2>(body.creditCard.cashbackRate),
+						...(body.yieldReferenceType !== undefined && {
+							yieldReferenceType: body.yieldReferenceType,
 						}),
-						...(body.creditCard.cashbackYieldPeriod !== undefined && {
-							cashbackYieldPeriod: body.creditCard.cashbackYieldPeriod,
-						}),
-						...(body.creditCard.cashbackYieldReferenceRate !== undefined && {
-							cashbackYieldReferenceRate: nullableNumeric<7, 4>(body.creditCard.cashbackYieldReferenceRate),
-						}),
-						...(body.creditCard.cashbackYieldReferencePercentage !== undefined && {
-							cashbackYieldReferencePercentage: nullableNumeric<7, 4>(
-								body.creditCard.cashbackYieldReferencePercentage,
-							),
-						}),
-						...(body.creditCard.creditLimit !== undefined && {
-							creditLimit: String(body.creditCard.creditLimit),
-						}),
-						...(body.creditCard.statementDay !== undefined && {
-							statementDay: body.creditCard.statementDay,
-						}),
-						...(body.creditCard.dueDay !== undefined && {
-							dueDay: body.creditCard.dueDay,
-						}),
-						...(body.creditCard.excludeFromTotals !== undefined && {
-							excludeFromTotals: body.creditCard.excludeFromTotals,
-						}),
-						...(body.creditCard.workingDueDate !== undefined && {
-							workingDueDate: body.creditCard.workingDueDate,
-						}),
-						...(body.creditCard.securityDeposit !== undefined && {
-							securityDeposit: String(body.creditCard.securityDeposit),
+						...(body.yieldTaxRate !== undefined && {
+							yieldTaxRate: nullableNumeric<5, 2>(body.yieldTaxRate),
 						}),
 						updatedAt: new Date(),
 					})
-						.where((fields, functions) => functions.eq(fields.financialAccountId, params.id))
+						.where((fields, functions) => functions.eq(fields.id, params.id))
 						.returning(
+							"id",
+							"userId",
+							"isHidden",
+							"isPrimary",
+							"isDefaultForStatements",
+							"name",
+							"type",
+							"institutionId",
+							"yieldFixedRate",
+							"yieldPeriod",
+							"yieldReferencePercentage",
+							"yieldReferenceType",
+							"yieldTaxRate",
+							"createdAt",
+							"updatedAt",
+						)
+						.build(),
+				);
+				if (!account) throw new HttpException("FinancialAccount not found", 404);
+				Object.assign(account, await saveAccountDefaults(userId, account.id, body));
+				const yieldChanged =
+					body.yieldPeriod !== undefined ||
+					body.yieldFixedRate !== undefined ||
+					body.yieldReferencePercentage !== undefined ||
+					body.yieldReferenceType !== undefined ||
+					body.yieldTaxRate !== undefined;
+				if (yieldChanged) {
+					await scheduleFinancialAccountYieldRate({
+						effectiveDate: body.recalculateCurrentDay ? new Date() : tomorrow(),
+						financialAccountId: account.id,
+						yieldFixedRate: body.yieldFixedRate === undefined ? existing.yieldFixedRate : body.yieldFixedRate,
+						yieldPeriod: (body.yieldPeriod === undefined
+							? existing.yieldPeriod
+							: body.yieldPeriod) as null | YieldPeriod,
+						yieldReferencePercentage:
+							body.yieldReferencePercentage === undefined
+								? existing.yieldReferencePercentage
+								: body.yieldReferencePercentage,
+						yieldReferenceType:
+							body.yieldReferenceType === undefined
+								? (existing.yieldReferenceType as "CDI" | "SELIC" | null)
+								: body.yieldReferenceType,
+						yieldTaxRate: body.yieldTaxRate === undefined ? existing.yieldTaxRate : body.yieldTaxRate,
+					});
+					if (body.recalculateCurrentDay)
+						await executeStatement(
+							db.sql.public.FinancialAccountYield.delete()
+								.where((fields, functions) =>
+									functions.and(
+										functions.eq(fields.financialAccountId, account.id),
+										functions.eq(fields.date, startOfDay(new Date())),
+										functions.eq(fields.kind, "AUTOMATIC"),
+									),
+								)
+								.build(),
+						);
+				}
+
+				// Update credit card if provided
+				if (body.creditCard && existing.type === "CREDIT_CARD") {
+					if (body.creditCard.paymentAccountId)
+						await assertPayerOwnership(body.creditCard.paymentAccountId, userId);
+					const existingCreditCard = await queryFirst(
+						db.sql.public.CreditCard.select(
 							"paymentAccountId",
 							"paymentSuggestionsEnabled",
 							"cashbackAccountId",
@@ -835,97 +767,189 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 							"cashbackYieldPeriod",
 							"cashbackYieldReferencePercentage",
 							"cashbackYieldReferenceRate",
-							"id",
-							"financialAccountId",
-							"creditLimit",
-							"securityDeposit",
-							"excludeFromTotals",
 							"statementDay",
 							"dueDay",
 							"workingDueDate",
-							"createdAt",
-							"updatedAt",
 						)
-						.build(),
-				);
-				if (!creditCard) throw new HttpException("CreditCard not found", 404);
-				if (
-					creditCard.dueDay !== existingCreditCard.dueDay ||
-					creditCard.statementDay !== existingCreditCard.statementDay ||
-					creditCard.workingDueDate !== existingCreditCard.workingDueDate
-				)
-					await recalculateCreditCardDueDates(userId, creditCard.id, existingCreditCard);
-
-				return { ...account, balance: null, creditCard, institution };
-			}
-			if (body.rewardsAccount && existing.type === "REWARDS") {
-				const existingRewardsAccount = await queryFirst(
-					db.sql.public.RewardsAccount.select(
-						"conversionAmount",
-						"conversionPoints",
-						"initialBalance",
-						"kind",
+							.where((fields, functions) => functions.eq(fields.financialAccountId, params.id))
+							.limit(1)
+							.build(),
+					);
+					if (!existingCreditCard) throw new HttpException("CreditCard not found", 404);
+					assertCreditCardBillingDays(
+						body.creditCard.statementDay ?? existingCreditCard.statementDay,
+						body.creditCard.dueDay ?? existingCreditCard.dueDay,
+					);
+					const nextCashback = {
+						cashbackAccountId:
+							body.creditCard.cashbackAccountId === undefined
+								? existingCreditCard.cashbackAccountId
+								: body.creditCard.cashbackAccountId,
+						cashbackRate:
+							body.creditCard.cashbackRate === undefined
+								? existingCreditCard.cashbackRate
+								: body.creditCard.cashbackRate,
+						cashbackYieldPeriod:
+							body.creditCard.cashbackYieldPeriod === undefined
+								? existingCreditCard.cashbackYieldPeriod
+								: body.creditCard.cashbackYieldPeriod,
+						cashbackYieldReferencePercentage:
+							body.creditCard.cashbackYieldReferencePercentage === undefined
+								? existingCreditCard.cashbackYieldReferencePercentage
+								: body.creditCard.cashbackYieldReferencePercentage,
+						cashbackYieldReferenceRate:
+							body.creditCard.cashbackYieldReferenceRate === undefined
+								? existingCreditCard.cashbackYieldReferenceRate
+								: body.creditCard.cashbackYieldReferenceRate,
+					};
+					assertCashbackSettings(nextCashback);
+					if (nextCashback.cashbackAccountId)
+						await assertRewardsAccountOwnership(nextCashback.cashbackAccountId, userId);
+					const creditCard = await queryFirst(
+						db.sql.public.CreditCard.update({
+							...(body.creditCard.paymentAccountId !== undefined && {
+								paymentAccountId: body.creditCard.paymentAccountId as never,
+							}),
+							...(body.creditCard.paymentSuggestionsEnabled !== undefined && {
+								paymentSuggestionsEnabled: body.creditCard.paymentSuggestionsEnabled,
+							}),
+							...(body.creditCard.cashbackAccountId !== undefined && {
+								cashbackAccountId: body.creditCard.cashbackAccountId,
+							}),
+							...(body.creditCard.cashbackRate !== undefined && {
+								cashbackRate: nullableNumeric<5, 2>(body.creditCard.cashbackRate),
+							}),
+							...(body.creditCard.cashbackYieldPeriod !== undefined && {
+								cashbackYieldPeriod: body.creditCard.cashbackYieldPeriod,
+							}),
+							...(body.creditCard.cashbackYieldReferenceRate !== undefined && {
+								cashbackYieldReferenceRate: nullableNumeric<7, 4>(body.creditCard.cashbackYieldReferenceRate),
+							}),
+							...(body.creditCard.cashbackYieldReferencePercentage !== undefined && {
+								cashbackYieldReferencePercentage: nullableNumeric<7, 4>(
+									body.creditCard.cashbackYieldReferencePercentage,
+								),
+							}),
+							...(body.creditCard.creditLimit !== undefined && {
+								creditLimit: String(body.creditCard.creditLimit),
+							}),
+							...(body.creditCard.statementDay !== undefined && {
+								statementDay: body.creditCard.statementDay,
+							}),
+							...(body.creditCard.dueDay !== undefined && {
+								dueDay: body.creditCard.dueDay,
+							}),
+							...(body.creditCard.excludeFromTotals !== undefined && {
+								excludeFromTotals: body.creditCard.excludeFromTotals,
+							}),
+							...(body.creditCard.workingDueDate !== undefined && {
+								workingDueDate: body.creditCard.workingDueDate,
+							}),
+							...(body.creditCard.securityDeposit !== undefined && {
+								securityDeposit: String(body.creditCard.securityDeposit),
+							}),
+							updatedAt: new Date(),
+						})
+							.where((fields, functions) => functions.eq(fields.financialAccountId, params.id))
+							.returning(
+								"paymentAccountId",
+								"paymentSuggestionsEnabled",
+								"cashbackAccountId",
+								"cashbackRate",
+								"cashbackYieldPeriod",
+								"cashbackYieldReferencePercentage",
+								"cashbackYieldReferenceRate",
+								"id",
+								"financialAccountId",
+								"creditLimit",
+								"securityDeposit",
+								"excludeFromTotals",
+								"statementDay",
+								"dueDay",
+								"workingDueDate",
+								"createdAt",
+								"updatedAt",
+							)
+							.build(),
+					);
+					if (!creditCard) throw new HttpException("CreditCard not found", 404);
+					if (
+						creditCard.dueDay !== existingCreditCard.dueDay ||
+						creditCard.statementDay !== existingCreditCard.statementDay ||
+						creditCard.workingDueDate !== existingCreditCard.workingDueDate
 					)
-						.where((fields, functions) => functions.eq(fields.financialAccountId, params.id))
-						.limit(1)
-						.build(),
-				);
-				if (!existingRewardsAccount) throw new HttpException("RewardsAccount not found", 404);
-				const nextRewardsAccount = {
-					conversionAmount:
-						body.rewardsAccount.conversionAmount === undefined
-							? existingRewardsAccount.conversionAmount
-							: body.rewardsAccount.conversionAmount,
-					conversionPoints:
-						body.rewardsAccount.conversionPoints === undefined
-							? existingRewardsAccount.conversionPoints
-							: body.rewardsAccount.conversionPoints,
-					initialBalance: body.rewardsAccount.initialBalance ?? existingRewardsAccount.initialBalance,
-					kind: body.rewardsAccount.kind ?? existingRewardsAccount.kind,
-				};
-				assertRewardsAccountDetails(nextRewardsAccount);
-				const rewardsAccount = await queryFirst(
-					db.sql.public.RewardsAccount.update({
-						...(body.rewardsAccount.conversionAmount !== undefined && {
-							conversionAmount: nullableNumeric<12, 2>(body.rewardsAccount.conversionAmount),
-						}),
-						...(body.rewardsAccount.conversionPoints !== undefined && {
-							conversionPoints: nullableNumeric<18, 4>(body.rewardsAccount.conversionPoints),
-						}),
-						...(body.rewardsAccount.initialBalance !== undefined && {
-							initialBalance: String(body.rewardsAccount.initialBalance),
-						}),
-						...(body.rewardsAccount.kind !== undefined && { kind: body.rewardsAccount.kind }),
-						updatedAt: new Date(),
-					})
-						.where((fields, functions) => functions.eq(fields.financialAccountId, params.id))
-						.returning(
-							"id",
-							"financialAccountId",
-							"kind",
-							"initialBalance",
-							"conversionPoints",
+						await recalculateCreditCardDueDates(userId, creditCard.id, existingCreditCard);
+
+					return { ...account, balance: null, creditCard, institution };
+				}
+				if (body.rewardsAccount && existing.type === "REWARDS") {
+					const existingRewardsAccount = await queryFirst(
+						db.sql.public.RewardsAccount.select(
 							"conversionAmount",
-							"createdAt",
-							"updatedAt",
+							"conversionPoints",
+							"initialBalance",
+							"kind",
 						)
-						.build(),
-				);
-				if (!rewardsAccount) throw new HttpException("RewardsAccount not found", 404);
+							.where((fields, functions) => functions.eq(fields.financialAccountId, params.id))
+							.limit(1)
+							.build(),
+					);
+					if (!existingRewardsAccount) throw new HttpException("RewardsAccount not found", 404);
+					const nextRewardsAccount = {
+						conversionAmount:
+							body.rewardsAccount.conversionAmount === undefined
+								? existingRewardsAccount.conversionAmount
+								: body.rewardsAccount.conversionAmount,
+						conversionPoints:
+							body.rewardsAccount.conversionPoints === undefined
+								? existingRewardsAccount.conversionPoints
+								: body.rewardsAccount.conversionPoints,
+						initialBalance: body.rewardsAccount.initialBalance ?? existingRewardsAccount.initialBalance,
+						kind: body.rewardsAccount.kind ?? existingRewardsAccount.kind,
+					};
+					assertRewardsAccountDetails(nextRewardsAccount);
+					const rewardsAccount = await queryFirst(
+						db.sql.public.RewardsAccount.update({
+							...(body.rewardsAccount.conversionAmount !== undefined && {
+								conversionAmount: nullableNumeric<12, 2>(body.rewardsAccount.conversionAmount),
+							}),
+							...(body.rewardsAccount.conversionPoints !== undefined && {
+								conversionPoints: nullableNumeric<18, 4>(body.rewardsAccount.conversionPoints),
+							}),
+							...(body.rewardsAccount.initialBalance !== undefined && {
+								initialBalance: String(body.rewardsAccount.initialBalance),
+							}),
+							...(body.rewardsAccount.kind !== undefined && { kind: body.rewardsAccount.kind }),
+							updatedAt: new Date(),
+						})
+							.where((fields, functions) => functions.eq(fields.financialAccountId, params.id))
+							.returning(
+								"id",
+								"financialAccountId",
+								"kind",
+								"initialBalance",
+								"conversionPoints",
+								"conversionAmount",
+								"createdAt",
+								"updatedAt",
+							)
+							.build(),
+					);
+					if (!rewardsAccount) throw new HttpException("RewardsAccount not found", 404);
+					return {
+						...account,
+						balance: (await getFinancialAccountBalances([account.id])).get(account.id) ?? 0,
+						institution,
+						rewardsAccount,
+					};
+				}
+
 				return {
 					...account,
 					balance: (await getFinancialAccountBalances([account.id])).get(account.id) ?? 0,
 					institution,
-					rewardsAccount,
 				};
-			}
-
-			return {
-				...account,
-				balance: (await getFinancialAccountBalances([account.id])).get(account.id) ?? 0,
-				institution,
-			};
-		},
+			}),
 		{
 			body: t.Object({
 				creditCard: t.Optional(
@@ -946,7 +970,9 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 					}),
 				),
 				institutionName: t.Optional(t.String({ maxLength: 100 })),
+				isDefaultForStatements: t.Optional(t.Boolean()),
 				isHidden: t.Optional(t.Boolean()),
+				isPrimary: t.Optional(t.Boolean()),
 				name: t.Optional(t.Union([t.String({ maxLength: 70 }), t.Null()])),
 				recalculateCurrentDay: t.Optional(t.Boolean()),
 				rewardsAccount: t.Optional(
