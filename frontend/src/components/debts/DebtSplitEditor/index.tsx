@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRef } from "react";
 import { LuPlus } from "react-icons/lu";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
@@ -210,17 +211,19 @@ export function DebtSplitEditor({
 					totalAmount={amount}
 				/>
 			))}
-			<Button
-				className="cursor-pointer"
-				disabled={disabled}
-				onClick={() => {
-					onChange(addDebtSplitParticipant(value));
-				}}
-				type="button"
-				variant="outline"
-			>
-				<LuPlus /> Adicionar pessoa
-			</Button>
+			<ActionGroup>
+				<Button
+					className="cursor-pointer"
+					disabled={disabled}
+					onClick={() => {
+						onChange(addDebtSplitParticipant(value));
+					}}
+					type="button"
+					variant="outline"
+				>
+					<LuPlus /> Adicionar pessoa
+				</Button>
+			</ActionGroup>
 			<div className="flex min-w-0 flex-wrap gap-x-4 gap-y-2 rounded-xl bg-muted/50 p-3 text-xs">
 				<span className="min-w-0 flex-[1_1_5rem]">
 					Distribuído<strong className="block break-words text-sm">{currency.format(distributed)}</strong>

@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { LuArrowRight, LuCreditCard } from "react-icons/lu";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
@@ -65,11 +66,13 @@ export function DashboardCreditCards({
 					<ScrollArea className="max-h-[min(30rem,calc(100dvh-14rem))] pr-3">
 						<div className="space-y-3">{rows(ordered)}</div>
 					</ScrollArea>
-					<Button asChild className="cursor-pointer" variant="outline">
-						<Link to="/credit-cards">
-							Abrir faturas <LuArrowRight />
-						</Link>
-					</Button>
+					<ActionGroup>
+						<Button asChild className="cursor-pointer" variant="outline">
+							<Link to="/credit-cards">
+								Abrir faturas <LuArrowRight />
+							</Link>
+						</Button>
+					</ActionGroup>
 				</DialogContent>
 			</Dialog>
 		</>

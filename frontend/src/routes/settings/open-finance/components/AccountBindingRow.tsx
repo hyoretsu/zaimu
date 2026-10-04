@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { LuPause, LuPlay, LuSave, LuUnplug } from "react-icons/lu";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { type FinancialAccount, type OpenFinanceConnection, openFinanceApi } from "@/lib/api";
@@ -66,7 +67,7 @@ export function AccountBindingRow({
 				searchable
 				value={destination}
 			/>
-			<div className="flex flex-wrap gap-2">
+			<ActionGroup>
 				<Button disabled={pending} onClick={() => void save(destination)} size="sm">
 					<LuSave />
 					Salvar vínculo
@@ -88,7 +89,7 @@ export function AccountBindingRow({
 						</Button>
 					</>
 				)}
-			</div>
+			</ActionGroup>
 		</div>
 	);
 }

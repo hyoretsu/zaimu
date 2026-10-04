@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 
 export function LocalStorageError({ onRetry }: { onRetry: () => Promise<void> }) {
@@ -10,21 +11,23 @@ export function LocalStorageError({ onRetry }: { onRetry: () => Promise<void> })
 				Não conseguimos acessar o armazenamento deste dispositivo. Seus dados não foram apagados. Tente
 				novamente.
 			</p>
-			<Button
-				disabled={pending}
-				onClick={async () => {
-					setPending(true);
-					try {
-						await onRetry();
-					} catch {
-						// Keep the recoverable storage error visible, without internal details.
-					} finally {
-						setPending(false);
-					}
-				}}
-			>
-				{pending ? "Tentando novamente..." : "Tentar novamente"}
-			</Button>
+			<ActionGroup className="ml-auto">
+				<Button
+					disabled={pending}
+					onClick={async () => {
+						setPending(true);
+						try {
+							await onRetry();
+						} catch {
+							// Keep the recoverable storage error visible, without internal details.
+						} finally {
+							setPending(false);
+						}
+					}}
+				>
+					{pending ? "Tentando novamente..." : "Tentar novamente"}
+				</Button>
+			</ActionGroup>
 		</main>
 	);
 }

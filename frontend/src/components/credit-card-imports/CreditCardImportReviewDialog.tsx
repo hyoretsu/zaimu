@@ -9,6 +9,7 @@ import { importedAnticipation } from "@zaimu/finance/imported-anticipation";
 import { useState } from "react";
 import { LuCircleAlert, LuFileCheck2, LuTrash2 } from "react-icons/lu";
 import { ImportDialog, ImportDialogContent } from "@/components/imports";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -255,7 +256,7 @@ export function CreditCardImportReviewDialog({
 									/>
 								))}
 								{creditCardImport.hasNextPage && (
-									<div className="flex justify-center p-3">
+									<ActionGroup className="p-3">
 										<Button
 											className="cursor-pointer disabled:cursor-not-allowed"
 											disabled={creditCardImport.isFetchingNextPage}
@@ -264,7 +265,7 @@ export function CreditCardImportReviewDialog({
 										>
 											{creditCardImport.isFetchingNextPage ? "Carregando…" : "Carregar mais"}
 										</Button>
-									</div>
+									</ActionGroup>
 								)}
 							</div>
 						</ScrollArea>

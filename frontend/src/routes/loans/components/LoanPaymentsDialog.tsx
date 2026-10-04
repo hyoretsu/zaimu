@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { LuCheck, LuFastForward } from "react-icons/lu";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
@@ -116,14 +117,16 @@ export function LoanPaymentsDialog({ loan, onClose }: { loan: Loan; onClose: () 
 									placeholder="Escolha amortização"
 									value={amortization}
 								/>
-								<Button
-									className="cursor-pointer"
-									disabled={batchPending || !paidDate}
-									onClick={() => void run()}
-								>
-									<LuCheck />
-									{batchPending ? "Revisando..." : "Confirmar histórico"}
-								</Button>
+								<ActionGroup>
+									<Button
+										className="cursor-pointer"
+										disabled={batchPending || !paidDate}
+										onClick={() => void run()}
+									>
+										<LuCheck />
+										{batchPending ? "Revisando..." : "Confirmar histórico"}
+									</Button>
+								</ActionGroup>
 							</div>
 						) : (
 							(loan.remainingInstallments ?? loan.totalInstallments) > 0 && (
@@ -142,14 +145,16 @@ export function LoanPaymentsDialog({ loan, onClose }: { loan: Loan; onClose: () 
 										Registra valor integral da parcela. Desconto de juros exige condições específicas do
 										credor.
 									</p>
-									<Button
-										className="cursor-pointer"
-										disabled={batchPending || pending.length > 0 || !paidDate}
-										onClick={() => void run()}
-									>
-										<LuFastForward />
-										{batchPending ? "Antecipando..." : "Antecipar uma parcela"}
-									</Button>
+									<ActionGroup>
+										<Button
+											className="cursor-pointer"
+											disabled={batchPending || pending.length > 0 || !paidDate}
+											onClick={() => void run()}
+										>
+											<LuFastForward />
+											{batchPending ? "Antecipando..." : "Antecipar uma parcela"}
+										</Button>
+									</ActionGroup>
 								</div>
 							)
 						)}
@@ -159,13 +164,15 @@ export function LoanPaymentsDialog({ loan, onClose }: { loan: Loan; onClose: () 
 						) : payments.isError ? (
 							<div role="alert">
 								<p>Falha ao carregar parcelas.</p>
-								<Button
-									className="mt-2 cursor-pointer"
-									onClick={() => void payments.refetch()}
-									variant="outline"
-								>
-									Tentar novamente
-								</Button>
+								<ActionGroup>
+									<Button
+										className="mt-2 cursor-pointer"
+										onClick={() => void payments.refetch()}
+										variant="outline"
+									>
+										Tentar novamente
+									</Button>
+								</ActionGroup>
 							</div>
 						) : rows.length ? (
 							<div className="space-y-2">
@@ -199,9 +206,11 @@ export function LoanPaymentsDialog({ loan, onClose }: { loan: Loan; onClose: () 
 						)}
 					</div>
 				</ScrollArea>
-				<Button className="cursor-pointer" onClick={onClose} variant="outline">
-					Fechar
-				</Button>
+				<ActionGroup>
+					<Button className="cursor-pointer" onClick={onClose} variant="outline">
+						Fechar
+					</Button>
+				</ActionGroup>
 			</DialogContent>
 		</Dialog>
 	);

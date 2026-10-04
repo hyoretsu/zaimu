@@ -10,6 +10,7 @@ import {
 	LuSettings2,
 	LuWalletCards,
 } from "react-icons/lu";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageContainer } from "@/components/ui/PageContainer";
@@ -159,7 +160,7 @@ export function AccountsPage() {
 		<PageContainer className="grid gap-8">
 			<PageHeader
 				actions={
-					<div className="flex flex-wrap gap-2">
+					<ActionGroup>
 						<Button className="h-11 cursor-pointer" onClick={() => setIsDefaultsOpen(true)} variant="outline">
 							<LuSettings2 /> Contas padrão
 						</Button>
@@ -188,7 +189,7 @@ export function AccountsPage() {
 							pending={false}
 							rewardAccounts={rewardAccounts}
 						/>
-					</div>
+					</ActionGroup>
 				}
 				description="Organize contas bancárias, dinheiro, investimentos e recompensas."
 				eyebrow="Patrimônio"

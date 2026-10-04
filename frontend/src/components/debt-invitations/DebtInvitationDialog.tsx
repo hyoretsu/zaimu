@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import {
 	Dialog,
@@ -97,14 +98,16 @@ export function DebtInvitationDialog({
 				) : preview.isError && !preview.data ? (
 					<div className="space-y-3 rounded-xl border p-4">
 						<p className="text-sm">Não foi possível carregar os lançamentos.</p>
-						<Button
-							className="cursor-pointer"
-							onClick={() => preview.refetch()}
-							type="button"
-							variant="outline"
-						>
-							Tentar novamente
-						</Button>
+						<ActionGroup>
+							<Button
+								className="cursor-pointer"
+								onClick={() => preview.refetch()}
+								type="button"
+								variant="outline"
+							>
+								Tentar novamente
+							</Button>
+						</ActionGroup>
 					</div>
 				) : preview.data ? (
 					<DebtInvitationPreview

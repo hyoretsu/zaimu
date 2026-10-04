@@ -7,6 +7,7 @@ import {
 	LuCreditCard,
 	LuReceiptText,
 } from "react-icons/lu";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -252,9 +253,11 @@ export function CreditCardStatementDetails({
 								</span>
 							)}
 						</div>
-						<Button className="w-fit cursor-pointer" onClick={onAddPurchase} variant="outline">
-							<LuCreditCard /> Nova compra
-						</Button>
+						<ActionGroup>
+							<Button className="w-fit cursor-pointer" onClick={onAddPurchase} variant="outline">
+								<LuCreditCard /> Nova compra
+							</Button>
+						</ActionGroup>
 						{detail.isPending ? (
 							<div className="grid gap-2">
 								{[1, 2, 3, 4].map(item => (

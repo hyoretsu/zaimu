@@ -1,3 +1,4 @@
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { cn } from "@/lib/utils";
 import type { ActionNoticeProps } from "./types";
 
@@ -24,7 +25,7 @@ export function ActionNotice({
 						<p className="text-muted-foreground text-sm">{description}</p>
 					</div>
 				</div>
-				{action}
+				<ActionGroup className="ml-auto">{action}</ActionGroup>
 			</div>
 			{children && <div className="mt-3 space-y-2">{children}</div>}
 		</section>

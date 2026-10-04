@@ -27,7 +27,7 @@ export function PageHeader({
 			{actions && (
 				<div
 					className={cn(
-						"flex w-full shrink-0 items-center gap-2 sm:w-auto [&>*]:w-full sm:[&>*]:w-auto",
+						"flex w-full shrink-0 items-center justify-end gap-2 sm:w-auto [&>*]:w-full [&>*]:justify-end sm:[&>*]:w-auto",
 						mobileActions && "hidden lg:flex",
 					)}
 				>

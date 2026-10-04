@@ -6,6 +6,8 @@ Scrollbars must remain contained within their own scrollable div. Inset vertical
 
 # Button groups
 
+Align action buttons and action groups to the right, including wrapped rows on mobile. Use `ActionGroup` for standalone actions and groups; keep modal footer actions right-aligned through `DialogFooter`.
+
 Buttons in the same action group must share height, border radius, icon size, and spacing. Use the same `Button` size or shared sizing classes for every action, including dialog triggers; distinguish primary actions with `variant`.
 
 # Dynamic listing selects

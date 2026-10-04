@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { LuTrash2 } from "react-icons/lu";
 import { toast } from "sonner";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
@@ -139,7 +140,7 @@ export function EditFinancialAccountYieldDialog({
 						</CheckboxField>
 					</>
 				) : null}
-				<DialogFooter className="gap-2 sm:justify-between">
+				<DialogFooter>
 					<ConfirmActionButton
 						aria-label="Excluir rendimento"
 						className="cursor-pointer text-destructive hover:text-destructive"
@@ -152,7 +153,7 @@ export function EditFinancialAccountYieldDialog({
 					>
 						<LuTrash2 /> Excluir
 					</ConfirmActionButton>
-					<div className="flex gap-2">
+					<ActionGroup>
 						<Button className="cursor-pointer" onClick={() => onOpenChange(false)} variant="outline">
 							Descartar
 						</Button>
@@ -172,7 +173,7 @@ export function EditFinancialAccountYieldDialog({
 						>
 							{save.isPending ? "Salvando…" : "Salvar"}
 						</Button>
-					</div>
+					</ActionGroup>
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>

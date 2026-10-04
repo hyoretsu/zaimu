@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { LuPlus } from "react-icons/lu";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
@@ -43,10 +44,12 @@ export function ConnectionForm({ onSaved }: { onSaved: () => Promise<void> }) {
 					{error}
 				</p>
 			)}
-			<Button disabled={pending || !itemId.trim()} type="submit" variant="outline">
-				<LuPlus />
-				{pending ? "Consultando conexão..." : "Adicionar conexão"}
-			</Button>
+			<ActionGroup>
+				<Button disabled={pending || !itemId.trim()} type="submit" variant="outline">
+					<LuPlus />
+					{pending ? "Consultando conexão..." : "Adicionar conexão"}
+				</Button>
+			</ActionGroup>
 		</form>
 	);
 }

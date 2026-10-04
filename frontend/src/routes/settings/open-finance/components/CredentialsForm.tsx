@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { LuKeyRound } from "react-icons/lu";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
@@ -67,10 +68,12 @@ export function CredentialsForm({
 					{error}
 				</p>
 			)}
-			<Button disabled={pending || !clientId.trim() || !secret.trim()} type="submit">
-				<LuKeyRound />
-				{pending ? "Validando credenciais..." : "Validar e salvar"}
-			</Button>
+			<ActionGroup>
+				<Button disabled={pending || !clientId.trim() || !secret.trim()} type="submit">
+					<LuKeyRound />
+					{pending ? "Validando credenciais..." : "Validar e salvar"}
+				</Button>
+			</ActionGroup>
 		</form>
 	);
 }

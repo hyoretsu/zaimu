@@ -21,6 +21,7 @@ import {
 	EditTransactionDialog,
 	TransactionListItem,
 } from "@/components/transactions";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { ActionNotice } from "@/components/ui/ActionNotice";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -429,14 +430,14 @@ export function TransactionsPage() {
 		<PageContainer className="space-y-6">
 			<PageHeader
 				actions={
-					<div className="flex flex-wrap gap-2">
+					<ActionGroup>
 						<Button className="cursor-pointer" onClick={() => setIsModalOpen(true)}>
 							<HiPlus /> Adicionar
 						</Button>
 						<Button className="cursor-pointer" onClick={() => setIsImportOpen(true)} variant="outline">
 							<LuFileUp /> Importar extrato
 						</Button>
-					</div>
+					</ActionGroup>
 				}
 				description="Acompanhe entradas, saídas, transferências e rendimentos."
 				mobileActions={[

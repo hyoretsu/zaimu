@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -37,9 +38,11 @@ export function EditTransactionDialog(props: {
 				) : (
 					<div role="alert">
 						<p>Falha ao carregar transação.</p>
-						<Button className="mt-3" onClick={() => void detail.refetch()} variant="outline">
-							Tentar novamente
-						</Button>
+						<ActionGroup>
+							<Button className="mt-3" onClick={() => void detail.refetch()} variant="outline">
+								Tentar novamente
+							</Button>
+						</ActionGroup>
 					</div>
 				)}
 			</DialogContent>

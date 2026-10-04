@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { LuPlus } from "react-icons/lu";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { ScrollArea } from "@/components/ui/ScrollArea";
@@ -62,13 +63,15 @@ export function CardAdjustmentsDialog({
 							)}
 						</div>
 					</ScrollArea>
-					<Button
-						className="cursor-pointer"
-						disabled={!cards.some(card => !card.ignoreStatementsBefore)}
-						onClick={() => setEditing("new")}
-					>
-						<LuPlus /> Novo ajuste
-					</Button>
+					<ActionGroup>
+						<Button
+							className="cursor-pointer"
+							disabled={!cards.some(card => !card.ignoreStatementsBefore)}
+							onClick={() => setEditing("new")}
+						>
+							<LuPlus /> Novo ajuste
+						</Button>
+					</ActionGroup>
 				</DialogContent>
 			</Dialog>
 			{editing !== null ? (

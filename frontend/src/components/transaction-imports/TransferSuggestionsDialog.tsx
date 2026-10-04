@@ -1,4 +1,5 @@
 import { LuEye } from "react-icons/lu";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { ScrollArea } from "@/components/ui/ScrollArea";
@@ -52,9 +53,11 @@ export function TransferSuggestionsDialog({
 								<p className="text-destructive" role="alert">
 									{error}
 								</p>
-								<Button onClick={onRetry} variant="outline">
-									Tentar novamente
-								</Button>
+								<ActionGroup>
+									<Button onClick={onRetry} variant="outline">
+										Tentar novamente
+									</Button>
+								</ActionGroup>
 							</div>
 						) : suggestions.length === 0 ? (
 							<p className="text-muted-foreground">Nenhuma transferência sugerida.</p>
@@ -75,7 +78,7 @@ export function TransferSuggestionsDialog({
 										</p>
 									</div>
 									<Button
-										className="shrink-0 cursor-pointer disabled:cursor-not-allowed"
+										className="ml-auto shrink-0 cursor-pointer disabled:cursor-not-allowed"
 										onClick={() => onSelect({ counterpart, transaction })}
 										size="sm"
 										variant="outline"

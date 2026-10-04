@@ -1,5 +1,6 @@
 import { type SyntheticEvent, useState } from "react";
 import { LuLandmark, LuPencil, LuTrash2, LuWalletCards } from "react-icons/lu";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
@@ -78,7 +79,7 @@ export function FinancialInstitutionGroup({
 						</p>
 					</div>
 				</div>
-				<div className="flex flex-wrap items-center gap-2 sm:ml-auto sm:justify-end">
+				<ActionGroup className="sm:ml-auto">
 					{institution && (
 						<InstitutionActions
 							institution={institution}
@@ -96,7 +97,7 @@ export function FinancialInstitutionGroup({
 						pending={pending}
 						rewardAccounts={rewardAccounts}
 					/>
-				</div>
+				</ActionGroup>
 			</header>
 			<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
 				{accounts.map(account => (

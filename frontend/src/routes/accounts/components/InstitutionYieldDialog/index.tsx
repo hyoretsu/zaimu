@@ -1,5 +1,6 @@
 import { type SyntheticEvent, useState } from "react";
 import { LuBadgePercent, LuPlus } from "react-icons/lu";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
@@ -163,14 +164,16 @@ export function InstitutionYieldDialog({
 										rule={rule}
 									/>
 								))}
-								<Button
-									className="cursor-pointer"
-									onClick={() => setRules(current => [...current, createRule()])}
-									type="button"
-									variant="outline"
-								>
-									<LuPlus /> Adicionar faixa
-								</Button>
+								<ActionGroup>
+									<Button
+										className="cursor-pointer"
+										onClick={() => setRules(current => [...current, createRule()])}
+										type="button"
+										variant="outline"
+									>
+										<LuPlus /> Adicionar faixa
+									</Button>
+								</ActionGroup>
 							</div>
 						</ScrollArea>
 					)}

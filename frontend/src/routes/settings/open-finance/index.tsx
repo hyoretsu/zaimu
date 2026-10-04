@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { LuUnplug } from "react-icons/lu";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -38,9 +39,11 @@ export function OpenFinancePage() {
 			<OpenFinanceLayout>
 				<PageHeader title="Open Finance" />
 				<p>Entre em sua conta para conectar bancos ao Meu Pluggy.</p>
-				<Button asChild>
-					<Link to="/auth">Entrar</Link>
-				</Button>
+				<ActionGroup>
+					<Button asChild>
+						<Link to="/auth">Entrar</Link>
+					</Button>
+				</ActionGroup>
 			</OpenFinanceLayout>
 		);
 	if (configuration.isPending)
@@ -56,9 +59,11 @@ export function OpenFinancePage() {
 		return (
 			<OpenFinanceLayout>
 				<p role="alert">{configuration.error.message}</p>
-				<Button onClick={() => void configuration.refetch()} variant="outline">
-					Tentar novamente
-				</Button>
+				<ActionGroup>
+					<Button onClick={() => void configuration.refetch()} variant="outline">
+						Tentar novamente
+					</Button>
+				</ActionGroup>
 			</OpenFinanceLayout>
 		);
 	const config = configuration.data;
@@ -95,7 +100,9 @@ export function OpenFinancePage() {
 								<li>Conecte cada banco e conclua autorização no aplicativo bancário.</li>
 								<li>Confira contas, cartões e extratos antes de continuar.</li>
 							</ol>
-							<PluggyLink href="https://meu.pluggy.ai/overview">Abrir Meu Pluggy</PluggyLink>
+							<ActionGroup>
+								<PluggyLink href="https://meu.pluggy.ai/overview">Abrir Meu Pluggy</PluggyLink>
+							</ActionGroup>
 						</div>
 					</GuideStep>
 					<GuideStep number={2} title="Crie aplicação no Dashboard">
@@ -127,35 +134,37 @@ export function OpenFinancePage() {
 									: "Ainda não realizada"}
 							</p>
 							<SyncProgress onChanged={refresh} />
-							<ConfirmActionButton
-								confirmation="Desconectar integração e apagar credenciais e vínculos? Histórico será preservado."
-								confirmChildren={
-									<>
-										<LuUnplug />
-										Confirmar
-									</>
-								}
-								disabled={disconnecting}
-								onConfirm={async () => {
-									setDisconnecting(true);
-									try {
-										await openFinanceApi.disconnect();
-										showToast("Integração desconectada. Histórico preservado.", "positive");
-										await refresh();
-									} catch (error) {
-										showToast(
-											error instanceof Error ? error.message : "Não foi possível desconectar",
-											"negative",
-										);
-									} finally {
-										setDisconnecting(false);
+							<ActionGroup className="ml-auto">
+								<ConfirmActionButton
+									confirmation="Desconectar integração e apagar credenciais e vínculos? Histórico será preservado."
+									confirmChildren={
+										<>
+											<LuUnplug />
+											Confirmar
+										</>
 									}
-								}}
-								variant="outline"
-							>
-								<LuUnplug />
-								Desconectar integração
-							</ConfirmActionButton>
+									disabled={disconnecting}
+									onConfirm={async () => {
+										setDisconnecting(true);
+										try {
+											await openFinanceApi.disconnect();
+											showToast("Integração desconectada. Histórico preservado.", "positive");
+											await refresh();
+										} catch (error) {
+											showToast(
+												error instanceof Error ? error.message : "Não foi possível desconectar",
+												"negative",
+											);
+										} finally {
+											setDisconnecting(false);
+										}
+									}}
+									variant="outline"
+								>
+									<LuUnplug />
+									Desconectar integração
+								</ConfirmActionButton>
+							</ActionGroup>
 						</>
 					)}
 				</div>

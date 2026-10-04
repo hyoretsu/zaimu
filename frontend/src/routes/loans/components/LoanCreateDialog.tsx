@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
@@ -114,7 +115,7 @@ export function LoanCreateDialog({ onClose }: { onClose: () => void }) {
 							required
 							value={firstDueDate}
 						/>
-						<div className="flex gap-2">
+						<ActionGroup>
 							<Button className="cursor-pointer" onClick={onClose} type="button" variant="outline">
 								Descartar
 							</Button>
@@ -125,7 +126,7 @@ export function LoanCreateDialog({ onClose }: { onClose: () => void }) {
 							>
 								{create.isPending ? "Criando..." : "Salvar"}
 							</Button>
-						</div>
+						</ActionGroup>
 					</form>
 				</ScrollArea>
 			</DialogContent>

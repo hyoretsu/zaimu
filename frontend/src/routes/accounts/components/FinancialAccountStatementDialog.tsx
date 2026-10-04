@@ -6,6 +6,7 @@ import {
 	EditTransactionDialog,
 	TransactionListItem,
 } from "@/components/transactions";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -236,9 +237,11 @@ export function FinancialAccountStatementDialog({
 						title="Extrato vazio"
 					/>
 				)}
-				<Button className="w-full cursor-pointer" onClick={() => setCreatingTransaction(true)}>
-					<LuPlus /> Nova transação
-				</Button>
+				<ActionGroup>
+					<Button className="cursor-pointer" onClick={() => setCreatingTransaction(true)}>
+						<LuPlus /> Nova transação
+					</Button>
+				</ActionGroup>
 				<CreateTransactionDialog
 					account={account}
 					onOpenChange={setCreatingTransaction}

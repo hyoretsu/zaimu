@@ -8,6 +8,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { LuCircleAlert, LuFileCheck2, LuLoaderCircle, LuTrash2 } from "react-icons/lu";
 import { ImportDialog, ImportDialogContent } from "@/components/imports";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -469,7 +470,7 @@ export function TransactionImportReviewDialog({
 									</ImportReviewDateSection>
 								))}
 								{transactionImport.hasNextPage && (
-									<div className="flex justify-center">
+									<ActionGroup>
 										<Button
 											className="cursor-pointer disabled:cursor-not-allowed"
 											disabled={transactionImport.isFetchingNextPage}
@@ -478,7 +479,7 @@ export function TransactionImportReviewDialog({
 										>
 											{transactionImport.isFetchingNextPage ? "Carregando…" : "Carregar mais"}
 										</Button>
-									</div>
+									</ActionGroup>
 								)}
 							</div>
 						</ScrollArea>

@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { LuArrowRight, LuCircleAlert, LuMail, LuShieldCheck, LuTrash2 } from "react-icons/lu";
 import { BrandMark } from "@/components/BrandMark";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 
 const deletionRequestHref =
@@ -40,11 +41,13 @@ function DeleteAccountPage() {
 								</ol>
 							</div>
 						</div>
-						<Button asChild className="mt-5 w-full sm:w-auto" variant="destructive">
-							<a href={deletionRequestHref}>
-								Solicitar exclusão por e-mail <LuArrowRight />
-							</a>
-						</Button>
+						<ActionGroup className="ml-auto">
+							<Button asChild className="mt-5 sm:w-auto" variant="destructive">
+								<a href={deletionRequestHref}>
+									Solicitar exclusão por e-mail <LuArrowRight />
+								</a>
+							</Button>
+						</ActionGroup>
 					</section>
 
 					<section className="mt-8">

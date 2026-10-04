@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { LuPlus } from "react-icons/lu";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { MobilePageActions } from "@/components/ui/MobilePageActions";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -37,7 +38,7 @@ export function EmpréstimosPage() {
 					Adicionar
 				</Button>
 			</div>
-			<div className="flex gap-2">
+			<ActionGroup>
 				<Button
 					className="cursor-pointer"
 					onClick={() => setPaid(false)}
@@ -52,7 +53,7 @@ export function EmpréstimosPage() {
 				>
 					Quitados
 				</Button>
-			</div>
+			</ActionGroup>
 			{loans.isPending ? (
 				<div className="grid gap-4 sm:grid-cols-2">
 					{Array.from({ length: 4 }, (_, i) => (
@@ -62,9 +63,11 @@ export function EmpréstimosPage() {
 			) : loans.isError ? (
 				<div role="alert">
 					<p>Falha ao carregar empréstimos.</p>
-					<Button className="mt-2 cursor-pointer" onClick={() => void loans.refetch()} variant="outline">
-						Tentar novamente
-					</Button>
+					<ActionGroup>
+						<Button className="mt-2 cursor-pointer" onClick={() => void loans.refetch()} variant="outline">
+							Tentar novamente
+						</Button>
+					</ActionGroup>
 				</div>
 			) : (
 				<>

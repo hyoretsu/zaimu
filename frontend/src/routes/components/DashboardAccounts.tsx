@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { LuArrowRight, LuLandmark } from "react-icons/lu";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
@@ -101,11 +102,13 @@ export function DashboardAccounts({ accounts, endDate }: DashboardAccountsProps)
 							))}
 						</div>
 					</ScrollArea>
-					<Button asChild className="cursor-pointer" variant="outline">
-						<Link to="/accounts">
-							Gerenciar contas <LuArrowRight />
-						</Link>
-					</Button>
+					<ActionGroup>
+						<Button asChild className="cursor-pointer" variant="outline">
+							<Link to="/accounts">
+								Gerenciar contas <LuArrowRight />
+							</Link>
+						</Button>
+					</ActionGroup>
 				</DialogContent>
 			</Dialog>
 		</>

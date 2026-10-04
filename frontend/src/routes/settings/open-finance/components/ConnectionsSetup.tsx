@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { LuPlus, LuRefreshCw } from "react-icons/lu";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { openFinanceKeys } from "@/hooks/use-open-finance";
@@ -48,24 +49,26 @@ export function ConnectionsSetup({
 				Conexões são buscadas ao abrir esta tela e ao voltar do navegador. Selecione uma conta ou cartão do
 				Zaimu para cada destino.
 			</p>
-			<Button
-				disabled={discovery.isFetching}
-				onClick={async () => {
-					const result = await discovery.refetch();
-					showToast(
-						result.isError
-							? "Não foi possível buscar conexões"
-							: result.data?.errors.length
-								? "Contas atualizadas com pendências"
-								: "Contas conectadas atualizadas",
-						result.isError || result.data?.errors.length ? "negative" : "positive",
-					);
-				}}
-				variant="outline"
-			>
-				<LuRefreshCw />
-				{discovery.isFetching ? "Buscando contas conectadas..." : "Atualizar contas conectadas"}
-			</Button>
+			<ActionGroup>
+				<Button
+					disabled={discovery.isFetching}
+					onClick={async () => {
+						const result = await discovery.refetch();
+						showToast(
+							result.isError
+								? "Não foi possível buscar conexões"
+								: result.data?.errors.length
+									? "Contas atualizadas com pendências"
+									: "Contas conectadas atualizadas",
+							result.isError || result.data?.errors.length ? "negative" : "positive",
+						);
+					}}
+					variant="outline"
+				>
+					<LuRefreshCw />
+					{discovery.isFetching ? "Buscando contas conectadas..." : "Atualizar contas conectadas"}
+				</Button>
+			</ActionGroup>
 			{discovery.isPending && (
 				<div aria-label="Buscando contas conectadas" className="space-y-3" role="status">
 					<Skeleton className="h-32" />

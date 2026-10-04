@@ -2,6 +2,7 @@ import { useState } from "react";
 import { LuFileCheck2, LuRefreshCw } from "react-icons/lu";
 import { CreditCardImportReviewDialog } from "@/components/credit-card-imports/CreditCardImportReviewDialog";
 import { TransactionImportReviewDialog } from "@/components/transaction-imports/TransactionImportReviewDialog";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useOpenFinanceStatus } from "@/hooks/use-open-finance";
@@ -17,28 +18,30 @@ export function SyncProgress({ onChanged }: { onChanged: () => Promise<void> }) 
 		<section aria-live="polite" className="space-y-4 rounded-xl border p-5">
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<h2 className="font-semibold">Busca e importação</h2>
-				<Button
-					disabled={running}
-					onClick={async () => {
-						setStarting(true);
-						try {
-							const result = await openFinanceApi.sync(true);
-							await status.refetch();
-							if (!result.runId) showToast("Vincule pelo menos uma conta ativa para buscar.", "info");
-						} catch (error) {
-							showToast(
-								error instanceof Error ? error.message : "Não foi possível iniciar busca",
-								"negative",
-							);
-						} finally {
-							setStarting(false);
-						}
-					}}
-					variant="outline"
-				>
-					<LuRefreshCw />
-					{running ? "Buscando..." : "Buscar agora"}
-				</Button>
+				<ActionGroup className="ml-auto">
+					<Button
+						disabled={running}
+						onClick={async () => {
+							setStarting(true);
+							try {
+								const result = await openFinanceApi.sync(true);
+								await status.refetch();
+								if (!result.runId) showToast("Vincule pelo menos uma conta ativa para buscar.", "info");
+							} catch (error) {
+								showToast(
+									error instanceof Error ? error.message : "Não foi possível iniciar busca",
+									"negative",
+								);
+							} finally {
+								setStarting(false);
+							}
+						}}
+						variant="outline"
+					>
+						<LuRefreshCw />
+						{running ? "Buscando..." : "Buscar agora"}
+					</Button>
+				</ActionGroup>
 			</div>
 			<p className="text-muted-foreground text-sm">
 				Primeira busca consulta todo histórico disponível. Meu Pluggy coleta dados bancários a cada 24 horas;
@@ -65,14 +68,12 @@ export function SyncProgress({ onChanged }: { onChanged: () => Promise<void> }) 
 						</p>
 					))}
 					{status.data?.reviews.map(item => (
-						<Button
-							key={item.importId}
-							onClick={() => setReview({ id: item.importId, kind: item.kind })}
-							variant="outline"
-						>
-							<LuFileCheck2 />
-							Revisar {item.count} {item.count === 1 ? "registro" : "registros"}
-						</Button>
+						<ActionGroup className="ml-auto" key={item.importId}>
+							<Button onClick={() => setReview({ id: item.importId, kind: item.kind })} variant="outline">
+								<LuFileCheck2 />
+								Revisar {item.count} {item.count === 1 ? "registro" : "registros"}
+							</Button>
+						</ActionGroup>
 					))}
 				</>
 			)}

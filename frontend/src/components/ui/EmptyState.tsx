@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ActionGroup } from "./ActionGroup";
 
 export function EmptyState({
 	action,
@@ -18,7 +19,7 @@ export function EmptyState({
 			</div>
 			<h2 className="font-bold text-lg">{title}</h2>
 			<p className="mt-1 max-w-sm text-muted-foreground text-sm">{description}</p>
-			{action && <div className="mt-5">{action}</div>}
+			{action && <ActionGroup className="mt-5 w-full">{action}</ActionGroup>}
 		</div>
 	);
 }

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { LuCalculator } from "react-icons/lu";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { dataService } from "@/lib/dataService";
@@ -16,19 +17,23 @@ export function LoanPayoffPreview({ loanId }: { loanId: string }) {
 	});
 	return (
 		<div className="space-y-2">
-			<Button className="cursor-pointer" onClick={() => setOpen(value => !value)} variant="outline">
-				<LuCalculator />
-				{open ? "Minimizar" : "Expandir"} estimativa de quitação
-			</Button>
+			<ActionGroup>
+				<Button className="cursor-pointer" onClick={() => setOpen(value => !value)} variant="outline">
+					<LuCalculator />
+					{open ? "Minimizar" : "Expandir"} estimativa de quitação
+				</Button>
+			</ActionGroup>
 			{open &&
 				(estimate.isPending ? (
 					<Skeleton className="h-16" />
 				) : estimate.isError ? (
 					<div role="alert">
 						<p>Falha ao calcular estimativa.</p>
-						<Button className="cursor-pointer" onClick={() => void estimate.refetch()} variant="outline">
-							Tentar novamente
-						</Button>
+						<ActionGroup>
+							<Button className="cursor-pointer" onClick={() => void estimate.refetch()} variant="outline">
+								Tentar novamente
+							</Button>
+						</ActionGroup>
 					</div>
 				) : (
 					<div>

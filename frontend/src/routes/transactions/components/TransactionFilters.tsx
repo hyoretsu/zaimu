@@ -180,7 +180,7 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 					/>
 					{hasFilters ? (
 						<Button
-							className="col-span-2 cursor-pointer justify-self-start sm:col-span-1 sm:self-end"
+							className="col-span-2 cursor-pointer justify-self-end sm:col-span-1 sm:self-end"
 							onClick={onClear}
 							size="sm"
 							type="button"

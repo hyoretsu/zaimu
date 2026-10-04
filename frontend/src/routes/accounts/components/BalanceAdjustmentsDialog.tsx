@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { LuPencil, LuPlus, LuTrash2 } from "react-icons/lu";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
@@ -139,13 +140,15 @@ export function BalanceAdjustmentsDialog({
 								))}
 						</div>
 					</ScrollArea>
-					<Button
-						className="cursor-pointer disabled:cursor-not-allowed"
-						disabled={!adjustmentsQuery.isSuccess || adjustmentsQuery.isFetching}
-						onClick={() => setEditing("new")}
-					>
-						<LuPlus /> Novo ajuste
-					</Button>
+					<ActionGroup>
+						<Button
+							className="cursor-pointer disabled:cursor-not-allowed"
+							disabled={!adjustmentsQuery.isSuccess || adjustmentsQuery.isFetching}
+							onClick={() => setEditing("new")}
+						>
+							<LuPlus /> Novo ajuste
+						</Button>
+					</ActionGroup>
 				</DialogContent>
 			</Dialog>
 			{editing !== null ? (

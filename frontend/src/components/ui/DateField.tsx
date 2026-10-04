@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
+import { ActionGroup } from "./ActionGroup";
 import { CalendarMonth } from "./DateRangePicker/CalendarMonth";
 import { MonthYearPicker } from "./DateRangePicker/MonthYearPicker";
 import { Label } from "./Label";
@@ -118,7 +119,7 @@ export function DateField({
 				onDateSelect={selectDate}
 				startDate={selectedDate}
 			/>
-			<div className="flex justify-between border-t pt-4">
+			<ActionGroup className="border-t pt-4">
 				<Button
 					className="cursor-pointer"
 					disabled={!value}
@@ -135,7 +136,7 @@ export function DateField({
 				<Button className="cursor-pointer" onClick={() => selectDate(new Date())} size="sm" type="button">
 					Selecionar
 				</Button>
-			</div>
+			</ActionGroup>
 		</>
 	);
 

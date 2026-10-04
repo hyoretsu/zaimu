@@ -81,7 +81,7 @@ export function PendingPaymentSuggestions() {
 													: "Conta indisponível"}
 											</p>
 										</div>
-										<Button onClick={() => setSelected(suggestion)} variant="outline">
+										<Button className="ml-auto" onClick={() => setSelected(suggestion)} variant="outline">
 											<LuWalletCards /> Revisar pagamento
 										</Button>
 									</div>

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
+import { ActionGroup } from "../ActionGroup";
 import { CalendarMonth } from "./CalendarMonth";
 import { DateBoundaryButton } from "./DateBoundaryButton";
 import { formatDateRange } from "./date-range-label";
@@ -141,14 +142,14 @@ export function DateRangePicker({ className, onChange, triggerLabel, value }: Da
 						startDate={startDate}
 					/>
 				</div>
-				<div className="flex items-center justify-between gap-3 border-t pt-4">
+				<ActionGroup className="gap-3 border-t pt-4">
 					<Button className="cursor-pointer" onClick={handleClear} size="sm" type="button" variant="outline">
 						Limpar
 					</Button>
 					<Button className="cursor-pointer" onClick={handleApply} size="sm" type="button">
 						Aplicar
 					</Button>
-				</div>
+				</ActionGroup>
 			</PopoverContent>
 		</Popover>
 	);

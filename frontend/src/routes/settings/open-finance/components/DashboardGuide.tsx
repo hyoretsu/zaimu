@@ -1,4 +1,5 @@
 import { LuPlay, LuSettings } from "react-icons/lu";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { GuideInstruction } from "./GuideInstruction";
 import { PluggyLink } from "./PluggyLink";
 
@@ -9,10 +10,10 @@ export function DashboardGuide() {
 				Meu Pluggy e Dashboard Pluggy têm cadastros separados. No Dashboard, crie sua conta ou entre antes de
 				abrir aplicações. Se cadastro pedir confirmação por email, conclua no mesmo navegador.
 			</p>
-			<div className="flex flex-wrap gap-2">
+			<ActionGroup>
 				<PluggyLink href="https://dashboard.pluggy.ai/applications">Abrir aplicações do Dashboard</PluggyLink>
 				<PluggyLink href="https://meu.pluggy.ai/en/api-guide">Guia MeuPluggy</PluggyLink>
-			</div>
+			</ActionGroup>
 			<p className="text-muted-foreground">
 				No aplicativo, link abre navegador externo. Depois do cadastro, siga para Aplicações. Se Dashboard não
 				continuar automaticamente, use botão acima novamente.
