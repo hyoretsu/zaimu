@@ -9,6 +9,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { HiArrowsRightLeft, HiPlus } from "react-icons/hi2";
 import { LuArrowLeftRight, LuEye, LuFileUp, LuLoaderCircle } from "react-icons/lu";
+import { PendingPaymentSuggestions } from "@/components/payment-suggestions";
 import {
 	ImportTransactionsDialog,
 	PendingTransactionImportsNotice,
@@ -446,6 +447,7 @@ export function TransactionsPage() {
 				title="Transações"
 			/>
 			<PendingTransactionImportsNotice onReview={setReviewingImportId} />
+			<PendingPaymentSuggestions />
 			{identity !== null && transferSuggestionsQuery.isPending ? (
 				<Skeleton className="h-[5.625rem] rounded-2xl" />
 			) : visibleTransferSuggestions.length > 0 ? (
