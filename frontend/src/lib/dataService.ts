@@ -1563,7 +1563,6 @@ export const dataService = {
 				amount: data.amount,
 				createdAt: new Date().toISOString(),
 				date: data.date,
-				description: "Pagamento do cartão",
 				id: crypto.randomUUID(),
 				originFinancialAccountId: data.financialAccountId,
 				paymentCreditCardId: cardId,

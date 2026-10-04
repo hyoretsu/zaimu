@@ -1534,7 +1534,6 @@ export async function confirmLocalSuggestedPayment(
 			amount: input.amount,
 			createdAt: new Date().toISOString(),
 			date: input.date,
-			description: "Pagamento do cartão",
 			id: input.attemptId,
 			originFinancialAccountId: input.financialAccountId,
 			paymentCreditCardId: cardId,

@@ -178,6 +178,7 @@ test("visitor payment validates balance and date, serializes attempts and isolat
 		storage.confirmLocalSuggestedPayment("card", input),
 	]);
 	expect(first.transaction.id).toBe(repeated.transaction.id);
+	expect(first.transaction.description).toBeUndefined();
 	expect(
 		(await storage.localTransactions.getAll(owner)).filter(row => row.data.paymentCreditCardId),
 	).toHaveLength(1);

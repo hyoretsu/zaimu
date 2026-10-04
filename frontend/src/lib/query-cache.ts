@@ -130,7 +130,15 @@ export const cacheOperationDomains = {
 	],
 	statement: ["creditCardStatements", "creditCards", "accounts", "dashboard", "debts", "transactions"],
 	store: ["stores", "transactions", "dashboard"],
-	transaction: ["transactions", "accounts", "creditCardStatements", "dashboard", "debts", "accountYields"],
+	transaction: [
+		"transactions",
+		"accounts",
+		"creditCards",
+		"creditCardStatements",
+		"dashboard",
+		"debts",
+		"accountYields",
+	],
 	yield: ["accountYields", "accounts", "dashboard", "transactions"],
 } as const satisfies Record<string, readonly CacheDomain[]>;
 

@@ -51,9 +51,6 @@ export function PaymentSuggestionForm({
 		onError: error => setError(error.message),
 		onSuccess: async () => {
 			await invalidateCacheOperation(queryClient, identity!, "transaction");
-			await queryClient.invalidateQueries({
-				queryKey: [...queryKeys.creditCards.list(identity!), "payment-suggestions"],
-			});
 			showToast("Pagamento da fatura registrado.", "positive");
 			onClose();
 		},

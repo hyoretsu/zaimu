@@ -45,6 +45,8 @@ describe("query cache", () => {
 	test("invalidates active and inactive derived queries without removing data", async () => {
 		const queryClient = new QueryClient();
 		const transactionKey = queryKeys.transactions.list(identity, { type: "EXPENSE" });
+		const suggestionsKey = [...queryKeys.creditCards.list(identity), "payment-suggestions"];
+		const otherSuggestionsKey = [...queryKeys.creditCards.list("user:user-b"), "payment-suggestions"];
 		const dashboardKey = queryKeys.dashboard.detail(identity, { from: "2026-01-01" });
 		let fetchCount = 0;
 		const observer = new QueryObserver(queryClient, {
@@ -57,10 +59,14 @@ describe("query cache", () => {
 		const unsubscribe = observer.subscribe(() => undefined);
 		await queryClient.ensureQueryData({ queryFn: () => ["transaction"], queryKey: transactionKey });
 		queryClient.setQueryData(dashboardKey, { balance: 100 });
+		queryClient.setQueryData(suggestionsKey, []);
+		queryClient.setQueryData(otherSuggestionsKey, []);
 
 		await invalidateCacheOperation(queryClient, identity, "transaction");
 
 		expect(fetchCount).toBeGreaterThanOrEqual(2);
+		expect(queryClient.getQueryState(suggestionsKey)?.isInvalidated).toBeTrue();
+		expect(queryClient.getQueryState(otherSuggestionsKey)?.isInvalidated).toBeFalse();
 		expect(queryClient.getQueryState(dashboardKey)?.isInvalidated).toBeTrue();
 		expect(queryClient.getQueryData<string[]>(transactionKey)).toEqual(["transaction"]);
 		unsubscribe();

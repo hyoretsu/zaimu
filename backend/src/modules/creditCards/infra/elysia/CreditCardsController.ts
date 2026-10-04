@@ -798,7 +798,6 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						{
 							amount: String(body.amount),
 							date: new Date(body.date),
-							description: "Pagamento do cartão",
 							originFinancialAccountId: body.financialAccountId,
 							paymentCreditCardId: params.id,
 							time: resolvePurchaseTime(body.time),

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { type CreditBook, newBookPurchase } from "./credit-book";
+import { type CreditBook, newBookPurchase, replayCreditBook } from "./credit-book";
 import { pendingStatementPayments } from "./payment-suggestions";
 
 function book(): CreditBook {
@@ -66,4 +66,27 @@ test("partial payment, final payment and cutoff remove or reduce suggestion", ()
 	ledger.payments = [];
 	ledger.card.ignoreStatementsBefore = "2026-08-21";
 	expect(pendingStatementPayments(ledger, "2026-08-26")).toEqual([]);
+});
+
+test("scheduled payments reduce suggestions and deletion restores them without changing current balances", () => {
+	const ledger = book();
+	newBookPurchase(ledger, {
+		description: "Compra",
+		installments: 1,
+		purchaseDate: "2026-08-10",
+		totalAmount: 100,
+	});
+	const today = "2026-08-26";
+	const original = pendingStatementPayments(ledger, today);
+	ledger.payments.push({ amount: 40, date: "2026-08-28", id: "partial" });
+	expect(pendingStatementPayments(ledger, today)[0].amount).toBe(60);
+	ledger.payments.push({ amount: 60, date: "2026-08-28", id: "final" });
+	expect(pendingStatementPayments(ledger, today)).toEqual([]);
+	expect(
+		replayCreditBook(ledger, today).statements.find(row => row.id === original[0].statementId)
+			?.balanceAmount,
+	).toBe(100);
+	expect(ledger.payments[0].date).toBe("2026-08-28");
+	ledger.payments = [];
+	expect(pendingStatementPayments(ledger, today)).toEqual(original);
 });

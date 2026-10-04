@@ -79,7 +79,7 @@ export async function confirmSuggestedPayment(userId: string, cardId: string, in
 			throw new HttpException("Saldo insuficiente na conta pagadora na data informada", 400);
 		return withTransaction(async executor => {
 			const [transaction] = await query<SuggestedPaymentTransaction>(
-				`INSERT INTO "Transaction" ("id","userId","type","amount","date","description","originFinancialAccountId","paymentCreditCardId","createdAt","updatedAt") VALUES ($1,$2,'EXPENSE',$3,$4,'Pagamento do cartão',$5,$6,NOW(),NOW()) RETURNING *`,
+				`INSERT INTO "Transaction" ("id","userId","type","amount","date","originFinancialAccountId","paymentCreditCardId","createdAt","updatedAt") VALUES ($1,$2,'EXPENSE',$3,$4,$5,$6,NOW(),NOW()) RETURNING *`,
 				[input.attemptId, userId, input.amount, input.date, input.financialAccountId, cardId],
 			);
 			await recalculateStatementPayments(executor, [cardId]);
