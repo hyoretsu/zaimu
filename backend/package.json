@@ -10,6 +10,7 @@
 		"dev:worker": "bun --watch src/worker.ts",
 		"performance:benchmark": "bun run performance/benchmark.ts",
 		"performance:seed": "bun run performance/seed.ts",
+		"rates:repair": "bun run src/scripts/repair-reference-rates.ts",
 		"schedule:repair": "bun run src/scripts/replay-missing-recurrences.ts",
 		"schedule:repair-integrity": "bun run src/scripts/repair-credit-recurrence-integrity.ts",
 		"schedule:replay": "bun run src/scripts/replay-schedule-materialization.ts",

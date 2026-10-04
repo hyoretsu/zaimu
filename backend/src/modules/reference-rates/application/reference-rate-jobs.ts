@@ -22,6 +22,7 @@ import {
 	withRawTransaction,
 } from "~/shared/infra/sql";
 import { fetchBcbReferenceRates } from "../domain/bcb-reference-rates";
+import { referenceRateInsertSql } from "../domain/reference-rate-insert-sql";
 import { referenceRateBootstrapIntervals } from "../domain/reference-rate-window";
 
 type FetchReferenceRates = typeof fetchBcbReferenceRates;
@@ -143,16 +144,17 @@ export async function enqueueDailyReferenceRateFetches(now = new Date()) {
 	for (const type of ["CDI", "SELIC"] as const)
 		await enqueueReferenceRateFetch(type, startDate, endDate, `daily:${type}:${dateKey(scheduleDate)}`);
 }
-async function processFetchJob(job: ClaimedJob, fetchRates: FetchReferenceRates) {
+async function processFetchJob(job: ClaimedJob, fetchRates: FetchReferenceRates, preserveExisting = false) {
 	if (!job.referenceType || !job.startDate || !job.endDate) throw new Error("Job de taxa incompleto");
 	const rates = await fetchRates(job.referenceType, job.startDate, job.endDate);
 	const earliestChangedDate = await withRawTransaction(async query => {
 		let earliestChangedDate: Date | null = null;
 		for (const rate of rates) {
-			const changed = await query<{ id: string }>(
-				`INSERT INTO "public"."ReferenceRate" ("type", "date", "value") VALUES ($1, $2::date, $3) ON CONFLICT ("type", "date") DO UPDATE SET "value" = EXCLUDED."value", "updatedAt" = now() WHERE "ReferenceRate"."value" IS DISTINCT FROM EXCLUDED."value" RETURNING "id"`,
-				[job.referenceType, dateKey(rate.date), rate.value],
-			);
+			const changed = await query<{ id: string }>(referenceRateInsertSql(preserveExisting), [
+				job.referenceType,
+				dateKey(rate.date),
+				rate.value,
+			]);
 			if (changed.length > 0 && (!earliestChangedDate || rate.date < earliestChangedDate))
 				earliestChangedDate = rate.date;
 		}
@@ -337,6 +339,7 @@ const requiredString = (payload: unknown, key: string) => {
 export async function handleReferenceRateFetchCommand(
 	event: EventEnvelope,
 	fetchRates: FetchReferenceRates = fetchBcbReferenceRates,
+	options: { preserveExisting?: boolean } = {},
 ) {
 	const rawReferenceType = requiredString(event.payload, "referenceType");
 	if (rawReferenceType !== "CDI" && rawReferenceType !== "SELIC") throw new Error("Tipo de taxa inválido");
@@ -349,7 +352,7 @@ export async function handleReferenceRateFetchCommand(
 		referenceType,
 		startDate: new Date(`${requiredString(event.payload, "startDate")}T12:00:00`),
 	};
-	return processFetchJob(job, fetchRates);
+	return processFetchJob(job, fetchRates, options.preserveExisting);
 }
 
 export async function handleAccountYieldRecalculationCommand(event: EventEnvelope) {
