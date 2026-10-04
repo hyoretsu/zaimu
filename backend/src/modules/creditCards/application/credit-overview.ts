@@ -125,6 +125,7 @@ export function replayOverviewStatements(
 	recurrences: RecurrenceDefinition[] = [],
 	through = asOf,
 	occurrences: Array<{ recurrenceId: string; date: string }> = [],
+	projectedPaymentAmounts?: Map<string, number>,
 ): CreditOverviewStatement[] {
 	const purchasesByCard = groupByCard(rows, "purchase");
 	const installmentsByCard = groupByCard(rows, "installment");
@@ -228,6 +229,9 @@ export function replayOverviewStatements(
 			through,
 			occurrences,
 		);
+		if (projectedPaymentAmounts)
+			for (const [id, amount] of recurringCardPaymentAmounts(projectedBook))
+				projectedPaymentAmounts.set(id, amount);
 		const statements =
 			asOf < through
 				? forecastCardPayments(projectedBook, projectionFrom, through)

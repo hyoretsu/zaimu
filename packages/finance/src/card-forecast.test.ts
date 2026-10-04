@@ -144,3 +144,42 @@ test("purchase credit reduces remaining statement without duplicate settlement",
 	expect(payments.reduce((sum, payment) => sum + payment.balanceAmount, 0)).toBe(150);
 	expect(payments.reduce((sum, payment) => sum + payment.recurringAmount, 0)).toBe(100);
 });
+
+test("payment before closing allocates subscriptions proportionally", () => {
+	const book: CreditBook = {
+		card: {
+			dueDay: 28,
+			id: "card",
+			ignoreStatementsBefore: null,
+			institutionId: null,
+			refundPolicy: null,
+			statementDay: 20,
+			userId: "user",
+		},
+		charges: [],
+		installments: [],
+		payments: [{ amount: 50, date: "2026-10-10", id: "payment" }],
+		purchases: [],
+		refunds: [],
+		statements: [],
+	};
+	newBookPurchase(book, {
+		description: "Plano",
+		id: "subscription",
+		installments: 1,
+		purchaseDate: "2026-10-01",
+		recurrenceId: "subscription",
+		totalAmount: 100,
+	});
+	newBookPurchase(book, {
+		description: "Compra",
+		id: "other",
+		installments: 1,
+		purchaseDate: "2026-10-01",
+		totalAmount: 100,
+	});
+	expect(recurringCardPaymentAmounts(book).get("payment")).toBe(25);
+	const payments = forecastCardPayments(book, "2026-10-04", "2026-11-30");
+	expect(payments.reduce((sum, payment) => sum + payment.balanceAmount, 0)).toBe(150);
+	expect(payments.reduce((sum, payment) => sum + payment.recurringAmount, 0)).toBe(75);
+});

@@ -203,7 +203,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" })
 								type: "RECURRING",
 							});
 					}
-					for (const payment of payments.filter(item => !item.paidDate && item.dueDate >= today)) {
+					for (const payment of payments.filter(item => !item.paidDate && item.dueDate >= projectionStart)) {
 						forecasts.push({
 							amount: Number(payment.totalPaid),
 							date: dateKey(payment.dueDate),

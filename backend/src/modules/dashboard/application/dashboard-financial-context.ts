@@ -39,6 +39,12 @@ export function dashboardFinancialContext(
 					destinationAccountId: recurrence.destinationFinancialAccountId,
 					originAccountId: recurrence.originFinancialAccountId,
 					recurring: true,
+					...(recurrence.movement === "CARD_PAYMENT"
+						? {
+								recurringAmount:
+									loaded.projectedCardPaymentAmounts?.get(`forecast:${recurrence.id}:${date}`) ?? 0,
+							}
+						: {}),
 					type:
 						recurrence.movement === "TRANSFER"
 							? "TRANSFER"

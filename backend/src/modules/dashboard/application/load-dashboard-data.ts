@@ -303,7 +303,7 @@ export async function loadDashboardRows(
 	const scheduleRows = await query<DashboardDataRow>(schedulesSql, [userId, dateKey(range.today)]);
 	const movementRows = await query<DashboardDataRow>(comparisonOnly ? comparisonMovementsSql : movementsSql, [
 		userId,
-		dateKey(range.comparisonStart),
+		dateKey(range.comparisonStart < range.projectionStart ? range.comparisonStart : range.projectionStart),
 		dateKey(range.comparisonEnd),
 		dateKey(range.projectionStart),
 		...(comparisonOnly ? [] : [dateKey(range.periodStart), dateKey(range.periodEnd)]),
@@ -320,7 +320,9 @@ export async function loadDashboardRows(
 	const recurringPayments = new Map(
 		rowsByKind(overviewRows, "payment").map(row => [String(row.id), Number(row.recurringAmount ?? 0)]),
 	);
+	const projectedCardPaymentAmounts = new Map<string, number>();
 	return {
+		...({ projectedCardPaymentAmounts } as { projectedCardPaymentAmounts?: Map<string, number> }),
 		accounts: rowsByKind(overviewRows, "account") as unknown as DashboardAccount[],
 		activityDates,
 		balanceRows,
@@ -332,7 +334,7 @@ export async function loadDashboardRows(
 		}>,
 		flows: rowsByKind(movementRows, "flow").map(row => ({
 			...row,
-			...(row.recurring ? {} : { recurringAmount: recurringPayments.get(String(row.id)) }),
+			...(row.cardPayment ? { recurringAmount: recurringPayments.get(String(row.id)) ?? 0 } : {}),
 			date: asDate(row.date),
 		})) as unknown as DashboardFlow[],
 		forecastTransactions: rowsByKind(movementRows, "forecastTransaction").map(row => ({
@@ -359,6 +361,7 @@ export async function loadDashboardRows(
 			recurrences,
 			dateKey(range.comparisonEnd),
 			rowsByKind(scheduleRows, "occurrence") as unknown as Array<{ recurrenceId: string; date: string }>,
+			projectedCardPaymentAmounts,
 		),
 		projectedYields: null as Awaited<ReturnType<typeof projectedYieldContext>> | null,
 		recurrences,

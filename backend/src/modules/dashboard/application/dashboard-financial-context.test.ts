@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { buildComparisonPeriods } from "./dashboard-calculations";
 import { dashboardFinancialContext } from "./dashboard-financial-context";
 import type { loadDashboardData } from "./load-dashboard-data";
 
@@ -75,4 +76,76 @@ test("historical checkpoints change balance without fictitious income or expense
 	expect(context.balanceAt(new Date("2026-10-02T12:00:00"))).toBe(1000);
 	expect(context.balanceAt(today)).toBe(60);
 	expect(context.comparisonTransactions).toHaveLength(0);
+});
+
+test("November screenshot cash flow reconciles with wealth and subscription subtotals", () => {
+	const data = loaded();
+	data.balanceRows = [
+		{ accountId: "cash", balance: 4681.01, date: "2026-10-31" },
+		{ accountId: "reserve", balance: 3284.26, date: "2026-10-31" },
+	];
+	const start = new Date("2026-11-01T00:00:00");
+	const end = new Date("2026-11-30T23:59:59");
+	data.flows = [
+		{ amount: 2100, date: start, destinationAccountId: "cash", recurring: true, type: "INCOME" },
+		{ amount: 69.9, date: start, originAccountId: "cash", recurring: true, type: "EXPENSE" },
+		{
+			amount: 1723.14,
+			cardPayment: true,
+			date: start,
+			originAccountId: "cash",
+			recurringAmount: 614.46,
+			type: "EXPENSE",
+		},
+	];
+	const context = dashboardFinancialContext(
+		data,
+		{ end, start },
+		new Date("2026-10-31T00:00:00"),
+		start,
+		end,
+	);
+	const [period] = buildComparisonPeriods({
+		base: { end, start },
+		initialBalance: 7965.27,
+		periodsAfter: 0,
+		periodsBefore: 0,
+		transactions: context.comparisonTransactions,
+	});
+	expect(context.balanceAt(end)).toBeCloseTo(8272.23, 2);
+	expect(context.balanceBreakdownAt(end).accountBalance).toBeCloseTo(4987.97, 2);
+	expect(context.balanceBreakdownAt(end).fixedIncomeBalance).toBe(3284.26);
+	expect(period!.expenses).toBeCloseTo(1793.04, 2);
+	expect(period!.recurringExpenses - period!.recurringCardExpenses).toBeCloseTo(69.9, 2);
+	expect(period!.cardExpenses - period!.recurringCardExpenses).toBeCloseTo(1108.68, 2);
+	expect(period!.recurringCardExpenses).toBe(614.46);
+});
+
+test("fixed recurring card payments preserve projected subscription attribution", () => {
+	const data = loaded();
+	data.recurrences = [
+		{
+			amount: 100,
+			createdAt: "",
+			creditCardId: "card",
+			dayOfMonth: 10,
+			destinationFinancialAccountId: null,
+			id: "payment",
+			interval: 1,
+			isActive: true,
+			materializedThrough: "2026-09-30",
+			movement: "CARD_PAYMENT",
+			name: "Pagamento fixo",
+			originFinancialAccountId: "cash",
+			startDate: "2026-10-01",
+			unit: "MONTH",
+			updatedAt: "",
+			userId: "owner",
+		},
+	];
+	data.projectedCardPaymentAmounts = new Map([["forecast:payment:2026-10-10", 25]]);
+	const context = dashboardFinancialContext(data, { end: through, start: from }, today, from, through);
+	expect(context.comparisonTransactions).toHaveLength(1);
+	expect(context.comparisonTransactions[0]!.amount).toBe(100);
+	expect(context.comparisonTransactions[0]!.recurringAmount).toBe(25);
 });

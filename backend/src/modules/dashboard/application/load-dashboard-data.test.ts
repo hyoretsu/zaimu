@@ -128,3 +128,69 @@ test("comparison loads only chart data and requested balance dates", async () =>
 	expect(result.forecastTransactions).toEqual([]);
 	expect(result.activityDates).toEqual([]);
 });
+
+test("future comparisons load intervening scheduled transactions from projection start", async () => {
+	const queries: Array<{ sql: string; values?: unknown[] }> = [];
+	await loadDashboardRows(
+		async <Row extends Record<string, unknown>>(sql: string, values?: unknown[]): Promise<Row[]> => {
+			queries.push({ sql, values });
+			return [];
+		},
+		"chart-user",
+		{
+			balanceDates: [],
+			comparisonEnd: new Date("2027-01-31T12:00:00"),
+			comparisonStart: new Date("2027-01-01T12:00:00"),
+			periodEnd: new Date("2027-01-31T12:00:00"),
+			periodStart: new Date("2027-01-01T12:00:00"),
+			projectionStart: new Date("2026-10-05T12:00:00"),
+			today: new Date("2026-10-04T12:00:00"),
+		},
+		true,
+	);
+	expect(queries[2]!.values?.[1]).toBe("2026-10-05");
+});
+
+test("recurring card payments use purchase composition instead of full payment amount", async () => {
+	const rows = creditRows("card-a", 100);
+	rows.push({
+		data: { amount: 100, creditCardId: "card-a", date: "2026-02-10", id: "payment-a" },
+		kind: "payment",
+	});
+	let queryIndex = 0;
+	const result = await loadDashboardRows(
+		async <Row extends Record<string, unknown>>(): Promise<Row[]> => {
+			const queryRows = [
+				[{ data: card("card-a"), kind: "card" }, ...rows],
+				[],
+				[
+					{
+						data: {
+							amount: 100,
+							cardPayment: true,
+							date: "2026-02-10",
+							id: "payment-a",
+							recurring: true,
+							type: "EXPENSE",
+						},
+						kind: "flow",
+					},
+				],
+				[],
+			][queryIndex++]!;
+			return queryRows as unknown as Row[];
+		},
+		"chart-user",
+		{
+			balanceDates: [],
+			comparisonEnd: new Date("2026-02-28T12:00:00"),
+			comparisonStart: new Date("2026-02-01T12:00:00"),
+			periodEnd: new Date("2026-02-28T12:00:00"),
+			periodStart: new Date("2026-02-01T12:00:00"),
+			projectionStart: new Date("2026-02-21T12:00:00"),
+			today: new Date("2026-02-20T12:00:00"),
+		},
+		true,
+	);
+	expect(result.flows[0]!.recurringAmount).toBe(0);
+});

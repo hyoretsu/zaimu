@@ -1802,13 +1802,14 @@ export const dataService = {
 					`${dateRange?.startDate ?? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`}T00:00:00`,
 				);
 				const rangeEnd = new Date(
-					`${dateRange?.endDate ?? new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10)}T23:59:59`,
+					`${dateRange?.endDate ?? getLocalDateKey(new Date(now.getFullYear(), now.getMonth() + 1, 0))}T23:59:59`,
 				);
-				const [accountRecords, cashbackPurchases, holidays, yields] = await Promise.all([
+				const [accountRecords, cashbackPurchases, holidays, yields, loanPaymentRows] = await Promise.all([
 					localAccounts.getAll(),
 					localCreditBooks.getAll(),
 					localMeta.get("financial-account-yield-holidays"),
 					localMeta.get("financial-account-yields"),
+					localLoanPayments.getAll(),
 				]);
 				const accountsAtRangeEnd = calculateFinancialAccountBalances(
 					accountRecords.filter(item => !item.data.isHidden).map(item => item.data),
@@ -1818,13 +1819,17 @@ export const dataService = {
 					rangeEnd,
 					(yields as FinancialAccountYield[] | null) ?? [],
 				);
-				const dateKey = (value: Date | string) => new Date(value).toISOString().slice(0, 10);
+				const dateKey = (value: Date | string) =>
+					typeof value === "string" ? value.slice(0, 10) : getLocalDateKey(value);
 				const { owedToMe, iOwe } = debts.totals;
 
 				const recurrenceOccurrences = (await localRecurrenceOccurrences.getAll()).map(row => row.data);
-				const processedRecurrences = new Set(
-					recurrenceOccurrences.map(row => `${row.recurrenceId}:${row.date}`),
-				);
+				const processedRecurrences = new Set([
+					...recurrenceOccurrences.map(row => `${row.recurrenceId}:${row.date}`),
+					...transactions
+						.filter(row => row.recurrenceId)
+						.map(row => `${row.recurrenceId}:${row.recurrenceOccurrenceDate ?? row.date.slice(0, 10)}`),
+				]);
 				const forecasts = [
 					...recurrences
 						.filter(
@@ -1848,22 +1853,30 @@ export const dataService = {
 									]
 								: [];
 						}),
-					...loans
-						.filter(item => (item.remainingInstallments ?? item.totalInstallments) > 0)
-						.map(item => ({
-							amount: item.installmentAmount,
-							date: dateKey(new Date(item.firstDueDate)),
-							direction: "EXPENSE" as const,
-							id: `loan-${item.id}`,
-							name: item.lender,
-							sourceId: item.id,
-							type: "LOAN" as const,
-						})),
+					...loanPaymentRows
+						.map(row => row.data)
+						.filter(payment => !payment.paidDate && payment.dueDate.slice(0, 10) > getLocalDateKey(now))
+						.flatMap(payment => {
+							const loan = loans.find(item => item.id === payment.loanId);
+							return loan
+								? [
+										{
+											amount: payment.totalPaid,
+											date: payment.dueDate.slice(0, 10),
+											direction: "EXPENSE" as const,
+											id: `loan-${payment.id}`,
+											name: loan.lender,
+											sourceId: loan.id,
+											type: "LOAN" as const,
+										},
+									]
+								: [];
+						}),
 					...transactions
 						.filter(
 							item =>
-								item.type !== "TRANSFER" &&
-								new Date(`${item.date.slice(0, 10)}T12:00:00`) > now &&
+								(item.type === "INCOME" || item.type === "EXPENSE") &&
+								item.date.slice(0, 10) > getLocalDateKey(now) &&
 								!item.recurrenceId,
 						)
 						.map(item => ({

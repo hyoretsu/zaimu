@@ -46,11 +46,9 @@ export function recurringCardPaymentAmounts(book: CreditBook) {
 		let remaining = payment.amount;
 		let recurringAmount = 0;
 		const statements = replayCreditBook(replay, payment.date)
-			.statements.filter(
-				statement =>
-					statement.statementDate.slice(0, 10) <= payment.date && statement.balanceAmount > 0,
-			)
-			.toSorted((a, b) => a.statementDate.localeCompare(b.statementDate));
+			.statements.filter(statement => statement.dueDate.slice(0, 10) >= payment.date)
+			.toSorted((a, b) => a.dueDate.localeCompare(b.dueDate))
+			.slice(0, 1);
 		const recurringStatements = new Map(
 			replayCreditBook(recurringBook, payment.date).statements.map(statement => [
 				statement.id,
@@ -58,6 +56,7 @@ export function recurringCardPaymentAmounts(book: CreditBook) {
 			]),
 		);
 		for (const statement of statements) {
+			if (statement.balanceAmount <= 0) continue;
 			const amount = Math.min(remaining, statement.balanceAmount);
 			const recurringBalance = Math.max(0, recurringStatements.get(statement.id)?.balanceAmount ?? 0);
 			recurringAmount += amount * Math.min(1, recurringBalance / statement.balanceAmount);

@@ -11,8 +11,10 @@ test("guest chart reads no dashboard or debt data and repeats selected dates", a
 	const { getGuestDashboardComparison } = await import("../dashboard-comparison");
 	const stores = await import("../localStorage");
 	const rates = await import("../reference-rate-averages");
+	const cardForecast = await import("@zaimu/finance/card-forecast");
 	const mocks = [
 		spyOn(rates, "refreshReferenceRateAverages").mockResolvedValue(null),
+		spyOn(cardForecast, "recurringCardPaymentAmounts").mockReturnValue(new Map([["payment", 20]])),
 		spyOn(stores.localAccounts, "getAll").mockResolvedValue([
 			{
 				data: {
@@ -29,10 +31,20 @@ test("guest chart reads no dashboard or debt data and repeats selected dates", a
 		] as never),
 		spyOn(dataService.transactions, "getAll").mockResolvedValue([
 			{ amount: 100, date: "2026-01-05", destinationFinancialAccountId: "checking", type: "INCOME" },
+			{
+				amount: 50,
+				date: "2026-01-06",
+				id: "payment",
+				originFinancialAccountId: "checking",
+				paymentCreditCardId: "card",
+				recurrenceId: "payment-recurrence",
+				type: "EXPENSE",
+			},
 		] as never),
 		spyOn(dataService.recurrences, "getAll").mockResolvedValue([]),
 		spyOn(dataService.creditCards, "getAll").mockResolvedValue([]),
-		spyOn(stores.localCreditBooks, "getAll").mockResolvedValue([]),
+		spyOn(stores.localCreditBooks, "getAll").mockResolvedValue([{ data: {} }] as never),
+		spyOn(await import("@zaimu/finance/credit-book"), "creditBookRewards").mockReturnValue([]),
 		spyOn(stores.localLoanPayments, "getAll").mockResolvedValue([]),
 		spyOn(stores.localRecurrenceOccurrences, "getAll").mockResolvedValue([]),
 		spyOn(stores.localMeta, "get").mockResolvedValue(null),
@@ -52,14 +64,17 @@ test("guest chart reads no dashboard or debt data and repeats selected dates", a
 			["2026-01-17", "2026-01-30"],
 		]);
 		expect(result[1]).toMatchObject({
-			accountBalance: 100,
-			endingBalance: 100,
-			expenses: 0,
+			accountBalance: 50,
+			cardExpenses: 50,
+			endingBalance: 50,
+			expenses: 50,
 			income: 100,
 			initialBalance: 0,
+			recurringCardExpenses: 20,
+			recurringExpenses: 20,
 			savingsBalance: 0,
 		});
-		expect(result[2]).toMatchObject({ endingBalance: 100, initialBalance: 100 });
+		expect(result[2]).toMatchObject({ endingBalance: 50, initialBalance: 50 });
 		expect(dashboard).not.toHaveBeenCalled();
 		expect(debts).not.toHaveBeenCalled();
 	} finally {

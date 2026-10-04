@@ -71,6 +71,20 @@ export async function getGuestDashboardFinancialContext(parameters: DashboardCom
 			.map(row => `${row.recurrenceId}:${row.recurrenceOccurrenceDate ?? row.date.slice(0, 10)}`),
 	]);
 	const accounts = accountRows.filter(row => !row.data.isHidden).map(row => row.data);
+	const projectedBooks = await Promise.all(
+		cards.map(async card =>
+			projectRecurrenceCreditBook(
+				await readLocalCreditBook(card.id),
+				recurrences,
+				key(projectionStart),
+				key(through),
+				occurrences,
+			),
+		),
+	);
+	const projectedRecurringPayments = new Map(
+		projectedBooks.flatMap(book => [...recurringCardPaymentAmounts(book)]),
+	);
 	const projected: Array<Omit<ForecastMovement, "date"> & { date: Date }> = [];
 	for (const recurrence of recurrences) {
 		if (
@@ -88,6 +102,9 @@ export async function getGuestDashboardFinancialContext(parameters: DashboardCom
 					destinationAccountId: recurrence.destinationFinancialAccountId,
 					originAccountId: recurrence.originFinancialAccountId,
 					recurring: true,
+					...(recurrence.movement === "CARD_PAYMENT"
+						? { recurringAmount: projectedRecurringPayments.get(`forecast:${recurrence.id}:${date}`) ?? 0 }
+						: {}),
 					type:
 						recurrence.movement === "TRANSFER"
 							? "TRANSFER"
@@ -97,23 +114,9 @@ export async function getGuestDashboardFinancialContext(parameters: DashboardCom
 				});
 		}
 	}
-	const statements = (
-		await Promise.all(
-			cards.map(async card =>
-				forecastCardPayments(
-					projectRecurrenceCreditBook(
-						await readLocalCreditBook(card.id),
-						recurrences,
-						key(projectionStart),
-						key(through),
-						occurrences,
-					),
-					key(projectionStart),
-					key(through),
-				),
-			),
-		)
-	).flat();
+	const statements = projectedBooks.flatMap(book =>
+		forecastCardPayments(book, key(projectionStart), key(through)),
+	);
 	for (const statement of statements) {
 		const date = new Date(`${statement.dueDate.slice(0, 10)}T12:00:00`);
 		if (date >= projectionStart && date <= through && statement.balanceAmount > 0)
@@ -176,7 +179,7 @@ export async function getGuestDashboardFinancialContext(parameters: DashboardCom
 				destinationAccountId: item.destinationFinancialAccountId,
 				originAccountId: item.originFinancialAccountId,
 				recurring: Boolean(item.recurrenceId),
-				recurringAmount: item.recurrenceId ? undefined : recurringPayments.get(item.id),
+				recurringAmount: recurringPayments.get(item.id),
 				type: item.type as "INCOME" | "EXPENSE" | "TRANSFER",
 			})),
 		...projected,
@@ -193,6 +196,7 @@ export async function getGuestDashboardFinancialContext(parameters: DashboardCom
 			.map(reward => ({
 				amount: reward.cashbackAmount ?? 0,
 				date: new Date(`${reward.purchaseDate.slice(0, 10)}T12:00:00`),
+				destinationAccountId: reward.cashbackAccountId,
 				type: "INCOME" as const,
 			})),
 		...accounts.flatMap(account =>
