@@ -3,15 +3,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { format, startOfMonth } from "date-fns";
 import { useState } from "react";
 import { LuTrendingUp, LuWalletCards } from "react-icons/lu";
-import {
-	CreditCardImportReviewDialog,
-	PendingCreditCardImportsNotice,
-} from "@/components/credit-card-imports";
-import { PendingPaymentSuggestions } from "@/components/payment-suggestions";
-import {
-	PendingTransactionImportsNotice,
-	TransactionImportReviewDialog,
-} from "@/components/transaction-imports";
+import { CreditCardImportReviewDialog } from "@/components/credit-card-imports";
+import { PendingNotices } from "@/components/pending-notices";
+import { TransactionImportReviewDialog } from "@/components/transaction-imports";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import type { DateRangeValue } from "@/components/ui/DateRangePicker/types";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -25,7 +19,6 @@ import {
 	DashboardComparisonChart,
 	DashboardCreditCards,
 	DashboardDateFilter,
-	DashboardDebtInvitations,
 	DashboardDebts,
 	DashboardForecasts,
 	DashboardPeriodFlowCard,
@@ -82,10 +75,12 @@ export function DashboardPage() {
 				eyebrow={`Olá, ${user?.name?.split(" ")[0] || "visitante"}`}
 				title="Visão geral"
 			/>
-			<PendingTransactionImportsNotice onReview={setReviewingImportId} />
-			<PendingCreditCardImportsNotice onReview={setReviewingCreditCardImportId} />
-			<DashboardDebtInvitations />
-			<PendingPaymentSuggestions />
+			<PendingNotices
+				debtInvitations
+				onReviewCreditCardImport={setReviewingCreditCardImportId}
+				onReviewTransactionImport={setReviewingImportId}
+				paymentSuggestions
+			/>
 			<section className="grid gap-3 sm:gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] xl:grid-rows-[auto_auto]">
 				<Card className="gap-3 border-0 bg-primary py-4 text-primary-foreground shadow-primary/15 shadow-xl [--card-spacing:--spacing(4)] sm:gap-6 sm:py-6 xl:row-span-2 sm:[--card-spacing:--spacing(6)]">
 					<CardHeader>

@@ -5,9 +5,8 @@ import { LuCreditCard, LuFileUp, LuPlus, LuScale } from "react-icons/lu";
 import {
 	CreditCardImportReviewDialog,
 	ImportCreditCardStatementDialog,
-	PendingCreditCardImportsNotice,
 } from "@/components/credit-card-imports";
-import { PendingPaymentSuggestions } from "@/components/payment-suggestions";
+import { PendingNotices } from "@/components/pending-notices";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageContainer } from "@/components/ui/PageContainer";
@@ -114,7 +113,6 @@ export function CreditCardsPage() {
 
 	return (
 		<PageContainer className="grid gap-8">
-			<PendingPaymentSuggestions />
 			<PageHeader
 				actions={
 					<div className="flex flex-wrap justify-end gap-2">
@@ -172,7 +170,7 @@ export function CreditCardsPage() {
 				]}
 				title="Cartões e compras"
 			/>
-			<PendingCreditCardImportsNotice onReview={setReviewingImportId} />
+			<PendingNotices onReviewCreditCardImport={setReviewingImportId} paymentSuggestions />
 			<section className="grid gap-4 sm:grid-cols-2">
 				<div className="rounded-2xl bg-brand-yellow p-5 text-brand-ink shadow-card">
 					<p className="text-brand-ink/60 text-sm">Limite total</p>

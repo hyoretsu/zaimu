@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/Button";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import type { DebtInvitationPreview as InvitationPreview } from "@/lib/api";
 import { formatLocalDate, formatLocalTime } from "@/lib/date";
-import { getDebtEventLabel } from "../../debts/components/debt-event";
+import { getDebtEventLabel } from "@/routes/debts/components/debt-event";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 

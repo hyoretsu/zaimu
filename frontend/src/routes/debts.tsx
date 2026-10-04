@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { LuPlus, LuUsersRound } from "react-icons/lu";
+import { PendingNotices } from "@/components/pending-notices";
 import { Button } from "@/components/ui/Button";
 import { MobilePageActions } from "@/components/ui/MobilePageActions";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -10,7 +11,6 @@ import { dataService } from "@/lib/dataService";
 import { compareDebtPersonNames } from "@/lib/debt-split";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
-import { DashboardDebtInvitations } from "./components";
 import {
 	CreateDebtDialog,
 	type CreateDebtOriginDraft,
@@ -152,7 +152,7 @@ export function DebtsPage() {
 				</div>
 			</header>
 			<div className="mt-5 min-w-0 px-4">
-				<DashboardDebtInvitations />
+				<PendingNotices debtInvitations />
 			</div>
 			<section className="grid min-w-0 gap-3 px-4 pt-4">
 				{people.length ? (

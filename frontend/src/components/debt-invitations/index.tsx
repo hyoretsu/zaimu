@@ -9,7 +9,7 @@ import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { DebtInvitationDialog } from "./DebtInvitationDialog";
 import { DebtInvitationPickerDialog } from "./DebtInvitationPickerDialog";
 
-export function DashboardDebtInvitations() {
+export function PendingDebtInvitations() {
 	const identity = useCacheIdentity();
 	const [selectedInvitationId, setSelectedInvitationId] = useState<string | null>(null);
 	const [selectionOpen, setSelectionOpen] = useState(false);
