@@ -31,7 +31,15 @@ export const GlobalPlugin = new Elysia({ name: "GlobalPlugin" })
 			return { error: error.message };
 		}
 
-		console.error(error);
+		console.error(
+			JSON.stringify({
+				name: error instanceof Error ? error.name : "UnknownError",
+				requestId: getQueryMetrics()?.requestId,
+				stack: (error instanceof Error ? error.stack : undefined)?.split("\n").slice(1).join("\n"),
+				type: "http_error",
+			}),
+		);
+		set.status = code === "VALIDATION" ? 422 : code === "NOT_FOUND" ? 404 : 500;
 		return { error: "Internal Server Error" };
 	})
 	.as("global");

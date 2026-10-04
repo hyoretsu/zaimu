@@ -48,8 +48,10 @@ export const withoutQueryMetrics = <Result>(operation: () => Result) => storage.
 export const startOperation = (name: string) => {
 	const metrics = getQueryMetrics();
 	const startedAt = performance.now();
+	let finished = false;
 	return (outcome: OperationSpan["outcome"] = "ok") => {
-		if (!metrics?.active) return;
+		if (finished || !metrics?.active) return;
+		finished = true;
 		if (metrics.spans.length < 256)
 			metrics.spans.push({
 				durationMs: performance.now() - startedAt,

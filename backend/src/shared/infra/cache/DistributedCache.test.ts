@@ -63,6 +63,9 @@ class MemoryCache implements CachePort {
 		this.data.set(key, String(next));
 		return next;
 	}
+	async renewLock(key: string, owner: string, _leaseMs: number) {
+		return this.data.get(key) === owner;
+	}
 	async releaseLock(key: string, owner: string) {
 		if (this.data.get(key) === owner) this.data.delete(key);
 	}
@@ -200,6 +203,7 @@ describe("DistributedCache", () => {
 		expect(bypassed.value).toBe("value-2");
 		expect(performance.now() - startedAt).toBeLessThan(100);
 		storage.available = true;
+		await Bun.sleep(1010);
 		const reconnected = await cache.remember("user", "dashboard", {}, async () => `value-${++loads}`);
 		const hit = await cache.remember("user", "dashboard", {}, async () => `value-${++loads}`);
 		expect(storage.data.get(cacheKey("cache:epoch"))).toBe("2");
@@ -278,6 +282,7 @@ test("observes an epoch advanced by another process", async () => {
 	storage.available = false;
 	await second.read("user", "dashboard", {});
 	storage.available = true;
+	await Bun.sleep(1010);
 	await second.read("user", "dashboard", {});
 	expect(await first.read("user", "dashboard", {})).toBeUndefined();
 });

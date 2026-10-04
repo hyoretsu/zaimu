@@ -16,6 +16,7 @@ export interface CachePort {
 	get(key: string): Promise<string | null>;
 	increment(key: string): Promise<number>;
 	releaseLock(key: string, owner: string): Promise<void>;
+	renewLock(key: string, owner: string, leaseMs: number): Promise<boolean>;
 	set(key: string, value: string, options?: { onlyIfAbsent?: boolean; ttlMs?: number }): Promise<boolean>;
 }
 

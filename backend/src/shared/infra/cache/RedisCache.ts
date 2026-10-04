@@ -131,6 +131,20 @@ export class RedisCache implements CachePort {
 		this.scheduleCleanup();
 		return generation;
 	}
+	async renewLock(key: string, owner: string, leaseMs: number) {
+		return (
+			Number(
+				await this.client.send("EVAL", [
+					'if redis.call("GET",KEYS[1])==ARGV[1] then return redis.call("PEXPIRE",KEYS[1],ARGV[2]) else return 0 end',
+					"1",
+					key,
+					owner,
+					String(leaseMs),
+				]),
+			) === 1
+		);
+	}
+
 	async releaseLock(key: string, owner: string) {
 		await this.client.send("EVAL", [
 			'if redis.call("get", KEYS[1]) == ARGV[1] then return redis.call("del", KEYS[1]) else return 0 end',

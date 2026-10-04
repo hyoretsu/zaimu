@@ -175,3 +175,12 @@ Ambiente atual Linux não permite aceite iOS; ferramentas Android não foram det
 - Runner mede corpo completo, MISS/HIT/304, SQL total/auth/negócio, percentis e erros. Modo oficial configura três rodadas e cargas 1/5/20; diagnóstico tem cinco amostras.
 - Baseline diagnóstico arquivado em `backend/performance/baseline-0018.json`: hits ainda executam duas queries de autenticação. Não constitui aceite; data do processo inicial ainda não estava congelada.
 - Launcher dedicado congela data em 04/10/2026 e fixa todas as conexões locais. Jornadas sem runner continuam pendentes, sem aprovação implícita.
+
+### Cache e sessões
+
+- Orçamento Redis compartilhado por request: 100 ms, circuito com cooldown e uma sonda de recuperação. Testes cobrem atraso, orçamento e sucesso tardio.
+- Loader protegido com renovação de lease; espera por outro processo não dispara segundo loader após dois segundos. Perda de lease impede preenchimento.
+- Secondary storage Better Auth usa HMAC, namespace, epoch e fencing atômico; sessões continuam persistidas no PostgreSQL, cookie cache desativado e leituras financeiras sem renovação.
+- Consistência durante partição exige fence antes de qualquer alteração de autenticação. Falha em adquirir fence retorna 503 antes de gravar no banco. Leituras financeiras continuam com fallback ao PostgreSQL. Revogação com Redis indisponível ainda não atende disponibilidade pretendida pelo plano.
+- Fence de autenticação não expira automaticamente: crash durante mutação mantém fallback ao banco, evitando reaproveitar sessão antiga. Recuperação de fence órfão exige procedimento seguro; não apagar fence de processo ativo.
+- Testes locais com duas instâncias confirmam invalidação compartilhada e impedem repopulação de fallback antigo. Aceite integrado HTTP e falhas permanece em execução.

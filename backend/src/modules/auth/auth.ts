@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth/minimal";
 import { sendPasswordResetEmail, sendVerificationEmail } from "./email";
 import { hashPassword, verifyPassword } from "./password";
 import { prismaNextAdapter } from "./prisma-next-adapter";
+import { authSecondaryStorage } from "./secondary-storage";
 
 const publicWebUrl = (process.env.PUBLIC_WEB_URL ?? "http://localhost:5173").replace(/\/$/, "");
 const apiUrl = (process.env.BETTER_AUTH_URL ?? "http://localhost:3333").replace(/\/$/, "");
@@ -37,11 +38,18 @@ export const auth = betterAuth({
 		max: 100,
 		window: 60,
 	},
+	secondaryStorage: authSecondaryStorage,
 	secret: process.env.BETTER_AUTH_SECRET,
-	session: { modelName: "Session" },
+	session: {
+		cookieCache: { enabled: false },
+		deferSessionRefresh: true,
+		modelName: "Session",
+		preserveSessionInDatabase: false,
+		storeSessionInDatabase: true,
+	},
 	trustedOrigins: [publicWebUrl, "tauri://localhost", "http://tauri.localhost", "https://tauri.localhost"],
 	user: { modelName: "User" },
-	verification: { modelName: "Verification" },
+	verification: { modelName: "Verification", storeInDatabase: true },
 });
 
 export type AuthSession = typeof auth.$Infer.Session;

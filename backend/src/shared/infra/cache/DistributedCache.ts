@@ -1,5 +1,8 @@
+import { getQueryMetrics, measureOperation } from "sql";
 import type { CacheGuard, CachePort } from "~/shared/application/ports";
+import { HttpException } from "~/shared/errors";
 import { cacheKey } from "../service-namespace";
+import { RedisBudget, RedisUnavailableError } from "./RedisBudget";
 
 export const cacheNamespaces = [
 	"accounts:detail",
@@ -39,13 +42,14 @@ interface CacheEntry<Value> {
 }
 const localCoalescing = new Map<string, Promise<unknown>>();
 const LOCK_LEASE_MS = 10_000;
-const LOCK_WAIT_MS = 2_000;
+const LOCK_WAIT_MS = 30_000;
 
 const logCacheOperation = (namespace: CacheNamespace, result: "bypass" | "hit" | "miss", startedAt: number) =>
 	console.info(
 		JSON.stringify({
 			durationMs: Number((performance.now() - startedAt).toFixed(2)),
 			namespace,
+			requestId: getQueryMetrics()?.requestId,
 			result,
 			type: "cache_operation",
 		}),
@@ -65,17 +69,28 @@ const hash = (value: string) => new Bun.CryptoHasher("sha256").update(value).dig
 
 export class DistributedCache {
 	private available = true;
+	private readonly budget = new RedisBudget();
+	private bypassReason: string | undefined;
 	constructor(private readonly cache: CachePort) {}
 	private async safely<Result>(operation: () => Promise<Result>): Promise<Result | undefined> {
 		try {
-			const result = await operation();
+			const result = await this.budget.run(operation);
 			if (!this.available) {
 				this.available = true;
-				await this.cache.increment(cacheKey("cache:epoch"));
-				return await operation();
+				await this.budget.run(() => this.cache.increment(cacheKey("cache:epoch")));
+				return await this.budget.run(operation);
 			}
 			return result;
-		} catch {
+		} catch (error) {
+			this.bypassReason = error instanceof RedisUnavailableError ? error.reason : "unavailable";
+			const metrics = getQueryMetrics();
+			if (metrics && metrics.spans.length < 256)
+				metrics.spans.push({
+					durationMs: 0,
+					name: `cache:${this.bypassReason}`,
+					outcome: "error",
+					startMs: performance.now() - metrics.startedAt,
+				});
 			this.available = false;
 			return undefined;
 		}
@@ -167,7 +182,7 @@ export class DistributedCache {
 			return { ...cached, hit: true as const };
 		}
 		if (await this.fenced(userId, namespace)) {
-			const value = await load();
+			const value = await measureOperation("loader", load);
 			logCacheOperation(namespace, "bypass", startedAt);
 			return { etag: `"${hash(JSON.stringify(value))}"`, hit: false as const, value };
 		}
@@ -194,12 +209,24 @@ export class DistributedCache {
 					return { ...filled, hit: true as const };
 				}
 			}
+			throw new HttpException("Leitura em processamento. Tente novamente.", 503);
 		}
+		let leaseValid = ownsLock;
+		let renewing = Promise.resolve();
+		const renewal = ownsLock
+			? setInterval(() => {
+					renewing = this.safely(() => this.cache.renewLock(lockKey, lockOwner, LOCK_LEASE_MS)).then(
+						valid => {
+							leaseValid = valid === true;
+						},
+					);
+				}, LOCK_LEASE_MS / 3)
+			: undefined;
 		const pending = (async () => {
-			const value = await load();
+			const value = await measureOperation("loader", load);
 			const encoded = JSON.stringify(value);
 			const entry = { etag: `"${hash(encoded)}"`, value };
-			if (!(await this.fenced(userId, namespace)))
+			if (leaseValid && !(await this.fenced(userId, namespace)))
 				await this.safely(() => this.cache.setRegistered(key, JSON.stringify(entry), guards));
 			return entry;
 		})();
@@ -209,6 +236,8 @@ export class DistributedCache {
 			logCacheOperation(namespace, this.available ? "miss" : "bypass", startedAt);
 			return { ...entry, hit: false as const };
 		} finally {
+			if (renewal) clearInterval(renewal);
+			await renewing;
 			localCoalescing.delete(key);
 			if (ownsLock) await this.safely(() => this.cache.releaseLock(lockKey, lockOwner));
 		}
