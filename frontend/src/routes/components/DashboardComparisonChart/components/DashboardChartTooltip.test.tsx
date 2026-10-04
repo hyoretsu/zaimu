@@ -31,7 +31,7 @@ test("tooltip preserves cents, splits recurring flows, and groups totals and the
 		"Outras entradas",
 		"Gastos recorrentes",
 		"Outras saídas",
-		"Saldo total",
+		"Investido",
 		"Patrimônio",
 	])
 		expect(html).toContain(label);
@@ -80,4 +80,21 @@ test("invoice total includes nested subscriptions and other card expenses", () =
 	expect(html).toContain("50,00");
 	expect(html).toContain("10,40");
 	expect(html).not.toContain("70,15");
+});
+
+test("balance tooltip shows only wealth while flow tooltip shows only income and expenses", () => {
+	const balances = renderToStaticMarkup(<DashboardChartTooltip active kind="balances" period={period} />);
+	expect(balances).toContain("Patrimônio");
+	expect(balances).toContain("Investido");
+	expect(balances).not.toContain("Saldo total");
+	expect(balances).toContain("Renda fixa");
+	expect(balances).not.toContain(">Entradas<");
+	expect(balances).not.toContain(">Saídas<");
+	const flows = renderToStaticMarkup(<DashboardChartTooltip active kind="flows" period={period} />);
+	expect(flows).toContain(">Entradas<");
+	expect(flows).toContain(">Saídas<");
+	expect(flows).not.toContain("Patrimônio");
+	expect(flows).not.toContain("Investido");
+	expect(flows).not.toContain("Renda fixa");
+	expect(flows).toContain("90,65");
 });

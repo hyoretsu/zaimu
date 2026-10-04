@@ -12,7 +12,7 @@ Despesas usam origem vinculada ou conta primária. Insuficiência consome outras
 
 Transações futuras, recorrências, empréstimos e restante das faturas entram nos vencimentos. Pagamentos são reproduzidos numa cópia temporária do livro do cartão para não repetir principal transportado entre ciclos. Compras recorrentes compõem fatura; pagamentos fixos recorrentes reduzem seu restante. Entradas e saídas informam subtotal recorrente pela origem registrada, incluindo assinaturas no cartão. Créditos e pagamentos sem vínculo com compra distribuem componente recorrente proporcionalmente à composição da fatura. Rendimentos ficam nas demais entradas. Ajustes históricos alteram saldo sem fluxo fictício.
 
-Gráfico apresenta duas barras empilhadas por período: entradas recorrentes/outras entradas e saídas recorrentes/outras saídas. Legenda e tooltip distinguem segmentos e totais. Valores monetários incluem centavos.
+Evolução por período apresenta dois gráficos alinhados pelos mesmos períodos, com escalas monetárias independentes e filtro compartilhado. Patrimônio fica acima, com linhas para patrimônio (saldo total), em conta, renda fixa e renda variável. No tooltip, Investido agrupa renda fixa e renda variável. Entradas e gastos fica abaixo, com duas barras empilhadas por período: entradas recorrentes/outras entradas e saídas recorrentes/outras saídas. Cada gráfico tem legenda e tooltip próprios; o de fluxo distingue segmentos e totais. Valores monetários incluem centavos.
 
 ## Ajustes de saldo
 

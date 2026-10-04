@@ -1,5 +1,6 @@
 import { format } from "date-fns";
 import type { DashboardPeriod } from "@/lib/api";
+import type { DashboardChartKind } from "./types";
 
 const currency = new Intl.NumberFormat("pt-BR", {
 	currency: "BRL",
@@ -10,10 +11,11 @@ const currency = new Intl.NumberFormat("pt-BR", {
 
 interface DashboardChartTooltipProps {
 	active?: boolean;
+	kind?: DashboardChartKind;
 	period?: DashboardPeriod;
 }
 
-export function DashboardChartTooltip({ active, period }: DashboardChartTooltipProps) {
+export function DashboardChartTooltip({ active, kind, period }: DashboardChartTooltipProps) {
 	if (!active || !period) return null;
 	const start = new Date(`${period.startDate}T12:00:00`);
 	const end = new Date(`${period.endDate}T12:00:00`);
@@ -29,12 +31,12 @@ export function DashboardChartTooltip({ active, period }: DashboardChartTooltipP
 	const groups = [
 		{
 			color: "var(--color-primary)",
-			label: "Saldo total",
+			label: "Patrimônio",
 			rows: [
 				{ color: "#0ea5e9", label: "Em conta", value: period.accountBalance },
 				{
 					color: "var(--color-foreground)",
-					label: "Patrimônio",
+					label: "Investido",
 					subtotal: true,
 					value: period.fixedIncomeBalance + period.variableIncomeBalance,
 				},
@@ -90,31 +92,33 @@ export function DashboardChartTooltip({ active, period }: DashboardChartTooltipP
 	return (
 		<div className="grid w-72 max-w-[calc(100vw-4rem)] gap-1.5 rounded-lg border border-border/50 bg-background px-3 py-2 text-xs shadow-xl">
 			<p className="font-medium">{label}</p>
-			{groups.map(group => (
-				<section
-					aria-label={group.label}
-					className="grid gap-1.5 border-border/60 border-t pt-2"
-					key={group.label}
-				>
-					<div className="flex items-center justify-between gap-3 font-semibold">
-						<span>{group.label}</span>
-						<span className="font-mono tabular-nums" style={{ color: group.color }}>
-							{currency.format(group.value)}
-						</span>
-					</div>
-					{group.rows.map(row => (
-						<div
-							className={`flex items-center justify-between gap-3 ${"nested" in row ? "pl-6" : "pl-3"} ${"subtotal" in row ? "font-medium" : ""}`}
-							key={row.label}
-						>
-							<span className="text-muted-foreground">{row.label}</span>
-							<span className="font-mono tabular-nums" style={{ color: row.color }}>
-								{currency.format(row.value)}
+			{groups
+				.filter((_, index) => !kind || (kind === "balances" ? index === 0 : index > 0))
+				.map(group => (
+					<section
+						aria-label={group.label}
+						className="grid gap-1.5 border-border/60 border-t pt-2"
+						key={group.label}
+					>
+						<div className="flex items-center justify-between gap-3 font-semibold">
+							<span>{group.label}</span>
+							<span className="font-mono tabular-nums" style={{ color: group.color }}>
+								{currency.format(group.value)}
 							</span>
 						</div>
-					))}
-				</section>
-			))}
+						{group.rows.map(row => (
+							<div
+								className={`flex items-center justify-between gap-3 ${"nested" in row ? "pl-6" : "pl-3"} ${"subtotal" in row ? "font-medium" : ""}`}
+								key={row.label}
+							>
+								<span className="text-muted-foreground">{row.label}</span>
+								<span className="font-mono tabular-nums" style={{ color: row.color }}>
+									{currency.format(row.value)}
+								</span>
+							</div>
+						))}
+					</section>
+				))}
 		</div>
 	);
 }

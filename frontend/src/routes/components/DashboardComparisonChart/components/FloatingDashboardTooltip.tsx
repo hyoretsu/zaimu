@@ -3,9 +3,11 @@ import { createPortal } from "react-dom";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import type { DashboardPeriod } from "@/lib/api";
 import { DashboardChartTooltip } from "./DashboardChartTooltip";
+import type { DashboardChartKind } from "./types";
 
 interface FloatingDashboardTooltipProps {
 	active?: boolean;
+	kind?: DashboardChartKind;
 	chartRef: RefObject<HTMLDivElement | null>;
 	coordinate?: { x?: number; y?: number };
 	period?: DashboardPeriod;
@@ -15,6 +17,7 @@ export function FloatingDashboardTooltip({
 	active,
 	chartRef,
 	coordinate,
+	kind,
 	period,
 }: FloatingDashboardTooltipProps) {
 	const ref = useRef<HTMLDivElement>(null);
@@ -51,7 +54,7 @@ export function FloatingDashboardTooltip({
 	return createPortal(
 		<div className="fixed z-50" ref={ref} style={position}>
 			<ScrollArea className="max-h-[calc(100dvh-1rem)] min-h-0 rounded-lg">
-				<DashboardChartTooltip active period={period} />
+				<DashboardChartTooltip active kind={kind} period={period} />
 			</ScrollArea>
 		</div>,
 		document.body,
