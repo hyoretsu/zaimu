@@ -1,5 +1,6 @@
 import { Tooltip as TooltipPrimitive } from "radix-ui";
 import type { ComponentProps } from "react";
+import { useRouteDismissableOpen } from "@/hooks/use-route-dismissable-open";
 
 import { cn } from "@/lib/utils";
 
@@ -8,7 +9,8 @@ function TooltipProvider({ delayDuration = 0, ...props }: ComponentProps<typeof 
 }
 
 function Tooltip({ ...props }: ComponentProps<typeof TooltipPrimitive.Root>) {
-	return <TooltipPrimitive.Root data-slot="tooltip" {...props} />;
+	const openProps = useRouteDismissableOpen(props);
+	return <TooltipPrimitive.Root data-slot="tooltip" {...props} {...openProps} />;
 }
 
 function TooltipTrigger({ ...props }: ComponentProps<typeof TooltipPrimitive.Trigger>) {

@@ -1,9 +1,11 @@
 import { Popover as PopoverPrimitive } from "radix-ui";
 import type { ComponentProps } from "react";
+import { useRouteDismissableOpen } from "@/hooks/use-route-dismissable-open";
 import { cn } from "@/lib/utils";
 
 function Popover(props: ComponentProps<typeof PopoverPrimitive.Root>) {
-	return <PopoverPrimitive.Root data-slot="popover" {...props} />;
+	const openProps = useRouteDismissableOpen(props);
+	return <PopoverPrimitive.Root data-slot="popover" {...props} {...openProps} />;
 }
 
 function PopoverTrigger(props: ComponentProps<typeof PopoverPrimitive.Trigger>) {
