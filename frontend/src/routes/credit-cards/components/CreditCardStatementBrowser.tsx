@@ -13,7 +13,13 @@ import { CreditCardStatementDetails } from "./CreditCardStatementDetails";
 import { CreditCardStatementTabs } from "./CreditCardStatementTabs";
 import { getFirstNonZeroStatementMonth, getStatementWindow } from "./credit-card-statement-window";
 
-export function CreditCardStatementBrowser({ card }: { card: CreditCard }) {
+export function CreditCardStatementBrowser({
+	card,
+	onAddPurchase,
+}: {
+	card: CreditCard;
+	onAddPurchase: () => void;
+}) {
 	const identity = useCacheIdentity();
 	const ignoreBefore = card.ignoreStatementsBefore?.slice(0, 10) ?? null;
 	const isDesktop = useMediaQuery("(min-width: 640px)");
@@ -96,6 +102,7 @@ export function CreditCardStatementBrowser({ card }: { card: CreditCard }) {
 				ignoreBefore={ignoreBefore}
 				isEmptyCycle={selectedStatement.isEmptyCycle}
 				key={selectedStatement.id}
+				onAddPurchase={onAddPurchase}
 				statement={selectedStatement}
 			/>
 		</Tabs>

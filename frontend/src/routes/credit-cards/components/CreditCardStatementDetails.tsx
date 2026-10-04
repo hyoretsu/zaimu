@@ -1,7 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { LuCalendarCheck, LuCalendarClock, LuCloudDownload, LuReceiptText } from "react-icons/lu";
+import {
+	LuCalendarCheck,
+	LuCalendarClock,
+	LuCloudDownload,
+	LuCreditCard,
+	LuReceiptText,
+} from "react-icons/lu";
 import { AppBadge } from "@/components/ui/AppBadge";
+import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -26,11 +33,13 @@ export function CreditCardStatementDetails({
 	statement,
 	isEmptyCycle = false,
 	ignoreBefore,
+	onAddPurchase,
 }: {
 	card: CreditCard;
 	statement: CreditCardStatement;
 	isEmptyCycle?: boolean;
 	ignoreBefore: string | null;
+	onAddPurchase: () => void;
 }) {
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
@@ -243,6 +252,9 @@ export function CreditCardStatementDetails({
 								</span>
 							)}
 						</div>
+						<Button className="w-fit cursor-pointer" onClick={onAddPurchase} variant="outline">
+							<LuCreditCard /> Nova compra
+						</Button>
 						{detail.isPending ? (
 							<div className="grid gap-2">
 								{[1, 2, 3, 4].map(item => (

@@ -34,6 +34,7 @@ export function CreditCardsPage() {
 	const identity = useCacheIdentity();
 	const hasAccess = useAuthStore(state => state.isAuthenticated || state.isGuestMode);
 	const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+	const [isCreatePurchaseOpen, setIsCreatePurchaseOpen] = useState(false);
 	const [statementsCardId, setStatementsCardId] = useState<string | null>(null);
 	const [isCreateCardOpen, setIsCreateCardOpen] = useState(false);
 	const [isImportOpen, setIsImportOpen] = useState(false);
@@ -120,6 +121,14 @@ export function CreditCardsPage() {
 						<Button
 							className="h-11 cursor-pointer"
 							disabled={!cards.data?.length}
+							onClick={() => setIsCreatePurchaseOpen(true)}
+							variant="outline"
+						>
+							<LuCreditCard /> Nova compra
+						</Button>
+						<Button
+							className="h-11 cursor-pointer"
+							disabled={!cards.data?.length}
 							onClick={() => setIsCardAdjustmentsOpen(true)}
 							variant="outline"
 						>
@@ -141,6 +150,12 @@ export function CreditCardsPage() {
 				description="Acompanhe limite, previsão de fatura e parcelamentos."
 				eyebrow="Crédito"
 				mobileActions={[
+					{
+						disabled: !cards.data?.length,
+						icon: LuCreditCard,
+						label: "Nova compra",
+						onClick: () => setIsCreatePurchaseOpen(true),
+					},
 					{
 						disabled: !cards.data?.length,
 						icon: LuScale,
@@ -228,15 +243,18 @@ export function CreditCardsPage() {
 				cards={cards.data ?? []}
 				initialCardId={selectedCard?.id}
 				key={selectedCard?.id ?? "purchase"}
-				onOpenChange={open => !open && setSelectedCardId(null)}
+				onOpenChange={open => {
+					setIsCreatePurchaseOpen(open);
+					if (!open) setSelectedCardId(null);
+				}}
 				onSubmit={async (cardId, data) => {
 					await purchase.mutateAsync({
 						cardId,
 						data,
 					});
 				}}
-				open={Boolean(selectedCard)}
-				pending={false}
+				open={isCreatePurchaseOpen || Boolean(selectedCard)}
+				pending={purchase.isPending}
 			/>
 			<CreditCardStatementsDialog
 				card={statementsCard}
