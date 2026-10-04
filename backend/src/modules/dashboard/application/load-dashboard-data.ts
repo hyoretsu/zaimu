@@ -25,6 +25,8 @@ export interface DashboardBalanceRow extends Record<string, unknown> {
 export interface DashboardAccount {
 	id: string;
 	isPrimary?: boolean;
+	isDefaultForStatements?: boolean;
+	isHidden?: boolean;
 	institutionId: null | string;
 	institutionName: null | string;
 	name: null | string;
@@ -122,7 +124,7 @@ WITH visible_cards AS (
 )
 SELECT 'account' AS kind, jsonb_build_object(
   'id', account."id", 'institutionId', account."institutionId", 'institutionName', institution."name",
-  'name', account."name", 'type', CASE WHEN rewards."kind" = 'CASHBACK' THEN 'CASHBACK' ELSE account."type"::text END, 'isPrimary', account."isPrimary"
+  'name', account."name", 'type', CASE WHEN rewards."kind" = 'CASHBACK' THEN 'CASHBACK' ELSE account."type"::text END, 'isPrimary', account."isPrimary", 'isDefaultForStatements', account."isDefaultForStatements", 'isHidden', account."isHidden"
 ) AS data
 FROM "FinancialAccount" account
 LEFT JOIN "FinancialInstitution" institution ON institution."id" = account."institutionId"

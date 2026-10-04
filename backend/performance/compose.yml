@@ -1,0 +1,32 @@
+name: zaimu-performance
+services:
+  postgres:
+    image: postgres:16
+    pull_policy: never
+    environment:
+      POSTGRES_USER: performance
+      POSTGRES_PASSWORD: performance-local
+      POSTGRES_DB: zaimu_performance
+    ports:
+      - "127.0.0.1:55495:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U performance -d zaimu_performance"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    tmpfs:
+      - /var/lib/postgresql/data
+  redis:
+    image: valkey/valkey:latest
+    pull_policy: never
+    command: ["valkey-server", "--save", "", "--appendonly", "no", "--maxmemory-policy", "noeviction"]
+    ports:
+      - "127.0.0.1:6395:6379"
+  rabbitmq:
+    image: rabbitmq:latest
+    pull_policy: never
+    environment:
+      RABBITMQ_DEFAULT_USER: performance
+      RABBITMQ_DEFAULT_PASS: performance-local
+    ports:
+      - "127.0.0.1:56795:5672"

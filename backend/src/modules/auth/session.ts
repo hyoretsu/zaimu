@@ -1,3 +1,4 @@
+import { measureOperation, withQueryKind } from "sql";
 import { HttpException } from "~/shared/errors";
 import { type AuthSession, auth } from "./auth";
 
@@ -7,7 +8,11 @@ export const getAuthSession = (request: Request) => {
 	const cached = requestSessions.get(request);
 	if (cached) return cached;
 
-	const session = auth.api.getSession({ headers: request.headers });
+	const session = withQueryKind("auth", () =>
+		measureOperation("auth", () =>
+			auth.api.getSession({ headers: request.headers, query: { disableRefresh: true } }),
+		),
+	);
 	requestSessions.set(request, session);
 	return session;
 };

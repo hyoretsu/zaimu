@@ -5,7 +5,12 @@ import { syncEvents } from "./sync-events";
 test("consolidates groups by domain and omits unsuccessful groups", () => {
 	const events = syncEvents(
 		"owner",
-		{ categories: { synced: 0 }, debts: { synced: 1 }, loanPayments: { synced: 3 }, loans: { synced: 2 } },
+		{
+			categories: { synced: 0 },
+			debtEvents: { synced: 1 },
+			loanPayments: { synced: 3 },
+			loans: { synced: 2 },
+		},
 		"correlation",
 		["peer"],
 	);

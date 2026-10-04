@@ -1,29 +1,16 @@
 import Elysia from "elysia";
-import { beginQueryMetrics, getQueryMetrics } from "sql";
+import { getQueryMetrics } from "sql";
 import { HttpException } from "~/shared/errors";
+import { instrumentHttp } from "../performance/http-metrics";
 
 export const GlobalPlugin = new Elysia({ name: "GlobalPlugin" })
-	.derive(() => ({ requestStartedAt: performance.now() }))
-	.onRequest(() => beginQueryMetrics())
-	.onAfterHandle(({ set }) => {
-		if (process.env.PERFORMANCE_METRICS_HEADERS !== "true") return;
+	.wrap(
+		handler =>
+			instrumentHttp(handler as unknown as (request: Request) => Response | Promise<Response>) as never,
+	)
+	.onAfterHandle(({ route }) => {
 		const metrics = getQueryMetrics();
-		set.headers["x-performance-query-count"] = String(metrics?.queryCount ?? 0);
-		set.headers["x-performance-sql-duration-ms"] = String(Number((metrics?.sqlDurationMs ?? 0).toFixed(2)));
-	})
-	.onAfterResponse(({ request, requestStartedAt }) => {
-		const metrics = getQueryMetrics();
-		console.info(
-			JSON.stringify({
-				connectionWaitMs: Number((metrics?.connectionWaitMs ?? 0).toFixed(2)),
-				durationMs: Number((performance.now() - requestStartedAt).toFixed(2)),
-				method: request.method,
-				path: new URL(request.url).pathname,
-				queryCount: metrics?.queryCount ?? 0,
-				sqlDurationMs: Number((metrics?.sqlDurationMs ?? 0).toFixed(2)),
-				type: "http_request",
-			}),
-		);
+		if (metrics) metrics.route = route;
 	})
 	.error({ HttpException })
 	.onError(({ code, error, request, set }) => {

@@ -63,9 +63,9 @@ GETs não cacheáveis, uploads, operações em lote, sync e jobs terão cenário
 
 ### 1. Instrumentação confiável e ambiente reproduzível
 
-- [ ] Versionar plano e matriz de cobertura; preservar alterações locais preexistentes.
-- [ ] Capturar contexto de métricas por request com isolamento entre requests, jobs e tarefas posteriores à resposta. Iniciar relógio na entrada HTTP.
-- [ ] Instrumentar execução SQL numa camada comum, incluindo ORM de autenticação, raw SQL, conexões e transações, sem dupla contagem.
+- [x] Versionar plano e matriz de cobertura; preservar alterações locais preexistentes.
+- [x] Capturar contexto de métricas por request com isolamento entre requests, jobs e tarefas posteriores à resposta. Iniciar relógio na entrada HTTP.
+- [x] Instrumentar execução SQL numa camada comum, incluindo ORM de autenticação, raw SQL, conexões e transações, sem dupla contagem.
 - [ ] Registrar requestId, rota normalizada, status, duração, bytes, total de queries, queries de auth/negócio, aquisição de conexão e ocupação do pool.
 - [ ] Separar tempo SQL acumulado de duração das operações e espera interna. Registrar spans de autenticação, Redis, locks/fences, loaders, replay, serialização e fila.
 - [ ] Registrar motivos de bypass, timeout e falha. Medir CPU, event-loop lag, memória, GC e backlog.
@@ -156,3 +156,14 @@ Execução integralmente local. Fixtures externas substituídas por mocks; nenhu
 Metas originais de latência mantidas. Zero SQL quente inclui autenticação. Checkpoints autorizados, condicionados à equivalência e necessidade medida.
 
 Ambiente atual Linux não permite aceite iOS; ferramentas Android não foram detectadas. Preparar testes e registrar validação nativa pendente até existir ambiente local compatível. Nenhuma plataforma ausente será marcada como aprovada.
+
+## Progresso de execução
+
+### Instrumentação e ambiente local
+
+- Inventário inicial: 157 contratos HTTP, 22 rotas frontend e 18 jornadas. Resultados ausentes permanecem `pending` em `backend/performance/coverage.json`.
+- Contagem movida à execução física do cliente PostgreSQL. Comandos de transação entram no total; orçamentos antigos de negócio serão revisados separadamente.
+- Contexto nasce antes do handler Elysia; encerramento congela contadores para tarefas posteriores. SQL acumulado e união dos intervalos SQL são métricas distintas.
+- Docker Compose dedicado usa imagens já locais, sem pulls, portas loopback 55495/6395/56795 e armazenamento PostgreSQL temporário.
+- Hook existente executava somente formatação/lint. Validação scoped de tipos e cobertura unitária backend adicionada ao hook para cumprir convenção do projeto.
+- Próximo: confirmar métricas no PostgreSQL dedicado, baseline e orçamento Redis; completar instrumentação por fase e sessões.

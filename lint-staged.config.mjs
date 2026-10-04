@@ -26,6 +26,7 @@ const commandForProductFiles = (command, filenames) => {
 
 export default {
 	...sharedConfig,
+	"*": () => "bun scripts/validate-staged.ts",
 	"*.(cjs|js|jsx|mjs|ts|tsx)": filenames => commandForProductFiles("bunx eslint --quiet --fix", filenames),
 	"*.(css|graphql|cjs|js|jsx|mjs|json|jsonc|ts|tsx)": filenames =>
 		commandForProductFiles("bunx biome check --diagnostic-level=error --write --unsafe", filenames),

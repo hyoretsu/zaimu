@@ -1,6 +1,6 @@
 {
 	"compilerOptions": {
-		"types": ["node"]
+		"types": ["bun", "node"]
 	},
 	"exclude": ["./dist", "./node_modules"],
 	"extends": ["@hyoretsu/configs/ts-lib"],

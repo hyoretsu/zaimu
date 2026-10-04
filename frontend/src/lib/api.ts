@@ -643,7 +643,7 @@ export interface Dashboard {
 		id: string;
 		institutionName: string | null;
 		name: string | null;
-		type: "CHECKING" | "CASH" | "SAVINGS" | "INVESTMENT";
+		type: "CHECKING" | "CASH" | "SAVINGS" | "INVESTMENT" | "CASHBACK";
 	}>;
 	balanceBreakdown: {
 		accountBalance: number;

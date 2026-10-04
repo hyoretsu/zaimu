@@ -5,7 +5,10 @@ import type { SqlOrmPlan } from "@prisma/orm-postgres/relational-core";
 import { param } from "@prisma/orm-postgres/relational-core/expression";
 import postgres from "@prisma/orm-postgres/runtime";
 
+import { getQueryMetrics, startOperation, startQuery } from "./query-metrics";
+
 export { and, or } from "@prisma/orm-postgres/orm-client";
+export * from "./query-metrics";
 
 import type { Numeric, Timestamp, Timestamptz } from "@prisma/orm-postgres/target/codec-types";
 import type { PoolClient, QueryResultRow } from "pg";
@@ -39,6 +42,54 @@ const pool = new Pool({
 	query_timeout: Number(process.env.DATABASE_QUERY_TIMEOUT_MS ?? 15_000),
 	statement_timeout: Number(process.env.DATABASE_STATEMENT_TIMEOUT_MS ?? 15_000),
 });
+// Physical pg execution is the only counting layer: ORM, auth, raw SQL and transaction control.
+pool.on("connect", client => {
+	const query = client.query;
+	client.query = ((...args: unknown[]) => {
+		const finishQuery = startQuery();
+		const config = args[0];
+		const sqlText =
+			typeof config === "string"
+				? config
+				: config && typeof config === "object" && "text" in config
+					? String(config.text)
+					: "unknown";
+		const finishSpan = startOperation(`sql:${sqlText.trim().split(/\s/)[0]?.toUpperCase() ?? "unknown"}`);
+		const finish = () => {
+			finishQuery();
+			finishSpan();
+		};
+		const callback = args.at(-1);
+		if (typeof callback === "function")
+			args[args.length - 1] = (...values: unknown[]) => {
+				finish();
+				return callback(...values);
+			};
+		try {
+			const result = Reflect.apply(query, client, args);
+			if (result && typeof result.then === "function")
+				return result.then(
+					(value: unknown) => {
+						finish();
+						return value;
+					},
+					(error: unknown) => {
+						finish();
+						throw error;
+					},
+				);
+			return result;
+		} catch (error) {
+			finish();
+			throw error;
+		}
+	}) as typeof client.query;
+});
+export const getPoolMetrics = () => ({
+	idle: pool.idleCount,
+	total: pool.totalCount,
+	waiting: pool.waitingCount,
+});
 // Domain helpers participate in the caller's transaction, including ORM statements.
 // This keeps debt events, tags, refunds and invoice replay on one connection.
 const transactionConnection = new AsyncLocalStorage<PoolClient>();
@@ -48,7 +99,15 @@ const transactionalPool = new Proxy(pool, {
 		if (property === "connect")
 			return async () => {
 				const connection = transactionConnection.getStore();
-				if (!connection) return target.connect();
+				if (!connection) {
+					const startedAt = performance.now();
+					const metrics = getQueryMetrics();
+					try {
+						return await target.connect();
+					} finally {
+						if (metrics?.active) metrics.connectionWaitMs += performance.now() - startedAt;
+					}
+				}
 				let borrowed = borrowedConnections.get(connection);
 				if (!borrowed) {
 					borrowed = new Proxy(connection, {
@@ -71,33 +130,10 @@ const transactionalPool = new Proxy(pool, {
 		return typeof value === "function" ? value.bind(target) : value;
 	},
 });
-export interface QueryMetrics {
-	connectionWaitMs: number;
-	queryCount: number;
-	sqlDurationMs: number;
-}
-const queryMetricsStorage = new AsyncLocalStorage<QueryMetrics>();
-const measureQuery = async <Result>(operation: () => PromiseLike<Result>) => {
-	const startedAt = performance.now();
-	try {
-		return await Promise.resolve(operation());
-	} finally {
-		const metrics = queryMetricsStorage.getStore();
-		if (metrics) {
-			metrics.queryCount += 1;
-			metrics.sqlDurationMs += performance.now() - startedAt;
-		}
-	}
-};
-export const withQueryMetrics = <Result>(operation: () => Result) =>
-	queryMetricsStorage.run({ connectionWaitMs: 0, queryCount: 0, sqlDurationMs: 0 }, operation);
-export const beginQueryMetrics = () =>
-	queryMetricsStorage.enterWith({ connectionWaitMs: 0, queryCount: 0, sqlDurationMs: 0 });
-export const getQueryMetrics = () => queryMetricsStorage.getStore();
 export const queryRaw = async <Row extends Record<string, unknown>>(text: string, values: unknown[] = []) =>
-	(await measureQuery(() => transactionalPool.query<Row>(text, values))).rows;
+	(await transactionalPool.query<Row>(text, values)).rows;
 export const executeRaw = async (text: string, values: unknown[] = []) =>
-	measureQuery(() => transactionalPool.query(text, values));
+	transactionalPool.query(text, values);
 export const withRawTransaction = async <Result>(
 	operation: (
 		query: <Row extends QueryResultRow>(text: string, values?: unknown[]) => Promise<Row[]>,
@@ -107,18 +143,18 @@ export const withRawTransaction = async <Result>(
 	if (existing)
 		return operation(
 			async <Row extends QueryResultRow>(text: string, values: unknown[] = []) =>
-				(await measureQuery(() => existing.query<Row>(text, values))).rows,
+				(await existing.query<Row>(text, values)).rows,
 		);
 	const connectionStartedAt = performance.now();
 	const client: PoolClient = await pool.connect();
-	const metrics = queryMetricsStorage.getStore();
+	const metrics = getQueryMetrics();
 	if (metrics) metrics.connectionWaitMs += performance.now() - connectionStartedAt;
 	try {
 		await client.query("BEGIN");
 		const result = await transactionConnection.run(client, () =>
 			operation(
 				async <Row extends QueryResultRow>(text: string, values: unknown[] = []) =>
-					(await measureQuery(() => client.query<Row>(text, values))).rows,
+					(await client.query<Row>(text, values)).rows,
 			),
 		);
 		await client.query("COMMIT");
@@ -169,14 +205,12 @@ const normalizeNumericColumns = <Row>(plan: QueryPlan, rows: Row[]) => {
 
 const createExecutor = (client: ExecutorClient) => {
 	const queryRows = async <Plan extends QueryPlan>(plan: Plan) => {
-		const rows = await measureQuery(() =>
-			client.query<ResultType<Plan>>(plan as unknown as SqlOrmPlan<ResultType<Plan>>),
-		);
+		const rows = await client.query<ResultType<Plan>>(plan as unknown as SqlOrmPlan<ResultType<Plan>>);
 		return normalizeNumericColumns(plan, rows) as NormalizeDatabaseValue<ResultType<Plan>>[];
 	};
 	return {
 		db: client,
-		executeStatement: (plan: StatementPlan) => measureQuery(() => client.execute(plan)),
+		executeStatement: (plan: StatementPlan) => client.execute(plan),
 		queryFirst: async <Plan extends QueryPlan>(plan: Plan) => (await queryRows(plan))[0],
 		queryRows,
 	};
