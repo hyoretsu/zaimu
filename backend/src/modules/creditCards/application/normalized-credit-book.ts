@@ -19,7 +19,7 @@ import {
 } from "~/modules/categories/application/tag-assignments";
 import {
 	deleteCreatorDebtEventForPurchase,
-	getDebtSplitInput,
+	getDebtSplitInputs,
 	getDebtSplitReturns,
 	replaceDebtSplit,
 	syncPurchaseDebtEvent,
@@ -40,6 +40,7 @@ export async function loadCreditBook(
 	userId: string,
 	cardId: string,
 	lock = false,
+	metadata = true,
 ): Promise<CreditBook> {
 	const [card] = await query<CreditBook["card"]>(
 		`SELECT c."id", a."userId", c."statementDay", c."dueDay", c."workingDueDate", c."ignoreStatementsBefore"::text AS "ignoreStatementsBefore", a."institutionId", i."creditRefundPolicy" AS "refundPolicy" FROM "CreditCard" c JOIN "FinancialAccount" a ON a."id" = c."financialAccountId" LEFT JOIN "FinancialInstitution" i ON i."id" = a."institutionId" WHERE c."id" = $1 AND a."userId" = $2 ${lock ? "FOR UPDATE OF c" : ""}`,
@@ -77,10 +78,19 @@ export async function loadCreditBook(
 		`SELECT "id","entryKind" FROM "CreditBookTombstone" WHERE "creditCardId"=$1 AND "userId"=$2`,
 		[cardId, userId],
 	);
-	const tags = await getTagsByEntity(
-		tagEntityType.creditPurchase,
-		purchases.map(p => String(p.id)),
-	);
+	const splits = metadata
+		? await getDebtSplitInputs(
+				"creditPurchaseId",
+				purchases.map(p => String(p.id)),
+			)
+		: new Map<string, NonNullable<BookPurchase["debtSplitRule"]>>();
+	const plansByPurchase = Map.groupBy(plans, plan => String(plan.purchaseId));
+	const tags = metadata
+		? await getTagsByEntity(
+				tagEntityType.creditPurchase,
+				purchases.map(p => String(p.id)),
+			)
+		: new Map<string, { id: string }[]>();
 	return {
 		card,
 		charges: charges.map(row => ({
@@ -108,28 +118,24 @@ export async function loadCreditBook(
 			statementId: String(row.statementId),
 		})),
 		payments: payments.map(row => ({ amount: Number(row.amount), date: date(row.date), id: String(row.id) })),
-		purchases: await Promise.all(
-			purchases.map(async p => {
-				const plan = plans.filter(row => row.purchaseId === p.id);
-				return {
-					...p,
-					createdAt: timestamp(p.createdAt),
-					debtSplitRule: (await getDebtSplitInput({ creditPurchaseId: String(p.id) })) ?? null,
-					installmentAmountsCents: plan.map(row => moneyCents(Number(row.amount), 1)),
-					installmentImportedNumbers: plan
-						.filter(row => row.hasImportedAmount)
-						.map(row => Number(row.number)),
-					installmentStatementDates: plan.map(row =>
-						row.statementDate ? { dueDate: date(row.dueDate), statementDate: date(row.statementDate) } : null,
-					),
-					purchaseDate: date(p.purchaseDate),
-					recurrenceOccurrenceDate: p.recurrenceOccurrenceDate ? date(p.recurrenceOccurrenceDate) : null,
-					tagIds: (tags.get(String(p.id)) ?? []).map(tag => tag.id),
-					totalAmountCents: moneyCents(Number(p.totalAmount), 1),
-					updatedAt: timestamp(p.updatedAt),
-				} as unknown as BookPurchase;
-			}),
-		),
+		purchases: purchases.map(p => {
+			const plan = plansByPurchase.get(String(p.id)) ?? [];
+			return {
+				...p,
+				createdAt: timestamp(p.createdAt),
+				debtSplitRule: splits.get(String(p.id)) ?? null,
+				installmentAmountsCents: plan.map(row => moneyCents(Number(row.amount), 1)),
+				installmentImportedNumbers: plan.filter(row => row.hasImportedAmount).map(row => Number(row.number)),
+				installmentStatementDates: plan.map(row =>
+					row.statementDate ? { dueDate: date(row.dueDate), statementDate: date(row.statementDate) } : null,
+				),
+				purchaseDate: date(p.purchaseDate),
+				recurrenceOccurrenceDate: p.recurrenceOccurrenceDate ? date(p.recurrenceOccurrenceDate) : null,
+				tagIds: (tags.get(String(p.id)) ?? []).map(tag => tag.id),
+				totalAmountCents: moneyCents(Number(p.totalAmount), 1),
+				updatedAt: timestamp(p.updatedAt),
+			} as unknown as BookPurchase;
+		}),
 		refunds: refunds.map(row => ({
 			amountCents: moneyCents(Number(row.amount), 1),
 			cancellationEligible: Boolean(row.cancellationEligible),
@@ -659,19 +665,21 @@ export async function transferCreditBookPurchase<T>(
 	});
 }
 
-export async function readCreditBook(userId: string, cardId: string) {
-	return withRawTransaction(query => loadCreditBook(query, userId, cardId));
+export async function readCreditBook(userId: string, cardId: string, metadata = true) {
+	return withRawTransaction(query => loadCreditBook(query, userId, cardId, false, metadata));
 }
-export async function presentCreditBook(book: CreditBook) {
-	const tags = await getTagsByEntity(
-		tagEntityType.creditPurchase,
-		book.purchases.map(p => p.id),
-	);
+export async function presentCreditBook(book: CreditBook, statementId?: string) {
+	const entries = creditBookEntries(book).filter(row => !statementId || row.statementId === statementId);
+	const purchaseIds = [...new Set(entries.flatMap(row => (row.purchaseId ? [row.purchaseId] : [])))];
+	const purchaseIdsSet = new Set(purchaseIds);
+	const tags = await getTagsByEntity(tagEntityType.creditPurchase, purchaseIds);
 	const splits = await getDebtSplitReturns(
 		"creditPurchaseId",
-		book.purchases.map(p => ({ amount: p.totalAmountCents / 100, id: p.id })),
+		book.purchases
+			.filter(p => purchaseIdsSet.has(p.id))
+			.map(p => ({ amount: p.totalAmountCents / 100, id: p.id })),
 	);
-	return creditBookEntries(book).map(row => ({
+	return entries.map(row => ({
 		...row,
 		debtSplit: row.purchaseId ? (splits.get(row.purchaseId) ?? null) : null,
 		tags: row.purchaseId ? (tags.get(row.purchaseId) ?? []) : [],

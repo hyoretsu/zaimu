@@ -184,3 +184,12 @@ Ambiente atual Linux não permite aceite iOS; ferramentas Android não foram det
 - Consistência durante partição exige fence antes de qualquer alteração de autenticação. Falha em adquirir fence retorna 503 antes de gravar no banco. Leituras financeiras continuam com fallback ao PostgreSQL. Revogação com Redis indisponível ainda não atende disponibilidade pretendida pelo plano.
 - Fence de autenticação não expira automaticamente: crash durante mutação mantém fallback ao banco, evitando reaproveitar sessão antiga. Recuperação de fence órfão exige procedimento seguro; não apagar fence de processo ativo.
 - Testes locais com duas instâncias confirmam invalidação compartilhada e impedem repopulação de fallback antigo. Aceite integrado HTTP e falhas permanece em execução.
+
+### Leituras financeiras e frontend de cartões
+
+- Rateios de compras carregados em lote; planos indexados por compra. Leitura de faturas omite metadados do livro completo e hidrata tags/rateios somente das compras apresentadas.
+- Histórico/detalhe de faturas agora usam cache, ETag e namespace invalidado pelas mutações. Paginação ainda precisa de projeção financeira persistida para limitar replay antes do corte; histórico integral não foi truncado.
+- Revisões pendentes agregadas por cartão em uma query agrupada. Backend e guest entregam contagem na listagem; componente busca detalhes somente ao expandir.
+- DTOs TypeBox adicionados à listagem de cartões e página de faturas. Este repositório usa cliente manual em `frontend/src/lib/api.ts`, sem SDK gerado ou scripts export/generate.
+- Configurações de rendimentos carregadas em lote; dashboard reutiliza replay atual. Livro financeiro indexa planos, estornos e parcelas; pagamentos resolvem vencimentos por busca binária preservando desempate por ID.
+- 96 testes financeiros existentes passam. Diagnóstico HTTP já comprova hits com zero SQL total. Meta fria do dashboard ainda exige novo profiling/aceite após otimizações.

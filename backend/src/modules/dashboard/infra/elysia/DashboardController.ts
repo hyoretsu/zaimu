@@ -94,7 +94,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" })
 	.use(DashboardComparisonController)
 	.get(
 		"/",
-		async ({ query, request, set, status }) => {
+		async ({ query, request, set }) => {
 			const userId = await requireUserId(request);
 			const cached = await distributedCache.remember(
 				userId,
@@ -304,7 +304,8 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" })
 			set.headers.etag = cached.etag;
 			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
 			if (request.headers.get("if-none-match") === cached.etag) {
-				return status(304, null);
+				set.status = 304;
+				return null;
 			}
 			return cached.value;
 		},

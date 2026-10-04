@@ -37,6 +37,8 @@ export function forecastCardPayments(book: CreditBook, from: string, through: st
 }
 /** Unrestricted payments share the remaining recurring composition proportionally. */
 export function recurringCardPaymentAmounts(book: CreditBook) {
+	if (!book.purchases.some(purchase => purchase.recurrenceId))
+		return new Map(book.payments.map(payment => [payment.id, 0]));
 	const replay = { ...book, payments: [] as CreditBook["payments"] };
 	const recurringBook = recurringOnlyBook(book, []);
 	const result = new Map<string, number>();

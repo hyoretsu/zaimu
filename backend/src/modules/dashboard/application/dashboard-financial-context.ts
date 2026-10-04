@@ -107,10 +107,14 @@ export function dashboardFinancialContext(
 		primaryAccountId: accounts.find(account => account.isPrimary)?.id,
 		through: dateKey(comparisonEnd),
 	});
+	const incomeByDate = new Map<string, number>();
+	for (const movement of comparisonTransactions)
+		if (movement.type === "INCOME") {
+			const key = dateKey(movement.date);
+			incomeByDate.set(key, (incomeByDate.get(key) ?? 0) + movement.amount);
+		}
 	for (const day of forecastDays) {
-		const originalIncome = comparisonTransactions
-			.filter(movement => dateKey(movement.date) === day.date && movement.type === "INCOME")
-			.reduce((sum, movement) => sum + movement.amount, 0);
+		const originalIncome = incomeByDate.get(day.date) ?? 0;
 		const yieldedIncome = day.income - originalIncome;
 		if (yieldedIncome > 0)
 			projectedMovements.push({

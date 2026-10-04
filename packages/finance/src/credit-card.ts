@@ -108,13 +108,30 @@ export function paymentStatementDates(card: CardCalendar, paymentDate: Financial
 	};
 }
 
+/** Index actual bank due dates once. Equal dates retain the existing ID tie-break. */
+export function createStatementPaymentResolver<T extends Pick<StatementInput, "id" | "dueDate">>(
+	statements: T[],
+) {
+	const ordered = statements
+		.map(statement => ({ date: dateKey(statement.dueDate), statement }))
+		.sort((a, b) => a.date.localeCompare(b.date) || a.statement.id.localeCompare(b.statement.id));
+	return (paymentDate: FinancialDate) => {
+		const date = dateKey(paymentDate);
+		let low = 0;
+		let high = ordered.length;
+		while (low < high) {
+			const middle = (low + high) >>> 1;
+			if (ordered[middle]!.date < date) low = middle + 1;
+			else high = middle;
+		}
+		return ordered[low]?.statement;
+	};
+}
 export function paymentStatement<T extends Pick<StatementInput, "id" | "dueDate">>(
 	statements: T[],
 	paymentDate: FinancialDate,
 ) {
-	return statements
-		.toSorted((a, b) => dateKey(a.dueDate).localeCompare(dateKey(b.dueDate)) || a.id.localeCompare(b.id))
-		.find(statement => dateKey(statement.dueDate) >= dateKey(paymentDate));
+	return createStatementPaymentResolver(statements)(paymentDate);
 }
 
 /** Fill monthly gaps through the query date and every payment date, preserving actual bank dates. */
@@ -167,10 +184,11 @@ export function calculateStatementBalances<T extends StatementInput>(
 		(a, b) => dateKey(a.dueDate).localeCompare(dateKey(b.dueDate)) || a.id.localeCompare(b.id),
 	);
 	const paidByStatement = new Map<string, number>();
+	const resolvePayment = createStatementPaymentResolver(chronological);
 	if (payments)
 		for (const payment of payments) {
 			if (dateKey(payment.date) > dateKey(asOf)) continue;
-			const target = paymentStatement(chronological, payment.date);
+			const target = resolvePayment(payment.date);
 			if (target)
 				paidByStatement.set(
 					target.id,

@@ -318,7 +318,7 @@ export async function loadDashboardRows(
 	]);
 	const cards = rowsByKind(overviewRows, "card") as unknown as DashboardCard[];
 	const recurrences = rowsByKind(scheduleRows, "recurrence").map(normalizeRecurrence);
-	replayDashboardStatements(userId, cards, overviewRows, dateKey(range.today));
+	const currentStatements = replayDashboardStatements(userId, cards, overviewRows, dateKey(range.today));
 	const recurringPayments = new Map(
 		rowsByKind(overviewRows, "payment").map(row => [String(row.id), Number(row.recurringAmount ?? 0)]),
 	);
@@ -369,9 +369,7 @@ export async function loadDashboardRows(
 		recurrences,
 		recurring: [],
 		salaries: [],
-		statements: comparisonOnly
-			? []
-			: replayDashboardStatements(userId, cards, overviewRows, dateKey(range.today)),
+		statements: comparisonOnly ? [] : currentStatements,
 		subscriptions: [],
 	};
 }

@@ -53,7 +53,7 @@ export function CreditCardOverviewCard({
 				{managementActions && <div className="relative mt-4 flex justify-end gap-2">{managementActions}</div>}
 			</div>
 			<div className="flex flex-1 flex-col gap-5 p-5">
-				<PendingRefundReviews cardId={card.id} />
+				<PendingRefundReviews cardId={card.id} count={card.pendingRefundReviewCount ?? 0} />
 				<div>
 					<div className="mb-2 flex justify-between gap-3 text-sm">
 						<span className="text-muted-foreground">Limite utilizado</span>

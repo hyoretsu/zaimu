@@ -2,11 +2,11 @@ import { projectedNetYield, type ReferenceRateType } from "@zaimu/finance/projec
 import { format } from "date-fns";
 import { queryRaw } from "~/shared/infra/sql";
 import { getReferenceRateAverages } from "./get-reference-rate-averages";
-import { loadYieldAccount } from "./reference-rate-jobs";
+import { loadYieldAccounts } from "./reference-rate-jobs";
 
 export async function projectedYieldContext(userId: string, accountIds: string[]) {
 	const [accounts, rateResult, holidayRows] = await Promise.all([
-		Promise.all(accountIds.map(loadYieldAccount)),
+		loadYieldAccounts(accountIds),
 		getReferenceRateAverages(),
 		queryRaw<{ date: Date }>(`SELECT "date" FROM "FinancialAccountYieldHoliday" WHERE "userId" = $1`, [
 			userId,

@@ -1299,11 +1299,16 @@ export const dataService = {
 		},
 		async getAll(): Promise<CreditCard[]> {
 			if (isGuestMode()) {
-				const [storedCards, storedAccounts, storedStatements] = await Promise.all([
+				const [storedCards, storedAccounts, storedStatements, storedReviews] = await Promise.all([
 					localCreditCards.getAll(),
 					localAccounts.getAll(),
 					localCreditCardStatements.getAll(),
+					localCreditRefundReviews.getAll(),
 				]);
+				const reviewCounts = new Map<string, number>();
+				for (const { data: review } of storedReviews)
+					if (review.requiresRefundReview)
+						reviewCounts.set(review.creditCardId, (reviewCounts.get(review.creditCardId) ?? 0) + 1);
 				const accounts = new Map(storedAccounts.map(item => [item.data.id, item.data]));
 				const statementsByCard = Map.groupBy(
 					storedStatements.map(item => item.data),
@@ -1323,6 +1328,7 @@ export const dataService = {
 									null,
 								currentStatement: getCurrentCreditCardStatement(statements, card) ?? null,
 								limit: calculateCreditCardLimit(card, statements),
+								pendingRefundReviewCount: reviewCounts.get(card.id) ?? 0,
 							};
 						}),
 				);

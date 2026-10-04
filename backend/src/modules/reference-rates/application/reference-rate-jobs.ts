@@ -192,8 +192,9 @@ async function processFetchJob(job: ClaimedJob, fetchRates: FetchReferenceRates,
 	);
 	return rates.length;
 }
-export async function loadYieldAccount(accountId: string): Promise<YieldAccount | null> {
-	const account = await queryFirst(
+export async function loadYieldAccounts(accountIds: string[]): Promise<YieldAccount[]> {
+	if (!accountIds.length) return [];
+	const accounts = await queryRows(
 		db.sql.public.FinancialAccount.select(
 			"id",
 			"institutionId",
@@ -206,13 +207,12 @@ export async function loadYieldAccount(accountId: string): Promise<YieldAccount 
 			"yieldReferenceType",
 			"yieldTaxRate",
 		)
-			.where((fields, functions) => functions.eq(fields.id, accountId))
-			.limit(1)
+			.where((fields, functions) => functions.in(fields.id, accountIds))
 			.build(),
 	);
-	if (!account) return null;
 	const histories = await queryRows(
 		db.sql.public.FinancialAccountYieldRateHistory.select(
+			"financialAccountId",
 			"effectiveDate",
 			"yieldFixedRate",
 			"yieldPeriod",
@@ -220,24 +220,30 @@ export async function loadYieldAccount(accountId: string): Promise<YieldAccount 
 			"yieldReferenceType",
 			"yieldTaxRate",
 		)
-			.where((fields, functions) => functions.eq(fields.financialAccountId, accountId))
+			.where((fields, functions) => functions.in(fields.financialAccountId, accountIds))
 			.build(),
 	);
-	const policies = account.institutionId
-		? await getFinancialInstitutionYieldPolicies([account.institutionId])
-		: new Map();
-	return {
+	const policies = await getFinancialInstitutionYieldPolicies([
+		...new Set(accounts.flatMap(account => (account.institutionId ? [account.institutionId] : []))),
+	]);
+	const historiesByAccount = Map.groupBy(histories, history => history.financialAccountId);
+
+	return accounts.map(account => ({
 		...account,
 		institutionYieldPolicies: account.institutionId ? (policies.get(account.institutionId) ?? []) : [],
 		yieldPeriod: account.yieldPeriod as null | YieldPeriod,
-		yieldRateHistories: histories.map(history => ({
+		yieldRateHistories: (historiesByAccount.get(account.id) ?? []).map(history => ({
 			...history,
 			yieldPeriod: history.yieldPeriod as null | YieldPeriod,
 			yieldReferenceType: history.yieldReferenceType as ReferenceRateType | null,
 		})),
 		yieldReferenceType: account.yieldReferenceType as ReferenceRateType | null,
-	};
+	}));
 }
+export async function loadYieldAccount(accountId: string): Promise<YieldAccount | null> {
+	return (await loadYieldAccounts([accountId]))[0] ?? null;
+}
+
 function requiredReferenceTypes(settings: ReturnType<typeof getYieldSettings>) {
 	if (!settings) return [];
 	const types =

@@ -216,8 +216,8 @@ export function replayOverviewStatements(
 			})),
 		};
 		const recurringPayments = recurringCardPaymentAmounts(book);
-		for (const row of rows.filter(row => row.kind === "payment" && row.data.creditCardId === card.id))
-			row.data.recurringAmount = recurringPayments.get(String(row.data.id)) ?? 0;
+		for (const payment of paymentsByCard.get(card.id) ?? [])
+			payment.recurringAmount = recurringPayments.get(String(payment.id)) ?? 0;
 		const projectionFrom =
 			asOf < through
 				? new Date(new Date(`${asOf}T00:00:00Z`).getTime() + 86400000).toISOString().slice(0, 10)

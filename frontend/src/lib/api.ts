@@ -156,6 +156,7 @@ export type DebtSplit =
 	  };
 
 export interface CreditCard {
+	pendingRefundReviewCount?: number;
 	paymentAccountId?: string | null;
 	paymentSuggestionsEnabled?: boolean;
 	id: string;

@@ -12,8 +12,8 @@ import {
 } from "./credit-purchase";
 import {
 	type CreditRefund,
-	calculateRefundEffects,
 	createCreditRefund,
+	createRefundCalculator,
 	editCreditRefund,
 	type RefundPolicy,
 	resolveRefundPolicy,
@@ -236,6 +236,10 @@ export function creditBookPlan(book: CreditBook) {
 		throw new RangeError("Calendário do cartão inválido");
 	const statements = book.statements.map(statement => ({ ...statement }));
 	const statementsById = new Map(statements.map(statement => [statement.id, statement]));
+	const statementsByMonth = Map.groupBy(
+		statements.toSorted((a, b) => a.statementDate.localeCompare(b.statementDate)),
+		statement => statement.statementDate.slice(0, 7),
+	);
 	const occurrences = new Map(book.installments.map(item => [`${item.purchaseId}:${item.number}`, item]));
 	const installments: PurchaseInvoiceInstallment[] = [];
 	for (const purchase of book.purchases) {
@@ -249,13 +253,11 @@ export function creditBookPlan(book: CreditBook) {
 				const date = installmentOccurrenceDate(purchase.purchaseDate, number);
 				const dates =
 					purchase.installmentStatementDates?.[index] ?? purchaseStatementDates(book.card, date);
-				statement = statements
-					.toSorted((a, b) => a.statementDate.localeCompare(b.statementDate))
-					.find(
-						item =>
-							item.statementDate > date &&
-							item.statementDate.slice(0, 7) === dates.statementDate.slice(0, 7),
-					);
+				statement = (statementsByMonth.get(dates.statementDate.slice(0, 7)) ?? []).find(
+					item =>
+						item.statementDate > date &&
+						item.statementDate.slice(0, 7) === dates.statementDate.slice(0, 7),
+				);
 				if (!statement) {
 					statement = {
 						...dates,
@@ -269,6 +271,11 @@ export function creditBookPlan(book: CreditBook) {
 					};
 					statements.push(statement);
 					statementsById.set(statement.id, statement);
+					const month = statement.statementDate.slice(0, 7);
+					const group = statementsByMonth.get(month) ?? [];
+					group.push(statement);
+					group.sort((a, b) => a.statementDate.localeCompare(b.statementDate));
+					statementsByMonth.set(month, group);
 				}
 			}
 			if (!statement) throw new RangeError("Fatura da parcela não encontrada");
@@ -284,15 +291,15 @@ export function creditBookPlan(book: CreditBook) {
 	return { installments, statements };
 }
 
-export function creditBookEffects(book: CreditBook, asOf = currentDateKey()) {
-	const plan = creditBookPlan(book);
+export function creditBookEffects(book: CreditBook, asOf = currentDateKey(), plan = creditBookPlan(book)) {
+	const calculate = createRefundCalculator(plan.statements);
+	const installments = Map.groupBy(plan.installments, item => item.purchaseId);
+	const refunds = Map.groupBy(
+		book.refunds.filter(refund => !refund.deletedAt && refund.creditDate <= asOf),
+		refund => refund.purchaseId,
+	);
 	return book.purchases.flatMap(purchase =>
-		calculateRefundEffects(
-			purchase,
-			activePurchaseRefunds(book, purchase.id).filter(refund => refund.creditDate <= asOf),
-			plan.installments.filter(item => item.purchaseId === purchase.id),
-			plan.statements,
-		),
+		calculate(purchase, refunds.get(purchase.id) ?? [], installments.get(purchase.id) ?? []),
 	);
 }
 
@@ -531,10 +538,20 @@ export function refundDebtAmounts(
 /** Invoice presentation only. These rows are never saved as duplicated purchases. */
 export function creditBookEntries(book: CreditBook, includeForecasts = true) {
 	const plan = creditBookPlan(book);
-	const effects = creditBookEffects(book);
+	const effects = creditBookEffects(book, currentDateKey(), plan);
+	const refundsByPurchase = Map.groupBy(
+		book.refunds.filter(refund => !refund.deletedAt),
+		refund => refund.purchaseId,
+	);
+	const installmentsByPurchase = Map.groupBy(plan.installments, item => item.purchaseId);
+	const concreteByPurchase = Map.groupBy(book.installments, item => item.purchaseId);
+	const concreteByNumber = new Map(
+		book.installments.map(item => [`${item.purchaseId}:${item.number}`, item]),
+	);
+	const purchasesById = new Map(book.purchases.map(purchase => [purchase.id, purchase]));
 	const byRefund = new Map(effects.map(effect => [effect.refundId, effect]));
 	const entries = book.purchases.flatMap(purchase => {
-		const refunds = activePurchaseRefunds(book, purchase.id).map(refund => ({
+		const refunds = (refundsByPurchase.get(purchase.id) ?? []).map(refund => ({
 			amount: refund.amountCents / 100,
 			canceledAmount: byRefund.get(refund.id)!.canceledAmountCents / 100,
 			creditAmount: byRefund.get(refund.id)!.creditAmountCents / 100,
@@ -543,59 +560,54 @@ export function creditBookEntries(book: CreditBook, includeForecasts = true) {
 			policy: refund.policy,
 		}));
 		const refundedAmount =
-			sumCents(activePurchaseRefunds(book, purchase.id).map(refund => refund.amountCents)) / 100;
+			sumCents((refundsByPurchase.get(purchase.id) ?? []).map(refund => refund.amountCents)) / 100;
 		const canceled = new Set(
-			effects
-				.filter(effect => refunds.some(refund => refund.id === effect.refundId))
+			refunds
+				.map(refund => byRefund.get(refund.id)!)
 				.flatMap(effect => effect.canceledInstallmentNumbers),
 		);
-		return plan.installments
-			.filter(item => item.purchaseId === purchase.id)
-			.flatMap(item => {
-				const concrete = book.installments.find(
-					occurrence => occurrence.purchaseId === purchase.id && occurrence.number === item.number,
-				);
-				if ((!concrete && !includeForecasts) || canceled.has(item.number)) return [];
-				return [
-					{
-						...purchase,
-						currentInstallment: item.number,
-						entryKind: "INSTALLMENT" as const,
-						hasImportedAmount: concrete?.hasImportedAmount ?? false,
-						hasRefund: refunds.length > 0,
-						id: concrete?.id ?? `forecast-${purchase.id}-${item.number}`,
-						installmentAmount: item.amountCents / 100,
-						installments: purchase.installmentAmountsCents.length,
-						isForecast: !concrete,
-						isFullySynced:
-							book.installments.filter(row => row.purchaseId === purchase.id).length ===
-								purchase.installmentAmountsCents.length &&
-							book.installments
-								.filter(row => row.purchaseId === purchase.id)
-								.every(row => row.hasImportedAmount),
-						isRefund: false,
-						isSettled: Boolean(concrete?.isSettled || concrete?.settledByPurchaseId),
-						isStatementCharge: false,
-						isSynced: concrete?.hasImportedAmount ?? false,
-						occurrenceDate: installmentOccurrenceDate(purchase.purchaseDate, item.number),
-						parentId: item.number === 1 ? undefined : purchase.id,
-						purchaseId: purchase.id,
-						refund: refunds.length === 1 ? refunds[0] : undefined,
-						refundableAmount: purchase.totalAmountCents / 100 - refundedAmount,
-						refundedAmount,
-						refundOfPurchaseId: null as string | null,
-						refunds,
-						settledByPurchaseId: concrete?.settledByPurchaseId ?? null,
-						statementId: item.statementId,
-						totalAmount: purchase.totalAmountCents / 100,
-					},
-				];
-			});
+		return (installmentsByPurchase.get(purchase.id) ?? []).flatMap(item => {
+			const concrete = concreteByNumber.get(`${purchase.id}:${item.number}`);
+			if ((!concrete && !includeForecasts) || canceled.has(item.number)) return [];
+			return [
+				{
+					...purchase,
+					currentInstallment: item.number,
+					entryKind: "INSTALLMENT" as const,
+					hasImportedAmount: concrete?.hasImportedAmount ?? false,
+					hasRefund: refunds.length > 0,
+					id: concrete?.id ?? `forecast-${purchase.id}-${item.number}`,
+					installmentAmount: item.amountCents / 100,
+					installments: purchase.installmentAmountsCents.length,
+					isForecast: !concrete,
+					isFullySynced:
+						(concreteByPurchase.get(purchase.id) ?? []).length ===
+							purchase.installmentAmountsCents.length &&
+						(concreteByPurchase.get(purchase.id) ?? []).every(row => row.hasImportedAmount),
+					isRefund: false,
+					isSettled: Boolean(concrete?.isSettled || concrete?.settledByPurchaseId),
+					isStatementCharge: false,
+					isSynced: concrete?.hasImportedAmount ?? false,
+					occurrenceDate: installmentOccurrenceDate(purchase.purchaseDate, item.number),
+					parentId: item.number === 1 ? undefined : purchase.id,
+					purchaseId: purchase.id,
+					refund: refunds.length === 1 ? refunds[0] : undefined,
+					refundableAmount: purchase.totalAmountCents / 100 - refundedAmount,
+					refundedAmount,
+					refundOfPurchaseId: null as string | null,
+					refunds,
+					settledByPurchaseId: concrete?.settledByPurchaseId ?? null,
+					statementId: item.statementId,
+					totalAmount: purchase.totalAmountCents / 100,
+				},
+			];
+		});
 	});
 	const refunds = book.refunds
 		.filter(refund => !refund.deletedAt)
 		.map(refund => {
-			const purchase = bookPurchase(book, refund.purchaseId);
+			const purchase = purchasesById.get(refund.purchaseId);
+			if (!purchase) throw new RangeError("Compra não encontrada");
 			return {
 				...purchase,
 				createdAt: refund.createdAt,

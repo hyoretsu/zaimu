@@ -58,6 +58,7 @@ import {
 	withTransaction,
 } from "~/shared/infra/sql";
 import { CreditBookDTO } from "./CreditBookDTO";
+import { CreditCardOverviewReturn, CreditStatementPageReturn } from "./CreditCardReadReturn";
 import { CreditPurchaseEditReturn } from "./CreditPurchaseEditReturn";
 import {
 	ConfirmPaymentSuggestionDTO,
@@ -202,6 +203,11 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						.build(),
 				);
 				if (cards.length === 0) return [];
+				const reviewCounts = await queryRaw<{ creditCardId: string; count: number }>(
+					`SELECT review."creditCardId", count(*)::int AS count FROM "CreditRefundReview" review JOIN "CreditEntryReference" ref ON ref."id"=review."id" WHERE review."userId"=$1 AND review."approvedAt" IS NULL AND ref."requiresRefundReview" GROUP BY review."creditCardId"`,
+					[userId],
+				);
+				const countsByCard = new Map(reviewCounts.map(row => [row.creditCardId, row.count]));
 				const rows = await queryRaw<CreditOverviewRow>(creditOverviewSql, [userId]);
 				const replayCards = rows
 					.filter(row => row.kind === "card")
@@ -237,6 +243,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 							temporaryCredit: temporaryCreditInCents / 100,
 							usedLimit: usedLimitInCents / 100,
 						},
+						pendingRefundReviewCount: countsByCard.get(card.id) ?? 0,
 					};
 				});
 			});
@@ -250,6 +257,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 		},
 		{
 			detail: { tags: ["Credit Cards"] },
+			response: { 200: t.Array(CreditCardOverviewReturn), 304: t.Null() },
 		},
 	)
 	.get(
@@ -482,36 +490,49 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 	)
 	.get(
 		"/:id/statements",
-		async ({ params, request, query }) => {
-			const book = await projectRecurringCreditBook(
-				await readCreditBook(await requireUserId(request), params.id),
+		async ({ params, request, query, set }) => {
+			const userId = await requireUserId(request);
+			const cached = await distributedCache.remember(
+				userId,
+				`credit-cards:${params.id}:statements`,
+				{ kind: "page", ...query },
+				async () => {
+					const book = await projectRecurringCreditBook(await readCreditBook(userId, params.id, false));
+					const cursor = query.cursor ? decodeStatementCursor(query.cursor, query.isPaid) : null;
+					const rows = replayCreditBook(book)
+						.statements.filter(s => query.isPaid === undefined || s.isPaid === query.isPaid)
+						.toSorted((a, b) => b.statementDate.localeCompare(a.statementDate) || b.id.localeCompare(a.id))
+						.filter(
+							s =>
+								!cursor ||
+								s.statementDate < cursor.statementDate.slice(0, 10) ||
+								(s.statementDate === cursor.statementDate.slice(0, 10) && s.id < cursor.id),
+						);
+					const limit = query.limit ?? 24;
+					const items = rows.slice(0, limit);
+					const last = items.at(-1);
+					const hasMore = rows.length > limit;
+					return {
+						hasMore,
+						items,
+						nextCursor:
+							hasMore && last
+								? encodeStatementCursor({
+										filter: statementFilterKey(query.isPaid),
+										id: last.id,
+										statementDate: last.statementDate,
+									})
+								: null,
+					};
+				},
 			);
-			const cursor = query.cursor ? decodeStatementCursor(query.cursor, query.isPaid) : null;
-			const rows = replayCreditBook(book)
-				.statements.filter(s => query.isPaid === undefined || s.isPaid === query.isPaid)
-				.toSorted((a, b) => b.statementDate.localeCompare(a.statementDate) || b.id.localeCompare(a.id))
-				.filter(
-					s =>
-						!cursor ||
-						s.statementDate < cursor.statementDate.slice(0, 10) ||
-						(s.statementDate === cursor.statementDate.slice(0, 10) && s.id < cursor.id),
-				);
-			const limit = query.limit ?? 24;
-			const items = rows.slice(0, limit);
-			const last = items.at(-1);
-			const hasMore = rows.length > limit;
-			return {
-				hasMore,
-				items,
-				nextCursor:
-					hasMore && last
-						? encodeStatementCursor({
-								filter: statementFilterKey(query.isPaid),
-								id: last.id,
-								statementDate: last.statementDate,
-							})
-						: null,
-			};
+			set.headers.etag = cached.etag;
+			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+			if (request.headers.get("if-none-match") === cached.etag) {
+				set.status = 304;
+				return null;
+			}
+			return cached.value;
 		},
 		{
 			query: t.Object({
@@ -519,33 +540,52 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				isPaid: t.Optional(t.Boolean()),
 				limit: t.Optional(t.Number({ maximum: 100, minimum: 1 })),
 			}),
+			response: { 200: CreditStatementPageReturn, 304: t.Null() },
 		},
 	)
-	.get("/:id/statements/:statementId", async ({ params, request }) => {
-		const book = await projectRecurringCreditBook(
-			await readCreditBook(await requireUserId(request), params.id),
+	.get("/:id/statements/:statementId", async ({ params, request, set }) => {
+		const userId = await requireUserId(request);
+		const cached = await distributedCache.remember(
+			userId,
+			`credit-cards:${params.id}:statements`,
+			{ kind: "detail", statementId: params.statementId },
+			async () => {
+				const book = await projectRecurringCreditBook(await readCreditBook(userId, params.id, false));
+				const statements = replayCreditBook(book).statements;
+				const statement = statements.find(s => s.id === params.statementId);
+				if (!statement) throw new HttpException("Fatura não encontrada", 404);
+				const paymentIds = book.payments
+					.filter(payment => paymentStatement(statements, new Date(payment.date))?.id === statement.id)
+					.map(payment => payment.id);
+				const paymentRows = paymentIds.length
+					? await queryRaw<{
+							id: string;
+							amount: number;
+							date: Date;
+							time: string | null;
+							description: string | null;
+						}>(
+							`SELECT "id","amount","date","time","description" FROM "Transaction" WHERE "paymentCreditCardId"=$1 AND "userId"=$2 AND "id"=ANY($3::varchar[])`,
+							[params.id, book.card.userId, paymentIds],
+						)
+					: [];
+				return {
+					...statement,
+					payments: paymentRows
+						.filter(p => paymentStatement(statements, p.date)?.id === statement.id)
+						.map(p => ({ ...p, amount: Number(p.amount), paymentCreditCardId: params.id, type: "EXPENSE" })),
+					purchases: await presentCreditBook(book, statement.id),
+					totalAmount: Number(statement.totalAmount) + statement.chargesAmount,
+				};
+			},
 		);
-		const statements = replayCreditBook(book).statements;
-		const statement = statements.find(s => s.id === params.statementId);
-		if (!statement) throw new HttpException("Fatura não encontrada", 404);
-		const paymentRows = await queryRaw<{
-			id: string;
-			amount: number;
-			date: Date;
-			time: string | null;
-			description: string | null;
-		}>(
-			`SELECT "id","amount","date","time","description" FROM "Transaction" WHERE "paymentCreditCardId"=$1 AND "userId"=$2`,
-			[params.id, book.card.userId],
-		);
-		return {
-			...statement,
-			payments: paymentRows
-				.filter(p => paymentStatement(statements, p.date)?.id === statement.id)
-				.map(p => ({ ...p, amount: Number(p.amount), paymentCreditCardId: params.id, type: "EXPENSE" })),
-			purchases: (await presentCreditBook(book)).filter(row => row.statementId === statement.id),
-			totalAmount: Number(statement.totalAmount) + statement.chargesAmount,
-		};
+		set.headers.etag = cached.etag;
+		set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+		if (request.headers.get("if-none-match") === cached.etag) {
+			set.status = 304;
+			return null;
+		}
+		return cached.value;
 	})
 	.post(
 		"/:id/purchases",

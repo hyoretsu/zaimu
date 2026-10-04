@@ -2,18 +2,20 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { LuUndo2 } from "react-icons/lu";
 import { RefundImportReviewDialog } from "@/components/credit-card-imports/RefundImportReviewDialog";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { dataService } from "@/lib/dataService";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 
-export function PendingRefundReviews({ cardId }: { cardId: string }) {
+export function PendingRefundReviews({ cardId, count }: { cardId: string; count: number }) {
+	const [expanded, setExpanded] = useState(false);
 	const identity = useCacheIdentity();
 	const queryClient = useQueryClient();
 	const [selectedId, setSelectedId] = useState<string | null>(null);
 	const reviews = useQuery({
-		enabled: Boolean(identity),
+		enabled: Boolean(identity) && expanded && count > 0,
 		queryFn: () => dataService.creditCards.getRefundReviews(cardId),
 		queryKey: queryKeys.creditCards.refundReviews(identity!, cardId),
 	});
@@ -29,6 +31,16 @@ export function PendingRefundReviews({ cardId }: { cardId: string }) {
 			showToast("Reembolso vinculado e faturas recalculadas.", "positive");
 		},
 	});
+	if (!count) return null;
+	if (!expanded)
+		return (
+			<ActionGroup>
+				<Button onClick={() => setExpanded(true)} variant="outline">
+					<LuUndo2 />
+					Revisar reembolsos ({count})
+				</Button>
+			</ActionGroup>
+		);
 	if (reviews.isPending) return <Skeleton className="h-12 rounded-xl" />;
 	if (reviews.isError)
 		return <p className="text-destructive text-sm">Não foi possível carregar reembolsos pendentes.</p>;

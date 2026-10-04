@@ -269,3 +269,17 @@ test("separates informed refinancing costs with exact cents and no new interest 
 		[...statementCharges(purchases)].toSorted(),
 	);
 });
+
+test("payment assignment honors duplicate due-date IDs and boundaries without mutating bank dates", async () => {
+	const { createStatementPaymentResolver } = await import("./credit-card");
+	const rows = [
+		{ dueDate: "2026-11-02", id: "later" },
+		{ dueDate: "2026-10-25", id: "b" },
+		{ dueDate: "2026-10-25", id: "a" },
+	];
+	const resolve = createStatementPaymentResolver(rows);
+	expect(resolve("2026-10-25")?.id).toBe("a");
+	expect(resolve("2026-10-26")?.id).toBe("later");
+	expect(resolve("2026-11-03")).toBeUndefined();
+	expect(rows.map(row => row.id)).toEqual(["later", "b", "a"]);
+});

@@ -75,6 +75,82 @@ async function findSplit(target: DebtSplitTarget) {
 	);
 }
 
+/** One query for every purchase rule, including ordered participants. No per-purchase lookup. */
+export async function getDebtSplitInputs(
+	field: DebtSplitTargetField,
+	ids: string[],
+): Promise<Map<string, DebtSplitInput>> {
+	if (ids.length === 0) return new Map();
+	const columns: Record<DebtSplitTargetField, string> = {
+		creditCardImportItemId: "creditCardImportItemId",
+		creditPurchaseId: "creditPurchaseId",
+		recurrenceId: "recurrenceId",
+		transactionId: "transactionId",
+		transactionImportItemId: "transactionImportItemId",
+	};
+	const column = columns[field];
+	const rows = await queryRaw<{
+		targetId: string;
+		mode: "SHARES" | "PERCENTAGE" | "FIXED";
+		ownerIncluded: boolean;
+		ownerShares: number | null;
+		remainderDebtPersonId: string | null;
+		participants: {
+			debtPersonId: string;
+			description: string | null;
+			shares: number | null;
+			percentage: number | null;
+			fixedAmount: number | null;
+		}[];
+	}>(
+		`SELECT s."${column}" AS "targetId", s."mode", s."ownerIncluded", s."ownerShares", s."remainderDebtPersonId",
+  COALESCE(json_agg(json_build_object('debtPersonId',p."debtPersonId",'description',p."description",'shares',p."shares",'percentage',p."percentage",'fixedAmount',p."fixedAmount") ORDER BY p."sortOrder",p."id") FILTER (WHERE p."id" IS NOT NULL),'[]') AS "participants"
+  FROM "DebtSplit" s LEFT JOIN "DebtSplitParticipant" p ON p."debtSplitId"=s."id"
+  WHERE s."${column}"=ANY($1::varchar[]) GROUP BY s."id"`,
+		[[...new Set(ids)]],
+	);
+	return new Map(
+		rows.map(split => {
+			let input: DebtSplitInput;
+			const common = {
+				ownerIncluded: split.ownerIncluded,
+				remainderDebtPersonId: split.remainderDebtPersonId ?? undefined,
+			};
+			if (split.mode === "SHARES")
+				input = {
+					mode: "SHARES",
+					ownerShares: split.ownerIncluded ? (split.ownerShares ?? 1) : null,
+					participants: split.participants.map(p => ({
+						debtPersonId: p.debtPersonId,
+						description: p.description ?? undefined,
+						shares: p.shares ?? 1,
+					})),
+				};
+			else if (split.mode === "PERCENTAGE")
+				input = {
+					...common,
+					mode: "PERCENTAGE",
+					participants: split.participants.map(p => ({
+						debtPersonId: p.debtPersonId,
+						description: p.description ?? undefined,
+						percentage: Number(p.percentage),
+					})),
+				};
+			else
+				input = {
+					...common,
+					mode: "FIXED",
+					participants: split.participants.map(p => ({
+						debtPersonId: p.debtPersonId,
+						description: p.description ?? undefined,
+						fixedAmount: Number(p.fixedAmount),
+					})),
+				};
+			return [split.targetId, input];
+		}),
+	);
+}
+
 export async function getDebtSplitInput(target: DebtSplitTarget): Promise<DebtSplitInput | undefined> {
 	const split = await findSplit(target);
 	if (!split) return;
