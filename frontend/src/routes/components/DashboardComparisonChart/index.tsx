@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { endOfMonth, format, startOfMonth } from "date-fns";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
 	Bar,
 	BarStack,
@@ -19,7 +19,7 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { ChartPeriodFilter, type ChartPeriodSettings } from "./components";
-import { DashboardChartTooltip } from "./components/DashboardChartTooltip";
+import { FloatingDashboardTooltip } from "./components/FloatingDashboardTooltip";
 
 const currency = new Intl.NumberFormat("pt-BR", {
 	currency: "BRL",
@@ -65,6 +65,7 @@ function formatAxisLabel(startDate: string) {
 
 export function DashboardComparisonChart() {
 	const identity = useCacheIdentity();
+	const chartRef = useRef<HTMLDivElement>(null);
 	const mobile = useMediaQuery("(max-width: 639px)");
 	const [settings, setSettings] = useState<ChartPeriodSettings>(() => ({
 		endDate: format(endOfMonth(new Date()), "yyyy-MM-dd"),
@@ -118,128 +119,131 @@ export function DashboardComparisonChart() {
 							<span>Patrimônio</span>
 							<span className="text-right">Entradas e gastos</span>
 						</div>
-						<ChartContainer className="h-72 w-full" config={chartConfig}>
-							<ComposedChart data={data}>
-								<CartesianGrid strokeDasharray="3 3" vertical={false} />
-								{currentPeriod && (
-									<ReferenceLine
-										label={{
-											fill: "var(--color-foreground)",
-											fontSize: 11,
-											position: "insideTopRight",
-											value: "Período atual",
-										}}
-										stroke="var(--color-foreground)"
-										strokeDasharray="4 4"
-										strokeOpacity={0.6}
-										x={currentPeriod.label}
-										yAxisId="balances"
-									/>
-								)}
-								<XAxis dataKey="label" tickLine={false} />
-								<YAxis
-									orientation="left"
-									tickFormatter={value => (mobile ? compactCurrency : currency).format(value)}
-									width={mobile ? 72 : 110}
-									yAxisId="balances"
-								/>
-								<YAxis
-									orientation="right"
-									tickFormatter={value => (mobile ? compactCurrency : currency).format(value)}
-									width={mobile ? 72 : 110}
-									yAxisId="flows"
-								/>
-								<Tooltip
-									content={({ active, payload }) => (
-										<DashboardChartTooltip
-											active={active}
-											period={
-												payload?.[0]?.payload
-													? {
-															...payload[0].payload,
-															cardExpenses: payload[0].payload.totalCardExpenses,
-															recurringExpenses: payload[0].payload.totalRecurringExpenses,
-														}
-													: undefined
-											}
+						<div ref={chartRef}>
+							<ChartContainer className="h-72 w-full" config={chartConfig}>
+								<ComposedChart data={data}>
+									<CartesianGrid strokeDasharray="3 3" vertical={false} />
+									{currentPeriod && (
+										<ReferenceLine
+											label={{
+												fill: "var(--color-foreground)",
+												fontSize: 11,
+												position: "insideTopRight",
+												value: "Período atual",
+											}}
+											stroke="var(--color-foreground)"
+											strokeDasharray="4 4"
+											strokeOpacity={0.6}
+											x={currentPeriod.label}
+											yAxisId="balances"
 										/>
 									)}
-									position={mobile ? { x: 0, y: 0 } : undefined}
-								/>
-								<BarStack radius={[4, 4, 0, 0]} stackId="income">
-									<Bar
-										dataKey="recurringIncome"
-										fill="var(--color-recurringIncome)"
-										stackId="income"
+									<XAxis dataKey="label" tickLine={false} />
+									<YAxis
+										orientation="left"
+										tickFormatter={value => (mobile ? compactCurrency : currency).format(value)}
+										width={mobile ? 72 : 110}
+										yAxisId="balances"
+									/>
+									<YAxis
+										orientation="right"
+										tickFormatter={value => (mobile ? compactCurrency : currency).format(value)}
+										width={mobile ? 72 : 110}
 										yAxisId="flows"
 									/>
-									<Bar
-										dataKey="otherIncome"
-										fill="var(--color-otherIncome)"
-										stackId="income"
-										yAxisId="flows"
+									<Tooltip
+										content={({ active, payload, coordinate }) => (
+											<FloatingDashboardTooltip
+												active={active}
+												chartRef={chartRef}
+												coordinate={coordinate}
+												period={
+													payload?.[0]?.payload
+														? {
+																...payload[0].payload,
+																cardExpenses: payload[0].payload.totalCardExpenses,
+																recurringExpenses: payload[0].payload.totalRecurringExpenses,
+															}
+														: undefined
+												}
+											/>
+										)}
 									/>
-								</BarStack>
-								<BarStack radius={[4, 4, 0, 0]} stackId="expenses">
-									<Bar
-										dataKey="recurringCardExpenses"
-										fill="var(--color-recurringCardExpenses)"
-										stackId="expenses"
-										yAxisId="flows"
+									<BarStack radius={[4, 4, 0, 0]} stackId="income">
+										<Bar
+											dataKey="recurringIncome"
+											fill="var(--color-recurringIncome)"
+											stackId="income"
+											yAxisId="flows"
+										/>
+										<Bar
+											dataKey="otherIncome"
+											fill="var(--color-otherIncome)"
+											stackId="income"
+											yAxisId="flows"
+										/>
+									</BarStack>
+									<BarStack radius={[4, 4, 0, 0]} stackId="expenses">
+										<Bar
+											dataKey="recurringCardExpenses"
+											fill="var(--color-recurringCardExpenses)"
+											stackId="expenses"
+											yAxisId="flows"
+										/>
+										<Bar
+											dataKey="cardExpenses"
+											fill="var(--color-cardExpenses)"
+											stackId="expenses"
+											yAxisId="flows"
+										/>
+										<Bar
+											dataKey="recurringExpenses"
+											fill="var(--color-recurringExpenses)"
+											stackId="expenses"
+											yAxisId="flows"
+										/>
+										<Bar
+											dataKey="otherExpenses"
+											fill="var(--color-otherExpenses)"
+											stackId="expenses"
+											yAxisId="flows"
+										/>
+									</BarStack>
+									<Line
+										dataKey="accountBalance"
+										dot={false}
+										stroke="var(--color-accountBalance)"
+										strokeWidth={2}
+										type="monotone"
+										yAxisId="balances"
 									/>
-									<Bar
-										dataKey="cardExpenses"
-										fill="var(--color-cardExpenses)"
-										stackId="expenses"
-										yAxisId="flows"
+									<Line
+										dataKey="endingBalance"
+										dot={false}
+										stroke="var(--color-endingBalance)"
+										strokeWidth={3}
+										type="monotone"
+										yAxisId="balances"
 									/>
-									<Bar
-										dataKey="recurringExpenses"
-										fill="var(--color-recurringExpenses)"
-										stackId="expenses"
-										yAxisId="flows"
+									<Line
+										dataKey="fixedIncomeBalance"
+										dot={false}
+										stroke="var(--color-fixedIncomeBalance)"
+										strokeWidth={2}
+										type="monotone"
+										yAxisId="balances"
 									/>
-									<Bar
-										dataKey="otherExpenses"
-										fill="var(--color-otherExpenses)"
-										stackId="expenses"
-										yAxisId="flows"
+									<Line
+										dataKey="variableIncomeBalance"
+										dot={false}
+										stroke="var(--color-variableIncomeBalance)"
+										strokeWidth={2}
+										type="monotone"
+										yAxisId="balances"
 									/>
-								</BarStack>
-								<Line
-									dataKey="accountBalance"
-									dot={false}
-									stroke="var(--color-accountBalance)"
-									strokeWidth={2}
-									type="monotone"
-									yAxisId="balances"
-								/>
-								<Line
-									dataKey="endingBalance"
-									dot={false}
-									stroke="var(--color-endingBalance)"
-									strokeWidth={3}
-									type="monotone"
-									yAxisId="balances"
-								/>
-								<Line
-									dataKey="fixedIncomeBalance"
-									dot={false}
-									stroke="var(--color-fixedIncomeBalance)"
-									strokeWidth={2}
-									type="monotone"
-									yAxisId="balances"
-								/>
-								<Line
-									dataKey="variableIncomeBalance"
-									dot={false}
-									stroke="var(--color-variableIncomeBalance)"
-									strokeWidth={2}
-									type="monotone"
-									yAxisId="balances"
-								/>
-							</ComposedChart>
-						</ChartContainer>
+								</ComposedChart>
+							</ChartContainer>
+						</div>
 						<ul
 							aria-label="Legenda do gráfico"
 							className="mt-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-muted-foreground text-xs"

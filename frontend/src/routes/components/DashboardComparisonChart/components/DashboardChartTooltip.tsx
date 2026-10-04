@@ -26,47 +26,94 @@ export function DashboardChartTooltip({ active, period }: DashboardChartTooltipP
 	const label = fullMonth
 		? `${month[0]?.toUpperCase()}${month.slice(1)}`
 		: `${format(start, "dd/MM/yyyy")} até ${format(end, "dd/MM/yyyy")}`;
-	const rows = [
-		{ color: "#0ea5e9", label: "Em conta", value: period.accountBalance },
-		{ color: "#f59e0b", label: "Renda fixa", value: period.fixedIncomeBalance },
-		{ color: "#8b5cf6", label: "Renda variável", value: period.variableIncomeBalance },
-		{ color: "var(--color-primary)", label: "Saldo total", total: true, value: period.endingBalance },
-		{ color: "#047857", label: "Renda", value: period.recurringIncome },
-		{ color: "#34d399", label: "Outras entradas", value: period.income - period.recurringIncome },
+	const groups = [
 		{
-			color: "#be123c",
-			label: "Gastos recorrentes",
-			value: period.recurringExpenses - (period.recurringCardExpenses ?? 0),
+			color: "var(--color-primary)",
+			label: "Saldo total",
+			rows: [
+				{ color: "#0ea5e9", label: "Em conta", value: period.accountBalance },
+				{
+					color: "var(--color-foreground)",
+					label: "Poupado",
+					subtotal: true,
+					value: period.fixedIncomeBalance + period.variableIncomeBalance,
+				},
+				{ color: "#f59e0b", label: "Renda fixa", nested: true, value: period.fixedIncomeBalance },
+				{ color: "#8b5cf6", label: "Renda variável", nested: true, value: period.variableIncomeBalance },
+			],
+			value: period.endingBalance,
 		},
-		{ color: "#d946ef", label: "Assinaturas", value: period.recurringCardExpenses ?? 0 },
 		{
-			color: "#f97316",
-			label: "Faturas",
-			value: (period.cardExpenses ?? 0) - (period.recurringCardExpenses ?? 0),
+			color: "#34d399",
+			label: "Entradas",
+			rows: [
+				{ color: "#047857", label: "Renda", value: period.recurringIncome },
+				{ color: "#34d399", label: "Outras entradas", value: period.income - period.recurringIncome },
+			],
+			value: period.income,
 		},
 		{
 			color: "#fb7185",
-			label: "Outras saídas",
-			value:
-				period.expenses -
-				period.recurringExpenses -
-				(period.cardExpenses ?? 0) +
-				(period.recurringCardExpenses ?? 0),
+			label: "Saídas",
+			rows: [
+				{
+					color: "#be123c",
+					label: "Gastos recorrentes",
+					value: period.recurringExpenses - (period.recurringCardExpenses ?? 0),
+				},
+				{
+					color: "#f97316",
+					label: "Faturas",
+					subtotal: true,
+					value: period.cardExpenses ?? 0,
+				},
+				{ color: "#d946ef", label: "Assinaturas", nested: true, value: period.recurringCardExpenses ?? 0 },
+				{
+					color: "#f97316",
+					label: "Outros",
+					nested: true,
+					value: (period.cardExpenses ?? 0) - (period.recurringCardExpenses ?? 0),
+				},
+				{
+					color: "#fb7185",
+					label: "Outras saídas",
+					value:
+						period.expenses -
+						period.recurringExpenses -
+						(period.cardExpenses ?? 0) +
+						(period.recurringCardExpenses ?? 0),
+				},
+			],
+			value: period.expenses,
 		},
 	];
 	return (
-		<div className="grid w-64 max-w-[calc(100vw-4rem)] gap-1.5 rounded-lg border border-border/50 bg-background px-3 py-2 text-xs shadow-xl">
+		<div className="grid w-72 max-w-[calc(100vw-4rem)] gap-1.5 rounded-lg border border-border/50 bg-background px-3 py-2 text-xs shadow-xl">
 			<p className="font-medium">{label}</p>
-			{rows.map(row => (
-				<div
-					className={`flex items-center justify-between gap-3 ${row.total ? "border-t pt-1 font-semibold" : ""}`}
-					key={row.label}
+			{groups.map(group => (
+				<section
+					aria-label={group.label}
+					className="grid gap-1.5 border-border/60 border-t pt-2"
+					key={group.label}
 				>
-					<span className="text-muted-foreground">{row.label}</span>
-					<span className="font-mono tabular-nums" style={{ color: row.color }}>
-						{currency.format(row.value)}
-					</span>
-				</div>
+					<div className="flex items-center justify-between gap-3 font-semibold">
+						<span>{group.label}</span>
+						<span className="font-mono tabular-nums" style={{ color: group.color }}>
+							{currency.format(group.value)}
+						</span>
+					</div>
+					{group.rows.map(row => (
+						<div
+							className={`flex items-center justify-between gap-3 ${"nested" in row ? "pl-6" : "pl-3"} ${"subtotal" in row ? "font-medium" : ""}`}
+							key={row.label}
+						>
+							<span className="text-muted-foreground">{row.label}</span>
+							<span className="font-mono tabular-nums" style={{ color: row.color }}>
+								{currency.format(row.value)}
+							</span>
+						</div>
+					))}
+				</section>
 			))}
 		</div>
 	);
