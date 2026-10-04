@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
 	Bar,
 	BarStack,
@@ -53,6 +53,16 @@ interface DashboardPeriodChartProps {
 
 export function DashboardPeriodChart({ currentPeriod, data, kind }: DashboardPeriodChartProps) {
 	const chartRef = useRef<HTMLDivElement>(null);
+	const [interacting, setInteracting] = useState(false);
+	useEffect(() => {
+		const dismissOutside = (event: PointerEvent) => {
+			if (event.target instanceof Node && !chartRef.current?.contains(event.target)) {
+				setInteracting(false);
+			}
+		};
+		document.addEventListener("pointerdown", dismissOutside, true);
+		return () => document.removeEventListener("pointerdown", dismissOutside, true);
+	}, []);
 	const mobile = useMediaQuery("(max-width: 639px)");
 	const balances = kind === "balances";
 	const title = balances ? "Patrimônio" : "Entradas e gastos";
@@ -74,7 +84,13 @@ export function DashboardPeriodChart({ currentPeriod, data, kind }: DashboardPer
 	return (
 		<section aria-label={title}>
 			<h3 className="mb-3 font-medium text-sm">{title}</h3>
-			<div ref={chartRef}>
+			<div
+				onFocus={() => setInteracting(true)}
+				onPointerDown={() => setInteracting(true)}
+				onPointerMove={() => setInteracting(true)}
+				ref={chartRef}
+				style={{ touchAction: "none" }}
+			>
 				<ChartContainer className="h-64 w-full" config={chartConfig}>
 					<ComposedChart data={chartData}>
 						<CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -98,9 +114,10 @@ export function DashboardPeriodChart({ currentPeriod, data, kind }: DashboardPer
 							/>
 						)}
 						<Tooltip
-							content={({ active, payload, coordinate }) => (
+							active={interacting}
+							content={({ payload, coordinate }) => (
 								<FloatingDashboardTooltip
-									active={active}
+									active={interacting}
 									chartRef={chartRef}
 									coordinate={coordinate}
 									kind={kind}

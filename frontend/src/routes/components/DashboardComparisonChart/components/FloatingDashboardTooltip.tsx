@@ -52,7 +52,7 @@ export function FloatingDashboardTooltip({
 	}, [active, chartRef, coordinate?.x, coordinate?.y, period]);
 	if (!active || !period || typeof document === "undefined") return null;
 	return createPortal(
-		<div className="fixed z-50" ref={ref} style={position}>
+		<div className="pointer-events-none fixed z-50" ref={ref} style={position}>
 			<ScrollArea className="max-h-[calc(100dvh-1rem)] min-h-0 rounded-lg">
 				<DashboardChartTooltip active kind={kind} period={period} />
 			</ScrollArea>
