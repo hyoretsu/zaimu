@@ -53,8 +53,8 @@ export function DebtSplitParticipantRow({
 				: String((participant as { fixedAmount: number }).fixedAmount || "");
 	return (
 		<div className="grid min-w-0 max-w-full gap-3 rounded-xl border p-3 [&>*]:min-w-0">
-			<div className="flex min-w-0 items-end gap-2">
-				<div className="min-w-0 flex-1">
+			<div className="flex min-w-0 flex-wrap items-end gap-2">
+				<div className="min-w-0 flex-[2_1_8rem]">
 					<DebtPersonPicker
 						disabled={disabled}
 						excludedIds={excludedPersonIds}
@@ -62,6 +62,30 @@ export function DebtSplitParticipantRow({
 						required
 						value={participant.debtPersonId}
 					/>
+				</div>
+				<div className={mode === "SHARES" ? "min-w-0 flex-[1_1_4rem]" : "min-w-0 flex-[1_1_7rem]"}>
+					{mode === "FIXED" ? (
+						<MoneyField
+							disabled={disabled || isRemainderRecipient}
+							id={`debt-split-${index}`}
+							label="Valor"
+							onValueChange={value => onValueChange(Number(value))}
+							required={!isRemainderRecipient}
+							value={numericValue}
+						/>
+					) : (
+						<NumericField
+							decimalScale={mode === "PERCENTAGE" ? 2 : 0}
+							disabled={disabled || isRemainderRecipient}
+							id={`debt-split-${index}`}
+							label={mode === "SHARES" ? "Cotas" : "Porcentagem"}
+							onValueChange={value => onValueChange(Number(value))}
+							placeholder={mode === "SHARES" ? "Ex: 1" : "Ex: 25%"}
+							required={!isRemainderRecipient}
+							suffix={mode === "PERCENTAGE" ? "%" : undefined}
+							value={numericValue}
+						/>
+					)}
 				</div>
 				<Button
 					aria-label="Remover pessoa"
@@ -98,28 +122,6 @@ export function DebtSplitParticipantRow({
 					Fica com o restante
 				</CheckboxField>
 			) : null}
-			{mode === "FIXED" ? (
-				<MoneyField
-					disabled={disabled || isRemainderRecipient}
-					id={`debt-split-${index}`}
-					label="Valor"
-					onValueChange={value => onValueChange(Number(value))}
-					required={!isRemainderRecipient}
-					value={numericValue}
-				/>
-			) : (
-				<NumericField
-					decimalScale={mode === "PERCENTAGE" ? 2 : 0}
-					disabled={disabled || isRemainderRecipient}
-					id={`debt-split-${index}`}
-					label={mode === "SHARES" ? "Cotas" : "Porcentagem"}
-					onValueChange={value => onValueChange(Number(value))}
-					placeholder={mode === "SHARES" ? "Ex: 1" : "Ex: 25%"}
-					required={!isRemainderRecipient}
-					suffix={mode === "PERCENTAGE" ? "%" : undefined}
-					value={numericValue}
-				/>
-			)}
 			{amount !== undefined ? (
 				<p className="text-muted-foreground text-xs">
 					Parcela: {new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(amount)}

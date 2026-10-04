@@ -221,17 +221,17 @@ export function DebtSplitEditor({
 			>
 				<LuPlus /> Adicionar pessoa
 			</Button>
-			<div className="grid min-w-0 gap-2 rounded-xl bg-muted/50 p-3 text-xs sm:grid-cols-3">
-				<span className="min-w-0">
-					Distribuído<strong className="block break-all text-sm">{currency.format(distributed)}</strong>
+			<div className="flex min-w-0 flex-wrap gap-x-4 gap-y-2 rounded-xl bg-muted/50 p-3 text-xs">
+				<span className="min-w-0 flex-[1_1_5rem]">
+					Distribuído<strong className="block break-words text-sm">{currency.format(distributed)}</strong>
 				</span>
-				<span className="min-w-0">
+				<span className="min-w-0 flex-[1_1_5rem]">
 					Sua parte
-					<strong className="block break-all text-sm">{currency.format(preview?.ownerAmount ?? 0)}</strong>
+					<strong className="block break-words text-sm">{currency.format(preview?.ownerAmount ?? 0)}</strong>
 				</span>
-				<span className="min-w-0">
+				<span className="min-w-0 flex-[1_1_5rem]">
 					Restante
-					<strong className="block break-all text-sm">{currency.format(remaining)}</strong>
+					<strong className="block break-words text-sm">{currency.format(remaining)}</strong>
 				</span>
 			</div>
 			{error ? <p className="text-destructive text-xs">{error}</p> : null}
