@@ -114,6 +114,22 @@ describe("getTransactionAccountTypeLabel", () => {
 });
 
 describe("getFinancialAccountSummaryName", () => {
+	test("names dashboard cashback accounts with and without an institution", () => {
+		expect(
+			getFinancialAccountSummaryName({ institution: { name: "Nubank" }, name: null, type: "CASHBACK" }),
+		).toBe("Cashback Nubank");
+		expect(getFinancialAccountSummaryName({ institution: null, name: null, type: "CASHBACK" })).toBe(
+			"Cashback",
+		);
+		expect(
+			getFinancialAccountSummaryName({
+				institution: { name: "Nubank" },
+				name: "Minhas recompensas",
+				type: "CASHBACK",
+			}),
+		).toBe("Minhas recompensas");
+	});
+
 	test("uses the account title or prefixes its type to the institution", () => {
 		expect(
 			getFinancialAccountSummaryName({

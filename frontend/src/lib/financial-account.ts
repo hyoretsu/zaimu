@@ -348,6 +348,7 @@ function settingsRequireReference(settings: ReturnType<typeof getYieldSettings>)
 
 const financialAccountTypeLabels = {
 	CASH: "Dinheiro",
+	CASHBACK: "Cashback",
 	CHECKING: "Conta corrente",
 	CREDIT_CARD: "Cartão de crédito",
 	INVESTMENT: "Investimentos",
@@ -357,6 +358,7 @@ const financialAccountTypeLabels = {
 
 const financialAccountOptionPrefixes = {
 	CASH: "Dinheiro",
+	CASHBACK: "Cashback",
 	CHECKING: "Conta",
 	CREDIT_CARD: "Cartão",
 	INVESTMENT: "Investimentos",
@@ -373,7 +375,10 @@ export function getFinancialAccountDisplayName(
 }
 
 export function getFinancialAccountSummaryName(
-	account: Pick<FinancialAccount, "name" | "type"> & { institution?: { name: string } | null },
+	account: Pick<FinancialAccount, "name"> & {
+		institution?: { name: string } | null;
+		type: FinancialAccount["type"] | "CASHBACK";
+	},
 ) {
 	const name = account.name?.trim();
 	if (name) return name;
