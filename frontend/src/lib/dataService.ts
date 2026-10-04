@@ -1,3 +1,4 @@
+import { comparisonIntervals } from "@zaimu/finance/comparison-periods";
 import {
 	addBookRefund,
 	bookPurchase,
@@ -22,6 +23,7 @@ import {
 	toCents,
 } from "@zaimu/finance/credit-card";
 import { distributePurchaseCents } from "@zaimu/finance/credit-purchase";
+import { dashboardCardForecasts, isCashFlowRecurrence } from "@zaimu/finance/dashboard-forecasts";
 import { loanInstallments } from "@zaimu/finance/loan";
 import { pendingStatementPayments } from "@zaimu/finance/payment-suggestions";
 import {
@@ -1832,7 +1834,7 @@ export const dataService = {
 				const forecasts = [
 					...recurrences
 						.filter(
-							item => item.isActive && item.movement !== "TRANSFER" && !recurrenceNeedsConfiguration(item),
+							item => item.isActive && isCashFlowRecurrence(item) && !recurrenceNeedsConfiguration(item),
 						)
 						.flatMap(item => {
 							let date = nextRecurrenceDate(item, shiftRecurrenceDate(getLocalDateKey(), 1));
@@ -1917,12 +1919,15 @@ export const dataService = {
 					};
 				});
 				const { getGuestDashboardFinancialContext } = await import("./dashboard-comparison");
-				const financialContext = await getGuestDashboardFinancialContext({
-					endDate: dateKey(rangeEnd),
-					periodsAfter: 0,
-					periodsBefore: 0,
-					startDate: dateKey(rangeStart),
-				});
+				const financialContext = await getGuestDashboardFinancialContext(
+					{
+						endDate: dateKey(rangeEnd),
+						periodsAfter: 0,
+						periodsBefore: 0,
+						startDate: dateKey(rangeStart),
+					},
+					dateKey(comparisonIntervals(rangeStart).at(-1)!.end),
+				);
 				const selectedMovements = financialContext.movements.filter(
 					item => item.date >= rangeStart && item.date <= rangeEnd,
 				);
@@ -2014,7 +2019,10 @@ export const dataService = {
 								name: person.name,
 							})),
 					},
-					forecasts,
+					forecasts: [
+						...forecasts,
+						...dashboardCardForecasts(financialContext.projectedStatements, creditCards, dateKey(now)),
+					].toSorted((left, right) => left.date.localeCompare(right.date)),
 					period,
 					projectedCashFlowUntilMonthEnd,
 					referenceRatesAvailable: financialContext.referenceRatesAvailable,

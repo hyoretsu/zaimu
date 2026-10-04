@@ -16,6 +16,7 @@
 		"./recurrence": "./src/recurrence.ts",
 		"./recurrence-projection": "./src/recurrence-projection.ts",
 		"./loan": "./src/loan.ts",
+		"./dashboard-forecasts": "./src/dashboard-forecasts.ts",
 		"./daily-forecast": "./src/daily-forecast.ts",
 		"./projected-yield": "./src/projected-yield.ts",
 		"./card-forecast": "./src/card-forecast.ts"

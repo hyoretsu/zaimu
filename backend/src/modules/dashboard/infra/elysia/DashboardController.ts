@@ -1,3 +1,4 @@
+import { dashboardCardForecasts, isCashFlowRecurrence } from "@zaimu/finance/dashboard-forecasts";
 import { nextRecurrenceDate, recurrenceNeedsConfiguration } from "@zaimu/finance/recurrence";
 import { addDays, startOfDay } from "date-fns";
 import Elysia, { t } from "elysia";
@@ -188,7 +189,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" })
 					const forecasts: DashboardForecast[] = [];
 
 					for (const recurrence of recurrences) {
-						if (recurrenceNeedsConfiguration(recurrence) || recurrence.movement === "TRANSFER") continue;
+						if (recurrenceNeedsConfiguration(recurrence) || !isCashFlowRecurrence(recurrence)) continue;
 						let date = nextRecurrenceDate(recurrence, dateKey(projectionStart));
 						while (date && linkedTransactionDates.has(`${recurrence.id}:${date}`))
 							date = nextRecurrenceDate(recurrence, dateKey(addDays(new Date(`${date}T12:00:00`), 1)));
@@ -224,6 +225,16 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" })
 							sourceId: String(transaction.id),
 							type: "TRANSACTION",
 						});
+					forecasts.push(
+						...dashboardCardForecasts(
+							loaded.projectedStatements.map(statement => ({
+								...statement,
+								dueDate: dateKey(statement.dueDate),
+							})),
+							cards,
+							dateKey(today),
+						),
+					);
 					const cardsWithStatements = cards.map(card => {
 						const cardStatements = statements.filter(statement => statement.creditCardId === card.id);
 						const statement =

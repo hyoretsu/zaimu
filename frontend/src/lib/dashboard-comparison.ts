@@ -29,7 +29,10 @@ export interface DashboardComparisonParameters {
 	startDate: string;
 }
 
-export async function getGuestDashboardFinancialContext(parameters: DashboardComparisonParameters) {
+export async function getGuestDashboardFinancialContext(
+	parameters: DashboardComparisonParameters,
+	projectionThrough?: string,
+) {
 	const [
 		accountRows,
 		transactions,
@@ -58,6 +61,7 @@ export async function getGuestDashboardFinancialContext(parameters: DashboardCom
 	const through = new Date(
 		Math.max(
 			periods.at(-1)!.end.getTime(),
+			projectionThrough ? new Date(`${projectionThrough}T23:59:59`).getTime() : 0,
 			new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 23, 59, 59).getTime(),
 		),
 	);
@@ -297,6 +301,7 @@ export async function getGuestDashboardFinancialContext(parameters: DashboardCom
 		balancesAt,
 		movements,
 		periods: result,
+		projectedStatements: statements,
 		referenceRatesAvailable: rateResult?.ready ?? false,
 	};
 }

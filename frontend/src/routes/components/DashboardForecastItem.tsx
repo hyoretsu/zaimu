@@ -5,7 +5,7 @@ const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "curre
 const compactDate = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short" });
 
 const forecastTypeLabels = {
-	CARD: "Fatura do cartão",
+	CARD: "Fatura prevista",
 	LOAN: "Parcela de empréstimo",
 	RECURRING: "Lançamento recorrente",
 	SALARY: "Salário",
@@ -22,7 +22,7 @@ export function DashboardForecastItem({
 }) {
 	const occurrence = new Date(`${forecast.date}T12:00:00`);
 	const isIncome = forecast.direction === "INCOME";
-	const amount = `${forecast.amount === 0 ? "" : isIncome ? "+" : "−"}${currency.format(Math.abs(forecast.amount))}`;
+	const amount = `${forecast.amount === 0 ? "" : isIncome ? "+" : "-"}${currency.format(Math.abs(forecast.amount))}`;
 	const amountClassName = isIncome ? "text-emerald-600" : "text-rose-600";
 	if (variant === "detailed") {
 		return (
