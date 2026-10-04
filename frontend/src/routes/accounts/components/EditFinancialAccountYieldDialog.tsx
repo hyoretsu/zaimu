@@ -14,8 +14,8 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
-import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
+import { TimeField } from "@/components/ui/TimeField";
 import { dataService } from "@/lib/dataService";
 import type { FinancialAccountYieldEntry } from "@/lib/financial-account";
 import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
@@ -121,12 +121,11 @@ export function EditFinancialAccountYieldDialog({
 							required
 							value={date}
 						/>
-						<FormField
+						<TimeField
 							id="financial-account-yield-time"
 							label="Horário"
 							name="time"
-							onChange={event => setTime(event.currentTarget.value)}
-							type="time"
+							onValueChange={setTime}
 							value={time}
 						/>
 						<CheckboxField
