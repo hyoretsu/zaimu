@@ -29,7 +29,7 @@ import { requestResult, transactionDone } from "./idb";
 import type { Recurrence, RecurrenceOccurrence } from "./recurrence";
 
 const DB_NAME = "zaimu-local";
-const DB_VERSION = 13;
+const DB_VERSION = 15;
 
 const LOCAL_STORES = {
 	accounts: "accounts",
@@ -116,7 +116,7 @@ async function openLocalDb(): Promise<IDBDatabase> {
 		let request = indexedDB.open(DB_NAME, DB_VERSION);
 		request.onerror = () => {
 			if (request.error?.name === "VersionError") {
-				request = indexedDB.open(DB_NAME, 14);
+				request = indexedDB.open(DB_NAME, DB_VERSION + 1);
 				request.onerror = () => reject(request.error);
 				request.onsuccess = () => resolve(request.result);
 			} else reject(request.error);
@@ -126,9 +126,11 @@ async function openLocalDb(): Promise<IDBDatabase> {
 		request.onupgradeneeded = event => {
 			if (!request.result.objectStoreNames.contains("application-upgrade"))
 				request.result.createObjectStore("application-upgrade", { keyPath: "id" });
-			request
-				.transaction!.objectStore("application-upgrade")
-				.put({ id: "state", status: event.oldVersion === 0 ? "complete" : "pending", version: 13 });
+			// Index-only upgrades must not replay already completed financial migrations.
+			if (event.oldVersion < 13)
+				request
+					.transaction!.objectStore("application-upgrade")
+					.put({ id: "state", status: event.oldVersion === 0 ? "complete" : "pending", version: 13 });
 			if (event.oldVersion > 0)
 				for (const domain of ["recurringPayments", "salaries", "subscriptions", "creditPurchases", "debts"]) {
 					const name = `scoped-${domain}`;
@@ -139,12 +141,15 @@ async function openLocalDb(): Promise<IDBDatabase> {
 				}
 			for (const domain of Object.keys(LOCAL_STORES) as StoreDomain[]) {
 				const name = scopedStoreName(domain);
-				if (request.result.objectStoreNames.contains(name)) continue;
-				const store = request.result.createObjectStore(name, { keyPath: "scopedId" });
-				store.createIndex("ownerKey", "ownerKey", { unique: false });
-				store.createIndex("syncedAt", "syncedAt", { unique: false });
-				store.createIndex("modifiedAt", "modifiedAt", { unique: false });
-				store.createIndex("deleted", "deleted", { unique: false });
+				const store = request.result.objectStoreNames.contains(name)
+					? request.transaction!.objectStore(name)
+					: request.result.createObjectStore(name, { keyPath: "scopedId" });
+				for (const index of ["ownerKey", "syncedAt", "modifiedAt", "deleted"])
+					if (!store.indexNames.contains(index)) store.createIndex(index, index, { unique: false });
+				if (!store.indexNames.contains("ownerModifiedAt"))
+					store.createIndex("ownerModifiedAt", ["ownerKey", "modifiedAt"]);
+				if (domain === "transactions" && !store.indexNames.contains("ownerDate"))
+					store.createIndex("ownerDate", ["ownerKey", "data.date", "localId"]);
 			}
 		};
 	});
@@ -173,7 +178,7 @@ async function openLocalDb(): Promise<IDBDatabase> {
 	);
 	if (retired.length && database.version < 14) {
 		database.close();
-		const cleanup = indexedDB.open(DB_NAME, 14);
+		const cleanup = indexedDB.open(DB_NAME, DB_VERSION + 1);
 		cleanup.onupgradeneeded = () => {
 			const tx = cleanup.transaction!;
 			const state = tx.objectStore("application-upgrade").get("state");
@@ -367,74 +372,69 @@ export async function getModifiedSince<T>(
 	since: number,
 	ownerKey?: StorageOwner,
 ): Promise<LocalData<T>[]> {
-	return (await getAll<T>(domain, ownerKey)).filter(item => item.modifiedAt > since);
+	const owner = requireOwner(ownerKey);
+	return runTransaction(scopedStoreName(domain), "readonly", async store => {
+		const records = (await requestResult(
+			store
+				.index("ownerModifiedAt")
+				.getAll(IDBKeyRange.bound([owner, since], [owner, Number.MAX_SAFE_INTEGER], true)),
+		)) as LocalData<T>[];
+		return records.filter(item => !item.deleted);
+	});
 }
 
 function isLocallyModified(item: LocalData<unknown>): boolean {
 	return item.syncedAt === undefined || item.modifiedAt > item.syncedAt;
 }
 
-export async function bulkPut<T>(
-	domain: StoreDomain,
-	items: Array<{ data: T; localId: string; syncedAt?: number }>,
-	ownerKey?: StorageOwner,
+/** Enqueue a bounded batch without one JS completion callback per stored record. */
+async function writeRemoteBatch<T>(
+	store: IDBObjectStore,
+	items: SnapshotItem<T>[],
+	existing: Map<string, LocalData<T>>,
+	owner: StorageOwner,
 ): Promise<void> {
-	const owner = requireOwner(ownerKey);
-	await runTransaction(scopedStoreName(domain), "readwrite", async store => {
-		for (const item of items) {
-			const key = scopedId(owner, item.localId);
-			const existing = (await requestResult(store.get(key))) as LocalData<T> | undefined;
-			if (existing && isLocallyModified(existing)) continue;
-			const timestamp = item.syncedAt ?? Date.now();
-			await requestResult(
-				store.put({
-					data: item.data,
-					localId: item.localId,
-					modifiedAt: timestamp,
-					ownerKey: owner,
-					scopedId: key,
-					syncedAt: timestamp,
-				}),
-			);
-		}
-	});
-}
-
-export async function replaceRemoteSnapshot<T>(
-	domain: StoreDomain,
-	items: Array<{ data: T; localId: string; syncedAt?: number }>,
-	ownerKey?: StorageOwner,
-): Promise<void> {
-	const owner = requireOwner(ownerKey);
-	const remoteIds = new Set(items.map(item => item.localId));
-	await runTransaction(scopedStoreName(domain), "readwrite", async store => {
-		const existing = (await requestResult(store.index("ownerKey").getAll(owner))) as LocalData<T>[];
-		for (const item of existing) {
-			if (!remoteIds.has(item.localId) && !isLocallyModified(item))
-				await requestResult(store.delete(item.scopedId));
-		}
-		for (const item of items) {
-			const key = scopedId(owner, item.localId);
-			const current = existing.find(record => record.localId === item.localId);
+	for (let offset = 0; offset < items.length; offset += 1000) {
+		let last: IDBRequest<IDBValidKey> | undefined;
+		for (const item of items.slice(offset, offset + 1000)) {
+			const current = existing.get(item.localId);
 			if (current && isLocallyModified(current)) continue;
 			const timestamp = item.syncedAt ?? Date.now();
-			await requestResult(
-				store.put({
-					data: item.data,
-					localId: item.localId,
-					modifiedAt: timestamp,
-					ownerKey: owner,
-					scopedId: key,
-					syncedAt: timestamp,
-				}),
-			);
+			if (
+				current &&
+				!current.deleted &&
+				current.syncedAt === timestamp &&
+				JSON.stringify(current.data) === JSON.stringify(item.data)
+			)
+				continue;
+			last = store.put({
+				data: item.data,
+				localId: item.localId,
+				modifiedAt: timestamp,
+				ownerKey: owner,
+				scopedId: scopedId(owner, item.localId),
+				syncedAt: timestamp,
+			});
 		}
+		if (last) await requestResult(last);
+	}
+}
+
+export async function bulkPut<T>(
+	domain: StoreDomain,
+	items: SnapshotItem<T>[],
+	ownerKey?: StorageOwner,
+): Promise<void> {
+	const owner = requireOwner(ownerKey);
+	await runTransaction(scopedStoreName(domain), "readwrite", async store => {
+		const existing = (await requestResult(store.index("ownerKey").getAll(owner))) as LocalData<T>[];
+		await writeRemoteBatch(store, items, new Map(existing.map(row => [row.localId, row])), owner);
 	});
 }
 
-export async function replaceRemoteSlice<T>(
+async function reconcileRemote<T>(
 	domain: StoreDomain,
-	items: Array<{ data: T; localId: string; syncedAt?: number }>,
+	items: SnapshotItem<T>[],
 	belongsToSlice: (data: T) => boolean,
 	ownerKey?: StorageOwner,
 ): Promise<void> {
@@ -442,34 +442,39 @@ export async function replaceRemoteSlice<T>(
 	const remoteIds = new Set(items.map(item => item.localId));
 	await runTransaction(scopedStoreName(domain), "readwrite", async store => {
 		const existing = (await requestResult(store.index("ownerKey").getAll(owner))) as LocalData<T>[];
-		for (const item of existing) {
+		let lastDeletion: IDBRequest<undefined> | undefined;
+		for (const item of existing)
 			if (belongsToSlice(item.data) && !remoteIds.has(item.localId) && !isLocallyModified(item))
-				await requestResult(store.delete(item.scopedId));
-		}
-		for (const item of items) {
-			const key = scopedId(owner, item.localId);
-			const current = existing.find(record => record.localId === item.localId);
-			if (current && isLocallyModified(current)) continue;
-			const timestamp = item.syncedAt ?? Date.now();
-			await requestResult(
-				store.put({
-					data: item.data,
-					localId: item.localId,
-					modifiedAt: timestamp,
-					ownerKey: owner,
-					scopedId: key,
-					syncedAt: timestamp,
-				}),
-			);
-		}
+				lastDeletion = store.delete(item.scopedId);
+		if (lastDeletion) await requestResult(lastDeletion);
+		await writeRemoteBatch(store, items, new Map(existing.map(row => [row.localId, row])), owner);
 	});
+}
+
+export async function replaceRemoteSnapshot<T>(
+	domain: StoreDomain,
+	items: SnapshotItem<T>[],
+	ownerKey?: StorageOwner,
+): Promise<void> {
+	await reconcileRemote(domain, items, () => true, ownerKey);
+}
+
+export async function replaceRemoteSlice<T>(
+	domain: StoreDomain,
+	items: SnapshotItem<T>[],
+	belongsToSlice: (data: T) => boolean,
+	ownerKey?: StorageOwner,
+): Promise<void> {
+	await reconcileRemote(domain, items, belongsToSlice, ownerKey);
 }
 
 export async function clearStore(domain: StoreDomain, ownerKey?: StorageOwner): Promise<void> {
 	const owner = requireOwner(ownerKey);
 	await runTransaction(scopedStoreName(domain), "readwrite", async store => {
 		const keys = await requestResult(store.index("ownerKey").getAllKeys(owner));
-		for (const key of keys) await requestResult(store.delete(key));
+		let last: IDBRequest<undefined> | undefined;
+		for (const key of keys) last = store.delete(key);
+		if (last) await requestResult(last);
 	});
 }
 

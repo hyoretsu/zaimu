@@ -1,0 +1,1 @@
+export { AjustesPage } from "./AjustesPage";

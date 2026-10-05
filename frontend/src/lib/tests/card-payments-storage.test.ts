@@ -3,6 +3,14 @@ import { IDBFactory } from "fake-indexeddb";
 
 // An isolated native-compatible IndexedDB implementation, never the user's browser database.
 test("upgrades v5 guest/cache payments and replays the guest service after edits and deletion", async () => {
+	if (typeof indexedDB !== "undefined") {
+		const previousStorage = await import("../localStorage");
+		const previousDatabase = await previousStorage.initLocalDb();
+		previousDatabase.onversionchange?.call(
+			previousDatabase,
+			new Event("versionchange") as IDBVersionChangeEvent,
+		);
+	}
 	Object.defineProperty(globalThis, "indexedDB", { configurable: true, value: new IDBFactory() });
 	Object.defineProperty(globalThis, "window", {
 		configurable: true,
@@ -139,7 +147,21 @@ test("upgrades v5 guest/cache payments and replays the guest service after edits
 		isGuestMode: true,
 		isInitialized: true,
 	});
-	expect((await storage.initLocalDb()).version).toBeGreaterThanOrEqual(7);
+	await expect(storage.initLocalDb()).rejects.toThrow("Pagamento antigo sem cartão identificado");
+	// Failed migration is atomic. Recover the intentionally invalid fixture before retrying.
+	const recovery = await new Promise<IDBDatabase>((resolve, reject) => {
+		const request = indexedDB.open("zaimu-local");
+		request.onsuccess = () => resolve(request.result);
+		request.onerror = () => reject(request.error);
+	});
+	const repair = recovery.transaction("scoped-transactions", "readwrite");
+	const { requestResult, transactionDone } = await import("../idb");
+	const repairDone = transactionDone(repair);
+	expect(await requestResult(repair.objectStore("scoped-transactions").get(legacy.scopedId))).toEqual(legacy);
+	repair.objectStore("scoped-transactions").delete(`${owner}\u0000orphan`);
+	await repairDone;
+	recovery.close();
+	expect((await storage.initLocalDb()).version).toBeGreaterThanOrEqual(15);
 	const migrated = (await storage.localTransactions.getById("payment", owner))!;
 	expect(migrated).toMatchObject({
 		data: { amount: 120, paymentCreditCardId: "card", time: "14:30" },
@@ -150,10 +172,7 @@ test("upgrades v5 guest/cache payments and replays the guest service after edits
 	expect((await storage.localTransactions.getById("cached", "user:cached"))?.data.paymentCreditCardId).toBe(
 		"cached-card",
 	);
-	expect((await storage.localTransactions.getById("orphan", owner))?.data).toHaveProperty(
-		"creditCardStatementId",
-		"missing",
-	);
+	expect(await storage.localTransactions.getById("orphan", owner)).toBeUndefined();
 	const { dataService } = await import("../dataService");
 	const rows = await dataService.creditCards.getStatements("card");
 	expect(rows.find(row => row.id === "august")).toMatchObject({

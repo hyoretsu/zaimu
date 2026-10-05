@@ -19,7 +19,15 @@ function RootComponent() {
 	const identity = useCacheIdentity();
 	const previousIdentity = useRef(identity);
 	const initializeTheme = useThemeStore(state => state.initializeTheme);
-	const { initialize, isAuthenticated, isGuestMode, isInitialized, isRateLimited } = useAuthStore();
+	const {
+		initialize,
+		isAuthenticated,
+		isGuestMode,
+		isInitialized,
+		isRateLimited,
+		isSessionUnavailable,
+		isLoading,
+	} = useAuthStore();
 	const isPublicRoute =
 		pathname.startsWith("/auth") ||
 		pathname === "/delete-account" ||
@@ -66,9 +74,25 @@ function RootComponent() {
 	}, [identity, isAuthenticated, isGuestMode, localDatabase.isSuccess, queryClient]);
 
 	useEffect(() => {
-		if (!isInitialized || isPublicRoute || isRateLimited || isAuthenticated || isGuestMode) return;
+		if (
+			!isInitialized ||
+			isPublicRoute ||
+			isSessionUnavailable ||
+			isRateLimited ||
+			isAuthenticated ||
+			isGuestMode
+		)
+			return;
 		void navigate({ to: "/auth" });
-	}, [isAuthenticated, isGuestMode, isInitialized, isPublicRoute, isRateLimited, navigate]);
+	}, [
+		isAuthenticated,
+		isGuestMode,
+		isInitialized,
+		isPublicRoute,
+		isRateLimited,
+		isSessionUnavailable,
+		navigate,
+	]);
 
 	useEffect(() => {
 		if (isRateLimited) toast.error("Não foi possível validar a sessão agora. Tente novamente em instantes.");
@@ -90,6 +114,7 @@ function RootComponent() {
 			isGuestMode={isGuestMode}
 			isInitialized={isInitialized}
 			localDatabase={localDatabase}
+			session={{ pending: isLoading, retry: initialize, unavailable: isSessionUnavailable }}
 		>
 			<AppShell key={identity}>
 				<Outlet />

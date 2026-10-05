@@ -6,5 +6,6 @@ export { DashboardGuide } from "./DashboardGuide";
 export { GuideInstruction } from "./GuideInstruction";
 export { GuideStep } from "./GuideStep";
 export { OpenFinanceLayout } from "./OpenFinanceLayout";
+export { OpenFinancePage } from "./OpenFinancePage";
 export { PluggyLink } from "./PluggyLink";
 export { SyncProgress } from "./SyncProgress";

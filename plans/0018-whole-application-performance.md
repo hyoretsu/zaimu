@@ -93,7 +93,7 @@ GETs não cacheáveis, uploads, operações em lote, sync e jobs terão cenário
 - [ ] Implementar fallback seguro ao banco em falha/miss de sessão e repopulação protegida contra revogação concorrente. Sessões antigas continuam válidas até expirar ou serem revogadas.
 - [ ] Integrar criação, renovação, logout, revogação, reset de senha e exclusão de conta à consistência entre PostgreSQL e Redis. Recuperação invalida estado anterior antes de reutilizá-lo.
 - [ ] Testar revogação durante falha do Redis e entre instâncias. Falha operacional não autentica sessão revogada nem força logout indevido; 429 continua distinto de sessão ausente.
-- [ ] Deduplicar inicialização frontend e resolução de sessão dentro da request. Medir StrictMode separadamente do build release.
+- [x] Deduplicar inicialização frontend e resolução de sessão dentro da request. Medir StrictMode separadamente do build release.
 - [ ] Demonstrar zero SQL em hits após aquecimento de sessão e dados, com instrumentação completa.
 
 ### 4. Consultas, replay financeiro e escritas
@@ -111,9 +111,9 @@ GETs não cacheáveis, uploads, operações em lote, sync e jobs terão cenário
 
 ### 5. Frontend, guest, importações, sync e workers
 
-- [ ] Substituir requests de revisão por cartão por resumo agregado na listagem e detalhes lazy. Resumo inclui contagem de revisões pendentes; contrato por cartão permanece para consulta individual.
+- [x] Substituir requests de revisão por cartão por resumo agregado na listagem e detalhes lazy. Resumo inclui contagem de revisões pendentes; contrato por cartão permanece para consulta individual.
 - [ ] Auditar mounting, modais fechados, abas ocultas, retries, foco e invalidação. Respeitar orçamento de três requests, incluindo validação inicial de sessão.
-- [ ] Fazer code splitting das telas e módulos pesados, incluindo referências diretas do shell mobile. Preservar estado/scroll exigidos pelo plano 0010.
+- [x] Fazer code splitting das telas e módulos pesados, incluindo referências diretas do shell mobile. Preservar estado/scroll exigidos pelo plano 0010.
 - [ ] Medir chunks, parsing, gráficos, ícones, fontes e imagens. Carregar gráficos, PDF e formulários pesados sob demanda.
 - [ ] Perfilar commits React, DOM e long tasks; virtualizar listas volumosas preservando ScrollArea, acessibilidade, geometria e navegação.
 - [ ] Trocar leituras integrais IndexedDB por índices/cursores por proprietário e página. Cálculos integrais inevitáveis usam processamento incremental fora da thread principal, com cancelamento.
@@ -193,3 +193,12 @@ Ambiente atual Linux não permite aceite iOS; ferramentas Android não foram det
 - DTOs TypeBox adicionados à listagem de cartões e página de faturas. Este repositório usa cliente manual em `frontend/src/lib/api.ts`, sem SDK gerado ou scripts export/generate.
 - Configurações de rendimentos carregadas em lote; dashboard reutiliza replay atual. Livro financeiro indexa planos, estornos e parcelas; pagamentos resolvem vencimentos por busca binária preservando desempate por ID.
 - 96 testes financeiros existentes passam. Diagnóstico HTTP já comprova hits com zero SQL total. Meta fria do dashboard ainda exige novo profiling/aceite após otimizações.
+
+### Shell, sessão e IndexedDB
+
+- Telas extraídas para componentes locais. Router usa autoCodeSplitting; shell mobile carrega chunks lazy e preserva Activity/scroll de abas visitadas. Build release cria chunks separados.
+- Inicialização de sessão deduplicada e protegida por versão de identidade. 429/5xx preservam identidade e mostram tentativa novamente; logout só limpa dados após revogação confirmada.
+- IndexedDB v15 adiciona índices compostos por proprietário/data e proprietário/modifiedAt. Upgrade de índices preserva estado de migração financeira concluída.
+- Snapshot usa Map e lotes de 1.000 requests numa transação atômica; preserva tombstones e edições concorrentes. Registros remotos idênticos com mesmo clock dispensam regravação.
+- Testes de migração exercitam bloqueio atômico, recuperação e retomada. Benchmark Chromium: atualização de 10 mil registros caiu de 40,7 s para 2,1 s; gravação inicial ainda excede meta e 100 mil registros atingiram timeout de 60 s. Aceite de sync segue reprovado.
+- Auditoria web identificou entradas com 4-6 requests: configuração automática Open Finance, imports e sugestões exigem redução adicional. Navegação ainda não constitui aceite.

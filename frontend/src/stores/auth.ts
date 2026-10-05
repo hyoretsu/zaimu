@@ -23,11 +23,15 @@ export interface AuthState {
 	isInitialized: boolean;
 	isLoading: boolean;
 	isRateLimited: boolean;
+	isSessionUnavailable: boolean;
 	login: (email: string, password: string) => Promise<boolean>;
 	logout: () => Promise<void>;
 	register: (name: string, email: string, password: string) => Promise<boolean>;
 	user: AuthUser | null;
 }
+
+let initializing: Promise<void> | undefined;
+let identityVersion = 0;
 
 const generateGuestId = () => `guest_${crypto.randomUUID()}`;
 
@@ -35,57 +39,82 @@ export const useAuthStore = create<AuthState>()(
 	persist(
 		set => ({
 			clearError: () => set({ error: null }),
-			enableGuestMode: () =>
-				set({ error: null, isAuthenticated: false, isGuestMode: true, isRateLimited: false, user: null }),
+			enableGuestMode: () => {
+				identityVersion++;
+				set({
+					error: null,
+					isAuthenticated: false,
+					isGuestMode: true,
+					isInitialized: true,
+					isLoading: false,
+					isRateLimited: false,
+					isSessionUnavailable: false,
+					user: null,
+				});
+			},
 			error: null,
 			guestId: generateGuestId(),
-			initialize: async () => {
-				set({ isLoading: true });
-				try {
-					const { data, error } = await authClient.getSession();
-					if (error?.status === 429) {
+			initialize: () => {
+				if (initializing) return initializing;
+				const version = identityVersion;
+				initializing = (async () => {
+					set({ isLoading: true });
+					try {
+						const { data, error } = await authClient.getSession({ fetchOptions: { method: "POST" } });
+						if (version !== identityVersion) return;
+						if (error && error.status !== 401 && error.status !== 403) {
+							set({
+								error: getAuthErrorMessage(error),
+								isInitialized: true,
+								isLoading: false,
+								isRateLimited: error.status === 429,
+								isSessionUnavailable: true,
+							});
+							return;
+						}
 						set({
-							error: getAuthErrorMessage(error),
+							error: error ? getAuthErrorMessage(error) : null,
+							isAuthenticated: Boolean(data?.user),
+							isGuestMode: data?.user ? false : useAuthStore.getState().isGuestMode,
 							isInitialized: true,
 							isLoading: false,
-							isRateLimited: true,
+							isRateLimited: false,
+							isSessionUnavailable: false,
+							user: (data?.user as AuthUser | undefined) ?? null,
 						});
-						return;
+					} catch {
+						if (version !== identityVersion) return;
+						set({
+							error: "Servidor indisponível. Tente novamente em instantes.",
+							isInitialized: true,
+							isLoading: false,
+							isRateLimited: false,
+							isSessionUnavailable: true,
+						});
 					}
-					set({
-						error: error ? getAuthErrorMessage(error) : null,
-						isAuthenticated: Boolean(data?.user),
-						isGuestMode: data?.user ? false : useAuthStore.getState().isGuestMode,
-						isInitialized: true,
-						isLoading: false,
-						isRateLimited: false,
-						user: (data?.user as AuthUser | undefined) ?? null,
-					});
-				} catch {
-					set({
-						error: null,
-						isAuthenticated: false,
-						isInitialized: true,
-						isLoading: false,
-						isRateLimited: false,
-						user: null,
-					});
-				}
+				})().finally(() => {
+					initializing = undefined;
+				});
+				return initializing;
 			},
 			isAuthenticated: false,
 			isGuestMode: false,
 			isInitialized: false,
 			isLoading: false,
 			isRateLimited: false,
+			isSessionUnavailable: false,
 			login: async (email, password) => {
+				const version = ++identityVersion;
 				set({ error: null, isLoading: true, isRateLimited: false });
 				let result: Awaited<ReturnType<typeof authClient.signIn.email>>;
 				try {
 					result = await authClient.signIn.email({ email, password });
 				} catch {
+					if (version !== identityVersion) return false;
 					set({ error: "Servidor indisponível. Tente novamente em instantes.", isLoading: false });
 					return false;
 				}
+				if (version !== identityVersion) return false;
 				const { data, error } = result;
 				if (error || !data?.user) {
 					set({
@@ -101,22 +130,33 @@ export const useAuthStore = create<AuthState>()(
 					isGuestMode: false,
 					isInitialized: true,
 					isLoading: false,
+					isSessionUnavailable: false,
 					user: data.user as AuthUser,
 				});
 				return true;
 			},
 			logout: async () => {
+				const version = ++identityVersion;
 				try {
-					await authClient.signOut();
+					const { error } = await authClient.signOut();
+					if (version !== identityVersion) return;
+					if (error) {
+						set({ error: getAuthErrorMessage(error), isLoading: false });
+						return;
+					}
 				} catch {
-					// Sessão local deve ser limpa mesmo quando o servidor está indisponível.
+					if (version === identityVersion)
+						set({ error: "Servidor indisponível. Tente novamente em instantes.", isLoading: false });
+					return;
 				}
 				set({
 					error: null,
 					isAuthenticated: false,
 					isGuestMode: false,
 					isInitialized: true,
+					isLoading: false,
 					isRateLimited: false,
+					isSessionUnavailable: false,
 					user: null,
 				});
 			},

@@ -100,7 +100,7 @@ import type {
 } from "./api";
 import type { BalanceAdjustment } from "./balance-adjustment";
 import { calculateCreditCardLimit, getCurrentCreditCardStatement } from "./credit-card";
-import { type DashboardComparisonParameters, getGuestDashboardComparison } from "./dashboard-comparison";
+import type { DashboardComparisonParameters } from "./dashboard-comparison";
 import { getCurrentLocalTime, getLocalDateKey } from "./date";
 import { calculateDebtSplit, debtSplitToInput } from "./debt-split";
 import {
@@ -2043,7 +2043,10 @@ export const dataService = {
 			return fetchWithAuth<Dashboard>(`/dashboard${params.size ? `?${params}` : ""}`);
 		},
 		async getComparison(parameters: DashboardComparisonParameters): Promise<DashboardPeriod[]> {
-			if (isGuestMode()) return getGuestDashboardComparison(parameters);
+			if (isGuestMode()) {
+				const { getGuestDashboardComparison } = await import("./dashboard-comparison");
+				return getGuestDashboardComparison(parameters);
+			}
 			const params = new URLSearchParams();
 			for (const [key, value] of Object.entries(parameters)) params.set(key, String(value));
 			return fetchWithAuth<DashboardPeriod[]>(`/dashboard/comparison?${params}`);

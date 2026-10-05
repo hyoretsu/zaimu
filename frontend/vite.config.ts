@@ -39,7 +39,7 @@ export default defineConfig(({ command }) => ({
 	envPrefix: ["VITE_", "TAURI_"],
 	plugins: [
 		...(command === "serve" ? [resilientHmrPlugin] : []),
-		TanStackRouterVite({ routeFileIgnorePattern: "^components$" }),
+		TanStackRouterVite({ autoCodeSplitting: true, routeFileIgnorePattern: "^components$" }),
 		react(),
 		tailwindcss(),
 	],

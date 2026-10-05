@@ -1,19 +1,10 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "@tanstack/react-router";
-import { Activity, type ComponentType, useEffect, useState } from "react";
+import { Activity, type ComponentType, lazy, Suspense, useEffect, useState } from "react";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { useCacheIdentity } from "@/lib/query-cache";
-import { AccountsPage } from "@/routes/accounts";
-import { CreditCardsPage } from "@/routes/credit-cards";
-import { DebtsPage } from "@/routes/debts";
-import { DashboardPage } from "@/routes/index";
-import { EmpréstimosPage } from "@/routes/loans";
-import { MorePage } from "@/routes/more";
-import { RecurringPage } from "@/routes/recurring";
-import { AjustesPage } from "@/routes/settings/index";
-import { OpenFinancePage } from "@/routes/settings/open-finance";
-import { TransactionsPage } from "@/routes/transactions";
 import { MobileNavigation } from "./MobileNavigation";
+import { MobileScreenSkeleton } from "./MobileScreenSkeleton";
 import {
 	createMobileTabRoutes,
 	type MobileScreenPath,
@@ -22,6 +13,43 @@ import {
 	resolveMobileRoute,
 	updateMobileTabRoute,
 } from "./mobile-tabs";
+
+const AccountsPage = lazy(() =>
+	import("@/routes/accounts/components/AccountsPage").then(module => ({ default: module.AccountsPage })),
+);
+const CreditCardsPage = lazy(() =>
+	import("@/routes/credit-cards/components/CreditCardsPage").then(module => ({
+		default: module.CreditCardsPage,
+	})),
+);
+const DebtsPage = lazy(() =>
+	import("@/routes/debts/components/DebtsPage").then(module => ({ default: module.DebtsPage })),
+);
+const DashboardPage = lazy(() =>
+	import("@/routes/components/DashboardPage").then(module => ({ default: module.DashboardPage })),
+);
+const EmpréstimosPage = lazy(() =>
+	import("@/routes/loans/components/EmpréstimosPage").then(module => ({ default: module.EmpréstimosPage })),
+);
+const MorePage = lazy(() =>
+	import("@/routes/more/components/MorePage").then(module => ({ default: module.MorePage })),
+);
+const RecurringPage = lazy(() =>
+	import("@/routes/recurring/components/RecurringPage").then(module => ({ default: module.RecurringPage })),
+);
+const AjustesPage = lazy(() =>
+	import("@/routes/settings/components/AjustesPage").then(module => ({ default: module.AjustesPage })),
+);
+const OpenFinancePage = lazy(() =>
+	import("@/routes/settings/open-finance/components/OpenFinancePage").then(module => ({
+		default: module.OpenFinancePage,
+	})),
+);
+const TransactionsPage = lazy(() =>
+	import("@/routes/transactions/components/TransactionsPage").then(module => ({
+		default: module.TransactionsPage,
+	})),
+);
 
 const screenByPath = {
 	"/": DashboardPage,
@@ -89,7 +117,9 @@ export function MobileAppShell() {
 							key={`${screenPath}:${refreshVersions[tabId]}`}
 						>
 							<main className="min-h-dvh w-full min-w-0 max-w-full pb-[calc(var(--mobile-navigation-height)+5.5rem)]">
-								<Screen />
+								<Suspense fallback={<MobileScreenSkeleton />}>
+									<Screen />
+								</Suspense>
 							</main>
 						</ScrollArea>
 					</Activity>

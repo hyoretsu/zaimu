@@ -1,4 +1,5 @@
 export * from "./AccountDefaultsDialog";
+export { AccountsPage } from "./AccountsPage";
 export * from "./BalanceAdjustmentsDialog";
 export * from "./CardPayerFields";
 export * from "./CreateFinancialAccountDialog";
