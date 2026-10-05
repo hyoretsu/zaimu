@@ -60,7 +60,12 @@ export const useAuthStore = create<AuthState>()(
 				initializing = (async () => {
 					set({ isLoading: true });
 					try {
-						const { data, error } = await authClient.getSession({ fetchOptions: { method: "POST" } });
+						let result = await authClient.getSession({ fetchOptions: { method: "POST" } });
+						if (version !== identityVersion) return;
+						if (result.error?.status === 503) {
+							result = await authClient.getSession({ fetchOptions: { method: "GET" } });
+						}
+						const { data, error } = result;
 						if (version !== identityVersion) return;
 						if (error && error.status !== 401 && error.status !== 403) {
 							set({

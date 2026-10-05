@@ -11,9 +11,12 @@ Object.defineProperty(globalThis, "localStorage", {
 		setItem: (key: string, value: string) => values.set(key, value),
 	},
 });
-let session: () => Promise<unknown>;
+let session: (options?: { fetchOptions: { method: string } }) => Promise<unknown>;
 mock.module("../../lib/auth-client", () => ({
-	authClient: { getSession: () => session(), signOut: async () => ({ error: { status: 429 } }) },
+	authClient: {
+		getSession: (options?: { fetchOptions: { method: string } }) => session(options),
+		signOut: async () => ({ error: { status: 429 } }),
+	},
 	getAuthErrorMessage: () => "Unavailable",
 }));
 const { useAuthStore: store } = await import("../auth");
@@ -54,3 +57,19 @@ session = async () => ({ data: null, error: null });
 await store.getState().initialize();
 assert.equal(store.getState().isAuthenticated, false);
 assert.equal(store.getState().isSessionUnavailable, false);
+
+const methods: string[] = [];
+session = async options => {
+	methods.push(options!.fetchOptions.method);
+	return options!.fetchOptions.method === "POST"
+		? { data: null, error: { status: 503 } }
+		: { data: { user }, error: null };
+};
+await store.getState().initialize();
+assert.deepEqual(methods, ["POST", "GET"]);
+assert.equal(store.getState().isAuthenticated, true);
+assert.equal(store.getState().isSessionUnavailable, false);
+session = async () => ({ data: null, error: { status: 503 } });
+await store.getState().initialize();
+assert.equal(store.getState().isSessionUnavailable, true);
+assert.equal(store.getState().user?.id, user.id);

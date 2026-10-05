@@ -34,6 +34,10 @@ export const auth = betterAuth({
 		sendVerificationEmail: ({ token, user }) => sendVerificationEmail(user.email, token),
 	},
 	rateLimit: {
+		// Read-only validation must remain available when Redis cannot fence refreshes.
+		customRules: {
+			"/get-session": (request, rule) => (request.method === "GET" ? false : rule),
+		},
 		enabled: true,
 		max: 100,
 		window: 60,
