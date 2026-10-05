@@ -196,8 +196,8 @@ export function CreditCardStatementDetails({
 		pendingRootIds.has(p.purchaseId ?? p.refundOfPurchaseId ?? p.parentId ?? p.id);
 	return (
 		<TabsContent className="min-h-0 min-w-0 overflow-hidden sm:pl-6" value={statement.id}>
-			<ScrollArea className="h-full min-h-0 pr-3">
-				<div className="grid gap-3">
+			<ScrollArea className="h-full min-h-0">
+				<div className="grid gap-3 py-3 pr-3 sm:py-0">
 					<header className="grid gap-3 rounded-xl border bg-muted/30 p-4">
 						<div className="flex flex-wrap items-center justify-between gap-2">
 							<h3 className="font-bold text-base sm:text-lg" id={`statement-title-${statement.id}`}>
