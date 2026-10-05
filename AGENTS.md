@@ -8,6 +8,8 @@ Scrollbars must remain contained within their own scrollable div. Inset vertical
 
 Align action buttons and action groups to the right, including wrapped rows on mobile. Use `ActionGroup` for standalone actions and groups; keep modal footer actions right-aligned through `DialogFooter`.
 
+Prefer side-by-side buttons when actions are compact, including create and edit modal footers on mobile. Use a horizontal wrapping layout and stack only when the available width cannot fit the buttons; never force stacking solely because of a small-screen breakpoint.
+
 Buttons in the same action group must share height, border radius, icon size, and spacing. Use the same `Button` size or shared sizing classes for every action, including dialog triggers; distinguish primary actions with `variant`.
 
 # Dynamic listing selects
