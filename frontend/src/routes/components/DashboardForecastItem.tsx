@@ -5,7 +5,7 @@ const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "curre
 const compactDate = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short" });
 
 const forecastTypeLabels = {
-	CARD: "Fatura prevista",
+	CARD: "Gasto previsto",
 	LOAN: "Parcela de empréstimo",
 	RECURRING: "Lançamento recorrente",
 	SALARY: "Salário",
@@ -21,6 +21,7 @@ export function DashboardForecastItem({
 	variant: "compact" | "detailed";
 }) {
 	const occurrence = new Date(`${forecast.date}T12:00:00`);
+	const name = forecast.type === "CARD" ? `Fatura ${forecast.name}` : forecast.name;
 	const isIncome = forecast.direction === "INCOME";
 	const amount = `${forecast.amount === 0 ? "" : isIncome ? "+" : "-"}${currency.format(Math.abs(forecast.amount))}`;
 	const amountClassName = isIncome ? "text-emerald-600" : "text-rose-600";
@@ -37,7 +38,7 @@ export function DashboardForecastItem({
 					</span>
 				</time>
 				<div className="min-w-0">
-					<p className="truncate font-medium">{forecast.name}</p>
+					<p className="truncate font-medium">{name}</p>
 					<p className="mt-0.5 text-muted-foreground text-xs">
 						{forecastTypeLabels[forecast.type]} ·{" "}
 						{formatLocalDate(forecast.date, { day: "2-digit", month: "2-digit", year: "numeric" })}
@@ -50,7 +51,7 @@ export function DashboardForecastItem({
 	return (
 		<article className="flex items-center justify-between gap-5 rounded-xl border p-3">
 			<div className="min-w-0">
-				<p className="truncate font-medium">{forecast.name}</p>
+				<p className="truncate font-medium">{name}</p>
 				<p className="text-muted-foreground text-xs">
 					{forecastTypeLabels[forecast.type]} · {compactDate.format(occurrence)}
 				</p>
