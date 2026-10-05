@@ -25,7 +25,7 @@ export function DashboardProjectedCashFlowCard({
 		gain: {
 			cardClassName: "border-emerald-500/30 bg-emerald-500/5",
 			description: "Entradas superam saídas a partir de amanhã.",
-			resultLabel: "Ganho projetado",
+			resultLabel: "Saldo projetado",
 			valueClassName: "text-emerald-600",
 		},
 		neutral: {
