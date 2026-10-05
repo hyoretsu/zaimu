@@ -19,6 +19,7 @@ import {
 import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { ScrollArea } from "@/components/ui/ScrollArea";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { TimeField } from "@/components/ui/TimeField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { CreditCard, CreditPurchase, DebtSplitInput } from "@/lib/api";
@@ -183,6 +184,36 @@ export function EditCreditPurchaseDialog({
 						>
 							{pending ? "Salvando…" : "Salvar"}
 						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+		);
+	if (sourceCardId && !purchase.isStatementCharge && !canonical.data)
+		return (
+			<Dialog onOpenChange={onOpenChange} open={open}>
+				<DialogContent className="sm:max-w-lg">
+					<DialogHeader>
+						<DialogTitle>Editar compra</DialogTitle>
+						<DialogDescription>Dados da compra original.</DialogDescription>
+					</DialogHeader>
+					{canonical.isPending ? (
+						<div className="grid gap-5">
+							{[1, 2, 3, 4].map(field => (
+								<Skeleton className="h-16" key={field} />
+							))}
+						</div>
+					) : (
+						<p className="text-destructive text-sm">Não foi possível carregar a compra original.</p>
+					)}
+					<DialogFooter>
+						<Button onClick={() => onOpenChange(false)} variant="outline">
+							Descartar
+						</Button>
+						{canonical.isError && (
+							<Button onClick={() => void canonical.refetch()} variant="outline">
+								Tentar novamente
+							</Button>
+						)}
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>

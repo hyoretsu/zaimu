@@ -21,6 +21,7 @@ import { formatLocalDate } from "@/lib/date";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { CreditCardPaymentRow } from "./CreditCardPaymentRow";
+import { CreditPurchaseEditScopeDialog } from "./CreditPurchaseEditScopeDialog";
 import { CreditPurchaseRow } from "./CreditPurchaseRow";
 import { getCreditCardStatementStatus } from "./credit-card-statement-status";
 import { EditCreditPurchaseDialog } from "./EditCreditPurchaseDialog";
@@ -46,6 +47,7 @@ export function CreditCardStatementDetails({
 	const identity = useCacheIdentity();
 	const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<string>>(new Set());
 	const [pendingUpdateIds, setPendingUpdateIds] = useState<Set<string>>(new Set());
+	const [choosingEditScope, setChoosingEditScope] = useState<CreditPurchase | null>(null);
 	const [editingPurchase, setEditingPurchase] = useState<CreditPurchase | null>(null);
 	const [refinancingPurchase, setRefinancingPurchase] = useState<CreditPurchase | null>(null);
 	const [refundingPurchase, setRefundingPurchase] = useState<CreditPurchase | null>(null);
@@ -288,7 +290,9 @@ export function CreditCardStatementDetails({
 											onEdit={() =>
 												entry.purchase.isRefund
 													? setRefundingPurchase(entry.purchase)
-													: setEditingPurchase(entry.purchase)
+													: entry.purchase.parentId
+														? setChoosingEditScope(entry.purchase)
+														: setEditingPurchase(entry.purchase)
 											}
 											onEditRefund={refund =>
 												setRefundingPurchase({
@@ -326,6 +330,24 @@ export function CreditCardStatementDetails({
 					</div>
 				</div>
 			</ScrollArea>
+			{choosingEditScope && (
+				<CreditPurchaseEditScopeDialog
+					onOpenChange={open => !open && setChoosingEditScope(null)}
+					onSelect={scope => {
+						setEditingPurchase(
+							scope === "installment"
+								? choosingEditScope
+								: {
+										...choosingEditScope,
+										id: choosingEditScope.purchaseId ?? choosingEditScope.parentId!,
+										parentId: undefined,
+									},
+						);
+						setChoosingEditScope(null);
+					}}
+					purchase={choosingEditScope}
+				/>
+			)}
 			{editingPurchase && (
 				<EditCreditPurchaseDialog
 					currentCard={card}
