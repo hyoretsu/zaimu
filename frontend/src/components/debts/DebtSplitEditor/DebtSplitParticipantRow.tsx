@@ -1,5 +1,6 @@
 import { LuTrash2 } from "react-icons/lu";
 import { DebtPersonPicker } from "@/components/debts/DebtPersonPicker";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { FormField } from "@/components/ui/FormField";
@@ -87,17 +88,6 @@ export function DebtSplitParticipantRow({
 						/>
 					)}
 				</div>
-				<Button
-					aria-label="Remover pessoa"
-					className="cursor-pointer"
-					disabled={disabled}
-					onClick={onRemove}
-					size="icon"
-					type="button"
-					variant="outline"
-				>
-					<LuTrash2 />
-				</Button>
 			</div>
 			{showDescription ? (
 				<FormField
@@ -122,11 +112,26 @@ export function DebtSplitParticipantRow({
 					Fica com o restante
 				</CheckboxField>
 			) : null}
-			{amount !== undefined ? (
-				<p className="text-muted-foreground text-xs">
-					Parcela: {new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(amount)}
-				</p>
-			) : null}
+			<div className="flex min-w-0 items-center justify-between gap-2">
+				{amount !== undefined ? (
+					<p className="min-w-0 text-muted-foreground text-xs">
+						Parcela: {new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(amount)}
+					</p>
+				) : null}
+				<ActionGroup className="ml-auto shrink-0">
+					<Button
+						aria-label="Remover pessoa"
+						className="cursor-pointer"
+						disabled={disabled}
+						onClick={onRemove}
+						size="icon"
+						type="button"
+						variant="outline"
+					>
+						<LuTrash2 />
+					</Button>
+				</ActionGroup>
+			</div>
 		</div>
 	);
 }
