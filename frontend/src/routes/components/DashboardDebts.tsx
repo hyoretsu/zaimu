@@ -15,7 +15,13 @@ const desktopPreviewLimit = 5;
 
 export function DashboardDebts({ debts }: Pick<Dashboard, "debts">) {
 	const [open, setOpen] = useState(false);
-	const people = debts.people.toSorted((left, right) => compareDebtPersonNames(left.name, right.name));
+	const people = debts.people.toSorted((left, right) => {
+		const leftIsPayable = left.balance < 0;
+		const rightIsPayable = right.balance < 0;
+		if (leftIsPayable !== rightIsPayable) return leftIsPayable ? -1 : 1;
+		const balanceOrder = leftIsPayable ? left.balance - right.balance : right.balance - left.balance;
+		return balanceOrder || compareDebtPersonNames(left.name, right.name);
+	});
 	const rows = (items: typeof people, isPreview = false) =>
 		items.map((person, index) => (
 			<div
@@ -32,7 +38,6 @@ export function DashboardDebts({ debts }: Pick<Dashboard, "debts">) {
 				<strong
 					className={`shrink-0 tabular-nums ${person.balance >= 0 ? "text-emerald-600" : "text-rose-600"}`}
 				>
-					{person.balance === 0 ? "" : person.balance > 0 ? "+" : "−"}
 					{currency.format(Math.abs(person.balance))}
 				</strong>
 			</div>
@@ -60,7 +65,9 @@ export function DashboardDebts({ debts }: Pick<Dashboard, "debts">) {
 						<DialogDescription>
 							<span className="block">A receber: {currency.format(debts.owedToMe)}</span>
 							<span className="block">A pagar: {currency.format(debts.iOwe)}</span>
-							<span className="block">Líquido: {currency.format(debts.net)}</span>
+							<span className="block">
+								Líquido {debts.net < 0 ? "a pagar" : "a receber"}: {currency.format(Math.abs(debts.net))}
+							</span>
 						</DialogDescription>
 					</DialogHeader>
 					<ScrollArea className="max-h-[min(30rem,calc(100dvh-14rem))] pr-3">
