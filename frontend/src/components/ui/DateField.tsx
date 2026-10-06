@@ -3,13 +3,13 @@ import { useState } from "react";
 import { LuChevronDown, LuChevronLeft, LuChevronRight } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
-import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 import { ActionGroup } from "./ActionGroup";
 import { CalendarMonth } from "./DateRangePicker/CalendarMonth";
 import { MonthYearPicker } from "./DateRangePicker/MonthYearPicker";
 import { Label } from "./Label";
 import { RequiredMark } from "./RequiredMark";
+import { ScrollArea } from "./ScrollArea";
 
 interface DateFieldProps {
 	autoComplete?: string;
@@ -48,7 +48,6 @@ export function DateField({
 	const selectedDate = toDate(value);
 	const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(selectedDate ?? new Date()));
 	const hasDescription = Boolean(description || error);
-	const isMobile = useMediaQuery("(max-width: 639px)");
 
 	const handleOpenChange = (nextOpen: boolean) => {
 		if (nextOpen) setVisibleMonth(startOfMonth(selectedDate ?? new Date()));
@@ -64,6 +63,7 @@ export function DateField({
 		<Button
 			aria-describedby={hasDescription ? `${id}-description` : undefined}
 			aria-invalid={Boolean(error)}
+			aria-required={required}
 			className={cn(
 				"h-9 w-full cursor-pointer justify-between rounded-4xl border-input bg-input/30 px-3 py-1 text-left font-normal text-sm hover:bg-input/50 disabled:cursor-not-allowed",
 				!selectedDate && "text-muted-foreground",
@@ -147,48 +147,15 @@ export function DateField({
 					{label} {required && <RequiredMark />}
 				</span>
 			</Label>
-			{isMobile ? (
-				<div className="relative rounded-4xl focus-within:ring-[3px] focus-within:ring-ring/50">
-					<div
-						aria-hidden="true"
-						className={cn(
-							"flex h-9 w-full items-center justify-between rounded-4xl border border-input bg-input/30 px-3 py-1 text-sm",
-							!selectedDate && "text-muted-foreground",
-							disabled && "opacity-50",
-							className,
-						)}
-					>
-						<span>{selectedDate ? format(selectedDate, "dd/MM/yyyy") : placeholder}</span>
-						<LuChevronDown className="size-4 shrink-0" />
-					</div>
-					<input
-						aria-describedby={hasDescription ? `${id}-description` : undefined}
-						aria-invalid={Boolean(error)}
-						autoComplete={autoComplete}
-						className="absolute inset-0 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
-						disabled={disabled}
-						id={id}
-						max={max}
-						min={min}
-						name={name}
-						onChange={event => onValueChange(event.currentTarget.value)}
-						onClick={event => event.currentTarget.showPicker?.()}
-						required={required}
-						type="date"
-						value={value}
-					/>
-				</div>
-			) : (
-				<>
-					<input autoComplete={autoComplete} name={name} readOnly type="hidden" value={value} />
-					<Popover onOpenChange={handleOpenChange} open={open}>
-						<PopoverTrigger asChild>{trigger}</PopoverTrigger>
-						<PopoverContent align="start" className="w-[20rem] gap-4 p-4">
-							{calendar}
-						</PopoverContent>
-					</Popover>
-				</>
-			)}
+			<input autoComplete={autoComplete} name={name} readOnly type="hidden" value={value} />
+			<Popover onOpenChange={handleOpenChange} open={open}>
+				<PopoverTrigger asChild>{trigger}</PopoverTrigger>
+				<PopoverContent align="start" className="w-[20rem] overflow-hidden p-0">
+					<ScrollArea className="min-h-0 rounded-[inherit] [&>[data-slot=scroll-area-viewport]]:max-h-[min(calc(100dvh-2rem),var(--radix-popover-content-available-height))]">
+						<div className="flex flex-col gap-4 p-4">{calendar}</div>
+					</ScrollArea>
+				</PopoverContent>
+			</Popover>
 			{hasDescription && (
 				<p
 					className={error ? "text-destructive text-xs" : "text-muted-foreground text-xs"}
