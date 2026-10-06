@@ -202,3 +202,10 @@ Ambiente atual Linux não permite aceite iOS; ferramentas Android não foram det
 - Snapshot usa Map e lotes de 1.000 requests numa transação atômica; preserva tombstones e edições concorrentes. Registros remotos idênticos com mesmo clock dispensam regravação.
 - Testes de migração exercitam bloqueio atômico, recuperação e retomada. Benchmark Chromium: atualização de 10 mil registros caiu de 40,7 s para 2,1 s; gravação inicial ainda excede meta e 100 mil registros atingiram timeout de 60 s. Aceite de sync segue reprovado.
 - Auditoria web identificou entradas com 4-6 requests: configuração automática Open Finance, imports e sugestões exigem redução adicional. Navegação ainda não constitui aceite.
+
+### Consolidação Redis e coalescência entre processos
+
+- Estado de epoch, gerações e fences lido num único script Lua. Leitura e preenchimento continuam protegidos por validação atômica.
+- Polling de loaders cresce de 25 ms até 500 ms, reduzindo consumo do orçamento Redis; falha durante espera retorna 503. Renovação perdida impede preenchimento tardio.
+- Redis dedicado: 16 testes passaram, incluindo NX, renovação/liberação por proprietário e estado atômico. Runner com três processos e loader de 12 s observou uma execução e dois hits, ultrapassando lease de 10 s. Evidência em `backend/performance/coalescing-0018.json`.
+- Runner usa namespace exclusivo por execução e limpa somente suas próprias chaves. Resultado anterior com três loaders não foi reproduzido nesta execução; não estabelece causa nem aceite sob carga/falhas.

@@ -7,6 +7,10 @@ export interface CacheGuard {
 }
 
 export interface CachePort {
+	readState?(
+		epochKey: string,
+		guards: Array<{ generationKey: string; fenceKey: string }>,
+	): Promise<{ epoch: string; generations: string[]; fenced: boolean }>;
 	getRegistered(key: string, guards: CacheGuard[]): Promise<string | null>;
 	setRegistered(key: string, value: string, guards: CacheGuard[]): Promise<boolean>;
 	beginFence(key: string, token: string, leaseMs: number): Promise<void>;

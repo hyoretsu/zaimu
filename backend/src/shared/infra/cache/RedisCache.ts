@@ -5,6 +5,22 @@ import { cacheKey } from "../service-namespace";
 const cleanupQueue = () => cacheKey("cache:cleanup");
 
 export class RedisCache implements CachePort {
+	async readState(epochKey: string, guards: Array<{ generationKey: string; fenceKey: string }>) {
+		const result = (await this.client.send("EVAL", [
+			`redis.call("SET",KEYS[1],"1","NX"); local result={redis.call("GET",KEYS[1]),"0"};
+ local t=redis.call("TIME"); local now=t[1]*1000+math.floor(t[2]/1000);
+ for i=2,#KEYS,2 do
+ table.insert(result,redis.call("GET",KEYS[i]) or "0");
+ redis.call("ZREMRANGEBYSCORE",KEYS[i+1],"-inf",now);
+ if redis.call("ZCARD",KEYS[i+1])>0 then result[2]="1" end;
+ end; return result`,
+			String(1 + guards.length * 2),
+			epochKey,
+			...guards.flatMap(guard => [guard.generationKey, guard.fenceKey]),
+		])) as string[];
+		return { epoch: result[0]!, fenced: result[1] === "1", generations: result.slice(2) };
+	}
+
 	private cleanup: Promise<void> | undefined;
 	private scheduleCleanup() {
 		if (!this.cleanup)

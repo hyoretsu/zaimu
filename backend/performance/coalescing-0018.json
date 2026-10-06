@@ -1,0 +1,41 @@
+{
+	"durationBeyondLeaseMs": 2000,
+	"loads": 1,
+	"passed": true,
+	"processes": 3,
+	"results": [
+		{
+			"diagnostics": [
+				"{\"durationMs\":12020.1,\"namespace\":\"dashboard\",\"requestId\":\"be2a01dc-8c74-44fe-bc0d-a6ec66c15a06\",\"result\":\"miss\",\"type\":\"cache_operation\"}"
+			],
+			"etag": "\"ccbc6726842d83aea07933c211d212d83713fd67442f8d13bd743ad93fb89bc3\"",
+			"hit": false,
+			"stderr": "",
+			"value": {
+				"complete": true
+			}
+		},
+		{
+			"diagnostics": [
+				"{\"durationMs\":11886.49,\"namespace\":\"dashboard\",\"requestId\":\"2aa5a8c7-caf3-420f-a4d9-fa83a2560168\",\"result\":\"hit\",\"type\":\"cache_operation\"}"
+			],
+			"etag": "\"ccbc6726842d83aea07933c211d212d83713fd67442f8d13bd743ad93fb89bc3\"",
+			"hit": true,
+			"stderr": "",
+			"value": {
+				"complete": true
+			}
+		},
+		{
+			"diagnostics": [
+				"{\"durationMs\":1295.92,\"namespace\":\"dashboard\",\"requestId\":\"6f7efa9b-70c0-43be-a925-9522b1156fd0\",\"result\":\"hit\",\"type\":\"cache_operation\"}"
+			],
+			"etag": "\"ccbc6726842d83aea07933c211d212d83713fd67442f8d13bd743ad93fb89bc3\"",
+			"hit": true,
+			"stderr": "",
+			"value": {
+				"complete": true
+			}
+		}
+	]
+}

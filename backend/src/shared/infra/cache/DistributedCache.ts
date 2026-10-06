@@ -128,14 +128,34 @@ export class DistributedCache {
 	}
 	private async snapshot(userId: string, namespace: CacheNamespace, parameters: unknown) {
 		const dependencies = this.dependencies(namespace);
-		const [epoch, generation] = await Promise.all([
-			this.getEpoch(),
-			Promise.all(
-				dependencies.map(dependency =>
-					this.safely(() => this.cache.get(this.generationKey(userId, dependency))),
-				),
-			),
-		]);
+		const state = this.cache.readState
+			? await this.safely(() =>
+					this.cache.readState!(
+						cacheKey("cache:epoch"),
+						dependencies.map(dependency => ({
+							fenceKey: this.fenceKey(userId, dependency),
+							generationKey: this.generationKey(userId, dependency),
+						})),
+					),
+				)
+			: undefined;
+		const fallbackFenced = this.cache.readState ? false : await this.fenced(userId, namespace);
+		const [epoch, generation, fenced] = this.cache.readState
+			? ([
+					state?.epoch ?? crypto.randomUUID(),
+					state?.generations ?? dependencies.map(() => "0"),
+					state?.fenced ?? true,
+				] as const)
+			: await Promise.all([
+					this.getEpoch(),
+					Promise.all(
+						dependencies.map(dependency =>
+							this.safely(() => this.cache.get(this.generationKey(userId, dependency))),
+						),
+					),
+					Promise.resolve(fallbackFenced),
+				]);
+
 		const guards: CacheGuard[] = [
 			{ generation: epoch, generationKey: cacheKey("cache:epoch") },
 			...dependencies.map((dependency, index) => ({
@@ -145,6 +165,7 @@ export class DistributedCache {
 			})),
 		];
 		return {
+			fenced,
 			guards,
 			key: cacheKey(
 				`v2:${epoch}:${userId}:${namespace}:${generation.map(value => value ?? "0").join(".")}:${hash(JSON.stringify(stableValue(parameters)))}`,
@@ -159,8 +180,8 @@ export class DistributedCache {
 		namespace: CacheNamespace,
 		parameters: unknown,
 	): Promise<CacheEntry<Value> | undefined> {
-		if (await this.fenced(userId, namespace)) return undefined;
-		const { key, guards } = await this.snapshot(userId, namespace, parameters);
+		const { key, guards, fenced } = await this.snapshot(userId, namespace, parameters);
+		if (fenced) return undefined;
 		const raw = await this.safely(() => this.cache.getRegistered(key, guards));
 		if (!raw) return undefined;
 		try {
@@ -176,17 +197,22 @@ export class DistributedCache {
 		load: () => Promise<Value>,
 	) {
 		const startedAt = performance.now();
-		const cached = await this.read<Value>(userId, namespace, parameters);
-		if (cached) {
-			logCacheOperation(namespace, "hit", startedAt);
-			return { ...cached, hit: true as const };
+		const { key, guards, fenced } = await this.snapshot(userId, namespace, parameters);
+		const raw = fenced ? undefined : await this.safely(() => this.cache.getRegistered(key, guards));
+		if (raw) {
+			try {
+				const cached = JSON.parse(raw) as CacheEntry<Value>;
+				logCacheOperation(namespace, "hit", startedAt);
+				return { ...cached, hit: true as const };
+			} catch {
+				/* Invalid entries are replaced by the guarded loader. */
+			}
 		}
-		if (await this.fenced(userId, namespace)) {
+		if (fenced) {
 			const value = await measureOperation("loader", load);
 			logCacheOperation(namespace, "bypass", startedAt);
 			return { etag: `"${hash(JSON.stringify(value))}"`, hit: false as const, value };
 		}
-		const { key, guards } = await this.snapshot(userId, namespace, parameters);
 		const existing = localCoalescing.get(key) as Promise<CacheEntry<Value>> | undefined;
 		if (existing) {
 			const entry = await existing;
@@ -201,9 +227,13 @@ export class DistributedCache {
 		const ownsLock = lockResult === true;
 		if (lockResult === false) {
 			const deadline = performance.now() + LOCK_WAIT_MS;
+			let pollMs = 25;
 			while (performance.now() < deadline) {
-				await Bun.sleep(25);
+				await Bun.sleep(pollMs);
+				pollMs = Math.min(500, pollMs * 2);
 				const filled = await this.read<Value>(userId, namespace, parameters);
+				if (!this.available)
+					throw new HttpException("Cache temporariamente indisponível. Tente novamente.", 503);
 				if (filled) {
 					logCacheOperation(namespace, "hit", startedAt);
 					return { ...filled, hit: true as const };
@@ -217,7 +247,7 @@ export class DistributedCache {
 			? setInterval(() => {
 					renewing = this.safely(() => this.cache.renewLock(lockKey, lockOwner, LOCK_LEASE_MS)).then(
 						valid => {
-							leaseValid = valid === true;
+							leaseValid = leaseValid && valid === true;
 						},
 					);
 				}, LOCK_LEASE_MS / 3)
@@ -226,8 +256,7 @@ export class DistributedCache {
 			const value = await measureOperation("loader", load);
 			const encoded = JSON.stringify(value);
 			const entry = { etag: `"${hash(encoded)}"`, value };
-			if (leaseValid && !(await this.fenced(userId, namespace)))
-				await this.safely(() => this.cache.setRegistered(key, JSON.stringify(entry), guards));
+			if (leaseValid) await this.safely(() => this.cache.setRegistered(key, JSON.stringify(entry), guards));
 			return entry;
 		})();
 		localCoalescing.set(key, pending);
