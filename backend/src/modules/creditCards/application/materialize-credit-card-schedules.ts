@@ -1,9 +1,10 @@
 import { materializeBookInstallments } from "@zaimu/finance/credit-book";
-import { purchaseStatementDates } from "@zaimu/finance/credit-purchase";
-import { addMonths, format } from "date-fns";
 import { HttpException } from "~/shared/errors";
-import { db, param, queryFirst, queryRows } from "~/shared/infra/sql";
-import { mutateCreditBook, readCreditBook } from "./normalized-credit-book";
+import { db, param, queryFirst, queryRaw } from "~/shared/infra/sql";
+import { loadCreditCardScheduleCandidates } from "./credit-card-schedule-candidates";
+import { mutateCreditBook } from "./normalized-credit-book";
+
+export { getStatementDates } from "./credit-card-schedule-periods";
 
 const statementColumns = [
 	"id",
@@ -17,17 +18,6 @@ const statementColumns = [
 	"createdAt",
 	"updatedAt",
 ] as const;
-
-export function getStatementDates(
-	card: { dueDay: number; statementDay: number; workingDueDate?: boolean },
-	purchaseDate: Date,
-) {
-	const dates = purchaseStatementDates(card, purchaseDate.toISOString().slice(0, 10));
-	return {
-		dueDate: new Date(`${dates.dueDate}T12:00:00Z`),
-		statementDate: new Date(`${dates.statementDate}T12:00:00Z`),
-	};
-}
 
 export async function getOrCreateStatement(creditCardId: string, dueDate: Date, statementDate: Date) {
 	await queryFirst(
@@ -60,65 +50,35 @@ export async function getOrCreateStatement(creditCardId: string, dueDate: Date, 
 	return statement;
 }
 
-async function materializeMonthlyStatements(
-	creditCardId: string,
-	card: { createdAt: Date; dueDay: number; statementDay: number; workingDueDate?: boolean },
-	today: Date,
-) {
-	const oldestStatement = await queryFirst(
-		db.sql.public.CreditCardStatement.select("statementDate")
-			.where((fields, functions) => functions.eq(fields.creditCardId, creditCardId))
-			.orderBy("statementDate", { direction: "asc" })
-			.limit(1)
-			.build(),
+export async function materializeCreditCardSchedules(asOf = new Date(), cardIds?: string[]) {
+	const cards = await loadCreditCardScheduleCandidates(asOf, cardIds);
+	const changedCards = new Set<string>();
+	const missing = cards.flatMap(card =>
+		card.missingStatements.map(statement => ({ ...statement, creditCardId: card.id })),
 	);
-	const firstStatementDate =
-		oldestStatement?.statementDate ?? getStatementDates(card, card.createdAt).statementDate;
-	const lastStatementDate = getStatementDates(card, today).statementDate;
-	let month = new Date(firstStatementDate.getFullYear(), firstStatementDate.getMonth(), 1);
-	const lastMonth = new Date(lastStatementDate.getFullYear(), lastStatementDate.getMonth(), 1);
-	while (month <= lastMonth) {
-		const { dueDate, statementDate } = getStatementDates(card, month);
-		await getOrCreateStatement(creditCardId, dueDate, statementDate);
-		month = addMonths(month, 1);
+	if (missing.length) {
+		const inserted = await queryRaw<{ creditCardId: string }>(
+			`INSERT INTO "CreditCardStatement" ("creditCardId","dueDate","statementDate","totalAmount") SELECT entry."creditCardId",entry."dueDate"::date,entry."statementDate"::date,0 FROM jsonb_to_recordset($1::jsonb) entry("creditCardId" varchar,"dueDate" text,"statementDate" text) ON CONFLICT ("creditCardId","statementDate") DO NOTHING RETURNING "creditCardId"`,
+			[JSON.stringify(missing)],
+		);
+		for (const row of inserted) changedCards.add(row.creditCardId);
 	}
-}
-
-export async function materializeCreditCardSchedules(asOf = new Date()) {
-	const cards = await queryRows(
-		db.sql.public.CreditCard.select(
-			"cashbackAccountId",
-			"cashbackRate",
-			"cashbackYieldPeriod",
-			"cashbackYieldReferencePercentage",
-			"cashbackYieldReferenceRate",
-			"createdAt",
-			"dueDay",
-			"financialAccountId",
-			"id",
-			"statementDay",
-			"workingDueDate",
-		).build(),
-	);
-	const accounts = await queryRows(
-		db.sql.public.FinancialAccount.select("id", "userId")
-			.where((fields, functions) =>
-				functions.in(
-					fields.id,
-					cards.map(card => card.financialAccountId),
-				),
-			)
-			.build(),
-	);
-	const owners = new Map(accounts.map(account => [account.id, account.userId]));
 	for (const card of cards) {
-		await materializeMonthlyStatements(card.id, card, asOf);
-		const owner = owners.get(card.financialAccountId)!;
-		const book = await readCreditBook(owner, card.id);
-		const before = book.installments.length;
-		materializeBookInstallments(book, format(asOf, "yyyy-MM-dd"));
-		if (book.installments.length !== before)
-			await mutateCreditBook(owner, card.id, () => undefined, format(asOf, "yyyy-MM-dd"));
+		if (!card.dueInstallments) continue;
+		const changed = await mutateCreditBook(
+			card.userId,
+			card.id,
+			book => {
+				const before = book.installments.length;
+				materializeBookInstallments(book, asOf.toISOString().slice(0, 10));
+				return book.installments.length !== before;
+			},
+			asOf.toISOString().slice(0, 10),
+		);
+		if (changed) changedCards.add(card.id);
 	}
-	return { cards: cards.length, userIds: [...new Set(accounts.map(account => account.userId))] };
+	return {
+		cards: cards.length,
+		userIds: [...new Set(cards.filter(card => changedCards.has(card.id)).map(card => card.userId))],
+	};
 }

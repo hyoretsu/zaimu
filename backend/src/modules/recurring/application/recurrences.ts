@@ -373,14 +373,20 @@ export async function materializeRecurrence(
 		return created;
 	});
 }
-export async function materializeAllRecurrences(asOf = new Date()) {
+export async function materializeAllRecurrences(asOf = new Date(), userIds?: string[]) {
+	if (userIds && !userIds.length) return { transactions: 0, userIds: [] };
 	const rows = await queryRaw<{ id: string; userId: string }>(
-		'SELECT "id","userId" FROM "Recurrence" WHERE "isActive"=true ORDER BY "id"',
+		'SELECT "id","userId" FROM "Recurrence" WHERE "isActive"=true AND "materializedThrough"<$1::date AND ($2::varchar[] IS NULL OR "userId"=ANY($2)) ORDER BY "id"',
+		[asOf.toISOString().slice(0, 10), userIds ?? null],
 	);
 	let transactions = 0;
-	for (const row of rows)
-		transactions += await materializeRecurrence(row.userId, row.id, format(asOf, "yyyy-MM-dd"));
-	return { transactions, userIds: [...new Set(rows.map(row => row.userId))] };
+	const changed = new Set<string>();
+	for (const row of rows) {
+		const created = await materializeRecurrence(row.userId, row.id, asOf.toISOString().slice(0, 10));
+		transactions += created;
+		if (created) changed.add(row.userId);
+	}
+	return { transactions, userIds: [...changed] };
 }
 export async function deleteRecurrence(userId: string, id: string, deleteTransactions = false) {
 	await withRawTransaction(async query => {

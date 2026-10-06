@@ -209,3 +209,10 @@ Ambiente atual Linux não permite aceite iOS; ferramentas Android não foram det
 - Polling de loaders cresce de 25 ms até 500 ms, reduzindo consumo do orçamento Redis; falha durante espera retorna 503. Renovação perdida impede preenchimento tardio.
 - Redis dedicado: 16 testes passaram, incluindo NX, renovação/liberação por proprietário e estado atômico. Runner com três processos e loader de 12 s observou uma execução e dois hits, ultrapassando lease de 10 s. Evidência em `backend/performance/coalescing-0018.json`.
 - Runner usa namespace exclusivo por execução e limpa somente suas próprias chaves. Resultado anterior com três loaders não foi reproduzido nesta execução; não estabelece causa nem aceite sob carga/falhas.
+
+### Materialização com escopo capturado
+
+- Worker consulta cartões com faturas/parcelas faltantes e recorrências cujo marcador está atrasado; comando sem candidatos dispensa fences e transação de escrita. IDs de cartões e proprietários são capturados antes da espera, incluindo pares de dívida nos fences.
+- Faturas faltantes inseridas em lote; livros carregados somente para cartões candidatos a parcelas. Removida leitura duplicada anterior à mutação. Recorrências retornam somente proprietários com movimentos criados.
+- Calendário UTC corrige deslocamento adicional de fechamento no dia 1 e preserva meses curtos. Sete testes passaram. `performance/validate-schedules.ts` comparou 144 datas SQL com motor financeiro e confirmou repetição sem mudanças; validação inteira revertida no banco dedicado.
+- Ainda pendentes: candidates conservadores de parcelas canceladas por reembolso, invalidação granular de jobs sem mudança, backlog/retries e medição com worker ativo.
