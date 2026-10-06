@@ -216,3 +216,9 @@ Ambiente atual Linux não permite aceite iOS; ferramentas Android não foram det
 - Faturas faltantes inseridas em lote; livros carregados somente para cartões candidatos a parcelas. Removida leitura duplicada anterior à mutação. Recorrências retornam somente proprietários com movimentos criados.
 - Calendário UTC corrige deslocamento adicional de fechamento no dia 1 e preserva meses curtos. Sete testes passaram. `performance/validate-schedules.ts` comparou 144 datas SQL com motor financeiro e confirmou repetição sem mudanças; validação inteira revertida no banco dedicado.
 - Ainda pendentes: candidates conservadores de parcelas canceladas por reembolso, invalidação granular de jobs sem mudança, backlog/retries e medição com worker ativo.
+
+### Saldos monetários sem releitura por data
+
+- SQL agrega movimentos por conta/data e usa soma acumulada; checkpoints preservam saldo de fechamento, inclusive alterações retroativas. Nenhum histórico truncado.
+- Validador compara SQL anterior em centavos e testa valores independentes com transferências, transferência para própria conta, dois ajustes, rendimentos de quatro casas, exclusão/null e cashback; pontos permanecem fora. Dados adversariais e alteração retroativa revertidos integralmente. Fixture ausente agora falha explicitamente.
+- Dois proprietários com 10 mil transações: seis comparações passaram, 144 saldos comparados. Última captura diagnóstica: SQL anterior 25,5-43,3 ms, otimizado 20,9-42,7 ms, com regressão numa das seis amostras; EXPLAIN ANALYZE BUFFERS versionado em `backend/performance/balances-0018.json`. Não substitui rodadas oficiais HTTP.
