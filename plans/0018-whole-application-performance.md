@@ -229,3 +229,10 @@ Ambiente atual Linux não permite aceite iOS; ferramentas Android não foram det
 - Ambiente de performance inclui spans, event-loop lag, memória e CPU. Campos CPU/memória explicitamente pertencem ao intervalo do processo, podendo sobrepor outros jobs. Métricas congelam ao concluir consumo.
 - Nove testes passaram: jobs concorrentes, trabalho tardio, falha sem exposição da mensagem e contratos de ack/retry/DLQ. Erros HTTP agora registram somente frames de stack, evitando mensagens de validação com payload.
 - Backlog agregado, GC, fases de importação e launcher worker com fixtures de taxas continuam pendentes.
+
+### Diagnóstico HTTP após otimizações
+
+- Build backend release, data fixa e banco dedicado com dois proprietários de 10 mil transações. Runner diagnóstico: cinco amostras, carga 1, worker parado. Relatório `backend/performance/http-diagnostic-0018.json`.
+- Transações: frio p95 103,9 ms, seis queries; quente 3,7 ms e 304 3,3 ms, ambos zero SQL total.
+- Dashboard: frio p95 548,5 ms, 13 queries totais, reprovado pelo orçamento original. Quente 5,6 ms e 304 9,5 ms, ambos zero SQL total. Orçamento não relaxado.
+- Aceite global permanece reprovado: cobertura e rodadas oficiais incompletas, frontend/sync e plataformas nativas ainda pendentes.
