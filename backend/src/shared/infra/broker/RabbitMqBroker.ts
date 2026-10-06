@@ -1,6 +1,7 @@
 import amqp, { type ChannelModel, type ConfirmChannel } from "amqplib";
 import type { EventEnvelope } from "~/shared/application/events";
 import type { EventBrokerPort } from "~/shared/application/ports";
+import { instrumentJob } from "../performance/job-metrics";
 import { brokerExchange, brokerQueue } from "../service-namespace";
 import { ConsumerDeduplicator } from "./ConsumerDeduplicator";
 import { processBrokerMessage } from "./process-broker-message";
@@ -103,13 +104,15 @@ export class RabbitMqBroker implements EventBrokerPort {
 			message => {
 				if (!message) return;
 				const startedAt = performance.now();
-				processBrokerMessage(
-					brokerQueue(queue),
-					message,
-					channel,
-					this.deduplicator,
-					handler,
-					Number(process.env.RABBITMQ_MAX_RETRIES ?? 5),
+				instrumentJob(queue, message.properties.timestamp, () =>
+					processBrokerMessage(
+						brokerQueue(queue),
+						message,
+						channel,
+						this.deduplicator,
+						handler,
+						Number(process.env.RABBITMQ_MAX_RETRIES ?? 5),
+					),
 				)
 					.then(result =>
 						console.info(

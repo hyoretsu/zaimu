@@ -35,7 +35,10 @@ export const GlobalPlugin = new Elysia({ name: "GlobalPlugin" })
 			JSON.stringify({
 				name: error instanceof Error ? error.name : "UnknownError",
 				requestId: getQueryMetrics()?.requestId,
-				stack: (error instanceof Error ? error.stack : undefined)?.split("\n").slice(1).join("\n"),
+				stack: (error instanceof Error ? error.stack : undefined)
+					?.split("\n")
+					.filter(frame => /^\s+at /.test(frame))
+					.join("\n"),
 				type: "http_error",
 			}),
 		);

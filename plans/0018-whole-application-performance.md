@@ -222,3 +222,10 @@ Ambiente atual Linux não permite aceite iOS; ferramentas Android não foram det
 - SQL agrega movimentos por conta/data e usa soma acumulada; checkpoints preservam saldo de fechamento, inclusive alterações retroativas. Nenhum histórico truncado.
 - Validador compara SQL anterior em centavos e testa valores independentes com transferências, transferência para própria conta, dois ajustes, rendimentos de quatro casas, exclusão/null e cashback; pontos permanecem fora. Dados adversariais e alteração retroativa revertidos integralmente. Fixture ausente agora falha explicitamente.
 - Dois proprietários com 10 mil transações: seis comparações passaram, 144 saldos comparados. Última captura diagnóstica: SQL anterior 25,5-43,3 ms, otimizado 20,9-42,7 ms, com regressão numa das seis amostras; EXPLAIN ANALYZE BUFFERS versionado em `backend/performance/balances-0018.json`. Não substitui rodadas oficiais HTTP.
+
+### Métricas isoladas por job
+
+- Consumo RabbitMQ envolve deduplicação, handler, confirmação/retry no contexto SQL exclusivo do job. Logs registram queries totais/auth/negócio, SQL acumulado/união, espera de conexão/Redis, pool, duração e atraso desde publicação.
+- Ambiente de performance inclui spans, event-loop lag, memória e CPU. Campos CPU/memória explicitamente pertencem ao intervalo do processo, podendo sobrepor outros jobs. Métricas congelam ao concluir consumo.
+- Nove testes passaram: jobs concorrentes, trabalho tardio, falha sem exposição da mensagem e contratos de ack/retry/DLQ. Erros HTTP agora registram somente frames de stack, evitando mensagens de validação com payload.
+- Backlog agregado, GC, fases de importação e launcher worker com fixtures de taxas continuam pendentes.
