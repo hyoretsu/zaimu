@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { LuMenu } from "react-icons/lu";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { Button } from "../Button";
+import { FloatingActionButton } from "../FloatingActionButton";
 import { Popover, PopoverContent, PopoverTrigger } from "../Popover";
 import { ScrollArea } from "../ScrollArea";
 import type { MobilePageAction } from "./types";
@@ -17,16 +18,12 @@ export function MobilePageActions({ actions }: { actions: MobilePageAction[] }) 
 	const multiple = actions.length > 1;
 	const Icon = multiple ? LuMenu : action.icon;
 	const trigger = (
-		<Button
-			aria-label={multiple ? "Ações da tela" : action.label}
-			className="size-14 cursor-pointer rounded-full border-primary/30 shadow-xl disabled:cursor-not-allowed"
+		<FloatingActionButton
 			disabled={!multiple && action.disabled}
+			icon={Icon}
+			label={multiple ? "Ações da tela" : action.label}
 			onClick={multiple ? undefined : action.onClick}
-			size="icon"
-			type="button"
-		>
-			<Icon aria-hidden="true" className="size-6" />
-		</Button>
+		/>
 	);
 	return createPortal(
 		<div className="fixed right-[max(1rem,env(safe-area-inset-right))] bottom-[calc(var(--mobile-navigation-height)+1rem)] z-50">
