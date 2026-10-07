@@ -26,6 +26,7 @@
 		"@elysiajs/cors": "^1.4.2",
 		"@elysiajs/jwt": "^1.4.2",
 		"@elysiajs/openapi": "^1.4.15",
+		"@sinclair/typebox": "^0.34.48",
 		"@zaimu/finance": "workspace:*",
 		"amqplib": "^2.0.1",
 		"better-auth": "1.7.1",
@@ -43,8 +44,10 @@
 		"@types/bun": "^1.4.0",
 		"@types/node": "^25.9.5",
 		"@types/nodemailer": "^8.0.1",
+		"@types/pg": "8.20.4",
 		"dotenv": "^17.4.2",
 		"http-status-codes": "^2.3.0",
+		"pg": "8.22.0",
 		"typescript": "^6.0.3"
 	}
 }
