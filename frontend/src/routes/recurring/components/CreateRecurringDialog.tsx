@@ -25,6 +25,7 @@ import { showToast } from "@/stores";
 import { DebouncedFormField } from "./DebouncedFormField";
 import { DebouncedMoneyField } from "./DebouncedMoneyField";
 import { RecurrenceAccountFields } from "./RecurrenceAccountFields";
+import { RecurrenceNumberField } from "./RecurrenceNumberField";
 import { RecurrenceOptionalFields } from "./RecurrenceOptionalFields";
 import { RecurrenceScheduleFields } from "./RecurrenceScheduleFields";
 import type { RecurringListItemData } from "./types";
@@ -39,6 +40,7 @@ const initialDraft = (recurrence?: Recurrence): UnifiedRecurringDraft => ({
 	dayOfWeek: recurrence?.dayOfWeek == null ? "default" : String(recurrence.dayOfWeek),
 	destinationFinancialAccountId: recurrence?.destinationFinancialAccountId ?? "",
 	endDate: recurrence?.endDate ?? "",
+	installments: String(recurrence?.installments ?? 1),
 	interval: String(recurrence?.interval ?? 1),
 	movement: recurrence?.movement ?? "EXPENSE",
 	name: recurrence?.name ?? "",
@@ -181,6 +183,10 @@ export function CreateRecurringDialog({
 											? draft.destinationFinancialAccountId || null
 											: null,
 										endDate: draft.endDate || null,
+										installments:
+											draft.movement === "CARD_PURCHASE"
+												? Number(fields.get("recurrence-installments") ?? draft.installments)
+												: 1,
 										interval: Number(fields.get("recurrence-interval") ?? draft.interval),
 										isActive: recurrence?.isActive ?? true,
 										movement: draft.movement,
@@ -208,7 +214,9 @@ export function CreateRecurringDialog({
 										/>
 										<DebouncedMoneyField
 											id="recurrence-amount"
-											label="Valor por ocorrência"
+											label={
+												draft.movement === "CARD_PURCHASE" ? "Valor total por compra" : "Valor por ocorrência"
+											}
 											name="recurrence-amount"
 											onValueChange={value => set("amount", value)}
 											placeholder="R$ 150,00"
@@ -241,6 +249,21 @@ export function CreateRecurringDialog({
 										draft={draft}
 										set={set}
 									/>
+									{draft.movement === "CARD_PURCHASE" && (
+										<div className="space-y-2">
+											<RecurrenceNumberField
+												label="Número de parcelas"
+												name="recurrence-installments"
+												onChange={value => set("installments", value)}
+												placeholder="Ex: 12"
+												value={draft.installments}
+											/>
+											<p className="text-muted-foreground text-sm">
+												Cada ocorrência gera uma nova compra pelo valor total, dividida em parcelas mensais.
+												Use 1 para pagamento à vista.
+											</p>
+										</div>
+									)}
 									<RecurrenceScheduleFields disabled={save.isPending} draft={draft} set={set} />
 									<RecurrenceOptionalFields
 										debtEnabled={debtEnabled}

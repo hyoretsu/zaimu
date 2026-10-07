@@ -4,6 +4,7 @@ import {
 	legacyRecurrenceSchedule,
 	recurrenceDates,
 	recurrenceNeedsConfiguration,
+	validateRecurrenceInstallments,
 } from "./recurrence";
 
 describe("recurrence calendar", () => {
@@ -100,6 +101,20 @@ describe("recurrence calendar", () => {
 			}),
 		).toBe(false);
 	});
+});
+
+test("installments accept legacy defaults and only card purchases may be split", () => {
+	expect(() => validateRecurrenceInstallments({ movement: "CARD_PURCHASE" })).not.toThrow();
+	for (const installments of [1, 12, 48])
+		expect(() =>
+			validateRecurrenceInstallments({ installments, movement: "CARD_PURCHASE" }),
+		).not.toThrow();
+	for (const installments of [0, -1, 1.5, 49, Number.NaN, Number.POSITIVE_INFINITY])
+		expect(() => validateRecurrenceInstallments({ installments, movement: "CARD_PURCHASE" })).toThrow();
+	for (const movement of ["INCOME", "EXPENSE", "TRANSFER", "CARD_PAYMENT"] as const) {
+		expect(() => validateRecurrenceInstallments({ installments: 1, movement })).not.toThrow();
+		expect(() => validateRecurrenceInstallments({ installments: 2, movement })).toThrow();
+	}
 });
 
 test("advance selects tomorrow or next scheduled date and respects schedule end", () => {

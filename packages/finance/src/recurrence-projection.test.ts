@@ -157,3 +157,84 @@ test("advanced card occurrences never produce another forecast, including fixed 
 	expect(book.purchases).toHaveLength(0);
 	expect(book.payments).toHaveLength(0);
 });
+
+const emptySubscriptionBook = (): CreditBook => ({
+	card: {
+		dueDay: 25,
+		id: "card",
+		ignoreStatementsBefore: null,
+		institutionId: null,
+		refundPolicy: null,
+		statementDay: 15,
+		userId: "owner",
+	},
+	charges: [],
+	installments: [],
+	payments: [],
+	purchases: [],
+	refunds: [],
+	statements: [],
+});
+
+test("annual subscription projects monthly installments without persisting any ledger records", () => {
+	const book = emptySubscriptionBook();
+	const before = JSON.stringify(book);
+	const annual: RecurrenceDefinition = {
+		...recurrence("CARD_PURCHASE", 57),
+		dayOfMonth: 24,
+		installments: 3,
+		startDate: "2026-04-01",
+		unit: "YEAR",
+	};
+	const projected = projectRecurrenceCreditBook(book, [annual], "2026-04-01", "2026-04-30");
+	expect(projected.purchases[0]!.installmentAmountsCents).toEqual([1900, 1900, 1900]);
+	const replay = replayCreditBook(projected, "2026-04-30");
+	expect(replay.statements.map(row => [row.statementDate, row.totalAmount])).toEqual([
+		["2026-05-15", 19],
+		["2026-06-15", 19],
+		["2026-07-15", 19],
+	]);
+	expect(JSON.stringify(book)).toBe(before);
+	expect(projected.installments).toEqual([]);
+	expect(projected.statements).toEqual([]);
+});
+
+test("each annual renewal gets its own installment plan and processed occurrences stay excluded", () => {
+	const annual: RecurrenceDefinition = {
+		...recurrence("CARD_PURCHASE", 100),
+		installments: 3,
+		unit: "YEAR",
+	};
+	const projected = projectRecurrenceCreditBook(
+		emptySubscriptionBook(),
+		[annual],
+		"2026-10-01",
+		"2027-10-31",
+	);
+	expect(
+		projected.purchases.map(row => [row.recurrenceOccurrenceDate, row.installmentAmountsCents]),
+	).toEqual([
+		["2026-10-10", [3334, 3333, 3333]],
+		["2027-10-10", [3334, 3333, 3333]],
+	]);
+	const deduplicated = projectRecurrenceCreditBook(projected, [annual], "2026-10-01", "2027-10-31");
+	expect(deduplicated.purchases).toHaveLength(2);
+	const processed = projectRecurrenceCreditBook(
+		emptySubscriptionBook(),
+		[annual],
+		"2026-10-01",
+		"2027-10-31",
+		[{ date: "2026-10-10", recurrenceId: annual.id }],
+	);
+	expect(processed.purchases.map(row => row.recurrenceOccurrenceDate)).toEqual(["2027-10-10"]);
+});
+
+test("legacy card recurrence forecasts a single payment", () => {
+	const projected = projectRecurrenceCreditBook(
+		emptySubscriptionBook(),
+		[recurrence("CARD_PURCHASE", 57)],
+		"2026-10-01",
+		"2026-10-31",
+	);
+	expect(projected.purchases[0]!.installmentAmountsCents).toEqual([5700]);
+});

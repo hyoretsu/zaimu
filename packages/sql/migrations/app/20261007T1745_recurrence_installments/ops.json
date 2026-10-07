@@ -1,0 +1,53 @@
+[
+	{
+		"execute": [
+			{
+				"description": "add column \"installments\"",
+				"sql": "ALTER TABLE \"public\".\"Recurrence\" ADD COLUMN \"installments\" int2 DEFAULT 1 NOT NULL"
+			}
+		],
+		"id": "column.public.Recurrence.installments",
+		"label": "Add column \"installments\" to \"Recurrence\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"installments\" exists",
+				"params": ["public", "Recurrence", "installments"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"installments\" is missing",
+				"params": ["public", "Recurrence", "installments"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "installments",
+				"objectType": "column",
+				"schema": "public",
+				"table": "Recurrence"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "Run validate-Recurrence-installments",
+				"params": [],
+				"sql": "\n          ALTER TABLE \"public\".\"Recurrence\"\n          ADD CONSTRAINT \"Recurrence_installments_check\"\n          CHECK (\"installments\" BETWEEN 1 AND 48 AND (\"movement\" = 'CARD_PURCHASE' OR \"installments\" = 1))\n        "
+			}
+		],
+		"id": "data_migration.validate-Recurrence-installments",
+		"label": "Data transform: validate-Recurrence-installments",
+		"operationClass": "data",
+		"postcheck": [],
+		"precheck": [],
+		"target": {
+			"id": "postgres"
+		}
+	}
+]

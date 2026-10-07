@@ -918,6 +918,7 @@ namespace public {
     userId VarChar(36)
     name VarChar(100)
     amount Numeric(12, 2)
+    installments SmallInt @default(1)
     movement VarChar(20)
     unit VarChar(5)
     interval Int @default(1)

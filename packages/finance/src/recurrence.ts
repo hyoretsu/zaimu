@@ -14,6 +14,7 @@ export interface RecurrenceDefinition extends RecurrenceSchedule {
 	userId: string;
 	name: string;
 	amount: number;
+	installments?: number;
 	movement: RecurrenceMovement;
 	originFinancialAccountId?: string | null;
 	destinationFinancialAccountId?: string | null;
@@ -25,6 +26,15 @@ export interface RecurrenceDefinition extends RecurrenceSchedule {
 	updatedAt: string;
 }
 const DAY = 86_400_000;
+export function validateRecurrenceInstallments(
+	recurrence: Pick<RecurrenceDefinition, "movement" | "installments">,
+) {
+	const installments = recurrence.installments ?? 1;
+	if (!Number.isInteger(installments) || installments < 1 || installments > 48)
+		throw new Error("Parcelas devem ser um inteiro entre 1 e 48.");
+	if (installments > 1 && recurrence.movement !== "CARD_PURCHASE")
+		throw new Error("Somente compras no cartão podem ser parceladas.");
+}
 const parseDate = (value: string) => {
 	const date = new Date(`${value.slice(0, 10)}T00:00:00Z`);
 	if (

@@ -165,3 +165,7 @@ Busca acontece no worker, com outbox, bloqueio por usuário, leases recuperávei
 Credenciais são cifradas com AES-256-GCM, chave específica OPEN_FINANCE_ENCRYPTION_KEY e autenticação vinculada ao proprietário. Nenhum segredo retorna na API, logs ou armazenamento do navegador. Chave ausente ou inválida torna integração indisponível.
 
 Gráfico separa pagamentos de faturas em segmento próprio, Faturas, com cor laranja. Pagamentos concretos aparecem na data paga; projeções incluem restante e pagamentos recorrentes nas respectivas datas. Assinaturas (compras recorrentes no cartão) aparecem em segmento magenta próprio; Faturas mostra somente restante não recorrente. Gastos recorrentes mostra despesas recorrentes fora do cartão. Valores de faturas e assinaturas são retirados dos outros segmentos de gastos para preservar total sem dupla contagem.
+
+## Assinaturas parceladas
+
+Recorrências de compra no cartão podem ser parceladas em até 48 parcelas mensais por ocorrência. O valor da recorrência representa o total de cada compra, repartido em centavos pelas parcelas; a frequência determina quando uma nova compra começa, independentemente da duração do parcelamento. Renovações podem se sobrepor. Recorrências existentes usam uma parcela por padrão. Editar o parcelamento afeta somente novas ocorrências; compras já geradas preservam suas parcelas. Previsões de faturas consideram todas as parcelas sem persistir ocorrências futuras. Rateio de dívida usa o total da compra uma única vez. Outras movimentações não aceitam parcelamento.

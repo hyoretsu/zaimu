@@ -36,6 +36,7 @@ describe.skipIf(!url)("atomic recurrence processing", () => {
 		for (const name of [
 			"20261002T1640_application_upgrade_audit",
 			"20261002T1655_remove_recurrence_legacy",
+			"20261007T1745_recurrence_installments",
 		]) {
 			const operations = await Bun.file(
 				new URL(`../../../../../packages/sql/migrations/app/${name}/ops.json`, import.meta.url),
@@ -62,6 +63,7 @@ describe.skipIf(!url)("atomic recurrence processing", () => {
 				...base,
 				creditCardId: movement.startsWith("CARD") ? "card" : null,
 				destinationFinancialAccountId: ["INCOME", "TRANSFER"].includes(movement) ? "b" : null,
+				installments: movement === "CARD_PURCHASE" ? 3 : 1,
 				movement,
 				originFinancialAccountId: ["EXPENSE", "TRANSFER", "CARD_PAYMENT"].includes(movement) ? "a" : null,
 			});
@@ -71,6 +73,17 @@ describe.skipIf(!url)("atomic recurrence processing", () => {
 			]);
 			expect(results.toSorted()).toEqual([0, 1]);
 			expect(await service.materializeRecurrence("owner", r.id, today)).toBe(0);
+			if (movement === "CARD_PURCHASE") {
+				expect(r.installments).toBe(3);
+				const installments = (
+					await client.query(
+						'SELECT i."amount" FROM "CreditInstallmentRecord" i JOIN "CreditPurchaseRecord" p ON p."id"=i."purchaseId" WHERE p."recurrenceId"=$1 ORDER BY i."number"',
+						[r.id],
+					)
+				).rows;
+				expect(installments).toHaveLength(3);
+				expect(installments.map(row => Number(row.amount))).toEqual([10, 10, 10]);
+			}
 			if (movement === "EXPENSE") {
 				await service.saveRecurrence(
 					"owner",

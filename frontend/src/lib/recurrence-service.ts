@@ -4,6 +4,7 @@ import {
 	recurrenceDates,
 	recurrenceNeedsConfiguration,
 	shiftRecurrenceDate,
+	validateRecurrenceInstallments,
 	validateRecurrenceSchedule,
 } from "@zaimu/finance/recurrence";
 import type { DebtSplitInput, Transaction } from "./api";
@@ -90,26 +91,31 @@ export async function materializeLocalRecurrences(
 				recurrenceId: recurrence.id,
 			};
 			if (book) {
-				const purchase = newBookPurchase(book, {
-					cashbackAccountId: card?.cashbackAccountId ?? null,
-					cashbackAmount:
-						card?.cashbackAccountId && card.cashbackRate
-							? Number(((recurrence.amount * card.cashbackRate) / 100).toFixed(4))
-							: null,
-					cashbackYieldPeriod: card?.cashbackYieldPeriod ?? null,
-					cashbackYieldReferencePercentage: card?.cashbackYieldReferencePercentage ?? null,
-					cashbackYieldReferenceRate: card?.cashbackYieldReferenceRate ?? null,
-					debtSplitRule: recurrence.debtSplit ? debtSplitToInput(recurrence.debtSplit) : null,
-					description: recurrence.name,
-					installments: 1,
-					purchaseDate: advance ? today : date,
-					recurrenceId: recurrence.id,
-					recurrenceOccurrenceDate: date,
-					storeName: recurrence.storeName ?? null,
-					tagIds: recurrence.tagIds ?? [],
-					time: advance?.time ?? null,
-					totalAmount: recurrence.amount,
-				});
+				const purchase = newBookPurchase(
+					book,
+					{
+						cashbackAccountId: card?.cashbackAccountId ?? null,
+						cashbackAmount:
+							card?.cashbackAccountId && card.cashbackRate
+								? Number(((recurrence.amount * card.cashbackRate) / 100).toFixed(4))
+								: null,
+						cashbackYieldPeriod: card?.cashbackYieldPeriod ?? null,
+						cashbackYieldReferencePercentage: card?.cashbackYieldReferencePercentage ?? null,
+						cashbackYieldReferenceRate: card?.cashbackYieldReferenceRate ?? null,
+						debtSplitRule: recurrence.debtSplit ? debtSplitToInput(recurrence.debtSplit) : null,
+						description: recurrence.name,
+						installments: recurrence.installments ?? 1,
+						purchaseDate: advance ? today : date,
+						recurrenceId: recurrence.id,
+						recurrenceOccurrenceDate: date,
+						storeName: recurrence.storeName ?? null,
+						tagIds: recurrence.tagIds ?? [],
+						time: advance?.time ?? null,
+						totalAmount: recurrence.amount,
+					},
+					undefined,
+					{ materialize: false },
+				);
 				occurrence.purchaseId = purchase.id;
 			} else {
 				const id = crypto.randomUUID();
@@ -171,6 +177,8 @@ export function createRecurrenceService(deps: Dependencies) {
 		if (id && !existing) throw new Error("Recorrência não encontrada.");
 		const merged = { ...existing, ...input } as RecurrenceInput;
 		validateRecurrenceSchedule(merged);
+		validateRecurrenceInstallments(merged);
+		merged.installments ??= 1;
 		if (
 			!merged.name.trim() ||
 			!Number.isFinite(merged.amount) ||

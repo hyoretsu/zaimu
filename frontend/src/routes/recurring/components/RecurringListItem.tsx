@@ -132,6 +132,9 @@ export function RecurringListItem({
 				<span className="text-muted-foreground text-xs">
 					{scheduleLabel(item.unit ?? "MONTH", item.interval ?? 1)}
 					{scheduleSummary ? ` · ${scheduleSummary}` : ""}
+					{item.movement === "CARD_PURCHASE" && (item.recurrence?.installments ?? 1) > 1
+						? ` · ${item.recurrence!.installments} parcelas por compra`
+						: ""}
 					{item.startDate ? ` · inicia ${formatLocalDate(item.startDate)}` : ""}
 					{item.endDate ? ` · até ${formatLocalDate(item.endDate)}` : ""}
 				</span>

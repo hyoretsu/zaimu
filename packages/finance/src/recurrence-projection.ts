@@ -44,7 +44,7 @@ export function projectRecurrenceCreditBook(
 					{
 						description: recurrence.name,
 						id,
-						installments: 1,
+						installments: recurrence.installments ?? 1,
 						purchaseDate: date,
 						recurrenceId: recurrence.id,
 						recurrenceOccurrenceDate: date,

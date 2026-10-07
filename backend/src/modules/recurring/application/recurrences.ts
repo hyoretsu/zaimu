@@ -5,6 +5,7 @@ import {
 	recurrenceDates,
 	recurrenceNeedsConfiguration,
 	shiftRecurrenceDate,
+	validateRecurrenceInstallments,
 	validateRecurrenceSchedule,
 } from "@zaimu/finance/recurrence";
 import { format } from "date-fns";
@@ -41,6 +42,7 @@ export function normalizeRecurrence(row: Record<string, unknown>): StoredRecurre
 	for (const field of ["createdAt", "updatedAt"])
 		if (result[field] instanceof Date) result[field] = (result[field] as Date).toISOString();
 	result.amount = Number(result.amount);
+	result.installments = Number(result.installments ?? 1);
 	return result as unknown as StoredRecurrence;
 }
 export async function getStoredRecurrence(userId: string, id: string, lock = false) {
@@ -99,6 +101,7 @@ export async function listRecurrences(userId: string, isActive?: boolean) {
 export async function validateRecurrence(userId: string, input: RecurrenceBody, allowMissing = false) {
 	try {
 		validateRecurrenceSchedule(input);
+		validateRecurrenceInstallments(input);
 	} catch (error) {
 		throw new HttpException((error as Error).message, 400);
 	}
@@ -143,6 +146,7 @@ export async function validateRecurrence(userId: string, input: RecurrenceBody, 
 const writable = [
 	"name",
 	"amount",
+	"installments",
 	"movement",
 	"unit",
 	"interval",
@@ -173,6 +177,7 @@ export async function saveRecurrence(
 			debtSplit: input.debtSplit === undefined ? existingSplit : input.debtSplit,
 		} as RecurrenceBody;
 		next.name = next.name?.trim();
+		next.installments ??= 1;
 		if (next.movement === "TRANSFER" || next.movement === "CARD_PAYMENT")
 			next.debtSplit = input.debtSplit ?? null;
 		await validateRecurrence(
@@ -294,7 +299,7 @@ export async function materializeRecurrence(
 							cashbackYieldReferenceRate: settings?.cashbackYieldReferenceRate ?? null,
 							debtSplitRule: debtSplit ?? null,
 							description: recurrence.name,
-							installments: 1,
+							installments: recurrence.installments ?? 1,
 							purchaseDate: financialDate,
 							recurrenceId: id,
 							recurrenceOccurrenceDate: date,

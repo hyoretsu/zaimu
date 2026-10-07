@@ -13,6 +13,7 @@ export const RecurrenceBody = t.Object(
 		debtSplit: t.Optional(t.Nullable(DebtSplitInputDTO)),
 		destinationFinancialAccountId: t.Optional(NullableId),
 		endDate: t.Optional(t.Nullable(DateString)),
+		installments: t.Optional(t.Integer({ maximum: 48, minimum: 1 })),
 		interval: t.Integer({ maximum: 10000, minimum: 1 }),
 		isActive: t.Optional(t.Boolean()),
 		movement: t.Union([
