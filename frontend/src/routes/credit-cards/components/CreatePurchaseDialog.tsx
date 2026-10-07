@@ -1,4 +1,5 @@
 import { type SyntheticEvent, useEffect, useState } from "react";
+import { CurrencySelect, FinancialFeeFields } from "@/components/currency";
 import { DebtSplitEditor } from "@/components/debts";
 import { StorePicker } from "@/components/stores";
 import { TagPicker } from "@/components/tags";
@@ -20,19 +21,18 @@ import { ScrollArea } from "@/components/ui/ScrollArea";
 import { TimeField } from "@/components/ui/TimeField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import { useDialogCloseReset } from "@/hooks/use-dialog-close-reset";
-import type { CreditCard, DebtSplitInput } from "@/lib/api";
+import type { CreditCard, DebtSplitInput, FinancialFee } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { getCurrentLocalTime, getLocalDateKey } from "@/lib/date";
 import { calculateDebtSplit } from "@/lib/debt-split";
 import { runDialogSave } from "@/lib/dialog-save";
-import { CreditPurchaseFeeFields } from "./CreditPurchaseFeeFields";
-
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
 interface PurchaseDraft {
 	isStatementCharge?: boolean;
 	debtSplit?: DebtSplitInput;
 	description: string;
+	currency?: string;
+	fees?: FinancialFee[];
 	feeAmount?: number;
 	feeDescription?: string;
 	storeName?: string;
@@ -74,8 +74,10 @@ export function CreatePurchaseDialog({
 	const [isStatementCharge, setIsStatementCharge] = useState(false);
 	const [isDebt, setIsDebt] = useState(false);
 	const [amount, setAmount] = useState("");
-	const [feeAmount, setFeeAmount] = useState("");
-	const [feeDescription, setFeeDescription] = useDebouncedInput("", () => undefined);
+	const [currencyCode, setCurrencyCode] = useState("BRL");
+	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
+	const [fees, setFees] = useState<FinancialFee[]>([]);
+
 	const [count, setCount] = useDebouncedInput("1", () => undefined);
 	const [date, setDate] = useState(getLocalDateKey);
 	const [time, setTime] = useState(getCurrentLocalTime());
@@ -87,7 +89,7 @@ export function CreatePurchaseDialog({
 	const [storeName, setStoreName] = useState("");
 	const [cardId, setCardId] = useState(initialCardId ?? "");
 	const purchaseAmount = Number(amount || 0);
-	const total = purchaseAmount + Number(feeAmount || 0);
+	const total = purchaseAmount;
 	const installmentCount = isStatementCharge ? 1 : Number.parseInt(count, 10);
 	const installmentValue = total / (installmentCount || 1);
 	const reset = () => {
@@ -95,9 +97,9 @@ export function CreatePurchaseDialog({
 		setDebtSplit({ mode: "SHARES", ownerShares: null, participants: [{ debtPersonId: "", shares: 1 }] });
 		setIsDebt(false);
 		setIsStatementCharge(false);
+		setFees([]);
+		setCurrencyCode("BRL");
 		setAmount("");
-		setFeeAmount("");
-		setFeeDescription("");
 		setCount("1");
 		setDate(getLocalDateKey());
 		setTime(getCurrentLocalTime());
@@ -114,10 +116,10 @@ export function CreatePurchaseDialog({
 		event.preventDefault();
 		if (!Number.isInteger(installmentCount) || installmentCount < 1 || installmentCount > 48) return;
 		const operation = onSubmit(cardId, {
+			currency: currencyCode,
 			debtSplit: isDebt && !isStatementCharge ? debtSplit : undefined,
 			description: description.trim(),
-			feeAmount: Number(feeAmount || 0) || undefined,
-			feeDescription: feeAmount ? feeDescription.trim() || undefined : undefined,
+			fees,
 			installments: isStatementCharge ? 1 : installmentCount,
 			isStatementCharge,
 			purchaseDate: date,
@@ -172,7 +174,9 @@ export function CreatePurchaseDialog({
 								value={description}
 							/>
 							<StorePicker onValueChange={setStoreName} value={storeName} />
+							<CurrencySelect onValueChange={setCurrencyCode} value={currencyCode} />
 							<MoneyField
+								currencyCode={currencyCode}
 								id="purchase-amount"
 								label="Valor da compra"
 								onValueChange={setAmount}
@@ -180,12 +184,7 @@ export function CreatePurchaseDialog({
 								required
 								value={amount}
 							/>
-							<CreditPurchaseFeeFields
-								feeAmount={feeAmount}
-								feeDescription={feeDescription}
-								onFeeAmountChange={setFeeAmount}
-								onFeeDescriptionChange={setFeeDescription}
-							/>
+							<FinancialFeeFields currencyCode={currencyCode} fees={fees} onChange={setFees} />
 							<div className="grid gap-4 sm:grid-cols-3">
 								<FormField
 									autoComplete="off"
@@ -249,13 +248,8 @@ export function CreatePurchaseDialog({
 							</div>
 							{total > 0 && (
 								<div className="rounded-xl border border-primary/15 bg-primary/5 p-3 text-sm">
-									<strong>{currency.format(total)} no cartão</strong>
-									{Number(feeAmount) > 0 ? (
-										<p className="mt-1 text-muted-foreground">
-											{currency.format(purchaseAmount)} da compra + {feeDescription || "taxa"} de{" "}
-											{currency.format(Number(feeAmount))}.
-										</p>
-									) : null}
+									<strong>Valor original: {currency.format(total)}</strong>
+
 									{installmentCount > 1 ? (
 										<p className="mt-1 text-muted-foreground">
 											{count}x de {currency.format(installmentValue)}. Cada parcela entra na fatura

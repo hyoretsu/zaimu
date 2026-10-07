@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { type SyntheticEvent, useEffect, useId, useRef, useState } from "react";
 import { LuUndo2 } from "react-icons/lu";
+import { CurrencySelect, FinancialFeeFields } from "@/components/currency";
 import { DebtSplitEditor } from "@/components/debts";
 import { StorePicker } from "@/components/stores";
 import { TagPicker } from "@/components/tags";
@@ -22,21 +23,20 @@ import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { TimeField } from "@/components/ui/TimeField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
-import type { CreditCard, CreditPurchase, DebtSplitInput } from "@/lib/api";
+import type { CreditCard, CreditPurchase, DebtSplitInput, FinancialFee } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
 import { calculateDebtSplit, debtSplitToInput } from "@/lib/debt-split";
 import { runDialogSave } from "@/lib/dialog-save";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { getUpdatedStoreName } from "@/lib/store-name";
-import { CreditPurchaseFeeFields } from "./CreditPurchaseFeeFields";
-
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
 interface CreditPurchaseDetailsUpdate {
 	creditCardId?: string;
 	description: string;
 	debtSplit?: DebtSplitInput | null;
+	currency?: string;
+	fees?: FinancialFee[];
 	feeAmount?: number;
 	feeDescription?: string;
 	installments: number;
@@ -113,13 +113,22 @@ export function EditCreditPurchaseDialog({
 	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>(() => debtSplitToInput(purchase.debtSplit));
 	const [isDebt, setIsDebt] = useState(Boolean(purchase.debtSplit));
 	const [amount, setAmount] = useState(
-		String(purchase.parentId ? purchase.installmentAmount : purchase.totalAmount - (purchase.feeAmount ?? 0)),
+		String(
+			purchase.parentId
+				? purchase.installmentAmount
+				: (purchase.originalAmount ?? purchase.totalAmount - (purchase.feeAmount ?? 0)),
+		),
 	);
-	const [feeAmount, setFeeAmount] = useState(String(purchase.feeAmount ?? ""));
-	const [feeDescription, setFeeDescription] = useDebouncedInput(
-		purchase.feeDescription ?? "",
-		() => undefined,
+	const [currencyCode, setCurrencyCode] = useState(purchase.currency ?? "BRL");
+	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
+	const [fees, setFees] = useState<FinancialFee[]>(
+		purchase.fees?.length
+			? purchase.fees
+			: purchase.feeAmount
+				? [{ amount: purchase.feeAmount, name: purchase.feeDescription ?? "Taxa", type: "FIXED" }]
+				: [],
 	);
+
 	const [count, setCount] = useDebouncedInput(String(purchase.installments), () => undefined);
 	const [date, setDate] = useState(purchase.purchaseDate.slice(0, 10));
 	const amountEdited = useRef(false);
@@ -135,18 +144,18 @@ export function EditCreditPurchaseDialog({
 		setDebtSplit(debtSplitToInput(original?.debtSplit ?? purchase.debtSplit));
 		setIsDebt(Boolean(original?.debtSplit ?? purchase.debtSplit));
 		setTime(purchase.time ?? "");
-		setFeeAmount(String(purchase.feeAmount ?? ""));
-		setFeeDescription(purchase.feeDescription ?? "");
 	}, [open, original?.debtSplit, purchase.debtSplit, purchase.storeName, purchase.time]);
 	useEffect(() => {
 		if (open && original && !purchase.parentId) {
 			if (!amountEdited.current)
-				setAmount(String(original.totalAmountCents / 100 - (original.feeAmount ?? 0)));
+				setAmount(
+					String(original.originalAmount ?? original.totalAmountCents / 100 - (original.feeAmount ?? 0)),
+				);
 			if (!dateEdited.current) setDate(original.purchaseDate);
 		}
 	}, [open, original?.id, original?.totalAmountCents, original?.purchaseDate]);
 	const purchaseAmount = Number(amount);
-	const totalAmount = purchaseAmount + Number(feeAmount || 0);
+	const totalAmount = purchaseAmount;
 	const installments = Number.parseInt(count, 10);
 	if (purchase.parentId)
 		return (
@@ -225,19 +234,19 @@ export function EditCreditPurchaseDialog({
 		const updatedStoreName = getUpdatedStoreName(purchase.storeName, storeName);
 		const operation = onSubmit({
 			creditCardId: selectedCardId,
+			currency: currencyCode,
 			debtSplit: isDebt && !purchase.isStatementCharge ? debtSplit : null,
 			description: description.trim(),
-			feeAmount: Number(feeAmount || 0),
-			feeDescription: feeAmount ? feeDescription.trim() || undefined : undefined,
+			fees,
 			installments,
 			purchaseDate: isSynced ? purchase.purchaseDate : date,
 			...(updatedStoreName !== undefined && { storeName: updatedStoreName }),
 			tagIds,
 			time: time || null,
 			totalAmount: isSynced
-				? original?.totalAmountCents
-					? original.totalAmountCents / 100
-					: purchase.totalAmount
+				? (original?.originalAmount ??
+					purchase.originalAmount ??
+					(original?.totalAmountCents != null ? original.totalAmountCents / 100 : purchase.totalAmount))
 				: totalAmount,
 		});
 		runDialogSave(operation, () => onOpenChange(false), "Salvando compra…");
@@ -291,7 +300,9 @@ export function EditCreditPurchaseDialog({
 								value={description}
 							/>
 							<StorePicker onValueChange={setStoreName} value={storeName} />
+							<CurrencySelect disabled={isSynced} onValueChange={setCurrencyCode} value={currencyCode} />
 							<MoneyField
+								currencyCode={currencyCode}
 								disabled={isSynced}
 								id="credit-purchase-amount"
 								label="Valor da compra"
@@ -303,13 +314,7 @@ export function EditCreditPurchaseDialog({
 								required
 								value={amount}
 							/>
-							<CreditPurchaseFeeFields
-								amountDisabled={isSynced}
-								feeAmount={feeAmount}
-								feeDescription={feeDescription}
-								onFeeAmountChange={setFeeAmount}
-								onFeeDescriptionChange={setFeeDescription}
-							/>
+							<FinancialFeeFields currencyCode={currencyCode} fees={fees} onChange={setFees} />
 							<div className="grid gap-4 sm:grid-cols-3">
 								<FormField
 									autoComplete="off"
@@ -349,13 +354,8 @@ export function EditCreditPurchaseDialog({
 							</div>
 							{totalAmount > 0 ? (
 								<div className="rounded-xl border border-primary/15 bg-primary/5 p-3 text-sm">
-									<strong>{currency.format(totalAmount)} no cartão</strong>
-									{Number(feeAmount) > 0 ? (
-										<p className="mt-1 text-muted-foreground">
-											{currency.format(purchaseAmount)} da compra + {feeDescription || "taxa"} de{" "}
-											{currency.format(Number(feeAmount))}.
-										</p>
-									) : null}
+									<strong>Valor original: {currency.format(totalAmount)}</strong>
+
 									{installments > 1 ? (
 										<p className="mt-1 text-muted-foreground">
 											{installments}x de {currency.format(installmentAmount)}.

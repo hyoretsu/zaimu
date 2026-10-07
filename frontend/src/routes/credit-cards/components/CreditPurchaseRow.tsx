@@ -1,4 +1,5 @@
 import { LuPencil, LuRefreshCw, LuTrash2, LuUndo2 } from "react-icons/lu";
+import { OriginalMoneyDetails } from "@/components/currency";
 import { TransactionBadges } from "@/components/transactions/TransactionListItem/TransactionBadges";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
@@ -56,6 +57,11 @@ export function CreditPurchaseRow({
 					{purchase.installments > 1 ? ` · ${purchase.currentInstallment}/${purchase.installments}` : ""}
 					{purchase.isSettled ? " · Compensada pelo crédito do reparcelamento" : ""}
 				</p>
+				<OriginalMoneyDetails
+					currency={purchase.currency}
+					fees={purchase.fees}
+					originalAmount={purchase.originalAmount}
+				/>
 				{purchase.feeAmount && purchase.feeDescription ? (
 					<p className="mt-1 text-muted-foreground text-xs">
 						Inclui {purchase.feeDescription}: {currency.format(purchase.feeAmount)}

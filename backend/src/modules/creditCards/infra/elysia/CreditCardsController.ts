@@ -42,6 +42,12 @@ import {
 	statementFilterKey,
 } from "~/modules/creditCards/application/statement-cursor";
 import { recalculateStatementPayments } from "~/modules/creditCards/application/statement-payments";
+import {
+	CurrencyDTO,
+	creditCardCurrency,
+	FinancialFeeDTO,
+	resolveFinancialMoney,
+} from "~/modules/currencies/application/financial-money";
 import { getDebtSplitReturn, linkPurchaseToDebt } from "~/modules/debts/application";
 import { DebtSplitInputDTO } from "~/modules/debts/infra/elysia/DebtSplitsDTO";
 import { projectRecurringCreditBook } from "~/modules/recurring/application/project-credit-book";
@@ -102,10 +108,12 @@ function rewardSnapshot(card: CashbackCard, total: number) {
 }
 const RefundPolicyDTO = t.Union([t.Literal("KEEP_INSTALLMENTS"), t.Literal("CANCEL_FUTURE_INSTALLMENTS")]);
 const PurchaseFields = {
+	currency: t.Optional(CurrencyDTO),
 	debtSplit: t.Optional(t.Nullable(DebtSplitInputDTO)),
 	description: t.Optional(t.String({ maxLength: 500 })),
 	feeAmount: t.Optional(t.Number({ minimum: 0 })),
 	feeDescription: t.Optional(t.String({ maxLength: 100 })),
+	fees: t.Optional(t.Array(FinancialFeeDTO, { maxItems: 20 })),
 	installments: t.Optional(t.Integer({ maximum: 48, minimum: 1 })),
 	storeName: t.Optional(t.Nullable(t.String({ maxLength: 200 }))),
 	tagIds: t.Optional(t.Array(t.String(), { maxItems: 20 })),
@@ -433,7 +441,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			const cached = await distributedCache.remember(
 				userId,
 				"credit-cards:overview",
-				{ domain: "purchase-edit", ...params },
+				{ domain: "purchase-edit", format: 2, ...params },
 				async () => {
 					const rows = await queryRaw<{
 						id: string;
@@ -441,10 +449,14 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						purchaseDate: Date;
 						externalId: string | null;
 						feeAmount: number | null;
+						currency: string;
+						originalAmount: number | null;
+						exchangeRate: number | null;
+						fees: import("~/modules/currencies/application/financial-money").FinancialFee[];
 						installmentImportedNumbers: number[];
 					}>(
 						`
-				SELECT p."id", p."totalAmount", p."purchaseDate", p."externalId", p."feeAmount",
+				SELECT p."id", p."totalAmount", p."purchaseDate", p."externalId", p."feeAmount", p."currency", p."originalAmount", p."exchangeRate", p."fees",
 				COALESCE((SELECT jsonb_agg(plan."number" ORDER BY plan."number") FROM "CreditInstallmentPlan" plan WHERE plan."purchaseId"=p."id" AND plan."hasImportedAmount"), '[]'::jsonb) AS "installmentImportedNumbers"
 				FROM "CreditPurchaseRecord" p WHERE p."id"=$1 AND p."creditCardId"=$2 AND p."userId"=$3`,
 						[params.purchaseId, params.id, userId],
@@ -452,11 +464,15 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					const row = rows[0];
 					if (!row) throw new HttpException("Compra não encontrada", 404);
 					return {
+						currency: row.currency,
 						debtSplit: await getDebtSplitReturn({ creditPurchaseId: row.id }, Number(row.totalAmount)),
+						exchangeRate: row.exchangeRate == null ? null : Number(row.exchangeRate),
 						externalId: row.externalId,
 						feeAmount: row.feeAmount,
+						fees: row.fees,
 						id: row.id,
 						installmentImportedNumbers: row.installmentImportedNumbers,
+						originalAmount: row.originalAmount == null ? null : Number(row.originalAmount),
 						purchaseDate: row.purchaseDate.toISOString().slice(0, 10),
 						totalAmountCents: moneyCents(Number(row.totalAmount), 1),
 					};
@@ -591,6 +607,18 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 		"/:id/purchases",
 		async ({ params, body, request }) => {
 			const userId = await requireUserId(request);
+			const targetCurrency = await creditCardCurrency(params.id);
+			const money = await resolveFinancialMoney({
+				amount: body.totalAmount - (body.fees === undefined ? (body.feeAmount ?? 0) : 0),
+				currency: body.currency,
+				date: body.purchaseDate,
+				fees:
+					body.fees ??
+					(body.feeAmount
+						? [{ amount: body.feeAmount, name: body.feeDescription ?? "Taxa", type: "FIXED" }]
+						: []),
+				targetCurrency,
+			});
 			const createdId = await withRawTransaction(async () => {
 				if (body.matchDebtEventId && body.debtSplit)
 					throw new HttpException("Rateio e conciliação não podem ser usados juntos", 400);
@@ -602,7 +630,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 							throw new HttpException("Encargos não permitem rateio ou parcelamento", 400);
 						const s = ensureBookStatement(book, body.purchaseDate);
 						book.charges.push({
-							amountCents: moneyCents(body.totalAmount, 1),
+							amountCents: moneyCents(money.amount, 1),
 							chargeDate: body.purchaseDate,
 							description: body.description ?? "Encargo",
 							externalId: null,
@@ -628,13 +656,19 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					);
 					return newBookPurchase(book, {
 						...body,
+						currency: money.currency,
 						debtSplitRule: body.debtSplit ?? null,
 						description: body.description ?? "",
+						exchangeRate: money.exchangeRate,
+						feeAmount: money.feeAmount || null,
+						fees: money.fees,
 						installments: body.installments ?? 1,
+						originalAmount: money.originalAmount,
 						storeName: body.storeName ?? null,
 						tagIds: body.tagIds ?? [],
 						time: resolvePurchaseTime(body.time),
-						...rewardSnapshot(card!, body.totalAmount),
+						totalAmount: money.amount,
+						...rewardSnapshot(card!, money.amount),
 					}).id;
 				});
 				if (body.matchDebtEventId)
@@ -643,7 +677,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						date: body.purchaseDate,
 						description: body.description,
 						matchEventId: body.matchDebtEventId,
-						totalAmount: body.totalAmount,
+						totalAmount: money.amount,
 						userId,
 					});
 				return id;
@@ -706,8 +740,41 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 		async ({ params, body, request }) => {
 			const userId = await requireUserId(request);
 			const destinationCardId = body.creditCardId ?? params.id;
-			const update = (book: CreditBook) => {
+			const targetCurrency = await creditCardCurrency(destinationCardId);
+			const update = async (book: CreditBook) => {
 				const p = resolveBookPurchase(book, params.purchaseId);
+				const moneyChanged =
+					body.totalAmount !== undefined ||
+					body.currency !== undefined ||
+					body.fees !== undefined ||
+					body.feeAmount !== undefined ||
+					body.purchaseDate !== undefined ||
+					destinationCardId !== params.id;
+				const money = moneyChanged
+					? await resolveFinancialMoney({
+							amount:
+								body.totalAmount !== undefined
+									? body.totalAmount - (body.fees === undefined ? (body.feeAmount ?? 0) : 0)
+									: (p.originalAmount ?? p.totalAmountCents / 100 - (p.feeAmount ?? 0)),
+							currency: body.currency ?? p.currency,
+							date: body.purchaseDate ?? p.purchaseDate,
+							fees:
+								body.fees ??
+								(body.feeAmount !== undefined
+									? body.feeAmount
+										? [{ amount: body.feeAmount, name: body.feeDescription ?? "Taxa", type: "FIXED" }]
+										: []
+									: (p.fees ?? [])),
+							targetCurrency,
+						})
+					: undefined;
+				if (money) {
+					p.currency = money.currency;
+					p.originalAmount = money.originalAmount;
+					p.exchangeRate = money.exchangeRate;
+					p.fees = money.fees;
+					p.feeAmount = money.feeAmount || null;
+				}
 				if (body.installmentAmount !== undefined) {
 					const i = book.installments.find(row => row.id === params.purchaseId);
 					if (!i) throw new HttpException("Parcela não encontrada", 404);
@@ -720,8 +787,8 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					const count = body.installments ?? p.installmentAmountsCents.length;
 					if (book.installments.some(i => i.purchaseId === p.id && i.number > count))
 						throw new HttpException("Parcelas históricas não podem ser removidas", 409);
-					if (body.totalAmount !== undefined || body.installments !== undefined) {
-						const total = moneyCents(body.totalAmount ?? p.totalAmountCents / 100, 1);
+					if (money || body.installments !== undefined) {
+						const total = moneyCents(money?.amount ?? p.totalAmountCents / 100, 1);
 						const known = new Map(
 							book.installments
 								.filter(i => i.purchaseId === p.id && i.hasImportedAmount)
@@ -753,7 +820,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					destinationCardId,
 					params.purchaseId,
 					async (book, query) => {
-						update(book);
+						await update(book);
 						const [card] = await query<CashbackCard>(
 							`SELECT "cashbackAccountId","cashbackRate","cashbackYieldPeriod","cashbackYieldReferencePercentage","cashbackYieldReferenceRate" FROM "CreditCard" WHERE "id"=$1`,
 							[destinationCardId],

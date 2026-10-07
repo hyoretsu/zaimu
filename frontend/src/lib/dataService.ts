@@ -33,6 +33,7 @@ import {
 } from "@zaimu/finance/recurrence";
 import { projectRecurrenceCreditBook } from "@zaimu/finance/recurrence-projection";
 import { type CatalogPageOptions, localCatalogPage } from "./catalog-pagination";
+import { convertLocalMoney } from "./currency-conversion";
 import { guestTransactionPage } from "./guest-transaction-page";
 import { requestResult } from "./idb";
 import { localCursorPage } from "./local-cursor-page";
@@ -1099,6 +1100,10 @@ export const dataService = {
 				isStatementCharge?: boolean;
 				debtSplit?: DebtSplitInput;
 				description?: string;
+				currency?: string;
+				originalAmount?: number | null;
+				exchangeRate?: number | null;
+				fees?: import("./api").FinancialFee[];
 				feeAmount?: number;
 				feeDescription?: string;
 				storeName?: string;
@@ -1120,6 +1125,15 @@ export const dataService = {
 			}
 			const card = (await localCreditCards.getById(cardId))?.data;
 			if (!card) throw new Error("Cartão não encontrado");
+			const account = (await localAccounts.getById(card.financialAccountId))?.data;
+			const money = await convertLocalMoney(
+				data.totalAmount,
+				data.purchaseDate,
+				data.currency ?? account?.currency ?? "BRL",
+				account?.currency ?? "BRL",
+				data.fees ?? [],
+			);
+			data = { ...data, ...money, totalAmount: money.amount };
 			let purchaseId = "";
 			await mutateLocalCreditBook(cardId, book => {
 				if (data.isStatementCharge) {
@@ -1389,13 +1403,17 @@ export const dataService = {
 			const purchase = book.purchases.find(row => row.id === purchaseId);
 			if (!purchase) throw new Error("Compra não encontrada");
 			return {
+				currency: purchase.currency,
 				debtSplit: purchase.debtSplitRule
 					? ((await hydrateLocalDebtSplit(purchase.totalAmountCents / 100, purchase.debtSplitRule)) ?? null)
 					: null,
+				exchangeRate: purchase.exchangeRate,
 				externalId: purchase.externalId ?? null,
 				feeAmount: purchase.feeAmount,
+				fees: purchase.fees,
 				id: purchase.id,
 				installmentImportedNumbers: purchase.installmentImportedNumbers ?? [],
+				originalAmount: purchase.originalAmount,
 				purchaseDate: purchase.purchaseDate,
 				totalAmountCents: purchase.totalAmountCents,
 			};
@@ -1678,6 +1696,10 @@ export const dataService = {
 						creditCardId?: string;
 						debtSplit?: DebtSplitInput | null;
 						description: string;
+						currency?: string;
+						originalAmount?: number | null;
+						exchangeRate?: number | null;
+						fees?: import("./api").FinancialFee[];
 						feeAmount?: number;
 						feeDescription?: string;
 						installments: number;
@@ -1695,6 +1717,22 @@ export const dataService = {
 				});
 			}
 			const destinationCardId = "creditCardId" in data ? (data.creditCardId ?? cardId) : cardId;
+			let money: Awaited<ReturnType<typeof convertLocalMoney>> | undefined;
+			if (!("installmentAmount" in data)) {
+				const targetCard = (await localCreditCards.getById(destinationCardId))?.data;
+				const account = targetCard
+					? (await localAccounts.getById(targetCard.financialAccountId))?.data
+					: undefined;
+				money = await convertLocalMoney(
+					data.totalAmount,
+					data.purchaseDate,
+					data.currency ?? account?.currency ?? "BRL",
+					account?.currency ?? "BRL",
+					data.fees ?? [],
+				);
+				data = { ...data, totalAmount: money.amount };
+			}
+
 			const update = (book: CreditBook) => {
 				const id = book.installments.find(i => i.id === purchaseId)?.purchaseId ?? purchaseId;
 				const p = bookPurchase(book, id);
@@ -1707,6 +1745,13 @@ export const dataService = {
 					p.totalAmountCents = amounts.reduce((a, b) => a + b, 0);
 					i.amountCents = amounts[i.number - 1]!;
 				} else {
+					if (money)
+						Object.assign(p, {
+							currency: money.currency,
+							exchangeRate: money.exchangeRate,
+							fees: money.fees,
+							originalAmount: money.originalAmount,
+						});
 					const count = data.installments ?? p.installmentAmountsCents.length;
 					if (book.installments.some(i => i.purchaseId === p.id && i.number > count))
 						throw new Error("Parcelas históricas não podem ser removidas");
@@ -3039,6 +3084,17 @@ export const dataService = {
 			},
 		): Promise<Transaction> {
 			if (isGuestMode()) {
+				const targetId =
+					data.type === "INCOME" ? data.destinationFinancialAccountId : data.originFinancialAccountId;
+				const account = targetId ? (await localAccounts.getById(targetId))?.data : undefined;
+				const money = await convertLocalMoney(
+					data.amount,
+					data.date,
+					data.currency ?? account?.currency ?? "BRL",
+					account?.currency ?? "BRL",
+					data.fees ?? [],
+				);
+				data = { ...data, ...money };
 				const { debtSplit: explicitDebtSplit, matchDebtEventId: _, ...localData } = data;
 				const recurrenceOccurrenceDate = data.recurrenceId
 					? (data.recurrenceOccurrenceDate ?? data.date)
@@ -3321,9 +3377,21 @@ export const dataService = {
 				const existing = await localTransactions.getById(id);
 				if (!existing) throw new Error("Transação não encontrada");
 
+				const merged = { ...existing.data, ...data };
+				const targetId =
+					merged.type === "INCOME" ? merged.destinationFinancialAccountId : merged.originFinancialAccountId;
+				const account = targetId ? (await localAccounts.getById(targetId))?.data : undefined;
+				const money = await convertLocalMoney(
+					data.amount ?? existing.data.originalAmount ?? existing.data.amount,
+					merged.date,
+					merged.currency ?? account?.currency ?? "BRL",
+					account?.currency ?? "BRL",
+					merged.fees ?? [],
+				);
 				const updated: Transaction = {
 					...existing.data,
 					...transactionChanges,
+					...money,
 					...(paymentCreditCardId !== undefined && {
 						paymentCreditCardId: paymentCreditCardId ?? undefined,
 					}),

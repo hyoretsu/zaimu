@@ -13,6 +13,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
+import { ScrollArea } from "@/components/ui/ScrollArea";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { DebtSplitInput, FinancialAccount, Transaction } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
@@ -30,9 +31,11 @@ import { TransactionDetailsFields } from "../../TransactionDetailsFields";
 
 function createDraft(transaction: Transaction) {
 	return {
-		amount: String(transaction.amount),
+		amount: String(transaction.originalAmount ?? transaction.amount),
+		currency: transaction.currency ?? "BRL",
 		date: transaction.date.slice(0, 10),
 		destinationFinancialAccountId: transaction.destinationFinancialAccountId ?? "",
+		fees: transaction.fees ?? [],
 		isHidden: transaction.isHidden ?? false,
 		originFinancialAccountId: transaction.originFinancialAccountId ?? "",
 		paymentCreditCardId: transaction.paymentCreditCardId ?? "",
@@ -99,10 +102,12 @@ export function EditTransactionForm({
 			);
 			return dataService.transactions.update(transaction.id, {
 				amount: Number.parseFloat(draft.amount),
+				currency: draft.currency,
 				date: draft.date,
 				debtSplit: isDebt ? debtSplit : null,
 				description: description.trim() || undefined,
 				destinationFinancialAccountId: draft.destinationFinancialAccountId || null,
+				fees: draft.fees,
 				isHidden: draft.isHidden,
 				originFinancialAccountId: draft.originFinancialAccountId || null,
 				paymentCreditCardId: draft.paymentCreditCardId || null,
@@ -173,167 +178,177 @@ export function EditTransactionForm({
 					<DialogTitle>Editar transação</DialogTitle>
 					<DialogDescription>Altere os dados da movimentação.</DialogDescription>
 				</DialogHeader>
-				<div className="scrollbar-themed grid min-h-0 gap-4 overflow-y-auto pr-1">
-					<TransactionDetailsFields
-						amount={draft.amount}
-						date={draft.date}
-						description={description}
-						isHidden={draft.isHidden}
-						onAmountChange={amount => setDraft(current => (current ? { ...current, amount } : current))}
-						onDateChange={date => setDraft(current => (current ? { ...current, date } : current))}
-						onDescriptionChange={setDescription}
-						onIsHiddenChange={isHidden => setDraft(current => (current ? { ...current, isHidden } : current))}
-						onStoreNameChange={storeName =>
-							setDraft(current => (current ? { ...current, storeName } : current))
-						}
-						onTagIdsChange={tagIds => setDraft(current => (current ? { ...current, tagIds } : current))}
-						onTimeChange={time => setDraft(current => (current ? { ...current, time } : current))}
-						onTypeChange={type => {
-							if (type === "YIELD") return;
-							if (type === "TRANSFER") setIsDebt(false);
-							setDraft(current =>
-								current
-									? {
-											...current,
-											destinationFinancialAccountId:
-												type === "INCOME" || type === "TRANSFER"
-													? type === "INCOME" && current.type === "EXPENSE"
-														? current.originFinancialAccountId
-														: current.destinationFinancialAccountId
-													: "",
-											originFinancialAccountId: type === "INCOME" ? "" : current.originFinancialAccountId,
-											paymentCreditCardId: type === "EXPENSE" ? current.paymentCreditCardId : "",
-											type,
-										}
-									: current,
-							);
-						}}
-						showStore={draft.type === "EXPENSE"}
-						storeName={draft.storeName}
-						tagIds={draft.tagIds}
-						time={draft.time}
-						type={draft.type}
-					/>
-					{draft.type === "EXPENSE" ? (
-						<CustomSelect
-							disabled={payableStatementsQuery.isPending}
-							label="Cartão para pagar"
-							onValueChange={paymentCreditCardId => {
+				<ScrollArea className="min-h-0">
+					<div className="grid gap-4 pr-1">
+						<TransactionDetailsFields
+							amount={draft.amount}
+							currencyCode={draft.currency}
+							date={draft.date}
+							description={description}
+							fees={draft.fees}
+							isHidden={draft.isHidden}
+							onAmountChange={amount => setDraft(current => (current ? { ...current, amount } : current))}
+							onCurrencyChange={currency =>
+								setDraft(current => (current ? { ...current, currency } : current))
+							}
+							onDateChange={date => setDraft(current => (current ? { ...current, date } : current))}
+							onDescriptionChange={setDescription}
+							onFeesChange={fees => setDraft(current => (current ? { ...current, fees } : current))}
+							onIsHiddenChange={isHidden =>
+								setDraft(current => (current ? { ...current, isHidden } : current))
+							}
+							onStoreNameChange={storeName =>
+								setDraft(current => (current ? { ...current, storeName } : current))
+							}
+							onTagIdsChange={tagIds => setDraft(current => (current ? { ...current, tagIds } : current))}
+							onTimeChange={time => setDraft(current => (current ? { ...current, time } : current))}
+							onTypeChange={type => {
+								if (type === "YIELD") return;
+								if (type === "TRANSFER") setIsDebt(false);
 								setDraft(current =>
 									current
 										? {
 												...current,
-												paymentCreditCardId,
+												destinationFinancialAccountId:
+													type === "INCOME" || type === "TRANSFER"
+														? type === "INCOME" && current.type === "EXPENSE"
+															? current.originFinancialAccountId
+															: current.destinationFinancialAccountId
+														: "",
+												originFinancialAccountId: type === "INCOME" ? "" : current.originFinancialAccountId,
+												paymentCreditCardId: type === "EXPENSE" ? current.paymentCreditCardId : "",
+												type,
 											}
 										: current,
 								);
-								setIsDebt(false);
 							}}
-							options={paymentCardOptions}
-							placeholder="Nenhum cartão selecionado"
-							searchable
-							sortOptions={false}
-							value={draft.paymentCreditCardId}
+							showStore={draft.type === "EXPENSE"}
+							storeName={draft.storeName}
+							tagIds={draft.tagIds}
+							time={draft.time}
+							type={draft.type}
 						/>
-					) : null}
-					{draft.type !== "TRANSFER" ? (
-						<div className="grid gap-3 rounded-2xl border p-3">
-							<CheckboxField
-								checkboxProps={{
-									checked: isDebt,
-									id: "edit-transaction-is-debt",
-									onCheckedChange: checked => {
-										setIsDebt(checked === true);
-									},
-								}}
-							>
-								<span>Esta movimentação é de uma dívida</span>
-							</CheckboxField>
-							{isDebt ? (
-								<DebtSplitEditor
-									amount={Number(draft.amount)}
-									onChange={setDebtSplit}
-									showParticipantDescriptions={draft.type === "EXPENSE"}
-									value={debtSplit}
-								/>
-							) : null}
-						</div>
-					) : null}
-					{accountsQuery.isPending || primaryAccountOptions.length > 0 ? (
-						<CustomSelect
-							disabled={accountsQuery.isPending || accountsQuery.isError}
-							label={draft.type === "INCOME" ? "Conta de destino" : "Conta de origem"}
-							onValueChange={accountId =>
-								setDraft(current =>
-									current
-										? current.type === "INCOME"
-											? { ...current, destinationFinancialAccountId: accountId }
-											: {
+						{draft.type === "EXPENSE" ? (
+							<CustomSelect
+								disabled={payableStatementsQuery.isPending}
+								label="Cartão para pagar"
+								onValueChange={paymentCreditCardId => {
+									setDraft(current =>
+										current
+											? {
 													...current,
-													destinationFinancialAccountId:
-														current.type === "TRANSFER"
-															? account && accountId !== account.id
-																? account.id
-																: current.destinationFinancialAccountId === accountId
-																	? ""
-																	: current.destinationFinancialAccountId
-															: current.destinationFinancialAccountId,
-													originFinancialAccountId: accountId,
+													paymentCreditCardId,
 												}
-										: current,
-								)
-							}
-							options={primaryAccountOptions}
-							placeholder="Selecione a conta"
-							required
-							searchable
-							value={primaryAccountId}
-						/>
-					) : null}
-					{draft.type === "TRANSFER" &&
-					(accountsQuery.isPending ||
-						balanceDestinationAccounts.length > 0 ||
-						draft.destinationFinancialAccountId) ? (
-						<CustomSelect
-							disabled={accountsQuery.isPending || accountsQuery.isError}
-							label="Conta de destino"
-							onValueChange={destinationFinancialAccountId =>
-								setDraft(current =>
-									current
-										? {
-												...current,
-												destinationFinancialAccountId,
-												originFinancialAccountId:
-													account && destinationFinancialAccountId !== account.id
-														? account.id
-														: current.originFinancialAccountId,
-											}
-										: current,
-								)
-							}
-							options={[
-								...balanceDestinationAccounts
-									.filter(account => account.id !== draft.originFinancialAccountId)
-									.map(account => ({ label: getFinancialAccountOptionLabel(account), value: account.id })),
-								...(draft.destinationFinancialAccountId &&
-								!balanceDestinationAccounts.some(
-									account => account.id === draft.destinationFinancialAccountId,
-								)
-									? [
-											{
-												label: transaction.destinationName || "Conta atual",
-												value: draft.destinationFinancialAccountId,
-											},
-										]
-									: []),
-							]}
-							placeholder="Selecione o destino"
-							required
-							searchable
-							value={draft.destinationFinancialAccountId}
-						/>
-					) : null}
-				</div>
+											: current,
+									);
+									setIsDebt(false);
+								}}
+								options={paymentCardOptions}
+								placeholder="Nenhum cartão selecionado"
+								searchable
+								sortOptions={false}
+								value={draft.paymentCreditCardId}
+							/>
+						) : null}
+						{draft.type !== "TRANSFER" ? (
+							<div className="grid gap-3 rounded-2xl border p-3">
+								<CheckboxField
+									checkboxProps={{
+										checked: isDebt,
+										id: "edit-transaction-is-debt",
+										onCheckedChange: checked => {
+											setIsDebt(checked === true);
+										},
+									}}
+								>
+									<span>Esta movimentação é de uma dívida</span>
+								</CheckboxField>
+								{isDebt ? (
+									<DebtSplitEditor
+										amount={Number(draft.amount)}
+										onChange={setDebtSplit}
+										showParticipantDescriptions={draft.type === "EXPENSE"}
+										value={debtSplit}
+									/>
+								) : null}
+							</div>
+						) : null}
+						{accountsQuery.isPending || primaryAccountOptions.length > 0 ? (
+							<CustomSelect
+								disabled={accountsQuery.isPending || accountsQuery.isError}
+								label={draft.type === "INCOME" ? "Conta de destino" : "Conta de origem"}
+								onValueChange={accountId =>
+									setDraft(current =>
+										current
+											? current.type === "INCOME"
+												? { ...current, destinationFinancialAccountId: accountId }
+												: {
+														...current,
+														destinationFinancialAccountId:
+															current.type === "TRANSFER"
+																? account && accountId !== account.id
+																	? account.id
+																	: current.destinationFinancialAccountId === accountId
+																		? ""
+																		: current.destinationFinancialAccountId
+																: current.destinationFinancialAccountId,
+														originFinancialAccountId: accountId,
+													}
+											: current,
+									)
+								}
+								options={primaryAccountOptions}
+								placeholder="Selecione a conta"
+								required
+								searchable
+								value={primaryAccountId}
+							/>
+						) : null}
+						{draft.type === "TRANSFER" &&
+						(accountsQuery.isPending ||
+							balanceDestinationAccounts.length > 0 ||
+							draft.destinationFinancialAccountId) ? (
+							<CustomSelect
+								disabled={accountsQuery.isPending || accountsQuery.isError}
+								label="Conta de destino"
+								onValueChange={destinationFinancialAccountId =>
+									setDraft(current =>
+										current
+											? {
+													...current,
+													destinationFinancialAccountId,
+													originFinancialAccountId:
+														account && destinationFinancialAccountId !== account.id
+															? account.id
+															: current.originFinancialAccountId,
+												}
+											: current,
+									)
+								}
+								options={[
+									...balanceDestinationAccounts
+										.filter(account => account.id !== draft.originFinancialAccountId)
+										.map(account => ({ label: getFinancialAccountOptionLabel(account), value: account.id })),
+									...(draft.destinationFinancialAccountId &&
+									!balanceDestinationAccounts.some(
+										account => account.id === draft.destinationFinancialAccountId,
+									)
+										? [
+												{
+													label: transaction.destinationName || "Conta atual",
+													value: draft.destinationFinancialAccountId,
+												},
+											]
+										: []),
+								]}
+								placeholder="Selecione o destino"
+								required
+								searchable
+								value={draft.destinationFinancialAccountId}
+							/>
+						) : null}
+					</div>
+				</ScrollArea>
 				<DialogFooter>
 					<Button className="cursor-pointer" onClick={() => onOpenChange(false)} variant="outline">
 						Descartar
@@ -342,6 +357,7 @@ export function EditTransactionForm({
 						className="cursor-pointer disabled:cursor-not-allowed"
 						disabled={
 							!draft.amount ||
+							draft.fees.some(fee => !fee.name.trim() || !Number.isFinite(fee.amount) || fee.amount < 0) ||
 							!primaryAccountId ||
 							(isDebt && !calculateDebtSplit(Number(draft.amount), debtSplit)) ||
 							(draft.type === "TRANSFER" && !draft.destinationFinancialAccountId) ||

@@ -15,6 +15,11 @@ import { readCreditBook } from "~/modules/creditCards/application/normalized-cre
 import { recalculateStatementPayments } from "~/modules/creditCards/application/statement-payments";
 import { syncCreditBook } from "~/modules/creditCards/application/sync-credit-book";
 import {
+	type FinancialFee,
+	financialAccountCurrency,
+	resolveFinancialMoney,
+} from "~/modules/currencies/application/financial-money";
+import {
 	getDebtSplitReturn,
 	normalizeDebtPersonName,
 	syncTransactionDebtEvent,
@@ -89,6 +94,7 @@ const entityTagIds = (entity: InputEntity) =>
 	normalizeTagIds(value<string[] | undefined>(entity, "tagIds") ?? []);
 
 const accountColumns = [
+	"currency",
 	"id",
 	"userId",
 	"isHidden",
@@ -169,6 +175,10 @@ const purchaseColumns = [
 	"updatedAt",
 ] as const;
 const transactionColumns = [
+	"currency",
+	"originalAmount",
+	"fees",
+	"exchangeRate",
 	"id",
 	"amount",
 	"date",
@@ -242,6 +252,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 							value<string | undefined>(entity, "institutionName") ?? institutionInput?.name,
 						);
 						const values = {
+							currency: "BRL",
 							institutionId: institution?.id,
 							isHidden: value<boolean | undefined>(entity, "isHidden") ?? false,
 							name: value<string>(entity, "name"),
@@ -821,17 +832,34 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 									.limit(1)
 									.build(),
 							);
+						const type = value<"EXPENSE" | "INCOME" | "TRANSFER">(entity, "type") ?? "EXPENSE";
+						const money = await resolveFinancialMoney({
+							amount: Number(
+								value<number | undefined>(entity, "originalAmount") ?? value<number>(entity, "amount"),
+							),
+							currency: value<string | undefined>(entity, "currency"),
+							date: value<string>(entity, "date"),
+							fees: value<FinancialFee[] | undefined>(entity, "fees"),
+							targetCurrency: await financialAccountCurrency(
+								(type === "INCOME" ? destinationFinancialAccountId : originFinancialAccountId) ??
+									destinationFinancialAccountId,
+							),
+						});
 						const transactionId = existing?.id ?? id;
 						const tagIds = entityTagIds(entity).filter(tagId => categoryIds.has(tagId));
 						if (!existing) {
 							await executeStatement(
 								db.sql.public.Transaction.insert([
 									{
-										amount: String(value<number>(entity, "amount")),
+										amount: String(money.amount),
+										currency: money.currency,
 										date: new Date(value<string>(entity, "date")),
 										description: value<string | undefined>(entity, "description"),
 										destinationFinancialAccountId,
+										exchangeRate: String(money.exchangeRate),
+										fees: money.fees,
 										id,
+										originalAmount: String(money.originalAmount),
 										originFinancialAccountId,
 										paymentCreditCardId,
 										recurrenceId,
@@ -852,7 +880,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 						if (debtPersonId && !debtPersonIds.has(debtPersonId))
 							throw new Error(`Pessoa da dívida ${debtPersonId} indisponível`);
 						await syncTransactionDebtEvent({
-							amount: Number(value<number>(entity, "amount")),
+							amount: money.amount,
 							date: value<string>(entity, "date"),
 							...("debtSplit" in entity
 								? { debtSplit: value<DebtSplitInput | null>(entity, "debtSplit") }

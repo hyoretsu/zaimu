@@ -1,0 +1,377 @@
+[
+	{
+		"execute": [
+			{
+				"description": "create table \"CurrencyRateSnapshot\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"CurrencyRateSnapshot\" (\n  \"baseCurrency\" character varying(3) NOT NULL,\n  \"date\" date NOT NULL,\n  \"fetchedAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"rates\" json NOT NULL,\n  CONSTRAINT \"CurrencyRateSnapshot_pkey\" PRIMARY KEY (\"date\", \"baseCurrency\")\n)"
+			}
+		],
+		"id": "table.CurrencyRateSnapshot",
+		"label": "Create table \"CurrencyRateSnapshot\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"CurrencyRateSnapshot\" exists",
+				"params": ["\"public\".\"CurrencyRateSnapshot\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"CurrencyRateSnapshot\" does not exist",
+				"params": ["\"public\".\"CurrencyRateSnapshot\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"CurrencyRateSnapshot\"",
+		"target": {
+			"details": {
+				"name": "CurrencyRateSnapshot",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"currency\"",
+				"sql": "ALTER TABLE \"public\".\"CreditCard\" ADD COLUMN \"currency\" character varying(3) DEFAULT 'BRL' NOT NULL"
+			}
+		],
+		"id": "column.public.CreditCard.currency",
+		"label": "Add column \"currency\" to \"CreditCard\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"currency\" exists",
+				"params": ["public", "CreditCard", "currency"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"currency\" is missing",
+				"params": ["public", "CreditCard", "currency"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "currency",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditCard"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"currency\"",
+				"sql": "ALTER TABLE \"public\".\"CreditPurchaseRecord\" ADD COLUMN \"currency\" character varying(3) DEFAULT 'BRL' NOT NULL"
+			}
+		],
+		"id": "column.public.CreditPurchaseRecord.currency",
+		"label": "Add column \"currency\" to \"CreditPurchaseRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"currency\" exists",
+				"params": ["public", "CreditPurchaseRecord", "currency"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"currency\" is missing",
+				"params": ["public", "CreditPurchaseRecord", "currency"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "currency",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditPurchaseRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"exchangeRate\"",
+				"sql": "ALTER TABLE \"public\".\"CreditPurchaseRecord\" ADD COLUMN \"exchangeRate\" numeric(24,12)"
+			}
+		],
+		"id": "column.public.CreditPurchaseRecord.exchangeRate",
+		"label": "Add column \"exchangeRate\" to \"CreditPurchaseRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"exchangeRate\" exists",
+				"params": ["public", "CreditPurchaseRecord", "exchangeRate"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"exchangeRate\" is missing",
+				"params": ["public", "CreditPurchaseRecord", "exchangeRate"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "exchangeRate",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditPurchaseRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"fees\"",
+				"sql": "ALTER TABLE \"public\".\"CreditPurchaseRecord\" ADD COLUMN \"fees\" json DEFAULT '[]'::json NOT NULL"
+			}
+		],
+		"id": "column.public.CreditPurchaseRecord.fees",
+		"label": "Add column \"fees\" to \"CreditPurchaseRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"fees\" exists",
+				"params": ["public", "CreditPurchaseRecord", "fees"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"fees\" is missing",
+				"params": ["public", "CreditPurchaseRecord", "fees"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "fees",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditPurchaseRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"originalAmount\"",
+				"sql": "ALTER TABLE \"public\".\"CreditPurchaseRecord\" ADD COLUMN \"originalAmount\" numeric(12,2)"
+			}
+		],
+		"id": "column.public.CreditPurchaseRecord.originalAmount",
+		"label": "Add column \"originalAmount\" to \"CreditPurchaseRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"originalAmount\" exists",
+				"params": ["public", "CreditPurchaseRecord", "originalAmount"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"originalAmount\" is missing",
+				"params": ["public", "CreditPurchaseRecord", "originalAmount"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "originalAmount",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditPurchaseRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"currency\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialAccount\" ADD COLUMN \"currency\" character varying(3) DEFAULT 'BRL' NOT NULL"
+			}
+		],
+		"id": "column.public.FinancialAccount.currency",
+		"label": "Add column \"currency\" to \"FinancialAccount\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"currency\" exists",
+				"params": ["public", "FinancialAccount", "currency"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"currency\" is missing",
+				"params": ["public", "FinancialAccount", "currency"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "currency",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialAccount"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"currency\"",
+				"sql": "ALTER TABLE \"public\".\"Transaction\" ADD COLUMN \"currency\" character varying(3) DEFAULT 'BRL' NOT NULL"
+			}
+		],
+		"id": "column.public.Transaction.currency",
+		"label": "Add column \"currency\" to \"Transaction\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"currency\" exists",
+				"params": ["public", "Transaction", "currency"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"currency\" is missing",
+				"params": ["public", "Transaction", "currency"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "currency",
+				"objectType": "column",
+				"schema": "public",
+				"table": "Transaction"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"exchangeRate\"",
+				"sql": "ALTER TABLE \"public\".\"Transaction\" ADD COLUMN \"exchangeRate\" numeric(24,12)"
+			}
+		],
+		"id": "column.public.Transaction.exchangeRate",
+		"label": "Add column \"exchangeRate\" to \"Transaction\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"exchangeRate\" exists",
+				"params": ["public", "Transaction", "exchangeRate"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"exchangeRate\" is missing",
+				"params": ["public", "Transaction", "exchangeRate"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "exchangeRate",
+				"objectType": "column",
+				"schema": "public",
+				"table": "Transaction"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"fees\"",
+				"sql": "ALTER TABLE \"public\".\"Transaction\" ADD COLUMN \"fees\" json DEFAULT '[]'::json NOT NULL"
+			}
+		],
+		"id": "column.public.Transaction.fees",
+		"label": "Add column \"fees\" to \"Transaction\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"fees\" exists",
+				"params": ["public", "Transaction", "fees"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"fees\" is missing",
+				"params": ["public", "Transaction", "fees"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "fees",
+				"objectType": "column",
+				"schema": "public",
+				"table": "Transaction"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"originalAmount\"",
+				"sql": "ALTER TABLE \"public\".\"Transaction\" ADD COLUMN \"originalAmount\" numeric(12,2)"
+			}
+		],
+		"id": "column.public.Transaction.originalAmount",
+		"label": "Add column \"originalAmount\" to \"Transaction\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"originalAmount\" exists",
+				"params": ["public", "Transaction", "originalAmount"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"originalAmount\" is missing",
+				"params": ["public", "Transaction", "originalAmount"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "originalAmount",
+				"objectType": "column",
+				"schema": "public",
+				"table": "Transaction"
+			},
+			"id": "postgres"
+		}
+	}
+]

@@ -169,3 +169,9 @@ Gráfico separa pagamentos de faturas em segmento próprio, Faturas, com cor lar
 ## Assinaturas parceladas
 
 Recorrências de compra no cartão podem ser parceladas em até 48 parcelas mensais por ocorrência. O valor da recorrência representa o total de cada compra, repartido em centavos pelas parcelas; a frequência determina quando uma nova compra começa, independentemente da duração do parcelamento. Renovações podem se sobrepor. Recorrências existentes usam uma parcela por padrão. Editar o parcelamento afeta somente novas ocorrências; compras já geradas preservam suas parcelas. Previsões de faturas consideram todas as parcelas sem persistir ocorrências futuras. Rateio de dívida usa o total da compra uma única vez. Outras movimentações não aceitam parcelamento.
+
+## Moedas e taxas
+
+Transações e compras preservam moeda e valor originais. Contas e cartões existentes usam BRL. O valor contabilizado na conta ou fatura usa a cotação histórica do dia do lançamento e inclui taxas, evitando somar moedas distintas no mesmo livro. Taxas podem ser fixas na moeda original ou percentuais sobre o principal, sem composição entre taxas. Nomes sugeridos incluem IOF, Spread, Imposto, Tarifa, Juros e Multa; nomes personalizados são permitidos.
+
+Cotações vêm da currency-api de fawazahmed0. O banco guarda um snapshot completo por data e moeda base, somente quando uma conversão é solicitada por criação, edição ou consulta. Uma conversão entre moedas distintas solicita os snapshots de ambas as moedas; datas e moedas não solicitadas permanecem vazias. Não há coleta agendada nem substituição silenciosa por cotação atual. Cotações indisponíveis bloqueiam a conversão com erro recuperável. Consultas repetidas reutilizam o histórico persistido. No modo visitante, os snapshots ficam no dispositivo e são consultados sob demanda.

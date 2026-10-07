@@ -1,6 +1,7 @@
 import { getMonetaryBalancesAtDates } from "~/modules/accounts/application/get-monetary-balances-at-dates";
 import { getTagsByEntity, tagEntityType } from "~/modules/categories/application/tag-assignments";
 import { getCreditPurchaseSyncStatus } from "~/modules/creditCards/domain/credit-purchase-sync-status";
+import { ensureCurrencyRates } from "~/modules/currencies/infra/currency-exchange";
 import { getDebtSplitReturns } from "~/modules/debts/application/debt-splits";
 import { HttpException } from "~/shared/errors";
 import { db, queryRaw, queryRows } from "~/shared/infra/sql";
@@ -114,7 +115,7 @@ export const decodeTransactionCursor = (
 const listSql = `
 WITH combined AS (
   SELECT
-    t."id", t."amount"::numeric AS "amount", t."date", t."time"::text AS "time",
+    t."id", t."amount"::numeric AS "amount", t."currency", t."originalAmount", t."fees", t."exchangeRate", CASE WHEN t."type" = 'INCOME' THEN destination."currency" ELSE origin."currency" END AS "targetCurrency", t."date", t."time"::text AS "time",
     t."description", t."storeName", t."isHidden", t."type"::text AS "type",
     t."createdAt",
     t."originFinancialAccountId", t."destinationFinancialAccountId",
@@ -170,7 +171,7 @@ WITH combined AS (
   UNION ALL
 
   SELECT
-    purchase."id", abs(purchase."totalAmount")::numeric AS "amount", purchase."purchaseDate" AS "date",
+    purchase."id", abs(purchase."totalAmount")::numeric AS "amount", purchase_record."currency", purchase_record."originalAmount", purchase_record."fees", purchase_record."exchangeRate", account."currency" AS "targetCurrency", purchase."purchaseDate" AS "date",
     purchase."time"::text AS "time", purchase."description", purchase."storeName", false AS "isHidden",
     CASE WHEN purchase."isRefund" THEN 'REFUND' ELSE 'EXPENSE' END AS "type",
     purchase."createdAt",
@@ -204,6 +205,7 @@ WITH combined AS (
        JOIN "Category" tag ON tag."id" = assignment."categoryId"
        WHERE assignment."entityType" = 'CREDIT_PURCHASE' AND assignment."entityId" = purchase."purchaseId")) AS search_text
   FROM "CreditConsumption" purchase
+  LEFT JOIN "CreditPurchaseRecord" purchase_record ON purchase_record."id"=purchase."purchaseId"
   LEFT JOIN "CreditCardStatement" statement ON statement."id" = purchase."statementId"
   JOIN "CreditCard" card ON card."id" = purchase."creditCardId"
   JOIN "FinancialAccount" account ON account."id" = card."financialAccountId"
@@ -289,6 +291,11 @@ export async function listTransactionsPage(userId: string, input: ListTransactio
 	const hasMore = rows.length > limit;
 	const page = rows.slice(0, limit);
 	if (page.length === 0) return { days: [], hasMore: false, nextCursor: null };
+	await Promise.all(
+		page
+			.filter(row => row.currency && row.targetCurrency && row.currency !== row.targetCurrency)
+			.map(row => ensureCurrencyRates(row.date, String(row.currency), String(row.targetCurrency))),
+	);
 	const transactionIds = page.filter(row => row.sourceRank === 0).map(row => row.id);
 	const purchaseIds = page.filter(row => row.sourceRank === 1).map(row => row.id);
 	const [

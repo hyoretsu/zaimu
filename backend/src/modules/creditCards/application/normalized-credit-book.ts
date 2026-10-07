@@ -17,6 +17,8 @@ import {
 	replaceEntityTags,
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
+import { creditCardCurrency } from "~/modules/currencies/application/financial-money";
+import { ensureCurrencyRates } from "~/modules/currencies/infra/currency-exchange";
 import {
 	deleteCreatorDebtEventForPurchase,
 	getDebtSplitInputs,
@@ -124,11 +126,13 @@ export async function loadCreditBook(
 				...p,
 				createdAt: timestamp(p.createdAt),
 				debtSplitRule: splits.get(String(p.id)) ?? null,
+				exchangeRate: p.exchangeRate == null ? null : Number(p.exchangeRate),
 				installmentAmountsCents: plan.map(row => moneyCents(Number(row.amount), 1)),
 				installmentImportedNumbers: plan.filter(row => row.hasImportedAmount).map(row => Number(row.number)),
 				installmentStatementDates: plan.map(row =>
 					row.statementDate ? { dueDate: date(row.dueDate), statementDate: date(row.statementDate) } : null,
 				),
+				originalAmount: p.originalAmount == null ? null : Number(p.originalAmount),
 				purchaseDate: date(p.purchaseDate),
 				recurrenceOccurrenceDate: p.recurrenceOccurrenceDate ? date(p.recurrenceOccurrenceDate) : null,
 				tagIds: (tags.get(String(p.id)) ?? []).map(tag => tag.id),
@@ -174,6 +178,10 @@ const purchaseColumns = [
 	"totalAmount",
 	"feeDescription",
 	"feeAmount",
+	"currency",
+	"originalAmount",
+	"exchangeRate",
+	"fees",
 	"refinancingFeeAmount",
 	"cashbackAccountId",
 	"cashbackAmount",
@@ -368,7 +376,14 @@ export async function saveCreditBook(
 			],
 		);
 	for (const p of book.purchases) {
-		const row = { ...p, totalAmount: p.totalAmountCents / 100 };
+		const row = {
+			...p,
+			currency: p.currency ?? "BRL",
+			exchangeRate: p.exchangeRate ?? 1,
+			fees: JSON.stringify(p.fees ?? []),
+			originalAmount: p.originalAmount ?? p.totalAmountCents / 100 - (p.feeAmount ?? 0),
+			totalAmount: p.totalAmountCents / 100,
+		};
 		await upsert(
 			query,
 			"CreditPurchaseRecord",
@@ -542,6 +557,10 @@ export async function saveCreditBook(
 			"tagIds",
 			"feeAmount",
 			"feeDescription",
+			"currency",
+			"originalAmount",
+			"fees",
+			"exchangeRate",
 			"debtSplitRule",
 			"cashbackAmount",
 		] as const)
@@ -669,6 +688,12 @@ export async function readCreditBook(userId: string, cardId: string, metadata = 
 	return withRawTransaction(query => loadCreditBook(query, userId, cardId, false, metadata));
 }
 export async function presentCreditBook(book: CreditBook, statementId?: string) {
+	const targetCurrency = await creditCardCurrency(book.card.id);
+	await Promise.all(
+		book.purchases
+			.filter(p => p.currency && p.currency !== targetCurrency)
+			.map(p => ensureCurrencyRates(p.purchaseDate, p.currency!, targetCurrency)),
+	);
 	const entries = creditBookEntries(book).filter(row => !statementId || row.statementId === statementId);
 	const purchaseIds = [...new Set(entries.flatMap(row => (row.purchaseId ? [row.purchaseId] : [])))];
 	const purchaseIdsSet = new Set(purchaseIds);
@@ -681,6 +706,15 @@ export async function presentCreditBook(book: CreditBook, statementId?: string) 
 	);
 	return entries.map(row => ({
 		...row,
+		...(() => {
+			const p = book.purchases.find(p => p.id === row.purchaseId);
+			return {
+				currency: p?.currency ?? "BRL",
+				exchangeRate: p?.exchangeRate ?? 1,
+				fees: p?.fees ?? [],
+				originalAmount: p?.originalAmount ?? null,
+			};
+		})(),
 		debtSplit: row.purchaseId ? (splits.get(row.purchaseId) ?? null) : null,
 		tags: row.purchaseId ? (tags.get(row.purchaseId) ?? []) : [],
 	}));

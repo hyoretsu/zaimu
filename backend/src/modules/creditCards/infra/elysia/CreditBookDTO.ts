@@ -1,4 +1,5 @@
 import { t } from "elysia";
+import { FinancialFeeDTO } from "~/modules/currencies/application/financial-money";
 import { DebtSplitInputDTO } from "~/modules/debts/infra/elysia/DebtSplitsDTO";
 
 const Id = t.String({ maxLength: 36, minLength: 1 });
@@ -17,17 +18,21 @@ export const BookPurchaseDTO = t.Object({
 	cashbackYieldReferenceRate: t.Nullable(t.Number()),
 	createdAt: t.String(),
 	creditCardId: Id,
+	currency: t.Optional(t.String()),
 	debtSplitRule: t.Optional(t.Nullable(DebtSplitInputDTO)),
 	description: t.String({ maxLength: 500 }),
+	exchangeRate: t.Optional(t.Nullable(t.Number())),
 	externalId: t.Nullable(t.String({ maxLength: 200 })),
 	feeAmount: t.Nullable(t.Number({ minimum: 0 })),
 	feeDescription: t.Nullable(t.String()),
+	fees: t.Optional(t.Array(FinancialFeeDTO)),
 	id: Id,
 	installmentAmountsCents: t.Array(t.Integer({ minimum: 1 }), { maxItems: 48, minItems: 1 }),
 	installmentImportedNumbers: t.Optional(t.Array(t.Integer({ maximum: 48, minimum: 1 }))),
 	installmentStatementDates: t.Optional(
 		t.Array(t.Nullable(t.Object({ dueDate: DateKey, statementDate: DateKey }))),
 	),
+	originalAmount: t.Optional(t.Nullable(t.Number())),
 	purchaseDate: DateKey,
 	recurrenceId: NullableId,
 	recurrenceOccurrenceDate: t.Nullable(DateKey),

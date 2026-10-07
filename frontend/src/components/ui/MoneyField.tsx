@@ -3,8 +3,6 @@ import { Input } from "./Input";
 import { Label } from "./Label";
 import { RequiredMark } from "./RequiredMark";
 
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
-
 function centsToDecimal(value: string) {
 	const isNegative = value.includes("-");
 	const digits = value.replace(/\D/g, "");
@@ -16,16 +14,19 @@ function centsToDecimal(value: string) {
 
 export function MoneyField({
 	id,
+	currencyCode = "BRL",
 	label,
 	onValueChange,
 	required,
 	value,
 	...props
 }: Omit<ComponentProps<typeof Input>, "defaultValue" | "onChange" | "type" | "value"> & {
+	currencyCode?: string;
 	label: string;
 	onValueChange: (value: string) => void;
 	value: string;
 }) {
+	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
 	const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
 		onValueChange(centsToDecimal(event.currentTarget.value));
 	};
@@ -43,7 +44,7 @@ export function MoneyField({
 				inputMode="numeric"
 				name={id}
 				onChange={handleChange}
-				placeholder="R$ 1.500,00"
+				placeholder={currency.format(1500)}
 				required={required}
 				type="text"
 				value={

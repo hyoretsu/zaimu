@@ -241,6 +241,7 @@ namespace public {
   }
 
   model FinancialAccount {
+    currency VarChar(3) @default("BRL")
     id                      VarChar(36)                   @id(map: "Account_pkey") @default(dbgenerated("cuid2()"))
     userId                  VarChar(36)
     name                    VarChar(70)?
@@ -349,6 +350,16 @@ namespace public {
     @@map("FinancialAccountYield")
   }
 
+  model CurrencyRateSnapshot {
+    date Date
+    baseCurrency VarChar(3)
+    rates Json
+    fetchedAt Timestamptz(3) @default(now())
+
+    @@id([date, baseCurrency], map: "CurrencyRateSnapshot_pkey")
+    @@map("CurrencyRateSnapshot")
+  }
+
   model ReferenceRate {
     id        VarChar(36)                  @id(map: "ReferenceRate_pkey") @default(dbgenerated("cuid2()"))
     type      pg.enum(ReferenceRateType)
@@ -395,6 +406,7 @@ namespace public {
     @@map("ConsumerReceipt")
   }
   model CreditCard {
+    currency VarChar(3) @default("BRL")
     refundReviews CreditRefundReview[]
     id                   VarChar(36)           @id(map: "CreditCard_pkey") @default(dbgenerated("cuid2()"))
     financialAccountId   VarChar(36)
@@ -496,6 +508,10 @@ namespace public {
   }
 
   model CreditPurchaseRecord {
+    currency VarChar(3) @default("BRL")
+    originalAmount Numeric(12, 2)?
+    exchangeRate Numeric(24, 12)?
+    fees Json @default(dbgenerated("'[]'::json"))
     id                   VarChar(36) @id(map: "CreditPurchaseRecord_pkey")
     userId               VarChar(36)
     creditCardId         VarChar(36)
@@ -994,6 +1010,10 @@ namespace public {
 
 
   model Transaction {
+    currency VarChar(3) @default("BRL")
+    originalAmount Numeric(12, 2)?
+    exchangeRate Numeric(24, 12)?
+    fees Json @default(dbgenerated("'[]'::json"))
     id                            VarChar(36)              @id(map: "Transaction_pkey") @default(dbgenerated("cuid2()"))
     userId                        VarChar(36)
     amount                        Numeric(12, 2)

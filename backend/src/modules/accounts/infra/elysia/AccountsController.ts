@@ -185,6 +185,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 							"name",
 							"type",
 							"institutionId",
+							"currency",
 							"yieldFixedRate",
 							"yieldPeriod",
 							"yieldReferencePercentage",
@@ -380,7 +381,13 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 					else {
 						const rewardFinancialAccount = await queryFirst(
 							db.sql.public.FinancialAccount.insert([
-								{ institutionId: institution?.id, name: null as never, type: "REWARDS", userId },
+								{
+									currency: (body.currency ?? "BRL").toUpperCase(),
+									institutionId: institution?.id,
+									name: null as never,
+									type: "REWARDS",
+									userId,
+								},
 							])
 								.returning("id")
 								.build(),
@@ -429,6 +436,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 				const account = await queryFirst(
 					db.sql.public.FinancialAccount.insert([
 						{
+							currency: (body.currency ?? "BRL").toUpperCase(),
 							institutionId: institution?.id,
 							// Prisma 8 currently omits null from nullable varchar write types.
 							name: name as never,
@@ -455,6 +463,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 							"name",
 							"type",
 							"institutionId",
+							"currency",
 							"yieldFixedRate",
 							"yieldPeriod",
 							"yieldReferencePercentage",
@@ -573,6 +582,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 		{
 			body: t.Object({
 				creditCard: t.Optional(CreditCardCreate),
+				currency: t.Optional(t.Literal("BRL")),
 				institutionName: t.Optional(t.String({ maxLength: 100 })),
 				isDefaultForStatements: t.Optional(t.Boolean()),
 				isPrimary: t.Optional(t.Boolean()),
@@ -602,6 +612,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 						"name",
 						"type",
 						"userId",
+						"currency",
 						"yieldFixedRate",
 						"yieldPeriod",
 						"yieldReferencePercentage",
@@ -615,6 +626,14 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 
 				if (!existing) {
 					throw new HttpException("FinancialAccount not found", 404);
+				}
+				if (body.currency && body.currency.toUpperCase() !== existing.currency) {
+					const [history] = await queryRaw<{ used: boolean }>(
+						`SELECT EXISTS(SELECT 1 FROM "Transaction" WHERE "originFinancialAccountId"=$1 OR "destinationFinancialAccountId"=$1) OR EXISTS(SELECT 1 FROM "CreditPurchaseRecord" p JOIN "CreditCard" c ON c."id"=p."creditCardId" WHERE c."financialAccountId"=$1) OR EXISTS(SELECT 1 FROM "BalanceAdjustment" WHERE "financialAccountId"=$1) AS used`,
+						[params.id],
+					);
+					if (history?.used)
+						throw new HttpException("Moeda de conta com histórico não pode ser alterada", 409);
 				}
 				if (body.creditCard && existing.type !== "CREDIT_CARD")
 					throw new HttpException("Dados de cartão exigem uma conta do tipo cartão de crédito", 400);
@@ -673,6 +692,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 
 				const account = await queryFirst(
 					db.sql.public.FinancialAccount.update({
+						...(body.currency !== undefined && { currency: body.currency.toUpperCase() }),
 						...(body.institutionName !== undefined && {
 							institutionId: (institution?.id ?? null) as never,
 						}),
@@ -704,6 +724,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 							"name",
 							"type",
 							"institutionId",
+							"currency",
 							"yieldFixedRate",
 							"yieldPeriod",
 							"yieldReferencePercentage",
@@ -969,6 +990,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 						workingDueDate: t.Optional(t.Boolean()),
 					}),
 				),
+				currency: t.Optional(t.Literal("BRL")),
 				institutionName: t.Optional(t.String({ maxLength: 100 })),
 				isDefaultForStatements: t.Optional(t.Boolean()),
 				isHidden: t.Optional(t.Boolean()),

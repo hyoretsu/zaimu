@@ -40,6 +40,10 @@ export type PurchaseDebtRule =
 	  };
 
 export interface BookPurchase extends CreditPurchase {
+	currency?: string;
+	originalAmount?: number | null;
+	exchangeRate?: number | null;
+	fees?: { name: string; amount: number; type: "FIXED" | "PERCENTAGE" }[];
 	userId: string;
 	time: string | null;
 	feeAmount: number | null;

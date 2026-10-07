@@ -8,6 +8,7 @@ import {
 import { CategoriesController } from "./modules/categories/infra";
 import { CreditCardImportsController } from "./modules/credit-card-imports/infra";
 import { CreditCardsController } from "./modules/creditCards/infra";
+import { CurrenciesController } from "./modules/currencies/infra/CurrenciesController";
 import { DashboardController } from "./modules/dashboard/infra";
 import { DebtsController } from "./modules/debts/infra";
 import { LoansController } from "./modules/loans/infra";
@@ -22,6 +23,7 @@ import { UpgradeController } from "./modules/upgrades/UpgradeController";
 import { app } from "./shared/infra/elysia";
 
 export const server = app.use([
+	CurrenciesController,
 	ReferenceRateController,
 	OpenFinanceController,
 	AccountsController,

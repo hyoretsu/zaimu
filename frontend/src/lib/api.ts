@@ -1,4 +1,9 @@
 import { fetchWithAuth } from "./dataService";
+export interface FinancialFee {
+	name: string;
+	amount: number;
+	type: "FIXED" | "PERCENTAGE";
+}
 // Types
 export interface User {
 	id: string;
@@ -8,6 +13,7 @@ export interface User {
 }
 
 export interface FinancialAccount {
+	currency?: string;
 	isPrimary?: boolean;
 	isDefaultForStatements?: boolean;
 	id: string;
@@ -156,6 +162,7 @@ export type DebtSplit =
 	  };
 
 export interface CreditCard {
+	currency?: string;
 	pendingRefundReviewCount?: number;
 	paymentAccountId?: string | null;
 	paymentSuggestionsEnabled?: boolean;
@@ -189,6 +196,10 @@ export interface DebtSplitSummary {
 }
 
 export interface Transaction {
+	currency?: string;
+	originalAmount?: number | null;
+	exchangeRate?: number | null;
+	fees?: FinancialFee[];
 	debtSplitSummary?: DebtSplitSummary | null;
 	entryKind?: "INSTALLMENT" | "REFUND" | "CHARGE";
 
@@ -554,6 +565,10 @@ export interface CreditCardStatementPage {
 }
 
 export interface CreditPurchaseEditDetails {
+	currency?: string;
+	originalAmount?: number | null;
+	exchangeRate?: number | null;
+	fees?: FinancialFee[];
 	id: string;
 	totalAmountCents: number;
 	purchaseDate: string;
@@ -564,6 +579,10 @@ export interface CreditPurchaseEditDetails {
 }
 
 export interface CreditPurchase {
+	currency?: string;
+	originalAmount?: number | null;
+	exchangeRate?: number | null;
+	fees?: FinancialFee[];
 	purchaseId?: string;
 	creditCardId?: string;
 	entryKind?: "INSTALLMENT" | "REFUND" | "CHARGE";

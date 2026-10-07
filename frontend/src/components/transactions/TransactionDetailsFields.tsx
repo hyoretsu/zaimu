@@ -1,3 +1,4 @@
+import { CurrencySelect, FinancialFeeFields } from "@/components/currency";
 import { StorePicker } from "@/components/stores";
 import { TagPicker } from "@/components/tags";
 import { CheckboxField } from "@/components/ui/CheckboxField";
@@ -6,12 +7,16 @@ import { DateField } from "@/components/ui/DateField";
 import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { TimeField } from "@/components/ui/TimeField";
-import type { Transaction } from "@/lib/api";
+import type { FinancialFee, Transaction } from "@/lib/api";
 
 type TransactionFormType = Transaction["type"] | "YIELD";
 
 export function TransactionDetailsFields({
 	amount,
+	currencyCode = "BRL",
+	onCurrencyChange,
+	fees = [],
+	onFeesChange,
 	date,
 	description,
 	onAmountChange,
@@ -34,6 +39,10 @@ export function TransactionDetailsFields({
 	type,
 }: {
 	amount: string;
+	currencyCode?: string;
+	onCurrencyChange?: (value: string) => void;
+	fees?: FinancialFee[];
+	onFeesChange?: (value: FinancialFee[]) => void;
 	date: string;
 	description: string;
 	onAmountChange: (amount: string) => void;
@@ -72,13 +81,20 @@ export function TransactionDetailsFields({
 					value={type}
 				/>
 			) : null}
+			{onCurrencyChange ? (
+				<CurrencySelect label="Moeda da transação" onValueChange={onCurrencyChange} value={currencyCode} />
+			) : null}
 			<MoneyField
+				currencyCode={currencyCode}
 				id="transaction-amount"
 				label="Valor"
 				onValueChange={onAmountChange}
 				required
 				value={amount}
 			/>
+			{onFeesChange ? (
+				<FinancialFeeFields currencyCode={currencyCode} fees={fees} onChange={onFeesChange} />
+			) : null}
 			{showDescription ? (
 				<FormField
 					autoComplete="off"

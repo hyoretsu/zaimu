@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { LuDollarSign, LuLandmark, LuPencil, LuTrash2 } from "react-icons/lu";
+import { OriginalMoneyDetails } from "@/components/currency";
 import { ListItemLayout } from "@/components/ui/ListItemLayout";
 import type { Transaction } from "@/lib/api";
 import { formatDebtSplitBadge } from "@/lib/debt-split";
@@ -160,6 +161,11 @@ export function TransactionListItem({
 			metadata={
 				<div className="min-w-0 space-y-3">
 					{metadataPrefix ? <div>{metadataPrefix}</div> : null}
+					<OriginalMoneyDetails
+						currency={transaction.currency}
+						fees={transaction.fees}
+						originalAmount={transaction.originalAmount}
+					/>
 					<TransactionBadges
 						accounts={showAccountBadge ? accounts : []}
 						creditCardPayment={creditCardPayment}
