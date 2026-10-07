@@ -61,7 +61,7 @@ function DialogContent({
 				{children}
 				{showCloseButton && (
 					<DialogPrimitive.Close asChild data-slot="dialog-close">
-						<Button className="absolute top-4 right-4" size="icon-sm" variant="ghost">
+						<Button className="absolute top-4 right-4 cursor-pointer" size="icon-sm" variant="outline">
 							<HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
 							<span className="sr-only">Fechar</span>
 						</Button>
