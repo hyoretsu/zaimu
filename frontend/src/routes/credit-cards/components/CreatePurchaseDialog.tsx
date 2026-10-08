@@ -194,7 +194,12 @@ export function CreatePurchaseDialog({
 								required
 								value={amount}
 							/>
-							<FinancialFeeFields currencyCode={currencyCode} fees={fees} onChange={setFees} />
+							<FinancialFeeFields
+								baseAmount={Number(amount) || 0}
+								currencyCode={currencyCode}
+								fees={fees}
+								onChange={setFees}
+							/>
 							<div className="grid gap-4 sm:grid-cols-3">
 								<FormField
 									autoComplete="off"

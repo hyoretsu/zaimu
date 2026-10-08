@@ -7,10 +7,12 @@ import { FinancialFeeRow } from "./FinancialFeeRow";
 
 export function FinancialFeeFields({
 	fees,
+	baseAmount,
 	onChange,
 	currencyCode = "BRL",
 }: {
 	fees: FinancialFee[];
+	baseAmount: number;
 	onChange: (fees: FinancialFee[]) => void;
 	currencyCode?: string;
 }) {
@@ -18,6 +20,7 @@ export function FinancialFeeFields({
 		<div className="grid min-w-0 grid-cols-1 gap-3">
 			{fees.map((fee, index) => (
 				<FinancialFeeRow
+					baseAmount={baseAmount}
 					currencyCode={currencyCode}
 					fee={fee}
 					index={index}
@@ -34,7 +37,7 @@ export function FinancialFeeFields({
 			<ActionGroup>
 				<Button
 					onClick={() => {
-						onChange([...fees, { amount: 0, name: "IOF", type: "PERCENTAGE" }]);
+						onChange([...fees, { amount: 0, name: "IOF", type: "FIXED" }]);
 						showToast("Taxa adicionada.", "info");
 					}}
 					type="button"
@@ -43,11 +46,6 @@ export function FinancialFeeFields({
 					<LuPlus /> Adicionar taxa
 				</Button>
 			</ActionGroup>
-			{fees.length ? (
-				<p className="text-muted-foreground text-xs">
-					Taxas na moeda da transação. Percentuais calculados sobre o valor original, antes da conversão.
-				</p>
-			) : null}
 		</div>
 	);
 }

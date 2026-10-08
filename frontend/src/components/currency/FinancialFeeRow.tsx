@@ -1,31 +1,38 @@
+import { roundMoney } from "@zaimu/finance/money";
 import { LuTrash2 } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
-import { NumericField } from "@/components/ui/NumericField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { FinancialFee } from "@/lib/api";
 
 const presets = ["IOF", "Spread", "Imposto", "Tarifa", "Juros", "Multa"];
 export function FinancialFeeRow({
-	fee,
+	fee: storedFee,
+	baseAmount,
 	onChange,
 	onRemove,
 	currencyCode,
 	index,
 }: {
 	fee: FinancialFee;
+	baseAmount: number;
 	onChange: (fee: FinancialFee) => void;
 	onRemove: () => void;
 	currencyCode: string;
 	index: number;
 }) {
+	const fee: FinancialFee = {
+		...storedFee,
+		amount:
+			storedFee.type === "PERCENTAGE"
+				? roundMoney((baseAmount * storedFee.amount) / 100, currencyCode)
+				: storedFee.amount,
+		type: "FIXED",
+	};
 	const [name, setName] = useDebouncedInput(fee.name, name => onChange({ ...fee, name }));
-	const [amount, setAmount] = useDebouncedInput(String(fee.amount), value =>
-		onChange({ ...fee, amount: Number(value.replace(",", ".")) || 0 }),
-	);
 	return (
 		<div className="grid min-w-0 grid-cols-1 gap-3 rounded-xl border p-3">
 			<CustomSelect
@@ -50,34 +57,13 @@ export function FinancialFeeRow({
 					value={name}
 				/>
 			) : null}
-			<CustomSelect
-				label="Cálculo"
-				onValueChange={type => onChange({ ...fee, type: type as FinancialFee["type"] })}
-				options={[
-					{ label: "Valor fixo", value: "FIXED" },
-					{ label: "Percentual", value: "PERCENTAGE" },
-				]}
-				placeholder="Selecione o cálculo"
-				value={fee.type}
+			<MoneyField
+				currencyCode={currencyCode}
+				id={`fee-amount-${index}`}
+				label="Valor da taxa"
+				onValueChange={amount => onChange({ ...fee, amount: Number(amount) || 0 })}
+				value={String(fee.amount || "")}
 			/>
-			{fee.type === "FIXED" ? (
-				<MoneyField
-					currencyCode={currencyCode}
-					id={`fee-amount-${index}`}
-					label="Valor da taxa"
-					onValueChange={amount => onChange({ ...fee, amount: Number(amount) || 0 })}
-					value={String(fee.amount || "")}
-				/>
-			) : (
-				<NumericField
-					id={`fee-percent-${index}`}
-					label="Percentual"
-					onValueChange={setAmount}
-					placeholder="Ex: 3,38%"
-					suffix="%"
-					value={amount}
-				/>
-			)}
 			<ActionGroup>
 				<Button aria-label="Remover taxa" onClick={onRemove} size="icon" type="button" variant="outline">
 					<LuTrash2 />

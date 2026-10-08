@@ -125,7 +125,12 @@ export function TransactionDetailsFields({
 				</div>
 			)}
 			{onFeesChange ? (
-				<FinancialFeeFields currencyCode={currencyCode} fees={fees} onChange={onFeesChange} />
+				<FinancialFeeFields
+					baseAmount={Number(amount) || 0}
+					currencyCode={currencyCode}
+					fees={fees}
+					onChange={onFeesChange}
+				/>
 			) : null}
 			{showDescription ? (
 				<FormField
