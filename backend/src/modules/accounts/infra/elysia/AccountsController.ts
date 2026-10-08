@@ -356,11 +356,6 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 					if (body.creditCard.cashbackAccountId)
 						await assertRewardsAccountOwnership(body.creditCard.cashbackAccountId, userId);
 				}
-				if (body.rewardsAccount)
-					assertRewardsAccountDetails({
-						...body.rewardsAccount,
-						initialBalance: body.rewardsAccount.initialBalance ?? 0,
-					});
 				const effectiveCurrency = await defaultCurrency(userId, request.headers.get("x-currency"));
 				const institution = await resolveFinancialInstitution(
 					userId,
@@ -370,6 +365,14 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 				const currency = body.currency
 					? await assertSupportedCurrency(body.currency)
 					: (institution?.currency ?? effectiveCurrency);
+				if (body.rewardsAccount)
+					assertRewardsAccountDetails(
+						{
+							...body.rewardsAccount,
+							initialBalance: body.rewardsAccount.initialBalance ?? 0,
+						},
+						currency,
+					);
 				let cashbackAccountId = body.creditCard?.cashbackAccountId;
 				if (body.creditCard?.cashbackRate && !cashbackAccountId) {
 					const cashbackRewards = body.creditCard.cashbackRewards ?? { kind: "CASHBACK" as const };
@@ -958,7 +961,7 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 						initialBalance: body.rewardsAccount.initialBalance ?? existingRewardsAccount.initialBalance,
 						kind: body.rewardsAccount.kind ?? existingRewardsAccount.kind,
 					};
-					assertRewardsAccountDetails(nextRewardsAccount);
+					assertRewardsAccountDetails(nextRewardsAccount, body.currency?.toUpperCase() ?? existing.currency);
 					const rewardsAccount = await queryFirst(
 						db.sql.public.RewardsAccount.update({
 							...(body.rewardsAccount.conversionAmount !== undefined && {

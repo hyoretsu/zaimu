@@ -23,3 +23,9 @@ describe("assertRewardsAccountDetails", () => {
 		).toThrow("Informe os pontos e o valor da conversão juntos");
 	});
 });
+
+test("points equivalent uses declared ISO denomination precision", () => {
+	const details = { conversionAmount: 1.001, conversionPoints: 1000, initialBalance: 0, kind: "POINTS" };
+	expect(() => assertRewardsAccountDetails(details, "KWD")).not.toThrow();
+	expect(() => assertRewardsAccountDetails(details, "JPY")).toThrow();
+});

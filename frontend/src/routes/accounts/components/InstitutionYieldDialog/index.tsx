@@ -1,5 +1,6 @@
 import { type SyntheticEvent, useState } from "react";
 import { LuBadgePercent, LuPlus } from "react-icons/lu";
+import { CurrencySelect } from "@/components/currency/CurrencySelect";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
@@ -41,6 +42,7 @@ export function InstitutionYieldDialog({
 	) => Promise<unknown>;
 }) {
 	const latestPolicy = institution.yieldPolicies?.at(-1);
+	const [currency, setCurrency] = useState(latestPolicy?.currency ?? institution.currency ?? "BRL");
 	const [open, setOpen] = useState(false);
 	const [enabled, setEnabled] = useState(Boolean(latestPolicy?.rules.length));
 	const [period, setPeriod] = useState<"MONTHLY" | "YEARLY">(latestPolicy?.yieldPeriod ?? "MONTHLY");
@@ -57,6 +59,7 @@ export function InstitutionYieldDialog({
 	);
 	const reset = () => {
 		const policy = institution.yieldPolicies?.at(-1);
+		setCurrency(policy?.currency ?? institution.currency ?? "BRL");
 		setEnabled(Boolean(policy?.rules.length));
 		setPeriod(policy?.yieldPeriod ?? "MONTHLY");
 		setTaxRate(String(policy?.yieldTaxRate ?? ""));
@@ -75,6 +78,7 @@ export function InstitutionYieldDialog({
 	const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		const operation = onUpdate(institution, {
+			currency,
 			rules: enabled
 				? rules.map((rule, index) => ({
 						upToBalance: index === rules.length - 1 ? null : Number(rule.upToBalance),
@@ -119,6 +123,7 @@ export function InstitutionYieldDialog({
 					</DialogDescription>
 				</DialogHeader>
 				<form className="flex min-h-0 flex-col gap-5" onSubmit={submit}>
+					<CurrencySelect onValueChange={setCurrency} value={currency} />
 					<CheckboxField
 						checkboxProps={{ checked: enabled, onCheckedChange: checked => setEnabled(checked === true) }}
 					>
@@ -152,6 +157,7 @@ export function InstitutionYieldDialog({
 								</div>
 								{rules.map((rule, index) => (
 									<InstitutionYieldRuleRow
+										currency={currency}
 										index={index}
 										isLast={index === rules.length - 1}
 										key={rule.id}

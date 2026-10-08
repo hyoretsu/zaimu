@@ -4,6 +4,7 @@ export type YieldPeriod = "MONTHLY" | "YEARLY";
 export type ReferenceRateType = "CDI" | "SELIC";
 
 export interface YieldAccount {
+	currency?: string;
 	createdAt: Date;
 	id: string;
 	institutionYieldPolicies?: InstitutionYieldPolicy[];
@@ -17,6 +18,7 @@ export interface YieldAccount {
 }
 
 export interface InstitutionYieldPolicy {
+	currency?: string;
 	effectiveDate: Date;
 	rules: InstitutionYieldRule[];
 	yieldPeriod?: null | YieldPeriod;
@@ -273,7 +275,10 @@ function getYieldSettings(account: YieldAccount, day: string) {
 		return accountSettings;
 	if (account.type !== "CHECKING" && account.type !== "SAVINGS") return accountSettings;
 	return account.institutionYieldPolicies
-		?.filter(policy => dateKey(policy.effectiveDate) <= day)
+		?.filter(
+			policy =>
+				dateKey(policy.effectiveDate) <= day && (policy.currency ?? "BRL") === (account.currency ?? "BRL"),
+		)
 		.toSorted((left, right) => left.effectiveDate.valueOf() - right.effectiveDate.valueOf())
 		.at(-1);
 }

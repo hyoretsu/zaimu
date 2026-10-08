@@ -323,7 +323,11 @@ function getYieldSettings(account: FinancialAccount, day: string) {
 	if (accountSettings.yieldFixedRate || accountSettings.yieldReferenceType) return accountSettings;
 	if (account.type !== "CHECKING" && account.type !== "SAVINGS") return accountSettings;
 	return account.institution?.yieldPolicies
-		?.filter(policy => policy.effectiveDate.slice(0, 10) <= day)
+		?.filter(
+			policy =>
+				policy.effectiveDate.slice(0, 10) <= day &&
+				(policy.currency ?? "BRL") === (account.currency ?? "BRL"),
+		)
 		.toSorted((left, right) => left.effectiveDate.localeCompare(right.effectiveDate))
 		.at(-1);
 }

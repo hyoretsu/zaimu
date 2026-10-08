@@ -11,6 +11,7 @@ export async function getFinancialInstitutionYieldPolicies(institutionIds: strin
 		db.sql.public.FinancialInstitutionYieldPolicy.select(
 			"id",
 			"financialInstitutionId",
+			"currency",
 			"effectiveDate",
 			"yieldPeriod",
 			"yieldTaxRate",
@@ -48,6 +49,7 @@ export async function getFinancialInstitutionYieldPolicies(institutionIds: strin
 	for (const policy of policies) {
 		const institutionPolicies = policiesByInstitutionId.get(policy.financialInstitutionId) ?? [];
 		institutionPolicies.push({
+			currency: policy.currency,
 			effectiveDate: policy.effectiveDate,
 			rules: (rulesByPolicyId.get(policy.id) ?? []).map(rule => ({
 				upToBalance: rule.upToBalance === null ? null : Number(rule.upToBalance),

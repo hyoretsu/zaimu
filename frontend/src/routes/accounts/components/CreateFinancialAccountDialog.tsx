@@ -532,7 +532,7 @@ export function CreateFinancialAccountDialog({
 												}}
 											>
 												<span>
-													<strong className="block">Informar conversão para reais</strong>
+													<strong className="block">Informar equivalente monetário em {currency}</strong>
 													<span className="text-muted-foreground">
 														Saldo continua guardado e exibido em pontos.
 													</span>
@@ -554,7 +554,6 @@ export function CreateFinancialAccountDialog({
 														id="conversion-amount"
 														label="Equivalem a"
 														onValueChange={setConversionAmount}
-														placeholder="R$ 10,00"
 														required
 														value={conversionAmount}
 													/>
@@ -717,7 +716,7 @@ export function CreateFinancialAccountDialog({
 														}}
 													>
 														<span>
-															<strong className="block">Informar conversão para reais</strong>
+															<strong className="block">Informar equivalente monetário em {currency}</strong>
 															<span className="text-muted-foreground">
 																Opcional. Pontos continuam guardados em pontos.
 															</span>
@@ -739,8 +738,7 @@ export function CreateFinancialAccountDialog({
 																id="cashback-conversion-amount"
 																label="Equivalem a"
 																onValueChange={setCashbackConversionAmount}
-																placeholder="R$ 10,00"
-																required
+																																required
 																value={cashbackConversionAmount}
 															/>
 														</div>

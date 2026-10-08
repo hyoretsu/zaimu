@@ -1,18 +1,21 @@
 import { LuTrash2 } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
+import { MoneyField } from "@/components/ui/MoneyField";
 import { NumericField } from "@/components/ui/NumericField";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { EditableYieldRule } from "./types";
 
 export function InstitutionYieldRuleRow({
+	currency,
 	index,
 	isLast,
 	onChange,
 	onRemove,
 	rule,
 }: {
+	currency: string;
 	index: number;
 	isLast: boolean;
 	onChange: (rule: EditableYieldRule) => void;
@@ -57,12 +60,11 @@ export function InstitutionYieldRuleRow({
 						</div>
 					</div>
 				) : (
-					<NumericField
-						decimalScale={2}
+					<MoneyField
+						currencyCode={currency}
 						id={`institution-yield-limit-${rule.id}`}
 						label="Saldo até"
 						onValueChange={setUpToBalance}
-						placeholder="R$ 10.000,00"
 						required
 						value={upToBalance}
 					/>

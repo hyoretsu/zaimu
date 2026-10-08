@@ -29,7 +29,7 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 			if (normalized && !normalized.name) throw new HttpException("Informe o nome da instituição", 400);
 			if (body.yieldPolicy) assertFinancialInstitutionYieldPolicy(body.yieldPolicy);
 			const existing = await queryFirst(
-				db.sql.public.FinancialInstitution.select("id")
+				db.sql.public.FinancialInstitution.select("id", "currency")
 					.where((fields, functions) =>
 						functions.and(functions.eq(fields.id, params.id), functions.eq(fields.userId, userId)),
 					)
@@ -100,6 +100,7 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 					effectiveDate: body.recalculateCurrentDay ? new Date() : tomorrow(),
 					financialInstitutionId: institution.id,
 					...body.yieldPolicy,
+					currency: await assertSupportedCurrency(body.yieldPolicy.currency ?? institution.currency ?? "BRL"),
 				});
 			return { ...institution, ...(body.yieldPolicy && { yieldPolicy: body.yieldPolicy }) };
 		},
@@ -110,6 +111,7 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 				recalculateCurrentDay: t.Optional(t.Boolean()),
 				yieldPolicy: t.Optional(
 					t.Object({
+						currency: t.Optional(CurrencyDTO),
 						rules: t.Array(YieldRule, { maxItems: 20 }),
 						yieldPeriod: t.Optional(t.Nullable(YieldPeriod)),
 						yieldTaxRate: t.Optional(t.Nullable(t.Number({ maximum: 100, minimum: 0 }))),

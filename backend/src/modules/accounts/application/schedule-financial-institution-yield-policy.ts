@@ -7,12 +7,14 @@ import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/appl
 import { db, executeStatement, nullableNumeric, param, queryFirst, queryRows } from "~/shared/infra/sql";
 
 export async function scheduleFinancialInstitutionYieldPolicy({
+	currency,
 	effectiveDate,
 	financialInstitutionId,
 	rules,
 	yieldPeriod,
 	yieldTaxRate,
 }: {
+	currency: string;
 	effectiveDate: Date;
 	financialInstitutionId: string;
 	rules: InstitutionYieldRule[];
@@ -52,6 +54,7 @@ export async function scheduleFinancialInstitutionYieldPolicy({
 		);
 		await executeStatement(
 			db.sql.public.FinancialInstitutionYieldPolicy.update({
+				currency,
 				updatedAt: new Date(),
 				yieldPeriod: yieldPeriod ?? null,
 				yieldTaxRate: nullableNumeric<5, 2>(yieldTaxRate ?? null),
@@ -63,6 +66,7 @@ export async function scheduleFinancialInstitutionYieldPolicy({
 		const policy = await queryFirst(
 			db.sql.public.FinancialInstitutionYieldPolicy.insert([
 				{
+					currency,
 					effectiveDate: date,
 					financialInstitutionId,
 					yieldPeriod: yieldPeriod ?? undefined,

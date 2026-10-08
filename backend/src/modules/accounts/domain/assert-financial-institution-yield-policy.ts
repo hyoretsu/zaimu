@@ -1,11 +1,14 @@
+import { toMinorUnits } from "@zaimu/finance/money";
 import { HttpException } from "~/shared/errors";
 import type { InstitutionYieldRule, YieldPeriod } from "./calculate-financial-account-yields";
 
 export function assertFinancialInstitutionYieldPolicy({
+	currency = "BRL",
 	rules,
 	yieldPeriod,
 	yieldTaxRate,
 }: {
+	currency?: string;
 	rules: InstitutionYieldRule[];
 	yieldPeriod?: null | YieldPeriod;
 	yieldTaxRate?: null | number;
@@ -24,6 +27,7 @@ export function assertFinancialInstitutionYieldPolicy({
 		if (rule.upToBalance === null || rule.upToBalance === undefined) {
 			if (!isLast) throw new HttpException("Somente a última faixa pode não ter limite", 400);
 		} else {
+			toMinorUnits(rule.upToBalance, currency, 1);
 			if (isLast) throw new HttpException("A última faixa deve abranger o saldo excedente", 400);
 			if (rule.upToBalance <= previousLimit)
 				throw new HttpException("Os limites das faixas devem ser crescentes", 400);

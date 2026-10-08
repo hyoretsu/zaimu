@@ -284,3 +284,20 @@ describe("calculateFinancialAccountYieldBalances", () => {
 		expect(balances.get("account")).toBeCloseTo(100 * 1.1 ** (1 / 21), 4);
 	});
 });
+
+test("institution policy thresholds only apply to matching native denomination", () => {
+	const policy = {
+		currency: "KWD",
+		effectiveDate: new Date("2026-01-01"),
+		rules: [{ upToBalance: null, yieldFixedRate: 1 }],
+		yieldPeriod: "MONTHLY" as const,
+	};
+	const account = {
+		createdAt: new Date("2026-01-01"),
+		id: "a",
+		institutionYieldPolicies: [policy],
+		type: "CHECKING",
+	};
+	expect(getYieldSettings({ ...account, currency: "JPY" }, "2026-01-02")).toBeUndefined();
+	expect(getYieldSettings({ ...account, currency: "KWD" }, "2026-01-02")).toBe(policy);
+});
