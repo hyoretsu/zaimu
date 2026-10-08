@@ -36,7 +36,6 @@ const initialDraft = () => ({
 	amount: "",
 	currency: activeCurrency(),
 	date: getLocalDateKey(),
-	destinationAmount: "",
 	destinationFinancialAccountId: "",
 	fees: [] as FinancialFee[],
 	isHidden: false,
@@ -186,8 +185,6 @@ export function CreateTransactionDialog({
 				date: draft.date,
 				debtSplit: isDebt ? debtSplit : undefined,
 				description: description.trim() || undefined,
-				destinationAmount:
-					draft.type === "TRANSFER" && draft.destinationAmount ? Number(draft.destinationAmount) : undefined,
 				destinationFinancialAccountId:
 					draft.type === "INCOME" || draft.type === "TRANSFER"
 						? destinationFinancialAccountId || undefined
@@ -266,13 +263,6 @@ export function CreateTransactionDialog({
 							currencyCode={draft.type === "YIELD" ? (account?.currency ?? draft.currency) : draft.currency}
 							date={draft.date}
 							description={description}
-							destinationAmount={draft.destinationAmount}
-							destinationCurrency={
-								draft.type === "TRANSFER"
-									? (accountsQuery.data?.find(item => item.id === draft.destinationFinancialAccountId)
-											?.currency ?? undefined)
-									: undefined
-							}
 							fees={draft.fees}
 							includeYield
 							isHidden={draft.isHidden}
@@ -287,9 +277,6 @@ export function CreateTransactionDialog({
 							}
 							onDateChange={date => setDraft(current => ({ ...current, date }))}
 							onDescriptionChange={setDescription}
-							onDestinationAmountChange={value =>
-								setDraft(current => ({ ...current, destinationAmount: value }))
-							}
 							onFeesChange={
 								draft.type !== "YIELD" ? fees => setDraft(current => ({ ...current, fees })) : undefined
 							}

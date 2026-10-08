@@ -208,13 +208,6 @@ export function EditTransactionForm({
 							currencyCode={draft.currency}
 							date={draft.date}
 							description={description}
-							destinationAmount={draft.destinationAmount}
-							destinationCurrency={
-								draft.type === "TRANSFER"
-									? (accountsQuery.data?.find(item => item.id === draft.destinationFinancialAccountId)
-											?.currency ?? undefined)
-									: undefined
-							}
 							fees={draft.fees}
 							isHidden={draft.isHidden}
 							onAmountChange={amount => setDraft(current => (current ? { ...current, amount } : current))}
@@ -223,9 +216,6 @@ export function EditTransactionForm({
 							}
 							onDateChange={date => setDraft(current => (current ? { ...current, date } : current))}
 							onDescriptionChange={setDescription}
-							onDestinationAmountChange={value =>
-								setDraft(current => current && { ...current, destinationAmount: value })
-							}
 							onFeesChange={fees => setDraft(current => (current ? { ...current, fees } : current))}
 							onIsHiddenChange={isHidden =>
 								setDraft(current => (current ? { ...current, isHidden } : current))

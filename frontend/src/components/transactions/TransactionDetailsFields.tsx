@@ -14,9 +14,6 @@ type TransactionFormType = Transaction["type"] | "YIELD";
 
 export function TransactionDetailsFields({
 	amount,
-	destinationCurrency,
-	destinationAmount = "",
-	onDestinationAmountChange,
 	paymentCurrency,
 	paymentAmount = "",
 	onPaymentAmountChange,
@@ -47,9 +44,6 @@ export function TransactionDetailsFields({
 	type,
 }: {
 	amount: string;
-	destinationCurrency?: string;
-	destinationAmount?: string;
-	onDestinationAmountChange?: (value: string) => void;
 	paymentCurrency?: string;
 	paymentAmount?: string;
 	onPaymentAmountChange?: (value: string) => void;
@@ -107,29 +101,6 @@ export function TransactionDetailsFields({
 				required
 				value={amount}
 			/>
-			{destinationCurrency && onDestinationAmountChange && (
-				<div className="space-y-2">
-					<MoneyField
-						currencyCode={destinationCurrency}
-						id="transaction-destination-amount"
-						label="Valor recebido na conta de destino"
-						onValueChange={onDestinationAmountChange}
-						value={destinationAmount}
-					/>
-					<p className="text-muted-foreground text-xs">
-						Opcional. Em branco, usa conversão da data da transação.
-					</p>
-					<TransactionConversionPreview
-						amount={amount}
-						bookingCurrency={bookingCurrency}
-						date={date}
-						fees={fees}
-						onUse={onDestinationAmountChange}
-						sourceCurrency={currencyCode}
-						targetCurrency={destinationCurrency}
-					/>
-				</div>
-			)}
 			{paymentCurrency && onPaymentAmountChange && (
 				<div className="space-y-2">
 					<MoneyField
