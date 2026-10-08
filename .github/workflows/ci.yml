@@ -8,12 +8,8 @@ jobs:
     name: Detect affected
     runs-on: ubuntu-latest
     outputs:
-      deployable: ${{ github.base_ref == 'main' || github.base_ref == 'staging' }}
       tasks: ${{ steps.affected.outputs.tasks }}
-      # Secrets can't be read in a job-level `if:`, so surface their presence as
-      # outputs and let DB-dependent jobs gate on them (skip rather than fail when unset).
-      has-test-db: ${{ steps.db-secrets.outputs.has-test-db }}
-      has-shadow-db: ${{ steps.db-secrets.outputs.has-shadow-db }}
+      test-matrix: ${{ steps.test-matrix.outputs.matrix }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -21,21 +17,19 @@ jobs:
           # Need the base commit present to diff the PR against it.
           fetch-depth: 0
 
-      - name: Detect available database secrets
-        id: db-secrets
-        # Only the boolean (true/false) is written — the secret values never reach the log.
-        run: |
-          {
-            echo "has-test-db=${{ secrets.DATABASE_TEST_URL != '' }}"
-            echo "has-shadow-db=${{ secrets.DATABASE_SHADOW_URL != '' }}"
-          } >> "$GITHUB_OUTPUT"
-
       - name: Compute affected packages
         id: affected
         uses: hyoretsu/gh-actions/detect-affected@main
         with:
-          tasks: check-types build test:unit test:e2e migrate:deploy
+          tasks: check-types build test:unit test:integration test:e2e
           base-sha: ${{ github.event.pull_request.base.sha }}
+
+      - name: Build test matrix
+        id: test-matrix
+        env:
+          TASKS: ${{ steps.affected.outputs.tasks }}
+        run: |
+          node -e 'const tasks = JSON.parse(process.env.TASKS); const matrix = ["unit", "integration", "e2e"].flatMap(category => (tasks[`test:${category}`] ?? []).map(pkg => ({ package: pkg, category }))); require("fs").appendFileSync(process.env.GITHUB_OUTPUT, `matrix=${JSON.stringify(matrix)}\n`);'
 
   build:
     name: "${{ matrix.package }} / Build"
@@ -85,59 +79,39 @@ jobs:
         with:
           package: ${{ matrix.package }}
 
-  migrate:
-    name: "${{ matrix.package }} / Migration check"
-    needs: detect
-    if: needs.detect.outputs.deployable == 'true' && needs.detect.outputs.has-shadow-db == 'true'
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        package: ${{ fromJSON(needs.detect.outputs.tasks)['migrate:deploy'] }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-
-      - name: Apply pending migrations to disposable database
-        uses: hyoretsu/gh-actions/migrate@main
-        with:
-          check: "true"
-          package: ${{ matrix.package }}
-          database-url: ${{ secrets.DATABASE_SHADOW_URL }}
-
-  test_e2e:
-    name: "${{ matrix.package }} / E2E tests"
-    needs: detect
-    # Needs a real Postgres; skip (rather than fail) when DATABASE_TEST_URL isn't configured.
-    if: needs.detect.outputs.deployable == 'true' && needs.detect.outputs.has-test-db == 'true'
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        package: ${{ fromJSON(needs.detect.outputs.tasks)['test:e2e'] }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-
-      - name: Run E2E tests
-        uses: hyoretsu/gh-actions/test-e2e@main
-        with:
-          package: ${{ matrix.package }}
-          database-url: ${{ secrets.DATABASE_TEST_URL }}
-
-  test_unit:
-    name: "${{ matrix.package }} / Unit tests"
+  tests:
+    if: needs.detect.outputs.test-matrix != '[]'
+    name: "${{ matrix.package }} / ${{ matrix.category }} tests"
     needs: detect
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        package: ${{ fromJSON(needs.detect.outputs.tasks)['test:unit'] }}
+        include: ${{ fromJSON(needs.detect.outputs.test-matrix) }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Run unit tests
-        uses: hyoretsu/gh-actions/test-unit@main
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          package: ${{ matrix.package }}
+          bun-version-file: package.json
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Check shared runner types and failure regressions
+        if: matrix.package == 'backend' && matrix.category == 'unit'
+        run: |
+          bun x --no-install tsc --noEmit --project scripts/tsconfig.json
+          bun run test:runner
+
+      - name: Prepare local disposable service images
+        if: matrix.category != 'unit'
+        run: |
+          docker pull postgres:16
+          docker pull valkey/valkey:latest
+          docker pull rabbitmq:latest
+
+      - name: Run tests
+        run: bun run --filter '${{ matrix.package }}' 'test:${{ matrix.category }}'

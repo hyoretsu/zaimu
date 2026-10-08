@@ -41,7 +41,7 @@ const packages = workspaceDirs().map(dir => {
 });
 
 interface DryRun {
-	tasks: { package: string }[];
+	tasks: { package: string; task: string }[];
 }
 
 const stdout = execFileSync(
@@ -57,11 +57,17 @@ const stdout = execFileSync(
 	},
 );
 
-const affected = new Set(JSON.parse(stdout).tasks.map((task: DryRun["tasks"][number]) => task.package));
+const affected: DryRun = JSON.parse(stdout);
 const byTask = Object.fromEntries(
 	tasks.map(task => [
 		task,
-		packages.filter(pkg => affected.has(pkg.name) && pkg.scripts[task]).map(pkg => pkg.name),
+		packages
+			.filter(
+				pkg =>
+					affected.tasks.some(entry => entry.package === pkg.name && entry.task === task) &&
+					pkg.scripts[task],
+			)
+			.map(pkg => pkg.name),
 	]),
 );
 
