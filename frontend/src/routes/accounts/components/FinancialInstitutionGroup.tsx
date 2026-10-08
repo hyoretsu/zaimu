@@ -1,27 +1,11 @@
-import { type SyntheticEvent, useState } from "react";
-import { LuLandmark, LuPencil, LuTrash2, LuWalletCards } from "react-icons/lu";
+import { LuLandmark, LuWalletCards } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { AppBadge } from "@/components/ui/AppBadge";
-import { Button } from "@/components/ui/Button";
-import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-	DialogTrigger,
-} from "@/components/ui/Dialog";
-import { FormField } from "@/components/ui/FormField";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
-import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { FinancialAccount, FinancialInstitution, FinancialInstitutionYieldPolicy } from "@/lib/api";
-import { runDialogSave } from "@/lib/dialog-save";
 import { getFinancialAccountCurrencyValue } from "@/lib/financial-account";
 import { CreateFinancialAccountDialog } from "./CreateFinancialAccountDialog";
 import { FinancialAccountCard } from "./FinancialAccountCard";
-import { InstitutionYieldDialog } from "./InstitutionYieldDialog";
+import { InstitutionActions } from "./InstitutionActions";
 
 export function FinancialInstitutionGroup({
 	accounts,
@@ -44,7 +28,11 @@ export function FinancialInstitutionGroup({
 	onDelete: (account: FinancialAccount) => void | Promise<void>;
 	onHide: (account: FinancialAccount) => void;
 	onUpdate: NonNullable<Parameters<typeof CreateFinancialAccountDialog>[0]["onUpdate"]>;
-	onUpdateInstitution: (institution: FinancialInstitution, name: string) => Promise<unknown>;
+	onUpdateInstitution: (
+		institution: FinancialInstitution,
+		name: string,
+		currency: string,
+	) => Promise<unknown>;
 	onUpdateInstitutionYield: (
 		institution: FinancialInstitution,
 		policy: Omit<FinancialInstitutionYieldPolicy, "effectiveDate">,
@@ -118,115 +106,5 @@ export function FinancialInstitutionGroup({
 				))}
 			</div>
 		</section>
-	);
-}
-
-function InstitutionActions({
-	institution,
-	onDelete,
-	onUpdate,
-	onUpdateYield,
-}: {
-	institution: FinancialInstitution;
-	onDelete: (institution: FinancialInstitution) => Promise<unknown>;
-	onUpdate: (institution: FinancialInstitution, name: string) => Promise<unknown>;
-	onUpdateYield: (
-		institution: FinancialInstitution,
-		policy: Omit<FinancialInstitutionYieldPolicy, "effectiveDate">,
-	) => Promise<unknown>;
-}) {
-	return (
-		<>
-			<InstitutionYieldDialog institution={institution} onUpdate={onUpdateYield} />
-			<EditInstitutionDialog institution={institution} onUpdate={onUpdate} />
-			<Tooltip>
-				<TooltipTrigger asChild>
-					<span className="inline-flex">
-						<ConfirmActionButton
-							aria-label={`Excluir ${institution.name}`}
-							className="cursor-pointer"
-							confirmation={`Excluir ${institution.name}? Produtos serão mantidos sem instituição.`}
-							onConfirm={async () => {
-								await onDelete(institution);
-							}}
-							size="icon-sm"
-							variant="destructive"
-						>
-							<LuTrash2 />
-						</ConfirmActionButton>
-					</span>
-				</TooltipTrigger>
-				<TooltipContent>Excluir instituição</TooltipContent>
-			</Tooltip>
-		</>
-	);
-}
-
-function EditInstitutionDialog({
-	institution,
-	onUpdate,
-}: {
-	institution: FinancialInstitution;
-	onUpdate: (institution: FinancialInstitution, name: string) => Promise<unknown>;
-}) {
-	const [open, setOpen] = useState(false);
-	const [name, setName] = useDebouncedInput(institution.name, () => undefined);
-	const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
-		event.preventDefault();
-		try {
-			runDialogSave(onUpdate(institution, name.trim()), () => setOpen(false), "Salvando instituição…");
-		} catch {
-			return;
-		}
-	};
-	return (
-		<Dialog onOpenChange={setOpen} open={open}>
-			<Tooltip>
-				<TooltipTrigger asChild>
-					<DialogTrigger asChild>
-						<Button
-							aria-label={`Editar ${institution.name}`}
-							className="cursor-pointer"
-							size="icon-sm"
-							variant="outline"
-						>
-							<LuPencil />
-						</Button>
-					</DialogTrigger>
-				</TooltipTrigger>
-				<TooltipContent>Editar instituição</TooltipContent>
-			</Tooltip>
-			<DialogContent className="sm:max-w-md">
-				<DialogHeader>
-					<DialogTitle>Editar instituição</DialogTitle>
-					<DialogDescription>O nome será atualizado em todas as contas deste grupo.</DialogDescription>
-				</DialogHeader>
-				<form className="grid gap-5" onSubmit={submit}>
-					<FormField
-						autoComplete="organization"
-						id={`institution-${institution.id}`}
-						label="Nome da instituição"
-						name="institution-name"
-						onChange={event => setName(event.currentTarget.value)}
-						placeholder="Ex: Mercado Pago"
-						required
-						type="text"
-						value={name}
-					/>
-					<DialogFooter>
-						<Button className="cursor-pointer" onClick={() => setOpen(false)} type="button" variant="outline">
-							Descartar
-						</Button>
-						<Button
-							className="cursor-pointer disabled:cursor-not-allowed"
-							disabled={!name.trim()}
-							type="submit"
-						>
-							Salvar
-						</Button>
-					</DialogFooter>
-				</form>
-			</DialogContent>
-		</Dialog>
 	);
 }

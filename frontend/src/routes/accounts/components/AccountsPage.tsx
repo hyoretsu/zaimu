@@ -237,8 +237,8 @@ export function AccountsPage() {
 							onDeleteInstitution={institution => deleteInstitution.mutateAsync(institution.id)}
 							onHide={account => setAccountHidden.mutate({ id: account.id, isHidden: true })}
 							onUpdate={(id, data) => updateAccount.mutateAsync({ data, id })}
-							onUpdateInstitution={(institution, name) =>
-								updateInstitution.mutateAsync({ data: { name }, id: institution.id })
+							onUpdateInstitution={(institution, name, currency) =>
+								updateInstitution.mutateAsync({ data: { currency, name }, id: institution.id })
 							}
 							onUpdateInstitutionYield={(institution, yieldPolicy) =>
 								updateInstitution.mutateAsync({ data: { yieldPolicy }, id: institution.id })
