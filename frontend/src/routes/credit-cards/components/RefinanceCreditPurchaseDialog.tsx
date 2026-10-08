@@ -16,8 +16,6 @@ import type { CreditPurchase } from "@/lib/api";
 import { getLocalDateKey } from "@/lib/date";
 import { runDialogSave } from "@/lib/dialog-save";
 
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
-
 export function RefinanceCreditPurchaseDialog({
 	onOpenChange,
 	onSubmit,
@@ -31,6 +29,8 @@ export function RefinanceCreditPurchaseDialog({
 	pending: boolean;
 	purchase: CreditPurchase;
 }) {
+	const currencyCode = purchase.bookingCurrency ?? "BRL";
+	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
 	const [feeAmount, setFeeAmount] = useState("0");
 	const [installments, setInstallments] = useDebouncedInput("12", () => undefined);
 	const [purchaseDate, setPurchaseDate] = useState(getLocalDateKey);
@@ -61,6 +61,7 @@ export function RefinanceCreditPurchaseDialog({
 						<strong className="text-lg">{currency.format(balance)}</strong>
 					</div>
 					<MoneyField
+						currencyCode={currencyCode}
 						id="refinance-credit-purchase-fee"
 						label="Taxa do parcelamento"
 						onValueChange={setFeeAmount}

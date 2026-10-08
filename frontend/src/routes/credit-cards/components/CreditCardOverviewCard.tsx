@@ -7,8 +7,6 @@ import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { formatLocalDate } from "@/lib/date";
 import { PendingRefundReviews } from "./PendingRefundReviews";
 
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
-
 export function CreditCardOverviewCard({
 	card,
 	onAddPurchase,
@@ -20,6 +18,8 @@ export function CreditCardOverviewCard({
 	onViewStatements: () => void;
 	managementActions?: ReactNode;
 }) {
+	const currencyCode = card.currency ?? "BRL";
+	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
 	const statement = card.currentStatement;
 	const currentBill = Math.max(0, statement?.balanceAmount ?? 0);
 	const limit = card.limit;

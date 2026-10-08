@@ -9,8 +9,6 @@ import { formatLocalDate, formatLocalTime } from "@/lib/date";
 import { formatDebtSplitBadge } from "@/lib/debt-split";
 import { CreditPurchaseRefundSummary } from "./CreditPurchaseRefundSummary";
 
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
-
 export function CreditPurchaseRow({
 	deleteDisabled,
 	editDisabled,
@@ -34,6 +32,8 @@ export function CreditPurchaseRow({
 	onEditRefund: (refund: NonNullable<CreditPurchase["refunds"]>[number]) => void;
 	purchase: CreditPurchase;
 }) {
+	const currencyCode = purchase.bookingCurrency ?? "BRL";
+	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
 	const tags = purchase.tags;
 	const debtPersonName = formatDebtSplitBadge(purchase.debtSplit, amount => currency.format(amount));
 	const hasSyncedInstallments = purchase.isFullySynced && purchase.installments > 1;
@@ -71,6 +71,7 @@ export function CreditPurchaseRow({
 					<div className="mt-2 grid gap-2">
 						{purchase.refunds.map(refund => (
 							<CreditPurchaseRefundSummary
+								currencyCode={currencyCode}
 								disabled={refundDisabled}
 								key={refund.id}
 								onEdit={() => onEditRefund(refund)}

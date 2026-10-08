@@ -22,8 +22,6 @@ import { EditCreditPurchaseDialog } from "./EditCreditPurchaseDialog";
 import { RefinanceCreditPurchaseDialog } from "./RefinanceCreditPurchaseDialog";
 import { RefundCreditPurchaseDialog } from "./RefundCreditPurchaseDialog";
 
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
-
 export function CreditCardStatementDetails({
 	card,
 	statement,
@@ -37,6 +35,8 @@ export function CreditCardStatementDetails({
 	ignoreBefore: string | null;
 	onAddPurchase: () => void;
 }) {
+	const currencyCode = card.currency ?? "BRL";
+	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
 	const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<string>>(new Set());

@@ -117,8 +117,8 @@ function RootComponent() {
 			localDatabase={localDatabase}
 			session={{ pending: isLoading, retry: initialize, unavailable: isSessionUnavailable }}
 		>
+			<CurrencyLifecycle />
 			<AppShell key={identity}>
-				<CurrencyLifecycle />
 				<Outlet />
 			</AppShell>
 		</AppStartupGate>

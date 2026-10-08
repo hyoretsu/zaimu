@@ -9,10 +9,6 @@ import { InstallmentPurchaseDetails } from "./InstallmentPurchaseDetails";
 import { type ItemAction, ItemActions } from "./ItemActions";
 import { type TransactionBadgeAccount, TransactionBadges } from "./TransactionBadges";
 
-function formatCurrency(value: number) {
-	return new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(value);
-}
-
 export function TransactionListItem({
 	additionalActionItems,
 	actionItems,
@@ -42,6 +38,9 @@ export function TransactionListItem({
 	title?: ReactNode;
 	transaction: Transaction;
 }) {
+	const currencyCode = transaction.bookingCurrency ?? "BRL";
+	const formatCurrency = (value: number) =>
+		new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" }).format(value);
 	const isCreditCardPurchase = transaction.source === "CREDIT_CARD";
 	const amountPrefix =
 		Number(transaction.amount) === 0
@@ -137,6 +136,7 @@ export function TransactionListItem({
 					</p>
 				) : isCreditCardPurchase && transaction.installments && transaction.installmentAmount ? (
 					<InstallmentPurchaseDetails
+						currencyCode={currencyCode}
 						installmentAmount={Number(transaction.installmentAmount)}
 						installments={transaction.installments}
 						totalAmount={Number(transaction.amount)}

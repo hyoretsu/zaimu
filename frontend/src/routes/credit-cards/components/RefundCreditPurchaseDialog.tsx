@@ -21,8 +21,6 @@ import { dataService } from "@/lib/dataService";
 import { getLocalDateKey } from "@/lib/date";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
-
 export function RefundCreditPurchaseDialog({
 	onOpenChange,
 	onDelete,
@@ -46,6 +44,8 @@ export function RefundCreditPurchaseDialog({
 	refund?: NonNullable<CreditPurchase["refund"]>;
 	refundId?: string;
 }) {
+	const currencyCode = purchase.bookingCurrency ?? "BRL";
+	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
 	const [amount, setAmount] = useState(refund ? String(refund.amount) : "");
 	const [date, setDate] = useState(
 		refund?.date.slice(0, 10) ?? (purchase.isRefund ? purchase.purchaseDate.slice(0, 10) : getLocalDateKey()),
@@ -125,6 +125,7 @@ export function RefundCreditPurchaseDialog({
 				<form className="grid gap-5" onSubmit={submit}>
 					{bookQuery.isPending ? <Skeleton className="h-10 rounded-xl" /> : null}
 					<MoneyField
+						currencyCode={currencyCode}
 						id="credit-purchase-refund-amount"
 						label="Valor do reembolso"
 						onValueChange={setAmount}
