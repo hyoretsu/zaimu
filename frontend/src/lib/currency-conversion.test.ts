@@ -19,3 +19,21 @@ describe("guest currency amounts", () => {
 		await expect(convertLocalMoney(Number.NaN, "2026-10-07", "BRL", "BRL")).rejects.toThrow();
 	});
 });
+
+test("foreign principal and fees convert into explicit JPY booking units", async () => {
+	const result = await convertLocalMoney(
+		10,
+		"2026-10-07",
+		"USD",
+		"JPY",
+		[{ amount: 1, name: "Tarifa", type: "FIXED" }],
+		async (date, from, to) => {
+			expect([date, from, to]).toEqual(["2026-10-07", "USD", "JPY"]);
+			return 149.12;
+		},
+	);
+	expect(result.amount).toBe(1640);
+	expect(result.originalAmount).toBe(10);
+	expect(result.currency).toBe("USD");
+	expect(result.bookingCurrency).toBe("JPY");
+});

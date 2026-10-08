@@ -1,5 +1,8 @@
 import Elysia, { t } from "elysia";
 import { supportedCurrencies } from "~/modules/currencies/application/currency-catalog";
+import { currencyRateDate } from "~/modules/currencies/application/currency-exchange";
+import { ensureCurrencyRates } from "~/modules/currencies/infra/currency-exchange";
+import { HttpException } from "~/shared/errors";
 import { getCurrencyHistoryEstimate } from "../application/currency-history-estimate";
 import {
 	getHistoryCollection,
@@ -46,6 +49,31 @@ const HistoryCollectionReturn = t.Object({
 });
 export const FinancialHistoryController = new Elysia({ prefix: "/financial-history" })
 	.get("/currencies", () => supportedCurrencies(), { response: t.Array(t.String()) })
+	.get(
+		"/rate",
+		async ({ query }) => {
+			const date = currencyRateDate(query.date);
+			if (date > new Date().toISOString().slice(0, 10))
+				throw new HttpException("Conversão diária não aceita datas futuras", 400);
+			const currencies = await supportedCurrencies();
+			if (!currencies.includes(query.from) || !currencies.includes(query.to))
+				throw new HttpException("Moeda não suportada", 400);
+			return {
+				date,
+				from: query.from,
+				rate: await ensureCurrencyRates(date, query.from, query.to),
+				to: query.to,
+			};
+		},
+		{
+			query: t.Object({
+				date: t.String({ format: "date" }),
+				from: t.String({ pattern: "^[A-Z]{3}$" }),
+				to: t.String({ pattern: "^[A-Z]{3}$" }),
+			}),
+			response: t.Object({ date: t.String(), from: t.String(), rate: t.Number(), to: t.String() }),
+		},
+	)
 	.post(
 		"/collections",
 		async ({ body }) => {

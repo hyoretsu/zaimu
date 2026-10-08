@@ -8,6 +8,7 @@ import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { TimeField } from "@/components/ui/TimeField";
 import type { FinancialFee, Transaction } from "@/lib/api";
+import { TransactionConversionPreview } from "./TransactionConversionPreview";
 
 type TransactionFormType = Transaction["type"] | "YIELD";
 
@@ -20,6 +21,7 @@ export function TransactionDetailsFields({
 	paymentAmount = "",
 	onPaymentAmountChange,
 	currencyCode = "BRL",
+	bookingCurrency = currencyCode,
 	onCurrencyChange,
 	fees = [],
 	onFeesChange,
@@ -52,6 +54,7 @@ export function TransactionDetailsFields({
 	paymentAmount?: string;
 	onPaymentAmountChange?: (value: string) => void;
 	currencyCode?: string;
+	bookingCurrency?: string;
 	onCurrencyChange?: (value: string) => void;
 	fees?: FinancialFee[];
 	onFeesChange?: (value: FinancialFee[]) => void;
@@ -116,6 +119,15 @@ export function TransactionDetailsFields({
 					<p className="text-muted-foreground text-xs">
 						Opcional. Em branco, usa conversão da data da transação.
 					</p>
+					<TransactionConversionPreview
+						amount={amount}
+						bookingCurrency={bookingCurrency}
+						date={date}
+						fees={fees}
+						onUse={onDestinationAmountChange}
+						sourceCurrency={currencyCode}
+						targetCurrency={destinationCurrency}
+					/>
 				</div>
 			)}
 			{paymentCurrency && onPaymentAmountChange && (
@@ -130,6 +142,15 @@ export function TransactionDetailsFields({
 					<p className="text-muted-foreground text-xs">
 						Opcional. Informe valor efetivo ou deixe conversão automática.
 					</p>
+					<TransactionConversionPreview
+						amount={amount}
+						bookingCurrency={bookingCurrency}
+						date={date}
+						fees={fees}
+						onUse={onPaymentAmountChange}
+						sourceCurrency={currencyCode}
+						targetCurrency={paymentCurrency}
+					/>
 				</div>
 			)}
 			{onFeesChange ? (

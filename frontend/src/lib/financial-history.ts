@@ -88,3 +88,8 @@ export const readCurrencyEstimate = (id: string, currency: string) =>
 	historyRequest<CurrencyHistoryEstimate>(
 		`/collections/${encodeURIComponent(id)}/estimate?currency=${encodeURIComponent(currency)}`,
 	);
+
+export const readCurrencyRate = (date: string, from: string, to: string) =>
+	historyRequest<{ date: string; from: string; to: string; rate: number }>(
+		`/rate?date=${encodeURIComponent(date.slice(0, 10))}&from=${encodeURIComponent(from.toUpperCase())}&to=${encodeURIComponent(to.toUpperCase())}`,
+	);

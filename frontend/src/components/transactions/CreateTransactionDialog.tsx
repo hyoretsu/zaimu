@@ -227,6 +227,17 @@ export function CreateTransactionDialog({
 					<div className="grid gap-4 pr-1">
 						<TransactionDetailsFields
 							amount={draft.amount}
+							bookingCurrency={
+								account?.currency ??
+								accountsQuery.data?.find(
+									item =>
+										item.id ===
+										(draft.type === "INCOME"
+											? draft.destinationFinancialAccountId
+											: draft.originFinancialAccountId),
+								)?.currency ??
+								draft.currency
+							}
 							currencyCode={draft.type === "YIELD" ? (account?.currency ?? draft.currency) : draft.currency}
 							date={draft.date}
 							description={description}
