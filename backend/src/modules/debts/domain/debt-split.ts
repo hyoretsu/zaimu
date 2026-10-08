@@ -1,3 +1,4 @@
+import { currencyScale, fromMinorUnits, toMinorUnits } from "@zaimu/finance/money";
 export type DebtSplitInput =
 	| {
 			mode: "SHARES";
@@ -23,9 +24,6 @@ export type CalculatedDebtSplit = DebtSplitInput & {
 };
 
 export class DebtSplitValidationError extends Error {}
-
-const toCents = (amount: number) => Math.round(amount * 100);
-const fromCents = (amount: number) => amount / 100;
 
 function assertBaseInput(totalCents: number, split: DebtSplitInput) {
 	if (!Number.isSafeInteger(totalCents) || totalCents <= 0)
@@ -68,12 +66,25 @@ function allocateByLargestRemainder(totalCents: number, values: number[], denomi
 
 function assertPositiveAllocations(ownerCents: number, participantCents: number[], ownerIncluded: boolean) {
 	if (participantCents.some(amount => amount < 1))
-		throw new DebtSplitValidationError("Cada pessoa deve receber pelo menos R$ 0,01");
+		throw new DebtSplitValidationError("Cada pessoa deve receber pelo menos uma unidade mínima da moeda");
 	if (ownerIncluded && ownerCents < 1)
-		throw new DebtSplitValidationError("Sua parte deve ser de pelo menos R$ 0,01");
+		throw new DebtSplitValidationError("Sua parte deve ser de pelo menos uma unidade mínima da moeda");
 }
 
-export function calculateDebtSplit(amount: number, split: DebtSplitInput): CalculatedDebtSplit {
+export function calculateDebtSplit(
+	amount: number,
+	split: DebtSplitInput,
+	currency = "BRL",
+): CalculatedDebtSplit {
+	const scale = currencyScale(currency);
+	const toCents = (value: number) => {
+		try {
+			return toMinorUnits(value, currency);
+		} catch {
+			throw new DebtSplitValidationError(`Valor incompatível com a precisão de ${currency}`);
+		}
+	};
+	const fromCents = (value: number) => fromMinorUnits(value, currency);
 	const totalCents = toCents(amount);
 	assertBaseInput(totalCents, split);
 
@@ -139,10 +150,10 @@ export function calculateDebtSplit(amount: number, split: DebtSplitInput): Calcu
 				!Number.isFinite(participant.fixedAmount) ||
 				participant.fixedAmount < 0 ||
 				(participant.fixedAmount === 0 && participant.debtPersonId !== split.remainderDebtPersonId) ||
-				Math.abs(participant.fixedAmount * 100 - participantCents[index]) > 1e-7,
+				Math.abs(participant.fixedAmount * scale - participantCents[index]) > 1e-7,
 		)
 	)
-		throw new DebtSplitValidationError("Valores fixos devem ser positivos e ter até duas casas decimais");
+		throw new DebtSplitValidationError("Valores fixos devem ser positivos e respeitar a precisão da moeda");
 	const distributedCents = participantCents.reduce((sum, value) => sum + value, 0);
 	if (distributedCents > totalCents)
 		throw new DebtSplitValidationError("Os valores das pessoas não podem ultrapassar o total");

@@ -410,3 +410,34 @@ describe("automatic remainder across editing and mode changes", () => {
 		expect(calculateDebtSplit(32.8, input)?.participants.map(item => item.amount)).toEqual([22.8, 10]);
 	});
 });
+
+test("native split preserves JPY remainder and KWD thousandths", () => {
+	const split = calculateDebtSplit(
+		100,
+		{
+			mode: "SHARES",
+			ownerShares: null,
+			participants: [
+				{ debtPersonId: "a", shares: 1 },
+				{ debtPersonId: "b", shares: 1 },
+				{ debtPersonId: "c", shares: 1 },
+			],
+		},
+		"JPY",
+	);
+	expect(split?.participants.map(row => row.amount)).toEqual([34, 33, 33]);
+	const fixed = calculateDebtSplit(
+		1.001,
+		{ mode: "FIXED", ownerIncluded: true, participants: [{ debtPersonId: "a", fixedAmount: 0.333 }] },
+		"KWD",
+	);
+	expect(fixed?.ownerAmount).toBe(0.668);
+	expect(fixed?.participants[0]?.amount).toBe(0.333);
+	expect(
+		calculateDebtSplit(
+			1.1,
+			{ mode: "SHARES", ownerShares: null, participants: [{ debtPersonId: "a", shares: 1 }] },
+			"JPY",
+		),
+	).toBeNull();
+});

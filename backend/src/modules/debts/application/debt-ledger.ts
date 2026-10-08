@@ -1,3 +1,4 @@
+import { toMinorUnits } from "@zaimu/finance/money";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
 import type { DebtSplitInput } from "../domain";
@@ -50,6 +51,7 @@ export async function resolveDebtPersonConnection(personId: string, userId: stri
 
 export async function createDebtEvent(input: {
 	amount: number;
+	currency?: string;
 	createdByUserId: string;
 	date?: null | string;
 	debtPersonId: string;
@@ -60,6 +62,13 @@ export async function createDebtEvent(input: {
 }) {
 	if (!Number.isFinite(input.amount) || input.amount <= 0)
 		throw new HttpException("Informe um valor válido", 400);
+	const currency = input.currency ?? "BRL";
+	try {
+		toMinorUnits(input.amount, currency, 1);
+		toMinorUnits(input.effect, currency, -Number.MAX_SAFE_INTEGER);
+	} catch {
+		throw new HttpException("Valor incompatível com a moeda da dívida", 400);
+	}
 	const { connectionId } = await resolveDebtPersonConnection(input.debtPersonId, input.createdByUserId);
 	const event = await queryFirst(
 		db.sql.public.DebtEvent.insert([
@@ -67,6 +76,7 @@ export async function createDebtEvent(input: {
 				amount: String(input.amount),
 				connectionId,
 				createdByUserId: input.createdByUserId,
+				currency,
 				date: input.date ? new Date(input.date) : null,
 				debtPersonId: input.debtPersonId,
 				description: input.description,

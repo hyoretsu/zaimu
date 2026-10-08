@@ -126,6 +126,37 @@ describe("calculateDebtSplit", () => {
 				ownerShares: 1,
 				participants: [{ debtPersonId: "ana", shares: 1 }],
 			}),
-		).toThrow("R$ 0,01");
+		).toThrow("unidade mínima da moeda");
 	});
+});
+
+test("ISO units preserve JPY remainders and KWD fixed allocations", () => {
+	const shares = calculateDebtSplit(
+		100,
+		{
+			mode: "SHARES",
+			ownerShares: null,
+			participants: [
+				{ debtPersonId: "a", shares: 1 },
+				{ debtPersonId: "b", shares: 1 },
+				{ debtPersonId: "c", shares: 1 },
+			],
+		},
+		"JPY",
+	);
+	expect(shares.participants.map(row => row.amount)).toEqual([34, 33, 33]);
+	const fixed = calculateDebtSplit(
+		1.001,
+		{ mode: "FIXED", ownerIncluded: true, participants: [{ debtPersonId: "a", fixedAmount: 0.333 }] },
+		"KWD",
+	);
+	expect(fixed.ownerAmount).toBe(0.668);
+	expect(fixed.participants[0]!.amount).toBe(0.333);
+	expect(() =>
+		calculateDebtSplit(
+			1.1,
+			{ mode: "SHARES", ownerShares: null, participants: [{ debtPersonId: "a", shares: 1 }] },
+			"JPY",
+		),
+	).toThrow("precisão");
 });

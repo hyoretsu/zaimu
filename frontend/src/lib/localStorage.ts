@@ -8,6 +8,7 @@ import {
 	replayCreditBook,
 } from "@zaimu/finance/credit-book";
 import { currentDateKey } from "@zaimu/finance/credit-card";
+import { currencyScale } from "@zaimu/finance/money";
 import { pendingStatementPayments } from "@zaimu/finance/payment-suggestions";
 import type {
 	Category,
@@ -699,7 +700,13 @@ export async function mutateLocalCreditBook<T>(
 				if (id && !(await requestResult(tx.objectStore(store).get(scopedId(owner, id)))))
 					throw new Error("Vínculo indisponível");
 			if (p.debtSplitRule) {
-				if (!calculateDebtSplit(p.totalAmountCents / 100, p.debtSplitRule))
+				if (
+					!calculateDebtSplit(
+						p.totalAmountCents / currencyScale(book.card.currency),
+						p.debtSplitRule,
+						book.card.currency,
+					)
+				)
 					throw new Error("Rateio inválido");
 				for (const participant of p.debtSplitRule.participants)
 					if (

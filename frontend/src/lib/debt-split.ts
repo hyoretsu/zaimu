@@ -1,3 +1,4 @@
+import { currencyScale } from "@zaimu/finance/money";
 import type { DebtSplit, DebtSplitInput } from "./api";
 
 const cents = (value: number) => Math.round(value * 100);
@@ -120,7 +121,20 @@ export function remainingDebtSplitAmount(
 	return money(cents(totalAmount) - cents(distributedAmount) - cents(ownerAmount));
 }
 
-export function calculateDebtSplit(amount: number, split: DebtSplitInput): DebtSplit | null {
+export function calculateDebtSplit(
+	amount: number,
+	split: DebtSplitInput,
+	currency = "BRL",
+): DebtSplit | null {
+	const scale = currencyScale(currency);
+	const cents = (value: number) => Math.round(value * scale);
+	const money = (value: number) => value / scale;
+	if (
+		!Number.isFinite(amount) ||
+		!Number.isSafeInteger(cents(amount)) ||
+		Math.abs(amount * scale - cents(amount)) > 1e-7
+	)
+		return null;
 	const total = cents(amount);
 	if (total <= 0 || split.participants.length === 0) return null;
 	if (split.participants.some(item => !item.debtPersonId)) return null;
@@ -172,7 +186,7 @@ export function calculateDebtSplit(amount: number, split: DebtSplitInput): DebtS
 					!Number.isFinite(item.fixedAmount) ||
 					item.fixedAmount < 0 ||
 					(item.fixedAmount === 0 && item.debtPersonId !== split.remainderDebtPersonId) ||
-					Math.abs(item.fixedAmount * 100 - amounts[index]) > 1e-7,
+					Math.abs(item.fixedAmount * scale - amounts[index]) > 1e-7,
 			) ||
 			sum > total
 		)

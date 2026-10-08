@@ -168,10 +168,11 @@ function getEvenlyDistributedInstallmentAmounts(totalAmount: number, installment
 async function hydrateLocalDebtSplit(
 	amount: number,
 	input?: DebtSplitInput | null,
+	currency = "BRL",
 ): Promise<DebtSplit | null | undefined> {
 	if (input === undefined) return undefined;
 	if (input === null) return null;
-	const calculated = calculateDebtSplit(amount, input);
+	const calculated = calculateDebtSplit(amount, input, currency);
 	if (!calculated) throw new Error("O rateio da dívida não fecha com o valor total.");
 	const people = await localDebtPeople.getAll();
 	const names = new Map(people.map(person => [person.data.id, person.data.name]));
@@ -1462,7 +1463,11 @@ export const dataService = {
 			return {
 				currency: purchase.currency,
 				debtSplit: purchase.debtSplitRule
-					? ((await hydrateLocalDebtSplit(purchase.totalAmountCents / 100, purchase.debtSplitRule)) ?? null)
+					? ((await hydrateLocalDebtSplit(
+							purchase.totalAmountCents / currencyScale(book.card.currency),
+							purchase.debtSplitRule,
+							book.card.currency,
+						)) ?? null)
 					: null,
 				exchangeRate: purchase.exchangeRate,
 				externalId: purchase.externalId ?? null,
@@ -1514,8 +1519,9 @@ export const dataService = {
 							...p,
 							debtSplit: rule
 								? await hydrateLocalDebtSplit(
-										bookPurchase(book, row.purchaseId!).totalAmountCents / 100,
+										bookPurchase(book, row.purchaseId!).totalAmountCents / currencyScale(book.card.currency),
 										rule,
+										book.card.currency,
 									)
 								: null,
 							tagIds: p.tagIds ?? [],
@@ -2437,6 +2443,7 @@ export const dataService = {
 					const split = calculateDebtSplit(
 						purchase.totalAmountCents / currencyScale(book.card.currency),
 						purchase.debtSplitRule,
+						book.card.currency,
 					);
 					if (!split) continue;
 					const push = (
@@ -2468,7 +2475,7 @@ export const dataService = {
 							});
 						});
 					};
-					const amounts = split.participants.map(p => moneyCents(p.amount));
+					const amounts = split.participants.map(p => moneyCents(p.amount, 1, book.card.currency));
 					push(purchase.id, purchase.purchaseDate, purchase.description, amounts, 1, purchase.time);
 					let refunded = 0;
 					for (const refund of book.refunds

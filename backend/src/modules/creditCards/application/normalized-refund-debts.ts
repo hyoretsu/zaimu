@@ -4,6 +4,7 @@ import {
 	moneyCents,
 	refundDebtAmounts,
 } from "@zaimu/finance/credit-book";
+import { currencyScale } from "@zaimu/finance/money";
 import { createDebtEvent } from "~/modules/debts/application";
 import { calculateDebtSplit } from "~/modules/debts/domain";
 import type { RawQuery } from "./normalized-statement-replay";
@@ -11,7 +12,11 @@ import type { RawQuery } from "./normalized-statement-replay";
 /** Refund amount, including canceled installments, reverses the original participant shares. */
 export async function syncRefundDebtEvents(query: RawQuery, book: CreditBook, purchase: BookPurchase) {
 	let participants: { debtPersonId: string; amount: number }[] = purchase.debtSplitRule
-		? calculateDebtSplit(purchase.totalAmountCents / 100, purchase.debtSplitRule).participants
+		? calculateDebtSplit(
+				purchase.totalAmountCents / currencyScale(book.card.currency),
+				purchase.debtSplitRule,
+				book.card.currency,
+			).participants
 		: [];
 	if (!purchase.debtSplitRule) {
 		const linked = await query<{ debtPersonId: string; amount: number }>(
@@ -30,7 +35,7 @@ export async function syncRefundDebtEvents(query: RawQuery, book: CreditBook, pu
 			? participants.map(() => 0)
 			: refundDebtAmounts(
 					purchase.totalAmountCents,
-					participants.map(p => moneyCents(p.amount)),
+					participants.map(p => moneyCents(p.amount, 1, book.card.currency)),
 					refunded,
 					refund.amountCents,
 				);
@@ -41,24 +46,26 @@ export async function syncRefundDebtEvents(query: RawQuery, book: CreditBook, pu
 		);
 		for (const link of links) {
 			const index = participants.findIndex(p => p.debtPersonId === link.debtPersonId);
-			const amount = index < 0 ? 0 : amounts[index]! / 100;
+			const amount = index < 0 ? 0 : amounts[index]! / currencyScale(book.card.currency);
 			await query(
-				`UPDATE "DebtEvent" SET "amount" = $1, "effect" = $2, "date" = $3, "description" = $4, "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = $5`,
+				`UPDATE "DebtEvent" SET "amount" = $1, "effect" = $2, "date" = $3, "description" = $4, "updatedAt" = CURRENT_TIMESTAMP, "currency" = $6 WHERE "id" = $5`,
 				[
 					amount || link.amount,
 					-amount,
 					refund.creditDate,
 					`Reembolso - ${purchase.description}`,
 					link.eventId,
+					book.card.currency ?? "BRL",
 				],
 			);
 		}
 		for (const [index, participant] of participants.entries()) {
-			const amount = amounts[index]! / 100;
+			const amount = amounts[index]! / currencyScale(book.card.currency);
 			if (!amount || links.some(link => link.debtPersonId === participant.debtPersonId)) continue;
 			const event = await createDebtEvent({
 				amount,
 				createdByUserId: book.card.userId,
+				currency: book.card.currency ?? "BRL",
 				date: refund.creditDate,
 				debtPersonId: participant.debtPersonId,
 				description: `Reembolso - ${purchase.description}`,
