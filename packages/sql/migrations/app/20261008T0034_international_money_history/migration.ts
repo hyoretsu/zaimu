@@ -401,335 +401,80 @@ export default class M extends Migration<Start, End> {
 				schema: "public",
 				table: "user",
 			}),
-			this.alterColumnType({
-				column: "balance",
-				options: {
-					formatTypeExpected: "numeric(20,6)",
-					qualifiedTargetType: "numeric(20,6)",
-					rawTargetTypeForLabel: "numeric(20,6)",
-				},
-				schema: "public",
-				table: "BalanceAdjustment",
-			}),
-			this.alterColumnType({
-				column: "creditLimit",
-				options: {
-					formatTypeExpected: "numeric(20,6)",
-					qualifiedTargetType: "numeric(20,6)",
-					rawTargetTypeForLabel: "numeric(20,6)",
-				},
-				schema: "public",
-				table: "CreditCard",
-			}),
-			this.alterColumnType({
-				column: "securityDeposit",
-				options: {
-					formatTypeExpected: "numeric(20,6)",
-					qualifiedTargetType: "numeric(20,6)",
-					rawTargetTypeForLabel: "numeric(20,6)",
-				},
-				schema: "public",
-				table: "CreditCard",
-			}),
-			this.alterColumnType({
-				column: "reportedPreviousBalance",
-				options: {
-					formatTypeExpected: "numeric(20,6)",
-					qualifiedTargetType: "numeric(20,6)",
-					rawTargetTypeForLabel: "numeric(20,6)",
-				},
-				schema: "public",
-				table: "CreditCardImport",
-			}),
-			this.alterColumnType({
-				column: "installmentAmount",
-				options: {
-					formatTypeExpected: "numeric(20,6)",
-					qualifiedTargetType: "numeric(20,6)",
-					rawTargetTypeForLabel: "numeric(20,6)",
-				},
-				schema: "public",
-				table: "CreditCardImportItem",
-			}),
-			this.alterColumnType({
-				column: "totalAmount",
-				options: {
-					formatTypeExpected: "numeric(20,6)",
-					qualifiedTargetType: "numeric(20,6)",
-					rawTargetTypeForLabel: "numeric(20,6)",
-				},
-				schema: "public",
-				table: "CreditCardImportItem",
-			}),
-			this.alterColumnType({
-				column: "paidAmount",
-				options: {
-					formatTypeExpected: "numeric(20,6)",
-					qualifiedTargetType: "numeric(20,6)",
-					rawTargetTypeForLabel: "numeric(20,6)",
-				},
-				schema: "public",
-				table: "CreditCardStatement",
-			}),
-			this.alterColumnType({
-				column: "totalAmount",
-				options: {
-					formatTypeExpected: "numeric(20,6)",
-					qualifiedTargetType: "numeric(20,6)",
-					rawTargetTypeForLabel: "numeric(20,6)",
-				},
-				schema: "public",
-				table: "CreditCardStatement",
-			}),
-			this.alterColumnType({
-				column: "amount",
-				options: {
-					formatTypeExpected: "numeric(20,6)",
-					qualifiedTargetType: "numeric(20,6)",
-					rawTargetTypeForLabel: "numeric(20,6)",
-				},
-				schema: "public",
-				table: "CreditInstallmentPlan",
-			}),
-			this.alterColumnType({
-				column: "amount",
-				options: {
-					formatTypeExpected: "numeric(20,6)",
-					qualifiedTargetType: "numeric(20,6)",
-					rawTargetTypeForLabel: "numeric(20,6)",
-				},
-				schema: "public",
-				table: "CreditInstallmentRecord",
-			}),
-			this.alterColumnType({
-				column: "feeAmount",
-				options: {
-					formatTypeExpected: "numeric(20,6)",
-					qualifiedTargetType: "numeric(20,6)",
-					rawTargetTypeForLabel: "numeric(20,6)",
-				},
-				schema: "public",
-				table: "CreditPurchaseRecord",
-			}),
-			this.alterColumnType({
-				column: "originalAmount",
-				options: {
-					formatTypeExpected: "numeric(20,6)",
-					qualifiedTargetType: "numeric(20,6)",
-					rawTargetTypeForLabel: "numeric(20,6)",
-				},
-				schema: "public",
-				table: "CreditPurchaseRecord",
-			}),
-			this.alterColumnType({
-				column: "refinancingFeeAmount",
-				options: {
-					formatTypeExpected: "numeric(20,6)",
-					qualifiedTargetType: "numeric(20,6)",
-					rawTargetTypeForLabel: "numeric(20,6)",
-				},
-				schema: "public",
-				table: "CreditPurchaseRecord",
-			}),
-			this.alterColumnType({
-				column: "totalAmount",
-				options: {
-					formatTypeExpected: "numeric(20,6)",
-					qualifiedTargetType: "numeric(20,6)",
-					rawTargetTypeForLabel: "numeric(20,6)",
-				},
-				schema: "public",
-				table: "CreditPurchaseRecord",
-			}),
-			this.alterColumnType({
-				column: "amount",
-				options: {
-					formatTypeExpected: "numeric(20,6)",
-					qualifiedTargetType: "numeric(20,6)",
-					rawTargetTypeForLabel: "numeric(20,6)",
-				},
-				schema: "public",
-				table: "CreditRefundRecord",
-			}),
-			this.alterColumnType({
-				column: "amount",
-				options: {
-					formatTypeExpected: "numeric(20,6)",
-					qualifiedTargetType: "numeric(20,6)",
-					rawTargetTypeForLabel: "numeric(20,6)",
-				},
-				schema: "public",
-				table: "CreditStatementCharge",
-			}),
-			this.alterColumnType({
-				column: "amount",
-				options: {
-					formatTypeExpected: "numeric(20,6)",
-					qualifiedTargetType: "numeric(20,6)",
-					rawTargetTypeForLabel: "numeric(20,6)",
-				},
-				schema: "public",
-				table: "DebtEvent",
-			}),
-			this.alterColumnType({
-				column: "effect",
-				options: {
-					formatTypeExpected: "numeric(20,6)",
-					qualifiedTargetType: "numeric(20,6)",
-					rawTargetTypeForLabel: "numeric(20,6)",
-				},
-				schema: "public",
-				table: "DebtEvent",
-			}),
-			this.alterColumnType({
-				column: "fixedAmount",
-				options: {
-					formatTypeExpected: "numeric(20,6)",
-					qualifiedTargetType: "numeric(20,6)",
-					rawTargetTypeForLabel: "numeric(20,6)",
-				},
-				schema: "public",
-				table: "DebtSplitParticipant",
-			}),
-			this.alterColumnType({
-				column: "balance",
-				options: {
-					formatTypeExpected: "numeric(20,6)",
-					qualifiedTargetType: "numeric(20,6)",
-					rawTargetTypeForLabel: "numeric(20,6)",
-				},
-				schema: "public",
-				table: "FinancialAccount",
-			}),
-			this.alterColumnType({
-				column: "amount",
-				options: {
-					formatTypeExpected: "numeric(20,8)",
-					qualifiedTargetType: "numeric(20,8)",
-					rawTargetTypeForLabel: "numeric(20,8)",
-				},
-				schema: "public",
-				table: "FinancialAccountYield",
-			}),
-			this.alterColumnType({
-				column: "upToBalance",
-				options: {
-					formatTypeExpected: "numeric(20,6)",
-					qualifiedTargetType: "numeric(20,6)",
-					rawTargetTypeForLabel: "numeric(20,6)",
-				},
-				schema: "public",
-				table: "FinancialInstitutionYieldRule",
-			}),
-			this.alterColumnType({
-				column: "installmentAmount",
-				options: {
-					formatTypeExpected: "numeric(20,6)",
-					qualifiedTargetType: "numeric(20,6)",
-					rawTargetTypeForLabel: "numeric(20,6)",
-				},
-				schema: "public",
-				table: "Loan",
-			}),
-			this.alterColumnType({
-				column: "principalAmount",
-				options: {
-					formatTypeExpected: "numeric(20,6)",
-					qualifiedTargetType: "numeric(20,6)",
-					rawTargetTypeForLabel: "numeric(20,6)",
-				},
-				schema: "public",
-				table: "Loan",
-			}),
-			this.alterColumnType({
-				column: "interestPaid",
-				options: {
-					formatTypeExpected: "numeric(20,6)",
-					qualifiedTargetType: "numeric(20,6)",
-					rawTargetTypeForLabel: "numeric(20,6)",
-				},
-				schema: "public",
-				table: "LoanPayment",
-			}),
-			this.alterColumnType({
-				column: "principalPaid",
-				options: {
-					formatTypeExpected: "numeric(20,6)",
-					qualifiedTargetType: "numeric(20,6)",
-					rawTargetTypeForLabel: "numeric(20,6)",
-				},
-				schema: "public",
-				table: "LoanPayment",
-			}),
-			this.alterColumnType({
-				column: "totalPaid",
-				options: {
-					formatTypeExpected: "numeric(20,6)",
-					qualifiedTargetType: "numeric(20,6)",
-					rawTargetTypeForLabel: "numeric(20,6)",
-				},
-				schema: "public",
-				table: "LoanPayment",
-			}),
-			this.alterColumnType({
-				column: "amount",
-				options: {
-					formatTypeExpected: "numeric(20,6)",
-					qualifiedTargetType: "numeric(20,6)",
-					rawTargetTypeForLabel: "numeric(20,6)",
-				},
-				schema: "public",
-				table: "Recurrence",
-			}),
-			this.alterColumnType({
-				column: "conversionAmount",
-				options: {
-					formatTypeExpected: "numeric(20,6)",
-					qualifiedTargetType: "numeric(20,6)",
-					rawTargetTypeForLabel: "numeric(20,6)",
-				},
-				schema: "public",
-				table: "RewardsAccount",
-			}),
-			this.alterColumnType({
-				column: "amount",
-				options: {
-					formatTypeExpected: "numeric(20,6)",
-					qualifiedTargetType: "numeric(20,6)",
-					rawTargetTypeForLabel: "numeric(20,6)",
-				},
-				schema: "public",
-				table: "Transaction",
-			}),
-			this.alterColumnType({
-				column: "originalAmount",
-				options: {
-					formatTypeExpected: "numeric(20,6)",
-					qualifiedTargetType: "numeric(20,6)",
-					rawTargetTypeForLabel: "numeric(20,6)",
-				},
-				schema: "public",
-				table: "Transaction",
-			}),
-			this.alterColumnType({
-				column: "amount",
-				options: {
-					formatTypeExpected: "numeric(20,6)",
-					qualifiedTargetType: "numeric(20,6)",
-					rawTargetTypeForLabel: "numeric(20,6)",
-				},
-				schema: "public",
-				table: "TransactionImportItem",
-			}),
-			this.alterColumnType({
-				column: "balanceAfter",
-				options: {
-					formatTypeExpected: "numeric(20,6)",
-					qualifiedTargetType: "numeric(20,6)",
-					rawTargetTypeForLabel: "numeric(20,6)",
-				},
-				schema: "public",
-				table: "TransactionImportItem",
+			rawSql({
+				execute: [
+					{
+						description: "Atomically widen money columns and restore credit views",
+						sql: `DO $money_precision$
+DECLARE
+ saved_views jsonb;
+ saved_view jsonb;
+BEGIN
+ -- Preserve live definitions, including renamed and removed legacy columns.
+ SELECT jsonb_agg(jsonb_build_object(
+  'name', c.relname, 'definition', pg_get_viewdef(c.oid, true),
+  'owner', pg_get_userbyid(c.relowner), 'options', array_to_string(c.reloptions, ', '),
+  'grants', (SELECT string_agg(format('GRANT %s ON public.%I TO %s%s;',
+   a.privilege_type, c.relname,
+   CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE quote_ident(pg_get_userbyid(a.grantee)) END,
+   CASE WHEN a.is_grantable THEN ' WITH GRANT OPTION' ELSE '' END), ' ')
+   FROM aclexplode(c.relacl) a)
+ ) ORDER BY CASE c.relname WHEN 'CreditRefundEffect' THEN 1 ELSE 2 END)
+ INTO saved_views FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+ WHERE n.nspname = 'public' AND c.relkind = 'v'
+ AND c.relname IN ('CreditRefundEffect', 'CreditEntry', 'CreditConsumption');
+ -- Unknown dependents abort safely: never use CASCADE.
+ DROP VIEW IF EXISTS public."CreditEntry", public."CreditConsumption";
+ DROP VIEW IF EXISTS public."CreditRefundEffect";
+ ALTER TABLE public."BalanceAdjustment" ALTER COLUMN "balance" TYPE numeric(20,6) USING "balance"::numeric(20,6);
+ ALTER TABLE public."CreditCard" ALTER COLUMN "creditLimit" TYPE numeric(20,6) USING "creditLimit"::numeric(20,6);
+ ALTER TABLE public."CreditCard" ALTER COLUMN "securityDeposit" TYPE numeric(20,6) USING "securityDeposit"::numeric(20,6);
+ ALTER TABLE public."CreditCardImport" ALTER COLUMN "reportedPreviousBalance" TYPE numeric(20,6) USING "reportedPreviousBalance"::numeric(20,6);
+ ALTER TABLE public."CreditCardImportItem" ALTER COLUMN "installmentAmount" TYPE numeric(20,6) USING "installmentAmount"::numeric(20,6);
+ ALTER TABLE public."CreditCardImportItem" ALTER COLUMN "totalAmount" TYPE numeric(20,6) USING "totalAmount"::numeric(20,6);
+ ALTER TABLE public."CreditCardStatement" ALTER COLUMN "paidAmount" TYPE numeric(20,6) USING "paidAmount"::numeric(20,6);
+ ALTER TABLE public."CreditCardStatement" ALTER COLUMN "totalAmount" TYPE numeric(20,6) USING "totalAmount"::numeric(20,6);
+ ALTER TABLE public."CreditInstallmentPlan" ALTER COLUMN "amount" TYPE numeric(20,6) USING "amount"::numeric(20,6);
+ ALTER TABLE public."CreditInstallmentRecord" ALTER COLUMN "amount" TYPE numeric(20,6) USING "amount"::numeric(20,6);
+ ALTER TABLE public."CreditPurchaseRecord" ALTER COLUMN "feeAmount" TYPE numeric(20,6) USING "feeAmount"::numeric(20,6);
+ ALTER TABLE public."CreditPurchaseRecord" ALTER COLUMN "originalAmount" TYPE numeric(20,6) USING "originalAmount"::numeric(20,6);
+ ALTER TABLE public."CreditPurchaseRecord" ALTER COLUMN "refinancingFeeAmount" TYPE numeric(20,6) USING "refinancingFeeAmount"::numeric(20,6);
+ ALTER TABLE public."CreditPurchaseRecord" ALTER COLUMN "totalAmount" TYPE numeric(20,6) USING "totalAmount"::numeric(20,6);
+ ALTER TABLE public."CreditRefundRecord" ALTER COLUMN "amount" TYPE numeric(20,6) USING "amount"::numeric(20,6);
+ ALTER TABLE public."CreditStatementCharge" ALTER COLUMN "amount" TYPE numeric(20,6) USING "amount"::numeric(20,6);
+ ALTER TABLE public."DebtEvent" ALTER COLUMN "amount" TYPE numeric(20,6) USING "amount"::numeric(20,6);
+ ALTER TABLE public."DebtEvent" ALTER COLUMN "effect" TYPE numeric(20,6) USING "effect"::numeric(20,6);
+ ALTER TABLE public."DebtSplitParticipant" ALTER COLUMN "fixedAmount" TYPE numeric(20,6) USING "fixedAmount"::numeric(20,6);
+ ALTER TABLE public."FinancialAccount" ALTER COLUMN "balance" TYPE numeric(20,6) USING "balance"::numeric(20,6);
+ ALTER TABLE public."FinancialAccountYield" ALTER COLUMN "amount" TYPE numeric(20,8) USING "amount"::numeric(20,8);
+ ALTER TABLE public."FinancialInstitutionYieldRule" ALTER COLUMN "upToBalance" TYPE numeric(20,6) USING "upToBalance"::numeric(20,6);
+ ALTER TABLE public."Loan" ALTER COLUMN "installmentAmount" TYPE numeric(20,6) USING "installmentAmount"::numeric(20,6);
+ ALTER TABLE public."Loan" ALTER COLUMN "principalAmount" TYPE numeric(20,6) USING "principalAmount"::numeric(20,6);
+ ALTER TABLE public."LoanPayment" ALTER COLUMN "interestPaid" TYPE numeric(20,6) USING "interestPaid"::numeric(20,6);
+ ALTER TABLE public."LoanPayment" ALTER COLUMN "principalPaid" TYPE numeric(20,6) USING "principalPaid"::numeric(20,6);
+ ALTER TABLE public."LoanPayment" ALTER COLUMN "totalPaid" TYPE numeric(20,6) USING "totalPaid"::numeric(20,6);
+ ALTER TABLE public."Recurrence" ALTER COLUMN "amount" TYPE numeric(20,6) USING "amount"::numeric(20,6);
+ ALTER TABLE public."RewardsAccount" ALTER COLUMN "conversionAmount" TYPE numeric(20,6) USING "conversionAmount"::numeric(20,6);
+ ALTER TABLE public."Transaction" ALTER COLUMN "amount" TYPE numeric(20,6) USING "amount"::numeric(20,6);
+ ALTER TABLE public."Transaction" ALTER COLUMN "originalAmount" TYPE numeric(20,6) USING "originalAmount"::numeric(20,6);
+ ALTER TABLE public."TransactionImportItem" ALTER COLUMN "amount" TYPE numeric(20,6) USING "amount"::numeric(20,6);
+ ALTER TABLE public."TransactionImportItem" ALTER COLUMN "balanceAfter" TYPE numeric(20,6) USING "balanceAfter"::numeric(20,6);
+ FOR saved_view IN SELECT value FROM jsonb_array_elements(saved_views) LOOP
+  EXECUTE format('CREATE VIEW public.%I %s AS %s', saved_view->>'name',
+   CASE WHEN saved_view->>'options' IS NULL THEN '' ELSE 'WITH (' || (saved_view->>'options') || ')' END,
+   saved_view->>'definition');
+  EXECUTE format('ALTER VIEW public.%I OWNER TO %I', saved_view->>'name', saved_view->>'owner');
+  IF saved_view->>'grants' IS NOT NULL THEN EXECUTE saved_view->>'grants'; END IF;
+ END LOOP;
+END $money_precision$;`,
+					},
+				],
+				id: "internationalMoney.precisionWithCreditViews",
+				label: "Widen monetary precision while preserving credit views",
+				operationClass: "data",
+				postcheck: [],
+				precheck: [],
+				target: { id: "postgres" },
 			}),
 			this.addUnique({
 				columns: ["deduplicationKey"],
