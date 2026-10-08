@@ -407,7 +407,7 @@ export async function materializeRecurrence(
 				});
 				if (debtSplit && type !== "TRANSFER" && recurrence.movement !== "CARD_PAYMENT")
 					await linkTransactionToDebt({
-						amount: recurrence.amount,
+						amount: money.amount,
 						date: financialDate,
 						debtSplit,
 						description: recurrence.name,

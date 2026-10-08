@@ -104,6 +104,7 @@ export async function getAccessibleDebtEvent(eventId: string, userId: string) {
 				amount: fields.DebtEvent.amount,
 				connectionId: fields.DebtEvent.connectionId,
 				createdByUserId: fields.DebtEvent.createdByUserId,
+				currency: fields.DebtEvent.currency,
 				date: fields.DebtEvent.date,
 				debtPersonId: fields.DebtEvent.debtPersonId,
 				effect: fields.DebtEvent.effect,
@@ -169,6 +170,19 @@ export async function linkTransactionToDebt(input: {
 		});
 	if (input.matchEventId) {
 		const event = await getAccessibleDebtEvent(input.matchEventId, input.userId);
+		const source = await queryFirst(
+			db.sql.public.Transaction.select("bookingCurrency")
+				.where((fields, functions) =>
+					functions.and(
+						functions.eq(fields.id, input.transactionId),
+						functions.eq(fields.userId, input.userId),
+					),
+				)
+				.limit(1)
+				.build(),
+		);
+		if (event.currency !== (source?.bookingCurrency ?? "BRL"))
+			throw new HttpException("Conciliação exige lançamentos na mesma moeda", 409);
 		if (!event.date) throw new HttpException("Lançamentos sem data não podem ser conciliados", 409);
 		const expectedEffect = debtEffectForTransaction(input.amount, input.type);
 		const perspectiveEffect =
@@ -204,6 +218,19 @@ export async function syncTransactionDebtEvent(input: {
 	type: "EXPENSE" | "INCOME" | "TRANSFER";
 	userId: string;
 }) {
+	const source = await queryFirst(
+		db.sql.public.Transaction.select("bookingCurrency", "amount")
+			.where((fields, functions) =>
+				functions.and(
+					functions.eq(fields.id, input.transactionId),
+					functions.eq(fields.userId, input.userId),
+				),
+			)
+			.limit(1)
+			.build(),
+	);
+	const currency = source?.bookingCurrency ?? "BRL";
+	if (source) input = { ...input, amount: Number(source.amount) };
 	const requestedSplit =
 		input.debtSplit !== undefined
 			? input.debtSplit
@@ -223,6 +250,7 @@ export async function syncTransactionDebtEvent(input: {
 			.select(fields => ({
 				amount: fields.DebtEvent.amount,
 				createdByUserId: fields.DebtEvent.createdByUserId,
+				currency: fields.DebtEvent.currency,
 				date: fields.DebtEvent.date,
 				debtPersonId: fields.DebtEvent.debtPersonId,
 				effect: fields.DebtEvent.effect,
@@ -282,6 +310,7 @@ export async function syncTransactionDebtEvent(input: {
 			const perspectiveEffect =
 				link.createdByUserId === input.userId ? Number(link.effect) : -Number(link.effect);
 			if (
+				link.currency !== currency ||
 				!link.date ||
 				!isCompatibleDebtPair({
 					amount: input.amount,
@@ -305,11 +334,12 @@ export async function syncTransactionDebtEvent(input: {
 	const calculated = requestedSplit
 		? await replaceDebtSplit({
 				amount: input.amount,
+				currency,
 				split: nextSplit,
 				target: { transactionId: input.transactionId },
 				userId: input.userId,
 			})
-		: calculateDebtSplit(input.amount, nextSplit);
+		: calculateDebtSplit(input.amount, nextSplit, currency);
 	const matchedLinkIds = links.filter(link => !link.isCreator).map(link => link.linkId);
 	if (matchedLinkIds.length)
 		await executeStatement(
@@ -334,6 +364,7 @@ export async function syncTransactionDebtEvent(input: {
 			const event = await createDebtEvent({
 				amount: participant.amount,
 				createdByUserId: input.userId,
+				currency,
 				date: input.date,
 				debtPersonId: participant.debtPersonId,
 				description: transactionDebtDescription(participant, input.type, input.description),
@@ -352,6 +383,7 @@ export async function syncTransactionDebtEvent(input: {
 			db.sql.public.DebtEvent.update({
 				amount: String(participant.amount),
 				connectionId: connectionId ?? null,
+				currency,
 				date: new Date(input.date),
 				description: transactionDebtDescription(participant, input.type, input.description) ?? null,
 				effect: String(debtEffectForTransaction(participant.amount, input.type)),
@@ -401,6 +433,19 @@ export async function linkPurchaseToDebt(input: {
 	const debtEffectMultiplier = input.debtEffectMultiplier ?? 1;
 	if (input.matchEventId) {
 		const event = await getAccessibleDebtEvent(input.matchEventId, input.userId);
+		const source = await queryFirst(
+			db.sql.public.CreditPurchaseRecord.select("bookingCurrency")
+				.where((fields, functions) =>
+					functions.and(
+						functions.eq(fields.id, input.creditPurchaseId),
+						functions.eq(fields.userId, input.userId),
+					),
+				)
+				.limit(1)
+				.build(),
+		);
+		if (event.currency !== (source?.bookingCurrency ?? "BRL"))
+			throw new HttpException("Conciliação exige lançamentos na mesma moeda", 409);
 		if (!event.date) throw new HttpException("Lançamentos sem data não podem ser conciliados", 409);
 		const perspectiveEffect =
 			event.createdByUserId === input.userId ? Number(event.effect) : -Number(event.effect);
@@ -430,6 +475,19 @@ export async function syncPurchaseDebtEvent(input: {
 	totalAmount: number;
 	userId: string;
 }) {
+	const source = await queryFirst(
+		db.sql.public.CreditPurchaseRecord.select("bookingCurrency", "totalAmount")
+			.where((fields, functions) =>
+				functions.and(
+					functions.eq(fields.id, input.creditPurchaseId),
+					functions.eq(fields.userId, input.userId),
+				),
+			)
+			.limit(1)
+			.build(),
+	);
+	const currency = source?.bookingCurrency ?? "BRL";
+	if (source) input = { ...input, totalAmount: Number(source.totalAmount) };
 	const requestedSplit =
 		input.debtSplit !== undefined
 			? input.debtSplit
@@ -450,6 +508,7 @@ export async function syncPurchaseDebtEvent(input: {
 			.select(fields => ({
 				amount: fields.DebtEvent.amount,
 				createdByUserId: fields.DebtEvent.createdByUserId,
+				currency: fields.DebtEvent.currency,
 				date: fields.DebtEvent.date,
 				debtPersonId: fields.DebtEvent.debtPersonId,
 				effect: fields.DebtEvent.effect,
@@ -507,6 +566,7 @@ export async function syncPurchaseDebtEvent(input: {
 			const perspectiveEffect =
 				link.createdByUserId === input.userId ? Number(link.effect) : -Number(link.effect);
 			if (
+				link.currency !== currency ||
 				!link.date ||
 				Number(link.amount) !== input.totalAmount ||
 				perspectiveEffect !== input.totalAmount ||
@@ -523,11 +583,12 @@ export async function syncPurchaseDebtEvent(input: {
 	const calculated = requestedSplit
 		? await replaceDebtSplit({
 				amount: input.totalAmount,
+				currency,
 				split: nextSplit,
 				target: { creditPurchaseId: input.creditPurchaseId },
 				userId: input.userId,
 			})
-		: calculateDebtSplit(input.totalAmount, nextSplit);
+		: calculateDebtSplit(input.totalAmount, nextSplit, currency);
 	const matchedLinkIds = links.filter(link => !link.isCreator).map(link => link.linkId);
 	if (matchedLinkIds.length)
 		await executeStatement(
@@ -552,6 +613,7 @@ export async function syncPurchaseDebtEvent(input: {
 			const event = await createDebtEvent({
 				amount: participant.amount,
 				createdByUserId: input.userId,
+				currency,
 				date: input.date,
 				debtPersonId: participant.debtPersonId,
 				description: participantDescription(participant, input.description),
@@ -575,6 +637,7 @@ export async function syncPurchaseDebtEvent(input: {
 			db.sql.public.DebtEvent.update({
 				amount: String(participant.amount),
 				connectionId: connectionId ?? null,
+				currency,
 				date: new Date(input.date),
 				description: participantDescription(participant, input.description) ?? null,
 				effect: String(participant.amount * debtEffectMultiplier),

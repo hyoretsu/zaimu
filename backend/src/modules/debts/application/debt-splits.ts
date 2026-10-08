@@ -21,9 +21,9 @@ const targetEntry = (target: DebtSplitTarget) => Object.entries(target)[0] as [D
 
 export type DebtSplitReturn = typeof DebtSplitReturnDTO.static;
 
-export function calculateDebtSplitOrThrow(amount: number, split: DebtSplitInput) {
+export function calculateDebtSplitOrThrow(amount: number, split: DebtSplitInput, currency = "BRL") {
 	try {
-		return calculateDebtSplit(amount, split);
+		return calculateDebtSplit(amount, split, currency);
 	} catch (error) {
 		if (error instanceof DebtSplitValidationError) throw new HttpException(error.message, 400);
 		throw error;
@@ -204,14 +204,15 @@ export async function getDebtSplitInput(target: DebtSplitTarget): Promise<DebtSp
 
 export async function replaceDebtSplit(input: {
 	amount: number;
+	currency?: string;
 	split: DebtSplitInput | null;
 	target: DebtSplitTarget;
 	userId: string;
 }) {
 	return withRawTransaction(async query => {
 		const [field, targetId] = targetEntry(input.target);
-		const [existing] = await query<{ id: string; userId: string }>(
-			`SELECT "id","userId" FROM "DebtSplit" WHERE "${field}"=$1 FOR UPDATE`,
+		const [existing] = await query<{ id: string; userId: string; currency: string }>(
+			`SELECT "id","userId","currency" FROM "DebtSplit" WHERE "${field}"=$1 FOR UPDATE`,
 			[targetId],
 		);
 		if (existing && existing.userId !== input.userId) throw new HttpException("Rateio indisponível", 403);
@@ -220,7 +221,11 @@ export async function replaceDebtSplit(input: {
 			return;
 		}
 		const next = input.split;
-		const calculated = calculateDebtSplitOrThrow(input.amount, next);
+		const calculated = calculateDebtSplitOrThrow(
+			input.amount,
+			next,
+			input.currency ?? existing?.currency ?? "BRL",
+		);
 		await assertParticipantsOwned(next, input.userId);
 		const splitId = existing?.id ?? crypto.randomUUID();
 		const ownerIncluded = next.mode === "SHARES" ? next.ownerShares !== null : next.ownerIncluded;
@@ -241,6 +246,10 @@ export async function replaceDebtSplit(input: {
 				`INSERT INTO "DebtSplit" ("mode","ownerIncluded","ownerShares","remainderDebtPersonId","userId","id","${field}") VALUES ($1,$2,$3,$4,$5,$6,$7)`,
 				[...values, splitId, targetId],
 			);
+		await query(`UPDATE "DebtSplit" SET "currency"=$1 WHERE "id"=$2`, [
+			input.currency ?? existing?.currency ?? "BRL",
+			splitId,
+		]);
 		const oldParticipants = await query<{ id: string; debtPersonId: string }>(
 			`SELECT "id","debtPersonId" FROM "DebtSplitParticipant" WHERE "debtSplitId"=$1`,
 			[splitId],
@@ -287,6 +296,7 @@ export async function getDebtSplitReturns(
 		db.sql.public.DebtSplit.select(
 			"id",
 			"mode",
+			"currency",
 			"ownerIncluded",
 			"ownerShares",
 			"remainderDebtPersonId",
@@ -382,7 +392,7 @@ export async function getDebtSplitReturns(
 				remainderDebtPersonId: split.remainderDebtPersonId ?? undefined,
 			};
 		}
-		const calculated = calculateDebtSplitOrThrow(amounts.get(targetId) ?? 0, input);
+		const calculated = calculateDebtSplitOrThrow(amounts.get(targetId) ?? 0, input, split.currency);
 		results.set(targetId, {
 			...calculated,
 			participants: calculated.participants.map(participant => ({

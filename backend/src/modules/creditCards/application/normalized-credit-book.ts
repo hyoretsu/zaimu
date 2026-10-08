@@ -625,6 +625,7 @@ export async function saveCreditBook(
 		)
 			await replaceDebtSplit({
 				amount: p.totalAmountCents / currencyScale(book.card.currency),
+				currency: book.card.currency ?? "BRL",
 				split: p.debtSplitRule ?? null,
 				target: { creditPurchaseId: p.id },
 				userId: book.card.userId,
