@@ -217,7 +217,7 @@ export function DebtsPage() {
 				onOpenChange={setCreateOpen}
 				onSubmit={draft => create.mutateAsync(draft)}
 				open={createOpen}
-				pending={false}
+				pending={create.isPending}
 			/>
 			{editing ? (
 				<CreateDebtDialog

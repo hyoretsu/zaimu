@@ -67,7 +67,8 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 	const { mode, onOpenChange, open, pending } = props;
 	const initialValue = props.mode === "edit" ? props.initialValue : null;
 	const effectiveCurrency = useCurrencyStore(state => state.currency);
-	const [currency, setCurrency] = useState(effectiveCurrency);
+	const [selectedCurrency, setCurrency] = useState<string | null>(null);
+	const currency = selectedCurrency ?? initialValue?.currency ?? effectiveCurrency;
 	const [amount, setAmount] = useState("");
 	const [date, setDate] = useState(getLocalDateKey);
 	const [sendWithoutDate, setSendWithoutDate] = useState(false);
@@ -89,7 +90,7 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 	}, [initialValue, open, setDescription]);
 	const reset = () => {
 		setAmount("");
-		setCurrency(effectiveCurrency);
+		setCurrency(null);
 		setDate(getLocalDateKey());
 		setSendWithoutDate(false);
 		setDueDate("");
@@ -178,7 +179,10 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 							currencyCode={currency}
 							id="debt-origin-amount"
 							label="Valor"
-							onValueChange={setAmount}
+							onValueChange={value => {
+								if (value && selectedCurrency === null) setCurrency(currency);
+								setAmount(value);
+							}}
 							required
 							value={amount}
 						/>
