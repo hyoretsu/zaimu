@@ -10,6 +10,7 @@ import {
 } from "@zaimu/finance/recurrence";
 import { resolveTransactionMoneySides } from "@zaimu/finance/transaction-money";
 import type { DebtSplitInput, Transaction } from "./api";
+import { guestCashbackSnapshot } from "./cashback-snapshot";
 import { activeCurrency } from "./currency-context";
 import { convertLocalMoney, guestRate } from "./currency-conversion";
 import { getLocalDateKey } from "./date";
@@ -108,14 +109,14 @@ export async function materializeLocalRecurrences(
 				const purchase = newBookPurchase(
 					book,
 					{
-						cashbackAccountId: card?.cashbackAccountId ?? null,
-						cashbackAmount:
-							card?.cashbackAccountId && card.cashbackRate
-								? Number(((money.amount * card.cashbackRate) / 100).toFixed(4))
-								: null,
-						cashbackYieldPeriod: card?.cashbackYieldPeriod ?? null,
-						cashbackYieldReferencePercentage: card?.cashbackYieldReferencePercentage ?? null,
-						cashbackYieldReferenceRate: card?.cashbackYieldReferenceRate ?? null,
+						...(await guestCashbackSnapshot(
+							card!,
+							money.amount,
+							book.card.currency ?? "BRL",
+							advance ? today : date,
+							rate,
+							owner,
+						)),
 						currency: money.currency,
 						debtSplitRule: recurrence.debtSplit ? debtSplitToInput(recurrence.debtSplit) : null,
 						description: recurrence.name,

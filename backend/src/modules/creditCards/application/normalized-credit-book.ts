@@ -51,7 +51,7 @@ export async function loadCreditBook(
 	);
 	if (!card) throw new HttpException("Cartão não encontrado", 404);
 	const purchases = await query<Row>(
-		`SELECT * FROM "CreditPurchaseRecord" WHERE "creditCardId" = $1 AND "userId" = $2 ORDER BY "id"`,
+		`SELECT p.*, a."currency" AS "cashbackCurrency" FROM "CreditPurchaseRecord" p LEFT JOIN "FinancialAccount" a ON a."id"=p."cashbackAccountId" WHERE p."creditCardId" = $1 AND p."userId" = $2 ORDER BY p."id"`,
 		[cardId, userId],
 	);
 	const plans = await query<Row>(
@@ -126,6 +126,7 @@ export async function loadCreditBook(
 			return {
 				...p,
 				bookingCurrency: String(p.bookingCurrency ?? card.currency ?? "BRL"),
+				cashbackCurrency: p.cashbackCurrency ? String(p.cashbackCurrency) : undefined,
 				createdAt: timestamp(p.createdAt),
 				debtSplitRule: splits.get(String(p.id)) ?? null,
 				exchangeRate: p.exchangeRate == null ? null : Number(p.exchangeRate),

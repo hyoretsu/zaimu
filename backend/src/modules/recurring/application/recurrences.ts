@@ -18,6 +18,7 @@ import {
 	replaceEntityTags,
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
+import { rewardSnapshot } from "~/modules/creditCards/application/cashback-snapshot";
 import { mutateCreditBook, newBookPurchase } from "~/modules/creditCards/application/normalized-credit-book";
 import { recalculateStatementPayments } from "~/modules/creditCards/application/statement-payments";
 import { assertSupportedCurrency, defaultCurrency } from "~/modules/currencies/application/currency-defaults";
@@ -315,14 +316,13 @@ export async function materializeRecurrence(
 							targetCurrency: book.card.currency ?? "BRL",
 						});
 						const purchase = newBookPurchase(book, {
-							cashbackAccountId: settings?.cashbackAccountId ?? null,
-							cashbackAmount:
-								settings?.cashbackAccountId && settings?.cashbackRate
-									? Number(((money.amount * settings?.cashbackRate) / 100).toFixed(4))
-									: null,
-							cashbackYieldPeriod: settings?.cashbackYieldPeriod ?? null,
-							cashbackYieldReferencePercentage: settings?.cashbackYieldReferencePercentage ?? null,
-							cashbackYieldReferenceRate: settings?.cashbackYieldReferenceRate ?? null,
+							...(await rewardSnapshot(
+								settings!,
+								money.amount,
+								book.card.currency ?? "BRL",
+								financialDate,
+								userId,
+							)),
 							currency: money.currency,
 							debtSplitRule: debtSplit ?? null,
 							description: recurrence.name,

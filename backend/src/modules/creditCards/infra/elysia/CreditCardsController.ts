@@ -6,6 +6,7 @@ import {
 	refinanceBookPurchase,
 	removeBookRefund,
 	replayCreditBook,
+	resizePurchaseCashback,
 	updateBookPurchaseDate,
 } from "@zaimu/finance/credit-book";
 import { paymentStatement, statementCutoffAfter, statementEntryKind } from "@zaimu/finance/credit-card";
@@ -13,6 +14,7 @@ import { currencyScale } from "@zaimu/finance/money";
 import Elysia, { t } from "elysia";
 import { setCardPayer } from "~/modules/accounts/application/payment-preferences";
 import { assertBalanceAccountOwnership, assertCreditCardOwnership, requireUserId } from "~/modules/auth";
+import { type CashbackCard, rewardSnapshot } from "~/modules/creditCards/application/cashback-snapshot";
 import {
 	type CreditOverviewCard,
 	type CreditOverviewRow,
@@ -88,24 +90,6 @@ const statementColumns = [
 const toCents = (amount: number | string) => Math.round(Number(amount) * 100);
 function resolvePurchaseTime(value?: string | null) {
 	return value === undefined ? new Date().toTimeString().slice(0, 5) : value;
-}
-interface CashbackCard {
-	cashbackAccountId: string | null;
-	cashbackRate: number | null;
-	cashbackYieldPeriod: "MONTHLY" | "YEARLY" | null;
-	cashbackYieldReferencePercentage: number | null;
-	cashbackYieldReferenceRate: number | null;
-}
-function rewardSnapshot(card: CashbackCard, total: number) {
-	return card.cashbackAccountId && card.cashbackRate
-		? {
-				cashbackAccountId: card.cashbackAccountId,
-				cashbackAmount: Number(((total * card.cashbackRate) / 100).toFixed(4)),
-				cashbackYieldPeriod: card.cashbackYieldPeriod,
-				cashbackYieldReferencePercentage: card.cashbackYieldReferencePercentage,
-				cashbackYieldReferenceRate: card.cashbackYieldReferenceRate,
-			}
-		: {};
 }
 const RefundPolicyDTO = t.Union([t.Literal("KEEP_INSTALLMENTS"), t.Literal("CANCEL_FUTURE_INSTALLMENTS")]);
 const PurchaseFields = {
@@ -673,7 +657,13 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						tagIds: body.tagIds ?? [],
 						time: resolvePurchaseTime(body.time),
 						totalAmount: money.amount,
-						...rewardSnapshot(card!, money.amount),
+						...(await rewardSnapshot(
+							card!,
+							money.amount,
+							book.card.currency ?? "BRL",
+							body.purchaseDate,
+							userId,
+						)),
 					}).id;
 				});
 				if (body.matchDebtEventId)
@@ -748,6 +738,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			const targetCurrency = await creditCardCurrency(destinationCardId);
 			const update = async (book: CreditBook) => {
 				const p = resolveBookPurchase(book, params.purchaseId);
+				const previousTotal = p.totalAmountCents;
 				const moneyChanged =
 					body.totalAmount !== undefined ||
 					body.currency !== undefined ||
@@ -820,6 +811,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					p.feeAmount = body.feeAmount || null;
 					p.feeDescription = body.feeAmount ? (body.feeDescription ?? p.feeDescription) : null;
 				}
+				resizePurchaseCashback(p, previousTotal);
 				p.updatedAt = new Date().toISOString();
 			};
 			if (destinationCardId === params.id) await mutateCreditBook(userId, params.id, update);
@@ -845,7 +837,13 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 								cashbackYieldReferencePercentage: null,
 								cashbackYieldReferenceRate: null,
 							},
-							rewardSnapshot(card!, purchase.totalAmountCents / currencyScale(book.card.currency)),
+							await rewardSnapshot(
+								card!,
+								purchase.totalAmountCents / currencyScale(book.card.currency),
+								book.card.currency ?? "BRL",
+								purchase.purchaseDate,
+								userId,
+							),
 						);
 					},
 				);

@@ -1,3 +1,4 @@
+import { cashbackReversalsSql } from "./cashback-reversals-sql";
 export const monetaryBalancesSql = `
 WITH requested_dates AS (
  SELECT unnest($2::date[]) AS date
@@ -27,6 +28,10 @@ WITH requested_dates AS (
  SELECT purchase."cashbackAccountId",purchase."purchaseDate",purchase."cashbackAmount"
  FROM "CreditPurchaseRecord" purchase JOIN owned_accounts account ON account."id"=purchase."cashbackAccountId"
  WHERE purchase."userId"=$1 AND purchase."purchaseDate" <= (SELECT max(date) FROM requested_dates)
+ UNION ALL
+ SELECT reversal."cashbackAccountId",reversal."date",reversal.amount
+ FROM (${cashbackReversalsSql}) reversal JOIN owned_accounts account ON account."id"=reversal."cashbackAccountId"
+ WHERE reversal."date" <= (SELECT max(date) FROM requested_dates)
 ), points AS (
  SELECT "accountId", date, sum(amount) AS amount FROM (
  SELECT "accountId",date,amount FROM movements

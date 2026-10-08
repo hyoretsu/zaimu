@@ -644,6 +644,8 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 					const [history] = await queryRaw<{ used: boolean }>(
 						`SELECT EXISTS(SELECT 1 FROM "Transaction" WHERE "originFinancialAccountId"=$1 OR "destinationFinancialAccountId"=$1) OR EXISTS(SELECT 1 FROM "CreditPurchaseRecord" p JOIN "CreditCard" c ON c."id"=p."creditCardId" WHERE c."financialAccountId"=$1) OR EXISTS(SELECT 1 FROM "BalanceAdjustment" WHERE "financialAccountId"=$1)
 OR EXISTS(SELECT 1 FROM "FinancialAccount" WHERE "id"=$1 AND COALESCE("balance",0)<>0)
+OR EXISTS(SELECT 1 FROM "CreditPurchaseRecord" WHERE "cashbackAccountId"=$1)
+OR EXISTS(SELECT 1 FROM "CreditCard" WHERE "cashbackAccountId"=$1)
 OR EXISTS(SELECT 1 FROM "FinancialAccountYield" WHERE "financialAccountId"=$1)
 OR EXISTS(SELECT 1 FROM "LoanPayment" WHERE "financialAccountId"=$1)
 OR EXISTS(SELECT 1 FROM "Recurrence" WHERE "originFinancialAccountId"=$1 OR "destinationFinancialAccountId"=$1 OR "creditCardId" IN (SELECT "id" FROM "CreditCard" WHERE "financialAccountId"=$1))

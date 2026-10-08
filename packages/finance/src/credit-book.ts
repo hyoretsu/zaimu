@@ -18,7 +18,7 @@ import {
 	type RefundPolicy,
 	resolveRefundPolicy,
 } from "./credit-refund";
-import { currencyScale, toMinorUnits } from "./money";
+import { currencyScale, roundMoney, toMinorUnits } from "./money";
 import { type PurchaseInvoiceInstallment, rebuildPurchaseStatementLedger } from "./purchase-statement-ledger";
 
 export type PurchaseDebtRule =
@@ -53,6 +53,7 @@ export interface BookPurchase extends CreditPurchase {
 	refinancingFeeAmount: number | null;
 	cashbackAccountId: string | null;
 	cashbackAmount: number | null;
+	cashbackCurrency?: string;
 	cashbackYieldPeriod: "MONTHLY" | "YEARLY" | null;
 	cashbackYieldReferencePercentage: number | null;
 	cashbackYieldReferenceRate: number | null;
@@ -135,6 +136,15 @@ export function activePurchaseRefunds(book: CreditBook, purchaseId: string) {
 	return book.refunds.filter(refund => refund.purchaseId === purchaseId && !refund.deletedAt);
 }
 
+/** Explicit principal edits retain the booked historical reward factor. */
+export function resizePurchaseCashback(purchase: BookPurchase, previousTotal: number) {
+	if (purchase.cashbackAmount == null || previousTotal === purchase.totalAmountCents) return;
+	const amount = (purchase.cashbackAmount * purchase.totalAmountCents) / previousTotal;
+	purchase.cashbackAmount = purchase.cashbackCurrency
+		? roundMoney(amount, purchase.cashbackCurrency)
+		: Number(amount.toFixed(4));
+}
+
 /** Reward reversals happen on the effective refund date, including canceled principal. */
 export function creditBookRewards(book: CreditBook) {
 	return book.purchases.flatMap(purchase => {
@@ -145,8 +155,10 @@ export function creditBookRewards(book: CreditBook) {
 			cashbackYieldPeriod: purchase.cashbackYieldPeriod,
 			cashbackYieldReferencePercentage: purchase.cashbackYieldReferencePercentage,
 			cashbackYieldReferenceRate: purchase.cashbackYieldReferenceRate,
+			currency: purchase.cashbackCurrency ?? book.card.currency ?? "BRL",
 			purchaseDate: purchase.purchaseDate,
 		};
+		const rewardScale = purchase.cashbackCurrency ? currencyScale(purchase.cashbackCurrency) : 10000;
 		let refunded = 0;
 		return [
 			award,
@@ -159,15 +171,15 @@ export function creditBookRewards(book: CreditBook) {
 				)
 				.map(refund => {
 					const before = Math.round(
-						((purchase.cashbackAmount! * refunded) / purchase.totalAmountCents) * 10000,
+						((purchase.cashbackAmount! * refunded) / purchase.totalAmountCents) * rewardScale,
 					);
 					refunded += refund.amountCents;
 					const after = Math.round(
-						((purchase.cashbackAmount! * refunded) / purchase.totalAmountCents) * 10000,
+						((purchase.cashbackAmount! * refunded) / purchase.totalAmountCents) * rewardScale,
 					);
 					return {
 						...award,
-						cashbackAmount: -(after - before) / 10000,
+						cashbackAmount: -(after - before) / rewardScale,
 						purchaseDate: refund.creditDate,
 					};
 				}),

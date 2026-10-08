@@ -14,6 +14,7 @@ import {
 	refundDebtAmounts,
 	removeBookRefund,
 	replayCreditBook,
+	resizePurchaseCashback,
 	updateBookPurchaseDate,
 	updateBookRefund,
 } from "./credit-book";
@@ -356,4 +357,51 @@ test("KWD book preserves three decimals through refunds and payment replay", () 
 	);
 	expect(invoice?.totalAmount).toBe(1);
 	expect(invoice?.balanceAmount).toBe(0);
+});
+
+test("native cashback reversals conserve KWD thousandths and JPY units", () => {
+	for (const [currency, amount, expected] of [
+		["KWD", 1.001, [1.001, -0.334, -0.333, -0.334]],
+		["JPY", 1, [1, 0, -1, 0]],
+	] as const) {
+		const book = emptyBook();
+		const purchase = newBookPurchase(book, {
+			cashbackAccountId: "reward",
+			cashbackAmount: amount,
+			cashbackCurrency: currency,
+			description: "Reward",
+			installments: 1,
+			purchaseDate: "2026-01-01",
+			totalAmount: 3,
+		});
+		for (let day = 2; day <= 4; day++)
+			addBookRefund(book, purchase.id, {
+				amount: 1,
+				creditDate: `2026-01-0${day}`,
+				policy: "KEEP_INSTALLMENTS",
+			});
+		const rewards = creditBookRewards(book);
+		expect(rewards.map(row => row.currency)).toEqual([currency, currency, currency, currency]);
+		expect(rewards.map(row => row.cashbackAmount || 0)).toEqual([...expected]);
+		expect(Math.abs(rewards.reduce((sum, row) => sum + row.cashbackAmount, 0))).toBeLessThan(1e-10);
+	}
+});
+
+test("principal edits retain booked cashback factor and ISO denomination", () => {
+	const book = emptyBook();
+	const purchase = newBookPurchase(book, {
+		cashbackAccountId: "reward",
+		cashbackAmount: 150,
+		cashbackCurrency: "JPY",
+		description: "Reward",
+		installments: 1,
+		purchaseDate: "2026-01-01",
+		totalAmount: 100,
+	});
+	purchase.totalAmountCents = 20000;
+	resizePurchaseCashback(purchase, 10000);
+	expect(purchase.cashbackAmount).toBe(300);
+	expect(purchase.cashbackCurrency).toBe("JPY");
+	resizePurchaseCashback(purchase, 20000);
+	expect(purchase.cashbackAmount).toBe(300);
 });

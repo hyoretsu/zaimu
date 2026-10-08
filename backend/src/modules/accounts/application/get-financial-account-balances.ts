@@ -4,6 +4,7 @@ import {
 	type YieldPeriod,
 } from "~/modules/accounts/domain/calculate-financial-account-yields";
 import { db, queryRaw, queryRows } from "~/shared/infra/sql";
+import { cashbackReversalsSql } from "./cashback-reversals-sql";
 import { getFinancialInstitutionYieldPolicies } from "./get-financial-institution-yield-policies";
 import { monetaryBalancesSql } from "./monetary-balances-sql";
 
@@ -123,7 +124,9 @@ async function loadFinancialAccountBalanceInput(accountIds: string[]) {
   FROM "CreditRefundRecord" r WHERE r."deletedAt" IS NULL
  )
  SELECT p."cashbackAccountId",p."cashbackAmount",p."cashbackYieldPeriod",p."cashbackYieldReferenceRate",p."cashbackYieldReferencePercentage",p."purchaseDate" FROM "CreditPurchaseRecord" p WHERE p."cashbackAccountId"=ANY($1) AND p."purchaseDate"<=CURRENT_DATE
- UNION ALL SELECT p."cashbackAccountId",-(round(p."cashbackAmount"*r.cumulative/p."totalAmount",4)-round(p."cashbackAmount"*(r.cumulative-r."amount")/p."totalAmount",4)),p."cashbackYieldPeriod",p."cashbackYieldReferenceRate",p."cashbackYieldReferencePercentage",r."creditDate" FROM refunds r JOIN "CreditPurchaseRecord" p ON p."id"=r."purchaseId" WHERE p."cashbackAccountId"=ANY($1) AND r."creditDate"<=CURRENT_DATE`,
+ UNION ALL SELECT p."cashbackAccountId",r.amount,p."cashbackYieldPeriod",p."cashbackYieldReferenceRate",p."cashbackYieldReferencePercentage",r."date"
+ FROM (${cashbackReversalsSql}) r JOIN "CreditPurchaseRecord" p ON p."id"=r."purchaseId"
+ WHERE p."cashbackAccountId"=ANY($1) AND r."date"<=CURRENT_DATE`,
 				[rewardsAccountIds],
 			)
 		: [];

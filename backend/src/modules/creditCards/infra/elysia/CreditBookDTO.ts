@@ -14,6 +14,7 @@ export const BookPurchaseDTO = t.Object({
 	bookingCurrency: t.Optional(t.String({ pattern: "^[A-Z]{3}$" })),
 	cashbackAccountId: NullableId,
 	cashbackAmount: t.Nullable(t.Number({ minimum: 0 })),
+	cashbackCurrency: t.Optional(t.String({ pattern: "^[A-Z]{3}$" })),
 	cashbackYieldPeriod: t.Nullable(t.Union([t.Literal("MONTHLY"), t.Literal("YEARLY")])),
 	cashbackYieldReferencePercentage: t.Nullable(t.Number()),
 	cashbackYieldReferenceRate: t.Nullable(t.Number()),

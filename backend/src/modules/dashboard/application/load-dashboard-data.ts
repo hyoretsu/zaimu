@@ -1,5 +1,6 @@
 import type { CreditBook } from "@zaimu/finance/credit-book";
 import type { RecurrenceMoneyConverter } from "@zaimu/finance/recurrence-projection";
+import { cashbackReversalsSql } from "~/modules/accounts/application/cashback-reversals-sql";
 import { replayOverviewStatements as replayDashboardStatements } from "~/modules/creditCards/application/credit-overview";
 import { projectedYieldContext } from "~/modules/reference-rates/application/projected-yield-context";
 
@@ -240,6 +241,11 @@ FROM "CreditPurchaseRecord" purchase
 JOIN "FinancialAccount" account ON account."id" = purchase."cashbackAccountId"
 WHERE purchase."userId" = $1 AND purchase."purchaseDate" BETWEEN $2::date AND LEAST($3::date, CURRENT_DATE)
   AND (account."type" IN ('CHECKING', 'CASH', 'SAVINGS', 'INVESTMENT') OR EXISTS (SELECT 1 FROM "RewardsAccount" r WHERE r."financialAccountId"=account."id" AND r."kind"='CASHBACK')) AND purchase."cashbackAmount" > 0
+UNION ALL
+SELECT 'flow', jsonb_build_object('currency',account."currency",'destinationAccountId',account."id",'amount',reversal.amount,'date',reversal."date",'type','INCOME','recurring',false)
+FROM (${cashbackReversalsSql}) reversal JOIN "FinancialAccount" account ON account."id"=reversal."cashbackAccountId"
+WHERE account."userId"=$1 AND reversal."date" BETWEEN $2::date AND LEAST($3::date,CURRENT_DATE)
+ AND (account."type" IN ('CHECKING','CASH','SAVINGS','INVESTMENT') OR EXISTS(SELECT 1 FROM "RewardsAccount" reward WHERE reward."financialAccountId"=account."id" AND reward."kind"='CASHBACK'))
 UNION ALL
 SELECT 'linked', jsonb_build_object(
   'date', transaction."date", 'sourceId', transaction."recurrenceId"

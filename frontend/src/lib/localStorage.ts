@@ -921,6 +921,12 @@ export async function readLocalCreditBook(cardId: string, owner?: StorageOwner):
 			date: row.data.date.slice(0, 10),
 			id: row.data.id,
 		}));
+	const rewardAccounts = new Map(
+		(await localAccounts.getAll(owner)).map(row => [row.data.id, row.data.currency ?? "BRL"]),
+	);
+	for (const purchase of book.purchases)
+		if (purchase.cashbackAccountId)
+			purchase.cashbackCurrency ??= rewardAccounts.get(purchase.cashbackAccountId);
 	return book;
 }
 

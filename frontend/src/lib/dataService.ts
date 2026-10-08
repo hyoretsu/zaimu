@@ -13,6 +13,7 @@ import {
 	refundDebtAmounts,
 	removeBookRefund,
 	replayCreditBook,
+	resizePurchaseCashback,
 	updateBookPurchaseDate,
 	updateBookRefund,
 } from "@zaimu/finance/credit-book";
@@ -32,6 +33,7 @@ import {
 	shiftRecurrenceDate,
 } from "@zaimu/finance/recurrence";
 import { resolveTransactionMoneySides } from "@zaimu/finance/transaction-money";
+import { guestCashbackSnapshot } from "./cashback-snapshot";
 import { type CatalogPageOptions, localCatalogPage } from "./catalog-pagination";
 import { activeCurrency } from "./currency-context";
 import { convertLocalMoney, guestRate } from "./currency-conversion";
@@ -397,6 +399,7 @@ export const dataService = {
 							const rewardAccount: FinancialAccount = {
 								balance: 0,
 								createdAt: new Date().toISOString(),
+								currency: newAccount.currency ?? "BRL",
 								id: crypto.randomUUID(),
 								institution: newAccount.institution,
 								institutionId: newAccount.institutionId,
@@ -510,16 +513,19 @@ export const dataService = {
 				if (!existing) throw new Error("FinancialAccount not found");
 
 				if (data.currency && data.currency !== (existing.data.currency ?? "BRL")) {
-					const [transactions, books, recurrences, payments, yields] = await Promise.all([
+					const [transactions, books, recurrences, payments, yields, rewardCards] = await Promise.all([
 						localTransactions.getAll(),
 						localCreditBooks.getAll(),
 						localRecurrences.getAll(),
 						localLoanPayments.getAll(),
 						localMeta.get("financial-account-yields"),
+						localCreditCards.getAll(),
 					]);
 					const cardId = existing.data.creditCard?.id;
 					const used =
 						Boolean(existing.data.balance || existing.data.creditCard?.securityDeposit) ||
+						rewardCards.some(row => row.data.cashbackAccountId === id) ||
+						books.some(row => row.data.purchases.some(p => p.cashbackAccountId === id)) ||
 						transactions.some(
 							row =>
 								row.data.originFinancialAccountId === id || row.data.destinationFinancialAccountId === id,
@@ -1191,6 +1197,14 @@ export const dataService = {
 				data.fees ?? [],
 			);
 			data = { ...data, ...money, totalAmount: money.amount };
+			const rewards = data.isStatementCharge
+				? {}
+				: await guestCashbackSnapshot(
+						card,
+						money.amount,
+						card.currency ?? account?.currency ?? "BRL",
+						data.purchaseDate,
+					);
 			let purchaseId = "";
 			await mutateLocalCreditBook(cardId, book => {
 				if (data.isStatementCharge) {
@@ -1224,14 +1238,7 @@ export const dataService = {
 				}
 				const p = newBookPurchase(book, {
 					...data,
-					cashbackAccountId: card.cashbackAccountId ?? null,
-					cashbackAmount:
-						card.cashbackAccountId && card.cashbackRate
-							? Number(((data.totalAmount * card.cashbackRate) / 100).toFixed(4))
-							: null,
-					cashbackYieldPeriod: card.cashbackYieldPeriod ?? null,
-					cashbackYieldReferencePercentage: card.cashbackYieldReferencePercentage ?? null,
-					cashbackYieldReferenceRate: card.cashbackYieldReferenceRate ?? null,
+					...rewards,
 					debtSplitRule: data.debtSplit ?? null,
 					description: data.description ?? "",
 					installments: data.installments ?? 1,
@@ -1796,14 +1803,35 @@ export const dataService = {
 				data = { ...data, totalAmount: money.amount };
 			}
 
+			const targetRewardCard =
+				destinationCardId !== cardId ? (await localCreditCards.getById(destinationCardId))?.data : undefined;
+			const sourceRewardBook = targetRewardCard ? await readLocalCreditBook(cardId) : undefined;
+			const sourceRewardPurchase = sourceRewardBook
+				? bookPurchase(
+						sourceRewardBook,
+						sourceRewardBook.installments.find(row => row.id === purchaseId)?.purchaseId ?? purchaseId,
+					)
+				: undefined;
+			const movedRewards =
+				targetRewardCard && sourceRewardPurchase
+					? await guestCashbackSnapshot(
+							targetRewardCard,
+							"installmentAmount" in data
+								? sourceRewardPurchase.totalAmountCents / currencyScale(sourceRewardBook!.card.currency)
+								: data.totalAmount,
+							targetRewardCard.currency ?? "BRL",
+							"purchaseDate" in data ? data.purchaseDate : sourceRewardPurchase.purchaseDate,
+						)
+					: {};
 			const update = (book: CreditBook) => {
 				const id = book.installments.find(i => i.id === purchaseId)?.purchaseId ?? purchaseId;
 				const p = bookPurchase(book, id);
+				const previousTotal = p.totalAmountCents;
 				if ("installmentAmount" in data) {
 					const i = book.installments.find(i => i.id === purchaseId);
 					if (!i) throw new Error("Parcela não encontrada");
 					const amounts = [...p.installmentAmountsCents];
-					amounts[i.number - 1] = moneyCents(data.installmentAmount, 1);
+					amounts[i.number - 1] = moneyCents(data.installmentAmount, 1, book.card.currency);
 					p.installmentAmountsCents = amounts;
 					p.totalAmountCents = amounts.reduce((a, b) => a + b, 0);
 					i.amountCents = amounts[i.number - 1]!;
@@ -1818,7 +1846,11 @@ export const dataService = {
 					const count = data.installments ?? p.installmentAmountsCents.length;
 					if (book.installments.some(i => i.purchaseId === p.id && i.number > count))
 						throw new Error("Parcelas históricas não podem ser removidas");
-					const total = moneyCents(data.totalAmount ?? p.totalAmountCents / 100, 1);
+					const total = moneyCents(
+						data.totalAmount ?? p.totalAmountCents / currencyScale(book.card.currency),
+						1,
+						book.card.currency,
+					);
 					if (data.totalAmount !== undefined || data.installments !== undefined) {
 						p.installmentAmountsCents = distributePurchaseCents(
 							total,
@@ -1844,6 +1876,7 @@ export const dataService = {
 						p.feeDescription = data.feeAmount ? (data.feeDescription ?? p.feeDescription) : null;
 					}
 				}
+				resizePurchaseCashback(p, previousTotal);
 				p.updatedAt = new Date().toISOString();
 			};
 			if (destinationCardId === cardId) await mutateLocalCreditBook(cardId, update);
@@ -1852,14 +1885,17 @@ export const dataService = {
 					update(book);
 					const rootId = book.installments.find(item => item.id === purchaseId)?.purchaseId ?? purchaseId;
 					const purchase = bookPurchase(book, rootId);
-					purchase.cashbackAccountId = card.cashbackAccountId ?? null;
-					purchase.cashbackAmount =
-						card.cashbackAccountId && card.cashbackRate
-							? Number((((purchase.totalAmountCents / 100) * card.cashbackRate) / 100).toFixed(4))
-							: null;
-					purchase.cashbackYieldPeriod = card.cashbackYieldPeriod ?? null;
-					purchase.cashbackYieldReferencePercentage = card.cashbackYieldReferencePercentage ?? null;
-					purchase.cashbackYieldReferenceRate = card.cashbackYieldReferenceRate ?? null;
+					Object.assign(
+						purchase,
+						{
+							cashbackAccountId: null,
+							cashbackAmount: null,
+							cashbackYieldPeriod: null,
+							cashbackYieldReferencePercentage: null,
+							cashbackYieldReferenceRate: null,
+						},
+						movedRewards,
+					);
 				});
 			}
 
