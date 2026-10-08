@@ -1,11 +1,13 @@
 import { HiArrowDown, HiArrowPath, HiArrowUp } from "react-icons/hi2";
 import { RecurrenceSummaryCard } from "./RecurrenceSummaryCard";
 export function RecurringSummary({
+	currencyCode,
 	expenses,
 	incomes,
 	transfers = 0,
 	period,
 }: {
+	currencyCode: string;
 	expenses: number;
 	incomes: number;
 	transfers?: number;
@@ -16,6 +18,7 @@ export function RecurringSummary({
 			<RecurrenceSummaryCard
 				amount={incomes}
 				color="bg-emerald-500/10 text-emerald-600"
+				currencyCode={currencyCode}
 				icon={HiArrowDown}
 				label="Entradas agendadas"
 				period={period}
@@ -23,6 +26,7 @@ export function RecurringSummary({
 			<RecurrenceSummaryCard
 				amount={expenses}
 				color="bg-rose-500/10 text-rose-600"
+				currencyCode={currencyCode}
 				icon={HiArrowUp}
 				label="Saídas agendadas"
 				period={period}
@@ -31,6 +35,7 @@ export function RecurringSummary({
 				<RecurrenceSummaryCard
 					amount={transfers}
 					color="bg-primary/10 text-primary"
+					currencyCode={currencyCode}
 					icon={HiArrowPath}
 					label="Transferências próprias"
 					period={period}

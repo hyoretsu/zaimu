@@ -121,12 +121,10 @@ export function RecurringPage() {
 	const activeItems = filteredItems.filter(item => item.active && !isRecurrenceEnded(item.endDate));
 	const pausedItems = filteredItems.filter(item => !item.active && !isRecurrenceEnded(item.endDate));
 	const endedItems = filteredItems.filter(item => isRecurrenceEnded(item.endDate));
-	const monthlyIncome = items
-		.filter(item => item.active && !isRecurrenceEnded(item.endDate) && item.direction === "INCOME")
-		.reduce((total, item) => total + item.monthlyAmount, 0);
-	const monthlyExpenses = items
-		.filter(item => item.active && !isRecurrenceEnded(item.endDate) && item.direction === "EXPENSE")
-		.reduce((total, item) => total + item.monthlyAmount, 0);
+	const monetaryItems = items.filter(item => item.active && !isRecurrenceEnded(item.endDate));
+	const summaryCurrencies = [
+		...new Set(monetaryItems.map(item => item.recurrence?.currency ?? "BRL")),
+	].sort();
 	const renderItem = (item: RecurringListItemData) => (
 		<RecurringListItem
 			deleting={remove.isPending && remove.variables?.item.id === item.id}
@@ -170,14 +168,27 @@ export function RecurringPage() {
 					<Skeleton className="h-[74px] rounded-2xl" />
 				</div>
 			) : (
-				<RecurringSummary
-					expenses={monthlyExpenses}
-					incomes={monthlyIncome}
-					period={periodLabel}
-					transfers={items
-						.filter(item => item.active && item.direction === "TRANSFER")
-						.reduce((sum, item) => sum + item.monthlyAmount, 0)}
-				/>
+				<div className="space-y-3">
+					{(summaryCurrencies.length ? summaryCurrencies : ["BRL"]).map(currency => {
+						const nativeItems = monetaryItems.filter(
+							item => (item.recurrence?.currency ?? "BRL") === currency,
+						);
+						const total = (direction: RecurringDirection) =>
+							nativeItems
+								.filter(item => item.direction === direction)
+								.reduce((sum, item) => sum + item.monthlyAmount, 0);
+						return (
+							<RecurringSummary
+								currencyCode={currency}
+								expenses={total("EXPENSE")}
+								incomes={total("INCOME")}
+								key={currency}
+								period={periodLabel}
+								transfers={total("TRANSFER")}
+							/>
+						);
+					})}
+				</div>
 			)}
 
 			<div className="grid gap-2 rounded-2xl border bg-card p-2 min-[440px]:grid-cols-4">
