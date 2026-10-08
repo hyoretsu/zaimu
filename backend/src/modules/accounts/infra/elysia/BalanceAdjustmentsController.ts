@@ -1,3 +1,4 @@
+import { toMinorUnits } from "@zaimu/finance/money";
 import Elysia, { t } from "elysia";
 import { requireUserId } from "~/modules/auth";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
@@ -20,7 +21,7 @@ function parseDate(value: string) {
 
 async function assertEligibleAccount(userId: string, accountId: string) {
 	const account = await queryFirst(
-		db.sql.public.FinancialAccount.select("id", "type")
+		db.sql.public.FinancialAccount.select("id", "type", "currency")
 			.where((fields, functions) =>
 				functions.and(functions.eq(fields.id, accountId), functions.eq(fields.userId, userId)),
 			)
@@ -29,6 +30,7 @@ async function assertEligibleAccount(userId: string, accountId: string) {
 	);
 	if (!account || account.type === "CREDIT_CARD" || account.type === "REWARDS")
 		throw new HttpException("Selecione uma conta com saldo válido", 400);
+	return account;
 }
 
 export const BalanceAdjustmentsController = new Elysia({ prefix: "/balance-adjustments" })
@@ -45,7 +47,7 @@ export const BalanceAdjustmentsController = new Elysia({ prefix: "/balance-adjus
 				id: string;
 				name: null | string;
 			}>(
-				`SELECT adjustment."id", adjustment."date", adjustment."balance", adjustment."financialAccountId",
+				`SELECT adjustment."currency", adjustment."id", adjustment."date", adjustment."balance", adjustment."financialAccountId",
 				        adjustment."createdAt", COALESCE(account."name", institution."name") AS "name",
 				        (COALESCE(previous."balance", 0) + COALESCE(movements.amount, 0)
 				          + COALESCE(yields.amount, 0))::numeric AS "calculatedBalance"
@@ -89,7 +91,8 @@ export const BalanceAdjustmentsController = new Elysia({ prefix: "/balance-adjus
 		"/",
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
-			await assertEligibleAccount(userId, body.financialAccountId);
+			const account = await assertEligibleAccount(userId, body.financialAccountId);
+			toMinorUnits(Math.abs(body.balance), account.currency);
 			const date = parseDate(body.date);
 			const existing = await queryRaw<{ id: string }>(
 				`SELECT "id" FROM "BalanceAdjustment" WHERE "userId" = $1 AND "financialAccountId" = $2 AND "date" = $3`,
@@ -102,9 +105,9 @@ export const BalanceAdjustmentsController = new Elysia({ prefix: "/balance-adjus
 				financialAccountId: string;
 				id: string;
 			}>(
-				`INSERT INTO "BalanceAdjustment" ("userId", "financialAccountId", "date", "balance")
-				 VALUES ($1, $2, $3, $4) RETURNING "id", "financialAccountId", "date", "balance"`,
-				[userId, body.financialAccountId, date, body.balance],
+				`INSERT INTO "BalanceAdjustment" ("userId", "financialAccountId", "date", "balance", "currency")
+				 VALUES ($1, $2, $3, $4, $5) RETURNING "id", "financialAccountId", "date", "balance", "currency"`,
+				[userId, body.financialAccountId, date, body.balance, account.currency],
 			);
 			await enqueueAccountYieldRecalculation(
 				body.financialAccountId,
@@ -119,7 +122,8 @@ export const BalanceAdjustmentsController = new Elysia({ prefix: "/balance-adjus
 		"/:id",
 		async ({ body, params, request }) => {
 			const userId = await requireUserId(request);
-			await assertEligibleAccount(userId, body.financialAccountId);
+			const account = await assertEligibleAccount(userId, body.financialAccountId);
+			toMinorUnits(Math.abs(body.balance), account.currency);
 			const date = parseDate(body.date);
 			const [previous] = await queryRaw<{ date: Date; financialAccountId: string }>(
 				`SELECT "date", "financialAccountId" FROM "BalanceAdjustment" WHERE "id" = $1 AND "userId" = $2`,
@@ -133,9 +137,9 @@ export const BalanceAdjustmentsController = new Elysia({ prefix: "/balance-adjus
 			if (conflict.length) throw new HttpException("Já existe um ajuste nesta data para esta conta", 409);
 			const [adjustment] = await queryRaw<{ id: string }>(
 				`UPDATE "BalanceAdjustment" SET "financialAccountId" = $3, "date" = $4,
-				 "balance" = $5, "updatedAt" = now()
+				 "balance" = $5, "currency" = $6, "updatedAt" = now()
 				 WHERE "id" = $1 AND "userId" = $2 RETURNING "id"`,
-				[params.id, userId, body.financialAccountId, date, body.balance],
+				[params.id, userId, body.financialAccountId, date, body.balance, account.currency],
 			);
 			if (!adjustment) throw new HttpException("Ajuste não encontrado", 404);
 			await enqueueAccountYieldRecalculation(

@@ -16,7 +16,8 @@ import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/que
 import { showToast } from "@/stores";
 import { BalanceAdjustmentForm } from "./BalanceAdjustmentForm";
 
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
+const formatMoney = (value: number, currency: string) =>
+	new Intl.NumberFormat("pt-BR", { currency, style: "currency" }).format(value);
 const nameCollator = new Intl.Collator("pt-BR", { sensitivity: "base" });
 
 export function BalanceAdjustmentsDialog({
@@ -96,10 +97,12 @@ export function BalanceAdjustmentsDialog({
 											</p>
 											<p className="text-muted-foreground text-sm">{formatLocalDate(adjustment.date)}</p>
 											<p className="text-muted-foreground text-sm">
-												Saldo sem ajuste: {currency.format(Number(adjustment.calculatedBalance))}
+												Saldo sem ajuste:{" "}
+												{formatMoney(Number(adjustment.calculatedBalance), adjustment.currency ?? "BRL")}
 											</p>
 											<p className="text-sm">
-												Saldo corrigido: {currency.format(Number(adjustment.balance))}
+												Saldo corrigido:{" "}
+												{formatMoney(Number(adjustment.balance), adjustment.currency ?? "BRL")}
 											</p>
 										</div>
 										<div className="flex shrink-0 gap-1">

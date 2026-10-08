@@ -102,6 +102,11 @@ export function BalanceAdjustmentForm({
 						value={date}
 					/>
 					<MoneyField
+						currencyCode={
+							accounts.find(account => account.id === financialAccountId)?.currency ??
+							adjustment?.currency ??
+							"BRL"
+						}
 						id="balance-adjustment-balance"
 						label="Saldo real"
 						onValueChange={setBalance}

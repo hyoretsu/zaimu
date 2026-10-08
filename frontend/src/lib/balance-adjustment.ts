@@ -1,4 +1,5 @@
 export interface BalanceAdjustment {
+	currency?: string;
 	balance: number;
 	calculatedBalance: number;
 	createdAt: string;
