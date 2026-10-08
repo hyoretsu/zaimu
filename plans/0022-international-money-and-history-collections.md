@@ -41,3 +41,8 @@ Public visitor requests use same backend queues, cache snapshots/results/progres
 Meaningful unit/integration coverage: crash before/after commit and ACK; outbox loss; redelivery; expired leases; concurrent workers; overlapping demand; retry/DLQ; recovery; monotonic coverage; no-publication days; existing interest proofs; idempotent recalculations; FX fallback/partial/complete weighting; ISO precision; transfers; splits; statements; loans; imports; sync/visitor; preference/location/cache/fallback/banner confirmation/mobile.
 
 Use normal commit hooks for formatting/lint/types/backend unit coverage; scoped builds and offline migration integrity. Local user authors/commits; Codex co-author trailer. Existing uncommitted `packages/sql/migrations/app/refs/db.json` belongs to user and stays untouched.
+
+## Completed milestones
+
+- Shared currency provider now validates exact dates, uses official fallback, preserves Retry-After, and rounds converted values using ISO precision. Unit tests and commit hooks passed.
+- Monetary schema and durable history tables generated; offline migration preserves native/source distinctions and imports proven interest coverage. Migration artifact checks passed; migration remains unapplied. Engine and application integration remain pending.

@@ -82,6 +82,8 @@ namespace public {
   }
 
   model User {
+    preferredCurrency VarChar(3)?
+
     openFinanceConfig OpenFinanceConfig?
     openFinanceConnections OpenFinanceConnection[]
     openFinanceRuns OpenFinanceRun[]
@@ -124,6 +126,8 @@ namespace public {
   }
 
   model FinancialInstitution {
+    currency VarChar(3) @default("BRL")
+
     id             VarChar(36)        @id(map: "FinancialInstitution_pkey") @default(dbgenerated("cuid2()"))
     userId         VarChar(36)
     name           VarChar(100)
@@ -140,6 +144,8 @@ namespace public {
   }
 
   model FinancialInstitutionYieldPolicy {
+    currency VarChar(3) @default("BRL")
+
     id                     VarChar(36)                              @id(map: "FinancialInstitutionYieldPolicy_pkey") @default(dbgenerated("cuid2()"))
     financialInstitutionId VarChar(36)
     effectiveDate          Date
@@ -158,7 +164,7 @@ namespace public {
     id                       VarChar(36)                       @id(map: "FinancialInstitutionYieldRule_pkey") @default(dbgenerated("cuid2()"))
     financialYieldPolicyId   VarChar(36)
     position                 SmallInt
-    upToBalance              Numeric(12, 2)?
+    upToBalance              Numeric(20, 6)?
     yieldReferenceType       pg.enum(ReferenceRateType)?
     yieldReferencePercentage Numeric(7, 4)?
     yieldFixedRate           Numeric(7, 4)?
@@ -249,7 +255,7 @@ namespace public {
     isHidden                Boolean                      @default(false)
     isPrimary               Boolean                      @default(false)
     isDefaultForStatements  Boolean                      @default(false)
-    balance                 Numeric(12, 2)?               @default(dbgenerated("0"))
+    balance                 Numeric(20, 6)?               @default(dbgenerated("0"))
     institutionId           VarChar(36)?
     yieldReferenceType       pg.enum(ReferenceRateType)?
     yieldReferencePercentage Numeric(7, 4)?
@@ -299,11 +305,13 @@ namespace public {
   }
 
   model BalanceAdjustment {
+    currency VarChar(3) @default("BRL")
+
     id                 VarChar(36) @id(map: "BalanceAdjustment_pkey") @default(dbgenerated("cuid2()"))
     userId             VarChar(36)
     financialAccountId VarChar(36)
     date               Date
-    balance            Numeric(12, 2)
+    balance            Numeric(20, 6)
     createdAt          Timestamp(3) @default(now())
     updatedAt          Timestamp(3) @default(now())
     user               User @relation(fields: [userId], references: [id], onDelete: Cascade, map: "BalanceAdjustment_userId_fkey", index: false)
@@ -331,11 +339,13 @@ namespace public {
   }
 
   model FinancialAccountYield {
+    currency VarChar(3) @default("BRL")
+
     id                 VarChar(36)                       @id(map: "FinancialAccountYield_pkey") @default(dbgenerated("cuid2()"))
     financialAccountId VarChar(36)
     date               Date
     time               Time(3)?
-    amount             Numeric(12, 4)?
+    amount             Numeric(20, 8)?
     isHidden           Boolean                           @default(false)
     externalId         VarChar(200)?
     kind               pg.enum(FinancialAccountYieldKind)
@@ -348,6 +358,61 @@ namespace public {
     @@index([financialAccountId, date, kind], map: "FinancialAccountYield_accountId_date_kind_key", unique: true)
     @@index([externalId], map: "FinancialAccountYield_externalId_idx")
     @@map("FinancialAccountYield")
+  }
+
+  model FinancialHistoryCollection {
+    id VarChar(36) @id @default(dbgenerated("cuid2()"))
+    deduplicationKey VarChar(200) @unique
+    kind VarChar(20)
+    startDate Date
+    endDate Date
+    series Json
+    createdAt Timestamptz(3) @default(now())
+    updatedAt Timestamptz(3) @default(now())
+    units FinancialHistoryCollectionUnit[]
+    @@map("FinancialHistoryCollection")
+  }
+
+  model FinancialHistoryUnit {
+    id VarChar(36) @id @default(dbgenerated("cuid2()"))
+    deduplicationKey VarChar(200) @unique
+    kind VarChar(20)
+    series VarChar(10)
+    startDate Date
+    endDate Date
+    state VarChar(32) @default("PENDING")
+    attempts Int @default(0)
+    generation Int @default(0)
+    nextAttemptAt Timestamptz(3)?
+    leaseToken VarChar(36)?
+    lockedUntil Timestamptz(3)?
+    lastError VarChar(1000)?
+    completedAt Timestamptz(3)?
+    createdAt Timestamptz(3) @default(now())
+    updatedAt Timestamptz(3) @default(now())
+    collections FinancialHistoryCollectionUnit[]
+    @@index([state, nextAttemptAt, lockedUntil], map: "FinancialHistoryUnit_recovery_idx")
+    @@index([kind, series, startDate, endDate], map: "FinancialHistoryUnit_coverage_idx")
+    @@map("FinancialHistoryUnit")
+  }
+
+  model FinancialHistoryCollectionUnit {
+    collectionId VarChar(36)
+    unitId VarChar(36)
+    collection FinancialHistoryCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+    unit FinancialHistoryUnit @relation(fields: [unitId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+    @@id([collectionId, unitId])
+    @@index([unitId], map: "FinancialHistoryCollectionUnit_unit_idx")
+    @@map("FinancialHistoryCollectionUnit")
+  }
+
+  model FinancialProviderSlot {
+    provider VarChar(40)
+    slot Int
+    leaseToken VarChar(36)?
+    lockedUntil Timestamptz(3)?
+    @@id([provider, slot])
+    @@map("FinancialProviderSlot")
   }
 
   model CurrencyRateSnapshot {
@@ -393,6 +458,8 @@ namespace public {
     @@map("OutboxEvent")
   }
   model ConsumerReceipt {
+    leaseToken VarChar(36)?
+
     consumer    VarChar(120)
     eventId     VarChar(36)
     attempts    Int          @default(0)
@@ -410,8 +477,8 @@ namespace public {
     refundReviews CreditRefundReview[]
     id                   VarChar(36)           @id(map: "CreditCard_pkey") @default(dbgenerated("cuid2()"))
     financialAccountId   VarChar(36)
-    creditLimit          Numeric(12, 2)
-    securityDeposit      Numeric(12, 2)?
+    creditLimit          Numeric(20, 6)
+    securityDeposit      Numeric(20, 6)?
     excludeFromTotals    Boolean               @default(false)
     paymentAccountId     VarChar(36)?
     paymentSuggestionsEnabled Boolean           @default(true)
@@ -447,12 +514,14 @@ namespace public {
   }
 
   model RewardsAccount {
+    conversionCurrency VarChar(3) @default("BRL")
+
     id                    VarChar(36)                   @id(map: "RewardsAccount_pkey") @default(dbgenerated("cuid2()"))
     financialAccountId    VarChar(36)                   @unique(map: "RewardsAccount_financialAccountId_key")
     kind                  pg.enum(RewardsAccountKind)
     initialBalance        Numeric(18, 4)
     conversionPoints      Numeric(18, 4)?
-    conversionAmount      Numeric(12, 2)?
+    conversionAmount      Numeric(20, 6)?
     createdAt             Timestamp(3)                  @default(now())
     updatedAt             Timestamp(3)                  @default(now())
     financialAccount      FinancialAccount              @relation(fields: [financialAccountId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "RewardsAccount_financialAccountId_fkey")
@@ -473,12 +542,14 @@ namespace public {
   }
 
   model CreditCardStatement {
+    currency VarChar(3) @default("BRL")
+
     id              VarChar(36)      @id(map: "CreditCardStatement_pkey") @default(dbgenerated("cuid2()"))
     creditCardId    VarChar(36)
     statementDate   Date
     dueDate         Date
-    totalAmount     Numeric(12, 2)   @default(dbgenerated("0"))
-    paidAmount      Numeric(12, 2)   @default(dbgenerated("0"))
+    totalAmount     Numeric(20, 6)   @default(dbgenerated("0"))
+    paidAmount      Numeric(20, 6)   @default(dbgenerated("0"))
     isPaid          Boolean          @default(false)
     isFullySynced   Boolean          @default(false)
     createdAt       Timestamp(3)     @default(now())
@@ -508,8 +579,10 @@ namespace public {
   }
 
   model CreditPurchaseRecord {
+    bookingCurrency VarChar(3) @default("BRL")
+
     currency VarChar(3) @default("BRL")
-    originalAmount Numeric(12, 2)?
+    originalAmount Numeric(20, 6)?
     exchangeRate Numeric(24, 12)?
     fees Json @default(dbgenerated("'[]'::json"))
     id                   VarChar(36) @id(map: "CreditPurchaseRecord_pkey")
@@ -519,10 +592,10 @@ namespace public {
     storeName            VarChar(200)?
     purchaseDate         Date
     time                 Time(3)?
-    totalAmount          Numeric(12, 2)
+    totalAmount          Numeric(20, 6)
     feeDescription       VarChar(100)?
-    feeAmount            Numeric(12, 2)?
-    refinancingFeeAmount Numeric(12, 2)?
+    feeAmount            Numeric(20, 6)?
+    refinancingFeeAmount Numeric(20, 6)?
     cashbackAccountId    VarChar(36)?
     cashbackAmount       Numeric(18, 4)?
     cashbackYieldReferenceRate       Numeric(7, 4)?
@@ -552,9 +625,11 @@ namespace public {
   }
 
   model CreditInstallmentPlan {
+    currency VarChar(3) @default("BRL")
+
     purchaseId       VarChar(36)
     number           SmallInt
-    amount           Numeric(12, 2)
+    amount           Numeric(20, 6)
     hasImportedAmount Boolean @default(false)
     statementDate     Date?
     dueDate           Date?
@@ -567,11 +642,13 @@ namespace public {
   }
 
   model CreditInstallmentRecord {
+    currency VarChar(3) @default("BRL")
+
     id                    VarChar(36) @id(map: "CreditInstallmentRecord_pkey")
     purchaseId            VarChar(36)
     statementId           VarChar(36)
     number                SmallInt
-    amount                Numeric(12, 2)
+    amount                Numeric(20, 6)
     occurrenceDate        Date
     hasImportedAmount     Boolean @default(false)
     settledByPurchaseId   VarChar(36)?
@@ -590,11 +667,13 @@ namespace public {
   }
 
   model CreditRefundRecord {
+    currency VarChar(3) @default("BRL")
+
     id                   VarChar(36) @id(map: "CreditRefundRecord_pkey")
     purchaseId           VarChar(36)
     statementId          VarChar(36)
     creditDate           Date
-    amount               Numeric(12, 2)
+    amount               Numeric(20, 6)
     policy               pg.enum(CreditRefundPolicy)
     time                 Time(3)?
     externalId           VarChar(200)? @unique(map: "CreditRefundRecord_externalId_key")
@@ -613,10 +692,12 @@ namespace public {
   }
 
   model CreditStatementCharge {
+    currency VarChar(3) @default("BRL")
+
     id          VarChar(36) @id(map: "CreditStatementCharge_pkey")
     statementId VarChar(36)
     description VarChar(500)
-    amount      Numeric(12, 2)
+    amount      Numeric(20, 6)
     chargeDate  Date
     time        Time(3)?
     externalId  VarChar(200)? @unique(map: "CreditStatementCharge_externalId_key")
@@ -723,13 +804,15 @@ namespace public {
   }
 
   model DebtEvent {
+    currency VarChar(3) @default("BRL")
+
     id              VarChar(36)             @id(map: "DebtEvent_pkey") @default(dbgenerated("cuid2()"))
     debtPersonId    VarChar(36)?
     connectionId    VarChar(36)?
     createdByUserId VarChar(36)
     kind            pg.enum(DebtEventKind)  @default("ORIGIN")
-    amount          Numeric(12, 2)
-    effect          Numeric(12, 2)
+    amount          Numeric(20, 6)
+    effect          Numeric(20, 6)
     date            Date?
     dueDate         Date?
     description     VarChar(1000)?
@@ -799,6 +882,8 @@ namespace public {
   }
 
   model DebtSplit {
+    currency VarChar(3) @default("BRL")
+
     id                 VarChar(36)             @id(map: "DebtSplit_pkey") @default(dbgenerated("cuid2()"))
     userId             VarChar(36)
     mode               pg.enum(DebtSplitMode)
@@ -834,7 +919,7 @@ namespace public {
     description  VarChar(1000)?
     shares       SmallInt?
     percentage   Numeric(5, 2)?
-    fixedAmount  Numeric(12, 2)?
+    fixedAmount  Numeric(20, 6)?
     createdAt    Timestamp(3) @default(now())
     updatedAt    Timestamp(3) @default(now())
     debtSplit    DebtSplit    @relation(fields: [debtSplitId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplitParticipant_debtSplitId_fkey", index: false)
@@ -847,13 +932,15 @@ namespace public {
   }
 
   model Loan {
+    currency VarChar(3) @default("BRL")
+
     id                VarChar(36)               @id(map: "Loan_pkey") @default(dbgenerated("cuid2()"))
     userId            VarChar(36)
     lender            VarChar(100)
-    principalAmount   Numeric(12, 2)
+    principalAmount   Numeric(20, 6)
     interestRate      Numeric(5, 4)
     totalInstallments SmallInt
-    installmentAmount Numeric(12, 2)
+    installmentAmount Numeric(20, 6)
     dueDay            SmallInt
     startDate         Date
     firstDueDate      Date
@@ -883,13 +970,17 @@ namespace public {
   }
 
   model LoanPayment {
+    currency VarChar(3) @default("BRL")
+    accountAmount Numeric(20, 6)?
+    accountCurrency VarChar(3)?
+
     id                 VarChar(36)           @id(map: "LoanPayment_pkey") @default(dbgenerated("cuid2()"))
     loanId             VarChar(36)
     financialAccountId VarChar(36)?
     installmentNumber  SmallInt
-    principalPaid      Numeric(12, 2)
-    interestPaid       Numeric(12, 2)
-    totalPaid          Numeric(12, 2)
+    principalPaid      Numeric(20, 6)
+    interestPaid       Numeric(20, 6)
+    totalPaid          Numeric(20, 6)
     dueDate            Date
     paidDate           Date?
     isAdvanced         Boolean               @default(false)
@@ -930,10 +1021,12 @@ namespace public {
   }
 
   model Recurrence {
+    currency VarChar(3) @default("BRL")
+
     id VarChar(36) @id(map: "Recurrence_pkey") @default(dbgenerated("cuid2()"))
     userId VarChar(36)
     name VarChar(100)
-    amount Numeric(12, 2)
+    amount Numeric(20, 6)
     installments SmallInt @default(1)
     movement VarChar(20)
     unit VarChar(5)
@@ -1010,13 +1103,20 @@ namespace public {
 
 
   model Transaction {
+    bookingCurrency VarChar(3) @default("BRL")
+    destinationAmount Numeric(20, 6)?
+    destinationCurrency VarChar(3)?
+    paymentAmount Numeric(20, 6)?
+    paymentCurrency VarChar(3)?
+    conversionSource VarChar(20) @default("DAILY")
+
     currency VarChar(3) @default("BRL")
-    originalAmount Numeric(12, 2)?
+    originalAmount Numeric(20, 6)?
     exchangeRate Numeric(24, 12)?
     fees Json @default(dbgenerated("'[]'::json"))
     id                            VarChar(36)              @id(map: "Transaction_pkey") @default(dbgenerated("cuid2()"))
     userId                        VarChar(36)
-    amount                        Numeric(12, 2)
+    amount                        Numeric(20, 6)
     date                          Date
     time                          Time(3)?
     description                   VarChar(1000)?
@@ -1067,6 +1167,8 @@ namespace public {
   }
 
   model CreditCardImport {
+    currency VarChar(3) @default("BRL")
+
     id            VarChar(36)                   @id(map: "CreditCardImport_pkey") @default(dbgenerated("cuid2()"))
     userId        VarChar(36)
     creditCardId  VarChar(36)
@@ -1074,7 +1176,7 @@ namespace public {
     status        pg.enum(TransactionImportStatus) @default("PENDING")
     fileName      VarChar(255)
     statementDate Date
-    reportedPreviousBalance Numeric(12, 2)?
+    reportedPreviousBalance Numeric(20, 6)?
     dueDate       Date
     createdAt     Timestamp(3)                  @default(now())
     updatedAt     Timestamp(3)                  @default(now())
@@ -1088,6 +1190,8 @@ namespace public {
   }
 
   model CreditCardImportItem {
+    currency VarChar(3) @default("BRL")
+
     id                 VarChar(36)     @id(map: "CreditCardImportItem_pkey") @default(dbgenerated("cuid2()"))
     creditCardImportId VarChar(36)
     externalId         VarChar(200)
@@ -1095,10 +1199,10 @@ namespace public {
     time               Time(3)?
     description        VarChar(500)
     storeName          VarChar(200)?
-    totalAmount        Numeric(12, 2)
+    totalAmount        Numeric(20, 6)
     installments       SmallInt        @default(1)
     currentInstallment SmallInt        @default(1)
-    installmentAmount  Numeric(12, 2)
+    installmentAmount  Numeric(20, 6)
     isStatementCharge  Boolean         @default(false)
     isSelected         Boolean         @default(true)
     metadataMissing Json @default("[]")
@@ -1115,6 +1219,8 @@ namespace public {
   }
 
   model TransactionImport {
+    currency VarChar(3) @default("BRL")
+
     id                 VarChar(36)                         @id(map: "TransactionImport_pkey") @default(dbgenerated("cuid2()"))
     userId             VarChar(36)
     financialAccountId VarChar(36)
@@ -1135,11 +1241,13 @@ namespace public {
   }
 
   model TransactionImportItem {
+    currency VarChar(3) @default("BRL")
+
     id                  VarChar(36)              @id(map: "TransactionImportItem_pkey") @default(dbgenerated("cuid2()"))
     transactionImportId VarChar(36)
     externalId          VarChar(200)?
     transferCounterpartExternalId VarChar(200)?
-    amount              Numeric(12, 2)
+    amount              Numeric(20, 6)
     date                Date
     time                Time(3)?
     description         VarChar(1000)?
@@ -1154,7 +1262,7 @@ namespace public {
     reconciledTransactionId VarChar(36)?
     reconciledImportItemId VarChar(36)?
     isSelected          Boolean                  @default(true)
-    balanceAfter        Numeric(12, 2)?
+    balanceAfter        Numeric(20, 6)?
     createdAt           Timestamp(3)             @default(now())
     updatedAt           Timestamp(3)             @default(now())
     transactionImport   TransactionImport         @relation(fields: [transactionImportId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionImportItem_importId_fkey", index: false)

@@ -1,0 +1,2707 @@
+[
+	{
+		"execute": [
+			{
+				"description": "create table \"FinancialHistoryCollection\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"FinancialHistoryCollection\" (\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"deduplicationKey\" character varying(200) NOT NULL,\n  \"endDate\" date NOT NULL,\n  \"id\" character varying(36) DEFAULT (cuid2()) NOT NULL,\n  \"kind\" character varying(20) NOT NULL,\n  \"series\" json NOT NULL,\n  \"startDate\" date NOT NULL,\n  \"updatedAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.FinancialHistoryCollection",
+		"label": "Create table \"FinancialHistoryCollection\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"FinancialHistoryCollection\" exists",
+				"params": ["\"public\".\"FinancialHistoryCollection\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"FinancialHistoryCollection\" does not exist",
+				"params": ["\"public\".\"FinancialHistoryCollection\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"FinancialHistoryCollection\"",
+		"target": {
+			"details": {
+				"name": "FinancialHistoryCollection",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"FinancialHistoryCollectionUnit\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"FinancialHistoryCollectionUnit\" (\n  \"collectionId\" character varying(36) NOT NULL,\n  \"unitId\" character varying(36) NOT NULL,\n  PRIMARY KEY (\"collectionId\", \"unitId\")\n)"
+			}
+		],
+		"id": "table.FinancialHistoryCollectionUnit",
+		"label": "Create table \"FinancialHistoryCollectionUnit\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"FinancialHistoryCollectionUnit\" exists",
+				"params": ["\"public\".\"FinancialHistoryCollectionUnit\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"FinancialHistoryCollectionUnit\" does not exist",
+				"params": ["\"public\".\"FinancialHistoryCollectionUnit\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"FinancialHistoryCollectionUnit\"",
+		"target": {
+			"details": {
+				"name": "FinancialHistoryCollectionUnit",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"FinancialHistoryUnit\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"FinancialHistoryUnit\" (\n  \"attempts\" int4 DEFAULT 0 NOT NULL,\n  \"completedAt\" timestamptz(3),\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"deduplicationKey\" character varying(200) NOT NULL,\n  \"endDate\" date NOT NULL,\n  \"generation\" int4 DEFAULT 0 NOT NULL,\n  \"id\" character varying(36) DEFAULT (cuid2()) NOT NULL,\n  \"kind\" character varying(20) NOT NULL,\n  \"lastError\" character varying(1000),\n  \"leaseToken\" character varying(36),\n  \"lockedUntil\" timestamptz(3),\n  \"nextAttemptAt\" timestamptz(3),\n  \"series\" character varying(10) NOT NULL,\n  \"startDate\" date NOT NULL,\n  \"state\" character varying(32) DEFAULT 'PENDING' NOT NULL,\n  \"updatedAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.FinancialHistoryUnit",
+		"label": "Create table \"FinancialHistoryUnit\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"FinancialHistoryUnit\" exists",
+				"params": ["\"public\".\"FinancialHistoryUnit\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"FinancialHistoryUnit\" does not exist",
+				"params": ["\"public\".\"FinancialHistoryUnit\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"FinancialHistoryUnit\"",
+		"target": {
+			"details": {
+				"name": "FinancialHistoryUnit",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"FinancialProviderSlot\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"FinancialProviderSlot\" (\n  \"leaseToken\" character varying(36),\n  \"lockedUntil\" timestamptz(3),\n  \"provider\" character varying(40) NOT NULL,\n  \"slot\" int4 NOT NULL,\n  PRIMARY KEY (\"provider\", \"slot\")\n)"
+			}
+		],
+		"id": "table.FinancialProviderSlot",
+		"label": "Create table \"FinancialProviderSlot\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"FinancialProviderSlot\" exists",
+				"params": ["\"public\".\"FinancialProviderSlot\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"FinancialProviderSlot\" does not exist",
+				"params": ["\"public\".\"FinancialProviderSlot\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"FinancialProviderSlot\"",
+		"target": {
+			"details": {
+				"name": "FinancialProviderSlot",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"currency\"",
+				"sql": "ALTER TABLE \"public\".\"BalanceAdjustment\" ADD COLUMN \"currency\" character varying(3) DEFAULT 'BRL' NOT NULL"
+			}
+		],
+		"id": "column.public.BalanceAdjustment.currency",
+		"label": "Add column \"currency\" to \"BalanceAdjustment\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"currency\" exists",
+				"params": ["public", "BalanceAdjustment", "currency"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"currency\" is missing",
+				"params": ["public", "BalanceAdjustment", "currency"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "currency",
+				"objectType": "column",
+				"schema": "public",
+				"table": "BalanceAdjustment"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"leaseToken\"",
+				"sql": "ALTER TABLE \"public\".\"ConsumerReceipt\" ADD COLUMN \"leaseToken\" character varying(36)"
+			}
+		],
+		"id": "column.public.ConsumerReceipt.leaseToken",
+		"label": "Add column \"leaseToken\" to \"ConsumerReceipt\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"leaseToken\" exists",
+				"params": ["public", "ConsumerReceipt", "leaseToken"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"leaseToken\" is missing",
+				"params": ["public", "ConsumerReceipt", "leaseToken"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "leaseToken",
+				"objectType": "column",
+				"schema": "public",
+				"table": "ConsumerReceipt"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"currency\"",
+				"sql": "ALTER TABLE \"public\".\"CreditCardImport\" ADD COLUMN \"currency\" character varying(3) DEFAULT 'BRL' NOT NULL"
+			}
+		],
+		"id": "column.public.CreditCardImport.currency",
+		"label": "Add column \"currency\" to \"CreditCardImport\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"currency\" exists",
+				"params": ["public", "CreditCardImport", "currency"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"currency\" is missing",
+				"params": ["public", "CreditCardImport", "currency"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "currency",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditCardImport"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"currency\"",
+				"sql": "ALTER TABLE \"public\".\"CreditCardImportItem\" ADD COLUMN \"currency\" character varying(3) DEFAULT 'BRL' NOT NULL"
+			}
+		],
+		"id": "column.public.CreditCardImportItem.currency",
+		"label": "Add column \"currency\" to \"CreditCardImportItem\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"currency\" exists",
+				"params": ["public", "CreditCardImportItem", "currency"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"currency\" is missing",
+				"params": ["public", "CreditCardImportItem", "currency"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "currency",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditCardImportItem"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"currency\"",
+				"sql": "ALTER TABLE \"public\".\"CreditCardStatement\" ADD COLUMN \"currency\" character varying(3) DEFAULT 'BRL' NOT NULL"
+			}
+		],
+		"id": "column.public.CreditCardStatement.currency",
+		"label": "Add column \"currency\" to \"CreditCardStatement\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"currency\" exists",
+				"params": ["public", "CreditCardStatement", "currency"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"currency\" is missing",
+				"params": ["public", "CreditCardStatement", "currency"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "currency",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditCardStatement"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"currency\"",
+				"sql": "ALTER TABLE \"public\".\"CreditInstallmentPlan\" ADD COLUMN \"currency\" character varying(3) DEFAULT 'BRL' NOT NULL"
+			}
+		],
+		"id": "column.public.CreditInstallmentPlan.currency",
+		"label": "Add column \"currency\" to \"CreditInstallmentPlan\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"currency\" exists",
+				"params": ["public", "CreditInstallmentPlan", "currency"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"currency\" is missing",
+				"params": ["public", "CreditInstallmentPlan", "currency"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "currency",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditInstallmentPlan"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"currency\"",
+				"sql": "ALTER TABLE \"public\".\"CreditInstallmentRecord\" ADD COLUMN \"currency\" character varying(3) DEFAULT 'BRL' NOT NULL"
+			}
+		],
+		"id": "column.public.CreditInstallmentRecord.currency",
+		"label": "Add column \"currency\" to \"CreditInstallmentRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"currency\" exists",
+				"params": ["public", "CreditInstallmentRecord", "currency"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"currency\" is missing",
+				"params": ["public", "CreditInstallmentRecord", "currency"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "currency",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditInstallmentRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"bookingCurrency\"",
+				"sql": "ALTER TABLE \"public\".\"CreditPurchaseRecord\" ADD COLUMN \"bookingCurrency\" character varying(3) DEFAULT 'BRL' NOT NULL"
+			}
+		],
+		"id": "column.public.CreditPurchaseRecord.bookingCurrency",
+		"label": "Add column \"bookingCurrency\" to \"CreditPurchaseRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"bookingCurrency\" exists",
+				"params": ["public", "CreditPurchaseRecord", "bookingCurrency"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"bookingCurrency\" is missing",
+				"params": ["public", "CreditPurchaseRecord", "bookingCurrency"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "bookingCurrency",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditPurchaseRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"currency\"",
+				"sql": "ALTER TABLE \"public\".\"CreditRefundRecord\" ADD COLUMN \"currency\" character varying(3) DEFAULT 'BRL' NOT NULL"
+			}
+		],
+		"id": "column.public.CreditRefundRecord.currency",
+		"label": "Add column \"currency\" to \"CreditRefundRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"currency\" exists",
+				"params": ["public", "CreditRefundRecord", "currency"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"currency\" is missing",
+				"params": ["public", "CreditRefundRecord", "currency"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "currency",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditRefundRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"currency\"",
+				"sql": "ALTER TABLE \"public\".\"CreditStatementCharge\" ADD COLUMN \"currency\" character varying(3) DEFAULT 'BRL' NOT NULL"
+			}
+		],
+		"id": "column.public.CreditStatementCharge.currency",
+		"label": "Add column \"currency\" to \"CreditStatementCharge\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"currency\" exists",
+				"params": ["public", "CreditStatementCharge", "currency"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"currency\" is missing",
+				"params": ["public", "CreditStatementCharge", "currency"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "currency",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditStatementCharge"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"currency\"",
+				"sql": "ALTER TABLE \"public\".\"DebtEvent\" ADD COLUMN \"currency\" character varying(3) DEFAULT 'BRL' NOT NULL"
+			}
+		],
+		"id": "column.public.DebtEvent.currency",
+		"label": "Add column \"currency\" to \"DebtEvent\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"currency\" exists",
+				"params": ["public", "DebtEvent", "currency"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"currency\" is missing",
+				"params": ["public", "DebtEvent", "currency"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "currency",
+				"objectType": "column",
+				"schema": "public",
+				"table": "DebtEvent"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"currency\"",
+				"sql": "ALTER TABLE \"public\".\"DebtSplit\" ADD COLUMN \"currency\" character varying(3) DEFAULT 'BRL' NOT NULL"
+			}
+		],
+		"id": "column.public.DebtSplit.currency",
+		"label": "Add column \"currency\" to \"DebtSplit\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"currency\" exists",
+				"params": ["public", "DebtSplit", "currency"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"currency\" is missing",
+				"params": ["public", "DebtSplit", "currency"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "currency",
+				"objectType": "column",
+				"schema": "public",
+				"table": "DebtSplit"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"currency\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialAccountYield\" ADD COLUMN \"currency\" character varying(3) DEFAULT 'BRL' NOT NULL"
+			}
+		],
+		"id": "column.public.FinancialAccountYield.currency",
+		"label": "Add column \"currency\" to \"FinancialAccountYield\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"currency\" exists",
+				"params": ["public", "FinancialAccountYield", "currency"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"currency\" is missing",
+				"params": ["public", "FinancialAccountYield", "currency"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "currency",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialAccountYield"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"currency\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialInstitution\" ADD COLUMN \"currency\" character varying(3) DEFAULT 'BRL' NOT NULL"
+			}
+		],
+		"id": "column.public.FinancialInstitution.currency",
+		"label": "Add column \"currency\" to \"FinancialInstitution\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"currency\" exists",
+				"params": ["public", "FinancialInstitution", "currency"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"currency\" is missing",
+				"params": ["public", "FinancialInstitution", "currency"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "currency",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialInstitution"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"currency\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialInstitutionYieldPolicy\" ADD COLUMN \"currency\" character varying(3) DEFAULT 'BRL' NOT NULL"
+			}
+		],
+		"id": "column.public.FinancialInstitutionYieldPolicy.currency",
+		"label": "Add column \"currency\" to \"FinancialInstitutionYieldPolicy\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"currency\" exists",
+				"params": ["public", "FinancialInstitutionYieldPolicy", "currency"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"currency\" is missing",
+				"params": ["public", "FinancialInstitutionYieldPolicy", "currency"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "currency",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialInstitutionYieldPolicy"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"currency\"",
+				"sql": "ALTER TABLE \"public\".\"Loan\" ADD COLUMN \"currency\" character varying(3) DEFAULT 'BRL' NOT NULL"
+			}
+		],
+		"id": "column.public.Loan.currency",
+		"label": "Add column \"currency\" to \"Loan\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"currency\" exists",
+				"params": ["public", "Loan", "currency"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"currency\" is missing",
+				"params": ["public", "Loan", "currency"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "currency",
+				"objectType": "column",
+				"schema": "public",
+				"table": "Loan"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"accountAmount\"",
+				"sql": "ALTER TABLE \"public\".\"LoanPayment\" ADD COLUMN \"accountAmount\" numeric(20,6)"
+			}
+		],
+		"id": "column.public.LoanPayment.accountAmount",
+		"label": "Add column \"accountAmount\" to \"LoanPayment\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"accountAmount\" exists",
+				"params": ["public", "LoanPayment", "accountAmount"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"accountAmount\" is missing",
+				"params": ["public", "LoanPayment", "accountAmount"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "accountAmount",
+				"objectType": "column",
+				"schema": "public",
+				"table": "LoanPayment"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"accountCurrency\"",
+				"sql": "ALTER TABLE \"public\".\"LoanPayment\" ADD COLUMN \"accountCurrency\" character varying(3)"
+			}
+		],
+		"id": "column.public.LoanPayment.accountCurrency",
+		"label": "Add column \"accountCurrency\" to \"LoanPayment\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"accountCurrency\" exists",
+				"params": ["public", "LoanPayment", "accountCurrency"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"accountCurrency\" is missing",
+				"params": ["public", "LoanPayment", "accountCurrency"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "accountCurrency",
+				"objectType": "column",
+				"schema": "public",
+				"table": "LoanPayment"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"currency\"",
+				"sql": "ALTER TABLE \"public\".\"LoanPayment\" ADD COLUMN \"currency\" character varying(3) DEFAULT 'BRL' NOT NULL"
+			}
+		],
+		"id": "column.public.LoanPayment.currency",
+		"label": "Add column \"currency\" to \"LoanPayment\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"currency\" exists",
+				"params": ["public", "LoanPayment", "currency"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"currency\" is missing",
+				"params": ["public", "LoanPayment", "currency"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "currency",
+				"objectType": "column",
+				"schema": "public",
+				"table": "LoanPayment"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"currency\"",
+				"sql": "ALTER TABLE \"public\".\"Recurrence\" ADD COLUMN \"currency\" character varying(3) DEFAULT 'BRL' NOT NULL"
+			}
+		],
+		"id": "column.public.Recurrence.currency",
+		"label": "Add column \"currency\" to \"Recurrence\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"currency\" exists",
+				"params": ["public", "Recurrence", "currency"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"currency\" is missing",
+				"params": ["public", "Recurrence", "currency"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "currency",
+				"objectType": "column",
+				"schema": "public",
+				"table": "Recurrence"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"conversionCurrency\"",
+				"sql": "ALTER TABLE \"public\".\"RewardsAccount\" ADD COLUMN \"conversionCurrency\" character varying(3) DEFAULT 'BRL' NOT NULL"
+			}
+		],
+		"id": "column.public.RewardsAccount.conversionCurrency",
+		"label": "Add column \"conversionCurrency\" to \"RewardsAccount\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"conversionCurrency\" exists",
+				"params": ["public", "RewardsAccount", "conversionCurrency"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"conversionCurrency\" is missing",
+				"params": ["public", "RewardsAccount", "conversionCurrency"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "conversionCurrency",
+				"objectType": "column",
+				"schema": "public",
+				"table": "RewardsAccount"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"bookingCurrency\"",
+				"sql": "ALTER TABLE \"public\".\"Transaction\" ADD COLUMN \"bookingCurrency\" character varying(3) DEFAULT 'BRL' NOT NULL"
+			}
+		],
+		"id": "column.public.Transaction.bookingCurrency",
+		"label": "Add column \"bookingCurrency\" to \"Transaction\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"bookingCurrency\" exists",
+				"params": ["public", "Transaction", "bookingCurrency"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"bookingCurrency\" is missing",
+				"params": ["public", "Transaction", "bookingCurrency"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "bookingCurrency",
+				"objectType": "column",
+				"schema": "public",
+				"table": "Transaction"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"conversionSource\"",
+				"sql": "ALTER TABLE \"public\".\"Transaction\" ADD COLUMN \"conversionSource\" character varying(20) DEFAULT 'DAILY' NOT NULL"
+			}
+		],
+		"id": "column.public.Transaction.conversionSource",
+		"label": "Add column \"conversionSource\" to \"Transaction\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"conversionSource\" exists",
+				"params": ["public", "Transaction", "conversionSource"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"conversionSource\" is missing",
+				"params": ["public", "Transaction", "conversionSource"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "conversionSource",
+				"objectType": "column",
+				"schema": "public",
+				"table": "Transaction"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"destinationAmount\"",
+				"sql": "ALTER TABLE \"public\".\"Transaction\" ADD COLUMN \"destinationAmount\" numeric(20,6)"
+			}
+		],
+		"id": "column.public.Transaction.destinationAmount",
+		"label": "Add column \"destinationAmount\" to \"Transaction\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"destinationAmount\" exists",
+				"params": ["public", "Transaction", "destinationAmount"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"destinationAmount\" is missing",
+				"params": ["public", "Transaction", "destinationAmount"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "destinationAmount",
+				"objectType": "column",
+				"schema": "public",
+				"table": "Transaction"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"destinationCurrency\"",
+				"sql": "ALTER TABLE \"public\".\"Transaction\" ADD COLUMN \"destinationCurrency\" character varying(3)"
+			}
+		],
+		"id": "column.public.Transaction.destinationCurrency",
+		"label": "Add column \"destinationCurrency\" to \"Transaction\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"destinationCurrency\" exists",
+				"params": ["public", "Transaction", "destinationCurrency"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"destinationCurrency\" is missing",
+				"params": ["public", "Transaction", "destinationCurrency"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "destinationCurrency",
+				"objectType": "column",
+				"schema": "public",
+				"table": "Transaction"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"paymentAmount\"",
+				"sql": "ALTER TABLE \"public\".\"Transaction\" ADD COLUMN \"paymentAmount\" numeric(20,6)"
+			}
+		],
+		"id": "column.public.Transaction.paymentAmount",
+		"label": "Add column \"paymentAmount\" to \"Transaction\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"paymentAmount\" exists",
+				"params": ["public", "Transaction", "paymentAmount"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"paymentAmount\" is missing",
+				"params": ["public", "Transaction", "paymentAmount"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "paymentAmount",
+				"objectType": "column",
+				"schema": "public",
+				"table": "Transaction"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"paymentCurrency\"",
+				"sql": "ALTER TABLE \"public\".\"Transaction\" ADD COLUMN \"paymentCurrency\" character varying(3)"
+			}
+		],
+		"id": "column.public.Transaction.paymentCurrency",
+		"label": "Add column \"paymentCurrency\" to \"Transaction\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"paymentCurrency\" exists",
+				"params": ["public", "Transaction", "paymentCurrency"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"paymentCurrency\" is missing",
+				"params": ["public", "Transaction", "paymentCurrency"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "paymentCurrency",
+				"objectType": "column",
+				"schema": "public",
+				"table": "Transaction"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"currency\"",
+				"sql": "ALTER TABLE \"public\".\"TransactionImport\" ADD COLUMN \"currency\" character varying(3) DEFAULT 'BRL' NOT NULL"
+			}
+		],
+		"id": "column.public.TransactionImport.currency",
+		"label": "Add column \"currency\" to \"TransactionImport\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"currency\" exists",
+				"params": ["public", "TransactionImport", "currency"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"currency\" is missing",
+				"params": ["public", "TransactionImport", "currency"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "currency",
+				"objectType": "column",
+				"schema": "public",
+				"table": "TransactionImport"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"currency\"",
+				"sql": "ALTER TABLE \"public\".\"TransactionImportItem\" ADD COLUMN \"currency\" character varying(3) DEFAULT 'BRL' NOT NULL"
+			}
+		],
+		"id": "column.public.TransactionImportItem.currency",
+		"label": "Add column \"currency\" to \"TransactionImportItem\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"currency\" exists",
+				"params": ["public", "TransactionImportItem", "currency"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"currency\" is missing",
+				"params": ["public", "TransactionImportItem", "currency"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "currency",
+				"objectType": "column",
+				"schema": "public",
+				"table": "TransactionImportItem"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"preferredCurrency\"",
+				"sql": "ALTER TABLE \"public\".\"user\" ADD COLUMN \"preferredCurrency\" character varying(3)"
+			}
+		],
+		"id": "column.public.user.preferredCurrency",
+		"label": "Add column \"preferredCurrency\" to \"user\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"preferredCurrency\" exists",
+				"params": ["public", "user", "preferredCurrency"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"preferredCurrency\" is missing",
+				"params": ["public", "user", "preferredCurrency"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "preferredCurrency",
+				"objectType": "column",
+				"schema": "public",
+				"table": "user"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"balance\"",
+				"sql": "ALTER TABLE \"public\".\"BalanceAdjustment\" ALTER COLUMN \"balance\" TYPE numeric(20,6) USING \"balance\"::numeric(20,6)"
+			}
+		],
+		"id": "alterType.BalanceAdjustment.balance",
+		"label": "Alter type of \"BalanceAdjustment\".\"balance\" to numeric(20,6)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"balance\" has type \"numeric(20,6)\"",
+				"params": ["public", "BalanceAdjustment", "balance", "numeric(20,6)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"balance\" exists",
+				"params": ["public", "BalanceAdjustment", "balance"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "balance",
+				"objectType": "column",
+				"schema": "public",
+				"table": "BalanceAdjustment"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"creditLimit\"",
+				"sql": "ALTER TABLE \"public\".\"CreditCard\" ALTER COLUMN \"creditLimit\" TYPE numeric(20,6) USING \"creditLimit\"::numeric(20,6)"
+			}
+		],
+		"id": "alterType.CreditCard.creditLimit",
+		"label": "Alter type of \"CreditCard\".\"creditLimit\" to numeric(20,6)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"creditLimit\" has type \"numeric(20,6)\"",
+				"params": ["public", "CreditCard", "creditLimit", "numeric(20,6)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"creditLimit\" exists",
+				"params": ["public", "CreditCard", "creditLimit"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "creditLimit",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditCard"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"securityDeposit\"",
+				"sql": "ALTER TABLE \"public\".\"CreditCard\" ALTER COLUMN \"securityDeposit\" TYPE numeric(20,6) USING \"securityDeposit\"::numeric(20,6)"
+			}
+		],
+		"id": "alterType.CreditCard.securityDeposit",
+		"label": "Alter type of \"CreditCard\".\"securityDeposit\" to numeric(20,6)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"securityDeposit\" has type \"numeric(20,6)\"",
+				"params": ["public", "CreditCard", "securityDeposit", "numeric(20,6)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"securityDeposit\" exists",
+				"params": ["public", "CreditCard", "securityDeposit"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "securityDeposit",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditCard"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"reportedPreviousBalance\"",
+				"sql": "ALTER TABLE \"public\".\"CreditCardImport\" ALTER COLUMN \"reportedPreviousBalance\" TYPE numeric(20,6) USING \"reportedPreviousBalance\"::numeric(20,6)"
+			}
+		],
+		"id": "alterType.CreditCardImport.reportedPreviousBalance",
+		"label": "Alter type of \"CreditCardImport\".\"reportedPreviousBalance\" to numeric(20,6)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"reportedPreviousBalance\" has type \"numeric(20,6)\"",
+				"params": ["public", "CreditCardImport", "reportedPreviousBalance", "numeric(20,6)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"reportedPreviousBalance\" exists",
+				"params": ["public", "CreditCardImport", "reportedPreviousBalance"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "reportedPreviousBalance",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditCardImport"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"installmentAmount\"",
+				"sql": "ALTER TABLE \"public\".\"CreditCardImportItem\" ALTER COLUMN \"installmentAmount\" TYPE numeric(20,6) USING \"installmentAmount\"::numeric(20,6)"
+			}
+		],
+		"id": "alterType.CreditCardImportItem.installmentAmount",
+		"label": "Alter type of \"CreditCardImportItem\".\"installmentAmount\" to numeric(20,6)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"installmentAmount\" has type \"numeric(20,6)\"",
+				"params": ["public", "CreditCardImportItem", "installmentAmount", "numeric(20,6)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"installmentAmount\" exists",
+				"params": ["public", "CreditCardImportItem", "installmentAmount"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "installmentAmount",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditCardImportItem"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"totalAmount\"",
+				"sql": "ALTER TABLE \"public\".\"CreditCardImportItem\" ALTER COLUMN \"totalAmount\" TYPE numeric(20,6) USING \"totalAmount\"::numeric(20,6)"
+			}
+		],
+		"id": "alterType.CreditCardImportItem.totalAmount",
+		"label": "Alter type of \"CreditCardImportItem\".\"totalAmount\" to numeric(20,6)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"totalAmount\" has type \"numeric(20,6)\"",
+				"params": ["public", "CreditCardImportItem", "totalAmount", "numeric(20,6)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"totalAmount\" exists",
+				"params": ["public", "CreditCardImportItem", "totalAmount"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "totalAmount",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditCardImportItem"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"paidAmount\"",
+				"sql": "ALTER TABLE \"public\".\"CreditCardStatement\" ALTER COLUMN \"paidAmount\" TYPE numeric(20,6) USING \"paidAmount\"::numeric(20,6)"
+			}
+		],
+		"id": "alterType.CreditCardStatement.paidAmount",
+		"label": "Alter type of \"CreditCardStatement\".\"paidAmount\" to numeric(20,6)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"paidAmount\" has type \"numeric(20,6)\"",
+				"params": ["public", "CreditCardStatement", "paidAmount", "numeric(20,6)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"paidAmount\" exists",
+				"params": ["public", "CreditCardStatement", "paidAmount"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "paidAmount",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditCardStatement"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"totalAmount\"",
+				"sql": "ALTER TABLE \"public\".\"CreditCardStatement\" ALTER COLUMN \"totalAmount\" TYPE numeric(20,6) USING \"totalAmount\"::numeric(20,6)"
+			}
+		],
+		"id": "alterType.CreditCardStatement.totalAmount",
+		"label": "Alter type of \"CreditCardStatement\".\"totalAmount\" to numeric(20,6)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"totalAmount\" has type \"numeric(20,6)\"",
+				"params": ["public", "CreditCardStatement", "totalAmount", "numeric(20,6)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"totalAmount\" exists",
+				"params": ["public", "CreditCardStatement", "totalAmount"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "totalAmount",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditCardStatement"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"amount\"",
+				"sql": "ALTER TABLE \"public\".\"CreditInstallmentPlan\" ALTER COLUMN \"amount\" TYPE numeric(20,6) USING \"amount\"::numeric(20,6)"
+			}
+		],
+		"id": "alterType.CreditInstallmentPlan.amount",
+		"label": "Alter type of \"CreditInstallmentPlan\".\"amount\" to numeric(20,6)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"amount\" has type \"numeric(20,6)\"",
+				"params": ["public", "CreditInstallmentPlan", "amount", "numeric(20,6)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"amount\" exists",
+				"params": ["public", "CreditInstallmentPlan", "amount"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "amount",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditInstallmentPlan"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"amount\"",
+				"sql": "ALTER TABLE \"public\".\"CreditInstallmentRecord\" ALTER COLUMN \"amount\" TYPE numeric(20,6) USING \"amount\"::numeric(20,6)"
+			}
+		],
+		"id": "alterType.CreditInstallmentRecord.amount",
+		"label": "Alter type of \"CreditInstallmentRecord\".\"amount\" to numeric(20,6)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"amount\" has type \"numeric(20,6)\"",
+				"params": ["public", "CreditInstallmentRecord", "amount", "numeric(20,6)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"amount\" exists",
+				"params": ["public", "CreditInstallmentRecord", "amount"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "amount",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditInstallmentRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"feeAmount\"",
+				"sql": "ALTER TABLE \"public\".\"CreditPurchaseRecord\" ALTER COLUMN \"feeAmount\" TYPE numeric(20,6) USING \"feeAmount\"::numeric(20,6)"
+			}
+		],
+		"id": "alterType.CreditPurchaseRecord.feeAmount",
+		"label": "Alter type of \"CreditPurchaseRecord\".\"feeAmount\" to numeric(20,6)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"feeAmount\" has type \"numeric(20,6)\"",
+				"params": ["public", "CreditPurchaseRecord", "feeAmount", "numeric(20,6)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"feeAmount\" exists",
+				"params": ["public", "CreditPurchaseRecord", "feeAmount"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "feeAmount",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditPurchaseRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"originalAmount\"",
+				"sql": "ALTER TABLE \"public\".\"CreditPurchaseRecord\" ALTER COLUMN \"originalAmount\" TYPE numeric(20,6) USING \"originalAmount\"::numeric(20,6)"
+			}
+		],
+		"id": "alterType.CreditPurchaseRecord.originalAmount",
+		"label": "Alter type of \"CreditPurchaseRecord\".\"originalAmount\" to numeric(20,6)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"originalAmount\" has type \"numeric(20,6)\"",
+				"params": ["public", "CreditPurchaseRecord", "originalAmount", "numeric(20,6)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"originalAmount\" exists",
+				"params": ["public", "CreditPurchaseRecord", "originalAmount"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "originalAmount",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditPurchaseRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"refinancingFeeAmount\"",
+				"sql": "ALTER TABLE \"public\".\"CreditPurchaseRecord\" ALTER COLUMN \"refinancingFeeAmount\" TYPE numeric(20,6) USING \"refinancingFeeAmount\"::numeric(20,6)"
+			}
+		],
+		"id": "alterType.CreditPurchaseRecord.refinancingFeeAmount",
+		"label": "Alter type of \"CreditPurchaseRecord\".\"refinancingFeeAmount\" to numeric(20,6)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"refinancingFeeAmount\" has type \"numeric(20,6)\"",
+				"params": ["public", "CreditPurchaseRecord", "refinancingFeeAmount", "numeric(20,6)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"refinancingFeeAmount\" exists",
+				"params": ["public", "CreditPurchaseRecord", "refinancingFeeAmount"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "refinancingFeeAmount",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditPurchaseRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"totalAmount\"",
+				"sql": "ALTER TABLE \"public\".\"CreditPurchaseRecord\" ALTER COLUMN \"totalAmount\" TYPE numeric(20,6) USING \"totalAmount\"::numeric(20,6)"
+			}
+		],
+		"id": "alterType.CreditPurchaseRecord.totalAmount",
+		"label": "Alter type of \"CreditPurchaseRecord\".\"totalAmount\" to numeric(20,6)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"totalAmount\" has type \"numeric(20,6)\"",
+				"params": ["public", "CreditPurchaseRecord", "totalAmount", "numeric(20,6)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"totalAmount\" exists",
+				"params": ["public", "CreditPurchaseRecord", "totalAmount"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "totalAmount",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditPurchaseRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"amount\"",
+				"sql": "ALTER TABLE \"public\".\"CreditRefundRecord\" ALTER COLUMN \"amount\" TYPE numeric(20,6) USING \"amount\"::numeric(20,6)"
+			}
+		],
+		"id": "alterType.CreditRefundRecord.amount",
+		"label": "Alter type of \"CreditRefundRecord\".\"amount\" to numeric(20,6)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"amount\" has type \"numeric(20,6)\"",
+				"params": ["public", "CreditRefundRecord", "amount", "numeric(20,6)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"amount\" exists",
+				"params": ["public", "CreditRefundRecord", "amount"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "amount",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditRefundRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"amount\"",
+				"sql": "ALTER TABLE \"public\".\"CreditStatementCharge\" ALTER COLUMN \"amount\" TYPE numeric(20,6) USING \"amount\"::numeric(20,6)"
+			}
+		],
+		"id": "alterType.CreditStatementCharge.amount",
+		"label": "Alter type of \"CreditStatementCharge\".\"amount\" to numeric(20,6)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"amount\" has type \"numeric(20,6)\"",
+				"params": ["public", "CreditStatementCharge", "amount", "numeric(20,6)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"amount\" exists",
+				"params": ["public", "CreditStatementCharge", "amount"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "amount",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditStatementCharge"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"amount\"",
+				"sql": "ALTER TABLE \"public\".\"DebtEvent\" ALTER COLUMN \"amount\" TYPE numeric(20,6) USING \"amount\"::numeric(20,6)"
+			}
+		],
+		"id": "alterType.DebtEvent.amount",
+		"label": "Alter type of \"DebtEvent\".\"amount\" to numeric(20,6)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"amount\" has type \"numeric(20,6)\"",
+				"params": ["public", "DebtEvent", "amount", "numeric(20,6)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"amount\" exists",
+				"params": ["public", "DebtEvent", "amount"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "amount",
+				"objectType": "column",
+				"schema": "public",
+				"table": "DebtEvent"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"effect\"",
+				"sql": "ALTER TABLE \"public\".\"DebtEvent\" ALTER COLUMN \"effect\" TYPE numeric(20,6) USING \"effect\"::numeric(20,6)"
+			}
+		],
+		"id": "alterType.DebtEvent.effect",
+		"label": "Alter type of \"DebtEvent\".\"effect\" to numeric(20,6)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"effect\" has type \"numeric(20,6)\"",
+				"params": ["public", "DebtEvent", "effect", "numeric(20,6)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"effect\" exists",
+				"params": ["public", "DebtEvent", "effect"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "effect",
+				"objectType": "column",
+				"schema": "public",
+				"table": "DebtEvent"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"fixedAmount\"",
+				"sql": "ALTER TABLE \"public\".\"DebtSplitParticipant\" ALTER COLUMN \"fixedAmount\" TYPE numeric(20,6) USING \"fixedAmount\"::numeric(20,6)"
+			}
+		],
+		"id": "alterType.DebtSplitParticipant.fixedAmount",
+		"label": "Alter type of \"DebtSplitParticipant\".\"fixedAmount\" to numeric(20,6)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"fixedAmount\" has type \"numeric(20,6)\"",
+				"params": ["public", "DebtSplitParticipant", "fixedAmount", "numeric(20,6)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"fixedAmount\" exists",
+				"params": ["public", "DebtSplitParticipant", "fixedAmount"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "fixedAmount",
+				"objectType": "column",
+				"schema": "public",
+				"table": "DebtSplitParticipant"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"balance\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialAccount\" ALTER COLUMN \"balance\" TYPE numeric(20,6) USING \"balance\"::numeric(20,6)"
+			}
+		],
+		"id": "alterType.FinancialAccount.balance",
+		"label": "Alter type of \"FinancialAccount\".\"balance\" to numeric(20,6)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"balance\" has type \"numeric(20,6)\"",
+				"params": ["public", "FinancialAccount", "balance", "numeric(20,6)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"balance\" exists",
+				"params": ["public", "FinancialAccount", "balance"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "balance",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialAccount"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"amount\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialAccountYield\" ALTER COLUMN \"amount\" TYPE numeric(20,8) USING \"amount\"::numeric(20,8)"
+			}
+		],
+		"id": "alterType.FinancialAccountYield.amount",
+		"label": "Alter type of \"FinancialAccountYield\".\"amount\" to numeric(20,8)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"amount\" has type \"numeric(20,8)\"",
+				"params": ["public", "FinancialAccountYield", "amount", "numeric(20,8)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"amount\" exists",
+				"params": ["public", "FinancialAccountYield", "amount"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "amount",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialAccountYield"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"upToBalance\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialInstitutionYieldRule\" ALTER COLUMN \"upToBalance\" TYPE numeric(20,6) USING \"upToBalance\"::numeric(20,6)"
+			}
+		],
+		"id": "alterType.FinancialInstitutionYieldRule.upToBalance",
+		"label": "Alter type of \"FinancialInstitutionYieldRule\".\"upToBalance\" to numeric(20,6)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"upToBalance\" has type \"numeric(20,6)\"",
+				"params": ["public", "FinancialInstitutionYieldRule", "upToBalance", "numeric(20,6)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"upToBalance\" exists",
+				"params": ["public", "FinancialInstitutionYieldRule", "upToBalance"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "upToBalance",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialInstitutionYieldRule"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"installmentAmount\"",
+				"sql": "ALTER TABLE \"public\".\"Loan\" ALTER COLUMN \"installmentAmount\" TYPE numeric(20,6) USING \"installmentAmount\"::numeric(20,6)"
+			}
+		],
+		"id": "alterType.Loan.installmentAmount",
+		"label": "Alter type of \"Loan\".\"installmentAmount\" to numeric(20,6)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"installmentAmount\" has type \"numeric(20,6)\"",
+				"params": ["public", "Loan", "installmentAmount", "numeric(20,6)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"installmentAmount\" exists",
+				"params": ["public", "Loan", "installmentAmount"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "installmentAmount",
+				"objectType": "column",
+				"schema": "public",
+				"table": "Loan"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"principalAmount\"",
+				"sql": "ALTER TABLE \"public\".\"Loan\" ALTER COLUMN \"principalAmount\" TYPE numeric(20,6) USING \"principalAmount\"::numeric(20,6)"
+			}
+		],
+		"id": "alterType.Loan.principalAmount",
+		"label": "Alter type of \"Loan\".\"principalAmount\" to numeric(20,6)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"principalAmount\" has type \"numeric(20,6)\"",
+				"params": ["public", "Loan", "principalAmount", "numeric(20,6)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"principalAmount\" exists",
+				"params": ["public", "Loan", "principalAmount"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "principalAmount",
+				"objectType": "column",
+				"schema": "public",
+				"table": "Loan"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"interestPaid\"",
+				"sql": "ALTER TABLE \"public\".\"LoanPayment\" ALTER COLUMN \"interestPaid\" TYPE numeric(20,6) USING \"interestPaid\"::numeric(20,6)"
+			}
+		],
+		"id": "alterType.LoanPayment.interestPaid",
+		"label": "Alter type of \"LoanPayment\".\"interestPaid\" to numeric(20,6)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"interestPaid\" has type \"numeric(20,6)\"",
+				"params": ["public", "LoanPayment", "interestPaid", "numeric(20,6)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"interestPaid\" exists",
+				"params": ["public", "LoanPayment", "interestPaid"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "interestPaid",
+				"objectType": "column",
+				"schema": "public",
+				"table": "LoanPayment"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"principalPaid\"",
+				"sql": "ALTER TABLE \"public\".\"LoanPayment\" ALTER COLUMN \"principalPaid\" TYPE numeric(20,6) USING \"principalPaid\"::numeric(20,6)"
+			}
+		],
+		"id": "alterType.LoanPayment.principalPaid",
+		"label": "Alter type of \"LoanPayment\".\"principalPaid\" to numeric(20,6)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"principalPaid\" has type \"numeric(20,6)\"",
+				"params": ["public", "LoanPayment", "principalPaid", "numeric(20,6)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"principalPaid\" exists",
+				"params": ["public", "LoanPayment", "principalPaid"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "principalPaid",
+				"objectType": "column",
+				"schema": "public",
+				"table": "LoanPayment"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"totalPaid\"",
+				"sql": "ALTER TABLE \"public\".\"LoanPayment\" ALTER COLUMN \"totalPaid\" TYPE numeric(20,6) USING \"totalPaid\"::numeric(20,6)"
+			}
+		],
+		"id": "alterType.LoanPayment.totalPaid",
+		"label": "Alter type of \"LoanPayment\".\"totalPaid\" to numeric(20,6)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"totalPaid\" has type \"numeric(20,6)\"",
+				"params": ["public", "LoanPayment", "totalPaid", "numeric(20,6)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"totalPaid\" exists",
+				"params": ["public", "LoanPayment", "totalPaid"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "totalPaid",
+				"objectType": "column",
+				"schema": "public",
+				"table": "LoanPayment"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"amount\"",
+				"sql": "ALTER TABLE \"public\".\"Recurrence\" ALTER COLUMN \"amount\" TYPE numeric(20,6) USING \"amount\"::numeric(20,6)"
+			}
+		],
+		"id": "alterType.Recurrence.amount",
+		"label": "Alter type of \"Recurrence\".\"amount\" to numeric(20,6)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"amount\" has type \"numeric(20,6)\"",
+				"params": ["public", "Recurrence", "amount", "numeric(20,6)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"amount\" exists",
+				"params": ["public", "Recurrence", "amount"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "amount",
+				"objectType": "column",
+				"schema": "public",
+				"table": "Recurrence"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"conversionAmount\"",
+				"sql": "ALTER TABLE \"public\".\"RewardsAccount\" ALTER COLUMN \"conversionAmount\" TYPE numeric(20,6) USING \"conversionAmount\"::numeric(20,6)"
+			}
+		],
+		"id": "alterType.RewardsAccount.conversionAmount",
+		"label": "Alter type of \"RewardsAccount\".\"conversionAmount\" to numeric(20,6)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"conversionAmount\" has type \"numeric(20,6)\"",
+				"params": ["public", "RewardsAccount", "conversionAmount", "numeric(20,6)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"conversionAmount\" exists",
+				"params": ["public", "RewardsAccount", "conversionAmount"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "conversionAmount",
+				"objectType": "column",
+				"schema": "public",
+				"table": "RewardsAccount"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"amount\"",
+				"sql": "ALTER TABLE \"public\".\"Transaction\" ALTER COLUMN \"amount\" TYPE numeric(20,6) USING \"amount\"::numeric(20,6)"
+			}
+		],
+		"id": "alterType.Transaction.amount",
+		"label": "Alter type of \"Transaction\".\"amount\" to numeric(20,6)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"amount\" has type \"numeric(20,6)\"",
+				"params": ["public", "Transaction", "amount", "numeric(20,6)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"amount\" exists",
+				"params": ["public", "Transaction", "amount"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "amount",
+				"objectType": "column",
+				"schema": "public",
+				"table": "Transaction"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"originalAmount\"",
+				"sql": "ALTER TABLE \"public\".\"Transaction\" ALTER COLUMN \"originalAmount\" TYPE numeric(20,6) USING \"originalAmount\"::numeric(20,6)"
+			}
+		],
+		"id": "alterType.Transaction.originalAmount",
+		"label": "Alter type of \"Transaction\".\"originalAmount\" to numeric(20,6)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"originalAmount\" has type \"numeric(20,6)\"",
+				"params": ["public", "Transaction", "originalAmount", "numeric(20,6)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"originalAmount\" exists",
+				"params": ["public", "Transaction", "originalAmount"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "originalAmount",
+				"objectType": "column",
+				"schema": "public",
+				"table": "Transaction"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"amount\"",
+				"sql": "ALTER TABLE \"public\".\"TransactionImportItem\" ALTER COLUMN \"amount\" TYPE numeric(20,6) USING \"amount\"::numeric(20,6)"
+			}
+		],
+		"id": "alterType.TransactionImportItem.amount",
+		"label": "Alter type of \"TransactionImportItem\".\"amount\" to numeric(20,6)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"amount\" has type \"numeric(20,6)\"",
+				"params": ["public", "TransactionImportItem", "amount", "numeric(20,6)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"amount\" exists",
+				"params": ["public", "TransactionImportItem", "amount"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "amount",
+				"objectType": "column",
+				"schema": "public",
+				"table": "TransactionImportItem"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"balanceAfter\"",
+				"sql": "ALTER TABLE \"public\".\"TransactionImportItem\" ALTER COLUMN \"balanceAfter\" TYPE numeric(20,6) USING \"balanceAfter\"::numeric(20,6)"
+			}
+		],
+		"id": "alterType.TransactionImportItem.balanceAfter",
+		"label": "Alter type of \"TransactionImportItem\".\"balanceAfter\" to numeric(20,6)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"balanceAfter\" has type \"numeric(20,6)\"",
+				"params": ["public", "TransactionImportItem", "balanceAfter", "numeric(20,6)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"balanceAfter\" exists",
+				"params": ["public", "TransactionImportItem", "balanceAfter"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "balanceAfter",
+				"objectType": "column",
+				"schema": "public",
+				"table": "TransactionImportItem"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add unique constraint \"FinancialHistoryCollection_deduplicationKey_key\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialHistoryCollection\" ADD CONSTRAINT \"FinancialHistoryCollection_deduplicationKey_key\" UNIQUE (\"deduplicationKey\")"
+			}
+		],
+		"id": "unique.FinancialHistoryCollection.FinancialHistoryCollection_deduplicationKey_key",
+		"label": "Add unique constraint on \"FinancialHistoryCollection\" (deduplicationKey)",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify constraint \"FinancialHistoryCollection_deduplicationKey_key\" exists",
+				"params": [
+					"FinancialHistoryCollection_deduplicationKey_key",
+					"public",
+					"\"public\".\"FinancialHistoryCollection\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure constraint \"FinancialHistoryCollection_deduplicationKey_key\" does not exist",
+				"params": [
+					"FinancialHistoryCollection_deduplicationKey_key",
+					"public",
+					"\"public\".\"FinancialHistoryCollection\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "FinancialHistoryCollection_deduplicationKey_key",
+				"objectType": "unique",
+				"schema": "public",
+				"table": "FinancialHistoryCollection"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add unique constraint \"FinancialHistoryUnit_deduplicationKey_key\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialHistoryUnit\" ADD CONSTRAINT \"FinancialHistoryUnit_deduplicationKey_key\" UNIQUE (\"deduplicationKey\")"
+			}
+		],
+		"id": "unique.FinancialHistoryUnit.FinancialHistoryUnit_deduplicationKey_key",
+		"label": "Add unique constraint on \"FinancialHistoryUnit\" (deduplicationKey)",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify constraint \"FinancialHistoryUnit_deduplicationKey_key\" exists",
+				"params": [
+					"FinancialHistoryUnit_deduplicationKey_key",
+					"public",
+					"\"public\".\"FinancialHistoryUnit\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure constraint \"FinancialHistoryUnit_deduplicationKey_key\" does not exist",
+				"params": [
+					"FinancialHistoryUnit_deduplicationKey_key",
+					"public",
+					"\"public\".\"FinancialHistoryUnit\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "FinancialHistoryUnit_deduplicationKey_key",
+				"objectType": "unique",
+				"schema": "public",
+				"table": "FinancialHistoryUnit"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"FinancialHistoryCollectionUnit_collectionId_idx_b344fc1a\"",
+				"params": [],
+				"sql": "CREATE INDEX \"FinancialHistoryCollectionUnit_collectionId_idx_b344fc1a\" ON \"public\".\"FinancialHistoryCollectionUnit\" (\"collectionId\")"
+			}
+		],
+		"id": "index.FinancialHistoryCollectionUnit.FinancialHistoryCollectionUnit_collectionId_idx_b344fc1a",
+		"label": "Create index \"FinancialHistoryCollectionUnit_collectionId_idx_b344fc1a\" on \"FinancialHistoryCollectionUnit\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"FinancialHistoryCollectionUnit_collectionId_idx_b344fc1a\" exists",
+				"params": ["\"public\".\"FinancialHistoryCollectionUnit_collectionId_idx_b344fc1a\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"FinancialHistoryCollectionUnit_collectionId_idx_b344fc1a\" does not exist",
+				"params": ["\"public\".\"FinancialHistoryCollectionUnit_collectionId_idx_b344fc1a\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "FinancialHistoryCollectionUnit_collectionId_idx_b344fc1a",
+				"objectType": "index",
+				"schema": "public",
+				"table": "FinancialHistoryCollectionUnit"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"FinancialHistoryCollectionUnit_unit_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"FinancialHistoryCollectionUnit_unit_idx\" ON \"public\".\"FinancialHistoryCollectionUnit\" (\"unitId\")"
+			}
+		],
+		"id": "index.FinancialHistoryCollectionUnit.FinancialHistoryCollectionUnit_unit_idx",
+		"label": "Create index \"FinancialHistoryCollectionUnit_unit_idx\" on \"FinancialHistoryCollectionUnit\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"FinancialHistoryCollectionUnit_unit_idx\" exists",
+				"params": ["\"public\".\"FinancialHistoryCollectionUnit_unit_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"FinancialHistoryCollectionUnit_unit_idx\" does not exist",
+				"params": ["\"public\".\"FinancialHistoryCollectionUnit_unit_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "FinancialHistoryCollectionUnit_unit_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "FinancialHistoryCollectionUnit"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"FinancialHistoryUnit_coverage_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"FinancialHistoryUnit_coverage_idx\" ON \"public\".\"FinancialHistoryUnit\" (\"kind\", \"series\", \"startDate\", \"endDate\")"
+			}
+		],
+		"id": "index.FinancialHistoryUnit.FinancialHistoryUnit_coverage_idx",
+		"label": "Create index \"FinancialHistoryUnit_coverage_idx\" on \"FinancialHistoryUnit\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"FinancialHistoryUnit_coverage_idx\" exists",
+				"params": ["\"public\".\"FinancialHistoryUnit_coverage_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"FinancialHistoryUnit_coverage_idx\" does not exist",
+				"params": ["\"public\".\"FinancialHistoryUnit_coverage_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "FinancialHistoryUnit_coverage_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "FinancialHistoryUnit"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"FinancialHistoryUnit_recovery_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"FinancialHistoryUnit_recovery_idx\" ON \"public\".\"FinancialHistoryUnit\" (\"state\", \"nextAttemptAt\", \"lockedUntil\")"
+			}
+		],
+		"id": "index.FinancialHistoryUnit.FinancialHistoryUnit_recovery_idx",
+		"label": "Create index \"FinancialHistoryUnit_recovery_idx\" on \"FinancialHistoryUnit\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"FinancialHistoryUnit_recovery_idx\" exists",
+				"params": ["\"public\".\"FinancialHistoryUnit_recovery_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"FinancialHistoryUnit_recovery_idx\" does not exist",
+				"params": ["\"public\".\"FinancialHistoryUnit_recovery_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "FinancialHistoryUnit_recovery_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "FinancialHistoryUnit"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"FinancialHistoryCollectionUnit_collectionId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialHistoryCollectionUnit\"\nADD CONSTRAINT \"FinancialHistoryCollectionUnit_collectionId_fkey\"\nFOREIGN KEY (\"collectionId\")\nREFERENCES \"public\".\"FinancialHistoryCollection\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.FinancialHistoryCollectionUnit.FinancialHistoryCollectionUnit_collectionId_fkey",
+		"label": "Add foreign key \"FinancialHistoryCollectionUnit_collectionId_fkey\" on \"FinancialHistoryCollectionUnit\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"FinancialHistoryCollectionUnit_collectionId_fkey\" exists",
+				"params": [
+					"FinancialHistoryCollectionUnit_collectionId_fkey",
+					"public",
+					"\"public\".\"FinancialHistoryCollectionUnit\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"FinancialHistoryCollectionUnit_collectionId_fkey\" does not exist",
+				"params": [
+					"FinancialHistoryCollectionUnit_collectionId_fkey",
+					"public",
+					"\"public\".\"FinancialHistoryCollectionUnit\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "FinancialHistoryCollectionUnit_collectionId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "FinancialHistoryCollectionUnit"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"FinancialHistoryCollectionUnit_unitId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialHistoryCollectionUnit\"\nADD CONSTRAINT \"FinancialHistoryCollectionUnit_unitId_fkey\"\nFOREIGN KEY (\"unitId\")\nREFERENCES \"public\".\"FinancialHistoryUnit\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.FinancialHistoryCollectionUnit.FinancialHistoryCollectionUnit_unitId_fkey",
+		"label": "Add foreign key \"FinancialHistoryCollectionUnit_unitId_fkey\" on \"FinancialHistoryCollectionUnit\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"FinancialHistoryCollectionUnit_unitId_fkey\" exists",
+				"params": [
+					"FinancialHistoryCollectionUnit_unitId_fkey",
+					"public",
+					"\"public\".\"FinancialHistoryCollectionUnit\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"FinancialHistoryCollectionUnit_unitId_fkey\" does not exist",
+				"params": [
+					"FinancialHistoryCollectionUnit_unitId_fkey",
+					"public",
+					"\"public\".\"FinancialHistoryCollectionUnit\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "FinancialHistoryCollectionUnit_unitId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "FinancialHistoryCollectionUnit"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "Backfill native money without reinterpreting original foreign principal",
+				"sql": "\nUPDATE \"CreditPurchaseRecord\" p SET \"bookingCurrency\"=c.\"currency\" FROM \"CreditCard\" c WHERE c.\"id\"=p.\"creditCardId\";\nUPDATE \"CreditCardStatement\" s SET \"currency\"=c.\"currency\" FROM \"CreditCard\" c WHERE c.\"id\"=s.\"creditCardId\";\nUPDATE \"Transaction\" t SET \"bookingCurrency\"=a.\"currency\" FROM \"FinancialAccount\" a WHERE a.\"id\"=COALESCE(t.\"originFinancialAccountId\",t.\"destinationFinancialAccountId\");\nUPDATE \"Transaction\" t SET \"destinationAmount\"=t.\"amount\", \"destinationCurrency\"=a.\"currency\" FROM \"FinancialAccount\" a WHERE t.\"type\"='TRANSFER' AND a.\"id\"=t.\"destinationFinancialAccountId\";\nUPDATE \"Transaction\" t SET \"paymentAmount\"=t.\"amount\", \"paymentCurrency\"=c.\"currency\" FROM \"CreditCard\" c WHERE c.\"id\"=t.\"paymentCreditCardId\";\nINSERT INTO \"FinancialHistoryUnit\" (\"id\",\"deduplicationKey\",\"kind\",\"series\",\"startDate\",\"endDate\",\"state\",\"completedAt\")\nSELECT cuid2(), 'INTEREST:' || series || ':' || start_date || ':' || end_date, 'INTEREST', series, start_date::date, end_date::date, 'COMPLETED', now()\nFROM (SELECT DISTINCT \"payload\"->>'referenceType' AS series, \"payload\"->>'startDate' AS start_date, \"payload\"->>'endDate' AS end_date FROM \"OutboxEvent\" WHERE \"eventType\"='referenceRate.historyFetched') coverage\nWHERE series IN ('CDI','SELIC') AND start_date IS NOT NULL AND end_date IS NOT NULL\nON CONFLICT (\"deduplicationKey\") DO NOTHING;"
+			}
+		],
+		"id": "internationalMoney.legacyDenominationsAndCoverage",
+		"label": "Preserve native currencies and import proven interest coverage",
+		"operationClass": "data",
+		"postcheck": [],
+		"precheck": [],
+		"target": {
+			"id": "postgres"
+		}
+	}
+]
