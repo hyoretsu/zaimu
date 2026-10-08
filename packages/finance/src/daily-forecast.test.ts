@@ -118,3 +118,61 @@ test("monetary cashback remains consolidated while points stay excluded", () => 
 	expect(day!.accountBalance).toBe(12.34);
 	expect(day!.totalBalance).toBe(12.34);
 });
+
+test("native reserves pay consolidated expense using relative factors", () => {
+	const [day] = dailyForecast({
+		accounts: [
+			{ balance: 100, currency: "BRL", id: "brl", type: "CHECKING" },
+			{ balance: 100, currency: "USD", id: "usd", type: "SAVINGS" },
+		],
+		currency: "BRL",
+		from,
+		movements: [{ amount: 200, currency: "BRL", date: from, originAccountId: "brl", type: "EXPENSE" }],
+		rate: source => (source === "USD" ? 5 : 1),
+		through: from,
+	});
+	expect(day!.balances.get("brl")).toBe(0);
+	expect(day!.balances.get("usd")).toBe(80);
+	expect(day!.totalBalance).toBe(400);
+	expect(day!.expenses).toBe(200);
+});
+test("actual cross-currency transfer is preserved and native earnings consolidate", () => {
+	const [day] = dailyForecast({
+		accounts: [
+			{ balance: 100, currency: "USD", id: "usd", type: "CHECKING" },
+			{ balance: 0, currency: "JPY", id: "jpy", type: "SAVINGS" },
+		],
+		currency: "USD",
+		from,
+		movements: [
+			{
+				amount: 10,
+				currency: "USD",
+				date: from,
+				destinationAccountId: "jpy",
+				destinationAmount: 900,
+				originAccountId: "usd",
+				type: "TRANSFER",
+			},
+		],
+		netYield: account => (account.id === "jpy" ? 10 : 0),
+		rate: () => 0.01,
+		through: from,
+	});
+	expect(day!.balances.get("usd")).toBe(90);
+	expect(day!.balances.get("jpy")).toBe(910);
+	expect(day!.totalBalance).toBe(99.1);
+	expect(day!.income).toBe(0.1);
+});
+test("unavailable conversion never becomes a zero or mixed total", () => {
+	expect(() =>
+		dailyForecast({
+			accounts: [{ balance: 100, currency: "USD", id: "usd", type: "CHECKING" }],
+			currency: "BRL",
+			from,
+			movements: [],
+			rate: () => null,
+			through: from,
+		}),
+	).toThrow("Unavailable forecast conversion");
+});

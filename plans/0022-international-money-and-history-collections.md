@@ -57,3 +57,5 @@ Use normal commit hooks for formatting/lint/types/backend unit coverage; scoped 
 - Currency history work reuses point snapshots populated after scheduling. Point conversions and history downloads now share the six-slot database provider limiter across replicas.
 
 - Transactions now resolve native destination/card payment amounts separately, supporting explicit actual values and date-based suggestions. Authenticated and guest creation/edit paths retain metadata; balance/yield SQL and visitor balances apply actual credit values. Shared forms expose native actual amounts. ISO transfer/payment tests added; hook validation pending.
+
+- Native transfer/payment integration passed hooks (types and backend coverage) and targeted ISO/balance tests. Forecast engine now keeps native account balances/yields and uses coherent consolidation factors for reserves, expenses, transfers and totals; missing FX raises unavailability instead of summing currencies. Dashboard adapters still need to supply coverage-aware factors.
