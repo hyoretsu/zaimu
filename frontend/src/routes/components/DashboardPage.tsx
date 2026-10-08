@@ -3,6 +3,7 @@ import { format, startOfMonth } from "date-fns";
 import { useState } from "react";
 import { LuTrendingUp, LuWalletCards } from "react-icons/lu";
 import { CreditCardImportReviewDialog } from "@/components/credit-card-imports";
+import { TravelCurrencyBanner } from "@/components/currency";
 import { PendingNotices } from "@/components/pending-notices";
 import { TransactionImportReviewDialog } from "@/components/transaction-imports";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -63,6 +64,7 @@ export function DashboardPage() {
 	const projectedCashFlow = dashboard.projectedCashFlowUntilMonthEnd;
 	return (
 		<PageContainer className="space-y-6">
+			<TravelCurrencyBanner />
 			<PageHeader
 				actions={
 					<div className="flex flex-wrap items-center justify-end gap-2">

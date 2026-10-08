@@ -1,10 +1,5 @@
 import { CustomSelect } from "@/components/ui/CustomSelect";
-
-const names = new Intl.DisplayNames(["pt-BR"], { type: "currency" });
-const options = Intl.supportedValuesOf("currency").map(value => ({
-	label: `${value} - ${names.of(value) ?? value}`,
-	value,
-}));
+import { useCurrencyStore } from "@/stores/currency";
 
 export function CurrencySelect({
 	value,
@@ -17,6 +12,9 @@ export function CurrencySelect({
 	label?: string;
 	disabled?: boolean;
 }) {
+	const currencies = useCurrencyStore(state => state.currencies);
+	const names = new Intl.DisplayNames(navigator.languages, { type: "currency" });
+	const options = currencies.map(value => ({ label: `${value} - ${names.of(value) ?? value}`, value }));
 	return (
 		<CustomSelect
 			disabled={disabled}

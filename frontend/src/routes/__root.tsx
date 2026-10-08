@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createRootRoute, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
+import { CurrencyLifecycle } from "@/components/currency/CurrencyLifecycle";
 import { AppShell } from "@/components/layout";
 import { useOpenFinanceAutoSync } from "@/hooks/use-open-finance";
 import { initLocalDb, materializeLocalCreditBooks } from "@/lib/localStorage";
@@ -117,6 +118,7 @@ function RootComponent() {
 			session={{ pending: isLoading, retry: initialize, unavailable: isSessionUnavailable }}
 		>
 			<AppShell key={identity}>
+				<CurrencyLifecycle />
 				<Outlet />
 			</AppShell>
 		</AppStartupGate>

@@ -21,7 +21,8 @@
 		"./projected-yield": "./src/projected-yield.ts",
 		"./card-forecast": "./src/card-forecast.ts",
 		"./money": "./src/money.ts",
-		"./currency-provider": "./src/currency-provider.ts"
+		"./currency-provider": "./src/currency-provider.ts",
+		"./currency-preference": "./src/currency-preference.ts"
 	},
 	"scripts": {
 		"check-types": "tsc --noEmit",

@@ -16,6 +16,7 @@ import {
 } from "react-icons/hi2";
 import { dataService } from "@/lib/dataService";
 import { showToast, type ThemeMode, useAuthStore, useThemeStore } from "@/stores";
+import { CurrencySettings } from "./CurrencySettings";
 
 const themeOptions: { id: ThemeMode; label: string; icon: typeof HiSun; description: string }[] = [
 	{ description: "Sempre usar tema claro", icon: HiSun, id: "light", label: "Claro" },
@@ -178,6 +179,7 @@ export function AjustesPage() {
 					</div>
 				)}
 
+				<CurrencySettings />
 				{/* Aparência / Theme */}
 				<div className="animate-fade-in" style={{ animationDelay: "0.1s" }}>
 					<p className="section-header">Aparência</p>

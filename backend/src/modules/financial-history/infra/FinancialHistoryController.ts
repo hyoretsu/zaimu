@@ -1,5 +1,5 @@
-import { fetchCurrencyCatalog } from "@zaimu/finance/currency-provider";
 import Elysia, { t } from "elysia";
+import { supportedCurrencies } from "~/modules/currencies/application/currency-catalog";
 import { getCurrencyHistoryEstimate } from "../application/currency-history-estimate";
 import {
 	getHistoryCollection,
@@ -44,21 +44,6 @@ const HistoryCollectionReturn = t.Object({
 	startDate: t.String(),
 	units: t.Array(HistoryUnitReturn),
 });
-let catalog: { currencies: string[]; expiresAt: number } | undefined;
-let pendingCatalog: Promise<string[]> | undefined;
-async function supportedCurrencies() {
-	if (catalog && catalog.expiresAt > Date.now()) return catalog.currencies;
-	pendingCatalog ??= fetchCurrencyCatalog()
-		.then(currencies => {
-			catalog = { currencies, expiresAt: Date.now() + 86_400_000 };
-			return currencies;
-		})
-		.finally(() => {
-			pendingCatalog = undefined;
-		});
-	return pendingCatalog;
-}
-
 export const FinancialHistoryController = new Elysia({ prefix: "/financial-history" })
 	.get("/currencies", () => supportedCurrencies(), { response: t.Array(t.String()) })
 	.post(

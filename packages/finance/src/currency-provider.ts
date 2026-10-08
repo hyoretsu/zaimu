@@ -103,7 +103,7 @@ export async function fetchCurrencyCatalog(request: typeof fetch = fetch): Promi
 				.filter(
 					code =>
 						national.has(code) &&
-						!code.startsWith("X") &&
+						(!code.startsWith("X") || ["XAF", "XCD", "XCG", "XOF", "XPF"].includes(code)) &&
 						!["CLF", "UYI", "UYW", "BOV", "CHE", "CHW", "COU", "USN", "MXV"].includes(code),
 				);
 			if (!codes.includes("USD")) throw new Error("Catálogo incompleto");
