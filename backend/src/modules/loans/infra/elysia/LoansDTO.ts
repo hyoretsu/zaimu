@@ -1,6 +1,8 @@
 import { t } from "elysia";
 
 export const LoanPaymentReturn = t.Object({
+	accountAmount: t.Nullable(t.Number()),
+	accountCurrency: t.Nullable(t.String()),
 	advanceType: t.Union([t.Literal("FRONT"), t.Literal("BACK"), t.Null()]),
 	createdAt: t.String(),
 	currency: t.String(),

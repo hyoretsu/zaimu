@@ -1,3 +1,4 @@
+import { toMinorUnits } from "@zaimu/finance/money";
 import Elysia from "elysia";
 import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
 import { saveAccountDefaults } from "~/modules/accounts/application/payment-preferences";
@@ -711,7 +712,19 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 						if (existing && existing.loanId !== loanId)
 							throw new Error("Parcela pertence a outro empréstimo");
 						if (existing?.paidDate) return;
+						const actual = value<number | null | undefined>(entity, "accountAmount");
+						const accountCurrency = accountId ? await financialAccountCurrency(accountId) : null;
+						if (actual != null) {
+							if (!accountCurrency) throw new Error("Débito efetivo exige conta");
+							toMinorUnits(actual, accountCurrency);
+						}
+						if (accountCurrency && currency !== accountCurrency && actual == null)
+							throw new Error("Pagamento entre moedas exige débito efetivo");
+						if (entity.accountCurrency != null && entity.accountCurrency !== accountCurrency)
+							throw new Error("Moeda de débito diverge da conta");
 						const fields = {
+							accountAmount: actual == null ? null : String(actual),
+							accountCurrency,
 							advanceType: value<"FRONT" | "BACK" | undefined>(entity, "advanceType") ?? null,
 							currency,
 							financialAccountId: accountId ?? null,
@@ -739,6 +752,12 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 										totalPaid: String(amounts[2]),
 									},
 								]).build(),
+							);
+						if (accountId && fields.paidDate)
+							await enqueueAccountYieldRecalculation(
+								accountId,
+								fields.paidDate,
+								`sync-loan:${id}:${syncRevision(entity)}`,
 							);
 					});
 
@@ -1184,6 +1203,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 								)
 							).map(payment => ({
 								...payment,
+								accountAmount: payment.accountAmount == null ? null : Number(payment.accountAmount),
 								interestPaid: Number(payment.interestPaid),
 								principalPaid: Number(payment.principalPaid),
 								totalPaid: Number(payment.totalPaid),

@@ -16,6 +16,10 @@ WITH requested_dates AS (
  JOIN owned_accounts account ON account."id"=side."accountId"
  WHERE movement."userId"=$1 AND movement."date" <= (SELECT max(date) FROM requested_dates)
  UNION ALL
+ SELECT payment."financialAccountId",payment."paidDate",-COALESCE(payment."accountAmount",payment."totalPaid")
+ FROM "LoanPayment" payment JOIN "Loan" loan ON loan."id"=payment."loanId" JOIN owned_accounts account ON account."id"=payment."financialAccountId"
+ WHERE loan."userId"=$1 AND payment."paidDate" <= (SELECT max(date) FROM requested_dates)
+ UNION ALL
  SELECT yield."financialAccountId",yield."date",yield."amount"
  FROM "FinancialAccountYield" yield JOIN owned_accounts account ON account."id"=yield."financialAccountId"
  WHERE yield."date" <= (SELECT max(date) FROM requested_dates) AND NOT yield."isExcluded" AND yield."amount" IS NOT NULL

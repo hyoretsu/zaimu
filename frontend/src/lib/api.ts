@@ -458,6 +458,8 @@ export interface Loan {
 }
 
 export interface LoanPayment {
+	accountAmount?: number | null;
+	accountCurrency?: string | null;
 	currency?: string;
 	id: string;
 	loanId: string;

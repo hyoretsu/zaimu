@@ -7,6 +7,8 @@ test("payment page validates serialized cache entries with nullable payment fiel
 		hasMore: false,
 		items: [
 			{
+				accountAmount: null,
+				accountCurrency: null,
 				advanceType: null,
 				createdAt: "2026-10-01T00:00:00.000Z",
 				currency: "KWD",

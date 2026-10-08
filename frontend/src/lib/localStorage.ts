@@ -1241,6 +1241,11 @@ export async function payLocalLoanInstallment(
 	paidDate: string,
 	financialAccountId?: string,
 	ownerKey?: StorageOwner,
+	booking?: {
+		accountCurrency: string | null;
+		accountAmounts: Record<string, number | null>;
+		financialAccountId?: string;
+	},
 ) {
 	validateLoanPaidDate(paidDate);
 	const owner = requireOwner(ownerKey);
@@ -1254,7 +1259,15 @@ export async function payLocalLoanInstallment(
 			row => !row.deleted && row.data.loanId === loanId && row.data.installmentNumber === number,
 		);
 		if (!record || record.data.paidDate) throw new Error("Parcela indisponível para pagamento");
-		const updated = { ...record.data, financialAccountId, paidDate };
+		const accountAmount = booking?.accountAmounts[record.data.id];
+		if (booking && accountAmount === undefined)
+			throw new Error("Parcela mudou durante conversão; tente novamente");
+		const updated = {
+			...record.data,
+			financialAccountId,
+			paidDate,
+			...(booking && { accountAmount, accountCurrency: booking.accountCurrency }),
+		};
 		store.put({ ...record, data: updated, modifiedAt: Math.max(Date.now(), record.modifiedAt + 1) });
 		await done;
 		return updated;
@@ -1271,6 +1284,11 @@ export async function advanceLocalLoanInstallments(
 	advanceType: "FRONT" | "BACK",
 	paidDate: string,
 	ownerKey?: StorageOwner,
+	booking?: {
+		accountCurrency: string | null;
+		accountAmounts: Record<string, number | null>;
+		financialAccountId?: string;
+	},
 ) {
 	const owner = requireOwner(ownerKey);
 	validateLoanPaidDate(paidDate);
@@ -1290,10 +1308,22 @@ export async function advanceLocalLoanInstallments(
 			)
 			.slice(0, count);
 		if (!rows.length) throw new Error("Não há parcelas pendentes");
+		if (booking && rows.some(row => booking.accountAmounts[row.data.id] === undefined))
+			throw new Error("Parcelas mudaram durante conversão; tente novamente");
 		for (const row of rows)
 			store.put({
 				...row,
-				data: { ...row.data, advanceType, isAdvanced: true, paidDate },
+				data: {
+					...row.data,
+					advanceType,
+					isAdvanced: true,
+					paidDate,
+					...(booking && {
+						accountAmount: booking.accountAmounts[row.data.id],
+						accountCurrency: booking.accountCurrency,
+						financialAccountId: booking.financialAccountId,
+					}),
+				},
 				modifiedAt: Math.max(Date.now(), row.modifiedAt + 1),
 			});
 		await done;

@@ -14,6 +14,7 @@ import {
 	calculateFinancialAccountBalances,
 	calculateFinancialAccountYieldEntries,
 } from "./financial-account";
+import { loanAccountMovements } from "./loan-account-movements";
 import {
 	localAccounts,
 	localCreditBooks,
@@ -160,7 +161,7 @@ export async function getGuestDashboardFinancialContext(
 	const historicalAccountsAt = (date: Date) =>
 		calculateFinancialAccountBalances(
 			accounts,
-			transactions,
+			[...transactions, ...loanAccountMovements(paymentRows.map(row => row.data))],
 			bookRows.flatMap(row => creditBookRewards(row.data)),
 			(holidays as FinancialAccountYieldHoliday[] | null)?.map(row => row.date) ?? [],
 			date,
@@ -183,6 +184,13 @@ export async function getGuestDashboardFinancialContext(
 
 	const recurringPayments = new Map(bookRows.flatMap(row => [...recurringCardPaymentAmounts(row.data)]));
 	const movements: Array<Omit<ForecastMovement, "date"> & { date: Date }> = [
+		...loanAccountMovements(paymentRows.map(row => row.data)).map(row => ({
+			amount: row.amount,
+			currency: row.bookingCurrency,
+			date: new Date(`${row.date.slice(0, 10)}T12:00:00`),
+			originAccountId: row.originFinancialAccountId,
+			type: "EXPENSE" as const,
+		})),
 		...transactions
 			.filter(item => item.type !== "REFUND")
 			.map(item => ({
@@ -224,7 +232,7 @@ export async function getGuestDashboardFinancialContext(
 		...accounts.flatMap(account =>
 			calculateFinancialAccountYieldEntries(
 				account,
-				transactions,
+				[...transactions, ...loanAccountMovements(paymentRows.map(row => row.data))],
 				[...yieldHolidays],
 				today,
 				(yields as FinancialAccountYield[] | null) ?? [],

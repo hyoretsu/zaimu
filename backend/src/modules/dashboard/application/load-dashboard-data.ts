@@ -223,7 +223,10 @@ SELECT 'flow' AS kind, jsonb_build_object(
 ) AS data
 FROM "Transaction" transaction
 WHERE transaction."userId" = $1 AND transaction."date" BETWEEN $2::date AND $3::date
-
+UNION ALL
+SELECT 'flow', jsonb_build_object('currency',COALESCE(payment."accountCurrency",payment."currency"),'originAccountId',payment."financialAccountId",'amount',COALESCE(payment."accountAmount",payment."totalPaid"),'date',payment."paidDate",'type','EXPENSE','recurring',false)
+FROM "LoanPayment" payment JOIN "Loan" loan ON loan."id"=payment."loanId"
+WHERE loan."userId"=$1 AND payment."paidDate" BETWEEN $2::date AND $3::date
 UNION ALL
 SELECT 'flow', jsonb_build_object('currency', entry."currency", 'destinationAccountId', entry."financialAccountId", 'amount', entry."amount", 'date', entry."date", 'type', 'INCOME', 'recurring', false)
 FROM "FinancialAccountYield" entry

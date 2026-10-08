@@ -35,7 +35,16 @@ test("loan payments commit together, stay owner scoped and reject double payment
 	await storage.createLocalLoanWithPayments(loan, [payment], owner);
 	expect(await storage.localLoans.getAll(owner)).toHaveLength(1);
 	expect(await storage.localLoanPayments.getAll("guest:other")).toHaveLength(0);
-	await storage.payLocalLoanInstallment("loan", 1, "2026-10-10", undefined, owner);
+	await storage.payLocalLoanInstallment("loan", 1, "2026-10-10", "account", owner, {
+		accountAmounts: { payment: 30.125 },
+		accountCurrency: "KWD",
+	});
+	expect((await storage.localLoanPayments.getById("payment", owner))?.data).toMatchObject({
+		accountAmount: 30.125,
+		accountCurrency: "KWD",
+		financialAccountId: "account",
+		totalPaid: 100,
+	});
 	await expect(storage.payLocalLoanInstallment("loan", 1, "2026-10-10", undefined, owner)).rejects.toThrow(
 		"Parcela indisponível",
 	);

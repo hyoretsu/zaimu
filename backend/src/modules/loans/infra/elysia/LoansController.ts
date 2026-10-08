@@ -1,8 +1,11 @@
-import { loanInstallments } from "@zaimu/finance/loan";
+import { loanAccountAmounts, loanInstallments } from "@zaimu/finance/loan";
 import { differenceInMonths } from "date-fns";
 import Elysia, { t } from "elysia";
 import { assertBalanceAccountOwnership, assertDirectOwnership, requireUserId } from "~/modules/auth";
 import { assertSupportedCurrency, defaultCurrency } from "~/modules/currencies/application/currency-defaults";
+import { financialAccountCurrency } from "~/modules/currencies/application/financial-money";
+import { getCurrencyRate } from "~/modules/currencies/infra/currency-exchange";
+import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import {
 	decodePaginationCursor,
 	encodePaginationCursor,
@@ -19,7 +22,7 @@ import {
 	withRawTransaction,
 } from "~/shared/infra/sql";
 
-import { LoanPaymentPageReturn } from "./LoansDTO";
+import { LoanPaymentPageReturn, LoanPaymentReturn } from "./LoansDTO";
 import { decodePaymentCursor, paymentFilterHash, paymentPage } from "./loan-payment-pagination";
 
 const loanColumns = [
@@ -40,6 +43,8 @@ const loanColumns = [
 	"updatedAt",
 ] as const;
 const loanPaymentColumns = [
+	"accountAmount",
+	"accountCurrency",
 	"currency",
 	"id",
 	"loanId",
@@ -212,7 +217,7 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 			const cached = await distributedCache.remember(
 				userId,
 				"loans:detail",
-				{ id: params.id, version: 3 },
+				{ id: params.id, version: 4 },
 				async () => {
 					const loan = await queryFirst(
 						db.sql.public.Loan.select(...loanColumns)
@@ -256,7 +261,7 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 			const cached = await distributedCache.remember(
 				userId,
 				"loans:installments",
-				{ cursor: query.cursor, limit, loanId: params.id, version: 3 },
+				{ cursor: query.cursor, limit, loanId: params.id, version: 4 },
 				async () => {
 					await assertDirectOwnership("Loan", params.id, userId);
 					const payments = await queryRows(
@@ -281,6 +286,7 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 					return paymentPage(
 						payments.map(payment => ({
 							...payment,
+							accountAmount: payment.accountAmount === null ? null : Number(payment.accountAmount),
 							advanceType: payment.advanceType as "FRONT" | "BACK" | null,
 							createdAt: payment.createdAt.toISOString(),
 							dueDate: payment.dueDate.toISOString(),
@@ -448,6 +454,44 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 			detail: { tags: ["Loans"] },
 		},
 	)
+	.get(
+		"/:id/next-payment",
+		async ({ params, query, request }) => {
+			const userId = await requireUserId(request);
+			await assertDirectOwnership("Loan", params.id, userId);
+			const payment = await queryFirst(
+				db.sql.public.LoanPayment.select(...loanPaymentColumns)
+					.where((fields, functions) =>
+						functions.and(
+							functions.eq(fields.loanId, params.id),
+							functions.raw`${fields.paidDate} IS NULL`.returns("pg/bool@1"),
+						),
+					)
+					.orderBy("installmentNumber", { direction: query.advanceType === "BACK" ? "desc" : "asc" })
+					.limit(1)
+					.build(),
+			);
+			if (!payment) return null;
+			return {
+				...payment,
+				accountAmount: payment.accountAmount === null ? null : Number(payment.accountAmount),
+				advanceType: payment.advanceType as "FRONT" | "BACK" | null,
+				createdAt: payment.createdAt.toISOString(),
+				dueDate: payment.dueDate.toISOString(),
+				interestPaid: Number(payment.interestPaid),
+				paidDate: payment.paidDate?.toISOString() ?? null,
+				principalPaid: Number(payment.principalPaid),
+				totalPaid: Number(payment.totalPaid),
+				updatedAt: payment.updatedAt.toISOString(),
+			};
+		},
+		{
+			params: t.Object({ id: t.String({ maxLength: 36, minLength: 1 }) }),
+			query: t.Object({ advanceType: t.Optional(AdvanceType) }),
+			response: t.Nullable(LoanPaymentReturn),
+		},
+	)
+
 	.post(
 		"/:id/payments/:installmentNumber/pay",
 		async ({ params, body, request }) => {
@@ -479,12 +523,25 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 					throw new HttpException("Payment already made", 400);
 				}
 
+				const paidDate = body.paidDate ? new Date(body.paidDate) : new Date();
+				const accountCurrency = body.financialAccountId
+					? await financialAccountCurrency(body.financialAccountId)
+					: null;
+				const [accountAmount] = await loanAccountAmounts(
+					[Number(payment.totalPaid)],
+					payment.currency,
+					accountCurrency,
+					body.accountAmount,
+					(from, to) => getCurrencyRate(paidDate.toISOString().slice(0, 10), from, to),
+				);
 				const updatedPayment = await queryFirst(
 					db.sql.public.LoanPayment.update({
+						accountAmount: accountAmount === null ? null : String(accountAmount),
+						accountCurrency,
 						advanceType: body.advanceType,
 						financialAccountId: body.financialAccountId,
 						isAdvanced: body.isAdvanced ?? false,
-						paidDate: body.paidDate ? new Date(body.paidDate) : new Date(),
+						paidDate,
 						updatedAt: new Date(),
 					})
 						.where((fields, functions) => functions.eq(fields.id, payment.id))
@@ -492,12 +549,25 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 						.build(),
 				);
 				if (!updatedPayment) throw new HttpException("Payment not found", 404);
+				if (body.financialAccountId)
+					await enqueueAccountYieldRecalculation(
+						body.financialAccountId,
+						paidDate,
+						`loan-payment:${payment.id}`,
+					);
 
-				return updatedPayment;
+				return {
+					...updatedPayment,
+					accountAmount: updatedPayment.accountAmount === null ? null : Number(updatedPayment.accountAmount),
+					interestPaid: Number(updatedPayment.interestPaid),
+					principalPaid: Number(updatedPayment.principalPaid),
+					totalPaid: Number(updatedPayment.totalPaid),
+				};
 			});
 		},
 		{
 			body: t.Object({
+				accountAmount: t.Optional(t.Number({ minimum: 0 })),
 				advanceType: t.Optional(AdvanceType),
 				financialAccountId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				isAdvanced: t.Optional(t.Boolean()),
@@ -522,7 +592,7 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 				]);
 				if (body.financialAccountId) await assertBalanceAccountOwnership(body.financialAccountId, userId);
 				const loan = await queryFirst(
-					db.sql.public.Loan.select("id")
+					db.sql.public.Loan.select("id", "currency")
 						.where((fields, functions) => functions.eq(fields.id, params.id))
 						.limit(1)
 						.build(),
@@ -546,6 +616,8 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 						.build(),
 				);
 
+				if (body.expectedPaymentId && unpaidPayments[0]?.id !== body.expectedPaymentId)
+					throw new HttpException("Parcela mudou; abra pagamento novamente", 409);
 				if (unpaidPayments.length === 0) {
 					throw new HttpException("No unpaid installments to advance", 400);
 				}
@@ -553,36 +625,58 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 				// Mark installments as paid with advance
 				const paidDate = body.paidDate ? new Date(body.paidDate) : new Date();
 
-				await executeStatement(
-					db.sql.public.LoanPayment.update({
-						advanceType: body.advanceType,
-						financialAccountId: body.financialAccountId,
-						isAdvanced: true,
-						paidDate,
-						updatedAt: new Date(),
-					})
-						.where((fields, functions) =>
-							functions.in(
-								fields.id,
-								unpaidPayments.map(payment => payment.id),
-							),
-						)
-						.build(),
+				const accountCurrency = body.financialAccountId
+					? await financialAccountCurrency(body.financialAccountId)
+					: null;
+				const amounts = await loanAccountAmounts(
+					unpaidPayments.map(payment => Number(payment.totalPaid)),
+					loan.currency,
+					accountCurrency,
+					body.accountAmount,
+					(from, to) => getCurrencyRate(paidDate.toISOString().slice(0, 10), from, to),
 				);
+				for (const [index, payment] of unpaidPayments.entries())
+					await executeStatement(
+						db.sql.public.LoanPayment.update({
+							accountAmount: amounts[index] === null ? null : String(amounts[index]),
+							accountCurrency,
+							advanceType: body.advanceType,
+							financialAccountId: body.financialAccountId,
+							isAdvanced: true,
+							paidDate,
+							updatedAt: new Date(),
+						})
+							.where((fields, functions) => functions.eq(fields.id, payment.id))
+							.build(),
+					);
+
+				if (body.financialAccountId)
+					await enqueueAccountYieldRecalculation(
+						body.financialAccountId,
+						paidDate,
+						`loan-advance:${unpaidPayments.map(payment => payment.id).join(":")}`,
+					);
 
 				// Calculate total paid
 				const totalPaid = unpaidPayments.reduce((sum, p) => sum + Number(p.totalPaid), 0);
 
 				return {
+					accountAmount: accountCurrency
+						? amounts.reduce<number>((sum, amount) => sum + (amount ?? 0), 0)
+						: null,
+					accountCurrency,
 					advancedInstallments: unpaidPayments.length,
 					advanceType: body.advanceType,
+					currency: loan.currency,
 					totalPaid,
 				};
 			});
 		},
 		{
 			body: t.Object({
+				accountAmount: t.Optional(t.Number({ minimum: 0 })),
 				advanceType: AdvanceType,
+				expectedPaymentId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				financialAccountId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				installmentsToAdvance: t.Integer({ maximum: 1200, minimum: 1 }),
 				paidDate: t.Optional(t.String()),
@@ -603,7 +697,7 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 			const cached = await distributedCache.remember(
 				userId,
 				"loans:history",
-				{ cursor: query.cursor, limit, loanId: params.id, version: 3 },
+				{ cursor: query.cursor, limit, loanId: params.id, version: 4 },
 				async () => {
 					await assertDirectOwnership("Loan", params.id, userId);
 					const history = await queryRows(

@@ -62,6 +62,10 @@ async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 			)
 			.build(),
 	);
+	const loanPayments = await queryRaw<{ amount: string; date: Date; originFinancialAccountId: string }>(
+		`SELECT COALESCE(payment."accountAmount",payment."totalPaid") AS amount,payment."paidDate" AS date,payment."financialAccountId" AS "originFinancialAccountId" FROM "LoanPayment" payment WHERE payment."financialAccountId"=ANY($1::text[]) AND payment."paidDate" IS NOT NULL`,
+		[accountIds],
+	);
 	const rewardsAccounts = await queryRows(
 		db.sql.public.RewardsAccount.select("financialAccountId", "initialBalance")
 			.where((fields, functions) => functions.in(fields.financialAccountId, accountIds))
@@ -160,7 +164,14 @@ async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 			initialRewardsBalances: new Map(
 				rewardsAccounts.map(account => [account.financialAccountId, Number(account.initialBalance)]),
 			),
-			transactions: transactions.map(transaction => ({
+			transactions: [
+				...transactions,
+				...loanPayments.map(payment => ({
+					...payment,
+					destinationAmount: null,
+					destinationFinancialAccountId: null,
+				})),
+			].map(transaction => ({
 				...transaction,
 				amount: Number(transaction.amount),
 				destinationAmount:

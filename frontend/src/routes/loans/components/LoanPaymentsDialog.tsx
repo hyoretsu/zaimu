@@ -8,11 +8,12 @@ import { DateField } from "@/components/ui/DateField";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
-import type { Loan, LoanPaymentPage } from "@/lib/api";
+import type { Loan, LoanPayment, LoanPaymentPage } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { getLocalDateKey } from "@/lib/date";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
+import { LoanPaymentDialog, type LoanPaymentInput } from "./LoanPaymentDialog";
 import { LoanPaymentRow } from "./LoanPaymentRow";
 import { LoanPayoffPreview } from "./LoanPayoffPreview";
 
@@ -26,6 +27,10 @@ export function LoanPaymentsDialog({ loan, onClose }: { loan: Loan; onClose: () 
 	);
 	const [pending, setPending] = useState<number[]>([]);
 	const [batchPending, setBatchPending] = useState(false);
+	const [selection, setSelection] = useState<{
+		payment?: LoanPayment;
+		advanceType?: "FRONT" | "BACK";
+	} | null>(null);
 	const scopes = useRef(new Set<number>());
 	const batch = useRef(false);
 	const payments = useInfiniteQuery<
@@ -41,13 +46,13 @@ export function LoanPaymentsDialog({ loan, onClose }: { loan: Loan; onClose: () 
 		queryFn: ({ pageParam }) => dataService.loans.getPaymentPage(loan.id, { cursor: pageParam, limit: 25 }),
 		queryKey: [...queryKeys.loans.all(identity!), "payments", loan.id],
 	});
-	const run = async (number?: number) => {
+	const run = async (number?: number, input?: LoanPaymentInput) => {
 		if (
 			batch.current ||
 			(number === undefined && scopes.current.size) ||
 			(number !== undefined && scopes.current.has(number))
 		)
-			return;
+			return false;
 		if (number === undefined) {
 			batch.current = true;
 			setBatchPending(true);
@@ -58,12 +63,30 @@ export function LoanPaymentsDialog({ loan, onClose }: { loan: Loan; onClose: () 
 		try {
 			if (loan.needsPaymentReview)
 				await dataService.loans.reviewLegacyPayments(loan.id, paidDate, amortization);
-			else if (number !== undefined) await dataService.loans.pay(loan.id, number, paidDate);
-			else await dataService.loans.advance(loan.id, 1, advanceType, paidDate);
+			else if (number !== undefined)
+				await dataService.loans.pay(
+					loan.id,
+					number,
+					input?.paidDate ?? paidDate,
+					input?.financialAccountId,
+					input?.accountAmount,
+				);
+			else
+				await dataService.loans.advance(
+					loan.id,
+					1,
+					selection?.advanceType ?? advanceType,
+					input?.paidDate ?? paidDate,
+					input?.financialAccountId,
+					input?.accountAmount,
+					input?.expectedPaymentId,
+				);
 			await invalidateCacheOperation(client, identity!, "loan");
 			showToast(loan.needsPaymentReview ? "Histórico revisado" : "Pagamento registrado", "positive");
+			return true;
 		} catch (error) {
 			showToast(error instanceof Error ? error.message : "Falha ao registrar pagamento", "negative");
+			return false;
 		} finally {
 			if (number === undefined) {
 				batch.current = false;
@@ -83,6 +106,16 @@ export function LoanPaymentsDialog({ loan, onClose }: { loan: Loan; onClose: () 
 			}}
 			open
 		>
+			{selection && (
+				<LoanPaymentDialog
+					advanceType={selection.advanceType}
+					initialDate={paidDate}
+					loanId={loan.id}
+					onClose={() => setSelection(null)}
+					onSave={input => run(selection.payment?.installmentNumber, input)}
+					payment={selection.payment}
+				/>
+			)}
 			<DialogContent className="flex max-h-[85dvh] flex-col overflow-hidden sm:max-w-xl">
 				<DialogHeader>
 					<DialogTitle>Parcelas - {loan.lender}</DialogTitle>
@@ -149,7 +182,7 @@ export function LoanPaymentsDialog({ loan, onClose }: { loan: Loan; onClose: () 
 										<Button
 											className="cursor-pointer"
 											disabled={batchPending || pending.length > 0 || !paidDate}
-											onClick={() => void run()}
+											onClick={() => setSelection({ advanceType })}
 										>
 											<LuFastForward />
 											{batchPending ? "Antecipando..." : "Antecipar uma parcela"}
@@ -185,7 +218,7 @@ export function LoanPaymentsDialog({ loan, onClose }: { loan: Loan; onClose: () 
 											!paidDate
 										}
 										key={row.id}
-										onPay={() => void run(row.installmentNumber)}
+										onPay={() => setSelection({ payment: row })}
 										payment={row}
 										pending={pending.includes(row.installmentNumber)}
 									/>

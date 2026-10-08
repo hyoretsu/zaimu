@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { loanInstallments } from "./loan";
+import { loanAccountAmounts, loanInstallments } from "./loan";
 
 const terms = {
 	amortization: "PRICE" as const,
@@ -50,4 +50,23 @@ test("loan principal distributes ISO minor units without remainder loss", () => 
 			);
 		}
 	expect(() => loanInstallments({ ...terms, currency: "JPY", principalAmount: 1.5 })).toThrow();
+});
+
+test("loan debit preserves explicit actual amounts without rate availability", async () => {
+	expect(
+		await loanAccountAmounts([10], "USD", "KWD", 3.123, async () => {
+			throw new Error("Offline");
+		}),
+	).toEqual([3.123]);
+	expect(await loanAccountAmounts([10], "USD", "JPY", undefined, async () => 149.95)).toEqual([1500]);
+	await expect(loanAccountAmounts([10], "USD", "JPY", 1.5, async () => 1)).rejects.toThrow();
+	await expect(loanAccountAmounts([10], "USD", null, 10, async () => 1)).rejects.toThrow();
+});
+test("batch actual debit distributes all minor units without rounding loss", async () => {
+	expect(await loanAccountAmounts([1, 1, 1], "USD", "JPY", 100, async () => 1)).toEqual([34, 33, 33]);
+	expect(
+		await loanAccountAmounts([0], "JPY", "USD", undefined, async () => {
+			throw new Error("Unavailable");
+		}),
+	).toEqual([0]);
 });

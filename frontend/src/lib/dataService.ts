@@ -23,7 +23,7 @@ import {
 } from "@zaimu/finance/credit-card";
 import { distributePurchaseCents } from "@zaimu/finance/credit-purchase";
 import { dashboardCardForecasts, isCashFlowRecurrence } from "@zaimu/finance/dashboard-forecasts";
-import { loanInstallments } from "@zaimu/finance/loan";
+import { loanAccountAmounts, loanInstallments } from "@zaimu/finance/loan";
 import { currencyScale, roundMoney } from "@zaimu/finance/money";
 import { pendingStatementPayments } from "@zaimu/finance/payment-suggestions";
 import {
@@ -39,6 +39,7 @@ import { convertLocalMoney, guestRate } from "./currency-conversion";
 import { GuestConversionUnavailable } from "./dashboard-currency-context";
 import { guestTransactionPage } from "./guest-transaction-page";
 import { requestResult } from "./idb";
+import { loanAccountMovements } from "./loan-account-movements";
 import { localCursorPage } from "./local-cursor-page";
 import {
 	acknowledgeCreditBookSync,
@@ -446,16 +447,20 @@ export const dataService = {
 		},
 		async getAllIncludingHidden(): Promise<FinancialAccount[]> {
 			if (isGuestMode()) {
-				const [local, transactions, cashbackPurchases, holidays, yields] = await Promise.all([
+				const [local, transactions, cashbackPurchases, holidays, yields, loanPayments] = await Promise.all([
 					localAccounts.getAll(),
 					localTransactions.getAll(),
 					localCreditBooks.getAll(),
 					localMeta.get("financial-account-yield-holidays"),
 					localMeta.get("financial-account-yields"),
+					localLoanPayments.getAll(),
 				]);
 				const accounts = calculateFinancialAccountBalances(
 					local.map(item => item.data),
-					transactions.map(item => item.data),
+					[
+						...transactions.map(item => item.data),
+						...loanAccountMovements(loanPayments.map(row => row.data)),
+					],
 					cashbackPurchases.flatMap(item => creditBookRewards(item.data)),
 					(holidays as FinancialAccountYieldHoliday[] | null)?.map(holiday => holiday.date) ?? [],
 					undefined,
@@ -771,18 +776,22 @@ export const dataService = {
 					items: page.items.map(row => ({ ...row, amount: row.amount ?? 0, date: row.date.slice(0, 10) })),
 				};
 			}
-			const [accounts, transactions, holidays, yields] = await Promise.all([
+			const [accounts, transactions, holidays, yields, loanPayments] = await Promise.all([
 				dataService.accounts.getAll(),
 				dataService.transactions.getAll(),
 				dataService.accountYieldHolidays.getAll(),
 				localMeta.get("financial-account-yields"),
+				localLoanPayments.getAll(),
 			]);
 			const entries = accounts
 				.filter(account => !financialAccountId || account.id === financialAccountId)
 				.flatMap(account =>
 					calculateFinancialAccountYieldEntries(
 						account,
-						transactions.filter(row => row.source !== "CREDIT_CARD"),
+						[
+							...transactions.filter(row => row.source !== "CREDIT_CARD"),
+							...loanAccountMovements(loanPayments.map(row => row.data)),
+						],
 						holidays.map(row => row.date),
 						undefined,
 						((yields ?? []) as FinancialAccountYield[]).filter(row => row.financialAccountId === account.id),
@@ -1913,7 +1922,7 @@ export const dataService = {
 				]);
 				const accountsAtRangeEnd = calculateFinancialAccountBalances(
 					accountRecords.filter(item => !item.data.isHidden).map(item => item.data),
-					transactions,
+					[...transactions, ...loanAccountMovements(loanPaymentRows.map(row => row.data))],
 					cashbackPurchases.flatMap(item => creditBookRewards(item.data)),
 					(holidays as FinancialAccountYieldHoliday[] | null)?.map(holiday => holiday.date) ?? [],
 					rangeEnd,
@@ -2628,16 +2637,62 @@ export const dataService = {
 
 	// ============== LOANS ==============
 	loans: {
-		async advance(id: string, count: number, advanceType: "FRONT" | "BACK", paidDate: string) {
+		async advance(
+			id: string,
+			count: number,
+			advanceType: "FRONT" | "BACK",
+			paidDate: string,
+			financialAccountId?: string,
+			accountAmount?: number,
+			expectedPaymentId?: string,
+		) {
 			if (!isGuestMode())
 				return fetchWithAuth(`/loans/${id}/advance`, {
-					body: JSON.stringify({ advanceType, installmentsToAdvance: count, paidDate }),
+					body: JSON.stringify({
+						accountAmount,
+						advanceType,
+						expectedPaymentId,
+						financialAccountId,
+						installmentsToAdvance: count,
+						paidDate,
+					}),
 					method: "POST",
 				});
-			const loan = await localLoans.getById(id);
+			const owner = getCurrentCacheIdentity();
+			if (!owner) throw new Error("Identidade indisponível");
+			const loan = await localLoans.getById(id, owner);
 			if (!loan || loan.data.needsPaymentReview)
 				throw new Error("Revise pagamentos antigos antes de antecipar");
-			return advanceLocalLoanInstallments(id, count, advanceType, paidDate);
+			const account = financialAccountId ? await localAccounts.getById(financialAccountId, owner) : null;
+			if (
+				financialAccountId &&
+				(!account || !["CHECKING", "CASH", "SAVINGS", "INVESTMENT"].includes(account.data.type))
+			)
+				throw new Error("Conta de pagamento indisponível");
+			const rows = (await localLoanPayments.getAll(owner))
+				.map(row => row.data)
+				.filter(row => row.loanId === id && !row.paidDate)
+				.sort((a, b) =>
+					advanceType === "FRONT"
+						? a.installmentNumber - b.installmentNumber
+						: b.installmentNumber - a.installmentNumber,
+				)
+				.slice(0, count);
+			if (expectedPaymentId && rows[0]?.id !== expectedPaymentId)
+				throw new Error("Parcela mudou; abra pagamento novamente");
+			const accountCurrency = account?.data.currency ?? (account ? "BRL" : null);
+			const amounts = await loanAccountAmounts(
+				rows.map(row => row.totalPaid),
+				loan.data.currency ?? "BRL",
+				accountCurrency,
+				accountAmount,
+				(from, to) => guestRate(paidDate, from, to),
+			);
+			return advanceLocalLoanInstallments(id, count, advanceType, paidDate, owner, {
+				accountAmounts: Object.fromEntries(rows.map((row, index) => [row.id, amounts[index]!])),
+				accountCurrency,
+				financialAccountId,
+			});
 		},
 		async create(data: Omit<Loan, "id" | "userId">): Promise<Loan> {
 			const userId = getUserId();
@@ -2720,6 +2775,18 @@ export const dataService = {
 				totalToPay: principal,
 			};
 		},
+		async getNextPayment(id: string, advanceType: "FRONT" | "BACK"): Promise<LoanPayment | null> {
+			if (!isGuestMode()) return fetchWithAuth(`/loans/${id}/next-payment?advanceType=${advanceType}`);
+			const rows = (await localLoanPayments.getAll())
+				.map(row => row.data)
+				.filter(row => row.loanId === id && !row.paidDate)
+				.sort((a, b) =>
+					advanceType === "BACK"
+						? b.installmentNumber - a.installmentNumber
+						: a.installmentNumber - b.installmentNumber,
+				);
+			return rows[0] ?? null;
+		},
 
 		async getPaymentPage(
 			id: string,
@@ -2771,19 +2838,40 @@ export const dataService = {
 			number: number,
 			paidDate: string,
 			financialAccountId?: string,
+			accountAmount?: number,
 		): Promise<LoanPayment> {
 			if (!isGuestMode())
 				return fetchWithAuth(`/loans/${id}/payments/${number}/pay`, {
-					body: JSON.stringify({ financialAccountId, paidDate }),
+					body: JSON.stringify({ accountAmount, financialAccountId, paidDate }),
 					method: "POST",
 				});
-			const loan = await localLoans.getById(id);
+			const owner = getCurrentCacheIdentity();
+			if (!owner) throw new Error("Identidade indisponível");
+			const loan = await localLoans.getById(id, owner);
 			if (!loan || loan.data.needsPaymentReview) throw new Error("Revise pagamentos antigos antes de pagar");
-			if (financialAccountId && !(await localAccounts.getById(financialAccountId)))
+			if (financialAccountId && !(await localAccounts.getById(financialAccountId, owner)))
 				throw new Error("Conta não encontrada");
 			if (!/^\d{4}-\d{2}-\d{2}$/.test(paidDate) || Number.isNaN(Date.parse(paidDate)))
 				throw new Error("Data inválida");
-			return payLocalLoanInstallment(id, number, paidDate, financialAccountId);
+			const account = financialAccountId ? await localAccounts.getById(financialAccountId, owner) : null;
+			if (account && !["CHECKING", "CASH", "SAVINGS", "INVESTMENT"].includes(account.data.type))
+				throw new Error("Conta de pagamento indisponível");
+			const payment = (await localLoanPayments.getAll(owner)).find(
+				row => row.data.loanId === id && row.data.installmentNumber === number,
+			)?.data;
+			if (!payment) throw new Error("Parcela não encontrada");
+			const accountCurrency = account?.data.currency ?? (account ? "BRL" : null);
+			const [amount] = await loanAccountAmounts(
+				[payment.totalPaid],
+				payment.currency ?? loan.data.currency ?? "BRL",
+				accountCurrency,
+				accountAmount,
+				(from, to) => guestRate(paidDate, from, to),
+			);
+			return payLocalLoanInstallment(id, number, paidDate, financialAccountId, owner, {
+				accountAmounts: { [payment.id]: amount! },
+				accountCurrency,
+			});
 		},
 		async reviewLegacyPayments(id: string, paidDate: string, amortization: Loan["amortization"]) {
 			if (!isGuestMode()) throw new Error("Revisão indisponível");
@@ -3481,11 +3569,12 @@ export const dataService = {
 				const { cursor: _cursor, limit: _limit, ...filters } = params;
 				const page = guestTransactionPage(await this.getAll(filters), getUserId(), params);
 				const dates = [...new Set(page.items.map(row => row.date.slice(0, 10)))];
-				const [accounts, transactions, holidays, yields] = await Promise.all([
+				const [accounts, transactions, holidays, yields, loanPayments] = await Promise.all([
 					localAccounts.getAll(),
 					localTransactions.getAll(),
 					localMeta.get("financial-account-yield-holidays"),
 					localMeta.get("financial-account-yields"),
+					localLoanPayments.getAll(),
 				]);
 				return {
 					days: dates.map(date => ({
@@ -3494,7 +3583,10 @@ export const dataService = {
 							accounts
 								.map(row => row.data)
 								.filter(account => ["CHECKING", "CASH", "SAVINGS"].includes(account.type)),
-							transactions.map(row => row.data),
+							[
+								...transactions.map(row => row.data),
+								...loanAccountMovements(loanPayments.map(row => row.data)),
+							],
 							[],
 							(holidays ?? []) as string[],
 							new Date(`${date}T12:00:00`),

@@ -27,6 +27,9 @@ export function LoanPaymentRow({
 					<p className="text-xs">
 						Paga em {date(payment.paidDate)}
 						{payment.isAdvanced ? " (antecipada)" : ""}
+						{payment.accountAmount != null &&
+							payment.accountCurrency &&
+							` - Débito: ${formatCurrency(payment.accountAmount, payment.accountCurrency)}`}
 					</p>
 				)}
 			</div>

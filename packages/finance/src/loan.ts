@@ -1,4 +1,4 @@
-import { fromMinorUnits, normalizeCurrency, toMinorUnits } from "./money";
+import { currencyScale, fromMinorUnits, normalizeCurrency, toMinorUnits } from "./money";
 
 export interface LoanTerms {
 	principalAmount: number;
@@ -63,4 +63,41 @@ export function loanInstallments(loan: LoanTerms) {
 			totalPaid: fromMinorUnits(principal + interestUnits, currency),
 		};
 	});
+}
+
+/** A payment keeps the loan denomination and a separate actual debit in its account. */
+export async function loanAccountAmounts(
+	amounts: number[],
+	currency: string,
+	accountCurrency: string | null,
+	actualTotal: number | undefined,
+	rate: (from: string, to: string) => Promise<number>,
+): Promise<(number | null)[]> {
+	if (!amounts.length || amounts.some(amount => !Number.isFinite(amount) || amount < 0))
+		throw new Error("Valores de parcela inválidos");
+	if (!accountCurrency) {
+		if (actualTotal !== undefined) throw new Error("Débito efetivo exige conta de pagamento");
+		return amounts.map(() => null);
+	}
+	if (actualTotal === undefined) {
+		const factor =
+			currency === accountCurrency || amounts.every(amount => amount === 0)
+				? 1
+				: await rate(currency, accountCurrency);
+		if (!Number.isFinite(factor) || factor <= 0) throw new Error("Conversão indisponível");
+		return amounts.map(amount =>
+			fromMinorUnits(Math.round(amount * factor * currencyScale(accountCurrency)), accountCurrency),
+		);
+	}
+	const total = toMinorUnits(actualTotal, accountCurrency);
+	const weight = amounts.reduce((sum, amount) => sum + amount, 0);
+	if (!weight && total) throw new Error("Parcelas sem valor não podem receber débito");
+	const exact = amounts.map(amount => (weight ? (total * amount) / weight : 0));
+	const units = exact.map(value => Math.floor(value));
+	const remaining = total - units.reduce((sum, value) => sum + value, 0);
+	const order = exact
+		.map((value, index) => ({ fraction: value - units[index]!, index }))
+		.sort((a, b) => b.fraction - a.fraction || a.index - b.index);
+	for (let index = 0; index < remaining; index++) units[order[index]!.index]!++;
+	return units.map(value => fromMinorUnits(value, accountCurrency));
 }
