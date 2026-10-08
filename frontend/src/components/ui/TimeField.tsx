@@ -47,6 +47,10 @@ export function TimeField({ onValueChange, value, disabled, className, onClick, 
 										onValueChange("");
 										showToast("Horário removido.", "info");
 									}}
+									onMouseDown={event => {
+										// Avoid committing the native time editor on blur before the clear click.
+										event.preventDefault();
+									}}
 									size="icon-xs"
 									type="button"
 									variant="outline"
