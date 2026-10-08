@@ -156,7 +156,7 @@ export function calculateFinancialAccountYieldBalances({
 							todayKey,
 							yieldsByAccountId.get(account.id),
 						).toFixed(4),
-					),
+					) + 0, // Normalize signed zero after rounding fully reversed rewards.
 		]),
 	);
 }

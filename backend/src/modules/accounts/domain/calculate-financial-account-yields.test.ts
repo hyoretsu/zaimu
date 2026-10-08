@@ -301,3 +301,20 @@ test("institution policy thresholds only apply to matching native denomination",
 	expect(getYieldSettings({ ...account, currency: "JPY" }, "2026-01-02")).toBeUndefined();
 	expect(getYieldSettings({ ...account, currency: "KWD" }, "2026-01-02")).toBe(policy);
 });
+
+test("fully reversed fractional cashback returns unsigned zero", () => {
+	const date = new Date("2024-08-10T12:00:00Z");
+	const balances = calculateFinancialAccountYieldBalances({
+		accounts: [{ createdAt: date, id: "rewards", type: "REWARDS" }],
+		cashbackCredits: [1, -0.3333, -0.3333, -0.3334].map(cashbackAmount => ({
+			cashbackAccountId: "rewards",
+			cashbackAmount,
+			purchaseDate: date,
+		})),
+		holidays: [],
+		initialRewardsBalances: new Map(),
+		today: date,
+		transactions: [],
+	});
+	expect(balances.get("rewards")).toBe(0);
+});
