@@ -1,6 +1,8 @@
 import { moneyCents, replayCreditBook } from "@zaimu/finance/credit-book";
+import { toMinorUnits } from "@zaimu/finance/money";
 import { pendingStatementPayments } from "@zaimu/finance/payment-suggestions";
 import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
+import { resolveFinancialMoney } from "~/modules/currencies/application/financial-money";
 import { HttpException } from "~/shared/errors";
 import { queryRaw, withRawTransaction, withTransaction } from "~/shared/infra/sql";
 import { loadCreditBook, readCreditBook } from "./normalized-credit-book";
@@ -47,20 +49,28 @@ export async function confirmSuggestedPayment(userId: string, cardId: string, in
 				(previous as SuggestedPaymentTransaction & { userId: string }).userId !== userId ||
 				previous.paymentCreditCardId !== cardId ||
 				previous.originFinancialAccountId !== input.financialAccountId ||
-				moneyCents(Number(previous.amount)) !== moneyCents(input.amount) ||
+				moneyCents(
+					Number((previous as typeof previous & { paymentAmount?: number }).paymentAmount ?? previous.amount),
+					1,
+					book.card.currency,
+				) !== moneyCents(input.amount, 1, book.card.currency) ||
+				(input.accountAmount != null && Number(previous.amount) !== input.accountAmount) ||
 				String(previous.date instanceof Date ? previous.date.toISOString() : previous.date).slice(0, 10) !==
 					input.date
 			)
 				throw new HttpException("Tentativa de pagamento já utilizada", 409);
 			return { transaction: presentPayment(previous) };
 		}
-		const [account] = await query<{ id: string; type: string }>(
-			`SELECT "id","type" FROM "FinancialAccount" WHERE "id"=$1 AND "userId"=$2 AND "type" IN ('CHECKING','CASH','SAVINGS','INVESTMENT') AND NOT "isHidden" FOR UPDATE`,
+		const [account] = await query<{ id: string; type: string; currency: string }>(
+			`SELECT "id","type","currency" FROM "FinancialAccount" WHERE "id"=$1 AND "userId"=$2 AND "type" IN ('CHECKING','CASH','SAVINGS','INVESTMENT') AND NOT "isHidden" FOR UPDATE`,
 			[input.financialAccountId, userId],
 		);
 		if (!account) throw new HttpException("Conta pagadora indisponível", 400);
 		const suggestion = pendingStatementPayments(book).find(row => row.statementId === input.statementId);
-		if (!suggestion || moneyCents(suggestion.amount) !== moneyCents(input.amount))
+		if (
+			!suggestion ||
+			moneyCents(suggestion.amount, 1, book.card.currency) !== moneyCents(input.amount, 1, book.card.currency)
+		)
 			throw new HttpException("Saldo da fatura mudou. Revise o pagamento novamente", 409);
 		const datedStatement = replayCreditBook(book, input.date).statements.find(
 			row => row.id === input.statementId,
@@ -68,19 +78,41 @@ export async function confirmSuggestedPayment(userId: string, cardId: string, in
 		if (
 			!datedStatement ||
 			(datedStatement.statementDate > input.date && datedStatement.carriedInAmount <= 0) ||
-			moneyCents(Math.max(0, datedStatement.balanceAmount)) < moneyCents(input.amount)
+			moneyCents(Math.max(0, datedStatement.balanceAmount), 1, book.card.currency) <
+				moneyCents(input.amount, 1, book.card.currency)
 		)
 			throw new HttpException("Fatura indisponível para pagamento na data informada", 400);
+		const debitAmount =
+			input.accountAmount ??
+			(
+				await resolveFinancialMoney({
+					amount: input.amount,
+					currency: book.card.currency ?? "BRL",
+					date: input.date,
+					targetCurrency: account.currency,
+				})
+			).amount;
+		toMinorUnits(debitAmount, account.currency, 1);
 		const balance =
 			(await getFinancialAccountBalances([account.id], new Date(`${input.date}T12:00:00Z`))).get(
 				account.id,
 			) ?? 0;
-		if (moneyCents(balance) < moneyCents(input.amount))
+		if (moneyCents(balance, 1, account.currency) < moneyCents(debitAmount, 1, account.currency))
 			throw new HttpException("Saldo insuficiente na conta pagadora na data informada", 400);
 		return withTransaction(async executor => {
 			const [transaction] = await query<SuggestedPaymentTransaction>(
-				`INSERT INTO "Transaction" ("id","userId","type","amount","date","originFinancialAccountId","paymentCreditCardId","createdAt","updatedAt") VALUES ($1,$2,'EXPENSE',$3,$4,$5,$6,NOW(),NOW()) RETURNING *`,
-				[input.attemptId, userId, input.amount, input.date, input.financialAccountId, cardId],
+				`INSERT INTO "Transaction" ("id","userId","type","amount","date","originFinancialAccountId","paymentCreditCardId","currency","bookingCurrency","originalAmount","paymentAmount","paymentCurrency","createdAt","updatedAt") VALUES ($1,$2,'EXPENSE',$3,$4,$5,$6,$7,$7,$3,$8,$9,NOW(),NOW()) RETURNING *`,
+				[
+					input.attemptId,
+					userId,
+					debitAmount,
+					input.date,
+					input.financialAccountId,
+					cardId,
+					account.currency,
+					input.amount,
+					book.card.currency ?? "BRL",
+				],
 			);
 			await recalculateStatementPayments(executor, [cardId]);
 			return { transaction: presentPayment(transaction) };

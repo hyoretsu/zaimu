@@ -23,6 +23,7 @@ export function pendingStatementPayments(book: CreditBook, today = currentDateKe
 			{
 				amount: remaining,
 				creditCardId: book.card.id,
+				currency: book.card.currency ?? "BRL",
 				dueDate: statement.dueDate,
 				statementId: statement.id,
 			},

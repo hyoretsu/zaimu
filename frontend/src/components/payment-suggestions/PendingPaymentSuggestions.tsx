@@ -12,7 +12,6 @@ import { getFinancialAccountOptionLabel } from "@/lib/financial-account";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { PaymentSuggestionForm } from "./PaymentSuggestionForm";
 
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 const dateFormat = new Intl.DateTimeFormat("pt-BR");
 
 export function PendingPaymentSuggestions() {
@@ -71,7 +70,12 @@ export function PendingPaymentSuggestions() {
 											<p className="text-muted-foreground text-sm">
 												Vencimento {dateFormat.format(new Date(`${suggestion.dueDate}T12:00:00`))}
 											</p>
-											<p>{currency.format(suggestion.amount)}</p>
+											<p>
+												{new Intl.NumberFormat("pt-BR", {
+													currency: suggestion.currency ?? "BRL",
+													style: "currency",
+												}).format(suggestion.amount)}
+											</p>
 											<p className="text-muted-foreground text-sm">
 												Conta pagadora:{" "}
 												{accounts.data?.find(account => account.id === suggestion.financialAccountId)

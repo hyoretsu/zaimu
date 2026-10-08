@@ -8,7 +8,7 @@ import {
 	replayCreditBook,
 } from "@zaimu/finance/credit-book";
 import { currentDateKey } from "@zaimu/finance/credit-card";
-import { currencyScale } from "@zaimu/finance/money";
+import { currencyScale, toMinorUnits } from "@zaimu/finance/money";
 import { pendingStatementPayments } from "@zaimu/finance/payment-suggestions";
 import type {
 	Category,
@@ -1518,6 +1518,7 @@ export async function setLocalPrimaryAccount(accountId: string | null) {
 export async function confirmLocalSuggestedPayment(
 	cardId: string,
 	input: {
+		accountAmount?: number;
 		amount: number;
 		attemptId: string;
 		date: string;
@@ -1543,7 +1544,9 @@ export async function confirmLocalSuggestedPayment(
 			if (
 				previous.paymentCreditCardId !== cardId ||
 				previous.originFinancialAccountId !== input.financialAccountId ||
-				moneyCents(previous.amount) !== moneyCents(input.amount) ||
+				moneyCents(previous.paymentAmount ?? previous.amount, 1, previous.paymentCurrency ?? "BRL") !==
+					moneyCents(input.amount, 1, previous.paymentCurrency ?? "BRL") ||
+				(input.accountAmount != null && previous.amount !== input.accountAmount) ||
 				previous.date.slice(0, 10) !== input.date
 			)
 				throw new Error("Tentativa de pagamento já utilizada");
@@ -1568,7 +1571,10 @@ export async function confirmLocalSuggestedPayment(
 				id: row.localId,
 			}));
 		const suggestion = pendingStatementPayments(book).find(row => row.statementId === input.statementId);
-		if (!suggestion || moneyCents(suggestion.amount) !== moneyCents(input.amount))
+		if (
+			!suggestion ||
+			moneyCents(suggestion.amount, 1, book.card.currency) !== moneyCents(input.amount, 1, book.card.currency)
+		)
 			throw new Error("Saldo da fatura mudou. Revise o pagamento novamente");
 		const meta = tx.objectStore("scoped-meta");
 		const holidayData = (await requestResult(
@@ -1583,7 +1589,8 @@ export async function confirmLocalSuggestedPayment(
 		if (
 			!datedStatement ||
 			(datedStatement.statementDate > input.date && datedStatement.carriedInAmount <= 0) ||
-			moneyCents(Math.max(0, datedStatement.balanceAmount)) < moneyCents(input.amount)
+			moneyCents(Math.max(0, datedStatement.balanceAmount), 1, book.card.currency) <
+				moneyCents(input.amount, 1, book.card.currency)
 		)
 			throw new Error("Fatura indisponível para pagamento na data informada");
 		const balance =
@@ -1595,15 +1602,24 @@ export async function confirmLocalSuggestedPayment(
 				new Date(`${input.date}T12:00:00`),
 				yieldData?.data ?? [],
 			).find(row => row.id === account.id)?.balance ?? 0;
-		if (moneyCents(balance) < moneyCents(input.amount))
+		const debitAmount =
+			input.accountAmount ??
+			((account.currency ?? "BRL") === (book.card.currency ?? "BRL") ? input.amount : Number.NaN);
+		toMinorUnits(debitAmount, account.currency ?? "BRL", 1);
+		if (moneyCents(balance, 1, account.currency) < moneyCents(debitAmount, 1, account.currency))
 			throw new Error("Saldo insuficiente na conta pagadora na data informada");
 		const transaction: Transaction = {
-			amount: input.amount,
+			amount: debitAmount,
+			bookingCurrency: account.currency ?? "BRL",
 			createdAt: new Date().toISOString(),
+			currency: account.currency ?? "BRL",
 			date: input.date,
 			id: input.attemptId,
+			originalAmount: debitAmount,
 			originFinancialAccountId: input.financialAccountId,
+			paymentAmount: input.amount,
 			paymentCreditCardId: cardId,
+			paymentCurrency: book.card.currency ?? "BRL",
 			type: "EXPENSE",
 		};
 		await requestResult(

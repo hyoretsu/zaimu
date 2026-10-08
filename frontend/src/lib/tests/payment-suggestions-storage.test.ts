@@ -189,4 +189,38 @@ test("visitor payment validates balance and date, serializes attempts and isolat
 		storage.confirmLocalSuggestedPayment("card", { ...input, attemptId: crypto.randomUUID() }),
 	).rejects.toThrow();
 	expect(await storage.localTransactions.getAll("guest:other")).toEqual([]);
+	await storage.localAccounts.put({ ...account, currency: "JPY" }, "payer", owner);
+	await storage.localCreditCards.put({ ...card, currency: "KWD" }, "card", owner);
+	const nativeBook: CreditBook = {
+		...book,
+		card: { ...book.card, currency: "KWD" },
+		installments: [],
+		purchases: [],
+	};
+	newBookPurchase(nativeBook, {
+		description: "KWD purchase",
+		installments: 1,
+		purchaseDate: "2026-08-10",
+		totalAmount: 100.001,
+	});
+	await storage.localCreditBooks.put(nativeBook, "card", owner);
+	await storage.localTransactions.delete(input.attemptId, owner);
+	const nativeInput = {
+		...input,
+		accountAmount: 137,
+		amount: 100.001,
+		attemptId: crypto.randomUUID(),
+		statementId: pendingStatementPayments(nativeBook)[0].statementId,
+	};
+	const native = await storage.confirmLocalSuggestedPayment("card", nativeInput);
+	expect(native.transaction.amount).toBe(137);
+	expect(native.transaction.bookingCurrency).toBe("JPY");
+	expect(native.transaction.paymentAmount).toBe(100.001);
+	expect(native.transaction.paymentCurrency).toBe("KWD");
+	expect((await storage.confirmLocalSuggestedPayment("card", nativeInput)).transaction.id).toBe(
+		native.transaction.id,
+	);
+	await expect(
+		storage.confirmLocalSuggestedPayment("card", { ...nativeInput, accountAmount: 138 }),
+	).rejects.toThrow("Tentativa");
 });

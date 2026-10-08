@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { TransactionConversionPreview } from "@/components/transactions/TransactionConversionPreview";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
@@ -11,6 +12,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
+import { MoneyField } from "@/components/ui/MoneyField";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { PaymentSuggestion } from "@/lib/api";
@@ -20,8 +22,6 @@ import { getFinancialAccountOptionLabel } from "@/lib/financial-account";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
-
 export function PaymentSuggestionForm({
 	suggestion,
 	onClose,
@@ -29,6 +29,11 @@ export function PaymentSuggestionForm({
 	suggestion: PaymentSuggestion;
 	onClose: () => void;
 }) {
+	const currency = new Intl.NumberFormat("pt-BR", {
+		currency: suggestion.currency ?? "BRL",
+		style: "currency",
+	});
+	const [accountAmount, setAccountAmount] = useState("");
 	const identity = useCacheIdentity();
 	const queryClient = useQueryClient();
 	const [date, setDate] = useState(getLocalDateKey(new Date()));
@@ -39,9 +44,12 @@ export function PaymentSuggestionForm({
 		queryFn: () => dataService.accounts.getAll(),
 		queryKey: queryKeys.accounts.list(identity!),
 	});
+	const payerCurrency = accounts.data?.find(account => account.id === accountId)?.currency ?? "BRL";
+	const foreign = payerCurrency !== (suggestion.currency ?? "BRL");
 	const payment = useMutation({
 		mutationFn: () =>
 			dataService.creditCards.confirmPaymentSuggestion(suggestion.creditCardId, {
+				accountAmount: accountAmount ? Number(accountAmount) : undefined,
 				amount: suggestion.amount,
 				attemptId,
 				date,
@@ -77,6 +85,34 @@ export function PaymentSuggestionForm({
 							<DialogDescription>Revise antes de registrar. Nenhum resgate será realizado.</DialogDescription>
 						</DialogHeader>
 						<p className="font-semibold text-xl">{currency.format(suggestion.amount)}</p>
+						{foreign && (
+							<>
+								<TransactionConversionPreview
+									amount={String(suggestion.amount)}
+									bookingCurrency={suggestion.currency ?? "BRL"}
+									date={date}
+									fees={[]}
+									onUse={value => {
+										setAccountAmount(value);
+										setAttemptId(crypto.randomUUID());
+									}}
+									sourceCurrency={suggestion.currency ?? "BRL"}
+									targetCurrency={payerCurrency}
+								/>
+								<MoneyField
+									currencyCode={payerCurrency}
+									disabled={payment.isPending}
+									id="suggestion-account-amount"
+									label="Débito efetivo na conta"
+									onValueChange={value => {
+										setAccountAmount(value);
+										setAttemptId(crypto.randomUUID());
+									}}
+									required
+									value={accountAmount}
+								/>
+							</>
+						)}
 						<DateField
 							disabled={payment.isPending}
 							id="suggestion-payment-date"
@@ -98,6 +134,7 @@ export function PaymentSuggestionForm({
 								label="Conta pagadora"
 								onValueChange={value => {
 									setAccountId(value);
+									setAccountAmount("");
 									setAttemptId(crypto.randomUUID());
 								}}
 								options={(accounts.data ?? [])
@@ -127,7 +164,14 @@ export function PaymentSuggestionForm({
 								Cancelar
 							</Button>
 							<Button
-								disabled={payment.isPending || accounts.isPending || accounts.isError || !accountId || !date}
+								disabled={
+									payment.isPending ||
+									accounts.isPending ||
+									accounts.isError ||
+									!accountId ||
+									!date ||
+									(foreign && !(Number(accountAmount) > 0))
+								}
 								type="submit"
 							>
 								Salvar pagamento

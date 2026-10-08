@@ -4,11 +4,13 @@ export const PaymentSuggestionReturn = t.Object({
 	amount: t.Number(),
 	cardName: t.String(),
 	creditCardId: t.String(),
+	currency: t.String(),
 	dueDate: t.String(),
 	financialAccountId: t.String(),
 	statementId: t.String(),
 });
 export const ConfirmPaymentSuggestionDTO = t.Object({
+	accountAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
 	amount: t.Number({ exclusiveMinimum: 0 }),
 	attemptId: t.String({ format: "uuid" }),
 	date: t.String({ format: "date" }),

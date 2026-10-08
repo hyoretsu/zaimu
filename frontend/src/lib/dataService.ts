@@ -1306,6 +1306,7 @@ export const dataService = {
 		async confirmPaymentSuggestion(
 			cardId: string,
 			input: {
+				accountAmount?: number;
 				amount: number;
 				attemptId: string;
 				date: string;
