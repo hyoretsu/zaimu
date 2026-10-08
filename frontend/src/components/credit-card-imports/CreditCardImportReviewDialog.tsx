@@ -32,8 +32,6 @@ import { CreditPurchaseReconciliationDialog } from "./CreditPurchaseReconciliati
 import { EditImportedCreditPurchaseDialog } from "./EditImportedCreditPurchaseDialog";
 import { RefundImportReviewDialog } from "./RefundImportReviewDialog";
 
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
-
 export function CreditCardImportReviewDialog({
 	importId,
 	onOpenChange,
@@ -185,6 +183,8 @@ export function CreditCardImportReviewDialog({
 		},
 	});
 	const creditCard = creditCards.data?.find(card => card.id === creditCardImportData?.creditCardId);
+	const currencyCode = creditCard?.currency ?? "BRL";
+	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
 	const creditCardName = creditCard ? getCreditCardDisplayName(creditCard) : "Cartão de crédito";
 	const reviewBusy = approve.isPending || discard.isPending;
 	const rowBusy = (id: string) =>
@@ -242,6 +242,7 @@ export function CreditCardImportReviewDialog({
 									<CreditCardImportItemRow
 										creditCardId={creditCardImportData!.creditCardId}
 										creditCardName={creditCardName}
+										currencyCode={currencyCode}
 										disabled={rowBusy(item.id)}
 										item={item}
 										key={item.id}
@@ -316,6 +317,7 @@ export function CreditCardImportReviewDialog({
 				</ImportDialogContent>
 			</ImportDialog>
 			<EditImportedCreditPurchaseDialog
+				currencyCode={currencyCode}
 				item={editingItem}
 				onOpenChange={nextOpen => !nextOpen && setEditingItem(null)}
 				onSubmit={data => editingItem && updateItem.mutate({ data, itemId: editingItem.id })}

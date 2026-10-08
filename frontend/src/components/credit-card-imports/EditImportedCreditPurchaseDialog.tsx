@@ -19,12 +19,14 @@ import { calculateDebtSplit, debtSplitToInput } from "@/lib/debt-split";
 import { cleanFinancedDescription, getFinancedOperation } from "@/lib/financing-source-reference";
 
 export function EditImportedCreditPurchaseDialog({
+	currencyCode,
 	item,
 	onOpenChange,
 	onSubmit,
 	open,
 	pending,
 }: {
+	currencyCode: string;
 	item: CreditCardImportItem | null;
 	onOpenChange: (open: boolean) => void;
 	onSubmit: (data: Parameters<typeof dataService.creditCardImports.updateItem>[2]) => void;
@@ -69,7 +71,7 @@ export function EditImportedCreditPurchaseDialog({
 		Number.isInteger(installmentCount) &&
 		installmentCount >= 1 &&
 		installmentCount <= 48 &&
-		(!isDebt || Boolean(calculateDebtSplit(Number(totalAmount), debtSplit)));
+		(!isDebt || Boolean(calculateDebtSplit(Number(totalAmount), debtSplit, currencyCode)));
 
 	return (
 		<ImportDialog onOpenChange={onOpenChange} open={open}>
@@ -119,6 +121,7 @@ export function EditImportedCreditPurchaseDialog({
 							)}
 
 							<MoneyField
+								currencyCode={currencyCode}
 								id="imported-purchase-total"
 								label="Valor total"
 								onValueChange={setTotalAmount}
@@ -184,7 +187,12 @@ export function EditImportedCreditPurchaseDialog({
 									<span>Esta compra é de uma dívida</span>
 								</CheckboxField>
 								{isDebt ? (
-									<DebtSplitEditor amount={Number(totalAmount)} onChange={setDebtSplit} value={debtSplit} />
+									<DebtSplitEditor
+										amount={Number(totalAmount)}
+										currencyCode={currencyCode}
+										onChange={setDebtSplit}
+										value={debtSplit}
+									/>
 								) : null}
 							</div>
 						</div>

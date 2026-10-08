@@ -14,10 +14,6 @@ import type { Transaction, TransactionImportItem } from "@/lib/api";
 import { getTransactionTitle } from "@/lib/transaction-title";
 import { TransferSuggestionActions } from "./TransferSuggestionActions";
 
-function formatCurrency(value: number) {
-	return new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(value);
-}
-
 export function ImportReviewTransactionItem({
 	collapsed,
 	disabled,
@@ -45,6 +41,11 @@ export function ImportReviewTransactionItem({
 	onResolveDuplicate: () => void;
 	transaction: Transaction;
 }) {
+	const formatCurrency = (value: number) =>
+		new Intl.NumberFormat("pt-BR", {
+			currency: transaction.bookingCurrency ?? "BRL",
+			style: "currency",
+		}).format(value);
 	const amountPrefix =
 		Number(transaction.amount) === 0
 			? ""

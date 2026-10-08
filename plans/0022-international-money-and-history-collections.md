@@ -99,3 +99,5 @@ Use normal commit hooks for formatting/lint/types/backend unit coverage; scoped 
 - Políticas institucionais persistem moeda própria, exibem seletor e limites ISO, aplicados somente a contas da mesma denominação. Equivalente monetário de pontos usa moeda da conta e valida precisão ISO. Regressões de denominação e KWD/JPY passaram; hooks passaram.
 
 - Layout mobile agora inicializa preferência na raiz comum, inclusive em acesso direto. Playwright local verificou localização JPY, preferência BRL, cancelamento/confirmacao de viagem, persistência e formulário mobile JPY. Valores concretos de compras, parcelas, reembolsos e pagamentos exibem livro nativo; totais de contas/cartões e saldos diários separam moedas. Hooks e build backend passaram.
+
+- Sugestões de pagamento identificam moeda da fatura e débito efetivo da conta, com ajuste manual e precisão ISO. Visitante preserva duas denominações e repetição idempotente; regressão KWD/JPY e hooks passaram. Revisão de importações passa moeda nativa a máscaras, rateios e prévias.

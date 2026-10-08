@@ -17,8 +17,6 @@ import type { CreditCardImportItem } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
-
 export function RefundImportReviewDialog({
 	cardId,
 	item,
@@ -79,6 +77,8 @@ export function RefundImportReviewDialog({
 						count >= 1 &&
 						count <= 48,
 				);
+	const currencyCode = book.data?.card.currency ?? "BRL";
+	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
 	const original = mode === "link" ? book.data?.purchases.find(p => p.id === sourceId) : undefined;
 	const firstRefund =
 		mode === "reconstruct" ||
@@ -197,6 +197,7 @@ export function RefundImportReviewDialog({
 											value={storeName}
 										/>
 										<MoneyField
+											currencyCode={currencyCode}
 											id="refund-original-total"
 											label="Valor total da compra original"
 											onValueChange={setTotalAmount}

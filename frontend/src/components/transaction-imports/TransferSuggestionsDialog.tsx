@@ -7,8 +7,6 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import type { Transaction } from "@/lib/api";
 import { formatLocalDate, formatLocalTime } from "@/lib/date";
 
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
-
 interface TransferSuggestion {
 	counterpart: Transaction;
 	transaction: Transaction;
@@ -72,8 +70,12 @@ export function TransferSuggestionsDialog({
 											{transaction.description || "Saída"} ↔ {counterpart.description || "Entrada"}
 										</p>
 										<p className="text-muted-foreground text-xs">
-											{formatLocalDate(transaction.date)} · {currency.format(Number(transaction.amount))} ·{" "}
-											{formatLocalTime(transaction.time) ?? "Sem horário"}
+											{formatLocalDate(transaction.date)} ·{" "}
+											{new Intl.NumberFormat("pt-BR", {
+												currency: transaction.bookingCurrency ?? "BRL",
+												style: "currency",
+											}).format(Number(transaction.amount))}{" "}
+											· {formatLocalTime(transaction.time) ?? "Sem horário"}
 											{counterpart.time ? ` ↔ ${formatLocalTime(counterpart.time)}` : ""}
 										</p>
 									</div>

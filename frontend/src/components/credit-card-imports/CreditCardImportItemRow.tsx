@@ -14,6 +14,7 @@ function toTransaction(
 	item: CreditCardImportItem,
 	creditCardId: string,
 	creditCardName: string,
+	currencyCode: string,
 ): Transaction {
 	const financedOperation = getFinancedOperation(item.description);
 	return {
@@ -40,6 +41,7 @@ function toTransaction(
 }
 
 export function CreditCardImportItemRow({
+	currencyCode,
 	creditCardId,
 	creditCardName,
 	disabled,
@@ -48,6 +50,7 @@ export function CreditCardImportItemRow({
 	onEdit,
 	onReconcile,
 }: {
+	currencyCode: string;
 	creditCardId: string;
 	creditCardName: string;
 	disabled: boolean;
@@ -56,11 +59,11 @@ export function CreditCardImportItemRow({
 	onEdit: () => void;
 	onReconcile: () => void;
 }) {
-	const transaction = toTransaction(item, creditCardId, creditCardName);
+	const transaction = toTransaction(item, creditCardId, creditCardName, currencyCode);
 	const financedOperation = getFinancedOperation(item.description);
 	const anticipated = importedAnticipation(item.description);
 	const anticipatedAmount = anticipated?.reduce((sum, installment) => sum + installment.amountCents, 0) ?? 0;
-	const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
+	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
 
 	return (
 		<TransactionListItem

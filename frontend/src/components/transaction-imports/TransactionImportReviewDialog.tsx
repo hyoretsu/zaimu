@@ -38,7 +38,9 @@ import { ImportReviewDateSection } from "./ImportReviewDateSection";
 import { ImportReviewTransactionItem } from "./ImportReviewTransactionItem";
 import { TransferSuggestionDecisionDialog } from "./TransferSuggestionDecisionDialog";
 
-type TransactionAccountDetails = Pick<FinancialAccount, "rewardsAccount" | "type"> & { name: string };
+type TransactionAccountDetails = Pick<FinancialAccount, "rewardsAccount" | "type" | "currency"> & {
+	name: string;
+};
 
 function toTransaction(
 	item: TransactionImportItem,
@@ -58,6 +60,10 @@ function toTransaction(
 		: undefined;
 	return {
 		amount: item.amount,
+		bookingCurrency:
+			(item.type === "INCOME" || item.type === "YIELD"
+				? destinationAccount?.currency
+				: originAccount?.currency) ?? "BRL",
 		createdAt: item.createdAt,
 		creditCardName: item.creditCardName ?? undefined,
 		creditCardStatementDate: item.creditCardStatementDate ?? undefined,
@@ -322,6 +328,7 @@ export function TransactionImportReviewDialog({
 		(accounts.data ?? []).map(account => [
 			account.id,
 			{
+				currency: account.currency,
 				name: account.name || account.institution?.name || "Conta sem nome",
 				rewardsAccount: account.rewardsAccount,
 				type: account.type,
