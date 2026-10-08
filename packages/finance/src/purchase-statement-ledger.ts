@@ -1,7 +1,7 @@
-import { currencyScale } from "./money";
 import { type CardPayment, calculateStatementBalances, type StatementInput } from "./credit-card";
 import { assertCents, assertDateKey, assertPurchase, type CreditPurchase } from "./credit-purchase";
 import { type CreditRefund, createRefundCalculator, type RefundInstallment } from "./credit-refund";
+import { currencyScale } from "./money";
 
 export interface PurchaseInvoiceInstallment extends RefundInstallment {
 	purchaseId: string;

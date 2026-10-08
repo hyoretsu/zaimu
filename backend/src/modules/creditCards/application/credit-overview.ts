@@ -8,6 +8,7 @@ export interface CreditOverviewRow extends Record<string, unknown> {
 }
 
 export interface CreditOverviewCard {
+	currency?: string;
 	creditLimit: number;
 	dueDay: number;
 	excludeFromTotals: boolean;
@@ -54,7 +55,7 @@ WITH visible_cards AS (
   GROUP BY purchase."id"
 )
 SELECT 'card' AS kind, jsonb_build_object(
-  'creditLimit', card."creditLimit", 'excludeFromTotals', card."excludeFromTotals",
+  'currency', card."currency", 'creditLimit', card."creditLimit", 'excludeFromTotals', card."excludeFromTotals",
   'dueDay', card."dueDay", 'statementDay', card."statementDay",
   'financialAccountId', card."financialAccountId", 'id', card."id",
   'ignoreStatementsBefore', card."ignoreStatementsBefore", 'institutionId', card."institutionId",
@@ -97,7 +98,7 @@ JOIN "CreditCardStatement" statement ON statement."id" = charge."statementId"
 JOIN visible_cards card ON card."id" = statement."creditCardId"
 UNION ALL
 SELECT 'payment', jsonb_build_object(
-  'amount', payment."amount", 'creditCardId', payment."paymentCreditCardId", 'date', payment."date", 'id', payment."id"
+  'amount', COALESCE(payment."paymentAmount",payment."amount"), 'creditCardId', payment."paymentCreditCardId", 'date', payment."date", 'id', payment."id"
 )
 FROM "Transaction" payment
 JOIN visible_cards card ON card."id" = payment."paymentCreditCardId"
@@ -139,7 +140,7 @@ export function replayOverviewStatements(
 			createdAt: asTimestamp(row.createdAt),
 			debtSplitRule: null,
 			installmentAmountsCents: (row.installmentAmounts as unknown[]).map(amount =>
-				moneyCents(Number(amount), 1),
+				moneyCents(Number(amount), 1, card.currency),
 			),
 			installmentImportedNumbers: (row.importedNumbers as unknown[]).map(Number),
 			installmentStatementDates: (row.statementDates as Array<Record<string, unknown> | null>).map(dates =>
@@ -148,11 +149,12 @@ export function replayOverviewStatements(
 			purchaseDate: asDateKey(row.purchaseDate),
 			recurrenceOccurrenceDate: row.recurrenceOccurrenceDate ? asDateKey(row.recurrenceOccurrenceDate) : null,
 			tagIds: [],
-			totalAmountCents: moneyCents(Number(row.totalAmount), 1),
+			totalAmountCents: moneyCents(Number(row.totalAmount), 1, card.currency),
 			updatedAt: asTimestamp(row.updatedAt),
 		})) as unknown as BookPurchase[];
 		const book: CreditBook = {
 			card: {
+				currency: card.currency ?? "BRL",
 				dueDay: Number(card.dueDay),
 				id: card.id,
 				ignoreStatementsBefore: card.ignoreStatementsBefore ? asDateKey(card.ignoreStatementsBefore) : null,
@@ -163,7 +165,7 @@ export function replayOverviewStatements(
 				workingDueDate: Boolean(card.workingDueDate),
 			},
 			charges: (chargesByCard.get(card.id) ?? []).map(row => ({
-				amountCents: moneyCents(Number(row.amount), 1),
+				amountCents: moneyCents(Number(row.amount), 1, card.currency),
 				chargeDate: asDateKey(row.chargeDate),
 				description: String(row.description),
 				externalId: row.externalId as string | null,
@@ -174,7 +176,7 @@ export function replayOverviewStatements(
 				time: row.time as string | null,
 			})),
 			installments: (installmentsByCard.get(card.id) ?? []).map(row => ({
-				amountCents: moneyCents(Number(row.amount), 1),
+				amountCents: moneyCents(Number(row.amount), 1, card.currency),
 				hasImportedAmount: Boolean(row.hasImportedAmount),
 				id: String(row.id),
 				isSettled: Boolean(row.isSettled),
@@ -191,7 +193,7 @@ export function replayOverviewStatements(
 			})),
 			purchases,
 			refunds: (refundsByCard.get(card.id) ?? []).map(row => ({
-				amountCents: moneyCents(Number(row.amount), 1),
+				amountCents: moneyCents(Number(row.amount), 1, card.currency),
 				cancellationEligible: Boolean(row.cancellationEligible),
 				createdAt: asTimestamp(row.createdAt),
 				creditDate: asDateKey(row.creditDate),

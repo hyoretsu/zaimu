@@ -23,8 +23,6 @@ import { CreateFinancialAccountDialog } from "./CreateFinancialAccountDialog";
 import { FinancialAccountCard } from "./FinancialAccountCard";
 import { InstitutionYieldDialog } from "./InstitutionYieldDialog";
 
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
-
 export function FinancialInstitutionGroup({
 	accounts,
 	institution,
@@ -55,9 +53,16 @@ export function FinancialInstitutionGroup({
 	pending: boolean;
 	rewardAccounts: FinancialAccount[];
 }) {
-	const balance = accounts
-		.filter(account => account.type !== "CREDIT_CARD")
-		.reduce((total, account) => total + getFinancialAccountCurrencyValue(account), 0);
+	const balances = new Map<string, number>();
+	for (const account of accounts.filter(account => account.type !== "CREDIT_CARD")) {
+		const denomination = account.rewardsAccount?.conversionCurrency ?? account.currency ?? "BRL";
+		balances.set(denomination, (balances.get(denomination) ?? 0) + getFinancialAccountCurrencyValue(account));
+	}
+	const balanceLabels = [...balances]
+		.map(([currency, amount]) =>
+			new Intl.NumberFormat(navigator.languages, { currency, style: "currency" }).format(amount),
+		)
+		.join(" | ");
 	const Icon = institution ? LuLandmark : LuWalletCards;
 
 	return (
@@ -75,7 +80,7 @@ export function FinancialInstitutionGroup({
 							</AppBadge>
 						</div>
 						<p className="mt-0.5 text-muted-foreground text-sm">
-							Saldo consolidado: <strong className="text-foreground">{currency.format(balance)}</strong>
+							Saldos: <strong className="text-foreground">{balanceLabels}</strong>
 						</p>
 					</div>
 				</div>

@@ -1,5 +1,6 @@
 import { type CurrencyLocation, effectiveCurrency } from "@zaimu/finance/currency-preference";
 import { create } from "zustand";
+import { setActiveCurrency } from "@/lib/currency-context";
 import { detectCurrencyLocation } from "@/lib/currency-location";
 import { fetchWithAuth } from "@/lib/dataService";
 import { localMeta } from "@/lib/localStorage";
@@ -123,3 +124,5 @@ export const useCurrencyStore = create<CurrencyState>((set, get) => ({
 			set({ currency: resolved(preferredCurrency, get().location, get().currencies), preferredCurrency });
 	},
 }));
+
+useCurrencyStore.subscribe(state => setActiveCurrency(state.currency));

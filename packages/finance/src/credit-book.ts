@@ -1,4 +1,3 @@
-import { currencyScale, toMinorUnits } from "./money";
 import { currentDateKey, recalculateStatementDueDate, statementCycles } from "./credit-card";
 import {
 	assertCents,
@@ -19,6 +18,7 @@ import {
 	type RefundPolicy,
 	resolveRefundPolicy,
 } from "./credit-refund";
+import { currencyScale, toMinorUnits } from "./money";
 import { type PurchaseInvoiceInstallment, rebuildPurchaseStatementLedger } from "./purchase-statement-ledger";
 
 export type PurchaseDebtRule =
@@ -182,7 +182,8 @@ export function creditBookConsumption(book: CreditBook) {
 		.filter(entry => entry.currentInstallment === 1 && !entry.isRefund && !entry.isStatementCharge)
 		.map(entry => {
 			const refundedAmount =
-				sumCents(activePurchaseRefunds(book, entry.purchaseId!).map(r => r.amountCents)) / currencyScale(book.card.currency);
+				sumCents(activePurchaseRefunds(book, entry.purchaseId!).map(r => r.amountCents)) /
+				currencyScale(book.card.currency);
 			return {
 				...entry,
 				hasRefund: refundedAmount > 0,
@@ -232,7 +233,8 @@ export function ensureBookStatement(
 
 /** Complete invoice plan for calculations. Projections are never persisted as occurrences. */
 export function creditBookPlan(book: CreditBook) {
-	if (book.purchases.some(p => p.bookingCurrency && p.bookingCurrency !== (book.card.currency ?? "BRL"))) throw new RangeError("Compra possui moeda contabilizada diferente do cartão");
+	if (book.purchases.some(p => p.bookingCurrency && p.bookingCurrency !== (book.card.currency ?? "BRL")))
+		throw new RangeError("Compra possui moeda contabilizada diferente do cartão");
 	if (
 		book.purchases.length &&
 		![book.card.statementDay, book.card.dueDay].every(
@@ -384,8 +386,8 @@ export function replayCreditBook(book: CreditBook, asOf = currentDateKey()) {
 		asOf,
 	);
 	return rebuildPurchaseStatementLedger({
-		currency: book.card.currency,
 		asOf,
+		currency: book.card.currency,
 		ignoreBefore: book.card.ignoreStatementsBefore,
 		installments: plan.installments,
 		payments: book.payments,
@@ -407,7 +409,8 @@ export function addBookRefund(
 	const history = book.refunds.filter(refund => refund.purchaseId === purchase.id);
 	const previous = history.filter(refund => !refund.deletedAt);
 	const statement = ensureBookStatement(book, input.creditDate);
-	const amountCents = input.amount === undefined ? undefined : moneyCents(input.amount, 1, book.card.currency);
+	const amountCents =
+		input.amount === undefined ? undefined : moneyCents(input.amount, 1, book.card.currency);
 	const firstFull =
 		!history.length && (amountCents ?? purchase.totalAmountCents) === purchase.totalAmountCents;
 	const plan = creditBookPlan(book);
@@ -458,7 +461,9 @@ export function updateBookRefund(
 	if (!existing) throw new RangeError("Reembolso não encontrado");
 	const statement = changes.creditDate ? ensureBookStatement(book, changes.creditDate) : undefined;
 	const edited = editCreditRefund(purchase, previous, refundId, {
-		...(changes.amount !== undefined && { amountCents: moneyCents(changes.amount, 1, book.card.currency) }),
+		...(changes.amount !== undefined && {
+			amountCents: moneyCents(changes.amount, 1, book.card.currency),
+		}),
 		...(changes.creditDate && { creditDate: changes.creditDate, creditStatementId: statement!.id }),
 	});
 	Object.assign(existing, edited, { updatedAt: now });
@@ -504,8 +509,8 @@ export function newBookPurchase(
 		tagIds: [],
 		time: null,
 		...metadata,
-		createdAt: now,
 		bookingCurrency: book.card.currency ?? "BRL",
+		createdAt: now,
 		creditCardId: book.card.id,
 		id: input.id ?? crypto.randomUUID(),
 		installmentAmountsCents:
@@ -568,7 +573,8 @@ export function creditBookEntries(book: CreditBook, includeForecasts = true) {
 			policy: refund.policy,
 		}));
 		const refundedAmount =
-			sumCents((refundsByPurchase.get(purchase.id) ?? []).map(refund => refund.amountCents)) / currencyScale(book.card.currency);
+			sumCents((refundsByPurchase.get(purchase.id) ?? []).map(refund => refund.amountCents)) /
+			currencyScale(book.card.currency);
 		const canceled = new Set(
 			refunds
 				.map(refund => byRefund.get(refund.id)!)
@@ -600,7 +606,8 @@ export function creditBookEntries(book: CreditBook, includeForecasts = true) {
 					parentId: item.number === 1 ? undefined : purchase.id,
 					purchaseId: purchase.id,
 					refund: refunds.length === 1 ? refunds[0] : undefined,
-					refundableAmount: purchase.totalAmountCents / currencyScale(book.card.currency) - refundedAmount,
+					refundableAmount:
+						purchase.totalAmountCents / currencyScale(book.card.currency) - refundedAmount,
 					refundedAmount,
 					refundOfPurchaseId: null as string | null,
 					refunds,
@@ -624,7 +631,8 @@ export function creditBookEntries(book: CreditBook, includeForecasts = true) {
 				hasImportedAmount: false,
 				hasRefund: false,
 				id: refund.id,
-				installmentAmount: -byRefund.get(refund.id)!.creditAmountCents / currencyScale(book.card.currency),
+				installmentAmount:
+					-byRefund.get(refund.id)!.creditAmountCents / currencyScale(book.card.currency),
 				installments: 1,
 				isForecast: false,
 				isFullySynced: false,
@@ -639,8 +647,10 @@ export function creditBookEntries(book: CreditBook, includeForecasts = true) {
 				purchaseId: purchase.id,
 				refund: {
 					amount: refund.amountCents / currencyScale(book.card.currency),
-					canceledAmount: byRefund.get(refund.id)!.canceledAmountCents / currencyScale(book.card.currency),
-					creditAmount: byRefund.get(refund.id)!.creditAmountCents / currencyScale(book.card.currency),
+					canceledAmount:
+						byRefund.get(refund.id)!.canceledAmountCents / currencyScale(book.card.currency),
+					creditAmount:
+						byRefund.get(refund.id)!.creditAmountCents / currencyScale(book.card.currency),
 					date: refund.creditDate,
 					id: refund.id,
 					policy: refund.policy,
@@ -686,7 +696,10 @@ export function creditBookEntries(book: CreditBook, includeForecasts = true) {
 		time: charge.time,
 		totalAmount: charge.amountCents / currencyScale(book.card.currency),
 	}));
-	return [...entries, ...refunds, ...charges].map(entry => ({ ...entry, bookingCurrency: book.card.currency ?? "BRL" }));
+	return [...entries, ...refunds, ...charges].map(entry => ({
+		...entry,
+		bookingCurrency: book.card.currency ?? "BRL",
+	}));
 }
 
 /** Explicit historical recomposition preserves occurrence IDs and imported calendars. */
@@ -711,7 +724,8 @@ export function updateBookPurchaseDate(book: CreditBook, purchaseId: string, pur
 
 /** Move a manual purchase with its concrete installments and refunds between card ledgers. */
 export function moveBookPurchase(source: CreditBook, destination: CreditBook, purchaseId: string) {
-	if ((source.card.currency ?? "BRL") !== (destination.card.currency ?? "BRL")) throw new RangeError("Transferência de compra exige cartões com a mesma moeda contabilizada");
+	if ((source.card.currency ?? "BRL") !== (destination.card.currency ?? "BRL"))
+		throw new RangeError("Transferência de compra exige cartões com a mesma moeda contabilizada");
 	const rootId = source.installments.find(item => item.id === purchaseId)?.purchaseId ?? purchaseId;
 	const purchase = bookPurchase(source, rootId);
 	const installments = source.installments.filter(item => item.purchaseId === rootId);
@@ -764,7 +778,9 @@ export function refinanceBookPurchase(
 	);
 	if (!selected.length) throw new RangeError("Não há parcelas disponíveis");
 	const settledCents = sumCents(selected.map(i => i.amountCents));
-	const totalAmount = (settledCents + moneyCents(input.feeAmount, 0, book.card.currency)) / currencyScale(book.card.currency);
+	const totalAmount =
+		(settledCents + moneyCents(input.feeAmount, 0, book.card.currency)) /
+		currencyScale(book.card.currency);
 	const purchase = newBookPurchase(book, {
 		description: `Parcelamento - ${source.description}`,
 		installments: input.installments,

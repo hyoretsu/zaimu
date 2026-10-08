@@ -4,6 +4,8 @@ import { scheduleFinancialInstitutionYieldPolicy } from "~/modules/accounts/appl
 import { assertFinancialInstitutionYieldPolicy } from "~/modules/accounts/domain/assert-financial-institution-yield-policy";
 import { normalizeFinancialInstitutionName } from "~/modules/accounts/domain/normalize-financial-institution-name";
 import { requireUserId } from "~/modules/auth";
+import { assertSupportedCurrency } from "~/modules/currencies/application/currency-defaults";
+import { CurrencyDTO } from "~/modules/currencies/application/financial-money";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, queryFirst } from "~/shared/infra/sql";
 
@@ -22,6 +24,7 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 		"/:id",
 		async ({ body, params, request }) => {
 			const userId = await requireUserId(request);
+			const currency = body.currency ? await assertSupportedCurrency(body.currency) : undefined;
 			const normalized = body.name === undefined ? null : normalizeFinancialInstitutionName(body.name);
 			if (normalized && !normalized.name) throw new HttpException("Informe o nome da instituição", 400);
 			if (body.yieldPolicy) assertFinancialInstitutionYieldPolicy(body.yieldPolicy);
@@ -36,7 +39,7 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 			if (!existing) throw new HttpException("Instituição financeira não encontrada", 404);
 			const matching = normalized
 				? await queryFirst(
-						db.sql.public.FinancialInstitution.select("id", "name")
+						db.sql.public.FinancialInstitution.select("id", "name", "currency")
 							.where((fields, functions) =>
 								functions.and(
 									functions.eq(fields.userId, userId),
@@ -58,7 +61,13 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 						.where((fields, functions) => functions.eq(fields.id, params.id))
 						.build(),
 				);
-				return matching;
+				if (currency)
+					await executeStatement(
+						db.sql.public.FinancialInstitution.update({ currency })
+							.where((fields, functions) => functions.eq(fields.id, matching.id))
+							.build(),
+					);
+				return { ...matching, ...(currency && { currency }) };
 			}
 			const institution = normalized
 				? await queryFirst(
@@ -68,16 +77,24 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 							updatedAt: new Date(),
 						})
 							.where((fields, functions) => functions.eq(fields.id, params.id))
-							.returning("id", "name")
+							.returning("id", "name", "currency")
 							.build(),
 					)
 				: await queryFirst(
-						db.sql.public.FinancialInstitution.select("id", "name")
+						db.sql.public.FinancialInstitution.select("id", "name", "currency")
 							.where((fields, functions) => functions.eq(fields.id, params.id))
 							.limit(1)
 							.build(),
 					);
 			if (!institution) throw new HttpException("Instituição financeira não encontrada", 404);
+			if (currency) {
+				await executeStatement(
+					db.sql.public.FinancialInstitution.update({ currency })
+						.where((fields, functions) => functions.eq(fields.id, institution.id))
+						.build(),
+				);
+				institution.currency = currency;
+			}
 			if (body.yieldPolicy)
 				await scheduleFinancialInstitutionYieldPolicy({
 					effectiveDate: body.recalculateCurrentDay ? new Date() : tomorrow(),
@@ -88,6 +105,7 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 		},
 		{
 			body: t.Object({
+				currency: t.Optional(CurrencyDTO),
 				name: t.Optional(t.String({ maxLength: 100, minLength: 1 })),
 				recalculateCurrentDay: t.Optional(t.Boolean()),
 				yieldPolicy: t.Optional(

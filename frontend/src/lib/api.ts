@@ -64,6 +64,7 @@ export interface FinancialAccountYield {
 }
 
 export interface RewardsAccount {
+	conversionCurrency?: string;
 	id: string;
 	financialAccountId: string;
 	kind: "POINTS" | "CASHBACK";
@@ -73,11 +74,13 @@ export interface RewardsAccount {
 }
 
 export interface FinancialInstitution {
+	currency?: string;
 	id: string;
 	name: string;
 	yieldPolicies?: FinancialInstitutionYieldPolicy[];
 }
 export interface FinancialInstitutionYieldPolicy {
+	currency?: string;
 	effectiveDate: string;
 	rules: FinancialInstitutionYieldRule[];
 	yieldPeriod?: "MONTHLY" | "YEARLY" | null;

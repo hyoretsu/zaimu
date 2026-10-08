@@ -9,6 +9,7 @@ import {
 	updateBookPurchaseDate,
 } from "@zaimu/finance/credit-book";
 import { paymentStatement, statementCutoffAfter, statementEntryKind } from "@zaimu/finance/credit-card";
+import { currencyScale } from "@zaimu/finance/money";
 import Elysia, { t } from "elysia";
 import { setCardPayer } from "~/modules/accounts/application/payment-preferences";
 import { assertBalanceAccountOwnership, assertCreditCardOwnership, requireUserId } from "~/modules/auth";
@@ -190,6 +191,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 							cashbackYieldReferenceRate: fields.CreditCard.cashbackYieldReferenceRate,
 							createdAt: fields.CreditCard.createdAt,
 							creditLimit: fields.CreditCard.creditLimit,
+							currency: fields.CreditCard.currency,
 							dueDay: fields.CreditCard.dueDay,
 							excludeFromTotals: fields.CreditCard.excludeFromTotals,
 							financialAccountId: fields.CreditCard.financialAccountId,
@@ -236,20 +238,22 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					const effectiveStatements = byCard.get(card.id) ?? [];
 					const currentStatement = paymentStatement(effectiveStatements, new Date()) ?? null;
 					const netUsedInCents = effectiveStatements.reduce(
-						(total, statement) => total + toCents(statement.balanceAmount),
+						(total, statement) => total + moneyCents(Number(statement.balanceAmount), 0, card.currency),
 						0,
 					);
 					const temporaryCreditInCents = Math.max(0, -netUsedInCents);
 					const usedLimitInCents = Math.max(0, netUsedInCents);
-					const effectiveLimitInCents = toCents(card.creditLimit) + temporaryCreditInCents;
+					const effectiveLimitInCents =
+						moneyCents(Number(card.creditLimit), 0, card.currency) + temporaryCreditInCents;
 					return {
 						...card,
 						currentStatement,
 						limit: {
-							availableLimit: Math.max(0, effectiveLimitInCents - usedLimitInCents) / 100,
-							effectiveLimit: effectiveLimitInCents / 100,
-							temporaryCredit: temporaryCreditInCents / 100,
-							usedLimit: usedLimitInCents / 100,
+							availableLimit:
+								Math.max(0, effectiveLimitInCents - usedLimitInCents) / currencyScale(card.currency),
+							effectiveLimit: effectiveLimitInCents / currencyScale(card.currency),
+							temporaryCredit: temporaryCreditInCents / currencyScale(card.currency),
+							usedLimit: usedLimitInCents / currencyScale(card.currency),
 						},
 						pendingRefundReviewCount: countsByCard.get(card.id) ?? 0,
 					};
@@ -450,13 +454,14 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						externalId: string | null;
 						feeAmount: number | null;
 						currency: string;
+						bookingCurrency: string;
 						originalAmount: number | null;
 						exchangeRate: number | null;
 						fees: import("~/modules/currencies/application/financial-money").FinancialFee[];
 						installmentImportedNumbers: number[];
 					}>(
 						`
-				SELECT p."id", p."totalAmount", p."purchaseDate", p."externalId", p."feeAmount", p."currency", p."originalAmount", p."exchangeRate", p."fees",
+				SELECT p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", p."feeAmount", p."currency", p."originalAmount", p."exchangeRate", p."fees",
 				COALESCE((SELECT jsonb_agg(plan."number" ORDER BY plan."number") FROM "CreditInstallmentPlan" plan WHERE plan."purchaseId"=p."id" AND plan."hasImportedAmount"), '[]'::jsonb) AS "installmentImportedNumbers"
 				FROM "CreditPurchaseRecord" p WHERE p."id"=$1 AND p."creditCardId"=$2 AND p."userId"=$3`,
 						[params.purchaseId, params.id, userId],
@@ -474,7 +479,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						installmentImportedNumbers: row.installmentImportedNumbers,
 						originalAmount: row.originalAmount == null ? null : Number(row.originalAmount),
 						purchaseDate: row.purchaseDate.toISOString().slice(0, 10),
-						totalAmountCents: moneyCents(Number(row.totalAmount), 1),
+						totalAmountCents: moneyCents(Number(row.totalAmount), 1, row.bookingCurrency),
 					};
 				},
 			);
@@ -630,7 +635,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 							throw new HttpException("Encargos não permitem rateio ou parcelamento", 400);
 						const s = ensureBookStatement(book, body.purchaseDate);
 						book.charges.push({
-							amountCents: moneyCents(money.amount, 1),
+							amountCents: moneyCents(money.amount, 1, book.card.currency),
 							chargeDate: body.purchaseDate,
 							description: body.description ?? "Encargo",
 							externalId: null,
@@ -755,7 +760,8 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 							amount:
 								body.totalAmount !== undefined
 									? body.totalAmount - (body.fees === undefined ? (body.feeAmount ?? 0) : 0)
-									: (p.originalAmount ?? p.totalAmountCents / 100 - (p.feeAmount ?? 0)),
+									: (p.originalAmount ??
+										p.totalAmountCents / currencyScale(book.card.currency) - (p.feeAmount ?? 0)),
 							currency: body.currency ?? p.currency,
 							date: body.purchaseDate ?? p.purchaseDate,
 							fees:
@@ -779,7 +785,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					const i = book.installments.find(row => row.id === params.purchaseId);
 					if (!i) throw new HttpException("Parcela não encontrada", 404);
 					const amounts = [...p.installmentAmountsCents];
-					amounts[i.number - 1] = moneyCents(body.installmentAmount, 1);
+					amounts[i.number - 1] = moneyCents(body.installmentAmount, 1, book.card.currency);
 					p.installmentAmountsCents = amounts;
 					p.totalAmountCents = amounts.reduce((a, b) => a + b, 0);
 					i.amountCents = amounts[i.number - 1]!;
@@ -788,7 +794,11 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					if (book.installments.some(i => i.purchaseId === p.id && i.number > count))
 						throw new HttpException("Parcelas históricas não podem ser removidas", 409);
 					if (money || body.installments !== undefined) {
-						const total = moneyCents(money?.amount ?? p.totalAmountCents / 100, 1);
+						const total = moneyCents(
+							money?.amount ?? p.totalAmountCents / currencyScale(book.card.currency),
+							1,
+							book.card.currency,
+						);
 						const known = new Map(
 							book.installments
 								.filter(i => i.purchaseId === p.id && i.hasImportedAmount)
@@ -835,7 +845,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 								cashbackYieldReferencePercentage: null,
 								cashbackYieldReferenceRate: null,
 							},
-							rewardSnapshot(card!, purchase.totalAmountCents / 100),
+							rewardSnapshot(card!, purchase.totalAmountCents / currencyScale(book.card.currency)),
 						);
 					},
 				);

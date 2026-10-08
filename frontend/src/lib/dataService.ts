@@ -33,6 +33,7 @@ import {
 } from "@zaimu/finance/recurrence";
 import { projectRecurrenceCreditBook } from "@zaimu/finance/recurrence-projection";
 import { type CatalogPageOptions, localCatalogPage } from "./catalog-pagination";
+import { activeCurrency } from "./currency-context";
 import { convertLocalMoney } from "./currency-conversion";
 import { guestTransactionPage } from "./guest-transaction-page";
 import { requestResult } from "./idb";
@@ -222,6 +223,7 @@ export type FinancialAccountDraft = Omit<
 };
 
 export interface FinancialAccountUpdateDraft {
+	currency?: string;
 	isPrimary?: boolean;
 	isDefaultForStatements?: boolean;
 	isHidden?: boolean;
@@ -257,6 +259,7 @@ export async function fetchWithAuth<T>(endpoint: string, options: RequestInit = 
 			...options,
 			credentials: "include",
 			headers: {
+				"X-Currency": activeCurrency(),
 				...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
 				...options.headers,
 			},
@@ -329,6 +332,7 @@ export const dataService = {
 							.find(item => item && normalizeInstitutionName(item.name) === normalizedInstitutionName) ??
 						null;
 					institution ??= {
+						currency: activeCurrency(),
 						id: crypto.randomUUID(),
 						name: institutionName!.normalize("NFKC").trim().replace(/\s+/gu, " "),
 					};
@@ -338,6 +342,7 @@ export const dataService = {
 					...accountData,
 					balance: data.type === "CREDIT_CARD" ? null : 0,
 					createdAt: now.toISOString(),
+					currency: data.currency ?? institution?.currency ?? activeCurrency(),
 					id: crypto.randomUUID(),
 					institution,
 					institutionId: institution?.id ?? null,
@@ -496,6 +501,44 @@ export const dataService = {
 				const existing = await localAccounts.getById(id);
 				if (!existing) throw new Error("FinancialAccount not found");
 
+				if (data.currency && data.currency !== (existing.data.currency ?? "BRL")) {
+					const [transactions, books, recurrences, payments, yields] = await Promise.all([
+						localTransactions.getAll(),
+						localCreditBooks.getAll(),
+						localRecurrences.getAll(),
+						localLoanPayments.getAll(),
+						localMeta.get("financial-account-yields"),
+					]);
+					const cardId = existing.data.creditCard?.id;
+					const used =
+						Boolean(existing.data.balance || existing.data.creditCard?.securityDeposit) ||
+						transactions.some(
+							row =>
+								row.data.originFinancialAccountId === id || row.data.destinationFinancialAccountId === id,
+						) ||
+						books.some(
+							row =>
+								row.data.card.id === cardId &&
+								(row.data.purchases.length ||
+									row.data.charges.length ||
+									row.data.refunds.length ||
+									row.data.statements.some(statement => statement.totalAmount || statement.paidAmount)),
+						) ||
+						recurrences.some(
+							row =>
+								row.data.originFinancialAccountId === id ||
+								row.data.destinationFinancialAccountId === id ||
+								(cardId && row.data.creditCardId === cardId),
+						) ||
+						payments.some(row => row.data.financialAccountId === id) ||
+						((yields as FinancialAccountYield[] | undefined) ?? []).some(
+							row => row.financialAccountId === id,
+						);
+					if (used)
+						throw new Error(
+							"Conta possui histórico, saldo ou compromissos. Crie outro cadastro para usar outra moeda",
+						);
+				}
 				const { institutionName, recalculateCurrentDay, ...accountData } = data;
 				if (data.creditCard?.paymentAccountId) {
 					const payer = await localAccounts.getById(data.creditCard.paymentAccountId);
@@ -562,11 +605,13 @@ export const dataService = {
 					updatedAt: new Date().toISOString(),
 					yieldRateHistories: nextYieldHistory,
 				};
+				if (data.currency && updated.creditCard)
+					updated.creditCard = { ...updated.creditCard, currency: data.currency };
 				updated = await saveLocalAccountDefaults(updated, {
 					isDefaultForStatements: data.isDefaultForStatements,
 					isPrimary: data.isPrimary,
 				});
-				if (updated.creditCard && data.creditCard) {
+				if (updated.creditCard && (data.creditCard || data.currency)) {
 					const card = updated.creditCard;
 					await localCreditCards.put(card, card.id);
 					if (
@@ -1267,6 +1312,7 @@ export const dataService = {
 				cashbackYieldReferencePercentage: details.cashbackYieldReferencePercentage ?? null,
 				cashbackYieldReferenceRate: details.cashbackYieldReferenceRate ?? null,
 				creditLimit: details.creditLimit,
+				currency: account.currency ?? activeCurrency(),
 				currentStatement: null,
 				dueDay: details.dueDay,
 				excludeFromTotals: details.excludeFromTotals ?? false,
@@ -2439,6 +2485,7 @@ export const dataService = {
 			id: string,
 			data: {
 				name?: string;
+				currency?: string;
 				yieldPolicy?: Omit<import("./api").FinancialInstitutionYieldPolicy, "effectiveDate">;
 			},
 		): Promise<FinancialInstitution> {
@@ -2451,6 +2498,7 @@ export const dataService = {
 				const effectiveDateKey = effectiveDate.toISOString().slice(0, 10);
 				const updated = {
 					...institution,
+					...(data.currency !== undefined && { currency: data.currency }),
 					...(data.name !== undefined && { name: data.name.normalize("NFKC").trim().replace(/\s+/gu, " ") }),
 					...(data.yieldPolicy && {
 						yieldPolicies: [

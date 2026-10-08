@@ -2,7 +2,8 @@ import { currencyScale } from "./money";
 export type FinancialDate = Date | string;
 export const dateKey = (value: FinancialDate) =>
 	typeof value === "string" ? value.slice(0, 10) : value.toISOString().slice(0, 10);
-export const toCents = (value: number | string, currency = "BRL") => Math.round(Number(value) * currencyScale(currency));
+export const toCents = (value: number | string, currency = "BRL") =>
+	Math.round(Number(value) * currencyScale(currency));
 
 /** Stored cutoff is exclusive; the selected invoice is included in the ignored history. */
 export function statementCutoffAfter(statementDate: FinancialDate) {
@@ -184,7 +185,8 @@ export function calculateStatementBalances<T extends StatementInput>(
 	ignoreBefore?: FinancialDate | null,
 	currency = statements[0]?.currency ?? "BRL",
 ): Array<T & StatementBalance> {
-	if (statements.some(statement => statement.currency && statement.currency !== currency)) throw new RangeError("Faturas de moedas diferentes não podem compartilhar saldo");
+	if (statements.some(statement => statement.currency && statement.currency !== currency))
+		throw new RangeError("Faturas de moedas diferentes não podem compartilhar saldo");
 	const chronological = statements.toSorted(
 		(a, b) => dateKey(a.dueDate).localeCompare(dateKey(b.dueDate)) || a.id.localeCompare(b.id),
 	);
@@ -229,13 +231,18 @@ export function calculateStatementBalances<T extends StatementInput>(
 				: "OPEN";
 		balances.set(statement.id, {
 			amountDue: amountDue / currencyScale(currency),
-			balanceAmount: ignored || transferred || (remaining < 0 && hasNext) ? 0 : remaining / currencyScale(currency),
+			balanceAmount:
+				ignored || transferred || (remaining < 0 && hasNext)
+					? 0
+					: remaining / currencyScale(currency),
 			carriedInAmount: incomingDebt / currencyScale(currency),
 			carriedOutAmount: transferred ? remaining / currencyScale(currency) : 0,
 			chargesAmount: charges / currencyScale(currency),
 			creditInAmount: incomingCredit / currencyScale(currency),
 			isPaid: status === "PAID",
-			paidAmount: Math.max(0, Math.min(Math.max(0, amountDue), incomingCredit + periodPayment)) / currencyScale(currency),
+			paidAmount:
+				Math.max(0, Math.min(Math.max(0, amountDue), incomingCredit + periodPayment)) /
+				currencyScale(currency),
 			periodPaymentAmount: periodPayment / currencyScale(currency),
 			status,
 		});

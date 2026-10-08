@@ -1,4 +1,3 @@
-import { currencyScale } from "@zaimu/finance/money";
 import { currentDateKey, statementCycles } from "@zaimu/finance/credit-card";
 import {
 	type CreditPurchase,
@@ -6,6 +5,7 @@ import {
 	purchaseStatementDates,
 } from "@zaimu/finance/credit-purchase";
 import type { CreditRefund } from "@zaimu/finance/credit-refund";
+import { currencyScale } from "@zaimu/finance/money";
 import {
 	type PurchaseInvoiceInstallment,
 	rebuildPurchaseStatementLedger,
@@ -65,7 +65,6 @@ interface PaymentRow {
 	amount: number;
 	date: string;
 }
-
 
 /** Rebuilds the complete chronological card chain inside the same locked refund transaction. */
 export async function replayNormalizedCard(query: RawQuery, cardId: string) {
@@ -196,8 +195,8 @@ export async function replayNormalizedCard(query: RawQuery, cardId: string) {
 		purchaseId: row.purchaseId,
 	}));
 	const replayed = rebuildPurchaseStatementLedger({
-		currency: card.currency,
 		asOf,
+		currency: card.currency,
 		ignoreBefore: card.ignoreStatementsBefore,
 		installments,
 		payments,

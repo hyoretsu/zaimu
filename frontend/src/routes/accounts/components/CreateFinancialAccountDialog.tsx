@@ -1,5 +1,6 @@
 import { type SyntheticEvent, useState } from "react";
 import { LuPencil, LuPlus } from "react-icons/lu";
+import { CurrencySelect } from "@/components/currency";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
@@ -22,6 +23,7 @@ import { useDialogCloseReset } from "@/hooks/use-dialog-close-reset";
 import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
 import { runDialogSave } from "@/lib/dialog-save";
 import { useAuthStore } from "@/stores/auth";
+import { useCurrencyStore } from "@/stores/currency";
 import { AccountYieldFields } from "./AccountYieldFields";
 import { CardPayerFields } from "./CardPayerFields";
 import { CashbackSettingsDialog } from "./CashbackSettingsDialog";
@@ -81,6 +83,12 @@ export function CreateFinancialAccountDialog({
 		account?.institutionId ??
 		defaultInstitutionId ??
 		(defaultInstitutionId === null ? NO_INSTITUTION : undefined);
+	const effectiveCurrency = useCurrencyStore(state => state.currency);
+	const initialCurrency = () =>
+		account?.currency ??
+		institutions.find(item => item.id === initialInstitution())?.currency ??
+		effectiveCurrency;
+	const [currency, setCurrency] = useState(initialCurrency);
 	const [internalOpen, setInternalOpen] = useState(false);
 	const isGuestMode = useAuthStore(state => state.isGuestMode);
 	const open = controlledOpen ?? internalOpen;
@@ -168,6 +176,7 @@ export function CreateFinancialAccountDialog({
 	const hasInvalidBillingDays = Number(statementDay) >= Number(dueDay);
 
 	const reset = () => {
+		setCurrency(initialCurrency());
 		setInstitutionId(initialInstitution());
 		setNewInstitutionName("");
 		setName(account?.name ?? "");
@@ -211,6 +220,7 @@ export function CreateFinancialAccountDialog({
 	};
 	useDialogCloseReset(open, reset);
 	const handleOpenChange = (nextOpen: boolean) => {
+		if (nextOpen) setCurrency(initialCurrency());
 		setInternalOpen(nextOpen);
 		onOpenChange?.(nextOpen);
 	};
@@ -282,6 +292,7 @@ export function CreateFinancialAccountDialog({
 								workingDueDate,
 							}
 						: undefined,
+				currency,
 				institutionName: institutionId === NO_INSTITUTION ? "" : institutionName || undefined,
 				name: name.trim() || null,
 				rewardsAccount:
@@ -396,6 +407,7 @@ export function CreateFinancialAccountDialog({
 							</DialogDescription>
 						</DialogHeader>
 						<form className="grid gap-5" onSubmit={handleSubmit}>
+							<CurrencySelect label="Moeda da conta / cartão" onValueChange={setCurrency} value={currency} />
 							<CustomSelect
 								label="Instituição"
 								onValueChange={setInstitutionId}
@@ -492,6 +504,7 @@ export function CreateFinancialAccountDialog({
 									/>
 									{rewardsKind === "CASHBACK" ? (
 										<MoneyField
+											currencyCode={currency}
 											id="rewards-initial-balance"
 											label="Saldo inicial (opcional)"
 											onValueChange={setInitialRewardsBalance}
@@ -537,6 +550,7 @@ export function CreateFinancialAccountDialog({
 														value={conversionPoints}
 													/>
 													<MoneyField
+														currencyCode={currency}
 														id="conversion-amount"
 														label="Equivalem a"
 														onValueChange={setConversionAmount}
@@ -553,6 +567,7 @@ export function CreateFinancialAccountDialog({
 							{type === "CREDIT_CARD" && (
 								<div className="grid gap-5 rounded-2xl border bg-muted/35 p-4">
 									<MoneyField
+										currencyCode={currency}
 										id="credit-limit"
 										label="Limite"
 										onValueChange={setCreditLimit}
@@ -562,6 +577,7 @@ export function CreateFinancialAccountDialog({
 									/>
 									<div className="grid gap-2">
 										<MoneyField
+											currencyCode={currency}
 											id="security-deposit"
 											label="Valor em garantia (opcional)"
 											onValueChange={setSecurityDeposit}
@@ -663,6 +679,7 @@ export function CreateFinancialAccountDialog({
 														value={cashbackPoints}
 													/>
 													<MoneyField
+									currencyCode={currency}
 														id="cashback-spend-amount"
 														label="A cada"
 														onValueChange={setCashbackSpendAmount}
@@ -718,6 +735,7 @@ export function CreateFinancialAccountDialog({
 																value={cashbackConversionPoints}
 															/>
 															<MoneyField
+									currencyCode={currency}
 																id="cashback-conversion-amount"
 																label="Equivalem a"
 																onValueChange={setCashbackConversionAmount}

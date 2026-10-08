@@ -3,8 +3,6 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
-
 export function CreditCardAccountSummary({ accountId }: { accountId: string }) {
 	const identity = useCacheIdentity();
 	const cards = useQuery({
@@ -28,6 +26,10 @@ export function CreditCardAccountSummary({ accountId }: { accountId: string }) {
 	if (!card) {
 		return <p className="text-muted-foreground text-sm">Dados do cartão indisponíveis.</p>;
 	}
+	const currency = new Intl.NumberFormat(navigator.languages, {
+		currency: card.currency ?? "BRL",
+		style: "currency",
+	});
 	const currentBill = Math.max(0, card.currentStatement?.balanceAmount ?? 0);
 	const limit = card.limit;
 

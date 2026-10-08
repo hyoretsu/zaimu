@@ -43,8 +43,8 @@ export async function convertLocalMoney(
 	const rate = from === to ? 1 : await guestRate(date, from, to);
 	return {
 		amount: roundMoney(total * rate, to),
-		currency: from,
 		bookingCurrency: to,
+		currency: from,
 		exchangeRate: rate,
 		fees,
 		originalAmount: amount,

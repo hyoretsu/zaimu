@@ -36,7 +36,6 @@ const accountType = {
 	SAVINGS: { icon: LuPiggyBank },
 } as const;
 
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 const points = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 4 });
 
 export function FinancialAccountCard({
@@ -54,6 +53,10 @@ export function FinancialAccountCard({
 	onUpdate: Parameters<typeof CreateFinancialAccountDialog>[0]["onUpdate"];
 	rewardAccounts: FinancialAccount[];
 }) {
+	const currency = new Intl.NumberFormat(navigator.languages, {
+		currency: account.rewardsAccount?.conversionCurrency ?? account.currency ?? "BRL",
+		style: "currency",
+	});
 	const [statementOpen, setStatementOpen] = useState(false);
 	const [importOpen, setImportOpen] = useState(false);
 	const [reviewingImportId, setReviewingImportId] = useState<string | null>(null);

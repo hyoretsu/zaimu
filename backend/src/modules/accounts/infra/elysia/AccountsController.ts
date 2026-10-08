@@ -19,6 +19,8 @@ import { assertRewardsAccountDetails } from "~/modules/accounts/domain/assert-re
 import type { YieldPeriod } from "~/modules/accounts/domain/calculate-financial-account-yields";
 import { assertDirectOwnership, requireUserId } from "~/modules/auth";
 import { recalculateCreditCardDueDates } from "~/modules/creditCards/application/normalized-credit-book";
+import { assertSupportedCurrency, defaultCurrency } from "~/modules/currencies/application/currency-defaults";
+import { CurrencyDTO } from "~/modules/currencies/application/financial-money";
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
 import { rejectLegacyFinancialFields } from "~/shared/infra/elysia/strict-json-body";
@@ -207,7 +209,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 
 					const institution = account.institutionId
 						? await queryFirst(
-								db.sql.public.FinancialInstitution.select("id", "name")
+								db.sql.public.FinancialInstitution.select("id", "name", "currency")
 									.where((fields, functions) =>
 										functions.and(
 											functions.eq(fields.id, account.institutionId!),
@@ -247,6 +249,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 					if (account.type === "CREDIT_CARD") {
 						const creditCard = await queryFirst(
 							db.sql.public.CreditCard.select(
+								"currency",
 								"paymentAccountId",
 								"paymentSuggestionsEnabled",
 								"cashbackAccountId",
@@ -358,7 +361,15 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 						...body.rewardsAccount,
 						initialBalance: body.rewardsAccount.initialBalance ?? 0,
 					});
-				const institution = await resolveFinancialInstitution(userId, body.institutionName);
+				const effectiveCurrency = await defaultCurrency(userId, request.headers.get("x-currency"));
+				const institution = await resolveFinancialInstitution(
+					userId,
+					body.institutionName,
+					effectiveCurrency,
+				);
+				const currency = body.currency
+					? await assertSupportedCurrency(body.currency)
+					: (institution?.currency ?? effectiveCurrency);
 				let cashbackAccountId = body.creditCard?.cashbackAccountId;
 				if (body.creditCard?.cashbackRate && !cashbackAccountId) {
 					const cashbackRewards = body.creditCard.cashbackRewards ?? { kind: "CASHBACK" as const };
@@ -382,7 +393,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 						const rewardFinancialAccount = await queryFirst(
 							db.sql.public.FinancialAccount.insert([
 								{
-									currency: (body.currency ?? "BRL").toUpperCase(),
+									currency,
 									institutionId: institution?.id,
 									name: null as never,
 									type: "REWARDS",
@@ -436,7 +447,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 				const account = await queryFirst(
 					db.sql.public.FinancialAccount.insert([
 						{
-							currency: (body.currency ?? "BRL").toUpperCase(),
+							currency,
 							institutionId: institution?.id,
 							// Prisma 8 currently omits null from nullable varchar write types.
 							name: name as never,
@@ -494,6 +505,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 						db.sql.public.CreditCard.insert([
 							{
 								cashbackAccountId,
+								currency,
 								paymentAccountId: body.creditCard.paymentAccountId ?? undefined,
 								paymentSuggestionsEnabled: body.creditCard.paymentSuggestionsEnabled ?? true,
 								...(body.creditCard.cashbackRate !== undefined && {
@@ -582,7 +594,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 		{
 			body: t.Object({
 				creditCard: t.Optional(CreditCardCreate),
-				currency: t.Optional(t.Literal("BRL")),
+				currency: t.Optional(CurrencyDTO),
 				institutionName: t.Optional(t.String({ maxLength: 100 })),
 				isDefaultForStatements: t.Optional(t.Boolean()),
 				isPrimary: t.Optional(t.Boolean()),
@@ -627,13 +639,23 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 				if (!existing) {
 					throw new HttpException("FinancialAccount not found", 404);
 				}
+				if (body.currency) await assertSupportedCurrency(body.currency);
 				if (body.currency && body.currency.toUpperCase() !== existing.currency) {
 					const [history] = await queryRaw<{ used: boolean }>(
-						`SELECT EXISTS(SELECT 1 FROM "Transaction" WHERE "originFinancialAccountId"=$1 OR "destinationFinancialAccountId"=$1) OR EXISTS(SELECT 1 FROM "CreditPurchaseRecord" p JOIN "CreditCard" c ON c."id"=p."creditCardId" WHERE c."financialAccountId"=$1) OR EXISTS(SELECT 1 FROM "BalanceAdjustment" WHERE "financialAccountId"=$1) AS used`,
+						`SELECT EXISTS(SELECT 1 FROM "Transaction" WHERE "originFinancialAccountId"=$1 OR "destinationFinancialAccountId"=$1) OR EXISTS(SELECT 1 FROM "CreditPurchaseRecord" p JOIN "CreditCard" c ON c."id"=p."creditCardId" WHERE c."financialAccountId"=$1) OR EXISTS(SELECT 1 FROM "BalanceAdjustment" WHERE "financialAccountId"=$1)
+OR EXISTS(SELECT 1 FROM "FinancialAccount" WHERE "id"=$1 AND COALESCE("balance",0)<>0)
+OR EXISTS(SELECT 1 FROM "FinancialAccountYield" WHERE "financialAccountId"=$1)
+OR EXISTS(SELECT 1 FROM "LoanPayment" WHERE "financialAccountId"=$1)
+OR EXISTS(SELECT 1 FROM "Recurrence" WHERE "originFinancialAccountId"=$1 OR "destinationFinancialAccountId"=$1 OR "creditCardId" IN (SELECT "id" FROM "CreditCard" WHERE "financialAccountId"=$1))
+OR EXISTS(SELECT 1 FROM "CreditCard" WHERE "financialAccountId"=$1 AND COALESCE("securityDeposit",0)>0)
+OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s."creditCardId" WHERE c."financialAccountId"=$1 AND (s."totalAmount"<>0 OR s."paidAmount"<>0)) AS used`,
 						[params.id],
 					);
 					if (history?.used)
-						throw new HttpException("Moeda de conta com histórico não pode ser alterada", 409);
+						throw new HttpException(
+							"Conta possui histórico, saldo ou compromissos. Crie outro cadastro para usar outra moeda",
+							409,
+						);
 				}
 				if (body.creditCard && existing.type !== "CREDIT_CARD")
 					throw new HttpException("Dados de cartão exigem uma conta do tipo cartão de crédito", 400);
@@ -655,7 +677,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 					body.institutionName === undefined
 						? existing.institutionId
 							? await queryFirst(
-									db.sql.public.FinancialInstitution.select("id", "name")
+									db.sql.public.FinancialInstitution.select("id", "name", "currency")
 										.where((fields, functions) =>
 											functions.and(
 												functions.eq(fields.id, existing.institutionId!),
@@ -690,6 +712,11 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 					if (duplicate) throw new HttpException("Já existe uma conta desse tipo com este nome", 409);
 				}
 
+				if (body.currency && existing.type === "CREDIT_CARD")
+					await queryRaw(`UPDATE "CreditCard" SET "currency"=$2 WHERE "financialAccountId"=$1`, [
+						params.id,
+						body.currency.toUpperCase(),
+					]);
 				const account = await queryFirst(
 					db.sql.public.FinancialAccount.update({
 						...(body.currency !== undefined && { currency: body.currency.toUpperCase() }),
@@ -781,6 +808,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 						await assertPayerOwnership(body.creditCard.paymentAccountId, userId);
 					const existingCreditCard = await queryFirst(
 						db.sql.public.CreditCard.select(
+							"currency",
 							"paymentAccountId",
 							"paymentSuggestionsEnabled",
 							"cashbackAccountId",
@@ -990,7 +1018,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 						workingDueDate: t.Optional(t.Boolean()),
 					}),
 				),
-				currency: t.Optional(t.Literal("BRL")),
+				currency: t.Optional(CurrencyDTO),
 				institutionName: t.Optional(t.String({ maxLength: 100 })),
 				isDefaultForStatements: t.Optional(t.Boolean()),
 				isHidden: t.Optional(t.Boolean()),
