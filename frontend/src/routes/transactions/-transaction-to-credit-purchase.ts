@@ -1,6 +1,7 @@
 import type { CreditPurchase, Transaction } from "@/lib/api";
 
 export const transactionToCreditPurchase = (transaction: Transaction): CreditPurchase => ({
+	bookingCurrency: transaction.bookingCurrency,
 	creditCardId: transaction.creditCardId,
 	currency: transaction.currency,
 	currentInstallment: transaction.currentInstallment ?? 1,

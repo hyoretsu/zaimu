@@ -89,6 +89,7 @@ export function CreditCardStatementBrowser({
 		>
 			<CreditCardStatementTabs
 				canLoadPrevious={getLocalMonthKey(visibleStatements[0]!.dueDate) > firstMonth}
+				currencyCode={card.currency ?? "BRL"}
 				ignoreBefore={ignoreBefore}
 				isDesktop={isDesktop}
 				onLoadNext={loadNext}

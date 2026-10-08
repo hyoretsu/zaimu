@@ -381,7 +381,8 @@ export async function listTransactionsPage(userId: string, input: ListTransactio
 	return {
 		days: dates.map(date => ({
 			date,
-			endingBalance: endingBalanceByDate.get(date) ?? 0,
+			endingBalance: endingBalanceByDate.get(date)?.find(value => value.currency === "BRL")?.amount ?? 0,
+			endingBalances: endingBalanceByDate.get(date) ?? [],
 			transactions: items.filter(item => item.date.toISOString().slice(0, 10) === date),
 		})),
 		hasMore,

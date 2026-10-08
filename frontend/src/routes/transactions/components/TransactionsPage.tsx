@@ -54,7 +54,6 @@ import {
 } from "@/routes/transactions/components";
 import { showToast } from "@/stores";
 
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 const transactionsPageSize = 50;
 const searchResultsPageSize = 10;
 interface TransactionsPageParam extends TransactionQueryFilters {
@@ -62,7 +61,12 @@ interface TransactionsPageParam extends TransactionQueryFilters {
 	limit?: number;
 }
 interface TransactionsDailyPage {
-	days: Array<{ date: string; endingBalance: number; transactions: Transaction[] }>;
+	days: Array<{
+		date: string;
+		endingBalance: number;
+		endingBalances?: Array<{ currency: string; amount: number }>;
+		transactions: Transaction[];
+	}>;
 	hasMore: boolean;
 	nextCursor: null | string;
 }
@@ -250,7 +254,12 @@ export function TransactionsPage() {
 				{},
 			)
 		: undefined;
-	const dailyEndingBalances = new Map(transactionDays.map(day => [day.date, day.endingBalance]));
+	const dailyEndingBalances = new Map(
+		transactionDays.map(day => [
+			day.date,
+			day.endingBalances ?? [{ amount: day.endingBalance, currency: "BRL" }],
+		]),
+	);
 	const today = getLocalDateKey(new Date());
 	const yieldsByDate = Map.groupBy(yieldEntries, entry => entry.date);
 	const displayDates = [
@@ -564,7 +573,15 @@ export function TransactionsPage() {
 									dateLabel={dayLabel}
 									endingBalance={
 										dailyEndingBalances.has(date)
-											? currency.format(dailyEndingBalances.get(date)!)
+											? dailyEndingBalances
+													.get(date)!
+													.map(value =>
+														new Intl.NumberFormat("pt-BR", {
+															currency: value.currency,
+															style: "currency",
+														}).format(value.amount),
+													)
+													.join(" · ")
 											: undefined
 									}
 								/>

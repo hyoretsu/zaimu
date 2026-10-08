@@ -3642,7 +3642,12 @@ export const dataService = {
 			type?: Transaction["type"];
 			visibility?: "hidden" | "visible";
 		}): Promise<{
-			days: Array<{ date: string; endingBalance: number; transactions: Transaction[] }>;
+			days: Array<{
+				date: string;
+				endingBalance: number;
+				endingBalances?: Array<{ currency: string; amount: number }>;
+				transactions: Transaction[];
+			}>;
 			hasMore: boolean;
 			nextCursor: null | string;
 		}> {
@@ -3660,19 +3665,29 @@ export const dataService = {
 				return {
 					days: dates.map(date => ({
 						date,
-						endingBalance: calculateFinancialAccountBalances(
-							accounts
-								.map(row => row.data)
-								.filter(account => ["CHECKING", "CASH", "SAVINGS"].includes(account.type)),
-							[
-								...transactions.map(row => row.data),
-								...loanAccountMovements(loanPayments.map(row => row.data)),
-							],
-							[],
-							(holidays ?? []) as string[],
-							new Date(`${date}T12:00:00`),
-							(yields ?? []) as FinancialAccountYield[],
-						).reduce((sum, account) => sum + (account.balance ?? 0), 0),
+						endingBalance: 0,
+						endingBalances: (() => {
+							const balances = calculateFinancialAccountBalances(
+								accounts
+									.map(row => row.data)
+									.filter(account => ["CHECKING", "CASH", "SAVINGS"].includes(account.type)),
+								[
+									...transactions.map(row => row.data),
+									...loanAccountMovements(loanPayments.map(row => row.data)),
+								],
+								[],
+								(holidays ?? []) as string[],
+								new Date(`${date}T12:00:00`),
+								(yields ?? []) as FinancialAccountYield[],
+							);
+							const grouped = new Map<string, number>();
+							for (const account of balances)
+								grouped.set(
+									account.currency ?? "BRL",
+									(grouped.get(account.currency ?? "BRL") ?? 0) + (account.balance ?? 0),
+								);
+							return [...grouped].map(([currency, amount]) => ({ amount, currency }));
+						})(),
 						transactions: page.items.filter(row => row.date.slice(0, 10) === date),
 					})),
 					hasMore: page.hasMore,

@@ -9,6 +9,7 @@ import {
 	LuSettings2,
 	LuWalletCards,
 } from "react-icons/lu";
+import { NativeMoneyTotals } from "@/components/currency/NativeMoneyTotals";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -32,8 +33,6 @@ import {
 	FinancialInstitutionGroup,
 } from "@/routes/accounts/components";
 import { showToast, useAuthStore } from "@/stores";
-
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
 export function AccountsPage() {
 	const [isDefaultsOpen, setIsDefaultsOpen] = useState(false);
@@ -126,10 +125,7 @@ export function AccountsPage() {
 			showToast("Instituição excluída.", "positive");
 		},
 	});
-	const totalBalance =
-		accounts.data
-			?.filter(account => account.type !== "CREDIT_CARD" && !account.isHidden)
-			.reduce((sum, account) => sum + getFinancialAccountCurrencyValue(account), 0) ?? 0;
+
 	const visibleAccounts = useMemo(
 		() => accounts.data?.filter(account => account.type !== "CREDIT_CARD" && !account.isHidden) ?? [],
 		[accounts.data],
@@ -203,7 +199,13 @@ export function AccountsPage() {
 			<section className="grid gap-4 sm:grid-cols-2">
 				<div className="rounded-2xl bg-brand-indigo p-5 text-white shadow-card">
 					<p className="text-sm text-white/70">Saldo total</p>
-					<p className="mt-2 font-bold text-3xl">{currency.format(totalBalance)}</p>
+					<NativeMoneyTotals
+						pending={accounts.isPending}
+						values={visibleAccounts.map(account => ({
+							amount: getFinancialAccountCurrencyValue(account),
+							currency: account.currency ?? "BRL",
+						}))}
+					/>
 				</div>
 				<div className="rounded-2xl border bg-brand-yellow p-5 text-brand-ink shadow-card">
 					<p className="text-brand-ink/65 text-sm">Contas cadastradas</p>

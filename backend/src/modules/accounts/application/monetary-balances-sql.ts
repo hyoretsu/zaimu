@@ -3,7 +3,7 @@ export const monetaryBalancesSql = `
 WITH requested_dates AS (
  SELECT unnest($2::date[]) AS date
 ), owned_accounts AS MATERIALIZED (
- SELECT account."id", rewards."initialBalance" FROM "FinancialAccount" account
+ SELECT account."id", account."currency", rewards."initialBalance" FROM "FinancialAccount" account
  LEFT JOIN "RewardsAccount" rewards ON rewards."financialAccountId"=account."id"
  WHERE account."userId"=$1 AND (account."type" IN ('CHECKING','CASH','SAVINGS','INVESTMENT') OR rewards."kind"='CASHBACK')
 ), checkpoints AS MATERIALIZED (
@@ -41,7 +41,7 @@ WITH requested_dates AS (
 ), running AS MATERIALIZED (
  SELECT "accountId",date,sum(amount) OVER (PARTITION BY "accountId" ORDER BY date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS amount FROM points
 )
-SELECT to_char(requested.date,'YYYY-MM-DD') AS date, account."id" AS "accountId",
+SELECT to_char(requested.date,'YYYY-MM-DD') AS date, account."id" AS "accountId", account."currency",
  (COALESCE(adjustment."balance",account."initialBalance",0) + COALESCE(current.amount,0) - COALESCE(prior.amount,0))::numeric AS balance
 FROM requested_dates requested CROSS JOIN owned_accounts account
 LEFT JOIN LATERAL (

@@ -8,9 +8,8 @@ import { cn } from "@/lib/utils";
 import { getCreditCardStatementStatus } from "./credit-card-statement-status";
 import { getStatementWindowRadius } from "./credit-card-statement-window";
 
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
-
 export function CreditCardStatementTabs({
+	currencyCode,
 	canLoadPrevious,
 	ignoreBefore,
 	isDesktop,
@@ -20,6 +19,7 @@ export function CreditCardStatementTabs({
 	selectedId,
 	statements,
 }: {
+	currencyCode: string;
 	canLoadPrevious: boolean;
 	ignoreBefore: string | null;
 	isDesktop: boolean;
@@ -29,6 +29,7 @@ export function CreditCardStatementTabs({
 	selectedId: string;
 	statements: CreditCardStatement[];
 }) {
+	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
 	const scrollAreaRef = useRef<HTMLDivElement>(null);
 	const pendingPrepend = useRef<{ size: number; offset: number } | null>(null);
 	const centeredId = useRef<string | null>(null);

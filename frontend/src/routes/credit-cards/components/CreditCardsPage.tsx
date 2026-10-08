@@ -5,6 +5,7 @@ import {
 	CreditCardImportReviewDialog,
 	ImportCreditCardStatementDialog,
 } from "@/components/credit-card-imports";
+import { NativeMoneyTotals } from "@/components/currency/NativeMoneyTotals";
 import { PendingNotices } from "@/components/pending-notices";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -24,8 +25,6 @@ import {
 	CreditCardStatementsDialog,
 } from "@/routes/credit-cards/components";
 import { showToast, useAuthStore } from "@/stores";
-
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
 export function CreditCardsPage() {
 	const queryClient = useQueryClient();
@@ -99,8 +98,7 @@ export function CreditCardsPage() {
 			showToast("Cartão escondido. Mostre novamente em Contas financeiras.", "positive");
 		},
 	});
-	const totalLimit =
-		cards.data?.reduce((sum, card) => sum + (card.excludeFromTotals ? 0 : card.limit.effectiveLimit), 0) ?? 0;
+
 	const ownCardsCount = cards.data?.filter(card => !card.excludeFromTotals).length ?? 0;
 	const sortedCards = [...(cards.data ?? [])].sort((firstCard, secondCard) =>
 		getCreditCardDisplayName(firstCard).localeCompare(getCreditCardDisplayName(secondCard), "pt-BR", {
@@ -176,7 +174,12 @@ export function CreditCardsPage() {
 					{cards.isPending ? (
 						<Skeleton className="mt-2 h-9 w-40 bg-brand-ink/10" />
 					) : (
-						<p className="mt-2 font-bold text-3xl">{currency.format(totalLimit)}</p>
+						<NativeMoneyTotals
+							pending={cards.isPending}
+							values={(cards.data ?? [])
+								.filter(card => !card.excludeFromTotals)
+								.map(card => ({ amount: card.limit.effectiveLimit, currency: card.currency ?? "BRL" }))}
+						/>
 					)}
 				</div>
 				<div className="rounded-2xl border bg-card p-5 shadow-card">
