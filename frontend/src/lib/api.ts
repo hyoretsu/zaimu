@@ -541,6 +541,7 @@ export interface DebtLedger {
 }
 
 export interface DebtInvitationPreview {
+	balances?: { currency: string; amount: number }[];
 	items: DebtEvent[];
 	hasMore: boolean;
 	nextCursor: string | null;

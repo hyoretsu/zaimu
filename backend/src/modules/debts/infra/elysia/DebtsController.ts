@@ -218,19 +218,28 @@ async function getInvitationPreview(
 	cursor?: string,
 	limit = 50,
 ) {
-	const [person] = await queryRaw<{ id: string; balance: string; eventCount: string }>(
-		`SELECT person."id", COALESCE(SUM(CASE WHEN event."createdByUserId"=$3 THEN event."effect" ELSE -event."effect" END),0) AS "balance", COUNT(event."id") AS "eventCount"
+	const rows = await queryRaw<{ id: string; currency: string; balance: string; eventCount: string }>(
+		`SELECT person."id", COALESCE(event."currency",'BRL') AS "currency", COALESCE(SUM(CASE WHEN event."createdByUserId"=$3 THEN event."effect" ELSE -event."effect" END),0) AS "balance", COUNT(event."id") AS "eventCount"
  FROM "DebtPerson" person LEFT JOIN "DebtEvent" event ON event."debtPersonId"=person."id" AND event."deletedAt" IS NULL
- WHERE person."connectionId"=$1 AND person."userId"=$2 AND person."hiddenAt" IS NULL GROUP BY person."id"`,
+ WHERE person."connectionId"=$1 AND person."userId"=$2 AND person."hiddenAt" IS NULL GROUP BY person."id", event."currency"`,
 		[connectionId, requesterId, viewerId],
 	);
-	if (!person) return { balance: 0, eventCount: 0, hasMore: false, items: [], nextCursor: null };
+	const person = rows[0];
+	if (!person)
+		return { balance: 0, balances: [], eventCount: 0, hasMore: false, items: [], nextCursor: null };
 	const page = await getPersonEventPage(viewerId, person.id, cursor, limit, {
 		connectionId: null,
 		id: person.id,
 		invitationId: connectionId,
 	});
-	return { balance: Number(person.balance), eventCount: Number(person.eventCount), ...page };
+	return {
+		balance: Number(rows.find(row => row.currency === "BRL")?.balance ?? 0),
+		balances: rows
+			.filter(row => Number(row.eventCount) > 0)
+			.map(row => ({ amount: Number(row.balance), currency: row.currency })),
+		eventCount: rows.reduce((sum, row) => sum + Number(row.eventCount), 0),
+		...page,
+	};
 }
 
 export const DebtsController = new Elysia({ prefix: "/debts" })
@@ -357,7 +366,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 			const cached = await distributedCache.remember(
 				userId,
 				"debts:events",
-				{ cursor: query.cursor, invitationId: params.id, limit: query.limit ?? 50 },
+				{ cursor: query.cursor, invitationId: params.id, limit: query.limit ?? 50, version: 2 },
 				async () => {
 					const connection = await queryFirst(
 						db.sql.public.DebtConnection.select("id", "requesterId", "recipientId", "status")

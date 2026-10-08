@@ -5,7 +5,8 @@ import type { DebtInvitationPreview as InvitationPreview } from "@/lib/api";
 import { formatLocalDate, formatLocalTime } from "@/lib/date";
 import { getDebtEventLabel } from "@/routes/debts/components/debt-event";
 
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
+const formatMoney = (amount: number, currency: string) =>
+	new Intl.NumberFormat("pt-BR", { currency, style: "currency" }).format(amount);
 
 export function DebtInvitationPreview({
 	counterpartyName,
@@ -48,8 +49,9 @@ export function DebtInvitationPreview({
 							: "shrink-0 text-right text-rose-600 text-sm sm:text-base"
 					}
 				>
-					{preview.balance === 0 ? "" : preview.balance > 0 ? "+" : "-"}
-					{currency.format(Math.abs(preview.balance))}
+					{(preview.balances ?? [{ amount: preview.balance, currency: "BRL" }])
+						.map(row => formatMoney(row.amount, row.currency))
+						.join(" / ") || "Sem lançamentos"}
 				</strong>
 			</div>
 			<ScrollArea className="min-h-0 w-full">
@@ -78,7 +80,7 @@ export function DebtInvitationPreview({
 									}
 								>
 									{event.effect === 0 ? "" : event.effect > 0 ? "+" : "-"}
-									{currency.format(Math.abs(event.effect))}
+									{formatMoney(Math.abs(event.effect), event.currency ?? "BRL")}
 								</span>
 							</div>
 						))}
