@@ -103,3 +103,5 @@ Use normal commit hooks for formatting/lint/types/backend unit coverage; scoped 
 - Sugestões de pagamento identificam moeda da fatura e débito efetivo da conta, com ajuste manual e precisão ISO. Visitante preserva duas denominações e repetição idempotente; regressão KWD/JPY e hooks passaram. Revisão de importações passa moeda nativa a máscaras, rateios e prévias.
 
 - Revisão estrangeira do Open Finance converte valores para livro nativo na data exata antes de criar itens. Aprovação preserva principal/moeda original do snapshot externo e fator contabilizado, sem reinterpretar moeda estrangeira como nativa. Validação integrada ainda pendente.
+
+- Validação de políticas usa moeda explícita ou moeda institucional existente, antes de gravar alterações. Revisão de duplicatas/editor de transações importadas usa moeda do livro; falha de carregamento não aparece como saldo vazio. Hooks passaram.

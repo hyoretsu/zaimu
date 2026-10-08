@@ -27,7 +27,6 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 			const currency = body.currency ? await assertSupportedCurrency(body.currency) : undefined;
 			const normalized = body.name === undefined ? null : normalizeFinancialInstitutionName(body.name);
 			if (normalized && !normalized.name) throw new HttpException("Informe o nome da instituição", 400);
-			if (body.yieldPolicy) assertFinancialInstitutionYieldPolicy(body.yieldPolicy);
 			const existing = await queryFirst(
 				db.sql.public.FinancialInstitution.select("id", "currency")
 					.where((fields, functions) =>
@@ -37,6 +36,11 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 					.build(),
 			);
 			if (!existing) throw new HttpException("Instituição financeira não encontrada", 404);
+			if (body.yieldPolicy)
+				assertFinancialInstitutionYieldPolicy({
+					...body.yieldPolicy,
+					currency: body.yieldPolicy.currency ?? currency ?? existing.currency,
+				});
 			const matching = normalized
 				? await queryFirst(
 						db.sql.public.FinancialInstitution.select("id", "name", "currency")
