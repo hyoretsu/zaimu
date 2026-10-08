@@ -105,3 +105,5 @@ Use normal commit hooks for formatting/lint/types/backend unit coverage; scoped 
 - Revisão estrangeira do Open Finance converte valores para livro nativo na data exata antes de criar itens. Aprovação preserva principal/moeda original do snapshot externo e fator contabilizado, sem reinterpretar moeda estrangeira como nativa. Validação integrada ainda pendente.
 
 - Validação de políticas usa moeda explícita ou moeda institucional existente, antes de gravar alterações. Revisão de duplicatas/editor de transações importadas usa moeda do livro; falha de carregamento não aparece como saldo vazio. Hooks passaram.
+
+- Janela móvel de juros reutiliza unidades sobrepostas em execução; progresso contabiliza apenas dias dentro da janela solicitada. PostgreSQL local verificou concorrência, rollback e fencing (3 testes). RabbitMQ descartável local verificou confirmação, reinício, deduplicação, retries e DLQ (1 teste). Filas de testes usam namespace próprio; serviços descartáveis foram encerrados.

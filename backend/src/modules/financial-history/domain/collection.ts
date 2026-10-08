@@ -38,7 +38,11 @@ export function windowDays(start: string, end: string): string[] {
 	for (let day = dateKey(start); day <= dateKey(end); day = shiftDay(day, 1)) days.push(day);
 	return days;
 }
-export function historyProgress(kind: CollectionKind, units: readonly HistoryUnit[]) {
+export function historyProgress(
+	kind: CollectionKind,
+	units: readonly HistoryUnit[],
+	window?: { startDate: string; endDate: string },
+) {
 	const completed = units.filter(
 		unit => unit.state === "COMPLETED" || (kind === "INTEREST" && unit.state === "NO_DATA"),
 	).length;
@@ -56,6 +60,7 @@ export function historyProgress(kind: CollectionKind, units: readonly HistoryUni
 	const coveredDays = new Set<string>();
 	for (const unit of units) {
 		for (const day of windowDays(unit.startDate, unit.endDate)) {
+			if (window && (day < window.startDate || day > window.endDate)) continue;
 			const key = `${unit.series}:${day}`;
 			requestedDays.add(key);
 			if (unit.state === "COMPLETED" || (kind === "INTEREST" && unit.state === "NO_DATA"))

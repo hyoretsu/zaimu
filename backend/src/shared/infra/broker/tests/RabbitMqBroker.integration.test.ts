@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import amqp from "amqplib";
 import { createEventEnvelope } from "~/shared/application/events";
+import { brokerQueue } from "../../service-namespace";
 import { RabbitMqBroker } from "../RabbitMqBroker";
 
 const enabled = Boolean(process.env.BROKER_TEST_URL);
@@ -48,7 +49,14 @@ describe.skipIf(!enabled)("dedicated broker", () => {
 		const previousRetries = process.env.RABBITMQ_MAX_RETRIES;
 		process.env.RABBITMQ_MAX_RETRIES = "1";
 		try {
-			await broker.start();
+			await eventually(async () => {
+				try {
+					await broker.start();
+					return true;
+				} catch {
+					return false;
+				}
+			});
 			await broker.consume("cache-invalidation", async event => {
 				const count = (calls.get(event.eventId) ?? 0) + 1;
 				calls.set(event.eventId, count);
@@ -102,7 +110,7 @@ describe.skipIf(!enabled)("dedicated broker", () => {
 			const channel = await connection.createConfirmChannel();
 			let deadLetter: string | undefined;
 			await eventually(async () => {
-				const message = await channel.get("cache-invalidation.dlq", { noAck: false });
+				const message = await channel.get(brokerQueue("cache-invalidation.dlq"), { noAck: false });
 				if (!message) return false;
 				deadLetter = JSON.parse(message.content.toString()).eventId;
 				channel.ack(message);

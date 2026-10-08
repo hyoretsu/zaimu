@@ -62,3 +62,16 @@ describe("durable history coverage", () => {
 		expect(rate.rate!).toBeCloseTo(10 / 3, 8);
 	});
 });
+
+test("overlapping shared interest units count only requested window coverage", () => {
+	const shared = {
+		...unit("COMPLETED"),
+		endDate: "2026-01-10",
+		kind: "INTEREST" as const,
+		series: "CDI",
+		startDate: "2026-01-01",
+	};
+	expect(
+		historyProgress("INTEREST", [shared], { endDate: "2026-01-05", startDate: "2026-01-03" }),
+	).toMatchObject({ completed: 1, coveredDays: 3, requestedDays: 3, state: "COMPLETED", total: 1 });
+});

@@ -89,7 +89,7 @@ export async function requestHistoryCollection(
 			if (kind === "INTEREST") {
 				// Share previous annual/tail work, including running and failed units, before making gaps.
 				const existing = await query<UnitRow>(
-					`SELECT ${unitColumns} FROM "FinancialHistoryUnit" WHERE "kind"='INTEREST' AND "series"=$1 AND "startDate">=$2::date AND "endDate"<=$3::date ORDER BY "startDate" FOR UPDATE`,
+					`SELECT ${unitColumns} FROM "FinancialHistoryUnit" WHERE "kind"='INTEREST' AND "series"=$1 AND "startDate"<=$3::date AND "endDate">=$2::date ORDER BY "startDate" FOR UPDATE`,
 					[value, window.startDate, window.endDate],
 				);
 				const occupied = new Set(existing.flatMap(unit => windowDays(unit.startDate, unit.endDate)));
@@ -176,7 +176,7 @@ export async function getHistoryCollection(id: string) {
 		lastError: row.lastError ?? null,
 		updatedAt: new Date(row.updatedAt).toISOString(),
 	}));
-	return { ...collection, progress: historyProgress(collection.kind, units), units };
+	return { ...collection, progress: historyProgress(collection.kind, units, collection), units };
 }
 
 export async function retryHistoryCollection(id: string) {
