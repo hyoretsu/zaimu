@@ -111,3 +111,5 @@ Use normal commit hooks for formatting/lint/types/backend unit coverage; scoped 
 - Auditoria final identificou rateios fixos estrangeiros e formulários de criação ainda incompletos. Conversão compartilhada distribui arredondamento cumulativo em unidades ISO; regras distinguem moeda explícita, e edição mantém valores fixos do livro. Criação de compra herda cartão/preferência sem sobrescrever escolha ou valor editado. Validação em andamento.
 
 - Rateios fixos identificam moeda explícita e usam cotação da data ao mudar de livro, com conservação de unidades mínimas; criação e edição autenticadas/visitantes integram mesma regra. Quatro testes de precisão/rateio e hooks passaram. Última revisão remove divisões fixas por 100 de reembolsos/edição e expõe dois valores na edição de pagamento.
+
+- Formulários vazios de transações, recorrências e empréstimos acompanham preferência carregada posteriormente; seleção explícita e entrada monetária bloqueiam substituições, inclusive durante debounce. Testes persistentes cobrem cache de sete dias, deduplicação, falha do provedor, preferência/viagem e acesso mobile direto. Validação final em execução.

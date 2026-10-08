@@ -29,6 +29,7 @@ import {
 } from "@/lib/financial-account";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
+import { useCurrencyStore } from "@/stores/currency";
 import { TransactionDetailsFields } from "./TransactionDetailsFields";
 
 const initialDraft = () => ({
@@ -68,6 +69,8 @@ export function CreateTransactionDialog({
 	const identity = useCacheIdentity();
 	const [draft, setDraft] = useState(initialDraft);
 	const primaryInitialized = useRef(false);
+	const currencyExplicit = useRef(false);
+	const effectiveCurrency = useCurrencyStore(state => state.currency);
 	const [isDebt, setIsDebt] = useState(false);
 	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>({
 		mode: "SHARES",
@@ -79,7 +82,10 @@ export function CreateTransactionDialog({
 		if (!open) return;
 		setDraft(current => ({
 			...current,
-			currency: !current.amount ? (account?.currency ?? current.currency) : current.currency,
+			currency:
+				!current.amount && !currencyExplicit.current
+					? (account?.currency ?? current.currency)
+					: current.currency,
 			originFinancialAccountId: account?.id ?? current.originFinancialAccountId,
 			time: getCurrentLocalTime(),
 		}));
@@ -135,7 +141,20 @@ export function CreateTransactionDialog({
 			: draft.type === "TRANSFER"
 				? draft.originFinancialAccountId
 				: (account?.id ?? draft.originFinancialAccountId);
+	useEffect(() => {
+		if (!open) return;
+		const currency =
+			account?.currency ??
+			accountsQuery.data?.find(item => item.id === primaryAccountId)?.currency ??
+			effectiveCurrency;
+		setDraft(current =>
+			current.amount || currencyExplicit.current || current.currency === currency
+				? current
+				: { ...current, currency },
+		);
+	}, [open, account?.currency, accountsQuery.data, primaryAccountId, effectiveCurrency]);
 	const reset = () => {
+		currencyExplicit.current = false;
 		setDraft(initialDraft());
 		setDescription("");
 		setIsDebt(false);
@@ -218,7 +237,13 @@ export function CreateTransactionDialog({
 
 	return (
 		<Dialog onOpenChange={handleOpenChange} open={open}>
-			<DialogContent className="max-h-[92dvh] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-lg">
+			<DialogContent
+				className="max-h-[92dvh] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-lg"
+				onInputCapture={event => {
+					if (event.target instanceof HTMLInputElement && event.target.id === "transaction-amount")
+						currencyExplicit.current = true;
+				}}
+			>
 				<DialogHeader>
 					<DialogTitle>Nova transação</DialogTitle>
 					<DialogDescription>Informe os dados da movimentação.</DialogDescription>
@@ -254,7 +279,10 @@ export function CreateTransactionDialog({
 							onAmountChange={amount => setDraft(current => ({ ...current, amount }))}
 							onCurrencyChange={
 								draft.type !== "YIELD"
-									? currency => setDraft(current => ({ ...current, currency }))
+									? currency => {
+											currencyExplicit.current = true;
+											setDraft(current => ({ ...current, currency }));
+										}
 									: undefined
 							}
 							onDateChange={date => setDraft(current => ({ ...current, date }))}

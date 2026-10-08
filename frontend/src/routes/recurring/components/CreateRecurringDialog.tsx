@@ -102,6 +102,19 @@ export function CreateRecurringDialog({
 					: current,
 			);
 	}, [open, accounts.data, recurrence]);
+	useEffect(() => {
+		if (!open || recurrence) return;
+		setDraft(current =>
+			current.amount ||
+			current.currencyExplicit ||
+			current.originFinancialAccountId ||
+			current.destinationFinancialAccountId ||
+			current.creditCardId ||
+			current.currency === effectiveCurrency
+				? current
+				: { ...current, currency: effectiveCurrency },
+		);
+	}, [open, recurrence, effectiveCurrency]);
 	useDialogCloseReset(open, () => {
 		setDraft(initialDraft(recurrence, effectiveCurrency));
 		setDebtSplit(debtSplitToInput(recurrence?.debtSplit));
@@ -166,6 +179,10 @@ export function CreateRecurringDialog({
 						) : (
 							<form
 								className="space-y-5"
+								onInputCapture={event => {
+									if (event.target instanceof HTMLInputElement && event.target.name === "recurrence-amount")
+										set("currencyExplicit", true);
+								}}
 								onSubmit={event => {
 									event.preventDefault();
 									const fields = new FormData(event.currentTarget);
@@ -205,7 +222,14 @@ export function CreateRecurringDialog({
 									});
 								}}
 							>
-								<fieldset className="space-y-5" disabled={save.isPending}>
+								<fieldset
+									className="space-y-5"
+									disabled={save.isPending}
+									onInputCapture={event => {
+										if (event.target instanceof HTMLInputElement && event.target.name === "recurrence-amount")
+											set("currencyExplicit", true);
+									}}
+								>
 									<div className="grid gap-4 sm:grid-cols-2">
 										<DebouncedFormField
 											id="recurrence-name"

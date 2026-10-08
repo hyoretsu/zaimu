@@ -11,15 +11,17 @@ import { RequiredMark } from "@/components/ui/RequiredMark";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { Loan } from "@/lib/api";
-import { activeCurrency } from "@/lib/currency-context";
 import { dataService } from "@/lib/dataService";
 import { getLocalDateKey } from "@/lib/date";
 import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
+import { useCurrencyStore } from "@/stores/currency";
 import { LoanNumericField } from "./LoanNumericField";
 export function LoanCreateDialog({ onClose }: { onClose: () => void }) {
 	const identity = useCacheIdentity();
-	const [currency, setCurrency] = useState(activeCurrency);
+	const effectiveCurrency = useCurrencyStore(state => state.currency);
+	const [selectedCurrency, setCurrency] = useState<string | null>(null);
+	const currency = selectedCurrency ?? effectiveCurrency;
 	const client = useQueryClient();
 	const [lender, setLender] = useState("");
 	const [localLender, setLocalLender] = useDebouncedInput(lender, setLender);
@@ -51,6 +53,10 @@ export function LoanCreateDialog({ onClose }: { onClose: () => void }) {
 				<ScrollArea className="min-h-0 flex-1">
 					<form
 						className="space-y-4 pr-3"
+						onInputCapture={event => {
+							if (event.target instanceof HTMLInputElement && event.target.name === "principalAmount")
+								setCurrency(currency);
+						}}
 						onSubmit={event => {
 							event.preventDefault();
 							const form = new FormData(event.currentTarget);
