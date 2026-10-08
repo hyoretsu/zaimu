@@ -15,7 +15,7 @@ export function FinancialFeeFields({
 	currencyCode?: string;
 }) {
 	return (
-		<div className="grid gap-3">
+		<div className="grid min-w-0 grid-cols-1 gap-3">
 			{fees.map((fee, index) => (
 				<FinancialFeeRow
 					currencyCode={currencyCode}

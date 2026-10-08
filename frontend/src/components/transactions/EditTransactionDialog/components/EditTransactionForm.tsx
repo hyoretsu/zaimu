@@ -190,8 +190,8 @@ export function EditTransactionForm({
 					<DialogTitle>Editar transação</DialogTitle>
 					<DialogDescription>Altere os dados da movimentação.</DialogDescription>
 				</DialogHeader>
-				<ScrollArea className="min-h-0">
-					<div className="grid gap-4 pr-1">
+				<ScrollArea className="min-h-0 min-w-0">
+					<div className="grid min-w-0 grid-cols-1 gap-4 px-1 py-1 pr-3">
 						<TransactionDetailsFields
 							amount={draft.amount}
 							bookingCurrency={

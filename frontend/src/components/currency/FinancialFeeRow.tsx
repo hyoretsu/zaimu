@@ -27,7 +27,7 @@ export function FinancialFeeRow({
 		onChange({ ...fee, amount: Number(value.replace(",", ".")) || 0 }),
 	);
 	return (
-		<div className="grid gap-3 rounded-xl border p-3">
+		<div className="grid min-w-0 grid-cols-1 gap-3 rounded-xl border p-3">
 			<CustomSelect
 				label="Nome da taxa"
 				onValueChange={name => onChange({ ...fee, name: name === "CUSTOM" ? "" : name })}
