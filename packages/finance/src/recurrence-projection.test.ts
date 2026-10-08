@@ -238,3 +238,45 @@ test("legacy card recurrence forecasts a single payment", () => {
 	);
 	expect(projected.purchases[0]!.installmentAmountsCents).toEqual([5700]);
 });
+
+test("foreign forecasts convert before ISO installment distribution and retain original principal", () => {
+	const book = emptySubscriptionBook();
+	book.card.currency = "JPY";
+	const foreign = { ...recurrence("CARD_PURCHASE", 10), currency: "USD", installments: 3 };
+	const before = JSON.stringify(book);
+	const projected = projectRecurrenceCreditBook(
+		book,
+		[foreign],
+		"2026-10-01",
+		"2026-10-31",
+		[],
+		(amount, source, target, date) => {
+			expect([source, target, date]).toEqual(["USD", "JPY", "2026-10-10"]);
+			return amount * 149.95;
+		},
+	);
+	expect(projected.purchases[0]!.totalAmountCents).toBe(1500);
+	expect(projected.purchases[0]!.installmentAmountsCents).toEqual([500, 500, 500]);
+	expect(projected.purchases[0]!.originalAmount).toBe(10);
+	expect(projected.purchases[0]!.currency).toBe("USD");
+	expect(projected.purchases[0]!.bookingCurrency).toBe("JPY");
+	expect(JSON.stringify(book)).toBe(before);
+	expect(() => projectRecurrenceCreditBook(book, [foreign], "2026-10-01", "2026-10-31")).toThrow(
+		"Conversão",
+	);
+});
+
+test("foreign recurring card payments use native precision", () => {
+	const book = emptySubscriptionBook();
+	book.card.currency = "KWD";
+	const projected = projectRecurrenceCreditBook(
+		book,
+		[{ ...recurrence("CARD_PAYMENT", 10), currency: "USD" }],
+		"2026-10-01",
+		"2026-10-31",
+		[],
+		amount => amount * 0.30615,
+	);
+	expect(projected.payments[0]!.amount).toBe(3.062);
+	expect(book.payments).toEqual([]);
+});

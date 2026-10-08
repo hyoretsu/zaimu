@@ -48,7 +48,9 @@ export function fromMinorUnits(units: number, currency = "BRL"): number {
 export function roundMoney(amount: number, currency = "BRL"): number {
 	const scale = currencyScale(currency);
 	if (!Number.isFinite(amount)) throw new RangeError("Valor monetário inválido");
-	const units = Math.round((amount + Math.sign(amount) * Number.EPSILON) * scale);
+	const units = Math.round(
+		(amount + Math.sign(amount) * Number.EPSILON * Math.max(1, Math.abs(amount))) * scale,
+	);
 	return fromMinorUnits(units, currency);
 }
 

@@ -31,7 +31,6 @@ import {
 	recurrenceNeedsConfiguration,
 	shiftRecurrenceDate,
 } from "@zaimu/finance/recurrence";
-import { projectRecurrenceCreditBook } from "@zaimu/finance/recurrence-projection";
 import { resolveTransactionMoneySides } from "@zaimu/finance/transaction-money";
 import { type CatalogPageOptions, localCatalogPage } from "./catalog-pagination";
 import { activeCurrency } from "./currency-context";
@@ -56,6 +55,7 @@ import {
 	transferLocalCreditBookPurchase,
 } from "./localStorage";
 import type { Recurrence } from "./recurrence";
+import { projectGuestRecurrenceCreditBook } from "./recurrence-credit-projection";
 import { createRecurrenceService } from "./recurrence-service";
 /**
  * Data Service - Abstracts local vs remote data operations
@@ -1491,7 +1491,7 @@ export const dataService = {
 		async getStatement(cardId: string, statementId: string): Promise<CreditCardStatementDetail> {
 			if (!isGuestMode())
 				return fetchWithAuth<CreditCardStatementDetail>(`/credit-cards/${cardId}/statements/${statementId}`);
-			const book = projectRecurrenceCreditBook(
+			const book = await projectGuestRecurrenceCreditBook(
 				await readLocalCreditBook(cardId),
 				await dataService.recurrences.getAll(),
 				shiftRecurrenceDate(getLocalDateKey(), 1),
@@ -1547,7 +1547,7 @@ export const dataService = {
 		): Promise<CreditCardStatementPage> {
 			if (isGuestMode()) {
 				const rows = replayCreditBook(
-					projectRecurrenceCreditBook(
+					await projectGuestRecurrenceCreditBook(
 						await readLocalCreditBook(cardId),
 						await dataService.recurrences.getAll(),
 						shiftRecurrenceDate(getLocalDateKey(), 1),

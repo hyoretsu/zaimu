@@ -23,6 +23,10 @@ export async function guestDashboardCurrencyContext(
 		forecastCurrencies: string[];
 		positions: { currency: string; date: string }[];
 		forecasting: boolean;
+		forecastSnapshot?: {
+			factors: Map<string, number>;
+			histories: NonNullable<Dashboard["consolidation"]>["histories"];
+		};
 	},
 	dependencies?: Dependencies,
 ) {
@@ -30,10 +34,11 @@ export async function guestDashboardCurrencyContext(
 	const foreign = [...new Set(input.nativeCurrencies)].filter(source => source !== input.currency);
 	const forecastForeign = [...new Set(input.forecastCurrencies)].filter(source => source !== input.currency);
 	const factors = new Map<string, number>(),
-		forecasts = new Map<string, number>();
+		forecasts = input.forecastSnapshot?.factors ?? new Map<string, number>();
 	const publishedDates: Record<string, string> = {};
-	const histories: NonNullable<Dashboard["consolidation"]>["histories"] = [];
-	if (input.forecasting)
+	const histories: NonNullable<Dashboard["consolidation"]>["histories"] =
+		input.forecastSnapshot?.histories ?? [];
+	if (input.forecasting && !input.forecastSnapshot)
 		for (const source of forecastForeign) {
 			const collection = await api
 				.requestHistoryCollection("CURRENCY", [source, input.currency], input.reference)
@@ -95,5 +100,6 @@ export async function guestDashboardCurrencyContext(
 			amount === 0 ? 0 : amount * factor(source, date),
 		currency: input.currency,
 		factor,
+		forecastSnapshot: { factors: forecasts, histories },
 	};
 }

@@ -78,14 +78,36 @@ export async function getGuestDashboardFinancialContext(
 			.map(row => `${row.recurrenceId}:${row.recurrenceOccurrenceDate ?? row.date.slice(0, 10)}`),
 	]);
 	const accounts = accountRows.filter(row => !row.data.isHidden).map(row => row.data);
+	const currency = activeCurrency();
+	const forecastCurrencies = [
+		...new Set([
+			...accounts.map(row => row.currency ?? "BRL"),
+			...cards.map(row => row.currency ?? "BRL"),
+			...recurrences.map(row => row.currency ?? "BRL"),
+			...paymentRows.map(row => row.data.currency ?? "BRL"),
+			...transactions.filter(row => row.date.slice(0, 10) > key(today)).map(row => row.currency ?? "BRL"),
+		]),
+	];
+	const forecastMoney = await guestDashboardCurrencyContext({
+		currency,
+		forecastCurrencies,
+		forecasting: through > today,
+		nativeCurrencies: [],
+		positions: [],
+		reference: key(today),
+	});
 	const projectedBooks = await Promise.all(
 		cards.map(async card =>
 			projectRecurrenceCreditBook(
 				await readLocalCreditBook(card.id),
-				recurrences,
+				forecastMoney.consolidation.forecastAvailable
+					? recurrences
+					: recurrences.filter(row => (row.currency ?? "BRL") === (card.currency ?? "BRL")),
 				key(projectionStart),
 				key(through),
 				occurrences,
+				(amount, source, target, date) =>
+					(amount * forecastMoney.factor(source, date)) / forecastMoney.factor(target, date),
 			),
 		),
 	);
@@ -245,7 +267,6 @@ export async function getGuestDashboardFinancialContext(
 			})),
 		),
 	];
-	const currency = activeCurrency();
 	const positionDates = [
 		...new Set([
 			key(today),
@@ -264,11 +285,9 @@ export async function getGuestDashboardFinancialContext(
 	];
 	const money = await guestDashboardCurrencyContext({
 		currency,
-		forecastCurrencies: [
-			...accounts.map(row => row.currency ?? "BRL"),
-			...movements.filter(row => row.date > today).map(row => row.currency ?? "BRL"),
-		],
+		forecastCurrencies,
 		forecasting: through > today,
+		forecastSnapshot: forecastMoney.forecastSnapshot,
 		nativeCurrencies: currencies,
 		positions: positionDates
 			.flatMap(date => accounts.map(account => ({ currency: account.currency ?? "BRL", date })))

@@ -1,7 +1,10 @@
 import { forecastCardPayments, recurringCardPaymentAmounts } from "@zaimu/finance/card-forecast";
 import { type BookPurchase, type CreditBook, moneyCents, replayCreditBook } from "@zaimu/finance/credit-book";
 import type { RecurrenceDefinition } from "@zaimu/finance/recurrence";
-import { projectRecurrenceCreditBook } from "@zaimu/finance/recurrence-projection";
+import {
+	projectRecurrenceCreditBook,
+	type RecurrenceMoneyConverter,
+} from "@zaimu/finance/recurrence-projection";
 export interface CreditOverviewRow extends Record<string, unknown> {
 	data: Record<string, unknown>;
 	kind: string;
@@ -127,6 +130,7 @@ export function replayOverviewStatements(
 	through = asOf,
 	occurrences: Array<{ recurrenceId: string; date: string }> = [],
 	projectedPaymentAmounts?: Map<string, number>,
+	convert?: RecurrenceMoneyConverter,
 ): CreditOverviewStatement[] {
 	const purchasesByCard = groupByCard(rows, "purchase");
 	const installmentsByCard = groupByCard(rows, "installment");
@@ -230,6 +234,7 @@ export function replayOverviewStatements(
 			projectionFrom,
 			through,
 			occurrences,
+			convert,
 		);
 		if (projectedPaymentAmounts)
 			for (const [id, amount] of recurringCardPaymentAmounts(projectedBook))

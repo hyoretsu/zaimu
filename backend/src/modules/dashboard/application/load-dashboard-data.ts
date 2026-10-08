@@ -1,4 +1,5 @@
 import type { CreditBook } from "@zaimu/finance/credit-book";
+import type { RecurrenceMoneyConverter } from "@zaimu/finance/recurrence-projection";
 import { replayOverviewStatements as replayDashboardStatements } from "~/modules/creditCards/application/credit-overview";
 import { projectedYieldContext } from "~/modules/reference-rates/application/projected-yield-context";
 
@@ -364,12 +365,31 @@ export async function loadDashboardRows(
 			dueDate: asDate(row.dueDate),
 			paidDate: row.paidDate ? asDate(row.paidDate) : null,
 		})) as unknown as DashboardLoanPayment[],
+		...({
+			projectStatements: (convert: RecurrenceMoneyConverter) =>
+				replayDashboardStatements(
+					userId,
+					cards,
+					overviewRows,
+					dateKey(range.today),
+					recurrences,
+					dateKey(range.comparisonEnd),
+					rowsByKind(scheduleRows, "occurrence") as unknown as Array<{ recurrenceId: string; date: string }>,
+					projectedCardPaymentAmounts,
+					convert,
+				),
+		} as {
+			projectStatements?: (convert: RecurrenceMoneyConverter) => ReturnType<typeof replayDashboardStatements>;
+		}),
 		projectedStatements: replayDashboardStatements(
 			userId,
 			cards,
 			overviewRows,
 			dateKey(range.today),
-			recurrences,
+			recurrences.filter(
+				row =>
+					(row.currency ?? "BRL") === (cards.find(card => card.id === row.creditCardId)?.currency ?? "BRL"),
+			),
 			dateKey(range.comparisonEnd),
 			rowsByKind(scheduleRows, "occurrence") as unknown as Array<{ recurrenceId: string; date: string }>,
 			projectedCardPaymentAmounts,

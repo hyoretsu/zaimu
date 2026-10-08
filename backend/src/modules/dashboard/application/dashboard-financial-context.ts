@@ -12,6 +12,10 @@ export function dashboardFinancialContext(
 	comparisonEnd: Date,
 	money?: DashboardCurrencyContext,
 ) {
+	if (money?.forecastAvailable && loaded.projectStatements)
+		loaded.projectedStatements = loaded.projectStatements(
+			(amount, source, target, date) => (amount * money.factor(source, date)) / money.factor(target, date),
+		);
 	const { accounts, recurrences, loanPayments: payments } = loaded;
 	const monetaryAccounts = accounts.filter(
 		account => account.type !== "CREDIT_CARD" && account.type !== "REWARDS",

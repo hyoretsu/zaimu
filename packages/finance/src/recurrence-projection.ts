@@ -1,5 +1,8 @@
 import { type CreditBook, newBookPurchase } from "./credit-book";
+import { roundMoney } from "./money";
 import { type RecurrenceDefinition, recurrenceDates, recurrenceNeedsConfiguration } from "./recurrence";
+export type RecurrenceMoneyConverter = (amount: number, from: string, to: string, date: string) => number;
+
 /** Ephemeral copy only: forecasts never write purchases, rewards or debt events. */
 export function projectRecurrenceCreditBook(
 	book: CreditBook,
@@ -7,6 +10,7 @@ export function projectRecurrenceCreditBook(
 	from: string,
 	through: string,
 	occurrences: Array<{ recurrenceId: string; date: string }> = [],
+	convert?: RecurrenceMoneyConverter,
 ) {
 	const projected: CreditBook = {
 		...book,
@@ -29,9 +33,18 @@ export function projectRecurrenceCreditBook(
 		for (const date of recurrenceDates(recurrence, from, through)) {
 			if (processed.has(`${recurrence.id}:${date}`)) continue;
 			const id = `forecast:${recurrence.id}:${date}`;
+			const source = recurrence.currency ?? "BRL";
+			const target = book.card.currency ?? "BRL";
+			if (source !== target && !convert)
+				throw new RangeError(`Conversão de ${source} para ${target} indisponível em ${date}`);
+			const amount = roundMoney(
+				source === target ? recurrence.amount : convert!(recurrence.amount, source, target, date),
+				target,
+			);
+			if (!Number.isFinite(amount) || amount < 0) throw new RangeError("Valor projetado inválido");
 			if (recurrence.movement === "CARD_PAYMENT") {
 				if (!projected.payments.some(payment => payment.id === id))
-					projected.payments.push({ amount: recurrence.amount, date, id });
+					projected.payments.push({ amount, date, id });
 			} else if (
 				recurrence.movement === "CARD_PURCHASE" &&
 				!projected.purchases.some(
@@ -42,14 +55,17 @@ export function projectRecurrenceCreditBook(
 				newBookPurchase(
 					projected,
 					{
+						currency: source,
 						description: recurrence.name,
+						exchangeRate: recurrence.amount ? amount / recurrence.amount : 1,
 						id,
 						installments: recurrence.installments ?? 1,
+						originalAmount: recurrence.amount,
 						purchaseDate: date,
 						recurrenceId: recurrence.id,
 						recurrenceOccurrenceDate: date,
 						storeName: recurrence.storeName ?? null,
-						totalAmount: recurrence.amount,
+						totalAmount: amount,
 					},
 					undefined,
 					{ materialize: false },
