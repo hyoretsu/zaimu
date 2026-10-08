@@ -1,5 +1,12 @@
+import { createHash } from "node:crypto";
 import { serviceNamespace } from "~/shared/infra/service-namespace";
 import { queryRaw } from "~/shared/infra/sql";
+
+export function providerSlotKey(providerName: string) {
+	const name = `${serviceNamespace()}:${providerName}`;
+	// Preserve existing short keys; hash longer namespaces to fit the database contract.
+	return name.length <= 40 ? name : createHash("sha256").update(name).digest("hex").slice(0, 40);
+}
 
 /** Database lease slots cap provider requests across replicas, independently of Rabbit prefetch. */
 export async function withProviderSlot<T>(
@@ -7,7 +14,7 @@ export async function withProviderSlot<T>(
 	capacity: number,
 	operation: () => Promise<T>,
 ): Promise<T> {
-	const provider = `${serviceNamespace()}:${providerName}`;
+	const provider = providerSlotKey(providerName);
 	await queryRaw(
 		`INSERT INTO "FinancialProviderSlot" ("provider","slot") SELECT $1,slot FROM generate_series(1,$2::int) slot ON CONFLICT DO NOTHING`,
 		[provider, capacity],
