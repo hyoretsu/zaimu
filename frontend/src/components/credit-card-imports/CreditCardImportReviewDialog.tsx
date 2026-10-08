@@ -220,7 +220,7 @@ export function CreditCardImportReviewDialog({
 								<Skeleton className="h-20 rounded-2xl" key={item} />
 							))}
 						</div>
-					) : creditCardImport.isError ? (
+					) : creditCardImport.isError || creditCards.isError ? (
 						<EmptyState
 							description="Tente novamente em instantes."
 							icon={<LuCircleAlert className="size-7" />}

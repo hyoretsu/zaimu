@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { creditBookPlan } from "@zaimu/finance/credit-book";
 import { installmentOccurrenceDate, purchaseStatementDates } from "@zaimu/finance/credit-purchase";
+import { currencyScale } from "@zaimu/finance/money";
 import { useState } from "react";
 import { ImportDialog, ImportDialogContent } from "@/components/imports";
 import { TagPicker } from "@/components/tags";
@@ -83,7 +84,9 @@ export function RefundImportReviewDialog({
 	const firstRefund =
 		mode === "reconstruct" ||
 		Boolean(original && !book.data?.refunds.some(r => r.purchaseId === original.id));
-	const originalTotal = original ? original.totalAmountCents / 100 : reconstructedTotal;
+	const originalTotal = original
+		? original.totalAmountCents / currencyScale(currencyCode)
+		: reconstructedTotal;
 	const creditCycle = book.data
 		? purchaseStatementDates(book.data.card, item.purchaseDate.slice(0, 10)).statementDate
 		: null;
@@ -107,7 +110,8 @@ export function RefundImportReviewDialog({
 				);
 	const needsPolicy =
 		firstRefund &&
-		Math.round(amount * 100) === Math.round(originalTotal * 100) &&
+		Math.round(amount * currencyScale(currencyCode)) ===
+			Math.round(originalTotal * currencyScale(currencyCode)) &&
 		future &&
 		!book.data?.card.refundPolicy;
 	const submit = async () => {

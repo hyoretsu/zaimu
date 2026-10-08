@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { creditBookPlan } from "@zaimu/finance/credit-book";
 import { purchaseStatementDates } from "@zaimu/finance/credit-purchase";
+import { currencyScale } from "@zaimu/finance/money";
 import { type SyntheticEvent, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
@@ -70,10 +71,11 @@ export function RefundCreditPurchaseDialog({
 		? (bookPurchase.totalAmountCents -
 				activeRefunds.reduce((sum, item) => sum + item.amountCents, 0) +
 				(currentRefund?.amountCents ?? 0)) /
-			100
+			currencyScale(currencyCode)
 		: (purchase.refundableAmount ?? Math.abs(purchase.totalAmount));
 	const amountValue = amount ? Number(amount) : undefined;
-	const effectiveAmount = amountValue ?? (currentRefund ? currentRefund.amountCents / 100 : remaining);
+	const effectiveAmount =
+		amountValue ?? (currentRefund ? currentRefund.amountCents / currencyScale(currencyCode) : remaining);
 	const chosenDate = date || getLocalDateKey();
 	const plan = bookQuery.data ? creditBookPlan(bookQuery.data) : null;
 	const creditCycle = bookQuery.data
@@ -90,7 +92,7 @@ export function RefundCreditPurchaseDialog({
 		bookPurchase &&
 			!currentRefund &&
 			activeRefunds.length === 0 &&
-			Math.round(effectiveAmount * 100) === bookPurchase.totalAmountCents &&
+			Math.round(effectiveAmount * currencyScale(currencyCode)) === bookPurchase.totalAmountCents &&
 			hasFutureInstallments,
 	);
 	const savedPolicy = bookQuery.data?.card.refundPolicy;

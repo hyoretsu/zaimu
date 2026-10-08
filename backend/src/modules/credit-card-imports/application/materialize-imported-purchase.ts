@@ -104,7 +104,10 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 			);
 		}
 		const existing = book.purchases.find(p => p.id === input.existingRootId) ?? duplicate;
-		const anticipated = importedAnticipation(input.description);
+		const anticipated = importedAnticipation(input.description)?.map(item => ({
+			...item,
+			amountCents: moneyCents(item.amountCents / 100, 1, book.card.currency),
+		}));
 		if (anticipated && !existing) throw new HttpException("Vincule a antecipação à compra original", 409);
 		const known = new Map(
 			book.installments

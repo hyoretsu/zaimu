@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { currencyScale } from "@zaimu/finance/money";
 import { useState } from "react";
 import { LuUndo2 } from "react-icons/lu";
 import { RefundImportReviewDialog } from "@/components/credit-card-imports/RefundImportReviewDialog";
@@ -71,8 +72,8 @@ export function PendingRefundReviews({ cardId, count }: { cardId: string; count:
 									book.refunds
 										.filter(r => r.purchaseId === p.id && !r.deletedAt)
 										.reduce((sum, r) => sum + r.amountCents, 0)) /
-								100,
-							totalAmount: p.totalAmountCents / 100,
+								currencyScale(book.card.currency),
+							totalAmount: p.totalAmountCents / currencyScale(book.card.currency),
 						}));
 					}}
 					onOpenChange={open => !open && setSelectedId(null)}

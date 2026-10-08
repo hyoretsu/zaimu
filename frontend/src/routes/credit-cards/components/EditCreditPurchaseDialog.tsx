@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { currencyScale } from "@zaimu/finance/money";
 import { type SyntheticEvent, useEffect, useId, useRef, useState } from "react";
 import { LuUndo2 } from "react-icons/lu";
 import { CurrencySelect, FinancialFeeFields } from "@/components/currency";
@@ -144,7 +145,10 @@ export function EditCreditPurchaseDialog({
 	useEffect(() => {
 		if (!open) return;
 		setStoreName(purchase.storeName ?? "");
-		setDebtSplit(debtSplitToInput(original?.debtSplit ?? purchase.debtSplit));
+		setDebtSplit({
+			...debtSplitToInput(original?.debtSplit ?? purchase.debtSplit),
+			currency: purchase.bookingCurrency ?? "BRL",
+		});
 		setIsDebt(Boolean(original?.debtSplit ?? purchase.debtSplit));
 		setTime(purchase.time ?? "");
 	}, [open, original?.debtSplit, purchase.debtSplit, purchase.storeName, purchase.time]);
@@ -152,7 +156,11 @@ export function EditCreditPurchaseDialog({
 		if (open && original && !purchase.parentId) {
 			if (!amountEdited.current)
 				setAmount(
-					String(original.originalAmount ?? original.totalAmountCents / 100 - (original.feeAmount ?? 0)),
+					String(
+						original.originalAmount ??
+							original.totalAmountCents / currencyScale(purchase.bookingCurrency ?? "BRL") -
+								(original.feeAmount ?? 0),
+					),
 				);
 			if (!dateEdited.current) setDate(original.purchaseDate);
 		}
@@ -249,7 +257,9 @@ export function EditCreditPurchaseDialog({
 			totalAmount: isSynced
 				? (original?.originalAmount ??
 					purchase.originalAmount ??
-					(original?.totalAmountCents != null ? original.totalAmountCents / 100 : purchase.totalAmount))
+					(original?.totalAmountCents != null
+						? original.totalAmountCents / currencyScale(purchase.bookingCurrency ?? "BRL")
+						: purchase.totalAmount))
 				: totalAmount,
 		});
 		runDialogSave(operation, () => onOpenChange(false), "Salvando compra…");

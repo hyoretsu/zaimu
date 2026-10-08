@@ -11,6 +11,8 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
+import { ScrollArea } from "@/components/ui/ScrollArea";
+import { Skeleton } from "@/components/ui/Skeleton";
 import type { Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import {
@@ -24,8 +26,10 @@ import { TransactionDetailsFields } from "./TransactionDetailsFields";
 function createDraft(transaction: Transaction) {
 	return {
 		amount: String(transaction.amount),
+		currency: transaction.bookingCurrency ?? "BRL",
 		date: transaction.date.slice(0, 10),
 		originFinancialAccountId: transaction.originFinancialAccountId ?? "",
+		paymentAmount: String(transaction.paymentAmount ?? transaction.amount),
 		time: transaction.time ?? "",
 	};
 }
@@ -58,8 +62,10 @@ export function EditStatementPaymentDialog({
 			if (!transaction || !draft) throw new Error("Pagamento não encontrado");
 			return dataService.transactions.update(transaction.id, {
 				amount: Number.parseFloat(draft.amount),
+				currency: draft.currency,
 				date: draft.date,
 				originFinancialAccountId: draft.originFinancialAccountId,
+				paymentAmount: draft.paymentAmount ? Number(draft.paymentAmount) : undefined,
 				time: draft.time || null,
 			});
 		},
@@ -103,46 +109,65 @@ export function EditStatementPaymentDialog({
 					<DialogTitle>Editar pagamento da fatura</DialogTitle>
 					<DialogDescription>O saldo e a situação da fatura são recalculados ao salvar.</DialogDescription>
 				</DialogHeader>
-				<div className="scrollbar-themed grid min-h-0 gap-4 overflow-y-auto pr-1">
-					<TransactionDetailsFields
-						amount={draft.amount}
-						date={draft.date}
-						description=""
-						onAmountChange={amount => setDraft(current => (current ? { ...current, amount } : current))}
-						onDateChange={date => setDraft(current => (current ? { ...current, date } : current))}
-						onDescriptionChange={() => undefined}
-						onStoreNameChange={() => undefined}
-						onTagIdsChange={() => undefined}
-						onTimeChange={time => setDraft(current => (current ? { ...current, time } : current))}
-						onTypeChange={() => undefined}
-						showDescription={false}
-						showStore={false}
-						showTags={false}
-						showType={false}
-						storeName=""
-						tagIds={[]}
-						time={draft.time}
-						type="EXPENSE"
-					/>
-					{accountOptions.length ? (
-						<CustomSelect
-							disabled={accountsQuery.isPending || accountsQuery.isError}
-							label="Conta pagadora"
-							onValueChange={originFinancialAccountId =>
-								setDraft(current => (current ? { ...current, originFinancialAccountId } : current))
+				<ScrollArea className="min-h-0">
+					<div className="grid gap-4 pr-1">
+						<TransactionDetailsFields
+							amount={draft.amount}
+							bookingCurrency={
+								accountsQuery.data?.find(account => account.id === draft.originFinancialAccountId)
+									?.currency ?? draft.currency
 							}
-							options={accountOptions}
-							placeholder="Selecione a conta"
-							required
-							searchable
-							value={draft.originFinancialAccountId}
+							currencyCode={draft.currency}
+							date={draft.date}
+							description=""
+							onAmountChange={amount => setDraft(current => (current ? { ...current, amount } : current))}
+							onCurrencyChange={currency =>
+								setDraft(current => (current ? { ...current, currency } : current))
+							}
+							onDateChange={date => setDraft(current => (current ? { ...current, date } : current))}
+							onDescriptionChange={() => undefined}
+							onPaymentAmountChange={paymentAmount =>
+								setDraft(current => (current ? { ...current, paymentAmount } : current))
+							}
+							onStoreNameChange={() => undefined}
+							onTagIdsChange={() => undefined}
+							onTimeChange={time => setDraft(current => (current ? { ...current, time } : current))}
+							onTypeChange={() => undefined}
+							paymentAmount={draft.paymentAmount}
+							paymentCurrency={transaction.paymentCurrency ?? transaction.bookingCurrency ?? "BRL"}
+							showDescription={false}
+							showStore={false}
+							showTags={false}
+							showType={false}
+							storeName=""
+							tagIds={[]}
+							time={draft.time}
+							type="EXPENSE"
 						/>
-					) : (
-						<p className="rounded-xl border p-3 text-muted-foreground text-sm">
-							Nenhuma conta com saldo próprio disponível.
-						</p>
-					)}
-				</div>
+						{accountsQuery.isPending ? (
+							<Skeleton className="h-20" />
+						) : accountsQuery.isError ? (
+							<p className="text-destructive text-sm">Contas pagadoras indisponíveis.</p>
+						) : accountOptions.length ? (
+							<CustomSelect
+								disabled={accountsQuery.isPending || accountsQuery.isError}
+								label="Conta pagadora"
+								onValueChange={originFinancialAccountId =>
+									setDraft(current => (current ? { ...current, originFinancialAccountId } : current))
+								}
+								options={accountOptions}
+								placeholder="Selecione a conta"
+								required
+								searchable
+								value={draft.originFinancialAccountId}
+							/>
+						) : (
+							<p className="rounded-xl border p-3 text-muted-foreground text-sm">
+								Nenhuma conta com saldo próprio disponível.
+							</p>
+						)}
+					</div>
+				</ScrollArea>
 				<DialogFooter>
 					<Button className="cursor-pointer" onClick={() => onOpenChange(false)} variant="outline">
 						Descartar
