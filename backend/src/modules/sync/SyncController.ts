@@ -241,20 +241,25 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 								"type",
 							) ?? "CHECKING";
 						const existing = await queryFirst(
-							db.sql.public.FinancialAccount.select("id", "userId")
+							db.sql.public.FinancialAccount.select("id", "userId", "currency")
 								.where((f, fn) => fn.eq(f.id, id))
 								.limit(1)
 								.build(),
 						);
 						if (existing && existing.userId !== userId)
 							throw new Error(`Conta financeira ${id} pertence a outro usuário`);
+						const currency = await assertSupportedCurrency(
+							value<string | undefined>(entity, "currency") ?? existing?.currency ?? "BRL",
+						);
+						if (existing && currency !== existing.currency)
+							throw new Error("Moeda da conta existente não pode mudar pela sincronização");
 						const institutionInput = value<{ name?: string } | null | undefined>(entity, "institution");
 						const institution = await resolveFinancialInstitution(
 							userId,
 							value<string | undefined>(entity, "institutionName") ?? institutionInput?.name,
 						);
 						const values = {
-							currency: "BRL",
+							currency,
 							institutionId: institution?.id,
 							isHidden: value<boolean | undefined>(entity, "isHidden") ?? false,
 							name: value<string>(entity, "name"),
@@ -357,7 +362,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 								initialBalance: rewardsInput.initialBalance ?? 0,
 								kind: rewardsInput.kind,
 							};
-							assertRewardsAccountDetails(details);
+							assertRewardsAccountDetails(details, currency);
 							const existingRewards = await queryFirst(
 								db.sql.public.RewardsAccount.select("id")
 									.where((fields, functions) => functions.eq(fields.financialAccountId, id))
@@ -406,7 +411,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 						const kind = value<"AUTOMATIC" | "MANUAL">(entity, "kind");
 						if (!date || !kind) throw new Error("Informe os dados do rendimento");
 						const account = await queryFirst(
-							db.sql.public.FinancialAccount.select("id", "type")
+							db.sql.public.FinancialAccount.select("id", "type", "currency")
 								.where((fields, functions) =>
 									functions.and(
 										functions.eq(fields.id, financialAccountId),
@@ -429,6 +434,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 						if (existing?.origin === "SYSTEM") return;
 						const values = {
 							amount: nullableNumeric<12, 4>(value<number | null | undefined>(entity, "amount") ?? null),
+							currency: account.currency,
 							date,
 							isExcluded: value<boolean | undefined>(entity, "isExcluded") ?? false,
 							kind,
@@ -546,13 +552,20 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 						if (!accountIds.has(financialAccountId))
 							throw new Error(`Conta financeira ${financialAccountId} indisponível`);
 						const existing = await queryFirst(
-							db.sql.public.CreditCard.select("id", "financialAccountId")
+							db.sql.public.CreditCard.select("id", "financialAccountId", "currency")
 								.where((f, fn) => fn.eq(f.id, id))
 								.limit(1)
 								.build(),
 						);
 						if (existing && !accountIds.has(existing.financialAccountId))
 							throw new Error("Cartão pertence a outro proprietário");
+						const cardCurrency = await assertSupportedCurrency(
+							value<string | undefined>(entity, "currency") ??
+								existing?.currency ??
+								(await financialAccountCurrency(financialAccountId)),
+						);
+						if (existing && existing.currency !== cardCurrency)
+							throw new Error("Moeda do cartão existente não pode mudar pela sincronização");
 						const cashbackAccountId = value<null | string | undefined>(entity, "cashbackAccountId") ?? null;
 						const paymentAccountId = value<string | null | undefined>(entity, "paymentAccountId");
 						if (paymentAccountId) {
@@ -576,6 +589,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 						if (cashbackAccountId && !accountIds.has(cashbackAccountId))
 							throw new Error(`Conta de cashback ${cashbackAccountId} indisponível`);
 						const values = {
+							currency: cardCurrency,
 							...(paymentAccountId !== undefined && { paymentAccountId: paymentAccountId as never }),
 							cashbackAccountId,
 							cashbackRate: nullableNumeric<5, 2>(cashbackSettings.cashbackRate),
@@ -968,6 +982,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 					const financialAccountYields = financialAccounts.length
 						? await queryRows(
 								db.sql.public.FinancialAccountYield.select(
+									"currency",
 									"id",
 									"financialAccountId",
 									"date",
