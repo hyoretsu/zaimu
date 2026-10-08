@@ -1,12 +1,13 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { Client } from "pg";
+import { requireFixtureUrl } from "../../../scripts/testing/fixture";
 import { normalizeLegacyCreditPurchases } from "../../finance/src/legacy-credit-purchases";
 import operations from "../migrations/app/20260928T1302_backfill_credit_purchases/ops.json";
 
-const url = process.env.CREDIT_BACKFILL_TEST_URL;
+const url = requireFixtureUrl("CREDIT_BACKFILL_TEST_URL");
 
 // Schema through preserve_refund_history only. Every test rolls back its DDL and data.
-describe.skipIf(!url)("normalized credit purchase SQL backfill", () => {
+describe("normalized credit purchase SQL backfill", () => {
 	let client: Client;
 	const sourceTables = [
 		"CreditPurchase",
@@ -37,12 +38,6 @@ describe.skipIf(!url)("normalized credit purchase SQL backfill", () => {
 			if ((await client.query(check.sql)).rows[0].result !== true) throw new Error(check.description);
 	};
 	beforeAll(async () => {
-		const target = new URL(url!);
-		if (
-			!["localhost", "127.0.0.1"].includes(target.hostname) ||
-			target.pathname !== "/zaimu_credit_backfill_test"
-		)
-			throw new Error("Teste exige banco descartável local zaimu_credit_backfill_test");
 		client = new Client({ connectionString: url });
 		await client.connect();
 		if (

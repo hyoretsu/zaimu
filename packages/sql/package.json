@@ -13,7 +13,11 @@
 		"migrate:deploy": "prisma-cli migrate --advance-ref db",
 		"migration:check": "prisma-cli migration check",
 		"migration:plan": "prisma-cli migration plan",
-		"migration:status": "prisma-cli migration status"
+		"migration:status": "prisma-cli migration status",
+		"test": "bun run ../../scripts/test-runner.ts sql all",
+		"test:unit": "bun run ../../scripts/test-runner.ts sql unit",
+		"test:integration": "bun run ../../scripts/test-runner.ts sql integration",
+		"test:e2e": "bun run ../../scripts/test-runner.ts sql e2e"
 	},
 	"dependencies": {
 		"@prisma/orm-postgres": "8.0.0-rc.5",

@@ -1,0 +1,5 @@
+{
+	"compilerOptions": { "types": ["bun", "node"] },
+	"extends": "@hyoretsu/configs/ts-lib",
+	"include": ["test-runner.ts", "testing/**/*.ts"]
+}

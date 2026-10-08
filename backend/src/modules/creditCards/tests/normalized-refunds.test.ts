@@ -1,12 +1,13 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { createHmac } from "node:crypto";
 import { Client } from "pg";
+import { requireFixtureUrl } from "../../../../../scripts/testing/fixture";
 import type { CreditBookDTO } from "../infra/elysia/CreditBookDTO";
 
-const testUrl = process.env.NORMALIZED_PURCHASE_TEST_URL;
+const testUrl = requireFixtureUrl("NORMALIZED_PURCHASE_TEST_URL");
 
 /** Requires the migrated schema in a fresh, explicitly named local disposable database. */
-describe.skipIf(!testUrl)("normalized refund transactions", () => {
+describe("normalized refund transactions", () => {
 	let client: Client;
 	let refunds: typeof import("../application/normalized-refunds");
 	const context = {
@@ -16,12 +17,9 @@ describe.skipIf(!testUrl)("normalized refund transactions", () => {
 	};
 	const secondContext = { ...context, purchaseId: "normalized-test-second" };
 	beforeAll(async () => {
-		const url = new URL(testUrl!);
-		if (!["localhost", "127.0.0.1"].includes(url.hostname) || url.pathname !== "/zaimu_credit_test")
-			throw new Error("Teste exige banco descartável local zaimu_credit_test");
 		process.env.DATABASE_URL = testUrl;
 		process.env.BETTER_AUTH_SECRET = "local-normalized-credit-tests-secret-123456789";
-		process.env.REDIS_URL = "redis://127.0.0.1:6399";
+		process.env.REDIS_URL = requireFixtureUrl("CACHE_TEST_REDIS_URL");
 		process.env.BETTER_AUTH_URL = "http://localhost:3333";
 		refunds = await import("../application/normalized-refunds");
 		client = new Client({ connectionString: testUrl });

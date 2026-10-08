@@ -1,14 +1,12 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { Client } from "pg";
+import { requireFixtureUrl } from "../../../../../scripts/testing/fixture";
 import { referenceRateInsertSql } from "../domain/reference-rate-insert-sql";
 
-const socket = process.env.REFERENCE_RATE_REPAIR_TEST_SOCKET;
+const url = requireFixtureUrl("REFERENCE_RATE_REPAIR_TEST_URL");
 let client: Client;
 beforeAll(async () => {
-	if (!socket) return;
-	if (!socket.startsWith("/tmp/zaimu-reference-rate-repair-"))
-		throw new Error("Use isolated local reference-rate repair socket");
-	client = new Client({ database: "postgres", host: socket, port: 55440, user: process.env.USER });
+	client = new Client({ connectionString: url });
 	await client.connect();
 	await client.query(`CREATE TABLE "ReferenceRate" (
  "id" serial PRIMARY KEY, "type" text, "date" date, "value" numeric,
@@ -18,7 +16,7 @@ afterAll(async () => {
 	await client?.end();
 });
 
-describe.skipIf(!socket)("insert-only reference-rate repair", () => {
+describe("insert-only reference-rate repair", () => {
 	test("preserves existing values and timestamps, fills missing days, and tolerates reruns", async () => {
 		await client.query(
 			`INSERT INTO "ReferenceRate" ("type","date","value","updatedAt") VALUES ('CDI','2020-01-02',0.01,'2020-01-03')`,

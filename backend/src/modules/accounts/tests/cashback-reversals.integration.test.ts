@@ -1,14 +1,12 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { Client } from "pg";
+import { requireFixtureUrl } from "../../../../../scripts/testing/fixture";
 import { cashbackReversalsSql } from "../application/cashback-reversals-sql";
 
-const url = process.env.CASHBACK_SQL_TEST_URL;
-describe.skipIf(!url)("native cashback SQL", () => {
+const url = requireFixtureUrl("CASHBACK_SQL_TEST_URL");
+describe("native cashback SQL", () => {
 	let client: Client;
 	beforeAll(async () => {
-		const parsed = new URL(url!);
-		if (!["localhost", "127.0.0.1"].includes(parsed.hostname) || parsed.pathname !== "/zaimu_cashback_test")
-			throw new Error("Teste exige banco descartável local zaimu_cashback_test");
 		client = new Client({ connectionString: url });
 		await client.connect();
 		await client.query(`

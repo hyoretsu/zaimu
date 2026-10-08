@@ -1,13 +1,11 @@
 import { describe, expect, test } from "bun:test";
+import { requireFixtureUrl } from "../../../../scripts/testing/fixture";
 import { AuthSecondaryStorage } from "./secondary-storage";
 
-const url = process.env.CACHE_TEST_REDIS_URL;
-const suite = url ? describe : describe.skip;
+const url = requireFixtureUrl("CACHE_TEST_REDIS_URL");
+const suite = describe;
 suite("auth cache generations", () => {
 	test("prevents stale fallback repopulation and shares revocation between instances", async () => {
-		const target = new URL(url!);
-		if (target.hostname !== "127.0.0.1" || target.port !== "6395")
-			throw new Error("Dedicated local Redis required");
 		const first = new AuthSecondaryStorage(url);
 		const peer = new AuthSecondaryStorage(url);
 		await first.client.connect();
@@ -55,7 +53,7 @@ suite("auth cache generations", () => {
 	});
 
 	test("partitioned mutation fails before authoritative writes", async () => {
-		const storage = new AuthSecondaryStorage("redis://127.0.0.1:6396");
+		const storage = new AuthSecondaryStorage(requireFixtureUrl("UNAVAILABLE_REDIS_TEST_URL"));
 		let revoked = false;
 		try {
 			const start = performance.now();

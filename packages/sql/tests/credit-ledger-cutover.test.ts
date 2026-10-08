@@ -1,20 +1,15 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { Client } from "pg";
+import { requireFixtureUrl } from "../../../scripts/testing/fixture";
 import backfill from "../migrations/app/20260928T1302_backfill_credit_purchases/ops.json";
 import cutover from "../migrations/app/20260928T1340_activate_normalized_credit_ledger/ops.json";
 
-const url = process.env.CREDIT_CUTOVER_TEST_URL;
+const url = requireFixtureUrl("CREDIT_CUTOVER_TEST_URL");
 const fixture = await Bun.file(new URL("./fixtures/credit-ledger-cutover.sql", import.meta.url)).text();
 
-describe.skipIf(!url)("credit ledger SQL cutover", () => {
+describe("credit ledger SQL cutover", () => {
 	let client: Client;
 	beforeAll(async () => {
-		const target = new URL(url!);
-		if (
-			!["127.0.0.1", "localhost"].includes(target.hostname) ||
-			target.pathname !== "/zaimu_credit_remap_test"
-		)
-			throw new Error("Use disposable local zaimu_credit_remap_test");
 		client = new Client({ connectionString: url });
 		await client.connect();
 	});

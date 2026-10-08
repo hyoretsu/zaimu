@@ -2,10 +2,11 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { Client } from "pg";
 import { createEventEnvelope } from "~/shared/application/events";
 import type { queryRaw } from "~/shared/infra/sql";
+import { requireFixtureUrl } from "../../../../../scripts/testing/fixture";
 import { runHistoryUnit } from "../application/history-collections";
 
-const url = process.env.HISTORY_SQL_TEST_URL;
-describe.skipIf(!url)("local PostgreSQL history fencing", () => {
+const url = requireFixtureUrl("HISTORY_SQL_TEST_URL");
+describe("local PostgreSQL history fencing", () => {
 	const schema = `history_test_${crypto.randomUUID().replaceAll("-", "")}`;
 	let first: Client;
 	let second: Client;
@@ -20,9 +21,6 @@ describe.skipIf(!url)("local PostgreSQL history fencing", () => {
 	const execute = (client: Client) =>
 		(async (sql: string, values?: unknown[]) => (await client.query(sql, values)).rows) as typeof queryRaw;
 	beforeAll(async () => {
-		const parsed = new URL(url!);
-		if (!["localhost", "127.0.0.1"].includes(parsed.hostname) || parsed.pathname !== "/zaimu_cashback_test")
-			throw new Error("Test requires disposable local zaimu_cashback_test database");
 		first = new Client({ connectionString: url });
 		second = new Client({ connectionString: url });
 		await first.connect();

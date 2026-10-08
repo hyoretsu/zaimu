@@ -1,10 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { Client } from "pg";
+import { requireFixtureUrl } from "../../../scripts/testing/fixture";
 import cutover from "../migrations/app/20261002T1719_remove_debt_legacy/ops.json";
 import contract from "../migrations/snapshots/2959d551a33a438c69e904f3222fb3b053b98e9f92be5a047827b7e5853f53a0/contract.json";
 import { assertLocalRecurrenceTestUrl, installContractFixture } from "./contract-fixture";
 
-const url = process.env.DEBT_TEST_URL;
+const url = requireFixtureUrl("DEBT_TEST_URL");
 async function fixture(client: Client) {
 	await installContractFixture(client, contract);
 	await client.query(`
@@ -18,7 +19,7 @@ INSERT INTO "DebtEvent" ("id","createdByUserId","debtPersonId","amount","effect"
 async function migrate(client: Client) {
 	for (const op of cutover) for (const statement of op.execute) await client.query(statement.sql);
 }
-describe.skipIf(!url)("debt legacy cutover", () => {
+describe("debt legacy cutover", () => {
 	test("ledger edits and compensation remain exact; historical deletions become tombstones", async () => {
 		assertLocalRecurrenceTestUrl(url!);
 		const client = new Client({ connectionString: url });

@@ -1,4 +1,5 @@
 import { afterAll, describe, expect, test } from "bun:test";
+import { requireFixtureUrl } from "../../../../scripts/testing/fixture";
 import {
 	closeDatabase,
 	db,
@@ -9,17 +10,10 @@ import {
 	withRawTransaction,
 } from "../index";
 
-const url = process.env.PERFORMANCE_DATABASE_URL;
-const suite = url ? describe : describe.skip;
+requireFixtureUrl("PERFORMANCE_DATABASE_URL");
+const suite = describe;
 suite("physical PostgreSQL instrumentation", () => {
 	test("counts raw, ORM auth and transaction control once", async () => {
-		const local = new URL(url!);
-		if (
-			local.hostname !== "127.0.0.1" ||
-			local.port !== "55495" ||
-			local.pathname !== "/zaimu_performance"
-		)
-			throw new Error("Dedicated local performance PostgreSQL required");
 		await withQueryMetrics(async () => {
 			await queryRaw("SELECT 1");
 			expect(getQueryMetrics()?.queryCount).toBe(1);

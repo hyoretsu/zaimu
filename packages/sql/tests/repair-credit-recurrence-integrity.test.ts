@@ -1,16 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { Client } from "pg";
+import { requireFixtureUrl } from "../../../scripts/testing/fixture";
 import contract from "../migrations/snapshots/489fa825bbec65c03cbedcfb5f9392b3e81f364964be9deadd99a8e829aa13cf/contract.json";
 import { assertLocalRecurrenceTestUrl, installContractFixture } from "./contract-fixture";
 
-const url = process.env.RECURRENCE_TEST_URL;
+const url = requireFixtureUrl("RECURRENCE_TEST_URL");
 const repair = readFileSync(
 	new URL("../scripts/repair-credit-recurrence-integrity.sql", import.meta.url),
 	"utf8",
 );
 
-describe.skipIf(!url)("credit recurrence integrity repair", () => {
+describe("credit recurrence integrity repair", () => {
 	test("repairs retired table reference while retaining ownership and installment checks", async () => {
 		assertLocalRecurrenceTestUrl(url!);
 		const client = new Client({ connectionString: url });

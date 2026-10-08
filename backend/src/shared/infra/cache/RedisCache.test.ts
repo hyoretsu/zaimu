@@ -1,16 +1,15 @@
 import { describe, expect, test } from "bun:test";
+import { requireFixtureUrl } from "../../../../../scripts/testing/fixture";
+import { cacheKey } from "../service-namespace";
 import { RedisCache } from "./RedisCache";
 
-const redisUrl = process.env.CACHE_TEST_REDIS_URL;
-const suite = redisUrl ? describe : describe.skip;
+const redisUrl = requireFixtureUrl("CACHE_TEST_REDIS_URL");
+const suite = describe;
 
 suite("isolated Redis write fences", () => {
 	test("reads epoch, generations and fences atomically and protects lock ownership", async () => {
-		const url = new URL(redisUrl!);
-		if (!["localhost", "127.0.0.1"].includes(url.hostname) || url.port !== "6395")
-			throw new Error("Dedicated local Redis on port 6395 required");
 		const cache = new RedisCache(redisUrl);
-		const prefix = `zaimu:test:${crypto.randomUUID()}`;
+		const prefix = cacheKey(`test:${crypto.randomUUID()}`);
 		const epoch = `${prefix}:epoch`,
 			generation = `${prefix}:generation`,
 			fence = `${prefix}:fence`,
@@ -37,11 +36,8 @@ suite("isolated Redis write fences", () => {
 		}
 	});
 	test("atomically registers entries, rejects stale writers and unlinks every registry membership", async () => {
-		const url = new URL(redisUrl!);
-		if (!["localhost", "127.0.0.1"].includes(url.hostname) || url.port !== "6395")
-			throw new Error("Dedicated local Redis on port 6395 required");
 		const cache = new RedisCache(redisUrl);
-		const prefix = `zaimu:test:${crypto.randomUUID()}`;
+		const prefix = cacheKey(`test:${crypto.randomUUID()}`);
 		const epoch = `${prefix}:epoch`,
 			generation = `${prefix}:generation`,
 			family = `${prefix}:family`,
@@ -88,11 +84,8 @@ suite("isolated Redis write fences", () => {
 		}
 	});
 	test("serializes generations while retaining concurrent leases and expiring rollback leases", async () => {
-		const url = new URL(redisUrl!);
-		if (!["localhost", "127.0.0.1"].includes(url.hostname) || url.port !== "6395")
-			throw new Error("Dedicated local Redis on port 6395 required");
 		const cache = new RedisCache(redisUrl);
-		const prefix = `zaimu:test:${crypto.randomUUID()}`;
+		const prefix = cacheKey(`test:${crypto.randomUUID()}`);
 		const fence = `${prefix}:fence`;
 		const generation = `${prefix}:generation`;
 		try {

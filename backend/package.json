@@ -16,9 +16,10 @@
 		"schedule:replay": "bun run src/scripts/replay-schedule-materialization.ts",
 		"start": "NODE_ENV=production bun dist/main.js",
 		"start:worker": "NODE_ENV=production bun dist/worker.js",
-		"test": "bun test",
-		"test:e2e": "bun run tests/run-e2e.ts",
-		"test:unit": "bun test src"
+		"test": "bun run ../scripts/test-runner.ts backend all",
+		"test:e2e": "bun run ../scripts/test-runner.ts backend e2e",
+		"test:unit": "bun run ../scripts/test-runner.ts backend unit",
+		"test:integration": "bun run ../scripts/test-runner.ts backend integration"
 	},
 	"dependencies": {
 		"@better-auth/core": "1.7.1",

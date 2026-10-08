@@ -1,4 +1,5 @@
 import type { Client } from "pg";
+import { assertFixtureUrl } from "../../../scripts/testing/fixture";
 
 interface Column {
 	nativeType: string;
@@ -38,12 +39,7 @@ const literal = (value: unknown) =>
 				? "NULL"
 				: `'${(typeof value === "object" ? JSON.stringify(value) : String(value)).replaceAll("'", "''")}'`;
 export function assertLocalRecurrenceTestUrl(url: string) {
-	const target = new URL(url);
-	if (
-		!["localhost", "127.0.0.1"].includes(target.hostname) ||
-		!target.pathname.startsWith("/zaimu_recurrence_test")
-	)
-		throw new Error("Use dedicated local zaimu_recurrence_test database.");
+	assertFixtureUrl(url);
 }
 /** Reconstruct an emitted contract in a dedicated disposable database for migration tests. */
 export async function installContractFixture(client: Client, input: unknown) {

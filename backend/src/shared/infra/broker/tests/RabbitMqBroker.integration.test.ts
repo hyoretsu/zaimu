@@ -1,10 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import amqp from "amqplib";
 import { createEventEnvelope } from "~/shared/application/events";
+import { requireFixtureUrl } from "../../../../../../scripts/testing/fixture";
 import { brokerQueue } from "../../service-namespace";
 import { RabbitMqBroker } from "../RabbitMqBroker";
 
-const enabled = Boolean(process.env.BROKER_TEST_URL);
+const brokerUrl = requireFixtureUrl("BROKER_TEST_URL");
 const eventually = async (check: () => Promise<boolean>, timeout = 60000) => {
 	const deadline = Date.now() + timeout;
 	while (Date.now() < deadline) {
@@ -14,17 +15,12 @@ const eventually = async (check: () => Promise<boolean>, timeout = 60000) => {
 	throw new Error("Local broker condition timed out");
 };
 
-describe.skipIf(!enabled)("dedicated broker", () => {
+describe("dedicated broker", () => {
 	test("isolated broker confirms, reconnects, deduplicates, retries and persists DLQ", async () => {
-		const url = new URL(process.env.BROKER_TEST_URL!);
-		const database = new URL(process.env.DATABASE_URL!);
-		if (
-			url.hostname !== "127.0.0.1" ||
-			url.port !== "5675" ||
-			database.hostname !== "127.0.0.1" ||
-			database.pathname !== "/zaimu_performance_codex_0012"
-		)
-			throw new Error("Dedicated local broker and fixture required");
+		const url = new URL(brokerUrl);
+		requireFixtureUrl("DATABASE_URL");
+		const container = process.env.ZAIMU_TEST_RABBITMQ_CONTAINER;
+		if (!container) throw new Error("Runner RabbitMQ container missing");
 		const { executeRaw, closeDatabase } = await import("sql");
 		const broker = new RabbitMqBroker(url.toString());
 		const eventIds: string[] = [];
@@ -73,7 +69,7 @@ describe.skipIf(!enabled)("dedicated broker", () => {
 			const publisher = new RabbitMqBroker(url.toString());
 			await publisher.publish("zaimu.events", "domain.test", persisted);
 			await publisher.close();
-			const restart = Bun.spawn(["docker", "restart", "-t", "2", "zaimu-validation-rabbit-0012"], {
+			const restart = Bun.spawn(["docker", "restart", "-t", "2", container], {
 				stderr: "ignore",
 				stdout: "ignore",
 			});
@@ -87,7 +83,7 @@ describe.skipIf(!enabled)("dedicated broker", () => {
 				}
 			});
 			await eventually(async () => calls.get(persisted.eventId) === 1);
-			const reconnect = Bun.spawn(["docker", "restart", "-t", "2", "zaimu-validation-rabbit-0012"], {
+			const reconnect = Bun.spawn(["docker", "restart", "-t", "2", container], {
 				stderr: "ignore",
 				stdout: "ignore",
 			});

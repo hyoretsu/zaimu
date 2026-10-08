@@ -1,11 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { Client } from "pg";
+import { requireFixtureUrl } from "../../../scripts/testing/fixture";
 import audit from "../migrations/app/20261002T1640_application_upgrade_audit/ops.json";
 import cutover from "../migrations/app/20261002T1655_remove_recurrence_legacy/ops.json";
 import contract from "../migrations/snapshots/f455efbeae9a441e883befa794486f417ce17c903acc3e5fe483c941ed82879d/contract.json";
 import { assertLocalRecurrenceTestUrl, installContractFixture } from "./contract-fixture";
 
-const url = process.env.RECURRENCE_TEST_URL;
+const url = requireFixtureUrl("RECURRENCE_TEST_URL");
 async function execute(client: Client, ops: Array<{ execute: Array<{ sql: string }> }>) {
 	for (const operation of ops) for (const statement of operation.execute) await client.query(statement.sql);
 }
@@ -26,7 +27,7 @@ async function fixture(client: Client) {
  `);
 	await execute(client, audit);
 }
-describe.skipIf(!url)("recurrence legacy cutover", () => {
+describe("recurrence legacy cutover", () => {
 	test("keeps amounts, references and tombstones while removing historic contracts", async () => {
 		assertLocalRecurrenceTestUrl(url!);
 		const client = new Client({ connectionString: url });

@@ -1,5 +1,6 @@
 {
 	"$schema": "https://turborepo.dev/schema.json",
+	"globalDependencies": ["scripts/test-runner.ts", "scripts/testing/**"],
 	"tasks": {
 		"backend#build": {
 			"dependsOn": ["^contract:emit", "generate"],
@@ -79,18 +80,20 @@
 			"outputLogs": "new-only"
 		},
 		"test": {
-			"dependsOn": ["test:e2e", "test:unit"]
+			"cache": false,
+			"dependsOn": ["^contract:emit"]
 		},
 		"test:e2e": {
 			"cache": false,
-			"dependsOn": ["^contract:emit"],
-			"env": ["DATABASE_TEST_URL", "DATABASE_URL"],
-			"inputs": ["**/*.e2e.test.ts"]
+			"dependsOn": ["^contract:emit"]
+		},
+		"test:integration": {
+			"cache": false,
+			"dependsOn": ["^contract:emit"]
 		},
 		"test:unit": {
-			"dependsOn": ["^contract:emit"],
-			"inputs": ["**/*.test.ts", "!**/*.e2e.test.ts"],
-			"outputLogs": "new-only"
+			"cache": false,
+			"dependsOn": ["^contract:emit"]
 		}
 	}
 }

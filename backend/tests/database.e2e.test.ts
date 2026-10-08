@@ -1,7 +1,8 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { requireFixtureUrl } from "../../scripts/testing/fixture";
 
-const databaseTestUrl = process.env.DATABASE_TEST_URL;
-const suite = databaseTestUrl ? describe : describe.skip;
+const databaseTestUrl = requireFixtureUrl("DATABASE_TEST_URL");
+const suite = describe;
 
 interface Server {
 	handle(request: Request): Response | Promise<Response>;
@@ -30,6 +31,7 @@ const jsonRequest = (path: string, method: string, body?: unknown, cookie?: stri
 
 interface TestLedger {
 	people: Array<{
+		balances: Array<{ amount: number; currency: string }>;
 		id: string;
 		balance: number;
 		events: Array<Record<string, unknown> & { amount: number; effect: number; id: string }>;
@@ -58,7 +60,7 @@ async function loadLedger(response: Response, cookie: string): Promise<TestLedge
 	return ledger;
 }
 
-const createSession = async (label: string) => {
+const createSession = async (label: string, preferredCurrency?: string) => {
 	const email = `prisma8-${label}-${crypto.randomUUID()}@example.com`;
 	const password = "Prisma8-test-password";
 	const signup = await jsonRequest("/api/auth/sign-up/email", "POST", {
@@ -70,6 +72,7 @@ const createSession = async (label: string) => {
 
 	const user = await db.orm.public.User.where(fields => fields.email.eq(email as never)).update({
 		emailVerified: true,
+		...(preferredCurrency ? { preferredCurrency: preferredCurrency as never } : {}),
 	});
 	const userId = user?.id;
 	if (!userId) throw new Error("Signup user was not persisted");
@@ -98,7 +101,8 @@ suite("Prisma 8 SQL query builder", () => {
 	});
 
 	test("auth, ownership, CRUD, arithmetic, aggregates, and empty sync", async () => {
-		const owner = await createSession("owner");
+		// Arithmetic fixture uses one explicit native currency, independent of signup defaults.
+		const owner = await createSession("owner", "BRL");
 		const outsider = await createSession("outsider");
 		const accountName = `Conta ${crypto.randomUUID()}`;
 
@@ -899,7 +903,7 @@ suite("Prisma 8 SQL query builder", () => {
 			transaction: {
 				amount: number;
 				paymentCreditCardId: string;
-				description: string;
+				description: string | null;
 				id: string;
 				time: string;
 				type: string;
@@ -907,7 +911,7 @@ suite("Prisma 8 SQL query builder", () => {
 		};
 		expect(statementPayment.transaction).toMatchObject({
 			amount: 60,
-			description: "Pagamento do cartão",
+			description: null,
 			paymentCreditCardId: cardAccount.creditCard.id,
 			time: expect.stringMatching(/^18:45/),
 			type: "EXPENSE",
@@ -1237,12 +1241,18 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(invitationPreview.status).toBe(200);
 		const invitationPage = (await invitationPreview.json()) as {
 			balance: number;
+			balances: Array<{ amount: number; currency: string }>;
 			eventCount: number;
 			items: Array<{ id: string }>;
 			hasMore: boolean;
 			nextCursor: string;
 		};
-		expect(invitationPage).toMatchObject({ balance: -150, eventCount: 2, hasMore: true });
+		expect(invitationPage).toMatchObject({
+			balance: 0,
+			balances: [{ amount: -150, currency: "USD" }],
+			eventCount: 2,
+			hasMore: true,
+		});
 		expect(invitationPage.items).toHaveLength(1);
 		const invitationNext = await jsonRequest(
 			`/debts/invitations/${invitation.id}/preview?limit=1&cursor=${encodeURIComponent(invitationPage.nextCursor)}`,
@@ -1309,7 +1319,11 @@ suite("Prisma 8 SQL query builder", () => {
 			peer.cookie,
 		);
 		expect(refreshedPreview.status).toBe(200);
-		expect(await refreshedPreview.json()).toMatchObject({ balance: -170, eventCount: 3 });
+		expect(await refreshedPreview.json()).toMatchObject({
+			balance: 0,
+			balances: [{ amount: -170, currency: "USD" }],
+			eventCount: 3,
+		});
 		expect(
 			(await jsonRequest(`/transactions/${previewTransaction.id}`, "DELETE", undefined, owner.cookie)).status,
 		).toBe(200);
@@ -1320,7 +1334,11 @@ suite("Prisma 8 SQL query builder", () => {
 			peer.cookie,
 		);
 		expect(restoredPreview.status).toBe(200);
-		expect(await restoredPreview.json()).toMatchObject({ balance: -150, eventCount: 2 });
+		expect(await restoredPreview.json()).toMatchObject({
+			balance: 0,
+			balances: [{ amount: -150, currency: "USD" }],
+			eventCount: 2,
+		});
 
 		const privateLedger = await jsonRequest("/debts", "GET", undefined, peer.cookie);
 		expect((await privateLedger.json()) as { people: unknown[] }).toMatchObject({ people: [] });
@@ -1330,6 +1348,7 @@ suite("Prisma 8 SQL query builder", () => {
 		interface Ledger {
 			people: Array<{
 				balance: number;
+				balances: Array<{ amount: number; currency: string }>;
 				events: Array<Record<string, unknown> & { amount: number; effect: number; id: string }>;
 				id: string;
 			}>;
@@ -1338,8 +1357,8 @@ suite("Prisma 8 SQL query builder", () => {
 		const ownerLedger = await loadLedger(ownerLedgerResponse, owner.cookie);
 		const peerLedgerResponse = await jsonRequest("/debts", "GET", undefined, peer.cookie);
 		const peerLedger = await loadLedger(peerLedgerResponse, peer.cookie);
-		expect(ownerLedger.people[0]?.balance).toBe(150);
-		expect(peerLedger.people[0]?.balance).toBe(-150);
+		expect(ownerLedger.people[0]?.balances.find(balance => balance.currency === "USD")?.amount).toBe(150);
+		expect(peerLedger.people[0]?.balances.find(balance => balance.currency === "USD")?.amount).toBe(-150);
 		expect(peerLedger.people[0]?.events).toHaveLength(2);
 
 		const peerAccountResponse = await jsonRequest(
@@ -1374,7 +1393,9 @@ suite("Prisma 8 SQL query builder", () => {
 			await jsonRequest("/debts", "GET", undefined, owner.cookie),
 			owner.cookie,
 		);
-		expect(ledgerAfterPayment.people[0]?.balance).toBe(100);
+		expect(ledgerAfterPayment.people[0]?.balances.find(balance => balance.currency === "USD")?.amount).toBe(
+			100,
+		);
 		const sharedPayment = ledgerAfterPayment.people[0]?.events.find(
 			event => event.amount === 50 && event.effect === -50,
 		);
@@ -1405,7 +1426,7 @@ suite("Prisma 8 SQL query builder", () => {
 			await jsonRequest("/debts", "GET", undefined, owner.cookie),
 			owner.cookie,
 		);
-		expect(ledgerAfterPair.people[0]?.balance).toBe(100);
+		expect(ledgerAfterPair.people[0]?.balances.find(balance => balance.currency === "USD")?.amount).toBe(100);
 		expect(ledgerAfterPair.people[0]?.events).toHaveLength(3);
 
 		const overpayment = await jsonRequest(
@@ -1433,8 +1454,12 @@ suite("Prisma 8 SQL query builder", () => {
 			await jsonRequest("/debts", "GET", undefined, peer.cookie),
 			peer.cookie,
 		);
-		expect(crossedOwnerLedger.people[0]?.balance).toBe(-50);
-		expect(crossedPeerLedger.people[0]?.balance).toBe(50);
+		expect(crossedOwnerLedger.people[0]?.balances.find(balance => balance.currency === "USD")?.amount).toBe(
+			-50,
+		);
+		expect(crossedPeerLedger.people[0]?.balances.find(balance => balance.currency === "USD")?.amount).toBe(
+			50,
+		);
 
 		const cardAccountResponse = await jsonRequest(
 			"/financial-accounts/",
@@ -1470,7 +1495,9 @@ suite("Prisma 8 SQL query builder", () => {
 			await jsonRequest("/debts", "GET", undefined, owner.cookie),
 			owner.cookie,
 		);
-		expect(afterInstallments.people[0]?.balance).toBe(40);
+		expect(afterInstallments.people[0]?.balances.find(balance => balance.currency === "USD")?.amount).toBe(
+			40,
+		);
 		expect(
 			afterInstallments.people[0]?.events.filter(event => event.amount === 90 && event.effect === 90),
 		).toEqual([expect.objectContaining({ description: "Mercado da esquina" })]);
@@ -1526,8 +1553,9 @@ suite("Prisma 8 SQL query builder", () => {
 			).status,
 		).toBe(400);
 		expect(
-			(await loadLedger(await jsonRequest("/debts", "GET", undefined, owner.cookie), owner.cookie)).people[0]
-				?.balance,
+			(
+				await loadLedger(await jsonRequest("/debts", "GET", undefined, owner.cookie), owner.cookie)
+			).people[0]?.balances.find(balance => balance.currency === "USD")?.amount,
 		).toBe(-50);
 		expect(
 			(
@@ -1554,8 +1582,9 @@ suite("Prisma 8 SQL query builder", () => {
 			),
 		).toEqual([]);
 		expect(
-			(await loadLedger(await jsonRequest("/debts", "GET", undefined, owner.cookie), owner.cookie)).people[0]
-				?.balance,
+			(
+				await loadLedger(await jsonRequest("/debts", "GET", undefined, owner.cookie), owner.cookie)
+			).people[0]?.balances.find(balance => balance.currency === "USD")?.amount,
 		).toBe(40);
 		expect(
 			(
@@ -1568,8 +1597,9 @@ suite("Prisma 8 SQL query builder", () => {
 			).status,
 		).toBe(200);
 		expect(
-			(await loadLedger(await jsonRequest("/debts", "GET", undefined, owner.cookie), owner.cookie)).people[0]
-				?.balance,
+			(
+				await loadLedger(await jsonRequest("/debts", "GET", undefined, owner.cookie), owner.cookie)
+			).people[0]?.balances.find(balance => balance.currency === "USD")?.amount,
 		).toBe(-50);
 
 		const declinedPersonResponse = await jsonRequest(

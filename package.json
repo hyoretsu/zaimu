@@ -19,7 +19,12 @@
 		"format:biome": "bunx biome check --diagnostic-level=error --write --unsafe",
 		"format:eslint": "bunx eslint --quiet --fix",
 		"prepare": "bun run ./prepare.ts || true",
-		"start": "turbo start"
+		"start": "turbo start",
+		"test": "bun run test:runner && bun run scripts/test-runner.ts backend all && bun run scripts/test-runner.ts sql all",
+		"test:unit": "bun run scripts/test-runner.ts backend unit && bun run scripts/test-runner.ts sql unit",
+		"test:integration": "bun run scripts/test-runner.ts backend integration && bun run scripts/test-runner.ts sql integration",
+		"test:e2e": "bun run scripts/test-runner.ts backend e2e && bun run scripts/test-runner.ts sql e2e",
+		"test:runner": "bun test scripts/testing --timeout 45000"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.5.10",

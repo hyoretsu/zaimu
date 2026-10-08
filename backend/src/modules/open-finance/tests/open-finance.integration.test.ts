@@ -1,16 +1,11 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { Client } from "pg";
-import migration from "../../../../../packages/sql/migrations/app/20261003T0436_meu_pluggy_open_finance/ops.json";
-import contract from "../../../../../packages/sql/migrations/snapshots/489fa825bbec65c03cbedcfb5f9392b3e81f364964be9deadd99a8e829aa13cf/contract.json";
-import {
-	assertLocalRecurrenceTestUrl,
-	installContractFixture,
-} from "../../../../../packages/sql/tests/contract-fixture";
+import { requireFixtureUrl } from "../../../../../scripts/testing/fixture";
 import type { Binding } from "../application/candidates";
 import { normalizeTransaction } from "../domain/normalize";
 import { encryptCredentials } from "../infra/credentials";
 
-const url = process.env.OPEN_FINANCE_TEST_URL;
+const url = requireFixtureUrl("OPEN_FINANCE_TEST_URL");
+const originalFetch = globalThis.fetch;
 let sql: typeof import("~/shared/infra/sql");
 let processRecord: typeof import("../application/process-record").processRecord;
 let startSync: typeof import("../application/sync").startSync;
@@ -42,30 +37,14 @@ async function processRemote(input = remote(), target = binding, userId = "owner
 		return processRecord(userId, target, input);
 	});
 }
-describe.skipIf(!url)("MeuPluggy local integration", () => {
+describe("MeuPluggy local integration", () => {
 	beforeAll(async () => {
-		assertLocalRecurrenceTestUrl(url!);
+		globalThis.fetch = (async () => {
+			throw new Error("Unexpected external request in local Open Finance integration");
+		}) as unknown as typeof fetch;
 		process.env.DATABASE_URL = url;
 		process.env.OPEN_FINANCE_ENCRYPTION_KEY = "ab".repeat(32);
-		process.env.REDIS_URL = "redis://127.0.0.1:55440";
-		const client = new Client({ connectionString: url });
-		await client.connect();
-		try {
-			await client.query("DROP SCHEMA public CASCADE; CREATE SCHEMA public");
-			await installContractFixture(client, contract);
-			for (const operation of migration) {
-				for (const check of operation.precheck)
-					if ((await client.query(check.sql, "params" in check ? check.params : [])).rows[0].result !== true)
-						throw new Error(`Migration check failed: ${check.sql}`);
-				for (const statement of operation.execute)
-					await client.query(statement.sql, "params" in statement ? (statement.params as unknown[]) : []);
-				for (const check of operation.postcheck)
-					if ((await client.query(check.sql, "params" in check ? check.params : [])).rows[0].result !== true)
-						throw new Error(`Migration check failed: ${check.sql}`);
-			}
-		} finally {
-			await client.end();
-		}
+		process.env.REDIS_URL = requireFixtureUrl("CACHE_TEST_REDIS_URL");
 		sql = await import("~/shared/infra/sql");
 		({ processRecord } = await import("../application/process-record"));
 		({ startSync } = await import("../application/sync"));
@@ -81,6 +60,7 @@ describe.skipIf(!url)("MeuPluggy local integration", () => {
 		]);
 	}, 120000);
 	afterAll(async () => {
+		globalThis.fetch = originalFetch;
 		if (sql) await sql.closeDatabase();
 	});
 	test("repeated and concurrent deliveries materialize once", async () => {
@@ -251,7 +231,7 @@ describe.skipIf(!url)("MeuPluggy local integration", () => {
 		);
 		const previousFetch = globalThis.fetch;
 		let failFirst = true;
-		globalThis.fetch = (async input => {
+		globalThis.fetch = (async (input: Parameters<typeof fetch>[0]) => {
 			const target = new URL(String(input));
 			if (target.pathname === "/auth") return Response.json({ apiKey: "simulated" });
 			if (target.pathname.startsWith("/items/"))
@@ -289,7 +269,7 @@ describe.skipIf(!url)("MeuPluggy local integration", () => {
 				});
 			}
 			throw new Error("Unexpected outbound request blocked");
-		}) as typeof fetch;
+		}) as unknown as typeof fetch;
 		try {
 			const { handleOpenFinanceSync, recoverOpenFinanceRuns, syncStatus } = await import(
 				"../application/sync"
@@ -362,6 +342,9 @@ describe.skipIf(!url)("MeuPluggy local integration", () => {
 		expect(payment).toEqual({ amount: 82, paymentCreditCardId: "card" });
 	});
 	test("untouched reviews follow corrections but draft edits are preserved", async () => {
+		await sql.executeRaw(
+			`INSERT INTO "CurrencyRateSnapshot" ("date","baseCurrency","rates") VALUES ('2026-07-01','USD','{"BRL":5}'),('2026-07-01','BRL','{"USD":0.2}')`,
+		);
 		const input = remote("review-update", {
 			currencyCode: "USD",
 			date: "2026-07-01",
@@ -378,7 +361,7 @@ describe.skipIf(!url)("MeuPluggy local integration", () => {
 					record.reviewItemId,
 				])
 			)[0].amount,
-		).toBe(111);
+		).toBe(555);
 		await sql.executeRaw(`UPDATE "TransactionImportItem" SET "description"='Draft edit' WHERE "id"=$1`, [
 			record.reviewItemId,
 		]);
@@ -389,7 +372,7 @@ describe.skipIf(!url)("MeuPluggy local integration", () => {
 					record.reviewItemId,
 				])
 			)[0].amount,
-		).toBe(111);
+		).toBe(555);
 	});
 	test("mapping changes preserve history and route corrections to the original destination", async () => {
 		const input = remote("mapping-change", { date: "2026-07-02", description: "Mapping change" });
@@ -510,7 +493,7 @@ describe.skipIf(!url)("MeuPluggy local integration", () => {
 			"other",
 		]);
 		let listingEnabled = true;
-		globalThis.fetch = (async input => {
+		globalThis.fetch = (async (input: Parameters<typeof fetch>[0]) => {
 			const target = new URL(String(input));
 			if (target.pathname === "/auth") return Response.json({ apiKey: "simulated" });
 			if (target.pathname === "/v2/items")
@@ -546,7 +529,7 @@ describe.skipIf(!url)("MeuPluggy local integration", () => {
 				});
 			}
 			throw new Error("Unexpected simulated request");
-		}) as typeof fetch;
+		}) as unknown as typeof fetch;
 		try {
 			const first = await discoverConnections("owner");
 			expect(first.discoveryAvailable).toBe(true);

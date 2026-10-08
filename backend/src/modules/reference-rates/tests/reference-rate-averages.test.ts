@@ -1,14 +1,12 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { Client } from "pg";
+import { requireFixtureUrl } from "../../../../../scripts/testing/fixture";
 import { referenceRateAveragesSql } from "../domain/reference-rate-averages-sql";
 
-const socket = process.env.REFERENCE_RATES_TEST_SOCKET;
+const url = requireFixtureUrl("REFERENCE_RATES_TEST_URL");
 let client: Client;
 beforeAll(async () => {
-	if (!socket) return;
-	if (!socket.startsWith("/tmp/zaimu-reference-rates-"))
-		throw new Error("Use isolated local reference-rate test socket");
-	client = new Client({ database: "postgres", host: socket, port: 55439, user: process.env.USER });
+	client = new Client({ connectionString: url });
 	await client.connect();
 	await client.query(`CREATE TABLE "ReferenceRate" ("type" text, "date" date, "value" numeric);
  CREATE TABLE "OutboxEvent" ("eventType" text, "payload" jsonb);
@@ -18,7 +16,7 @@ beforeAll(async () => {
 afterAll(async () => {
 	await client?.end();
 });
-describe.skipIf(!socket)("local reference-rate means", () => {
+describe("local reference-rate means", () => {
 	test("SQL averages published days only, excludes dates outside ten-year window, and requires full coverage", async () => {
 		const rows = (await client.query(referenceRateAveragesSql, ["2016-10-03", "2026-10-02"])).rows;
 		expect(Number(rows.find(row => row.type === "CDI").average)).toBeCloseTo(0.04);

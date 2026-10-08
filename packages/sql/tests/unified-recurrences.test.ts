@@ -1,11 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { Client } from "pg";
+import { requireFixtureUrl } from "../../../scripts/testing/fixture";
 import operations from "../migrations/app/20261001T0542_unified_recurrences/ops.json";
 import contract from "../migrations/snapshots/6cd2e5e500f0c928b1e6fc63086d9eaf5867c8478fb31658bdd2857ea2eeab19/contract.json";
 import { assertLocalRecurrenceTestUrl, installContractFixture } from "./contract-fixture";
 
-const url = process.env.RECURRENCE_TEST_URL;
-describe.skipIf(!url)("unified recurrence migration", () => {
+const url = requireFixtureUrl("RECURRENCE_TEST_URL");
+describe("unified recurrence migration", () => {
 	test("preserves collisions, financial links, histories, tags, debt rules and deletion identities", async () => {
 		assertLocalRecurrenceTestUrl(url!);
 		const client = new Client({ connectionString: url });

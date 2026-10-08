@@ -1,49 +1,18 @@
 import { afterAll, beforeAll, describe, expect, mock, test } from "bun:test";
-import { readFileSync } from "node:fs";
 import { shiftRecurrenceDate } from "@zaimu/finance/recurrence";
 import Elysia, { t } from "elysia";
 import { Client } from "pg";
-import contract from "../../../../../packages/sql/migrations/snapshots/11f7200adb8f9fa981d3d0aab7b6e9c8c444c027f08f182ed0a956f99a387992/contract.json";
-import {
-	assertLocalRecurrenceTestUrl,
-	installContractFixture,
-} from "../../../../../packages/sql/tests/contract-fixture";
+import { requireFixtureUrl } from "../../../../../scripts/testing/fixture";
 import { RecurrenceReturn } from "../infra/elysia/RecurrenceDTO";
 
-const url = process.env.RECURRENCE_RUNTIME_TEST_URL;
-describe.skipIf(!url)("atomic recurrence processing", () => {
+const url = requireFixtureUrl("RECURRENCE_RUNTIME_TEST_URL");
+describe("atomic recurrence processing", () => {
 	let service: typeof import("../application/recurrences");
 	let sql: typeof import("sql");
 	const client = new Client({ connectionString: url });
 	beforeAll(async () => {
-		assertLocalRecurrenceTestUrl(url!);
 		process.env.DATABASE_URL = url;
 		await client.connect();
-		await client.query("DROP SCHEMA public CASCADE; CREATE SCHEMA public");
-		await installContractFixture(client, contract);
-		await client.query(
-			readFileSync(
-				new URL(
-					"../../../../../packages/sql/migrations/app/20261001T0542_unified_recurrences/backfill.sql",
-					import.meta.url,
-				),
-				"utf8",
-			),
-		);
-		await client.query(
-			'CREATE VIEW "CreditEntry" AS SELECT "subscriptionId","subscriptionOccurrenceDate" FROM "CreditPurchaseRecord"; CREATE VIEW "CreditConsumption" AS SELECT "subscriptionId","subscriptionOccurrenceDate" FROM "CreditPurchaseRecord"',
-		);
-		for (const name of [
-			"20261002T1640_application_upgrade_audit",
-			"20261002T1655_remove_recurrence_legacy",
-			"20261007T1745_recurrence_installments",
-		]) {
-			const operations = await Bun.file(
-				new URL(`../../../../../packages/sql/migrations/app/${name}/ops.json`, import.meta.url),
-			).json();
-			for (const operation of operations)
-				for (const statement of operation.execute) await client.query(statement.sql);
-		}
 
 		await client.query(
 			`INSERT INTO "user" ("id","email","name") VALUES ('owner','owner@example.test','Owner'); INSERT INTO "FinancialAccount" ("id","userId","name","type") VALUES ('a','owner','A','CHECKING'),('b','owner','B','SAVINGS'),('c','owner','Card','CREDIT_CARD'); INSERT INTO "CreditCard" ("id","financialAccountId","creditLimit","statementDay","dueDay") VALUES ('card','c',1000,15,25);`,
@@ -77,12 +46,20 @@ describe.skipIf(!url)("atomic recurrence processing", () => {
 				expect(r.installments).toBe(3);
 				const installments = (
 					await client.query(
-						'SELECT i."amount" FROM "CreditInstallmentRecord" i JOIN "CreditPurchaseRecord" p ON p."id"=i."purchaseId" WHERE p."recurrenceId"=$1 ORDER BY i."number"',
+						'SELECT i."amount" FROM "CreditInstallmentPlan" i JOIN "CreditPurchaseRecord" p ON p."id"=i."purchaseId" WHERE p."recurrenceId"=$1 ORDER BY i."number"',
 						[r.id],
 					)
 				).rows;
 				expect(installments).toHaveLength(3);
 				expect(installments.map(row => Number(row.amount))).toEqual([10, 10, 10]);
+				expect(
+					(
+						await client.query(
+							'SELECT count(*)::integer AS count FROM "CreditInstallmentRecord" i JOIN "CreditPurchaseRecord" p ON p."id"=i."purchaseId" WHERE p."recurrenceId"=$1',
+							[r.id],
+						)
+					).rows[0].count,
+				).toBe(1);
 			}
 			if (movement === "EXPENSE") {
 				await service.saveRecurrence(
@@ -281,7 +258,10 @@ describe.skipIf(!url)("atomic recurrence processing", () => {
 		const auth = await import("~/modules/auth");
 		mock.module("~/modules/auth", () => ({ ...auth, requireUserId: async () => "owner" }));
 		const { RecurringController } = await import("../infra/elysia/RecurringController");
-		const legacy = await RecurringController.handle(
+		const { SyncController } = await import("~/modules/sync/SyncController");
+		const { GlobalPlugin } = await import("~/shared/infra/elysia/global");
+		const http = new Elysia().use(GlobalPlugin).use(RecurringController).use(SyncController);
+		const legacy = await http.handle(
 			new Request("http://localhost/recurring/", {
 				body: JSON.stringify({
 					amount: 12,
@@ -296,9 +276,8 @@ describe.skipIf(!url)("atomic recurrence processing", () => {
 			}),
 		);
 		expect(legacy.status).toBe(422);
-		const { SyncController } = await import("~/modules/sync/SyncController");
 		const request = (body: unknown) =>
-			SyncController.handle(
+			http.handle(
 				new Request("http://localhost/sync/", {
 					body: JSON.stringify(body),
 					headers: { "Content-Type": "application/json" },
