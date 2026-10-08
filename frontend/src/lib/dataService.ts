@@ -2644,6 +2644,7 @@ export const dataService = {
 			if (isGuestMode()) {
 				const newLoan: Loan = {
 					...data,
+					currency: data.currency ?? activeCurrency(),
 					id: crypto.randomUUID(),
 					userId,
 				};
@@ -2714,6 +2715,7 @@ export const dataService = {
 			);
 			const principal = rows.reduce((sum, row) => sum + row.data.principalPaid, 0);
 			return {
+				currency: loan.data.currency ?? "BRL",
 				savedInterest: rows.reduce((sum, row) => sum + row.data.interestPaid, 0),
 				totalToPay: principal,
 			};

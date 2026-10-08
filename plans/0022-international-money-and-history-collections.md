@@ -66,6 +66,12 @@ Use normal commit hooks for formatting/lint/types/backend unit coverage; scoped 
 
 - Dashboard visitante agora usa mesmas cotações exatas/atuais e estimativas enfileiradas, com indisponibilidade explícita e livros nativos preservados offline. Cache de relatórios separa moedas; gráficos/tooltips respeitam precisão ISO. Painel acompanha coletas pendentes e atualização de estado invalida relatórios. Hooks passaram; testes de contexto, visitante e tooltip passaram isoladamente. Query-cache passou com preload local de window. Builds de backend/frontend passaram. Demais domínios e verificação integrada continuam pendentes.
 
-- Editor da instituição agora oferece moeda padrão, persistida por API/visitante e herdada por novos cadastros. Componentes privados extraídos; descartar/reabrir restaura valores persistidos. Hooks pendentes.
+- Editor da instituição agora oferece moeda padrão, persistida por API/visitante e herdada por novos cadastros. Componentes privados extraídos; descartar/reabrir restaura valores persistidos. Hooks passaram.
 
 - Motor compartilhado de parcelas de empréstimos usa unidades mínimas ISO e devolve moeda explícita. Principal remanescente vai à última parcela; SAC distribui restos inteiros. Testes JPY/KWD adicionados. Integração de criação/pagamentos e leitura de empréstimos ainda pendente.
+
+- Criação de empréstimos identifica moeda efetiva/explícita e propaga moeda a parcelas. Editor usa seletor/máscara ISO; cartões, parcelas e totais de principal exibem denominações separadas. Pagamentos entre moedas e demais domínios ainda pendentes.
+
+- Sincronização preserva moedas de empréstimos/parcelas em ambas as direções; registros legados ausentes mantêm BRL. Alteração de moeda de empréstimo existente e parcelas divergentes são rejeitadas. Hooks da criação/leitura passaram; testes de DTO e armazenamento de pagamentos passaram.
+
+- Etapas desta continuação validadas por hooks normais e builds de backend/frontend. Suíte compartilhada: 116 testes passaram; contexto cambial/tooltips: 9; query-cache com preload de navegador: 5; DTO de parcelas/armazenamento: 4. Commits locais preparados. Próximas lacunas: valores efetivos de pagamentos de empréstimos, rateios/dívidas globais, recorrências/importações/Open Finance e verificação de falhas/concorrência das filas. Artefatos de migração externos a esta continuação continuam preservados e não aplicados.

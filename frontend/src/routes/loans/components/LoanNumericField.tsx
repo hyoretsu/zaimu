@@ -1,3 +1,4 @@
+import { currencyDigits } from "@zaimu/finance/money";
 import { useState } from "react";
 import { NumericFormat } from "react-number-format";
 import { Input } from "@/components/ui/Input";
@@ -6,11 +7,13 @@ import { useDebouncedInput } from "@/hooks/use-debounced-input";
 export function LoanNumericField({
 	name,
 	label,
+	currencyCode = "BRL",
 	money = false,
 	percentage = false,
 }: {
 	name: string;
 	label: string;
+	currencyCode?: string;
 	money?: boolean;
 	percentage?: boolean;
 }) {
@@ -24,14 +27,20 @@ export function LoanNumericField({
 			<NumericFormat
 				allowNegative={false}
 				customInput={Input}
-				decimalScale={money ? 2 : percentage ? 4 : 0}
+				decimalScale={money ? currencyDigits(currencyCode) : percentage ? 4 : 0}
 				decimalSeparator=","
 				id={name}
 				inputMode={money || percentage ? "decimal" : "numeric"}
 				name={name}
 				onValueChange={values => setLocal(values.value)}
-				placeholder={money ? "R$ 10.000,00" : percentage ? "1,50%" : "24"}
-				prefix={money ? "R$ " : undefined}
+				placeholder={
+					money
+						? new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" }).format(10000)
+						: percentage
+							? "1,50%"
+							: "24"
+				}
+				prefix={money ? `${currencyCode} ` : undefined}
 				required
 				suffix={percentage ? "%" : undefined}
 				thousandSeparator="."

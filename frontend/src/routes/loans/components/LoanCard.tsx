@@ -67,7 +67,9 @@ export function LoanCard({
 			<div className="grid grid-cols-2 gap-3 border-primary-50 border-t pt-2">
 				<div className="min-w-0">
 					<p className="mb-1 text-foreground-muted text-xs">Parcela</p>
-					<p className="truncate font-bold text-foreground">{formatCurrency(loan.installmentAmount)}</p>
+					<p className="truncate font-bold text-foreground">
+						{formatCurrency(loan.installmentAmount, loan.currency)}
+					</p>
 				</div>
 				<div className="min-w-0 text-right">
 					<p className="mb-1 text-foreground-muted text-xs">{isPaid ? "Total pago" : "Restante"}</p>
@@ -76,6 +78,7 @@ export function LoanCard({
 							isPaid
 								? loan.totalPaid || loan.totalInstallments * loan.installmentAmount
 								: remainingInstallments * loan.installmentAmount,
+							loan.currency,
 						)}
 					</p>
 				</div>

@@ -479,6 +479,7 @@ export interface LoanPaymentPage {
 }
 
 export interface EarlyPayoff {
+	currency?: string;
 	loanId: string;
 	targetDate: string;
 	advanceType: "FRONT" | "BACK";

@@ -2,6 +2,7 @@ import { loanInstallments } from "@zaimu/finance/loan";
 import { differenceInMonths } from "date-fns";
 import Elysia, { t } from "elysia";
 import { assertBalanceAccountOwnership, assertDirectOwnership, requireUserId } from "~/modules/auth";
+import { assertSupportedCurrency, defaultCurrency } from "~/modules/currencies/application/currency-defaults";
 import {
 	decodePaginationCursor,
 	encodePaginationCursor,
@@ -22,6 +23,7 @@ import { LoanPaymentPageReturn } from "./LoansDTO";
 import { decodePaymentCursor, paymentFilterHash, paymentPage } from "./loan-payment-pagination";
 
 const loanColumns = [
+	"currency",
 	"id",
 	"userId",
 	"lender",
@@ -38,6 +40,7 @@ const loanColumns = [
 	"updatedAt",
 ] as const;
 const loanPaymentColumns = [
+	"currency",
 	"id",
 	"loanId",
 	"financialAccountId",
@@ -95,10 +98,12 @@ function calculateLoanSchedule(
 	amortization: "PRICE" | "SAC",
 	startDate: Date,
 	firstDueDate: Date,
+	currency: string,
 ) {
 	let remainingBalance = principal;
 	return loanInstallments({
 		amortization,
+		currency,
 		firstDueDate: firstDueDate.toISOString().slice(0, 10),
 		interestRate: monthlyRate,
 		principalAmount: principal,
@@ -207,7 +212,7 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 			const cached = await distributedCache.remember(
 				userId,
 				"loans:detail",
-				{ id: params.id, version: 2 },
+				{ id: params.id, version: 3 },
 				async () => {
 					const loan = await queryFirst(
 						db.sql.public.Loan.select(...loanColumns)
@@ -251,7 +256,7 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 			const cached = await distributedCache.remember(
 				userId,
 				"loans:installments",
-				{ cursor: query.cursor, limit, loanId: params.id },
+				{ cursor: query.cursor, limit, loanId: params.id, version: 3 },
 				async () => {
 					await assertDirectOwnership("Loan", params.id, userId);
 					const payments = await queryRows(
@@ -351,6 +356,7 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 
 			return {
 				advanceType,
+				currency: loan.currency,
 				loanId: loan.id,
 				paidInstallments,
 				targetDate,
@@ -373,6 +379,9 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
 			return withRawTransaction(async () => {
+				const currency = body.currency
+					? await assertSupportedCurrency(body.currency)
+					: await defaultCurrency(userId, request.headers.get("x-currency"));
 				const schedule = calculateLoanSchedule(
 					body.principalAmount,
 					body.interestRate,
@@ -380,6 +389,7 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 					body.amortization ?? "PRICE",
 					new Date(body.startDate),
 					new Date(body.firstDueDate),
+					currency,
 				);
 				const installmentAmount = schedule[0].total;
 
@@ -387,6 +397,7 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 					db.sql.public.Loan.insert([
 						{
 							amortization: body.amortization ?? "PRICE",
+							currency,
 							description: body.description,
 							dueDay: body.dueDay,
 							firstDueDate: new Date(body.firstDueDate),
@@ -405,6 +416,7 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 				if (!loan) throw new HttpException("Loan not created", 500);
 
 				const paymentEntries = schedule.map(inst => ({
+					currency,
 					dueDate: inst.dueDate,
 					installmentNumber: inst.installmentNumber,
 					interestPaid: String(inst.interest),
@@ -422,6 +434,7 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 		{
 			body: t.Object({
 				amortization: t.Optional(AmortizationType),
+				currency: t.Optional(t.String({ maxLength: 3, minLength: 3 })),
 				description: t.Optional(t.String({ maxLength: 500 })),
 				dueDay: t.Number({ maximum: 31, minimum: 1 }),
 				firstDueDate: t.String(),
@@ -590,7 +603,7 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 			const cached = await distributedCache.remember(
 				userId,
 				"loans:history",
-				{ cursor: query.cursor, limit, loanId: params.id },
+				{ cursor: query.cursor, limit, loanId: params.id, version: 3 },
 				async () => {
 					await assertDirectOwnership("Loan", params.id, userId);
 					const history = await queryRows(

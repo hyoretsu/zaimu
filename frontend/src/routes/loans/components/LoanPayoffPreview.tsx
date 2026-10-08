@@ -37,8 +37,10 @@ export function LoanPayoffPreview({ loanId }: { loanId: string }) {
 					</div>
 				) : (
 					<div>
-						<p>Principal restante: {formatCurrency(estimate.data.totalToPay)}</p>
-						<p>Juros futuros previstos: {formatCurrency(estimate.data.savedInterest)}</p>
+						<p>Principal restante: {formatCurrency(estimate.data.totalToPay, estimate.data.currency)}</p>
+						<p>
+							Juros futuros previstos: {formatCurrency(estimate.data.savedInterest, estimate.data.currency)}
+						</p>
 						<p className="text-muted-foreground text-xs">
 							Estimativa sem juros futuros. Confirme condições e valor de quitação com credor.
 						</p>

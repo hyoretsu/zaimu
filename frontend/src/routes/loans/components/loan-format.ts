@@ -1,2 +1,2 @@
-export const formatCurrency = (value: number) =>
-	new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(value);
+export const formatCurrency = (value: number, currency = "BRL") =>
+	new Intl.NumberFormat("pt-BR", { currency, style: "currency" }).format(value);

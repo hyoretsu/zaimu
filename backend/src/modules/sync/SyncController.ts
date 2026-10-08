@@ -14,6 +14,7 @@ import {
 import { readCreditBook } from "~/modules/creditCards/application/normalized-credit-book";
 import { recalculateStatementPayments } from "~/modules/creditCards/application/statement-payments";
 import { syncCreditBook } from "~/modules/creditCards/application/sync-credit-book";
+import { assertSupportedCurrency } from "~/modules/currencies/application/currency-defaults";
 import {
 	type FinancialFee,
 	financialAccountCurrency,
@@ -642,7 +643,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 					await sync("loans", body.loans, async entity => {
 						const id = value<string>(entity, "id");
 						const existing = await queryFirst(
-							db.sql.public.Loan.select("id", "userId")
+							db.sql.public.Loan.select("id", "userId", "currency")
 								.where((f, fn) => fn.eq(f.id, id))
 								.limit(1)
 								.build(),
@@ -651,8 +652,14 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 							throw new Error(`Empréstimo ${id} pertence a outro usuário`);
 						if (entity.amortization !== "PRICE" && entity.amortization !== "SAC")
 							throw new Error("Amortização inválida");
+						const currency = await assertSupportedCurrency(
+							value<string | undefined>(entity, "currency") ?? existing?.currency ?? "BRL",
+						);
+						if (existing && existing.currency !== currency)
+							throw new Error("Moeda do empréstimo com histórico não pode ser alterada");
 						const values = {
 							amortization: value<"PRICE" | "SAC">(entity, "amortization") ?? "PRICE",
+							currency,
 							description: value<string | undefined>(entity, "description"),
 							dueDay: Number(value<number>(entity, "dueDay")),
 							firstDueDate: new Date(value<string>(entity, "firstDueDate")),
@@ -678,13 +685,15 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 						const loanId = value<string>(entity, "loanId");
 						const number = Number(entity.installmentNumber);
 						const loan = await queryFirst(
-							db.sql.public.Loan.select("id", "totalInstallments")
+							db.sql.public.Loan.select("id", "totalInstallments", "currency")
 								.where((f, fn) => fn.and(fn.eq(f.id, loanId), fn.eq(f.userId, userId)))
 								.limit(1)
 								.build(),
 						);
 						if (!loan || !Number.isInteger(number) || number < 1 || number > loan.totalInstallments)
 							throw new Error("Parcela inválida");
+						const currency = value<string | undefined>(entity, "currency")?.toUpperCase() ?? loan.currency;
+						if (currency !== loan.currency) throw new Error("Moeda da parcela diverge do empréstimo");
 						const accountId = value<string | undefined>(entity, "financialAccountId");
 						if (accountId && !accountIds.has(accountId)) throw new Error("Conta de pagamento inválida");
 						const amounts = ["principalPaid", "interestPaid", "totalPaid"].map(key => Number(entity[key]));
@@ -704,6 +713,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 						if (existing?.paidDate) return;
 						const fields = {
 							advanceType: value<"FRONT" | "BACK" | undefined>(entity, "advanceType") ?? null,
+							currency,
 							financialAccountId: accountId ?? null,
 							isAdvanced: Boolean(entity.isAdvanced),
 							paidDate: optionalDate(entity, "paidDate"),
@@ -1180,6 +1190,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 							})),
 							loans: await queryRows(
 								db.sql.public.Loan.select(
+									"currency",
 									"id",
 									"userId",
 									"lender",

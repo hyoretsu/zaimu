@@ -70,18 +70,23 @@ export function EmpréstimosPage() {
 				</div>
 			) : (
 				<>
-					<p className="text-muted-foreground">
-						Principal restante:{" "}
-						{formatCurrency(
-							(loans.data ?? []).reduce(
-								(sum, loan) =>
-									sum +
-									(loan.remainingPrincipal ??
-										(loan.principalAmount * remaining(loan)) / loan.totalInstallments),
-								0,
-							),
-						)}
-					</p>
+					{[...new Set((loans.data ?? []).map(loan => loan.currency ?? "BRL"))].map(currency => (
+						<p className="text-muted-foreground" key={currency}>
+							Principal restante:{" "}
+							{formatCurrency(
+								(loans.data ?? [])
+									.filter(loan => (loan.currency ?? "BRL") === currency)
+									.reduce(
+										(sum, loan) =>
+											sum +
+											(loan.remainingPrincipal ??
+												(loan.principalAmount * remaining(loan)) / loan.totalInstallments),
+										0,
+									),
+								currency,
+							)}
+						</p>
+					))}
 					{items.length ? (
 						<div className="grid gap-4 sm:grid-cols-2">
 							{items.map(loan => (

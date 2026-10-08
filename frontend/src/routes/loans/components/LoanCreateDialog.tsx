@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { CurrencySelect } from "@/components/currency/CurrencySelect";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
@@ -10,6 +11,7 @@ import { RequiredMark } from "@/components/ui/RequiredMark";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { Loan } from "@/lib/api";
+import { activeCurrency } from "@/lib/currency-context";
 import { dataService } from "@/lib/dataService";
 import { getLocalDateKey } from "@/lib/date";
 import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
@@ -17,6 +19,7 @@ import { showToast } from "@/stores";
 import { LoanNumericField } from "./LoanNumericField";
 export function LoanCreateDialog({ onClose }: { onClose: () => void }) {
 	const identity = useCacheIdentity();
+	const [currency, setCurrency] = useState(activeCurrency);
 	const client = useQueryClient();
 	const [lender, setLender] = useState("");
 	const [localLender, setLocalLender] = useDebouncedInput(lender, setLender);
@@ -59,6 +62,7 @@ export function LoanCreateDialog({ onClose }: { onClose: () => void }) {
 								);
 							create.mutate({
 								amortization,
+								currency,
 								dueDay: Number(firstDueDate.slice(8, 10)),
 								firstDueDate,
 								installmentAmount: 0,
@@ -85,7 +89,8 @@ export function LoanCreateDialog({ onClose }: { onClose: () => void }) {
 								value={localLender}
 							/>
 						</div>
-						<LoanNumericField label="Principal" money name="principalAmount" />
+						<CurrencySelect onValueChange={setCurrency} value={currency} />
+						<LoanNumericField currencyCode={currency} label="Principal" money name="principalAmount" />
 						<LoanNumericField label="Juros mensais" name="interestRate" percentage />
 						<LoanNumericField label="Número de parcelas" name="totalInstallments" />
 						<CustomSelect

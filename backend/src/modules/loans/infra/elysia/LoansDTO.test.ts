@@ -9,6 +9,7 @@ test("payment page validates serialized cache entries with nullable payment fiel
 			{
 				advanceType: null,
 				createdAt: "2026-10-01T00:00:00.000Z",
+				currency: "KWD",
 				dueDate: "2026-10-10T00:00:00.000Z",
 				financialAccountId: null,
 				id: "payment",
