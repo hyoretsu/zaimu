@@ -16,6 +16,7 @@ export const DebtEventReturn = t.Object({
 	createdByMe: t.Boolean(),
 	createdByName: t.String(),
 	createdByUserId: Id,
+	currency: t.String(),
 	date: t.Union([t.Date(), t.Null()]),
 	description: NullableString,
 	dueDate: t.Union([t.Date(), t.Null()]),
@@ -30,6 +31,7 @@ export const DebtLedgerReturn = t.Object({
 		t.Object({
 			accountEmail: t.Union([t.String({ format: "email" }), t.Null()]),
 			balance: t.Number(),
+			balances: t.Array(t.Object({ amount: t.Number(), currency: t.String() })),
 			connectionStatus: t.Union([ConnectionStatus, t.Null()]),
 			id: Id,
 			isZaimuUser: t.Boolean(),
@@ -37,6 +39,9 @@ export const DebtLedgerReturn = t.Object({
 		}),
 	),
 	totals: t.Object({ iOwe: t.Number(), net: t.Number(), owedToMe: t.Number() }),
+	totalsByCurrency: t.Array(
+		t.Object({ currency: t.String(), iOwe: t.Number(), net: t.Number(), owedToMe: t.Number() }),
+	),
 });
 
 export const DebtSummaryReturn = DebtLedgerReturn.properties.people;
@@ -80,6 +85,7 @@ export const DebtConnectionReturn = t.Object({
 export const DebtMutationEventReturn = t.Object({
 	amount: t.Number(),
 	connectionId: t.Optional(NullableId),
+	currency: t.String(),
 	date: t.Union([t.Date(), t.Null()]),
 	debtPersonId: NullableId,
 	description: NullableString,

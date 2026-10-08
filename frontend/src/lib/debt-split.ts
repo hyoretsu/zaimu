@@ -20,6 +20,7 @@ export function createEqualDebtSplit(
 	ownerIncluded: boolean,
 	amount: number,
 	remainderDebtPersonId?: string,
+	currency = "BRL",
 ): DebtSplitInput {
 	const participantFields = ({ debtPersonId, description }: (typeof participants)[number]) => ({
 		debtPersonId,
@@ -49,7 +50,7 @@ export function createEqualDebtSplit(
 			})),
 		};
 	}
-	const totalCents = Math.max(0, Math.round(amount * 100));
+	const totalCents = Math.max(0, Math.round(amount * currencyScale(currency)));
 	const divisor = participants.length + (ownerIncluded ? 1 : 0);
 	const equalCents = divisor ? Math.floor(totalCents / divisor) : 0;
 	return {
@@ -62,8 +63,8 @@ export function createEqualDebtSplit(
 				participant.debtPersonId === remainderDebtPersonId
 					? 0
 					: !ownerIncluded && index === participants.length - 1 && !remainderDebtPersonId
-						? (totalCents - equalCents * (participants.length - 1)) / 100
-						: equalCents / 100,
+						? (totalCents - equalCents * (participants.length - 1)) / currencyScale(currency)
+						: equalCents / currencyScale(currency),
 		})),
 	};
 }
@@ -117,8 +118,15 @@ export function remainingDebtSplitAmount(
 	totalAmount: number,
 	distributedAmount: number,
 	ownerAmount: number,
+	currency = "BRL",
 ) {
-	return money(cents(totalAmount) - cents(distributedAmount) - cents(ownerAmount));
+	const scale = currencyScale(currency);
+	return (
+		(Math.round(totalAmount * scale) -
+			Math.round(distributedAmount * scale) -
+			Math.round(ownerAmount * scale)) /
+		scale
+	);
 }
 
 export function calculateDebtSplit(
@@ -217,7 +225,7 @@ export function calculateDebtSplit(
 	} as DebtSplit;
 }
 
-export function debtSplitError(amount: number, split: DebtSplitInput): string | null {
+export function debtSplitError(amount: number, split: DebtSplitInput, currency = "BRL"): string | null {
 	if (split.participants.length === 0)
 		return (split.mode === "SHARES" ? split.ownerShares !== null : split.ownerIncluded)
 			? "Você não pode dividir uma compra sozinho."
@@ -250,7 +258,7 @@ export function debtSplitError(amount: number, split: DebtSplitInput): string | 
 	)
 		return "Cada pessoa deve ter um valor positivo para a divisão.";
 	if (!Number.isFinite(amount) || amount <= 0) return null;
-	if (calculateDebtSplit(amount, split)) return null;
+	if (calculateDebtSplit(amount, split, currency)) return null;
 	if (split.mode === "PERCENTAGE") {
 		const percentageTotal = split.participants.reduce(
 			(sum, item) => sum + Math.round(item.percentage * 100),

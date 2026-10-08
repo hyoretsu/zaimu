@@ -11,6 +11,7 @@ import type { DebtSplitInput } from "@/lib/api";
 
 export function DebtSplitParticipantRow({
 	amount,
+	currencyCode,
 	totalAmount,
 	disabled,
 	excludedPersonIds,
@@ -26,6 +27,7 @@ export function DebtSplitParticipantRow({
 	mode,
 }: {
 	amount?: number;
+	currencyCode: string;
 	totalAmount: number;
 	disabled?: boolean;
 	excludedPersonIds?: string[];
@@ -67,6 +69,7 @@ export function DebtSplitParticipantRow({
 				<div className={mode === "SHARES" ? "min-w-0 flex-[1_1_4rem]" : "min-w-0 flex-[1_1_7rem]"}>
 					{mode === "FIXED" ? (
 						<MoneyField
+							currencyCode={currencyCode}
 							disabled={disabled || isRemainderRecipient}
 							id={`debt-split-${index}`}
 							label="Valor"
@@ -115,7 +118,8 @@ export function DebtSplitParticipantRow({
 			<div className="flex min-w-0 items-center justify-between gap-2">
 				{amount !== undefined ? (
 					<p className="min-w-0 text-muted-foreground text-xs">
-						Parcela: {new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(amount)}
+						Parcela:{" "}
+						{new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" }).format(amount)}
 					</p>
 				) : null}
 				<ActionGroup className="ml-auto shrink-0">

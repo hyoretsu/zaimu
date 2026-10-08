@@ -85,7 +85,17 @@ export async function createDebtEvent(input: {
 				kind: input.kind,
 			},
 		])
-			.returning("id", "amount", "effect", "date", "description", "kind", "debtPersonId", "connectionId")
+			.returning(
+				"id",
+				"amount",
+				"currency",
+				"effect",
+				"date",
+				"description",
+				"kind",
+				"debtPersonId",
+				"connectionId",
+			)
 			.build(),
 	);
 	if (!event) throw new HttpException("Lançamento da dívida não criado", 500);

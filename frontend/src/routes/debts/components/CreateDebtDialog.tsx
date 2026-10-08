@@ -1,4 +1,5 @@
 import { type SyntheticEvent, useEffect, useState } from "react";
+import { CurrencySelect } from "@/components/currency/CurrencySelect";
 import { DebtPersonPicker, DebtSplitEditor } from "@/components/debts";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
@@ -19,10 +20,12 @@ import { useDialogCloseReset } from "@/hooks/use-dialog-close-reset";
 import type { DebtSplitInput } from "@/lib/api";
 import { getLocalDateKey } from "@/lib/date";
 import { calculateDebtSplit } from "@/lib/debt-split";
-import { runDialogSave } from "@/lib/dialog-save";
+import { parseMaskedMoney } from "@/lib/masked-money";
+import { useCurrencyStore } from "@/stores/currency";
 
 interface DebtOriginFields {
 	amount: number;
+	currency: string;
 	date?: null | string;
 	description?: string;
 	dueDate?: string;
@@ -63,6 +66,8 @@ const initialDebtSplit = (): DebtSplitInput => ({
 export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 	const { mode, onOpenChange, open, pending } = props;
 	const initialValue = props.mode === "edit" ? props.initialValue : null;
+	const effectiveCurrency = useCurrencyStore(state => state.currency);
+	const [currency, setCurrency] = useState(effectiveCurrency);
 	const [amount, setAmount] = useState("");
 	const [date, setDate] = useState(getLocalDateKey);
 	const [sendWithoutDate, setSendWithoutDate] = useState(false);
@@ -74,6 +79,7 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 	useEffect(() => {
 		if (!open || !initialValue) return;
 		setAmount(String(initialValue.amount));
+		setCurrency(initialValue.currency);
 		setDate(initialValue.date?.slice(0, 10) ?? "");
 		setSendWithoutDate(!initialValue.date);
 		setDueDate(initialValue.dueDate?.slice(0, 10) ?? "");
@@ -83,6 +89,7 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 	}, [initialValue, open, setDescription]);
 	const reset = () => {
 		setAmount("");
+		setCurrency(effectiveCurrency);
 		setDate(getLocalDateKey());
 		setSendWithoutDate(false);
 		setDueDate("");
@@ -93,12 +100,13 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 	};
 	useDialogCloseReset(open, reset);
 	const handleOpenChange = (nextOpen: boolean) => {
-		onOpenChange(nextOpen);
+		if (!pending) onOpenChange(nextOpen);
 	};
 	const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		const fields = {
-			amount: Number(amount),
+			amount: parseMaskedMoney(String(new FormData(event.currentTarget).get("debt-origin-amount") ?? "")),
+			currency,
 			date: sendWithoutDate ? null : date || undefined,
 			description: description.trim() || undefined,
 			dueDate: dueDate || undefined,
@@ -108,13 +116,18 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 			props.mode === "edit"
 				? props.onSubmit({ ...fields, personId })
 				: props.onSubmit({ ...fields, debtSplit });
-		runDialogSave(operation, () => handleOpenChange(false), "Salvando lançamento…");
+		try {
+			await operation;
+			onOpenChange(false);
+		} catch {
+			/* Parent mutation displays the final error. */
+		}
 	};
-	const hasValidSplit = Boolean(calculateDebtSplit(Number(amount), debtSplit));
+	const hasValidSplit = Boolean(calculateDebtSplit(Number(amount), debtSplit, currency));
 
 	return (
 		<Dialog onOpenChange={handleOpenChange} open={open}>
-			<DialogContent className="max-h-[92dvh] overflow-hidden p-0 sm:max-w-lg">
+			<DialogContent className="max-h-[92dvh] overflow-hidden p-0 sm:max-w-lg" showCloseButton={!pending}>
 				<ScrollArea className="max-h-[92dvh]">
 					<form className="grid gap-5 p-6" onSubmit={submit}>
 						<DialogHeader>
@@ -150,12 +163,19 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 						) : (
 							<DebtSplitEditor
 								amount={Number(amount)}
+								currencyCode={currency}
 								onChange={setDebtSplit}
 								showParticipantDescriptions={false}
 								value={debtSplit}
 							/>
 						)}
+						<CurrencySelect
+							disabled={mode === "edit" || pending}
+							onValueChange={setCurrency}
+							value={currency}
+						/>
 						<MoneyField
+							currencyCode={currency}
 							id="debt-origin-amount"
 							label="Valor"
 							onValueChange={setAmount}
@@ -217,7 +237,7 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 								disabled={pending || Number(amount) <= 0 || (mode === "edit" ? !personId : !hasValidSplit)}
 								type="submit"
 							>
-								{pending ? "Salvando…" : mode === "edit" ? "Salvar alterações" : "Salvar lançamento"}
+								{pending ? "Salvando..." : mode === "edit" ? "Salvar alterações" : "Salvar lançamento"}
 							</Button>
 						</DialogFooter>
 					</form>

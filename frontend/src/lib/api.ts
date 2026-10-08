@@ -524,6 +524,7 @@ export interface DebtEvent {
 }
 
 export interface DebtPerson {
+	balances?: { currency: string; amount: number }[];
 	accountEmail: string | null;
 	id: string;
 	name: string;
@@ -534,6 +535,7 @@ export interface DebtPerson {
 }
 
 export interface DebtLedger {
+	totalsByCurrency?: { currency: string; iOwe: number; net: number; owedToMe: number }[];
 	people: DebtPerson[];
 	totals: { iOwe: number; net: number; owedToMe: number };
 }

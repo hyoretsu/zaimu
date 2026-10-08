@@ -18,7 +18,15 @@ import {
 } from "@/routes/debts/components";
 import { showToast } from "@/stores";
 
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
+const formatTotals = (
+	rows: { currency: string; iOwe: number; net: number; owedToMe: number }[],
+	field: "net" | "iOwe" | "owedToMe",
+) =>
+	rows
+		.map(row =>
+			new Intl.NumberFormat("pt-BR", { currency: row.currency, style: "currency" }).format(row[field]),
+		)
+		.join(" / ");
 export function DebtsPage() {
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
@@ -128,7 +136,12 @@ export function DebtsPage() {
 					<div>
 						<p className="text-primary-foreground/70 text-sm">Saldo líquido</p>
 						<h1 className="font-bold text-3xl sm:text-4xl">
-							{currency.format(ledger.data?.totals.net ?? 0)}
+							{formatTotals(
+								ledger.data?.totalsByCurrency ?? [
+									{ currency: "BRL", iOwe: 0, net: 0, owedToMe: 0, ...ledger.data?.totals },
+								],
+								"net",
+							)}
 						</h1>
 					</div>
 					<Button
@@ -142,11 +155,25 @@ export function DebtsPage() {
 				<div className="mt-6 grid grid-cols-2 gap-4 border-primary-foreground/20 border-t pt-4">
 					<div>
 						<p className="text-primary-foreground/70 text-sm">A receber</p>
-						<strong>{currency.format(ledger.data?.totals.owedToMe ?? 0)}</strong>
+						<strong>
+							{formatTotals(
+								ledger.data?.totalsByCurrency ?? [
+									{ currency: "BRL", iOwe: 0, net: 0, owedToMe: 0, ...ledger.data?.totals },
+								],
+								"owedToMe",
+							)}
+						</strong>
 					</div>
 					<div className="text-right">
 						<p className="text-primary-foreground/70 text-sm">A pagar</p>
-						<strong>{currency.format(ledger.data?.totals.iOwe ?? 0)}</strong>
+						<strong>
+							{formatTotals(
+								ledger.data?.totalsByCurrency ?? [
+									{ currency: "BRL", iOwe: 0, net: 0, owedToMe: 0, ...ledger.data?.totals },
+								],
+								"iOwe",
+							)}
+						</strong>
 					</div>
 				</div>
 			</header>
@@ -186,6 +213,7 @@ export function DebtsPage() {
 				<CreateDebtDialog
 					initialValue={{
 						amount: editing.event.amount,
+						currency: editing.event.currency ?? "BRL",
 						date: editing.event.date,
 						description: editing.event.description ?? undefined,
 						dueDate: editing.event.dueDate ?? undefined,

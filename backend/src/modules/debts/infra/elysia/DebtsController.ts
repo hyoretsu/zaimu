@@ -1,5 +1,7 @@
+import { toMinorUnits } from "@zaimu/finance/money";
 import Elysia, { t } from "elysia";
 import { requireUserId } from "~/modules/auth";
+import { assertSupportedCurrency, defaultCurrency } from "~/modules/currencies/application/currency-defaults";
 import {
 	createDebtEvent,
 	getAccessibleDebtEvent,
@@ -97,12 +99,13 @@ async function getPeopleLedger(userId: string) {
 	const people = await queryRaw<{
 		accountEmail: null | string;
 		balance: string;
+		currency: string;
 		connectionStatus: DebtConnectionState | null;
 		id: string;
 		name: string;
 	}>(
 		`SELECT person."id", person."name", connection."status" AS "connectionStatus",
-		        linked_user."email" AS "accountEmail",
+		        linked_user."email" AS "accountEmail", COALESCE(event."currency",'BRL') AS "currency",
 		        COALESCE(SUM(CASE WHEN event."createdByUserId" = $1 THEN event."effect" ELSE -event."effect" END), 0) AS "balance"
 		 FROM "public"."DebtPerson" person
 		 LEFT JOIN "public"."DebtConnection" connection ON connection."id" = person."connectionId"
@@ -112,11 +115,23 @@ async function getPeopleLedger(userId: string) {
 		   (connection."status" = 'ACCEPTED' AND event."connectionId" = connection."id") OR
 		   (connection."status" IS DISTINCT FROM 'ACCEPTED' AND event."debtPersonId" = person."id"))
 		 WHERE person."userId" = $1 AND person."hiddenAt" IS NULL
-		 GROUP BY person."id", person."name", connection."status", linked_user."email"
+		 GROUP BY person."id", person."name", connection."status", linked_user."email", event."currency"
 		 ORDER BY person."name" ASC, person."id" ASC`,
 		[userId],
 	);
-	return people.map(normalizeDebtLedgerPerson);
+	const grouped = new Map<
+		string,
+		ReturnType<typeof normalizeDebtLedgerPerson<(typeof people)[number]>> & {
+			balances: { currency: string; amount: number }[];
+		}
+	>();
+	for (const row of people) {
+		const person = grouped.get(row.id) ?? { ...normalizeDebtLedgerPerson(row), balance: 0, balances: [] };
+		person.balances.push({ amount: Number(row.balance), currency: row.currency });
+		if (row.currency === "BRL") person.balance = Number(row.balance);
+		grouped.set(row.id, person);
+	}
+	return [...grouped.values()];
 }
 
 async function getPersonEventPage(
@@ -137,6 +152,7 @@ async function getPersonEventPage(
 	const cursor = decodePaginationCursor(cursorValue, filterHash, isDebtEventCursor);
 	const rows = await queryRaw<{
 		amount: string;
+		currency: string;
 		createdByName: string;
 		createdByUserId: string;
 		date: Date | null;
@@ -147,7 +163,7 @@ async function getPersonEventPage(
 		kind: DebtEventType;
 		time: null | string;
 	}>(
-		`SELECT event."id", event."amount", event."createdByUserId", creator."name" AS "createdByName",
+		`SELECT event."id", event."amount", event."currency", event."createdByUserId", creator."name" AS "createdByName",
 		        event."date", event."dueDate", event."kind",
 		        CASE WHEN event."createdByUserId" = $1 THEN event."effect" ELSE -event."effect" END AS "effect",
 		        CASE WHEN income_transaction."id" IS NOT NULL THEN income_transaction."description"
@@ -222,7 +238,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 		"/",
 		async ({ request, set }) => {
 			const userId = await requireUserId(request);
-			const cached = await distributedCache.remember(userId, "debts:overview", { version: 2 }, async () => {
+			const cached = await distributedCache.remember(userId, "debts:overview", { version: 3 }, async () => {
 				const people = await getPeopleLedger(userId);
 				const totals = people.reduce(
 					(result, person) => {
@@ -233,7 +249,25 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 					},
 					{ iOwe: 0, net: 0, owedToMe: 0 },
 				);
-				return { people, totals };
+				const native = new Map<string, { currency: string; iOwe: number; net: number; owedToMe: number }>();
+				for (const person of people)
+					for (const balance of person.balances) {
+						const total = native.get(balance.currency) ?? {
+							currency: balance.currency,
+							iOwe: 0,
+							net: 0,
+							owedToMe: 0,
+						};
+						total.net += balance.amount;
+						if (balance.amount > 0) total.owedToMe += balance.amount;
+						if (balance.amount < 0) total.iOwe -= balance.amount;
+						native.set(balance.currency, total);
+					}
+				return {
+					people,
+					totals,
+					totalsByCurrency: [...native.values()].sort((a, b) => a.currency.localeCompare(b.currency)),
+				};
 			});
 			set.headers.etag = cached.etag;
 			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
@@ -583,7 +617,10 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 						}
 					: undefined);
 			if (!split) throw new HttpException("Informe ao menos uma pessoa", 400);
-			const calculated = calculateDebtSplitOrThrow(body.amount, split);
+			const currency = await assertSupportedCurrency(
+				body.currency ?? (await defaultCurrency(userId, request.headers.get("X-Currency"))),
+			);
+			const calculated = calculateDebtSplitOrThrow(body.amount, split, currency);
 			await Promise.all(
 				calculated.participants.map(participant => getOwnedDebtPerson(participant.debtPersonId, userId)),
 			);
@@ -592,6 +629,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 					createDebtEvent({
 						amount: participant.amount,
 						createdByUserId: userId,
+						currency,
 						date: body.date,
 						debtPersonId: participant.debtPersonId,
 						description: body.description,
@@ -605,6 +643,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 		{
 			body: t.Object({
 				amount: t.Number({ exclusiveMinimum: 0 }),
+				currency: t.Optional(t.String({ pattern: "^[A-Z]{3}$" })),
 				date: t.Optional(t.Nullable(t.String())),
 				debtSplit: t.Optional(DebtSplitInputDTO),
 				description: t.Optional(t.String({ maxLength: 1000 })),
@@ -624,6 +663,9 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 			return createDebtEvent({
 				amount: body.amount,
 				createdByUserId: userId,
+				currency: await assertSupportedCurrency(
+					body.currency ?? (await defaultCurrency(userId, request.headers.get("X-Currency"))),
+				),
 				date: body.date,
 				debtPersonId: person.id,
 				description: body.description,
@@ -635,6 +677,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 		{
 			body: t.Object({
 				amount: t.Number({ exclusiveMinimum: 0 }),
+				currency: t.Optional(t.String({ pattern: "^[A-Z]{3}$" })),
 				date: t.Optional(t.Nullable(t.String())),
 				description: t.Optional(t.String({ maxLength: 1000 })),
 				dueDate: t.Optional(t.String()),
@@ -656,6 +699,13 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 			if (!personId) throw new HttpException("Pessoa da dívida não encontrada", 404);
 			const { connectionId } = await resolveDebtPersonConnection(personId, userId);
 			const amount = body.amount ?? Number(event.amount);
+			if (body.currency && body.currency !== event.currency)
+				throw new HttpException("Moeda do lançamento existente não pode ser alterada", 409);
+			try {
+				toMinorUnits(amount, event.currency, 1);
+			} catch {
+				throw new HttpException("Valor incompatível com a moeda", 400);
+			}
 			const direction = Number(event.effect) >= 0 ? 1 : -1;
 			const updated = await queryFirst(
 				db.sql.public.DebtEvent.update({
@@ -669,7 +719,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 					updatedAt: new Date(),
 				})
 					.where((fields, functions) => functions.eq(fields.id, event.id))
-					.returning("id", "amount", "effect", "date", "description", "kind", "debtPersonId")
+					.returning("id", "amount", "currency", "effect", "date", "description", "kind", "debtPersonId")
 					.build(),
 			);
 			return updated ? { ...updated, kind: updated.kind as DebtEventType } : updated;
@@ -677,6 +727,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 		{
 			body: t.Object({
 				amount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
+				currency: t.Optional(t.String({ pattern: "^[A-Z]{3}$" })),
 				date: t.Optional(t.Nullable(t.String())),
 				description: t.Optional(t.String({ maxLength: 1000 })),
 				dueDate: t.Optional(t.String()),

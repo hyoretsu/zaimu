@@ -24,7 +24,7 @@ import {
 import { distributePurchaseCents } from "@zaimu/finance/credit-purchase";
 import { dashboardCardForecasts, isCashFlowRecurrence } from "@zaimu/finance/dashboard-forecasts";
 import { loanAccountAmounts, loanInstallments } from "@zaimu/finance/loan";
-import { currencyScale, roundMoney } from "@zaimu/finance/money";
+import { currencyScale, roundMoney, toMinorUnits } from "@zaimu/finance/money";
 import { pendingStatementPayments } from "@zaimu/finance/payment-suggestions";
 import {
 	nextRecurrenceDate,
@@ -2263,6 +2263,7 @@ export const dataService = {
 		},
 		async createOrigin(data: {
 			amount: number;
+			currency?: string;
 			date?: null | string;
 			debtSplit: DebtSplitInput;
 			description?: string;
@@ -2270,7 +2271,8 @@ export const dataService = {
 			isOwedToMe: boolean;
 		}): Promise<void> {
 			if (isGuestMode()) {
-				const calculated = calculateDebtSplit(data.amount, data.debtSplit);
+				const currency = data.currency ?? activeCurrency();
+				const calculated = calculateDebtSplit(data.amount, data.debtSplit, currency);
 				if (!calculated) throw new Error("O rateio da dívida não fecha com o valor total.");
 				const people = await Promise.all(
 					calculated.participants.map(async participant => {
@@ -2284,6 +2286,7 @@ export const dataService = {
 					people.map(({ amount, person }) => ({
 						amount,
 						createdAt: now,
+						currency,
 						date: data.date ?? null,
 						debtPersonId: person.id,
 						description: data.description,
@@ -2493,6 +2496,32 @@ export const dataService = {
 					}
 				}
 			}
+			for (const person of people.values()) {
+				const balances = new Map<string, number>();
+				for (const event of person.events) {
+					const currency = event.currency ?? "BRL";
+					balances.set(currency, (balances.get(currency) ?? 0) + event.effect);
+				}
+				person.balances = [...balances].map(([currency, amount]) => ({ amount, currency }));
+				person.balance = balances.get("BRL") ?? 0;
+			}
+			const totalsByCurrency = new Map<
+				string,
+				{ currency: string; iOwe: number; net: number; owedToMe: number }
+			>();
+			for (const person of people.values())
+				for (const balance of person.balances ?? []) {
+					const total = totalsByCurrency.get(balance.currency) ?? {
+						currency: balance.currency,
+						iOwe: 0,
+						net: 0,
+						owedToMe: 0,
+					};
+					total.net += balance.amount;
+					if (balance.amount > 0) total.owedToMe += balance.amount;
+					if (balance.amount < 0) total.iOwe -= balance.amount;
+					totalsByCurrency.set(balance.currency, total);
+				}
 			const result = [...people.values()].map(person => ({
 				...person,
 				events: person.events.toSorted((left, right) => {
@@ -2522,6 +2551,7 @@ export const dataService = {
 					},
 					{ iOwe: 0, net: 0, owedToMe: 0 },
 				),
+				totalsByCurrency: [...totalsByCurrency.values()].sort((a, b) => a.currency.localeCompare(b.currency)),
 			};
 		},
 		async invitePerson(id: string, email: string): Promise<void> {
@@ -2536,6 +2566,7 @@ export const dataService = {
 			id: string,
 			data: {
 				amount: number;
+				currency?: string;
 				date?: null | string;
 				description?: string;
 				dueDate?: string;
@@ -2547,6 +2578,10 @@ export const dataService = {
 				const person = await localDebtPeople.getById(data.personId);
 				const event = await localDebtEvents.getById(id);
 				if (!person || !event || event.data.kind !== "ORIGIN") throw new Error("Origem não encontrada");
+				const currency = event.data.currency ?? "BRL";
+				if (data.currency && data.currency !== currency)
+					throw new Error("Moeda do lançamento existente não pode ser alterada");
+				toMinorUnits(data.amount, currency, 1);
 				await localDebtEvents.put(
 					{
 						...event.data,

@@ -23,8 +23,6 @@ import {
 	getDebtEventLabel,
 } from "./debt-event";
 
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
-
 export function DebtPersonCard({
 	onDeleteEvent,
 	onDeletePerson,
@@ -64,7 +62,13 @@ export function DebtPersonCard({
 						) : null}
 					</div>
 					<p className="text-muted-foreground text-sm">
-						{person.balance > 0 ? "Deve a você" : person.balance < 0 ? "Você deve" : "Saldo quitado"}
+						{person.balances?.some(row => row.amount !== 0)
+							? "Saldos por moeda"
+							: person.balance > 0
+								? "Deve a você"
+								: person.balance < 0
+									? "Você deve"
+									: "Saldo quitado"}
 					</p>
 				</div>
 				<strong
@@ -76,7 +80,13 @@ export function DebtPersonCard({
 								: "whitespace-nowrap text-muted-foreground"
 					}
 				>
-					{currency.format(Math.abs(person.balance))}
+					{(person.balances ?? [{ amount: person.balance, currency: "BRL" }])
+						.map(row =>
+							new Intl.NumberFormat("pt-BR", { currency: row.currency, style: "currency" }).format(
+								row.amount,
+							),
+						)
+						.join(" / ")}
 				</strong>
 			</div>
 			<div className="mt-3 grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] gap-2">
@@ -138,8 +148,11 @@ export function DebtPersonCard({
 							</div>
 							<div className="col-span-2 flex items-center justify-end gap-2 border-t pt-2 sm:col-auto sm:ml-auto sm:border-0 sm:pt-0">
 								<span className={event.effect >= 0 ? "text-emerald-600" : "text-rose-600"}>
-									{event.effect === 0 ? "" : event.effect > 0 ? "+" : "−"}
-									{currency.format(Math.abs(event.effect))}
+									{event.effect === 0 ? "" : event.effect > 0 ? "+" : "-"}
+									{new Intl.NumberFormat("pt-BR", {
+										currency: event.currency ?? "BRL",
+										style: "currency",
+									}).format(Math.abs(event.effect))}
 								</span>
 								{event.kind === "ORIGIN" && event.createdByMe ? (
 									<Button

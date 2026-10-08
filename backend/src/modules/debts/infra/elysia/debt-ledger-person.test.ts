@@ -9,6 +9,10 @@ describe("debt ledger person response", () => {
 			const person = normalizeDebtLedgerPerson({
 				accountEmail: connectionStatus ? "person@example.com" : null,
 				balance: "36.90",
+				balances: [
+					{ amount: 36.9, currency: "BRL" },
+					{ amount: -1.001, currency: "KWD" },
+				],
 				connectionStatus,
 				id: "person-1",
 				name: "Vitória",
@@ -18,6 +22,10 @@ describe("debt ledger person response", () => {
 			const ledger = {
 				people: [person],
 				totals: { iOwe: 0, net: 36.9, owedToMe: 36.9 },
+				totalsByCurrency: [
+					{ currency: "BRL", iOwe: 0, net: 36.9, owedToMe: 36.9 },
+					{ currency: "KWD", iOwe: 1.001, net: -1.001, owedToMe: 0 },
+				],
 			};
 			const app = new Elysia()
 				.get("/debts", () => ledger, { response: DebtLedgerReturn })

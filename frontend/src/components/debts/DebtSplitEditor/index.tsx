@@ -21,15 +21,15 @@ import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { DebtSplitParticipantRow } from "./DebtSplitParticipantRow";
 import type { DebtSplitEditorProps } from "./types";
 
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
-
 export function DebtSplitEditor({
 	amount,
+	currencyCode = "BRL",
 	disabled,
 	onChange,
 	showParticipantDescriptions = true,
 	value,
 }: DebtSplitEditorProps) {
+	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
 	const customized = useRef(false);
 	const identity = useCacheIdentity();
 	const ledger = useQuery({
@@ -61,8 +61,8 @@ export function DebtSplitEditor({
 			debtPersonId: `preview-${index}`,
 		})),
 	} as DebtSplitInput;
-	const preview = calculateDebtSplit(amount, previewValue);
-	const error = debtSplitError(amount, value);
+	const preview = calculateDebtSplit(amount, previewValue, currencyCode);
+	const error = debtSplitError(amount, value, currencyCode);
 	const ownerIncluded = value.mode === "SHARES" ? value.ownerShares !== null : value.ownerIncluded;
 	const distributed =
 		preview?.participants.reduce((sum, participant) => sum + participant.amount, 0) ??
@@ -71,7 +71,7 @@ export function DebtSplitEditor({
 			: value.mode === "PERCENTAGE"
 				? (amount * value.participants.reduce((sum, participant) => sum + participant.percentage, 0)) / 100
 				: 0);
-	const remaining = remainingDebtSplitAmount(amount, distributed, preview?.ownerAmount ?? 0);
+	const remaining = remainingDebtSplitAmount(amount, distributed, preview?.ownerAmount ?? 0, currencyCode);
 	const updateOwner = (included: boolean) => {
 		if (value.mode === "SHARES") onChange({ ...value, ownerShares: included ? 1 : null });
 		else onChange({ ...value, ownerIncluded: included });
@@ -117,6 +117,7 @@ export function DebtSplitEditor({
 							ownerIncluded,
 							amount,
 							value.mode === "SHARES" ? undefined : value.remainderDebtPersonId,
+							currencyCode,
 						),
 					);
 				}}
@@ -161,6 +162,7 @@ export function DebtSplitEditor({
 			{sortedParticipants.map(({ participant, index }) => (
 				<DebtSplitParticipantRow
 					amount={preview?.participants[index]?.amount}
+					currencyCode={currencyCode}
 					disabled={disabled}
 					excludedPersonIds={value.participants
 						.filter((_, participantIndex) => participantIndex !== index)
@@ -202,6 +204,7 @@ export function DebtSplitEditor({
 										ownerIncluded,
 										amount,
 										remainingRemainderDebtPersonId,
+										currencyCode,
 									),
 						);
 					}}
