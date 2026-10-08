@@ -414,3 +414,25 @@ describe("calculateFinancialAccountBalances", () => {
 		expect(accounts[0]?.balance).toBeCloseTo(expected, 4);
 	});
 });
+
+test("cross-currency transfers credit actual destination value instead of debit amount", () => {
+	const accounts = [
+		{ currency: "USD", id: "usd", type: "CHECKING" },
+		{ currency: "JPY", id: "jpy", type: "CHECKING" },
+	] as FinancialAccount[];
+	const balances = calculateFinancialAccountBalances(
+		accounts,
+		[
+			{
+				amount: 100,
+				destinationAmount: 14912,
+				destinationFinancialAccountId: "jpy",
+				originFinancialAccountId: "usd",
+			},
+		],
+		[],
+		[],
+	);
+	expect(balances.find(account => account.id === "usd")?.balance).toBe(-100);
+	expect(balances.find(account => account.id === "jpy")?.balance).toBe(14912);
+});

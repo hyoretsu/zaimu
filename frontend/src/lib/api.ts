@@ -199,6 +199,7 @@ export interface DebtSplitSummary {
 }
 
 export interface Transaction {
+	conversionSource?: "MANUAL" | "DAILY" | null;
 	bookingCurrency?: string;
 	destinationAmount?: number | null;
 	destinationCurrency?: string | null;

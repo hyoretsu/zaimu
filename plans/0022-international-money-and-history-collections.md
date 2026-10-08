@@ -55,3 +55,5 @@ Use normal commit hooks for formatting/lint/types/backend unit coverage; scoped 
 - Account inheritance milestone passed normal hooks (types and backend unit coverage), committed locally. Interest dashboard now exposes persisted collection details/retry; partial current interest coverage supersedes stale ready averages, including offline cache.
 
 - Currency history work reuses point snapshots populated after scheduling. Point conversions and history downloads now share the six-slot database provider limiter across replicas.
+
+- Transactions now resolve native destination/card payment amounts separately, supporting explicit actual values and date-based suggestions. Authenticated and guest creation/edit paths retain metadata; balance/yield SQL and visitor balances apply actual credit values. Shared forms expose native actual amounts. ISO transfer/payment tests added; hook validation pending.

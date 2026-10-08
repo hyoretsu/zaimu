@@ -32,9 +32,10 @@ import {
 	shiftRecurrenceDate,
 } from "@zaimu/finance/recurrence";
 import { projectRecurrenceCreditBook } from "@zaimu/finance/recurrence-projection";
+import { resolveTransactionMoneySides } from "@zaimu/finance/transaction-money";
 import { type CatalogPageOptions, localCatalogPage } from "./catalog-pagination";
 import { activeCurrency } from "./currency-context";
-import { convertLocalMoney } from "./currency-conversion";
+import { convertLocalMoney, guestRate } from "./currency-conversion";
 import { guestTransactionPage } from "./guest-transaction-page";
 import { requestResult } from "./idb";
 import { localCursorPage } from "./local-cursor-page";
@@ -3138,11 +3139,28 @@ export const dataService = {
 				const money = await convertLocalMoney(
 					data.amount,
 					data.date,
-					data.currency ?? account?.currency ?? "BRL",
-					account?.currency ?? "BRL",
+					data.currency ?? account?.currency ?? activeCurrency(),
+					account?.currency ?? activeCurrency(),
 					data.fees ?? [],
 				);
-				data = { ...data, ...money };
+				const destination = data.destinationFinancialAccountId
+					? (await localAccounts.getById(data.destinationFinancialAccountId))?.data
+					: undefined;
+				const card = data.paymentCreditCardId
+					? (await localCreditCards.getById(data.paymentCreditCardId))?.data
+					: undefined;
+				const sides = await resolveTransactionMoneySides(
+					{
+						amount: money.amount,
+						currency: money.bookingCurrency,
+						destinationAmount: data.destinationAmount,
+						destinationCurrency: destination?.currency,
+						paymentAmount: data.paymentAmount,
+						paymentCurrency: card?.currency,
+					},
+					(from, to) => guestRate(data.date, from, to),
+				);
+				data = { ...data, ...money, ...sides };
 				const { debtSplit: explicitDebtSplit, matchDebtEventId: _, ...localData } = data;
 				const recurrenceOccurrenceDate = data.recurrenceId
 					? (data.recurrenceOccurrenceDate ?? data.date)
@@ -3429,17 +3447,57 @@ export const dataService = {
 				const targetId =
 					merged.type === "INCOME" ? merged.destinationFinancialAccountId : merged.originFinancialAccountId;
 				const account = targetId ? (await localAccounts.getById(targetId))?.data : undefined;
-				const money = await convertLocalMoney(
-					data.amount ?? existing.data.originalAmount ?? existing.data.amount,
-					merged.date,
-					merged.currency ?? account?.currency ?? "BRL",
-					account?.currency ?? "BRL",
-					merged.fees ?? [],
+				const moneyChanged = [
+					"amount",
+					"currency",
+					"date",
+					"fees",
+					"originFinancialAccountId",
+					"destinationFinancialAccountId",
+					"type",
+				].some(key => key in data);
+				const money = moneyChanged
+					? await convertLocalMoney(
+							data.amount ?? existing.data.originalAmount ?? existing.data.amount,
+							merged.date,
+							merged.currency ?? account?.currency ?? activeCurrency(),
+							account?.currency ?? activeCurrency(),
+							merged.fees ?? [],
+						)
+					: {
+							amount: existing.data.amount,
+							bookingCurrency: existing.data.bookingCurrency ?? account?.currency ?? "BRL",
+						};
+				const destination = merged.destinationFinancialAccountId
+					? (await localAccounts.getById(merged.destinationFinancialAccountId))?.data
+					: undefined;
+				const card = merged.paymentCreditCardId
+					? (await localCreditCards.getById(merged.paymentCreditCardId))?.data
+					: undefined;
+				const sides = await resolveTransactionMoneySides(
+					{
+						amount: money.amount,
+						currency: money.bookingCurrency,
+						destinationAmount:
+							data.destinationAmount ??
+							(!moneyChanged && data.destinationFinancialAccountId === undefined
+								? existing.data.destinationAmount
+								: undefined),
+						destinationCurrency: destination?.currency,
+						paymentAmount:
+							data.paymentAmount ??
+							(!moneyChanged && data.paymentCreditCardId === undefined
+								? existing.data.paymentAmount
+								: undefined),
+						paymentCurrency: card?.currency,
+					},
+					(from, to) => guestRate(merged.date, from, to),
 				);
 				const updated: Transaction = {
 					...existing.data,
 					...transactionChanges,
 					...money,
+					...sides,
 					...(paymentCreditCardId !== undefined && {
 						paymentCreditCardId: paymentCreditCardId ?? undefined,
 					}),

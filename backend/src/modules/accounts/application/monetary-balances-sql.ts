@@ -12,7 +12,7 @@ WITH requested_dates AS (
 ), movements AS (
  SELECT side."accountId", movement."date", side.amount
  FROM "Transaction" movement
- CROSS JOIN LATERAL (VALUES (movement."originFinancialAccountId",-movement."amount"), (movement."destinationFinancialAccountId",movement."amount")) side("accountId",amount)
+ CROSS JOIN LATERAL (VALUES (movement."originFinancialAccountId",-movement."amount"), (movement."destinationFinancialAccountId",COALESCE(movement."destinationAmount",movement."amount"))) side("accountId",amount)
  JOIN owned_accounts account ON account."id"=side."accountId"
  WHERE movement."userId"=$1 AND movement."date" <= (SELECT max(date) FROM requested_dates)
  UNION ALL

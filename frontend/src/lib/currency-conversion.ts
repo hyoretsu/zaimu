@@ -2,7 +2,7 @@ import { fetchCurrencySnapshot } from "@zaimu/finance/currency-provider";
 import { roundMoney } from "@zaimu/finance/money";
 import type { FinancialFee } from "./api";
 
-async function guestRate(date: string, from: string, to: string) {
+export async function guestRate(date: string, from: string, to: string) {
 	const day = date.slice(0, 10);
 	const load = async (base: string): Promise<Record<string, number>> => {
 		const key = `zaimu:currency:${day}:${base}`;

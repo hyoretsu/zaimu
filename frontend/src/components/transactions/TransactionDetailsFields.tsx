@@ -13,6 +13,12 @@ type TransactionFormType = Transaction["type"] | "YIELD";
 
 export function TransactionDetailsFields({
 	amount,
+	destinationCurrency,
+	destinationAmount = "",
+	onDestinationAmountChange,
+	paymentCurrency,
+	paymentAmount = "",
+	onPaymentAmountChange,
 	currencyCode = "BRL",
 	onCurrencyChange,
 	fees = [],
@@ -39,6 +45,12 @@ export function TransactionDetailsFields({
 	type,
 }: {
 	amount: string;
+	destinationCurrency?: string;
+	destinationAmount?: string;
+	onDestinationAmountChange?: (value: string) => void;
+	paymentCurrency?: string;
+	paymentAmount?: string;
+	onPaymentAmountChange?: (value: string) => void;
 	currencyCode?: string;
 	onCurrencyChange?: (value: string) => void;
 	fees?: FinancialFee[];
@@ -92,6 +104,34 @@ export function TransactionDetailsFields({
 				required
 				value={amount}
 			/>
+			{destinationCurrency && onDestinationAmountChange && (
+				<div className="space-y-2">
+					<MoneyField
+						currencyCode={destinationCurrency}
+						id="transaction-destination-amount"
+						label="Valor recebido na conta de destino"
+						onValueChange={onDestinationAmountChange}
+						value={destinationAmount}
+					/>
+					<p className="text-muted-foreground text-xs">
+						Opcional. Em branco, usa conversão da data da transação.
+					</p>
+				</div>
+			)}
+			{paymentCurrency && onPaymentAmountChange && (
+				<div className="space-y-2">
+					<MoneyField
+						currencyCode={paymentCurrency}
+						id="transaction-payment-amount"
+						label="Valor creditado na fatura"
+						onValueChange={onPaymentAmountChange}
+						value={paymentAmount}
+					/>
+					<p className="text-muted-foreground text-xs">
+						Opcional. Informe valor efetivo ou deixe conversão automática.
+					</p>
+				</div>
+			)}
 			{onFeesChange ? (
 				<FinancialFeeFields currencyCode={currencyCode} fees={fees} onChange={onFeesChange} />
 			) : null}

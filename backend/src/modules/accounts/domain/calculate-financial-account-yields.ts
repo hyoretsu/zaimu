@@ -40,6 +40,7 @@ export interface YieldRateHistory {
 }
 
 export interface YieldTransaction {
+	destinationAmount?: number | null;
 	amount: number;
 	date: Date;
 	destinationFinancialAccountId?: null | string;
@@ -121,7 +122,11 @@ export function calculateFinancialAccountYieldBalances({
 		if (transaction.originFinancialAccountId)
 			addEvent(transaction.originFinancialAccountId, transaction.date, -transaction.amount);
 		if (transaction.destinationFinancialAccountId)
-			addEvent(transaction.destinationFinancialAccountId, transaction.date, transaction.amount);
+			addEvent(
+				transaction.destinationFinancialAccountId,
+				transaction.date,
+				transaction.destinationAmount ?? transaction.amount,
+			);
 	}
 	for (const credit of cashbackCredits) {
 		if (!credit.cashbackAccountId || !credit.cashbackAmount || !accountById.has(credit.cashbackAccountId))

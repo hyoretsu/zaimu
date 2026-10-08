@@ -4,7 +4,7 @@ import { normalizeInstitutionName } from "./financial-institution";
 
 type AccountTransaction = Pick<
 	import("./api").Transaction,
-	"amount" | "destinationFinancialAccountId" | "originFinancialAccountId"
+	"amount" | "destinationAmount" | "destinationFinancialAccountId" | "originFinancialAccountId"
 > & { date?: Date | string };
 type CashbackPurchase = Pick<
 	import("./api").CreditPurchase,
@@ -88,7 +88,11 @@ export function calculateFinancialAccountBalances(
 		if (transaction.originFinancialAccountId)
 			addEvent(transaction.originFinancialAccountId, transaction.date, -transaction.amount);
 		if (transaction.destinationFinancialAccountId)
-			addEvent(transaction.destinationFinancialAccountId, transaction.date, transaction.amount);
+			addEvent(
+				transaction.destinationFinancialAccountId,
+				transaction.date,
+				transaction.destinationAmount ?? transaction.amount,
+			);
 	}
 	for (const purchase of cashbackPurchases) {
 		if (
@@ -143,7 +147,7 @@ export function calculateFinancialAccountYieldEntries(
 		if (day > todayKey) continue;
 		const amount =
 			transaction.destinationFinancialAccountId === account.id
-				? transaction.amount
+				? (transaction.destinationAmount ?? transaction.amount)
 				: transaction.originFinancialAccountId === account.id
 					? -transaction.amount
 					: 0;

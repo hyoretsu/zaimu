@@ -61,7 +61,7 @@ export const BalanceAdjustmentsController = new Elysia({ prefix: "/balance-adjus
 				 ) previous ON true
 				 LEFT JOIN LATERAL (
 				   SELECT sum(CASE WHEN transaction."destinationFinancialAccountId" = adjustment."financialAccountId"
-				                     THEN transaction."amount" ELSE 0 END
+				                     THEN COALESCE(transaction."destinationAmount",transaction."amount") ELSE 0 END
 				              - CASE WHEN transaction."originFinancialAccountId" = adjustment."financialAccountId"
 				                     THEN transaction."amount" ELSE 0 END) AS amount
 				   FROM "Transaction" transaction

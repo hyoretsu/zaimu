@@ -51,6 +51,7 @@ async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 			"amount",
 			"date",
 			"destinationFinancialAccountId",
+			"destinationAmount",
 			"originFinancialAccountId",
 		)
 			.where((fields, functions) =>
@@ -159,7 +160,12 @@ async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 			initialRewardsBalances: new Map(
 				rewardsAccounts.map(account => [account.financialAccountId, Number(account.initialBalance)]),
 			),
-			transactions: transactions.map(transaction => ({ ...transaction, amount: Number(transaction.amount) })),
+			transactions: transactions.map(transaction => ({
+				...transaction,
+				amount: Number(transaction.amount),
+				destinationAmount:
+					transaction.destinationAmount == null ? null : Number(transaction.destinationAmount),
+			})),
 			yields: yields.map(yieldEntry => ({
 				...yieldEntry,
 				amount: yieldEntry.amount === null ? null : Number(yieldEntry.amount),

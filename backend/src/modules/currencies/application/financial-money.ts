@@ -12,8 +12,8 @@ export const FinancialFeeDTO = t.Object({
 	type: t.Union([t.Literal("FIXED"), t.Literal("PERCENTAGE")]),
 });
 export type FinancialFee = typeof FinancialFeeDTO.static;
-export async function financialAccountCurrency(accountId?: string | null) {
-	if (!accountId) return "BRL";
+export async function financialAccountCurrency(accountId?: string | null, fallback = "BRL") {
+	if (!accountId) return fallback;
 	const [account] = await queryRaw<{ currency: string }>(
 		`SELECT "currency" FROM "FinancialAccount" WHERE "id"=$1`,
 		[accountId],

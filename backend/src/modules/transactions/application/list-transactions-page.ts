@@ -115,7 +115,7 @@ export const decodeTransactionCursor = (
 const listSql = `
 WITH combined AS (
   SELECT
-    t."id", t."amount"::numeric AS "amount", t."currency", t."originalAmount", t."fees", t."exchangeRate", CASE WHEN t."type" = 'INCOME' THEN destination."currency" ELSE origin."currency" END AS "targetCurrency", t."date", t."time"::text AS "time",
+    t."id", t."amount"::numeric AS "amount", t."currency", t."bookingCurrency", t."destinationAmount", t."destinationCurrency", t."paymentAmount", t."paymentCurrency", t."conversionSource", t."originalAmount", t."fees", t."exchangeRate", CASE WHEN t."type" = 'INCOME' THEN destination."currency" ELSE origin."currency" END AS "targetCurrency", t."date", t."time"::text AS "time",
     t."description", t."storeName", t."isHidden", t."type"::text AS "type",
     t."createdAt",
     t."originFinancialAccountId", t."destinationFinancialAccountId",
@@ -171,7 +171,7 @@ WITH combined AS (
   UNION ALL
 
   SELECT
-    purchase."id", abs(purchase."totalAmount")::numeric AS "amount", purchase_record."currency", purchase_record."originalAmount", purchase_record."fees", purchase_record."exchangeRate", account."currency" AS "targetCurrency", purchase."purchaseDate" AS "date",
+    purchase."id", abs(purchase."totalAmount")::numeric AS "amount", purchase_record."currency", purchase_record."bookingCurrency", NULL::numeric AS "destinationAmount", NULL::text AS "destinationCurrency", NULL::numeric AS "paymentAmount", NULL::text AS "paymentCurrency", NULL::text AS "conversionSource", purchase_record."originalAmount", purchase_record."fees", purchase_record."exchangeRate", account."currency" AS "targetCurrency", purchase."purchaseDate" AS "date",
     purchase."time"::text AS "time", purchase."description", purchase."storeName", false AS "isHidden",
     CASE WHEN purchase."isRefund" THEN 'REFUND' ELSE 'EXPENSE' END AS "type",
     purchase."createdAt",

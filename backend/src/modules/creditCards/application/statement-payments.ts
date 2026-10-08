@@ -65,6 +65,7 @@ export async function recalculateStatementPayments(transaction: SqlExecutor, car
 	const cards = await transaction.queryRows(
 		transaction.db.sql.public.CreditCard.select(
 			"id",
+			"currency",
 			"statementDay",
 			"dueDay",
 			"workingDueDate",
@@ -74,7 +75,7 @@ export async function recalculateStatementPayments(transaction: SqlExecutor, car
 			.build(),
 	);
 	const payments = await transaction.queryRows(
-		transaction.db.sql.public.Transaction.select("paymentCreditCardId", "date", "amount")
+		transaction.db.sql.public.Transaction.select("paymentCreditCardId", "date", "amount", "paymentAmount")
 			.where((f, fn) => fn.in(f.paymentCreditCardId, cardIds))
 			.build(),
 	);
@@ -82,7 +83,9 @@ export async function recalculateStatementPayments(transaction: SqlExecutor, car
 		const cycles = statementCycles(
 			statements.filter(s => s.creditCardId === card.id),
 			card,
-			payments.filter(p => p.paymentCreditCardId === card.id),
+			payments
+				.filter(p => p.paymentCreditCardId === card.id)
+				.map(p => ({ ...p, amount: p.paymentAmount ?? p.amount })),
 			dates => ({
 				creditCardId: card.id,
 				dueDate: new Date(`${dates.dueDate}T12:00:00Z`),
@@ -97,6 +100,7 @@ export async function recalculateStatementPayments(transaction: SqlExecutor, car
 				transaction.db.sql.public.CreditCardStatement.insert([
 					{
 						creditCardId: card.id,
+						currency: card.currency,
 						dueDate: cycle.dueDate,
 						statementDate: cycle.statementDate,
 						totalAmount: "0",

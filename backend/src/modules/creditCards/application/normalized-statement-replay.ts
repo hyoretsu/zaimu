@@ -116,7 +116,7 @@ export async function replayNormalizedCard(query: RawQuery, cardId: string) {
 			[cardId],
 		),
 		await query<PaymentRow>(
-			`SELECT "amount", "date"::text AS "date" FROM "Transaction"
+			`SELECT COALESCE("paymentAmount","amount") AS "amount", "date"::text AS "date" FROM "Transaction"
 				 WHERE "paymentCreditCardId" = $1`,
 			[cardId],
 		),

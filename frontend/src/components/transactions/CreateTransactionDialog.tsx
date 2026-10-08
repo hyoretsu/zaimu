@@ -18,6 +18,7 @@ import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import { useDialogCloseReset } from "@/hooks/use-dialog-close-reset";
 import type { DebtSplitInput, FinancialAccount, FinancialFee, Transaction } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
+import { activeCurrency } from "@/lib/currency-context";
 import { dataService } from "@/lib/dataService";
 import { getCurrentLocalTime, getLocalDateKey } from "@/lib/date";
 import { calculateDebtSplit } from "@/lib/debt-split";
@@ -32,12 +33,14 @@ import { TransactionDetailsFields } from "./TransactionDetailsFields";
 
 const initialDraft = () => ({
 	amount: "",
-	currency: "BRL",
+	currency: activeCurrency(),
 	date: getLocalDateKey(),
+	destinationAmount: "",
 	destinationFinancialAccountId: "",
 	fees: [] as FinancialFee[],
 	isHidden: false,
 	originFinancialAccountId: "",
+	paymentAmount: "",
 	paymentCreditCardId: "",
 	storeName: "",
 	tagIds: [] as string[],
@@ -76,6 +79,7 @@ export function CreateTransactionDialog({
 		if (!open) return;
 		setDraft(current => ({
 			...current,
+			currency: !current.amount ? (account?.currency ?? current.currency) : current.currency,
 			originFinancialAccountId: account?.id ?? current.originFinancialAccountId,
 			time: getCurrentLocalTime(),
 		}));
@@ -163,6 +167,8 @@ export function CreateTransactionDialog({
 				date: draft.date,
 				debtSplit: isDebt ? debtSplit : undefined,
 				description: description.trim() || undefined,
+				destinationAmount:
+					draft.type === "TRANSFER" && draft.destinationAmount ? Number(draft.destinationAmount) : undefined,
 				destinationFinancialAccountId:
 					draft.type === "INCOME" || draft.type === "TRANSFER"
 						? destinationFinancialAccountId || undefined
@@ -170,6 +176,8 @@ export function CreateTransactionDialog({
 				fees: draft.fees,
 				isHidden: draft.isHidden,
 				originFinancialAccountId: draft.type === "INCOME" ? undefined : originFinancialAccountId || undefined,
+				paymentAmount:
+					draft.paymentCreditCardId && draft.paymentAmount ? Number(draft.paymentAmount) : undefined,
 				paymentCreditCardId: draft.paymentCreditCardId || undefined,
 				storeName: draft.type === "EXPENSE" ? draft.storeName.trim() || undefined : undefined,
 				tagIds: draft.tagIds,
@@ -219,9 +227,16 @@ export function CreateTransactionDialog({
 					<div className="grid gap-4 pr-1">
 						<TransactionDetailsFields
 							amount={draft.amount}
-							currencyCode={draft.type === "YIELD" ? "BRL" : draft.currency}
+							currencyCode={draft.type === "YIELD" ? (account?.currency ?? draft.currency) : draft.currency}
 							date={draft.date}
 							description={description}
+							destinationAmount={draft.destinationAmount}
+							destinationCurrency={
+								draft.type === "TRANSFER"
+									? (accountsQuery.data?.find(item => item.id === draft.destinationFinancialAccountId)
+											?.currency ?? undefined)
+									: undefined
+							}
 							fees={draft.fees}
 							includeYield
 							isHidden={draft.isHidden}
@@ -233,10 +248,14 @@ export function CreateTransactionDialog({
 							}
 							onDateChange={date => setDraft(current => ({ ...current, date }))}
 							onDescriptionChange={setDescription}
+							onDestinationAmountChange={value =>
+								setDraft(current => ({ ...current, destinationAmount: value }))
+							}
 							onFeesChange={
 								draft.type !== "YIELD" ? fees => setDraft(current => ({ ...current, fees })) : undefined
 							}
 							onIsHiddenChange={isHidden => setDraft(current => ({ ...current, isHidden }))}
+							onPaymentAmountChange={value => setDraft(current => ({ ...current, paymentAmount: value }))}
 							onStoreNameChange={storeName => setDraft(current => ({ ...current, storeName }))}
 							onTagIdsChange={tagIds => setDraft(current => ({ ...current, tagIds }))}
 							onTimeChange={time => setDraft(current => ({ ...current, time }))}
@@ -258,6 +277,8 @@ export function CreateTransactionDialog({
 									type,
 								}));
 							}}
+							paymentAmount={draft.paymentAmount}
+							paymentCurrency={selectedStatement?.currency}
 							showDescription={draft.type !== "YIELD"}
 							showStore={draft.type === "EXPENSE"}
 							showTags={draft.type !== "TRANSFER" && draft.type !== "YIELD"}

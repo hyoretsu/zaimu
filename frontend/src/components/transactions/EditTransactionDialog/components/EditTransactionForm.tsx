@@ -34,10 +34,12 @@ function createDraft(transaction: Transaction) {
 		amount: String(transaction.originalAmount ?? transaction.amount),
 		currency: transaction.currency ?? "BRL",
 		date: transaction.date.slice(0, 10),
+		destinationAmount: transaction.destinationAmount == null ? "" : String(transaction.destinationAmount),
 		destinationFinancialAccountId: transaction.destinationFinancialAccountId ?? "",
 		fees: transaction.fees ?? [],
 		isHidden: transaction.isHidden ?? false,
 		originFinancialAccountId: transaction.originFinancialAccountId ?? "",
+		paymentAmount: transaction.paymentAmount == null ? "" : String(transaction.paymentAmount),
 		paymentCreditCardId: transaction.paymentCreditCardId ?? "",
 		storeName: transaction.storeName ?? "",
 		tagIds: transaction.tagIds ?? transaction.tags?.map(tag => tag.id) ?? [],
@@ -106,10 +108,14 @@ export function EditTransactionForm({
 				date: draft.date,
 				debtSplit: isDebt ? debtSplit : null,
 				description: description.trim() || undefined,
+				destinationAmount:
+					draft.type === "TRANSFER" && draft.destinationAmount ? Number(draft.destinationAmount) : undefined,
 				destinationFinancialAccountId: draft.destinationFinancialAccountId || null,
 				fees: draft.fees,
 				isHidden: draft.isHidden,
 				originFinancialAccountId: draft.originFinancialAccountId || null,
+				paymentAmount:
+					draft.paymentCreditCardId && draft.paymentAmount ? Number(draft.paymentAmount) : undefined,
 				paymentCreditCardId: draft.paymentCreditCardId || null,
 				...(storeName !== undefined && { storeName }),
 				tagIds: draft.tagIds,
@@ -185,6 +191,13 @@ export function EditTransactionForm({
 							currencyCode={draft.currency}
 							date={draft.date}
 							description={description}
+							destinationAmount={draft.destinationAmount}
+							destinationCurrency={
+								draft.type === "TRANSFER"
+									? (accountsQuery.data?.find(item => item.id === draft.destinationFinancialAccountId)
+											?.currency ?? undefined)
+									: undefined
+							}
 							fees={draft.fees}
 							isHidden={draft.isHidden}
 							onAmountChange={amount => setDraft(current => (current ? { ...current, amount } : current))}
@@ -193,9 +206,15 @@ export function EditTransactionForm({
 							}
 							onDateChange={date => setDraft(current => (current ? { ...current, date } : current))}
 							onDescriptionChange={setDescription}
+							onDestinationAmountChange={value =>
+								setDraft(current => current && { ...current, destinationAmount: value })
+							}
 							onFeesChange={fees => setDraft(current => (current ? { ...current, fees } : current))}
 							onIsHiddenChange={isHidden =>
 								setDraft(current => (current ? { ...current, isHidden } : current))
+							}
+							onPaymentAmountChange={value =>
+								setDraft(current => current && { ...current, paymentAmount: value })
 							}
 							onStoreNameChange={storeName =>
 								setDraft(current => (current ? { ...current, storeName } : current))
@@ -222,6 +241,10 @@ export function EditTransactionForm({
 										: current,
 								);
 							}}
+							paymentAmount={draft.paymentAmount}
+							paymentCurrency={
+								payableStatementsQuery.data?.find(item => item.id === draft.paymentCreditCardId)?.currency
+							}
 							showStore={draft.type === "EXPENSE"}
 							storeName={draft.storeName}
 							tagIds={draft.tagIds}
