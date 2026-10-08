@@ -17,6 +17,7 @@ import {
 } from "../domain/imported-installment-dates";
 
 interface ImportedPurchaseInput {
+	id?: string;
 	allowBankCorrection?: boolean;
 	debtSplitRule?: BookPurchase["debtSplitRule"];
 	isStatementCharge?: boolean;
@@ -130,9 +131,24 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 				: existing!.totalAmountCents
 			: moneyCents(input.totalAmount, 1, book.card.currency);
 		const amounts = distributePurchaseCents(totalCents, input.installments, known);
+		const [source] = input.id
+			? await query<{ currency: string; originalAmount: number }>(
+					`SELECT "snapshot"->>'currency' AS currency, abs(COALESCE(("snapshot"->>'totalAmount')::numeric,("snapshot"->>'amount')::numeric)) AS "originalAmount" FROM "OpenFinanceRecord" WHERE "reviewItemId"=$1 LIMIT 1`,
+					[input.id],
+				)
+			: [];
+		const originalMoney =
+			source && Number(source.originalAmount) > 0
+				? {
+						currency: source.currency,
+						exchangeRate: input.totalAmount / Number(source.originalAmount),
+						originalAmount: Number(source.originalAmount),
+					}
+				: {};
 		const p =
 			existing ??
 			newBookPurchase(book, {
+				...originalMoney,
 				...(await rewardSnapshot(
 					card,
 					input.totalAmount,

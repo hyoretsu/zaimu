@@ -19,6 +19,7 @@ function toTransaction(
 	const financedOperation = getFinancedOperation(item.description);
 	return {
 		amount: Math.abs(item.totalAmount),
+		bookingCurrency: currencyCode,
 		createdAt: item.createdAt,
 		creditCardId,
 		date: item.purchaseDate,

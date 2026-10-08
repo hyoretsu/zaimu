@@ -5,6 +5,7 @@ import {
 	resolveFinancialMoney,
 } from "~/modules/currencies/application/financial-money";
 import { ensureCurrencyRates } from "~/modules/currencies/infra/currency-exchange";
+import { queryRaw } from "~/shared/infra/sql";
 import type { ImportItemToApprove } from "./import-service";
 export async function importedMoney(
 	item: Pick<
@@ -15,7 +16,7 @@ export async function importedMoney(
 		| "destinationFinancialAccountId"
 		| "originFinancialAccountId"
 		| "paymentCreditCardId"
-	>,
+	> & { id?: string },
 	dependencies = { creditCardCurrency, ensureCurrencyRates, financialAccountCurrency },
 ) {
 	const currency = await dependencies.financialAccountCurrency(
@@ -41,14 +42,22 @@ export async function importedMoney(
 		},
 		(from, to) => dependencies.ensureCurrencyRates(item.date, from, to),
 	);
+	const [source] = item.id
+		? await queryRaw<{ currency: string; amount: number }>(
+				`SELECT "snapshot"->>'currency' AS currency, abs(("snapshot"->>'amount')::numeric) AS amount FROM "OpenFinanceRecord" WHERE "reviewItemId"=$1 LIMIT 1`,
+				[item.id],
+			)
+		: [];
+	const originalAmount = source && Number(source.amount) > 0 ? Number(source.amount) : money.originalAmount;
+	const sourceCurrency = source?.currency ?? currency;
 	return {
 		bookingCurrency: currency,
 		conversionSource: sides.conversionSource,
-		currency,
+		currency: sourceCurrency,
 		destinationAmount: sides.destinationAmount === null ? null : String(sides.destinationAmount),
 		destinationCurrency: sides.destinationCurrency,
-		exchangeRate: String(money.exchangeRate),
-		originalAmount: String(money.originalAmount),
+		exchangeRate: String(money.amount / originalAmount),
+		originalAmount: String(originalAmount),
 		paymentAmount: sides.paymentAmount === null ? null : String(sides.paymentAmount),
 		paymentCurrency: sides.paymentCurrency,
 	};

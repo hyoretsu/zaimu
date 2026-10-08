@@ -22,6 +22,7 @@ import { executeRaw, queryRaw, withTransaction } from "~/shared/infra/sql";
 import { externalReference, type NormalizedRecord } from "../domain/normalize";
 import { type Binding, findCandidates } from "./candidates";
 import { type LocalKind, localSnapshot, sameSnapshot } from "./local-snapshot";
+import { nativeReviewMoney } from "./native-review-money";
 import { refreshUntouchedReview, reviewSnapshot } from "./review-snapshot";
 
 interface ExternalRecord extends Record<string, unknown> {
@@ -105,6 +106,12 @@ async function createReview(
 	record: ExternalRecord,
 	remote: NormalizedRecord,
 ) {
+	remote = await nativeReviewMoney(
+		remote,
+		binding.creditCardId
+			? await creditCardCurrency(binding.creditCardId)
+			: await financialAccountCurrency(binding.financialAccountId),
+	);
 	const itemId = crypto.randomUUID();
 	const reference = externalReference(userId, binding.remoteAccountId, remote.identity);
 	let importId: string;
@@ -346,7 +353,16 @@ export async function processRecord(
 	}
 	if (record.state === "REVIEW") {
 		// Only untouched drafts follow bank corrections; user edits remain intact.
-		if (!unchangedRemote) await refreshUntouchedReview(record, remote);
+		if (!unchangedRemote)
+			await refreshUntouchedReview(
+				record,
+				await nativeReviewMoney(
+					remote,
+					binding.creditCardId
+						? await creditCardCurrency(binding.creditCardId)
+						: await financialAccountCurrency(binding.financialAccountId),
+				),
+			);
 		return "unchanged";
 	}
 	const nativeCurrency = binding.creditCardId
