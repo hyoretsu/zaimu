@@ -98,3 +98,118 @@ test("guest subscriptions create one installment plan per renewal without future
 	expect(renewed.purchases.every(purchase => purchase.installmentAmountsCents.length === 3)).toBe(true);
 	expect(renewed.installments.filter(item => item.occurrenceDate > "2027-04-01")).toEqual([]);
 });
+
+test("native three-decimal recurrence materializes frozen source and booking currency", async () => {
+	const storage = await import("./localStorage");
+	const { materializeLocalRecurrences } = await import("./recurrence-service");
+	const owner = "guest:kwd_recurrence";
+	await storage.localAccounts.put(
+		{
+			balance: 0,
+			createdAt: "2026-10-01",
+			currency: "KWD",
+			id: "kwd",
+			name: "Cash",
+			type: "CASH",
+			updatedAt: "2026-10-01",
+			userId: "guest",
+		},
+		"kwd",
+		owner,
+	);
+	await storage.localRecurrences.put(
+		{
+			amount: 1.001,
+			createdAt: "2026-10-01",
+			currency: "KWD",
+			dayOfMonth: 2,
+			id: "kwd-r",
+			interval: 1,
+			isActive: true,
+			materializedThrough: "2026-10-01",
+			movement: "EXPENSE",
+			name: "Rent",
+			originFinancialAccountId: "kwd",
+			startDate: "2026-10-01",
+			unit: "MONTH",
+			updatedAt: "2026-10-01",
+			userId: "guest",
+		},
+		"kwd-r",
+		owner,
+	);
+	expect(await materializeLocalRecurrences(owner, "2026-10-02")).toBe(1);
+	const row = (await storage.localTransactions.getAll(owner))[0]!.data;
+	expect(row).toMatchObject({
+		amount: 1.001,
+		bookingCurrency: "KWD",
+		currency: "KWD",
+		exchangeRate: 1,
+		originalAmount: 1.001,
+	});
+	expect(await materializeLocalRecurrences(owner, "2026-10-02")).toBe(0);
+	expect((await storage.localTransactions.getAll(owner))[0]!.data).toEqual(row);
+});
+
+test("foreign recurring transfer books exact-date native sides only once", async () => {
+	const storage = await import("./localStorage");
+	const { materializeLocalRecurrences } = await import("./recurrence-service");
+	const owner = "guest:foreign_recurrence";
+	for (const currency of ["USD", "JPY"])
+		await storage.localAccounts.put(
+			{
+				balance: 0,
+				createdAt: "2026-10-01",
+				currency,
+				id: currency,
+				name: currency,
+				type: "CASH",
+				updatedAt: "2026-10-01",
+				userId: "guest",
+			},
+			currency,
+			owner,
+		);
+	await storage.localRecurrences.put(
+		{
+			amount: 10,
+			createdAt: "2026-10-01",
+			currency: "USD",
+			dayOfMonth: 2,
+			destinationFinancialAccountId: "JPY",
+			id: "fx-r",
+			interval: 1,
+			isActive: true,
+			materializedThrough: "2026-10-01",
+			movement: "TRANSFER",
+			name: "Transfer",
+			originFinancialAccountId: "USD",
+			startDate: "2026-10-01",
+			unit: "MONTH",
+			updatedAt: "2026-10-01",
+			userId: "guest",
+		},
+		"fx-r",
+		owner,
+	);
+	const dates: string[] = [];
+	const rate = async (date: string, from: string, to: string) => {
+		dates.push(date);
+		expect([from, to]).toEqual(["USD", "JPY"]);
+		return 149.95;
+	};
+	expect(await materializeLocalRecurrences(owner, "2026-10-02", undefined, undefined, rate)).toBe(1);
+	expect((await storage.localTransactions.getAll(owner))[0]!.data).toMatchObject({
+		amount: 10,
+		bookingCurrency: "USD",
+		destinationAmount: 1500,
+		destinationCurrency: "JPY",
+		originalAmount: 10,
+	});
+	expect(dates).toEqual(["2026-10-02"]);
+	expect(
+		await materializeLocalRecurrences(owner, "2026-10-02", undefined, undefined, async () => {
+			throw new Error("Must not reprice");
+		}),
+	).toBe(0);
+});

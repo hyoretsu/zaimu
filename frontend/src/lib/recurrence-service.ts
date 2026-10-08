@@ -1,4 +1,5 @@
 import { materializeBookInstallments, newBookPurchase } from "@zaimu/finance/credit-book";
+import { normalizeCurrency, toMinorUnits } from "@zaimu/finance/money";
 import {
 	getNextRecurrenceDate,
 	recurrenceDates,
@@ -7,7 +8,10 @@ import {
 	validateRecurrenceInstallments,
 	validateRecurrenceSchedule,
 } from "@zaimu/finance/recurrence";
+import { resolveTransactionMoneySides } from "@zaimu/finance/transaction-money";
 import type { DebtSplitInput, Transaction } from "./api";
+import { activeCurrency } from "./currency-context";
+import { convertLocalMoney, guestRate } from "./currency-conversion";
 import { getLocalDateKey } from "./date";
 import { debtSplitToInput } from "./debt-split";
 import { type LocalPageOptions, localCursorPage } from "./local-cursor-page";
@@ -38,6 +42,7 @@ export async function materializeLocalRecurrences(
 	today = getLocalDateKey(),
 	replay?: { id: string; from: string; through: string },
 	advance?: { id: string; time?: string },
+	rate: typeof guestRate = guestRate,
 ) {
 	if (advance?.time && !/^([01]\d|2[0-3]):[0-5]\d$/.test(advance.time))
 		throw new Error("Informe um horário válido.");
@@ -83,6 +88,7 @@ export async function materializeLocalRecurrences(
 			recurrence.movement === "CARD_PURCHASE"
 				? structuredClone(await readLocalCreditBook(recurrence.creditCardId!, owner))
 				: undefined;
+		const accounts = (await localAccounts.getAll(owner)).map(row => row.data);
 		const expectedBook = book ? await localCreditBooks.getById(book.card.id, owner) : undefined;
 		for (const date of pending) {
 			const occurrence: RecurrenceOccurrence = {
@@ -91,27 +97,38 @@ export async function materializeLocalRecurrences(
 				recurrenceId: recurrence.id,
 			};
 			if (book) {
+				const money = await convertLocalMoney(
+					recurrence.amount,
+					advance ? today : date,
+					recurrence.currency ?? "BRL",
+					book.card.currency ?? "BRL",
+					[],
+					rate,
+				);
 				const purchase = newBookPurchase(
 					book,
 					{
 						cashbackAccountId: card?.cashbackAccountId ?? null,
 						cashbackAmount:
 							card?.cashbackAccountId && card.cashbackRate
-								? Number(((recurrence.amount * card.cashbackRate) / 100).toFixed(4))
+								? Number(((money.amount * card.cashbackRate) / 100).toFixed(4))
 								: null,
 						cashbackYieldPeriod: card?.cashbackYieldPeriod ?? null,
 						cashbackYieldReferencePercentage: card?.cashbackYieldReferencePercentage ?? null,
 						cashbackYieldReferenceRate: card?.cashbackYieldReferenceRate ?? null,
+						currency: money.currency,
 						debtSplitRule: recurrence.debtSplit ? debtSplitToInput(recurrence.debtSplit) : null,
 						description: recurrence.name,
+						exchangeRate: money.exchangeRate,
 						installments: recurrence.installments ?? 1,
+						originalAmount: money.originalAmount,
 						purchaseDate: advance ? today : date,
 						recurrenceId: recurrence.id,
 						recurrenceOccurrenceDate: date,
 						storeName: recurrence.storeName ?? null,
 						tagIds: recurrence.tagIds ?? [],
 						time: advance?.time ?? null,
-						totalAmount: recurrence.amount,
+						totalAmount: money.amount,
 					},
 					undefined,
 					{ materialize: false },
@@ -119,8 +136,37 @@ export async function materializeLocalRecurrences(
 				occurrence.purchaseId = purchase.id;
 			} else {
 				const id = crypto.randomUUID();
+				const targetId =
+					recurrence.movement === "INCOME"
+						? recurrence.destinationFinancialAccountId
+						: recurrence.originFinancialAccountId;
+				const target =
+					accounts.find(account => account.id === targetId)?.currency ?? recurrence.currency ?? "BRL";
+				const money = await convertLocalMoney(
+					recurrence.amount,
+					advance ? today : date,
+					recurrence.currency ?? "BRL",
+					target,
+					[],
+					rate,
+				);
+				const sides = await resolveTransactionMoneySides(
+					{
+						amount: money.amount,
+						currency: target,
+						destinationCurrency:
+							recurrence.movement === "TRANSFER"
+								? (accounts.find(account => account.id === recurrence.destinationFinancialAccountId)
+										?.currency ?? "BRL")
+								: null,
+						paymentCurrency: recurrence.movement === "CARD_PAYMENT" ? (card?.currency ?? "BRL") : null,
+					},
+					(from, to) => rate(advance ? today : date, from, to),
+				);
 				transactions.push({
-					amount: recurrence.amount,
+					...money,
+					...sides,
+					amount: money.amount,
 					createdAt: new Date().toISOString(),
 					date: advance ? today : date,
 					debtSplit:
@@ -179,19 +225,26 @@ export function createRecurrenceService(deps: Dependencies) {
 		validateRecurrenceSchedule(merged);
 		validateRecurrenceInstallments(merged);
 		merged.installments ??= 1;
-		if (
-			!merged.name.trim() ||
-			!Number.isFinite(merged.amount) ||
-			merged.amount <= 0 ||
-			Math.abs(Math.round(merged.amount * 100) / 100 - merged.amount) > 1e-8
-		)
-			throw new Error("Informe descrição e valor positivo em centavos.");
+		if (!merged.name.trim() || !Number.isFinite(merged.amount) || merged.amount <= 0)
+			throw new Error("Informe descrição e valor positivo.");
 		if (
 			recurrenceNeedsConfiguration(merged) &&
 			!(existing && Object.keys(input).every(key => key === "isActive"))
 		)
 			throw new Error("Selecione contas ou cartão compatíveis.");
 		const accounts = (await localAccounts.getAll(owner)).map(row => row.data);
+		const card = merged.creditCardId
+			? (await localCreditCards.getById(merged.creditCardId, owner))?.data
+			: undefined;
+		const accountId =
+			merged.movement === "INCOME" ? merged.destinationFinancialAccountId : merged.originFinancialAccountId;
+		merged.currency ??=
+			merged.movement === "CARD_PURCHASE"
+				? (card?.currency ?? (card ? "BRL" : activeCurrency()))
+				: (accounts.find(account => account.id === accountId)?.currency ??
+					(accounts.some(account => account.id === accountId) ? "BRL" : activeCurrency()));
+		merged.currency = normalizeCurrency(merged.currency);
+		toMinorUnits(merged.amount, merged.currency, 1);
 		for (const accountId of [merged.originFinancialAccountId, merged.destinationFinancialAccountId])
 			if (
 				accountId &&

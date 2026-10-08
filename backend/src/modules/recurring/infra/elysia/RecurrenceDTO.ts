@@ -8,6 +8,7 @@ export const RecurrenceBody = t.Object(
 	{
 		amount: t.Number({ exclusiveMinimum: 0, maximum: 9999999999.99 }),
 		creditCardId: t.Optional(NullableId),
+		currency: t.Optional(t.String({ pattern: "^[A-Z]{3}$" })),
 		dayOfMonth: t.Optional(t.Nullable(t.Integer({ maximum: 31, minimum: 1 }))),
 		dayOfWeek: t.Optional(t.Nullable(t.Integer({ maximum: 6, minimum: 0 }))),
 		debtSplit: t.Optional(t.Nullable(DebtSplitInputDTO)),
@@ -39,6 +40,7 @@ export type UpdateRecurrenceBody = typeof UpdateRecurrenceBody.static;
 export const RecurrenceReturn = t.Object({
 	...RecurrenceBody.properties,
 	createdAt: t.String(),
+	currency: t.String(),
 	debtSplit: t.Nullable(DebtSplitReturnDTO),
 	id: Id,
 	isActive: t.Boolean(),

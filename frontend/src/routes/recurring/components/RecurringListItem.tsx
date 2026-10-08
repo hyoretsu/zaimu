@@ -110,7 +110,10 @@ export function RecurringListItem({
 					className={`whitespace-nowrap font-bold ${isIncome ? "text-emerald-600" : item.direction === "TRANSFER" ? "text-primary" : "text-rose-600"}`}
 				>
 					{isIncome ? "+" : item.direction === "TRANSFER" ? "" : "-"}
-					{new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(item.amount)}
+					{new Intl.NumberFormat("pt-BR", {
+						currency: item.recurrence?.currency ?? "BRL",
+						style: "currency",
+					}).format(item.amount)}
 				</p>
 			}
 			className={item.active ? undefined : "opacity-60"}

@@ -40,7 +40,7 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 			const cached = await distributedCache.remember(
 				userId,
 				"schedules:overview",
-				{ isActive: query.isActive, version: 2 },
+				{ isActive: query.isActive, version: 3 },
 				() => listRecurrenceSummaries(userId, query.isActive),
 			);
 			set.headers.etag = cached.etag;
@@ -60,7 +60,7 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 			const cached = await distributedCache.remember(
 				userId,
 				"schedules:detail",
-				{ id: params.id },
+				{ id: params.id, version: 3 },
 				async () => presentRecurrence(await getStoredRecurrence(userId, params.id)),
 			);
 			set.headers.etag = cached.etag;

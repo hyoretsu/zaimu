@@ -181,3 +181,5 @@ Cotações vêm da currency-api de fawazahmed0. O banco guarda um snapshot compl
 Empréstimos e parcelas identificam moeda nativa. Principal e juros usam precisão ISO da moeda; distribuição preserva principal total em unidades mínimas. Parcelas concretas não mudam moeda quando preferência muda.
 
 Pagamento mantém valor/moeda da parcela e valor/moeda do débito da conta separados. Cotação da data paga sugere débito; usuário pode informar valor efetivo, inclusive sem cotação disponível. Antecipação em lote distribui débito efetivo entre parcelas sem perder unidades mínimas. Consulta posterior não altera débito registrado. Sem conta vinculada, pagamento permanece saída na moeda do empréstimo; com conta, saldos, rendimentos e relatórios usam débito efetivo na data paga.
+
+Recorrências identificam moeda do principal e herdam conta/cartão quando não há escolha explícita. Cada ocorrência concreta converte pela sua data financeira, preservando principal original e valores nativos dos livros envolvidos. Reabrir ou repetir processamento não reprecifica ocorrência materializada. Adiantamento usa data efetiva do lançamento, mantendo identidade da data programada.

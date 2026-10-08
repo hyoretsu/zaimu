@@ -1,3 +1,4 @@
+import { toMinorUnits } from "@zaimu/finance/money";
 import {
 	getNextRecurrenceDate,
 	type RecurrenceDefinition,
@@ -8,6 +9,7 @@ import {
 	validateRecurrenceInstallments,
 	validateRecurrenceSchedule,
 } from "@zaimu/finance/recurrence";
+import { resolveTransactionMoneySides } from "@zaimu/finance/transaction-money";
 import { format } from "date-fns";
 import { assertBalanceAccountOwnership, assertCreditCardOwnership } from "~/modules/auth";
 import {
@@ -18,6 +20,13 @@ import {
 } from "~/modules/categories/application/tag-assignments";
 import { mutateCreditBook, newBookPurchase } from "~/modules/creditCards/application/normalized-credit-book";
 import { recalculateStatementPayments } from "~/modules/creditCards/application/statement-payments";
+import { assertSupportedCurrency, defaultCurrency } from "~/modules/currencies/application/currency-defaults";
+import {
+	creditCardCurrency,
+	financialAccountCurrency,
+	resolveFinancialMoney,
+} from "~/modules/currencies/application/financial-money";
+import { getCurrencyRate } from "~/modules/currencies/infra/currency-exchange";
 import {
 	getDebtSplitInput,
 	getDebtSplitReturn,
@@ -57,6 +66,7 @@ export async function presentRecurrence(recurrence: StoredRecurrence) {
 	const tags = (await getTagsByEntity("RECURRENCE", [recurrence.id])).get(recurrence.id) ?? [];
 	return {
 		...recurrence,
+		currency: recurrence.currency ?? "BRL",
 		debtSplit: await getDebtSplitReturn({ recurrenceId: recurrence.id }, recurrence.amount),
 		needsConfiguration: recurrenceNeedsConfiguration(recurrence),
 		tagIds: tags.map(tag => tag.id),
@@ -83,6 +93,7 @@ export async function listRecurrenceSummaries(userId: string, isActive?: boolean
 			tags = tagsById.get(recurrence.id) ?? [];
 		return {
 			...recurrence,
+			currency: recurrence.currency ?? "BRL",
 			needsConfiguration: recurrenceNeedsConfiguration(recurrence),
 			tagIds: tags.map(tag => tag.id),
 			tags,
@@ -102,6 +113,7 @@ export async function validateRecurrence(userId: string, input: RecurrenceBody, 
 	try {
 		validateRecurrenceSchedule(input);
 		validateRecurrenceInstallments(input);
+		toMinorUnits(input.amount, input.currency ?? "BRL", 1);
 	} catch (error) {
 		throw new HttpException((error as Error).message, 400);
 	}
@@ -111,8 +123,7 @@ export async function validateRecurrence(userId: string, input: RecurrenceBody, 
 		!input.name?.trim() ||
 		!Number.isFinite(input.amount) ||
 		input.amount <= 0 ||
-		input.amount > 9999999999.99 ||
-		Math.abs(Math.round(input.amount * 100) / 100 - input.amount) > 1e-8
+		input.amount > 9999999999.99
 	)
 		throw new HttpException("Informe descrição e valor positivo.", 400);
 	if (!allowMissing && recurrenceNeedsConfiguration(input))
@@ -144,6 +155,7 @@ export async function validateRecurrence(userId: string, input: RecurrenceBody, 
 	if (input.storeName) await resolveStore(userId, input.storeName);
 }
 const writable = [
+	"currency",
 	"name",
 	"amount",
 	"installments",
@@ -176,6 +188,14 @@ export async function saveRecurrence(
 			...input,
 			debtSplit: input.debtSplit === undefined ? existingSplit : input.debtSplit,
 		} as RecurrenceBody;
+		const linkedCurrency =
+			next.movement === "CARD_PURCHASE" && next.creditCardId
+				? await creditCardCurrency(next.creditCardId)
+				: await financialAccountCurrency(
+						next.movement === "INCOME" ? next.destinationFinancialAccountId : next.originFinancialAccountId,
+						await defaultCurrency(userId),
+					);
+		next.currency = await assertSupportedCurrency(next.currency ?? linkedCurrency);
 		next.name = next.name?.trim();
 		next.installments ??= 1;
 		if (next.movement === "TRANSFER" || next.movement === "CARD_PAYMENT")
@@ -288,25 +308,34 @@ export async function materializeRecurrence(
 					userId,
 					recurrence.creditCardId!,
 					async book => {
+						const money = await resolveFinancialMoney({
+							amount: recurrence.amount,
+							currency: recurrence.currency,
+							date: financialDate,
+							targetCurrency: book.card.currency ?? "BRL",
+						});
 						const purchase = newBookPurchase(book, {
 							cashbackAccountId: settings?.cashbackAccountId ?? null,
 							cashbackAmount:
 								settings?.cashbackAccountId && settings?.cashbackRate
-									? Number(((recurrence.amount * settings?.cashbackRate) / 100).toFixed(4))
+									? Number(((money.amount * settings?.cashbackRate) / 100).toFixed(4))
 									: null,
 							cashbackYieldPeriod: settings?.cashbackYieldPeriod ?? null,
 							cashbackYieldReferencePercentage: settings?.cashbackYieldReferencePercentage ?? null,
 							cashbackYieldReferenceRate: settings?.cashbackYieldReferenceRate ?? null,
+							currency: money.currency,
 							debtSplitRule: debtSplit ?? null,
 							description: recurrence.name,
+							exchangeRate: money.exchangeRate,
 							installments: recurrence.installments ?? 1,
+							originalAmount: money.originalAmount,
 							purchaseDate: financialDate,
 							recurrenceId: id,
 							recurrenceOccurrenceDate: date,
 							storeName: recurrence.storeName ?? null,
 							tagIds,
 							time: advance?.time ?? null,
-							totalAmount: recurrence.amount,
+							totalAmount: money.amount,
 						});
 						await query(
 							'UPDATE "RecurrenceOccurrence" SET "purchaseId"=$1 WHERE "recurrenceId"=$2 AND "date"=$3',
@@ -317,11 +346,39 @@ export async function materializeRecurrence(
 				);
 			} else {
 				const type = recurrence.movement === "CARD_PAYMENT" ? "EXPENSE" : recurrence.movement;
+				const targetCurrency = await financialAccountCurrency(
+					recurrence.movement === "INCOME"
+						? recurrence.destinationFinancialAccountId
+						: recurrence.originFinancialAccountId,
+					recurrence.currency ?? "BRL",
+				);
+				const money = await resolveFinancialMoney({
+					amount: recurrence.amount,
+					currency: recurrence.currency,
+					date: financialDate,
+					targetCurrency,
+				});
+				const sides = await resolveTransactionMoneySides(
+					{
+						amount: money.amount,
+						currency: targetCurrency,
+						destinationCurrency:
+							recurrence.movement === "TRANSFER"
+								? await financialAccountCurrency(recurrence.destinationFinancialAccountId)
+								: null,
+						paymentCurrency:
+							recurrence.movement === "CARD_PAYMENT"
+								? await creditCardCurrency(recurrence.creditCardId!)
+								: null,
+					},
+					(from, to) => getCurrencyRate(financialDate, from, to),
+				);
+
 				const [transaction] = await query<{ id: string }>(
-					'INSERT INTO "Transaction" ("userId","amount","date","description","storeName","type","originFinancialAccountId","destinationFinancialAccountId","paymentCreditCardId","recurrenceId","recurrenceOccurrenceDate","time") VALUES ($1,$2,$3,$4,$5,$6::"TransactionType",$7,$8,$9,$10,$11,$12) RETURNING "id"',
+					'INSERT INTO "Transaction" ("userId","amount","date","description","storeName","type","originFinancialAccountId","destinationFinancialAccountId","paymentCreditCardId","recurrenceId","recurrenceOccurrenceDate","time","currency","bookingCurrency","originalAmount","exchangeRate","destinationAmount","destinationCurrency","paymentAmount","paymentCurrency","conversionSource") VALUES ($1,$2,$3,$4,$5,$6::"TransactionType",$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21) RETURNING "id"',
 					[
 						userId,
-						recurrence.amount,
+						money.amount,
 						financialDate,
 						recurrence.name,
 						recurrence.storeName ?? null,
@@ -332,6 +389,15 @@ export async function materializeRecurrence(
 						id,
 						date,
 						advance?.time ?? null,
+						money.currency,
+						money.bookingCurrency,
+						money.originalAmount,
+						money.exchangeRate,
+						sides.destinationAmount,
+						sides.destinationCurrency,
+						sides.paymentAmount,
+						sides.paymentCurrency,
+						sides.conversionSource,
 					],
 				);
 				await replaceEntityTags({
