@@ -55,6 +55,7 @@ export async function findCandidates(
 		const candidate: NormalizedRecord = {
 			...remote,
 			amount,
+			currency: String(raw.bookingCurrency ?? raw.currency ?? remote.currency),
 			date,
 			description: String(raw.description ?? ""),
 			installmentNumber: card ? Number(raw.currentInstallment ?? remote.installmentNumber) : 1,

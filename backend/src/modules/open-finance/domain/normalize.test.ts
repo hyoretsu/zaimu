@@ -47,3 +47,14 @@ describe("bank adapters", () => {
 		expect(normalizeTransaction({ ...tx, status: "PENDING" }, false).pending).toBe(true);
 	});
 });
+
+test("bank values retain KWD thousandths and use JPY integer units", () => {
+	expect(normalizeTransaction({ ...tx, amount: -1.001, currencyCode: "KWD" }, false)).toMatchObject({
+		amount: -1.001,
+		currency: "KWD",
+	});
+	expect(normalizeTransaction({ ...tx, amount: 1500, currencyCode: "JPY" }, false)).toMatchObject({
+		amount: 1500,
+		currency: "JPY",
+	});
+});

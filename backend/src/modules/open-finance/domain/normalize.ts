@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { roundMoney } from "@zaimu/finance/money";
 import type { RemoteBill, RemoteTransaction } from "../infra/pluggy-client";
 
 export type Operation = "TRANSACTION" | "PURCHASE" | "PAYMENT" | "REFUND" | "CHARGE";
@@ -89,8 +90,8 @@ export function normalizeTransaction(
 		aliases: [tx.providerId ? `provider:${tx.providerId}` : null, `pluggy:${tx.id}`].filter(
 			(id): id is string => Boolean(id),
 		),
-		amount: Number(tx.amount.toFixed(2)),
-		currency: tx.currencyCode ?? "BRL",
+		amount: roundMoney(tx.amount, tx.currencyCode ?? "BRL"),
+		currency: (tx.currencyCode ?? "BRL").toUpperCase(),
 		date: bankDate(metadata?.purchaseDate ?? tx.date),
 		description: tx.description.trim(),
 		dueDate: bill?.dueDate ? bankDate(bill.dueDate) : null,
