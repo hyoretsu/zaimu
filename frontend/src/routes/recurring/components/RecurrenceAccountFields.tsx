@@ -45,7 +45,11 @@ export function RecurrenceAccountFields({
 					<CustomSelect
 						disabled={disabled}
 						label="Conta de saída"
-						onValueChange={value => set("originFinancialAccountId", value)}
+						onValueChange={value => {
+							set("originFinancialAccountId", value);
+							if (!draft.currencyExplicit && !draft.amount)
+								set("currency", accounts.find(account => account.id === value)?.currency ?? "BRL");
+						}}
 						options={balanceOptions}
 						placeholder="Selecione conta de saída"
 						required
@@ -59,7 +63,11 @@ export function RecurrenceAccountFields({
 					<CustomSelect
 						disabled={disabled}
 						label="Conta de entrada"
-						onValueChange={value => set("destinationFinancialAccountId", value)}
+						onValueChange={value => {
+							set("destinationFinancialAccountId", value);
+							if (!draft.currencyExplicit && !draft.amount && draft.movement === "INCOME")
+								set("currency", accounts.find(account => account.id === value)?.currency ?? "BRL");
+						}}
 						options={balanceOptions.filter(
 							option => draft.movement !== "TRANSFER" || option.value !== draft.originFinancialAccountId,
 						)}
@@ -80,7 +88,11 @@ export function RecurrenceAccountFields({
 						<CustomSelect
 							disabled={disabled}
 							label="Cartão"
-							onValueChange={value => set("creditCardId", value)}
+							onValueChange={value => {
+								set("creditCardId", value);
+								if (!draft.currencyExplicit && !draft.amount && draft.movement === "CARD_PURCHASE")
+									set("currency", cards.data?.find(card => card.id === value)?.currency ?? "BRL");
+							}}
 							options={cardOptions}
 							placeholder="Selecione cartão"
 							required

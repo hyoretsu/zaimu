@@ -2,6 +2,8 @@ import type { RecurrenceMovement, RecurrenceUnit } from "@zaimu/finance/recurren
 export interface UnifiedRecurringDraft {
 	name: string;
 	amount: string;
+	currency: string;
+	currencyExplicit: boolean;
 	installments: string;
 	movement: RecurrenceMovement;
 	unit: RecurrenceUnit;

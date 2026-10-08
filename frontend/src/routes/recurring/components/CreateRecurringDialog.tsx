@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { RecurrenceMovement, RecurrenceUnit } from "@zaimu/finance/recurrence";
 import { useEffect, useRef, useState } from "react";
+import { CurrencySelect } from "@/components/currency/CurrencySelect";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
@@ -19,9 +20,11 @@ import type { DebtSplitInput } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { getLocalDateKey } from "@/lib/date";
 import { debtSplitToInput } from "@/lib/debt-split";
+import { parseMaskedMoney } from "@/lib/masked-money";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import type { Recurrence, RecurrenceInput } from "@/lib/recurrence";
 import { showToast } from "@/stores";
+import { useCurrencyStore } from "@/stores/currency";
 import { DebouncedFormField } from "./DebouncedFormField";
 import { DebouncedMoneyField } from "./DebouncedMoneyField";
 import { RecurrenceAccountFields } from "./RecurrenceAccountFields";
@@ -31,9 +34,11 @@ import { RecurrenceScheduleFields } from "./RecurrenceScheduleFields";
 import type { RecurringListItemData } from "./types";
 import { movementLabels, type UnifiedRecurringDraft } from "./unified-types";
 
-const initialDraft = (recurrence?: Recurrence): UnifiedRecurringDraft => ({
+const initialDraft = (recurrence?: Recurrence, currency = "BRL"): UnifiedRecurringDraft => ({
 	amount: recurrence ? String(recurrence.amount) : "",
 	creditCardId: recurrence?.creditCardId ?? "",
+	currency: recurrence?.currency ?? currency,
+	currencyExplicit: Boolean(recurrence),
 	dayOfMonth: String(
 		recurrence?.dayOfMonth ?? Number((recurrence?.startDate ?? getLocalDateKey()).slice(8, 10)),
 	),
@@ -61,8 +66,9 @@ export function CreateRecurringDialog({
 }) {
 	const recurrence = item?.recurrence;
 	const identity = useCacheIdentity();
+	const effectiveCurrency = useCurrencyStore(state => state.currency);
 	const queryClient = useQueryClient();
-	const [draft, setDraft] = useState(() => initialDraft(recurrence));
+	const [draft, setDraft] = useState(() => initialDraft(recurrence, effectiveCurrency));
 	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>(() => debtSplitToInput(recurrence?.debtSplit));
 	const [debtEnabled, setDebtEnabled] = useState(Boolean(recurrence?.debtSplit));
 	const [addPast, setAddPast] = useState(false);
@@ -87,12 +93,17 @@ export function CreateRecurringDialog({
 		if (primary)
 			setDraft(current =>
 				current.movement === "EXPENSE" && !current.originFinancialAccountId
-					? { ...current, originFinancialAccountId: primary.id }
+					? {
+							...current,
+							currency:
+								current.amount || current.currencyExplicit ? current.currency : (primary.currency ?? "BRL"),
+							originFinancialAccountId: primary.id,
+						}
 					: current,
 			);
 	}, [open, accounts.data, recurrence]);
 	useDialogCloseReset(open, () => {
-		setDraft(initialDraft(recurrence));
+		setDraft(initialDraft(recurrence, effectiveCurrency));
 		setDebtSplit(debtSplitToInput(recurrence?.debtSplit));
 		setDebtEnabled(Boolean(recurrence?.debtSplit));
 		setAddPast(false);
@@ -159,20 +170,13 @@ export function CreateRecurringDialog({
 									event.preventDefault();
 									const fields = new FormData(event.currentTarget);
 									const amountText = String(fields.get("recurrence-amount") ?? draft.amount);
-									const amount =
-										amountText.includes(",") || amountText.includes("R$")
-											? Number(
-													amountText
-														.replace(/[^\d,.-]/g, "")
-														.replaceAll(".", "")
-														.replace(",", "."),
-												)
-											: Number(amountText);
+									const amount = parseMaskedMoney(amountText);
 									save.mutate({
 										amount,
 										creditCardId: ["CARD_PURCHASE", "CARD_PAYMENT"].includes(draft.movement)
 											? draft.creditCardId || null
 											: null,
+										currency: draft.currency,
 										dayOfMonth: ["MONTH", "YEAR"].includes(draft.unit)
 											? Number(fields.get("recurrence-day") ?? draft.dayOfMonth)
 											: null,
@@ -213,13 +217,13 @@ export function CreateRecurringDialog({
 											value={draft.name}
 										/>
 										<DebouncedMoneyField
+											currencyCode={draft.currency}
 											id="recurrence-amount"
 											label={
 												draft.movement === "CARD_PURCHASE" ? "Valor total por compra" : "Valor por ocorrência"
 											}
 											name="recurrence-amount"
 											onValueChange={value => set("amount", value)}
-											placeholder="R$ 150,00"
 											required
 											value={draft.amount}
 										/>
@@ -243,6 +247,13 @@ export function CreateRecurringDialog({
 											value={draft.movement}
 										/>
 									</div>
+									<CurrencySelect
+										label="Moeda da recorrência"
+										onValueChange={value =>
+											setDraft(current => ({ ...current, currency: value, currencyExplicit: true }))
+										}
+										value={draft.currency}
+									/>
 									<RecurrenceAccountFields
 										accounts={accounts.data ?? []}
 										disabled={save.isPending}
