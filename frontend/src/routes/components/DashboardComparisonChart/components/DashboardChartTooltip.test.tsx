@@ -98,3 +98,15 @@ test("balance tooltip shows only wealth while flow tooltip shows only income and
 	expect(flows).not.toContain("Renda fixa");
 	expect(flows).toContain("90,65");
 });
+
+test("tooltip respects zero and three decimal currency precision", () => {
+	const yen = renderToStaticMarkup(
+		<DashboardChartTooltip active currencyCode="JPY" period={{ ...period, endingBalance: 1234.56 }} />,
+	);
+	const dinar = renderToStaticMarkup(
+		<DashboardChartTooltip active currencyCode="KWD" period={{ ...period, endingBalance: 1.234 }} />,
+	);
+	expect(yen).toContain("1.235");
+	expect(yen).not.toContain("1.234,56");
+	expect(dinar).toContain("1,234");
+});

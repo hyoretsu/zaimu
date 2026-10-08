@@ -2,20 +2,20 @@ import { format } from "date-fns";
 import type { DashboardPeriod } from "@/lib/api";
 import type { DashboardChartKind } from "./types";
 
-const currency = new Intl.NumberFormat("pt-BR", {
-	currency: "BRL",
-	maximumFractionDigits: 2,
-	minimumFractionDigits: 2,
-	style: "currency",
-});
-
 interface DashboardChartTooltipProps {
+	currencyCode?: string;
 	active?: boolean;
 	kind?: DashboardChartKind;
 	period?: DashboardPeriod;
 }
 
-export function DashboardChartTooltip({ active, kind, period }: DashboardChartTooltipProps) {
+export function DashboardChartTooltip({
+	currencyCode = "BRL",
+	active,
+	kind,
+	period,
+}: DashboardChartTooltipProps) {
+	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
 	if (!active || !period) return null;
 	const start = new Date(`${period.startDate}T12:00:00`);
 	const end = new Date(`${period.endDate}T12:00:00`);

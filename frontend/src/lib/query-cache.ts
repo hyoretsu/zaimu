@@ -1,5 +1,6 @@
 import type { QueryClient, QueryKey } from "@tanstack/react-query";
 import { type AuthState, useAuthStore } from "@/stores/auth";
+import { activeCurrency } from "./currency-context";
 
 export type CacheIdentity = `guest:${string}` | `user:${string}`;
 
@@ -64,9 +65,9 @@ export const queryKeys = {
 	dashboard: {
 		all: (identity: CacheIdentity) => domainKey(identity, "dashboard"),
 		comparison: (identity: CacheIdentity, parameters: unknown) =>
-			[...domainKey(identity, "dashboard"), "comparison", parameters] as const,
+			[...domainKey(identity, "dashboard"), "comparison", activeCurrency(), parameters] as const,
 		detail: (identity: CacheIdentity, parameters: unknown) =>
-			[...domainKey(identity, "dashboard"), "detail", parameters] as const,
+			[...domainKey(identity, "dashboard"), "detail", activeCurrency(), parameters] as const,
 	},
 	debts: {
 		all: (identity: CacheIdentity) => domainKey(identity, "debts"),

@@ -8,6 +8,9 @@ test("guest chart reads no dashboard or debt data and repeats selected dates", a
 			value: { location: { origin: "http://localhost" } },
 		});
 	const { dataService } = await import("../dataService");
+	const currencyContext = await import("../currency-context");
+	const previousCurrency = currencyContext.activeCurrency();
+	currencyContext.setActiveCurrency("BRL");
 	const { getGuestDashboardComparison } = await import("../dashboard-comparison");
 	const stores = await import("../localStorage");
 	const rates = await import("../reference-rate-averages");
@@ -78,6 +81,7 @@ test("guest chart reads no dashboard or debt data and repeats selected dates", a
 		expect(dashboard).not.toHaveBeenCalled();
 		expect(debts).not.toHaveBeenCalled();
 	} finally {
+		currencyContext.setActiveCurrency(previousCurrency);
 		for (const mock of mocks) mock.mockRestore();
 		dashboard.mockRestore();
 		debts.mockRestore();

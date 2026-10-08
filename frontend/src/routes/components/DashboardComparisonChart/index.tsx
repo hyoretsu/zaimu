@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { useCurrencyStore } from "@/stores/currency";
 import { ChartPeriodFilter, type ChartPeriodSettings, DashboardPeriodChart } from "./components";
 
 function formatAxisLabel(startDate: string) {
@@ -14,6 +15,7 @@ function formatAxisLabel(startDate: string) {
 
 export function DashboardComparisonChart() {
 	const identity = useCacheIdentity();
+	const currencyCode = useCurrencyStore(state => state.currency);
 	const [settings, setSettings] = useState<ChartPeriodSettings>(() => ({
 		endDate: format(endOfMonth(new Date()), "yyyy-MM-dd"),
 		periodsAfter: 10,
@@ -59,8 +61,18 @@ export function DashboardComparisonChart() {
 					</p>
 				) : (
 					<div className="space-y-6">
-						<DashboardPeriodChart currentPeriod={currentPeriod?.label} data={data} kind="balances" />
-						<DashboardPeriodChart currentPeriod={currentPeriod?.label} data={data} kind="flows" />
+						<DashboardPeriodChart
+							currencyCode={currencyCode}
+							currentPeriod={currentPeriod?.label}
+							data={data}
+							kind="balances"
+						/>
+						<DashboardPeriodChart
+							currencyCode={currencyCode}
+							currentPeriod={currentPeriod?.label}
+							data={data}
+							kind="flows"
+						/>
 					</div>
 				)}
 			</CardContent>

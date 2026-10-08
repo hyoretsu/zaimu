@@ -6,6 +6,7 @@ import { DashboardChartTooltip } from "./DashboardChartTooltip";
 import type { DashboardChartKind } from "./types";
 
 interface FloatingDashboardTooltipProps {
+	currencyCode?: string;
 	active?: boolean;
 	kind?: DashboardChartKind;
 	chartRef: RefObject<HTMLDivElement | null>;
@@ -14,6 +15,7 @@ interface FloatingDashboardTooltipProps {
 }
 
 export function FloatingDashboardTooltip({
+	currencyCode,
 	active,
 	chartRef,
 	coordinate,
@@ -54,7 +56,7 @@ export function FloatingDashboardTooltip({
 	return createPortal(
 		<div className="pointer-events-none fixed z-50" ref={ref} style={position}>
 			<ScrollArea className="max-h-[calc(100dvh-1rem)] min-h-0 rounded-lg">
-				<DashboardChartTooltip active kind={kind} period={period} />
+				<DashboardChartTooltip active currencyCode={currencyCode} kind={kind} period={period} />
 			</ScrollArea>
 		</div>,
 		document.body,

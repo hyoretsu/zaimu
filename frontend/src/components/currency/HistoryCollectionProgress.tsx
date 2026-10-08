@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LuInfo, LuRefreshCw } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
@@ -14,7 +14,7 @@ import {
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { readHistoryCollection, retryHistoryCollection } from "@/lib/financial-history";
-import { useCacheIdentity } from "@/lib/query-cache";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 
 const stateLabels: Record<string, string> = {
@@ -37,11 +37,22 @@ export function HistoryCollectionProgress({ collectionId, title }: { collectionI
 		refetchInterval: query =>
 			["PENDING", "RUNNING"].includes(query.state.data?.progress.state ?? "") ? 10_000 : false,
 	});
+	const previousState = useRef<{ id: string; state: string } | null>(null);
+	useEffect(() => {
+		const state = query.data?.progress.state;
+		if (!state || !owner) return;
+		const previous = previousState.current;
+		previousState.current = { id: collectionId, state };
+		if (previous?.id === collectionId && previous.state !== state) {
+			void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all(owner) });
+		}
+	}, [collectionId, owner, query.data?.progress.state, queryClient]);
 	const retry = useMutation({
 		mutationFn: () => retryHistoryCollection(collectionId),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: value => {
 			queryClient.setQueryData(queryKey, value);
+			if (owner) void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all(owner) });
 			showToast("Falhas reenviadas para coleta", "positive");
 		},
 	});

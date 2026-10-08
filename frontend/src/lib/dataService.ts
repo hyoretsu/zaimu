@@ -20,11 +20,11 @@ import {
 	paymentStatement,
 	recalculateStatementDueDate,
 	statementCutoffAfter,
-	toCents,
 } from "@zaimu/finance/credit-card";
 import { distributePurchaseCents } from "@zaimu/finance/credit-purchase";
 import { dashboardCardForecasts, isCashFlowRecurrence } from "@zaimu/finance/dashboard-forecasts";
 import { loanInstallments } from "@zaimu/finance/loan";
+import { currencyScale, roundMoney } from "@zaimu/finance/money";
 import { pendingStatementPayments } from "@zaimu/finance/payment-suggestions";
 import {
 	nextRecurrenceDate,
@@ -36,6 +36,7 @@ import { resolveTransactionMoneySides } from "@zaimu/finance/transaction-money";
 import { type CatalogPageOptions, localCatalogPage } from "./catalog-pagination";
 import { activeCurrency } from "./currency-context";
 import { convertLocalMoney, guestRate } from "./currency-conversion";
+import { GuestConversionUnavailable } from "./dashboard-currency-context";
 import { guestTransactionPage } from "./guest-transaction-page";
 import { requestResult } from "./idb";
 import { localCursorPage } from "./local-cursor-page";
@@ -1920,7 +1921,6 @@ export const dataService = {
 				);
 				const dateKey = (value: Date | string) =>
 					typeof value === "string" ? value.slice(0, 10) : getLocalDateKey(value);
-				const { owedToMe, iOwe } = debts.totals;
 
 				const recurrenceOccurrences = (await localRecurrenceOccurrences.getAll()).map(row => row.data);
 				const processedRecurrences = new Set([
@@ -1994,10 +1994,14 @@ export const dataService = {
 						cardStatements
 							.toSorted((left, right) => left.dueDate.localeCompare(right.dueDate))
 							.find(item => item.dueDate >= dateKey(now)) ?? cardStatements.at(-1);
-					const used = cardStatements.reduce((sum, item) => sum + toCents(item.balanceAmount), 0) / 100;
+					const used = roundMoney(
+						cardStatements.reduce((sum, item) => sum + item.balanceAmount, 0),
+						card.currency ?? "BRL",
+					);
 					return {
 						availableLimit: Math.max(0, card.creditLimit - used),
 						creditLimit: card.creditLimit,
+						currency: card.currency ?? "BRL",
 						excludeFromTotals: card.excludeFromTotals,
 						financialAccountId: card.financialAccountId,
 						id: card.id,
@@ -2016,118 +2020,206 @@ export const dataService = {
 							: null,
 					};
 				});
-				const { getGuestDashboardFinancialContext } = await import("./dashboard-comparison");
-				const financialContext = await getGuestDashboardFinancialContext(
-					{
+				try {
+					const { getGuestDashboardFinancialContext } = await import("./dashboard-comparison");
+					const financialContext = await getGuestDashboardFinancialContext(
+						{
+							endDate: dateKey(rangeEnd),
+							periodsAfter: 0,
+							periodsBefore: 0,
+							startDate: dateKey(rangeStart),
+						},
+						dateKey(comparisonIntervals(rangeStart).at(-1)!.end),
+					);
+					const selectedMovements = financialContext.movements.filter(
+						item => item.date >= rangeStart && item.date <= rangeEnd,
+					);
+					const totalFor = (type: "INCOME" | "EXPENSE", recurring = false) =>
+						selectedMovements
+							.filter(item => item.type === type)
+							.reduce(
+								(sum, item) =>
+									sum +
+									(recurring ? (item.recurringAmount ?? (item.recurring ? item.amount : 0)) : item.amount),
+								0,
+							);
+					const initialDate = new Date(rangeStart);
+					initialDate.setDate(initialDate.getDate() - 1);
+					const period = {
+						...financialContext.balanceAt(rangeEnd),
+						cardExpenses: selectedMovements
+							.filter(item => item.type === "EXPENSE" && item.cardPayment)
+							.reduce((sum, item) => sum + item.amount, 0),
 						endDate: dateKey(rangeEnd),
-						periodsAfter: 0,
-						periodsBefore: 0,
+						expenses: totalFor("EXPENSE"),
+						income: totalFor("INCOME"),
+						initialBalance: financialContext.balanceAt(initialDate).endingBalance,
+						net: totalFor("INCOME") - totalFor("EXPENSE"),
+						recurringCardExpenses: selectedMovements
+							.filter(item => item.type === "EXPENSE" && item.cardPayment)
+							.reduce((sum, item) => sum + (item.recurringAmount ?? (item.recurring ? item.amount : 0)), 0),
+						recurringExpenses: totalFor("EXPENSE", true),
+						recurringIncome: totalFor("INCOME", true),
 						startDate: dateKey(rangeStart),
-					},
-					dateKey(comparisonIntervals(rangeStart).at(-1)!.end),
-				);
-				const selectedMovements = financialContext.movements.filter(
-					item => item.date >= rangeStart && item.date <= rangeEnd,
-				);
-				const totalFor = (type: "INCOME" | "EXPENSE", recurring = false) =>
-					selectedMovements
-						.filter(item => item.type === type)
-						.reduce(
-							(sum, item) =>
-								sum +
-								(recurring ? (item.recurringAmount ?? (item.recurring ? item.amount : 0)) : item.amount),
-							0,
-						);
-				const initialDate = new Date(rangeStart);
-				initialDate.setDate(initialDate.getDate() - 1);
-				const period = {
-					...financialContext.balanceAt(rangeEnd),
-					cardExpenses: selectedMovements
-						.filter(item => item.type === "EXPENSE" && item.cardPayment)
-						.reduce((sum, item) => sum + item.amount, 0),
-					endDate: dateKey(rangeEnd),
-					expenses: totalFor("EXPENSE"),
-					income: totalFor("INCOME"),
-					initialBalance: financialContext.balanceAt(initialDate).endingBalance,
-					net: totalFor("INCOME") - totalFor("EXPENSE"),
-					recurringCardExpenses: selectedMovements
-						.filter(item => item.type === "EXPENSE" && item.cardPayment)
-						.reduce((sum, item) => sum + (item.recurringAmount ?? (item.recurring ? item.amount : 0)), 0),
-					recurringExpenses: totalFor("EXPENSE", true),
-					recurringIncome: totalFor("INCOME", true),
-					startDate: dateKey(rangeStart),
-				};
-				const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-				const future = financialContext.movements.filter(
-					item => dateKey(item.date) > getLocalDateKey() && item.date <= monthEnd,
-				);
-				const futureTotal = (type: "INCOME" | "EXPENSE", recurring = false) =>
-					future
-						.filter(item => item.type === type)
-						.reduce(
-							(sum, item) =>
-								sum +
-								(recurring ? (item.recurringAmount ?? (item.recurring ? item.amount : 0)) : item.amount),
-							0,
-						);
-				const projectedCashFlowUntilMonthEnd = {
-					expenses: futureTotal("EXPENSE"),
-					income: futureTotal("INCOME"),
-					net: futureTotal("INCOME") - futureTotal("EXPENSE"),
-					recurringExpenses: futureTotal("EXPENSE", true),
-					recurringIncome: futureTotal("INCOME", true),
-				};
-				const { endingBalance: _, ...balanceBreakdown } = financialContext.balanceAt(rangeEnd);
-				const forecastBalances = financialContext.balancesAt(rangeEnd);
+					};
+					const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+					const future = financialContext.movements.filter(
+						item => dateKey(item.date) > getLocalDateKey() && item.date <= monthEnd,
+					);
+					const futureTotal = (type: "INCOME" | "EXPENSE", recurring = false) =>
+						future
+							.filter(item => item.type === type)
+							.reduce(
+								(sum, item) =>
+									sum +
+									(recurring ? (item.recurringAmount ?? (item.recurring ? item.amount : 0)) : item.amount),
+								0,
+							);
+					const projectedCashFlowUntilMonthEnd = {
+						expenses: futureTotal("EXPENSE"),
+						income: futureTotal("INCOME"),
+						net: futureTotal("INCOME") - futureTotal("EXPENSE"),
+						recurringExpenses: futureTotal("EXPENSE", true),
+						recurringIncome: futureTotal("INCOME", true),
+					};
+					const { endingBalance: _, ...balanceBreakdown } = financialContext.balanceAt(rangeEnd);
+					const forecastBalances = financialContext.balancesAt(rangeEnd);
 
-				return {
-					accounts: accountsAtRangeEnd
-						.filter(account => ["CHECKING", "CASH", "SAVINGS", "INVESTMENT"].includes(account.type))
-						.map(account => ({
-							balance: forecastBalances.get(account.id) ?? 0,
-							id: account.id,
-							institutionName: account.institution?.name ?? null,
-							name: account.name,
-							type: account.type as "CHECKING" | "CASH" | "SAVINGS" | "INVESTMENT",
-						})),
-					balanceBreakdown,
-					creditCards,
-					dailyBalances: [
-						...new Set(
-							financialContext.movements
-								.filter(item => item.date >= rangeStart && item.date <= rangeEnd)
-								.map(item => dateKey(item.date)),
-						),
-					]
-						.toSorted()
-						.map(date => ({
-							balance: financialContext.balanceAt(new Date(`${date}T12:00:00`)).endingBalance,
-							date,
-						})),
-					debts: {
-						iOwe,
-						net: owedToMe - iOwe,
-						owedToMe,
-						people: debts.people
-							.filter(person => person.balance !== 0)
-							.map(person => ({
-								balance: person.balance,
-								direction: person.balance > 0 ? ("OWED" as const) : ("OWES" as const),
+					const debtRates = new Map<string, number>();
+					const people = await Promise.all(
+						debts.people.map(async person => {
+							const denominations = new Map<string, number>();
+							for (const event of person.events) {
+								const source = event.currency ?? "BRL";
+								denominations.set(
+									source,
+									(denominations.get(source) ?? 0) + (event.createdByMe ? event.effect : -event.effect),
+								);
+							}
+							let balance = 0;
+							for (const [source, amount] of denominations) {
+								if (!amount) continue;
+								let factor = source === financialContext.currency ? 1 : debtRates.get(source);
+								if (factor == null) {
+									factor = await guestRate("latest", source, financialContext.currency).catch(() => {
+										throw new GuestConversionUnavailable(
+											source,
+											dateKey(now),
+											financialContext.consolidation,
+										);
+									});
+									debtRates.set(source, factor);
+								}
+								balance += amount * factor;
+							}
+							return {
+								balance,
+								direction: balance >= 0 ? ("OWED" as const) : ("OWES" as const),
 								id: person.id,
 								name: person.name,
+							};
+						}),
+					);
+					const owedToMe = people
+						.filter(person => person.balance > 0)
+						.reduce((sum, person) => sum + person.balance, 0);
+					const iOwe = people
+						.filter(person => person.balance < 0)
+						.reduce((sum, person) => sum - person.balance, 0);
+					const forecastCurrency = (row: Dashboard["forecasts"][number]) =>
+						row.type === "CARD"
+							? (cards.find(card => card.id === row.sourceId)?.currency ?? "BRL")
+							: row.type === "LOAN"
+								? (loans.find(loan => loan.id === row.sourceId)?.currency ?? "BRL")
+								: row.type === "RECURRING"
+									? (recurrences.find(item => item.id === row.sourceId)?.currency ?? "BRL")
+									: (transactions.find(item => item.id === row.sourceId)?.bookingCurrency ?? "BRL");
+					return {
+						accounts: accountsAtRangeEnd
+							.filter(account => ["CHECKING", "CASH", "SAVINGS", "INVESTMENT"].includes(account.type))
+							.map(account => ({
+								balance: forecastBalances.get(account.id) ?? 0,
+								currency: account.currency ?? "BRL",
+								id: account.id,
+								institutionName: account.institution?.name ?? null,
+								name: account.name,
+								type: account.type as "CHECKING" | "CASH" | "SAVINGS" | "INVESTMENT",
 							})),
-					},
-					forecasts: [
-						...forecasts,
-						...dashboardCardForecasts(financialContext.projectedStatements, creditCards, dateKey(now)),
-					].toSorted((left, right) => left.date.localeCompare(right.date)),
-					period,
-					projectedCashFlowUntilMonthEnd,
-					referenceRatesAvailable: financialContext.referenceRatesAvailable,
-					totalAvailableCredit: creditCards
-						.filter(card => !card.excludeFromTotals)
-						.reduce((sum, card) => sum + card.availableLimit, 0),
-				};
+						balanceBreakdown,
+						consolidation: financialContext.consolidation,
+						creditCards,
+						currency: financialContext.currency,
+						dailyBalances: [
+							...new Set(
+								financialContext.movements
+									.filter(item => item.date >= rangeStart && item.date <= rangeEnd)
+									.map(item => dateKey(item.date)),
+							),
+						]
+							.toSorted()
+							.map(date => ({
+								balance: financialContext.balanceAt(new Date(`${date}T12:00:00`)).endingBalance,
+								date,
+							})),
+						debts: {
+							iOwe,
+							net: owedToMe - iOwe,
+							owedToMe,
+							people: people.filter(person => person.balance !== 0),
+						},
+						forecasts: financialContext.consolidation.forecastAvailable
+							? [
+									...forecasts,
+									...dashboardCardForecasts(financialContext.projectedStatements, creditCards, dateKey(now)),
+								]
+									.map(row => ({
+										...row,
+										amount: financialContext.money.convert(row.amount, forecastCurrency(row), row.date),
+									}))
+									.toSorted((left, right) => left.date.localeCompare(right.date))
+							: [],
+						nativeAsOf: dateKey(rangeEnd),
+						period,
+						projectedCashFlowUntilMonthEnd: financialContext.consolidation.forecastAvailable
+							? projectedCashFlowUntilMonthEnd
+							: null,
+						referenceRatesAvailable: financialContext.referenceRatesAvailable,
+						totalAvailableCredit: creditCards
+							.filter(card => !card.excludeFromTotals)
+							.reduce(
+								(sum, card) =>
+									sum +
+									financialContext.money.convert(card.availableLimit, card.currency, getLocalDateKey(now)),
+								0,
+							),
+					};
+				} catch (error) {
+					if (!(error instanceof GuestConversionUnavailable)) throw error;
+					return {
+						accounts: accounts
+							.filter(account => ["CHECKING", "CASH", "SAVINGS", "INVESTMENT"].includes(account.type))
+							.map(account => ({
+								balance: account.balance ?? 0,
+								currency: account.currency ?? "BRL",
+								id: account.id,
+								institutionName: account.institution?.name ?? null,
+								name: account.name,
+								type: account.type as "CHECKING" | "CASH" | "SAVINGS" | "INVESTMENT",
+							})),
+						balanceBreakdown: null,
+						consolidation: error.consolidation ? { ...error.consolidation, unavailable: true } : undefined,
+						creditCards,
+						currency: activeCurrency(),
+						dailyBalances: [],
+						debts: null,
+						forecasts: [],
+						nativeAsOf: dateKey(now),
+						period: null,
+						projectedCashFlowUntilMonthEnd: null,
+						referenceRatesAvailable: false,
+						totalAvailableCredit: null,
+					};
+				}
 			}
 			const params = new URLSearchParams();
 			if (dateRange?.startDate) params.set("startDate", dateRange.startDate);
@@ -2319,6 +2411,7 @@ export const dataService = {
 						createdByMe: true,
 						createdByName: "Você",
 						createdByUserId: getUserId(),
+						currency: transaction.bookingCurrency ?? "BRL",
 						date: transaction.date,
 						description: transaction.description,
 						effect,
@@ -2332,7 +2425,10 @@ export const dataService = {
 				const book = item.data;
 				for (const purchase of book.purchases) {
 					if (purchase.purchaseDate > getLocalDateKey() || !purchase.debtSplitRule) continue;
-					const split = calculateDebtSplit(purchase.totalAmountCents / 100, purchase.debtSplitRule);
+					const split = calculateDebtSplit(
+						purchase.totalAmountCents / currencyScale(book.card.currency),
+						purchase.debtSplitRule,
+					);
 					if (!split) continue;
 					const push = (
 						id: string,
@@ -2344,7 +2440,7 @@ export const dataService = {
 					) => {
 						split.participants.forEach((participant, index) => {
 							const person = people.get(participant.debtPersonId);
-							const amount = amounts[index]! / 100;
+							const amount = amounts[index]! / currencyScale(book.card.currency);
 							if (!person || !amount) return;
 							const effect = sign * amount;
 							person.balance += effect;
@@ -2353,6 +2449,7 @@ export const dataService = {
 								createdByMe: true,
 								createdByName: "Você",
 								createdByUserId: getUserId(),
+								currency: book.card.currency ?? "BRL",
 								date,
 								description,
 								effect,

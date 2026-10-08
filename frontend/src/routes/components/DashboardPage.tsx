@@ -27,6 +27,7 @@ import {
 	DashboardSkeleton,
 } from "@/routes/components";
 import { type AuthState, useAuthStore } from "@/stores";
+import { useCurrencyStore } from "@/stores/currency";
 
 export function DashboardPage() {
 	const user = useAuthStore((state: AuthState) => state.user);
@@ -39,10 +40,17 @@ export function DashboardPage() {
 	const dashboardRange = isToday
 		? { ...dateRange, startDate: format(startOfMonth(new Date()), "yyyy-MM-dd") }
 		: dateRange;
+	const effectiveCurrency = useCurrencyStore(state => state.currency);
 	const dashboardQuery = useQuery({
 		enabled: identity !== null,
 		queryFn: () => dataService.dashboard.get(dashboardRange),
 		queryKey: queryKeys.dashboard.detail(identity!, dashboardRange),
+		refetchInterval: query =>
+			query.state.data?.consolidation?.histories.some(
+				history => history.state === "PENDING" || history.state === "RUNNING",
+			)
+				? 10_000
+				: false,
 	});
 	if (dashboardQuery.isPending) return <DashboardSkeleton />;
 	if (dashboardQuery.isError || !dashboardQuery.data)
@@ -56,7 +64,7 @@ export function DashboardPage() {
 			</PageContainer>
 		);
 	const dashboard = dashboardQuery.data;
-	const currencyCode = dashboard.currency ?? "BRL";
+	const currencyCode = dashboard.currency ?? effectiveCurrency;
 	const currency = new Intl.NumberFormat(navigator.languages, { currency: currencyCode, style: "currency" });
 	const { accountBalance, fixedIncomeBalance, variableIncomeBalance } = dashboard.balanceBreakdown ?? {};
 	const endingBalance = dashboard.period?.endingBalance;

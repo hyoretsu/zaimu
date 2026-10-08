@@ -7,6 +7,8 @@ import { recurrenceDates, recurrenceNeedsConfiguration } from "@zaimu/finance/re
 import { projectRecurrenceCreditBook } from "@zaimu/finance/recurrence-projection";
 import { addDays, format, startOfDay } from "date-fns";
 import type { DashboardPeriod, FinancialAccountYield, FinancialAccountYieldHoliday } from "./api";
+import { activeCurrency } from "./currency-context";
+import { GuestConversionUnavailable, guestDashboardCurrencyContext } from "./dashboard-currency-context";
 import { dataService } from "./dataService";
 import {
 	calculateFinancialAccountBalances,
@@ -102,6 +104,7 @@ export async function getGuestDashboardFinancialContext(
 				projected.push({
 					amount: recurrence.amount,
 					cardPayment: recurrence.movement === "CARD_PAYMENT",
+					currency: recurrence.currency ?? "BRL",
 					date: new Date(`${date}T12:00:00`),
 					destinationAccountId: recurrence.destinationFinancialAccountId,
 					originAccountId: recurrence.originFinancialAccountId,
@@ -127,6 +130,7 @@ export async function getGuestDashboardFinancialContext(
 			projected.push({
 				amount: statement.balanceAmount,
 				cardPayment: true,
+				currency: cards.find(card => card.id === statement.creditCardId)?.currency ?? "BRL",
 				date,
 				originAccountId:
 					cards.find(card => card.id === statement.creditCardId)?.paymentAccountId ??
@@ -146,7 +150,12 @@ export async function getGuestDashboardFinancialContext(
 	for (const { data: payment } of paymentRows) {
 		const date = new Date(`${payment.dueDate.slice(0, 10)}T12:00:00`);
 		if (!payment.paidDate && date >= projectionStart && date <= through)
-			projected.push({ amount: payment.totalPaid, date, type: "EXPENSE" });
+			projected.push({
+				amount: payment.totalPaid,
+				currency: payment.currency ?? "BRL",
+				date,
+				type: "EXPENSE",
+			});
 	}
 	const historicalAccountsAt = (date: Date) =>
 		calculateFinancialAccountBalances(
@@ -179,6 +188,14 @@ export async function getGuestDashboardFinancialContext(
 			.map(item => ({
 				...item,
 				cardPayment: Boolean(item.paymentCreditCardId),
+				currency:
+					item.bookingCurrency ??
+					accounts.find(
+						account =>
+							account.id ===
+							(item.type === "INCOME" ? item.destinationFinancialAccountId : item.originFinancialAccountId),
+					)?.currency ??
+					"BRL",
 				date: new Date(`${item.date.slice(0, 10)}T12:00:00`),
 				destinationAccountId: item.destinationFinancialAccountId,
 				originAccountId: item.originFinancialAccountId,
@@ -199,6 +216,7 @@ export async function getGuestDashboardFinancialContext(
 			)
 			.map(reward => ({
 				amount: reward.cashbackAmount ?? 0,
+				currency: accounts.find(account => account.id === reward.cashbackAccountId)?.currency ?? "BRL",
 				date: new Date(`${reward.purchaseDate.slice(0, 10)}T12:00:00`),
 				destinationAccountId: reward.cashbackAccountId,
 				type: "INCOME" as const,
@@ -212,42 +230,90 @@ export async function getGuestDashboardFinancialContext(
 				(yields as FinancialAccountYield[] | null) ?? [],
 			).map(entry => ({
 				amount: entry.amount,
+				currency: account.currency ?? "BRL",
 				date: new Date(`${entry.date}T12:00:00`),
+				destinationAccountId: account.id,
 				type: "INCOME" as const,
 			})),
 		),
 	];
-	const forecastDays = dailyForecast({
-		accounts: current.map(account => ({
-			...account,
-			balance: account.balance ?? 0,
-			type:
-				account.type === "REWARDS" && account.rewardsAccount?.kind === "CASHBACK" ? "CASHBACK" : account.type,
-		})),
-		from: key(projectionStart),
-		movements: movements
-			.filter(item => key(item.date) > key(today))
-			.map(item => ({ ...item, date: key(item.date) })),
-		netYield: (account, balance, day) => {
-			const settings = yieldAccounts.get(account.id);
-			return settings ? projectedNetYield(settings, balance, day, averages, yieldHolidays) : 0;
-		},
-		primaryAccountId: accounts.find(account => account.isPrimary)?.id,
-		through: key(through),
+	const currency = activeCurrency();
+	const positionDates = [
+		...new Set([
+			key(today),
+			key(start),
+			key(end),
+			...periods.flatMap(row => [key(addDays(row.start, -1)), key(row.end)]),
+			...movements.map(row => key(row.date)),
+		]),
+	];
+	const currencies = [
+		...new Set([
+			...accounts.map(row => row.currency ?? "BRL"),
+			...cards.map(row => row.currency ?? "BRL"),
+			...movements.map(row => row.currency ?? "BRL"),
+		]),
+	];
+	const money = await guestDashboardCurrencyContext({
+		currency,
+		forecastCurrencies: [
+			...accounts.map(row => row.currency ?? "BRL"),
+			...movements.filter(row => row.date > today).map(row => row.currency ?? "BRL"),
+		],
+		forecasting: through > today,
+		nativeCurrencies: currencies,
+		positions: positionDates
+			.flatMap(date => accounts.map(account => ({ currency: account.currency ?? "BRL", date })))
+			.concat(movements.map(row => ({ currency: row.currency ?? "BRL", date: key(row.date) }))),
+		reference: key(today),
 	});
+	const forecastDays = !money.consolidation.forecastAvailable
+		? []
+		: dailyForecast({
+				accounts: current.map(account => ({
+					...account,
+					balance: account.balance ?? 0,
+					type:
+						account.type === "REWARDS" && account.rewardsAccount?.kind === "CASHBACK"
+							? "CASHBACK"
+							: account.type,
+				})),
+				currency,
+				from: key(projectionStart),
+				movements: movements
+					.filter(item => key(item.date) > key(today))
+					.map(item => ({ ...item, date: key(item.date) })),
+				netYield: (account, balance, day) => {
+					const settings = yieldAccounts.get(account.id);
+					return settings ? projectedNetYield(settings, balance, day, averages, yieldHolidays) : 0;
+				},
+				primaryAccountId: accounts.find(account => account.isPrimary)?.id,
+				rate: money.factor,
+				through: key(through),
+			});
 	for (const day of forecastDays) {
 		const originalIncome = movements
 			.filter(movement => key(movement.date) === day.date && movement.type === "INCOME")
-			.reduce((sum, movement) => sum + movement.amount, 0);
+			.reduce(
+				(sum, movement) => sum + money.convert(movement.amount, movement.currency ?? "BRL", day.date),
+				0,
+			);
 		const yieldedIncome = day.income - originalIncome;
 		if (yieldedIncome > 0)
-			movements.push({ amount: yieldedIncome, date: new Date(`${day.date}T12:00:00`), type: "INCOME" });
+			movements.push({
+				amount: yieldedIncome,
+				currency,
+				date: new Date(`${day.date}T12:00:00`),
+				type: "INCOME",
+			});
 	}
 	const projectedByDate = new Map(forecastDays.map(day => [day.date, day]));
 	const balancesAt = (date: Date) =>
 		projectedByDate.get(key(date))?.balances ??
 		new Map(historicalAccountsAt(date).map(account => [account.id, account.balance ?? 0]));
 	const balanceAt = (date: Date) => {
+		if (key(date) > key(today) && !money.consolidation.forecastAvailable)
+			throw new GuestConversionUnavailable(currency, key(date), money.consolidation);
 		const forecast = projectedByDate.get(key(date));
 		const breakdown =
 			forecast ??
@@ -261,6 +327,8 @@ export async function getGuestDashboardFinancialContext(
 							: account.type,
 				})),
 				balancesAt(date),
+				0,
+				{ currency, rate: source => money.factor(source, key(date)) },
 			);
 		return {
 			accountBalance: breakdown.accountBalance,
@@ -270,37 +338,56 @@ export async function getGuestDashboardFinancialContext(
 			variableIncomeBalance: breakdown.variableIncomeBalance,
 		};
 	};
-	const result = periods.map(({ start, end }) => {
-		const rows = movements.filter(item => item.date >= start && item.date <= end);
-		const income = rows.filter(item => item.type === "INCOME").reduce((sum, item) => sum + item.amount, 0);
-		const expenses = rows.filter(item => item.type === "EXPENSE").reduce((sum, item) => sum + item.amount, 0);
-		return {
-			...balanceAt(end),
-			cardExpenses: rows
-				.filter(item => item.type === "EXPENSE" && item.cardPayment)
-				.reduce((sum, item) => sum + item.amount, 0),
-			endDate: key(end),
-			expenses,
-			income,
-			initialBalance: balanceAt(addDays(start, -1)).endingBalance,
-			net: income - expenses,
-			recurringCardExpenses: rows
-				.filter(item => item.type === "EXPENSE" && item.cardPayment)
-				.reduce((sum, item) => sum + (item.recurringAmount ?? (item.recurring ? item.amount : 0)), 0),
-			recurringExpenses: rows
+	const consolidatedMovements = movements
+		.filter(row => money.consolidation.forecastAvailable || key(row.date) <= key(today))
+		.map(row => ({
+			...row,
+			amount: money.convert(row.amount, row.currency ?? "BRL", key(row.date)),
+			currency,
+			recurringAmount:
+				row.recurringAmount == null
+					? undefined
+					: money.convert(row.recurringAmount, row.currency ?? "BRL", key(row.date)),
+		}));
+	const buildPeriods = () =>
+		periods.map(({ start, end }) => {
+			const rows = consolidatedMovements.filter(item => item.date >= start && item.date <= end);
+			const income = rows.filter(item => item.type === "INCOME").reduce((sum, item) => sum + item.amount, 0);
+			const expenses = rows
 				.filter(item => item.type === "EXPENSE")
-				.reduce((sum, item) => sum + (item.recurringAmount ?? (item.recurring ? item.amount : 0)), 0),
-			recurringIncome: rows
-				.filter(item => item.type === "INCOME")
-				.reduce((sum, item) => sum + (item.recurringAmount ?? (item.recurring ? item.amount : 0)), 0),
-			startDate: key(start),
-		};
-	});
+				.reduce((sum, item) => sum + item.amount, 0);
+			return {
+				...balanceAt(end),
+				cardExpenses: rows
+					.filter(item => item.type === "EXPENSE" && item.cardPayment)
+					.reduce((sum, item) => sum + item.amount, 0),
+				endDate: key(end),
+				expenses,
+				income,
+				initialBalance: balanceAt(addDays(start, -1)).endingBalance,
+				net: income - expenses,
+				recurringCardExpenses: rows
+					.filter(item => item.type === "EXPENSE" && item.cardPayment)
+					.reduce((sum, item) => sum + (item.recurringAmount ?? (item.recurring ? item.amount : 0)), 0),
+				recurringExpenses: rows
+					.filter(item => item.type === "EXPENSE")
+					.reduce((sum, item) => sum + (item.recurringAmount ?? (item.recurring ? item.amount : 0)), 0),
+				recurringIncome: rows
+					.filter(item => item.type === "INCOME")
+					.reduce((sum, item) => sum + (item.recurringAmount ?? (item.recurring ? item.amount : 0)), 0),
+				startDate: key(start),
+			};
+		});
 	return {
 		balanceAt,
 		balancesAt,
-		movements,
-		periods: result,
+		consolidation: money.consolidation,
+		currency,
+		money,
+		movements: consolidatedMovements,
+		get periods() {
+			return buildPeriods();
+		},
 		projectedStatements: statements,
 		referenceRatesAvailable: rateResult?.ready ?? false,
 	};

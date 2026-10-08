@@ -40,6 +40,14 @@ export async function dashboardCurrencyContext(
 		]),
 	];
 	const foreign = currencies.filter(source => source !== currency);
+	const forecastCurrencies = new Set([
+		...loaded.accounts.map(row => row.currency ?? "BRL"),
+		...loaded.cards.map(row => row.currency ?? "BRL"),
+		...loaded.recurrences.map(row => row.currency ?? "BRL"),
+		...loaded.loanPayments.map(row => row.currency ?? "BRL"),
+		...loaded.flows.filter(row => dateKey(row.date) > reference).map(row => row.currency ?? "BRL"),
+	]);
+	const forecastForeign = foreign.filter(source => forecastCurrencies.has(source));
 	const factors = new Map<string, number>();
 	const forecastFactors = new Map<string, number>();
 	const publishedDates: Record<string, string> = {};
@@ -47,7 +55,7 @@ export async function dashboardCurrencyContext(
 	const collections: NonNullable<Awaited<ReturnType<typeof dependencies.estimate>>>[] = [];
 	// Register forecast demand only. Reads of progress never schedule a fresh window.
 	if (forecasting)
-		for (const source of foreign) {
+		for (const source of forecastForeign) {
 			const collection = await dependencies.request("CURRENCY", [source, currency], reference);
 			if (!collection) continue;
 			const estimate = await dependencies.estimate(collection.id, currency);
@@ -102,7 +110,7 @@ export async function dashboardCurrencyContext(
 			amount === 0 ? 0 : amount * factor(source, date),
 		currency,
 		factor,
-		forecastAvailable: foreign.every(source => forecastFactors.has(source)),
+		forecastAvailable: forecastForeign.every(source => forecastFactors.has(source)),
 		missing: [...missing],
 		publishedDates,
 	};

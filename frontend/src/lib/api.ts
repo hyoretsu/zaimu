@@ -437,6 +437,7 @@ export interface CategoryPage {
 }
 
 export interface Loan {
+	currency?: string;
 	needsPaymentReview?: boolean;
 	id: string;
 	userId: string;
@@ -457,6 +458,7 @@ export interface Loan {
 }
 
 export interface LoanPayment {
+	currency?: string;
 	id: string;
 	loanId: string;
 	financialAccountId?: string | null;
@@ -487,6 +489,7 @@ export interface EarlyPayoff {
 }
 
 export interface StoredDebtEvent {
+	currency?: string;
 	baseUpdatedAt?: string;
 	id: string;
 	debtPersonId: string;
@@ -503,6 +506,7 @@ export interface StoredDebtEvent {
 }
 
 export interface DebtEvent {
+	currency?: string;
 	id: string;
 	amount: number;
 	effect: number;

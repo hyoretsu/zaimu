@@ -16,18 +16,6 @@ import { chartConfig } from "./chart-config";
 import { FloatingDashboardTooltip } from "./FloatingDashboardTooltip";
 import type { DashboardChartKind, DashboardChartPeriod } from "./types";
 
-const currency = new Intl.NumberFormat("pt-BR", {
-	currency: "BRL",
-	maximumFractionDigits: 2,
-	minimumFractionDigits: 2,
-	style: "currency",
-});
-const compactCurrency = new Intl.NumberFormat("pt-BR", {
-	currency: "BRL",
-	maximumFractionDigits: 2,
-	notation: "compact",
-	style: "currency",
-});
 const balanceKeys = [
 	"accountBalance",
 	"endingBalance",
@@ -46,12 +34,24 @@ const flowKeys = [
 ] as const;
 
 interface DashboardPeriodChartProps {
+	currencyCode?: string;
 	currentPeriod?: string;
 	data: DashboardChartPeriod[];
 	kind: DashboardChartKind;
 }
 
-export function DashboardPeriodChart({ currentPeriod, data, kind }: DashboardPeriodChartProps) {
+export function DashboardPeriodChart({
+	currencyCode = "BRL",
+	currentPeriod,
+	data,
+	kind,
+}: DashboardPeriodChartProps) {
+	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
+	const compactCurrency = new Intl.NumberFormat("pt-BR", {
+		currency: currencyCode,
+		notation: "compact",
+		style: "currency",
+	});
 	const chartRef = useRef<HTMLDivElement>(null);
 	const [interacting, setInteracting] = useState(false);
 	useEffect(() => {
@@ -120,6 +120,7 @@ export function DashboardPeriodChart({ currentPeriod, data, kind }: DashboardPer
 									active={interacting}
 									chartRef={chartRef}
 									coordinate={coordinate}
+									currencyCode={currencyCode}
 									kind={kind}
 									period={data.find(period => period.label === payload?.[0]?.payload?.label)}
 								/>
