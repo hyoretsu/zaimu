@@ -196,6 +196,11 @@ export interface DebtSplitSummary {
 }
 
 export interface Transaction {
+	bookingCurrency?: string;
+	destinationAmount?: number | null;
+	destinationCurrency?: string | null;
+	paymentAmount?: number | null;
+	paymentCurrency?: string | null;
 	currency?: string;
 	originalAmount?: number | null;
 	exchangeRate?: number | null;
@@ -579,6 +584,7 @@ export interface CreditPurchaseEditDetails {
 }
 
 export interface CreditPurchase {
+	bookingCurrency?: string;
 	currency?: string;
 	originalAmount?: number | null;
 	exchangeRate?: number | null;

@@ -1,3 +1,4 @@
+import { roundMoney, toMinorUnits } from "@zaimu/finance/money";
 import { t } from "elysia";
 import { HttpException } from "~/shared/errors";
 import { queryRaw } from "~/shared/infra/sql";
@@ -21,7 +22,7 @@ export async function financialAccountCurrency(accountId?: string | null) {
 }
 export async function creditCardCurrency(cardId: string) {
 	const [account] = await queryRaw<{ currency: string }>(
-		`SELECT a."currency" FROM "CreditCard" c JOIN "FinancialAccount" a ON a."id"=c."financialAccountId" WHERE c."id"=$1`,
+		`SELECT c."currency" FROM "CreditCard" c JOIN "FinancialAccount" a ON a."id"=c."financialAccountId" WHERE c."id"=$1`,
 		[cardId],
 	);
 	return account?.currency ?? "BRL";
@@ -40,6 +41,8 @@ export async function resolveFinancialMoney(
 	const fees = input.fees ?? [];
 	if (!Number.isFinite(input.amount) || input.amount <= 0)
 		throw new HttpException("Informe um valor maior que zero", 400);
+	toMinorUnits(input.amount, currency, 1);
+	for (const fee of fees) if (fee.type === "FIXED") toMinorUnits(fee.amount, currency);
 	const originalFeeAmount = calculateFinancialFees(input.amount, fees);
 	const converted = await convert(
 		input.amount + originalFeeAmount,
@@ -49,9 +52,10 @@ export async function resolveFinancialMoney(
 	);
 	return {
 		amount: converted.amount,
+		bookingCurrency: input.targetCurrency.toUpperCase(),
 		currency,
 		exchangeRate: converted.rate,
-		feeAmount: Number((originalFeeAmount * converted.rate).toFixed(2)),
+		feeAmount: roundMoney(originalFeeAmount * converted.rate, input.targetCurrency),
 		fees,
 		originalAmount: input.amount,
 	};

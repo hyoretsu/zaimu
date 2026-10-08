@@ -1,3 +1,4 @@
+import { currencyScale } from "@zaimu/finance/money";
 import {
 	type BookPurchase,
 	bookPurchase,
@@ -45,7 +46,7 @@ export async function loadCreditBook(
 	metadata = true,
 ): Promise<CreditBook> {
 	const [card] = await query<CreditBook["card"]>(
-		`SELECT c."id", a."userId", c."statementDay", c."dueDay", c."workingDueDate", c."ignoreStatementsBefore"::text AS "ignoreStatementsBefore", a."institutionId", i."creditRefundPolicy" AS "refundPolicy" FROM "CreditCard" c JOIN "FinancialAccount" a ON a."id" = c."financialAccountId" LEFT JOIN "FinancialInstitution" i ON i."id" = a."institutionId" WHERE c."id" = $1 AND a."userId" = $2 ${lock ? "FOR UPDATE OF c" : ""}`,
+		`SELECT c."id", c."currency", a."userId", c."statementDay", c."dueDay", c."workingDueDate", c."ignoreStatementsBefore"::text AS "ignoreStatementsBefore", a."institutionId", i."creditRefundPolicy" AS "refundPolicy" FROM "CreditCard" c JOIN "FinancialAccount" a ON a."id" = c."financialAccountId" LEFT JOIN "FinancialInstitution" i ON i."id" = a."institutionId" WHERE c."id" = $1 AND a."userId" = $2 ${lock ? "FOR UPDATE OF c" : ""}`,
 		[cardId, userId],
 	);
 	if (!card) throw new HttpException("Cartão não encontrado", 404);
@@ -73,7 +74,7 @@ export async function loadCreditBook(
 		cardId,
 	]);
 	const payments = await query<Row>(
-		`SELECT "id", "amount", "date" FROM "Transaction" WHERE "paymentCreditCardId" = $1 AND "userId" = $2`,
+		`SELECT "id", COALESCE("paymentAmount","amount") AS "amount", "date" FROM "Transaction" WHERE "paymentCreditCardId" = $1 AND "userId" = $2`,
 		[cardId, userId],
 	);
 	const tombstones = await query<{ id: string; entryKind: string }>(
@@ -96,7 +97,7 @@ export async function loadCreditBook(
 	return {
 		card,
 		charges: charges.map(row => ({
-			amountCents: moneyCents(Number(row.amount), 1),
+			amountCents: moneyCents(Number(row.amount), 1, card.currency),
 			chargeDate: date(row.chargeDate),
 			description: String(row.description),
 			externalId: row.externalId as string | null,
@@ -109,7 +110,7 @@ export async function loadCreditBook(
 		deletedChargeIds: tombstones.filter(t => t.entryKind === "CHARGE").map(t => t.id),
 		deletedPurchaseIds: tombstones.filter(t => t.entryKind === "PURCHASE").map(t => t.id),
 		installments: installments.map(row => ({
-			amountCents: moneyCents(Number(row.amount), 1),
+			amountCents: moneyCents(Number(row.amount), 1, card.currency),
 			hasImportedAmount: Boolean(row.hasImportedAmount),
 			id: String(row.id),
 			isSettled: Boolean(row.isSettled),
@@ -124,10 +125,11 @@ export async function loadCreditBook(
 			const plan = plansByPurchase.get(String(p.id)) ?? [];
 			return {
 				...p,
+				bookingCurrency: String(p.bookingCurrency ?? card.currency ?? "BRL"),
 				createdAt: timestamp(p.createdAt),
 				debtSplitRule: splits.get(String(p.id)) ?? null,
 				exchangeRate: p.exchangeRate == null ? null : Number(p.exchangeRate),
-				installmentAmountsCents: plan.map(row => moneyCents(Number(row.amount), 1)),
+				installmentAmountsCents: plan.map(row => moneyCents(Number(row.amount), 1, card.currency)),
 				installmentImportedNumbers: plan.filter(row => row.hasImportedAmount).map(row => Number(row.number)),
 				installmentStatementDates: plan.map(row =>
 					row.statementDate ? { dueDate: date(row.dueDate), statementDate: date(row.statementDate) } : null,
@@ -136,12 +138,12 @@ export async function loadCreditBook(
 				purchaseDate: date(p.purchaseDate),
 				recurrenceOccurrenceDate: p.recurrenceOccurrenceDate ? date(p.recurrenceOccurrenceDate) : null,
 				tagIds: (tags.get(String(p.id)) ?? []).map(tag => tag.id),
-				totalAmountCents: moneyCents(Number(p.totalAmount), 1),
+				totalAmountCents: moneyCents(Number(p.totalAmount), 1, card.currency),
 				updatedAt: timestamp(p.updatedAt),
 			} as unknown as BookPurchase;
 		}),
 		refunds: refunds.map(row => ({
-			amountCents: moneyCents(Number(row.amount), 1),
+			amountCents: moneyCents(Number(row.amount), 1, card.currency),
 			cancellationEligible: Boolean(row.cancellationEligible),
 			createdAt: timestamp(row.createdAt),
 			creditDate: date(row.creditDate),
@@ -179,6 +181,7 @@ const purchaseColumns = [
 	"feeDescription",
 	"feeAmount",
 	"currency",
+	"bookingCurrency",
 	"originalAmount",
 	"exchangeRate",
 	"fees",
@@ -217,6 +220,13 @@ export async function saveCreditBook(
 	previous: CreditBook,
 	transferredPurchaseIds: ReadonlySet<string> = new Set(),
 ) {
+	book.card.currency ??= previous.card.currency ?? "BRL";
+	if (book.card.currency !== (previous.card.currency ?? "BRL")) throw new HttpException("Moeda do livro não pode ser alterada pelo sync", 409);
+	const upsertMoney = async (...args: Parameters<typeof upsert>) => {
+		const [executor, table, columns, values, key] = args;
+		if (["CreditCardStatement", "CreditInstallmentPlan", "CreditInstallmentRecord", "CreditRefundRecord", "CreditStatementCharge"].includes(table)) return upsert(executor, table, [...columns, "currency"], [...values, book.card.currency], key);
+		return upsert(...args);
+	};
 	const deletedPurchases = [
 		...new Set([
 			...(book.deletedPurchaseIds ?? []),
@@ -351,7 +361,7 @@ export async function saveCreditBook(
 		]);
 	}
 	for (const s of book.statements)
-		await upsert(
+		await upsertMoney(
 			query,
 			"CreditCardStatement",
 			[
@@ -378,13 +388,14 @@ export async function saveCreditBook(
 	for (const p of book.purchases) {
 		const row = {
 			...p,
-			currency: p.currency ?? "BRL",
+			currency: p.currency ?? book.card.currency ?? "BRL",
+			bookingCurrency: book.card.currency ?? "BRL",
 			exchangeRate: p.exchangeRate ?? 1,
 			fees: JSON.stringify(p.fees ?? []),
-			originalAmount: p.originalAmount ?? p.totalAmountCents / 100 - (p.feeAmount ?? 0),
-			totalAmount: p.totalAmountCents / 100,
+			originalAmount: p.originalAmount ?? p.totalAmountCents / currencyScale(book.card.currency) - (p.feeAmount ?? 0),
+			totalAmount: p.totalAmountCents / currencyScale(book.card.currency),
 		};
-		await upsert(
+		await upsertMoney(
 			query,
 			"CreditPurchaseRecord",
 			purchaseColumns,
@@ -396,14 +407,14 @@ export async function saveCreditBook(
 		]);
 		for (const [index, amount] of p.installmentAmountsCents.entries()) {
 			const calendar = p.installmentStatementDates?.[index];
-			await upsert(
+			await upsertMoney(
 				query,
 				"CreditInstallmentPlan",
 				["purchaseId", "number", "amount", "hasImportedAmount", "statementDate", "dueDate"],
 				[
 					p.id,
 					index + 1,
-					amount / 100,
+					amount / currencyScale(book.card.currency),
 					p.installmentImportedNumbers?.includes(index + 1) ?? false,
 					calendar?.statementDate ?? null,
 					calendar?.dueDate ?? null,
@@ -422,7 +433,7 @@ export async function saveCreditBook(
 		});
 	}
 	for (const i of book.installments) {
-		await upsert(
+		await upsertMoney(
 			query,
 			"CreditInstallmentRecord",
 			[
@@ -441,14 +452,14 @@ export async function saveCreditBook(
 				i.purchaseId,
 				i.statementId,
 				i.number,
-				i.amountCents / 100,
+				i.amountCents / currencyScale(book.card.currency),
 				i.occurrenceDate,
 				i.hasImportedAmount,
 				i.settledByPurchaseId,
 				i.isSettled ?? false,
 			],
 		);
-		await upsert(
+		await upsertMoney(
 			query,
 			"CreditEntryReference",
 			["id", "purchaseId", "installmentId"],
@@ -456,7 +467,7 @@ export async function saveCreditBook(
 		);
 	}
 	for (const r of book.refunds) {
-		await upsert(
+		await upsertMoney(
 			query,
 			"CreditRefundRecord",
 			[
@@ -477,7 +488,7 @@ export async function saveCreditBook(
 				r.id,
 				r.purchaseId,
 				r.creditStatementId,
-				r.amountCents / 100,
+				r.amountCents / currencyScale(book.card.currency),
 				r.creditDate,
 				r.policy,
 				r.cancellationEligible,
@@ -488,7 +499,7 @@ export async function saveCreditBook(
 				r.time ?? null,
 			],
 		);
-		await upsert(
+		await upsertMoney(
 			query,
 			"CreditEntryReference",
 			["id", "purchaseId", "refundId", "requiresRefundReview"],
@@ -496,7 +507,7 @@ export async function saveCreditBook(
 		);
 	}
 	for (const ch of book.charges) {
-		await upsert(
+		await upsertMoney(
 			query,
 			"CreditStatementCharge",
 			[
@@ -514,7 +525,7 @@ export async function saveCreditBook(
 				ch.id,
 				ch.statementId,
 				ch.description,
-				ch.amountCents / 100,
+				ch.amountCents / currencyScale(book.card.currency),
 				ch.chargeDate,
 				ch.time,
 				ch.externalId,
@@ -522,7 +533,7 @@ export async function saveCreditBook(
 				ch.settledByPurchaseId,
 			],
 		);
-		await upsert(query, "CreditEntryReference", ["id", "chargeId"], [ch.id, ch.id]);
+		await upsertMoney(query, "CreditEntryReference", ["id", "chargeId"], [ch.id, ch.id]);
 	}
 	for (const ch of previous.charges.filter(ch => !book.charges.some(next => next.id === ch.id)))
 		await query(`DELETE FROM "CreditStatementCharge" WHERE "id" = $1`, [ch.id]);
@@ -565,17 +576,17 @@ export async function saveCreditBook(
 			"cashbackAmount",
 		] as const)
 			await history(p.id, field, old[field], p[field]);
-		await history(p.id, "totalAmount", old.totalAmountCents / 100, p.totalAmountCents / 100);
+		await history(p.id, "totalAmount", old.totalAmountCents / currencyScale(book.card.currency), p.totalAmountCents / currencyScale(book.card.currency));
 		await history(p.id, "installments", old.installmentAmountsCents.length, p.installmentAmountsCents.length);
 	}
 	for (const i of book.installments) {
 		const old = previous.installments.find(row => row.id === i.id);
-		if (old) await history(i.id, "installmentAmount", old.amountCents / 100, i.amountCents / 100);
+		if (old) await history(i.id, "installmentAmount", old.amountCents / currencyScale(book.card.currency), i.amountCents / currencyScale(book.card.currency));
 	}
 	for (const r of book.refunds) {
 		const old = previous.refunds.find(row => row.id === r.id);
 		if (!old) continue;
-		await history(r.id, "refundAmount", old.amountCents / 100, r.amountCents / 100);
+		await history(r.id, "refundAmount", old.amountCents / currencyScale(book.card.currency), r.amountCents / currencyScale(book.card.currency));
 		await history(r.id, "refundDate", old.creditDate, r.creditDate);
 		await history(r.id, "deletedAt", old.deletedAt, r.deletedAt);
 	}
@@ -586,7 +597,7 @@ export async function saveCreditBook(
 			previous.purchases.find(old => old.id === p.id)?.totalAmountCents !== p.totalAmountCents
 		)
 			await replaceDebtSplit({
-				amount: p.totalAmountCents / 100,
+				amount: p.totalAmountCents / currencyScale(book.card.currency),
 				split: p.debtSplitRule ?? null,
 				target: { creditPurchaseId: p.id },
 				userId: book.card.userId,
@@ -596,7 +607,7 @@ export async function saveCreditBook(
 				creditPurchaseId: p.id,
 				date: p.purchaseDate,
 				description: p.description,
-				totalAmount: p.totalAmountCents / 100,
+				totalAmount: p.totalAmountCents / currencyScale(book.card.currency),
 				userId: book.card.userId,
 			});
 		await syncRefundDebtEvents(query, book, p);
@@ -702,14 +713,15 @@ export async function presentCreditBook(book: CreditBook, statementId?: string) 
 		"creditPurchaseId",
 		book.purchases
 			.filter(p => purchaseIdsSet.has(p.id))
-			.map(p => ({ amount: p.totalAmountCents / 100, id: p.id })),
+			.map(p => ({ amount: p.totalAmountCents / currencyScale(book.card.currency), id: p.id })),
 	);
 	return entries.map(row => ({
 		...row,
 		...(() => {
 			const p = book.purchases.find(p => p.id === row.purchaseId);
 			return {
-				currency: p?.currency ?? "BRL",
+				bookingCurrency: book.card.currency ?? "BRL",
+				currency: p?.currency ?? book.card.currency ?? "BRL",
 				exchangeRate: p?.exchangeRate ?? 1,
 				fees: p?.fees ?? [],
 				originalAmount: p?.originalAmount ?? null,

@@ -42,6 +42,7 @@ const transactionColumns = [
 	"id",
 	"amount",
 	"currency",
+	"bookingCurrency",
 	"originalAmount",
 	"fees",
 	"exchangeRate",
@@ -536,6 +537,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 							{
 								amount: String(money.amount),
 								currency: money.currency,
+								bookingCurrency: money.bookingCurrency,
 								date: new Date(body.date),
 								description: body.description,
 								destinationFinancialAccountId: body.destinationFinancialAccountId,
@@ -755,6 +757,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					...(money && {
 						amount: String(money.amount),
 						currency: money.currency,
+								bookingCurrency: money.bookingCurrency,
 						exchangeRate: String(money.exchangeRate),
 						fees: money.fees,
 						originalAmount: String(money.originalAmount),

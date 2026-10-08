@@ -16,6 +16,7 @@ test("foreign principal and fees convert together on original date while retaini
 	);
 	expect(result).toEqual({
 		amount: 527.5,
+		bookingCurrency: "BRL",
 		currency: "USD",
 		exchangeRate: 5,
 		feeAmount: 27.5,

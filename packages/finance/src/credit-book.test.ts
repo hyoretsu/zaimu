@@ -302,3 +302,28 @@ describe("normalized credit book", () => {
 		expect(() => refundDebtAmounts(3, [1, 1], 2, 2)).toThrow();
 	});
 });
+
+test("JPY book distributes indivisible units and retains purchase-date original currency", () => {
+	const book = emptyBook(); book.card.currency = "JPY";
+	const purchase = newBookPurchase(book, { description: "Imported USD purchase", purchaseDate: "2026-01-01", totalAmount: 1001, installments: 3, currency: "USD", originalAmount: 6.8, exchangeRate: 147.205882 });
+	expect(purchase.bookingCurrency).toBe("JPY");
+	expect(purchase.totalAmountCents).toBe(1001);
+	expect(purchase.installmentAmountsCents).toEqual([334, 334, 333]);
+	const entries = creditBookEntries(book);
+	expect(entries.filter(entry => !entry.isRefund).reduce((sum, entry) => sum + entry.installmentAmount, 0)).toBe(1001);
+	const replay = replayCreditBook(book, "2026-01-10");
+	expect(replay.statements[0]?.totalAmount).toBe(334);
+	expect(purchase.originalAmount).toBe(6.8);
+	expect(() => newBookPurchase(book, { description: "Invalid fractional yen", purchaseDate: "2026-01-01", totalAmount: 1.5, installments: 1 })).toThrow();
+});
+test("KWD book preserves three decimals through refunds and payment replay", () => {
+	const book = emptyBook(); book.card.currency = "KWD";
+	const purchase = newBookPurchase(book, { description: "Kuwait", purchaseDate: "2026-01-01", totalAmount: 1.001, installments: 1 });
+	addBookRefund(book, purchase.id, { amount: 0.001, creditDate: "2026-01-02", policy: "KEEP_INSTALLMENTS" });
+	book.payments.push({ id: "payment", date: "2026-01-03", amount: 1 });
+	const rows = creditBookEntries(book);
+	expect(rows.find(row => row.isRefund)?.installmentAmount).toBe(-0.001);
+	const invoice = replayCreditBook(book, "2026-01-30").statements.find(row => row.statementDate === "2026-01-20");
+	expect(invoice?.totalAmount).toBe(1);
+	expect(invoice?.balanceAmount).toBe(0);
+});

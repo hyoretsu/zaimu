@@ -1,3 +1,4 @@
+import { currencyScale } from "@zaimu/finance/money";
 import { currentDateKey, statementCycles } from "@zaimu/finance/credit-card";
 import {
 	type CreditPurchase,
@@ -15,6 +16,7 @@ import type { withRawTransaction } from "~/shared/infra/sql";
 export type RawQuery = Parameters<Parameters<typeof withRawTransaction>[0]>[0];
 
 interface CardRow {
+	currency: string;
 	id: string;
 	dueDay: number;
 	workingDueDate: boolean;
@@ -64,15 +66,15 @@ interface PaymentRow {
 	date: string;
 }
 
-const cents = (amount: number) => Math.round(amount * 100);
 
 /** Rebuilds the complete chronological card chain inside the same locked refund transaction. */
 export async function replayNormalizedCard(query: RawQuery, cardId: string) {
 	const [card] = await query<CardRow>(
-		`SELECT "id", "dueDay", "statementDay", "workingDueDate", "ignoreStatementsBefore"::text AS "ignoreStatementsBefore" FROM "CreditCard" WHERE "id" = $1`,
+		`SELECT "id", "currency", "dueDay", "statementDay", "workingDueDate", "ignoreStatementsBefore"::text AS "ignoreStatementsBefore" FROM "CreditCard" WHERE "id" = $1`,
 		[cardId],
 	);
 	if (!card) throw new HttpException("Cartão não encontrado", 404);
+	const cents = (amount: number) => Math.round(amount * currencyScale(card.currency));
 	const [purchaseRows, planRows, concreteRows, refundRows, existingStatements, chargeRows, payments] = [
 		await query<PurchaseRow>(
 			`SELECT "id", "creditCardId", "description", "storeName",
@@ -169,7 +171,7 @@ export async function replayNormalizedCard(query: RawQuery, cardId: string) {
 	const cycles = statementCycles(
 		statements.map(statement => ({
 			...statement,
-			chargesAmount: (charges.get(statement.id) ?? 0) / 100,
+			chargesAmount: (charges.get(statement.id) ?? 0) / currencyScale(card.currency),
 		})),
 		card,
 		payments,
@@ -194,6 +196,7 @@ export async function replayNormalizedCard(query: RawQuery, cardId: string) {
 		purchaseId: row.purchaseId,
 	}));
 	const replayed = rebuildPurchaseStatementLedger({
+		currency: card.currency,
 		asOf,
 		ignoreBefore: card.ignoreStatementsBefore,
 		installments,

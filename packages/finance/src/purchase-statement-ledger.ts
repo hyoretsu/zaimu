@@ -1,3 +1,4 @@
+import { currencyScale } from "./money";
 import { type CardPayment, calculateStatementBalances, type StatementInput } from "./credit-card";
 import { assertCents, assertDateKey, assertPurchase, type CreditPurchase } from "./credit-purchase";
 import { type CreditRefund, createRefundCalculator, type RefundInstallment } from "./credit-refund";
@@ -12,6 +13,7 @@ export interface PurchaseInvoiceInstallment extends RefundInstallment {
  * Charges remain separate and actual payments are replayed using registered due dates.
  */
 export function rebuildPurchaseStatementLedger<T extends StatementInput>(input: {
+	currency?: string;
 	purchases: readonly CreditPurchase[];
 	installments: readonly PurchaseInvoiceInstallment[];
 	refunds: readonly CreditRefund[];
@@ -81,11 +83,12 @@ export function rebuildPurchaseStatementLedger<T extends StatementInput>(input: 
 		statements: calculateStatementBalances(
 			input.statements.map(statement => ({
 				...statement,
-				totalAmount: invoiceTotals.get(statement.id)! / 100,
+				totalAmount: invoiceTotals.get(statement.id)! / currencyScale(input.currency),
 			})),
 			[...input.payments],
 			input.asOf,
 			input.ignoreBefore,
+			input.currency,
 		),
 	};
 }

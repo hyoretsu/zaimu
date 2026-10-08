@@ -11,6 +11,7 @@ export const RefundPolicyDTO = t.Union([
 	t.Literal("CANCEL_FUTURE_INSTALLMENTS"),
 ]);
 export const BookPurchaseDTO = t.Object({
+	bookingCurrency: t.Optional(t.String({ pattern: "^[A-Z]{3}$" })),
 	cashbackAccountId: NullableId,
 	cashbackAmount: t.Nullable(t.Number({ minimum: 0 })),
 	cashbackYieldPeriod: t.Nullable(t.Union([t.Literal("MONTHLY"), t.Literal("YEARLY")])),
@@ -60,6 +61,7 @@ export const BookRefundDTO = t.Object({
 });
 export const CreditBookDTO = t.Object({
 	card: t.Object({
+		currency: t.Optional(t.String({ pattern: "^[A-Z]{3}$" })),
 		dueDay: t.Integer({ maximum: 31, minimum: 1 }),
 		id: Id,
 		ignoreStatementsBefore: t.Nullable(DateKey),

@@ -44,6 +44,7 @@ export async function convertLocalMoney(
 	return {
 		amount: roundMoney(total * rate, to),
 		currency: from,
+		bookingCurrency: to,
 		exchangeRate: rate,
 		fees,
 		originalAmount: amount,

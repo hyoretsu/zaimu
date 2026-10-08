@@ -649,6 +649,7 @@ export async function mutateLocalCreditBook<T>(
 		const policy = institutionId ? await requestResult(tx.objectStore("scoped-meta").get(policyKey)) : null;
 		const book: CreditBook = stored?.data ?? {
 			card: {
+				currency: card.currency ?? accountRow?.data.currency ?? "BRL",
 				dueDay: card.dueDay,
 				id: cardId,
 				ignoreStatementsBefore: card.ignoreStatementsBefore?.slice(0, 10) ?? null,
@@ -678,7 +679,7 @@ export async function mutateLocalCreditBook<T>(
 		)) as LocalData<Transaction>[];
 		book.payments = transactions
 			.filter(row => !row.deleted && row.data.paymentCreditCardId === cardId)
-			.map(row => ({ amount: row.data.amount, date: row.data.date.slice(0, 10), id: row.data.id }));
+			.map(row => ({ amount: row.data.paymentAmount ?? row.data.amount, date: row.data.date.slice(0, 10), id: row.data.id }));
 		const oldPolicy = book.card.refundPolicy;
 		const result = operation(book);
 		for (const p of book.purchases) {
@@ -814,7 +815,7 @@ export async function transferLocalCreditBookPurchase(
 		for (const book of [source, destination])
 			book.payments = transactions
 				.filter(row => !row.deleted && row.data.paymentCreditCardId === book.card.id)
-				.map(row => ({ amount: row.data.amount, date: row.data.date.slice(0, 10), id: row.data.id }));
+				.map(row => ({ amount: row.data.paymentAmount ?? row.data.amount, date: row.data.date.slice(0, 10), id: row.data.id }));
 		moveBookPurchase(source, destination, purchaseId);
 		update(destination, cardRow.data);
 		materializeBookInstallments(source);
@@ -872,6 +873,7 @@ export async function readLocalCreditBook(cardId: string, owner?: StorageOwner):
 			? structuredClone(stored.data)
 			: {
 					card: {
+						currency: card.currency ?? "BRL",
 						dueDay: card.dueDay,
 						id: cardId,
 						ignoreStatementsBefore: card.ignoreStatementsBefore?.slice(0, 10) ?? null,
@@ -889,6 +891,7 @@ export async function readLocalCreditBook(cardId: string, owner?: StorageOwner):
 					statements: [],
 				};
 	Object.assign(book.card, {
+		currency: card.currency ?? book.card.currency ?? "BRL",
 		dueDay: card.dueDay,
 		ignoreStatementsBefore: card.ignoreStatementsBefore?.slice(0, 10) ?? null,
 		institutionId,
@@ -898,7 +901,7 @@ export async function readLocalCreditBook(cardId: string, owner?: StorageOwner):
 	});
 	book.payments = transactions
 		.filter(row => !row.deleted && row.data.paymentCreditCardId === cardId)
-		.map(row => ({ amount: row.data.amount, date: row.data.date.slice(0, 10), id: row.data.id }));
+		.map(row => ({ amount: row.data.paymentAmount ?? row.data.amount, date: row.data.date.slice(0, 10), id: row.data.id }));
 	return book;
 }
 
@@ -1504,7 +1507,7 @@ export async function confirmLocalSuggestedPayment(
 		const book = structuredClone(storedBook);
 		book.payments = transactions
 			.filter(row => row.data.paymentCreditCardId === cardId)
-			.map(row => ({ amount: row.data.amount, date: row.data.date.slice(0, 10), id: row.localId }));
+			.map(row => ({ amount: row.data.paymentAmount ?? row.data.amount, date: row.data.date.slice(0, 10), id: row.localId }));
 		const suggestion = pendingStatementPayments(book).find(row => row.statementId === input.statementId);
 		if (!suggestion || moneyCents(suggestion.amount) !== moneyCents(input.amount))
 			throw new Error("Saldo da fatura mudou. Revise o pagamento novamente");

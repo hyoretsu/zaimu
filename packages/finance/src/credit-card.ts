@@ -1,7 +1,8 @@
+import { currencyScale } from "./money";
 export type FinancialDate = Date | string;
 export const dateKey = (value: FinancialDate) =>
 	typeof value === "string" ? value.slice(0, 10) : value.toISOString().slice(0, 10);
-export const toCents = (value: number | string) => Math.round(Number(value) * 100);
+export const toCents = (value: number | string, currency = "BRL") => Math.round(Number(value) * currencyScale(currency));
 
 /** Stored cutoff is exclusive; the selected invoice is included in the ignored history. */
 export function statementCutoffAfter(statementDate: FinancialDate) {
@@ -16,11 +17,13 @@ export function currentDateKey() {
 }
 
 export interface CardCalendar {
+	currency?: string;
 	statementDay: number;
 	dueDay: number;
 	workingDueDate?: boolean;
 }
 export interface StatementInput {
+	currency?: string;
 	id: string;
 	creditCardId?: string;
 	statementDate: FinancialDate;
@@ -179,7 +182,9 @@ export function calculateStatementBalances<T extends StatementInput>(
 	payments?: CardPayment[],
 	asOf: FinancialDate = currentDateKey(),
 	ignoreBefore?: FinancialDate | null,
+	currency = statements[0]?.currency ?? "BRL",
 ): Array<T & StatementBalance> {
+	if (statements.some(statement => statement.currency && statement.currency !== currency)) throw new RangeError("Faturas de moedas diferentes não podem compartilhar saldo");
 	const chronological = statements.toSorted(
 		(a, b) => dateKey(a.dueDate).localeCompare(dateKey(b.dueDate)) || a.id.localeCompare(b.id),
 	);
@@ -192,7 +197,7 @@ export function calculateStatementBalances<T extends StatementInput>(
 			if (target)
 				paidByStatement.set(
 					target.id,
-					(paidByStatement.get(target.id) ?? 0) + toCents(payment.amount),
+					(paidByStatement.get(target.id) ?? 0) + toCents(payment.amount, currency),
 				);
 		}
 	let carry = 0;
@@ -206,13 +211,13 @@ export function calculateStatementBalances<T extends StatementInput>(
 		)
 			carry = 0;
 		const hasNext = index < chronological.length - 1;
-		const charges = toCents(statement.chargesAmount ?? 0);
+		const charges = toCents(statement.chargesAmount ?? 0, currency);
 		const incomingDebt = Math.max(0, carry);
 		const incomingCredit = Math.max(0, -carry);
-		const amountDue = toCents(statement.totalAmount) + charges + incomingDebt;
+		const amountDue = toCents(statement.totalAmount, currency) + charges + incomingDebt;
 		const periodPayment = payments
 			? (paidByStatement.get(statement.id) ?? 0)
-			: toCents(statement.periodPaymentAmount ?? statement.paidAmount ?? 0);
+			: toCents(statement.periodPaymentAmount ?? statement.paidAmount ?? 0, currency);
 		const remaining = amountDue - incomingCredit - periodPayment;
 		const transferred = remaining > 0 && dateKey(statement.dueDate) < dateKey(asOf) && hasNext;
 		const status: StatementStatus = transferred
@@ -223,15 +228,15 @@ export function calculateStatementBalances<T extends StatementInput>(
 				? "PAID"
 				: "OPEN";
 		balances.set(statement.id, {
-			amountDue: amountDue / 100,
-			balanceAmount: ignored || transferred || (remaining < 0 && hasNext) ? 0 : remaining / 100,
-			carriedInAmount: incomingDebt / 100,
-			carriedOutAmount: transferred ? remaining / 100 : 0,
-			chargesAmount: charges / 100,
-			creditInAmount: incomingCredit / 100,
+			amountDue: amountDue / currencyScale(currency),
+			balanceAmount: ignored || transferred || (remaining < 0 && hasNext) ? 0 : remaining / currencyScale(currency),
+			carriedInAmount: incomingDebt / currencyScale(currency),
+			carriedOutAmount: transferred ? remaining / currencyScale(currency) : 0,
+			chargesAmount: charges / currencyScale(currency),
+			creditInAmount: incomingCredit / currencyScale(currency),
 			isPaid: status === "PAID",
-			paidAmount: Math.max(0, Math.min(Math.max(0, amountDue), incomingCredit + periodPayment)) / 100,
-			periodPaymentAmount: periodPayment / 100,
+			paidAmount: Math.max(0, Math.min(Math.max(0, amountDue), incomingCredit + periodPayment)) / currencyScale(currency),
+			periodPaymentAmount: periodPayment / currencyScale(currency),
 			status,
 		});
 		carry = transferred ? remaining : Math.min(0, remaining);
