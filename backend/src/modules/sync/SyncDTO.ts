@@ -14,6 +14,7 @@ export const SyncDebtEvent = t.Object(
 		amount: t.Number({ exclusiveMinimum: 0 }),
 		baseUpdatedAt: t.Optional(t.String({ format: "date-time" })),
 		createdAt: t.String({ format: "date-time" }),
+		currency: t.Optional(t.String({ pattern: "^[A-Z]{3}$" })),
 		date: t.Nullable(t.String({ format: "date" })),
 		debtPersonId: Id,
 		deletedAt: t.Optional(t.Nullable(t.String({ format: "date-time" }))),

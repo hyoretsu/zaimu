@@ -86,4 +86,8 @@ Use normal commit hooks for formatting/lint/types/backend unit coverage; scoped 
 
 - Calculadores de rateio autenticado/visitante aceitam precisão ISO; leitura de rateios em livros locais e reembolsos preserva moeda nativa. Dívidas criadas por reembolso persistem denominação do cartão. Hooks passaram; 35 testes de rateio passaram. Integração dos demais eventos e interface de dívidas ainda pendente.
 
-- Eventos derivados de compras/transações usam principal contabilizado e moeda do registro persistido. Regras de rateio gravam denominação e leitura usa mesma precisão. Conciliação rejeita moedas divergentes. Integração da listagem, eventos manuais e sincronização global ainda pendente.
+- Eventos derivados de compras/transações usam principal contabilizado e moeda do registro persistido. Regras de rateio gravam denominação e leitura usa mesma precisão. Conciliação rejeita moedas divergentes. Hooks passaram. Integração da listagem, eventos manuais e sincronização global ainda pendente.
+
+- Sincronização de eventos manuais identifica moeda, valida unidades ISO, preserva denominação existente e confere moeda na comprovação de compensações legadas. Download inclui moeda; payloads antigos permanecem BRL.
+
+- Validação desta continuação: hooks passaram em todos os commits; builds backend/frontend passaram. Suíte conjunta de histórico/câmbio/dashboard/dívidas/financeiro: 179 testes; rateios frontend/backend: 35; visitante/contexto/armazenamento: 6; contrato de sincronização: 1. Testes integrados com PostgreSQL/RabbitMQ descartáveis, listagens/formulários de dívidas e importações/Open Finance/recompensas continuam pendentes; implementação completa ainda não concluída.

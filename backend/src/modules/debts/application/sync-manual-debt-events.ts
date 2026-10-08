@@ -1,21 +1,30 @@
+import { toMinorUnits } from "@zaimu/finance/money";
+import { assertSupportedCurrency } from "~/modules/currencies/application/currency-defaults";
 import type { SyncDebtEvent } from "~/modules/sync/SyncDTO";
 import { executeRaw, queryRaw } from "~/shared/infra/sql";
 import { resolveDebtPersonConnection } from "./debt-ledger";
 
 export async function syncManualDebtEvent(userId: string, input: SyncDebtEvent) {
+	const currency = await assertSupportedCurrency(input.currency ?? "BRL");
+	toMinorUnits(input.amount, currency, 1);
+	toMinorUnits(input.effect, currency, -Number.MAX_SAFE_INTEGER);
 	const { connectionId } = await resolveDebtPersonConnection(input.debtPersonId, userId);
 	if (Math.abs(input.effect) !== input.amount) throw new Error("Efeito inválido no lançamento manual");
 	const [existing] = await queryRaw<{
 		createdByUserId: string;
 		kind: string;
+		currency: string;
 		updatedAt: Date;
 		deletedAt: Date | null;
-	}>('SELECT "createdByUserId","kind","updatedAt","deletedAt" FROM "DebtEvent" WHERE "id"=$1 FOR UPDATE', [
-		input.id,
-	]);
+	}>(
+		'SELECT "createdByUserId","kind","currency","updatedAt","deletedAt" FROM "DebtEvent" WHERE "id"=$1 FOR UPDATE',
+		[input.id],
+	);
 	if (existing && (existing.createdByUserId !== userId || existing.kind !== input.kind))
 		throw new Error("Evento não pertence ao proprietário ou é derivado");
 	if (existing?.deletedAt) return;
+	if (existing && existing.currency !== currency)
+		throw new Error("Moeda do lançamento existente não pode ser alterada");
 	if (
 		existing &&
 		input.baseUpdatedAt &&
@@ -32,6 +41,7 @@ export async function syncManualDebtEvent(userId: string, input: SyncDebtEvent) 
 		);
 		if (
 			!proof ||
+			currency !== String(proof.original.currency ?? "BRL") ||
 			proof.original.eventId !== input.id ||
 			proof.original.debtPersonId !== input.debtPersonId ||
 			Number(proof.original.amount) !== input.amount ||
@@ -42,7 +52,7 @@ export async function syncManualDebtEvent(userId: string, input: SyncDebtEvent) 
 			throw new Error("Compensação histórica exige comprovação do upgrade");
 	}
 	await executeRaw(
-		`INSERT INTO "DebtEvent" ("id","debtPersonId","connectionId","createdByUserId","kind","amount","effect","date","dueDate","description","createdAt","updatedAt","deletedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) ON CONFLICT ("id") DO UPDATE SET "debtPersonId"=EXCLUDED."debtPersonId","connectionId"=EXCLUDED."connectionId","amount"=EXCLUDED."amount","effect"=EXCLUDED."effect","date"=EXCLUDED."date","dueDate"=EXCLUDED."dueDate","description"=EXCLUDED."description","updatedAt"=EXCLUDED."updatedAt","deletedAt"=EXCLUDED."deletedAt"`,
+		`INSERT INTO "DebtEvent" ("id","debtPersonId","connectionId","createdByUserId","kind","amount","effect","date","dueDate","description","createdAt","updatedAt","deletedAt","currency") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) ON CONFLICT ("id") DO UPDATE SET "debtPersonId"=EXCLUDED."debtPersonId","connectionId"=EXCLUDED."connectionId","amount"=EXCLUDED."amount","effect"=EXCLUDED."effect","date"=EXCLUDED."date","dueDate"=EXCLUDED."dueDate","description"=EXCLUDED."description","updatedAt"=EXCLUDED."updatedAt","deletedAt"=EXCLUDED."deletedAt","currency"=EXCLUDED."currency"`,
 		[
 			input.id,
 			input.debtPersonId,
@@ -57,6 +67,7 @@ export async function syncManualDebtEvent(userId: string, input: SyncDebtEvent) 
 			input.createdAt,
 			input.updatedAt,
 			input.deletedAt ?? null,
+			currency,
 		],
 	);
 }
@@ -68,6 +79,7 @@ export async function listManualDebtEvents(userId: string): Promise<SyncDebtEven
 	return rows.map(row => ({
 		amount: Number(row.amount),
 		createdAt: (row.createdAt as Date).toISOString(),
+		currency: String(row.currency ?? "BRL"),
 		date: row.date ? (row.date as Date).toISOString().slice(0, 10) : null,
 		debtPersonId: String(row.debtPersonId),
 		deletedAt: row.deletedAt ? (row.deletedAt as Date).toISOString() : null,
