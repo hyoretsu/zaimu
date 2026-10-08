@@ -1192,8 +1192,8 @@ export const dataService = {
 			const money = await convertLocalMoney(
 				data.totalAmount,
 				data.purchaseDate,
-				data.currency ?? account?.currency ?? "BRL",
-				account?.currency ?? "BRL",
+				data.currency ?? card.currency ?? account?.currency ?? "BRL",
+				card.currency ?? account?.currency ?? "BRL",
 				data.fees ?? [],
 			);
 			data = { ...data, ...money, totalAmount: money.amount };
@@ -1213,7 +1213,7 @@ export const dataService = {
 					const statement = ensureBookStatement(book, data.purchaseDate);
 					purchaseId = crypto.randomUUID();
 					book.charges.push({
-						amountCents: moneyCents(data.totalAmount, 1),
+						amountCents: moneyCents(data.totalAmount, 1, book.card.currency),
 						chargeDate: data.purchaseDate,
 						description: data.description ?? "Encargo",
 						externalId: null,
@@ -1817,7 +1817,10 @@ export const dataService = {
 					? await guestCashbackSnapshot(
 							targetRewardCard,
 							"installmentAmount" in data
-								? sourceRewardPurchase.totalAmountCents / currencyScale(sourceRewardBook!.card.currency)
+								? (sourceRewardPurchase.totalAmountCents -
+										(sourceRewardBook!.installments.find(row => row.id === purchaseId)?.amountCents ?? 0) +
+										moneyCents(data.installmentAmount, 1, sourceRewardBook!.card.currency)) /
+										currencyScale(sourceRewardBook!.card.currency)
 								: data.totalAmount,
 							targetRewardCard.currency ?? "BRL",
 							"purchaseDate" in data ? data.purchaseDate : sourceRewardPurchase.purchaseDate,
