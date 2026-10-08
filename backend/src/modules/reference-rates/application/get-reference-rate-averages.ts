@@ -1,4 +1,5 @@
 import { format } from "date-fns";
+import { getHistoryCollection } from "~/modules/financial-history/application/history-collections";
 import { queryRaw } from "~/shared/infra/sql";
 import { referenceRateAveragesSql } from "../domain/reference-rate-averages-sql";
 import { referenceRateWindow } from "../domain/reference-rate-window";
@@ -15,5 +16,17 @@ export async function getReferenceRateAverages(today = new Date()) {
 	);
 	const averages = { CDI: null as number | null, SELIC: null as number | null };
 	for (const row of rows) if (row.ready && row.average !== null) averages[row.type] = Number(row.average);
-	return { averages, endDate, ready: averages.CDI !== null && averages.SELIC !== null, startDate };
+	const [collection] = await queryRaw<{ id: string }>(
+		`SELECT "id" FROM "FinancialHistoryCollection" WHERE "deduplicationKey"=$1`,
+		[`INTEREST:CDI,SELIC:${startDate}:${endDate}`],
+	);
+	const history = collection ? await getHistoryCollection(collection.id) : null;
+	return {
+		averages,
+		collectionId: history?.id ?? null,
+		endDate,
+		progress: history?.progress ?? null,
+		ready: averages.CDI !== null && averages.SELIC !== null,
+		startDate,
+	};
 }

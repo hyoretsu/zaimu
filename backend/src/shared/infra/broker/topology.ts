@@ -6,6 +6,7 @@ export const queueNames = [
 	"cache-invalidation",
 	"schedule-materialization",
 	"reference-rate-fetch",
+	"currency-rate-history-fetch",
 	"account-yield-recalculation",
 ] as const;
 

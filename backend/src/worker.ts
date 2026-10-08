@@ -1,3 +1,5 @@
+import { handleCurrencyHistoryCommand } from "./modules/financial-history/application/currency-history-jobs";
+import { recoverHistoryCollections } from "./modules/financial-history/application/history-collections";
 import { handleOpenFinanceSync, recoverOpenFinanceRuns } from "./modules/open-finance/application/sync";
 import {
 	enqueueDailyReferenceRateFetches,
@@ -44,6 +46,7 @@ async function writeCommand(event: EventEnvelope, operation: () => Promise<unkno
 		operation,
 	);
 }
+await broker.consume("currency-rate-history-fetch", handleCurrencyHistoryCommand);
 await broker.consume("schedule-materialization", handleScopedScheduleMaterialization);
 await broker.consume("reference-rate-fetch", event =>
 	writeCommand(event, () => handleReferenceRateFetchCommand(event), "referenceRate"),
@@ -63,10 +66,12 @@ await publishScheduleMaterialization(broker);
 await ensureReferenceRateBootstrapJobs();
 await enqueueDailyReferenceRateFetches();
 await recoverOpenFinanceRuns();
+await recoverHistoryCollections();
 scheduleTimer = setInterval(() => {
 	Promise.all([
 		publishScheduleMaterialization(broker),
 		recoverOpenFinanceRuns(),
+		recoverHistoryCollections(),
 		ensureReferenceRateBootstrapJobs(),
 		enqueueDailyReferenceRateFetches(),
 	]).catch(error => console.error("Failed to publish scheduled commands", error));

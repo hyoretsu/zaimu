@@ -2,9 +2,13 @@ import type { ConfirmChannel, ConsumeMessage } from "amqplib";
 import type { EventEnvelope } from "~/shared/application/events";
 
 export interface ConsumerDeduplicatorPort {
-	claim(consumer: string, eventId: string): Promise<"busy" | "claimed" | "completed">;
-	complete(consumer: string, eventId: string): Promise<void>;
-	release(consumer: string, eventId: string, error: unknown): Promise<void>;
+	renew?(consumer: string, eventId: string, token: string): Promise<boolean>;
+	claim(
+		consumer: string,
+		eventId: string,
+	): Promise<"busy" | "claimed" | "completed" | { result: "claimed"; token: string }>;
+	complete(consumer: string, eventId: string, token?: string): Promise<void>;
+	release(consumer: string, eventId: string, error: unknown, token?: string): Promise<void>;
 }
 
 export type BrokerConsumeResult =
@@ -56,13 +60,28 @@ export async function processBrokerMessage(
 		channel.reject(message, false);
 		return { eventType: event.eventType, result: "busy" };
 	}
+	const token = typeof claim === "object" ? claim.token : undefined;
+	let leaseLost = false;
+	const heartbeat =
+		token && deduplicator.renew
+			? setInterval(() => {
+					void deduplicator.renew!(queue, event.eventId, token)
+						.then(ok => {
+							if (!ok) leaseLost = true;
+						})
+						.catch(() => {
+							leaseLost = true;
+						});
+				}, 20_000)
+			: undefined;
 	try {
 		await handler(event);
-		await deduplicator.complete(queue, event.eventId);
+		if (leaseLost) throw new Error("Consumer receipt lease lost");
+		await deduplicator.complete(queue, event.eventId, token);
 		channel.ack(message);
 		return { eventType: event.eventType, result: "completed" };
 	} catch (error) {
-		await deduplicator.release(queue, event.eventId, error);
+		await deduplicator.release(queue, event.eventId, error, token);
 		const deaths = message.properties.headers?.["x-death"] as
 			| { count?: number; queue?: string; reason?: string }[]
 			| undefined;
@@ -70,7 +89,7 @@ export async function processBrokerMessage(
 			deaths
 				?.filter(death => !death.queue || (death.queue === queue && death.reason === "rejected"))
 				.reduce((total, death) => total + Number(death.count ?? 0), 0) ?? 0;
-		if (retries >= maxRetries) {
+		if (retries >= maxRetries || (error as { historyExhausted?: boolean })?.historyExhausted) {
 			channel.sendToQueue(`${queue}.dlq`, message.content, message.properties);
 			await channel.waitForConfirms();
 			channel.ack(message);
@@ -78,5 +97,7 @@ export async function processBrokerMessage(
 		}
 		channel.reject(message, false);
 		return { eventType: event.eventType, result: "failed_retry", retries };
+	} finally {
+		if (heartbeat) clearInterval(heartbeat);
 	}
 }

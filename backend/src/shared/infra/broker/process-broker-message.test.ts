@@ -191,3 +191,43 @@ describe("processBrokerMessage", () => {
 		expect(malformedChannel.ack).toHaveBeenCalledTimes(1);
 	});
 });
+
+test("passes the invocation lease token to completion and failure release", async () => {
+	const receipts = {
+		claim: mock(async () => ({ result: "claimed" as const, token: "owner-a" })),
+		complete: mock(async () => {}),
+		release: mock(async () => {}),
+	};
+	await processBrokerMessage("queue", message(JSON.stringify(event)), channel(), receipts, async () => {}, 3);
+	expect(receipts.complete).toHaveBeenCalledWith("queue", event.eventId, "owner-a");
+	const failure = new Error("download failed");
+	await processBrokerMessage(
+		"queue",
+		message(JSON.stringify(event)),
+		channel(),
+		receipts,
+		async () => {
+			throw failure;
+		},
+		3,
+	);
+	expect(receipts.release).toHaveBeenCalledWith("queue", event.eventId, failure, "owner-a");
+});
+
+test("collection exhaustion reaches DLQ even with a fresh delivery generation", async () => {
+	const brokerChannel = channel();
+	const failure = Object.assign(new Error("exhausted"), { historyExhausted: true });
+	const result = await processBrokerMessage(
+		"queue",
+		message(JSON.stringify(event)),
+		brokerChannel,
+		deduplicator(),
+		async () => {
+			throw failure;
+		},
+		10,
+	);
+	expect(result.result).toBe("failed_dlq");
+	expect(brokerChannel.reject).not.toHaveBeenCalled();
+	expect(brokerChannel.ack).toHaveBeenCalledTimes(1);
+});

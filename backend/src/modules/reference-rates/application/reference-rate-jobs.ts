@@ -9,6 +9,11 @@ import {
 	type YieldAccount,
 	type YieldPeriod,
 } from "~/modules/accounts/domain/calculate-financial-account-yields";
+import {
+	completeHistoryUnit,
+	requestHistoryCollection,
+	runHistoryUnit,
+} from "~/modules/financial-history/application/history-collections";
 import { createEventEnvelope, type EventEnvelope } from "~/shared/application/events";
 import { PostgresOutbox } from "~/shared/infra/outbox";
 import {
@@ -23,7 +28,6 @@ import {
 } from "~/shared/infra/sql";
 import { fetchBcbReferenceRates } from "../domain/bcb-reference-rates";
 import { referenceRateInsertSql } from "../domain/reference-rate-insert-sql";
-import { referenceRateBootstrapIntervals } from "../domain/reference-rate-window";
 
 type FetchReferenceRates = typeof fetchBcbReferenceRates;
 interface ClaimedJob {
@@ -113,84 +117,67 @@ export async function enqueueUserYieldRecalculations(userId: string, fromDate: D
 	for (const account of accounts) await enqueueAccountYieldRecalculation(account.id, fromDate, cause);
 }
 export async function ensureReferenceRateBootstrapJobs(now = new Date()) {
-	for (const interval of referenceRateBootstrapIntervals(schedulerClock(now).date)) {
-		for (const type of ["CDI", "SELIC"] as const) {
-			const gaps = await queryRaw<{ startDate: string | null }>(
-				`SELECT to_char(min(day), 'YYYY-MM-DD') AS "startDate"
-				 FROM generate_series($2::date, $3::date, interval '1 day') day
-				 WHERE NOT EXISTS (SELECT 1 FROM "public"."OutboxEvent" event
-				 WHERE event."eventType" = 'referenceRate.historyFetched'
-				 AND event."payload"->>'referenceType' = $1
-				 AND (event."payload"->>'startDate')::date <= day::date
-				 AND (event."payload"->>'endDate')::date >= day::date)`,
-				[type, dateKey(interval.startDate), dateKey(interval.endDate)],
-			);
-			if (!gaps[0]?.startDate) continue;
-			const startDate = new Date(`${gaps[0].startDate}T12:00:00`);
-			await enqueueReferenceRateFetch(
-				type,
-				startDate,
-				interval.endDate,
-				`bootstrap:v3:${type}:${dateKey(startDate)}:${dateKey(interval.endDate)}`,
-			);
-		}
-	}
+	return requestHistoryCollection("INTEREST", ["CDI", "SELIC"], dateKey(schedulerClock(now).date));
 }
 export async function enqueueDailyReferenceRateFetches(now = new Date()) {
 	const clock = schedulerClock(now);
-	const scheduleDate = clock.hour >= 6 ? clock.date : subDays(clock.date, 1);
-	const endDate = subDays(scheduleDate, 1);
-	const startDate = subDays(endDate, 6);
-	for (const type of ["CDI", "SELIC"] as const)
-		await enqueueReferenceRateFetch(type, startDate, endDate, `daily:${type}:${dateKey(scheduleDate)}`);
+	const reference = clock.hour >= 6 ? clock.date : subDays(clock.date, 1);
+	return requestHistoryCollection("INTEREST", ["CDI", "SELIC"], dateKey(reference));
 }
-async function processFetchJob(job: ClaimedJob, fetchRates: FetchReferenceRates, preserveExisting = false) {
+async function processFetchJob(
+	job: ClaimedJob,
+	fetchRates: FetchReferenceRates,
+	preserveExisting = false,
+	history?: { id: string; assertLease: () => Promise<void> },
+) {
 	if (!job.referenceType || !job.startDate || !job.endDate) throw new Error("Job de taxa incompleto");
-	const rates = await fetchRates(job.referenceType, job.startDate, job.endDate);
-	const earliestChangedDate = await withRawTransaction(async query => {
+	const { referenceType, startDate, endDate } = job;
+	const rates = await fetchRates(referenceType, startDate, endDate);
+	return withRawTransaction(async query => {
+		if (history) await history.assertLease();
 		let earliestChangedDate: Date | null = null;
 		for (const rate of rates) {
 			const changed = await query<{ id: string }>(referenceRateInsertSql(preserveExisting), [
-				job.referenceType,
+				referenceType,
 				dateKey(rate.date),
 				rate.value,
 			]);
 			if (changed.length > 0 && (!earliestChangedDate || rate.date < earliestChangedDate))
 				earliestChangedDate = rate.date;
 		}
-		return earliestChangedDate;
-	});
-	if (earliestChangedDate) {
-		const accounts = await queryRaw<{ id: string }>(
-			`SELECT account."id" FROM "public"."FinancialAccount" account
+		if (earliestChangedDate) {
+			const accounts = await queryRaw<{ id: string }>(
+				`SELECT account."id" FROM "public"."FinancialAccount" account
 			 WHERE account."type" <> 'CREDIT_CARD' AND (
 			 account."yieldReferenceType" = $1::"ReferenceRateType"
 			 OR EXISTS (SELECT 1 FROM "public"."FinancialAccountYieldRateHistory" history WHERE history."financialAccountId" = account."id" AND history."yieldReferenceType" = $1::"ReferenceRateType")
 			 OR EXISTS (SELECT 1 FROM "public"."FinancialInstitutionYieldRule" rule INNER JOIN "public"."FinancialInstitutionYieldPolicy" policy ON policy."id" = rule."financialYieldPolicyId" WHERE policy."financialInstitutionId" = account."institutionId" AND rule."yieldReferenceType" = $1::"ReferenceRateType"))`,
-			[job.referenceType],
+				[referenceType],
+			);
+			await Promise.all(
+				accounts.map(account =>
+					enqueueAccountYieldRecalculation(account.id, earliestChangedDate, `fetch:${job.deduplicationKey}`),
+				),
+			);
+		}
+		await outbox.append(
+			createEventEnvelope({
+				aggregateId: referenceType,
+				aggregateType: "referenceRate",
+				correlationId: commandId(job.deduplicationKey),
+				eventId: commandId(`completed:${job.deduplicationKey}`),
+				eventType: "referenceRate.historyFetched",
+				payload: {
+					endDate: dateKey(endDate),
+					referenceType,
+					startDate: dateKey(startDate),
+				},
+				userIds: [],
+			}),
 		);
-		await Promise.all(
-			accounts.map(account =>
-				enqueueAccountYieldRecalculation(account.id, earliestChangedDate, `fetch:${job.deduplicationKey}`),
-			),
-		);
-	}
-	await outbox.append(
-		createEventEnvelope({
-			aggregateId: job.referenceType,
-			aggregateType: "referenceRate",
-			correlationId: commandId(job.deduplicationKey),
-			eventId: commandId(`completed:${job.deduplicationKey}`),
-			eventType: "referenceRate.historyFetched",
-			payload: {
-				endDate: dateKey(job.endDate),
-				referenceType: job.referenceType,
-				startDate: dateKey(job.startDate),
-			},
-			userIds: [],
-		}),
-	);
-	return rates.length;
+		if (history) await completeHistoryUnit(history.id, rates.length ? "COMPLETED" : "NO_DATA");
+		return rates.length;
+	});
 }
 export async function loadYieldAccounts(accountIds: string[]): Promise<YieldAccount[]> {
 	if (!accountIds.length) return [];
@@ -358,6 +345,15 @@ export async function handleReferenceRateFetchCommand(
 		referenceType,
 		startDate: new Date(`${requiredString(event.payload, "startDate")}T12:00:00`),
 	};
+	if ((event.payload as { unitId?: string }).unitId) {
+		return runHistoryUnit(event, async (unit, assertLease) => {
+			const count = await processFetchJob(job, fetchRates, options.preserveExisting, {
+				assertLease,
+				id: unit.id,
+			});
+			return count ? "COMPLETED" : "NO_DATA";
+		});
+	}
 	return processFetchJob(job, fetchRates, options.preserveExisting);
 }
 
