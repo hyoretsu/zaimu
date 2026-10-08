@@ -17,6 +17,7 @@ type CashbackPurchase = Pick<
 >;
 
 export interface FinancialAccountYieldEntry {
+	currency?: string;
 	amount: number;
 	date: string;
 	financialAccountId: string;
@@ -175,7 +176,12 @@ export function calculateFinancialAccountYieldEntries(
 		if (isWeekend(day) || holidayKeys.has(key)) {
 			for (const manualYield of manualYields) {
 				if (!manualYield.amount) continue;
-				entries.push({ ...manualYield, amount: manualYield.amount, date: key });
+				entries.push({
+					...manualYield,
+					amount: manualYield.amount,
+					currency: account.currency ?? "BRL",
+					date: key,
+				});
 				balance += manualYield.amount;
 			}
 			continue;
@@ -191,6 +197,7 @@ export function calculateFinancialAccountYieldEntries(
 			if (amount > 0) {
 				entries.push({
 					amount,
+					currency: account.currency ?? "BRL",
 					date: key,
 					financialAccountId: account.id,
 					id: automaticYield?.id ?? `automatic-yield-${account.id}-${key}`,
@@ -202,7 +209,12 @@ export function calculateFinancialAccountYieldEntries(
 		}
 		for (const manualYield of manualYields) {
 			if (!manualYield.amount) continue;
-			entries.push({ ...manualYield, amount: manualYield.amount, date: key });
+			entries.push({
+				...manualYield,
+				amount: manualYield.amount,
+				currency: account.currency ?? "BRL",
+				date: key,
+			});
 			balance += manualYield.amount;
 		}
 	}

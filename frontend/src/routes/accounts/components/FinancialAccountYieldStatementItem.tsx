@@ -4,9 +4,8 @@ import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import { formatLocalTime } from "@/lib/date";
 
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
-
 export function FinancialAccountYieldStatementItem({
+	currencyCode = "BRL",
 	accountName,
 	amount,
 	deleting = false,
@@ -14,6 +13,7 @@ export function FinancialAccountYieldStatementItem({
 	onDelete,
 	onEdit,
 }: {
+	currencyCode?: string;
 	accountName?: string;
 	amount: number;
 	deleting?: boolean;
@@ -36,7 +36,7 @@ export function FinancialAccountYieldStatementItem({
 				</div>
 				<p className="whitespace-nowrap font-bold text-emerald-600">
 					{amount > 0 ? "+" : ""}
-					{currency.format(amount)}
+					{new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" }).format(amount)}
 				</p>
 			</div>
 			<div className="col-start-2 flex justify-end gap-2 sm:contents">

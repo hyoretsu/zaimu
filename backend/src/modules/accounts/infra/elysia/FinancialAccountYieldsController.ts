@@ -52,7 +52,7 @@ function parseDate(date: string) {
 
 async function assertYieldAccount(accountId: string, userId: string) {
 	const account = await queryFirst(
-		db.sql.public.FinancialAccount.select("id", "type")
+		db.sql.public.FinancialAccount.select("id", "type", "currency")
 			.where((fields, functions) =>
 				functions.and(functions.eq(fields.id, accountId), functions.eq(fields.userId, userId)),
 			)
@@ -61,6 +61,7 @@ async function assertYieldAccount(accountId: string, userId: string) {
 	);
 	if (!account) throw new HttpException("Conta não encontrada", 404);
 	if (account.type === "CREDIT_CARD") throw new HttpException("Cartão de crédito não possui rendimento", 400);
+	return account;
 }
 
 export function serializeYield(yieldEntry: {
@@ -115,7 +116,7 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 						origin: string;
 						time: null | string;
 					}>(
-						`SELECT entry."id", entry."financialAccountId", entry."date", entry."amount", entry."kind", entry."isExcluded", entry."isHidden", entry."origin", entry."time", COALESCE(account."name", institution."name", 'Conta') AS "accountName"
+						`SELECT account."currency", entry."id", entry."financialAccountId", entry."date", entry."amount", entry."kind", entry."isExcluded", entry."isHidden", entry."origin", entry."time", COALESCE(account."name", institution."name", 'Conta') AS "accountName"
  FROM "FinancialAccountYield" entry JOIN "FinancialAccount" account ON account."id" = entry."financialAccountId"
  LEFT JOIN "FinancialInstitution" institution ON institution."id" = account."institutionId"
  WHERE account."userId" = $1 AND ($2::text IS NULL OR entry."financialAccountId" = $2)
@@ -179,7 +180,7 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 		"/",
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
-			await assertYieldAccount(body.financialAccountId, userId);
+			const account = await assertYieldAccount(body.financialAccountId, userId);
 			const date = parseDate(body.date);
 			if (body.kind === "MANUAL" && body.amount === undefined)
 				throw new HttpException("Informe o valor do rendimento manual", 400);
@@ -201,6 +202,7 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 			);
 			const values = {
 				amount: body.isExcluded ? null : nullableNumeric<12, 4>(body.amount ?? null),
+				currency: account.currency,
 				date,
 				isExcluded: body.isExcluded ?? false,
 				isHidden: body.kind === "MANUAL" ? (body.isHidden ?? false) : false,

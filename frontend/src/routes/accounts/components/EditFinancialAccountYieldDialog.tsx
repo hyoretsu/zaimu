@@ -106,6 +106,7 @@ export function EditFinancialAccountYieldDialog({
 					<DialogDescription>Atualize os dados do rendimento.</DialogDescription>
 				</DialogHeader>
 				<MoneyField
+					currencyCode={entry?.currency ?? "BRL"}
 					id="financial-account-yield-amount"
 					label="Valor"
 					onValueChange={setAmount}

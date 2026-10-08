@@ -173,6 +173,7 @@ export function FinancialAccountStatementDialog({
 												return (
 													<FinancialAccountYieldStatementItem
 														amount={entry.amount}
+														currencyCode={entry.currency ?? account.currency ?? "BRL"}
 														deleting={removeYield.isPending && removeYield.variables?.id === entry.id}
 														key={`yield-${entry.id}`}
 														onDelete={() => removeYield.mutateAsync(entry)}

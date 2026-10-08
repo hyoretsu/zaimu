@@ -183,6 +183,7 @@ export async function loadYieldAccounts(accountIds: string[]): Promise<YieldAcco
 	if (!accountIds.length) return [];
 	const accounts = await queryRows(
 		db.sql.public.FinancialAccount.select(
+			"currency",
 			"id",
 			"institutionId",
 			"userId",
@@ -302,6 +303,7 @@ async function processAccountRecalculation(job: ClaimedJob) {
 			db.sql.public.FinancialAccountYield.insert([
 				{
 					amount: numeric<12, 4>(amount),
+					currency: account.currency,
 					date: day,
 					financialAccountId: account.id,
 					isExcluded: false,
