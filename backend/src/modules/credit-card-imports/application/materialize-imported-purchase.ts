@@ -3,9 +3,11 @@ import {
 	type BookPurchase,
 	ensureBookStatement,
 	moneyCents,
+	resizePurchaseCashback,
 } from "@zaimu/finance/credit-book";
 import { distributePurchaseCents, installmentOccurrenceDate } from "@zaimu/finance/credit-purchase";
 import { importedAnticipation, withoutImportedAnticipation } from "@zaimu/finance/imported-anticipation";
+import { rewardSnapshot } from "~/modules/creditCards/application/cashback-snapshot";
 import { mutateCreditBook, newBookPurchase } from "~/modules/creditCards/application/normalized-credit-book";
 import { HttpException } from "~/shared/errors";
 import { withoutFinancingReferences } from "../domain/financing-source-reference";
@@ -80,7 +82,7 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 			});
 			const id = crypto.randomUUID();
 			book.charges.push({
-				amountCents: moneyCents(input.installmentAmount, 1),
+				amountCents: moneyCents(input.installmentAmount, 1, book.card.currency),
 				chargeDate: input.purchaseDate.toISOString().slice(0, 10),
 				description: input.description,
 				externalId: input.externalId,
@@ -117,28 +119,27 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 		}
 		if (
 			known.has(input.currentInstallment) &&
-			known.get(input.currentInstallment) !== moneyCents(input.installmentAmount, 1) &&
+			known.get(input.currentInstallment) !== moneyCents(input.installmentAmount, 1, book.card.currency) &&
 			!input.allowBankCorrection
 		)
 			throw new HttpException("Valor importado já registrado para esta parcela", 409);
-		known.set(input.currentInstallment, moneyCents(input.installmentAmount, 1));
+		known.set(input.currentInstallment, moneyCents(input.installmentAmount, 1, book.card.currency));
 		const totalCents = anticipated
 			? known.size === input.installments
 				? [...known.values()].reduce((sum, amount) => sum + amount, 0)
 				: existing!.totalAmountCents
-			: moneyCents(input.totalAmount, 1);
+			: moneyCents(input.totalAmount, 1, book.card.currency);
 		const amounts = distributePurchaseCents(totalCents, input.installments, known);
 		const p =
 			existing ??
 			newBookPurchase(book, {
-				cashbackAccountId: card.cashbackAccountId,
-				cashbackAmount:
-					card.cashbackAccountId && card.cashbackRate
-						? Number(((input.totalAmount * card.cashbackRate) / 100).toFixed(4))
-						: null,
-				cashbackYieldPeriod: card.cashbackYieldPeriod,
-				cashbackYieldReferencePercentage: card.cashbackYieldReferencePercentage,
-				cashbackYieldReferenceRate: card.cashbackYieldReferenceRate,
+				...(await rewardSnapshot(
+					card,
+					input.totalAmount,
+					book.card.currency ?? "BRL",
+					input.purchaseDate.toISOString().slice(0, 10),
+					card.userId,
+				)),
 				description: withoutImportedAnticipation(withoutFinancingReferences(input.description)),
 				externalId: input.externalId,
 				installmentAmountsCents: amounts,
@@ -146,6 +147,7 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 				purchaseDate: input.purchaseDate.toISOString().slice(0, 10),
 				totalAmount: input.totalAmount,
 			});
+		const previousTotal = p.totalAmountCents;
 		Object.assign(
 			p,
 			anticipated
@@ -169,6 +171,7 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 						updatedAt: new Date().toISOString(),
 					},
 		);
+		resizePurchaseCashback(p, previousTotal);
 		p.installmentStatementDates = amounts.map((_, index) => {
 			const previous = existing?.installmentStatementDates?.[index];
 			if (anticipated?.some(i => i.number === index + 1))

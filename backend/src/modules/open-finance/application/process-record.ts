@@ -1,8 +1,12 @@
-import { ensureBookStatement } from "@zaimu/finance/credit-book";
+import { ensureBookStatement, moneyCents } from "@zaimu/finance/credit-book";
 import { getTagsByEntity } from "~/modules/categories/application/tag-assignments";
 import { materializeImportedPurchase } from "~/modules/credit-card-imports/application/materialize-imported-purchase";
 import { mutateCreditBook } from "~/modules/creditCards/application/normalized-credit-book";
 import { recalculateStatementPayments } from "~/modules/creditCards/application/statement-payments";
+import {
+	creditCardCurrency,
+	financialAccountCurrency,
+} from "~/modules/currencies/application/financial-money";
 import { getDebtSplitInput, replaceDebtSplit } from "~/modules/debts/application";
 import {
 	createCreditCardBatch,
@@ -228,7 +232,7 @@ async function applyRemote(
 				dueDate: remote.dueDate!,
 				statementDate: remote.statementDate!,
 			}).id;
-			charge.amountCents = Math.round(remote.amount * 100);
+			charge.amountCents = moneyCents(remote.amount, 1, book.card.currency);
 			charge.chargeDate = remote.date;
 			charge.description = remote.description;
 			charge.time = remote.time;
@@ -345,6 +349,9 @@ export async function processRecord(
 		if (!unchangedRemote) await refreshUntouchedReview(record, remote);
 		return "unchanged";
 	}
+	const nativeCurrency = binding.creditCardId
+		? await creditCardCurrency(binding.creditCardId)
+		: await financialAccountCurrency(binding.financialAccountId);
 	if (record.state === "APPLIED" && record.localId && record.localKind) {
 		const current = await localSnapshot(record.localKind, record.localId, userId);
 		if (!current) {
@@ -361,7 +368,7 @@ export async function processRecord(
 			!accountCompatible ||
 			!sameSnapshot(current, record.appliedSnapshot) ||
 			entity.type === "TRANSFER" ||
-			remote.currency !== "BRL" ||
+			remote.currency !== nativeCurrency ||
 			record.snapshot.operation !== remote.operation ||
 			remote.incomplete.length ||
 			remote.operation === "REFUND"
@@ -387,7 +394,7 @@ export async function processRecord(
 	if (
 		(remote.operation === "PAYMENT" &&
 			!candidates.some(candidate => candidate.exact && candidate.raw.paymentCreditCardId)) ||
-		remote.currency !== "BRL" ||
+		remote.currency !== nativeCurrency ||
 		remote.incomplete.length ||
 		remote.operation === "REFUND" ||
 		candidates.length > 1 ||

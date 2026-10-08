@@ -1,3 +1,4 @@
+import { assertSupportedCurrency } from "~/modules/currencies/application/currency-defaults";
 import { HttpException } from "~/shared/errors";
 import { executeRaw, queryRaw, withRawTransaction } from "~/shared/infra/sql";
 import {
@@ -191,16 +192,16 @@ export async function saveBinding(
 			]);
 			return;
 		}
-		if (remote.currencyCode && remote.currencyCode !== "BRL")
-			throw new HttpException("Somente contas em reais podem ser vinculadas", 422);
-		const [destination] = await queryRaw<{ id: string }>(
+		const currency = await assertSupportedCurrency(remote.currencyCode ?? "BRL");
+		const [destination] = await queryRaw<{ id: string; currency: string }>(
 			card
-				? `SELECT c."id" FROM "CreditCard" c JOIN "FinancialAccount" a ON a."id"=c."financialAccountId" WHERE c."id"=$1 AND a."userId"=$2`
-				: `SELECT "id" FROM "FinancialAccount" WHERE "id"=$1 AND "userId"=$2 AND "type" IN ('CHECKING','SAVINGS','CASH')`,
+				? `SELECT c."id", c."currency" FROM "CreditCard" c JOIN "FinancialAccount" a ON a."id"=c."financialAccountId" WHERE c."id"=$1 AND a."userId"=$2`
+				: `SELECT "id", "currency" FROM "FinancialAccount" WHERE "id"=$1 AND "userId"=$2 AND "type" IN ('CHECKING','SAVINGS','CASH')`,
 			[card ? input.creditCardId : input.financialAccountId, userId],
 		);
 		if (
 			!destination ||
+			destination.currency !== currency ||
 			(card ? Boolean(input.financialAccountId) : Boolean(input.creditCardId)) ||
 			(!card && remote.type !== "BANK")
 		)

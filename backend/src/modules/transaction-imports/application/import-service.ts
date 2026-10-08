@@ -5,10 +5,12 @@ import {
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
 import { recalculateStatementPayments } from "~/modules/creditCards/application/statement-payments";
+import { financialAccountCurrency } from "~/modules/currencies/application/financial-money";
 import { settleExternalReview } from "~/modules/open-finance/application/review-tracking";
 import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { HttpException } from "~/shared/errors";
 import { db, queryFirst, queryRaw, queryRows, type SqlExecutor } from "~/shared/infra/sql";
+import { importedMoney } from "./imported-money";
 
 const importItemTagEntityType = "TRANSACTION_IMPORT_ITEM";
 type TransactionType = "INCOME" | "EXPENSE" | "TRANSFER";
@@ -116,6 +118,7 @@ export async function persistImportItem(
 		);
 		const yieldValues = {
 			amount: String(item.amount),
+			currency: await financialAccountCurrency(item.destinationFinancialAccountId),
 			externalId: item.externalId,
 			isExcluded: false,
 			updatedAt: new Date(),
@@ -140,9 +143,11 @@ export async function persistImportItem(
 		return null;
 	}
 
+	const money = await importedMoney(item);
 	const importedTransaction = await transaction.queryFirst(
 		transaction.db.sql.public.Transaction.insert([
 			{
+				...money,
 				amount: String(item.amount),
 				date: item.date,
 				description: item.description,
@@ -222,7 +227,7 @@ export async function persistReconciledImportItem(
 				.build(),
 		);
 		await transaction.executeStatement(
-			transaction.db.sql.public.Transaction.update(values)
+			transaction.db.sql.public.Transaction.update({ ...values, ...(await importedMoney(item)) })
 				.where((fields, functions) => functions.eq(fields.id, item.reconciledTransactionId!))
 				.build(),
 		);
