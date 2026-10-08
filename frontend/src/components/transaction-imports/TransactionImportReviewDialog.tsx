@@ -561,6 +561,9 @@ export function TransactionImportReviewDialog({
 				pending={updateItem.isPending}
 			/>
 			<DuplicateResolutionDialog
+				accountCurrencies={
+					new Map((accounts.data ?? []).map(account => [account.id, account.currency ?? "BRL"]))
+				}
 				accountNames={accountNames}
 				item={resolvingItem}
 				onOpenChange={nextOpen => !nextOpen && setResolvingItem(null)}

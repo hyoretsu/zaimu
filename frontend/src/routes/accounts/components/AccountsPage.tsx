@@ -200,6 +200,7 @@ export function AccountsPage() {
 				<div className="rounded-2xl bg-brand-indigo p-5 text-white shadow-card">
 					<p className="text-sm text-white/70">Saldo total</p>
 					<NativeMoneyTotals
+						error={accounts.isError}
 						pending={accounts.isPending}
 						values={visibleAccounts.map(account => ({
 							amount: getFinancialAccountCurrencyValue(account),

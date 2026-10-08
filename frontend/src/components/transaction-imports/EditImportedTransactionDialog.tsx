@@ -117,6 +117,7 @@ export function EditImportedTransactionDialog({
 			? draft.destinationFinancialAccountId
 			: draft.originFinancialAccountId;
 
+	const currencyCode = accounts.find(account => account.id === primaryAccountId)?.currency ?? "BRL";
 	return (
 		<ImportDialog onOpenChange={onOpenChange} open={open}>
 			<ImportDialogContent className="max-h-[92dvh] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-lg">
@@ -132,6 +133,7 @@ export function EditImportedTransactionDialog({
 					<div className="grid gap-4 pr-1">
 						<TransactionDetailsFields
 							amount={String(draft.amount)}
+							currencyCode={currencyCode}
 							date={draft.date}
 							description={description}
 							includeYield
@@ -213,6 +215,7 @@ export function EditImportedTransactionDialog({
 								{isDebt ? (
 									<DebtSplitEditor
 										amount={draft.amount}
+										currencyCode={currencyCode}
 										onChange={setDebtSplit}
 										showParticipantDescriptions={draft.type === "EXPENSE"}
 										value={debtSplit}
@@ -269,7 +272,7 @@ export function EditImportedTransactionDialog({
 							!draft.amount ||
 							(item.requiresPaymentCard && (draft.type !== "EXPENSE" || !draft.paymentCreditCardId)) ||
 							!primaryAccountId ||
-							(isDebt && !calculateDebtSplit(draft.amount, debtSplit)) ||
+							(isDebt && !calculateDebtSplit(draft.amount, debtSplit, currencyCode)) ||
 							(draft.type === "TRANSFER" && !draft.destinationFinancialAccountId) ||
 							pending
 						}

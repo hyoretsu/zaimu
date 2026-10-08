@@ -175,6 +175,7 @@ export function CreditCardsPage() {
 						<Skeleton className="mt-2 h-9 w-40 bg-brand-ink/10" />
 					) : (
 						<NativeMoneyTotals
+							error={cards.isError}
 							pending={cards.isPending}
 							values={(cards.data ?? [])
 								.filter(card => !card.excludeFromTotals)

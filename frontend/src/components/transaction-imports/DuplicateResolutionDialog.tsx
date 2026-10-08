@@ -51,22 +51,24 @@ function formatDate(value: unknown) {
 	return date ? dateFormatter.format(new Date(`${date}T00:00:00Z`)) : "Não informado";
 }
 
-function formatDuplicateCandidate(candidate: TransactionImportDuplicate) {
+function formatDuplicateCandidate(candidate: TransactionImportDuplicate, currencyCode: string) {
 	const source = candidate.source === "TRANSACTION" ? "Existente" : "Importada";
 	const description = candidate.description ?? transactionTypeLabels[candidate.type];
-	const amount = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(
+	const amount = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" }).format(
 		Number(candidate.amount),
 	);
 	return `${source}: ${description} · ${amount} · ${formatDate(candidate.date)}`;
 }
 
 export function DuplicateResolutionDialog({
+	accountCurrencies,
 	accountNames,
 	item,
 	onOpenChange,
 	onResolve,
 	open,
 }: {
+	accountCurrencies: Map<string, string>;
 	accountNames: Map<string, string>;
 	item: TransactionImportItem | null;
 	onOpenChange: (open: boolean) => void;
@@ -93,11 +95,19 @@ export function DuplicateResolutionDialog({
 		}
 	}, [open, item?.id]);
 	if (!item || !duplicate) return null;
+	const currencyOf = (record: TransactionImportItem | TransactionImportDuplicate) =>
+		accountCurrencies.get(
+			(record.type === "INCOME" || record.type === "YIELD"
+				? record.destinationFinancialAccountId
+				: record.originFinancialAccountId) ?? "",
+		) ?? "BRL";
 	const value = (source: Source, field: Field) => {
 		const record = source === "imported" ? item : duplicate;
 		const selected = record[field];
 		if (field === "amount")
-			return new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(Number(selected));
+			return new Intl.NumberFormat("pt-BR", { currency: currencyOf(record), style: "currency" }).format(
+				Number(selected),
+			);
 		if (field === "date") return formatDate(selected);
 		if (field === "debtSplit") {
 			const debtSplit = selected as TransactionImportItem["debtSplit"];
@@ -142,7 +152,7 @@ export function DuplicateResolutionDialog({
 						{item.duplicates.length > 1 ? (
 							<DuplicateCandidateList
 								candidates={item.duplicates}
-								formatCandidate={formatDuplicateCandidate}
+								formatCandidate={candidate => formatDuplicateCandidate(candidate, currencyOf(candidate))}
 								onSelect={candidate => {
 									setSelectedDuplicateId(candidate.id);
 									setSources(
