@@ -28,8 +28,20 @@ services:
       retries: 12
     volumes:
       - redis-data:/data
+  migrations:
+    image: ghcr.io/hyoretsu/zaimu_backend:latest
+    env_file: .env
+    working_dir: /app/packages/sql
+    command: ["bun", "run", "migrate:deploy"]
+    networks:
+      - postgres
+    restart: "no"
+
   backend:
     image: ghcr.io/hyoretsu/zaimu_backend:latest
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
     env_file: .env
     networks:
       - postgres
@@ -41,6 +53,9 @@ services:
 
   worker:
     image: ghcr.io/hyoretsu/zaimu_worker:latest
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
     env_file: .env
     networks:
       - postgres

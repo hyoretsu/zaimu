@@ -40,6 +40,12 @@ WORKDIR /app
 
 COPY --from=build /app/backend/dist ./backend/dist
 COPY --from=build /app/packages/sql/out ./packages/sql/out
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/packages/sql/node_modules ./packages/sql/node_modules
+COPY --from=build /app/packages/sql/package.json ./packages/sql/package.json
+COPY --from=build /app/packages/sql/prisma.config.ts ./packages/sql/prisma.config.ts
+COPY --from=build /app/packages/sql/src/prisma ./packages/sql/src/prisma
+COPY --from=build /app/packages/sql/migrations ./packages/sql/migrations
 
 WORKDIR /app/backend
 
