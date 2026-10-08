@@ -53,3 +53,5 @@ Use normal commit hooks for formatting/lint/types/backend unit coverage; scoped 
 - Account creation now inherits institution/effective currency in authenticated and visitor flows. Native account groups separate totals by denomination; existing account currency changes are guarded against history/commitments. ISO input masks and remaining purchase-read precision integrated. Hook validation in progress.
 
 - Account inheritance milestone passed normal hooks (types and backend unit coverage), committed locally. Interest dashboard now exposes persisted collection details/retry; partial current interest coverage supersedes stale ready averages, including offline cache.
+
+- Currency history work reuses point snapshots populated after scheduling. Point conversions and history downloads now share the six-slot database provider limiter across replicas.

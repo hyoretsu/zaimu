@@ -8,9 +8,13 @@ export async function handleCurrencyHistoryCommand(event: EventEnvelope) {
 	await runHistoryUnit(event, async (unit, assertLease) => {
 		let snapshot: Awaited<ReturnType<typeof fetchCurrencySnapshot>> | null;
 		try {
-			snapshot = await withProviderSlot("currency-api", 6, () =>
-				fetchCurrencySnapshot(unit.startDate, unit.series),
+			const [stored] = await queryRaw<{ rates: Record<string, number> }>(
+				'SELECT "rates" FROM "CurrencyRateSnapshot" WHERE "date"=$1::date AND "baseCurrency"=$2',
+				[unit.startDate, unit.series],
 			);
+			snapshot = stored
+				? { baseCurrency: unit.series, date: unit.startDate, rates: stored.rates }
+				: await withProviderSlot("currency-api", 6, () => fetchCurrencySnapshot(unit.startDate, unit.series));
 		} catch (error) {
 			if (!(error instanceof CurrencyProviderError) || !error.unavailable) throw error;
 			snapshot = null;

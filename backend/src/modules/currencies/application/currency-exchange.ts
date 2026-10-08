@@ -31,13 +31,17 @@ export function currencyRateDate(date: string | Date) {
 	return value;
 }
 
-export function createCurrencyExchangeService(store: CurrencyRateStore, fetcher: typeof fetch = fetch) {
+export function createCurrencyExchangeService(
+	store: CurrencyRateStore,
+	fetcher: typeof fetch = fetch,
+	download: <T>(operation: () => Promise<T>) => Promise<T> = operation => operation(),
+) {
 	const pending = new Map<string, Promise<CurrencyRates>>();
 
 	async function load(date: string, currency: string): Promise<CurrencyRates> {
 		const stored = await store.find(date, currency);
 		if (stored) return stored;
-		const snapshot = await fetchCurrencySnapshot(date, currency, fetcher);
+		const snapshot = await download(() => fetchCurrencySnapshot(date, currency, fetcher));
 		return store.save(snapshot.date, snapshot.baseCurrency, snapshot.rates);
 	}
 
