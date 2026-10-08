@@ -1,10 +1,9 @@
 import { LuArrowDownLeft, LuArrowUpRight, LuCalendarClock } from "react-icons/lu";
 import { Card } from "@/components/ui/Card";
 
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
-
 interface DashboardProjectedCashFlowCardProps {
 	expenses: number;
+	currencyCode?: string;
 	income: number;
 	net: number;
 }
@@ -12,8 +11,10 @@ interface DashboardProjectedCashFlowCardProps {
 export function DashboardProjectedCashFlowCard({
 	expenses,
 	income,
+	currencyCode = "BRL",
 	net,
 }: DashboardProjectedCashFlowCardProps) {
+	const currency = new Intl.NumberFormat(navigator.languages, { currency: currencyCode, style: "currency" });
 	const projectionKind = net > 0 ? "gain" : net < 0 ? "expense" : "neutral";
 	const copy = {
 		expense: {

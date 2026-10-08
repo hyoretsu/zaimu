@@ -16,12 +16,12 @@ import { ScrollArea } from "@/components/ui/ScrollArea";
 import type { Dashboard } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
-
 export function DashboardCreditCards({
 	creditCards,
 	totalAvailableCredit,
-}: Pick<Dashboard, "creditCards" | "totalAvailableCredit">) {
+	currencyCode = "BRL",
+}: Pick<Dashboard, "creditCards" | "totalAvailableCredit"> & { currencyCode?: string }) {
+	const currency = new Intl.NumberFormat(navigator.languages, { currency: currencyCode, style: "currency" });
 	const [open, setOpen] = useState(false);
 	const getName = (card: Dashboard["creditCards"][number]) =>
 		getCreditCardDisplayName({ accountName: card.name, institutionName: card.institutionName });
@@ -37,7 +37,12 @@ export function DashboardCreditCards({
 				</div>
 				<div className="shrink-0 space-y-1 text-right text-xs">
 					<p className="text-muted-foreground">Limite disponível</p>
-					<p className="font-semibold text-sm tabular-nums">{currency.format(card.availableLimit)}</p>
+					<p className="font-semibold text-sm tabular-nums">
+						{new Intl.NumberFormat(navigator.languages, {
+							currency: card.currency ?? "BRL",
+							style: "currency",
+						}).format(card.availableLimit)}
+					</p>
 				</div>
 			</div>
 		));
@@ -56,7 +61,8 @@ export function DashboardCreditCards({
 				</CardHeader>
 				<CardContent className="space-y-3">
 					<p className="font-semibold text-muted-foreground text-sm">
-						Limite disponível: {currency.format(totalAvailableCredit)}
+						Limite disponível:{" "}
+						{totalAvailableCredit == null ? "Conversão indisponível" : currency.format(totalAvailableCredit)}
 					</p>
 					{rows(ordered.slice(0, 4))}
 					{!ordered.length && <p className="text-muted-foreground text-sm">Nenhum cartão cadastrado.</p>}

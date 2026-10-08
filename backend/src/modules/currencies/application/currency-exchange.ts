@@ -2,6 +2,7 @@ import { fetchCurrencySnapshot } from "@zaimu/finance/currency-provider";
 import { roundMoney } from "@zaimu/finance/money";
 export type CurrencyRates = Record<string, number>;
 export interface CurrencyRateStore {
+	latest?: (baseCurrency: string) => Promise<{ date: string; rates: CurrencyRates } | null>;
 	find: (date: string, baseCurrency: string) => Promise<CurrencyRates | null>;
 	save: (date: string, baseCurrency: string, rates: CurrencyRates) => Promise<CurrencyRates>;
 }
@@ -71,5 +72,35 @@ export function createCurrencyExchangeService(
 		return { amount: roundMoney(amount * rate, to), rate };
 	}
 
-	return { convert, ensure };
+	const latestPending = new Map<string, Promise<{ date: string; rate: number }>>();
+	function latest(fromInput: string, toInput: string) {
+		const from = normalizeCurrency(fromInput),
+			to = normalizeCurrency(toInput);
+		if (from === to) return Promise.resolve({ date: new Date().toISOString().slice(0, 10), rate: 1 });
+		const key = `${from}:${to}`;
+		const previous = latestPending.get(key);
+		if (previous) return previous;
+		const operation = (async () => {
+			const stored = await store.latest?.(from);
+			let result = stored;
+			if (!stored || stored.date !== new Date().toISOString().slice(0, 10)) {
+				try {
+					const snapshot = await download(() => fetchCurrencySnapshot("latest", from, fetcher));
+					result = {
+						date: snapshot.date,
+						rates: await store.save(snapshot.date, snapshot.baseCurrency, snapshot.rates),
+					};
+				} catch (error) {
+					if (!stored) throw error;
+				}
+			}
+			const rate = result?.rates[to];
+			if (!result || !rate) throw new CurrencyRateUnavailableError("latest", `${from}/${to}`);
+			await snapshot(result.date, to);
+			return { date: result.date, rate };
+		})().finally(() => latestPending.delete(key));
+		latestPending.set(key, operation);
+		return operation;
+	}
+	return { convert, ensure, latest };
 }

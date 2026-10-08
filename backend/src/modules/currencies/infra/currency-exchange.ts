@@ -11,6 +11,13 @@ const exchange = createCurrencyExchangeService(
 			);
 			return record?.rates ?? null;
 		},
+		async latest(baseCurrency) {
+			const [record] = await queryRaw<{ date: string; rates: CurrencyRates }>(
+				`SELECT to_char("date",'YYYY-MM-DD') AS "date", "rates" FROM "CurrencyRateSnapshot" WHERE "baseCurrency"=$1 ORDER BY "date" DESC LIMIT 1`,
+				[baseCurrency],
+			);
+			return record ?? null;
+		},
 		async save(date, baseCurrency, rates) {
 			const [record] = await queryRaw<{ rates: CurrencyRates }>(
 				`INSERT INTO "CurrencyRateSnapshot" ("date", "baseCurrency", "rates") VALUES ($1::date, $2, $3::jsonb)
@@ -28,3 +35,5 @@ const exchange = createCurrencyExchangeService(
 export const ensureCurrencyRates = exchange.ensure;
 export const getCurrencyRate = exchange.ensure;
 export const convertCurrencyAmount = exchange.convert;
+
+export const getLatestCurrencyRate = exchange.latest;

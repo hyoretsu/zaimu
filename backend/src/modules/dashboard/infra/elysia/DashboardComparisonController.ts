@@ -1,5 +1,6 @@
 import Elysia, { t } from "elysia";
 import { requireUserId } from "~/modules/auth";
+import { defaultCurrency } from "~/modules/currencies/application/currency-defaults";
 import { getDashboardComparison } from "~/modules/dashboard/application";
 import { DashboardComparisonQuery, PeriodReturn } from "~/modules/dashboard/application/dashboard-dtos";
 import { distributedCache } from "~/shared/infra/cache";
@@ -11,11 +12,12 @@ export const DashboardComparisonController = new Elysia().get(
 	"/comparison",
 	async ({ query, request, set, status }) => {
 		const userId = await requireUserId(request);
+		const currency = await defaultCurrency(userId, request.headers.get("X-Currency"));
 		const cached = await distributedCache.remember(
 			userId,
 			"dashboard",
-			{ resource: "comparison", ...query },
-			(): Promise<DashboardComparisonReturn> => getDashboardComparison(userId, query),
+			{ resource: "comparison", ...query, currency },
+			(): Promise<DashboardComparisonReturn> => getDashboardComparison(userId, query, undefined, currency),
 		);
 		set.headers.etag = cached.etag;
 		set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";

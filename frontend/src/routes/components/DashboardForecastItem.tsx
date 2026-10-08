@@ -1,7 +1,6 @@
 import type { Dashboard } from "@/lib/api";
 import { formatLocalDate } from "@/lib/date";
 
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 const compactDate = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short" });
 
 const forecastTypeLabels = {
@@ -15,11 +14,14 @@ const forecastTypeLabels = {
 
 export function DashboardForecastItem({
 	forecast,
+	currencyCode = "BRL",
 	variant,
 }: {
+	currencyCode?: string;
 	forecast: Dashboard["forecasts"][number];
 	variant: "compact" | "detailed";
 }) {
+	const currency = new Intl.NumberFormat(navigator.languages, { currency: currencyCode, style: "currency" });
 	const occurrence = new Date(`${forecast.date}T12:00:00`);
 	const name = forecast.type === "CARD" ? `Fatura ${forecast.name}` : forecast.name;
 	const isIncome = forecast.direction === "INCOME";

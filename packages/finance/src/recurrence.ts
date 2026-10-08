@@ -10,6 +10,7 @@ export interface RecurrenceSchedule {
 	dayOfWeek?: number | null;
 }
 export interface RecurrenceDefinition extends RecurrenceSchedule {
+	currency?: string;
 	id: string;
 	userId: string;
 	name: string;

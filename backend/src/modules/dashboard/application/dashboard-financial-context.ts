@@ -1,6 +1,7 @@
 import { dailyForecast, type ForecastMovement, forecastBreakdown } from "@zaimu/finance/daily-forecast";
 import { recurrenceDates, recurrenceNeedsConfiguration } from "@zaimu/finance/recurrence";
 import { dateKey } from "./dashboard-calculations";
+import type { DashboardCurrencyContext } from "./dashboard-currency-context";
 import type { loadDashboardData } from "./load-dashboard-data";
 
 export function dashboardFinancialContext(
@@ -9,6 +10,7 @@ export function dashboardFinancialContext(
 	today: Date,
 	projectionStart: Date,
 	comparisonEnd: Date,
+	money?: DashboardCurrencyContext,
 ) {
 	const { accounts, recurrences, loanPayments: payments } = loaded;
 	const monetaryAccounts = accounts.filter(
@@ -35,6 +37,7 @@ export function dashboardFinancialContext(
 				projectedMovements.push({
 					amount: recurrence.amount,
 					cardPayment: recurrence.movement === "CARD_PAYMENT",
+					currency: recurrence.currency ?? "BRL",
 					date: new Date(`${date}T12:00:00`),
 					destinationAccountId: recurrence.destinationFinancialAccountId,
 					originAccountId: recurrence.originFinancialAccountId,
@@ -58,6 +61,7 @@ export function dashboardFinancialContext(
 	))
 		projectedMovements.push({
 			amount: Number(payment.totalPaid),
+			currency: payment.currency ?? "BRL",
 			date: payment.dueDate,
 			type: "EXPENSE",
 		});
@@ -69,6 +73,7 @@ export function dashboardFinancialContext(
 			projectedMovements.push({
 				amount: outstanding,
 				cardPayment: true,
+				currency: loaded.cards.find(card => card.id === statement.creditCardId)?.currency ?? "BRL",
 				date: statement.dueDate,
 				originAccountId:
 					loaded.cards.find(card => card.id === statement.creditCardId)?.paymentAccountId ??
@@ -80,7 +85,10 @@ export function dashboardFinancialContext(
 	}
 	const comparisonTransactions = [...normalizedTransactions, ...projectedMovements];
 	const todayKey = dateKey(today);
-	const balanceRowsByDate = Map.groupBy(loaded.balanceRows, row => row.date);
+	const balanceRowsByDate = Map.groupBy(
+		loaded.balanceRows.filter(row => !money || row.date <= todayKey),
+		row => row.date,
+	);
 	const historicalBalances = [...balanceRowsByDate].map(([date, rows]) => ({
 		balances: new Map(rows.map(row => [row.accountId, Number(row.balance)])),
 		date: new Date(`${date}T12:00:00`),
@@ -88,7 +96,14 @@ export function dashboardFinancialContext(
 	const historicalMonetaryBalances = new Map(
 		historicalBalances.map(({ balances: dateBalances, date }) => [
 			dateKey(date),
-			monetaryAccounts.reduce((sum, account) => sum + (dateBalances.get(account.id) ?? 0), 0),
+			monetaryAccounts.reduce(
+				(sum, account) =>
+					sum +
+					(money?.convert(dateBalances.get(account.id) ?? 0, account.currency ?? "BRL", dateKey(date)) ??
+						dateBalances.get(account.id) ??
+						0),
+				0,
+			),
 		]),
 	);
 	const todayBalances =
@@ -97,21 +112,30 @@ export function dashboardFinancialContext(
 		...account,
 		balance: todayBalances.get(account.id) ?? 0,
 	}));
-	const forecastDays = dailyForecast({
-		accounts: forecastAccounts,
-		from: dateKey(projectionStart),
-		movements: comparisonTransactions
-			.filter(movement => dateKey(movement.date) > todayKey)
-			.map(movement => ({ ...movement, date: dateKey(movement.date) })),
-		netYield: loaded.projectedYields?.netYield,
-		primaryAccountId: accounts.find(account => account.isPrimary)?.id,
-		through: dateKey(comparisonEnd),
-	});
+	const forecastDays =
+		money && !money.forecastAvailable
+			? []
+			: dailyForecast({
+					accounts: forecastAccounts,
+					currency: money?.currency,
+					from: dateKey(projectionStart),
+					movements: comparisonTransactions
+						.filter(movement => dateKey(movement.date) > todayKey)
+						.map(movement => ({ ...movement, date: dateKey(movement.date) })),
+					netYield: loaded.projectedYields?.netYield,
+					primaryAccountId: accounts.find(account => account.isPrimary)?.id,
+					rate: money?.factor,
+					through: dateKey(comparisonEnd),
+				});
 	const incomeByDate = new Map<string, number>();
 	for (const movement of comparisonTransactions)
 		if (movement.type === "INCOME") {
 			const key = dateKey(movement.date);
-			incomeByDate.set(key, (incomeByDate.get(key) ?? 0) + movement.amount);
+			incomeByDate.set(
+				key,
+				(incomeByDate.get(key) ?? 0) +
+					(money?.convert(movement.amount, movement.currency ?? "BRL", key) ?? movement.amount),
+			);
 		}
 	for (const day of forecastDays) {
 		const originalIncome = incomeByDate.get(day.date) ?? 0;
@@ -119,6 +143,7 @@ export function dashboardFinancialContext(
 		if (yieldedIncome > 0)
 			projectedMovements.push({
 				amount: yieldedIncome,
+				currency: money?.currency,
 				date: new Date(`${day.date}T12:00:00`),
 				type: "INCOME",
 			});
@@ -130,10 +155,18 @@ export function dashboardFinancialContext(
 		historicalBalances.find(item => dateKey(item.date) === dateKey(range.end))?.balances ??
 		todayBalances;
 	const currentBalance = historicalMonetaryBalances.get(todayKey) ?? 0;
-	const balanceAt = (date: Date) =>
-		forecastByDate.get(dateKey(date))?.totalBalance ??
-		historicalMonetaryBalances.get(dateKey(date)) ??
-		currentBalance;
+	const balanceAt = (date: Date) => {
+		if (money && dateKey(date) > todayKey && !money.forecastAvailable)
+			money.factor(
+				monetaryAccounts.find(account => account.currency !== money.currency)?.currency ?? "BRL",
+				dateKey(date),
+			);
+		return (
+			forecastByDate.get(dateKey(date))?.totalBalance ??
+			historicalMonetaryBalances.get(dateKey(date)) ??
+			currentBalance
+		);
+	};
 	const balanceBreakdownAt = (date: Date) => {
 		const key = dateKey(date);
 		const projected = forecastByDate.get(key);
@@ -145,14 +178,31 @@ export function dashboardFinancialContext(
 				variableIncomeBalance: projected.variableIncomeBalance,
 			};
 		const balances = historicalBalances.find(item => dateKey(item.date) === key)?.balances ?? todayBalances;
-		const { totalBalance: _, ...breakdown } = forecastBreakdown(forecastAccounts, balances);
+		const { totalBalance: _, ...breakdown } = forecastBreakdown(
+			forecastAccounts,
+			balances,
+			0,
+			money ? { currency: money.currency, rate: source => money.factor(source, key) } : undefined,
+		);
 		return breakdown;
 	};
 	return {
 		balanceAt,
 		balanceBreakdownAt,
 		balancesAtRangeEnd,
-		comparisonTransactions,
+		comparisonTransactions: money
+			? comparisonTransactions
+					.filter(row => money.forecastAvailable || dateKey(row.date) <= todayKey)
+					.map(row => ({
+						...row,
+						amount: money.convert(row.amount, row.currency ?? "BRL", dateKey(row.date)),
+						currency: money.currency,
+						recurringAmount:
+							row.recurringAmount == null
+								? undefined
+								: money.convert(row.recurringAmount, row.currency ?? "BRL", dateKey(row.date)),
+					}))
+			: comparisonTransactions,
 		linkedTransactionDates,
 		monetaryAccounts,
 	};

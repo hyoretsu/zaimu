@@ -10,7 +10,6 @@ import type { Dashboard } from "@/lib/api";
 import { formatLocalDate } from "@/lib/date";
 import { getFinancialAccountSummaryName } from "@/lib/financial-account";
 
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 const mobilePreviewLimit = 4;
 const desktopPreviewLimit = 9;
 
@@ -56,7 +55,12 @@ export function DashboardAccounts({ accounts, endDate }: DashboardAccountsProps)
 							key={account.id}
 						>
 							<span>{getName(account)}</span>
-							<strong>{currency.format(account.balance)}</strong>
+							<strong>
+								{new Intl.NumberFormat(navigator.languages, {
+									currency: account.currency ?? "BRL",
+									style: "currency",
+								}).format(account.balance)}
+							</strong>
 						</div>
 					))}
 					{!ordered.length && <p className="text-muted-foreground text-sm">Nenhuma conta com saldo.</p>}
@@ -93,7 +97,12 @@ export function DashboardAccounts({ accounts, endDate }: DashboardAccountsProps)
 										</p>
 									</div>
 									<div className="flex shrink-0 flex-col items-end gap-2 text-right">
-										<strong className="tabular-nums">{currency.format(account.balance)}</strong>
+										<strong className="tabular-nums">
+											{new Intl.NumberFormat(navigator.languages, {
+												currency: account.currency ?? "BRL",
+												style: "currency",
+											}).format(account.balance)}
+										</strong>
 										<Button asChild className="cursor-pointer" size="sm" variant="outline">
 											<Link to="/accounts">
 												Extrato <LuArrowRight />

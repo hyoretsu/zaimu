@@ -1,9 +1,8 @@
 import { LuArrowDownLeft, LuArrowUpRight } from "react-icons/lu";
 import { Card } from "@/components/ui/Card";
 
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
-
 interface DashboardPeriodFlowCardProps {
+	currencyCode?: string;
 	income: number;
 	expenses: number;
 	net: number;
@@ -14,12 +13,14 @@ interface DashboardPeriodFlowCardProps {
 
 export function DashboardPeriodFlowCard({
 	income,
+	currencyCode = "BRL",
 	expenses,
 	net,
 	recurringIncome,
 	recurringExpenses,
 	isCurrentMonth = false,
 }: DashboardPeriodFlowCardProps) {
+	const currency = new Intl.NumberFormat(navigator.languages, { currency: currencyCode, style: "currency" });
 	return (
 		<Card
 			aria-label={isCurrentMonth ? "Fluxo do mês" : "Fluxo do período"}

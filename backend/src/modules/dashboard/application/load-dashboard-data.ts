@@ -23,6 +23,7 @@ export interface DashboardBalanceRow extends Record<string, unknown> {
 }
 
 export interface DashboardAccount {
+	currency?: string;
 	id: string;
 	isPrimary?: boolean;
 	isDefaultForStatements?: boolean;
@@ -34,6 +35,7 @@ export interface DashboardAccount {
 }
 
 export interface DashboardCard {
+	currency?: string;
 	paymentAccountId?: null | string;
 	creditLimit: number;
 	dueDay: number;
@@ -78,6 +80,8 @@ export interface DashboardSchedule {
 }
 
 export interface DashboardFlow {
+	destinationAmount?: number | null;
+	currency?: string;
 	cardPayment?: boolean;
 	id?: string;
 	recurringAmount?: number;
@@ -95,6 +99,7 @@ export interface DashboardForecastTransaction extends DashboardFlow {
 }
 
 export interface DashboardLoanPayment {
+	currency?: string;
 	dueDate: Date;
 	id: string;
 	lender: string;
@@ -123,7 +128,7 @@ WITH visible_cards AS (
   GROUP BY purchase."id"
 )
 SELECT 'account' AS kind, jsonb_build_object(
-  'id', account."id", 'institutionId', account."institutionId", 'institutionName', institution."name",
+  'currency', account."currency", 'id', account."id", 'institutionId', account."institutionId", 'institutionName', institution."name",
   'name', account."name", 'type', CASE WHEN rewards."kind" = 'CASHBACK' THEN 'CASHBACK' ELSE account."type"::text END, 'isPrimary', account."isPrimary", 'isDefaultForStatements', account."isDefaultForStatements", 'isHidden', account."isHidden"
 ) AS data
 FROM "FinancialAccount" account
@@ -132,7 +137,7 @@ LEFT JOIN "RewardsAccount" rewards ON rewards."financialAccountId" = account."id
 WHERE account."userId" = $1 AND NOT account."isHidden"
 UNION ALL
 SELECT 'card', jsonb_build_object(
-  'creditLimit', card."creditLimit", 'excludeFromTotals', card."excludeFromTotals", 'paymentAccountId', card."paymentAccountId",
+  'currency', card."currency", 'creditLimit', card."creditLimit", 'excludeFromTotals', card."excludeFromTotals", 'paymentAccountId', card."paymentAccountId",
   'dueDay', card."dueDay", 'statementDay', card."statementDay",
   'financialAccountId', card."financialAccountId", 'id', card."id",
   'ignoreStatementsBefore', card."ignoreStatementsBefore", 'institutionId', card."institutionId",
@@ -175,7 +180,7 @@ JOIN "CreditCardStatement" statement ON statement."id" = charge."statementId"
 JOIN visible_cards card ON card."id" = statement."creditCardId"
 UNION ALL
 SELECT 'payment', jsonb_build_object(
-  'amount', payment."amount", 'creditCardId', payment."paymentCreditCardId", 'date', payment."date", 'id', payment."id"
+  'amount', COALESCE(payment."paymentAmount", payment."amount"), 'creditCardId', payment."paymentCreditCardId", 'date', payment."date", 'id', payment."id"
 )
 FROM "Transaction" payment
 JOIN visible_cards card ON card."id" = payment."paymentCreditCardId"
@@ -186,12 +191,12 @@ const overviewSql = `${comparisonOverviewSql}
 UNION ALL
 SELECT 'debt', jsonb_build_object(
   'balance', COALESCE(sum(CASE WHEN event."createdByUserId" = $1 THEN event."effect" ELSE -event."effect" END), 0),
-  'id', person."id", 'name', person."name"
+  'currency', COALESCE(event."currency", 'BRL'), 'id', person."id", 'name', person."name"
 )
 FROM "DebtPerson" person
 LEFT JOIN "DebtEvent" event ON event."debtPersonId" = person."id" AND event."deletedAt" IS NULL
 WHERE person."userId" = $1 AND person."hiddenAt" IS NULL
-GROUP BY person."id", person."name"`;
+GROUP BY person."id", person."name", COALESCE(event."currency", 'BRL')`;
 
 const schedulesSql = `
 SELECT 'recurrence' AS kind, to_jsonb(schedule) AS data
@@ -204,7 +209,7 @@ WHERE schedule."userId" = $1 AND occurrence."date" >= $2::date
 UNION ALL
 SELECT 'loanPayment', jsonb_build_object(
   'dueDate', payment."dueDate", 'id', payment."id", 'paidDate', payment."paidDate",
-  'totalPaid', payment."totalPaid",
+  'currency', payment."currency", 'totalPaid', payment."totalPaid",
   'lender', loan."lender", 'loanId', loan."id"
 )
 FROM "LoanPayment" payment
@@ -213,20 +218,20 @@ WHERE loan."userId" = $1 AND payment."paidDate" IS NULL AND payment."dueDate" >=
 
 const comparisonMovementsSql = `
 SELECT 'flow' AS kind, jsonb_build_object(
-  'cardPayment', transaction."paymentCreditCardId" IS NOT NULL, 'id', transaction."id", 'amount', transaction."amount", 'date', transaction."date", 'type', transaction."type"::text,
+  'currency', transaction."bookingCurrency", 'destinationAmount', transaction."destinationAmount", 'cardPayment', transaction."paymentCreditCardId" IS NOT NULL, 'id', transaction."id", 'amount', transaction."amount", 'date', transaction."date", 'type', transaction."type"::text,
   'originAccountId', transaction."originFinancialAccountId", 'destinationAccountId', transaction."destinationFinancialAccountId", 'recurring', transaction."recurrenceId" IS NOT NULL
 ) AS data
 FROM "Transaction" transaction
 WHERE transaction."userId" = $1 AND transaction."date" BETWEEN $2::date AND $3::date
 
 UNION ALL
-SELECT 'flow', jsonb_build_object('amount', entry."amount", 'date', entry."date", 'type', 'INCOME', 'recurring', false)
+SELECT 'flow', jsonb_build_object('currency', entry."currency", 'destinationAccountId', entry."financialAccountId", 'amount', entry."amount", 'date', entry."date", 'type', 'INCOME', 'recurring', false)
 FROM "FinancialAccountYield" entry
 JOIN "FinancialAccount" account ON account."id" = entry."financialAccountId"
 WHERE account."userId" = $1 AND entry."date" BETWEEN $2::date AND LEAST($3::date, CURRENT_DATE)
   AND NOT entry."isExcluded" AND entry."amount" IS NOT NULL
 UNION ALL
-SELECT 'flow', jsonb_build_object('amount', purchase."cashbackAmount", 'date', purchase."purchaseDate", 'type', 'INCOME', 'recurring', false)
+SELECT 'flow', jsonb_build_object('currency', account."currency", 'destinationAccountId', account."id", 'amount', purchase."cashbackAmount", 'date', purchase."purchaseDate", 'type', 'INCOME', 'recurring', false)
 FROM "CreditPurchaseRecord" purchase
 JOIN "FinancialAccount" account ON account."id" = purchase."cashbackAccountId"
 WHERE purchase."userId" = $1 AND purchase."purchaseDate" BETWEEN $2::date AND LEAST($3::date, CURRENT_DATE)
@@ -243,7 +248,7 @@ WHERE transaction."userId" = $1 AND transaction."date" BETWEEN $4::date AND $3::
 const movementsSql = `${comparisonMovementsSql}
 UNION ALL
 SELECT 'forecastTransaction', jsonb_build_object(
-  'amount', transaction."amount", 'date', transaction."date", 'description', transaction."description",
+  'currency', transaction."bookingCurrency", 'amount', transaction."amount", 'date', transaction."date", 'description', transaction."description",
   'id', transaction."id", 'type', transaction."type"::text
 )
 FROM "Transaction" transaction
@@ -330,6 +335,7 @@ export async function loadDashboardRows(
 		balanceRows,
 		cards,
 		debts: rowsByKind(overviewRows, "debt") as unknown as Array<{
+			currency?: string;
 			balance: number;
 			id: string;
 			name: string;

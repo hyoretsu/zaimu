@@ -61,3 +61,5 @@ Use normal commit hooks for formatting/lint/types/backend unit coverage; scoped 
 - Native transfer/payment integration passed hooks (types and backend coverage) and targeted ISO/balance tests. Forecast engine now keeps native account balances/yields and uses coherent consolidation factors for reserves, expenses, transfers and totals; missing FX raises unavailability instead of summing currencies. Dashboard adapters still need to supply coverage-aware factors.
 
 - Public point-rate reads use shared server snapshot storage/provider slots; visitor point conversion now caches those responses per owner in IndexedDB. Transfer/payment forms show purchase-date suggestions without replacing manual fields and offer explicit copy action with feedback.
+
+- Authenticated dashboard consolidation now separates event-date FX, actual latest publication dates and weighted forecast factors. Native books remain independent on missing conversion; absent aggregate reports are nullable and visible as unavailable. Currency-specific cache keys and denomination-first debt totals added. Targeted context/latest tests pass; guest/report integration and hook validation in progress.

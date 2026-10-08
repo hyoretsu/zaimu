@@ -9,11 +9,17 @@ import { ScrollArea } from "@/components/ui/ScrollArea";
 import type { Dashboard } from "@/lib/api";
 import { compareDebtPersonNames } from "@/lib/debt-split";
 
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 const mobilePreviewLimit = 4;
 const desktopPreviewLimit = 5;
 
-export function DashboardDebts({ debts }: Pick<Dashboard, "debts">) {
+export function DashboardDebts({
+	debts,
+	currencyCode = "BRL",
+}: {
+	debts: NonNullable<Dashboard["debts"]>;
+	currencyCode?: string;
+}) {
+	const currency = new Intl.NumberFormat(navigator.languages, { currency: currencyCode, style: "currency" });
 	const [open, setOpen] = useState(false);
 	const people = debts.people.toSorted((left, right) => {
 		const leftIsPayable = left.balance < 0;

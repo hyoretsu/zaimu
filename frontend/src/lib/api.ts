@@ -667,9 +667,27 @@ export interface DashboardPeriod {
 }
 
 export interface Dashboard {
+	currency?: string;
+	nativeAsOf?: string;
+	consolidation?: {
+		method: "EXPONENTIAL_90_DAY_HALF_LIFE";
+		unavailable: boolean;
+		forecastAvailable: boolean;
+		publishedDates: Record<string, string>;
+		histories: Array<{
+			collectionId: string;
+			startDate: string;
+			endDate: string;
+			state: string;
+			coveredDays: number;
+			requestedDays: number;
+		}>;
+	};
+
 	referenceRatesAvailable: boolean;
 	accounts: Array<{
 		balance: number;
+		currency?: string;
 		id: string;
 		institutionName: string | null;
 		name: string | null;
@@ -680,9 +698,10 @@ export interface Dashboard {
 		savingsBalance: number;
 		fixedIncomeBalance: number;
 		variableIncomeBalance: number;
-	};
+	} | null;
 	dailyBalances: Array<{ balance: number; date: string }>;
 	creditCards: Array<{
+		currency?: string;
 		availableLimit: number;
 		creditLimit: number;
 		excludeFromTotals: boolean;
@@ -697,7 +716,7 @@ export interface Dashboard {
 		net: number;
 		owedToMe: number;
 		people: Array<{ balance: number; direction: "OWED" | "OWES"; id: string; name: string }>;
-	};
+	} | null;
 	forecasts: Array<{
 		amount: number;
 		date: string;
@@ -707,15 +726,15 @@ export interface Dashboard {
 		sourceId: string;
 		type: "CARD" | "LOAN" | "RECURRING" | "SALARY" | "SUBSCRIPTION" | "TRANSACTION";
 	}>;
-	period: DashboardPeriod;
+	period: DashboardPeriod | null;
 	projectedCashFlowUntilMonthEnd: {
 		recurringExpenses: number;
 		recurringIncome: number;
 		expenses: number;
 		income: number;
 		net: number;
-	};
-	totalAvailableCredit: number;
+	} | null;
+	totalAvailableCredit: number | null;
 }
 
 export interface OpenFinanceBinding {

@@ -3,7 +3,7 @@ import { format, startOfMonth } from "date-fns";
 import { useState } from "react";
 import { LuTrendingUp, LuWalletCards } from "react-icons/lu";
 import { CreditCardImportReviewDialog } from "@/components/credit-card-imports";
-import { TravelCurrencyBanner } from "@/components/currency";
+import { HistoryCollectionProgress, TravelCurrencyBanner } from "@/components/currency";
 import { PendingNotices } from "@/components/pending-notices";
 import { TransactionImportReviewDialog } from "@/components/transaction-imports";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -27,8 +27,6 @@ import {
 	DashboardSkeleton,
 } from "@/routes/components";
 import { type AuthState, useAuthStore } from "@/stores";
-
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
 export function DashboardPage() {
 	const user = useAuthStore((state: AuthState) => state.user);
@@ -58,8 +56,10 @@ export function DashboardPage() {
 			</PageContainer>
 		);
 	const dashboard = dashboardQuery.data;
-	const { accountBalance, fixedIncomeBalance, variableIncomeBalance } = dashboard.balanceBreakdown;
-	const endingBalance = dashboard.period.endingBalance;
+	const currencyCode = dashboard.currency ?? "BRL";
+	const currency = new Intl.NumberFormat(navigator.languages, { currency: currencyCode, style: "currency" });
+	const { accountBalance, fixedIncomeBalance, variableIncomeBalance } = dashboard.balanceBreakdown ?? {};
+	const endingBalance = dashboard.period?.endingBalance;
 	const isCurrentDay = isToday;
 	const projectedCashFlow = dashboard.projectedCashFlowUntilMonthEnd;
 	return (
@@ -82,52 +82,105 @@ export function DashboardPage() {
 				onReviewTransactionImport={setReviewingImportId}
 				paymentSuggestions
 			/>
-			<section className="grid gap-3 sm:gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] xl:grid-rows-[auto_auto]">
-				<Card className="gap-3 border-0 bg-primary py-4 text-primary-foreground shadow-primary/15 shadow-xl [--card-spacing:--spacing(4)] sm:gap-6 sm:py-6 xl:row-span-2 sm:[--card-spacing:--spacing(6)]">
-					<CardHeader>
-						<CardTitle className="flex items-start gap-2 font-medium text-primary-foreground text-xs sm:text-sm">
-							<LuWalletCards aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-							<span>{isCurrentDay ? "Saldo atual" : "Saldo final do período"}</span>
-						</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<p className="font-bold text-2xl tracking-tight sm:text-3xl">{currency.format(endingBalance)}</p>
-						<div className="mt-2 space-y-0.5 text-primary-foreground text-xs sm:mt-3 sm:space-y-1">
-							<p>Em conta: {currency.format(accountBalance)}</p>
-							<p>Renda fixa: {currency.format(fixedIncomeBalance)}</p>
-							<p>Renda variável: {currency.format(variableIncomeBalance)}</p>
-							<p>
-								{isCurrentDay
-									? "Sem projeções futuras."
-									: `Saldo inicial: ${currency.format(dashboard.period.initialBalance)}`}
+			{dashboard.period && dashboard.balanceBreakdown ? (
+				<section className="grid gap-3 sm:gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] xl:grid-rows-[auto_auto]">
+					<Card className="gap-3 border-0 bg-primary py-4 text-primary-foreground shadow-primary/15 shadow-xl [--card-spacing:--spacing(4)] sm:gap-6 sm:py-6 xl:row-span-2 sm:[--card-spacing:--spacing(6)]">
+						<CardHeader>
+							<CardTitle className="flex items-start gap-2 font-medium text-primary-foreground text-xs sm:text-sm">
+								<LuWalletCards aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+								<span>{isCurrentDay ? "Saldo atual" : "Saldo final do período"}</span>
+							</CardTitle>
+						</CardHeader>
+						<CardContent>
+							<p className="font-bold text-2xl tracking-tight sm:text-3xl">
+								{currency.format(endingBalance!)}
 							</p>
-						</div>
+							<div className="mt-2 space-y-0.5 text-primary-foreground text-xs sm:mt-3 sm:space-y-1">
+								<p>Em conta: {currency.format(accountBalance!)}</p>
+								<p>Renda fixa: {currency.format(fixedIncomeBalance!)}</p>
+								<p>Renda variável: {currency.format(variableIncomeBalance!)}</p>
+								<p>
+									{isCurrentDay
+										? "Sem projeções futuras."
+										: `Saldo inicial: ${currency.format(dashboard.period.initialBalance)}`}
+								</p>
+							</div>
+						</CardContent>
+					</Card>
+					<DashboardPeriodFlowCard
+						currencyCode={currencyCode}
+						expenses={dashboard.period.expenses}
+						income={dashboard.period.income}
+						isCurrentMonth={isToday}
+						net={dashboard.period.net}
+						recurringExpenses={dashboard.period.recurringExpenses}
+						recurringIncome={dashboard.period.recurringIncome}
+					/>
+					{projectedCashFlow ? (
+						<DashboardProjectedCashFlowCard
+							currencyCode={currencyCode}
+							expenses={projectedCashFlow.expenses}
+							income={projectedCashFlow.income}
+							net={projectedCashFlow.net}
+						/>
+					) : (
+						<Card>
+							<CardContent className="py-6 text-muted-foreground text-sm">
+								Fluxo previsto aguarda histórico cambial.
+							</CardContent>
+						</Card>
+					)}
+				</section>
+			) : (
+				<Card>
+					<CardContent className="py-6 text-muted-foreground text-sm">
+						Consolidação em {currencyCode} indisponível enquanto faltam cotações. Saldos nativos continuam
+						disponíveis abaixo.
 					</CardContent>
 				</Card>
-				<DashboardPeriodFlowCard
-					expenses={dashboard.period.expenses}
-					income={dashboard.period.income}
-					isCurrentMonth={isToday}
-					net={dashboard.period.net}
-					recurringExpenses={dashboard.period.recurringExpenses}
-					recurringIncome={dashboard.period.recurringIncome}
+			)}
+			{dashboard.consolidation?.histories.map(history => (
+				<HistoryCollectionProgress
+					collectionId={history.collectionId}
+					key={history.collectionId}
+					title={`Histórico cambial - ${currencyCode}`}
 				/>
-				<DashboardProjectedCashFlowCard
-					expenses={projectedCashFlow.expenses}
-					income={projectedCashFlow.income}
-					net={projectedCashFlow.net}
-				/>
-			</section>
+			))}
+			{dashboard.consolidation?.histories.some(history => history.state !== "COMPLETED") && (
+				<p className="text-muted-foreground text-sm">
+					Estimativa cambial parcial. Média ponderada dá maior peso às cotações recentes.
+				</p>
+			)}
+			{dashboard.consolidation && (
+				<p className="text-muted-foreground text-xs">
+					Cotações atuais:{" "}
+					{Object.entries(dashboard.consolidation.publishedDates)
+						.map(([source, date]) => `${source}: ${date}`)
+						.join("; ") || "Sem conversão necessária"}
+				</p>
+			)}
 			<DashboardReferenceRateNotice available={dashboard.referenceRatesAvailable} />
 			<DashboardComparisonChart />
 			<section className="grid gap-4 xl:grid-cols-2">
-				<DashboardAccounts accounts={dashboard.accounts} endDate={dashboard.period.endDate} />
+				<DashboardAccounts
+					accounts={dashboard.accounts}
+					endDate={dashboard.nativeAsOf ?? dashboard.period?.endDate ?? today}
+				/>
 				<DashboardCreditCards
 					creditCards={dashboard.creditCards}
+					currencyCode={currencyCode}
 					totalAvailableCredit={dashboard.totalAvailableCredit}
 				/>
-				<DashboardForecasts forecasts={dashboard.forecasts} />
-				<DashboardDebts debts={dashboard.debts} />
+				{dashboard.consolidation?.unavailable || dashboard.consolidation?.forecastAvailable === false ? (
+					<Card>
+						<CardContent className="py-6 text-muted-foreground text-sm">
+							Previsões consolidadas aguardam cotações.
+						</CardContent>
+					</Card>
+				) : (
+					<DashboardForecasts currencyCode={currencyCode} forecasts={dashboard.forecasts} />
+				)}
+				{dashboard.debts && <DashboardDebts currencyCode={currencyCode} debts={dashboard.debts} />}
 			</section>
 			<TransactionImportReviewDialog
 				importId={reviewingImportId}

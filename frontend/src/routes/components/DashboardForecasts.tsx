@@ -16,7 +16,10 @@ import { ScrollArea } from "@/components/ui/ScrollArea";
 import type { Dashboard } from "@/lib/api";
 import { DashboardForecastItem } from "./DashboardForecastItem";
 
-export function DashboardForecasts({ forecasts }: Pick<Dashboard, "forecasts">) {
+export function DashboardForecasts({
+	forecasts,
+	currencyCode = "BRL",
+}: Pick<Dashboard, "forecasts"> & { currencyCode?: string }) {
 	const [open, setOpen] = useState(false);
 	return (
 		<>
@@ -36,7 +39,12 @@ export function DashboardForecasts({ forecasts }: Pick<Dashboard, "forecasts">) 
 						Entradas e saídas previstas por data. Assinaturas do cartão compõem as faturas.
 					</p>
 					{forecasts.slice(0, 4).map(forecast => (
-						<DashboardForecastItem forecast={forecast} key={forecast.id} variant="compact" />
+						<DashboardForecastItem
+							currencyCode={currencyCode}
+							forecast={forecast}
+							key={forecast.id}
+							variant="compact"
+						/>
 					))}
 					{!forecasts.length && <p className="text-muted-foreground text-sm">Nenhum compromisso futuro.</p>}
 				</CardContent>
@@ -56,7 +64,12 @@ export function DashboardForecasts({ forecasts }: Pick<Dashboard, "forecasts">) 
 								<p className="text-muted-foreground text-sm">Nenhum compromisso futuro.</p>
 							)}
 							{forecasts.map(forecast => (
-								<DashboardForecastItem forecast={forecast} key={forecast.id} variant="detailed" />
+								<DashboardForecastItem
+									currencyCode={currencyCode}
+									forecast={forecast}
+									key={forecast.id}
+									variant="detailed"
+								/>
 							))}
 						</div>
 					</ScrollArea>

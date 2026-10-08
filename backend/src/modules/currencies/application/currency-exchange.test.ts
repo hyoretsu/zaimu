@@ -95,3 +95,25 @@ describe("daily on-demand currency exchange", () => {
 		expect(currencyRateDate("2026-10-07T23:59:00Z")).toBe("2026-10-07");
 	});
 });
+
+test("latest snapshots retain provider publication date for both involved bases", async () => {
+	const saved: string[] = [];
+	const exchange = createCurrencyExchangeService(
+		{
+			find: async () => null,
+			save: async (date, _base, rates) => {
+				saved.push(date);
+				return rates;
+			},
+		},
+		(async (url: string | URL | Request) => {
+			const base = String(url).includes("/usd.json") ? "usd" : "brl";
+			return Response.json({
+				date: "2026-10-07",
+				[base]: base === "usd" ? { brl: 5, usd: 1 } : { brl: 1, usd: 0.2 },
+			});
+		}) as typeof fetch,
+	);
+	expect(await exchange.latest("USD", "BRL")).toEqual({ date: "2026-10-07", rate: 5 });
+	expect(saved).toEqual(["2026-10-07", "2026-10-07"]);
+});
