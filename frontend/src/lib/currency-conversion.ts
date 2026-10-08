@@ -1,3 +1,5 @@
+import { fetchCurrencySnapshot } from "@zaimu/finance/currency-provider";
+import { roundMoney } from "@zaimu/finance/money";
 import type { FinancialFee } from "./api";
 
 async function guestRate(date: string, from: string, to: string) {
@@ -10,31 +12,13 @@ async function guestRate(date: string, from: string, to: string) {
 		} catch {
 			/* Storage can be unavailable; fetching remains possible. */
 		}
-		for (const url of [
-			`https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@${day}/v1/currencies/${base.toLowerCase()}.json`,
-			`https://${day}.currency-api.pages.dev/v1/currencies/${base.toLowerCase()}.json`,
-		]) {
-			try {
-				const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
-				if (!response.ok) continue;
-				const payload = await response.json();
-				if (payload.date !== day || !payload[base.toLowerCase()]) continue;
-				const rates: Record<string, number> = {};
-				for (const [code, value] of Object.entries(payload[base.toLowerCase()]))
-					if (/^[a-z]{3}$/.test(code) && typeof value === "number" && Number.isFinite(value) && value > 0)
-						rates[code.toUpperCase()] = value;
-				if (rates[base] !== 1) continue;
-				try {
-					localStorage.setItem(key, JSON.stringify(rates));
-				} catch {
-					/* Conversion remains usable without cache. */
-				}
-				return rates;
-			} catch {
-				/* Try the mirror. */
-			}
+		const { rates } = await fetchCurrencySnapshot(day, base);
+		try {
+			localStorage.setItem(key, JSON.stringify(rates));
+		} catch {
+			/* Conversion works without storage. */
 		}
-		throw new Error(`Cotação de ${base} indisponível em ${day}`);
+		return rates;
 	};
 	const [rates] = await Promise.all([load(from), load(to)]);
 	if (!rates[to]) throw new Error(`Conversão de ${from} para ${to} indisponível`);
@@ -58,7 +42,7 @@ export async function convertLocalMoney(
 		}, 0);
 	const rate = from === to ? 1 : await guestRate(date, from, to);
 	return {
-		amount: Math.round((total * rate + Number.EPSILON) * 100) / 100,
+		amount: roundMoney(total * rate, to),
 		currency: from,
 		exchangeRate: rate,
 		fees,

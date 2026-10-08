@@ -19,7 +19,9 @@
 		"./dashboard-forecasts": "./src/dashboard-forecasts.ts",
 		"./daily-forecast": "./src/daily-forecast.ts",
 		"./projected-yield": "./src/projected-yield.ts",
-		"./card-forecast": "./src/card-forecast.ts"
+		"./card-forecast": "./src/card-forecast.ts",
+		"./money": "./src/money.ts",
+		"./currency-provider": "./src/currency-provider.ts"
 	},
 	"scripts": {
 		"check-types": "tsc --noEmit",

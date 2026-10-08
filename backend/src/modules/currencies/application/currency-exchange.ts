@@ -1,3 +1,5 @@
+import { fetchCurrencySnapshot } from "@zaimu/finance/currency-provider";
+import { roundMoney } from "@zaimu/finance/money";
 export type CurrencyRates = Record<string, number>;
 export interface CurrencyRateStore {
 	find: (date: string, baseCurrency: string) => Promise<CurrencyRates | null>;
@@ -35,39 +37,8 @@ export function createCurrencyExchangeService(store: CurrencyRateStore, fetcher:
 	async function load(date: string, currency: string): Promise<CurrencyRates> {
 		const stored = await store.find(date, currency);
 		if (stored) return stored;
-		const base = currency.toLowerCase();
-		const urls = [
-			`https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@${date}/v1/currencies/${base}.json`,
-			`https://${date}.currency-api.pages.dev/v1/currencies/${base}.json`,
-		];
-		for (const url of urls) {
-			let rates: CurrencyRates;
-			try {
-				const response = await fetcher(url, { signal: AbortSignal.timeout(10_000) });
-				if (!response.ok) continue;
-				const payload: unknown = await response.json();
-				if (
-					!payload ||
-					typeof payload !== "object" ||
-					!("date" in payload) ||
-					payload.date !== date ||
-					!(base in payload)
-				)
-					continue;
-				const values = (payload as Record<string, unknown>)[base];
-				if (!values || typeof values !== "object" || Array.isArray(values)) continue;
-				rates = {};
-				for (const [code, value] of Object.entries(values)) {
-					if (/^[a-z]{3}$/.test(code) && typeof value === "number" && Number.isFinite(value) && value > 0)
-						rates[code.toUpperCase()] = value;
-				}
-				if (rates[currency] !== 1 || Object.keys(rates).length < 2) continue;
-			} catch {
-				continue;
-			}
-			return store.save(date, currency, rates);
-		}
-		throw new CurrencyRateUnavailableError(date, currency);
+		const snapshot = await fetchCurrencySnapshot(date, currency, fetcher);
+		return store.save(snapshot.date, snapshot.baseCurrency, snapshot.rates);
 	}
 
 	function snapshot(date: string, currency: string) {
@@ -93,7 +64,7 @@ export function createCurrencyExchangeService(store: CurrencyRateStore, fetcher:
 	async function convert(amount: number, date: string | Date, from: string, to: string) {
 		if (!Number.isFinite(amount)) throw new Error("Valor de conversão inválido.");
 		const rate = await ensure(date, from, to);
-		return { amount: Math.round((amount * rate + Number.EPSILON) * 100) / 100, rate };
+		return { amount: roundMoney(amount * rate, to), rate };
 	}
 
 	return { convert, ensure };
