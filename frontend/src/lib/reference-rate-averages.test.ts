@@ -33,8 +33,9 @@ test("unavailable means never invent rates without a prior cache", async () => {
 	const request = spyOn(globalThis, "fetch").mockResolvedValue(
 		Response.json({ ...snapshot, averages: { CDI: null, SELIC: null }, ready: false }),
 	);
-	expect(await refreshReferenceRateAverages()).toBeNull();
-	expect(cachedReferenceRateAverages()).toBeNull();
+	const partial = { ...snapshot, averages: { CDI: null, SELIC: null }, ready: false };
+	expect(await refreshReferenceRateAverages()).toEqual(partial);
+	expect(cachedReferenceRateAverages()).toEqual(partial);
 	request.mockRestore();
 });
 test("invalid cached values are ignored", () => {
@@ -43,4 +44,15 @@ test("invalid cached values are ignored", () => {
 		JSON.stringify({ ...snapshot, averages: { CDI: "0.05", SELIC: null } }),
 	);
 	expect(cachedReferenceRateAverages()).toBeNull();
+});
+
+test("new incomplete coverage supersedes a previously ready cached window", async () => {
+	const request = spyOn(globalThis, "fetch").mockResolvedValue(Response.json(snapshot));
+	await refreshReferenceRateAverages();
+	const partial = { ...snapshot, averages: { CDI: null, SELIC: null }, endDate: "2026-10-03", ready: false };
+	request.mockResolvedValue(Response.json(partial));
+	expect(await refreshReferenceRateAverages()).toEqual(partial);
+	request.mockRejectedValue(new Error("offline"));
+	expect(await refreshReferenceRateAverages()).toEqual(partial);
+	request.mockRestore();
 });

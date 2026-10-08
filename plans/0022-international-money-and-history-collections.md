@@ -51,3 +51,5 @@ Use normal commit hooks for formatting/lint/types/backend unit coverage; scoped 
 - Credit books and statement replay now use denomination-specific integer units and explicit bookingCurrency; native persistence identifies statement/installment/refund/charge currencies. JPY distribution and KWD refund/payment tests pass. Remaining controllers, splits, loan/recurrence/import paths and consolidation still need integration.
 
 - Account creation now inherits institution/effective currency in authenticated and visitor flows. Native account groups separate totals by denomination; existing account currency changes are guarded against history/commitments. ISO input masks and remaining purchase-read precision integrated. Hook validation in progress.
+
+- Account inheritance milestone passed normal hooks (types and backend unit coverage), committed locally. Interest dashboard now exposes persisted collection details/retry; partial current interest coverage supersedes stale ready averages, including offline cache.
