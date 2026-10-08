@@ -26,7 +26,7 @@ const formatTotals = (
 		.map(row =>
 			new Intl.NumberFormat("pt-BR", { currency: row.currency, style: "currency" }).format(row[field]),
 		)
-		.join(" / ");
+		.join(" / ") || "Sem lançamentos";
 export function DebtsPage() {
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
@@ -126,6 +126,16 @@ export function DebtsPage() {
 			</div>
 		);
 
+	if (ledger.isError)
+		return (
+			<div className="mx-auto max-w-5xl p-4" role="alert">
+				<p>Não foi possível carregar os saldos.</p>
+				<Button className="mt-3 cursor-pointer" onClick={() => ledger.refetch()} variant="outline">
+					Tentar novamente
+				</Button>
+			</div>
+		);
+
 	return (
 		<main className="mx-auto min-h-screen w-full max-w-5xl overflow-x-clip bg-background pt-6 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:py-10">
 			<MobilePageActions
@@ -138,7 +148,7 @@ export function DebtsPage() {
 						<h1 className="font-bold text-3xl sm:text-4xl">
 							{formatTotals(
 								ledger.data?.totalsByCurrency ?? [
-									{ currency: "BRL", iOwe: 0, net: 0, owedToMe: 0, ...ledger.data?.totals },
+									{ currency: "BRL", ...(ledger.data?.totals ?? { iOwe: 0, net: 0, owedToMe: 0 }) },
 								],
 								"net",
 							)}
@@ -158,7 +168,7 @@ export function DebtsPage() {
 						<strong>
 							{formatTotals(
 								ledger.data?.totalsByCurrency ?? [
-									{ currency: "BRL", iOwe: 0, net: 0, owedToMe: 0, ...ledger.data?.totals },
+									{ currency: "BRL", ...(ledger.data?.totals ?? { iOwe: 0, net: 0, owedToMe: 0 }) },
 								],
 								"owedToMe",
 							)}
@@ -169,7 +179,7 @@ export function DebtsPage() {
 						<strong>
 							{formatTotals(
 								ledger.data?.totalsByCurrency ?? [
-									{ currency: "BRL", iOwe: 0, net: 0, owedToMe: 0, ...ledger.data?.totals },
+									{ currency: "BRL", ...(ledger.data?.totals ?? { iOwe: 0, net: 0, owedToMe: 0 }) },
 								],
 								"iOwe",
 							)}

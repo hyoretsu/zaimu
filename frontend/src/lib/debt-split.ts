@@ -269,8 +269,12 @@ export function debtSplitError(amount: number, split: DebtSplitInput, currency =
 			: "Cada pessoa deve ter um valor positivo para a divisão.";
 	}
 	if (split.mode === "FIXED") {
-		const distributed = split.participants.reduce((sum, item) => sum + cents(item.fixedAmount), 0);
-		return distributed > cents(amount)
+		const scale = currencyScale(currency);
+		const distributed = split.participants.reduce(
+			(sum, item) => sum + Math.round(item.fixedAmount * scale),
+			0,
+		);
+		return distributed > Math.round(amount * scale)
 			? "Os valores das pessoas não podem ultrapassar o total."
 			: "Cada pessoa deve ter um valor positivo para a divisão.";
 	}

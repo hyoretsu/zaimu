@@ -441,3 +441,17 @@ test("native split preserves JPY remainder and KWD thousandths", () => {
 		),
 	).toBeNull();
 });
+
+test("fixed KWD split reports an excess of one minimum unit", () => {
+	expect(
+		debtSplitError(
+			1.001,
+			{
+				mode: "FIXED",
+				ownerIncluded: false,
+				participants: [{ debtPersonId: "a", fixedAmount: 1.002 }],
+			},
+			"KWD",
+		),
+	).toBe("Os valores das pessoas não podem ultrapassar o total.");
+});
