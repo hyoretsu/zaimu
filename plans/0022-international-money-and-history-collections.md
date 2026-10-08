@@ -4,13 +4,13 @@ Approved 2026-10-07. Implementation stays local: prepare migrations, never apply
 
 ## Execution
 
-- [ ] Monetary model and ISO precision: explicit native/original money, institution/card defaults, all monetary domains, legacy BRL preservation.
-- [ ] Shared PostgreSQL collection/unit progress, transactional outbox, RabbitMQ workers, fenced leases, retries, recovery and global provider limits.
-- [ ] Integrate ten-year CDI/Selic bootstrap/daily/repair coverage and atomic yield recalculation publication.
-- [ ] Demand-driven 365-day currency histories, official CDN/Cloudflare fallback, partial weighted estimates and public visitor reads.
-- [ ] Currency-aware account/card/debt/loan/recurrence/import/payment engines and native/consolidated reporting.
-- [ ] Persisted optional currency preference, seven-day IP location cache, settings, inheritance and travel suggestion confirmation.
-- [ ] Visitor/sync upgrades, UI/native formatting, collection progress, tests, scoped builds and offline migration validation.
+- [x] Monetary model and ISO precision: explicit native/original money, institution/card defaults, all monetary domains, legacy BRL preservation.
+- [x] Shared PostgreSQL collection/unit progress, transactional outbox, RabbitMQ workers, fenced leases, retries, recovery and global provider limits.
+- [x] Integrate ten-year CDI/Selic bootstrap/daily/repair coverage and atomic yield recalculation publication.
+- [x] Demand-driven 365-day currency histories, official CDN/Cloudflare fallback, partial weighted estimates and public visitor reads.
+- [x] Currency-aware account/card/debt/loan/recurrence/import/payment engines and native/consolidated reporting.
+- [x] Persisted optional currency preference, seven-day IP location cache, settings, inheritance and travel suggestion confirmation.
+- [x] Visitor/sync upgrades, UI/native formatting, collection progress, tests, scoped builds and offline migration validation.
 
 Update this checklist and commit it with every completed step. Resume by reading this file.
 
@@ -113,3 +113,12 @@ Use normal commit hooks for formatting/lint/types/backend unit coverage; scoped 
 - Rateios fixos identificam moeda explícita e usam cotação da data ao mudar de livro, com conservação de unidades mínimas; criação e edição autenticadas/visitantes integram mesma regra. Quatro testes de precisão/rateio e hooks passaram. Última revisão remove divisões fixas por 100 de reembolsos/edição e expõe dois valores na edição de pagamento.
 
 - Formulários vazios de transações, recorrências e empréstimos acompanham preferência carregada posteriormente; seleção explícita e entrada monetária bloqueiam substituições, inclusive durante debounce. Testes persistentes cobrem cache de sete dias, deduplicação, falha do provedor, preferência/viagem e acesso mobile direto. Validação final em execução.
+
+
+## Local completion - 2026-10-08
+
+All implementation stages above are complete in local source. Earlier pending notes are historical milestones, superseded by subsequent entries and this verification. No deployment or database rollout is included. User-owned migration artifacts and db reference remain untouched and uncommitted by this continuation.
+
+Final checks: backend build and frontend production build passed. Backend suite: 310 passed, 54 skipped (environment-gated integrations); shared financial suite: 124 passed, zero failures; targeted frontend currency/location/reward suite: 12 passed. Earlier disposable local PostgreSQL and RabbitMQ integrations passed for leases, concurrency, rollback, cashback conservation, redelivery, retries and DLQ. Offline migration JSON parsing and referenced contract existence passed without a database connection. Normal commit hooks passed for implementation commits.
+
+Persistent browser suite covers IP detection, preference, travel cancellation/confirmation, reload persistence, direct mobile entry and delayed location in an open loan form with JPY/KWD precision. Final browser rerun is recorded in the next verification entry. Public provider behavior uses mocked responses; this verification does not certify provider availability or a production rollout.

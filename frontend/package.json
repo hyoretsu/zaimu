@@ -16,6 +16,7 @@
 		"tauri:build": "bun run links:generate --strict && tauri build --config src-tauri/tauri.links.conf.json",
 		"tauri:android": "tauri android dev",
 		"tauri:ios": "tauri ios dev",
+		"test:currency": "playwright test --config playwright.currency.config.ts",
 		"test:open-finance": "playwright test --config playwright.open-finance.config.ts",
 		"check-types": "tsc -b --noEmit"
 	},

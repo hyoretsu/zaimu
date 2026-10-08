@@ -168,13 +168,13 @@ Gráfico separa pagamentos de faturas em segmento próprio, Faturas, com cor lar
 
 ## Assinaturas parceladas
 
-Recorrências de compra no cartão podem ser parceladas em até 48 parcelas mensais por ocorrência. O valor da recorrência representa o total de cada compra, repartido em centavos pelas parcelas; a frequência determina quando uma nova compra começa, independentemente da duração do parcelamento. Renovações podem se sobrepor. Recorrências existentes usam uma parcela por padrão. Editar o parcelamento afeta somente novas ocorrências; compras já geradas preservam suas parcelas. Previsões de faturas consideram todas as parcelas sem persistir ocorrências futuras. Rateio de dívida usa o total da compra uma única vez. Outras movimentações não aceitam parcelamento.
+Recorrências de compra no cartão podem ser parceladas em até 48 parcelas mensais por ocorrência. O valor da recorrência representa o total de cada compra, repartido em unidades mínimas ISO pelas parcelas; a frequência determina quando uma nova compra começa, independentemente da duração do parcelamento. Renovações podem se sobrepor. Recorrências existentes usam uma parcela por padrão. Editar o parcelamento afeta somente novas ocorrências; compras já geradas preservam suas parcelas. Previsões de faturas consideram todas as parcelas sem persistir ocorrências futuras. Rateio de dívida usa o total da compra uma única vez. Outras movimentações não aceitam parcelamento.
 
 ## Moedas e taxas
 
-Transações e compras preservam moeda e valor originais. Contas e cartões existentes usam BRL. O valor contabilizado na conta ou fatura usa a cotação histórica do dia do lançamento e inclui taxas, evitando somar moedas distintas no mesmo livro. Taxas podem ser fixas na moeda original ou percentuais sobre o principal, sem composição entre taxas. Nomes sugeridos incluem IOF, Spread, Imposto, Tarifa, Juros e Multa; nomes personalizados são permitidos.
+Transações e compras preservam moeda e valor originais. Cadastros legados sem moeda permanecem em BRL; contas, instituições e cartões novos identificam moeda própria. O valor contabilizado na conta ou fatura usa a cotação histórica do dia do lançamento e inclui taxas, evitando somar moedas distintas no mesmo livro. Taxas podem ser fixas na moeda original ou percentuais sobre o principal, sem composição entre taxas. Nomes sugeridos incluem IOF, Spread, Imposto, Tarifa, Juros e Multa; nomes personalizados são permitidos.
 
-Cotações vêm da currency-api de fawazahmed0. O banco guarda um snapshot completo por data e moeda base, somente quando uma conversão é solicitada por criação, edição ou consulta. Uma conversão entre moedas distintas solicita os snapshots de ambas as moedas; datas e moedas não solicitadas permanecem vazias. Não há coleta agendada nem substituição silenciosa por cotação atual. Cotações indisponíveis bloqueiam a conversão com erro recuperável. Consultas repetidas reutilizam o histórico persistido. No modo visitante, os snapshots ficam no dispositivo e são consultados sob demanda.
+Cotações vêm da currency-api de fawazahmed0. O banco guarda um snapshot completo por data e moeda base, somente quando uma conversão é solicitada por criação, edição ou consulta. Uma conversão entre moedas distintas solicita os snapshots de ambas as moedas; datas e moedas não solicitadas permanecem vazias. Não há coleta cambial sem demanda nem substituição silenciosa de histórico por cotação atual. Cotações indisponíveis bloqueiam a conversão com erro recuperável. Consultas repetidas reutilizam o histórico persistido. Visitantes consultam a mesma infraestrutura pública do backend e guardam snapshots/progresso em IndexedDB por identidade para uso offline. Não executam downloads de histórico em massa no navegador.
 
 ## Moedas e pagamentos de empréstimos
 
@@ -185,3 +185,16 @@ Pagamento mantém valor/moeda da parcela e valor/moeda do débito da conta separ
 Recorrências identificam moeda do principal e herdam conta/cartão quando não há escolha explícita. Cada ocorrência concreta converte pela sua data financeira, preservando principal original e valores nativos dos livros envolvidos. Reabrir ou repetir processamento não reprecifica ocorrência materializada. Adiantamento usa data efetiva do lançamento, mantendo identidade da data programada.
 
 Saldos de dívidas e seus totais são apurados por pessoa e moeda antes de qualquer consolidação. A listagem mostra cada denominação separadamente; dólares e reais não se compensam por igualdade nominal. Novas origens manuais herdam moeda efetiva e podem selecionar outra; edição mantém denominação existente. Rateios fixos, prévias e máscaras usam precisão ISO da origem.
+
+
+## Preferência internacional e histórico financeiro
+
+Preferência de moeda é opcional. Automática usa país detectado por IP, região explícita do dispositivo ou USD. Detecção acontece também com preferência explícita, usa cache local de sete dias e permite sugerir troca na homepage durante viagem. Confirmação altera preferência; cancelamento preserva configuração. Dispensa é vinculada à identidade e combinação país/preferência/moeda. Campos preenchidos e escolhas explícitas não mudam ao concluir detecção.
+
+Novos valores herdam vínculo de conta/cartão/instituição, depois preferência efetiva. Mudanças de preferência alteram consolidações e novos padrões, sem reinterpretar lançamentos. Livros com saldo, histórico ou compromissos não podem mudar moeda. Contas/cartões mostram valores nativos; consolidações convertem antes de somar e conversão indisponível nunca vira zero.
+
+Histórico cambial de previsão solicita 365 dias anteriores à referência, para ambas as moedas. Unidades reutilizam snapshots completos por data/base. Estimativa usa média ponderada com meia-vida de 90 dias e informa cobertura parcial. Cotação concreta permanece fixada na data da compra. Cliente tenta jsDelivr e depois Cloudflare para mesma data/endpoint quando há erro HTTP, timeout ou resposta inválida.
+
+Coletas cambiais e de juros usam progresso persistente, unidades deduplicadas, outbox transacional e filas isoladas por ambiente. Recuperação retoma somente demanda incompleta; ação de retry reativa falhas sem repetir unidades concluídas. Leases têm proprietário/token, 90 segundos de duração e renovação a cada 20 segundos. Downloads cambiais compartilham limite de seis slots entre workers.
+
+CDI/Selic usam dez anos encerrados ontem, intervalos anuais estáveis e cauda atual. Cobertura é intervalo consultado com sucesso, inclusive dias sem publicação oficial. Média aritmética fica indisponível até cobertura completa; publicação de recálculos compartilha transação com taxas/cobertura. Leitura de progresso não cria coletas.
