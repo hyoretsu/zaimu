@@ -62,7 +62,10 @@ export const useAuthStore = create<AuthState>()(
 					try {
 						let result = await authClient.getSession({ fetchOptions: { method: "POST" } });
 						if (version !== identityVersion) return;
-						if (result.error?.status === 503) {
+						if (
+							result.error?.status === 503 ||
+							result.error?.code === "METHOD_NOT_ALLOWED_DEFER_SESSION_REQUIRED"
+						) {
 							result = await authClient.getSession({ fetchOptions: { method: "GET" } });
 						}
 						const { data, error } = result;

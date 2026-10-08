@@ -69,6 +69,20 @@ await store.getState().initialize();
 assert.deepEqual(methods, ["POST", "GET"]);
 assert.equal(store.getState().isAuthenticated, true);
 assert.equal(store.getState().isSessionUnavailable, false);
+methods.length = 0;
+session = async options => {
+	methods.push(options!.fetchOptions.method);
+	return options!.fetchOptions.method === "POST"
+		? {
+				data: null,
+				error: { code: "METHOD_NOT_ALLOWED_DEFER_SESSION_REQUIRED", status: 405 },
+			}
+		: { data: { user }, error: null };
+};
+await store.getState().initialize();
+assert.deepEqual(methods, ["POST", "GET"]);
+assert.equal(store.getState().isAuthenticated, true);
+assert.equal(store.getState().isSessionUnavailable, false);
 session = async () => ({ data: null, error: { status: 503 } });
 await store.getState().initialize();
 assert.equal(store.getState().isSessionUnavailable, true);
