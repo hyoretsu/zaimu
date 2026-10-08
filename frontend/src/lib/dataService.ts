@@ -25,7 +25,7 @@ import {
 import { distributePurchaseCents } from "@zaimu/finance/credit-purchase";
 import { dashboardCardForecasts, isCashFlowRecurrence } from "@zaimu/finance/dashboard-forecasts";
 import { loanAccountAmounts, loanInstallments } from "@zaimu/finance/loan";
-import { currencyScale, roundMoney, toMinorUnits } from "@zaimu/finance/money";
+import { convertFixedSplitAtDate, currencyScale, roundMoney, toMinorUnits } from "@zaimu/finance/money";
 import { pendingStatementPayments } from "@zaimu/finance/payment-suggestions";
 import {
 	nextRecurrenceDate,
@@ -180,6 +180,7 @@ async function hydrateLocalDebtSplit(
 	const names = new Map(people.map(person => [person.data.id, person.data.name]));
 	return {
 		...calculated,
+		currency,
 		participants: calculated.participants.map(participant => ({
 			...participant,
 			debtPersonName: names.get(participant.debtPersonId) ?? "Pessoa",
@@ -1196,7 +1197,18 @@ export const dataService = {
 				card.currency ?? account?.currency ?? "BRL",
 				data.fees ?? [],
 			);
-			data = { ...data, ...money, totalAmount: money.amount };
+			data = {
+				...data,
+				...money,
+				debtSplit: await convertFixedSplitAtDate(
+					data.debtSplit,
+					data.purchaseDate,
+					money.currency,
+					money.bookingCurrency,
+					(date, from, to) => guestRate(String(date), from, to),
+				),
+				totalAmount: money.amount,
+			};
 			const rewards = data.isStatementCharge
 				? {}
 				: await guestCashbackSnapshot(
@@ -1797,11 +1809,21 @@ export const dataService = {
 				money = await convertLocalMoney(
 					data.totalAmount,
 					data.purchaseDate,
-					data.currency ?? account?.currency ?? "BRL",
-					account?.currency ?? "BRL",
+					data.currency ?? targetCard?.currency ?? account?.currency ?? "BRL",
+					targetCard?.currency ?? account?.currency ?? "BRL",
 					data.fees ?? [],
 				);
-				data = { ...data, totalAmount: money.amount };
+				data = {
+					...data,
+					debtSplit: await convertFixedSplitAtDate(
+						data.debtSplit,
+						data.purchaseDate,
+						money.currency,
+						money.bookingCurrency,
+						(date, from, to) => guestRate(String(date), from, to),
+					),
+					totalAmount: money.amount,
+				};
 			}
 
 			const targetRewardCard =
@@ -3429,7 +3451,18 @@ export const dataService = {
 					},
 					(from, to) => guestRate(data.date, from, to),
 				);
-				data = { ...data, ...money, ...sides };
+				data = {
+					...data,
+					...money,
+					...sides,
+					debtSplit: await convertFixedSplitAtDate(
+						data.debtSplit,
+						data.date,
+						money.currency,
+						money.bookingCurrency,
+						(date, from, to) => guestRate(String(date), from, to),
+					),
+				};
 				const { debtSplit: explicitDebtSplit, matchDebtEventId: _, ...localData } = data;
 				const recurrenceOccurrenceDate = data.recurrenceId
 					? (data.recurrenceOccurrenceDate ?? data.date)
@@ -3447,7 +3480,7 @@ export const dataService = {
 					? (await localRecurrences.getById(data.recurrenceId))?.data
 					: undefined;
 				const debtSplit = explicitDebtSplit
-					? await hydrateLocalDebtSplit(data.amount, explicitDebtSplit)
+					? await hydrateLocalDebtSplit(data.amount, explicitDebtSplit, money.bookingCurrency)
 					: linkedRecurrence && "debtSplit" in linkedRecurrence
 						? linkedRecurrence.debtSplit
 						: undefined;
@@ -3790,7 +3823,17 @@ export const dataService = {
 						paymentCreditCardId: paymentCreditCardId ?? undefined,
 					}),
 					...(debtSplitInput !== undefined && {
-						debtSplit: await hydrateLocalDebtSplit(data.amount ?? existing.data.amount, debtSplitInput),
+						debtSplit: await hydrateLocalDebtSplit(
+							money.amount,
+							await convertFixedSplitAtDate(
+								debtSplitInput,
+								merged.date,
+								merged.currency ?? money.bookingCurrency,
+								money.bookingCurrency,
+								(date, from, to) => guestRate(String(date), from, to),
+							),
+							money.bookingCurrency,
+						),
 					}),
 				};
 				await localTransactions.put(updated, id);

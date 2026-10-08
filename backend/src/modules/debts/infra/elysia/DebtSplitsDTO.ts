@@ -20,17 +20,20 @@ const FixedParticipant = t.Object({
 
 export const DebtSplitInputDTO = t.Union([
 	t.Object({
+		currency: t.Optional(t.String({ pattern: "^[A-Z]{3}$" })),
 		mode: t.Literal("SHARES"),
 		ownerShares: t.Union([t.Integer({ minimum: 1 }), t.Null()]),
 		participants: t.Array(SharesParticipant, { minItems: 1 }),
 	}),
 	t.Object({
+		currency: t.Optional(t.String({ pattern: "^[A-Z]{3}$" })),
 		mode: t.Literal("PERCENTAGE"),
 		ownerIncluded: t.Boolean(),
 		participants: t.Array(PercentageParticipant, { minItems: 1 }),
 		remainderDebtPersonId: t.Optional(Id),
 	}),
 	t.Object({
+		currency: t.Optional(t.String({ pattern: "^[A-Z]{3}$" })),
 		mode: t.Literal("FIXED"),
 		ownerIncluded: t.Boolean(),
 		participants: t.Array(FixedParticipant, { minItems: 1 }),
@@ -57,12 +60,14 @@ const FixedParticipantReturn = t.Object({
 
 export const DebtSplitReturnDTO = t.Union([
 	t.Object({
+		currency: t.Optional(t.String({ pattern: "^[A-Z]{3}$" })),
 		mode: t.Literal("SHARES"),
 		ownerAmount: t.Number(),
 		ownerShares: t.Union([t.Integer(), t.Null()]),
 		participants: t.Array(SharesParticipantReturn),
 	}),
 	t.Object({
+		currency: t.Optional(t.String({ pattern: "^[A-Z]{3}$" })),
 		mode: t.Literal("PERCENTAGE"),
 		ownerAmount: t.Number(),
 		ownerIncluded: t.Boolean(),
@@ -70,6 +75,7 @@ export const DebtSplitReturnDTO = t.Union([
 		remainderDebtPersonId: t.Optional(Id),
 	}),
 	t.Object({
+		currency: t.Optional(t.String({ pattern: "^[A-Z]{3}$" })),
 		mode: t.Literal("FIXED"),
 		ownerAmount: t.Number(),
 		ownerIncluded: t.Boolean(),

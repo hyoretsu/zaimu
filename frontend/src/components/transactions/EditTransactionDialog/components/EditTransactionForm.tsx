@@ -63,7 +63,10 @@ export function EditTransactionForm({
 	const identity = useCacheIdentity();
 	const [draft, setDraft] = useState(() => (transaction ? createDraft(transaction) : null));
 	const [isDebt, setIsDebt] = useState(Boolean(transaction?.debtSplit));
-	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>(() => debtSplitToInput(transaction?.debtSplit));
+	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>(() => ({
+		...debtSplitToInput(transaction?.debtSplit),
+		currency: transaction?.bookingCurrency ?? "BRL",
+	}));
 	const [description, setDescription] = useDebouncedInput(transaction?.description ?? "", () => undefined);
 	const accountsQuery = useQuery({
 		enabled: identity !== null && open,
@@ -80,7 +83,10 @@ export function EditTransactionForm({
 		if (!open || !transaction) return;
 		setDraft(createDraft(transaction));
 		setIsDebt(Boolean(transaction.debtSplit));
-		setDebtSplit(debtSplitToInput(transaction.debtSplit));
+		setDebtSplit({
+			...debtSplitToInput(transaction.debtSplit),
+			currency: transaction.bookingCurrency ?? "BRL",
+		});
 		setDescription(transaction.description ?? "");
 	}, [open, setDescription, transaction]);
 
@@ -299,8 +305,11 @@ export function EditTransactionForm({
 								</CheckboxField>
 								{isDebt ? (
 									<DebtSplitEditor
-										amount={Number(draft.amount)}
-										onChange={setDebtSplit}
+										amount={Number(draft.amount) * (transaction.exchangeRate ?? 1)}
+										currencyCode={transaction.bookingCurrency ?? "BRL"}
+										onChange={value =>
+											setDebtSplit({ ...value, currency: transaction.bookingCurrency ?? "BRL" })
+										}
 										showParticipantDescriptions={draft.type === "EXPENSE"}
 										value={debtSplit}
 									/>
@@ -393,7 +402,12 @@ export function EditTransactionForm({
 							!draft.amount ||
 							draft.fees.some(fee => !fee.name.trim() || !Number.isFinite(fee.amount) || fee.amount < 0) ||
 							!primaryAccountId ||
-							(isDebt && !calculateDebtSplit(Number(draft.amount), debtSplit)) ||
+							(isDebt &&
+								!calculateDebtSplit(
+									Number(draft.amount) * (transaction.exchangeRate ?? 1),
+									debtSplit,
+									transaction.bookingCurrency ?? "BRL",
+								)) ||
 							(draft.type === "TRANSFER" && !draft.destinationFinancialAccountId) ||
 							update.isPending
 						}

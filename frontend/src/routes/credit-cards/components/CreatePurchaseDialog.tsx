@@ -26,6 +26,7 @@ import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { getCurrentLocalTime, getLocalDateKey } from "@/lib/date";
 import { calculateDebtSplit } from "@/lib/debt-split";
 import { runDialogSave } from "@/lib/dialog-save";
+import { useCurrencyStore } from "@/stores/currency";
 
 interface PurchaseDraft {
 	isStatementCharge?: boolean;
@@ -74,8 +75,8 @@ export function CreatePurchaseDialog({
 	const [isStatementCharge, setIsStatementCharge] = useState(false);
 	const [isDebt, setIsDebt] = useState(false);
 	const [amount, setAmount] = useState("");
-	const [currencyCode, setCurrencyCode] = useState("BRL");
-	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
+	const effectiveCurrency = useCurrencyStore(state => state.currency);
+	const [selectedCurrency, setCurrencyCode] = useState<string | null>(null);
 	const [fees, setFees] = useState<FinancialFee[]>([]);
 
 	const [count, setCount] = useDebouncedInput("1", () => undefined);
@@ -88,6 +89,12 @@ export function CreatePurchaseDialog({
 	const [tagIds, setTagIds] = useState<string[]>([]);
 	const [storeName, setStoreName] = useState("");
 	const [cardId, setCardId] = useState(initialCardId ?? "");
+	const currencyCode =
+		selectedCurrency ?? cards.find(card => card.id === cardId)?.currency ?? effectiveCurrency;
+	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
+	useEffect(() => {
+		if (open && initialCardId) setCardId(initialCardId);
+	}, [open, initialCardId]);
 	const purchaseAmount = Number(amount || 0);
 	const total = purchaseAmount;
 	const installmentCount = isStatementCharge ? 1 : Number.parseInt(count, 10);
@@ -98,7 +105,7 @@ export function CreatePurchaseDialog({
 		setIsDebt(false);
 		setIsStatementCharge(false);
 		setFees([]);
-		setCurrencyCode("BRL");
+		setCurrencyCode(null);
 		setAmount("");
 		setCount("1");
 		setDate(getLocalDateKey());
@@ -179,7 +186,10 @@ export function CreatePurchaseDialog({
 								currencyCode={currencyCode}
 								id="purchase-amount"
 								label="Valor da compra"
-								onValueChange={setAmount}
+								onValueChange={value => {
+									setAmount(value);
+									if (value && selectedCurrency === null) setCurrencyCode(currencyCode);
+								}}
 								placeholder="R$ 480,00"
 								required
 								value={amount}
@@ -244,7 +254,14 @@ export function CreatePurchaseDialog({
 								>
 									<span>Esta compra é de uma dívida</span>
 								</CheckboxField>
-								{isDebt ? <DebtSplitEditor amount={total} onChange={setDebtSplit} value={debtSplit} /> : null}
+								{isDebt ? (
+									<DebtSplitEditor
+										amount={total}
+										currencyCode={currencyCode}
+										onChange={setDebtSplit}
+										value={debtSplit}
+									/>
+								) : null}
 							</div>
 							{total > 0 && (
 								<div className="rounded-xl border border-primary/15 bg-primary/5 p-3 text-sm">
@@ -266,7 +283,7 @@ export function CreatePurchaseDialog({
 									disabled={
 										pending ||
 										!cardId ||
-										(isDebt && !calculateDebtSplit(total, debtSplit)) ||
+										(isDebt && !calculateDebtSplit(total, debtSplit, currencyCode)) ||
 										total <= 0 ||
 										!Number.isInteger(installmentCount) ||
 										installmentCount < 1 ||

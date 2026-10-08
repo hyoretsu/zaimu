@@ -107,3 +107,5 @@ Use normal commit hooks for formatting/lint/types/backend unit coverage; scoped 
 - Validação de políticas usa moeda explícita ou moeda institucional existente, antes de gravar alterações. Revisão de duplicatas/editor de transações importadas usa moeda do livro; falha de carregamento não aparece como saldo vazio. Hooks passaram.
 
 - Janela móvel de juros reutiliza unidades sobrepostas em execução; progresso contabiliza apenas dias dentro da janela solicitada. PostgreSQL local verificou concorrência, rollback e fencing (3 testes). RabbitMQ descartável local verificou confirmação, reinício, deduplicação, retries e DLQ (1 teste). Filas de testes usam namespace próprio; serviços descartáveis foram encerrados.
+
+- Auditoria final identificou rateios fixos estrangeiros e formulários de criação ainda incompletos. Conversão compartilhada distribui arredondamento cumulativo em unidades ISO; regras distinguem moeda explícita, e edição mantém valores fixos do livro. Criação de compra herda cartão/preferência sem sobrescrever escolha ou valor editado. Validação em andamento.

@@ -108,17 +108,20 @@ export interface Store {
 
 export type DebtSplitInput =
 	| {
+			currency?: string;
 			mode: "SHARES";
 			ownerShares: null | number;
 			participants: Array<{ debtPersonId: string; description?: string; shares: number }>;
 	  }
 	| {
+			currency?: string;
 			mode: "PERCENTAGE";
 			ownerIncluded: boolean;
 			remainderDebtPersonId?: string;
 			participants: Array<{ debtPersonId: string; description?: string; percentage: number }>;
 	  }
 	| {
+			currency?: string;
 			mode: "FIXED";
 			ownerIncluded: boolean;
 			remainderDebtPersonId?: string;
@@ -127,6 +130,7 @@ export type DebtSplitInput =
 
 export type DebtSplit =
 	| {
+			currency?: string;
 			mode: "SHARES";
 			ownerAmount: number;
 			ownerShares: null | number;
@@ -139,6 +143,7 @@ export type DebtSplit =
 			}>;
 	  }
 	| {
+			currency?: string;
 			mode: "PERCENTAGE";
 			ownerAmount: number;
 			ownerIncluded: boolean;
@@ -152,6 +157,7 @@ export type DebtSplit =
 			}>;
 	  }
 	| {
+			currency?: string;
 			mode: "FIXED";
 			ownerAmount: number;
 			ownerIncluded: boolean;

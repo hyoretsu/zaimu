@@ -10,7 +10,7 @@ import {
 	updateBookPurchaseDate,
 } from "@zaimu/finance/credit-book";
 import { paymentStatement, statementCutoffAfter, statementEntryKind } from "@zaimu/finance/credit-card";
-import { currencyScale } from "@zaimu/finance/money";
+import { convertFixedSplitAtDate, currencyScale } from "@zaimu/finance/money";
 import Elysia, { t } from "elysia";
 import { setCardPayer } from "~/modules/accounts/application/payment-preferences";
 import { assertBalanceAccountOwnership, assertCreditCardOwnership, requireUserId } from "~/modules/auth";
@@ -51,6 +51,7 @@ import {
 	FinancialFeeDTO,
 	resolveFinancialMoney,
 } from "~/modules/currencies/application/financial-money";
+import { ensureCurrencyRates } from "~/modules/currencies/infra/currency-exchange";
 import { getDebtSplitReturn, linkPurchaseToDebt } from "~/modules/debts/application";
 import { DebtSplitInputDTO } from "~/modules/debts/infra/elysia/DebtSplitsDTO";
 import { projectRecurringCreditBook } from "~/modules/recurring/application/project-credit-book";
@@ -646,7 +647,14 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					return newBookPurchase(book, {
 						...body,
 						currency: money.currency,
-						debtSplitRule: body.debtSplit ?? null,
+						debtSplitRule:
+							(await convertFixedSplitAtDate(
+								body.debtSplit,
+								body.purchaseDate,
+								money.currency,
+								money.bookingCurrency,
+								ensureCurrencyRates,
+							)) ?? null,
 						description: body.description ?? "",
 						exchangeRate: money.exchangeRate,
 						feeAmount: money.feeAmount || null,
@@ -805,7 +813,14 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				if (body.storeName !== undefined) p.storeName = body.storeName;
 				if (body.time !== undefined) p.time = body.time;
 				if (body.tagIds !== undefined) p.tagIds = body.tagIds;
-				if (body.debtSplit !== undefined) p.debtSplitRule = body.debtSplit;
+				if (body.debtSplit !== undefined)
+					p.debtSplitRule = await convertFixedSplitAtDate(
+						body.debtSplit,
+						body.purchaseDate ?? p.purchaseDate,
+						p.currency ?? targetCurrency,
+						targetCurrency,
+						ensureCurrencyRates,
+					);
 				if (body.purchaseDate !== undefined) updateBookPurchaseDate(book, p.id, body.purchaseDate);
 				if (body.feeAmount !== undefined) {
 					p.feeAmount = body.feeAmount || null;

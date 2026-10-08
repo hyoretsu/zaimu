@@ -1,3 +1,4 @@
+import { convertFixedSplitAtDate } from "@zaimu/finance/money";
 import { resolveTransactionMoneySides } from "@zaimu/finance/transaction-money";
 import Elysia, { t } from "elysia";
 import {
@@ -608,7 +609,13 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				await linkTransactionToDebt({
 					amount: Number(transaction.amount),
 					date: body.date,
-					debtSplit: inheritedDebtSplit ?? body.debtSplit,
+					debtSplit: await convertFixedSplitAtDate(
+						inheritedDebtSplit ?? body.debtSplit,
+						body.date,
+						money.currency,
+						money.bookingCurrency,
+						ensureCurrencyRates,
+					),
 					description: body.description,
 					matchEventId: body.matchDebtEventId,
 					transactionId: transaction.id,
@@ -880,7 +887,13 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			await syncTransactionDebtEvent({
 				amount: Number(transaction.amount),
 				date: transaction.date.toISOString().slice(0, 10),
-				debtSplit: body.debtSplit,
+				debtSplit: await convertFixedSplitAtDate(
+					body.debtSplit,
+					transaction.date,
+					transaction.currency ?? "BRL",
+					transaction.bookingCurrency ?? "BRL",
+					ensureCurrencyRates,
+				),
 				description: transaction.description ?? undefined,
 				matchEventId: body.matchDebtEventId,
 				transactionId: transaction.id,

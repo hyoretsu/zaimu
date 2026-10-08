@@ -110,7 +110,10 @@ export function EditCreditPurchaseDialog({
 		isSynced || Boolean(original?.externalId || original?.installmentImportedNumbers?.length);
 	const [selectedCardId, setSelectedCardId] = useState(sourceCardId ?? "");
 	const [description, setDescription] = useDebouncedInput(purchase.description, () => undefined);
-	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>(() => debtSplitToInput(purchase.debtSplit));
+	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>(() => ({
+		...debtSplitToInput(purchase.debtSplit),
+		currency: purchase.bookingCurrency ?? "BRL",
+	}));
 	const [isDebt, setIsDebt] = useState(Boolean(purchase.debtSplit));
 	const [amount, setAmount] = useState(
 		String(
@@ -378,7 +381,14 @@ export function EditCreditPurchaseDialog({
 									<span>Esta compra é de uma dívida</span>
 								</CheckboxField>
 								{isDebt ? (
-									<DebtSplitEditor amount={totalAmount} onChange={setDebtSplit} value={debtSplit} />
+									<DebtSplitEditor
+										amount={totalAmount * (purchase.exchangeRate ?? 1)}
+										currencyCode={purchase.bookingCurrency ?? "BRL"}
+										onChange={value =>
+											setDebtSplit({ ...value, currency: purchase.bookingCurrency ?? "BRL" })
+										}
+										value={debtSplit}
+									/>
 								) : null}
 							</div>
 							<DialogFooter>
@@ -394,7 +404,12 @@ export function EditCreditPurchaseDialog({
 									className="cursor-pointer"
 									disabled={
 										pending ||
-										(isDebt && !calculateDebtSplit(totalAmount, debtSplit)) ||
+										(isDebt &&
+											!calculateDebtSplit(
+												totalAmount * (purchase.exchangeRate ?? 1),
+												debtSplit,
+												purchase.bookingCurrency ?? "BRL",
+											)) ||
 										totalAmount <= 0 ||
 										!Number.isInteger(installments) ||
 										installments < 1 ||

@@ -335,6 +335,7 @@ export function CreateTransactionDialog({
 								{isDebt ? (
 									<DebtSplitEditor
 										amount={Number(draft.amount)}
+										currencyCode={draft.currency}
 										onChange={setDebtSplit}
 										showParticipantDescriptions={draft.type === "EXPENSE"}
 										value={debtSplit}
@@ -421,7 +422,7 @@ export function CreateTransactionDialog({
 							!draft.amount ||
 							draft.fees.some(fee => !fee.name.trim() || !Number.isFinite(fee.amount) || fee.amount < 0) ||
 							!primaryAccountId ||
-							(isDebt && !calculateDebtSplit(Number(draft.amount), debtSplit)) ||
+							(isDebt && !calculateDebtSplit(Number(draft.amount), debtSplit, draft.currency)) ||
 							(draft.type === "TRANSFER" && !draft.destinationFinancialAccountId)
 						}
 						onClick={save}
