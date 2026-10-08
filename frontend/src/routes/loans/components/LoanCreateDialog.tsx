@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { CurrencySelect } from "@/components/currency/CurrencySelect";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
@@ -21,7 +21,8 @@ export function LoanCreateDialog({ onClose }: { onClose: () => void }) {
 	const identity = useCacheIdentity();
 	const effectiveCurrency = useCurrencyStore(state => state.currency);
 	const [selectedCurrency, setCurrency] = useState<string | null>(null);
-	const currency = selectedCurrency ?? effectiveCurrency;
+	const enteredCurrency = useRef<string | null>(null);
+	const currency = selectedCurrency ?? enteredCurrency.current ?? effectiveCurrency;
 	const client = useQueryClient();
 	const [lender, setLender] = useState("");
 	const [localLender, setLocalLender] = useDebouncedInput(lender, setLender);
@@ -55,7 +56,7 @@ export function LoanCreateDialog({ onClose }: { onClose: () => void }) {
 						className="space-y-4 pr-3"
 						onInputCapture={event => {
 							if (event.target instanceof HTMLInputElement && event.target.name === "principalAmount")
-								setCurrency(currency);
+								enteredCurrency.current = currency;
 						}}
 						onSubmit={event => {
 							event.preventDefault();

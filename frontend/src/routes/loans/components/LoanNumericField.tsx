@@ -46,6 +46,7 @@ export function LoanNumericField({
 				thousandSeparator="."
 				type="text"
 				value={local}
+				valueIsNumericString
 			/>
 		</div>
 	);

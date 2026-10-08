@@ -80,6 +80,7 @@ export function CreateRecurringDialog({
 		queryKey: queryKeys.accounts.list(identity!),
 	});
 	const primaryInitialized = useRef(false);
+	const amountEntered = useRef(false);
 	useEffect(() => {
 		if (!open) {
 			primaryInitialized.current = false;
@@ -96,7 +97,9 @@ export function CreateRecurringDialog({
 					? {
 							...current,
 							currency:
-								current.amount || current.currencyExplicit ? current.currency : (primary.currency ?? "BRL"),
+								current.amount || amountEntered.current || current.currencyExplicit
+									? current.currency
+									: (primary.currency ?? "BRL"),
 							originFinancialAccountId: primary.id,
 						}
 					: current,
@@ -106,6 +109,7 @@ export function CreateRecurringDialog({
 		if (!open || recurrence) return;
 		setDraft(current =>
 			current.amount ||
+			amountEntered.current ||
 			current.currencyExplicit ||
 			current.originFinancialAccountId ||
 			current.destinationFinancialAccountId ||
@@ -116,6 +120,7 @@ export function CreateRecurringDialog({
 		);
 	}, [open, recurrence, effectiveCurrency]);
 	useDialogCloseReset(open, () => {
+		amountEntered.current = false;
 		setDraft(initialDraft(recurrence, effectiveCurrency));
 		setDebtSplit(debtSplitToInput(recurrence?.debtSplit));
 		setDebtEnabled(Boolean(recurrence?.debtSplit));
@@ -181,7 +186,7 @@ export function CreateRecurringDialog({
 								className="space-y-5"
 								onInputCapture={event => {
 									if (event.target instanceof HTMLInputElement && event.target.name === "recurrence-amount")
-										set("currencyExplicit", true);
+										amountEntered.current = true;
 								}}
 								onSubmit={event => {
 									event.preventDefault();
@@ -222,14 +227,7 @@ export function CreateRecurringDialog({
 									});
 								}}
 							>
-								<fieldset
-									className="space-y-5"
-									disabled={save.isPending}
-									onInputCapture={event => {
-										if (event.target instanceof HTMLInputElement && event.target.name === "recurrence-amount")
-											set("currencyExplicit", true);
-									}}
-								>
+								<fieldset className="space-y-5" disabled={save.isPending}>
 									<div className="grid gap-4 sm:grid-cols-2">
 										<DebouncedFormField
 											id="recurrence-name"
