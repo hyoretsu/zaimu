@@ -63,3 +63,12 @@ Cobertura de aprovação/reconciliação de importações, sync incremental, off
 `statementImport` gera mil valores distintos; `statementImportDuplicates` preserva mil valores iguais, caso extremo de resposta com candidatos repetidos. Parsing tem orçamento de 30 s; revisão e descarte mantêm 1 s. `loanAdvance`, `recurrenceAdvance` e `recurrenceReplay` medem antecipação/materialização com limpeza dos efeitos criados.
 
 Navegador inclui navegação nos oito módulos e diagnóstico de leitura/escrita IndexedDB com isolamento entre duas identidades. Teste de storage é diagnóstico, não substitui equivalência financeira e migração visitante. Relatório comparativo das ações corrigidas fica em `reports/financial-actions-reference-0018.json`.
+
+WebView GTK local disponível via GI pode executar diagnóstico visitante separado:
+
+```bash
+# Com frontend release servido em 127.0.0.1:5173
+xvfb-run -a /usr/bin/python3 frontend/tests/performance/native-webkit.py
+```
+
+Contexto ephemeral não acessa perfil do usuário. Proxy local indisponível bloqueia destinos externos; fetch externo é recusado e geolocalização é simulada. Relatório `/tmp/zaimu-native-webkit.json` identifica versão do engine e oito rotas. Esse diagnóstico não certifica bridge Tauri, startup nativo, deep links, mobile ou histórico grande; métricas não suportadas permanecem pendências explícitas. Playwright grava também `result.json` com falhas e anexos, mesmo quando um cenário para antes de completar medições.

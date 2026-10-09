@@ -394,3 +394,6 @@ Próxima etapa: validar fallback de cache e persistência incremental contra reg
 
 - Caso denso com 100 mil horários iguais na mesma conta também evita todos os pares por agrupamento de conta. Hooks de tipos/unidade passaram no comparador.
 - Navegação identificou HTTP 401 no progresso cambial: leituras de histórico e médias de juros não enviavam cookies quando frontend/API tinham origens distintas. Ambas passam a enviar credenciais; regressão de navegação exige zero respostas de negócio com erro.
+
+- WebKitGTK 2.54.1 acessível via GI, embora tauri-driver não esteja instalado. Diagnóstico separado prepara contexto ephemeral, bloqueia rede externa por proxy local e mede oito rotas visitante. Não equivale a aceite Tauri/mobile; histórico grande e long tasks continuam explícitos.
+- Relatório JSON do Playwright conserva falhas mesmo quando cenário termina antes de produzir métricas.

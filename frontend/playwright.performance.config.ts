@@ -3,6 +3,7 @@ import { defineConfig } from "@playwright/test";
 const baseURL = "http://127.0.0.1:5173";
 export default defineConfig({
 	outputDir: "/tmp/zaimu-browser-performance",
+	reporter: [["list"], ["json", { outputFile: "/tmp/zaimu-browser-performance/result.json" }]],
 	testDir: "./tests/performance",
 	timeout: 1200000,
 	use: {
