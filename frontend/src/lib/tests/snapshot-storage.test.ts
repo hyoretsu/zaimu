@@ -9,7 +9,37 @@ test("snapshot batches preserve concurrent edits, tombstones and owner isolation
 		value: { location: { origin: "http://localhost" } },
 	});
 	Object.defineProperty(globalThis, "IDBKeyRange", { configurable: true, value: IDBKeyRange });
+	// A completed v15 database must receive only the index upgrade.
+	const previous = await new Promise<IDBDatabase>((resolve, reject) => {
+		const request = indexedDB.open("zaimu-local", 15);
+		request.onupgradeneeded = () => {
+			request.result
+				.createObjectStore("application-upgrade", { keyPath: "id" })
+				.put({ id: "state", status: "complete", version: 13 });
+			const store = request.result.createObjectStore("scoped-transactions", { keyPath: "scopedId" });
+			for (const index of ["ownerKey", "syncedAt", "modifiedAt", "deleted"]) store.createIndex(index, index);
+			store.createIndex("ownerModifiedAt", ["ownerKey", "modifiedAt"]);
+			store.put({
+				data: { id: "preserved" },
+				localId: "preserved",
+				modifiedAt: 1000,
+				ownerKey: "user:preserved",
+				scopedId: "user:preserved\u0000preserved",
+			});
+		};
+		request.onsuccess = () => resolve(request.result);
+		request.onerror = () => reject(request.error);
+	});
+	previous.close();
 	const storage = await import("../localStorage");
+	const upgraded = await storage.initLocalDb();
+	expect(upgraded.version).toBe(16);
+	const indexes = upgraded.transaction("scoped-transactions").objectStore("scoped-transactions").indexNames;
+	for (const retired of ["syncedAt", "modifiedAt", "deleted"]) expect(indexes.contains(retired)).toBe(false);
+	expect(indexes.contains("ownerModifiedAt")).toBe(true);
+	expect(await storage.getById("transactions", "preserved", "user:preserved")).toBeDefined();
+	expect(await storage.getModifiedSince("transactions", 1000, "user:preserved")).toHaveLength(0);
+	expect(await storage.getModifiedSince("transactions", 999, "user:preserved")).toHaveLength(1);
 	const owner = "guest:snapshot-test" as const;
 	const other = "user:snapshot-other" as const;
 	const items = Array.from({ length: 2100 }, (_, index) => ({

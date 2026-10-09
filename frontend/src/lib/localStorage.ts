@@ -30,7 +30,7 @@ import { requestResult, transactionDone } from "./idb";
 import type { Recurrence, RecurrenceOccurrence } from "./recurrence";
 
 const DB_NAME = "zaimu-local";
-const DB_VERSION = 15;
+const DB_VERSION = 16;
 
 const LOCAL_STORES = {
 	accounts: "accounts",
@@ -145,8 +145,10 @@ async function openLocalDb(): Promise<IDBDatabase> {
 				const store = request.result.objectStoreNames.contains(name)
 					? request.transaction!.objectStore(name)
 					: request.result.createObjectStore(name, { keyPath: "scopedId" });
-				for (const index of ["ownerKey", "syncedAt", "modifiedAt", "deleted"])
-					if (!store.indexNames.contains(index)) store.createIndex(index, index, { unique: false });
+				// These single-field indexes have no readers; each added unnecessary write work.
+				for (const index of ["syncedAt", "modifiedAt", "deleted"])
+					if (store.indexNames.contains(index)) store.deleteIndex(index);
+				if (!store.indexNames.contains("ownerKey")) store.createIndex("ownerKey", "ownerKey");
 				if (!store.indexNames.contains("ownerModifiedAt"))
 					store.createIndex("ownerModifiedAt", ["ownerKey", "modifiedAt"]);
 				if (domain === "transactions" && !store.indexNames.contains("ownerDate"))
