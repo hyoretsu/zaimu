@@ -151,7 +151,12 @@ describe("local PostgreSQL history fencing", () => {
 				)
 			).rows[0].count,
 		).toBe(1);
+		const versions = async () =>
+			(await first.query(`SELECT "id", xmin::text AS version FROM "FinancialHistoryUnit" ORDER BY "id"`))
+				.rows;
+		const beforeVersions = await versions();
 		await requestHistoryCollection("CURRENCY", ["BRL", "USD"], "2026-10-08", dependencies);
+		expect(await versions()).toEqual(beforeVersions);
 		expect(published).toHaveLength(729);
 		await expect(
 			requestHistoryCollection("CURRENCY", ["EUR"], "2026-10-08", {

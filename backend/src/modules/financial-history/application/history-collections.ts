@@ -100,11 +100,14 @@ export async function requestHistoryCollection(
 			if (kind === "CURRENCY") {
 				// One statement per phase, independent of the 365-day window size.
 				const units = await query<UnitRow>(
-					`INSERT INTO "FinancialHistoryUnit" ("id","deduplicationKey","kind","series","startDate","endDate")
+					`WITH inserted AS (
+					 INSERT INTO "FinancialHistoryUnit" ("id","deduplicationKey","kind","series","startDate","endDate")
 					 SELECT gen_random_uuid()::text, 'CURRENCY:' || $1 || ':' || day::date || ':' || day::date,
 					 'CURRENCY', $1, day::date, day::date FROM generate_series($2::date,$3::date,interval '1 day') day
-					 ON CONFLICT ("deduplicationKey") DO UPDATE SET "deduplicationKey"=EXCLUDED."deduplicationKey"
-					 RETURNING ${unitColumns}`,
+					 ON CONFLICT ("deduplicationKey") DO NOTHING RETURNING ${unitColumns}
+					 ) SELECT * FROM inserted UNION ALL
+					 SELECT ${unitColumns} FROM "FinancialHistoryUnit"
+					 WHERE "kind"='CURRENCY' AND "series"=$1 AND "startDate">=$2::date AND "endDate"<=$3::date`,
 					[value, window.startDate, window.endDate],
 				);
 				const ids = units.map(unit => unit.id);

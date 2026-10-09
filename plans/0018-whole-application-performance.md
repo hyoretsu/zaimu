@@ -412,3 +412,8 @@ Próxima etapa: validar fallback de cache e persistência incremental contra reg
 
 - WebKitGTK 2.54.1 executou oito rotas visitante vazias: cartões 817 ms, transações 932 ms, recorrências 518 ms, empréstimos 507 ms e ajustes 716 ms. Contas 1.061 ms e dívidas 1.005 ms reprovaram; dashboard terminou sem heading/prontidão após 60 s. Relatório versionado conserva timeout e ausência de long tasks.
 - Diagnóstico Chromium de compra foi interrompido na recarga entre amostras. Harness agora conserva métricas parciais em finally, exige quantidade completa e permite 60 s de observação sem alterar meta de 1 s. Reexecução ainda necessária.
+
+### Demanda cambial repetida
+
+- Upsert diário regravava unidades existentes mesmo sem alteração. CTE insere somente ausentes e reúne unidades já existentes sob advisory lock por série. Cobertura nova e agendamento continuam reavaliados.
+- Regressão PostgreSQL passou: 730 unidades/11 queries, 729 publicações únicas, xmin de todas as unidades preservado na repetição e rollback em falha. Integração completa ainda em execução; nova medição HTTP necessária.
