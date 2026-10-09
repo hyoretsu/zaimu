@@ -34,6 +34,9 @@ export const mutationScenarios = [
 	"currencyPreference",
 	"cardPayment",
 	"loanPayment",
+	"loanAdvance",
+	"recurrenceAdvance",
+	"recurrenceReplay",
 	"debtEvent",
 	"sync",
 	"statementImport",
@@ -44,6 +47,9 @@ const expectedActions = (name: string): string[] => {
 	if (name === "sync") return ["snapshot"];
 	if (name === "currencyPreference") return ["edit"];
 	if (name === "cardPayment") return ["pay", "delete"];
+	if (name === "loanAdvance") return ["create", "advance", "readAfterWrite"];
+	if (name === "recurrenceAdvance") return ["create", "advance", "delete"];
+	if (name === "recurrenceReplay") return ["create", "replay", "delete"];
 	if (name === "loanPayment") return ["create", "pay", "readAfterWrite"];
 	if (name === "loan") return ["create", "readAfterWrite"];
 	if (name.includes("Import")) return ["parse", "review", "delete"];
@@ -382,7 +388,15 @@ export async function runMutationScenario(name: string, context: Context) {
 					);
 					if (after.preferredCurrency !== "BRL") throw new Error("Preference mismatch");
 				} else {
-					const definition = definitions[name];
+					const definition =
+						definitions[
+							name === "loanAdvance"
+								? "loanPayment"
+								: name === "recurrenceAdvance" || name === "recurrenceReplay"
+									? "recurrence"
+									: name
+						];
+					if (name === "recurrenceReplay") definition!.body.startDate = "2026-07-01";
 					if (!definition) throw new Error("Unknown mutation scenario");
 					if (name === "transfer") {
 						const account = await call(
@@ -404,10 +418,33 @@ export async function runMutationScenario(name: string, context: Context) {
 						definition.body,
 					);
 					const id = responseId(created);
-					cleanup = ["loan", "loanPayment"].includes(name)
+					cleanup = ["loan", "loanPayment", "loanAdvance"].includes(name)
 						? () => cleanupPerformanceLoan(id, user)
 						: () => call("delete", `${definition.route}/${id}`, "DELETE");
-					if (name === "loanPayment") {
+					if (name === "recurrenceAdvance" || name === "recurrenceReplay") {
+						cleanup = () => call("delete", `${definition.route}/${id}?deleteTransactions=true`, "DELETE");
+						const action = name === "recurrenceAdvance" ? "advance" : "replay";
+						const result = record(
+							await call(
+								action,
+								`/recurring/${id}/${action}`,
+								"POST",
+								action === "advance" ? {} : { from: "2026-07-01", through: "2026-10-04" },
+							),
+						);
+						if (Number(result.created) < 1) throw new Error("Recurrence did not materialize");
+					} else if (name === "loanAdvance") {
+						const result = record(
+							await call("advance", `/loans/${id}/advance`, "POST", {
+								advanceType: "BACK",
+								financialAccountId: path("perf-account-main"),
+								installmentsToAdvance: 12,
+								paidDate: "2026-10-04",
+							}),
+						);
+						if (Number(result.advancedInstallments) !== 12 || Number(result.totalPaid) !== 1200)
+							throw new Error("Early loan payoff mismatch");
+					} else if (name === "loanPayment") {
 						const paid = record(
 							await call("pay", `/loans/${id}/payments/1/pay`, "POST", {
 								financialAccountId: path("perf-account-main"),
@@ -417,8 +454,10 @@ export async function runMutationScenario(name: string, context: Context) {
 						if (!paid.paidDate || Number(paid.principalPaid) !== 100)
 							throw new Error("Loan payment mismatch");
 					}
-					if (definition.edit) await call("edit", `${definition.route}/${id}`, "PATCH", definition.edit);
-					if (definition.detail) await call("readAfterWrite", `${definition.route}/${id}`);
+					if (definition.edit && !name.startsWith("recurrenceA") && name !== "recurrenceReplay")
+						await call("edit", `${definition.route}/${id}`, "PATCH", definition.edit);
+					if (definition.detail && !name.startsWith("recurrenceA") && name !== "recurrenceReplay")
+						await call("readAfterWrite", `${definition.route}/${id}`);
 				}
 			}
 		} catch (error) {

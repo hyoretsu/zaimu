@@ -355,3 +355,10 @@ Próxima etapa: validar fallback de cache e persistência incremental contra reg
 - Matriz recusa porta API ocupada, usa health público, encerra processos próprios ao interromper e retorna falha quando inventário global permanece incompleto. Revisão/descarte não herdam orçamento de 30 s do parser.
 
 - Spans do extrato normal ainda identificaram SELECTs com cerca de 13 s. Busca de referências externas trocada de milhares de condições para `ANY` parametrizado. Regressão de descarte em lote corrigida: fixture deve criar revisão concreta, não estado BANK_PENDING sem item de revisão.
+
+### Captura de referência após redução de consultas
+
+- Cinco amostras por ação, histórico de 10 mil transações e release local, sem builds simultâneos. Criação simples p95 341 ms; edição 315 ms; 48 parcelas 315 ms; reparcelamento 361 ms. Até 49 queries de negócio, sem regravação do histórico integral.
+- Extrato normal com mil itens: parsing p95 3.040 ms/25 queries; revisão 843 ms/16 queries; descarte 118 ms/5 queries. Cenários passaram seus orçamentos nessa rodada diagnóstica.
+- Relatório sanitizado `backend/performance/reports/financial-actions-reference-0018.json`. Não substitui três rodadas, cargas 1/5/20, históricos completos e plataformas.
+- Executor usa mesmo cálculo de percentis para leituras/escritas, exige spans e campos numéricos completos. Antecipação de empréstimo e avanço/replay de recorrência acrescentados; validação real ainda pendente.

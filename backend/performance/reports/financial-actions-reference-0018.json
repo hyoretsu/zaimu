@@ -1,0 +1,1061 @@
+{
+	"configuration": {
+		"fixture": {
+			"database": "zaimu_performance",
+			"namespace": "zaimu_performance",
+			"referenceDate": "2026-10-04",
+			"transactions": 10000,
+			"users": 1
+		},
+		"iterations": 5,
+		"loads": [1],
+		"machine": {
+			"bun": "1.4.2",
+			"cpu": "Intel(R) N150",
+			"cpus": 4,
+			"memoryBytes": 16526995456
+		},
+		"namespace": "zaimu_performance",
+		"rounds": 1
+	},
+	"diagnostic": true,
+	"globalAcceptance": false,
+	"scenarios": {
+		"purchase:1:1:mutation": {
+			"actions": {
+				"create": {
+					"count": 5,
+					"maxQueries": 46,
+					"p50Ms": 176.4731469999988,
+					"p95Ms": 341.35124800000085,
+					"p99Ms": 341.35124800000085,
+					"passed": true
+				},
+				"delete": {
+					"count": 5,
+					"maxQueries": 26,
+					"p50Ms": 144.76290700000027,
+					"p95Ms": 221.75407199999972,
+					"p99Ms": 221.75407199999972,
+					"passed": true
+				},
+				"edit": {
+					"count": 5,
+					"maxQueries": 39,
+					"p50Ms": 226.49986699999863,
+					"p95Ms": 315.373649000001,
+					"p99Ms": 315.373649000001,
+					"passed": true
+				},
+				"readAfterWrite": {
+					"count": 5,
+					"maxQueries": 13,
+					"p50Ms": 150.16381699999874,
+					"p95Ms": 302.3840970000001,
+					"p99Ms": 302.3840970000001,
+					"passed": true
+				}
+			},
+			"errors": [],
+			"samples": [
+				{
+					"action": "create",
+					"authQueries": 0,
+					"businessQueries": 46,
+					"bytes": 1372,
+					"connectionWaitMs": 0,
+					"durationMs": 341.35124800000085,
+					"queries": 46,
+					"sqlElapsedMs": 116.29,
+					"status": 200
+				},
+				{
+					"action": "edit",
+					"authQueries": 0,
+					"businessQueries": 39,
+					"bytes": 1378,
+					"connectionWaitMs": 0,
+					"durationMs": 208.8435470000004,
+					"queries": 39,
+					"sqlElapsedMs": 110.28,
+					"status": 200
+				},
+				{
+					"action": "readAfterWrite",
+					"authQueries": 0,
+					"businessQueries": 13,
+					"bytes": 284733,
+					"connectionWaitMs": 0.11,
+					"durationMs": 302.3840970000001,
+					"queries": 13,
+					"sqlElapsedMs": 59.95,
+					"status": 200
+				},
+				{
+					"action": "delete",
+					"authQueries": 0,
+					"businessQueries": 26,
+					"bytes": 16,
+					"connectionWaitMs": 0,
+					"durationMs": 174.83737499999916,
+					"queries": 26,
+					"sqlElapsedMs": 84.72,
+					"status": 200
+				},
+				{
+					"action": "create",
+					"authQueries": 0,
+					"businessQueries": 46,
+					"bytes": 1372,
+					"connectionWaitMs": 0,
+					"durationMs": 176.4731469999988,
+					"queries": 46,
+					"sqlElapsedMs": 99.69,
+					"status": 200
+				},
+				{
+					"action": "edit",
+					"authQueries": 0,
+					"businessQueries": 39,
+					"bytes": 1378,
+					"connectionWaitMs": 0,
+					"durationMs": 215.78333100000054,
+					"queries": 39,
+					"sqlElapsedMs": 147.06,
+					"status": 200
+				},
+				{
+					"action": "readAfterWrite",
+					"authQueries": 0,
+					"businessQueries": 13,
+					"bytes": 284772,
+					"connectionWaitMs": 0.28,
+					"durationMs": 150.16381699999874,
+					"queries": 13,
+					"sqlElapsedMs": 53.4,
+					"status": 200
+				},
+				{
+					"action": "delete",
+					"authQueries": 0,
+					"businessQueries": 26,
+					"bytes": 16,
+					"connectionWaitMs": 0,
+					"durationMs": 93.60121299999992,
+					"queries": 26,
+					"sqlElapsedMs": 52.87,
+					"status": 200
+				},
+				{
+					"action": "create",
+					"authQueries": 0,
+					"businessQueries": 46,
+					"bytes": 1372,
+					"connectionWaitMs": 0,
+					"durationMs": 161.8614519999992,
+					"queries": 46,
+					"sqlElapsedMs": 96.59,
+					"status": 200
+				},
+				{
+					"action": "edit",
+					"authQueries": 0,
+					"businessQueries": 39,
+					"bytes": 1378,
+					"connectionWaitMs": 0,
+					"durationMs": 315.373649000001,
+					"queries": 39,
+					"sqlElapsedMs": 227.74,
+					"status": 200
+				},
+				{
+					"action": "readAfterWrite",
+					"authQueries": 0,
+					"businessQueries": 13,
+					"bytes": 284811,
+					"connectionWaitMs": 0.89,
+					"durationMs": 155.79000500000075,
+					"queries": 13,
+					"sqlElapsedMs": 81.04,
+					"status": 200
+				},
+				{
+					"action": "delete",
+					"authQueries": 0,
+					"businessQueries": 26,
+					"bytes": 16,
+					"connectionWaitMs": 0,
+					"durationMs": 134.1092349999999,
+					"queries": 26,
+					"sqlElapsedMs": 79.7,
+					"status": 200
+				},
+				{
+					"action": "create",
+					"authQueries": 0,
+					"businessQueries": 46,
+					"bytes": 1372,
+					"connectionWaitMs": 0,
+					"durationMs": 174.0823440000022,
+					"queries": 46,
+					"sqlElapsedMs": 97.62,
+					"status": 200
+				},
+				{
+					"action": "edit",
+					"authQueries": 0,
+					"businessQueries": 39,
+					"bytes": 1378,
+					"connectionWaitMs": 0,
+					"durationMs": 272.8874109999997,
+					"queries": 39,
+					"sqlElapsedMs": 158.53,
+					"status": 200
+				},
+				{
+					"action": "readAfterWrite",
+					"authQueries": 0,
+					"businessQueries": 13,
+					"bytes": 284850,
+					"connectionWaitMs": 0.08,
+					"durationMs": 139.76736800000072,
+					"queries": 13,
+					"sqlElapsedMs": 81.38,
+					"status": 200
+				},
+				{
+					"action": "delete",
+					"authQueries": 0,
+					"businessQueries": 26,
+					"bytes": 16,
+					"connectionWaitMs": 0,
+					"durationMs": 144.76290700000027,
+					"queries": 26,
+					"sqlElapsedMs": 84.31,
+					"status": 200
+				},
+				{
+					"action": "create",
+					"authQueries": 0,
+					"businessQueries": 46,
+					"bytes": 1372,
+					"connectionWaitMs": 0,
+					"durationMs": 196.447919000002,
+					"queries": 46,
+					"sqlElapsedMs": 121.09,
+					"status": 200
+				},
+				{
+					"action": "edit",
+					"authQueries": 0,
+					"businessQueries": 39,
+					"bytes": 1378,
+					"connectionWaitMs": 0,
+					"durationMs": 226.49986699999863,
+					"queries": 39,
+					"sqlElapsedMs": 144.8,
+					"status": 200
+				},
+				{
+					"action": "readAfterWrite",
+					"authQueries": 0,
+					"businessQueries": 13,
+					"bytes": 284889,
+					"connectionWaitMs": 0.07,
+					"durationMs": 100.6669260000017,
+					"queries": 13,
+					"sqlElapsedMs": 58.75,
+					"status": 200
+				},
+				{
+					"action": "delete",
+					"authQueries": 0,
+					"businessQueries": 26,
+					"bytes": 16,
+					"connectionWaitMs": 0,
+					"durationMs": 221.75407199999972,
+					"queries": 26,
+					"sqlElapsedMs": 110.76,
+					"status": 200
+				}
+			]
+		},
+		"purchase48:1:1:mutation": {
+			"actions": {
+				"create": {
+					"count": 5,
+					"maxQueries": 46,
+					"p50Ms": 252.98907900000268,
+					"p95Ms": 314.87816499999826,
+					"p99Ms": 314.87816499999826,
+					"passed": true
+				},
+				"delete": {
+					"count": 5,
+					"maxQueries": 26,
+					"p50Ms": 186.4969549999987,
+					"p95Ms": 282.1288510000013,
+					"p99Ms": 282.1288510000013,
+					"passed": true
+				},
+				"edit": {
+					"count": 5,
+					"maxQueries": 39,
+					"p50Ms": 229.6188430000002,
+					"p95Ms": 260.4122839999982,
+					"p99Ms": 260.4122839999982,
+					"passed": true
+				},
+				"readAfterWrite": {
+					"count": 5,
+					"maxQueries": 13,
+					"p50Ms": 120.49064599999838,
+					"p95Ms": 152.17704299999968,
+					"p99Ms": 152.17704299999968,
+					"passed": true
+				}
+			},
+			"errors": [],
+			"samples": [
+				{
+					"action": "create",
+					"authQueries": 0,
+					"businessQueries": 46,
+					"bytes": 88728,
+					"connectionWaitMs": 0,
+					"durationMs": 209.6854370000001,
+					"queries": 46,
+					"sqlElapsedMs": 113.11,
+					"status": 200
+				},
+				{
+					"action": "edit",
+					"authQueries": 0,
+					"businessQueries": 39,
+					"bytes": 1800,
+					"connectionWaitMs": 0,
+					"durationMs": 229.6188430000002,
+					"queries": 39,
+					"sqlElapsedMs": 134.16,
+					"status": 200
+				},
+				{
+					"action": "readAfterWrite",
+					"authQueries": 0,
+					"businessQueries": 13,
+					"bytes": 285349,
+					"connectionWaitMs": 0.08,
+					"durationMs": 130.0412269999979,
+					"queries": 13,
+					"sqlElapsedMs": 70.29,
+					"status": 200
+				},
+				{
+					"action": "delete",
+					"authQueries": 0,
+					"businessQueries": 26,
+					"bytes": 16,
+					"connectionWaitMs": 0,
+					"durationMs": 187.13648799999646,
+					"queries": 26,
+					"sqlElapsedMs": 110.67,
+					"status": 200
+				},
+				{
+					"action": "create",
+					"authQueries": 0,
+					"businessQueries": 46,
+					"bytes": 88728,
+					"connectionWaitMs": 0,
+					"durationMs": 252.98907900000268,
+					"queries": 46,
+					"sqlElapsedMs": 144.44,
+					"status": 200
+				},
+				{
+					"action": "edit",
+					"authQueries": 0,
+					"businessQueries": 39,
+					"bytes": 1800,
+					"connectionWaitMs": 0,
+					"durationMs": 218.4361119999994,
+					"queries": 39,
+					"sqlElapsedMs": 135.24,
+					"status": 200
+				},
+				{
+					"action": "readAfterWrite",
+					"authQueries": 0,
+					"businessQueries": 13,
+					"bytes": 285388,
+					"connectionWaitMs": 0.07,
+					"durationMs": 89.1912650000013,
+					"queries": 13,
+					"sqlElapsedMs": 56.37,
+					"status": 200
+				},
+				{
+					"action": "delete",
+					"authQueries": 0,
+					"businessQueries": 26,
+					"bytes": 16,
+					"connectionWaitMs": 0,
+					"durationMs": 164.70385200000237,
+					"queries": 26,
+					"sqlElapsedMs": 101.67,
+					"status": 200
+				},
+				{
+					"action": "create",
+					"authQueries": 0,
+					"businessQueries": 46,
+					"bytes": 88728,
+					"connectionWaitMs": 0,
+					"durationMs": 200.2494680000018,
+					"queries": 46,
+					"sqlElapsedMs": 113.09,
+					"status": 200
+				},
+				{
+					"action": "edit",
+					"authQueries": 0,
+					"businessQueries": 39,
+					"bytes": 1800,
+					"connectionWaitMs": 0,
+					"durationMs": 140.78861699999834,
+					"queries": 39,
+					"sqlElapsedMs": 83.06,
+					"status": 200
+				},
+				{
+					"action": "readAfterWrite",
+					"authQueries": 0,
+					"businessQueries": 13,
+					"bytes": 285427,
+					"connectionWaitMs": 0.08,
+					"durationMs": 118.24826300000132,
+					"queries": 13,
+					"sqlElapsedMs": 73.72,
+					"status": 200
+				},
+				{
+					"action": "delete",
+					"authQueries": 0,
+					"businessQueries": 26,
+					"bytes": 16,
+					"connectionWaitMs": 0,
+					"durationMs": 282.1288510000013,
+					"queries": 26,
+					"sqlElapsedMs": 164.29,
+					"status": 200
+				},
+				{
+					"action": "create",
+					"authQueries": 0,
+					"businessQueries": 46,
+					"bytes": 88728,
+					"connectionWaitMs": 0,
+					"durationMs": 304.55992100000003,
+					"queries": 46,
+					"sqlElapsedMs": 181.07,
+					"status": 200
+				},
+				{
+					"action": "edit",
+					"authQueries": 0,
+					"businessQueries": 39,
+					"bytes": 1800,
+					"connectionWaitMs": 0,
+					"durationMs": 233.9181040000003,
+					"queries": 39,
+					"sqlElapsedMs": 144,
+					"status": 200
+				},
+				{
+					"action": "readAfterWrite",
+					"authQueries": 0,
+					"businessQueries": 13,
+					"bytes": 285466,
+					"connectionWaitMs": 0.08,
+					"durationMs": 120.49064599999838,
+					"queries": 13,
+					"sqlElapsedMs": 61.31,
+					"status": 200
+				},
+				{
+					"action": "delete",
+					"authQueries": 0,
+					"businessQueries": 26,
+					"bytes": 16,
+					"connectionWaitMs": 0,
+					"durationMs": 162.7814580000013,
+					"queries": 26,
+					"sqlElapsedMs": 86.38,
+					"status": 200
+				},
+				{
+					"action": "create",
+					"authQueries": 0,
+					"businessQueries": 46,
+					"bytes": 88728,
+					"connectionWaitMs": 0,
+					"durationMs": 314.87816499999826,
+					"queries": 46,
+					"sqlElapsedMs": 175.22,
+					"status": 200
+				},
+				{
+					"action": "edit",
+					"authQueries": 0,
+					"businessQueries": 39,
+					"bytes": 1800,
+					"connectionWaitMs": 0,
+					"durationMs": 260.4122839999982,
+					"queries": 39,
+					"sqlElapsedMs": 179.69,
+					"status": 200
+				},
+				{
+					"action": "readAfterWrite",
+					"authQueries": 0,
+					"businessQueries": 13,
+					"bytes": 285505,
+					"connectionWaitMs": 0.07,
+					"durationMs": 152.17704299999968,
+					"queries": 13,
+					"sqlElapsedMs": 74.59,
+					"status": 200
+				},
+				{
+					"action": "delete",
+					"authQueries": 0,
+					"businessQueries": 26,
+					"bytes": 16,
+					"connectionWaitMs": 0,
+					"durationMs": 186.4969549999987,
+					"queries": 26,
+					"sqlElapsedMs": 105.97,
+					"status": 200
+				}
+			]
+		},
+		"purchaseRefinance:1:1:mutation": {
+			"actions": {
+				"create": {
+					"count": 5,
+					"maxQueries": 46,
+					"p50Ms": 148.46652299999914,
+					"p95Ms": 167.92622699999993,
+					"p99Ms": 167.92622699999993,
+					"passed": true
+				},
+				"delete": {
+					"count": 5,
+					"maxQueries": 25,
+					"p50Ms": 106.61903300000267,
+					"p95Ms": 182.25969800000166,
+					"p99Ms": 182.25969800000166,
+					"passed": true
+				},
+				"deleteRefinanced": {
+					"count": 5,
+					"maxQueries": 26,
+					"p50Ms": 161.32948300000135,
+					"p95Ms": 187.03507100000206,
+					"p99Ms": 187.03507100000206,
+					"passed": true
+				},
+				"readAfterWrite": {
+					"count": 5,
+					"maxQueries": 13,
+					"p50Ms": 91.1858170000014,
+					"p95Ms": 206.84359300000142,
+					"p99Ms": 206.84359300000142,
+					"passed": true
+				},
+				"refinance": {
+					"count": 5,
+					"maxQueries": 49,
+					"p50Ms": 273.9009530000003,
+					"p95Ms": 360.7344809999995,
+					"p99Ms": 360.7344809999995,
+					"passed": true
+				}
+			},
+			"errors": [],
+			"samples": [
+				{
+					"action": "create",
+					"authQueries": 0,
+					"businessQueries": 46,
+					"bytes": 1381,
+					"connectionWaitMs": 0,
+					"durationMs": 148.39688299999762,
+					"queries": 46,
+					"sqlElapsedMs": 88,
+					"status": 200
+				},
+				{
+					"action": "refinance",
+					"authQueries": 0,
+					"businessQueries": 49,
+					"bytes": 20106,
+					"connectionWaitMs": 0,
+					"durationMs": 173.61911099999998,
+					"queries": 49,
+					"sqlElapsedMs": 91.59,
+					"status": 200
+				},
+				{
+					"action": "readAfterWrite",
+					"authQueries": 0,
+					"businessQueries": 13,
+					"bytes": 286390,
+					"connectionWaitMs": 0.06,
+					"durationMs": 87.43651599999794,
+					"queries": 13,
+					"sqlElapsedMs": 57.34,
+					"status": 200
+				},
+				{
+					"action": "deleteRefinanced",
+					"authQueries": 0,
+					"businessQueries": 26,
+					"bytes": 16,
+					"connectionWaitMs": 0,
+					"durationMs": 150.81608700000288,
+					"queries": 26,
+					"sqlElapsedMs": 78.91,
+					"status": 200
+				},
+				{
+					"action": "delete",
+					"authQueries": 0,
+					"businessQueries": 25,
+					"bytes": 16,
+					"connectionWaitMs": 0,
+					"durationMs": 182.25969800000166,
+					"queries": 25,
+					"sqlElapsedMs": 122.9,
+					"status": 200
+				},
+				{
+					"action": "create",
+					"authQueries": 0,
+					"businessQueries": 46,
+					"bytes": 1381,
+					"connectionWaitMs": 0,
+					"durationMs": 167.92622699999993,
+					"queries": 46,
+					"sqlElapsedMs": 95.6,
+					"status": 200
+				},
+				{
+					"action": "refinance",
+					"authQueries": 0,
+					"businessQueries": 49,
+					"bytes": 20106,
+					"connectionWaitMs": 0,
+					"durationMs": 273.9009530000003,
+					"queries": 49,
+					"sqlElapsedMs": 144.31,
+					"status": 200
+				},
+				{
+					"action": "readAfterWrite",
+					"authQueries": 0,
+					"businessQueries": 13,
+					"bytes": 286468,
+					"connectionWaitMs": 0.07,
+					"durationMs": 91.1858170000014,
+					"queries": 13,
+					"sqlElapsedMs": 51.07,
+					"status": 200
+				},
+				{
+					"action": "deleteRefinanced",
+					"authQueries": 0,
+					"businessQueries": 26,
+					"bytes": 16,
+					"connectionWaitMs": 0,
+					"durationMs": 161.32948300000135,
+					"queries": 26,
+					"sqlElapsedMs": 86.71,
+					"status": 200
+				},
+				{
+					"action": "delete",
+					"authQueries": 0,
+					"businessQueries": 25,
+					"bytes": 16,
+					"connectionWaitMs": 0,
+					"durationMs": 125.67380799999955,
+					"queries": 25,
+					"sqlElapsedMs": 80.42,
+					"status": 200
+				},
+				{
+					"action": "create",
+					"authQueries": 0,
+					"businessQueries": 46,
+					"bytes": 1381,
+					"connectionWaitMs": 0,
+					"durationMs": 146.31301600000006,
+					"queries": 46,
+					"sqlElapsedMs": 90.91,
+					"status": 200
+				},
+				{
+					"action": "refinance",
+					"authQueries": 0,
+					"businessQueries": 49,
+					"bytes": 20106,
+					"connectionWaitMs": 0,
+					"durationMs": 255.12123200000133,
+					"queries": 49,
+					"sqlElapsedMs": 149.95,
+					"status": 200
+				},
+				{
+					"action": "readAfterWrite",
+					"authQueries": 0,
+					"businessQueries": 13,
+					"bytes": 286546,
+					"connectionWaitMs": 0.08,
+					"durationMs": 206.84359300000142,
+					"queries": 13,
+					"sqlElapsedMs": 135.61,
+					"status": 200
+				},
+				{
+					"action": "deleteRefinanced",
+					"authQueries": 0,
+					"businessQueries": 26,
+					"bytes": 16,
+					"connectionWaitMs": 0,
+					"durationMs": 173.67526400000133,
+					"queries": 26,
+					"sqlElapsedMs": 103.53,
+					"status": 200
+				},
+				{
+					"action": "delete",
+					"authQueries": 0,
+					"businessQueries": 25,
+					"bytes": 16,
+					"connectionWaitMs": 0,
+					"durationMs": 106.61903300000267,
+					"queries": 25,
+					"sqlElapsedMs": 64.33,
+					"status": 200
+				},
+				{
+					"action": "create",
+					"authQueries": 0,
+					"businessQueries": 46,
+					"bytes": 1381,
+					"connectionWaitMs": 0,
+					"durationMs": 149.09901499999978,
+					"queries": 46,
+					"sqlElapsedMs": 95.33,
+					"status": 200
+				},
+				{
+					"action": "refinance",
+					"authQueries": 0,
+					"businessQueries": 49,
+					"bytes": 20106,
+					"connectionWaitMs": 0,
+					"durationMs": 360.7344809999995,
+					"queries": 49,
+					"sqlElapsedMs": 210.31,
+					"status": 200
+				},
+				{
+					"action": "readAfterWrite",
+					"authQueries": 0,
+					"businessQueries": 13,
+					"bytes": 286624,
+					"connectionWaitMs": 0.07,
+					"durationMs": 101.96174400000018,
+					"queries": 13,
+					"sqlElapsedMs": 60.69,
+					"status": 200
+				},
+				{
+					"action": "deleteRefinanced",
+					"authQueries": 0,
+					"businessQueries": 26,
+					"bytes": 16,
+					"connectionWaitMs": 0,
+					"durationMs": 187.03507100000206,
+					"queries": 26,
+					"sqlElapsedMs": 116.22,
+					"status": 200
+				},
+				{
+					"action": "delete",
+					"authQueries": 0,
+					"businessQueries": 25,
+					"bytes": 16,
+					"connectionWaitMs": 0,
+					"durationMs": 88.6118069999975,
+					"queries": 25,
+					"sqlElapsedMs": 53.7,
+					"status": 200
+				},
+				{
+					"action": "create",
+					"authQueries": 0,
+					"businessQueries": 46,
+					"bytes": 1381,
+					"connectionWaitMs": 0,
+					"durationMs": 148.46652299999914,
+					"queries": 46,
+					"sqlElapsedMs": 96.69,
+					"status": 200
+				},
+				{
+					"action": "refinance",
+					"authQueries": 0,
+					"businessQueries": 49,
+					"bytes": 20106,
+					"connectionWaitMs": 0,
+					"durationMs": 285.9283929999983,
+					"queries": 49,
+					"sqlElapsedMs": 178.66,
+					"status": 200
+				},
+				{
+					"action": "readAfterWrite",
+					"authQueries": 0,
+					"businessQueries": 13,
+					"bytes": 286702,
+					"connectionWaitMs": 0.05,
+					"durationMs": 51.87542499999836,
+					"queries": 13,
+					"sqlElapsedMs": 30.43,
+					"status": 200
+				},
+				{
+					"action": "deleteRefinanced",
+					"authQueries": 0,
+					"businessQueries": 26,
+					"bytes": 16,
+					"connectionWaitMs": 0,
+					"durationMs": 88.42097300000023,
+					"queries": 26,
+					"sqlElapsedMs": 54.94,
+					"status": 200
+				},
+				{
+					"action": "delete",
+					"authQueries": 0,
+					"businessQueries": 25,
+					"bytes": 16,
+					"connectionWaitMs": 0,
+					"durationMs": 74.29214199999842,
+					"queries": 25,
+					"sqlElapsedMs": 45.46,
+					"status": 200
+				}
+			]
+		},
+		"statementImport:1:1:mutation": {
+			"actions": {
+				"delete": {
+					"count": 5,
+					"maxQueries": 5,
+					"p50Ms": 84.3600690000003,
+					"p95Ms": 118.25466799999958,
+					"p99Ms": 118.25466799999958,
+					"passed": true
+				},
+				"parse": {
+					"count": 5,
+					"maxQueries": 25,
+					"p50Ms": 1407.943220000001,
+					"p95Ms": 3039.5789300000006,
+					"p99Ms": 3039.5789300000006,
+					"passed": true
+				},
+				"review": {
+					"count": 5,
+					"maxQueries": 16,
+					"p50Ms": 774.1600409999992,
+					"p95Ms": 842.9179130000011,
+					"p99Ms": 842.9179130000011,
+					"passed": true
+				}
+			},
+			"errors": [],
+			"samples": [
+				{
+					"action": "parse",
+					"authQueries": 2,
+					"businessQueries": 23,
+					"bytes": 34513,
+					"connectionWaitMs": 0,
+					"durationMs": 3039.5789300000006,
+					"queries": 25,
+					"sqlElapsedMs": 1212.79,
+					"status": 200
+				},
+				{
+					"action": "review",
+					"authQueries": 0,
+					"businessQueries": 16,
+					"bytes": 34474,
+					"connectionWaitMs": 390.47,
+					"durationMs": 838.840569,
+					"queries": 16,
+					"sqlElapsedMs": 383.06,
+					"status": 200
+				},
+				{
+					"action": "delete",
+					"authQueries": 0,
+					"businessQueries": 5,
+					"bytes": 16,
+					"connectionWaitMs": 0,
+					"durationMs": 84.3600690000003,
+					"queries": 5,
+					"sqlElapsedMs": 60.89,
+					"status": 200
+				},
+				{
+					"action": "parse",
+					"authQueries": 0,
+					"businessQueries": 23,
+					"bytes": 34516,
+					"connectionWaitMs": 0,
+					"durationMs": 1335.0555709999999,
+					"queries": 23,
+					"sqlElapsedMs": 823.52,
+					"status": 200
+				},
+				{
+					"action": "review",
+					"authQueries": 0,
+					"businessQueries": 16,
+					"bytes": 34477,
+					"connectionWaitMs": 7.01,
+					"durationMs": 772.6368080000002,
+					"queries": 16,
+					"sqlElapsedMs": 644.97,
+					"status": 200
+				},
+				{
+					"action": "delete",
+					"authQueries": 0,
+					"businessQueries": 5,
+					"bytes": 16,
+					"connectionWaitMs": 0,
+					"durationMs": 53.15426900000057,
+					"queries": 5,
+					"sqlElapsedMs": 40.99,
+					"status": 200
+				},
+				{
+					"action": "parse",
+					"authQueries": 0,
+					"businessQueries": 23,
+					"bytes": 34516,
+					"connectionWaitMs": 0,
+					"durationMs": 1559.163399,
+					"queries": 23,
+					"sqlElapsedMs": 871.94,
+					"status": 200
+				},
+				{
+					"action": "review",
+					"authQueries": 0,
+					"businessQueries": 16,
+					"bytes": 34477,
+					"connectionWaitMs": 4.06,
+					"durationMs": 636.1539389999998,
+					"queries": 16,
+					"sqlElapsedMs": 225.31,
+					"status": 200
+				},
+				{
+					"action": "delete",
+					"authQueries": 0,
+					"businessQueries": 5,
+					"bytes": 16,
+					"connectionWaitMs": 0,
+					"durationMs": 46.58254999999917,
+					"queries": 5,
+					"sqlElapsedMs": 35.87,
+					"status": 200
+				},
+				{
+					"action": "parse",
+					"authQueries": 0,
+					"businessQueries": 23,
+					"bytes": 34511,
+					"connectionWaitMs": 0,
+					"durationMs": 1407.943220000001,
+					"queries": 23,
+					"sqlElapsedMs": 1023.01,
+					"status": 200
+				},
+				{
+					"action": "review",
+					"authQueries": 0,
+					"businessQueries": 16,
+					"bytes": 34472,
+					"connectionWaitMs": 13.93,
+					"durationMs": 842.9179130000011,
+					"queries": 16,
+					"sqlElapsedMs": 653.56,
+					"status": 200
+				},
+				{
+					"action": "delete",
+					"authQueries": 0,
+					"businessQueries": 5,
+					"bytes": 16,
+					"connectionWaitMs": 0,
+					"durationMs": 99.65793099999973,
+					"queries": 5,
+					"sqlElapsedMs": 75.48,
+					"status": 200
+				},
+				{
+					"action": "parse",
+					"authQueries": 0,
+					"businessQueries": 23,
+					"bytes": 34518,
+					"connectionWaitMs": 0,
+					"durationMs": 1329.2284740000014,
+					"queries": 23,
+					"sqlElapsedMs": 921.15,
+					"status": 200
+				},
+				{
+					"action": "review",
+					"authQueries": 0,
+					"businessQueries": 16,
+					"bytes": 34479,
+					"connectionWaitMs": 11.96,
+					"durationMs": 774.1600409999992,
+					"queries": 16,
+					"sqlElapsedMs": 546.48,
+					"status": 200
+				},
+				{
+					"action": "delete",
+					"authQueries": 0,
+					"businessQueries": 5,
+					"bytes": 16,
+					"connectionWaitMs": 0,
+					"durationMs": 118.25466799999958,
+					"queries": 5,
+					"sqlElapsedMs": 89.23,
+					"status": 200
+				}
+			]
+		}
+	}
+}

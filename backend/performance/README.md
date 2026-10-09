@@ -58,4 +58,8 @@ bun run scripts/test-runner.ts backend integration
 
 Testes do executor verificam seleção, percentis, concorrência, timeout configurado, redirects, headers inválidos, cobertura ausente, resultado financeiro e limpeza após falha. Testes de cache verificam contenção, invalidação concorrente e propriedade de locks; regressões de persistência verificam trabalho constante para edição isolada em históricos crescentes.
 
-Cobertura de importações/aprovações, pagamentos, sincronização, offline/IndexedDB, falhas de infraestrutura, backlog, startup, jornadas de navegação e plataformas nativas ainda precisa completar matriz do plano 0018. Nenhum relatório HTTP pode aprovar essas áreas por inferência. Pendências ficam explícitas no inventário e impedem aceite global.
+Cobertura de aprovação/reconciliação de importações, sync incremental, offline completo/IndexedDB, falhas de infraestrutura, backlog, startup, jornadas de navegação e plataformas nativas ainda precisa completar matriz do plano 0018. Nenhum relatório HTTP pode aprovar essas áreas por inferência. Pendências ficam explícitas no inventário e impedem aceite global.
+
+`statementImport` gera mil valores distintos; `statementImportDuplicates` preserva mil valores iguais, caso extremo de resposta com candidatos repetidos. Parsing tem orçamento de 30 s; revisão e descarte mantêm 1 s. `loanAdvance`, `recurrenceAdvance` e `recurrenceReplay` medem antecipação/materialização com limpeza dos efeitos criados.
+
+Navegador inclui navegação nos oito módulos e diagnóstico de leitura/escrita IndexedDB com isolamento entre duas identidades. Teste de storage é diagnóstico, não substitui equivalência financeira e migração visitante. Relatório comparativo das ações corrigidas fica em `reports/financial-actions-reference-0018.json`.

@@ -5,7 +5,7 @@ import { completeCoverage, evaluateCoverage } from "./coverage";
 import coverage from "./coverage.json";
 import { mutationScenarios, runMutationScenario } from "./mutations";
 import { preflight } from "./preflight";
-import { captureRequest, completeMetrics, type RequestSample, selectScenarios } from "./runner";
+import { captureRequest, completeMetrics, percentile, type RequestSample, selectScenarios } from "./runner";
 import { attachTelemetry, completeTelemetry, readTelemetry } from "./telemetry";
 
 const base = new URL(process.env.PERFORMANCE_BASE_URL ?? "http://127.0.0.1:3335");
@@ -146,7 +146,7 @@ try {
 					const key = `${name}:${round}:${load}:${mode}`;
 					summaries.push({ load, maxQueries, mode, name, p95Ms, passed, round });
 					results[key] = {
-						p50Ms: values[Math.floor(values.length / 2)],
+						p50Ms: percentile(values, 0.5),
 						p95Ms,
 						p99Ms: values[Math.ceil(values.length * 0.99) - 1],
 						passed,
