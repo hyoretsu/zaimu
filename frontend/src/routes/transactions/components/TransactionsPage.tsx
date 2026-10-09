@@ -139,6 +139,7 @@ export function TransactionsPage() {
 		filters.categoryId === "all" &&
 		(!filters.search || "rendimento".includes(filters.search.trim().toLocaleLowerCase("pt-BR")));
 	const transactionDays = transactionsQuery.data?.pages.flatMap(page => page.days) ?? [];
+	const transactionQueryFilters = toTransactionQueryFilters(filters);
 	const yieldFilters = {
 		endDate: filters.dateRange.endDate || undefined,
 		startDate:
@@ -146,6 +147,11 @@ export function TransactionsPage() {
 			(transactionsQuery.hasNextPage ? transactionDays.at(-1)?.date : undefined),
 		visibility: filters.visibility === "all" ? undefined : filters.visibility,
 	} as const;
+	const yieldQueryScope = [
+		...queryKeys.accountYields.all(identity!),
+		"transaction-list",
+		transactionQueryFilters,
+	] as const;
 	const yieldsQuery = useInfiniteQuery<
 		Awaited<ReturnType<typeof dataService.accountYields.getDisplayPage>>,
 		Error,
@@ -158,18 +164,19 @@ export function TransactionsPage() {
 		enabled: identity !== null && yieldsMatchFilters && !transactionsQuery.isPending,
 		getNextPageParam: page => page.nextCursor ?? undefined,
 		initialPageParam: undefined as string | undefined,
+		// Pagination widens the yield interval. Keep existing rows mounted while it loads,
+		// but retain the initial loading state when the user changes filters.
+		placeholderData: (previousData, previousQuery) =>
+			JSON.stringify(previousQuery?.queryKey.slice(0, -1)) === JSON.stringify(yieldQueryScope)
+				? previousData
+				: undefined,
 		queryFn: ({ pageParam }) =>
 			dataService.accountYields.getDisplayPage(
 				filters.accountId === "all" ? undefined : filters.accountId,
 				pageParam,
 				yieldFilters,
 			),
-		queryKey: [
-			...queryKeys.accountYields.all(identity!),
-			"transaction-list",
-			filters.accountId,
-			yieldFilters,
-		],
+		queryKey: [...yieldQueryScope, yieldFilters],
 	});
 	const accountNames = new Map(yieldsQuery.data?.pages.flatMap(page => page.accountNames));
 
