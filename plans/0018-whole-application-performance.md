@@ -400,3 +400,5 @@ Próxima etapa: validar fallback de cache e persistência incremental contra reg
 
 - Repetição release: sugestões caíram de 296.236 para 1.908 ms (duas queries), removendo bloqueio global. Lookup também passa a excluir horários nulos no SQL, pois jamais compõem sugestão válida. Nova captura pendente; meta de 1 s não foi relaxada.
 - Regressão real de POST bem-sucedido seguido de GET 500 passou: confirmação permanece visível, cartão continua montado e retry recupera leitura.
+
+- Fixture de navegador usa `accountName`, campo real do contrato do cartão; observador de confirmação encerra após resultado. Diagnóstico WebView também recusa execução encerrada com rotas ausentes.

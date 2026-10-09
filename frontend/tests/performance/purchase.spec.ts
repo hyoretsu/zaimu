@@ -76,11 +76,11 @@ test("release purchase save measures persisted confirmation and refreshed conten
 			const beforeCardsResponse = await page.request.get(`${api}/credit-cards`);
 			expect(beforeCardsResponse.ok()).toBeTruthy();
 			const beforeCards = (await beforeCardsResponse.json()) as {
-				name: string;
+				accountName: string;
 				currency: string;
 				limit: { availableLimit: number };
 			}[];
-			const selectedCard = beforeCards.find(card => card.name === "Cartão 01");
+			const selectedCard = beforeCards.find(card => card.accountName === "Cartão 01");
 			expect(selectedCard).toBeDefined();
 			const expectedAvailable = new Intl.NumberFormat("pt-BR", {
 				currency: selectedCard!.currency,
@@ -107,6 +107,7 @@ test("release purchase save measures persisted confirmation and refreshed conten
 						document.body.textContent?.includes("Compra registrada e faturas recalculadas.")
 					) {
 						state.confirmedAt ||= performance.now();
+						observer.disconnect();
 					}
 				});
 				observer.observe(document.body, { characterData: true, childList: true, subtree: true });
