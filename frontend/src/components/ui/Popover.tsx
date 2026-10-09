@@ -1,5 +1,6 @@
 import { Popover as PopoverPrimitive } from "radix-ui";
 import type { ComponentProps } from "react";
+import { usePopupViewportShift } from "@/hooks/use-popup-viewport-shift";
 import { useRouteDismissableOpen } from "@/hooks/use-route-dismissable-open";
 import { cn } from "@/lib/utils";
 
@@ -18,19 +19,30 @@ function PopoverContent({
 	portal = true,
 	sideOffset = 4,
 	sticky = "always",
+	ref,
+	style,
 	...props
 }: ComponentProps<typeof PopoverPrimitive.Content> & { portal?: boolean }) {
+	const constrained = style?.maxHeight !== undefined || /(?:^|\s)(?:\S+:)?max-h-/.test(className ?? "");
+	const popupRef = usePopupViewportShift(!constrained);
 	const content = (
 		<PopoverPrimitive.Content
 			align={align}
 			className={cn(
-				"scrollbar-themed data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-closed:fade-out-0 data-closed:zoom-out-95 data-open:fade-in-0 data-open:zoom-in-95 pointer-events-auto z-50 flex max-h-[min(calc(100dvh-2rem),var(--radix-popover-content-available-height))] w-72 max-w-[min(calc(100vw-2rem),var(--radix-popover-content-available-width))] origin-(--radix-popover-content-transform-origin) flex-col gap-4 overflow-y-auto overflow-x-hidden rounded-2xl bg-popover p-4 text-popover-foreground text-sm shadow-2xl outline-hidden ring-1 ring-foreground/5 duration-100 data-closed:animate-out data-open:animate-in",
+				"scrollbar-themed data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-closed:fade-out-0 data-closed:zoom-out-95 data-open:fade-in-0 data-open:zoom-in-95 pointer-events-auto z-50 flex max-h-(--popup-viewport-height) w-72 max-w-[min(calc(100vw-2rem),var(--radix-popover-content-available-width))] origin-(--radix-popover-content-transform-origin) flex-col gap-4 overflow-y-auto overflow-x-hidden rounded-2xl bg-popover p-4 text-popover-foreground text-sm shadow-2xl outline-hidden ring-1 ring-foreground/5 duration-100 data-closed:animate-out data-open:animate-in",
+				constrained && "max-h-(--radix-popover-content-available-height)",
 				className,
 			)}
 			collisionPadding={16}
 			data-slot="popover-content"
+			ref={node => {
+				popupRef(node);
+				if (typeof ref === "function") return ref(node);
+				if (ref) ref.current = node;
+			}}
 			sideOffset={sideOffset}
 			sticky={sticky}
+			style={style}
 			{...props}
 		/>
 	);

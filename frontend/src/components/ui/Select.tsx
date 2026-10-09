@@ -2,6 +2,7 @@ import { ArrowDown01Icon, ArrowUp01Icon, Tick02Icon, UnfoldMoreIcon } from "@hug
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Select as SelectPrimitive } from "radix-ui";
 import type { ComponentProps, ReactNode } from "react";
+import { usePopupViewportShift } from "@/hooks/use-popup-viewport-shift";
 import { useRouteDismissableOpen } from "@/hooks/use-route-dismissable-open";
 import { cn } from "@/lib/utils";
 
@@ -58,6 +59,8 @@ function SelectContent({
 	scrollButtons = true,
 	align = "center",
 	sticky = "always",
+	ref,
+	style,
 	viewportClassName,
 	...props
 }: ComponentProps<typeof SelectPrimitive.Content> & {
@@ -65,22 +68,31 @@ function SelectContent({
 	scrollButtons?: boolean;
 	viewportClassName?: string;
 }) {
+	const constrained = style?.maxHeight !== undefined || /(?:^|\s)(?:\S+:)?max-h-/.test(className ?? "");
+	const popupRef = usePopupViewportShift(!constrained, position === "item-aligned");
 	return (
 		<SelectPrimitive.Portal>
 			<SelectPrimitive.Content
 				align={align}
 				className={cn(
-					"scrollbar-themed data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 relative z-50 max-h-(--radix-select-content-available-height) min-w-36 max-w-[calc(100vw-2rem)] origin-(--radix-select-content-transform-origin) rounded-2xl bg-popover text-popover-foreground shadow-2xl ring-1 ring-foreground/5 duration-100 data-[align-trigger=true]:animate-none data-closed:animate-out data-open:animate-in",
+					"scrollbar-themed data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 relative z-50 max-h-(--popup-viewport-height) min-w-36 max-w-[calc(100vw-2rem)] origin-(--radix-select-content-transform-origin) rounded-2xl bg-popover text-popover-foreground shadow-2xl ring-1 ring-foreground/5 duration-100 data-[align-trigger=true]:animate-none data-closed:animate-out data-open:animate-in",
 					header ? "overflow-hidden" : "overflow-y-auto overflow-x-hidden",
 					position === "popper" &&
 						"data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1",
+					constrained && "max-h-(--radix-select-content-available-height)",
 					className,
 				)}
 				collisionPadding={16}
 				data-align-trigger={position === "item-aligned"}
 				data-slot="select-content"
 				position={position}
+				ref={node => {
+					popupRef(node);
+					if (typeof ref === "function") return ref(node);
+					if (ref) ref.current = node;
+				}}
 				sticky={sticky}
+				style={style}
 				{...props}
 			>
 				{scrollButtons && <SelectScrollUpButton />}
