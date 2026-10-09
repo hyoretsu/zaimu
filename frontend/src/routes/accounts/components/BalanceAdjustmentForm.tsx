@@ -5,6 +5,7 @@ import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
 import {
 	Dialog,
+	DialogBody,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
@@ -80,40 +81,42 @@ export function BalanceAdjustmentForm({
 						automaticamente.
 					</DialogDescription>
 				</DialogHeader>
-				<div className="grid gap-4">
-					<CustomSelect
-						label="Conta"
-						onValueChange={setFinancialAccountId}
-						options={accounts.map(account => ({
-							label: getFinancialAccountOptionLabel(account),
-							value: account.id,
-						}))}
-						placeholder="Selecione a conta"
-						required
-						searchable
-						value={financialAccountId}
-					/>
-					<DateField
-						id="balance-adjustment-date"
-						label="Data"
-						name="date"
-						onValueChange={setDate}
-						required
-						value={date}
-					/>
-					<MoneyField
-						currencyCode={
-							accounts.find(account => account.id === financialAccountId)?.currency ??
-							adjustment?.currency ??
-							"BRL"
-						}
-						id="balance-adjustment-balance"
-						label="Saldo real"
-						onValueChange={setBalance}
-						required
-						value={balance}
-					/>
-				</div>
+				<DialogBody>
+					<div className="grid gap-4">
+						<CustomSelect
+							label="Conta"
+							onValueChange={setFinancialAccountId}
+							options={accounts.map(account => ({
+								label: getFinancialAccountOptionLabel(account),
+								value: account.id,
+							}))}
+							placeholder="Selecione a conta"
+							required
+							searchable
+							value={financialAccountId}
+						/>
+						<DateField
+							id="balance-adjustment-date"
+							label="Data"
+							name="date"
+							onValueChange={setDate}
+							required
+							value={date}
+						/>
+						<MoneyField
+							currencyCode={
+								accounts.find(account => account.id === financialAccountId)?.currency ??
+								adjustment?.currency ??
+								"BRL"
+							}
+							id="balance-adjustment-balance"
+							label="Saldo real"
+							onValueChange={setBalance}
+							required
+							value={balance}
+						/>
+					</div>
+				</DialogBody>
 				<DialogFooter>
 					<Button className="cursor-pointer" onClick={onClose} variant="outline">
 						Descartar

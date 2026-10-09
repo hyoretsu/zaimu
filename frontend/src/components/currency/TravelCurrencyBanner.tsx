@@ -6,13 +6,13 @@ import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import {
 	Dialog,
+	DialogBody,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
-import { ScrollArea } from "@/components/ui/ScrollArea";
 import { localMeta } from "@/lib/localStorage";
 import { useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
@@ -92,16 +92,18 @@ export function TravelCurrencyBanner() {
 				}}
 				open={open}
 			>
-				<DialogContent className="overflow-hidden" showCloseButton={!saving}>
+				<DialogContent className="" showCloseButton={!saving}>
 					<DialogHeader>
 						<DialogTitle>Usar {target} como moeda padrão?</DialogTitle>
 					</DialogHeader>
-					<ScrollArea className="max-h-48 min-h-0">
-						<DialogDescription>
-							Novos cadastros e totais usarão {target}. Compras, contas e cartões existentes mantêm seus
-							valores e moedas.
-						</DialogDescription>
-					</ScrollArea>
+					<DialogBody>
+						<div>
+							<DialogDescription>
+								Novos cadastros e totais usarão {target}. Compras, contas e cartões existentes mantêm seus
+								valores e moedas.
+							</DialogDescription>
+						</div>
+					</DialogBody>
 					<DialogFooter>
 						<Button disabled={saving} onClick={() => setOpen(false)} variant="outline">
 							Cancelar

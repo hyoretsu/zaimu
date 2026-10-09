@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import {
 	Dialog,
+	DialogBody,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
@@ -95,50 +96,52 @@ export function ImportCreditCardStatementDialog({
 						Selecione a instituição da fatura e revise as compras antes de aprovar.
 					</DialogDescription>
 				</DialogHeader>
-				<div className="grid gap-4">
-					<CustomSelect
-						label="Instituição"
-						onValueChange={value => setProvider(value as CreditCardImport["provider"])}
-						options={creditCardStatementProviderOptions}
-						placeholder="Selecione a instituição"
-						required
-						sortOptions={false}
-						value={provider}
-					/>
-					<CustomSelect
-						label="Cartão que receberá as compras"
-						onValueChange={setCreditCardId}
-						options={cards.map(card => ({ label: getCreditCardDisplayName(card), value: card.id }))}
-						placeholder="Selecione o cartão"
-						required
-						searchable
-						value={creditCardId}
-					/>
-					<StatementFilePicker
-						file={file}
-						inputId="credit-card-import-file"
-						label="Fatura em PDF"
-						onFileChange={setFile}
-					/>
-					{passwordConfiguration ? (
-						<div className="grid gap-2">
-							<Label htmlFor="credit-card-import-password">
-								<span>Senha do PDF {passwordConfiguration.required ? <RequiredMark /> : "(opcional)"}</span>
-							</Label>
-							<Input
-								autoComplete="off"
-								id="credit-card-import-password"
-								inputMode="numeric"
-								name="credit-card-import-password"
-								onChange={event => setPassword(event.currentTarget.value)}
-								placeholder={passwordConfiguration.placeholder}
-								required={passwordConfiguration.required}
-								type="password"
-								value={password}
-							/>
-						</div>
-					) : null}
-				</div>
+				<DialogBody>
+					<div className="grid gap-4">
+						<CustomSelect
+							label="Instituição"
+							onValueChange={value => setProvider(value as CreditCardImport["provider"])}
+							options={creditCardStatementProviderOptions}
+							placeholder="Selecione a instituição"
+							required
+							sortOptions={false}
+							value={provider}
+						/>
+						<CustomSelect
+							label="Cartão que receberá as compras"
+							onValueChange={setCreditCardId}
+							options={cards.map(card => ({ label: getCreditCardDisplayName(card), value: card.id }))}
+							placeholder="Selecione o cartão"
+							required
+							searchable
+							value={creditCardId}
+						/>
+						<StatementFilePicker
+							file={file}
+							inputId="credit-card-import-file"
+							label="Fatura em PDF"
+							onFileChange={setFile}
+						/>
+						{passwordConfiguration ? (
+							<div className="grid gap-2">
+								<Label htmlFor="credit-card-import-password">
+									<span>Senha do PDF {passwordConfiguration.required ? <RequiredMark /> : "(opcional)"}</span>
+								</Label>
+								<Input
+									autoComplete="off"
+									id="credit-card-import-password"
+									inputMode="numeric"
+									name="credit-card-import-password"
+									onChange={event => setPassword(event.currentTarget.value)}
+									placeholder={passwordConfiguration.placeholder}
+									required={passwordConfiguration.required}
+									type="password"
+									value={password}
+								/>
+							</div>
+						) : null}
+					</div>
+				</DialogBody>
 				<DialogFooter>
 					<Button className="cursor-pointer" onClick={() => onOpenChange(false)} variant="outline">
 						Descartar

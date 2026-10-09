@@ -6,6 +6,7 @@ import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
 import {
 	Dialog,
+	DialogBody,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
@@ -13,7 +14,6 @@ import {
 	DialogTitle,
 } from "@/components/ui/Dialog";
 import { MoneyField } from "@/components/ui/MoneyField";
-import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { PaymentSuggestion } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
@@ -70,20 +70,20 @@ export function PaymentSuggestionForm({
 			}}
 			open
 		>
-			<DialogContent className="max-h-[90dvh] overflow-hidden p-0 sm:max-w-lg">
-				<ScrollArea className="min-h-0">
-					<form
-						className="grid gap-4 p-6"
-						onSubmit={event => {
-							event.preventDefault();
-							setError(null);
-							payment.mutate();
-						}}
-					>
-						<DialogHeader>
-							<DialogTitle>Pagamento de {suggestion.cardName}</DialogTitle>
-							<DialogDescription>Revise antes de registrar. Nenhum resgate será realizado.</DialogDescription>
-						</DialogHeader>
+			<DialogContent className="sm:max-w-lg">
+				<form
+					className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 gap-5 p-6"
+					onSubmit={event => {
+						event.preventDefault();
+						setError(null);
+						payment.mutate();
+					}}
+				>
+					<DialogHeader>
+						<DialogTitle>Pagamento de {suggestion.cardName}</DialogTitle>
+						<DialogDescription>Revise antes de registrar. Nenhum resgate será realizado.</DialogDescription>
+					</DialogHeader>
+					<DialogBody>
 						<p className="font-semibold text-xl">{currency.format(suggestion.amount)}</p>
 						{foreign && (
 							<>
@@ -159,26 +159,26 @@ export function PaymentSuggestionForm({
 								Validando saldo e registrando pagamento...
 							</p>
 						)}
-						<DialogFooter>
-							<Button disabled={payment.isPending} onClick={onClose} type="button" variant="outline">
-								Cancelar
-							</Button>
-							<Button
-								disabled={
-									payment.isPending ||
-									accounts.isPending ||
-									accounts.isError ||
-									!accountId ||
-									!date ||
-									(foreign && !(Number(accountAmount) > 0))
-								}
-								type="submit"
-							>
-								Salvar pagamento
-							</Button>
-						</DialogFooter>
-					</form>
-				</ScrollArea>
+					</DialogBody>
+					<DialogFooter>
+						<Button disabled={payment.isPending} onClick={onClose} type="button" variant="outline">
+							Cancelar
+						</Button>
+						<Button
+							disabled={
+								payment.isPending ||
+								accounts.isPending ||
+								accounts.isError ||
+								!accountId ||
+								!date ||
+								(foreign && !(Number(accountAmount) > 0))
+							}
+							type="submit"
+						>
+							Salvar pagamento
+						</Button>
+					</DialogFooter>
+				</form>
 			</DialogContent>
 		</Dialog>
 	);

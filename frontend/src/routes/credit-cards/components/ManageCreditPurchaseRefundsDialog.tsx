@@ -7,13 +7,13 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import {
 	Dialog,
+	DialogBody,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
-import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import type { CreditPurchase } from "@/lib/api";
@@ -77,73 +77,75 @@ export function ManageCreditPurchaseRefundsDialog({
 						registre um novo reembolso.
 					</DialogDescription>
 				</DialogHeader>
-				<ScrollArea className="h-[min(50dvh,24rem)] min-h-0">
-					<div className="space-y-3 pr-3">
-						{bookQuery.isPending ? (
-							[0, 1, 2].map(key => <Skeleton className="h-24 rounded-xl" key={key} />)
-						) : bookQuery.isError ? (
-							<div className="space-y-3">
-								<p className="text-destructive text-sm">Não foi possível carregar os reembolsos.</p>
-								<ActionGroup>
-									<Button onClick={() => void bookQuery.refetch()} variant="outline">
-										Tentar novamente
-									</Button>
-								</ActionGroup>
-							</div>
-						) : refunds.length === 0 ? (
-							<p className="text-muted-foreground text-sm">Nenhum reembolso registrado para esta compra.</p>
-						) : (
-							refunds.map(refund => (
-								<div
-									className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3"
-									key={refund.id}
-								>
-									<div className="space-y-1 text-sm">
-										<p className="font-medium">{currency.format(refund.amount)}</p>
-										<p className="text-muted-foreground">{formatLocalDate(refund.date)}</p>
-										<p className="text-muted-foreground text-xs">
-											Crédito {currency.format(refund.creditAmount)}
-											{refund.canceledAmount > 0
-												? ` - parcelas canceladas ${currency.format(refund.canceledAmount)}`
-												: ""}
-										</p>
-									</div>
-									<ActionGroup className="ml-auto">
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<Button
-													aria-label="Editar reembolso"
-													disabled={pendingRefundIds.has(refund.id)}
-													onClick={() => onEdit(refund)}
-													size="icon-sm"
-													variant="outline"
-												>
-													<LuPencil />
-												</Button>
-											</TooltipTrigger>
-											<TooltipContent>Editar reembolso</TooltipContent>
-										</Tooltip>
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<ConfirmActionButton
-													aria-label="Excluir reembolso"
-													confirmation="Excluir este reembolso permanentemente?"
-													disabled={pendingRefundIds.has(refund.id)}
-													onConfirm={() => onDelete(refund.id)}
-													size="icon-sm"
-													variant="destructive"
-												>
-													<LuTrash2 />
-												</ConfirmActionButton>
-											</TooltipTrigger>
-											<TooltipContent>Excluir reembolso</TooltipContent>
-										</Tooltip>
+				<DialogBody>
+					<div>
+						<div className="space-y-3 pr-3">
+							{bookQuery.isPending ? (
+								[0, 1, 2].map(key => <Skeleton className="h-24 rounded-xl" key={key} />)
+							) : bookQuery.isError ? (
+								<div className="space-y-3">
+									<p className="text-destructive text-sm">Não foi possível carregar os reembolsos.</p>
+									<ActionGroup>
+										<Button onClick={() => void bookQuery.refetch()} variant="outline">
+											Tentar novamente
+										</Button>
 									</ActionGroup>
 								</div>
-							))
-						)}
+							) : refunds.length === 0 ? (
+								<p className="text-muted-foreground text-sm">Nenhum reembolso registrado para esta compra.</p>
+							) : (
+								refunds.map(refund => (
+									<div
+										className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3"
+										key={refund.id}
+									>
+										<div className="space-y-1 text-sm">
+											<p className="font-medium">{currency.format(refund.amount)}</p>
+											<p className="text-muted-foreground">{formatLocalDate(refund.date)}</p>
+											<p className="text-muted-foreground text-xs">
+												Crédito {currency.format(refund.creditAmount)}
+												{refund.canceledAmount > 0
+													? ` - parcelas canceladas ${currency.format(refund.canceledAmount)}`
+													: ""}
+											</p>
+										</div>
+										<ActionGroup className="ml-auto">
+											<Tooltip>
+												<TooltipTrigger asChild>
+													<Button
+														aria-label="Editar reembolso"
+														disabled={pendingRefundIds.has(refund.id)}
+														onClick={() => onEdit(refund)}
+														size="icon-sm"
+														variant="outline"
+													>
+														<LuPencil />
+													</Button>
+												</TooltipTrigger>
+												<TooltipContent>Editar reembolso</TooltipContent>
+											</Tooltip>
+											<Tooltip>
+												<TooltipTrigger asChild>
+													<ConfirmActionButton
+														aria-label="Excluir reembolso"
+														confirmation="Excluir este reembolso permanentemente?"
+														disabled={pendingRefundIds.has(refund.id)}
+														onConfirm={() => onDelete(refund.id)}
+														size="icon-sm"
+														variant="destructive"
+													>
+														<LuTrash2 />
+													</ConfirmActionButton>
+												</TooltipTrigger>
+												<TooltipContent>Excluir reembolso</TooltipContent>
+											</Tooltip>
+										</ActionGroup>
+									</div>
+								))
+							)}
+						</div>
 					</div>
-				</ScrollArea>
+				</DialogBody>
 				<DialogFooter>
 					<Button onClick={() => onOpenChange(false)} variant="outline">
 						Fechar

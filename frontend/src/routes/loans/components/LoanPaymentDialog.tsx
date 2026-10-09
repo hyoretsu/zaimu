@@ -7,6 +7,7 @@ import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
 import {
 	Dialog,
+	DialogBody,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
@@ -14,7 +15,6 @@ import {
 	DialogTitle,
 } from "@/components/ui/Dialog";
 import { MoneyField } from "@/components/ui/MoneyField";
-import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { LoanPayment } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
@@ -82,98 +82,102 @@ export function LoanPaymentDialog({
 			}}
 			open
 		>
-			<DialogContent className="flex max-h-[85dvh] flex-col sm:max-w-md">
+			<DialogContent className="flex flex-col sm:max-w-md">
 				<DialogHeader>
 					<DialogTitle>{advanceType ? "Antecipar parcela" : "Pagar parcela"}</DialogTitle>
 					<DialogDescription>Confirme data, conta e débito efetivo.</DialogDescription>
 				</DialogHeader>
-				<ScrollArea className="min-h-0 flex-1">
-					<div className="space-y-4 pr-3">
-						{loading ? (
-							<>
-								<Skeleton className="h-16" />
-								<Skeleton className="h-40" />
-							</>
-						) : accounts.isError || (!payment && next.isError) ? (
-							<p role="alert">Falha ao carregar pagamento.</p>
-						) : !row ? (
-							<p>Nenhuma parcela pendente.</p>
-						) : (
-							<>
-								<p>
-									Parcela {row.installmentNumber}: {formatCurrency(row.totalPaid, source)}
-								</p>
-								<DateField
-									id="loan-payment-date"
-									label="Data do pagamento"
-									name="paidDate"
-									onValueChange={setPaidDate}
-									required
-									value={paidDate}
-								/>
-								<CustomSelect
-									label="Conta de pagamento"
-									onValueChange={value => {
-										setAccountId(value);
-										setAmount("");
-									}}
-									options={[
-										{ label: "Sem conta específica", special: true, value: "" },
-										...(accounts.data ?? [])
-											.filter(account => ["CHECKING", "CASH", "SAVINGS", "INVESTMENT"].includes(account.type))
-											.map(account => ({
-												label: `${account.name} (${account.currency ?? "BRL"})`,
-												value: account.id,
-											})),
-									]}
-									placeholder="Ex: Conta em USD"
-									searchable
-									value={accountId}
-								/>
-								{account && (
-									<>
-										<MoneyField
-											currencyCode={currency}
-											id="loan-actual-debit"
-											label="Débito efetivo (opcional)"
-											onValueChange={setAmount}
-											value={amount}
-										/>
-										{source !== currency && rate.isPending ? (
-											<Skeleton className="h-8" />
-										) : suggestion !== null ? (
-											<div className="flex flex-wrap items-center justify-end gap-2">
+				<DialogBody>
+					<div>
+						<div className="space-y-4 pr-3">
+							{loading ? (
+								<>
+									<Skeleton className="h-16" />
+									<Skeleton className="h-40" />
+								</>
+							) : accounts.isError || (!payment && next.isError) ? (
+								<p role="alert">Falha ao carregar pagamento.</p>
+							) : !row ? (
+								<p>Nenhuma parcela pendente.</p>
+							) : (
+								<>
+									<p>
+										Parcela {row.installmentNumber}: {formatCurrency(row.totalPaid, source)}
+									</p>
+									<DateField
+										id="loan-payment-date"
+										label="Data do pagamento"
+										name="paidDate"
+										onValueChange={setPaidDate}
+										required
+										value={paidDate}
+									/>
+									<CustomSelect
+										label="Conta de pagamento"
+										onValueChange={value => {
+											setAccountId(value);
+											setAmount("");
+										}}
+										options={[
+											{ label: "Sem conta específica", special: true, value: "" },
+											...(accounts.data ?? [])
+												.filter(account =>
+													["CHECKING", "CASH", "SAVINGS", "INVESTMENT"].includes(account.type),
+												)
+												.map(account => ({
+													label: `${account.name} (${account.currency ?? "BRL"})`,
+													value: account.id,
+												})),
+										]}
+										placeholder="Ex: Conta em USD"
+										searchable
+										value={accountId}
+									/>
+									{account && (
+										<>
+											<MoneyField
+												currencyCode={currency}
+												id="loan-actual-debit"
+												label="Débito efetivo (opcional)"
+												onValueChange={setAmount}
+												value={amount}
+											/>
+											{source !== currency && rate.isPending ? (
+												<Skeleton className="h-8" />
+											) : suggestion !== null ? (
+												<div className="flex flex-wrap items-center justify-end gap-2">
+													<p className="text-muted-foreground text-sm">
+														Sugestão diária: {formatCurrency(suggestion, currency)}
+													</p>
+													<Button
+														onClick={() => {
+															setAmount(String(suggestion));
+															showToast("Sugestão copiada", "info");
+														}}
+														size="sm"
+														type="button"
+														variant="outline"
+													>
+														<LuCopy />
+														Usar sugestão
+													</Button>
+												</div>
+											) : (
 												<p className="text-muted-foreground text-sm">
-													Sugestão diária: {formatCurrency(suggestion, currency)}
+													Cotação indisponível. Informe débito efetivo.
 												</p>
-												<Button
-													onClick={() => {
-														setAmount(String(suggestion));
-														showToast("Sugestão copiada", "info");
-													}}
-													size="sm"
-													type="button"
-													variant="outline"
-												>
-													<LuCopy />
-													Usar sugestão
-												</Button>
-											</div>
-										) : (
-											<p className="text-muted-foreground text-sm">
-												Cotação indisponível. Informe débito efetivo.
+											)}
+											<p className="text-muted-foreground text-xs">
+												Valor informado prevalece sobre cotação diária e permanece registrado.
 											</p>
-										)}
-										<p className="text-muted-foreground text-xs">
-											Valor informado prevalece sobre cotação diária e permanece registrado.
-										</p>
-									</>
-								)}
-							</>
-						)}
+										</>
+									)}
+								</>
+							)}
+						</div>
 					</div>
-				</ScrollArea>
-				{pending && <p role="status">Registrando pagamento...</p>}
+					{pending && <p role="status">Registrando pagamento...</p>}
+				</DialogBody>
 				<DialogFooter>
 					<Button disabled={pending} onClick={onClose} type="button" variant="outline">
 						Descartar

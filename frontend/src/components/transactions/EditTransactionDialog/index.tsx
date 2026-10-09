@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
+import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { FinancialAccount, Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
@@ -29,22 +29,24 @@ export function EditTransactionDialog(props: {
 				<DialogHeader>
 					<DialogTitle>Editar transação</DialogTitle>
 				</DialogHeader>
-				{detail.isPending ? (
-					<div className="space-y-4">
-						{Array.from({ length: 5 }, (_, index) => (
-							<Skeleton className="h-12 w-full" key={index} />
-						))}
-					</div>
-				) : (
-					<div role="alert">
-						<p>Falha ao carregar transação.</p>
-						<ActionGroup>
-							<Button className="mt-3" onClick={() => void detail.refetch()} variant="outline">
-								Tentar novamente
-							</Button>
-						</ActionGroup>
-					</div>
-				)}
+				<DialogBody>
+					{detail.isPending ? (
+						<div className="space-y-4">
+							{Array.from({ length: 5 }, (_, index) => (
+								<Skeleton className="h-12 w-full" key={index} />
+							))}
+						</div>
+					) : (
+						<div role="alert">
+							<p>Falha ao carregar transação.</p>
+							<ActionGroup>
+								<Button className="mt-3" onClick={() => void detail.refetch()} variant="outline">
+									Tentar novamente
+								</Button>
+							</ActionGroup>
+						</div>
+					)}
+				</DialogBody>
 			</DialogContent>
 		</Dialog>
 	);

@@ -8,9 +8,15 @@ import {
 } from "@/components/transactions";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
+import {
+	Dialog,
+	DialogBody,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { FinancialAccount, Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
@@ -98,6 +104,7 @@ export function FinancialAccountStatementDialog({
 		enabled: identity !== null && open && !statement.isPending,
 		getNextPageParam: page => page.nextCursor ?? undefined,
 		initialPageParam: undefined as string | undefined,
+		placeholderData: previous => previous,
 		queryFn: ({ pageParam }) => dataService.accountYields.getDisplayPage(account.id, pageParam, yieldFilters),
 		queryKey: [...queryKeys.accountYields.list(identity!, account.id), "statement", yieldFilters],
 	});
@@ -141,124 +148,126 @@ export function FinancialAccountStatementDialog({
 
 	return (
 		<Dialog onOpenChange={onOpenChange} open={open}>
-			<DialogContent className="grid max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] gap-4 overflow-hidden sm:max-w-xl">
+			<DialogContent className="gap-4 sm:max-w-xl">
 				<DialogHeader>
 					<DialogTitle>Extrato · {displayName}</DialogTitle>
 					<DialogDescription>Movimentações que compõem saldo desta conta.</DialogDescription>
 				</DialogHeader>
-				{statement.isPending || yields.isPending ? (
-					<div className="space-y-3">
-						{[1, 2, 3].map(item => (
-							<Skeleton className="h-24 rounded-2xl" key={item} />
-						))}
-					</div>
-				) : statement.isError || yields.isError ? (
-					<EmptyState
-						description="Tente novamente em instantes."
-						icon={<LuLandmark className="size-7" />}
-						title="Não foi possível carregar extrato"
-					/>
-				) : dates.length ? (
-					<ScrollArea className="min-h-0">
-						<div className="space-y-5 pr-3">
-							{dates.map(date => (
-								<section className="space-y-2" key={date}>
-									<h3 className="font-medium text-muted-foreground text-sm">
-										{dateFormatter.format(new Date(`${date}T12:00:00`))}
-									</h3>
-									<div className="divide-y rounded-2xl border bg-card shadow-sm">
-										{groupedEntries[date]?.map(item => {
-											if (item.kind === "yield") {
-												const entry = item.value;
+				<DialogBody>
+					{statement.isPending || yields.isPending ? (
+						<div className="space-y-3">
+							{[1, 2, 3].map(item => (
+								<Skeleton className="h-24 rounded-2xl" key={item} />
+							))}
+						</div>
+					) : (statement.isError && !statement.data) || (yields.isError && !yields.data) ? (
+						<EmptyState
+							description="Tente novamente em instantes."
+							icon={<LuLandmark className="size-7" />}
+							title="Não foi possível carregar extrato"
+						/>
+					) : dates.length ? (
+						<div className="">
+							<div className="space-y-5 pr-3">
+								{dates.map(date => (
+									<section className="space-y-2" key={date}>
+										<h3 className="font-medium text-muted-foreground text-sm">
+											{dateFormatter.format(new Date(`${date}T12:00:00`))}
+										</h3>
+										<div className="divide-y rounded-2xl border bg-card shadow-sm">
+											{groupedEntries[date]?.map(item => {
+												if (item.kind === "yield") {
+													const entry = item.value;
+													return (
+														<FinancialAccountYieldStatementItem
+															amount={entry.amount}
+															currencyCode={entry.currency ?? account.currency ?? "BRL"}
+															deleting={removeYield.isPending && removeYield.variables?.id === entry.id}
+															key={`yield-${entry.id}`}
+															onDelete={() => removeYield.mutateAsync(entry)}
+															onEdit={() => setEditingYield(entry)}
+															time={entry.time}
+														/>
+													);
+												}
+												const transaction = item.value;
 												return (
-													<FinancialAccountYieldStatementItem
-														amount={entry.amount}
-														currencyCode={entry.currency ?? account.currency ?? "BRL"}
-														deleting={removeYield.isPending && removeYield.variables?.id === entry.id}
-														key={`yield-${entry.id}`}
-														onDelete={() => removeYield.mutateAsync(entry)}
-														onEdit={() => setEditingYield(entry)}
-														time={entry.time}
+													<TransactionListItem
+														deleting={
+															removeTransaction.isPending && removeTransaction.variables === transaction.id
+														}
+														key={transaction.id}
+														metadataPrefix={
+															formatLocalTime(transaction.time) ? (
+																<span className="text-muted-foreground text-xs">
+																	{formatLocalTime(transaction.time)}
+																</span>
+															) : undefined
+														}
+														onDelete={
+															transaction.paymentCreditCardId
+																? undefined
+																: () => removeTransaction.mutateAsync(transaction.id)
+														}
+														onEdit={() => editTransaction(transaction)}
+														transaction={transaction}
 													/>
 												);
-											}
-											const transaction = item.value;
-											return (
-												<TransactionListItem
-													deleting={
-														removeTransaction.isPending && removeTransaction.variables === transaction.id
-													}
-													key={transaction.id}
-													metadataPrefix={
-														formatLocalTime(transaction.time) ? (
-															<span className="text-muted-foreground text-xs">
-																{formatLocalTime(transaction.time)}
-															</span>
-														) : undefined
-													}
-													onDelete={
-														transaction.paymentCreditCardId
-															? undefined
-															: () => removeTransaction.mutateAsync(transaction.id)
-													}
-													onEdit={() => editTransaction(transaction)}
-													transaction={transaction}
-												/>
-											);
-										})}
-									</div>
-								</section>
-							))}
-							{statement.hasNextPage && (
-								<Button
-									className="cursor-pointer"
-									disabled={statement.isFetchingNextPage}
-									onClick={() => void statement.fetchNextPage()}
-									variant="outline"
-								>
-									{statement.isFetchingNextPage ? "Carregando..." : "Carregar mais movimentações"}
-								</Button>
-							)}
-							{yields.hasNextPage ? (
-								<Button
-									className="w-full cursor-pointer"
-									disabled={yields.isFetchingNextPage}
-									onClick={() => yields.fetchNextPage()}
-									variant="outline"
-								>
-									{yields.isFetchingNextPage ? "Carregando..." : "Carregar mais"}
-								</Button>
-							) : null}
+											})}
+										</div>
+									</section>
+								))}
+								{statement.hasNextPage && (
+									<Button
+										className="cursor-pointer"
+										disabled={statement.isFetchingNextPage}
+										onClick={() => void statement.fetchNextPage()}
+										variant="outline"
+									>
+										{statement.isFetchingNextPage ? "Carregando..." : "Carregar mais movimentações"}
+									</Button>
+								)}
+								{yields.hasNextPage ? (
+									<Button
+										className="w-full cursor-pointer"
+										disabled={yields.isFetchingNextPage}
+										onClick={() => yields.fetchNextPage()}
+										variant="outline"
+									>
+										{yields.isFetchingNextPage ? "Carregando..." : "Carregar mais"}
+									</Button>
+								) : null}
+							</div>
 						</div>
-					</ScrollArea>
-				) : (
-					<EmptyState
-						description="Nenhuma entrada, saída ou transferência vinculada a esta conta."
-						icon={<LuLandmark className="size-7" />}
-						title="Extrato vazio"
+					) : (
+						<EmptyState
+							description="Nenhuma entrada, saída ou transferência vinculada a esta conta."
+							icon={<LuLandmark className="size-7" />}
+							title="Extrato vazio"
+						/>
+					)}
+					<ActionGroup>
+						<Button className="cursor-pointer" onClick={() => setCreatingTransaction(true)}>
+							<LuPlus /> Nova transação
+						</Button>
+					</ActionGroup>
+					<CreateTransactionDialog
+						account={account}
+						onOpenChange={setCreatingTransaction}
+						open={creatingTransaction}
 					/>
-				)}
-				<ActionGroup>
-					<Button className="cursor-pointer" onClick={() => setCreatingTransaction(true)}>
-						<LuPlus /> Nova transação
-					</Button>
-				</ActionGroup>
-				<CreateTransactionDialog
-					account={account}
-					onOpenChange={setCreatingTransaction}
-					open={creatingTransaction}
-				/>
-				<EditTransactionDialog
-					account={account}
-					onOpenChange={nextOpen => !nextOpen && setEditingTransaction(null)}
-					open={editingTransaction !== null}
-					transaction={editingTransaction}
-				/>
-				<EditFinancialAccountYieldDialog
-					entry={editingYield}
-					onOpenChange={nextOpen => !nextOpen && setEditingYield(null)}
-					open={editingYield !== null}
-				/>
+					<EditTransactionDialog
+						account={account}
+						onOpenChange={nextOpen => !nextOpen && setEditingTransaction(null)}
+						open={editingTransaction !== null}
+						transaction={editingTransaction}
+					/>
+					<EditFinancialAccountYieldDialog
+						entry={editingYield}
+						onOpenChange={nextOpen => !nextOpen && setEditingYield(null)}
+						open={editingYield !== null}
+					/>
+				</DialogBody>
 			</DialogContent>
 		</Dialog>
 	);

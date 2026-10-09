@@ -1,11 +1,17 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { LuArrowRight, LuHandshake } from "react-icons/lu";
-import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
-import { ScrollArea } from "@/components/ui/ScrollArea";
+import {
+	Dialog,
+	DialogBody,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/Dialog";
 import type { Dashboard } from "@/lib/api";
 import { compareDebtPersonNames } from "@/lib/debt-split";
 
@@ -65,7 +71,7 @@ export function DashboardDebts({
 				</CardContent>
 			</Card>
 			<Dialog onOpenChange={setOpen} open={open}>
-				<DialogContent className="max-h-[calc(100dvh-2rem)] sm:max-w-lg">
+				<DialogContent className="sm:max-w-lg">
 					<DialogHeader>
 						<DialogTitle>Dívidas em aberto</DialogTitle>
 						<DialogDescription>
@@ -76,16 +82,18 @@ export function DashboardDebts({
 							</span>
 						</DialogDescription>
 					</DialogHeader>
-					<ScrollArea className="max-h-[min(30rem,calc(100dvh-14rem))] pr-3">
-						<div className="space-y-3">{rows(people)}</div>
-					</ScrollArea>
-					<ActionGroup>
+					<DialogBody>
+						<div>
+							<div className="space-y-3">{rows(people)}</div>
+						</div>
+					</DialogBody>
+					<DialogFooter>
 						<Button asChild className="cursor-pointer" variant="outline">
 							<Link to="/debts">
 								Gerenciar dívidas <LuArrowRight />
 							</Link>
 						</Button>
-					</ActionGroup>
+					</DialogFooter>
 				</DialogContent>
 			</Dialog>
 		</>

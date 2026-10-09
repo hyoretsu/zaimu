@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import {
 	Dialog,
+	DialogBody,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
@@ -69,45 +70,47 @@ export function CardAdjustmentForm({
 						A fatura escolhida e todas as anteriores deixam de afetar limite, pendências e saldos.
 					</DialogDescription>
 				</DialogHeader>
-				<div className="grid gap-4">
-					<CustomSelect
-						disabled={Boolean(card)}
-						label="Cartão"
-						onValueChange={value => {
-							setCardId(value);
-							setStatementDate(null);
-						}}
-						options={cards
-							.filter(item => card || !item.ignoreStatementsBefore)
-							.map(item => ({
-								label: getCreditCardDisplayName(item),
-								value: item.id,
-							}))}
-						placeholder="Selecione o cartão"
-						required
-						searchable
-						value={cardId}
-					/>
-					{cardId && statements.isPending ? <Skeleton className="h-16 rounded-xl" /> : null}
-					{cardId && statements.isError ? (
-						<p className="text-destructive text-sm">Não foi possível carregar as faturas.</p>
-					) : null}
-					{cardId && statements.isSuccess ? (
+				<DialogBody>
+					<div className="grid gap-4">
 						<CustomSelect
-							label="Desconsiderar até a fatura"
-							onValueChange={setStatementDate}
-							options={availableStatements.map(statement => ({
-								label: formatLocalMonthYear(statement.dueDate),
-								value: statement.statementDate.slice(0, 10),
-							}))}
-							placeholder={availableStatements.length ? "Selecione a fatura" : "Nenhuma fatura histórica"}
+							disabled={Boolean(card)}
+							label="Cartão"
+							onValueChange={value => {
+								setCardId(value);
+								setStatementDate(null);
+							}}
+							options={cards
+								.filter(item => card || !item.ignoreStatementsBefore)
+								.map(item => ({
+									label: getCreditCardDisplayName(item),
+									value: item.id,
+								}))}
+							placeholder="Selecione o cartão"
 							required
 							searchable
-							sortOptions={false}
-							value={chosenDate}
+							value={cardId}
 						/>
-					) : null}
-				</div>
+						{cardId && statements.isPending ? <Skeleton className="h-16 rounded-xl" /> : null}
+						{cardId && statements.isError ? (
+							<p className="text-destructive text-sm">Não foi possível carregar as faturas.</p>
+						) : null}
+						{cardId && statements.isSuccess ? (
+							<CustomSelect
+								label="Desconsiderar até a fatura"
+								onValueChange={setStatementDate}
+								options={availableStatements.map(statement => ({
+									label: formatLocalMonthYear(statement.dueDate),
+									value: statement.statementDate.slice(0, 10),
+								}))}
+								placeholder={availableStatements.length ? "Selecione a fatura" : "Nenhuma fatura histórica"}
+								required
+								searchable
+								sortOptions={false}
+								value={chosenDate}
+							/>
+						) : null}
+					</div>
+				</DialogBody>
 				<DialogFooter>
 					<Button className="cursor-pointer" onClick={onClose} variant="outline">
 						Descartar

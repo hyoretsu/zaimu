@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import {
 	Dialog,
+	DialogBody,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
@@ -111,35 +112,37 @@ export function ImportTransactionsDialog({
 					<DialogDescription>Selecione manualmente a conta e a instituição do extrato.</DialogDescription>
 				</DialogHeader>
 				<form
-					className="grid gap-4"
+					className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 gap-5"
 					onSubmit={event => {
 						event.preventDefault();
 						if (!file) return;
 						createImport.mutate({ file, financialAccountId, provider });
 					}}
 				>
-					<CustomSelect
-						label="Instituição"
-						onValueChange={value => setProvider(value as TransactionImportProvider)}
-						options={providerOptions.map(option => ({ ...option }))}
-						placeholder="Selecione a instituição"
-						required
-						sortOptions={false}
-						value={provider}
-					/>
-					<CustomSelect
-						label="Conta que receberá as transações"
-						onValueChange={setFinancialAccountId}
-						options={selectableAccounts.map(account => ({
-							label: getFinancialAccountOptionLabel(account),
-							value: account.id,
-						}))}
-						placeholder="Selecione manualmente a conta"
-						required
-						searchable
-						value={financialAccountId}
-					/>
-					<StatementFilePicker file={file} onFileChange={setFile} />
+					<DialogBody>
+						<CustomSelect
+							label="Instituição"
+							onValueChange={value => setProvider(value as TransactionImportProvider)}
+							options={providerOptions.map(option => ({ ...option }))}
+							placeholder="Selecione a instituição"
+							required
+							sortOptions={false}
+							value={provider}
+						/>
+						<CustomSelect
+							label="Conta que receberá as transações"
+							onValueChange={setFinancialAccountId}
+							options={selectableAccounts.map(account => ({
+								label: getFinancialAccountOptionLabel(account),
+								value: account.id,
+							}))}
+							placeholder="Selecione manualmente a conta"
+							required
+							searchable
+							value={financialAccountId}
+						/>
+						<StatementFilePicker file={file} onFileChange={setFile} />
+					</DialogBody>
 					<DialogFooter>
 						<Button
 							className="cursor-pointer"

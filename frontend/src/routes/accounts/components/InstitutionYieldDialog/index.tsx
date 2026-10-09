@@ -7,6 +7,7 @@ import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import {
 	Dialog,
+	DialogBody,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
@@ -15,7 +16,6 @@ import {
 	DialogTrigger,
 } from "@/components/ui/Dialog";
 import { NumericField } from "@/components/ui/NumericField";
-import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { FinancialInstitution, FinancialInstitutionYieldPolicy } from "@/lib/api";
@@ -115,74 +115,76 @@ export function InstitutionYieldDialog({
 				</TooltipTrigger>
 				<TooltipContent>Rendimento</TooltipContent>
 			</Tooltip>
-			<DialogContent className="grid max-h-[min(90dvh,52rem)] grid-rows-[auto_minmax(0,1fr)] overflow-hidden sm:max-w-3xl">
+			<DialogContent className="sm:max-w-3xl">
 				<DialogHeader>
 					<DialogTitle>Rendimento de {institution.name}</DialogTitle>
 					<DialogDescription>
 						Aplicado por faixas progressivas em contas correntes e poupanças sem regra própria.
 					</DialogDescription>
 				</DialogHeader>
-				<form className="flex min-h-0 flex-col gap-5" onSubmit={submit}>
-					<CurrencySelect onValueChange={setCurrency} value={currency} />
-					<CheckboxField
-						checkboxProps={{ checked: enabled, onCheckedChange: checked => setEnabled(checked === true) }}
-					>
-						Usar rendimento padrão nesta instituição
-					</CheckboxField>
-					{enabled && (
-						<ScrollArea className="min-h-0 flex-1 pr-3">
-							<div className="grid gap-4 pb-2">
-								<div className="grid gap-4 sm:grid-cols-2">
-									<CustomSelect
-										label="Periodicidade da taxa fixa"
-										onValueChange={value => setPeriod(value as "MONTHLY" | "YEARLY")}
-										options={[
-											{ label: "Mensal (21 dias úteis)", value: "MONTHLY" },
-											{ label: "Anual (252 dias úteis)", value: "YEARLY" },
-										]}
-										placeholder="Selecione"
-										required={rules.some(rule => Boolean(rule.fixedRate))}
-										sortOptions={false}
-										value={period}
-									/>
-									<NumericField
-										decimalScale={2}
-										id={`institution-yield-tax-${institution.id}`}
-										label="Imposto sobre rendimento"
-										onValueChange={setTaxRate}
-										placeholder="Ex: 15,00%"
-										suffix="%"
-										value={taxRate}
-									/>
+				<form className="flex min-h-0 min-w-0 flex-1 flex-col gap-5" onSubmit={submit}>
+					<DialogBody>
+						<CurrencySelect onValueChange={setCurrency} value={currency} />
+						<CheckboxField
+							checkboxProps={{ checked: enabled, onCheckedChange: checked => setEnabled(checked === true) }}
+						>
+							Usar rendimento padrão nesta instituição
+						</CheckboxField>
+						{enabled && (
+							<div className="">
+								<div className="grid gap-4 pb-2">
+									<div className="grid gap-4 sm:grid-cols-2">
+										<CustomSelect
+											label="Periodicidade da taxa fixa"
+											onValueChange={value => setPeriod(value as "MONTHLY" | "YEARLY")}
+											options={[
+												{ label: "Mensal (21 dias úteis)", value: "MONTHLY" },
+												{ label: "Anual (252 dias úteis)", value: "YEARLY" },
+											]}
+											placeholder="Selecione"
+											required={rules.some(rule => Boolean(rule.fixedRate))}
+											sortOptions={false}
+											value={period}
+										/>
+										<NumericField
+											decimalScale={2}
+											id={`institution-yield-tax-${institution.id}`}
+											label="Imposto sobre rendimento"
+											onValueChange={setTaxRate}
+											placeholder="Ex: 15,00%"
+											suffix="%"
+											value={taxRate}
+										/>
+									</div>
+									{rules.map((rule, index) => (
+										<InstitutionYieldRuleRow
+											currency={currency}
+											index={index}
+											isLast={index === rules.length - 1}
+											key={rule.id}
+											onChange={next => updateRule(rule.id, next)}
+											onRemove={() =>
+												setRules(current =>
+													current.length === 1 ? current : current.filter(item => item.id !== rule.id),
+												)
+											}
+											rule={rule}
+										/>
+									))}
+									<ActionGroup>
+										<Button
+											className="cursor-pointer"
+											onClick={() => setRules(current => [...current, createRule()])}
+											type="button"
+											variant="outline"
+										>
+											<LuPlus /> Adicionar faixa
+										</Button>
+									</ActionGroup>
 								</div>
-								{rules.map((rule, index) => (
-									<InstitutionYieldRuleRow
-										currency={currency}
-										index={index}
-										isLast={index === rules.length - 1}
-										key={rule.id}
-										onChange={next => updateRule(rule.id, next)}
-										onRemove={() =>
-											setRules(current =>
-												current.length === 1 ? current : current.filter(item => item.id !== rule.id),
-											)
-										}
-										rule={rule}
-									/>
-								))}
-								<ActionGroup>
-									<Button
-										className="cursor-pointer"
-										onClick={() => setRules(current => [...current, createRule()])}
-										type="button"
-										variant="outline"
-									>
-										<LuPlus /> Adicionar faixa
-									</Button>
-								</ActionGroup>
 							</div>
-						</ScrollArea>
-					)}
+						)}
+					</DialogBody>
 					<DialogFooter>
 						<Button
 							className="cursor-pointer"

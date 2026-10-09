@@ -6,13 +6,13 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import {
 	Dialog,
+	DialogBody,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
-import { ScrollArea } from "@/components/ui/ScrollArea";
 import type { Dashboard } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 
@@ -69,16 +69,18 @@ export function DashboardCreditCards({
 				</CardContent>
 			</Card>
 			<Dialog onOpenChange={setOpen} open={open}>
-				<DialogContent className="max-h-[calc(100dvh-2rem)] sm:max-w-lg">
+				<DialogContent className="sm:max-w-lg">
 					<DialogHeader>
 						<DialogTitle>Todos os cartões</DialogTitle>
 						<DialogDescription>
 							Cartões ocultos continuam visíveis aqui, mas ficam fora do limite consolidado.
 						</DialogDescription>
 					</DialogHeader>
-					<ScrollArea className="max-h-[min(30rem,calc(100dvh-14rem))] min-h-0">
-						<div className="space-y-3 pr-3">{rows(ordered)}</div>
-					</ScrollArea>
+					<DialogBody>
+						<div>
+							<div className="space-y-3 pr-3">{rows(ordered)}</div>
+						</div>
+					</DialogBody>
 					<DialogFooter>
 						<Button asChild className="cursor-pointer" variant="outline">
 							<Link to="/credit-cards">

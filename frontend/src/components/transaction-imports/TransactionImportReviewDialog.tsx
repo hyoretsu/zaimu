@@ -10,9 +10,14 @@ import { LuCircleAlert, LuFileCheck2, LuLoaderCircle, LuTrash2 } from "react-ico
 import { ImportDialog, ImportDialogContent } from "@/components/imports";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
-import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
+import {
+	DialogBody,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type {
 	FinancialAccount,
@@ -402,7 +407,7 @@ export function TransactionImportReviewDialog({
 				onOpenChange={onOpenChange}
 				open={open}
 			>
-				<ImportDialogContent className="max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-2xl">
+				<ImportDialogContent className="sm:max-w-2xl">
 					<DialogHeader>
 						<DialogTitle>Revisar extrato importado</DialogTitle>
 						<DialogDescription>
@@ -411,86 +416,92 @@ export function TransactionImportReviewDialog({
 								: "Carregando transações do extrato…"}
 						</DialogDescription>
 					</DialogHeader>
-					{transactionImport.isPending || accounts.isPending ? (
-						<div className="space-y-3">
-							{[1, 2, 3].map(item => (
-								<Skeleton className="h-24 rounded-2xl" key={item} />
-							))}
-						</div>
-					) : transactionImport.isError || accounts.isError ? (
-						<EmptyState
-							description="Tente novamente em instantes."
-							icon={<LuCircleAlert className="size-7" />}
-							title="Não foi possível carregar o extrato"
-						/>
-					) : transactionImportData ? (
-						<ScrollArea className="min-h-0 pr-3">
-							<div className="space-y-5">
-								{Object.entries(
-									sortTransactionsByMostRecent(items).reduce<Record<string, TransactionImportItem[]>>(
-										(groups, item) => {
-											const date = item.date.slice(0, 10);
-											const itemsForDate = groups[date] ?? [];
-											itemsForDate.push(item);
-											groups[date] = itemsForDate;
-											return groups;
-										},
-										{},
-									),
-								).map(([date, items]) => (
-									<ImportReviewDateSection
-										approveAllDisabled={
-											approve.isPending ||
-											discard.isPending ||
-											items.some(item => approvingItemIds.has(item.id)) ||
-											items.some(item => ignoringDuplicateItemIds.has(item.id)) ||
-											approvingDateKeys.has(date) ||
-											!items.some(item => !item.duplicateReason)
-										}
-										approveAllPending={approvingDateKeys.has(date)}
-										collapsed={collapsedDateKeys.has(date)}
-										dateLabel={formatLocalDate(date)}
-										itemCount={items.length}
-										key={date}
-										onApproveAll={() => approveDay.mutate(date)}
-										onCollapsedChange={collapsed => setDateCollapsed(date, collapsed)}
-									>
-										{items.map(item => (
-											<ImportReviewTransactionItem
-												accountNames={accountNames}
-												collapsed={collapsedItemIds.has(item.id)}
-												disabled={approvingItemIds.has(item.id) || approvingDateKeys.has(date)}
-												isIgnoringDuplicate={ignoringDuplicateItemIds.has(item.id)}
-												item={item}
-												key={item.id}
-												onApprove={() => approveItem.mutate(item.id)}
-												onCollapsedChange={collapsed => setItemCollapsed(item.id, collapsed)}
-												onEdit={() => setEditingItem(item)}
-												onIgnoreDuplicate={() => ignoreDuplicate(item)}
-												onResolveDuplicate={() => setResolvingItem(item)}
-												onViewTransferSuggestion={suggestion =>
-													setTransferSuggestionDecision({ item, suggestion })
-												}
-												transaction={toTransaction(item, accountDetails)}
-											/>
-										))}
-									</ImportReviewDateSection>
+					<DialogBody>
+						{transactionImport.isPending || accounts.isPending ? (
+							<div className="space-y-3">
+								{[1, 2, 3].map(item => (
+									<Skeleton className="h-24 rounded-2xl" key={item} />
 								))}
-								{transactionImport.hasNextPage && (
-									<ActionGroup>
-										<Button
-											className="cursor-pointer disabled:cursor-not-allowed"
-											disabled={transactionImport.isFetchingNextPage}
-											onClick={() => transactionImport.fetchNextPage()}
-											variant="outline"
-										>
-											{transactionImport.isFetchingNextPage ? "Carregando…" : "Carregar mais"}
-										</Button>
-									</ActionGroup>
-								)}
 							</div>
-						</ScrollArea>
-					) : null}
+						) : (transactionImport.isError && !transactionImport.data) || accounts.isError ? (
+							<EmptyState
+								description="Tente novamente em instantes."
+								icon={<LuCircleAlert className="size-7" />}
+								title="Não foi possível carregar o extrato"
+							/>
+						) : transactionImportData ? (
+							<div className="">
+								<div className="space-y-5">
+									{Object.entries(
+										sortTransactionsByMostRecent(items).reduce<Record<string, TransactionImportItem[]>>(
+											(groups, item) => {
+												const date = item.date.slice(0, 10);
+												const itemsForDate = groups[date] ?? [];
+												itemsForDate.push(item);
+												groups[date] = itemsForDate;
+												return groups;
+											},
+											{},
+										),
+									).map(([date, items]) => (
+										<ImportReviewDateSection
+											approveAllDisabled={
+												approve.isPending ||
+												discard.isPending ||
+												items.some(item => approvingItemIds.has(item.id)) ||
+												items.some(item => ignoringDuplicateItemIds.has(item.id)) ||
+												approvingDateKeys.has(date) ||
+												!items.some(item => !item.duplicateReason)
+											}
+											approveAllPending={approvingDateKeys.has(date)}
+											collapsed={collapsedDateKeys.has(date)}
+											dateLabel={formatLocalDate(date)}
+											itemCount={items.length}
+											key={date}
+											onApproveAll={() => approveDay.mutate(date)}
+											onCollapsedChange={collapsed => setDateCollapsed(date, collapsed)}
+										>
+											{items.map(item => (
+												<ImportReviewTransactionItem
+													accountNames={accountNames}
+													collapsed={collapsedItemIds.has(item.id)}
+													disabled={approvingItemIds.has(item.id) || approvingDateKeys.has(date)}
+													isIgnoringDuplicate={ignoringDuplicateItemIds.has(item.id)}
+													item={item}
+													key={item.id}
+													onApprove={() => approveItem.mutate(item.id)}
+													onCollapsedChange={collapsed => setItemCollapsed(item.id, collapsed)}
+													onEdit={() => setEditingItem(item)}
+													onIgnoreDuplicate={() => ignoreDuplicate(item)}
+													onResolveDuplicate={() => setResolvingItem(item)}
+													onViewTransferSuggestion={suggestion =>
+														setTransferSuggestionDecision({ item, suggestion })
+													}
+													transaction={toTransaction(item, accountDetails)}
+												/>
+											))}
+										</ImportReviewDateSection>
+									))}
+									{transactionImport.hasNextPage && (
+										<ActionGroup>
+											<Button
+												className="cursor-pointer disabled:cursor-not-allowed"
+												disabled={transactionImport.isFetchingNextPage}
+												onClick={() => transactionImport.fetchNextPage()}
+												variant="outline"
+											>
+												{transactionImport.isFetchingNextPage
+													? "Carregando..."
+													: transactionImport.isFetchNextPageError
+														? "Tentar novamente"
+														: "Carregar mais"}
+											</Button>
+										</ActionGroup>
+									)}
+								</div>
+							</div>
+						) : null}
+					</DialogBody>
 					<DialogFooter className="flex-row justify-end">
 						<Button
 							className="cursor-pointer bg-destructive text-destructive-foreground hover:bg-destructive/80 disabled:cursor-not-allowed"

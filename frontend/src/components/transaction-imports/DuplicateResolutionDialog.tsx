@@ -1,8 +1,13 @@
 import { useEffect, useState } from "react";
 import { ImportDialog, ImportDialogContent } from "@/components/imports";
 import { Button } from "@/components/ui/Button";
-import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
-import { ScrollArea } from "@/components/ui/ScrollArea";
+import {
+	DialogBody,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/Dialog";
 import type { TransactionImportDuplicate, TransactionImportItem } from "@/lib/api";
 import { formatLocalTime } from "@/lib/date";
 import { formatDebtSplitNames } from "@/lib/debt-split";
@@ -139,7 +144,7 @@ export function DuplicateResolutionDialog({
 	const isSourceSelected = (source: Source) => fields.every(field => sources[field.key] === source);
 	return (
 		<ImportDialog onOpenChange={onOpenChange} open={open}>
-			<ImportDialogContent className="max-h-[92dvh] grid-rows-[auto_minmax(0,1fr)_auto] gap-4 overflow-hidden p-5 sm:max-w-3xl sm:p-6">
+			<ImportDialogContent className="gap-4 p-5 sm:max-w-3xl sm:p-6">
 				<DialogHeader>
 					<DialogTitle>Resolver duplicata</DialogTitle>
 					<DialogDescription>
@@ -147,31 +152,33 @@ export function DuplicateResolutionDialog({
 						permanecerá no extrato até sua aprovação.
 					</DialogDescription>
 				</DialogHeader>
-				<ScrollArea className="min-h-0">
-					<div className="space-y-4 pr-4">
-						{item.duplicates.length > 1 ? (
-							<DuplicateCandidateList
-								candidates={item.duplicates}
-								formatCandidate={candidate => formatDuplicateCandidate(candidate, currencyOf(candidate))}
-								onSelect={candidate => {
-									setSelectedDuplicateId(candidate.id);
-									setSources(
-										Object.fromEntries(getFields(candidate.type).map(field => [field.key, "imported"])),
-									);
-								}}
-								selectedId={duplicate.id}
+				<DialogBody>
+					<div>
+						<div className="space-y-4 pr-4">
+							{item.duplicates.length > 1 ? (
+								<DuplicateCandidateList
+									candidates={item.duplicates}
+									formatCandidate={candidate => formatDuplicateCandidate(candidate, currencyOf(candidate))}
+									onSelect={candidate => {
+										setSelectedDuplicateId(candidate.id);
+										setSources(
+											Object.fromEntries(getFields(candidate.type).map(field => [field.key, "imported"])),
+										);
+									}}
+									selectedId={duplicate.id}
+								/>
+							) : null}
+							<DuplicateFieldComparison
+								fields={fields}
+								isSourceSelected={isSourceSelected}
+								onSelectAll={selectAllFrom}
+								onSelectField={(field, source) => setSources(current => ({ ...current, [field]: source }))}
+								sources={sources}
+								value={value}
 							/>
-						) : null}
-						<DuplicateFieldComparison
-							fields={fields}
-							isSourceSelected={isSourceSelected}
-							onSelectAll={selectAllFrom}
-							onSelectField={(field, source) => setSources(current => ({ ...current, [field]: source }))}
-							sources={sources}
-							value={value}
-						/>
+						</div>
 					</div>
-				</ScrollArea>
+				</DialogBody>
 				<DialogFooter>
 					<Button className="cursor-pointer" onClick={() => onOpenChange(false)} variant="outline">
 						Cancelar

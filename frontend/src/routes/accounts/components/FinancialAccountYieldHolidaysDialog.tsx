@@ -5,6 +5,7 @@ import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import { DateField } from "@/components/ui/DateField";
 import {
 	Dialog,
+	DialogBody,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
@@ -61,17 +62,19 @@ export function FinancialAccountYieldHolidaysDialog({
 						Em feriados, nenhuma conta recebe rendimento. Saldos são recalculados automaticamente.
 					</DialogDescription>
 				</DialogHeader>
-				<form className="grid gap-4" onSubmit={submit}>
-					<DateField
-						autoComplete="off"
-						id="financial-account-yield-holiday"
-						label="Data do feriado"
-						name="financial-account-yield-holiday"
-						onValueChange={setDate}
-						placeholder="Ex: 25/12/2026"
-						required
-						value={date}
-					/>
+				<form className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 gap-5" onSubmit={submit}>
+					<DialogBody>
+						<DateField
+							autoComplete="off"
+							id="financial-account-yield-holiday"
+							label="Data do feriado"
+							name="financial-account-yield-holiday"
+							onValueChange={setDate}
+							placeholder="Ex: 25/12/2026"
+							required
+							value={date}
+						/>
+					</DialogBody>
 					<DialogFooter>
 						<Button className="cursor-pointer" onClick={() => setOpen(false)} type="button" variant="outline">
 							Fechar

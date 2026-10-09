@@ -5,13 +5,13 @@ import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import {
 	Dialog,
+	DialogBody,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
-import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { readHistoryCollection, retryHistoryCollection } from "@/lib/financial-history";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
@@ -91,7 +91,7 @@ export function HistoryCollectionProgress({ collectionId, title }: { collectionI
 				)}
 			</ActionGroup>
 			<Dialog onOpenChange={setOpen} open={open}>
-				<DialogContent className="overflow-hidden">
+				<DialogContent className="">
 					<DialogHeader>
 						<DialogTitle>{title}</DialogTitle>
 						<DialogDescription>
@@ -99,19 +99,21 @@ export function HistoryCollectionProgress({ collectionId, title }: { collectionI
 							{progress.unavailable} dias sem cotação.
 						</DialogDescription>
 					</DialogHeader>
-					<ScrollArea className="h-64 min-h-0">
-						<div className="space-y-2 pr-3">
-							{collection.units.map(unit => (
-								<div className="rounded-lg border p-2 text-xs" key={unit.id}>
-									<p>
-										{unit.series} - {unit.startDate} - {unit.endDate}
-									</p>
-									<p>{stateLabels[unit.state]}</p>
-									{unit.lastError && <p className="text-destructive">{unit.lastError}</p>}
-								</div>
-							))}
+					<DialogBody>
+						<div>
+							<div className="space-y-2 pr-3">
+								{collection.units.map(unit => (
+									<div className="rounded-lg border p-2 text-xs" key={unit.id}>
+										<p>
+											{unit.series} - {unit.startDate} - {unit.endDate}
+										</p>
+										<p>{stateLabels[unit.state]}</p>
+										{unit.lastError && <p className="text-destructive">{unit.lastError}</p>}
+									</div>
+								))}
+							</div>
 						</div>
-					</ScrollArea>
+					</DialogBody>
 					<DialogFooter>
 						<Button onClick={() => setOpen(false)} variant="outline">
 							Fechar

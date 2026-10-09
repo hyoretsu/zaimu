@@ -7,6 +7,7 @@ import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import {
 	Dialog,
+	DialogBody,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
@@ -14,7 +15,6 @@ import {
 	DialogTitle,
 } from "@/components/ui/Dialog";
 import { FormFieldRow } from "@/components/ui/FormFieldRow";
-import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useDialogCloseReset } from "@/hooks/use-dialog-close-reset";
 import type { DebtSplitInput } from "@/lib/api";
@@ -162,186 +162,183 @@ export function CreateRecurringDialog({
 			}}
 			open={open}
 		>
-			<DialogContent
-				className="w-[calc(100%-2rem)] gap-0 overflow-hidden p-0 sm:max-w-2xl"
-				showCloseButton={!save.isPending}
-			>
-				<ScrollArea className="max-h-[calc(100dvh-2rem)] min-h-0 rounded-4xl [&>[data-slot=scroll-area-viewport]]:max-h-[calc(100dvh-2rem)]">
-					<div className="space-y-6 p-6">
-						<DialogHeader>
-							<DialogTitle>{recurrence ? "Editar recorrência" : "Adicionar recorrência"}</DialogTitle>
-							<DialogDescription>
-								Agende recebimentos, pagamentos, compras ou transferências.
-							</DialogDescription>
-						</DialogHeader>
-						{accounts.isPending ? (
-							<div className="grid gap-4 sm:grid-cols-2">
-								{[1, 2, 3, 4, 5, 6].map(key => (
-									<Skeleton className="h-20 rounded-xl" key={key} />
-								))}
-							</div>
-						) : accounts.isError ? (
-							<p role="alert">Não foi possível carregar contas.</p>
-						) : (
-							<form
-								className="space-y-5"
-								onInputCapture={event => {
-									if (event.target instanceof HTMLInputElement && event.target.name === "recurrence-amount")
-										amountEntered.current = true;
-								}}
-								onSubmit={event => {
-									event.preventDefault();
-									const fields = new FormData(event.currentTarget);
-									const amountText = String(fields.get("recurrence-amount") ?? draft.amount);
-									const amount = parseMaskedMoney(amountText);
-									save.mutate({
-										amount,
-										creditCardId: ["CARD_PURCHASE", "CARD_PAYMENT"].includes(draft.movement)
-											? draft.creditCardId || null
-											: null,
-										currency: draft.currency,
-										dayOfMonth: ["MONTH", "YEAR"].includes(draft.unit)
-											? Number(fields.get("recurrence-day") ?? draft.dayOfMonth)
-											: null,
-										dayOfWeek:
-											draft.unit === "WEEK" && draft.dayOfWeek !== "default" ? Number(draft.dayOfWeek) : null,
-										debtSplit: debtAllowed && debtEnabled ? debtSplit : null,
-										destinationFinancialAccountId: ["INCOME", "TRANSFER"].includes(draft.movement)
-											? draft.destinationFinancialAccountId || null
-											: null,
-										endDate: draft.endDate || null,
-										installments:
-											draft.movement === "CARD_PURCHASE"
-												? Number(fields.get("recurrence-installments") ?? draft.installments)
-												: 1,
-										interval: Number(fields.get("recurrence-interval") ?? draft.interval),
-										isActive: recurrence?.isActive ?? true,
-										movement: draft.movement,
-										name: String(fields.get("recurrence-name") ?? draft.name).trim(),
-										originFinancialAccountId: ["EXPENSE", "TRANSFER", "CARD_PAYMENT"].includes(draft.movement)
-											? draft.originFinancialAccountId || null
-											: null,
-										startDate: draft.startDate,
-										storeName: draft.storeName || null,
-										tagIds: draft.tagIds,
-										unit: draft.unit as RecurrenceUnit,
-									});
-								}}
-							>
-								<fieldset className="space-y-5" disabled={save.isPending}>
-									<DebouncedFormField
-										id="recurrence-name"
-										label="Descrição"
-										name="recurrence-name"
-										onValueChange={value => set("name", value)}
-										placeholder="Ex: Recebimento de dívida"
+			<DialogContent className="w-[calc(100%-2rem)] sm:max-w-2xl" showCloseButton={!save.isPending}>
+				<DialogHeader>
+					<DialogTitle>{recurrence ? "Editar recorrência" : "Adicionar recorrência"}</DialogTitle>
+					<DialogDescription>Agende recebimentos, pagamentos, compras ou transferências.</DialogDescription>
+				</DialogHeader>
+				{accounts.isPending ? (
+					<DialogBody>
+						<div className="grid gap-4 sm:grid-cols-2">
+							{[1, 2, 3, 4, 5, 6].map(key => (
+								<Skeleton className="h-20 rounded-xl" key={key} />
+							))}
+						</div>
+					</DialogBody>
+				) : accounts.isError ? (
+					<DialogBody>
+						<p role="alert">Não foi possível carregar contas.</p>
+					</DialogBody>
+				) : (
+					<form
+						className="flex min-h-0 min-w-0 flex-1 flex-col gap-5"
+						onInputCapture={event => {
+							if (event.target instanceof HTMLInputElement && event.target.name === "recurrence-amount")
+								amountEntered.current = true;
+						}}
+						onSubmit={event => {
+							event.preventDefault();
+							const fields = new FormData(event.currentTarget);
+							const amountText = String(fields.get("recurrence-amount") ?? draft.amount);
+							const amount = parseMaskedMoney(amountText);
+							save.mutate({
+								amount,
+								creditCardId: ["CARD_PURCHASE", "CARD_PAYMENT"].includes(draft.movement)
+									? draft.creditCardId || null
+									: null,
+								currency: draft.currency,
+								dayOfMonth: ["MONTH", "YEAR"].includes(draft.unit)
+									? Number(fields.get("recurrence-day") ?? draft.dayOfMonth)
+									: null,
+								dayOfWeek:
+									draft.unit === "WEEK" && draft.dayOfWeek !== "default" ? Number(draft.dayOfWeek) : null,
+								debtSplit: debtAllowed && debtEnabled ? debtSplit : null,
+								destinationFinancialAccountId: ["INCOME", "TRANSFER"].includes(draft.movement)
+									? draft.destinationFinancialAccountId || null
+									: null,
+								endDate: draft.endDate || null,
+								installments:
+									draft.movement === "CARD_PURCHASE"
+										? Number(fields.get("recurrence-installments") ?? draft.installments)
+										: 1,
+								interval: Number(fields.get("recurrence-interval") ?? draft.interval),
+								isActive: recurrence?.isActive ?? true,
+								movement: draft.movement,
+								name: String(fields.get("recurrence-name") ?? draft.name).trim(),
+								originFinancialAccountId: ["EXPENSE", "TRANSFER", "CARD_PAYMENT"].includes(draft.movement)
+									? draft.originFinancialAccountId || null
+									: null,
+								startDate: draft.startDate,
+								storeName: draft.storeName || null,
+								tagIds: draft.tagIds,
+								unit: draft.unit as RecurrenceUnit,
+							});
+						}}
+					>
+						<DialogBody>
+							<fieldset className="space-y-5" disabled={save.isPending}>
+								<DebouncedFormField
+									id="recurrence-name"
+									label="Descrição"
+									name="recurrence-name"
+									onValueChange={value => set("name", value)}
+									placeholder="Ex: Recebimento de dívida"
+									required
+									value={draft.name}
+								/>
+								<FormFieldRow>
+									<CurrencySelect
+										label="Moeda da recorrência"
+										onValueChange={value =>
+											setDraft(current => ({ ...current, currency: value, currencyExplicit: true }))
+										}
+										value={draft.currency}
+									/>
+									<DebouncedMoneyField
+										currencyCode={draft.currency}
+										id="recurrence-amount"
+										label={
+											draft.movement === "CARD_PURCHASE" ? "Valor total por compra" : "Valor por ocorrência"
+										}
+										name="recurrence-amount"
+										onValueChange={value => set("amount", value)}
 										required
-										value={draft.name}
+										value={draft.amount}
 									/>
-									<FormFieldRow>
-										<CurrencySelect
-											label="Moeda da recorrência"
-											onValueChange={value =>
-												setDraft(current => ({ ...current, currency: value, currencyExplicit: true }))
-											}
-											value={draft.currency}
-										/>
-										<DebouncedMoneyField
-											currencyCode={draft.currency}
-											id="recurrence-amount"
-											label={
-												draft.movement === "CARD_PURCHASE" ? "Valor total por compra" : "Valor por ocorrência"
-											}
-											name="recurrence-amount"
-											onValueChange={value => set("amount", value)}
-											required
-											value={draft.amount}
-										/>
-									</FormFieldRow>
-									<div className="grid gap-2">
-										<CustomSelect
-											disabled={save.isPending}
-											label="Movimentação"
-											onValueChange={value =>
-												setDraft(current => ({
-													...current,
-													creditCardId: "",
-													destinationFinancialAccountId: "",
-													movement: value as RecurrenceMovement,
-													originFinancialAccountId: "",
-												}))
-											}
-											options={Object.entries(movementLabels).map(([value, label]) => ({ label, value }))}
-											placeholder="Selecione movimentação"
-											required
-											value={draft.movement}
-										/>
-									</div>
+								</FormFieldRow>
+								<div className="grid gap-2">
+									<CustomSelect
+										disabled={save.isPending}
+										label="Movimentação"
+										onValueChange={value =>
+											setDraft(current => ({
+												...current,
+												creditCardId: "",
+												destinationFinancialAccountId: "",
+												movement: value as RecurrenceMovement,
+												originFinancialAccountId: "",
+											}))
+										}
+										options={Object.entries(movementLabels).map(([value, label]) => ({ label, value }))}
+										placeholder="Selecione movimentação"
+										required
+										value={draft.movement}
+									/>
+								</div>
 
-									<RecurrenceAccountFields
-										accounts={accounts.data ?? []}
-										disabled={save.isPending}
-										draft={draft}
-										set={set}
-									/>
-									{draft.movement === "CARD_PURCHASE" && (
-										<div className="space-y-2">
-											<RecurrenceNumberField
-												label="Número de parcelas"
-												name="recurrence-installments"
-												onChange={value => set("installments", value)}
-												placeholder="Ex: 12"
-												value={draft.installments}
-											/>
-											<p className="text-muted-foreground text-sm">
-												Cada ocorrência gera uma nova compra pelo valor total, dividida em parcelas mensais.
-												Use 1 para pagamento à vista.
-											</p>
-										</div>
-									)}
-									<RecurrenceScheduleFields disabled={save.isPending} draft={draft} set={set} />
-									<RecurrenceOptionalFields
-										debtEnabled={debtEnabled}
-										debtSplit={debtSplit}
-										disabled={save.isPending}
-										draft={draft}
-										set={set}
-										setDebtEnabled={setDebtEnabled}
-										setDebtSplit={setDebtSplit}
-									/>
-									{draft.startDate < getLocalDateKey() && (
-										<CheckboxField
-											checkboxProps={{
-												checked: addPast,
-												onCheckedChange: checked => setAddPast(checked === true),
-											}}
-										>
-											Recompor ocorrências passadas inexistentes
-										</CheckboxField>
-									)}
-								</fieldset>
-								{progress && (
-									<p className="text-muted-foreground text-sm" role="status">
-										{progress}
-									</p>
+								<RecurrenceAccountFields
+									accounts={accounts.data ?? []}
+									disabled={save.isPending}
+									draft={draft}
+									set={set}
+								/>
+								{draft.movement === "CARD_PURCHASE" && (
+									<div className="space-y-2">
+										<RecurrenceNumberField
+											label="Número de parcelas"
+											name="recurrence-installments"
+											onChange={value => set("installments", value)}
+											placeholder="Ex: 12"
+											value={draft.installments}
+										/>
+										<p className="text-muted-foreground text-sm">
+											Cada ocorrência gera uma nova compra pelo valor total, dividida em parcelas mensais. Use
+											1 para pagamento à vista.
+										</p>
+									</div>
 								)}
-								<DialogFooter>
-									<Button
-										disabled={save.isPending}
-										onClick={() => onOpenChange(false)}
-										type="button"
-										variant="outline"
+								<RecurrenceScheduleFields disabled={save.isPending} draft={draft} set={set} />
+								<RecurrenceOptionalFields
+									debtEnabled={debtEnabled}
+									debtSplit={debtSplit}
+									disabled={save.isPending}
+									draft={draft}
+									set={set}
+									setDebtEnabled={setDebtEnabled}
+									setDebtSplit={setDebtSplit}
+								/>
+								{draft.startDate < getLocalDateKey() && (
+									<CheckboxField
+										checkboxProps={{
+											checked: addPast,
+											onCheckedChange: checked => setAddPast(checked === true),
+										}}
 									>
-										Descartar
-									</Button>
-									<Button disabled={save.isPending} type="submit">
-										{save.isPending ? "Salvando..." : "Salvar"}
-									</Button>
-								</DialogFooter>
-							</form>
-						)}
-					</div>
-				</ScrollArea>
+										Recompor ocorrências passadas inexistentes
+									</CheckboxField>
+								)}
+							</fieldset>
+							{progress && (
+								<p className="text-muted-foreground text-sm" role="status">
+									{progress}
+								</p>
+							)}
+						</DialogBody>
+						<DialogFooter>
+							<Button
+								disabled={save.isPending}
+								onClick={() => onOpenChange(false)}
+								type="button"
+								variant="outline"
+							>
+								Descartar
+							</Button>
+							<Button disabled={save.isPending} type="submit">
+								{save.isPending ? "Salvando..." : "Salvar"}
+							</Button>
+						</DialogFooter>
+					</form>
+				)}
 			</DialogContent>
 		</Dialog>
 	);

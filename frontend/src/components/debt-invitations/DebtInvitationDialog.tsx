@@ -4,6 +4,7 @@ import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import {
 	Dialog,
+	DialogBody,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
@@ -81,44 +82,46 @@ export function DebtInvitationDialog({
 		/>
 	) : (
 		<Dialog onOpenChange={onOpenChange} open={open}>
-			<DialogContent className="grid max-h-[calc(100dvh-2rem)] grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-4 overflow-hidden p-4 sm:max-w-lg sm:p-6">
+			<DialogContent className="gap-4 p-4 sm:max-w-lg sm:p-6">
 				<DialogHeader>
 					<DialogTitle>{invitation.counterpartyName} quer compartilhar uma dívida</DialogTitle>
 					<DialogDescription>
 						Confira os lançamentos atuais. Ao aceitar, o saldo e o histórico ficam visíveis nos dois lados.
 					</DialogDescription>
 				</DialogHeader>
-				{preview.isPending ? (
-					<div className="space-y-4" role="status">
-						<Skeleton className="h-20 rounded-2xl" />
-						{[0, 1, 2].map(index => (
-							<Skeleton className="h-16 rounded-xl" key={index} />
-						))}
-					</div>
-				) : preview.isError && !preview.data ? (
-					<div className="space-y-3 rounded-xl border p-4">
-						<p className="text-sm">Não foi possível carregar os lançamentos.</p>
-						<ActionGroup>
-							<Button
-								className="cursor-pointer"
-								onClick={() => preview.refetch()}
-								type="button"
-								variant="outline"
-							>
-								Tentar novamente
-							</Button>
-						</ActionGroup>
-					</div>
-				) : preview.data ? (
-					<DebtInvitationPreview
-						counterpartyName={invitation.counterpartyName}
-						hasMore={preview.hasNextPage}
-						loadingMore={preview.isFetchingNextPage}
-						loadMore={() => preview.fetchNextPage()}
-						loadMoreError={preview.isFetchNextPageError}
-						preview={{ ...preview.data.pages[0]!, items: preview.data.pages.flatMap(page => page.items) }}
-					/>
-				) : null}
+				<DialogBody>
+					{preview.isPending ? (
+						<div className="space-y-4" role="status">
+							<Skeleton className="h-20 rounded-2xl" />
+							{[0, 1, 2].map(index => (
+								<Skeleton className="h-16 rounded-xl" key={index} />
+							))}
+						</div>
+					) : preview.isError && !preview.data ? (
+						<div className="space-y-3 rounded-xl border p-4">
+							<p className="text-sm">Não foi possível carregar os lançamentos.</p>
+							<ActionGroup>
+								<Button
+									className="cursor-pointer"
+									onClick={() => preview.refetch()}
+									type="button"
+									variant="outline"
+								>
+									Tentar novamente
+								</Button>
+							</ActionGroup>
+						</div>
+					) : preview.data ? (
+						<DebtInvitationPreview
+							counterpartyName={invitation.counterpartyName}
+							hasMore={preview.hasNextPage}
+							loadingMore={preview.isFetchingNextPage}
+							loadMore={() => preview.fetchNextPage()}
+							loadMoreError={preview.isFetchNextPageError}
+							preview={{ ...preview.data.pages[0]!, items: preview.data.pages.flatMap(page => page.items) }}
+						/>
+					) : null}
+				</DialogBody>
 				<DialogFooter className="!grid sm:!grid shrink-0 grid-cols-2 gap-2">
 					<Button
 						className="w-full cursor-pointer"

@@ -9,6 +9,7 @@ import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
 import {
 	Dialog,
+	DialogBody,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
@@ -131,47 +132,49 @@ export function RefundCreditPurchaseDialog({
 								: `Disponível para reembolso: ${currency.format(remaining)}. Crédito na data efetiva informada.`}
 					</DialogDescription>
 				</DialogHeader>
-				<form className="grid gap-5" onSubmit={submit}>
-					{bookQuery.isPending ? <Skeleton className="h-10 rounded-xl" /> : null}
-					<MoneyField
-						currencyCode={currencyCode}
-						id="credit-purchase-refund-amount"
-						label="Valor do reembolso"
-						onValueChange={setAmount}
-						placeholder="R$ 120,00"
-						value={displayedAmount}
-					/>
-					<DateField
-						autoComplete="off"
-						id="credit-purchase-refund-date"
-						label="Data do reembolso"
-						name="credit-purchase-refund-date"
-						onValueChange={setDate}
-						required
-						value={date}
-					/>
-					{needsPolicy && !savedPolicy ? (
-						<CustomSelect
-							label="Como tratar as parcelas futuras?"
-							onValueChange={value => setPolicy(value as typeof policy)}
-							options={[
-								{ label: "Manter parcelas e creditar tudo", value: "KEEP_INSTALLMENTS" },
-								{
-									label: "Cancelar parcelas futuras e creditar a diferença",
-									value: "CANCEL_FUTURE_INSTALLMENTS",
-								},
-							]}
-							placeholder="Selecione uma política"
-							required
-							value={policy}
+				<form className="flex min-h-0 min-w-0 flex-1 flex-col gap-5" onSubmit={submit}>
+					<DialogBody>
+						{bookQuery.isPending ? <Skeleton className="h-10 rounded-xl" /> : null}
+						<MoneyField
+							currencyCode={currencyCode}
+							id="credit-purchase-refund-amount"
+							label="Valor do reembolso"
+							onValueChange={setAmount}
+							placeholder="R$ 120,00"
+							value={displayedAmount}
 						/>
-					) : null}
-					{needsPolicy && savedPolicy ? (
-						<p className="text-muted-foreground text-sm">
-							Política da instituição:{" "}
-							{savedPolicy === "KEEP_INSTALLMENTS" ? "manter parcelas" : "cancelar parcelas futuras"}.
-						</p>
-					) : null}
+						<DateField
+							autoComplete="off"
+							id="credit-purchase-refund-date"
+							label="Data do reembolso"
+							name="credit-purchase-refund-date"
+							onValueChange={setDate}
+							required
+							value={date}
+						/>
+						{needsPolicy && !savedPolicy ? (
+							<CustomSelect
+								label="Como tratar as parcelas futuras?"
+								onValueChange={value => setPolicy(value as typeof policy)}
+								options={[
+									{ label: "Manter parcelas e creditar tudo", value: "KEEP_INSTALLMENTS" },
+									{
+										label: "Cancelar parcelas futuras e creditar a diferença",
+										value: "CANCEL_FUTURE_INSTALLMENTS",
+									},
+								]}
+								placeholder="Selecione uma política"
+								required
+								value={policy}
+							/>
+						) : null}
+						{needsPolicy && savedPolicy ? (
+							<p className="text-muted-foreground text-sm">
+								Política da instituição:{" "}
+								{savedPolicy === "KEEP_INSTALLMENTS" ? "manter parcelas" : "cancelar parcelas futuras"}.
+							</p>
+						) : null}
+					</DialogBody>
 					<DialogFooter>
 						<Button
 							className="cursor-pointer"

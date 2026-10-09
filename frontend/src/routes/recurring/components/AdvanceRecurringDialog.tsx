@@ -3,6 +3,7 @@ import { LuCalendarClock } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import {
 	Dialog,
+	DialogBody,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
@@ -28,7 +29,7 @@ export function AdvanceRecurringDialog({
 		<Dialog onOpenChange={onOpenChange} open>
 			<DialogContent showCloseButton={!pending}>
 				<form
-					className="space-y-4"
+					className="flex min-h-0 min-w-0 flex-1 flex-col gap-5"
 					onSubmit={event => {
 						event.preventDefault();
 						if (!pending) onAdvance(time || undefined);
@@ -41,21 +42,23 @@ export function AdvanceRecurringDialog({
 							lançamento na data original.
 						</DialogDescription>
 					</DialogHeader>
-					<TimeField
-						description="Deixe vazio para lançar sem horário."
-						disabled={pending}
-						id="advance-recurrence-time"
-						label="Horário (opcional)"
-						name="time"
-						onValueChange={setTime}
-						placeholder="14:30"
-						value={time}
-					/>
-					{pending && (
-						<p className="text-muted-foreground text-sm" role="status">
-							Adiantando ocorrência...
-						</p>
-					)}
+					<DialogBody>
+						<TimeField
+							description="Deixe vazio para lançar sem horário."
+							disabled={pending}
+							id="advance-recurrence-time"
+							label="Horário (opcional)"
+							name="time"
+							onValueChange={setTime}
+							placeholder="14:30"
+							value={time}
+						/>
+						{pending && (
+							<p className="text-muted-foreground text-sm" role="status">
+								Adiantando ocorrência...
+							</p>
+						)}
+					</DialogBody>
 					<DialogFooter>
 						<Button disabled={pending} onClick={() => onOpenChange(false)} type="button" variant="outline">
 							Cancelar

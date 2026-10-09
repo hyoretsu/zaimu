@@ -6,13 +6,13 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import {
 	Dialog,
+	DialogBody,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
-import { ScrollArea } from "@/components/ui/ScrollArea";
 import type { Dashboard } from "@/lib/api";
 import { DashboardForecastItem } from "./DashboardForecastItem";
 
@@ -50,7 +50,7 @@ export function DashboardForecasts({
 				</CardContent>
 			</Card>
 			<Dialog onOpenChange={setOpen} open={open}>
-				<DialogContent className="max-h-[calc(100dvh-2rem)] sm:max-w-lg">
+				<DialogContent className="sm:max-w-lg">
 					<DialogHeader>
 						<DialogTitle>Previsões e faturas</DialogTitle>
 						<DialogDescription>
@@ -58,21 +58,23 @@ export function DashboardForecasts({
 							abatidos. Valores podem mudar até o fechamento.
 						</DialogDescription>
 					</DialogHeader>
-					<ScrollArea className="max-h-[min(30rem,calc(100dvh-18rem))] min-h-0">
-						<div className="space-y-3 pr-3">
-							{!forecasts.length && (
-								<p className="text-muted-foreground text-sm">Nenhum compromisso futuro.</p>
-							)}
-							{forecasts.map(forecast => (
-								<DashboardForecastItem
-									currencyCode={currencyCode}
-									forecast={forecast}
-									key={forecast.id}
-									variant="detailed"
-								/>
-							))}
+					<DialogBody>
+						<div>
+							<div className="space-y-3 pr-3">
+								{!forecasts.length && (
+									<p className="text-muted-foreground text-sm">Nenhum compromisso futuro.</p>
+								)}
+								{forecasts.map(forecast => (
+									<DashboardForecastItem
+										currencyCode={currencyCode}
+										forecast={forecast}
+										key={forecast.id}
+										variant="detailed"
+									/>
+								))}
+							</div>
 						</div>
-					</ScrollArea>
+					</DialogBody>
 					<DialogFooter>
 						<Button asChild variant="outline">
 							<Link to="/credit-cards">

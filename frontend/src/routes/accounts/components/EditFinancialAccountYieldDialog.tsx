@@ -9,6 +9,7 @@ import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import { DateField } from "@/components/ui/DateField";
 import {
 	Dialog,
+	DialogBody,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
@@ -105,42 +106,44 @@ export function EditFinancialAccountYieldDialog({
 					<DialogTitle>Editar rendimento</DialogTitle>
 					<DialogDescription>Atualize os dados do rendimento.</DialogDescription>
 				</DialogHeader>
-				<MoneyField
-					currencyCode={entry?.currency ?? "BRL"}
-					id="financial-account-yield-amount"
-					label="Valor"
-					onValueChange={setAmount}
-					required
-					value={amount}
-				/>
-				{entry?.kind === "MANUAL" ? (
-					<>
-						<DateField
-							id="financial-account-yield-date"
-							label="Data"
-							name="date"
-							onValueChange={setDate}
-							required
-							value={date}
-						/>
-						<TimeField
-							id="financial-account-yield-time"
-							label="Horário"
-							name="time"
-							onValueChange={setTime}
-							value={time}
-						/>
-						<CheckboxField
-							checkboxProps={{
-								checked: isHidden,
-								id: "financial-account-yield-hidden",
-								onCheckedChange: checked => setIsHidden(checked === true),
-							}}
-						>
-							<span>Ocultar na lista do dia</span>
-						</CheckboxField>
-					</>
-				) : null}
+				<DialogBody>
+					<MoneyField
+						currencyCode={entry?.currency ?? "BRL"}
+						id="financial-account-yield-amount"
+						label="Valor"
+						onValueChange={setAmount}
+						required
+						value={amount}
+					/>
+					{entry?.kind === "MANUAL" ? (
+						<>
+							<DateField
+								id="financial-account-yield-date"
+								label="Data"
+								name="date"
+								onValueChange={setDate}
+								required
+								value={date}
+							/>
+							<TimeField
+								id="financial-account-yield-time"
+								label="Horário"
+								name="time"
+								onValueChange={setTime}
+								value={time}
+							/>
+							<CheckboxField
+								checkboxProps={{
+									checked: isHidden,
+									id: "financial-account-yield-hidden",
+									onCheckedChange: checked => setIsHidden(checked === true),
+								}}
+							>
+								<span>Ocultar na lista do dia</span>
+							</CheckboxField>
+						</>
+					) : null}
+				</DialogBody>
 				<DialogFooter>
 					<ConfirmActionButton
 						aria-label="Excluir rendimento"

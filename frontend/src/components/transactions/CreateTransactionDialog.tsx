@@ -7,13 +7,13 @@ import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import {
 	Dialog,
+	DialogBody,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
-import { ScrollArea } from "@/components/ui/ScrollArea";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import { useDialogCloseReset } from "@/hooks/use-dialog-close-reset";
 import type { DebtSplitInput, FinancialAccount, FinancialFee, Transaction } from "@/lib/api";
@@ -235,7 +235,7 @@ export function CreateTransactionDialog({
 	return (
 		<Dialog onOpenChange={handleOpenChange} open={open}>
 			<DialogContent
-				className="max-h-[92dvh] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-lg"
+				className="sm:max-w-lg"
 				onInputCapture={event => {
 					if (event.target instanceof HTMLInputElement && event.target.id === "transaction-amount")
 						currencyExplicit.current = true;
@@ -245,188 +245,193 @@ export function CreateTransactionDialog({
 					<DialogTitle>Nova transação</DialogTitle>
 					<DialogDescription>Informe os dados da movimentação.</DialogDescription>
 				</DialogHeader>
-				<ScrollArea className="min-h-0 min-w-0">
-					<div className="grid min-w-0 grid-cols-1 gap-4 px-1 py-1 pr-3">
-						<TransactionDetailsFields
-							amount={draft.amount}
-							bookingCurrency={
-								account?.currency ??
-								accountsQuery.data?.find(
-									item =>
-										item.id ===
-										(draft.type === "INCOME"
-											? draft.destinationFinancialAccountId
-											: draft.originFinancialAccountId),
-								)?.currency ??
-								draft.currency
-							}
-							currencyCode={draft.type === "YIELD" ? (account?.currency ?? draft.currency) : draft.currency}
-							date={draft.date}
-							description={description}
-							fees={draft.fees}
-							includeYield
-							isHidden={draft.isHidden}
-							onAmountChange={amount => setDraft(current => ({ ...current, amount }))}
-							onCurrencyChange={
-								draft.type !== "YIELD"
-									? currency => {
-											currencyExplicit.current = true;
-											setDraft(current => ({ ...current, currency }));
-										}
-									: undefined
-							}
-							onDateChange={date => setDraft(current => ({ ...current, date }))}
-							onDescriptionChange={setDescription}
-							onFeesChange={
-								draft.type !== "YIELD" ? fees => setDraft(current => ({ ...current, fees })) : undefined
-							}
-							onIsHiddenChange={isHidden => setDraft(current => ({ ...current, isHidden }))}
-							onPaymentAmountChange={value => setDraft(current => ({ ...current, paymentAmount: value }))}
-							onStoreNameChange={storeName => setDraft(current => ({ ...current, storeName }))}
-							onTagIdsChange={tagIds => setDraft(current => ({ ...current, tagIds }))}
-							onTimeChange={time => setDraft(current => ({ ...current, time }))}
-							onTypeChange={type => {
-								if (type === "TRANSFER") setIsDebt(false);
-								setDraft(current => ({
-									...current,
-									destinationFinancialAccountId:
-										type === "INCOME" || type === "YIELD" || type === "TRANSFER"
-											? type === "INCOME" && current.type === "EXPENSE"
-												? current.originFinancialAccountId
-												: current.destinationFinancialAccountId
-											: "",
-									originFinancialAccountId:
-										type === "INCOME" || type === "YIELD"
-											? ""
-											: current.originFinancialAccountId || account?.id || "",
-									paymentCreditCardId: type === "EXPENSE" ? current.paymentCreditCardId : "",
-									type,
-								}));
-							}}
-							paymentAmount={draft.paymentAmount}
-							paymentCurrency={selectedStatement?.currency}
-							showDescription={draft.type !== "YIELD"}
-							showStore={draft.type === "EXPENSE"}
-							showTags={draft.type !== "TRANSFER" && draft.type !== "YIELD"}
-							storeName={draft.storeName}
-							tagIds={draft.tagIds}
-							time={draft.time}
-							type={draft.type}
-						/>
-						{draft.type === "EXPENSE" ? (
-							<CustomSelect
-								disabled={payableStatementsQuery.isPending}
-								label="Cartão para pagar"
-								onValueChange={paymentCreditCardId => {
+				<DialogBody>
+					<div>
+						<div className="grid min-w-0 grid-cols-1 gap-4 px-1 py-1 pr-3">
+							<TransactionDetailsFields
+								amount={draft.amount}
+								bookingCurrency={
+									account?.currency ??
+									accountsQuery.data?.find(
+										item =>
+											item.id ===
+											(draft.type === "INCOME"
+												? draft.destinationFinancialAccountId
+												: draft.originFinancialAccountId),
+									)?.currency ??
+									draft.currency
+								}
+								currencyCode={draft.type === "YIELD" ? (account?.currency ?? draft.currency) : draft.currency}
+								date={draft.date}
+								description={description}
+								fees={draft.fees}
+								includeYield
+								isHidden={draft.isHidden}
+								onAmountChange={amount => setDraft(current => ({ ...current, amount }))}
+								onCurrencyChange={
+									draft.type !== "YIELD"
+										? currency => {
+												currencyExplicit.current = true;
+												setDraft(current => ({ ...current, currency }));
+											}
+										: undefined
+								}
+								onDateChange={date => setDraft(current => ({ ...current, date }))}
+								onDescriptionChange={setDescription}
+								onFeesChange={
+									draft.type !== "YIELD" ? fees => setDraft(current => ({ ...current, fees })) : undefined
+								}
+								onIsHiddenChange={isHidden => setDraft(current => ({ ...current, isHidden }))}
+								onPaymentAmountChange={value => setDraft(current => ({ ...current, paymentAmount: value }))}
+								onStoreNameChange={storeName => setDraft(current => ({ ...current, storeName }))}
+								onTagIdsChange={tagIds => setDraft(current => ({ ...current, tagIds }))}
+								onTimeChange={time => setDraft(current => ({ ...current, time }))}
+								onTypeChange={type => {
+									if (type === "TRANSFER") setIsDebt(false);
 									setDraft(current => ({
 										...current,
-										paymentCreditCardId,
+										destinationFinancialAccountId:
+											type === "INCOME" || type === "YIELD" || type === "TRANSFER"
+												? type === "INCOME" && current.type === "EXPENSE"
+													? current.originFinancialAccountId
+													: current.destinationFinancialAccountId
+												: "",
+										originFinancialAccountId:
+											type === "INCOME" || type === "YIELD"
+												? ""
+												: current.originFinancialAccountId || account?.id || "",
+										paymentCreditCardId: type === "EXPENSE" ? current.paymentCreditCardId : "",
+										type,
 									}));
-									setIsDebt(false);
 								}}
-								options={(payableStatementsQuery.data ?? []).map(card => ({
-									label: getCreditCardDisplayName(card),
-									value: card.id,
-								}))}
-								placeholder="Nenhum cartão selecionado"
-								searchable
-								sortOptions={false}
-								value={draft.paymentCreditCardId}
+								paymentAmount={draft.paymentAmount}
+								paymentCurrency={selectedStatement?.currency}
+								showDescription={draft.type !== "YIELD"}
+								showStore={draft.type === "EXPENSE"}
+								showTags={draft.type !== "TRANSFER" && draft.type !== "YIELD"}
+								storeName={draft.storeName}
+								tagIds={draft.tagIds}
+								time={draft.time}
+								type={draft.type}
 							/>
-						) : null}
-						{draft.type !== "TRANSFER" && draft.type !== "YIELD" && !selectedStatement ? (
-							<div className="grid gap-3 rounded-2xl border p-3">
-								<CheckboxField
-									checkboxProps={{
-										checked: isDebt,
-										id: "transaction-is-debt",
-										onCheckedChange: checked => {
-											setIsDebt(checked === true);
-										},
-									}}
-								>
-									<span>Esta movimentação é de uma dívida</span>
-								</CheckboxField>
-								{isDebt ? (
-									<DebtSplitEditor
-										amount={Number(draft.amount)}
-										currencyCode={draft.currency}
-										onChange={setDebtSplit}
-										showParticipantDescriptions={draft.type === "EXPENSE"}
-										value={debtSplit}
-									/>
-								) : null}
-							</div>
-						) : null}
-						{(account === undefined || draft.type === "TRANSFER") &&
-							(accountsQuery.isPending || primaryAccounts.length > 0) && (
+							{draft.type === "EXPENSE" ? (
 								<CustomSelect
-									disabled={accountsQuery.isPending || accountsQuery.isError}
-									label={
-										draft.type === "INCOME" || draft.type === "YIELD"
-											? "Conta de destino"
-											: draft.type === "TRANSFER"
-												? "Conta de origem"
-												: "Conta"
-									}
-									onValueChange={accountId =>
-										setDraft(current =>
-											current.type === "INCOME" || current.type === "YIELD"
-												? {
-														...current,
-														destinationFinancialAccountId: accountId,
-														originFinancialAccountId: "",
-													}
-												: {
-														...current,
-														destinationFinancialAccountId:
-															current.type === "TRANSFER"
-																? account && accountId !== account.id
-																	? account.id
-																	: current.destinationFinancialAccountId === accountId
-																		? ""
-																		: current.destinationFinancialAccountId
-																: "",
-														originFinancialAccountId: accountId,
-													},
-										)
-									}
-									options={primaryAccounts.map(account => ({
-										label: getFinancialAccountOptionLabel(account),
-										value: account.id,
-									}))}
-									placeholder="Selecione a conta"
-									required
-									searchable
-									value={primaryAccountId}
-								/>
-							)}
-						{draft.type === "TRANSFER" &&
-							(accountsQuery.isPending || balanceDestinationAccounts.length > 0) && (
-								<CustomSelect
-									disabled={accountsQuery.isPending || accountsQuery.isError}
-									label="Conta de destino"
-									onValueChange={destinationFinancialAccountId =>
+									disabled={payableStatementsQuery.isPending}
+									label="Cartão para pagar"
+									onValueChange={paymentCreditCardId => {
 										setDraft(current => ({
 											...current,
-											destinationFinancialAccountId,
-											originFinancialAccountId:
-												account && destinationFinancialAccountId !== account.id
-													? account.id
-													: current.originFinancialAccountId,
-										}))
-									}
-									options={balanceDestinationAccounts
-										.filter(account => account.id !== draft.originFinancialAccountId)
-										.map(account => ({ label: getFinancialAccountOptionLabel(account), value: account.id }))}
-									placeholder="Selecione o destino"
-									required
+											paymentCreditCardId,
+										}));
+										setIsDebt(false);
+									}}
+									options={(payableStatementsQuery.data ?? []).map(card => ({
+										label: getCreditCardDisplayName(card),
+										value: card.id,
+									}))}
+									placeholder="Nenhum cartão selecionado"
 									searchable
-									value={draft.destinationFinancialAccountId}
+									sortOptions={false}
+									value={draft.paymentCreditCardId}
 								/>
-							)}
+							) : null}
+							{draft.type !== "TRANSFER" && draft.type !== "YIELD" && !selectedStatement ? (
+								<div className="grid gap-3 rounded-2xl border p-3">
+									<CheckboxField
+										checkboxProps={{
+											checked: isDebt,
+											id: "transaction-is-debt",
+											onCheckedChange: checked => {
+												setIsDebt(checked === true);
+											},
+										}}
+									>
+										<span>Esta movimentação é de uma dívida</span>
+									</CheckboxField>
+									{isDebt ? (
+										<DebtSplitEditor
+											amount={Number(draft.amount)}
+											currencyCode={draft.currency}
+											onChange={setDebtSplit}
+											showParticipantDescriptions={draft.type === "EXPENSE"}
+											value={debtSplit}
+										/>
+									) : null}
+								</div>
+							) : null}
+							{(account === undefined || draft.type === "TRANSFER") &&
+								(accountsQuery.isPending || primaryAccounts.length > 0) && (
+									<CustomSelect
+										disabled={accountsQuery.isPending || accountsQuery.isError}
+										label={
+											draft.type === "INCOME" || draft.type === "YIELD"
+												? "Conta de destino"
+												: draft.type === "TRANSFER"
+													? "Conta de origem"
+													: "Conta"
+										}
+										onValueChange={accountId =>
+											setDraft(current =>
+												current.type === "INCOME" || current.type === "YIELD"
+													? {
+															...current,
+															destinationFinancialAccountId: accountId,
+															originFinancialAccountId: "",
+														}
+													: {
+															...current,
+															destinationFinancialAccountId:
+																current.type === "TRANSFER"
+																	? account && accountId !== account.id
+																		? account.id
+																		: current.destinationFinancialAccountId === accountId
+																			? ""
+																			: current.destinationFinancialAccountId
+																	: "",
+															originFinancialAccountId: accountId,
+														},
+											)
+										}
+										options={primaryAccounts.map(account => ({
+											label: getFinancialAccountOptionLabel(account),
+											value: account.id,
+										}))}
+										placeholder="Selecione a conta"
+										required
+										searchable
+										value={primaryAccountId}
+									/>
+								)}
+							{draft.type === "TRANSFER" &&
+								(accountsQuery.isPending || balanceDestinationAccounts.length > 0) && (
+									<CustomSelect
+										disabled={accountsQuery.isPending || accountsQuery.isError}
+										label="Conta de destino"
+										onValueChange={destinationFinancialAccountId =>
+											setDraft(current => ({
+												...current,
+												destinationFinancialAccountId,
+												originFinancialAccountId:
+													account && destinationFinancialAccountId !== account.id
+														? account.id
+														: current.originFinancialAccountId,
+											}))
+										}
+										options={balanceDestinationAccounts
+											.filter(account => account.id !== draft.originFinancialAccountId)
+											.map(account => ({
+												label: getFinancialAccountOptionLabel(account),
+												value: account.id,
+											}))}
+										placeholder="Selecione o destino"
+										required
+										searchable
+										value={draft.destinationFinancialAccountId}
+									/>
+								)}
+						</div>
 					</div>
-				</ScrollArea>
+				</DialogBody>
 				<DialogFooter>
 					<Button className="cursor-pointer" onClick={() => handleOpenChange(false)} variant="outline">
 						Descartar

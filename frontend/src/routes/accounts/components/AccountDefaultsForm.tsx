@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
-import { DialogFooter } from "@/components/ui/Dialog";
+import { DialogBody, DialogFooter } from "@/components/ui/Dialog";
 import type { FinancialAccount } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { getFinancialAccountOptionLabel } from "@/lib/financial-account";
@@ -46,49 +46,51 @@ export function AccountDefaultsForm({
 			.map(account => ({ label: getFinancialAccountOptionLabel(account), value: account.id }));
 	return (
 		<form
-			className="grid gap-5"
+			className="flex min-h-0 min-w-0 flex-1 flex-col gap-5"
 			onSubmit={event => {
 				event.preventDefault();
 				save.mutate();
 			}}
 		>
-			<div className="grid gap-2">
-				<CustomSelect
-					disabled={save.isPending}
-					label="Conta padrão"
-					onValueChange={setPrimaryId}
-					options={[
-						{ label: "Sem conta padrão", special: true, value: "none" },
-						...options(["CHECKING", "CASH"]),
-					]}
-					placeholder="Selecione a conta padrão"
-					searchable
-					sortOptions={false}
-					value={primaryId}
-				/>
-				<p className="text-muted-foreground text-sm">
-					Usada em novas despesas. A primeira conta corrente ou dinheiro cadastrada é escolhida
-					automaticamente.
-				</p>
-			</div>
-			<div className="grid gap-2">
-				<CustomSelect
-					disabled={save.isPending}
-					label="Conta padrão para faturas"
-					onValueChange={setStatementId}
-					options={[
-						{ label: "Usar conta padrão", special: true, value: "none" },
-						...options(["CHECKING", "CASH", "SAVINGS", "INVESTMENT"]),
-					]}
-					placeholder="Selecione a conta pagadora"
-					searchable
-					sortOptions={false}
-					value={statementId}
-				/>
-				<p className="text-muted-foreground text-sm">
-					Usada nos pagamentos de faturas. A conta pagadora própria do cartão tem prioridade.
-				</p>
-			</div>
+			<DialogBody>
+				<div className="grid gap-2">
+					<CustomSelect
+						disabled={save.isPending}
+						label="Conta padrão"
+						onValueChange={setPrimaryId}
+						options={[
+							{ label: "Sem conta padrão", special: true, value: "none" },
+							...options(["CHECKING", "CASH"]),
+						]}
+						placeholder="Selecione a conta padrão"
+						searchable
+						sortOptions={false}
+						value={primaryId}
+					/>
+					<p className="text-muted-foreground text-sm">
+						Usada em novas despesas. A primeira conta corrente ou dinheiro cadastrada é escolhida
+						automaticamente.
+					</p>
+				</div>
+				<div className="grid gap-2">
+					<CustomSelect
+						disabled={save.isPending}
+						label="Conta padrão para faturas"
+						onValueChange={setStatementId}
+						options={[
+							{ label: "Usar conta padrão", special: true, value: "none" },
+							...options(["CHECKING", "CASH", "SAVINGS", "INVESTMENT"]),
+						]}
+						placeholder="Selecione a conta pagadora"
+						searchable
+						sortOptions={false}
+						value={statementId}
+					/>
+					<p className="text-muted-foreground text-sm">
+						Usada nos pagamentos de faturas. A conta pagadora própria do cartão tem prioridade.
+					</p>
+				</div>
+			</DialogBody>
 			<DialogFooter>
 				<Button onClick={onClose} type="button" variant="outline">
 					Descartar

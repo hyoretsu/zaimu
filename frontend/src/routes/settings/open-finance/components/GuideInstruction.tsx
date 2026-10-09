@@ -2,13 +2,13 @@ import type { ReactNode } from "react";
 import { LuZoomIn } from "react-icons/lu";
 import {
 	Dialog,
+	DialogBody,
 	DialogContent,
 	DialogDescription,
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/Dialog";
-import { ScrollArea } from "@/components/ui/ScrollArea";
 
 export function GuideInstruction({
 	number,
@@ -50,18 +50,20 @@ export function GuideInstruction({
 							</span>
 						</button>
 					</DialogTrigger>
-					<DialogContent className="flex flex-col overflow-hidden sm:max-w-3xl">
+					<DialogContent className="flex flex-col sm:max-w-3xl">
 						<DialogHeader>
 							<DialogTitle>{title}</DialogTitle>
 							<DialogDescription>
 								Foto do Dashboard Pluggy. Siga instrução no Zaimu e volte para continuar.
 							</DialogDescription>
 						</DialogHeader>
-						<ScrollArea className="h-[65dvh] min-h-0">
-							<div className="p-1">
-								<img alt={title} className="w-full rounded-lg" src={image} />
+						<DialogBody>
+							<div>
+								<div className="p-1">
+									<img alt={title} className="w-full rounded-lg" src={image} />
+								</div>
 							</div>
-						</ScrollArea>
+						</DialogBody>
 					</DialogContent>
 				</Dialog>
 			)}

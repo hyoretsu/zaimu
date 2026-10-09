@@ -3,6 +3,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import { type ComponentProps, createContext, useContext } from "react";
 import { Button } from "@/components/ui/Button";
+import { DialogBody } from "@/components/ui/DialogBody";
 import { usePageScrollLock } from "@/hooks/use-page-scroll-lock";
 import { cn } from "@/lib/utils";
 
@@ -54,7 +55,7 @@ function DialogContent({
 			<DialogOverlay className={overlayClassName} />
 			<DialogPrimitive.Content
 				className={cn(
-					"scrollbar-themed data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-6 overflow-y-auto rounded-4xl bg-popover p-6 text-popover-foreground text-sm outline-none ring-1 ring-foreground/5 duration-100 data-closed:animate-out data-open:animate-in sm:max-w-md [&:has([data-slot=dialog-header])>[data-slot=dialog-close]]:hidden",
+					"data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col gap-6 overflow-hidden rounded-4xl bg-popover p-6 text-popover-foreground text-sm outline-none ring-1 ring-foreground/5 duration-100 data-closed:animate-out data-open:animate-in sm:max-w-md [&:has([data-slot=dialog-header])>[data-slot=dialog-close]]:hidden",
 					className,
 				)}
 				data-slot="dialog-content"
@@ -79,7 +80,7 @@ function DialogHeader({ className, children, ...props }: ComponentProps<"div">) 
 
 	return (
 		<div
-			className={cn("flex min-w-0 items-start justify-between gap-4", className)}
+			className={cn("flex min-w-0 shrink-0 items-start justify-between gap-4", className)}
 			data-slot="dialog-header"
 			{...props}
 		>
@@ -106,7 +107,7 @@ function DialogFooter({
 }) {
 	return (
 		<div
-			className={cn("flex flex-wrap items-center justify-end gap-2", className)}
+			className={cn("flex shrink-0 flex-wrap items-center justify-end gap-2", className)}
 			data-slot="dialog-footer"
 			{...props}
 		>
@@ -145,6 +146,7 @@ function DialogDescription({ className, ...props }: ComponentProps<typeof Dialog
 
 export {
 	Dialog,
+	DialogBody,
 	DialogClose,
 	DialogContent,
 	DialogDescription,

@@ -2,7 +2,13 @@ import { LuArrowLeftRight, LuX } from "react-icons/lu";
 import { ImportDialog, ImportDialogContent } from "@/components/imports";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
-import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
+import {
+	DialogBody,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/Dialog";
 import type { Transaction } from "@/lib/api";
 import { TransferSuggestionTransactionSummary } from "./TransferSuggestionTransactionSummary";
 
@@ -35,13 +41,15 @@ export function TransferSuggestionDecisionDialog({
 					<DialogTitle>Transferência sugerida</DialogTitle>
 					<DialogDescription>Confira a transação e sua possível transferência.</DialogDescription>
 				</DialogHeader>
-				<div className="space-y-3">
-					<TransferSuggestionTransactionSummary transaction={currentTransaction} />
-					<div className="flex justify-center text-primary">
-						<LuArrowLeftRight aria-label="Possível transferência" />
+				<DialogBody>
+					<div className="space-y-3">
+						<TransferSuggestionTransactionSummary transaction={currentTransaction} />
+						<div className="flex justify-center text-primary">
+							<LuArrowLeftRight aria-label="Possível transferência" />
+						</div>
+						<TransferSuggestionTransactionSummary transaction={counterpartTransaction} />
 					</div>
-					<TransferSuggestionTransactionSummary transaction={counterpartTransaction} />
-				</div>
+				</DialogBody>
 				<DialogFooter className="grid grid-cols-1 sm:grid-cols-3">
 					<Button
 						className="w-full cursor-pointer"

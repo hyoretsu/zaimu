@@ -11,9 +11,14 @@ import { LuCircleAlert, LuFileCheck2, LuTrash2 } from "react-icons/lu";
 import { ImportDialog, ImportDialogContent } from "@/components/imports";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
-import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
+import {
+	DialogBody,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { CreditCardImport, CreditCardImportItem } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
@@ -205,7 +210,7 @@ export function CreditCardImportReviewDialog({
 				onOpenChange={onOpenChange}
 				open={open}
 			>
-				<ImportDialogContent className="max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-2xl">
+				<ImportDialogContent className="sm:max-w-2xl">
 					<DialogHeader>
 						<DialogTitle>Revisar fatura importada</DialogTitle>
 						<DialogDescription>
@@ -214,63 +219,69 @@ export function CreditCardImportReviewDialog({
 								: "Carregando compras da fatura…"}
 						</DialogDescription>
 					</DialogHeader>
-					{creditCardImport.isPending || creditCards.isPending ? (
-						<div className="space-y-3">
-							{[1, 2, 3].map(item => (
-								<Skeleton className="h-20 rounded-2xl" key={item} />
-							))}
-						</div>
-					) : creditCardImport.isError || creditCards.isError ? (
-						<EmptyState
-							description="Tente novamente em instantes."
-							icon={<LuCircleAlert className="size-7" />}
-							title="Não foi possível carregar a importação"
-						/>
-					) : (
-						<ScrollArea className="min-h-0 pr-3">
-							{creditCardImportData?.previousBalanceCheck && (
-								<p className="mb-3 rounded-xl border p-3 text-sm">
-									Saldo anterior informado:{" "}
-									{currency.format(creditCardImportData.previousBalanceCheck.reported)}.{" "}
-									{creditCardImportData.previousBalanceCheck.matches
-										? "Confere com a transposição do histórico."
-										: `Histórico calcula ${currency.format(creditCardImportData.previousBalanceCheck.calculated)}. Confira compras e pagamentos anteriores.`}
-								</p>
-							)}
-							<div className="divide-y rounded-2xl border bg-card shadow-sm">
-								{items.map(item => (
-									<CreditCardImportItemRow
-										creditCardId={creditCardImportData!.creditCardId}
-										creditCardName={creditCardName}
-										currencyCode={currencyCode}
-										disabled={rowBusy(item.id)}
-										item={item}
-										key={item.id}
-										onApprove={() =>
-											item.installmentAmount < 0 ? setReviewingRefund(item) : approveItem.mutate(item.id)
-										}
-										onEdit={() => setEditingItem(item)}
-										onReconcile={() => {
-											if (!importId) return;
-											setReconcilingImport({ id: importId, item });
-										}}
-									/>
+					<DialogBody>
+						{creditCardImport.isPending || creditCards.isPending ? (
+							<div className="space-y-3">
+								{[1, 2, 3].map(item => (
+									<Skeleton className="h-20 rounded-2xl" key={item} />
 								))}
-								{creditCardImport.hasNextPage && (
-									<ActionGroup className="p-3">
-										<Button
-											className="cursor-pointer disabled:cursor-not-allowed"
-											disabled={creditCardImport.isFetchingNextPage}
-											onClick={() => creditCardImport.fetchNextPage()}
-											variant="outline"
-										>
-											{creditCardImport.isFetchingNextPage ? "Carregando…" : "Carregar mais"}
-										</Button>
-									</ActionGroup>
-								)}
 							</div>
-						</ScrollArea>
-					)}
+						) : (creditCardImport.isError && !creditCardImport.data) || creditCards.isError ? (
+							<EmptyState
+								description="Tente novamente em instantes."
+								icon={<LuCircleAlert className="size-7" />}
+								title="Não foi possível carregar a importação"
+							/>
+						) : (
+							<div className="">
+								{creditCardImportData?.previousBalanceCheck && (
+									<p className="mb-3 rounded-xl border p-3 text-sm">
+										Saldo anterior informado:{" "}
+										{currency.format(creditCardImportData.previousBalanceCheck.reported)}.{" "}
+										{creditCardImportData.previousBalanceCheck.matches
+											? "Confere com a transposição do histórico."
+											: `Histórico calcula ${currency.format(creditCardImportData.previousBalanceCheck.calculated)}. Confira compras e pagamentos anteriores.`}
+									</p>
+								)}
+								<div className="divide-y rounded-2xl border bg-card shadow-sm">
+									{items.map(item => (
+										<CreditCardImportItemRow
+											creditCardId={creditCardImportData!.creditCardId}
+											creditCardName={creditCardName}
+											currencyCode={currencyCode}
+											disabled={rowBusy(item.id)}
+											item={item}
+											key={item.id}
+											onApprove={() =>
+												item.installmentAmount < 0 ? setReviewingRefund(item) : approveItem.mutate(item.id)
+											}
+											onEdit={() => setEditingItem(item)}
+											onReconcile={() => {
+												if (!importId) return;
+												setReconcilingImport({ id: importId, item });
+											}}
+										/>
+									))}
+									{creditCardImport.hasNextPage && (
+										<ActionGroup className="p-3">
+											<Button
+												className="cursor-pointer disabled:cursor-not-allowed"
+												disabled={creditCardImport.isFetchingNextPage}
+												onClick={() => creditCardImport.fetchNextPage()}
+												variant="outline"
+											>
+												{creditCardImport.isFetchingNextPage
+													? "Carregando..."
+													: creditCardImport.isFetchNextPageError
+														? "Tentar novamente"
+														: "Carregar mais"}
+											</Button>
+										</ActionGroup>
+									)}
+								</div>
+							</div>
+						)}
+					</DialogBody>
 					<DialogFooter className="flex-row justify-end">
 						<Button
 							className="cursor-pointer bg-destructive text-destructive-foreground hover:bg-destructive/80"

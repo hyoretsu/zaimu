@@ -6,6 +6,7 @@ import { CheckboxField } from "@/components/ui/CheckboxField";
 import { DateField } from "@/components/ui/DateField";
 import {
 	Dialog,
+	DialogBody,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
@@ -15,7 +16,6 @@ import {
 import { FormField } from "@/components/ui/FormField";
 import { FormFieldRow } from "@/components/ui/FormFieldRow";
 import { MoneyField } from "@/components/ui/MoneyField";
-import { ScrollArea } from "@/components/ui/ScrollArea";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import { useDialogCloseReset } from "@/hooks/use-dialog-close-reset";
 import type { DebtSplitInput } from "@/lib/api";
@@ -129,19 +129,19 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 
 	return (
 		<Dialog onOpenChange={handleOpenChange} open={open}>
-			<DialogContent className="max-h-[92dvh] overflow-hidden p-0 sm:max-w-lg" showCloseButton={!pending}>
-				<ScrollArea className="max-h-[92dvh]">
-					<form className="grid gap-5 p-6" onSubmit={submit}>
-						<DialogHeader>
-							<DialogTitle>{mode === "edit" ? "Editar lançamento" : "Novo lançamento"}</DialogTitle>
-							<DialogDescription>
-								{mode === "edit"
-									? "A alteração recalcula o saldo dos dois participantes."
-									: isOwedToMe
-										? "Este valor aumenta o total que a pessoa deve a você."
-										: "Este valor aumenta o total que você deve à pessoa."}
-							</DialogDescription>
-						</DialogHeader>
+			<DialogContent className="sm:max-w-lg" showCloseButton={!pending}>
+				<form className="flex min-h-0 min-w-0 flex-1 flex-col gap-5 p-6" onSubmit={submit}>
+					<DialogHeader>
+						<DialogTitle>{mode === "edit" ? "Editar lançamento" : "Novo lançamento"}</DialogTitle>
+						<DialogDescription>
+							{mode === "edit"
+								? "A alteração recalcula o saldo dos dois participantes."
+								: isOwedToMe
+									? "Este valor aumenta o total que a pessoa deve a você."
+									: "Este valor aumenta o total que você deve à pessoa."}
+						</DialogDescription>
+					</DialogHeader>
+					<DialogBody>
 						<div className="grid grid-cols-2 gap-2">
 							<Button
 								className="cursor-pointer"
@@ -230,25 +230,25 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 							type="text"
 							value={description}
 						/>
-						<DialogFooter>
-							<Button
-								className="cursor-pointer"
-								onClick={() => handleOpenChange(false)}
-								type="button"
-								variant="outline"
-							>
-								Descartar
-							</Button>
-							<Button
-								className="cursor-pointer"
-								disabled={pending || Number(amount) <= 0 || (mode === "edit" ? !personId : !hasValidSplit)}
-								type="submit"
-							>
-								{pending ? "Salvando..." : mode === "edit" ? "Salvar alterações" : "Salvar lançamento"}
-							</Button>
-						</DialogFooter>
-					</form>
-				</ScrollArea>
+					</DialogBody>
+					<DialogFooter>
+						<Button
+							className="cursor-pointer"
+							onClick={() => handleOpenChange(false)}
+							type="button"
+							variant="outline"
+						>
+							Descartar
+						</Button>
+						<Button
+							className="cursor-pointer"
+							disabled={pending || Number(amount) <= 0 || (mode === "edit" ? !personId : !hasValidSplit)}
+							type="submit"
+						>
+							{pending ? "Salvando..." : mode === "edit" ? "Salvar alterações" : "Salvar lançamento"}
+						</Button>
+					</DialogFooter>
+				</form>
 			</DialogContent>
 		</Dialog>
 	);

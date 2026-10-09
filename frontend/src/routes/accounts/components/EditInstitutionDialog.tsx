@@ -4,6 +4,7 @@ import { CurrencySelect } from "@/components/currency/CurrencySelect";
 import { Button } from "@/components/ui/Button";
 import {
 	Dialog,
+	DialogBody,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
@@ -72,24 +73,26 @@ export function EditInstitutionDialog({
 					</DialogDescription>
 				</DialogHeader>
 				<form
-					className="grid gap-5"
+					className="flex min-h-0 min-w-0 flex-1 flex-col gap-5"
 					onSubmit={event => {
 						event.preventDefault();
 						save();
 					}}
 				>
-					<FormField
-						autoComplete="organization"
-						id={`institution-${institution.id}`}
-						label="Nome da instituição"
-						name="institution-name"
-						onChange={event => setName(event.currentTarget.value)}
-						placeholder="Ex: Mercado Pago"
-						required
-						type="text"
-						value={name}
-					/>
-					<CurrencySelect label="Moeda padrão" onValueChange={setCurrency} value={currency} />
+					<DialogBody>
+						<FormField
+							autoComplete="organization"
+							id={`institution-${institution.id}`}
+							label="Nome da instituição"
+							name="institution-name"
+							onChange={event => setName(event.currentTarget.value)}
+							placeholder="Ex: Mercado Pago"
+							required
+							type="text"
+							value={name}
+						/>
+						<CurrencySelect label="Moeda padrão" onValueChange={setCurrency} value={currency} />
+					</DialogBody>
 					<DialogFooter>
 						<Button className="cursor-pointer" onClick={() => setOpen(false)} type="button" variant="outline">
 							Descartar

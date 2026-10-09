@@ -5,8 +5,14 @@ import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
-import { ScrollArea } from "@/components/ui/ScrollArea";
+import {
+	Dialog,
+	DialogBody,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/Dialog";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { Loan, LoanPayment, LoanPaymentPage } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
@@ -116,134 +122,136 @@ export function LoanPaymentsDialog({ loan, onClose }: { loan: Loan; onClose: () 
 					payment={selection.payment}
 				/>
 			)}
-			<DialogContent className="flex max-h-[85dvh] flex-col overflow-hidden sm:max-w-xl">
+			<DialogContent className="flex flex-col sm:max-w-xl">
 				<DialogHeader>
 					<DialogTitle>Parcelas - {loan.lender}</DialogTitle>
 					<DialogDescription>
 						Registre pagamentos ou antecipe uma parcela pelo valor previsto no cronograma.
 					</DialogDescription>
 				</DialogHeader>
-				<ScrollArea className="min-h-0 flex-1">
-					<div className="space-y-4 pr-3">
-						<DateField
-							id="loan-paid-date"
-							label="Data do pagamento"
-							name="paidDate"
-							onValueChange={setPaidDate}
-							required
-							value={paidDate}
-						/>
-						{loan.needsPaymentReview ? (
-							<div className="space-y-3 rounded-xl border p-3">
-								<p>
-									Histórico antigo sem datas de pagamento. Ao confirmar, as primeiras{" "}
-									{loan.paidInstallments ?? 0} parcelas serão marcadas como pagas na data escolhida. Totais
-									serão recalculados pelo cronograma selecionado.
-								</p>
-								<CustomSelect
-									label="Amortização confirmada"
-									onValueChange={value => setAmortization(value as Loan["amortization"])}
-									options={[
-										{ label: "PRICE (fixa)", value: "PRICE" },
-										{ label: "SAC (decrescente)", value: "SAC" },
-									]}
-									placeholder="Escolha amortização"
-									value={amortization}
-								/>
-								<ActionGroup>
-									<Button
-										className="cursor-pointer"
-										disabled={batchPending || !paidDate}
-										onClick={() => void run()}
-									>
-										<LuCheck />
-										{batchPending ? "Revisando..." : "Confirmar histórico"}
-									</Button>
-								</ActionGroup>
-							</div>
-						) : (
-							(loan.remainingInstallments ?? loan.totalInstallments) > 0 && (
+				<DialogBody>
+					<div>
+						<div className="space-y-4 pr-3">
+							<DateField
+								id="loan-paid-date"
+								label="Data do pagamento"
+								name="paidDate"
+								onValueChange={setPaidDate}
+								required
+								value={paidDate}
+							/>
+							{loan.needsPaymentReview ? (
 								<div className="space-y-3 rounded-xl border p-3">
-									<CustomSelect
-										label="Antecipar parcela"
-										onValueChange={value => setAdvanceType(value as "FRONT" | "BACK")}
-										options={[
-											{ label: "Primeira pendente", value: "FRONT" },
-											{ label: "Última pendente", value: "BACK" },
-										]}
-										placeholder="Escolha ordem"
-										value={advanceType}
-									/>
-									<p className="text-muted-foreground text-xs">
-										Registra valor integral da parcela. Desconto de juros exige condições específicas do
-										credor.
+									<p>
+										Histórico antigo sem datas de pagamento. Ao confirmar, as primeiras{" "}
+										{loan.paidInstallments ?? 0} parcelas serão marcadas como pagas na data escolhida. Totais
+										serão recalculados pelo cronograma selecionado.
 									</p>
+									<CustomSelect
+										label="Amortização confirmada"
+										onValueChange={value => setAmortization(value as Loan["amortization"])}
+										options={[
+											{ label: "PRICE (fixa)", value: "PRICE" },
+											{ label: "SAC (decrescente)", value: "SAC" },
+										]}
+										placeholder="Escolha amortização"
+										value={amortization}
+									/>
 									<ActionGroup>
 										<Button
 											className="cursor-pointer"
-											disabled={batchPending || pending.length > 0 || !paidDate}
-											onClick={() => setSelection({ advanceType })}
+											disabled={batchPending || !paidDate}
+											onClick={() => void run()}
 										>
-											<LuFastForward />
-											{batchPending ? "Antecipando..." : "Antecipar uma parcela"}
+											<LuCheck />
+											{batchPending ? "Revisando..." : "Confirmar histórico"}
 										</Button>
 									</ActionGroup>
 								</div>
-							)
-						)}
-						{!loan.needsPaymentReview && <LoanPayoffPreview loanId={loan.id} />}
-						{payments.isPending ? (
-							Array.from({ length: 4 }, (_, i) => <Skeleton className="h-20 w-full" key={i} />)
-						) : payments.isError ? (
-							<div role="alert">
-								<p>Falha ao carregar parcelas.</p>
-								<ActionGroup>
-									<Button
-										className="mt-2 cursor-pointer"
-										onClick={() => void payments.refetch()}
-										variant="outline"
-									>
-										Tentar novamente
-									</Button>
-								</ActionGroup>
-							</div>
-						) : rows.length ? (
-							<div className="space-y-2">
-								{rows.map(row => (
-									<LoanPaymentRow
-										disabled={
-											!!loan.needsPaymentReview ||
-											batchPending ||
-											pending.includes(row.installmentNumber) ||
-											!paidDate
-										}
-										key={row.id}
-										onPay={() => setSelection({ payment: row })}
-										payment={row}
-										pending={pending.includes(row.installmentNumber)}
-									/>
-								))}
-							</div>
-						) : (
-							<p>Nenhuma parcela disponível.</p>
-						)}
-						{payments.hasNextPage && (
-							<Button
-								className="w-full cursor-pointer"
-								disabled={payments.isFetchingNextPage}
-								onClick={() => void payments.fetchNextPage()}
-								variant="outline"
-							>
-								{payments.isFetchingNextPage ? "Carregando..." : "Carregar mais parcelas"}
-							</Button>
-						)}
+							) : (
+								(loan.remainingInstallments ?? loan.totalInstallments) > 0 && (
+									<div className="space-y-3 rounded-xl border p-3">
+										<CustomSelect
+											label="Antecipar parcela"
+											onValueChange={value => setAdvanceType(value as "FRONT" | "BACK")}
+											options={[
+												{ label: "Primeira pendente", value: "FRONT" },
+												{ label: "Última pendente", value: "BACK" },
+											]}
+											placeholder="Escolha ordem"
+											value={advanceType}
+										/>
+										<p className="text-muted-foreground text-xs">
+											Registra valor integral da parcela. Desconto de juros exige condições específicas do
+											credor.
+										</p>
+										<ActionGroup>
+											<Button
+												className="cursor-pointer"
+												disabled={batchPending || pending.length > 0 || !paidDate}
+												onClick={() => setSelection({ advanceType })}
+											>
+												<LuFastForward />
+												{batchPending ? "Antecipando..." : "Antecipar uma parcela"}
+											</Button>
+										</ActionGroup>
+									</div>
+								)
+							)}
+							{!loan.needsPaymentReview && <LoanPayoffPreview loanId={loan.id} />}
+							{payments.isPending ? (
+								Array.from({ length: 4 }, (_, i) => <Skeleton className="h-20 w-full" key={i} />)
+							) : payments.isError ? (
+								<div role="alert">
+									<p>Falha ao carregar parcelas.</p>
+									<ActionGroup>
+										<Button
+											className="mt-2 cursor-pointer"
+											onClick={() => void payments.refetch()}
+											variant="outline"
+										>
+											Tentar novamente
+										</Button>
+									</ActionGroup>
+								</div>
+							) : rows.length ? (
+								<div className="space-y-2">
+									{rows.map(row => (
+										<LoanPaymentRow
+											disabled={
+												!!loan.needsPaymentReview ||
+												batchPending ||
+												pending.includes(row.installmentNumber) ||
+												!paidDate
+											}
+											key={row.id}
+											onPay={() => setSelection({ payment: row })}
+											payment={row}
+											pending={pending.includes(row.installmentNumber)}
+										/>
+									))}
+								</div>
+							) : (
+								<p>Nenhuma parcela disponível.</p>
+							)}
+							{payments.hasNextPage && (
+								<Button
+									className="w-full cursor-pointer"
+									disabled={payments.isFetchingNextPage}
+									onClick={() => void payments.fetchNextPage()}
+									variant="outline"
+								>
+									{payments.isFetchingNextPage ? "Carregando..." : "Carregar mais parcelas"}
+								</Button>
+							)}
+						</div>
 					</div>
-				</ScrollArea>
-				<ActionGroup>
-					<Button className="cursor-pointer" onClick={onClose} variant="outline">
-						Fechar
-					</Button>
-				</ActionGroup>
+					<ActionGroup>
+						<Button className="cursor-pointer" onClick={onClose} variant="outline">
+							Fechar
+						</Button>
+					</ActionGroup>
+				</DialogBody>
 			</DialogContent>
 		</Dialog>
 	);

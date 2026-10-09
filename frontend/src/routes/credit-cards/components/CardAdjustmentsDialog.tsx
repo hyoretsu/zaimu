@@ -3,8 +3,14 @@ import { useState } from "react";
 import { LuPlus } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
-import { ScrollArea } from "@/components/ui/ScrollArea";
+import {
+	Dialog,
+	DialogBody,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/Dialog";
 import type { CreditCard } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
@@ -38,7 +44,7 @@ export function CardAdjustmentsDialog({
 	return (
 		<>
 			<Dialog onOpenChange={onOpenChange} open={open && editing === null}>
-				<DialogContent className="max-h-[90dvh] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-lg">
+				<DialogContent className="sm:max-w-lg">
 					<DialogHeader>
 						<DialogTitle>Ajustes de cartões</DialogTitle>
 						<DialogDescription>
@@ -46,32 +52,34 @@ export function CardAdjustmentsDialog({
 							pendências e limite. Compras e importações continuam disponíveis.
 						</DialogDescription>
 					</DialogHeader>
-					<ScrollArea className="max-h-[60dvh] min-h-0 pr-3" type="always">
-						<div className="grid gap-2">
-							{adjusted.length ? (
-								adjusted.map(card => (
-									<CardAdjustmentListItem
-										card={card}
-										key={card.id}
-										onEdit={() => setEditing(card)}
-										onRemove={() => remove.mutate(card.id)}
-										pending={remove.isPending && remove.variables === card.id}
-									/>
-								))
-							) : (
-								<p className="text-muted-foreground text-sm">Nenhum ajuste registrado.</p>
-							)}
+					<DialogBody>
+						<div>
+							<div className="grid gap-2">
+								{adjusted.length ? (
+									adjusted.map(card => (
+										<CardAdjustmentListItem
+											card={card}
+											key={card.id}
+											onEdit={() => setEditing(card)}
+											onRemove={() => remove.mutate(card.id)}
+											pending={remove.isPending && remove.variables === card.id}
+										/>
+									))
+								) : (
+									<p className="text-muted-foreground text-sm">Nenhum ajuste registrado.</p>
+								)}
+							</div>
 						</div>
-					</ScrollArea>
-					<ActionGroup>
-						<Button
-							className="cursor-pointer"
-							disabled={!cards.some(card => !card.ignoreStatementsBefore)}
-							onClick={() => setEditing("new")}
-						>
-							<LuPlus /> Novo ajuste
-						</Button>
-					</ActionGroup>
+						<ActionGroup>
+							<Button
+								className="cursor-pointer"
+								disabled={!cards.some(card => !card.ignoreStatementsBefore)}
+								onClick={() => setEditing("new")}
+							>
+								<LuPlus /> Novo ajuste
+							</Button>
+						</ActionGroup>
+					</DialogBody>
 				</DialogContent>
 			</Dialog>
 			{editing !== null ? (

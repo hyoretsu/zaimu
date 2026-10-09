@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 import {
 	Dialog,
+	DialogBody,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
@@ -43,39 +44,41 @@ export function EditDebtPersonDialog({
 					</DialogDescription>
 				</DialogHeader>
 				<form
-					className="grid gap-4"
+					className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 gap-5"
 					onSubmit={event => {
 						event.preventDefault();
 						runDialogSave(onSubmit({ accountEmail, name }), () => onOpenChange(false), "Salvando pessoa…");
 					}}
 				>
-					<label className="grid gap-2 font-medium" htmlFor="debt-person-name">
-						<span>
-							Nome <span className="text-destructive">*</span>
-						</span>
-						<Input
-							autoComplete="name"
-							id="debt-person-name"
-							name="debt-person-name"
-							onChange={event => setName(event.currentTarget.value)}
-							placeholder="Ex: Breno Lima"
-							required
-							value={name}
-						/>
-					</label>
-					<label className="grid gap-2 font-medium" htmlFor="debt-person-account-email">
-						<span>Conta Zaimu</span>
-						<Input
-							autoComplete="email"
-							id="debt-person-account-email"
-							inputMode="email"
-							name="debt-person-account-email"
-							onChange={event => setAccountEmail(event.currentTarget.value)}
-							placeholder="Ex: pessoa@email.com"
-							type="text"
-							value={accountEmail}
-						/>
-					</label>
+					<DialogBody>
+						<label className="grid gap-2 font-medium" htmlFor="debt-person-name">
+							<span>
+								Nome <span className="text-destructive">*</span>
+							</span>
+							<Input
+								autoComplete="name"
+								id="debt-person-name"
+								name="debt-person-name"
+								onChange={event => setName(event.currentTarget.value)}
+								placeholder="Ex: Breno Lima"
+								required
+								value={name}
+							/>
+						</label>
+						<label className="grid gap-2 font-medium" htmlFor="debt-person-account-email">
+							<span>Conta Zaimu</span>
+							<Input
+								autoComplete="email"
+								id="debt-person-account-email"
+								inputMode="email"
+								name="debt-person-account-email"
+								onChange={event => setAccountEmail(event.currentTarget.value)}
+								placeholder="Ex: pessoa@email.com"
+								type="text"
+								value={accountEmail}
+							/>
+						</label>
+					</DialogBody>
 					<DialogFooter>
 						<Button
 							className="cursor-pointer"

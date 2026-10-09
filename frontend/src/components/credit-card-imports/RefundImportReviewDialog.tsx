@@ -8,10 +8,15 @@ import { TagPicker } from "@/components/tags";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
-import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
+import {
+	DialogBody,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/Dialog";
 import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
-import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { CreditCardImportItem } from "@/lib/api";
@@ -133,156 +138,154 @@ export function RefundImportReviewDialog({
 	};
 	return (
 		<ImportDialog onOpenChange={onOpenChange} open>
-			<ImportDialogContent className="max-h-[92dvh] overflow-hidden p-0 sm:max-w-lg">
-				<ScrollArea className="max-h-[92dvh]">
-					<div className="grid gap-5 p-6">
-						<DialogHeader>
-							<DialogTitle>Revisar reembolso importado</DialogTitle>
-							<DialogDescription>
-								{currency.format(amount)} em {item.purchaseDate.slice(0, 10)}. Vincule a compra original ou
-								revise os dados para reconstruí-la.
-							</DialogDescription>
-						</DialogHeader>
-						{sources.isPending || book.isPending ? (
-							<Skeleton className="h-36 rounded-xl" />
-						) : sources.isError || book.isError ? (
-							<p className="text-destructive text-sm">Não foi possível carregar as compras do cartão.</p>
-						) : (
-							<>
-								<CustomSelect
-									label="Origem do reembolso"
-									onValueChange={value => setMode(value as typeof mode)}
-									options={[
-										{ label: "Vincular compra existente", value: "link" },
-										{ label: "Reconstruir compra original", value: "reconstruct" },
-									]}
-									placeholder="Selecione"
-									value={mode}
-								/>
-								{mode === "link" ? (
-									<>
-										<CustomSelect
-											label="Compra original"
-											onValueChange={setSourceId}
-											options={(sources.data ?? []).map(source => ({
-												label: `${source.description} - ${source.purchaseDate.slice(0, 10)} - disponível ${currency.format(source.refundableAmount)}`,
-												value: source.id,
-											}))}
-											placeholder="Busque a compra original"
-											required
-											searchable
-											value={sourceId}
-										/>
-										{selected && selected.refundableAmount < amount ? (
-											<p className="text-destructive text-sm">Reembolso excede saldo disponível da compra.</p>
-										) : null}
-									</>
-								) : (
-									<div className="grid gap-4">
-										<FormField
-											autoComplete="off"
-											id="refund-original-description"
-											label="Descrição original"
-											name="refund-original-description"
-											onChange={event => setDescription(event.currentTarget.value)}
-											placeholder="Ex: Compra no mercado"
-											required
-											type="text"
-											value={description}
-										/>
-										<FormField
-											autoComplete="off"
-											id="refund-original-store"
-											label="Estabelecimento"
-											name="refund-original-store"
-											onChange={event => setStoreName(event.currentTarget.value)}
-											placeholder="Ex: Mercado Central"
-											type="text"
-											value={storeName}
-										/>
-										<MoneyField
-											currencyCode={currencyCode}
-											id="refund-original-total"
-											label="Valor total da compra original"
-											onValueChange={setTotalAmount}
-											placeholder="R$ 300,00"
-											required
-											value={totalAmount}
-										/>
-										<DateField
-											autoComplete="off"
-											id="refund-original-date"
-											label="Data da compra original"
-											name="refund-original-date"
-											onValueChange={setPurchaseDate}
-											required
-											value={purchaseDate}
-										/>
-										<TagPicker onValueChange={setTagIds} value={tagIds} />
-										<FormField
-											autoComplete="off"
-											id="refund-original-installments"
-											inputMode="numeric"
-											label="Total de parcelas"
-											name="refund-original-installments"
-											onChange={event =>
-												setInstallments(event.currentTarget.value.replace(/\D/g, "").slice(0, 2))
-											}
-											placeholder="Ex: 3"
-											required
-											type="text"
-											value={installments}
-										/>
-									</div>
-								)}
-								{book.data?.card.refundPolicy ? (
-									<p className="text-muted-foreground text-sm">
-										Política da instituição:{" "}
-										{book.data.card.refundPolicy === "KEEP_INSTALLMENTS"
-											? "manter parcelas"
-											: "cancelar parcelas futuras"}
-										.
-									</p>
-								) : needsPolicy ? (
+			<ImportDialogContent className="sm:max-w-lg">
+				<DialogHeader>
+					<DialogTitle>Revisar reembolso importado</DialogTitle>
+					<DialogDescription>
+						{currency.format(amount)} em {item.purchaseDate.slice(0, 10)}. Vincule a compra original ou revise
+						os dados para reconstruí-la.
+					</DialogDescription>
+				</DialogHeader>
+				<DialogBody>
+					{sources.isPending || book.isPending ? (
+						<Skeleton className="h-36 rounded-xl" />
+					) : sources.isError || book.isError ? (
+						<p className="text-destructive text-sm">Não foi possível carregar as compras do cartão.</p>
+					) : (
+						<>
+							<CustomSelect
+								label="Origem do reembolso"
+								onValueChange={value => setMode(value as typeof mode)}
+								options={[
+									{ label: "Vincular compra existente", value: "link" },
+									{ label: "Reconstruir compra original", value: "reconstruct" },
+								]}
+								placeholder="Selecione"
+								value={mode}
+							/>
+							{mode === "link" ? (
+								<>
 									<CustomSelect
-										label="Parcelas futuras"
-										onValueChange={value => setPolicy(value as typeof policy)}
-										options={[
-											{ label: "Manter parcelas e creditar tudo", value: "KEEP_INSTALLMENTS" },
-											{
-												label: "Cancelar parcelas futuras e creditar a diferença",
-												value: "CANCEL_FUTURE_INSTALLMENTS",
-											},
-										]}
-										placeholder="Selecione quando necessário"
+										label="Compra original"
+										onValueChange={setSourceId}
+										options={(sources.data ?? []).map(source => ({
+											label: `${source.description} - ${source.purchaseDate.slice(0, 10)} - disponível ${currency.format(source.refundableAmount)}`,
+											value: source.id,
+										}))}
+										placeholder="Busque a compra original"
 										required
-										value={policy}
+										searchable
+										value={sourceId}
 									/>
-								) : null}
-							</>
-						)}
-						<DialogFooter>
-							<Button onClick={() => onOpenChange(false)} type="button" variant="outline">
-								Descartar
-							</Button>
-							<Button
-								disabled={
-									!canSubmit ||
-									(needsPolicy && !policy) ||
-									pending ||
-									sources.isPending ||
-									book.isPending ||
-									sources.isError ||
-									book.isError
-								}
-								onClick={() => void submit().catch(() => undefined)}
-								type="button"
-							>
-								{pending ? "Aprovando…" : "Aprovar reembolso"}
-							</Button>
-						</DialogFooter>
-					</div>
-				</ScrollArea>
+									{selected && selected.refundableAmount < amount ? (
+										<p className="text-destructive text-sm">Reembolso excede saldo disponível da compra.</p>
+									) : null}
+								</>
+							) : (
+								<div className="grid gap-4">
+									<FormField
+										autoComplete="off"
+										id="refund-original-description"
+										label="Descrição original"
+										name="refund-original-description"
+										onChange={event => setDescription(event.currentTarget.value)}
+										placeholder="Ex: Compra no mercado"
+										required
+										type="text"
+										value={description}
+									/>
+									<FormField
+										autoComplete="off"
+										id="refund-original-store"
+										label="Estabelecimento"
+										name="refund-original-store"
+										onChange={event => setStoreName(event.currentTarget.value)}
+										placeholder="Ex: Mercado Central"
+										type="text"
+										value={storeName}
+									/>
+									<MoneyField
+										currencyCode={currencyCode}
+										id="refund-original-total"
+										label="Valor total da compra original"
+										onValueChange={setTotalAmount}
+										placeholder="R$ 300,00"
+										required
+										value={totalAmount}
+									/>
+									<DateField
+										autoComplete="off"
+										id="refund-original-date"
+										label="Data da compra original"
+										name="refund-original-date"
+										onValueChange={setPurchaseDate}
+										required
+										value={purchaseDate}
+									/>
+									<TagPicker onValueChange={setTagIds} value={tagIds} />
+									<FormField
+										autoComplete="off"
+										id="refund-original-installments"
+										inputMode="numeric"
+										label="Total de parcelas"
+										name="refund-original-installments"
+										onChange={event =>
+											setInstallments(event.currentTarget.value.replace(/\D/g, "").slice(0, 2))
+										}
+										placeholder="Ex: 3"
+										required
+										type="text"
+										value={installments}
+									/>
+								</div>
+							)}
+							{book.data?.card.refundPolicy ? (
+								<p className="text-muted-foreground text-sm">
+									Política da instituição:{" "}
+									{book.data.card.refundPolicy === "KEEP_INSTALLMENTS"
+										? "manter parcelas"
+										: "cancelar parcelas futuras"}
+									.
+								</p>
+							) : needsPolicy ? (
+								<CustomSelect
+									label="Parcelas futuras"
+									onValueChange={value => setPolicy(value as typeof policy)}
+									options={[
+										{ label: "Manter parcelas e creditar tudo", value: "KEEP_INSTALLMENTS" },
+										{
+											label: "Cancelar parcelas futuras e creditar a diferença",
+											value: "CANCEL_FUTURE_INSTALLMENTS",
+										},
+									]}
+									placeholder="Selecione quando necessário"
+									required
+									value={policy}
+								/>
+							) : null}
+						</>
+					)}
+				</DialogBody>
+				<DialogFooter>
+					<Button onClick={() => onOpenChange(false)} type="button" variant="outline">
+						Descartar
+					</Button>
+					<Button
+						disabled={
+							!canSubmit ||
+							(needsPolicy && !policy) ||
+							pending ||
+							sources.isPending ||
+							book.isPending ||
+							sources.isError ||
+							book.isError
+						}
+						onClick={() => void submit().catch(() => undefined)}
+						type="button"
+					>
+						{pending ? "Aprovando…" : "Aprovar reembolso"}
+					</Button>
+				</DialogFooter>
 			</ImportDialogContent>
 		</ImportDialog>
 	);

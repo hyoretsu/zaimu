@@ -12,6 +12,7 @@ import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
 import {
 	Dialog,
+	DialogBody,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
@@ -21,7 +22,6 @@ import {
 import { FormField } from "@/components/ui/FormField";
 import { FormFieldRow } from "@/components/ui/FormFieldRow";
 import { MoneyField } from "@/components/ui/MoneyField";
-import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { TimeField } from "@/components/ui/TimeField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
@@ -179,15 +179,17 @@ export function EditCreditPurchaseDialog({
 							Altera somente esta parcela. O total da compra será recalculado pela soma das parcelas.
 						</DialogDescription>
 					</DialogHeader>
-					<MoneyField
-						disabled={isSynced}
-						id={installmentAmountId}
-						label={`Valor da parcela ${purchase.currentInstallment}/${purchase.installments}`}
-						onValueChange={setAmount}
-						placeholder="R$ 13,00"
-						required
-						value={amount}
-					/>
+					<DialogBody>
+						<MoneyField
+							disabled={isSynced}
+							id={installmentAmountId}
+							label={`Valor da parcela ${purchase.currentInstallment}/${purchase.installments}`}
+							onValueChange={setAmount}
+							placeholder="R$ 13,00"
+							required
+							value={amount}
+						/>
+					</DialogBody>
 					<DialogFooter>
 						<Button className="cursor-pointer" onClick={() => onOpenChange(false)} variant="outline">
 							Descartar
@@ -217,15 +219,17 @@ export function EditCreditPurchaseDialog({
 						<DialogTitle>Editar compra</DialogTitle>
 						<DialogDescription>Dados da compra original.</DialogDescription>
 					</DialogHeader>
-					{canonical.isPending ? (
-						<div className="grid gap-5">
-							{[1, 2, 3, 4].map(field => (
-								<Skeleton className="h-16" key={field} />
-							))}
-						</div>
-					) : (
-						<p className="text-destructive text-sm">Não foi possível carregar a compra original.</p>
-					)}
+					<DialogBody>
+						{canonical.isPending ? (
+							<div className="grid gap-5">
+								{[1, 2, 3, 4].map(field => (
+									<Skeleton className="h-16" key={field} />
+								))}
+							</div>
+						) : (
+							<p className="text-destructive text-sm">Não foi possível carregar a compra original.</p>
+						)}
+					</DialogBody>
 					<DialogFooter>
 						<Button onClick={() => onOpenChange(false)} variant="outline">
 							Descartar
@@ -268,184 +272,180 @@ export function EditCreditPurchaseDialog({
 
 	return (
 		<Dialog onOpenChange={onOpenChange} open={open}>
-			<DialogContent className="max-h-[92dvh] overflow-hidden p-0 sm:max-w-lg">
-				<ScrollArea className="max-h-[92dvh]">
-					<div className="grid gap-6 p-6">
-						<DialogHeader>
-							<DialogTitle>Editar compra</DialogTitle>
-							<DialogDescription>
-								As alterações afetam a compra inteira e suas próximas parcelas.
-							</DialogDescription>
-						</DialogHeader>
-						{onRefund ? (
-							<Button className="cursor-pointer" onClick={onRefund} type="button" variant="outline">
-								<LuUndo2 />
-								Registrar reembolso
-							</Button>
+			<DialogContent className="sm:max-w-lg">
+				<DialogHeader>
+					<DialogTitle>Editar compra</DialogTitle>
+					<DialogDescription>
+						As alterações afetam a compra inteira e suas próximas parcelas.
+					</DialogDescription>
+				</DialogHeader>
+				{onRefund ? (
+					<Button className="cursor-pointer" onClick={onRefund} type="button" variant="outline">
+						<LuUndo2 />
+						Registrar reembolso
+					</Button>
+				) : null}
+				<form className="flex min-h-0 min-w-0 flex-1 flex-col gap-5" onSubmit={submit}>
+					<DialogBody>
+						{canonical.isError ? (
+							<p className="text-destructive text-sm">Não foi possível verificar a troca de cartão.</p>
 						) : null}
-						<form className="grid gap-5" onSubmit={submit}>
-							{canonical.isError ? (
-								<p className="text-destructive text-sm">Não foi possível verificar a troca de cartão.</p>
+						<FormFieldRow>
+							{!purchase.isStatementCharge && sourceCardId ? (
+								<CustomSelect
+									disabled={
+										cardLocked ||
+										(!cards && (cardsQuery.isPending || cardsQuery.isError)) ||
+										cardOptionsUnavailable
+									}
+									label="Cartão"
+									onValueChange={setSelectedCardId}
+									options={cardOptions}
+									placeholder="Selecione o cartão"
+									required
+									searchable
+									value={selectedCardId}
+								/>
 							) : null}
-							<FormFieldRow>
-								{!purchase.isStatementCharge && sourceCardId ? (
-									<CustomSelect
-										disabled={
-											cardLocked ||
-											(!cards && (cardsQuery.isPending || cardsQuery.isError)) ||
-											cardOptionsUnavailable
-										}
-										label="Cartão"
-										onValueChange={setSelectedCardId}
-										options={cardOptions}
-										placeholder="Selecione o cartão"
-										required
-										searchable
-										value={selectedCardId}
-									/>
-								) : null}
-								<StorePicker onValueChange={setStoreName} value={storeName} />
-							</FormFieldRow>
+							<StorePicker onValueChange={setStoreName} value={storeName} />
+						</FormFieldRow>
+						<FormField
+							autoComplete="off"
+							id="credit-purchase-description"
+							label="Descrição"
+							name="credit-purchase-description"
+							onChange={event => setDescription(event.currentTarget.value)}
+							placeholder="Ex: Supermercado do mês"
+							type="text"
+							value={description}
+						/>
+						<FormFieldRow>
+							<CurrencySelect disabled={isSynced} onValueChange={setCurrencyCode} value={currencyCode} />
+							<MoneyField
+								currencyCode={currencyCode}
+								disabled={isSynced}
+								id="credit-purchase-amount"
+								label="Valor da compra"
+								onValueChange={value => {
+									amountEdited.current = true;
+									setAmount(value);
+								}}
+								placeholder="R$ 120,00"
+								required
+								value={amount}
+							/>
+						</FormFieldRow>
+						<FinancialFeeFields
+							baseAmount={Number(amount) || 0}
+							currencyCode={currencyCode}
+							fees={fees}
+							onChange={setFees}
+						/>
+						<div className="grid gap-4">
 							<FormField
 								autoComplete="off"
-								id="credit-purchase-description"
-								label="Descrição"
-								name="credit-purchase-description"
-								onChange={event => setDescription(event.currentTarget.value)}
-								placeholder="Ex: Supermercado do mês"
+								disabled={purchase.isStatementCharge}
+								id="credit-purchase-installments"
+								inputMode="numeric"
+								label="Parcelas"
+								name="credit-purchase-installments"
+								onChange={event => setCount(event.currentTarget.value.replace(/\D/g, "").slice(0, 2))}
+								placeholder="Ex: 12"
+								required
 								type="text"
-								value={description}
+								value={count}
 							/>
 							<FormFieldRow>
-								<CurrencySelect disabled={isSynced} onValueChange={setCurrencyCode} value={currencyCode} />
-								<MoneyField
-									currencyCode={currencyCode}
+								<DateField
+									autoComplete="off"
+									description={isSynced ? "Compras sincronizadas não permitem alterar a data." : undefined}
 									disabled={isSynced}
-									id="credit-purchase-amount"
-									label="Valor da compra"
+									id="credit-purchase-date"
+									label="Data da compra"
+									name="credit-purchase-date"
 									onValueChange={value => {
-										amountEdited.current = true;
-										setAmount(value);
+										dateEdited.current = true;
+										setDate(value);
 									}}
-									placeholder="R$ 120,00"
 									required
-									value={amount}
+									value={date}
+								/>
+								<TimeField
+									id="credit-purchase-time"
+									label="Horário (opcional)"
+									name="credit-purchase-time"
+									onValueChange={setTime}
+									placeholder="Ex: 14:30"
+									value={time}
 								/>
 							</FormFieldRow>
-							<FinancialFeeFields
-								baseAmount={Number(amount) || 0}
-								currencyCode={currencyCode}
-								fees={fees}
-								onChange={setFees}
-							/>
-							<div className="grid gap-4">
-								<FormField
-									autoComplete="off"
-									disabled={purchase.isStatementCharge}
-									id="credit-purchase-installments"
-									inputMode="numeric"
-									label="Parcelas"
-									name="credit-purchase-installments"
-									onChange={event => setCount(event.currentTarget.value.replace(/\D/g, "").slice(0, 2))}
-									placeholder="Ex: 12"
-									required
-									type="text"
-									value={count}
-								/>
-								<FormFieldRow>
-									<DateField
-										autoComplete="off"
-										description={isSynced ? "Compras sincronizadas não permitem alterar a data." : undefined}
-										disabled={isSynced}
-										id="credit-purchase-date"
-										label="Data da compra"
-										name="credit-purchase-date"
-										onValueChange={value => {
-											dateEdited.current = true;
-											setDate(value);
-										}}
-										required
-										value={date}
-									/>
-									<TimeField
-										id="credit-purchase-time"
-										label="Horário (opcional)"
-										name="credit-purchase-time"
-										onValueChange={setTime}
-										placeholder="Ex: 14:30"
-										value={time}
-									/>
-								</FormFieldRow>
-							</div>
-							{totalAmount > 0 ? (
-								<div className="rounded-xl border border-primary/15 bg-primary/5 p-3 text-sm">
-									<strong>Valor original: {currency.format(totalAmount)}</strong>
+						</div>
+						{totalAmount > 0 ? (
+							<div className="rounded-xl border border-primary/15 bg-primary/5 p-3 text-sm">
+								<strong>Valor original: {currency.format(totalAmount)}</strong>
 
-									{installments > 1 ? (
-										<p className="mt-1 text-muted-foreground">
-											{installments}x de {currency.format(installmentAmount)}.
-										</p>
-									) : null}
-								</div>
-							) : null}
-							<TagPicker disabled={pending} onValueChange={setTagIds} value={tagIds} />
-							<div className="grid gap-3 rounded-2xl border p-3">
-								<CheckboxField
-									checkboxProps={{
-										checked: isDebt,
-										disabled: purchase.isStatementCharge,
-										id: "edit-purchase-is-debt",
-										onCheckedChange: checked => {
-											setIsDebt(checked === true);
-										},
-									}}
-								>
-									<span>Esta compra é de uma dívida</span>
-								</CheckboxField>
-								{isDebt ? (
-									<DebtSplitEditor
-										amount={totalAmount * (purchase.exchangeRate ?? 1)}
-										currencyCode={purchase.bookingCurrency ?? "BRL"}
-										onChange={value =>
-											setDebtSplit({ ...value, currency: purchase.bookingCurrency ?? "BRL" })
-										}
-										value={debtSplit}
-									/>
+								{installments > 1 ? (
+									<p className="mt-1 text-muted-foreground">
+										{installments}x de {currency.format(installmentAmount)}.
+									</p>
 								) : null}
 							</div>
-							<DialogFooter>
-								<Button
-									className="cursor-pointer"
-									onClick={() => onOpenChange(false)}
-									type="button"
-									variant="outline"
-								>
-									Descartar
-								</Button>
-								<Button
-									className="cursor-pointer"
-									disabled={
-										pending ||
-										(isDebt &&
-											!calculateDebtSplit(
-												totalAmount * (purchase.exchangeRate ?? 1),
-												debtSplit,
-												purchase.bookingCurrency ?? "BRL",
-											)) ||
-										totalAmount <= 0 ||
-										!Number.isInteger(installments) ||
-										installments < 1 ||
-										installments > 48 ||
-										!date
-									}
-									type="submit"
-								>
-									{pending ? "Salvando…" : "Salvar"}
-								</Button>
-							</DialogFooter>
-						</form>
-					</div>
-				</ScrollArea>
+						) : null}
+						<TagPicker disabled={pending} onValueChange={setTagIds} value={tagIds} />
+						<div className="grid gap-3 rounded-2xl border p-3">
+							<CheckboxField
+								checkboxProps={{
+									checked: isDebt,
+									disabled: purchase.isStatementCharge,
+									id: "edit-purchase-is-debt",
+									onCheckedChange: checked => {
+										setIsDebt(checked === true);
+									},
+								}}
+							>
+								<span>Esta compra é de uma dívida</span>
+							</CheckboxField>
+							{isDebt ? (
+								<DebtSplitEditor
+									amount={totalAmount * (purchase.exchangeRate ?? 1)}
+									currencyCode={purchase.bookingCurrency ?? "BRL"}
+									onChange={value => setDebtSplit({ ...value, currency: purchase.bookingCurrency ?? "BRL" })}
+									value={debtSplit}
+								/>
+							) : null}
+						</div>
+					</DialogBody>
+					<DialogFooter>
+						<Button
+							className="cursor-pointer"
+							onClick={() => onOpenChange(false)}
+							type="button"
+							variant="outline"
+						>
+							Descartar
+						</Button>
+						<Button
+							className="cursor-pointer"
+							disabled={
+								pending ||
+								(isDebt &&
+									!calculateDebtSplit(
+										totalAmount * (purchase.exchangeRate ?? 1),
+										debtSplit,
+										purchase.bookingCurrency ?? "BRL",
+									)) ||
+								totalAmount <= 0 ||
+								!Number.isInteger(installments) ||
+								installments < 1 ||
+								installments > 48 ||
+								!date
+							}
+							type="submit"
+						>
+							{pending ? "Salvando…" : "Salvar"}
+						</Button>
+					</DialogFooter>
+				</form>
 			</DialogContent>
 		</Dialog>
 	);

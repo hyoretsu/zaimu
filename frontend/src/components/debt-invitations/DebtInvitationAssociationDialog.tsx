@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import {
 	Dialog,
+	DialogBody,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
@@ -34,23 +35,25 @@ export function DebtInvitationAssociationDialog({
 						Crie uma nova pessoa para esta dívida ou associe o convite a uma pessoa já cadastrada.
 					</DialogDescription>
 				</DialogHeader>
-				<div className="grid gap-3 rounded-2xl border bg-muted/30 p-4">
-					<CustomSelect
-						disabled={pending}
-						label="Associar como"
-						onValueChange={value => {
-							setAssociationMode(value as "existing" | "new");
-							setPersonId("");
-						}}
-						options={[
-							{ label: "Criar nova pessoa", value: "new" },
-							{ label: "Usar pessoa existente", value: "existing" },
-						]}
-						placeholder="Selecione como associar"
-						value={associationMode}
-					/>
-					{reusePerson ? <DebtPersonPicker onValueChange={setPersonId} required value={personId} /> : null}
-				</div>
+				<DialogBody>
+					<div className="grid gap-3 rounded-2xl border bg-muted/30 p-4">
+						<CustomSelect
+							disabled={pending}
+							label="Associar como"
+							onValueChange={value => {
+								setAssociationMode(value as "existing" | "new");
+								setPersonId("");
+							}}
+							options={[
+								{ label: "Criar nova pessoa", value: "new" },
+								{ label: "Usar pessoa existente", value: "existing" },
+							]}
+							placeholder="Selecione como associar"
+							value={associationMode}
+						/>
+						{reusePerson ? <DebtPersonPicker onValueChange={setPersonId} required value={personId} /> : null}
+					</div>
+				</DialogBody>
 				<DialogFooter>
 					<Button
 						className="cursor-pointer"

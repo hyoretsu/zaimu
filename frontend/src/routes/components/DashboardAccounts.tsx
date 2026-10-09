@@ -1,11 +1,17 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { LuArrowRight, LuLandmark } from "react-icons/lu";
-import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
-import { ScrollArea } from "@/components/ui/ScrollArea";
+import {
+	Dialog,
+	DialogBody,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/Dialog";
 import type { Dashboard } from "@/lib/api";
 import { formatLocalDate } from "@/lib/date";
 import { getFinancialAccountSummaryName } from "@/lib/financial-account";
@@ -67,59 +73,61 @@ export function DashboardAccounts({ accounts, endDate }: DashboardAccountsProps)
 				</CardContent>
 			</Card>
 			<Dialog onOpenChange={setOpen} open={open}>
-				<DialogContent className="max-h-[calc(100dvh-2rem)] sm:max-w-lg">
+				<DialogContent className="sm:max-w-lg">
 					<DialogHeader>
 						<DialogTitle>Todas as contas</DialogTitle>
 						<DialogDescription>
 							Contas monetárias e investimentos incluídos no saldo em {formatLocalDate(endDate)}.
 						</DialogDescription>
 					</DialogHeader>
-					<ScrollArea className="max-h-[min(30rem,calc(100dvh-14rem))] min-h-0">
-						<div className="space-y-3 pr-3">
-							{!ordered.length && <p className="text-muted-foreground text-sm">Nenhuma conta com saldo.</p>}
-							{ordered.map(account => (
-								<div
-									className="flex items-center justify-between gap-3 rounded-xl border p-3"
-									key={account.id}
-								>
-									<div className="min-w-0">
-										<p className="font-medium">{getName(account)}</p>
-										<p className="text-muted-foreground text-xs">
-											{account.type === "SAVINGS"
-												? "Renda fixa"
-												: account.type === "INVESTMENT"
-													? "Renda variável"
-													: account.type === "CASH"
-														? "Dinheiro"
-														: account.type === "CASHBACK"
-															? "Cashback"
-															: "Conta corrente"}
-										</p>
+					<DialogBody>
+						<div>
+							<div className="space-y-3 pr-3">
+								{!ordered.length && <p className="text-muted-foreground text-sm">Nenhuma conta com saldo.</p>}
+								{ordered.map(account => (
+									<div
+										className="flex items-center justify-between gap-3 rounded-xl border p-3"
+										key={account.id}
+									>
+										<div className="min-w-0">
+											<p className="font-medium">{getName(account)}</p>
+											<p className="text-muted-foreground text-xs">
+												{account.type === "SAVINGS"
+													? "Renda fixa"
+													: account.type === "INVESTMENT"
+														? "Renda variável"
+														: account.type === "CASH"
+															? "Dinheiro"
+															: account.type === "CASHBACK"
+																? "Cashback"
+																: "Conta corrente"}
+											</p>
+										</div>
+										<div className="flex shrink-0 flex-col items-end gap-2 text-right">
+											<strong className="tabular-nums">
+												{new Intl.NumberFormat(navigator.languages, {
+													currency: account.currency ?? "BRL",
+													style: "currency",
+												}).format(account.balance)}
+											</strong>
+											<Button asChild className="cursor-pointer" size="sm" variant="outline">
+												<Link to="/accounts">
+													Extrato <LuArrowRight />
+												</Link>
+											</Button>
+										</div>
 									</div>
-									<div className="flex shrink-0 flex-col items-end gap-2 text-right">
-										<strong className="tabular-nums">
-											{new Intl.NumberFormat(navigator.languages, {
-												currency: account.currency ?? "BRL",
-												style: "currency",
-											}).format(account.balance)}
-										</strong>
-										<Button asChild className="cursor-pointer" size="sm" variant="outline">
-											<Link to="/accounts">
-												Extrato <LuArrowRight />
-											</Link>
-										</Button>
-									</div>
-								</div>
-							))}
+								))}
+							</div>
 						</div>
-					</ScrollArea>
-					<ActionGroup>
+					</DialogBody>
+					<DialogFooter>
 						<Button asChild className="cursor-pointer" variant="outline">
 							<Link to="/accounts">
 								Gerenciar contas <LuArrowRight />
 							</Link>
 						</Button>
-					</ActionGroup>
+					</DialogFooter>
 				</DialogContent>
 			</Dialog>
 		</>

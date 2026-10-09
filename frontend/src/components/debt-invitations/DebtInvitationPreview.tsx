@@ -1,6 +1,5 @@
 import { LuShoppingCart, LuUsersRound, LuWalletCards } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
-import { ScrollArea } from "@/components/ui/ScrollArea";
 import type { DebtInvitationPreview as InvitationPreview } from "@/lib/api";
 import { formatLocalDate, formatLocalTime } from "@/lib/date";
 import { getDebtEventLabel } from "@/routes/debts/components/debt-event";
@@ -54,7 +53,7 @@ export function DebtInvitationPreview({
 						.join(" / ") || "Sem lançamentos"}
 				</strong>
 			</div>
-			<ScrollArea className="min-h-0 w-full">
+			<div className="w-full min-w-0">
 				<div className="space-y-4">
 					<div className="space-y-2">
 						{preview.items.map(event => (
@@ -96,7 +95,7 @@ export function DebtInvitationPreview({
 						) : null}
 					</div>
 				</div>
-			</ScrollArea>
+			</div>
 		</>
 	);
 }

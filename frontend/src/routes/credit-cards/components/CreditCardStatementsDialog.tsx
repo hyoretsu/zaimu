@@ -1,6 +1,13 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
+import {
+	Dialog,
+	DialogBody,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/Dialog";
 import type { CreditCard } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
@@ -35,31 +42,33 @@ export function CreditCardStatementsDialog({
 	});
 	return (
 		<Dialog onOpenChange={onOpenChange} open={Boolean(card)}>
-			<DialogContent className="grid max-h-[min(90dvh,46rem)] grid-rows-[auto_minmax(0,1fr)] gap-4 overflow-hidden p-4 sm:max-w-5xl sm:gap-6 sm:p-6">
+			<DialogContent className="gap-4 p-4 sm:max-w-5xl sm:gap-6 sm:p-6">
 				<DialogHeader>
 					<DialogTitle>Faturas de {card?.accountName ?? "Cartão de crédito"}</DialogTitle>
 					<DialogDescription>Selecione um mês para consultar os detalhes e as transações.</DialogDescription>
 				</DialogHeader>
-				{card && (
-					<CreditCardStatementBrowser
-						card={card}
-						key={card.id}
-						onAddPurchase={() => setIsCreatePurchaseOpen(true)}
-					/>
-				)}
-				{card && (
-					<CreatePurchaseDialog
-						cards={[card]}
-						initialCardId={card.id}
-						key={card.id}
-						onOpenChange={setIsCreatePurchaseOpen}
-						onSubmit={async (cardId, data) => {
-							await purchase.mutateAsync({ cardId, data });
-						}}
-						open={isCreatePurchaseOpen}
-						pending={purchase.isPending}
-					/>
-				)}
+				<DialogBody>
+					{card && (
+						<CreditCardStatementBrowser
+							card={card}
+							key={card.id}
+							onAddPurchase={() => setIsCreatePurchaseOpen(true)}
+						/>
+					)}
+					{card && (
+						<CreatePurchaseDialog
+							cards={[card]}
+							initialCardId={card.id}
+							key={card.id}
+							onOpenChange={setIsCreatePurchaseOpen}
+							onSubmit={async (cardId, data) => {
+								await purchase.mutateAsync({ cardId, data });
+							}}
+							open={isCreatePurchaseOpen}
+							pending={purchase.isPending}
+						/>
+					)}
+				</DialogBody>
 			</DialogContent>
 		</Dialog>
 	);
