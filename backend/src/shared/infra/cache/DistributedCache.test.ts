@@ -108,6 +108,47 @@ class FlakyCache extends MemoryCache {
 }
 
 describe("DistributedCache", () => {
+	test("contended distributed lock falls back without publishing or releasing another owner", async () => {
+		const storage = new MemoryCache();
+		const cache = new DistributedCache(storage);
+		const key = await cache.key("contended", "dashboard", {});
+		await storage.set(`${key}:lock`, "other-process");
+		const start = performance.now();
+		const result = await cache.remember("contended", "dashboard", {}, async () => "fresh");
+		expect(result.value).toBe("fresh");
+		expect(result.hit).toBeFalse();
+		expect(performance.now() - start).toBeLessThan(1000);
+		expect(storage.data.get(`${key}:lock`)).toBe("other-process");
+		expect(storage.data.has(key)).toBeFalse();
+	});
+
+	test("contended reader observes a new generation rather than a retired entry", async () => {
+		const storage = new MemoryCache();
+		const cache = new DistributedCache(storage);
+		const key = await cache.key("contended-generation", "dashboard", {});
+		await storage.set(`${key}:lock`, "other-process");
+		const pending = cache.remember("contended-generation", "dashboard", {}, async () => "fresh");
+		await Bun.sleep(10);
+		const token = await cache.beginWrite("contended-generation", ["dashboard"]);
+		await cache.finishWrite("contended-generation", ["dashboard"], token);
+		await storage.set(key, JSON.stringify({ etag: "old", value: "stale" }));
+		expect((await pending).value).toBe("fresh");
+		expect(storage.data.get(`${key}:lock`)).toBe("other-process");
+	});
+
+	test("a value published during contention avoids fallback", async () => {
+		const storage = new MemoryCache();
+		const cache = new DistributedCache(storage);
+		const key = await cache.key("published", "dashboard", {});
+		await storage.set(`${key}:lock`, "other-process");
+		let loads = 0;
+		const pending = cache.remember("published", "dashboard", {}, async () => ++loads);
+		await Bun.sleep(10);
+		await storage.set(key, JSON.stringify({ etag: '"published"', value: 42 }));
+		expect((await pending).value).toBe(42);
+		expect(loads).toBe(0);
+	});
+
 	test("a loader finishing after invalidation cannot repopulate the retired generation", async () => {
 		const storage = new MemoryCache();
 		const cache = new DistributedCache(storage);

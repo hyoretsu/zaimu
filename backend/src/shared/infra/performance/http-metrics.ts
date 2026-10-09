@@ -18,6 +18,7 @@ export const instrumentHttp =
 			metrics.active = false;
 			const headers = new Headers(response.headers);
 			if (process.env.PERFORMANCE_METRICS_HEADERS === "true") {
+				headers.set("x-performance-namespace", process.env.SERVICE_NAMESPACE ?? "");
 				headers.set("x-performance-query-count", String(metrics.queryCount));
 				headers.set("x-performance-auth-query-count", String(metrics.authQueryCount));
 				headers.set("x-performance-business-query-count", String(metrics.businessQueryCount));

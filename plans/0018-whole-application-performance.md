@@ -303,3 +303,21 @@ Ambiente atual Linux não permite aceite iOS; ferramentas Android não foram det
 - Regressão no navegador: sem guarda, duas consultas USD aconteceram enquanto preferência BRL estava bloqueada. Com guarda, zero consultas antes da preferência; painel e gráfico usam somente BRL após resolução, sem demanda de histórico cambial.
 - Três testes de navegador passaram, incluindo localização/troca/persistência de preferência e herança de moeda em formulário. Build frontend passou. Todas as requisições externas foram interceptadas; nenhum serviço compartilhado foi alterado.
 - Jobs de câmbio previamente registrados continuam recuperáveis; print sem datas/base/origem não identifica individualmente a idade da demanda. Dez anos correspondem apenas a CDI/SELIC; câmbio projetado usa 365 dias.
+
+## Retomada aprovada - 2026-10-09
+
+Complementar cobertura de ações e concluir etapas pendentes deste plano. Prioridade: confirmação de salvamento de compras, persistência por diferença, apresentação restrita à compra solicitada e espera de lock limitada a 250 ms com fallback sem publicação. Confirmar resultado persistido sem aguardar recargas derivadas; fluxos dependentes aguardam leitura explicitamente.
+
+Diagnóstico estático: saveCreditBook regrava histórico integral e sincroniza dívidas por compra; respostas de mutação apresentam livro inteiro antes de filtrar; lock distribuído espera até 30 segundos; frontend aguarda invalidação/refetch para confirmar. Causa dos 20 segundos exige baseline instrumentado, não inferência por contagem SQL.
+
+Suíte deve incorporar escritas/jornadas, validação do próprio executor, fontes externas locais simuladas, métricas obrigatórias e cobertura sem falso positivo. Manter metas existentes, três rodadas de pelo menos 25 amostras, cargas 1/5/20 e fixtures 10/10 mil/100 mil. Relatórios parciais não encerram aceite global.
+
+Progresso da retomada:
+
+- [x] Revisar plano e identificar caminhos compartilhados de espera/regravação.
+- [ ] Capturar baseline e corrigir cache, persistência e confirmação frontend.
+- [ ] Ampliar runner e testes de performance para escritas e jornadas.
+- [ ] Executar matriz, corrigir demais violações e registrar antes/depois.
+- [ ] Validar plataformas disponíveis e encerrar aceite somente com cobertura integral.
+
+Próxima etapa: validar fallback de cache e persistência incremental contra regressões financeiras e fixture dedicada. Alteração preexistente em packages/sql/migrations/app/refs/db.json permanece fora dos commits.

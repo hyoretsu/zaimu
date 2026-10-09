@@ -27,7 +27,7 @@ let interrupted = false;
 const commands = new Set<ReturnType<typeof Bun.spawn>>();
 console.log(`Disposable test run: ${namespace} (${target}:${category})`);
 async function command(command: string[], env?: Record<string, string | undefined>, cwd = root) {
-	const process = Bun.spawn(command, { cwd, env, stderr: "pipe", stdout: "pipe", timeout: 15000 });
+	const process = Bun.spawn(command, { cwd, env, stderr: "pipe", stdout: "pipe", timeout: 120000 });
 	commands.add(process);
 	const [stdout, stderr, code] = await Promise.all([
 		new Response(process.stdout).text(),

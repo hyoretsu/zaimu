@@ -1,6 +1,5 @@
 import { getQueryMetrics, measureOperation } from "sql";
 import type { CacheGuard, CachePort } from "~/shared/application/ports";
-import { HttpException } from "~/shared/errors";
 import { cacheKey } from "../service-namespace";
 import { RedisBudget, RedisUnavailableError } from "./RedisBudget";
 
@@ -42,7 +41,7 @@ interface CacheEntry<Value> {
 }
 const localCoalescing = new Map<string, Promise<unknown>>();
 const LOCK_LEASE_MS = 10_000;
-const LOCK_WAIT_MS = 30_000;
+const LOCK_WAIT_MS = 250;
 
 const logCacheOperation = (namespace: CacheNamespace, result: "bypass" | "hit" | "miss", startedAt: number) =>
 	console.info(
@@ -229,17 +228,19 @@ export class DistributedCache {
 			const deadline = performance.now() + LOCK_WAIT_MS;
 			let pollMs = 25;
 			while (performance.now() < deadline) {
-				await Bun.sleep(pollMs);
+				await Bun.sleep(Math.min(pollMs, Math.max(0, deadline - performance.now())));
 				pollMs = Math.min(500, pollMs * 2);
 				const filled = await this.read<Value>(userId, namespace, parameters);
-				if (!this.available)
-					throw new HttpException("Cache temporariamente indisponível. Tente novamente.", 503);
+				if (!this.available) break;
 				if (filled) {
 					logCacheOperation(namespace, "hit", startedAt);
 					return { ...filled, hit: true as const };
 				}
 			}
-			throw new HttpException("Leitura em processamento. Tente novamente.", 503);
+			// Another process may be slow or dead. Never publish without its lease.
+			const value = await measureOperation("loader:lock-bypass", load);
+			logCacheOperation(namespace, "bypass", startedAt);
+			return { etag: `"${hash(JSON.stringify(value))}"`, hit: false as const, value };
 		}
 		let leaseValid = ownsLock;
 		let renewing = Promise.resolve();

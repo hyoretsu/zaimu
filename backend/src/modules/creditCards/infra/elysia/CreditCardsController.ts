@@ -672,9 +672,9 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					});
 				return id;
 			});
-			return (await presentCreditBook(await readCreditBook(userId, params.id))).filter(
-				row => row.purchaseId === createdId || row.id === createdId,
-			);
+			return (
+				await presentCreditBook(await readCreditBook(userId, params.id, false), undefined, createdId)
+			).filter(row => row.purchaseId === createdId || row.id === createdId);
 		},
 		{ body: CreatePurchaseBody },
 	)
@@ -686,9 +686,9 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				{ cardId: params.id, purchaseId: params.purchaseId, userId },
 				{ amount: body.amount, creditDate: body.purchaseDate, policy: body.policy },
 			);
-			return (await presentCreditBook(await readCreditBook(userId, params.id))).find(
-				row => row.id === refund.id,
-			);
+			return (
+				await presentCreditBook(await readCreditBook(userId, params.id, false), undefined, refund.id)
+			).find(row => row.id === refund.id);
 		},
 		{
 			body: t.Object({
@@ -707,9 +707,9 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				params.refundId,
 				{ amount: body.amount, creditDate: body.purchaseDate },
 			);
-			return (await presentCreditBook(await readCreditBook(userId, params.id))).find(
-				row => row.id === params.refundId,
-			);
+			return (
+				await presentCreditBook(await readCreditBook(userId, params.id, false), undefined, params.refundId)
+			).find(row => row.id === params.refundId);
 		},
 		{
 			body: t.Object({
@@ -849,9 +849,13 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						);
 					},
 				);
-			return (await presentCreditBook(await readCreditBook(userId, destinationCardId))).find(
-				row => row.id === params.purchaseId || row.purchaseId === params.purchaseId,
-			);
+			return (
+				await presentCreditBook(
+					await readCreditBook(userId, destinationCardId, false),
+					undefined,
+					params.purchaseId,
+				)
+			).find(row => row.id === params.purchaseId || row.purchaseId === params.purchaseId);
 		},
 		{ body: UpdatePurchaseBody },
 	)
