@@ -1,10 +1,12 @@
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Dialog as DialogPrimitive } from "radix-ui";
-import type { ComponentProps } from "react";
+import { type ComponentProps, createContext, useContext } from "react";
 import { Button } from "@/components/ui/Button";
 import { usePageScrollLock } from "@/hooks/use-page-scroll-lock";
 import { cn } from "@/lib/utils";
+
+const DialogContentContext = createContext({ showCloseButton: true });
 
 function Dialog({ modal = false, ...props }: ComponentProps<typeof DialogPrimitive.Root>) {
 	return <DialogPrimitive.Root data-slot="dialog" modal={modal} {...props} />;
@@ -52,13 +54,13 @@ function DialogContent({
 			<DialogOverlay className={overlayClassName} />
 			<DialogPrimitive.Content
 				className={cn(
-					"scrollbar-themed data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-6 overflow-y-auto rounded-4xl bg-popover p-6 text-popover-foreground text-sm outline-none ring-1 ring-foreground/5 duration-100 data-closed:animate-out data-open:animate-in sm:max-w-md",
+					"scrollbar-themed data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-6 overflow-y-auto rounded-4xl bg-popover p-6 text-popover-foreground text-sm outline-none ring-1 ring-foreground/5 duration-100 data-closed:animate-out data-open:animate-in sm:max-w-md [&:has([data-slot=dialog-header])>[data-slot=dialog-close]]:hidden",
 					className,
 				)}
 				data-slot="dialog-content"
 				{...props}
 			>
-				{children}
+				<DialogContentContext.Provider value={{ showCloseButton }}>{children}</DialogContentContext.Provider>
 				{showCloseButton && (
 					<DialogPrimitive.Close asChild data-slot="dialog-close">
 						<Button className="absolute top-4 right-4 cursor-pointer" size="icon-sm" variant="outline">
@@ -72,8 +74,26 @@ function DialogContent({
 	);
 }
 
-function DialogHeader({ className, ...props }: ComponentProps<"div">) {
-	return <div className={cn("flex flex-col gap-2", className)} data-slot="dialog-header" {...props} />;
+function DialogHeader({ className, children, ...props }: ComponentProps<"div">) {
+	const { showCloseButton } = useContext(DialogContentContext);
+
+	return (
+		<div
+			className={cn("flex min-w-0 items-start justify-between gap-4", className)}
+			data-slot="dialog-header"
+			{...props}
+		>
+			<div className="wrap-anywhere flex min-w-0 flex-1 flex-col gap-2">{children}</div>
+			{showCloseButton && (
+				<DialogPrimitive.Close asChild data-slot="dialog-close">
+					<Button className="shrink-0 cursor-pointer" size="icon-sm" variant="outline">
+						<HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
+						<span className="sr-only">Fechar</span>
+					</Button>
+				</DialogPrimitive.Close>
+			)}
+		</div>
+	);
 }
 
 function DialogFooter({
