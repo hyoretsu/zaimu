@@ -1,6 +1,6 @@
 import type { CreditBook } from "@zaimu/finance/credit-book";
 import type { RecurrenceDefinition } from "@zaimu/finance/recurrence";
-import { projectRecurrenceCreditBook } from "@zaimu/finance/recurrence-projection";
+import { pendingRecurrenceDates, projectRecurrenceCreditBook } from "@zaimu/finance/recurrence-projection";
 import { guestDashboardCurrencyContext } from "./dashboard-currency-context";
 import { getLocalDateKey } from "./date";
 
@@ -14,9 +14,13 @@ export async function projectGuestRecurrenceCreditBook(
 ) {
 	const relevant = recurrences.filter(row => row.creditCardId === book.card.id && row.isActive);
 	const currency = book.card.currency ?? "BRL";
+	const processed = new Set(occurrences.map(row => `${row.recurrenceId}:${row.date}`));
+	const demanded = relevant.filter(
+		row => row.amount && pendingRecurrenceDates(row, from, through, processed).length,
+	);
 	const money = await guestDashboardCurrencyContext({
 		currency,
-		forecastCurrencies: relevant.map(row => row.currency ?? "BRL"),
+		forecastCurrencies: demanded.map(row => row.currency ?? "BRL"),
 		forecasting: through > getLocalDateKey(),
 		nativeCurrencies: [],
 		positions: [],

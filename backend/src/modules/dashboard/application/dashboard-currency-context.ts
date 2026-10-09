@@ -1,4 +1,5 @@
-import { recurrenceNeedsConfiguration } from "@zaimu/finance/recurrence";
+import { shiftRecurrenceDate } from "@zaimu/finance/recurrence";
+import { pendingRecurrenceDates } from "@zaimu/finance/recurrence-projection";
 import { ensureCurrencyRates, getLatestCurrencyRate } from "~/modules/currencies/infra/currency-exchange";
 import { getCurrencyHistoryEstimate } from "~/modules/financial-history/application/currency-history-estimate";
 import { requestHistoryCollection } from "~/modules/financial-history/application/history-collections";
@@ -27,9 +28,13 @@ export async function dashboardCurrencyContext(
 	today: Date,
 	forecasting: boolean,
 	dependencies = defaultDependencies,
+	forecastThrough = `${today.getFullYear() + 2}-12-31`,
 ) {
 	const reference = dateKey(today);
 	const accountCurrencies = new Map(loaded.accounts.map(row => [row.id, row.currency ?? "BRL"]));
+	const processed = new Set(
+		(loaded.linkedTransactions ?? []).map(row => `${row.sourceId}:${String(row.date).slice(0, 10)}`),
+	);
 	const currentCurrencies = new Set<string>();
 	const forecastCurrencies = new Set<string>();
 	for (const row of loaded.balanceRows) {
@@ -40,34 +45,56 @@ export async function dashboardCurrencyContext(
 	}
 	for (const row of loaded.cards) if (Number(row.creditLimit)) currentCurrencies.add(row.currency ?? "BRL");
 	for (const row of loaded.debts) if (Number(row.balance)) currentCurrencies.add(row.currency ?? "BRL");
-	const addMovementAccounts = (origin?: string | null, destination?: string | null) => {
-		for (const id of [origin, destination])
+	const primaryCurrency =
+		loaded.accounts.find(row => row.isPrimary)?.currency ??
+		loaded.accounts.find(row => row.type === "CHECKING" || row.type === "CASH")?.currency ??
+		currency;
+	const addMovementAccounts = (type: string, origin?: string | null, destination?: string | null) => {
+		const ids = type === "INCOME" ? [destination] : type === "TRANSFER" ? [origin, destination] : [origin];
+		if (ids.some(id => !id)) forecastCurrencies.add(primaryCurrency);
+		for (const id of ids)
 			if (id && accountCurrencies.has(id)) forecastCurrencies.add(accountCurrencies.get(id)!);
 	};
 	for (const row of loaded.flows) {
 		if (!row.amount) continue;
 		const date = dateKey(row.date);
 		if (date === reference) currentCurrencies.add(row.currency ?? "BRL");
-		if (date > reference) {
+		if (date > reference && date <= forecastThrough) {
 			forecastCurrencies.add(row.currency ?? "BRL");
-			addMovementAccounts(row.originAccountId, row.destinationAccountId);
+			addMovementAccounts(row.type, row.originAccountId, row.destinationAccountId);
 		}
 	}
 	for (const row of loaded.recurrences)
 		if (
 			row.amount &&
-			!recurrenceNeedsConfiguration(row) &&
-			(!row.endDate || String(row.endDate).slice(0, 10) > reference)
+			pendingRecurrenceDates(row, shiftRecurrenceDate(reference, 1), forecastThrough, processed).length
 		) {
 			forecastCurrencies.add(row.currency ?? "BRL");
-			addMovementAccounts(row.originFinancialAccountId, row.destinationFinancialAccountId);
+			if (row.movement !== "CARD_PURCHASE")
+				addMovementAccounts(row.movement, row.originFinancialAccountId, row.destinationFinancialAccountId);
+			const card = loaded.cards.find(card => card.id === row.creditCardId);
+			if (card) forecastCurrencies.add(card.currency ?? "BRL");
 		}
 	for (const row of loaded.loanPayments)
-		if (!row.paidDate && Number(row.totalPaid) && dateKey(row.dueDate) > reference)
+		if (
+			!row.paidDate &&
+			Number(row.totalPaid) &&
+			dateKey(row.dueDate) > reference &&
+			dateKey(row.dueDate) <= forecastThrough
+		) {
 			forecastCurrencies.add(row.currency ?? "BRL");
+			forecastCurrencies.add(primaryCurrency);
+		}
 	for (const row of loaded.projectedStatements ?? [])
-		if (Number(row.balanceAmount) && dateKey(row.dueDate) > reference)
-			forecastCurrencies.add(loaded.cards.find(card => card.id === row.creditCardId)?.currency ?? "BRL");
+		if (
+			Number(row.balanceAmount) &&
+			dateKey(row.dueDate) > reference &&
+			dateKey(row.dueDate) <= forecastThrough
+		) {
+			const card = loaded.cards.find(card => card.id === row.creditCardId);
+			forecastCurrencies.add(card?.currency ?? "BRL");
+			forecastCurrencies.add(accountCurrencies.get(card?.paymentAccountId ?? "") ?? primaryCurrency);
+		}
 	const forecastForeign = [...forecastCurrencies].filter(source => source !== currency);
 	const factors = new Map<string, number>();
 	const forecastFactors = new Map<string, number>();

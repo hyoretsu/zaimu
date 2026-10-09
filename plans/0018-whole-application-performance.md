@@ -287,3 +287,11 @@ Ambiente atual Linux não permite aceite iOS; ferramentas Android não foram det
 - Testes de dez anos com apenas dois dias ausentes produziram um único intervalo; solicitação repetida não republicou. Dias verificados sem publicação não geraram download. Suite de integração completa passou em serviços locais descartáveis.
 - Logs `currency-rate-history-fetch` correspondem a câmbio: janela de previsão é 365 dias, não dez anos. Só moeda estrangeira efetivamente necessária deve criar demanda; backlog previamente registrado continua sendo recuperado. Print sem datas/base/origem não comprova se demanda é antiga ou nova.
 - Próximos: concluir seleção de projeção guest/cartões, fixture de câmbio e validações oficiais de performance.
+
+### Demanda de câmbio em projeções
+
+- Backend e guest selecionam moedas de recorrências com ocorrências pendentes dentro do horizonte solicitado; cartões também ignoram recorrências encerradas, sem configuração, já materializadas ou sem valor.
+- Guest deriva demanda de saldos não zero, parcelas/faturas a vencer, empréstimos não pagos e transações futuras contabilizadas na moeda de lançamento. Moeda original de compra já contabilizada não cria demanda por si só.
+- Conta principal e contas envolvidas seguem incluídas quando movimentos futuros precisam delas, preservando transferências, insuficiência de saldo e liquidação de faturas em outra moeda.
+- 21 testes direcionados passaram, incluindo recorrências fora do período e movimentos estrangeiros fora do horizonte. Janela de previsão cambial permanece 365 dias conforme regras de negócio; somente demanda efetiva inicia coleta.
+- Próximos: fixture de câmbio, batching de leituras, invalidações por mudança efetiva e matriz completa de aceite do plano.

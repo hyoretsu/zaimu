@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { type CreditBook, newBookPurchase, replayCreditBook } from "./credit-book";
 import { type RecurrenceDefinition, recurrenceAccountEffects } from "./recurrence";
-import { projectRecurrenceCreditBook } from "./recurrence-projection";
+import { pendingRecurrenceDates, projectRecurrenceCreditBook } from "./recurrence-projection";
 
 const recurrence = (movement: RecurrenceDefinition["movement"], amount = 30): RecurrenceDefinition => ({
 	amount,
@@ -279,4 +279,21 @@ test("foreign recurring card payments use native precision", () => {
 	);
 	expect(projected.payments[0]!.amount).toBe(3.062);
 	expect(book.payments).toEqual([]);
+});
+
+test("only pending occurrences inside the projection create currency demand", () => {
+	const row = { ...recurrence("CARD_PURCHASE"), currency: "USD" };
+	expect(pendingRecurrenceDates(row, "2026-10-01", "2026-10-31")).toEqual(["2026-10-10"]);
+	expect(
+		pendingRecurrenceDates(row, "2026-10-01", "2026-10-31", new Set([`${row.id}:2026-10-10`])),
+	).toEqual([]);
+	expect(pendingRecurrenceDates(row, "2026-10-01", "2026-10-09")).toEqual([]);
+	expect(pendingRecurrenceDates({ ...row, isActive: false }, "2026-10-01", "2026-10-31")).toEqual([]);
+	expect(
+		pendingRecurrenceDates(
+			{ ...row, endDate: "2026-09-30", startDate: "2026-09-01" },
+			"2026-10-01",
+			"2026-10-31",
+		),
+	).toEqual([]);
 });

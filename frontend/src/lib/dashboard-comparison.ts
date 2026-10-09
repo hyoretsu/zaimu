@@ -4,7 +4,7 @@ import { creditBookRewards } from "@zaimu/finance/credit-book";
 import { dailyForecast, type ForecastMovement, forecastBreakdown } from "@zaimu/finance/daily-forecast";
 import { projectedNetYield, type ReferenceRateType } from "@zaimu/finance/projected-yield";
 import { recurrenceDates, recurrenceNeedsConfiguration } from "@zaimu/finance/recurrence";
-import { projectRecurrenceCreditBook } from "@zaimu/finance/recurrence-projection";
+import { pendingRecurrenceDates, projectRecurrenceCreditBook } from "@zaimu/finance/recurrence-projection";
 import { addDays, format, startOfDay } from "date-fns";
 import type { DashboardPeriod, FinancialAccountYield, FinancialAccountYieldHoliday } from "./api";
 import { activeCurrency } from "./currency-context";
@@ -78,16 +78,66 @@ export async function getGuestDashboardFinancialContext(
 			.map(row => `${row.recurrenceId}:${row.recurrenceOccurrenceDate ?? row.date.slice(0, 10)}`),
 	]);
 	const accounts = accountRows.filter(row => !row.data.isHidden).map(row => row.data);
+	const historicalAccountsAt = (date: Date) =>
+		calculateFinancialAccountBalances(
+			accounts,
+			[...transactions, ...loanAccountMovements(paymentRows.map(row => row.data))],
+			bookRows.flatMap(row => creditBookRewards(row.data)),
+			(holidays as FinancialAccountYieldHoliday[] | null)?.map(row => row.date) ?? [],
+			date,
+			(yields as FinancialAccountYield[] | null) ?? [],
+		);
+	const current = historicalAccountsAt(today);
 	const currency = activeCurrency();
+	const pendingRecurrences = recurrences.filter(
+		row => row.amount && pendingRecurrenceDates(row, key(projectionStart), key(through), linked).length,
+	);
+	const futureTransactions = transactions.filter(
+		row => row.amount && row.date.slice(0, 10) > key(today) && row.date.slice(0, 10) <= key(through),
+	);
+	const futurePayments = paymentRows.filter(
+		row =>
+			!row.data.paidDate &&
+			row.data.totalPaid &&
+			row.data.dueDate > key(today) &&
+			row.data.dueDate <= key(through),
+	);
+	const futureCardBooks = bookRows.filter(
+		row => forecastCardPayments(row.data, key(projectionStart), key(through)).length > 0,
+	);
 	const forecastCurrencies = [
-		...new Set([
-			...accounts.map(row => row.currency ?? "BRL"),
-			...cards.map(row => row.currency ?? "BRL"),
-			...recurrences.map(row => row.currency ?? "BRL"),
-			...paymentRows.map(row => row.data.currency ?? "BRL"),
-			...transactions.filter(row => row.date.slice(0, 10) > key(today)).map(row => row.currency ?? "BRL"),
+		...current.filter(row => row.balance).map(row => row.currency ?? "BRL"),
+		...pendingRecurrences.flatMap(row => [
+			row.currency ?? "BRL",
+			...accounts
+				.filter(account =>
+					[row.originFinancialAccountId, row.destinationFinancialAccountId].includes(account.id),
+				)
+				.map(account => account.currency ?? "BRL"),
+			...cards.filter(card => card.id === row.creditCardId).map(card => card.currency ?? "BRL"),
+		]),
+		...futureCardBooks.map(row => row.data.card.currency ?? "BRL"),
+		...futurePayments.map(row => row.data.currency ?? "BRL"),
+		...futureTransactions.flatMap(row => [
+			row.bookingCurrency ?? "BRL",
+			...accounts
+				.filter(account =>
+					[row.originFinancialAccountId, row.destinationFinancialAccountId].includes(account.id),
+				)
+				.map(account => account.currency ?? "BRL"),
 		]),
 	];
+	if (
+		pendingRecurrences.some(row => row.movement !== "CARD_PURCHASE") ||
+		futureTransactions.length ||
+		futurePayments.length ||
+		futureCardBooks.length
+	)
+		forecastCurrencies.push(
+			accounts.find(row => row.isPrimary)?.currency ??
+				accounts.find(row => row.type === "CHECKING" || row.type === "CASH")?.currency ??
+				currency,
+		);
 	const forecastMoney = await guestDashboardCurrencyContext({
 		currency,
 		forecastCurrencies,
@@ -180,16 +230,6 @@ export async function getGuestDashboardFinancialContext(
 				type: "EXPENSE",
 			});
 	}
-	const historicalAccountsAt = (date: Date) =>
-		calculateFinancialAccountBalances(
-			accounts,
-			[...transactions, ...loanAccountMovements(paymentRows.map(row => row.data))],
-			bookRows.flatMap(row => creditBookRewards(row.data)),
-			(holidays as FinancialAccountYieldHoliday[] | null)?.map(row => row.date) ?? [],
-			date,
-			(yields as FinancialAccountYield[] | null) ?? [],
-		);
-	const current = historicalAccountsAt(today);
 	const rateResult = await refreshReferenceRateAverages();
 	const averages: Partial<Record<ReferenceRateType, number>> = {};
 	for (const type of ["CDI", "SELIC"] as const)

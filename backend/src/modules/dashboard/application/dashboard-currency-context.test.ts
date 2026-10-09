@@ -110,3 +110,33 @@ for (const foreignAmount of [0, 20])
 		expect(context.forecastAvailable).toBe(true);
 		expect(context.convert(foreignAmount, "USD", "2026-10-01")).toBe(foreignAmount * 5);
 	});
+
+test("out-of-range foreign movements need neither current quotes nor forecast history", async () => {
+	const data = loaded();
+	data.accounts = [];
+	data.balanceRows = [];
+	data.flows = [{ amount: 20, currency: "USD", date: new Date("2027-01-01T12:00:00"), type: "EXPENSE" }];
+	const context = await dashboardCurrencyContext(
+		data,
+		"BRL",
+		today,
+		true,
+		{
+			estimate: async () => {
+				throw new Error("Unexpected estimate");
+			},
+			historical: async () => {
+				throw new Error("Unexpected historical quote");
+			},
+			latest: async () => {
+				throw new Error("Unexpected latest quote");
+			},
+			request: async () => {
+				throw new Error("Unexpected forecast request");
+			},
+		},
+		"2026-10-31",
+	);
+	expect(context.missing).toEqual([]);
+	expect(context.forecastAvailable).toBe(true);
+});

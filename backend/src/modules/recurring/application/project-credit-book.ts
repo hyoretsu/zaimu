@@ -1,6 +1,6 @@
 import type { CreditBook } from "@zaimu/finance/credit-book";
 import { shiftRecurrenceDate } from "@zaimu/finance/recurrence";
-import { projectRecurrenceCreditBook } from "@zaimu/finance/recurrence-projection";
+import { pendingRecurrenceDates, projectRecurrenceCreditBook } from "@zaimu/finance/recurrence-projection";
 import { getCurrencyHistoryEstimate } from "~/modules/financial-history/application/currency-history-estimate";
 import { requestHistoryCollection } from "~/modules/financial-history/application/history-collections";
 import { queryRaw } from "~/shared/infra/sql";
@@ -19,8 +19,13 @@ export async function projectRecurringCreditBook(
 	);
 	const recurrences = rows.map(normalizeRecurrence);
 	const target = book.card.currency ?? "BRL";
+	const from = shiftRecurrenceDate(recurrenceToday(), 1);
+	const processed = new Set(occurrences.map(row => `${row.recurrenceId}:${row.date}`));
+	const demanded = recurrences.filter(
+		row => row.amount && pendingRecurrenceDates(row, from, through, processed).length,
+	);
 	const rates = new Map<string, number>();
-	for (const source of new Set(recurrences.map(row => row.currency ?? "BRL"))) {
+	for (const source of new Set(demanded.map(row => row.currency ?? "BRL"))) {
 		if (source === target) continue;
 		const collection = await requestHistoryCollection("CURRENCY", [source, target], recurrenceToday());
 		const estimate = collection ? await getCurrencyHistoryEstimate(collection.id, target) : null;
@@ -30,7 +35,7 @@ export async function projectRecurringCreditBook(
 	return projectRecurrenceCreditBook(
 		book,
 		recurrences,
-		shiftRecurrenceDate(recurrenceToday(), 1),
+		from,
 		through,
 		occurrences,
 		(amount, source, _target, date) => {

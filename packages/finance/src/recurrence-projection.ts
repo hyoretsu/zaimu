@@ -3,6 +3,19 @@ import { roundMoney } from "./money";
 import { type RecurrenceDefinition, recurrenceDates, recurrenceNeedsConfiguration } from "./recurrence";
 export type RecurrenceMoneyConverter = (amount: number, from: string, to: string, date: string) => number;
 
+/** Only unmaterialized occurrences inside the requested projection need conversion. */
+export function pendingRecurrenceDates(
+	recurrence: RecurrenceDefinition,
+	from: string,
+	through: string,
+	processed: ReadonlySet<string> = new Set(),
+) {
+	if (!recurrence.isActive || recurrenceNeedsConfiguration(recurrence)) return [];
+	return recurrenceDates(recurrence, from, through).filter(
+		date => !processed.has(`${recurrence.id}:${date}`),
+	);
+}
+
 /** Ephemeral copy only: forecasts never write purchases, rewards or debt events. */
 export function projectRecurrenceCreditBook(
 	book: CreditBook,
@@ -30,15 +43,16 @@ export function projectRecurrenceCreditBook(
 			recurrence.creditCardId !== book.card.id
 		)
 			continue;
-		for (const date of recurrenceDates(recurrence, from, through)) {
-			if (processed.has(`${recurrence.id}:${date}`)) continue;
+		for (const date of pendingRecurrenceDates(recurrence, from, through, processed)) {
 			const id = `forecast:${recurrence.id}:${date}`;
 			const source = recurrence.currency ?? "BRL";
 			const target = book.card.currency ?? "BRL";
-			if (source !== target && !convert)
+			if (recurrence.amount && source !== target && !convert)
 				throw new RangeError(`Conversão de ${source} para ${target} indisponível em ${date}`);
 			const amount = roundMoney(
-				source === target ? recurrence.amount : convert!(recurrence.amount, source, target, date),
+				!recurrence.amount || source === target
+					? recurrence.amount
+					: convert!(recurrence.amount, source, target, date),
 				target,
 			);
 			if (!Number.isFinite(amount) || amount < 0) throw new RangeError("Valor projetado inválido");

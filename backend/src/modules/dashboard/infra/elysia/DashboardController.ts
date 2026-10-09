@@ -154,6 +154,8 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" })
 						consolidatedCurrency,
 						today,
 						comparisonEnd > today,
+						undefined,
+						dateKey(comparisonEnd),
 					);
 					const consolidation = {
 						forecastAvailable: money.forecastAvailable,
