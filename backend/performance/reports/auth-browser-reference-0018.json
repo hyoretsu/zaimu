@@ -1,0 +1,1867 @@
+{
+	"auth": {
+		"authSession:1:1:mutation": {
+			"actions": {
+				"anonymousSession": {
+					"count": 5,
+					"maxQueries": 1,
+					"p50Ms": 25.110323999999764,
+					"p95Ms": 40.8170970000001,
+					"p99Ms": 40.8170970000001,
+					"passed": true
+				},
+				"session": {
+					"count": 5,
+					"maxQueries": 2,
+					"p50Ms": 43.50441899999896,
+					"p95Ms": 80.81176199999982,
+					"p99Ms": 80.81176199999982,
+					"passed": true
+				},
+				"signIn": {
+					"count": 5,
+					"maxQueries": 4,
+					"p50Ms": 885.9059259999995,
+					"p95Ms": 1177.165973,
+					"p99Ms": 1177.165973,
+					"passed": false
+				},
+				"signOut": {
+					"count": 5,
+					"maxQueries": 8,
+					"p50Ms": 81.41652400000021,
+					"p95Ms": 162.19613200000003,
+					"p99Ms": 162.19613200000003,
+					"passed": true
+				}
+			},
+			"elapsedMs": 19619.116889,
+			"errors": [],
+			"expectedActions": ["signIn", "session", "signOut", "anonymousSession"],
+			"p95Ms": 909.347858000001,
+			"passed": false,
+			"samples": [
+				{
+					"action": "signIn",
+					"authQueries": 4,
+					"businessQueries": 0,
+					"bytes": 270,
+					"cache": null,
+					"connectionWaitMs": 0.48,
+					"durationMs": 1177.165973,
+					"index": 0,
+					"method": "POST",
+					"path": "/api/auth/sign-in/email",
+					"queries": 4,
+					"requestId": "ff2ca416-832c-4c04-ba6a-c65b6968dd64",
+					"sqlDurationMs": 18.87,
+					"sqlElapsedMs": 18.87,
+					"status": 200,
+					"telemetry": {
+						"bytes": 270,
+						"completed": true,
+						"cpuMicros": {
+							"system": 24389,
+							"user": 638636
+						},
+						"durationMs": 1163.33,
+						"eventLoopLagP95Ms": 4.55,
+						"memory": {
+							"arrayBuffers": 23747,
+							"external": 11868582,
+							"heapTotal": 32106496,
+							"heapUsed": 31441357,
+							"rss": 130158592
+						},
+						"method": "POST",
+						"pool": {
+							"idle": 1,
+							"total": 1,
+							"waiting": 0
+						},
+						"requestId": "ff2ca416-832c-4c04-ba6a-c65b6968dd64",
+						"route": "/*",
+						"spans": [
+							{
+								"durationMs": 1.5905260000145063,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 1.9865649999119341
+							},
+							{
+								"durationMs": 2.9320360000710934,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 11.554629999911413
+							},
+							{
+								"durationMs": 1.6864210000494495,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 27.0492179999128
+							},
+							{
+								"durationMs": 2.7993130000540987,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 39.64859999995679
+							},
+							{
+								"durationMs": 8.485310999909416,
+								"name": "sql:INSERT",
+								"outcome": "ok",
+								"startMs": 1124.3424820000073
+							},
+							{
+								"durationMs": 1.5458290000678971,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 1137.2288149999222
+							},
+							{
+								"durationMs": 5.840511999907903,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 1149.4634899999946
+							},
+							{
+								"durationMs": 1.4835240000393242,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 1161.3399029999273
+							}
+						],
+						"status": 200
+					},
+					"user": 0
+				},
+				{
+					"action": "session",
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 519,
+					"cache": null,
+					"connectionWaitMs": 0.2,
+					"durationMs": 80.81176199999982,
+					"index": 0,
+					"method": "GET",
+					"path": "/api/auth/get-session",
+					"queries": 2,
+					"requestId": "360ce3de-0127-46cc-b08c-c8e8648624cf",
+					"sqlDurationMs": 8.68,
+					"sqlElapsedMs": 8.68,
+					"status": 200,
+					"telemetry": {
+						"bytes": 519,
+						"completed": true,
+						"cpuMicros": {
+							"system": 3676,
+							"user": 30320
+						},
+						"durationMs": 77.47,
+						"eventLoopLagP95Ms": 4.56,
+						"memory": {
+							"arrayBuffers": 28940,
+							"external": 11874239,
+							"heapTotal": 32237568,
+							"heapUsed": 31441357,
+							"rss": 131207168
+						},
+						"method": "GET",
+						"pool": {
+							"idle": 1,
+							"total": 1,
+							"waiting": 0
+						},
+						"requestId": "360ce3de-0127-46cc-b08c-c8e8648624cf",
+						"route": "/*",
+						"spans": [
+							{
+								"durationMs": 1.737790000042878,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 30.516147999907844
+							},
+							{
+								"durationMs": 2.560895000002347,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 48.39246599993203
+							},
+							{
+								"durationMs": 4.424057999975048,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 67.82215099991299
+							}
+						],
+						"status": 200
+					},
+					"user": 0
+				},
+				{
+					"action": "signOut",
+					"authQueries": 8,
+					"businessQueries": 0,
+					"bytes": 16,
+					"cache": null,
+					"connectionWaitMs": 3.03,
+					"durationMs": 162.19613200000003,
+					"index": 0,
+					"method": "POST",
+					"path": "/api/auth/sign-out",
+					"queries": 8,
+					"requestId": "31f24d34-9cb2-42f0-902a-bef0af0b60b0",
+					"sqlDurationMs": 23.29,
+					"sqlElapsedMs": 23.29,
+					"status": 200,
+					"telemetry": {
+						"bytes": 16,
+						"completed": true,
+						"cpuMicros": {
+							"system": 16010,
+							"user": 74899
+						},
+						"durationMs": 157.24,
+						"eventLoopLagP95Ms": 4.56,
+						"memory": {
+							"arrayBuffers": 42008,
+							"external": 11887771,
+							"heapTotal": 32436224,
+							"heapUsed": 31441357,
+							"rss": 132386816
+						},
+						"method": "POST",
+						"pool": {
+							"idle": 1,
+							"total": 1,
+							"waiting": 0
+						},
+						"requestId": "31f24d34-9cb2-42f0-902a-bef0af0b60b0",
+						"route": "/*",
+						"spans": [
+							{
+								"durationMs": 4.048754999996163,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 0.3522900000680238
+							},
+							{
+								"durationMs": 3.8906479999423027,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 13.382092000101693
+							},
+							{
+								"durationMs": 2.426657999982126,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 34.91127200005576
+							},
+							{
+								"durationMs": 6.866100000101142,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 41.766726000001654
+							},
+							{
+								"durationMs": 2.4968720000470057,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 52.91764500003774
+							},
+							{
+								"durationMs": 2.193459999980405,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 59.69495800009463
+							},
+							{
+								"durationMs": 1.0005590000655502,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 62.35407300002407
+							},
+							{
+								"durationMs": 2.715847999905236,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 78.27869400009513
+							},
+							{
+								"durationMs": 1.6723970000166446,
+								"name": "sql:BEGIN",
+								"outcome": "ok",
+								"startMs": 100.69438000000082
+							},
+							{
+								"durationMs": 2.5974609999684617,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 113.65859600005206
+							},
+							{
+								"durationMs": 3.5243690001079813,
+								"name": "sql:DELETE",
+								"outcome": "ok",
+								"startMs": 126.45809400000144
+							},
+							{
+								"durationMs": 1.040028000017628,
+								"name": "sql:COMMIT",
+								"outcome": "ok",
+								"startMs": 132.30134200002067
+							},
+							{
+								"durationMs": 2.270251000067219,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 150.0913400000427
+							},
+							{
+								"durationMs": 2.4739529999205843,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 153.5975070000859
+							}
+						],
+						"status": 200
+					},
+					"user": 0
+				},
+				{
+					"action": "anonymousSession",
+					"authQueries": 1,
+					"businessQueries": 0,
+					"bytes": 4,
+					"cache": null,
+					"connectionWaitMs": 0.17,
+					"durationMs": 25.110323999999764,
+					"index": 0,
+					"method": "GET",
+					"path": "/api/auth/get-session",
+					"queries": 1,
+					"requestId": "71a0473f-0376-48b1-a582-24d90aeb16a8",
+					"sqlDurationMs": 3.56,
+					"sqlElapsedMs": 3.56,
+					"status": 200,
+					"telemetry": {
+						"bytes": 4,
+						"completed": true,
+						"cpuMicros": {
+							"system": 641,
+							"user": 19002
+						},
+						"durationMs": 19.98,
+						"eventLoopLagP95Ms": 4.56,
+						"memory": {
+							"arrayBuffers": 44759,
+							"external": 11890986,
+							"heapTotal": 32519168,
+							"heapUsed": 31441357,
+							"rss": 132780032
+						},
+						"method": "GET",
+						"pool": {
+							"idle": 1,
+							"total": 1,
+							"waiting": 0
+						},
+						"requestId": "71a0473f-0376-48b1-a582-24d90aeb16a8",
+						"route": "/*",
+						"spans": [
+							{
+								"durationMs": 1.3197849999414757,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 9.08845200005453
+							},
+							{
+								"durationMs": 3.55068400001619,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 14.514880000031553
+							}
+						],
+						"status": 200
+					},
+					"user": 0
+				},
+				{
+					"action": "signIn",
+					"authQueries": 4,
+					"businessQueries": 0,
+					"bytes": 270,
+					"cache": null,
+					"connectionWaitMs": 1.63,
+					"durationMs": 866.7274390000002,
+					"index": 1,
+					"method": "POST",
+					"path": "/api/auth/sign-in/email",
+					"queries": 4,
+					"requestId": "4a1e1afc-ec2e-4cf0-9e9f-a41033b50e1a",
+					"sqlDurationMs": 7.63,
+					"sqlElapsedMs": 7.63,
+					"status": 200,
+					"telemetry": {
+						"bytes": 270,
+						"completed": true,
+						"cpuMicros": {
+							"system": 7937,
+							"user": 592855
+						},
+						"durationMs": 863.86,
+						"eventLoopLagP95Ms": 4.54,
+						"memory": {
+							"arrayBuffers": 54444,
+							"external": 11901135,
+							"heapTotal": 32686080,
+							"heapUsed": 31441357,
+							"rss": 133246976
+						},
+						"method": "POST",
+						"pool": {
+							"idle": 1,
+							"total": 1,
+							"waiting": 0
+						},
+						"requestId": "4a1e1afc-ec2e-4cf0-9e9f-a41033b50e1a",
+						"route": "/*",
+						"spans": [
+							{
+								"durationMs": 0.5735910000512376,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 0.26598799997009337
+							},
+							{
+								"durationMs": 0.5313539999770001,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 2.2967280000448227
+							},
+							{
+								"durationMs": 1.3147330000065267,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 5.828596999985166
+							},
+							{
+								"durationMs": 1.3708519999636337,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 9.495209000073373
+							},
+							{
+								"durationMs": 3.250120999990031,
+								"name": "sql:INSERT",
+								"outcome": "ok",
+								"startMs": 845.7293170000194
+							},
+							{
+								"durationMs": 2.1110800000606105,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 849.8874020000221
+							},
+							{
+								"durationMs": 1.6304199999431148,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 855.0189630000386
+							},
+							{
+								"durationMs": 1.026905000093393,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 860.773051999975
+							}
+						],
+						"status": 200
+					},
+					"user": 0
+				},
+				{
+					"action": "session",
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 519,
+					"cache": null,
+					"connectionWaitMs": 0.25,
+					"durationMs": 24.560684000000037,
+					"index": 1,
+					"method": "GET",
+					"path": "/api/auth/get-session",
+					"queries": 2,
+					"requestId": "db08459b-0906-4d44-97b7-bdff25c3d1c8",
+					"sqlDurationMs": 4.79,
+					"sqlElapsedMs": 4.79,
+					"status": 200,
+					"telemetry": {
+						"bytes": 519,
+						"completed": true,
+						"cpuMicros": {
+							"system": 3987,
+							"user": 20410
+						},
+						"durationMs": 19.94,
+						"eventLoopLagP95Ms": 4.54,
+						"memory": {
+							"arrayBuffers": 59637,
+							"external": 11906792,
+							"heapTotal": 32833536,
+							"heapUsed": 31441357,
+							"rss": 133640192
+						},
+						"method": "GET",
+						"pool": {
+							"idle": 1,
+							"total": 1,
+							"waiting": 0
+						},
+						"requestId": "db08459b-0906-4d44-97b7-bdff25c3d1c8",
+						"route": "/*",
+						"spans": [
+							{
+								"durationMs": 0.8030499999877065,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 4.342877999995835
+							},
+							{
+								"durationMs": 1.8796650000149384,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 9.423974000033922
+							},
+							{
+								"durationMs": 2.8852200000546873,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 13.728337000007741
+							}
+						],
+						"status": 200
+					},
+					"user": 0
+				},
+				{
+					"action": "signOut",
+					"authQueries": 8,
+					"businessQueries": 0,
+					"bytes": 16,
+					"cache": null,
+					"connectionWaitMs": 1.63,
+					"durationMs": 73.93834999999945,
+					"index": 1,
+					"method": "POST",
+					"path": "/api/auth/sign-out",
+					"queries": 8,
+					"requestId": "f22ae78e-890d-446b-a2ce-c47b18c0882d",
+					"sqlDurationMs": 20.82,
+					"sqlElapsedMs": 20.82,
+					"status": 200,
+					"telemetry": {
+						"bytes": 16,
+						"completed": true,
+						"cpuMicros": {
+							"system": 9517,
+							"user": 54849
+						},
+						"durationMs": 67.8,
+						"eventLoopLagP95Ms": 4.54,
+						"memory": {
+							"arrayBuffers": 72705,
+							"external": 11920324,
+							"heapTotal": 33293312,
+							"heapUsed": 31441357,
+							"rss": 134819840
+						},
+						"method": "POST",
+						"pool": {
+							"idle": 1,
+							"total": 1,
+							"waiting": 0
+						},
+						"requestId": "f22ae78e-890d-446b-a2ce-c47b18c0882d",
+						"route": "/*",
+						"spans": [
+							{
+								"durationMs": 2.5219819999765605,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 0.3043919999618083
+							},
+							{
+								"durationMs": 0.7596969999140128,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 6.571815000032075
+							},
+							{
+								"durationMs": 0.7789280000142753,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 8.74661599996034
+							},
+							{
+								"durationMs": 1.71906300005503,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 13.811411999980919
+							},
+							{
+								"durationMs": 4.40084899996873,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 19.115141000016592
+							},
+							{
+								"durationMs": 0.9445319999940693,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 24.234769999980927
+							},
+							{
+								"durationMs": 0.39380700001493096,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 25.248660999932326
+							},
+							{
+								"durationMs": 4.676343000028282,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 28.874222000013106
+							},
+							{
+								"durationMs": 1.0977859999984503,
+								"name": "sql:BEGIN",
+								"outcome": "ok",
+								"startMs": 38.28893599996809
+							},
+							{
+								"durationMs": 1.941863999934867,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 40.716151000000536
+							},
+							{
+								"durationMs": 3.055557000101544,
+								"name": "sql:DELETE",
+								"outcome": "ok",
+								"startMs": 45.45813099993393
+							},
+							{
+								"durationMs": 0.9253549999557436,
+								"name": "sql:COMMIT",
+								"outcome": "ok",
+								"startMs": 49.122634000028484
+							},
+							{
+								"durationMs": 2.9020540000637993,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 61.363417999935336
+							},
+							{
+								"durationMs": 1.3398809999926016,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 65.9573050000472
+							}
+						],
+						"status": 200
+					},
+					"user": 0
+				},
+				{
+					"action": "anonymousSession",
+					"authQueries": 1,
+					"businessQueries": 0,
+					"bytes": 4,
+					"cache": null,
+					"connectionWaitMs": 0.12,
+					"durationMs": 40.8170970000001,
+					"index": 1,
+					"method": "GET",
+					"path": "/api/auth/get-session",
+					"queries": 1,
+					"requestId": "afdb06f4-8dce-4df9-821d-e4d15ecd5d61",
+					"sqlDurationMs": 3.53,
+					"sqlElapsedMs": 3.53,
+					"status": 200,
+					"telemetry": {
+						"bytes": 4,
+						"completed": true,
+						"cpuMicros": {
+							"system": 1120,
+							"user": 17586
+						},
+						"durationMs": 36.22,
+						"eventLoopLagP95Ms": 4.54,
+						"memory": {
+							"arrayBuffers": 75456,
+							"external": 11923539,
+							"heapTotal": 33474560,
+							"heapUsed": 31441357,
+							"rss": 134819840
+						},
+						"method": "GET",
+						"pool": {
+							"idle": 1,
+							"total": 1,
+							"waiting": 0
+						},
+						"requestId": "afdb06f4-8dce-4df9-821d-e4d15ecd5d61",
+						"route": "/*",
+						"spans": [
+							{
+								"durationMs": 7.266544999903999,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 10.790733000030741
+							},
+							{
+								"durationMs": 3.5200719999847934,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 29.06210199999623
+							}
+						],
+						"status": 200
+					},
+					"user": 0
+				},
+				{
+					"action": "signIn",
+					"authQueries": 4,
+					"businessQueries": 0,
+					"bytes": 270,
+					"cache": null,
+					"connectionWaitMs": 0.47,
+					"durationMs": 885.9059259999995,
+					"index": 2,
+					"method": "POST",
+					"path": "/api/auth/sign-in/email",
+					"queries": 4,
+					"requestId": "68943c9f-fb12-472a-9173-ee0530940aeb",
+					"sqlDurationMs": 24.05,
+					"sqlElapsedMs": 24.05,
+					"status": 200,
+					"telemetry": {
+						"bytes": 270,
+						"completed": true,
+						"cpuMicros": {
+							"system": 10226,
+							"user": 590553
+						},
+						"durationMs": 870.19,
+						"eventLoopLagP95Ms": 4.53,
+						"memory": {
+							"arrayBuffers": 85141,
+							"external": 11933688,
+							"heapTotal": 33934336,
+							"heapUsed": 31441357,
+							"rss": 135999488
+						},
+						"method": "POST",
+						"pool": {
+							"idle": 1,
+							"total": 1,
+							"waiting": 0
+						},
+						"requestId": "68943c9f-fb12-472a-9173-ee0530940aeb",
+						"route": "/*",
+						"spans": [
+							{
+								"durationMs": 0.8971130000427365,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 0.9923640000633895
+							},
+							{
+								"durationMs": 0.7636859999038279,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 3.5626190000912175
+							},
+							{
+								"durationMs": 1.5503930000122637,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 9.090632000006735
+							},
+							{
+								"durationMs": 2.807206999976188,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 14.170496000093408
+							},
+							{
+								"durationMs": 8.319137999904342,
+								"name": "sql:INSERT",
+								"outcome": "ok",
+								"startMs": 838.6283930001082
+							},
+							{
+								"durationMs": 0.8330419999547303,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 848.7212030000519
+							},
+							{
+								"durationMs": 11.34033899998758,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 852.4638960000593
+							},
+							{
+								"durationMs": 4.118994000018574,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 865.3513290000847
+							}
+						],
+						"status": 200
+					},
+					"user": 0
+				},
+				{
+					"action": "session",
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 519,
+					"cache": null,
+					"connectionWaitMs": 0.2,
+					"durationMs": 43.50441899999896,
+					"index": 2,
+					"method": "GET",
+					"path": "/api/auth/get-session",
+					"queries": 2,
+					"requestId": "327ef0b2-fcdf-44de-8732-843cf07e034e",
+					"sqlDurationMs": 3.56,
+					"sqlElapsedMs": 3.56,
+					"status": 200,
+					"telemetry": {
+						"bytes": 519,
+						"completed": true,
+						"cpuMicros": {
+							"system": 932,
+							"user": 13288
+						},
+						"durationMs": 38.61,
+						"eventLoopLagP95Ms": 4.53,
+						"memory": {
+							"arrayBuffers": 90334,
+							"external": 11939345,
+							"heapTotal": 34163712,
+							"heapUsed": 31441357,
+							"rss": 135999488
+						},
+						"method": "GET",
+						"pool": {
+							"idle": 1,
+							"total": 1,
+							"waiting": 0
+						},
+						"requestId": "327ef0b2-fcdf-44de-8732-843cf07e034e",
+						"route": "/*",
+						"spans": [
+							{
+								"durationMs": 1.1225299999350682,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 26.177005000063218
+							},
+							{
+								"durationMs": 1.44018200004939,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 30.304365999996662
+							},
+							{
+								"durationMs": 2.4534709999570623,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 33.6653220000444
+							}
+						],
+						"status": 200
+					},
+					"user": 0
+				},
+				{
+					"action": "signOut",
+					"authQueries": 8,
+					"businessQueries": 0,
+					"bytes": 16,
+					"cache": null,
+					"connectionWaitMs": 2.88,
+					"durationMs": 112.22519199999988,
+					"index": 2,
+					"method": "POST",
+					"path": "/api/auth/sign-out",
+					"queries": 8,
+					"requestId": "8dd8abaa-700e-4d3c-9c74-fd4879bf0b50",
+					"sqlDurationMs": 41.93,
+					"sqlElapsedMs": 41.93,
+					"status": 200,
+					"telemetry": {
+						"bytes": 16,
+						"completed": true,
+						"cpuMicros": {
+							"system": 6783,
+							"user": 50343
+						},
+						"durationMs": 105.67,
+						"eventLoopLagP95Ms": 4.54,
+						"memory": {
+							"arrayBuffers": 103402,
+							"external": 11952877,
+							"heapTotal": 34689024,
+							"heapUsed": 31441357,
+							"rss": 137179136
+						},
+						"method": "POST",
+						"pool": {
+							"idle": 1,
+							"total": 1,
+							"waiting": 0
+						},
+						"requestId": "8dd8abaa-700e-4d3c-9c74-fd4879bf0b50",
+						"route": "/*",
+						"spans": [
+							{
+								"durationMs": 0.6864910000003874,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 0.26725399994757026
+							},
+							{
+								"durationMs": 0.6718739999923855,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 3.088511999929324
+							},
+							{
+								"durationMs": 0.9795809999341145,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 5.004431999986991
+							},
+							{
+								"durationMs": 2.148936999961734,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 8.054816999938339
+							},
+							{
+								"durationMs": 2.3354640000034124,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 14.271891999989748
+							},
+							{
+								"durationMs": 1.4857710000360385,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 17.827104999916628
+							},
+							{
+								"durationMs": 0.9292990000685677,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 19.424785999930464
+							},
+							{
+								"durationMs": 1.7950049999635667,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 25.47981599997729
+							},
+							{
+								"durationMs": 0.7923219999065623,
+								"name": "sql:BEGIN",
+								"outcome": "ok",
+								"startMs": 29.1679909999948
+							},
+							{
+								"durationMs": 21.253523000050336,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 45.63776999991387
+							},
+							{
+								"durationMs": 10.241020000074059,
+								"name": "sql:DELETE",
+								"outcome": "ok",
+								"startMs": 74.8592719999142
+							},
+							{
+								"durationMs": 1.111073000007309,
+								"name": "sql:COMMIT",
+								"outcome": "ok",
+								"startMs": 85.45446399995126
+							},
+							{
+								"durationMs": 2.296219000010751,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 97.0396489999257
+							},
+							{
+								"durationMs": 2.5989840000402182,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 102.15124399994966
+							}
+						],
+						"status": 200
+					},
+					"user": 0
+				},
+				{
+					"action": "anonymousSession",
+					"authQueries": 1,
+					"businessQueries": 0,
+					"bytes": 4,
+					"cache": null,
+					"connectionWaitMs": 0.34,
+					"durationMs": 35.984951000000365,
+					"index": 2,
+					"method": "GET",
+					"path": "/api/auth/get-session",
+					"queries": 1,
+					"requestId": "7f659364-3786-427e-9925-2358e8df9d18",
+					"sqlDurationMs": 2.1,
+					"sqlElapsedMs": 2.1,
+					"status": 200,
+					"telemetry": {
+						"bytes": 4,
+						"completed": true,
+						"cpuMicros": {
+							"system": 5401,
+							"user": 11193
+						},
+						"durationMs": 23.9,
+						"eventLoopLagP95Ms": 4.54,
+						"memory": {
+							"arrayBuffers": 106153,
+							"external": 11956092,
+							"heapTotal": 34952192,
+							"heapUsed": 31441357,
+							"rss": 138096640
+						},
+						"method": "GET",
+						"pool": {
+							"idle": 1,
+							"total": 1,
+							"waiting": 0
+						},
+						"requestId": "7f659364-3786-427e-9925-2358e8df9d18",
+						"route": "/*",
+						"spans": [
+							{
+								"durationMs": 1.1013570000650361,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 10.109624000033364
+							},
+							{
+								"durationMs": 2.0871599999954924,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 17.40293300000485
+							}
+						],
+						"status": 200
+					},
+					"user": 0
+				},
+				{
+					"action": "signIn",
+					"authQueries": 4,
+					"businessQueries": 0,
+					"bytes": 270,
+					"cache": null,
+					"connectionWaitMs": 0.54,
+					"durationMs": 876.1872760000006,
+					"index": 3,
+					"method": "POST",
+					"path": "/api/auth/sign-in/email",
+					"queries": 4,
+					"requestId": "77a46659-4838-4a90-8869-6a5985ffebbb",
+					"sqlDurationMs": 11.83,
+					"sqlElapsedMs": 11.83,
+					"status": 200,
+					"telemetry": {
+						"bytes": 270,
+						"completed": true,
+						"cpuMicros": {
+							"system": 5775,
+							"user": 600659
+						},
+						"durationMs": 874.71,
+						"eventLoopLagP95Ms": 4.53,
+						"memory": {
+							"arrayBuffers": 115838,
+							"external": 11966241,
+							"heapTotal": 35429376,
+							"heapUsed": 31441357,
+							"rss": 138264576
+						},
+						"method": "POST",
+						"pool": {
+							"idle": 1,
+							"total": 1,
+							"waiting": 0
+						},
+						"requestId": "77a46659-4838-4a90-8869-6a5985ffebbb",
+						"route": "/*",
+						"spans": [
+							{
+								"durationMs": 3.017156000016257,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 0.30908200005069375
+							},
+							{
+								"durationMs": 0.6804129999363795,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 6.965980000095442
+							},
+							{
+								"durationMs": 3.66169900004752,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 16.822008999995887
+							},
+							{
+								"durationMs": 4.402708999929018,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 31.824970000074245
+							},
+							{
+								"durationMs": 2.1234790000598878,
+								"name": "sql:INSERT",
+								"outcome": "ok",
+								"startMs": 865.7844770000083
+							},
+							{
+								"durationMs": 0.7391739999875426,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 868.3328150000889
+							},
+							{
+								"durationMs": 1.581705000018701,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 870.7557970000198
+							},
+							{
+								"durationMs": 0.5513659999705851,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 873.8152170000831
+							}
+						],
+						"status": 200
+					},
+					"user": 0
+				},
+				{
+					"action": "session",
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 519,
+					"cache": null,
+					"connectionWaitMs": 0.14,
+					"durationMs": 14.475565999999162,
+					"index": 3,
+					"method": "GET",
+					"path": "/api/auth/get-session",
+					"queries": 2,
+					"requestId": "8d8749f3-c918-4d72-a48a-8cae7feaca71",
+					"sqlDurationMs": 3.79,
+					"sqlElapsedMs": 3.79,
+					"status": 200,
+					"telemetry": {
+						"bytes": 519,
+						"completed": true,
+						"cpuMicros": {
+							"system": 3968,
+							"user": 13151
+						},
+						"durationMs": 13.26,
+						"eventLoopLagP95Ms": 4.53,
+						"memory": {
+							"arrayBuffers": 121031,
+							"external": 11971898,
+							"heapTotal": 35724288,
+							"heapUsed": 31441357,
+							"rss": 139313152
+						},
+						"method": "GET",
+						"pool": {
+							"idle": 1,
+							"total": 1,
+							"waiting": 0
+						},
+						"requestId": "8d8749f3-c918-4d72-a48a-8cae7feaca71",
+						"route": "/*",
+						"spans": [
+							{
+								"durationMs": 0.611765000037849,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 2.573655999964103
+							},
+							{
+								"durationMs": 1.3756569999968633,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 5.42035799997393
+							},
+							{
+								"durationMs": 2.399881000048481,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 8.63565099996049
+							}
+						],
+						"status": 200
+					},
+					"user": 0
+				},
+				{
+					"action": "signOut",
+					"authQueries": 8,
+					"businessQueries": 0,
+					"bytes": 16,
+					"cache": null,
+					"connectionWaitMs": 0.51,
+					"durationMs": 74.65344900000127,
+					"index": 3,
+					"method": "POST",
+					"path": "/api/auth/sign-out",
+					"queries": 8,
+					"requestId": "36d18047-bf10-4228-ac4d-d2c346282c6a",
+					"sqlDurationMs": 24.8,
+					"sqlElapsedMs": 24.8,
+					"status": 200,
+					"telemetry": {
+						"bytes": 16,
+						"completed": true,
+						"cpuMicros": {
+							"system": 7295,
+							"user": 38172
+						},
+						"durationMs": 70.94,
+						"eventLoopLagP95Ms": 4.53,
+						"memory": {
+							"arrayBuffers": 134099,
+							"external": 11985430,
+							"heapTotal": 36428800,
+							"heapUsed": 31441357,
+							"rss": 140099584
+						},
+						"method": "POST",
+						"pool": {
+							"idle": 1,
+							"total": 1,
+							"waiting": 0
+						},
+						"requestId": "36d18047-bf10-4228-ac4d-d2c346282c6a",
+						"route": "/*",
+						"spans": [
+							{
+								"durationMs": 0.8293160001048818,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 0.6110199999529868
+							},
+							{
+								"durationMs": 0.9405580000020564,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 6.071292000007816
+							},
+							{
+								"durationMs": 0.728700999985449,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 10.01425200002268
+							},
+							{
+								"durationMs": 2.5158079999964684,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 12.812468999996781
+							},
+							{
+								"durationMs": 1.2767410000087693,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 17.997953000012785
+							},
+							{
+								"durationMs": 1.063278999994509,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 20.07311200001277
+							},
+							{
+								"durationMs": 0.5652150000678375,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 21.204361999989487
+							},
+							{
+								"durationMs": 1.4139319999376312,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 24.19969200005289
+							},
+							{
+								"durationMs": 1.2378260000841692,
+								"name": "sql:BEGIN",
+								"outcome": "ok",
+								"startMs": 27.393386999960057
+							},
+							{
+								"durationMs": 1.656366000068374,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 30.066942999954335
+							},
+							{
+								"durationMs": 2.3675400000065565,
+								"name": "sql:DELETE",
+								"outcome": "ok",
+								"startMs": 32.84462800004985
+							},
+							{
+								"durationMs": 3.5433980000671,
+								"name": "sql:COMMIT",
+								"outcome": "ok",
+								"startMs": 35.57293499994557
+							},
+							{
+								"durationMs": 10.780853000003844,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 53.16598399996292
+							},
+							{
+								"durationMs": 3.164223000057973,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 66.34658999997191
+							}
+						],
+						"status": 200
+					},
+					"user": 0
+				},
+				{
+					"action": "anonymousSession",
+					"authQueries": 1,
+					"businessQueries": 0,
+					"bytes": 4,
+					"cache": null,
+					"connectionWaitMs": 0.07,
+					"durationMs": 21.862559000001056,
+					"index": 3,
+					"method": "GET",
+					"path": "/api/auth/get-session",
+					"queries": 1,
+					"requestId": "35f0e1e9-f0be-4e3b-9315-92d1c0abd31b",
+					"sqlDurationMs": 2.58,
+					"sqlElapsedMs": 2.58,
+					"status": 200,
+					"telemetry": {
+						"bytes": 4,
+						"completed": true,
+						"cpuMicros": {
+							"system": 2856,
+							"user": 15711
+						},
+						"durationMs": 20.32,
+						"eventLoopLagP95Ms": 4.53,
+						"memory": {
+							"arrayBuffers": 136850,
+							"external": 11988645,
+							"heapTotal": 36725760,
+							"heapUsed": 31441357,
+							"rss": 140886016
+						},
+						"method": "GET",
+						"pool": {
+							"idle": 1,
+							"total": 1,
+							"waiting": 0
+						},
+						"requestId": "35f0e1e9-f0be-4e3b-9315-92d1c0abd31b",
+						"route": "/*",
+						"spans": [
+							{
+								"durationMs": 0.8745460000354797,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 6.429876999929547
+							},
+							{
+								"durationMs": 2.5674939999589697,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 11.363576999981888
+							}
+						],
+						"status": 200
+					},
+					"user": 0
+				},
+				{
+					"action": "signIn",
+					"authQueries": 4,
+					"businessQueries": 0,
+					"bytes": 270,
+					"cache": null,
+					"connectionWaitMs": 0.84,
+					"durationMs": 909.347858000001,
+					"index": 4,
+					"method": "POST",
+					"path": "/api/auth/sign-in/email",
+					"queries": 4,
+					"requestId": "41850983-3c25-421c-973f-6cb48317fc01",
+					"sqlDurationMs": 14.37,
+					"sqlElapsedMs": 14.37,
+					"status": 200,
+					"telemetry": {
+						"bytes": 270,
+						"completed": true,
+						"cpuMicros": {
+							"system": 8159,
+							"user": 636094
+						},
+						"durationMs": 906.53,
+						"eventLoopLagP95Ms": 4.53,
+						"memory": {
+							"arrayBuffers": 10911,
+							"external": 14200717,
+							"heapTotal": 32575488,
+							"heapUsed": 34304181,
+							"rss": 136306688
+						},
+						"method": "POST",
+						"pool": {
+							"idle": 1,
+							"total": 1,
+							"waiting": 0
+						},
+						"requestId": "41850983-3c25-421c-973f-6cb48317fc01",
+						"route": "/*",
+						"spans": [
+							{
+								"durationMs": 0.8007030000444502,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 0.4083219999447465
+							},
+							{
+								"durationMs": 2.0449469999875873,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 4.988045000005513
+							},
+							{
+								"durationMs": 2.0817360000219196,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 17.74814499996137
+							},
+							{
+								"durationMs": 4.863719000015408,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 23.2800199999474
+							},
+							{
+								"durationMs": 4.334939999971539,
+								"name": "sql:INSERT",
+								"outcome": "ok",
+								"startMs": 887.7851289999671
+							},
+							{
+								"durationMs": 0.8831800000043586,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 892.6815589999314
+							},
+							{
+								"durationMs": 3.073303999961354,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 897.2787729999982
+							},
+							{
+								"durationMs": 1.9984979999717325,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 903.9526049999986
+							}
+						],
+						"status": 200
+					},
+					"user": 0
+				},
+				{
+					"action": "session",
+					"authQueries": 2,
+					"businessQueries": 0,
+					"bytes": 519,
+					"cache": null,
+					"connectionWaitMs": 4.56,
+					"durationMs": 48.66599099999803,
+					"index": 4,
+					"method": "GET",
+					"path": "/api/auth/get-session",
+					"queries": 2,
+					"requestId": "89e858b7-de62-47a1-83fa-6167c6cef3a9",
+					"sqlDurationMs": 9.74,
+					"sqlElapsedMs": 9.74,
+					"status": 200,
+					"telemetry": {
+						"bytes": 519,
+						"completed": true,
+						"cpuMicros": {
+							"system": 2199,
+							"user": 28359
+						},
+						"durationMs": 45.95,
+						"eventLoopLagP95Ms": 4.53,
+						"memory": {
+							"arrayBuffers": 16104,
+							"external": 14206374,
+							"heapTotal": 32608256,
+							"heapUsed": 34304181,
+							"rss": 136306688
+						},
+						"method": "GET",
+						"pool": {
+							"idle": 1,
+							"total": 1,
+							"waiting": 0
+						},
+						"requestId": "89e858b7-de62-47a1-83fa-6167c6cef3a9",
+						"route": "/*",
+						"spans": [
+							{
+								"durationMs": 4.328237000037916,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 10.350527000031434
+							},
+							{
+								"durationMs": 4.206909999949858,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 23.330867000040598
+							},
+							{
+								"durationMs": 5.510995999909937,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 32.43501900008414
+							}
+						],
+						"status": 200
+					},
+					"user": 0
+				},
+				{
+					"action": "signOut",
+					"authQueries": 8,
+					"businessQueries": 0,
+					"bytes": 16,
+					"cache": null,
+					"connectionWaitMs": 0.31,
+					"durationMs": 81.41652400000021,
+					"index": 4,
+					"method": "POST",
+					"path": "/api/auth/sign-out",
+					"queries": 8,
+					"requestId": "5e8ded39-3c6a-47b8-ac68-3236c598e26c",
+					"sqlDurationMs": 16.67,
+					"sqlElapsedMs": 16.67,
+					"status": 200,
+					"telemetry": {
+						"bytes": 16,
+						"completed": true,
+						"cpuMicros": {
+							"system": 2655,
+							"user": 33828
+						},
+						"durationMs": 77.71,
+						"eventLoopLagP95Ms": 4.53,
+						"memory": {
+							"arrayBuffers": 29172,
+							"external": 14219906,
+							"heapTotal": 32790528,
+							"heapUsed": 34304181,
+							"rss": 136962048
+						},
+						"method": "POST",
+						"pool": {
+							"idle": 1,
+							"total": 1,
+							"waiting": 0
+						},
+						"requestId": "5e8ded39-3c6a-47b8-ac68-3236c598e26c",
+						"route": "/*",
+						"spans": [
+							{
+								"durationMs": 2.586528000072576,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 2.6563120000064373
+							},
+							{
+								"durationMs": 7.781152999959886,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 15.523151000030339
+							},
+							{
+								"durationMs": 0.8367569999536499,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 26.622909000026993
+							},
+							{
+								"durationMs": 5.491009999997914,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 38.92161399999168
+							},
+							{
+								"durationMs": 1.6282889998983592,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 54.610808000084944
+							},
+							{
+								"durationMs": 0.9288729999680072,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 56.892039000056684
+							},
+							{
+								"durationMs": 0.5670470000477508,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 57.89394500001799
+							},
+							{
+								"durationMs": 1.510137000004761,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 60.5119630000554
+							},
+							{
+								"durationMs": 0.7488169999560341,
+								"name": "sql:BEGIN",
+								"outcome": "ok",
+								"startMs": 63.472994000068866
+							},
+							{
+								"durationMs": 1.280726999975741,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 65.3258050000295
+							},
+							{
+								"durationMs": 1.36636800004635,
+								"name": "sql:DELETE",
+								"outcome": "ok",
+								"startMs": 67.68891999998596
+							},
+							{
+								"durationMs": 0.7545150000369176,
+								"name": "sql:COMMIT",
+								"outcome": "ok",
+								"startMs": 69.41161399998236
+							},
+							{
+								"durationMs": 1.5594920000294223,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 72.35789600003045
+							},
+							{
+								"durationMs": 1.3179099999833852,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 74.64705300005153
+							}
+						],
+						"status": 200
+					},
+					"user": 0
+				},
+				{
+					"action": "anonymousSession",
+					"authQueries": 1,
+					"businessQueries": 0,
+					"bytes": 4,
+					"cache": null,
+					"connectionWaitMs": 0.06,
+					"durationMs": 10.72617099999843,
+					"index": 4,
+					"method": "GET",
+					"path": "/api/auth/get-session",
+					"queries": 1,
+					"requestId": "d8473534-97ce-4d20-83ad-99a5dc0bd586",
+					"sqlDurationMs": 1.6,
+					"sqlElapsedMs": 1.6,
+					"status": 200,
+					"telemetry": {
+						"bytes": 4,
+						"completed": true,
+						"cpuMicros": {
+							"system": 734,
+							"user": 8268
+						},
+						"durationMs": 9.63,
+						"eventLoopLagP95Ms": 4.53,
+						"memory": {
+							"arrayBuffers": 31923,
+							"external": 14223121,
+							"heapTotal": 32889856,
+							"heapUsed": 34304181,
+							"rss": 136962048
+						},
+						"method": "GET",
+						"pool": {
+							"idle": 1,
+							"total": 1,
+							"waiting": 0
+						},
+						"requestId": "d8473534-97ce-4d20-83ad-99a5dc0bd586",
+						"route": "/*",
+						"spans": [
+							{
+								"durationMs": 1.87740700005088,
+								"name": "redis",
+								"outcome": "ok",
+								"startMs": 3.0252740000141785
+							},
+							{
+								"durationMs": 1.598985999939032,
+								"name": "sql:SELECT",
+								"outcome": "ok",
+								"startMs": 6.669473000103608
+							}
+						],
+						"status": 200
+					},
+					"user": 0
+				}
+			],
+			"throughputPerSecond": 0.25484807473696985
+		}
+	},
+	"browser": {
+		"complete": true,
+		"diagnostic": true,
+		"errors": [],
+		"p95ConfirmationMs": 1609,
+		"p95RefreshMs": 3079,
+		"samples": [
+			{
+				"confirmationMs": 1609,
+				"longTaskMs": 783,
+				"longTasks": 7,
+				"mutationMs": 2233.928877999999,
+				"refreshMs": 2718,
+				"requests": 4,
+				"round": 1
+			},
+			{
+				"confirmationMs": 1212,
+				"longTaskMs": 615,
+				"longTasks": 6,
+				"mutationMs": 1445.6260760000005,
+				"refreshMs": 2014,
+				"requests": 4,
+				"round": 1
+			},
+			{
+				"confirmationMs": 1163,
+				"longTaskMs": 711,
+				"longTasks": 5,
+				"mutationMs": 1533.9431690000056,
+				"refreshMs": 2127,
+				"requests": 4,
+				"round": 1
+			},
+			{
+				"confirmationMs": 1270,
+				"longTaskMs": 1098,
+				"longTasks": 10,
+				"mutationMs": 977.9042829999962,
+				"refreshMs": 3079,
+				"requests": 4,
+				"round": 1
+			},
+			{
+				"confirmationMs": 1379,
+				"longTaskMs": 1437,
+				"longTasks": 10,
+				"mutationMs": 1367.9231429999927,
+				"refreshMs": 3002,
+				"requests": 4,
+				"round": 1
+			}
+		]
+	},
+	"configuration": {
+		"fixture": {
+			"database": "zaimu_performance",
+			"namespace": "zaimu_performance",
+			"referenceDate": "2026-10-04",
+			"transactions": 10000,
+			"users": 1
+		},
+		"iterations": 5,
+		"loads": [1],
+		"machine": {
+			"bun": "1.4.2",
+			"cpu": "Intel(R) N150",
+			"cpus": 4,
+			"hostEnd": {
+				"freeMemoryBytes": 6782504960,
+				"loadAverage": [22.11, 23.63, 19.82]
+			},
+			"hostStart": {
+				"freeMemoryBytes": 6829899776,
+				"loadAverage": [24.36, 24.07, 19.87]
+			},
+			"memoryBytes": 16526995456
+		},
+		"namespace": "zaimu_performance",
+		"rounds": 1
+	},
+	"diagnostic": true,
+	"globalAcceptance": false,
+	"limitations": [
+		"Five samples, one user, one round; official matrix not executed",
+		"Host shared with other local workloads",
+		"Browser and sign-in budgets failed",
+		"Whole-application coverage pending"
+	]
+}

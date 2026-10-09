@@ -417,3 +417,10 @@ Próxima etapa: validar fallback de cache e persistência incremental contra reg
 
 - Upsert diário regravava unidades existentes mesmo sem alteração. CTE insere somente ausentes e reúne unidades já existentes sob advisory lock por série. Cobertura nova e agendamento continuam reavaliados.
 - Regressão PostgreSQL passou: 730 unidades/11 queries, 729 publicações únicas, xmin de todas as unidades preservado na repetição e rollback em falha. Integração completa ainda em execução; nova medição HTTP necessária.
+
+### Referência de autenticação e confirmação visual
+
+- Integração backend completa passou após CTE cambial; todos os hooks dos três commits locais passaram. Alteração preexistente em migrations/app/refs/db.json preservada.
+- Autenticação real: cinco ciclos sem erros/identidade divergente; login p95 1.177 ms reprova, sessão 81 ms, logout 162 ms, sessão anônima 41 ms. Bcrypt custo 12 mantido. Orçamento por ação preserva reprovação que percentil agregado não demonstra.
+- Chromium release: cinco compras concluídas e removidas; zero erros de página, confirmação DOM p95 1.609 ms e dados utilizáveis 3.079 ms. Long tasks 615-1.437 ms acumulados por amostra. Meta de 1 s continua reprovada; host compartilhado e matriz oficial pendente.
+- Relatório sanitizado auth-browser-reference-0018.json registra resultados completos e limites. 0018/0012 permanecem abertos; cobertura integral, crescimento oficial 10/10k/100k, falhas Redis/carga mista/workers e plataformas ainda não têm evidência completa.
