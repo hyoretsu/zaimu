@@ -368,3 +368,11 @@ Próxima etapa: validar fallback de cache e persistência incremental contra reg
 - Seis listagens principais preservam dados e componentes montados quando recarga falha. Status compartilhado informa atualização pendente/erro e oferece retry com feedback; erro inicial ainda mostra estado de falha completo.
 - Revisão React: sem novos efeitos ou estado derivado; consultas permanecem nos consumidores; componente de status separado; scopes de mutação e navegação preservados.
 - Regressão no navegador provoca falha de GET após POST bem-sucedido e exige confirmação persistida, cartão ainda visível e retry. Execução exige build atualizado; pendente enquanto diagnóstico IndexedDB está ativo.
+
+- Rateios do snapshot usam `ANY` também para participantes e pessoas, evitando expansão de milhares de condições no SQL. Regressão completa em banco descartável em execução.
+
+### Storage visitante
+
+- Diagnóstico real em Chromium reprovou leitura integral de 100 mil registros: 7.328 ms; fixture levou cerca de 11 minutos para concluir. Índices simples `syncedAt`, `modifiedAt` e `deleted` não têm consumidores e foram removidos na versão 16.
+- Teste de upgrade v15 preserva registro e migração financeira concluída; mantém isolamento e exclusão estrita de `modifiedAt === since`. 14 assertions passaram. Remoção de índices exige nova medição, não resolve por inferência o custo de leitura integral.
+- Navegação inicial e confirmação de compra também reprovaram na rodada anterior; artefatos mantidos em `/tmp/zaimu-browser-performance`, sem aceite global.

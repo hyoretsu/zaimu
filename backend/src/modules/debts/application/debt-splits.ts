@@ -314,32 +314,23 @@ export async function getDebtSplitReturns(
 	);
 
 	if (splits.length === 0) return new Map();
-	const participants = await queryRows(
-		db.sql.public.DebtSplitParticipant.select(
-			"debtSplitId",
-			"debtPersonId",
-			"description",
-			"shares",
-			"percentage",
-			"fixedAmount",
-			"sortOrder",
-		)
-			.where((fields, functions) =>
-				functions.in(
-					fields.debtSplitId,
-					splits.map(split => split.id),
-				),
-			)
-			.orderBy("sortOrder", { direction: "asc" })
-			.build(),
+	const participants = await queryRaw<{
+		debtSplitId: string;
+		debtPersonId: string;
+		description: string | null;
+		shares: number | null;
+		percentage: number | null;
+		fixedAmount: number | null;
+		sortOrder: number;
+	}>(
+		`SELECT "debtSplitId", "debtPersonId", "description", "shares", "percentage", "fixedAmount", "sortOrder" FROM "DebtSplitParticipant" WHERE "debtSplitId"=ANY($1::varchar[]) ORDER BY "sortOrder"`,
+		[splits.map(split => split.id)],
 	);
-	const people = await queryRows(
-		db.sql.public.DebtPerson.select("id", "name")
-			.where((fields, functions) =>
-				functions.in(fields.id, [...new Set(participants.map(participant => participant.debtPersonId))]),
-			)
-			.build(),
+	const people = await queryRaw<{ id: string; name: string }>(
+		`SELECT "id", "name" FROM "DebtPerson" WHERE "id"=ANY($1::varchar[])`,
+		[[...new Set(participants.map(participant => participant.debtPersonId))]],
 	);
+
 	const participantsBySplit = Map.groupBy(participants, participant => participant.debtSplitId);
 	const names = new Map(people.map(person => [person.id, person.name]));
 	const amounts = new Map(entries.map(entry => [entry.id, entry.amount]));
