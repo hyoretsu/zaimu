@@ -13,6 +13,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
+import { FormFieldRow } from "@/components/ui/FormFieldRow";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useDialogCloseReset } from "@/hooks/use-dialog-close-reset";
@@ -237,7 +238,7 @@ export function CreateRecurringDialog({
 										required
 										value={draft.name}
 									/>
-									<div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,8.5rem),1fr))] items-start gap-4 [&>*]:min-w-0">
+									<FormFieldRow>
 										<CurrencySelect
 											label="Moeda da recorrência"
 											onValueChange={value =>
@@ -256,7 +257,7 @@ export function CreateRecurringDialog({
 											required
 											value={draft.amount}
 										/>
-									</div>
+									</FormFieldRow>
 									<div className="grid gap-2">
 										<CustomSelect
 											disabled={save.isPending}

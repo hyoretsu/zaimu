@@ -24,17 +24,15 @@ export function RecurrenceScheduleFields({
 					placeholder="Ex: 3"
 					value={draft.interval}
 				/>
-				<div className="grid content-start gap-2">
-					<CustomSelect
-						disabled={disabled}
-						label="Unidade"
-						onValueChange={value => set("unit", value as RecurrenceUnit)}
-						options={Object.entries(unitLabels).map(([value, label]) => ({ label, value }))}
-						placeholder="Selecione unidade"
-						required
-						value={draft.unit}
-					/>
-				</div>
+				<CustomSelect
+					disabled={disabled}
+					label="Unidade"
+					onValueChange={value => set("unit", value as RecurrenceUnit)}
+					options={Object.entries(unitLabels).map(([value, label]) => ({ label, value }))}
+					placeholder="Selecione unidade"
+					required
+					value={draft.unit}
+				/>
 			</FormFieldRow>
 			<FormFieldRow>
 				<DateField
