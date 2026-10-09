@@ -27,7 +27,7 @@ import {
 	withRawTransaction,
 } from "~/shared/infra/sql";
 import { fetchBcbReferenceRates } from "../domain/bcb-reference-rates";
-import { referenceRateInsertSql } from "../domain/reference-rate-insert-sql";
+import { referenceRateBatchInsertSql } from "../domain/reference-rate-insert-sql";
 
 type FetchReferenceRates = typeof fetchBcbReferenceRates;
 interface ClaimedJob {
@@ -136,14 +136,17 @@ async function processFetchJob(
 	return withRawTransaction(async query => {
 		if (history) await history.assertLease();
 		let earliestChangedDate: Date | null = null;
-		for (const rate of rates) {
-			const changed = await query<{ id: string }>(referenceRateInsertSql(preserveExisting), [
+		for (let offset = 0; offset < rates.length; offset += 1000) {
+			const changed = await query<{ date: string }>(referenceRateBatchInsertSql(preserveExisting), [
 				referenceType,
-				dateKey(rate.date),
-				rate.value,
+				JSON.stringify(
+					rates.slice(offset, offset + 1000).map(rate => ({ date: dateKey(rate.date), value: rate.value })),
+				),
 			]);
-			if (changed.length > 0 && (!earliestChangedDate || rate.date < earliestChangedDate))
-				earliestChangedDate = rate.date;
+			for (const row of changed) {
+				const date = new Date(`${row.date}T12:00:00`);
+				if (!earliestChangedDate || date < earliestChangedDate) earliestChangedDate = date;
+			}
 		}
 		if (earliestChangedDate) {
 			const accounts = await queryRaw<{ id: string }>(

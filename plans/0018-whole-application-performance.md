@@ -249,3 +249,9 @@ Ambiente atual Linux não permite aceite iOS; ferramentas Android não foram det
 - Build release da API falhava com `DOMMatrix is not defined`: bundling antecipado do PDF.js perdia contexto dos módulos nativos. Parser agora carrega somente ao importar PDF, com inicialização compartilhada e caminho do worker relativo ao pacote.
 - `pdf-parse` permanece dependência externa do bundle Bun; imagem runtime copia dependências locais do backend. Bundle API passou de 6,15 MB para 5,16 MB nesta captura, e startup dedicado voltou a funcionar.
 - PDF sintético local confirmou extração de texto e deduplicação da inicialização. Build backend passou. Imagem Docker não foi reconstruída nesta etapa.
+
+### Gravação de taxas em lotes
+
+- Worker ativo no ambiente dedicado expôs até 1.758 queries por job de taxas, com uma inserção por dia. Escrita agora usa lotes de até 1.000 registros e retorna somente datas alteradas.
+- Datas repetidas preservam semântica sequencial: primeira entrada no modo insert-only, última na coleta com correção. Valores iguais não alteram timestamps; primeira data alterada continua determinando recálculo.
+- `performance/validate-rate-batches.ts` confirmou equivalência com SQL sequencial, rerun sem mudanças e preservação de timestamps, com rollback integral no banco dedicado. Medição do worker atualizado ainda pendente.
