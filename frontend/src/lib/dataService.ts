@@ -32,6 +32,7 @@ import {
 	recurrenceNeedsConfiguration,
 	shiftRecurrenceDate,
 } from "@zaimu/finance/recurrence";
+import { listedRecurrenceStatements } from "@zaimu/finance/recurrence-projection";
 import { resolveTransactionMoneySides } from "@zaimu/finance/transaction-money";
 import { guestCashbackSnapshot } from "./cashback-snapshot";
 import { type CatalogPageOptions, localCatalogPage } from "./catalog-pagination";
@@ -1572,16 +1573,18 @@ export const dataService = {
 			options: { cursor?: string; isPaid?: boolean; limit?: number } = {},
 		): Promise<CreditCardStatementPage> {
 			if (isGuestMode()) {
-				const rows = replayCreditBook(
+				const existingBook = await readLocalCreditBook(cardId);
+				const rows = listedRecurrenceStatements(
+					existingBook,
 					await projectGuestRecurrenceCreditBook(
-						await readLocalCreditBook(cardId),
+						existingBook,
 						await dataService.recurrences.getAll(),
 						shiftRecurrenceDate(getLocalDateKey(), 1),
 						`${new Date().getFullYear() + 2}-12-31`,
 						(await localRecurrenceOccurrences.getAll()).map(row => row.data),
 					),
 				)
-					.statements.filter(s => options.isPaid === undefined || s.isPaid === options.isPaid)
+					.filter(s => options.isPaid === undefined || s.isPaid === options.isPaid)
 					.toSorted((a, b) => b.statementDate.localeCompare(a.statementDate) || b.id.localeCompare(a.id));
 				const page = localCursorPage(
 					rows,

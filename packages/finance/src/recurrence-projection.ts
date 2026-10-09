@@ -1,4 +1,4 @@
-import { type CreditBook, newBookPurchase } from "./credit-book";
+import { type CreditBook, creditBookPlan, newBookPurchase, replayCreditBook } from "./credit-book";
 import { roundMoney } from "./money";
 import { type RecurrenceDefinition, recurrenceDates, recurrenceNeedsConfiguration } from "./recurrence";
 export type RecurrenceMoneyConverter = (amount: number, from: string, to: string, date: string) => number;
@@ -87,4 +87,10 @@ export function projectRecurrenceCreditBook(
 		}
 	}
 	return projected;
+}
+
+/** Listing visibility comes from existing purchases, never recurring forecasts alone. */
+export function listedRecurrenceStatements(book: CreditBook, projected: CreditBook, asOf?: string) {
+	const purchaseStatements = new Set(creditBookPlan(book).installments.map(row => row.statementId));
+	return replayCreditBook(projected, asOf).statements.filter(row => purchaseStatements.has(row.id));
 }

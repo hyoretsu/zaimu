@@ -208,3 +208,5 @@ CDI/Selic usam dez anos encerrados ontem, intervalos anuais estáveis e cauda at
 ## Visibilidade de faturas
 
 Listagens e seletores de faturas ocultam ciclos cujo total seja zero, mesmo quando existem no banco. Meses vazios não geram faturas visíveis. Faturas pagas com total diferente de zero e faturas com total negativo continuam disponíveis; a ocultação não exclui registros nem altera cálculos financeiros.
+
+Assinaturas continuam projetadas sem prazo final, mas suas previsões aparecem nas listagens e seletores somente em faturas que já contenham compras registradas ou parcelas dessas compras. Ciclos compostos apenas por previsões de assinaturas não geram faturas visíveis. A ocultação preserva projeções financeiras e histórico concreto.

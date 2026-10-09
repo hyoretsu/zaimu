@@ -1,7 +1,11 @@
 import { expect, test } from "bun:test";
 import { type CreditBook, newBookPurchase, replayCreditBook } from "./credit-book";
 import { type RecurrenceDefinition, recurrenceAccountEffects } from "./recurrence";
-import { pendingRecurrenceDates, projectRecurrenceCreditBook } from "./recurrence-projection";
+import {
+	listedRecurrenceStatements,
+	pendingRecurrenceDates,
+	projectRecurrenceCreditBook,
+} from "./recurrence-projection";
 
 const recurrence = (movement: RecurrenceDefinition["movement"], amount = 30): RecurrenceDefinition => ({
 	amount,
@@ -296,4 +300,49 @@ test("only pending occurrences inside the projection create currency demand", ()
 			"2026-10-31",
 		),
 	).toEqual([]);
+});
+
+test("statement listings exclude recurring-only forecasts and retain existing purchase installments", () => {
+	const book: CreditBook = {
+		card: {
+			dueDay: 25,
+			id: "card",
+			ignoreStatementsBefore: null,
+			institutionId: null,
+			refundPolicy: null,
+			statementDay: 15,
+			userId: "owner",
+		},
+		charges: [],
+		installments: [],
+		payments: [],
+		purchases: [],
+		refunds: [],
+		statements: [],
+	};
+	const emptyProjection = projectRecurrenceCreditBook(
+		book,
+		[recurrence("CARD_PURCHASE", 50)],
+		"2026-10-01",
+		"2027-03-31",
+	);
+	expect(listedRecurrenceStatements(book, emptyProjection, "2026-10-01")).toEqual([]);
+	expect(replayCreditBook(emptyProjection, "2026-10-01").statements.length).toBeGreaterThan(0);
+	newBookPurchase(
+		book,
+		{ description: "Existing", installments: 2, purchaseDate: "2026-10-01", totalAmount: 200 },
+		undefined,
+		{ materialize: false },
+	);
+	const before = JSON.stringify(book);
+	const projected = projectRecurrenceCreditBook(
+		book,
+		[recurrence("CARD_PURCHASE", 50)],
+		"2026-10-01",
+		"2027-03-31",
+	);
+	const listed = listedRecurrenceStatements(book, projected, "2026-10-01");
+	expect(listed.map(row => row.statementDate)).toEqual(["2026-10-15", "2026-11-15"]);
+	expect(listed.map(row => row.totalAmount)).toEqual([150, 150]);
+	expect(JSON.stringify(book)).toBe(before);
 });

@@ -11,6 +11,7 @@ import {
 } from "@zaimu/finance/credit-book";
 import { paymentStatement, statementCutoffAfter, statementEntryKind } from "@zaimu/finance/credit-card";
 import { convertFixedSplitAtDate, currencyScale } from "@zaimu/finance/money";
+import { listedRecurrenceStatements } from "@zaimu/finance/recurrence-projection";
 import Elysia, { t } from "elysia";
 import { setCardPayer } from "~/modules/accounts/application/payment-preferences";
 import { assertBalanceAccountOwnership, assertCreditCardOwnership, requireUserId } from "~/modules/auth";
@@ -490,10 +491,11 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				`credit-cards:${params.id}:statements`,
 				{ kind: "page", ...query },
 				async () => {
-					const book = await projectRecurringCreditBook(await readCreditBook(userId, params.id, false));
+					const existingBook = await readCreditBook(userId, params.id, false);
+					const book = await projectRecurringCreditBook(existingBook);
 					const cursor = query.cursor ? decodeStatementCursor(query.cursor, query.isPaid) : null;
-					const rows = replayCreditBook(book)
-						.statements.filter(s => query.isPaid === undefined || s.isPaid === query.isPaid)
+					const rows = listedRecurrenceStatements(existingBook, book)
+						.filter(s => query.isPaid === undefined || s.isPaid === query.isPaid)
 						.toSorted((a, b) => b.statementDate.localeCompare(a.statementDate) || b.id.localeCompare(a.id))
 						.filter(
 							s =>
