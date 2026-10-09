@@ -56,6 +56,7 @@ async function historyRequest<T>(path: string, options?: RequestInit): Promise<T
 		if (!navigator.onLine) throw new Error("Sem conexão");
 		const response = await fetch(`${apiUrl}/financial-history${path}`, {
 			...options,
+			credentials: "include",
 			headers: { "content-type": "application/json" },
 			signal: AbortSignal.timeout(15_000),
 		});

@@ -31,6 +31,7 @@ export function cachedReferenceRateAverages(): ReferenceRateAverages | null {
 export async function refreshReferenceRateAverages(): Promise<ReferenceRateAverages | null> {
 	try {
 		const response = await fetch(`${apiUrl}/reference-rates/averages`, {
+			credentials: "include",
 			signal: AbortSignal.timeout(10_000),
 		});
 		if (!response.ok) return cachedReferenceRateAverages();
