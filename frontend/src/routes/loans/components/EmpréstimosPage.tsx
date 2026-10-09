@@ -4,6 +4,7 @@ import { LuPlus } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { MobilePageActions } from "@/components/ui/MobilePageActions";
+import { QueryRefreshStatus } from "@/components/ui/QueryRefreshStatus";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { Loan } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
@@ -53,13 +54,18 @@ export function EmpréstimosPage() {
 					Quitados
 				</Button>
 			</ActionGroup>
+			<QueryRefreshStatus
+				error={loans.isError && loans.data !== undefined}
+				onRetry={() => loans.refetch()}
+				pending={loans.isFetching && !loans.isPending}
+			/>
 			{loans.isPending ? (
 				<div className="grid gap-4 sm:grid-cols-2">
 					{Array.from({ length: 4 }, (_, i) => (
 						<Skeleton className="h-60" key={i} />
 					))}
 				</div>
-			) : loans.isError ? (
+			) : loans.isError && loans.data === undefined ? (
 				<div role="alert">
 					<p>Falha ao carregar empréstimos.</p>
 					<ActionGroup>

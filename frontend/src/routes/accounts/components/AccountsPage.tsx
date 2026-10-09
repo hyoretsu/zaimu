@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { QueryRefreshStatus } from "@/components/ui/QueryRefreshStatus";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { FinancialAccount, FinancialAccountYieldHoliday, FinancialInstitution } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
@@ -200,7 +201,7 @@ export function AccountsPage() {
 				<div className="rounded-2xl bg-brand-indigo p-5 text-white shadow-card">
 					<p className="text-sm text-white/70">Saldo total</p>
 					<NativeMoneyTotals
-						error={accounts.isError}
+						error={accounts.isError && accounts.data === undefined}
 						pending={accounts.isPending}
 						values={visibleAccounts.map(account => ({
 							amount: getFinancialAccountCurrencyValue(account),
@@ -213,13 +214,18 @@ export function AccountsPage() {
 					<p className="mt-2 font-bold text-3xl">{visibleAccounts.length}</p>
 				</div>
 			</section>
+			<QueryRefreshStatus
+				error={accounts.isError && accounts.data !== undefined}
+				onRetry={() => accounts.refetch()}
+				pending={accounts.isFetching && !accounts.isPending}
+			/>
 			{accounts.isPending ? (
 				<div className="grid gap-6">
 					{[1, 2].map(item => (
 						<Skeleton className="h-64" key={item} />
 					))}
 				</div>
-			) : accounts.isError ? (
+			) : accounts.isError && accounts.data === undefined ? (
 				<EmptyState
 					description="Tente novamente em instantes."
 					icon={<LuLandmark className="size-6" />}

@@ -4,6 +4,7 @@ import { LuPlus, LuUsersRound } from "react-icons/lu";
 import { PendingNotices } from "@/components/pending-notices";
 import { Button } from "@/components/ui/Button";
 import { MobilePageActions } from "@/components/ui/MobilePageActions";
+import { QueryRefreshStatus } from "@/components/ui/QueryRefreshStatus";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { DebtEvent, DebtPerson } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
@@ -126,7 +127,7 @@ export function DebtsPage() {
 			</div>
 		);
 
-	if (ledger.isError)
+	if (ledger.isError && ledger.data === undefined)
 		return (
 			<div className="mx-auto max-w-5xl p-4" role="alert">
 				<p>Não foi possível carregar os saldos.</p>
@@ -140,6 +141,11 @@ export function DebtsPage() {
 		<main className="mx-auto min-h-screen w-full max-w-5xl overflow-x-clip bg-background pt-6 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:py-10">
 			<MobilePageActions
 				actions={[{ icon: LuPlus, label: "Adicionar lançamento", onClick: () => setCreateOpen(true) }]}
+			/>
+			<QueryRefreshStatus
+				error={ledger.isError}
+				onRetry={() => ledger.refetch()}
+				pending={ledger.isFetching}
 			/>
 			<header className="mx-4 min-w-0 rounded-3xl bg-gradient-to-br from-primary to-primary/75 p-5 text-primary-foreground shadow-lg sm:p-6 lg:p-8">
 				<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

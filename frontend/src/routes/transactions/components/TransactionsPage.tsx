@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { QueryRefreshStatus } from "@/components/ui/QueryRefreshStatus";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
@@ -516,6 +517,24 @@ export function TransactionsPage() {
 				transactions={transactions}
 			/>
 
+			<QueryRefreshStatus
+				error={
+					(transactionsQuery.isError && transactionsQuery.data !== undefined) ||
+					(yieldsMatchFilters && yieldsQuery.isError && yieldsQuery.data !== undefined)
+				}
+				onRetry={() =>
+					Promise.all([transactionsQuery.refetch(), ...(yieldsMatchFilters ? [yieldsQuery.refetch()] : [])])
+				}
+				pending={
+					(transactionsQuery.isFetching &&
+						!transactionsQuery.isPending &&
+						!transactionsQuery.isFetchingNextPage) ||
+					(yieldsMatchFilters &&
+						yieldsQuery.isFetching &&
+						!yieldsQuery.isPending &&
+						!yieldsQuery.isFetchingNextPage)
+				}
+			/>
 			{transactionsQuery.isPending || (yieldsMatchFilters && yieldsQuery.isPending) ? (
 				<div className="space-y-5">
 					{[1, 2, 3].map(item => (
@@ -525,7 +544,8 @@ export function TransactionsPage() {
 						</div>
 					))}
 				</div>
-			) : transactionsQuery.isError || (yieldsMatchFilters && yieldsQuery.isError) ? (
+			) : (transactionsQuery.isError && transactionsQuery.data === undefined) ||
+				(yieldsMatchFilters && yieldsQuery.isError && yieldsQuery.data === undefined) ? (
 				<EmptyState
 					description="Não foi possível carregar suas movimentações."
 					icon={<HiArrowsRightLeft />}

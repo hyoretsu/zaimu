@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { QueryRefreshStatus } from "@/components/ui/QueryRefreshStatus";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
@@ -175,7 +176,7 @@ export function CreditCardsPage() {
 						<Skeleton className="mt-2 h-9 w-40 bg-brand-ink/10" />
 					) : (
 						<NativeMoneyTotals
-							error={cards.isError}
+							error={cards.isError && cards.data === undefined}
 							pending={cards.isPending}
 							values={(cards.data ?? [])
 								.filter(card => !card.excludeFromTotals)
@@ -188,13 +189,18 @@ export function CreditCardsPage() {
 					<p className="mt-2 font-bold text-3xl">{ownCardsCount}</p>
 				</div>
 			</section>
+			<QueryRefreshStatus
+				error={cards.isError && cards.data !== undefined}
+				onRetry={() => cards.refetch()}
+				pending={cards.isFetching && !cards.isPending}
+			/>
 			{cards.isPending ? (
 				<div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
 					{[1, 2, 3].map(item => (
 						<Skeleton className="h-72" key={item} />
 					))}
 				</div>
-			) : cards.isError ? (
+			) : cards.isError && cards.data === undefined ? (
 				<EmptyState
 					action={
 						<Button className="cursor-pointer" onClick={() => cards.refetch()} variant="outline">

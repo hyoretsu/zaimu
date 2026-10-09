@@ -315,7 +315,7 @@ Suíte deve incorporar escritas/jornadas, validação do próprio executor, font
 Progresso da retomada:
 
 - [x] Revisar plano e identificar caminhos compartilhados de espera/regravação.
-- [ ] Capturar baseline e corrigir cache, persistência e confirmação frontend.
+- [x] Capturar baseline e corrigir cache, persistência e confirmação frontend.
 - [ ] Ampliar runner e testes de performance para escritas e jornadas.
 - [ ] Executar matriz, corrigir demais violações e registrar antes/depois.
 - [ ] Validar plataformas disponíveis e encerrar aceite somente com cobertura integral.
@@ -362,3 +362,9 @@ Próxima etapa: validar fallback de cache e persistência incremental contra reg
 - Extrato normal com mil itens: parsing p95 3.040 ms/25 queries; revisão 843 ms/16 queries; descarte 118 ms/5 queries. Cenários passaram seus orçamentos nessa rodada diagnóstica.
 - Relatório sanitizado `backend/performance/reports/financial-actions-reference-0018.json`. Não substitui três rodadas, cargas 1/5/20, históricos completos e plataformas.
 - Executor usa mesmo cálculo de percentis para leituras/escritas, exige spans e campos numéricos completos. Antecipação de empréstimo e avanço/replay de recorrência acrescentados; validação real ainda pendente.
+
+### Leitura derivada após escrita persistida
+
+- Seis listagens principais preservam dados e componentes montados quando recarga falha. Status compartilhado informa atualização pendente/erro e oferece retry com feedback; erro inicial ainda mostra estado de falha completo.
+- Revisão React: sem novos efeitos ou estado derivado; consultas permanecem nos consumidores; componente de status separado; scopes de mutação e navegação preservados.
+- Regressão no navegador provoca falha de GET após POST bem-sucedido e exige confirmação persistida, cartão ainda visível e retry. Execução exige build atualizado; pendente enquanto diagnóstico IndexedDB está ativo.

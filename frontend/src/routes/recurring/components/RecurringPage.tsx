@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { QueryRefreshStatus } from "@/components/ui/QueryRefreshStatus";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { dataService } from "@/lib/dataService";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
@@ -107,7 +108,9 @@ export function RecurringPage() {
 	});
 
 	const isPending = accountsQuery.isPending || recurringQuery.isPending;
-	const isError = accountsQuery.isError || recurringQuery.isError;
+	const isError =
+		(accountsQuery.isError && accountsQuery.data === undefined) ||
+		(recurringQuery.isError && recurringQuery.data === undefined);
 	const monthStart = format(startOfMonth(new Date()), "yyyy-MM-dd");
 	const monthEnd = format(endOfMonth(new Date()), "yyyy-MM-dd");
 	const periodLabel = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(new Date());
@@ -205,6 +208,11 @@ export function RecurringPage() {
 				))}
 			</div>
 
+			<QueryRefreshStatus
+				error={!isError && (accountsQuery.isError || recurringQuery.isError)}
+				onRetry={() => Promise.all([accountsQuery.refetch(), recurringQuery.refetch()])}
+				pending={!isPending && (accountsQuery.isFetching || recurringQuery.isFetching)}
+			/>
 			{isPending ? (
 				<div className="space-y-5">
 					{[1, 2].map(section => (
