@@ -376,3 +376,9 @@ Próxima etapa: validar fallback de cache e persistência incremental contra reg
 - Diagnóstico real em Chromium reprovou leitura integral de 100 mil registros: 7.328 ms; fixture levou cerca de 11 minutos para concluir. Índices simples `syncedAt`, `modifiedAt` e `deleted` não têm consumidores e foram removidos na versão 16.
 - Teste de upgrade v15 preserva registro e migração financeira concluída; mantém isolamento e exclusão estrita de `modifiedAt === since`. 14 assertions passaram. Remoção de índices exige nova medição, não resolve por inferência o custo de leitura integral.
 - Navegação inicial e confirmação de compra também reprovaram na rodada anterior; artefatos mantidos em `/tmp/zaimu-browser-performance`, sem aceite global.
+
+### Registro de demanda cambial
+
+- Trace do dashboard identificou 1.916 queries e 10.760 ms no primeiro pedido de histórico cambial. Unidades de 365 dias, vínculos, cobertura e geração agora usam operações em lote; outbox recebe eventos em lote na mesma transação.
+- Regressão dedicada cobre 730 unidades de duas moedas, dia previamente coberto, repetição sem republicação e rollback após falha de publicação. Builds backend/frontend passaram; integração e nova medição pendentes.
+- Integração anterior completa passou, incluindo regressão de descarte de revisões externas; executor passou 15 testes/68 assertions.

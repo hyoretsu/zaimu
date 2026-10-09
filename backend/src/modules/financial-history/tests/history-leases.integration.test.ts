@@ -35,6 +35,7 @@ describe("local PostgreSQL history fencing", () => {
    "updatedAt" timestamptz DEFAULT now(), "lastError" text, "lockedUntil" timestamptz,
    "leaseToken" text, "nextAttemptAt" timestamptz, "completedAt" timestamptz);
    CREATE TABLE snapshots (id text PRIMARY KEY);
+   CREATE TABLE "CurrencyRateSnapshot" ("date" date, "baseCurrency" text, "rates" jsonb);
    CREATE TABLE "ReferenceRate" ("type" text, "date" date, "value" numeric);
    CREATE TABLE "OutboxEvent" ("eventType" text, "payload" jsonb);
    CREATE TABLE "FinancialHistoryCollection" ("id" text PRIMARY KEY, "deduplicationKey" text UNIQUE, "kind" text, "startDate" date, "endDate" date, "series" json);
@@ -105,6 +106,65 @@ describe("local PostgreSQL history fencing", () => {
 		await first.query(
 			'TRUNCATE "FinancialHistoryCollectionUnit", "FinancialHistoryCollection", "FinancialHistoryUnit", "ReferenceRate", "OutboxEvent"',
 		);
+	});
+
+	test("currency window batches covered days and schedules once with atomic rollback", async () => {
+		await first.query(
+			'TRUNCATE "FinancialHistoryCollectionUnit", "FinancialHistoryCollection", "FinancialHistoryUnit", "CurrencyRateSnapshot"',
+		);
+		await first.query(`INSERT INTO "CurrencyRateSnapshot" VALUES ('2026-10-07','USD','{}')`);
+		let queries = 0;
+		const published: string[] = [];
+		const transaction = (async (operation: (query: ReturnType<typeof execute>) => Promise<unknown>) => {
+			await first.query("BEGIN");
+			try {
+				const base = execute(first);
+				const result = await operation((async (...args: Parameters<typeof base>) => {
+					queries++;
+					return base(...args);
+				}) as typeof base);
+				await first.query("COMMIT");
+				return result;
+			} catch (error) {
+				await first.query("ROLLBACK");
+				throw error;
+			}
+		}) as typeof withRawTransaction;
+		const dependencies = {
+			publish: async () => {
+				throw new Error("Expected batch publication");
+			},
+			publishBatch: async (units: { id: string }[]) => {
+				published.push(...units.map(unit => unit.id));
+			},
+			read: async () => null,
+			transaction,
+		};
+		await requestHistoryCollection("CURRENCY", ["USD", "BRL"], "2026-10-08", dependencies);
+		expect(queries).toBe(11);
+		expect(published).toHaveLength(729);
+		expect(new Set(published).size).toBe(729);
+		expect(
+			(
+				await first.query(
+					`SELECT count(*)::int AS count FROM "FinancialHistoryUnit" WHERE "state"='COMPLETED'`,
+				)
+			).rows[0].count,
+		).toBe(1);
+		await requestHistoryCollection("CURRENCY", ["BRL", "USD"], "2026-10-08", dependencies);
+		expect(published).toHaveLength(729);
+		await expect(
+			requestHistoryCollection("CURRENCY", ["EUR"], "2026-10-08", {
+				...dependencies,
+				publishBatch: async () => {
+					throw new Error("Expected rollback");
+				},
+			}),
+		).rejects.toThrow("Expected rollback");
+		expect(
+			(await first.query(`SELECT count(*)::int AS count FROM "FinancialHistoryUnit" WHERE "series"='EUR'`))
+				.rows[0].count,
+		).toBe(0);
 	});
 
 	test("concurrent deliveries claim once and redelivery after commit adds no effects", async () => {

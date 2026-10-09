@@ -24,6 +24,16 @@ export class PostgresOutbox implements OutboxPort {
 			],
 		);
 	}
+	async appendMany(events: EventEnvelope[]) {
+		if (!events.length) return;
+		await executeRaw(
+			`INSERT INTO "public"."OutboxEvent" ("id", "eventType", "aggregateType", "aggregateId", "userIds", "occurredAt", "schemaVersion", "correlationId", "payload")
+			 SELECT "eventId", "eventType", "aggregateType", "aggregateId", "userIds", "occurredAt", "schemaVersion", "correlationId", "payload"
+			 FROM jsonb_to_recordset($1::jsonb) AS events("eventId" varchar, "eventType" varchar, "aggregateType" varchar, "aggregateId" varchar, "userIds" varchar[], "occurredAt" timestamptz, "schemaVersion" integer, "correlationId" varchar, "payload" jsonb)
+			 ON CONFLICT ("id") DO NOTHING`,
+			[JSON.stringify(events)],
+		);
+	}
 	async markPublished(eventId: string) {
 		await executeRaw(
 			`UPDATE "public"."OutboxEvent" SET "publishedAt" = now(), "lockedUntil" = NULL, "updatedAt" = now() WHERE "id" = $1`,

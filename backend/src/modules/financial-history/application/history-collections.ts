@@ -24,26 +24,27 @@ const unitColumns = `"id", "kind", "series", to_char("startDate",'YYYY-MM-DD') A
 const routingKey = (kind: CollectionKind) =>
 	kind === "CURRENCY" ? "currency-rate-history-fetch" : "reference-rate-fetch";
 
-async function publishUnit(
+function unitEvent(
 	unit: Pick<HistoryUnit, "id" | "kind" | "series" | "startDate" | "endDate" | "generation">,
 ) {
-	await outbox.append(
-		createEventEnvelope({
-			aggregateId: unit.id,
-			aggregateType: "financialHistory",
-			correlationId: unit.id,
-			eventType: `command.${routingKey(unit.kind)}`,
-			payload: {
-				deduplicationKey: `history:${unit.id}:${unit.generation}`,
-				endDate: unit.endDate,
-				generation: unit.generation,
-				referenceType: unit.series,
-				startDate: unit.startDate,
-				unitId: unit.id,
-			},
-			userIds: [],
-		}),
-	);
+	return createEventEnvelope({
+		aggregateId: unit.id,
+		aggregateType: "financialHistory",
+		correlationId: unit.id,
+		eventType: `command.${routingKey(unit.kind)}`,
+		payload: {
+			deduplicationKey: `history:${unit.id}:${unit.generation}`,
+			endDate: unit.endDate,
+			generation: unit.generation,
+			referenceType: unit.series,
+			startDate: unit.startDate,
+			unitId: unit.id,
+		},
+		userIds: [],
+	});
+}
+async function publishUnit(unit: Parameters<typeof unitEvent>[0]) {
+	await outbox.append(unitEvent(unit));
 }
 
 /** A request and its unique work/outbox are committed as one unit. No downloads here. */
@@ -51,7 +52,17 @@ export async function requestHistoryCollection(
 	kind: CollectionKind,
 	seriesInput: string[],
 	referenceDate = dateKey(new Date()),
-	dependencies = { publish: publishUnit, read: getHistoryCollection, transaction: withRawTransaction },
+	dependencies: {
+		publish: typeof publishUnit;
+		publishBatch?: (units: Parameters<typeof unitEvent>[0][]) => Promise<void>;
+		read: typeof getHistoryCollection;
+		transaction: typeof withRawTransaction;
+	} = {
+		publish: publishUnit,
+		publishBatch: units => outbox.appendMany(units.map(unitEvent)),
+		read: getHistoryCollection,
+		transaction: withRawTransaction,
+	},
 ) {
 	const reference = dateKey(referenceDate);
 	if (reference > dateKey(new Date())) throw new RangeError("Coleta não aceita datas futuras");
@@ -86,6 +97,36 @@ export async function requestHistoryCollection(
 		if (!collection) throw new Error("Coleta indisponível");
 		for (const value of series) {
 			await query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [`history:${kind}:${value}`]);
+			if (kind === "CURRENCY") {
+				// One statement per phase, independent of the 365-day window size.
+				const units = await query<UnitRow>(
+					`INSERT INTO "FinancialHistoryUnit" ("id","deduplicationKey","kind","series","startDate","endDate")
+					 SELECT gen_random_uuid()::text, 'CURRENCY:' || $1 || ':' || day::date || ':' || day::date,
+					 'CURRENCY', $1, day::date, day::date FROM generate_series($2::date,$3::date,interval '1 day') day
+					 ON CONFLICT ("deduplicationKey") DO UPDATE SET "deduplicationKey"=EXCLUDED."deduplicationKey"
+					 RETURNING ${unitColumns}`,
+					[value, window.startDate, window.endDate],
+				);
+				const ids = units.map(unit => unit.id);
+				await query(
+					`INSERT INTO "FinancialHistoryCollectionUnit" ("collectionId","unitId") SELECT $1, unnest($2::varchar[]) ON CONFLICT DO NOTHING`,
+					[collection.id, ids],
+				);
+				await query(
+					`UPDATE "FinancialHistoryUnit" unit SET "state"='COMPLETED',"completedAt"=now(),"updatedAt"=now()
+					 WHERE unit."id"=ANY($1::varchar[]) AND unit."state"='PENDING'
+					 AND EXISTS(SELECT 1 FROM "CurrencyRateSnapshot" snapshot WHERE snapshot."date"=unit."startDate" AND snapshot."baseCurrency"=unit."series")`,
+					[ids],
+				);
+				const scheduled = await query<UnitRow>(
+					`UPDATE "FinancialHistoryUnit" SET "generation"=1,"nextAttemptAt"=now(),"updatedAt"=now()
+					 WHERE "id"=ANY($1::varchar[]) AND "state"='PENDING' AND "generation"=0 AND "attempts"=0 RETURNING ${unitColumns}`,
+					[ids],
+				);
+				if (dependencies.publishBatch) await dependencies.publishBatch(scheduled);
+				else for (const unit of scheduled) await dependencies.publish(unit);
+				continue;
+			}
 			let ranges: { startDate: string; endDate: string; covered?: boolean }[] = windowDays(
 				window.startDate,
 				window.endDate,
@@ -145,10 +186,8 @@ export async function requestHistoryCollection(
 				const [covered] = interval.covered
 					? [{ complete: true }]
 					: await query<{ complete: boolean }>(
-							kind === "CURRENCY"
-								? `SELECT EXISTS(SELECT 1 FROM "CurrencyRateSnapshot" WHERE "date"=$2::date AND "baseCurrency"=$1) AS complete`
-								: `SELECT NOT EXISTS(SELECT 1 FROM generate_series($2::date,$3::date,interval '1 day') day WHERE NOT EXISTS(SELECT 1 FROM "OutboxEvent" e WHERE e."eventType"='referenceRate.historyFetched' AND e."payload"->>'referenceType'=$1 AND (e."payload"->>'startDate')::date<=day::date AND (e."payload"->>'endDate')::date>=day::date)) AS complete`,
-							[value, interval.startDate, ...(kind === "INTEREST" ? [interval.endDate] : [])],
+							`SELECT NOT EXISTS(SELECT 1 FROM generate_series($2::date,$3::date,interval '1 day') day WHERE NOT EXISTS(SELECT 1 FROM "OutboxEvent" e WHERE e."eventType"='referenceRate.historyFetched' AND e."payload"->>'referenceType'=$1 AND (e."payload"->>'startDate')::date<=day::date AND (e."payload"->>'endDate')::date>=day::date)) AS complete`,
+							[value, interval.startDate, interval.endDate],
 						);
 				if (covered?.complete)
 					await query(
