@@ -18,7 +18,7 @@ export function percentile(values: readonly number[], fraction: number) {
 }
 
 export function assertDedicatedApi(url: URL) {
-	if (url.origin !== "http://127.0.0.1:3335" || url.username || url.password)
+	if (url.origin !== "http://127.0.0.1:3335" || url.username || url.password || url.hash)
 		throw new Error("Dedicated loopback API 3335 required");
 }
 

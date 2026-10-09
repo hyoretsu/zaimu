@@ -353,3 +353,5 @@ Próxima etapa: validar fallback de cache e persistência incremental contra reg
 
 - Descarte de extrato após batching: cinco consultas, 89-188 ms em cinco amostras. Caso extremo com mil lançamentos iguais retorna 29,7 MB de candidatos a duplicação e ainda reprova revisão (<1 s); preservado como `statementImportDuplicates`, sem esconder violação na fixture normal.
 - Matriz recusa porta API ocupada, usa health público, encerra processos próprios ao interromper e retorna falha quando inventário global permanece incompleto. Revisão/descarte não herdam orçamento de 30 s do parser.
+
+- Spans do extrato normal ainda identificaram SELECTs com cerca de 13 s. Busca de referências externas trocada de milhares de condições para `ANY` parametrizado. Regressão de descarte em lote corrigida: fixture deve criar revisão concreta, não estado BANK_PENDING sem item de revisão.

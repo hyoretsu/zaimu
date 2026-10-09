@@ -141,13 +141,14 @@ describe("MeuPluggy local integration", () => {
 	});
 	test("batch discard settles only selected external reviews", async () => {
 		const { discardExternalReviews } = await import("../application/review-tracking");
-		await processRemote(remote("batch-a", { status: "PENDING" }));
-		await processRemote(remote("batch-b", { status: "PENDING" }));
+		await processRemote(remote("batch-a", { amount: -45, date: "2026-02-01", description: "PDF market" }));
+		await processRemote(remote("batch-b", { amount: -45, date: "2026-02-01", description: "PDF market" }));
 		const rows = await sql.queryRaw<{ identity: string; reviewItemId: string }>(
 			`SELECT "identity", "reviewItemId" FROM "OpenFinanceRecord" WHERE "identity"=ANY($1::text[]) ORDER BY "identity"`,
 			[["provider:bank-batch-a", "provider:bank-batch-b"]],
 		);
 		expect(rows).toHaveLength(2);
+		expect(rows.every(row => Boolean(row.reviewItemId))).toBeTrue();
 		await discardExternalReviews([rows[0]!.reviewItemId, rows[0]!.reviewItemId, "missing"]);
 		const states = await sql.queryRaw<{
 			identity: string;
@@ -160,7 +161,9 @@ describe("MeuPluggy local integration", () => {
 		);
 		expect(states[0]).toMatchObject({ appliedSnapshot: null, reviewItemId: null, state: "DISCARDED" });
 		expect(states[1]!.reviewItemId).toBe(rows[1]!.reviewItemId);
-		expect(await processRemote(remote("batch-a", { status: "PENDING" }))).toBe("unchanged");
+		expect(
+			await processRemote(remote("batch-a", { amount: -45, date: "2026-02-01", description: "PDF market" })),
+		).toBe("unchanged");
 	});
 	test("persistent user lock coalesces starts and respects interval", async () => {
 		const starts = await Promise.all([startSync("owner", true), startSync("owner", true)]);

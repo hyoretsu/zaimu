@@ -323,15 +323,9 @@ async function getPotentialDuplicates(
 			importItemTagEntityType,
 			pendingItems.map(item => item.id),
 		),
-		queryRows(
-			db.sql.public.TransactionExternalReference.select("transactionId", "externalId")
-				.where((fields, functions) =>
-					functions.in(
-						fields.transactionId,
-						transactions.map(transaction => transaction.id),
-					),
-				)
-				.build(),
+		queryRaw<{ transactionId: string; externalId: string }>(
+			`SELECT "transactionId", "externalId" FROM "TransactionExternalReference" WHERE "transactionId"=ANY($1::varchar[])`,
+			[transactions.map(transaction => transaction.id)],
 		),
 	]);
 	const externalIdsByTransaction = new Map<string, string[]>();
@@ -699,31 +693,13 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				},
 			);
 			const [existingTransactions, existingYields, existingManualYields] = await Promise.all([
-				queryRows(
-					db.sql.public.TransactionExternalReference.select("externalId")
-						.where((fields, functions) =>
-							functions.and(
-								functions.in(
-									fields.externalId,
-									statementTransactions.map(transaction => transaction.externalId),
-								),
-								functions.eq(fields.financialAccountId, body.financialAccountId),
-							),
-						)
-						.build(),
+				queryRaw<{ externalId: string | null }>(
+					`SELECT "externalId" FROM "TransactionExternalReference" WHERE "financialAccountId"=$1 AND "externalId"=ANY($2::varchar[])`,
+					[body.financialAccountId, statementTransactions.map(transaction => transaction.externalId)],
 				),
-				queryRows(
-					db.sql.public.FinancialAccountYield.select("externalId")
-						.where((fields, functions) =>
-							functions.and(
-								functions.in(
-									fields.externalId,
-									statementTransactions.map(transaction => transaction.externalId),
-								),
-								functions.eq(fields.financialAccountId, body.financialAccountId),
-							),
-						)
-						.build(),
+				queryRaw<{ externalId: string | null }>(
+					`SELECT "externalId" FROM "FinancialAccountYield" WHERE "financialAccountId"=$1 AND "externalId"=ANY($2::varchar[])`,
+					[body.financialAccountId, statementTransactions.map(transaction => transaction.externalId)],
 				),
 				queryRows(
 					db.sql.public.FinancialAccountYield.select("date")

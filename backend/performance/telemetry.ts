@@ -50,11 +50,18 @@ export function attachTelemetry(sample: RequestSample, telemetry: Map<string, Re
 
 export function completeTelemetry(record: Record<string, unknown> | undefined) {
 	if (record?.completed !== true || !Array.isArray(record.spans) || !record.spans.length) return false;
-	for (const key of ["cpuMicros", "pool", "memory"])
-		if (!record[key] || typeof record[key] !== "object") return false;
+	const numeric = (value: unknown) => typeof value === "number" && Number.isFinite(value) && value >= 0;
+	const fields = (value: unknown, names: string[]) =>
+		value !== null &&
+		typeof value === "object" &&
+		names.every(name => numeric((value as Record<string, unknown>)[name]));
 	return (
-		typeof record.eventLoopLagP95Ms === "number" &&
-		Number.isFinite(record.eventLoopLagP95Ms) &&
-		record.eventLoopLagP95Ms >= 0
+		fields(record.cpuMicros, ["user", "system"]) &&
+		fields(record.pool, ["idle", "total", "waiting"]) &&
+		fields(record.memory, ["rss", "heapTotal", "heapUsed", "external", "arrayBuffers"]) &&
+		numeric(record.eventLoopLagP95Ms) &&
+		record.spans.every(
+			span => span && typeof span.name === "string" && numeric(span.durationMs) && numeric(span.startMs),
+		)
 	);
 }
