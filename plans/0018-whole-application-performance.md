@@ -385,3 +385,9 @@ Próxima etapa: validar fallback de cache e persistência incremental contra reg
 
 - Batching cambial validado pela integração completa e hooks. Matriz valida socket Docker local antes de qualquer operação e usa volume dedicado em disco para não consumir RAM com dois milhões de transações. Relatórios registram memória livre e carga no começo/fim.
 - Navegação e atualização após compra passam a medir frame/DOM dentro do navegador. Espera de observação pode durar 60 s sem alterar orçamento de 1 s; falhas de performance continuam reprovadas.
+
+### Sugestões de transferência
+
+- Navegação real encontrou bloqueio de CPU em `GET /transactions/transfer-suggestions`: 296.236 ms, duas queries e 205 s de CPU com histórico de 10 mil. API deixou de responder até health enquanto comparava todos os pares.
+- Comparação agora indexa data/valor/tipo/minuto, elimina horários ausentes e só verifica buckets compatíveis. Preserva limite de 60 segundos, ordem, contas distintas e rejeições. Regressão cobre 10/10 mil/100 mil registros.
+- Endpoint entra no orçamento frio/quente/304 e usa geração existente de `transactions:list`, invalidada também por aceitação/rejeição. Nova medição pendente.

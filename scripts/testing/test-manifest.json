@@ -102,6 +102,7 @@
 		"backend/src/modules/transaction-imports/domain/statement-identity.test.ts",
 		"backend/src/modules/transaction-imports/domain/transfer-suggestions.test.ts",
 		"backend/src/modules/transactions/application/list-transactions-page.test.ts",
+		"backend/src/modules/transactions/application/transfer-candidate-pairs.test.ts",
 		"backend/src/scripts/replay-missing-recurrences-options.test.ts",
 		"backend/src/shared/application/cache-invalidation.test.ts",
 		"backend/src/shared/application/catalog-pagination.test.ts",

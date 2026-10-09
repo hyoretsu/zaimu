@@ -89,4 +89,11 @@ export const performanceBudgets: Record<string, PerformanceBudget> = {
 		hotQueryCount: 0,
 		path: "/transactions/?limit=50",
 	},
+	transferSuggestions: {
+		coldP95Ms: 1000,
+		coldQueryCount: 2,
+		hotP95Ms: 100,
+		hotQueryCount: 0,
+		path: "/transactions/transfer-suggestions",
+	},
 };

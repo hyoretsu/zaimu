@@ -28,7 +28,7 @@ const dateKey = (value: Date | string) => new Date(value).toISOString().slice(0,
 
 const timePattern = /^(?<hours>[01]\d|2[0-3]):(?<minutes>[0-5]\d)(?::(?<seconds>[0-5]\d))?$/;
 
-function timeInSeconds(value: string | null | undefined) {
+export function transferSuggestionTimeSeconds(value: string | null | undefined) {
 	const match = value?.match(timePattern);
 	if (!match?.groups) return null;
 	return (
@@ -41,8 +41,8 @@ export function areTransferSuggestionTimesCompatible(
 	right: Pick<TransferSuggestionItem, "date" | "time">,
 ) {
 	if (dateKey(left.date) !== dateKey(right.date)) return false;
-	const leftTime = timeInSeconds(left.time);
-	const rightTime = timeInSeconds(right.time);
+	const leftTime = transferSuggestionTimeSeconds(left.time);
+	const rightTime = transferSuggestionTimeSeconds(right.time);
 	return leftTime !== null && rightTime !== null && Math.abs(leftTime - rightTime) <= 60;
 }
 

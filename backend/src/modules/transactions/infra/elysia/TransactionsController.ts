@@ -37,6 +37,7 @@ import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/appl
 import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { areTransferSuggestionTimesCompatible } from "~/modules/transaction-imports/domain/transfer-suggestions";
 import { listTransactionsPage } from "~/modules/transactions/application/list-transactions-page";
+import { transferCandidatePairs } from "~/modules/transactions/application/transfer-candidate-pairs";
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
 import { rejectLegacyFinancialFields } from "~/shared/infra/elysia/strict-json-body";
@@ -184,88 +185,82 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			}),
 		},
 	)
-	.get("/transfer-suggestions", async ({ request }) => {
+	.get("/transfer-suggestions", async ({ request, set }) => {
 		const userId = await requireUserId(request);
-		const [transactions, rejections] = await Promise.all([
-			queryRows(
-				db.sql.public.Transaction.innerJoin(db.sql.public.FinancialAccount, (fields, functions) =>
-					functions.or(
-						functions.and(
-							functions.eq(fields.Transaction.type, "EXPENSE"),
-							functions.eq(fields.Transaction.originFinancialAccountId, fields.FinancialAccount.id),
-						),
-						functions.and(
-							functions.eq(fields.Transaction.type, "INCOME"),
-							functions.eq(fields.Transaction.destinationFinancialAccountId, fields.FinancialAccount.id),
-						),
-					),
-				)
-					.outerLeftJoin(db.sql.public.FinancialInstitution, (fields, functions) =>
-						functions.eq(fields.FinancialAccount.institutionId, fields.FinancialInstitution.id),
-					)
-					.select((fields, functions) => ({
-						accountName:
-							functions.raw`COALESCE(${fields.FinancialAccount.name}, ${fields.FinancialInstitution.name})`.returns(
-								"sql/varchar@1",
+		const cached = await distributedCache.remember(
+			userId,
+			"transactions:list",
+			{ view: "transfer-suggestions" },
+			async () => {
+				const [transactions, rejections] = await Promise.all([
+					queryRows(
+						db.sql.public.Transaction.innerJoin(db.sql.public.FinancialAccount, (fields, functions) =>
+							functions.or(
+								functions.and(
+									functions.eq(fields.Transaction.type, "EXPENSE"),
+									functions.eq(fields.Transaction.originFinancialAccountId, fields.FinancialAccount.id),
+								),
+								functions.and(
+									functions.eq(fields.Transaction.type, "INCOME"),
+									functions.eq(fields.Transaction.destinationFinancialAccountId, fields.FinancialAccount.id),
+								),
 							),
-						accountType: fields.FinancialAccount.type,
-						amount: fields.Transaction.amount,
-						createdAt: fields.Transaction.createdAt,
-						date: fields.Transaction.date,
-						description: fields.Transaction.description,
-						destinationFinancialAccountId: fields.Transaction.destinationFinancialAccountId,
-						id: fields.Transaction.id,
-						isHidden: fields.Transaction.isHidden,
-						originFinancialAccountId: fields.Transaction.originFinancialAccountId,
-						storeName: fields.Transaction.storeName,
-						time: fields.Transaction.time,
-						type: fields.Transaction.type,
-					}))
-					.where((fields, functions) => functions.eq(fields.FinancialAccount.userId, userId))
-					.build(),
-			),
-			queryRows(
-				db.sql.public.TransactionTransferSuggestionRejection.select(
-					"firstTransactionId",
-					"secondTransactionId",
-				)
-					.where((fields, functions) => functions.eq(fields.userId, userId))
-					.build(),
-			),
-		]);
-		const rejectedPairs = new Set(
-			rejections.map(rejection => `${rejection.firstTransactionId}:${rejection.secondTransactionId}`),
+						)
+							.outerLeftJoin(db.sql.public.FinancialInstitution, (fields, functions) =>
+								functions.eq(fields.FinancialAccount.institutionId, fields.FinancialInstitution.id),
+							)
+							.select((fields, functions) => ({
+								accountName:
+									functions.raw`COALESCE(${fields.FinancialAccount.name}, ${fields.FinancialInstitution.name})`.returns(
+										"sql/varchar@1",
+									),
+								accountType: fields.FinancialAccount.type,
+								amount: fields.Transaction.amount,
+								createdAt: fields.Transaction.createdAt,
+								date: fields.Transaction.date,
+								description: fields.Transaction.description,
+								destinationFinancialAccountId: fields.Transaction.destinationFinancialAccountId,
+								id: fields.Transaction.id,
+								isHidden: fields.Transaction.isHidden,
+								originFinancialAccountId: fields.Transaction.originFinancialAccountId,
+								storeName: fields.Transaction.storeName,
+								time: fields.Transaction.time,
+								type: fields.Transaction.type,
+							}))
+							.where((fields, functions) => functions.eq(fields.FinancialAccount.userId, userId))
+							.build(),
+					),
+					queryRows(
+						db.sql.public.TransactionTransferSuggestionRejection.select(
+							"firstTransactionId",
+							"secondTransactionId",
+						)
+							.where((fields, functions) => functions.eq(fields.userId, userId))
+							.build(),
+					),
+				]);
+				const rejectedPairs = new Set(
+					rejections.map(rejection => `${rejection.firstTransactionId}:${rejection.secondTransactionId}`),
+				);
+				const candidates = transactions.map(transaction => ({
+					...transaction,
+					amount: Number(transaction.amount),
+					destinationAccountType: transaction.type === "INCOME" ? transaction.accountType : null,
+					destinationName: transaction.type === "INCOME" ? transaction.accountName : null,
+					originAccountType: transaction.type === "EXPENSE" ? transaction.accountType : null,
+					originName: transaction.type === "EXPENSE" ? transaction.accountName : null,
+					source: "FINANCIAL_ACCOUNT" as const,
+				}));
+				return transferCandidatePairs(candidates, rejectedPairs);
+			},
 		);
-		const candidates = transactions.map(transaction => ({
-			...transaction,
-			amount: Number(transaction.amount),
-			destinationAccountType: transaction.type === "INCOME" ? transaction.accountType : null,
-			destinationName: transaction.type === "INCOME" ? transaction.accountName : null,
-			originAccountType: transaction.type === "EXPENSE" ? transaction.accountType : null,
-			originName: transaction.type === "EXPENSE" ? transaction.accountName : null,
-			source: "FINANCIAL_ACCOUNT" as const,
-		}));
-		return candidates.flatMap((transaction, index) =>
-			candidates.slice(index + 1).flatMap(counterpart => {
-				const transactionAccountId =
-					transaction.type === "INCOME"
-						? transaction.destinationFinancialAccountId
-						: transaction.originFinancialAccountId;
-				const counterpartAccountId =
-					counterpart.type === "INCOME"
-						? counterpart.destinationFinancialAccountId
-						: counterpart.originFinancialAccountId;
-				const key = [transaction.id, counterpart.id].sort().join(":");
-				return areTransferSuggestionTimesCompatible(transaction, counterpart) &&
-					transaction.amount === counterpart.amount &&
-					transactionAccountId !== counterpartAccountId &&
-					((transaction.type === "EXPENSE" && counterpart.type === "INCOME") ||
-						(transaction.type === "INCOME" && counterpart.type === "EXPENSE")) &&
-					!rejectedPairs.has(key)
-					? [{ counterpart, transaction }]
-					: [];
-			}),
-		);
+		set.headers.etag = cached.etag;
+		set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+		if (request.headers.get("if-none-match") === cached.etag) {
+			set.status = 304;
+			return undefined;
+		}
+		return cached.value;
 	})
 	.post(
 		"/:id/transfer-suggestions/:counterpartId/reject",
