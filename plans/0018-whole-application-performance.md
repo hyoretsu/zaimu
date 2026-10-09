@@ -407,3 +407,8 @@ Próxima etapa: validar fallback de cache e persistência incremental contra reg
 
 - Executor inclui login, sessão com validação de titularidade, logout e leitura anônima. Cookies ficam privados e separados da identidade original da fixture; erro de titularidade encerra sessão criada.
 - Executor passou 17 testes/81 assertions, incluindo limpeza e ausência de cookies nos relatórios. Medição real dessa jornada ainda pendente; signup/reset/revogação não estão cobertos por esse cenário.
+
+### Evidência WebView e relatórios interrompidos
+
+- WebKitGTK 2.54.1 executou oito rotas visitante vazias: cartões 817 ms, transações 932 ms, recorrências 518 ms, empréstimos 507 ms e ajustes 716 ms. Contas 1.061 ms e dívidas 1.005 ms reprovaram; dashboard terminou sem heading/prontidão após 60 s. Relatório versionado conserva timeout e ausência de long tasks.
+- Diagnóstico Chromium de compra foi interrompido na recarga entre amostras. Harness agora conserva métricas parciais em finally, exige quantidade completa e permite 60 s de observação sem alterar meta de 1 s. Reexecução ainda necessária.

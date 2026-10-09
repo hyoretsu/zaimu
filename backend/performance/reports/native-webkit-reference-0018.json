@@ -1,0 +1,84 @@
+{
+	"diagnostic": true,
+	"engine": "2.54.1",
+	"fixture": {
+		"historySize": 0,
+		"owner": "guest_native_performance"
+	},
+	"globalAcceptance": false,
+	"pending": [
+		"Tauri bridge/startup",
+		"deep links/background",
+		"Android",
+		"iOS",
+		"10k/100k history",
+		"required long task metric"
+	],
+	"platform": "GTK WebKit2",
+	"samples": [
+		{
+			"error": "timeout",
+			"heading": null,
+			"longTasksSupported": false,
+			"path": "/",
+			"route": "/",
+			"usableAt": 0
+		},
+		{
+			"error": null,
+			"heading": "Contas financeiras",
+			"longTasksSupported": false,
+			"path": "/accounts",
+			"route": "/accounts",
+			"usableAt": 1061
+		},
+		{
+			"error": null,
+			"heading": "Cart\u00f5es e compras",
+			"longTasksSupported": false,
+			"path": "/credit-cards",
+			"route": "/credit-cards",
+			"usableAt": 817
+		},
+		{
+			"error": null,
+			"heading": "Transa\u00e7\u00f5es",
+			"longTasksSupported": false,
+			"path": "/transactions",
+			"route": "/transactions",
+			"usableAt": 932
+		},
+		{
+			"error": null,
+			"heading": "Sem lan\u00e7amentos",
+			"longTasksSupported": false,
+			"path": "/debts",
+			"route": "/debts",
+			"usableAt": 1005
+		},
+		{
+			"error": null,
+			"heading": "Recorr\u00eancias",
+			"longTasksSupported": false,
+			"path": "/recurring",
+			"route": "/recurring",
+			"usableAt": 518
+		},
+		{
+			"error": null,
+			"heading": "Empr\u00e9stimos",
+			"longTasksSupported": false,
+			"path": "/loans",
+			"route": "/loans",
+			"usableAt": 507
+		},
+		{
+			"error": null,
+			"heading": "Ajustes",
+			"longTasksSupported": false,
+			"path": "/settings",
+			"route": "/settings",
+			"usableAt": 716
+		}
+	]
+}
