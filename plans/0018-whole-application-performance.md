@@ -328,3 +328,18 @@ Próxima etapa: validar fallback de cache e persistência incremental contra reg
 - Frontend invalida imediatamente e confirma escrita sem aguardar refetch. Conteúdo anterior permanece montado; opção `awaitRefetch` atende fluxos dependentes. Seis testes de cache passaram.
 - Navegador release mediu resposta, confirmação e dados atualizados separadamente. Rodada concorrente reprovou: p95 confirmação 2.529 ms, atualização 3.796 ms. Resultado exige repetição sem builds/testes concorrentes e investigação dos spans.
 - Plano permanece aberto; cobertura e plataformas incompletas não constituem aceite global.
+
+### Redução adicional do trabalho financeiro
+
+- Planos de parcelas persistidos em lote; criação em 48 vezes passa de 93 para 46 consultas de negócio no diagnóstico. Materialização indexa ocorrências/reembolsos em memória; replay não atualiza totais iguais.
+- Reparcelamento apresenta somente compra original e substitutas. Contrato preserva formato; histórico não relacionado deixa de compor resposta.
+- Snapshot de sincronização troca uma consulta de rateio por transação por leitura em lote. Auditoria identificou esse crescimento linear com histórico; cenário HTTP específico incluído na suíte em desenvolvimento.
+- Regressões financeiras e executor passaram. Integração completa em execução local descartável. Metas de latência ainda exigem medição isolada; rodada concorrente permanece reprovada.
+
+### Executor e investigação de importações
+
+- Executor consolidado: destinos dedicados, redirects recusados, seleção validada, fixtures/câmbio fixos, três rodadas de 25 amostras e cargas 1/5/20, percentis por ação, SQL total/auth/negócio e associação de spans/CPU/event-loop/memória. Métrica ou ação obrigatória ausente impede aprovação.
+- Cobertura HTTP ampliada para 26 cenários, incluindo pagamento, sync e parsing/revisão de mil registros. Inventário de rotas/telas/jornadas continua expondo pendências. Matriz oficial ainda não executada.
+- Diagnóstico revelou descarte de extrato com 1.004 queries e fatura com 2.006 queries; revisões sem aplicação agora são descartadas em lote, e fatura evita procura de alvo sem registro externo. Consultas de tags/rateios usam arrays SQL; duplicação tem índice por data/valor e identidade externa.
+- Relatório sanitizado `backend/performance/reports/purchase-retomada-0018.json` preserva baseline e primeira correção. Diagnóstico do navegador incluía overhead do Playwright; medição foi corrigida para clique/DOM na própria página e exige repetição.
+- Suite completa de integração passou após batching de parcelas/sync. Mudanças posteriores em revisão externa precisam nova regressão. Android sem adb, desktop sem tauri-driver e iOS indisponível nesta máquina Linux: aceite nativo pendente.

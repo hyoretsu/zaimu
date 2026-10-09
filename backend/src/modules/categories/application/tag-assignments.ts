@@ -97,25 +97,15 @@ export async function getTagsByEntity(entityType: string, entityIds: readonly st
 			]);
 		return tagsByEntity;
 	}
-	const assignments = await queryRows(
-		db.sql.public.TagAssignment.innerJoin(db.sql.public.Category, (fields, functions) =>
-			functions.eq(fields.TagAssignment.categoryId, fields.Category.id),
-		)
-			.select(fields => ({
-				color: fields.Category.color,
-				entityId: fields.TagAssignment.entityId,
-				icon: fields.Category.icon,
-				id: fields.Category.id,
-				name: fields.Category.name,
-			}))
-			.where((fields, functions) =>
-				functions.and(
-					functions.eq(fields.TagAssignment.entityType, entityType),
-					functions.in(fields.TagAssignment.entityId, normalizedEntityIds),
-				),
-			)
-			.orderBy(fields => fields.Category.name, { direction: "asc" })
-			.build(),
+	const assignments = await queryRaw<{
+		color: string | null;
+		entityId: string;
+		icon: string | null;
+		id: string;
+		name: string;
+	}>(
+		`SELECT tag."color", assignment."entityId", tag."icon", tag."id", tag."name" FROM "TagAssignment" assignment JOIN "Category" tag ON tag."id"=assignment."categoryId" WHERE assignment."entityType"=$1 AND assignment."entityId"=ANY($2::varchar[]) ORDER BY tag."name"`,
+		[entityType, normalizedEntityIds],
 	);
 
 	for (const assignment of assignments) {

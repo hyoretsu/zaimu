@@ -16,8 +16,8 @@ import {
 	replaceDebtSplit,
 } from "~/modules/debts/application";
 import {
+	discardExternalReviews,
 	refreshAppliedSnapshots,
-	settleExternalReview,
 } from "~/modules/open-finance/application/review-tracking";
 import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { createTransactionBatch } from "~/modules/transaction-imports/application/import-batches";
@@ -25,6 +25,7 @@ import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
 import { rejectLegacyFinancialFields } from "~/shared/infra/elysia/strict-json-body";
 import { db, executeStatement, queryFirst, queryRaw, queryRows, withTransaction } from "~/shared/infra/sql";
+import { indexDuplicateCandidates } from "../../application/duplicate-candidate-index";
 import {
 	assertCreditCardStatementOwnership,
 	assertImportItemIsNotReconciliationTarget,
@@ -391,6 +392,7 @@ async function getPotentialDuplicates(
 			(candidate.source === "TRANSACTION" ? transactionDebtSplits : importItemDebtSplits).get(candidate.id) ??
 			null,
 	}));
+	const candidateIndex = indexDuplicateCandidates(candidatesWithDebtSplits);
 	return new Map<string, PotentialDuplicates | null>(
 		items.map(item => {
 			if (item.isDuplicateIgnored || item.isReconciled) return [item.id, null] as const;
@@ -401,21 +403,25 @@ async function getPotentialDuplicates(
 				candidate.originFinancialAccountId === financialAccountId ||
 				candidate.destinationFinancialAccountId === financialAccountId;
 			const externalDuplicates = item.externalId
-				? candidatesWithDebtSplits.filter(
-						candidate =>
-							candidate.id !== item.id &&
-							isSameAccount(candidate) &&
-							candidate.externalIds.includes(item.externalId!),
-					)
+				? candidateIndex
+						.external(item.externalId)
+						.filter(
+							candidate =>
+								candidate.id !== item.id &&
+								isSameAccount(candidate) &&
+								candidate.externalIds.includes(item.externalId!),
+						)
 				: [];
-			const dateAmountDuplicates = candidatesWithDebtSplits.filter(
-				candidate =>
-					candidate.id !== item.id &&
-					isSameAccount(candidate) &&
-					matchesDuplicateTransactionShape(item, candidate, financialAccountId) &&
-					Number(candidate.amount) === Number(item.amount) &&
-					toDateKey(candidate.date) === toDateKey(item.date),
-			);
+			const dateAmountDuplicates = candidateIndex
+				.dated(item)
+				.filter(
+					candidate =>
+						candidate.id !== item.id &&
+						isSameAccount(candidate) &&
+						matchesDuplicateTransactionShape(item, candidate, financialAccountId) &&
+						Number(candidate.amount) === Number(item.amount) &&
+						toDateKey(candidate.date) === toDateKey(item.date),
+				);
 			const hasExternalDuplicates = externalDuplicates.length > 0;
 			const duplicateCandidates = hasExternalDuplicates ? externalDuplicates : dateAmountDuplicates;
 			return [
@@ -1470,7 +1476,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				'SELECT "id" FROM "TransactionImportItem" WHERE "transactionImportId"=$1',
 				[transactionImport.id],
 			);
-			for (const item of discarded) await settleExternalReview(item.id);
+			await discardExternalReviews(discarded.map(item => item.id));
 			await executeStatement(
 				db.sql.public.TransactionImport.delete()
 					.where((fields, functions) => functions.eq(fields.id, transactionImport.id))

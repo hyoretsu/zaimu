@@ -199,6 +199,25 @@ const purchaseColumns = [
 	"createdAt",
 	"updatedAt",
 ] as const;
+async function upsertMany(
+	query: RawQuery,
+	table: string,
+	columns: readonly string[],
+	rows: unknown[][],
+	key: readonly string[] = ["id"],
+) {
+	const quote = (value: string) => `"${value}"`;
+	for (let offset = 0; offset < rows.length; offset += 500) {
+		const batch = rows.slice(offset, offset + 500);
+		await query(
+			`INSERT INTO "${table}" (${columns.map(quote).join(",")}) VALUES ${batch.map((values, row) => `(${values.map((_, column) => `$${row * columns.length + column + 1}`).join(",")})`).join(",")} ON CONFLICT (${key.map(quote).join(",")}) DO UPDATE SET ${columns
+				.filter(column => !key.includes(column) && column !== "createdAt")
+				.map(column => `${quote(column)} = EXCLUDED.${quote(column)}`)
+				.join(",")}`,
+			batch.flat(),
+		);
+	}
+}
 async function upsert(
 	query: RawQuery,
 	table: string,
@@ -206,14 +225,7 @@ async function upsert(
 	values: unknown[],
 	key: readonly string[] = ["id"],
 ) {
-	const quote = (value: string) => `"${value}"`;
-	await query(
-		`INSERT INTO "${table}" (${columns.map(quote).join(",")}) VALUES (${values.map((_, i) => `$${i + 1}`).join(",")}) ON CONFLICT (${key.map(quote).join(",")}) DO UPDATE SET ${columns
-			.filter(column => !key.includes(column) && column !== "createdAt")
-			.map(column => `${quote(column)} = EXCLUDED.${quote(column)}`)
-			.join(",")}`,
-		values,
-	);
+	return upsertMany(query, table, columns, [values], key);
 }
 
 export async function saveCreditBook(
@@ -235,8 +247,13 @@ export async function saveCreditBook(
 	const chargeIds = new Set(book.charges.map(ch => ch.id));
 	const refundsByPurchase = Map.groupBy(book.refunds, r => r.purchaseId);
 
-	const upsertMoney = async (...args: Parameters<typeof upsert>) => {
-		const [executor, table, columns, values, key] = args;
+	const upsertMoneyMany = async (
+		executor: RawQuery,
+		table: string,
+		columns: readonly string[],
+		rows: unknown[][],
+		key?: readonly string[],
+	) => {
 		if (
 			[
 				"CreditCardStatement",
@@ -246,8 +263,18 @@ export async function saveCreditBook(
 				"CreditStatementCharge",
 			].includes(table)
 		)
-			return upsert(executor, table, [...columns, "currency"], [...values, book.card.currency], key);
-		return upsert(...args);
+			return upsertMany(
+				executor,
+				table,
+				[...columns, "currency"],
+				rows.map(values => [...values, book.card.currency]),
+				key,
+			);
+		return upsertMany(executor, table, columns, rows, key);
+	};
+	const upsertMoney = async (...args: Parameters<typeof upsert>) => {
+		const [executor, table, columns, values, key] = args;
+		return upsertMoneyMany(executor, table, columns, [values], key);
 	};
 	const deletedPurchases = [
 		...new Set([
@@ -428,6 +455,7 @@ export async function saveCreditBook(
 				p.id,
 				p.installmentAmountsCents.length,
 			]);
+		const planRows: unknown[][] = [];
 		for (const [index, amount] of p.installmentAmountsCents.entries()) {
 			const calendar = p.installmentStatementDates?.[index];
 			if (
@@ -438,21 +466,22 @@ export async function saveCreditBook(
 					Boolean(p.installmentImportedNumbers?.includes(index + 1))
 			)
 				continue;
-			await upsertMoney(
-				query,
-				"CreditInstallmentPlan",
-				["purchaseId", "number", "amount", "hasImportedAmount", "statementDate", "dueDate"],
-				[
-					p.id,
-					index + 1,
-					amount / currencyScale(book.card.currency),
-					p.installmentImportedNumbers?.includes(index + 1) ?? false,
-					calendar?.statementDate ?? null,
-					calendar?.dueDate ?? null,
-				],
-				["purchaseId", "number"],
-			);
+			planRows.push([
+				p.id,
+				index + 1,
+				amount / currencyScale(book.card.currency),
+				p.installmentImportedNumbers?.includes(index + 1) ?? false,
+				calendar?.statementDate ?? null,
+				calendar?.dueDate ?? null,
+			]);
 		}
+		await upsertMoneyMany(
+			query,
+			"CreditInstallmentPlan",
+			["purchaseId", "number", "amount", "hasImportedAmount", "statementDate", "dueDate"],
+			planRows,
+			["purchaseId", "number"],
+		);
 		await query(
 			`INSERT INTO "CreditEntryReference" ("id","purchaseId") VALUES ($1,$1) ON CONFLICT ("id") DO NOTHING`,
 			[p.id],
@@ -756,21 +785,27 @@ export async function transferCreditBookPurchase<T>(
 export async function readCreditBook(userId: string, cardId: string, metadata = true) {
 	return withRawTransaction(query => loadCreditBook(query, userId, cardId, false, metadata));
 }
-export async function presentCreditBook(book: CreditBook, statementId?: string, entryId?: string) {
+export async function presentCreditBook(
+	book: CreditBook,
+	statementId?: string,
+	entryId?: string | readonly string[],
+) {
 	const targetCurrency = book.card.currency ?? "BRL";
-	const selectedPurchaseId = entryId
-		? (book.installments.find(i => i.id === entryId)?.purchaseId ??
-			book.refunds.find(r => r.id === entryId)?.purchaseId ??
-			entryId)
-		: undefined;
-	if (selectedPurchaseId)
+	const requestedIds = entryId ? new Set(typeof entryId === "string" ? [entryId] : entryId) : undefined;
+	if (requestedIds) {
+		const selectedPurchaseIds = new Set([
+			...requestedIds,
+			...book.installments.filter(i => requestedIds.has(i.id)).map(i => i.purchaseId),
+			...book.refunds.filter(r => requestedIds.has(r.id)).map(r => r.purchaseId),
+		]);
 		book = {
 			...book,
-			charges: book.charges.filter(ch => ch.id === entryId),
-			installments: book.installments.filter(i => i.purchaseId === selectedPurchaseId),
-			purchases: book.purchases.filter(p => p.id === selectedPurchaseId),
-			refunds: book.refunds.filter(r => r.purchaseId === selectedPurchaseId),
+			charges: book.charges.filter(ch => requestedIds.has(ch.id)),
+			installments: book.installments.filter(i => selectedPurchaseIds.has(i.purchaseId)),
+			purchases: book.purchases.filter(p => selectedPurchaseIds.has(p.id)),
+			refunds: book.refunds.filter(r => selectedPurchaseIds.has(r.purchaseId)),
 		};
+	}
 	await Promise.all(
 		book.purchases
 			.filter(p => p.currency && p.currency !== targetCurrency)
@@ -779,7 +814,7 @@ export async function presentCreditBook(book: CreditBook, statementId?: string, 
 	const entries = creditBookEntries(book).filter(
 		row =>
 			(!statementId || row.statementId === statementId) &&
-			(!entryId || row.purchaseId === entryId || row.id === entryId),
+			(!requestedIds || requestedIds.has(row.purchaseId ?? "") || requestedIds.has(row.id)),
 	);
 	const purchasesById = new Map(book.purchases.map(p => [p.id, p]));
 	const purchaseIds = [...new Set(entries.flatMap(row => (row.purchaseId ? [row.purchaseId] : [])))];

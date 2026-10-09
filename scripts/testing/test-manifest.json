@@ -15,7 +15,10 @@
 	],
 	"backend:unit": [
 		"backend/performance/clock.test.ts",
+		"backend/performance/coverage.test.ts",
 		"backend/performance/local-fetch.test.ts",
+		"backend/performance/mutations.test.ts",
+		"backend/performance/pdf-fixture.test.ts",
 		"backend/performance/runner.test.ts",
 		"backend/performance/sample.test.ts",
 		"backend/src/modules/accounts/application/get-financial-account-balances.test.ts",
@@ -84,6 +87,7 @@
 		"backend/src/modules/stores/domain/normalize-store-name.test.ts",
 		"backend/src/modules/sync/SyncDTO.test.ts",
 		"backend/src/modules/sync/sync-events.test.ts",
+		"backend/src/modules/transaction-imports/application/duplicate-candidate-index.test.ts",
 		"backend/src/modules/transaction-imports/application/imported-money.test.ts",
 		"backend/src/modules/transaction-imports/domain/banco-do-brasil.test.ts",
 		"backend/src/modules/transaction-imports/domain/filter-existing-transactions.test.ts",

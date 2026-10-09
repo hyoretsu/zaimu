@@ -1,0 +1,178 @@
+{
+	"afterIncrementalPersistence": [
+		{
+			"durationMs": 881.1674350000001,
+			"metrics": {
+				"x-performance-auth-query-count": 2.0,
+				"x-performance-business-query-count": 46.0,
+				"x-performance-connection-wait-ms": 0.0,
+				"x-performance-query-count": 48.0,
+				"x-performance-sql-duration-ms": 279.75,
+				"x-performance-sql-elapsed-ms": 279.75
+			},
+			"status": 200
+		},
+		{
+			"durationMs": 422.1556509999996,
+			"metrics": {
+				"x-performance-auth-query-count": 0.0,
+				"x-performance-business-query-count": 46.0,
+				"x-performance-connection-wait-ms": 0.0,
+				"x-performance-query-count": 46.0,
+				"x-performance-sql-duration-ms": 255.74,
+				"x-performance-sql-elapsed-ms": 255.74
+			},
+			"status": 200
+		},
+		{
+			"durationMs": 316.1119150000004,
+			"metrics": {
+				"x-performance-auth-query-count": 0.0,
+				"x-performance-business-query-count": 46.0,
+				"x-performance-connection-wait-ms": 0.0,
+				"x-performance-query-count": 46.0,
+				"x-performance-sql-duration-ms": 181.56,
+				"x-performance-sql-elapsed-ms": 181.56
+			},
+			"status": 200
+		},
+		{
+			"durationMs": 298.0950549999998,
+			"metrics": {
+				"x-performance-auth-query-count": 0.0,
+				"x-performance-business-query-count": 46.0,
+				"x-performance-connection-wait-ms": 0.0,
+				"x-performance-query-count": 46.0,
+				"x-performance-sql-duration-ms": 161.75,
+				"x-performance-sql-elapsed-ms": 161.75
+			},
+			"status": 200
+		},
+		{
+			"durationMs": 192.9538680000005,
+			"metrics": {
+				"x-performance-auth-query-count": 0.0,
+				"x-performance-business-query-count": 46.0,
+				"x-performance-connection-wait-ms": 0.0,
+				"x-performance-query-count": 46.0,
+				"x-performance-sql-duration-ms": 117.26,
+				"x-performance-sql-elapsed-ms": 117.26
+			},
+			"status": 200
+		}
+	],
+	"before": [
+		{
+			"durationMs": 10301.366156,
+			"metrics": {
+				"x-performance-auth-query-count": 2.0,
+				"x-performance-business-query-count": 2739.0,
+				"x-performance-connection-wait-ms": 0.0,
+				"x-performance-query-count": 2741.0,
+				"x-performance-sql-duration-ms": 5778.83,
+				"x-performance-sql-elapsed-ms": 5778.83
+			},
+			"status": 200
+		},
+		{
+			"durationMs": 7151.015706999999,
+			"metrics": {
+				"x-performance-auth-query-count": 0.0,
+				"x-performance-business-query-count": 2741.0,
+				"x-performance-connection-wait-ms": 0.0,
+				"x-performance-query-count": 2741.0,
+				"x-performance-sql-duration-ms": 3968.34,
+				"x-performance-sql-elapsed-ms": 3968.34
+			},
+			"status": 200
+		},
+		{
+			"durationMs": 6866.763897999997,
+			"metrics": {
+				"x-performance-auth-query-count": 0.0,
+				"x-performance-business-query-count": 2743.0,
+				"x-performance-connection-wait-ms": 0.0,
+				"x-performance-query-count": 2743.0,
+				"x-performance-sql-duration-ms": 3672.99,
+				"x-performance-sql-elapsed-ms": 3672.99
+			},
+			"status": 200
+		},
+		{
+			"durationMs": 7433.275541999996,
+			"metrics": {
+				"x-performance-auth-query-count": 0.0,
+				"x-performance-business-query-count": 2745.0,
+				"x-performance-connection-wait-ms": 0.0,
+				"x-performance-query-count": 2745.0,
+				"x-performance-sql-duration-ms": 4022.28,
+				"x-performance-sql-elapsed-ms": 4022.28
+			},
+			"status": 200
+		},
+		{
+			"durationMs": 11260.350708999998,
+			"metrics": {
+				"x-performance-auth-query-count": 0.0,
+				"x-performance-business-query-count": 2747.0,
+				"x-performance-connection-wait-ms": 0.0,
+				"x-performance-query-count": 2747.0,
+				"x-performance-sql-duration-ms": 6835.93,
+				"x-performance-sql-elapsed-ms": 6835.93
+			},
+			"status": 200
+		}
+	],
+	"browserHarnessDiagnostic": {
+		"diagnostic": true,
+		"errors": [],
+		"p95ConfirmationMs": 2529.4068179999995,
+		"p95RefreshMs": 3796.1608119999983,
+		"reason": "Includes Playwright dispatch/assertion overhead; browser DOM clock introduced for subsequent runs.",
+		"samples": [
+			{
+				"confirmationMs": 2287.1887749999987,
+				"mutationMs": 1806.8253689999983,
+				"refreshMs": 3796.1608119999983,
+				"requests": 4
+			},
+			{
+				"confirmationMs": 2529.4068179999995,
+				"mutationMs": 2377.530996999998,
+				"refreshMs": 3791.660006000002,
+				"requests": 4
+			},
+			{
+				"confirmationMs": 2050.400719999998,
+				"mutationMs": 1743.0390439999974,
+				"refreshMs": 3233.302566999999,
+				"requests": 4
+			},
+			{
+				"confirmationMs": 1530.590449999996,
+				"mutationMs": 1307.4748560000007,
+				"refreshMs": 2486.535265999999,
+				"requests": 4
+			},
+			{
+				"confirmationMs": 1704.1393749999988,
+				"mutationMs": 1366.1036359999998,
+				"refreshMs": 2458.405681999997,
+				"requests": 4
+			}
+		],
+		"validUserLatency": false
+	},
+	"diagnostic": true,
+	"fixture": {
+		"date": "2026-10-04",
+		"transactions": 10000,
+		"users": 1
+	},
+	"globalAcceptance": false,
+	"limitations": [
+		"Five samples, not official three-round matrix",
+		"Browser and latest HTTP capture overlapped other local work",
+		"Native environments unmeasured"
+	]
+}

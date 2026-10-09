@@ -1,7 +1,12 @@
 import { cpus, totalmem } from "node:os";
 import { RedisClient } from "bun";
 import { performanceBudgets } from "./budgets";
+import { completeCoverage, evaluateCoverage } from "./coverage";
 import coverage from "./coverage.json";
+import { mutationScenarios, runMutationScenario } from "./mutations";
+import { preflight } from "./preflight";
+import { captureRequest, completeMetrics, type RequestSample, selectScenarios } from "./runner";
+import { attachTelemetry, completeTelemetry, readTelemetry } from "./telemetry";
 
 const base = new URL(process.env.PERFORMANCE_BASE_URL ?? "http://127.0.0.1:3335");
 const redisUrl = new URL(process.env.PERFORMANCE_ISOLATED_REDIS_URL ?? "redis://127.0.0.1:6395");
@@ -17,27 +22,12 @@ const diagnostic = process.argv.includes("--diagnostic");
 const iterations = diagnostic ? 5 : 25;
 const rounds = diagnostic ? 1 : 3;
 const loads = diagnostic ? [1] : [1, 5, 20];
-const selected = process.env.PERFORMANCE_SCENARIOS?.split(",");
+const selected = selectScenarios(
+	[...Object.keys(performanceBudgets), ...mutationScenarios],
+	process.env.PERFORMANCE_SCENARIOS,
+);
 const redis = new RedisClient(redisUrl.href);
-interface Sample {
-	durationMs: number;
-	status: number;
-	bytes: number;
-	queries: number | null;
-	businessQueries: number | null;
-	authQueries: number | null;
-	sqlDurationMs: number | null;
-	sqlElapsedMs: number | null;
-	connectionWaitMs: number | null;
-	cache: string | null;
-	requestId: string | null;
-	error?: string;
-}
-const headerNumber = (response: Response, name: string) => {
-	const value = response.headers.get(name);
-	if (value === null || value.trim() === "" || !Number.isFinite(Number(value))) return null;
-	return Number(value);
-};
+type Sample = RequestSample;
 const cookies: string[] = [];
 const results: Record<string, unknown> = {};
 const summaries: {
@@ -50,45 +40,16 @@ const summaries: {
 	maxQueries: number | null;
 }[] = [];
 let failed = false;
+let fixture: Awaited<ReturnType<typeof preflight>> | undefined;
 const request = async (path: string, user: number, init: RequestInit = {}): Promise<Sample> => {
-	const start = performance.now();
-	try {
-		const headers = new Headers(init.headers);
-		headers.set("cookie", cookies[user]!);
-		const response = await fetch(
-			new URL(path.replaceAll("perf-", user === 0 ? "perf-" : `p${user}-`), base),
-			{ ...init, headers, redirect: "error", signal: AbortSignal.timeout(60000) },
-		);
-		const body = await response.arrayBuffer();
-		return {
-			authQueries: headerNumber(response, "x-performance-auth-query-count"),
-			businessQueries: headerNumber(response, "x-performance-business-query-count"),
-			bytes: body.byteLength,
-			cache: response.headers.get("x-cache"),
-			connectionWaitMs: headerNumber(response, "x-performance-connection-wait-ms"),
-			durationMs: performance.now() - start,
-			queries: headerNumber(response, "x-performance-query-count"),
-			requestId: response.headers.get("x-performance-request-id"),
-			sqlDurationMs: headerNumber(response, "x-performance-sql-duration-ms"),
-			sqlElapsedMs: headerNumber(response, "x-performance-sql-elapsed-ms"),
-			status: response.status,
-		};
-	} catch (error) {
-		return {
-			authQueries: null,
-			businessQueries: null,
-			bytes: 0,
-			cache: null,
-			connectionWaitMs: null,
-			durationMs: performance.now() - start,
-			error: error instanceof Error ? error.name : "request-error",
-			queries: null,
-			requestId: null,
-			sqlDurationMs: null,
-			sqlElapsedMs: null,
-			status: 0,
-		};
-	}
+	const headers = new Headers(init.headers);
+	headers.set("cookie", cookies[user]!);
+	return (
+		await captureRequest(new URL(path.replaceAll("perf-", user === 0 ? "perf-" : `p${user}-`), base), {
+			...init,
+			headers,
+		})
+	).sample;
 };
 const clearDataCache = async () => {
 	let cursor = "0";
@@ -105,14 +66,18 @@ const clearDataCache = async () => {
 	} while (cursor !== "0");
 };
 try {
+	fixture = await preflight(Math.max(...loads));
 	for (let user = 0; user < Math.max(...loads); user++) {
 		const response = await fetch(new URL("/api/auth/sign-in/email", base), {
 			body: JSON.stringify({ email: `performance${user}@zaimu.local`, password: "Performance-local-2026" }),
-			headers: { "content-type": "application/json", origin: "http://localhost:5173" },
+			headers: { "content-type": "application/json", origin: "http://127.0.0.1:5173" },
 			method: "POST",
+			redirect: "error",
 			signal: AbortSignal.timeout(60000),
 		});
 		await response.arrayBuffer();
+		if (response.headers.get("x-performance-namespace") !== namespace)
+			throw new Error("API is not the dedicated performance environment");
 		if (!response.ok) throw new Error(`Fixture login failed: HTTP ${response.status}`);
 		cookies.push(
 			response.headers
@@ -122,7 +87,7 @@ try {
 		);
 	}
 	for (const [name, budget] of Object.entries(performanceBudgets)) {
-		if (selected && !selected.includes(name)) continue;
+		if (!selected.includes(name)) continue;
 		for (let round = 1; round <= rounds; round++)
 			for (const load of loads) {
 				for (const mode of ["redis-cold", "hot", "304"] as const) {
@@ -133,7 +98,11 @@ try {
 							await request(budget.path, user);
 							const warm = await fetch(
 								new URL(budget.path.replaceAll("perf-", user === 0 ? "perf-" : `p${user}-`), base),
-								{ headers: { cookie: cookies[user]! }, signal: AbortSignal.timeout(60000) },
+								{
+									headers: { cookie: cookies[user]! },
+									redirect: "error",
+									signal: AbortSignal.timeout(60000),
+								},
 							);
 							await warm.arrayBuffer();
 							etags.push(warm.headers.get("etag"));
@@ -162,6 +131,7 @@ try {
 					const passed =
 						samples.every(
 							sample =>
+								completeMetrics(sample) &&
 								sample.status === (mode === "304" ? 304 : 200) &&
 								sample.queries !== null &&
 								sample.businessQueries !== null &&
@@ -188,29 +158,60 @@ try {
 				}
 			}
 	}
+	for (const name of selected.filter(name => mutationScenarios.includes(name))) {
+		for (let round = 1; round <= rounds; round++)
+			for (const load of loads) {
+				const result = await runMutationScenario(name, { base, cookies, iterations, load });
+				results[`${name}:${round}:${load}:mutation`] = result;
+				failed ||= !result.passed;
+				console.info(JSON.stringify({ load, name, p95Ms: result.p95Ms, passed: result.passed, round }));
+			}
+	}
 } catch (error) {
 	failed = true;
 	results.runner = { error: error instanceof Error ? error.message : "runner-error", passed: false };
 } finally {
 	redis.close();
+	const telemetry = await readTelemetry(process.env.PERFORMANCE_API_LOG);
+	for (const value of Object.values(results)) {
+		const result = value as { samples?: Sample[]; passed?: boolean };
+		if (result.samples) {
+			result.samples = result.samples.map(sample => attachTelemetry(sample, telemetry));
+			if (
+				!diagnostic &&
+				result.samples.some(
+					sample => !sample.requestId || !completeTelemetry(telemetry.get(sample.requestId)),
+				)
+			) {
+				result.passed = false;
+				failed = true;
+			}
+		}
+	}
+	const measuredCoverage = evaluateCoverage(coverage, results);
 	const report = {
 		configuration: {
+			fixture,
 			iterations,
 			loads,
 			machine: { bun: Bun.version, cpu: cpus()[0]?.model, cpus: cpus().length, memoryBytes: totalmem() },
 			namespace,
 			rounds,
 		},
-		coverage,
+		coverage: measuredCoverage,
 		diagnostic,
 		generatedAt: new Date().toISOString(),
-		passed: false,
-		readScenariosPassed: !failed && !diagnostic,
+		passed: !failed && !diagnostic && completeCoverage(measuredCoverage),
+		readScenariosPassed:
+			!failed && !diagnostic && Object.keys(performanceBudgets).every(name => selected.includes(name)),
 		referenceDate: "2026-10-04",
 		results,
+		selected,
+		selectedScenariosPassed: !failed && !diagnostic,
 		summaries,
 		worker: process.env.PERFORMANCE_WORKER_STATE ?? "stopped",
 	};
+	if (!diagnostic && !report.passed) process.exitCode = 1;
 	await Bun.write(
 		process.env.PERFORMANCE_REPORT_PATH ?? new URL("./acceptance-result.json", import.meta.url),
 		`${JSON.stringify(report, null, 2)}\n`,

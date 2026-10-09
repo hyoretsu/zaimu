@@ -44,7 +44,7 @@ const screens = [];
 for await (const source of new Bun.Glob("frontend/src/routes/**/*.tsx").scan(root)) {
 	const text = await Bun.file(`${root}/${source}`).text();
 	const path = text.match(/createFileRoute\(["']([^"']+)["']/)?.[1];
-	if (path) screens.push({ path, requestBudget: 3, result: "pending", source, usableP95Ms: 1000 });
+	if (path) screens.push({ path, requestBudget: null, result: "pending", source, usableP95Ms: 1000 });
 }
 const journeys = [
 	"web startup",

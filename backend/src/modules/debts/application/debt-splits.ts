@@ -292,29 +292,27 @@ export async function getDebtSplitReturns(
 ): Promise<Map<string, DebtSplitReturn>> {
 	if (entries.length === 0) return new Map();
 	const ids = [...new Set(entries.map(entry => entry.id))];
-	const splits = await queryRows(
-		db.sql.public.DebtSplit.select(
-			"id",
-			"mode",
-			"currency",
-			"ownerIncluded",
-			"ownerShares",
-			"remainderDebtPersonId",
-			"creditCardImportItemId",
-			"transactionId",
-			"transactionImportItemId",
-			"creditPurchaseId",
-			"recurrenceId",
-		)
-			.where((fields, functions) => {
-				if (field === "creditCardImportItemId") return functions.in(fields.creditCardImportItemId, ids);
-				if (field === "creditPurchaseId") return functions.in(fields.creditPurchaseId, ids);
-				if (field === "recurrenceId") return functions.in(fields.recurrenceId, ids);
-				if (field === "transactionImportItemId") return functions.in(fields.transactionImportItemId, ids);
-				return functions.in(fields.transactionId, ids);
-			})
-			.build(),
+	const columns: Record<DebtSplitTargetField, string> = {
+		creditCardImportItemId: "creditCardImportItemId",
+		creditPurchaseId: "creditPurchaseId",
+		recurrenceId: "recurrenceId",
+		transactionId: "transactionId",
+		transactionImportItemId: "transactionImportItemId",
+	};
+	const splits = await queryRaw<
+		{
+			id: string;
+			mode: string;
+			currency: string;
+			ownerIncluded: boolean;
+			ownerShares: number | null;
+			remainderDebtPersonId: string | null;
+		} & Record<DebtSplitTargetField, string | null>
+	>(
+		`SELECT "id", "mode", "currency", "ownerIncluded", "ownerShares", "remainderDebtPersonId", "creditCardImportItemId", "transactionId", "transactionImportItemId", "creditPurchaseId", "recurrenceId" FROM "DebtSplit" WHERE "${columns[field]}"=ANY($1::varchar[])`,
+		[ids],
 	);
+
 	if (splits.length === 0) return new Map();
 	const participants = await queryRows(
 		db.sql.public.DebtSplitParticipant.select(

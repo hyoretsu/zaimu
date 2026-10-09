@@ -41,3 +41,21 @@ test("local requests cannot follow external redirects and preserve method and bo
 	expect(seen?.method).toBe("POST");
 	expect(await seen?.text()).toBe("fixture");
 });
+
+test("currency snapshots use deterministic local rates without external network", async () => {
+	let calls = 0;
+	const original = Object.assign(
+		async () => {
+			calls++;
+			return Response.json({});
+		},
+		{ preconnect: fetch.preconnect },
+	) as typeof fetch;
+	const guarded = createPerformanceFetch(original);
+	const response = await guarded(
+		"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@2026-10-04/v1/currencies/usd.json",
+	);
+	expect(await response.json()).toEqual({ date: "2026-10-04", usd: { brl: 5, eur: 0.9, jpy: 150, usd: 1 } });
+	expect(calls).toBe(0);
+	await expect(guarded("https://cdn.jsdelivr.net/unrelated")).rejects.toThrow("External HTTP blocked");
+});

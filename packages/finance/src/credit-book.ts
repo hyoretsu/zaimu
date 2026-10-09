@@ -327,14 +327,19 @@ export function materializeBookInstallments(book: CreditBook, asOf = currentDate
 	assertDateKey(asOf);
 	const canceled = new Map<string, Set<number>>();
 	const effects = creditBookEffects(book, asOf);
+	const effectsByRefund = new Map(effects.map(effect => [effect.refundId, effect]));
+	const refundsByPurchase = Map.groupBy(
+		book.refunds.filter(refund => !refund.deletedAt),
+		refund => refund.purchaseId,
+	);
+	const existingOccurrences = new Set(book.installments.map(item => `${item.purchaseId}:${item.number}`));
+	const occurrenceIds = new Set(book.installments.map(item => item.id));
 	for (const purchase of book.purchases) {
-		const refundIds = new Set(activePurchaseRefunds(book, purchase.id).map(refund => refund.id));
+		const refunds = refundsByPurchase.get(purchase.id) ?? [];
 		canceled.set(
 			purchase.id,
 			new Set(
-				effects
-					.filter(effect => refundIds.has(effect.refundId))
-					.flatMap(effect => effect.canceledInstallmentNumbers),
+				refunds.flatMap(refund => effectsByRefund.get(refund.id)?.canceledInstallmentNumbers ?? []),
 			),
 		);
 		purchase.installmentAmountsCents.forEach((amountCents, index) => {
@@ -343,7 +348,7 @@ export function materializeBookInstallments(book: CreditBook, asOf = currentDate
 			if (
 				occurrenceDate > asOf ||
 				canceled.get(purchase.id)?.has(number) ||
-				book.installments.some(item => item.purchaseId === purchase.id && item.number === number)
+				existingOccurrences.has(`${purchase.id}:${number}`)
 			)
 				return;
 			const statement = ensureBookStatement(
@@ -351,10 +356,9 @@ export function materializeBookInstallments(book: CreditBook, asOf = currentDate
 				occurrenceDate,
 				purchase.installmentStatementDates?.[index] ?? undefined,
 			);
-			const id =
-				number === 1 && !book.installments.some(item => item.id === purchase.id)
-					? purchase.id
-					: crypto.randomUUID();
+			const id = number === 1 && !occurrenceIds.has(purchase.id) ? purchase.id : crypto.randomUUID();
+			existingOccurrences.add(`${purchase.id}:${number}`);
+			occurrenceIds.add(id);
 			book.installments.push({
 				amountCents,
 				hasImportedAmount: purchase.installmentImportedNumbers?.includes(number) ?? false,

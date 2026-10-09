@@ -1,3 +1,4 @@
+import { numericHeader } from "./runner";
 export interface PerformanceSample {
 	durationMs: number;
 	queryCount: number | null;
@@ -10,16 +11,18 @@ export async function measureRequest(
 	request: (input: URL, init: RequestInit) => Promise<Response> = fetch,
 ): Promise<PerformanceSample> {
 	const startedAt = performance.now();
-	const response = await request(url, { headers: { cookie } });
+	const response = await request(url, {
+		headers: { cookie },
+		redirect: "error",
+		signal: AbortSignal.timeout(60000),
+	});
 	if (!response.ok)
 		throw new Error(`${url.pathname} retornou HTTP ${response.status}: ${await response.text()}`);
 	await response.arrayBuffer();
 	const durationMs = performance.now() - startedAt;
-	const queryCount = response.headers.get("x-performance-query-count");
-	const sqlDurationMs = response.headers.get("x-performance-sql-duration-ms");
 	return {
 		durationMs,
-		queryCount: queryCount === null ? null : Number(queryCount),
-		sqlDurationMs: sqlDurationMs === null ? null : Number(sqlDurationMs),
+		queryCount: numericHeader(response, "x-performance-query-count"),
+		sqlDurationMs: numericHeader(response, "x-performance-sql-duration-ms"),
 	};
 }

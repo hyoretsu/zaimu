@@ -441,6 +441,27 @@
 		{
 			"budget": 1000,
 			"method": "GET",
+			"path": "/currencies/rates",
+			"result": "pending",
+			"source": "backend/src/modules/currencies/infra/CurrenciesController.ts"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/currency-preferences/",
+			"result": "pending",
+			"source": "backend/src/modules/currencies/infra/CurrencyPreferencesController.ts"
+		},
+		{
+			"budget": 1000,
+			"method": "PATCH",
+			"path": "/currency-preferences/",
+			"result": "pending",
+			"source": "backend/src/modules/currencies/infra/CurrencyPreferencesController.ts"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
 			"path": "/dashboard/",
 			"result": "pending",
 			"source": "backend/src/modules/dashboard/infra/elysia/DashboardController.ts"
@@ -650,6 +671,48 @@
 		},
 		{
 			"budget": 1000,
+			"method": "POST",
+			"path": "/financial-history/collections",
+			"result": "pending",
+			"source": "backend/src/modules/financial-history/infra/FinancialHistoryController.ts"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/financial-history/collections/:id",
+			"result": "pending",
+			"source": "backend/src/modules/financial-history/infra/FinancialHistoryController.ts"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/financial-history/collections/:id/estimate",
+			"result": "pending",
+			"source": "backend/src/modules/financial-history/infra/FinancialHistoryController.ts"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/financial-history/collections/:id/retry",
+			"result": "pending",
+			"source": "backend/src/modules/financial-history/infra/FinancialHistoryController.ts"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/financial-history/currencies",
+			"result": "pending",
+			"source": "backend/src/modules/financial-history/infra/FinancialHistoryController.ts"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/financial-history/rate",
+			"result": "pending",
+			"source": "backend/src/modules/financial-history/infra/FinancialHistoryController.ts"
+		},
+		{
+			"budget": 1000,
 			"method": "DELETE",
 			"path": "/financial-institutions/:id",
 			"result": "pending",
@@ -694,6 +757,13 @@
 			"budget": 1000,
 			"method": "GET",
 			"path": "/loans/:id/history",
+			"result": "pending",
+			"source": "backend/src/modules/loans/infra/elysia/LoansController.ts"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/loans/:id/next-payment",
 			"result": "pending",
 			"source": "backend/src/modules/loans/infra/elysia/LoansController.ts"
 		},
@@ -1023,154 +1093,154 @@
 	"screens": [
 		{
 			"path": "/",
-			"requestBudget": 3,
+			"requestBudget": null,
 			"result": "pending",
 			"source": "frontend/src/routes/index.tsx",
 			"usableP95Ms": 1000
 		},
 		{
 			"path": "/accounts",
-			"requestBudget": 3,
+			"requestBudget": null,
 			"result": "pending",
 			"source": "frontend/src/routes/accounts.tsx",
 			"usableP95Ms": 1000
 		},
 		{
 			"path": "/auth",
-			"requestBudget": 3,
+			"requestBudget": null,
 			"result": "pending",
 			"source": "frontend/src/routes/auth.tsx",
 			"usableP95Ms": 1000
 		},
 		{
 			"path": "/auth/",
-			"requestBudget": 3,
+			"requestBudget": null,
 			"result": "pending",
 			"source": "frontend/src/routes/auth/index.tsx",
 			"usableP95Ms": 1000
 		},
 		{
 			"path": "/auth/forgot-password",
-			"requestBudget": 3,
+			"requestBudget": null,
 			"result": "pending",
 			"source": "frontend/src/routes/auth/forgot-password.tsx",
 			"usableP95Ms": 1000
 		},
 		{
 			"path": "/auth/register",
-			"requestBudget": 3,
+			"requestBudget": null,
 			"result": "pending",
 			"source": "frontend/src/routes/auth/register.tsx",
 			"usableP95Ms": 1000
 		},
 		{
 			"path": "/auth/reset-password",
-			"requestBudget": 3,
+			"requestBudget": null,
 			"result": "pending",
 			"source": "frontend/src/routes/auth/reset-password.tsx",
 			"usableP95Ms": 1000
 		},
 		{
 			"path": "/auth/verify-email",
-			"requestBudget": 3,
+			"requestBudget": null,
 			"result": "pending",
 			"source": "frontend/src/routes/auth/verify-email.tsx",
 			"usableP95Ms": 1000
 		},
 		{
 			"path": "/credit-cards",
-			"requestBudget": 3,
+			"requestBudget": null,
 			"result": "pending",
 			"source": "frontend/src/routes/credit-cards.tsx",
 			"usableP95Ms": 1000
 		},
 		{
 			"path": "/debts",
-			"requestBudget": 3,
+			"requestBudget": null,
 			"result": "pending",
 			"source": "frontend/src/routes/debts.tsx",
 			"usableP95Ms": 1000
 		},
 		{
 			"path": "/delete-account",
-			"requestBudget": 3,
+			"requestBudget": null,
 			"result": "pending",
 			"source": "frontend/src/routes/delete-account.tsx",
 			"usableP95Ms": 1000
 		},
 		{
 			"path": "/loans",
-			"requestBudget": 3,
+			"requestBudget": null,
 			"result": "pending",
 			"source": "frontend/src/routes/loans.tsx",
 			"usableP95Ms": 1000
 		},
 		{
 			"path": "/more",
-			"requestBudget": 3,
+			"requestBudget": null,
 			"result": "pending",
 			"source": "frontend/src/routes/more.tsx",
 			"usableP95Ms": 1000
 		},
 		{
 			"path": "/privacy",
-			"requestBudget": 3,
+			"requestBudget": null,
 			"result": "pending",
 			"source": "frontend/src/routes/privacy.tsx",
 			"usableP95Ms": 1000
 		},
 		{
 			"path": "/recurring",
-			"requestBudget": 3,
+			"requestBudget": null,
 			"result": "pending",
 			"source": "frontend/src/routes/recurring.tsx",
 			"usableP95Ms": 1000
 		},
 		{
 			"path": "/salaries",
-			"requestBudget": 3,
+			"requestBudget": null,
 			"result": "pending",
 			"source": "frontend/src/routes/salaries.tsx",
 			"usableP95Ms": 1000
 		},
 		{
 			"path": "/settings",
-			"requestBudget": 3,
+			"requestBudget": null,
 			"result": "pending",
 			"source": "frontend/src/routes/settings.tsx",
 			"usableP95Ms": 1000
 		},
 		{
 			"path": "/settings/",
-			"requestBudget": 3,
+			"requestBudget": null,
 			"result": "pending",
 			"source": "frontend/src/routes/settings/index.tsx",
 			"usableP95Ms": 1000
 		},
 		{
 			"path": "/settings/open-finance/",
-			"requestBudget": 3,
+			"requestBudget": null,
 			"result": "pending",
 			"source": "frontend/src/routes/settings/open-finance/index.tsx",
 			"usableP95Ms": 1000
 		},
 		{
 			"path": "/subscriptions",
-			"requestBudget": 3,
+			"requestBudget": null,
 			"result": "pending",
 			"source": "frontend/src/routes/subscriptions.tsx",
 			"usableP95Ms": 1000
 		},
 		{
 			"path": "/terms",
-			"requestBudget": 3,
+			"requestBudget": null,
 			"result": "pending",
 			"source": "frontend/src/routes/terms.tsx",
 			"usableP95Ms": 1000
 		},
 		{
 			"path": "/transactions",
-			"requestBudget": 3,
+			"requestBudget": null,
 			"result": "pending",
 			"source": "frontend/src/routes/transactions.tsx",
 			"usableP95Ms": 1000

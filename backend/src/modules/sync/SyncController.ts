@@ -22,7 +22,7 @@ import {
 	resolveFinancialMoney,
 } from "~/modules/currencies/application/financial-money";
 import {
-	getDebtSplitReturn,
+	getDebtSplitReturns,
 	normalizeDebtPersonName,
 	syncTransactionDebtEvent,
 } from "~/modules/debts/application";
@@ -1164,6 +1164,11 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 						transactions.map(transaction => transaction.id),
 					);
 
+					const transactionSplits = await getDebtSplitReturns(
+						"transactionId",
+						transactions.map(transaction => ({ amount: Number(transaction.amount), id: transaction.id })),
+					);
+
 					if (cardIds.size)
 						await withTransaction(executor => recalculateStatementPayments(executor, [...cardIds]));
 
@@ -1256,17 +1261,12 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 							})),
 							recurrences: await listRecurrences(userId),
 
-							transactions: await Promise.all(
-								transactions.map(async transaction => ({
-									...transaction,
-									debtSplit: await getDebtSplitReturn(
-										{ transactionId: transaction.id },
-										Number(transaction.amount),
-									),
-									tagIds: (transactionTags.get(transaction.id) ?? []).map(tag => tag.id),
-									tags: transactionTags.get(transaction.id) ?? [],
-								})),
-							),
+							transactions: transactions.map(transaction => ({
+								...transaction,
+								debtSplit: transactionSplits.get(transaction.id) ?? null,
+								tagIds: (transactionTags.get(transaction.id) ?? []).map(tag => tag.id),
+								tags: transactionTags.get(transaction.id) ?? [],
+							})),
 						},
 						syncResults,
 					};

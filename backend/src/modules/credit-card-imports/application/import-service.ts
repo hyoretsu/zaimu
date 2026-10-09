@@ -317,7 +317,12 @@ export async function getImportReturn(
 }
 
 export async function cleanupItemTags(itemIds: string[]) {
-	for (const itemId of itemIds) {
+	if (!itemIds.length) return;
+	const reviews = await queryRaw<{ reviewItemId: string }>(
+		`SELECT DISTINCT "reviewItemId" FROM "OpenFinanceRecord" WHERE "reviewItemId"=ANY($1::text[])`,
+		[itemIds],
+	);
+	for (const { reviewItemId: itemId } of reviews) {
 		const [target] = await queryRaw<{ id: string; kind: "PURCHASE" | "CHARGE" | "REFUND" }>(
 			`SELECT e."id", CASE WHEN e."isRefund" THEN 'REFUND' WHEN e."isStatementCharge" THEN 'CHARGE' ELSE 'PURCHASE' END AS "kind" FROM "CreditCardImportItem" i JOIN "CreditCardImport" b ON b."id"=i."creditCardImportId" JOIN "CreditEntry" e ON e."creditCardId"=b."creditCardId" AND e."externalId"=i."externalId" WHERE i."id"=$1 LIMIT 1`,
 			[itemId],

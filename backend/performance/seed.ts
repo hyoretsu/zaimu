@@ -4,10 +4,20 @@ if (!performanceDatabaseUrl) throw new Error("Defina PERFORMANCE_DATABASE_URL");
 
 const databaseUrl = new URL(performanceDatabaseUrl);
 const databaseName = databaseUrl.pathname.slice(1);
-if (!["localhost", "127.0.0.1", "[::1]"].includes(databaseUrl.hostname))
-	throw new Error("A fixture aceita somente PostgreSQL local");
-if (!/(performance|benchmark|test)/i.test(databaseName))
-	throw new Error("O nome do banco deve conter performance, benchmark ou test");
+if (
+	databaseUrl.protocol !== "postgresql:" ||
+	databaseUrl.hostname !== "127.0.0.1" ||
+	databaseUrl.port !== "55495" ||
+	databaseName !== "zaimu_performance" ||
+	databaseUrl.username !== "performance" ||
+	databaseUrl.search ||
+	databaseUrl.hash
+)
+	throw new Error("Dedicated PostgreSQL 127.0.0.1:55495/zaimu_performance required");
+const size = Number(process.env.PERFORMANCE_FIXTURE_SIZE ?? 100000);
+if (![10, 10000, 100000].includes(size)) throw new Error("PERFORMANCE_FIXTURE_SIZE: 10, 10000 ou 100000");
+const users = Number(process.env.PERFORMANCE_FIXTURE_USERS ?? 1);
+if (!Number.isInteger(users) || users < 1 || users > 20) throw new Error("PERFORMANCE_FIXTURE_USERS: 1 a 20");
 
 process.env.DATABASE_URL = performanceDatabaseUrl;
 // Bulk fixture writes are larger than API requests; keep a finite, seed-only budget.
@@ -23,10 +33,6 @@ const migration = Bun.spawnSync(["bun", "x", "--no-install", "prisma-cli", "migr
 if (migration.exitCode !== 0) process.exit(migration.exitCode);
 
 const { closeDatabase, withRawTransaction } = await import("sql");
-const size = Number(process.env.PERFORMANCE_FIXTURE_SIZE ?? 100000);
-if (![10, 10000, 100000].includes(size)) throw new Error("PERFORMANCE_FIXTURE_SIZE: 10, 10000 ou 100000");
-const users = Number(process.env.PERFORMANCE_FIXTURE_USERS ?? 1);
-if (!Number.isInteger(users) || users < 1 || users > 20) throw new Error("PERFORMANCE_FIXTURE_USERS: 1 a 20");
 const cards = size === 10 ? 2 : size === 10000 ? 10 : 20;
 const months = size === 10 ? 3 : size === 10000 ? 24 : 60;
 const purchaseItems = size === 10 ? 2 : 10;

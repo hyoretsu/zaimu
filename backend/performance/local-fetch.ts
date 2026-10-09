@@ -35,6 +35,31 @@ export function createPerformanceFetch(original: typeof fetch): typeof fetch {
 			}
 			return Response.json(rates);
 		}
+		const jsdelivr =
+			/^\/npm\/@fawazahmed0\/currency-api@(latest|\d{4}-\d{2}-\d{2})\/v1\/currencies(?:\/([a-z]{3}))?\.json$/.exec(
+				url.pathname,
+			);
+		const cloudflare = /^(latest|\d{4}-\d{2}-\d{2})\.currency-api\.pages\.dev$/.exec(url.hostname);
+		const cfPath = /^\/v1\/currencies(?:\/([a-z]{3}))?\.json$/.exec(url.pathname);
+		if (
+			request.method === "GET" &&
+			((url.origin === "https://cdn.jsdelivr.net" && jsdelivr) ||
+				(url.protocol === "https:" && cloudflare && cfPath))
+		) {
+			const requestedDate = jsdelivr?.[1] ?? cloudflare![1]!;
+			const base = jsdelivr?.[2] ?? cfPath?.[1];
+			const units: Record<string, number> = { brl: 5, eur: 0.9, jpy: 150, usd: 1 };
+			if (!base)
+				return Response.json({ brl: "Brazilian Real", eur: "Euro", jpy: "Japanese Yen", usd: "US Dollar" });
+			if (!units[base]) return new Response(null, { status: 404 });
+			return Response.json({
+				date: requestedDate === "latest" ? "2026-10-04" : requestedDate,
+				[base]: Object.fromEntries(
+					Object.entries(units).map(([code, value]) => [code, value / units[base]!]),
+				),
+			});
+		}
+
 		if (
 			!["http:", "https:"].includes(url.protocol) ||
 			!["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) ||

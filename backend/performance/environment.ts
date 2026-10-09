@@ -11,7 +11,7 @@ export function configurePerformanceEnvironment() {
 		NODE_ENV: "test",
 		PERFORMANCE_METRICS_HEADERS: "true",
 		PORT: "3335",
-		PUBLIC_WEB_URL: "http://localhost:5173",
+		PUBLIC_WEB_URL: "http://127.0.0.1:5173",
 		RABBITMQ_CONSUMER_PREFETCH: "1",
 		RABBITMQ_URL: "amqp://performance:performance-local@127.0.0.1:56795",
 		REDIS_URL: "redis://127.0.0.1:6395",

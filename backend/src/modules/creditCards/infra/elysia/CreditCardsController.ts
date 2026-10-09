@@ -884,13 +884,21 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			const userId = await requireUserId(request);
 			let settledAmount = 0;
 			let totalAmount = 0;
+			let affectedIds: string[] = [];
 			await mutateCreditBook(userId, params.id, book => {
-				const result = refinanceBookPurchase(book, resolveBookPurchase(book, params.purchaseId).id, body);
+				const sourceId = resolveBookPurchase(book, params.purchaseId).id;
+				const previousIds = new Set(book.purchases.map(p => p.id));
+				const result = refinanceBookPurchase(book, sourceId, body);
+				affectedIds = [sourceId, ...book.purchases.filter(p => !previousIds.has(p.id)).map(p => p.id)];
 				settledAmount = result.settledAmount;
 				totalAmount = result.totalAmount;
 			});
 			return {
-				purchases: await presentCreditBook(await readCreditBook(userId, params.id)),
+				purchases: await presentCreditBook(
+					await readCreditBook(userId, params.id, false),
+					undefined,
+					affectedIds,
+				),
 				settledAmount,
 				totalAmount,
 			};

@@ -55,3 +55,12 @@ export async function refreshAppliedSnapshots(userId: string, localId: string) {
 			JSON.stringify(await localSnapshot(record.localKind, localId, userId)),
 		]);
 }
+
+/** Discarding a batch requires no per-record local snapshot or alias writes. */
+export async function discardExternalReviews(itemIds: readonly string[]) {
+	if (!itemIds.length) return;
+	await executeRaw(
+		`UPDATE "OpenFinanceRecord" SET "state"='DISCARDED', "localKind"=NULL, "localId"=NULL, "appliedSnapshot"=NULL, "reviewItemId"=NULL, "importId"=NULL, "updatedAt"=now() WHERE "reviewItemId"=ANY($1::text[])`,
+		[[...new Set(itemIds)]],
+	);
+}
