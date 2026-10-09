@@ -9,7 +9,6 @@ export function usePopupViewportShift(enabled = true, itemAligned = false) {
 		if (!element || !enabled) return;
 		const viewport = window.visualViewport;
 		let frame = 0;
-		let shift = 0;
 		const update = () => {
 			const top = (viewport?.offsetTop ?? 0) + 16;
 			const bottom = (viewport?.offsetTop ?? 0) + (viewport?.height ?? window.innerHeight) - 16;
@@ -24,9 +23,10 @@ export function usePopupViewportShift(enabled = true, itemAligned = false) {
 					if (list.scrollHeight <= height) list.scrollTop = 0;
 				}
 			}
-			const rect = element.getBoundingClientRect();
-			const originalTop = rect.top - shift;
-			shift = Math.max(top, Math.min(originalTop, bottom - rect.height)) - originalTop;
+			// Measure the positioning wrapper, which is unaffected by our child translation.
+			const originalTop =
+				element.parentElement?.getBoundingClientRect().top ?? element.getBoundingClientRect().top;
+			const shift = Math.max(top, Math.min(originalTop, bottom - element.offsetHeight)) - originalTop;
 			element.style.translate = `0 ${shift}px`;
 		};
 		const schedule = () => {
@@ -36,6 +36,11 @@ export function usePopupViewportShift(enabled = true, itemAligned = false) {
 		const observer = new ResizeObserver(schedule);
 		observer.observe(element);
 		if (element.parentElement) observer.observe(element.parentElement);
+		// Floating positioning and entrance animations can move the popup without resizing it.
+		const positionObserver = new MutationObserver(schedule);
+		if (element.parentElement && !itemAligned)
+			positionObserver.observe(element.parentElement, { attributeFilter: ["style"], attributes: true });
+		element.addEventListener("animationend", schedule);
 		window.addEventListener("resize", schedule);
 		window.addEventListener("scroll", schedule, true);
 		viewport?.addEventListener("resize", schedule);
@@ -44,6 +49,8 @@ export function usePopupViewportShift(enabled = true, itemAligned = false) {
 		return () => {
 			cancelAnimationFrame(frame);
 			observer.disconnect();
+			positionObserver.disconnect();
+			element.removeEventListener("animationend", schedule);
 			window.removeEventListener("resize", schedule);
 			window.removeEventListener("scroll", schedule, true);
 			viewport?.removeEventListener("resize", schedule);

@@ -93,10 +93,9 @@ export function StorePicker({
 				</PopoverTrigger>
 				<PopoverContent
 					align="start"
-					className="w-(--radix-popover-trigger-width) min-w-72 gap-3 p-3"
-					portal={false}
+					className="w-(--radix-popover-trigger-width) min-w-72 gap-3 overflow-hidden p-3"
 				>
-					<div className="flex gap-2">
+					<div className="flex shrink-0 gap-2">
 						<Input
 							autoComplete="organization"
 							name="store-search"
@@ -126,7 +125,7 @@ export function StorePicker({
 							<LuPlus />
 						</Button>
 					</div>
-					<ScrollArea className="h-52 min-h-0">
+					<ScrollArea className="h-52 min-h-0 shrink">
 						<div className="pr-3">
 							{storesQuery.isPending ? (
 								<div className="grid gap-2">

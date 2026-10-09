@@ -163,7 +163,7 @@ export function DateField({
 			<Popover onOpenChange={handleOpenChange} open={open}>
 				<PopoverTrigger asChild>{trigger}</PopoverTrigger>
 				<PopoverContent align="start" className="w-[20rem] overflow-hidden p-0">
-					<ScrollArea className="min-h-0 rounded-[inherit] [&>[data-slot=scroll-area-viewport]]:max-h-[min(calc(100dvh-2rem),var(--radix-popover-content-available-height))]">
+					<ScrollArea className="min-h-0 rounded-[inherit] [&>[data-slot=scroll-area-viewport]]:max-h-[min(var(--popup-viewport-height),var(--popover-side-height))]">
 						<div className="flex flex-col gap-4 p-4">{calendar}</div>
 					</ScrollArea>
 				</PopoverContent>
