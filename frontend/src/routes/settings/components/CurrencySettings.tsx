@@ -6,7 +6,7 @@ import { useCurrencyStore } from "@/stores/currency";
 export function CurrencySettings() {
 	const { preferredCurrency, currencies, currency, loading, error, setPreference } = useCurrencyStore();
 	const [saving, setSaving] = useState(false);
-	const names = new Intl.DisplayNames(navigator.languages, { type: "currency" });
+	const names = new Intl.DisplayNames(document.documentElement.lang || "pt-BR", { type: "currency" });
 	return (
 		<section className="card space-y-3 p-4">
 			<h2 className="font-semibold">Moeda padrão</h2>

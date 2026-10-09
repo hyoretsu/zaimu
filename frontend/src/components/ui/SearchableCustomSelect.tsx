@@ -1,7 +1,7 @@
-import { inputControlClassName } from "@/components/ui/input-styles";
 import { Search01Icon, Tick02Icon, UnfoldMoreIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useId, useRef, useState } from "react";
+import { inputControlClassName } from "@/components/ui/input-styles";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import { cn } from "@/lib/utils";
 import { Button } from "./Button";
@@ -41,6 +41,7 @@ export function SearchableCustomSelect({
 	const [open, setOpen] = useState(false);
 	const [search, setSearch] = useDebouncedInput("", () => undefined);
 	const searchRef = useRef<HTMLInputElement>(null);
+	const selectedRef = useRef<HTMLButtonElement>(null);
 	const listId = useId();
 	const normalizedSearch = search.trim().toLocaleLowerCase("pt-BR");
 	const filteredOptions = options.filter(option =>
@@ -86,6 +87,14 @@ export function SearchableCustomSelect({
 					onOpenAutoFocus={event => {
 						event.preventDefault();
 						searchRef.current?.focus({ preventScroll: true });
+						const selected = selectedRef.current;
+						const viewport = selected?.closest<HTMLElement>('[data-slot="scroll-area-viewport"]');
+						if (selected && viewport) {
+							viewport.scrollTop +=
+								selected.getBoundingClientRect().top -
+								viewport.getBoundingClientRect().top -
+								(viewport.clientHeight - selected.offsetHeight) / 2;
+						}
 					}}
 				>
 					<div className="shrink-0 border-border/60 border-b bg-popover p-2">
@@ -172,6 +181,7 @@ export function SearchableCustomSelect({
 											onValueChange(option.value);
 											changeOpen(false);
 										}}
+										ref={option.value === value ? selectedRef : undefined}
 										role="option"
 										type="button"
 									>

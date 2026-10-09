@@ -13,7 +13,7 @@ export function CurrencySelect({
 	disabled?: boolean;
 }) {
 	const currencies = useCurrencyStore(state => state.currencies);
-	const names = new Intl.DisplayNames(navigator.languages, { type: "currency" });
+	const names = new Intl.DisplayNames(document.documentElement.lang || "pt-BR", { type: "currency" });
 	const options = currencies.map(value => ({ label: `${value} - ${names.of(value) ?? value}`, value }));
 	return (
 		<CustomSelect

@@ -159,3 +159,45 @@ test("dashboard waits for BRL preference instead of issuing provisional USD dema
 	expect(requests.every(row => row.currency === "BRL")).toBe(true);
 	expect(historyRequests).toEqual([]);
 });
+
+test("currency names follow Portuguese and reopening scrolls to selection", async ({ page, baseURL }) => {
+	await page.setViewportSize({ height: 844, width: 390 });
+	await page.routeWebSocket("**", socket => socket.close());
+	await page.route("**/*", route => {
+		const url = new URL(route.request().url());
+		if (url.origin === baseURL) return route.continue();
+		const data = url.pathname.endsWith("/currencies")
+			? Intl.supportedValuesOf("currency")
+			: url.hostname === "ipapi.co"
+				? { country_code: "BR" }
+				: null;
+		return route.fulfill({ body: JSON.stringify(data), contentType: "application/json" });
+	});
+	await page.addInitScript(() => {
+		Object.defineProperty(navigator, "languages", { value: ["en-US"] });
+		localStorage.setItem(
+			"zaimu-auth",
+			JSON.stringify({ state: { guestId: "guest_currency_selector", isGuestMode: true }, version: 0 }),
+		);
+	});
+	await page.goto(`${baseURL}/settings`);
+	const select = page.getByRole("combobox", { exact: true, name: "Moeda padrão" });
+	await select.click();
+	await expect(page.getByRole("option", { exact: true, name: "BRL - Real brasileiro" })).toBeAttached();
+	await page.getByRole("textbox", { exact: true, name: "Buscar moeda padrão" }).fill("USD");
+	await page.getByRole("option", { exact: true, name: "USD - Dólar americano" }).click();
+	await expect(select).toBeEnabled();
+	await select.click();
+	const selected = page.getByRole("option", { exact: true, name: "USD - Dólar americano" });
+	await expect(selected).toHaveAttribute("aria-selected", "true");
+	await expect
+		.poll(() =>
+			selected.evaluate(element => {
+				const viewport = element.closest('[data-slot="scroll-area-viewport"]')!;
+				const bounds = viewport.getBoundingClientRect();
+				const option = element.getBoundingClientRect();
+				return option.top >= bounds.top && option.bottom <= bounds.bottom && viewport.scrollTop > 0;
+			}),
+		)
+		.toBe(true);
+});
