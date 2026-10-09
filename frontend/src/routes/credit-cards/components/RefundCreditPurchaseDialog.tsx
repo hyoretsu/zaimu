@@ -47,7 +47,7 @@ export function RefundCreditPurchaseDialog({
 }) {
 	const currencyCode = purchase.bookingCurrency ?? "BRL";
 	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
-	const [amount, setAmount] = useState(refund ? String(refund.amount) : "");
+	const [amount, setAmount] = useState<string | null>(refund ? String(refund.amount) : null);
 	const [date, setDate] = useState(
 		refund?.date.slice(0, 10) ?? (purchase.isRefund ? purchase.purchaseDate.slice(0, 10) : getLocalDateKey()),
 	);
@@ -59,7 +59,7 @@ export function RefundCreditPurchaseDialog({
 		queryFn: () => dataService.creditCards.getBook(cardId!),
 		queryKey: queryKeys.creditCards.book(identity!, cardId!),
 	});
-	const purchaseId = purchase.purchaseId ?? purchase.refundOfPurchaseId ?? purchase.id;
+	const purchaseId = purchase.refundOfPurchaseId ?? purchase.purchaseId ?? purchase.id;
 	const bookPurchase = bookQuery.data?.purchases.find(item => item.id === purchaseId);
 	const activeRefunds =
 		bookQuery.data?.refunds.filter(item => item.purchaseId === purchaseId && !item.deletedAt) ?? [];
@@ -73,7 +73,14 @@ export function RefundCreditPurchaseDialog({
 				(currentRefund?.amountCents ?? 0)) /
 			currencyScale(currencyCode)
 		: (purchase.refundableAmount ?? Math.abs(purchase.totalAmount));
-	const amountValue = amount ? Number(amount) : undefined;
+	const displayedAmount =
+		amount ??
+		(currentRefund
+			? String(currentRefund.amountCents / currencyScale(currencyCode))
+			: purchase.isRefund
+				? String(Math.abs(purchase.refund?.amount ?? purchase.totalAmount))
+				: "");
+	const amountValue = displayedAmount ? Number(displayedAmount) : undefined;
 	const effectiveAmount =
 		amountValue ?? (currentRefund ? currentRefund.amountCents / currencyScale(currencyCode) : remaining);
 	const chosenDate = date || getLocalDateKey();
@@ -132,7 +139,7 @@ export function RefundCreditPurchaseDialog({
 						label="Valor do reembolso"
 						onValueChange={setAmount}
 						placeholder="R$ 120,00"
-						value={amount}
+						value={displayedAmount}
 					/>
 					<DateField
 						autoComplete="off"

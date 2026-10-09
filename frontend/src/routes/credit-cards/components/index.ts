@@ -6,5 +6,6 @@ export * from "./CreditCardStatementsDialog";
 export { CreditCardsPage } from "./CreditCardsPage";
 export * from "./CreditPurchaseEditScopeDialog";
 export * from "./CreditPurchaseRefundSummary";
+export * from "./ManageCreditPurchaseRefundsDialog";
 export * from "./PendingRefundReviews";
 export * from "./RefinanceCreditPurchaseDialog";

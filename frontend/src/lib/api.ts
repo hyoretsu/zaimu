@@ -639,6 +639,7 @@ export interface CreditPurchase {
 	isFullySynced?: boolean;
 	isSynced?: boolean;
 	purchaseDate: string;
+	originalPurchaseDate?: string;
 	time?: string | null;
 	tagIds?: string[];
 	tags?: Tag[];

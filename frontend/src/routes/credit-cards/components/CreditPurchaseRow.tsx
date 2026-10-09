@@ -7,7 +7,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip
 import type { CreditPurchase } from "@/lib/api";
 import { formatLocalDate, formatLocalTime } from "@/lib/date";
 import { formatDebtSplitBadge } from "@/lib/debt-split";
-import { CreditPurchaseRefundSummary } from "./CreditPurchaseRefundSummary";
 
 export function CreditPurchaseRow({
 	deleteDisabled,
@@ -18,7 +17,6 @@ export function CreditPurchaseRow({
 	onEdit,
 	onRefinance,
 	onRefund,
-	onEditRefund,
 	purchase,
 }: {
 	deleteDisabled: boolean;
@@ -29,7 +27,6 @@ export function CreditPurchaseRow({
 	onEdit: () => void;
 	onRefinance: () => void;
 	onRefund: () => void;
-	onEditRefund: (refund: NonNullable<CreditPurchase["refunds"]>[number]) => void;
 	purchase: CreditPurchase;
 }) {
 	const currencyCode = purchase.bookingCurrency ?? "BRL";
@@ -51,7 +48,7 @@ export function CreditPurchaseRow({
 					{purchase.currentInstallment === 1 && formatLocalTime(purchase.time)
 						? ` · ${formatLocalTime(purchase.time)}`
 						: ""}
-					{purchase.isRefund ? " · Reembolso" : purchase.hasRefund ? " · Reembolsada" : ""}
+					{purchase.isRefund ? " · Reembolso" : ""}
 					{purchase.isForecast ? " · Previsão" : ""}
 					{purchase.isStatementCharge ? " · Encargo da fatura" : ""}
 					{purchase.installments > 1 ? ` · ${purchase.currentInstallment}/${purchase.installments}` : ""}
@@ -67,18 +64,11 @@ export function CreditPurchaseRow({
 						Inclui {purchase.feeDescription}: {currency.format(purchase.feeAmount)}
 					</p>
 				) : null}
-				{!purchase.isRefund && purchase.refunds?.length ? (
-					<div className="mt-2 grid gap-2">
-						{purchase.refunds.map(refund => (
-							<CreditPurchaseRefundSummary
-								currencyCode={currencyCode}
-								disabled={refundDisabled}
-								key={refund.id}
-								onEdit={() => onEditRefund(refund)}
-								refund={refund}
-							/>
-						))}
-					</div>
+				{purchase.isRefund && purchase.refundOfPurchaseId ? (
+					<p className="mt-1 text-muted-foreground text-xs">
+						Compra original: {purchase.description || purchase.storeName || "Compra"}
+						{purchase.originalPurchaseDate ? ` - ${formatLocalDate(purchase.originalPurchaseDate)}` : ""}
+					</p>
 				) : null}
 				{purchase.storeName ||
 				debtPersonName ||
@@ -116,7 +106,7 @@ export function CreditPurchaseRow({
 						<Tooltip>
 							<TooltipTrigger asChild>
 								<Button
-									aria-label={`Reembolsar ${purchase.description}`}
+									aria-label={`Gerenciar reembolsos de ${purchase.description}`}
 									className="cursor-pointer"
 									disabled={refundDisabled}
 									onClick={onRefund}
@@ -126,7 +116,7 @@ export function CreditPurchaseRow({
 									<LuUndo2 />
 								</Button>
 							</TooltipTrigger>
-							<TooltipContent>Registrar reembolso</TooltipContent>
+							<TooltipContent>Gerenciar reembolsos</TooltipContent>
 						</Tooltip>
 					) : null}
 					<Tooltip>

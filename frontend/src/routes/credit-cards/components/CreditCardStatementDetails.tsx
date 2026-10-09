@@ -19,6 +19,7 @@ import { CreditPurchaseEditScopeDialog } from "./CreditPurchaseEditScopeDialog";
 import { CreditPurchaseRow } from "./CreditPurchaseRow";
 import { getCreditCardStatementStatus } from "./credit-card-statement-status";
 import { EditCreditPurchaseDialog } from "./EditCreditPurchaseDialog";
+import { ManageCreditPurchaseRefundsDialog } from "./ManageCreditPurchaseRefundsDialog";
 import { RefinanceCreditPurchaseDialog } from "./RefinanceCreditPurchaseDialog";
 import { RefundCreditPurchaseDialog } from "./RefundCreditPurchaseDialog";
 
@@ -39,11 +40,13 @@ export function CreditCardStatementDetails({
 	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
+	const [pendingRefundDeleteIds, setPendingRefundDeleteIds] = useState<Set<string>>(new Set());
 	const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<string>>(new Set());
 	const [pendingUpdateIds, setPendingUpdateIds] = useState<Set<string>>(new Set());
 	const [choosingEditScope, setChoosingEditScope] = useState<CreditPurchase | null>(null);
 	const [editingPurchase, setEditingPurchase] = useState<CreditPurchase | null>(null);
 	const [refinancingPurchase, setRefinancingPurchase] = useState<CreditPurchase | null>(null);
+	const [managingRefunds, setManagingRefunds] = useState<CreditPurchase | null>(null);
 	const [refundingPurchase, setRefundingPurchase] = useState<CreditPurchase | null>(null);
 	const detail = useQuery({
 		enabled: identity !== null && !isEmptyCycle,
@@ -175,6 +178,13 @@ export function CreditCardStatementDetails({
 			dataService.creditCards.deletePurchase(statement.creditCardId, refundId),
 		onError: error =>
 			showToast(error instanceof Error ? error.message : "Não foi possível excluir o reembolso.", "negative"),
+		onMutate: id => setPendingRefundDeleteIds(current => new Set(current).add(id)),
+		onSettled: (_data, _error, id) =>
+			setPendingRefundDeleteIds(current => {
+				const next = new Set(current);
+				next.delete(id);
+				return next;
+			}),
 		onSuccess: async () => {
 			setRefundingPurchase(null);
 			await refreshStatement();
@@ -186,7 +196,7 @@ export function CreditCardStatementDetails({
 		...[...pendingUpdateIds].map(rootId),
 		...(refinancePurchase.isPending ? [rootId(refinancePurchase.variables?.purchaseId)] : []),
 		...(refundPurchase.isPending ? [rootId(refundPurchase.variables?.purchase.id)] : []),
-		...(deleteRefund.isPending ? [rootId(deleteRefund.variables)] : []),
+		...[...pendingRefundDeleteIds].map(rootId),
 	]);
 	const rowPending = (p: CreditPurchase) =>
 		pendingRootIds.has(p.purchaseId ?? p.refundOfPurchaseId ?? p.parentId ?? p.id);
@@ -283,20 +293,8 @@ export function CreditCardStatementDetails({
 														? setChoosingEditScope(entry.purchase)
 														: setEditingPurchase(entry.purchase)
 											}
-											onEditRefund={refund =>
-												setRefundingPurchase({
-													...entry.purchase,
-													id: refund.id,
-													installmentAmount: -refund.creditAmount,
-													isRefund: true,
-													purchaseDate: refund.date,
-													purchaseId: entry.purchase.purchaseId ?? entry.purchase.id,
-													refund,
-													totalAmount: -refund.amount,
-												})
-											}
 											onRefinance={() => setRefinancingPurchase(entry.purchase)}
-											onRefund={() => setRefundingPurchase(entry.purchase)}
+											onRefund={() => setManagingRefunds(entry.purchase)}
 											purchase={entry.purchase}
 											refinanceDisabled={
 												statement.isForecast === true ||
@@ -364,8 +362,33 @@ export function CreditCardStatementDetails({
 					purchase={refinancingPurchase}
 				/>
 			)}
+			{managingRefunds && (
+				<ManageCreditPurchaseRefundsDialog
+					onAdd={() => setRefundingPurchase(managingRefunds)}
+					onDelete={async id => {
+						await deleteRefund.mutateAsync(id);
+					}}
+					onEdit={refund =>
+						setRefundingPurchase({
+							...managingRefunds,
+							id: refund.id,
+							installmentAmount: -refund.creditAmount,
+							isRefund: true,
+							purchaseDate: refund.date,
+							purchaseId: managingRefunds.purchaseId ?? managingRefunds.id,
+							refund,
+							totalAmount: -refund.amount,
+						})
+					}
+					onOpenChange={open => !open && setManagingRefunds(null)}
+					open
+					pendingRefundIds={pendingRefundDeleteIds}
+					purchase={managingRefunds}
+				/>
+			)}
 			{refundingPurchase && (
 				<RefundCreditPurchaseDialog
+					key={refundingPurchase.id}
 					onDelete={
 						refundingPurchase.isRefund
 							? async () => {
@@ -380,6 +403,7 @@ export function CreditCardStatementDetails({
 					open
 					pending={refundPurchase.isPending || deleteRefund.isPending}
 					purchase={refundingPurchase}
+					refund={refundingPurchase.isRefund ? refundingPurchase.refund : undefined}
 					refundId={refundingPurchase.isRefund ? refundingPurchase.id : undefined}
 				/>
 			)}
