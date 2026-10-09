@@ -3,6 +3,7 @@ import {
 	type BookPurchase,
 	ensureBookStatement,
 	moneyCents,
+	refinanceBookPurchase,
 	resizePurchaseCashback,
 } from "@zaimu/finance/credit-book";
 import { distributePurchaseCents, installmentOccurrenceDate } from "@zaimu/finance/credit-purchase";
@@ -103,7 +104,20 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 				409,
 			);
 		}
-		const existing = book.purchases.find(p => p.id === input.existingRootId) ?? duplicate;
+		let existing = duplicate ?? book.purchases.find(p => p.id === input.existingRootId);
+		const refinancing =
+			existing && existing.installmentAmountsCents.length !== input.installments && !duplicate;
+		if (refinancing) {
+			const previousIds = new Set(book.purchases.map(p => p.id));
+			refinanceBookPurchase(book, existing!.id, {
+				installments: input.installments,
+				purchaseDate: input.purchaseDate.toISOString().slice(0, 10),
+				totalAmount: input.totalAmount,
+			});
+			existing = book.purchases.find(p => !previousIds.has(p.id));
+			if (!existing) throw new HttpException("Não foi possível criar o reparcelamento", 409);
+			existing.externalId = input.externalId;
+		}
 		const anticipated = importedAnticipation(input.description)?.map(item => ({
 			...item,
 			amountCents: moneyCents(item.amountCents / 100, 1, book.card.currency),
@@ -242,8 +256,17 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 					statementId: s.id,
 				});
 		}
-		for (const i of book.installments.filter(i => i.purchaseId === p.id))
+		for (const i of book.installments.filter(i => i.purchaseId === p.id)) {
 			i.amountCents = amounts[i.number - 1]!;
+			if (refinancing) {
+				i.occurrenceDate = installmentOccurrenceDate(p.purchaseDate, i.number);
+				i.statementId = ensureBookStatement(
+					book,
+					i.occurrenceDate,
+					p.installmentStatementDates[i.number - 1]!,
+				).id;
+			}
+		}
 		return p.id;
 	});
 }

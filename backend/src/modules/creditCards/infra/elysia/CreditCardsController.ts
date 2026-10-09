@@ -905,9 +905,10 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 		},
 		{
 			body: t.Object({
-				feeAmount: t.Number({ minimum: 0 }),
+				feeAmount: t.Optional(t.Number({ minimum: 0 })),
 				installments: t.Integer({ maximum: 48, minimum: 1 }),
 				purchaseDate: t.String({ format: "date" }),
+				totalAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
 			}),
 		},
 	)

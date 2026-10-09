@@ -1684,7 +1684,7 @@ export const dataService = {
 		async refinancePurchase(
 			cardId: string,
 			purchaseId: string,
-			data: { feeAmount: number; installments: number; purchaseDate: string },
+			data: { feeAmount?: number; totalAmount?: number; installments: number; purchaseDate: string },
 		): Promise<{ purchases: CreditPurchase[]; settledAmount: number; totalAmount: number }> {
 			if (isGuestMode()) {
 				const result = await mutateLocalCreditBook(cardId, book =>

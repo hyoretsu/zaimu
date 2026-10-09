@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { matchesExistingCreditPurchase } from "./credit-card-import-reconciliation";
+import {
+	isPotentialPurchaseRefinancing,
+	matchesExistingCreditPurchase,
+} from "./credit-card-import-reconciliation";
 
 const imported = {
 	description: "MP* Loja Exemplo",
@@ -159,5 +162,34 @@ describe("matchesExistingCreditPurchase", () => {
 				},
 			),
 		).toBe(true);
+	});
+});
+
+describe("isPotentialPurchaseRefinancing", () => {
+	const source = {
+		description: "Wlingua Premium 12 meses (alemão)",
+		existingInstallments: 1,
+		installmentAmount: 159.99,
+		installments: 1,
+		purchaseDate: "2026-01-18",
+		storeName: "Play Store",
+		totalAmount: 159.99,
+	};
+	const newPlan = {
+		description: "DL * GOOGLE Wlingu",
+		installmentAmount: 16.66,
+		installments: 12,
+		purchaseDate: "2026-01-18",
+		storeName: null,
+		totalAmount: 199.92,
+	};
+	test("suggests a renamed merchant and changed total for explicit review", () => {
+		expect(isPotentialPurchaseRefinancing(newPlan, source)).toBe(true);
+	});
+	test("rejects unrelated same-day purchases, credits, same plans and other dates", () => {
+		expect(isPotentialPurchaseRefinancing({ ...newPlan, description: "GOOGLE Youtube" }, source)).toBe(false);
+		expect(isPotentialPurchaseRefinancing({ ...newPlan, installmentAmount: -16.66 }, source)).toBe(false);
+		expect(isPotentialPurchaseRefinancing({ ...newPlan, installments: 1 }, source)).toBe(false);
+		expect(isPotentialPurchaseRefinancing({ ...newPlan, purchaseDate: "2026-01-19" }, source)).toBe(false);
 	});
 });

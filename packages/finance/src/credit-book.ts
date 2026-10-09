@@ -775,38 +775,65 @@ export function moveBookPurchase(source: CreditBook, destination: CreditBook, pu
 export function refinanceBookPurchase(
 	book: CreditBook,
 	purchaseId: string,
-	input: { feeAmount: number; installments: number; purchaseDate: string },
+	input: { feeAmount?: number; totalAmount?: number; installments: number; purchaseDate: string },
 ) {
 	const source = bookPurchase(book, purchaseId);
+	assertDateKey(input.purchaseDate);
+	if (!Number.isInteger(input.installments) || input.installments < 1 || input.installments > 48)
+		throw new RangeError("Quantidade de parcelas inválida");
 	const ledger = replayCreditBook(book).statements;
-	const activeIds = new Set(
-		creditBookEntries(book, false)
-			.filter(row => !row.isRefund && !row.isStatementCharge)
-			.map(row => row.id),
-	);
-	const selected = book.installments.filter(
-		i =>
-			i.purchaseId === source.id &&
-			activeIds.has(i.id) &&
-			!i.isSettled &&
-			!i.settledByPurchaseId &&
-			!ledger.find(s => s.id === i.statementId)?.isPaid,
+	const selected = creditBookEntries(book).filter(
+		row =>
+			row.purchaseId === source.id &&
+			!row.isRefund &&
+			!row.isStatementCharge &&
+			!row.isSettled &&
+			!row.settledByPurchaseId &&
+			!book.statements.find(s => s.id === row.statementId)?.isPaid &&
+			!ledger.find(s => s.id === row.statementId)?.isPaid,
 	);
 	if (!selected.length) throw new RangeError("Não há parcelas disponíveis");
-	const settledCents = sumCents(selected.map(i => i.amountCents));
-	const totalAmount =
-		(settledCents + moneyCents(input.feeAmount, 0, book.card.currency)) /
-		currencyScale(book.card.currency);
+	const settledCents = sumCents(
+		selected.map(row => moneyCents(row.installmentAmount, 0, book.card.currency)),
+	);
+	const totalCents =
+		input.totalAmount === undefined
+			? settledCents + moneyCents(input.feeAmount ?? 0, 0, book.card.currency)
+			: moneyCents(input.totalAmount, 1, book.card.currency);
+	const totalAmount = totalCents / currencyScale(book.card.currency);
 	const purchase = newBookPurchase(book, {
 		description: `Parcelamento - ${source.description}`,
 		installments: input.installments,
 		purchaseDate: input.purchaseDate,
-		refinancingFeeAmount: input.feeAmount,
+		refinancingFeeAmount: Math.max(0, totalCents - settledCents) / currencyScale(book.card.currency),
 		storeName: source.storeName,
 		tagIds: source.tagIds,
 		totalAmount,
 	});
-	for (const installment of selected) {
+	for (const row of selected) {
+		let installment = book.installments.find(
+			item => item.purchaseId === source.id && item.number === row.currentInstallment,
+		);
+		if (!installment) {
+			// Future settlement needs an occurrence to retain its replacement link in the ledger.
+			const occurrenceDate = installmentOccurrenceDate(source.purchaseDate, row.currentInstallment);
+			const statement = ensureBookStatement(
+				book,
+				occurrenceDate,
+				source.installmentStatementDates?.[row.currentInstallment - 1] ?? undefined,
+			);
+			installment = {
+				amountCents: moneyCents(row.installmentAmount, 0, book.card.currency),
+				hasImportedAmount: false,
+				id: crypto.randomUUID(),
+				number: row.currentInstallment,
+				occurrenceDate,
+				purchaseId: source.id,
+				settledByPurchaseId: purchase.id,
+				statementId: statement.id,
+			};
+			book.installments.push(installment);
+		}
 		installment.isSettled = true;
 		installment.settledByPurchaseId = purchase.id;
 	}

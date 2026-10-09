@@ -51,3 +51,34 @@ export function matchesExistingCreditPurchase(item: ImportedPurchaseShape, candi
 		hasCompatibleTotalAmount(item.totalAmount, candidate.totalAmount, item.installments)
 	);
 }
+
+/** A changed plan can include interest; merchant similarity only suggests explicit review. */
+export function isPotentialPurchaseRefinancing(
+	item: ImportedPurchaseShape,
+	candidate: ExistingPurchaseShape,
+) {
+	const merchantTokens = (description: string, storeName: null | string) =>
+		`${description} ${storeName ?? ""}`
+			.normalize("NFKD")
+			.replace(/\p{M}/gu, "")
+			.toLocaleLowerCase("pt-BR")
+			.split(/[^a-z\d]+/u)
+			.filter(
+				token =>
+					token.length >= 5 && !["google", "store", "parcela", "parcelamento", "compra"].includes(token),
+			);
+	const importedTokens = merchantTokens(item.description, item.storeName);
+	const existingTokens = merchantTokens(candidate.description, candidate.storeName);
+	return (
+		item.installments > 1 &&
+		item.installments !== candidate.installments &&
+		Number(item.installmentAmount) > 0 &&
+		Number(candidate.totalAmount) > 0 &&
+		dateKey(candidate.purchaseDate) === dateKey(item.purchaseDate) &&
+		importedTokens.some(token =>
+			existingTokens.some(
+				existing => token === existing || token.startsWith(existing) || existing.startsWith(token),
+			),
+		)
+	);
+}

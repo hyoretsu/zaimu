@@ -67,3 +67,14 @@ test("refund identifies only its original purchase", () => {
 	expect(markup).toContain("Compra original: Amazon - 05/04/2026");
 	expect(markup).not.toContain("Gerenciar reembolsos de Amazon");
 });
+
+test("single purchases offer refinancing; settled and non-purchase entries do not", () => {
+	expect(render({ installments: 1 })).toContain('aria-label="Reparcelar Amazon"');
+	for (const overrides of [
+		{ isSettled: true },
+		{ settledByPurchaseId: "replacement" },
+		{ isRefund: true },
+		{ isStatementCharge: true },
+	])
+		expect(render(overrides)).not.toContain('aria-label="Reparcelar Amazon"');
+});

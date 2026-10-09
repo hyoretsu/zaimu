@@ -223,6 +223,82 @@ describe("normalized credit book", () => {
 			book.purchases.at(-1)!.id,
 		);
 	});
+	test("single purchase can be refinanced with an explicit new total", () => {
+		const book = emptyBook();
+		const source = newBookPurchase(book, {
+			description: "Wlingua",
+			installments: 1,
+			purchaseDate: "2025-01-18",
+			totalAmount: 159.99,
+		});
+		expect(
+			refinanceBookPurchase(book, source.id, {
+				installments: 12,
+				purchaseDate: "2025-01-18",
+				totalAmount: 199.92,
+			}),
+		).toEqual({ settledAmount: 159.99, totalAmount: 199.92 });
+		const replacement = book.purchases.at(-1)!;
+		expect(replacement.installmentAmountsCents).toEqual(Array(12).fill(1666));
+		expect(replacement.refinancingFeeAmount).toBe(39.93);
+		expect(book.installments.find(row => row.purchaseId === source.id)?.settledByPurchaseId).toBe(
+			replacement.id,
+		);
+		expect(() =>
+			refinanceBookPurchase(book, source.id, {
+				installments: 2,
+				purchaseDate: "2025-01-18",
+				totalAmount: 100,
+			}),
+		).toThrow("Não há parcelas disponíveis");
+	});
+	test("refinancing settles future forecasts and leaves paid installments intact", () => {
+		const book = emptyBook();
+		const source = newBookPurchase(book, {
+			description: "Compra",
+			installments: 3,
+			purchaseDate: "2099-01-01",
+			totalAmount: 100,
+		});
+		materializeBookInstallments(book, "2099-01-01");
+		const first = book.installments[0]!;
+		const paid = book.statements.find(row => row.id === first.statementId)!;
+		paid.isPaid = true;
+		paid.paidAmount = 33.34;
+		expect(
+			refinanceBookPurchase(book, source.id, {
+				installments: 2,
+				purchaseDate: "2099-02-01",
+				totalAmount: 80,
+			}),
+		).toEqual({ settledAmount: 66.66, totalAmount: 80 });
+		expect(first.isSettled).not.toBe(true);
+		expect(
+			creditBookEntries(book).filter(row => row.purchaseId === source.id && row.isSettled),
+		).toHaveLength(2);
+	});
+	test("invalid refinancing input cannot mutate the book", () => {
+		const book = emptyBook();
+		const source = newBookPurchase(book, {
+			description: "Compra",
+			installments: 1,
+			purchaseDate: "2025-01-01",
+			totalAmount: 100,
+		});
+		for (const input of [
+			{ installments: 2, totalAmount: Number.NaN },
+			{ installments: 2, totalAmount: Number.POSITIVE_INFINITY },
+			{ installments: 2, totalAmount: 0 },
+			{ installments: 1.5, totalAmount: 100 },
+			{ installments: 49, totalAmount: 100 },
+		]) {
+			expect(() =>
+				refinanceBookPurchase(book, source.id, { ...input, purchaseDate: "2025-01-01" }),
+			).toThrow();
+			expect(book.purchases).toHaveLength(1);
+			expect(book.installments.some(row => row.isSettled)).toBe(false);
+		}
+	});
 	test("only due installments become records; forecasts inherit canonical metadata", () => {
 		const book = emptyBook();
 		const p = newBookPurchase(book, {

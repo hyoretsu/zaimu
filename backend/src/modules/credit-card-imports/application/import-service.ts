@@ -23,7 +23,10 @@ import {
 	withRawTransaction,
 	withTransaction,
 } from "~/shared/infra/sql";
-import { matchesExistingCreditPurchase } from "../domain/credit-card-import-reconciliation";
+import {
+	isPotentialPurchaseRefinancing,
+	matchesExistingCreditPurchase,
+} from "../domain/credit-card-import-reconciliation";
 import { getFinancingSource, getFinancingTarget } from "../domain/financing-source-reference";
 import { materializeImportedPurchase } from "./materialize-imported-purchase";
 
@@ -80,7 +83,10 @@ export async function getPotentialDuplicates(
 					? /^FIN /u.test(candidate.description) &&
 						candidate.installments === item.installments &&
 						dateKey(candidate.purchaseDate) === dateKey(item.purchaseDate)
-					: matchesExistingCreditPurchase(item, candidate),
+					: matchesExistingCreditPurchase(item, candidate) ||
+						(!candidate.isSettled &&
+							!candidate.settledByPurchaseId &&
+							isPotentialPurchaseRefinancing(item, candidate)),
 		);
 		if (matches.length) result.set(item.id, matches);
 	}
@@ -509,6 +515,11 @@ async function approveItemsImpl(userId: string, importId: string, itemId?: strin
 				source.isSettled = true;
 				source.settledByPurchaseId = settlementRootId;
 			});
+		if (item.reconciledCreditPurchaseId && rootId !== item.reconciledCreditPurchaseId) {
+			await settleExternalReview(item.id, "PURCHASE", rootId);
+			await refreshAppliedSnapshots(userId, rootId);
+			continue;
+		}
 		if (Number(item.installmentAmount) < 0 || item.isStatementCharge || /^FIN /u.test(item.description))
 			continue;
 		const debtInput = {

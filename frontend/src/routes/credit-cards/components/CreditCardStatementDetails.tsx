@@ -135,7 +135,7 @@ export function CreditCardStatementDetails({
 			data,
 			purchaseId,
 		}: {
-			data: { feeAmount: number; installments: number; purchaseDate: string };
+			data: { feeAmount?: number; totalAmount?: number; installments: number; purchaseDate: string };
 			purchaseId: string;
 		}) => dataService.creditCards.refinancePurchase(statement.creditCardId, purchaseId, data),
 		onError: error =>
@@ -297,6 +297,7 @@ export function CreditCardStatementDetails({
 											onRefund={() => setManagingRefunds(entry.purchase)}
 											purchase={entry.purchase}
 											refinanceDisabled={
+												displayedStatement.isPaid ||
 												statement.isForecast === true ||
 												rowPending(entry.purchase) ||
 												entry.purchase.isStatementCharge === true ||

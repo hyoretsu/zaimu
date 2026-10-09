@@ -71,6 +71,7 @@ export function CreditPurchaseReconciliationDialog({
 	}, [item?.id, open]);
 	if (!item || !duplicate) return null;
 	const anticipated = importedAnticipation(item.description);
+	const refinancing = item.installments !== duplicate.installments;
 	const sourceValue = (source: Source, field: CreditPurchaseReconciliationField) => {
 		const record = source === "imported" ? item : duplicate;
 		if (field === "purchaseDate") return formatLocalDate(record.purchaseDate);
@@ -102,11 +103,17 @@ export function CreditPurchaseReconciliationDialog({
 			<ImportDialogContent className="max-h-[92dvh] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-3xl">
 				<DialogHeader>
 					<DialogTitle>
-						{anticipated ? "Vincular antecipação à compra original" : `Conciliar ${purchaseLabel} existente`}
+						{anticipated
+							? "Vincular antecipação à compra original"
+							: refinancing
+								? "Reparcelar compra existente"
+								: `Conciliar ${purchaseLabel} existente`}
 					</DialogTitle>
 					<DialogDescription>
 						{anticipated ? (
 							"Escolha a compra original. As parcelas antecipadas serão movidas para esta fatura, mantendo os dados da compra."
+						) : refinancing ? (
+							`Confira a compra original. A aprovação encerra suas parcelas pendentes e cria um novo plano de ${item.installments} parcelas, com o total importado. O histórico e as parcelas pagas são preservados.`
 						) : (
 							<>
 								Escolha a origem de cada dado. O parcelamento será preservado; os valores serão atualizados

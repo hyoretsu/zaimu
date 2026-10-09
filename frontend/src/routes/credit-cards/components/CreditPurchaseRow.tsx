@@ -134,7 +134,10 @@ export function CreditPurchaseRow({
 						</TooltipTrigger>
 						<TooltipContent>Editar</TooltipContent>
 					</Tooltip>
-					{purchase.installments > 1 && !purchase.isSettled ? (
+					{!purchase.isRefund &&
+					!purchase.isStatementCharge &&
+					!purchase.isSettled &&
+					!purchase.settledByPurchaseId ? (
 						<Tooltip>
 							<TooltipTrigger asChild>
 								<Button

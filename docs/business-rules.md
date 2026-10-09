@@ -116,6 +116,12 @@ Rendimento de cashback é opcional e pós-fixado: exige taxa de referência manu
 
 Quando uma fatura traz números distintos de parcelas da mesma compra, com mesma descrição, mesmo total de parcelas e mesma data de lançamento, os lançamentos representam antecipação das parcelas no ciclo atual, inclusive quando o banco os mostra como compras separadas. A importação agrupa os números e os valores reais de cada parcela, vincula automaticamente à compra original quando a correspondência é inequívoca e move somente essas parcelas para a fatura importada. A compra original e seus metadados, recompensas e dívida permanecem vinculados ao mesmo registro; valores importados corrigem o total pela soma das parcelas concretas, sem criar nova despesa nem nova compra. Se houver várias compras candidatas, a revisão solicita a escolha da original; sem vínculo seguro, a antecipação permanece pendente e não é aprovada em lote. Reimportar a mesma fatura não repete a antecipação. Parcelas normais de meses distintos e grupos que repetem o mesmo número de parcela continuam separados.
 
+## Reparcelamento de compras
+
+Compras à vista e parceladas podem ser reparceladas com novo total, quantidade de 1 a 48 parcelas e data do novo parcelamento. O total informado inclui os custos reais do banco; não se estima juros. Parcelas originais ainda exigíveis são compensadas pelo novo parcelamento, incluindo previsões futuras, preservando parcelas pagas e histórico. O novo plano distribui o total em unidades mínimas da moeda do cartão.
+
+Na importação de faturas, mudança de parcelamento com mesma data original e descrição compatível sugere vínculo com a compra anterior, mesmo quando o novo total inclui juros. A revisão exige escolha explícita da compra original antes de compensá-la. Reparcelamento cria novo plano vinculado, em vez de alterar a compra antiga ou registrar reembolso. Correspondências ambíguas continuam pendentes; reimportação não repete a compensação.
+
 ## Compras, parcelas e reembolsos normalizados
 
 A compra concentra valor total original, estabelecimento, categoria e tags. Parcelas e reembolsos herdam esses metadados. O plano conserva valores e calendários importados, enquanto somente parcelas devidas viram registros concretos. Inicialização e processamento periódico retomam a materialização de forma idempotente, inclusive no modo visitante.
