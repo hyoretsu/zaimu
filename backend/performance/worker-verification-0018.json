@@ -1,0 +1,29 @@
+{
+	"acceptance": "diagnostic",
+	"coverageComplete": false,
+	"httpPassed": false,
+	"integrationTests": {
+		"passed": true,
+		"tests": 45
+	},
+	"referenceRateBatches": [
+		{
+			"consumerResult": "completed",
+			"metrics": {
+				"durationMs": 65.83371200002148,
+				"processMemory": {
+					"arrayBuffers": 341879,
+					"external": 12326439,
+					"heapTotal": 30888960,
+					"heapUsed": 30752482,
+					"rss": 127143936
+				},
+				"queryCount": 8,
+				"redisWaitMs": 12.298745999956736,
+				"sqlDurationMs": 29.068511000048602,
+				"sqlElapsedMs": 29.068511000048602
+			},
+			"window": ["2020-01-01", "2026-10-03"]
+		}
+	]
+}

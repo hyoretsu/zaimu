@@ -1,0 +1,1701 @@
+{
+	"configuration": {
+		"iterations": 5,
+		"loads": [1],
+		"machine": {
+			"bun": "1.4.2",
+			"cpu": "Intel(R) N150",
+			"cpus": 4,
+			"memoryBytes": 16526995456
+		},
+		"namespace": "zaimu_performance",
+		"rounds": 1
+	},
+	"coverage": {
+		"journeys": [
+			{
+				"name": "web startup",
+				"result": "pending"
+			},
+			{
+				"name": "desktop startup",
+				"result": "pending"
+			},
+			{
+				"name": "Android startup",
+				"result": "pending"
+			},
+			{
+				"name": "iOS startup",
+				"result": "pending"
+			},
+			{
+				"name": "offline",
+				"result": "pending"
+			},
+			{
+				"name": "guest migration",
+				"result": "pending"
+			},
+			{
+				"name": "identity switch",
+				"result": "pending"
+			},
+			{
+				"name": "sync 100k",
+				"result": "pending"
+			},
+			{
+				"name": "statement import 1000",
+				"result": "pending"
+			},
+			{
+				"name": "invoice import 1000",
+				"result": "pending"
+			},
+			{
+				"name": "outbox",
+				"result": "pending"
+			},
+			{
+				"name": "invalidation",
+				"result": "pending"
+			},
+			{
+				"name": "materialization",
+				"result": "pending"
+			},
+			{
+				"name": "rates",
+				"result": "pending"
+			},
+			{
+				"name": "yield recalculation",
+				"result": "pending"
+			},
+			{
+				"name": "backlog/retry/DLQ",
+				"result": "pending"
+			},
+			{
+				"name": "50 navigation cycles",
+				"result": "pending"
+			},
+			{
+				"name": "deep links/background",
+				"result": "pending"
+			}
+		],
+		"routes": [
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/api/auth/delete-user",
+				"result": "pending",
+				"source": "Better Auth"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/api/auth/get-session",
+				"result": "pending",
+				"source": "Better Auth"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/api/auth/request-password-reset",
+				"result": "pending",
+				"source": "Better Auth"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/api/auth/reset-password",
+				"result": "pending",
+				"source": "Better Auth"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/api/auth/revoke-session",
+				"result": "pending",
+				"source": "Better Auth"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/api/auth/revoke-sessions",
+				"result": "pending",
+				"source": "Better Auth"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/api/auth/sign-in/email",
+				"result": "pending",
+				"source": "Better Auth"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/api/auth/sign-out",
+				"result": "pending",
+				"source": "Better Auth"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/api/auth/sign-up/email",
+				"result": "pending",
+				"source": "Better Auth"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/api/auth/verify-email",
+				"result": "pending",
+				"source": "Better Auth"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/balance-adjustments/",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/BalanceAdjustmentsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "DELETE",
+				"path": "/balance-adjustments/:id",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/BalanceAdjustmentsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PATCH",
+				"path": "/balance-adjustments/:id",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/BalanceAdjustmentsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/balance-adjustments/",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/BalanceAdjustmentsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/categories/",
+				"result": "pending",
+				"source": "backend/src/modules/categories/infra/elysia/CategoriesController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "DELETE",
+				"path": "/categories/:id",
+				"result": "pending",
+				"source": "backend/src/modules/categories/infra/elysia/CategoriesController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/categories/:id",
+				"result": "pending",
+				"source": "backend/src/modules/categories/infra/elysia/CategoriesController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PATCH",
+				"path": "/categories/:id",
+				"result": "pending",
+				"source": "backend/src/modules/categories/infra/elysia/CategoriesController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/categories/",
+				"result": "pending",
+				"source": "backend/src/modules/categories/infra/elysia/CategoriesController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/categories/lookup",
+				"result": "pending",
+				"source": "backend/src/modules/categories/infra/elysia/CategoriesController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/comparison",
+				"result": "pending",
+				"source": "backend/src/modules/dashboard/infra/elysia/DashboardComparisonController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/credit-card-imports/",
+				"result": "pending",
+				"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "DELETE",
+				"path": "/credit-card-imports/:id",
+				"result": "pending",
+				"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/credit-card-imports/:id",
+				"result": "pending",
+				"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/credit-card-imports/:id/approve",
+				"result": "pending",
+				"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PATCH",
+				"path": "/credit-card-imports/:id/items/:itemId",
+				"result": "pending",
+				"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/credit-card-imports/:id/items/:itemId/approve-refund",
+				"result": "pending",
+				"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/credit-card-imports/:id/items/:itemId/approve",
+				"result": "pending",
+				"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/credit-card-imports/:id/items/:itemId/reconcile",
+				"result": "pending",
+				"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/credit-card-imports/:id/refund-sources",
+				"result": "pending",
+				"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/credit-card-imports/",
+				"result": "pending",
+				"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/credit-cards/",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/credit-cards/:id",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/credit-cards/:id/book",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/credit-cards/:id/history",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PUT",
+				"path": "/credit-cards/:id/payer",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/credit-cards/:id/payment-suggestions/confirm",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/credit-cards/:id/payments",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/credit-cards/:id/purchases",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "DELETE",
+				"path": "/credit-cards/:id/purchases/:purchaseId",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/credit-cards/:id/purchases/:purchaseId",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PATCH",
+				"path": "/credit-cards/:id/purchases/:purchaseId",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/credit-cards/:id/purchases/:purchaseId/refinance",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/credit-cards/:id/purchases/:purchaseId/refunds",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "DELETE",
+				"path": "/credit-cards/:id/purchases/:purchaseId/refunds/:refundId",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PATCH",
+				"path": "/credit-cards/:id/purchases/:purchaseId/refunds/:refundId",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/credit-cards/:id/refund-reviews",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/credit-cards/:id/refund-reviews/:reviewId/approve",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PATCH",
+				"path": "/credit-cards/:id/statement-cutoff",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/credit-cards/:id/statements",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/credit-cards/:id/statements/:statementId",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/credit-cards/payment-suggestions",
+				"result": "pending",
+				"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/dashboard/",
+				"result": "pending",
+				"source": "backend/src/modules/dashboard/infra/elysia/DashboardController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/debts/",
+				"result": "pending",
+				"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/debts/",
+				"result": "pending",
+				"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/debts/events",
+				"result": "pending",
+				"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "DELETE",
+				"path": "/debts/events/:eventId",
+				"result": "pending",
+				"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PATCH",
+				"path": "/debts/events/:eventId",
+				"result": "pending",
+				"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/debts/invitations",
+				"result": "pending",
+				"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/debts/invitations/:id/accept",
+				"result": "pending",
+				"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/debts/invitations/:id/decline",
+				"result": "pending",
+				"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/debts/invitations/:id/preview",
+				"result": "pending",
+				"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/debts/people",
+				"result": "pending",
+				"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "DELETE",
+				"path": "/debts/people/:id",
+				"result": "pending",
+				"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PATCH",
+				"path": "/debts/people/:id",
+				"result": "pending",
+				"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/debts/people/:id/events",
+				"result": "pending",
+				"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/debts/people/:id/invite",
+				"result": "pending",
+				"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/debts/summary",
+				"result": "pending",
+				"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/financial-account-yield-holidays/",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/FinancialAccountYieldHolidaysController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "DELETE",
+				"path": "/financial-account-yield-holidays/:id",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/FinancialAccountYieldHolidaysController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/financial-account-yield-holidays/",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/FinancialAccountYieldHolidaysController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/financial-account-yields/",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/FinancialAccountYieldsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "DELETE",
+				"path": "/financial-account-yields/:id",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/FinancialAccountYieldsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PATCH",
+				"path": "/financial-account-yields/:id",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/FinancialAccountYieldsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/financial-account-yields/",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/FinancialAccountYieldsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/financial-accounts/",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/AccountsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "DELETE",
+				"path": "/financial-accounts/:id",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/AccountsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/financial-accounts/:id",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/AccountsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PATCH",
+				"path": "/financial-accounts/:id",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/AccountsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/financial-accounts/",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/AccountsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/financial-accounts/primary",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/AccountsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PUT",
+				"path": "/financial-accounts/primary",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/AccountsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "DELETE",
+				"path": "/financial-institutions/:id",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/InstitutionsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PATCH",
+				"path": "/financial-institutions/:id",
+				"result": "pending",
+				"source": "backend/src/modules/accounts/infra/elysia/InstitutionsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/loans/",
+				"result": "pending",
+				"source": "backend/src/modules/loans/infra/elysia/LoansController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/loans/:id",
+				"result": "pending",
+				"source": "backend/src/modules/loans/infra/elysia/LoansController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/loans/:id/advance",
+				"result": "pending",
+				"source": "backend/src/modules/loans/infra/elysia/LoansController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/loans/:id/early-payoff",
+				"result": "pending",
+				"source": "backend/src/modules/loans/infra/elysia/LoansController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/loans/:id/history",
+				"result": "pending",
+				"source": "backend/src/modules/loans/infra/elysia/LoansController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/loans/:id/payments",
+				"result": "pending",
+				"source": "backend/src/modules/loans/infra/elysia/LoansController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/loans/:id/payments/:installmentNumber/pay",
+				"result": "pending",
+				"source": "backend/src/modules/loans/infra/elysia/LoansController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/loans/",
+				"result": "pending",
+				"source": "backend/src/modules/loans/infra/elysia/LoansController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "DELETE",
+				"path": "/open-finance/",
+				"result": "pending",
+				"source": "backend/src/modules/open-finance/infra/OpenFinanceController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/open-finance/",
+				"result": "pending",
+				"source": "backend/src/modules/open-finance/infra/OpenFinanceController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/open-finance/connections",
+				"result": "pending",
+				"source": "backend/src/modules/open-finance/infra/OpenFinanceController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "DELETE",
+				"path": "/open-finance/connections/:id",
+				"result": "pending",
+				"source": "backend/src/modules/open-finance/infra/OpenFinanceController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PUT",
+				"path": "/open-finance/connections/:id/bindings",
+				"result": "pending",
+				"source": "backend/src/modules/open-finance/infra/OpenFinanceController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/open-finance/connections/discover",
+				"result": "pending",
+				"source": "backend/src/modules/open-finance/infra/OpenFinanceController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PUT",
+				"path": "/open-finance/credentials",
+				"result": "pending",
+				"source": "backend/src/modules/open-finance/infra/OpenFinanceController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/open-finance/sync",
+				"result": "pending",
+				"source": "backend/src/modules/open-finance/infra/OpenFinanceController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/open-finance/sync",
+				"result": "pending",
+				"source": "backend/src/modules/open-finance/infra/OpenFinanceController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/recurring/",
+				"result": "pending",
+				"source": "backend/src/modules/recurring/infra/elysia/RecurringController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "DELETE",
+				"path": "/recurring/:id",
+				"result": "pending",
+				"source": "backend/src/modules/recurring/infra/elysia/RecurringController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/recurring/:id",
+				"result": "pending",
+				"source": "backend/src/modules/recurring/infra/elysia/RecurringController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PATCH",
+				"path": "/recurring/:id",
+				"result": "pending",
+				"source": "backend/src/modules/recurring/infra/elysia/RecurringController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/recurring/:id/advance",
+				"result": "pending",
+				"source": "backend/src/modules/recurring/infra/elysia/RecurringController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/recurring/:id/history",
+				"result": "pending",
+				"source": "backend/src/modules/recurring/infra/elysia/RecurringController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/recurring/:id/replay",
+				"result": "pending",
+				"source": "backend/src/modules/recurring/infra/elysia/RecurringController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/recurring/",
+				"result": "pending",
+				"source": "backend/src/modules/recurring/infra/elysia/RecurringController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/reference-rates/averages",
+				"result": "pending",
+				"source": "backend/src/modules/reference-rates/infra/ReferenceRateController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/stores/",
+				"result": "pending",
+				"source": "backend/src/modules/stores/infra/elysia/StoresController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/stores/",
+				"result": "pending",
+				"source": "backend/src/modules/stores/infra/elysia/StoresController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/sync/",
+				"result": "pending",
+				"source": "backend/src/modules/sync/SyncController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/transaction-imports/",
+				"result": "pending",
+				"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "DELETE",
+				"path": "/transaction-imports/:id",
+				"result": "pending",
+				"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/transaction-imports/:id",
+				"result": "pending",
+				"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/transaction-imports/:id/approve",
+				"result": "pending",
+				"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/transaction-imports/:id/days/:date/approve",
+				"result": "pending",
+				"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PATCH",
+				"path": "/transaction-imports/:id/items/:itemId",
+				"result": "pending",
+				"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/transaction-imports/:id/items/:itemId/approve",
+				"result": "pending",
+				"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/transaction-imports/:id/items/:itemId/reconcile",
+				"result": "pending",
+				"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/transaction-imports/:id/items/:itemId/transfer-suggestions/:counterpartItemId/accept",
+				"result": "pending",
+				"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/transaction-imports/:id/items/:itemId/transfer-suggestions/:counterpartItemId/reject",
+				"result": "pending",
+				"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/transaction-imports/",
+				"result": "pending",
+				"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/transactions/",
+				"result": "pending",
+				"source": "backend/src/modules/transactions/infra/elysia/TransactionsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "DELETE",
+				"path": "/transactions/:id",
+				"result": "pending",
+				"source": "backend/src/modules/transactions/infra/elysia/TransactionsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/transactions/:id",
+				"result": "pending",
+				"source": "backend/src/modules/transactions/infra/elysia/TransactionsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "PATCH",
+				"path": "/transactions/:id",
+				"result": "pending",
+				"source": "backend/src/modules/transactions/infra/elysia/TransactionsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/transactions/:id/history",
+				"result": "pending",
+				"source": "backend/src/modules/transactions/infra/elysia/TransactionsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/transactions/:id/transfer-suggestions/:counterpartId/accept",
+				"result": "pending",
+				"source": "backend/src/modules/transactions/infra/elysia/TransactionsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/transactions/:id/transfer-suggestions/:counterpartId/reject",
+				"result": "pending",
+				"source": "backend/src/modules/transactions/infra/elysia/TransactionsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/transactions/",
+				"result": "pending",
+				"source": "backend/src/modules/transactions/infra/elysia/TransactionsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "GET",
+				"path": "/transactions/transfer-suggestions",
+				"result": "pending",
+				"source": "backend/src/modules/transactions/infra/elysia/TransactionsController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/upgrades/debt-origins",
+				"result": "pending",
+				"source": "backend/src/modules/upgrades/UpgradeController.ts"
+			},
+			{
+				"budget": 1000,
+				"method": "POST",
+				"path": "/upgrades/recurrence-ids",
+				"result": "pending",
+				"source": "backend/src/modules/upgrades/UpgradeController.ts"
+			}
+		],
+		"screens": [
+			{
+				"path": "/",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/index.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/accounts",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/accounts.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/auth",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/auth.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/auth/",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/auth/index.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/auth/forgot-password",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/auth/forgot-password.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/auth/register",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/auth/register.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/auth/reset-password",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/auth/reset-password.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/auth/verify-email",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/auth/verify-email.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/credit-cards",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/credit-cards.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/debts",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/debts.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/delete-account",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/delete-account.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/loans",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/loans.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/more",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/more.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/privacy",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/privacy.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/recurring",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/recurring.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/salaries",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/salaries.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/settings",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/settings.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/settings/",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/settings/index.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/settings/open-finance/",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/settings/open-finance/index.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/subscriptions",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/subscriptions.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/terms",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/terms.tsx",
+				"usableP95Ms": 1000
+			},
+			{
+				"path": "/transactions",
+				"requestBudget": 3,
+				"result": "pending",
+				"source": "frontend/src/routes/transactions.tsx",
+				"usableP95Ms": 1000
+			}
+		]
+	},
+	"diagnostic": true,
+	"generatedAt": "2026-10-09T13:29:39.427Z",
+	"passed": false,
+	"readScenariosPassed": false,
+	"referenceDate": "2026-10-04",
+	"results": {
+		"dashboard:1:1:304": {
+			"p50Ms": 2427.053031000003,
+			"p95Ms": 2946.5189949999985,
+			"p99Ms": 2946.5189949999985,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 0,
+					"businessQueries": 2226,
+					"bytes": 0,
+					"cache": "MISS",
+					"connectionWaitMs": 0.78,
+					"durationMs": 2946.5189949999985,
+					"queries": 2226,
+					"requestId": "8a0f8786-a7f0-4e62-b1a9-039777d18c8a",
+					"sqlDurationMs": 2131.2,
+					"sqlElapsedMs": 2114.02,
+					"status": 304
+				},
+				{
+					"authQueries": 0,
+					"businessQueries": 2226,
+					"bytes": 0,
+					"cache": "MISS",
+					"connectionWaitMs": 0.53,
+					"durationMs": 2427.053031000003,
+					"queries": 2226,
+					"requestId": "54178ea3-1071-4f7c-81d3-d75e77bd736c",
+					"sqlDurationMs": 1744.29,
+					"sqlElapsedMs": 1731.79,
+					"status": 304
+				},
+				{
+					"authQueries": 0,
+					"businessQueries": 2224,
+					"bytes": 3774,
+					"cache": "MISS",
+					"connectionWaitMs": 0.5,
+					"durationMs": 2379.9449869999953,
+					"queries": 2224,
+					"requestId": "b03a908e-9729-464b-8b7e-e7e285078da0",
+					"sqlDurationMs": 1635.89,
+					"sqlElapsedMs": 1610.04,
+					"status": 200
+				},
+				{
+					"authQueries": 0,
+					"businessQueries": 2226,
+					"bytes": 0,
+					"cache": "MISS",
+					"connectionWaitMs": 0.65,
+					"durationMs": 2624.949840999994,
+					"queries": 2226,
+					"requestId": "6be1973f-f8f3-4338-800a-b992f3cab9a1",
+					"sqlDurationMs": 1890.02,
+					"sqlElapsedMs": 1866.71,
+					"status": 304
+				},
+				{
+					"authQueries": 0,
+					"businessQueries": 2226,
+					"bytes": 0,
+					"cache": "MISS",
+					"connectionWaitMs": 0.83,
+					"durationMs": 2424.6608970000016,
+					"queries": 2226,
+					"requestId": "3079e6fb-68ab-472b-86b2-e5cc41b3c615",
+					"sqlDurationMs": 1742.52,
+					"sqlElapsedMs": 1725.7,
+					"status": 304
+				}
+			],
+			"throughput": 0.39051202322420847
+		},
+		"dashboard:1:1:hot": {
+			"p50Ms": 3312.9289849999986,
+			"p95Ms": 4830.448726000002,
+			"p99Ms": 4830.448726000002,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 0,
+					"businessQueries": 2226,
+					"bytes": 3774,
+					"cache": "MISS",
+					"connectionWaitMs": 0.99,
+					"durationMs": 3276.638551,
+					"queries": 2226,
+					"requestId": "ef9b44b5-2b05-4dd6-8e1e-eb4c17684e41",
+					"sqlDurationMs": 2332.78,
+					"sqlElapsedMs": 2313.27,
+					"status": 200
+				},
+				{
+					"authQueries": 0,
+					"businessQueries": 2227,
+					"bytes": 3774,
+					"cache": "MISS",
+					"connectionWaitMs": 1.56,
+					"durationMs": 4830.448726000002,
+					"queries": 2227,
+					"requestId": "6bd5eae6-1c06-4e60-a612-2db981ef54f1",
+					"sqlDurationMs": 3705.06,
+					"sqlElapsedMs": 3676.81,
+					"status": 200
+				},
+				{
+					"authQueries": 0,
+					"businessQueries": 2226,
+					"bytes": 3774,
+					"cache": "MISS",
+					"connectionWaitMs": 0.59,
+					"durationMs": 3312.9289849999986,
+					"queries": 2226,
+					"requestId": "b01d6b0a-e148-4dc5-8ab0-0c049e8a9837",
+					"sqlDurationMs": 2438.9,
+					"sqlElapsedMs": 2392.41,
+					"status": 200
+				},
+				{
+					"authQueries": 0,
+					"businessQueries": 2227,
+					"bytes": 3774,
+					"cache": "MISS",
+					"connectionWaitMs": 1.3,
+					"durationMs": 3847.8071990000026,
+					"queries": 2227,
+					"requestId": "7801148c-1f2e-4961-ab33-b0d2bfefaa8d",
+					"sqlDurationMs": 2789.8,
+					"sqlElapsedMs": 2774.18,
+					"status": 200
+				},
+				{
+					"authQueries": 0,
+					"businessQueries": 2226,
+					"bytes": 3774,
+					"cache": "MISS",
+					"connectionWaitMs": 0.7,
+					"durationMs": 2808.7283460000035,
+					"queries": 2226,
+					"requestId": "e7f2de9f-ef55-4520-802b-f485ca5991e8",
+					"sqlDurationMs": 1912.05,
+					"sqlElapsedMs": 1885.97,
+					"status": 200
+				}
+			],
+			"throughput": 0.2765559518004737
+		},
+		"dashboard:1:1:redis-cold": {
+			"p50Ms": 2113.6862819999997,
+			"p95Ms": 3527.784734,
+			"p99Ms": 3527.784734,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 2,
+					"businessQueries": 3686,
+					"bytes": 3774,
+					"cache": "MISS",
+					"connectionWaitMs": 8.85,
+					"durationMs": 3527.784734,
+					"queries": 3688,
+					"requestId": "cff10dfd-7f49-491d-b45f-eca9720fda35",
+					"sqlDurationMs": 2216.94,
+					"sqlElapsedMs": 2181.95,
+					"status": 200
+				},
+				{
+					"authQueries": 0,
+					"businessQueries": 2226,
+					"bytes": 3774,
+					"cache": "MISS",
+					"connectionWaitMs": 1.9,
+					"durationMs": 2300.740025,
+					"queries": 2226,
+					"requestId": "515f529e-20be-4611-a938-bb90ac1519e8",
+					"sqlDurationMs": 1563.25,
+					"sqlElapsedMs": 1535.64,
+					"status": 200
+				},
+				{
+					"authQueries": 0,
+					"businessQueries": 2226,
+					"bytes": 3774,
+					"cache": "MISS",
+					"connectionWaitMs": 0.53,
+					"durationMs": 2113.6862819999997,
+					"queries": 2226,
+					"requestId": "5b13ef84-c487-4687-8d39-953de30808e7",
+					"sqlDurationMs": 1426,
+					"sqlElapsedMs": 1403.76,
+					"status": 200
+				},
+				{
+					"authQueries": 0,
+					"businessQueries": 2225,
+					"bytes": 3774,
+					"cache": "MISS",
+					"connectionWaitMs": 1.22,
+					"durationMs": 1905.0840530000005,
+					"queries": 2225,
+					"requestId": "3962543e-2a0b-463a-8f9a-e47c8c1499d6",
+					"sqlDurationMs": 1288.01,
+					"sqlElapsedMs": 1272.67,
+					"status": 200
+				},
+				{
+					"authQueries": 0,
+					"businessQueries": 2226,
+					"bytes": 3774,
+					"cache": "MISS",
+					"connectionWaitMs": 4.79,
+					"durationMs": 1834.5250830000004,
+					"queries": 2226,
+					"requestId": "3f0a2ac9-9da3-4474-98b1-ae598c9c2cb7",
+					"sqlDurationMs": 1280.02,
+					"sqlElapsedMs": 1265.59,
+					"status": 200
+				}
+			],
+			"throughput": 0.4278221338698859
+		},
+		"transactions:1:1:304": {
+			"p50Ms": 120.88896599999862,
+			"p95Ms": 145.56323700000212,
+			"p99Ms": 145.56323700000212,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 0,
+					"businessQueries": 6,
+					"bytes": 0,
+					"cache": "MISS",
+					"connectionWaitMs": 1.51,
+					"durationMs": 120.88896599999862,
+					"queries": 6,
+					"requestId": "ba52607f-9fc8-4715-8ab5-c11c6e765282",
+					"sqlDurationMs": 105.39,
+					"sqlElapsedMs": 101.57,
+					"status": 304
+				},
+				{
+					"authQueries": 0,
+					"businessQueries": 6,
+					"bytes": 0,
+					"cache": "MISS",
+					"connectionWaitMs": 0.47,
+					"durationMs": 91.53847600000154,
+					"queries": 6,
+					"requestId": "65190fb2-3877-4e41-a518-16e5b3877ad0",
+					"sqlDurationMs": 85.81,
+					"sqlElapsedMs": 79.03,
+					"status": 304
+				},
+				{
+					"authQueries": 0,
+					"businessQueries": 6,
+					"bytes": 0,
+					"cache": "MISS",
+					"connectionWaitMs": 1,
+					"durationMs": 81.42526899999939,
+					"queries": 6,
+					"requestId": "362bcfc6-ac02-400b-8841-b5f66e51c047",
+					"sqlDurationMs": 75.12,
+					"sqlElapsedMs": 71.55,
+					"status": 304
+				},
+				{
+					"authQueries": 0,
+					"businessQueries": 6,
+					"bytes": 0,
+					"cache": "MISS",
+					"connectionWaitMs": 4.42,
+					"durationMs": 141.93037899999763,
+					"queries": 6,
+					"requestId": "b7e8e164-b983-4e6e-95db-3331d5e883ab",
+					"sqlDurationMs": 147.32,
+					"sqlElapsedMs": 130.84,
+					"status": 304
+				},
+				{
+					"authQueries": 0,
+					"businessQueries": 6,
+					"bytes": 0,
+					"cache": "MISS",
+					"connectionWaitMs": 0.77,
+					"durationMs": 145.56323700000212,
+					"queries": 6,
+					"requestId": "cac15714-0ba5-4262-a576-270bfdd55d46",
+					"sqlDurationMs": 147.72,
+					"sqlElapsedMs": 133.73,
+					"status": 304
+				}
+			],
+			"throughput": 8.590353193144695
+		},
+		"transactions:1:1:hot": {
+			"p50Ms": 92.80620199999976,
+			"p95Ms": 140.3637830000007,
+			"p99Ms": 140.3637830000007,
+			"passed": false,
+			"samples": [
+				{
+					"authQueries": 0,
+					"businessQueries": 6,
+					"bytes": 62506,
+					"cache": "MISS",
+					"connectionWaitMs": 1,
+					"durationMs": 95.01729599999817,
+					"queries": 6,
+					"requestId": "529c089f-d5bc-4808-bd84-f880c3a56da9",
+					"sqlDurationMs": 82.07,
+					"sqlElapsedMs": 79.17,
+					"status": 200
+				},
+				{
+					"authQueries": 0,
+					"businessQueries": 6,
+					"bytes": 62506,
+					"cache": "MISS",
+					"connectionWaitMs": 1.12,
+					"durationMs": 72.38957300000038,
+					"queries": 6,
+					"requestId": "0437bebc-caf0-4fbd-939f-3ab72cee77cb",
+					"sqlDurationMs": 65.62,
+					"sqlElapsedMs": 62.59,
+					"status": 200
+				},
+				{
+					"authQueries": 0,
+					"businessQueries": 6,
+					"bytes": 62506,
+					"cache": "MISS",
+					"connectionWaitMs": 0.8,
+					"durationMs": 78.59889100000146,
+					"queries": 6,
+					"requestId": "94b2ee8b-6e56-4ddb-ac86-b6fb80371519",
+					"sqlDurationMs": 71.12,
+					"sqlElapsedMs": 67.42,
+					"status": 200
+				},
+				{
+					"authQueries": 0,
+					"businessQueries": 6,
+					"bytes": 62506,
+					"cache": "MISS",
+					"connectionWaitMs": 0.74,
+					"durationMs": 92.80620199999976,
+					"queries": 6,
+					"requestId": "bd9bb68c-2d86-4502-a19f-ebc5637be00b",
+					"sqlDurationMs": 82.44,
+					"sqlElapsedMs": 77.91,
+					"status": 200
+				},
+				{
+					"authQueries": 0,
+					"businessQueries": 6,
+					"bytes": 62506,
+					"cache": "MISS",
+					"connectionWaitMs": 0.51,
+					"durationMs": 140.3637830000007,
+					"queries": 6,
+					"requestId": "714aed77-bdde-4466-ba60-18c9e72ba4fe",
+					"sqlDurationMs": 132.76,
+					"sqlElapsedMs": 124.22,
+					"status": 200
+				}
+			],
+			"throughput": 10.426056829587296
+		},
+		"transactions:1:1:redis-cold": {
+			"p50Ms": 130.53165199999785,
+			"p95Ms": 202.40243100000225,
+			"p99Ms": 202.40243100000225,
+			"passed": true,
+			"samples": [
+				{
+					"authQueries": 0,
+					"businessQueries": 6,
+					"bytes": 62506,
+					"cache": "MISS",
+					"connectionWaitMs": 31.85,
+					"durationMs": 202.40243100000225,
+					"queries": 6,
+					"requestId": "2c51c68b-a0c4-471e-9c81-b4c3fea07666",
+					"sqlDurationMs": 162.95,
+					"sqlElapsedMs": 155.84,
+					"status": 200
+				},
+				{
+					"authQueries": 0,
+					"businessQueries": 6,
+					"bytes": 62506,
+					"cache": "MISS",
+					"connectionWaitMs": 0.66,
+					"durationMs": 141.78282200000103,
+					"queries": 6,
+					"requestId": "65e1df39-bd42-4d58-abaa-af15f8a58c37",
+					"sqlDurationMs": 124.68,
+					"sqlElapsedMs": 114.7,
+					"status": 200
+				},
+				{
+					"authQueries": 0,
+					"businessQueries": 6,
+					"bytes": 62506,
+					"cache": "MISS",
+					"connectionWaitMs": 2.3,
+					"durationMs": 130.53165199999785,
+					"queries": 6,
+					"requestId": "15c252af-b4c9-4fc3-9725-f67009b950aa",
+					"sqlDurationMs": 114.49,
+					"sqlElapsedMs": 108.42,
+					"status": 200
+				},
+				{
+					"authQueries": 0,
+					"businessQueries": 6,
+					"bytes": 62506,
+					"cache": "MISS",
+					"connectionWaitMs": 0.54,
+					"durationMs": 117.6885159999947,
+					"queries": 6,
+					"requestId": "d0776d12-42ce-46b2-9b5d-5e404b73d37b",
+					"sqlDurationMs": 108.75,
+					"sqlElapsedMs": 102.56,
+					"status": 200
+				},
+				{
+					"authQueries": 0,
+					"businessQueries": 6,
+					"bytes": 62506,
+					"cache": "MISS",
+					"connectionWaitMs": 0.45,
+					"durationMs": 77.78234299999895,
+					"queries": 6,
+					"requestId": "61789e65-fcf4-4be5-9a8e-92db3d8343cf",
+					"sqlDurationMs": 70.43,
+					"sqlElapsedMs": 67.23,
+					"status": 200
+				}
+			],
+			"throughput": 7.432685596734743
+		}
+	},
+	"summaries": [
+		{
+			"load": 1,
+			"maxQueries": 3688,
+			"mode": "redis-cold",
+			"name": "dashboard",
+			"p95Ms": 3527.784734,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2227,
+			"mode": "hot",
+			"name": "dashboard",
+			"p95Ms": 4830.448726000002,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 2226,
+			"mode": "304",
+			"name": "dashboard",
+			"p95Ms": 2946.5189949999985,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 6,
+			"mode": "redis-cold",
+			"name": "transactions",
+			"p95Ms": 202.40243100000225,
+			"passed": true,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 6,
+			"mode": "hot",
+			"name": "transactions",
+			"p95Ms": 140.3637830000007,
+			"passed": false,
+			"round": 1
+		},
+		{
+			"load": 1,
+			"maxQueries": 6,
+			"mode": "304",
+			"name": "transactions",
+			"p95Ms": 145.56323700000212,
+			"passed": false,
+			"round": 1
+		}
+	],
+	"worker": "stopped"
+}

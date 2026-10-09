@@ -261,3 +261,11 @@ Ambiente atual Linux não permite aceite iOS; ferramentas Android não foram det
 - Com histórico de taxas preenchido pelo worker, dashboard atingia timeout SQL de 15 s. Consulta `referenceRateAveragesSql` repetia verificação de cobertura de dez anos após join/agregação das taxas. CTE de cobertura agora materializada uma vez.
 - Validador comparou SQL anterior em janela curta e confirmou janela completa/gap com médias determinísticas, em 73,7 ms e 46,9 ms. Remoção de eventos de cobertura foi revertida integralmente. EXPLAIN ANALYZE BUFFERS em `backend/performance/rate-coverage-0018.json`.
 - Timeout original mantido. Próximo: reexecutar HTTP com worker atualizado e registrar backlog/queries dos jobs em lote.
+
+### Validação com worker ativo
+
+- Suite backend de integração completa passou: 45 testes, em serviços descartáveis locais. Inclui parser PDF, cache, sessões, regras financeiras e RabbitMQ. Hooks também validaram tipos e suite unitária nas mudanças de fonte.
+- Comando válido de taxas de 01/01/2020 até 03/10/2026 concluiu com oito queries e 65,8 ms; confirmação `completed` do consumidor conferida. Amostra anterior de cinco queries era retry por intervalo inválido e foi excluída da evidência de sucesso. Relatório `worker-verification-0018.json`.
+- Diagnóstico HTTP com worker ativo segue reprovado: dashboard frio p95 3.528 ms, até 3.688 queries; transações frias 202 ms, mas hits/304 ainda fazem SQL durante invalidações. Relatório `worker-active-diagnostic-0018.json`.
+- Nova configuração monetária padrão USD exige conversões do fixture BRL. Provedor de moedas permanece bloqueado no ambiente local e precisa de fixture própria; consultas por data e jobs repetidos de câmbio exigem batching e invalidação por mudança efetiva. Esses cenários não constituem infraestrutura saudável nem foram aprovados.
+- Próximos: fixture de câmbio, leituras históricas em lote, jobs sem invalidação vazia, guest/IndexedDB e matriz oficial.
