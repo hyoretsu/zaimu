@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { LuBadgeDollarSign } from "react-icons/lu";
+import { AutoCollapseSection } from "@/components/ui/AutoCollapseSection";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
@@ -29,7 +30,11 @@ export function CreditPurchaseFeeFields({
 	}, [feeAmount]);
 
 	return (
-		<div className="grid gap-3 rounded-2xl border p-3">
+		<AutoCollapseSection
+			complete={hasFee && Boolean(localFeeDescription.trim()) && Number(feeAmount) > 0}
+			summary={`${localFeeDescription} - ${new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(Number(feeAmount))}`}
+			title="Taxa"
+		>
 			<CheckboxField
 				checkboxProps={{
 					checked: hasFee,
@@ -73,6 +78,6 @@ export function CreditPurchaseFeeFields({
 					/>
 				</div>
 			) : null}
-		</div>
+		</AutoCollapseSection>
 	);
 }

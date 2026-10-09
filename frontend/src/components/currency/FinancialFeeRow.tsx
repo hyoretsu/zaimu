@@ -1,6 +1,7 @@
 import { roundMoney } from "@zaimu/finance/money";
 import { LuTrash2 } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
+import { AutoCollapseSection } from "@/components/ui/AutoCollapseSection";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { FormField } from "@/components/ui/FormField";
@@ -34,7 +35,11 @@ export function FinancialFeeRow({
 	};
 	const [name, setName] = useDebouncedInput(fee.name, name => onChange({ ...fee, name }));
 	return (
-		<div className="grid min-w-0 grid-cols-1 gap-3 rounded-xl border p-3">
+		<AutoCollapseSection
+			complete={Boolean(name.trim()) && fee.amount > 0}
+			summary={`${name} - ${new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" }).format(fee.amount)}`}
+			title="Taxa"
+		>
 			<CustomSelect
 				label="Nome da taxa"
 				onValueChange={name => onChange({ ...fee, name: name === "CUSTOM" ? "" : name })}
@@ -69,6 +74,6 @@ export function FinancialFeeRow({
 					<LuTrash2 />
 				</Button>
 			</ActionGroup>
-		</div>
+		</AutoCollapseSection>
 	);
 }

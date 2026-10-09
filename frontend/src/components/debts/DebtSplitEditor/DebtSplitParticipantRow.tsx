@@ -1,6 +1,7 @@
 import { LuTrash2 } from "react-icons/lu";
 import { DebtPersonPicker } from "@/components/debts/DebtPersonPicker";
 import { ActionGroup } from "@/components/ui/ActionGroup";
+import { AutoCollapseSection } from "@/components/ui/AutoCollapseSection";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { FormField } from "@/components/ui/FormField";
@@ -10,6 +11,7 @@ import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { DebtSplitInput } from "@/lib/api";
 
 export function DebtSplitParticipantRow({
+	personName,
 	amount,
 	currencyCode,
 	totalAmount,
@@ -26,6 +28,7 @@ export function DebtSplitParticipantRow({
 	showDescription,
 	mode,
 }: {
+	personName?: string;
 	amount?: number;
 	currencyCode: string;
 	totalAmount: number;
@@ -55,7 +58,30 @@ export function DebtSplitParticipantRow({
 				? String((participant as { percentage: number }).percentage || "")
 				: String((participant as { fixedAmount: number }).fixedAmount || "");
 	return (
-		<div className="grid min-w-0 max-w-full gap-3 rounded-xl border p-3 [&>*]:min-w-0">
+		<AutoCollapseSection
+			complete={Boolean(participant.debtPersonId) && (isRemainderRecipient || Number(numericValue) > 0)}
+			summary={[
+				personName ?? "Carregando pessoa...",
+				description.trim(),
+				isRemainderRecipient
+					? "Fica com o restante"
+					: mode === "SHARES"
+						? `${numericValue} ${Number(numericValue) === 1 ? "cota" : "cotas"}`
+						: mode === "PERCENTAGE"
+							? `${numericValue}%`
+							: undefined,
+				amount !== undefined
+					? new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" }).format(amount)
+					: mode === "FIXED"
+						? new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" }).format(
+								Number(numericValue),
+							)
+						: undefined,
+			]
+				.filter(Boolean)
+				.join(" - ")}
+			title="Dívida"
+		>
 			<div className="flex min-w-0 flex-wrap items-end gap-2">
 				<div className="min-w-0 flex-[2_1_8rem]">
 					<DebtPersonPicker
@@ -136,6 +162,6 @@ export function DebtSplitParticipantRow({
 					</Button>
 				</ActionGroup>
 			</div>
-		</div>
+		</AutoCollapseSection>
 	);
 }

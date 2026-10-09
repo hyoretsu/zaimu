@@ -210,6 +210,7 @@ export function DebtSplitEditor({
 					}}
 					onValueChange={next => updateParticipant(index, "value", next)}
 					participant={participant}
+					personName={names.get(participant.debtPersonId)}
 					showDescription={showParticipantDescriptions}
 					totalAmount={amount}
 				/>
