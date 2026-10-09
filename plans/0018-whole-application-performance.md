@@ -255,3 +255,9 @@ Ambiente atual Linux não permite aceite iOS; ferramentas Android não foram det
 - Worker ativo no ambiente dedicado expôs até 1.758 queries por job de taxas, com uma inserção por dia. Escrita agora usa lotes de até 1.000 registros e retorna somente datas alteradas.
 - Datas repetidas preservam semântica sequencial: primeira entrada no modo insert-only, última na coleta com correção. Valores iguais não alteram timestamps; primeira data alterada continua determinando recálculo.
 - `performance/validate-rate-batches.ts` confirmou equivalência com SQL sequencial, rerun sem mudanças e preservação de timestamps, com rollback integral no banco dedicado. Medição do worker atualizado ainda pendente.
+
+### Cobertura de taxas calculada uma vez
+
+- Com histórico de taxas preenchido pelo worker, dashboard atingia timeout SQL de 15 s. Consulta `referenceRateAveragesSql` repetia verificação de cobertura de dez anos após join/agregação das taxas. CTE de cobertura agora materializada uma vez.
+- Validador comparou SQL anterior em janela curta e confirmou janela completa/gap com médias determinísticas, em 73,7 ms e 46,9 ms. Remoção de eventos de cobertura foi revertida integralmente. EXPLAIN ANALYZE BUFFERS em `backend/performance/rate-coverage-0018.json`.
+- Timeout original mantido. Próximo: reexecutar HTTP com worker atualizado e registrar backlog/queries dos jobs em lote.

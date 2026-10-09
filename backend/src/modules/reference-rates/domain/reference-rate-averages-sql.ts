@@ -1,4 +1,4 @@
-export const referenceRateAveragesSql = `WITH coverage AS (
+export const referenceRateAveragesSql = `WITH coverage AS MATERIALIZED (
  SELECT type."value" AS "type", NOT EXISTS (
  SELECT 1 FROM generate_series($1::date, $2::date, interval '1 day') day
  WHERE NOT EXISTS (
