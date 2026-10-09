@@ -98,3 +98,64 @@ test("empty loan follows delayed detection and an entered principal keeps its de
 	await page.locator("input[name=principalAmount]").fill("123,456");
 	await expect(page.locator("input[name=principalAmount]")).toHaveValue("KWD 123,456");
 });
+
+test("dashboard waits for BRL preference instead of issuing provisional USD demand", async ({
+	page,
+	baseURL,
+}) => {
+	let release!: () => void;
+	let preferenceRequested!: () => void;
+	const preferenceSeen = new Promise<void>(resolve => {
+		preferenceRequested = resolve;
+	});
+	const preference = new Promise<void>(resolve => {
+		release = resolve;
+	});
+	const requests: { path: string; currency?: string }[] = [];
+	const historyRequests: string[] = [];
+	await page.routeWebSocket("**", socket => socket.close());
+	await page.route("**/*", async route => {
+		const url = new URL(route.request().url());
+		if (url.origin === baseURL) return route.continue();
+		let data: unknown = [];
+		if (url.pathname.includes("get-session"))
+			data = {
+				session: { expiresAt: "2099-01-01T00:00:00Z", id: "session", userId: "currency_owner" },
+				user: { email: "currency@example.test", emailVerified: true, id: "currency_owner", name: "Teste" },
+			};
+		else if (url.pathname.startsWith("/currency-preferences")) {
+			preferenceRequested();
+			await preference;
+			data = { preferredCurrency: "BRL" };
+		} else if (url.hostname === "ipapi.co") data = { country_code: "BR" };
+		else if (url.pathname.endsWith("/currencies")) data = ["USD", "BRL"];
+		else if (url.pathname.startsWith("/dashboard")) {
+			requests.push({ currency: route.request().headers()["x-currency"], path: url.pathname });
+			data = url.pathname.includes("comparison")
+				? []
+				: {
+						accounts: [],
+						consolidation: { forecastAvailable: true, histories: [], publishedDates: {}, unavailable: false },
+						creditCards: [],
+						currency: "BRL",
+						forecasts: [],
+						referenceRatesAvailable: true,
+						totalAvailableCredit: 0,
+					};
+		} else if (url.pathname.includes("financial-history") && !url.pathname.endsWith("/currencies"))
+			historyRequests.push(url.pathname);
+		await route.fulfill({ body: JSON.stringify(data), contentType: "application/json", status: 200 });
+	});
+	await page.goto(`${baseURL}/`, { waitUntil: "domcontentloaded" });
+	await preferenceSeen;
+	// Give the mounted query observers time to attempt their initial fetch.
+	await page.waitForTimeout(500);
+	expect(requests).toEqual([]);
+	expect(historyRequests).toEqual([]);
+	release();
+	await expect(page.getByText("Evolução por período", { exact: true })).toBeVisible();
+	await expect.poll(() => requests.some(row => row.path.includes("comparison"))).toBe(true);
+	expect(requests.length).toBeGreaterThanOrEqual(2);
+	expect(requests.every(row => row.currency === "BRL")).toBe(true);
+	expect(historyRequests).toEqual([]);
+});

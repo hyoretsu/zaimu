@@ -295,3 +295,11 @@ Ambiente atual Linux não permite aceite iOS; ferramentas Android não foram det
 - Conta principal e contas envolvidas seguem incluídas quando movimentos futuros precisam delas, preservando transferências, insuficiência de saldo e liquidação de faturas em outra moeda.
 - 21 testes direcionados passaram, incluindo recorrências fora do período e movimentos estrangeiros fora do horizonte. Janela de previsão cambial permanece 365 dias conforme regras de negócio; somente demanda efetiva inicia coleta.
 - Próximos: fixture de câmbio, batching de leituras, invalidações por mudança efetiva e matriz completa de aceite do plano.
+
+### Corrida de inicialização da moeda
+
+- Causa reproduzida para demanda cambial nova em contas BRL: painel e gráfico consultavam dashboard com USD provisório antes de carregar preferência explícita BRL. Essa conversão temporária podia registrar coleta de previsão por 365 dias.
+- Consultas consolidadas agora aguardam preferência resolvida para o proprietário atual; skeleton permanece até resolução. Cache já inclui moeda na chave.
+- Regressão no navegador: sem guarda, duas consultas USD aconteceram enquanto preferência BRL estava bloqueada. Com guarda, zero consultas antes da preferência; painel e gráfico usam somente BRL após resolução, sem demanda de histórico cambial.
+- Três testes de navegador passaram, incluindo localização/troca/persistência de preferência e herança de moeda em formulário. Build frontend passou. Todas as requisições externas foram interceptadas; nenhum serviço compartilhado foi alterado.
+- Jobs de câmbio previamente registrados continuam recuperáveis; print sem datas/base/origem não identifica individualmente a idade da demanda. Dez anos correspondem apenas a CDI/SELIC; câmbio projetado usa 365 dias.

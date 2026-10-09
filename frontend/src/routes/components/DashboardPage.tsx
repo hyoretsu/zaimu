@@ -41,8 +41,9 @@ export function DashboardPage() {
 		? { ...dateRange, startDate: format(startOfMonth(new Date()), "yyyy-MM-dd") }
 		: dateRange;
 	const effectiveCurrency = useCurrencyStore(state => state.currency);
+	const currencyReady = useCurrencyStore(state => !state.loading && state.owner === identity);
 	const dashboardQuery = useQuery({
-		enabled: identity !== null,
+		enabled: identity !== null && currencyReady,
 		queryFn: () => dataService.dashboard.get(dashboardRange),
 		queryKey: queryKeys.dashboard.detail(identity!, dashboardRange),
 		refetchInterval: query =>
@@ -52,7 +53,7 @@ export function DashboardPage() {
 				? 10_000
 				: false,
 	});
-	if (dashboardQuery.isPending) return <DashboardSkeleton />;
+	if (!currencyReady || dashboardQuery.isPending) return <DashboardSkeleton />;
 	if (dashboardQuery.isError || !dashboardQuery.data)
 		return (
 			<PageContainer>

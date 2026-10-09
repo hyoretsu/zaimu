@@ -16,6 +16,7 @@ function formatAxisLabel(startDate: string) {
 export function DashboardComparisonChart() {
 	const identity = useCacheIdentity();
 	const currencyCode = useCurrencyStore(state => state.currency);
+	const currencyReady = useCurrencyStore(state => !state.loading && state.owner === identity);
 	const [settings, setSettings] = useState<ChartPeriodSettings>(() => ({
 		endDate: format(endOfMonth(new Date()), "yyyy-MM-dd"),
 		periodsAfter: 10,
@@ -24,7 +25,7 @@ export function DashboardComparisonChart() {
 	}));
 
 	const query = useQuery({
-		enabled: identity !== null,
+		enabled: identity !== null && currencyReady,
 		queryFn: () => dataService.dashboard.getComparison(settings),
 		queryKey: queryKeys.dashboard.comparison(identity!, settings),
 	});
@@ -45,7 +46,7 @@ export function DashboardComparisonChart() {
 				<ChartPeriodFilter onChange={setSettings} value={settings} />
 			</CardHeader>
 			<CardContent>
-				{query.isPending ? (
+				{!currencyReady || query.isPending ? (
 					<div aria-label="Carregando evolução por período" className="space-y-6" role="status">
 						{["Patrimônio", "Entradas e gastos"].map(title => (
 							<div className="space-y-4" key={title}>
