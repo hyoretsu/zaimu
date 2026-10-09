@@ -350,3 +350,6 @@ Próxima etapa: validar fallback de cache e persistência incremental contra reg
 - Catálogo de moedas autenticado envia cookies; visitante evita chamada ao endpoint autenticado. Navegação acusa respostas de negócio inválidas em vez de ocultá-las.
 - Diagnóstico após correções: pagamento de empréstimo p95 192 ms, evento de dívida 172 ms, parsing/revisão/descarte de fatura com mil itens 5.984 ms agregado. Orçamento de parsing é 30 s, revisão/descarte mantêm 1 s. Necessário repetir relatório após ajuste desses orçamentos.
 - PDF retorna página de 50 itens e contador de mil pendências; suíte verifica paginação em vez de exigir mil itens na resposta.
+
+- Descarte de extrato após batching: cinco consultas, 89-188 ms em cinco amostras. Caso extremo com mil lançamentos iguais retorna 29,7 MB de candidatos a duplicação e ainda reprova revisão (<1 s); preservado como `statementImportDuplicates`, sem esconder violação na fixture normal.
+- Matriz recusa porta API ocupada, usa health público, encerra processos próprios ao interromper e retorna falha quando inventário global permanece incompleto. Revisão/descarte não herdam orçamento de 30 s do parser.

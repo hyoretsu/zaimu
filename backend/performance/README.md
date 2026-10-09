@@ -9,7 +9,7 @@ PERFORMANCE_FIXTURE_SIZE=10000 PERFORMANCE_FIXTURE_USERS=20 bun run backend/perf
 bun run --filter backend build
 ```
 
-Fixtures: 10, 10 mil ou 100 mil transações por usuário; 1 a 20 identidades isoladas. Seed valida host e nome do banco. Runner verifica identidades e conservação do principal nas parcelas antes de medir. API/worker usam namespace `zaimu_performance`, data financeira fixa em 2026-10-04, fornecedores BCB/câmbio simulados e bloqueio de HTTP externo.
+Fixtures: 10, 10 mil ou 100 mil transações por usuário; 1 a 20 identidades isoladas. Seed exige host, porta, usuário e nome da instância dedicada. Runner verifica identidades e conservação do principal nas parcelas antes de medir. API/worker usam namespace `zaimu_performance`, data financeira fixa em 2026-10-04, fornecedores BCB/câmbio simulados e bloqueio de HTTP externo.
 
 Iniciar API release a partir de `backend`:
 

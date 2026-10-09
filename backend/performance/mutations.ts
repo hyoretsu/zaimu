@@ -37,6 +37,7 @@ export const mutationScenarios = [
 	"debtEvent",
 	"sync",
 	"statementImport",
+	"statementImportDuplicates",
 	"invoiceImport",
 ];
 const expectedActions = (name: string): string[] => {
@@ -45,7 +46,7 @@ const expectedActions = (name: string): string[] => {
 	if (name === "cardPayment") return ["pay", "delete"];
 	if (name === "loanPayment") return ["create", "pay", "readAfterWrite"];
 	if (name === "loan") return ["create", "readAfterWrite"];
-	if (name.endsWith("Import")) return ["parse", "review", "delete"];
+	if (name.includes("Import")) return ["parse", "review", "delete"];
 	if (name.startsWith("purchase"))
 		return [
 			"create",
@@ -94,7 +95,9 @@ const responseId = (value: unknown) => {
 
 export async function runMutationScenario(name: string, context: Context) {
 	const startedAt = performance.now();
-	const budgetMs = ["sync", "statementImport", "invoiceImport"].includes(name) ? 30000 : 1000;
+	const budgetMs = ["sync", "statementImport", "statementImportDuplicates", "invoiceImport"].includes(name)
+		? 30000
+		: 1000;
 	const samples: ActionSample[] = [];
 	const errors: { index: number; user: number; phase: string; error: string }[] = [];
 	await runConcurrent(context.iterations, context.load, async (index, user) => {
@@ -124,7 +127,7 @@ export async function runMutationScenario(name: string, context: Context) {
 		let setupCleanup: (() => Promise<unknown>) | undefined;
 		try {
 			const label = `Performance ${name} ${crypto.randomUUID().slice(0, 8)}`;
-			if (name === "statementImport" || name === "invoiceImport") {
+			if (name === "statementImport" || name === "statementImportDuplicates" || name === "invoiceImport") {
 				const invoice = name === "invoiceImport";
 				const route = invoice ? "/credit-card-imports" : "/transaction-imports";
 				const lines = invoice
@@ -132,15 +135,18 @@ export async function runMutationScenario(name: string, context: Context) {
 							"Data de vencimento: 24 AGO 2026",
 							"Período vigente: 17 JUL a 17 AGO",
 							"TRANSAÇÕES DE 17 JUL A 17 AGO",
-							...Array.from({ length: 1000 }, (_, i) => `07 AGO Performance ${i} R$ 1,00`),
+							...Array.from({ length: 1000 }, (_, i) => `07 AGO Performance ${i} R$ ${i + 1},00`),
 						]
 					: [
 							"01 DE AGOSTO DE 2026 a 31 DE AGOSTO DE 2026 VALORES EM R$",
 							"Movimentações",
-							"03 AGO 2026 Total de saídas - 1.000,00",
+							name === "statementImportDuplicates"
+								? "03 AGO 2026 Total de saídas - 1.000,00"
+								: "03 AGO 2026 Total de saídas - 500.500,00",
 							...Array.from(
 								{ length: 1000 },
-								(_, i) => `Transferência enviada pelo Pix Performance ${i}\n1,00`,
+								(_, i) =>
+									`Transferência enviada pelo Pix Performance ${i}\n${name === "statementImportDuplicates" ? 1 : i + 1},00`,
 							).flatMap(line => line.split("\n")),
 						];
 				const form = new FormData();
@@ -462,7 +468,7 @@ export async function runMutationScenario(name: string, context: Context) {
 					percentile(
 						rows.map(row => row.durationMs),
 						0.95,
-					) < budgetMs,
+					) < (["parse", "snapshot"].includes(action) ? budgetMs : 1000),
 			},
 		]),
 	);

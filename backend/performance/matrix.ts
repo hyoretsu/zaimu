@@ -9,23 +9,26 @@ const runs: { size: number; worker: string; code: number; report: string }[] = [
 let api: ReturnType<typeof Bun.spawn> | undefined;
 let worker: ReturnType<typeof Bun.spawn> | undefined;
 let runner: ReturnType<typeof Bun.spawn> | undefined;
+let preparation: ReturnType<typeof Bun.spawn> | undefined;
 let stopped = false;
 const stop = () => {
 	stopped = true;
 	api?.kill();
 	worker?.kill();
 	runner?.kill();
+	preparation?.kill();
 };
 process.on("SIGINT", stop);
 process.on("SIGTERM", stop);
 async function command(args: string[], env: Record<string, string | undefined>) {
-	const process = Bun.spawn(args, {
+	preparation = Bun.spawn(args, {
 		cwd: root,
 		env: { ...globalThis.process.env, ...env },
 		stderr: "inherit",
 		stdout: "inherit",
 	});
-	const code = await process.exited;
+	const code = await preparation.exited;
+	preparation = undefined;
 	if (code) throw new Error(`Local performance command failed (${code}): ${args.join(" ")}`);
 }
 try {
@@ -59,12 +62,12 @@ try {
 			let ready = false;
 			for (let attempt = 0; attempt < 60; attempt++) {
 				try {
-					const response = await fetch("http://127.0.0.1:3335/currencies", {
+					const response = await fetch("http://127.0.0.1:3335/health", {
 						redirect: "error",
 						signal: AbortSignal.timeout(1000),
 					});
 					await response.arrayBuffer();
-					if (response.headers.get("x-performance-namespace") === "zaimu_performance") {
+					if (response.ok && response.headers.get("x-performance-namespace") === "zaimu_performance") {
 						ready = true;
 						break;
 					}
@@ -112,6 +115,7 @@ try {
 	api?.kill();
 	worker?.kill();
 	runner?.kill();
+	preparation?.kill();
 	await Bun.write(
 		`${output}/matrix.json`,
 		JSON.stringify(
