@@ -1,4 +1,4 @@
-import { cpus, totalmem } from "node:os";
+import { cpus, freemem, loadavg, totalmem } from "node:os";
 import { RedisClient } from "bun";
 import { performanceBudgets } from "./budgets";
 import { completeCoverage, evaluateCoverage } from "./coverage";
@@ -18,6 +18,7 @@ if (
 )
 	throw new Error("Dedicated loopback API 3335 and Redis 6395 required");
 const namespace = "zaimu_performance";
+const hostStart = { freeMemoryBytes: freemem(), loadAverage: loadavg() };
 const diagnostic = process.argv.includes("--diagnostic");
 const iterations = diagnostic ? 5 : 25;
 const rounds = diagnostic ? 1 : 3;
@@ -194,7 +195,14 @@ try {
 			fixture,
 			iterations,
 			loads,
-			machine: { bun: Bun.version, cpu: cpus()[0]?.model, cpus: cpus().length, memoryBytes: totalmem() },
+			machine: {
+				bun: Bun.version,
+				cpu: cpus()[0]?.model,
+				cpus: cpus().length,
+				hostEnd: { freeMemoryBytes: freemem(), loadAverage: loadavg() },
+				hostStart,
+				memoryBytes: totalmem(),
+			},
 			namespace,
 			rounds,
 		},

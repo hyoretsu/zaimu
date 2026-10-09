@@ -73,12 +73,25 @@ test("release purchase save measures persisted confirmation and refreshed conten
 					response.status() === 200,
 			);
 			console.info(`purchase sample ${index}: saving`);
+			const beforeCardsResponse = await page.request.get(`${api}/credit-cards`);
+			expect(beforeCardsResponse.ok()).toBeTruthy();
+			const beforeCards = (await beforeCardsResponse.json()) as {
+				name: string;
+				currency: string;
+				limit: { availableLimit: number };
+			}[];
+			const selectedCard = beforeCards.find(card => card.name === "Cartão 01");
+			expect(selectedCard).toBeDefined();
+			const expectedAvailable = new Intl.NumberFormat("pt-BR", {
+				currency: selectedCard!.currency,
+				style: "currency",
+			}).format(Math.max(0, selectedCard!.limit.availableLimit - 12.34));
 			const beforeLongTasks = await page.evaluate(() => ({
 				...(window as unknown as { performanceLongTasks: { count: number; durationMs: number } })
 					.performanceLongTasks,
 			}));
-			await page.evaluate(() => {
-				const state = { confirmedAt: 0, startedAt: 0 };
+			await page.evaluate(expectedAvailable => {
+				const state = { confirmedAt: 0, refreshedAt: 0, startedAt: 0 };
 				Object.assign(window, { performancePurchase: state });
 				document.addEventListener(
 					"click",
@@ -93,12 +106,22 @@ test("release purchase save measures persisted confirmation and refreshed conten
 						state.startedAt &&
 						document.body.textContent?.includes("Compra registrada e faturas recalculadas.")
 					) {
-						state.confirmedAt = performance.now();
-						observer.disconnect();
+						state.confirmedAt ||= performance.now();
 					}
 				});
 				observer.observe(document.body, { characterData: true, childList: true, subtree: true });
-			});
+				const refreshObserver = new MutationObserver(() => {
+					if (state.startedAt && document.querySelector("main")?.textContent?.includes(expectedAvailable)) {
+						requestAnimationFrame(() =>
+							requestAnimationFrame(() => {
+								state.refreshedAt ||= performance.now();
+							}),
+						);
+						refreshObserver.disconnect();
+					}
+				});
+				refreshObserver.observe(document.body, { characterData: true, childList: true, subtree: true });
+			}, expectedAvailable);
 			const startedAt = performance.now();
 			await dialog.getByRole("button", { exact: true, name: "Salvar compra" }).click();
 			let cleanupUrl: string | undefined;
@@ -138,7 +161,14 @@ test("release purchase save measures persisted confirmation and refreshed conten
 					() =>
 						new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
 				);
-				const refreshMs = performance.now() - startedAt;
+				expect(available).toBe(expectedAvailable);
+				const refreshMs = await page.evaluate(() => {
+					const state = (
+						window as unknown as { performancePurchase: { startedAt: number; refreshedAt: number } }
+					).performancePurchase;
+					return state.refreshedAt - state.startedAt;
+				});
+				expect(refreshMs).toBeGreaterThan(0);
 				page.off("request", count);
 				const afterLongTasks = await page.evaluate(
 					() =>

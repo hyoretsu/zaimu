@@ -1,5 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
+import { assertLocalDockerSocket } from "../../scripts/testing/validation";
 
 const root = resolve(import.meta.dir, "../..");
 const output = resolve(process.env.PERFORMANCE_MATRIX_DIR ?? "/tmp/zaimu-performance-matrix");
@@ -32,6 +33,14 @@ async function command(args: string[], env: Record<string, string | undefined>) 
 	if (code) throw new Error(`Local performance command failed (${code}): ${args.join(" ")}`);
 }
 try {
+	if (process.env.DOCKER_HOST) assertLocalDockerSocket(process.env.DOCKER_HOST);
+	const context = Bun.spawn(["docker", "context", "inspect", "--format", "{{.Endpoints.docker.Host}}"], {
+		stderr: "pipe",
+		stdout: "pipe",
+	});
+	const contextHost = (await new Response(context.stdout).text()).trim();
+	if (await context.exited) throw new Error("Cannot inspect local Docker context");
+	assertLocalDockerSocket(contextHost);
 	const probe = Bun.listen({ hostname: "127.0.0.1", port: 3335, socket: { data() {} } });
 	probe.stop();
 	// Compose refuses pulls and publishes dedicated services only on loopback.

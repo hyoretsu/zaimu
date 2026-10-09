@@ -28,6 +28,24 @@ test("release navigation measures mount and settled required reads for every mai
 	});
 	expect(login.ok()).toBeTruthy();
 	expect(login.headers()["x-performance-namespace"]).toBe("zaimu_performance");
+	await page.addInitScript(() => {
+		const metrics = { usableAt: 0 };
+		Object.assign(window, { performanceNavigation: metrics });
+		const observer = new MutationObserver(() => {
+			if (
+				!metrics.usableAt &&
+				document.querySelector("main h1") &&
+				!document.querySelector("main .animate-pulse")
+			) {
+				requestAnimationFrame(() =>
+					requestAnimationFrame(() => {
+						if (!document.querySelector("main .animate-pulse")) metrics.usableAt ||= performance.now();
+					}),
+				);
+			}
+		});
+		observer.observe(document, { attributes: true, childList: true, subtree: true });
+	});
 	await page.clock.setFixedTime(new Date("2026-10-04T12:00:00-03:00"));
 	const diagnostic = process.env.PERFORMANCE_DIAGNOSTIC === "true";
 	const samples: { route: string; round: number; usableMs: number; requests: number; failures: number[] }[] =
@@ -45,13 +63,18 @@ test("release navigation measures mount and settled required reads for every mai
 				};
 				page.on("response", onResponse);
 				await page.goto(route, { waitUntil: "domcontentloaded" });
-				await expect(page.locator("h1").first()).toBeVisible();
+				await expect(page.locator("h1").first()).toBeVisible({ timeout: 60000 });
 				await expect(page.locator(".animate-pulse")).toHaveCount(0);
 				await page.evaluate(
 					() =>
 						new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
 				);
-				const usableMs = await page.evaluate(() => performance.now());
+				const usableMs = await page.evaluate(
+					() =>
+						(window as unknown as { performanceNavigation: { usableAt: number } }).performanceNavigation
+							.usableAt,
+				);
+				expect(usableMs).toBeGreaterThan(0);
 				page.off("response", onResponse);
 				samples.push({ failures, requests, round, route, usableMs });
 			}

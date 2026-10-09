@@ -382,3 +382,6 @@ Próxima etapa: validar fallback de cache e persistência incremental contra reg
 - Trace do dashboard identificou 1.916 queries e 10.760 ms no primeiro pedido de histórico cambial. Unidades de 365 dias, vínculos, cobertura e geração agora usam operações em lote; outbox recebe eventos em lote na mesma transação.
 - Regressão dedicada cobre 730 unidades de duas moedas, dia previamente coberto, repetição sem republicação e rollback após falha de publicação. Builds backend/frontend passaram; integração e nova medição pendentes.
 - Integração anterior completa passou, incluindo regressão de descarte de revisões externas; executor passou 15 testes/68 assertions.
+
+- Batching cambial validado pela integração completa e hooks. Matriz valida socket Docker local antes de qualquer operação e usa volume dedicado em disco para não consumir RAM com dois milhões de transações. Relatórios registram memória livre e carga no começo/fim.
+- Navegação e atualização após compra passam a medir frame/DOM dentro do navegador. Espera de observação pode durar 60 s sem alterar orçamento de 1 s; falhas de performance continuam reprovadas.
