@@ -277,11 +277,9 @@ export async function getGuestDashboardFinancialContext(
 		]),
 	];
 	const currencies = [
-		...new Set([
-			...accounts.map(row => row.currency ?? "BRL"),
-			...cards.map(row => row.currency ?? "BRL"),
-			...movements.map(row => row.currency ?? "BRL"),
-		]),
+		...current.filter(row => row.balance).map(row => row.currency ?? "BRL"),
+		...cards.filter(row => row.creditLimit).map(row => row.currency ?? "BRL"),
+		...movements.filter(row => row.amount && key(row.date) === key(today)).map(row => row.currency ?? "BRL"),
 	];
 	const money = await guestDashboardCurrencyContext({
 		currency,
@@ -290,8 +288,16 @@ export async function getGuestDashboardFinancialContext(
 		forecastSnapshot: forecastMoney.forecastSnapshot,
 		nativeCurrencies: currencies,
 		positions: positionDates
-			.flatMap(date => accounts.map(account => ({ currency: account.currency ?? "BRL", date })))
-			.concat(movements.map(row => ({ currency: row.currency ?? "BRL", date: key(row.date) }))),
+			.flatMap(date =>
+				historicalAccountsAt(new Date(`${date}T12:00:00`))
+					.filter(account => account.balance)
+					.map(account => ({ currency: account.currency ?? "BRL", date })),
+			)
+			.concat(
+				movements
+					.filter(row => row.amount)
+					.map(row => ({ currency: row.currency ?? "BRL", date: key(row.date) })),
+			),
 		reference: key(today),
 	});
 	const forecastDays = !money.consolidation.forecastAvailable

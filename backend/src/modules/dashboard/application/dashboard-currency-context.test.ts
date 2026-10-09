@@ -68,3 +68,45 @@ test("provider failure cannot become a zero or an unrelated available currency",
 	expect(() => context.convert(10, "USD")).toThrow(DashboardConversionUnavailable);
 	expect(context.missing).toContain("USD:2026-10-08");
 });
+
+for (const foreignAmount of [0, 20])
+	test(`only actual historical demand requests FX (foreign amount ${foreignAmount})`, async () => {
+		const data = loaded();
+		data.accounts = [];
+		data.balanceRows = [];
+		data.flows = Array.from({ length: 1000 }, () => ({
+			amount: 10,
+			currency: "BRL",
+			date: today,
+			type: "EXPENSE",
+		}));
+		data.flows.push(
+			...Array.from({ length: 2 }, () => ({
+				amount: foreignAmount,
+				currency: "USD",
+				date: new Date("2026-10-01T12:00:00"),
+				type: "EXPENSE",
+			})),
+		);
+		const dates: string[] = [];
+		const context = await dashboardCurrencyContext(data, "BRL", today, true, {
+			estimate: async () => {
+				throw new Error("Unexpected estimate");
+			},
+			historical: async date => {
+				dates.push(String(date));
+				return 5;
+			},
+			latest: async () => {
+				throw new Error("Unexpected latest quote");
+			},
+			request: async () => {
+				throw new Error("Unexpected forecast collection");
+			},
+		});
+		expect(dates).toEqual(foreignAmount ? ["2026-10-01"] : []);
+		expect(context.missing).toEqual([]);
+		expect(context.publishedDates).toEqual({});
+		expect(context.forecastAvailable).toBe(true);
+		expect(context.convert(foreignAmount, "USD", "2026-10-01")).toBe(foreignAmount * 5);
+	});

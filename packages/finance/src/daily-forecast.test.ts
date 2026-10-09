@@ -176,3 +176,27 @@ test("unavailable conversion never becomes a zero or mixed total", () => {
 		}),
 	).toThrow("Unavailable forecast conversion");
 });
+
+test("empty foreign accounts and zero movements need no exchange rate", () => {
+	let quotes = 0;
+	const days = dailyForecast({
+		accounts: [
+			{ balance: 0, currency: "USD", id: "usd", type: "CHECKING" },
+			{ balance: 100, currency: "BRL", id: "brl", type: "CHECKING" },
+		],
+		currency: "BRL",
+		from: "2026-10-09",
+		movements: [
+			{ amount: 10, currency: "BRL", date: "2026-10-09", type: "EXPENSE" },
+			{ amount: 0, currency: "USD", date: "2026-10-09", type: "INCOME" },
+		],
+		primaryAccountId: "brl",
+		rate: () => {
+			quotes++;
+			throw new Error("Unexpected conversion");
+		},
+		through: "2026-10-09",
+	});
+	expect(days[0]!.totalBalance).toBe(90);
+	expect(quotes).toBe(0);
+});

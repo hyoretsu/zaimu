@@ -1,3 +1,4 @@
+import { recurrenceNeedsConfiguration } from "@zaimu/finance/recurrence";
 import { ensureCurrencyRates, getLatestCurrencyRate } from "~/modules/currencies/infra/currency-exchange";
 import { getCurrencyHistoryEstimate } from "~/modules/financial-history/application/currency-history-estimate";
 import { requestHistoryCollection } from "~/modules/financial-history/application/history-collections";
@@ -28,26 +29,46 @@ export async function dashboardCurrencyContext(
 	dependencies = defaultDependencies,
 ) {
 	const reference = dateKey(today);
-	const currencies = [
-		...new Set([
-			currency,
-			...loaded.accounts.map(row => row.currency ?? "BRL"),
-			...loaded.cards.map(row => row.currency ?? "BRL"),
-			...loaded.flows.map(row => row.currency ?? "BRL"),
-			...loaded.recurrences.map(row => row.currency ?? "BRL"),
-			...loaded.loanPayments.map(row => row.currency ?? "BRL"),
-			...loaded.debts.map(row => row.currency ?? "BRL"),
-		]),
-	];
-	const foreign = currencies.filter(source => source !== currency);
-	const forecastCurrencies = new Set([
-		...loaded.accounts.map(row => row.currency ?? "BRL"),
-		...loaded.cards.map(row => row.currency ?? "BRL"),
-		...loaded.recurrences.map(row => row.currency ?? "BRL"),
-		...loaded.loanPayments.map(row => row.currency ?? "BRL"),
-		...loaded.flows.filter(row => dateKey(row.date) > reference).map(row => row.currency ?? "BRL"),
-	]);
-	const forecastForeign = foreign.filter(source => forecastCurrencies.has(source));
+	const accountCurrencies = new Map(loaded.accounts.map(row => [row.id, row.currency ?? "BRL"]));
+	const currentCurrencies = new Set<string>();
+	const forecastCurrencies = new Set<string>();
+	for (const row of loaded.balanceRows) {
+		if (!Number(row.balance) || row.date !== reference) continue;
+		const source = accountCurrencies.get(row.accountId) ?? "BRL";
+		currentCurrencies.add(source);
+		forecastCurrencies.add(source);
+	}
+	for (const row of loaded.cards) if (Number(row.creditLimit)) currentCurrencies.add(row.currency ?? "BRL");
+	for (const row of loaded.debts) if (Number(row.balance)) currentCurrencies.add(row.currency ?? "BRL");
+	const addMovementAccounts = (origin?: string | null, destination?: string | null) => {
+		for (const id of [origin, destination])
+			if (id && accountCurrencies.has(id)) forecastCurrencies.add(accountCurrencies.get(id)!);
+	};
+	for (const row of loaded.flows) {
+		if (!row.amount) continue;
+		const date = dateKey(row.date);
+		if (date === reference) currentCurrencies.add(row.currency ?? "BRL");
+		if (date > reference) {
+			forecastCurrencies.add(row.currency ?? "BRL");
+			addMovementAccounts(row.originAccountId, row.destinationAccountId);
+		}
+	}
+	for (const row of loaded.recurrences)
+		if (
+			row.amount &&
+			!recurrenceNeedsConfiguration(row) &&
+			(!row.endDate || String(row.endDate).slice(0, 10) > reference)
+		) {
+			forecastCurrencies.add(row.currency ?? "BRL");
+			addMovementAccounts(row.originFinancialAccountId, row.destinationFinancialAccountId);
+		}
+	for (const row of loaded.loanPayments)
+		if (!row.paidDate && Number(row.totalPaid) && dateKey(row.dueDate) > reference)
+			forecastCurrencies.add(row.currency ?? "BRL");
+	for (const row of loaded.projectedStatements ?? [])
+		if (Number(row.balanceAmount) && dateKey(row.dueDate) > reference)
+			forecastCurrencies.add(loaded.cards.find(card => card.id === row.creditCardId)?.currency ?? "BRL");
+	const forecastForeign = [...forecastCurrencies].filter(source => source !== currency);
 	const factors = new Map<string, number>();
 	const forecastFactors = new Map<string, number>();
 	const publishedDates: Record<string, string> = {};
@@ -68,7 +89,7 @@ export async function dashboardCurrencyContext(
 	// Historical flows use their event date; positions use their position date.
 	const needed = new Map<string, { source: string; date: string }>();
 	for (const row of loaded.balanceRows) {
-		const source = loaded.accounts.find(account => account.id === row.accountId)?.currency ?? "BRL";
+		const source = accountCurrencies.get(row.accountId) ?? "BRL";
 		if (source !== currency && row.date < reference && Number(row.balance))
 			needed.set(`${source}:${row.date}`, { date: row.date, source });
 	}
@@ -79,7 +100,12 @@ export async function dashboardCurrencyContext(
 			needed.set(`${source}:${date}`, { date, source });
 	}
 	// Bound point downloads too; each request fetches both involved bases.
-	const requests = [...foreign.map(source => ({ date: reference, source })), ...needed.values()];
+	const requests = [
+		...[...currentCurrencies]
+			.filter(source => source !== currency)
+			.map(source => ({ date: reference, source })),
+		...needed.values(),
+	];
 	let cursor = 0;
 	await Promise.all(
 		Array.from({ length: Math.min(2, requests.length) }, async () => {

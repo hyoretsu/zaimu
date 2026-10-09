@@ -53,7 +53,10 @@ export function forecastBreakdown(
 			.filter(account => types.includes(account.type))
 			.reduce(
 				(total, account) =>
-					total + (balances.get(account.id) ?? 0) * factor(account.currency ?? "BRL"),
+					total +
+					((balances.get(account.id) ?? 0) === 0
+						? 0
+						: (balances.get(account.id) ?? 0) * factor(account.currency ?? "BRL")),
 				0,
 			);
 	const accountBalance = sum(["CHECKING", "CASH", "CASHBACK"]) + deficit;
@@ -90,7 +93,7 @@ export function dailyForecast(input: {
 		return rate;
 	};
 	const nativeCurrency = (account?: ForecastAccount) => (account ? (account.currency ?? "BRL") : currency);
-	for (const account of accounts) factor(nativeCurrency(account), input.from);
+	for (const account of accounts) if (account.balance) factor(nativeCurrency(account), input.from);
 	const balances = new Map(accounts.map(account => [account.id, account.balance]));
 	const days: ForecastDay[] = [];
 	let deficit = 0;
@@ -110,6 +113,7 @@ export function dailyForecast(input: {
 		for (const movement of ordered) {
 			if (!Number.isFinite(movement.amount) || movement.amount < 0)
 				throw new Error("Invalid forecast amount");
+			if (!movement.amount && !movement.recurringAmount) continue;
 			const destination =
 				accounts.find(account => account.id === movement.destinationAccountId) ?? primary;
 			const origin = accounts.find(account => account.id === movement.originAccountId) ?? primary;
@@ -163,6 +167,7 @@ export function dailyForecast(input: {
 			});
 			let remaining = consolidatedAmount;
 			for (const account of order) {
+				if ((balances.get(account.id) ?? 0) <= 0) continue;
 				const accountFactor = factor(nativeCurrency(account), date);
 				const used = Math.min(remaining / accountFactor, Math.max(0, balances.get(account.id) ?? 0));
 				balances.set(account.id, (balances.get(account.id) ?? 0) - used);

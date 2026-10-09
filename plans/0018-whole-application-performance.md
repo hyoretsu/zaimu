@@ -269,3 +269,12 @@ Ambiente atual Linux não permite aceite iOS; ferramentas Android não foram det
 - Diagnóstico HTTP com worker ativo segue reprovado: dashboard frio p95 3.528 ms, até 3.688 queries; transações frias 202 ms, mas hits/304 ainda fazem SQL durante invalidações. Relatório `worker-active-diagnostic-0018.json`.
 - Nova configuração monetária padrão USD exige conversões do fixture BRL. Provedor de moedas permanece bloqueado no ambiente local e precisa de fixture própria; consultas por data e jobs repetidos de câmbio exigem batching e invalidação por mudança efetiva. Esses cenários não constituem infraestrutura saudável nem foram aprovados.
 - Próximos: fixture de câmbio, leituras históricas em lote, jobs sem invalidação vazia, guest/IndexedDB e matriz oficial.
+
+### Demanda pontual de câmbio
+
+- Cotação atual deixou de ser solicitada por mera presença de moeda em transação histórica. Backend deriva demanda atual de valores não zero; guest deriva posições de saldos e movimentos não zero, com deduplicação por moeda/data.
+- Projeção backend ignora empréstimos pagos, recorrências sem configuração/encerradas e metadados sem valores. Projeção guest ainda exige revisão da seleção prévia de moedas.
+- Regressão: mil movimentos BRL e dois USD no mesmo dia antigo exigem uma cotação histórica, nenhuma cotação atual e nenhuma coleta de previsão. Cenário sem valor estrangeiro exige zero cotações.
+- Próximo: jobs de taxas apenas para lacunas comprovadas, incluindo histórico salvo antes das unidades de coleta; completar seleção de demanda de projeção guest.
+
+- Motor financeiro também deixa de pedir fatores para contas zeradas, movimentos zerados e reservas vazias durante consumo. Transferências futuras ainda incluem moedas das contas envolvidas. Dez testes do motor financeiro passaram.

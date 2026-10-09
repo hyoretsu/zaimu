@@ -102,3 +102,30 @@ test("forecast requests only demanded currency pairs and exposes partial coverag
 	expect(context.consolidation.forecastAvailable).toBe(true);
 	expect(context.consolidation.histories[0]?.coveredDays).toBe(12);
 });
+
+test("one historical foreign movement requests only its own day", async () => {
+	const dates: string[] = [];
+	await guestDashboardCurrencyContext(
+		{
+			...input,
+			forecastCurrencies: ["BRL"],
+			nativeCurrencies: ["BRL"],
+			positions: [
+				...Array.from({ length: 1000 }, () => ({ currency: "BRL", date: "2026-10-01" })),
+				{ currency: "USD", date: "2026-10-01" },
+				{ currency: "USD", date: "2026-10-01" },
+			],
+		},
+		{
+			...dependencies,
+			readCurrencyRate: async (date, from, to) => {
+				dates.push(date);
+				return { date, from, rate: 5, to };
+			},
+			requestHistoryCollection: async () => {
+				throw new Error("Unexpected forecast demand");
+			},
+		},
+	);
+	expect(dates).toEqual(["2026-10-01"]);
+});
