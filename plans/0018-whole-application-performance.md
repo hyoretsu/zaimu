@@ -46,7 +46,7 @@ Metas oficiais em infraestrutura local saudável, com carga de 1, 5 e 20 usuári
 |---|---|
 | GET cacheável frio | p95 < 1.000 ms, incluindo autenticação e corpo completo |
 | GET quente e resposta 304 | p95 < 100 ms; zero SQL total, incluindo autenticação |
-| Entrada numa tela | Até três requests iniciais de dados/sessão; assets medidos separadamente |
+| Entrada numa tela | Requests iniciais justificados por responsabilidade; sem limite artificial quando prejudicar divisão lógica; assets medidos separadamente |
 | Listagens e detalhes paginados | Nenhum request/query por registro; orçamento constante com tamanho de página fixo |
 | CRUD individual comum | p95 < 1.000 ms até confirmação |
 | Navegação/abertura de detalhe com cache quente | p95 < 1.000 ms até conteúdo utilizável |
@@ -112,7 +112,7 @@ GETs não cacheáveis, uploads, operações em lote, sync e jobs terão cenário
 ### 5. Frontend, guest, importações, sync e workers
 
 - [x] Substituir requests de revisão por cartão por resumo agregado na listagem e detalhes lazy. Resumo inclui contagem de revisões pendentes; contrato por cartão permanece para consulta individual.
-- [ ] Auditar mounting, modais fechados, abas ocultas, retries, foco e invalidação. Respeitar orçamento de três requests, incluindo validação inicial de sessão.
+- [ ] Auditar mounting, modais fechados, abas ocultas, retries, foco e invalidação. Evitar requests duplicadas ou por registro; preservar divisão lógica de dados/sessão.
 - [x] Fazer code splitting das telas e módulos pesados, incluindo referências diretas do shell mobile. Preservar estado/scroll exigidos pelo plano 0010.
 - [ ] Medir chunks, parsing, gráficos, ícones, fontes e imagens. Carregar gráficos, PDF e formulários pesados sob demanda.
 - [ ] Perfilar commits React, DOM e long tasks; virtualizar listas volumosas preservando ScrollArea, acessibilidade, geometria e navegação.
@@ -201,7 +201,7 @@ Ambiente atual Linux não permite aceite iOS; ferramentas Android não foram det
 - IndexedDB v15 adiciona índices compostos por proprietário/data e proprietário/modifiedAt. Upgrade de índices preserva estado de migração financeira concluída.
 - Snapshot usa Map e lotes de 1.000 requests numa transação atômica; preserva tombstones e edições concorrentes. Registros remotos idênticos com mesmo clock dispensam regravação.
 - Testes de migração exercitam bloqueio atômico, recuperação e retomada. Benchmark Chromium: atualização de 10 mil registros caiu de 40,7 s para 2,1 s; gravação inicial ainda excede meta e 100 mil registros atingiram timeout de 60 s. Aceite de sync segue reprovado.
-- Auditoria web identificou entradas com 4-6 requests: configuração automática Open Finance, imports e sugestões exigem redução adicional. Navegação ainda não constitui aceite.
+- Auditoria web identificou entradas com 4-6 requests: configuração automática Open Finance, imports e sugestões seguem responsabilidades próprias. Contagem isolada não exige agregação artificial, conforme decisão do usuário em 09/10/2026. Navegação ainda não constitui aceite.
 
 ### Consolidação Redis e coalescência entre processos
 
@@ -236,3 +236,10 @@ Ambiente atual Linux não permite aceite iOS; ferramentas Android não foram det
 - Transações: frio p95 103,9 ms, seis queries; quente 3,7 ms e 304 3,3 ms, ambos zero SQL total.
 - Dashboard: frio p95 548,5 ms, 13 queries totais, reprovado pelo orçamento original. Quente 5,6 ms e 304 9,5 ms, ambos zero SQL total. Orçamento não relaxado.
 - Aceite global permanece reprovado: cobertura e rodadas oficiais incompletas, frontend/sync e plataformas nativas ainda pendentes.
+
+### Decisão de escopo e worker isolado (09/10/2026)
+
+- Usuário dispensou redução da quantidade de requisições quando prejudicar organização lógica. Limite de três requests frontend deixa de ser gate rígido; latência, ausência de duplicação/N+1 e zero SQL nos hits continuam exigidos. Orçamentos SQL anteriores permanecem.
+- API e worker compartilham configuração dedicada e data fixa. Launcher `backend/performance/start-worker.ts` força PostgreSQL/Redis/RabbitMQ locais e prefetch 1.
+- BCB retorna fixture determinística de 0,04 por dia útil, sem rede. HTTP/preconnect externos ou para serviços locais fora das portas dedicadas são bloqueados; requests locais não seguem redirects. Email permanece em transporte JSON no ambiente de teste.
+- Dois testes funcionais passaram: fixture sem rede, bloqueio externo e preservação de método/corpo com redirects bloqueados. Próximo: worker ativo, backlog e latência concorrente.
