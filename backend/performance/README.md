@@ -72,3 +72,5 @@ xvfb-run -a /usr/bin/python3 frontend/tests/performance/native-webkit.py
 ```
 
 Contexto ephemeral não acessa perfil do usuário. Proxy local indisponível bloqueia destinos externos; fetch externo é recusado e geolocalização é simulada. Relatório `/tmp/zaimu-native-webkit.json` identifica versão do engine e oito rotas. Esse diagnóstico não certifica bridge Tauri, startup nativo, deep links, mobile ou histórico grande; métricas não suportadas permanecem pendências explícitas. Playwright grava também `result.json` com falhas e anexos, mesmo quando um cenário para antes de completar medições.
+
+Cenário `authSession` mede login, sessão autenticada, logout e sessão anônima. Cookie criado pertence somente ao cenário; cookie original da fixture permanece intacto. Identidade divergente reprova execução e encerra sessão criada. Intervalo de 3,5 s entre ciclos respeita limite de login e fica fora da latência de cada request. Signup, recuperação e revogação de outras sessões continuam pendentes.

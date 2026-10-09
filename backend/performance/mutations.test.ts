@@ -52,3 +52,63 @@ test("HTTP success without required telemetry cannot pass mutation acceptance", 
 	expect(report.errors).toHaveLength(0);
 	expect(report.passed).toBeFalse();
 });
+
+test("auth journey uses isolated session cookies, validates identity and keeps secrets out of reports", async () => {
+	let authenticated = false;
+	const original = ["fixture-original-session"];
+	const requester = (async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+		const path = new URL(String(input)).pathname;
+		if (path.endsWith("sign-in/email")) {
+			authenticated = true;
+			return Response.json(
+				{ user: { email: "performance0@zaimu.local" } },
+				{
+					headers: { ...metricHeaders, "set-cookie": "test_session=private-session-value; Path=/; HttpOnly" },
+				},
+			);
+		}
+		expect(new Headers(init?.headers).get("cookie")).toBe("test_session=private-session-value");
+		if (path.endsWith("sign-out")) {
+			authenticated = false;
+			return Response.json({ success: true }, { headers: metricHeaders });
+		}
+		return Response.json(authenticated ? { user: { email: "performance0@zaimu.local" } } : null, {
+			headers: metricHeaders,
+		});
+	}) as typeof fetch;
+	const report = await runMutationScenario("authSession", {
+		authThinkTimeMs: 0,
+		base: new URL("http://127.0.0.1:3335"),
+		cookies: original,
+		iterations: 2,
+		load: 1,
+		requester,
+	});
+	expect(report.passed).toBeTrue();
+	expect(original).toEqual(["fixture-original-session"]);
+	expect(report.actions.signIn?.count).toBe(2);
+	expect(report.actions.signOut?.count).toBe(2);
+	expect(JSON.stringify(report)).not.toContain("private-session-value");
+});
+
+test("wrong auth identity fails acceptance and closes the newly created session", async () => {
+	let signedOut = 0;
+	const requester = (async (input: Parameters<typeof fetch>[0]) => {
+		const path = new URL(String(input)).pathname;
+		if (path.endsWith("sign-out")) signedOut++;
+		return Response.json(
+			{ user: { email: "another-owner@zaimu.local" } },
+			{ headers: { ...metricHeaders, "set-cookie": "test_session=wrong-owner; HttpOnly" } },
+		);
+	}) as typeof fetch;
+	const report = await runMutationScenario("authSession", {
+		authThinkTimeMs: 0,
+		base: new URL("http://127.0.0.1:3335"),
+		cookies: ["original"],
+		iterations: 1,
+		load: 1,
+		requester,
+	});
+	expect(report.passed).toBeFalse();
+	expect(signedOut).toBe(1);
+});

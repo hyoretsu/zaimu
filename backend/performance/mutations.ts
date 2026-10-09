@@ -39,12 +39,14 @@ export const mutationScenarios = [
 	"recurrenceReplay",
 	"debtEvent",
 	"sync",
+	"authSession",
 	"statementImport",
 	"statementImportDuplicates",
 	"invoiceImport",
 ];
 const expectedActions = (name: string): string[] => {
 	if (name === "sync") return ["snapshot"];
+	if (name === "authSession") return ["signIn", "session", "signOut", "anonymousSession"];
 	if (name === "currencyPreference") return ["edit"];
 	if (name === "cardPayment") return ["pay", "delete"];
 	if (name === "loanAdvance") return ["create", "advance", "readAfterWrite"];
@@ -81,6 +83,7 @@ interface Context {
 	iterations: number;
 	load: number;
 	requester?: typeof fetch;
+	authThinkTimeMs?: number;
 }
 interface ActionSample extends RequestSample {
 	action: string;
@@ -109,12 +112,30 @@ export async function runMutationScenario(name: string, context: Context) {
 	await runConcurrent(context.iterations, context.load, async (index, user) => {
 		const prefix = user === 0 ? "perf-" : `p${user}-`;
 		const path = (value: string) => value.replaceAll("perf-", prefix);
+		let authCookie: string | undefined = name === "authSession" ? "" : undefined;
+		const requester =
+			name === "authSession"
+				? ((async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+						const response = await (context.requester ?? fetch)(input, init);
+						if (new URL(String(input)).pathname === "/api/auth/sign-in/email" && response.ok) {
+							authCookie = response.headers
+								.getSetCookie()
+								.map(cookie => cookie.split(";")[0])
+								.join("; ");
+							if (!authCookie) throw new Error("Sign-in response omitted session cookie");
+						}
+						return response;
+					}) as typeof fetch)
+				: context.requester;
 		const call = async (action: string, route: string, method = "GET", body?: unknown, measured = true) => {
 			const result = await captureRequest(
 				new URL(path(route), context.base),
 				{
 					headers: {
-						cookie: context.cookies[user]!,
+						cookie: authCookie ?? context.cookies[user]!,
+						...(name === "authSession"
+							? { origin: "http://127.0.0.1:5173", "x-forwarded-for": `127.0.1.${user + 1}` }
+							: {}),
 						...(body instanceof FormData ? {} : { "content-type": "application/json" }),
 					},
 					method,
@@ -122,7 +143,7 @@ export async function runMutationScenario(name: string, context: Context) {
 						? {}
 						: { body: body instanceof FormData ? body : JSON.stringify(body).replaceAll("perf-", prefix) }),
 				},
-				context.requester,
+				requester,
 			);
 			if (measured) samples.push({ ...result.sample, action, index, user });
 			if (result.sample.status < 200 || result.sample.status >= 300 || result.sample.error)
@@ -133,7 +154,29 @@ export async function runMutationScenario(name: string, context: Context) {
 		let setupCleanup: (() => Promise<unknown>) | undefined;
 		try {
 			const label = `Performance ${name} ${crypto.randomUUID().slice(0, 8)}`;
-			if (name === "statementImport" || name === "statementImportDuplicates" || name === "invoiceImport") {
+			if (name === "authSession") {
+				const thinkTimeMs = context.authThinkTimeMs ?? 3500;
+				if (!Number.isFinite(thinkTimeMs) || thinkTimeMs < 0)
+					throw new Error("Invalid authentication think time");
+				// Respect production sign-in limits; scheduled time is outside request latency.
+				if (index >= context.load) await Bun.sleep(thinkTimeMs);
+				await call("signIn", "/api/auth/sign-in/email", "POST", {
+					email: `performance${user}@zaimu.local`,
+					password: "Performance-local-2026",
+				});
+				cleanup = () => call("signOut", "/api/auth/sign-out", "POST", {});
+				const session = record(await call("session", "/api/auth/get-session"));
+				if (record(session.user).email !== `performance${user}@zaimu.local`)
+					throw new Error("Session owner mismatch");
+				await cleanup();
+				cleanup = undefined;
+				if ((await call("anonymousSession", "/api/auth/get-session")) !== null)
+					throw new Error("Signed-out session remained authenticated");
+			} else if (
+				name === "statementImport" ||
+				name === "statementImportDuplicates" ||
+				name === "invoiceImport"
+			) {
 				const invoice = name === "invoiceImport";
 				const route = invoice ? "/credit-card-imports" : "/transaction-imports";
 				const lines = invoice

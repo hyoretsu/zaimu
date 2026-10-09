@@ -402,3 +402,8 @@ Próxima etapa: validar fallback de cache e persistência incremental contra reg
 - Regressão real de POST bem-sucedido seguido de GET 500 passou: confirmação permanece visível, cartão continua montado e retry recupera leitura.
 
 - Fixture de navegador usa `accountName`, campo real do contrato do cartão; observador de confirmação encerra após resultado. Diagnóstico WebView também recusa execução encerrada com rotas ausentes.
+
+### Jornada de autenticação
+
+- Executor inclui login, sessão com validação de titularidade, logout e leitura anônima. Cookies ficam privados e separados da identidade original da fixture; erro de titularidade encerra sessão criada.
+- Executor passou 17 testes/81 assertions, incluindo limpeza e ausência de cookies nos relatórios. Medição real dessa jornada ainda pendente; signup/reset/revogação não estão cobertos por esse cenário.
