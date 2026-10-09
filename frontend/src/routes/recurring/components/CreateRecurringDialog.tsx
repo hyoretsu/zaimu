@@ -228,15 +228,22 @@ export function CreateRecurringDialog({
 								}}
 							>
 								<fieldset className="space-y-5" disabled={save.isPending}>
-									<div className="grid gap-4 sm:grid-cols-2">
-										<DebouncedFormField
-											id="recurrence-name"
-											label="Descrição"
-											name="recurrence-name"
-											onValueChange={value => set("name", value)}
-											placeholder="Ex: Recebimento de dívida"
-											required
-											value={draft.name}
+									<DebouncedFormField
+										id="recurrence-name"
+										label="Descrição"
+										name="recurrence-name"
+										onValueChange={value => set("name", value)}
+										placeholder="Ex: Recebimento de dívida"
+										required
+										value={draft.name}
+									/>
+									<div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,8.5rem),1fr))] items-start gap-4 [&>*]:min-w-0">
+										<CurrencySelect
+											label="Moeda da recorrência"
+											onValueChange={value =>
+												setDraft(current => ({ ...current, currency: value, currencyExplicit: true }))
+											}
+											value={draft.currency}
 										/>
 										<DebouncedMoneyField
 											currencyCode={draft.currency}
@@ -269,13 +276,7 @@ export function CreateRecurringDialog({
 											value={draft.movement}
 										/>
 									</div>
-									<CurrencySelect
-										label="Moeda da recorrência"
-										onValueChange={value =>
-											setDraft(current => ({ ...current, currency: value, currencyExplicit: true }))
-										}
-										value={draft.currency}
-									/>
+
 									<RecurrenceAccountFields
 										accounts={accounts.data ?? []}
 										disabled={save.isPending}

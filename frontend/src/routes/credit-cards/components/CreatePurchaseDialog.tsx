@@ -16,6 +16,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/Dialog";
 import { FormField } from "@/components/ui/FormField";
+import { FormFieldRow } from "@/components/ui/FormFieldRow";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { TimeField } from "@/components/ui/TimeField";
@@ -148,16 +149,19 @@ export function CreatePurchaseDialog({
 							<DialogDescription>A previsão da fatura é atualizada na hora.</DialogDescription>
 						</DialogHeader>
 						<form className="grid gap-5" onSubmit={submit}>
-							<CustomSelect
-								disabled={cardsLoading || cardsError || cards.length === 0}
-								label="Cartão"
-								onValueChange={setCardId}
-								options={cards.map(card => ({ label: getCreditCardDisplayName(card), value: card.id }))}
-								placeholder={cardsLoading ? "Carregando cartões..." : "Selecione o cartão"}
-								required
-								searchable
-								value={cardId}
-							/>
+							<FormFieldRow>
+								<CustomSelect
+									disabled={cardsLoading || cardsError || cards.length === 0}
+									label="Cartão"
+									onValueChange={setCardId}
+									options={cards.map(card => ({ label: getCreditCardDisplayName(card), value: card.id }))}
+									placeholder={cardsLoading ? "Carregando cartões..." : "Selecione o cartão"}
+									required
+									searchable
+									value={cardId}
+								/>
+								<StorePicker onValueChange={setStoreName} value={storeName} />
+							</FormFieldRow>
 							{cardsError ? (
 								<div className="flex items-center justify-between gap-3 text-muted-foreground text-sm">
 									<span>Não foi possível carregar cartões.</span>
@@ -180,27 +184,28 @@ export function CreatePurchaseDialog({
 								type="text"
 								value={description}
 							/>
-							<StorePicker onValueChange={setStoreName} value={storeName} />
-							<CurrencySelect onValueChange={setCurrencyCode} value={currencyCode} />
-							<MoneyField
-								currencyCode={currencyCode}
-								id="purchase-amount"
-								label="Valor da compra"
-								onValueChange={value => {
-									setAmount(value);
-									if (value && selectedCurrency === null) setCurrencyCode(currencyCode);
-								}}
-								placeholder="R$ 480,00"
-								required
-								value={amount}
-							/>
+							<FormFieldRow>
+								<CurrencySelect onValueChange={setCurrencyCode} value={currencyCode} />
+								<MoneyField
+									currencyCode={currencyCode}
+									id="purchase-amount"
+									label="Valor da compra"
+									onValueChange={value => {
+										setAmount(value);
+										if (value && selectedCurrency === null) setCurrencyCode(currencyCode);
+									}}
+									placeholder="R$ 480,00"
+									required
+									value={amount}
+								/>
+							</FormFieldRow>
 							<FinancialFeeFields
 								baseAmount={Number(amount) || 0}
 								currencyCode={currencyCode}
 								fees={fees}
 								onChange={setFees}
 							/>
-							<div className="grid gap-4 sm:grid-cols-3">
+							<div className="grid gap-4">
 								<FormField
 									autoComplete="off"
 									description="Informe 1 para compra à vista."
@@ -215,23 +220,25 @@ export function CreatePurchaseDialog({
 									type="text"
 									value={isStatementCharge ? "1" : count}
 								/>
-								<DateField
-									autoComplete="off"
-									id="purchase-date"
-									label="Data da compra"
-									name="purchase-date"
-									onValueChange={setDate}
-									required
-									value={date}
-								/>
-								<TimeField
-									id="purchase-time"
-									label="Horário"
-									name="purchase-time"
-									onValueChange={setTime}
-									placeholder="Ex: 14:30"
-									value={time}
-								/>
+								<FormFieldRow>
+									<DateField
+										autoComplete="off"
+										id="purchase-date"
+										label="Data da compra"
+										name="purchase-date"
+										onValueChange={setDate}
+										required
+										value={date}
+									/>
+									<TimeField
+										id="purchase-time"
+										label="Horário"
+										name="purchase-time"
+										onValueChange={setTime}
+										placeholder="Ex: 14:30"
+										value={time}
+									/>
+								</FormFieldRow>
 							</div>
 							<TagPicker onValueChange={setTagIds} value={tagIds} />
 							<CheckboxField

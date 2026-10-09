@@ -13,6 +13,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/Dialog";
 import { FormField } from "@/components/ui/FormField";
+import { FormFieldRow } from "@/components/ui/FormFieldRow";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
@@ -170,23 +171,25 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 								value={debtSplit}
 							/>
 						)}
-						<CurrencySelect
-							disabled={mode === "edit" || pending}
-							onValueChange={setCurrency}
-							value={currency}
-						/>
-						<MoneyField
-							currencyCode={currency}
-							id="debt-origin-amount"
-							label="Valor"
-							onValueChange={value => {
-								if (value && selectedCurrency === null) setCurrency(currency);
-								setAmount(value);
-							}}
-							required
-							value={amount}
-						/>
-						<div className="grid gap-4 sm:grid-cols-2">
+						<FormFieldRow>
+							<CurrencySelect
+								disabled={mode === "edit" || pending}
+								onValueChange={setCurrency}
+								value={currency}
+							/>
+							<MoneyField
+								currencyCode={currency}
+								id="debt-origin-amount"
+								label="Valor"
+								onValueChange={value => {
+									if (value && selectedCurrency === null) setCurrency(currency);
+									setAmount(value);
+								}}
+								required
+								value={amount}
+							/>
+						</FormFieldRow>
+						<FormFieldRow>
 							<div className="grid content-start gap-4">
 								<DateField
 									autoComplete="off"
@@ -216,7 +219,7 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 								onValueChange={setDueDate}
 								value={dueDate}
 							/>
-						</div>
+						</FormFieldRow>
 						<FormField
 							autoComplete="off"
 							id="debt-origin-description"

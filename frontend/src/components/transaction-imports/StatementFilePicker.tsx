@@ -1,5 +1,6 @@
 import type { ChangeEvent } from "react";
 import { LuFileUp } from "react-icons/lu";
+import { inputControlClassName } from "@/components/ui/input-styles";
 import { Label } from "@/components/ui/Label";
 import { RequiredMark } from "@/components/ui/RequiredMark";
 
@@ -36,7 +37,7 @@ export function StatementFilePicker({
 				type="file"
 			/>
 			<Label
-				className="h-10 w-full min-w-0 cursor-pointer gap-2 rounded-4xl border bg-input/30 px-3 text-sm transition-colors focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50 hover:bg-input/50"
+				className={`${inputControlClassName} cursor-pointer gap-2 transition-colors focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50 hover:bg-input/50`}
 				htmlFor={inputId}
 			>
 				<LuFileUp className="shrink-0" />

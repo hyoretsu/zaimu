@@ -5,6 +5,7 @@ import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
 import { FormField } from "@/components/ui/FormField";
+import { FormFieldRow } from "@/components/ui/FormFieldRow";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { TimeField } from "@/components/ui/TimeField";
 import type { FinancialFee, Transaction } from "@/lib/api";
@@ -90,17 +91,19 @@ export function TransactionDetailsFields({
 					value={type}
 				/>
 			) : null}
-			{onCurrencyChange ? (
-				<CurrencySelect label="Moeda da transação" onValueChange={onCurrencyChange} value={currencyCode} />
-			) : null}
-			<MoneyField
-				currencyCode={currencyCode}
-				id="transaction-amount"
-				label="Valor"
-				onValueChange={onAmountChange}
-				required
-				value={amount}
-			/>
+			<FormFieldRow>
+				{onCurrencyChange ? (
+					<CurrencySelect label="Moeda da transação" onValueChange={onCurrencyChange} value={currencyCode} />
+				) : null}
+				<MoneyField
+					currencyCode={currencyCode}
+					id="transaction-amount"
+					label="Valor"
+					onValueChange={onAmountChange}
+					required
+					value={amount}
+				/>
+			</FormFieldRow>
 			{paymentCurrency && onPaymentAmountChange && (
 				<div className="space-y-2">
 					<MoneyField
@@ -145,7 +148,7 @@ export function TransactionDetailsFields({
 				/>
 			) : null}
 			{showStore ? <StorePicker onValueChange={onStoreNameChange} value={storeName} /> : null}
-			<div className="grid gap-4 sm:grid-cols-2">
+			<FormFieldRow>
 				<DateField
 					id="transaction-date"
 					label="Data"
@@ -162,7 +165,7 @@ export function TransactionDetailsFields({
 					placeholder="Ex: 14:30"
 					value={time}
 				/>
-			</div>
+			</FormFieldRow>
 			{onIsHiddenChange ? (
 				<CheckboxField
 					align="start"

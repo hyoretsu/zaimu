@@ -41,3 +41,7 @@ Redis and RabbitMQ instances are shared between production and development. Ever
 # Date selectors
 
 Every date selector must use the project's custom components: `DateField` for single dates and `DateRangePicker` for date ranges, on desktop, mobile, and touch devices. Never use native date inputs (`date`, `datetime-local`, `month`, or `week`), `showPicker()`, or hidden native date inputs over custom triggers. Responsive behavior must preserve the custom calendar instead of switching to the browser or operating system picker.
+
+# Input sizing and alignment
+
+All single-line form controls must share `inputControlClassName` from `frontend/src/components/ui/input-styles.ts`: height, padding, border radius and typography. This includes text, money, time, date, select, store and tag controls. Related fields must align labels and controls through `FormFieldRow`, including wrapped labels. Keep grid children and triggers `min-w-0`, constrain controls to their column and truncate long values and placeholders. Never let intrinsic text width expand a modal. Textareas may grow vertically.

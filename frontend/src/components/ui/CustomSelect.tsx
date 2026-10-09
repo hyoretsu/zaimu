@@ -70,7 +70,7 @@ export function CustomSelect({
 				{label} {required && <span className="text-destructive">*</span>}
 			</p>
 			<Select disabled={disabled} onOpenChange={onOpenChange} onValueChange={onValueChange} value={value}>
-				<SelectTrigger aria-label={label} className="h-10 w-full cursor-pointer">
+				<SelectTrigger aria-label={label} className="h-9 w-full cursor-pointer">
 					<SelectValue placeholder={placeholder} />
 				</SelectTrigger>
 				<SelectContent>

@@ -3,6 +3,7 @@ import { ptBR } from "date-fns/locale";
 import { useState } from "react";
 import { LuCalendarDays, LuChevronLeft, LuChevronRight } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
+import { inputControlClassName } from "@/components/ui/input-styles";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
@@ -70,9 +71,12 @@ export function DateRangePicker({ className, onChange, triggerLabel, value }: Da
 	return (
 		<Popover onOpenChange={handleOpenChange} open={open}>
 			<PopoverTrigger asChild>
-				<Button className={cn("min-w-60 cursor-pointer justify-start", className)} variant="outline">
+				<Button
+					className={cn(inputControlClassName, "cursor-pointer justify-start", className)}
+					variant="outline"
+				>
 					<LuCalendarDays />
-					<span>{triggerLabel ?? formatDateRange(value)}</span>
+					<span className="min-w-0 truncate">{triggerLabel ?? formatDateRange(value)}</span>
 				</Button>
 			</PopoverTrigger>
 			<PopoverContent

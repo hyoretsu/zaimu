@@ -10,6 +10,7 @@ import { LuChevronDown, LuPlus } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { Input } from "@/components/ui/Input";
+import { inputControlClassName } from "@/components/ui/input-styles";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -87,18 +88,18 @@ export function TagPicker({
 	};
 
 	return (
-		<div className="grid gap-2">
-			<p className="font-medium text-sm">Tags</p>
+		<div className="grid min-w-0 content-start gap-2">
+			<p className="font-medium text-sm leading-none">Tags</p>
 			<Popover onOpenChange={setOpen} open={open}>
 				<PopoverTrigger asChild>
 					<Button
 						aria-label="Selecionar tags"
-						className="h-auto min-h-10 w-full cursor-pointer justify-between gap-3 rounded-2xl px-3 py-2 font-normal"
+						className={`${inputControlClassName} cursor-pointer justify-between gap-1.5 disabled:cursor-not-allowed`}
 						disabled={disabled}
 						type="button"
 						variant="outline"
 					>
-						<span className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 text-left">
+						<span className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden text-left">
 							<SelectedTags
 								failed={selectedQuery.isError}
 								ids={selectedIds}

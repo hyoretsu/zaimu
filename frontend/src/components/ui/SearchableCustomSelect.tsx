@@ -1,3 +1,4 @@
+import { inputControlClassName } from "@/components/ui/input-styles";
 import { Search01Icon, Tick02Icon, UnfoldMoreIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useId, useRef, useState } from "react";
@@ -65,7 +66,7 @@ export function SearchableCustomSelect({
 						aria-haspopup="listbox"
 						aria-label={label}
 						aria-required={required}
-						className="h-10 w-full min-w-0 cursor-pointer justify-between gap-1.5 border-input font-normal disabled:cursor-not-allowed"
+						className={`${inputControlClassName} cursor-pointer justify-between gap-1.5 disabled:cursor-not-allowed`}
 						disabled={disabled}
 						role="combobox"
 						type="button"

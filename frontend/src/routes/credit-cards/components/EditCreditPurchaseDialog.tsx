@@ -19,6 +19,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/Dialog";
 import { FormField } from "@/components/ui/FormField";
+import { FormFieldRow } from "@/components/ui/FormFieldRow";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -286,22 +287,25 @@ export function EditCreditPurchaseDialog({
 							{canonical.isError ? (
 								<p className="text-destructive text-sm">Não foi possível verificar a troca de cartão.</p>
 							) : null}
-							{!purchase.isStatementCharge && sourceCardId ? (
-								<CustomSelect
-									disabled={
-										cardLocked ||
-										(!cards && (cardsQuery.isPending || cardsQuery.isError)) ||
-										cardOptionsUnavailable
-									}
-									label="Cartão"
-									onValueChange={setSelectedCardId}
-									options={cardOptions}
-									placeholder="Selecione o cartão"
-									required
-									searchable
-									value={selectedCardId}
-								/>
-							) : null}
+							<FormFieldRow>
+								{!purchase.isStatementCharge && sourceCardId ? (
+									<CustomSelect
+										disabled={
+											cardLocked ||
+											(!cards && (cardsQuery.isPending || cardsQuery.isError)) ||
+											cardOptionsUnavailable
+										}
+										label="Cartão"
+										onValueChange={setSelectedCardId}
+										options={cardOptions}
+										placeholder="Selecione o cartão"
+										required
+										searchable
+										value={selectedCardId}
+									/>
+								) : null}
+								<StorePicker onValueChange={setStoreName} value={storeName} />
+							</FormFieldRow>
 							<FormField
 								autoComplete="off"
 								id="credit-purchase-description"
@@ -312,28 +316,29 @@ export function EditCreditPurchaseDialog({
 								type="text"
 								value={description}
 							/>
-							<StorePicker onValueChange={setStoreName} value={storeName} />
-							<CurrencySelect disabled={isSynced} onValueChange={setCurrencyCode} value={currencyCode} />
-							<MoneyField
-								currencyCode={currencyCode}
-								disabled={isSynced}
-								id="credit-purchase-amount"
-								label="Valor da compra"
-								onValueChange={value => {
-									amountEdited.current = true;
-									setAmount(value);
-								}}
-								placeholder="R$ 120,00"
-								required
-								value={amount}
-							/>
+							<FormFieldRow>
+								<CurrencySelect disabled={isSynced} onValueChange={setCurrencyCode} value={currencyCode} />
+								<MoneyField
+									currencyCode={currencyCode}
+									disabled={isSynced}
+									id="credit-purchase-amount"
+									label="Valor da compra"
+									onValueChange={value => {
+										amountEdited.current = true;
+										setAmount(value);
+									}}
+									placeholder="R$ 120,00"
+									required
+									value={amount}
+								/>
+							</FormFieldRow>
 							<FinancialFeeFields
 								baseAmount={Number(amount) || 0}
 								currencyCode={currencyCode}
 								fees={fees}
 								onChange={setFees}
 							/>
-							<div className="grid gap-4 sm:grid-cols-3">
+							<div className="grid gap-4">
 								<FormField
 									autoComplete="off"
 									disabled={purchase.isStatementCharge}
@@ -347,28 +352,30 @@ export function EditCreditPurchaseDialog({
 									type="text"
 									value={count}
 								/>
-								<DateField
-									autoComplete="off"
-									description={isSynced ? "Compras sincronizadas não permitem alterar a data." : undefined}
-									disabled={isSynced}
-									id="credit-purchase-date"
-									label="Data da compra"
-									name="credit-purchase-date"
-									onValueChange={value => {
-										dateEdited.current = true;
-										setDate(value);
-									}}
-									required
-									value={date}
-								/>
-								<TimeField
-									id="credit-purchase-time"
-									label="Horário (opcional)"
-									name="credit-purchase-time"
-									onValueChange={setTime}
-									placeholder="Ex: 14:30"
-									value={time}
-								/>
+								<FormFieldRow>
+									<DateField
+										autoComplete="off"
+										description={isSynced ? "Compras sincronizadas não permitem alterar a data." : undefined}
+										disabled={isSynced}
+										id="credit-purchase-date"
+										label="Data da compra"
+										name="credit-purchase-date"
+										onValueChange={value => {
+											dateEdited.current = true;
+											setDate(value);
+										}}
+										required
+										value={date}
+									/>
+									<TimeField
+										id="credit-purchase-time"
+										label="Horário (opcional)"
+										name="credit-purchase-time"
+										onValueChange={setTime}
+										placeholder="Ex: 14:30"
+										value={time}
+									/>
+								</FormFieldRow>
 							</div>
 							{totalAmount > 0 ? (
 								<div className="rounded-xl border border-primary/15 bg-primary/5 p-3 text-sm">

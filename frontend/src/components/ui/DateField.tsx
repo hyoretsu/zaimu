@@ -2,6 +2,7 @@ import { addMonths, format, isValid, parseISO, startOfMonth, subMonths } from "d
 import { useRef, useState } from "react";
 import { LuChevronDown, LuChevronLeft, LuChevronRight } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
+import { inputControlClassName } from "@/components/ui/input-styles";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { cn } from "@/lib/utils";
 import { CalendarMonth } from "./DateRangePicker/CalendarMonth";
@@ -66,7 +67,8 @@ export function DateField({
 			aria-invalid={Boolean(error)}
 			aria-required={required}
 			className={cn(
-				"h-9 w-full cursor-pointer justify-between rounded-4xl border-input bg-input/30 px-3 py-1 text-left font-normal text-sm hover:bg-input/50 disabled:cursor-not-allowed",
+				inputControlClassName,
+				"cursor-pointer justify-between text-left hover:bg-input/50 disabled:cursor-not-allowed",
 				!selectedDate && "text-muted-foreground",
 				className,
 			)}

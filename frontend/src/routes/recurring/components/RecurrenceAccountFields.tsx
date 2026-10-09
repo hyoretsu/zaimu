@@ -39,7 +39,9 @@ export function RecurrenceAccountFields({
 	}));
 
 	return (
-		<div className="grid gap-4 sm:grid-cols-2">
+		<div
+			className={`grid items-start gap-4 [&>*]:min-w-0 ${["TRANSFER", "CARD_PAYMENT"].includes(draft.movement) ? "grid-cols-[repeat(auto-fit,minmax(min(100%,8.5rem),1fr))]" : "grid-cols-1"}`}
+		>
 			{["EXPENSE", "TRANSFER", "CARD_PAYMENT"].includes(draft.movement) && (
 				<div className="grid gap-2">
 					<CustomSelect
