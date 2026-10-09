@@ -1,6 +1,5 @@
-import { PDFParse } from "pdf-parse";
-import "~/shared/pdf-worker";
 import { HttpException } from "~/shared/errors";
+import { loadPdfParser } from "~/shared/pdf-worker";
 import { parseBancoDoBrasilStatementText } from "./banco-do-brasil";
 import { parseInterStatementText } from "./inter";
 import { parseMercadoPagoStatementText } from "./mercado-pago";
@@ -44,6 +43,7 @@ export async function parseStatementPdf(
 	data: ArrayBuffer,
 	requestedProvider: StatementProvider,
 ): Promise<Statement> {
+	const { PDFParse } = await loadPdfParser();
 	const parser = new PDFParse({ data: new Uint8Array(data) });
 	try {
 		const { text } = await parser.getText();

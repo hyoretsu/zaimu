@@ -1,6 +1,5 @@
-import { PDFParse } from "pdf-parse";
-import "~/shared/pdf-worker";
 import { HttpException } from "~/shared/errors";
+import { loadPdfParser } from "~/shared/pdf-worker";
 import { parseBradescoCreditCardStatementText } from "./bradesco-credit-card";
 import type { CreditCardImportProvider } from "./credit-card-statement";
 import { parseInterCreditCardStatementText } from "./inter-credit-card";
@@ -14,6 +13,7 @@ export async function parseCreditCardStatementPdf(
 	provider: CreditCardImportProvider,
 	password?: string,
 ) {
+	const { PDFParse } = await loadPdfParser();
 	const parser = new PDFParse({ data: new Uint8Array(data), password });
 	try {
 		const { text } = await parser.getText();

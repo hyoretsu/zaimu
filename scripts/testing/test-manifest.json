@@ -10,7 +10,8 @@
 		"backend/src/modules/reference-rates/tests/reference-rate-averages.test.ts",
 		"backend/src/modules/reference-rates/tests/reference-rate-repair.test.ts",
 		"backend/src/shared/infra/cache/RedisCache.test.ts",
-		"backend/src/modules/open-finance/tests/open-finance.integration.test.ts"
+		"backend/src/modules/open-finance/tests/open-finance.integration.test.ts",
+		"backend/src/shared/tests/pdf-worker.test.ts"
 	],
 	"backend:unit": [
 		"backend/performance/clock.test.ts",
@@ -108,7 +109,8 @@
 		"backend/src/shared/infra/elysia/mutation-transaction.test.ts",
 		"backend/src/shared/infra/outbox/OutboxPublisher.test.ts",
 		"backend/src/shared/infra/performance/job-metrics.test.ts",
-		"backend/src/shared/infra/service-namespace.test.ts"
+		"backend/src/shared/infra/service-namespace.test.ts",
+		"backend/performance/local-fetch.test.ts"
 	],
 	"sql:e2e": ["packages/sql/tests/migrations.e2e.test.ts"],
 	"sql:integration": [

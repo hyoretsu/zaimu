@@ -26,11 +26,6 @@ ENV NODE_ENV=${NODE_ENV}
 COPY . .
 
 RUN --mount=type=secret,id=DATABASE_URL DATABASE_URL="$(cat /run/secrets/DATABASE_URL)" bunx turbo -F backend build
-RUN if [ -f backend/node_modules/pdf-parse/dist/pdf-parse/esm/pdf.worker.mjs ]; then \
-      cp backend/node_modules/pdf-parse/dist/pdf-parse/esm/pdf.worker.mjs backend/dist/pdf.worker.mjs; \
-    else \
-      cp node_modules/pdf-parse/dist/pdf-parse/esm/pdf.worker.mjs backend/dist/pdf.worker.mjs; \
-    fi
 
 FROM oven/bun:1.3.12 AS runtime
 
@@ -41,6 +36,7 @@ WORKDIR /app
 COPY --from=build /app/backend/dist ./backend/dist
 COPY --from=build /app/packages/sql/out ./packages/sql/out
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/backend/node_modules ./backend/node_modules
 COPY --from=deps /app/packages/sql/node_modules ./packages/sql/node_modules
 COPY --from=build /app/packages/sql/package.json ./packages/sql/package.json
 COPY --from=build /app/packages/sql/prisma.config.ts ./packages/sql/prisma.config.ts

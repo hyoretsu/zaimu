@@ -1,7 +1,17 @@
-import { PDFParse } from "pdf-parse";
+let parserModule: Promise<typeof import("pdf-parse")> | undefined;
 
-// Bun bundles the parser, but PDF.js loads its worker from a separate file.
-const workerPath = import.meta.url.includes("/dist/")
-	? "./pdf.worker.mjs"
-	: "../../../node_modules/pdf-parse/dist/pdf-parse/esm/pdf.worker.mjs";
-PDFParse.setWorker(new URL(workerPath, import.meta.url).href);
+/** Load PDF.js only for imports, preserving its package-relative native dependencies. */
+export function loadPdfParser() {
+	if (!parserModule) {
+		parserModule = import("pdf-parse")
+			.then(module => {
+				module.PDFParse.setWorker(new URL("./pdf.worker.mjs", import.meta.resolve("pdf-parse")).href);
+				return module;
+			})
+			.catch(error => {
+				parserModule = undefined;
+				throw error;
+			});
+	}
+	return parserModule;
+}

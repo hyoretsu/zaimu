@@ -3,7 +3,7 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"build": "bun build src/main.ts src/worker.ts --target bun --outdir ./dist",
+		"build": "bun build src/main.ts src/worker.ts --target bun --external pdf-parse --outdir ./dist",
 		"check-types": "tsc --noEmit",
 		"dev": "bun run --parallel dev:api dev:worker",
 		"dev:api": "bun --watch src/main.ts",

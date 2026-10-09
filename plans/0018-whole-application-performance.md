@@ -243,3 +243,9 @@ Ambiente atual Linux não permite aceite iOS; ferramentas Android não foram det
 - API e worker compartilham configuração dedicada e data fixa. Launcher `backend/performance/start-worker.ts` força PostgreSQL/Redis/RabbitMQ locais e prefetch 1.
 - BCB retorna fixture determinística de 0,04 por dia útil, sem rede. HTTP/preconnect externos ou para serviços locais fora das portas dedicadas são bloqueados; requests locais não seguem redirects. Email permanece em transporte JSON no ambiente de teste.
 - Dois testes funcionais passaram: fixture sem rede, bloqueio externo e preservação de método/corpo com redirects bloqueados. Próximo: worker ativo, backlog e latência concorrente.
+
+### Parser PDF fora do startup
+
+- Build release da API falhava com `DOMMatrix is not defined`: bundling antecipado do PDF.js perdia contexto dos módulos nativos. Parser agora carrega somente ao importar PDF, com inicialização compartilhada e caminho do worker relativo ao pacote.
+- `pdf-parse` permanece dependência externa do bundle Bun; imagem runtime copia dependências locais do backend. Bundle API passou de 6,15 MB para 5,16 MB nesta captura, e startup dedicado voltou a funcionar.
+- PDF sintético local confirmou extração de texto e deduplicação da inicialização. Build backend passou. Imagem Docker não foi reconstruída nesta etapa.
