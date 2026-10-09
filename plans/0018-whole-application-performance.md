@@ -343,3 +343,10 @@ Próxima etapa: validar fallback de cache e persistência incremental contra reg
 - Diagnóstico revelou descarte de extrato com 1.004 queries e fatura com 2.006 queries; revisões sem aplicação agora são descartadas em lote, e fatura evita procura de alvo sem registro externo. Consultas de tags/rateios usam arrays SQL; duplicação tem índice por data/valor e identidade externa.
 - Relatório sanitizado `backend/performance/reports/purchase-retomada-0018.json` preserva baseline e primeira correção. Diagnóstico do navegador incluía overhead do Playwright; medição foi corrigida para clique/DOM na própria página e exige repetição.
 - Suite completa de integração passou após batching de parcelas/sync. Mudanças posteriores em revisão externa precisam nova regressão. Android sem adb, desktop sem tauri-driver e iOS indisponível nesta máquina Linux: aceite nativo pendente.
+
+### Navegador release e contratos dos cenários
+
+- Navegador mede clique até confirmação no DOM, resposta e recarga separadamente, long tasks e navegação pelos oito módulos principais. Três rodadas de 25 amostras na execução oficial; diagnóstico reduzido nunca aprova aplicativo.
+- Catálogo de moedas autenticado envia cookies; visitante evita chamada ao endpoint autenticado. Navegação acusa respostas de negócio inválidas em vez de ocultá-las.
+- Diagnóstico após correções: pagamento de empréstimo p95 192 ms, evento de dívida 172 ms, parsing/revisão/descarte de fatura com mil itens 5.984 ms agregado. Orçamento de parsing é 30 s, revisão/descarte mantêm 1 s. Necessário repetir relatório após ajuste desses orçamentos.
+- PDF retorna página de 50 itens e contador de mil pendências; suíte verifica paginação em vez de exigir mil itens na resposta.

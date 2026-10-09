@@ -53,9 +53,11 @@ export const useCurrencyStore = create<CurrencyState>((set, get) => ({
 				const catalogPromise = (async () => {
 					let currencies =
 						((await localMeta.get("currency-catalog", owner)) as string[] | undefined) ?? get().currencies;
+					if (useAuthStore.getState().isGuestMode) return currencies;
 					const apiUrl = (import.meta.env.VITE_API_URL || "http://localhost:3333").replace(/\/$/, "");
 					try {
 						const response = await fetch(`${apiUrl}/financial-history/currencies`, {
+							credentials: "include",
 							signal: AbortSignal.timeout(10_000),
 						});
 						const value: unknown = response.ok ? await response.json() : null;
