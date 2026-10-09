@@ -72,6 +72,40 @@ describe("query cache", () => {
 		unsubscribe();
 	});
 
+	test("confirmation does not await derived reads; dependent flows may opt in", async () => {
+		for (const awaitRefetch of [false, true]) {
+			const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+			const key = queryKeys.creditCards.list(identity);
+			client.setQueryData(key, ["before"]);
+			let resolve!: (value: string[]) => void;
+			const read = new Promise<string[]>(done => {
+				resolve = done;
+			});
+			const observer = new QueryObserver(client, {
+				queryFn: () => read,
+				queryKey: key,
+				staleTime: Number.POSITIVE_INFINITY,
+			});
+			const unsubscribe = observer.subscribe(() => undefined);
+			let confirmed = false;
+			const pending = invalidateCacheOperation(client, identity, "statement", { awaitRefetch }).then(() => {
+				confirmed = true;
+			});
+			if (!awaitRefetch) await pending;
+			else await Promise.resolve();
+			expect(confirmed).toBe(!awaitRefetch);
+			expect(client.getQueryState(key)?.isInvalidated).toBeTrue();
+			expect(client.getQueryState(key)?.fetchStatus).toBe("fetching");
+			expect(client.getQueryData<string[]>(key)).toEqual(["before"]);
+			resolve(["after"]);
+			await pending;
+			await client.refetchQueries({ queryKey: key }, { cancelRefetch: false });
+			expect(client.getQueryData<string[]>(key)).toEqual(["after"]);
+			unsubscribe();
+			client.clear();
+		}
+	});
+
 	test("maps every mutation family to its direct and derived domains", () => {
 		expect(cacheOperationDomains.transaction).toContain("accountYields");
 		expect(cacheOperationDomains.statement).toContain("creditCards");

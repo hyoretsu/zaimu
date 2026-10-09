@@ -149,12 +149,16 @@ export async function invalidateCacheOperation(
 	queryClient: QueryClient,
 	identity: CacheIdentity,
 	operation: CacheOperation,
+	options: { awaitRefetch?: boolean } = {},
 ): Promise<void> {
-	await Promise.all(
+	const refresh = Promise.all(
 		cacheOperationDomains[operation].map(domain =>
 			queryClient.invalidateQueries({ queryKey: queryKeys[domain].all(identity), refetchType: "active" }),
 		),
 	);
+	// Invalidation is synchronous; persisted writes need not wait for derived reads.
+	if (options.awaitRefetch) await refresh;
+	else void refresh.catch(() => undefined);
 }
 
 export async function invalidateQueryKeys(

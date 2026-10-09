@@ -321,3 +321,10 @@ Progresso da retomada:
 - [ ] Validar plataformas disponíveis e encerrar aceite somente com cobertura integral.
 
 Próxima etapa: validar fallback de cache e persistência incremental contra regressões financeiras e fixture dedicada. Alteração preexistente em packages/sql/migrations/app/refs/db.json permanece fora dos commits.
+
+### Confirmação de escrita e diagnóstico da retomada
+
+- Persistência incremental e lock de 250 ms versionados em `5c35b11f`. Diagnóstico local com 10 mil transações: criação passou de 2.739-2.747 consultas de negócio e 6,87-11,26 s para 46 consultas e 193-881 ms. Cinco amostras, sem aceite oficial.
+- Frontend invalida imediatamente e confirma escrita sem aguardar refetch. Conteúdo anterior permanece montado; opção `awaitRefetch` atende fluxos dependentes. Seis testes de cache passaram.
+- Navegador release mediu resposta, confirmação e dados atualizados separadamente. Rodada concorrente reprovou: p95 confirmação 2.529 ms, atualização 3.796 ms. Resultado exige repetição sem builds/testes concorrentes e investigação dos spans.
+- Plano permanece aberto; cobertura e plataformas incompletas não constituem aceite global.
