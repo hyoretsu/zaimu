@@ -397,3 +397,6 @@ Próxima etapa: validar fallback de cache e persistência incremental contra reg
 
 - WebKitGTK 2.54.1 acessível via GI, embora tauri-driver não esteja instalado. Diagnóstico separado prepara contexto ephemeral, bloqueia rede externa por proxy local e mede oito rotas visitante. Não equivale a aceite Tauri/mobile; histórico grande e long tasks continuam explícitos.
 - Relatório JSON do Playwright conserva falhas mesmo quando cenário termina antes de produzir métricas.
+
+- Repetição release: sugestões caíram de 296.236 para 1.908 ms (duas queries), removendo bloqueio global. Lookup também passa a excluir horários nulos no SQL, pois jamais compõem sugestão válida. Nova captura pendente; meta de 1 s não foi relaxada.
+- Regressão real de POST bem-sucedido seguido de GET 500 passou: confirmação permanece visível, cartão continua montado e retry recupera leitura.

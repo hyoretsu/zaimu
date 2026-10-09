@@ -227,7 +227,12 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 								time: fields.Transaction.time,
 								type: fields.Transaction.type,
 							}))
-							.where((fields, functions) => functions.eq(fields.FinancialAccount.userId, userId))
+							.where((fields, functions) =>
+								functions.and(
+									functions.eq(fields.FinancialAccount.userId, userId),
+									functions.raw`${fields.Transaction.time} IS NOT NULL`.returns("pg/bool@1"),
+								),
+							)
 							.build(),
 					),
 					queryRows(
