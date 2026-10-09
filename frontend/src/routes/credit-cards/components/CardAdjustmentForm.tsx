@@ -44,7 +44,12 @@ export function CardAdjustmentForm({
 			: null;
 	const chosenDate = statementDate ?? originalDate ?? "";
 	const availableStatements = (statements.data ?? [])
-		.filter(statement => !statement.isForecast && statement.statementDate.slice(0, 10) <= getLocalDateKey())
+		.filter(
+			statement =>
+				statement.totalAmount !== 0 &&
+				!statement.isForecast &&
+				statement.statementDate.slice(0, 10) <= getLocalDateKey(),
+		)
 		.toSorted((a, b) => b.statementDate.localeCompare(a.statementDate));
 	const save = useMutation({
 		mutationFn: () => dataService.creditCards.setStatementCutoff(cardId, chosenDate),

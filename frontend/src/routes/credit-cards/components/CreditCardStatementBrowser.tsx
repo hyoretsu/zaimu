@@ -48,7 +48,7 @@ export function CreditCardStatementBrowser({
 	const selectedStatement =
 		visibleStatements.find(
 			statement => getLocalMonthKey(statement.dueDate) === (selectedMonth ?? currentMonth),
-		) ?? visibleStatements[0]!;
+		) ?? visibleStatements[0];
 	const loadPrevious = useCallback(
 		() => setExtra(value => ({ ...value, previous: value.previous + radius })),
 		[radius],
@@ -77,6 +77,15 @@ export function CreditCardStatementBrowser({
 				description="Tente novamente em instantes."
 				icon={<LuReceiptText className="size-7" />}
 				title="Não foi possível carregar as faturas"
+			/>
+		);
+	}
+	if (!selectedStatement) {
+		return (
+			<EmptyState
+				description="Faturas com total zero não são exibidas."
+				icon={<LuReceiptText className="size-7" />}
+				title="Nenhuma fatura disponível"
 			/>
 		);
 	}

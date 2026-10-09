@@ -198,3 +198,7 @@ Histórico cambial de previsão solicita 365 dias anteriores à referência, par
 Coletas cambiais e de juros usam progresso persistente, unidades deduplicadas, outbox transacional e filas isoladas por ambiente. Recuperação retoma somente demanda incompleta; ação de retry reativa falhas sem repetir unidades concluídas. Leases têm proprietário/token, 90 segundos de duração e renovação a cada 20 segundos. Downloads cambiais compartilham limite de seis slots entre workers.
 
 CDI/Selic usam dez anos encerrados ontem, intervalos anuais estáveis e cauda atual. Cobertura é intervalo consultado com sucesso, inclusive dias sem publicação oficial. Média aritmética fica indisponível até cobertura completa; publicação de recálculos compartilha transação com taxas/cobertura. Leitura de progresso não cria coletas.
+
+## Visibilidade de faturas
+
+Listagens e seletores de faturas ocultam ciclos cujo total seja zero, mesmo quando existem no banco. Meses vazios não geram faturas visíveis. Faturas pagas com total diferente de zero e faturas com total negativo continuam disponíveis; a ocultação não exclui registros nem altera cálculos financeiros.

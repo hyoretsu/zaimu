@@ -1,20 +1,11 @@
-import { paymentStatementDates } from "@zaimu/finance/credit-card";
 import type { CreditCard, CreditCardStatement } from "@/lib/api";
-import { getLocalDateKey, getLocalMonthKey } from "@/lib/date";
+import { getLocalMonthKey } from "@/lib/date";
 
 export type StatementWindowItem = CreditCardStatement & { isEmptyCycle?: boolean };
 
 export function getFirstNonZeroStatementMonth(statements: CreditCardStatement[]) {
 	return statements
-		.filter(statement =>
-			[
-				statement.totalAmount,
-				statement.chargesAmount,
-				statement.amountDue,
-				statement.balanceAmount,
-				statement.paidAmount,
-			].some(amount => amount !== undefined && amount !== 0),
-		)
+		.filter(statement => statement.totalAmount !== 0)
 		.map(statement => getLocalMonthKey(statement.dueDate))
 		.toSorted()[0];
 }
@@ -25,31 +16,16 @@ export function getStatementWindowRadius(isDesktop: boolean, viewportSize: numbe
 }
 
 export function getStatementWindow(
-	card: Pick<CreditCard, "id" | "dueDay" | "statementDay"> & Partial<Pick<CreditCard, "workingDueDate">>,
+	_card: Pick<CreditCard, "id" | "dueDay" | "statementDay"> & Partial<Pick<CreditCard, "workingDueDate">>,
 	statements: CreditCardStatement[],
 	month: string,
 	previous: number,
 	next: number,
 ): StatementWindowItem[] {
-	const byMonth = new Map(statements.map(statement => [getLocalMonthKey(statement.dueDate), statement]));
-	const firstMonth = getFirstNonZeroStatementMonth(statements) ?? month;
-	const [year, monthNumber] = (firstMonth > month ? firstMonth : month).split("-").map(Number);
-	return Array.from({ length: previous + next + 1 }, (_, index) => {
-		const reference = new Date(year, monthNumber - 1 + index - previous, 1, 12);
-		const key = getLocalMonthKey(reference);
-		const known = byMonth.get(key);
-		if (known) return known;
-		const dates = paymentStatementDates(card, `${key}-01`);
-		return {
-			...dates,
-			balanceAmount: 0,
-			creditCardId: card.id,
-			id: `empty-${card.id}-${key}`,
-			isEmptyCycle: true,
-			isForecast: dates.statementDate > getLocalDateKey(),
-			isPaid: dates.statementDate <= getLocalDateKey(),
-			paidAmount: 0,
-			totalAmount: 0,
-		};
-	}).filter(statement => getLocalMonthKey(statement.dueDate) >= firstMonth);
+	const visible = statements
+		.filter(statement => statement.totalAmount !== 0)
+		.toSorted((a, b) => getLocalMonthKey(a.dueDate).localeCompare(getLocalMonthKey(b.dueDate)));
+	const currentIndex = visible.findIndex(statement => getLocalMonthKey(statement.dueDate) >= month);
+	const center = currentIndex === -1 ? Math.max(0, visible.length - 1) : currentIndex;
+	return visible.slice(Math.max(0, center - previous), center + next + 1);
 }
