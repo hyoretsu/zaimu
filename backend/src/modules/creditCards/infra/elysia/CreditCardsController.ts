@@ -15,6 +15,7 @@ import Elysia, { t } from "elysia";
 import { setCardPayer } from "~/modules/accounts/application/payment-preferences";
 import { assertBalanceAccountOwnership, assertCreditCardOwnership, requireUserId } from "~/modules/auth";
 import { type CashbackCard, rewardSnapshot } from "~/modules/creditCards/application/cashback-snapshot";
+import { creditLimitOverview } from "~/modules/creditCards/application/credit-limit";
 import {
 	type CreditOverviewCard,
 	type CreditOverviewRow,
@@ -222,24 +223,10 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				return cards.map(card => {
 					const effectiveStatements = byCard.get(card.id) ?? [];
 					const currentStatement = paymentStatement(effectiveStatements, new Date()) ?? null;
-					const netUsedInCents = effectiveStatements.reduce(
-						(total, statement) => total + moneyCents(Number(statement.balanceAmount), 0, card.currency),
-						0,
-					);
-					const temporaryCreditInCents = Math.max(0, -netUsedInCents);
-					const usedLimitInCents = Math.max(0, netUsedInCents);
-					const effectiveLimitInCents =
-						moneyCents(Number(card.creditLimit), 0, card.currency) + temporaryCreditInCents;
 					return {
 						...card,
 						currentStatement,
-						limit: {
-							availableLimit:
-								Math.max(0, effectiveLimitInCents - usedLimitInCents) / currencyScale(card.currency),
-							effectiveLimit: effectiveLimitInCents / currencyScale(card.currency),
-							temporaryCredit: temporaryCreditInCents / currencyScale(card.currency),
-							usedLimit: usedLimitInCents / currencyScale(card.currency),
-						},
+						limit: creditLimitOverview(Number(card.creditLimit), card.currency, effectiveStatements),
 						pendingRefundReviewCount: countsByCard.get(card.id) ?? 0,
 					};
 				});

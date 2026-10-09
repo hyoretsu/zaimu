@@ -46,6 +46,7 @@
 		"backend/src/modules/credit-card-imports/domain/select-new-import-purchases.test.ts",
 		"backend/src/modules/credit-card-imports/domain/statement-previous-balance.test.ts",
 		"backend/src/modules/creditCards/application/credit-card-schedule-periods.test.ts",
+		"backend/src/modules/creditCards/application/credit-limit.test.ts",
 		"backend/src/modules/creditCards/application/materialize-credit-card-schedules.test.ts",
 		"backend/src/modules/creditCards/application/statement-cursor.test.ts",
 		"backend/src/modules/creditCards/domain/credit-purchase-sync-status.test.ts",
