@@ -10,10 +10,13 @@ import {
 	currencyWindow,
 	dateKey,
 	type HistoryUnit,
+	historyCoverageRanges,
 	historyProgress,
 	retryDelay,
 	windowDays,
 } from "../domain/collection";
+
+import { referenceRateCoveredDaysSql } from "./reference-rate-coverage-sql";
 
 const outbox = new PostgresOutbox();
 type UnitRow = HistoryUnit & { lockedUntil: Date | null; leaseToken: string | null; [key: string]: unknown };
@@ -48,6 +51,7 @@ export async function requestHistoryCollection(
 	kind: CollectionKind,
 	seriesInput: string[],
 	referenceDate = dateKey(new Date()),
+	dependencies = { publish: publishUnit, read: getHistoryCollection, transaction: withRawTransaction },
 ) {
 	const reference = dateKey(referenceDate);
 	if (reference > dateKey(new Date())) throw new RangeError("Coleta não aceita datas futuras");
@@ -72,7 +76,7 @@ export async function requestHistoryCollection(
 		kind === "CURRENCY"
 			? intervals[0]!
 			: { endDate: dateKey(interestWindow.endDate), startDate: dateKey(interestWindow.startDate) };
-	return withRawTransaction(async query => {
+	return dependencies.transaction(async query => {
 		const key = `${kind}:${series.join(",")}:${window.startDate}:${window.endDate}`;
 		const [collection] = await query<{ id: string }>(
 			`INSERT INTO "FinancialHistoryCollection" ("id","deduplicationKey","kind","startDate","endDate","series") VALUES ($1,$2,$3,$4::date,$5::date,$6::json)
@@ -82,7 +86,10 @@ export async function requestHistoryCollection(
 		if (!collection) throw new Error("Coleta indisponível");
 		for (const value of series) {
 			await query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [`history:${kind}:${value}`]);
-			let ranges = windowDays(window.startDate, window.endDate).map(day => ({
+			let ranges: { startDate: string; endDate: string; covered?: boolean }[] = windowDays(
+				window.startDate,
+				window.endDate,
+			).map(day => ({
 				endDate: day,
 				startDate: day,
 			}));
@@ -98,25 +105,29 @@ export async function requestHistoryCollection(
 						`INSERT INTO "FinancialHistoryCollectionUnit" ("collectionId","unitId") VALUES ($1,$2) ON CONFLICT DO NOTHING`,
 						[collection.id, unit.id],
 					);
-				ranges = [];
-				for (const rawInterval of intervals) {
-					const interval = {
-						endDate: rawInterval.endDate,
-						startDate: rawInterval.startDate < window.startDate ? window.startDate : rawInterval.startDate,
-					};
-					let gap: { startDate: string; endDate: string } | undefined;
-					for (const day of windowDays(interval.startDate, interval.endDate)) {
-						if (occupied.has(day)) {
-							gap = undefined;
-							continue;
-						}
-						if (gap) gap.endDate = day;
-						else {
-							gap = { endDate: day, startDate: day };
-							ranges.push(gap);
-						}
-					}
-				}
+				const coveredRows = await query<{ date: string }>(referenceRateCoveredDaysSql, [
+					value,
+					window.startDate,
+					window.endDate,
+				]);
+				const covered = new Set(coveredRows.map(row => row.date));
+				for (const unit of existing)
+					if (
+						(unit.state === "PENDING" || unit.state === "FAILED") &&
+						windowDays(unit.startDate, unit.endDate).every(day => covered.has(day))
+					)
+						await query(
+							`UPDATE "FinancialHistoryUnit" SET "state"='COMPLETED',"completedAt"=now(),"updatedAt"=now(),"lastError"=NULL WHERE "id"=$1 AND "state" IN ('PENDING','FAILED')`,
+							[unit.id],
+						);
+				ranges = intervals.flatMap(interval =>
+					historyCoverageRanges(
+						interval.startDate < window.startDate ? window.startDate : interval.startDate,
+						interval.endDate,
+						covered,
+						occupied,
+					),
+				);
 			}
 			for (const interval of ranges) {
 				const unitKey = `${kind}:${value}:${interval.startDate}:${interval.endDate}`;
@@ -131,12 +142,14 @@ export async function requestHistoryCollection(
 					[collection.id, unit.id],
 				);
 				if (unit.state !== "PENDING") continue;
-				const [covered] = await query<{ complete: boolean }>(
-					kind === "CURRENCY"
-						? `SELECT EXISTS(SELECT 1 FROM "CurrencyRateSnapshot" WHERE "date"=$2::date AND "baseCurrency"=$1) AS complete`
-						: `SELECT NOT EXISTS(SELECT 1 FROM generate_series($2::date,$3::date,interval '1 day') day WHERE NOT EXISTS(SELECT 1 FROM "OutboxEvent" e WHERE e."eventType"='referenceRate.historyFetched' AND e."payload"->>'referenceType'=$1 AND (e."payload"->>'startDate')::date<=day::date AND (e."payload"->>'endDate')::date>=day::date)) AS complete`,
-					[value, interval.startDate, ...(kind === "INTEREST" ? [interval.endDate] : [])],
-				);
+				const [covered] = interval.covered
+					? [{ complete: true }]
+					: await query<{ complete: boolean }>(
+							kind === "CURRENCY"
+								? `SELECT EXISTS(SELECT 1 FROM "CurrencyRateSnapshot" WHERE "date"=$2::date AND "baseCurrency"=$1) AS complete`
+								: `SELECT NOT EXISTS(SELECT 1 FROM generate_series($2::date,$3::date,interval '1 day') day WHERE NOT EXISTS(SELECT 1 FROM "OutboxEvent" e WHERE e."eventType"='referenceRate.historyFetched' AND e."payload"->>'referenceType'=$1 AND (e."payload"->>'startDate')::date<=day::date AND (e."payload"->>'endDate')::date>=day::date)) AS complete`,
+							[value, interval.startDate, ...(kind === "INTEREST" ? [interval.endDate] : [])],
+						);
 				if (covered?.complete)
 					await query(
 						`UPDATE "FinancialHistoryUnit" SET "state"='COMPLETED',"completedAt"=now(),"updatedAt"=now() WHERE "id"=$1 AND "state"='PENDING'`,
@@ -147,11 +160,11 @@ export async function requestHistoryCollection(
 						`UPDATE "FinancialHistoryUnit" SET "generation"=1,"nextAttemptAt"=now(),"updatedAt"=now() WHERE "id"=$1`,
 						[unit.id],
 					);
-					await publishUnit({ ...unit, generation: 1 });
+					await dependencies.publish({ ...unit, generation: 1 });
 				}
 			}
 		}
-		return getHistoryCollection(collection.id);
+		return dependencies.read(collection.id);
 	});
 }
 

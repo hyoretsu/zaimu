@@ -278,3 +278,12 @@ Ambiente atual Linux não permite aceite iOS; ferramentas Android não foram det
 - Próximo: jobs de taxas apenas para lacunas comprovadas, incluindo histórico salvo antes das unidades de coleta; completar seleção de demanda de projeção guest.
 
 - Motor financeiro também deixa de pedir fatores para contas zeradas, movimentos zerados e reservas vazias durante consumo. Transferências futuras ainda incluem moedas das contas envolvidas. Dez testes do motor financeiro passaram.
+
+### Coleta de taxas somente para lacunas
+
+- Agendamento de CDI/SELIC considera taxas já persistidas e intervalos cuja ausência de publicação foi verificada. Divide janela em trechos cobertos e lacunas; publica somente lacunas, reutiliza unidades existentes e conclui unidades pendentes/falhas já cobertas.
+- Worker reconsulta cobertura antes de baixar unidade histórica, inclusive jobs antigos. Comandos explícitos de correção preservam comportamento próprio.
+- Prontidão das médias considera datas salvas sem exigir novo download para gerar marcador de cobertura.
+- Testes de dez anos com apenas dois dias ausentes produziram um único intervalo; solicitação repetida não republicou. Dias verificados sem publicação não geraram download. Suite de integração completa passou em serviços locais descartáveis.
+- Logs `currency-rate-history-fetch` correspondem a câmbio: janela de previsão é 365 dias, não dez anos. Só moeda estrangeira efetivamente necessária deve criar demanda; backlog previamente registrado continua sendo recuperado. Print sem datas/base/origem não comprova se demanda é antiga ou nova.
+- Próximos: concluir seleção de projeção guest/cartões, fixture de câmbio e validações oficiais de performance.

@@ -25,6 +25,11 @@ describe("local reference-rate means", () => {
 		await client.query(
 			`INSERT INTO "OutboxEvent" VALUES ('referenceRate.historyFetched', '{"referenceType":"SELIC","startDate":"2016-10-03","endDate":"2026-10-01"}');`,
 		);
+		const savedDayCompletesCoverage = (
+			await client.query(referenceRateAveragesSql, ["2016-10-03", "2026-10-02"])
+		).rows;
+		expect(savedDayCompletesCoverage.find(row => row.type === "SELIC").ready).toBe(true);
+		await client.query(`DELETE FROM "ReferenceRate" WHERE "type"='SELIC'`);
 		const incomplete = (await client.query(referenceRateAveragesSql, ["2016-10-03", "2026-10-02"])).rows;
 		expect(incomplete.find(row => row.type === "SELIC").ready).toBe(false);
 		await client.query(

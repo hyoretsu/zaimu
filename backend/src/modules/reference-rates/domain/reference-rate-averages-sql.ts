@@ -1,7 +1,7 @@
 export const referenceRateAveragesSql = `WITH coverage AS MATERIALIZED (
  SELECT type."value" AS "type", NOT EXISTS (
  SELECT 1 FROM generate_series($1::date, $2::date, interval '1 day') day
- WHERE NOT EXISTS (
+ WHERE NOT EXISTS (SELECT 1 FROM "public"."ReferenceRate" saved WHERE saved."type"::text = type."value" AND saved."date" = day::date) AND NOT EXISTS (
  SELECT 1 FROM "public"."OutboxEvent" event
  WHERE event."eventType" = 'referenceRate.historyFetched'
  AND event."payload"->>'referenceType' = type."value"

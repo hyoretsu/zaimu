@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
 	currencyWindow,
 	type HistoryUnit,
+	historyCoverageRanges,
 	historyProgress,
 	retryDelay,
 	weightedCurrencyRate,
@@ -74,4 +75,24 @@ test("overlapping shared interest units count only requested window coverage", (
 	expect(
 		historyProgress("INTEREST", [shared], { endDate: "2026-01-05", startDate: "2026-01-03" }),
 	).toMatchObject({ completed: 1, coveredDays: 3, requestedDays: 3, state: "COMPLETED", total: 1 });
+});
+
+test("ten-year coverage schedules only remaining days without crossing occupied work", () => {
+	const days = windowDays("2016-10-09", "2026-10-08");
+	const covered = new Set(days);
+	covered.delete("2020-02-28");
+	covered.delete("2020-02-29");
+	covered.delete("2026-10-08");
+	const missing = historyCoverageRanges(days[0]!, days.at(-1)!, covered).filter(row => !row.covered);
+	expect(missing).toEqual([
+		{ covered: false, endDate: "2020-02-29", startDate: "2020-02-28" },
+		{ covered: false, endDate: "2026-10-08", startDate: "2026-10-08" },
+	]);
+	expect(historyCoverageRanges(days[0]!, days.at(-1)!, new Set(days)).filter(row => !row.covered)).toEqual(
+		[],
+	);
+	expect(historyCoverageRanges("2026-10-06", "2026-10-08", new Set(), new Set(["2026-10-07"]))).toEqual([
+		{ covered: false, endDate: "2026-10-06", startDate: "2026-10-06" },
+		{ covered: false, endDate: "2026-10-08", startDate: "2026-10-08" },
+	]);
 });

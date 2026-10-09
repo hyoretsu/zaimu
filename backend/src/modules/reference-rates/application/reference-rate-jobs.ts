@@ -14,6 +14,8 @@ import {
 	requestHistoryCollection,
 	runHistoryUnit,
 } from "~/modules/financial-history/application/history-collections";
+import { referenceRateCoveredDaysSql } from "~/modules/financial-history/application/reference-rate-coverage-sql";
+import { historyCoverageRanges } from "~/modules/financial-history/domain/collection";
 import { createEventEnvelope, type EventEnvelope } from "~/shared/application/events";
 import { PostgresOutbox } from "~/shared/infra/outbox";
 import {
@@ -132,7 +134,31 @@ async function processFetchJob(
 ) {
 	if (!job.referenceType || !job.startDate || !job.endDate) throw new Error("Job de taxa incompleto");
 	const { referenceType, startDate, endDate } = job;
-	const rates = await fetchRates(referenceType, startDate, endDate);
+	const covered = history
+		? await queryRaw<{ date: string }>(referenceRateCoveredDaysSql, [
+				referenceType,
+				dateKey(startDate),
+				dateKey(endDate),
+			])
+		: [];
+	const ranges = history
+		? historyCoverageRanges(
+				dateKey(startDate),
+				dateKey(endDate),
+				new Set(covered.map(row => row.date)),
+			).filter(range => !range.covered)
+		: [{ endDate: dateKey(endDate), startDate: dateKey(startDate) }];
+	const rates: Awaited<ReturnType<FetchReferenceRates>> = [];
+	for (const range of ranges) {
+		if (history) await history.assertLease();
+		rates.push(
+			...(await fetchRates(
+				referenceType,
+				new Date(`${range.startDate}T12:00:00`),
+				new Date(`${range.endDate}T12:00:00`),
+			)),
+		);
+	}
 	return withRawTransaction(async query => {
 		if (history) await history.assertLease();
 		let earliestChangedDate: Date | null = null;

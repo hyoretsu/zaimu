@@ -120,3 +120,27 @@ export function weightedCurrencyRate(samples: readonly { date: string; rate: num
 		samples: valid.length,
 	};
 }
+
+/** Split coverage runs without spanning an existing unit or a populated date. */
+export function historyCoverageRanges(
+	startDate: string,
+	endDate: string,
+	covered: ReadonlySet<string>,
+	occupied: ReadonlySet<string> = new Set(),
+) {
+	const ranges: { startDate: string; endDate: string; covered: boolean }[] = [];
+	let previous: (typeof ranges)[number] | undefined;
+	for (const day of windowDays(startDate, endDate)) {
+		if (occupied.has(day)) {
+			previous = undefined;
+			continue;
+		}
+		const complete = covered.has(day);
+		if (previous && previous.covered === complete) previous.endDate = day;
+		else {
+			previous = { covered: complete, endDate: day, startDate: day };
+			ranges.push(previous);
+		}
+	}
+	return ranges;
+}
