@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 import { LuReceiptText } from "react-icons/lu";
+import { DialogBody, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tabs } from "@/components/ui/Tabs";
@@ -10,6 +11,7 @@ import { dataService } from "@/lib/dataService";
 import { getLocalMonthKey } from "@/lib/date";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { CreditCardStatementDetails } from "./CreditCardStatementDetails";
+import { CreditCardStatementSkeleton } from "./CreditCardStatementSkeleton";
 import { CreditCardStatementTabs } from "./CreditCardStatementTabs";
 import { getFirstNonZeroStatementMonth, getStatementWindow } from "./credit-card-statement-window";
 
@@ -59,62 +61,76 @@ export function CreditCardStatementBrowser({
 		if (statement) setSelectedMonth(getLocalMonthKey(statement.dueDate));
 	};
 
-	if (statements.isPending) {
-		return (
-			<div className="grid min-h-0 grid-rows-[6.75rem_minmax(0,1fr)] gap-4 sm:grid-cols-[9rem_minmax(0,1fr)] sm:grid-rows-1 sm:gap-6">
-				<div className="flex gap-2 overflow-hidden border-b pb-3 sm:grid sm:content-start sm:border-r sm:border-b-0 sm:pr-3 sm:pb-0">
-					{[1, 2, 3, 4].map(item => (
-						<Skeleton className="h-20 w-36 shrink-0 sm:w-full" key={item} />
-					))}
-				</div>
-				<Skeleton className="h-full" />
-			</div>
-		);
-	}
-	if (statements.isError) {
-		return (
-			<EmptyState
-				description="Tente novamente em instantes."
-				icon={<LuReceiptText className="size-7" />}
-				title="Não foi possível carregar as faturas"
-			/>
-		);
-	}
-	if (!selectedStatement) {
-		return (
-			<EmptyState
-				description="Faturas com total zero não são exibidas."
-				icon={<LuReceiptText className="size-7" />}
-				title="Nenhuma fatura disponível"
-			/>
-		);
-	}
 	return (
 		<Tabs
-			className="grid min-h-0 grid-rows-[6.75rem_minmax(0,1fr)] gap-0 sm:grid-cols-[9rem_minmax(0,1fr)] sm:grid-rows-1"
+			className="min-h-0 min-w-0 flex-1 gap-4 sm:gap-6"
 			onValueChange={selectStatement}
-			orientation={isDesktop ? "vertical" : "horizontal"}
-			value={selectedStatement.id}
+			orientation="horizontal"
+			value={selectedStatement?.id}
 		>
-			<CreditCardStatementTabs
-				canLoadPrevious={getLocalMonthKey(visibleStatements[0]!.dueDate) > firstMonth}
-				currencyCode={card.currency ?? "BRL"}
-				ignoreBefore={ignoreBefore}
-				isDesktop={isDesktop}
-				onLoadNext={loadNext}
-				onLoadPrevious={loadPrevious}
-				onRadiusChange={setDesktopRadius}
-				selectedId={selectedStatement.id}
-				statements={visibleStatements}
-			/>
-			<CreditCardStatementDetails
-				card={card}
-				ignoreBefore={ignoreBefore}
-				isEmptyCycle={selectedStatement.isEmptyCycle}
-				key={selectedStatement.id}
-				onAddPurchase={onAddPurchase}
-				statement={selectedStatement}
-			/>
+			<div className="min-w-0 shrink-0 space-y-2">
+				<DialogHeader>
+					<DialogTitle>Faturas de {card.accountName ?? "Cartão de crédito"}</DialogTitle>
+					<DialogDescription>Selecione um mês para consultar os detalhes e as transações.</DialogDescription>
+				</DialogHeader>
+				{statements.isPending ? (
+					<div className="h-[6.75rem] min-h-0 min-w-0 pt-2 pr-3">
+						<div className="h-full overflow-hidden border-b">
+							<div className="flex w-max gap-2 px-1 pt-1 pb-3">
+								{[1, 2, 3, 4, 5, 6, 7].map(item => (
+									<Skeleton className="h-20 w-36 shrink-0 rounded-xl" key={item} />
+								))}
+							</div>
+						</div>
+					</div>
+				) : !statements.isError && selectedStatement ? (
+					<div className="h-[6.75rem] min-h-0 min-w-0 pt-2 pr-3">
+						<CreditCardStatementTabs
+							canLoadPrevious={getLocalMonthKey(visibleStatements[0]!.dueDate) > firstMonth}
+							currencyCode={card.currency ?? "BRL"}
+							ignoreBefore={ignoreBefore}
+							isDesktop={false}
+							onLoadNext={loadNext}
+							onLoadPrevious={loadPrevious}
+							onRadiusChange={setDesktopRadius}
+							selectedId={selectedStatement.id}
+							statements={visibleStatements}
+						/>
+					</div>
+				) : null}
+			</div>
+			{statements.isPending ? (
+				<div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+					<DialogBody className="flex-1">
+						<CreditCardStatementSkeleton />
+					</DialogBody>
+				</div>
+			) : statements.isError ? (
+				<DialogBody>
+					<EmptyState
+						description="Tente novamente em instantes."
+						icon={<LuReceiptText className="size-7" />}
+						title="Não foi possível carregar as faturas"
+					/>
+				</DialogBody>
+			) : selectedStatement ? (
+				<CreditCardStatementDetails
+					card={card}
+					ignoreBefore={ignoreBefore}
+					isEmptyCycle={selectedStatement.isEmptyCycle}
+					key={selectedStatement.id}
+					onAddPurchase={onAddPurchase}
+					statement={selectedStatement}
+				/>
+			) : (
+				<DialogBody>
+					<EmptyState
+						description="Faturas com total zero não são exibidas."
+						icon={<LuReceiptText className="size-7" />}
+						title="Nenhuma fatura disponível"
+					/>
+				</DialogBody>
+			)}
 		</Tabs>
 	);
 }

@@ -3,9 +3,9 @@ import { useState } from "react";
 import { LuCalendarCheck, LuCalendarClock, LuCloudDownload, LuPlus, LuReceiptText } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { AppBadge } from "@/components/ui/AppBadge";
+import { DialogBody } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FloatingActionButton } from "@/components/ui/FloatingActionButton";
-import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { TabsContent } from "@/components/ui/Tabs";
 import type { CreditCard, CreditCardStatement, CreditPurchase } from "@/lib/api";
@@ -201,9 +201,9 @@ export function CreditCardStatementDetails({
 	const rowPending = (p: CreditPurchase) =>
 		pendingRootIds.has(p.purchaseId ?? p.refundOfPurchaseId ?? p.parentId ?? p.id);
 	return (
-		<TabsContent className="relative min-h-0 min-w-0 overflow-hidden sm:pl-6" value={statement.id}>
-			<ScrollArea className="h-full min-h-0">
-				<div className="grid gap-3 pt-3 pr-3 pb-24 sm:pt-0">
+		<TabsContent className="relative flex min-h-0 min-w-0 flex-col overflow-hidden" value={statement.id}>
+			<DialogBody className="flex-1">
+				<div className="grid gap-3 pr-3 pb-24">
 					<header className="grid gap-3 rounded-xl border bg-muted/30 p-4">
 						<div className="flex flex-wrap items-center justify-between gap-2">
 							<h3 className="font-bold text-base sm:text-lg" id={`statement-title-${statement.id}`}>
@@ -317,7 +317,7 @@ export function CreditCardStatementDetails({
 						)}
 					</div>
 				</div>
-			</ScrollArea>
+			</DialogBody>
 			<ActionGroup className="absolute right-3 bottom-3 z-10">
 				<FloatingActionButton icon={LuPlus} label="Nova compra" onClick={onAddPurchase} />
 			</ActionGroup>

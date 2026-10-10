@@ -107,13 +107,10 @@ export function CreditCardStatementTabs({
 
 	return (
 		<div className="h-full min-w-0" ref={scrollAreaRef}>
-			<ScrollArea
-				className="h-full border-b px-1 pb-3 sm:border-r sm:border-b-0 sm:pr-3 sm:pb-0"
-				horizontalScrollbar
-			>
+			<ScrollArea className="h-full min-h-0 border-b" horizontalScrollbar>
 				<TabsList
 					aria-label="Faturas"
-					className="!h-auto !flex-row sm:!grid sm:!w-full sm:!grid-cols-1 w-max min-w-full gap-2 bg-transparent py-1 pr-1 pl-0"
+					className="!h-auto !flex-row w-max min-w-full gap-2 bg-transparent px-1 pt-1 pb-3"
 				>
 					{statements.map(statement => {
 						const selected = statement.id === selectedId;
@@ -125,7 +122,7 @@ export function CreditCardStatementTabs({
 						return (
 							<TabsTrigger
 								className={cn(
-									"sm:!w-full h-20 w-36 shrink-0 cursor-pointer items-start justify-start whitespace-normal rounded-xl border-border p-3 text-left sm:h-auto sm:min-h-20",
+									"h-20 w-36 shrink-0 cursor-pointer items-start justify-start whitespace-normal rounded-xl border-border p-3 text-left",
 									selected && "border-primary bg-primary/10 ring-1 ring-primary/30",
 								)}
 								key={statement.id}
