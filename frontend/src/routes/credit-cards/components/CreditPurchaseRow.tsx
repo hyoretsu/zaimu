@@ -33,6 +33,9 @@ export function CreditPurchaseRow({
 	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
 	const tags = purchase.tags;
 	const debtPersonName = formatDebtSplitBadge(purchase.debtSplit, amount => currency.format(amount));
+	const hasRefinancing = Boolean(
+		purchase.refinancedFromPurchaseId || purchase.refinancingPurchaseIds?.length,
+	);
 	const hasSyncedInstallments = purchase.isFullySynced && purchase.installments > 1;
 
 	return (
@@ -53,6 +56,11 @@ export function CreditPurchaseRow({
 					{purchase.isStatementCharge ? " · Encargo da fatura" : ""}
 					{purchase.installments > 1 ? ` · ${purchase.currentInstallment}/${purchase.installments}` : ""}
 					{purchase.isSettled ? " · Compensada pelo crédito do reparcelamento" : ""}
+					{purchase.refinancedFromPurchaseId
+						? " · Vinculado à compra original"
+						: purchase.refinancingPurchaseIds?.length
+							? " · Possui reparcelamento vinculado"
+							: ""}
 				</p>
 				<OriginalMoneyDetails
 					currency={purchase.currency}
@@ -154,7 +162,7 @@ export function CreditPurchaseRow({
 							<TooltipContent>Reparcelar</TooltipContent>
 						</Tooltip>
 					) : null}
-					{purchase.installments === 1 ? (
+					{purchase.installments === 1 && !hasRefinancing ? (
 						<Tooltip>
 							<TooltipTrigger asChild>
 								<span>

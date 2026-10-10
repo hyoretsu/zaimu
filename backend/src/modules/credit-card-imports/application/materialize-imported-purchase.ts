@@ -1,6 +1,7 @@
 import {
 	addBookRefund,
 	type BookPurchase,
+	bookRefinancingLinks,
 	ensureBookStatement,
 	moneyCents,
 	refinanceBookPurchase,
@@ -180,6 +181,10 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 				purchaseDate: input.purchaseDate.toISOString().slice(0, 10),
 				totalAmount: input.totalAmount,
 			});
+		const relation = bookRefinancingLinks(book).get(p.id);
+		const original = relation?.refinancedFromPurchaseId
+			? book.purchases.find(row => row.id === relation.refinancingOriginalPurchaseId)
+			: undefined;
 		const previousTotal = p.totalAmountCents;
 		Object.assign(
 			p,
@@ -192,13 +197,15 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 					}
 				: {
 						debtSplitRule: input.debtSplitRule === undefined ? p.debtSplitRule : input.debtSplitRule,
-						description: withoutImportedAnticipation(withoutFinancingReferences(input.description)),
+						description: original
+							? `Parcelamento - ${original.description}`
+							: withoutImportedAnticipation(withoutFinancingReferences(input.description)),
 						externalId: existing?.externalId ?? input.externalId,
 						installmentAmountsCents: amounts,
 						installmentImportedNumbers: [...known.keys()],
 						purchaseDate: input.purchaseDate.toISOString().slice(0, 10),
 						storeName: input.storeName,
-						tagIds: input.tagIds,
+						tagIds: original ? [...original.tagIds] : input.tagIds,
 						time: input.time,
 						totalAmountCents: totalCents,
 						updatedAt: new Date().toISOString(),

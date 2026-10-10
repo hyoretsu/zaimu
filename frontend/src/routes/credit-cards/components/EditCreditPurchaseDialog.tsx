@@ -108,10 +108,18 @@ export function EditCreditPurchaseDialog({
 		sourceCardId && !purchase.isStatementCharge && (canonical.isPending || canonical.isError),
 	);
 	const isSynced = purchase.isSynced === true;
+	const isRefinancing = Boolean(original?.refinancedFromPurchaseId ?? purchase.refinancedFromPurchaseId);
+	const hasRefinancing =
+		isRefinancing || Boolean((original?.refinancingPurchaseIds ?? purchase.refinancingPurchaseIds)?.length);
 	const cardLocked =
-		isSynced || Boolean(original?.externalId || original?.installmentImportedNumbers?.length);
+		hasRefinancing ||
+		isSynced ||
+		Boolean(original?.externalId || original?.installmentImportedNumbers?.length);
 	const [selectedCardId, setSelectedCardId] = useState(sourceCardId ?? "");
-	const [description, setDescription] = useDebouncedInput(purchase.description, () => undefined);
+	const [description, setDescription] = useDebouncedInput(
+		isRefinancing ? purchase.description.replace(/^Parcelamento - /u, "") : purchase.description,
+		() => undefined,
+	);
 	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>(() => ({
 		...debtSplitToInput(purchase.debtSplit),
 		currency: purchase.bookingCurrency ?? "BRL",
@@ -252,7 +260,7 @@ export function EditCreditPurchaseDialog({
 			creditCardId: selectedCardId,
 			currency: currencyCode,
 			debtSplit: isDebt && !purchase.isStatementCharge ? debtSplit : null,
-			description: description.trim(),
+			description: `${isRefinancing ? "Parcelamento - " : ""}${description.trim()}`,
 			fees,
 			installments,
 			purchaseDate: isSynced ? purchase.purchaseDate : date,
@@ -311,8 +319,15 @@ export function EditCreditPurchaseDialog({
 						</FormFieldRow>
 						<FormField
 							autoComplete="off"
+							className={isRefinancing ? "pl-[8.5rem]" : undefined}
+							description={
+								hasRefinancing
+									? "Nome e tags são compartilhados com a compra original e seus reparcelamentos. Datas e horários são independentes."
+									: undefined
+							}
 							id="credit-purchase-description"
 							label="Descrição"
+							leading={isRefinancing ? <span className="text-sm">Parcelamento -</span> : undefined}
 							name="credit-purchase-description"
 							onChange={event => setDescription(event.currentTarget.value)}
 							placeholder="Ex: Supermercado do mês"

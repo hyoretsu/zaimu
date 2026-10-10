@@ -13,6 +13,7 @@ import {
 import { FormField } from "@/components/ui/FormField";
 import { FormFieldRow } from "@/components/ui/FormFieldRow";
 import { MoneyField } from "@/components/ui/MoneyField";
+import { TimeField } from "@/components/ui/TimeField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { CreditPurchase } from "@/lib/api";
 import { getLocalDateKey } from "@/lib/date";
@@ -25,7 +26,13 @@ export function RefinanceCreditPurchaseDialog({
 	purchase,
 }: {
 	onOpenChange: (open: boolean) => void;
-	onSubmit: (data: { totalAmount: number; installments: number; purchaseDate: string }) => Promise<void>;
+	onSubmit: (data: {
+		totalAmount: number;
+		installments: number;
+		purchaseDate: string;
+		time: string | null;
+		sourceTime: string | null;
+	}) => Promise<void>;
 	open: boolean;
 	pending: boolean;
 	purchase: CreditPurchase;
@@ -37,6 +44,8 @@ export function RefinanceCreditPurchaseDialog({
 	);
 	const [installments, setInstallments] = useDebouncedInput("12", () => undefined);
 	const [purchaseDate, setPurchaseDate] = useState(getLocalDateKey);
+	const [time, setTime] = useState("");
+	const [sourceTime, setSourceTime] = useState(purchase.time ?? "");
 	const total = Number(totalAmount);
 	const count = Number(installments);
 	const balance = purchase.installmentAmount * (purchase.installments - purchase.currentInstallment + 1);
@@ -51,7 +60,13 @@ export function RefinanceCreditPurchaseDialog({
 		event.preventDefault();
 		if (!valid || pending) return;
 		try {
-			await onSubmit({ installments: count, purchaseDate, totalAmount: total });
+			await onSubmit({
+				installments: count,
+				purchaseDate,
+				sourceTime: sourceTime || null,
+				time: time || null,
+				totalAmount: total,
+			});
 			onOpenChange(false);
 		} catch {
 			// Mutation reports the error; keep the form open for correction.
@@ -102,6 +117,26 @@ export function RefinanceCreditPurchaseDialog({
 								onValueChange={setPurchaseDate}
 								required
 								value={purchaseDate}
+							/>
+						</FormFieldRow>
+						<FormFieldRow>
+							<TimeField
+								autoComplete="off"
+								id="refinance-source-time"
+								label="Horário da compra original (opcional)"
+								name="refinance-source-time"
+								onValueChange={setSourceTime}
+								placeholder="Ex: 14:30"
+								value={sourceTime}
+							/>
+							<TimeField
+								autoComplete="off"
+								id="refinance-time"
+								label="Horário do reparcelamento (opcional)"
+								name="refinance-time"
+								onValueChange={setTime}
+								placeholder="Ex: 16:00"
+								value={time}
 							/>
 						</FormFieldRow>
 						{valid ? (

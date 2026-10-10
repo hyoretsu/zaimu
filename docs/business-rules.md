@@ -120,6 +120,8 @@ Quando uma fatura traz números distintos de parcelas da mesma compra, com mesma
 
 Compras à vista e parceladas podem ser reparceladas com novo total, quantidade de 1 a 48 parcelas e data do novo parcelamento. O total informado inclui os custos reais do banco; não se estima juros. Parcelas originais ainda exigíveis são compensadas pelo novo parcelamento, incluindo previsões futuras, preservando parcelas pagas e histórico. O novo plano distribui o total em unidades mínimas da moeda do cartão.
 
+Compra e reparcelamentos mantêm vínculo persistente pelas parcelas compensadas. Não podem ser excluídos, desvinculados ou transferidos de cartão separadamente. Nome e tags são sincronizados nos dois sentidos em toda a cadeia; reparcelamentos exibem "Parcelamento - [nome]", com prefixo fixo e nome editável. Datas, horários opcionais e valores permanecem independentes. A importação de faturas preserva esse mesmo vínculo.
+
 Na importação de faturas, mudança de parcelamento com mesma data original e descrição compatível sugere vínculo com a compra anterior, mesmo quando o novo total inclui juros. A revisão exige escolha explícita da compra original antes de compensá-la. Reparcelamento cria novo plano vinculado, em vez de alterar a compra antiga ou registrar reembolso. Correspondências ambíguas continuam pendentes; reimportação não repete a compensação.
 
 ## Compras, parcelas e reembolsos normalizados

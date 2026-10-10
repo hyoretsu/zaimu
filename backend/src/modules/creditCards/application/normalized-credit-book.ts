@@ -1,6 +1,7 @@
 import {
 	type BookPurchase,
 	bookPurchase,
+	bookRefinancingLinks,
 	type CreditBook,
 	creditBookEntries,
 	materializeBookInstallments,
@@ -8,6 +9,7 @@ import {
 	moveBookPurchase,
 	newBookPurchase,
 	replayCreditBook,
+	synchronizeBookRefinancing,
 } from "@zaimu/finance/credit-book";
 import { currentDateKey, recalculateStatementDueDate } from "@zaimu/finance/credit-card";
 import { assertPurchase, distributePurchaseCents } from "@zaimu/finance/credit-purchase";
@@ -234,6 +236,7 @@ export async function saveCreditBook(
 	previous: CreditBook,
 	transferredPurchaseIds: ReadonlySet<string> = new Set(),
 ) {
+	synchronizeBookRefinancing(book, previous);
 	book.card.currency ??= previous.card.currency ?? "BRL";
 	if (book.card.currency !== (previous.card.currency ?? "BRL"))
 		throw new HttpException("Moeda do livro não pode ser alterada pelo sync", 409);
@@ -798,6 +801,14 @@ export async function presentCreditBook(
 			...book.installments.filter(i => requestedIds.has(i.id)).map(i => i.purchaseId),
 			...book.refunds.filter(r => requestedIds.has(r.id)).map(r => r.purchaseId),
 		]);
+		const relations = bookRefinancingLinks(book);
+		const families = new Set(
+			[...selectedPurchaseIds].map(id => relations.get(id)?.refinancingOriginalPurchaseId ?? id),
+		);
+		for (const p of book.purchases) {
+			if (families.has(relations.get(p.id)?.refinancingOriginalPurchaseId ?? p.id))
+				selectedPurchaseIds.add(p.id);
+		}
 		book = {
 			...book,
 			charges: book.charges.filter(ch => requestedIds.has(ch.id)),

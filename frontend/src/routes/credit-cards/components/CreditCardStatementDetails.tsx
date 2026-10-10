@@ -135,7 +135,14 @@ export function CreditCardStatementDetails({
 			data,
 			purchaseId,
 		}: {
-			data: { feeAmount?: number; totalAmount?: number; installments: number; purchaseDate: string };
+			data: {
+				feeAmount?: number;
+				totalAmount?: number;
+				installments: number;
+				purchaseDate: string;
+				time?: string | null;
+				sourceTime?: string | null;
+			};
 			purchaseId: string;
 		}) => dataService.creditCards.refinancePurchase(statement.creditCardId, purchaseId, data),
 		onError: error =>

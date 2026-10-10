@@ -6,6 +6,7 @@ import {
 	moneyCents,
 	moveBookPurchase,
 	replayCreditBook,
+	synchronizeBookRefinancing,
 } from "@zaimu/finance/credit-book";
 import { currentDateKey } from "@zaimu/finance/credit-card";
 import { currencyScale, toMinorUnits } from "@zaimu/finance/money";
@@ -688,7 +689,9 @@ export async function mutateLocalCreditBook<T>(
 				id: row.data.id,
 			}));
 		const oldPolicy = book.card.refundPolicy;
+		const previousBook = structuredClone(book);
 		const result = operation(book);
+		synchronizeBookRefinancing(book, previousBook);
 		for (const p of book.purchases) {
 			if (p.userId !== book.card.userId || p.creditCardId !== cardId)
 				throw new Error("Titularidade da compra inválida");
@@ -1201,6 +1204,7 @@ export async function deleteLocalRecurrence(owner: StorageOwner, id: string, rem
 						purchase.recurrenceId = null;
 						purchase.recurrenceOccurrenceDate = null;
 					}
+			synchronizeBookRefinancing(book, row.data);
 			await requestResult(books.put({ ...row, data: book, modifiedAt: Math.max(now, row.modifiedAt + 1) }));
 		}
 		const occurrences = tx.objectStore("scoped-recurrenceOccurrences");

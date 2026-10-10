@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
 	addBookRefund,
+	bookRefinancingLinks,
 	type CreditBook,
 	creditBookConsumption,
 	creditBookEntries,
@@ -15,6 +16,7 @@ import {
 	removeBookRefund,
 	replayCreditBook,
 	resizePurchaseCashback,
+	synchronizeBookRefinancing,
 	updateBookPurchaseDate,
 	updateBookRefund,
 } from "./credit-book";
@@ -480,4 +482,124 @@ test("principal edits retain booked cashback factor and ISO denomination", () =>
 	expect(purchase.cashbackCurrency).toBe("JPY");
 	resizePurchaseCashback(purchase, 20000);
 	expect(purchase.cashbackAmount).toBe(300);
+});
+
+describe("refinancing relationships", () => {
+	function family() {
+		const book = emptyBook();
+		const source = newBookPurchase(book, {
+			description: "Wlingua",
+			installments: 1,
+			purchaseDate: "2026-01-01",
+			tagIds: ["language"],
+			totalAmount: 100,
+		});
+		refinanceBookPurchase(book, source.id, {
+			installments: 2,
+			purchaseDate: "2026-02-01",
+			sourceTime: "09:10",
+			time: "12:30",
+			totalAmount: 120,
+		});
+		return { book, replacement: book.purchases[1]!, source };
+	}
+	test("names and tags synchronize from either side while times remain independent", () => {
+		const { book, source, replacement } = family();
+		let previous = structuredClone(book);
+		replacement.description = "Parcelamento - Curso";
+		replacement.tagIds = ["education"];
+		synchronizeBookRefinancing(book, previous);
+		expect(source.description).toBe("Curso");
+		expect(source.tagIds).toEqual(["education"]);
+		expect(source.time).toBe("09:10");
+		expect(replacement.time).toBe("12:30");
+		previous = structuredClone(book);
+		source.description = "Idiomas";
+		source.tagIds = [];
+		synchronizeBookRefinancing(book, previous);
+		expect(replacement.description).toBe("Parcelamento - Idiomas");
+		expect(replacement.tagIds).toEqual([]);
+		expect(creditBookEntries(book).find(row => row.purchaseId === replacement.id)).toMatchObject({
+			description: "Parcelamento - Idiomas",
+			refinancedFromPurchaseId: source.id,
+		});
+	});
+	test("chains retain original identity and a single prefix", () => {
+		const { book, source, replacement } = family();
+		refinanceBookPurchase(book, replacement.id, {
+			installments: 3,
+			purchaseDate: "2026-03-01",
+			totalAmount: 150,
+		});
+		const next = book.purchases[2]!;
+		expect(next.description).toBe("Parcelamento - Wlingua");
+		expect(bookRefinancingLinks(book).get(next.id)).toMatchObject({
+			refinancedFromPurchaseId: replacement.id,
+			refinancingOriginalPurchaseId: source.id,
+		});
+		const previous = structuredClone(book);
+		next.description = "Parcelamento - Inglês";
+		synchronizeBookRefinancing(book, previous);
+		expect(source.description).toBe("Inglês");
+		expect(replacement.description).toBe("Parcelamento - Inglês");
+	});
+	test("isolated deletion, detachment and moving are rejected", () => {
+		const { book, source, replacement } = family();
+		const deleted = structuredClone(book);
+		deleted.purchases = deleted.purchases.filter(p => p.id !== replacement.id);
+		expect(() => synchronizeBookRefinancing(deleted, book)).toThrow();
+		const detached = structuredClone(book);
+		for (const installment of detached.installments) installment.settledByPurchaseId = null;
+		expect(() => synchronizeBookRefinancing(detached, book)).toThrow();
+		expect(() => moveBookPurchase(book, emptyBook(), source.id)).toThrow();
+	});
+	test("stale metadata normalizes without guessing links from descriptions", () => {
+		const { book, source, replacement } = family();
+		replacement.description = "FIN Wlingua";
+		replacement.tagIds = [];
+		synchronizeBookRefinancing(book);
+		expect(replacement.description).toBe("Parcelamento - Wlingua");
+		expect(replacement.tagIds).toEqual(source.tagIds);
+		const unrelated = newBookPurchase(book, {
+			description: "Parcelamento - Wlingua",
+			installments: 1,
+			purchaseDate: "2026-03-01",
+			totalAmount: 10,
+		});
+		expect(bookRefinancingLinks(book).get(unrelated.id)?.refinancedFromPurchaseId).toBeNull();
+		book.installments.push({
+			...book.installments[0]!,
+			id: "second-parent",
+			purchaseId: unrelated.id,
+			settledByPurchaseId: replacement.id,
+		});
+		expect(() => bookRefinancingLinks(book)).toThrow();
+	});
+	test("invalid times fail before mutation", () => {
+		const { book, replacement } = family();
+		const previous = structuredClone(book);
+		expect(() =>
+			refinanceBookPurchase(book, replacement.id, {
+				installments: 2,
+				purchaseDate: "2026-03-01",
+				time: "25:30",
+				totalAmount: 100,
+			}),
+		).toThrow();
+		expect(book).toEqual(previous);
+	});
+	test("cycles and conflicting edits fail explicitly", () => {
+		const { book, source, replacement } = family();
+		const previous = structuredClone(book);
+		source.description = "A";
+		replacement.description = "Parcelamento - B";
+		expect(() => synchronizeBookRefinancing(book, previous)).toThrow();
+		book.installments.push({
+			...book.installments[0]!,
+			id: "cycle",
+			purchaseId: replacement.id,
+			settledByPurchaseId: source.id,
+		});
+		expect(() => bookRefinancingLinks(book)).toThrow();
+	});
 });

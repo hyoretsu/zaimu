@@ -1,3 +1,7 @@
+import { assertBookPurchaseCanMove, bookRefinancingLinks } from "./credit-book-refinancing";
+
+export { bookRefinancingLinks, synchronizeBookRefinancing } from "./credit-book-refinancing";
+
 import { currentDateKey, recalculateStatementDueDate, statementCycles } from "./credit-card";
 import {
 	assertCents,
@@ -579,6 +583,7 @@ export function creditBookEntries(book: CreditBook, includeForecasts = true) {
 	);
 	const purchasesById = new Map(book.purchases.map(purchase => [purchase.id, purchase]));
 	const byRefund = new Map(effects.map(effect => [effect.refundId, effect]));
+	const refinancingLinks = bookRefinancingLinks(book);
 	const entries = book.purchases.flatMap(purchase => {
 		const refunds = (refundsByPurchase.get(purchase.id) ?? []).map(refund => ({
 			amount: refund.amountCents / currencyScale(book.card.currency),
@@ -602,7 +607,11 @@ export function creditBookEntries(book: CreditBook, includeForecasts = true) {
 			return [
 				{
 					...purchase,
+					...refinancingLinks.get(purchase.id),
 					currentInstallment: item.number,
+					description: refinancingLinks.get(purchase.id)?.refinancedFromPurchaseId
+						? `Parcelamento - ${purchasesById.get(refinancingLinks.get(purchase.id)!.refinancingOriginalPurchaseId!)!.description}`
+						: purchase.description,
 					entryKind: "INSTALLMENT" as const,
 					hasImportedAmount: concrete?.hasImportedAmount ?? false,
 					hasRefund: refunds.length > 0,
@@ -629,6 +638,9 @@ export function creditBookEntries(book: CreditBook, includeForecasts = true) {
 					refunds,
 					settledByPurchaseId: concrete?.settledByPurchaseId ?? null,
 					statementId: item.statementId,
+					tagIds: purchasesById.get(
+						refinancingLinks.get(purchase.id)?.refinancingOriginalPurchaseId ?? purchase.id,
+					)!.tagIds,
 					totalAmount: purchase.totalAmountCents / currencyScale(book.card.currency),
 				},
 			];
@@ -744,6 +756,7 @@ export function moveBookPurchase(source: CreditBook, destination: CreditBook, pu
 		throw new RangeError("Transferência de compra exige cartões com a mesma moeda contabilizada");
 	const rootId = source.installments.find(item => item.id === purchaseId)?.purchaseId ?? purchaseId;
 	const purchase = bookPurchase(source, rootId);
+	assertBookPurchaseCanMove(source, rootId);
 	const installments = source.installments.filter(item => item.purchaseId === rootId);
 	const refunds = source.refunds.filter(item => item.purchaseId === rootId);
 	if (
@@ -775,9 +788,20 @@ export function moveBookPurchase(source: CreditBook, destination: CreditBook, pu
 export function refinanceBookPurchase(
 	book: CreditBook,
 	purchaseId: string,
-	input: { feeAmount?: number; totalAmount?: number; installments: number; purchaseDate: string },
+	input: {
+		feeAmount?: number;
+		totalAmount?: number;
+		installments: number;
+		purchaseDate: string;
+		time?: string | null;
+		sourceTime?: string | null;
+	},
 ) {
 	const source = bookPurchase(book, purchaseId);
+	for (const time of [input.time, input.sourceTime]) {
+		if (time != null && !/^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/u.test(time))
+			throw new RangeError("Horário inválido");
+	}
 	assertDateKey(input.purchaseDate);
 	if (!Number.isInteger(input.installments) || input.installments < 1 || input.installments > 48)
 		throw new RangeError("Quantidade de parcelas inválida");
@@ -802,12 +826,13 @@ export function refinanceBookPurchase(
 			: moneyCents(input.totalAmount, 1, book.card.currency);
 	const totalAmount = totalCents / currencyScale(book.card.currency);
 	const purchase = newBookPurchase(book, {
-		description: `Parcelamento - ${source.description}`,
+		description: `Parcelamento - ${bookPurchase(book, bookRefinancingLinks(book).get(source.id)?.refinancingOriginalPurchaseId ?? source.id).description}`,
 		installments: input.installments,
 		purchaseDate: input.purchaseDate,
 		refinancingFeeAmount: Math.max(0, totalCents - settledCents) / currencyScale(book.card.currency),
 		storeName: source.storeName,
 		tagIds: source.tagIds,
+		time: input.time ?? null,
 		totalAmount,
 	});
 	for (const row of selected) {
@@ -836,6 +861,10 @@ export function refinanceBookPurchase(
 		}
 		installment.isSettled = true;
 		installment.settledByPurchaseId = purchase.id;
+	}
+	if (input.sourceTime !== undefined) {
+		source.time = input.sourceTime;
+		source.updatedAt = new Date().toISOString();
 	}
 	return { settledAmount: settledCents / currencyScale(book.card.currency), totalAmount };
 }

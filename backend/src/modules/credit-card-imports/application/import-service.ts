@@ -505,7 +505,7 @@ async function approveItemsImpl(userId: string, importId: string, itemId?: strin
 						)
 					)[0]
 				: null);
-		const settlementRootId = financingTarget?.id ?? rootId;
+		const settlementRootId = financingTarget?.purchaseId ?? financingTarget?.id ?? rootId;
 		if (settlementSource)
 			await mutateCreditBook(userId, card.id, book => {
 				const source = book.installments.find(i => i.id === settlementSource.id);

@@ -591,6 +591,8 @@ export interface CreditCardStatementPage {
 }
 
 export interface CreditPurchaseEditDetails {
+	refinancedFromPurchaseId?: string | null;
+	refinancingPurchaseIds?: string[];
 	currency?: string;
 	originalAmount?: number | null;
 	exchangeRate?: number | null;
@@ -659,6 +661,9 @@ export interface CreditPurchase {
 	isSettled?: boolean;
 	settledByPurchaseId?: string | null;
 	refinancingFeeAmount?: number | null;
+	refinancedFromPurchaseId?: string | null;
+	refinancingOriginalPurchaseId?: string | null;
+	refinancingPurchaseIds?: string[];
 }
 
 export interface CreditCardStatementDetail extends CreditCardStatement {

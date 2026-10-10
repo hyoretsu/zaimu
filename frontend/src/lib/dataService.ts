@@ -2,6 +2,7 @@ import { comparisonIntervals } from "@zaimu/finance/comparison-periods";
 import {
 	addBookRefund,
 	bookPurchase,
+	bookRefinancingLinks,
 	type CreditBook,
 	creditBookConsumption,
 	creditBookEntries,
@@ -1482,6 +1483,7 @@ export const dataService = {
 			const purchase = book.purchases.find(row => row.id === purchaseId);
 			if (!purchase) throw new Error("Compra não encontrada");
 			return {
+				...bookRefinancingLinks(book).get(purchase.id),
 				currency: purchase.currency,
 				debtSplit: purchase.debtSplitRule
 					? ((await hydrateLocalDebtSplit(
@@ -1687,7 +1689,14 @@ export const dataService = {
 		async refinancePurchase(
 			cardId: string,
 			purchaseId: string,
-			data: { feeAmount?: number; totalAmount?: number; installments: number; purchaseDate: string },
+			data: {
+				feeAmount?: number;
+				totalAmount?: number;
+				installments: number;
+				purchaseDate: string;
+				time?: string | null;
+				sourceTime?: string | null;
+			},
 		): Promise<{ purchases: CreditPurchase[]; settledAmount: number; totalAmount: number }> {
 			if (isGuestMode()) {
 				const result = await mutateLocalCreditBook(cardId, book =>

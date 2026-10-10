@@ -13,6 +13,8 @@ export const CreditPurchaseEditReturn = t.Object({
 	installmentImportedNumbers: t.Array(t.Integer()),
 	originalAmount: t.Optional(t.Nullable(t.Number())),
 	purchaseDate: t.String(),
+	refinancedFromPurchaseId: t.Nullable(t.String()),
+	refinancingPurchaseIds: t.Array(t.String()),
 	totalAmountCents: t.Integer(),
 });
 export type CreditPurchaseEditReturn = typeof CreditPurchaseEditReturn.static;
