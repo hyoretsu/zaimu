@@ -88,6 +88,9 @@ export function DashboardPeriodChart({
 			<div
 				onFocus={() => setInteracting(true)}
 				onPointerDown={() => setInteracting(true)}
+				onPointerLeave={event => {
+					if (event.pointerType !== "touch") setInteracting(false);
+				}}
 				onPointerMove={() => setInteracting(true)}
 				ref={chartRef}
 				style={{ touchAction: "none" }}
