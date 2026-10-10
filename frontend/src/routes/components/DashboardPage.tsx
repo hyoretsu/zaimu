@@ -9,9 +9,11 @@ import { TransactionImportReviewDialog } from "@/components/transaction-imports"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import type { DateRangeValue } from "@/components/ui/DateRangePicker/types";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { MoneyValue } from "@/components/ui/MoneyValue";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { dataService } from "@/lib/dataService";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import {
 	DashboardAccounts,
@@ -65,7 +67,7 @@ export function DashboardPage() {
 		);
 	const dashboard = dashboardQuery.data;
 	const currencyCode = dashboard.currency ?? effectiveCurrency;
-	const currency = new Intl.NumberFormat(navigator.languages, { currency: currencyCode, style: "currency" });
+	const currency = createCurrencyFormatter(currencyCode, navigator.languages);
 	const { accountBalance, fixedIncomeBalance, variableIncomeBalance } = dashboard.balanceBreakdown ?? {};
 	const endingBalance = dashboard.period?.endingBalance;
 	const isCurrentDay = isToday;
@@ -100,9 +102,7 @@ export function DashboardPage() {
 							</CardTitle>
 						</CardHeader>
 						<CardContent>
-							<p className="font-bold text-2xl tracking-tight sm:text-3xl">
-								{currency.format(endingBalance!)}
-							</p>
+							<MoneyValue>{currency.format(endingBalance!)}</MoneyValue>
 							<div className="mt-2 space-y-0.5 text-primary-foreground text-xs sm:mt-3 sm:space-y-1">
 								<p>Em conta: {currency.format(accountBalance!)}</p>
 								<p>Renda fixa: {currency.format(fixedIncomeBalance!)}</p>
