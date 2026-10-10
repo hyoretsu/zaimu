@@ -50,3 +50,31 @@ test("provider failure keeps detection unavailable without fabricated cache", as
 	expect(await detectCurrencyLocation(["USD"])).toBeNull();
 	expect(values.has(key)).toBe(false);
 });
+
+for (const failure of [
+	() => Promise.reject(new TypeError("Failed to fetch")),
+	() => Promise.resolve(new Response("", { status: 429 })),
+	() => Promise.resolve(new Response("invalid json")),
+	() => Promise.resolve(Response.json(null)),
+	() => Promise.resolve(Response.json({ country_code: "invalid" })),
+]) {
+	test(`fallback detects and caches country after ${failure.toString()}`, async () => {
+		const fetchMock = mock(async (url: string) =>
+			url.includes("ipapi.co") ? failure() : Response.json({ country_code: "BR", success: true }),
+		);
+		globalThis.fetch = fetchMock as unknown as typeof fetch;
+		expect(await detectCurrencyLocation(["USD", "BRL"])).toMatchObject({ country: "BR", currency: "BRL" });
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+		expect(JSON.parse(values.get(key)!)).toMatchObject({ country: "BR", currency: "BRL" });
+	});
+}
+
+test("fallback provider failure payload never becomes a cached location", async () => {
+	globalThis.fetch = mock(async (url: string) =>
+		url.includes("ipapi.co")
+			? new Response("", { status: 429 })
+			: Response.json({ country_code: "BR", success: false }),
+	) as unknown as typeof fetch;
+	expect(await detectCurrencyLocation(["BRL"])).toBeNull();
+	expect(values.has(key)).toBe(false);
+});
