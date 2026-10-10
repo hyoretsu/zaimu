@@ -1,5 +1,6 @@
 import { useRouter } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useLayoutEffect, useState } from "react";
+import { flushSync } from "react-dom";
 
 export function useRouteDismissableOpen({
 	open,
@@ -21,10 +22,13 @@ export function useRouteDismissableOpen({
 	);
 	const isOpen = open ?? internalOpen;
 
-	useEffect(() => {
+	useLayoutEffect(() => {
 		if (!router || !isOpen) return;
-		return router.subscribe("onBeforeNavigate", ({ pathChanged }) => {
-			if (pathChanged) changeOpen(false);
+		const pathname = router.state.location.pathname;
+		return router.subscribe("onBeforeNavigate", ({ toLocation }) => {
+			if (toLocation.pathname === pathname) return;
+			// Remove portals before Activity hides the screen and suspends its effects.
+			flushSync(() => changeOpen(false));
 		});
 	}, [router, isOpen, changeOpen]);
 
