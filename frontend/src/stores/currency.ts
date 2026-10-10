@@ -20,7 +20,7 @@ interface CurrencyState {
 	error: string | null;
 	refresh: () => Promise<void>;
 	refreshLocation: () => Promise<void>;
-	setPreference: (currency: string | null) => Promise<void>;
+	setPreference: (currency: string) => Promise<void>;
 }
 let pending: Promise<void> | undefined;
 const resolved = (preferred: string | null, location: CurrencyLocation | null, currencies: string[]) =>
@@ -84,8 +84,25 @@ export const useCurrencyStore = create<CurrencyState>((set, get) => ({
 						return cached?.preferredCurrency ?? null;
 					}
 				})();
-				const [currencies, preferred] = await Promise.all([catalogPromise, preferencePromise]);
+				const [currencies, storedPreference] = await Promise.all([catalogPromise, preferencePromise]);
+				let preferred = storedPreference;
 				const location = await detectCurrencyLocation(currencies);
+				if (getCurrentCacheIdentity() !== owner) return;
+				if (!preferred && location) {
+					preferred = location.currency;
+					if (useAuthStore.getState().isAuthenticated) {
+						const value = await fetchWithAuth<{ preferredCurrency: string | null }>(
+							"/currency-preferences/",
+							{
+								body: JSON.stringify({ preferredCurrency: preferred }),
+								headers: { "X-Currency-Initialize": "true" },
+								method: "PATCH",
+							},
+						);
+						preferred = value.preferredCurrency;
+					}
+					await localMeta.set("currency-preference", { preferredCurrency: preferred }, owner);
+				}
 				if (getCurrentCacheIdentity() === owner)
 					set({
 						currencies,
@@ -108,14 +125,15 @@ export const useCurrencyStore = create<CurrencyState>((set, get) => ({
 		const owner = getCurrentCacheIdentity();
 		if (!owner || owner !== get().owner) return;
 		const location = await detectCurrencyLocation(get().currencies);
-		if (location && getCurrentCacheIdentity() === owner)
-			set({ currency: resolved(get().preferredCurrency, location, get().currencies), location });
+		if (location && getCurrentCacheIdentity() === owner) {
+			set({ location });
+			if (!get().preferredCurrency) await get().refresh();
+		}
 	},
 	setPreference: async preferredCurrency => {
 		const owner = getCurrentCacheIdentity();
 		if (!owner || owner !== get().owner) throw new Error("Preferências ainda carregando");
-		if (preferredCurrency && !get().currencies.includes(preferredCurrency))
-			throw new Error("Moeda não suportada");
+		if (!get().currencies.includes(preferredCurrency)) throw new Error("Moeda não suportada");
 		if (useAuthStore.getState().isAuthenticated)
 			await fetchWithAuth("/currency-preferences/", {
 				body: JSON.stringify({ preferredCurrency }),

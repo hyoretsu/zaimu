@@ -195,7 +195,7 @@ Saldos de dívidas e seus totais são apurados por pessoa e moeda antes de qualq
 
 ## Preferência internacional e histórico financeiro
 
-Preferência de moeda é opcional. Automática usa país detectado por IP, região explícita do dispositivo ou USD. Detecção acontece também com preferência explícita, usa cache local de sete dias e permite sugerir troca na homepage durante viagem. Confirmação altera preferência; cancelamento preserva configuração. Dispensa é vinculada à identidade e combinação país/preferência/moeda. Campos preenchidos e escolhas explícitas não mudam ao concluir detecção.
+Primeira localização detectada por IP configura e salva permanentemente a moeda da pessoa, se ainda não houver preferência. Até detectar localização, região explícita do dispositivo ou USD servem como fallback provisório. Não existe opção automática: novas localizações não alteram a moeda salva. A pessoa pode alterar a preferência manualmente. Detecção acontece também com preferência explícita, usa cache local de sete dias e permite sugerir troca na homepage durante viagem. Confirmação altera preferência; cancelamento preserva configuração. Dispensa é vinculada à identidade e combinação país/preferência/moeda. Campos preenchidos e escolhas explícitas não mudam ao concluir detecção.
 
 Novos valores herdam vínculo de conta/cartão/instituição, depois preferência efetiva. Mudanças de preferência alteram consolidações e novos padrões, sem reinterpretar lançamentos. Livros com saldo, histórico ou compromissos não podem mudar moeda. Contas/cartões mostram valores nativos; consolidações convertem antes de somar e conversão indisponível nunca vira zero.
 

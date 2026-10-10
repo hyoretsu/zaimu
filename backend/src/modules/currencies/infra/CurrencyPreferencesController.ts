@@ -23,11 +23,12 @@ export const CurrencyPreferencesController = new Elysia({ prefix: "/currency-pre
 		async ({ request, body }) => {
 			const userId = await requireUserId(request);
 			const preferredCurrency = body.preferredCurrency?.toUpperCase() ?? null;
-			if (preferredCurrency && !(await supportedCurrencies()).includes(preferredCurrency))
+			if (!preferredCurrency || !(await supportedCurrencies()).includes(preferredCurrency))
 				throw new RangeError("Moeda não suportada");
+			const initialize = request.headers.get("X-Currency-Initialize") === "true";
 			const [user] = await queryRaw<{ preferredCurrency: string | null }>(
-				'UPDATE "user" SET "preferredCurrency"=$2 WHERE "id"=$1 RETURNING "preferredCurrency"',
-				[userId, preferredCurrency],
+				'UPDATE "user" SET "preferredCurrency"=CASE WHEN $3 THEN COALESCE("preferredCurrency", $2) ELSE $2 END WHERE "id"=$1 RETURNING "preferredCurrency"',
+				[userId, preferredCurrency, initialize],
 			);
 			if (!user) throw new Error("Usuário indisponível");
 			return user;
