@@ -47,7 +47,7 @@ export function AdvanceRecurringDialog({
 							description="Deixe vazio para lançar sem horário."
 							disabled={pending}
 							id="advance-recurrence-time"
-							label="Horário (opcional)"
+							label="Horário"
 							name="time"
 							onValueChange={setTime}
 							placeholder="14:30"

@@ -163,9 +163,7 @@ export function CashbackSettingsDialog({
 								>
 									<span>
 										<strong className="block">Informar conversão para reais</strong>
-										<span className="text-muted-foreground">
-											Opcional. Pontos continuam guardados em pontos.
-										</span>
+										<span className="text-muted-foreground">Pontos continuam guardados em pontos.</span>
 									</span>
 								</CheckboxField>
 								{cashbackConversionEnabled && (

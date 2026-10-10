@@ -125,7 +125,7 @@ export function ImportCreditCardStatementDialog({
 						{passwordConfiguration ? (
 							<div className="grid gap-2">
 								<Label htmlFor="credit-card-import-password">
-									<span>Senha do PDF {passwordConfiguration.required ? <RequiredMark /> : "(opcional)"}</span>
+									<span>Senha do PDF {passwordConfiguration.required && <RequiredMark />}</span>
 								</Label>
 								<Input
 									autoComplete="off"

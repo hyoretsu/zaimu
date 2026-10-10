@@ -123,7 +123,7 @@ export function RefinanceCreditPurchaseDialog({
 							<TimeField
 								autoComplete="off"
 								id="refinance-source-time"
-								label="Horário da compra original (opcional)"
+								label="Horário da compra original"
 								name="refinance-source-time"
 								onValueChange={setSourceTime}
 								placeholder="Ex: 14:30"
@@ -132,7 +132,7 @@ export function RefinanceCreditPurchaseDialog({
 							<TimeField
 								autoComplete="off"
 								id="refinance-time"
-								label="Horário do reparcelamento (opcional)"
+								label="Horário do reparcelamento"
 								name="refinance-time"
 								onValueChange={setTime}
 								placeholder="Ex: 16:00"

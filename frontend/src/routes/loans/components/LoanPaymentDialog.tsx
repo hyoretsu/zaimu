@@ -138,7 +138,7 @@ export function LoanPaymentDialog({
 											<MoneyField
 												currencyCode={currency}
 												id="loan-actual-debit"
-												label="Débito efetivo (opcional)"
+												label="Débito efetivo"
 												onValueChange={setAmount}
 												value={amount}
 											/>

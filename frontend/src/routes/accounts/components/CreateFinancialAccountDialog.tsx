@@ -440,7 +440,7 @@ export function CreateFinancialAccountDialog({
 						<FormField
 							autoComplete="off"
 							id="account-name"
-							label="Nome da conta (opcional)"
+							label="Nome da conta"
 							name="account-name"
 							onChange={event => setName(event.currentTarget.value)}
 							placeholder={cardOnly ? "Ex: Cartão Gold" : "Ex: Conta principal"}
@@ -505,7 +505,7 @@ export function CreateFinancialAccountDialog({
 									<MoneyField
 										currencyCode={currency}
 										id="rewards-initial-balance"
-										label="Saldo inicial (opcional)"
+										label="Saldo inicial"
 										onValueChange={setInitialRewardsBalance}
 										placeholder="R$ 150,00"
 										value={initialRewardsBalance}
@@ -514,7 +514,7 @@ export function CreateFinancialAccountDialog({
 									<NumericField
 										decimalScale={4}
 										id="rewards-initial-balance"
-										label="Saldo inicial em pontos (opcional)"
+										label="Saldo inicial em pontos"
 										onValueChange={setInitialRewardsBalance}
 										placeholder="Ex: 10.000"
 										value={initialRewardsBalance}
@@ -577,7 +577,7 @@ export function CreateFinancialAccountDialog({
 									<MoneyField
 										currencyCode={currency}
 										id="security-deposit"
-										label="Valor em garantia (opcional)"
+										label="Valor em garantia"
 										onValueChange={setSecurityDeposit}
 										placeholder="R$ 500,00"
 										value={securityDeposit}
@@ -717,7 +717,7 @@ export function CreateFinancialAccountDialog({
 														<span>
 															<strong className="block">Informar equivalente monetário em {currency}</strong>
 															<span className="text-muted-foreground">
-																Opcional. Pontos continuam guardados em pontos.
+																Pontos continuam guardados em pontos.
 															</span>
 														</span>
 													</CheckboxField>

@@ -387,7 +387,7 @@ export function EditCreditPurchaseDialog({
 								/>
 								<TimeField
 									id="credit-purchase-time"
-									label="Horário (opcional)"
+									label="Horário"
 									name="credit-purchase-time"
 									onValueChange={setTime}
 									placeholder="Ex: 14:30"

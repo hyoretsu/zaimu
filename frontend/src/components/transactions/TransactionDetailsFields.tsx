@@ -114,7 +114,7 @@ export function TransactionDetailsFields({
 						value={paymentAmount}
 					/>
 					<p className="text-muted-foreground text-xs">
-						Opcional. Informe valor efetivo ou deixe conversão automática.
+						Informe valor efetivo ou deixe conversão automática.
 					</p>
 					<TransactionConversionPreview
 						amount={amount}

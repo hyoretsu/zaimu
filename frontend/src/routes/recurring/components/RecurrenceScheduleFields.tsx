@@ -48,7 +48,7 @@ export function RecurrenceScheduleFields({
 				<DateField
 					disabled={disabled}
 					id="recurrence-end"
-					label="Data final (opcional)"
+					label="Data final"
 					min={draft.startDate}
 					name="recurrence-end"
 					onValueChange={value => set("endDate", value)}

@@ -49,3 +49,7 @@ Every date selector must use the project's custom components: `DateField` for si
 # Input sizing and alignment
 
 All single-line form controls must share `inputControlClassName` from `frontend/src/components/ui/input-styles.ts`: height, padding, border radius and typography. This includes text, money, time, date, select, store and tag controls. Related fields must align labels and controls through `FormFieldRow`, including wrapped labels. Keep grid children and triggers `min-w-0`, constrain controls to their column and truncate long values and placeholders. Never let intrinsic text width expand a modal. Textareas may grow vertically.
+
+# Optional form fields
+
+Never label form fields as "(opcional)", "(optional)", or add redundant optional-field notices. Fields without a required marker are implicitly optional. Mark required fields with `RequiredMark` instead.
