@@ -282,10 +282,12 @@ export function EditCreditPurchaseDialog({
 		<Dialog onOpenChange={onOpenChange} open={open}>
 			<DialogContent className="sm:max-w-lg">
 				<DialogHeader>
-					<DialogTitle>Editar compra</DialogTitle>
-					<DialogDescription>
-						As alterações afetam a compra inteira e suas próximas parcelas.
-					</DialogDescription>
+					<DialogTitle>{isRefinancing ? "Editar reparcelamento" : "Editar compra"}</DialogTitle>
+					{!isRefinancing ? (
+						<DialogDescription>
+							As alterações afetam a compra inteira e suas próximas parcelas.
+						</DialogDescription>
+					) : null}
 				</DialogHeader>
 				{onRefund ? (
 					<Button className="cursor-pointer" onClick={onRefund} type="button" variant="outline">
@@ -319,15 +321,13 @@ export function EditCreditPurchaseDialog({
 						</FormFieldRow>
 						<FormField
 							autoComplete="off"
-							className={isRefinancing ? "pl-[8.5rem]" : undefined}
 							description={
-								hasRefinancing
+								hasRefinancing && !isRefinancing
 									? "Nome e tags são compartilhados com a compra original e seus reparcelamentos. Datas e horários são independentes."
 									: undefined
 							}
 							id="credit-purchase-description"
 							label="Descrição"
-							leading={isRefinancing ? <span className="text-sm">Parcelamento -</span> : undefined}
 							name="credit-purchase-description"
 							onChange={event => setDescription(event.currentTarget.value)}
 							placeholder="Ex: Supermercado do mês"
