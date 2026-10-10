@@ -44,8 +44,8 @@ export function SearchableCustomSelect({
 	const selectedRef = useRef<HTMLButtonElement>(null);
 	const listId = useId();
 	const normalizedSearch = search.trim().toLocaleLowerCase("pt-BR");
-	const filteredOptions = options.filter(option =>
-		option.label.toLocaleLowerCase("pt-BR").includes(normalizedSearch),
+	const filteredOptions = options.filter(
+		option => option.special || option.label.toLocaleLowerCase("pt-BR").includes(normalizedSearch),
 	);
 	const selectedOption = options.find(option => option.value === value);
 	const changeOpen = (nextOpen: boolean) => {

@@ -26,6 +26,8 @@ Every `CustomSelect` whose options come from a user-managed listing (accounts, c
 
 Special select options (such as "Sem conta específica", "Todas as categorias", or "Criar automaticamente") must always appear at the top, before options from user-managed listings. Mark them with `special: true` in `CustomSelect` options. Preserve the order of multiple special options as supplied by the caller when `sortOptions={false}`.
 
+Searching must never hide special action options (such as adding a new record, selecting none, using defaults, or selecting all). Always keep options marked `special: true` visible at the top regardless of the search term, including when no regular option matches. Apply search filtering only to regular listing options.
+
 # Pending actions
 
 Pending actions block only their own conflict scope. Never disable unrelated controls from a shared mutation `isPending`. In lists, track pending record IDs; disable sibling controls only when they mutate the same record or an overlapping batch. Navigation, collapse, other rows, and unrelated actions stay enabled.
