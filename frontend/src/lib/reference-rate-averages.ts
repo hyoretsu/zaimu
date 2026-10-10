@@ -42,7 +42,6 @@ export async function refreshReferenceRateAverages(): Promise<ReferenceRateAvera
 			(value.ready && (!Number.isFinite(value.averages.CDI) || !Number.isFinite(value.averages.SELIC)))
 		)
 			return cachedReferenceRateAverages();
-		if (!value.ready) value.averages = { CDI: null, SELIC: null };
 		try {
 			localStorage.setItem(cacheKey, JSON.stringify(value));
 		} catch {

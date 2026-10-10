@@ -17,25 +17,17 @@ afterAll(async () => {
 	await client?.end();
 });
 describe("local reference-rate means", () => {
-	test("SQL averages published days only, excludes dates outside ten-year window, and requires full coverage", async () => {
+	test("SQL estimates from available published days within the ten-year window without coverage", async () => {
+		await client.query(`DELETE FROM "OutboxEvent"`);
 		const rows = (await client.query(referenceRateAveragesSql, ["2016-10-03", "2026-10-02"])).rows;
 		expect(Number(rows.find(row => row.type === "CDI").average)).toBeCloseTo(0.04);
 		expect(rows.find(row => row.type === "CDI").ready).toBe(true);
-		expect(rows.find(row => row.type === "SELIC").ready).toBe(false);
-		await client.query(
-			`INSERT INTO "OutboxEvent" VALUES ('referenceRate.historyFetched', '{"referenceType":"SELIC","startDate":"2016-10-03","endDate":"2026-10-01"}');`,
-		);
-		const savedDayCompletesCoverage = (
-			await client.query(referenceRateAveragesSql, ["2016-10-03", "2026-10-02"])
-		).rows;
-		expect(savedDayCompletesCoverage.find(row => row.type === "SELIC").ready).toBe(true);
+		expect(Number(rows.find(row => row.type === "SELIC").average)).toBeCloseTo(0.03);
+		expect(rows.find(row => row.type === "SELIC").ready).toBe(true);
 		await client.query(`DELETE FROM "ReferenceRate" WHERE "type"='SELIC'`);
-		const incomplete = (await client.query(referenceRateAveragesSql, ["2016-10-03", "2026-10-02"])).rows;
-		expect(incomplete.find(row => row.type === "SELIC").ready).toBe(false);
-		await client.query(
-			`INSERT INTO "OutboxEvent" VALUES ('referenceRate.historyFetched', '{"referenceType":"SELIC","startDate":"2026-10-02","endDate":"2026-10-02"}');`,
-		);
-		const complete = (await client.query(referenceRateAveragesSql, ["2016-10-03", "2026-10-02"])).rows;
-		expect(complete.find(row => row.type === "SELIC").ready).toBe(true);
+		const empty = (await client.query(referenceRateAveragesSql, ["2016-10-03", "2026-10-02"])).rows;
+		expect(empty.find(row => row.type === "SELIC").ready).toBe(false);
+		expect(empty.find(row => row.type === "SELIC").average).toBeNull();
+		expect(Number(empty.find(row => row.type === "CDI").average)).toBeCloseTo(0.04);
 	});
 });

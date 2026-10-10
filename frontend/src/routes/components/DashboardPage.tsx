@@ -23,7 +23,6 @@ import {
 	DashboardPeriodFlowCard,
 	DashboardProjectedCashFlowCard,
 	DashboardQuickActions,
-	DashboardReferenceRateNotice,
 	DashboardSkeleton,
 } from "@/routes/components";
 import { type AuthState, useAuthStore } from "@/stores";
@@ -151,7 +150,6 @@ export function DashboardPage() {
 			{dashboard.consolidation?.histories.map(history => (
 				<HistoryCollectionObserver collectionId={history.collectionId} key={history.collectionId} />
 			))}
-			<DashboardReferenceRateNotice available={dashboard.referenceRatesAvailable} />
 			<DashboardComparisonChart />
 			<section className="grid gap-4 xl:grid-cols-2">
 				<DashboardAccounts

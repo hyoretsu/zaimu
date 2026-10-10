@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import { ChartContainer } from "@/components/ui/chart";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { DashboardReferenceRateNotice } from "../../DashboardReferenceRateNotice";
 import { chartConfig } from "./chart-config";
 import { FloatingDashboardTooltip } from "./FloatingDashboardTooltip";
 import type { DashboardChartKind, DashboardChartPeriod } from "./types";
@@ -169,6 +170,7 @@ export function DashboardPeriodChart({
 					</li>
 				))}
 			</ul>
+			{balances && <DashboardReferenceRateNotice />}
 		</section>
 	);
 }
