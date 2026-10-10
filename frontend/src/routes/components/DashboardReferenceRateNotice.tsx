@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { HistoryCollectionProgress } from "@/components/currency/HistoryCollectionProgress";
+import { HistoryCollectionObserver } from "@/components/currency/HistoryCollectionObserver";
 import { refreshReferenceRateAverages } from "@/lib/reference-rate-averages";
 export function DashboardReferenceRateNotice({ available }: { available: boolean }) {
 	const rates = useQuery({
@@ -15,9 +15,7 @@ export function DashboardReferenceRateNotice({ available }: { available: boolean
 				Parcela pós-fixada da previsão indisponível até concluir histórico de dez anos de CDI/Selic. Saldos
 				registrados e parcela prefixada continuam disponíveis.
 			</p>
-			{rates.data?.collectionId && (
-				<HistoryCollectionProgress collectionId={rates.data.collectionId} title="Histórico CDI/Selic" />
-			)}
+			{rates.data?.collectionId && <HistoryCollectionObserver collectionId={rates.data.collectionId} />}
 		</div>
 	);
 }

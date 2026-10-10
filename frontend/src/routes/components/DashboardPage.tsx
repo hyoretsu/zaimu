@@ -3,7 +3,7 @@ import { format, startOfMonth } from "date-fns";
 import { useState } from "react";
 import { LuTrendingUp, LuWalletCards } from "react-icons/lu";
 import { CreditCardImportReviewDialog } from "@/components/credit-card-imports";
-import { HistoryCollectionProgress, TravelCurrencyBanner } from "@/components/currency";
+import { HistoryCollectionObserver, TravelCurrencyBanner } from "@/components/currency";
 import { PendingNotices } from "@/components/pending-notices";
 import { TransactionImportReviewDialog } from "@/components/transaction-imports";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -149,25 +149,8 @@ export function DashboardPage() {
 				</Card>
 			)}
 			{dashboard.consolidation?.histories.map(history => (
-				<HistoryCollectionProgress
-					collectionId={history.collectionId}
-					key={history.collectionId}
-					title={`Histórico cambial - ${currencyCode}`}
-				/>
+				<HistoryCollectionObserver collectionId={history.collectionId} key={history.collectionId} />
 			))}
-			{dashboard.consolidation?.histories.some(history => history.state !== "COMPLETED") && (
-				<p className="text-muted-foreground text-sm">
-					Estimativa cambial parcial. Média ponderada dá maior peso às cotações recentes.
-				</p>
-			)}
-			{dashboard.consolidation && (
-				<p className="text-muted-foreground text-xs">
-					Cotações atuais:{" "}
-					{Object.entries(dashboard.consolidation.publishedDates)
-						.map(([source, date]) => `${source}: ${date}`)
-						.join("; ") || "Sem conversão necessária"}
-				</p>
-			)}
 			<DashboardReferenceRateNotice available={dashboard.referenceRatesAvailable} />
 			<DashboardComparisonChart />
 			<section className="grid gap-4 xl:grid-cols-2">

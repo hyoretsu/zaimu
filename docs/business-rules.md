@@ -201,6 +201,8 @@ Novos valores herdam vínculo de conta/cartão/instituição, depois preferênci
 
 Histórico cambial de previsão solicita 365 dias anteriores à referência, para ambas as moedas. Unidades reutilizam snapshots completos por data/base. Estimativa usa média ponderada com meia-vida de 90 dias e informa cobertura parcial. Cotação concreta permanece fixada na data da compra. Cliente tenta jsDelivr e depois Cloudflare para mesma data/endpoint quando há erro HTTP, timeout ou resposta inválida.
 
+A dashboard não exibe progresso técnico das coletas cambiais ou de CDI/Selic, contadores de execução, detalhes das unidades, aviso de estimativa cambial parcial nem datas das cotações. A atualização dos dados continua em segundo plano; avisos sobre indisponibilidade financeira permanecem visíveis.
+
 Coletas cambiais e de juros usam progresso persistente, unidades deduplicadas, outbox transacional e filas isoladas por ambiente. Recuperação retoma somente demanda incompleta; ação de retry reativa falhas sem repetir unidades concluídas. Leases têm proprietário/token, 90 segundos de duração e renovação a cada 20 segundos. Downloads cambiais compartilham limite de seis slots entre workers.
 
 CDI/Selic usam dez anos encerrados ontem, intervalos anuais estáveis e cauda atual. Cobertura é intervalo consultado com sucesso, inclusive dias sem publicação oficial. Média aritmética fica indisponível até cobertura completa; publicação de recálculos compartilha transação com taxas/cobertura. Leitura de progresso não cria coletas.
