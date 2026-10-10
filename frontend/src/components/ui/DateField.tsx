@@ -1,10 +1,12 @@
 import { addMonths, format, isValid, parseISO, startOfMonth, subMonths } from "date-fns";
 import { useRef, useState } from "react";
-import { LuChevronDown, LuChevronLeft, LuChevronRight } from "react-icons/lu";
+import { LuChevronDown, LuChevronLeft, LuChevronRight, LuX } from "react-icons/lu";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { inputControlClassName } from "@/components/ui/input-styles";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { cn } from "@/lib/utils";
+import { showToast } from "@/stores";
 import { CalendarMonth } from "./DateRangePicker/CalendarMonth";
 import { MonthYearPicker } from "./DateRangePicker/MonthYearPicker";
 import { Label } from "./Label";
@@ -151,6 +153,23 @@ export function DateField({
 					startDate={selectedDate}
 				/>
 			</div>
+			<ActionGroup>
+				<Button
+					className="cursor-pointer"
+					disabled={disabled || !value}
+					onClick={() => {
+						onValueChange("");
+						setOpen(false);
+						showToast("Seleção de data limpa.", "info");
+					}}
+					size="sm"
+					type="button"
+					variant="outline"
+				>
+					<LuX />
+					Limpar seleção
+				</Button>
+			</ActionGroup>
 		</>
 	);
 
