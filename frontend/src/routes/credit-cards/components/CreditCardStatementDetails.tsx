@@ -255,10 +255,12 @@ export function CreditCardStatementDetails({
 										<span>Sincronizada</span>
 									</AppBadge>
 								)}
-								<AppBadge className="shrink-0" variant="outline">
-									{StatusIcon && <StatusIcon aria-hidden="true" className={status.className} />}
-									{status.label}
-								</AppBadge>
+								{status.label && (
+									<AppBadge className="shrink-0" variant="outline">
+										{StatusIcon && <StatusIcon aria-hidden="true" className={status.className} />}
+										{status.label}
+									</AppBadge>
+								)}
 							</div>
 						</div>
 						<div>

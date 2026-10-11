@@ -121,7 +121,7 @@ export function CreditCardStatementTabs({
 						const StatusIcon = status.icon;
 						return (
 							<TabsTrigger
-								aria-label={`${formatLocalMonthYear(statement.dueDate)} - ${status.label}`}
+								aria-label={`${formatLocalMonthYear(statement.dueDate)}${status.label ? ` - ${status.label}` : ""}`}
 								className={cn(
 									"h-20 w-36 shrink-0 cursor-pointer items-start justify-start whitespace-normal rounded-xl border-border p-3 text-left",
 									selected && "border-primary bg-primary/10 ring-1 ring-primary/30",

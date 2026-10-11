@@ -14,13 +14,20 @@ const statement: CreditCardStatement = {
 };
 
 describe("getCreditCardStatementStatus", () => {
-	test("shows forecast invoices without an icon", () => {
+	test("shows forecast invoices without a status", () => {
 		const status = getCreditCardStatementStatus({ ...statement, isForecast: true });
-		expect(status.label).toBe("Fatura prevista");
+		expect(status.label).toBe("");
 		expect(status.icon).toBeNull();
 	});
+	test("hides status before the cycle opens, including month and year boundaries", () => {
+		expect(getCreditCardStatementStatus(statement, "2098-12-14")).toMatchObject({ icon: null, label: "" });
+		expect(getCreditCardStatementStatus(statement, "2098-12-15").label).toBe("Fatura aberta");
+		const march = { ...statement, dueDate: "2026-04-10", statementDate: "2026-03-31" };
+		expect(getCreditCardStatementStatus(march, "2026-02-27").label).toBe("");
+		expect(getCreditCardStatementStatus(march, "2026-02-28").label).toBe("Fatura aberta");
+	});
 	test("distinguishes open, closed and overdue invoices by their dates", () => {
-		expect(getCreditCardStatementStatus(statement).label).toBe("Fatura aberta");
+		expect(getCreditCardStatementStatus(statement, "2099-01-01").label).toBe("Fatura aberta");
 		expect(
 			getCreditCardStatementStatus({ ...statement, dueDate: "2099-01-20", statementDate: "2020-01-15" })
 				.label,
