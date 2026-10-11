@@ -1,0 +1,814 @@
+[
+	{
+		"execute": [
+			{
+				"description": "drop column \"yieldTaxType\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialAccount\" DROP COLUMN \"yieldTaxType\""
+			}
+		],
+		"id": "dropColumn.FinancialAccount.yieldTaxType",
+		"label": "Drop column \"yieldTaxType\" from \"FinancialAccount\"",
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"yieldTaxType\" does not exist",
+				"params": ["public", "FinancialAccount", "yieldTaxType"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"yieldTaxType\" exists",
+				"params": ["public", "FinancialAccount", "yieldTaxType"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "yieldTaxType",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialAccount"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "drop column \"yieldTaxType\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialAccountYieldRateHistory\" DROP COLUMN \"yieldTaxType\""
+			}
+		],
+		"id": "dropColumn.FinancialAccountYieldRateHistory.yieldTaxType",
+		"label": "Drop column \"yieldTaxType\" from \"FinancialAccountYieldRateHistory\"",
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"yieldTaxType\" does not exist",
+				"params": ["public", "FinancialAccountYieldRateHistory", "yieldTaxType"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"yieldTaxType\" exists",
+				"params": ["public", "FinancialAccountYieldRateHistory", "yieldTaxType"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "yieldTaxType",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialAccountYieldRateHistory"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "drop column \"yieldTaxType\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialInstitutionYieldPolicy\" DROP COLUMN \"yieldTaxType\""
+			}
+		],
+		"id": "dropColumn.FinancialInstitutionYieldPolicy.yieldTaxType",
+		"label": "Drop column \"yieldTaxType\" from \"FinancialInstitutionYieldPolicy\"",
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"yieldTaxType\" does not exist",
+				"params": ["public", "FinancialInstitutionYieldPolicy", "yieldTaxType"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"yieldTaxType\" exists",
+				"params": ["public", "FinancialInstitutionYieldPolicy", "yieldTaxType"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "yieldTaxType",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialInstitutionYieldPolicy"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"YieldCalendarCountry\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"YieldCalendarCountry\" (\n  \"code\" character varying(2) NOT NULL,\n  \"name\" character varying(100) NOT NULL,\n  PRIMARY KEY (\"code\")\n)"
+			}
+		],
+		"id": "table.YieldCalendarCountry",
+		"label": "Create table \"YieldCalendarCountry\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"YieldCalendarCountry\" exists",
+				"params": ["\"public\".\"YieldCalendarCountry\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"YieldCalendarCountry\" does not exist",
+				"params": ["\"public\".\"YieldCalendarCountry\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"YieldCalendarCountry\"",
+		"target": {
+			"details": {
+				"name": "YieldCalendarCountry",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"YieldCalendarCurrency\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"YieldCalendarCurrency\" (\n  \"countryCode\" character varying(2) NOT NULL,\n  \"currency\" character varying(3) NOT NULL,\n  PRIMARY KEY (\"countryCode\", \"currency\")\n)"
+			}
+		],
+		"id": "table.YieldCalendarCurrency",
+		"label": "Create table \"YieldCalendarCurrency\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"YieldCalendarCurrency\" exists",
+				"params": ["\"public\".\"YieldCalendarCurrency\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"YieldCalendarCurrency\" does not exist",
+				"params": ["\"public\".\"YieldCalendarCurrency\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"YieldCalendarCurrency\"",
+		"target": {
+			"details": {
+				"name": "YieldCalendarCurrency",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"YieldCalendarHoliday\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"YieldCalendarHoliday\" (\n  \"countryCode\" character varying(2) NOT NULL,\n  \"date\" date NOT NULL,\n  \"id\" character varying(36) DEFAULT (cuid2()) NOT NULL,\n  \"name\" character varying(100) NOT NULL,\n  PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.YieldCalendarHoliday",
+		"label": "Create table \"YieldCalendarHoliday\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"YieldCalendarHoliday\" exists",
+				"params": ["\"public\".\"YieldCalendarHoliday\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"YieldCalendarHoliday\" does not exist",
+				"params": ["\"public\".\"YieldCalendarHoliday\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"YieldCalendarHoliday\"",
+		"target": {
+			"details": {
+				"name": "YieldCalendarHoliday",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"taxDefinition\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"taxDefinition\" (\n  \"id\" character varying(36) NOT NULL,\n  \"isActive\" bool DEFAULT true NOT NULL,\n  \"name\" character varying(100) NOT NULL,\n  PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.taxDefinition",
+		"label": "Create table \"taxDefinition\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"taxDefinition\" exists",
+				"params": ["\"public\".\"taxDefinition\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"taxDefinition\" does not exist",
+				"params": ["\"public\".\"taxDefinition\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"taxDefinition\"",
+		"target": {
+			"details": {
+				"name": "taxDefinition",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"taxDefinitionVersion\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"taxDefinitionVersion\" (\n  \"applicationOrder\" int4 NOT NULL,\n  \"brackets\" json NOT NULL,\n  \"effectiveDate\" date NOT NULL,\n  \"id\" character varying(36) NOT NULL,\n  \"taxDefinitionId\" character varying(36) NOT NULL,\n  PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.taxDefinitionVersion",
+		"label": "Create table \"taxDefinitionVersion\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"taxDefinitionVersion\" exists",
+				"params": ["\"public\".\"taxDefinitionVersion\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"taxDefinitionVersion\" does not exist",
+				"params": ["\"public\".\"taxDefinitionVersion\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"taxDefinitionVersion\"",
+		"target": {
+			"details": {
+				"name": "taxDefinitionVersion",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"yieldTaxIds\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialAccount\" ADD COLUMN \"yieldTaxIds\" character varying(36)[] DEFAULT '{}' NOT NULL"
+			}
+		],
+		"id": "column.public.FinancialAccount.yieldTaxIds",
+		"label": "Add column \"yieldTaxIds\" to \"FinancialAccount\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"yieldTaxIds\" exists",
+				"params": ["public", "FinancialAccount", "yieldTaxIds"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"yieldTaxIds\" is missing",
+				"params": ["public", "FinancialAccount", "yieldTaxIds"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "yieldTaxIds",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialAccount"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"yieldTaxIds\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialAccountYieldRateHistory\" ADD COLUMN \"yieldTaxIds\" character varying(36)[] DEFAULT '{}' NOT NULL"
+			}
+		],
+		"id": "column.public.FinancialAccountYieldRateHistory.yieldTaxIds",
+		"label": "Add column \"yieldTaxIds\" to \"FinancialAccountYieldRateHistory\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"yieldTaxIds\" exists",
+				"params": ["public", "FinancialAccountYieldRateHistory", "yieldTaxIds"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"yieldTaxIds\" is missing",
+				"params": ["public", "FinancialAccountYieldRateHistory", "yieldTaxIds"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "yieldTaxIds",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialAccountYieldRateHistory"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"yieldTaxIds\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialInstitutionYieldPolicy\" ADD COLUMN \"yieldTaxIds\" character varying(36)[] DEFAULT '{}' NOT NULL"
+			}
+		],
+		"id": "column.public.FinancialInstitutionYieldPolicy.yieldTaxIds",
+		"label": "Add column \"yieldTaxIds\" to \"FinancialInstitutionYieldPolicy\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"yieldTaxIds\" exists",
+				"params": ["public", "FinancialInstitutionYieldPolicy", "yieldTaxIds"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"yieldTaxIds\" is missing",
+				"params": ["public", "FinancialInstitutionYieldPolicy", "yieldTaxIds"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "yieldTaxIds",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialInstitutionYieldPolicy"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"role\"",
+				"sql": "ALTER TABLE \"public\".\"user\" ADD COLUMN \"role\" character varying(10) DEFAULT 'USER' NOT NULL"
+			}
+		],
+		"id": "column.public.user.role",
+		"label": "Add column \"role\" to \"user\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"role\" exists",
+				"params": ["public", "user", "role"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"role\" is missing",
+				"params": ["public", "user", "role"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "role",
+				"objectType": "column",
+				"schema": "public",
+				"table": "user"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add check constraint \"FinancialAccount_yieldTaxIds_elem_not_null_6844033d\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialAccount\" ADD CONSTRAINT \"FinancialAccount_yieldTaxIds_elem_not_null_6844033d\" CHECK (array_position(\"yieldTaxIds\", NULL) IS NULL)"
+			}
+		],
+		"id": "checkConstraint.FinancialAccount.FinancialAccount_yieldTaxIds_elem_not_null_6844033d",
+		"label": "Add check constraint \"FinancialAccount_yieldTaxIds_elem_not_null_6844033d\" on \"FinancialAccount\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify constraint \"FinancialAccount_yieldTaxIds_elem_not_null_6844033d\" exists",
+				"params": [
+					"FinancialAccount_yieldTaxIds_elem_not_null_6844033d",
+					"public",
+					"\"public\".\"FinancialAccount\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure constraint \"FinancialAccount_yieldTaxIds_elem_not_null_6844033d\" does not exist",
+				"params": [
+					"FinancialAccount_yieldTaxIds_elem_not_null_6844033d",
+					"public",
+					"\"public\".\"FinancialAccount\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "FinancialAccount_yieldTaxIds_elem_not_null_6844033d",
+				"objectType": "checkConstraint",
+				"schema": "public",
+				"table": "FinancialAccount"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add check constraint \"FinancialAccountYieldRateHistory_yieldTaxIds_elem_not__6844033d\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialAccountYieldRateHistory\" ADD CONSTRAINT \"FinancialAccountYieldRateHistory_yieldTaxIds_elem_not__6844033d\" CHECK (array_position(\"yieldTaxIds\", NULL) IS NULL)"
+			}
+		],
+		"id": "checkConstraint.FinancialAccountYieldRateHistory.FinancialAccountYieldRateHistory_yieldTaxIds_elem_not__6844033d",
+		"label": "Add check constraint \"FinancialAccountYieldRateHistory_yieldTaxIds_elem_not__6844033d\" on \"FinancialAccountYieldRateHistory\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify constraint \"FinancialAccountYieldRateHistory_yieldTaxIds_elem_not__6844033d\" exists",
+				"params": [
+					"FinancialAccountYieldRateHistory_yieldTaxIds_elem_not__6844033d",
+					"public",
+					"\"public\".\"FinancialAccountYieldRateHistory\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure constraint \"FinancialAccountYieldRateHistory_yieldTaxIds_elem_not__6844033d\" does not exist",
+				"params": [
+					"FinancialAccountYieldRateHistory_yieldTaxIds_elem_not__6844033d",
+					"public",
+					"\"public\".\"FinancialAccountYieldRateHistory\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "FinancialAccountYieldRateHistory_yieldTaxIds_elem_not__6844033d",
+				"objectType": "checkConstraint",
+				"schema": "public",
+				"table": "FinancialAccountYieldRateHistory"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add check constraint \"FinancialInstitutionYieldPolicy_yieldTaxIds_elem_not_n_6844033d\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialInstitutionYieldPolicy\" ADD CONSTRAINT \"FinancialInstitutionYieldPolicy_yieldTaxIds_elem_not_n_6844033d\" CHECK (array_position(\"yieldTaxIds\", NULL) IS NULL)"
+			}
+		],
+		"id": "checkConstraint.FinancialInstitutionYieldPolicy.FinancialInstitutionYieldPolicy_yieldTaxIds_elem_not_n_6844033d",
+		"label": "Add check constraint \"FinancialInstitutionYieldPolicy_yieldTaxIds_elem_not_n_6844033d\" on \"FinancialInstitutionYieldPolicy\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify constraint \"FinancialInstitutionYieldPolicy_yieldTaxIds_elem_not_n_6844033d\" exists",
+				"params": [
+					"FinancialInstitutionYieldPolicy_yieldTaxIds_elem_not_n_6844033d",
+					"public",
+					"\"public\".\"FinancialInstitutionYieldPolicy\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure constraint \"FinancialInstitutionYieldPolicy_yieldTaxIds_elem_not_n_6844033d\" does not exist",
+				"params": [
+					"FinancialInstitutionYieldPolicy_yieldTaxIds_elem_not_n_6844033d",
+					"public",
+					"\"public\".\"FinancialInstitutionYieldPolicy\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "FinancialInstitutionYieldPolicy_yieldTaxIds_elem_not_n_6844033d",
+				"objectType": "checkConstraint",
+				"schema": "public",
+				"table": "FinancialInstitutionYieldPolicy"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add unique constraint \"taxDefinitionVersion_taxDefinitionId_effectiveDate_key\"",
+				"sql": "ALTER TABLE \"public\".\"taxDefinitionVersion\" ADD CONSTRAINT \"taxDefinitionVersion_taxDefinitionId_effectiveDate_key\" UNIQUE (\"taxDefinitionId\", \"effectiveDate\")"
+			}
+		],
+		"id": "unique.taxDefinitionVersion.taxDefinitionVersion_taxDefinitionId_effectiveDate_key",
+		"label": "Add unique constraint on \"taxDefinitionVersion\" (taxDefinitionId, effectiveDate)",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify constraint \"taxDefinitionVersion_taxDefinitionId_effectiveDate_key\" exists",
+				"params": [
+					"taxDefinitionVersion_taxDefinitionId_effectiveDate_key",
+					"public",
+					"\"public\".\"taxDefinitionVersion\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure constraint \"taxDefinitionVersion_taxDefinitionId_effectiveDate_key\" does not exist",
+				"params": [
+					"taxDefinitionVersion_taxDefinitionId_effectiveDate_key",
+					"public",
+					"\"public\".\"taxDefinitionVersion\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "taxDefinitionVersion_taxDefinitionId_effectiveDate_key",
+				"objectType": "unique",
+				"schema": "public",
+				"table": "taxDefinitionVersion"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"YieldCalendarCurrency_currency_idx_e37259ca\"",
+				"params": [],
+				"sql": "CREATE INDEX \"YieldCalendarCurrency_currency_idx_e37259ca\" ON \"public\".\"YieldCalendarCurrency\" (\"currency\")"
+			}
+		],
+		"id": "index.YieldCalendarCurrency.YieldCalendarCurrency_currency_idx_e37259ca",
+		"label": "Create index \"YieldCalendarCurrency_currency_idx_e37259ca\" on \"YieldCalendarCurrency\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"YieldCalendarCurrency_currency_idx_e37259ca\" exists",
+				"params": ["\"public\".\"YieldCalendarCurrency_currency_idx_e37259ca\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"YieldCalendarCurrency_currency_idx_e37259ca\" does not exist",
+				"params": ["\"public\".\"YieldCalendarCurrency_currency_idx_e37259ca\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "YieldCalendarCurrency_currency_idx_e37259ca",
+				"objectType": "index",
+				"schema": "public",
+				"table": "YieldCalendarCurrency"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"YieldCalendarHoliday_countryCode_date_idx_dc368468\"",
+				"params": [],
+				"sql": "CREATE UNIQUE INDEX \"YieldCalendarHoliday_countryCode_date_idx_dc368468\" ON \"public\".\"YieldCalendarHoliday\" (\"countryCode\", \"date\")"
+			}
+		],
+		"id": "index.YieldCalendarHoliday.YieldCalendarHoliday_countryCode_date_idx_dc368468",
+		"label": "Create index \"YieldCalendarHoliday_countryCode_date_idx_dc368468\" on \"YieldCalendarHoliday\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"YieldCalendarHoliday_countryCode_date_idx_dc368468\" exists",
+				"params": ["\"public\".\"YieldCalendarHoliday_countryCode_date_idx_dc368468\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"YieldCalendarHoliday_countryCode_date_idx_dc368468\" does not exist",
+				"params": ["\"public\".\"YieldCalendarHoliday_countryCode_date_idx_dc368468\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "YieldCalendarHoliday_countryCode_date_idx_dc368468",
+				"objectType": "index",
+				"schema": "public",
+				"table": "YieldCalendarHoliday"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"taxDefinitionVersion_taxDefinitionId_idx_987c13b3\"",
+				"params": [],
+				"sql": "CREATE INDEX \"taxDefinitionVersion_taxDefinitionId_idx_987c13b3\" ON \"public\".\"taxDefinitionVersion\" (\"taxDefinitionId\")"
+			}
+		],
+		"id": "index.taxDefinitionVersion.taxDefinitionVersion_taxDefinitionId_idx_987c13b3",
+		"label": "Create index \"taxDefinitionVersion_taxDefinitionId_idx_987c13b3\" on \"taxDefinitionVersion\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"taxDefinitionVersion_taxDefinitionId_idx_987c13b3\" exists",
+				"params": ["\"public\".\"taxDefinitionVersion_taxDefinitionId_idx_987c13b3\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"taxDefinitionVersion_taxDefinitionId_idx_987c13b3\" does not exist",
+				"params": ["\"public\".\"taxDefinitionVersion_taxDefinitionId_idx_987c13b3\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "taxDefinitionVersion_taxDefinitionId_idx_987c13b3",
+				"objectType": "index",
+				"schema": "public",
+				"table": "taxDefinitionVersion"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"YieldCalendarCurrency_countryCode_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"YieldCalendarCurrency\"\nADD CONSTRAINT \"YieldCalendarCurrency_countryCode_fkey\"\nFOREIGN KEY (\"countryCode\")\nREFERENCES \"public\".\"YieldCalendarCountry\" (\"code\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.YieldCalendarCurrency.YieldCalendarCurrency_countryCode_fkey",
+		"label": "Add foreign key \"YieldCalendarCurrency_countryCode_fkey\" on \"YieldCalendarCurrency\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"YieldCalendarCurrency_countryCode_fkey\" exists",
+				"params": [
+					"YieldCalendarCurrency_countryCode_fkey",
+					"public",
+					"\"public\".\"YieldCalendarCurrency\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"YieldCalendarCurrency_countryCode_fkey\" does not exist",
+				"params": [
+					"YieldCalendarCurrency_countryCode_fkey",
+					"public",
+					"\"public\".\"YieldCalendarCurrency\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "YieldCalendarCurrency_countryCode_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "YieldCalendarCurrency"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"YieldCalendarHoliday_countryCode_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"YieldCalendarHoliday\"\nADD CONSTRAINT \"YieldCalendarHoliday_countryCode_fkey\"\nFOREIGN KEY (\"countryCode\")\nREFERENCES \"public\".\"YieldCalendarCountry\" (\"code\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.YieldCalendarHoliday.YieldCalendarHoliday_countryCode_fkey",
+		"label": "Add foreign key \"YieldCalendarHoliday_countryCode_fkey\" on \"YieldCalendarHoliday\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"YieldCalendarHoliday_countryCode_fkey\" exists",
+				"params": [
+					"YieldCalendarHoliday_countryCode_fkey",
+					"public",
+					"\"public\".\"YieldCalendarHoliday\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"YieldCalendarHoliday_countryCode_fkey\" does not exist",
+				"params": [
+					"YieldCalendarHoliday_countryCode_fkey",
+					"public",
+					"\"public\".\"YieldCalendarHoliday\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "YieldCalendarHoliday_countryCode_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "YieldCalendarHoliday"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"taxDefinitionVersion_taxDefinitionId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"taxDefinitionVersion\"\nADD CONSTRAINT \"taxDefinitionVersion_taxDefinitionId_fkey\"\nFOREIGN KEY (\"taxDefinitionId\")\nREFERENCES \"public\".\"taxDefinition\" (\"id\")\nON DELETE RESTRICT"
+			}
+		],
+		"id": "foreignKey.taxDefinitionVersion.taxDefinitionVersion_taxDefinitionId_fkey",
+		"label": "Add foreign key \"taxDefinitionVersion_taxDefinitionId_fkey\" on \"taxDefinitionVersion\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"taxDefinitionVersion_taxDefinitionId_fkey\" exists",
+				"params": [
+					"taxDefinitionVersion_taxDefinitionId_fkey",
+					"public",
+					"\"public\".\"taxDefinitionVersion\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"taxDefinitionVersion_taxDefinitionId_fkey\" does not exist",
+				"params": [
+					"taxDefinitionVersion_taxDefinitionId_fkey",
+					"public",
+					"\"public\".\"taxDefinitionVersion\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "taxDefinitionVersion_taxDefinitionId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "taxDefinitionVersion"
+			},
+			"id": "postgres"
+		}
+	}
+]
