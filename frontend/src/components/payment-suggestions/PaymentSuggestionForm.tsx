@@ -59,7 +59,7 @@ export function PaymentSuggestionForm({
 		onError: error => setError(error.message),
 		onSuccess: async () => {
 			await invalidateCacheOperation(queryClient, identity!, "transaction");
-			showToast("Pagamento da fatura registrado.", "positive");
+			showToast("Pagamento do cartão registrado.", "positive");
 			onClose();
 		},
 	});
@@ -126,6 +126,11 @@ export function PaymentSuggestionForm({
 							required
 							value={date}
 						/>
+						{date > suggestion.dueDate && (
+							<p className="text-amber-600 text-sm dark:text-amber-400" role="status">
+								Data do pagamento após o vencimento da fatura. O pagamento será registrado no cartão.
+							</p>
+						)}
 						{accounts.isPending ? (
 							<Skeleton className="h-20" />
 						) : (

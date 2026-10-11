@@ -1,4 +1,4 @@
-import { moneyCents, replayCreditBook } from "@zaimu/finance/credit-book";
+import { moneyCents } from "@zaimu/finance/credit-book";
 import { toMinorUnits } from "@zaimu/finance/money";
 import { pendingStatementPayments } from "@zaimu/finance/payment-suggestions";
 import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
@@ -73,15 +73,6 @@ export async function confirmSuggestedPayment(userId: string, cardId: string, in
 			moneyCents(suggestion.amount, 1, book.card.currency) !== moneyCents(input.amount, 1, book.card.currency)
 		)
 			throw new HttpException("Saldo da fatura mudou. Revise o pagamento novamente", 409);
-		const datedStatement = replayCreditBook(book, input.date).statements.find(
-			row => row.id === input.statementId,
-		);
-		if (
-			!datedStatement ||
-			(datedStatement.statementDate > input.date && datedStatement.carriedInAmount <= 0) ||
-			!hasPaymentBalance(datedStatement.balanceAmount, input.amount, book.card.currency)
-		)
-			throw new HttpException("Fatura indisponível para pagamento na data informada", 400);
 		const debitAmount =
 			input.accountAmount ??
 			(

@@ -1590,16 +1590,6 @@ export async function confirmLocalSuggestedPayment(
 		const yieldData = (await requestResult(meta.get(scopedId(owner, "financial-account-yields")))) as
 			| LocalData<import("./api").FinancialAccountYield[]>
 			| undefined;
-		const datedStatement = replayCreditBook(book, input.date).statements.find(
-			row => row.id === input.statementId,
-		);
-		if (
-			!datedStatement ||
-			(datedStatement.statementDate > input.date && datedStatement.carriedInAmount <= 0) ||
-			moneyCents(Math.max(0, datedStatement.balanceAmount), 1, book.card.currency) <
-				moneyCents(input.amount, 1, book.card.currency)
-		)
-			throw new Error("Fatura indisponível para pagamento na data informada");
 		const balance =
 			calculateFinancialAccountBalances(
 				accounts.map(row => row.data),

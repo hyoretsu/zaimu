@@ -170,9 +170,12 @@ test("visitor payment validates balance and date, serializes attempts and isolat
 		"income",
 		owner,
 	);
-	await expect(
-		storage.confirmLocalSuggestedPayment("card", { ...input, date: "2026-08-19" }),
-	).rejects.toThrow();
+	for (const date of ["2026-08-05", "2026-08-19", "2026-08-29"]) {
+		const result = await storage.confirmLocalSuggestedPayment("card", { ...input, date });
+		expect(result.transaction.date).toBe(date);
+		expect(result.transaction.paymentCreditCardId).toBe("card");
+		await storage.localTransactions.delete(input.attemptId, owner);
+	}
 	const [first, repeated] = await Promise.all([
 		storage.confirmLocalSuggestedPayment("card", input),
 		storage.confirmLocalSuggestedPayment("card", input),
