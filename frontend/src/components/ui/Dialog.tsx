@@ -4,6 +4,7 @@ import { Dialog as DialogPrimitive } from "radix-ui";
 import { type ComponentProps, createContext, useContext } from "react";
 import { Button } from "@/components/ui/Button";
 import { DialogBody } from "@/components/ui/DialogBody";
+import { useDialogHistory } from "@/hooks/use-dialog-history";
 import { usePageScrollLock } from "@/hooks/use-page-scroll-lock";
 import { useRouteDismissableOpen } from "@/hooks/use-route-dismissable-open";
 import { cn } from "@/lib/utils";
@@ -12,6 +13,7 @@ const DialogContentContext = createContext({ showCloseButton: true });
 
 function Dialog({ modal = false, ...props }: ComponentProps<typeof DialogPrimitive.Root>) {
 	const openProps = useRouteDismissableOpen(props);
+	useDialogHistory(openProps.open, openProps.onOpenChange);
 	return <DialogPrimitive.Root data-slot="dialog" modal={modal} {...props} {...openProps} />;
 }
 

@@ -8,6 +8,10 @@ Scrollbars must remain contained within their own scrollable div. Inset vertical
 
 Every modal must use the shared `Dialog` components from `frontend/src/components/ui/Dialog.tsx`, including wrappers such as `ImportDialogContent`. Keep `DialogHeader` and `DialogFooter` visible and outside the scrollable region on desktop, mobile, and touch devices. Only the central content scrolls, through the shared `DialogBody`, which uses `ScrollArea`. Limit `DialogContent` to the visible viewport and clip its overflow; never scroll the entire modal or wrap its header/footer in a scroll area. Preserve form submission by keeping `DialogBody` and `DialogFooter` inside the same form when needed. Avoid duplicate vertical scroll containers inside `DialogBody`.
 
+# Back navigation
+
+Mobile system back buttons, back gestures, and browser Back must traverse every visited subpage and modal in order. Navigate to subpages through the router with history pushes, reserving replacement for redirects. Opening a modal must add a history step through the shared `Dialog`; Back closes only the topmost modal before navigating away from its page. Closing through buttons, Escape, or the overlay must consume that modal's history step without leaving dead entries. Nested modals must unwind one at a time. Preserve router history state and handle effect replay and unmounting without duplicate entries or accidental page navigation.
+
 # Infinite scroll
 
 Loading more items must never change the current scroll position. Keep the existing list, rows, and scroll container mounted with stable keys throughout pagination, including dependent requests and pagination errors. Never replace loaded content with a spinner, skeleton, or full-list error state when fetching another page. Show incremental loading and retry feedback after the existing items, append new items without shrinking existing content, and preserve dependent query data while pagination changes its range. Reserve full-list loading states for the initial load or an explicit filter change; never reset scroll as a side effect of pagination.
