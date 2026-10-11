@@ -5,7 +5,6 @@ import { LuUnplug } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { openFinanceKeys, useOpenFinanceConfiguration } from "@/hooks/use-open-finance";
 import { openFinanceApi } from "@/lib/api";
@@ -37,7 +36,6 @@ export function OpenFinancePage() {
 	if (!authenticated)
 		return (
 			<OpenFinanceLayout>
-				<PageHeader title="Open Finance" />
 				<p>Entre em sua conta para conectar bancos ao Meu Pluggy.</p>
 				<ActionGroup>
 					<Button asChild>
@@ -49,7 +47,6 @@ export function OpenFinancePage() {
 	if (configuration.isPending)
 		return (
 			<OpenFinanceLayout>
-				<Skeleton className="h-20" />
 				<Skeleton className="h-32" />
 				<Skeleton className="h-48" />
 				<Skeleton className="h-48" />
@@ -69,10 +66,6 @@ export function OpenFinancePage() {
 	const config = configuration.data;
 	return (
 		<OpenFinanceLayout>
-			<PageHeader
-				description="Meu Pluggy: conecte seus bancos e importe seu histórico automaticamente."
-				title="Open Finance"
-			/>
 			{!config.available ? (
 				<p>
 					Integração indisponível neste servidor. Administrador precisa configurar a chave de criptografia.

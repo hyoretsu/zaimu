@@ -75,17 +75,17 @@ export function DashboardPage() {
 	return (
 		<PageContainer className="space-y-6">
 			<TravelCurrencyBanner />
-			<PageHeader
-				actions={
-					<div className="flex flex-wrap items-center justify-end gap-2">
-						<DashboardDateFilter onChange={setDateRange} value={dateRange} />
-						<DashboardQuickActions />
-					</div>
-				}
-				description="Seu dinheiro, compromissos e próximos passos em um só lugar."
-				eyebrow={`Olá, ${user?.name?.split(" ")[0] || "visitante"}`}
-				title="Visão geral"
-			/>
+			<DashboardQuickActions>
+				{actions => (
+					<PageHeader
+						actions={actions}
+						controls={<DashboardDateFilter onChange={setDateRange} value={dateRange} />}
+						description="Seu dinheiro, compromissos e próximos passos em um só lugar."
+						subtitle={`Olá, ${user?.name?.split(" ")[0] || "visitante"}`}
+						title="Visão geral"
+					/>
+				)}
+			</DashboardQuickActions>
 			<PendingNotices
 				debtInvitations
 				onReviewCreditCardImport={setReviewingCreditCardImportId}

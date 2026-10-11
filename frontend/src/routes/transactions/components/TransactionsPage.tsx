@@ -20,7 +20,6 @@ import {
 	EditTransactionDialog,
 	TransactionListItem,
 } from "@/components/transactions";
-import { ActionGroup } from "@/components/ui/ActionGroup";
 import { ActionNotice } from "@/components/ui/ActionNotice";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -445,21 +444,11 @@ export function TransactionsPage() {
 	return (
 		<PageContainer className="space-y-6">
 			<PageHeader
-				actions={
-					<ActionGroup>
-						<Button className="cursor-pointer" onClick={() => setIsModalOpen(true)}>
-							<HiPlus /> Adicionar
-						</Button>
-						<Button className="cursor-pointer" onClick={() => setIsImportOpen(true)} variant="outline">
-							<LuFileUp /> Importar extrato
-						</Button>
-					</ActionGroup>
-				}
-				description="Acompanhe entradas, saídas, transferências e rendimentos."
-				mobileActions={[
-					{ icon: HiPlus, label: "Adicionar", onClick: () => setIsModalOpen(true) },
+				actions={[
+					{ icon: HiPlus, label: "Adicionar", onClick: () => setIsModalOpen(true), variant: "default" },
 					{ icon: LuFileUp, label: "Importar extrato", onClick: () => setIsImportOpen(true) },
 				]}
+				description="Acompanhe entradas, saídas, transferências e rendimentos."
 				title="Transações"
 			/>
 			<PendingNotices onReviewTransactionImport={setReviewingImportId} paymentSuggestions />

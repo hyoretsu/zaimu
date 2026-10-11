@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { ComponentProps } from "react";
 import { useState } from "react";
 import { LuPencil, LuPlus, LuTrash2 } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { countryName } from "@/lib/countries";
 import { fetchWithAuth } from "@/lib/dataService";
@@ -11,7 +13,7 @@ import { fetchYieldCalendar } from "@/lib/yield-calendar";
 import { showToast } from "@/stores";
 import { CalendarEditor } from "./CalendarEditor";
 import type { CalendarEditing } from "./types";
-export function CalendarContent() {
+export function CalendarContent({ header }: { header: ComponentProps<typeof PageHeader> }) {
 	const catalog = useQuery({
 		queryFn: fetchYieldCalendar,
 		queryKey: ["yield-calendar"],
@@ -32,13 +34,14 @@ export function CalendarContent() {
 	if (catalog.isPending)
 		return (
 			<div className="grid gap-4 p-4">
-				<Skeleton className="h-10 w-64" />
+				<PageHeader {...header} />
 				<Skeleton className="h-64 w-full" />
 			</div>
 		);
 	if (catalog.isError)
 		return (
-			<div>
+			<div className="space-y-6">
+				<PageHeader {...header} />
 				<p role="alert">{catalog.error.message}</p>
 				<ActionGroup>
 					<Button onClick={() => void catalog.refetch()} variant="outline">
@@ -49,28 +52,29 @@ export function CalendarContent() {
 		);
 	return (
 		<div className="grid min-w-0 gap-6">
-			<ActionGroup>
-				<Button onClick={() => setEditing({ kind: "country", value: null })}>
-					<LuPlus />
-					Cadastrar país
-				</Button>
-				<Button
-					disabled={!catalog.data.countries.length}
-					onClick={() => setEditing({ kind: "currency", value: null })}
-					variant="outline"
-				>
-					<LuPlus />
-					Associar moeda
-				</Button>
-				<Button
-					disabled={!catalog.data.countries.length}
-					onClick={() => setEditing({ kind: "holiday", value: null })}
-					variant="outline"
-				>
-					<LuPlus />
-					Cadastrar feriado
-				</Button>
-			</ActionGroup>
+			<PageHeader
+				{...header}
+				actions={[
+					{
+						icon: LuPlus,
+						label: "Cadastrar país",
+						onClick: () => setEditing({ kind: "country", value: null }),
+						variant: "default",
+					},
+					{
+						disabled: !catalog.data.countries.length,
+						icon: LuPlus,
+						label: "Associar moeda",
+						onClick: () => setEditing({ kind: "currency", value: null }),
+					},
+					{
+						disabled: !catalog.data.countries.length,
+						icon: LuPlus,
+						label: "Cadastrar feriado",
+						onClick: () => setEditing({ kind: "holiday", value: null }),
+					},
+				]}
+			/>
 			<section className="grid gap-3 rounded-2xl border bg-card p-4 sm:p-6">
 				<h2 className="font-semibold">Países</h2>
 				{catalog.data.countries.map(country => (

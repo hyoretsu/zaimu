@@ -112,40 +112,7 @@ export function CreditCardsPage() {
 	return (
 		<PageContainer className="grid gap-8">
 			<PageHeader
-				actions={
-					<div className="flex flex-wrap justify-end gap-2">
-						<Button
-							className="h-11 cursor-pointer"
-							disabled={!cards.data?.length}
-							onClick={() => setIsCreatePurchaseOpen(true)}
-							variant="outline"
-						>
-							<LuCreditCard /> Nova compra
-						</Button>
-						<Button
-							className="h-11 cursor-pointer"
-							disabled={!cards.data?.length}
-							onClick={() => setIsCardAdjustmentsOpen(true)}
-							variant="outline"
-						>
-							<LuScale /> Ajustes de cartões
-						</Button>
-						<Button
-							className="h-11 cursor-pointer"
-							disabled={!cards.data?.length}
-							onClick={() => setIsImportOpen(true)}
-							variant="outline"
-						>
-							<LuFileUp /> Importar fatura
-						</Button>
-						<Button className="h-11 cursor-pointer" onClick={() => setIsCreateCardOpen(true)}>
-							<LuPlus /> Novo cartão
-						</Button>
-					</div>
-				}
-				description="Acompanhe limite, previsão de fatura e parcelamentos."
-				eyebrow="Crédito"
-				mobileActions={[
+				actions={[
 					{
 						disabled: !cards.data?.length,
 						icon: LuCreditCard,
@@ -164,8 +131,15 @@ export function CreditCardsPage() {
 						label: "Importar fatura",
 						onClick: () => setIsImportOpen(true),
 					},
-					{ icon: LuPlus, label: "Novo cartão", onClick: () => setIsCreateCardOpen(true) },
+					{
+						icon: LuPlus,
+						label: "Novo cartão",
+						onClick: () => setIsCreateCardOpen(true),
+						variant: "default",
+					},
 				]}
+				description="Acompanhe limite, previsão de fatura e parcelamentos."
+				subtitle="Crédito"
 				title="Cartões e compras"
 			/>
 			<PendingNotices onReviewCreditCardImport={setReviewingImportId} paymentSuggestions />

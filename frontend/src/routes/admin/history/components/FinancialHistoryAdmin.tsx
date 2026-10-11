@@ -1,13 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { format, subDays } from "date-fns";
+import type { ComponentProps } from "react";
 import { useState } from "react";
 import { LuRefreshCw } from "react-icons/lu";
-import { ActionGroup } from "@/components/ui/ActionGroup";
-import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import type { DateRangeValue } from "@/components/ui/DateRangePicker/types";
 import { FormFieldRow } from "@/components/ui/FormFieldRow";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { fetchWithAuth } from "@/lib/dataService";
 import { showToast } from "@/stores";
 import { useAuthStore } from "@/stores/auth";
@@ -21,7 +21,7 @@ function initialRange() {
 	const end = subDays(new Date(), 1);
 	return { endDate: format(end, "yyyy-MM-dd"), startDate: format(subDays(end, 364), "yyyy-MM-dd") };
 }
-export function FinancialHistoryAdmin() {
+export function FinancialHistoryAdmin({ header }: { header: ComponentProps<typeof PageHeader> }) {
 	const [range, setRange] = useState<DateRangeValue>(initialRange);
 	const [kind, setKind] = useState("INTEREST");
 	const [rate, setRate] = useState("CDI");
@@ -47,90 +47,92 @@ export function FinancialHistoryAdmin() {
 		retry: false,
 	});
 	return (
-		<section className="grid min-w-0 gap-4 rounded-2xl border bg-card p-4 sm:p-6">
-			<div>
-				<h2 className="font-semibold text-lg">Cobertura histórica</h2>
-				<p className="text-muted-foreground text-sm">
-					Juros e conversões salvos no banco. Dias consultados sem publicação oficial também têm cobertura.
-					Consulta não inicia coletas.
-				</p>
-			</div>
-			<FormFieldRow>
-				<div className="grid min-w-0 content-start gap-2">
-					<p className="font-medium text-sm">Período</p>
-					<DateRangePicker
-						onChange={value => setRange(value.startDate ? value : initialRange())}
-						value={range}
-					/>
-				</div>
-				<CustomSelect
-					label="Tipo de histórico"
-					onValueChange={setKind}
-					options={[
-						{ label: "Juros", value: "INTEREST" },
-						{ label: "Câmbio", value: "CURRENCY" },
-					]}
-					placeholder="Ex: Juros"
-					value={kind}
-				/>
-				<CustomSelect
-					label={kind === "INTEREST" ? "Taxa" : "Moeda base"}
-					onValueChange={kind === "INTEREST" ? setRate : setCurrency}
-					options={(kind === "INTEREST" ? ["CDI", "SELIC"] : [...new Set([...currencies, currency])]).map(
-						value => ({ label: value, value }),
-					)}
-					placeholder={kind === "INTEREST" ? "Ex: CDI" : "Ex: BRL"}
-					searchable={kind === "CURRENCY"}
-					value={series}
-				/>
-			</FormFieldRow>
-			<ActionGroup>
-				<Button
-					disabled={!valid || query.isFetching}
-					onClick={() =>
-						void query
-							.refetch()
-							.then(result =>
-								showToast(
-									result.isError ? result.error.message : "Cobertura atualizada.",
-									result.isError ? "negative" : "info",
+		<>
+			<PageHeader
+				{...header}
+				actions={[
+					{
+						disabled: !valid || query.isFetching,
+						icon: LuRefreshCw,
+						label: "Atualizar",
+						onClick: () =>
+							void query
+								.refetch()
+								.then(result =>
+									showToast(
+										result.isError ? result.error.message : "Cobertura atualizada.",
+										result.isError ? "negative" : "info",
+									),
 								),
-							)
-					}
-					variant="outline"
-				>
-					<LuRefreshCw />
-					Atualizar
-				</Button>
-			</ActionGroup>
-			{!valid ? (
-				<p role="alert">Escolha até 3.660 dias, encerrados antes de hoje.</p>
-			) : query.isPending ? (
-				<HistoryCoverageSkeleton />
-			) : query.isError ? (
-				<p role="alert">{query.error.message}</p>
-			) : (
-				query.data && (
-					<>
-						<HistoryCoverageTotals data={query.data} />
-						<p className="text-muted-foreground text-xs">
-							Verde: dados salvos. Azul: consultado sem publicação. Vermelho: sem cobertura. Cada bloco
-							representa um dia. Snapshots cambiais representam uma data e moeda-base, com múltiplas
-							conversões.
-						</p>
-						{query.data.series.map(series => (
-							<HistorySeriesCoverage
-								data={series}
-								endDate={endDate!}
-								key={`${series.kind}:${series.series}`}
-								requestedDays={query.data.requestedDays}
-								startDate={startDate!}
-							/>
-						))}
-						{!query.data.series.length && <p>Nenhum histórico desse tipo registrado.</p>}
-					</>
-				)
-			)}
-		</section>
+					},
+				]}
+			/>
+			<section className="grid min-w-0 gap-4 rounded-2xl border bg-card p-4 sm:p-6">
+				<div>
+					<h2 className="font-semibold text-lg">Cobertura histórica</h2>
+					<p className="text-muted-foreground text-sm">
+						Juros e conversões salvos no banco. Dias consultados sem publicação oficial também têm cobertura.
+						Consulta não inicia coletas.
+					</p>
+				</div>
+				<FormFieldRow>
+					<div className="grid min-w-0 content-start gap-2">
+						<p className="font-medium text-sm">Período</p>
+						<DateRangePicker
+							onChange={value => setRange(value.startDate ? value : initialRange())}
+							value={range}
+						/>
+					</div>
+					<CustomSelect
+						label="Tipo de histórico"
+						onValueChange={setKind}
+						options={[
+							{ label: "Juros", value: "INTEREST" },
+							{ label: "Câmbio", value: "CURRENCY" },
+						]}
+						placeholder="Ex: Juros"
+						value={kind}
+					/>
+					<CustomSelect
+						label={kind === "INTEREST" ? "Taxa" : "Moeda base"}
+						onValueChange={kind === "INTEREST" ? setRate : setCurrency}
+						options={(kind === "INTEREST" ? ["CDI", "SELIC"] : [...new Set([...currencies, currency])]).map(
+							value => ({ label: value, value }),
+						)}
+						placeholder={kind === "INTEREST" ? "Ex: CDI" : "Ex: BRL"}
+						searchable={kind === "CURRENCY"}
+						value={series}
+					/>
+				</FormFieldRow>
+				{!valid ? (
+					<p role="alert">Escolha até 3.660 dias, encerrados antes de hoje.</p>
+				) : query.isPending ? (
+					<HistoryCoverageSkeleton />
+				) : query.isError ? (
+					<p role="alert">{query.error.message}</p>
+				) : (
+					query.data && (
+						<>
+							<HistoryCoverageTotals data={query.data} />
+							<p className="text-muted-foreground text-xs">
+								Verde: dados salvos. Azul: consultado sem publicação. Vermelho: sem cobertura. Cada bloco
+								representa um dia. Snapshots cambiais representam uma data e moeda-base, com múltiplas
+								conversões.
+							</p>
+							{query.data.series.map(series => (
+								<HistorySeriesCoverage
+									data={series}
+									endDate={endDate!}
+									key={`${series.kind}:${series.series}`}
+									requestedDays={query.data.requestedDays}
+									startDate={startDate!}
+								/>
+							))}
+							{!query.data.series.length && <p>Nenhum histórico desse tipo registrado.</p>}
+						</>
+					)
+				)}
+			</section>
+		</>
 	);
 }

@@ -14,7 +14,7 @@ import {
 	HiSun,
 	HiUser,
 } from "react-icons/hi2";
-import { PageBackButton } from "@/components/ui/PageBackButton";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { dataService } from "@/lib/dataService";
 import { showToast, type ThemeMode, useAuthStore, useThemeStore } from "@/stores";
 import { CurrencySettings } from "./CurrencySettings";
@@ -106,22 +106,15 @@ export function AjustesPage() {
 
 	return (
 		<div className="mx-auto min-h-screen w-full max-w-5xl bg-background lg:py-10">
-			<div className="px-4 pt-6 lg:px-8">
-				<PageBackButton to="/more" />
-			</div>
-			{/* Header */}
-			<div className="gradient-primary relative overflow-hidden px-4 pt-12 pb-20 lg:rounded-3xl lg:px-8">
-				<div className="absolute top-0 right-0 h-48 w-48 translate-x-1/4 -translate-y-1/2 rounded-full bg-white/5" />
-				<div className="absolute bottom-0 left-0 h-32 w-32 -translate-x-1/4 translate-y-1/2 rounded-full bg-white/5" />
-
-				<div className="relative z-10">
-					<h1 className="font-bold text-2xl text-white">Ajustes</h1>
-					<p className="mt-1 text-white/70">Gerencie suas preferências</p>
-				</div>
-			</div>
+			<PageHeader
+				backTo="/more"
+				className="px-4 pt-6 pb-8 lg:px-8"
+				description="Gerencie suas preferências"
+				title="Ajustes"
+			/>
 
 			{/* Content */}
-			<div className="-mt-12 space-y-6 px-4 pb-8">
+			<div className="space-y-6 px-4 pb-8">
 				{/* User Card - Authenticated */}
 				{user && (
 					<div className="card animate-fade-in p-4">

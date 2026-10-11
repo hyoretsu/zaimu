@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { BrandMark } from "@/components/BrandMark";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 interface LegalDocumentPageProps {
 	content: string;
@@ -71,7 +72,7 @@ function LegalDocumentPage({ content, title }: LegalDocumentPageProps) {
 				</header>
 
 				<article className="rounded-3xl border border-border/70 bg-card p-6 shadow-card sm:p-10">
-					<h1 className="mb-8 font-bold text-3xl tracking-tight sm:text-4xl">{title}</h1>
+					<PageHeader className="mb-8" title={title} />
 					<div className="space-y-6 text-[0.95rem] text-foreground/85 leading-7 sm:text-base">
 						{blocks.map((block, index) => {
 							const normalizedBlock = normalizeMarkdown(block);

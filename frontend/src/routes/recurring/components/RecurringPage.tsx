@@ -4,7 +4,6 @@ import { useState } from "react";
 import { HiArrowDown, HiArrowPath, HiArrowUp, HiPlus } from "react-icons/hi2";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { PageBackButton } from "@/components/ui/PageBackButton";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { QueryRefreshStatus } from "@/components/ui/QueryRefreshStatus";
@@ -154,16 +153,12 @@ export function RecurringPage() {
 
 	return (
 		<PageContainer className="space-y-6">
-			<PageBackButton to="/more" />
 			<PageHeader
-				actions={
-					<Button className="cursor-pointer" onClick={() => setIsCreateOpen(true)}>
-						<HiPlus />
-						Adicionar
-					</Button>
-				}
+				actions={[
+					{ icon: HiPlus, label: "Adicionar", onClick: () => setIsCreateOpen(true), variant: "default" },
+				]}
+				backTo="/more"
 				description="Agende entradas, saídas, compras e transferências em um único fluxo."
-				mobileActions={[{ icon: HiPlus, label: "Adicionar", onClick: () => setIsCreateOpen(true) }]}
 				title="Recorrências"
 			/>
 

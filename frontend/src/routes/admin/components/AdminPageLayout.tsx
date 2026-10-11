@@ -1,10 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { LuShieldCheck } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { PageBackButton } from "@/components/ui/PageBackButton";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -17,7 +16,7 @@ export function AdminPageLayout({
 	title,
 	root = false,
 }: {
-	children: ReactNode;
+	children: ReactNode | ((header: ComponentProps<typeof PageHeader>) => ReactNode);
 	description: string;
 	title: string;
 	root?: boolean;
@@ -30,10 +29,14 @@ export function AdminPageLayout({
 		queryKey: ["admin-access", userId],
 		retry: false,
 	});
+	const header = { backTo: root ? "/more" : "/admin", description, title } satisfies ComponentProps<
+		typeof PageHeader
+	>;
+	const canAccess = authenticated && !access.isPending && !access.isError && access.data?.role === "ADMIN";
+
 	return (
 		<PageContainer className="max-w-5xl space-y-6">
-			<PageBackButton to={root ? "/more" : "/admin"} />
-			<PageHeader description={description} title={title} />
+			{(!canAccess || typeof children !== "function") && <PageHeader {...header} />}
 			{!authenticated ? (
 				<EmptyState
 					description="Entre com uma conta administrativa para acessar."
@@ -61,6 +64,8 @@ export function AdminPageLayout({
 					icon={<LuShieldCheck className="size-6" />}
 					title="Acesso restrito"
 				/>
+			) : typeof children === "function" ? (
+				children(header)
 			) : (
 				children
 			)}

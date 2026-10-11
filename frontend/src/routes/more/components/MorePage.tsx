@@ -8,6 +8,7 @@ import {
 	HiUsers,
 } from "react-icons/hi2";
 import { mobileNavigation, primaryNavigation, utilityNavigation } from "@/components/layout/navigation";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { fetchWithAuth } from "@/lib/dataService";
 import { useAuthStore } from "@/stores/auth";
 
@@ -96,19 +97,10 @@ export function MorePage() {
 	);
 	return (
 		<div className="mx-auto min-h-screen w-full max-w-5xl bg-background lg:py-10">
-			{/* Header */}
-			<div className="gradient-primary relative overflow-hidden px-4 pt-12 pb-20 lg:rounded-3xl lg:px-8">
-				<div className="absolute top-0 right-0 h-48 w-48 translate-x-1/4 -translate-y-1/2 rounded-full bg-primary-500/20" />
-				<div className="absolute bottom-0 left-0 h-32 w-32 -translate-x-1/4 translate-y-1/2 rounded-full bg-primary-500/10" />
-
-				<div className="relative z-10">
-					<h1 className="font-bold text-2xl text-white">Mais</h1>
-					<p className="mt-1 text-white/70">Explore todos os recursos</p>
-				</div>
-			</div>
+			<PageHeader className="px-4 pt-6 pb-8 lg:px-8" description="Explore todos os recursos" title="Mais" />
 
 			{/* Menu List */}
-			<div className="-mt-12 px-4 pb-8">
+			<div className="px-4 pb-8">
 				<div className="card animate-fade-in overflow-hidden">
 					<div className="lg:hidden">{renderMenuItems(visibleMobileMenuItems)}</div>
 					<div className="hidden lg:block">{renderMenuItems(visibleDesktopMenuItems)}</div>

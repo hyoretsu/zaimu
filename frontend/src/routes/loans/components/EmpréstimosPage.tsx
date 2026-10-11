@@ -3,8 +3,7 @@ import { useState } from "react";
 import { LuPlus } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
-import { MobilePageActions } from "@/components/ui/MobilePageActions";
-import { PageBackButton } from "@/components/ui/PageBackButton";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { QueryRefreshStatus } from "@/components/ui/QueryRefreshStatus";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { Loan } from "@/lib/api";
@@ -29,17 +28,19 @@ export function EmpréstimosPage() {
 			.toSorted((a, b) => a.lender.localeCompare(b.lender, "pt-BR")) ?? [];
 	return (
 		<div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8">
-			<PageBackButton to="/more" />
-			<MobilePageActions
-				actions={[{ icon: LuPlus, label: "Adicionar empréstimo", onClick: () => setCreateOpen(true) }]}
+			<PageHeader
+				actions={[
+					{
+						icon: LuPlus,
+						label: "Adicionar empréstimo",
+						onClick: () => setCreateOpen(true),
+						variant: "default",
+					},
+				]}
+				backTo="/more"
+				description="Acompanhe empréstimos, financiamentos e suas parcelas."
+				title="Empréstimos"
 			/>
-			<div className="flex items-center justify-between gap-3">
-				<h1 className="font-bold text-2xl">Empréstimos</h1>
-				<Button className="hidden cursor-pointer lg:flex" onClick={() => setCreateOpen(true)}>
-					<LuPlus />
-					Adicionar
-				</Button>
-			</div>
 			<ActionGroup>
 				<Button
 					className="cursor-pointer"

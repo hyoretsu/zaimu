@@ -7,7 +7,7 @@ export function HistoryPage() {
 			description="Consulte os dados salvos de juros e conversões e identifique períodos sem cobertura."
 			title="Histórico financeiro"
 		>
-			<FinancialHistoryAdmin />
+			{header => <FinancialHistoryAdmin header={header} />}
 		</AdminPageLayout>
 	);
 }

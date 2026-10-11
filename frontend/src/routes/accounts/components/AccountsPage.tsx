@@ -2,7 +2,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { LuEye, LuLandmark, LuPlus, LuScale, LuSettings2, LuWalletCards } from "react-icons/lu";
 import { NativeMoneyTotals } from "@/components/currency/NativeMoneyTotals";
-import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageContainer } from "@/components/ui/PageContainer";
@@ -126,38 +125,30 @@ export function AccountsPage() {
 	return (
 		<PageContainer className="grid gap-8">
 			<PageHeader
-				actions={
-					<ActionGroup>
-						<Button className="h-11 cursor-pointer" onClick={() => setIsDefaultsOpen(true)} variant="outline">
-							<LuSettings2 /> Contas padrão
-						</Button>
-						<Button
-							className="h-11 cursor-pointer"
-							onClick={() => setIsBalanceAdjustmentsOpen(true)}
-							variant="outline"
-						>
-							<LuScale /> Ajustes de saldo
-						</Button>
-						<CreateFinancialAccountDialog
-							institutions={organization.institutions}
-							onCreate={async data => {
-								await createAccount.mutateAsync(data);
-							}}
-							onOpenChange={setIsCreateAccountOpen}
-							open={isCreateAccountOpen}
-							pending={false}
-							rewardAccounts={rewardAccounts}
-						/>
-					</ActionGroup>
-				}
-				description="Organize contas bancárias, dinheiro, investimentos e recompensas."
-				eyebrow="Patrimônio"
-				mobileActions={[
+				actions={[
 					{ icon: LuSettings2, label: "Contas padrão", onClick: () => setIsDefaultsOpen(true) },
 					{ icon: LuScale, label: "Ajustes de saldo", onClick: () => setIsBalanceAdjustmentsOpen(true) },
-					{ icon: LuPlus, label: "Nova conta", onClick: () => setIsCreateAccountOpen(true) },
+					{
+						icon: LuPlus,
+						label: "Nova conta",
+						onClick: () => setIsCreateAccountOpen(true),
+						variant: "default",
+					},
 				]}
+				description="Organize contas bancárias, dinheiro, investimentos e recompensas."
+				subtitle="Patrimônio"
 				title="Contas financeiras"
+			/>
+			<CreateFinancialAccountDialog
+				institutions={organization.institutions}
+				onCreate={async data => {
+					await createAccount.mutateAsync(data);
+				}}
+				onOpenChange={setIsCreateAccountOpen}
+				open={isCreateAccountOpen}
+				pending={false}
+				rewardAccounts={rewardAccounts}
+				showTrigger={false}
 			/>
 			<section className="grid gap-4 sm:grid-cols-2">
 				<div className="rounded-2xl bg-brand-indigo p-5 text-white shadow-card">

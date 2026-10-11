@@ -7,7 +7,7 @@ export function CalendarPage() {
 			description="Feriados dos países associados à moeda suspendem o rendimento das contas."
 			title="Moedas, países e feriados"
 		>
-			<CalendarContent />
+			{header => <CalendarContent header={header} />}
 		</AdminPageLayout>
 	);
 }

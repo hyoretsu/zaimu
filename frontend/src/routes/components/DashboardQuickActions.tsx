@@ -1,26 +1,22 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { LuCreditCard, LuPlus, LuReceiptText } from "react-icons/lu";
+import { type ReactNode, useEffect, useState } from "react";
+import { LuCreditCard, LuPlus } from "react-icons/lu";
 import { CreateTransactionDialog } from "@/components/transactions";
-import { Button } from "@/components/ui/Button";
-import { MobilePageActions } from "@/components/ui/MobilePageActions";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
+import type { PageAction } from "@/components/ui/page-action";
 import { dataService } from "@/lib/dataService";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { CreatePurchaseDialog } from "../credit-cards/components";
 
-export function DashboardQuickActions() {
+export function DashboardQuickActions({ children }: { children: (actions: PageAction[]) => ReactNode }) {
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
 	const pathname = useLocation().pathname;
-	const [menuOpen, setMenuOpen] = useState(false);
 	const [transactionOpen, setTransactionOpen] = useState(false);
 	const [purchaseOpen, setPurchaseOpen] = useState(false);
 
 	useEffect(() => {
-		setMenuOpen(false);
 		setTransactionOpen(false);
 		setPurchaseOpen(false);
 	}, [pathname]);
@@ -47,48 +43,17 @@ export function DashboardQuickActions() {
 
 	return (
 		<>
-			<MobilePageActions
-				actions={[
-					{ icon: LuPlus, label: "Nova transação", onClick: () => setTransactionOpen(true) },
-					...(cards.isPending || cards.isError || cards.data?.length
-						? [{ icon: LuCreditCard, label: "Nova compra", onClick: () => setPurchaseOpen(true) }]
-						: []),
-				]}
-			/>
-			<Popover onOpenChange={setMenuOpen} open={menuOpen}>
-				<PopoverTrigger asChild>
-					<Button className="hidden cursor-pointer lg:inline-flex">
-						<LuPlus /> Adicionar
-					</Button>
-				</PopoverTrigger>
-				<PopoverContent align="end" className="w-72 gap-2">
-					<Button
-						className="w-full cursor-pointer justify-start"
-						onClick={() => {
-							setMenuOpen(false);
-							setTransactionOpen(true);
-						}}
-						variant="outline"
-					>
-						<LuReceiptText /> Nova transação
-					</Button>
-					<p className="px-1 pt-2 font-medium text-muted-foreground text-xs">Compra no cartão</p>
-					{cards.isPending || cards.isError || cards.data?.length ? (
-						<Button
-							className="w-full cursor-pointer justify-start"
-							onClick={() => {
-								setMenuOpen(false);
-								setPurchaseOpen(true);
-							}}
-							variant="outline"
-						>
-							<LuCreditCard /> Nova compra
-						</Button>
-					) : (
-						<p className="px-1 text-muted-foreground text-sm">Nenhum cartão cadastrado.</p>
-					)}
-				</PopoverContent>
-			</Popover>
+			{children([
+				{
+					icon: LuPlus,
+					label: "Nova transação",
+					onClick: () => setTransactionOpen(true),
+					variant: "default",
+				},
+				...(cards.isPending || cards.isError || cards.data?.length
+					? [{ icon: LuCreditCard, label: "Nova compra", onClick: () => setPurchaseOpen(true) }]
+					: []),
+			])}
 			<CreateTransactionDialog onOpenChange={setTransactionOpen} open={transactionOpen} />
 			<CreatePurchaseDialog
 				cards={cards.data ?? []}

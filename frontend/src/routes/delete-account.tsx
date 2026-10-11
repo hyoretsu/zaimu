@@ -3,6 +3,7 @@ import { LuArrowRight, LuCircleAlert, LuMail, LuShieldCheck, LuTrash2 } from "re
 import { BrandMark } from "@/components/BrandMark";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 const deletionRequestHref =
 	"mailto:developer@hyoretsu.com?subject=Solicita%C3%A7%C3%A3o%20de%20exclus%C3%A3o%20de%20conta%20Zaimu";
@@ -24,10 +25,11 @@ function DeleteAccountPage() {
 					<div className="flex size-12 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
 						<LuTrash2 className="size-6" />
 					</div>
-					<h1 className="mt-6 font-bold text-3xl tracking-tight sm:text-4xl">Excluir sua conta</h1>
-					<p className="mt-3 max-w-2xl text-foreground/80 leading-7">
-						Use esta página para solicitar a exclusão da sua conta Zaimu e dos dados associados.
-					</p>
+					<PageHeader
+						className="mt-6"
+						description="Use esta página para solicitar a exclusão da sua conta Zaimu e dos dados associados."
+						title="Excluir sua conta"
+					/>
 
 					<section className="mt-8 rounded-2xl border border-border bg-muted/30 p-5 sm:p-6">
 						<div className="flex gap-3">
