@@ -5,6 +5,7 @@ import { getFinancialAccountBalances } from "~/modules/accounts/application/get-
 import { resolveFinancialMoney } from "~/modules/currencies/application/financial-money";
 import { HttpException } from "~/shared/errors";
 import { queryRaw, withRawTransaction, withTransaction } from "~/shared/infra/sql";
+import { hasPaymentBalance } from "../domain/statement-balance";
 import { loadCreditBook, readCreditBook } from "./normalized-credit-book";
 import { recalculateStatementPayments } from "./statement-payments";
 
@@ -78,8 +79,7 @@ export async function confirmSuggestedPayment(userId: string, cardId: string, in
 		if (
 			!datedStatement ||
 			(datedStatement.statementDate > input.date && datedStatement.carriedInAmount <= 0) ||
-			moneyCents(Math.max(0, datedStatement.balanceAmount), 1, book.card.currency) <
-				moneyCents(input.amount, 1, book.card.currency)
+			!hasPaymentBalance(datedStatement.balanceAmount, input.amount, book.card.currency)
 		)
 			throw new HttpException("Fatura indisponível para pagamento na data informada", 400);
 		const debitAmount =
@@ -97,7 +97,7 @@ export async function confirmSuggestedPayment(userId: string, cardId: string, in
 			(await getFinancialAccountBalances([account.id], new Date(`${input.date}T12:00:00Z`))).get(
 				account.id,
 			) ?? 0;
-		if (moneyCents(balance, 1, account.currency) < moneyCents(debitAmount, 1, account.currency))
+		if (!hasPaymentBalance(balance, debitAmount, account.currency))
 			throw new HttpException("Saldo insuficiente na conta pagadora na data informada", 400);
 		return withTransaction(async executor => {
 			const [transaction] = await query<SuggestedPaymentTransaction>(

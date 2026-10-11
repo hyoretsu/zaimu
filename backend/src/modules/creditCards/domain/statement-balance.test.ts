@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { applyStatementCredits } from "./statement-balance";
+import { applyStatementCredits, hasPaymentBalance } from "./statement-balance";
 
 const invoice = (month: string, totalAmount: number) => ({
 	dueDate: `2024-${month}-25`,
@@ -40,4 +40,25 @@ describe("statement balances", () => {
 			applyStatementCredits([invoice("07", 150), rows[1]!], payments, "2024-08-25")[1].balanceAmount,
 		).toBe(50);
 	});
+});
+
+test("zero or negative available balance rejects a positive payment without throwing", () => {
+	for (const balance of [0, -100]) {
+		expect(hasPaymentBalance(balance, 2270.29)).toBe(false);
+	}
+});
+
+test("payment coverage compares exact minor units in the balance currency", () => {
+	expect(hasPaymentBalance(2270.28, 2270.29)).toBe(false);
+	expect(hasPaymentBalance(2270.29, 2270.29)).toBe(true);
+	expect(hasPaymentBalance(2270.3, 2270.29)).toBe(true);
+	expect(hasPaymentBalance(1.233, 1.234, "KWD")).toBe(false);
+	expect(hasPaymentBalance(1.234, 1.234, "KWD")).toBe(true);
+	expect(hasPaymentBalance(0, 1, "JPY")).toBe(false);
+});
+
+test("payment amounts still require positive, currency-compatible values", () => {
+	for (const amount of [0, -1, 1.001, Number.NaN, Number.POSITIVE_INFINITY]) {
+		expect(() => hasPaymentBalance(100, amount)).toThrow(RangeError);
+	}
 });
