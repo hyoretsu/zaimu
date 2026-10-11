@@ -20,7 +20,7 @@ export function DashboardReferenceRateNotice() {
 							return `${type === "SELIC" ? "Selic" : type}: ${value === null ? "indisponível" : `${(Math.floor(value * 1000) / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 3, minimumFractionDigits: 3 })}%`}`;
 						})
 						.join("; ")}
-					.
+					. (Média dos últimos 10 anos)
 				</p>
 			)}
 			{rates.data?.collectionId && <HistoryCollectionObserver collectionId={rates.data.collectionId} />}

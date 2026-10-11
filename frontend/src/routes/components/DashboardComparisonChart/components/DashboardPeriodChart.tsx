@@ -96,7 +96,7 @@ export function DashboardPeriodChart({
 				style={{ touchAction: "none" }}
 			>
 				<ChartContainer className="h-64 w-full" config={chartConfig}>
-					<ComposedChart data={chartData}>
+					<ComposedChart data={chartData} margin={{ top: currentPeriod ? 28 : 5 }}>
 						<CartesianGrid strokeDasharray="3 3" vertical={false} />
 						<XAxis dataKey="label" scale="band" tickLine={false} />
 						<YAxis
@@ -108,7 +108,7 @@ export function DashboardPeriodChart({
 								label={{
 									fill: "var(--color-foreground)",
 									fontSize: 11,
-									position: "insideTopRight",
+									position: "top",
 									value: "Período atual",
 								}}
 								stroke="var(--color-foreground)"
