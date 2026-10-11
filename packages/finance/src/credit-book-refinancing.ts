@@ -54,6 +54,13 @@ export function synchronizeBookRefinancing(book: CreditBook, previous?: CreditBo
 			for (const target of relation.refinancingPurchaseIds) {
 				if (!purchases.has(id) && !purchases.has(target)) continue;
 				if (
+					purchases.has(id) &&
+					!purchases.has(target) &&
+					book.deletedPurchaseIds?.includes(target) &&
+					!book.installments.some(i => i.settledByPurchaseId === target)
+				)
+					continue;
+				if (
 					!purchases.has(id) ||
 					!purchases.has(target) ||
 					!links.get(id)?.refinancingPurchaseIds.includes(target)
@@ -105,23 +112,28 @@ export function assertBookPurchaseCanMove(book: CreditBook, purchaseId: string) 
 		throw new RangeError("Compra e reparcelamento vinculados devem permanecer no mesmo cartão");
 }
 
-/** Remove an original purchase and its entire refinancing family atomically. */
+/** Remove the selected purchase and its descendants; restore surviving settlements. */
 export function removeBookPurchase(book: CreditBook, purchaseId: string) {
 	const id = book.installments.find(item => item.id === purchaseId)?.purchaseId ?? purchaseId;
 	const links = bookRefinancingLinks(book);
-	const relation = links.get(id);
-	if (!relation) throw new RangeError("Compra não encontrada");
-	if (relation.refinancedFromPurchaseId)
-		throw new RangeError("Exclua a compra original para remover seus reparcelamentos");
-	const removedIds = new Set(
-		[...links]
-			.filter(([key, link]) => key === id || link.refinancingOriginalPurchaseId === id)
-			.map(([key]) => key),
-	);
+	if (!links.has(id)) throw new RangeError("Compra não encontrada");
+	const removedIds = new Set<string>();
+	const collect = (key: string) => {
+		if (removedIds.has(key)) return;
+		removedIds.add(key);
+		for (const child of links.get(key)?.refinancingPurchaseIds ?? []) collect(child);
+	};
+	collect(id);
 	book.deletedPurchaseIds = [...new Set([...(book.deletedPurchaseIds ?? []), ...removedIds])];
 	book.purchases = book.purchases.filter(item => !removedIds.has(item.id));
 	book.installments = book.installments.filter(item => !removedIds.has(item.purchaseId));
 	book.refunds = book.refunds.filter(item => !removedIds.has(item.purchaseId));
+	for (const installment of book.installments) {
+		if (installment.settledByPurchaseId && removedIds.has(installment.settledByPurchaseId)) {
+			installment.settledByPurchaseId = null;
+			installment.isSettled = false;
+		}
+	}
 	for (const charge of book.charges) {
 		if (charge.settledByPurchaseId && removedIds.has(charge.settledByPurchaseId)) {
 			charge.settledByPurchaseId = null;

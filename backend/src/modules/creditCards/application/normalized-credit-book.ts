@@ -34,6 +34,7 @@ import { queryRaw, withRawTransaction } from "~/shared/infra/sql";
 import { creditBookDelta, equalBookValue } from "./credit-book-delta";
 import { syncRefundDebtEvents } from "./normalized-refund-debts";
 import type { RawQuery } from "./normalized-statement-replay";
+import { restoreRefinancingDebtSplits } from "./refinancing-debt-restoration";
 
 type Row = Record<string, unknown>;
 const date = (value: unknown): string =>
@@ -237,6 +238,7 @@ export async function saveCreditBook(
 	transferredPurchaseIds: ReadonlySet<string> = new Set(),
 ) {
 	synchronizeBookRefinancing(book, previous);
+	restoreRefinancingDebtSplits(book, previous);
 	book.card.currency ??= previous.card.currency ?? "BRL";
 	if (book.card.currency !== (previous.card.currency ?? "BRL"))
 		throw new HttpException("Moeda do livro não pode ser alterada pelo sync", 409);

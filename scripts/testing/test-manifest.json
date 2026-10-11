@@ -119,7 +119,8 @@
 		"backend/src/shared/infra/elysia/mutation-transaction.test.ts",
 		"backend/src/shared/infra/outbox/OutboxPublisher.test.ts",
 		"backend/src/shared/infra/performance/job-metrics.test.ts",
-		"backend/src/shared/infra/service-namespace.test.ts"
+		"backend/src/shared/infra/service-namespace.test.ts",
+		"backend/src/modules/creditCards/application/refinancing-debt-restoration.test.ts"
 	],
 	"sql:e2e": ["packages/sql/tests/migrations.e2e.test.ts"],
 	"sql:integration": [

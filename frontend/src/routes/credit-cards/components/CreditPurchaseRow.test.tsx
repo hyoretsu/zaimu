@@ -92,6 +92,6 @@ test("original purchases with refinancing offer cascade deletion", () => {
 	);
 });
 
-test("refinancing purchases remain protected from isolated deletion", () => {
-	expect(render({ refinancedFromPurchaseId: "original" })).not.toContain('aria-label="Excluir Amazon"');
+test("refinancing purchases offer deletion with restoration", () => {
+	expect(render({ refinancedFromPurchaseId: "original" })).toContain('aria-label="Excluir Amazon"');
 });
