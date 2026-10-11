@@ -7,6 +7,42 @@ test.beforeEach(async ({ page, baseURL }) => {
 	await page.goto("/tests/browser/fixtures/overlay-dismissal.html");
 });
 
+test("mobile actions open a dialog that stays open after the menu closes", async ({ page }) => {
+	await page.getByRole("button", { exact: true, name: "Ações da tela" }).click();
+	await page.getByRole("button", { exact: true, name: "New purchase" }).click();
+	const dialog = page.getByRole("dialog", { exact: true, name: "Invoice" });
+	await expect(dialog).toBeVisible();
+	await expect(page.getByRole("button", { exact: true, name: "New purchase" })).toHaveCount(0);
+	await expect(dialog).toBeVisible();
+	await dialog.getByRole("button", { name: "Fechar" }).click();
+	await expect(dialog).toHaveCount(0);
+	await page.getByRole("button", { exact: true, name: "Ações da tela" }).click();
+	await page.getByRole("button", { exact: true, name: "New purchase" }).click();
+	await expect(dialog).toBeVisible();
+});
+
+test("keyboard action keeps focus inside the opened dialog", async ({ page }) => {
+	const trigger = page.getByRole("button", { exact: true, name: "Ações da tela" });
+	await trigger.focus();
+	await page.keyboard.press("Enter");
+	await page.getByRole("button", { exact: true, name: "New purchase" }).focus();
+	await page.keyboard.press("Enter");
+	const dialog = page.getByRole("dialog", { exact: true, name: "Invoice" });
+	await expect(dialog).toBeVisible();
+	await expect(dialog.getByRole("button", { name: "Edit purchase" })).toBeFocused();
+});
+
+test.describe("touch actions", () => {
+	test.use({ hasTouch: true });
+	test("menu hands focus to the opened dialog", async ({ page }) => {
+		await page.getByRole("button", { exact: true, name: "Ações da tela" }).tap();
+		await page.getByRole("button", { exact: true, name: "New purchase" }).tap();
+		await expect(page.getByRole("dialog", { exact: true, name: "Invoice" })).toBeVisible();
+		await expect(page.getByRole("button", { exact: true, name: "New purchase" })).toHaveCount(0);
+		await expect(page.getByRole("dialog", { exact: true, name: "Invoice" })).toBeVisible();
+	});
+});
+
 test("conditionally mounted purchase editor stays open under StrictMode and closes on navigation", async ({
 	page,
 }) => {

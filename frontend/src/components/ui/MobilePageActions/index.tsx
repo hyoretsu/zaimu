@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { LuMenu } from "react-icons/lu";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -13,6 +13,7 @@ export type { MobilePageAction } from "./types";
 export function MobilePageActions({ actions }: { actions: MobilePageAction[] }) {
 	const isMobile = useMediaQuery("(max-width: 1023px)");
 	const [open, setOpen] = useState(false);
+	const actionSelected = useRef(false);
 	if (!isMobile || !actions.length) return null;
 	const action = actions[0];
 	const multiple = actions.length > 1;
@@ -28,9 +29,25 @@ export function MobilePageActions({ actions }: { actions: MobilePageAction[] }) 
 	return createPortal(
 		<div className="fixed right-[max(1rem,env(safe-area-inset-right))] bottom-[calc(var(--mobile-navigation-height)+1rem)] z-50">
 			{multiple ? (
-				<Popover onOpenChange={setOpen} open={open}>
+				<Popover
+					onOpenChange={nextOpen => {
+						if (nextOpen) actionSelected.current = false;
+						setOpen(nextOpen);
+					}}
+					open={open}
+				>
 					<PopoverTrigger asChild>{trigger}</PopoverTrigger>
-					<PopoverContent align="end" aria-label="Ações da tela" className="p-0" side="top" sideOffset={12}>
+					<PopoverContent
+						align="end"
+						aria-label="Ações da tela"
+						className="p-0"
+						onCloseAutoFocus={event => {
+							// An action may open a dialog. Keep its focus instead of returning to the menu trigger.
+							if (actionSelected.current) event.preventDefault();
+						}}
+						side="top"
+						sideOffset={12}
+					>
 						<ScrollArea
 							className="min-h-0 overflow-hidden rounded-2xl"
 							style={{
@@ -44,6 +61,7 @@ export function MobilePageActions({ actions }: { actions: MobilePageAction[] }) 
 										disabled={item.disabled}
 										key={item.label}
 										onClick={() => {
+											actionSelected.current = true;
 											setOpen(false);
 											item.onClick();
 										}}

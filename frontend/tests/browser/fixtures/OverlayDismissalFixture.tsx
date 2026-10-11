@@ -50,7 +50,7 @@ function OverlayDismissalFixture() {
 				</Dialog>
 				<MobilePageActions
 					actions={[
-						{ icon: LuPlus, label: "New purchase", onClick: () => undefined },
+						{ icon: LuPlus, label: "New purchase", onClick: () => setInvoiceOpen(true) },
 						{ icon: LuPlus, label: "New card", onClick: () => undefined },
 					]}
 				/>
