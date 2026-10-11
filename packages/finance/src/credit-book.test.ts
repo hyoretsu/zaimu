@@ -43,6 +43,33 @@ function emptyBook(): CreditBook {
 }
 
 describe("normalized credit book", () => {
+	test("preserves the purchase total across materialized and projected installments", () => {
+		const book = emptyBook();
+		const purchase = newBookPurchase(
+			book,
+			{
+				description: "AliExpress",
+				installments: 12,
+				purchaseDate: "2026-08-10",
+				totalAmount: 218.33,
+			},
+			"2026-08-10T12:00:00Z",
+			{ materialize: false },
+		);
+		const expected = [...Array<number>(5).fill(1820), ...Array<number>(7).fill(1819)];
+		expect(purchase.installmentAmountsCents).toEqual(expected);
+		materializeBookInstallments(book, "2026-08-10");
+		expect(book.installments.map(item => item.amountCents)).toEqual([1820]);
+		expect(creditBookPlan(book).installments.map(item => item.amountCents)).toEqual(expected);
+		materializeBookInstallments(book, "2027-07-10");
+		expect(book.installments.map(item => item.amountCents)).toEqual(expected);
+		expect(book.installments.reduce((total, item) => total + item.amountCents, 0)).toBe(21833);
+		expect(
+			creditBookEntries(book)
+				.filter(entry => entry.purchaseId === purchase.id)
+				.map(entry => Math.round(entry.installmentAmount * 100)),
+		).toEqual(expected);
+	});
 	test("starts an August 26 purchase in September when the card closes August 15", () => {
 		const book = emptyBook();
 		book.card.statementDay = 15;
@@ -573,7 +600,11 @@ describe("refinancing relationships", () => {
 		const previous = structuredClone(book);
 		removeBookPurchase(book, replacement.id);
 		expect(book.purchases.map(p => p.id)).toEqual([source.id]);
-		expect(book.installments.filter(i => i.purchaseId === source.id).every(i => !i.settledByPurchaseId && !i.isSettled)).toBe(true);
+		expect(
+			book.installments
+				.filter(i => i.purchaseId === source.id)
+				.every(i => !i.settledByPurchaseId && !i.isSettled),
+		).toBe(true);
 		expect(book.deletedPurchaseIds).toContain(replacement.id);
 		expect(() => synchronizeBookRefinancing(book, previous)).not.toThrow();
 	});
