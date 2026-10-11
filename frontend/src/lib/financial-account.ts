@@ -2,6 +2,7 @@ import { type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
 import { addDays, differenceInMonths, differenceInYears, format, isWeekend, startOfDay } from "date-fns";
 import type { FinancialAccount, FinancialAccountYield } from "./api";
 import { normalizeInstitutionName } from "./financial-institution";
+import { cachedYieldCalendar, holidayDatesForCurrency, type YieldCalendar } from "./yield-calendar";
 
 type AccountTransaction = Pick<
 	import("./api").Transaction,
@@ -49,12 +50,12 @@ export function calculateFinancialAccountBalances(
 	accounts: FinancialAccount[],
 	transactions: AccountTransaction[],
 	cashbackPurchases: CashbackPurchase[] = [],
-	holidays: string[] = [],
+	holidays: string[] | YieldCalendar = cachedYieldCalendar(),
 	today = new Date(),
 	yields: FinancialAccountYield[] = [],
 ): FinancialAccount[] {
 	const todayKey = format(startOfDay(today), "yyyy-MM-dd");
-	const holidayKeys = new Set(holidays.map(date => date.slice(0, 10)));
+	const holidayKeys = Array.isArray(holidays) ? new Set(holidays.map(date => date.slice(0, 10))) : null;
 	const accountById = new Map(
 		accounts.filter(account => account.type !== "CREDIT_CARD").map(account => [account.id, account]),
 	);
@@ -132,7 +133,8 @@ export function calculateFinancialAccountBalances(
 								account,
 								events.get(account.id),
 								cashbackEvents.get(account.id),
-								holidayKeys,
+								holidayKeys ??
+									new Set(holidayDatesForCurrency(holidays as YieldCalendar, account.currency ?? "BRL")),
 								todayKey,
 								yieldsByAccountId.get(account.id),
 								snapshots,
@@ -145,7 +147,7 @@ export function calculateFinancialAccountBalances(
 export function calculateFinancialAccountYieldEntries(
 	account: FinancialAccount,
 	transactions: AccountTransaction[],
-	holidays: string[] = [],
+	holidays: string[] | YieldCalendar = cachedYieldCalendar(),
 	today = new Date(),
 	yields: FinancialAccountYield[] = [],
 ): FinancialAccountYieldEntry[] {
@@ -172,7 +174,11 @@ export function calculateFinancialAccountYieldEntries(
 		...yields.map(yieldEntry => yieldEntry.date.slice(0, 10)),
 	].toSorted()[0];
 	if (!firstDay) return [];
-	const holidayKeys = new Set(holidays.map(date => date.slice(0, 10)));
+	const holidayKeys = new Set(
+		(Array.isArray(holidays) ? holidays : holidayDatesForCurrency(holidays, account.currency ?? "BRL")).map(
+			date => date.slice(0, 10),
+		),
+	);
 	const entries: FinancialAccountYieldEntry[] = [];
 	let balance = 0;
 	const ledger = new YieldTaxLedger();

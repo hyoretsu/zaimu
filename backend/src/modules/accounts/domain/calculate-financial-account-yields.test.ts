@@ -97,6 +97,28 @@ describe("calculateFinancialAccountYieldBalances", () => {
 		expect(balances.get("account")).toBeCloseTo(100 * (1 + dailyRate), 4);
 	});
 
+	test("country holidays affect only accounts in the associated currency", () => {
+		const balances = calculateFinancialAccountYieldBalances({
+			accounts: [
+				{ ...account, currency: "BRL" },
+				{ ...account, currency: "USD", id: "usd" },
+			],
+			cashbackCredits: [],
+			holidays: [],
+			holidaysByCurrency: new Map([["BRL", [new Date("2026-01-06T12:00:00")]]]),
+			initialRewardsBalances: new Map(),
+			today: new Date("2026-01-06T12:00:00"),
+			transactions: ["account", "usd"].map(destinationFinancialAccountId => ({
+				amount: 100,
+				date: new Date("2026-01-05T12:00:00"),
+				destinationFinancialAccountId,
+			})),
+		});
+		const dailyRate = 1.1 ** (1 / 21) - 1;
+		expect(balances.get("account")).toBeCloseTo(100 * (1 + dailyRate), 4);
+		expect(balances.get("usd")).toBeCloseTo(100 * (1 + dailyRate) ** 2, 4);
+	});
+
 	test("uses only the materialized value for a reference-linked day", () => {
 		const balances = calculateFinancialAccountYieldBalances({
 			accounts: [

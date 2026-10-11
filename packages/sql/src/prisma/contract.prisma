@@ -313,6 +313,31 @@ namespace public {
     @@map("FinancialAccount")
   }
 
+  model YieldCalendarCountry {
+    code VarChar(2) @id
+    name VarChar(100)
+    currencies YieldCalendarCurrency[]
+    holidays YieldCalendarHoliday[]
+    @@map("YieldCalendarCountry")
+  }
+  model YieldCalendarCurrency {
+    countryCode VarChar(2)
+    currency VarChar(3)
+    country YieldCalendarCountry @relation(fields: [countryCode], references: [code], onDelete: Cascade, onUpdate: Cascade, index: false)
+    @@id([countryCode, currency])
+    @@index([currency])
+    @@map("YieldCalendarCurrency")
+  }
+  model YieldCalendarHoliday {
+    id VarChar(36) @id @default(dbgenerated("cuid2()"))
+    countryCode VarChar(2)
+    date Date
+    name VarChar(100)
+    country YieldCalendarCountry @relation(fields: [countryCode], references: [code], onDelete: Cascade, onUpdate: Cascade, index: false)
+    @@index([countryCode, date], unique: true)
+    @@map("YieldCalendarHoliday")
+  }
+
   model FinancialAccountYieldHoliday {
     id        VarChar(36)  @id(map: "FinancialAccountYieldHoliday_pkey") @default(dbgenerated("cuid2()"))
     userId    VarChar(36)

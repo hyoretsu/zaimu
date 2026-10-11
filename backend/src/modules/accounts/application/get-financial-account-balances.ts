@@ -3,6 +3,7 @@ import {
 	calculateFinancialAccountYieldBalances,
 	type YieldPeriod,
 } from "~/modules/accounts/domain/calculate-financial-account-yields";
+import { loadCurrencyHolidayRows } from "~/modules/yield-calendar/catalog";
 import { db, queryRaw, queryRows } from "~/shared/infra/sql";
 import { cashbackReversalsSql } from "./cashback-reversals-sql";
 import { getFinancialInstitutionYieldPolicies } from "./get-financial-institution-yield-policies";
@@ -33,6 +34,7 @@ export async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 			"currency",
 			"id",
 			"institutionId",
+			"currency",
 			"userId",
 			"type",
 			"createdAt",
@@ -134,15 +136,13 @@ export async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 				[rewardsAccountIds],
 			)
 		: [];
-	const holidays = accounts.length
-		? await queryRows(
-				db.sql.public.FinancialAccountYieldHoliday.select("date")
-					.where((fields, functions) =>
-						functions.in(fields.userId, [...new Set(accounts.map(account => account.userId))]),
-					)
-					.build(),
-			)
-		: [];
+	const holidays = await loadCurrencyHolidayRows();
+	const holidaysByCurrency = new Map(
+		[...Map.groupBy(holidays, holiday => holiday.currency)].map(([currency, rows]) => [
+			currency,
+			rows.map(row => row.date),
+		]),
+	);
 	return {
 		balances,
 		input: {
@@ -167,7 +167,8 @@ export async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 				cashbackYieldReferencePercentage: purchase.cashbackYieldReferencePercentage,
 				cashbackYieldReferenceRate: purchase.cashbackYieldReferenceRate,
 			})),
-			holidays: holidays.map(holiday => holiday.date),
+			holidays: [],
+			holidaysByCurrency,
 			initialRewardsBalances: new Map(
 				rewardsAccounts.map(account => [account.financialAccountId, Number(account.initialBalance)]),
 			),

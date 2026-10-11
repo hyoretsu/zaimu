@@ -29,6 +29,7 @@ import { calculateDebtSplit } from "./debt-split";
 import { calculateFinancialAccountBalances } from "./financial-account";
 import { requestResult, transactionDone } from "./idb";
 import type { Recurrence, RecurrenceOccurrence } from "./recurrence";
+import { cachedYieldCalendar } from "./yield-calendar";
 
 const DB_NAME = "zaimu-local";
 const DB_VERSION = 16;
@@ -1585,9 +1586,7 @@ export async function confirmLocalSuggestedPayment(
 		)
 			throw new Error("Saldo da fatura mudou. Revise o pagamento novamente");
 		const meta = tx.objectStore("scoped-meta");
-		const holidayData = (await requestResult(
-			meta.get(scopedId(owner, "financial-account-yield-holidays")),
-		)) as LocalData<import("./api").FinancialAccountYieldHoliday[]> | undefined;
+
 		const yieldData = (await requestResult(meta.get(scopedId(owner, "financial-account-yields")))) as
 			| LocalData<import("./api").FinancialAccountYield[]>
 			| undefined;
@@ -1606,7 +1605,7 @@ export async function confirmLocalSuggestedPayment(
 				accounts.map(row => row.data),
 				transactions.map(row => row.data),
 				books.flatMap(row => creditBookRewards(row.data)),
-				holidayData?.data.map(row => row.date) ?? [],
+				cachedYieldCalendar(),
 				new Date(`${input.date}T12:00:00`),
 				yieldData?.data ?? [],
 			).find(row => row.id === account.id)?.balance ?? 0;

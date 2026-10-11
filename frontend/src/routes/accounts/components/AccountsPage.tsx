@@ -1,14 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import {
-	LuCalendarDays,
-	LuEye,
-	LuLandmark,
-	LuPlus,
-	LuScale,
-	LuSettings2,
-	LuWalletCards,
-} from "react-icons/lu";
+import { LuEye, LuLandmark, LuPlus, LuScale, LuSettings2, LuWalletCards } from "react-icons/lu";
 import { NativeMoneyTotals } from "@/components/currency/NativeMoneyTotals";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
@@ -17,7 +9,7 @@ import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { QueryRefreshStatus } from "@/components/ui/QueryRefreshStatus";
 import { Skeleton } from "@/components/ui/Skeleton";
-import type { FinancialAccount, FinancialAccountYieldHoliday, FinancialInstitution } from "@/lib/api";
+import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import {
 	compareFinancialAccountsByTitle,
@@ -30,7 +22,6 @@ import {
 	AccountDefaultsDialog,
 	BalanceAdjustmentsDialog,
 	CreateFinancialAccountDialog,
-	FinancialAccountYieldHolidaysDialog,
 	FinancialInstitutionGroup,
 } from "@/routes/accounts/components";
 import { showToast, useAuthStore } from "@/stores";
@@ -38,7 +29,6 @@ import { showToast, useAuthStore } from "@/stores";
 export function AccountsPage() {
 	const [isDefaultsOpen, setIsDefaultsOpen] = useState(false);
 	const [isCreateAccountOpen, setIsCreateAccountOpen] = useState(false);
-	const [isHolidaysOpen, setIsHolidaysOpen] = useState(false);
 	const [isBalanceAdjustmentsOpen, setIsBalanceAdjustmentsOpen] = useState(false);
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
@@ -48,11 +38,7 @@ export function AccountsPage() {
 		queryFn: () => dataService.accounts.getAllIncludingHidden(),
 		queryKey: [...queryKeys.accounts.list(identity!), "including-hidden"],
 	});
-	const holidays = useQuery({
-		enabled: hasAccess,
-		queryFn: () => dataService.accountYieldHolidays.getAll(),
-		queryKey: queryKeys.accountYieldHolidays.all(identity!),
-	});
+
 	const invalidateAccountData = () => invalidateCacheOperation(queryClient, identity!, "account");
 	const createAccount = useMutation({
 		mutationFn: dataService.accounts.create,
@@ -102,22 +88,7 @@ export function AccountsPage() {
 			showToast("Instituição atualizada.", "positive");
 		},
 	});
-	const createHoliday = useMutation({
-		mutationFn: dataService.accountYieldHolidays.create,
-		onError: error => showToast(error.message, "negative"),
-		onSuccess: async () => {
-			await invalidateCacheOperation(queryClient, identity!, "holiday");
-			showToast("Feriado marcado. Rendimentos recalculados.", "positive");
-		},
-	});
-	const deleteHoliday = useMutation({
-		mutationFn: dataService.accountYieldHolidays.delete,
-		onError: error => showToast(error.message, "negative"),
-		onSuccess: async () => {
-			await invalidateCacheOperation(queryClient, identity!, "holiday");
-			showToast("Feriado removido. Rendimentos recalculados.", "positive");
-		},
-	});
+
 	const deleteInstitution = useMutation({
 		mutationFn: dataService.financialInstitutions.delete,
 		onError: error => showToast(error.message, "negative"),
@@ -167,14 +138,6 @@ export function AccountsPage() {
 						>
 							<LuScale /> Ajustes de saldo
 						</Button>
-						<FinancialAccountYieldHolidaysDialog
-							holidays={holidays.data ?? ([] as FinancialAccountYieldHoliday[])}
-							onCreate={date => createHoliday.mutateAsync(date)}
-							onDelete={id => deleteHoliday.mutateAsync(id)}
-							onOpenChange={setIsHolidaysOpen}
-							open={isHolidaysOpen}
-							pending={createHoliday.isPending || deleteHoliday.isPending}
-						/>
 						<CreateFinancialAccountDialog
 							institutions={organization.institutions}
 							onCreate={async data => {
@@ -192,7 +155,6 @@ export function AccountsPage() {
 				mobileActions={[
 					{ icon: LuSettings2, label: "Contas padrão", onClick: () => setIsDefaultsOpen(true) },
 					{ icon: LuScale, label: "Ajustes de saldo", onClick: () => setIsBalanceAdjustmentsOpen(true) },
-					{ icon: LuCalendarDays, label: "Feriados", onClick: () => setIsHolidaysOpen(true) },
 					{ icon: LuPlus, label: "Nova conta", onClick: () => setIsCreateAccountOpen(true) },
 				]}
 				title="Contas financeiras"

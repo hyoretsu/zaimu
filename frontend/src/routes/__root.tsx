@@ -10,8 +10,8 @@ import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
 import { materializeLocalRecurrences } from "@/lib/recurrence-service";
 import { cachedTaxCatalog, fetchTaxCatalog } from "@/lib/tax-catalog";
 import { useAuthStore, useThemeStore } from "@/stores";
-
 import { AppStartupGate } from "./components/AppStartupGate";
+import { YieldCalendarLifecycle } from "./components/YieldCalendarLifecycle";
 
 function RootComponent() {
 	useOpenFinanceAutoSync();
@@ -127,9 +127,11 @@ function RootComponent() {
 			session={{ pending: isLoading, retry: initialize, unavailable: isSessionUnavailable }}
 		>
 			<CurrencyLifecycle />
-			<AppShell key={identity}>
-				<Outlet />
-			</AppShell>
+			<YieldCalendarLifecycle>
+				<AppShell key={identity}>
+					<Outlet />
+				</AppShell>
+			</YieldCalendarLifecycle>
 		</AppStartupGate>
 	);
 }

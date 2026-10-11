@@ -1,20 +1,23 @@
 import { getYieldSettings, projectedNetYield, type ReferenceRateType } from "@zaimu/finance/projected-yield";
+import { currencyHolidayDates } from "@zaimu/finance/yield-calendar";
 import type { YieldTaxLedger } from "@zaimu/finance/yield-tax";
-import { format } from "date-fns";
-import { queryRaw } from "~/shared/infra/sql";
+import { loadYieldCalendar } from "~/modules/yield-calendar/catalog";
 import { getReferenceRateAverages } from "./get-reference-rate-averages";
 import { loadYieldAccounts } from "./reference-rate-jobs";
 
 export async function projectedYieldContext(userId: string, accountIds: string[]) {
-	const [accounts, rateResult, holidayRows] = await Promise.all([
+	const [accounts, rateResult, calendar] = await Promise.all([
 		loadYieldAccounts(accountIds),
 		getReferenceRateAverages(),
-		queryRaw<{ date: Date }>(`SELECT "date" FROM "FinancialAccountYieldHoliday" WHERE "userId" = $1`, [
-			userId,
-		]),
+		loadYieldCalendar(),
 	]);
 	const accountMap = new Map(accounts.flatMap(account => (account ? [[account.id, account] as const] : [])));
-	const holidays = new Set(holidayRows.map(row => format(row.date, "yyyy-MM-dd")));
+	const holidaysByCurrency = new Map(
+		accounts.map(account => [
+			account.currency ?? "BRL",
+			currencyHolidayDates(calendar.countries, account.currency ?? "BRL"),
+		]),
+	);
 	const averages: Partial<Record<ReferenceRateType, number>> = {};
 	for (const type of ["CDI", "SELIC"] as const)
 		if (rateResult.averages[type] !== null) averages[type] = rateResult.averages[type];
@@ -23,7 +26,16 @@ export async function projectedYieldContext(userId: string, accountIds: string[]
 		lots: new Map(accounts.map(account => [account.id, account.yieldLots ?? []])),
 		netYield: (account: { id: string }, balance: number, day: string, ledger?: YieldTaxLedger) => {
 			const settings = accountMap.get(account.id);
-			return settings ? projectedNetYield(settings, balance, day, averages, holidays, ledger) : 0;
+			return settings
+				? projectedNetYield(
+						settings,
+						balance,
+						day,
+						averages,
+						holidaysByCurrency.get(settings.currency ?? "BRL"),
+						ledger,
+					)
+				: 0;
 		},
 		settleYield: (account: { id: string }, amount: number, day: string, ledger: YieldTaxLedger) => {
 			const settings = accountMap.get(account.id);

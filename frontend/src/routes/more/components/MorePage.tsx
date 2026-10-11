@@ -18,6 +18,13 @@ const mobileNavigationPaths = new Set<string>(mobileNavigation.map(item => item.
 
 const menuItems = [
 	{
+		color: "bg-primary/10 text-primary",
+		description: "Calendário de rendimentos - acesso administrativo",
+		icon: HiClipboardDocumentList,
+		label: "Moedas, países e feriados",
+		to: "/admin/yield-calendar",
+	},
+	{
 		color: "bg-danger/10 text-danger",
 		description: "Acompanhe dívidas pessoais",
 		icon: HiUsers,

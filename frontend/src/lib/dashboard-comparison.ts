@@ -6,7 +6,7 @@ import { getYieldSettings, projectedNetYield, type ReferenceRateType } from "@za
 import { recurrenceDates, recurrenceNeedsConfiguration } from "@zaimu/finance/recurrence";
 import { pendingRecurrenceDates, projectRecurrenceCreditBook } from "@zaimu/finance/recurrence-projection";
 import { addDays, format, startOfDay } from "date-fns";
-import type { DashboardPeriod, FinancialAccountYield, FinancialAccountYieldHoliday } from "./api";
+import type { DashboardPeriod, FinancialAccountYield } from "./api";
 import { activeCurrency } from "./currency-context";
 import { GuestConversionUnavailable, guestDashboardCurrencyContext } from "./dashboard-currency-context";
 import { dataService } from "./dataService";
@@ -24,6 +24,7 @@ import {
 	readLocalCreditBook,
 } from "./localStorage";
 import { refreshReferenceRateAverages } from "./reference-rate-averages";
+import { cachedYieldCalendar, holidayDatesForCurrency } from "./yield-calendar";
 
 export interface DashboardComparisonParameters {
 	endDate: string;
@@ -54,7 +55,7 @@ export async function getGuestDashboardFinancialContext(
 		localCreditBooks.getAll(),
 		localLoanPayments.getAll(),
 		localRecurrenceOccurrences.getAll(),
-		localMeta.get("financial-account-yield-holidays"),
+		Promise.resolve(cachedYieldCalendar()),
 		localMeta.get("financial-account-yields"),
 	]);
 	const key = (date: Date) => format(date, "yyyy-MM-dd");
@@ -83,7 +84,7 @@ export async function getGuestDashboardFinancialContext(
 			accounts,
 			[...transactions, ...loanAccountMovements(paymentRows.map(row => row.data))],
 			bookRows.flatMap(row => creditBookRewards(row.data)),
-			(holidays as FinancialAccountYieldHoliday[] | null)?.map(row => row.date) ?? [],
+			holidays,
 			date,
 			(yields as FinancialAccountYield[] | null) ?? [],
 		);
@@ -234,9 +235,7 @@ export async function getGuestDashboardFinancialContext(
 	const averages: Partial<Record<ReferenceRateType, number>> = {};
 	for (const type of ["CDI", "SELIC"] as const)
 		if (rateResult?.averages[type] != null) averages[type] = rateResult.averages[type];
-	const yieldHolidays = new Set(
-		(holidays as FinancialAccountYieldHoliday[] | null)?.map(row => row.date.slice(0, 10)) ?? [],
-	);
+	const yieldHolidays = (currency: string) => new Set(holidayDatesForCurrency(holidays, currency));
 	const yieldAccounts = new Map(
 		accounts.map(account => [
 			account.id,
@@ -295,7 +294,7 @@ export async function getGuestDashboardFinancialContext(
 			calculateFinancialAccountYieldEntries(
 				account,
 				[...transactions, ...loanAccountMovements(paymentRows.map(row => row.data))],
-				[...yieldHolidays],
+				holidays,
 				today,
 				(yields as FinancialAccountYield[] | null) ?? [],
 			).map(entry => ({
@@ -358,7 +357,16 @@ export async function getGuestDashboardFinancialContext(
 					.map(item => ({ ...item, date: key(item.date) })),
 				netYield: (account, balance, day, ledger) => {
 					const settings = yieldAccounts.get(account.id);
-					return settings ? projectedNetYield(settings, balance, day, averages, yieldHolidays, ledger) : 0;
+					return settings
+						? projectedNetYield(
+								settings,
+								balance,
+								day,
+								averages,
+								yieldHolidays(settings.currency ?? "BRL"),
+								ledger,
+							)
+						: 0;
 				},
 				primaryAccountId: accounts.find(account => account.isPrimary)?.id,
 				rate: money.factor,

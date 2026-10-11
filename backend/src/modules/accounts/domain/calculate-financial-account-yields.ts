@@ -85,6 +85,7 @@ export function calculateFinancialAccountYieldBalances({
 	adjustments = [],
 	cashbackCredits,
 	holidays,
+	holidaysByCurrency,
 	initialRewardsBalances,
 	today = new Date(),
 	transactions,
@@ -95,7 +96,8 @@ export function calculateFinancialAccountYieldBalances({
 	accounts: YieldAccount[];
 	adjustments?: BalanceAdjustment[];
 	cashbackCredits: CashbackCredit[];
-	holidays: Date[];
+	holidays: readonly Date[];
+	holidaysByCurrency?: ReadonlyMap<string, Date[]>;
 	initialRewardsBalances: Map<string, number>;
 	today?: Date;
 	transactions: YieldTransaction[];
@@ -165,7 +167,10 @@ export function calculateFinancialAccountYieldBalances({
 							events.get(account.id),
 							adjustmentsByAccountId.get(account.id),
 							cashbackEvents.get(account.id),
-							holidayKeys,
+							new Set([
+								...holidayKeys,
+								...(holidaysByCurrency?.get(account.currency ?? "BRL") ?? []).map(dateKey),
+							]),
 							todayKey,
 							yieldsByAccountId.get(account.id),
 							lotSnapshots,

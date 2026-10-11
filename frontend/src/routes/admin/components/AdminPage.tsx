@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { fetchWithAuth } from "@/lib/dataService";
@@ -35,6 +36,9 @@ export function AdminPage() {
 	return (
 		<div className="mx-auto grid w-full max-w-5xl gap-6 p-4">
 			<h1 className="font-bold text-2xl">Administração</h1>
+			<Link className="cursor-pointer rounded-xl border p-4 font-medium" to="/admin/yield-calendar">
+				Moedas, países e feriados
+			</Link>
 			<TaxCatalogAdmin />
 			<AdminUsers />
 		</div>

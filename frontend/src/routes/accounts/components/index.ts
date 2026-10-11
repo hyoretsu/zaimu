@@ -6,7 +6,6 @@ export * from "./CreateFinancialAccountDialog";
 export * from "./EditFinancialAccountYieldDialog";
 export { EditInstitutionDialog } from "./EditInstitutionDialog";
 export * from "./FinancialAccountCard";
-export * from "./FinancialAccountYieldHolidaysDialog";
 export * from "./FinancialAccountYieldStatementItem";
 export * from "./FinancialInstitutionGroup";
 export { InstitutionActions } from "./InstitutionActions";

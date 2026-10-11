@@ -18,6 +18,7 @@ import {
 import { referenceRateCoveredDaysSql } from "~/modules/financial-history/application/reference-rate-coverage-sql";
 import { historyCoverageRanges } from "~/modules/financial-history/domain/collection";
 import { loadTaxCatalog } from "~/modules/taxes/catalog";
+import { getCurrencyHolidays } from "~/modules/yield-calendar/catalog";
 import { createEventEnvelope, type EventEnvelope } from "~/shared/application/events";
 import { PostgresOutbox } from "~/shared/infra/outbox";
 import {
@@ -292,14 +293,7 @@ async function processAccountRecalculation(job: ClaimedJob) {
 		`DELETE FROM "public"."FinancialAccountYield" WHERE "financialAccountId" = $1 AND "kind" = 'AUTOMATIC' AND "origin" = 'SYSTEM' AND "date" >= $2`,
 		[account.id, dateKey(fromDate)],
 	);
-	const holidays = await queryRows(
-		db.sql.public.FinancialAccountYieldHoliday.select("date")
-			.where((fields, functions) =>
-				functions.eq(fields.userId, (account as YieldAccount & { userId: string }).userId),
-			)
-			.build(),
-	);
-	const holidayKeys = new Set(holidays.map(holiday => dateKey(holiday.date)));
+	const holidayKeys = await getCurrencyHolidays(account.currency ?? "BRL");
 	const loaded = await loadFinancialAccountBalanceInput([account.id]);
 	if (!loaded.input) return;
 	const input = { ...loaded.input, yields: [...loaded.input.yields] };

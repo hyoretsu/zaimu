@@ -64,6 +64,7 @@ import {
 import type { Recurrence } from "./recurrence";
 import { projectGuestRecurrenceCreditBook } from "./recurrence-credit-projection";
 import { createRecurrenceService } from "./recurrence-service";
+import { cachedYieldCalendar } from "./yield-calendar";
 /**
  * Data Service - Abstracts local vs remote data operations
  *
@@ -463,7 +464,7 @@ export const dataService = {
 					localAccounts.getAll(),
 					localTransactions.getAll(),
 					localCreditBooks.getAll(),
-					localMeta.get("financial-account-yield-holidays"),
+					Promise.resolve(cachedYieldCalendar()),
 					localMeta.get("financial-account-yields"),
 					localLoanPayments.getAll(),
 				]);
@@ -474,7 +475,7 @@ export const dataService = {
 						...loanAccountMovements(loanPayments.map(row => row.data)),
 					],
 					cashbackPurchases.flatMap(item => creditBookRewards(item.data)),
-					(holidays as FinancialAccountYieldHoliday[] | null)?.map(holiday => holiday.date) ?? [],
+					holidays as import("./yield-calendar").YieldCalendar,
 					undefined,
 					(yields as FinancialAccountYield[] | null) ?? [],
 				);
@@ -678,48 +679,16 @@ export const dataService = {
 	},
 
 	accountYieldHolidays: {
-		async create(date: string): Promise<FinancialAccountYieldHoliday> {
-			if (!isGuestMode()) {
-				return fetchWithAuth<FinancialAccountYieldHoliday>("/financial-account-yield-holidays", {
-					body: JSON.stringify({ date }),
-					method: "POST",
-				});
-			}
-			const existing =
-				((await localMeta.get("financial-account-yield-holidays")) as
-					| FinancialAccountYieldHoliday[]
-					| null) ?? [];
-			const holiday = existing.find(item => item.date.slice(0, 10) === date);
-			if (holiday) return holiday;
-			const created = { date, id: crypto.randomUUID() };
-			await localMeta.set("financial-account-yield-holidays", [...existing, created]);
-			return created;
+		async create(_date: string): Promise<FinancialAccountYieldHoliday> {
+			throw new Error("Feriados são gerenciados por administradores");
 		},
-		async delete(id: string): Promise<void> {
-			if (!isGuestMode()) {
-				await fetchWithAuth(`/financial-account-yield-holidays/${id}`, { method: "DELETE" });
-				return;
-			}
-			const existing =
-				((await localMeta.get("financial-account-yield-holidays")) as
-					| FinancialAccountYieldHoliday[]
-					| null) ?? [];
-			await localMeta.set(
-				"financial-account-yield-holidays",
-				existing.filter(holiday => holiday.id !== id),
-			);
+		async delete(_id: string): Promise<void> {
+			throw new Error("Feriados são gerenciados por administradores");
 		},
 		async getAll(): Promise<FinancialAccountYieldHoliday[]> {
-			if (isGuestMode())
-				return (
-					((await localMeta.get("financial-account-yield-holidays")) as
-						| FinancialAccountYieldHoliday[]
-						| null) ?? []
-				);
-			return fetchWithAuth<FinancialAccountYieldHoliday[]>("/financial-account-yield-holidays");
+			return cachedYieldCalendar().holidays;
 		},
 	},
-
 	accountYields: {
 		async create(data: {
 			amount: number;
@@ -796,7 +765,7 @@ export const dataService = {
 			const [accounts, transactions, holidays, yields, loanPayments] = await Promise.all([
 				dataService.accounts.getAll(),
 				dataService.transactions.getAll(),
-				dataService.accountYieldHolidays.getAll(),
+				Promise.resolve(cachedYieldCalendar()),
 				localMeta.get("financial-account-yields"),
 				localLoanPayments.getAll(),
 			]);
@@ -809,7 +778,7 @@ export const dataService = {
 							...transactions.filter(row => row.source !== "CREDIT_CARD"),
 							...loanAccountMovements(loanPayments.map(row => row.data)),
 						],
-						holidays.map(row => row.date),
+						holidays,
 						undefined,
 						((yields ?? []) as FinancialAccountYield[]).filter(row => row.financialAccountId === account.id),
 					),
@@ -2036,7 +2005,7 @@ export const dataService = {
 				const [accountRecords, cashbackPurchases, holidays, yields, loanPaymentRows] = await Promise.all([
 					localAccounts.getAll(),
 					localCreditBooks.getAll(),
-					localMeta.get("financial-account-yield-holidays"),
+					Promise.resolve(cachedYieldCalendar()),
 					localMeta.get("financial-account-yields"),
 					localLoanPayments.getAll(),
 				]);
@@ -2044,7 +2013,7 @@ export const dataService = {
 					accountRecords.filter(item => !item.data.isHidden).map(item => item.data),
 					[...transactions, ...loanAccountMovements(loanPaymentRows.map(row => row.data))],
 					cashbackPurchases.flatMap(item => creditBookRewards(item.data)),
-					(holidays as FinancialAccountYieldHoliday[] | null)?.map(holiday => holiday.date) ?? [],
+					holidays as import("./yield-calendar").YieldCalendar,
 					rangeEnd,
 					(yields as FinancialAccountYield[] | null) ?? [],
 				);
@@ -3226,7 +3195,7 @@ export const dataService = {
 							hiddenAt: person.deleted ? new Date(person.modifiedAt).toISOString() : undefined,
 						})),
 						financialAccounts: accounts.map(a => a.data),
-						financialAccountYieldHolidays: (yieldHolidays as FinancialAccountYieldHoliday[] | null) ?? [],
+						financialAccountYieldHolidays: [],
 						financialAccountYields: ((yields as FinancialAccountYield[] | null) ?? []).filter(
 							yieldEntry => yieldEntry.origin !== "SYSTEM",
 						),
@@ -3748,7 +3717,7 @@ export const dataService = {
 				const [accounts, transactions, holidays, yields, loanPayments] = await Promise.all([
 					localAccounts.getAll(),
 					localTransactions.getAll(),
-					localMeta.get("financial-account-yield-holidays"),
+					Promise.resolve(cachedYieldCalendar()),
 					localMeta.get("financial-account-yields"),
 					localLoanPayments.getAll(),
 				]);
@@ -3766,7 +3735,7 @@ export const dataService = {
 									...loanAccountMovements(loanPayments.map(row => row.data)),
 								],
 								[],
-								(holidays ?? []) as string[],
+								holidays,
 								new Date(`${date}T12:00:00`),
 								(yields ?? []) as FinancialAccountYield[],
 							);

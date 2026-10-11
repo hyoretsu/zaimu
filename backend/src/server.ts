@@ -23,10 +23,12 @@ import { TaxesController } from "./modules/taxes/TaxesController";
 import { TransactionImportsController } from "./modules/transaction-imports/infra";
 import { TransactionsController } from "./modules/transactions/infra";
 import { UpgradeController } from "./modules/upgrades/UpgradeController";
+import { YieldCalendarController } from "./modules/yield-calendar/YieldCalendarController";
 import { app } from "./shared/infra/elysia";
 
 export const server = app.use([
 	TaxesController,
+	YieldCalendarController,
 	CurrencyPreferencesController,
 	FinancialHistoryController,
 	CurrenciesController,

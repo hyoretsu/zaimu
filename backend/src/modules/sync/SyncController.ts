@@ -38,10 +38,8 @@ import {
 	saveRecurrence,
 } from "~/modules/recurring/application/recurrences";
 import type { RecurrenceBody } from "~/modules/recurring/infra/elysia/RecurrenceDTO";
-import {
-	enqueueAccountYieldRecalculation,
-	enqueueUserYieldRecalculations,
-} from "~/modules/reference-rates/application/reference-rate-jobs";
+import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
+import { loadCurrencyHolidayRows } from "~/modules/yield-calendar/catalog";
 import { rejectLegacyFinancialFields, strictJsonBody } from "~/shared/infra/elysia/strict-json-body";
 import { PostgresOutbox } from "~/shared/infra/outbox";
 import {
@@ -462,30 +460,8 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 						);
 					});
 
-					await sync("financialAccountYieldHolidays", body.financialAccountYieldHolidays, async entity => {
-						const id = value<string>(entity, "id");
-						const date = optionalDate(entity, "date");
-						if (!date) throw new Error("Informe a data do feriado");
-						const existing = await queryFirst(
-							db.sql.public.FinancialAccountYieldHoliday.select("id", "userId")
-								.where((fields, functions) => functions.eq(fields.id, id))
-								.limit(1)
-								.build(),
-						);
-						if (existing && existing.userId !== userId)
-							throw new Error(`Feriado ${id} pertence a outro usuário`);
-						const values = { date, updatedAt: new Date(), userId };
-						if (existing)
-							await executeStatement(
-								db.sql.public.FinancialAccountYieldHoliday.update(values)
-									.where((fields, functions) => functions.eq(fields.id, id))
-									.build(),
-							);
-						else
-							await executeStatement(
-								db.sql.public.FinancialAccountYieldHoliday.insert([{ ...values, id }]).build(),
-							);
-						await enqueueUserYieldRecalculations(userId, date, `sync-holiday:${id}:${syncRevision(entity)}`);
+					await sync("financialAccountYieldHolidays", body.financialAccountYieldHolidays, async () => {
+						throw new Error("Feriados são gerenciados exclusivamente por administradores");
 					});
 
 					await sync("categories", body.categories, async entity => {
@@ -978,11 +954,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 							.where((f, fn) => fn.eq(f.userId, userId))
 							.build(),
 					);
-					const financialAccountYieldHolidays = await queryRows(
-						db.sql.public.FinancialAccountYieldHoliday.select("id", "date")
-							.where((fields, functions) => functions.eq(fields.userId, userId))
-							.build(),
-					);
+					const financialAccountYieldHolidays = await loadCurrencyHolidayRows();
 					const financialAccountYields = financialAccounts.length
 						? await queryRows(
 								db.sql.public.FinancialAccountYield.select(
