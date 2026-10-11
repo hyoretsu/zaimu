@@ -35,14 +35,21 @@ export function CreditPurchaseRow({
 	const debtPersonName = formatDebtSplitBadge(purchase.debtSplit, amount => currency.format(amount));
 	const hasRefinancing = Boolean(purchase.refinancingPurchaseIds?.length);
 	const hasSyncedInstallments = purchase.isFullySynced && purchase.installments > 1;
+	const description =
+		purchase.feeDescription === "IOF do parcelamento"
+			? (purchase.description ?? "").replace(/^FIN /u, "")
+			: (purchase.description ?? "");
+	const isRefinancing = Boolean(purchase.refinancedFromPurchaseId) || /^Parcelamento\s*-/u.test(description);
+	const purchaseName =
+		(isRefinancing ? description.replace(/^Parcelamento\s*-\s*/u, "") : description).trim() ||
+		purchase.storeName ||
+		"Compra";
 
 	return (
 		<div className="grid min-w-0 gap-3 rounded-xl border bg-card p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
 			<div className="min-w-0">
 				<p className="truncate font-medium">
-					{purchase.feeDescription === "IOF do parcelamento"
-						? purchase.description.replace(/^FIN /u, "")
-						: purchase.description || purchase.storeName || "Compra"}
+					{isRefinancing ? `Parcelamento - ${purchaseName}` : purchaseName}
 				</p>
 				<p className="truncate text-muted-foreground text-xs">
 					{formatLocalDate(purchase.purchaseDate)}
@@ -54,7 +61,7 @@ export function CreditPurchaseRow({
 					{purchase.isStatementCharge ? " · Encargo da fatura" : ""}
 					{purchase.installments > 1 ? ` · ${purchase.currentInstallment}/${purchase.installments}` : ""}
 					{!purchase.refinancedFromPurchaseId && purchase.refinancingPurchaseIds?.length
-						? " · Possui reparcelamento vinculado"
+						? " · reparcelada"
 						: ""}
 				</p>
 				<OriginalMoneyDetails
@@ -159,39 +166,39 @@ export function CreditPurchaseRow({
 						</Tooltip>
 					) : null}
 					<Tooltip>
-							<TooltipTrigger asChild>
-								<span>
-									<ConfirmActionButton
-										aria-label={`Excluir ${purchase.description}`}
-										className="cursor-pointer"
-										confirmation={
-											purchase.refinancedFromPurchaseId
-                                                ? "Excluir este reparcelamento e seus sucessores permanentemente e restaurar as parcelas e dívidas da compra anterior?"
-                                                : hasRefinancing
+						<TooltipTrigger asChild>
+							<span>
+								<ConfirmActionButton
+									aria-label={`Excluir ${purchase.description}`}
+									className="cursor-pointer"
+									confirmation={
+										purchase.refinancedFromPurchaseId
+											? "Excluir este reparcelamento e seus sucessores permanentemente e restaurar as parcelas e dívidas da compra anterior?"
+											: hasRefinancing
 												? "Excluir esta compra, todos os reparcelamentos, parcelas e reembolsos permanentemente?"
 												: purchase.installments > 1
 													? "Excluir esta compra e todas as suas parcelas permanentemente?"
 													: "Excluir esta compra permanentemente?"
-										}
-										disabled={deleteDisabled}
-										onConfirm={onDelete}
-										size="icon-sm"
-										variant="destructive"
-									>
-										<LuTrash2 />
-									</ConfirmActionButton>
-								</span>
-							</TooltipTrigger>
-							<TooltipContent>
-								{purchase.refinancedFromPurchaseId
-                                    ? "Excluir reparcelamento"
-                                    : hasRefinancing
+									}
+									disabled={deleteDisabled}
+									onConfirm={onDelete}
+									size="icon-sm"
+									variant="destructive"
+								>
+									<LuTrash2 />
+								</ConfirmActionButton>
+							</span>
+						</TooltipTrigger>
+						<TooltipContent>
+							{purchase.refinancedFromPurchaseId
+								? "Excluir reparcelamento"
+								: hasRefinancing
 									? "Excluir compra e todos os reparcelamentos"
 									: purchase.installments > 1
 										? "Excluir compra e todas as parcelas"
 										: "Excluir"}
-							</TooltipContent>
-						</Tooltip>
+						</TooltipContent>
+					</Tooltip>
 				</div>
 			</div>
 		</div>
