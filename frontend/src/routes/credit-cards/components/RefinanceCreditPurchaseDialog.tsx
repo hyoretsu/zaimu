@@ -116,6 +116,11 @@ export function RefinanceCreditPurchaseDialog({
 								name="refinance-credit-purchase-date"
 								onValueChange={setPurchaseDate}
 								required
+								selectionAction={{
+									label: "Dia original",
+									toastMessage: "Data da compra original selecionada.",
+									value: purchase.purchaseDate.slice(0, 10),
+								}}
 								value={purchaseDate}
 							/>
 						</FormFieldRow>

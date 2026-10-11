@@ -1,6 +1,6 @@
 import { addMonths, format, isValid, parseISO, startOfMonth, subMonths } from "date-fns";
 import { useRef, useState } from "react";
-import { LuChevronDown, LuChevronLeft, LuChevronRight, LuX } from "react-icons/lu";
+import { LuCalendarDays, LuChevronDown, LuChevronLeft, LuChevronRight, LuX } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { inputControlClassName } from "@/components/ui/input-styles";
@@ -14,6 +14,7 @@ import { RequiredMark } from "./RequiredMark";
 import { ScrollArea } from "./ScrollArea";
 
 interface DateFieldProps {
+	selectionAction?: { label: string; value: string; toastMessage: string };
 	autoComplete?: string;
 	className?: string;
 	description?: string;
@@ -31,6 +32,7 @@ interface DateFieldProps {
 }
 
 export function DateField({
+	selectionAction,
 	autoComplete,
 	className,
 	description,
@@ -154,6 +156,26 @@ export function DateField({
 				/>
 			</div>
 			<ActionGroup>
+				{selectionAction && (
+					<Button
+						className="cursor-pointer"
+						disabled={disabled || !toDate(selectionAction.value)}
+						onClick={() => {
+							const date = toDate(selectionAction.value);
+							if (!date) return;
+							const nextValue = format(date, "yyyy-MM-dd");
+							if ((min && nextValue < min) || (max && nextValue > max)) return;
+							selectDate(date);
+							showToast(selectionAction.toastMessage, "info");
+						}}
+						size="sm"
+						type="button"
+						variant="outline"
+					>
+						<LuCalendarDays />
+						{selectionAction.label}
+					</Button>
+				)}
 				<Button
 					className="cursor-pointer"
 					disabled={disabled || !value}
