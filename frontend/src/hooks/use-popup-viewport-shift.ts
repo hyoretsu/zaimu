@@ -1,7 +1,7 @@
 import { useCallback, useLayoutEffect, useState } from "react";
 
 /** Use the whole visual viewport before introducing overflow on an unconstrained popup. */
-export function usePopupViewportShift(enabled = true, itemAligned = false) {
+export function usePopupViewportShift(enabled = true) {
 	const [element, setElement] = useState<HTMLDivElement | null>(null);
 	const ref = useCallback((node: HTMLDivElement | null) => setElement(node), []);
 
@@ -14,15 +14,6 @@ export function usePopupViewportShift(enabled = true, itemAligned = false) {
 			const bottom = (viewport?.offsetTop ?? 0) + (viewport?.height ?? window.innerHeight) - 16;
 			const height = Math.max(0, bottom - top);
 			element.style.setProperty("--popup-viewport-height", `${height}px`);
-			if (itemAligned && element.parentElement) {
-				const wrapper = element.parentElement;
-				const list = element.querySelector<HTMLElement>("[data-radix-select-viewport]");
-				if (list) {
-					wrapper.style.height = `${Math.min(list.scrollHeight, height)}px`;
-					wrapper.style.minHeight = "0px";
-					if (list.scrollHeight <= height) list.scrollTop = 0;
-				}
-			}
 			// Measure the positioning wrapper, which is unaffected by our child translation.
 			const originalTop =
 				element.parentElement?.getBoundingClientRect().top ?? element.getBoundingClientRect().top;
@@ -38,7 +29,7 @@ export function usePopupViewportShift(enabled = true, itemAligned = false) {
 		if (element.parentElement) observer.observe(element.parentElement);
 		// Floating positioning and entrance animations can move the popup without resizing it.
 		const positionObserver = new MutationObserver(schedule);
-		if (element.parentElement && !itemAligned)
+		if (element.parentElement)
 			positionObserver.observe(element.parentElement, { attributeFilter: ["style"], attributes: true });
 		element.addEventListener("animationend", schedule);
 		window.addEventListener("resize", schedule);
@@ -57,7 +48,7 @@ export function usePopupViewportShift(enabled = true, itemAligned = false) {
 			viewport?.removeEventListener("scroll", schedule);
 			element.style.translate = "";
 		};
-	}, [element, enabled, itemAligned]);
+	}, [element, enabled]);
 
 	return ref;
 }

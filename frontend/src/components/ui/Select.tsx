@@ -71,7 +71,8 @@ function SelectContent({
 	viewportClassName?: string;
 }) {
 	const constrained = style?.maxHeight !== undefined || /(?:^|\s)(?:\S+:)?max-h-/.test(className ?? "");
-	const popupRef = usePopupViewportShift(!constrained, position === "item-aligned");
+	// Radix owns the wrapper height and selected-item alignment in item-aligned mode.
+	const popupRef = usePopupViewportShift(!constrained && position === "popper");
 	return (
 		<SelectPrimitive.Portal>
 			<SelectPrimitive.Content
