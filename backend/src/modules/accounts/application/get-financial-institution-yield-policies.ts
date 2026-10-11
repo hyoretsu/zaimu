@@ -14,6 +14,7 @@ export async function getFinancialInstitutionYieldPolicies(institutionIds: strin
 			"currency",
 			"effectiveDate",
 			"yieldPeriod",
+			"yieldTaxIds",
 			"yieldTaxRate",
 		)
 			.where((fields, functions) => functions.in(fields.financialInstitutionId, institutionIds))
@@ -59,6 +60,7 @@ export async function getFinancialInstitutionYieldPolicies(institutionIds: strin
 				yieldReferenceType: rule.yieldReferenceType as "CDI" | "SELIC" | null,
 			})),
 			yieldPeriod: policy.yieldPeriod as null | YieldPeriod,
+			yieldTaxIds: policy.yieldTaxIds as string[] | null,
 			yieldTaxRate: policy.yieldTaxRate === null ? null : Number(policy.yieldTaxRate),
 		});
 		policiesByInstitutionId.set(policy.financialInstitutionId, institutionPolicies);

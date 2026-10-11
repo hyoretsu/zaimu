@@ -10,3 +10,4 @@ export * from "./FinancialAccountYieldHolidaysDialog";
 export * from "./FinancialAccountYieldStatementItem";
 export * from "./FinancialInstitutionGroup";
 export { InstitutionActions } from "./InstitutionActions";
+export { YieldTaxFields } from "./YieldTaxFields";

@@ -1,6 +1,8 @@
 import { roundMoney } from "./money";
+import { type YieldLot, YieldTaxLedger } from "./yield-tax";
 /** Forecasts are disposable copies: reserve withdrawals never create persisted transactions. */
 export interface ForecastAccount {
+	yieldLots?: YieldLot[];
 	currency?: string;
 	balance: number;
 	id: string;
@@ -77,7 +79,8 @@ export function dailyForecast(input: {
 	from: string;
 	movements: ForecastMovement[];
 	/** Net earnings for this date, including taxes, tiers, effective settings and holidays. */
-	netYield?: (account: ForecastAccount, balance: number, date: string) => number;
+	netYield?: (account: ForecastAccount, balance: number, date: string, ledger?: YieldTaxLedger) => number;
+	settleYield?: (account: ForecastAccount, amount: number, date: string, ledger: YieldTaxLedger) => void;
 	primaryAccountId?: null | string;
 	through: string;
 }) {
@@ -95,6 +98,13 @@ export function dailyForecast(input: {
 	const nativeCurrency = (account?: ForecastAccount) => (account ? (account.currency ?? "BRL") : currency);
 	for (const account of accounts) if (account.balance) factor(nativeCurrency(account), input.from);
 	const balances = new Map(accounts.map(account => [account.id, account.balance]));
+	const ledgers = new Map(
+		accounts.map(account => {
+			const ledger = new YieldTaxLedger(account.yieldLots ?? []);
+			ledger.adjustBalance(account.balance, input.from);
+			return [account.id, ledger] as const;
+		}),
+	);
 	const days: ForecastDay[] = [];
 	let deficit = 0;
 	const cash = accounts.filter(account => ["CHECKING", "CASH"].includes(account.type));
@@ -135,6 +145,10 @@ export function dailyForecast(input: {
 						throw new Error("Invalid forecast destination amount");
 					const credit = requestedDebit > 0 ? (requestedCredit * amount) / requestedDebit : 0;
 					balances.set(origin.id, (balances.get(origin.id) ?? 0) - amount);
+					ledgers.get(origin.id)?.applyCashFlow(-amount, date);
+					ledgers
+						.get(destination.id)
+						?.applyCashFlow(roundMoney(credit, nativeCurrency(destination)), date);
 					balances.set(
 						destination.id,
 						(balances.get(destination.id) ?? 0) + roundMoney(credit, nativeCurrency(destination)),
@@ -145,13 +159,16 @@ export function dailyForecast(input: {
 			if (movement.type === "INCOME") {
 				income += consolidatedAmount;
 				recurringIncome += consolidatedRecurring;
-				if (destination)
+				if (destination) {
+					ledgers
+						.get(destination.id)
+						?.applyCashFlow(consolidatedAmount / factor(nativeCurrency(destination), date), date);
 					balances.set(
 						destination.id,
 						(balances.get(destination.id) ?? 0) +
 							consolidatedAmount / factor(nativeCurrency(destination), date),
 					);
-				else deficit += consolidatedAmount;
+				} else deficit += consolidatedAmount;
 				continue;
 			}
 			expenses += consolidatedAmount;
@@ -171,25 +188,32 @@ export function dailyForecast(input: {
 				const accountFactor = factor(nativeCurrency(account), date);
 				const used = Math.min(remaining / accountFactor, Math.max(0, balances.get(account.id) ?? 0));
 				balances.set(account.id, (balances.get(account.id) ?? 0) - used);
+				ledgers.get(account.id)?.applyCashFlow(-used, date);
 				remaining = Math.max(0, remaining - used * accountFactor);
 				if (!remaining) break;
 			}
 			if (remaining) {
 				const deficitAccount =
 					origin && cash.some(account => account.id === origin.id) ? origin : primary;
-				if (deficitAccount)
+				if (deficitAccount) {
+					ledgers
+						.get(deficitAccount.id)
+						?.applyCashFlow(-remaining / factor(nativeCurrency(deficitAccount), date), date);
 					balances.set(
 						deficitAccount.id,
 						(balances.get(deficitAccount.id) ?? 0) -
 							remaining / factor(nativeCurrency(deficitAccount), date),
 					);
-				else deficit -= remaining;
+				} else deficit -= remaining;
 			}
 		}
 		for (const account of accounts) {
 			const balance = balances.get(account.id) ?? 0;
 			if (balance <= 0) continue;
-			const earnings = input.netYield?.(account, balance, date) ?? 0;
+			const ledger = ledgers.get(account.id)!;
+			const earnings = input.netYield?.(account, balance, date, ledger) ?? 0;
+			if (input.settleYield) input.settleYield(account, earnings, date, ledger);
+			else ledger.accrueNet(earnings, date);
 			balances.set(account.id, balance + earnings);
 			income += earnings * factor(nativeCurrency(account), date);
 		}
@@ -209,7 +233,9 @@ export function dailyForecast(input: {
 	return days;
 	function yieldRate(account: ForecastAccount, date: string) {
 		const balance = Math.max(0, balances.get(account.id) ?? 0);
-		return balance > 0 ? (input.netYield?.(account, balance, date) ?? 0) / balance : 0;
+		return balance > 0
+			? (input.netYield?.(account, balance, date, ledgers.get(account.id)) ?? 0) / balance
+			: 0;
 	}
 }
 function rank(type: ForecastMovement["type"]) {

@@ -248,6 +248,7 @@ export interface FinancialAccountUpdateDraft {
 	yieldFixedRate?: FinancialAccount["yieldFixedRate"];
 	yieldReferencePercentage?: FinancialAccount["yieldReferencePercentage"];
 	yieldReferenceType?: FinancialAccount["yieldReferenceType"];
+	yieldTaxIds?: string[] | null;
 	yieldTaxRate?: FinancialAccount["yieldTaxRate"];
 }
 
@@ -368,6 +369,7 @@ export const dataService = {
 								yieldPeriod: data.yieldPeriod,
 								yieldReferencePercentage: data.yieldReferencePercentage,
 								yieldReferenceType: data.yieldReferenceType,
+								yieldTaxIds: data.yieldTaxIds,
 								yieldTaxRate: data.yieldTaxRate,
 							},
 						],
@@ -582,6 +584,7 @@ export const dataService = {
 					data.yieldFixedRate !== undefined ||
 					data.yieldReferencePercentage !== undefined ||
 					data.yieldReferenceType !== undefined ||
+					data.yieldTaxIds !== undefined ||
 					data.yieldTaxRate !== undefined;
 				const effectiveDate = new Date();
 				if (!recalculateCurrentDay) effectiveDate.setDate(effectiveDate.getDate() + 1);
@@ -604,6 +607,7 @@ export const dataService = {
 									data.yieldReferenceType === undefined
 										? existing.data.yieldReferenceType
 										: data.yieldReferenceType,
+								yieldTaxIds: data.yieldTaxIds === undefined ? existing.data.yieldTaxIds : data.yieldTaxIds,
 								yieldTaxRate:
 									data.yieldTaxRate === undefined ? existing.data.yieldTaxRate : data.yieldTaxRate,
 							},

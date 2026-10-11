@@ -109,6 +109,7 @@ const accountColumns = [
 	"yieldPeriod",
 	"yieldReferencePercentage",
 	"yieldReferenceType",
+	"yieldTaxIds",
 	"yieldTaxRate",
 	"createdAt",
 	"updatedAt",
@@ -275,6 +276,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 							),
 							yieldReferenceType:
 								value<"CDI" | "SELIC" | null | undefined>(entity, "yieldReferenceType") ?? null,
+							yieldTaxIds: value<string[] | null | undefined>(entity, "yieldTaxIds") as never,
 							yieldTaxRate: nullableNumeric<5, 2>(
 								value<number | null | undefined>(entity, "yieldTaxRate") ?? null,
 							),
@@ -305,6 +307,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 								yieldFixedRate?: number | null;
 								yieldReferencePercentage?: number | null;
 								yieldReferenceType?: "CDI" | "SELIC" | null;
+								yieldTaxIds?: string[] | null;
 								yieldTaxRate?: number | null;
 							}>
 						>(entity, "yieldRateHistories");
@@ -330,6 +333,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 								yieldPeriod: history.yieldPeriod as never,
 								yieldReferencePercentage: nullableNumeric<7, 4>(history.yieldReferencePercentage ?? null),
 								yieldReferenceType: history.yieldReferenceType ?? null,
+								yieldTaxIds: history.yieldTaxIds ?? [],
 								yieldTaxRate: nullableNumeric<5, 2>(history.yieldTaxRate ?? null),
 							};
 							if (existingHistory)
@@ -1009,6 +1013,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 									"yieldFixedRate",
 									"yieldReferencePercentage",
 									"yieldReferenceType",
+									"yieldTaxIds",
 									"yieldTaxRate",
 								)
 									.where((fields, functions) =>

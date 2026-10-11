@@ -15,11 +15,11 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/Dialog";
-import { NumericField } from "@/components/ui/NumericField";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { FinancialInstitution, FinancialInstitutionYieldPolicy } from "@/lib/api";
 import { runDialogSave } from "@/lib/dialog-save";
+import { YieldTaxFields } from "../YieldTaxFields";
 import { InstitutionYieldRuleRow } from "./InstitutionYieldRuleRow";
 import type { EditableYieldRule } from "./types";
 
@@ -46,6 +46,7 @@ export function InstitutionYieldDialog({
 	const [open, setOpen] = useState(false);
 	const [enabled, setEnabled] = useState(Boolean(latestPolicy?.rules.length));
 	const [period, setPeriod] = useState<"MONTHLY" | "YEARLY">(latestPolicy?.yieldPeriod ?? "MONTHLY");
+	const [taxIds, setTaxIds] = useState<string[]>(latestPolicy?.yieldTaxIds ?? []);
 	const [taxRate, setTaxRate] = useDebouncedInput(String(latestPolicy?.yieldTaxRate ?? ""), () => undefined);
 	const [rules, setRules] = useState<EditableYieldRule[]>(
 		() =>
@@ -62,6 +63,7 @@ export function InstitutionYieldDialog({
 		setCurrency(policy?.currency ?? institution.currency ?? "BRL");
 		setEnabled(Boolean(policy?.rules.length));
 		setPeriod(policy?.yieldPeriod ?? "MONTHLY");
+		setTaxIds(policy?.yieldTaxIds ?? []);
 		setTaxRate(String(policy?.yieldTaxRate ?? ""));
 		setRules(
 			policy?.rules.map(rule => ({
@@ -88,6 +90,7 @@ export function InstitutionYieldDialog({
 					}))
 				: [],
 			yieldPeriod: enabled && rules.some(rule => Boolean(rule.fixedRate)) ? period : null,
+			yieldTaxIds: enabled ? taxIds : null,
 			yieldTaxRate: enabled && taxRate ? Number(taxRate) : null,
 		});
 		runDialogSave(operation, () => setOpen(false), "Salvando rendimento…");
@@ -146,14 +149,12 @@ export function InstitutionYieldDialog({
 											sortOptions={false}
 											value={period}
 										/>
-										<NumericField
-											decimalScale={2}
+										<YieldTaxFields
 											id={`institution-yield-tax-${institution.id}`}
-											label="Imposto sobre rendimento"
-											onValueChange={setTaxRate}
-											placeholder="Ex: 15,00%"
-											suffix="%"
-											value={taxRate}
+											onTaxIdsChange={setTaxIds}
+											onTaxRateChange={setTaxRate}
+											taxIds={taxIds}
+											taxRate={taxRate}
 										/>
 									</div>
 									{rules.map((rule, index) => (

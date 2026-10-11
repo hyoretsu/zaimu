@@ -6,6 +6,7 @@ export function assertFinancialAccountYieldSettings(settings: {
 	yieldPeriod?: null | string;
 	yieldReferencePercentage?: null | number;
 	yieldReferenceType?: null | string;
+	yieldTaxIds?: string[] | null;
 	yieldTaxRate?: null | number;
 }) {
 	const hasFixedRate = settings.yieldFixedRate !== undefined && settings.yieldFixedRate !== null;
@@ -13,15 +14,16 @@ export function assertFinancialAccountYieldSettings(settings: {
 	const hasReferencePercentage =
 		settings.yieldReferencePercentage !== undefined && settings.yieldReferencePercentage !== null;
 	const hasReferenceType = settings.yieldReferenceType !== undefined && settings.yieldReferenceType !== null;
+	const hasTaxType = Boolean(settings.yieldTaxIds?.length);
 	const hasTaxRate = settings.yieldTaxRate !== undefined && settings.yieldTaxRate !== null;
 	const hasYield = hasFixedRate || hasReferencePercentage || hasReferenceType;
-	if (settings.type === "CREDIT_CARD" && (hasYield || hasPeriod || hasTaxRate))
+	if (settings.type === "CREDIT_CARD" && (hasYield || hasPeriod || hasTaxRate || hasTaxType))
 		throw new HttpException("Cartão de crédito não pode ter rendimento", 400);
 	if (hasFixedRate && !hasPeriod) throw new HttpException("Informe o período da taxa fixa", 400);
 	if (!hasFixedRate && hasPeriod) throw new HttpException("Remova o período sem uma taxa fixa", 400);
 	if (hasReferenceType !== hasReferencePercentage)
 		throw new HttpException("Informe a taxa de referência e o percentual juntos", 400);
-	if (hasTaxRate && !hasYield)
+	if ((hasTaxRate || hasTaxType) && !hasYield)
 		throw new HttpException("Informe a alíquota de imposto junto com as taxas do rendimento", 400);
 	if (
 		(hasFixedRate && settings.yieldFixedRate! <= 0) ||

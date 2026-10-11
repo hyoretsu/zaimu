@@ -8,6 +8,7 @@ import { useOpenFinanceAutoSync } from "@/hooks/use-open-finance";
 import { initLocalDb, materializeLocalCreditBooks } from "@/lib/localStorage";
 import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
 import { materializeLocalRecurrences } from "@/lib/recurrence-service";
+import { cachedTaxCatalog, fetchTaxCatalog } from "@/lib/tax-catalog";
 import { useAuthStore, useThemeStore } from "@/stores";
 
 import { AppStartupGate } from "./components/AppStartupGate";
@@ -35,6 +36,14 @@ function RootComponent() {
 		pathname === "/privacy" ||
 		pathname === "/terms";
 
+	useQuery({
+		enabled: isInitialized && !isPublicRoute,
+		initialData: cachedTaxCatalog,
+		queryFn: fetchTaxCatalog,
+		queryKey: ["tax-definitions"],
+		retry: false,
+		staleTime: 60000,
+	});
 	const localDatabase = useQuery({
 		enabled: isInitialized && isGuestMode && !isAuthenticated,
 		queryFn: initLocalDb,

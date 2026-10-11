@@ -6,15 +6,17 @@ export function assertFinancialInstitutionYieldPolicy({
 	currency = "BRL",
 	rules,
 	yieldPeriod,
+	yieldTaxIds,
 	yieldTaxRate,
 }: {
 	currency?: string;
 	rules: InstitutionYieldRule[];
 	yieldPeriod?: null | YieldPeriod;
+	yieldTaxIds?: string[] | null;
 	yieldTaxRate?: null | number;
 }) {
 	if (rules.length === 0) {
-		if (yieldPeriod || (yieldTaxRate !== null && yieldTaxRate !== undefined))
+		if (yieldPeriod || yieldTaxIds?.length || (yieldTaxRate !== null && yieldTaxRate !== undefined))
 			throw new HttpException("Remova o período e o imposto ao desativar o rendimento", 400);
 		return;
 	}

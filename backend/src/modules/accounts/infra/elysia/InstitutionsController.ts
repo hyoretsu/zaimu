@@ -135,6 +135,11 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 						currency: t.Optional(CurrencyDTO),
 						rules: t.Array(YieldRule, { maxItems: 20 }),
 						yieldPeriod: t.Optional(t.Nullable(YieldPeriod)),
+						yieldTaxIds: t.Optional(
+							t.Nullable(
+								t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20, uniqueItems: true }),
+							),
+						),
 						yieldTaxRate: t.Optional(t.Nullable(t.Number({ maximum: 100, minimum: 0 }))),
 					}),
 				),

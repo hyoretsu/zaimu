@@ -19,12 +19,14 @@ import { RecurringController } from "./modules/recurring/infra";
 import { ReferenceRateController } from "./modules/reference-rates/infra/ReferenceRateController";
 import { StoresController } from "./modules/stores/infra";
 import { SyncController } from "./modules/sync";
+import { TaxesController } from "./modules/taxes/TaxesController";
 import { TransactionImportsController } from "./modules/transaction-imports/infra";
 import { TransactionsController } from "./modules/transactions/infra";
 import { UpgradeController } from "./modules/upgrades/UpgradeController";
 import { app } from "./shared/infra/elysia";
 
 export const server = app.use([
+	TaxesController,
 	CurrencyPreferencesController,
 	FinancialHistoryController,
 	CurrenciesController,

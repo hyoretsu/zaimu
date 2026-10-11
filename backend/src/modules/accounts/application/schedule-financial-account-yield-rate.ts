@@ -1,6 +1,7 @@
 import { addDays, startOfDay } from "date-fns";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
-import { db, executeStatement, nullableNumeric, param, queryFirst } from "~/shared/infra/sql";
+import { assertTaxSelection } from "~/modules/taxes/catalog";
+import { db, executeStatement, nullableNumeric, param, queryFirst, queryRaw } from "~/shared/infra/sql";
 import type { YieldPeriod } from "../domain/calculate-financial-account-yields";
 
 export async function scheduleFinancialAccountYieldRate({
@@ -10,6 +11,7 @@ export async function scheduleFinancialAccountYieldRate({
 	yieldPeriod,
 	yieldReferencePercentage,
 	yieldReferenceType,
+	yieldTaxIds,
 	yieldTaxRate,
 }: {
 	effectiveDate: Date;
@@ -18,8 +20,18 @@ export async function scheduleFinancialAccountYieldRate({
 	yieldPeriod?: null | YieldPeriod;
 	yieldReferencePercentage?: null | number;
 	yieldReferenceType?: "CDI" | "SELIC" | null;
+	yieldTaxIds?: string[] | null;
 	yieldTaxRate?: null | number;
 }) {
+	const current = await queryRaw<{ yieldTaxIds: string[] }>(
+		`SELECT "yieldTaxIds" FROM "FinancialAccount" WHERE "id"=$1`,
+		[financialAccountId],
+	);
+	await assertTaxSelection(
+		yieldTaxIds,
+		current.flatMap(row => row.yieldTaxIds),
+		effectiveDate,
+	);
 	const date = startOfDay(effectiveDate);
 	await executeStatement(
 		db.sql.public.FinancialAccountYieldRateHistory.delete()
@@ -51,6 +63,7 @@ export async function scheduleFinancialAccountYieldRate({
 		yieldPeriod: yieldPeriod ?? null,
 		yieldReferencePercentage: nullableNumeric<7, 4>(yieldReferencePercentage ?? null),
 		yieldReferenceType: yieldReferenceType ?? null,
+		yieldTaxIds: yieldTaxIds ?? [],
 		yieldTaxRate: nullableNumeric<5, 2>(yieldTaxRate ?? null),
 	};
 	if (existing) {

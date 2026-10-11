@@ -192,6 +192,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 							"yieldPeriod",
 							"yieldReferencePercentage",
 							"yieldReferenceType",
+							"yieldTaxIds",
 							"yieldTaxRate",
 							"createdAt",
 							"updatedAt",
@@ -245,6 +246,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 							"yieldPeriod",
 							"yieldReferencePercentage",
 							"yieldReferenceType",
+							"yieldTaxIds",
 							"yieldTaxRate",
 						)
 							.where((fields, functions) => functions.eq(fields.financialAccountId, account.id))
@@ -351,6 +353,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 					yieldPeriod: body.yieldPeriod,
 					yieldReferencePercentage: body.yieldReferencePercentage,
 					yieldReferenceType: body.yieldReferenceType,
+					yieldTaxIds: body.yieldTaxIds,
 					yieldTaxRate: body.yieldTaxRate,
 				});
 				if (body.creditCard) {
@@ -472,6 +475,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 								body.yieldReferenceType !== null && {
 									yieldReferenceType: body.yieldReferenceType,
 								}),
+							...(body.yieldTaxIds !== undefined && { yieldTaxIds: body.yieldTaxIds ?? [] }),
 							...(body.yieldTaxRate !== undefined &&
 								body.yieldTaxRate !== null && { yieldTaxRate: String(body.yieldTaxRate) }),
 						},
@@ -487,6 +491,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 							"yieldPeriod",
 							"yieldReferencePercentage",
 							"yieldReferenceType",
+							"yieldTaxIds",
 							"yieldTaxRate",
 							"createdAt",
 							"updatedAt",
@@ -503,6 +508,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 						yieldPeriod: body.yieldPeriod,
 						yieldReferencePercentage: body.yieldReferencePercentage,
 						yieldReferenceType: body.yieldReferenceType,
+						yieldTaxIds: body.yieldTaxIds,
 						yieldTaxRate: body.yieldTaxRate,
 					});
 				}
@@ -613,6 +619,9 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 				yieldPeriod: t.Optional(t.Nullable(FinancialAccountYieldPeriod)),
 				yieldReferencePercentage: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
 				yieldReferenceType: t.Optional(t.Nullable(ReferenceRateType)),
+				yieldTaxIds: t.Optional(
+					t.Nullable(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20, uniqueItems: true })),
+				),
 				yieldTaxRate: t.Optional(t.Nullable(t.Number({ maximum: 100, minimum: 0 }))),
 			}),
 			detail: { tags: ["Accounts"] },
@@ -637,6 +646,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 						"yieldPeriod",
 						"yieldReferencePercentage",
 						"yieldReferenceType",
+						"yieldTaxIds",
 						"yieldTaxRate",
 					)
 						.where((fields, functions) => functions.eq(fields.id, params.id))
@@ -681,6 +691,9 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 							: body.yieldReferencePercentage,
 					yieldReferenceType:
 						body.yieldReferenceType === undefined ? existing.yieldReferenceType : body.yieldReferenceType,
+					yieldTaxIds: (body.yieldTaxIds === undefined ? existing.yieldTaxIds : body.yieldTaxIds) as
+						| string[]
+						| null,
 					yieldTaxRate: body.yieldTaxRate === undefined ? existing.yieldTaxRate : body.yieldTaxRate,
 				});
 				const institution =
@@ -751,6 +764,7 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 						...(body.yieldReferenceType !== undefined && {
 							yieldReferenceType: body.yieldReferenceType,
 						}),
+						...(body.yieldTaxIds !== undefined && { yieldTaxIds: body.yieldTaxIds ?? [] }),
 						...(body.yieldTaxRate !== undefined && {
 							yieldTaxRate: nullableNumeric<5, 2>(body.yieldTaxRate),
 						}),
@@ -771,6 +785,7 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 							"yieldPeriod",
 							"yieldReferencePercentage",
 							"yieldReferenceType",
+							"yieldTaxIds",
 							"yieldTaxRate",
 							"createdAt",
 							"updatedAt",
@@ -784,6 +799,7 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 					body.yieldFixedRate !== undefined ||
 					body.yieldReferencePercentage !== undefined ||
 					body.yieldReferenceType !== undefined ||
+					body.yieldTaxIds !== undefined ||
 					body.yieldTaxRate !== undefined;
 				if (yieldChanged) {
 					await scheduleFinancialAccountYieldRate({
@@ -801,6 +817,9 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 							body.yieldReferenceType === undefined
 								? (existing.yieldReferenceType as "CDI" | "SELIC" | null)
 								: body.yieldReferenceType,
+						yieldTaxIds: (body.yieldTaxIds === undefined ? existing.yieldTaxIds : body.yieldTaxIds) as
+							| string[]
+							| null,
 						yieldTaxRate: body.yieldTaxRate === undefined ? existing.yieldTaxRate : body.yieldTaxRate,
 					});
 					if (body.recalculateCurrentDay)
@@ -1052,6 +1071,9 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 				yieldPeriod: t.Optional(t.Nullable(FinancialAccountYieldPeriod)),
 				yieldReferencePercentage: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
 				yieldReferenceType: t.Optional(t.Nullable(ReferenceRateType)),
+				yieldTaxIds: t.Optional(
+					t.Nullable(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20, uniqueItems: true })),
+				),
 				yieldTaxRate: t.Optional(t.Nullable(t.Number({ maximum: 100, minimum: 0 }))),
 			}),
 			detail: { tags: ["Accounts"] },

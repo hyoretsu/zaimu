@@ -4,7 +4,16 @@ import type {
 	YieldPeriod,
 } from "~/modules/accounts/domain/calculate-financial-account-yields";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
-import { db, executeStatement, nullableNumeric, param, queryFirst, queryRows } from "~/shared/infra/sql";
+import { assertTaxSelection } from "~/modules/taxes/catalog";
+import {
+	db,
+	executeStatement,
+	nullableNumeric,
+	param,
+	queryFirst,
+	queryRaw,
+	queryRows,
+} from "~/shared/infra/sql";
 
 export async function scheduleFinancialInstitutionYieldPolicy({
 	currency,
@@ -12,6 +21,7 @@ export async function scheduleFinancialInstitutionYieldPolicy({
 	financialInstitutionId,
 	rules,
 	yieldPeriod,
+	yieldTaxIds,
 	yieldTaxRate,
 }: {
 	currency: string;
@@ -19,8 +29,18 @@ export async function scheduleFinancialInstitutionYieldPolicy({
 	financialInstitutionId: string;
 	rules: InstitutionYieldRule[];
 	yieldPeriod?: null | YieldPeriod;
+	yieldTaxIds?: string[] | null;
 	yieldTaxRate?: null | number;
 }) {
+	const current = await queryRaw<{ yieldTaxIds: string[] }>(
+		`SELECT "yieldTaxIds" FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1`,
+		[financialInstitutionId],
+	);
+	await assertTaxSelection(
+		yieldTaxIds,
+		current.flatMap(row => row.yieldTaxIds),
+		effectiveDate,
+	);
 	const date = startOfDay(effectiveDate);
 	await executeStatement(
 		db.sql.public.FinancialInstitutionYieldPolicy.delete()
@@ -57,6 +77,7 @@ export async function scheduleFinancialInstitutionYieldPolicy({
 				currency,
 				updatedAt: new Date(),
 				yieldPeriod: yieldPeriod ?? null,
+				yieldTaxIds: yieldTaxIds ?? [],
 				yieldTaxRate: nullableNumeric<5, 2>(yieldTaxRate ?? null),
 			})
 				.where((fields, functions) => functions.eq(fields.id, policyId!))
@@ -70,6 +91,7 @@ export async function scheduleFinancialInstitutionYieldPolicy({
 					effectiveDate: date,
 					financialInstitutionId,
 					yieldPeriod: yieldPeriod ?? undefined,
+					yieldTaxIds: yieldTaxIds ?? undefined,
 					yieldTaxRate:
 						yieldTaxRate === null || yieldTaxRate === undefined ? undefined : String(yieldTaxRate),
 				},

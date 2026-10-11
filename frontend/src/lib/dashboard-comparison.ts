@@ -2,7 +2,7 @@ import { forecastCardPayments, recurringCardPaymentAmounts } from "@zaimu/financ
 import { comparisonDuration, comparisonIntervals } from "@zaimu/finance/comparison-periods";
 import { creditBookRewards } from "@zaimu/finance/credit-book";
 import { dailyForecast, type ForecastMovement, forecastBreakdown } from "@zaimu/finance/daily-forecast";
-import { projectedNetYield, type ReferenceRateType } from "@zaimu/finance/projected-yield";
+import { getYieldSettings, projectedNetYield, type ReferenceRateType } from "@zaimu/finance/projected-yield";
 import { recurrenceDates, recurrenceNeedsConfiguration } from "@zaimu/finance/recurrence";
 import { pendingRecurrenceDates, projectRecurrenceCreditBook } from "@zaimu/finance/recurrence-projection";
 import { addDays, format, startOfDay } from "date-fns";
@@ -356,12 +356,16 @@ export async function getGuestDashboardFinancialContext(
 				movements: movements
 					.filter(item => key(item.date) > key(today))
 					.map(item => ({ ...item, date: key(item.date) })),
-				netYield: (account, balance, day) => {
+				netYield: (account, balance, day, ledger) => {
 					const settings = yieldAccounts.get(account.id);
-					return settings ? projectedNetYield(settings, balance, day, averages, yieldHolidays) : 0;
+					return settings ? projectedNetYield(settings, balance, day, averages, yieldHolidays, ledger) : 0;
 				},
 				primaryAccountId: accounts.find(account => account.isPrimary)?.id,
 				rate: money.factor,
+				settleYield: (account, amount, day, ledger) => {
+					const settings = yieldAccounts.get(account.id);
+					ledger.accrueRecordedNet(amount, settings ? getYieldSettings(settings, day) : undefined, day);
+				},
 				through: key(through),
 			});
 	for (const day of forecastDays) {

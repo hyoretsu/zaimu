@@ -115,6 +115,7 @@ export function dashboardFinancialContext(
 	const forecastAccounts = monetaryAccounts.map(account => ({
 		...account,
 		balance: todayBalances.get(account.id) ?? 0,
+		yieldLots: loaded.projectedYields?.lots.get(account.id) ?? [],
 	}));
 	const forecastDays =
 		money && !money.forecastAvailable
@@ -129,6 +130,7 @@ export function dashboardFinancialContext(
 					netYield: loaded.projectedYields?.netYield,
 					primaryAccountId: accounts.find(account => account.isPrimary)?.id,
 					rate: money?.factor,
+					settleYield: loaded.projectedYields?.settleYield,
 					through: dateKey(comparisonEnd),
 				});
 	const incomeByDate = new Map<string, number>();

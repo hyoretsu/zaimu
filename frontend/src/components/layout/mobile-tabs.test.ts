@@ -17,6 +17,8 @@ describe("mobile tab routes", () => {
 		["/accounts", "accounts", "/accounts"],
 		["/credit-cards", "creditCards", "/credit-cards"],
 		["/more", "more", "/more"],
+		["/admin", "more", "/admin"],
+		["/admin/", "more", "/admin"],
 		["/debts", "more", "/debts"],
 		["/loans", "more", "/loans"],
 		["/recurring", "more", "/recurring"],

@@ -24,6 +24,7 @@ export function CustomSelect({
 	searchable = false,
 	sortOptions = true,
 	value,
+	values,
 }: {
 	className?: string;
 	disabled?: boolean;
@@ -39,13 +40,14 @@ export function CustomSelect({
 	searchable?: boolean;
 	sortOptions?: boolean;
 	value?: string;
+	values?: string[];
 }) {
 	const displayedOptions = options.toSorted((left, right) => {
 		if (left.special !== right.special) return left.special ? -1 : 1;
 		return sortOptions ? left.label.localeCompare(right.label, "pt-BR", { sensitivity: "base" }) : 0;
 	});
 
-	if (searchable) {
+	if (searchable || values) {
 		return (
 			<SearchableCustomSelect
 				className={className}
@@ -60,6 +62,7 @@ export function CustomSelect({
 				placeholder={placeholder}
 				required={required}
 				value={value}
+				values={values}
 			/>
 		);
 	}

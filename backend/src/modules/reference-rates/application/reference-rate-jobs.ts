@@ -1,11 +1,12 @@
+import { type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
 import { addDays, format, isWeekend, startOfDay, subDays } from "date-fns";
-import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
+import { loadFinancialAccountBalanceInput } from "~/modules/accounts/application/get-financial-account-balances";
 import { getFinancialInstitutionYieldPolicies } from "~/modules/accounts/application/get-financial-institution-yield-policies";
 import {
+	calculateFinancialAccountYieldBalances,
 	calculateGrossYield,
 	getYieldSettings,
 	type ReferenceRateType,
-	settingsRequireReference,
 	type YieldAccount,
 	type YieldPeriod,
 } from "~/modules/accounts/domain/calculate-financial-account-yields";
@@ -16,6 +17,7 @@ import {
 } from "~/modules/financial-history/application/history-collections";
 import { referenceRateCoveredDaysSql } from "~/modules/financial-history/application/reference-rate-coverage-sql";
 import { historyCoverageRanges } from "~/modules/financial-history/domain/collection";
+import { loadTaxCatalog } from "~/modules/taxes/catalog";
 import { createEventEnvelope, type EventEnvelope } from "~/shared/application/events";
 import { PostgresOutbox } from "~/shared/infra/outbox";
 import {
@@ -223,6 +225,7 @@ export async function loadYieldAccounts(accountIds: string[]): Promise<YieldAcco
 			"yieldReferencePercentage",
 			"yieldReferenceType",
 			"yieldTaxRate",
+			"yieldTaxIds",
 		)
 			.where((fields, functions) => functions.in(fields.id, accountIds))
 			.build(),
@@ -236,6 +239,7 @@ export async function loadYieldAccounts(accountIds: string[]): Promise<YieldAcco
 			"yieldReferencePercentage",
 			"yieldReferenceType",
 			"yieldTaxRate",
+			"yieldTaxIds",
 		)
 			.where((fields, functions) => functions.in(fields.financialAccountId, accountIds))
 			.build(),
@@ -244,10 +248,15 @@ export async function loadYieldAccounts(accountIds: string[]): Promise<YieldAcco
 		...new Set(accounts.flatMap(account => (account.institutionId ? [account.institutionId] : []))),
 	]);
 	const historiesByAccount = Map.groupBy(histories, history => history.financialAccountId);
+	await loadTaxCatalog();
+	const loaded = await loadFinancialAccountBalanceInput(accountIds);
+	const snapshots = new Map<string, YieldLot[]>();
+	if (loaded.input) calculateFinancialAccountYieldBalances({ ...loaded.input, lotSnapshots: snapshots });
 
 	return accounts.map(account => ({
 		...account,
 		institutionYieldPolicies: account.institutionId ? (policies.get(account.institutionId) ?? []) : [],
+		yieldLots: snapshots.get(account.id) ?? [],
 		yieldPeriod: account.yieldPeriod as null | YieldPeriod,
 		yieldRateHistories: (historiesByAccount.get(account.id) ?? []).map(history => ({
 			...history,
@@ -276,10 +285,9 @@ async function processAccountRecalculation(job: ClaimedJob) {
 	const account = await loadYieldAccount(job.financialAccountId);
 	if (!account) return;
 	const fromDate = startOfDay(job.fromDate > account.createdAt ? job.fromDate : account.createdAt);
-	const [{ latest }] = await queryRaw<{ latest: Date | null }>(
-		`SELECT max("date") AS latest FROM "public"."ReferenceRate"`,
-	);
-	if (!latest || fromDate > latest) return;
+	const endDate = startOfDay(new Date());
+	if (fromDate > endDate) return;
+	await loadTaxCatalog();
 	await executeRaw(
 		`DELETE FROM "public"."FinancialAccountYield" WHERE "financialAccountId" = $1 AND "kind" = 'AUTOMATIC' AND "origin" = 'SYSTEM' AND "date" >= $2`,
 		[account.id, dateKey(fromDate)],
@@ -292,11 +300,14 @@ async function processAccountRecalculation(job: ClaimedJob) {
 			.build(),
 	);
 	const holidayKeys = new Set(holidays.map(holiday => dateKey(holiday.date)));
-	for (let day = fromDate; day <= latest; day = addDays(day, 1)) {
+	const loaded = await loadFinancialAccountBalanceInput([account.id]);
+	if (!loaded.input) return;
+	const input = { ...loaded.input, yields: [...loaded.input.yields] };
+	for (let day = fromDate; day <= endDate; day = addDays(day, 1)) {
 		const key = dateKey(day);
 		if (isWeekend(day) || holidayKeys.has(key)) continue;
 		const settings = getYieldSettings(account, key);
-		if (!settingsRequireReference(settings)) continue;
+		if (!settings) continue;
 		const types = requiredReferenceTypes(settings);
 		const rows = await queryRaw<{ type: ReferenceRateType; value: string }>(
 			`SELECT "type", "value" FROM "public"."ReferenceRate" WHERE "date" = $1 AND "type" = ANY($2::"ReferenceRateType"[])`,
@@ -317,17 +328,28 @@ async function processAccountRecalculation(job: ClaimedJob) {
 				.build(),
 		);
 		if (override) continue;
-		const balanceAtDay = (await getFinancialAccountBalances([account.id], day)).get(account.id) ?? 0;
-		const manual = await queryRaw<{ amount: string }>(
-			`SELECT "amount" FROM "public"."FinancialAccountYield" WHERE "financialAccountId" = $1 AND "date" = $2 AND "kind" = 'MANUAL' AND NOT "isExcluded"`,
-			[account.id, key],
-		);
-		const balance = balanceAtDay - manual.reduce((total, entry) => total + Number(entry.amount), 0);
-		if (balance <= 0) continue;
+		const snapshots = new Map<string, YieldLot[]>();
+		calculateFinancialAccountYieldBalances({
+			...input,
+			beforeYieldDay: key,
+			lotSnapshots: snapshots,
+			today: day,
+		});
+		const ledger = new YieldTaxLedger(snapshots.get(account.id) ?? []);
+		if (ledger.balance <= 0) continue;
 		const rates = Object.fromEntries(rows.map(row => [row.type, Number(row.value)]));
-		const gross = calculateGrossYield(balance, settings, rates);
-		const amount = Number((gross * (1 - (settings?.yieldTaxRate ?? 0) / 100)).toFixed(4));
+		const amount = Number(
+			ledger.netYield(calculateGrossYield(ledger.balance, settings, rates), settings, key).toFixed(4),
+		);
 		if (amount <= 0) continue;
+		input.yields.push({
+			amount,
+			date: day,
+			financialAccountId: account.id,
+			isExcluded: false,
+			kind: "AUTOMATIC",
+			origin: "SYSTEM",
+		});
 		await executeStatement(
 			db.sql.public.FinancialAccountYield.insert([
 				{

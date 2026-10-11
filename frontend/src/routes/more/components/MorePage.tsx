@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
 	HiCalendarDays,
@@ -7,6 +8,8 @@ import {
 	HiUsers,
 } from "react-icons/hi2";
 import { mobileNavigation, primaryNavigation, utilityNavigation } from "@/components/layout/navigation";
+import { fetchWithAuth } from "@/lib/dataService";
+import { useAuthStore } from "@/stores/auth";
 
 const desktopNavigationPaths = new Set<string>(
 	[...primaryNavigation, ...utilityNavigation].map(item => item.to),
@@ -70,6 +73,14 @@ const desktopMenuItems = menuItems.filter(item => !desktopNavigationPaths.has(it
 const mobileMenuItems = menuItems.filter(item => !mobileNavigationPaths.has(item.to));
 
 export function MorePage() {
+	const authenticated = useAuthStore(state => state.isAuthenticated);
+	const userId = useAuthStore(state => state.user?.id);
+	const access = useQuery({
+		enabled: authenticated,
+		queryFn: () => fetchWithAuth<{ role: string }>("/admin/access"),
+		queryKey: ["admin-access", userId],
+		retry: false,
+	});
 	return (
 		<div className="mx-auto min-h-screen w-full max-w-5xl bg-background lg:py-10">
 			{/* Header */}
@@ -83,6 +94,14 @@ export function MorePage() {
 				</div>
 			</div>
 
+			{access.data?.role === "ADMIN" && (
+				<Link
+					className="relative z-10 mx-4 block cursor-pointer rounded-xl border bg-background p-4"
+					to="/admin"
+				>
+					Administração
+				</Link>
+			)}
 			{/* Menu List */}
 			<div className="-mt-12 px-4 pb-8">
 				<div className="card animate-fade-in overflow-hidden">

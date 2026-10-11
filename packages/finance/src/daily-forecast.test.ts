@@ -200,3 +200,24 @@ test("empty foreign accounts and zero movements need no exchange rate", () => {
 	expect(days[0]!.totalBalance).toBe(90);
 	expect(quotes).toBe(0);
 });
+
+test("forecast passes real aged contributions and new deposits separately to tax calculation", () => {
+	const lots = [{ balance: 1000, date: "2025-01-01" }];
+	const observed: Array<Array<{ date: string; balance: number }>> = [];
+	const days = dailyForecast({
+		accounts: [{ balance: 1000, id: "a", type: "CHECKING", yieldLots: lots }],
+		from: "2025-08-01",
+		movements: [{ amount: 1000, date: "2025-08-01", destinationAccountId: "a", type: "INCOME" }],
+		netYield: (_account, _balance, _date, ledger) => {
+			observed.push(ledger!.lots.map(lot => ({ ...lot })));
+			return ledger!.netYield(100, { yieldTaxIds: ["ir"] }, "2025-08-01");
+		},
+		through: "2025-08-01",
+	});
+	expect(observed[0]).toEqual([
+		{ balance: 1000, date: "2025-01-01" },
+		{ balance: 1000, date: "2025-08-01" },
+	]);
+	expect(days[0]!.balances.get("a")).toBeCloseTo(2078.75);
+	expect(lots).toEqual([{ balance: 1000, date: "2025-01-01" }]);
+});

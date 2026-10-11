@@ -25,11 +25,12 @@ export function calculateCashbackValue(
 	return amount * (1 + rate / 100) ** periods;
 }
 
-async function loadFinancialAccountBalanceInput(accountIds: string[]) {
+export async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 	const balances = new Map(accountIds.map(accountId => [accountId, 0]));
 	if (accountIds.length === 0) return { balances, input: null } as const;
 	const accounts = await queryRows(
 		db.sql.public.FinancialAccount.select(
+			"currency",
 			"id",
 			"institutionId",
 			"userId",
@@ -39,6 +40,7 @@ async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 			"yieldReferenceType",
 			"yieldReferencePercentage",
 			"yieldPeriod",
+			"yieldTaxIds",
 			"yieldTaxRate",
 		)
 			.where((fields, functions) => functions.in(fields.id, accountIds))
@@ -49,6 +51,7 @@ async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 	]);
 	const transactions = await queryRows(
 		db.sql.public.Transaction.select(
+			"id",
 			"amount",
 			"date",
 			"destinationFinancialAccountId",
@@ -80,6 +83,7 @@ async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 			"yieldReferenceType",
 			"yieldReferencePercentage",
 			"yieldPeriod",
+			"yieldTaxIds",
 			"yieldTaxRate",
 		)
 			.where((fields, functions) => functions.in(fields.financialAccountId, accountIds))

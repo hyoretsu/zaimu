@@ -1,4 +1,5 @@
-import { projectedNetYield, type ReferenceRateType } from "@zaimu/finance/projected-yield";
+import { getYieldSettings, projectedNetYield, type ReferenceRateType } from "@zaimu/finance/projected-yield";
+import type { YieldTaxLedger } from "@zaimu/finance/yield-tax";
 import { format } from "date-fns";
 import { queryRaw } from "~/shared/infra/sql";
 import { getReferenceRateAverages } from "./get-reference-rate-averages";
@@ -19,9 +20,14 @@ export async function projectedYieldContext(userId: string, accountIds: string[]
 		if (rateResult.averages[type] !== null) averages[type] = rateResult.averages[type];
 	return {
 		available: rateResult.ready,
-		netYield: (account: { id: string }, balance: number, day: string) => {
+		lots: new Map(accounts.map(account => [account.id, account.yieldLots ?? []])),
+		netYield: (account: { id: string }, balance: number, day: string, ledger?: YieldTaxLedger) => {
 			const settings = accountMap.get(account.id);
-			return settings ? projectedNetYield(settings, balance, day, averages, holidays) : 0;
+			return settings ? projectedNetYield(settings, balance, day, averages, holidays, ledger) : 0;
+		},
+		settleYield: (account: { id: string }, amount: number, day: string, ledger: YieldTaxLedger) => {
+			const settings = accountMap.get(account.id);
+			ledger.accrueRecordedNet(amount, settings ? getYieldSettings(settings, day) : undefined, day);
 		},
 	};
 }

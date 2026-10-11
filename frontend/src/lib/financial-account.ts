@@ -1,3 +1,4 @@
+import { type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
 import { addDays, differenceInMonths, differenceInYears, format, isWeekend, startOfDay } from "date-fns";
 import type { FinancialAccount, FinancialAccountYield } from "./api";
 import { normalizeInstitutionName } from "./financial-institution";
@@ -5,7 +6,7 @@ import { normalizeInstitutionName } from "./financial-institution";
 type AccountTransaction = Pick<
 	import("./api").Transaction,
 	"amount" | "destinationAmount" | "destinationFinancialAccountId" | "originFinancialAccountId"
-> & { date?: Date | string };
+> & { date?: Date | string; id?: string };
 type CashbackPurchase = Pick<
 	import("./api").CreditPurchase,
 	| "cashbackAccountId"
@@ -57,7 +58,8 @@ export function calculateFinancialAccountBalances(
 	const accountById = new Map(
 		accounts.filter(account => account.type !== "CREDIT_CARD").map(account => [account.id, account]),
 	);
-	const events = new Map<string, Map<string, number>>();
+	const snapshots = new Map<string, YieldLot[]>();
+	const events = new Map<string, Map<string, number[]>>();
 	const cashbackEvents = new Map<
 		string,
 		Map<
@@ -79,13 +81,17 @@ export function calculateFinancialAccountBalances(
 	const addEvent = (accountId: string, date: string | Date | undefined, amount: number) => {
 		const day = dateKey(date ?? todayKey);
 		if (day > todayKey || !accountById.has(accountId)) return;
-		const accountEvents = events.get(accountId) ?? new Map<string, number>();
-		accountEvents.set(day, (accountEvents.get(day) ?? 0) + amount);
+		const accountEvents = events.get(accountId) ?? new Map<string, number[]>();
+		accountEvents.set(day, [...(accountEvents.get(day) ?? []), amount]);
 		events.set(accountId, accountEvents);
 	};
 	for (const account of accounts.filter(account => account.type === "REWARDS"))
 		addEvent(account.id, account.createdAt, account.rewardsAccount?.initialBalance ?? 0);
-	for (const transaction of transactions) {
+	for (const transaction of transactions.toSorted(
+		(a, b) =>
+			dateKey(a.date ?? todayKey).localeCompare(dateKey(b.date ?? todayKey)) ||
+			(a.id ?? "").localeCompare(b.id ?? ""),
+	)) {
 		if (transaction.originFinancialAccountId)
 			addEvent(transaction.originFinancialAccountId, transaction.date, -transaction.amount);
 		if (transaction.destinationFinancialAccountId)
@@ -115,22 +121,25 @@ export function calculateFinancialAccountBalances(
 		accountEvents.set(day, entries);
 		cashbackEvents.set(purchase.cashbackAccountId, accountEvents);
 	}
-	return accounts.map(account => ({
-		...account,
-		balance:
-			account.type === "CREDIT_CARD"
-				? null
-				: Number(
-						calculateYieldedBalance(
-							account,
-							events.get(account.id),
-							cashbackEvents.get(account.id),
-							holidayKeys,
-							todayKey,
-							yieldsByAccountId.get(account.id),
-						).toFixed(4),
-					),
-	}));
+	return accounts
+		.map(account => ({
+			...account,
+			balance:
+				account.type === "CREDIT_CARD"
+					? null
+					: Number(
+							calculateYieldedBalance(
+								account,
+								events.get(account.id),
+								cashbackEvents.get(account.id),
+								holidayKeys,
+								todayKey,
+								yieldsByAccountId.get(account.id),
+								snapshots,
+							).toFixed(4),
+						),
+		}))
+		.map(account => ({ ...account, yieldLots: snapshots.get(account.id) ?? [] }));
 }
 
 export function calculateFinancialAccountYieldEntries(
@@ -142,8 +151,12 @@ export function calculateFinancialAccountYieldEntries(
 ): FinancialAccountYieldEntry[] {
 	if (account.type === "CREDIT_CARD") return [];
 	const todayKey = format(startOfDay(today), "yyyy-MM-dd");
-	const events = new Map<string, number>();
-	for (const transaction of transactions) {
+	const events = new Map<string, number[]>();
+	for (const transaction of transactions.toSorted(
+		(a, b) =>
+			dateKey(a.date ?? todayKey).localeCompare(dateKey(b.date ?? todayKey)) ||
+			(a.id ?? "").localeCompare(b.id ?? ""),
+	)) {
 		const day = dateKey(transaction.date ?? todayKey);
 		if (day > todayKey) continue;
 		const amount =
@@ -152,7 +165,7 @@ export function calculateFinancialAccountYieldEntries(
 				: transaction.originFinancialAccountId === account.id
 					? -transaction.amount
 					: 0;
-		events.set(day, (events.get(day) ?? 0) + amount);
+		events.set(day, [...(events.get(day) ?? []), amount]);
 	}
 	const firstDay = [
 		...events.keys(),
@@ -162,13 +175,15 @@ export function calculateFinancialAccountYieldEntries(
 	const holidayKeys = new Set(holidays.map(date => date.slice(0, 10)));
 	const entries: FinancialAccountYieldEntry[] = [];
 	let balance = 0;
+	const ledger = new YieldTaxLedger();
 	for (
 		let day = new Date(`${firstDay}T12:00:00`);
 		format(day, "yyyy-MM-dd") <= todayKey;
 		day = addDays(day, 1)
 	) {
 		const key = format(day, "yyyy-MM-dd");
-		balance += events.get(key) ?? 0;
+		for (const movement of events.get(key) ?? []) ledger.applyCashFlow(movement, key);
+		balance = ledger.balance;
 		const manualYields = yields.filter(
 			yieldEntry =>
 				yieldEntry.kind === "MANUAL" && !yieldEntry.isExcluded && yieldEntry.date.slice(0, 10) === key,
@@ -182,7 +197,8 @@ export function calculateFinancialAccountYieldEntries(
 					currency: account.currency ?? "BRL",
 					date: key,
 				});
-				balance += manualYield.amount;
+				ledger.accrueNet(manualYield.amount, key);
+				balance = ledger.balance;
 			}
 			continue;
 		}
@@ -192,7 +208,7 @@ export function calculateFinancialAccountYieldEntries(
 		if (balance > 0 && !automaticYield?.isExcluded) {
 			const settings = getYieldSettings(account, key);
 			const grossAmount = calculateGrossYield(balance, settings);
-			const calculatedAmount = grossAmount * (1 - (settings?.yieldTaxRate ?? 0) / 100);
+			const calculatedAmount = ledger.netYield(grossAmount, settings, key);
 			const amount = automaticYield?.amount ?? calculatedAmount;
 			if (amount > 0) {
 				entries.push({
@@ -204,7 +220,11 @@ export function calculateFinancialAccountYieldEntries(
 					isHidden: automaticYield?.isHidden,
 					kind: "AUTOMATIC",
 				});
-				balance += amount;
+				if (automaticYield?.amount != null) {
+					if (automaticYield.origin === "SYSTEM") ledger.accrueRecordedNet(amount, settings, key);
+					else ledger.accrueNet(amount, key);
+				} else ledger.accrueGross(grossAmount, settings, key);
+				balance = ledger.balance;
 			}
 		}
 		for (const manualYield of manualYields) {
@@ -215,7 +235,8 @@ export function calculateFinancialAccountYieldEntries(
 				currency: account.currency ?? "BRL",
 				date: key,
 			});
-			balance += manualYield.amount;
+			ledger.accrueNet(manualYield.amount, key);
+			balance = ledger.balance;
 		}
 	}
 	return entries;
@@ -249,7 +270,7 @@ function getDailyYieldRate(
 
 function calculateYieldedBalance(
 	account: FinancialAccount,
-	events: Map<string, number> | undefined,
+	events: Map<string, number[]> | undefined,
 	cashbackEvents:
 		| Map<
 				string,
@@ -264,6 +285,7 @@ function calculateYieldedBalance(
 	holidays: Set<string>,
 	todayKey: string,
 	yields: FinancialAccountYield[] | undefined,
+	snapshots?: Map<string, YieldLot[]>,
 ) {
 	const firstDay = [
 		...(events?.keys() ?? []),
@@ -272,6 +294,7 @@ function calculateYieldedBalance(
 	].toSorted()[0];
 	if (!firstDay) return 0;
 	let balance = 0;
+	const ledger = new YieldTaxLedger();
 	const cashbackBalances = new Map<number, number>();
 	for (
 		let day = new Date(`${firstDay}T12:00:00`);
@@ -279,7 +302,8 @@ function calculateYieldedBalance(
 		day = addDays(day, 1)
 	) {
 		const key = format(day, "yyyy-MM-dd");
-		balance += events?.get(key) ?? 0;
+		for (const movement of events?.get(key) ?? []) ledger.applyCashFlow(movement, key);
+		balance = ledger.balance;
 		for (const cashback of cashbackEvents?.get(key) ?? []) {
 			const dailyRate = getDailyYieldRate(
 				{
@@ -290,14 +314,18 @@ function calculateYieldedBalance(
 			);
 			if (dailyRate)
 				cashbackBalances.set(dailyRate, (cashbackBalances.get(dailyRate) ?? 0) + cashback.amount);
-			else balance += cashback.amount;
+			else {
+				ledger.applyCashFlow(cashback.amount, key);
+				balance = ledger.balance;
+			}
 		}
 		const manualYields = yields?.filter(
 			yieldEntry =>
 				yieldEntry.kind === "MANUAL" && !yieldEntry.isExcluded && yieldEntry.date.slice(0, 10) === key,
 		);
 		if (isWeekend(day) || holidays.has(key)) {
-			for (const manualYield of manualYields ?? []) balance += manualYield.amount ?? 0;
+			for (const manualYield of manualYields ?? []) ledger.accrueNet(manualYield.amount ?? 0, key);
+			balance = ledger.balance;
 			continue;
 		}
 		const yieldSettings = getYieldSettings(account, key);
@@ -307,16 +335,24 @@ function calculateYieldedBalance(
 		if (balance > 0 && !automaticYield?.isExcluded) {
 			const hasReference = settingsRequireReference(yieldSettings);
 			const grossAmount = hasReference ? 0 : calculateGrossYield(balance, yieldSettings);
-			const calculatedAmount = grossAmount * (1 - (yieldSettings?.yieldTaxRate ?? 0) / 100);
-			if (automaticYield?.amount !== null && automaticYield?.amount !== undefined)
-				balance += automaticYield.amount;
-			else if (!hasReference) balance += calculatedAmount;
+
+			if (automaticYield?.amount !== null && automaticYield?.amount !== undefined) {
+				if (automaticYield.origin === "SYSTEM")
+					ledger.accrueRecordedNet(automaticYield.amount, yieldSettings, key);
+				else ledger.accrueNet(automaticYield.amount, key);
+			} else if (!hasReference) ledger.accrueGross(grossAmount, yieldSettings, key);
+			balance = ledger.balance;
 		}
 		for (const [dailyRate, cashbackBalance] of cashbackBalances) {
 			if (cashbackBalance > 0) cashbackBalances.set(dailyRate, cashbackBalance * (1 + dailyRate));
 		}
-		for (const manualYield of manualYields ?? []) balance += manualYield.amount ?? 0;
+		for (const manualYield of manualYields ?? []) ledger.accrueNet(manualYield.amount ?? 0, key);
+		balance = ledger.balance;
 	}
+	snapshots?.set(
+		account.id,
+		ledger.lots.map(lot => ({ ...lot })),
+	);
 	return balance + [...cashbackBalances.values()].reduce((total, value) => total + value, 0);
 }
 
@@ -330,6 +366,7 @@ function getYieldSettings(account: FinancialAccount, day: string) {
 		yieldPeriod: account.yieldPeriod,
 		yieldReferencePercentage: account.yieldReferencePercentage,
 		yieldReferenceType: account.yieldReferenceType,
+		yieldTaxIds: account.yieldTaxIds,
 		yieldTaxRate: account.yieldTaxRate,
 	};
 	if (accountSettings.yieldFixedRate || accountSettings.yieldReferenceType) return accountSettings;

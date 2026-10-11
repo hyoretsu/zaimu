@@ -3,6 +3,7 @@ export const mobileTabIds = ["overview", "transactions", "accounts", "creditCard
 export type MobileTabId = (typeof mobileTabIds)[number];
 
 export const mobileScreenPaths = [
+	"/admin",
 	"/",
 	"/transactions",
 	"/accounts",
@@ -29,6 +30,7 @@ export const mobileTabRoots = {
 const tabByScreen = {
 	"/": "overview",
 	"/accounts": "accounts",
+	"/admin": "more",
 	"/credit-cards": "creditCards",
 	"/debts": "more",
 	"/loans": "more",
@@ -48,7 +50,7 @@ export function resolveMobileRoute(pathname: string): MobileRoute | null {
 	const screenPath =
 		pathname === "/salaries" || pathname === "/subscriptions"
 			? "/recurring"
-			: mobileScreenPaths.find(path => path === pathname);
+			: mobileScreenPaths.find(path => path === pathname.replace(/\/$/, "") || path === pathname);
 
 	if (!screenPath) return null;
 	return { screenPath, tabId: tabByScreen[screenPath] };

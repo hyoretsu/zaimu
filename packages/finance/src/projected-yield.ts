@@ -1,8 +1,11 @@
+import { type YieldLot, YieldTaxLedger } from "./yield-tax";
 export type YieldPeriod = "MONTHLY" | "YEARLY";
 export type ReferenceRateType = "CDI" | "SELIC";
 
 export interface YieldAccount {
+	currency?: string;
 	createdAt: Date | string;
+	yieldLots?: YieldLot[];
 	id: string;
 	institutionYieldPolicies?: InstitutionYieldPolicy[];
 	type: string;
@@ -11,14 +14,17 @@ export interface YieldAccount {
 	yieldReferencePercentage?: null | number;
 	yieldReferenceType?: null | ReferenceRateType;
 	yieldTaxRate?: null | number;
+	yieldTaxIds?: string[] | null;
 	yieldRateHistories?: YieldRateHistory[];
 }
 
 export interface InstitutionYieldPolicy {
+	currency?: string;
 	effectiveDate: Date | string;
 	rules: InstitutionYieldRule[];
 	yieldPeriod?: null | YieldPeriod;
 	yieldTaxRate?: null | number;
+	yieldTaxIds?: string[] | null;
 }
 
 export interface InstitutionYieldRule {
@@ -35,6 +41,7 @@ export interface YieldRateHistory {
 	yieldReferencePercentage?: null | number;
 	yieldReferenceType?: null | ReferenceRateType;
 	yieldTaxRate?: null | number;
+	yieldTaxIds?: string[] | null;
 }
 
 function dateKey(date: Date | string) {
@@ -64,13 +71,18 @@ function getYieldSettings(account: YieldAccount, day: string) {
 		yieldPeriod: account.yieldPeriod,
 		yieldReferencePercentage: account.yieldReferencePercentage,
 		yieldReferenceType: account.yieldReferenceType,
+		yieldTaxIds: account.yieldTaxIds,
 		yieldTaxRate: account.yieldTaxRate,
 	};
 	if (accountSettings.yieldReferenceType || (accountSettings.yieldFixedRate && accountSettings.yieldPeriod))
 		return accountSettings;
 	if (account.type !== "CHECKING" && account.type !== "SAVINGS") return accountSettings;
 	return account.institutionYieldPolicies
-		?.filter(policy => dateKey(policy.effectiveDate) <= day)
+		?.filter(
+			policy =>
+				dateKey(policy.effectiveDate) <= day &&
+				(policy.currency ?? "BRL") === (account.currency ?? "BRL"),
+		)
 		.toSorted((left, right) => dateKey(left.effectiveDate).localeCompare(dateKey(right.effectiveDate)))
 		.at(-1);
 }
@@ -123,9 +135,12 @@ export function projectedNetYield(
 	day: string,
 	averages: Partial<Record<ReferenceRateType, number>>,
 	holidays: ReadonlySet<string> = new Set(),
+	ledger?: YieldTaxLedger,
 ) {
 	const weekday = new Date(`${day}T12:00:00`).getDay();
 	if (balance <= 0 || weekday === 0 || weekday === 6 || holidays.has(day)) return 0;
 	const settings = getYieldSettings(account, day);
-	return calculateGrossYield(balance, settings, averages) * (1 - (settings?.yieldTaxRate ?? 0) / 100);
+	const contributions = ledger ?? new YieldTaxLedger(account.yieldLots ?? []);
+	if (!ledger) contributions.adjustBalance(balance, day);
+	return contributions.netYield(calculateGrossYield(balance, settings, averages), settings, day);
 }

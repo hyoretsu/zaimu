@@ -1,4 +1,5 @@
 import { NumericFormat } from "react-number-format";
+import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import { Input } from "./Input";
 import { Label } from "./Label";
 import { RequiredMark } from "./RequiredMark";
@@ -26,6 +27,7 @@ export function NumericField({
 	suffix?: string;
 	value: string;
 }) {
+	const [local, setLocal] = useDebouncedInput(value, onValueChange);
 	return (
 		<div className="grid gap-2">
 			<Label htmlFor={id}>
@@ -42,12 +44,16 @@ export function NumericField({
 				disabled={disabled}
 				id={id}
 				name={id}
-				onValueChange={values => onValueChange(values.value)}
+				onBlur={() => onValueChange(local)}
+				onKeyDown={event => {
+					if (event.key === "Enter") onValueChange(local);
+				}}
+				onValueChange={values => setLocal(values.value)}
 				placeholder={placeholder}
 				required={required}
 				suffix={suffix}
 				thousandSeparator="."
-				value={value}
+				value={local}
 				valueIsNumericString
 			/>
 			{description && <p className="text-muted-foreground text-xs">{description}</p>}

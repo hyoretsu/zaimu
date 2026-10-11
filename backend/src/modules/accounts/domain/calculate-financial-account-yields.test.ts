@@ -318,3 +318,46 @@ test("fully reversed fractional cashback returns unsigned zero", () => {
 	});
 	expect(balances.get("rewards")).toBe(0);
 });
+
+test("combined IOF and IR with net compounding and original contribution age", () => {
+	const account = {
+		createdAt: new Date("2025-01-01T12:00:00Z"),
+		id: "taxed",
+		type: "CHECKING",
+		yieldFixedRate: 21,
+		yieldPeriod: "MONTHLY" as const,
+		yieldTaxIds: ["ir", "iof"],
+	};
+	const transactions = [
+		{ amount: 1000, date: new Date("2025-01-01T12:00:00Z"), destinationFinancialAccountId: "taxed" },
+	];
+	const daily = 1.21 ** (1 / 21) - 1;
+	const balances = calculateFinancialAccountYieldBalances({
+		accounts: [account],
+		cashbackCredits: [],
+		holidays: [],
+		initialRewardsBalances: new Map(),
+		today: new Date("2025-01-03T12:00:00Z"),
+		transactions,
+	});
+	const second = 1000 + 1000 * daily * 0.04 * 0.775;
+	expect(balances.get("taxed")).toBeCloseTo(second + second * daily * 0.07 * 0.775, 4);
+});
+
+test("same-day withdrawal and replacement deposit restart only replacement contribution", () => {
+	const snapshots = new Map<string, import("@zaimu/finance/yield-tax").YieldLot[]>();
+	calculateFinancialAccountYieldBalances({
+		accounts: [{ createdAt: new Date("2025-01-01"), id: "a", type: "CHECKING" }],
+		cashbackCredits: [],
+		holidays: [],
+		initialRewardsBalances: new Map(),
+		lotSnapshots: snapshots,
+		today: new Date("2025-02-02"),
+		transactions: [
+			{ amount: 100, date: new Date("2025-01-01"), destinationFinancialAccountId: "a", id: "1" },
+			{ amount: 100, date: new Date("2025-02-01"), id: "2", originFinancialAccountId: "a" },
+			{ amount: 100, date: new Date("2025-02-01"), destinationFinancialAccountId: "a", id: "3" },
+		],
+	});
+	expect(snapshots.get("a")).toEqual([{ balance: 100, date: "2025-02-01" }]);
+});

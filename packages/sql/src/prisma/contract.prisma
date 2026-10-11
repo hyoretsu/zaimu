@@ -81,7 +81,25 @@ namespace public {
     @@map("OpenFinanceIdentity")
   }
 
+  model TaxDefinition {
+    id VarChar(36) @id
+    name VarChar(100)
+    isActive Boolean @default(true)
+    versions TaxDefinitionVersion[]
+  }
+
+  model TaxDefinitionVersion {
+    id VarChar(36) @id
+    taxDefinitionId VarChar(36)
+    effectiveDate Date
+    applicationOrder Int
+    brackets Json
+    definition TaxDefinition @relation(fields: [taxDefinitionId], references: [id], onDelete: Restrict)
+    @@unique([taxDefinitionId, effectiveDate])
+  }
+
   model User {
+    role VarChar(10) @default("USER")
     preferredCurrency VarChar(3)?
 
     openFinanceConfig OpenFinanceConfig?
@@ -151,6 +169,7 @@ namespace public {
     financialInstitutionId VarChar(36)
     effectiveDate          Date
     yieldPeriod            pg.enum(FinancialAccountYieldPeriod)?
+    yieldTaxIds            VarChar(36)[] @default([])
     yieldTaxRate           Numeric(5, 2)?
     createdAt              Timestamp(3)                             @default(now())
     updatedAt              Timestamp(3)                             @default(now())
@@ -261,6 +280,7 @@ namespace public {
     yieldReferenceType       pg.enum(ReferenceRateType)?
     yieldReferencePercentage Numeric(7, 4)?
     yieldFixedRate           Numeric(7, 4)?
+    yieldTaxIds            VarChar(36)[] @default([])
     yieldTaxRate             Numeric(5, 2)?
     yieldPeriod              pg.enum(FinancialAccountYieldPeriod)?
     createdAt               Timestamp(3)                  @default(now())
@@ -329,6 +349,7 @@ namespace public {
     yieldReferenceType       pg.enum(ReferenceRateType)?
     yieldReferencePercentage Numeric(7, 4)?
     yieldFixedRate           Numeric(7, 4)?
+    yieldTaxIds            VarChar(36)[] @default([])
     yieldTaxRate             Numeric(5, 2)?
     yieldPeriod              pg.enum(FinancialAccountYieldPeriod)?
     createdAt          Timestamp(3)                        @default(now())

@@ -13,6 +13,7 @@ export interface User {
 }
 
 export interface FinancialAccount {
+	yieldLots?: import("@zaimu/finance/yield-tax").YieldLot[];
 	currency?: string;
 	isPrimary?: boolean;
 	isDefaultForStatements?: boolean;
@@ -30,6 +31,7 @@ export interface FinancialAccount {
 	yieldFixedRate?: number | null;
 	yieldReferencePercentage?: number | null;
 	yieldReferenceType?: "CDI" | "SELIC" | null;
+	yieldTaxIds?: string[] | null;
 	yieldTaxRate?: number | null;
 	yieldRateHistories?: FinancialAccountYieldRateHistory[];
 	creditCard?: CreditCard;
@@ -42,6 +44,7 @@ export interface FinancialAccountYieldRateHistory {
 	yieldFixedRate?: number | null;
 	yieldReferencePercentage?: number | null;
 	yieldReferenceType?: "CDI" | "SELIC" | null;
+	yieldTaxIds?: string[] | null;
 	yieldTaxRate?: number | null;
 }
 
@@ -86,6 +89,7 @@ export interface FinancialInstitutionYieldPolicy {
 	effectiveDate: string;
 	rules: FinancialInstitutionYieldRule[];
 	yieldPeriod?: "MONTHLY" | "YEARLY" | null;
+	yieldTaxIds?: string[] | null;
 	yieldTaxRate?: number | null;
 }
 export interface FinancialInstitutionYieldRule {

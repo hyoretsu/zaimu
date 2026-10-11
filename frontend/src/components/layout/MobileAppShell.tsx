@@ -14,6 +14,9 @@ import {
 	updateMobileTabRoute,
 } from "./mobile-tabs";
 
+const AdminPage = lazy(() =>
+	import("@/routes/admin/components/AdminPage").then(module => ({ default: module.AdminPage })),
+);
 const AccountsPage = lazy(() =>
 	import("@/routes/accounts/components/AccountsPage").then(module => ({ default: module.AccountsPage })),
 );
@@ -54,6 +57,7 @@ const TransactionsPage = lazy(() =>
 const screenByPath = {
 	"/": DashboardPage,
 	"/accounts": AccountsPage,
+	"/admin": AdminPage,
 	"/credit-cards": CreditCardsPage,
 	"/debts": DebtsPage,
 	"/loans": EmpréstimosPage,

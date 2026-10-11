@@ -23,7 +23,8 @@
 		"./money": "./src/money.ts",
 		"./currency-provider": "./src/currency-provider.ts",
 		"./currency-preference": "./src/currency-preference.ts",
-		"./transaction-money": "./src/transaction-money.ts"
+		"./transaction-money": "./src/transaction-money.ts",
+		"./yield-tax": "./src/yield-tax.ts"
 	},
 	"scripts": {
 		"check-types": "tsc --noEmit",

@@ -2,6 +2,8 @@ import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { NumericField } from "@/components/ui/NumericField";
 
+import { YieldTaxFields } from "./YieldTaxFields";
+
 export function AccountYieldFields({
 	enabled,
 	allowReference,
@@ -10,12 +12,14 @@ export function AccountYieldFields({
 	referencePercentage,
 	referenceType,
 	taxRate,
+	taxIds,
 	onEnabledChange,
 	onFixedRateChange,
 	onPeriodChange,
 	onReferencePercentageChange,
 	onReferenceTypeChange,
 	onTaxRateChange,
+	onTaxIdsChange,
 }: {
 	enabled: boolean;
 	allowReference: boolean;
@@ -24,12 +28,14 @@ export function AccountYieldFields({
 	referencePercentage: string;
 	referenceType: string;
 	taxRate: string;
+	taxIds: string[];
 	onEnabledChange: (enabled: boolean) => void;
 	onFixedRateChange: (rate: string) => void;
 	onPeriodChange: (period: "MONTHLY" | "YEARLY") => void;
 	onReferencePercentageChange: (percentage: string) => void;
 	onReferenceTypeChange: (rate: "" | "CDI" | "SELIC") => void;
 	onTaxRateChange: (rate: string) => void;
+	onTaxIdsChange: (type: string[]) => void;
 }) {
 	const hasReference = Boolean(referenceType);
 	return (
@@ -88,15 +94,12 @@ export function AccountYieldFields({
 							suffix="%"
 							value={fixedRate}
 						/>
-						<NumericField
-							decimalScale={2}
-							description="Descontada de cada rendimento automático."
+						<YieldTaxFields
 							id="account-yield-tax-rate"
-							label="Alíquota de imposto total"
-							onValueChange={onTaxRateChange}
-							placeholder="Ex: 15%"
-							suffix="%"
-							value={taxRate}
+							onTaxIdsChange={onTaxIdsChange}
+							onTaxRateChange={onTaxRateChange}
+							taxIds={taxIds}
+							taxRate={taxRate}
 						/>
 						{Boolean(fixedRate) && (
 							<CustomSelect

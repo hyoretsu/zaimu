@@ -24,6 +24,7 @@ export function SearchableCustomSelect({
 	placeholder,
 	required,
 	value,
+	values,
 }: {
 	className?: string;
 	disabled?: boolean;
@@ -37,6 +38,7 @@ export function SearchableCustomSelect({
 	placeholder: string;
 	required?: boolean;
 	value?: string;
+	values?: string[];
 }) {
 	const [open, setOpen] = useState(false);
 	const [search, setSearch] = useDebouncedInput("", () => undefined);
@@ -47,7 +49,15 @@ export function SearchableCustomSelect({
 	const filteredOptions = options.filter(
 		option => option.special || option.label.toLocaleLowerCase("pt-BR").includes(normalizedSearch),
 	);
-	const selectedOption = options.find(option => option.value === value);
+	const selectedOption = options.find(option =>
+		values ? values.includes(option.value) : option.value === value,
+	);
+	const selectedLabel = values
+		? options
+				.filter(option => values.includes(option.value))
+				.map(option => option.label)
+				.join(", ")
+		: selectedOption?.label;
 	const changeOpen = (nextOpen: boolean) => {
 		setOpen(nextOpen);
 		onOpenChange?.(nextOpen);
@@ -74,9 +84,9 @@ export function SearchableCustomSelect({
 						variant="outline"
 					>
 						<span
-							className={cn("min-w-0 flex-1 truncate text-left", !selectedOption && "text-muted-foreground")}
+							className={cn("min-w-0 flex-1 truncate text-left", !selectedLabel && "text-muted-foreground")}
 						>
-							{selectedOption?.label ?? placeholder}
+							{selectedLabel || placeholder}
 						</span>
 						<HugeiconsIcon className="size-4 text-muted-foreground" icon={UnfoldMoreIcon} strokeWidth={2} />
 					</Button>
@@ -132,6 +142,7 @@ export function SearchableCustomSelect({
 					<ScrollArea className="min-h-0 flex-1">
 						<div
 							aria-label={label}
+							aria-multiselectable={values ? true : undefined}
 							className="grid gap-1 p-1"
 							id={listId}
 							onKeyDown={event => {
@@ -173,20 +184,24 @@ export function SearchableCustomSelect({
 							) : (
 								filteredOptions.map(option => (
 									<button
-										aria-selected={option.value === value}
+										aria-selected={values ? values.includes(option.value) : option.value === value}
 										className="relative flex w-full cursor-pointer items-center rounded-xl border border-transparent py-2 pr-8 pl-3 text-left text-sm outline-none hover:border-border hover:bg-accent focus-visible:border-ring focus-visible:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
 										disabled={option.disabled}
 										key={option.value}
 										onClick={() => {
 											onValueChange(option.value);
-											changeOpen(false);
+											if (!values) changeOpen(false);
 										}}
-										ref={option.value === value ? selectedRef : undefined}
+										ref={
+											(values ? values.includes(option.value) : option.value === value)
+												? selectedRef
+												: undefined
+										}
 										role="option"
 										type="button"
 									>
 										{option.label}
-										{option.value === value && (
+										{(values ? values.includes(option.value) : option.value === value) && (
 											<HugeiconsIcon className="absolute right-2 size-4" icon={Tick02Icon} strokeWidth={2} />
 										)}
 									</button>
