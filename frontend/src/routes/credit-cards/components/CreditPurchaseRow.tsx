@@ -159,14 +159,18 @@ export function CreditPurchaseRow({
 							<TooltipContent>Reparcelar</TooltipContent>
 						</Tooltip>
 					) : null}
-					{purchase.installments === 1 && !hasRefinancing ? (
+					{!hasRefinancing ? (
 						<Tooltip>
 							<TooltipTrigger asChild>
 								<span>
 									<ConfirmActionButton
 										aria-label={`Excluir ${purchase.description}`}
 										className="cursor-pointer"
-										confirmation="Excluir esta compra permanentemente?"
+										confirmation={
+											purchase.installments > 1
+												? "Excluir esta compra e todas as suas parcelas permanentemente?"
+												: "Excluir esta compra permanentemente?"
+										}
 										disabled={deleteDisabled}
 										onConfirm={onDelete}
 										size="icon-sm"
@@ -176,7 +180,9 @@ export function CreditPurchaseRow({
 									</ConfirmActionButton>
 								</span>
 							</TooltipTrigger>
-							<TooltipContent>Excluir</TooltipContent>
+							<TooltipContent>
+								{purchase.installments > 1 ? "Excluir compra e todas as parcelas" : "Excluir"}
+							</TooltipContent>
 						</Tooltip>
 					) : null}
 				</div>

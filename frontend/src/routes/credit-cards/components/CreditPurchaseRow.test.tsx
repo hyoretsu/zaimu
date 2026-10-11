@@ -78,3 +78,18 @@ test("single purchases offer refinancing; settled and non-purchase entries do no
 	])
 		expect(render(overrides)).not.toContain('aria-label="Reparcelar Amazon"');
 });
+
+test("installment rows offer deletion of the whole purchase", () => {
+	for (const currentInstallment of [1, 2, 11]) {
+		expect(render({ currentInstallment })).toContain('aria-label="Excluir Amazon"');
+	}
+});
+
+test("purchases linked to refinancing remain protected from deletion", () => {
+	for (const overrides of [
+		{ refinancedFromPurchaseId: "original" },
+		{ installments: 1, refinancingPurchaseIds: ["replacement"] },
+	]) {
+		expect(render(overrides)).not.toContain('aria-label="Excluir Amazon"');
+	}
+});
