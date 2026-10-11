@@ -104,3 +104,28 @@ export function assertBookPurchaseCanMove(book: CreditBook, purchaseId: string) 
 	if (relation?.refinancingOriginalPurchaseId)
 		throw new RangeError("Compra e reparcelamento vinculados devem permanecer no mesmo cartão");
 }
+
+/** Remove an original purchase and its entire refinancing family atomically. */
+export function removeBookPurchase(book: CreditBook, purchaseId: string) {
+	const id = book.installments.find(item => item.id === purchaseId)?.purchaseId ?? purchaseId;
+	const links = bookRefinancingLinks(book);
+	const relation = links.get(id);
+	if (!relation) throw new RangeError("Compra não encontrada");
+	if (relation.refinancedFromPurchaseId)
+		throw new RangeError("Exclua a compra original para remover seus reparcelamentos");
+	const removedIds = new Set(
+		[...links]
+			.filter(([key, link]) => key === id || link.refinancingOriginalPurchaseId === id)
+			.map(([key]) => key),
+	);
+	book.deletedPurchaseIds = [...new Set([...(book.deletedPurchaseIds ?? []), ...removedIds])];
+	book.purchases = book.purchases.filter(item => !removedIds.has(item.id));
+	book.installments = book.installments.filter(item => !removedIds.has(item.purchaseId));
+	book.refunds = book.refunds.filter(item => !removedIds.has(item.purchaseId));
+	for (const charge of book.charges) {
+		if (charge.settledByPurchaseId && removedIds.has(charge.settledByPurchaseId)) {
+			charge.settledByPurchaseId = null;
+			charge.isSettled = false;
+		}
+	}
+}

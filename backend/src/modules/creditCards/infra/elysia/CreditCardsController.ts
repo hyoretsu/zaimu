@@ -4,6 +4,7 @@ import {
 	ensureBookStatement,
 	moneyCents,
 	refinanceBookPurchase,
+	removeBookPurchase,
 	removeBookRefund,
 	replayCreditBook,
 	resizePurchaseCashback,
@@ -879,10 +880,7 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 				book.charges = book.charges.filter(ch => ch.id !== charge.id);
 				return;
 			}
-			const p = resolveBookPurchase(book, params.purchaseId);
-			book.purchases = book.purchases.filter(row => row.id !== p.id);
-			book.installments = book.installments.filter(i => i.purchaseId !== p.id);
-			book.refunds = book.refunds.filter(r => r.purchaseId !== p.id);
+			removeBookPurchase(book, params.purchaseId);
 		});
 		return { success: true };
 	})

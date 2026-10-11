@@ -85,11 +85,12 @@ test("installment rows offer deletion of the whole purchase", () => {
 	}
 });
 
-test("purchases linked to refinancing remain protected from deletion", () => {
-	for (const overrides of [
-		{ refinancedFromPurchaseId: "original" },
-		{ installments: 1, refinancingPurchaseIds: ["replacement"] },
-	]) {
-		expect(render(overrides)).not.toContain('aria-label="Excluir Amazon"');
-	}
+test("original purchases with refinancing offer cascade deletion", () => {
+	expect(render({ installments: 1, refinancingPurchaseIds: ["replacement"] })).toContain(
+		'aria-label="Excluir Amazon"',
+	);
+});
+
+test("refinancing purchases remain protected from isolated deletion", () => {
+	expect(render({ refinancedFromPurchaseId: "original" })).not.toContain('aria-label="Excluir Amazon"');
 });

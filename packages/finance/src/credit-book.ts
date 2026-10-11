@@ -1,6 +1,10 @@
 import { assertBookPurchaseCanMove, bookRefinancingLinks } from "./credit-book-refinancing";
 
-export { bookRefinancingLinks, synchronizeBookRefinancing } from "./credit-book-refinancing";
+export {
+	bookRefinancingLinks,
+	removeBookPurchase,
+	synchronizeBookRefinancing,
+} from "./credit-book-refinancing";
 
 import { currentDateKey, recalculateStatementDueDate, statementCycles } from "./credit-card";
 import {

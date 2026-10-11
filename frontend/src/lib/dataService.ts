@@ -12,6 +12,7 @@ import {
 	newBookPurchase,
 	refinanceBookPurchase,
 	refundDebtAmounts,
+	removeBookPurchase,
 	removeBookRefund,
 	replayCreditBook,
 	resizePurchaseCashback,
@@ -1383,12 +1384,7 @@ export const dataService = {
 					book.charges = book.charges.filter(ch => ch.id !== purchaseId);
 					return;
 				}
-				const id = book.installments.find(i => i.id === purchaseId)?.purchaseId ?? purchaseId;
-				bookPurchase(book, id);
-				book.deletedPurchaseIds = [...new Set([...(book.deletedPurchaseIds ?? []), id])];
-				book.purchases = book.purchases.filter(p => p.id !== id);
-				book.installments = book.installments.filter(i => i.purchaseId !== id);
-				book.refunds = book.refunds.filter(r => r.purchaseId !== id);
+				removeBookPurchase(book, purchaseId);
 			});
 		},
 		async getAll(): Promise<CreditCard[]> {

@@ -33,9 +33,7 @@ export function CreditPurchaseRow({
 	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
 	const tags = purchase.tags;
 	const debtPersonName = formatDebtSplitBadge(purchase.debtSplit, amount => currency.format(amount));
-	const hasRefinancing = Boolean(
-		purchase.refinancedFromPurchaseId || purchase.refinancingPurchaseIds?.length,
-	);
+	const hasRefinancing = Boolean(purchase.refinancingPurchaseIds?.length);
 	const hasSyncedInstallments = purchase.isFullySynced && purchase.installments > 1;
 
 	return (
@@ -159,7 +157,7 @@ export function CreditPurchaseRow({
 							<TooltipContent>Reparcelar</TooltipContent>
 						</Tooltip>
 					) : null}
-					{!hasRefinancing ? (
+					{!purchase.refinancedFromPurchaseId ? (
 						<Tooltip>
 							<TooltipTrigger asChild>
 								<span>
@@ -167,9 +165,11 @@ export function CreditPurchaseRow({
 										aria-label={`Excluir ${purchase.description}`}
 										className="cursor-pointer"
 										confirmation={
-											purchase.installments > 1
-												? "Excluir esta compra e todas as suas parcelas permanentemente?"
-												: "Excluir esta compra permanentemente?"
+											hasRefinancing
+												? "Excluir esta compra, todos os reparcelamentos, parcelas e reembolsos permanentemente?"
+												: purchase.installments > 1
+													? "Excluir esta compra e todas as suas parcelas permanentemente?"
+													: "Excluir esta compra permanentemente?"
 										}
 										disabled={deleteDisabled}
 										onConfirm={onDelete}
@@ -181,7 +181,11 @@ export function CreditPurchaseRow({
 								</span>
 							</TooltipTrigger>
 							<TooltipContent>
-								{purchase.installments > 1 ? "Excluir compra e todas as parcelas" : "Excluir"}
+								{hasRefinancing
+									? "Excluir compra e todos os reparcelamentos"
+									: purchase.installments > 1
+										? "Excluir compra e todas as parcelas"
+										: "Excluir"}
 							</TooltipContent>
 						</Tooltip>
 					) : null}

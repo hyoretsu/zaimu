@@ -13,6 +13,7 @@ import {
 	newBookPurchase,
 	refinanceBookPurchase,
 	refundDebtAmounts,
+	removeBookPurchase,
 	removeBookRefund,
 	replayCreditBook,
 	resizePurchaseCashback,
@@ -542,6 +543,38 @@ describe("refinancing relationships", () => {
 		synchronizeBookRefinancing(book, previous);
 		expect(source.description).toBe("Inglês");
 		expect(replacement.description).toBe("Parcelamento - Inglês");
+	});
+	test("deleting the original removes chained refinancing and refunds, preserving unrelated records", () => {
+		const { book, source, replacement } = family();
+		refinanceBookPurchase(book, replacement.id, {
+			installments: 3,
+			purchaseDate: "2026-03-01",
+			totalAmount: 150,
+		});
+		const next = book.purchases[2]!;
+		addBookRefund(book, next.id, { amount: 10, creditDate: "2026-03-05" });
+		const unrelated = newBookPurchase(book, {
+			description: "Outra compra",
+			installments: 1,
+			purchaseDate: "2026-01-01",
+			totalAmount: 50,
+		});
+		const refund = addBookRefund(book, unrelated.id, { amount: 5, creditDate: "2026-01-05" });
+		const previous = structuredClone(book);
+		const installmentId = book.installments.find(item => item.purchaseId === source.id)!.id;
+		removeBookPurchase(book, installmentId);
+		expect(book.purchases.map(item => item.id)).toEqual([unrelated.id]);
+		expect(book.installments.every(item => item.purchaseId === unrelated.id)).toBe(true);
+		expect(book.refunds.map(item => item.id)).toEqual([refund.id]);
+		expect(new Set(book.deletedPurchaseIds)).toEqual(new Set([source.id, replacement.id, next.id]));
+		expect(() => synchronizeBookRefinancing(book, previous)).not.toThrow();
+		expect(creditBookEntries(book).every(item => item.purchaseId === unrelated.id)).toBe(true);
+	});
+	test("deleting a refinancing independently fails without mutating the book", () => {
+		const { book, replacement } = family();
+		const previous = structuredClone(book);
+		expect(() => removeBookPurchase(book, replacement.id)).toThrow("Exclua a compra original");
+		expect(book).toEqual(previous);
 	});
 	test("isolated deletion, detachment and moving are rejected", () => {
 		const { book, source, replacement } = family();

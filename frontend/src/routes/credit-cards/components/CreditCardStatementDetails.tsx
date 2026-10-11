@@ -205,8 +205,20 @@ export function CreditCardStatementDetails({
 		...(refundPurchase.isPending ? [rootId(refundPurchase.variables?.purchase.id)] : []),
 		...[...pendingRefundDeleteIds].map(rootId),
 	]);
-	const rowPending = (p: CreditPurchase) =>
-		pendingRootIds.has(p.purchaseId ?? p.refundOfPurchaseId ?? p.parentId ?? p.id);
+	const pendingFamilyIds = new Set(
+		entries.flatMap(entry => {
+			if (entry.kind === "payment") return [];
+			const p = entry.purchase;
+			const purchaseId = p.purchaseId ?? p.refundOfPurchaseId ?? p.parentId ?? p.id;
+			return pendingRootIds.has(purchaseId) ? [p.refinancingOriginalPurchaseId ?? purchaseId] : [];
+		}),
+	);
+	const rowPending = (p: CreditPurchase) => {
+		const purchaseId = p.purchaseId ?? p.refundOfPurchaseId ?? p.parentId ?? p.id;
+		return (
+			pendingRootIds.has(purchaseId) || pendingFamilyIds.has(p.refinancingOriginalPurchaseId ?? purchaseId)
+		);
+	};
 	return (
 		<TabsContent className="relative flex min-h-0 min-w-0 flex-col overflow-hidden" value={statement.id}>
 			<DialogBody className="flex-1">
