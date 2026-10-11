@@ -55,3 +55,7 @@ All single-line form controls must share `inputControlClassName` from `frontend/
 # Optional form fields
 
 Never label form fields as "(opcional)", "(optional)", or add redundant optional-field notices. Fields without a required marker are implicitly optional. Mark required fields with `RequiredMark` instead.
+
+# Database migration references
+
+`packages/sql/migrations/app/refs/db.json` is versioned migration state. Whenever database work changes this file, always include it in the corresponding database commit alongside relevant migrations and snapshots. Verify that its hash points to a committed or staged snapshot. Preserve the recorded reference; do not advance it merely to match the newest snapshot. This rule does not authorize running migrations or other commands against remote/shared databases.
