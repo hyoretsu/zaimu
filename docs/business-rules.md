@@ -214,3 +214,9 @@ CDI/Selic usam dez anos encerrados ontem, intervalos anuais estáveis e cauda at
 Listagens e seletores de faturas ocultam ciclos cujo total seja zero, mesmo quando existem no banco. Meses vazios não geram faturas visíveis. Faturas pagas com total diferente de zero e faturas com total negativo continuam disponíveis; a ocultação não exclui registros nem altera cálculos financeiros.
 
 Assinaturas continuam projetadas sem prazo final, mas suas previsões aparecem nas listagens e seletores somente em faturas que já contenham compras registradas ou parcelas dessas compras. Ciclos compostos apenas por previsões de assinaturas não geram faturas visíveis. A ocultação preserva projeções financeiras e histórico concreto.
+
+## Edição das datas de faturas
+
+Faturas registradas permitem alterar fechamento e vencimento, inclusive no modo visitante. Vencimento deve ser igual ou posterior ao fechamento; datas devem ser válidas e não podem repetir outro fechamento do mesmo cartão. Edição preserva IDs e recalcula os vínculos de compras, parcelas e reembolsos conforme as novas datas de fechamento. Compras na data de fechamento pertencem ao ciclo seguinte; encargos permanecem na fatura corrigida. Datas informadas têm prioridade sobre o calendário do cartão; pagamentos e saldos são recalculados conforme o novo calendário.
+
+Parcelas seguem meses de vencimento consecutivos a partir da primeira fatura, inclusive quando o primeiro ciclo difere do calendário padrão do cartão. Recalcular uma compra sem alterar sua data mantém a primeira fatura e recompõe todas as parcelas posteriores; IDs, valores e estados de liquidação são preservados.

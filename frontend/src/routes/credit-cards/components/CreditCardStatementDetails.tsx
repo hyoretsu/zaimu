@@ -1,8 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { LuCalendarCheck, LuCalendarClock, LuCloudDownload, LuPlus, LuReceiptText } from "react-icons/lu";
+import {
+	LuCalendarCheck,
+	LuCalendarClock,
+	LuCloudDownload,
+	LuPencil,
+	LuPlus,
+	LuReceiptText,
+} from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { AppBadge } from "@/components/ui/AppBadge";
+import { Button } from "@/components/ui/Button";
 import { DialogBody } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FloatingActionButton } from "@/components/ui/FloatingActionButton";
@@ -18,6 +26,7 @@ import { CreditCardPaymentRow } from "./CreditCardPaymentRow";
 import { CreditPurchaseEditScopeDialog } from "./CreditPurchaseEditScopeDialog";
 import { CreditPurchaseRow } from "./CreditPurchaseRow";
 import { getCreditCardStatementStatus } from "./credit-card-statement-status";
+import { EditCreditCardStatementDialog } from "./EditCreditCardStatementDialog";
 import { EditCreditPurchaseDialog } from "./EditCreditPurchaseDialog";
 import { ManageCreditPurchaseRefundsDialog } from "./ManageCreditPurchaseRefundsDialog";
 import { RefinanceCreditPurchaseDialog } from "./RefinanceCreditPurchaseDialog";
@@ -40,6 +49,7 @@ export function CreditCardStatementDetails({
 	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
+	const [editingStatement, setEditingStatement] = useState(false);
 	const [pendingRefundDeleteIds, setPendingRefundDeleteIds] = useState<Set<string>>(new Set());
 	const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<string>>(new Set());
 	const [pendingUpdateIds, setPendingUpdateIds] = useState<Set<string>>(new Set());
@@ -226,7 +236,7 @@ export function CreditCardStatementDetails({
 					<header className="grid gap-3 rounded-xl border bg-muted/30 p-4">
 						<div className="flex flex-wrap items-center justify-between gap-2">
 							<h3 className="font-bold text-base sm:text-lg" id={`statement-title-${statement.id}`}>
-								{formatLocalDate(statement.dueDate, { month: "long", year: "numeric" }).replace(
+								{formatLocalDate(displayedStatement.dueDate, { month: "long", year: "numeric" }).replace(
 									/^./,
 									letter => letter.toLocaleUpperCase("pt-BR"),
 								)}
@@ -259,15 +269,27 @@ export function CreditCardStatementDetails({
 								<p className="flex items-center gap-1 text-muted-foreground text-xs">
 									<LuCalendarCheck /> Fechamento
 								</p>
-								<strong className="mt-0.5 block text-sm">{formatLocalDate(statement.statementDate)}</strong>
+								<strong className="mt-0.5 block text-sm">
+									{formatLocalDate(displayedStatement.statementDate)}
+								</strong>
 							</div>
 							<div className="min-w-0 border-l pl-2">
 								<p className="flex items-center gap-1 text-muted-foreground text-xs">
 									<LuCalendarClock /> Vencimento
 								</p>
-								<strong className="mt-0.5 block text-sm">{formatLocalDate(statement.dueDate)}</strong>
+								<strong className="mt-0.5 block text-sm">
+									{formatLocalDate(displayedStatement.dueDate)}
+								</strong>
 							</div>
 						</div>
+						{!isEmptyCycle && !statement.isForecast && (
+							<ActionGroup>
+								<Button onClick={() => setEditingStatement(true)} variant="outline">
+									<LuPencil aria-hidden="true" />
+									Editar fatura
+								</Button>
+							</ActionGroup>
+						)}
 					</header>
 					<div className="grid gap-3">
 						<div className="flex items-center justify-between gap-3">
@@ -340,6 +362,9 @@ export function CreditCardStatementDetails({
 			<ActionGroup className="absolute right-3 bottom-3 z-10">
 				<FloatingActionButton icon={LuPlus} label="Nova compra" onClick={onAddPurchase} />
 			</ActionGroup>
+			{editingStatement && (
+				<EditCreditCardStatementDialog onOpenChange={setEditingStatement} statement={displayedStatement} />
+			)}
 			{choosingEditScope && (
 				<CreditPurchaseEditScopeDialog
 					onOpenChange={open => !open && setChoosingEditScope(null)}

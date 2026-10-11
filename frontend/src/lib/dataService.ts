@@ -18,6 +18,7 @@ import {
 	resizePurchaseCashback,
 	updateBookPurchaseDate,
 	updateBookRefund,
+	updateBookStatementDates,
 } from "@zaimu/finance/credit-book";
 import {
 	paymentStatement,
@@ -1754,6 +1755,7 @@ export const dataService = {
 				throw new Error("Conta pagadora indisponível");
 			await localCreditCards.put({ ...card.data, paymentAccountId, paymentSuggestionsEnabled }, cardId);
 		},
+
 		async setStatementCutoff(cardId: string, statementDate: string | null): Promise<void> {
 			if (isGuestMode()) {
 				const stored = await localCreditCards.getById(cardId);
@@ -1956,6 +1958,20 @@ export const dataService = {
 			return toPurchasePresentation(
 				creditBookEntries(await readLocalCreditBook(cardId)).find(row => row.id === refundId)!,
 			);
+		},
+		async updateStatementDates(
+			cardId: string,
+			statementId: string,
+			dates: { statementDate: string; dueDate: string },
+		): Promise<void> {
+			if (isGuestMode()) {
+				await mutateLocalCreditBook(cardId, book => updateBookStatementDates(book, statementId, dates));
+				return;
+			}
+			await fetchWithAuth(`/credit-cards/${cardId}/statements/${statementId}`, {
+				body: JSON.stringify(dates),
+				method: "PATCH",
+			});
 		},
 	},
 

@@ -6,7 +6,7 @@ export {
 	synchronizeBookRefinancing,
 } from "./credit-book-refinancing";
 
-import { currentDateKey, recalculateStatementDueDate, statementCycles } from "./credit-card";
+import { currentDateKey, paymentStatementDates, statementCycles } from "./credit-card";
 import {
 	assertCents,
 	assertDateKey,
@@ -392,7 +392,6 @@ export function replayCreditBook(book: CreditBook, asOf = currentDateKey()) {
 						.filter(charge => charge.statementId === statement.id && !charge.isSettled)
 						.map(charge => charge.amountCents),
 				) / currencyScale(book.card.currency),
-			dueDate: recalculateStatementDueDate(book.card, statement.statementDate, statement.dueDate),
 		})),
 		book.card,
 		book.payments,
@@ -734,15 +733,107 @@ export function creditBookEntries(book: CreditBook, includeForecasts = true) {
 	}));
 }
 
+function recomposedPurchaseCalendar(
+	book: CreditBook,
+	purchase: BookPurchase,
+	firstStatement?: BookStatement,
+	correctedStatementId?: string,
+) {
+	const resolve = (date: string) => {
+		const registered = book.statements
+			.filter(
+				item =>
+					!item.isForecast &&
+					item.statementDate > date &&
+					(item.id === correctedStatementId ||
+						item.totalAmount !== 0 ||
+						book.installments.some(installment => installment.statementId === item.id)),
+			)
+			.toSorted((a, b) => a.statementDate.localeCompare(b.statementDate))[0];
+		if (registered) return registered;
+		for (let offset = 0; ; offset++) {
+			const month = installmentOccurrenceDate(date, offset + 1).slice(0, 7);
+			const standard = purchaseStatementDates(book.card, `${month}-01`);
+			const cycles = book.statements
+				.filter(item => item.statementDate.slice(0, 7) === month)
+				.toSorted((a, b) => a.statementDate.localeCompare(b.statementDate));
+			const cycle = cycles.find(item => item.statementDate > date);
+			if (cycle) return cycle;
+			if (
+				!cycles.length &&
+				standard.statementDate.slice(0, 7) === month &&
+				standard.statementDate > date
+			)
+				return ensureBookStatement(book, date, standard);
+		}
+	};
+
+	const first = firstStatement ?? resolve(purchase.purchaseDate);
+	return purchase.installmentAmountsCents.map((_, index) => {
+		if (index === 0) return { dueDate: first.dueDate, statementDate: first.statementDate };
+		const month = installmentOccurrenceDate(first.dueDate, index + 1).slice(0, 7);
+		const existing = book.statements
+			.filter(item => item.dueDate.slice(0, 7) === month)
+			.toSorted((a, b) => a.statementDate.localeCompare(b.statementDate))[0];
+		if (existing) return { dueDate: existing.dueDate, statementDate: existing.statementDate };
+		return paymentStatementDates(book.card, `${month}-01`);
+	});
+}
+
+/** Recompose purchases against the corrected invoice calendar, preserving occurrence IDs. */
+export function updateBookStatementDates(
+	book: CreditBook,
+	statementId: string,
+	dates: { statementDate: string; dueDate: string },
+) {
+	assertDateKey(dates.statementDate);
+	assertDateKey(dates.dueDate);
+	if (dates.dueDate < dates.statementDate)
+		throw new RangeError("Vencimento deve ser igual ou posterior ao fechamento");
+	const statement = book.statements.find(item => item.id === statementId && !item.isForecast);
+	if (!statement) throw new RangeError("Fatura não encontrada");
+	if (book.statements.some(item => item.id !== statementId && item.statementDate === dates.statementDate))
+		throw new RangeError("Já existe uma fatura com esta data de fechamento");
+	Object.assign(statement, dates);
+
+	for (const purchase of book.purchases) {
+		purchase.installmentStatementDates = recomposedPurchaseCalendar(
+			book,
+			purchase,
+			undefined,
+			statementId,
+		);
+		for (const installment of book.installments.filter(item => item.purchaseId === purchase.id)) {
+			installment.occurrenceDate = installmentOccurrenceDate(purchase.purchaseDate, installment.number);
+			installment.statementId = ensureBookStatement(
+				book,
+				installment.occurrenceDate,
+				purchase.installmentStatementDates[installment.number - 1]!,
+			).id;
+		}
+	}
+	for (const refund of book.refunds) {
+		refund.creditStatementId = ensureBookStatement(book, refund.creditDate).id;
+	}
+}
+
 /** Explicit historical recomposition preserves occurrence IDs and imported calendars. */
 export function updateBookPurchaseDate(book: CreditBook, purchaseId: string, purchaseDate: string) {
 	assertDateKey(purchaseDate);
 	const purchase = bookPurchase(book, purchaseId);
+	const firstInstallment = book.installments.find(
+		item => item.purchaseId === purchaseId && item.number === 1,
+	);
+	const firstStatement =
+		purchase.purchaseDate === purchaseDate && firstInstallment
+			? book.statements.find(item => item.id === firstInstallment.statementId)
+			: undefined;
 	purchase.purchaseDate = purchaseDate;
+	const calendar = recomposedPurchaseCalendar(book, purchase, firstStatement);
 	purchase.installmentStatementDates = purchase.installmentAmountsCents.map((_, index) =>
 		purchase.installmentImportedNumbers?.includes(index + 1)
 			? (purchase.installmentStatementDates?.[index] ?? null)
-			: null,
+			: calendar[index]!,
 	);
 	for (const installment of book.installments.filter(i => i.purchaseId === purchaseId)) {
 		installment.occurrenceDate = installmentOccurrenceDate(purchaseDate, installment.number);

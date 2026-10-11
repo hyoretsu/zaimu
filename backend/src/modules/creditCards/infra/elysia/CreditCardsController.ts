@@ -9,6 +9,7 @@ import {
 	replayCreditBook,
 	resizePurchaseCashback,
 	updateBookPurchaseDate,
+	updateBookStatementDates,
 } from "@zaimu/finance/credit-book";
 import { paymentStatement, statementCutoffAfter, statementEntryKind } from "@zaimu/finance/credit-card";
 import { convertFixedSplitAtDate, currencyScale } from "@zaimu/finance/money";
@@ -545,6 +546,23 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 			response: { 200: CreditStatementPageReturn, 304: t.Null() },
 		},
 	)
+	.patch(
+		"/:id/statements/:statementId",
+		async ({ params, body, request }) => {
+			const userId = await requireUserId(request);
+			await mutateCreditBook(userId, params.id, book => {
+				if (!book.statements.some(statement => statement.id === params.statementId))
+					throw new HttpException("Fatura não encontrada", 404);
+				updateBookStatementDates(book, params.statementId, body);
+			});
+			return { success: true };
+		},
+		{
+			body: t.Object({ dueDate: t.String(), statementDate: t.String() }),
+			response: t.Object({ success: t.Boolean() }),
+		},
+	)
+
 	.get("/:id/statements/:statementId", async ({ params, request, set }) => {
 		const userId = await requireUserId(request);
 		const cached = await distributedCache.remember(
