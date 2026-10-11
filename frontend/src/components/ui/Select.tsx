@@ -77,7 +77,7 @@ function SelectContent({
 			<SelectPrimitive.Content
 				align={align}
 				className={cn(
-					"scrollbar-themed data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 relative z-50 max-h-(--popup-viewport-height) min-w-36 max-w-[calc(100vw-2rem)] origin-(--radix-select-content-transform-origin) rounded-2xl bg-popover text-popover-foreground shadow-2xl ring-1 ring-foreground/5 duration-100 data-[align-trigger=true]:animate-none data-closed:animate-out data-open:animate-in",
+					"scrollbar-themed data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 relative z-50 max-h-(--popup-viewport-height) min-w-36 max-w-[calc(100vw-2rem)] origin-(--radix-select-content-transform-origin) rounded-2xl bg-popover text-popover-foreground shadow-2xl ring-1 ring-foreground/5 duration-100 data-[align-trigger=true]:animate-none data-closed:animate-none data-open:animate-in",
 					header ? "overflow-hidden" : "overflow-y-auto overflow-x-hidden",
 					position === "popper" &&
 						"data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1",

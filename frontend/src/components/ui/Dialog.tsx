@@ -5,12 +5,14 @@ import { type ComponentProps, createContext, useContext } from "react";
 import { Button } from "@/components/ui/Button";
 import { DialogBody } from "@/components/ui/DialogBody";
 import { usePageScrollLock } from "@/hooks/use-page-scroll-lock";
+import { useRouteDismissableOpen } from "@/hooks/use-route-dismissable-open";
 import { cn } from "@/lib/utils";
 
 const DialogContentContext = createContext({ showCloseButton: true });
 
 function Dialog({ modal = false, ...props }: ComponentProps<typeof DialogPrimitive.Root>) {
-	return <DialogPrimitive.Root data-slot="dialog" modal={modal} {...props} />;
+	const openProps = useRouteDismissableOpen(props);
+	return <DialogPrimitive.Root data-slot="dialog" modal={modal} {...props} {...openProps} />;
 }
 
 function DialogTrigger({ ...props }: ComponentProps<typeof DialogPrimitive.Trigger>) {
@@ -31,7 +33,7 @@ function DialogOverlay({ className, ...props }: ComponentProps<"div">) {
 	return (
 		<div
 			className={cn(
-				"data-open:fade-in-0 data-closed:fade-out-0 fixed inset-0 isolate z-50 bg-black/80 duration-100 data-closed:animate-out data-open:animate-in supports-backdrop-filter:backdrop-blur-xs",
+				"data-open:fade-in-0 data-closed:fade-out-0 fixed inset-0 isolate z-50 bg-black/80 duration-100 data-closed:animate-none data-open:animate-in supports-backdrop-filter:backdrop-blur-xs",
 				className,
 			)}
 			data-slot="dialog-overlay"
@@ -55,7 +57,7 @@ function DialogContent({
 			<DialogOverlay className={overlayClassName} />
 			<DialogPrimitive.Content
 				className={cn(
-					"data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col gap-6 overflow-hidden rounded-4xl bg-popover p-6 text-popover-foreground text-sm outline-none ring-1 ring-foreground/5 duration-100 data-closed:animate-out data-open:animate-in sm:max-w-md [&:has([data-slot=dialog-header])>[data-slot=dialog-close]]:hidden",
+					"data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col gap-6 overflow-hidden rounded-4xl bg-popover p-6 text-popover-foreground text-sm outline-none ring-1 ring-foreground/5 duration-100 data-closed:animate-none data-open:animate-in sm:max-w-md [&:has([data-slot=dialog-header])>[data-slot=dialog-close]]:hidden",
 					className,
 				)}
 				data-slot="dialog-content"

@@ -21,12 +21,10 @@ export function useRouteDismissableOpen({
 		[onOpenChange],
 	);
 	const isOpen = open ?? internalOpen;
-
 	useLayoutEffect(() => {
 		if (!router || !isOpen) return;
-		const pathname = router.state.location.pathname;
-		return router.subscribe("onBeforeNavigate", ({ toLocation }) => {
-			if (toLocation.pathname === pathname) return;
+		return router.subscribe("onBeforeNavigate", ({ fromLocation, toLocation }) => {
+			if (toLocation.pathname === fromLocation?.pathname) return;
 			// Remove portals before Activity hides the screen and suspends its effects.
 			flushSync(() => changeOpen(false));
 		});
