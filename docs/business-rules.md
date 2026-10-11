@@ -215,6 +215,8 @@ Listagens e seletores de faturas ocultam ciclos cujo total seja zero, mesmo quan
 
 Assinaturas continuam projetadas sem prazo final, mas suas previsões aparecem nas listagens e seletores somente em faturas que já contenham compras registradas ou parcelas dessas compras. Ciclos compostos apenas por previsões de assinaturas não geram faturas visíveis. A ocultação preserva projeções financeiras e histórico concreto.
 
+Ao reparcelar uma compra com dívida, o rateio original é removido e a dívida passa para a nova compra com os mesmos valores por pessoa, calculados sobre o valor original. Juros e custos do novo parcelamento não aumentam automaticamente a dívida. O novo rateio usa valores fixos e pode ser editado posteriormente pelo usuário; reparcelamentos sucessivos preservam esses valores.
+
 ## Edição das datas de faturas
 
 Faturas registradas permitem alterar fechamento e vencimento, inclusive no modo visitante. Vencimento deve ser igual ou posterior ao fechamento; datas devem ser válidas e não podem repetir outro fechamento do mesmo cartão. Edição preserva IDs e recalcula os vínculos de compras, parcelas e reembolsos conforme as novas datas de fechamento. Compras na data de fechamento pertencem ao ciclo seguinte; encargos permanecem na fatura corrigida. Datas informadas têm prioridade sobre o calendário do cartão; pagamentos e saldos são recalculados conforme o novo calendário.

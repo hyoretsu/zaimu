@@ -54,6 +54,7 @@
 		"backend/src/modules/credit-card-imports/domain/select-new-import-purchases.test.ts",
 		"backend/src/modules/credit-card-imports/domain/statement-previous-balance.test.ts",
 		"backend/src/modules/creditCards/application/credit-book-delta.test.ts",
+		"backend/src/modules/creditCards/application/refinancing-debt-splits.test.ts",
 		"backend/src/modules/creditCards/application/credit-card-schedule-periods.test.ts",
 		"backend/src/modules/creditCards/application/credit-limit.test.ts",
 		"backend/src/modules/creditCards/application/materialize-credit-card-schedules.test.ts",
