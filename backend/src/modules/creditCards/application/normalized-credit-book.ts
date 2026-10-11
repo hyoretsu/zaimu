@@ -412,6 +412,12 @@ export async function saveCreditBook(
 			book.card.userId,
 		]);
 	}
+	const installmentIds = new Set(book.installments.map(i => i.id));
+	const removedInstallmentIds = previous.installments
+		.filter(i => purchasesById.has(i.purchaseId) && !installmentIds.has(i.id))
+		.map(i => i.id);
+	if (removedInstallmentIds.length)
+		await query(`DELETE FROM "CreditInstallmentRecord" WHERE "id"=ANY($1)`, [removedInstallmentIds]);
 	for (const s of delta.statements)
 		await upsertMoney(
 			query,

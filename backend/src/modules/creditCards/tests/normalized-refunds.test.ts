@@ -294,6 +294,29 @@ describe("normalized refund transactions", () => {
 		const book = (await (await request(`/credit-cards/${context.cardId}/book`)).json()) as CreditBookDTO;
 		const purchase = book.purchases.find((p: { description: string }) => p.description === "HTTP compra");
 		expect(purchase!.totalAmountCents).toBe(12000);
+		const originalInstallments = book.installments.filter(i => i.purchaseId === purchase!.id);
+		expect(originalInstallments).toHaveLength(2);
+		const converted = await request(`/credit-cards/${context.cardId}/purchases/${purchase!.id}`, "PATCH", {
+			installments: 1,
+		});
+		expect(converted.status).toBe(200);
+		const convertedBook = (await (
+			await request(`/credit-cards/${context.cardId}/book`)
+		).json()) as CreditBookDTO;
+		const remainingInstallments = convertedBook.installments.filter(i => i.purchaseId === purchase!.id);
+		expect(remainingInstallments).toHaveLength(1);
+		expect(remainingInstallments[0]!.id).toBe(originalInstallments.find(i => i.number === 1)!.id);
+		expect(remainingInstallments[0]!.amountCents).toBe(12000);
+		expect(convertedBook.purchases.find(p => p.id === purchase!.id)!.installmentAmountsCents).toEqual([
+			12000,
+		]);
+		expect(
+			(
+				await client.query(`SELECT "number","amount" FROM "CreditInstallmentRecord" WHERE "purchaseId"=$1`, [
+					purchase!.id,
+				])
+			).rows.map(row => ({ amount: Number(row.amount), number: row.number })),
+		).toEqual([{ amount: 120, number: 1 }]);
 		const first = await request(`/credit-cards/${context.cardId}/purchases/${purchase!.id}/refunds`, "POST", {
 			amount: 20,
 			purchaseDate: "2024-09-10",
