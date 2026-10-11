@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { LuArrowLeft, LuShieldCheck } from "react-icons/lu";
+import { LuShieldCheck } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { PageBackButton } from "@/components/ui/PageBackButton";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -32,15 +32,8 @@ export function AdminPageLayout({
 	});
 	return (
 		<PageContainer className="max-w-5xl space-y-6">
-			<ActionGroup>
-				<Button asChild size="sm" variant="outline">
-					<Link to={root ? "/more" : "/admin"}>
-						<LuArrowLeft />
-						{root ? "Mais" : "Administração"}
-					</Link>
-				</Button>
-			</ActionGroup>
-			<PageHeader description={description} eyebrow={root ? "Mais" : "Administração"} title={title} />
+			<PageBackButton to={root ? "/more" : "/admin"} />
+			<PageHeader description={description} title={title} />
 			{!authenticated ? (
 				<EmptyState
 					description="Entre com uma conta administrativa para acessar."

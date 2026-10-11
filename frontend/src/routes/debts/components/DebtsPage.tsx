@@ -4,6 +4,7 @@ import { LuPlus, LuUsersRound } from "react-icons/lu";
 import { PendingNotices } from "@/components/pending-notices";
 import { Button } from "@/components/ui/Button";
 import { MobilePageActions } from "@/components/ui/MobilePageActions";
+import { PageBackButton } from "@/components/ui/PageBackButton";
 import { QueryRefreshStatus } from "@/components/ui/QueryRefreshStatus";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { DebtEvent, DebtPerson } from "@/lib/api";
@@ -139,6 +140,9 @@ export function DebtsPage() {
 
 	return (
 		<main className="mx-auto min-h-screen w-full max-w-5xl overflow-x-clip bg-background pt-6 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:py-10">
+			<div className="mb-6 px-4">
+				<PageBackButton to="/more" />
+			</div>
 			<MobilePageActions
 				actions={[{ icon: LuPlus, label: "Adicionar lançamento", onClick: () => setCreateOpen(true) }]}
 			/>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { HiArrowDown, HiArrowPath, HiArrowUp, HiPlus } from "react-icons/hi2";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { PageBackButton } from "@/components/ui/PageBackButton";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { QueryRefreshStatus } from "@/components/ui/QueryRefreshStatus";
@@ -153,6 +154,7 @@ export function RecurringPage() {
 
 	return (
 		<PageContainer className="space-y-6">
+			<PageBackButton to="/more" />
 			<PageHeader
 				actions={
 					<Button className="cursor-pointer" onClick={() => setIsCreateOpen(true)}>

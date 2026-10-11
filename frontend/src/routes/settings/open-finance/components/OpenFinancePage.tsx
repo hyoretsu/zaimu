@@ -71,7 +71,6 @@ export function OpenFinancePage() {
 		<OpenFinanceLayout>
 			<PageHeader
 				description="Meu Pluggy: conecte seus bancos e importe seu histórico automaticamente."
-				eyebrow="Ajustes"
 				title="Open Finance"
 			/>
 			{!config.available ? (
