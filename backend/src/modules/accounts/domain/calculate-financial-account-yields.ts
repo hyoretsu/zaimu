@@ -22,6 +22,7 @@ export interface InstitutionYieldPolicy {
 	effectiveDate: Date;
 	rules: InstitutionYieldRule[];
 	yieldPeriod?: null | YieldPeriod;
+	yieldTaxType?: null | "FIXED" | "REGRESSIVE_IR";
 	yieldTaxRate?: null | number;
 }
 

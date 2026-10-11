@@ -1,0 +1,104 @@
+[
+	{
+		"execute": [
+			{
+				"description": "add column \"yieldTaxType\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialAccount\" ADD COLUMN \"yieldTaxType\" character varying(20)"
+			}
+		],
+		"id": "column.public.FinancialAccount.yieldTaxType",
+		"label": "Add column \"yieldTaxType\" to \"FinancialAccount\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"yieldTaxType\" exists",
+				"params": ["public", "FinancialAccount", "yieldTaxType"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"yieldTaxType\" is missing",
+				"params": ["public", "FinancialAccount", "yieldTaxType"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "yieldTaxType",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialAccount"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"yieldTaxType\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialAccountYieldRateHistory\" ADD COLUMN \"yieldTaxType\" character varying(20)"
+			}
+		],
+		"id": "column.public.FinancialAccountYieldRateHistory.yieldTaxType",
+		"label": "Add column \"yieldTaxType\" to \"FinancialAccountYieldRateHistory\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"yieldTaxType\" exists",
+				"params": ["public", "FinancialAccountYieldRateHistory", "yieldTaxType"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"yieldTaxType\" is missing",
+				"params": ["public", "FinancialAccountYieldRateHistory", "yieldTaxType"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "yieldTaxType",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialAccountYieldRateHistory"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"yieldTaxType\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialInstitutionYieldPolicy\" ADD COLUMN \"yieldTaxType\" character varying(20)"
+			}
+		],
+		"id": "column.public.FinancialInstitutionYieldPolicy.yieldTaxType",
+		"label": "Add column \"yieldTaxType\" to \"FinancialInstitutionYieldPolicy\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"yieldTaxType\" exists",
+				"params": ["public", "FinancialInstitutionYieldPolicy", "yieldTaxType"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"yieldTaxType\" is missing",
+				"params": ["public", "FinancialInstitutionYieldPolicy", "yieldTaxType"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "yieldTaxType",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialInstitutionYieldPolicy"
+			},
+			"id": "postgres"
+		}
+	}
+]
