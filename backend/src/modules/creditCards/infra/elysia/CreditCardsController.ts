@@ -8,6 +8,7 @@ import {
 	removeBookRefund,
 	replayCreditBook,
 	resizePurchaseCashback,
+	resolveBookInstallment,
 	updateBookPurchaseDate,
 	updateBookStatementDates,
 } from "@zaimu/finance/credit-book";
@@ -810,13 +811,13 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 					p.feeAmount = money.feeAmount || null;
 				}
 				if (body.installmentAmount !== undefined) {
-					const i = book.installments.find(row => row.id === params.purchaseId);
+					const i = resolveBookInstallment(book, params.purchaseId);
 					if (!i) throw new HttpException("Parcela não encontrada", 404);
 					const amounts = [...p.installmentAmountsCents];
 					amounts[i.number - 1] = moneyCents(body.installmentAmount, 1, book.card.currency);
 					p.installmentAmountsCents = amounts;
 					p.totalAmountCents = amounts.reduce((a, b) => a + b, 0);
-					i.amountCents = amounts[i.number - 1]!;
+					if ("amountCents" in i) i.amountCents = amounts[i.number - 1]!;
 				} else {
 					const count = body.installments ?? p.installmentAmountsCents.length;
 					if (book.installments.some(i => i.purchaseId === p.id && i.number > count))

@@ -9,6 +9,7 @@ import {
 	moveBookPurchase,
 	newBookPurchase,
 	replayCreditBook,
+	resolveBookInstallment,
 	synchronizeBookRefinancing,
 } from "@zaimu/finance/credit-book";
 import { currentDateKey, recalculateStatementDueDate } from "@zaimu/finance/credit-card";
@@ -865,6 +866,6 @@ export async function presentCreditBook(
 	}));
 }
 export function resolveBookPurchase(book: CreditBook, id: string) {
-	return bookPurchase(book, book.installments.find(i => i.id === id)?.purchaseId ?? id);
+	return bookPurchase(book, resolveBookInstallment(book, id)?.purchaseId ?? id);
 }
 export { distributePurchaseCents, newBookPurchase, queryRaw };

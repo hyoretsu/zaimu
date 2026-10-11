@@ -135,6 +135,18 @@ export function moneyCents(amount: number, minimum = 0, currency = "BRL") {
 	return toMinorUnits(amount, currency, minimum);
 }
 
+export function resolveBookInstallment(book: CreditBook, id: string) {
+	const concrete = book.installments.find(item => item.id === id);
+	if (concrete) return concrete;
+	for (const purchase of book.purchases) {
+		const index = purchase.installmentAmountsCents.findIndex(
+			(_, index) => id === `forecast-${purchase.id}-${index + 1}`,
+		);
+		if (index !== -1) return { number: index + 1, purchaseId: purchase.id };
+	}
+	return undefined;
+}
+
 export function bookPurchase(book: CreditBook, id: string) {
 	const purchase = book.purchases.find(p => p.id === id);
 	if (!purchase) throw new RangeError("Compra não encontrada");

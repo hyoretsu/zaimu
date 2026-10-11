@@ -16,6 +16,7 @@ import {
 	removeBookRefund,
 	replayCreditBook,
 	resizePurchaseCashback,
+	resolveBookInstallment,
 	updateBookPurchaseDate,
 	updateBookRefund,
 	updateBookStatementDates,
@@ -1699,7 +1700,7 @@ export const dataService = {
 				const result = await mutateLocalCreditBook(cardId, book =>
 					refinanceBookPurchase(
 						book,
-						book.installments.find(i => i.id === purchaseId)?.purchaseId ?? purchaseId,
+						resolveBookInstallment(book, purchaseId)?.purchaseId ?? purchaseId,
 						data,
 					),
 				);
@@ -1735,7 +1736,7 @@ export const dataService = {
 					method: "POST",
 				});
 			const refund = await mutateLocalCreditBook(cardId, book =>
-				addBookRefund(book, book.installments.find(i => i.id === purchaseId)?.purchaseId ?? purchaseId, {
+				addBookRefund(book, resolveBookInstallment(book, purchaseId)?.purchaseId ?? purchaseId, {
 					amount: data.amount,
 					canceledInstallmentNumbers: data.canceledInstallmentNumbers,
 					creditDate: date,
@@ -1871,17 +1872,17 @@ export const dataService = {
 						)
 					: {};
 			const update = (book: CreditBook) => {
-				const id = book.installments.find(i => i.id === purchaseId)?.purchaseId ?? purchaseId;
+				const id = resolveBookInstallment(book, purchaseId)?.purchaseId ?? purchaseId;
 				const p = bookPurchase(book, id);
 				const previousTotal = p.totalAmountCents;
 				if ("installmentAmount" in data) {
-					const i = book.installments.find(i => i.id === purchaseId);
+					const i = resolveBookInstallment(book, purchaseId);
 					if (!i) throw new Error("Parcela não encontrada");
 					const amounts = [...p.installmentAmountsCents];
 					amounts[i.number - 1] = moneyCents(data.installmentAmount, 1, book.card.currency);
 					p.installmentAmountsCents = amounts;
 					p.totalAmountCents = amounts.reduce((a, b) => a + b, 0);
-					i.amountCents = amounts[i.number - 1]!;
+					if ("amountCents" in i) i.amountCents = amounts[i.number - 1]!;
 				} else {
 					if (money)
 						Object.assign(p, {

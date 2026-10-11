@@ -17,6 +17,7 @@ import {
 	removeBookRefund,
 	replayCreditBook,
 	resizePurchaseCashback,
+	resolveBookInstallment,
 	synchronizeBookRefinancing,
 	updateBookPurchaseDate,
 	updateBookRefund,
@@ -769,4 +770,32 @@ describe("refinancing relationships", () => {
 		});
 		expect(() => bookRefinancingLinks(book)).toThrow();
 	});
+});
+
+test("forecast installment IDs resolve only existing purchase plan entries", () => {
+	const book = emptyBook();
+	const purchase = newBookPurchase(book, {
+		description: "AliExpress",
+		installments: 12,
+		purchaseDate: "2026-08-13",
+		totalAmount: 140.22,
+	});
+	expect(resolveBookInstallment(book, `forecast-${purchase.id}-7`)).toEqual({
+		number: 7,
+		purchaseId: purchase.id,
+	});
+	expect(resolveBookInstallment(book, `forecast-${purchase.id}-13`)).toBeUndefined();
+	expect(resolveBookInstallment(book, "forecast-missing-7")).toBeUndefined();
+	const before = [...purchase.installmentAmountsCents];
+	const installment = resolveBookInstallment(book, `forecast-${purchase.id}-7`)!;
+	const amounts = [...purchase.installmentAmountsCents];
+	amounts[installment.number - 1] = 1169;
+	purchase.installmentAmountsCents = amounts;
+	purchase.totalAmountCents = purchase.installmentAmountsCents.reduce((sum, amount) => sum + amount, 0);
+	expect(
+		creditBookEntries(book).find(row => row.id === `forecast-${purchase.id}-7`)?.installmentAmount,
+	).toBe(11.69);
+	expect(purchase.installmentAmountsCents.filter((_, index) => index !== 6)).toEqual(
+		before.filter((_, index) => index !== 6),
+	);
 });
