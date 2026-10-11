@@ -32,7 +32,7 @@ export function AdminUsers() {
 		},
 	});
 	return (
-		<section className="grid gap-3 rounded-2xl border p-4">
+		<section className="grid gap-3 rounded-2xl border bg-card p-4 sm:p-6">
 			<h2 className="font-semibold text-lg">Administradores</h2>
 			<label className="grid gap-2" htmlFor="admin-user-search">
 				Buscar por e-mail
@@ -56,7 +56,7 @@ export function AdminUsers() {
 			) : (
 				users.data.map(user => (
 					<div
-						className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3"
+						className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/50 p-4"
 						key={user.id}
 					>
 						<div className="min-w-0">

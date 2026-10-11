@@ -29,7 +29,7 @@ export function TaxCatalogAdmin() {
 		},
 	});
 	return (
-		<section className="grid gap-3 rounded-2xl border p-4">
+		<section className="grid gap-3 rounded-2xl border bg-card p-4 sm:p-6">
 			<h2 className="font-semibold text-lg">Impostos</h2>
 			<ActionGroup>
 				<Button onClick={() => setEditing(null)}>
@@ -44,7 +44,7 @@ export function TaxCatalogAdmin() {
 			) : (
 				catalog.data.map(tax => (
 					<div
-						className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3"
+						className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/50 p-4"
 						key={tax.id}
 					>
 						<div>

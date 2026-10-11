@@ -17,6 +17,20 @@ import {
 const AdminPage = lazy(() =>
 	import("@/routes/admin/components/AdminPage").then(module => ({ default: module.AdminPage })),
 );
+const HistoryPage = lazy(() =>
+	import("@/routes/admin/history/components/HistoryPage").then(module => ({ default: module.HistoryPage })),
+);
+const TaxesPage = lazy(() =>
+	import("@/routes/admin/taxes/components/TaxesPage").then(module => ({ default: module.TaxesPage })),
+);
+const UsersPage = lazy(() =>
+	import("@/routes/admin/users/components/UsersPage").then(module => ({ default: module.UsersPage })),
+);
+const CalendarPage = lazy(() =>
+	import("@/routes/admin/yield-calendar/components/CalendarPage").then(module => ({
+		default: module.CalendarPage,
+	})),
+);
 const AccountsPage = lazy(() =>
 	import("@/routes/accounts/components/AccountsPage").then(module => ({ default: module.AccountsPage })),
 );
@@ -58,6 +72,10 @@ const screenByPath = {
 	"/": DashboardPage,
 	"/accounts": AccountsPage,
 	"/admin": AdminPage,
+	"/admin/history": HistoryPage,
+	"/admin/taxes": TaxesPage,
+	"/admin/users": UsersPage,
+	"/admin/yield-calendar": CalendarPage,
 	"/credit-cards": CreditCardsPage,
 	"/debts": DebtsPage,
 	"/loans": EmpréstimosPage,

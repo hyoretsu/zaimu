@@ -40,7 +40,7 @@ export function FinancialHistoryAdmin() {
 		retry: false,
 	});
 	return (
-		<section className="grid min-w-0 gap-4 rounded-2xl border p-4">
+		<section className="grid min-w-0 gap-4 rounded-2xl border bg-card p-4 sm:p-6">
 			<div>
 				<h2 className="font-semibold text-lg">Cobertura histórica</h2>
 				<p className="text-muted-foreground text-sm">

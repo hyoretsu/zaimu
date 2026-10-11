@@ -19,6 +19,10 @@ describe("mobile tab routes", () => {
 		["/more", "more", "/more"],
 		["/admin", "more", "/admin"],
 		["/admin/", "more", "/admin"],
+		["/admin/yield-calendar", "more", "/admin/yield-calendar"],
+		["/admin/history/", "more", "/admin/history"],
+		["/admin/taxes", "more", "/admin/taxes"],
+		["/admin/users", "more", "/admin/users"],
 		["/debts", "more", "/debts"],
 		["/loans", "more", "/loans"],
 		["/recurring", "more", "/recurring"],
@@ -50,6 +54,13 @@ describe("mobile tab routes", () => {
 	test("preserves the remembered screen when selecting an inactive tab", () => {
 		const routes = { ...mobileTabRoots, more: "/recurring" } as const;
 		expect(resolveMobileTabDestination(routes, "transactions", "more")).toBe("/recurring");
+	});
+
+	test("remembers admin subpages when switching tabs", () => {
+		const routes = updateMobileTabRoute(mobileTabRoots, "/admin/taxes");
+		const switched = updateMobileTabRoute(routes, "/transactions");
+		expect(resolveMobileTabDestination(switched, "transactions", "more")).toBe("/admin/taxes");
+		expect(updateMobileTabRoute(switched, "/admin").more).toBe("/admin");
 	});
 
 	test("remembers only the current screen for each tab", () => {

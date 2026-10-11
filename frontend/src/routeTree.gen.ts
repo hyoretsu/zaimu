@@ -31,6 +31,9 @@ import { Route as AuthRegisterRouteImport } from './routes/auth/register'
 import { Route as AuthResetPasswordRouteImport } from './routes/auth/reset-password'
 import { Route as AuthVerifyEmailRouteImport } from './routes/auth/verify-email'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
+import { Route as AdminHistoryIndexRouteImport } from './routes/admin/history/index'
+import { Route as AdminTaxesIndexRouteImport } from './routes/admin/taxes/index'
+import { Route as AdminUsersIndexRouteImport } from './routes/admin/users/index'
 import { Route as AdminYieldCalendarIndexRouteImport } from './routes/admin/yield-calendar/index'
 import { Route as SettingsOpenFinanceIndexRouteImport } from './routes/settings/open-finance/index'
 
@@ -144,6 +147,21 @@ const SettingsIndexRoute = SettingsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => SettingsRoute,
 } as any)
+const AdminHistoryIndexRoute = AdminHistoryIndexRouteImport.update({
+  id: '/admin/history/',
+  path: '/admin/history/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminTaxesIndexRoute = AdminTaxesIndexRouteImport.update({
+  id: '/admin/taxes/',
+  path: '/admin/taxes/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminUsersIndexRoute = AdminUsersIndexRouteImport.update({
+  id: '/admin/users/',
+  path: '/admin/users/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminYieldCalendarIndexRoute = AdminYieldCalendarIndexRouteImport.update({
   id: '/admin/yield-calendar/',
   path: '/admin/yield-calendar/',
@@ -179,6 +197,9 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/auth/': typeof AuthIndexRoute
   '/settings/': typeof SettingsIndexRoute
+  '/admin/history/': typeof AdminHistoryIndexRoute
+  '/admin/taxes/': typeof AdminTaxesIndexRoute
+  '/admin/users/': typeof AdminUsersIndexRoute
   '/admin/yield-calendar/': typeof AdminYieldCalendarIndexRoute
   '/settings/open-finance/': typeof SettingsOpenFinanceIndexRoute
 }
@@ -203,6 +224,9 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/auth': typeof AuthIndexRoute
   '/settings': typeof SettingsIndexRoute
+  '/admin/history': typeof AdminHistoryIndexRoute
+  '/admin/taxes': typeof AdminTaxesIndexRoute
+  '/admin/users': typeof AdminUsersIndexRoute
   '/admin/yield-calendar': typeof AdminYieldCalendarIndexRoute
   '/settings/open-finance': typeof SettingsOpenFinanceIndexRoute
 }
@@ -230,6 +254,9 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/auth/': typeof AuthIndexRoute
   '/settings/': typeof SettingsIndexRoute
+  '/admin/history/': typeof AdminHistoryIndexRoute
+  '/admin/taxes/': typeof AdminTaxesIndexRoute
+  '/admin/users/': typeof AdminUsersIndexRoute
   '/admin/yield-calendar/': typeof AdminYieldCalendarIndexRoute
   '/settings/open-finance/': typeof SettingsOpenFinanceIndexRoute
 }
@@ -258,6 +285,9 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/auth/'
     | '/settings/'
+    | '/admin/history/'
+    | '/admin/taxes/'
+    | '/admin/users/'
     | '/admin/yield-calendar/'
     | '/settings/open-finance/'
   fileRoutesByTo: FileRoutesByTo
@@ -282,6 +312,9 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/settings'
+    | '/admin/history'
+    | '/admin/taxes'
+    | '/admin/users'
     | '/admin/yield-calendar'
     | '/settings/open-finance'
   id:
@@ -308,6 +341,9 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/auth/'
     | '/settings/'
+    | '/admin/history/'
+    | '/admin/taxes/'
+    | '/admin/users/'
     | '/admin/yield-calendar/'
     | '/settings/open-finance/'
   fileRoutesById: FileRoutesById
@@ -329,6 +365,9 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   TransactionsRoute: typeof TransactionsRoute
   AdminIndexRoute: typeof AdminIndexRoute
+  AdminHistoryIndexRoute: typeof AdminHistoryIndexRoute
+  AdminTaxesIndexRoute: typeof AdminTaxesIndexRoute
+  AdminUsersIndexRoute: typeof AdminUsersIndexRoute
   AdminYieldCalendarIndexRoute: typeof AdminYieldCalendarIndexRoute
 }
 
@@ -488,6 +527,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsIndexRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/admin/history/': {
+      id: '/admin/history/'
+      path: '/admin/history'
+      fullPath: '/admin/history/'
+      preLoaderRoute: typeof AdminHistoryIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/taxes/': {
+      id: '/admin/taxes/'
+      path: '/admin/taxes'
+      fullPath: '/admin/taxes/'
+      preLoaderRoute: typeof AdminTaxesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/users/': {
+      id: '/admin/users/'
+      path: '/admin/users'
+      fullPath: '/admin/users/'
+      preLoaderRoute: typeof AdminUsersIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/yield-calendar/': {
       id: '/admin/yield-calendar/'
       path: '/admin/yield-calendar'
@@ -554,6 +614,9 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   TransactionsRoute: TransactionsRoute,
   AdminIndexRoute: AdminIndexRoute,
+  AdminHistoryIndexRoute: AdminHistoryIndexRoute,
+  AdminTaxesIndexRoute: AdminTaxesIndexRoute,
+  AdminUsersIndexRoute: AdminUsersIndexRoute,
   AdminYieldCalendarIndexRoute: AdminYieldCalendarIndexRoute,
 }
 export const routeTree = rootRouteImport
