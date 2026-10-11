@@ -147,7 +147,7 @@ export function EditCreditPurchaseDialog({
 	const amountEdited = useRef(false);
 	const dateEdited = useRef(false);
 	const [time, setTime] = useState(purchase.time ?? "");
-	const [tagIds, setTagIds] = useState(() => purchase.tagIds ?? purchase.tags?.map(tag => tag.id) ?? []);
+	const [tagIds, setTagIds] = useState(() => purchase.tags?.map(tag => tag.id) ?? purchase.tagIds ?? []);
 	const [storeName, setStoreName] = useState(purchase.storeName ?? "");
 	const installmentAmountId = useId();
 
