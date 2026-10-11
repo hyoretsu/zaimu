@@ -50,19 +50,57 @@ const HistoryCollectionReturn = t.Object({
 	startDate: t.String(),
 	units: t.Array(HistoryUnitReturn),
 });
+async function validateHistorySeries(kind: "CURRENCY" | "INTEREST" | undefined, series: string) {
+	if (!kind) throw new HttpException("Selecione o tipo da série", 400);
+	const supported = kind === "INTEREST" ? ["CDI", "SELIC"] : await supportedCurrencies();
+	if (!supported.includes(series)) throw new HttpException("Série não suportada", 400);
+}
+
 export const FinancialHistoryController = new Elysia({ prefix: "/financial-history" })
 	.get(
 		"/admin/coverage",
 		async ({ request, query }) => {
 			await requireAdmin(request);
-			return getHistoryCoverage(query.startDate, query.endDate);
+			if (query.series) await validateHistorySeries(query.kind, query.series);
+			return getHistoryCoverage(query.startDate, query.endDate, query.kind, query.series);
 		},
 		{
 			query: t.Object({
 				endDate: t.Optional(t.String({ format: "date" })),
+				kind: t.Optional(t.Union([t.Literal("CURRENCY"), t.Literal("INTEREST")])),
+				series: t.Optional(t.String()),
 				startDate: t.Optional(t.String({ format: "date" })),
 			}),
 			response: HistoryCoverageReturn,
+		},
+	)
+	.post(
+		"/admin/coverage/complete",
+		async ({ request, body }) => {
+			await requireAdmin(request);
+			await validateHistorySeries(body.kind, body.series);
+			try {
+				const collection = await requestHistoryCollection(
+					body.kind,
+					[body.series],
+					undefined,
+					undefined,
+					body,
+				);
+				return collection ? retryHistoryCollection(collection.id) : null;
+			} catch (error) {
+				if (error instanceof RangeError) throw new HttpException(error.message, 400);
+				throw error;
+			}
+		},
+		{
+			body: t.Object({
+				endDate: t.String({ format: "date" }),
+				kind: t.Union([t.Literal("CURRENCY"), t.Literal("INTEREST")]),
+				series: t.String(),
+				startDate: t.String({ format: "date" }),
+			}),
+			response: t.Nullable(HistoryCollectionReturn),
 		},
 	)
 	.get("/currencies", () => supportedCurrencies(), { response: t.Array(t.String()) })

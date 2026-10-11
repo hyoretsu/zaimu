@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { LuChevronDown, LuChevronUp } from "react-icons/lu";
+import { LuChevronDown, LuChevronUp, LuDownload, LuRefreshCw } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import type { HistoryCoverageSeries } from "./types";
+import { useCoverageCompletion } from "./use-coverage-completion";
 
 const statuses = {
 	MISSING: { className: "bg-destructive", label: "Sem cobertura" },
@@ -15,10 +16,15 @@ const dateLabel = (date: string) => date.split("-").reverse().join("/");
 export function HistorySeriesCoverage({
 	data,
 	requestedDays,
+	startDate,
+	endDate,
 }: {
 	data: HistoryCoverageSeries;
 	requestedDays: number;
+	startDate: string;
+	endDate: string;
 }) {
+	const completion = useCoverageCompletion(data);
 	const [expanded, setExpanded] = useState(false);
 	const months = new Map<string, HistoryCoverageSeries["days"]>();
 	for (const day of data.days) {
@@ -50,6 +56,47 @@ export function HistorySeriesCoverage({
 				{data.savedDays} dias com dados - {data.verifiedDays} consultados sem publicação - {data.missingDays}{" "}
 				sem cobertura
 			</p>
+			<ActionGroup>
+				<Button
+					disabled={completion.pending || !data.missingDays}
+					onClick={() => completion.complete({ endDate, startDate })}
+					size="sm"
+					variant="outline"
+				>
+					<LuDownload />
+					{completion.pending ? "Completando cobertura..." : "Completar cobertura"}
+				</Button>
+				{completion.progress?.canRetry && (
+					<Button
+						disabled={completion.pending}
+						onClick={() => completion.retry()}
+						size="sm"
+						variant="outline"
+					>
+						<LuRefreshCw />
+						Tentar novamente
+					</Button>
+				)}
+			</ActionGroup>
+			{completion.progress && (
+				<p aria-live="polite" className="text-muted-foreground text-sm">
+					{completion.progress.coveredDays} de {completion.progress.requestedDays} dias cobertos na coleta.
+					{completion.progress.state === "COMPLETED"
+						? " Coleta concluída."
+						: completion.progress.state === "FAILED" || completion.progress.state === "COMPLETED_WITH_GAPS"
+							? " Coleta encerrada com lacunas."
+							: " Processando..."}
+				</p>
+			)}
+			{completion.error && (
+				<p className="text-sm" role="alert">
+					{completion.error.message}{" "}
+					<Button onClick={() => void completion.refresh()} size="sm" variant="outline">
+						<LuRefreshCw />
+						Atualizar progresso
+					</Button>
+				</p>
+			)}
 			<ScrollArea
 				className="min-h-0 w-full"
 				horizontalScrollbar
@@ -113,8 +160,21 @@ export function HistorySeriesCoverage({
 						<ul className="grid gap-1 pr-4 text-sm">
 							{data.missingRanges.length ? (
 								data.missingRanges.map(range => (
-									<li key={range.startDate}>
-										{dateLabel(range.startDate)} - {dateLabel(range.endDate)}
+									<li className="flex flex-wrap items-center justify-between gap-2" key={range.startDate}>
+										<span>
+											{dateLabel(range.startDate)} - {dateLabel(range.endDate)}
+										</span>
+										<ActionGroup>
+											<Button
+												disabled={completion.pending}
+												onClick={() => completion.complete(range)}
+												size="sm"
+												variant="outline"
+											>
+												<LuDownload />
+												Completar intervalo
+											</Button>
+										</ActionGroup>
 									</li>
 								))
 							) : (

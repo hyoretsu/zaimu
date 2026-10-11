@@ -16,6 +16,7 @@ import {
 	windowDays,
 } from "../domain/collection";
 
+import { coverageWindow } from "../domain/history-coverage";
 import { referenceRateCoveredDaysSql } from "./reference-rate-coverage-sql";
 
 const outbox = new PostgresOutbox();
@@ -63,7 +64,10 @@ export async function requestHistoryCollection(
 		read: getHistoryCollection,
 		transaction: withRawTransaction,
 	},
+	requestedWindow?: { startDate: string; endDate: string },
 ) {
+	const explicitWindow =
+		requestedWindow && coverageWindow(requestedWindow.startDate, requestedWindow.endDate);
 	const reference = dateKey(referenceDate);
 	if (reference > dateKey(new Date())) throw new RangeError("Coleta não aceita datas futuras");
 	const series = [...new Set(seriesInput.map(value => value.toUpperCase()))].sort();
@@ -75,8 +79,21 @@ export async function requestHistoryCollection(
 		)
 	)
 		throw new RangeError("Séries de coleta inválidas");
-	const intervals =
-		kind === "CURRENCY"
+	const selectedIntervals: { startDate: string; endDate: string }[] = [];
+	if (explicitWindow) {
+		let startDate = explicitWindow.startDate;
+		while (startDate <= explicitWindow.endDate) {
+			const yearEnd = `${startDate.slice(0, 4)}-12-31`;
+			const endDate =
+				kind === "CURRENCY" || explicitWindow.endDate < yearEnd ? explicitWindow.endDate : yearEnd;
+			selectedIntervals.push({ endDate, startDate });
+			if (endDate === explicitWindow.endDate) break;
+			startDate = `${Number(startDate.slice(0, 4)) + 1}-01-01`;
+		}
+	}
+	const intervals = explicitWindow
+		? selectedIntervals
+		: kind === "CURRENCY"
 			? [currencyWindow(reference)]
 			: referenceRateBootstrapIntervals(new Date(`${reference}T12:00:00Z`)).map(interval => ({
 					endDate: dateKey(interval.endDate),
@@ -84,9 +101,10 @@ export async function requestHistoryCollection(
 				}));
 	const interestWindow = referenceRateWindow(new Date(`${reference}T12:00:00Z`));
 	const window =
-		kind === "CURRENCY"
+		explicitWindow ??
+		(kind === "CURRENCY"
 			? intervals[0]!
-			: { endDate: dateKey(interestWindow.endDate), startDate: dateKey(interestWindow.startDate) };
+			: { endDate: dateKey(interestWindow.endDate), startDate: dateKey(interestWindow.startDate) });
 	return dependencies.transaction(async query => {
 		const key = `${kind}:${series.join(",")}:${window.startDate}:${window.endDate}`;
 		const [collection] = await query<{ id: string }>(

@@ -234,3 +234,5 @@ Administradores gerenciam impostos globais nomeados com faixas por dias corridos
 ## Cobertura histórica administrativa
 
 Administradores consultam inventário global de CDI, Selic e snapshots cambiais, com contagem total e por período, datas extremas, mapa diário e intervalos sem cobertura. A consulta é somente leitura e não inicia coletas. Para juros, dias consultados com sucesso sem publicação oficial contam como cobertos; para câmbio, cobertura exige snapshot salvo por data e moeda-base. O período padrão reúne os últimos 365 dias encerrados ontem; consultas aceitam até 3.660 dias e excluem hoje e datas futuras.
+
+Administradores selecionam juros (CDI ou Selic) ou câmbio por moeda base, inclusive séries ainda sem registros. Completar cobertura solicita coleta apenas do período selecionado; cada lacuna também permite coleta individual. A consulta permanece somente leitura. Coletas reutilizam dados e unidades existentes, mostram progresso por série e permitem nova tentativa de falhas.

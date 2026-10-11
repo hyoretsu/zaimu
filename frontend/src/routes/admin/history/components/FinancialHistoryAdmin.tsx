@@ -7,8 +7,11 @@ import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import type { DateRangeValue } from "@/components/ui/DateRangePicker/types";
+import { FormFieldRow } from "@/components/ui/FormFieldRow";
 import { fetchWithAuth } from "@/lib/dataService";
+import { showToast } from "@/stores";
 import { useAuthStore } from "@/stores/auth";
+import { useCurrencyStore } from "@/stores/currency";
 import { HistoryCoverageSkeleton } from "./HistoryCoverageSkeleton";
 import { HistoryCoverageTotals } from "./HistoryCoverageTotals";
 import { HistorySeriesCoverage } from "./HistorySeriesCoverage";
@@ -20,7 +23,11 @@ function initialRange() {
 }
 export function FinancialHistoryAdmin() {
 	const [range, setRange] = useState<DateRangeValue>(initialRange);
-	const [kind, setKind] = useState("ALL");
+	const [kind, setKind] = useState("INTEREST");
+	const [rate, setRate] = useState("CDI");
+	const [currency, setCurrency] = useState("BRL");
+	const currencies = useCurrencyStore(state => state.currencies);
+	const series = kind === "INTEREST" ? rate : currency;
 	const userId = useAuthStore(state => state.user?.id);
 	const startDate = range.startDate;
 	const endDate = range.endDate ?? startDate;
@@ -34,9 +41,9 @@ export function FinancialHistoryAdmin() {
 		enabled: valid,
 		queryFn: () =>
 			fetchWithAuth<HistoryCoverage>(
-				`/financial-history/admin/coverage?startDate=${startDate}&endDate=${endDate}`,
+				`/financial-history/admin/coverage?startDate=${startDate}&endDate=${endDate}&kind=${kind}&series=${encodeURIComponent(series)}`,
 			),
-		queryKey: ["admin-history-coverage", userId, startDate, endDate],
+		queryKey: ["admin-history-coverage", userId, startDate, endDate, kind, series],
 		retry: false,
 	});
 	return (
@@ -48,7 +55,7 @@ export function FinancialHistoryAdmin() {
 					Consulta não inicia coletas.
 				</p>
 			</div>
-			<div className="grid min-w-0 gap-3 sm:grid-cols-2">
+			<FormFieldRow>
 				<div className="grid min-w-0 content-start gap-2">
 					<p className="font-medium text-sm">Período</p>
 					<DateRangePicker
@@ -60,16 +67,38 @@ export function FinancialHistoryAdmin() {
 					label="Tipo de histórico"
 					onValueChange={setKind}
 					options={[
-						{ label: "Todos", value: "ALL" },
 						{ label: "Juros", value: "INTEREST" },
-						{ label: "Conversões", value: "CURRENCY" },
+						{ label: "Câmbio", value: "CURRENCY" },
 					]}
-					placeholder="Todos os históricos"
+					placeholder="Ex: Juros"
 					value={kind}
 				/>
-			</div>
+				<CustomSelect
+					label={kind === "INTEREST" ? "Taxa" : "Moeda base"}
+					onValueChange={kind === "INTEREST" ? setRate : setCurrency}
+					options={(kind === "INTEREST" ? ["CDI", "SELIC"] : [...new Set([...currencies, currency])]).map(
+						value => ({ label: value, value }),
+					)}
+					placeholder={kind === "INTEREST" ? "Ex: CDI" : "Ex: BRL"}
+					searchable={kind === "CURRENCY"}
+					value={series}
+				/>
+			</FormFieldRow>
 			<ActionGroup>
-				<Button disabled={!valid || query.isFetching} onClick={() => void query.refetch()} variant="outline">
+				<Button
+					disabled={!valid || query.isFetching}
+					onClick={() =>
+						void query
+							.refetch()
+							.then(result =>
+								showToast(
+									result.isError ? result.error.message : "Cobertura atualizada.",
+									result.isError ? "negative" : "info",
+								),
+							)
+					}
+					variant="outline"
+				>
 					<LuRefreshCw />
 					Atualizar
 				</Button>
@@ -89,18 +118,16 @@ export function FinancialHistoryAdmin() {
 							representa um dia. Snapshots cambiais representam uma data e moeda-base, com múltiplas
 							conversões.
 						</p>
-						{query.data.series
-							.filter(series => kind === "ALL" || series.kind === kind)
-							.map(series => (
-								<HistorySeriesCoverage
-									data={series}
-									key={`${series.kind}:${series.series}`}
-									requestedDays={query.data.requestedDays}
-								/>
-							))}
-						{!query.data.series.some(series => kind === "ALL" || series.kind === kind) && (
-							<p>Nenhum histórico desse tipo registrado.</p>
-						)}
+						{query.data.series.map(series => (
+							<HistorySeriesCoverage
+								data={series}
+								endDate={endDate!}
+								key={`${series.kind}:${series.series}`}
+								requestedDays={query.data.requestedDays}
+								startDate={startDate!}
+							/>
+						))}
+						{!query.data.series.length && <p>Nenhum histórico desse tipo registrado.</p>}
 					</>
 				)
 			)}

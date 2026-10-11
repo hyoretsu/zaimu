@@ -18,7 +18,12 @@ interface SavedDay extends Record<string, unknown> {
 }
 
 /** Administrative read-only inventory. Never schedules collection or contacts providers. */
-export async function getHistoryCoverage(start?: string, end?: string) {
+export async function getHistoryCoverage(
+	start?: string,
+	end?: string,
+	kind?: "INTEREST" | "CURRENCY",
+	selectedSeries?: string,
+) {
 	let window: ReturnType<typeof coverageWindow>;
 	try {
 		window = coverageWindow(start, end);
@@ -63,27 +68,39 @@ export async function getHistoryCoverage(start?: string, end?: string) {
 		["CDI", new Set(cdi.map(day => day.date))],
 		["SELIC", new Set(selic.map(day => day.date))],
 	]);
-	const series = summaries.map(row => ({
-		...row,
-		rangeRecords: Number(row.rangeRecords),
-		totalRecords: Number(row.totalRecords),
-		...summarizeCoverage(
-			window.startDate,
-			window.endDate,
-			savedBySeries.get(`${row.kind}:${row.series}`) ?? new Set(),
-			row.kind === "INTEREST" ? (verified.get(row.series) ?? new Set()) : new Set(),
-		),
-	}));
+	if (kind && selectedSeries && !summaries.some(row => row.kind === kind && row.series === selectedSeries)) {
+		summaries.push({
+			firstDate: null,
+			kind,
+			lastDate: null,
+			rangeRecords: "0",
+			series: selectedSeries,
+			totalRecords: "0",
+		});
+	}
+	const series = summaries
+		.filter(row => (!kind || row.kind === kind) && (!selectedSeries || row.series === selectedSeries))
+		.map(row => ({
+			...row,
+			rangeRecords: Number(row.rangeRecords),
+			totalRecords: Number(row.totalRecords),
+			...summarizeCoverage(
+				window.startDate,
+				window.endDate,
+				savedBySeries.get(`${row.kind}:${row.series}`) ?? new Set(),
+				row.kind === "INTEREST" ? (verified.get(row.series) ?? new Set()) : new Set(),
+			),
+		}));
 	return {
 		...window,
 		series,
 		totals: {
-			currencySnapshots: series
+			currencySnapshots: summaries
 				.filter(row => row.kind === "CURRENCY")
-				.reduce((total, row) => total + row.totalRecords, 0),
-			interestRecords: series
+				.reduce((total, row) => total + Number(row.totalRecords), 0),
+			interestRecords: summaries
 				.filter(row => row.kind === "INTEREST")
-				.reduce((total, row) => total + row.totalRecords, 0),
+				.reduce((total, row) => total + Number(row.totalRecords), 0),
 		},
 	};
 }

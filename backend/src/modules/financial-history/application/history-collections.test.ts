@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { createEventEnvelope } from "~/shared/application/events";
-import type { queryRaw } from "~/shared/infra/sql";
-import { HistoryLeaseLostError, runHistoryUnit } from "./history-collections";
+import type { queryRaw, withRawTransaction } from "~/shared/infra/sql";
+import { HistoryLeaseLostError, requestHistoryCollection, runHistoryUnit } from "./history-collections";
 
 const event = createEventEnvelope({
 	aggregateId: "unit",
@@ -99,4 +99,42 @@ test("fifth provider failure becomes resumable failure and signals DLQ", async (
 	).rejects.toThrow("unavailable");
 	expect(updates[0]?.[2]).toBe("FAILED");
 	expect(failure.historyExhausted).toBe(true);
+});
+
+test("coverage completion schedules only the exact selected currency range", async () => {
+	const calls: { statement: string; parameters: unknown[] }[] = [];
+	const query = (async (statement: string, parameters: unknown[] = []) => {
+		calls.push({ parameters, statement });
+		return statement.includes('INSERT INTO "FinancialHistoryCollection"') ? [{ id: "collection" }] : [];
+	}) as typeof queryRaw;
+	const transaction: typeof withRawTransaction = async operation => operation(query);
+	await requestHistoryCollection(
+		"CURRENCY",
+		["BRL"],
+		undefined,
+		{
+			publish: async () => {},
+			publishBatch: async () => {},
+			read: async () => null,
+			transaction,
+		},
+		{ endDate: "2025-12-10", startDate: "2025-12-10" },
+	);
+	expect(calls.find(call => call.statement.includes("generate_series"))?.parameters).toEqual([
+		"BRL",
+		"2025-12-10",
+		"2025-12-10",
+	]);
+	expect(calls[0]?.parameters.slice(3, 5)).toEqual(["2025-12-10", "2025-12-10"]);
+});
+
+test("coverage completion rejects reversed and future windows before database access", async () => {
+	for (const window of [
+		{ endDate: "2025-12-10", startDate: "2025-12-11" },
+		{ endDate: "2999-01-02", startDate: "2999-01-01" },
+	]) {
+		await expect(
+			requestHistoryCollection("CURRENCY", ["BRL"], undefined, undefined, window),
+		).rejects.toThrow();
+	}
 });
