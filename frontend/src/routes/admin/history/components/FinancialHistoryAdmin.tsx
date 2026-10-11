@@ -115,9 +115,8 @@ export function FinancialHistoryAdmin({ header }: { header: ComponentProps<typeo
 						<>
 							<HistoryCoverageTotals data={query.data} />
 							<p className="text-muted-foreground text-xs">
-								Verde: dados salvos. Azul: consultado sem publicação. Vermelho: sem cobertura. Cada bloco
-								representa um dia. Snapshots cambiais representam uma data e moeda-base, com múltiplas
-								conversões.
+								Cada bloco representa um dia. Snapshots cambiais representam uma data e moeda-base, com
+								múltiplas conversões.
 							</p>
 							{query.data.series.map(series => (
 								<HistorySeriesCoverage

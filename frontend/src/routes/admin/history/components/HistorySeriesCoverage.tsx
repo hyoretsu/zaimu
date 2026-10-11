@@ -52,10 +52,6 @@ export function HistorySeriesCoverage({
 				</div>
 				<strong>{coverage}% coberto</strong>
 			</div>
-			<p className="text-sm">
-				{data.savedDays} dias com dados - {data.verifiedDays} consultados sem publicação - {data.missingDays}{" "}
-				sem cobertura
-			</p>
 			<ActionGroup>
 				<Button
 					disabled={completion.pending || !data.missingDays}
@@ -97,6 +93,25 @@ export function HistorySeriesCoverage({
 					</Button>
 				</p>
 			)}
+			<ul aria-label="Legenda do gráfico de cobertura" className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+				{(
+					[
+						{ count: data.savedDays, status: "SAVED" },
+						{ count: data.verifiedDays, status: "VERIFIED_NO_PUBLICATION" },
+						{ count: data.missingDays, status: "MISSING" },
+					] as const
+				).map(({ count, status }) => (
+					<li className="flex min-w-0 items-center gap-2" key={status}>
+						<span
+							aria-hidden="true"
+							className={`h-3 w-3 shrink-0 rounded-sm border border-foreground/20 ${statuses[status].className}`}
+						/>
+						<span>
+							{count.toLocaleString("pt-BR")} {count === 1 ? "dia" : "dias"} - {statuses[status].label}
+						</span>
+					</li>
+				))}
+			</ul>
 			<ScrollArea
 				className="min-h-0 w-full"
 				horizontalScrollbar
