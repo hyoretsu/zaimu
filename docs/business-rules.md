@@ -228,3 +228,7 @@ Cada instituição configura se o resto da divisão em unidades mínimas da moed
 ## Cadastro tributário e administração
 
 Administradores gerenciam impostos globais nomeados com faixas por dias corridos, ordem de aplicação e versões válidas a partir de amanhã. Alterações não reescrevem versões históricas. Desativação impede novas seleções, mantendo vínculos existentes. IR: até 180 dias 22,5%; 181-360 dias 20%; 361-720 dias 17,5%; acima de 720 dias 15%. IOF segue tabela regressiva diária, com 100% no dia zero e 0% a partir do dia 30. Usuários comuns apenas selecionam impostos; alíquota fixa pertence à configuração individual. ADMIN só pode ser concedido por administrador ou comando explícito; perfil e sincronização nunca alteram role.
+
+## Cobertura histórica administrativa
+
+Administradores consultam inventário global de CDI, Selic e snapshots cambiais, com contagem total e por período, datas extremas, mapa diário e intervalos sem cobertura. A consulta é somente leitura e não inicia coletas. Para juros, dias consultados com sucesso sem publicação oficial contam como cobertos; para câmbio, cobertura exige snapshot salvo por data e moeda-base. O período padrão reúne os últimos 365 dias encerrados ontem; consultas aceitam até 3.660 dias e excluem hoje e datas futuras.

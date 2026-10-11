@@ -2,6 +2,7 @@ import Elysia, { t } from "elysia";
 import { supportedCurrencies } from "~/modules/currencies/application/currency-catalog";
 import { currencyRateDate } from "~/modules/currencies/application/currency-exchange";
 import { ensureCurrencyRates, getLatestCurrencyRate } from "~/modules/currencies/infra/currency-exchange";
+import { requireAdmin } from "~/modules/taxes/admin-access";
 import { HttpException } from "~/shared/errors";
 import { getCurrencyHistoryEstimate } from "../application/currency-history-estimate";
 import {
@@ -9,6 +10,8 @@ import {
 	requestHistoryCollection,
 	retryHistoryCollection,
 } from "../application/history-collections";
+import { getHistoryCoverage } from "../application/history-coverage";
+import { HistoryCoverageReturn } from "./history-coverage.dto";
 
 const HistoryUnitReturn = t.Object(
 	{
@@ -48,6 +51,20 @@ const HistoryCollectionReturn = t.Object({
 	units: t.Array(HistoryUnitReturn),
 });
 export const FinancialHistoryController = new Elysia({ prefix: "/financial-history" })
+	.get(
+		"/admin/coverage",
+		async ({ request, query }) => {
+			await requireAdmin(request);
+			return getHistoryCoverage(query.startDate, query.endDate);
+		},
+		{
+			query: t.Object({
+				endDate: t.Optional(t.String({ format: "date" })),
+				startDate: t.Optional(t.String({ format: "date" })),
+			}),
+			response: HistoryCoverageReturn,
+		},
+	)
 	.get("/currencies", () => supportedCurrencies(), { response: t.Array(t.String()) })
 	.get(
 		"/rate",

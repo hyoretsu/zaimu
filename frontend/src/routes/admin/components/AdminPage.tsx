@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { fetchWithAuth } from "@/lib/dataService";
 import { useAuthStore } from "@/stores/auth";
 import { AdminUsers } from "./AdminUsers";
+import { FinancialHistoryAdmin } from "./history";
 import { TaxCatalogAdmin } from "./TaxCatalogAdmin";
 export function AdminPage() {
 	const authenticated = useAuthStore(state => state.isAuthenticated);
@@ -39,6 +40,7 @@ export function AdminPage() {
 			<Link className="cursor-pointer rounded-xl border p-4 font-medium" to="/admin/yield-calendar">
 				Moedas, países e feriados
 			</Link>
+			<FinancialHistoryAdmin />
 			<TaxCatalogAdmin />
 			<AdminUsers />
 		</div>

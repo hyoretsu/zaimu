@@ -78,6 +78,7 @@
 		"backend/src/modules/financial-history/application/history-collections.test.ts",
 		"backend/src/modules/financial-history/application/provider-slots.test.ts",
 		"backend/src/modules/financial-history/domain/collection.test.ts",
+		"backend/src/modules/financial-history/domain/history-coverage.test.ts",
 		"backend/src/modules/loans/infra/elysia/LoansDTO.test.ts",
 		"backend/src/modules/loans/infra/elysia/loan-payment-pagination.test.ts",
 		"backend/src/modules/open-finance/application/native-review-money.test.ts",
