@@ -41,15 +41,15 @@ async function saveTax(body: typeof SaveTax.static, id?: string) {
 	const date = tomorrow().toISOString().slice(0, 10);
 	await withRawTransaction(async query => {
 		if (id) {
-			const rows = await query(`UPDATE "TaxDefinition" SET "name"=$2 WHERE "id"=$1 RETURNING "id"`, [
+			const rows = await query(`UPDATE "taxDefinition" SET "name"=$2 WHERE "id"=$1 RETURNING "id"`, [
 				id,
 				name,
 			]);
 			if (!rows.length) throw new HttpException("Imposto não encontrado", 404);
 		} else
-			await query(`INSERT INTO "TaxDefinition" ("id","name","isActive") VALUES ($1,$2,true)`, [taxId, name]);
+			await query(`INSERT INTO "taxDefinition" ("id","name","isActive") VALUES ($1,$2,true)`, [taxId, name]);
 		await query(
-			`INSERT INTO "TaxDefinitionVersion" ("id","taxDefinitionId","effectiveDate","applicationOrder","brackets") VALUES ($1,$2,$3,$4,$5::json) ON CONFLICT ("taxDefinitionId","effectiveDate") DO UPDATE SET "applicationOrder"=EXCLUDED."applicationOrder","brackets"=EXCLUDED."brackets"`,
+			`INSERT INTO "taxDefinitionVersion" ("id","taxDefinitionId","effectiveDate","applicationOrder","brackets") VALUES ($1,$2,$3,$4,$5::json) ON CONFLICT ("taxDefinitionId","effectiveDate") DO UPDATE SET "applicationOrder"=EXCLUDED."applicationOrder","brackets"=EXCLUDED."brackets"`,
 			[randomUUID(), taxId, date, body.applicationOrder, JSON.stringify(body.brackets)],
 		);
 		const accounts = await query<{ id: string }>(
@@ -91,7 +91,7 @@ export const TaxesController = new Elysia()
 		"/admin/taxes/:id",
 		async ({ request, params, body }) => {
 			await requireAdmin(request);
-			const rows = await queryRaw(`UPDATE "TaxDefinition" SET "isActive"=$2 WHERE "id"=$1 RETURNING "id"`, [
+			const rows = await queryRaw(`UPDATE "taxDefinition" SET "isActive"=$2 WHERE "id"=$1 RETURNING "id"`, [
 				params.id,
 				body.isActive,
 			]);

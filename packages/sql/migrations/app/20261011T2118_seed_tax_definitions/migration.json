@@ -1,0 +1,7 @@
+{
+	"createdAt": "2026-10-11T21:18:39.264Z",
+	"from": "8d83d29534d2e49ef9f8f331e886eb5a6a9d620b7fce70500f40c8a09ad5307e",
+	"migrationHash": "1ef75e5ba6dfa5fc367a43b654401d2bae94bafde0593647fcaa1d88b9c0962d",
+	"providedInvariants": ["taxDefinitions.initialCatalog.v1"],
+	"to": "8d83d29534d2e49ef9f8f331e886eb5a6a9d620b7fce70500f40c8a09ad5307e"
+}

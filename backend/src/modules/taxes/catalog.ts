@@ -10,7 +10,7 @@ export async function loadTaxCatalog(): Promise<TaxDefinition[]> {
 		applicationOrder: number;
 		brackets: TaxBracket[];
 	}>(
-		`SELECT d."id",d."name",d."isActive",v."effectiveDate",v."applicationOrder",v."brackets" FROM "TaxDefinition" d JOIN "TaxDefinitionVersion" v ON v."taxDefinitionId"=d."id" ORDER BY d."id",v."effectiveDate"`,
+		`SELECT d."id",d."name",d."isActive",v."effectiveDate",v."applicationOrder",v."brackets" FROM "taxDefinition" d JOIN "taxDefinitionVersion" v ON v."taxDefinitionId"=d."id" ORDER BY d."id",v."effectiveDate"`,
 	);
 	const definitions = [...Map.groupBy(rows, row => row.id)].map(([id, versions]) => ({
 		id,

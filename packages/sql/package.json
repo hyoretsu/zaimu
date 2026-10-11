@@ -10,7 +10,7 @@
 		"contract:emit": "prisma-cli contract emit --output-path out/prisma",
 		"db:sign": "prisma-cli db sign",
 		"db:verify": "prisma-cli db verify",
-		"migrate:deploy": "prisma-cli migrate --advance-ref db",
+		"migrate:deploy": "bun scripts/migrate.ts",
 		"migration:check": "prisma-cli migration check",
 		"migration:plan": "prisma-cli migration plan",
 		"migration:status": "prisma-cli migration status",

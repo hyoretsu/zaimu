@@ -58,7 +58,11 @@ export async function prepareSchema(
 		["db", "sign", "--contract", initial],
 		["migrate", "--advance-ref", "db"],
 	]) {
-		const process = Bun.spawn(["bun", join(sqlRoot, "node_modules/@prisma/cli/dist/cli.js"), ...args], {
+		const command =
+			args[0] === "migrate"
+				? ["bun", join(copy, "scripts/migrate.ts")]
+				: ["bun", join(sqlRoot, "node_modules/@prisma/cli/dist/cli.js"), ...args];
+		const process = Bun.spawn(command, {
 			cwd: copy,
 			env: environment,
 			stderr: "inherit",
