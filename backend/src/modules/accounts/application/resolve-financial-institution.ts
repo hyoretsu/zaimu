@@ -7,7 +7,7 @@ export async function resolveFinancialInstitution(userId: string, input?: string
 	if (!name) return null;
 
 	const existing = await queryFirst(
-		db.sql.public.FinancialInstitution.select("id", "name", "currency")
+		db.sql.public.FinancialInstitution.select("id", "name", "currency", "creditInstallmentRemainderOnFirst")
 			.where((fields, functions) =>
 				functions.and(
 					functions.eq(fields.userId, userId),
@@ -21,7 +21,7 @@ export async function resolveFinancialInstitution(userId: string, input?: string
 
 	return queryFirst(
 		db.sql.public.FinancialInstitution.insert([{ currency, name, normalizedName, userId }])
-			.returning("id", "name", "currency")
+			.returning("id", "name", "currency", "creditInstallmentRemainderOnFirst")
 			.build(),
 	);
 }

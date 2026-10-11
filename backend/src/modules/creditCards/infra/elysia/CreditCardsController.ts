@@ -817,7 +817,12 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 								.filter(i => i.purchaseId === p.id && i.hasImportedAmount)
 								.map(i => [i.number, i.amountCents]),
 						);
-						p.installmentAmountsCents = distributePurchaseCents(total, count, known);
+						p.installmentAmountsCents = distributePurchaseCents(
+							total,
+							count,
+							known,
+							book.card.installmentRemainderOnFirst,
+						);
 						p.totalAmountCents = total;
 						for (const i of book.installments.filter(i => i.purchaseId === p.id))
 							i.amountCents = p.installmentAmountsCents[i.number - 1]!;

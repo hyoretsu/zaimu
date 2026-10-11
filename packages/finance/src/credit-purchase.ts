@@ -107,6 +107,7 @@ export function distributePurchaseCents(
 	totalAmountCents: number,
 	count: number,
 	importedAmounts: ReadonlyMap<number, number> = new Map(),
+	remainderOnFirst = false,
 ) {
 	assertCents(totalAmountCents, 1);
 	if (!Number.isSafeInteger(count) || count < 1 || count > 48)
@@ -126,6 +127,11 @@ export function distributePurchaseCents(
 	return Array.from({ length: count }, (_, index) => {
 		const imported = importedAmounts.get(index + 1);
 		if (imported !== undefined) return imported;
+		if (remainderOnFirst) {
+			const amount = base + extra;
+			extra = 0;
+			return amount;
+		}
 		return base + (extra-- > 0 ? 1 : 0);
 	});
 }

@@ -43,6 +43,31 @@ function emptyBook(): CreditBook {
 }
 
 describe("normalized credit book", () => {
+	test("uses institution policy for new purchases without rewriting existing plans", () => {
+		const book = emptyBook();
+		const input = {
+			description: "AliExpress",
+			installments: 12,
+			purchaseDate: "2026-08-10",
+			totalAmount: 218.33,
+		};
+		const existing = newBookPurchase(book, input, undefined, { materialize: false });
+		const originalPlan = [...existing.installmentAmountsCents];
+		book.card.installmentRemainderOnFirst = true;
+		const purchase = newBookPurchase(book, input, undefined, { materialize: false });
+		const expected = [1824, ...Array<number>(11).fill(1819)];
+		expect(purchase.installmentAmountsCents).toEqual(expected);
+		expect(existing.installmentAmountsCents).toEqual(originalPlan);
+		expect(
+			creditBookPlan(book)
+				.installments.filter(item => item.purchaseId === purchase.id)
+				.map(item => item.amountCents),
+		).toEqual(expected);
+		materializeBookInstallments(book, "2027-07-10");
+		expect(
+			book.installments.filter(item => item.purchaseId === purchase.id).map(item => item.amountCents),
+		).toEqual(expected);
+	});
 	test("preserves the purchase total across materialized and projected installments", () => {
 		const book = emptyBook();
 		const purchase = newBookPurchase(

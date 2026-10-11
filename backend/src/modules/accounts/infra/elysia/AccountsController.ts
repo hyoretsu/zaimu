@@ -209,7 +209,12 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 
 					const institution = account.institutionId
 						? await queryFirst(
-								db.sql.public.FinancialInstitution.select("id", "name", "currency")
+								db.sql.public.FinancialInstitution.select(
+									"id",
+									"name",
+									"currency",
+									"creditInstallmentRemainderOnFirst",
+								)
 									.where((fields, functions) =>
 										functions.and(
 											functions.eq(fields.id, account.institutionId!),
@@ -682,7 +687,12 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 					body.institutionName === undefined
 						? existing.institutionId
 							? await queryFirst(
-									db.sql.public.FinancialInstitution.select("id", "name", "currency")
+									db.sql.public.FinancialInstitution.select(
+										"id",
+										"name",
+										"currency",
+										"creditInstallmentRemainderOnFirst",
+									)
 										.where((fields, functions) =>
 											functions.and(
 												functions.eq(fields.id, existing.institutionId!),

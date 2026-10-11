@@ -19,6 +19,7 @@ export interface CreditOverviewCard {
 	id: string;
 	ignoreStatementsBefore: null | string;
 	institutionId: null | string;
+	installmentRemainderOnFirst?: boolean;
 	institutionName: null | string;
 	name: null | string;
 	refundPolicy: CreditBook["card"]["refundPolicy"];
@@ -40,7 +41,7 @@ export interface CreditOverviewStatement {
 
 export const creditOverviewSql = `
 WITH visible_cards AS (
-  SELECT card.*, account."userId", account."institutionId", institution."creditRefundPolicy" AS "refundPolicy"
+  SELECT card.*, account."userId", account."institutionId", institution."creditRefundPolicy" AS "refundPolicy", COALESCE(institution."creditInstallmentRemainderOnFirst", false) AS "installmentRemainderOnFirst"
   FROM "CreditCard" card
   JOIN "FinancialAccount" account ON account."id" = card."financialAccountId"
   LEFT JOIN "FinancialInstitution" institution ON institution."id" = account."institutionId"
@@ -63,6 +64,7 @@ SELECT 'card' AS kind, jsonb_build_object(
   'financialAccountId', card."financialAccountId", 'id', card."id",
   'ignoreStatementsBefore', card."ignoreStatementsBefore", 'institutionId', card."institutionId",
   'institutionName', institution."name", 'name', account."name", 'refundPolicy', card."refundPolicy",
+  'installmentRemainderOnFirst', card."installmentRemainderOnFirst",
   'workingDueDate', card."workingDueDate"
 ) AS data
 FROM visible_cards card
@@ -162,6 +164,7 @@ export function replayOverviewStatements(
 				dueDay: Number(card.dueDay),
 				id: card.id,
 				ignoreStatementsBefore: card.ignoreStatementsBefore ? asDateKey(card.ignoreStatementsBefore) : null,
+				installmentRemainderOnFirst: card.installmentRemainderOnFirst ?? false,
 				institutionId: card.institutionId,
 				refundPolicy: card.refundPolicy,
 				statementDay: Number(card.statementDay),

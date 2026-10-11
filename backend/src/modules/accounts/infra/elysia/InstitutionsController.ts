@@ -36,6 +36,12 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 					.build(),
 			);
 			if (!existing) throw new HttpException("Instituição financeira não encontrada", 404);
+			const settings = {
+				...(currency && { currency }),
+				...(body.creditInstallmentRemainderOnFirst !== undefined && {
+					creditInstallmentRemainderOnFirst: body.creditInstallmentRemainderOnFirst,
+				}),
+			};
 			if (body.yieldPolicy)
 				assertFinancialInstitutionYieldPolicy({
 					...body.yieldPolicy,
@@ -43,7 +49,12 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 				});
 			const matching = normalized
 				? await queryFirst(
-						db.sql.public.FinancialInstitution.select("id", "name", "currency")
+						db.sql.public.FinancialInstitution.select(
+							"id",
+							"name",
+							"currency",
+							"creditInstallmentRemainderOnFirst",
+						)
 							.where((fields, functions) =>
 								functions.and(
 									functions.eq(fields.userId, userId),
@@ -65,13 +76,13 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 						.where((fields, functions) => functions.eq(fields.id, params.id))
 						.build(),
 				);
-				if (currency)
+				if (Object.keys(settings).length)
 					await executeStatement(
-						db.sql.public.FinancialInstitution.update({ currency })
+						db.sql.public.FinancialInstitution.update({ ...settings, updatedAt: new Date() })
 							.where((fields, functions) => functions.eq(fields.id, matching.id))
 							.build(),
 					);
-				return { ...matching, ...(currency && { currency }) };
+				return { ...matching, ...settings };
 			}
 			const institution = normalized
 				? await queryFirst(
@@ -81,23 +92,28 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 							updatedAt: new Date(),
 						})
 							.where((fields, functions) => functions.eq(fields.id, params.id))
-							.returning("id", "name", "currency")
+							.returning("id", "name", "currency", "creditInstallmentRemainderOnFirst")
 							.build(),
 					)
 				: await queryFirst(
-						db.sql.public.FinancialInstitution.select("id", "name", "currency")
+						db.sql.public.FinancialInstitution.select(
+							"id",
+							"name",
+							"currency",
+							"creditInstallmentRemainderOnFirst",
+						)
 							.where((fields, functions) => functions.eq(fields.id, params.id))
 							.limit(1)
 							.build(),
 					);
 			if (!institution) throw new HttpException("Instituição financeira não encontrada", 404);
-			if (currency) {
+			if (Object.keys(settings).length) {
 				await executeStatement(
-					db.sql.public.FinancialInstitution.update({ currency })
+					db.sql.public.FinancialInstitution.update({ ...settings, updatedAt: new Date() })
 						.where((fields, functions) => functions.eq(fields.id, institution.id))
 						.build(),
 				);
-				institution.currency = currency;
+				Object.assign(institution, settings);
 			}
 			if (body.yieldPolicy)
 				await scheduleFinancialInstitutionYieldPolicy({
@@ -110,6 +126,7 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 		},
 		{
 			body: t.Object({
+				creditInstallmentRemainderOnFirst: t.Optional(t.Boolean()),
 				currency: t.Optional(CurrencyDTO),
 				name: t.Optional(t.String({ maxLength: 100, minLength: 1 })),
 				recalculateCurrentDay: t.Optional(t.Boolean()),

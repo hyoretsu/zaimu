@@ -75,6 +75,7 @@ export interface RewardsAccount {
 }
 
 export interface FinancialInstitution {
+	creditInstallmentRemainderOnFirst?: boolean;
 	currency?: string;
 	id: string;
 	name: string;

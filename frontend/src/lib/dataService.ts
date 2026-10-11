@@ -1896,6 +1896,7 @@ export const dataService = {
 									.filter(i => i.purchaseId === p.id && i.hasImportedAmount)
 									.map(i => [i.number, i.amountCents]),
 							),
+							book.card.installmentRemainderOnFirst,
 						);
 						p.totalAmountCents = total;
 						for (const i of book.installments.filter(i => i.purchaseId === p.id))
@@ -2721,6 +2722,7 @@ export const dataService = {
 			data: {
 				name?: string;
 				currency?: string;
+				creditInstallmentRemainderOnFirst?: boolean;
 				yieldPolicy?: Omit<import("./api").FinancialInstitutionYieldPolicy, "effectiveDate">;
 			},
 		): Promise<FinancialInstitution> {
@@ -2734,6 +2736,9 @@ export const dataService = {
 				const updated = {
 					...institution,
 					...(data.currency !== undefined && { currency: data.currency }),
+					...(data.creditInstallmentRemainderOnFirst !== undefined && {
+						creditInstallmentRemainderOnFirst: data.creditInstallmentRemainderOnFirst,
+					}),
 					...(data.name !== undefined && { name: data.name.normalize("NFKC").trim().replace(/\s+/gu, " ") }),
 					...(data.yieldPolicy && {
 						yieldPolicies: [

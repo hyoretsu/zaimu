@@ -119,6 +119,7 @@ export interface CreditBook {
 		workingDueDate?: boolean;
 		ignoreStatementsBefore: string | null;
 		institutionId: string | null;
+		installmentRemainderOnFirst?: boolean;
 		refundPolicy: RefundPolicy | null;
 	};
 	purchases: BookPurchase[];
@@ -538,7 +539,12 @@ export function newBookPurchase(
 		id: input.id ?? crypto.randomUUID(),
 		installmentAmountsCents:
 			input.installmentAmountsCents ??
-			distributePurchaseCents(moneyCents(totalAmount, 1, book.card.currency), installments),
+			distributePurchaseCents(
+				moneyCents(totalAmount, 1, book.card.currency),
+				installments,
+				undefined,
+				book.card.installmentRemainderOnFirst,
+			),
 		totalAmountCents: moneyCents(totalAmount, 1, book.card.currency),
 		updatedAt: now,
 		userId: book.card.userId,

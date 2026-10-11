@@ -180,6 +180,22 @@ const emptySubscriptionBook = (): CreditBook => ({
 	statements: [],
 });
 
+test("recurring installment forecasts use the institution remainder setting", () => {
+	const book = emptySubscriptionBook();
+	book.card.installmentRemainderOnFirst = true;
+	const subscription = { ...recurrence("CARD_PURCHASE", 218.33), installments: 12 };
+	const projected = projectRecurrenceCreditBook(book, [subscription], "2026-10-01", "2026-10-31");
+	expect(projected.purchases[0].installmentAmountsCents).toEqual([1824, ...Array<number>(11).fill(1819)]);
+	expect(book.purchases).toEqual([]);
+	expect(projected.installments).toEqual([]);
+	book.card.installmentRemainderOnFirst = false;
+	const distributed = projectRecurrenceCreditBook(book, [subscription], "2026-10-01", "2026-10-31");
+	expect(distributed.purchases[0].installmentAmountsCents).toEqual([
+		...Array<number>(5).fill(1820),
+		...Array<number>(7).fill(1819),
+	]);
+});
+
 test("annual subscription projects monthly installments without persisting any ledger records", () => {
 	const book = emptySubscriptionBook();
 	const before = JSON.stringify(book);

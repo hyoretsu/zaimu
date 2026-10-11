@@ -126,6 +126,7 @@ namespace public {
   }
 
   model FinancialInstitution {
+    creditInstallmentRemainderOnFirst Boolean @default(false)
     currency VarChar(3) @default("BRL")
 
     id             VarChar(36)        @id(map: "FinancialInstitution_pkey") @default(dbgenerated("cuid2()"))

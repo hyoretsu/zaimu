@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import type { RecurrenceDefinition } from "@zaimu/finance/recurrence";
 import { type DashboardCard, type DashboardDataRow, replayDashboardStatements } from "./load-dashboard-data";
 
 const card = (id: string): DashboardCard => ({
@@ -14,6 +15,51 @@ const card = (id: string): DashboardCard => ({
 	refundPolicy: null,
 	statementDay: 1,
 	workingDueDate: false,
+});
+
+test("dashboard invoice forecasts retain the institution installment policy", () => {
+	const subscription: RecurrenceDefinition = {
+		amount: 218.33,
+		createdAt: "2026-10-01",
+		creditCardId: "card-a",
+		dayOfMonth: 10,
+		endDate: "2026-10-31",
+		id: "subscription",
+		installments: 12,
+		interval: 1,
+		isActive: true,
+		materializedThrough: "2026-09-30",
+		movement: "CARD_PURCHASE",
+		name: "Assinatura",
+		startDate: "2026-10-01",
+		unit: "MONTH",
+		updatedAt: "2026-10-01",
+		userId: "user-1",
+	};
+	const concentrated = replayDashboardStatements(
+		"user-1",
+		[{ ...card("card-a"), installmentRemainderOnFirst: true }],
+		[],
+		"2026-10-01",
+		[subscription],
+		"2027-10-31",
+	);
+	expect(concentrated.map(statement => Math.round(statement.totalAmount * 100))).toEqual([
+		1824,
+		...Array<number>(11).fill(1819),
+	]);
+	const distributed = replayDashboardStatements(
+		"user-1",
+		[card("card-a")],
+		[],
+		"2026-10-01",
+		[subscription],
+		"2027-10-31",
+	);
+	expect(distributed.map(statement => Math.round(statement.totalAmount * 100))).toEqual([
+		...Array<number>(5).fill(1820),
+		...Array<number>(7).fill(1819),
+	]);
 });
 
 const creditRows = (cardId: string, amount: number): DashboardDataRow[] => {

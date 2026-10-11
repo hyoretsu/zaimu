@@ -21,6 +21,30 @@ const purchase: CreditPurchase = {
 };
 
 describe("normalized purchase installments", () => {
+	test("concentrates remainder on the first installment when configured", () => {
+		const amounts = distributePurchaseCents(21833, 12, undefined, true);
+		expect(amounts).toEqual([1824, ...Array<number>(11).fill(1819)]);
+		expect(amounts.reduce((total, amount) => total + amount, 0)).toBe(21833);
+		expect(distributePurchaseCents(21833, 12)).toEqual([
+			...Array<number>(5).fill(1820),
+			...Array<number>(7).fill(1819),
+		]);
+		expect(distributePurchaseCents(1200, 12, undefined, true)).toEqual(Array<number>(12).fill(100));
+	});
+	test("concentrates only unknown cents and preserves imported installments", () => {
+		expect(distributePurchaseCents(21833, 12, new Map([[1, 1819]]), true)).toEqual([
+			1819,
+			1824,
+			...Array<number>(10).fill(1819),
+		]);
+		expect(distributePurchaseCents(21833, 12, new Map([[2, 1820]]), true)).toEqual([
+			1823,
+			1820,
+			...Array<number>(10).fill(1819),
+		]);
+		expect(distributePurchaseCents(101, 1, new Map([[1, 101]]), true)).toEqual([101]);
+		expect(() => distributePurchaseCents(101, 1, new Map([[1, 100]]), true)).toThrow();
+	});
 	test("moves a Sunday invoice to Monday without changing its closing date", () => {
 		expect(
 			purchaseStatementDates({ dueDay: 20, statementDay: 15, workingDueDate: true }, "2026-09-12"),

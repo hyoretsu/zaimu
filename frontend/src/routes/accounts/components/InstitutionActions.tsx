@@ -13,7 +13,7 @@ export function InstitutionActions({
 }: {
 	institution: FinancialInstitution;
 	onDelete: (institution: FinancialInstitution) => Promise<unknown>;
-	onUpdate: (institution: FinancialInstitution, name: string, currency: string) => Promise<unknown>;
+	onUpdate: Parameters<typeof EditInstitutionDialog>[0]["onUpdate"];
 	onUpdateYield: (
 		institution: FinancialInstitution,
 		policy: Omit<FinancialInstitutionYieldPolicy, "effectiveDate">,

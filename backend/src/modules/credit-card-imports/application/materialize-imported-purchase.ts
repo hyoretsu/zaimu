@@ -148,7 +148,12 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 				? [...known.values()].reduce((sum, amount) => sum + amount, 0)
 				: existing!.totalAmountCents
 			: moneyCents(input.totalAmount, 1, book.card.currency);
-		const amounts = distributePurchaseCents(totalCents, input.installments, known);
+		const amounts = distributePurchaseCents(
+			totalCents,
+			input.installments,
+			known,
+			book.card.installmentRemainderOnFirst,
+		);
 		const [source] = input.id
 			? await query<{ currency: string; originalAmount: number }>(
 					`SELECT "snapshot"->>'currency' AS currency, abs(COALESCE(("snapshot"->>'totalAmount')::numeric,("snapshot"->>'amount')::numeric)) AS "originalAmount" FROM "OpenFinanceRecord" WHERE "reviewItemId"=$1 LIMIT 1`,

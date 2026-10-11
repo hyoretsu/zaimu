@@ -673,6 +673,7 @@ export async function mutateLocalCreditBook<T>(
 		Object.assign(book.card, {
 			dueDay: card.dueDay,
 			ignoreStatementsBefore: card.ignoreStatementsBefore?.slice(0, 10) ?? null,
+			installmentRemainderOnFirst: accountRow?.data.institution?.creditInstallmentRemainderOnFirst ?? false,
 			institutionId,
 			refundPolicy: policy?.data ?? book.card.refundPolicy,
 			statementDay: card.statementDay,
@@ -914,6 +915,7 @@ export async function readLocalCreditBook(cardId: string, owner?: StorageOwner):
 		currency: card.currency ?? book.card.currency ?? "BRL",
 		dueDay: card.dueDay,
 		ignoreStatementsBefore: card.ignoreStatementsBefore?.slice(0, 10) ?? null,
+		installmentRemainderOnFirst: account?.institution?.creditInstallmentRemainderOnFirst ?? false,
 		institutionId,
 		refundPolicy: policy ?? book.card.refundPolicy,
 		statementDay: card.statementDay,

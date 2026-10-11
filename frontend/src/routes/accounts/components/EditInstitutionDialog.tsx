@@ -2,6 +2,7 @@ import { useState } from "react";
 import { LuPencil } from "react-icons/lu";
 import { CurrencySelect } from "@/components/currency/CurrencySelect";
 import { Button } from "@/components/ui/Button";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 import {
 	Dialog,
 	DialogBody,
@@ -13,6 +14,7 @@ import {
 	DialogTrigger,
 } from "@/components/ui/Dialog";
 import { FormField } from "@/components/ui/FormField";
+import { FormFieldRow } from "@/components/ui/FormFieldRow";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { FinancialInstitution } from "@/lib/api";
@@ -23,15 +25,23 @@ export function EditInstitutionDialog({
 	onUpdate,
 }: {
 	institution: FinancialInstitution;
-	onUpdate: (institution: FinancialInstitution, name: string, currency: string) => Promise<unknown>;
+	onUpdate: (
+		institution: FinancialInstitution,
+		name: string,
+		currency: string,
+		creditInstallmentRemainderOnFirst: boolean,
+	) => Promise<unknown>;
 }) {
 	const [open, setOpen] = useState(false);
 	const [name, setName] = useDebouncedInput(institution.name, () => undefined);
 	const [currency, setCurrency] = useState(institution.currency ?? "BRL");
+	const [remainderOnFirst, setRemainderOnFirst] = useState(
+		institution.creditInstallmentRemainderOnFirst ?? false,
+	);
 	const save = () => {
 		try {
 			runDialogSave(
-				onUpdate(institution, name.trim(), currency),
+				onUpdate(institution, name.trim(), currency, remainderOnFirst),
 				() => setOpen(false),
 				"Salvando instituição",
 			);
@@ -45,6 +55,7 @@ export function EditInstitutionDialog({
 				if (value) {
 					setName(institution.name);
 					setCurrency(institution.currency ?? "BRL");
+					setRemainderOnFirst(institution.creditInstallmentRemainderOnFirst ?? false);
 				}
 				setOpen(value);
 			}}
@@ -80,18 +91,37 @@ export function EditInstitutionDialog({
 					}}
 				>
 					<DialogBody>
-						<FormField
-							autoComplete="organization"
-							id={`institution-${institution.id}`}
-							label="Nome da instituição"
-							name="institution-name"
-							onChange={event => setName(event.currentTarget.value)}
-							placeholder="Ex: Mercado Pago"
-							required
-							type="text"
-							value={name}
-						/>
-						<CurrencySelect label="Moeda padrão" onValueChange={setCurrency} value={currency} />
+						<FormFieldRow>
+							<FormField
+								autoComplete="organization"
+								id={`institution-${institution.id}`}
+								label="Nome da instituição"
+								name="institution-name"
+								onChange={event => setName(event.currentTarget.value)}
+								placeholder="Ex: Mercado Pago"
+								required
+								type="text"
+								value={name}
+							/>
+							<CurrencySelect label="Moeda padrão" onValueChange={setCurrency} value={currency} />
+						</FormFieldRow>
+						<FormFieldRow>
+							<CustomSelect
+								label="Excedente do parcelamento"
+								onValueChange={value => setRemainderOnFirst(value === "first")}
+								options={[
+									{ label: "Dividir igualmente", value: "distributed" },
+									{ label: "Concentrar na primeira parcela", value: "first" },
+								]}
+								placeholder="Ex: Concentrar na primeira parcela"
+								sortOptions={false}
+								value={remainderOnFirst ? "first" : "distributed"}
+							/>
+						</FormFieldRow>
+						<p className="text-muted-foreground text-sm">
+							Define como os centavos restantes são divididos em novas compras parceladas. Compras já
+							registradas mantêm seus valores.
+						</p>
 					</DialogBody>
 					<DialogFooter>
 						<Button className="cursor-pointer" onClick={() => setOpen(false)} type="button" variant="outline">

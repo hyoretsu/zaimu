@@ -28,11 +28,7 @@ export function FinancialInstitutionGroup({
 	onDelete: (account: FinancialAccount) => void | Promise<void>;
 	onHide: (account: FinancialAccount) => void;
 	onUpdate: NonNullable<Parameters<typeof CreateFinancialAccountDialog>[0]["onUpdate"]>;
-	onUpdateInstitution: (
-		institution: FinancialInstitution,
-		name: string,
-		currency: string,
-	) => Promise<unknown>;
+	onUpdateInstitution: Parameters<typeof InstitutionActions>[0]["onUpdate"];
 	onUpdateInstitutionYield: (
 		institution: FinancialInstitution,
 		policy: Omit<FinancialInstitutionYieldPolicy, "effectiveDate">,
