@@ -1,8 +1,14 @@
 import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
-export function FormFieldRow({ children }: { children: ReactNode }) {
+export function FormFieldRow({ children, className }: { children: ReactNode; className?: string }) {
 	return (
-		<div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,8.5rem),1fr))] items-start gap-x-4 gap-y-2 [&>*]:row-span-3 [&>*]:grid [&>*]:min-w-0 [&>*]:grid-rows-subgrid">
+		<div
+			className={cn(
+				"grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,8.5rem),1fr))] items-start gap-x-4 gap-y-2 [&>*]:row-span-3 [&>*]:grid [&>*]:min-w-0 [&>*]:grid-rows-subgrid",
+				className,
+			)}
+		>
 			{children}
 		</div>
 	);

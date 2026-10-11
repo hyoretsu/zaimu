@@ -75,7 +75,7 @@ export function FinancialHistoryAdmin({ header }: { header: ComponentProps<typeo
 						Consulta não inicia coletas.
 					</p>
 				</div>
-				<FormFieldRow>
+				<FormFieldRow className="grid-cols-1 lg:grid-cols-[minmax(18rem,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
 					<div className="grid min-w-0 content-start gap-2">
 						<p className="font-medium text-sm">Período</p>
 						<DateRangePicker
