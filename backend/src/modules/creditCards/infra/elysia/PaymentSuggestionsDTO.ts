@@ -23,7 +23,7 @@ export const ConfirmPaymentSuggestionReturn = t.Object({
 		{
 			amount: t.Union([t.Number(), t.String()]),
 			date: t.Union([t.Date(), t.String()]),
-			description: t.String(),
+			description: t.Nullable(t.String()),
 			id: t.String(),
 			originFinancialAccountId: t.String(),
 			paymentCreditCardId: t.String(),

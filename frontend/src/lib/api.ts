@@ -228,7 +228,7 @@ export interface Transaction {
 	amount: number;
 	date: string;
 	time?: string | null;
-	description?: string;
+	description?: string | null;
 	isHidden?: boolean;
 	debtSplit?: DebtSplit | null;
 	storeName?: string | null;

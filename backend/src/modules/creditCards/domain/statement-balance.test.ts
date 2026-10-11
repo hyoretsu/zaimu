@@ -62,3 +62,18 @@ test("payment amounts still require positive, currency-compatible values", () =>
 		expect(() => hasPaymentBalance(100, amount)).toThrow(RangeError);
 	}
 });
+
+test("payment coverage rounds accrued balance fractions to the account currency", () => {
+	expect(hasPaymentBalance(2270.294321, 2270.29)).toBe(true);
+	expect(hasPaymentBalance(2270.284321, 2270.29)).toBe(false);
+	expect(hasPaymentBalance(2270.285321, 2270.29)).toBe(true);
+	expect(hasPaymentBalance(1.2334, 1.234, "KWD")).toBe(false);
+	expect(hasPaymentBalance(1.2336, 1.234, "KWD")).toBe(true);
+	expect(hasPaymentBalance(0.6, 1, "JPY")).toBe(true);
+});
+
+test("invalid available balances still fail validation", () => {
+	for (const balance of [Number.NaN, Number.POSITIVE_INFINITY]) {
+		expect(() => hasPaymentBalance(balance, 1)).toThrow(RangeError);
+	}
+});

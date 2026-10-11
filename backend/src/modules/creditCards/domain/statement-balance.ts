@@ -1,7 +1,10 @@
-import { toMinorUnits } from "@zaimu/finance/money";
+import { roundMoney, toMinorUnits } from "@zaimu/finance/money";
 
 export function hasPaymentBalance(balance: number, amount: number, currency = "BRL") {
-	return toMinorUnits(Math.max(0, balance), currency) >= toMinorUnits(amount, currency, 1);
+	// Aggregated balances can include yield fractions below the currency's minor unit.
+	return (
+		toMinorUnits(roundMoney(Math.max(0, balance), currency), currency) >= toMinorUnits(amount, currency, 1)
+	);
 }
 
 export { calculateStatementBalances as applyStatementCredits } from "@zaimu/finance/credit-card";

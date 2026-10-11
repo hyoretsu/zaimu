@@ -7,6 +7,7 @@ import { HttpException } from "~/shared/errors";
 import { queryRaw, withRawTransaction, withTransaction } from "~/shared/infra/sql";
 import { hasPaymentBalance } from "../domain/statement-balance";
 import { loadCreditBook, readCreditBook } from "./normalized-credit-book";
+import { presentSuggestedPayment } from "./present-suggested-payment";
 import { recalculateStatementPayments } from "./statement-payments";
 
 export async function getPaymentSuggestions(userId: string) {
@@ -34,8 +35,7 @@ WHERE a."userId"=$1 AND NOT a."isHidden" AND c."paymentSuggestionsEnabled"`,
 	).flat();
 }
 
-type SuggestedPaymentTransaction =
-	typeof import("../infra/elysia/PaymentSuggestionsDTO").ConfirmPaymentSuggestionReturn.static.transaction;
+type SuggestedPaymentTransaction = Parameters<typeof presentSuggestedPayment>[0];
 
 type ConfirmPaymentInput = import("../infra/elysia/PaymentSuggestionsDTO").ConfirmPaymentSuggestionDTO;
 
@@ -60,7 +60,7 @@ export async function confirmSuggestedPayment(userId: string, cardId: string, in
 					input.date
 			)
 				throw new HttpException("Tentativa de pagamento já utilizada", 409);
-			return { transaction: presentPayment(previous) };
+			return { transaction: presentSuggestedPayment(previous) };
 		}
 		const [account] = await query<{ id: string; type: string; currency: string }>(
 			`SELECT "id","type","currency" FROM "FinancialAccount" WHERE "id"=$1 AND "userId"=$2 AND "type" IN ('CHECKING','CASH','SAVINGS','INVESTMENT') AND NOT "isHidden" FOR UPDATE`,
@@ -106,15 +106,7 @@ export async function confirmSuggestedPayment(userId: string, cardId: string, in
 				],
 			);
 			await recalculateStatementPayments(executor, [cardId]);
-			return { transaction: presentPayment(transaction) };
+			return { transaction: presentSuggestedPayment(transaction) };
 		});
 	});
-}
-
-function presentPayment(transaction: SuggestedPaymentTransaction) {
-	return {
-		...transaction,
-		amount: Number(transaction.amount),
-		date: transaction.date instanceof Date ? transaction.date.toISOString().slice(0, 10) : transaction.date,
-	};
 }
