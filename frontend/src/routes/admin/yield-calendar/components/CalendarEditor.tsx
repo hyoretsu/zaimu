@@ -16,6 +16,7 @@ import { FormFieldRow } from "@/components/ui/FormFieldRow";
 import { Input } from "@/components/ui/Input";
 import { RequiredMark } from "@/components/ui/RequiredMark";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
+import { countryCodes, countryName } from "@/lib/countries";
 import { fetchWithAuth } from "@/lib/dataService";
 import type { YieldCalendar } from "@/lib/yield-calendar";
 import { showToast } from "@/stores";
@@ -29,10 +30,7 @@ export function CalendarEditor({
 	editing: CalendarEditing;
 	onClose: () => void;
 }) {
-	const [code, setCode] = useDebouncedInput(
-		editing.kind === "country" ? (editing.value?.code ?? "") : "",
-		() => undefined,
-	);
+	const [code, setCode] = useState(editing.kind === "country" ? (editing.value?.code ?? "") : "");
 	const [name, setName] = useDebouncedInput(
 		editing.kind === "currency" ? "" : (editing.value?.name ?? ""),
 		() => undefined,
@@ -53,7 +51,7 @@ export function CalendarEditor({
 						currencies: catalog.currencyCountries
 							.filter(row => row.countryCode === code)
 							.map(row => row.currency),
-						name,
+						name: countryName(code),
 					}),
 					method: "PUT",
 				});
@@ -100,30 +98,23 @@ export function CalendarEditor({
 						<div className="grid gap-4">
 							<FormFieldRow>
 								{editing.kind === "country" ? (
-									<label className="grid min-w-0 gap-2" htmlFor="calendar-country-code">
-										<span>
-											Código ISO <RequiredMark />
-										</span>
-										<Input
-											autoComplete="country"
-											disabled={Boolean(editing.value)}
-											id="calendar-country-code"
-											maxLength={2}
-											name="country-code"
-											onChange={event => setCode(event.currentTarget.value.toUpperCase())}
-											pattern="[A-Z]{2}"
-											placeholder="Ex: BR"
-											required
-											value={code}
-										/>
-									</label>
+									<CustomSelect
+										disabled={Boolean(editing.value)}
+										label="País"
+										onValueChange={setCode}
+										options={countryCodes.map(value => ({ label: countryName(value), value }))}
+										placeholder="Ex: Brasil"
+										required
+										searchable
+										value={code}
+									/>
 								) : (
 									<CustomSelect
 										disabled={editing.kind === "holiday" && Boolean(editing.value)}
 										label="País"
 										onValueChange={setCountryCode}
 										options={catalog.countries.map(country => ({
-											label: `${country.name} (${country.code})`,
+											label: countryName(country.code),
 											value: country.code,
 										}))}
 										placeholder="Ex: Brasil"
@@ -138,22 +129,21 @@ export function CalendarEditor({
 										onValueChange={setCurrency}
 										value={currency}
 									/>
-								) : (
+								) : editing.kind === "holiday" ? (
 									<label className="grid min-w-0 gap-2" htmlFor="calendar-name">
 										<span>
 											Nome <RequiredMark />
 										</span>
 										<Input
-											autoComplete={editing.kind === "country" ? "country-name" : undefined}
 											id="calendar-name"
-											name={editing.kind === "country" ? "country-name" : "holiday-name"}
+											name="holiday-name"
 											onChange={event => setName(event.currentTarget.value)}
-											placeholder={editing.kind === "country" ? "Ex: Brasil" : "Ex: Independência do Brasil"}
+											placeholder="Ex: Independência do Brasil"
 											required
 											value={name}
 										/>
 									</label>
-								)}
+								) : null}
 							</FormFieldRow>
 							{editing.kind === "holiday" && (
 								<DateField
@@ -179,6 +169,7 @@ export function CalendarEditor({
 						<Button
 							disabled={
 								save.isPending ||
+								(editing.kind === "country" && !countryCodes.includes(code)) ||
 								(editing.kind !== "country" && !countryCode) ||
 								(editing.kind === "holiday" && !date)
 							}

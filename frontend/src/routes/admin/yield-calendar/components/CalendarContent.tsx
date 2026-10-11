@@ -5,6 +5,7 @@ import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { countryName } from "@/lib/countries";
 import { fetchWithAuth } from "@/lib/dataService";
 import { fetchYieldCalendar } from "@/lib/yield-calendar";
 import { showToast } from "@/stores";
@@ -77,9 +78,7 @@ export function CalendarContent() {
 						className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/50 p-4"
 						key={country.code}
 					>
-						<p>
-							{country.name} ({country.code})
-						</p>
+						<p>{countryName(country.code)}</p>
 						<ActionGroup>
 							<Button onClick={() => setEditing({ kind: "country", value: country })} variant="outline">
 								<LuPencil />
@@ -97,9 +96,7 @@ export function CalendarContent() {
 						key={`${mapping.countryCode}:${mapping.currency}`}
 					>
 						<p>
-							{mapping.currency} -{" "}
-							{catalog.data.countries.find(country => country.code === mapping.countryCode)?.name ??
-								mapping.countryCode}
+							{mapping.currency} - {countryName(mapping.countryCode)}
 						</p>
 						<ActionGroup>
 							<Button onClick={() => setEditing({ kind: "currency", value: mapping })} variant="outline">
@@ -119,7 +116,8 @@ export function CalendarContent() {
 						key={holiday.id}
 					>
 						<p>
-							{holiday.date.split("-").reverse().join("/")} - {holiday.name} ({holiday.countryCode})
+							{holiday.date.split("-").reverse().join("/")} - {holiday.name} (
+							{countryName(holiday.countryCode)})
 						</p>
 						<ActionGroup>
 							<Button
