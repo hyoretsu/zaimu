@@ -61,7 +61,7 @@ export function CreditPurchaseRow({
 					{purchase.isStatementCharge ? " · Encargo da fatura" : ""}
 					{purchase.installments > 1 ? ` · ${purchase.currentInstallment}/${purchase.installments}` : ""}
 					{!purchase.refinancedFromPurchaseId && purchase.refinancingPurchaseIds?.length
-						? " · reparcelada"
+						? " · Reparcelada"
 						: ""}
 				</p>
 				<OriginalMoneyDetails
