@@ -19,10 +19,10 @@ const mobileNavigationPaths = new Set<string>(mobileNavigation.map(item => item.
 const menuItems = [
 	{
 		color: "bg-primary/10 text-primary",
-		description: "Calendário de rendimentos - acesso administrativo",
+		description: "Gerencie impostos, usuários e dados financeiros",
 		icon: HiClipboardDocumentList,
-		label: "Moedas, países e feriados",
-		to: "/admin/yield-calendar",
+		label: "Administração",
+		to: "/admin",
 	},
 	{
 		color: "bg-danger/10 text-danger",
@@ -88,6 +88,12 @@ export function MorePage() {
 		queryKey: ["admin-access", userId],
 		retry: false,
 	});
+	const visibleDesktopMenuItems = desktopMenuItems.filter(
+		item => item.to !== "/admin" || access.data?.role === "ADMIN",
+	);
+	const visibleMobileMenuItems = mobileMenuItems.filter(
+		item => item.to !== "/admin" || access.data?.role === "ADMIN",
+	);
 	return (
 		<div className="mx-auto min-h-screen w-full max-w-5xl bg-background lg:py-10">
 			{/* Header */}
@@ -101,19 +107,11 @@ export function MorePage() {
 				</div>
 			</div>
 
-			{access.data?.role === "ADMIN" && (
-				<Link
-					className="relative z-10 mx-4 block cursor-pointer rounded-xl border bg-background p-4"
-					to="/admin"
-				>
-					Administração
-				</Link>
-			)}
 			{/* Menu List */}
 			<div className="-mt-12 px-4 pb-8">
 				<div className="card animate-fade-in overflow-hidden">
-					<div className="lg:hidden">{renderMenuItems(mobileMenuItems)}</div>
-					<div className="hidden lg:block">{renderMenuItems(desktopMenuItems)}</div>
+					<div className="lg:hidden">{renderMenuItems(visibleMobileMenuItems)}</div>
+					<div className="hidden lg:block">{renderMenuItems(visibleDesktopMenuItems)}</div>
 				</div>
 			</div>
 		</div>
