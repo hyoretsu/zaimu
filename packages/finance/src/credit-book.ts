@@ -802,6 +802,8 @@ export function refinanceBookPurchase(
 	},
 ) {
 	const source = bookPurchase(book, purchaseId);
+	if (bookRefinancingLinks(book).get(source.id)?.refinancedFromPurchaseId)
+		throw new RangeError("Não é possível reparcelar um reparcelamento");
 	for (const time of [input.time, input.sourceTime]) {
 		if (time != null && !/^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/u.test(time))
 			throw new RangeError("Horário inválido");

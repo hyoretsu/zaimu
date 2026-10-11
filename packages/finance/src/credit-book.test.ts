@@ -525,33 +525,31 @@ describe("refinancing relationships", () => {
 			refinancedFromPurchaseId: source.id,
 		});
 	});
-	test("chains retain original identity and a single prefix", () => {
-		const { book, source, replacement } = family();
-		refinanceBookPurchase(book, replacement.id, {
-			installments: 3,
-			purchaseDate: "2026-03-01",
-			totalAmount: 150,
-		});
-		const next = book.purchases[2]!;
-		expect(next.description).toBe("Parcelamento - Wlingua");
-		expect(bookRefinancingLinks(book).get(next.id)).toMatchObject({
-			refinancedFromPurchaseId: replacement.id,
-			refinancingOriginalPurchaseId: source.id,
-		});
+	test("refinancing a refinancing fails without mutation", () => {
+		const { book, replacement } = family();
 		const previous = structuredClone(book);
-		next.description = "Parcelamento - Inglês";
-		synchronizeBookRefinancing(book, previous);
-		expect(source.description).toBe("Inglês");
-		expect(replacement.description).toBe("Parcelamento - Inglês");
+		expect(() =>
+			refinanceBookPurchase(book, replacement.id, {
+				installments: 3,
+				purchaseDate: "2026-03-01",
+				totalAmount: 150,
+			}),
+		).toThrow("Não é possível reparcelar um reparcelamento");
+		expect(book).toEqual(previous);
 	});
 	test("deleting the original removes chained refinancing and refunds, preserving unrelated records", () => {
 		const { book, source, replacement } = family();
-		refinanceBookPurchase(book, replacement.id, {
+		newBookPurchase(book, {
+			description: "Parcelamento - Wlingua",
 			installments: 3,
 			purchaseDate: "2026-03-01",
 			totalAmount: 150,
 		});
 		const next = book.purchases[2]!;
+		for (const item of book.installments.filter(i => i.purchaseId === replacement.id)) {
+			item.isSettled = true;
+			item.settledByPurchaseId = next.id;
+		}
 		addBookRefund(book, next.id, { amount: 10, creditDate: "2026-03-05" });
 		const unrelated = newBookPurchase(book, {
 			description: "Outra compra",
@@ -570,11 +568,14 @@ describe("refinancing relationships", () => {
 		expect(() => synchronizeBookRefinancing(book, previous)).not.toThrow();
 		expect(creditBookEntries(book).every(item => item.purchaseId === unrelated.id)).toBe(true);
 	});
-	test("deleting a refinancing independently fails without mutating the book", () => {
-		const { book, replacement } = family();
+	test("deleting a refinancing restores original installments and keeps its purchase", () => {
+		const { book, source, replacement } = family();
 		const previous = structuredClone(book);
-		expect(() => removeBookPurchase(book, replacement.id)).toThrow("Exclua a compra original");
-		expect(book).toEqual(previous);
+		removeBookPurchase(book, replacement.id);
+		expect(book.purchases.map(p => p.id)).toEqual([source.id]);
+		expect(book.installments.filter(i => i.purchaseId === source.id).every(i => !i.settledByPurchaseId && !i.isSettled)).toBe(true);
+		expect(book.deletedPurchaseIds).toContain(replacement.id);
+		expect(() => synchronizeBookRefinancing(book, previous)).not.toThrow();
 	});
 	test("isolated deletion, detachment and moving are rejected", () => {
 		const { book, source, replacement } = family();

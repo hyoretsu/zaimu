@@ -72,6 +72,7 @@ test("single purchases offer refinancing; settled and non-purchase entries do no
 	expect(render({ installments: 1 })).toContain('aria-label="Reparcelar Amazon"');
 	for (const overrides of [
 		{ isSettled: true },
+		{ refinancedFromPurchaseId: "original" },
 		{ settledByPurchaseId: "replacement" },
 		{ isRefund: true },
 		{ isStatementCharge: true },

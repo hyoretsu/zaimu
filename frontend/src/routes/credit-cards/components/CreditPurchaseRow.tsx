@@ -139,6 +139,7 @@ export function CreditPurchaseRow({
 					</Tooltip>
 					{!purchase.isRefund &&
 					!purchase.isStatementCharge &&
+					!purchase.refinancedFromPurchaseId &&
 					!purchase.isSettled &&
 					!purchase.settledByPurchaseId ? (
 						<Tooltip>
@@ -157,15 +158,16 @@ export function CreditPurchaseRow({
 							<TooltipContent>Reparcelar</TooltipContent>
 						</Tooltip>
 					) : null}
-					{!purchase.refinancedFromPurchaseId ? (
-						<Tooltip>
+					<Tooltip>
 							<TooltipTrigger asChild>
 								<span>
 									<ConfirmActionButton
 										aria-label={`Excluir ${purchase.description}`}
 										className="cursor-pointer"
 										confirmation={
-											hasRefinancing
+											purchase.refinancedFromPurchaseId
+                                                ? "Excluir este reparcelamento e seus sucessores permanentemente e restaurar as parcelas e dívidas da compra anterior?"
+                                                : hasRefinancing
 												? "Excluir esta compra, todos os reparcelamentos, parcelas e reembolsos permanentemente?"
 												: purchase.installments > 1
 													? "Excluir esta compra e todas as suas parcelas permanentemente?"
@@ -181,14 +183,15 @@ export function CreditPurchaseRow({
 								</span>
 							</TooltipTrigger>
 							<TooltipContent>
-								{hasRefinancing
+								{purchase.refinancedFromPurchaseId
+                                    ? "Excluir reparcelamento"
+                                    : hasRefinancing
 									? "Excluir compra e todos os reparcelamentos"
 									: purchase.installments > 1
 										? "Excluir compra e todas as parcelas"
 										: "Excluir"}
 							</TooltipContent>
 						</Tooltip>
-					) : null}
 				</div>
 			</div>
 		</div>
