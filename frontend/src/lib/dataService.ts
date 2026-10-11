@@ -1716,17 +1716,28 @@ export const dataService = {
 		async refundPurchase(
 			cardId: string,
 			purchaseId: string,
-			data: { amount?: number; date?: string; policy?: "KEEP_INSTALLMENTS" | "CANCEL_FUTURE_INSTALLMENTS" },
+			data: {
+				amount?: number;
+				date?: string;
+				policy?: "KEEP_INSTALLMENTS" | "CANCEL_FUTURE_INSTALLMENTS";
+				canceledInstallmentNumbers?: number[];
+			},
 		): Promise<CreditPurchase> {
-			const date = data.date ?? new Date().toISOString().slice(0, 10);
+			const date = data.date;
 			if (!isGuestMode())
 				return fetchWithAuth<CreditPurchase>(`/credit-cards/${cardId}/purchases/${purchaseId}/refunds`, {
-					body: JSON.stringify({ amount: data.amount, policy: data.policy, purchaseDate: date }),
+					body: JSON.stringify({
+						amount: data.amount,
+						canceledInstallmentNumbers: data.canceledInstallmentNumbers,
+						policy: data.policy,
+						purchaseDate: date,
+					}),
 					method: "POST",
 				});
 			const refund = await mutateLocalCreditBook(cardId, book =>
 				addBookRefund(book, book.installments.find(i => i.id === purchaseId)?.purchaseId ?? purchaseId, {
 					amount: data.amount,
+					canceledInstallmentNumbers: data.canceledInstallmentNumbers,
 					creditDate: date,
 					policy: data.policy,
 				}),
@@ -1946,15 +1957,26 @@ export const dataService = {
 			cardId: string,
 			purchaseId: string,
 			refundId: string,
-			data: { amount: number; date: string },
+			data: { amount: number; date: string; canceledInstallmentNumbers?: number[] },
 		): Promise<CreditPurchase> {
 			if (!isGuestMode())
 				return fetchWithAuth<CreditPurchase>(
 					`/credit-cards/${cardId}/purchases/${purchaseId}/refunds/${refundId}`,
-					{ body: JSON.stringify({ amount: data.amount, purchaseDate: data.date }), method: "PATCH" },
+					{
+						body: JSON.stringify({
+							amount: data.amount,
+							canceledInstallmentNumbers: data.canceledInstallmentNumbers,
+							purchaseDate: data.date,
+						}),
+						method: "PATCH",
+					},
 				);
 			await mutateLocalCreditBook(cardId, book =>
-				updateBookRefund(book, purchaseId, refundId, { amount: data.amount, creditDate: data.date }),
+				updateBookRefund(book, purchaseId, refundId, {
+					amount: data.amount,
+					canceledInstallmentNumbers: data.canceledInstallmentNumbers,
+					creditDate: data.date,
+				}),
 			);
 			return toPurchasePresentation(
 				creditBookEntries(await readLocalCreditBook(cardId)).find(row => row.id === refundId)!,

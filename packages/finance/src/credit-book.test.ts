@@ -43,6 +43,81 @@ function emptyBook(): CreditBook {
 }
 
 describe("normalized credit book", () => {
+	test("partial cancellation identifies surplus credit, retains rows and restores them on deletion", () => {
+		const book = emptyBook();
+		const purchase = newBookPurchase(book, {
+			description: "Amazon",
+			installments: 11,
+			purchaseDate: "2025-04-05",
+			totalAmount: 586.98,
+		});
+		const refund = addBookRefund(book, purchase.id, {
+			amount: 237.08,
+			canceledInstallmentNumbers: [8, 9, 10, 11],
+		});
+		expect(refund.creditDate).toBe(purchase.purchaseDate);
+		const rows = creditBookEntries(book);
+		expect(rows.filter(row => row.isReimbursed).map(row => row.currentInstallment)).toEqual([
+			8, 9, 10, 11,
+		]);
+		expect(rows.find(row => row.id === refund.id)?.installmentAmount).toBe(-23.64);
+		expect(
+			replayCreditBook(book).statements.find(row => row.id === refund.creditStatementId)?.totalAmount,
+		).toBe(29.73);
+		updateBookRefund(book, purchase.id, refund.id, { amount: 213.44, creditDate: "2099-12-05" });
+		expect(creditBookEntries(book).find(row => row.id === refund.id)?.installmentAmount).toBe(-0);
+		expect(creditBookEntries(book).filter(row => row.isReimbursed)).toHaveLength(4);
+		removeBookRefund(book, purchase.id, refund.id);
+		expect(creditBookEntries(book).filter(row => row.isReimbursed)).toHaveLength(0);
+	});
+	test("explicit cancellation rejects overlap and values above the refund", () => {
+		const book = emptyBook();
+		const purchase = newBookPurchase(book, {
+			description: "Compra",
+			installments: 3,
+			purchaseDate: "2025-01-01",
+			totalAmount: 300,
+		});
+		addBookRefund(book, purchase.id, { amount: 100, canceledInstallmentNumbers: [3] });
+		expect(() =>
+			addBookRefund(structuredClone(book), purchase.id, {
+				amount: 100,
+				canceledInstallmentNumbers: [3],
+			}),
+		).toThrow("Parcela já compensada ou reembolsada");
+		expect(() =>
+			addBookRefund(structuredClone(book), purchase.id, {
+				amount: 50,
+				canceledInstallmentNumbers: [2],
+			}),
+		).toThrow("As parcelas selecionadas excedem");
+		expect(() =>
+			addBookRefund(structuredClone(book), purchase.id, {
+				amount: 100,
+				canceledInstallmentNumbers: [4],
+			}),
+		).toThrow("Seleção de parcelas inválida");
+	});
+	test("future refunds can be created and moved to another future invoice", () => {
+		const book = emptyBook();
+		const purchase = newBookPurchase(book, {
+			description: "Compra",
+			installments: 6,
+			purchaseDate: "2025-01-01",
+			totalAmount: 600,
+		});
+		const refund = addBookRefund(book, purchase.id, { amount: 213.44, creditDate: "2099-12-05" });
+		expect(book.statements.find(item => item.id === refund.creditStatementId)?.statementDate).toBe(
+			"2099-12-20",
+		);
+		expect(creditBookEntries(book).find(item => item.id === refund.id)?.installmentAmount).toBe(-213.44);
+		const edited = updateBookRefund(book, purchase.id, refund.id, { creditDate: "2100-01-05" });
+		expect(edited.id).toBe(refund.id);
+		expect(book.statements.find(item => item.id === edited.creditStatementId)?.statementDate).toBe(
+			"2100-01-20",
+		);
+		expect(creditBookEntries(book).filter(item => item.entryKind === "INSTALLMENT")).toHaveLength(6);
+	});
 	test("uses institution policy for new purchases without rewriting existing plans", () => {
 		const book = emptyBook();
 		const input = {
@@ -388,7 +463,9 @@ describe("normalized credit book", () => {
 		});
 		expect(book.card.refundPolicy).toBe("CANCEL_FUTURE_INSTALLMENTS");
 		expect(creditBookEntries(book).find(row => row.id === r.id)?.installmentAmount).toBe(-100);
-		expect(creditBookEntries(book).filter(row => row.entryKind === "INSTALLMENT")).toHaveLength(1);
+		expect(
+			creditBookEntries(book).filter(row => row.entryKind === "INSTALLMENT" && !row.isReimbursed),
+		).toHaveLength(1);
 		updateBookRefund(book, p.id, r.id, { amount: 150 });
 		expect(book.refunds[0]?.id).toBe(r.id);
 		expect(creditBookEntries(book).filter(row => row.entryKind === "INSTALLMENT")).toHaveLength(3);

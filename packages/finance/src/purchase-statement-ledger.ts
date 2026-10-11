@@ -42,7 +42,7 @@ export function rebuildPurchaseStatementLedger<T extends StatementInput>(input: 
 	}
 	for (const refund of input.refunds) {
 		if (!purchases.has(refund.purchaseId)) throw new RangeError("Compra do reembolso não encontrada");
-		if (refund.creditDate > input.asOf) continue;
+		if (refund.creditDate > input.asOf && !refund.canceledInstallmentNumbers?.length) continue;
 		const group = refundsByPurchase.get(refund.purchaseId) ?? [];
 		group.push(refund);
 		refundsByPurchase.set(refund.purchaseId, group);
@@ -71,6 +71,7 @@ export function rebuildPurchaseStatementLedger<T extends StatementInput>(input: 
 		}
 		const byId = new Map(purchaseEffects.map(effect => [effect.refundId, effect]));
 		for (const refund of refunds) {
+			if (refund.creditDate > input.asOf) continue;
 			const credit = byId.get(refund.id)!.creditAmountCents;
 			// A negative total represents invoice credit. Validate signed sums separately.
 			const amount = invoiceTotals.get(refund.creditStatementId)! - credit;

@@ -1,0 +1,36 @@
+[
+	{
+		"execute": [
+			{
+				"description": "add column \"canceledInstallmentNumbers\"",
+				"sql": "ALTER TABLE \"public\".\"CreditRefundRecord\" ADD COLUMN \"canceledInstallmentNumbers\" json"
+			}
+		],
+		"id": "column.public.CreditRefundRecord.canceledInstallmentNumbers",
+		"label": "Add column \"canceledInstallmentNumbers\" to \"CreditRefundRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"canceledInstallmentNumbers\" exists",
+				"params": ["public", "CreditRefundRecord", "canceledInstallmentNumbers"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"canceledInstallmentNumbers\" is missing",
+				"params": ["public", "CreditRefundRecord", "canceledInstallmentNumbers"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "canceledInstallmentNumbers",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditRefundRecord"
+			},
+			"id": "postgres"
+		}
+	}
+]

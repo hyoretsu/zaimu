@@ -201,6 +201,7 @@ export function replayOverviewStatements(
 			purchases,
 			refunds: (refundsByCard.get(card.id) ?? []).map(row => ({
 				amountCents: moneyCents(Number(row.amount), 1, card.currency),
+				canceledInstallmentNumbers: (row.canceledInstallmentNumbers as number[] | undefined) ?? undefined,
 				cancellationEligible: Boolean(row.cancellationEligible),
 				createdAt: asTimestamp(row.createdAt),
 				creditDate: asDateKey(row.creditDate),

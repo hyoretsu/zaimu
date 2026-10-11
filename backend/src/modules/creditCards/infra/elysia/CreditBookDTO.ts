@@ -48,6 +48,9 @@ export const BookPurchaseDTO = t.Object({
 });
 export const BookRefundDTO = t.Object({
 	amountCents: t.Integer({ minimum: 1 }),
+	canceledInstallmentNumbers: t.Optional(
+		t.Array(t.Integer({ maximum: 48, minimum: 1 }), { maxItems: 48, uniqueItems: true }),
+	),
 	cancellationEligible: t.Boolean(),
 	createdAt: t.String(),
 	creditDate: DateKey,

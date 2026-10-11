@@ -6,6 +6,7 @@ import {
 	editCreditRefund,
 	refundAmountCents,
 	resolveRefundPolicy,
+	selectRefundInstallments,
 } from "./credit-refund";
 
 const purchase = { id: "purchase", totalAmountCents: 30000 };
@@ -118,5 +119,38 @@ describe("purchase refunds", () => {
 				savedPolicy: null,
 			}),
 		).toMatchObject({ policy: "KEEP_INSTALLMENTS", saveInstitutionPolicy: false });
+	});
+});
+
+describe("automatic refund installment selection", () => {
+	const installments = Array.from({ length: 11 }, (_, index) => ({
+		amountCents: 5336,
+		number: index + 1,
+		statementId: `statement-${index}`,
+	}));
+	test("refund value cancels four last or first installments and leaves surplus", () => {
+		expect(selectRefundInstallments(installments, 23708, "LAST")).toEqual([8, 9, 10, 11]);
+		expect(selectRefundInstallments(installments, 23708, "FIRST")).toEqual([1, 2, 3, 4]);
+		expect(selectRefundInstallments(installments, 21344, "LAST")).toEqual([8, 9, 10, 11]);
+	});
+	test("selection follows order without skipping a more expensive installment", () => {
+		const uneven = [
+			{ amountCents: 5000, number: 1, statementId: "a" },
+			{ amountCents: 10000, number: 2, statementId: "b" },
+			{ amountCents: 5000, number: 3, statementId: "c" },
+		];
+		expect(selectRefundInstallments(uneven, 10000, "FIRST")).toEqual([1]);
+		expect(selectRefundInstallments(uneven, 10000, "LAST")).toEqual([3]);
+		expect(selectRefundInstallments(uneven, 4999, "LAST")).toEqual([]);
+	});
+	test("settled installments are unavailable and zero value cancels nothing", () => {
+		expect(
+			selectRefundInstallments(
+				installments.map(item => ({ ...item, isSettled: item.number === 11 })),
+				10672,
+				"LAST",
+			),
+		).toEqual([9, 10]);
+		expect(selectRefundInstallments(installments, 0, "FIRST")).toEqual([]);
 	});
 });

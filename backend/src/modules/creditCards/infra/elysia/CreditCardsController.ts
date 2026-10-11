@@ -711,7 +711,12 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 			const userId = await requireUserId(request);
 			const refund = await createNormalizedRefund(
 				{ cardId: params.id, purchaseId: params.purchaseId, userId },
-				{ amount: body.amount, creditDate: body.purchaseDate, policy: body.policy },
+				{
+					amount: body.amount,
+					canceledInstallmentNumbers: body.canceledInstallmentNumbers,
+					creditDate: body.purchaseDate,
+					policy: body.policy,
+				},
 			);
 			return (
 				await presentCreditBook(await readCreditBook(userId, params.id, false), undefined, refund.id)
@@ -720,8 +725,11 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 		{
 			body: t.Object({
 				amount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
+				canceledInstallmentNumbers: t.Optional(
+					t.Array(t.Integer({ maximum: 48, minimum: 1 }), { maxItems: 48, uniqueItems: true }),
+				),
 				policy: t.Optional(RefundPolicyDTO),
-				purchaseDate: t.String({ format: "date" }),
+				purchaseDate: t.Optional(t.String({ format: "date" })),
 			}),
 		},
 	)
@@ -732,7 +740,11 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 			await editNormalizedRefund(
 				{ cardId: params.id, purchaseId: params.purchaseId, userId },
 				params.refundId,
-				{ amount: body.amount, creditDate: body.purchaseDate },
+				{
+					amount: body.amount,
+					canceledInstallmentNumbers: body.canceledInstallmentNumbers,
+					creditDate: body.purchaseDate,
+				},
 			);
 			return (
 				await presentCreditBook(await readCreditBook(userId, params.id, false), undefined, params.refundId)
@@ -741,6 +753,9 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 		{
 			body: t.Object({
 				amount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
+				canceledInstallmentNumbers: t.Optional(
+					t.Array(t.Integer({ maximum: 48, minimum: 1 }), { maxItems: 48, uniqueItems: true }),
+				),
 				purchaseDate: t.Optional(t.String({ format: "date" })),
 			}),
 		},

@@ -149,6 +149,7 @@ export async function loadCreditBook(
 		}),
 		refunds: refunds.map(row => ({
 			amountCents: moneyCents(Number(row.amount), 1, card.currency),
+			canceledInstallmentNumbers: (row.canceledInstallmentNumbers as number[] | undefined) ?? undefined,
 			cancellationEligible: Boolean(row.cancellationEligible),
 			createdAt: timestamp(row.createdAt),
 			creditDate: date(row.creditDate),
@@ -550,6 +551,7 @@ export async function saveCreditBook(
 				"creditDate",
 				"policy",
 				"cancellationEligible",
+				"canceledInstallmentNumbers",
 				"deletedAt",
 				"createdAt",
 				"updatedAt",
@@ -564,6 +566,7 @@ export async function saveCreditBook(
 				r.creditDate,
 				r.policy,
 				r.cancellationEligible,
+				r.canceledInstallmentNumbers === undefined ? null : JSON.stringify(r.canceledInstallmentNumbers),
 				r.deletedAt,
 				r.createdAt,
 				r.updatedAt,

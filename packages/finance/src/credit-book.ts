@@ -324,7 +324,11 @@ export function creditBookEffects(book: CreditBook, asOf = currentDateKey(), pla
 	const calculate = createRefundCalculator(plan.statements);
 	const installments = Map.groupBy(plan.installments, item => item.purchaseId);
 	const refunds = Map.groupBy(
-		book.refunds.filter(refund => !refund.deletedAt && refund.creditDate <= asOf),
+		book.refunds.filter(
+			refund =>
+				!refund.deletedAt &&
+				(refund.creditDate <= asOf || Boolean(refund.canceledInstallmentNumbers?.length)),
+		),
 		refund => refund.purchaseId,
 	);
 	return book.purchases.flatMap(purchase =>
@@ -338,7 +342,11 @@ export function materializeBookInstallments(book: CreditBook, asOf = currentDate
 	const effects = creditBookEffects(book, asOf);
 	const effectsByRefund = new Map(effects.map(effect => [effect.refundId, effect]));
 	const refundsByPurchase = Map.groupBy(
-		book.refunds.filter(refund => !refund.deletedAt),
+		book.refunds.filter(
+			refund =>
+				!refund.deletedAt &&
+				(refund.creditDate <= asOf || Boolean(refund.canceledInstallmentNumbers?.length)),
+		),
 		refund => refund.purchaseId,
 	);
 	const existingOccurrences = new Set(book.installments.map(item => `${item.purchaseId}:${item.number}`));
@@ -424,15 +432,20 @@ export function replayCreditBook(book: CreditBook, asOf = currentDateKey()) {
 export function addBookRefund(
 	book: CreditBook,
 	purchaseId: string,
-	input: { amount?: number; creditDate: string; policy?: RefundPolicy; id?: string },
+	input: {
+		amount?: number;
+		creditDate?: string;
+		policy?: RefundPolicy;
+		id?: string;
+		canceledInstallmentNumbers?: number[];
+	},
 	now = new Date().toISOString(),
 ) {
-	if (input.creditDate > currentDateKey())
-		throw new RangeError("Restituição deve ter data efetiva até hoje");
 	const purchase = bookPurchase(book, purchaseId);
 	const history = book.refunds.filter(refund => refund.purchaseId === purchase.id);
 	const previous = history.filter(refund => !refund.deletedAt);
-	const statement = ensureBookStatement(book, input.creditDate);
+	const creditDate = input.creditDate || purchase.purchaseDate;
+	const statement = ensureBookStatement(book, creditDate);
 	const amountCents =
 		input.amount === undefined ? undefined : moneyCents(input.amount, 1, book.card.currency);
 	const firstFull =
@@ -446,18 +459,19 @@ export function addBookRefund(
 	);
 	const decision = resolveRefundPolicy({
 		institutionId: book.card.institutionId,
-		needsCancellationDecision: firstFull && future,
+		needsCancellationDecision: input.canceledInstallmentNumbers === undefined && firstFull && future,
 		requestedPolicy: input.policy,
 		savedPolicy: book.card.refundPolicy,
 	});
 	const refund: BookRefund = {
 		...createCreditRefund(purchase, previous, {
 			amountCents,
-			creditDate: input.creditDate,
+			canceledInstallmentNumbers: input.canceledInstallmentNumbers,
+			creditDate,
 			creditStatementId: statement.id,
 			hasPreviousRefundHistory: history.length > 0,
 			id: input.id ?? crypto.randomUUID(),
-			policy: decision.policy,
+			policy: input.canceledInstallmentNumbers?.length ? "CANCEL_FUTURE_INSTALLMENTS" : decision.policy,
 		}),
 		createdAt: now,
 		deletedAt: null,
@@ -474,22 +488,27 @@ export function updateBookRefund(
 	book: CreditBook,
 	purchaseId: string,
 	refundId: string,
-	changes: { amount?: number; creditDate?: string },
+	changes: { amount?: number; creditDate?: string; canceledInstallmentNumbers?: number[] },
 	now = new Date().toISOString(),
 ) {
-	if (changes.creditDate && changes.creditDate > currentDateKey())
-		throw new RangeError("Restituição deve ter data efetiva até hoje");
 	const purchase = bookPurchase(book, purchaseId);
 	const previous = activePurchaseRefunds(book, purchaseId);
 	const existing = previous.find(item => item.id === refundId);
 	if (!existing) throw new RangeError("Reembolso não encontrado");
 	const statement = changes.creditDate ? ensureBookStatement(book, changes.creditDate) : undefined;
 	const edited = editCreditRefund(purchase, previous, refundId, {
+		...(changes.canceledInstallmentNumbers !== undefined && {
+			canceledInstallmentNumbers: [...changes.canceledInstallmentNumbers],
+		}),
 		...(changes.amount !== undefined && {
 			amountCents: moneyCents(changes.amount, 1, book.card.currency),
 		}),
 		...(changes.creditDate && { creditDate: changes.creditDate, creditStatementId: statement!.id }),
 	});
+	if (changes.canceledInstallmentNumbers !== undefined)
+		edited.policy = changes.canceledInstallmentNumbers.length
+			? "CANCEL_FUTURE_INSTALLMENTS"
+			: "KEEP_INSTALLMENTS";
 	Object.assign(existing, edited, { updatedAt: now });
 	replayCreditBook(book);
 	return existing;
@@ -580,7 +599,8 @@ export function refundDebtAmounts(
 /** Invoice presentation only. These rows are never saved as duplicated purchases. */
 export function creditBookEntries(book: CreditBook, includeForecasts = true) {
 	const plan = creditBookPlan(book);
-	const effects = creditBookEffects(book, currentDateKey(), plan);
+	const asOf = includeForecasts ? "9999-12-31" : currentDateKey();
+	const effects = creditBookEffects(book, asOf, plan);
 	const refundsByPurchase = Map.groupBy(
 		book.refunds.filter(refund => !refund.deletedAt),
 		refund => refund.purchaseId,
@@ -597,6 +617,7 @@ export function creditBookEntries(book: CreditBook, includeForecasts = true) {
 		const refunds = (refundsByPurchase.get(purchase.id) ?? []).map(refund => ({
 			amount: refund.amountCents / currencyScale(book.card.currency),
 			canceledAmount: byRefund.get(refund.id)!.canceledAmountCents / currencyScale(book.card.currency),
+			canceledInstallmentNumbers: refund.canceledInstallmentNumbers,
 			creditAmount: byRefund.get(refund.id)!.creditAmountCents / currencyScale(book.card.currency),
 			date: refund.creditDate,
 			id: refund.id,
@@ -612,7 +633,7 @@ export function creditBookEntries(book: CreditBook, includeForecasts = true) {
 		);
 		return (installmentsByPurchase.get(purchase.id) ?? []).flatMap(item => {
 			const concrete = concreteByNumber.get(`${purchase.id}:${item.number}`);
-			if ((!concrete && !includeForecasts) || canceled.has(item.number)) return [];
+			if (!concrete && !includeForecasts && !canceled.has(item.number)) return [];
 			return [
 				{
 					...purchase,
@@ -633,6 +654,7 @@ export function creditBookEntries(book: CreditBook, includeForecasts = true) {
 							purchase.installmentAmountsCents.length &&
 						(concreteByPurchase.get(purchase.id) ?? []).every(row => row.hasImportedAmount),
 					isRefund: false,
+					isReimbursed: canceled.has(item.number),
 					isSettled: Boolean(concrete?.isSettled || concrete?.settledByPurchaseId),
 					isStatementCharge: false,
 					isSynced: concrete?.hasImportedAmount ?? false,
@@ -656,7 +678,11 @@ export function creditBookEntries(book: CreditBook, includeForecasts = true) {
 		});
 	});
 	const refunds = book.refunds
-		.filter(refund => !refund.deletedAt)
+		.filter(
+			refund =>
+				!refund.deletedAt &&
+				(refund.creditDate <= asOf || Boolean(refund.canceledInstallmentNumbers?.length)),
+		)
 		.map(refund => {
 			const purchase = purchasesById.get(refund.purchaseId);
 			if (!purchase) throw new RangeError("Compra não encontrada");
@@ -674,6 +700,7 @@ export function creditBookEntries(book: CreditBook, includeForecasts = true) {
 				isForecast: false,
 				isFullySynced: false,
 				isRefund: true,
+				isReimbursed: false,
 				isSettled: false,
 				isStatementCharge: false,
 				isSynced: false,
@@ -686,6 +713,7 @@ export function creditBookEntries(book: CreditBook, includeForecasts = true) {
 					amount: refund.amountCents / currencyScale(book.card.currency),
 					canceledAmount:
 						byRefund.get(refund.id)!.canceledAmountCents / currencyScale(book.card.currency),
+					canceledInstallmentNumbers: refund.canceledInstallmentNumbers,
 					creditAmount:
 						byRefund.get(refund.id)!.creditAmountCents / currencyScale(book.card.currency),
 					date: refund.creditDate,
@@ -714,6 +742,7 @@ export function creditBookEntries(book: CreditBook, includeForecasts = true) {
 		isForecast: false,
 		isFullySynced: Boolean(charge.externalId),
 		isRefund: false,
+		isReimbursed: false,
 		isSettled: charge.isSettled,
 		isStatementCharge: true,
 		isSynced: Boolean(charge.externalId),
@@ -915,6 +944,7 @@ export function refinanceBookPurchase(
 			!row.isRefund &&
 			!row.isStatementCharge &&
 			!row.isSettled &&
+			!row.isReimbursed &&
 			!row.settledByPurchaseId &&
 			!book.statements.find(s => s.id === row.statementId)?.isPaid &&
 			!ledger.find(s => s.id === row.statementId)?.isPaid,

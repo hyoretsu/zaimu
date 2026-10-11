@@ -95,3 +95,10 @@ test("original purchases with refinancing offer cascade deletion", () => {
 test("refinancing purchases offer deletion with restoration", () => {
 	expect(render({ refinancedFromPurchaseId: "original" })).toContain('aria-label="Excluir Amazon"');
 });
+
+test("reimbursed installments retain struck amount and cannot be refinanced", () => {
+	const markup = render({ currentInstallment: 11, isReimbursed: true });
+	expect(markup).toContain("Reembolsada");
+	expect(markup).toContain("line-through");
+	expect(markup).not.toContain('aria-label="Reparcelar Amazon"');
+});

@@ -57,6 +57,7 @@ export function CreditPurchaseRow({
 						? ` · ${formatLocalTime(purchase.time)}`
 						: ""}
 					{purchase.isRefund ? " · Reembolso" : ""}
+					{purchase.isReimbursed ? " · Reembolsada" : ""}
 					{purchase.isForecast ? " · Previsão" : ""}
 					{purchase.isStatementCharge ? " · Encargo da fatura" : ""}
 					{purchase.installments > 1 ? ` · ${purchase.currentInstallment}/${purchase.installments}` : ""}
@@ -104,7 +105,7 @@ export function CreditPurchaseRow({
 					className={
 						purchase.isRefund
 							? "text-emerald-600"
-							: purchase.isSettled
+							: purchase.isSettled || purchase.isReimbursed
 								? "text-muted-foreground line-through"
 								: undefined
 					}
@@ -148,6 +149,7 @@ export function CreditPurchaseRow({
 					!purchase.isStatementCharge &&
 					!purchase.refinancedFromPurchaseId &&
 					!purchase.isSettled &&
+					!purchase.isReimbursed &&
 					!purchase.settledByPurchaseId ? (
 						<Tooltip>
 							<TooltipTrigger asChild>

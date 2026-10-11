@@ -625,6 +625,7 @@ export interface CreditPurchase {
 		policy: "KEEP_INSTALLMENTS" | "CANCEL_FUTURE_INSTALLMENTS";
 		creditAmount: number;
 		canceledAmount: number;
+		canceledInstallmentNumbers?: number[];
 	}[];
 
 	isStatementCharge?: boolean;
@@ -660,6 +661,7 @@ export interface CreditPurchase {
 	cashbackYieldReferencePercentage?: number | null;
 	cashbackYieldReferenceRate?: number | null;
 	isSettled?: boolean;
+	isReimbursed?: boolean;
 	settledByPurchaseId?: string | null;
 	refinancingFeeAmount?: number | null;
 	refinancedFromPurchaseId?: string | null;

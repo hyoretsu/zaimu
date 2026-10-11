@@ -680,6 +680,7 @@ namespace public {
     externalId           VarChar(200)? @unique(map: "CreditRefundRecord_externalId_key")
     entryReference       CreditEntryReference? @relation("EntryRefund")
     cancellationEligible Boolean @default(false)
+    canceledInstallmentNumbers Json?
     deletedAt            Timestamp(3)?
     createdAt            Timestamp(3) @default(now())
     updatedAt            Timestamp(3) @default(now())

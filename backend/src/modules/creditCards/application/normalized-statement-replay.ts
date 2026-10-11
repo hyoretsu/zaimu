@@ -48,6 +48,7 @@ interface RefundRow {
 	amount: number;
 	policy: CreditRefund["policy"];
 	cancellationEligible: boolean;
+	canceledInstallmentNumbers: number[] | null;
 }
 interface StatementRow {
 	isPaid: boolean;
@@ -99,7 +100,7 @@ export async function replayNormalizedCard(query: RawQuery, cardId: string) {
 		await query<RefundRow>(
 			`SELECT refund."id", refund."purchaseId", refund."statementId",
 				 refund."creditDate"::text AS "creditDate", refund."amount", refund."policy",
-				 refund."cancellationEligible" FROM "CreditRefundRecord" refund
+				 refund."cancellationEligible", refund."canceledInstallmentNumbers" FROM "CreditRefundRecord" refund
 				 JOIN "CreditPurchaseRecord" purchase ON purchase."id" = refund."purchaseId"
 				 WHERE purchase."creditCardId" = $1 AND refund."deletedAt" IS NULL`,
 			[cardId],
@@ -190,6 +191,7 @@ export async function replayNormalizedCard(query: RawQuery, cardId: string) {
 	);
 	const refunds: CreditRefund[] = refundRows.map(row => ({
 		amountCents: cents(row.amount),
+		canceledInstallmentNumbers: row.canceledInstallmentNumbers ?? undefined,
 		cancellationEligible: row.cancellationEligible,
 		creditDate: row.creditDate,
 		creditStatementId: row.statementId,

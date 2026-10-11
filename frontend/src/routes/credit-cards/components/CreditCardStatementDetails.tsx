@@ -168,14 +168,21 @@ export function CreditCardStatementDetails({
 			data,
 			purchase,
 		}: {
-			data: { amount?: number; date?: string; policy?: "KEEP_INSTALLMENTS" | "CANCEL_FUTURE_INSTALLMENTS" };
+			data: {
+				amount?: number;
+				date?: string;
+				policy?: "KEEP_INSTALLMENTS" | "CANCEL_FUTURE_INSTALLMENTS";
+				canceledInstallmentNumbers?: number[];
+			};
 			purchase: CreditPurchase;
 		}) => {
 			const purchaseId = purchase.purchaseId ?? purchase.refundOfPurchaseId ?? purchase.id;
 			return purchase.isRefund
 				? dataService.creditCards.updateRefund(statement.creditCardId, purchaseId, purchase.id, {
 						amount: data.amount ?? Math.abs(purchase.totalAmount),
-						date: data.date ?? purchase.purchaseDate.slice(0, 10),
+						canceledInstallmentNumbers: data.canceledInstallmentNumbers,
+						date:
+							data.date ?? purchase.originalPurchaseDate?.slice(0, 10) ?? purchase.purchaseDate.slice(0, 10),
 					})
 				: dataService.creditCards.refundPurchase(statement.creditCardId, purchaseId, data);
 		},

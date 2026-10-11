@@ -18,7 +18,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import type { CreditPurchase } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
-import { formatLocalDate, getLocalDateKey } from "@/lib/date";
+import { formatLocalDate } from "@/lib/date";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 
 export function ManageCreditPurchaseRefundsDialog({
@@ -52,13 +52,14 @@ export function ManageCreditPurchaseRefundsDialog({
 	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
 	const scale = currencyScale(currencyCode);
 	const effects = new Map(
-		(book ? creditBookEffects(book, getLocalDateKey()) : []).map(effect => [effect.refundId, effect]),
+		(book ? creditBookEffects(book, "9999-12-31") : []).map(effect => [effect.refundId, effect]),
 	);
 	const refunds = (book?.refunds ?? [])
 		.filter(refund => refund.purchaseId === purchaseId && !refund.deletedAt)
 		.map(refund => ({
 			amount: refund.amountCents / scale,
 			canceledAmount: (effects.get(refund.id)?.canceledAmountCents ?? 0) / scale,
+			canceledInstallmentNumbers: refund.canceledInstallmentNumbers,
 			creditAmount: (effects.get(refund.id)?.creditAmountCents ?? 0) / scale,
 			date: refund.creditDate,
 			id: refund.id,

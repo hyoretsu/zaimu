@@ -13,6 +13,8 @@ export interface CreditRefund {
 	policy: RefundPolicy;
 	/** Set at creation only for the first single full refund; never promote a partial. */
 	cancellationEligible: boolean;
+	/** Explicit selection; undefined preserves legacy institution-policy refunds. */
+	canceledInstallmentNumbers?: number[];
 }
 
 export interface RefundInvoice {
@@ -130,6 +132,7 @@ function calculateRefundEffectsWithInvoices(
 	}
 	if (sumCents(installments.map(installment => installment.amountCents)) !== purchase.totalAmountCents)
 		throw new RangeError("O cálculo exige o plano completo das parcelas");
+	const claimedNumbers = new Set<number>();
 	return refunds.map(refund => {
 		const cancel =
 			refunds.length === 1 &&
@@ -137,13 +140,29 @@ function calculateRefundEffectsWithInvoices(
 			refund.policy === "CANCEL_FUTURE_INSTALLMENTS" &&
 			refund.amountCents === purchase.totalAmountCents;
 		const creditCycle = invoiceDates.get(refund.creditStatementId)!;
-		const canceled = cancel
-			? installments.filter(
-					installment =>
-						!installment.isSettled && invoiceDates.get(installment.statementId)! > creditCycle,
-				)
-			: [];
+		const selected = refund.canceledInstallmentNumbers;
+		if (
+			selected &&
+			(new Set(selected).size !== selected.length || selected.some(number => !numbers.has(number)))
+		)
+			throw new RangeError("Seleção de parcelas inválida");
+		const canceled = selected
+			? installments.filter(installment => selected.includes(installment.number))
+			: cancel
+				? installments.filter(
+						installment =>
+							!installment.isSettled &&
+							invoiceDates.get(installment.statementId)! > creditCycle,
+					)
+				: [];
+		for (const installment of canceled) {
+			if (installment.isSettled || claimedNumbers.has(installment.number))
+				throw new RangeError("Parcela já compensada ou reembolsada");
+			claimedNumbers.add(installment.number);
+		}
 		const canceledAmountCents = sumCents(canceled.map(installment => installment.amountCents));
+		if (canceledAmountCents > refund.amountCents)
+			throw new RangeError("As parcelas selecionadas excedem o valor do reembolso");
 		return {
 			canceledAmountCents,
 			canceledInstallmentNumbers: canceled
@@ -176,6 +195,9 @@ export function createCreditRefund(
 	if (!input.id || !input.creditStatementId) throw new RangeError("Reembolso inválido");
 	return {
 		amountCents,
+		...(input.canceledInstallmentNumbers !== undefined && {
+			canceledInstallmentNumbers: [...input.canceledInstallmentNumbers],
+		}),
 		cancellationEligible:
 			!input.hasPreviousRefundHistory &&
 			!previousRefunds.length &&
@@ -192,7 +214,9 @@ export function editCreditRefund(
 	purchase: Pick<CreditPurchase, "id" | "totalAmountCents">,
 	refunds: readonly CreditRefund[],
 	refundId: string,
-	changes: Partial<Pick<CreditRefund, "amountCents" | "creditDate" | "creditStatementId">>,
+	changes: Partial<
+		Pick<CreditRefund, "amountCents" | "creditDate" | "creditStatementId" | "canceledInstallmentNumbers">
+	>,
 ) {
 	const current = refunds.find(refund => refund.id === refundId && refund.purchaseId === purchase.id);
 	if (!current || refunds.some(refund => refund.purchaseId !== purchase.id))
@@ -209,4 +233,25 @@ export function editCreditRefund(
 	);
 	if (!edited.creditStatementId) throw new RangeError("Fatura do reembolso não encontrada");
 	return edited;
+}
+
+/** Cancel complete installments in order; any amount left becomes invoice credit. */
+export function selectRefundInstallments(
+	installments: readonly RefundInstallment[],
+	amountCents: number,
+	from: "FIRST" | "LAST",
+): number[] {
+	assertCents(amountCents, 0);
+	const ordered = installments
+		.filter(installment => !installment.isSettled)
+		.toSorted((a, b) => (from === "FIRST" ? a.number - b.number : b.number - a.number));
+	let remaining = amountCents;
+	const selected: number[] = [];
+	for (const installment of ordered) {
+		assertCents(installment.amountCents, 1);
+		if (installment.amountCents > remaining) break;
+		selected.push(installment.number);
+		remaining -= installment.amountCents;
+	}
+	return selected.toSorted((a, b) => a - b);
 }

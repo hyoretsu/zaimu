@@ -9,7 +9,12 @@ export interface RefundMutationContext {
 }
 export async function createNormalizedRefund(
 	context: RefundMutationContext,
-	input: { amount?: number; creditDate: string; policy?: RefundPolicy },
+	input: {
+		amount?: number;
+		creditDate?: string;
+		policy?: RefundPolicy;
+		canceledInstallmentNumbers?: number[];
+	},
 ) {
 	return mutateCreditBook(context.userId, context.cardId, book =>
 		addBookRefund(book, resolveBookPurchase(book, context.purchaseId).id, input),
@@ -18,7 +23,7 @@ export async function createNormalizedRefund(
 export async function editNormalizedRefund(
 	context: RefundMutationContext,
 	refundId: string,
-	changes: { amount?: number; creditDate?: string },
+	changes: { amount?: number; creditDate?: string; canceledInstallmentNumbers?: number[] },
 ) {
 	return mutateCreditBook(context.userId, context.cardId, book =>
 		updateBookRefund(book, resolveBookPurchase(book, context.purchaseId).id, refundId, changes),
