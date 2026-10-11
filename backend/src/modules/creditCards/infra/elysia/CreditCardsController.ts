@@ -820,8 +820,6 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 					if ("amountCents" in i) i.amountCents = amounts[i.number - 1]!;
 				} else {
 					const count = body.installments ?? p.installmentAmountsCents.length;
-					if (book.installments.some(i => i.purchaseId === p.id && i.number > count))
-						throw new HttpException("Parcelas históricas não podem ser removidas", 409);
 					if (money || body.installments !== undefined) {
 						const total = moneyCents(
 							money?.amount ?? p.totalAmountCents / currencyScale(book.card.currency),
@@ -830,7 +828,7 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 						);
 						const known = new Map(
 							book.installments
-								.filter(i => i.purchaseId === p.id && i.hasImportedAmount)
+								.filter(i => i.purchaseId === p.id && i.number <= count && i.hasImportedAmount)
 								.map(i => [i.number, i.amountCents]),
 						);
 						p.installmentAmountsCents = distributePurchaseCents(
@@ -840,6 +838,9 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 							book.card.installmentRemainderOnFirst,
 						);
 						p.totalAmountCents = total;
+						book.installments = book.installments.filter(i => i.purchaseId !== p.id || i.number <= count);
+						p.installmentStatementDates = p.installmentStatementDates?.slice(0, count);
+						p.installmentImportedNumbers = p.installmentImportedNumbers?.filter(number => number <= count);
 						for (const i of book.installments.filter(i => i.purchaseId === p.id))
 							i.amountCents = p.installmentAmountsCents[i.number - 1]!;
 					}

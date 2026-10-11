@@ -1865,8 +1865,6 @@ export const dataService = {
 							originalAmount: money.originalAmount,
 						});
 					const count = data.installments ?? p.installmentAmountsCents.length;
-					if (book.installments.some(i => i.purchaseId === p.id && i.number > count))
-						throw new Error("Parcelas históricas não podem ser removidas");
 					const total = moneyCents(
 						data.totalAmount ?? p.totalAmountCents / currencyScale(book.card.currency),
 						1,
@@ -1878,12 +1876,15 @@ export const dataService = {
 							count,
 							new Map(
 								book.installments
-									.filter(i => i.purchaseId === p.id && i.hasImportedAmount)
+									.filter(i => i.purchaseId === p.id && i.number <= count && i.hasImportedAmount)
 									.map(i => [i.number, i.amountCents]),
 							),
 							book.card.installmentRemainderOnFirst,
 						);
 						p.totalAmountCents = total;
+						book.installments = book.installments.filter(i => i.purchaseId !== p.id || i.number <= count);
+						p.installmentStatementDates = p.installmentStatementDates?.slice(0, count);
+						p.installmentImportedNumbers = p.installmentImportedNumbers?.filter(number => number <= count);
 						for (const i of book.installments.filter(i => i.purchaseId === p.id))
 							i.amountCents = p.installmentAmountsCents[i.number - 1]!;
 					}
