@@ -121,6 +121,7 @@ export function CreditCardStatementTabs({
 						const StatusIcon = status.icon;
 						return (
 							<TabsTrigger
+								aria-label={`${formatLocalMonthYear(statement.dueDate)} - ${status.label}`}
 								className={cn(
 									"h-20 w-36 shrink-0 cursor-pointer items-start justify-start whitespace-normal rounded-xl border-border p-3 text-left",
 									selected && "border-primary bg-primary/10 ring-1 ring-primary/30",
@@ -131,9 +132,11 @@ export function CreditCardStatementTabs({
 								<span className="grid min-w-0 flex-1 gap-1.5">
 									<span className="flex items-center gap-1.5 font-semibold text-sm">
 										{formatLocalMonthYear(statement.dueDate)}
-										<span aria-label={status.label} className={status.className} role="img">
-											<StatusIcon aria-hidden="true" className="size-4" />
-										</span>
+										{StatusIcon && (
+											<span aria-label={status.label} className={status.className} role="img">
+												<StatusIcon aria-hidden="true" className="size-4" />
+											</span>
+										)}
 									</span>
 									<strong className="truncate text-sm">
 										{currency.format(statement.amountDue ?? statement.totalAmount)}

@@ -256,7 +256,7 @@ export function CreditCardStatementDetails({
 									</AppBadge>
 								)}
 								<AppBadge className="shrink-0" variant="outline">
-									<StatusIcon aria-hidden="true" className={status.className} />
+									{StatusIcon && <StatusIcon aria-hidden="true" className={status.className} />}
 									{status.label}
 								</AppBadge>
 							</div>
