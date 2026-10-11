@@ -55,12 +55,9 @@ export function CreditPurchaseRow({
 					{purchase.isForecast ? " · Previsão" : ""}
 					{purchase.isStatementCharge ? " · Encargo da fatura" : ""}
 					{purchase.installments > 1 ? ` · ${purchase.currentInstallment}/${purchase.installments}` : ""}
-					{purchase.isSettled ? " · Compensada pelo crédito do reparcelamento" : ""}
-					{purchase.refinancedFromPurchaseId
-						? " · Vinculado à compra original"
-						: purchase.refinancingPurchaseIds?.length
-							? " · Possui reparcelamento vinculado"
-							: ""}
+					{!purchase.refinancedFromPurchaseId && purchase.refinancingPurchaseIds?.length
+						? " · Possui reparcelamento vinculado"
+						: ""}
 				</p>
 				<OriginalMoneyDetails
 					currency={purchase.currency}
