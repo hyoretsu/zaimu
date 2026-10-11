@@ -513,7 +513,10 @@ export function TransactionImportReviewDialog({
 							}
 							onClick={() => setDiscardConfirmationOpen(true)}
 						>
-							<LuTrash2 /> Descartar extrato
+							<LuTrash2 />
+							<span>
+								Descartar<span className="hidden sm:inline"> extrato</span>
+							</span>
 						</Button>
 						<Button
 							className="cursor-pointer disabled:cursor-not-allowed"
@@ -526,7 +529,13 @@ export function TransactionImportReviewDialog({
 							onClick={finishImport}
 						>
 							{approve.isPending ? <LuLoaderCircle className="animate-spin" /> : <LuFileCheck2 />}
-							{approve.isPending ? "Finalizando…" : "Finalizar revisão"}
+							{approve.isPending ? (
+								"Finalizando…"
+							) : (
+								<span>
+									Finalizar<span className="hidden sm:inline"> revisão</span>
+								</span>
+							)}
 						</Button>
 					</DialogFooter>
 				</ImportDialogContent>

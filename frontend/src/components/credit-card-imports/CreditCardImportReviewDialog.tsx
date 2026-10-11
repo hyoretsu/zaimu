@@ -288,14 +288,24 @@ export function CreditCardImportReviewDialog({
 							disabled={reviewBusy || hasApprovingItems}
 							onClick={() => setDiscardConfirmationOpen(true)}
 						>
-							<LuTrash2 /> Descartar lote
+							<LuTrash2 />
+							<span>
+								Descartar<span className="hidden sm:inline"> lote</span>
+							</span>
 						</Button>
 						<Button
 							className="cursor-pointer disabled:cursor-not-allowed"
 							disabled={reviewBusy || hasApprovingItems || items.length === 0}
 							onClick={() => approve.mutate()}
 						>
-							<LuFileCheck2 /> {approve.isPending ? "Finalizando…" : "Finalizar revisão"}
+							<LuFileCheck2 />{" "}
+							{approve.isPending ? (
+								"Finalizando…"
+							) : (
+								<span>
+									Finalizar<span className="hidden sm:inline"> revisão</span>
+								</span>
+							)}
 						</Button>
 					</DialogFooter>
 				</ImportDialogContent>
