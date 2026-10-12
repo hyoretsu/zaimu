@@ -26,7 +26,8 @@
 		"./transaction-money": "./src/transaction-money.ts",
 		"./yield-tax": "./src/yield-tax.ts",
 		"./yield-calendar": "./src/yield-calendar.ts",
-		"./country-currencies": "./src/country-currencies.ts"
+		"./country-currencies": "./src/country-currencies.ts",
+		"./country-codes": "./src/country-codes.ts"
 	},
 	"scripts": {
 		"check-types": "tsc --noEmit",

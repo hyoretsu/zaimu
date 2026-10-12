@@ -19,7 +19,7 @@ describe("national calendar sources", () => {
 		expect(nationalHolidays("IL", 1900)).toEqual({ holidays: [], status: "COMPLETE" });
 	});
 	test("unsupported country never claims complete coverage", () => {
-		expect(nationalHolidays("ZZ", 2026)).toEqual({ holidays: [], status: "UNAVAILABLE" });
+		expect(nationalHolidays("AQ", 2026)).toEqual({ holidays: [], status: "UNAVAILABLE" });
 	});
 	test("CLDR preserves historical currency intervals", () => {
 		const rows = officialCurrencyAssociations();

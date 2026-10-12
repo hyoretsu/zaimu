@@ -161,7 +161,7 @@ describe("universal institution review and calendar coverage", () => {
 				`SELECT "id" FROM "YieldCalendarHoliday" WHERE "countryCode"='BR' AND "date"='2026-04-03'`,
 			),
 		).toHaveLength(0);
-		expect(await ensureCalendarCoverage("ZZ", 2026)).toBe("UNAVAILABLE");
+		expect(await ensureCalendarCoverage("AQ", 2026)).toBe("UNAVAILABLE");
 		expect(await ensureAccountCoverage("USD", null, [2026])).toBe(false);
 	});
 });
