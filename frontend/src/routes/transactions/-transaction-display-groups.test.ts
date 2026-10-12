@@ -1,7 +1,34 @@
 import { describe, expect, test } from "bun:test";
-import { groupTransactionsForDisplay } from "./-transaction-display-groups";
+import { groupTransactionsForDisplay, sumYieldsByCurrency } from "./-transaction-display-groups";
 
 describe("groupTransactionsForDisplay", () => {
+	test("collects yields from different accounts at the top of the day", () => {
+		const groups = groupTransactionsForDisplay(
+			[
+				{ date: "2026-09-20", id: "expense", kind: "transaction" as const },
+				{ date: "2026-09-20", id: "account-yield", kind: "yield" as const },
+				{ date: "2026-09-20", id: "income", kind: "transaction" as const },
+				{ date: "2026-09-20", id: "savings-yield", isHidden: true, kind: "yield" as const },
+			],
+			"2026-09-20",
+		);
+
+		expect(groups.map(group => [group.kind, group.transactions.map(entry => entry.id)])).toEqual([
+			["yield", ["account-yield", "savings-yield"]],
+			["visible", ["expense", "income"]],
+		]);
+		expect(groups[0]?.id).toBe("yield-2026-09-20");
+	});
+
+	test("gives yield-only days a collapsible group, including future dates", () => {
+		const groups = groupTransactionsForDisplay(
+			[{ date: "2026-09-21", id: "yield", kind: "yield" }],
+			"2026-09-20",
+		);
+
+		expect(groups[0]?.kind).toBe("yield");
+	});
+
 	test("keeps adjacent hidden transactions in one group", () => {
 		const groups = groupTransactionsForDisplay(
 			[
@@ -56,5 +83,22 @@ describe("groupTransactionsForDisplay", () => {
 		);
 
 		expect(groups[0]?.kind).toBe("visible");
+	});
+});
+
+describe("sumYieldsByCurrency", () => {
+	test("sums yields without mixing currencies and defaults to BRL", () => {
+		expect(
+			sumYieldsByCurrency([
+				{ amount: 0.35 },
+				{ amount: 1.65, currency: "BRL" },
+				{ amount: 0.29 },
+				{ amount: 2, currency: "USD" },
+				{ amount: 3, currency: "USD" },
+			]),
+		).toEqual([
+			{ amount: 2.29, currency: "BRL" },
+			{ amount: 5, currency: "USD" },
+		]);
 	});
 });

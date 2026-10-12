@@ -37,7 +37,10 @@ import { EditFinancialAccountYieldDialog } from "@/routes/accounts/components/Ed
 import { FinancialAccountYieldStatementItem } from "@/routes/accounts/components/FinancialAccountYieldStatementItem";
 import { EditCreditPurchaseDialog } from "@/routes/credit-cards/components/EditCreditPurchaseDialog";
 import { RefundCreditPurchaseDialog } from "@/routes/credit-cards/components/RefundCreditPurchaseDialog";
-import { groupTransactionsForDisplay } from "@/routes/transactions/-transaction-display-groups";
+import {
+	groupTransactionsForDisplay,
+	sumYieldsByCurrency,
+} from "@/routes/transactions/-transaction-display-groups";
 import {
 	countActiveTransactionFilters,
 	initialTransactionFilters,
@@ -629,6 +632,15 @@ export function TransactionsPage() {
 													expanded={isExpanded}
 													kind={group.kind}
 													onClick={() => toggleTransactionGroup(group.id)}
+													totals={
+														group.kind === "yield"
+															? sumYieldsByCurrency(
+																	group.transactions.flatMap(entry =>
+																		entry.kind === "yield" ? [entry.value] : [],
+																	),
+																)
+															: undefined
+													}
 												/>
 												{isExpanded ? (
 													<div className="divide-y overflow-hidden rounded-2xl border bg-card shadow-sm">
