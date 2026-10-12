@@ -1,5 +1,6 @@
 import {
 	addDays,
+	addMonths,
 	eachDayOfInterval,
 	format,
 	isAfter,
@@ -12,6 +13,7 @@ import {
 	startOfWeek,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useRef } from "react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +22,7 @@ interface CalendarMonthProps {
 	endDate?: Date;
 	hoveredDate?: Date;
 	month: Date;
+	onMonthChange: (month: Date) => void;
 	onDateSelect: (date: Date) => void;
 	onDateHover: (date: Date) => void;
 	startDate?: Date;
@@ -32,10 +35,13 @@ export function CalendarMonth({
 	endDate,
 	hoveredDate,
 	month,
+	onMonthChange,
 	onDateHover,
 	onDateSelect,
 	startDate,
 }: CalendarMonthProps) {
+	const swipeStart = useRef<{ identifier: number; x: number; y: number } | null>(null);
+	const suppressClickUntil = useRef(0);
 	const calendarStart = startOfWeek(startOfMonth(month), { weekStartsOn: 0 });
 	const days = eachDayOfInterval({
 		end: addDays(calendarStart, 41),
@@ -47,7 +53,36 @@ export function CalendarMonth({
 	const previewEnd = hoveredDate && previewAnchor ? max([hoveredDate, previewAnchor]) : undefined;
 
 	return (
-		<div className="space-y-3">
+		<div
+			className="touch-pan-y space-y-3"
+			onClickCapture={event => {
+				if (Date.now() < suppressClickUntil.current) {
+					event.preventDefault();
+					event.stopPropagation();
+				}
+			}}
+			onTouchCancel={() => {
+				swipeStart.current = null;
+			}}
+			onTouchEnd={event => {
+				const start = swipeStart.current;
+				swipeStart.current = null;
+				const touch = event.changedTouches[0];
+				if (!start || !touch || touch.identifier !== start.identifier || event.touches.length > 0) return;
+				const deltaX = touch.clientX - start.x;
+				const deltaY = touch.clientY - start.y;
+				if (Math.abs(deltaX) < 50 || Math.abs(deltaX) <= Math.abs(deltaY) * 1.5) return;
+				suppressClickUntil.current = Date.now() + 500;
+				onMonthChange(addMonths(month, deltaX < 0 ? 1 : -1));
+			}}
+			onTouchStart={event => {
+				const touch = event.touches[0];
+				swipeStart.current =
+					event.touches.length === 1 && touch
+						? { identifier: touch.identifier, x: touch.clientX, y: touch.clientY }
+						: null;
+			}}
+		>
 			<p className="text-center font-semibold text-sm capitalize">
 				{format(month, "MMMM 'de' yyyy", { locale: ptBR })}
 			</p>

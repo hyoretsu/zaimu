@@ -1,5 +1,5 @@
 import { addMonths, format, isValid, parseISO, startOfMonth, subMonths } from "date-fns";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { LuCalendarDays, LuChevronDown, LuChevronLeft, LuChevronRight, LuX } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
@@ -49,8 +49,6 @@ export function DateField({
 	value,
 }: DateFieldProps) {
 	const [open, setOpen] = useState(false);
-	const swipeStart = useRef<{ x: number; y: number } | null>(null);
-	const suppressClickUntil = useRef(0);
 	const selectedDate = toDate(value);
 	const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(selectedDate ?? new Date()));
 	const hasDescription = Boolean(description || error);
@@ -119,42 +117,14 @@ export function DateField({
 				</Button>
 			</div>
 			<MonthYearPicker month={visibleMonth} onMonthChange={setVisibleMonth} />
-			<div
-				className="touch-pan-y"
-				onClickCapture={event => {
-					if (Date.now() < suppressClickUntil.current) {
-						event.preventDefault();
-						event.stopPropagation();
-					}
-				}}
-				onTouchCancel={() => {
-					swipeStart.current = null;
-				}}
-				onTouchEnd={event => {
-					const start = swipeStart.current;
-					swipeStart.current = null;
-					const touch = event.changedTouches[0];
-					if (!start || !touch || event.touches.length > 0) return;
-					const deltaX = touch.clientX - start.x;
-					const deltaY = touch.clientY - start.y;
-					if (Math.abs(deltaX) < 50 || Math.abs(deltaX) <= Math.abs(deltaY) * 1.5) return;
-					suppressClickUntil.current = Date.now() + 500;
-					setVisibleMonth(month => addMonths(month, deltaX < 0 ? 1 : -1));
-				}}
-				onTouchStart={event => {
-					const touch = event.touches[0];
-					swipeStart.current =
-						event.touches.length === 1 && touch ? { x: touch.clientX, y: touch.clientY } : null;
-				}}
-			>
-				<CalendarMonth
-					activeBoundary="start"
-					month={visibleMonth}
-					onDateHover={() => undefined}
-					onDateSelect={selectDate}
-					startDate={selectedDate}
-				/>
-			</div>
+			<CalendarMonth
+				activeBoundary="start"
+				month={visibleMonth}
+				onDateHover={() => undefined}
+				onDateSelect={selectDate}
+				onMonthChange={setVisibleMonth}
+				startDate={selectedDate}
+			/>
 			<ActionGroup>
 				{selectionAction && (
 					<Button

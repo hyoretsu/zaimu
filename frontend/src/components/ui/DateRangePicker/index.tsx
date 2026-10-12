@@ -143,6 +143,10 @@ export function DateRangePicker({ className, onChange, triggerLabel, value }: Da
 						month={visibleMonth}
 						onDateHover={setHoveredDate}
 						onDateSelect={handleDateSelect}
+						onMonthChange={month => {
+							setHoveredDate(undefined);
+							setVisibleMonth(month);
+						}}
 						startDate={startDate}
 					/>
 				</div>
