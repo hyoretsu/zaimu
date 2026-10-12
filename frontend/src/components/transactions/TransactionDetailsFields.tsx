@@ -104,29 +104,31 @@ export function TransactionDetailsFields({
 					value={amount}
 				/>
 			</FormFieldRow>
-			{paymentCurrency && onPaymentAmountChange && (
-				<div className="space-y-2">
-					<MoneyField
-						currencyCode={paymentCurrency}
-						id="transaction-payment-amount"
-						label="Valor creditado na fatura"
-						onValueChange={onPaymentAmountChange}
-						value={paymentAmount}
-					/>
-					<p className="text-muted-foreground text-xs">
-						Informe valor efetivo ou deixe conversão automática.
-					</p>
-					<TransactionConversionPreview
-						amount={amount}
-						bookingCurrency={bookingCurrency}
-						date={date}
-						fees={fees}
-						onUse={onPaymentAmountChange}
-						sourceCurrency={currencyCode}
-						targetCurrency={paymentCurrency}
-					/>
-				</div>
-			)}
+			{paymentCurrency &&
+				(currencyCode !== paymentCurrency || bookingCurrency !== paymentCurrency) &&
+				onPaymentAmountChange && (
+					<div className="space-y-2">
+						<MoneyField
+							currencyCode={paymentCurrency}
+							id="transaction-payment-amount"
+							label="Valor creditado na fatura"
+							onValueChange={onPaymentAmountChange}
+							value={paymentAmount}
+						/>
+						<p className="text-muted-foreground text-xs">
+							Informe valor efetivo ou deixe conversão automática.
+						</p>
+						<TransactionConversionPreview
+							amount={amount}
+							bookingCurrency={bookingCurrency}
+							date={date}
+							fees={fees}
+							onUse={onPaymentAmountChange}
+							sourceCurrency={currencyCode}
+							targetCurrency={paymentCurrency}
+						/>
+					</div>
+				)}
 			{onFeesChange ? (
 				<FinancialFeeFields
 					baseAmount={Number(amount) || 0}

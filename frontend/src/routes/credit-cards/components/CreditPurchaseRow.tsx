@@ -66,6 +66,7 @@ export function CreditPurchaseRow({
 						: ""}
 				</p>
 				<OriginalMoneyDetails
+					bookingCurrency={currencyCode}
 					currency={purchase.currency}
 					fees={purchase.fees}
 					originalAmount={purchase.originalAmount}

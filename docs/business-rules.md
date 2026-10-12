@@ -203,6 +203,8 @@ Primeira localização detectada por IP configura e salva permanentemente a moed
 
 Novos valores herdam vínculo de conta/cartão/instituição, depois preferência efetiva. Mudanças de preferência alteram consolidações e novos padrões, sem reinterpretar lançamentos. Livros com saldo, histórico ou compromissos não podem mudar moeda. Contas/cartões mostram valores nativos; consolidações convertem antes de somar e conversão indisponível nunca vira zero.
 
+Formulários exibem campos e prévias de conversão somente quando as moedas envolvidas diferem: transação e conta, conta pagadora e fatura, ou contas de origem e destino de uma transferência. Quando todas usam a mesma moeda, não exibem conversão nem um segundo campo de valor para essa finalidade.
+
 Histórico cambial de previsão solicita 365 dias anteriores à referência, para ambas as moedas. Unidades reutilizam snapshots completos por data/base. Estimativa usa média ponderada com meia-vida de 90 dias e informa cobertura parcial. Cotação concreta permanece fixada na data da compra. Cliente tenta jsDelivr e depois Cloudflare para mesma data/endpoint quando há erro HTTP, timeout ou resposta inválida.
 
 A dashboard não exibe progresso técnico das coletas cambiais ou de CDI/Selic, contadores de execução, detalhes das unidades, aviso de estimativa cambial parcial nem datas das cotações. A atualização dos dados continua em segundo plano; avisos sobre indisponibilidade financeira permanecem visíveis.

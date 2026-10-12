@@ -27,8 +27,9 @@ export function TransactionConversionPreview({
 	onUse: (value: string) => void;
 }) {
 	const owner = useCacheIdentity();
+	const hasConversion = sourceCurrency !== bookingCurrency || bookingCurrency !== targetCurrency;
 	const query = useQuery({
-		enabled: !!owner && Number(amount) > 0 && !!date,
+		enabled: hasConversion && !!owner && Number(amount) > 0 && !!date,
 		queryFn: async () => {
 			const debit = await convertLocalMoney(Number(amount), date, sourceCurrency, bookingCurrency, fees);
 			return roundMoney(
@@ -49,7 +50,7 @@ export function TransactionConversionPreview({
 		],
 		retry: false,
 	});
-	if (!Number(amount) || !date) return null;
+	if (!hasConversion || !Number(amount) || !date) return null;
 	if (query.isPending) return <Skeleton className="h-8 w-full" />;
 	if (query.isError || query.data == null)
 		return (

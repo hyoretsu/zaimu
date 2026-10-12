@@ -162,6 +162,7 @@ export function TransactionListItem({
 				<div className="min-w-0 space-y-3">
 					{metadataPrefix ? <div>{metadataPrefix}</div> : null}
 					<OriginalMoneyDetails
+						bookingCurrency={currencyCode}
 						currency={transaction.currency}
 						fees={transaction.fees}
 						originalAmount={transaction.originalAmount}

@@ -3,13 +3,16 @@ import type { FinancialFee } from "@/lib/api";
 export function OriginalMoneyDetails({
 	originalAmount,
 	currency,
+	bookingCurrency,
 	fees,
 }: {
 	originalAmount?: number | null;
 	currency?: string;
+	bookingCurrency: string;
 	fees?: FinancialFee[];
 }) {
 	if (originalAmount == null || !currency) return null;
+	if (currency === bookingCurrency && !fees?.some(fee => fee.amount > 0)) return null;
 	const format = new Intl.NumberFormat("pt-BR", { currency, style: "currency" });
 	return (
 		<div className="text-muted-foreground text-xs">
