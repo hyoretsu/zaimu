@@ -446,6 +446,7 @@ namespace public {
   }
 
   model FinancialAccount {
+    historicalYieldSettings Json?
     legacyYieldCalendar Json?
     legacyInstitutionId VarChar(36)?
     countryCode VarChar(2)?

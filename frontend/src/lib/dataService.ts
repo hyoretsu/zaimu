@@ -31,6 +31,7 @@ import { dashboardCardForecasts, isCashFlowRecurrence } from "@zaimu/finance/das
 import { loanAccountAmounts, loanInstallments } from "@zaimu/finance/loan";
 import { convertFixedSplitAtDate, currencyScale, roundMoney, toMinorUnits } from "@zaimu/finance/money";
 import { pendingStatementPayments } from "@zaimu/finance/payment-suggestions";
+import { trimHistoricalYieldSettings } from "@zaimu/finance/projected-yield";
 import {
 	nextRecurrenceDate,
 	recurrenceNeedsConfiguration,
@@ -629,6 +630,9 @@ export const dataService = {
 						data.creditCard && existing.data.creditCard
 							? { ...existing.data.creditCard, ...data.creditCard }
 							: existing.data.creditCard,
+					historicalYieldSettings: yieldChanged
+						? trimHistoricalYieldSettings(existing.data.historicalYieldSettings, effectiveDateKey)
+						: existing.data.historicalYieldSettings,
 					institution,
 					institutionId: institution?.id ?? null,
 					rewardsAccount:

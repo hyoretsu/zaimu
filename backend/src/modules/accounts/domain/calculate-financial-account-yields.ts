@@ -10,6 +10,7 @@ export type YieldPeriod = "MONTHLY" | "YEARLY";
 export type ReferenceRateType = "CDI" | "SELIC";
 
 export interface YieldAccount {
+	historicalYieldSettings?: import("@zaimu/finance/projected-yield").HistoricalYieldSettings | null;
 	legacyYieldCalendar?: LegacyYieldCalendar | null;
 	currency?: string;
 	countryCode?: null | string;

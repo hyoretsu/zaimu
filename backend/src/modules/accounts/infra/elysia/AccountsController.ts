@@ -8,6 +8,7 @@ import {
 	saveAccountDefaults,
 	setPrimaryAccount,
 } from "~/modules/accounts/application/payment-preferences";
+import { recalculateHistoricalAccountYields } from "~/modules/accounts/application/recalculate-historical-account-yields";
 import { resolveFinancialInstitution } from "~/modules/accounts/application/resolve-financial-institution";
 import {
 	scheduleFinancialAccountYieldRate,
@@ -113,6 +114,17 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 	.onTransform(({ body }) => {
 		rejectLegacyFinancialFields(body);
 	})
+	.post(
+		"/:id/recalculate-yields",
+		async ({ body, params, request }) =>
+			recalculateHistoricalAccountYields(await requireUserId(request), params.id, body.profileId),
+		{
+			body: t.Object({ profileId: t.Optional(t.Nullable(Id)) }),
+			detail: { tags: ["Accounts"] },
+			params: t.Object({ id: Id }),
+			response: t.Object({ success: t.Boolean() }),
+		},
+	)
 	.get("/primary", async ({ request }) => getPrimaryAccount(await requireUserId(request)), {
 		response: t.Object({ financialAccountId: t.Nullable(Id) }),
 	})

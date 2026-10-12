@@ -15,6 +15,7 @@ export type YieldPeriod = "MONTHLY" | "YEARLY";
 export type ReferenceRateType = "CDI" | "SELIC";
 
 export interface YieldAccount {
+	historicalYieldSettings?: HistoricalYieldSettings | null;
 	currency?: string;
 	countryCode?: null | string;
 	defaultInstitutionProfileId?: null | string;
@@ -70,6 +71,70 @@ export interface YieldRateHistory {
 	yieldTaxIds?: string[] | null;
 }
 
+export interface HistoricalYieldSettings {
+	throughDate: string;
+	settings: InstitutionYieldPolicy | YieldRateHistory;
+}
+
+/** Freeze a rule for past days, preserving future account configuration. */
+export function historicalYieldOverride(
+	account: YieldAccount,
+	profileId: string | null | undefined,
+	today: string,
+	customSettings?: Omit<YieldRateHistory, "effectiveDate">,
+): HistoricalYieldSettings {
+	if (account.type === "CREDIT_CARD") throw new Error("Cartão de crédito não possui rendimento");
+	if (profileId && customSettings) throw new Error("Selecione apenas uma regra de rendimento");
+	if (customSettings) {
+		const { yieldFixedRate, yieldPeriod, yieldReferencePercentage, yieldReferenceType, yieldTaxRate } =
+			customSettings;
+		if (
+			(yieldFixedRate != null &&
+				(!Number.isFinite(yieldFixedRate) || yieldFixedRate <= 0 || !yieldPeriod)) ||
+			(yieldFixedRate == null && yieldPeriod != null) ||
+			(yieldReferenceType != null) !== (yieldReferencePercentage != null) ||
+			(yieldReferencePercentage != null &&
+				(!Number.isFinite(yieldReferencePercentage) || yieldReferencePercentage <= 0)) ||
+			(yieldTaxRate != null &&
+				(!Number.isFinite(yieldTaxRate) || yieldTaxRate < 0 || yieldTaxRate > 100))
+		)
+			throw new Error("Informe taxas, período e impostos válidos para o rendimento");
+	}
+	const settings =
+		customSettings ??
+		getYieldSettings(
+			{
+				...account,
+				historicalYieldSettings: null,
+				...(profileId
+					? {
+							globalRulesFrom: undefined,
+							institutionProfileChanges: [{ effectiveDate: today, profileId }],
+							institutionYieldPolicies: account.institutionYieldPolicies?.filter(
+								policy => policy.profileId === profileId,
+							),
+							legacyInstitutionYieldPolicies: undefined,
+							type: "CHECKING",
+							yieldFixedRate: null,
+							yieldPeriod: null,
+							yieldRateHistories: [],
+							yieldReferencePercentage: null,
+							yieldReferenceType: null,
+						}
+					: {}),
+			},
+			today,
+		);
+	if (
+		!settings ||
+		!("rules" in settings
+			? settings.rules.length
+			: settings.yieldReferenceType || (settings.yieldFixedRate != null && settings.yieldPeriod))
+	)
+		throw new Error("Nenhuma regra de rendimento disponível para esta conta");
+	return { settings: structuredClone({ ...settings, effectiveDate: today }), throughDate: today };
+}
+
 function dateKey(date: Date | string) {
 	return typeof date === "string" ? date.slice(0, 10) : date.toISOString().slice(0, 10);
 }
@@ -88,6 +153,8 @@ function referenceDailyRate(
 }
 
 function getYieldSettings(account: YieldAccount, day: string) {
+	if (account.historicalYieldSettings && day <= account.historicalYieldSettings.throughDate)
+		return account.historicalYieldSettings.settings;
 	const history = account.yieldRateHistories
 		?.filter(item => dateKey(item.effectiveDate) <= day)
 		.toSorted((left, right) => dateKey(left.effectiveDate).localeCompare(dateKey(right.effectiveDate)))
@@ -206,4 +273,14 @@ export function projectedNetYield(
 	const contributions = ledger ?? new YieldTaxLedger(account.yieldLots ?? []);
 	if (!ledger) contributions.adjustBalance(balance, day);
 	return contributions.netYield(calculateGrossYield(balance, settings, averages), settings, day);
+}
+
+export function trimHistoricalYieldSettings(
+	snapshot: HistoricalYieldSettings | null | undefined,
+	effectiveDate: string,
+): HistoricalYieldSettings | null | undefined {
+	if (!snapshot || snapshot.throughDate < effectiveDate) return snapshot;
+	const previous = new Date(`${effectiveDate}T12:00:00Z`);
+	previous.setUTCDate(previous.getUTCDate() - 1);
+	return { ...snapshot, throughDate: previous.toISOString().slice(0, 10) };
 }

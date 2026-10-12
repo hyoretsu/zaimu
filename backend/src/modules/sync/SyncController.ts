@@ -1,3 +1,4 @@
+import { Value } from "@sinclair/typebox/value";
 import { toMinorUnits } from "@zaimu/finance/money";
 import Elysia from "elysia";
 import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
@@ -11,6 +12,7 @@ import {
 } from "~/modules/accounts/application/universal-institutions";
 import { assertCashbackSettings } from "~/modules/accounts/domain/assert-cashback-settings";
 import { assertRewardsAccountDetails } from "~/modules/accounts/domain/assert-rewards-account-details";
+import { HistoricalYieldSettingsDTO } from "~/modules/accounts/domain/historical-yield-settings-schema";
 import { requireUserId } from "~/modules/auth";
 import {
 	getTagsByEntity,
@@ -277,7 +279,18 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 							value<string | null | undefined>(entity, "countryCode") ??
 							(existing as { countryCode?: string | null } | undefined)?.countryCode;
 						await ensureAccountCoverage(currency, countryCode);
+						const historicalYieldSettings = value<unknown>(entity, "historicalYieldSettings");
+						if (
+							historicalYieldSettings != null &&
+							(!Value.Check(HistoricalYieldSettingsDTO, historicalYieldSettings) ||
+								type === "CREDIT_CARD" ||
+								historicalYieldSettings.throughDate > new Date().toLocaleDateString("sv-SE"))
+						)
+							throw new Error("Regra histórica de rendimento inválida");
 						const values = {
+							...(historicalYieldSettings !== undefined
+								? { historicalYieldSettings: historicalYieldSettings as HistoricalYieldSettingsDTO | null }
+								: {}),
 							countryCode,
 							currency,
 							institutionId: institution?.id,

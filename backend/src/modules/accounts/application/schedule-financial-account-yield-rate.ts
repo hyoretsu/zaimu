@@ -1,7 +1,15 @@
-import { addDays, startOfDay } from "date-fns";
+import { addDays, format, startOfDay } from "date-fns";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { assertTaxSelection } from "~/modules/taxes/catalog";
-import { db, executeStatement, nullableNumeric, param, queryFirst, queryRaw } from "~/shared/infra/sql";
+import {
+	db,
+	executeRaw,
+	executeStatement,
+	nullableNumeric,
+	param,
+	queryFirst,
+	queryRaw,
+} from "~/shared/infra/sql";
 import type { YieldPeriod } from "../domain/calculate-financial-account-yields";
 
 export async function scheduleFinancialAccountYieldRate({
@@ -33,6 +41,10 @@ export async function scheduleFinancialAccountYieldRate({
 		effectiveDate,
 	);
 	const date = startOfDay(effectiveDate);
+	await executeRaw(
+		`UPDATE "FinancialAccount" SET "historicalYieldSettings" = jsonb_set("historicalYieldSettings", '{throughDate}', to_jsonb(($2::date - 1)::text)) WHERE "id" = $1 AND "historicalYieldSettings"->>'throughDate' >= $2::text`,
+		[financialAccountId, format(date, "yyyy-MM-dd")],
+	);
 	await executeStatement(
 		db.sql.public.FinancialAccountYieldRateHistory.delete()
 			.where((fields, functions) =>

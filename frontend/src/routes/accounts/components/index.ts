@@ -12,4 +12,5 @@ export { InstitutionAssociationProfile } from "./InstitutionAssociationProfile";
 export { InstitutionMergeProposal } from "./InstitutionMergeProposal";
 export { InstitutionProfileDialog } from "./InstitutionProfileDialog";
 export { ProfileProposalForm } from "./ProfileProposalForm";
+export * from "./RecalculateAccountYieldDialog";
 export { YieldTaxFields } from "./YieldTaxFields";

@@ -13,6 +13,7 @@ export interface User {
 }
 
 export interface FinancialAccount {
+	historicalYieldSettings?: import("@zaimu/finance/projected-yield").HistoricalYieldSettings | null;
 	legacyYieldCalendar?: import("@zaimu/finance/projected-yield").LegacyYieldCalendar | null;
 	defaultInstitutionProfileId?: string | null;
 	globalRulesFrom?: string | null;

@@ -24,6 +24,7 @@
 		"backend/performance/sample.test.ts",
 		"backend/performance/telemetry.test.ts",
 		"backend/src/modules/accounts/application/get-financial-account-balances.test.ts",
+		"backend/src/modules/accounts/application/recalculate-historical-account-yields.test.ts",
 		"backend/src/modules/accounts/domain/account-default-eligibility.test.ts",
 		"backend/src/modules/accounts/domain/assert-cashback-settings.test.ts",
 		"backend/src/modules/accounts/domain/assert-credit-card-billing-days.test.ts",

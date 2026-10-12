@@ -3,6 +3,7 @@ import { queryRaw } from "~/shared/infra/sql";
 import { getFinancialInstitutionYieldPolicies } from "./get-financial-institution-yield-policies";
 
 interface InstitutionProfileContext {
+	historicalYieldSettings: import("@zaimu/finance/projected-yield").HistoricalYieldSettings | null;
 	legacyYieldCalendar: import("@zaimu/finance/projected-yield").LegacyYieldCalendar | null;
 	accountId: string;
 	legacyInstitutionId: string | null;
@@ -16,7 +17,7 @@ interface InstitutionProfileContext {
 export async function getInstitutionProfileContext(accountIds: string[]) {
 	if (!accountIds.length) return new Map<string, InstitutionProfileContext>();
 	const rows = await queryRaw<InstitutionProfileContext & Record<string, unknown>>(
-		`SELECT a.id AS "accountId", a."legacyYieldCalendar", COALESCE(a."legacyInstitutionId",CASE WHEN i."status" <> 'APPROVED' THEN a."institutionId" END) AS "legacyInstitutionId", p.id AS "defaultInstitutionProfileId", l."globalRulesFrom",
+		`SELECT a.id AS "accountId", a."historicalYieldSettings", a."legacyYieldCalendar", COALESCE(a."legacyInstitutionId",CASE WHEN i."status" <> 'APPROVED' THEN a."institutionId" END) AS "legacyInstitutionId", p.id AS "defaultInstitutionProfileId", l."globalRulesFrom",
 	COALESCE((SELECT json_agg(json_build_object('profileId', c."profileId", 'effectiveDate', c."effectiveDate") ORDER BY c."effectiveDate")
 	FROM "UserInstitutionProfileChange" c WHERE c."linkId" = l.id), '[]'::json) AS "institutionProfileChanges"
 	FROM "FinancialAccount" a

@@ -185,6 +185,8 @@ async function processFetchJob(
 				`SELECT account."id" FROM "public"."FinancialAccount" account
 			 WHERE account."type" <> 'CREDIT_CARD' AND (
 			 account."yieldReferenceType" = $1::"ReferenceRateType"
+			 OR account."historicalYieldSettings"->'settings'->>'yieldReferenceType' = $1::text
+			 OR EXISTS (SELECT 1 FROM jsonb_array_elements(COALESCE((account."historicalYieldSettings"->'settings'->'rules')::jsonb, '[]'::jsonb)) historical_rule WHERE historical_rule.value->>'yieldReferenceType' = $1::text)
 			 OR EXISTS (SELECT 1 FROM "public"."FinancialAccountYieldRateHistory" history WHERE history."financialAccountId" = account."id" AND history."yieldReferenceType" = $1::"ReferenceRateType")
 			 OR EXISTS (SELECT 1 FROM "public"."FinancialInstitutionYieldRule" rule INNER JOIN "public"."FinancialInstitutionYieldPolicy" policy ON policy."id" = rule."financialYieldPolicyId" WHERE policy."financialInstitutionId" = account."institutionId" AND rule."yieldReferenceType" = $1::"ReferenceRateType"))`,
 				[referenceType],

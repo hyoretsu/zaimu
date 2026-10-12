@@ -27,6 +27,7 @@ import {
 import { CreateFinancialAccountDialog } from "./CreateFinancialAccountDialog";
 import { CreditCardAccountSummary } from "./CreditCardAccountSummary";
 import { FinancialAccountStatementDialog } from "./FinancialAccountStatementDialog";
+import { RecalculateAccountYieldDialog } from "./RecalculateAccountYieldDialog";
 
 const accountType = {
 	CASH: { icon: LuBanknote },
@@ -203,6 +204,7 @@ export function FinancialAccountCard({
 					/>
 				</>
 			) : null}
+			{account.type !== "CREDIT_CARD" && <RecalculateAccountYieldDialog account={account} />}
 			{account.type !== "CREDIT_CARD" && (
 				<FinancialAccountStatementDialog
 					account={account}
