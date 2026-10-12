@@ -28,16 +28,15 @@ export function PageHeader({
 		<header className={cn("space-y-6", className)}>
 			{backTo && <PageBackButton to={backTo} />}
 			<div className="flex flex-wrap items-end justify-between gap-5">
-				<div className="min-w-0 grow basis-full lg:basis-64">
+				<div className="min-w-0 grow basis-full">
 					{subtitle && (
 						<p className="mb-1 font-bold text-primary text-xs uppercase tracking-[0.16em]">{subtitle}</p>
 					)}
 					<h1 className="break-words font-bold text-3xl tracking-tight sm:text-4xl">{title}</h1>
 					{description && <p className="mt-2 max-w-2xl text-muted-foreground">{description}</p>}
 				</div>
-				{controls}
 				{!!actions?.length && (
-					<ActionGroup className="hidden max-w-full lg:flex lg:flex-1">
+					<ActionGroup className="hidden max-w-full basis-full lg:flex">
 						{actions.map(action => (
 							<Button
 								className="h-11 cursor-pointer"
@@ -53,6 +52,7 @@ export function PageHeader({
 					</ActionGroup>
 				)}
 				{actions && <MobilePageActions actions={actions} />}
+				{controls}
 			</div>
 		</header>
 	);
