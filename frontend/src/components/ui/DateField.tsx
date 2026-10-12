@@ -67,6 +67,7 @@ export function DateField({
 		<Button
 			aria-describedby={hasDescription ? `${id}-description` : undefined}
 			aria-invalid={Boolean(error)}
+			aria-labelledby={`${id}-label`}
 			aria-required={required}
 			className={cn(
 				inputControlClassName,
@@ -167,7 +168,7 @@ export function DateField({
 
 	return (
 		<div className="grid content-start gap-2">
-			<Label htmlFor={id}>
+			<Label asChild id={`${id}-label`}>
 				<span>
 					{label} {required && <RequiredMark />}
 				</span>

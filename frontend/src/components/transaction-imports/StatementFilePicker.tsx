@@ -21,7 +21,7 @@ export function StatementFilePicker({
 
 	return (
 		<div className="grid content-start gap-2">
-			<Label htmlFor={inputId}>
+			<Label asChild id={`${inputId}-label`}>
 				<span>
 					{label} <RequiredMark />
 				</span>
@@ -29,6 +29,7 @@ export function StatementFilePicker({
 			<input
 				accept="application/pdf,.pdf"
 				aria-describedby={`${inputId}-description`}
+				aria-labelledby={`${inputId}-label`}
 				className="sr-only"
 				id={inputId}
 				name="statement"
