@@ -4,7 +4,7 @@ import { CalendarContent } from "./CalendarContent";
 export function CalendarPage() {
 	return (
 		<AdminPageLayout
-			description="Feriados dos países associados à moeda suspendem o rendimento das contas."
+			description="Calendário nacional do país da conta define dias úteis. Overrides administrativos preservam correções."
 			title="Moedas, países e feriados"
 		>
 			{header => <CalendarContent header={header} />}

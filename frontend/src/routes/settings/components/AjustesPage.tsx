@@ -14,10 +14,14 @@ import {
 	HiSun,
 	HiUser,
 } from "react-icons/hi2";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { dataService } from "@/lib/dataService";
 import { showToast, type ThemeMode, useAuthStore, useThemeStore } from "@/stores";
+import { CountrySettings } from "./CountrySettings";
 import { CurrencySettings } from "./CurrencySettings";
+import { FinancialCoverageDialog } from "./FinancialCoverageDialog";
+import { InstitutionNotifications } from "./InstitutionNotifications";
 
 const themeOptions: { id: ThemeMode; label: string; icon: typeof HiSun; description: string }[] = [
 	{ description: "Sempre usar tema claro", icon: HiSun, id: "light", label: "Claro" },
@@ -177,6 +181,13 @@ export function AjustesPage() {
 				)}
 
 				<CurrencySettings />
+				<CountrySettings />
+				<InstitutionNotifications />
+				{!isGuestMode && (
+					<ActionGroup>
+						<FinancialCoverageDialog />
+					</ActionGroup>
+				)}
 				{/* Aparência / Theme */}
 				<div className="animate-fade-in" style={{ animationDelay: "0.1s" }}>
 					<p className="section-header">Aparência</p>

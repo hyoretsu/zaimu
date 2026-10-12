@@ -13,6 +13,10 @@ export interface User {
 }
 
 export interface FinancialAccount {
+	defaultInstitutionProfileId?: string | null;
+	globalRulesFrom?: string | null;
+	institutionProfileChanges?: { profileId: string; effectiveDate: string }[];
+	countryCode?: string | null;
 	yieldLots?: import("@zaimu/finance/yield-tax").YieldLot[];
 	currency?: string;
 	isPrimary?: boolean;
@@ -24,6 +28,8 @@ export interface FinancialAccount {
 	type: "CHECKING" | "SAVINGS" | "INVESTMENT" | "CASH" | "CREDIT_CARD" | "REWARDS";
 	balance: number | null;
 	institutionId?: string | null;
+	legacyInstitutionId?: string | null;
+	legacyInstitutionYieldPolicies?: FinancialInstitutionYieldPolicy[];
 	institution?: FinancialInstitution | null;
 	createdAt: string;
 	updatedAt: string;
@@ -78,6 +84,9 @@ export interface RewardsAccount {
 }
 
 export interface FinancialInstitution {
+	status?: "LEGACY_PRIVATE" | "PENDING" | "APPROVED" | "REJECTED" | "REJECTED_PRIVATE";
+	version?: number;
+	operatingCountryCodes?: string[];
 	creditInstallmentRemainderOnFirst?: boolean;
 	currency?: string;
 	id: string;
@@ -85,6 +94,11 @@ export interface FinancialInstitution {
 	yieldPolicies?: FinancialInstitutionYieldPolicy[];
 }
 export interface FinancialInstitutionYieldPolicy {
+	profileId?: string | null;
+	countryCode?: string | null;
+	effectiveUntil?: string | null;
+	requestedEffectiveDate?: string;
+	status?: "APPROVED" | "PENDING" | "REJECTED";
 	currency?: string;
 	effectiveDate: string;
 	rules: FinancialInstitutionYieldRule[];

@@ -18,7 +18,7 @@ const sections = [
 	{
 		description: "Consulte a cobertura de juros e conversões cambiais.",
 		icon: LuChartNoAxesCombined,
-		title: "Histórico financeiro",
+		title: "Cobertura financeira",
 		to: "/admin/history",
 	},
 	{

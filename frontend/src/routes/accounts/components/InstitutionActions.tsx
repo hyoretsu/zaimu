@@ -3,6 +3,7 @@ import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import type { FinancialInstitution, FinancialInstitutionYieldPolicy } from "@/lib/api";
 import { EditInstitutionDialog } from "./EditInstitutionDialog";
+import { InstitutionProfileDialog } from "./InstitutionProfileDialog";
 import { InstitutionYieldDialog } from "./InstitutionYieldDialog";
 
 export function InstitutionActions({
@@ -21,6 +22,7 @@ export function InstitutionActions({
 }) {
 	return (
 		<>
+			<InstitutionProfileDialog institution={institution} />
 			<InstitutionYieldDialog institution={institution} onUpdate={onUpdateYield} />
 			<EditInstitutionDialog institution={institution} onUpdate={onUpdate} />
 			<Tooltip>

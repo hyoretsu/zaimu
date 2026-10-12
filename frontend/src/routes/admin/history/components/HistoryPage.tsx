@@ -4,8 +4,8 @@ import { FinancialHistoryAdmin } from "./FinancialHistoryAdmin";
 export function HistoryPage() {
 	return (
 		<AdminPageLayout
-			description="Consulte os dados salvos de juros e conversões e identifique períodos sem cobertura."
-			title="Histórico financeiro"
+			description="Consulte fontes, vigências e lacunas financeiras; revise propostas institucionais."
+			title="Cobertura financeira"
 		>
 			{header => <FinancialHistoryAdmin header={header} />}
 		</AdminPageLayout>

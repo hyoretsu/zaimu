@@ -3,6 +3,7 @@ import { format, subDays } from "date-fns";
 import type { ComponentProps } from "react";
 import { useState } from "react";
 import { LuRefreshCw } from "react-icons/lu";
+import { FinancialSourceCoverage } from "@/components/financial-coverage";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import type { DateRangeValue } from "@/components/ui/DateRangePicker/types";
@@ -15,6 +16,7 @@ import { useCurrencyStore } from "@/stores/currency";
 import { HistoryCoverageSkeleton } from "./HistoryCoverageSkeleton";
 import { HistoryCoverageTotals } from "./HistoryCoverageTotals";
 import { HistorySeriesCoverage } from "./HistorySeriesCoverage";
+import { InstitutionReviewQueue } from "./InstitutionReviewQueue";
 import type { HistoryCoverage } from "./types";
 
 function initialRange() {
@@ -132,6 +134,8 @@ export function FinancialHistoryAdmin({ header }: { header: ComponentProps<typeo
 					)
 				)}
 			</section>
+			{valid && <FinancialSourceCoverage endDate={endDate!} startDate={startDate!} />}
+			<InstitutionReviewQueue />
 		</>
 	);
 }

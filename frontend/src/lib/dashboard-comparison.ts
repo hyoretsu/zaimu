@@ -24,7 +24,7 @@ import {
 	readLocalCreditBook,
 } from "./localStorage";
 import { refreshReferenceRateAverages } from "./reference-rate-averages";
-import { cachedYieldCalendar, holidayDatesForCurrency } from "./yield-calendar";
+import { accountCalendarCovered, cachedYieldCalendar, holidayDatesForAccount } from "./yield-calendar";
 
 export interface DashboardComparisonParameters {
 	endDate: string;
@@ -235,13 +235,29 @@ export async function getGuestDashboardFinancialContext(
 	const averages: Partial<Record<ReferenceRateType, number>> = {};
 	for (const type of ["CDI", "SELIC"] as const)
 		if (rateResult?.averages[type] != null) averages[type] = rateResult.averages[type];
-	const yieldHolidays = (currency: string) => new Set(holidayDatesForCurrency(holidays, currency));
+	const yieldHolidays = (account: { countryCode?: string | null; currency?: string }) =>
+		new Set(holidayDatesForAccount(holidays, account));
+	let yieldCoverageAvailable = true;
 	const yieldAccounts = new Map(
 		accounts.map(account => [
 			account.id,
 			{ ...account, institutionYieldPolicies: account.institution?.yieldPolicies },
 		]),
 	);
+
+	for (const account of yieldAccounts.values()) {
+		if (
+			account.type !== "CHECKING" &&
+			account.type !== "SAVINGS" &&
+			!account.yieldReferenceType &&
+			account.yieldFixedRate == null
+		)
+			continue;
+		if (!accountCalendarCovered(holidays, account, projectionStart, through)) yieldCoverageAvailable = false;
+		for (let date = projectionStart; date <= through; date = addDays(date, 1)) {
+			if (!getYieldSettings(account, key(date))) yieldCoverageAvailable = false;
+		}
+	}
 
 	const recurringPayments = new Map(bookRows.flatMap(row => [...recurringCardPaymentAmounts(row.data)]));
 	const movements: Array<Omit<ForecastMovement, "date"> & { date: Date }> = [
@@ -357,15 +373,23 @@ export async function getGuestDashboardFinancialContext(
 					.map(item => ({ ...item, date: key(item.date) })),
 				netYield: (account, balance, day, ledger) => {
 					const settings = yieldAccounts.get(account.id);
+					if (
+						settings &&
+						(settings.type === "CHECKING" ||
+							settings.type === "SAVINGS" ||
+							settings.yieldReferenceType ||
+							settings.yieldFixedRate != null)
+					) {
+						if (
+							!accountCalendarCovered(holidays, settings, projectionStart, through) ||
+							!getYieldSettings(settings, day)
+						) {
+							yieldCoverageAvailable = false;
+							return 0;
+						}
+					}
 					return settings
-						? projectedNetYield(
-								settings,
-								balance,
-								day,
-								averages,
-								yieldHolidays(settings.currency ?? "BRL"),
-								ledger,
-							)
+						? projectedNetYield(settings, balance, day, averages, yieldHolidays(settings), ledger)
 						: 0;
 				},
 				primaryAccountId: accounts.find(account => account.isPrimary)?.id,
@@ -474,7 +498,7 @@ export async function getGuestDashboardFinancialContext(
 			return buildPeriods();
 		},
 		projectedStatements: statements,
-		referenceRatesAvailable: rateResult?.ready ?? false,
+		referenceRatesAvailable: (rateResult?.ready ?? false) && yieldCoverageAvailable,
 	};
 }
 export async function getGuestDashboardComparison(

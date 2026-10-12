@@ -1,8 +1,9 @@
+import { getYieldSettings as resolveYieldSettings } from "@zaimu/finance/projected-yield";
 import { type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
 import { addDays, differenceInMonths, differenceInYears, format, isWeekend, startOfDay } from "date-fns";
 import type { FinancialAccount, FinancialAccountYield } from "./api";
 import { normalizeInstitutionName } from "./financial-institution";
-import { cachedYieldCalendar, holidayDatesForCurrency, type YieldCalendar } from "./yield-calendar";
+import { cachedYieldCalendar, holidayDatesForAccount, type YieldCalendar } from "./yield-calendar";
 
 type AccountTransaction = Pick<
 	import("./api").Transaction,
@@ -133,8 +134,7 @@ export function calculateFinancialAccountBalances(
 								account,
 								events.get(account.id),
 								cashbackEvents.get(account.id),
-								holidayKeys ??
-									new Set(holidayDatesForCurrency(holidays as YieldCalendar, account.currency ?? "BRL")),
+								holidayKeys ?? new Set(holidayDatesForAccount(holidays as YieldCalendar, account)),
 								todayKey,
 								yieldsByAccountId.get(account.id),
 								snapshots,
@@ -175,8 +175,8 @@ export function calculateFinancialAccountYieldEntries(
 	].toSorted()[0];
 	if (!firstDay) return [];
 	const holidayKeys = new Set(
-		(Array.isArray(holidays) ? holidays : holidayDatesForCurrency(holidays, account.currency ?? "BRL")).map(
-			date => date.slice(0, 10),
+		(Array.isArray(holidays) ? holidays : holidayDatesForAccount(holidays, account)).map(date =>
+			date.slice(0, 10),
 		),
 	);
 	const entries: FinancialAccountYieldEntry[] = [];
@@ -363,28 +363,10 @@ function calculateYieldedBalance(
 }
 
 function getYieldSettings(account: FinancialAccount, day: string) {
-	const history = account.yieldRateHistories
-		?.filter(item => item.effectiveDate.slice(0, 10) <= day)
-		.toSorted((left, right) => left.effectiveDate.localeCompare(right.effectiveDate))
-		.at(-1);
-	const accountSettings = history ?? {
-		yieldFixedRate: account.yieldFixedRate,
-		yieldPeriod: account.yieldPeriod,
-		yieldReferencePercentage: account.yieldReferencePercentage,
-		yieldReferenceType: account.yieldReferenceType,
-		yieldTaxIds: account.yieldTaxIds,
-		yieldTaxRate: account.yieldTaxRate,
-	};
-	if (accountSettings.yieldFixedRate || accountSettings.yieldReferenceType) return accountSettings;
-	if (account.type !== "CHECKING" && account.type !== "SAVINGS") return accountSettings;
-	return account.institution?.yieldPolicies
-		?.filter(
-			policy =>
-				policy.effectiveDate.slice(0, 10) <= day &&
-				(policy.currency ?? "BRL") === (account.currency ?? "BRL"),
-		)
-		.toSorted((left, right) => left.effectiveDate.localeCompare(right.effectiveDate))
-		.at(-1);
+	return resolveYieldSettings(
+		{ ...account, institutionYieldPolicies: account.institution?.yieldPolicies },
+		day,
+	);
 }
 
 function calculateGrossYield(balance: number, settings: ReturnType<typeof getYieldSettings>) {

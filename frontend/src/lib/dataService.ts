@@ -38,11 +38,13 @@ import {
 } from "@zaimu/finance/recurrence";
 import { listedRecurrenceStatements } from "@zaimu/finance/recurrence-projection";
 import { resolveTransactionMoneySides } from "@zaimu/finance/transaction-money";
+import { showToast } from "@/stores";
 import { guestCashbackSnapshot } from "./cashback-snapshot";
 import { type CatalogPageOptions, localCatalogPage } from "./catalog-pagination";
 import { activeCurrency } from "./currency-context";
 import { convertLocalMoney, guestRate } from "./currency-conversion";
 import { GuestConversionUnavailable } from "./dashboard-currency-context";
+import { getFinancialInstitutions } from "./financial-institution";
 import { guestTransactionPage } from "./guest-transaction-page";
 import { requestResult } from "./idb";
 import { loanAccountMovements } from "./loan-account-movements";
@@ -196,15 +198,7 @@ async function hydrateLocalDebtSplit(
 
 export type FinancialAccountDraft = Omit<
 	FinancialAccount,
-	| "balance"
-	| "createdAt"
-	| "creditCard"
-	| "id"
-	| "institution"
-	| "institutionId"
-	| "rewardsAccount"
-	| "updatedAt"
-	| "userId"
+	"balance" | "createdAt" | "creditCard" | "id" | "institution" | "rewardsAccount" | "updatedAt" | "userId"
 > & {
 	creditCard?: Pick<
 		CreditCard,
@@ -236,6 +230,8 @@ export type FinancialAccountDraft = Omit<
 };
 
 export interface FinancialAccountUpdateDraft {
+	institutionId?: string;
+	countryCode?: string;
 	currency?: string;
 	isPrimary?: boolean;
 	isDefaultForStatements?: boolean;
@@ -334,11 +330,19 @@ export const dataService = {
 	accounts: {
 		async create(data: FinancialAccountDraft): Promise<FinancialAccount> {
 			const userId = getUserId();
-			if (isGuestMode()) {
+			if (isGuestMode() || !navigator.onLine) {
+				const cachedInstitutions = await dataService.financialInstitutions.getAll();
+				const selectedInstitution = data.institutionId
+					? cachedInstitutions.find(item => item.id === data.institutionId)
+					: undefined;
+				if (!isGuestMode() && data.institutionId && selectedInstitution?.status !== "APPROVED")
+					throw new Error("Selecione uma instituição aprovada disponível offline");
+				if (!isGuestMode() && data.institutionName && !selectedInstitution)
+					throw new Error("Novas propostas institucionais exigem conexão");
 				const { creditCard, institutionName, rewardsAccount, ...accountData } = data;
-				let institution: FinancialInstitution | null = null;
+				let institution: FinancialInstitution | null = selectedInstitution ?? null;
 				const normalizedInstitutionName = normalizeInstitutionName(institutionName ?? "");
-				if (normalizedInstitutionName) {
+				if (normalizedInstitutionName && !institution) {
 					const storedAccounts = await localAccounts.getAll();
 					institution =
 						storedAccounts
@@ -359,7 +363,7 @@ export const dataService = {
 					currency: data.currency ?? institution?.currency ?? activeCurrency(),
 					id: crypto.randomUUID(),
 					institution,
-					institutionId: institution?.id ?? null,
+					institutionId: data.institutionId ?? institution?.id ?? null,
 					updatedAt: now.toISOString(),
 					userId,
 					...(data.yieldPeriod && {
@@ -2714,11 +2718,30 @@ export const dataService = {
 			}
 			await fetchWithAuth(`/financial-institutions/${id}`, { method: "DELETE" });
 		},
+		async getAll(): Promise<FinancialInstitution[]> {
+			const owner = getCurrentCacheIdentity();
+			if (isGuestMode())
+				return getFinancialInstitutions((await localAccounts.getAll()).map(item => item.data));
+			const cached = owner
+				? ((await localMeta.get("institution-catalog", owner)) as FinancialInstitution[] | undefined)
+				: undefined;
+			if (!navigator.onLine)
+				return cached ?? getFinancialInstitutions((await localAccounts.getAll()).map(item => item.data));
+			try {
+				const rows = await fetchWithAuth<FinancialInstitution[]>("/financial-institutions/");
+				if (owner) await localMeta.set("institution-catalog", rows, owner);
+				return rows;
+			} catch (error) {
+				if (isConnectivityError(error)) return cached ?? [];
+				throw error;
+			}
+		},
 		async update(
 			id: string,
 			data: {
 				name?: string;
 				currency?: string;
+				operatingCountryCodes?: string[];
 				creditInstallmentRemainderOnFirst?: boolean;
 				yieldPolicy?: Omit<import("./api").FinancialInstitutionYieldPolicy, "effectiveDate">;
 			},
@@ -2758,10 +2781,30 @@ export const dataService = {
 				);
 				return updated;
 			}
-			return fetchWithAuth<FinancialInstitution>(`/financial-institutions/${id}`, {
-				body: JSON.stringify(data),
-				method: "PATCH",
-			});
+			if (!navigator.onLine) throw new Error("Propostas institucionais exigem conexão");
+			if (data.yieldPolicy) {
+				const profiles = await fetchWithAuth<{ id: string; isDefault: boolean }[]>(
+					`/financial-institutions/${id}/profiles`,
+				);
+				const profileId = data.yieldPolicy.profileId ?? profiles.find(profile => profile.isDefault)?.id;
+				if (!profileId) throw new Error("Perfil Padrão indisponível");
+				const date = new Date();
+				date.setDate(date.getDate() + 1);
+				await fetchWithAuth(`/financial-institutions/${id}/policies`, {
+					body: JSON.stringify({
+						...data.yieldPolicy,
+						effectiveDate: data.yieldPolicy.requestedEffectiveDate ?? date.toLocaleDateString("sv-SE"),
+						profileId,
+					}),
+					method: "POST",
+				});
+			} else
+				await fetchWithAuth(`/financial-institutions/${id}`, { body: JSON.stringify(data), method: "PATCH" });
+			showToast("Proposta enviada para revisão", "info");
+			const institutions = await fetchWithAuth<FinancialInstitution[]>("/financial-institutions/");
+			const unchanged = institutions.find(institution => institution.id === id);
+			if (!unchanged) throw new Error("Instituição indisponível");
+			return unchanged;
 		},
 	},
 

@@ -1,5 +1,6 @@
 import { currencyHolidayDates, type YieldCalendarCountry } from "@zaimu/finance/yield-calendar";
 export interface YieldCalendar {
+	coverage?: { countryCode: string; year: number; status: string }[];
 	countries: { code: string; name: string }[];
 	currencyCountries: { currency: string; countryCode: string }[];
 	holidays: { id: string; countryCode: string; date: string; name: string }[];
@@ -34,9 +35,13 @@ export function holidayDatesForCurrency(calendar: YieldCalendar, currency: strin
 }
 export async function fetchYieldCalendar(): Promise<YieldCalendar> {
 	const { fetchWithAuth } = await import("./dataService");
-	const response = await fetchWithAuth<{ countries: YieldCalendarCountry[] }>("/yield-calendar");
+	const response = await fetchWithAuth<{
+		countries: YieldCalendarCountry[];
+		coverage?: YieldCalendar["coverage"];
+	}>("/yield-calendar");
 	const calendar = {
 		countries: response.countries.map(({ code, name }) => ({ code, name })),
+		coverage: response.coverage ?? [],
 		currencyCountries: response.countries.flatMap(country =>
 			country.currencies.map(currency => ({ countryCode: country.code, currency })),
 		),
@@ -48,4 +53,33 @@ export async function fetchYieldCalendar(): Promise<YieldCalendar> {
 		localStorage.setItem(cacheKey, JSON.stringify(calendar));
 	} catch {}
 	return calendar;
+}
+
+export function holidayDatesForAccount(
+	calendar: YieldCalendar,
+	account: { countryCode?: string | null; currency?: string },
+) {
+	return account.countryCode
+		? calendar.holidays
+				.filter(holiday => holiday.countryCode === account.countryCode)
+				.map(holiday => holiday.date)
+		: [];
+}
+
+export function accountCalendarCovered(
+	calendar: YieldCalendar,
+	account: { countryCode?: string | null },
+	from: Date,
+	through: Date,
+) {
+	if (!account.countryCode) return false;
+	for (let year = from.getFullYear(); year <= through.getFullYear(); year++) {
+		if (
+			!calendar.coverage?.some(
+				row => row.countryCode === account.countryCode && row.year === year && row.status === "COMPLETE",
+			)
+		)
+			return false;
+	}
+	return true;
 }

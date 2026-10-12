@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { type SyntheticEvent, useState } from "react";
 import { LuBadgePercent, LuPlus } from "react-icons/lu";
 import { CurrencySelect } from "@/components/currency/CurrencySelect";
@@ -5,6 +6,7 @@ import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
+import { DateField } from "@/components/ui/DateField";
 import {
 	Dialog,
 	DialogBody,
@@ -18,7 +20,10 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { FinancialInstitution, FinancialInstitutionYieldPolicy } from "@/lib/api";
+import { countryCodes } from "@/lib/country-preference";
+import { fetchWithAuth } from "@/lib/dataService";
 import { runDialogSave } from "@/lib/dialog-save";
+import { useAuthStore } from "@/stores/auth";
 import { YieldTaxFields } from "../YieldTaxFields";
 import { InstitutionYieldRuleRow } from "./InstitutionYieldRuleRow";
 import type { EditableYieldRule } from "./types";
@@ -44,6 +49,21 @@ export function InstitutionYieldDialog({
 	const latestPolicy = institution.yieldPolicies?.at(-1);
 	const [currency, setCurrency] = useState(latestPolicy?.currency ?? institution.currency ?? "BRL");
 	const [open, setOpen] = useState(false);
+	const [profileId, setProfile] = useState<string>();
+	const [countryCode, setCountry] = useState<string>();
+	const [effectiveDate, setDate] = useState(new Date().toLocaleDateString("sv-SE"));
+	const guest = useAuthStore(state => state.isGuestMode);
+	const userId = useAuthStore(state => state.user?.id);
+	const profiles = useQuery({
+		enabled: open && !guest,
+		queryFn: () =>
+			fetchWithAuth<{ id: string; name: string; isDefault: boolean }[]>(
+				`/financial-institutions/${institution.id}/profiles`,
+			),
+		queryKey: ["institution-profiles", userId, institution.id],
+	});
+	const selectedProfile = profileId ?? profiles.data?.find(profile => profile.isDefault)?.id;
+	const names = new Intl.DisplayNames(document.documentElement.lang || "pt-BR", { type: "region" });
 	const [enabled, setEnabled] = useState(Boolean(latestPolicy?.rules.length));
 	const [period, setPeriod] = useState<"MONTHLY" | "YEARLY">(latestPolicy?.yieldPeriod ?? "MONTHLY");
 	const [taxIds, setTaxIds] = useState<string[]>(latestPolicy?.yieldTaxIds ?? []);
@@ -79,8 +99,12 @@ export function InstitutionYieldDialog({
 		setRules(current => current.map(item => (item.id === id ? rule : item)));
 	const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
 		event.preventDefault();
+		if (!guest && !selectedProfile) return;
 		const operation = onUpdate(institution, {
+			countryCode,
 			currency,
+			profileId: selectedProfile,
+			requestedEffectiveDate: effectiveDate,
 			rules: enabled
 				? rules.map((rule, index) => ({
 						upToBalance: index === rules.length - 1 ? null : Number(rule.upToBalance),
@@ -127,6 +151,42 @@ export function InstitutionYieldDialog({
 				</DialogHeader>
 				<form className="flex min-h-0 min-w-0 flex-1 flex-col gap-5" onSubmit={submit}>
 					<DialogBody>
+						{!guest && (
+							<>
+								<CustomSelect
+									label="Perfil da política"
+									onValueChange={setProfile}
+									options={(profiles.data ?? []).map(profile => ({ label: profile.name, value: profile.id }))}
+									placeholder="Ex: Padrão"
+									required
+									searchable
+									value={selectedProfile}
+								/>
+								<CustomSelect
+									label="País aplicável"
+									onValueChange={value => setCountry(value === "__all__" ? undefined : value)}
+									options={[
+										{ label: "Todos os países", special: true, value: "__all__" },
+										...countryCodes.map(value => ({ label: names.of(value) ?? value, value })),
+									]}
+									placeholder="Todos os países"
+									searchable
+									value={countryCode ?? "__all__"}
+								/>
+								<DateField
+									id="policy-effective-date"
+									label="Vigente desde"
+									name="policy-effective-date"
+									onValueChange={setDate}
+									required
+									value={effectiveDate}
+								/>
+								<p className="text-muted-foreground text-sm">
+									Proposta entra em vigor somente após aprovação administrativa.
+								</p>
+							</>
+						)}
+
 						<CurrencySelect onValueChange={setCurrency} value={currency} />
 						<CheckboxField
 							checkboxProps={{ checked: enabled, onCheckedChange: checked => setEnabled(checked === true) }}

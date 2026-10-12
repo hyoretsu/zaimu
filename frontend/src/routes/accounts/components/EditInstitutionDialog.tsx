@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { LuPencil } from "react-icons/lu";
 import { CurrencySelect } from "@/components/currency/CurrencySelect";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import {
@@ -18,7 +19,9 @@ import { FormFieldRow } from "@/components/ui/FormFieldRow";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { FinancialInstitution } from "@/lib/api";
+import { countryCodes } from "@/lib/country-preference";
 import { runDialogSave } from "@/lib/dialog-save";
+import { showToast } from "@/stores";
 
 export function EditInstitutionDialog({
 	institution,
@@ -30,18 +33,21 @@ export function EditInstitutionDialog({
 		name: string,
 		currency: string,
 		creditInstallmentRemainderOnFirst: boolean,
+		operatingCountryCodes?: string[],
 	) => Promise<unknown>;
 }) {
 	const [open, setOpen] = useState(false);
 	const [name, setName] = useDebouncedInput(institution.name, () => undefined);
 	const [currency, setCurrency] = useState(institution.currency ?? "BRL");
+	const [countries, setCountries] = useState(institution.operatingCountryCodes ?? []);
+	const countryNames = new Intl.DisplayNames(document.documentElement.lang || "pt-BR", { type: "region" });
 	const [remainderOnFirst, setRemainderOnFirst] = useState(
 		institution.creditInstallmentRemainderOnFirst ?? false,
 	);
 	const save = () => {
 		try {
 			runDialogSave(
-				onUpdate(institution, name.trim(), currency, remainderOnFirst),
+				onUpdate(institution, name.trim(), currency, remainderOnFirst, countries),
 				() => setOpen(false),
 				"Salvando instituição",
 			);
@@ -54,6 +60,7 @@ export function EditInstitutionDialog({
 			onOpenChange={value => {
 				if (value) {
 					setName(institution.name);
+					setCountries(institution.operatingCountryCodes ?? []);
 					setCurrency(institution.currency ?? "BRL");
 					setRemainderOnFirst(institution.creditInstallmentRemainderOnFirst ?? false);
 				}
@@ -91,6 +98,38 @@ export function EditInstitutionDialog({
 					}}
 				>
 					<DialogBody>
+						<CustomSelect
+							label="Adicionar país de operação"
+							onValueChange={value => {
+								setCountries(current => [...current, value]);
+								showToast("País incluído na proposta", "info");
+							}}
+							options={countryCodes
+								.filter(code => !countries.includes(code))
+								.map(value => ({ label: countryNames.of(value) ?? value, value }))}
+							placeholder="Ex: Brasil"
+							searchable
+						/>
+						<ActionGroup>
+							{countries.map(code => (
+								<Button
+									key={code}
+									onClick={() => {
+										setCountries(current => current.filter(value => value !== code));
+										showToast("País removido da proposta", "info");
+									}}
+									type="button"
+									variant="outline"
+								>
+									{countryNames.of(code) ?? code} - Remover
+								</Button>
+							))}
+						</ActionGroup>
+						<p className="text-muted-foreground text-sm">
+							Países sugerem novos cadastros. Contas podem operar em outros países. Alterações aguardam
+							revisão administrativa.
+						</p>
+
 						<FormFieldRow>
 							<FormField
 								autoComplete="organization"

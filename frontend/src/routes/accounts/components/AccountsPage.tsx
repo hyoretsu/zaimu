@@ -38,6 +38,20 @@ export function AccountsPage() {
 		queryKey: [...queryKeys.accounts.list(identity!), "including-hidden"],
 	});
 
+	const guest = useAuthStore(state => state.isGuestMode);
+	const catalog = useQuery({
+		enabled: hasAccess && !guest,
+		queryFn: () => dataService.financialInstitutions.getAll(),
+		queryKey: ["institutions", identity],
+	});
+	const selectableInstitutions = [
+		...new Map(
+			[...getFinancialInstitutions(accounts.data ?? []), ...(catalog.data ?? [])].map(item => [
+				item.id,
+				item,
+			]),
+		).values(),
+	];
 	const invalidateAccountData = () => invalidateCacheOperation(queryClient, identity!, "account");
 	const createAccount = useMutation({
 		mutationFn: dataService.accounts.create,
@@ -84,7 +98,7 @@ export function AccountsPage() {
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
 			await invalidateAccountData();
-			showToast("Instituição atualizada.", "positive");
+			showToast(guest ? "Instituição atualizada." : "Proposta enviada para revisão.", "positive");
 		},
 	});
 
@@ -140,7 +154,7 @@ export function AccountsPage() {
 				title="Contas financeiras"
 			/>
 			<CreateFinancialAccountDialog
-				institutions={organization.institutions}
+				institutions={selectableInstitutions}
 				onCreate={async data => {
 					await createAccount.mutateAsync(data);
 				}}
@@ -190,7 +204,7 @@ export function AccountsPage() {
 						<FinancialInstitutionGroup
 							accounts={group.accounts}
 							institution={group.institution}
-							institutions={organization.institutions}
+							institutions={selectableInstitutions}
 							key={group.institution?.id ?? "unassigned"}
 							onCreate={async data => {
 								await createAccount.mutateAsync(data);
@@ -199,9 +213,15 @@ export function AccountsPage() {
 							onDeleteInstitution={institution => deleteInstitution.mutateAsync(institution.id)}
 							onHide={account => setAccountHidden.mutate({ id: account.id, isHidden: true })}
 							onUpdate={(id, data) => updateAccount.mutateAsync({ data, id })}
-							onUpdateInstitution={(institution, name, currency, creditInstallmentRemainderOnFirst) =>
+							onUpdateInstitution={(
+								institution,
+								name,
+								currency,
+								creditInstallmentRemainderOnFirst,
+								operatingCountryCodes,
+							) =>
 								updateInstitution.mutateAsync({
-									data: { creditInstallmentRemainderOnFirst, currency, name },
+									data: { creditInstallmentRemainderOnFirst, currency, name, operatingCountryCodes },
 									id: institution.id,
 								})
 							}

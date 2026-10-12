@@ -46,7 +46,27 @@ test("guest chart reads no dashboard or debt data and repeats selected dates", a
 		] as never),
 		spyOn(dataService.recurrences, "getAll").mockResolvedValue([]),
 		spyOn(dataService.creditCards, "getAll").mockResolvedValue([]),
-		spyOn(stores.localCreditBooks, "getAll").mockResolvedValue([{ data: {} }] as never),
+		spyOn(stores.localCreditBooks, "getAll").mockResolvedValue([
+			{
+				data: {
+					card: {
+						dueDay: 17,
+						id: "card",
+						ignoreStatementsBefore: null,
+						institutionId: null,
+						refundPolicy: null,
+						statementDay: 10,
+						userId: "guest",
+					},
+					charges: [],
+					installments: [],
+					payments: [],
+					purchases: [],
+					refunds: [],
+					statements: [],
+				},
+			},
+		] as never),
 		spyOn(await import("@zaimu/finance/credit-book"), "creditBookRewards").mockReturnValue([]),
 		spyOn(stores.localLoanPayments, "getAll").mockResolvedValue([]),
 		spyOn(stores.localRecurrenceOccurrences, "getAll").mockResolvedValue([]),
