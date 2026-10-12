@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useSearch } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
 import {
 	LuBanknote,
 	LuCreditCard,
@@ -57,9 +58,25 @@ export function FinancialAccountCard({
 		currency: account.rewardsAccount?.conversionCurrency ?? account.currency ?? "BRL",
 		style: "currency",
 	});
+	const { statementAccountId } = useSearch({ from: "/accounts" });
+	const cardRef = useRef<HTMLElement>(null);
+	const openedAccountId = useRef<string | undefined>(undefined);
 	const [statementOpen, setStatementOpen] = useState(false);
 	const [importOpen, setImportOpen] = useState(false);
 	const [reviewingImportId, setReviewingImportId] = useState<string | null>(null);
+	useEffect(() => {
+		if (statementAccountId !== account.id) {
+			openedAccountId.current = undefined;
+			return;
+		}
+		if (openedAccountId.current === statementAccountId || account.type === "CREDIT_CARD") return;
+		const frame = requestAnimationFrame(() => {
+			cardRef.current?.scrollIntoView({ behavior: "instant", block: "center" });
+			openedAccountId.current = statementAccountId;
+			setStatementOpen(true);
+		});
+		return () => cancelAnimationFrame(frame);
+	}, [account.id, account.type, statementAccountId]);
 	const config = accountType[account.type];
 	const Icon = config.icon;
 	const displayName = getFinancialAccountDisplayName(account);
@@ -67,7 +84,10 @@ export function FinancialAccountCard({
 	const listName = getFinancialAccountTitle(account);
 	const accountHasCustomTitle = Boolean(account.name?.trim() && listName !== typeLabel);
 	return (
-		<article className="group rounded-2xl border bg-card p-5 shadow-card transition hover:-translate-y-0.5 hover:border-primary/30">
+		<article
+			className="group rounded-2xl border bg-card p-5 shadow-card transition hover:-translate-y-0.5 hover:border-primary/30"
+			ref={cardRef}
+		>
 			<div className="flex min-h-16 items-start justify-between gap-4">
 				<div className="flex min-w-0 flex-1 items-start gap-3">
 					<span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
@@ -170,11 +190,6 @@ export function FinancialAccountCard({
 					>
 						<LuFileUp /> Importar extrato
 					</Button>
-					<FinancialAccountStatementDialog
-						account={account}
-						onOpenChange={setStatementOpen}
-						open={statementOpen}
-					/>
 					<ImportTransactionsDialog
 						defaultFinancialAccountId={account.id}
 						onImported={setReviewingImportId}
@@ -188,6 +203,13 @@ export function FinancialAccountCard({
 					/>
 				</>
 			) : null}
+			{account.type !== "CREDIT_CARD" && (
+				<FinancialAccountStatementDialog
+					account={account}
+					onOpenChange={setStatementOpen}
+					open={statementOpen}
+				/>
+			)}
 		</article>
 	);
 }

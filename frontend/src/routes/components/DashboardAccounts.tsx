@@ -111,7 +111,7 @@ export function DashboardAccounts({ accounts, endDate }: DashboardAccountsProps)
 												}).format(account.balance)}
 											</strong>
 											<Button asChild className="cursor-pointer" size="sm" variant="outline">
-												<Link to="/accounts">
+												<Link search={{ statementAccountId: account.id }} to="/accounts">
 													Extrato <LuArrowRight />
 												</Link>
 											</Button>
