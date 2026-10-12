@@ -6,11 +6,9 @@ export function TransactionDateHeader({
 	endingBalance?: string;
 }) {
 	return (
-		<header className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+		<header className="flex min-w-0 flex-col items-start gap-1">
 			<h2 className="font-medium text-muted-foreground text-sm">{dateLabel}</h2>
-			{endingBalance ? (
-				<p className="text-end text-muted-foreground text-sm">Saldo final: {endingBalance}</p>
-			) : null}
+			{endingBalance ? <p className="text-muted-foreground text-sm">Saldo final: {endingBalance}</p> : null}
 		</header>
 	);
 }
