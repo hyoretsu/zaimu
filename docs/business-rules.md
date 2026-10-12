@@ -86,7 +86,7 @@ Instituições podem definir rendimento padrão por faixas progressivas de saldo
 
 Alterar ou remover a regra cria, por padrão, uma configuração válida a partir do dia seguinte. O usuário pode optar por recalcular o dia atual; nesse caso, eventual ajuste ou exclusão do rendimento automático do dia é removido antes do recálculo. Rendimentos de dias anteriores preservam a regra histórica, inclusive a alíquota de imposto. Cada rendimento automático pode ter valor ajustado ou ser excluído no extrato; também podem ser lançados rendimentos manuais por conta e data.
 
-Países, associações moeda-país e feriados por país são globais e editáveis exclusivamente por administradores. A moeda da conta determina os calendários aplicáveis. Feriados bloqueiam rendimento automático e projetado naquela moeda; finais de semana continuam sem rendimento. Feriados pessoais antigos não são promovidos ao calendário global. Alterações administrativas recalculam rendimentos afetados.
+Países, associações moeda-país e feriados por país são globais e obtidos automaticamente das fontes oficiais. Não há tela administrativa de cadastro manual desses dados. O país da conta determina o calendário aplicável. Feriados bloqueiam rendimento automático e projetado naquela moeda; finais de semana continuam sem rendimento. Feriados pessoais antigos não são promovidos ao calendário global. Alterações administrativas recalculam rendimentos afetados.
 
 ## Taxas de compras no cartão
 

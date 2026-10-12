@@ -4,7 +4,6 @@ export type MobileTabId = (typeof mobileTabIds)[number];
 
 export const mobileScreenPaths = [
 	"/admin",
-	"/admin/yield-calendar",
 	"/admin/history",
 	"/admin/taxes",
 	"/admin/users",
@@ -38,7 +37,6 @@ const tabByScreen = {
 	"/admin/history": "more",
 	"/admin/taxes": "more",
 	"/admin/users": "more",
-	"/admin/yield-calendar": "more",
 	"/credit-cards": "creditCards",
 	"/debts": "more",
 	"/loans": "more",

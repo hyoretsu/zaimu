@@ -19,7 +19,6 @@ describe("mobile tab routes", () => {
 		["/more", "more", "/more"],
 		["/admin", "more", "/admin"],
 		["/admin/", "more", "/admin"],
-		["/admin/yield-calendar", "more", "/admin/yield-calendar"],
 		["/admin/history/", "more", "/admin/history"],
 		["/admin/taxes", "more", "/admin/taxes"],
 		["/admin/users", "more", "/admin/users"],

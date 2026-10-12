@@ -26,11 +26,6 @@ const TaxesPage = lazy(() =>
 const UsersPage = lazy(() =>
 	import("@/routes/admin/users/components/UsersPage").then(module => ({ default: module.UsersPage })),
 );
-const CalendarPage = lazy(() =>
-	import("@/routes/admin/yield-calendar/components/CalendarPage").then(module => ({
-		default: module.CalendarPage,
-	})),
-);
 const AccountsPage = lazy(() =>
 	import("@/routes/accounts/components/AccountsPage").then(module => ({ default: module.AccountsPage })),
 );
@@ -75,7 +70,6 @@ const screenByPath = {
 	"/admin/history": HistoryPage,
 	"/admin/taxes": TaxesPage,
 	"/admin/users": UsersPage,
-	"/admin/yield-calendar": CalendarPage,
 	"/credit-cards": CreditCardsPage,
 	"/debts": DebtsPage,
 	"/loans": EmpréstimosPage,

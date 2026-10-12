@@ -1,20 +1,8 @@
 import { Link } from "@tanstack/react-router";
-import {
-	LuCalendarDays,
-	LuChartNoAxesCombined,
-	LuChevronRight,
-	LuReceiptText,
-	LuUsers,
-} from "react-icons/lu";
+import { LuChartNoAxesCombined, LuChevronRight, LuReceiptText, LuUsers } from "react-icons/lu";
 import { AdminPageLayout } from "./AdminPageLayout";
 
 const sections = [
-	{
-		description: "Configure o calendário usado nos rendimentos das contas.",
-		icon: LuCalendarDays,
-		title: "Moedas, países e feriados",
-		to: "/admin/yield-calendar",
-	},
 	{
 		description: "Consulte a cobertura de juros e conversões cambiais.",
 		icon: LuChartNoAxesCombined,
