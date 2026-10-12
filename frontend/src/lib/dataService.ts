@@ -38,6 +38,7 @@ import {
 } from "@zaimu/finance/recurrence";
 import { listedRecurrenceStatements } from "@zaimu/finance/recurrence-projection";
 import { resolveTransactionMoneySides } from "@zaimu/finance/transaction-money";
+import { transactionPageDates } from "@zaimu/finance/transaction-page-dates";
 import { showToast } from "@/stores";
 import { guestCashbackSnapshot } from "./cashback-snapshot";
 import { type CatalogPageOptions, localCatalogPage } from "./catalog-pagination";
@@ -3757,7 +3758,10 @@ export const dataService = {
 			if (isGuestMode()) {
 				const { cursor: _cursor, limit: _limit, ...filters } = params;
 				const page = guestTransactionPage(await this.getAll(filters), getUserId(), params);
-				const dates = [...new Set(page.items.map(row => row.date.slice(0, 10)))];
+				const dates = transactionPageDates(
+					page.items.map(row => row.date.slice(0, 10)),
+					params,
+				);
 				const [accounts, transactions, holidays, yields, loanPayments] = await Promise.all([
 					localAccounts.getAll(),
 					localTransactions.getAll(),

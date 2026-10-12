@@ -23,6 +23,7 @@
 		"./money": "./src/money.ts",
 		"./currency-provider": "./src/currency-provider.ts",
 		"./currency-preference": "./src/currency-preference.ts",
+		"./transaction-page-dates": "./src/transaction-page-dates.ts",
 		"./transaction-money": "./src/transaction-money.ts",
 		"./yield-tax": "./src/yield-tax.ts",
 		"./yield-calendar": "./src/yield-calendar.ts",

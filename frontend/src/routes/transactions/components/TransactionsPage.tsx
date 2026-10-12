@@ -273,7 +273,11 @@ export function TransactionsPage() {
 	const today = getLocalDateKey(new Date());
 	const yieldsByDate = Map.groupBy(yieldEntries, entry => entry.date);
 	const displayDates = [
-		...new Set([...Object.keys(groupedTransactions ?? {}), ...yieldsByDate.keys()]),
+		...new Set([
+			...dailyEndingBalances.keys(),
+			...Object.keys(groupedTransactions ?? {}),
+			...yieldsByDate.keys(),
+		]),
 	].toSorted((a, b) => b.localeCompare(a));
 	const removeYield = useMutation({
 		mutationFn: async (entry: FinancialAccountYieldEntry) => {
@@ -604,6 +608,13 @@ export function TransactionsPage() {
 											: undefined
 									}
 								/>
+								{entries.length === 0 ? (
+									<EmptyState
+										description="Ajuste ou limpe os filtros para ver transações."
+										icon={<HiArrowsRightLeft />}
+										title="Nenhuma transação encontrada"
+									/>
+								) : null}
 								{singleCollapsedGroup ? (
 									<TransactionsGroupToggle
 										entryCount={singleCollapsedGroup.transactions.length}

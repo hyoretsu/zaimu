@@ -266,3 +266,7 @@ Cobertura financeira conserva histórico de juros/câmbio e inclui associações
 ### Calendário histórico legado
 
 Migração congela por conta os feriados usados pela antiga união de países da moeda, com data civil de corte. Dias anteriores ao corte mantêm esse calendário, inclusive quando país da conta permanece ambíguo. Dias posteriores exigem cobertura completa do país escolhido. Novas gerações e overrides não alteram o snapshot legado; valores registrados, ajustes e exclusões permanecem preservados.
+
+## Saldo diário na listagem de transações
+
+Ao selecionar uma única data, a listagem mantém o saldo de fechamento desse dia mesmo quando nenhum lançamento corresponde aos filtros. O saldo histórico considera o livro financeiro completo, independentemente dos filtros de transações. Conta conectada e modo visitante seguem a mesma regra.

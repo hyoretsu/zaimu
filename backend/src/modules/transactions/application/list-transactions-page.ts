@@ -1,3 +1,4 @@
+import { transactionPageDates } from "@zaimu/finance/transaction-page-dates";
 import { getMonetaryBalancesAtDates } from "~/modules/accounts/application/get-monetary-balances-at-dates";
 import { getTagsByEntity, tagEntityType } from "~/modules/categories/application/tag-assignments";
 import { getCreditPurchaseSyncStatus } from "~/modules/creditCards/domain/credit-purchase-sync-status";
@@ -290,7 +291,8 @@ export async function listTransactionsPage(userId: string, input: ListTransactio
 	]);
 	const hasMore = rows.length > limit;
 	const page = rows.slice(0, limit);
-	if (page.length === 0) return { days: [], hasMore: false, nextCursor: null };
+	if (page.length === 0 && transactionPageDates([], input).length === 0)
+		return { days: [], hasMore: false, nextCursor: null };
 	await Promise.all(
 		page
 			.filter(row => row.currency && row.targetCurrency && row.currency !== row.targetCurrency)
@@ -372,7 +374,10 @@ export async function listTransactionsPage(userId: string, input: ListTransactio
 			};
 		},
 	);
-	const dates = [...new Set(page.map(row => row.date.toISOString().slice(0, 10)))];
+	const dates = transactionPageDates(
+		page.map(row => row.date.toISOString().slice(0, 10)),
+		input,
+	);
 	const endingBalanceByDate = await getMonetaryBalancesAtDates(
 		userId,
 		dates.map(date => new Date(`${date}T12:00:00`)),
