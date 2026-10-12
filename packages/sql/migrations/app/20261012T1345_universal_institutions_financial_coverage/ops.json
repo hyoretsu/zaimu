@@ -1,0 +1,2170 @@
+[
+	{
+		"execute": [
+			{
+				"description": "drop index \"FinancialInstitutionYieldPolicy_institutionId_effectiveDate_key\"",
+				"params": [],
+				"sql": "DROP INDEX \"public\".\"FinancialInstitutionYieldPolicy_institutionId_effectiveDate_key\""
+			}
+		],
+		"id": "dropIndex.FinancialInstitutionYieldPolicy.FinancialInstitutionYieldPolicy_institutionId_effectiveDate_key",
+		"label": "Drop index \"FinancialInstitutionYieldPolicy_institutionId_effectiveDate_key\"",
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify index \"FinancialInstitutionYieldPolicy_institutionId_effectiveDate_key\" does not exist",
+				"params": ["\"public\".\"FinancialInstitutionYieldPolicy_institutionId_effectiveDate_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"FinancialInstitutionYieldPolicy_institutionId_effectiveDate_key\" exists",
+				"params": ["\"public\".\"FinancialInstitutionYieldPolicy_institutionId_effectiveDate_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "FinancialInstitutionYieldPolicy_institutionId_effectiveDate_key",
+				"objectType": "index",
+				"schema": "public",
+				"table": "FinancialInstitutionYieldPolicy"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "drop column \"name\"",
+				"sql": "ALTER TABLE \"public\".\"YieldCalendarCountry\" DROP COLUMN \"name\""
+			}
+		],
+		"id": "dropColumn.YieldCalendarCountry.name",
+		"label": "Drop column \"name\" from \"YieldCalendarCountry\"",
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"name\" does not exist",
+				"params": ["public", "YieldCalendarCountry", "name"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"name\" exists",
+				"params": ["public", "YieldCalendarCountry", "name"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "name",
+				"objectType": "column",
+				"schema": "public",
+				"table": "YieldCalendarCountry"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"AppNotification\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"AppNotification\" (\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"id\" character varying(36) NOT NULL,\n  \"payload\" json NOT NULL,\n  \"readAt\" timestamp(3),\n  \"type\" character varying(40) NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"userId\" character varying(36) NOT NULL,\n  PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.AppNotification",
+		"label": "Create table \"AppNotification\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"AppNotification\" exists",
+				"params": ["\"public\".\"AppNotification\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"AppNotification\" does not exist",
+				"params": ["\"public\".\"AppNotification\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"AppNotification\"",
+		"target": {
+			"details": {
+				"name": "AppNotification",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"CurrencyCountryAssociation\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"CurrencyCountryAssociation\" (\n  \"countryCode\" character varying(2) NOT NULL,\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"currency\" character varying(3) NOT NULL,\n  \"effectiveFrom\" date,\n  \"effectiveUntil\" date,\n  \"id\" character varying(36) NOT NULL,\n  \"source\" character varying(32) NOT NULL,\n  \"sourceVersion\" character varying(64) NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.CurrencyCountryAssociation",
+		"label": "Create table \"CurrencyCountryAssociation\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"CurrencyCountryAssociation\" exists",
+				"params": ["\"public\".\"CurrencyCountryAssociation\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"CurrencyCountryAssociation\" does not exist",
+				"params": ["\"public\".\"CurrencyCountryAssociation\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"CurrencyCountryAssociation\"",
+		"target": {
+			"details": {
+				"name": "CurrencyCountryAssociation",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"FinancialInstitutionProfile\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"FinancialInstitutionProfile\" (\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"id\" character varying(36) NOT NULL,\n  \"institutionId\" character varying(36) NOT NULL,\n  \"isDefault\" bool DEFAULT false NOT NULL,\n  \"name\" character varying(100) NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.FinancialInstitutionProfile",
+		"label": "Create table \"FinancialInstitutionProfile\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"FinancialInstitutionProfile\" exists",
+				"params": ["\"public\".\"FinancialInstitutionProfile\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"FinancialInstitutionProfile\" does not exist",
+				"params": ["\"public\".\"FinancialInstitutionProfile\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"FinancialInstitutionProfile\"",
+		"target": {
+			"details": {
+				"name": "FinancialInstitutionProfile",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"FinancialInstitutionProposal\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"FinancialInstitutionProposal\" (\n  \"authorId\" character varying(36) NOT NULL,\n  \"baseVersion\" int4,\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"effectiveDate\" date,\n  \"id\" character varying(36) NOT NULL,\n  \"institutionId\" character varying(36),\n  \"kind\" character varying(24) NOT NULL,\n  \"payload\" json NOT NULL,\n  \"reason\" text,\n  \"reviewedAt\" timestamp(3),\n  \"reviewerId\" character varying(36),\n  \"status\" character varying(16) DEFAULT 'PENDING' NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.FinancialInstitutionProposal",
+		"label": "Create table \"FinancialInstitutionProposal\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"FinancialInstitutionProposal\" exists",
+				"params": ["\"public\".\"FinancialInstitutionProposal\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"FinancialInstitutionProposal\" does not exist",
+				"params": ["\"public\".\"FinancialInstitutionProposal\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"FinancialInstitutionProposal\"",
+		"target": {
+			"details": {
+				"name": "FinancialInstitutionProposal",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"InstitutionReviewAudit\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"InstitutionReviewAudit\" (\n  \"action\" character varying(24) NOT NULL,\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"id\" character varying(36) NOT NULL,\n  \"payload\" json NOT NULL,\n  \"proposalId\" character varying(36) NOT NULL,\n  \"reviewerId\" character varying(36) NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.InstitutionReviewAudit",
+		"label": "Create table \"InstitutionReviewAudit\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"InstitutionReviewAudit\" exists",
+				"params": ["\"public\".\"InstitutionReviewAudit\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"InstitutionReviewAudit\" does not exist",
+				"params": ["\"public\".\"InstitutionReviewAudit\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"InstitutionReviewAudit\"",
+		"target": {
+			"details": {
+				"name": "InstitutionReviewAudit",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"UserFinancialInstitution\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"UserFinancialInstitution\" (\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"globalRulesFrom\" date,\n  \"id\" character varying(36) NOT NULL,\n  \"institutionId\" character varying(36) NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"userId\" character varying(36) NOT NULL,\n  PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.UserFinancialInstitution",
+		"label": "Create table \"UserFinancialInstitution\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"UserFinancialInstitution\" exists",
+				"params": ["\"public\".\"UserFinancialInstitution\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"UserFinancialInstitution\" does not exist",
+				"params": ["\"public\".\"UserFinancialInstitution\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"UserFinancialInstitution\"",
+		"target": {
+			"details": {
+				"name": "UserFinancialInstitution",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"UserInstitutionProfileChange\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"UserInstitutionProfileChange\" (\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"effectiveDate\" date NOT NULL,\n  \"id\" character varying(36) NOT NULL,\n  \"linkId\" character varying(36) NOT NULL,\n  \"profileId\" character varying(36) NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.UserInstitutionProfileChange",
+		"label": "Create table \"UserInstitutionProfileChange\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"UserInstitutionProfileChange\" exists",
+				"params": ["\"public\".\"UserInstitutionProfileChange\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"UserInstitutionProfileChange\" does not exist",
+				"params": ["\"public\".\"UserInstitutionProfileChange\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"UserInstitutionProfileChange\"",
+		"target": {
+			"details": {
+				"name": "UserInstitutionProfileChange",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"YieldCalendarCoverage\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"YieldCalendarCoverage\" (\n  \"confirmedBy\" character varying(36),\n  \"countryCode\" character varying(2) NOT NULL,\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"generatedAt\" timestamp(3),\n  \"source\" character varying(32) NOT NULL,\n  \"sourceVersion\" character varying(64) NOT NULL,\n  \"status\" character varying(24) NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"year\" int4 NOT NULL,\n  PRIMARY KEY (\"countryCode\", \"year\")\n)"
+			}
+		],
+		"id": "table.YieldCalendarCoverage",
+		"label": "Create table \"YieldCalendarCoverage\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"YieldCalendarCoverage\" exists",
+				"params": ["\"public\".\"YieldCalendarCoverage\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"YieldCalendarCoverage\" does not exist",
+				"params": ["\"public\".\"YieldCalendarCoverage\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"YieldCalendarCoverage\"",
+		"target": {
+			"details": {
+				"name": "YieldCalendarCoverage",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"YieldCalendarOverride\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"YieldCalendarOverride\" (\n  \"action\" character varying(16) NOT NULL,\n  \"countryCode\" character varying(2) NOT NULL,\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"date\" date NOT NULL,\n  \"id\" character varying(36) NOT NULL,\n  \"name\" character varying(100),\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.YieldCalendarOverride",
+		"label": "Create table \"YieldCalendarOverride\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"YieldCalendarOverride\" exists",
+				"params": ["\"public\".\"YieldCalendarOverride\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"YieldCalendarOverride\" does not exist",
+				"params": ["\"public\".\"YieldCalendarOverride\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"YieldCalendarOverride\"",
+		"target": {
+			"details": {
+				"name": "YieldCalendarOverride",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"countryCode\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialAccount\" ADD COLUMN \"countryCode\" character varying(2)"
+			}
+		],
+		"id": "column.public.FinancialAccount.countryCode",
+		"label": "Add column \"countryCode\" to \"FinancialAccount\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"countryCode\" exists",
+				"params": ["public", "FinancialAccount", "countryCode"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"countryCode\" is missing",
+				"params": ["public", "FinancialAccount", "countryCode"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "countryCode",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialAccount"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"legacyInstitutionId\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialAccount\" ADD COLUMN \"legacyInstitutionId\" character varying(36)"
+			}
+		],
+		"id": "column.public.FinancialAccount.legacyInstitutionId",
+		"label": "Add column \"legacyInstitutionId\" to \"FinancialAccount\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"legacyInstitutionId\" exists",
+				"params": ["public", "FinancialAccount", "legacyInstitutionId"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"legacyInstitutionId\" is missing",
+				"params": ["public", "FinancialAccount", "legacyInstitutionId"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "legacyInstitutionId",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialAccount"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"operatingCountryCodes\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialInstitution\" ADD COLUMN \"operatingCountryCodes\" character varying(2)[] DEFAULT '{}' NOT NULL"
+			}
+		],
+		"id": "column.public.FinancialInstitution.operatingCountryCodes",
+		"label": "Add column \"operatingCountryCodes\" to \"FinancialInstitution\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"operatingCountryCodes\" exists",
+				"params": ["public", "FinancialInstitution", "operatingCountryCodes"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"operatingCountryCodes\" is missing",
+				"params": ["public", "FinancialInstitution", "operatingCountryCodes"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "operatingCountryCodes",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialInstitution"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"status\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialInstitution\" ADD COLUMN \"status\" character varying(24) DEFAULT 'LEGACY_PRIVATE' NOT NULL"
+			}
+		],
+		"id": "column.public.FinancialInstitution.status",
+		"label": "Add column \"status\" to \"FinancialInstitution\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"status\" exists",
+				"params": ["public", "FinancialInstitution", "status"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"status\" is missing",
+				"params": ["public", "FinancialInstitution", "status"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "status",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialInstitution"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"version\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialInstitution\" ADD COLUMN \"version\" int4 DEFAULT 1 NOT NULL"
+			}
+		],
+		"id": "column.public.FinancialInstitution.version",
+		"label": "Add column \"version\" to \"FinancialInstitution\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"version\" exists",
+				"params": ["public", "FinancialInstitution", "version"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"version\" is missing",
+				"params": ["public", "FinancialInstitution", "version"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "version",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialInstitution"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"countryCode\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialInstitutionYieldPolicy\" ADD COLUMN \"countryCode\" character varying(2)"
+			}
+		],
+		"id": "column.public.FinancialInstitutionYieldPolicy.countryCode",
+		"label": "Add column \"countryCode\" to \"FinancialInstitutionYieldPolicy\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"countryCode\" exists",
+				"params": ["public", "FinancialInstitutionYieldPolicy", "countryCode"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"countryCode\" is missing",
+				"params": ["public", "FinancialInstitutionYieldPolicy", "countryCode"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "countryCode",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialInstitutionYieldPolicy"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"effectiveUntil\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialInstitutionYieldPolicy\" ADD COLUMN \"effectiveUntil\" date"
+			}
+		],
+		"id": "column.public.FinancialInstitutionYieldPolicy.effectiveUntil",
+		"label": "Add column \"effectiveUntil\" to \"FinancialInstitutionYieldPolicy\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"effectiveUntil\" exists",
+				"params": ["public", "FinancialInstitutionYieldPolicy", "effectiveUntil"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"effectiveUntil\" is missing",
+				"params": ["public", "FinancialInstitutionYieldPolicy", "effectiveUntil"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "effectiveUntil",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialInstitutionYieldPolicy"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"profileId\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialInstitutionYieldPolicy\" ADD COLUMN \"profileId\" character varying(36)"
+			}
+		],
+		"id": "column.public.FinancialInstitutionYieldPolicy.profileId",
+		"label": "Add column \"profileId\" to \"FinancialInstitutionYieldPolicy\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"profileId\" exists",
+				"params": ["public", "FinancialInstitutionYieldPolicy", "profileId"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"profileId\" is missing",
+				"params": ["public", "FinancialInstitutionYieldPolicy", "profileId"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "profileId",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialInstitutionYieldPolicy"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"status\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialInstitutionYieldPolicy\" ADD COLUMN \"status\" character varying(16) DEFAULT 'APPROVED' NOT NULL"
+			}
+		],
+		"id": "column.public.FinancialInstitutionYieldPolicy.status",
+		"label": "Add column \"status\" to \"FinancialInstitutionYieldPolicy\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"status\" exists",
+				"params": ["public", "FinancialInstitutionYieldPolicy", "status"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"status\" is missing",
+				"params": ["public", "FinancialInstitutionYieldPolicy", "status"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "status",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialInstitutionYieldPolicy"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"effectiveFrom\"",
+				"sql": "ALTER TABLE \"public\".\"YieldCalendarCurrency\" ADD COLUMN \"effectiveFrom\" date"
+			}
+		],
+		"id": "column.public.YieldCalendarCurrency.effectiveFrom",
+		"label": "Add column \"effectiveFrom\" to \"YieldCalendarCurrency\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"effectiveFrom\" exists",
+				"params": ["public", "YieldCalendarCurrency", "effectiveFrom"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"effectiveFrom\" is missing",
+				"params": ["public", "YieldCalendarCurrency", "effectiveFrom"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "effectiveFrom",
+				"objectType": "column",
+				"schema": "public",
+				"table": "YieldCalendarCurrency"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"effectiveUntil\"",
+				"sql": "ALTER TABLE \"public\".\"YieldCalendarCurrency\" ADD COLUMN \"effectiveUntil\" date"
+			}
+		],
+		"id": "column.public.YieldCalendarCurrency.effectiveUntil",
+		"label": "Add column \"effectiveUntil\" to \"YieldCalendarCurrency\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"effectiveUntil\" exists",
+				"params": ["public", "YieldCalendarCurrency", "effectiveUntil"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"effectiveUntil\" is missing",
+				"params": ["public", "YieldCalendarCurrency", "effectiveUntil"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "effectiveUntil",
+				"objectType": "column",
+				"schema": "public",
+				"table": "YieldCalendarCurrency"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"source\"",
+				"sql": "ALTER TABLE \"public\".\"YieldCalendarCurrency\" ADD COLUMN \"source\" character varying(32) DEFAULT 'ADMIN' NOT NULL"
+			}
+		],
+		"id": "column.public.YieldCalendarCurrency.source",
+		"label": "Add column \"source\" to \"YieldCalendarCurrency\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"source\" exists",
+				"params": ["public", "YieldCalendarCurrency", "source"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"source\" is missing",
+				"params": ["public", "YieldCalendarCurrency", "source"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "source",
+				"objectType": "column",
+				"schema": "public",
+				"table": "YieldCalendarCurrency"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"sourceVersion\"",
+				"sql": "ALTER TABLE \"public\".\"YieldCalendarCurrency\" ADD COLUMN \"sourceVersion\" character varying(64)"
+			}
+		],
+		"id": "column.public.YieldCalendarCurrency.sourceVersion",
+		"label": "Add column \"sourceVersion\" to \"YieldCalendarCurrency\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"sourceVersion\" exists",
+				"params": ["public", "YieldCalendarCurrency", "sourceVersion"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"sourceVersion\" is missing",
+				"params": ["public", "YieldCalendarCurrency", "sourceVersion"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "sourceVersion",
+				"objectType": "column",
+				"schema": "public",
+				"table": "YieldCalendarCurrency"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"preferredCountry\"",
+				"sql": "ALTER TABLE \"public\".\"user\" ADD COLUMN \"preferredCountry\" character varying(2)"
+			}
+		],
+		"id": "column.public.user.preferredCountry",
+		"label": "Add column \"preferredCountry\" to \"user\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"preferredCountry\" exists",
+				"params": ["public", "user", "preferredCountry"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"preferredCountry\" is missing",
+				"params": ["public", "user", "preferredCountry"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "preferredCountry",
+				"objectType": "column",
+				"schema": "public",
+				"table": "user"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "drop NOT NULL on \"userId\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialInstitution\" ALTER COLUMN \"userId\" DROP NOT NULL"
+			}
+		],
+		"id": "alterNullability.dropNotNull.FinancialInstitution.userId",
+		"label": "Drop NOT NULL on \"FinancialInstitution\".\"userId\"",
+		"operationClass": "widening",
+		"postcheck": [
+			{
+				"description": "verify column \"userId\" is nullable",
+				"params": ["public", "FinancialInstitution", "userId", "YES"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"userId\" exists",
+				"params": ["public", "FinancialInstitution", "userId"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "userId",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialInstitution"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add check constraint \"FinancialInstitution_operatingCountryCodes_elem_not_nu_49201499\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialInstitution\" ADD CONSTRAINT \"FinancialInstitution_operatingCountryCodes_elem_not_nu_49201499\" CHECK (array_position(\"operatingCountryCodes\", NULL) IS NULL)"
+			}
+		],
+		"id": "checkConstraint.FinancialInstitution.FinancialInstitution_operatingCountryCodes_elem_not_nu_49201499",
+		"label": "Add check constraint \"FinancialInstitution_operatingCountryCodes_elem_not_nu_49201499\" on \"FinancialInstitution\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify constraint \"FinancialInstitution_operatingCountryCodes_elem_not_nu_49201499\" exists",
+				"params": [
+					"FinancialInstitution_operatingCountryCodes_elem_not_nu_49201499",
+					"public",
+					"\"public\".\"FinancialInstitution\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure constraint \"FinancialInstitution_operatingCountryCodes_elem_not_nu_49201499\" does not exist",
+				"params": [
+					"FinancialInstitution_operatingCountryCodes_elem_not_nu_49201499",
+					"public",
+					"\"public\".\"FinancialInstitution\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "FinancialInstitution_operatingCountryCodes_elem_not_nu_49201499",
+				"objectType": "checkConstraint",
+				"schema": "public",
+				"table": "FinancialInstitution"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add unique constraint \"FinancialInstitutionProfile_institutionId_name_key\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialInstitutionProfile\" ADD CONSTRAINT \"FinancialInstitutionProfile_institutionId_name_key\" UNIQUE (\"institutionId\", \"name\")"
+			}
+		],
+		"id": "unique.FinancialInstitutionProfile.FinancialInstitutionProfile_institutionId_name_key",
+		"label": "Add unique constraint on \"FinancialInstitutionProfile\" (institutionId, name)",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify constraint \"FinancialInstitutionProfile_institutionId_name_key\" exists",
+				"params": [
+					"FinancialInstitutionProfile_institutionId_name_key",
+					"public",
+					"\"public\".\"FinancialInstitutionProfile\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure constraint \"FinancialInstitutionProfile_institutionId_name_key\" does not exist",
+				"params": [
+					"FinancialInstitutionProfile_institutionId_name_key",
+					"public",
+					"\"public\".\"FinancialInstitutionProfile\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "FinancialInstitutionProfile_institutionId_name_key",
+				"objectType": "unique",
+				"schema": "public",
+				"table": "FinancialInstitutionProfile"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add unique constraint \"UserFinancialInstitution_userId_institutionId_key\"",
+				"sql": "ALTER TABLE \"public\".\"UserFinancialInstitution\" ADD CONSTRAINT \"UserFinancialInstitution_userId_institutionId_key\" UNIQUE (\"userId\", \"institutionId\")"
+			}
+		],
+		"id": "unique.UserFinancialInstitution.UserFinancialInstitution_userId_institutionId_key",
+		"label": "Add unique constraint on \"UserFinancialInstitution\" (userId, institutionId)",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify constraint \"UserFinancialInstitution_userId_institutionId_key\" exists",
+				"params": [
+					"UserFinancialInstitution_userId_institutionId_key",
+					"public",
+					"\"public\".\"UserFinancialInstitution\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure constraint \"UserFinancialInstitution_userId_institutionId_key\" does not exist",
+				"params": [
+					"UserFinancialInstitution_userId_institutionId_key",
+					"public",
+					"\"public\".\"UserFinancialInstitution\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "UserFinancialInstitution_userId_institutionId_key",
+				"objectType": "unique",
+				"schema": "public",
+				"table": "UserFinancialInstitution"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add unique constraint \"UserInstitutionProfileChange_linkId_effectiveDate_key\"",
+				"sql": "ALTER TABLE \"public\".\"UserInstitutionProfileChange\" ADD CONSTRAINT \"UserInstitutionProfileChange_linkId_effectiveDate_key\" UNIQUE (\"linkId\", \"effectiveDate\")"
+			}
+		],
+		"id": "unique.UserInstitutionProfileChange.UserInstitutionProfileChange_linkId_effectiveDate_key",
+		"label": "Add unique constraint on \"UserInstitutionProfileChange\" (linkId, effectiveDate)",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify constraint \"UserInstitutionProfileChange_linkId_effectiveDate_key\" exists",
+				"params": [
+					"UserInstitutionProfileChange_linkId_effectiveDate_key",
+					"public",
+					"\"public\".\"UserInstitutionProfileChange\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure constraint \"UserInstitutionProfileChange_linkId_effectiveDate_key\" does not exist",
+				"params": [
+					"UserInstitutionProfileChange_linkId_effectiveDate_key",
+					"public",
+					"\"public\".\"UserInstitutionProfileChange\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "UserInstitutionProfileChange_linkId_effectiveDate_key",
+				"objectType": "unique",
+				"schema": "public",
+				"table": "UserInstitutionProfileChange"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add unique constraint \"YieldCalendarOverride_countryCode_date_key\"",
+				"sql": "ALTER TABLE \"public\".\"YieldCalendarOverride\" ADD CONSTRAINT \"YieldCalendarOverride_countryCode_date_key\" UNIQUE (\"countryCode\", \"date\")"
+			}
+		],
+		"id": "unique.YieldCalendarOverride.YieldCalendarOverride_countryCode_date_key",
+		"label": "Add unique constraint on \"YieldCalendarOverride\" (countryCode, date)",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify constraint \"YieldCalendarOverride_countryCode_date_key\" exists",
+				"params": [
+					"YieldCalendarOverride_countryCode_date_key",
+					"public",
+					"\"public\".\"YieldCalendarOverride\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure constraint \"YieldCalendarOverride_countryCode_date_key\" does not exist",
+				"params": [
+					"YieldCalendarOverride_countryCode_date_key",
+					"public",
+					"\"public\".\"YieldCalendarOverride\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "YieldCalendarOverride_countryCode_date_key",
+				"objectType": "unique",
+				"schema": "public",
+				"table": "YieldCalendarOverride"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"AppNotification_userId_readAt_createdAt_idx_9b6c3810\"",
+				"params": [],
+				"sql": "CREATE INDEX \"AppNotification_userId_readAt_createdAt_idx_9b6c3810\" ON \"public\".\"AppNotification\" (\"userId\", \"readAt\", \"createdAt\")"
+			}
+		],
+		"id": "index.AppNotification.AppNotification_userId_readAt_createdAt_idx_9b6c3810",
+		"label": "Create index \"AppNotification_userId_readAt_createdAt_idx_9b6c3810\" on \"AppNotification\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"AppNotification_userId_readAt_createdAt_idx_9b6c3810\" exists",
+				"params": ["\"public\".\"AppNotification_userId_readAt_createdAt_idx_9b6c3810\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"AppNotification_userId_readAt_createdAt_idx_9b6c3810\" does not exist",
+				"params": ["\"public\".\"AppNotification_userId_readAt_createdAt_idx_9b6c3810\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "AppNotification_userId_readAt_createdAt_idx_9b6c3810",
+				"objectType": "index",
+				"schema": "public",
+				"table": "AppNotification"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"CurrencyCountryAssociation_currency_countryCode_idx_c16d675b\"",
+				"params": [],
+				"sql": "CREATE INDEX \"CurrencyCountryAssociation_currency_countryCode_idx_c16d675b\" ON \"public\".\"CurrencyCountryAssociation\" (\"currency\", \"countryCode\")"
+			}
+		],
+		"id": "index.CurrencyCountryAssociation.CurrencyCountryAssociation_currency_countryCode_idx_c16d675b",
+		"label": "Create index \"CurrencyCountryAssociation_currency_countryCode_idx_c16d675b\" on \"CurrencyCountryAssociation\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"CurrencyCountryAssociation_currency_countryCode_idx_c16d675b\" exists",
+				"params": ["\"public\".\"CurrencyCountryAssociation_currency_countryCode_idx_c16d675b\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"CurrencyCountryAssociation_currency_countryCode_idx_c16d675b\" does not exist",
+				"params": ["\"public\".\"CurrencyCountryAssociation_currency_countryCode_idx_c16d675b\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CurrencyCountryAssociation_currency_countryCode_idx_c16d675b",
+				"objectType": "index",
+				"schema": "public",
+				"table": "CurrencyCountryAssociation"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"FinancialInstitutionProposal_authorId_idx_e47547ed\"",
+				"params": [],
+				"sql": "CREATE INDEX \"FinancialInstitutionProposal_authorId_idx_e47547ed\" ON \"public\".\"FinancialInstitutionProposal\" (\"authorId\")"
+			}
+		],
+		"id": "index.FinancialInstitutionProposal.FinancialInstitutionProposal_authorId_idx_e47547ed",
+		"label": "Create index \"FinancialInstitutionProposal_authorId_idx_e47547ed\" on \"FinancialInstitutionProposal\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"FinancialInstitutionProposal_authorId_idx_e47547ed\" exists",
+				"params": ["\"public\".\"FinancialInstitutionProposal_authorId_idx_e47547ed\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"FinancialInstitutionProposal_authorId_idx_e47547ed\" does not exist",
+				"params": ["\"public\".\"FinancialInstitutionProposal_authorId_idx_e47547ed\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "FinancialInstitutionProposal_authorId_idx_e47547ed",
+				"objectType": "index",
+				"schema": "public",
+				"table": "FinancialInstitutionProposal"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"FinancialInstitutionProposal_institutionId_idx_bab0e331\"",
+				"params": [],
+				"sql": "CREATE INDEX \"FinancialInstitutionProposal_institutionId_idx_bab0e331\" ON \"public\".\"FinancialInstitutionProposal\" (\"institutionId\")"
+			}
+		],
+		"id": "index.FinancialInstitutionProposal.FinancialInstitutionProposal_institutionId_idx_bab0e331",
+		"label": "Create index \"FinancialInstitutionProposal_institutionId_idx_bab0e331\" on \"FinancialInstitutionProposal\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"FinancialInstitutionProposal_institutionId_idx_bab0e331\" exists",
+				"params": ["\"public\".\"FinancialInstitutionProposal_institutionId_idx_bab0e331\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"FinancialInstitutionProposal_institutionId_idx_bab0e331\" does not exist",
+				"params": ["\"public\".\"FinancialInstitutionProposal_institutionId_idx_bab0e331\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "FinancialInstitutionProposal_institutionId_idx_bab0e331",
+				"objectType": "index",
+				"schema": "public",
+				"table": "FinancialInstitutionProposal"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"FinancialInstitutionProposal_reviewerId_idx_25a27b4e\"",
+				"params": [],
+				"sql": "CREATE INDEX \"FinancialInstitutionProposal_reviewerId_idx_25a27b4e\" ON \"public\".\"FinancialInstitutionProposal\" (\"reviewerId\")"
+			}
+		],
+		"id": "index.FinancialInstitutionProposal.FinancialInstitutionProposal_reviewerId_idx_25a27b4e",
+		"label": "Create index \"FinancialInstitutionProposal_reviewerId_idx_25a27b4e\" on \"FinancialInstitutionProposal\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"FinancialInstitutionProposal_reviewerId_idx_25a27b4e\" exists",
+				"params": ["\"public\".\"FinancialInstitutionProposal_reviewerId_idx_25a27b4e\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"FinancialInstitutionProposal_reviewerId_idx_25a27b4e\" does not exist",
+				"params": ["\"public\".\"FinancialInstitutionProposal_reviewerId_idx_25a27b4e\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "FinancialInstitutionProposal_reviewerId_idx_25a27b4e",
+				"objectType": "index",
+				"schema": "public",
+				"table": "FinancialInstitutionProposal"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"FinancialInstitutionProposal_status_createdAt_idx_58610442\"",
+				"params": [],
+				"sql": "CREATE INDEX \"FinancialInstitutionProposal_status_createdAt_idx_58610442\" ON \"public\".\"FinancialInstitutionProposal\" (\"status\", \"createdAt\")"
+			}
+		],
+		"id": "index.FinancialInstitutionProposal.FinancialInstitutionProposal_status_createdAt_idx_58610442",
+		"label": "Create index \"FinancialInstitutionProposal_status_createdAt_idx_58610442\" on \"FinancialInstitutionProposal\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"FinancialInstitutionProposal_status_createdAt_idx_58610442\" exists",
+				"params": ["\"public\".\"FinancialInstitutionProposal_status_createdAt_idx_58610442\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"FinancialInstitutionProposal_status_createdAt_idx_58610442\" does not exist",
+				"params": ["\"public\".\"FinancialInstitutionProposal_status_createdAt_idx_58610442\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "FinancialInstitutionProposal_status_createdAt_idx_58610442",
+				"objectType": "index",
+				"schema": "public",
+				"table": "FinancialInstitutionProposal"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"FinancialInstitutionYieldPolicy_institutionId_effectiveDate_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"FinancialInstitutionYieldPolicy_institutionId_effectiveDate_idx\" ON \"public\".\"FinancialInstitutionYieldPolicy\" (\"financialInstitutionId\", \"effectiveDate\")"
+			}
+		],
+		"id": "index.FinancialInstitutionYieldPolicy.FinancialInstitutionYieldPolicy_institutionId_effectiveDate_idx",
+		"label": "Create index \"FinancialInstitutionYieldPolicy_institutionId_effectiveDate_idx\" on \"FinancialInstitutionYieldPolicy\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"FinancialInstitutionYieldPolicy_institutionId_effectiveDate_idx\" exists",
+				"params": ["\"public\".\"FinancialInstitutionYieldPolicy_institutionId_effectiveDate_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"FinancialInstitutionYieldPolicy_institutionId_effectiveDate_idx\" does not exist",
+				"params": ["\"public\".\"FinancialInstitutionYieldPolicy_institutionId_effectiveDate_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "FinancialInstitutionYieldPolicy_institutionId_effectiveDate_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "FinancialInstitutionYieldPolicy"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"InstitutionPolicy_scope_date_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"InstitutionPolicy_scope_date_idx\" ON \"public\".\"FinancialInstitutionYieldPolicy\" (\"profileId\", \"countryCode\", \"currency\", \"effectiveDate\")"
+			}
+		],
+		"id": "index.FinancialInstitutionYieldPolicy.InstitutionPolicy_scope_date_idx",
+		"label": "Create index \"InstitutionPolicy_scope_date_idx\" on \"FinancialInstitutionYieldPolicy\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"InstitutionPolicy_scope_date_idx\" exists",
+				"params": ["\"public\".\"InstitutionPolicy_scope_date_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"InstitutionPolicy_scope_date_idx\" does not exist",
+				"params": ["\"public\".\"InstitutionPolicy_scope_date_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "InstitutionPolicy_scope_date_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "FinancialInstitutionYieldPolicy"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"InstitutionReviewAudit_proposalId_idx_2f5df372\"",
+				"params": [],
+				"sql": "CREATE INDEX \"InstitutionReviewAudit_proposalId_idx_2f5df372\" ON \"public\".\"InstitutionReviewAudit\" (\"proposalId\")"
+			}
+		],
+		"id": "index.InstitutionReviewAudit.InstitutionReviewAudit_proposalId_idx_2f5df372",
+		"label": "Create index \"InstitutionReviewAudit_proposalId_idx_2f5df372\" on \"InstitutionReviewAudit\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"InstitutionReviewAudit_proposalId_idx_2f5df372\" exists",
+				"params": ["\"public\".\"InstitutionReviewAudit_proposalId_idx_2f5df372\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"InstitutionReviewAudit_proposalId_idx_2f5df372\" does not exist",
+				"params": ["\"public\".\"InstitutionReviewAudit_proposalId_idx_2f5df372\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "InstitutionReviewAudit_proposalId_idx_2f5df372",
+				"objectType": "index",
+				"schema": "public",
+				"table": "InstitutionReviewAudit"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"InstitutionReviewAudit_reviewerId_idx_25a27b4e\"",
+				"params": [],
+				"sql": "CREATE INDEX \"InstitutionReviewAudit_reviewerId_idx_25a27b4e\" ON \"public\".\"InstitutionReviewAudit\" (\"reviewerId\")"
+			}
+		],
+		"id": "index.InstitutionReviewAudit.InstitutionReviewAudit_reviewerId_idx_25a27b4e",
+		"label": "Create index \"InstitutionReviewAudit_reviewerId_idx_25a27b4e\" on \"InstitutionReviewAudit\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"InstitutionReviewAudit_reviewerId_idx_25a27b4e\" exists",
+				"params": ["\"public\".\"InstitutionReviewAudit_reviewerId_idx_25a27b4e\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"InstitutionReviewAudit_reviewerId_idx_25a27b4e\" does not exist",
+				"params": ["\"public\".\"InstitutionReviewAudit_reviewerId_idx_25a27b4e\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "InstitutionReviewAudit_reviewerId_idx_25a27b4e",
+				"objectType": "index",
+				"schema": "public",
+				"table": "InstitutionReviewAudit"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"UserFinancialInstitution_institutionId_idx_bab0e331\"",
+				"params": [],
+				"sql": "CREATE INDEX \"UserFinancialInstitution_institutionId_idx_bab0e331\" ON \"public\".\"UserFinancialInstitution\" (\"institutionId\")"
+			}
+		],
+		"id": "index.UserFinancialInstitution.UserFinancialInstitution_institutionId_idx_bab0e331",
+		"label": "Create index \"UserFinancialInstitution_institutionId_idx_bab0e331\" on \"UserFinancialInstitution\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"UserFinancialInstitution_institutionId_idx_bab0e331\" exists",
+				"params": ["\"public\".\"UserFinancialInstitution_institutionId_idx_bab0e331\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"UserFinancialInstitution_institutionId_idx_bab0e331\" does not exist",
+				"params": ["\"public\".\"UserFinancialInstitution_institutionId_idx_bab0e331\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "UserFinancialInstitution_institutionId_idx_bab0e331",
+				"objectType": "index",
+				"schema": "public",
+				"table": "UserFinancialInstitution"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"UserInstitutionProfileChange_profileId_idx_d9cdfcaf\"",
+				"params": [],
+				"sql": "CREATE INDEX \"UserInstitutionProfileChange_profileId_idx_d9cdfcaf\" ON \"public\".\"UserInstitutionProfileChange\" (\"profileId\")"
+			}
+		],
+		"id": "index.UserInstitutionProfileChange.UserInstitutionProfileChange_profileId_idx_d9cdfcaf",
+		"label": "Create index \"UserInstitutionProfileChange_profileId_idx_d9cdfcaf\" on \"UserInstitutionProfileChange\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"UserInstitutionProfileChange_profileId_idx_d9cdfcaf\" exists",
+				"params": ["\"public\".\"UserInstitutionProfileChange_profileId_idx_d9cdfcaf\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"UserInstitutionProfileChange_profileId_idx_d9cdfcaf\" does not exist",
+				"params": ["\"public\".\"UserInstitutionProfileChange_profileId_idx_d9cdfcaf\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "UserInstitutionProfileChange_profileId_idx_d9cdfcaf",
+				"objectType": "index",
+				"schema": "public",
+				"table": "UserInstitutionProfileChange"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"AppNotification_userId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"AppNotification\"\nADD CONSTRAINT \"AppNotification_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"user\" (\"id\")\nON DELETE CASCADE"
+			}
+		],
+		"id": "foreignKey.AppNotification.AppNotification_userId_fkey",
+		"label": "Add foreign key \"AppNotification_userId_fkey\" on \"AppNotification\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"AppNotification_userId_fkey\" exists",
+				"params": ["AppNotification_userId_fkey", "public", "\"public\".\"AppNotification\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"AppNotification_userId_fkey\" does not exist",
+				"params": ["AppNotification_userId_fkey", "public", "\"public\".\"AppNotification\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "AppNotification_userId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "AppNotification"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"CurrencyCountryAssociation_countryCode_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"CurrencyCountryAssociation\"\nADD CONSTRAINT \"CurrencyCountryAssociation_countryCode_fkey\"\nFOREIGN KEY (\"countryCode\")\nREFERENCES \"public\".\"YieldCalendarCountry\" (\"code\")\nON DELETE RESTRICT"
+			}
+		],
+		"id": "foreignKey.CurrencyCountryAssociation.CurrencyCountryAssociation_countryCode_fkey",
+		"label": "Add foreign key \"CurrencyCountryAssociation_countryCode_fkey\" on \"CurrencyCountryAssociation\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"CurrencyCountryAssociation_countryCode_fkey\" exists",
+				"params": [
+					"CurrencyCountryAssociation_countryCode_fkey",
+					"public",
+					"\"public\".\"CurrencyCountryAssociation\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"CurrencyCountryAssociation_countryCode_fkey\" does not exist",
+				"params": [
+					"CurrencyCountryAssociation_countryCode_fkey",
+					"public",
+					"\"public\".\"CurrencyCountryAssociation\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CurrencyCountryAssociation_countryCode_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "CurrencyCountryAssociation"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"FinancialInstitutionProfile_institutionId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialInstitutionProfile\"\nADD CONSTRAINT \"FinancialInstitutionProfile_institutionId_fkey\"\nFOREIGN KEY (\"institutionId\")\nREFERENCES \"public\".\"FinancialInstitution\" (\"id\")\nON DELETE RESTRICT"
+			}
+		],
+		"id": "foreignKey.FinancialInstitutionProfile.FinancialInstitutionProfile_institutionId_fkey",
+		"label": "Add foreign key \"FinancialInstitutionProfile_institutionId_fkey\" on \"FinancialInstitutionProfile\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"FinancialInstitutionProfile_institutionId_fkey\" exists",
+				"params": [
+					"FinancialInstitutionProfile_institutionId_fkey",
+					"public",
+					"\"public\".\"FinancialInstitutionProfile\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"FinancialInstitutionProfile_institutionId_fkey\" does not exist",
+				"params": [
+					"FinancialInstitutionProfile_institutionId_fkey",
+					"public",
+					"\"public\".\"FinancialInstitutionProfile\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "FinancialInstitutionProfile_institutionId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "FinancialInstitutionProfile"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"FinancialInstitutionProposal_institutionId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialInstitutionProposal\"\nADD CONSTRAINT \"FinancialInstitutionProposal_institutionId_fkey\"\nFOREIGN KEY (\"institutionId\")\nREFERENCES \"public\".\"FinancialInstitution\" (\"id\")\nON DELETE RESTRICT"
+			}
+		],
+		"id": "foreignKey.FinancialInstitutionProposal.FinancialInstitutionProposal_institutionId_fkey",
+		"label": "Add foreign key \"FinancialInstitutionProposal_institutionId_fkey\" on \"FinancialInstitutionProposal\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"FinancialInstitutionProposal_institutionId_fkey\" exists",
+				"params": [
+					"FinancialInstitutionProposal_institutionId_fkey",
+					"public",
+					"\"public\".\"FinancialInstitutionProposal\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"FinancialInstitutionProposal_institutionId_fkey\" does not exist",
+				"params": [
+					"FinancialInstitutionProposal_institutionId_fkey",
+					"public",
+					"\"public\".\"FinancialInstitutionProposal\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "FinancialInstitutionProposal_institutionId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "FinancialInstitutionProposal"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"FinancialInstitutionProposal_authorId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialInstitutionProposal\"\nADD CONSTRAINT \"FinancialInstitutionProposal_authorId_fkey\"\nFOREIGN KEY (\"authorId\")\nREFERENCES \"public\".\"user\" (\"id\")\nON DELETE RESTRICT"
+			}
+		],
+		"id": "foreignKey.FinancialInstitutionProposal.FinancialInstitutionProposal_authorId_fkey",
+		"label": "Add foreign key \"FinancialInstitutionProposal_authorId_fkey\" on \"FinancialInstitutionProposal\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"FinancialInstitutionProposal_authorId_fkey\" exists",
+				"params": [
+					"FinancialInstitutionProposal_authorId_fkey",
+					"public",
+					"\"public\".\"FinancialInstitutionProposal\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"FinancialInstitutionProposal_authorId_fkey\" does not exist",
+				"params": [
+					"FinancialInstitutionProposal_authorId_fkey",
+					"public",
+					"\"public\".\"FinancialInstitutionProposal\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "FinancialInstitutionProposal_authorId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "FinancialInstitutionProposal"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"FinancialInstitutionProposal_reviewerId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialInstitutionProposal\"\nADD CONSTRAINT \"FinancialInstitutionProposal_reviewerId_fkey\"\nFOREIGN KEY (\"reviewerId\")\nREFERENCES \"public\".\"user\" (\"id\")\nON DELETE RESTRICT"
+			}
+		],
+		"id": "foreignKey.FinancialInstitutionProposal.FinancialInstitutionProposal_reviewerId_fkey",
+		"label": "Add foreign key \"FinancialInstitutionProposal_reviewerId_fkey\" on \"FinancialInstitutionProposal\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"FinancialInstitutionProposal_reviewerId_fkey\" exists",
+				"params": [
+					"FinancialInstitutionProposal_reviewerId_fkey",
+					"public",
+					"\"public\".\"FinancialInstitutionProposal\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"FinancialInstitutionProposal_reviewerId_fkey\" does not exist",
+				"params": [
+					"FinancialInstitutionProposal_reviewerId_fkey",
+					"public",
+					"\"public\".\"FinancialInstitutionProposal\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "FinancialInstitutionProposal_reviewerId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "FinancialInstitutionProposal"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"FinancialInstitutionYieldPolicy_profileId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialInstitutionYieldPolicy\"\nADD CONSTRAINT \"FinancialInstitutionYieldPolicy_profileId_fkey\"\nFOREIGN KEY (\"profileId\")\nREFERENCES \"public\".\"FinancialInstitutionProfile\" (\"id\")\nON DELETE RESTRICT"
+			}
+		],
+		"id": "foreignKey.FinancialInstitutionYieldPolicy.FinancialInstitutionYieldPolicy_profileId_fkey",
+		"label": "Add foreign key \"FinancialInstitutionYieldPolicy_profileId_fkey\" on \"FinancialInstitutionYieldPolicy\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"FinancialInstitutionYieldPolicy_profileId_fkey\" exists",
+				"params": [
+					"FinancialInstitutionYieldPolicy_profileId_fkey",
+					"public",
+					"\"public\".\"FinancialInstitutionYieldPolicy\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"FinancialInstitutionYieldPolicy_profileId_fkey\" does not exist",
+				"params": [
+					"FinancialInstitutionYieldPolicy_profileId_fkey",
+					"public",
+					"\"public\".\"FinancialInstitutionYieldPolicy\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "FinancialInstitutionYieldPolicy_profileId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "FinancialInstitutionYieldPolicy"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"InstitutionReviewAudit_proposalId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"InstitutionReviewAudit\"\nADD CONSTRAINT \"InstitutionReviewAudit_proposalId_fkey\"\nFOREIGN KEY (\"proposalId\")\nREFERENCES \"public\".\"FinancialInstitutionProposal\" (\"id\")\nON DELETE RESTRICT"
+			}
+		],
+		"id": "foreignKey.InstitutionReviewAudit.InstitutionReviewAudit_proposalId_fkey",
+		"label": "Add foreign key \"InstitutionReviewAudit_proposalId_fkey\" on \"InstitutionReviewAudit\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"InstitutionReviewAudit_proposalId_fkey\" exists",
+				"params": [
+					"InstitutionReviewAudit_proposalId_fkey",
+					"public",
+					"\"public\".\"InstitutionReviewAudit\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"InstitutionReviewAudit_proposalId_fkey\" does not exist",
+				"params": [
+					"InstitutionReviewAudit_proposalId_fkey",
+					"public",
+					"\"public\".\"InstitutionReviewAudit\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "InstitutionReviewAudit_proposalId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "InstitutionReviewAudit"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"InstitutionReviewAudit_reviewerId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"InstitutionReviewAudit\"\nADD CONSTRAINT \"InstitutionReviewAudit_reviewerId_fkey\"\nFOREIGN KEY (\"reviewerId\")\nREFERENCES \"public\".\"user\" (\"id\")\nON DELETE RESTRICT"
+			}
+		],
+		"id": "foreignKey.InstitutionReviewAudit.InstitutionReviewAudit_reviewerId_fkey",
+		"label": "Add foreign key \"InstitutionReviewAudit_reviewerId_fkey\" on \"InstitutionReviewAudit\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"InstitutionReviewAudit_reviewerId_fkey\" exists",
+				"params": [
+					"InstitutionReviewAudit_reviewerId_fkey",
+					"public",
+					"\"public\".\"InstitutionReviewAudit\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"InstitutionReviewAudit_reviewerId_fkey\" does not exist",
+				"params": [
+					"InstitutionReviewAudit_reviewerId_fkey",
+					"public",
+					"\"public\".\"InstitutionReviewAudit\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "InstitutionReviewAudit_reviewerId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "InstitutionReviewAudit"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"UserFinancialInstitution_userId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"UserFinancialInstitution\"\nADD CONSTRAINT \"UserFinancialInstitution_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"user\" (\"id\")\nON DELETE CASCADE"
+			}
+		],
+		"id": "foreignKey.UserFinancialInstitution.UserFinancialInstitution_userId_fkey",
+		"label": "Add foreign key \"UserFinancialInstitution_userId_fkey\" on \"UserFinancialInstitution\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"UserFinancialInstitution_userId_fkey\" exists",
+				"params": [
+					"UserFinancialInstitution_userId_fkey",
+					"public",
+					"\"public\".\"UserFinancialInstitution\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"UserFinancialInstitution_userId_fkey\" does not exist",
+				"params": [
+					"UserFinancialInstitution_userId_fkey",
+					"public",
+					"\"public\".\"UserFinancialInstitution\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "UserFinancialInstitution_userId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "UserFinancialInstitution"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"UserFinancialInstitution_institutionId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"UserFinancialInstitution\"\nADD CONSTRAINT \"UserFinancialInstitution_institutionId_fkey\"\nFOREIGN KEY (\"institutionId\")\nREFERENCES \"public\".\"FinancialInstitution\" (\"id\")\nON DELETE RESTRICT"
+			}
+		],
+		"id": "foreignKey.UserFinancialInstitution.UserFinancialInstitution_institutionId_fkey",
+		"label": "Add foreign key \"UserFinancialInstitution_institutionId_fkey\" on \"UserFinancialInstitution\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"UserFinancialInstitution_institutionId_fkey\" exists",
+				"params": [
+					"UserFinancialInstitution_institutionId_fkey",
+					"public",
+					"\"public\".\"UserFinancialInstitution\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"UserFinancialInstitution_institutionId_fkey\" does not exist",
+				"params": [
+					"UserFinancialInstitution_institutionId_fkey",
+					"public",
+					"\"public\".\"UserFinancialInstitution\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "UserFinancialInstitution_institutionId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "UserFinancialInstitution"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"UserInstitutionProfileChange_linkId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"UserInstitutionProfileChange\"\nADD CONSTRAINT \"UserInstitutionProfileChange_linkId_fkey\"\nFOREIGN KEY (\"linkId\")\nREFERENCES \"public\".\"UserFinancialInstitution\" (\"id\")\nON DELETE CASCADE"
+			}
+		],
+		"id": "foreignKey.UserInstitutionProfileChange.UserInstitutionProfileChange_linkId_fkey",
+		"label": "Add foreign key \"UserInstitutionProfileChange_linkId_fkey\" on \"UserInstitutionProfileChange\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"UserInstitutionProfileChange_linkId_fkey\" exists",
+				"params": [
+					"UserInstitutionProfileChange_linkId_fkey",
+					"public",
+					"\"public\".\"UserInstitutionProfileChange\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"UserInstitutionProfileChange_linkId_fkey\" does not exist",
+				"params": [
+					"UserInstitutionProfileChange_linkId_fkey",
+					"public",
+					"\"public\".\"UserInstitutionProfileChange\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "UserInstitutionProfileChange_linkId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "UserInstitutionProfileChange"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"UserInstitutionProfileChange_profileId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"UserInstitutionProfileChange\"\nADD CONSTRAINT \"UserInstitutionProfileChange_profileId_fkey\"\nFOREIGN KEY (\"profileId\")\nREFERENCES \"public\".\"FinancialInstitutionProfile\" (\"id\")\nON DELETE RESTRICT"
+			}
+		],
+		"id": "foreignKey.UserInstitutionProfileChange.UserInstitutionProfileChange_profileId_fkey",
+		"label": "Add foreign key \"UserInstitutionProfileChange_profileId_fkey\" on \"UserInstitutionProfileChange\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"UserInstitutionProfileChange_profileId_fkey\" exists",
+				"params": [
+					"UserInstitutionProfileChange_profileId_fkey",
+					"public",
+					"\"public\".\"UserInstitutionProfileChange\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"UserInstitutionProfileChange_profileId_fkey\" does not exist",
+				"params": [
+					"UserInstitutionProfileChange_profileId_fkey",
+					"public",
+					"\"public\".\"UserInstitutionProfileChange\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "UserInstitutionProfileChange_profileId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "UserInstitutionProfileChange"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"YieldCalendarCoverage_countryCode_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"YieldCalendarCoverage\"\nADD CONSTRAINT \"YieldCalendarCoverage_countryCode_fkey\"\nFOREIGN KEY (\"countryCode\")\nREFERENCES \"public\".\"YieldCalendarCountry\" (\"code\")\nON DELETE RESTRICT"
+			}
+		],
+		"id": "foreignKey.YieldCalendarCoverage.YieldCalendarCoverage_countryCode_fkey",
+		"label": "Add foreign key \"YieldCalendarCoverage_countryCode_fkey\" on \"YieldCalendarCoverage\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"YieldCalendarCoverage_countryCode_fkey\" exists",
+				"params": [
+					"YieldCalendarCoverage_countryCode_fkey",
+					"public",
+					"\"public\".\"YieldCalendarCoverage\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"YieldCalendarCoverage_countryCode_fkey\" does not exist",
+				"params": [
+					"YieldCalendarCoverage_countryCode_fkey",
+					"public",
+					"\"public\".\"YieldCalendarCoverage\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "YieldCalendarCoverage_countryCode_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "YieldCalendarCoverage"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"YieldCalendarOverride_countryCode_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"YieldCalendarOverride\"\nADD CONSTRAINT \"YieldCalendarOverride_countryCode_fkey\"\nFOREIGN KEY (\"countryCode\")\nREFERENCES \"public\".\"YieldCalendarCountry\" (\"code\")\nON DELETE RESTRICT"
+			}
+		],
+		"id": "foreignKey.YieldCalendarOverride.YieldCalendarOverride_countryCode_fkey",
+		"label": "Add foreign key \"YieldCalendarOverride_countryCode_fkey\" on \"YieldCalendarOverride\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"YieldCalendarOverride_countryCode_fkey\" exists",
+				"params": [
+					"YieldCalendarOverride_countryCode_fkey",
+					"public",
+					"\"public\".\"YieldCalendarOverride\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"YieldCalendarOverride_countryCode_fkey\" does not exist",
+				"params": [
+					"YieldCalendarOverride_countryCode_fkey",
+					"public",
+					"\"public\".\"YieldCalendarOverride\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "YieldCalendarOverride_countryCode_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "YieldCalendarOverride"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "Backfill private links and preserve administrative calendars",
+				"sql": "-- Legacy institutions remain private. Global rule adoption requires an explicit date.\nINSERT INTO \"FinancialInstitutionProfile\" (\"id\", \"institutionId\", \"name\", \"isDefault\")\nSELECT cuid2(), i.\"id\", 'Padrão', true FROM \"FinancialInstitution\" i\nWHERE NOT EXISTS (SELECT 1 FROM \"FinancialInstitutionProfile\" p WHERE p.\"institutionId\" = i.\"id\" AND p.\"isDefault\");\nINSERT INTO \"UserFinancialInstitution\" (\"id\", \"userId\", \"institutionId\")\nSELECT cuid2(), i.\"userId\", i.\"id\" FROM \"FinancialInstitution\" i WHERE i.\"userId\" IS NOT NULL\nON CONFLICT (\"userId\", \"institutionId\") DO NOTHING;\n-- Existing institution policies retain their values and dates in the private default profile.\nUPDATE \"FinancialInstitutionYieldPolicy\" y SET \"profileId\" = p.\"id\"\nFROM \"FinancialInstitutionProfile\" p WHERE p.\"institutionId\" = y.\"financialInstitutionId\" AND p.\"isDefault\" AND y.\"profileId\" IS NULL;\n-- Infer country only when the currency has exactly one recorded country association.\nUPDATE \"FinancialAccount\" a SET \"countryCode\" = c.\"countryCode\"\nFROM (SELECT \"currency\", min(\"countryCode\") AS \"countryCode\" FROM \"YieldCalendarCurrency\" GROUP BY \"currency\" HAVING count(*) = 1) c\nWHERE a.\"currency\" = c.\"currency\" AND a.\"countryCode\" IS NULL;\n-- Preserve every existing administrator event as an override; never claim a full generated year.\nINSERT INTO \"YieldCalendarOverride\" (\"id\", \"countryCode\", \"date\", \"name\", \"action\")\nSELECT cuid2(), \"countryCode\", \"date\", \"name\", 'INCLUDE' FROM \"YieldCalendarHoliday\"\nON CONFLICT (\"countryCode\", \"date\") DO NOTHING;\nINSERT INTO \"YieldCalendarCoverage\" (\"countryCode\", \"year\", \"status\", \"source\", \"sourceVersion\")\nSELECT DISTINCT \"countryCode\", extract(year FROM \"date\")::integer, 'MANUAL_PENDING', 'ADMIN', 'legacy' FROM \"YieldCalendarHoliday\"\nON CONFLICT (\"countryCode\", \"year\") DO NOTHING;\nINSERT INTO \"CurrencyCountryAssociation\" (\"id\", \"countryCode\", \"currency\", \"source\", \"sourceVersion\")\nSELECT cuid2(), \"countryCode\", \"currency\", 'ADMIN', 'legacy' FROM \"YieldCalendarCurrency\";\n"
+			}
+		],
+		"id": "universalInstitutions.preserveLegacy",
+		"invariantId": "universalInstitutions.legacyPreserved.v1",
+		"label": "Preserve private institutions, profiles and administrator calendars",
+		"operationClass": "data",
+		"postcheck": [
+			{
+				"description": "Every legacy institution has a default profile and private link",
+				"sql": "SELECT NOT EXISTS (SELECT 1 FROM \"FinancialInstitution\" i WHERE i.\"userId\" IS NOT NULL AND (NOT EXISTS (SELECT 1 FROM \"FinancialInstitutionProfile\" p WHERE p.\"institutionId\"=i.\"id\" AND p.\"isDefault\") OR NOT EXISTS (SELECT 1 FROM \"UserFinancialInstitution\" l WHERE l.\"institutionId\"=i.\"id\" AND l.\"userId\"=i.\"userId\"))) AS result"
+			}
+		],
+		"precheck": [],
+		"target": {
+			"id": "postgres"
+		}
+	}
+]

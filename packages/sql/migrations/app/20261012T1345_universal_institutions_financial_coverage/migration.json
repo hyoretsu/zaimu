@@ -1,0 +1,7 @@
+{
+	"createdAt": "2026-10-12T13:55:44.217Z",
+	"from": "8d83d29534d2e49ef9f8f331e886eb5a6a9d620b7fce70500f40c8a09ad5307e",
+	"migrationHash": "35784709a7fbf11572a6c88fb6617b879b098c976ddbdf265f06cd732c47ea81",
+	"providedInvariants": ["universalInstitutions.legacyPreserved.v1"],
+	"to": "a92b1f7f1f3a857567384af7b56de1a1e8aec7e149dd069ab662f5b4e1263ac0"
+}

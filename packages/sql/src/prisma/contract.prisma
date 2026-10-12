@@ -2,6 +2,145 @@
 // Contract inferred from the live database schema. Edit as needed, then run `prisma contract emit`.
 
 namespace public {
+  model FinancialInstitutionProfile {
+    institution FinancialInstitution @relation(fields: [institutionId], references: [id], onDelete: Restrict, index: false)
+    changes UserInstitutionProfileChange[]
+    policies FinancialInstitutionYieldPolicy[]
+    id VarChar(36) @id
+    institutionId VarChar(36)
+    name VarChar(100)
+    isDefault Boolean @default(false)
+    @@unique([institutionId, name])
+    createdAt Timestamp(3) @default(now())
+    updatedAt Timestamp(3) @default(now())
+    @@map("FinancialInstitutionProfile")
+  }
+
+  model UserFinancialInstitution {
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade, index: false)
+    institution FinancialInstitution @relation(fields: [institutionId], references: [id], onDelete: Restrict, index: false)
+    changes UserInstitutionProfileChange[]
+    @@index([institutionId])
+    id VarChar(36) @id
+    userId VarChar(36)
+    institutionId VarChar(36)
+    globalRulesFrom Date?
+    @@unique([userId, institutionId])
+    createdAt Timestamp(3) @default(now())
+    updatedAt Timestamp(3) @default(now())
+    @@map("UserFinancialInstitution")
+  }
+
+  model UserInstitutionProfileChange {
+    link UserFinancialInstitution @relation(fields: [linkId], references: [id], onDelete: Cascade, index: false)
+    profile FinancialInstitutionProfile @relation(fields: [profileId], references: [id], onDelete: Restrict, index: false)
+    @@index([profileId])
+    id VarChar(36) @id
+    linkId VarChar(36)
+    profileId VarChar(36)
+    effectiveDate Date
+    @@unique([linkId, effectiveDate])
+    createdAt Timestamp(3) @default(now())
+    updatedAt Timestamp(3) @default(now())
+    @@map("UserInstitutionProfileChange")
+  }
+
+  model FinancialInstitutionProposal {
+    institution FinancialInstitution? @relation(fields: [institutionId], references: [id], onDelete: Restrict, index: false)
+    author User @relation("ProposalAuthor", fields: [authorId], references: [id], onDelete: Restrict, index: false)
+    reviewer User? @relation("ProposalReviewer", fields: [reviewerId], references: [id], onDelete: Restrict, index: false)
+    audits InstitutionReviewAudit[]
+    @@index([institutionId])
+    @@index([reviewerId])
+    id VarChar(36) @id
+    institutionId VarChar(36)?
+    authorId VarChar(36)
+    kind VarChar(24)
+    status VarChar(16) @default("PENDING")
+    baseVersion Int?
+    payload Json
+    effectiveDate Date?
+    reviewerId VarChar(36)?
+    reason String?
+    reviewedAt Timestamp(3)?
+    @@index([status, createdAt])
+    @@index([authorId])
+    createdAt Timestamp(3) @default(now())
+    updatedAt Timestamp(3) @default(now())
+    @@map("FinancialInstitutionProposal")
+  }
+
+  model InstitutionReviewAudit {
+    proposal FinancialInstitutionProposal @relation(fields: [proposalId], references: [id], onDelete: Restrict, index: false)
+    reviewer User @relation(fields: [reviewerId], references: [id], onDelete: Restrict, index: false)
+    @@index([reviewerId])
+    id VarChar(36) @id
+    proposalId VarChar(36)
+    reviewerId VarChar(36)
+    action VarChar(24)
+    payload Json
+    @@index([proposalId])
+    createdAt Timestamp(3) @default(now())
+    updatedAt Timestamp(3) @default(now())
+    @@map("InstitutionReviewAudit")
+  }
+
+  model AppNotification {
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade, index: false)
+    id VarChar(36) @id
+    userId VarChar(36)
+    type VarChar(40)
+    payload Json
+    readAt Timestamp(3)?
+    @@index([userId, readAt, createdAt])
+    createdAt Timestamp(3) @default(now())
+    updatedAt Timestamp(3) @default(now())
+    @@map("AppNotification")
+  }
+
+  model YieldCalendarCoverage {
+    country YieldCalendarCountry @relation(fields: [countryCode], references: [code], onDelete: Restrict, index: false)
+    countryCode VarChar(2)
+    year Int
+    status VarChar(24)
+    source VarChar(32)
+    sourceVersion VarChar(64)
+    generatedAt Timestamp(3)?
+    confirmedBy VarChar(36)?
+    @@id([countryCode, year])
+    createdAt Timestamp(3) @default(now())
+    updatedAt Timestamp(3) @default(now())
+    @@map("YieldCalendarCoverage")
+  }
+
+  model YieldCalendarOverride {
+    country YieldCalendarCountry @relation(fields: [countryCode], references: [code], onDelete: Restrict, index: false)
+    id VarChar(36) @id
+    countryCode VarChar(2)
+    date Date
+    name VarChar(100)?
+    action VarChar(16)
+    @@unique([countryCode, date])
+    createdAt Timestamp(3) @default(now())
+    updatedAt Timestamp(3) @default(now())
+    @@map("YieldCalendarOverride")
+  }
+
+  model CurrencyCountryAssociation {
+    country YieldCalendarCountry @relation(fields: [countryCode], references: [code], onDelete: Restrict, index: false)
+    id VarChar(36) @id
+    countryCode VarChar(2)
+    currency VarChar(3)
+    effectiveFrom Date?
+    effectiveUntil Date?
+    source VarChar(32)
+    sourceVersion VarChar(64)
+    @@index([currency, countryCode])
+    createdAt Timestamp(3) @default(now())
+    updatedAt Timestamp(3) @default(now())
+    @@map("CurrencyCountryAssociation")
+  }
+
   model OpenFinanceConfig {
     userId VarChar(36) @id(map: "OpenFinanceConfig_pkey")
     encryptedCredentials String?
@@ -99,8 +238,14 @@ namespace public {
   }
 
   model User {
+    institutionLinks UserFinancialInstitution[]
+    institutionProposals FinancialInstitutionProposal[] @relation("ProposalAuthor")
+    reviewedInstitutionProposals FinancialInstitutionProposal[] @relation("ProposalReviewer")
+    institutionReviewAudits InstitutionReviewAudit[]
+    appNotifications AppNotification[]
     role VarChar(10) @default("USER")
     preferredCurrency VarChar(3)?
+    preferredCountry VarChar(2)?
 
     openFinanceConfig OpenFinanceConfig?
     openFinanceConnections OpenFinanceConnection[]
@@ -144,11 +289,17 @@ namespace public {
   }
 
   model FinancialInstitution {
+    profiles FinancialInstitutionProfile[]
+    userLinks UserFinancialInstitution[]
+    proposals FinancialInstitutionProposal[]
+    status VarChar(24) @default("LEGACY_PRIVATE")
+    version Int @default(1)
+    operatingCountryCodes VarChar(2)[] @default([])
     creditInstallmentRemainderOnFirst Boolean @default(false)
     currency VarChar(3) @default("BRL")
 
     id             VarChar(36)        @id(map: "FinancialInstitution_pkey") @default(dbgenerated("cuid2()"))
-    userId         VarChar(36)
+    userId         VarChar(36)?
     name           VarChar(100)
     normalizedName VarChar(100)
     createdAt      Timestamp(3)       @default(now())
@@ -156,13 +307,19 @@ namespace public {
     financialAccounts FinancialAccount[]
     yieldPolicies     FinancialInstitutionYieldPolicy[]
     creditRefundPolicy pg.enum(CreditRefundPolicy)?
-    user           User               @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "FinancialInstitution_userId_fkey", index: false)
+    user           User?              @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "FinancialInstitution_userId_fkey", index: false)
 
     @@index([userId, normalizedName], map: "FinancialInstitution_userId_normalizedName_key", unique: true)
     @@map("FinancialInstitution")
   }
 
   model FinancialInstitutionYieldPolicy {
+    profile FinancialInstitutionProfile? @relation(fields: [profileId], references: [id], onDelete: Restrict, index: false)
+    @@index([profileId, countryCode, currency, effectiveDate], map: "InstitutionPolicy_scope_date_idx")
+    profileId VarChar(36)?
+    countryCode VarChar(2)?
+    effectiveUntil Date?
+    status VarChar(16) @default("APPROVED")
     currency VarChar(3) @default("BRL")
 
     id                     VarChar(36)                              @id(map: "FinancialInstitutionYieldPolicy_pkey") @default(dbgenerated("cuid2()"))
@@ -176,7 +333,7 @@ namespace public {
     financialInstitution   FinancialInstitution                    @relation(fields: [financialInstitutionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "FinancialInstitutionYieldPolicy_financialInstitutionId_fkey", index: false)
     rules                  FinancialInstitutionYieldRule[]
 
-    @@index([financialInstitutionId, effectiveDate], map: "FinancialInstitutionYieldPolicy_institutionId_effectiveDate_key", unique: true)
+    @@index([financialInstitutionId, effectiveDate], map: "FinancialInstitutionYieldPolicy_institutionId_effectiveDate_idx")
     @@map("FinancialInstitutionYieldPolicy")
   }
 
@@ -267,6 +424,8 @@ namespace public {
   }
 
   model FinancialAccount {
+    legacyInstitutionId VarChar(36)?
+    countryCode VarChar(2)?
     currency VarChar(3) @default("BRL")
     id                      VarChar(36)                   @id(map: "Account_pkey") @default(dbgenerated("cuid2()"))
     userId                  VarChar(36)
@@ -314,13 +473,19 @@ namespace public {
   }
 
   model YieldCalendarCountry {
+    coverage YieldCalendarCoverage[]
+    overrides YieldCalendarOverride[]
+    associations CurrencyCountryAssociation[]
     code VarChar(2) @id
-    name VarChar(100)
     currencies YieldCalendarCurrency[]
     holidays YieldCalendarHoliday[]
     @@map("YieldCalendarCountry")
   }
   model YieldCalendarCurrency {
+    source VarChar(32) @default("ADMIN")
+    sourceVersion VarChar(64)?
+    effectiveFrom Date?
+    effectiveUntil Date?
     countryCode VarChar(2)
     currency VarChar(3)
     country YieldCalendarCountry @relation(fields: [countryCode], references: [code], onDelete: Cascade, onUpdate: Cascade, index: false)
