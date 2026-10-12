@@ -4,10 +4,15 @@ export type ReferenceRateType = "CDI" | "SELIC";
 
 export interface YieldAccount {
 	currency?: string;
+	countryCode?: null | string;
+	defaultInstitutionProfileId?: null | string;
+	globalRulesFrom?: null | Date | string;
+	institutionProfileChanges?: InstitutionProfileChange[];
 	createdAt: Date | string;
 	yieldLots?: YieldLot[];
 	id: string;
 	institutionYieldPolicies?: InstitutionYieldPolicy[];
+	legacyInstitutionYieldPolicies?: InstitutionYieldPolicy[];
 	type: string;
 	yieldFixedRate?: null | number;
 	yieldPeriod?: null | YieldPeriod;
@@ -18,7 +23,16 @@ export interface YieldAccount {
 	yieldRateHistories?: YieldRateHistory[];
 }
 
+export interface InstitutionProfileChange {
+	profileId: string;
+	effectiveDate: Date | string;
+}
+
 export interface InstitutionYieldPolicy {
+	profileId?: null | string;
+	countryCode?: null | string;
+	effectiveUntil?: null | Date | string;
+	status?: "APPROVED" | "PENDING" | "REJECTED";
 	currency?: string;
 	effectiveDate: Date | string;
 	rules: InstitutionYieldRule[];
@@ -74,16 +88,45 @@ function getYieldSettings(account: YieldAccount, day: string) {
 		yieldTaxIds: account.yieldTaxIds,
 		yieldTaxRate: account.yieldTaxRate,
 	};
-	if (accountSettings.yieldReferenceType || (accountSettings.yieldFixedRate && accountSettings.yieldPeriod))
+	if (
+		accountSettings.yieldReferenceType ||
+		(accountSettings.yieldFixedRate !== null &&
+			accountSettings.yieldFixedRate !== undefined &&
+			accountSettings.yieldPeriod)
+	)
 		return accountSettings;
 	if (account.type !== "CHECKING" && account.type !== "SAVINGS") return accountSettings;
-	return account.institutionYieldPolicies
+	const profileId =
+		account.institutionProfileChanges
+			?.filter(change => dateKey(change.effectiveDate) <= day)
+			.toSorted((left, right) =>
+				dateKey(left.effectiveDate).localeCompare(dateKey(right.effectiveDate)),
+			)
+			.at(-1)?.profileId ?? account.defaultInstitutionProfileId;
+	const policies =
+		account.legacyInstitutionYieldPolicies &&
+		(account.globalRulesFrom === null ||
+			(account.globalRulesFrom && day < dateKey(account.globalRulesFrom)))
+			? account.legacyInstitutionYieldPolicies
+			: account.institutionYieldPolicies;
+	return policies
 		?.filter(
 			policy =>
 				dateKey(policy.effectiveDate) <= day &&
+				(!policy.effectiveUntil || day < dateKey(policy.effectiveUntil)) &&
+				(!policy.status || policy.status === "APPROVED") &&
+				(!policy.profileId ||
+					(policy.profileId === profileId &&
+						account.globalRulesFrom !== null &&
+						(!account.globalRulesFrom || day >= dateKey(account.globalRulesFrom)))) &&
+				(!policy.countryCode || policy.countryCode === account.countryCode) &&
 				(policy.currency ?? "BRL") === (account.currency ?? "BRL"),
 		)
-		.toSorted((left, right) => dateKey(left.effectiveDate).localeCompare(dateKey(right.effectiveDate)))
+		.toSorted(
+			(left, right) =>
+				Number(Boolean(left.countryCode)) - Number(Boolean(right.countryCode)) ||
+				dateKey(left.effectiveDate).localeCompare(dateKey(right.effectiveDate)),
+		)
 		.at(-1);
 }
 
@@ -129,6 +172,14 @@ function ruleDailyRate(
 }
 
 export { getYieldSettings };
+
+/** Keep absent policy coverage distinct from an explicitly configured zero rate. */
+export function resolveYieldCoverage(account: YieldAccount, day: string) {
+	const settings = getYieldSettings(account, day);
+	return settings
+		? { settings, status: "COMPLETE" as const }
+		: { settings: undefined, status: "PENDING" as const };
+}
 export function projectedNetYield(
 	account: YieldAccount,
 	balance: number,

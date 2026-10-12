@@ -12,3 +12,10 @@ export function currencyHolidayDates(countries: YieldCalendarCountry[], currency
 			.flatMap(country => country.holidays.map(holiday => holiday.date)),
 	);
 }
+
+/** Country calendar wins independently of currency. Missing country is never inferred from currency. */
+export function countryHolidayDates(countries: YieldCalendarCountry[], countryCode: string): Set<string> {
+	return new Set(
+		countries.find(country => country.code === countryCode)?.holidays.map(holiday => holiday.date) ?? [],
+	);
+}
