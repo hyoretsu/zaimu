@@ -12,6 +12,10 @@ export async function getFinancialInstitutionYieldPolicies(institutionIds: strin
 			"id",
 			"financialInstitutionId",
 			"currency",
+			"profileId",
+			"countryCode",
+			"effectiveUntil",
+			"status",
 			"effectiveDate",
 			"yieldPeriod",
 			"yieldTaxIds",
@@ -50,8 +54,11 @@ export async function getFinancialInstitutionYieldPolicies(institutionIds: strin
 	for (const policy of policies) {
 		const institutionPolicies = policiesByInstitutionId.get(policy.financialInstitutionId) ?? [];
 		institutionPolicies.push({
+			countryCode: policy.countryCode,
 			currency: policy.currency,
 			effectiveDate: policy.effectiveDate,
+			effectiveUntil: policy.effectiveUntil,
+			profileId: policy.profileId,
 			rules: (rulesByPolicyId.get(policy.id) ?? []).map(rule => ({
 				upToBalance: rule.upToBalance === null ? null : Number(rule.upToBalance),
 				yieldFixedRate: rule.yieldFixedRate === null ? null : Number(rule.yieldFixedRate),
@@ -59,6 +66,7 @@ export async function getFinancialInstitutionYieldPolicies(institutionIds: strin
 					rule.yieldReferencePercentage === null ? null : Number(rule.yieldReferencePercentage),
 				yieldReferenceType: rule.yieldReferenceType as "CDI" | "SELIC" | null,
 			})),
+			status: policy.status as "APPROVED" | "PENDING" | "REJECTED",
 			yieldPeriod: policy.yieldPeriod as null | YieldPeriod,
 			yieldTaxIds: policy.yieldTaxIds as string[] | null,
 			yieldTaxRate: policy.yieldTaxRate === null ? null : Number(policy.yieldTaxRate),

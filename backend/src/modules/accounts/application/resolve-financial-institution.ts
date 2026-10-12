@@ -1,27 +1,28 @@
 import { normalizeFinancialInstitutionName } from "~/modules/accounts/domain/normalize-financial-institution-name";
-import { db, queryFirst } from "~/shared/infra/sql";
+import { HttpException } from "~/shared/errors";
+import { queryRaw } from "~/shared/infra/sql";
+import { proposeInstitution, visibleInstitution } from "./universal-institutions";
 
 export async function resolveFinancialInstitution(userId: string, input?: string | null, currency = "USD") {
 	if (!input) return null;
 	const { name, normalizedName } = normalizeFinancialInstitutionName(input);
 	if (!name) return null;
-
-	const existing = await queryFirst(
-		db.sql.public.FinancialInstitution.select("id", "name", "currency", "creditInstallmentRemainderOnFirst")
-			.where((fields, functions) =>
-				functions.and(
-					functions.eq(fields.userId, userId),
-					functions.eq(fields.normalizedName, normalizedName),
-				),
-			)
-			.limit(1)
-			.build(),
+	const matching = await queryRaw<{
+		id: string;
+		name: string;
+		currency: string;
+		creditInstallmentRemainderOnFirst: boolean;
+	}>(
+		`SELECT "id","name","currency","creditInstallmentRemainderOnFirst" FROM "FinancialInstitution" WHERE "normalizedName"=$1 AND ("status"='APPROVED' OR "userId"=$2) ORDER BY CASE WHEN "userId"=$2 THEN 0 ELSE 1 END`,
+		[normalizedName, userId],
 	);
-	if (existing) return existing;
-
-	return queryFirst(
-		db.sql.public.FinancialInstitution.insert([{ currency, name, normalizedName, userId }])
-			.returning("id", "name", "currency", "creditInstallmentRemainderOnFirst")
-			.build(),
-	);
+	// Names alone cannot identify universal homonyms safely.
+	if (matching.length > 1)
+		throw new HttpException(
+			"Selecione a instituição pelo identificador; há instituições com o mesmo nome",
+			409,
+		);
+	if (matching[0]) return matching[0];
+	const proposal = await proposeInstitution(userId, null, "NEW_INSTITUTION", { currency, name });
+	return visibleInstitution(userId, proposal.institutionId!);
 }

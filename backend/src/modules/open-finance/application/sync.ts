@@ -1,3 +1,4 @@
+import { ensureAccountCoverage } from "~/modules/yield-calendar/ensure-coverage";
 import { createEventEnvelope, type EventEnvelope } from "~/shared/application/events";
 import { HttpException } from "~/shared/errors";
 import type { CacheNamespace } from "~/shared/infra/cache";
@@ -122,6 +123,12 @@ export async function handleOpenFinanceSync(event: EventEnvelope) {
 					[connection.id],
 				);
 				for (const binding of bindings) {
+					const [local] = await queryRaw<{ currency: string; countryCode: string | null }>(
+						`SELECT a."currency",a."countryCode" FROM "FinancialAccount" a LEFT JOIN "CreditCard" c ON c."financialAccountId"=a."id" WHERE a."userId"=$1 AND (a."id"=$2 OR c."id"=$3)`,
+						[userId, binding.financialAccountId, binding.creditCardId],
+					);
+					if (local) await ensureAccountCoverage(local.currency, local.countryCode);
+
 					const account = accounts.find(a => a.id === binding.remoteAccountId);
 					if (!account || account.itemId !== connection.itemId) throw new Error("Conta remota indisponível");
 					let bills: RemoteBill[] = [];

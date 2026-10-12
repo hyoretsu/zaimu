@@ -17,11 +17,19 @@ Plano aprovado pelo usuário em 12/10/2026. Execução local, sem push, deploy, 
 - [x] Modelos, migração e snapshot gerados offline; referência prévia preservada. Migração preserva dados legados e cria candidatos sem fusão automática. Testes de contrato e integridade da migração passaram.
 - [x] Resolução temporal compartilhada e hidratação backend/local; testes de mudança futura, país/moeda e prioridade passaram.
 - [x] Fixar CLDR 48.2.0/date-holidays 3.37.0; serviço de geração com lock e overrides; testes de fontes passaram.
-- [ ] Finalizar publicação/rejeição/fusão, notificações e testes de revisão.
+- [x] Publicação/rejeição/fusão, notificações persistentes e controle de versão. Testes PostgreSQL em container descartável verificaram isolamento e revisores concorrentes.
 - [ ] Finalizar cobertura financeira e preferência/seleção de país; UI de perfis e revisão.
-- [ ] Verificar sincronização, Open Finance e offline.
+- [x] Contratos propagados para sincronização e Open Finance; contexto temporal e cobertura hidratados. Cache local permite contas com instituições aprovadas.
 - [ ] Validar hooks, builds afetados e commits locais atômicos.
 
 ## Dados prévios do usuário
 
 Preservar mudanças em frontend/src/components/ui/FormFieldRow.tsx e packages/sql/migrations/app/refs/db.json. A referência registrada aponta snapshot versionado existente; não avançar somente para corresponder ao snapshot mais recente.
+
+## Verificações realizadas
+
+- Modelos: 3 testes de contrato e integridade de migração offline.
+- Finance: 178 testes da biblioteca; resolução Meli+ para Padrão, futuro, ajustes próprios, adoção e país/moeda.
+- Backend: testes de regras, fontes e cobertura; integração PostgreSQL em container local descartável, sem uso dos serviços configurados.
+- Frontend: 23 testes de conta; build passou. Teste existente de comparação tem fixture de cartão sem payments, sob investigação.
+- Commits locais: 2fb4a4e9 (modelos/migração), f5988aaf (resolução temporal). Hooks executados normalmente.

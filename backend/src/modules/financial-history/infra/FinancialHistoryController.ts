@@ -1,16 +1,20 @@
 import Elysia, { t } from "elysia";
+import { requireUserId } from "~/modules/auth";
 import { supportedCurrencies } from "~/modules/currencies/application/currency-catalog";
 import { currencyRateDate } from "~/modules/currencies/application/currency-exchange";
 import { ensureCurrencyRates, getLatestCurrencyRate } from "~/modules/currencies/infra/currency-exchange";
 import { requireAdmin } from "~/modules/taxes/admin-access";
 import { HttpException } from "~/shared/errors";
+import { queryRaw } from "~/shared/infra/sql";
 import { getCurrencyHistoryEstimate } from "../application/currency-history-estimate";
+import { getFinancialCoverage } from "../application/financial-coverage";
 import {
 	getHistoryCollection,
 	requestHistoryCollection,
 	retryHistoryCollection,
 } from "../application/history-collections";
 import { getHistoryCoverage } from "../application/history-coverage";
+import { FinancialCoverageQuery, FinancialCoverageReturn } from "./financial-coverage.dto";
 import { HistoryCoverageReturn } from "./history-coverage.dto";
 
 const HistoryUnitReturn = t.Object(
@@ -57,6 +61,15 @@ async function validateHistorySeries(kind: "CURRENCY" | "INTEREST" | undefined, 
 }
 
 export const FinancialHistoryController = new Elysia({ prefix: "/financial-history" })
+	.get(
+		"/coverage",
+		async ({ request, query }) => {
+			const userId = await requireUserId(request);
+			const [user] = await queryRaw<{ role: string }>(`SELECT "role" FROM "user" WHERE "id"=$1`, [userId]);
+			return getFinancialCoverage(userId, user?.role === "ADMIN", query.startDate, query.endDate);
+		},
+		{ query: FinancialCoverageQuery, response: FinancialCoverageReturn },
+	)
 	.get(
 		"/admin/coverage",
 		async ({ request, query }) => {

@@ -1,3 +1,4 @@
+import { getYieldSettings } from "@zaimu/finance/projected-yield";
 import { type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
 import { addDays, format, isWeekend, startOfDay } from "date-fns";
 
@@ -6,10 +7,15 @@ export type ReferenceRateType = "CDI" | "SELIC";
 
 export interface YieldAccount {
 	currency?: string;
+	countryCode?: null | string;
+	defaultInstitutionProfileId?: null | string;
+	globalRulesFrom?: null | Date | string;
+	institutionProfileChanges?: { profileId: string; effectiveDate: Date | string }[];
 	createdAt: Date;
 	yieldLots?: YieldLot[];
 	id: string;
 	institutionYieldPolicies?: InstitutionYieldPolicy[];
+	legacyInstitutionYieldPolicies?: InstitutionYieldPolicy[];
 	type: string;
 	yieldFixedRate?: null | number;
 	yieldPeriod?: null | YieldPeriod;
@@ -21,6 +27,10 @@ export interface YieldAccount {
 }
 
 export interface InstitutionYieldPolicy {
+	profileId?: null | string;
+	countryCode?: null | string;
+	effectiveUntil?: null | Date | string;
+	status?: "APPROVED" | "PENDING" | "REJECTED";
 	currency?: string;
 	effectiveDate: Date;
 	rules: InstitutionYieldRule[];
@@ -86,6 +96,7 @@ export function calculateFinancialAccountYieldBalances({
 	cashbackCredits,
 	holidays,
 	holidaysByCurrency,
+	holidaysByCountry,
 	initialRewardsBalances,
 	today = new Date(),
 	transactions,
@@ -98,6 +109,7 @@ export function calculateFinancialAccountYieldBalances({
 	cashbackCredits: CashbackCredit[];
 	holidays: readonly Date[];
 	holidaysByCurrency?: ReadonlyMap<string, Date[]>;
+	holidaysByCountry?: ReadonlyMap<string, Date[]>;
 	initialRewardsBalances: Map<string, number>;
 	today?: Date;
 	transactions: YieldTransaction[];
@@ -169,7 +181,10 @@ export function calculateFinancialAccountYieldBalances({
 							cashbackEvents.get(account.id),
 							new Set([
 								...holidayKeys,
-								...(holidaysByCurrency?.get(account.currency ?? "BRL") ?? []).map(dateKey),
+								...(account.countryCode
+									? (holidaysByCountry?.get(account.countryCode) ?? [])
+									: (holidaysByCurrency?.get(account.currency ?? "BRL") ?? [])
+								).map(dateKey),
 							]),
 							todayKey,
 							yieldsByAccountId.get(account.id),
@@ -305,31 +320,6 @@ function calculateYieldedBalance(
 			ledger.lots.map(lot => ({ ...lot })),
 		);
 	return balance + [...cashbackBalances.values()].reduce((total, value) => total + value, 0);
-}
-
-function getYieldSettings(account: YieldAccount, day: string) {
-	const history = account.yieldRateHistories
-		?.filter(item => dateKey(item.effectiveDate) <= day)
-		.toSorted((left, right) => left.effectiveDate.valueOf() - right.effectiveDate.valueOf())
-		.at(-1);
-	const accountSettings = history ?? {
-		yieldFixedRate: account.yieldFixedRate,
-		yieldPeriod: account.yieldPeriod,
-		yieldReferencePercentage: account.yieldReferencePercentage,
-		yieldReferenceType: account.yieldReferenceType,
-		yieldTaxIds: account.yieldTaxIds,
-		yieldTaxRate: account.yieldTaxRate,
-	};
-	if (accountSettings.yieldReferenceType || (accountSettings.yieldFixedRate && accountSettings.yieldPeriod))
-		return accountSettings;
-	if (account.type !== "CHECKING" && account.type !== "SAVINGS") return accountSettings;
-	return account.institutionYieldPolicies
-		?.filter(
-			policy =>
-				dateKey(policy.effectiveDate) <= day && (policy.currency ?? "BRL") === (account.currency ?? "BRL"),
-		)
-		.toSorted((left, right) => left.effectiveDate.valueOf() - right.effectiveDate.valueOf())
-		.at(-1);
 }
 
 export function settingsRequireReference(settings: ReturnType<typeof getYieldSettings>) {

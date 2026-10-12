@@ -5,6 +5,8 @@ import { requireAdmin } from "~/modules/taxes/admin-access";
 import { HttpException } from "~/shared/errors";
 import { queryRaw, withRawTransaction } from "~/shared/infra/sql";
 import { loadYieldCalendar } from "./catalog";
+import { CountryPreferencesController } from "./country-preference";
+import { ensureCalendarCoverage } from "./ensure-coverage";
 
 const Code = t.String({ pattern: "^[A-Z]{2}$" });
 const Currency = t.String({ pattern: "^[A-Z]{3}$" });
@@ -53,6 +55,39 @@ function checkedDate(date: string) {
 	return date;
 }
 export const YieldCalendarController = new Elysia()
+	.use(CountryPreferencesController)
+	.post(
+		"/admin/yield-calendar/countries/:code/coverage/:year",
+		async ({ request, params }) => {
+			await requireAdmin(request);
+			const status = await ensureCalendarCoverage(params.code, Number(params.year));
+			await recalculateCountry(params.code, `${params.year}-01-01`, `calendar:${randomUUID()}`);
+			return { status };
+		},
+		{
+			params: t.Object({ code: Code, year: t.String({ pattern: "^(19|20|21|22)[0-9]{2}$" }) }),
+			response: t.Object({ status: t.String() }),
+		},
+	)
+	.post(
+		"/admin/yield-calendar/countries/:code/coverage/:year/confirm",
+		async ({ request, params }) => {
+			const admin = await requireAdmin(request);
+			await queryRaw(`INSERT INTO "YieldCalendarCountry" ("code") VALUES ($1) ON CONFLICT DO NOTHING`, [
+				params.code,
+			]);
+			await queryRaw(
+				`INSERT INTO "YieldCalendarCoverage" ("countryCode","year","status","source","sourceVersion","confirmedBy","generatedAt","updatedAt") VALUES ($1,$2,'COMPLETE','ADMIN','manual-v1',$3,NOW(),NOW()) ON CONFLICT ("countryCode","year") DO UPDATE SET "status"='COMPLETE',"source"='ADMIN',"sourceVersion"='manual-v1',"confirmedBy"=$3,"generatedAt"=NOW(),"updatedAt"=NOW()`,
+				[params.code, Number(params.year), admin],
+			);
+			await recalculateCountry(params.code, `${params.year}-01-01`, `calendar:${randomUUID()}`);
+			return { success: true };
+		},
+		{
+			params: t.Object({ code: Code, year: t.String({ pattern: "^(19|20|21|22)[0-9]{2}$" }) }),
+			response: Result,
+		},
+	)
 	.get(
 		"/admin/yield-calendar/access",
 		async ({ request }) => {
@@ -69,22 +104,22 @@ export const YieldCalendarController = new Elysia()
 					holidays: t.Array(t.Object({ ...Holiday.properties, id: t.String() })),
 				}),
 			),
+			coverage: t.Array(t.Object({ countryCode: t.String(), status: t.String(), year: t.Number() })),
 		}),
 	})
 	.put(
 		"/admin/yield-calendar/countries/:code",
 		async ({ request, params, body }) => {
 			await requireAdmin(request);
-			const name = checkedName(body.name);
+			checkedName(body.name);
 			await withRawTransaction(async query => {
 				const previous = await query<{ currency: string }>(
 					`SELECT "currency" FROM "YieldCalendarCurrency" WHERE "countryCode"=$1`,
 					[params.code],
 				);
-				await query(
-					`INSERT INTO "YieldCalendarCountry" ("code","name") VALUES ($1,$2) ON CONFLICT ("code") DO UPDATE SET "name"=EXCLUDED."name"`,
-					[params.code, name],
-				);
+				await query(`INSERT INTO "YieldCalendarCountry" ("code") VALUES ($1) ON CONFLICT DO NOTHING`, [
+					params.code,
+				]);
 				await query(`DELETE FROM "YieldCalendarCurrency" WHERE "countryCode"=$1`, [params.code]);
 				for (const currency of body.currencies)
 					await query(`INSERT INTO "YieldCalendarCurrency" ("countryCode","currency") VALUES ($1,$2)`, [
@@ -152,7 +187,7 @@ export const YieldCalendarController = new Elysia()
 			const date = checkedDate(body.date);
 			const name = checkedName(body.name);
 			await withRawTransaction(async query => {
-				const currencies = await countryCurrencies(params.code);
+				await countryCurrencies(params.code);
 				const existing = await query(
 					`SELECT "id" FROM "YieldCalendarHoliday" WHERE "countryCode"=$1 AND "date"=$2`,
 					[params.code, date],
@@ -162,7 +197,8 @@ export const YieldCalendarController = new Elysia()
 					`INSERT INTO "YieldCalendarHoliday" ("id","countryCode","date","name") VALUES ($1,$2,$3,$4)`,
 					[id, params.code, date, name],
 				);
-				await recalculate(currencies, date, `calendar:${id}`);
+				await saveOverride(params.code, date, name, "INCLUDE");
+				await recalculateCountry(params.code, date, `calendar:${id}`);
 			});
 			return { id };
 		},
@@ -190,8 +226,10 @@ export const YieldCalendarController = new Elysia()
 					date,
 					name,
 				]);
-				await recalculate(
-					await countryCurrencies(holiday.countryCode),
+				await saveOverride(holiday.countryCode, holiday.date, null, "EXCLUDE");
+				await saveOverride(holiday.countryCode, date, name, "INCLUDE");
+				await recalculateCountry(
+					holiday.countryCode,
 					date < holiday.date ? date : holiday.date,
 					`calendar:${randomUUID()}`,
 				);
@@ -210,13 +248,25 @@ export const YieldCalendarController = new Elysia()
 					[params.id],
 				);
 				if (!holiday) throw new HttpException("Feriado não encontrado", 404);
-				await recalculate(
-					await countryCurrencies(holiday.countryCode),
-					holiday.date,
-					`calendar:${randomUUID()}`,
-				);
+				await saveOverride(holiday.countryCode, holiday.date, null, "EXCLUDE");
+				await recalculateCountry(holiday.countryCode, holiday.date, `calendar:${randomUUID()}`);
 			});
 			return { success: true };
 		},
 		{ response: Result },
 	);
+
+async function recalculateCountry(countryCode: string, date: string, cause: string) {
+	const accounts = await queryRaw<{ id: string }>(
+		`SELECT "id" FROM "FinancialAccount" WHERE "countryCode"=$1 AND "type" <> 'CREDIT_CARD'`,
+		[countryCode],
+	);
+	for (const account of accounts)
+		await enqueueAccountYieldRecalculation(account.id, new Date(`${date}T12:00:00`), cause);
+}
+async function saveOverride(countryCode: string, date: string, name: string | null, action: string) {
+	await queryRaw(
+		`INSERT INTO "YieldCalendarOverride" ("id","countryCode","date","name","action","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,NOW(),NOW()) ON CONFLICT ("countryCode","date") DO UPDATE SET "name"=EXCLUDED."name","action"=EXCLUDED."action","updatedAt"=NOW()`,
+		[randomUUID(), countryCode, date, name, action],
+	);
+}

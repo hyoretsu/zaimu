@@ -2,6 +2,7 @@ import { startOfDay } from "date-fns";
 import Elysia, { t } from "elysia";
 import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
 import { getFinancialInstitutionYieldPolicies } from "~/modules/accounts/application/get-financial-institution-yield-policies";
+import { getInstitutionProfileContext } from "~/modules/accounts/application/get-institution-profile-context";
 import {
 	getPrimaryAccount,
 	saveAccountDefaults,
@@ -12,6 +13,10 @@ import {
 	scheduleFinancialAccountYieldRate,
 	tomorrow,
 } from "~/modules/accounts/application/schedule-financial-account-yield-rate";
+import {
+	ensureInstitutionLink,
+	visibleInstitution,
+} from "~/modules/accounts/application/universal-institutions";
 import { assertCashbackSettings } from "~/modules/accounts/domain/assert-cashback-settings";
 import { assertCreditCardBillingDays } from "~/modules/accounts/domain/assert-credit-card-billing-days";
 import { assertFinancialAccountYieldSettings } from "~/modules/accounts/domain/assert-financial-account-yield-settings";
@@ -21,6 +26,9 @@ import { assertDirectOwnership, requireUserId } from "~/modules/auth";
 import { recalculateCreditCardDueDates } from "~/modules/creditCards/application/normalized-credit-book";
 import { assertSupportedCurrency, defaultCurrency } from "~/modules/currencies/application/currency-defaults";
 import { CurrencyDTO } from "~/modules/currencies/application/financial-money";
+import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
+import { supportedCountryCodes } from "~/modules/yield-calendar/calendar-source";
+import { ensureAccountCoverage } from "~/modules/yield-calendar/ensure-coverage";
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
 import { rejectLegacyFinancialFields } from "~/shared/infra/elysia/strict-json-body";
@@ -141,6 +149,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 					...new Set(rows.flatMap(row => (row.institution ? [row.institution.id] : []))),
 				]);
 				const accounts = rows.map(row => row.account);
+				const profileContext = await getInstitutionProfileContext(accounts.map(account => account.id));
 				const balances = await getFinancialAccountBalances(
 					accounts.map(account => account.id),
 					new Date(),
@@ -148,6 +157,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 				);
 				return rows.map(({ account, institution, card, rewards }) => ({
 					...account,
+					...profileContext.get(account.id),
 					balance: account.type === "CREDIT_CARD" ? null : (balances.get(account.id) ?? 0),
 					...(account.type === "CREDIT_CARD" ? { creditCard: card } : {}),
 					...(account.type === "REWARDS" ? { rewardsAccount: rewards } : {}),
@@ -188,6 +198,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 							"type",
 							"institutionId",
 							"currency",
+							"countryCode",
 							"yieldFixedRate",
 							"yieldPeriod",
 							"yieldReferencePercentage",
@@ -209,22 +220,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 					}
 
 					const institution = account.institutionId
-						? await queryFirst(
-								db.sql.public.FinancialInstitution.select(
-									"id",
-									"name",
-									"currency",
-									"creditInstallmentRemainderOnFirst",
-								)
-									.where((fields, functions) =>
-										functions.and(
-											functions.eq(fields.id, account.institutionId!),
-											functions.eq(fields.userId, userId),
-										),
-									)
-									.limit(1)
-									.build(),
-							)
+						? await visibleInstitution(userId, account.institutionId)
 						: null;
 					const institutionWithYieldPolicies = institution
 						? {
@@ -282,6 +278,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 
 						return {
 							...account,
+							...(await getInstitutionProfileContext([account.id])).get(account.id),
 							balance,
 							creditCard,
 							institution: institutionWithYieldPolicies,
@@ -365,14 +362,25 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 						await assertRewardsAccountOwnership(body.creditCard.cashbackAccountId, userId);
 				}
 				const effectiveCurrency = await defaultCurrency(userId, request.headers.get("x-currency"));
-				const institution = await resolveFinancialInstitution(
-					userId,
-					body.institutionName,
-					effectiveCurrency,
-				);
+				const institution = body.institutionId
+					? await visibleInstitution(userId, body.institutionId)
+					: await resolveFinancialInstitution(userId, body.institutionName, effectiveCurrency);
+				if (institution) await ensureInstitutionLink(userId, institution.id);
 				const currency = body.currency
 					? await assertSupportedCurrency(body.currency)
 					: (institution?.currency ?? effectiveCurrency);
+				const [countryPreference] = await queryRaw<{ preferredCountry: string | null }>(
+					'SELECT "preferredCountry" FROM "user" WHERE "id"=$1',
+					[userId],
+				);
+				const operatingCountries =
+					(institution as { operatingCountryCodes?: string[] } | null)?.operatingCountryCodes ?? [];
+				const countryCode =
+					body.countryCode ??
+					(operatingCountries.length === 1 ? operatingCountries[0] : countryPreference?.preferredCountry);
+				if (!countryCode || !supportedCountryCodes.includes(countryCode))
+					throw new HttpException("Selecione o país da conta", 400);
+				await ensureAccountCoverage(currency, countryCode);
 				if (body.rewardsAccount)
 					assertRewardsAccountDetails(
 						{
@@ -487,6 +495,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 							"type",
 							"institutionId",
 							"currency",
+							"countryCode",
 							"yieldFixedRate",
 							"yieldPeriod",
 							"yieldReferencePercentage",
@@ -499,6 +508,11 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 						.build(),
 				);
 				if (!account) throw new HttpException("FinancialAccount not created", 500);
+				await queryRaw(`UPDATE "FinancialAccount" SET "countryCode"=$2 WHERE "id"=$1`, [
+					account.id,
+					countryCode,
+				]);
+				Object.assign(account, { countryCode });
 				Object.assign(account, await saveAccountDefaults(userId, account.id, body, true));
 				if (type !== "CREDIT_CARD" && (body.yieldFixedRate || body.yieldReferenceType)) {
 					await scheduleFinancialAccountYieldRate({
@@ -607,8 +621,10 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 			}),
 		{
 			body: t.Object({
+				countryCode: t.Optional(t.String({ pattern: "^[A-Z]{2}$" })),
 				creditCard: t.Optional(CreditCardCreate),
 				currency: t.Optional(CurrencyDTO),
+				institutionId: t.Optional(t.Nullable(Id)),
 				institutionName: t.Optional(t.String({ maxLength: 100 })),
 				isDefaultForStatements: t.Optional(t.Boolean()),
 				isPrimary: t.Optional(t.Boolean()),
@@ -642,6 +658,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 						"type",
 						"userId",
 						"currency",
+						"countryCode",
 						"yieldFixedRate",
 						"yieldPeriod",
 						"yieldReferencePercentage",
@@ -658,6 +675,30 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 					throw new HttpException("FinancialAccount not found", 404);
 				}
 				if (body.currency) await assertSupportedCurrency(body.currency);
+				if (body.countryCode && !supportedCountryCodes.includes(body.countryCode))
+					throw new HttpException("País inválido", 400);
+				if (body.countryCode || body.currency) {
+					const [current] = await queryRaw<{ countryCode: string | null; createdAt: Date }>(
+						`SELECT "createdAt","countryCode" FROM "FinancialAccount" WHERE "id"=$1`,
+						[params.id],
+					);
+					await ensureAccountCoverage(
+						body.currency ?? existing.currency,
+						body.countryCode ?? current?.countryCode,
+					);
+					if (body.countryCode) {
+						await queryRaw(`UPDATE "FinancialAccount" SET "countryCode"=$2 WHERE "id"=$1`, [
+							params.id,
+							body.countryCode,
+						]);
+						if (body.countryCode !== current?.countryCode)
+							await enqueueAccountYieldRecalculation(
+								params.id,
+								new Date(current.createdAt),
+								`account-country:${crypto.randomUUID()}`,
+							);
+					}
+				}
 				if (body.currency && body.currency.toUpperCase() !== existing.currency) {
 					const [history] = await queryRaw<{ used: boolean }>(
 						`SELECT EXISTS(SELECT 1 FROM "Transaction" WHERE "originFinancialAccountId"=$1 OR "destinationFinancialAccountId"=$1) OR EXISTS(SELECT 1 FROM "CreditPurchaseRecord" p JOIN "CreditCard" c ON c."id"=p."creditCardId" WHERE c."financialAccountId"=$1) OR EXISTS(SELECT 1 FROM "BalanceAdjustment" WHERE "financialAccountId"=$1)
@@ -697,28 +738,22 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 					yieldTaxRate: body.yieldTaxRate === undefined ? existing.yieldTaxRate : body.yieldTaxRate,
 				});
 				const institution =
-					body.institutionName === undefined
-						? existing.institutionId
-							? await queryFirst(
-									db.sql.public.FinancialInstitution.select(
-										"id",
-										"name",
-										"currency",
-										"creditInstallmentRemainderOnFirst",
-									)
-										.where((fields, functions) =>
-											functions.and(
-												functions.eq(fields.id, existing.institutionId!),
-												functions.eq(fields.userId, userId),
-											),
-										)
-										.limit(1)
-										.build(),
-								)
+					body.institutionId !== undefined
+						? body.institutionId
+							? await visibleInstitution(userId, body.institutionId)
 							: null
-						: await resolveFinancialInstitution(userId, body.institutionName);
+						: body.institutionName === undefined
+							? existing.institutionId
+								? await visibleInstitution(userId, existing.institutionId)
+								: null
+							: await resolveFinancialInstitution(userId, body.institutionName);
+				if (institution) await ensureInstitutionLink(userId, institution.id);
 				const name = body.name === undefined ? existing.name : body.name?.trim() || null;
-				if (body.name !== undefined || body.institutionName !== undefined) {
+				if (
+					body.name !== undefined ||
+					body.institutionName !== undefined ||
+					body.institutionId !== undefined
+				) {
 					const duplicate = await queryFirst(
 						db.sql.public.FinancialAccount.select("id")
 							.where((fields, functions) =>
@@ -748,7 +783,7 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 				const account = await queryFirst(
 					db.sql.public.FinancialAccount.update({
 						...(body.currency !== undefined && { currency: body.currency.toUpperCase() }),
-						...(body.institutionName !== undefined && {
+						...((body.institutionName !== undefined || body.institutionId !== undefined) && {
 							institutionId: (institution?.id ?? null) as never,
 						}),
 						// Prisma 8 currently omits null from nullable varchar write types.
@@ -781,6 +816,7 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 							"type",
 							"institutionId",
 							"currency",
+							"countryCode",
 							"yieldFixedRate",
 							"yieldPeriod",
 							"yieldReferencePercentage",
@@ -1035,6 +1071,7 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 			}),
 		{
 			body: t.Object({
+				countryCode: t.Optional(t.String({ pattern: "^[A-Z]{2}$" })),
 				creditCard: t.Optional(
 					t.Object({
 						cashbackAccountId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
@@ -1053,6 +1090,7 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 					}),
 				),
 				currency: t.Optional(CurrencyDTO),
+				institutionId: t.Optional(t.Nullable(Id)),
 				institutionName: t.Optional(t.String({ maxLength: 100 })),
 				isDefaultForStatements: t.Optional(t.Boolean()),
 				isHidden: t.Optional(t.Boolean()),

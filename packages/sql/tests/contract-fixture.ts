@@ -64,10 +64,12 @@ export async function installContractFixture(client: Client, input: unknown) {
 		});
 		if (table.primaryKey)
 			columns.push(
-				`CONSTRAINT ${quote(table.primaryKey.name)} PRIMARY KEY (${table.primaryKey.columns.map(quote).join(",")})`,
+				`CONSTRAINT ${quote(table.primaryKey.name ?? `${name}_pkey`)} PRIMARY KEY (${table.primaryKey.columns.map(quote).join(",")})`,
 			);
 		for (const unique of table.uniques)
-			columns.push(`CONSTRAINT ${quote(unique.name)} UNIQUE (${unique.columns.map(quote).join(",")})`);
+			columns.push(
+				`CONSTRAINT ${quote(unique.name ?? `${name}_${unique.columns.join("_")}_key`)} UNIQUE (${unique.columns.map(quote).join(",")})`,
+			);
 		await client.query(`CREATE TABLE ${quote(name)} (${columns.join(",")})`);
 		for (const index of table.indexes)
 			await client.query(
@@ -84,6 +86,6 @@ export async function installContractFixture(client: Client, input: unknown) {
 	for (const [name, table] of Object.entries(tables))
 		for (const fk of table.foreignKeys)
 			await client.query(
-				`ALTER TABLE ${quote(name)} ADD CONSTRAINT ${quote(fk.name)} FOREIGN KEY (${fk.source.columns.map(quote).join(",")}) REFERENCES ${quote(fk.target.tableName)} (${fk.target.columns.map(quote).join(",")}) ON DELETE ${action[fk.onDelete] ?? "NO ACTION"} ON UPDATE ${action[fk.onUpdate] ?? "NO ACTION"}`,
+				`ALTER TABLE ${quote(name)} ADD CONSTRAINT ${quote(fk.name ?? `${name}_${fk.source.columns.join("_")}_fkey`)} FOREIGN KEY (${fk.source.columns.map(quote).join(",")}) REFERENCES ${quote(fk.target.tableName)} (${fk.target.columns.map(quote).join(",")}) ON DELETE ${action[fk.onDelete] ?? "NO ACTION"} ON UPDATE ${action[fk.onUpdate] ?? "NO ACTION"}`,
 			);
 }

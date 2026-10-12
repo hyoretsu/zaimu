@@ -238,3 +238,25 @@ Administradores gerenciam impostos globais nomeados com faixas por dias corridos
 Administradores consultam inventário global de CDI, Selic e snapshots cambiais, com contagem total e por período, datas extremas, mapa diário e intervalos sem cobertura. A consulta é somente leitura e não inicia coletas. Para juros, dias consultados com sucesso sem publicação oficial contam como cobertos; para câmbio, cobertura exige snapshot salvo por data e moeda-base. O período padrão reúne os últimos 365 dias encerrados ontem; consultas aceitam até 3.660 dias e excluem hoje e datas futuras.
 
 Administradores selecionam juros (CDI ou Selic) ou câmbio por moeda base, inclusive séries ainda sem registros. Completar cobertura solicita coleta apenas do período selecionado; cada lacuna também permite coleta individual. A consulta permanece somente leitura. Coletas reutilizam dados e unidades existentes, mostram progresso por série e permitem nova tentativa de falhas.
+
+## Instituições universais e revisão
+
+Instituições aprovadas são compartilhadas; vínculo e seleção de perfil pertencem ao usuário. Contas referenciam instituição universal, e remover vínculo pessoal nunca exclui instituição global. Instituições pendentes e rejeitadas permanecem privadas ao proponente, incluindo suas contas. Nomes normalizados geram candidatos de fusão; nomes iguais nunca provam identidade. Seleção por identificador elimina ambiguidades.
+
+Criação, alterações, novos perfis e políticas passam por propostas. Aprovação publica em transação, com bloqueio, controle de versão, auditoria de antes/depois e notificação persistente interna. Revisão de proposta desatualizada exige conferência explícita da versão atual. Rejeição exige motivo. Não há notificações externas. Propostas globais exigem conexão; cadastro offline pode usar instituições aprovadas já disponíveis no cache do usuário.
+
+Toda instituição possui perfil Padrão. Perfil escolhido pertence ao vínculo usuário-instituição e vale para todas as contas do vínculo. Cada mudança tem data inicial explícita, passada, atual ou futura. Sem retorno automático: cancelamento futuro é outra mudança para Padrão. Padrão vale antes da primeira mudança. Regras aprovadas são selecionadas pela data, perfil, moeda e país da conta. Regras específicas de país prevalecem sobre regras gerais. Término explícito da regra é exclusivo. Ausência de política aplicável é cobertura pendente, não taxa zero.
+
+Ajuste próprio da conta, inclusive taxa zero explícita, tem prioridade. Mudanças retroativas disparam recálculo desde primeira data afetada; lançamentos ajustados ou excluídos pelo usuário são preservados. Histórico, projeção e cálculo offline usam resolução temporal compartilhada. Fusão mantém referência à instituição privada original e suas políticas; adoção global depende de vigência explícita. Históricos conflitantes exigem resolução explícita e ficam registrados na auditoria.
+
+## País e cobertura de calendário
+
+País é identificado por ISO; nomes são derivados de Intl.DisplayNames, sem nome persistido. Preferência do Zaimu fica no usuário; localização sugere valor inicial. País da conta independe da moeda e dos países de operação da instituição. Sugestão usa único país institucional, preferência dentre países institucionais ou preferência geral, sem restringir escolha. Sem sugestão, cadastro exige seleção. Contas antigas só recebem país inferido quando associação existente da moeda é única; demais aguardam confirmação.
+
+Associações oficiais de moeda e país usam CLDR 48.2.0, preservando vigências e versão da fonte. Calendários sob demanda usam date-holidays 3.37.0, com eventos nacionais public e bank por data civil; eventos estaduais, regionais e outros tipos ficam fora. Calendário pertence ao país da conta, nunca à união dos países de uma moeda.
+
+Criação, edição, sincronização, importação/Open Finance, histórico e projeção garantem cobertura necessária. Geração é idempotente, com transação e bloqueio por país/ano. Ano suportado sem eventos é completo; país não suportado fica indisponível. Inclusões, edições e exclusões administrativas persistem como overrides. Dados antigos do calendário são preservados, mas exigem confirmação para declarar ano completo. Admin pode confirmar calendário manual. Falta de cobertura mantém rendimento automático pendente e sinaliza indisponibilidade na projeção. Mudanças administrativas disparam recálculo das contas do país.
+
+## Cobertura financeira
+
+Cobertura financeira conserva histórico de juros/câmbio e inclui associações CLDR, calendários país/ano, vigências tributárias, políticas institucionais e histórico de perfil. Consulta mostra fonte, versão, intervalo, lacunas, estado e contas afetadas. Leitura não inicia coleta. Impostos e perfis representam vigências registradas, sem coleta externa simulada. Usuários comuns só recebem seus vínculos e contas; admin pode revisar propostas e solicitar preenchimento de calendários.

@@ -2,6 +2,7 @@ import { type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
 import { addDays, format, isWeekend, startOfDay, subDays } from "date-fns";
 import { loadFinancialAccountBalanceInput } from "~/modules/accounts/application/get-financial-account-balances";
 import { getFinancialInstitutionYieldPolicies } from "~/modules/accounts/application/get-financial-institution-yield-policies";
+import { getInstitutionProfileContext } from "~/modules/accounts/application/get-institution-profile-context";
 import {
 	calculateFinancialAccountYieldBalances,
 	calculateGrossYield,
@@ -18,7 +19,8 @@ import {
 import { referenceRateCoveredDaysSql } from "~/modules/financial-history/application/reference-rate-coverage-sql";
 import { historyCoverageRanges } from "~/modules/financial-history/domain/collection";
 import { loadTaxCatalog } from "~/modules/taxes/catalog";
-import { getCurrencyHolidays } from "~/modules/yield-calendar/catalog";
+import { getCountryHolidays } from "~/modules/yield-calendar/catalog";
+import { ensureAccountCoverage } from "~/modules/yield-calendar/ensure-coverage";
 import { createEventEnvelope, type EventEnvelope } from "~/shared/application/events";
 import { PostgresOutbox } from "~/shared/infra/outbox";
 import {
@@ -216,8 +218,10 @@ export async function loadYieldAccounts(accountIds: string[]): Promise<YieldAcco
 	const accounts = await queryRows(
 		db.sql.public.FinancialAccount.select(
 			"currency",
+			"countryCode",
 			"id",
 			"institutionId",
+			"legacyInstitutionId",
 			"userId",
 			"type",
 			"createdAt",
@@ -245,6 +249,7 @@ export async function loadYieldAccounts(accountIds: string[]): Promise<YieldAcco
 			.where((fields, functions) => functions.in(fields.financialAccountId, accountIds))
 			.build(),
 	);
+	const profileContext = await getInstitutionProfileContext(accountIds);
 	const policies = await getFinancialInstitutionYieldPolicies([
 		...new Set(accounts.flatMap(account => (account.institutionId ? [account.institutionId] : []))),
 	]);
@@ -256,6 +261,7 @@ export async function loadYieldAccounts(accountIds: string[]): Promise<YieldAcco
 
 	return accounts.map(account => ({
 		...account,
+		...profileContext.get(account.id),
 		institutionYieldPolicies: account.institutionId ? (policies.get(account.institutionId) ?? []) : [],
 		yieldLots: snapshots.get(account.id) ?? [],
 		yieldPeriod: account.yieldPeriod as null | YieldPeriod,
@@ -288,12 +294,17 @@ async function processAccountRecalculation(job: ClaimedJob) {
 	const fromDate = startOfDay(job.fromDate > account.createdAt ? job.fromDate : account.createdAt);
 	const endDate = startOfDay(new Date());
 	if (fromDate > endDate) return;
+	const years = Array.from(
+		{ length: endDate.getFullYear() - fromDate.getFullYear() + 1 },
+		(_, index) => fromDate.getFullYear() + index,
+	);
+	if (!(await ensureAccountCoverage(account.currency ?? "BRL", account.countryCode, years))) return;
 	await loadTaxCatalog();
 	await executeRaw(
 		`DELETE FROM "public"."FinancialAccountYield" WHERE "financialAccountId" = $1 AND "kind" = 'AUTOMATIC' AND "origin" = 'SYSTEM' AND "date" >= $2`,
 		[account.id, dateKey(fromDate)],
 	);
-	const holidayKeys = await getCurrencyHolidays(account.currency ?? "BRL");
+	const holidayKeys = await getCountryHolidays(account.countryCode!);
 	const loaded = await loadFinancialAccountBalanceInput([account.id]);
 	if (!loaded.input) return;
 	const input = { ...loaded.input, yields: [...loaded.input.yields] };

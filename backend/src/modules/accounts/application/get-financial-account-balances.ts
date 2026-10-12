@@ -1,4 +1,5 @@
 import { differenceInMonths, differenceInYears } from "date-fns";
+import { getInstitutionProfileContext } from "~/modules/accounts/application/get-institution-profile-context";
 import {
 	calculateFinancialAccountYieldBalances,
 	type YieldPeriod,
@@ -32,8 +33,10 @@ export async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 	const accounts = await queryRows(
 		db.sql.public.FinancialAccount.select(
 			"currency",
+			"countryCode",
 			"id",
 			"institutionId",
+			"legacyInstitutionId",
 			"currency",
 			"userId",
 			"type",
@@ -48,6 +51,7 @@ export async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 			.where((fields, functions) => functions.in(fields.id, accountIds))
 			.build(),
 	);
+	const profileContext = await getInstitutionProfileContext(accountIds);
 	const institutionYieldPolicies = await getFinancialInstitutionYieldPolicies([
 		...new Set(accounts.flatMap(account => (account.institutionId ? [account.institutionId] : []))),
 	]);
@@ -137,6 +141,12 @@ export async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 			)
 		: [];
 	const holidays = await loadCurrencyHolidayRows();
+	const holidaysByCountry = new Map(
+		[...Map.groupBy(holidays, holiday => holiday.countryCode)].map(([country, rows]) => [
+			country,
+			rows.map(row => row.date),
+		]),
+	);
 	const holidaysByCurrency = new Map(
 		[...Map.groupBy(holidays, holiday => holiday.currency)].map(([currency, rows]) => [
 			currency,
@@ -148,6 +158,7 @@ export async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 		input: {
 			accounts: accounts.map(account => ({
 				...account,
+				...profileContext.get(account.id),
 				institutionYieldPolicies: account.institutionId
 					? (institutionYieldPolicies.get(account.institutionId) ?? [])
 					: [],
@@ -168,6 +179,7 @@ export async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 				cashbackYieldReferenceRate: purchase.cashbackYieldReferenceRate,
 			})),
 			holidays: [],
+			holidaysByCountry,
 			holidaysByCurrency,
 			initialRewardsBalances: new Map(
 				rewardsAccounts.map(account => [account.financialAccountId, Number(account.initialBalance)]),

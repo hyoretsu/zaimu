@@ -1,181 +1,351 @@
 import Elysia, { t } from "elysia";
-import { tomorrow } from "~/modules/accounts/application/schedule-financial-account-yield-rate";
-import { scheduleFinancialInstitutionYieldPolicy } from "~/modules/accounts/application/schedule-financial-institution-yield-policy";
-import { assertFinancialInstitutionYieldPolicy } from "~/modules/accounts/domain/assert-financial-institution-yield-policy";
-import { normalizeFinancialInstitutionName } from "~/modules/accounts/domain/normalize-financial-institution-name";
+import {
+	proposeInstitution,
+	reviewInstitutionProposal,
+	visibleInstitution,
+} from "~/modules/accounts/application/universal-institutions";
 import { requireUserId } from "~/modules/auth";
-import { assertSupportedCurrency } from "~/modules/currencies/application/currency-defaults";
-import { CurrencyDTO } from "~/modules/currencies/application/financial-money";
+import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
+import { requireAdmin } from "~/modules/taxes/admin-access";
+import { createEventEnvelope } from "~/shared/application/events";
 import { HttpException } from "~/shared/errors";
-import { db, executeStatement, queryFirst } from "~/shared/infra/sql";
+import { PostgresOutbox } from "~/shared/infra/outbox";
+import { queryRaw, withRawTransaction } from "~/shared/infra/sql";
 
 const Id = t.String({ maxLength: 36, minLength: 1 });
-const YieldPeriod = t.Union([t.Literal("MONTHLY"), t.Literal("YEARLY")]);
-const ReferenceRateType = t.Union([t.Literal("CDI"), t.Literal("SELIC")]);
-const YieldRule = t.Object({
-	upToBalance: t.Nullable(t.Number({ exclusiveMinimum: 0 })),
-	yieldFixedRate: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
-	yieldReferencePercentage: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
-	yieldReferenceType: t.Optional(t.Nullable(ReferenceRateType)),
+const DateDTO = t.String({ format: "date" });
+const InstitutionBody = t.Object({
+	creditInstallmentRemainderOnFirst: t.Optional(t.Boolean()),
+	currency: t.Optional(t.String({ maxLength: 3, minLength: 3 })),
+	effectiveDate: t.Optional(DateDTO),
+	name: t.Optional(t.String({ maxLength: 100, minLength: 1 })),
+	operatingCountryCodes: t.Optional(t.Array(t.String({ maxLength: 2, minLength: 2 }))),
 });
 
+const MutationReturn = t.Object({ id: t.String(), institutionId: t.String(), status: t.String() });
+const InstitutionReturn = t.Object(
+	{
+		creditInstallmentRemainderOnFirst: t.Boolean(),
+		currency: t.String(),
+		id: t.String(),
+		name: t.String(),
+		operatingCountryCodes: t.Array(t.String()),
+		status: t.String(),
+		version: t.Number(),
+	},
+	{ additionalProperties: true },
+);
+const ProposalReturn = t.Object(
+	{
+		authorId: t.String(),
+		baseVersion: t.Nullable(t.Number()),
+		createdAt: t.Union([t.Date(), t.String()]),
+		effectiveDate: t.Nullable(t.Union([t.Date(), t.String()])),
+		id: t.String(),
+		institutionId: t.Nullable(t.String()),
+		kind: t.String(),
+		payload: t.Record(t.String(), t.Unknown()),
+		reason: t.Nullable(t.String()),
+		status: t.String(),
+	},
+	{ additionalProperties: true },
+);
+const ProfileReturn = t.Object(
+	{ id: t.String(), institutionId: t.String(), isDefault: t.Boolean(), name: t.String() },
+	{ additionalProperties: true },
+);
+const ChangeReturn = t.Object(
+	{
+		effectiveDate: t.Union([t.Date(), t.String()]),
+		id: t.String(),
+		linkId: t.String(),
+		name: t.Optional(t.String()),
+		profileId: t.String(),
+	},
+	{ additionalProperties: true },
+);
+const NotificationReturn = t.Object(
+	{
+		createdAt: t.Union([t.Date(), t.String()]),
+		id: t.String(),
+		payload: t.Record(t.String(), t.Unknown()),
+		readAt: t.Nullable(t.Union([t.Date(), t.String()])),
+		type: t.String(),
+	},
+	{ additionalProperties: true },
+);
+
 export const InstitutionsController = new Elysia({ prefix: "/financial-institutions" })
+	.get(
+		"/",
+		async ({ request }) =>
+			queryRaw(
+				`SELECT * FROM "FinancialInstitution" WHERE "status"='APPROVED' OR "userId"=$1 ORDER BY "name"`,
+				[await requireUserId(request)],
+			),
+		{ detail: { tags: ["Institutions"] }, response: t.Array(InstitutionReturn) },
+	)
+	.post(
+		"/",
+		async ({ body, request }) =>
+			proposeInstitution(await requireUserId(request), null, "NEW_INSTITUTION", body, body.effectiveDate),
+		{ body: InstitutionBody, response: MutationReturn },
+	)
 	.patch(
 		"/:id",
-		async ({ body, params, request }) => {
-			const userId = await requireUserId(request);
-			const currency = body.currency ? await assertSupportedCurrency(body.currency) : undefined;
-			const normalized = body.name === undefined ? null : normalizeFinancialInstitutionName(body.name);
-			if (normalized && !normalized.name) throw new HttpException("Informe o nome da instituição", 400);
-			const existing = await queryFirst(
-				db.sql.public.FinancialInstitution.select("id", "currency")
-					.where((fields, functions) =>
-						functions.and(functions.eq(fields.id, params.id), functions.eq(fields.userId, userId)),
-					)
-					.limit(1)
-					.build(),
+		async ({ body, params, request }) =>
+			proposeInstitution(
+				await requireUserId(request),
+				params.id,
+				"INSTITUTION_UPDATE",
+				body,
+				body.effectiveDate,
+			),
+		{ body: InstitutionBody, params: t.Object({ id: Id }), response: MutationReturn },
+	)
+	.post(
+		"/:id/merge-proposal",
+		async ({ params, body, request }) =>
+			proposeInstitution(await requireUserId(request), params.id, "MERGE", body),
+		{ body: t.Object({ targetId: Id }), params: t.Object({ id: Id }), response: MutationReturn },
+	)
+	.get(
+		"/:id/profiles",
+		async ({ params, request }) => {
+			await visibleInstitution(await requireUserId(request), params.id);
+			return queryRaw(
+				`SELECT * FROM "FinancialInstitutionProfile" WHERE "institutionId"=$1 ORDER BY "isDefault" DESC,"name"`,
+				[params.id],
 			);
-			if (!existing) throw new HttpException("Instituição financeira não encontrada", 404);
-			const settings = {
-				...(currency && { currency }),
-				...(body.creditInstallmentRemainderOnFirst !== undefined && {
-					creditInstallmentRemainderOnFirst: body.creditInstallmentRemainderOnFirst,
-				}),
-			};
-			if (body.yieldPolicy)
-				assertFinancialInstitutionYieldPolicy({
-					...body.yieldPolicy,
-					currency: body.yieldPolicy.currency ?? currency ?? existing.currency,
-				});
-			const matching = normalized
-				? await queryFirst(
-						db.sql.public.FinancialInstitution.select(
-							"id",
-							"name",
-							"currency",
-							"creditInstallmentRemainderOnFirst",
-						)
-							.where((fields, functions) =>
-								functions.and(
-									functions.eq(fields.userId, userId),
-									functions.eq(fields.normalizedName, normalized.normalizedName),
-								),
-							)
-							.limit(1)
-							.build(),
-					)
-				: null;
-			if (matching && matching.id !== params.id) {
-				await executeStatement(
-					db.sql.public.FinancialAccount.update({ institutionId: matching.id, updatedAt: new Date() })
-						.where((fields, functions) => functions.eq(fields.institutionId, params.id))
-						.build(),
-				);
-				await executeStatement(
-					db.sql.public.FinancialInstitution.delete()
-						.where((fields, functions) => functions.eq(fields.id, params.id))
-						.build(),
-				);
-				if (Object.keys(settings).length)
-					await executeStatement(
-						db.sql.public.FinancialInstitution.update({ ...settings, updatedAt: new Date() })
-							.where((fields, functions) => functions.eq(fields.id, matching.id))
-							.build(),
-					);
-				return { ...matching, ...settings };
-			}
-			const institution = normalized
-				? await queryFirst(
-						db.sql.public.FinancialInstitution.update({
-							name: normalized.name,
-							normalizedName: normalized.normalizedName,
-							updatedAt: new Date(),
-						})
-							.where((fields, functions) => functions.eq(fields.id, params.id))
-							.returning("id", "name", "currency", "creditInstallmentRemainderOnFirst")
-							.build(),
-					)
-				: await queryFirst(
-						db.sql.public.FinancialInstitution.select(
-							"id",
-							"name",
-							"currency",
-							"creditInstallmentRemainderOnFirst",
-						)
-							.where((fields, functions) => functions.eq(fields.id, params.id))
-							.limit(1)
-							.build(),
-					);
-			if (!institution) throw new HttpException("Instituição financeira não encontrada", 404);
-			if (Object.keys(settings).length) {
-				await executeStatement(
-					db.sql.public.FinancialInstitution.update({ ...settings, updatedAt: new Date() })
-						.where((fields, functions) => functions.eq(fields.id, institution.id))
-						.build(),
-				);
-				Object.assign(institution, settings);
-			}
-			if (body.yieldPolicy)
-				await scheduleFinancialInstitutionYieldPolicy({
-					effectiveDate: body.recalculateCurrentDay ? new Date() : tomorrow(),
-					financialInstitutionId: institution.id,
-					...body.yieldPolicy,
-					currency: await assertSupportedCurrency(body.yieldPolicy.currency ?? institution.currency ?? "BRL"),
-				});
-			return { ...institution, ...(body.yieldPolicy && { yieldPolicy: body.yieldPolicy }) };
 		},
+		{ params: t.Object({ id: Id }), response: t.Array(ProfileReturn) },
+	)
+	.post(
+		"/:id/profiles",
+		async ({ params, body, request }) =>
+			proposeInstitution(await requireUserId(request), params.id, "PROFILE", body),
+		{
+			body: t.Object({ name: t.String({ maxLength: 100, minLength: 1 }) }),
+			params: t.Object({ id: Id }),
+			response: MutationReturn,
+		},
+	)
+	.post(
+		"/:id/policies",
+		async ({ params, body, request }) =>
+			proposeInstitution(await requireUserId(request), params.id, "POLICY", body, body.effectiveDate),
 		{
 			body: t.Object({
-				creditInstallmentRemainderOnFirst: t.Optional(t.Boolean()),
-				currency: t.Optional(CurrencyDTO),
-				name: t.Optional(t.String({ maxLength: 100, minLength: 1 })),
-				recalculateCurrentDay: t.Optional(t.Boolean()),
-				yieldPolicy: t.Optional(
+				countryCode: t.Optional(t.String({ maxLength: 2, minLength: 2 })),
+				currency: t.String({ maxLength: 3, minLength: 3 }),
+				effectiveDate: DateDTO,
+				effectiveUntil: t.Optional(DateDTO),
+				profileId: Id,
+				rules: t.Array(
 					t.Object({
-						currency: t.Optional(CurrencyDTO),
-						rules: t.Array(YieldRule, { maxItems: 20 }),
-						yieldPeriod: t.Optional(t.Nullable(YieldPeriod)),
-						yieldTaxIds: t.Optional(
-							t.Nullable(
-								t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20, uniqueItems: true }),
-							),
-						),
-						yieldTaxRate: t.Optional(t.Nullable(t.Number({ maximum: 100, minimum: 0 }))),
+						upToBalance: t.Nullable(t.Number({ exclusiveMinimum: 0 })),
+						yieldFixedRate: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
+						yieldReferencePercentage: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
+						yieldReferenceType: t.Optional(t.Nullable(t.Union([t.Literal("CDI"), t.Literal("SELIC")]))),
 					}),
+					{ maxItems: 20 },
 				),
+				yieldPeriod: t.Optional(t.Nullable(t.Union([t.Literal("MONTHLY"), t.Literal("YEARLY")]))),
+				yieldTaxIds: t.Optional(t.Array(Id)),
+				yieldTaxRate: t.Optional(t.Nullable(t.Number({ maximum: 100, minimum: 0 }))),
 			}),
-			detail: { tags: ["Institutions"] },
 			params: t.Object({ id: Id }),
+			response: MutationReturn,
+		},
+	)
+	.get(
+		"/:id/profile-history",
+		async ({ params, request }) => {
+			const userId = await requireUserId(request);
+			await visibleInstitution(userId, params.id);
+			return queryRaw(
+				`SELECT c.*,p."name" FROM "UserInstitutionProfileChange" c JOIN "UserFinancialInstitution" l ON l."id"=c."linkId" JOIN "FinancialInstitutionProfile" p ON p."id"=c."profileId" WHERE l."userId"=$1 AND l."institutionId"=$2 ORDER BY c."effectiveDate"`,
+				[userId, params.id],
+			);
+		},
+		{ params: t.Object({ id: Id }), response: t.Array(ChangeReturn) },
+	)
+	.post(
+		"/:id/profile-history",
+		async ({ params, body, request }) => {
+			const userId = await requireUserId(request);
+			await visibleInstitution(userId, params.id);
+			const result = await withRawTransaction(async query => {
+				const [profile] = await query(
+					`SELECT "id" FROM "FinancialInstitutionProfile" WHERE "id"=$1 AND "institutionId"=$2`,
+					[body.profileId, params.id],
+				);
+				if (!profile) throw new HttpException("Perfil não encontrado", 404);
+				const [link] = await query(
+					`INSERT INTO "UserFinancialInstitution" ("id","userId","institutionId","globalRulesFrom","updatedAt") VALUES ($1,$2,$3,$4,NOW()) ON CONFLICT ("userId","institutionId") DO UPDATE SET "globalRulesFrom"=LEAST(COALESCE("UserFinancialInstitution"."globalRulesFrom",EXCLUDED."globalRulesFrom"),EXCLUDED."globalRulesFrom"),"updatedAt"=NOW() RETURNING "id"`,
+					[crypto.randomUUID(), userId, params.id, body.effectiveDate],
+				);
+				const [change] = await query<typeof ChangeReturn.static>(
+					`INSERT INTO "UserInstitutionProfileChange" ("id","linkId","profileId","effectiveDate","updatedAt") VALUES ($1,$2,$3,$4,NOW()) ON CONFLICT ("linkId","effectiveDate") DO UPDATE SET "profileId"=EXCLUDED."profileId","updatedAt"=NOW() RETURNING *`,
+					[crypto.randomUUID(), link.id, body.profileId, body.effectiveDate],
+				);
+				await new PostgresOutbox().append(
+					createEventEnvelope({
+						aggregateId: params.id,
+						aggregateType: "account",
+						correlationId: change.id,
+						eventType: "account.institution.profile.changed",
+						payload: { effectiveDate: body.effectiveDate },
+						userIds: [userId],
+					}),
+				);
+				return change;
+			});
+			const accounts = await queryRaw<{ id: string }>(
+				`SELECT "id" FROM "FinancialAccount" WHERE "userId"=$1 AND "institutionId"=$2`,
+				[userId, params.id],
+			);
+			for (const account of accounts)
+				await enqueueAccountYieldRecalculation(
+					account.id,
+					new Date(`${body.effectiveDate}T00:00:00`),
+					`institution-profile:${result.id}`,
+				);
+			return result;
+		},
+		{
+			body: t.Object({ effectiveDate: DateDTO, profileId: Id }),
+			params: t.Object({ id: Id }),
+			response: ChangeReturn,
 		},
 	)
 	.delete(
 		"/:id",
 		async ({ params, request }) => {
 			const userId = await requireUserId(request);
-			const existing = await queryFirst(
-				db.sql.public.FinancialInstitution.select("id")
-					.where((fields, functions) =>
-						functions.and(functions.eq(fields.id, params.id), functions.eq(fields.userId, userId)),
-					)
-					.limit(1)
-					.build(),
-			);
-			if (!existing) throw new HttpException("Instituição financeira não encontrada", 404);
-
-			await executeStatement(
-				db.sql.public.FinancialAccount.update({ institutionId: null, updatedAt: new Date() })
-					.where((fields, functions) => functions.eq(fields.institutionId, params.id))
-					.build(),
-			);
-			await executeStatement(
-				db.sql.public.FinancialInstitution.delete()
-					.where((fields, functions) => functions.eq(fields.id, params.id))
-					.build(),
-			);
+			await visibleInstitution(userId, params.id);
+			await withRawTransaction(async query => {
+				await query(
+					`UPDATE "FinancialAccount" SET "institutionId"=NULL,"updatedAt"=NOW() WHERE "institutionId"=$1 AND "userId"=$2`,
+					[params.id, userId],
+				);
+				await query(`DELETE FROM "UserFinancialInstitution" WHERE "institutionId"=$1 AND "userId"=$2`, [
+					params.id,
+					userId,
+				]);
+			});
 			return { success: true };
 		},
-		{
-			detail: { tags: ["Institutions"] },
-			params: t.Object({ id: Id }),
+		{ params: t.Object({ id: Id }), response: t.Object({ success: t.Boolean() }) },
+	)
+	.get(
+		"/proposals",
+		async ({ request }) =>
+			queryRaw<typeof ProposalReturn.static>(
+				`SELECT * FROM "FinancialInstitutionProposal" WHERE "authorId"=$1 ORDER BY "createdAt" DESC`,
+				[await requireUserId(request)],
+			),
+		{ response: t.Array(ProposalReturn) },
+	)
+	.get(
+		"/review/pending-count",
+		async ({ request }) => {
+			await requireAdmin(request);
+			const [row] = await queryRaw<{ count: number }>(
+				`SELECT COUNT(*)::int AS "count" FROM "FinancialInstitutionProposal" WHERE "status"='PENDING'`,
+			);
+			return { count: row?.count ?? 0 };
 		},
+		{ response: t.Object({ count: t.Integer() }) },
+	)
+	.get(
+		"/review/merge-candidates",
+		async ({ request }) => {
+			await requireAdmin(request);
+			return queryRaw<{ normalizedName: string; institutions: (typeof InstitutionReturn.static)[] }>(
+				`SELECT "normalizedName",json_agg(to_jsonb(i) ORDER BY "id") AS institutions FROM "FinancialInstitution" i GROUP BY "normalizedName" HAVING COUNT(*)>1 ORDER BY "normalizedName"`,
+			);
+		},
+		{ response: t.Array(t.Object({ institutions: t.Array(InstitutionReturn), normalizedName: t.String() })) },
+	)
+	.get(
+		"/review/proposals",
+		async ({ request }) => {
+			await requireAdmin(request);
+			return queryRaw(
+				`SELECT p.*,i."name",i."version" FROM "FinancialInstitutionProposal" p LEFT JOIN "FinancialInstitution" i ON i."id"=p."institutionId" ORDER BY p."createdAt" DESC`,
+			);
+		},
+		{
+			response: t.Array(
+				t.Object(
+					{ ...ProposalReturn.properties, name: t.Nullable(t.String()), version: t.Nullable(t.Number()) },
+					{ additionalProperties: true },
+				),
+			),
+		},
+	)
+	.get(
+		"/review/proposals/:id/profile-history",
+		async ({ request, params, query }) => {
+			await requireAdmin(request);
+			return queryRaw<{ institutionId: string; name: string; effectiveDate: Date }>(
+				`SELECT l."institutionId",p."name",c."effectiveDate" FROM "UserInstitutionProfileChange" c JOIN "UserFinancialInstitution" l ON l."id"=c."linkId" JOIN "FinancialInstitutionProfile" p ON p."id"=c."profileId" JOIN "FinancialInstitutionProposal" proposal ON proposal."authorId"=l."userId" WHERE proposal."id"=$1 AND (l."institutionId"=proposal."institutionId" OR l."institutionId"=$2) ORDER BY c."effectiveDate"`,
+				[params.id, query.targetId ?? null],
+			);
+		},
+		{
+			params: t.Object({ id: Id }),
+			query: t.Object({ targetId: t.Optional(Id) }),
+			response: t.Array(
+				t.Object({
+					effectiveDate: t.Union([t.Date(), t.String()]),
+					institutionId: t.String(),
+					name: t.String(),
+				}),
+			),
+		},
+	)
+	.post(
+		"/review/proposals/:id",
+		async ({ request, params, body }) =>
+			reviewInstitutionProposal(
+				await requireAdmin(request),
+				params.id,
+				body.action,
+				body.reason,
+				body.targetId,
+				body.confirmedVersion,
+				body.profileResolution,
+			),
+		{
+			body: t.Object({
+				action: t.Union([t.Literal("APPROVE"), t.Literal("REJECT"), t.Literal("ASSOCIATE")]),
+				confirmedVersion: t.Optional(t.Integer({ minimum: 1 })),
+				profileResolution: t.Optional(t.Array(t.Object({ effectiveDate: DateDTO, profileId: Id }))),
+				reason: t.Optional(t.String({ maxLength: 2000 })),
+				targetId: t.Optional(Id),
+			}),
+			params: t.Object({ id: Id }),
+			response: t.Object({ id: t.String(), status: t.String() }),
+		},
+	)
+	.get(
+		"/notifications",
+		async ({ request }) =>
+			queryRaw(`SELECT * FROM "AppNotification" WHERE "userId"=$1 ORDER BY "createdAt" DESC`, [
+				await requireUserId(request),
+			]),
+		{ response: t.Array(NotificationReturn) },
+	)
+	.post(
+		"/notifications/:id/read",
+		async ({ params, request }) => {
+			await queryRaw(`UPDATE "AppNotification" SET "readAt"=NOW() WHERE "id"=$1 AND "userId"=$2`, [
+				params.id,
+				await requireUserId(request),
+			]);
+			return { success: true };
+		},
+		{ params: t.Object({ id: Id }), response: t.Object({ success: t.Boolean() }) },
 	);

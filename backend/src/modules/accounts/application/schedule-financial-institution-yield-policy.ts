@@ -5,18 +5,13 @@ import type {
 } from "~/modules/accounts/domain/calculate-financial-account-yields";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { assertTaxSelection } from "~/modules/taxes/catalog";
-import {
-	db,
-	executeStatement,
-	nullableNumeric,
-	param,
-	queryFirst,
-	queryRaw,
-	queryRows,
-} from "~/shared/infra/sql";
+import { db, executeStatement, nullableNumeric, queryFirst, queryRaw, queryRows } from "~/shared/infra/sql";
 
 export async function scheduleFinancialInstitutionYieldPolicy({
 	currency,
+	profileId = null,
+	countryCode = null,
+	effectiveUntil = null,
 	effectiveDate,
 	financialInstitutionId,
 	rules,
@@ -25,6 +20,9 @@ export async function scheduleFinancialInstitutionYieldPolicy({
 	yieldTaxRate,
 }: {
 	currency: string;
+	profileId?: string | null;
+	countryCode?: string | null;
+	effectiveUntil?: Date | null;
 	effectiveDate: Date;
 	financialInstitutionId: string;
 	rules: InstitutionYieldRule[];
@@ -42,28 +40,9 @@ export async function scheduleFinancialInstitutionYieldPolicy({
 		effectiveDate,
 	);
 	const date = startOfDay(effectiveDate);
-	await executeStatement(
-		db.sql.public.FinancialInstitutionYieldPolicy.delete()
-			.where((fields, functions) =>
-				functions.and(
-					functions.eq(fields.financialInstitutionId, financialInstitutionId),
-					functions.raw`${fields.effectiveDate} > ${param(date, { codecId: "pg/date@1" })}`.returns(
-						"pg/bool@1",
-					),
-				),
-			)
-			.build(),
-	);
-	const existing = await queryFirst(
-		db.sql.public.FinancialInstitutionYieldPolicy.select("id")
-			.where((fields, functions) =>
-				functions.and(
-					functions.eq(fields.financialInstitutionId, financialInstitutionId),
-					functions.eq(fields.effectiveDate, date),
-				),
-			)
-			.limit(1)
-			.build(),
+	const [existing] = await queryRaw<{ id: string }>(
+		`SELECT "id" FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1 AND "effectiveDate"=$2 AND "currency"=$3 AND "profileId" IS NOT DISTINCT FROM $4 AND "countryCode" IS NOT DISTINCT FROM $5`,
+		[financialInstitutionId, date, currency, profileId, countryCode],
 	);
 	let policyId = existing?.id;
 	if (policyId) {
@@ -74,7 +53,10 @@ export async function scheduleFinancialInstitutionYieldPolicy({
 		);
 		await executeStatement(
 			db.sql.public.FinancialInstitutionYieldPolicy.update({
+				countryCode,
 				currency,
+				effectiveUntil,
+				profileId,
 				updatedAt: new Date(),
 				yieldPeriod: yieldPeriod ?? null,
 				yieldTaxIds: yieldTaxIds ?? [],
@@ -87,9 +69,12 @@ export async function scheduleFinancialInstitutionYieldPolicy({
 		const policy = await queryFirst(
 			db.sql.public.FinancialInstitutionYieldPolicy.insert([
 				{
+					countryCode: countryCode ?? undefined,
 					currency,
 					effectiveDate: date,
+					effectiveUntil: effectiveUntil ?? undefined,
 					financialInstitutionId,
+					profileId: profileId ?? undefined,
 					yieldPeriod: yieldPeriod ?? undefined,
 					yieldTaxIds: yieldTaxIds ?? undefined,
 					yieldTaxRate:

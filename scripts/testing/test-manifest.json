@@ -1,21 +1,20 @@
 {
 	"backend:e2e": ["backend/tests/database.e2e.test.ts"],
 	"backend:integration": [
-		"backend/src/shared/infra/broker/tests/RabbitMqBroker.integration.test.ts",
 		"backend/src/modules/accounts/tests/cashback-reversals.integration.test.ts",
+		"backend/src/modules/accounts/tests/universal-institutions.integration.test.ts",
 		"backend/src/modules/auth/secondary-storage.test.ts",
 		"backend/src/modules/creditCards/tests/normalized-refunds.test.ts",
 		"backend/src/modules/financial-history/tests/history-leases.integration.test.ts",
+		"backend/src/modules/open-finance/tests/open-finance.integration.test.ts",
 		"backend/src/modules/recurring/tests/materialization.test.ts",
 		"backend/src/modules/reference-rates/tests/reference-rate-averages.test.ts",
 		"backend/src/modules/reference-rates/tests/reference-rate-repair.test.ts",
+		"backend/src/shared/infra/broker/tests/RabbitMqBroker.integration.test.ts",
 		"backend/src/shared/infra/cache/RedisCache.test.ts",
-		"backend/src/modules/open-finance/tests/open-finance.integration.test.ts",
 		"backend/src/shared/tests/pdf-worker.test.ts"
 	],
 	"backend:unit": [
-		"backend/src/modules/creditCards/application/present-suggested-payment.test.ts",
-		"backend/src/modules/taxes/admin-access.test.ts",
 		"backend/performance/clock.test.ts",
 		"backend/performance/coverage.test.ts",
 		"backend/performance/local-fetch.test.ts",
@@ -30,6 +29,7 @@
 		"backend/src/modules/accounts/domain/assert-credit-card-billing-days.test.ts",
 		"backend/src/modules/accounts/domain/assert-financial-account-yield-settings.test.ts",
 		"backend/src/modules/accounts/domain/assert-financial-institution-yield-policy.test.ts",
+		"backend/src/modules/accounts/domain/assert-institution-review.test.ts",
 		"backend/src/modules/accounts/domain/assert-rewards-account-details.test.ts",
 		"backend/src/modules/accounts/domain/calculate-balance-adjustments.test.ts",
 		"backend/src/modules/accounts/domain/calculate-financial-account-yields.test.ts",
@@ -55,10 +55,12 @@
 		"backend/src/modules/credit-card-imports/domain/select-new-import-purchases.test.ts",
 		"backend/src/modules/credit-card-imports/domain/statement-previous-balance.test.ts",
 		"backend/src/modules/creditCards/application/credit-book-delta.test.ts",
-		"backend/src/modules/creditCards/application/refinancing-debt-splits.test.ts",
 		"backend/src/modules/creditCards/application/credit-card-schedule-periods.test.ts",
 		"backend/src/modules/creditCards/application/credit-limit.test.ts",
 		"backend/src/modules/creditCards/application/materialize-credit-card-schedules.test.ts",
+		"backend/src/modules/creditCards/application/present-suggested-payment.test.ts",
+		"backend/src/modules/creditCards/application/refinancing-debt-restoration.test.ts",
+		"backend/src/modules/creditCards/application/refinancing-debt-splits.test.ts",
 		"backend/src/modules/creditCards/application/statement-cursor.test.ts",
 		"backend/src/modules/creditCards/domain/credit-purchase-sync-status.test.ts",
 		"backend/src/modules/creditCards/domain/installment-amounts.test.ts",
@@ -77,6 +79,7 @@
 		"backend/src/modules/debts/domain/debt-split.test.ts",
 		"backend/src/modules/debts/infra/elysia/debt-invitation.test.ts",
 		"backend/src/modules/debts/infra/elysia/debt-ledger-person.test.ts",
+		"backend/src/modules/financial-history/application/financial-coverage.test.ts",
 		"backend/src/modules/financial-history/application/history-collections.test.ts",
 		"backend/src/modules/financial-history/application/provider-slots.test.ts",
 		"backend/src/modules/financial-history/domain/collection.test.ts",
@@ -92,6 +95,7 @@
 		"backend/src/modules/stores/domain/normalize-store-name.test.ts",
 		"backend/src/modules/sync/SyncDTO.test.ts",
 		"backend/src/modules/sync/sync-events.test.ts",
+		"backend/src/modules/taxes/admin-access.test.ts",
 		"backend/src/modules/transaction-imports/application/duplicate-candidate-index.test.ts",
 		"backend/src/modules/transaction-imports/application/imported-money.test.ts",
 		"backend/src/modules/transaction-imports/domain/banco-do-brasil.test.ts",
@@ -108,6 +112,7 @@
 		"backend/src/modules/transactions/application/list-transactions-page.test.ts",
 		"backend/src/modules/transactions/application/transfer-candidate-pairs.test.ts",
 		"backend/src/modules/upgrades/debt-upgrade.test.ts",
+		"backend/src/modules/yield-calendar/calendar-source.test.ts",
 		"backend/src/scripts/replay-missing-recurrences-options.test.ts",
 		"backend/src/shared/application/cache-invalidation.test.ts",
 		"backend/src/shared/application/catalog-pagination.test.ts",
@@ -123,8 +128,7 @@
 		"backend/src/shared/infra/elysia/mutation-transaction.test.ts",
 		"backend/src/shared/infra/outbox/OutboxPublisher.test.ts",
 		"backend/src/shared/infra/performance/job-metrics.test.ts",
-		"backend/src/shared/infra/service-namespace.test.ts",
-		"backend/src/modules/creditCards/application/refinancing-debt-restoration.test.ts"
+		"backend/src/shared/infra/service-namespace.test.ts"
 	],
 	"sql:e2e": ["packages/sql/tests/migrations.e2e.test.ts"],
 	"sql:integration": [
@@ -141,6 +145,7 @@
 	],
 	"sql:unit": [
 		"packages/sql/src/query-metrics.test.ts",
-		"packages/sql/tests/international-money-precision.test.ts"
+		"packages/sql/tests/international-money-precision.test.ts",
+		"packages/sql/tests/universal-institutions-migration.test.ts"
 	]
 }

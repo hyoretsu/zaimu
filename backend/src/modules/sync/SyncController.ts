@@ -1,8 +1,14 @@
 import { toMinorUnits } from "@zaimu/finance/money";
 import Elysia from "elysia";
 import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
+import { getFinancialInstitutionYieldPolicies } from "~/modules/accounts/application/get-financial-institution-yield-policies";
+import { getInstitutionProfileContext } from "~/modules/accounts/application/get-institution-profile-context";
 import { saveAccountDefaults } from "~/modules/accounts/application/payment-preferences";
 import { resolveFinancialInstitution } from "~/modules/accounts/application/resolve-financial-institution";
+import {
+	ensureInstitutionLink,
+	visibleInstitution,
+} from "~/modules/accounts/application/universal-institutions";
 import { assertCashbackSettings } from "~/modules/accounts/domain/assert-cashback-settings";
 import { assertRewardsAccountDetails } from "~/modules/accounts/domain/assert-rewards-account-details";
 import { requireUserId } from "~/modules/auth";
@@ -40,6 +46,7 @@ import {
 import type { RecurrenceBody } from "~/modules/recurring/infra/elysia/RecurrenceDTO";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { loadCurrencyHolidayRows } from "~/modules/yield-calendar/catalog";
+import { ensureAccountCoverage } from "~/modules/yield-calendar/ensure-coverage";
 import { rejectLegacyFinancialFields, strictJsonBody } from "~/shared/infra/elysia/strict-json-body";
 import { PostgresOutbox } from "~/shared/infra/outbox";
 import {
@@ -252,12 +259,25 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 						);
 						if (existing && currency !== existing.currency)
 							throw new Error("Moeda da conta existente não pode mudar pela sincronização");
-						const institutionInput = value<{ name?: string } | null | undefined>(entity, "institution");
-						const institution = await resolveFinancialInstitution(
-							userId,
-							value<string | undefined>(entity, "institutionName") ?? institutionInput?.name,
+						const institutionInput = value<{ id?: string; name?: string } | null | undefined>(
+							entity,
+							"institution",
 						);
+						const institutionId =
+							value<string | null | undefined>(entity, "institutionId") ?? institutionInput?.id;
+						const institution = institutionId
+							? await visibleInstitution(userId, institutionId)
+							: await resolveFinancialInstitution(
+									userId,
+									value<string | undefined>(entity, "institutionName") ?? institutionInput?.name,
+								);
+						if (institution) await ensureInstitutionLink(userId, institution.id);
+						const countryCode =
+							value<string | null | undefined>(entity, "countryCode") ??
+							(existing as { countryCode?: string | null } | undefined)?.countryCode;
+						await ensureAccountCoverage(currency, countryCode);
 						const values = {
+							countryCode,
 							currency,
 							institutionId: institution?.id,
 							isHidden: value<boolean | undefined>(entity, "isHidden") ?? false,
@@ -951,7 +971,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 					);
 					const financialInstitutions = await queryRows(
 						db.sql.public.FinancialInstitution.select("id", "name", "creditInstallmentRemainderOnFirst")
-							.where((f, fn) => fn.eq(f.userId, userId))
+							.where((f, fn) => fn.or(fn.eq(f.userId, userId), fn.eq(f.status, "APPROVED")))
 							.build(),
 					);
 					const financialAccountYieldHolidays = await loadCurrencyHolidayRows();
@@ -1031,10 +1051,22 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 						rewardsAccounts.map(account => [account.financialAccountId, account]),
 					);
 					const balances = await getFinancialAccountBalances(financialAccounts.map(account => account.id));
+					const profileContext = await getInstitutionProfileContext(
+						financialAccounts.map(account => account.id),
+					);
+					const policies = await getFinancialInstitutionYieldPolicies(
+						financialInstitutions.map(institution => institution.id),
+					);
 					const financialAccountsWithInstitutions = financialAccounts.map(account => ({
 						...account,
+						...profileContext.get(account.id),
 						balance: account.type === "CREDIT_CARD" ? null : (balances.get(account.id) ?? 0),
-						institution: account.institutionId ? (institutionsById.get(account.institutionId) ?? null) : null,
+						institution: account.institutionId
+							? {
+									...institutionsById.get(account.institutionId),
+									yieldPolicies: policies.get(account.institutionId) ?? [],
+								}
+							: null,
 						yieldRateHistories: yieldRateHistoriesByAccountId.get(account.id) ?? [],
 						...(account.type === "REWARDS" && {
 							rewardsAccount: rewardsAccountsByFinancialAccountId.get(account.id) ?? null,

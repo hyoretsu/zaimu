@@ -307,6 +307,8 @@ export async function loadDashboardData(userId: string, range: DashboardDataRang
 	loaded.projectedYields = await projectedYieldContext(
 		userId,
 		loaded.accounts.map(account => account.id),
+		range.projectionStart,
+		range.periodEnd > range.comparisonEnd ? range.periodEnd : range.comparisonEnd,
 	);
 	return loaded;
 }
