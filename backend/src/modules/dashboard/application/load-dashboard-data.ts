@@ -1,4 +1,5 @@
 import type { CreditBook } from "@zaimu/finance/credit-book";
+import type { MonthlyBudget } from "@zaimu/finance/monthly-budget";
 import type { RecurrenceMoneyConverter } from "@zaimu/finance/recurrence-projection";
 import { cashbackReversalsSql } from "~/modules/accounts/application/cashback-reversals-sql";
 import { replayOverviewStatements as replayDashboardStatements } from "~/modules/creditCards/application/credit-overview";
@@ -84,6 +85,7 @@ export interface DashboardSchedule {
 }
 
 export interface DashboardFlow {
+	tagIds?: readonly string[];
 	destinationAmount?: number | null;
 	currency?: string;
 	cardPayment?: boolean;
@@ -204,8 +206,10 @@ WHERE person."userId" = $1 AND person."hiddenAt" IS NULL
 GROUP BY person."id", person."name", COALESCE(event."currency", 'BRL')`;
 
 const schedulesSql = `
-SELECT 'recurrence' AS kind, to_jsonb(schedule) AS data
+SELECT 'recurrence' AS kind, to_jsonb(schedule) || jsonb_build_object('tagIds', COALESCE((SELECT jsonb_agg(assignment."categoryId") FROM "TagAssignment" assignment WHERE assignment."entityId"=schedule."id" AND assignment."entityType"='RECURRENCE'), '[]'::jsonb)) AS data
 FROM "Recurrence" schedule WHERE "userId" = $1 AND "isActive"
+UNION ALL
+SELECT 'budget', to_jsonb(budget) FROM "MonthlyBudget" budget WHERE budget."userId"=$1 AND budget."deletedAt" IS NULL
 UNION ALL
 SELECT 'occurrence', jsonb_build_object('recurrenceId', occurrence."recurrenceId", 'date', occurrence."date")
 FROM "RecurrenceOccurrence" occurrence
@@ -223,7 +227,7 @@ WHERE loan."userId" = $1 AND payment."paidDate" IS NULL AND payment."dueDate" >=
 
 const comparisonMovementsSql = `
 SELECT 'flow' AS kind, jsonb_build_object(
-  'currency', transaction."bookingCurrency", 'destinationAmount', transaction."destinationAmount", 'cardPayment', transaction."paymentCreditCardId" IS NOT NULL, 'id', transaction."id", 'amount', transaction."amount", 'date', transaction."date", 'type', transaction."type"::text,
+  'tagIds', COALESCE((SELECT jsonb_agg(assignment."categoryId") FROM "TagAssignment" assignment WHERE assignment."entityId"=transaction."id" AND assignment."entityType"='TRANSACTION'), '[]'::jsonb), 'currency', transaction."bookingCurrency", 'destinationAmount', transaction."destinationAmount", 'cardPayment', transaction."paymentCreditCardId" IS NOT NULL, 'id', transaction."id", 'amount', transaction."amount", 'date', transaction."date", 'type', transaction."type"::text,
   'originAccountId', transaction."originFinancialAccountId", 'destinationAccountId', transaction."destinationFinancialAccountId", 'recurring', transaction."recurrenceId" IS NOT NULL
 ) AS data
 FROM "Transaction" transaction
@@ -325,11 +329,15 @@ export async function loadDashboardRows(
 	const scheduleRows = await query<DashboardDataRow>(schedulesSql, [userId, dateKey(range.today)]);
 	const movementRows = await query<DashboardDataRow>(comparisonOnly ? comparisonMovementsSql : movementsSql, [
 		userId,
-		dateKey(range.comparisonStart < range.projectionStart ? range.comparisonStart : range.projectionStart),
+		`${dateKey(range.comparisonStart < range.projectionStart ? range.comparisonStart : range.projectionStart).slice(0, 7)}-01`,
 		dateKey(range.comparisonEnd),
 		dateKey(range.projectionStart),
 		...(comparisonOnly ? [] : [dateKey(range.periodStart), dateKey(range.periodEnd)]),
 	]);
+	const monthlyBudgets = rowsByKind(scheduleRows, "budget").map(row => ({
+		...row,
+		amount: Number(row.amount),
+	})) as unknown as MonthlyBudget[];
 	const activityDates = rowsByKind(movementRows, "activityDate").map(row => asDate(row.date));
 	const balanceDates = [...range.balanceDates, ...activityDates];
 	const balanceRows = await query<DashboardBalanceRow>(monetaryBalancesSql, [
@@ -337,7 +345,10 @@ export async function loadDashboardRows(
 		[...new Set(balanceDates.map(dateKey))],
 	]);
 	const cards = rowsByKind(overviewRows, "card") as unknown as DashboardCard[];
-	const recurrences = rowsByKind(scheduleRows, "recurrence").map(normalizeRecurrence);
+	const recurrences = rowsByKind(scheduleRows, "recurrence").map(row => ({
+		...normalizeRecurrence(row),
+		...({ tagIds: (row.tagIds ?? []) as string[] } as { tagIds?: string[] }),
+	}));
 	const currentStatements = replayDashboardStatements(userId, cards, overviewRows, dateKey(range.today));
 	const recurringPayments = new Map(
 		rowsByKind(overviewRows, "payment").map(row => [String(row.id), Number(row.recurringAmount ?? 0)]),
@@ -345,6 +356,7 @@ export async function loadDashboardRows(
 	const projectedCardPaymentAmounts = new Map<string, number>();
 	return {
 		...({ projectedCardPaymentAmounts } as { projectedCardPaymentAmounts?: Map<string, number> }),
+		...({ monthlyBudgets } as { monthlyBudgets?: MonthlyBudget[] }),
 		accounts: rowsByKind(overviewRows, "account") as unknown as DashboardAccount[],
 		activityDates,
 		balanceRows,

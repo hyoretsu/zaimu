@@ -1,5 +1,6 @@
 import { t } from "elysia";
 import { CreditBookDTO } from "~/modules/creditCards/infra/elysia/CreditBookDTO";
+import { MonthlyBudgetReturn, SyncMonthlyBudget } from "~/modules/monthly-budgets/infra/MonthlyBudgetsDTO";
 
 import { RecurrenceBody, RecurrenceReturn } from "~/modules/recurring/infra/elysia/RecurrenceDTO";
 
@@ -45,6 +46,7 @@ export const SyncBody = t.Object(
 		financialAccountYields: t.Optional(t.Array(Entity)),
 		loanPayments: t.Optional(t.Array(Entity)),
 		loans: t.Optional(t.Array(Entity)),
+		monthlyBudgets: t.Optional(t.Array(SyncMonthlyBudget)),
 		recurrenceOccurrences: t.Optional(t.Array(Entity)),
 		recurrences: t.Optional(t.Array(SyncRecurrence)),
 		transactions: t.Optional(t.Array(Entity)),
@@ -66,6 +68,7 @@ export const SyncReturn = t.Object({
 		financialAccountYields: t.Array(Entity),
 		loanPayments: t.Array(Entity),
 		loans: t.Array(Entity),
+		monthlyBudgets: t.Array(MonthlyBudgetReturn),
 		recurrenceOccurrences: t.Array(Entity),
 		recurrences: t.Array(Entity),
 		transactions: t.Array(Entity),

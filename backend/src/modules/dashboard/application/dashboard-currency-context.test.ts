@@ -140,3 +140,55 @@ test("out-of-range foreign movements need neither current quotes nor forecast hi
 	expect(context.missing).toEqual([]);
 	expect(context.forecastAvailable).toBe(true);
 });
+
+test("overdue foreign invoices request FX only when a monthly plan reserves them", async () => {
+	const data = loaded();
+	data.accounts = [];
+	data.balanceRows = [];
+	data.flows = [];
+	data.cards = [{ creditLimit: 0, currency: "USD", id: "card" }] as typeof data.cards;
+	data.projectedStatements = [
+		{
+			balanceAmount: 100,
+			chargesAmount: 0,
+			creditCardId: "card",
+			dueDate: new Date("2026-10-02T12:00:00"),
+			id: "overdue",
+			paidAmount: 0,
+			statementDate: new Date("2026-09-20T12:00:00"),
+			totalAmount: 100,
+		},
+	];
+	const requests: string[][] = [];
+	let historical = 0;
+	const dependencies = {
+		estimate: async () => null,
+		historical: async () => {
+			historical++;
+			return 5;
+		},
+		latest: async () => ({ date: "2026-10-08", rate: 5 }),
+		request: async (_kind: string, series: string[]) => {
+			requests.push(series);
+			return null;
+		},
+	};
+	await dashboardCurrencyContext(data, "BRL", today, true, dependencies, "2026-10-31");
+	expect(requests).toEqual([]);
+	expect(historical).toBe(0);
+	data.monthlyBudgets = [
+		{
+			amount: 8500,
+			categoryId: null,
+			currency: "BRL",
+			endMonth: null,
+			id: "invoice",
+			name: "Faturas",
+			source: "STATEMENTS",
+			startMonth: "2026-10",
+		},
+	];
+	await dashboardCurrencyContext(data, "BRL", today, true, dependencies, "2026-10-31");
+	expect(requests).toEqual([["USD", "BRL"]]);
+	expect(historical).toBe(1);
+});

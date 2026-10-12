@@ -1,4 +1,5 @@
 import { dailyForecast, type ForecastMovement, forecastBreakdown } from "@zaimu/finance/daily-forecast";
+import { monthEnd, monthlyBudgetMovements, monthlyBudgetSummary } from "@zaimu/finance/monthly-budget";
 import { recurrenceDates, recurrenceNeedsConfiguration } from "@zaimu/finance/recurrence";
 import { dateKey } from "./dashboard-calculations";
 import type { DashboardCurrencyContext } from "./dashboard-currency-context";
@@ -32,7 +33,9 @@ export function dashboardFinancialContext(
 			transaction => `${transaction.sourceId}:${String(transaction.date).slice(0, 10)}`,
 		),
 	);
-	const projectedMovements: Array<Omit<ForecastMovement, "date"> & { date: Date }> = [];
+	const projectedMovements: Array<
+		Omit<ForecastMovement, "date"> & { date: Date; tagIds?: readonly string[] }
+	> = [];
 
 	for (const recurrence of recurrences) {
 		if (recurrenceNeedsConfiguration(recurrence) || recurrence.movement === "CARD_PURCHASE") continue;
@@ -46,6 +49,7 @@ export function dashboardFinancialContext(
 					destinationAccountId: recurrence.destinationFinancialAccountId,
 					originAccountId: recurrence.originFinancialAccountId,
 					recurring: true,
+					tagIds: recurrence.tagIds,
 					...(recurrence.movement === "CARD_PAYMENT"
 						? {
 								recurringAmount:
@@ -88,6 +92,56 @@ export function dashboardFinancialContext(
 			});
 	}
 	const comparisonTransactions = [...normalizedTransactions, ...projectedMovements];
+	const budgetCommitments = comparisonTransactions.map(row => ({
+		...row,
+		currency: row.currency ?? "BRL",
+		date: dateKey(row.date),
+	}));
+	for (const statement of loaded.projectedStatements.filter(
+		row => row.dueDate <= today && row.balanceAmount > 0,
+	)) {
+		const month = dateKey(statement.dueDate).slice(0, 7);
+		const row = {
+			amount: statement.balanceAmount,
+			cardPayment: true,
+			currency: loaded.cards.find(card => card.id === statement.creditCardId)?.currency ?? "BRL",
+			date: dateKey(statement.dueDate),
+			id: `budget-overdue:${statement.id}`,
+			type: "EXPENSE" as const,
+		};
+		budgetCommitments.push(row);
+		const date = new Date(`${monthEnd(month)}T12:00:00`);
+		if (
+			date >= projectionStart &&
+			date <= comparisonEnd &&
+			loaded.monthlyBudgets?.some(
+				budget =>
+					budget.source === "STATEMENTS" &&
+					budget.startMonth <= month &&
+					(!budget.endMonth || budget.endMonth >= month),
+			)
+		) {
+			const movement = { ...row, date };
+			projectedMovements.push(movement);
+			comparisonTransactions.push(movement);
+		}
+	}
+	const budgetConvert = money
+		? (amount: number, source: string, target: string, date: string) =>
+				(amount * money.factor(source, date)) / money.factor(target, date)
+		: undefined;
+	if (!money || money.forecastAvailable)
+		for (const movement of monthlyBudgetMovements({
+			budgets: loaded.monthlyBudgets ?? [],
+			commitments: budgetCommitments,
+			convert: budgetConvert,
+			from: dateKey(projectionStart),
+			through: dateKey(comparisonEnd),
+		})) {
+			const row = { ...movement, date: new Date(`${movement.date}T12:00:00`), type: "EXPENSE" as const };
+			projectedMovements.push(row);
+			comparisonTransactions.push(row);
+		}
 	const todayKey = dateKey(today);
 	const balanceRowsByDate = Map.groupBy(
 		loaded.balanceRows.filter(row => !money || row.date <= todayKey),
@@ -196,6 +250,13 @@ export function dashboardFinancialContext(
 		balanceAt,
 		balanceBreakdownAt,
 		balancesAtRangeEnd,
+		budgetSummary: (month: string) =>
+			monthlyBudgetSummary({
+				budgets: loaded.monthlyBudgets ?? [],
+				commitments: budgetCommitments,
+				convert: budgetConvert,
+				month,
+			}),
 		comparisonTransactions: money
 			? comparisonTransactions
 					.filter(row => money.forecastAvailable || dateKey(row.date) <= todayKey)

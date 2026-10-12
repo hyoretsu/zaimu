@@ -175,7 +175,7 @@ test("comparison loads only chart data and requested balance dates", async () =>
 	expect(result.activityDates).toEqual([]);
 });
 
-test("future comparisons load intervening scheduled transactions from projection start", async () => {
+test("future comparisons load full starting month to reconcile budgets and intervening commitments", async () => {
 	const queries: Array<{ sql: string; values?: unknown[] }> = [];
 	await loadDashboardRows(
 		async <Row extends Record<string, unknown>>(sql: string, values?: unknown[]): Promise<Row[]> => {
@@ -194,7 +194,7 @@ test("future comparisons load intervening scheduled transactions from projection
 		},
 		true,
 	);
-	expect(queries[2]!.values?.[1]).toBe("2026-10-05");
+	expect(queries[2]!.values?.[1]).toBe("2026-10-01");
 });
 
 test("recurring card payments use purchase composition instead of full payment amount", async () => {

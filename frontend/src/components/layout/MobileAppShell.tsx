@@ -49,6 +49,9 @@ const MorePage = lazy(() =>
 const RecurringPage = lazy(() =>
 	import("@/routes/recurring/components/RecurringPage").then(module => ({ default: module.RecurringPage })),
 );
+const BudgetPage = lazy(() =>
+	import("@/routes/budget/components/BudgetPage").then(module => ({ default: module.BudgetPage })),
+);
 const AjustesPage = lazy(() =>
 	import("@/routes/settings/components/AjustesPage").then(module => ({ default: module.AjustesPage })),
 );
@@ -70,6 +73,7 @@ const screenByPath = {
 	"/admin/history": HistoryPage,
 	"/admin/taxes": TaxesPage,
 	"/admin/users": UsersPage,
+	"/budget": BudgetPage,
 	"/credit-cards": CreditCardsPage,
 	"/debts": DebtsPage,
 	"/loans": EmpréstimosPage,

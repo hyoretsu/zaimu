@@ -25,6 +25,7 @@ describe("mobile tab routes", () => {
 		["/debts", "more", "/debts"],
 		["/loans", "more", "/loans"],
 		["/recurring", "more", "/recurring"],
+		["/budget/", "more", "/budget"],
 		["/settings", "more", "/settings"],
 		["/salaries", "more", "/recurring"],
 		["/subscriptions", "more", "/recurring"],

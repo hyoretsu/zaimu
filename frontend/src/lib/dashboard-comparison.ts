@@ -1,7 +1,13 @@
 import { forecastCardPayments, recurringCardPaymentAmounts } from "@zaimu/finance/card-forecast";
 import { comparisonDuration, comparisonIntervals } from "@zaimu/finance/comparison-periods";
-import { creditBookRewards } from "@zaimu/finance/credit-book";
+import { creditBookRewards, replayCreditBook } from "@zaimu/finance/credit-book";
 import { dailyForecast, type ForecastMovement, forecastBreakdown } from "@zaimu/finance/daily-forecast";
+import {
+	type BudgetCommitment,
+	monthEnd,
+	monthlyBudgetMovements,
+	monthlyBudgetSummary,
+} from "@zaimu/finance/monthly-budget";
 import { getYieldSettings, projectedNetYield, type ReferenceRateType } from "@zaimu/finance/projected-yield";
 import { recurrenceDates, recurrenceNeedsConfiguration } from "@zaimu/finance/recurrence";
 import { pendingRecurrenceDates, projectRecurrenceCreditBook } from "@zaimu/finance/recurrence-projection";
@@ -23,6 +29,7 @@ import {
 	localRecurrenceOccurrences,
 	readLocalCreditBook,
 } from "./localStorage";
+import { monthlyBudgetService } from "./monthly-budget-service";
 import { refreshReferenceRateAverages } from "./reference-rate-averages";
 import { accountCalendarCovered, cachedYieldCalendar, holidayDatesForAccount } from "./yield-calendar";
 
@@ -47,6 +54,7 @@ export async function getGuestDashboardFinancialContext(
 		occurrenceRows,
 		holidays,
 		yields,
+		budgets,
 	] = await Promise.all([
 		localAccounts.getAll(),
 		dataService.transactions.getAll(),
@@ -57,6 +65,7 @@ export async function getGuestDashboardFinancialContext(
 		localRecurrenceOccurrences.getAll(),
 		Promise.resolve(cachedYieldCalendar()),
 		localMeta.get("financial-account-yields"),
+		monthlyBudgetService.getAll(),
 	]);
 	const key = (date: Date) => format(date, "yyyy-MM-dd");
 	const start = new Date(`${parameters.startDate}T00:00:00`);
@@ -107,6 +116,32 @@ export async function getGuestDashboardFinancialContext(
 		row => forecastCardPayments(row.data, key(projectionStart), key(through)).length > 0,
 	);
 	const forecastCurrencies = [
+		...bookRows
+			.filter(({ data: book }) =>
+				replayCreditBook(book, key(today)).statements.some(statement => {
+					const month = statement.dueDate.slice(0, 7);
+					return (
+						statement.balanceAmount > 0 &&
+						statement.dueDate.slice(0, 10) <= key(today) &&
+						monthEnd(month) > key(today) &&
+						monthEnd(month) <= key(through) &&
+						budgets.some(
+							budget =>
+								budget.source === "STATEMENTS" &&
+								budget.startMonth <= month &&
+								(!budget.endMonth || budget.endMonth >= month),
+						)
+					);
+				}),
+			)
+			.map(row => row.data.card.currency ?? "BRL"),
+		...budgets
+			.filter(
+				row =>
+					row.startMonth <= key(through).slice(0, 7) &&
+					(!row.endMonth || row.endMonth >= key(today).slice(0, 7)),
+			)
+			.map(row => row.currency),
 		...current.filter(row => row.balance).map(row => row.currency ?? "BRL"),
 		...pendingRecurrences.flatMap(row => [
 			row.currency ?? "BRL",
@@ -132,7 +167,8 @@ export async function getGuestDashboardFinancialContext(
 		pendingRecurrences.some(row => row.movement !== "CARD_PURCHASE") ||
 		futureTransactions.length ||
 		futurePayments.length ||
-		futureCardBooks.length
+		futureCardBooks.length ||
+		budgets.length
 	)
 		forecastCurrencies.push(
 			accounts.find(row => row.isPrimary)?.currency ??
@@ -165,7 +201,7 @@ export async function getGuestDashboardFinancialContext(
 	const projectedRecurringPayments = new Map(
 		projectedBooks.flatMap(book => [...recurringCardPaymentAmounts(book)]),
 	);
-	const projected: Array<Omit<ForecastMovement, "date"> & { date: Date }> = [];
+	const projected: Array<Omit<ForecastMovement, "date"> & { date: Date; tagIds?: readonly string[] }> = [];
 	for (const recurrence of recurrences) {
 		if (
 			!recurrence.isActive ||
@@ -183,6 +219,7 @@ export async function getGuestDashboardFinancialContext(
 					destinationAccountId: recurrence.destinationFinancialAccountId,
 					originAccountId: recurrence.originFinancialAccountId,
 					recurring: true,
+					tagIds: recurrence.tagIds,
 					...(recurrence.movement === "CARD_PAYMENT"
 						? { recurringAmount: projectedRecurringPayments.get(`forecast:${recurrence.id}:${date}`) ?? 0 }
 						: {}),
@@ -260,7 +297,7 @@ export async function getGuestDashboardFinancialContext(
 	}
 
 	const recurringPayments = new Map(bookRows.flatMap(row => [...recurringCardPaymentAmounts(row.data)]));
-	const movements: Array<Omit<ForecastMovement, "date"> & { date: Date }> = [
+	const movements: Array<Omit<ForecastMovement, "date"> & { date: Date; tagIds?: readonly string[] }> = [
 		...loanAccountMovements(paymentRows.map(row => row.data)).map(row => ({
 			amount: row.amount,
 			currency: row.bookingCurrency,
@@ -286,6 +323,7 @@ export async function getGuestDashboardFinancialContext(
 				originAccountId: item.originFinancialAccountId,
 				recurring: Boolean(item.recurrenceId),
 				recurringAmount: recurringPayments.get(item.id),
+				tagIds: item.tags?.map(tag => tag.id),
 				type: item.type as "INCOME" | "EXPENSE" | "TRANSFER",
 			})),
 		...projected,
@@ -322,6 +360,46 @@ export async function getGuestDashboardFinancialContext(
 			})),
 		),
 	];
+	const budgetExtraCommitments: BudgetCommitment[] = [];
+	for (const book of projectedBooks)
+		for (const statement of replayCreditBook(book, key(today)).statements.filter(
+			row => row.dueDate.slice(0, 10) <= key(today) && row.balanceAmount > 0,
+		)) {
+			const month = statement.dueDate.slice(0, 7);
+			if (
+				!budgets.some(
+					budget =>
+						budget.source === "STATEMENTS" &&
+						budget.startMonth <= month &&
+						(!budget.endMonth || budget.endMonth >= month),
+				)
+			)
+				continue;
+			const row = {
+				amount: statement.balanceAmount,
+				cardPayment: true,
+				currency: book.card.currency ?? "BRL",
+				date: statement.dueDate.slice(0, 10),
+				id: `budget-overdue:${statement.id}`,
+				type: "EXPENSE" as const,
+			};
+			budgetExtraCommitments.push(row);
+			const date = new Date(`${monthEnd(month)}T12:00:00`);
+			if (
+				date >= projectionStart &&
+				date <= through &&
+				budgets.some(
+					budget =>
+						budget.source === "STATEMENTS" &&
+						budget.startMonth <= month &&
+						(!budget.endMonth || budget.endMonth >= month),
+				)
+			) {
+				const movement = { ...row, date };
+				projected.push(movement);
+				movements.push(movement);
+			}
+		}
 	const positionDates = [
 		...new Set([
 			key(today),
@@ -336,25 +414,60 @@ export async function getGuestDashboardFinancialContext(
 		...cards.filter(row => row.creditLimit).map(row => row.currency ?? "BRL"),
 		...movements.filter(row => row.amount && key(row.date) === key(today)).map(row => row.currency ?? "BRL"),
 	];
+	const budgetCommitments: BudgetCommitment[] = [
+		...budgetExtraCommitments,
+		...movements.map(row => ({ ...row, currency: row.currency ?? "BRL", date: key(row.date) })),
+	];
+	const budgetPositions = [
+		...budgetExtraCommitments.map(row => ({ currency: row.currency, date: row.date })),
+		...budgets.flatMap(budget =>
+			budgetCommitments
+				.filter(
+					row =>
+						row.type === "EXPENSE" &&
+						(budget.source === "STATEMENTS"
+							? row.cardPayment
+							: budget.source === "TAG" &&
+								!row.cardPayment &&
+								row.tagIds?.includes(budget.categoryId ?? "")) &&
+						budget.currency !== row.currency &&
+						row.date <= key(today) &&
+						row.date.slice(0, 7) >= budget.startMonth &&
+						(!budget.endMonth || row.date.slice(0, 7) <= budget.endMonth),
+				)
+				.map(row => ({ currency: budget.currency, date: row.date })),
+		),
+	];
 	const money = await guestDashboardCurrencyContext({
 		currency,
 		forecastCurrencies,
 		forecasting: through > today,
 		forecastSnapshot: forecastMoney.forecastSnapshot,
 		nativeCurrencies: currencies,
-		positions: positionDates
-			.flatMap(date =>
+		positions: [
+			...budgetPositions,
+			...positionDates.flatMap(date =>
 				historicalAccountsAt(new Date(`${date}T12:00:00`))
 					.filter(account => account.balance)
 					.map(account => ({ currency: account.currency ?? "BRL", date })),
-			)
-			.concat(
-				movements
-					.filter(row => row.amount)
-					.map(row => ({ currency: row.currency ?? "BRL", date: key(row.date) })),
 			),
+			...movements
+				.filter(row => row.amount)
+				.map(row => ({ currency: row.currency ?? "BRL", date: key(row.date) })),
+		],
 		reference: key(today),
 	});
+	const budgetConvert = (amount: number, source: string, target: string, date: string) =>
+		(amount * money.factor(source, date)) / money.factor(target, date);
+	if (money.consolidation.forecastAvailable)
+		for (const row of monthlyBudgetMovements({
+			budgets,
+			commitments: budgetCommitments,
+			convert: budgetConvert,
+			from: key(projectionStart),
+			through: key(through),
+		}))
+			movements.push({ ...row, date: new Date(`${row.date}T12:00:00`), type: "EXPENSE" });
 	const forecastDays = !money.consolidation.forecastAvailable
 		? []
 		: dailyForecast({
@@ -490,6 +603,8 @@ export async function getGuestDashboardFinancialContext(
 	return {
 		balanceAt,
 		balancesAt,
+		budgetSummary: (month: string) =>
+			monthlyBudgetSummary({ budgets, commitments: budgetCommitments, convert: budgetConvert, month }),
 		consolidation: money.consolidation,
 		currency,
 		money,

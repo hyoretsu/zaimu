@@ -12,6 +12,7 @@ const domains: Record<string, string> = {
 	financialAccountYields: "account",
 	loanPayments: "loan",
 	loans: "loan",
+	monthlyBudgets: "monthlyBudget",
 	recurrenceOccurrences: "schedule",
 	recurrences: "schedule",
 	transactions: "transaction",

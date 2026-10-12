@@ -259,6 +259,7 @@ namespace public {
     updatedAt         Timestamp(3)       @default(now())
     emailVerified     Boolean            @default(false)
     image             VarChar(2048)?
+    monthlyBudgets    MonthlyBudget[]
     categories        Category[]
     stores            Store[]
     debtPeople        DebtPerson[]
@@ -385,6 +386,7 @@ namespace public {
     parentId          VarChar(36)?
     createdAt         Timestamp(3)       @default(now())
     updatedAt         Timestamp(3)       @default(now())
+    monthlyBudgets    MonthlyBudget[]
     tagAssignments    TagAssignment[]
     parent            Category?          @relation(name: "Category_parentId_fkey", fields: [parentId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Category_parentId_fkey", index: false)
     categories        Category[]         @relation(name: "Category_parentId_fkey")
@@ -393,6 +395,26 @@ namespace public {
     @@index([userId, name], map: "Category_userId_name_key", unique: true)
 
     @@map("Category")
+  }
+
+  model MonthlyBudget {
+    id VarChar(36) @id(map: "MonthlyBudget_pkey") @default(dbgenerated("cuid2()"))
+    userId VarChar(36)
+    name VarChar(100)
+    source VarChar(16)
+    categoryId VarChar(36)?
+    amount Numeric(20, 6)
+    currency VarChar(3)
+    startMonth VarChar(7)
+    endMonth VarChar(7)?
+    deletedAt Timestamp(3)?
+    createdAt Timestamp(3) @default(now())
+    updatedAt Timestamp(3) @default(now())
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "MonthlyBudget_userId_fkey", index: false)
+    category Category? @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "MonthlyBudget_categoryId_fkey", index: false)
+    @@index([userId, startMonth], map: "MonthlyBudget_userId_startMonth_idx")
+    @@index([categoryId], map: "MonthlyBudget_categoryId_idx")
+    @@map("MonthlyBudget")
   }
 
   model Store {

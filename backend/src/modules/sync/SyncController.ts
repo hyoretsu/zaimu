@@ -37,6 +37,7 @@ import {
 	syncManualDebtEvent,
 } from "~/modules/debts/application/sync-manual-debt-events";
 import type { DebtSplitInput } from "~/modules/debts/domain";
+import { listMonthlyBudgets, syncMonthlyBudget } from "~/modules/monthly-budgets/application/monthly-budgets";
 import {
 	getStoredRecurrence,
 	listRecurrences,
@@ -508,6 +509,13 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 							);
 						else await executeStatement(db.sql.public.Category.insert([{ ...values, id, userId }]).build());
 						categoryIds.add(id);
+					});
+
+					await sync("monthlyBudgets", body.monthlyBudgets, async entity => {
+						await syncMonthlyBudget(
+							userId,
+							entity as unknown as typeof import("~/modules/monthly-budgets/infra/MonthlyBudgetsDTO").SyncMonthlyBudget.static,
+						);
 					});
 
 					await sync("debtPeople", body.debtPeople, async entity => {
@@ -1258,6 +1266,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 									.where((f, fn) => fn.eq(f.userId, userId))
 									.build(),
 							),
+							monthlyBudgets: await listMonthlyBudgets(userId),
 							recurrenceOccurrences: (
 								await queryRaw(
 									'SELECT o.* FROM "RecurrenceOccurrence" o JOIN "Recurrence" r ON r."id"=o."recurrenceId" WHERE r."userId"=$1',

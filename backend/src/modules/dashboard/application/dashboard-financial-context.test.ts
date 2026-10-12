@@ -149,3 +149,109 @@ test("fixed recurring card payments preserve projected subscription attribution"
 	expect(context.comparisonTransactions[0]!.amount).toBe(100);
 	expect(context.comparisonTransactions[0]!.recurringAmount).toBe(25);
 });
+
+test("monthly budget counts paid amounts and adds only uncommitted invoice balance to forecast", () => {
+	const data = loaded();
+	data.monthlyBudgets = [
+		{
+			amount: 85,
+			categoryId: null,
+			currency: "BRL",
+			endMonth: null,
+			id: "invoice-plan",
+			name: "Faturas",
+			source: "STATEMENTS",
+			startMonth: "2026-10",
+		},
+	];
+	data.flows = [
+		{
+			amount: 20,
+			cardPayment: true,
+			currency: "BRL",
+			date: new Date("2026-10-01T12:00:00"),
+			id: "paid",
+			type: "EXPENSE",
+		},
+	];
+	data.cards = [
+		{
+			creditLimit: 100,
+			currency: "BRL",
+			dueDay: 20,
+			excludeFromTotals: false,
+			financialAccountId: "card-account",
+			id: "card",
+			ignoreStatementsBefore: null,
+			institutionId: null,
+			institutionName: null,
+			name: "Cartão",
+			paymentAccountId: "cash",
+			refundPolicy: null,
+			statementDay: 10,
+			workingDueDate: false,
+		},
+	];
+	data.projectedStatements = [
+		{
+			balanceAmount: 40,
+			chargesAmount: 0,
+			creditCardId: "card",
+			dueDate: new Date("2026-10-20T12:00:00"),
+			id: "invoice",
+			paidAmount: 0,
+			statementDate: new Date("2026-10-10T12:00:00"),
+			totalAmount: 40,
+		},
+	];
+	const context = dashboardFinancialContext(data, { end: through, start: from }, today, from, through);
+	expect(context.budgetSummary("2026-10").items[0]).toMatchObject({
+		additionalAmount: 25,
+		knownAmount: 60,
+		projectedAmount: 85,
+	});
+	expect(context.balanceAt(through)).toBe(-5);
+	expect(
+		context.comparisonTransactions.filter(row => row.date > today).reduce((sum, row) => sum + row.amount, 0),
+	).toBe(65);
+});
+
+test("active invoice budget reserves overdue outstanding without losing known spending", () => {
+	const data = loaded();
+	data.monthlyBudgets = [
+		{
+			amount: 85,
+			categoryId: null,
+			currency: "BRL",
+			endMonth: null,
+			id: "invoice",
+			name: "Faturas",
+			source: "STATEMENTS",
+			startMonth: "2026-10",
+		},
+	];
+	data.projectedStatements = [
+		{
+			balanceAmount: 90,
+			chargesAmount: 0,
+			creditCardId: "card",
+			dueDate: new Date("2026-10-02T12:00:00"),
+			id: "overdue",
+			paidAmount: 0,
+			statementDate: new Date("2026-09-20T12:00:00"),
+			totalAmount: 90,
+		},
+	];
+	const context = dashboardFinancialContext(data, { end: through, start: from }, today, from, through);
+	expect(context.budgetSummary("2026-10").items[0]).toMatchObject({
+		additionalAmount: 0,
+		knownAmount: 90,
+		projectedAmount: 90,
+	});
+	expect(
+		context.comparisonTransactions
+			.filter(row => row.date > today)
+			.reduce((total, row) => total + row.amount, 0),
+	).toBe(90);
+	expect(context.balanceAt(through)).toBe(-30);
+});

@@ -1,0 +1,7 @@
+{
+	"createdAt": "2026-10-12T20:06:52.803Z",
+	"from": "0567ee71a30f4562462e07ff2776133815a39ed36b3807bdeafbfa0e1527e22e",
+	"migrationHash": "f4720ff640cc8456071ad0b10df53912aec80510c34c2a644b9912fc2a7142f3",
+	"providedInvariants": ["monthlyBudget.values.v1"],
+	"to": "4b738b2f5203071c97a45b5be12d9d64c20af7c187530a08ae5d6c311585e620"
+}

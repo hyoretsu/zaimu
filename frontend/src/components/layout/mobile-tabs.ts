@@ -15,6 +15,7 @@ export const mobileScreenPaths = [
 	"/debts",
 	"/loans",
 	"/recurring",
+	"/budget",
 	"/settings",
 	"/settings/open-finance",
 ] as const;
@@ -37,6 +38,7 @@ const tabByScreen = {
 	"/admin/history": "more",
 	"/admin/taxes": "more",
 	"/admin/users": "more",
+	"/budget": "more",
 	"/credit-cards": "creditCards",
 	"/debts": "more",
 	"/loans": "more",

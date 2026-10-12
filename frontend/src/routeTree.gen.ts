@@ -30,6 +30,7 @@ import { Route as AuthForgotPasswordRouteImport } from './routes/auth/forgot-pas
 import { Route as AuthRegisterRouteImport } from './routes/auth/register'
 import { Route as AuthResetPasswordRouteImport } from './routes/auth/reset-password'
 import { Route as AuthVerifyEmailRouteImport } from './routes/auth/verify-email'
+import { Route as BudgetIndexRouteImport } from './routes/budget/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as AdminHistoryIndexRouteImport } from './routes/admin/history/index'
 import { Route as AdminTaxesIndexRouteImport } from './routes/admin/taxes/index'
@@ -141,6 +142,11 @@ const AuthVerifyEmailRoute = AuthVerifyEmailRouteImport.update({
   path: '/verify-email',
   getParentRoute: () => AuthRoute,
 } as any)
+const BudgetIndexRoute = BudgetIndexRouteImport.update({
+  id: '/budget/',
+  path: '/budget/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsIndexRoute = SettingsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -190,6 +196,7 @@ export interface FileRoutesByFullPath {
   '/auth/verify-email': typeof AuthVerifyEmailRoute
   '/admin/': typeof AdminIndexRoute
   '/auth/': typeof AuthIndexRoute
+  '/budget/': typeof BudgetIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/admin/history/': typeof AdminHistoryIndexRoute
   '/admin/taxes/': typeof AdminTaxesIndexRoute
@@ -216,6 +223,7 @@ export interface FileRoutesByTo {
   '/auth/verify-email': typeof AuthVerifyEmailRoute
   '/admin': typeof AdminIndexRoute
   '/auth': typeof AuthIndexRoute
+  '/budget': typeof BudgetIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/admin/history': typeof AdminHistoryIndexRoute
   '/admin/taxes': typeof AdminTaxesIndexRoute
@@ -245,6 +253,7 @@ export interface FileRoutesById {
   '/auth/verify-email': typeof AuthVerifyEmailRoute
   '/admin/': typeof AdminIndexRoute
   '/auth/': typeof AuthIndexRoute
+  '/budget/': typeof BudgetIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/admin/history/': typeof AdminHistoryIndexRoute
   '/admin/taxes/': typeof AdminTaxesIndexRoute
@@ -275,6 +284,7 @@ export interface FileRouteTypes {
     | '/auth/verify-email'
     | '/admin/'
     | '/auth/'
+    | '/budget/'
     | '/settings/'
     | '/admin/history/'
     | '/admin/taxes/'
@@ -301,6 +311,7 @@ export interface FileRouteTypes {
     | '/auth/verify-email'
     | '/admin'
     | '/auth'
+    | '/budget'
     | '/settings'
     | '/admin/history'
     | '/admin/taxes'
@@ -329,6 +340,7 @@ export interface FileRouteTypes {
     | '/auth/verify-email'
     | '/admin/'
     | '/auth/'
+    | '/budget/'
     | '/settings/'
     | '/admin/history/'
     | '/admin/taxes/'
@@ -353,6 +365,7 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   TransactionsRoute: typeof TransactionsRoute
   AdminIndexRoute: typeof AdminIndexRoute
+  BudgetIndexRoute: typeof BudgetIndexRoute
   AdminHistoryIndexRoute: typeof AdminHistoryIndexRoute
   AdminTaxesIndexRoute: typeof AdminTaxesIndexRoute
   AdminUsersIndexRoute: typeof AdminUsersIndexRoute
@@ -507,6 +520,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthVerifyEmailRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/budget/': {
+      id: '/budget/'
+      path: '/budget'
+      fullPath: '/budget/'
+      preLoaderRoute: typeof BudgetIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings/': {
       id: '/settings/'
       path: '/'
@@ -594,6 +614,7 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   TransactionsRoute: TransactionsRoute,
   AdminIndexRoute: AdminIndexRoute,
+  BudgetIndexRoute: BudgetIndexRoute,
   AdminHistoryIndexRoute: AdminHistoryIndexRoute,
   AdminTaxesIndexRoute: AdminTaxesIndexRoute,
   AdminUsersIndexRoute: AdminUsersIndexRoute,

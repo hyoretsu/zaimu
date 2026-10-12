@@ -20,6 +20,13 @@ const mobileNavigationPaths = new Set<string>(mobileNavigation.map(item => item.
 const menuItems = [
 	{
 		color: "bg-primary/10 text-primary",
+		description: "Planeje despesas por tag e faturas de todos os cartões",
+		icon: HiCalendarDays,
+		label: "Orçamento mensal",
+		to: "/budget",
+	},
+	{
+		color: "bg-primary/10 text-primary",
 		description: "Gerencie impostos, usuários e dados financeiros",
 		icon: HiClipboardDocumentList,
 		label: "Administração",

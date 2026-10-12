@@ -28,11 +28,12 @@ import { type CacheIdentity, getCurrentCacheIdentity } from "@/lib/query-cache";
 import { calculateDebtSplit } from "./debt-split";
 import { calculateFinancialAccountBalances } from "./financial-account";
 import { requestResult, transactionDone } from "./idb";
+import type { MonthlyBudget } from "./monthly-budget";
 import type { Recurrence, RecurrenceOccurrence } from "./recurrence";
 import { cachedYieldCalendar } from "./yield-calendar";
 
 const DB_NAME = "zaimu-local";
-const DB_VERSION = 16;
+const DB_VERSION = 17;
 
 const LOCAL_STORES = {
 	accounts: "accounts",
@@ -46,6 +47,7 @@ const LOCAL_STORES = {
 	loanPayments: "loanPayments",
 	loans: "loans",
 	meta: "meta",
+	monthlyBudgets: "monthlyBudgets",
 	recurrenceOccurrences: "recurrenceOccurrences",
 	recurrences: "recurrences",
 	stores: "stores",
@@ -275,7 +277,7 @@ export async function put<T>(
 	const timestamp = Date.now();
 	await runTransaction(scopedStoreName(domain), "readwrite", async store => {
 		const existing =
-			domain === "debtEvents"
+			domain === "debtEvents" || domain === "monthlyBudgets"
 				? ((await requestResult(store.get(scopedId(owner, id)))) as LocalData<StoredDebtEvent> | undefined)
 				: undefined;
 		if (existing?.deleted) throw new Error("Lançamento excluído");
@@ -296,7 +298,7 @@ export async function put<T>(
 				modifiedAt: Math.max(timestamp, (existing?.modifiedAt ?? 0) + 1),
 				ownerKey: owner,
 				scopedId: scopedId(owner, id),
-				...(domain === "debtEvents"
+				...(domain === "debtEvents" || domain === "monthlyBudgets"
 					? { syncedAt: existing?.syncedAt }
 					: owner.startsWith("user:") && { syncedAt: timestamp }),
 			}),
@@ -349,7 +351,12 @@ export async function softDelete(
 	}
 	await runTransaction(scopedStoreName(domain), "readwrite", async store => {
 		const key = scopedId(owner, localId);
-		if (owner.startsWith("user:") && domain !== "debtEvents" && domain !== "debtPeople") {
+		if (
+			owner.startsWith("user:") &&
+			domain !== "debtEvents" &&
+			domain !== "debtPeople" &&
+			domain !== "monthlyBudgets"
+		) {
 			await requestResult(store.delete(key));
 			return;
 		}
@@ -513,6 +520,47 @@ function createLocalStore<T>(domain: StoreDomain) {
 
 export const localAccounts = createLocalStore<FinancialAccount>("accounts");
 export const localCategories = createLocalStore<Category>("categories");
+export const localMonthlyBudgets = createLocalStore<MonthlyBudget>("monthlyBudgets");
+
+/** Accept only revisions sent by this sync; keep edits made while the request was in flight. */
+export async function acknowledgeMonthlyBudgetSync(
+	sent: LocalData<MonthlyBudget>[],
+	received: MonthlyBudget[],
+	owner: StorageOwner,
+) {
+	await runTransaction(scopedStoreName("monthlyBudgets"), "readwrite", async store => {
+		const existing = (await requestResult(
+			store.index("ownerKey").getAll(owner),
+		)) as LocalData<MonthlyBudget>[];
+		const remote = new Map(received.map(budget => [budget.id, budget]));
+		const sentById = new Map(sent.map(row => [row.localId, row]));
+		const now = Date.now();
+		for (const current of existing) {
+			const source = sentById.get(current.localId);
+			if (source ? current.modifiedAt !== source.modifiedAt : isLocallyModified(current)) continue;
+			const budget = remote.get(current.localId);
+			if (!budget) await requestResult(store.delete(current.scopedId));
+			else
+				await requestResult(
+					store.put({ ...current, data: budget, deleted: false, modifiedAt: now, syncedAt: now }),
+				);
+			remote.delete(current.localId);
+		}
+		for (const budget of remote.values()) {
+			if (existing.some(row => row.localId === budget.id)) continue;
+			await requestResult(
+				store.put({
+					data: budget,
+					localId: budget.id,
+					modifiedAt: now,
+					ownerKey: owner,
+					scopedId: scopedId(owner, budget.id),
+					syncedAt: now,
+				}),
+			);
+		}
+	});
+}
 export const localStores = createLocalStore<Store>("stores");
 export const localTransactions = createLocalStore<Transaction>("transactions");
 export const localLoanPayments = createLocalStore<LoanPayment>("loanPayments");

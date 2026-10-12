@@ -16,6 +16,18 @@ Transações futuras, recorrências, empréstimos e restante das faturas entram 
 
 Evolução por período apresenta dois gráficos alinhados pelos mesmos períodos, com escalas monetárias independentes e filtro compartilhado. Patrimônio fica acima, com linhas para patrimônio (saldo total), em conta, renda fixa e renda variável. No tooltip, Investido agrupa renda fixa e renda variável. Entradas e gastos fica abaixo, com duas barras empilhadas por período: entradas recorrentes/outras entradas e saídas recorrentes/outras saídas. Cada gráfico tem legenda e tooltip próprios; o de fluxo distingue segmentos e totais. Valores monetários incluem centavos.
 
+## Planejamento mensal
+
+Planejamentos são reservas mensais estimadas, separadas de transações e recorrências certas. Cada planejamento possui nome, moeda, valor positivo e vigência em meses, com início e término inclusivos. Sem término, repete mensalmente. Pode acompanhar uma tag, o agregado de faturas de todos os cartões ou uma reserva independente sem tag. Planejamentos não criam lançamentos, pagamentos, compras, faturas nem alterações de saldo real.
+
+O gasto projetado de cada categoria corresponde ao maior valor entre o planejamento e os compromissos conhecidos do mês. Somente a diferença positiva entra como saída adicional na projeção, no último dia do mês, e somente em datas futuras. Por exemplo, R$ 8.500 planejados e R$ 6.000 comprometidos acrescentam R$ 2.500; R$ 9.000 comprometidos acrescentam zero. A comparação mensal distingue planejado, comprometido, reserva adicional e total projetado. Comprometido reúne gastos registrados e compromissos futuros certos, sem representar apenas o realizado.
+
+Faturas consideram pagamentos registrados, pagamentos recorrentes e saldo restante previsto no mês de vencimento. Compras e parcelas compõem as faturas, sem nova saída individual. Tags acompanham despesas monetárias e recorrências associadas; pagamentos de cartão pertencem ao agregado Faturas. Reservas sem tag mantêm seu valor integral, pois não possuem regra de conciliação automática. Valores são comparados na moeda do planejamento; conversões usam o mesmo contexto cambial da projeção. Não somar valores de moedas distintas sem conversão.
+
+Não pode haver dois planejamentos com vigências sobrepostas para a mesma tag e moeda, ou para Faturas na mesma moeda. Modo visitante e contas conectadas seguem as mesmas regras. Dados locais permanecem isolados por identidade; sincronização preserva alterações feitas enquanto uma solicitação está em andamento.
+
+Quando uma despesa corresponde a várias categorias planejadas, seu valor é distribuído igualmente entre os planejamentos aplicáveis, preservando centavos e evitando abatimento duplicado. Fatura vencida ainda aberta no mês com planejamento ativo de Faturas mantém seu saldo conhecido reservado no último dia desse mês, caso essa data ainda seja futura. Meses encerrados não geram saídas retroativas de planejamento.
+
 ## Ajustes de saldo
 
 Um ajuste registra o saldo real de uma conta ao fim de uma data. Ele não é entrada nem saída e não participa de categorias, faturas ou dívidas. Existe no máximo um ajuste por conta e data. O saldo antes da data segue as movimentações registradas; na data, o ajuste fixa o saldo de fechamento. Movimentações anteriores ou do mesmo dia alteram automaticamente a diferença implícita do ajuste, preservando o saldo real informado. Movimentações posteriores partem desse saldo, até o próximo ajuste. Excluir o ajuste remove esse ponto de referência e recalcula o histórico.
@@ -272,3 +284,7 @@ Migração congela por conta os feriados usados pela antiga união de países da
 Ao selecionar uma única data, a listagem mantém o saldo de fechamento desse dia mesmo quando nenhum lançamento corresponde aos filtros. O saldo histórico considera o livro financeiro completo, independentemente dos filtros de transações. Conta conectada e modo visitante seguem a mesma regra.
 
 O modal de extrato reutiliza a listagem completa da tela de transações, sem filtros. Cada dia exibe saldo de fechamento da própria conta, incluindo movimentações, rendimentos e ajustes do livro completo, mesmo quando o dia contém apenas rendimentos. Carregar páginas anteriores preserva conteúdo e posição de rolagem.
+
+Orçamento mensal possui valor padrão repetido durante sua vigência. Um registro com início e fim no mesmo mês substitui o padrão daquela origem e moeda somente naquele mês; reservas sem tag usam também o nome como identidade. Ajustes não somam ao padrão. Excluir o ajuste restaura o padrão. Outros meses continuam usando o padrão.
+
+A tela de orçamento prioriza listagem compacta do plano geral. Exceções mensais ficam no modal de ajustes. Disponibilidade para planejar corresponde às entradas realizadas e previstas menos todas as despesas previstas do mês, incluindo reservas de orçamento e compromissos conhecidos sem duplicação. Saldo acumulado anterior não amplia esse limite mensal. Valores seguem moeda e consolidação da comparação financeira; falha de previsão não vira disponibilidade zero.

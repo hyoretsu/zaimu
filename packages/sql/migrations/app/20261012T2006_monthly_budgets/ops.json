@@ -1,0 +1,192 @@
+[
+	{
+		"execute": [
+			{
+				"description": "create table \"MonthlyBudget\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"MonthlyBudget\" (\n  \"amount\" numeric(20,6) NOT NULL,\n  \"categoryId\" character varying(36),\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"currency\" character varying(3) NOT NULL,\n  \"deletedAt\" timestamp(3),\n  \"endMonth\" character varying(7),\n  \"id\" character varying(36) DEFAULT (cuid2()) NOT NULL,\n  \"name\" character varying(100) NOT NULL,\n  \"source\" character varying(16) NOT NULL,\n  \"startMonth\" character varying(7) NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"userId\" character varying(36) NOT NULL,\n  CONSTRAINT \"MonthlyBudget_pkey\" PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.MonthlyBudget",
+		"label": "Create table \"MonthlyBudget\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"MonthlyBudget\" exists",
+				"params": ["\"public\".\"MonthlyBudget\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"MonthlyBudget\" does not exist",
+				"params": ["\"public\".\"MonthlyBudget\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"MonthlyBudget\"",
+		"target": {
+			"details": {
+				"name": "MonthlyBudget",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"MonthlyBudget_categoryId_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"MonthlyBudget_categoryId_idx\" ON \"public\".\"MonthlyBudget\" (\"categoryId\")"
+			}
+		],
+		"id": "index.MonthlyBudget.MonthlyBudget_categoryId_idx",
+		"label": "Create index \"MonthlyBudget_categoryId_idx\" on \"MonthlyBudget\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"MonthlyBudget_categoryId_idx\" exists",
+				"params": ["\"public\".\"MonthlyBudget_categoryId_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"MonthlyBudget_categoryId_idx\" does not exist",
+				"params": ["\"public\".\"MonthlyBudget_categoryId_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "MonthlyBudget_categoryId_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "MonthlyBudget"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"MonthlyBudget_userId_startMonth_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"MonthlyBudget_userId_startMonth_idx\" ON \"public\".\"MonthlyBudget\" (\"userId\", \"startMonth\")"
+			}
+		],
+		"id": "index.MonthlyBudget.MonthlyBudget_userId_startMonth_idx",
+		"label": "Create index \"MonthlyBudget_userId_startMonth_idx\" on \"MonthlyBudget\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"MonthlyBudget_userId_startMonth_idx\" exists",
+				"params": ["\"public\".\"MonthlyBudget_userId_startMonth_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"MonthlyBudget_userId_startMonth_idx\" does not exist",
+				"params": ["\"public\".\"MonthlyBudget_userId_startMonth_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "MonthlyBudget_userId_startMonth_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "MonthlyBudget"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"MonthlyBudget_userId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"MonthlyBudget\"\nADD CONSTRAINT \"MonthlyBudget_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"user\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.MonthlyBudget.MonthlyBudget_userId_fkey",
+		"label": "Add foreign key \"MonthlyBudget_userId_fkey\" on \"MonthlyBudget\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"MonthlyBudget_userId_fkey\" exists",
+				"params": ["MonthlyBudget_userId_fkey", "public", "\"public\".\"MonthlyBudget\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"MonthlyBudget_userId_fkey\" does not exist",
+				"params": ["MonthlyBudget_userId_fkey", "public", "\"public\".\"MonthlyBudget\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "MonthlyBudget_userId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "MonthlyBudget"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"MonthlyBudget_categoryId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"MonthlyBudget\"\nADD CONSTRAINT \"MonthlyBudget_categoryId_fkey\"\nFOREIGN KEY (\"categoryId\")\nREFERENCES \"public\".\"Category\" (\"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.MonthlyBudget.MonthlyBudget_categoryId_fkey",
+		"label": "Add foreign key \"MonthlyBudget_categoryId_fkey\" on \"MonthlyBudget\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"MonthlyBudget_categoryId_fkey\" exists",
+				"params": ["MonthlyBudget_categoryId_fkey", "public", "\"public\".\"MonthlyBudget\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"MonthlyBudget_categoryId_fkey\" does not exist",
+				"params": ["MonthlyBudget_categoryId_fkey", "public", "\"public\".\"MonthlyBudget\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "MonthlyBudget_categoryId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "MonthlyBudget"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "Validate monthly budget values",
+				"sql": "ALTER TABLE \"public\".\"MonthlyBudget\" ADD CONSTRAINT \"MonthlyBudget_values_check\" CHECK (\"amount\">0 AND length(trim(\"name\"))>0 AND \"currency\" ~ '^[A-Z]{3}$' AND \"source\" IN ('TAG','STATEMENTS','CUSTOM') AND ((\"source\"='TAG')=(\"categoryId\" IS NOT NULL)) AND \"startMonth\" ~ '^[0-9]{4}-(0[1-9]|1[0-2])$' AND (\"endMonth\" IS NULL OR (\"endMonth\" ~ '^[0-9]{4}-(0[1-9]|1[0-2])$' AND \"endMonth\">=\"startMonth\")))"
+			}
+		],
+		"id": "monthlyBudget.values",
+		"invariantId": "monthlyBudget.values.v1",
+		"label": "Enforce monthly budget validity",
+		"operationClass": "data",
+		"postcheck": [],
+		"precheck": [],
+		"target": {
+			"id": "postgres"
+		}
+	}
+]

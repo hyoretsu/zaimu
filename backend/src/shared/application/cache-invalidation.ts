@@ -104,6 +104,7 @@ export const cacheInvalidationMatrix: Record<string, NamespaceResolver> = {
 		"loans:list",
 		"transactions:list",
 	],
+	monthlyBudget: () => ["dashboard"],
 	referenceRate: () => [
 		"accounts:detail",
 		"accounts:list",

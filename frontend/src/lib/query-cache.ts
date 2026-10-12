@@ -35,6 +35,12 @@ export const queryKeys = {
 		list: (identity: CacheIdentity, accountId: string) =>
 			[...domainKey(identity, "account-yields"), "list", accountId] as const,
 	},
+	budgets: {
+		all: (identity: CacheIdentity) => domainKey(identity, "budgets"),
+		list: (identity: CacheIdentity) => [...domainKey(identity, "budgets"), "list"] as const,
+		summary: (identity: CacheIdentity, month: string) =>
+			[...domainKey(identity, "budgets"), "summary", activeCurrency(), month] as const,
+	},
 	categories: {
 		all: (identity: CacheIdentity) => domainKey(identity, "categories"),
 		list: (identity: CacheIdentity) => [...domainKey(identity, "categories"), "list"] as const,
@@ -111,15 +117,17 @@ export const queryKeys = {
 type CacheDomain = keyof typeof queryKeys;
 
 export const cacheOperationDomains = {
-	account: ["accounts", "creditCards", "dashboard", "transactions", "accountYields"],
-	category: ["categories", "transactions", "dashboard"],
-	creditCard: ["creditCards", "creditCardStatements", "accounts", "dashboard"],
+	account: ["accounts", "creditCards", "dashboard", "transactions", "accountYields", "budgets"],
+	budget: ["budgets", "dashboard"],
+	category: ["categories", "transactions", "dashboard", "budgets"],
+	creditCard: ["creditCards", "creditCardStatements", "accounts", "dashboard", "budgets"],
 	debt: ["debts", "dashboard", "transactions"],
 	holiday: ["accountYieldHolidays", "accountYields", "accounts", "dashboard", "transactions"],
 	institution: ["accounts", "creditCards", "dashboard"],
 	invitation: ["debts"],
-	loan: ["loans", "accounts", "dashboard", "transactions"],
+	loan: ["loans", "accounts", "dashboard", "transactions", "budgets"],
 	recurring: [
+		"budgets",
 		"recurring",
 		"accounts",
 		"creditCards",
@@ -129,9 +137,18 @@ export const cacheOperationDomains = {
 		"debts",
 		"accountYields",
 	],
-	statement: ["creditCardStatements", "creditCards", "accounts", "dashboard", "debts", "transactions"],
+	statement: [
+		"creditCardStatements",
+		"creditCards",
+		"accounts",
+		"dashboard",
+		"debts",
+		"transactions",
+		"budgets",
+	],
 	store: ["stores", "transactions", "dashboard"],
 	transaction: [
+		"budgets",
 		"transactions",
 		"accounts",
 		"creditCards",

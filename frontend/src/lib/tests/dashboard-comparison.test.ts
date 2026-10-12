@@ -15,7 +15,9 @@ test("guest chart reads no dashboard or debt data and repeats selected dates", a
 	const stores = await import("../localStorage");
 	const rates = await import("../reference-rate-averages");
 	const cardForecast = await import("@zaimu/finance/card-forecast");
+	const budgetService = await import("../monthly-budget-service");
 	const mocks = [
+		spyOn(budgetService.monthlyBudgetService, "getAll").mockResolvedValue([]),
 		spyOn(rates, "refreshReferenceRateAverages").mockResolvedValue(null),
 		spyOn(cardForecast, "recurringCardPaymentAmounts").mockReturnValue(new Map([["payment", 20]])),
 		spyOn(stores.localAccounts, "getAll").mockResolvedValue([

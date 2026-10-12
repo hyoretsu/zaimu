@@ -78,6 +78,7 @@ const aggregateForPath = (pathname: string) => {
 				"financial-accounts": "financialAccount",
 				"financial-institutions": "financialAccount",
 				loans: "loan",
+				"monthly-budgets": "monthlyBudget",
 				recurring: "schedule",
 				salaries: "schedule",
 				stores: "store",

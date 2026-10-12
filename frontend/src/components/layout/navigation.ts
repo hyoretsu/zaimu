@@ -18,7 +18,10 @@ export const primaryNavigation = [
 	{ icon: LuLayoutGrid, label: "Mais", to: "/more" },
 ] as const;
 
-export const utilityNavigation = [{ icon: LuSettings2, label: "Ajustes", to: "/settings" }] as const;
+export const utilityNavigation = [
+	{ icon: LuWalletCards, label: "Orçamento", to: "/budget" },
+	{ icon: LuSettings2, label: "Ajustes", to: "/settings" },
+] as const;
 
 export const mobileNavigation = [
 	{ ...primaryNavigation[0], tabId: "overview" },

@@ -20,6 +20,7 @@
 		"./daily-forecast": "./src/daily-forecast.ts",
 		"./projected-yield": "./src/projected-yield.ts",
 		"./card-forecast": "./src/card-forecast.ts",
+		"./monthly-budget": "./src/monthly-budget.ts",
 		"./money": "./src/money.ts",
 		"./currency-provider": "./src/currency-provider.ts",
 		"./currency-preference": "./src/currency-preference.ts",

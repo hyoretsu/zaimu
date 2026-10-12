@@ -87,6 +87,7 @@
 		"backend/src/modules/financial-history/domain/history-coverage.test.ts",
 		"backend/src/modules/loans/infra/elysia/LoansDTO.test.ts",
 		"backend/src/modules/loans/infra/elysia/loan-payment-pagination.test.ts",
+		"backend/src/modules/monthly-budgets/application/validate-monthly-budget.test.ts",
 		"backend/src/modules/open-finance/application/native-review-money.test.ts",
 		"backend/src/modules/open-finance/domain/normalize.test.ts",
 		"backend/src/modules/open-finance/infra/credentials.test.ts",

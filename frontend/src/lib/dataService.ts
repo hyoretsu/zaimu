@@ -64,6 +64,7 @@ import {
 	toPurchasePresentation,
 	transferLocalCreditBookPurchase,
 } from "./localStorage";
+import type { MonthlyBudget } from "./monthly-budget";
 import type { Recurrence } from "./recurrence";
 import { projectGuestRecurrenceCreditBook } from "./recurrence-credit-projection";
 import { createRecurrenceService } from "./recurrence-service";
@@ -128,6 +129,7 @@ import {
 import { normalizeInstitutionName } from "./financial-institution";
 import {
 	acknowledgeDebtEventSync,
+	acknowledgeMonthlyBudgetSync,
 	advanceLocalLoanInstallments,
 	clearAllLocalData,
 	createLocalDebtOrigins,
@@ -141,6 +143,7 @@ import {
 	localLoanPayments,
 	localLoans,
 	localMeta,
+	localMonthlyBudgets,
 	localRecurrenceOccurrences,
 	localRecurrences,
 	localStores,
@@ -3216,6 +3219,7 @@ export const dataService = {
 				if (loans.some(row => row.data.needsPaymentReview))
 					throw new Error("Revise pagamentos antigos de empréstimos antes de sincronizar.");
 				const recurrences = await localRecurrences.getAll(owner);
+				const monthlyBudgets = await localMonthlyBudgets.getAllWithTombstones(owner);
 				const recurrenceOccurrences = await localRecurrenceOccurrences.getAll(owner);
 				const recurrenceIds = new Set(recurrences.map(row => row.data.id));
 				if (
@@ -3235,6 +3239,7 @@ export const dataService = {
 						financialAccountYieldHolidays: FinancialAccountYieldHoliday[];
 						financialAccountYields: FinancialAccountYield[];
 						categories: Category[];
+						monthlyBudgets: MonthlyBudget[];
 						creditCards: CreditCard[];
 						creditCardStatements: CreditCardStatement[];
 						creditBooks: CreditBook[];
@@ -3268,6 +3273,12 @@ export const dataService = {
 						),
 						loanPayments: loanPayments.map(row => row.data),
 						loans: loans.map(l => l.data),
+						monthlyBudgets: monthlyBudgets.map(row => ({
+							...row.data,
+							baseUpdatedAt: row.data.baseUpdatedAt ?? (row.syncedAt ? row.data.updatedAt : undefined),
+							deletedAt: row.deleted ? new Date(row.modifiedAt).toISOString() : null,
+							updatedAt: new Date(row.modifiedAt).toISOString(),
+						})),
 						recurrenceOccurrences: recurrenceOccurrences.map(row => row.data),
 						recurrences: recurrences.map(row => ({
 							...row.data,
@@ -3286,6 +3297,8 @@ export const dataService = {
 					owner,
 				);
 				// Update local with server data
+				if (!response.syncResults.monthlyBudgets?.errors.length)
+					await acknowledgeMonthlyBudgetSync(monthlyBudgets, response.serverData.monthlyBudgets, owner);
 				await Promise.all([
 					localAccounts.replaceSnapshot(
 						response.serverData.financialAccounts.map(a => ({

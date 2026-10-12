@@ -1,3 +1,4 @@
+import { monthEnd } from "@zaimu/finance/monthly-budget";
 import { shiftRecurrenceDate } from "@zaimu/finance/recurrence";
 import { pendingRecurrenceDates } from "@zaimu/finance/recurrence-projection";
 import { ensureCurrencyRates, getLatestCurrencyRate } from "~/modules/currencies/infra/currency-exchange";
@@ -95,6 +96,36 @@ export async function dashboardCurrencyContext(
 			forecastCurrencies.add(card?.currency ?? "BRL");
 			forecastCurrencies.add(accountCurrencies.get(card?.paymentAccountId ?? "") ?? primaryCurrency);
 		}
+	for (const budget of loaded.monthlyBudgets ?? [])
+		if (
+			budget.startMonth <= forecastThrough.slice(0, 7) &&
+			(!budget.endMonth || budget.endMonth >= reference.slice(0, 7))
+		) {
+			forecastCurrencies.add(budget.currency);
+			forecastCurrencies.add(primaryCurrency);
+		}
+	for (const statement of loaded.projectedStatements ?? []) {
+		const date = dateKey(statement.dueDate),
+			month = date.slice(0, 7);
+		if (
+			statement.balanceAmount <= 0 ||
+			date > reference ||
+			monthEnd(month) <= reference ||
+			monthEnd(month) > forecastThrough
+		)
+			continue;
+		if (
+			!(loaded.monthlyBudgets ?? []).some(
+				budget =>
+					budget.source === "STATEMENTS" &&
+					budget.startMonth <= month &&
+					(!budget.endMonth || budget.endMonth >= month),
+			)
+		)
+			continue;
+		forecastCurrencies.add(loaded.cards.find(card => card.id === statement.creditCardId)?.currency ?? "BRL");
+		forecastCurrencies.add(primaryCurrency);
+	}
 	const forecastForeign = [...forecastCurrencies].filter(source => source !== currency);
 	const factors = new Map<string, number>();
 	const forecastFactors = new Map<string, number>();
@@ -125,6 +156,48 @@ export async function dashboardCurrencyContext(
 			date = dateKey(row.date);
 		if (source !== currency && date < reference && row.amount)
 			needed.set(`${source}:${date}`, { date, source });
+	}
+	for (const budget of loaded.monthlyBudgets ?? []) {
+		for (const row of loaded.flows) {
+			if (
+				row.type !== "EXPENSE" ||
+				(budget.source === "STATEMENTS"
+					? !row.cardPayment
+					: budget.source !== "TAG" || row.cardPayment || !row.tagIds?.includes(budget.categoryId ?? ""))
+			)
+				continue;
+			const date = dateKey(row.date);
+			if (
+				budget.currency === currency ||
+				budget.currency === (row.currency ?? "BRL") ||
+				date > reference ||
+				date.slice(0, 7) < budget.startMonth ||
+				(budget.endMonth && date.slice(0, 7) > budget.endMonth)
+			)
+				continue;
+			if (date === reference) currentCurrencies.add(budget.currency);
+			else needed.set(`${budget.currency}:${date}`, { date, source: budget.currency });
+		}
+	}
+	for (const row of loaded.projectedStatements ?? []) {
+		const date = dateKey(row.dueDate);
+		if (date > reference || row.balanceAmount <= 0) continue;
+		const budgets = (loaded.monthlyBudgets ?? []).filter(
+			budget =>
+				budget.source === "STATEMENTS" &&
+				budget.startMonth <= date.slice(0, 7) &&
+				(!budget.endMonth || budget.endMonth >= date.slice(0, 7)),
+		);
+		if (!budgets.length) continue;
+		const sources = [
+			loaded.cards.find(card => card.id === row.creditCardId)?.currency ?? "BRL",
+			...budgets.map(budget => budget.currency),
+		];
+		for (const source of sources) {
+			if (source === currency) continue;
+			if (date === reference) currentCurrencies.add(source);
+			else needed.set(`${source}:${date}`, { date, source });
+		}
 	}
 	// Bound point downloads too; each request fetches both involved bases.
 	const requests = [
