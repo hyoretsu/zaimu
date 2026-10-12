@@ -473,3 +473,26 @@ test("calendar correction preserves a user adjusted automatic yield on the new h
 		}).get("a"),
 	).toBe(1005);
 });
+
+test("frozen legacy calendar preserves derived history while ambiguous future coverage stays pending", () => {
+	const account = {
+		createdAt: new Date("2026-01-05T12:00:00"),
+		id: "legacy",
+		legacyYieldCalendar: { holidays: ["2026-01-06"], throughDate: "2026-01-07" },
+		type: "CHECKING",
+		yieldFixedRate: 10,
+		yieldPeriod: "MONTHLY" as const,
+	};
+	const input = {
+		accounts: [account],
+		cashbackCredits: [],
+		coveredCalendarYears: new Map<string, ReadonlySet<number>>(),
+		holidays: [new Date("2026-01-05T12:00:00")],
+		initialRewardsBalances: new Map<string, number>(),
+		today: new Date("2026-01-08T12:00:00"),
+		transactions: [
+			{ amount: 1000, date: new Date("2026-01-05T12:00:00"), destinationFinancialAccountId: "legacy" },
+		],
+	};
+	expect(calculateFinancialAccountYieldBalances(input).get("legacy")).toBeCloseTo(1000 * 1.1 ** (1 / 21), 4);
+});

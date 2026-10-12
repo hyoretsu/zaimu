@@ -1,3 +1,4 @@
+import { legacyCalendarHoliday } from "@zaimu/finance/projected-yield";
 import { type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
 import { addDays, format, isWeekend, startOfDay, subDays } from "date-fns";
 import { loadFinancialAccountBalanceInput } from "~/modules/accounts/application/get-financial-account-balances";
@@ -310,7 +311,7 @@ async function processAccountRecalculation(job: ClaimedJob) {
 	const input = { ...loaded.input, yields: [...loaded.input.yields] };
 	for (let day = fromDate; day <= endDate; day = addDays(day, 1)) {
 		const key = dateKey(day);
-		if (isWeekend(day) || holidayKeys.has(key)) continue;
+		if (isWeekend(day) || (legacyCalendarHoliday(account, key) ?? holidayKeys.has(key))) continue;
 		const settings = getYieldSettings(account, key);
 		if (!settings) continue;
 		const types = requiredReferenceTypes(settings);

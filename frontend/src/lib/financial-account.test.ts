@@ -436,3 +436,30 @@ test("cross-currency transfers credit actual destination value instead of debit 
 	expect(balances.find(account => account.id === "usd")?.balance).toBe(-100);
 	expect(balances.find(account => account.id === "jpy")?.balance).toBe(14912);
 });
+
+test("offline balances and yield entries preserve frozen history and require current calendar coverage", () => {
+	const account: FinancialAccount = {
+		balance: 0,
+		countryCode: null,
+		createdAt: "2026-01-05",
+		currency: "BRL",
+		id: "legacy",
+		legacyYieldCalendar: { holidays: ["2026-01-06"], throughDate: "2026-01-07" },
+		name: "Legada",
+		type: "CHECKING",
+		updatedAt: "2026-01-05",
+		userId: "owner",
+		yieldFixedRate: 10,
+		yieldPeriod: "MONTHLY",
+	};
+	const movements = [{ amount: 1000, date: "2026-01-05", destinationFinancialAccountId: "legacy" }];
+	const calendar = { countries: [], coverage: [], currencyCountries: [], holidays: [] };
+	const today = new Date("2026-01-08T12:00:00");
+	expect(calculateFinancialAccountBalances([account], movements, [], calendar, today)[0].balance).toBeCloseTo(
+		1000 * 1.1 ** (1 / 21),
+		4,
+	);
+	expect(
+		calculateFinancialAccountYieldEntries(account, movements, calendar, today).map(entry => entry.date),
+	).toEqual(["2026-01-05"]);
+});

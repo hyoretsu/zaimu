@@ -1,4 +1,8 @@
-import { getYieldSettings } from "@zaimu/finance/projected-yield";
+import {
+	getYieldSettings,
+	type LegacyYieldCalendar,
+	legacyCalendarHoliday,
+} from "@zaimu/finance/projected-yield";
 import { type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
 import { addDays, format, isWeekend, startOfDay } from "date-fns";
 
@@ -6,6 +10,7 @@ export type YieldPeriod = "MONTHLY" | "YEARLY";
 export type ReferenceRateType = "CDI" | "SELIC";
 
 export interface YieldAccount {
+	legacyYieldCalendar?: LegacyYieldCalendar | null;
 	currency?: string;
 	countryCode?: null | string;
 	defaultInstitutionProfileId?: null | string;
@@ -195,8 +200,9 @@ export function calculateFinancialAccountYieldBalances({
 							coveredCalendarYears
 								? day =>
 										Boolean(
-											account.countryCode &&
-												coveredCalendarYears.get(account.countryCode)?.has(Number(day.slice(0, 4))),
+											legacyCalendarHoliday(account, day) !== undefined ||
+												(account.countryCode &&
+													coveredCalendarYears.get(account.countryCode)?.has(Number(day.slice(0, 4)))),
 										)
 								: undefined,
 						).toFixed(4),
@@ -283,7 +289,7 @@ function calculateYieldedBalance(
 			yieldEntry =>
 				yieldEntry.kind === "MANUAL" && dateKey(yieldEntry.date) === key && !yieldEntry.isExcluded,
 		);
-		if (isWeekend(day) || holidays.has(key)) {
+		if (isWeekend(day) || (legacyCalendarHoliday(account, key) ?? holidays.has(key))) {
 			const recorded = yields?.find(
 				entry => entry.kind === "AUTOMATIC" && !entry.isExcluded && dateKey(entry.date) === key,
 			);

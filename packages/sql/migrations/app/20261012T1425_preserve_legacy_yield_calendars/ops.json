@@ -1,0 +1,53 @@
+[
+	{
+		"execute": [
+			{
+				"description": "add column \"legacyYieldCalendar\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialAccount\" ADD COLUMN \"legacyYieldCalendar\" json"
+			}
+		],
+		"id": "column.public.FinancialAccount.legacyYieldCalendar",
+		"label": "Add column \"legacyYieldCalendar\" to \"FinancialAccount\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"legacyYieldCalendar\" exists",
+				"params": ["public", "FinancialAccount", "legacyYieldCalendar"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"legacyYieldCalendar\" is missing",
+				"params": ["public", "FinancialAccount", "legacyYieldCalendar"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "legacyYieldCalendar",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialAccount"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "Preserve historical derived yield calendar",
+				"sql": "UPDATE \"FinancialAccount\" a SET \"legacyYieldCalendar\"=json_build_object('throughDate',CURRENT_DATE::text,'holidays',COALESCE((SELECT json_agg(DISTINCT h.\"date\"::text) FROM \"YieldCalendarHoliday\" h JOIN \"YieldCalendarCurrency\" c ON c.\"countryCode\"=h.\"countryCode\" WHERE c.\"currency\"=a.\"currency\"),'[]'::json)) WHERE a.\"legacyYieldCalendar\" IS NULL"
+			}
+		],
+		"id": "legacyYieldCalendar.freeze",
+		"invariantId": "legacyYieldCalendar.frozen.v1",
+		"label": "Freeze pre-migration calendar per existing account",
+		"operationClass": "data",
+		"postcheck": [],
+		"precheck": [],
+		"target": {
+			"id": "postgres"
+		}
+	}
+]

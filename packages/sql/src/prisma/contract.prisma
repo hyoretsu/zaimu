@@ -424,6 +424,7 @@ namespace public {
   }
 
   model FinancialAccount {
+    legacyYieldCalendar Json?
     legacyInstitutionId VarChar(36)?
     countryCode VarChar(2)?
     currency VarChar(3) @default("BRL")

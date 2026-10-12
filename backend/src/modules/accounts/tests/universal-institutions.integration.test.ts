@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { Client } from "pg";
 import { closeDatabase, queryRaw } from "sql";
-import contract from "../../../../../packages/sql/migrations/snapshots/a92b1f7f1f3a857567384af7b56de1a1e8aec7e149dd069ab662f5b4e1263ac0/contract.json";
+import contract from "../../../../../packages/sql/migrations/snapshots/0567ee71a30f4562462e07ff2776133815a39ed36b3807bdeafbfa0e1527e22e/contract.json";
 import { installContractFixture } from "../../../../../packages/sql/tests/contract-fixture";
 import { requireFixtureUrl } from "../../../../../scripts/testing/fixture";
 import { ensureAccountCoverage, ensureCalendarCoverage } from "../../yield-calendar/ensure-coverage";

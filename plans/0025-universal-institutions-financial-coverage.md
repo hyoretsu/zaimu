@@ -33,4 +33,4 @@ Preservar mudanças em frontend/src/components/ui/FormFieldRow.tsx e packages/sq
 - Backend: testes de regras, fontes e cobertura; integração PostgreSQL em container local descartável, sem uso dos serviços configurados.
 - Frontend: testes de conta e comparação passaram; fixture de cartão atualizada. Teste offline verifica catálogo aprovado, isolamento por usuário e bloqueio de propostas sem conexão.
 - Commits locais: modelos/migração, resolução temporal, backend/revisão/cobertura e correções de calendário. Hooks executados normalmente.
-- Regressões de cobertura: 20 testes de cálculo e 5 testes PostgreSQL locais passaram. Preservação do calendário histórico derivado ainda em validação.
+- Regressões de cobertura: 20 testes de cálculo e 5 testes PostgreSQL locais passaram. Snapshot por conta preserva calendário histórico derivado, inclusive em contas ambíguas; backend/local usam mesma regra de corte. Migração adicional gerada e verificada offline.

@@ -1,4 +1,16 @@
 import { type YieldLot, YieldTaxLedger } from "./yield-tax";
+export interface LegacyYieldCalendar {
+	throughDate: string;
+	holidays: string[];
+}
+/** Frozen migration calendar applies only to days preceding the migration boundary. */
+export function legacyCalendarHoliday(
+	account: { legacyYieldCalendar?: LegacyYieldCalendar | null },
+	day: string,
+): boolean | undefined {
+	const snapshot = account.legacyYieldCalendar;
+	return snapshot && day < snapshot.throughDate ? snapshot.holidays.includes(day) : undefined;
+}
 export type YieldPeriod = "MONTHLY" | "YEARLY";
 export type ReferenceRateType = "CDI" | "SELIC";
 

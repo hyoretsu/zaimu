@@ -1,0 +1,7 @@
+{
+	"createdAt": "2026-10-12T14:25:00.962Z",
+	"from": "a92b1f7f1f3a857567384af7b56de1a1e8aec7e149dd069ab662f5b4e1263ac0",
+	"migrationHash": "ea07adb19ab8b5f7e237cbc2ae8b7290349b378aa1880d1dff8c33b2bd4b4f6d",
+	"providedInvariants": ["legacyYieldCalendar.frozen.v1"],
+	"to": "0567ee71a30f4562462e07ff2776133815a39ed36b3807bdeafbfa0e1527e22e"
+}

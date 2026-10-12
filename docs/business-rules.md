@@ -260,3 +260,7 @@ Criação, edição, sincronização, importação/Open Finance, histórico e pr
 ## Cobertura financeira
 
 Cobertura financeira conserva histórico de juros/câmbio e inclui associações CLDR, calendários país/ano, vigências tributárias, políticas institucionais e histórico de perfil. Consulta mostra fonte, versão, intervalo, lacunas, estado e contas afetadas. Leitura não inicia coleta. Impostos e perfis representam vigências registradas, sem coleta externa simulada. Usuários comuns só recebem seus vínculos e contas; admin pode revisar propostas e solicitar preenchimento de calendários.
+
+### Calendário histórico legado
+
+Migração congela por conta os feriados usados pela antiga união de países da moeda, com data civil de corte. Dias anteriores ao corte mantêm esse calendário, inclusive quando país da conta permanece ambíguo. Dias posteriores exigem cobertura completa do país escolhido. Novas gerações e overrides não alteram o snapshot legado; valores registrados, ajustes e exclusões permanecem preservados.

@@ -40,3 +40,17 @@ test("coverage has a country/year primary key and temporal policies support inde
 	}
 	expect(tables.UserInstitutionProfileChange.columns.effectiveDate).toBeDefined();
 });
+
+test("legacy calendar snapshot migration freezes original currency union without replacing records", () => {
+	const source = readFileSync(
+		new URL(
+			"../migrations/app/20261012T1425_preserve_legacy_yield_calendars/migration.ts",
+			import.meta.url,
+		),
+		"utf8",
+	);
+	expect(source).toContain("CURRENT_DATE::text");
+	expect(source).toContain('c."currency"=a."currency"');
+	expect(source).toContain('a."legacyYieldCalendar" IS NULL');
+	expect(source).not.toContain("DELETE FROM");
+});
