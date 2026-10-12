@@ -61,6 +61,7 @@ export interface FinancialAccountYieldHoliday {
 }
 
 export interface FinancialAccountYield {
+	endingBalance?: number;
 	currency?: string;
 	accountName?: string;
 	amount: number | null;

@@ -1,5 +1,6 @@
 import { transactionPageDates } from "@zaimu/finance/transaction-page-dates";
-import { getMonetaryBalancesAtDates } from "~/modules/accounts/application/get-monetary-balances-at-dates";
+import { getAccountBalancesAtDates } from "~/modules/accounts/application/get-monetary-balances-at-dates";
+import { dailyBalanceSummary } from "~/modules/accounts/domain/daily-balance-summary";
 import { getTagsByEntity, tagEntityType } from "~/modules/categories/application/tag-assignments";
 import { getCreditPurchaseSyncStatus } from "~/modules/creditCards/domain/credit-purchase-sync-status";
 import { ensureCurrencyRates } from "~/modules/currencies/infra/currency-exchange";
@@ -378,7 +379,7 @@ export async function listTransactionsPage(userId: string, input: ListTransactio
 		page.map(row => row.date.toISOString().slice(0, 10)),
 		input,
 	);
-	const endingBalanceByDate = await getMonetaryBalancesAtDates(
+	const accountBalances = await getAccountBalancesAtDates(
 		userId,
 		dates.map(date => new Date(`${date}T12:00:00`)),
 	);
@@ -386,8 +387,7 @@ export async function listTransactionsPage(userId: string, input: ListTransactio
 	return {
 		days: dates.map(date => ({
 			date,
-			endingBalance: endingBalanceByDate.get(date)?.find(value => value.currency === "BRL")?.amount ?? 0,
-			endingBalances: endingBalanceByDate.get(date) ?? [],
+			...dailyBalanceSummary(accountBalances, date),
 			transactions: items.filter(item => item.date.toISOString().slice(0, 10) === date),
 		})),
 		hasMore,

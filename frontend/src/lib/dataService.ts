@@ -804,9 +804,31 @@ export const dataService = {
 				row => [row.date, row.kind, row.id],
 				{ cursor, limit: 100 },
 			);
+			const balancesByDate = new Map(
+				[...new Set(page.items.map(entry => entry.date))].map(date => [
+					date,
+					calculateFinancialAccountBalances(
+						accounts,
+						[
+							...transactions.filter(row => row.source !== "CREDIT_CARD"),
+							...loanAccountMovements(loanPayments.map(row => row.data)),
+						],
+						[],
+						holidays,
+						new Date(`${date}T12:00:00`),
+						(yields ?? []) as FinancialAccountYield[],
+					),
+				]),
+			);
 			return {
 				...page,
 				accountNames: accounts.map(account => [account.id, getFinancialAccountOptionLabel(account)] as const),
+				items: page.items.map(entry => ({
+					...entry,
+					endingBalance:
+						balancesByDate.get(entry.date)?.find(account => account.id === entry.financialAccountId)
+							?.balance ?? undefined,
+				})),
 			};
 		},
 		async getPage(
@@ -3749,6 +3771,7 @@ export const dataService = {
 			days: Array<{
 				date: string;
 				endingBalance: number;
+				accountEndingBalances?: Array<{ financialAccountId: string; currency: string; amount: number }>;
 				endingBalances?: Array<{ currency: string; amount: number }>;
 				transactions: Transaction[];
 			}>;
@@ -3769,34 +3792,40 @@ export const dataService = {
 					localMeta.get("financial-account-yields"),
 					localLoanPayments.getAll(),
 				]);
+				const movements = [
+					...transactions.map(row => row.data),
+					...loanAccountMovements(loanPayments.map(row => row.data)),
+				];
 				return {
-					days: dates.map(date => ({
-						date,
-						endingBalance: 0,
-						endingBalances: (() => {
-							const balances = calculateFinancialAccountBalances(
-								accounts
-									.map(row => row.data)
-									.filter(account => ["CHECKING", "CASH", "SAVINGS"].includes(account.type)),
-								[
-									...transactions.map(row => row.data),
-									...loanAccountMovements(loanPayments.map(row => row.data)),
-								],
-								[],
-								holidays,
-								new Date(`${date}T12:00:00`),
-								(yields ?? []) as FinancialAccountYield[],
+					days: dates.map(date => {
+						const balances = calculateFinancialAccountBalances(
+							accounts.map(row => row.data),
+							movements,
+							[],
+							holidays,
+							new Date(`${date}T12:00:00`),
+							(yields ?? []) as FinancialAccountYield[],
+						);
+						const grouped = new Map<string, number>();
+						for (const account of balances.filter(account =>
+							["CHECKING", "CASH", "SAVINGS"].includes(account.type),
+						))
+							grouped.set(
+								account.currency ?? "BRL",
+								(grouped.get(account.currency ?? "BRL") ?? 0) + (account.balance ?? 0),
 							);
-							const grouped = new Map<string, number>();
-							for (const account of balances)
-								grouped.set(
-									account.currency ?? "BRL",
-									(grouped.get(account.currency ?? "BRL") ?? 0) + (account.balance ?? 0),
-								);
-							return [...grouped].map(([currency, amount]) => ({ amount, currency }));
-						})(),
-						transactions: page.items.filter(row => row.date.slice(0, 10) === date),
-					})),
+						return {
+							accountEndingBalances: balances.map(account => ({
+								amount: account.balance ?? 0,
+								currency: account.currency ?? "BRL",
+								financialAccountId: account.id,
+							})),
+							date,
+							endingBalance: grouped.get("BRL") ?? 0,
+							endingBalances: [...grouped].map(([currency, amount]) => ({ amount, currency })),
+							transactions: page.items.filter(row => row.date.slice(0, 10) === date),
+						};
+					}),
 					hasMore: page.hasMore,
 					nextCursor: page.nextCursor,
 				};

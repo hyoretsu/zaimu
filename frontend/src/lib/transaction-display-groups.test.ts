@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { groupTransactionsForDisplay, sumYieldsByCurrency } from "./-transaction-display-groups";
+import { groupTransactionsForDisplay, sumYieldsByCurrency } from "./transaction-display-groups";
 
 describe("groupTransactionsForDisplay", () => {
 	test("collects yields from different accounts at the top of the day", () => {

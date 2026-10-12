@@ -5,9 +5,9 @@ import {
 	useQuery,
 	useQueryClient,
 } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
-import { HiArrowsRightLeft, HiPlus } from "react-icons/hi2";
-import { LuArrowLeftRight, LuEye, LuFileUp, LuLoaderCircle } from "react-icons/lu";
+import { useState } from "react";
+import { HiPlus } from "react-icons/hi2";
+import { LuArrowLeftRight, LuEye, LuFileUp } from "react-icons/lu";
 import { PendingNotices } from "@/components/pending-notices";
 import {
 	ImportTransactionsDialog,
@@ -15,32 +15,20 @@ import {
 	TransferSuggestionsDialog,
 } from "@/components/transaction-imports";
 import { TransferSuggestionDecisionDialog } from "@/components/transaction-imports/TransferSuggestionDecisionDialog";
-import {
-	CreateTransactionDialog,
-	EditTransactionDialog,
-	TransactionListItem,
-} from "@/components/transactions";
+import { CreateTransactionDialog, EditTransactionDialog, TransactionsList } from "@/components/transactions";
 import { ActionNotice } from "@/components/ui/ActionNotice";
 import { Button } from "@/components/ui/Button";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { QueryRefreshStatus } from "@/components/ui/QueryRefreshStatus";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
-import { formatLocalDate, formatLocalTime, getLocalDateKey } from "@/lib/date";
+import { formatLocalTime } from "@/lib/date";
 import type { FinancialAccountYieldEntry } from "@/lib/financial-account";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
-import { sortTransactionsByMostRecent } from "@/lib/transaction-sort";
 import { EditFinancialAccountYieldDialog } from "@/routes/accounts/components/EditFinancialAccountYieldDialog";
-import { FinancialAccountYieldStatementItem } from "@/routes/accounts/components/FinancialAccountYieldStatementItem";
 import { EditCreditPurchaseDialog } from "@/routes/credit-cards/components/EditCreditPurchaseDialog";
 import { RefundCreditPurchaseDialog } from "@/routes/credit-cards/components/RefundCreditPurchaseDialog";
-import {
-	groupTransactionsForDisplay,
-	sumYieldsByCurrency,
-} from "@/routes/transactions/-transaction-display-groups";
 import {
 	countActiveTransactionFilters,
 	initialTransactionFilters,
@@ -50,11 +38,7 @@ import {
 } from "@/routes/transactions/-transaction-filters";
 import { transactionToCreditPurchase } from "@/routes/transactions/-transaction-to-credit-purchase";
 import { uniqueTransactions } from "@/routes/transactions/-unique-transactions";
-import {
-	TransactionDateHeader,
-	TransactionFilters,
-	TransactionsGroupToggle,
-} from "@/routes/transactions/components";
+import { TransactionFilters } from "@/routes/transactions/components";
 import { showToast } from "@/stores";
 
 const transactionsPageSize = 50;
@@ -73,24 +57,6 @@ interface TransactionsDailyPage {
 	hasMore: boolean;
 	nextCursor: null | string;
 }
-type TransactionDisplayEntry =
-	| {
-			date: string;
-			id: string;
-			isHidden?: boolean;
-			kind: "transaction";
-			time?: string | null;
-			value: Transaction;
-	  }
-	| {
-			date: string;
-			id: string;
-			isHidden?: boolean;
-			kind: "yield";
-			time?: string | null;
-			value: FinancialAccountYieldEntry;
-	  };
-
 function getInitialTransactionsPage(filters: TransactionFiltersValue): TransactionsPageParam {
 	const queryFilters = toTransactionQueryFilters(filters);
 	if (Object.keys(queryFilters).length > 0)
@@ -109,13 +75,11 @@ export function TransactionsPage() {
 	const [pendingPurchaseUpdateIds, setPendingPurchaseUpdateIds] = useState<Set<string>>(new Set());
 	const [refundingPurchase, setRefundingPurchase] = useState<Transaction | null>(null);
 	const [filters, setFilters] = useState<TransactionFiltersValue>(initialTransactionFilters);
-	const [expandedTransactionGroups, setExpandedTransactionGroups] = useState<Set<string>>(() => new Set());
 	const [transferSuggestionsOpen, setTransferSuggestionsOpen] = useState(false);
 	const [transferSuggestionDecision, setTransferSuggestionDecision] = useState<{
 		counterpart: Transaction;
 		transaction: Transaction;
 	} | null>(null);
-	const loadMoreRef = useRef<HTMLDivElement>(null);
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
 
@@ -202,23 +166,6 @@ export function TransactionsPage() {
 		queryFn: () => dataService.creditCards.getAll(),
 		queryKey: queryKeys.creditCards.list(identity!),
 	});
-	useEffect(() => {
-		if (!transactionsQuery.hasNextPage || transactionsQuery.isFetchingNextPage) return;
-
-		const loadMoreWhenNearEnd = () => {
-			const loadMoreElement = loadMoreRef.current;
-			if (!loadMoreElement || loadMoreElement.getBoundingClientRect().top > window.innerHeight + 1200) return;
-			void transactionsQuery.fetchNextPage();
-		};
-
-		loadMoreWhenNearEnd();
-		window.addEventListener("resize", loadMoreWhenNearEnd);
-		window.addEventListener("scroll", loadMoreWhenNearEnd, { capture: true, passive: true });
-		return () => {
-			window.removeEventListener("resize", loadMoreWhenNearEnd);
-			window.removeEventListener("scroll", loadMoreWhenNearEnd, true);
-		};
-	}, [transactionsQuery.fetchNextPage, transactionsQuery.hasNextPage, transactionsQuery.isFetchingNextPage]);
 
 	const transferSuggestionsQuery = useQuery({
 		enabled: identity !== null,
@@ -252,33 +199,12 @@ export function TransactionsPage() {
 		},
 	});
 
-	const filteredTransactions = transactionsQuery.data ? transactions : undefined;
-	const groupedTransactions = filteredTransactions
-		? sortTransactionsByMostRecent(filteredTransactions).reduce<Record<string, Transaction[]>>(
-				(groups, transaction) => {
-					const date = transaction.date.slice(0, 10);
-					if (!groups[date]) groups[date] = [];
-					groups[date].push(transaction);
-					return groups;
-				},
-				{},
-			)
-		: undefined;
 	const dailyEndingBalances = new Map(
 		transactionDays.map(day => [
 			day.date,
 			day.endingBalances ?? [{ amount: day.endingBalance, currency: "BRL" }],
 		]),
 	);
-	const today = getLocalDateKey(new Date());
-	const yieldsByDate = Map.groupBy(yieldEntries, entry => entry.date);
-	const displayDates = [
-		...new Set([
-			...dailyEndingBalances.keys(),
-			...Object.keys(groupedTransactions ?? {}),
-			...yieldsByDate.keys(),
-		]),
-	].toSorted((a, b) => b.localeCompare(a));
 	const removeYield = useMutation({
 		mutationFn: async (entry: FinancialAccountYieldEntry) => {
 			if (entry.kind === "AUTOMATIC")
@@ -385,68 +311,6 @@ export function TransactionsPage() {
 			showToast("Reembolso excluído e faturas recalculadas.", "positive");
 		},
 	});
-	const renderTransaction = (transaction: Transaction) => {
-		const transactionTime = formatLocalTime(transaction.time);
-
-		return (
-			<TransactionListItem
-				deleting={
-					(transaction.source === "CREDIT_CARD" ? removePurchase.isPending : remove.isPending) &&
-					(transaction.source === "CREDIT_CARD" ? removePurchase.variables?.id : remove.variables) ===
-						transaction.id
-				}
-				key={transaction.id}
-				metadataPrefix={
-					visibleTransferSuggestions.some(
-						item => item.transaction.id === transaction.id || item.counterpart.id === transaction.id,
-					) ? (
-						<div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-							<span className="inline-flex items-center gap-1 text-primary">
-								<LuArrowLeftRight /> Transferência sugerida
-							</span>
-							{transactionTime ? <span className="text-muted-foreground">{transactionTime}</span> : null}
-						</div>
-					) : transactionTime ? (
-						<span className="text-muted-foreground text-xs">{transactionTime}</span>
-					) : undefined
-				}
-				onDelete={
-					transaction.source === "CREDIT_CARD"
-						? () => removePurchase.mutate(transaction)
-						: () => remove.mutate(transaction.id)
-				}
-				onEdit={
-					transaction.source === "CREDIT_CARD"
-						? () =>
-								transaction.isRefund ? setRefundingPurchase(transaction) : setEditingPurchase(transaction)
-						: () => setEditingTransaction(transaction)
-				}
-				transaction={transaction}
-			/>
-		);
-	};
-	const renderEntry = (entry: TransactionDisplayEntry) =>
-		entry.kind === "transaction" ? (
-			renderTransaction(entry.value)
-		) : (
-			<FinancialAccountYieldStatementItem
-				accountName={accountNames.get(entry.value.financialAccountId)}
-				amount={entry.value.amount}
-				deleting={removeYield.isPending && removeYield.variables?.id === entry.value.id}
-				key={`yield-${entry.value.id}`}
-				onDelete={() => removeYield.mutateAsync(entry.value)}
-				onEdit={() => setEditingYield(entry.value)}
-				time={entry.value.time}
-			/>
-		);
-	const toggleTransactionGroup = (groupId: string) => {
-		setExpandedTransactionGroups(current => {
-			const next = new Set(current);
-			if (next.has(groupId)) next.delete(groupId);
-			else next.add(groupId);
-			return next;
-		});
-	};
 
 	return (
 		<PageContainer className="space-y-6">
@@ -513,15 +377,47 @@ export function TransactionsPage() {
 				transactions={transactions}
 			/>
 
-			<QueryRefreshStatus
-				error={
-					(transactionsQuery.isError && transactionsQuery.data !== undefined) ||
-					(yieldsMatchFilters && yieldsQuery.isError && yieldsQuery.data !== undefined)
+			<TransactionsList
+				dailyEndingBalances={dailyEndingBalances}
+				hasActiveFilters={hasActiveFilters}
+				hasMoreTransactions={transactionsQuery.hasNextPage}
+				hasMoreYields={yieldsQuery.hasNextPage}
+				isDeletingTransaction={transaction =>
+					(transaction.source === "CREDIT_CARD" ? removePurchase.isPending : remove.isPending) &&
+					(transaction.source === "CREDIT_CARD" ? removePurchase.variables?.id : remove.variables) ===
+						transaction.id
 				}
+				isDeletingYield={entry => removeYield.isPending && removeYield.variables?.id === entry.id}
+				isError={
+					(transactionsQuery.isError && transactionsQuery.data === undefined) ||
+					(yieldsMatchFilters && yieldsQuery.isError && yieldsQuery.data === undefined)
+				}
+				isFetchingMoreTransactions={transactionsQuery.isFetchingNextPage}
+				isFetchingMoreYields={yieldsQuery.isFetchingNextPage}
+				isPending={transactionsQuery.isPending || (yieldsMatchFilters && yieldsQuery.isPending)}
+				onDeleteTransaction={transaction => {
+					if (transaction.source === "CREDIT_CARD") removePurchase.mutate(transaction);
+					else remove.mutate(transaction.id);
+				}}
+				onDeleteYield={entry => removeYield.mutateAsync(entry)}
+				onEditTransaction={transaction =>
+					transaction.source === "CREDIT_CARD"
+						? transaction.isRefund
+							? setRefundingPurchase(transaction)
+							: setEditingPurchase(transaction)
+						: setEditingTransaction(transaction)
+				}
+				onEditYield={setEditingYield}
+				onLoadMoreTransactions={transactionsQuery.fetchNextPage}
+				onLoadMoreYields={yieldsQuery.fetchNextPage}
 				onRetry={() =>
 					Promise.all([transactionsQuery.refetch(), ...(yieldsMatchFilters ? [yieldsQuery.refetch()] : [])])
 				}
-				pending={
+				refreshError={
+					(transactionsQuery.isError && transactionsQuery.data !== undefined) ||
+					(yieldsMatchFilters && yieldsQuery.isError && yieldsQuery.data !== undefined)
+				}
+				refreshPending={
 					(transactionsQuery.isFetching &&
 						!transactionsQuery.isPending &&
 						!transactionsQuery.isFetchingNextPage) ||
@@ -530,168 +426,24 @@ export function TransactionsPage() {
 						!yieldsQuery.isPending &&
 						!yieldsQuery.isFetchingNextPage)
 				}
-			/>
-			{transactionsQuery.isPending || (yieldsMatchFilters && yieldsQuery.isPending) ? (
-				<div className="space-y-5">
-					{[1, 2, 3].map(item => (
-						<div className="space-y-2" key={item}>
-							<Skeleton className="h-4 w-36" />
-							<Skeleton className="h-24 rounded-2xl" />
-						</div>
-					))}
-				</div>
-			) : (transactionsQuery.isError && transactionsQuery.data === undefined) ||
-				(yieldsMatchFilters && yieldsQuery.isError && yieldsQuery.data === undefined) ? (
-				<EmptyState
-					description="Não foi possível carregar suas movimentações."
-					icon={<HiArrowsRightLeft />}
-					title="Falha ao carregar transações"
-				/>
-			) : displayDates.length === 0 ? (
-				<EmptyState
-					description={
-						hasActiveFilters
-							? "Ajuste ou limpe os filtros para ver transações."
-							: "Registre sua primeira movimentação para começar."
-					}
-					icon={<HiArrowsRightLeft />}
-					title={hasActiveFilters ? "Nenhuma transação encontrada" : "Nenhuma transação"}
-				/>
-			) : (
-				<div className="space-y-5">
-					{displayDates.map(date => {
-						const transactions = groupedTransactions?.[date] ?? [];
-						const entries: TransactionDisplayEntry[] = [
-							...transactions.map(transaction => ({
-								date,
-								id: transaction.id,
-								isHidden: transaction.isHidden,
-								kind: "transaction" as const,
-								time: transaction.time,
-								value: transaction,
-							})),
-							...(yieldsByDate.get(date) ?? []).map(entry => ({
-								date,
-								id: `yield-${entry.id}`,
-								isHidden: entry.isHidden,
-								kind: "yield" as const,
-								time: entry.time,
-								value: entry,
-							})),
-						].toSorted((left, right) =>
-							(formatLocalTime(right.time) ?? "").localeCompare(formatLocalTime(left.time) ?? ""),
-						);
-						const displayGroups = groupTransactionsForDisplay(entries, today);
-						const [onlyDisplayGroup] = displayGroups;
-						const singleCollapsedGroup =
-							displayGroups.length === 1 &&
-							(onlyDisplayGroup?.kind === "hidden" || onlyDisplayGroup?.kind === "future")
-								? onlyDisplayGroup
-								: null;
-						const dayLabel = `${formatLocalDate(date, { weekday: "long" }).replace(/^./, character => character.toUpperCase())}, ${formatLocalDate(date)}`;
-
-						return (
-							<section className="space-y-2" key={date}>
-								<TransactionDateHeader
-									dateLabel={dayLabel}
-									endingBalance={
-										dailyEndingBalances.has(date)
-											? dailyEndingBalances
-													.get(date)!
-													.map(value =>
-														new Intl.NumberFormat("pt-BR", {
-															currency: value.currency,
-															style: "currency",
-														}).format(value.amount),
-													)
-													.join(" · ")
-											: undefined
-									}
-								/>
-								{entries.length === 0 ? (
-									<EmptyState
-										description="Ajuste ou limpe os filtros para ver transações."
-										icon={<HiArrowsRightLeft />}
-										title="Nenhuma transação encontrada"
-									/>
-								) : null}
-								{singleCollapsedGroup ? (
-									<TransactionsGroupToggle
-										entryCount={singleCollapsedGroup.transactions.length}
-										expanded={expandedTransactionGroups.has(singleCollapsedGroup.id)}
-										kind={singleCollapsedGroup.kind === "future" ? "future" : "hidden"}
-										onClick={() => toggleTransactionGroup(singleCollapsedGroup.id)}
-									/>
-								) : (
-									displayGroups.map(group => {
-										if (group.kind === "visible") {
-											return (
-												<div
-													className="divide-y overflow-hidden rounded-2xl border bg-card shadow-sm"
-													key={group.id}
-												>
-													{group.transactions.map(renderEntry)}
-												</div>
-											);
-										}
-
-										const isExpanded = expandedTransactionGroups.has(group.id);
-										return (
-											<div className="space-y-2" key={group.id}>
-												<TransactionsGroupToggle
-													entryCount={group.transactions.length}
-													expanded={isExpanded}
-													kind={group.kind}
-													onClick={() => toggleTransactionGroup(group.id)}
-													totals={
-														group.kind === "yield"
-															? sumYieldsByCurrency(
-																	group.transactions.flatMap(entry =>
-																		entry.kind === "yield" ? [entry.value] : [],
-																	),
-																)
-															: undefined
-													}
-												/>
-												{isExpanded ? (
-													<div className="divide-y overflow-hidden rounded-2xl border bg-card shadow-sm">
-														{group.transactions.map(renderEntry)}
-													</div>
-												) : null}
-											</div>
-										);
-									})
-								)}
-								{singleCollapsedGroup && expandedTransactionGroups.has(singleCollapsedGroup.id) ? (
-									<div className="divide-y overflow-hidden rounded-2xl border bg-card shadow-sm">
-										{singleCollapsedGroup.transactions.map(renderEntry)}
-									</div>
-								) : null}
-							</section>
-						);
-					})}
-					{yieldsQuery.hasNextPage && (
-						<Button
-							className="cursor-pointer"
-							disabled={yieldsQuery.isFetchingNextPage}
-							onClick={() => void yieldsQuery.fetchNextPage()}
-							variant="outline"
-						>
-							{yieldsQuery.isFetchingNextPage ? "Carregando rendimentos..." : "Carregar mais rendimentos"}
-						</Button>
-					)}
-					{transactionsQuery.hasNextPage ? (
-						<div aria-live="polite" className="flex h-14 items-center justify-center" ref={loadMoreRef}>
-							{transactionsQuery.isFetchingNextPage ? (
-								<span className="flex items-center gap-2 text-muted-foreground text-sm">
-									<LuLoaderCircle aria-hidden className="animate-spin" />
-									Carregando transações anteriores...
-								</span>
+				transactionMetadata={transaction =>
+					visibleTransferSuggestions.some(
+						item => item.transaction.id === transaction.id || item.counterpart.id === transaction.id,
+					) ? (
+						<div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+							<span className="inline-flex items-center gap-1 text-primary">
+								<LuArrowLeftRight /> Transferência sugerida
+							</span>
+							{formatLocalTime(transaction.time) ? (
+								<span className="text-muted-foreground">{formatLocalTime(transaction.time)}</span>
 							) : null}
 						</div>
-					) : null}
-				</div>
-			)}
+					) : undefined
+				}
+				transactions={transactions}
+				yieldAccountNames={accountNames}
+				yieldEntries={yieldEntries}
+			/>
 
 			<CreateTransactionDialog onOpenChange={setIsModalOpen} open={isModalOpen} />
 			<EditFinancialAccountYieldDialog

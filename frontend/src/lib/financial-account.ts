@@ -28,6 +28,7 @@ type CashbackPurchase = Pick<
 >;
 
 export interface FinancialAccountYieldEntry {
+	endingBalance?: number;
 	currency?: string;
 	amount: number;
 	date: string;

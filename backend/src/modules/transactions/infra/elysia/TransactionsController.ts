@@ -326,7 +326,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			const cached = await distributedCache.remember(
 				userId,
 				"transactions:list",
-				{ format: 4, ...query },
+				{ format: 5, ...query },
 				async () => {
 					if (query.financialAccountId)
 						await assertDirectOwnership("FinancialAccount", query.financialAccountId, userId);

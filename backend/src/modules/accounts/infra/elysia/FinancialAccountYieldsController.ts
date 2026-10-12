@@ -1,4 +1,5 @@
 import Elysia, { t } from "elysia";
+import { getAccountBalancesAtDates } from "~/modules/accounts/application/get-monetary-balances-at-dates";
 import { requireUserId } from "~/modules/auth";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import {
@@ -20,6 +21,7 @@ export const YieldReturn = t.Object({
 	accountName: t.Optional(t.String()),
 	amount: t.Nullable(t.Number()),
 	date: t.String({ format: "date-time" }),
+	endingBalance: t.Optional(t.Number()),
 	financialAccountId: Id,
 	id: Id,
 	isExcluded: t.Boolean(),
@@ -101,7 +103,7 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 			const cached = await distributedCache.remember(
 				userId,
 				"accounts:yields",
-				{ ...query, format: 2, limit },
+				{ ...query, format: 3, limit },
 				async () => {
 					if (query.financialAccountId) await assertYieldAccount(query.financialAccountId, userId);
 					const yields = await queryRaw<{
@@ -140,7 +142,20 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 					);
 
 					const hasMore = yields.length > limit;
-					const items = yields.slice(0, limit).map(serializeYield);
+					const selected = yields.slice(0, limit);
+					const balances = await getAccountBalancesAtDates(
+						userId,
+						selected.map(row => row.date),
+					);
+					const balanceByAccountDate = new Map(
+						balances.map(row => [`${row.accountId}:${row.date}`, Number(row.balance)]),
+					);
+					const items = selected.map(row => ({
+						...serializeYield(row),
+						endingBalance: balanceByAccountDate.get(
+							`${row.financialAccountId}:${row.date.toISOString().slice(0, 10)}`,
+						),
+					}));
 					const last = items.at(-1);
 					return {
 						hasMore,

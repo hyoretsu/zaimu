@@ -1,11 +1,7 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { LuLandmark, LuPlus } from "react-icons/lu";
-import {
-	CreateTransactionDialog,
-	EditTransactionDialog,
-	TransactionListItem,
-} from "@/components/transactions";
+import { LuPlus } from "react-icons/lu";
+import { CreateTransactionDialog, EditTransactionDialog, TransactionsList } from "@/components/transactions";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import {
@@ -16,45 +12,12 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { Skeleton } from "@/components/ui/Skeleton";
 import type { FinancialAccount, Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
-import { formatLocalTime } from "@/lib/date";
 import { type FinancialAccountYieldEntry, getFinancialAccountDisplayName } from "@/lib/financial-account";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { EditFinancialAccountYieldDialog } from "./EditFinancialAccountYieldDialog";
-import { FinancialAccountYieldStatementItem } from "./FinancialAccountYieldStatementItem";
-
-const dateFormatter = new Intl.DateTimeFormat("pt-BR", {
-	day: "numeric",
-	month: "long",
-	year: "numeric",
-});
-
-function groupStatementByDate(transactions: Transaction[], yields: FinancialAccountYieldEntry[]) {
-	const groups: Record<
-		string,
-		Array<{ kind: "transaction"; value: Transaction } | { kind: "yield"; value: FinancialAccountYieldEntry }>
-	> = {};
-	for (const transaction of transactions) {
-		const date = transaction.date.slice(0, 10);
-		const entries = groups[date] ?? [];
-		entries.push({ kind: "transaction", value: transaction });
-		groups[date] = entries;
-	}
-	for (const entry of yields) {
-		const entries = groups[entry.date] ?? [];
-		entries.push({ kind: "yield", value: entry });
-		groups[entry.date] = entries;
-	}
-	for (const entries of Object.values(groups))
-		entries.sort((left, right) =>
-			(formatLocalTime(right.value.time) ?? "").localeCompare(formatLocalTime(left.value.time) ?? ""),
-		);
-	return groups;
-}
 
 export function FinancialAccountStatementDialog({
 	account,
@@ -109,8 +72,23 @@ export function FinancialAccountStatementDialog({
 		queryKey: [...queryKeys.accountYields.list(identity!, account.id), "statement", yieldFilters],
 	});
 	const yieldEntries = yields.data?.pages.flatMap(page => page.items) ?? [];
-	const groupedEntries = groupStatementByDate(statementItems, yieldEntries);
-	const dates = Object.keys(groupedEntries).toSorted((left, right) => right.localeCompare(left));
+	const dailyEndingBalances = new Map(
+		statement.data?.pages
+			.flatMap(page => page.days)
+			.map(day => [
+				day.date,
+				(day.accountEndingBalances ?? [])
+					.filter(balance => balance.financialAccountId === account.id)
+					.map(({ currency, amount }) => ({ amount, currency })),
+			]) ?? [],
+	);
+	for (const entry of yieldEntries) {
+		if (!dailyEndingBalances.has(entry.date) && entry.endingBalance !== undefined) {
+			dailyEndingBalances.set(entry.date, [
+				{ amount: entry.endingBalance, currency: entry.currency ?? account.currency ?? "BRL" },
+			]);
+		}
+	}
 	const displayName = getFinancialAccountDisplayName(account);
 	const refreshStatement = () => invalidateCacheOperation(queryClient, identity!, "yield");
 	const removeTransaction = useMutation({
@@ -154,98 +132,35 @@ export function FinancialAccountStatementDialog({
 					<DialogDescription>Movimentações que compõem saldo desta conta.</DialogDescription>
 				</DialogHeader>
 				<DialogBody>
-					{statement.isPending || yields.isPending ? (
-						<div className="space-y-3">
-							{[1, 2, 3].map(item => (
-								<Skeleton className="h-24 rounded-2xl" key={item} />
-							))}
-						</div>
-					) : (statement.isError && !statement.data) || (yields.isError && !yields.data) ? (
-						<EmptyState
-							description="Tente novamente em instantes."
-							icon={<LuLandmark className="size-7" />}
-							title="Não foi possível carregar extrato"
-						/>
-					) : dates.length ? (
-						<div className="">
-							<div className="space-y-5 pr-3">
-								{dates.map(date => (
-									<section className="space-y-2" key={date}>
-										<h3 className="font-medium text-muted-foreground text-sm">
-											{dateFormatter.format(new Date(`${date}T12:00:00`))}
-										</h3>
-										<div className="divide-y rounded-2xl border bg-card shadow-sm">
-											{groupedEntries[date]?.map(item => {
-												if (item.kind === "yield") {
-													const entry = item.value;
-													return (
-														<FinancialAccountYieldStatementItem
-															amount={entry.amount}
-															currencyCode={entry.currency ?? account.currency ?? "BRL"}
-															deleting={removeYield.isPending && removeYield.variables?.id === entry.id}
-															key={`yield-${entry.id}`}
-															onDelete={() => removeYield.mutateAsync(entry)}
-															onEdit={() => setEditingYield(entry)}
-															time={entry.time}
-														/>
-													);
-												}
-												const transaction = item.value;
-												return (
-													<TransactionListItem
-														deleting={
-															removeTransaction.isPending && removeTransaction.variables === transaction.id
-														}
-														key={transaction.id}
-														metadataPrefix={
-															formatLocalTime(transaction.time) ? (
-																<span className="text-muted-foreground text-xs">
-																	{formatLocalTime(transaction.time)}
-																</span>
-															) : undefined
-														}
-														onDelete={
-															transaction.paymentCreditCardId
-																? undefined
-																: () => removeTransaction.mutateAsync(transaction.id)
-														}
-														onEdit={() => editTransaction(transaction)}
-														transaction={transaction}
-													/>
-												);
-											})}
-										</div>
-									</section>
-								))}
-								{statement.hasNextPage && (
-									<Button
-										className="cursor-pointer"
-										disabled={statement.isFetchingNextPage}
-										onClick={() => void statement.fetchNextPage()}
-										variant="outline"
-									>
-										{statement.isFetchingNextPage ? "Carregando..." : "Carregar mais movimentações"}
-									</Button>
-								)}
-								{yields.hasNextPage ? (
-									<Button
-										className="w-full cursor-pointer"
-										disabled={yields.isFetchingNextPage}
-										onClick={() => yields.fetchNextPage()}
-										variant="outline"
-									>
-										{yields.isFetchingNextPage ? "Carregando..." : "Carregar mais"}
-									</Button>
-								) : null}
-							</div>
-						</div>
-					) : (
-						<EmptyState
-							description="Nenhuma entrada, saída ou transferência vinculada a esta conta."
-							icon={<LuLandmark className="size-7" />}
-							title="Extrato vazio"
-						/>
-					)}
+					<TransactionsList
+						canDeleteTransaction={transaction => !transaction.paymentCreditCardId}
+						currencyCode={account.currency ?? "BRL"}
+						dailyEndingBalances={dailyEndingBalances}
+						hasMoreTransactions={statement.hasNextPage}
+						hasMoreYields={yields.hasNextPage}
+						isDeletingTransaction={transaction =>
+							removeTransaction.isPending && removeTransaction.variables === transaction.id
+						}
+						isDeletingYield={entry => removeYield.isPending && removeYield.variables?.id === entry.id}
+						isError={(statement.isError && !statement.data) || (yields.isError && !yields.data)}
+						isFetchingMoreTransactions={statement.isFetchingNextPage}
+						isFetchingMoreYields={yields.isFetchingNextPage}
+						isPending={statement.isPending || yields.isPending}
+						onDeleteTransaction={transaction => removeTransaction.mutateAsync(transaction.id)}
+						onDeleteYield={entry => removeYield.mutateAsync(entry)}
+						onEditTransaction={editTransaction}
+						onEditYield={setEditingYield}
+						onLoadMoreTransactions={statement.fetchNextPage}
+						onLoadMoreYields={yields.fetchNextPage}
+						onRetry={() => Promise.all([statement.refetch(), yields.refetch()])}
+						refreshError={(statement.isError && !!statement.data) || (yields.isError && !!yields.data)}
+						refreshPending={
+							(statement.isFetching && !statement.isPending && !statement.isFetchingNextPage) ||
+							(yields.isFetching && !yields.isPending && !yields.isFetchingNextPage)
+						}
+						transactions={statementItems}
+						yieldEntries={yieldEntries}
+					/>
 					<ActionGroup>
 						<Button className="cursor-pointer" onClick={() => setCreatingTransaction(true)}>
 							<LuPlus /> Nova transação

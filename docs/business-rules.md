@@ -270,3 +270,5 @@ Migração congela por conta os feriados usados pela antiga união de países da
 ## Saldo diário na listagem de transações
 
 Ao selecionar uma única data, a listagem mantém o saldo de fechamento desse dia mesmo quando nenhum lançamento corresponde aos filtros. O saldo histórico considera o livro financeiro completo, independentemente dos filtros de transações. Conta conectada e modo visitante seguem a mesma regra.
+
+O modal de extrato reutiliza a listagem completa da tela de transações, sem filtros. Cada dia exibe saldo de fechamento da própria conta, incluindo movimentações, rendimentos e ajustes do livro completo, mesmo quando o dia contém apenas rendimentos. Carregar páginas anteriores preserva conteúdo e posição de rolagem.

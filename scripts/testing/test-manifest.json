@@ -33,6 +33,7 @@
 		"backend/src/modules/accounts/domain/assert-rewards-account-details.test.ts",
 		"backend/src/modules/accounts/domain/calculate-balance-adjustments.test.ts",
 		"backend/src/modules/accounts/domain/calculate-financial-account-yields.test.ts",
+		"backend/src/modules/accounts/domain/daily-balance-summary.test.ts",
 		"backend/src/modules/accounts/domain/normalize-financial-institution-name.test.ts",
 		"backend/src/modules/accounts/infra/elysia/FinancialAccountYieldsController.test.ts",
 		"backend/src/modules/auth/email.test.ts",
