@@ -20,7 +20,7 @@ Plano aprovado pelo usuário em 12/10/2026. Execução local, sem push, deploy, 
 - [x] Publicação/rejeição/fusão, notificações persistentes e controle de versão. Testes PostgreSQL em container descartável verificaram isolamento e revisores concorrentes.
 - [x] Cobertura financeira e preferência/seleção de país; UI de perfis, propostas, associação legada e revisão.
 - [x] Contratos propagados para sincronização e Open Finance; contexto temporal e cobertura hidratados. Cache local permite contas com instituições aprovadas.
-- [ ] Validar hooks, builds afetados e commits locais atômicos.
+- [x] Hooks normais, builds backend/frontend e commits locais atômicos concluídos.
 
 ## Dados prévios do usuário
 
@@ -28,9 +28,19 @@ Preservar mudanças em frontend/src/components/ui/FormFieldRow.tsx e packages/sq
 
 ## Verificações realizadas
 
-- Modelos: 3 testes de contrato e integridade de migração offline.
+- Modelos: 4 testes de contrato e integridade de migração offline.
 - Finance: 178 testes da biblioteca; resolução Meli+ para Padrão, futuro, ajustes próprios, adoção e país/moeda.
 - Backend: testes de regras, fontes e cobertura; integração PostgreSQL em container local descartável, sem uso dos serviços configurados.
 - Frontend: testes de conta e comparação passaram; fixture de cartão atualizada. Teste offline verifica catálogo aprovado, isolamento por usuário e bloqueio de propostas sem conexão.
 - Commits locais: modelos/migração, resolução temporal, backend/revisão/cobertura e correções de calendário. Hooks executados normalmente.
-- Regressões de cobertura: 20 testes de cálculo e 5 testes PostgreSQL locais passaram. Snapshot por conta preserva calendário histórico derivado, inclusive em contas ambíguas; backend/local usam mesma regra de corte. Migração adicional gerada e verificada offline.
+- Regressões de cobertura: 21 testes de cálculo e 5 testes PostgreSQL locais passaram. Snapshot por conta preserva calendário histórico derivado, inclusive em contas ambíguas; backend/local usam mesma regra de corte. Migração adicional gerada e verificada offline.
+
+## Validação final
+
+- Suíte combinada finance/frontend/backend/fontes/migração: 237 testes, zero falhas.
+- Histórico de modais: 4 testes, zero falhas.
+- Integração PostgreSQL descartável: 5 testes, zero falhas, repetidos com contrato final.
+- Builds afetados: backend e frontend passaram; frontend repetido após ajuste de descarte do perfil.
+- Migrações e snapshots: `prisma-cli migration check` passou offline. Referência prévia preservada.
+- Playwright local com respostas simuladas e chamadas externas interceptadas: configurações, cobertura somente leitura e Back do modal passaram em 1440px/390px, sem erros de página. Conferência ampliada de perfis/admin não foi concluída por instabilidade do servidor/fixture local; cobertura funcional permanece verificada nos testes e builds.
+- Alterações paralelas em arquivos de contas/dashboard, surgidas durante validação final, preservadas fora dos commits desta entrega. Sem push, deploy, migrações em bancos configurados ou notificações externas.
