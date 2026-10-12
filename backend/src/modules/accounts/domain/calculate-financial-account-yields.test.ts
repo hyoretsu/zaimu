@@ -406,3 +406,70 @@ test("same-day withdrawal and replacement deposit restart only replacement contr
 	});
 	expect(snapshots.get("a")).toEqual([{ balance: 100, date: "2025-02-01" }]);
 });
+
+test("unavailable calendar keeps automatic fixed yield pending but preserves recorded adjustments", () => {
+	const input = {
+		accounts: [
+			{
+				countryCode: "BR",
+				createdAt: new Date("2026-01-05T12:00:00"),
+				id: "a",
+				type: "CHECKING",
+				yieldFixedRate: 10,
+				yieldPeriod: "MONTHLY" as const,
+			},
+		],
+		cashbackCredits: [],
+		coveredCalendarYears: new Map<string, ReadonlySet<number>>(),
+		holidays: [],
+		initialRewardsBalances: new Map<string, number>(),
+		today: new Date("2026-01-05T12:00:00"),
+		transactions: [
+			{ amount: 1000, date: new Date("2026-01-05T12:00:00"), destinationFinancialAccountId: "a" },
+		],
+	};
+	expect(calculateFinancialAccountYieldBalances(input).get("a")).toBe(1000);
+	expect(
+		calculateFinancialAccountYieldBalances({
+			...input,
+			yields: [
+				{
+					amount: 5,
+					date: new Date("2026-01-05T12:00:00"),
+					financialAccountId: "a",
+					isExcluded: false,
+					kind: "AUTOMATIC" as const,
+					origin: "USER" as const,
+				},
+			],
+		}).get("a"),
+	).toBe(1005);
+});
+
+test("calendar correction preserves a user adjusted automatic yield on the new holiday", () => {
+	expect(
+		calculateFinancialAccountYieldBalances({
+			accounts: [
+				{ countryCode: "BR", createdAt: new Date("2026-01-05T12:00:00"), id: "a", type: "CHECKING" },
+			],
+			cashbackCredits: [],
+			holidays: [],
+			holidaysByCountry: new Map([["BR", [new Date("2026-01-05T12:00:00")]]]),
+			initialRewardsBalances: new Map<string, number>(),
+			today: new Date("2026-01-05T12:00:00"),
+			transactions: [
+				{ amount: 1000, date: new Date("2026-01-05T12:00:00"), destinationFinancialAccountId: "a" },
+			],
+			yields: [
+				{
+					amount: 5,
+					date: new Date("2026-01-05T12:00:00"),
+					financialAccountId: "a",
+					isExcluded: false,
+					kind: "AUTOMATIC" as const,
+					origin: "USER" as const,
+				},
+			],
+		}).get("a"),
+	).toBe(1005);
+});

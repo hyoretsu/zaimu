@@ -35,7 +35,6 @@ export async function ensureCurrencyAssociations(currency: string) {
 }
 
 export async function ensureCalendarCoverage(countryCode: string, year: number) {
-	const generated = nationalHolidays(countryCode, year);
 	return withRawTransaction(async query => {
 		await query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [`calendar:${countryCode}:${year}`]);
 		await query(`INSERT INTO "YieldCalendarCountry" ("code") VALUES ($1) ON CONFLICT DO NOTHING`, [
@@ -50,6 +49,7 @@ export async function ensureCalendarCoverage(countryCode: string, year: number) 
 			existing?.sourceVersion === calendarSourceVersion
 		)
 			return existing.status;
+		const generated = nationalHolidays(countryCode, year);
 		const overrides = await query<{ date: string }>(
 			`SELECT "date"::text FROM "YieldCalendarOverride" WHERE "countryCode"=$1 AND EXTRACT(YEAR FROM "date")=$2`,
 			[countryCode, year],

@@ -97,6 +97,7 @@ export function calculateFinancialAccountYieldBalances({
 	holidays,
 	holidaysByCurrency,
 	holidaysByCountry,
+	coveredCalendarYears,
 	initialRewardsBalances,
 	today = new Date(),
 	transactions,
@@ -110,6 +111,7 @@ export function calculateFinancialAccountYieldBalances({
 	holidays: readonly Date[];
 	holidaysByCurrency?: ReadonlyMap<string, Date[]>;
 	holidaysByCountry?: ReadonlyMap<string, Date[]>;
+	coveredCalendarYears?: ReadonlyMap<string, ReadonlySet<number>>;
 	initialRewardsBalances: Map<string, number>;
 	today?: Date;
 	transactions: YieldTransaction[];
@@ -190,6 +192,13 @@ export function calculateFinancialAccountYieldBalances({
 							yieldsByAccountId.get(account.id),
 							lotSnapshots,
 							beforeYieldDay,
+							coveredCalendarYears
+								? day =>
+										Boolean(
+											account.countryCode &&
+												coveredCalendarYears.get(account.countryCode)?.has(Number(day.slice(0, 4))),
+										)
+								: undefined,
 						).toFixed(4),
 					) + 0, // Normalize signed zero after rounding fully reversed rewards.
 		]),
@@ -240,6 +249,7 @@ function calculateYieldedBalance(
 	yields: FinancialAccountYield[] | undefined,
 	lotSnapshots?: Map<string, YieldLot[]>,
 	beforeYieldDay?: string,
+	calendarCovered?: (day: string) => boolean,
 ) {
 	const firstDay = [
 		...(events?.keys() ?? []),
@@ -274,6 +284,11 @@ function calculateYieldedBalance(
 				yieldEntry.kind === "MANUAL" && dateKey(yieldEntry.date) === key && !yieldEntry.isExcluded,
 		);
 		if (isWeekend(day) || holidays.has(key)) {
+			const recorded = yields?.find(
+				entry => entry.kind === "AUTOMATIC" && !entry.isExcluded && dateKey(entry.date) === key,
+			);
+			if (recorded?.amount != null)
+				ledger.accrueRecordedNet(recorded.amount, getYieldSettings(account, key), key);
 			for (const manualYield of manualYields ?? []) ledger.accrueNet(manualYield.amount ?? 0, key);
 			balance = ledger.balance;
 			if (adjustments?.has(key)) {
@@ -299,7 +314,8 @@ function calculateYieldedBalance(
 				if (automaticYield.origin === "SYSTEM")
 					ledger.accrueRecordedNet(automaticYield.amount, yieldSettings, key);
 				else ledger.accrueNet(automaticYield.amount, key);
-			} else if (!hasReference) ledger.accrueGross(grossAmount, yieldSettings, key);
+			} else if (!hasReference && (calendarCovered?.(key) ?? true))
+				ledger.accrueGross(grossAmount, yieldSettings, key);
 			balance = ledger.balance;
 		}
 		for (const [rate, cashbackBalance] of cashbackBalances) {

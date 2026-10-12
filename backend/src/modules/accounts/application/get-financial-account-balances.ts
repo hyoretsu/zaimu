@@ -4,7 +4,8 @@ import {
 	calculateFinancialAccountYieldBalances,
 	type YieldPeriod,
 } from "~/modules/accounts/domain/calculate-financial-account-yields";
-import { loadCurrencyHolidayRows } from "~/modules/yield-calendar/catalog";
+import { loadCountryHolidayRows } from "~/modules/yield-calendar/catalog";
+import { ensureAccountCoverage } from "~/modules/yield-calendar/ensure-coverage";
 import { db, queryRaw, queryRows } from "~/shared/infra/sql";
 import { cashbackReversalsSql } from "./cashback-reversals-sql";
 import { getFinancialInstitutionYieldPolicies } from "./get-financial-institution-yield-policies";
@@ -140,19 +141,38 @@ export async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 				[rewardsAccountIds],
 			)
 		: [];
-	const holidays = await loadCurrencyHolidayRows();
+	const startYear = Math.min(
+		new Date().getFullYear(),
+		...accounts.map(account => account.createdAt.getFullYear()),
+		...transactions.map(transaction => transaction.date.getFullYear()),
+	);
+	const years = Array.from(
+		{ length: new Date().getFullYear() - startYear + 1 },
+		(_, index) => startYear + index,
+	);
+	const scopes = [
+		...new Map(accounts.map(account => [`${account.currency}:${account.countryCode}`, account])).values(),
+	];
+	await Promise.all(
+		scopes.map(account => ensureAccountCoverage(account.currency, account.countryCode, years)),
+	);
+	const coverage = await queryRaw<{ countryCode: string; year: number }>(
+		`SELECT "countryCode","year" FROM "YieldCalendarCoverage" WHERE "status"='COMPLETE'`,
+	);
+	const coveredCalendarYears = new Map(
+		[...Map.groupBy(coverage, row => row.countryCode)].map(([code, rows]) => [
+			code,
+			new Set(rows.map(row => row.year)),
+		]),
+	);
+	const holidays = await loadCountryHolidayRows();
 	const holidaysByCountry = new Map(
 		[...Map.groupBy(holidays, holiday => holiday.countryCode)].map(([country, rows]) => [
 			country,
 			rows.map(row => row.date),
 		]),
 	);
-	const holidaysByCurrency = new Map(
-		[...Map.groupBy(holidays, holiday => holiday.currency)].map(([currency, rows]) => [
-			currency,
-			rows.map(row => row.date),
-		]),
-	);
+
 	return {
 		balances,
 		input: {
@@ -178,9 +198,9 @@ export async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 				cashbackYieldReferencePercentage: purchase.cashbackYieldReferencePercentage,
 				cashbackYieldReferenceRate: purchase.cashbackYieldReferenceRate,
 			})),
+			coveredCalendarYears,
 			holidays: [],
 			holidaysByCountry,
-			holidaysByCurrency,
 			initialRewardsBalances: new Map(
 				rewardsAccounts.map(account => [account.financialAccountId, Number(account.initialBalance)]),
 			),

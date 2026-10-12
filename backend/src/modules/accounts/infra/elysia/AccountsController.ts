@@ -412,6 +412,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 						const rewardFinancialAccount = await queryFirst(
 							db.sql.public.FinancialAccount.insert([
 								{
+									countryCode,
 									currency,
 									institutionId: institution?.id,
 									name: null as never,

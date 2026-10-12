@@ -47,3 +47,9 @@ export async function loadCurrencyHolidayRows() {
 export async function getCountryHolidays(countryCode: string): Promise<Set<string>> {
 	return countryHolidayDates((await loadYieldCalendar()).countries, countryCode);
 }
+
+export async function loadCountryHolidayRows() {
+	return queryRaw<{ id: string; countryCode: string; date: Date; name: string }>(
+		`SELECT "id","countryCode","date","name" FROM "YieldCalendarHoliday" ORDER BY "date"`,
+	);
+}
