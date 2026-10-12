@@ -55,9 +55,21 @@ export function InstitutionProfileDialog({ institution }: { institution: Financi
 		queryFn: () => fetchWithAuth<Change[]>(`/financial-institutions/${institution.id}/profile-history`),
 		queryKey: ["institution-profile-history", userId, institution.id],
 	});
-	const selected = profileId ?? profiles.data?.find(profile => profile.isDefault)?.id;
+	const today = new Date().toLocaleDateString("sv-SE");
+	const active = history.data
+		?.filter(change => change.effectiveDate.slice(0, 10) <= today)
+		.toSorted((a, b) => a.effectiveDate.localeCompare(b.effectiveDate))
+		.at(-1);
+	const selected = profileId ?? active?.profileId ?? profiles.data?.find(profile => profile.isDefault)?.id;
+	const changeOpen = (next: boolean) => {
+		setOpen(next);
+		if (!next) {
+			setProfile(undefined);
+			setDate(new Date().toLocaleDateString("sv-SE"));
+		}
+	};
 	return (
-		<Dialog onOpenChange={setOpen} open={open}>
+		<Dialog onOpenChange={changeOpen} open={open}>
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<DialogTrigger asChild>
@@ -97,7 +109,7 @@ export function InstitutionProfileDialog({ institution }: { institution: Financi
 									identity ? invalidateCacheOperation(client, identity, "account") : Promise.resolve(),
 								]);
 								showToast("Mudança de perfil registrada", "positive");
-								setOpen(false);
+								changeOpen(false);
 							})
 							.catch(error => showToast(error.message, "negative"))
 							.finally(() => setSaving(false));
@@ -157,7 +169,7 @@ export function InstitutionProfileDialog({ institution }: { institution: Financi
 						)}
 					</DialogBody>
 					<DialogFooter>
-						<Button onClick={() => setOpen(false)} type="button" variant="outline">
+						<Button onClick={() => changeOpen(false)} type="button" variant="outline">
 							Descartar
 						</Button>
 						<Button disabled={saving || guest || !selected || !date} type="submit">
