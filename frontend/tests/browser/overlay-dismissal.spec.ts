@@ -102,3 +102,21 @@ test("mobile action portal disappears on navigation with production animations",
 	await page.getByRole("button", { exact: true, name: "Ações da tela" }).click();
 	await expect(page.getByRole("button", { exact: true, name: "New purchase" })).toBeVisible();
 });
+
+test("selectors and calendar stay clickable above nested dialogs", async ({ page }) => {
+	await page.getByRole("button", { exact: true, name: "Open invoice" }).click();
+	await page.getByRole("button", { exact: true, name: "Edit purchase" }).click();
+	const editor = page
+		.locator('[data-slot="dialog-content"]')
+		.filter({ has: page.getByRole("heading", { exact: true, name: "Edit purchase" }) });
+	await editor.getByRole("combobox", { name: "Categoria" }).click();
+	await page.getByRole("option", { exact: true, name: "Mercado" }).click();
+	await expect(editor.getByRole("combobox", { name: "Categoria" })).toContainText("Mercado");
+	await editor.getByRole("combobox", { name: "Moeda" }).click();
+	await page.getByRole("option", { exact: true, name: "Real" }).click();
+	await expect(editor.getByRole("combobox", { name: "Moeda" })).toContainText("Real");
+	await editor.getByRole("button", { name: "Início" }).click();
+	await page.getByRole("button", { name: "Próximo mês" }).click();
+	await page.keyboard.press("Escape");
+	await expect(editor).toBeVisible();
+});

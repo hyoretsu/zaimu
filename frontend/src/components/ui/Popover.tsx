@@ -1,9 +1,10 @@
 import { Popover as PopoverPrimitive } from "radix-ui";
-import type { ComponentProps } from "react";
+import { type ComponentProps, useContext } from "react";
 import { usePopoverPlacement } from "@/hooks/use-popover-placement";
 import { usePopupViewportShift } from "@/hooks/use-popup-viewport-shift";
 import { useRouteDismissableOpen } from "@/hooks/use-route-dismissable-open";
 import { cn } from "@/lib/utils";
+import { PopupLayerContext } from "./popup-layer-context";
 
 function Popover(props: ComponentProps<typeof PopoverPrimitive.Root>) {
 	const openProps = useRouteDismissableOpen(props);
@@ -25,6 +26,7 @@ function PopoverContent({
 	style,
 	...props
 }: ComponentProps<typeof PopoverPrimitive.Content> & { portal?: boolean }) {
+	const zIndex = useContext(PopupLayerContext) + 1;
 	const constrained = style?.maxHeight !== undefined || /(?:^|\s)(?:\S+:)?max-h-/.test(className ?? "");
 	const popupRef = usePopupViewportShift(!constrained);
 	const placement = usePopoverPlacement(side, sideOffset);
@@ -47,12 +49,15 @@ function PopoverContent({
 			side={placement.side}
 			sideOffset={sideOffset}
 			sticky={sticky}
-			style={style}
+			style={{ zIndex, ...style }}
 			{...props}
 		/>
 	);
 
-	return portal ? <PopoverPrimitive.Portal>{content}</PopoverPrimitive.Portal> : content;
+	const layeredContent = (
+		<PopupLayerContext.Provider value={Number(style?.zIndex ?? zIndex)}>{content}</PopupLayerContext.Provider>
+	);
+	return portal ? <PopoverPrimitive.Portal>{layeredContent}</PopoverPrimitive.Portal> : layeredContent;
 }
 
 function PopoverAnchor(props: ComponentProps<typeof PopoverPrimitive.Anchor>) {

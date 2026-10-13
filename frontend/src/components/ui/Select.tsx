@@ -1,11 +1,12 @@
 import { ArrowDown01Icon, ArrowUp01Icon, Tick02Icon, UnfoldMoreIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Select as SelectPrimitive } from "radix-ui";
-import type { ComponentProps, ReactNode } from "react";
+import { type ComponentProps, type ReactNode, useContext } from "react";
 import { inputControlClassName } from "@/components/ui/input-styles";
 import { usePopupViewportShift } from "@/hooks/use-popup-viewport-shift";
 import { useRouteDismissableOpen } from "@/hooks/use-route-dismissable-open";
 import { cn } from "@/lib/utils";
+import { PopupLayerContext } from "./popup-layer-context";
 
 function Select({ ...props }: ComponentProps<typeof SelectPrimitive.Root>) {
 	const openProps = useRouteDismissableOpen(props);
@@ -70,6 +71,7 @@ function SelectContent({
 	scrollButtons?: boolean;
 	viewportClassName?: string;
 }) {
+	const zIndex = useContext(PopupLayerContext) + 1;
 	const constrained = style?.maxHeight !== undefined || /(?:^|\s)(?:\S+:)?max-h-/.test(className ?? "");
 	// Radix owns the wrapper height and selected-item alignment in item-aligned mode.
 	const popupRef = usePopupViewportShift(!constrained && position === "popper");
@@ -95,7 +97,7 @@ function SelectContent({
 					if (ref) ref.current = node;
 				}}
 				sticky={sticky}
-				style={style}
+				style={{ zIndex, ...style }}
 				{...props}
 			>
 				{scrollButtons && <SelectScrollUpButton />}

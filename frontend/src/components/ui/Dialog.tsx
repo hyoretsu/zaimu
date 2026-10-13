@@ -8,6 +8,7 @@ import { useDialogHistory } from "@/hooks/use-dialog-history";
 import { usePageScrollLock } from "@/hooks/use-page-scroll-lock";
 import { useRouteDismissableOpen } from "@/hooks/use-route-dismissable-open";
 import { cn } from "@/lib/utils";
+import { PopupLayerContext } from "./popup-layer-context";
 
 const DialogStackContext = createContext<{
 	depth: number;
@@ -99,7 +100,11 @@ function DialogContent({
 					onOpenAutoFocus?.(event);
 				}}
 			>
-				<DialogContentContext.Provider value={{ showCloseButton }}>{children}</DialogContentContext.Provider>
+				<PopupLayerContext.Provider value={Number(style?.zIndex ?? 51 + depth * 2)}>
+					<DialogContentContext.Provider value={{ showCloseButton }}>
+						{children}
+					</DialogContentContext.Provider>
+				</PopupLayerContext.Provider>
 				{showCloseButton && (
 					<DialogPrimitive.Close asChild data-slot="dialog-close">
 						<Button className="absolute top-4 right-4 cursor-pointer" size="icon-sm" variant="outline">

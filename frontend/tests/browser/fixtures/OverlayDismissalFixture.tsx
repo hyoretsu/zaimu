@@ -15,6 +15,8 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/Dialog";
 import { MobilePageActions } from "@/components/ui/MobilePageActions";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 
+import { OverlaySelectors } from "./OverlaySelectors";
+
 function OverlayDismissalFixture() {
 	const pathname = useLocation().pathname;
 	const router = useRouter();
@@ -44,6 +46,7 @@ function OverlayDismissalFixture() {
 							<Dialog onOpenChange={setEditing} open={editing}>
 								<DialogContent>
 									<DialogTitle>Edit purchase</DialogTitle>
+									<OverlaySelectors />
 								</DialogContent>
 							</Dialog>
 						)}
