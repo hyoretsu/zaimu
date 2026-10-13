@@ -296,3 +296,11 @@ A tela de orçamento prioriza listagem compacta do plano geral. Exceções mensa
 Todos os valores monetários acumulados são convertidos para a moeda preferida antes da soma e exibição, incluindo saldos, limites, faturas, dívidas, empréstimos, recorrências e orçamento. A preferência precisa estar carregada antes de consultar valores consolidados. Sem cotação necessária, mostrar indisponibilidade, nunca soma parcial ou zero artificial. Saldos diários usam cotação da data correspondente.
 
 Transações mostram valor contabilizado na moeda da conta ou cartão e valor original quando a moeda difere. Transação USD em conta BRL mostra USD e BRL; em conta USD mostra somente USD, salvo detalhamento de taxas. Campos editáveis e eventos individuais mantêm sua moeda de origem.
+
+## Ações iniciadas em modais
+
+Formulários e confirmações fecham após envio válido e processam em background. Progresso aparece em toast ou no registro afetado; somente controles que disputam o mesmo registro ou lote ficam bloqueados. Em falha, Reabrir retorna à rota original e restaura valores enviados. Rascunhos ficam em memória para a identidade atual e são descartados na troca de usuário.
+
+Envio de extrato ou fatura permanece aberto até encaminhar o lote à revisão. Finalização mantém revisão visível quando resposta pode deixar pendências. Aprovar, editar, ignorar ou conciliar itens preserva revisão principal, fecha eventual submodal ao enviar e mostra progresso apenas nas linhas envolvidas. Exclusão confirmada fecha seu fluxo e conclui em background.
+
+Falha ao atualizar consultas após gravação permite tentar somente a atualização. Recomposição de recorrência reutiliza ID criado; contas padrão releem estado antes de retomar gravação parcial.
