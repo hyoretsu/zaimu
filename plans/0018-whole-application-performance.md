@@ -424,3 +424,9 @@ Próxima etapa: validar fallback de cache e persistência incremental contra reg
 - Autenticação real: cinco ciclos sem erros/identidade divergente; login p95 1.177 ms reprova, sessão 81 ms, logout 162 ms, sessão anônima 41 ms. Bcrypt custo 12 mantido. Orçamento por ação preserva reprovação que percentil agregado não demonstra.
 - Chromium release: cinco compras concluídas e removidas; zero erros de página, confirmação DOM p95 1.609 ms e dados utilizáveis 3.079 ms. Long tasks 615-1.437 ms acumulados por amostra. Meta de 1 s continua reprovada; host compartilhado e matriz oficial pendente.
 - Relatório sanitizado auth-browser-reference-0018.json registra resultados completos e limites. 0018/0012 permanecem abertos; cobertura integral, crescimento oficial 10/10k/100k, falhas Redis/carga mista/workers e plataformas ainda não têm evidência completa.
+
+### Retomada da matriz oficial
+
+- Primeira execução oficial com 20 identidades abortou preparação: logins compartilhavam IP e receberam HTTP 429. Executor passa IP local simulado por identidade, preservando limites de autenticação.
+- Jornada HTTP de sugestão cria duas transações com horário no limite de 60 s, exige sugestão, rejeita e verifica invalidação; limpeza remove ambos os lançamentos e conta mesmo após falha. Executor passou 18 testes/84 assertions.
+- Parsing volta ao orçamento original de 15 s do 0018; limite de 30 s fica exclusivo ao snapshot sync. Rodada oficial precisa repetir após correção da preparação.

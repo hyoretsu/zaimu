@@ -112,3 +112,42 @@ test("wrong auth identity fails acceptance and closes the newly created session"
 	expect(report.passed).toBeFalse();
 	expect(signedOut).toBe(1);
 });
+
+test("transfer suggestion rejects cached pair and cleans both transactions and account", async () => {
+	let rejected = false;
+	const deleted: string[] = [];
+	const requester = (async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+		const path = new URL(String(input)).pathname;
+		if (init?.method === "DELETE") {
+			deleted.push(path);
+			return Response.json({}, { headers: metricHeaders });
+		}
+		if (path.endsWith("/reject")) {
+			rejected = true;
+			return Response.json({}, { headers: metricHeaders });
+		}
+		if (path === "/transactions/transfer-suggestions")
+			return Response.json(
+				rejected ? [] : [{ counterpart: { id: "income" }, transaction: { id: "expense" } }],
+				{ headers: metricHeaders },
+			);
+		if (path === "/financial-accounts/")
+			return Response.json({ id: "destination" }, { headers: metricHeaders });
+		const body = JSON.parse(String(init?.body));
+		return Response.json({ id: body.type === "EXPENSE" ? "expense" : "income" }, { headers: metricHeaders });
+	}) as typeof fetch;
+	const report = await runMutationScenario("transferSuggestion", {
+		base: new URL("http://127.0.0.1:3335"),
+		cookies: ["fixture"],
+		iterations: 1,
+		load: 1,
+		requester,
+	});
+	expect(report.passed).toBeTrue();
+	expect(report.actions.delete?.count).toBe(2);
+	expect(deleted.sort()).toEqual([
+		"/financial-accounts/destination",
+		"/transactions/expense",
+		"/transactions/income",
+	]);
+});

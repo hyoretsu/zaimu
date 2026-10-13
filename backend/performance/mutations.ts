@@ -25,6 +25,7 @@ export const mutationScenarios = [
 	"purchaseRefinance",
 	"transaction",
 	"transfer",
+	"transferSuggestion",
 	"category",
 	"account",
 	"recurrence",
@@ -45,6 +46,8 @@ export const mutationScenarios = [
 	"invoiceImport",
 ];
 const expectedActions = (name: string): string[] => {
+	if (name === "transferSuggestion")
+		return ["createExpense", "createIncome", "suggestions", "reject", "readAfterReject", "delete"];
 	if (name === "sync") return ["snapshot"];
 	if (name === "authSession") return ["signIn", "session", "signOut", "anonymousSession"];
 	if (name === "currencyPreference") return ["edit"];
@@ -104,9 +107,7 @@ const responseId = (value: unknown) => {
 
 export async function runMutationScenario(name: string, context: Context) {
 	const startedAt = performance.now();
-	const budgetMs = ["sync", "statementImport", "statementImportDuplicates", "invoiceImport"].includes(name)
-		? 30000
-		: 1000;
+	const budgetMs = name === "sync" ? 30000 : name.includes("Import") ? 15000 : 1000;
 	const samples: ActionSample[] = [];
 	const errors: { index: number; user: number; phase: string; error: string }[] = [];
 	await runConcurrent(context.iterations, context.load, async (index, user) => {
@@ -154,7 +155,65 @@ export async function runMutationScenario(name: string, context: Context) {
 		let setupCleanup: (() => Promise<unknown>) | undefined;
 		try {
 			const label = `Performance ${name} ${crypto.randomUUID().slice(0, 8)}`;
-			if (name === "authSession") {
+			if (name === "transferSuggestion") {
+				const accountId = responseId(
+					await call(
+						"setup",
+						"/financial-accounts/",
+						"POST",
+						{
+							currency: "BRL",
+							name: `${label} destination`,
+							type: "CHECKING",
+						},
+						false,
+					),
+				);
+				setupCleanup = () =>
+					call("cleanupAccount", `/financial-accounts/${accountId}`, "DELETE", undefined, false);
+				const ids: string[] = [];
+				cleanup = async () => {
+					const outcomes = await Promise.allSettled(
+						ids.map(id => call("delete", `/transactions/${id}`, "DELETE")),
+					);
+					if (outcomes.some(outcome => outcome.status === "rejected"))
+						throw new Error("Transaction cleanup failed");
+				};
+				const common = { amount: 987.65, date: "2026-10-04", description: label };
+				ids.push(
+					responseId(
+						await call("createExpense", "/transactions/", "POST", {
+							...common,
+							originFinancialAccountId: "perf-account-main",
+							time: "12:00:00",
+							type: "EXPENSE",
+						}),
+					),
+				);
+				ids.push(
+					responseId(
+						await call("createIncome", "/transactions/", "POST", {
+							...common,
+							destinationFinancialAccountId: accountId,
+							time: "12:01:00",
+							type: "INCOME",
+						}),
+					),
+				);
+				const hasPair = (value: unknown) => {
+					if (!Array.isArray(value)) throw new Error("Expected suggestions array");
+					return value.some(pair => {
+						const row = record(pair);
+						const pairIds = [record(row.transaction).id, record(row.counterpart).id];
+						return ids.every(id => pairIds.includes(id));
+					});
+				};
+				if (!hasPair(await call("suggestions", "/transactions/transfer-suggestions")))
+					throw new Error("Compatible transfer pair missing");
+				await call("reject", `/transactions/${ids[0]}/transfer-suggestions/${ids[1]}/reject`, "POST", {});
+				if (hasPair(await call("readAfterReject", "/transactions/transfer-suggestions")))
+					throw new Error("Rejected pair remains cached");
+			} else if (name === "authSession") {
 				const thinkTimeMs = context.authThinkTimeMs ?? 3500;
 				if (!Number.isFinite(thinkTimeMs) || thinkTimeMs < 0)
 					throw new Error("Invalid authentication think time");
@@ -545,7 +604,8 @@ export async function runMutationScenario(name: string, context: Context) {
 					0.99,
 				),
 				passed:
-					rows.length === context.iterations &&
+					rows.length ===
+						context.iterations * (name === "transferSuggestion" && action === "delete" ? 2 : 1) &&
 					rows.every(row => row.status >= 200 && row.status < 300 && completeMetrics(row)) &&
 					percentile(
 						rows.map(row => row.durationMs),

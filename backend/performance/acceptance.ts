@@ -71,7 +71,11 @@ try {
 	for (let user = 0; user < Math.max(...loads); user++) {
 		const response = await fetch(new URL("/api/auth/sign-in/email", base), {
 			body: JSON.stringify({ email: `performance${user}@zaimu.local`, password: "Performance-local-2026" }),
-			headers: { "content-type": "application/json", origin: "http://127.0.0.1:5173" },
+			headers: {
+				"content-type": "application/json",
+				origin: "http://127.0.0.1:5173",
+				"x-forwarded-for": `127.0.2.${user + 1}`,
+			},
 			method: "POST",
 			redirect: "error",
 			signal: AbortSignal.timeout(60000),
