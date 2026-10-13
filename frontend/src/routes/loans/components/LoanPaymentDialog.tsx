@@ -30,26 +30,32 @@ export interface LoanPaymentInput {
 	financialAccountId?: string;
 	accountAmount?: number;
 }
+export interface LoanPaymentDraft {
+	accountId: string;
+	amount: string;
+	paidDate: string;
+}
 export function LoanPaymentDialog({
 	loanId,
 	payment,
 	advanceType,
 	initialDate,
+	initialDraft,
 	onSave,
 	onClose,
 }: {
 	initialDate?: string;
+	initialDraft?: LoanPaymentDraft;
 	loanId: string;
 	payment?: LoanPayment;
 	advanceType?: "FRONT" | "BACK";
-	onSave: (input: LoanPaymentInput) => Promise<boolean>;
+	onSave: (input: LoanPaymentInput, draft: LoanPaymentDraft) => void;
 	onClose: () => void;
 }) {
 	const identity = useCacheIdentity();
-	const [paidDate, setPaidDate] = useState(() => initialDate ?? getLocalDateKey());
-	const [accountId, setAccountId] = useState("");
-	const [amount, setAmount] = useState("");
-	const [pending, setPending] = useState(false);
+	const [paidDate, setPaidDate] = useState(() => initialDraft?.paidDate ?? initialDate ?? getLocalDateKey());
+	const [accountId, setAccountId] = useState(initialDraft?.accountId ?? "");
+	const [amount, setAmount] = useState(initialDraft?.amount ?? "");
 	const accounts = useQuery({
 		enabled: !!identity,
 		queryFn: () => dataService.accounts.getAll(),
@@ -78,7 +84,7 @@ export function LoanPaymentDialog({
 		<Dialog
 			modal
 			onOpenChange={open => {
-				if (!open && !pending) onClose();
+				if (!open) onClose();
 			}}
 			open
 		>
@@ -176,37 +182,30 @@ export function LoanPaymentDialog({
 							)}
 						</div>
 					</div>
-					{pending && <p role="status">Registrando pagamento...</p>}
 				</DialogBody>
 				<DialogFooter>
-					<Button disabled={pending} onClick={onClose} type="button" variant="outline">
+					<Button onClick={onClose} type="button" variant="outline">
 						Descartar
 					</Button>
 					<Button
 						disabled={
-							pending ||
 							loading ||
 							!row ||
 							accounts.isError ||
 							!paidDate ||
 							(!!account && amount === "" && suggestion === null)
 						}
-						onClick={async () => {
+						onClick={() => {
 							if (!row) return;
-							setPending(true);
-							try {
-								if (
-									await onSave({
-										accountAmount: accountId && amount !== "" ? Number(amount) : undefined,
-										expectedPaymentId: row.id,
-										financialAccountId: accountId || undefined,
-										paidDate,
-									})
-								)
-									onClose();
-							} finally {
-								setPending(false);
-							}
+							onSave(
+								{
+									accountAmount: accountId && amount !== "" ? Number(amount) : undefined,
+									expectedPaymentId: row.id,
+									financialAccountId: accountId || undefined,
+									paidDate,
+								},
+								{ accountId, amount, paidDate },
+							);
 						}}
 						type="button"
 					>

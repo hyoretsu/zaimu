@@ -13,6 +13,7 @@ import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { LoanCard, LoanCreateDialog, LoanPaymentsDialog } from "@/routes/loans/components";
 import { formatCurrency } from "@/routes/loans/components/loan-format";
+import type { LoanPaymentRecovery } from "./LoanPaymentsDialog";
 export function EmpréstimosPage() {
 	const identity = useCacheIdentity();
 	const [createOpen, setCreateOpen] = useState(false);
@@ -23,6 +24,11 @@ export function EmpréstimosPage() {
 		setCreateOpen(true);
 	});
 	const [selected, setSelected] = useState<Loan | null>(null);
+	const [recoveredPayment, setRecoveredPayment] = useState<LoanPaymentRecovery>();
+	useBackgroundModalRecovery<LoanPaymentRecovery>("loan-payment", entry => {
+		setRecoveredPayment(entry.payload);
+		setSelected(entry.payload.loan);
+	});
 	const [paid, setPaid] = useState(false);
 	const loans = useQuery({
 		enabled: identity !== null,
@@ -128,7 +134,11 @@ export function EmpréstimosPage() {
 			{selected && (
 				<LoanPaymentsDialog
 					loan={loans.data?.find(loan => loan.id === selected.id) ?? selected}
-					onClose={() => setSelected(null)}
+					onClose={() => {
+						setSelected(null);
+						setRecoveredPayment(undefined);
+					}}
+					recovery={recoveredPayment}
 				/>
 			)}
 		</div>

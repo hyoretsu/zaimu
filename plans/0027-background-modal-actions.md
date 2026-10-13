@@ -7,7 +7,7 @@ Close action dialogs after a valid submission. Keep work running, report progres
 ## Progress
 
 - [x] Shared operation, recovery, and navigation support.
-- [ ] Account, card, debt, recurring, loan, payment, and institution actions. Balance/card adjustments, account defaults, recurrence create/advance/delete, and loan creation now use the shared flow; remaining forms still pending.
+- [ ] Account, card, debt, recurring, loan, payment, and institution actions. Balance/card adjustments, account defaults, recurrence create/advance/delete, loan creation, and individual loan payments now use the shared flow; remaining forms still pending.
 - [ ] Import review item actions and conflict scoped progress.
 - [ ] Behavior tests for recovery, history, partial operations, and independent controls.
 
