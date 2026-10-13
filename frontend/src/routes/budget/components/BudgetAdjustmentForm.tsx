@@ -36,6 +36,7 @@ export function BudgetAdjustmentForm({
 							currency: item.currency,
 							endMonth: month,
 							name: item.name,
+							parentBudgetId: item.parentBudgetId ?? null,
 							source: item.source,
 							startMonth: month,
 						},

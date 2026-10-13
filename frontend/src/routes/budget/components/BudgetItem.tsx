@@ -9,11 +9,13 @@ import { budgetSourceLabel } from "./budget-display";
 
 export function BudgetItem({
 	item,
+	parent,
 	pending,
 	onEdit,
 	onDelete,
 }: {
 	item: MonthlyBudget;
+	parent?: MonthlyBudget;
 	pending: boolean;
 	onEdit: () => void;
 	onDelete: () => void;
@@ -23,6 +25,11 @@ export function BudgetItem({
 			<div className="min-w-0">
 				{item.name && <h3 className="truncate font-medium">{item.name}</h3>}
 				<p className="truncate text-muted-foreground text-xs">{budgetSourceLabel(item)}</p>
+				{parent && (
+					<p className="truncate text-muted-foreground text-xs">
+						Dentro de {parent.name || budgetSourceLabel(parent)}
+					</p>
+				)}
 			</div>
 			<div className="text-right">
 				<p className="font-semibold tabular-nums">

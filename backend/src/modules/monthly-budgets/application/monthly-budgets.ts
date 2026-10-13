@@ -1,6 +1,7 @@
+import { validateBudgetHierarchy } from "@zaimu/finance/monthly-budget";
 import { assertSupportedCurrency } from "~/modules/currencies/application/currency-defaults";
 import { HttpException } from "~/shared/errors";
-import { queryRaw } from "~/shared/infra/sql";
+import { queryRaw, withRawTransaction } from "~/shared/infra/sql";
 import type { MonthlyBudgetBody, MonthlyBudgetReturn, SyncMonthlyBudget } from "../infra/MonthlyBudgetsDTO";
 import { validateMonthlyBudgetFields } from "./validate-monthly-budget";
 
@@ -9,7 +10,7 @@ type BudgetRow = Omit<MonthlyBudgetReturn, "createdAt" | "updatedAt" | "deletedA
 	updatedAt: Date;
 	deletedAt: Date | null;
 };
-const columns = `"id","userId","name","source","categoryId","amount","currency","startMonth","endMonth","createdAt","updatedAt","deletedAt"`;
+const columns = `"id","userId","name","source","categoryId","parentBudgetId","amount","currency","startMonth","endMonth","createdAt","updatedAt","deletedAt"`;
 const serialize = (row: BudgetRow): MonthlyBudgetReturn => ({
 	...row,
 	amount: Number(row.amount),
@@ -44,6 +45,15 @@ export async function validateMonthlyBudget(body: MonthlyBudgetBody, userId: str
 		);
 		if (overlap) throw new HttpException("Já existe planejamento desta origem no período", 409);
 	}
+	try {
+		validateBudgetHierarchy(
+			await listMonthlyBudgets(userId),
+			{ ...body, categoryId: body.categoryId ?? null, endMonth: body.endMonth ?? null },
+			id,
+		);
+	} catch (error) {
+		throw new HttpException(error instanceof Error ? error.message : "Hierarquia inválida", 400);
+	}
 	await assertSupportedCurrency(body.currency);
 	if (body.categoryId) {
 		const [category] = await queryRaw<{ id: string }>(
@@ -54,6 +64,9 @@ export async function validateMonthlyBudget(body: MonthlyBudgetBody, userId: str
 	}
 }
 export async function saveMonthlyBudget(userId: string, body: MonthlyBudgetBody, id?: string) {
+	return withRawTransaction(() => saveMonthlyBudgetInTransaction(userId, body, id));
+}
+async function saveMonthlyBudgetInTransaction(userId: string, body: MonthlyBudgetBody, id?: string) {
 	await validateMonthlyBudget(body, userId, id);
 	const values = [
 		userId,
@@ -64,20 +77,34 @@ export async function saveMonthlyBudget(userId: string, body: MonthlyBudgetBody,
 		body.currency,
 		body.startMonth,
 		body.endMonth ?? null,
+		body.parentBudgetId ?? null,
 	];
 	const [row] = id
 		? await queryRaw<BudgetRow>(
-				`UPDATE "MonthlyBudget" SET "name"=$2,"source"=$3,"categoryId"=$4,"amount"=$5,"currency"=$6,"startMonth"=$7,"endMonth"=$8,"updatedAt"=clock_timestamp() WHERE "userId"=$1 AND "id"=$9 AND "deletedAt" IS NULL RETURNING ${columns}`,
+				`UPDATE "MonthlyBudget" SET "name"=$2,"source"=$3,"categoryId"=$4,"amount"=$5,"currency"=$6,"startMonth"=$7,"endMonth"=$8,"parentBudgetId"=$9,"updatedAt"=clock_timestamp() WHERE "userId"=$1 AND "id"=$10 AND "deletedAt" IS NULL RETURNING ${columns}`,
 				[...values, id],
 			)
 		: await queryRaw<BudgetRow>(
-				`INSERT INTO "MonthlyBudget" ("userId","name","source","categoryId","amount","currency","startMonth","endMonth") VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING ${columns}`,
+				`INSERT INTO "MonthlyBudget" ("userId","name","source","categoryId","amount","currency","startMonth","endMonth","parentBudgetId") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING ${columns}`,
 				values,
 			);
 	if (!row) throw new HttpException("Planejamento não encontrado", 404);
 	return serialize(row);
 }
 export async function deleteMonthlyBudget(userId: string, id: string) {
+	return withRawTransaction(() => deleteMonthlyBudgetInTransaction(userId, id));
+}
+async function deleteMonthlyBudgetInTransaction(userId: string, id: string) {
+	await queryRaw("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [`monthly-budget:${userId}`]);
+	const [child] = await queryRaw<{ id: string }>(
+		'SELECT "id" FROM "MonthlyBudget" WHERE "userId"=$1 AND "parentBudgetId"=$2 AND "deletedAt" IS NULL LIMIT 1',
+		[userId, id],
+	);
+	if (child)
+		throw new HttpException(
+			"Remova ou desvincule subcategorias antes de excluir o orçamento principal.",
+			409,
+		);
 	const rows = await queryRaw<{ id: string }>(
 		'UPDATE "MonthlyBudget" SET "deletedAt"=clock_timestamp(),"updatedAt"=clock_timestamp() WHERE "id"=$1 AND "userId"=$2 AND "deletedAt" IS NULL RETURNING "id"',
 		[id, userId],
@@ -120,7 +147,7 @@ export async function syncMonthlyBudget(userId: string, entity: typeof SyncMonth
 	}
 	await validateMonthlyBudget(entity, userId);
 	await queryRaw(
-		'INSERT INTO "MonthlyBudget" ("id","userId","name","source","categoryId","amount","currency","startMonth","endMonth") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT ("id") DO NOTHING',
+		'INSERT INTO "MonthlyBudget" ("id","userId","name","source","categoryId","amount","currency","startMonth","endMonth","parentBudgetId") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT ("id") DO NOTHING',
 		[
 			entity.id,
 			userId,
@@ -131,6 +158,7 @@ export async function syncMonthlyBudget(userId: string, entity: typeof SyncMonth
 			entity.currency,
 			entity.startMonth,
 			entity.endMonth,
+			entity.parentBudgetId ?? null,
 		],
 	);
 }

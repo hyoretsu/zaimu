@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { isMonthlyAdjustment, validateBudgetHierarchy } from "@zaimu/finance/monthly-budget";
 import { useState } from "react";
 import { CurrencySelect } from "@/components/currency/CurrencySelect";
 import { Button } from "@/components/ui/Button";
@@ -22,11 +23,13 @@ import type { MonthlyBudget, MonthlyBudgetInput } from "@/lib/monthly-budget-ser
 import { useCacheIdentity } from "@/lib/query-cache";
 import { useCurrencyStore } from "@/stores/currency";
 import { BudgetAmountField } from "./BudgetAmountField";
+import { budgetSourceLabel } from "./budget-display";
 
 type BudgetInput = MonthlyBudgetInput;
 
 export function BudgetDialog({
 	item,
+	budgets = [],
 	adjustment = false,
 	month,
 	pending,
@@ -34,6 +37,7 @@ export function BudgetDialog({
 	onSave,
 }: {
 	item?: MonthlyBudget;
+	budgets?: MonthlyBudget[];
 	adjustment?: boolean;
 	month: string;
 	pending: boolean;
@@ -50,6 +54,7 @@ export function BudgetDialog({
 					currency: item.currency,
 					endMonth: item.endMonth,
 					name: item.name,
+					parentBudgetId: item.parentBudgetId ?? null,
 					source: item.source,
 					startMonth: item.startMonth,
 				}
@@ -59,6 +64,7 @@ export function BudgetDialog({
 					currency,
 					endMonth: null,
 					name: "",
+					parentBudgetId: null,
 					source: "STATEMENTS",
 					startMonth: month,
 				},
@@ -79,6 +85,15 @@ export function BudgetDialog({
 			return items;
 		},
 		queryKey: ["budget-category-options", identity],
+	});
+	const parentOptions = budgets.filter(candidate => {
+		if (isMonthlyAdjustment(candidate)) return false;
+		try {
+			validateBudgetHierarchy(budgets, { ...draft, parentBudgetId: candidate.id }, item?.id);
+			return true;
+		} catch {
+			return false;
+		}
 	});
 	return (
 		<Dialog
@@ -162,6 +177,30 @@ export function BudgetDialog({
 										/>
 									)}
 								</>
+							)}
+							{!adjustment && (
+								<div className="space-y-2">
+									<CustomSelect
+										disabled={pending}
+										label="Dentro de outro orçamento"
+										onValueChange={value =>
+											setDraft(current => ({ ...current, parentBudgetId: value === "none" ? null : value }))
+										}
+										options={[
+											{ label: "Independente", special: true, value: "none" },
+											...parentOptions.map(parent => ({
+												label: parent.name || budgetSourceLabel(parent),
+												value: parent.id,
+											})),
+										]}
+										placeholder="Ex: Faturas"
+										searchable
+										value={draft.parentBudgetId ?? "none"}
+									/>
+									<p className="text-muted-foreground text-xs">
+										Valor incluído no orçamento principal. Somente excedentes aumentam o total.
+									</p>
+								</div>
 							)}
 							{adjustment && (
 								<p className="text-muted-foreground text-sm">

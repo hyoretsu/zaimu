@@ -55,3 +55,25 @@ test("general plan uses active recurring income and ignores monthly adjustments"
 	});
 	expect(result).toEqual({ expenses: 1000, income: 5100, net: 4100 });
 });
+
+test("general plan includes child amounts only through the parent envelope", async () => {
+	const base = {
+		categoryId: null,
+		currency: "BRL",
+		endMonth: null,
+		name: "Faturas",
+		source: "STATEMENTS" as const,
+		startMonth: "2026-01",
+	};
+	const result = await generalBudgetAvailability({
+		budgets: [
+			{ ...base, amount: 3000, id: "parent" },
+			{ ...base, amount: 500, id: "child", name: "Mercado", parentBudgetId: "parent", source: "CUSTOM" },
+		],
+		currency: "BRL",
+		rate: async () => 1,
+		recurrences: [],
+		today: "2026-10-13",
+	});
+	expect(result.expenses).toBe(3000);
+});

@@ -1,0 +1,105 @@
+[
+	{
+		"execute": [
+			{
+				"description": "add column \"parentBudgetId\"",
+				"sql": "ALTER TABLE \"public\".\"MonthlyBudget\" ADD COLUMN \"parentBudgetId\" character varying(36)"
+			}
+		],
+		"id": "column.public.MonthlyBudget.parentBudgetId",
+		"label": "Add column \"parentBudgetId\" to \"MonthlyBudget\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"parentBudgetId\" exists",
+				"params": ["public", "MonthlyBudget", "parentBudgetId"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"parentBudgetId\" is missing",
+				"params": ["public", "MonthlyBudget", "parentBudgetId"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "parentBudgetId",
+				"objectType": "column",
+				"schema": "public",
+				"table": "MonthlyBudget"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"MonthlyBudget_parentBudgetId_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"MonthlyBudget_parentBudgetId_idx\" ON \"public\".\"MonthlyBudget\" (\"parentBudgetId\")"
+			}
+		],
+		"id": "index.MonthlyBudget.MonthlyBudget_parentBudgetId_idx",
+		"label": "Create index \"MonthlyBudget_parentBudgetId_idx\" on \"MonthlyBudget\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"MonthlyBudget_parentBudgetId_idx\" exists",
+				"params": ["\"public\".\"MonthlyBudget_parentBudgetId_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"MonthlyBudget_parentBudgetId_idx\" does not exist",
+				"params": ["\"public\".\"MonthlyBudget_parentBudgetId_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "MonthlyBudget_parentBudgetId_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "MonthlyBudget"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"MonthlyBudget_parentBudgetId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"MonthlyBudget\"\nADD CONSTRAINT \"MonthlyBudget_parentBudgetId_fkey\"\nFOREIGN KEY (\"parentBudgetId\")\nREFERENCES \"public\".\"MonthlyBudget\" (\"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.MonthlyBudget.MonthlyBudget_parentBudgetId_fkey",
+		"label": "Add foreign key \"MonthlyBudget_parentBudgetId_fkey\" on \"MonthlyBudget\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"MonthlyBudget_parentBudgetId_fkey\" exists",
+				"params": ["MonthlyBudget_parentBudgetId_fkey", "public", "\"public\".\"MonthlyBudget\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"MonthlyBudget_parentBudgetId_fkey\" does not exist",
+				"params": ["MonthlyBudget_parentBudgetId_fkey", "public", "\"public\".\"MonthlyBudget\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "MonthlyBudget_parentBudgetId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "MonthlyBudget"
+			},
+			"id": "postgres"
+		}
+	}
+]

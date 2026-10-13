@@ -4,6 +4,7 @@ export interface MonthlyBudget {
 	name: string;
 	source: "TAG" | "STATEMENTS" | "CUSTOM";
 	categoryId: string | null;
+	parentBudgetId?: string | null;
 	amount: number;
 	currency: string;
 	startMonth: string;

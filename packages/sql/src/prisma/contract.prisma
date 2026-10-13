@@ -403,6 +403,7 @@ namespace public {
     name VarChar(100)
     source VarChar(16)
     categoryId VarChar(36)?
+    parentBudgetId VarChar(36)?
     amount Numeric(20, 6)
     currency VarChar(3)
     startMonth VarChar(7)
@@ -414,6 +415,9 @@ namespace public {
     category Category? @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "MonthlyBudget_categoryId_fkey", index: false)
     @@index([userId, startMonth], map: "MonthlyBudget_userId_startMonth_idx")
     @@index([categoryId], map: "MonthlyBudget_categoryId_idx")
+    parent MonthlyBudget? @relation("BudgetHierarchy", fields: [parentBudgetId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "MonthlyBudget_parentBudgetId_fkey", index: false)
+    children MonthlyBudget[] @relation("BudgetHierarchy")
+    @@index([parentBudgetId], map: "MonthlyBudget_parentBudgetId_idx")
     @@map("MonthlyBudget")
   }
 

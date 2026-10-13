@@ -524,7 +524,23 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 						categoryIds.add(id);
 					});
 
-					await sync("monthlyBudgets", body.monthlyBudgets, async entity => {
+					const budgetDepth = (entity: InputEntity) => {
+						const seen = new Set<string>();
+						let parentId = value<string | null | undefined>(entity, "parentBudgetId");
+						while (parentId && !seen.has(parentId)) {
+							seen.add(parentId);
+							const parent = body.monthlyBudgets?.find(row => value<string>(row, "id") === parentId);
+							parentId = parent ? value<string | null | undefined>(parent, "parentBudgetId") : null;
+						}
+						return seen.size;
+					};
+					const orderedBudgets = body.monthlyBudgets?.slice().sort((a, b) => {
+						const deletingA = !!value<string | null | undefined>(a, "deletedAt");
+						const deletingB = !!value<string | null | undefined>(b, "deletedAt");
+						if (deletingA !== deletingB) return deletingA ? 1 : -1;
+						return deletingA ? budgetDepth(b) - budgetDepth(a) : budgetDepth(a) - budgetDepth(b);
+					});
+					await sync("monthlyBudgets", orderedBudgets, async entity => {
 						await syncMonthlyBudget(
 							userId,
 							entity as unknown as typeof import("~/modules/monthly-budgets/infra/MonthlyBudgetsDTO").SyncMonthlyBudget.static,

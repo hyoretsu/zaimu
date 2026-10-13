@@ -1,4 +1,9 @@
-import { isMonthlyAdjustment, type MonthlyBudget } from "@zaimu/finance/monthly-budget";
+import {
+	budgetParent,
+	isMonthlyAdjustment,
+	type MonthlyBudget,
+	monthlyBudgetSummary,
+} from "@zaimu/finance/monthly-budget";
 import { type RecurrenceDefinition, recurrenceNeedsConfiguration } from "@zaimu/finance/recurrence";
 
 export async function generalBudgetAvailability(input: {
@@ -28,14 +33,13 @@ export async function generalBudgetAvailability(input: {
 		)
 	).reduce((sum, amount) => sum + amount, 0);
 	const month = input.today.slice(0, 7);
+	const active = input.budgets.filter(row => !isMonthlyAdjustment(row));
+	const summary = monthlyBudgetSummary({ budgets: active, commitments: [], month }).items;
 	const expenses = (
 		await Promise.all(
-			input.budgets
-				.filter(
-					row =>
-						!isMonthlyAdjustment(row) && row.startMonth <= month && (!row.endMonth || row.endMonth >= month),
-				)
-				.map(row => convert(row.amount, row.currency)),
+			summary
+				.filter(row => !budgetParent(row, summary, active))
+				.map(row => convert(row.projectedAmount, row.currency)),
 		)
 	).reduce((sum, amount) => sum + amount, 0);
 	return { expenses, income, net: income - expenses };

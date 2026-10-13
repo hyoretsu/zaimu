@@ -1,4 +1,4 @@
-import { isMonthlyAdjustment, sameBudgetPlan } from "@zaimu/finance/monthly-budget";
+import { isMonthlyAdjustment, sameBudgetPlan, validateBudgetHierarchy } from "@zaimu/finance/monthly-budget";
 import { useAuthStore } from "@/stores/auth";
 import { fetchWithAuth } from "./dataService";
 import { hardDelete, localCategories, localMonthlyBudgets } from "./localStorage";
@@ -28,6 +28,7 @@ async function validateLocal(input: MonthlyBudgetInput, owner: CacheIdentity, id
 	if (data.categoryId && !(await localCategories.getById(data.categoryId, owner)))
 		throw new Error("Tag não encontrada.");
 	const budgets = (await localMonthlyBudgets.getAll(owner)).map(row => row.data);
+	validateBudgetHierarchy(budgets, data, id);
 	if (
 		budgets.some(
 			budget =>
@@ -67,8 +68,12 @@ export const monthlyBudgetService = {
 	},
 	async delete(id: string): Promise<void> {
 		const { owner, local } = context();
-		if (local) await localMonthlyBudgets.delete(id, owner);
-		else {
+		if (local) {
+			const budgets = await localMonthlyBudgets.getAll(owner);
+			if (budgets.some(row => row.data.parentBudgetId === id))
+				throw new Error("Remova ou desvincule subcategorias antes de excluir o orçamento principal.");
+			await localMonthlyBudgets.delete(id, owner);
+		} else {
 			await fetchWithAuth(`/monthly-budgets/${encodeURIComponent(id)}`, { method: "DELETE" });
 			void hardDelete("monthlyBudgets", id, owner).catch(() => undefined);
 		}

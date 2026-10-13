@@ -7,6 +7,7 @@ export const MonthlyBudgetBody = t.Object({
 	currency: t.String({ pattern: "^[A-Z]{3}$" }),
 	endMonth: t.Optional(t.Nullable(Month)),
 	name: t.String({ maxLength: 100 }),
+	parentBudgetId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 	source: t.Union([t.Literal("TAG"), t.Literal("STATEMENTS"), t.Literal("CUSTOM")]),
 	startMonth: Month,
 });

@@ -1,6 +1,11 @@
 import { expect, test } from "bun:test";
 import { dailyForecast } from "./daily-forecast";
-import { type MonthlyBudget, monthlyBudgetMovements, monthlyBudgetSummary } from "./monthly-budget";
+import {
+	type MonthlyBudget,
+	monthlyBudgetMovements,
+	monthlyBudgetSummary,
+	validateBudgetHierarchy,
+} from "./monthly-budget";
 
 const invoice: MonthlyBudget = {
 	amount: 8500,
@@ -166,4 +171,101 @@ test("monthly adjustment replaces default only in its month and preserves commit
 			row => row.amount,
 		),
 	).toEqual([8500, 7000, 8500]);
+});
+
+const parent: MonthlyBudget = { ...invoice, amount: 3000 };
+const market: MonthlyBudget = {
+	...invoice,
+	amount: 500,
+	categoryId: "market",
+	id: "market",
+	name: "Mercado",
+	parentBudgetId: parent.id,
+	source: "TAG",
+};
+test("nested categories reserve only the parent envelope", () => {
+	const movements = monthlyBudgetMovements({
+		budgets: [parent, market],
+		commitments: [],
+		from: "2026-10-01",
+		through: "2026-10-31",
+	});
+	expect(movements.map(row => row.amount)).toEqual([3000]);
+});
+test("nested excess increases the parent and known payments consume its reserve", () => {
+	const budgets = [parent, { ...market, amount: 3500 }];
+	const commitments = [expense("payment", 2000)];
+	const summary = monthlyBudgetSummary({ budgets, commitments, month: "2026-10" });
+	expect(summary.items[0]).toMatchObject({
+		additionalAmount: 1500,
+		knownAmount: 2000,
+		projectedAmount: 3500,
+	});
+	expect(
+		monthlyBudgetMovements({ budgets, commitments, from: "2026-10-01", through: "2026-10-31" }).map(
+			row => row.amount,
+		),
+	).toEqual([1500]);
+});
+test("multiple children and deeper nesting preserve aggregate envelope", () => {
+	const budgets = [
+		parent,
+		{ ...market, amount: 2000 },
+		{ ...market, amount: 1500, categoryId: "other", id: "other" },
+		{ ...market, amount: 1000, categoryId: "deep", id: "deep", parentBudgetId: market.id },
+	];
+	expect(
+		monthlyBudgetMovements({ budgets, commitments: [], from: "2026-10-01", through: "2026-10-31" }).map(
+			row => row.amount,
+		),
+	).toEqual([3500]);
+});
+test("monthly overrides keep children inside the effective parent", () => {
+	const override = { ...parent, amount: 4000, endMonth: "2026-10", id: "override", startMonth: "2026-10" };
+	expect(
+		monthlyBudgetMovements({
+			budgets: [parent, market, override],
+			commitments: [],
+			from: "2026-10-01",
+			through: "2026-10-31",
+		}).map(row => row.amount),
+	).toEqual([4000]);
+});
+test("child commitments roll up without adding a second reserve", () => {
+	const commitments = [{ ...expense("market", 200), cardPayment: false, tagIds: ["market"] }];
+	expect(
+		monthlyBudgetMovements({
+			budgets: [parent, market],
+			commitments,
+			from: "2026-10-01",
+			through: "2026-10-31",
+		}).map(row => row.amount),
+	).toEqual([2800]);
+});
+test("hierarchy rejects cycles, missing parents, currencies and invalid validity", () => {
+	expect(() =>
+		validateBudgetHierarchy([parent, market], { ...parent, parentBudgetId: market.id }, parent.id),
+	).toThrow("ciclo");
+	expect(() => validateBudgetHierarchy([parent], { ...market, parentBudgetId: "missing" })).toThrow(
+		"não encontrado",
+	);
+	expect(() => validateBudgetHierarchy([parent], { ...market, currency: "USD" })).toThrow("moeda");
+	expect(() => validateBudgetHierarchy([{ ...parent, endMonth: "2026-10" }], market)).toThrow("Vigência");
+});
+
+test("shared tags across ancestor and child consume the commitment once", () => {
+	const taggedParent = { ...parent, categoryId: "parent", source: "TAG" as const };
+	const commitments = [{ ...expense("shared", 100), cardPayment: false, tagIds: ["parent", "market"] }];
+	expect(
+		monthlyBudgetSummary({ budgets: [taggedParent, market], commitments, month: "2026-10" }).items[0]
+			?.knownAmount,
+	).toBe(100);
+	expect(
+		monthlyBudgetMovements({
+			budgets: [taggedParent, market],
+			commitments,
+			from: "2026-10-01",
+			through: "2026-10-31",
+		}).map(row => row.amount),
+	).toEqual([2900]);
 });

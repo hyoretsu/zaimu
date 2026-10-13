@@ -70,6 +70,7 @@ export function BudgetPage() {
 	if (save.isPending && editing && editing !== "new") busyIds.add(editing.id);
 	const editor = editing ? (
 		<BudgetDialog
+			budgets={budgets.data ?? []}
 			item={editing === "new" ? undefined : editing}
 			key={editing === "new" ? "new" : editing.id}
 			month={month}
@@ -155,6 +156,7 @@ export function BudgetPage() {
 								onEdit={() => {
 									setEditing(item);
 								}}
+								parent={defaults.find(parent => parent.id === item.parentBudgetId)}
 								pending={busyIds.has(item.id)}
 							/>
 						))}
