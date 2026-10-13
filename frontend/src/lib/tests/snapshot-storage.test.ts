@@ -33,7 +33,7 @@ test("snapshot batches preserve concurrent edits, tombstones and owner isolation
 	previous.close();
 	const storage = await import("../localStorage");
 	const upgraded = await storage.initLocalDb();
-	expect(upgraded.version).toBe(17);
+	expect(upgraded.version).toBeGreaterThanOrEqual(17);
 	const indexes = upgraded.transaction("scoped-transactions").objectStore("scoped-transactions").indexNames;
 	for (const retired of ["syncedAt", "modifiedAt", "deleted"]) expect(indexes.contains(retired)).toBe(false);
 	expect(indexes.contains("ownerModifiedAt")).toBe(true);

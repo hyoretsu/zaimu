@@ -183,7 +183,7 @@ async function openLocalDb(): Promise<IDBDatabase> {
 			name !== "application-upgrade" &&
 			!Object.values(LOCAL_STORES).some(domain => name === `scoped-${domain}`),
 	);
-	if (retired.length && database.version < 14) {
+	if (retired.length && database.version <= DB_VERSION) {
 		database.close();
 		const cleanup = indexedDB.open(DB_NAME, DB_VERSION + 1);
 		cleanup.onupgradeneeded = () => {

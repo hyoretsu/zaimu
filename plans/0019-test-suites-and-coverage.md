@@ -196,3 +196,10 @@ Aceite obrigatório:
 - Hooks normais passam nos commits; type-check e build passam nos pacotes afetados na validação final.
 
 Implementação permanece local: sem push, disparo de CI, deploy ou acesso a banco compartilhado. Alterações preexistentes ficam preservadas.
+
+
+## Execução local - 12/10/2026
+
+- Inventário inicial criado em `docs/testing-scenarios.md`, com camada, esperado independente e lacunas explícitas. PREV-001 a PREV-007 exercitam IndexedDB/serviço visitante real; SQL/HTTP e paridade conectado ainda pendentes.
+- Teste legado de limpeza mostrou que o limite fixo de versão 14 impedia remover fontes arquivadas ao atualizar diretamente ao schema 17. Corrigir guarda em relação à versão atual e tornar repetição da migração do cartão inócua após remoção das fontes. Assertions de valores, vínculos e arquivo permanecem; versão exata passa a aceitar upgrades posteriores.
+- Workspace possui trabalho concorrente em contas, cartões e calendário de rendimentos; alterações alheias permanecem fora dos commits desta implementação.

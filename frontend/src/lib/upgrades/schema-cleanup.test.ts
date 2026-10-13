@@ -35,7 +35,7 @@ test("verified conversion deletes source stores in later schema and never import
 	old.close();
 	const { initLocalDb, replaceRemoteSnapshot } = await import("../localStorage");
 	const upgraded = await initLocalDb();
-	expect(upgraded.version).toBe(14);
+	expect(upgraded.version).toBeGreaterThanOrEqual(14);
 	expect(upgraded.objectStoreNames.contains("accounts")).toBe(false);
 	expect(upgraded.objectStoreNames.contains("scoped-debts")).toBe(false);
 	const reading = upgraded.transaction(["scoped-accounts", "application-upgrade"], "readonly");
@@ -80,7 +80,7 @@ test("verified conversion deletes source stores in later schema and never import
 	).toMatchObject({ original: { modifiedAt: 90, syncedAt: 90 }, preservedReason: "unresolved-owner" });
 	upgraded.onversionchange?.call(upgraded, {} as IDBVersionChangeEvent);
 	const reopened = await initLocalDb();
-	expect(reopened.version).toBe(14);
+	expect(reopened.version).toBe(upgraded.version);
 	expect(
 		await requestResult(
 			reopened.transaction("scoped-accounts", "readonly").objectStore("scoped-accounts").count(),

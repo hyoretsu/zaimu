@@ -12,6 +12,8 @@ const key = (owner: string, id: string) => `${owner}\u0000${id}`;
 
 /** One atomic migration across every owner; archived sources preserve tombstones and clocks. */
 export async function migrateCreditBooks(db: IDBDatabase, borrowed?: IDBTransaction) {
+	// Cleanup removes archived sources; repeated upgrades then have nothing to convert.
+	if (!db.objectStoreNames.contains("scoped-creditPurchases")) return;
 	const tx =
 		borrowed ??
 		db.transaction(
