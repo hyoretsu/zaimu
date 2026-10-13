@@ -46,7 +46,7 @@ export async function getGuestDashboardFinancialContext(
 ) {
 	const [
 		accountRows,
-		transactions,
+		listedTransactions,
 		recurrences,
 		cards,
 		bookRows,
@@ -67,6 +67,8 @@ export async function getGuestDashboardFinancialContext(
 		localMeta.get("financial-account-yields"),
 		monthlyBudgetService.getAll(),
 	]);
+	// The listing also contains card purchases; their cash effect belongs to statement payments.
+	const transactions = listedTransactions.filter(row => row.source !== "CREDIT_CARD");
 	const key = (date: Date) => format(date, "yyyy-MM-dd");
 	const start = new Date(`${parameters.startDate}T00:00:00`);
 	const end = new Date(`${parameters.endDate}T00:00:00`);

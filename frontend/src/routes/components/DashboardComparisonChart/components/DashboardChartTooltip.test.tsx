@@ -110,3 +110,61 @@ test("tooltip respects zero and three decimal currency precision", () => {
 	expect(yen).not.toContain("1.234,56");
 	expect(dinar).toContain("1,234");
 });
+
+test("PREV-007 presents November wealth and expense composition without adding invoice subtotal again", () => {
+	const html = renderToStaticMarkup(
+		<DashboardChartTooltip
+			active
+			period={{
+				accountBalance: 4987.97,
+				cardExpenses: 1723.14,
+				endDate: "2026-11-30",
+				endingBalance: 8272.23,
+				expenses: 1793.04,
+				fixedIncomeBalance: 3284.26,
+				income: 2100,
+				initialBalance: 7965.27,
+				net: 306.96,
+				recurringCardExpenses: 614.46,
+				recurringExpenses: 684.36,
+				recurringIncome: 2100,
+				savingsBalance: 3284.26,
+				startDate: "2026-11-01",
+				variableIncomeBalance: 0,
+			}}
+		/>,
+	);
+	for (const expected of [
+		"Novembro de 2026",
+		"4.987,97",
+		"8.272,23",
+		"3.284,26",
+		"2.100,00",
+		"1.793,04",
+		"1.723,14",
+		"614,46",
+		"1.108,68",
+		"69,90",
+	])
+		expect(html).toContain(expected);
+	expect(html).not.toContain("3.516,18");
+});
+
+test("PREV-003 invoice payments present proportionally remaining subscriptions", () => {
+	const html = renderToStaticMarkup(
+		<DashboardChartTooltip
+			active
+			kind="flows"
+			period={{
+				...period,
+				cardExpenses: 150,
+				expenses: 150,
+				recurringCardExpenses: 75,
+				recurringExpenses: 75,
+			}}
+		/>,
+	);
+	expect(html).toContain("150,00");
+	expect(html.match(/75,00/g)?.length).toBe(2);
+	expect(html).not.toContain("100,00");
+});

@@ -173,7 +173,7 @@ Referências: [publicação de André Staltz](https://x.com/andrestaltz/status/2
 - [ ] **Organizar suítes:** classificação completa, fixtures comuns e divisão dos testes extensos.
 - [ ] **Isolar integrações:** infraestrutura descartável e remoção dos skips dependentes de configuração ausente.
 - [ ] **Ampliar proteção:** frontend, contratos HTTP e jornadas críticas, implementando apenas lacunas fora do 0018.
-- [ ] **Inventariar bordas por módulo:** preencher arquivos/status para todas as áreas da matriz e separar regressões existentes de lacunas.
+- [x] **Inventariar bordas por módulo:** preencher arquivos/status para todas as áreas da matriz e separar regressões existentes de lacunas.
 - [ ] **Fechar regressões de previsão:** executar PREV-001 a PREV-007 nas camadas indicadas, incluindo UTC/Recife e paridade conectado/visitante.
 - [ ] **Cobrir todos os módulos:** implementar lacunas P0/P1 da matriz e jornadas entre módulos, com valores esperados independentes; referenciar proteção atribuída ao 0018.
 - [ ] **Validar carga funcional:** cenários concorrentes finitos, invariantes e limpeza, sem benchmarks do 0018.
@@ -203,3 +203,6 @@ Implementação permanece local: sem push, disparo de CI, deploy ou acesso a ban
 - Inventário inicial criado em `docs/testing-scenarios.md`, com camada, esperado independente e lacunas explícitas. PREV-001 a PREV-007 exercitam IndexedDB/serviço visitante real; SQL/HTTP e paridade conectado ainda pendentes.
 - Teste legado de limpeza mostrou que o limite fixo de versão 14 impedia remover fontes arquivadas ao atualizar diretamente ao schema 17. Corrigir guarda em relação à versão atual e tornar repetição da migração do cartão inócua após remoção das fontes. Assertions de valores, vínculos e arquivo permanecem; versão exata passa a aceitar upgrades posteriores.
 - Workspace possui trabalho concorrente em contas, cartões e calendário de rendimentos; alterações alheias permanecem fora dos commits desta implementação.
+
+- PREV-003/007 detectaram dupla contagem de compras sintéticas no comparativo visitante; consumidor agora exclui fonte `CREDIT_CARD` do fluxo monetário, preservando pagamentos reais. Oito casos PREV passam com IndexedDB real e esperado independente; apresentação de composição protegida por tooltip.
+- Integração legada de migração/pagamentos expôs que a listagem ocultava ciclo receptor sem compra própria. `listedRecurrenceStatements` mantém ciclos concretos com saldo restante, incluindo crédito excedente, além dos ciclos com compras. Assertions originais de principal 60, crédito -20 e exclusão do pagamento restaurando 180 permanecem e passam.

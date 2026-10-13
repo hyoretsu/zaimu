@@ -92,5 +92,12 @@ export function projectRecurrenceCreditBook(
 /** Listing visibility comes from existing purchases, never recurring forecasts alone. */
 export function listedRecurrenceStatements(book: CreditBook, projected: CreditBook, asOf?: string) {
 	const purchaseStatements = new Set(creditBookPlan(book).installments.map(row => row.statementId));
-	return replayCreditBook(projected, asOf).statements.filter(row => purchaseStatements.has(row.id));
+	const outstandingStatements = new Set(
+		replayCreditBook(book, asOf)
+			.statements.filter(row => row.balanceAmount !== 0)
+			.map(row => row.id),
+	);
+	return replayCreditBook(projected, asOf).statements.filter(
+		row => purchaseStatements.has(row.id) || outstandingStatements.has(row.id),
+	);
 }
