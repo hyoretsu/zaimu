@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { QueryRefreshStatus } from "@/components/ui/QueryRefreshStatus";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
 import type { Loan } from "@/lib/api";
+import { useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { LoanCard, LoanCreateDialog, LoanPaymentsDialog } from "@/routes/loans/components";
@@ -14,6 +16,12 @@ import { formatCurrency } from "@/routes/loans/components/loan-format";
 export function EmpréstimosPage() {
 	const identity = useCacheIdentity();
 	const [createOpen, setCreateOpen] = useState(false);
+	const [recoveredCreate, setRecoveredCreate] = useState<Parameters<typeof dataService.loans.create>[0]>();
+	const createPending = useModalRecoveryStore(state => !!state.pending[`${identity}:loan-create`]);
+	useBackgroundModalRecovery<Parameters<typeof dataService.loans.create>[0]>("loan-create", entry => {
+		setRecoveredCreate(entry.payload);
+		setCreateOpen(true);
+	});
 	const [selected, setSelected] = useState<Loan | null>(null);
 	const [paid, setPaid] = useState(false);
 	const loans = useQuery({
@@ -31,6 +39,7 @@ export function EmpréstimosPage() {
 			<PageHeader
 				actions={[
 					{
+						disabled: createPending,
 						icon: LuPlus,
 						label: "Adicionar empréstimo",
 						onClick: () => setCreateOpen(true),
@@ -107,7 +116,15 @@ export function EmpréstimosPage() {
 					)}
 				</>
 			)}
-			{createOpen && <LoanCreateDialog onClose={() => setCreateOpen(false)} />}
+			{createOpen && (
+				<LoanCreateDialog
+					initialDraft={recoveredCreate}
+					onClose={() => {
+						setCreateOpen(false);
+						setRecoveredCreate(undefined);
+					}}
+				/>
+			)}
 			{selected && (
 				<LoanPaymentsDialog
 					loan={loans.data?.find(loan => loan.id === selected.id) ?? selected}

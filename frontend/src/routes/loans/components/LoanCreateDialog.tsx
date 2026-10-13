@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { CurrencySelect } from "@/components/currency/CurrencySelect";
 import { ActionGroup } from "@/components/ui/ActionGroup";
@@ -17,33 +17,35 @@ import { Input } from "@/components/ui/Input";
 import { RequiredMark } from "@/components/ui/RequiredMark";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { Loan } from "@/lib/api";
+import { runBackgroundModalAction } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { getLocalDateKey } from "@/lib/date";
 import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
-import { showToast } from "@/stores";
 import { useCurrencyStore } from "@/stores/currency";
 import { LoanNumericField } from "./LoanNumericField";
-export function LoanCreateDialog({ onClose }: { onClose: () => void }) {
+
+type LoanCreateInput = Parameters<typeof dataService.loans.create>[0];
+
+export function LoanCreateDialog({
+	initialDraft,
+	onClose,
+}: {
+	initialDraft?: LoanCreateInput;
+	onClose: () => void;
+}) {
 	const identity = useCacheIdentity();
 	const effectiveCurrency = useCurrencyStore(state => state.currency);
-	const [selectedCurrency, setCurrency] = useState<string | null>(null);
+	const [selectedCurrency, setCurrency] = useState<string | null>(initialDraft?.currency ?? null);
 	const enteredCurrency = useRef<string | null>(null);
 	const currency = selectedCurrency ?? enteredCurrency.current ?? effectiveCurrency;
 	const client = useQueryClient();
-	const [lender, setLender] = useState("");
+	const [lender, setLender] = useState(initialDraft?.lender ?? "");
 	const [localLender, setLocalLender] = useDebouncedInput(lender, setLender);
-	const [firstDueDate, setFirstDueDate] = useState(getLocalDateKey);
-	const [startDate, setStartDate] = useState(getLocalDateKey);
-	const [amortization, setAmortization] = useState<Loan["amortization"]>("PRICE");
-	const create = useMutation({
-		mutationFn: dataService.loans.create,
-		onError: error => showToast(error.message, "negative"),
-		onSuccess: async () => {
-			await invalidateCacheOperation(client, identity!, "loan");
-			showToast("Empréstimo criado", "positive");
-			onClose();
-		},
-	});
+	const [firstDueDate, setFirstDueDate] = useState(initialDraft?.firstDueDate ?? getLocalDateKey);
+	const [startDate, setStartDate] = useState(initialDraft?.startDate ?? getLocalDateKey);
+	const [amortization, setAmortization] = useState<Loan["amortization"]>(
+		initialDraft?.amortization ?? "PRICE",
+	);
 	return (
 		<Dialog
 			modal
@@ -74,17 +76,27 @@ export function LoanCreateDialog({ onClose }: { onClose: () => void }) {
 											.replace(/[^\d,]/g, "")
 											.replace(",", "."),
 									);
-								create.mutate({
+								const input: LoanCreateInput = {
 									amortization,
 									currency,
 									dueDay: Number(firstDueDate.slice(8, 10)),
 									firstDueDate,
 									installmentAmount: 0,
 									interestRate: number("interestRate") / 100,
-									lender: localLender.trim(),
+									lender: String(form.get("lender") ?? localLender).trim(),
 									principalAmount: number("principalAmount"),
 									startDate,
 									totalInstallments: number("totalInstallments"),
+								};
+								runBackgroundModalAction({
+									close: onClose,
+									conflictKey: "loan-create",
+									failureMessage: "Não foi possível criar o empréstimo.",
+									loadingMessage: "Criando empréstimo...",
+									onSuccess: () => invalidateCacheOperation(client, identity!, "loan"),
+									recovery: { kind: "loan-create", payload: input },
+									run: () => dataService.loans.create(input),
+									successMessage: "Empréstimo criado.",
 								});
 							}}
 						>
@@ -104,9 +116,24 @@ export function LoanCreateDialog({ onClose }: { onClose: () => void }) {
 								/>
 							</div>
 							<CurrencySelect onValueChange={setCurrency} value={currency} />
-							<LoanNumericField currencyCode={currency} label="Principal" money name="principalAmount" />
-							<LoanNumericField label="Juros mensais" name="interestRate" percentage />
-							<LoanNumericField label="Número de parcelas" name="totalInstallments" />
+							<LoanNumericField
+								currencyCode={currency}
+								initialValue={initialDraft ? String(initialDraft.principalAmount) : ""}
+								label="Principal"
+								money
+								name="principalAmount"
+							/>
+							<LoanNumericField
+								initialValue={initialDraft ? String(initialDraft.interestRate * 100) : ""}
+								label="Juros mensais"
+								name="interestRate"
+								percentage
+							/>
+							<LoanNumericField
+								initialValue={initialDraft ? String(initialDraft.totalInstallments) : ""}
+								label="Número de parcelas"
+								name="totalInstallments"
+							/>
 							<CustomSelect
 								label="Amortização"
 								onValueChange={value => setAmortization(value as Loan["amortization"])}
@@ -140,10 +167,10 @@ export function LoanCreateDialog({ onClose }: { onClose: () => void }) {
 								</Button>
 								<Button
 									className="cursor-pointer"
-									disabled={create.isPending || !localLender.trim() || !firstDueDate || !startDate}
+									disabled={!localLender.trim() || !firstDueDate || !startDate}
 									type="submit"
 								>
-									{create.isPending ? "Criando..." : "Salvar"}
+									Salvar
 								</Button>
 							</ActionGroup>
 						</form>

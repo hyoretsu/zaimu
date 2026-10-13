@@ -10,14 +10,16 @@ export function LoanNumericField({
 	currencyCode = "BRL",
 	money = false,
 	percentage = false,
+	initialValue = "",
 }: {
 	name: string;
 	label: string;
 	currencyCode?: string;
 	money?: boolean;
 	percentage?: boolean;
+	initialValue?: string;
 }) {
-	const [value, setValue] = useState("");
+	const [value, setValue] = useState(initialValue);
 	const [local, setLocal] = useDebouncedInput(value, setValue);
 	return (
 		<div className="grid gap-2">
