@@ -10,9 +10,15 @@ import {
 import { Skeleton } from "@/components/ui/Skeleton";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
-import { AccountDefaultsForm } from "./AccountDefaultsForm";
+import { type AccountDefaultsDraft, AccountDefaultsForm } from "./AccountDefaultsForm";
 
-export function AccountDefaultsDialog({ onOpenChange }: { onOpenChange: (open: boolean) => void }) {
+export function AccountDefaultsDialog({
+	initialDraft,
+	onOpenChange,
+}: {
+	initialDraft?: AccountDefaultsDraft;
+	onOpenChange: (open: boolean) => void;
+}) {
 	const identity = useCacheIdentity();
 	const accounts = useQuery({
 		queryFn: () => dataService.accounts.getAll(),
@@ -38,7 +44,11 @@ export function AccountDefaultsDialog({ onOpenChange }: { onOpenChange: (open: b
 						<p className="text-destructive text-sm">Não foi possível carregar as contas.</p>
 					</DialogBody>
 				) : (
-					<AccountDefaultsForm accounts={accounts.data} onClose={() => onOpenChange(false)} />
+					<AccountDefaultsForm
+						accounts={accounts.data}
+						initialDraft={initialDraft}
+						onClose={() => onOpenChange(false)}
+					/>
 				)}
 			</DialogContent>
 		</Dialog>

@@ -8,7 +8,9 @@ import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { QueryRefreshStatus } from "@/components/ui/QueryRefreshStatus";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
 import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
+import { useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import {
 	compareFinancialAccountsByTitle,
@@ -24,13 +26,20 @@ import {
 	FinancialInstitutionGroup,
 } from "@/routes/accounts/components";
 import { showToast, useAuthStore } from "@/stores";
+import type { AccountDefaultsDraft } from "./AccountDefaultsForm";
 
 export function AccountsPage() {
 	const [isDefaultsOpen, setIsDefaultsOpen] = useState(false);
+	const [recoveredDefaults, setRecoveredDefaults] = useState<AccountDefaultsDraft | null>(null);
+	const identity = useCacheIdentity();
+	const defaultsPending = useModalRecoveryStore(state => !!state.pending[`${identity}:account-defaults`]);
+	useBackgroundModalRecovery<AccountDefaultsDraft>("account-defaults", entry => {
+		setRecoveredDefaults(entry.payload);
+		setIsDefaultsOpen(true);
+	});
 	const [isCreateAccountOpen, setIsCreateAccountOpen] = useState(false);
 	const [isBalanceAdjustmentsOpen, setIsBalanceAdjustmentsOpen] = useState(false);
 	const queryClient = useQueryClient();
-	const identity = useCacheIdentity();
 	const hasAccess = useAuthStore(state => state.isAuthenticated || state.isGuestMode);
 	const accounts = useQuery({
 		enabled: hasAccess,
@@ -140,7 +149,12 @@ export function AccountsPage() {
 		<PageContainer className="grid gap-8">
 			<PageHeader
 				actions={[
-					{ icon: LuSettings2, label: "Contas padrão", onClick: () => setIsDefaultsOpen(true) },
+					{
+						disabled: defaultsPending,
+						icon: LuSettings2,
+						label: "Contas padrão",
+						onClick: () => setIsDefaultsOpen(true),
+					},
 					{ icon: LuScale, label: "Ajustes de saldo", onClick: () => setIsBalanceAdjustmentsOpen(true) },
 					{
 						icon: LuPlus,
@@ -270,7 +284,15 @@ export function AccountsPage() {
 					))}
 				</section>
 			)}
-			{isDefaultsOpen && <AccountDefaultsDialog onOpenChange={setIsDefaultsOpen} />}
+			{isDefaultsOpen && (
+				<AccountDefaultsDialog
+					initialDraft={recoveredDefaults ?? undefined}
+					onOpenChange={open => {
+						setIsDefaultsOpen(open);
+						if (!open) setRecoveredDefaults(null);
+					}}
+				/>
+			)}
 			<BalanceAdjustmentsDialog onOpenChange={setIsBalanceAdjustmentsOpen} open={isBalanceAdjustmentsOpen} />
 		</PageContainer>
 	);
