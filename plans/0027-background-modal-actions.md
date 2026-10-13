@@ -30,3 +30,5 @@ Browser verification passed for immediate child dismissal, surviving parent moda
 Account statement and balance adjustment deletions now close on confirmation, recover their original listing, and block only the affected record.
 
 Debt invitation association and decline now run in background; failed association restores its selected person.
+
+Suggested card payments preserve their attempt ID and fields across recovery. Loan history confirmation closes immediately; payments, advances and history updates serialize within the same loan while other loans remain available.

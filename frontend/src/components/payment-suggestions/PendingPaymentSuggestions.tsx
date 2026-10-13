@@ -12,11 +12,13 @@ import {
 	DialogTitle,
 } from "@/components/ui/Dialog";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
 import type { PaymentSuggestion } from "@/lib/api";
+import { useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { getFinancialAccountOptionLabel } from "@/lib/financial-account";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
-import { PaymentSuggestionForm } from "./PaymentSuggestionForm";
+import { type PaymentSuggestionDraft, PaymentSuggestionForm } from "./PaymentSuggestionForm";
 
 const dateFormat = new Intl.DateTimeFormat("pt-BR");
 
@@ -24,6 +26,15 @@ export function PendingPaymentSuggestions() {
 	const identity = useCacheIdentity();
 	const [open, setOpen] = useState(false);
 	const [selected, setSelected] = useState<PaymentSuggestion | null>(null);
+	const [draft, setDraft] = useState<PaymentSuggestionDraft>();
+	const pending = useModalRecoveryStore(state => state.pending);
+	useBackgroundModalRecovery<{ suggestion: PaymentSuggestion; draft: PaymentSuggestionDraft }>(
+		"payment-suggestion",
+		entry => {
+			setSelected(entry.payload.suggestion);
+			setDraft(entry.payload.draft);
+		},
+	);
 	const suggestions = useQuery({
 		enabled: Boolean(identity),
 		queryFn: () => dataService.creditCards.getPaymentSuggestions(),
@@ -35,10 +46,10 @@ export function PendingPaymentSuggestions() {
 		queryKey: queryKeys.accounts.list(identity!),
 	});
 	if (!identity) return null;
-	if (suggestions.isPending) return <Skeleton className="h-24" />;
-	if (suggestions.isError)
+	if (suggestions.isPending && !selected) return <Skeleton className="h-24" />;
+	if (suggestions.isError && !selected)
 		return <p className="text-muted-foreground text-sm">Sugestões de pagamento indisponíveis.</p>;
-	if (!suggestions.data?.length) return null;
+	if (!suggestions.data?.length && !selected) return null;
 	return (
 		<>
 			<ActionNotice
@@ -49,7 +60,7 @@ export function PendingPaymentSuggestions() {
 				}
 				description="Faturas fechadas aguardam revisão. Nenhum pagamento automático."
 				icon={<LuWalletCards />}
-				title={`${suggestions.data.length} ${suggestions.data.length === 1 ? "fatura pendente" : "faturas pendentes"}`}
+				title={`${suggestions.data?.length ?? 0} ${(suggestions.data?.length ?? 0) === 1 ? "fatura pendente" : "faturas pendentes"}`}
 			/>
 			<Dialog onOpenChange={setOpen} open={open}>
 				<DialogContent className="sm:max-w-2xl">
@@ -65,7 +76,7 @@ export function PendingPaymentSuggestions() {
 						) : accounts.isError ? (
 							<p className="text-destructive text-sm">Não foi possível carregar contas pagadoras.</p>
 						) : (
-							suggestions.data.map(suggestion => (
+							(suggestions.data ?? []).map(suggestion => (
 								<div
 									className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3"
 									key={`${suggestion.creditCardId}:${suggestion.statementId}`}
@@ -90,7 +101,15 @@ export function PendingPaymentSuggestions() {
 												: "Conta indisponível"}
 										</p>
 									</div>
-									<Button className="ml-auto" onClick={() => setSelected(suggestion)} variant="outline">
+									<Button
+										className="ml-auto"
+										disabled={!!pending[`${identity}:card-payment:${suggestion.statementId}`]}
+										onClick={() => {
+											setDraft(undefined);
+											setSelected(suggestion);
+										}}
+										variant="outline"
+									>
 										<LuWalletCards /> Revisar pagamento
 									</Button>
 								</div>
@@ -101,8 +120,12 @@ export function PendingPaymentSuggestions() {
 			</Dialog>
 			{selected && (
 				<PaymentSuggestionForm
+					initialDraft={draft}
 					key={`${selected.statementId}:${selected.amount}`}
-					onClose={() => setSelected(null)}
+					onClose={() => {
+						setSelected(null);
+						setDraft(undefined);
+					}}
 					suggestion={selected}
 				/>
 			)}

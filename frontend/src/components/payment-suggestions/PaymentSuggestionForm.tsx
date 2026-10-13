@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { TransactionConversionPreview } from "@/components/transactions/TransactionConversionPreview";
 import { Button } from "@/components/ui/Button";
@@ -16,57 +16,73 @@ import {
 import { MoneyField } from "@/components/ui/MoneyField";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { PaymentSuggestion } from "@/lib/api";
+import { runBackgroundModalAction } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { getLocalDateKey } from "@/lib/date";
 import { getFinancialAccountOptionLabel } from "@/lib/financial-account";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
-import { showToast } from "@/stores";
+
+export interface PaymentSuggestionDraft {
+	accountAmount: string;
+	accountId: string;
+	attemptId: string;
+	date: string;
+}
 
 export function PaymentSuggestionForm({
 	suggestion,
 	onClose,
+	initialDraft,
 }: {
 	suggestion: PaymentSuggestion;
+	initialDraft?: PaymentSuggestionDraft;
 	onClose: () => void;
 }) {
 	const currency = new Intl.NumberFormat("pt-BR", {
 		currency: suggestion.currency ?? "BRL",
 		style: "currency",
 	});
-	const [accountAmount, setAccountAmount] = useState("");
+	const [accountAmount, setAccountAmount] = useState(initialDraft?.accountAmount ?? "");
 	const identity = useCacheIdentity();
 	const queryClient = useQueryClient();
-	const [date, setDate] = useState(getLocalDateKey(new Date()));
-	const [accountId, setAccountId] = useState(suggestion.financialAccountId);
-	const [attemptId, setAttemptId] = useState(() => crypto.randomUUID());
-	const [error, setError] = useState<string | null>(null);
+	const [date, setDate] = useState(initialDraft?.date ?? getLocalDateKey(new Date()));
+	const [accountId, setAccountId] = useState(initialDraft?.accountId ?? suggestion.financialAccountId);
+	const [attemptId, setAttemptId] = useState(() => initialDraft?.attemptId ?? crypto.randomUUID());
 	const accounts = useQuery({
 		queryFn: () => dataService.accounts.getAll(),
 		queryKey: queryKeys.accounts.list(identity!),
 	});
 	const payerCurrency = accounts.data?.find(account => account.id === accountId)?.currency ?? "BRL";
 	const foreign = payerCurrency !== (suggestion.currency ?? "BRL");
-	const payment = useMutation({
-		mutationFn: () =>
-			dataService.creditCards.confirmPaymentSuggestion(suggestion.creditCardId, {
-				accountAmount: accountAmount ? Number(accountAmount) : undefined,
-				amount: suggestion.amount,
-				attemptId,
-				date,
-				financialAccountId: accountId,
-				statementId: suggestion.statementId,
-			}),
-		onError: error => setError(error.message),
-		onSuccess: async () => {
-			await invalidateCacheOperation(queryClient, identity!, "transaction");
-			showToast("Pagamento do cartão registrado.", "positive");
-			onClose();
-		},
-	});
+	const submit = () => {
+		const draft = { accountAmount, accountId, attemptId, date };
+		runBackgroundModalAction({
+			close: onClose,
+			conflictKey: `card-payment:${suggestion.statementId}`,
+			failureMessage: "Não foi possível registrar pagamento.",
+			loadingMessage: "Registrando pagamento...",
+			onSuccess: () => invalidateCacheOperation(queryClient, identity!, "transaction"),
+			recovery: {
+				entityId: suggestion.statementId,
+				kind: "payment-suggestion",
+				payload: { draft, suggestion },
+			},
+			run: () =>
+				dataService.creditCards.confirmPaymentSuggestion(suggestion.creditCardId, {
+					accountAmount: draft.accountAmount ? Number(draft.accountAmount) : undefined,
+					amount: suggestion.amount,
+					attemptId: draft.attemptId,
+					date: draft.date,
+					financialAccountId: draft.accountId,
+					statementId: suggestion.statementId,
+				}),
+			successMessage: "Pagamento do cartão registrado.",
+		});
+	};
 	return (
 		<Dialog
 			onOpenChange={open => {
-				if (!open && !payment.isPending) onClose();
+				if (!open) onClose();
 			}}
 			open
 		>
@@ -75,8 +91,7 @@ export function PaymentSuggestionForm({
 					className="flex min-h-0 min-w-0 flex-1 flex-col gap-6"
 					onSubmit={event => {
 						event.preventDefault();
-						setError(null);
-						payment.mutate();
+						submit();
 					}}
 				>
 					<DialogHeader>
@@ -101,7 +116,6 @@ export function PaymentSuggestionForm({
 								/>
 								<MoneyField
 									currencyCode={payerCurrency}
-									disabled={payment.isPending}
 									id="suggestion-account-amount"
 									label="Débito efetivo na conta"
 									onValueChange={value => {
@@ -114,7 +128,6 @@ export function PaymentSuggestionForm({
 							</>
 						)}
 						<DateField
-							disabled={payment.isPending}
 							id="suggestion-payment-date"
 							label="Data do pagamento"
 							name="payment-date"
@@ -135,7 +148,6 @@ export function PaymentSuggestionForm({
 							<Skeleton className="h-20" />
 						) : (
 							<CustomSelect
-								disabled={payment.isPending}
 								label="Conta pagadora"
 								onValueChange={value => {
 									setAccountId(value);
@@ -154,24 +166,13 @@ export function PaymentSuggestionForm({
 						{accounts.isError && (
 							<p className="text-destructive text-sm">Não foi possível carregar contas pagadoras.</p>
 						)}
-						{error && (
-							<p className="text-destructive text-sm" role="alert">
-								{error}
-							</p>
-						)}
-						{payment.isPending && (
-							<p aria-live="polite" className="text-muted-foreground text-sm">
-								Validando saldo e registrando pagamento...
-							</p>
-						)}
 					</DialogBody>
 					<DialogFooter>
-						<Button disabled={payment.isPending} onClick={onClose} type="button" variant="outline">
+						<Button onClick={onClose} type="button" variant="outline">
 							Cancelar
 						</Button>
 						<Button
 							disabled={
-								payment.isPending ||
 								accounts.isPending ||
 								accounts.isError ||
 								!accountId ||

@@ -19,7 +19,7 @@ import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/backgroun
 import { dataService } from "@/lib/dataService";
 import { getLocalDateKey } from "@/lib/date";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
-import { showToast } from "@/stores";
+
 import { LoanPaymentDialog, type LoanPaymentDraft, type LoanPaymentInput } from "./LoanPaymentDialog";
 import { LoanPaymentRow } from "./LoanPaymentRow";
 import { LoanPayoffPreview } from "./LoanPayoffPreview";
@@ -34,24 +34,31 @@ export function LoanPaymentsDialog({
 	loan,
 	onClose,
 	recovery,
+	initialHistory,
 }: {
 	loan: Loan;
 	onClose: () => void;
 	recovery?: LoanPaymentRecovery;
+	initialHistory?: { paidDate: string; amortization: Loan["amortization"] };
 }) {
 	const identity = useCacheIdentity();
 	const client = useQueryClient();
-	const [paidDate, setPaidDate] = useState(getLocalDateKey);
+	const [paidDate, setPaidDate] = useState(initialHistory?.paidDate ?? getLocalDateKey());
 	const [advanceType, setAdvanceType] = useState<"FRONT" | "BACK">("FRONT");
 	const [amortization, setAmortization] = useState<Loan["amortization"]>(
-		loan.amortization === "SAC" ? "SAC" : "PRICE",
+		initialHistory?.amortization ?? (loan.amortization === "SAC" ? "SAC" : "PRICE"),
 	);
-	const [batchPending, setBatchPending] = useState(false);
+
 	const [selection, setSelection] = useState<{
 		payment?: LoanPayment;
 		advanceType?: "FRONT" | "BACK";
 	} | null>(recovery?.selection ?? null);
 	const pendingActions = useModalRecoveryStore(state => state.pending);
+	const batchPending = !!pendingActions[`${identity}:loan:${loan.id}:history`];
+	const settlementPending = !!pendingActions[`${identity}:loan:${loan.id}:settlement`];
+	const advancePending = ["FRONT", "BACK"].some(
+		type => !!pendingActions[`${identity}:loan:${loan.id}:payment:advance:${type}`],
+	);
 	const pendingFor = (number: number) => !!pendingActions[`${identity}:loan:${loan.id}:payment:${number}`];
 	const payments = useInfiniteQuery<
 		LoanPaymentPage,
@@ -73,6 +80,7 @@ export function LoanPaymentsDialog({
 		runBackgroundModalAction({
 			close: () => setSelection(null),
 			conflictKey: `loan:${loan.id}:payment:${number ?? `advance:${submittedSelection.advanceType ?? advanceType}`}`,
+			conflictKeys: [`loan:${loan.id}:settlement`],
 			failureMessage: "Falha ao registrar pagamento.",
 			loadingMessage: "Registrando pagamento...",
 			onSuccess: () => invalidateCacheOperation(client, identity!, "loan"),
@@ -102,19 +110,19 @@ export function LoanPaymentsDialog({
 			successMessage: "Pagamento registrado.",
 		});
 	};
-	const reviewLegacy = async () => {
-		if (batchPending) return;
-		setBatchPending(true);
-		try {
-			await dataService.loans.reviewLegacyPayments(loan.id, paidDate, amortization);
-			await invalidateCacheOperation(client, identity!, "loan");
-			showToast("Histórico revisado", "positive");
-		} catch (error) {
-			showToast(error instanceof Error ? error.message : "Falha ao revisar histórico", "negative");
-		} finally {
-			setBatchPending(false);
-		}
-	};
+	const reviewLegacy = () =>
+		runBackgroundModalAction({
+			close: onClose,
+			conflictKey: `loan:${loan.id}:history`,
+			conflictKeys: [`loan:${loan.id}:settlement`],
+			failureMessage: "Falha ao revisar histórico.",
+			loadingMessage: "Revisando histórico...",
+			onSuccess: () => invalidateCacheOperation(client, identity!, "loan"),
+			recovery: { entityId: loan.id, kind: "loan-history", payload: { amortization, loan, paidDate } },
+			run: () => dataService.loans.reviewLegacyPayments(loan.id, paidDate, amortization),
+			successMessage: "Histórico revisado.",
+		});
+
 	const rows = payments.data?.pages.flatMap(page => page.items) ?? [];
 	return (
 		<Dialog
@@ -173,7 +181,7 @@ export function LoanPaymentsDialog({
 									<ActionGroup>
 										<Button
 											className="cursor-pointer"
-											disabled={batchPending || !paidDate}
+											disabled={settlementPending || !paidDate}
 											onClick={() => void reviewLegacy()}
 										>
 											<LuCheck />
@@ -201,7 +209,7 @@ export function LoanPaymentsDialog({
 										<ActionGroup>
 											<Button
 												className="cursor-pointer"
-												disabled={batchPending || !paidDate}
+												disabled={settlementPending || advancePending || !paidDate}
 												onClick={() => setSelection({ advanceType })}
 											>
 												<LuFastForward />
@@ -233,7 +241,8 @@ export function LoanPaymentsDialog({
 										<LoanPaymentRow
 											disabled={
 												!!loan.needsPaymentReview ||
-												batchPending ||
+												settlementPending ||
+												advancePending ||
 												pendingFor(row.installmentNumber) ||
 												!paidDate
 											}

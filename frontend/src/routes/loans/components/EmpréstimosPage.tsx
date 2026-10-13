@@ -29,6 +29,17 @@ export function EmpréstimosPage() {
 		setRecoveredPayment(entry.payload);
 		setSelected(entry.payload.loan);
 	});
+	const [recoveredHistory, setRecoveredHistory] = useState<{
+		paidDate: string;
+		amortization: Loan["amortization"];
+	}>();
+	useBackgroundModalRecovery<{ loan: Loan; paidDate: string; amortization: Loan["amortization"] }>(
+		"loan-history",
+		entry => {
+			setRecoveredHistory(entry.payload);
+			setSelected(entry.payload.loan);
+		},
+	);
 	const [paid, setPaid] = useState(false);
 	const loans = useQuery({
 		enabled: identity !== null,
@@ -127,10 +138,12 @@ export function EmpréstimosPage() {
 			)}
 			{selected && (
 				<LoanPaymentsDialog
+					initialHistory={recoveredHistory}
 					loan={loans.data?.find(loan => loan.id === selected.id) ?? selected}
 					onClose={() => {
 						setSelected(null);
 						setRecoveredPayment(undefined);
+						setRecoveredHistory(undefined);
 					}}
 					recovery={recoveredPayment}
 				/>
