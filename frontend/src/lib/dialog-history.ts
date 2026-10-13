@@ -29,6 +29,15 @@ export function createDialogHistory(history: RouterHistory) {
 	});
 
 	return {
+		depth: (id: string) => stack(history).indexOf(id) + 1,
+		dismissTopmost() {
+			const id = stack(history).at(-1);
+			const dialog = id ? dialogs.get(id) : undefined;
+			if (!dialog) return false;
+			dialog.close();
+			return true;
+		},
+		isTopmost: (id: string) => stack(history).at(-1) === id,
 		release(id: string) {
 			const dialog = dialogs.get(id);
 			if (!dialog) return;
@@ -48,10 +57,12 @@ export function createDialogHistory(history: RouterHistory) {
 				return;
 			}
 			dialogs.set(id, { close, href: history.location.href, version: 0 });
+			history.flush();
 			history.push(history.location.href, {
 				...history.location.state,
 				[stateKey]: [...stack(history).filter(value => dialogs.has(value)), id],
 			});
+			history.flush();
 		},
 	};
 }

@@ -63,3 +63,20 @@ describe("dialog history", () => {
 		expect(history.location.state.__TSR_index).toBe(1);
 	});
 });
+
+test("explicit topmost dismissal respects history order even when portal order differs", async () => {
+	const history = createMemoryHistory({ initialEntries: ["/accounts"] });
+	const dialogs = createDialogHistory(history);
+	const closed: string[] = [];
+	dialogs.retain("parent", () => closed.push("parent"));
+	dialogs.retain("child", () => closed.push("child"));
+	expect(dialogs.depth("parent")).toBe(1);
+	expect(dialogs.depth("child")).toBe(2);
+	expect(dialogs.dismissTopmost()).toBeTrue();
+	expect(closed).toEqual(["child"]);
+	dialogs.release("child");
+	await Promise.resolve();
+	expect(dialogs.isTopmost("parent")).toBeTrue();
+	expect(dialogs.dismissTopmost()).toBeTrue();
+	expect(closed).toEqual(["child", "parent"]);
+});

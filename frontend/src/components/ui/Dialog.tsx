@@ -9,12 +9,21 @@ import { usePageScrollLock } from "@/hooks/use-page-scroll-lock";
 import { useRouteDismissableOpen } from "@/hooks/use-route-dismissable-open";
 import { cn } from "@/lib/utils";
 
+const DialogStackContext = createContext<{
+	depth: number;
+	dismissTopmost: () => boolean;
+	isTopmost: () => boolean;
+}>({ depth: 0, dismissTopmost: () => false, isTopmost: () => true });
 const DialogContentContext = createContext({ showCloseButton: true });
 
 function Dialog({ modal = false, ...props }: ComponentProps<typeof DialogPrimitive.Root>) {
 	const openProps = useRouteDismissableOpen(props);
-	useDialogHistory(openProps.open, openProps.onOpenChange);
-	return <DialogPrimitive.Root data-slot="dialog" modal={modal} {...props} {...openProps} />;
+	const stack = useDialogHistory(openProps.open, openProps.onOpenChange);
+	return (
+		<DialogStackContext.Provider value={stack}>
+			<DialogPrimitive.Root data-slot="dialog" modal={modal} {...props} {...openProps} />
+		</DialogStackContext.Provider>
+	);
 }
 
 function DialogTrigger({ ...props }: ComponentProps<typeof DialogPrimitive.Trigger>) {
@@ -29,8 +38,9 @@ function DialogClose({ ...props }: ComponentProps<typeof DialogPrimitive.Close>)
 	return <DialogPrimitive.Close data-slot="dialog-close" {...props} />;
 }
 
-function DialogOverlay({ className, ...props }: ComponentProps<"div">) {
+function DialogOverlay({ className, style, ...props }: ComponentProps<"div">) {
 	usePageScrollLock();
+	const { depth } = useContext(DialogStackContext);
 
 	return (
 		<div
@@ -39,6 +49,7 @@ function DialogOverlay({ className, ...props }: ComponentProps<"div">) {
 				className,
 			)}
 			data-slot="dialog-overlay"
+			style={{ zIndex: 50 + depth * 2, ...style }}
 			{...props}
 		/>
 	);
@@ -49,11 +60,17 @@ function DialogContent({
 	children,
 	overlayClassName,
 	showCloseButton = true,
+	onEscapeKeyDown,
+	onInteractOutside,
+	onOpenAutoFocus,
+	onFocusOutside,
+	style,
 	...props
 }: ComponentProps<typeof DialogPrimitive.Content> & {
 	overlayClassName?: string;
 	showCloseButton?: boolean;
 }) {
+	const { depth, dismissTopmost, isTopmost } = useContext(DialogStackContext);
 	return (
 		<DialogPortal>
 			<DialogOverlay className={overlayClassName} />
@@ -63,7 +80,24 @@ function DialogContent({
 					className,
 				)}
 				data-slot="dialog-content"
+				style={{ zIndex: 51 + depth * 2, ...style }}
 				{...props}
+				onEscapeKeyDown={event => {
+					onEscapeKeyDown?.(event);
+					if (!event.defaultPrevented && dismissTopmost()) event.preventDefault();
+				}}
+				onFocusOutside={event => {
+					event.preventDefault();
+					onFocusOutside?.(event);
+				}}
+				onInteractOutside={event => {
+					if (!isTopmost()) event.preventDefault();
+					onInteractOutside?.(event);
+				}}
+				onOpenAutoFocus={event => {
+					if (!isTopmost()) event.preventDefault();
+					onOpenAutoFocus?.(event);
+				}}
 			>
 				<DialogContentContext.Provider value={{ showCloseButton }}>{children}</DialogContentContext.Provider>
 				{showCloseButton && (

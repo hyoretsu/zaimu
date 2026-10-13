@@ -22,3 +22,5 @@ Verified partial account defaults save: retry rereads current state and skips th
 - File upload and review finalization remain in their modal until the response is known.
 
 Institution profile changes, profile/merge proposals, and yield save/delete now close immediately and recover submitted fields. Directed operation tests pass for duplicate clicks, independent records, recovery after navigation, identity changes, and cache refresh retries. Existing history tests pass for nested dialogs and explicit close.
+
+Debt creation, origin editing, and person editing now use recoverable background actions. Card statement dates, refinancing, refunds and adjustment deletion have been migrated with recovery of the original card and statement month. Import review item edits, reconciliation, approval, ignore and deletion use isolated pending records; upload and finalization remain visible. Remaining verification covers browser recovery and final scoped build.

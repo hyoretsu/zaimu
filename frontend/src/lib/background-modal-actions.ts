@@ -57,10 +57,13 @@ export function configureModalRecoveryNavigation(navigate: (path: string) => Pro
 export function requestModalRecovery(id: string) {
 	const entry = useModalRecoveryStore.getState().entries[id];
 	if (!entry || entry.identity !== getCurrentCacheIdentity()) return;
-	useModalRecoveryStore.getState().request(id);
+	const request = () => {
+		if (useModalRecoveryStore.getState().entries[id]?.identity === getCurrentCacheIdentity())
+			useModalRecoveryStore.getState().request(id);
+	};
 	if (window.location.pathname + window.location.search !== entry.path) {
-		void navigateToRecovery?.(entry.path);
-	}
+		void navigateToRecovery?.(entry.path).then(request);
+	} else request();
 }
 
 export function takeModalRecovery<T>(kind: string): (ModalRecovery<T> & { id: string }) | null {
@@ -94,6 +97,7 @@ export interface BackgroundModalAction<T> {
 	conflictKey?: string;
 	failureMessage: string;
 	loadingMessage: string;
+	progress?: "toast" | "record";
 	onSuccess?: (result: T) => Promise<unknown> | unknown;
 	recovery: ModalRecovery;
 	recoveryId?: string;
@@ -107,6 +111,7 @@ export function runBackgroundModalAction<T>({
 	failureMessage,
 	loadingMessage,
 	onSuccess,
+	progress = "toast",
 	recovery,
 	recoveryId,
 	run,
@@ -118,7 +123,8 @@ export function runBackgroundModalAction<T>({
 	const identity = getCurrentCacheIdentity();
 	const path = window.location.pathname + window.location.search;
 	close();
-	const toastId = toast.loading(loadingMessage, { position: "bottom-right" });
+	const toastId =
+		progress === "toast" ? toast.loading(loadingMessage, { position: "bottom-right" }) : undefined;
 	const retryRefresh = async (result: T) => {
 		try {
 			await onSuccess?.(result);
@@ -138,7 +144,8 @@ export function runBackgroundModalAction<T>({
 					Object.entries(state.entries).filter(
 						([id, entry]) =>
 							id !== recoveryId &&
-							(entry.identity !== identity ||
+							(recovery.entityId === undefined ||
+								entry.identity !== identity ||
 								entry.kind !== recovery.kind ||
 								entry.entityId !== recovery.entityId),
 					),
