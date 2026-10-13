@@ -3,16 +3,14 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DialogBody, DialogFooter } from "@/components/ui/Dialog";
+import { type AccountDefaultsDraft, saveAccountDefaults } from "@/lib/account-defaults";
 import type { FinancialAccount } from "@/lib/api";
 import { runBackgroundModalAction } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { getFinancialAccountOptionLabel } from "@/lib/financial-account";
 import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
 
-export interface AccountDefaultsDraft {
-	primaryId: string;
-	statementId: string;
-}
+export type { AccountDefaultsDraft } from "@/lib/account-defaults";
 
 export function AccountDefaultsForm({
 	accounts,
@@ -38,19 +36,7 @@ export function AccountDefaultsForm({
 			loadingMessage: "Atualizando contas padrão...",
 			onSuccess: () => invalidateCacheOperation(queryClient, identity!, "account"),
 			recovery: { kind: "account-defaults", payload: draft },
-			run: async () => {
-				const current = await dataService.accounts.getAll();
-				const currentStatements = current.find(account => account.isDefaultForStatements)?.id ?? "none";
-				const currentPrimary = current.find(account => account.isPrimary)?.id ?? "none";
-				if (draft.statementId !== currentStatements) {
-					if (draft.statementId !== "none")
-						await dataService.accounts.update(draft.statementId, { isDefaultForStatements: true });
-					else if (currentStatements !== "none")
-						await dataService.accounts.update(currentStatements, { isDefaultForStatements: false });
-				}
-				if (draft.primaryId !== currentPrimary)
-					await dataService.accounts.setPrimary(draft.primaryId === "none" ? null : draft.primaryId);
-			},
+			run: () => saveAccountDefaults(draft, dataService.accounts),
 			successMessage: "Contas padrão atualizadas.",
 		});
 	};
