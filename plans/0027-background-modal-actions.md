@@ -28,3 +28,5 @@ Debt creation, origin editing, and person editing now use recoverable background
 Browser verification passed for immediate child dismissal, surviving parent modal, isolated controls, browser Back, recovery after navigation with original fields, and Escape closing only the recovered child. Thirteen unit behavior tests passed, including overlapping record batches and refresh-only retries. Final frontend build remains pending.
 
 Account statement and balance adjustment deletions now close on confirmation, recover their original listing, and block only the affected record.
+
+Debt invitation association and decline now run in background; failed association restores its selected person.

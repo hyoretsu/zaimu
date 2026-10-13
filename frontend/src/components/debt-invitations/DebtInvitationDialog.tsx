@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
@@ -13,9 +13,15 @@ import {
 } from "@/components/ui/Dialog";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { DebtInvitation, DebtInvitationPreview as InvitationPreview } from "@/lib/api";
+import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
-import { showToast } from "@/stores";
+export interface InvitationRecovery {
+	invitation: DebtInvitation;
+	step: "association" | "decline";
+	personId?: string;
+}
+
 import { DebtInvitationAssociationDialog } from "./DebtInvitationAssociationDialog";
 import { DebtInvitationDeclineDialog } from "./DebtInvitationDeclineDialog";
 import { DebtInvitationPreview } from "./DebtInvitationPreview";
@@ -23,13 +29,13 @@ import { DebtInvitationPreview } from "./DebtInvitationPreview";
 export function DebtInvitationDialog({
 	invitation,
 	onOpenChange,
-	onResolved,
 	open,
+	recovery,
 }: {
 	invitation: DebtInvitation;
 	onOpenChange: (open: boolean) => void;
-	onResolved: () => void;
 	open: boolean;
+	recovery?: InvitationRecovery;
 }) {
 	const identity = useCacheIdentity();
 	const queryClient = useQueryClient();
@@ -42,40 +48,44 @@ export function DebtInvitationDialog({
 			dataService.debts.getInvitationPreview(invitation.id, pageParam),
 		queryKey: [...queryKeys.debts.invitations(identity!), invitation.id, "preview"],
 	});
-	const [step, setStep] = useState<"details" | "association" | "decline">("details");
-	const accept = useMutation({
-		mutationFn: (personId?: string) => dataService.debts.acceptInvitation(invitation.id, personId),
-		onError: error =>
-			showToast(error instanceof Error ? error.message : "Não foi possível associar a pessoa.", "negative"),
-		onSuccess: async () => {
-			if (identity) await invalidateCacheOperation(queryClient, identity, "invitation");
-			showToast("Pessoa associada.", "positive");
-			onResolved();
-		},
-	});
-	const decline = useMutation({
-		mutationFn: () => dataService.debts.declineInvitation(invitation.id),
-		onError: error =>
-			showToast(error instanceof Error ? error.message : "Não foi possível recusar o convite.", "negative"),
-		onSuccess: async () => {
-			if (identity) await invalidateCacheOperation(queryClient, identity, "invitation");
-			showToast("Convite recusado.", "info");
-			onResolved();
-		},
-	});
-	const isPending = accept.isPending || decline.isPending;
+	const [step, setStep] = useState<"details" | "association" | "decline">(recovery?.step ?? "details");
+	const isPending = useModalRecoveryStore(
+		state => !!state.pending[`${identity}:debt-invitation:${invitation.id}`],
+	);
+	const submit = (action: "association" | "decline", personId?: string) =>
+		runBackgroundModalAction({
+			close: () => onOpenChange(false),
+			conflictKey: `debt-invitation:${invitation.id}`,
+			failureMessage: "Não foi possível resolver convite.",
+			loadingMessage: "Atualizando convite...",
+			onSuccess: async () => {
+				if (identity) await invalidateCacheOperation(queryClient, identity, "invitation");
+			},
+			recovery: {
+				entityId: invitation.id,
+				kind: "debt-invitation",
+				payload: { invitation, personId, step: action },
+			},
+			run: () =>
+				action === "association"
+					? dataService.debts.acceptInvitation(invitation.id, personId)
+					: dataService.debts.declineInvitation(invitation.id),
+			successMessage: action === "association" ? "Pessoa associada." : "Convite recusado.",
+		});
+
 	const returnToDetails = () => setStep("details");
 	const dismissInvitation = () => onOpenChange(false);
 	return step === "association" ? (
 		<DebtInvitationAssociationDialog
-			onApprove={personId => accept.mutate(personId)}
+			initialPersonId={recovery?.personId}
+			onApprove={personId => submit("association", personId)}
 			onOpenChange={nextOpen => (nextOpen ? setStep("association") : returnToDetails())}
 			open
 			pending={isPending}
 		/>
 	) : step === "decline" ? (
 		<DebtInvitationDeclineDialog
-			onDecline={() => decline.mutate()}
+			onDecline={() => submit("decline")}
 			onDismiss={dismissInvitation}
 			open
 			pending={isPending}

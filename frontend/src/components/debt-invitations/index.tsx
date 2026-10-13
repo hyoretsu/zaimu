@@ -4,14 +4,20 @@ import { LuFileSearch, LuUsersRound } from "react-icons/lu";
 import { ActionNotice } from "@/components/ui/ActionNotice";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
-import { DebtInvitationDialog } from "./DebtInvitationDialog";
+import { DebtInvitationDialog, type InvitationRecovery } from "./DebtInvitationDialog";
 import { DebtInvitationPickerDialog } from "./DebtInvitationPickerDialog";
 
 export function PendingDebtInvitations() {
 	const identity = useCacheIdentity();
 	const [selectedInvitationId, setSelectedInvitationId] = useState<string | null>(null);
+	const [recovery, setRecovery] = useState<InvitationRecovery>();
+	useBackgroundModalRecovery<InvitationRecovery>("debt-invitation", entry => {
+		setRecovery(entry.payload);
+		setSelectedInvitationId(entry.payload.invitation.id);
+	});
 	const [selectionOpen, setSelectionOpen] = useState(false);
 	const invitations = useQuery({
 		enabled: identity !== null,
@@ -31,8 +37,9 @@ export function PendingDebtInvitations() {
 	const received = (invitations.data ?? []).filter(
 		invitation => invitation.direction === "RECEIVED" && invitation.status === "PENDING",
 	);
-	const selectedInvitation = received.find(invitation => invitation.id === selectedInvitationId) ?? null;
-	if (!received.length) return null;
+	const selectedInvitation =
+		received.find(invitation => invitation.id === selectedInvitationId) ?? recovery?.invitation ?? null;
+	if (!received.length && !recovery) return null;
 	return (
 		<>
 			<ActionNotice
@@ -65,9 +72,14 @@ export function PendingDebtInvitations() {
 			{selectedInvitation ? (
 				<DebtInvitationDialog
 					invitation={selectedInvitation}
-					onOpenChange={open => !open && setSelectedInvitationId(null)}
-					onResolved={() => setSelectedInvitationId(null)}
+					onOpenChange={open => {
+						if (!open) {
+							setSelectedInvitationId(null);
+							setRecovery(undefined);
+						}
+					}}
 					open
+					recovery={recovery}
 				/>
 			) : null}
 		</>

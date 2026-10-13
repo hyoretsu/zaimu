@@ -17,14 +17,18 @@ export function DebtInvitationAssociationDialog({
 	onOpenChange,
 	open,
 	pending,
+	initialPersonId,
 }: {
 	onApprove: (personId?: string) => void;
 	onOpenChange: (open: boolean) => void;
 	open: boolean;
 	pending: boolean;
+	initialPersonId?: string;
 }) {
-	const [associationMode, setAssociationMode] = useState<"existing" | "new">("new");
-	const [personId, setPersonId] = useState("");
+	const [associationMode, setAssociationMode] = useState<"existing" | "new">(
+		initialPersonId ? "existing" : "new",
+	);
+	const [personId, setPersonId] = useState(initialPersonId ?? "");
 	const reusePerson = associationMode === "existing";
 	return (
 		<Dialog onOpenChange={onOpenChange} open={open}>
