@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { RecurrenceMovement, RecurrenceUnit } from "@zaimu/finance/recurrence";
 import { useEffect, useRef, useState } from "react";
 import { CurrencySelect } from "@/components/currency/CurrencySelect";
@@ -16,15 +16,16 @@ import {
 } from "@/components/ui/Dialog";
 import { FormFieldRow } from "@/components/ui/FormFieldRow";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
 import { useDialogCloseReset } from "@/hooks/use-dialog-close-reset";
 import type { DebtSplitInput } from "@/lib/api";
+import { runBackgroundModalAction } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { getLocalDateKey } from "@/lib/date";
 import { debtSplitToInput } from "@/lib/debt-split";
 import { parseMaskedMoney } from "@/lib/masked-money";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import type { Recurrence, RecurrenceInput } from "@/lib/recurrence";
-import { showToast } from "@/stores";
 import { useCurrencyStore } from "@/stores/currency";
 import { DebouncedFormField } from "./DebouncedFormField";
 import { DebouncedMoneyField } from "./DebouncedMoneyField";
@@ -56,6 +57,15 @@ const initialDraft = (recurrence?: Recurrence, currency = "BRL"): UnifiedRecurri
 	tagIds: recurrence?.tagIds ?? [],
 	unit: recurrence?.unit ?? "MONTH",
 });
+interface RecurringRecovery {
+	addPast: boolean;
+	completedWrite: boolean;
+	debtEnabled: boolean;
+	debtSplit: DebtSplitInput;
+	draft: UnifiedRecurringDraft;
+	input: RecurrenceInput;
+	savedId?: string;
+}
 export function CreateRecurringDialog({
 	open,
 	onOpenChange,
@@ -73,8 +83,8 @@ export function CreateRecurringDialog({
 	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>(() => debtSplitToInput(recurrence?.debtSplit));
 	const [debtEnabled, setDebtEnabled] = useState(Boolean(recurrence?.debtSplit));
 	const [addPast, setAddPast] = useState(false);
-	const [savedRecurrenceId, setSavedRecurrenceId] = useState<string>();
-	const [progress, setProgress] = useState("");
+	const [completedWrite, setCompletedWrite] = useState(false);
+	const [resumeId, setResumeId] = useState<string>();
 	const accounts = useQuery({
 		enabled: identity !== null && open,
 		queryFn: () => dataService.accounts.getAll(),
@@ -126,43 +136,49 @@ export function CreateRecurringDialog({
 		setDebtSplit(debtSplitToInput(recurrence?.debtSplit));
 		setDebtEnabled(Boolean(recurrence?.debtSplit));
 		setAddPast(false);
-		setSavedRecurrenceId(undefined);
-		setProgress("");
+		setResumeId(undefined);
+		setCompletedWrite(false);
+	});
+	useBackgroundModalRecovery<RecurringRecovery>("recurrence-save", entry => {
+		setDraft(entry.payload.draft);
+		setDebtSplit(entry.payload.debtSplit);
+		setDebtEnabled(entry.payload.debtEnabled);
+		setAddPast(entry.payload.addPast);
+		setResumeId(entry.payload.savedId);
+		setCompletedWrite(entry.payload.completedWrite);
+		onOpenChange(true);
 	});
 	const set = <K extends keyof UnifiedRecurringDraft>(key: K, value: UnifiedRecurringDraft[K]) =>
 		setDraft(current => ({ ...current, [key]: value }));
 	const debtAllowed = !["TRANSFER", "CARD_PAYMENT"].includes(draft.movement);
-	const save = useMutation({
-		mutationFn: async (input: RecurrenceInput) => {
-			setProgress("Salvando recorrência...");
-			const id = recurrence?.id ?? savedRecurrenceId;
-			const saved = id
-				? await dataService.recurrences.update(id, input)
-				: await dataService.recurrences.create(input);
-			setSavedRecurrenceId(saved.id);
-			if (addPast && input.startDate < getLocalDateKey()) {
-				setProgress("Recompondo ocorrências passadas...");
-				await dataService.recurrences.replay(saved.id, input.startDate, getLocalDateKey());
-			}
-		},
-		onError: error => {
-			setProgress("");
-			showToast(error.message, "negative");
-		},
-		onSuccess: async () => {
-			await invalidateCacheOperation(queryClient, identity!, "recurring");
-			onOpenChange(false);
-			showToast(recurrence ? "Recorrência atualizada." : "Recorrência criada.", "positive");
-		},
-	});
+	const save = (recovery: RecurringRecovery) =>
+		runBackgroundModalAction({
+			close: () => onOpenChange(false),
+			conflictKey: `recurrence:${recurrence?.id ?? recovery.savedId ?? "new"}`,
+			failureMessage: "Não foi possível salvar a recorrência.",
+			loadingMessage: recovery.completedWrite ? "Recompondo ocorrências..." : "Salvando recorrência...",
+			onSuccess: () => invalidateCacheOperation(queryClient, identity!, "recurring"),
+			recovery: { entityId: recurrence?.id ?? recovery.savedId, kind: "recurrence-save", payload: recovery },
+			run: async () => {
+				if (!recovery.completedWrite) {
+					const saved = recurrence
+						? await dataService.recurrences.update(recurrence.id, recovery.input)
+						: await dataService.recurrences.create(recovery.input);
+					recovery.savedId = saved.id;
+					recovery.completedWrite = true;
+				}
+				if (recovery.addPast && recovery.input.startDate < getLocalDateKey())
+					await dataService.recurrences.replay(
+						recovery.savedId!,
+						recovery.input.startDate,
+						getLocalDateKey(),
+					);
+			},
+			successMessage: recurrence ? "Recorrência atualizada." : "Recorrência criada.",
+		});
 	return (
-		<Dialog
-			onOpenChange={next => {
-				if (!save.isPending) onOpenChange(next);
-			}}
-			open={open}
-		>
-			<DialogContent className="w-[calc(100%-2rem)] sm:max-w-2xl" showCloseButton={!save.isPending}>
+		<Dialog onOpenChange={onOpenChange} open={open}>
+			<DialogContent className="w-[calc(100%-2rem)] sm:max-w-2xl">
 				<DialogHeader>
 					<DialogTitle>{recurrence ? "Editar recorrência" : "Adicionar recorrência"}</DialogTitle>
 					<DialogDescription>Agende recebimentos, pagamentos, compras ou transferências.</DialogDescription>
@@ -191,7 +207,7 @@ export function CreateRecurringDialog({
 							const fields = new FormData(event.currentTarget);
 							const amountText = String(fields.get("recurrence-amount") ?? draft.amount);
 							const amount = parseMaskedMoney(amountText);
-							save.mutate({
+							const input = {
 								amount,
 								creditCardId: ["CARD_PURCHASE", "CARD_PAYMENT"].includes(draft.movement)
 									? draft.creditCardId || null
@@ -222,11 +238,28 @@ export function CreateRecurringDialog({
 								storeName: draft.storeName || null,
 								tagIds: draft.tagIds,
 								unit: draft.unit as RecurrenceUnit,
+							} satisfies RecurrenceInput;
+							const submittedDraft = {
+								...draft,
+								amount: amountText,
+								dayOfMonth: String(fields.get("recurrence-day") ?? draft.dayOfMonth),
+								installments: String(fields.get("recurrence-installments") ?? draft.installments),
+								interval: String(fields.get("recurrence-interval") ?? draft.interval),
+								name: String(fields.get("recurrence-name") ?? draft.name),
+							};
+							save({
+								addPast,
+								completedWrite,
+								debtEnabled,
+								debtSplit,
+								draft: submittedDraft,
+								input,
+								savedId: resumeId,
 							});
 						}}
 					>
 						<DialogBody>
-							<fieldset className="space-y-5" disabled={save.isPending}>
+							<fieldset className="space-y-5" disabled={completedWrite}>
 								<DebouncedFormField
 									id="recurrence-name"
 									label="Descrição"
@@ -258,7 +291,7 @@ export function CreateRecurringDialog({
 								</FormFieldRow>
 								<div className="grid gap-2">
 									<CustomSelect
-										disabled={save.isPending}
+										disabled={completedWrite}
 										label="Movimentação"
 										onValueChange={value =>
 											setDraft(current => ({
@@ -278,7 +311,7 @@ export function CreateRecurringDialog({
 
 								<RecurrenceAccountFields
 									accounts={accounts.data ?? []}
-									disabled={save.isPending}
+									disabled={completedWrite}
 									draft={draft}
 									set={set}
 								/>
@@ -297,11 +330,11 @@ export function CreateRecurringDialog({
 										</p>
 									</div>
 								)}
-								<RecurrenceScheduleFields disabled={save.isPending} draft={draft} set={set} />
+								<RecurrenceScheduleFields disabled={completedWrite} draft={draft} set={set} />
 								<RecurrenceOptionalFields
 									debtEnabled={debtEnabled}
 									debtSplit={debtSplit}
-									disabled={save.isPending}
+									disabled={completedWrite}
 									draft={draft}
 									set={set}
 									setDebtEnabled={setDebtEnabled}
@@ -318,24 +351,17 @@ export function CreateRecurringDialog({
 									</CheckboxField>
 								)}
 							</fieldset>
-							{progress && (
+							{completedWrite && (
 								<p className="text-muted-foreground text-sm" role="status">
-									{progress}
+									Recorrência salva. Este envio retoma apenas a recomposição pendente.
 								</p>
 							)}
 						</DialogBody>
 						<DialogFooter>
-							<Button
-								disabled={save.isPending}
-								onClick={() => onOpenChange(false)}
-								type="button"
-								variant="outline"
-							>
+							<Button onClick={() => onOpenChange(false)} type="button" variant="outline">
 								Descartar
 							</Button>
-							<Button disabled={save.isPending} type="submit">
-								{save.isPending ? "Salvando..." : "Salvar"}
-							</Button>
+							<Button type="submit">{completedWrite ? "Retomar recomposição" : "Salvar"}</Button>
 						</DialogFooter>
 					</form>
 				)}

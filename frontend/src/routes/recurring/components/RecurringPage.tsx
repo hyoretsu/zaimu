@@ -168,7 +168,13 @@ export function RecurringPage() {
 		<PageContainer className="space-y-6">
 			<PageHeader
 				actions={[
-					{ icon: HiPlus, label: "Adicionar", onClick: () => setIsCreateOpen(true), variant: "default" },
+					{
+						disabled: !!pendingModalActions[`${identity}:recurrence:new`],
+						icon: HiPlus,
+						label: "Adicionar",
+						onClick: () => setIsCreateOpen(true),
+						variant: "default",
+					},
 				]}
 				backTo="/more"
 				description="Agende entradas, saídas, compras e transferências em um único fluxo."
@@ -241,7 +247,11 @@ export function RecurringPage() {
 			) : filteredItems.length === 0 ? (
 				<EmptyState
 					action={
-						<Button className="cursor-pointer" onClick={() => setIsCreateOpen(true)}>
+						<Button
+							className="cursor-pointer"
+							disabled={!!pendingModalActions[`${identity}:recurrence:new`]}
+							onClick={() => setIsCreateOpen(true)}
+						>
 							<HiPlus /> Adicionar recorrência
 						</Button>
 					}
