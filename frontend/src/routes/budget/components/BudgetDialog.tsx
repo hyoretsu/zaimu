@@ -15,7 +15,6 @@ import {
 import { FormFieldRow } from "@/components/ui/FormFieldRow";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
-import { RequiredMark } from "@/components/ui/RequiredMark";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { Category } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
@@ -23,6 +22,7 @@ import type { MonthlyBudget, MonthlyBudgetInput } from "@/lib/monthly-budget-ser
 import { useCacheIdentity } from "@/lib/query-cache";
 import { useCurrencyStore } from "@/stores/currency";
 import { BudgetAmountField } from "./BudgetAmountField";
+import { budgetSourceLabel } from "./budget-display";
 
 type BudgetInput = MonthlyBudgetInput;
 
@@ -81,6 +81,9 @@ export function BudgetDialog({
 		},
 		queryKey: ["budget-category-options", identity],
 	});
+	const defaultName =
+		(draft.source === "TAG" && categories.data?.find(category => category.id === draft.categoryId)?.name) ||
+		budgetSourceLabel(draft);
 	return (
 		<Dialog
 			onOpenChange={open => {
@@ -103,8 +106,8 @@ export function BudgetDialog({
 					onSubmit={event => {
 						event.preventDefault();
 						const amount = Number(new FormData(event.currentTarget).get("budget-amount-raw"));
-						if (name.trim() && amount > 0 && draft.startMonth && (draft.source !== "TAG" || draft.categoryId))
-							onSave({ ...draft, amount, name: name.trim() });
+						if (amount > 0 && draft.startMonth && (draft.source !== "TAG" || draft.categoryId))
+							onSave({ ...draft, amount, name: name.trim() || defaultName });
 					}}
 				>
 					<DialogBody>
@@ -113,11 +116,7 @@ export function BudgetDialog({
 								<>
 									{" "}
 									<div className="grid gap-2">
-										<Label htmlFor="budget-name">
-											<span>
-												Nome <RequiredMark />
-											</span>
-										</Label>
+										<Label htmlFor="budget-name">Nome</Label>
 										<Input
 											disabled={pending}
 											id="budget-name"
@@ -125,7 +124,6 @@ export function BudgetDialog({
 											name="budget-name"
 											onChange={event => setName(event.currentTarget.value)}
 											placeholder="Ex: Contas da casa"
-											required
 											type="text"
 											value={name}
 										/>
@@ -141,9 +139,9 @@ export function BudgetDialog({
 											}))
 										}
 										options={[
-											{ label: "Faturas de todos os cartões", value: "STATEMENTS" },
-											{ label: "Gastos com uma tag", value: "TAG" },
-											{ label: "Reserva sem tag", value: "CUSTOM" },
+											{ label: "Faturas", value: "STATEMENTS" },
+											{ label: "Etiqueta", value: "TAG" },
+											{ label: "Reserva", value: "CUSTOM" },
 										]}
 										placeholder="Ex: Faturas de cartão"
 										required
@@ -152,9 +150,9 @@ export function BudgetDialog({
 									{draft.source === "TAG" && (
 										<CustomSelect
 											disabled={pending}
-											error={categories.isError ? "Falha ao carregar tags." : undefined}
+											error={categories.isError ? "Falha ao carregar etiquetas." : undefined}
 											isLoading={categories.isPending}
-											label="Tag"
+											label="Etiqueta"
 											onRetry={() => void categories.refetch()}
 											onValueChange={categoryId => setDraft(current => ({ ...current, categoryId }))}
 											options={(categories.data ?? []).map(category => ({
@@ -167,11 +165,6 @@ export function BudgetDialog({
 											value={draft.categoryId ?? ""}
 										/>
 									)}
-									<p className="text-muted-foreground text-sm">
-										Faturas somam todos os cartões. Tags consideram despesas fora dos cartões e suas
-										recorrências associadas. Compras de cartão entram nas faturas. A reserva cobre somente o
-										valor ainda não comprometido; se o gasto superar a previsão, prevalece o gasto.
-									</p>
 								</>
 							)}
 							{adjustment && (
@@ -227,9 +220,7 @@ export function BudgetDialog({
 							Descartar
 						</Button>
 						<Button
-							disabled={
-								pending || !name.trim() || !draft.startMonth || (draft.source === "TAG" && !draft.categoryId)
-							}
+							disabled={pending || !draft.startMonth || (draft.source === "TAG" && !draft.categoryId)}
 							type="submit"
 						>
 							{pending ? "Salvando..." : "Salvar"}

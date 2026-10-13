@@ -18,7 +18,7 @@ Evolução por período apresenta dois gráficos alinhados pelos mesmos período
 
 ## Planejamento mensal
 
-Planejamentos são reservas mensais estimadas, separadas de transações e recorrências certas. Cada planejamento possui nome, moeda, valor positivo e vigência em meses, com início e término inclusivos. Sem término, repete mensalmente. Pode acompanhar uma tag, o agregado de faturas de todos os cartões ou uma reserva independente sem tag. Planejamentos não criam lançamentos, pagamentos, compras, faturas nem alterações de saldo real.
+Planejamentos são reservas mensais estimadas, separadas de transações e recorrências certas. O nome pode ser omitido no formulário; nesse caso, usa o nome da etiqueta selecionada ou da categoria de planejamento (Faturas, Etiqueta ou Reserva). Cada planejamento possui nome, moeda, valor positivo e vigência em meses, com início e término inclusivos. Sem término, repete mensalmente. Pode acompanhar uma tag, o agregado de faturas de todos os cartões ou uma reserva independente sem tag. Planejamentos não criam lançamentos, pagamentos, compras, faturas nem alterações de saldo real.
 
 O gasto projetado de cada categoria corresponde ao maior valor entre o planejamento e os compromissos conhecidos do mês. Somente a diferença positiva entra como saída adicional na projeção, no último dia do mês, e somente em datas futuras. Por exemplo, R$ 8.500 planejados e R$ 6.000 comprometidos acrescentam R$ 2.500; R$ 9.000 comprometidos acrescentam zero. A comparação mensal distingue planejado, comprometido, reserva adicional e total projetado. Comprometido reúne gastos registrados e compromissos futuros certos, sem representar apenas o realizado.
 
