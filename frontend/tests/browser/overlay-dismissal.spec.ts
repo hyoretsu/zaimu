@@ -34,6 +34,24 @@ test("keyboard action keeps focus inside the opened dialog", async ({ page }) =>
 
 test.describe("touch actions", () => {
 	test.use({ hasTouch: true });
+	test("switching cached screens leaves only the active floating action clickable", async ({ page }) => {
+		const navigate = page.getByRole("button", { exact: true, name: "Navigate" });
+		for (let visit = 1; visit <= 3; visit++) {
+			await navigate.tap();
+			await expect(
+				page.getByRole("button", { exact: true, includeHidden: true, name: "Ações da tela" }),
+			).toHaveCount(0);
+			await page.getByRole("button", { exact: true, name: "Adicionar" }).tap();
+			await expect(page.getByText(`Added: ${visit}`, { exact: true })).toBeVisible();
+			await navigate.tap();
+			await expect(
+				page.getByRole("button", { exact: true, includeHidden: true, name: "Adicionar" }),
+			).toHaveCount(0);
+			await page.getByRole("button", { exact: true, name: "Ações da tela" }).tap();
+			await expect(page.getByRole("button", { exact: true, name: "New purchase" })).toBeVisible();
+			await page.keyboard.press("Escape");
+		}
+	});
 	test("menu hands focus to the opened dialog", async ({ page }) => {
 		await page.getByRole("button", { exact: true, name: "Ações da tela" }).tap();
 		await page.getByRole("button", { exact: true, name: "New purchase" }).tap();

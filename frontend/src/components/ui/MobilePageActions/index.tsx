@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { LuMenu } from "react-icons/lu";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -14,6 +14,16 @@ export function MobilePageActions({ actions }: { actions: MobilePageAction[] }) 
 	const isMobile = useMediaQuery("(max-width: 1023px)");
 	const [open, setOpen] = useState(false);
 	const actionSelected = useRef(false);
+	const [portalContainer] = useState(() => document.createElement("div"));
+	useLayoutEffect(() => {
+		if (!isMobile || !actions.length) return;
+		// Activity suspends layout effects for hidden tabs. Detach the entire portal
+		// so its fixed wrapper cannot intercept clicks over the active tab's actions.
+		document.body.appendChild(portalContainer);
+		return () => {
+			portalContainer.remove();
+		};
+	}, [isMobile, actions.length, portalContainer]);
 	if (!isMobile || !actions.length) return null;
 	const action = actions[0];
 	const multiple = actions.length > 1;
@@ -79,6 +89,6 @@ export function MobilePageActions({ actions }: { actions: MobilePageAction[] }) 
 				trigger
 			)}
 		</div>,
-		document.body,
+		portalContainer,
 	);
 }

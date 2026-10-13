@@ -20,6 +20,7 @@ function OverlayDismissalFixture() {
 	const router = useRouter();
 	const [invoiceOpen, setInvoiceOpen] = useState(false);
 	const [editing, setEditing] = useState(false);
+	const [added, setAdded] = useState(0);
 	return (
 		<>
 			<button
@@ -58,6 +59,12 @@ function OverlayDismissalFixture() {
 					<PopoverTrigger>Open actions</PopoverTrigger>
 					<PopoverContent>Screen actions</PopoverContent>
 				</Popover>
+			</Activity>
+			<Activity mode={pathname === "/other" ? "visible" : "hidden"}>
+				<p>Added: {added}</p>
+				<MobilePageActions
+					actions={[{ icon: LuPlus, label: "Adicionar", onClick: () => setAdded(value => value + 1) }]}
+				/>
 			</Activity>
 		</>
 	);
