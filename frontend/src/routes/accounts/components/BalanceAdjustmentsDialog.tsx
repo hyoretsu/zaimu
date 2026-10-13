@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { LuPencil, LuPlus, LuTrash2 } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
@@ -15,13 +15,12 @@ import {
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
-import { useModalRecoveryStore } from "@/lib/background-modal-actions";
+import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
 import type { BalanceAdjustment } from "@/lib/balance-adjustment";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
 import { getFinancialAccountOptionLabel } from "@/lib/financial-account";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
-import { showToast } from "@/stores";
 import { type BalanceAdjustmentDraft, BalanceAdjustmentForm } from "./BalanceAdjustmentForm";
 
 const formatMoney = (value: number, currency: string) =>
@@ -66,17 +65,22 @@ export function BalanceAdjustmentsDialog({
 		);
 		return byName || right.date.localeCompare(left.date);
 	});
-	const remove = useMutation({
-		mutationFn: (id: string) => dataService.balanceAdjustments.delete(id),
-		onError: error => showToast(error.message, "negative"),
-		onSuccess: async () => {
-			await Promise.all([
-				invalidateCacheOperation(queryClient, identity!, "transaction"),
-				queryClient.invalidateQueries({ queryKey: adjustmentsKey }),
-			]);
-			showToast("Ajuste de saldo excluído.", "positive");
-		},
-	});
+	useBackgroundModalRecovery<BalanceAdjustment>("balance-adjustment-delete", () => onOpenChange(true));
+	const remove = (adjustment: BalanceAdjustment) =>
+		runBackgroundModalAction({
+			close: () => onOpenChange(false),
+			conflictKey: `balance-adjustment:${adjustment.id}`,
+			failureMessage: "Não foi possível excluir ajuste.",
+			loadingMessage: "Excluindo ajuste...",
+			onSuccess: () =>
+				Promise.all([
+					invalidateCacheOperation(queryClient, identity!, "transaction"),
+					queryClient.invalidateQueries({ queryKey: adjustmentsKey }),
+				]),
+			recovery: { entityId: adjustment.id, kind: "balance-adjustment-delete", payload: adjustment },
+			run: () => dataService.balanceAdjustments.delete(adjustment.id),
+			successMessage: "Ajuste de saldo excluído.",
+		});
 	return (
 		<>
 			<Dialog onOpenChange={onOpenChange} open={open && editing === null}>
@@ -144,11 +148,8 @@ export function BalanceAdjustmentsDialog({
 																aria-label="Excluir ajuste"
 																className="cursor-pointer"
 																confirmation="Excluir este ajuste permanentemente?"
-																disabled={
-																	(remove.isPending && remove.variables === adjustment.id) ||
-																	!!pending[`${identity}:balance-adjustment:${adjustment.id}`]
-																}
-																onConfirm={() => remove.mutate(adjustment.id)}
+																disabled={!!pending[`${identity}:balance-adjustment:${adjustment.id}`]}
+																onConfirm={() => remove(adjustment)}
 																size="icon-sm"
 																variant="outline"
 															>

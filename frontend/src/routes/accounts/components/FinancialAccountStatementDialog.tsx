@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { LuPlus } from "react-icons/lu";
 import { CreateTransactionDialog, EditTransactionDialog, TransactionsList } from "@/components/transactions";
@@ -12,12 +12,12 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
+import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
 import type { FinancialAccount, Transaction } from "@/lib/api";
-import { useModalRecoveryStore } from "@/lib/background-modal-actions";
+import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { type FinancialAccountYieldEntry, getFinancialAccountDisplayName } from "@/lib/financial-account";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
-import { showToast } from "@/stores";
 import { EditFinancialAccountYieldDialog } from "./EditFinancialAccountYieldDialog";
 
 export function FinancialAccountStatementDialog({
@@ -104,37 +104,45 @@ export function FinancialAccountStatementDialog({
 	}
 	const displayName = getFinancialAccountDisplayName(account);
 	const refreshStatement = () => invalidateCacheOperation(queryClient, identity!, "yield");
-	const removeTransaction = useMutation({
-		mutationFn: (id: string) => dataService.transactions.delete(id),
-		onError: error =>
-			showToast(error instanceof Error ? error.message : "Não foi possível excluir a transação.", "negative"),
-		onSuccess: async () => {
-			await refreshStatement();
-			showToast("Transação excluída.", "positive");
-		},
-	});
-	const removeYield = useMutation({
-		mutationFn: async (entry: FinancialAccountYieldEntry) => {
-			if (entry.kind === "AUTOMATIC") {
-				await dataService.accountYields.upsertAutomatic({
-					date: entry.date,
-					financialAccountId: entry.financialAccountId,
-					isExcluded: true,
-				});
-				return;
-			}
-			await dataService.accountYields.delete(entry.id);
-		},
-		onError: error =>
-			showToast(
-				error instanceof Error ? error.message : "Não foi possível excluir o rendimento.",
-				"negative",
-			),
-		onSuccess: async () => {
-			await refreshStatement();
-			showToast("Rendimento excluído.", "positive");
-		},
-	});
+	const pendingActions = useModalRecoveryStore(state => state.pending);
+	useBackgroundModalRecovery(`account-statement-delete:${account.id}`, () => onOpenChange(true));
+	const removeTransaction = (transaction: Transaction) => {
+		runBackgroundModalAction({
+			close: () => onOpenChange(false),
+			conflictKey: `transaction:${transaction.id}`,
+			failureMessage: "Não foi possível excluir transação.",
+			loadingMessage: "Excluindo transação...",
+			onSuccess: refreshStatement,
+			recovery: {
+				entityId: transaction.id,
+				kind: `account-statement-delete:${account.id}`,
+				payload: transaction,
+			},
+			run: () => dataService.transactions.delete(transaction.id),
+			successMessage: "Transação excluída.",
+		});
+		return Promise.resolve();
+	};
+	const removeYield = (entry: FinancialAccountYieldEntry) => {
+		runBackgroundModalAction<unknown>({
+			close: () => onOpenChange(false),
+			conflictKey: `yield:${entry.id}`,
+			failureMessage: "Não foi possível excluir rendimento.",
+			loadingMessage: "Excluindo rendimento...",
+			onSuccess: refreshStatement,
+			recovery: { entityId: entry.id, kind: `account-statement-delete:${account.id}`, payload: entry },
+			run: () =>
+				entry.kind === "AUTOMATIC"
+					? dataService.accountYields.upsertAutomatic({
+							date: entry.date,
+							financialAccountId: entry.financialAccountId,
+							isExcluded: true,
+						})
+					: dataService.accountYields.delete(entry.id),
+			successMessage: "Rendimento excluído.",
+		});
+		return Promise.resolve();
+	};
 	const editTransaction = (transaction: Transaction) => setEditingTransaction(transaction);
 
 	return (
@@ -152,15 +160,15 @@ export function FinancialAccountStatementDialog({
 						hasMoreTransactions={statement.hasNextPage}
 						hasMoreYields={yields.hasNextPage}
 						isDeletingTransaction={transaction =>
-							removeTransaction.isPending && removeTransaction.variables === transaction.id
+							!!pendingActions[`${identity}:transaction:${transaction.id}`]
 						}
-						isDeletingYield={entry => removeYield.isPending && removeYield.variables?.id === entry.id}
+						isDeletingYield={entry => !!pendingActions[`${identity}:yield:${entry.id}`]}
 						isError={(statement.isError && !statement.data) || (yields.isError && !yields.data)}
 						isFetchingMoreTransactions={statement.isFetchingNextPage}
 						isFetchingMoreYields={yields.isFetchingNextPage}
 						isPending={statement.isPending || yields.isPending}
-						onDeleteTransaction={transaction => removeTransaction.mutateAsync(transaction.id)}
-						onDeleteYield={entry => removeYield.mutateAsync(entry)}
+						onDeleteTransaction={removeTransaction}
+						onDeleteYield={removeYield}
 						onEditTransaction={editTransaction}
 						onEditYield={setEditingYield}
 						onLoadMoreTransactions={statement.fetchNextPage}
