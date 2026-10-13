@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
 import type {
 	FinancialAccount,
 	Transaction,
@@ -26,6 +27,7 @@ import type {
 	TransactionImportItem,
 	TransactionImportTransferSuggestion,
 } from "@/lib/api";
+import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
 import {
@@ -139,24 +141,59 @@ function toTransferSuggestionTransaction(
 }
 
 export function TransactionImportReviewDialog({
-	importId,
-	onOpenChange,
-	open,
+	importId: suppliedImportId,
+	onOpenChange: suppliedOnOpenChange,
+	open: suppliedOpen,
 }: {
 	importId: string | null;
 	onOpenChange: (open: boolean) => void;
 	open: boolean;
 }) {
+	const [recoveryImportId, setRecoveryImportId] = useState<string | null>(null);
+	const importId = recoveryImportId ?? suppliedImportId;
+	const open = recoveryImportId !== null || suppliedOpen;
+	const onOpenChange = (nextOpen: boolean) => {
+		if (!nextOpen) {
+			setRecoveryImportId(null);
+			setDiscardConfirmationOpen(false);
+			setTransferSuggestionDecision(null);
+		}
+		suppliedOnOpenChange(nextOpen);
+	};
+	const pendingActions = useModalRecoveryStore(state => state.pending);
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
 	const reviewedImportId = useRef<string | null>(importId);
 	const [collapsedDateKeys, setCollapsedDateKeys] = useState<Set<string>>(new Set());
 	const [collapsedItemIds, setCollapsedItemIds] = useState<Set<string>>(new Set());
-	const [approvingDateKeys, setApprovingDateKeys] = useState<Set<string>>(new Set());
-	const [approvingItemIds, setApprovingItemIds] = useState<Set<string>>(new Set());
-	const [ignoringDuplicateItemIds, setIgnoringDuplicateItemIds] = useState<Set<string>>(new Set());
 	const [discardConfirmationOpen, setDiscardConfirmationOpen] = useState(false);
+	const [recoveredEdit, setRecoveredEdit] = useState<
+		Parameters<typeof dataService.transactionImports.updateItem>[2] | undefined
+	>();
+	useBackgroundModalRecovery<{
+		importId: string;
+		item: TransactionImportItem;
+		data: Parameters<typeof dataService.transactionImports.updateItem>[2];
+	}>("transaction-import-edit", entry => {
+		setRecoveryImportId(entry.payload.importId);
+		setRecoveredEdit(entry.payload.data);
+		setEditingItem(entry.payload.item);
+	});
 	const [editingItem, setEditingItem] = useState<TransactionImportItem | null>(null);
+	const [recoveredResolution, setRecoveredResolution] = useState<{
+		duplicateId: string;
+		sources: DuplicateResolutionSources;
+	}>();
+	useBackgroundModalRecovery<{
+		importId: string;
+		item: TransactionImportItem;
+		duplicateId: string;
+		sources: DuplicateResolutionSources;
+	}>("transaction-import-reconcile", entry => {
+		setRecoveryImportId(entry.payload.importId);
+		setRecoveredResolution(entry.payload);
+		setResolvingItem(entry.payload.item);
+	});
 	const [resolvingItem, setResolvingItem] = useState<TransactionImportItem | null>(null);
 	const [transferSuggestionDecision, setTransferSuggestionDecision] = useState<{
 		item: TransactionImportItem;
@@ -177,6 +214,23 @@ export function TransactionImportReviewDialog({
 	});
 	const transactionImportData = transactionImport.data?.pages[0];
 	const items = transactionImport.data?.pages.flatMap(page => page.items) ?? [];
+	const approvingItemIds = new Set(
+		items
+			.filter(
+				item =>
+					pendingActions[`${identity}:transaction-import:${importId}:${item.id}`] ||
+					pendingActions[`${identity}:transaction-import-row:${item.id}`],
+			)
+			.map(item => item.id),
+	);
+	const approvingDateKeys = new Set(
+		Object.keys(pendingActions)
+			.filter(key => key.startsWith(`${identity}:transaction-import:${importId}:day:`))
+			.map(key => key.split(":day:")[1]!),
+	);
+	const hasPendingItems =
+		approvingItemIds.size > 0 ||
+		Object.keys(pendingActions).some(key => key.startsWith(`${identity}:transaction-import:${importId}:`));
 	useEffect(() => {
 		if (importId) reviewedImportId.current = importId;
 	}, [importId]);
@@ -193,11 +247,6 @@ export function TransactionImportReviewDialog({
 		if (!open) return;
 		setCollapsedDateKeys(new Set());
 		setCollapsedItemIds(new Set());
-		setApprovingDateKeys(new Set());
-		setApprovingItemIds(new Set());
-		setIgnoringDuplicateItemIds(new Set());
-		setDiscardConfirmationOpen(false);
-		setTransferSuggestionDecision(null);
 	}, [importId, open]);
 	const invalidate = (targetImportId = getReviewedImportId()) =>
 		invalidateQueryKeys(queryClient, [
@@ -209,35 +258,7 @@ export function TransactionImportReviewDialog({
 		onOpenChange(false);
 		await closeImportReview(queryClient, identity!, "transaction", targetImportId);
 	};
-	const updateItem = useMutation({
-		mutationFn: ({
-			item,
-			data,
-		}: {
-			item: TransactionImportItem;
-			data: Parameters<typeof dataService.transactionImports.updateItem>[2];
-		}) => dataService.transactionImports.updateItem(getReviewedImportId(), item.id, data),
-		onError: error => showToast(error.message, "negative"),
-		onSuccess: async () => {
-			setEditingItem(null);
-			await invalidate();
-			showToast("Transação importada atualizada.", "positive");
-		},
-	});
-	const acceptTransferSuggestion = useMutation({
-		mutationFn: ({ counterpartItemId, itemId }: { counterpartItemId: string; itemId: string }) =>
-			dataService.transactionImports.acceptTransferSuggestion(
-				getReviewedImportId(),
-				itemId,
-				counterpartItemId,
-			),
-		onError: error => showToast(error.message, "negative"),
-		onSuccess: async result => {
-			await invalidate();
-			if (result.removedImportId === getReviewedImportId()) await closeFinishedReview();
-			showToast("Movimentos combinados como transferência.", "positive");
-		},
-	});
+
 	const approve = useMutation({
 		mutationFn: () => dataService.transactionImports.approve(getReviewedImportId()),
 		onError: error => showToast(error.message, "negative"),
@@ -254,75 +275,133 @@ export function TransactionImportReviewDialog({
 			);
 		},
 	});
-	const approveItem = useMutation({
-		mutationFn: (itemId: string) => dataService.transactionImports.approveItem(getReviewedImportId(), itemId),
-		onError: error => showToast(error.message, "negative"),
-		onMutate: itemId => {
-			setApprovingItemIds(current => new Set(current).add(itemId));
-		},
-		onSettled: (_data, _error, itemId) => {
-			setApprovingItemIds(current => {
-				const next = new Set(current);
-				next.delete(itemId);
-				return next;
-			});
-		},
-		onSuccess: async result => {
-			const reviewFinished = result.finished;
-			await invalidateCacheOperation(queryClient, identity!, "transaction");
-			if (reviewFinished) await closeFinishedReview();
-			else await invalidate();
-			showToast(reviewFinished ? "Revisão finalizada." : "Transação aprovada.", "positive");
-		},
+	const approveItem = (itemId: string) => {
+		const targetImportId = getReviewedImportId();
+		runBackgroundModalAction({
+			close: () => {},
+			conflictKey: `transaction-import:${targetImportId}:${itemId}`,
+			conflictKeys: [`transaction-import-row:${itemId}`],
+			failureMessage: "Não foi possível aprovar transação.",
+			loadingMessage: "Aprovando transação...",
+			onSuccess: async result => {
+				await invalidateCacheOperation(queryClient, identity!, "transaction");
+				if (result.finished) {
+					if (reviewedImportId.current === targetImportId) onOpenChange(false);
+					await closeImportReview(queryClient, identity!, "transaction", targetImportId);
+				} else await invalidate(targetImportId);
+			},
+			progress: "record",
+			recovery: {
+				entityId: itemId,
+				kind: "transaction-import-action",
+				payload: { importId: targetImportId },
+			},
+			run: () => dataService.transactionImports.approveItem(targetImportId, itemId),
+			successMessage: "Transação aprovada.",
+		});
+	};
+	const approveDay = (date: string) => {
+		const targetImportId = getReviewedImportId();
+		runBackgroundModalAction({
+			close: () => {},
+			conflictKey: `transaction-import:${targetImportId}:day:${date}`,
+			conflictKeys: items
+				.filter(item => item.date.slice(0, 10) === date)
+				.flatMap(item => [
+					`transaction-import:${targetImportId}:${item.id}`,
+					`transaction-import-row:${item.id}`,
+				]),
+			failureMessage: "Não foi possível aprovar dia.",
+			loadingMessage: "Aprovando dia...",
+			onSuccess: async result => {
+				await invalidateCacheOperation(queryClient, identity!, "transaction");
+				if (result.finished) {
+					if (reviewedImportId.current === targetImportId) onOpenChange(false);
+					await closeImportReview(queryClient, identity!, "transaction", targetImportId);
+				} else await invalidate(targetImportId);
+			},
+			progress: "record",
+			recovery: { entityId: date, kind: "transaction-import-action", payload: { importId: targetImportId } },
+			run: () => dataService.transactionImports.approveDay(targetImportId, date),
+			successMessage: "Transações do dia aprovadas.",
+		});
+	};
+	useBackgroundModalRecovery<{ importId: string }>("transaction-import-action", entry =>
+		setRecoveryImportId(entry.payload.importId),
+	);
+	const discardImport = () => {
+		if (!importId) return;
+		const targetImportId = importId;
+		runBackgroundModalAction({
+			close: () => {
+				setDiscardConfirmationOpen(false);
+				onOpenChange(false);
+			},
+			conflictKey: `transaction-import:${targetImportId}:batch`,
+			failureMessage: "Não foi possível excluir o lote.",
+			loadingMessage: "Excluindo lote...",
+			onSuccess: () => closeImportReview(queryClient, identity!, "transaction", targetImportId),
+			progress: "toast",
+			recovery: {
+				entityId: targetImportId,
+				kind: "transaction-import-discard",
+				payload: { importId: targetImportId },
+			},
+			run: () => dataService.transactionImports.delete(targetImportId),
+			successMessage: "Importação descartada.",
+		});
+	};
+	const discardPending = Boolean(pendingActions[`${identity}:transaction-import:${importId}:batch`]);
+	useBackgroundModalRecovery<{ importId: string }>("transaction-import-discard", entry => {
+		setRecoveryImportId(entry.payload.importId);
+		setDiscardConfirmationOpen(true);
 	});
-	const approveDay = useMutation({
-		mutationFn: (date: string) => dataService.transactionImports.approveDay(getReviewedImportId(), date),
-		onError: error => showToast(error.message, "negative"),
-		onMutate: date => {
-			setApprovingDateKeys(current => new Set(current).add(date));
-		},
-		onSettled: (_data, _error, date) => {
-			setApprovingDateKeys(current => {
-				const next = new Set(current);
-				next.delete(date);
-				return next;
-			});
-		},
-		onSuccess: async result => {
-			const reviewFinished = result.finished;
-			await invalidateCacheOperation(queryClient, identity!, "transaction");
-			if (reviewFinished) await closeFinishedReview();
-			else await invalidate();
-			showToast(
-				reviewFinished
-					? "Revisão finalizada."
-					: `${result.created} ${result.created === 1 ? "transação aprovada" : "transações aprovadas"}.`,
-				"positive",
-			);
-		},
+
+	useBackgroundModalRecovery<{
+		importId: string;
+		item: TransactionImportItem;
+		suggestion: TransactionImportTransferSuggestion;
+	}>("transaction-import-transfer", entry => {
+		setRecoveryImportId(entry.payload.importId);
+		setTransferSuggestionDecision({ item: entry.payload.item, suggestion: entry.payload.suggestion });
 	});
-	const discard = useMutation({
-		mutationFn: () => dataService.transactionImports.delete(getReviewedImportId()),
-		onError: error => showToast(error.message, "negative"),
-		onSuccess: async () => {
-			setDiscardConfirmationOpen(false);
-			await closeFinishedReview();
-			showToast("Extrato descartado.", "info");
-		},
-	});
-	const rejectTransferSuggestion = useMutation({
-		mutationFn: ({ counterpartItemId, itemId }: { counterpartItemId: string; itemId: string }) =>
-			dataService.transactionImports.rejectTransferSuggestion(
-				getReviewedImportId(),
-				itemId,
-				counterpartItemId,
-			),
-		onError: error => showToast(error.message, "negative"),
-		onSuccess: async () => {
-			await invalidate();
-			showToast("Este par não será sugerido novamente.", "info");
-		},
-	});
+	const decideTransfer = (accept: boolean) => {
+		if (!transferSuggestionDecision) return;
+		const { item, suggestion } = transferSuggestionDecision;
+		const targetImportId = getReviewedImportId();
+		runBackgroundModalAction({
+			close: () => setTransferSuggestionDecision(null),
+			conflictKey: `transaction-import:${targetImportId}:${item.id}`,
+			conflictKeys: [`transaction-import-row:${item.id}`, `transaction-import-row:${suggestion.id}`],
+			failureMessage: "Não foi possível decidir transferência.",
+			loadingMessage: "Processando transferência...",
+			onSuccess: async result => {
+				if (result?.removedImportId === targetImportId) {
+					if (reviewedImportId.current === targetImportId) onOpenChange(false);
+					await closeImportReview(queryClient, identity!, "transaction", targetImportId);
+				} else await invalidate(targetImportId);
+			},
+			progress: "record",
+			recovery: {
+				entityId: item.id,
+				kind: "transaction-import-transfer",
+				payload: { importId: targetImportId, item, suggestion },
+			},
+			run: async () => {
+				if (accept)
+					return dataService.transactionImports.acceptTransferSuggestion(
+						targetImportId,
+						item.id,
+						suggestion.id,
+					);
+				await dataService.transactionImports.rejectTransferSuggestion(targetImportId, item.id, suggestion.id);
+				return null;
+			},
+			successMessage: accept
+				? "Movimentos combinados como transferência."
+				: "Este par não será sugerido novamente.",
+		});
+	};
 	const accountNames = new Map(
 		(accounts.data ?? []).map(account => [
 			account.id,
@@ -366,36 +445,51 @@ export function TransactionImportReviewDialog({
 		duplicate: TransactionImportItem["duplicates"][number],
 		sources: DuplicateResolutionSources,
 	) => {
-		const reconciledImport = await dataService.transactionImports.reconcileItem(
-			getReviewedImportId(),
-			item.id,
-			{
-				duplicateId: duplicate.id,
-				duplicateSource: duplicate.source,
-				sources,
+		const targetImportId = getReviewedImportId();
+		runBackgroundModalAction({
+			close: () => {
+				setResolvingItem(null);
+				setRecoveredResolution(undefined);
 			},
-		);
-		setResolvingItem(null);
-		await Promise.all([invalidate()]);
-		showToast("Transação importada conciliada. Aprove-a para atualizar o registro existente.", "positive");
+			conflictKey: `transaction-import:${targetImportId}:${item.id}`,
+			conflictKeys: [`transaction-import-row:${item.id}`],
+			failureMessage: "Não foi possível conciliar a transação.",
+			loadingMessage: "Conciliando transação...",
+			onSuccess: () => invalidate(targetImportId),
+			progress: "record",
+			recovery: {
+				entityId: item.id,
+				kind: "transaction-import-reconcile",
+				payload: { duplicateId: duplicate.id, importId: targetImportId, item, sources },
+			},
+			run: () =>
+				dataService.transactionImports.reconcileItem(targetImportId, item.id, {
+					duplicateId: duplicate.id,
+					duplicateSource: duplicate.source,
+					sources,
+				}),
+			successMessage: "Transação conciliada. Aprove-a para atualizar o registro existente.",
+		});
 	};
-	const ignoreDuplicate = async (item: TransactionImportItem) => {
-		setIgnoringDuplicateItemIds(current => new Set(current).add(item.id));
-		try {
-			await dataService.transactionImports.updateItem(getReviewedImportId(), item.id, {
-				isDuplicateIgnored: true,
-			});
-			await invalidate();
-			showToast("Alerta de possível duplicata ignorado.", "info");
-		} catch (error) {
-			showToast(error instanceof Error ? error.message : "Não foi possível ignorar o alerta.", "negative");
-		} finally {
-			setIgnoringDuplicateItemIds(current => {
-				const next = new Set(current);
-				next.delete(item.id);
-				return next;
-			});
-		}
+	const ignoreDuplicate = (item: TransactionImportItem) => {
+		const targetImportId = getReviewedImportId();
+		runBackgroundModalAction({
+			close: () => {},
+			conflictKey: `transaction-import:${targetImportId}:${item.id}`,
+			conflictKeys: [`transaction-import-row:${item.id}`],
+			failureMessage: "Não foi possível ignorar alerta.",
+			loadingMessage: "Ignorando alerta...",
+			onSuccess: () => invalidate(targetImportId),
+			progress: "record",
+			recovery: {
+				entityId: item.id,
+				kind: "transaction-import-action",
+				payload: { importId: targetImportId },
+			},
+			run: () =>
+				dataService.transactionImports.updateItem(targetImportId, item.id, { isDuplicateIgnored: true }),
+			successMessage: "Alerta de possível duplicata ignorado.",
+		});
 	};
 
 	return (
@@ -447,9 +541,8 @@ export function TransactionImportReviewDialog({
 										<ImportReviewDateSection
 											approveAllDisabled={
 												approve.isPending ||
-												discard.isPending ||
+												discardPending ||
 												items.some(item => approvingItemIds.has(item.id)) ||
-												items.some(item => ignoringDuplicateItemIds.has(item.id)) ||
 												approvingDateKeys.has(date) ||
 												!items.some(item => !item.duplicateReason)
 											}
@@ -458,18 +551,27 @@ export function TransactionImportReviewDialog({
 											dateLabel={formatLocalDate(date)}
 											itemCount={items.length}
 											key={date}
-											onApproveAll={() => approveDay.mutate(date)}
+											onApproveAll={() => approveDay(date)}
 											onCollapsedChange={collapsed => setDateCollapsed(date, collapsed)}
 										>
 											{items.map(item => (
 												<ImportReviewTransactionItem
 													accountNames={accountNames}
 													collapsed={collapsedItemIds.has(item.id)}
-													disabled={approvingItemIds.has(item.id) || approvingDateKeys.has(date)}
-													isIgnoringDuplicate={ignoringDuplicateItemIds.has(item.id)}
+													disabled={
+														approve.isPending ||
+														discardPending ||
+														approvingItemIds.has(item.id) ||
+														approvingDateKeys.has(date) ||
+														Boolean(
+															pendingActions[`${identity}:transaction-import:${importId}:${item.id}`] ||
+																pendingActions[`${identity}:transaction-import-row:${item.id}`],
+														)
+													}
+													isIgnoringDuplicate={false}
 													item={item}
 													key={item.id}
-													onApprove={() => approveItem.mutate(item.id)}
+													onApprove={() => approveItem(item.id)}
 													onCollapsedChange={collapsed => setItemCollapsed(item.id, collapsed)}
 													onEdit={() => setEditingItem(item)}
 													onIgnoreDuplicate={() => ignoreDuplicate(item)}
@@ -477,6 +579,10 @@ export function TransactionImportReviewDialog({
 													onViewTransferSuggestion={suggestion =>
 														setTransferSuggestionDecision({ item, suggestion })
 													}
+													pending={Boolean(
+														pendingActions[`${identity}:transaction-import:${importId}:${item.id}`] ||
+															pendingActions[`${identity}:transaction-import-row:${item.id}`],
+													)}
 													transaction={toTransaction(item, accountDetails)}
 												/>
 											))}
@@ -506,8 +612,9 @@ export function TransactionImportReviewDialog({
 						<Button
 							className="cursor-pointer bg-destructive text-destructive-foreground hover:bg-destructive/80 disabled:cursor-not-allowed"
 							disabled={
-								discard.isPending ||
+								discardPending ||
 								approve.isPending ||
+								hasPendingItems ||
 								approvingItemIds.size > 0 ||
 								approvingDateKeys.size > 0
 							}
@@ -522,9 +629,10 @@ export function TransactionImportReviewDialog({
 							className="cursor-pointer disabled:cursor-not-allowed"
 							disabled={
 								approve.isPending ||
+								hasPendingItems ||
 								approvingItemIds.size > 0 ||
 								approvingDateKeys.size > 0 ||
-								discard.isPending
+								discardPending
 							}
 							onClick={finishImport}
 						>
@@ -550,7 +658,7 @@ export function TransactionImportReviewDialog({
 					</DialogHeader>
 					<DialogFooter>
 						<Button
-							disabled={discard.isPending}
+							disabled={discardPending}
 							onClick={() => {
 								setDiscardConfirmationOpen(false);
 								onOpenChange(false);
@@ -561,32 +669,64 @@ export function TransactionImportReviewDialog({
 						</Button>
 						<Button
 							className="bg-destructive text-destructive-foreground hover:bg-destructive/80"
-							disabled={discard.isPending}
-							onClick={() => discard.mutate()}
+							disabled={discardPending}
+							onClick={() => discardImport()}
 						>
-							<LuTrash2 /> {discard.isPending ? "Excluindo extrato…" : "Excluir extrato"}
+							<LuTrash2 /> {discardPending ? "Excluindo extrato…" : "Excluir extrato"}
 						</Button>
 					</DialogFooter>
 				</ImportDialogContent>
 			</ImportDialog>
 			<EditImportedTransactionDialog
 				accounts={accounts.data ?? []}
+				initialData={recoveredEdit}
 				item={editingItem}
-				onOpenChange={nextOpen => !nextOpen && setEditingItem(null)}
+				onOpenChange={nextOpen => {
+					if (!nextOpen) {
+						setEditingItem(null);
+						setRecoveredEdit(undefined);
+					}
+				}}
 				onSubmit={async data => {
-					if (!editingItem) return;
-					await updateItem.mutateAsync({ data, item: editingItem });
+					if (!editingItem || !importId) return;
+					const item = editingItem;
+					const targetImportId = importId;
+					runBackgroundModalAction({
+						close: () => {
+							setEditingItem(null);
+							setRecoveredEdit(undefined);
+						},
+						conflictKey: `transaction-import:${targetImportId}:${item.id}`,
+						conflictKeys: [`transaction-import-row:${item.id}`],
+						failureMessage: "Não foi possível salvar o item.",
+						loadingMessage: "Salvando item importado...",
+						onSuccess: () => invalidate(targetImportId),
+						progress: "record",
+						recovery: {
+							entityId: item.id,
+							kind: "transaction-import-edit",
+							payload: { data, importId: targetImportId, item },
+						},
+						run: () => dataService.transactionImports.updateItem(targetImportId, item.id, data),
+						successMessage: "Item importado atualizado.",
+					});
 				}}
 				open={editingItem !== null}
-				pending={updateItem.isPending}
+				pending={false}
 			/>
 			<DuplicateResolutionDialog
 				accountCurrencies={
 					new Map((accounts.data ?? []).map(account => [account.id, account.currency ?? "BRL"]))
 				}
 				accountNames={accountNames}
+				initialSelection={recoveredResolution}
 				item={resolvingItem}
-				onOpenChange={nextOpen => !nextOpen && setResolvingItem(null)}
+				onOpenChange={nextOpen => {
+					if (!nextOpen) {
+						setResolvingItem(null);
+						setRecoveredResolution(undefined);
+					}
+				}}
 				onResolve={resolveDuplicate}
 				open={resolvingItem !== null}
 			/>
@@ -599,25 +739,16 @@ export function TransactionImportReviewDialog({
 				currentTransaction={
 					transferSuggestionDecision ? toTransaction(transferSuggestionDecision.item, accountDetails) : null
 				}
-				onAccept={() => {
-					if (!transferSuggestionDecision) return;
-					acceptTransferSuggestion.mutate({
-						counterpartItemId: transferSuggestionDecision.suggestion.id,
-						itemId: transferSuggestionDecision.item.id,
-					});
-					setTransferSuggestionDecision(null);
-				}}
+				onAccept={() => decideTransfer(true)}
 				onOpenChange={nextOpen => !nextOpen && setTransferSuggestionDecision(null)}
-				onReject={() => {
-					if (!transferSuggestionDecision) return;
-					rejectTransferSuggestion.mutate({
-						counterpartItemId: transferSuggestionDecision.suggestion.id,
-						itemId: transferSuggestionDecision.item.id,
-					});
-					setTransferSuggestionDecision(null);
-				}}
+				onReject={() => decideTransfer(false)}
 				open={transferSuggestionDecision !== null}
-				pending={acceptTransferSuggestion.isPending || rejectTransferSuggestion.isPending}
+				pending={
+					!!transferSuggestionDecision &&
+					[transferSuggestionDecision.item.id, transferSuggestionDecision.suggestion.id].some(
+						id => !!pendingActions[`${identity}:transaction-import-row:${id}`],
+					)
+				}
 			/>
 		</>
 	);

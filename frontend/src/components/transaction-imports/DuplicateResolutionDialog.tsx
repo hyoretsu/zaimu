@@ -68,6 +68,7 @@ function formatDuplicateCandidate(candidate: TransactionImportDuplicate, currenc
 export function DuplicateResolutionDialog({
 	accountCurrencies,
 	accountNames,
+	initialSelection,
 	item,
 	onOpenChange,
 	onResolve,
@@ -75,6 +76,7 @@ export function DuplicateResolutionDialog({
 }: {
 	accountCurrencies: Map<string, string>;
 	accountNames: Map<string, string>;
+	initialSelection?: { duplicateId: string; sources: DuplicateResolutionSources };
 	item: TransactionImportItem | null;
 	onOpenChange: (open: boolean) => void;
 	onResolve: (
@@ -95,10 +97,13 @@ export function DuplicateResolutionDialog({
 	useEffect(() => {
 		if (open) {
 			const firstDuplicate = item?.duplicates[0];
-			setSelectedDuplicateId(firstDuplicate?.id ?? null);
-			setSources(Object.fromEntries(getFields(firstDuplicate?.type).map(field => [field.key, "imported"])));
+			setSelectedDuplicateId(initialSelection?.duplicateId ?? firstDuplicate?.id ?? null);
+			setSources(
+				initialSelection?.sources ??
+					Object.fromEntries(getFields(firstDuplicate?.type).map(field => [field.key, "imported"])),
+			);
 		}
-	}, [open, item?.id]);
+	}, [initialSelection, open, item?.id]);
 	if (!item || !duplicate) return null;
 	const currencyOf = (record: TransactionImportItem | TransactionImportDuplicate) =>
 		accountCurrencies.get(

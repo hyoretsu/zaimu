@@ -4,6 +4,7 @@ import {
 	LuChevronUp,
 	LuCircleAlert,
 	LuLandmark,
+	LuLoaderCircle,
 	LuPencil,
 	LuShieldOff,
 } from "react-icons/lu";
@@ -17,6 +18,7 @@ import { TransferSuggestionActions } from "./TransferSuggestionActions";
 export function ImportReviewTransactionItem({
 	collapsed,
 	disabled,
+	pending = false,
 	isIgnoringDuplicate,
 	item,
 	accountNames,
@@ -31,6 +33,7 @@ export function ImportReviewTransactionItem({
 	accountNames: Map<string, string>;
 	collapsed: boolean;
 	disabled: boolean;
+	pending?: boolean;
 	isIgnoringDuplicate: boolean;
 	item: TransactionImportItem;
 	onApprove: () => void;
@@ -67,7 +70,9 @@ export function ImportReviewTransactionItem({
 				</div>
 				<div className="min-w-0 flex-1">
 					<p className="truncate font-medium text-sm">{getTransactionTitle(transaction)}</p>
-					<span className="text-muted-foreground text-xs">Pendente de aprovação</span>
+					<span aria-live="polite" className="text-muted-foreground text-xs">
+						{pending ? "Processando..." : "Pendente de aprovação"}
+					</span>
 				</div>
 				<div className="flex shrink-0 items-center gap-3">
 					<p className={`font-semibold text-sm ${amountColor}`}>
@@ -130,13 +135,12 @@ export function ImportReviewTransactionItem({
 					: []),
 				{
 					disabled: disabled || isIgnoringDuplicate,
-					icon: <LuPencil />,
+					icon: pending ? <LuLoaderCircle className="animate-spin" /> : <LuPencil />,
 					onClick: onEdit,
-					text: "Editar",
+					text: pending ? "Processando..." : "Editar",
 				},
 				{
 					ariaLabel: collapseLabel,
-					disabled,
 					icon: <LuChevronUp />,
 					onClick: () => onCollapsedChange(true),
 					text: "Minimizar",

@@ -61,6 +61,7 @@ const toDraft = (item: TransactionImportItem): EditableItem => ({
 
 export function EditImportedTransactionDialog({
 	accounts,
+	initialData,
 	item,
 	onOpenChange,
 	onSubmit,
@@ -68,6 +69,7 @@ export function EditImportedTransactionDialog({
 	pending,
 }: {
 	accounts: FinancialAccount[];
+	initialData?: Parameters<typeof dataService.transactionImports.updateItem>[2];
 	item: TransactionImportItem | null;
 	onOpenChange: (open: boolean) => void;
 	onSubmit: (data: EditableItem) => Promise<void>;
@@ -86,11 +88,11 @@ export function EditImportedTransactionDialog({
 	});
 	useEffect(() => {
 		if (!item || !open) return;
-		setDraft(toDraft(item));
-		setIsDebt(Boolean(item.debtSplit));
-		setDebtSplit(debtSplitToInput(item.debtSplit));
-		setDescription(item.description ?? "");
-	}, [item, open, setDescription]);
+		setDraft(initialData ? ({ ...toDraft(item), ...initialData } as EditableItem) : toDraft(item));
+		setIsDebt(Boolean(initialData ? initialData.debtSplit : item.debtSplit));
+		setDebtSplit(initialData?.debtSplit ?? debtSplitToInput(item.debtSplit));
+		setDescription(initialData?.description ?? item.description ?? "");
+	}, [initialData, item, open, setDescription]);
 	if (!item || !draft) return null;
 	const paymentCardOptions = (payableStatementsQuery.data ?? []).map(card => ({
 		label: getCreditCardDisplayName(card),

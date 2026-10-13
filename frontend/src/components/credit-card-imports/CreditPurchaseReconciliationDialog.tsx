@@ -47,12 +47,14 @@ function formatExistingPurchase(candidate: CreditCardImportPurchaseDuplicate) {
 }
 
 export function CreditPurchaseReconciliationDialog({
+	initialSelection,
 	item,
 	onOpenChange,
 	onReconcile,
 	open,
 	pending,
 }: {
+	initialSelection?: { duplicateId: string; sources?: CreditPurchaseReconciliationSources };
 	item: CreditCardImportItem | null;
 	onOpenChange: (open: boolean) => void;
 	onReconcile: (
@@ -71,9 +73,9 @@ export function CreditPurchaseReconciliationDialog({
 	const [isSaving, setIsSaving] = useState(false);
 	useEffect(() => {
 		if (!open) return;
-		setSelectedDuplicateId(item?.duplicates[0]?.id ?? null);
-		setSources(Object.fromEntries(fields.map(field => [field.key, "imported"])));
-	}, [item?.id, open]);
+		setSelectedDuplicateId(initialSelection?.duplicateId ?? item?.duplicates[0]?.id ?? null);
+		setSources(initialSelection?.sources ?? Object.fromEntries(fields.map(field => [field.key, "imported"])));
+	}, [initialSelection, item?.id, open]);
 	if (!item || !duplicate) return null;
 	const anticipated = importedAnticipation(item.description);
 	const refinancing = item.installments !== duplicate.installments;
@@ -141,7 +143,10 @@ export function CreditPurchaseReconciliationDialog({
 												key={candidate.id}
 												onClick={() => {
 													setSelectedDuplicateId(candidate.id);
-													setSources(Object.fromEntries(fields.map(field => [field.key, "imported"])));
+													setSources(
+														initialSelection?.sources ??
+															Object.fromEntries(fields.map(field => [field.key, "imported"])),
+													);
 												}}
 												type="button"
 												variant={candidate.id === duplicate.id ? "default" : "outline"}

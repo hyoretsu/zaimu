@@ -25,6 +25,7 @@ import { cleanFinancedDescription, getFinancedOperation } from "@/lib/financing-
 
 export function EditImportedCreditPurchaseDialog({
 	currencyCode,
+	initialData,
 	item,
 	onOpenChange,
 	onSubmit,
@@ -32,6 +33,7 @@ export function EditImportedCreditPurchaseDialog({
 	pending,
 }: {
 	currencyCode: string;
+	initialData?: Parameters<typeof dataService.creditCardImports.updateItem>[2];
 	item: CreditCardImportItem | null;
 	onOpenChange: (open: boolean) => void;
 	onSubmit: (data: Parameters<typeof dataService.creditCardImports.updateItem>[2]) => void;
@@ -53,21 +55,25 @@ export function EditImportedCreditPurchaseDialog({
 	useEffect(() => {
 		if (!item || !open) return;
 		setDescription(
-			getFinancedOperation(item.description)?.merchant ??
+			initialData?.description ??
+				getFinancedOperation(item.description)?.merchant ??
 				withoutImportedAnticipation(cleanFinancedDescription(item.description)),
 		);
-		setInstallments(String(item.installments));
-		setDebtSplit(debtSplitToInput(item.debtSplit));
-		setIsDebt(!item.isStatementCharge && Boolean(item.debtSplit));
-		setIsStatementCharge(item.isStatementCharge ?? false);
-		setPurchaseDate(item.purchaseDate);
-		setStoreName(item.storeName ?? "");
-		setTagIds(item.tagIds);
-		setTotalAmount(String(item.totalAmount));
-		setTime(item.time ?? "");
-		setStatementDate("");
-		setDueDate("");
-	}, [item, open, setDescription, setInstallments]);
+		setInstallments(String(initialData?.installments ?? item.installments));
+		setDebtSplit(initialData?.debtSplit ?? debtSplitToInput(item.debtSplit));
+		setIsDebt(
+			!(initialData?.isStatementCharge ?? item.isStatementCharge) &&
+				Boolean(initialData ? initialData.debtSplit : item.debtSplit),
+		);
+		setIsStatementCharge(initialData?.isStatementCharge ?? item.isStatementCharge ?? false);
+		setPurchaseDate(initialData?.purchaseDate ?? item.purchaseDate);
+		setStoreName(initialData?.storeName ?? item.storeName ?? "");
+		setTagIds(initialData?.tagIds ?? item.tagIds);
+		setTotalAmount(String(initialData?.totalAmount ?? item.totalAmount));
+		setTime(initialData?.time ?? item.time ?? "");
+		setStatementDate(initialData?.statementDate ?? "");
+		setDueDate(initialData?.dueDate ?? "");
+	}, [initialData, item, open, setDescription, setInstallments]);
 	if (!item) return null;
 	const installmentCount = isStatementCharge ? 1 : Number.parseInt(installments, 10);
 	const isValid =

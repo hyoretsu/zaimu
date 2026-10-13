@@ -25,6 +25,7 @@ import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 
 export function RefundImportReviewDialog({
 	cardId,
+	initialData,
 	item,
 	loadSources,
 	onOpenChange,
@@ -33,6 +34,7 @@ export function RefundImportReviewDialog({
 	reviewKey,
 }: {
 	cardId: string;
+	initialData?: Parameters<typeof dataService.creditCardImports.approveRefund>[2];
 	item: Pick<
 		CreditCardImportItem,
 		| "description"
@@ -48,15 +50,30 @@ export function RefundImportReviewDialog({
 	pending: boolean;
 	reviewKey: string;
 }) {
-	const [mode, setMode] = useState<"link" | "reconstruct">("link");
-	const [sourceId, setSourceId] = useState(item.reconciledCreditPurchaseId ?? "");
-	const [description, setDescription] = useDebouncedInput(item.description, () => undefined);
-	const [storeName, setStoreName] = useDebouncedInput(item.storeName ?? "", () => undefined);
-	const [installments, setInstallments] = useDebouncedInput("1", () => undefined);
-	const [purchaseDate, setPurchaseDate] = useState(item.purchaseDate.slice(0, 10));
-	const [totalAmount, setTotalAmount] = useState(String(Math.abs(item.totalAmount)));
-	const [tagIds, setTagIds] = useState<string[]>([]);
-	const [policy, setPolicy] = useState<"KEEP_INSTALLMENTS" | "CANCEL_FUTURE_INSTALLMENTS" | undefined>();
+	const [mode, setMode] = useState<"link" | "reconstruct">(initialData?.purchase ? "reconstruct" : "link");
+	const [sourceId, setSourceId] = useState(initialData?.purchaseId ?? item.reconciledCreditPurchaseId ?? "");
+	const [description, setDescription] = useDebouncedInput(
+		initialData?.purchase?.description ?? item.description,
+		() => undefined,
+	);
+	const [storeName, setStoreName] = useDebouncedInput(
+		initialData?.purchase?.storeName ?? item.storeName ?? "",
+		() => undefined,
+	);
+	const [installments, setInstallments] = useDebouncedInput(
+		String(initialData?.purchase?.installments ?? 1),
+		() => undefined,
+	);
+	const [purchaseDate, setPurchaseDate] = useState(
+		initialData?.purchase?.purchaseDate ?? item.purchaseDate.slice(0, 10),
+	);
+	const [totalAmount, setTotalAmount] = useState(
+		String(initialData?.purchase?.totalAmount ?? Math.abs(item.totalAmount)),
+	);
+	const [tagIds, setTagIds] = useState<string[]>(initialData?.purchase?.tagIds ?? []);
+	const [policy, setPolicy] = useState<"KEEP_INSTALLMENTS" | "CANCEL_FUTURE_INSTALLMENTS" | undefined>(
+		initialData?.policy,
+	);
 	const identity = useCacheIdentity();
 	const sources = useQuery({
 		enabled: Boolean(identity),

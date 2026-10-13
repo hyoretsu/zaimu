@@ -20,7 +20,9 @@ import {
 } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
 import type { CreditCardImport, CreditCardImportItem } from "@/lib/api";
+import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
@@ -38,23 +40,67 @@ import { EditImportedCreditPurchaseDialog } from "./EditImportedCreditPurchaseDi
 import { RefundImportReviewDialog } from "./RefundImportReviewDialog";
 
 export function CreditCardImportReviewDialog({
-	importId,
-	onOpenChange,
-	open,
+	importId: suppliedImportId,
+	onOpenChange: suppliedOnOpenChange,
+	open: suppliedOpen,
 }: {
 	importId: null | string;
 	onOpenChange: (open: boolean) => void;
 	open: boolean;
 }) {
+	const [recoveryImportId, setRecoveryImportId] = useState<string | null>(null);
+	const importId = recoveryImportId ?? suppliedImportId;
+	const open = recoveryImportId !== null || suppliedOpen;
+	const onOpenChange = (nextOpen: boolean) => {
+		if (!nextOpen) setRecoveryImportId(null);
+		suppliedOnOpenChange(nextOpen);
+	};
+	const pendingActions = useModalRecoveryStore(state => state.pending);
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
+	const [recoveredEdit, setRecoveredEdit] = useState<
+		Parameters<typeof dataService.creditCardImports.updateItem>[2] | undefined
+	>();
+	useBackgroundModalRecovery<{
+		importId: string;
+		item: CreditCardImportItem;
+		data: Parameters<typeof dataService.creditCardImports.updateItem>[2];
+	}>("credit-card-import-edit", entry => {
+		setRecoveryImportId(entry.payload.importId);
+		setRecoveredEdit(entry.payload.data);
+		setEditingItem(entry.payload.item);
+	});
 	const [editingItem, setEditingItem] = useState<CreditCardImportItem | null>(null);
+	const [recoveredRefund, setRecoveredRefund] =
+		useState<Parameters<typeof dataService.creditCardImports.approveRefund>[2]>();
+	useBackgroundModalRecovery<{
+		importId: string;
+		item: CreditCardImportItem;
+		data: Parameters<typeof dataService.creditCardImports.approveRefund>[2];
+	}>("credit-card-import-refund", entry => {
+		setRecoveryImportId(entry.payload.importId);
+		setRecoveredRefund(entry.payload.data);
+		setReviewingRefund(entry.payload.item);
+	});
 	const [reviewingRefund, setReviewingRefund] = useState<CreditCardImportItem | null>(null);
+	const [recoveredReconciliation, setRecoveredReconciliation] = useState<{
+		duplicateId: string;
+		sources: Parameters<typeof dataService.creditCardImports.reconcileItem>[2]["sources"];
+	}>();
+	useBackgroundModalRecovery<{
+		importId: string;
+		item: CreditCardImportItem;
+		duplicateId: string;
+		sources: Parameters<typeof dataService.creditCardImports.reconcileItem>[2]["sources"];
+	}>("credit-card-import-reconcile", entry => {
+		setRecoveryImportId(entry.payload.importId);
+		setRecoveredReconciliation(entry.payload);
+		setReconcilingImport({ id: entry.payload.importId, item: entry.payload.item });
+	});
 	const [reconcilingImport, setReconcilingImport] = useState<{
 		id: string;
 		item: CreditCardImportItem;
 	} | null>(null);
-	const [approvingItemIds, setApprovingItemIds] = useState<Set<string>>(new Set());
 	const [discardConfirmationOpen, setDiscardConfirmationOpen] = useState(false);
 	const creditCardImport = useInfiniteQuery<
 		CreditCardImport,
@@ -87,81 +133,34 @@ export function CreditCardImportReviewDialog({
 		onOpenChange(false);
 		await closeImportReview(queryClient, identity!, "credit-card", importId);
 	};
-	const updateItem = useMutation({
-		mutationFn: ({
-			data,
-			itemId,
-		}: {
-			data: Parameters<typeof dataService.creditCardImports.updateItem>[2];
-			itemId: string;
-		}) => dataService.creditCardImports.updateItem(importId!, itemId, data),
-		onError: error => showToast(error.message, "negative"),
-		onSuccess: async () => {
-			setEditingItem(null);
-			await invalidate();
-			showToast("Compra importada atualizada.", "positive");
-		},
-	});
-	const approveItem = useMutation({
-		mutationFn: (itemId: string) => dataService.creditCardImports.approveItem(importId!, itemId),
-		onError: error => showToast(error.message, "negative"),
-		onMutate: itemId => {
-			setApprovingItemIds(current => new Set(current).add(itemId));
-		},
-		onSettled: (_data, _error, itemId) => {
-			setApprovingItemIds(current => {
-				const next = new Set(current);
-				next.delete(itemId);
-				return next;
-			});
-		},
-		onSuccess: async () => {
-			await invalidateCreditCards();
-			if ((creditCardImportData?.pendingItemCount ?? 0) === 1) await closeFinishedReview();
-			else await invalidate();
-			showToast(
-				importedAnticipation(items.find(item => item.id === approveItem.variables)?.description ?? "")
-					? "Parcelas antecipadas movidas para esta fatura."
-					: "Compra e parcelas criadas.",
-				"positive",
-			);
-		},
-	});
-	const approveRefund = useMutation({
-		mutationFn: (data: Parameters<typeof dataService.creditCardImports.approveRefund>[2]) =>
-			dataService.creditCardImports.approveRefund(importId!, reviewingRefund!.id, data),
-		onError: error => showToast(error.message, "negative"),
-		onSuccess: async result => {
-			setReviewingRefund(null);
-			await invalidateCreditCards();
-			if (result.finished) await closeFinishedReview();
-			else await invalidate();
-			showToast("Reembolso aprovado e faturas recalculadas.", "positive");
-		},
-	});
-	const reconcileItem = useMutation({
-		mutationFn: ({
-			creditPurchaseId,
-			importId: reconciliationImportId,
-			itemId,
-			sources,
-		}: {
-			creditPurchaseId: string;
-			importId: string;
-			itemId: string;
-			sources?: Parameters<typeof dataService.creditCardImports.reconcileItem>[2]["sources"];
-		}) =>
-			dataService.creditCardImports.reconcileItem(reconciliationImportId, itemId, {
-				creditPurchaseId,
-				sources,
-			}),
-		onError: error => showToast(error.message, "negative"),
-		onSuccess: async (_data, variables) => {
-			setReconcilingImport(null);
-			await invalidate(variables.importId);
-			showToast("Conciliação atualizada.", "positive");
-		},
-	});
+
+	const approveItem = (item: CreditCardImportItem) => {
+		const targetImportId = importId!;
+		runBackgroundModalAction({
+			close: () => {},
+			conflictKey: `credit-card-import:${targetImportId}:${item.id}`,
+			failureMessage: "Não foi possível aprovar compra.",
+			loadingMessage: "Aprovando compra...",
+			onSuccess: async () => {
+				await invalidateCreditCards();
+				await invalidate(targetImportId);
+			},
+			progress: "record",
+			recovery: {
+				entityId: item.id,
+				kind: "credit-card-import-action",
+				payload: { importId: targetImportId },
+			},
+			run: () => dataService.creditCardImports.approveItem(targetImportId, item.id),
+			successMessage: importedAnticipation(item.description ?? "")
+				? "Parcelas antecipadas movidas para esta fatura."
+				: "Compra e parcelas criadas.",
+		});
+	};
+	useBackgroundModalRecovery<{ importId: string }>("credit-card-import-action", entry =>
+		setRecoveryImportId(entry.payload.importId),
+	);
+
 	const approve = useMutation({
 		mutationFn: () => dataService.creditCardImports.approve(importId!),
 		onError: error => showToast(error.message, "negative"),
@@ -178,28 +177,44 @@ export function CreditCardImportReviewDialog({
 			);
 		},
 	});
-	const discard = useMutation({
-		mutationFn: () => dataService.creditCardImports.delete(importId!),
-		onError: error => showToast(error.message, "negative"),
-		onSuccess: async () => {
-			setDiscardConfirmationOpen(false);
-			await closeFinishedReview();
-			showToast("Importação descartada.", "info");
-		},
+	const discardImport = () => {
+		if (!importId) return;
+		const targetImportId = importId;
+		runBackgroundModalAction({
+			close: () => {
+				setDiscardConfirmationOpen(false);
+				onOpenChange(false);
+			},
+			conflictKey: `credit-card-import:${targetImportId}:batch`,
+			failureMessage: "Não foi possível excluir o lote.",
+			loadingMessage: "Excluindo lote...",
+			onSuccess: () => closeImportReview(queryClient, identity!, "credit-card", targetImportId),
+			progress: "toast",
+			recovery: {
+				entityId: targetImportId,
+				kind: "credit-card-import-discard",
+				payload: { importId: targetImportId },
+			},
+			run: () => dataService.creditCardImports.delete(targetImportId),
+			successMessage: "Importação descartada.",
+		});
+	};
+	const discardPending = Boolean(pendingActions[`${identity}:credit-card-import:${importId}:batch`]);
+	useBackgroundModalRecovery<{ importId: string }>("credit-card-import-discard", entry => {
+		setRecoveryImportId(entry.payload.importId);
+		setDiscardConfirmationOpen(true);
 	});
+
 	const creditCard = creditCards.data?.find(card => card.id === creditCardImportData?.creditCardId);
 	const currencyCode = creditCard?.currency ?? "BRL";
 	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
 	const creditCardName = creditCard ? getCreditCardDisplayName(creditCard) : "Cartão de crédito";
-	const reviewBusy = approve.isPending || discard.isPending;
+	const reviewBusy = approve.isPending || discardPending;
 	const rowBusy = (id: string) =>
-		reviewBusy ||
-		approvingItemIds.has(id) ||
-		(updateItem.isPending && updateItem.variables?.itemId === id) ||
-		(reconcileItem.isPending && reconcileItem.variables?.itemId === id) ||
-		(approveRefund.isPending && reviewingRefund?.id === id);
-	const hasApprovingItems =
-		approvingItemIds.size > 0 || updateItem.isPending || reconcileItem.isPending || approveRefund.isPending;
+		reviewBusy || Boolean(pendingActions[`${identity}:credit-card-import:${importId}:${id}`]);
+	const hasApprovingItems = Object.keys(pendingActions).some(key =>
+		key.startsWith(`${identity}:credit-card-import:${importId}:`),
+	);
 
 	return (
 		<>
@@ -253,13 +268,14 @@ export function CreditCardImportReviewDialog({
 											item={item}
 											key={item.id}
 											onApprove={() =>
-												item.installmentAmount < 0 ? setReviewingRefund(item) : approveItem.mutate(item.id)
+												item.installmentAmount < 0 ? setReviewingRefund(item) : approveItem(item)
 											}
 											onEdit={() => setEditingItem(item)}
 											onReconcile={() => {
 												if (!importId) return;
 												setReconcilingImport({ id: importId, item });
 											}}
+											pending={rowBusy(item.id)}
 										/>
 									))}
 									{creditCardImport.hasNextPage && (
@@ -321,7 +337,7 @@ export function CreditCardImportReviewDialog({
 					<DialogFooter>
 						<Button
 							className="cursor-pointer"
-							disabled={discard.isPending}
+							disabled={discardPending}
 							onClick={() => setDiscardConfirmationOpen(false)}
 							variant="outline"
 						>
@@ -329,48 +345,129 @@ export function CreditCardImportReviewDialog({
 						</Button>
 						<Button
 							className="cursor-pointer bg-destructive text-destructive-foreground hover:bg-destructive/80"
-							disabled={discard.isPending}
-							onClick={() => discard.mutate()}
+							disabled={discardPending}
+							onClick={() => discardImport()}
 						>
-							<LuTrash2 /> {discard.isPending ? "Excluindo…" : "Excluir lote"}
+							<LuTrash2 /> {discardPending ? "Excluindo…" : "Excluir lote"}
 						</Button>
 					</DialogFooter>
 				</ImportDialogContent>
 			</ImportDialog>
 			<EditImportedCreditPurchaseDialog
 				currencyCode={currencyCode}
+				initialData={recoveredEdit}
 				item={editingItem}
-				onOpenChange={nextOpen => !nextOpen && setEditingItem(null)}
-				onSubmit={data => editingItem && updateItem.mutate({ data, itemId: editingItem.id })}
+				onOpenChange={nextOpen => {
+					if (!nextOpen) {
+						setEditingItem(null);
+						setRecoveredEdit(undefined);
+					}
+				}}
+				onSubmit={async data => {
+					if (!editingItem || !importId) return;
+					const item = editingItem;
+					const targetImportId = importId;
+					runBackgroundModalAction({
+						close: () => {
+							setEditingItem(null);
+							setRecoveredEdit(undefined);
+						},
+						conflictKey: `credit-card-import:${targetImportId}:${item.id}`,
+						failureMessage: "Não foi possível salvar o item.",
+						loadingMessage: "Salvando item importado...",
+						onSuccess: () => invalidate(targetImportId),
+						progress: "record",
+						recovery: {
+							entityId: item.id,
+							kind: "credit-card-import-edit",
+							payload: { data, importId: targetImportId, item },
+						},
+						run: () => dataService.creditCardImports.updateItem(targetImportId, item.id, data),
+						successMessage: "Item importado atualizado.",
+					});
+				}}
 				open={editingItem !== null}
-				pending={updateItem.isPending}
+				pending={false}
 			/>
 			{reviewingRefund && creditCardImportData ? (
 				<RefundImportReviewDialog
 					cardId={creditCardImportData.creditCardId}
+					initialData={recoveredRefund}
 					item={reviewingRefund}
 					key={reviewingRefund.id}
 					loadSources={() => dataService.creditCardImports.refundSources(importId!)}
-					onOpenChange={nextOpen => !nextOpen && setReviewingRefund(null)}
-					onSubmit={data => approveRefund.mutateAsync(data)}
-					pending={approveRefund.isPending}
+					onOpenChange={nextOpen => {
+						if (!nextOpen) {
+							setReviewingRefund(null);
+							setRecoveredRefund(undefined);
+						}
+					}}
+					onSubmit={async data => {
+						const item = reviewingRefund;
+						const targetImportId = importId!;
+						runBackgroundModalAction({
+							close: () => {
+								setReviewingRefund(null);
+								setRecoveredRefund(undefined);
+							},
+							conflictKey: `credit-card-import:${targetImportId}:${item.id}`,
+							failureMessage: "Não foi possível aprovar o reembolso.",
+							loadingMessage: "Aprovando reembolso...",
+							onSuccess: async () => {
+								await invalidateCreditCards();
+								await invalidate(targetImportId);
+							},
+							progress: "record",
+							recovery: {
+								entityId: item.id,
+								kind: "credit-card-import-refund",
+								payload: { data, importId: targetImportId, item },
+							},
+							run: () => dataService.creditCardImports.approveRefund(targetImportId, item.id, data),
+							successMessage: "Reembolso aprovado e faturas recalculadas.",
+						});
+					}}
+					pending={false}
 					reviewKey={importId!}
 				/>
 			) : null}
 			<CreditPurchaseReconciliationDialog
+				initialSelection={recoveredReconciliation}
 				item={reconcilingImport?.item ?? null}
-				onOpenChange={nextOpen => !nextOpen && setReconcilingImport(null)}
+				onOpenChange={nextOpen => {
+					if (!nextOpen) {
+						setReconcilingImport(null);
+						setRecoveredReconciliation(undefined);
+					}
+				}}
 				onReconcile={async (candidate, sources) => {
 					if (!reconcilingImport) return;
-					await reconcileItem.mutateAsync({
-						creditPurchaseId: candidate.id,
-						importId: reconcilingImport.id,
-						itemId: reconcilingImport.item.id,
-						sources,
+					const { id: targetImportId, item } = reconcilingImport;
+					runBackgroundModalAction({
+						close: () => {
+							setReconcilingImport(null);
+							setRecoveredReconciliation(undefined);
+						},
+						conflictKey: `credit-card-import:${targetImportId}:${item.id}`,
+						failureMessage: "Não foi possível conciliar a compra.",
+						loadingMessage: "Conciliando compra...",
+						onSuccess: () => invalidate(targetImportId),
+						progress: "record",
+						recovery: {
+							entityId: item.id,
+							kind: "credit-card-import-reconcile",
+							payload: { duplicateId: candidate.id, importId: targetImportId, item, sources },
+						},
+						run: () =>
+							dataService.creditCardImports.reconcileItem(targetImportId, item.id, {
+								creditPurchaseId: candidate.id,
+								sources,
+							}),
+						successMessage: "Conciliação atualizada.",
 					});
 				}}
 				open={reconcilingImport !== null}
-				pending={reconcileItem.isPending}
+				pending={false}
 			/>
 		</>
 	);

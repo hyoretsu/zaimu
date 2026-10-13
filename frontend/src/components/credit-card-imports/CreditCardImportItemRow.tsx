@@ -1,5 +1,5 @@
 import { importedAnticipation, withoutImportedAnticipation } from "@zaimu/finance/imported-anticipation";
-import { LuCheck, LuCircleAlert, LuPencil } from "react-icons/lu";
+import { LuCheck, LuCircleAlert, LuLoaderCircle, LuPencil } from "react-icons/lu";
 import { ImportItemDateTime, TransactionListItem } from "@/components/transactions";
 import { AppBadge } from "@/components/ui/AppBadge";
 import type { CreditCardImportItem, Transaction } from "@/lib/api";
@@ -46,6 +46,7 @@ export function CreditCardImportItemRow({
 	creditCardId,
 	creditCardName,
 	disabled,
+	pending = false,
 	item,
 	onApprove,
 	onEdit,
@@ -55,6 +56,7 @@ export function CreditCardImportItemRow({
 	creditCardId: string;
 	creditCardName: string;
 	disabled: boolean;
+	pending?: boolean;
 	item: CreditCardImportItem;
 	onApprove: () => void;
 	onEdit: () => void;
@@ -84,13 +86,20 @@ export function CreditCardImportItemRow({
 						disabled ||
 						(item.installmentAmount >= 0 &&
 							(item.duplicates.length > 0 || Boolean(anticipated && !item.reconciledCreditPurchaseId))),
-					icon: <LuCheck />,
+					icon: pending ? <LuLoaderCircle className="animate-spin" /> : <LuCheck />,
 					onClick: onApprove,
-					text: item.installmentAmount < 0 ? "Revisar reembolso" : "Aprovar",
+					text: pending ? "Processando..." : item.installmentAmount < 0 ? "Revisar reembolso" : "Aprovar",
 				},
 				...(item.installmentAmount < 0
 					? []
-					: [{ disabled, icon: <LuPencil />, onClick: onEdit, text: "Editar" }]),
+					: [
+							{
+								disabled,
+								icon: pending ? <LuLoaderCircle className="animate-spin" /> : <LuPencil />,
+								onClick: onEdit,
+								text: "Editar",
+							},
+						]),
 			]}
 			amount={
 				anticipated ? (

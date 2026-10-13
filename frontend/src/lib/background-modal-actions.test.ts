@@ -140,3 +140,47 @@ test("identity change clears drafts and ignores failures from previous identity"
 	await settle();
 	expect(Object.keys(useModalRecoveryStore.getState().entries)).toHaveLength(0);
 });
+
+test("overlapping batch locks both records while independent work remains available", async () => {
+	let finish!: () => void;
+	let conflicting = 0;
+	runBackgroundModalAction({
+		...base,
+		conflictKey: "batch",
+		conflictKeys: ["record:a", "record:b"],
+		run: () =>
+			new Promise<void>(resolve => {
+				finish = resolve;
+			}),
+	});
+	runBackgroundModalAction({
+		...base,
+		conflictKey: "record:b",
+		run: async () => {
+			conflicting++;
+		},
+	});
+	await settle();
+	expect(conflicting).toBe(0);
+	expect(useModalRecoveryStore.getState().pending["guest:test-modal:record:a"]).toBeTrue();
+	expect(useModalRecoveryStore.getState().pending["guest:test-modal:record:b"]).toBeTrue();
+	finish();
+	await settle();
+	expect(Object.keys(useModalRecoveryStore.getState().pending)).toHaveLength(0);
+});
+test("record progress leaves loading feedback inside the affected listing", async () => {
+	let finish!: () => void;
+	runBackgroundModalAction({
+		...base,
+		loadingMessage: "Row-only progress",
+		progress: "record",
+		run: () =>
+			new Promise<void>(resolve => {
+				finish = resolve;
+			}),
+	});
+	await settle();
+	expect(toast.getHistory().some(item => "title" in item && item.title === "Row-only progress")).toBeFalse();
+	finish();
+	await settle();
+});

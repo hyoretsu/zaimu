@@ -95,6 +95,7 @@ useAuthStore.subscribe((state, previous) => {
 export interface BackgroundModalAction<T> {
 	close: () => void;
 	conflictKey?: string;
+	conflictKeys?: string[];
 	failureMessage: string;
 	loadingMessage: string;
 	progress?: "toast" | "record";
@@ -108,6 +109,7 @@ export interface BackgroundModalAction<T> {
 export function runBackgroundModalAction<T>({
 	close,
 	conflictKey,
+	conflictKeys = [],
 	failureMessage,
 	loadingMessage,
 	onSuccess,
@@ -117,10 +119,21 @@ export function runBackgroundModalAction<T>({
 	run,
 	successMessage,
 }: BackgroundModalAction<T>): void {
-	const pendingKey = conflictKey ? `${getCurrentCacheIdentity()}:${conflictKey}` : null;
-	if (pendingKey && useModalRecoveryStore.getState().pending[pendingKey]) return;
-	if (pendingKey) useModalRecoveryStore.getState().setPending(pendingKey, true);
 	const identity = getCurrentCacheIdentity();
+	const pendingKeys = [...new Set([...(conflictKey ? [conflictKey] : []), ...conflictKeys])].map(
+		key => `${identity}:${key}`,
+	);
+	if (pendingKeys.some(key => useModalRecoveryStore.getState().pending[key])) return;
+	const setPending = (active: boolean) =>
+		useModalRecoveryStore.setState(state => {
+			const pending = { ...state.pending };
+			for (const key of pendingKeys) {
+				if (active) pending[key] = true;
+				else delete pending[key];
+			}
+			return { pending };
+		});
+	setPending(true);
 	const path = window.location.pathname + window.location.search;
 	close();
 	const toastId =
@@ -175,6 +188,6 @@ export function runBackgroundModalAction<T>({
 			});
 		})
 		.finally(() => {
-			if (pendingKey) useModalRecoveryStore.getState().setPending(pendingKey, false);
+			setPending(false);
 		});
 }
