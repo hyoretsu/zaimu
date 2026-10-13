@@ -8,7 +8,7 @@ import { countryHolidayDates } from "@zaimu/finance/yield-calendar";
 import type { YieldTaxLedger } from "@zaimu/finance/yield-tax";
 import { addDays } from "date-fns";
 import { loadYieldCalendar } from "~/modules/yield-calendar/catalog";
-import { ensureAccountCoverage } from "~/modules/yield-calendar/ensure-coverage";
+import { ensureProjectedCoverage } from "~/modules/yield-calendar/ensure-projected-coverage";
 import { queryRaw } from "~/shared/infra/sql";
 import { getReferenceRateAverages } from "./get-reference-rate-averages";
 import { loadYieldAccounts } from "./reference-rate-jobs";
@@ -33,17 +33,7 @@ export async function projectedYieldContext(
 		{ length: Math.max(0, through.getFullYear() - from.getFullYear()) + 1 },
 		(_, index) => from.getFullYear() + index,
 	);
-	const coverage = new Map(
-		await Promise.all(
-			accounts.map(
-				async account =>
-					[
-						account.id,
-						await ensureAccountCoverage(account.currency ?? "BRL", account.countryCode, years),
-					] as const,
-			),
-		),
-	);
+	const coverage = await ensureProjectedCoverage(accounts, years);
 	const calendar = await loadYieldCalendar();
 	const accountMap = new Map(accounts.map(account => [account.id, account] as const));
 	const holidaysByCountry = new Map(

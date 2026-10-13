@@ -430,3 +430,9 @@ Próxima etapa: validar fallback de cache e persistência incremental contra reg
 - Primeira execução oficial com 20 identidades abortou preparação: logins compartilhavam IP e receberam HTTP 429. Executor passa IP local simulado por identidade, preservando limites de autenticação.
 - Jornada HTTP de sugestão cria duas transações com horário no limite de 60 s, exige sugestão, rejeita e verifica invalidação; limpeza remove ambos os lançamentos e conta mesmo após falha. Executor passou 18 testes/84 assertions.
 - Parsing volta ao orçamento original de 15 s do 0018; limite de 30 s fica exclusivo ao snapshot sync. Rodada oficial precisa repetir após correção da preparação.
+
+### Projeção com calendário por combinação distinta
+
+- Rodada oficial interrompida após descobrir GET dashboard com 78 queries e até 10.947 ms em fixture de dez transações. Autenticação/carga fria continuam reprovadas e relatório parcial preservado em /tmp/zaimu-performance-matrix-corrected.
+- Contexto de juros deduplica associação por moeda e calendário por país/ano. Mesmas funções transacionais mantêm fontes, overrides, advisory locks e disponibilidade; quantidade de contas deixa de multiplicar registro idêntico.
+- Três regressões/15 assertions passaram, com 10/10k/100k contas, anos duplicados, país ausente, cobertura incompleta e falha de registro. Build, integração e nova captura release pendentes.

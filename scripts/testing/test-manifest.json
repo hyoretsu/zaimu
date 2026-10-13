@@ -116,6 +116,7 @@
 		"backend/src/modules/transactions/application/transfer-candidate-pairs.test.ts",
 		"backend/src/modules/upgrades/debt-upgrade.test.ts",
 		"backend/src/modules/yield-calendar/calendar-source.test.ts",
+		"backend/src/modules/yield-calendar/ensure-projected-coverage.test.ts",
 		"backend/src/scripts/replay-missing-recurrences-options.test.ts",
 		"backend/src/shared/application/cache-invalidation.test.ts",
 		"backend/src/shared/application/catalog-pagination.test.ts",
