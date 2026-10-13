@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import type { MonthlyBudget } from "@/lib/monthly-budget-service";
+import { budgetSourceLabel } from "./budget-display";
 
 export function BudgetAdjustmentRow({
 	item,
@@ -22,7 +23,7 @@ export function BudgetAdjustmentRow({
 	return (
 		<li className="flex min-w-0 flex-wrap items-center justify-between gap-3 py-3">
 			<div className="min-w-0 flex-1">
-				<h3 className="truncate font-medium">{item.name}</h3>
+				<h3 className="truncate font-medium">{item.name || budgetSourceLabel(item)}</h3>
 				<p className="text-muted-foreground text-xs">
 					{adjustment
 						? "Padrão: $<PreferredMoneyAmount values={[{ amount: item.amount, currency: item.currency }]} />"
@@ -38,7 +39,7 @@ export function BudgetAdjustmentRow({
 				<Tooltip>
 					<TooltipTrigger asChild>
 						<Button
-							aria-label={`Ajustar ${item.name}`}
+							aria-label={`Ajustar ${item.name || budgetSourceLabel(item)}`}
 							disabled={pending}
 							onClick={onEdit}
 							size="icon-sm"
@@ -54,7 +55,7 @@ export function BudgetAdjustmentRow({
 						<TooltipTrigger asChild>
 							<span>
 								<ConfirmActionButton
-									aria-label={`Restaurar padrão de ${item.name}`}
+									aria-label={`Restaurar padrão de ${item.name || budgetSourceLabel(item)}`}
 									confirmation="Descartar ajuste e restaurar valor padrão?"
 									disabled={pending}
 									onConfirm={onRestore}

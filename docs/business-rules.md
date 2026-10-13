@@ -289,6 +289,8 @@ O modal de extrato reutiliza a listagem completa da tela de transações, sem fi
 
 Orçamento mensal possui valor padrão repetido durante sua vigência. Um registro com início e fim no mesmo mês substitui o padrão daquela origem e moeda somente naquele mês; reservas sem tag usam também o nome como identidade. Ajustes não somam ao padrão. Excluir o ajuste restaura o padrão. Outros meses continuam usando o padrão.
 
+Nome do orçamento é facultativo para todas as origens. Apagar e salvar persiste nome vazio, sem preencher automaticamente com a categoria de planejamento. A categoria continua identificando o orçamento na listagem e nas ações quando não há nome.
+
 A tela de orçamento prioriza listagem compacta do plano geral. Exceções mensais ficam no modal de ajustes. Disponibilidade do plano geral usa somente a base mensal das entradas recorrentes fixas ativas, como salários, menos despesas vigentes do plano geral, sem ajustes mensais ou compromissos avulsos. Frequências diferentes são normalizadas para uma base mensal. A página não possui seletor de mês; o mês e sua disponibilidade ficam no modal Ajustes por mês. Nesse modal, entradas extras realizadas ou agendadas ampliam a disponibilidade do mês, e despesas incluem plano, ajustes e compromissos conhecidos sem duplicação. Rendimentos realizados e projetados ficam fora de ambos os cálculos de orçamento; permanecem na projeção financeira do dashboard. Saldo acumulado anterior não amplia esse limite mensal. Valores seguem moeda e consolidação da comparação financeira; falha de previsão não vira disponibilidade zero.
 
 ## Exibição monetária e consolidação

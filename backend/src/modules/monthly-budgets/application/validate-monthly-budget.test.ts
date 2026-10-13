@@ -19,8 +19,18 @@ describe("monthly budget validation", () => {
 	test("non-tag plans cannot include a tag", () => {
 		expect(() => validateMonthlyBudgetFields({ ...budget, categoryId: "tag" })).toThrow();
 	});
-	test("blank name rejected", () => {
-		expect(() => validateMonthlyBudgetFields({ ...budget, name: "  " })).toThrow();
+	test("blank names supported for every planning source", () => {
+		for (const name of ["", "  "]) {
+			for (const source of ["STATEMENTS", "CUSTOM", "TAG"] as const)
+				expect(() =>
+					validateMonthlyBudgetFields({
+						...budget,
+						categoryId: source === "TAG" ? "tag" : null,
+						name,
+						source,
+					}),
+				).not.toThrow();
+		}
 	});
 	test("end month must not precede start", () => {
 		expect(() => validateMonthlyBudgetFields({ ...budget, endMonth: "2026-09" })).toThrow();

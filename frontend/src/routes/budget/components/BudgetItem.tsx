@@ -21,7 +21,7 @@ export function BudgetItem({
 	return (
 		<li className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-2 px-4 py-3">
 			<div className="min-w-0">
-				<h3 className="truncate font-medium">{item.name}</h3>
+				{item.name && <h3 className="truncate font-medium">{item.name}</h3>}
 				<p className="truncate text-muted-foreground text-xs">{budgetSourceLabel(item)}</p>
 			</div>
 			<div className="text-right">
@@ -34,7 +34,7 @@ export function BudgetItem({
 				<Tooltip>
 					<TooltipTrigger asChild>
 						<Button
-							aria-label={`Editar ${item.name}`}
+							aria-label={`Editar ${item.name || budgetSourceLabel(item)}`}
 							disabled={pending}
 							onClick={onEdit}
 							size="icon-sm"
@@ -49,7 +49,7 @@ export function BudgetItem({
 					<TooltipTrigger asChild>
 						<span>
 							<ConfirmActionButton
-								aria-label={`Excluir ${item.name}`}
+								aria-label={`Excluir ${item.name || budgetSourceLabel(item)}`}
 								confirmation="Excluir planejamento permanentemente?"
 								disabled={pending}
 								onConfirm={onDelete}

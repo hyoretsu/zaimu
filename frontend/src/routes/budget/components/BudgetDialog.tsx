@@ -22,7 +22,6 @@ import type { MonthlyBudget, MonthlyBudgetInput } from "@/lib/monthly-budget-ser
 import { useCacheIdentity } from "@/lib/query-cache";
 import { useCurrencyStore } from "@/stores/currency";
 import { BudgetAmountField } from "./BudgetAmountField";
-import { budgetSourceLabel } from "./budget-display";
 
 type BudgetInput = MonthlyBudgetInput;
 
@@ -81,9 +80,6 @@ export function BudgetDialog({
 		},
 		queryKey: ["budget-category-options", identity],
 	});
-	const defaultName =
-		(draft.source === "TAG" && categories.data?.find(category => category.id === draft.categoryId)?.name) ||
-		budgetSourceLabel(draft);
 	return (
 		<Dialog
 			onOpenChange={open => {
@@ -107,7 +103,7 @@ export function BudgetDialog({
 						event.preventDefault();
 						const amount = Number(new FormData(event.currentTarget).get("budget-amount-raw"));
 						if (amount > 0 && draft.startMonth && (draft.source !== "TAG" || draft.categoryId))
-							onSave({ ...draft, amount, name: name.trim() || defaultName });
+							onSave({ ...draft, amount, name: name.trim() });
 					}}
 				>
 					<DialogBody>
@@ -169,7 +165,8 @@ export function BudgetDialog({
 							)}
 							{adjustment && (
 								<p className="text-muted-foreground text-sm">
-									{item?.name}: ajuste somente para {month}. Outros meses mantêm orçamento padrão.
+									{item?.name || "Planejamento"}: ajuste somente para {month}. Outros meses mantêm orçamento
+									padrão.
 								</p>
 							)}
 							<FormFieldRow>

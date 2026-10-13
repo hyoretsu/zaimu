@@ -20,8 +20,7 @@ export type MonthlyBudgetInput = Omit<
 
 export function validateMonthlyBudget(input: MonthlyBudgetInput): MonthlyBudgetInput {
 	const month = /^\d{4}-(0[1-9]|1[0-2])$/;
-	if (!input.name.trim() || input.name.trim().length > 100)
-		throw new Error("Informe um nome de até 100 caracteres.");
+	if (input.name.trim().length > 100) throw new Error("Informe um nome de até 100 caracteres.");
 	if (!["TAG", "STATEMENTS", "CUSTOM"].includes(input.source))
 		throw new Error("Selecione uma origem válida.");
 	if (!Number.isFinite(input.amount) || input.amount <= 0)
