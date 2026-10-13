@@ -11,11 +11,13 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
+import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
 import type { CreditCard } from "@/lib/api";
+import { useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
-import { CardAdjustmentForm } from "./CardAdjustmentForm";
+import { type CardAdjustmentDraft, CardAdjustmentForm } from "./CardAdjustmentForm";
 import { CardAdjustmentListItem } from "./CardAdjustmentListItem";
 
 export function CardAdjustmentsDialog({
@@ -30,6 +32,13 @@ export function CardAdjustmentsDialog({
 	const identity = useCacheIdentity();
 	const queryClient = useQueryClient();
 	const [editing, setEditing] = useState<CreditCard | "new" | null>(null);
+	const [recoveredDraft, setRecoveredDraft] = useState<CardAdjustmentDraft | null>(null);
+	const pending = useModalRecoveryStore(state => state.pending);
+	useBackgroundModalRecovery<CardAdjustmentDraft>("card-adjustment", entry => {
+		setRecoveredDraft(entry.payload);
+		setEditing(entry.payload.card ?? "new");
+		onOpenChange(true);
+	});
 	const remove = useMutation({
 		mutationFn: (cardId: string) => dataService.creditCards.setStatementCutoff(cardId, null),
 		onError: error => showToast(error.message, "negative"),
@@ -62,7 +71,10 @@ export function CardAdjustmentsDialog({
 											key={card.id}
 											onEdit={() => setEditing(card)}
 											onRemove={() => remove.mutate(card.id)}
-											pending={remove.isPending && remove.variables === card.id}
+											pending={
+												(remove.isPending && remove.variables === card.id) ||
+												!!pending[`${identity}:card-adjustment:${card.id}`]
+											}
 										/>
 									))
 								) : (
@@ -86,8 +98,12 @@ export function CardAdjustmentsDialog({
 				<CardAdjustmentForm
 					card={editing === "new" ? null : editing}
 					cards={cards}
+					initialDraft={recoveredDraft ?? undefined}
 					key={editing === "new" ? "new" : editing.id}
-					onClose={() => setEditing(null)}
+					onClose={() => {
+						setEditing(null);
+						setRecoveredDraft(null);
+					}}
 				/>
 			) : null}
 		</>

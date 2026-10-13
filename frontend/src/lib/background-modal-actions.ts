@@ -153,11 +153,12 @@ export function runBackgroundModalAction<T>({
 		})
 		.catch(error => {
 			const id = crypto.randomUUID();
-			if (identity) {
+			const canRecover = identity !== null && identity === getCurrentCacheIdentity();
+			if (canRecover) {
 				useModalRecoveryStore.getState().store({ ...recovery, id, identity, path });
 			}
 			toast.error(error instanceof Error ? error.message : failureMessage, {
-				action: identity ? { label: "Reabrir", onClick: () => requestModalRecovery(id) } : undefined,
+				action: canRecover ? { label: "Reabrir", onClick: () => requestModalRecovery(id) } : undefined,
 				id: toastId,
 				position: "bottom-right",
 			});

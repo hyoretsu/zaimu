@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
@@ -13,31 +13,39 @@ import {
 } from "@/components/ui/Dialog";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { CreditCard } from "@/lib/api";
+import { runBackgroundModalAction } from "@/lib/background-modal-actions";
 import { ignoredThroughStatement } from "@/lib/card-adjustment";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
 import { formatLocalMonthYear, getLocalDateKey } from "@/lib/date";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
-import { showToast } from "@/stores";
+
+export interface CardAdjustmentDraft {
+	card: CreditCard | null;
+	cardId: string;
+	statementDate: string;
+}
 
 export function CardAdjustmentForm({
 	card,
 	cards,
+	initialDraft,
 	onClose,
 }: {
 	card: CreditCard | null;
 	cards: CreditCard[];
+	initialDraft?: CardAdjustmentDraft;
 	onClose: () => void;
 }) {
 	const identity = useCacheIdentity();
 	const queryClient = useQueryClient();
-	const [cardId, setCardId] = useState(card?.id ?? "");
+	const [cardId, setCardId] = useState(initialDraft?.cardId ?? card?.id ?? "");
 	const statements = useQuery({
 		enabled: Boolean(cardId) && identity !== null,
 		queryFn: () => dataService.creditCards.getStatements(cardId),
 		queryKey: [...queryKeys.creditCardStatements.list(identity!, cardId), "adjustment"],
 	});
-	const [statementDate, setStatementDate] = useState<string | null>(null);
+	const [statementDate, setStatementDate] = useState<string | null>(initialDraft?.statementDate ?? null);
 	const originalDate =
 		card && statements.data
 			? (ignoredThroughStatement(statements.data, card.ignoreStatementsBefore)?.statementDate.slice(0, 10) ??
@@ -52,15 +60,19 @@ export function CardAdjustmentForm({
 				statement.statementDate.slice(0, 10) <= getLocalDateKey(),
 		)
 		.toSorted((a, b) => b.statementDate.localeCompare(a.statementDate));
-	const save = useMutation({
-		mutationFn: () => dataService.creditCards.setStatementCutoff(cardId, chosenDate),
-		onError: error => showToast(error.message, "negative"),
-		onSuccess: async () => {
-			await invalidateCacheOperation(queryClient, identity!, "creditCard");
-			showToast("Ajuste de cartão salvo.", "positive");
-			onClose();
-		},
-	});
+	const save = () => {
+		const draft = { card, cardId, statementDate: chosenDate };
+		runBackgroundModalAction({
+			close: onClose,
+			conflictKey: `card-adjustment:${cardId}`,
+			failureMessage: "Não foi possível salvar o ajuste de cartão.",
+			loadingMessage: "Salvando ajuste de cartão...",
+			onSuccess: () => invalidateCacheOperation(queryClient, identity!, "creditCard"),
+			recovery: { entityId: cardId, kind: "card-adjustment", payload: draft },
+			run: () => dataService.creditCards.setStatementCutoff(draft.cardId, draft.statementDate),
+			successMessage: "Ajuste de cartão salvo.",
+		});
+	};
 	return (
 		<Dialog onOpenChange={open => !open && onClose()} open>
 			<DialogContent className="sm:max-w-md">
@@ -117,8 +129,8 @@ export function CardAdjustmentForm({
 					</Button>
 					<Button
 						className="cursor-pointer disabled:cursor-not-allowed"
-						disabled={!cardId || !chosenDate || !statements.isSuccess || save.isPending}
-						onClick={() => save.mutate()}
+						disabled={!cardId || !chosenDate || !statements.isSuccess}
+						onClick={save}
 					>
 						Salvar
 					</Button>
