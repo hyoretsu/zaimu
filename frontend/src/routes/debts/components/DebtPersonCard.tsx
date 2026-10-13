@@ -15,6 +15,7 @@ import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import type { DebtEvent, DebtPerson } from "@/lib/api";
+import { useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { type DebtEventPage, dataService } from "@/lib/dataService";
 import { formatLocalDate, formatLocalTime } from "@/lib/date";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
@@ -39,6 +40,8 @@ export function DebtPersonCard({
 }) {
 	const [expanded, setExpanded] = useState(false);
 	const identity = useCacheIdentity();
+	const pending = useModalRecoveryStore(state => state.pending);
+	const personPending = !!pending[`${identity}:debt-person:${person.id}`];
 	const eventsQuery = useInfiniteQuery({
 		enabled: expanded && identity !== null,
 		getNextPageParam: (page: DebtEventPage) => page.nextCursor ?? undefined,
@@ -104,6 +107,7 @@ export function DebtPersonCard({
 						<Button
 							aria-label={`Editar ${person.name}`}
 							className="cursor-pointer"
+							disabled={personPending}
 							onClick={() => onEditPerson(person)}
 							size="icon"
 							type="button"
@@ -118,6 +122,7 @@ export function DebtPersonCard({
 					aria-label={`Excluir ${person.name}`}
 					className="cursor-pointer"
 					confirmation={`Excluir ${person.name}?`}
+					disabled={personPending || events.some(event => !!pending[`${identity}:debt-event:${event.id}`])}
 					onConfirm={() => onDeletePerson(person.id)}
 					size="icon"
 					variant="destructive"
@@ -166,6 +171,7 @@ export function DebtPersonCard({
 										<Button
 											aria-label="Editar lançamento"
 											className="cursor-pointer"
+											disabled={personPending || !!pending[`${identity}:debt-event:${event.id}`]}
 											onClick={() => onEditEvent(event, person.id)}
 											size="icon"
 											type="button"
@@ -179,6 +185,7 @@ export function DebtPersonCard({
 											aria-label="Excluir lançamento"
 											className="cursor-pointer"
 											confirmation="Excluir este lançamento?"
+											disabled={personPending || !!pending[`${identity}:debt-event:${event.id}`]}
 											onConfirm={() => onDeleteEvent(event.id)}
 											size="icon"
 											variant="destructive"

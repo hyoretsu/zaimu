@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { QueryRefreshStatus } from "@/components/ui/QueryRefreshStatus";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
 import type { DebtEvent, DebtPerson } from "@/lib/api";
+import { useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { compareDebtPersonNames } from "@/lib/debt-split";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
@@ -32,25 +34,26 @@ export function DebtsPage() {
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
 	const [createOpen, setCreateOpen] = useState(false);
+	const [recoveredCreate, setRecoveredCreate] = useState<CreateDebtOriginDraft>();
+	const createPending = useModalRecoveryStore(state => !!state.pending[`${identity}:debt-create`]);
+	useBackgroundModalRecovery<CreateDebtOriginDraft>("debt-create", entry => {
+		setRecoveredCreate(entry.payload);
+		setCreateOpen(true);
+	});
 	const [editing, setEditing] = useState<{ event: DebtEvent; personId: string } | null>(null);
+	const [recoveredEdit, setRecoveredEdit] = useState<UpdateDebtOriginDraft>();
+	useBackgroundModalRecovery<UpdateDebtOriginDraft>("debt-edit", entry => {
+		setRecoveredEdit(entry.payload);
+		setEditing({ event: { id: entry.entityId } as DebtEvent, personId: entry.payload.personId });
+	});
 	const [editingPerson, setEditingPerson] = useState<DebtPerson | null>(null);
-	const [pendingEventIds, setPendingEventIds] = useState<Set<string>>(new Set());
-	const [pendingPersonIds, setPendingPersonIds] = useState<Set<string>>(new Set());
+	const pending = useModalRecoveryStore(state => state.pending);
 	const ledger = useQuery({
 		enabled: identity !== null,
 		queryFn: () => dataService.debts.getLedger(),
 		queryKey: queryKeys.debts.ledger(identity!),
 	});
 	const refresh = () => invalidateCacheOperation(queryClient, identity!, "debt");
-	const create = useMutation({
-		mutationFn: (draft: CreateDebtOriginDraft) => dataService.debts.createOrigin(draft),
-		onError: error =>
-			showToast(error instanceof Error ? error.message : "Lançamento não criado.", "negative"),
-		onSuccess: async () => {
-			await refresh();
-			showToast("Lançamento adicionado ao saldo.", "positive");
-		},
-	});
 	const deletePerson = useMutation({
 		mutationFn: (id: string) => dataService.debts.deletePerson(id),
 		onSuccess: async () => {
@@ -65,54 +68,15 @@ export function DebtsPage() {
 			showToast("Lançamento excluído.", "info");
 		},
 	});
-	const update = useMutation({
-		mutationFn: ({ id, draft }: { id: string; draft: UpdateDebtOriginDraft }) =>
-			dataService.debts.updateOrigin(id, draft),
-		onError: error =>
-			showToast(error instanceof Error ? error.message : "Lançamento não atualizado.", "negative"),
-		onMutate: ({ id }) => setPendingEventIds(current => new Set(current).add(id)),
-		onSettled: (_data, _error, { id }) =>
-			setPendingEventIds(current => {
-				const next = new Set(current);
-				next.delete(id);
-				return next;
-			}),
-		onSuccess: async () => {
-			await refresh();
-			showToast("Lançamento atualizado.", "positive");
+	const [recoveredPerson, setRecoveredPerson] = useState<{ accountEmail: string; name: string }>();
+	useBackgroundModalRecovery<{ person: DebtPerson; draft: { accountEmail: string; name: string } }>(
+		"debt-person",
+		entry => {
+			setRecoveredPerson(entry.payload.draft);
+			setEditingPerson(entry.payload.person);
 		},
-	});
-	const updatePerson = useMutation({
-		mutationFn: async ({
-			accountEmail,
-			id,
-			name,
-			previousAccountEmail,
-		}: {
-			accountEmail: string;
-			id: string;
-			name: string;
-			previousAccountEmail?: string | null;
-		}) => {
-			const normalizedEmail = accountEmail.trim().toLowerCase();
-			await dataService.debts.updatePerson(id, { accountEmail: normalizedEmail || null, name: name.trim() });
-			if (normalizedEmail && normalizedEmail !== previousAccountEmail)
-				await dataService.debts.invitePerson(id, normalizedEmail);
-		},
-		onError: error =>
-			showToast(error instanceof Error ? error.message : "Pessoa não atualizada.", "negative"),
-		onMutate: ({ id }) => setPendingPersonIds(current => new Set(current).add(id)),
-		onSettled: (_data, _error, { id }) =>
-			setPendingPersonIds(current => {
-				const next = new Set(current);
-				next.delete(id);
-				return next;
-			}),
-		onSuccess: async () => {
-			await refresh();
-			showToast("Pessoa atualizada.", "positive");
-		},
-	});
+	);
+
 	const people = (ledger.data?.people ?? []).toSorted((left, right) =>
 		compareDebtPersonNames(left.name, right.name),
 	);
@@ -123,6 +87,7 @@ export function DebtsPage() {
 				ledger.data
 					? [
 							{
+								disabled: createPending,
 								icon: LuPlus,
 								label: "Adicionar lançamento",
 								onClick: () => setCreateOpen(true),
@@ -233,46 +198,68 @@ export function DebtsPage() {
 				)}
 			</section>
 			<CreateDebtDialog
+				initialDraft={recoveredCreate}
 				mode="create"
-				onOpenChange={setCreateOpen}
-				onSubmit={draft => create.mutateAsync(draft)}
+				onOpenChange={open => {
+					setCreateOpen(open);
+					if (!open) setRecoveredCreate(undefined);
+				}}
+				onSaved={refresh}
+				onSubmit={draft => dataService.debts.createOrigin(draft).then(() => undefined)}
 				open={createOpen}
-				pending={create.isPending}
+				pending={false}
 			/>
 			{editing ? (
 				<CreateDebtDialog
-					initialValue={{
-						amount: editing.event.amount,
-						currency: editing.event.currency ?? "BRL",
-						date: editing.event.date,
-						description: editing.event.description ?? undefined,
-						dueDate: editing.event.dueDate ?? undefined,
-						isOwedToMe: editing.event.effect >= 0,
-						personId: editing.personId,
-					}}
+					eventId={editing.event.id}
+					initialValue={
+						recoveredEdit ?? {
+							amount: editing.event.amount,
+							currency: editing.event.currency ?? "BRL",
+							date: editing.event.date,
+							description: editing.event.description ?? undefined,
+							dueDate: editing.event.dueDate ?? undefined,
+							isOwedToMe: editing.event.effect >= 0,
+							personId: editing.personId,
+						}
+					}
 					mode="edit"
 					onOpenChange={open => {
-						if (!open) setEditing(null);
+						if (!open) {
+							setEditing(null);
+							setRecoveredEdit(undefined);
+						}
 					}}
-					onSubmit={draft => update.mutateAsync({ draft, id: editing.event.id })}
+					onSaved={refresh}
+					onSubmit={draft => dataService.debts.updateOrigin(editing.event.id, draft).then(() => undefined)}
 					open
-					pending={pendingEventIds.has(editing.event.id)}
+					pending={!!pending[`${identity}:debt-event:${editing.event.id}`]}
 				/>
 			) : null}
 			{editingPerson ? (
 				<EditDebtPersonDialog
+					initialDraft={recoveredPerson}
 					onOpenChange={open => {
-						if (!open) setEditingPerson(null);
+						if (!open) {
+							setEditingPerson(null);
+							setRecoveredPerson(undefined);
+						}
 					}}
-					onSubmit={draft =>
-						updatePerson.mutateAsync({
-							...draft,
-							id: editingPerson.id,
-							previousAccountEmail: editingPerson.accountEmail,
-						})
-					}
+					onSaved={refresh}
+					onSubmit={async draft => {
+						const person = editingPerson;
+						const accountEmail = draft.accountEmail.trim().toLowerCase();
+						const current = (await dataService.debts.getLedger()).people.find(row => row.id === person.id);
+						if (current?.name !== draft.name.trim() || (current?.accountEmail ?? "") !== accountEmail)
+							await dataService.debts.updatePerson(person.id, {
+								accountEmail: accountEmail || null,
+								name: draft.name.trim(),
+							});
+						if (accountEmail && accountEmail !== person.accountEmail)
+							await dataService.debts.invitePerson(person.id, accountEmail);
+					}}
 					open
-					pending={pendingPersonIds.has(editingPerson.id)}
+					pending={false}
 					person={editingPerson}
 				/>
 			) : null}

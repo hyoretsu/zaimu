@@ -12,7 +12,7 @@ import {
 import { Input } from "@/components/ui/Input";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { DebtPerson } from "@/lib/api";
-import { runDialogSave } from "@/lib/dialog-save";
+import { runBackgroundModalAction } from "@/lib/background-modal-actions";
 
 export function EditDebtPersonDialog({
 	onOpenChange,
@@ -20,20 +20,24 @@ export function EditDebtPersonDialog({
 	open,
 	pending,
 	person,
+	initialDraft,
+	onSaved,
 }: {
 	onOpenChange: (open: boolean) => void;
 	onSubmit: (draft: { accountEmail: string; name: string }) => Promise<void>;
 	open: boolean;
 	pending: boolean;
 	person: DebtPerson;
+	initialDraft?: { accountEmail: string; name: string };
+	onSaved: () => Promise<unknown>;
 }) {
 	const [name, setName] = useDebouncedInput(person.name, () => {});
 	const [accountEmail, setAccountEmail] = useDebouncedInput(person.accountEmail ?? "", () => {});
 	useEffect(() => {
 		if (!open) return;
-		setName(person.name);
-		setAccountEmail(person.accountEmail ?? "");
-	}, [open, person.accountEmail, person.name, setAccountEmail, setName]);
+		setName(initialDraft?.name ?? person.name);
+		setAccountEmail(initialDraft?.accountEmail ?? person.accountEmail ?? "");
+	}, [initialDraft, open, person.accountEmail, person.name, setAccountEmail, setName]);
 	return (
 		<Dialog onOpenChange={onOpenChange} open={open}>
 			<DialogContent className="sm:max-w-lg">
@@ -47,7 +51,21 @@ export function EditDebtPersonDialog({
 					className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 gap-5"
 					onSubmit={event => {
 						event.preventDefault();
-						runDialogSave(onSubmit({ accountEmail, name }), () => onOpenChange(false), "Salvando pessoa…");
+						const form = new FormData(event.currentTarget);
+						const draft = {
+							accountEmail: String(form.get("debt-person-account-email") ?? accountEmail),
+							name: String(form.get("debt-person-name") ?? name),
+						};
+						runBackgroundModalAction({
+							close: () => onOpenChange(false),
+							conflictKey: `debt-person:${person.id}`,
+							failureMessage: "Não foi possível salvar pessoa.",
+							loadingMessage: "Salvando pessoa...",
+							onSuccess: onSaved,
+							recovery: { entityId: person.id, kind: "debt-person", payload: { draft, person } },
+							run: () => onSubmit(draft),
+							successMessage: "Pessoa atualizada.",
+						});
 					}}
 				>
 					<DialogBody>

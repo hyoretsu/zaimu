@@ -19,6 +19,7 @@ import { MoneyField } from "@/components/ui/MoneyField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import { useDialogCloseReset } from "@/hooks/use-dialog-close-reset";
 import type { DebtSplitInput } from "@/lib/api";
+import { runBackgroundModalAction } from "@/lib/background-modal-actions";
 import { getLocalDateKey } from "@/lib/date";
 import { calculateDebtSplit } from "@/lib/debt-split";
 import { parseMaskedMoney } from "@/lib/masked-money";
@@ -44,13 +45,17 @@ export interface UpdateDebtOriginDraft extends DebtOriginFields {
 type CreateDebtDialogProps =
 	| {
 			mode: "create";
+			initialDraft?: CreateDebtOriginDraft;
 			onOpenChange: (open: boolean) => void;
+			onSaved: () => Promise<unknown> | unknown;
 			onSubmit: (draft: CreateDebtOriginDraft) => Promise<void>;
 			open: boolean;
 			pending: boolean;
 	  }
 	| {
 			initialValue: UpdateDebtOriginDraft;
+			eventId: string;
+			onSaved: () => Promise<unknown> | unknown;
 			mode: "edit";
 			onOpenChange: (open: boolean) => void;
 			onSubmit: (draft: UpdateDebtOriginDraft) => Promise<void>;
@@ -67,6 +72,7 @@ const initialDebtSplit = (): DebtSplitInput => ({
 export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 	const { mode, onOpenChange, open, pending } = props;
 	const initialValue = props.mode === "edit" ? props.initialValue : null;
+	const recovered = props.mode === "create" ? props.initialDraft : undefined;
 	const effectiveCurrency = useCurrencyStore(state => state.currency);
 	const [selectedCurrency, setCurrency] = useState<string | null>(null);
 	const currency = selectedCurrency ?? initialValue?.currency ?? effectiveCurrency;
@@ -89,6 +95,17 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 		setPersonId(initialValue.personId);
 		setIsOwedToMe(initialValue.isOwedToMe);
 	}, [initialValue, open, setDescription]);
+	useEffect(() => {
+		if (!open || !recovered) return;
+		setAmount(String(recovered.amount));
+		setCurrency(recovered.currency);
+		setDate(recovered.date ?? "");
+		setSendWithoutDate(!recovered.date);
+		setDueDate(recovered.dueDate ?? "");
+		setDescription(recovered.description ?? "");
+		setDebtSplit(recovered.debtSplit);
+		setIsOwedToMe(recovered.isOwedToMe);
+	}, [open, recovered, setDescription]);
 	const reset = () => {
 		setAmount("");
 		setCurrency(null);
@@ -106,24 +123,40 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 	};
 	const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
 		event.preventDefault();
+		const form = new FormData(event.currentTarget);
 		const fields = {
-			amount: parseMaskedMoney(String(new FormData(event.currentTarget).get("debt-origin-amount") ?? "")),
+			amount: parseMaskedMoney(String(form.get("debt-origin-amount") ?? "")),
 			currency,
 			date: sendWithoutDate ? null : date || undefined,
-			description: description.trim() || undefined,
+			description: String(form.get("debt-origin-description") ?? description).trim() || undefined,
 			dueDate: dueDate || undefined,
 			isOwedToMe,
 		};
-		const operation =
-			props.mode === "edit"
-				? props.onSubmit({ ...fields, personId })
-				: props.onSubmit({ ...fields, debtSplit });
-		try {
-			await operation;
-			onOpenChange(false);
-		} catch {
-			/* Parent mutation displays the final error. */
+		if (props.mode === "create") {
+			const draft = { ...fields, debtSplit };
+			runBackgroundModalAction({
+				close: () => onOpenChange(false),
+				conflictKey: "debt-create",
+				failureMessage: "Não foi possível salvar o lançamento.",
+				loadingMessage: "Salvando lançamento...",
+				onSuccess: props.onSaved,
+				recovery: { kind: "debt-create", payload: draft },
+				run: () => props.onSubmit(draft),
+				successMessage: "Lançamento adicionado ao saldo.",
+			});
+			return;
 		}
+		const draft = { ...fields, personId };
+		runBackgroundModalAction({
+			close: () => onOpenChange(false),
+			conflictKey: `debt-event:${props.eventId}`,
+			failureMessage: "Não foi possível atualizar lançamento.",
+			loadingMessage: "Atualizando lançamento...",
+			onSuccess: props.onSaved,
+			recovery: { entityId: props.eventId, kind: "debt-edit", payload: draft },
+			run: () => props.onSubmit(draft),
+			successMessage: "Lançamento atualizado.",
+		});
 	};
 	const hasValidSplit = Boolean(calculateDebtSplit(Number(amount), debtSplit, currency));
 
