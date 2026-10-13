@@ -131,8 +131,11 @@ test("transfer suggestion rejects cached pair and cleans both transactions and a
 				rejected ? [] : [{ counterpart: { id: "income" }, transaction: { id: "expense" } }],
 				{ headers: metricHeaders },
 			);
-		if (path === "/financial-accounts/")
+		if (path === "/financial-accounts/") {
+			const account = JSON.parse(String(init?.body));
+			expect(account.countryCode).toBe("BR");
 			return Response.json({ id: "destination" }, { headers: metricHeaders });
+		}
 		const body = JSON.parse(String(init?.body));
 		return Response.json({ id: body.type === "EXPENSE" ? "expense" : "income" }, { headers: metricHeaders });
 	}) as typeof fetch;

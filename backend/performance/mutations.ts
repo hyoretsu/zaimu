@@ -162,6 +162,7 @@ export async function runMutationScenario(name: string, context: Context) {
 						"/financial-accounts/",
 						"POST",
 						{
+							countryCode: "BR",
 							currency: "BRL",
 							name: `${label} destination`,
 							type: "CHECKING",
@@ -382,7 +383,7 @@ export async function runMutationScenario(name: string, context: Context) {
 					{ route: string; body: Record<string, unknown>; edit?: Record<string, unknown>; detail?: boolean }
 				> = {
 					account: {
-						body: { currency: "BRL", name: label, type: "CHECKING" },
+						body: { countryCode: "BR", currency: "BRL", name: label, type: "CHECKING" },
 						edit: { name: `${label} updated` },
 						route: "/financial-accounts",
 					},
@@ -505,7 +506,7 @@ export async function runMutationScenario(name: string, context: Context) {
 							"setup",
 							"/financial-accounts/",
 							"POST",
-							{ currency: "BRL", name: `${label} destination`, type: "CHECKING" },
+							{ countryCode: "BR", currency: "BRL", name: `${label} destination`, type: "CHECKING" },
 							false,
 						);
 						const accountId = responseId(account);

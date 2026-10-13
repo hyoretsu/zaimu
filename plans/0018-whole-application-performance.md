@@ -448,3 +448,10 @@ Próxima etapa: validar fallback de cache e persistência incremental contra reg
 - Encerrar runner com SIGTERM durante matriz perdia agregados concluídos, embora logs HTTP permanecessem. Journal JSONL registra início e término de cada grupo uma vez, com escrita fora da latência medida.
 - Leitor conserva grupos concluídos e cenário pendente; cauda incompleta fica explícita. Namespace, objetos, ordem e duplicação são validados. Recuperação sempre reprova aceite e identifica ausência de relatório/telemetria completos.
 - Executor passou 22 testes/102 assertions, incluindo arquivo real, erro de storage e corrupção. Hook de calendário passou unidade completa; build backend isolado passou. Captura release após correções permanece pendente.
+
+### Fixtures de contas e evidência após calendário
+
+- Criação de conta auxiliar e cenários de conta/transferência passam país explícito, exigido pelo contrato; preferência ausente da fixture não pode provocar HTTP 400 antes da medição. Regressão verifica país no request.
+- Diagnóstico real: sugestão/rejeição p95 242 ms, conta 172 ms, transferência 85 ms; cinco amostras por cenário, sem erros, titularidade e limpeza preservadas. Relatório transfer-country-reference-0018.json não constitui aceite global.
+- Dashboard após deduplicação ainda reprova: frio p95 25.576 ms/68 queries; quente 101 ms e 304 75 ms com uma query total. Host tinha load average próximo de 32, impedindo comparação sob infraestrutura saudável; custos de projeção e fallback precisam investigação adicional.
+- Executor passou 22 testes/103 assertions. Matriz oficial e medição frontend release continuam pendentes.
