@@ -1,14 +1,25 @@
-import { useState } from "react";
 import { LuPlus } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
+import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { fetchWithAuth } from "@/lib/dataService";
-import { showToast } from "@/stores";
-export function ProfileProposalForm({ institutionId }: { institutionId: string }) {
-	const [name, setName] = useDebouncedInput("", () => undefined);
-	const [saving, setSaving] = useState(false);
+import { useCacheIdentity } from "@/lib/query-cache";
+export function ProfileProposalForm({
+	institutionId,
+	initialName = "",
+	onClose,
+}: {
+	institutionId: string;
+	initialName?: string;
+	onClose: () => void;
+}) {
+	const [name, setName] = useDebouncedInput(initialName, () => undefined);
+	const identity = useCacheIdentity();
+	const saving = useModalRecoveryStore(
+		state => !!state.pending[`${identity}:institution-proposal:${institutionId}`],
+	);
 	return (
 		<div className="grid gap-3 rounded-xl border p-3">
 			<FormField
@@ -24,17 +35,24 @@ export function ProfileProposalForm({ institutionId }: { institutionId: string }
 				<Button
 					disabled={saving || !name.trim()}
 					onClick={() => {
-						setSaving(true);
-						void fetchWithAuth(`/financial-institutions/${institutionId}/profiles`, {
-							body: JSON.stringify({ name: name.trim() }),
-							method: "POST",
-						})
-							.then(() => {
-								setName("");
-								showToast("Perfil proposto para revisão", "positive");
-							})
-							.catch(error => showToast(error.message, "negative"))
-							.finally(() => setSaving(false));
+						const draft = { name: name.trim() };
+						runBackgroundModalAction({
+							close: onClose,
+							conflictKey: `institution-proposal:${institutionId}`,
+							failureMessage: "Não foi possível propor perfil.",
+							loadingMessage: "Enviando proposta...",
+							recovery: {
+								entityId: institutionId,
+								kind: `institution-profile:${institutionId}`,
+								payload: draft,
+							},
+							run: () =>
+								fetchWithAuth(`/financial-institutions/${institutionId}/profiles`, {
+									body: JSON.stringify(draft),
+									method: "POST",
+								}),
+							successMessage: "Perfil proposto para revisão.",
+						});
 					}}
 					type="button"
 					variant="outline"

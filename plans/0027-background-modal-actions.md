@@ -7,7 +7,7 @@ Close action dialogs after a valid submission. Keep work running, report progres
 ## Progress
 
 - [x] Shared operation, recovery, and navigation support.
-- [ ] Account, card, debt, recurring, loan, payment, and institution actions. Balance/card adjustments, account defaults, recurrence create/advance/delete, loan creation, and individual loan payments now use the shared flow; remaining forms still pending.
+- [ ] Account, card, debt, recurring, loan, payment, and institution actions. Balance/card adjustments, account defaults, recurrence create/advance/delete, loan creation, individual loan payments, and debt creation now use the shared flow; remaining forms still pending.
 - [ ] Import review item actions and conflict scoped progress.
 - [ ] Behavior tests for recovery, history, partial operations, and independent controls.
 
@@ -20,3 +20,5 @@ Verified partial account defaults save: retry rereads current state and skips th
 - An API success remains a success if a later cache refresh fails. Cache refresh is retried separately.
 - Recurrence creation followed by replay resumes from the saved recurrence ID after partial failure.
 - File upload and review finalization remain in their modal until the response is known.
+
+Institution profile changes, profile/merge proposals, and yield save/delete now close immediately and recover submitted fields. Directed operation tests pass for duplicate clicks, independent records, recovery after navigation, identity changes, and cache refresh retries. Existing history tests pass for nested dialogs and explicit close.

@@ -17,10 +17,11 @@ import {
 import { FormFieldRow } from "@/components/ui/FormFieldRow";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
+import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
 import type { FinancialInstitution } from "@/lib/api";
+import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { fetchWithAuth } from "@/lib/dataService";
 import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
-import { showToast } from "@/stores";
 import { useAuthStore } from "@/stores/auth";
 import { InstitutionMergeProposal } from "./InstitutionMergeProposal";
 import { ProfileProposalForm } from "./ProfileProposalForm";
@@ -40,11 +41,14 @@ export function InstitutionProfileDialog({ institution }: { institution: Financi
 	const [open, setOpen] = useState(false);
 	const [profileId, setProfile] = useState<string>();
 	const [date, setDate] = useState(new Date().toLocaleDateString("sv-SE"));
-	const [saving, setSaving] = useState(false);
+	const pending = useModalRecoveryStore(state => state.pending);
+	const [proposalName, setProposalName] = useState("");
+	const [mergeTarget, setMergeTarget] = useState<string>();
 	const userId = useAuthStore(state => state.user?.id);
 	const guest = useAuthStore(state => state.isGuestMode);
 	const client = useQueryClient();
 	const identity = useCacheIdentity();
+	const saving = !!pending[`${identity}:institution-profile:${institution.id}`];
 	const profiles = useQuery({
 		enabled: open && !guest,
 		queryFn: () => fetchWithAuth<Profile[]>(`/financial-institutions/${institution.id}/profiles`),
@@ -65,9 +69,21 @@ export function InstitutionProfileDialog({ institution }: { institution: Financi
 		setOpen(next);
 		if (!next) {
 			setProfile(undefined);
+			setProposalName("");
+			setMergeTarget(undefined);
 			setDate(new Date().toLocaleDateString("sv-SE"));
 		}
 	};
+	useBackgroundModalRecovery<{ date?: string; profileId?: string; name?: string; target?: string }>(
+		`institution-profile:${institution.id}`,
+		entry => {
+			setDate(entry.payload.date ?? today);
+			setProfile(entry.payload.profileId);
+			setProposalName(entry.payload.name ?? "");
+			setMergeTarget(entry.payload.target);
+			setOpen(true);
+		},
+	);
 	return (
 		<Dialog onOpenChange={changeOpen} open={open}>
 			<Tooltip>
@@ -98,21 +114,31 @@ export function InstitutionProfileDialog({ institution }: { institution: Financi
 					onSubmit={event => {
 						event.preventDefault();
 						if (!selected || !date) return;
-						setSaving(true);
-						void fetchWithAuth(`/financial-institutions/${institution.id}/profile-history`, {
-							body: JSON.stringify({ effectiveDate: date, profileId: selected }),
-							method: "POST",
-						})
-							.then(async () => {
-								await Promise.all([
-									history.refetch(),
+						const draft = { date, profileId: selected };
+						runBackgroundModalAction({
+							close: () => changeOpen(false),
+							conflictKey: `institution-profile:${institution.id}`,
+							failureMessage: "Não foi possível registrar mudança de perfil.",
+							loadingMessage: "Registrando mudança de perfil...",
+							onSuccess: () =>
+								Promise.all([
+									client.invalidateQueries({
+										queryKey: ["institution-profile-history", userId, institution.id],
+									}),
 									identity ? invalidateCacheOperation(client, identity, "account") : Promise.resolve(),
-								]);
-								showToast("Mudança de perfil registrada", "positive");
-								changeOpen(false);
-							})
-							.catch(error => showToast(error.message, "negative"))
-							.finally(() => setSaving(false));
+								]),
+							recovery: {
+								entityId: institution.id,
+								kind: `institution-profile:${institution.id}`,
+								payload: draft,
+							},
+							run: () =>
+								fetchWithAuth(`/financial-institutions/${institution.id}/profile-history`, {
+									body: JSON.stringify({ effectiveDate: draft.date, profileId: draft.profileId }),
+									method: "POST",
+								}),
+							successMessage: "Mudança de perfil registrada.",
+						});
 					}}
 				>
 					<DialogBody>
@@ -150,8 +176,16 @@ export function InstitutionProfileDialog({ institution }: { institution: Financi
 										value={date}
 									/>
 								</FormFieldRow>
-								<ProfileProposalForm institutionId={institution.id} />
-								<InstitutionMergeProposal institution={institution} />
+								<ProfileProposalForm
+									initialName={proposalName}
+									institutionId={institution.id}
+									onClose={() => changeOpen(false)}
+								/>
+								<InstitutionMergeProposal
+									initialTarget={mergeTarget}
+									institution={institution}
+									onClose={() => changeOpen(false)}
+								/>
 								<div className="space-y-2">
 									<h3 className="font-semibold">Histórico</h3>
 									<p className="text-muted-foreground text-sm">Padrão vale antes da primeira mudança.</p>

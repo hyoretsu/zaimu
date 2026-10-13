@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LuPlus } from "react-icons/lu";
 import { CreateTransactionDialog, EditTransactionDialog, TransactionsList } from "@/components/transactions";
 import { ActionGroup } from "@/components/ui/ActionGroup";
@@ -13,6 +13,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/Dialog";
 import type { FinancialAccount, Transaction } from "@/lib/api";
+import { useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { type FinancialAccountYieldEntry, getFinancialAccountDisplayName } from "@/lib/financial-account";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
@@ -30,6 +31,18 @@ export function FinancialAccountStatementDialog({
 }) {
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
+	const requestedRecovery = useModalRecoveryStore(state =>
+		state.requestedId ? state.entries[state.requestedId] : undefined,
+	);
+	useEffect(() => {
+		if (requestedRecovery?.kind !== "yield-edit" || requestedRecovery.identity !== identity) return;
+		const payload = requestedRecovery.payload as { entry: FinancialAccountYieldEntry };
+		if (
+			payload.entry.financialAccountId === account.id &&
+			requestedRecovery.path === window.location.pathname + window.location.search
+		)
+			onOpenChange(true);
+	}, [requestedRecovery, identity, account.id, onOpenChange]);
 	const statement = useInfiniteQuery<
 		Awaited<ReturnType<typeof dataService.transactions.getDailyPage>>,
 		Error,

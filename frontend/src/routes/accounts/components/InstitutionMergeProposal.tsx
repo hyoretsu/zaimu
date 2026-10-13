@@ -5,14 +5,24 @@ import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import type { FinancialInstitution } from "@/lib/api";
+import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService, fetchWithAuth } from "@/lib/dataService";
 import { useCacheIdentity } from "@/lib/query-cache";
-import { showToast } from "@/stores";
 
-export function InstitutionMergeProposal({ institution }: { institution: FinancialInstitution }) {
+export function InstitutionMergeProposal({
+	institution,
+	initialTarget,
+	onClose,
+}: {
+	institution: FinancialInstitution;
+	initialTarget?: string;
+	onClose: () => void;
+}) {
 	const identity = useCacheIdentity();
-	const [target, setTarget] = useState<string>();
-	const [pending, setPending] = useState(false);
+	const [target, setTarget] = useState<string | undefined>(initialTarget);
+	const pending = useModalRecoveryStore(
+		state => !!state.pending[`${identity}:institution-merge:${institution.id}`],
+	);
 	const catalog = useQuery({
 		enabled: institution.status === "LEGACY_PRIVATE",
 		queryFn: () => dataService.financialInstitutions.getAll(),
@@ -39,14 +49,24 @@ export function InstitutionMergeProposal({ institution }: { institution: Financi
 				<Button
 					disabled={!target || pending}
 					onClick={() => {
-						setPending(true);
-						void fetchWithAuth(`/financial-institutions/${institution.id}/merge-proposal`, {
-							body: JSON.stringify({ targetId: target }),
-							method: "POST",
-						})
-							.then(() => showToast("Associação enviada para revisão", "positive"))
-							.catch(error => showToast(error.message, "negative"))
-							.finally(() => setPending(false));
+						const draft = { target };
+						runBackgroundModalAction({
+							close: onClose,
+							conflictKey: `institution-merge:${institution.id}`,
+							failureMessage: "Não foi possível solicitar associação.",
+							loadingMessage: "Enviando associação...",
+							recovery: {
+								entityId: institution.id,
+								kind: `institution-profile:${institution.id}`,
+								payload: draft,
+							},
+							run: () =>
+								fetchWithAuth(`/financial-institutions/${institution.id}/merge-proposal`, {
+									body: JSON.stringify({ targetId: draft.target }),
+									method: "POST",
+								}),
+							successMessage: "Associação enviada para revisão.",
+						});
 					}}
 					type="button"
 					variant="outline"
