@@ -8,6 +8,8 @@ import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { QueryRefreshStatus } from "@/components/ui/QueryRefreshStatus";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
+import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import {
@@ -53,6 +55,20 @@ export function RecurringPage() {
 	const [editingItem, setEditingItem] = useState<RecurringListItemData>();
 	const [advancingItem, setAdvancingItem] = useState<RecurringListItemData>();
 	const [deletingItem, setDeletingItem] = useState<RecurringListItemData>();
+	const [recoveredAdvanceTime, setRecoveredAdvanceTime] = useState<string>();
+	const [recoveredDeleteChoice, setRecoveredDeleteChoice] = useState<boolean>();
+	const pendingModalActions = useModalRecoveryStore(state => state.pending);
+	useBackgroundModalRecovery<{ item: RecurringListItemData; time?: string }>("recurrence-advance", entry => {
+		setRecoveredAdvanceTime(entry.payload.time);
+		setAdvancingItem(entry.payload.item);
+	});
+	useBackgroundModalRecovery<{ item: RecurringListItemData; deleteTransactions: boolean }>(
+		"recurrence-delete",
+		entry => {
+			setRecoveredDeleteChoice(entry.payload.deleteTransactions);
+			setDeletingItem(entry.payload.item);
+		},
+	);
 	const accountsQuery = useQuery({
 		enabled: identity !== null,
 		queryFn: () => dataService.accounts.getAll(),
@@ -64,18 +80,6 @@ export function RecurringPage() {
 		queryKey: queryKeys.recurring.all(identity!),
 	});
 	const invalidate = () => invalidateCacheOperation(queryClient, identity!, "recurring");
-	const advance = useMutation({
-		mutationFn: ({ item, time }: { item: RecurringListItemData; time?: string }) =>
-			dataService.recurrences.advance(item.id, time),
-		onError: error => showToast(error.message, "negative"),
-		onMutate: ({ item }) => markPending(item.id, true),
-		onSettled: (_, __, { item }) => markPending(item.id, false),
-		onSuccess: async () => {
-			await invalidate();
-			setAdvancingItem(undefined);
-			showToast("Próxima ocorrência adiantada para hoje.", "positive");
-		},
-	});
 	const toggle = useMutation({
 		mutationFn: (item: RecurringListItemData) =>
 			dataService.recurrences.update(item.id, { isActive: !item.active }),
@@ -87,25 +91,34 @@ export function RecurringPage() {
 			showToast(item.active ? "Recorrência pausada." : "Recorrência retomada.", "positive");
 		},
 	});
-	const remove = useMutation({
-		mutationFn: async ({
-			deleteTransactions,
-			item,
-		}: {
-			deleteTransactions: boolean;
-			item: RecurringListItemData;
-		}) => {
-			return dataService.recurrences.delete(item.id, deleteTransactions);
-		},
-		onError: error => showToast(error.message, "negative"),
-		onMutate: ({ item }) => markPending(item.id, true),
-		onSettled: (_, __, { item }) => markPending(item.id, false),
-		onSuccess: async (_, { item }) => {
-			await invalidate();
-			setDeletingItem(undefined);
-			showToast("Recorrência excluída.", "positive");
-		},
-	});
+	const submitAdvance = (item: RecurringListItemData, time?: string) =>
+		runBackgroundModalAction({
+			close: () => {
+				setAdvancingItem(undefined);
+				setRecoveredAdvanceTime(undefined);
+			},
+			conflictKey: `recurrence:${item.id}`,
+			failureMessage: "Não foi possível adiantar a ocorrência.",
+			loadingMessage: "Adiantando ocorrência...",
+			onSuccess: invalidate,
+			recovery: { entityId: item.id, kind: "recurrence-advance", payload: { item, time } },
+			run: () => dataService.recurrences.advance(item.id, time),
+			successMessage: "Próxima ocorrência adiantada para hoje.",
+		});
+	const submitDelete = (item: RecurringListItemData, deleteTransactions: boolean) =>
+		runBackgroundModalAction({
+			close: () => {
+				setDeletingItem(undefined);
+				setRecoveredDeleteChoice(undefined);
+			},
+			conflictKey: `recurrence:${item.id}`,
+			failureMessage: "Não foi possível excluir a recorrência.",
+			loadingMessage: "Excluindo recorrência...",
+			onSuccess: invalidate,
+			recovery: { entityId: item.id, kind: "recurrence-delete", payload: { deleteTransactions, item } },
+			run: () => dataService.recurrences.delete(item.id, deleteTransactions),
+			successMessage: "Recorrência excluída.",
+		});
 
 	const isPending = accountsQuery.isPending || recurringQuery.isPending;
 	const isError =
@@ -130,7 +143,7 @@ export function RecurringPage() {
 	].sort();
 	const renderItem = (item: RecurringListItemData) => (
 		<RecurringListItem
-			deleting={remove.isPending && remove.variables?.item.id === item.id}
+			deleting={!!pendingModalActions[`${identity}:recurrence:${item.id}`]}
 			item={item}
 			key={`${item.source}:${item.id}`}
 			onAdvance={() => setAdvancingItem(item)}
@@ -139,7 +152,7 @@ export function RecurringPage() {
 			onToggle={() => {
 				if (!isRecurrenceEnded(item.endDate)) toggle.mutate(item);
 			}}
-			toggling={pendingIds.has(item.id)}
+			toggling={pendingIds.has(item.id) || !!pendingModalActions[`${identity}:recurrence:${item.id}`]}
 		/>
 	);
 	const toggleInactiveSection = (section: "ended" | "paused") => {
@@ -286,12 +299,16 @@ export function RecurringPage() {
 			<CreateRecurringDialog onOpenChange={setIsCreateOpen} open={isCreateOpen} />
 			{advancingItem && (
 				<AdvanceRecurringDialog
+					initialTime={recoveredAdvanceTime}
 					item={advancingItem}
-					onAdvance={time => advance.mutate({ item: advancingItem, time })}
+					onAdvance={time => submitAdvance(advancingItem, time)}
 					onOpenChange={open => {
-						if (!open && !advance.isPending) setAdvancingItem(undefined);
+						if (!open) {
+							setAdvancingItem(undefined);
+							setRecoveredAdvanceTime(undefined);
+						}
 					}}
-					pending={advance.isPending}
+					pending={false}
 				/>
 			)}
 			{editingItem && (
@@ -305,11 +322,15 @@ export function RecurringPage() {
 			)}
 			{deletingItem && (
 				<DeleteRecurringDialog
-					deleting={remove.isPending}
+					deleting={false}
+					initialDeleteTransactions={recoveredDeleteChoice}
 					item={deletingItem}
-					onDelete={deleteTransactions => remove.mutate({ deleteTransactions, item: deletingItem })}
+					onDelete={deleteTransactions => submitDelete(deletingItem, deleteTransactions)}
 					onOpenChange={open => {
-						if (!open && !remove.isPending) setDeletingItem(undefined);
+						if (!open) {
+							setDeletingItem(undefined);
+							setRecoveredDeleteChoice(undefined);
+						}
 					}}
 				/>
 			)}

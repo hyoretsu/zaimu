@@ -14,17 +14,19 @@ import { TimeField } from "@/components/ui/TimeField";
 import type { RecurringListItemData } from "./types";
 
 export function AdvanceRecurringDialog({
+	initialTime,
 	item,
 	pending,
 	onAdvance,
 	onOpenChange,
 }: {
+	initialTime?: string;
 	item: RecurringListItemData;
 	pending: boolean;
 	onAdvance: (time?: string) => void;
 	onOpenChange: (open: boolean) => void;
 }) {
-	const [time, setTime] = useState("");
+	const [time, setTime] = useState(initialTime ?? "");
 	return (
 		<Dialog onOpenChange={onOpenChange} open>
 			<DialogContent showCloseButton={!pending}>

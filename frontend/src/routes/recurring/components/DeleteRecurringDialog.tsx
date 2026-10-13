@@ -12,11 +12,13 @@ import type { RecurringListItemData } from "./types";
 
 export function DeleteRecurringDialog({
 	deleting,
+	initialDeleteTransactions,
 	item,
 	onDelete,
 	onOpenChange,
 }: {
 	deleting: boolean;
+	initialDeleteTransactions?: boolean;
 	item: RecurringListItemData;
 	onDelete: (deleteTransactions: boolean) => void;
 	onOpenChange: (open: boolean) => void;
@@ -28,6 +30,15 @@ export function DeleteRecurringDialog({
 					<DialogTitle>Excluir {item.title}?</DialogTitle>
 					<DialogDescription>
 						Esta recorrência pode já ter gerado transações. Deseja excluí-las também?
+						{initialDeleteTransactions !== undefined && (
+							<span className="mt-2 block">
+								Escolha anterior:{" "}
+								{initialDeleteTransactions
+									? "excluir recorrência e transações"
+									: "excluir somente recorrência"}
+								.
+							</span>
+						)}
 					</DialogDescription>
 				</DialogHeader>
 				<DialogFooter className="flex-col sm:flex-col">
