@@ -1,7 +1,10 @@
 import { useEffect } from "react";
 import { type ModalRecovery, takeModalRecovery, useModalRecoveryStore } from "@/lib/background-modal-actions";
 
-export function useBackgroundModalRecovery<T>(kind: string, onRecover: (entry: ModalRecovery<T>) => void) {
+export function useBackgroundModalRecovery<T>(
+	kind: string,
+	onRecover: (entry: ModalRecovery<T> & { id: string }) => void,
+) {
 	const requestedId = useModalRecoveryStore(state => state.requestedId);
 	useEffect(() => {
 		if (!requestedId) return;

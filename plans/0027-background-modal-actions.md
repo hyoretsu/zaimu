@@ -11,7 +11,7 @@ Close action dialogs after a valid submission. Keep work running, report progres
 - [ ] Import review item actions and conflict scoped progress.
 - [ ] Behavior tests for recovery, history, partial operations, and independent controls.
 
-Verified partial account defaults save: retry rereads current state and skips the already completed statement update.
+Verified partial account defaults save: retry rereads current state and skips the already completed statement update. Verified recurrence replay retry uses the created ID without creating another recurrence.
 
 ## Decisions
 

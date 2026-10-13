@@ -96,6 +96,7 @@ export interface BackgroundModalAction<T> {
 	loadingMessage: string;
 	onSuccess?: (result: T) => Promise<unknown> | unknown;
 	recovery: ModalRecovery;
+	recoveryId?: string;
 	run: () => Promise<T>;
 	successMessage: string;
 }
@@ -107,6 +108,7 @@ export function runBackgroundModalAction<T>({
 	loadingMessage,
 	onSuccess,
 	recovery,
+	recoveryId,
 	run,
 	successMessage,
 }: BackgroundModalAction<T>): void {
@@ -134,10 +136,11 @@ export function runBackgroundModalAction<T>({
 			useModalRecoveryStore.setState(state => ({
 				entries: Object.fromEntries(
 					Object.entries(state.entries).filter(
-						([, entry]) =>
-							entry.identity !== identity ||
-							entry.kind !== recovery.kind ||
-							entry.entityId !== recovery.entityId,
+						([id, entry]) =>
+							id !== recoveryId &&
+							(entry.identity !== identity ||
+								entry.kind !== recovery.kind ||
+								entry.entityId !== recovery.entityId),
 					),
 				),
 			}));
@@ -155,6 +158,7 @@ export function runBackgroundModalAction<T>({
 			const id = crypto.randomUUID();
 			const canRecover = identity !== null && identity === getCurrentCacheIdentity();
 			if (canRecover) {
+				if (recoveryId) useModalRecoveryStore.getState().clear(recoveryId);
 				useModalRecoveryStore.getState().store({ ...recovery, id, identity, path });
 			}
 			toast.error(error instanceof Error ? error.message : failureMessage, {

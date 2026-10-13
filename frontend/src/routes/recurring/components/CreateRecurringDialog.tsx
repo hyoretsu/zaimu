@@ -26,6 +26,7 @@ import { debtSplitToInput } from "@/lib/debt-split";
 import { parseMaskedMoney } from "@/lib/masked-money";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import type { Recurrence, RecurrenceInput } from "@/lib/recurrence";
+import { type RecurringSaveRecovery, saveRecurrenceWithReplay } from "@/lib/recurrence-save";
 import { useCurrencyStore } from "@/stores/currency";
 import { DebouncedFormField } from "./DebouncedFormField";
 import { DebouncedMoneyField } from "./DebouncedMoneyField";
@@ -57,15 +58,7 @@ const initialDraft = (recurrence?: Recurrence, currency = "BRL"): UnifiedRecurri
 	tagIds: recurrence?.tagIds ?? [],
 	unit: recurrence?.unit ?? "MONTH",
 });
-interface RecurringRecovery {
-	addPast: boolean;
-	completedWrite: boolean;
-	debtEnabled: boolean;
-	debtSplit: DebtSplitInput;
-	draft: UnifiedRecurringDraft;
-	input: RecurrenceInput;
-	savedId?: string;
-}
+type RecurringRecovery = RecurringSaveRecovery<UnifiedRecurringDraft, DebtSplitInput>;
 export function CreateRecurringDialog({
 	open,
 	onOpenChange,
@@ -85,6 +78,7 @@ export function CreateRecurringDialog({
 	const [addPast, setAddPast] = useState(false);
 	const [completedWrite, setCompletedWrite] = useState(false);
 	const [resumeId, setResumeId] = useState<string>();
+	const [recoveryId, setRecoveryId] = useState<string>();
 	const accounts = useQuery({
 		enabled: identity !== null && open,
 		queryFn: () => dataService.accounts.getAll(),
@@ -137,9 +131,11 @@ export function CreateRecurringDialog({
 		setDebtEnabled(Boolean(recurrence?.debtSplit));
 		setAddPast(false);
 		setResumeId(undefined);
+		setRecoveryId(undefined);
 		setCompletedWrite(false);
 	});
 	useBackgroundModalRecovery<RecurringRecovery>("recurrence-save", entry => {
+		setRecoveryId(entry.id);
 		setDraft(entry.payload.draft);
 		setDebtSplit(entry.payload.debtSplit);
 		setDebtEnabled(entry.payload.debtEnabled);
@@ -159,21 +155,9 @@ export function CreateRecurringDialog({
 			loadingMessage: recovery.completedWrite ? "Recompondo ocorrências..." : "Salvando recorrência...",
 			onSuccess: () => invalidateCacheOperation(queryClient, identity!, "recurring"),
 			recovery: { entityId: recurrence?.id ?? recovery.savedId, kind: "recurrence-save", payload: recovery },
-			run: async () => {
-				if (!recovery.completedWrite) {
-					const saved = recurrence
-						? await dataService.recurrences.update(recurrence.id, recovery.input)
-						: await dataService.recurrences.create(recovery.input);
-					recovery.savedId = saved.id;
-					recovery.completedWrite = true;
-				}
-				if (recovery.addPast && recovery.input.startDate < getLocalDateKey())
-					await dataService.recurrences.replay(
-						recovery.savedId!,
-						recovery.input.startDate,
-						getLocalDateKey(),
-					);
-			},
+			recoveryId,
+			run: () =>
+				saveRecurrenceWithReplay(recovery, recurrence?.id, dataService.recurrences, getLocalDateKey()),
 			successMessage: recurrence ? "Recorrência atualizada." : "Recorrência criada.",
 		});
 	return (
