@@ -60,7 +60,7 @@ Testes do executor verificam seleção, percentis, concorrência, timeout config
 
 Cobertura de aprovação/reconciliação de importações, sync incremental, offline completo/IndexedDB, falhas de infraestrutura, backlog, startup, jornadas de navegação e plataformas nativas ainda precisa completar matriz do plano 0018. Nenhum relatório HTTP pode aprovar essas áreas por inferência. Pendências ficam explícitas no inventário e impedem aceite global.
 
-`statementImport` gera mil valores distintos; `statementImportDuplicates` preserva mil valores iguais, caso extremo de resposta com candidatos repetidos. Parsing tem orçamento de 30 s; revisão e descarte mantêm 1 s. `loanAdvance`, `recurrenceAdvance` e `recurrenceReplay` medem antecipação/materialização com limpeza dos efeitos criados.
+`statementImport` gera mil valores distintos; `statementImportDuplicates` preserva mil valores iguais, caso extremo de resposta com candidatos repetidos. Parsing tem orçamento de 15 s; revisão e descarte mantêm 1 s. `loanAdvance`, `recurrenceAdvance` e `recurrenceReplay` medem antecipação/materialização com limpeza dos efeitos criados.
 
 Navegador inclui navegação nos oito módulos e diagnóstico de leitura/escrita IndexedDB com isolamento entre duas identidades. Teste de storage é diagnóstico, não substitui equivalência financeira e migração visitante. Relatório comparativo das ações corrigidas fica em `reports/financial-actions-reference-0018.json`.
 
@@ -74,3 +74,11 @@ xvfb-run -a /usr/bin/python3 frontend/tests/performance/native-webkit.py
 Contexto ephemeral não acessa perfil do usuário. Proxy local indisponível bloqueia destinos externos; fetch externo é recusado e geolocalização é simulada. Relatório `/tmp/zaimu-native-webkit.json` identifica versão do engine e oito rotas. Esse diagnóstico não certifica bridge Tauri, startup nativo, deep links, mobile ou histórico grande; métricas não suportadas permanecem pendências explícitas. Playwright grava também `result.json` com falhas e anexos, mesmo quando um cenário para antes de completar medições.
 
 Cenário `authSession` mede login, sessão autenticada, logout e sessão anônima. Cookie criado pertence somente ao cenário; cookie original da fixture permanece intacto. Identidade divergente reprova execução e encerra sessão criada. Intervalo de 3,5 s entre ciclos respeita limite de login e fica fora da latência de cada request. Signup, recuperação e revogação de outras sessões continuam pendentes.
+
+Cada grupo concluído também é gravado em `<relatório>.journal.jsonl`, sem serializar todo o histórico a cada request. Interrupção conserva grupos anteriores e marca cenário ainda pendente. Recuperação local:
+
+```bash
+bun backend/performance/journal.ts /tmp/zaimu-performance-result.json.journal.jsonl
+```
+
+Journal contém resultados antes da associação final de telemetria. Recuperação sempre retorna `passed: false` e `complete: false`; nunca substitui relatório de aceite, mesmo quando runner chegou ao fim. Cauda incompleta fica explícita; registros internos inválidos, duplicados ou namespace incorreto são recusados.

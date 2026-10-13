@@ -3,6 +3,7 @@ import { RedisClient } from "bun";
 import { performanceBudgets } from "./budgets";
 import { completeCoverage, evaluateCoverage } from "./coverage";
 import coverage from "./coverage.json";
+import { PerformanceJournal } from "./journal";
 import { mutationScenarios, runMutationScenario } from "./mutations";
 import { preflight } from "./preflight";
 import { captureRequest, completeMetrics, percentile, type RequestSample, selectScenarios } from "./runner";
@@ -18,6 +19,9 @@ if (
 )
 	throw new Error("Dedicated loopback API 3335 and Redis 6395 required");
 const namespace = "zaimu_performance";
+const reportPath =
+	process.env.PERFORMANCE_REPORT_PATH ?? new URL("./acceptance-result.json", import.meta.url).pathname;
+const journal = new PerformanceJournal(`${reportPath}.journal.jsonl`);
 const hostStart = { freeMemoryBytes: freemem(), loadAverage: loadavg() };
 const diagnostic = process.argv.includes("--diagnostic");
 const iterations = diagnostic ? 5 : 25;
@@ -67,6 +71,7 @@ const clearDataCache = async () => {
 	} while (cursor !== "0");
 };
 try {
+	await journal.initialize({ diagnostic, hostStart, iterations, loads, rounds, selected });
 	fixture = await preflight(Math.max(...loads));
 	for (let user = 0; user < Math.max(...loads); user++) {
 		const response = await fetch(new URL("/api/auth/sign-in/email", base), {
@@ -96,6 +101,8 @@ try {
 		for (let round = 1; round <= rounds; round++)
 			for (const load of loads) {
 				for (const mode of ["redis-cold", "hot", "304"] as const) {
+					const key = `${name}:${round}:${load}:${mode}`;
+					await journal.begin(key);
 					const samples: Sample[] = [];
 					const etags: (string | null)[] = [];
 					if (mode !== "redis-cold") {
@@ -148,7 +155,6 @@ try {
 									? sample.businessQueries <= budget.coldQueryCount
 									: sample.queries === 0),
 						) && p95Ms < (mode === "redis-cold" ? budget.coldP95Ms : budget.hotP95Ms);
-					const key = `${name}:${round}:${load}:${mode}`;
 					summaries.push({ load, maxQueries, mode, name, p95Ms, passed, round });
 					results[key] = {
 						p50Ms: percentile(values, 0.5),
@@ -158,6 +164,7 @@ try {
 						samples,
 						throughput: samples.length / ((performance.now() - startedAt) / 1000),
 					};
+					await journal.complete(key, results[key]);
 					failed ||= !passed;
 					console.info(JSON.stringify({ load, maxQueries, mode, name, p95Ms, passed, round }));
 				}
@@ -166,8 +173,11 @@ try {
 	for (const name of selected.filter(name => mutationScenarios.includes(name))) {
 		for (let round = 1; round <= rounds; round++)
 			for (const load of loads) {
+				const key = `${name}:${round}:${load}:mutation`;
+				await journal.begin(key);
 				const result = await runMutationScenario(name, { base, cookies, iterations, load });
-				results[`${name}:${round}:${load}:mutation`] = result;
+				results[key] = result;
+				await journal.complete(key, result);
 				failed ||= !result.passed;
 				console.info(JSON.stringify({ load, name, p95Ms: result.p95Ms, passed: result.passed, round }));
 			}
@@ -224,9 +234,7 @@ try {
 		worker: process.env.PERFORMANCE_WORKER_STATE ?? "stopped",
 	};
 	if (!diagnostic && !report.passed) process.exitCode = 1;
-	await Bun.write(
-		process.env.PERFORMANCE_REPORT_PATH ?? new URL("./acceptance-result.json", import.meta.url),
-		`${JSON.stringify(report, null, 2)}\n`,
-	);
+	await Bun.write(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+	await journal.finish();
 }
 if (failed) process.exitCode = 1;

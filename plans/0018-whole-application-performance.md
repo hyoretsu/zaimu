@@ -442,3 +442,9 @@ Próxima etapa: validar fallback de cache e persistência incremental contra reg
 - Grade passa a componente memoizado com dados e callbacks estáveis. Abrir/fechar modal e alterar estado pendente da compra deixam de recriar controles e modais de edição de todos os cartões.
 - Busca de conta por cartão usa Map; ordenação e filtros permanecem derivados dos dados. Sem novos efeitos, sem atualização otimista de valores financeiros e sem mudança no escopo de pending.
 - Revisão React aplicou memo na fronteira cara, manteve queries compartilhadas no consumidor comum e callbacks tipados. Build e medição release ainda necessários.
+
+### Recuperação de medições interrompidas
+
+- Encerrar runner com SIGTERM durante matriz perdia agregados concluídos, embora logs HTTP permanecessem. Journal JSONL registra início e término de cada grupo uma vez, com escrita fora da latência medida.
+- Leitor conserva grupos concluídos e cenário pendente; cauda incompleta fica explícita. Namespace, objetos, ordem e duplicação são validados. Recuperação sempre reprova aceite e identifica ausência de relatório/telemetria completos.
+- Executor passou 22 testes/102 assertions, incluindo arquivo real, erro de storage e corrupção. Hook de calendário passou unidade completa; build backend isolado passou. Captura release após correções permanece pendente.
