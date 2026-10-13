@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { LuCreditCard, LuFileUp, LuPlus, LuScale } from "react-icons/lu";
 import {
 	CreditCardImportReviewDialog,
@@ -13,7 +13,6 @@ import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { QueryRefreshStatus } from "@/components/ui/QueryRefreshStatus";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
 import { getFinancialInstitutions } from "@/lib/financial-institution";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
@@ -21,9 +20,8 @@ import { CreateFinancialAccountDialog } from "@/routes/accounts/components";
 import {
 	CardAdjustmentsDialog,
 	CreatePurchaseDialog,
-	CreditCardManagementActions,
-	CreditCardOverviewCard,
 	CreditCardStatementsDialog,
+	CreditCardsGrid,
 } from "@/routes/credit-cards/components";
 import { showToast, useAuthStore } from "@/stores";
 
@@ -101,10 +99,12 @@ export function CreditCardsPage() {
 	});
 
 	const ownCardsCount = cards.data?.filter(card => !card.excludeFromTotals).length ?? 0;
-	const sortedCards = [...(cards.data ?? [])].sort((firstCard, secondCard) =>
-		getCreditCardDisplayName(firstCard).localeCompare(getCreditCardDisplayName(secondCard), "pt-BR", {
-			sensitivity: "base",
-		}),
+	const handleDelete = useCallback((id: string) => deleteCard.mutateAsync(id), [deleteCard.mutateAsync]);
+	const handleHide = useCallback((id: string) => hideCard.mutateAsync(id), [hideCard.mutateAsync]);
+	const handleUpdate = useCallback(
+		(id: string, data: Parameters<typeof dataService.accounts.update>[1]) =>
+			updateCard.mutateAsync({ data, id }),
+		[updateCard.mutateAsync],
 	);
 	const selectedCard = cards.data?.find(card => card.id === selectedCardId) ?? null;
 	const statementsCard = cards.data?.find(card => card.id === statementsCardId) ?? null;
@@ -186,28 +186,16 @@ export function CreditCardsPage() {
 					title="Não foi possível carregar cartões"
 				/>
 			) : cards.data?.length ? (
-				<section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-					{sortedCards.map(card => (
-						<CreditCardOverviewCard
-							card={card}
-							key={card.id}
-							managementActions={
-								<CreditCardManagementActions
-									account={accounts.data?.find(item => item.id === card.financialAccountId)}
-									accountsPending={accounts.isPending}
-									card={card}
-									institutions={institutions}
-									onDelete={id => deleteCard.mutateAsync(id)}
-									onHide={id => hideCard.mutateAsync(id)}
-									onUpdate={(id, data) => updateCard.mutateAsync({ data, id })}
-									rewardAccounts={rewardAccounts}
-								/>
-							}
-							onAddPurchase={() => setSelectedCardId(card.id)}
-							onViewStatements={() => setStatementsCardId(card.id)}
-						/>
-					))}
-				</section>
+				<CreditCardsGrid
+					accounts={accounts.data}
+					accountsPending={accounts.isPending}
+					cards={cards.data}
+					onAddPurchase={setSelectedCardId}
+					onDelete={handleDelete}
+					onHide={handleHide}
+					onUpdate={handleUpdate}
+					onViewStatements={setStatementsCardId}
+				/>
 			) : (
 				<EmptyState
 					action={

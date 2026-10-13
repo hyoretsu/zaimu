@@ -3,6 +3,7 @@ export * from "./CreatePurchaseDialog";
 export * from "./CreditCardManagementActions";
 export * from "./CreditCardOverviewCard";
 export * from "./CreditCardStatementsDialog";
+export * from "./CreditCardsGrid";
 export { CreditCardsPage } from "./CreditCardsPage";
 export * from "./CreditPurchaseEditScopeDialog";
 export * from "./CreditPurchaseRefundSummary";

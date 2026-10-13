@@ -436,3 +436,9 @@ Próxima etapa: validar fallback de cache e persistência incremental contra reg
 - Rodada oficial interrompida após descobrir GET dashboard com 78 queries e até 10.947 ms em fixture de dez transações. Autenticação/carga fria continuam reprovadas e relatório parcial preservado em /tmp/zaimu-performance-matrix-corrected.
 - Contexto de juros deduplica associação por moeda e calendário por país/ano. Mesmas funções transacionais mantêm fontes, overrides, advisory locks e disponibilidade; quantidade de contas deixa de multiplicar registro idêntico.
 - Três regressões/15 assertions passaram, com 10/10k/100k contas, anos duplicados, país ausente, cobertura incompleta e falha de registro. Build, integração e nova captura release pendentes.
+
+### Renderização da grade de cartões
+
+- Grade passa a componente memoizado com dados e callbacks estáveis. Abrir/fechar modal e alterar estado pendente da compra deixam de recriar controles e modais de edição de todos os cartões.
+- Busca de conta por cartão usa Map; ordenação e filtros permanecem derivados dos dados. Sem novos efeitos, sem atualização otimista de valores financeiros e sem mudança no escopo de pending.
+- Revisão React aplicou memo na fronteira cara, manteve queries compartilhadas no consumidor comum e callbacks tipados. Build e medição release ainda necessários.
