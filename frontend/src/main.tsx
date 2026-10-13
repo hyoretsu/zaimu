@@ -4,6 +4,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { Toaster } from "@/components/ui/Sonner";
 import { TooltipProvider } from "@/components/ui/Tooltip";
+import { configureModalRecoveryNavigation } from "@/lib/background-modal-actions";
 import { initializeDeepLinks } from "@/lib/deep-links";
 import { routeTree } from "./routeTree.gen";
 import "./index.css";
@@ -25,6 +26,8 @@ const router = createRouter({
 	defaultPreloadStaleTime: 0,
 	routeTree,
 });
+
+configureModalRecoveryNavigation(path => router.navigate({ to: path as never }));
 
 declare module "@tanstack/react-router" {
 	interface Register {

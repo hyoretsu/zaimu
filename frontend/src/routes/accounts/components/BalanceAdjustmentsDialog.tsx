@@ -14,13 +14,15 @@ import {
 } from "@/components/ui/Dialog";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
+import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
+import { useModalRecoveryStore } from "@/lib/background-modal-actions";
 import type { BalanceAdjustment } from "@/lib/balance-adjustment";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
 import { getFinancialAccountOptionLabel } from "@/lib/financial-account";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
-import { BalanceAdjustmentForm } from "./BalanceAdjustmentForm";
+import { type BalanceAdjustmentDraft, BalanceAdjustmentForm } from "./BalanceAdjustmentForm";
 
 const formatMoney = (value: number, currency: string) =>
 	new Intl.NumberFormat("pt-BR", { currency, style: "currency" }).format(value);
@@ -36,6 +38,13 @@ export function BalanceAdjustmentsDialog({
 	const identity = useCacheIdentity();
 	const queryClient = useQueryClient();
 	const [editing, setEditing] = useState<BalanceAdjustment | null | "new">(null);
+	const [recoveredDraft, setRecoveredDraft] = useState<BalanceAdjustmentDraft | null>(null);
+	const pending = useModalRecoveryStore(state => state.pending);
+	useBackgroundModalRecovery<BalanceAdjustmentDraft>("balance-adjustment", entry => {
+		setRecoveredDraft(entry.payload);
+		setEditing(entry.payload.adjustment ?? "new");
+		onOpenChange(true);
+	});
 	const adjustmentsKey = ["identity", identity, "balance-adjustments"] as const;
 	const adjustmentsQuery = useQuery({
 		enabled: open && identity !== null,
@@ -118,6 +127,7 @@ export function BalanceAdjustmentsDialog({
 														<Button
 															aria-label="Editar ajuste"
 															className="cursor-pointer"
+															disabled={!!pending[`${identity}:balance-adjustment:${adjustment.id}`]}
 															onClick={() => setEditing(adjustment)}
 															size="icon-sm"
 															variant="outline"
@@ -134,7 +144,10 @@ export function BalanceAdjustmentsDialog({
 																aria-label="Excluir ajuste"
 																className="cursor-pointer"
 																confirmation="Excluir este ajuste permanentemente?"
-																disabled={remove.isPending && remove.variables === adjustment.id}
+																disabled={
+																	(remove.isPending && remove.variables === adjustment.id) ||
+																	!!pending[`${identity}:balance-adjustment:${adjustment.id}`]
+																}
 																onConfirm={() => remove.mutate(adjustment.id)}
 																size="icon-sm"
 																variant="outline"
@@ -166,8 +179,12 @@ export function BalanceAdjustmentsDialog({
 				<BalanceAdjustmentForm
 					adjustment={editing === "new" ? null : editing}
 					existingAdjustments={adjustmentsQuery.data ?? []}
+					initialDraft={recoveredDraft ?? undefined}
 					key={editing === "new" ? "new" : editing.id}
-					onClose={() => setEditing(null)}
+					onClose={() => {
+						setEditing(null);
+						setRecoveredDraft(null);
+					}}
 				/>
 			) : null}
 		</>

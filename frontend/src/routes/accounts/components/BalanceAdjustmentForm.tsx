@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
@@ -13,6 +13,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/Dialog";
 import { MoneyField } from "@/components/ui/MoneyField";
+import { runBackgroundModalAction } from "@/lib/background-modal-actions";
 import type { BalanceAdjustment } from "@/lib/balance-adjustment";
 import { dataService } from "@/lib/dataService";
 import { getLocalDateKey } from "@/lib/date";
@@ -21,22 +22,34 @@ import {
 	getFinancialAccountOptionLabel,
 } from "@/lib/financial-account";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
-import { showToast } from "@/stores";
+
+export interface BalanceAdjustmentDraft {
+	adjustment: BalanceAdjustment | null;
+	balance: string;
+	date: string;
+	financialAccountId: string;
+}
 
 export function BalanceAdjustmentForm({
 	adjustment,
 	existingAdjustments,
+	initialDraft,
 	onClose,
 }: {
 	adjustment: BalanceAdjustment | null;
 	existingAdjustments: BalanceAdjustment[];
+	initialDraft?: BalanceAdjustmentDraft;
 	onClose: () => void;
 }) {
 	const identity = useCacheIdentity();
 	const queryClient = useQueryClient();
-	const [balance, setBalance] = useState(adjustment ? String(adjustment.balance) : "");
-	const [date, setDate] = useState(adjustment?.date.slice(0, 10) ?? getLocalDateKey());
-	const [financialAccountId, setFinancialAccountId] = useState(adjustment?.financialAccountId ?? "");
+	const [balance, setBalance] = useState(
+		initialDraft?.balance ?? (adjustment ? String(adjustment.balance) : ""),
+	);
+	const [date, setDate] = useState(initialDraft?.date ?? adjustment?.date.slice(0, 10) ?? getLocalDateKey());
+	const [financialAccountId, setFinancialAccountId] = useState(
+		initialDraft?.financialAccountId ?? adjustment?.financialAccountId ?? "",
+	);
 	// Keep the available accounts stable while the form is open, even if adjustments refetch.
 	const [adjustedAccountIds] = useState(
 		() => new Set(existingAdjustments.map(existing => existing.financialAccountId)),
@@ -54,23 +67,32 @@ export function BalanceAdjustmentForm({
 				(adjustment !== null || !adjustedAccountIds.has(account.id)),
 		)
 		.toSorted(compareFinancialAccountsByOptionLabel);
-	const save = useMutation({
-		mutationFn: () => {
-			const data = { balance: Number(balance), date, financialAccountId };
-			return adjustment
-				? dataService.balanceAdjustments.update(adjustment.id, data)
-				: dataService.balanceAdjustments.create(data);
-		},
-		onError: error => showToast(error.message, "negative"),
-		onSuccess: async () => {
-			await Promise.all([
-				invalidateCacheOperation(queryClient, identity!, "transaction"),
-				queryClient.invalidateQueries({ queryKey: ["identity", identity, "balance-adjustments"] }),
-			]);
-			showToast("Ajuste de saldo salvo.", "positive");
-			onClose();
-		},
-	});
+	const save = () => {
+		const draft = { adjustment, balance, date, financialAccountId };
+		const data = {
+			balance: Number(draft.balance),
+			date: draft.date,
+			financialAccountId: draft.financialAccountId,
+		};
+		runBackgroundModalAction({
+			close: onClose,
+			conflictKey: `balance-adjustment:${adjustment?.id ?? financialAccountId}`,
+			failureMessage: "Não foi possível salvar o ajuste de saldo.",
+			loadingMessage: "Salvando ajuste de saldo...",
+			onSuccess: async () => {
+				await Promise.all([
+					invalidateCacheOperation(queryClient, identity!, "transaction"),
+					queryClient.invalidateQueries({ queryKey: ["identity", identity, "balance-adjustments"] }),
+				]);
+			},
+			recovery: { entityId: adjustment?.id, kind: "balance-adjustment", payload: draft },
+			run: () =>
+				adjustment
+					? dataService.balanceAdjustments.update(adjustment.id, data)
+					: dataService.balanceAdjustments.create(data),
+			successMessage: "Ajuste de saldo salvo.",
+		});
+	};
 	return (
 		<Dialog onOpenChange={open => !open && onClose()} open>
 			<DialogContent className="sm:max-w-md">
@@ -123,8 +145,8 @@ export function BalanceAdjustmentForm({
 					</Button>
 					<Button
 						className="cursor-pointer disabled:cursor-not-allowed"
-						disabled={!balance || !date || !financialAccountId || save.isPending}
-						onClick={() => save.mutate()}
+						disabled={!balance || !date || !financialAccountId}
+						onClick={save}
 					>
 						Salvar
 					</Button>
