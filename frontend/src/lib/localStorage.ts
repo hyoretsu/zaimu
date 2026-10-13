@@ -121,7 +121,8 @@ async function openLocalDb(): Promise<IDBDatabase> {
 		let request = indexedDB.open(DB_NAME, DB_VERSION);
 		request.onerror = () => {
 			if (request.error?.name === "VersionError") {
-				request = indexedDB.open(DB_NAME, DB_VERSION + 1);
+				// Cleanup can advance the schema beyond this build's version.
+				request = indexedDB.open(DB_NAME);
 				request.onerror = () => reject(request.error);
 				request.onsuccess = () => resolve(request.result);
 			} else reject(request.error);
@@ -190,15 +191,12 @@ async function openLocalDb(): Promise<IDBDatabase> {
 			const tx = cleanup.transaction!;
 			const state = tx.objectStore("application-upgrade").get("state");
 			state.onsuccess = () => {
-				if (state.result?.status !== "complete" || state.result.version !== 13) {
-					tx.abort();
-					return;
-				}
+				if (state.result?.status !== "complete" || state.result.version !== 13) return;
 				for (const name of retired) {
 					const count = tx.objectStore(name).count();
 					count.onsuccess = () => {
-						if (count.result !== 0) tx.abort();
-						else cleanup.result.deleteObjectStore(name);
+						// Retained legacy data must not block access to current stores.
+						if (count.result === 0) cleanup.result.deleteObjectStore(name);
 					};
 				}
 			};
