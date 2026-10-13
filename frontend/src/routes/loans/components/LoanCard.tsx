@@ -1,5 +1,6 @@
 import { HiBanknotes, HiCheckCircle, HiClock } from "react-icons/hi2";
 import { LuListChecks } from "react-icons/lu";
+import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import type { Loan } from "@/lib/api";
 import { formatCurrency } from "./loan-format";
 export function LoanCard({
@@ -74,12 +75,16 @@ export function LoanCard({
 				<div className="min-w-0 text-right">
 					<p className="mb-1 text-foreground-muted text-xs">{isPaid ? "Total pago" : "Restante"}</p>
 					<p className={`truncate font-bold ${isPaid ? "text-success-600" : "text-danger-600"}`}>
-						{formatCurrency(
-							isPaid
-								? loan.totalPaid || loan.totalInstallments * loan.installmentAmount
-								: remainingInstallments * loan.installmentAmount,
-							loan.currency,
-						)}
+						<PreferredMoneyAmount
+							values={[
+								{
+									amount: isPaid
+										? loan.totalPaid || loan.totalInstallments * loan.installmentAmount
+										: remainingInstallments * loan.installmentAmount,
+									currency: loan.currency ?? "BRL",
+								},
+							]}
+						/>
 					</p>
 				</div>
 			</div>

@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { HiArrowsRightLeft } from "react-icons/hi2";
 import { LuLoaderCircle } from "react-icons/lu";
+import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -237,17 +238,9 @@ export function TransactionsList({
 								<TransactionDateHeader
 									dateLabel={dayLabel}
 									endingBalance={
-										dailyEndingBalances.has(date)
-											? dailyEndingBalances
-													.get(date)!
-													.map(value =>
-														new Intl.NumberFormat("pt-BR", {
-															currency: value.currency,
-															style: "currency",
-														}).format(value.amount),
-													)
-													.join(" · ")
-											: undefined
+										dailyEndingBalances.has(date) ? (
+											<PreferredMoneyAmount date={date} values={dailyEndingBalances.get(date)!} />
+										) : undefined
 									}
 								/>
 								{entries.length === 0 ? (

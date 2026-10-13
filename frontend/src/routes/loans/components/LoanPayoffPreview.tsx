@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { LuCalculator } from "react-icons/lu";
+import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
-import { formatCurrency } from "./loan-format";
 export function LoanPayoffPreview({ loanId }: { loanId: string }) {
 	const [open, setOpen] = useState(false);
 	const identity = useCacheIdentity();
@@ -37,9 +37,17 @@ export function LoanPayoffPreview({ loanId }: { loanId: string }) {
 					</div>
 				) : (
 					<div>
-						<p>Principal restante: {formatCurrency(estimate.data.totalToPay, estimate.data.currency)}</p>
 						<p>
-							Juros futuros previstos: {formatCurrency(estimate.data.savedInterest, estimate.data.currency)}
+							Principal restante:{" "}
+							<PreferredMoneyAmount
+								values={[{ amount: estimate.data.totalToPay, currency: estimate.data.currency ?? "BRL" }]}
+							/>
+						</p>
+						<p>
+							Juros futuros previstos:{" "}
+							<PreferredMoneyAmount
+								values={[{ amount: estimate.data.savedInterest, currency: estimate.data.currency ?? "BRL" }]}
+							/>
 						</p>
 						<p className="text-muted-foreground text-xs">
 							Estimativa sem juros futuros. Confirme condições e valor de quitação com credor.

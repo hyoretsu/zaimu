@@ -138,9 +138,6 @@ export function RecurringPage() {
 	const pausedItems = filteredItems.filter(item => !item.active && !isRecurrenceEnded(item.endDate));
 	const endedItems = filteredItems.filter(item => isRecurrenceEnded(item.endDate));
 	const monetaryItems = items.filter(item => item.active && !isRecurrenceEnded(item.endDate));
-	const summaryCurrencies = [
-		...new Set(monetaryItems.map(item => item.recurrence?.currency ?? "BRL")),
-	].sort();
 	const renderItem = (item: RecurringListItemData) => (
 		<RecurringListItem
 			deleting={!!pendingModalActions[`${identity}:recurrence:${item.id}`]}
@@ -188,25 +185,17 @@ export function RecurringPage() {
 				</div>
 			) : (
 				<div className="space-y-3">
-					{(summaryCurrencies.length ? summaryCurrencies : ["BRL"]).map(currency => {
-						const nativeItems = monetaryItems.filter(
-							item => (item.recurrence?.currency ?? "BRL") === currency,
-						);
-						const total = (direction: RecurringDirection) =>
-							nativeItems
-								.filter(item => item.direction === direction)
-								.reduce((sum, item) => sum + item.monthlyAmount, 0);
-						return (
-							<RecurringSummary
-								currencyCode={currency}
-								expenses={total("EXPENSE")}
-								incomes={total("INCOME")}
-								key={currency}
-								period={periodLabel}
-								transfers={total("TRANSFER")}
-							/>
-						);
-					})}
+					<RecurringSummary
+						currencyCode="BRL"
+						expenses={0}
+						incomes={0}
+						period={periodLabel}
+						values={monetaryItems.map(item => ({
+							amount: item.monthlyAmount,
+							currency: item.recurrence?.currency ?? "BRL",
+							direction: item.direction,
+						}))}
+					/>
 				</div>
 			)}
 

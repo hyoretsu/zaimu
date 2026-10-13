@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { LuArrowRight, LuLandmark } from "react-icons/lu";
+import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import {
@@ -62,10 +63,9 @@ export function DashboardAccounts({ accounts, endDate }: DashboardAccountsProps)
 						>
 							<span>{getName(account)}</span>
 							<strong>
-								{new Intl.NumberFormat(navigator.languages, {
-									currency: account.currency ?? "BRL",
-									style: "currency",
-								}).format(account.balance)}
+								<PreferredMoneyAmount
+									values={[{ amount: account.balance, currency: account.currency ?? "BRL" }]}
+								/>
 							</strong>
 						</div>
 					))}
@@ -105,10 +105,9 @@ export function DashboardAccounts({ accounts, endDate }: DashboardAccountsProps)
 										</div>
 										<div className="flex shrink-0 flex-col items-end gap-2 text-right">
 											<strong className="tabular-nums">
-												{new Intl.NumberFormat(navigator.languages, {
-													currency: account.currency ?? "BRL",
-													style: "currency",
-												}).format(account.balance)}
+												<PreferredMoneyAmount
+													values={[{ amount: account.balance, currency: account.currency ?? "BRL" }]}
+												/>
 											</strong>
 											<Button asChild className="cursor-pointer" size="sm" variant="outline">
 												<Link search={{ statementAccountId: account.id }} to="/accounts">

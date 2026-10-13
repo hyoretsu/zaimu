@@ -18,6 +18,7 @@ export function BudgetOverview({
 }) {
 	const identity = useCacheIdentity();
 	const currency = useCurrencyStore(state => state.currency);
+	const currencyReady = useCurrencyStore(state => !state.loading && state.owner === identity);
 	const parameters = {
 		endDate: monthEnd(month),
 		periodsAfter: 0,
@@ -25,7 +26,7 @@ export function BudgetOverview({
 		startDate: `${month}-01`,
 	};
 	const forecast = useQuery({
-		enabled: identity !== null,
+		enabled: identity !== null && currencyReady,
 		queryFn: () => dataService.dashboard.getComparison(parameters),
 		queryKey: queryKeys.dashboard.comparison(identity!, parameters),
 	});
@@ -36,7 +37,7 @@ export function BudgetOverview({
 				<h2 className="font-semibold">Disponibilidade do mês</h2>
 				<BudgetMonthPicker month={month} onChange={onMonthChange} />
 			</div>
-			{forecast.isPending ? (
+			{!currencyReady || forecast.isPending ? (
 				<div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
 					{[1, 2, 3].map(key => (
 						<div className="space-y-2" key={key}>

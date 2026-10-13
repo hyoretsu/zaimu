@@ -6,15 +6,19 @@ export function RecurringSummary({
 	incomes,
 	transfers = 0,
 	period,
+	values,
 }: {
 	currencyCode: string;
 	expenses: number;
 	incomes: number;
 	transfers?: number;
 	period?: string;
+	values?: Array<{ amount: number; currency: string; direction: string }>;
 }) {
 	return (
-		<div className={`grid gap-3 ${transfers ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+		<div
+			className={`grid gap-3 ${values?.some(value => value.direction === "TRANSFER") || transfers ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}
+		>
 			<RecurrenceSummaryCard
 				amount={incomes}
 				color="bg-emerald-500/10 text-emerald-600"
@@ -22,6 +26,7 @@ export function RecurringSummary({
 				icon={HiArrowDown}
 				label="Entradas agendadas"
 				period={period}
+				values={values?.filter(value => value.direction === "INCOME")}
 			/>
 			<RecurrenceSummaryCard
 				amount={expenses}
@@ -30,8 +35,9 @@ export function RecurringSummary({
 				icon={HiArrowUp}
 				label="Saídas agendadas"
 				period={period}
+				values={values?.filter(value => value.direction === "EXPENSE")}
 			/>
-			{transfers > 0 && (
+			{(values?.some(value => value.direction === "TRANSFER") || transfers > 0) && (
 				<RecurrenceSummaryCard
 					amount={transfers}
 					color="bg-primary/10 text-primary"
@@ -39,6 +45,7 @@ export function RecurringSummary({
 					icon={HiArrowPath}
 					label="Transferências próprias"
 					period={period}
+					values={values?.filter(value => value.direction === "TRANSFER")}
 				/>
 			)}
 		</div>

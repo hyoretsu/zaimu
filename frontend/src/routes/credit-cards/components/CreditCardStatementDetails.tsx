@@ -8,6 +8,7 @@ import {
 	LuPlus,
 	LuReceiptText,
 } from "react-icons/lu";
+import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { Button } from "@/components/ui/Button";
@@ -46,7 +47,6 @@ export function CreditCardStatementDetails({
 	onAddPurchase: () => void;
 }) {
 	const currencyCode = card.currency ?? "BRL";
-	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
 	const [editingStatement, setEditingStatement] = useState(false);
@@ -265,11 +265,17 @@ export function CreditCardStatementDetails({
 						</div>
 						<div>
 							<p className="text-muted-foreground text-xs">Valor da fatura</p>
-							<strong className="block text-2xl tabular-nums">{currency.format(invoiceAmount)}</strong>
+							<strong className="block text-2xl tabular-nums">
+								{<PreferredMoneyAmount values={[{ amount: invoiceAmount, currency: currencyCode }]} />}
+							</strong>
 							{!isIgnored && Math.abs(invoiceAmount - displayBalance) > 0.001 && (
 								<p className="mt-1 text-muted-foreground text-sm">
 									{displayBalance < 0 ? "Crédito" : "Restante a pagar"}:{" "}
-									{currency.format(Math.abs(displayBalance))}
+									{
+										<PreferredMoneyAmount
+											values={[{ amount: Math.abs(displayBalance), currency: currencyCode }]}
+										/>
+									}
 								</p>
 							)}
 						</div>

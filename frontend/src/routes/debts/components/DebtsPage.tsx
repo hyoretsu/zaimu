@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { LuPlus, LuUsersRound } from "react-icons/lu";
+import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { PendingNotices } from "@/components/pending-notices";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -24,12 +25,7 @@ import { showToast } from "@/stores";
 const formatTotals = (
 	rows: { currency: string; iOwe: number; net: number; owedToMe: number }[],
 	field: "net" | "iOwe" | "owedToMe",
-) =>
-	rows
-		.map(row =>
-			new Intl.NumberFormat("pt-BR", { currency: row.currency, style: "currency" }).format(row[field]),
-		)
-		.join(" / ") || "Sem lançamentos";
+) => <PreferredMoneyAmount values={rows.map(row => ({ amount: row[field], currency: row.currency }))} />;
 export function DebtsPage() {
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();

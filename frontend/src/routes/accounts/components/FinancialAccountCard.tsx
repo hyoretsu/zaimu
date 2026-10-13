@@ -12,6 +12,7 @@ import {
 	LuTrash2,
 	LuWallet,
 } from "react-icons/lu";
+import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { ImportTransactionsDialog, TransactionImportReviewDialog } from "@/components/transaction-imports";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { Button } from "@/components/ui/Button";
@@ -55,11 +56,7 @@ export function FinancialAccountCard({
 	onUpdate: Parameters<typeof CreateFinancialAccountDialog>[0]["onUpdate"];
 	rewardAccounts: FinancialAccount[];
 }) {
-	const currency = new Intl.NumberFormat(navigator.languages, {
-		currency: account.rewardsAccount?.conversionCurrency ?? account.currency ?? "BRL",
-		style: "currency",
-	});
-	const { statementAccountId } = useSearch({ from: "/accounts" });
+	const { statementAccountId } = useSearch({ strict: false });
 	const cardRef = useRef<HTMLElement>(null);
 	const openedAccountId = useRef<string | undefined>(undefined);
 	const [statementOpen, setStatementOpen] = useState(false);
@@ -148,13 +145,32 @@ export function FinancialAccountCard({
 							{account.rewardsAccount?.kind === "CASHBACK" ? "Cashback disponível" : "Pontos acumulados"}
 						</p>
 						<p className="mt-1 font-bold text-2xl">
-							{account.rewardsAccount?.kind === "CASHBACK"
-								? currency.format(account.balance ?? 0)
-								: `${points.format(account.balance ?? 0)} pontos`}
+							{account.rewardsAccount?.kind === "CASHBACK" ? (
+								<PreferredMoneyAmount
+									values={[
+										{
+											amount: account.balance ?? 0,
+											currency: account.rewardsAccount?.conversionCurrency ?? account.currency ?? "BRL",
+										},
+									]}
+								/>
+							) : (
+								`${points.format(account.balance ?? 0)} pontos`
+							)}
 						</p>
 						{account.rewardsAccount?.kind === "POINTS" && account.rewardsAccount.conversionPoints ? (
 							<p className="mt-1 text-muted-foreground text-sm">
-								Equivalente a {currency.format(getFinancialAccountCurrencyValue(account))}
+								Equivalente a{" "}
+								{
+									<PreferredMoneyAmount
+										values={[
+											{
+												amount: getFinancialAccountCurrencyValue(account),
+												currency: account.rewardsAccount?.conversionCurrency ?? account.currency ?? "BRL",
+											},
+										]}
+									/>
+								}
 							</p>
 						) : null}
 					</>
@@ -168,7 +184,16 @@ export function FinancialAccountCard({
 									: "mt-1 font-bold text-2xl"
 							}
 						>
-							{currency.format(account.balance ?? 0)}
+							{
+								<PreferredMoneyAmount
+									values={[
+										{
+											amount: account.balance ?? 0,
+											currency: account.rewardsAccount?.conversionCurrency ?? account.currency ?? "BRL",
+										},
+									]}
+								/>
+							}
 						</p>
 					</>
 				)}

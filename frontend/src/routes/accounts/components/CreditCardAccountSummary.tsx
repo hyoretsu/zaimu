@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
@@ -26,10 +27,6 @@ export function CreditCardAccountSummary({ accountId }: { accountId: string }) {
 	if (!card) {
 		return <p className="text-muted-foreground text-sm">Dados do cartão indisponíveis.</p>;
 	}
-	const currency = new Intl.NumberFormat(navigator.languages, {
-		currency: card.currency ?? "BRL",
-		style: "currency",
-	});
 	const currentBill = Math.max(0, card.currentStatement?.balanceAmount ?? 0);
 	const limit = card.limit;
 
@@ -37,16 +34,31 @@ export function CreditCardAccountSummary({ accountId }: { accountId: string }) {
 		<div className="grid gap-4 min-[420px]:grid-cols-2">
 			<div>
 				<p className="text-muted-foreground text-xs">Fatura atual</p>
-				<p className="mt-1 font-bold text-lg">{currency.format(currentBill)}</p>
+				<p className="mt-1 font-bold text-lg">
+					{<PreferredMoneyAmount values={[{ amount: currentBill, currency: card.currency ?? "BRL" }]} />}
+				</p>
 			</div>
 			<div>
 				<p className="text-muted-foreground text-xs">Limite disponível</p>
-				<p className="mt-1 font-bold text-lg">{currency.format(limit.availableLimit)}</p>
+				<p className="mt-1 font-bold text-lg">
+					{
+						<PreferredMoneyAmount
+							values={[{ amount: limit.availableLimit, currency: card.currency ?? "BRL" }]}
+						/>
+					}
+				</p>
 			</div>
 			{limit.temporaryCredit > 0 && (
 				<div className="min-[420px]:col-span-2">
 					<p className="text-muted-foreground text-xs">Crédito temporário por pagamento excedente</p>
-					<p className="mt-1 font-semibold text-sm">+ {currency.format(limit.temporaryCredit)}</p>
+					<p className="mt-1 font-semibold text-sm">
+						+{" "}
+						{
+							<PreferredMoneyAmount
+								values={[{ amount: limit.temporaryCredit, currency: card.currency ?? "BRL" }]}
+							/>
+						}
+					</p>
 				</div>
 			)}
 			{card.cashbackRate ? (

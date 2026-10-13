@@ -1,9 +1,10 @@
+import type { ReactNode } from "react";
 export function TransactionDateHeader({
 	dateLabel,
 	endingBalance,
 }: {
 	dateLabel: string;
-	endingBalance?: string;
+	endingBalance?: ReactNode;
 }) {
 	const separatorIndex = dateLabel.indexOf(",");
 	const weekdayLabel = separatorIndex === -1 ? dateLabel : dateLabel.slice(0, separatorIndex);

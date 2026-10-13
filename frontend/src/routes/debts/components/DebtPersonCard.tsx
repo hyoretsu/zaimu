@@ -9,6 +9,7 @@ import {
 	LuUsersRound,
 	LuWalletCards,
 } from "react-icons/lu";
+import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
@@ -84,13 +85,7 @@ export function DebtPersonCard({
 								: "whitespace-nowrap text-muted-foreground"
 					}
 				>
-					{(person.balances ?? [{ amount: person.balance, currency: "BRL" }])
-						.map(row =>
-							new Intl.NumberFormat("pt-BR", { currency: row.currency, style: "currency" }).format(
-								row.amount,
-							),
-						)
-						.join(" / ") || "Sem lançamentos"}
+					<PreferredMoneyAmount values={person.balances ?? [{ amount: person.balance, currency: "BRL" }]} />
 				</strong>
 			</div>
 			<div className="mt-3 grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] gap-2">

@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { LuReceiptText } from "react-icons/lu";
+import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import type { CreditCardStatement } from "@/lib/api";
@@ -29,7 +30,6 @@ export function CreditCardStatementTabs({
 	selectedId: string;
 	statements: CreditCardStatement[];
 }) {
-	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
 	const scrollAreaRef = useRef<HTMLDivElement>(null);
 	const pendingPrepend = useRef<{ size: number; offset: number } | null>(null);
 	const centeredId = useRef<string | null>(null);
@@ -139,7 +139,13 @@ export function CreditCardStatementTabs({
 										)}
 									</span>
 									<strong className="truncate text-sm">
-										{currency.format(statement.amountDue ?? statement.totalAmount)}
+										{
+											<PreferredMoneyAmount
+												values={[
+													{ amount: statement.amountDue ?? statement.totalAmount, currency: currencyCode },
+												]}
+											/>
+										}
 									</strong>
 								</span>
 							</TabsTrigger>

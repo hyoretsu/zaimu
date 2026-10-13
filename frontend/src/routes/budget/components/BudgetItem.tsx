@@ -1,10 +1,11 @@
 import { LuPencil, LuTrash2 } from "react-icons/lu";
+import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import type { MonthlyBudget } from "@/lib/monthly-budget-service";
-import { budgetMoney, budgetSourceLabel } from "./budget-display";
+import { budgetSourceLabel } from "./budget-display";
 
 export function BudgetItem({
 	item,
@@ -24,7 +25,9 @@ export function BudgetItem({
 				<p className="truncate text-muted-foreground text-xs">{budgetSourceLabel(item)}</p>
 			</div>
 			<div className="text-right">
-				<p className="font-semibold tabular-nums">{budgetMoney(item.amount, item.currency)}</p>
+				<p className="font-semibold tabular-nums">
+					<PreferredMoneyAmount values={[{ amount: item.amount, currency: item.currency }]} />
+				</p>
 				<p className="text-muted-foreground text-xs">por mês</p>
 			</div>
 			<ActionGroup>

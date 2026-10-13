@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { LuArrowRight, LuCreditCard } from "react-icons/lu";
+import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -38,10 +39,9 @@ export function DashboardCreditCards({
 				<div className="shrink-0 space-y-1 text-right text-xs">
 					<p className="text-muted-foreground">Limite disponível</p>
 					<p className="font-semibold text-sm tabular-nums">
-						{new Intl.NumberFormat(navigator.languages, {
-							currency: card.currency ?? "BRL",
-							style: "currency",
-						}).format(card.availableLimit)}
+						<PreferredMoneyAmount
+							values={[{ amount: card.availableLimit, currency: card.currency ?? "BRL" }]}
+						/>
 					</p>
 				</div>
 			</div>

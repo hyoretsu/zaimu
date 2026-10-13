@@ -1,8 +1,10 @@
 import type { IconType } from "react-icons";
+import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 
 export function RecurrenceSummaryCard({
 	currencyCode,
 	amount,
+	values,
 	label,
 	period,
 	icon: Icon,
@@ -10,12 +12,12 @@ export function RecurrenceSummaryCard({
 }: {
 	currencyCode: string;
 	amount: number;
+	values?: Array<{ amount: number; currency: string }>;
 	label: string;
 	period?: string;
 	icon: IconType;
 	color: string;
 }) {
-	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
 	return (
 		<div className="flex items-center gap-3 rounded-2xl border bg-card p-4 shadow-sm">
 			<div className={`flex size-10 shrink-0 items-center justify-center rounded-2xl ${color}`}>
@@ -26,7 +28,9 @@ export function RecurrenceSummaryCard({
 					{label}
 					{period ? ` - ${period}` : ""}
 				</p>
-				<p className="truncate font-bold text-lg">{currency.format(amount)}</p>
+				<p className="truncate font-bold text-lg">
+					<PreferredMoneyAmount values={values ?? [{ amount, currency: currencyCode }]} />
+				</p>
 			</div>
 		</div>
 	);

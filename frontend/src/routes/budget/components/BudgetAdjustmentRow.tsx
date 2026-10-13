@@ -1,10 +1,10 @@
 import { LuPencil, LuUndo2 } from "react-icons/lu";
+import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import type { MonthlyBudget } from "@/lib/monthly-budget-service";
-import { budgetMoney } from "./budget-display";
 
 export function BudgetAdjustmentRow({
 	item,
@@ -24,11 +24,15 @@ export function BudgetAdjustmentRow({
 			<div className="min-w-0 flex-1">
 				<h3 className="truncate font-medium">{item.name}</h3>
 				<p className="text-muted-foreground text-xs">
-					{adjustment ? `Padrão: ${budgetMoney(item.amount, item.currency)}` : "Usando plano geral"}
+					{adjustment
+						? "Padrão: $<PreferredMoneyAmount values={[{ amount: item.amount, currency: item.currency }]} />"
+						: "Usando plano geral"}
 				</p>
 			</div>
 			<span className="font-semibold tabular-nums">
-				{budgetMoney(adjustment?.amount ?? item.amount, item.currency)}
+				<PreferredMoneyAmount
+					values={[{ amount: adjustment?.amount ?? item.amount, currency: item.currency }]}
+				/>
 			</span>
 			<ActionGroup>
 				<Tooltip>

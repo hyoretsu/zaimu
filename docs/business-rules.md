@@ -290,3 +290,9 @@ O modal de extrato reutiliza a listagem completa da tela de transações, sem fi
 Orçamento mensal possui valor padrão repetido durante sua vigência. Um registro com início e fim no mesmo mês substitui o padrão daquela origem e moeda somente naquele mês; reservas sem tag usam também o nome como identidade. Ajustes não somam ao padrão. Excluir o ajuste restaura o padrão. Outros meses continuam usando o padrão.
 
 A tela de orçamento prioriza listagem compacta do plano geral. Exceções mensais ficam no modal de ajustes. Disponibilidade para planejar corresponde às entradas realizadas e previstas menos todas as despesas previstas do mês, incluindo reservas de orçamento e compromissos conhecidos sem duplicação. Saldo acumulado anterior não amplia esse limite mensal. Valores seguem moeda e consolidação da comparação financeira; falha de previsão não vira disponibilidade zero.
+
+## Exibição monetária e consolidação
+
+Todos os valores monetários acumulados são convertidos para a moeda preferida antes da soma e exibição, incluindo saldos, limites, faturas, dívidas, empréstimos, recorrências e orçamento. A preferência precisa estar carregada antes de consultar valores consolidados. Sem cotação necessária, mostrar indisponibilidade, nunca soma parcial ou zero artificial. Saldos diários usam cotação da data correspondente.
+
+Transações mostram valor contabilizado na moeda da conta ou cartão e valor original quando a moeda difere. Transação USD em conta BRL mostra USD e BRL; em conta USD mostra somente USD, salvo detalhamento de taxas. Campos editáveis e eventos individuais mantêm sua moeda de origem.

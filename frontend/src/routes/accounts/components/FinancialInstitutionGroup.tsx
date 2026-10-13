@@ -1,4 +1,5 @@
 import { LuLandmark, LuWalletCards } from "react-icons/lu";
+import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { AppBadge } from "@/components/ui/AppBadge";
 import type { FinancialAccount, FinancialInstitution, FinancialInstitutionYieldPolicy } from "@/lib/api";
@@ -42,11 +43,6 @@ export function FinancialInstitutionGroup({
 		const denomination = account.rewardsAccount?.conversionCurrency ?? account.currency ?? "BRL";
 		balances.set(denomination, (balances.get(denomination) ?? 0) + getFinancialAccountCurrencyValue(account));
 	}
-	const balanceLabels = [...balances]
-		.map(([currency, amount]) =>
-			new Intl.NumberFormat(navigator.languages, { currency, style: "currency" }).format(amount),
-		)
-		.join(" | ");
 	const Icon = institution ? LuLandmark : LuWalletCards;
 
 	return (
@@ -64,7 +60,12 @@ export function FinancialInstitutionGroup({
 							</AppBadge>
 						</div>
 						<p className="mt-0.5 text-muted-foreground text-sm">
-							Saldos: <strong className="text-foreground">{balanceLabels}</strong>
+							Saldos:{" "}
+							<strong className="text-foreground">
+								<PreferredMoneyAmount
+									values={[...balances].map(([currency, amount]) => ({ amount, currency }))}
+								/>
+							</strong>
 						</p>
 					</div>
 				</div>

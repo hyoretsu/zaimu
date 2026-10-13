@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { LuPlus } from "react-icons/lu";
+import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -12,7 +13,6 @@ import { useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { LoanCard, LoanCreateDialog, LoanPaymentsDialog } from "@/routes/loans/components";
-import { formatCurrency } from "@/routes/loans/components/loan-format";
 import type { LoanPaymentRecovery } from "./LoanPaymentsDialog";
 export function EmpréstimosPage() {
 	const identity = useCacheIdentity();
@@ -94,23 +94,17 @@ export function EmpréstimosPage() {
 				</div>
 			) : (
 				<>
-					{[...new Set((loans.data ?? []).map(loan => loan.currency ?? "BRL"))].map(currency => (
-						<p className="text-muted-foreground" key={currency}>
-							Principal restante:{" "}
-							{formatCurrency(
-								(loans.data ?? [])
-									.filter(loan => (loan.currency ?? "BRL") === currency)
-									.reduce(
-										(sum, loan) =>
-											sum +
-											(loan.remainingPrincipal ??
-												(loan.principalAmount * remaining(loan)) / loan.totalInstallments),
-										0,
-									),
-								currency,
-							)}
-						</p>
-					))}
+					<p className="text-muted-foreground">
+						Principal restante:{" "}
+						<PreferredMoneyAmount
+							values={(loans.data ?? []).map(loan => ({
+								amount:
+									loan.remainingPrincipal ??
+									(loan.principalAmount * remaining(loan)) / loan.totalInstallments,
+								currency: loan.currency ?? "BRL",
+							}))}
+						/>
+					</p>
 					{items.length ? (
 						<div className="grid gap-4 sm:grid-cols-2">
 							{items.map(loan => (
