@@ -21,6 +21,7 @@ export function BudgetOverview({
 	const currencyReady = useCurrencyStore(state => !state.loading && state.owner === identity);
 	const parameters = {
 		endDate: monthEnd(month),
+		excludeYields: true,
 		periodsAfter: 0,
 		periodsBefore: 0,
 		startDate: `${month}-01`,
@@ -85,8 +86,8 @@ export function BudgetOverview({
 						</div>
 					</dl>
 					<p className="text-muted-foreground text-xs">
-						Entradas realizadas e previstas no mês. Despesas incluem plano, ajustes e gastos conhecidos, sem
-						duplicação. Saldo anterior não entra neste limite.
+						Entradas realizadas e agendadas no mês, sem rendimentos. Despesas incluem plano, ajustes e gastos
+						conhecidos, sem duplicação. Saldo anterior não entra neste limite.
 					</p>
 					{forecast.isFetching && (
 						<p className="text-muted-foreground text-xs" role="status">

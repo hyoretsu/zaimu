@@ -19,8 +19,8 @@ import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { BudgetAdjustmentsDialog } from "./BudgetAdjustmentsDialog";
 import { BudgetDialog } from "./BudgetDialog";
+import { BudgetGeneralOverview } from "./BudgetGeneralOverview";
 import { BudgetItem } from "./BudgetItem";
-import { BudgetOverview } from "./BudgetOverview";
 
 export function BudgetPage() {
 	const identity = useCacheIdentity();
@@ -95,7 +95,7 @@ export function BudgetPage() {
 				description="Seu plano geral de despesas, mês a mês."
 				title="Orçamento mensal"
 			/>
-			<BudgetOverview month={month} onMonthChange={setMonth} />
+			<BudgetGeneralOverview />
 			<section aria-label="Plano geral" className="space-y-3">
 				<div className="flex flex-wrap items-center justify-between gap-3">
 					<h2 className="font-semibold">Plano geral</h2>

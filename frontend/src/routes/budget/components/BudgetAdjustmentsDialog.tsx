@@ -12,7 +12,7 @@ import {
 import type { MonthlyBudget, MonthlyBudgetInput } from "@/lib/monthly-budget-service";
 import { BudgetAdjustmentForm } from "./BudgetAdjustmentForm";
 import { BudgetAdjustmentRow } from "./BudgetAdjustmentRow";
-import { BudgetMonthPicker } from "./BudgetMonthPicker";
+import { BudgetOverview } from "./BudgetOverview";
 
 export function BudgetAdjustmentsDialog({
 	budgets,
@@ -70,9 +70,7 @@ export function BudgetAdjustmentsDialog({
 								<p className="text-muted-foreground text-sm">
 									Altere somente o mês escolhido. O plano geral continua valendo nos demais meses.
 								</p>
-								<div className="flex justify-end">
-									<BudgetMonthPicker month={month} onChange={onMonthChange} />
-								</div>
+								<BudgetOverview month={month} onMonthChange={onMonthChange} />
 								{rows.length ? (
 									<ul className="divide-y">
 										{rows.map(item => {

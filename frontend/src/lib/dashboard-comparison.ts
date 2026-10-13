@@ -34,6 +34,7 @@ import { refreshReferenceRateAverages } from "./reference-rate-averages";
 import { accountCalendarCovered, cachedYieldCalendar, holidayDatesForAccount } from "./yield-calendar";
 
 export interface DashboardComparisonParameters {
+	excludeYields?: boolean;
 	endDate: string;
 	periodsAfter: number;
 	periodsBefore: number;
@@ -203,7 +204,9 @@ export async function getGuestDashboardFinancialContext(
 	const projectedRecurringPayments = new Map(
 		projectedBooks.flatMap(book => [...recurringCardPaymentAmounts(book)]),
 	);
-	const projected: Array<Omit<ForecastMovement, "date"> & { date: Date; tagIds?: readonly string[] }> = [];
+	const projected: Array<
+		Omit<ForecastMovement, "date"> & { date: Date; tagIds?: readonly string[]; yieldIncome?: boolean }
+	> = [];
 	for (const recurrence of recurrences) {
 		if (
 			!recurrence.isActive ||
@@ -299,7 +302,9 @@ export async function getGuestDashboardFinancialContext(
 	}
 
 	const recurringPayments = new Map(bookRows.flatMap(row => [...recurringCardPaymentAmounts(row.data)]));
-	const movements: Array<Omit<ForecastMovement, "date"> & { date: Date; tagIds?: readonly string[] }> = [
+	const movements: Array<
+		Omit<ForecastMovement, "date"> & { date: Date; tagIds?: readonly string[]; yieldIncome?: boolean }
+	> = [
 		...loanAccountMovements(paymentRows.map(row => row.data)).map(row => ({
 			amount: row.amount,
 			currency: row.bookingCurrency,
@@ -359,6 +364,7 @@ export async function getGuestDashboardFinancialContext(
 				date: new Date(`${entry.date}T12:00:00`),
 				destinationAccountId: account.id,
 				type: "INCOME" as const,
+				yieldIncome: true,
 			})),
 		),
 	];
@@ -529,6 +535,7 @@ export async function getGuestDashboardFinancialContext(
 				currency,
 				date: new Date(`${day.date}T12:00:00`),
 				type: "INCOME",
+				yieldIncome: true,
 			});
 	}
 	const projectedByDate = new Map(forecastDays.map(day => [day.date, day]));
@@ -575,7 +582,9 @@ export async function getGuestDashboardFinancialContext(
 		}));
 	const buildPeriods = () =>
 		periods.map(({ start, end }) => {
-			const rows = consolidatedMovements.filter(item => item.date >= start && item.date <= end);
+			const rows = consolidatedMovements.filter(
+				item => item.date >= start && item.date <= end && (!parameters.excludeYields || !item.yieldIncome),
+			);
 			const income = rows.filter(item => item.type === "INCOME").reduce((sum, item) => sum + item.amount, 0);
 			const expenses = rows
 				.filter(item => item.type === "EXPENSE")

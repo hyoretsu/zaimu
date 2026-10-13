@@ -34,7 +34,7 @@ export function dashboardFinancialContext(
 		),
 	);
 	const projectedMovements: Array<
-		Omit<ForecastMovement, "date"> & { date: Date; tagIds?: readonly string[] }
+		Omit<ForecastMovement, "date"> & { date: Date; tagIds?: readonly string[]; yieldIncome?: boolean }
 	> = [];
 
 	for (const recurrence of recurrences) {
@@ -206,6 +206,7 @@ export function dashboardFinancialContext(
 				currency: money?.currency,
 				date: new Date(`${day.date}T12:00:00`),
 				type: "INCOME",
+				yieldIncome: true,
 			});
 		if (yieldedIncome > 0) comparisonTransactions.push(projectedMovements.at(-1)!);
 	}

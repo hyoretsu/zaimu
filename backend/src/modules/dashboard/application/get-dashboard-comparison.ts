@@ -60,7 +60,9 @@ export async function getDashboardComparison(
 		...options,
 		base: range,
 		initialBalance: balanceAt(addDays(range.start, -1)),
-		transactions: comparisonTransactions,
+		transactions: query.excludeYields
+			? comparisonTransactions.filter(row => !row.yieldIncome)
+			: comparisonTransactions,
 	}).map(item => ({
 		...item,
 		endingBalance: balanceAt(new Date(`${item.endDate}T12:00:00`)),

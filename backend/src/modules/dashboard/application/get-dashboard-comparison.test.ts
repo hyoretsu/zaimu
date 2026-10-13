@@ -13,7 +13,11 @@ test("comparison response contains only selected series with calendar quarter bo
 			balanceRows: [],
 			cards: [],
 			debts: [],
-			flows: [],
+			flows: [
+				{ amount: 5100, date: new Date("2026-02-01T12:00:00"), recurring: true, type: "INCOME" },
+				{ amount: 618.36, date: new Date("2026-02-01T12:00:00"), type: "INCOME", yieldIncome: true },
+				{ amount: 200, date: new Date("2026-02-01T12:00:00"), type: "INCOME" },
+			],
 			forecastTransactions: [],
 			linkedTransactions: [],
 			loanPayments: [],
@@ -55,4 +59,34 @@ test("comparison response contains only selected series with calendar quarter bo
 		"startDate",
 		"variableIncomeBalance",
 	]);
+});
+
+test("budget comparison excludes yields but retains extra receipts", async () => {
+	const load = (async () => ({
+		accounts: [],
+		activityDates: [],
+		balanceRows: [],
+		cards: [],
+		debts: [],
+		flows: [
+			{ amount: 5100, date: new Date("2026-02-01T12:00:00"), recurring: true, type: "INCOME" },
+			{ amount: 618.36, date: new Date("2026-02-01T12:00:00"), type: "INCOME", yieldIncome: true },
+			{ amount: 200, date: new Date("2026-02-01T12:00:00"), type: "INCOME" },
+		],
+		forecastTransactions: [],
+		linkedTransactions: [],
+		loanPayments: [],
+		projectedStatements: [],
+		projectedYields: null,
+		recurrences: [],
+		recurring: [],
+		salaries: [],
+		statements: [],
+		subscriptions: [],
+	})) as typeof loadDashboardData;
+	const query = { endDate: "2026-02-28", periodsAfter: 0, periodsBefore: 0, startDate: "2026-02-01" };
+	expect((await getDashboardComparison("user", query, load))[0]!.income).toBe(5918.36);
+	const budget = (await getDashboardComparison("user", { ...query, excludeYields: true }, load))[0]!;
+	expect(budget.income).toBe(5300);
+	expect(budget.recurringIncome).toBe(5100);
 });

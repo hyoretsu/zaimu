@@ -85,6 +85,7 @@ export interface DashboardSchedule {
 }
 
 export interface DashboardFlow {
+	yieldIncome?: boolean;
 	tagIds?: readonly string[];
 	destinationAmount?: number | null;
 	currency?: string;
@@ -237,7 +238,7 @@ SELECT 'flow', jsonb_build_object('currency',COALESCE(payment."accountCurrency",
 FROM "LoanPayment" payment JOIN "Loan" loan ON loan."id"=payment."loanId"
 WHERE loan."userId"=$1 AND payment."paidDate" BETWEEN $2::date AND $3::date
 UNION ALL
-SELECT 'flow', jsonb_build_object('currency', entry."currency", 'destinationAccountId', entry."financialAccountId", 'amount', entry."amount", 'date', entry."date", 'type', 'INCOME', 'recurring', false)
+SELECT 'flow', jsonb_build_object('yieldIncome', true, 'currency', entry."currency", 'destinationAccountId', entry."financialAccountId", 'amount', entry."amount", 'date', entry."date", 'type', 'INCOME', 'recurring', false)
 FROM "FinancialAccountYield" entry
 JOIN "FinancialAccount" account ON account."id" = entry."financialAccountId"
 WHERE account."userId" = $1 AND entry."date" BETWEEN $2::date AND LEAST($3::date, CURRENT_DATE)
