@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { DateField } from "@/components/ui/DateField";
@@ -13,38 +13,52 @@ import {
 } from "@/components/ui/Dialog";
 import { FormFieldRow } from "@/components/ui/FormFieldRow";
 import type { CreditCardStatement } from "@/lib/api";
+import { runBackgroundModalAction } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
-import { showToast } from "@/stores";
 
 export function EditCreditCardStatementDialog({
 	statement,
 	onOpenChange,
+	initialValues,
 }: {
 	statement: CreditCardStatement;
+	initialValues?: { statementDate: string; dueDate: string };
 	onOpenChange: (open: boolean) => void;
 }) {
-	const [statementDate, setStatementDate] = useState(statement.statementDate.slice(0, 10));
-	const [dueDate, setDueDate] = useState(statement.dueDate.slice(0, 10));
+	const [statementDate, setStatementDate] = useState(
+		initialValues?.statementDate ?? statement.statementDate.slice(0, 10),
+	);
+	const [dueDate, setDueDate] = useState(initialValues?.dueDate ?? statement.dueDate.slice(0, 10));
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
-	const update = useMutation({
-		mutationFn: () =>
-			dataService.creditCards.updateStatementDates(statement.creditCardId, statement.id, {
-				dueDate,
-				statementDate,
-			}),
-		onError: error =>
-			showToast(error instanceof Error ? error.message : "Não foi possível editar a fatura.", "negative"),
-		onSuccess: async () => {
-			await invalidateCacheOperation(queryClient, identity!, "statement");
-			showToast("Datas da fatura atualizadas.", "positive");
-			onOpenChange(false);
-		},
-	});
+	const save = () =>
+		runBackgroundModalAction({
+			close: () => onOpenChange(false),
+			conflictKey: `credit-statement:${statement.id}`,
+			failureMessage: "Não foi possível editar a fatura.",
+			loadingMessage: "Atualizando datas da fatura...",
+			onSuccess: () => invalidateCacheOperation(queryClient, identity!, "statement"),
+			recovery: {
+				entityId: statement.id,
+				kind: `credit-statement-action:${statement.id}`,
+				payload: {
+					action: "dates",
+					cardId: statement.creditCardId,
+					data: { dueDate, statementDate },
+					statement,
+				},
+			},
+			run: () =>
+				dataService.creditCards.updateStatementDates(statement.creditCardId, statement.id, {
+					dueDate,
+					statementDate,
+				}),
+			successMessage: "Datas da fatura atualizadas.",
+		});
 	const invalidDates = Boolean(statementDate && dueDate && dueDate < statementDate);
 	return (
-		<Dialog onOpenChange={open => !update.isPending && onOpenChange(open)} open>
+		<Dialog onOpenChange={onOpenChange} open>
 			<DialogContent className="sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>Editar fatura</DialogTitle>
@@ -56,13 +70,12 @@ export function EditCreditCardStatementDialog({
 					className="flex min-h-0 min-w-0 flex-1 flex-col gap-5"
 					onSubmit={event => {
 						event.preventDefault();
-						if (!update.isPending && statementDate && dueDate && !invalidDates) update.mutate();
+						if (statementDate && dueDate && !invalidDates) save();
 					}}
 				>
 					<DialogBody>
 						<FormFieldRow>
 							<DateField
-								disabled={update.isPending}
 								id="statement-closing-date"
 								label="Fechamento"
 								name="statement-closing-date"
@@ -71,7 +84,6 @@ export function EditCreditCardStatementDialog({
 								value={statementDate}
 							/>
 							<DateField
-								disabled={update.isPending}
 								error={invalidDates ? "Vencimento deve ser igual ou posterior ao fechamento." : undefined}
 								id="statement-due-date"
 								label="Vencimento"
@@ -84,16 +96,11 @@ export function EditCreditCardStatementDialog({
 						</FormFieldRow>
 					</DialogBody>
 					<DialogFooter>
-						<Button
-							disabled={update.isPending}
-							onClick={() => onOpenChange(false)}
-							type="button"
-							variant="outline"
-						>
+						<Button onClick={() => onOpenChange(false)} type="button" variant="outline">
 							Descartar
 						</Button>
-						<Button disabled={update.isPending || !statementDate || !dueDate || invalidDates} type="submit">
-							{update.isPending ? "Salvando..." : "Salvar"}
+						<Button disabled={!statementDate || !dueDate || invalidDates} type="submit">
+							Salvar
 						</Button>
 					</DialogFooter>
 				</form>

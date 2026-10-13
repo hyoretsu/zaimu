@@ -33,6 +33,7 @@ export function RefundCreditPurchaseDialog({
 	purchase,
 	refund,
 	refundId,
+	initialValues,
 }: {
 	onOpenChange: (open: boolean) => void;
 	onDelete?: () => Promise<void>;
@@ -47,15 +48,24 @@ export function RefundCreditPurchaseDialog({
 	purchase: CreditPurchase;
 	refund?: NonNullable<CreditPurchase["refund"]>;
 	refundId?: string;
+	initialValues?: { amount?: number; date?: string; canceledInstallmentNumbers?: number[] };
 }) {
 	const currencyCode = purchase.bookingCurrency ?? "BRL";
 	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
-	const [amount, setAmount] = useState<string | null>(refund ? String(refund.amount) : null);
+	const [amount, setAmount] = useState<string | null>(
+		initialValues?.amount !== undefined
+			? String(initialValues.amount)
+			: refund
+				? String(refund.amount)
+				: null,
+	);
 	const [date, setDate] = useState<string | null>(
-		refund?.date.slice(0, 10) ?? purchase.refund?.date.slice(0, 10) ?? null,
+		initialValues?.date ?? refund?.date.slice(0, 10) ?? purchase.refund?.date.slice(0, 10) ?? null,
 	);
 	const [direction, setDirection] = useState<"FIRST" | "LAST" | null>(null);
-	const [mode, setMode] = useState<"credit" | "cancellation" | null>(null);
+	const [mode, setMode] = useState<"credit" | "cancellation" | null>(
+		initialValues ? (initialValues.canceledInstallmentNumbers?.length ? "cancellation" : "credit") : null,
+	);
 	const cardId = purchase.creditCardId;
 	const identity = useCacheIdentity();
 	const bookQuery = useQuery({
@@ -97,6 +107,7 @@ export function RefundCreditPurchaseDialog({
 	const plan = bookQuery.data ? creditBookPlan(bookQuery.data) : null;
 	const effects = bookQuery.data ? creditBookEffects(bookQuery.data, "9999-12-31") : [];
 	const initialSelection =
+		initialValues?.canceledInstallmentNumbers ??
 		currentRefund?.canceledInstallmentNumbers ??
 		effects.find(effect => effect.refundId === currentRefund?.id)?.canceledInstallmentNumbers ??
 		[];
@@ -266,7 +277,7 @@ export function RefundCreditPurchaseDialog({
 							}
 							type="submit"
 						>
-							{pending ? "Salvando…" : isEditing ? "Salvar reembolso" : "Registrar reembolso"}
+							{pending ? "Salvando..." : isEditing ? "Salvar reembolso" : "Registrar reembolso"}
 						</Button>
 					</DialogFooter>
 				</form>

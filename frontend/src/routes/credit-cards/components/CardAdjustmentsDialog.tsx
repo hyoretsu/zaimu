@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { LuPlus } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
@@ -13,10 +13,9 @@ import {
 } from "@/components/ui/Dialog";
 import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
 import type { CreditCard } from "@/lib/api";
-import { useModalRecoveryStore } from "@/lib/background-modal-actions";
+import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
-import { showToast } from "@/stores";
 import { type CardAdjustmentDraft, CardAdjustmentForm } from "./CardAdjustmentForm";
 import { CardAdjustmentListItem } from "./CardAdjustmentListItem";
 
@@ -39,14 +38,21 @@ export function CardAdjustmentsDialog({
 		setEditing(entry.payload.card ?? "new");
 		onOpenChange(true);
 	});
-	const remove = useMutation({
-		mutationFn: (cardId: string) => dataService.creditCards.setStatementCutoff(cardId, null),
-		onError: error => showToast(error.message, "negative"),
-		onSuccess: async () => {
-			await invalidateCacheOperation(queryClient, identity!, "creditCard");
-			showToast("Ajuste de cartão excluído.", "positive");
-		},
+	useBackgroundModalRecovery<CreditCard>("card-adjustment-delete", () => {
+		setEditing(null);
+		onOpenChange(true);
 	});
+	const remove = (card: CreditCard) =>
+		runBackgroundModalAction({
+			close: () => onOpenChange(false),
+			conflictKey: `card-adjustment:${card.id}`,
+			failureMessage: "Não foi possível excluir o ajuste.",
+			loadingMessage: "Excluindo ajuste de cartão...",
+			onSuccess: () => invalidateCacheOperation(queryClient, identity!, "creditCard"),
+			recovery: { entityId: card.id, kind: "card-adjustment-delete", payload: card },
+			run: () => dataService.creditCards.setStatementCutoff(card.id, null),
+			successMessage: "Ajuste de cartão excluído.",
+		});
 	const adjusted = cards
 		.filter(card => card.ignoreStatementsBefore)
 		.toSorted((a, b) => (a.accountName ?? "").localeCompare(b.accountName ?? "", "pt-BR"));
@@ -70,11 +76,8 @@ export function CardAdjustmentsDialog({
 											card={card}
 											key={card.id}
 											onEdit={() => setEditing(card)}
-											onRemove={() => remove.mutate(card.id)}
-											pending={
-												(remove.isPending && remove.variables === card.id) ||
-												!!pending[`${identity}:card-adjustment:${card.id}`]
-											}
+											onRemove={() => remove(card)}
+											pending={!!pending[`${identity}:card-adjustment:${card.id}`]}
 										/>
 									))
 								) : (

@@ -17,7 +17,9 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { FloatingActionButton } from "@/components/ui/FloatingActionButton";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { TabsContent } from "@/components/ui/Tabs";
+import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
 import type { CreditCard, CreditCardStatement, CreditPurchase } from "@/lib/api";
+import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { getCreditCardStatementDisplayBalance } from "@/lib/credit-card-statement-balance";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
@@ -32,6 +34,7 @@ import { EditCreditPurchaseDialog } from "./EditCreditPurchaseDialog";
 import { ManageCreditPurchaseRefundsDialog } from "./ManageCreditPurchaseRefundsDialog";
 import { RefinanceCreditPurchaseDialog } from "./RefinanceCreditPurchaseDialog";
 import { RefundCreditPurchaseDialog } from "./RefundCreditPurchaseDialog";
+import type { StatementActionRecovery } from "./statement-action-recovery";
 
 export function CreditCardStatementDetails({
 	card,
@@ -50,7 +53,6 @@ export function CreditCardStatementDetails({
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
 	const [editingStatement, setEditingStatement] = useState(false);
-	const [pendingRefundDeleteIds, setPendingRefundDeleteIds] = useState<Set<string>>(new Set());
 	const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<string>>(new Set());
 	const [pendingUpdateIds, setPendingUpdateIds] = useState<Set<string>>(new Set());
 	const [choosingEditScope, setChoosingEditScope] = useState<CreditPurchase | null>(null);
@@ -58,6 +60,16 @@ export function CreditCardStatementDetails({
 	const [refinancingPurchase, setRefinancingPurchase] = useState<CreditPurchase | null>(null);
 	const [managingRefunds, setManagingRefunds] = useState<CreditPurchase | null>(null);
 	const [refundingPurchase, setRefundingPurchase] = useState<CreditPurchase | null>(null);
+	const [recoveredAction, setRecoveredAction] = useState<StatementActionRecovery | null>(null);
+	useBackgroundModalRecovery<StatementActionRecovery>(`credit-statement-action:${statement.id}`, entry => {
+		setRecoveredAction(entry.payload);
+		if (entry.payload.action === "dates") setEditingStatement(true);
+		if (entry.payload.action === "refinance") setRefinancingPurchase(entry.payload.purchase ?? null);
+		if (entry.payload.action === "refund" || entry.payload.action === "delete-refund")
+			setRefundingPurchase(entry.payload.purchase ?? null);
+	});
+	const backgroundPending = useModalRecoveryStore(state => state.pending);
+
 	const detail = useQuery({
 		enabled: identity !== null && !isEmptyCycle,
 		initialData: isEmptyCycle ? { ...statement, payments: [], purchases: [] } : undefined,
@@ -140,87 +152,43 @@ export function CreditCardStatementDetails({
 			showToast("Transação excluída.", "positive");
 		},
 	});
-	const refinancePurchase = useMutation({
-		mutationFn: ({
-			data,
-			purchaseId,
-		}: {
-			data: {
-				feeAmount?: number;
-				totalAmount?: number;
-				installments: number;
-				purchaseDate: string;
-				time?: string | null;
-				sourceTime?: string | null;
-			};
-			purchaseId: string;
-		}) => dataService.creditCards.refinancePurchase(statement.creditCardId, purchaseId, data),
-		onError: error =>
-			showToast(error instanceof Error ? error.message : "Não foi possível reparcelar a compra.", "negative"),
-		onSuccess: async () => {
-			setRefinancingPurchase(null);
-			await refreshStatement();
-			showToast("Compra reparcelada e faturas recalculadas.", "positive");
-		},
-	});
-	const refundPurchase = useMutation({
-		mutationFn: ({
-			data,
-			purchase,
-		}: {
-			data: {
-				amount?: number;
-				date?: string;
-				policy?: "KEEP_INSTALLMENTS" | "CANCEL_FUTURE_INSTALLMENTS";
-				canceledInstallmentNumbers?: number[];
-			};
-			purchase: CreditPurchase;
-		}) => {
-			const purchaseId = purchase.purchaseId ?? purchase.refundOfPurchaseId ?? purchase.id;
-			return purchase.isRefund
-				? dataService.creditCards.updateRefund(statement.creditCardId, purchaseId, purchase.id, {
-						amount: data.amount ?? Math.abs(purchase.totalAmount),
-						canceledInstallmentNumbers: data.canceledInstallmentNumbers,
-						date:
-							data.date ?? purchase.originalPurchaseDate?.slice(0, 10) ?? purchase.purchaseDate.slice(0, 10),
-					})
-				: dataService.creditCards.refundPurchase(statement.creditCardId, purchaseId, data);
-		},
-		onError: error =>
-			showToast(
-				error instanceof Error ? error.message : "Não foi possível registrar o reembolso.",
-				"negative",
-			),
-		onSuccess: async () => {
-			setRefundingPurchase(null);
-			await refreshStatement();
-			showToast("Reembolso registrado e faturas recalculadas.", "positive");
-		},
-	});
-	const deleteRefund = useMutation({
-		mutationFn: (refundId: string) =>
-			dataService.creditCards.deletePurchase(statement.creditCardId, refundId),
-		onError: error =>
-			showToast(error instanceof Error ? error.message : "Não foi possível excluir o reembolso.", "negative"),
-		onMutate: id => setPendingRefundDeleteIds(current => new Set(current).add(id)),
-		onSettled: (_data, _error, id) =>
-			setPendingRefundDeleteIds(current => {
-				const next = new Set(current);
-				next.delete(id);
-				return next;
-			}),
-		onSuccess: async () => {
-			setRefundingPurchase(null);
-			await refreshStatement();
-			showToast("Reembolso excluído e faturas recalculadas.", "positive");
-		},
-	});
+	const backgroundAction = (
+		payload: StatementActionRecovery,
+		close: () => void,
+		run: () => Promise<unknown>,
+		deleting = false,
+	) => {
+		const purchase = payload.purchase!;
+		runBackgroundModalAction({
+			close: () => {
+				setRecoveredAction(null);
+				close();
+			},
+			conflictKey: `credit-purchase:${purchase.purchaseId ?? purchase.refundOfPurchaseId ?? purchase.id}`,
+			failureMessage: "Não foi possível concluir a operação.",
+			loadingMessage: deleting ? "Excluindo reembolso..." : "Salvando compra...",
+			onSuccess: refreshStatement,
+			recovery: { entityId: purchase.id, kind: `credit-statement-action:${statement.id}`, payload },
+			run,
+			successMessage: deleting ? "Reembolso excluído." : "Compra atualizada e faturas recalculadas.",
+		});
+	};
+	const deleteRefund = async (purchase: CreditPurchase) =>
+		backgroundAction(
+			{ action: "delete-refund", cardId: card.id, purchase, statement },
+			() => {
+				if (refundingPurchase) setRefundingPurchase(null);
+				else setManagingRefunds(null);
+			},
+			() => dataService.creditCards.deletePurchase(card.id, purchase.id),
+			true,
+		);
 	const pendingRootIds = new Set([
 		...[...pendingDeleteIds].map(rootId),
 		...[...pendingUpdateIds].map(rootId),
-		...(refinancePurchase.isPending ? [rootId(refinancePurchase.variables?.purchaseId)] : []),
-		...(refundPurchase.isPending ? [rootId(refundPurchase.variables?.purchase.id)] : []),
-		...[...pendingRefundDeleteIds].map(rootId),
+		...Object.keys(backgroundPending)
+			.filter(key => key.startsWith(`${identity}:credit-purchase:`))
+			.map(key => key.slice(`${identity}:credit-purchase:`.length)),
 	]);
 	const pendingFamilyIds = new Set(
 		entries.flatMap(entry => {
@@ -299,7 +267,14 @@ export function CreditCardStatementDetails({
 						</div>
 						{!isEmptyCycle && !statement.isForecast && (
 							<ActionGroup>
-								<Button onClick={() => setEditingStatement(true)} variant="outline">
+								<Button
+									disabled={Boolean(backgroundPending[`${identity}:credit-statement:${statement.id}`])}
+									onClick={() => {
+										setRecoveredAction(null);
+										setEditingStatement(true);
+									}}
+									variant="outline"
+								>
 									<LuPencil aria-hidden="true" />
 									Editar fatura
 								</Button>
@@ -344,12 +319,15 @@ export function CreditCardStatementDetails({
 											onDelete={() => deletePurchase.mutateAsync(entry.purchase.id)}
 											onEdit={() =>
 												entry.purchase.isRefund
-													? setRefundingPurchase(entry.purchase)
+													? (setRecoveredAction(null), setRefundingPurchase(entry.purchase))
 													: entry.purchase.parentId
 														? setChoosingEditScope(entry.purchase)
 														: setEditingPurchase(entry.purchase)
 											}
-											onRefinance={() => setRefinancingPurchase(entry.purchase)}
+											onRefinance={() => {
+												setRecoveredAction(null);
+												setRefinancingPurchase(entry.purchase);
+											}}
 											onRefund={() => setManagingRefunds(entry.purchase)}
 											purchase={entry.purchase}
 											refinanceDisabled={
@@ -378,7 +356,21 @@ export function CreditCardStatementDetails({
 				<FloatingActionButton icon={LuPlus} label="Nova compra" onClick={onAddPurchase} />
 			</ActionGroup>
 			{editingStatement && (
-				<EditCreditCardStatementDialog onOpenChange={setEditingStatement} statement={displayedStatement} />
+				<EditCreditCardStatementDialog
+					initialValues={
+						recoveredAction?.action === "dates"
+							? {
+									dueDate: recoveredAction.data!.dueDate!,
+									statementDate: recoveredAction.data!.statementDate!,
+								}
+							: undefined
+					}
+					onOpenChange={open => {
+						setEditingStatement(open);
+						if (!open) setRecoveredAction(null);
+					}}
+					statement={displayedStatement}
+				/>
 			)}
 			{choosingEditScope && (
 				<CreditPurchaseEditScopeDialog
@@ -413,22 +405,49 @@ export function CreditCardStatementDetails({
 			)}
 			{refinancingPurchase && (
 				<RefinanceCreditPurchaseDialog
-					onOpenChange={open => !open && setRefinancingPurchase(null)}
+					initialValues={
+						recoveredAction?.action === "refinance"
+							? {
+									...recoveredAction.data,
+									installments: recoveredAction.data!.installments!,
+									purchaseDate: recoveredAction.data!.purchaseDate!,
+								}
+							: undefined
+					}
+					onOpenChange={open => {
+						if (!open) {
+							setRefinancingPurchase(null);
+							setRecoveredAction(null);
+						}
+					}}
 					onSubmit={async data => {
-						await refinancePurchase.mutateAsync({ data, purchaseId: refinancingPurchase.id });
+						backgroundAction(
+							{ action: "refinance", cardId: card.id, data, purchase: refinancingPurchase, statement },
+							() => setRefinancingPurchase(null),
+							() => dataService.creditCards.refinancePurchase(card.id, refinancingPurchase.id, data),
+						);
 					}}
 					open
-					pending={refinancePurchase.isPending}
+					pending={rowPending(refinancingPurchase)}
 					purchase={refinancingPurchase}
 				/>
 			)}
 			{managingRefunds && (
 				<ManageCreditPurchaseRefundsDialog
-					onAdd={() => setRefundingPurchase(managingRefunds)}
-					onDelete={async id => {
-						await deleteRefund.mutateAsync(id);
+					onAdd={() => {
+						setRecoveredAction(null);
+						setRefundingPurchase(managingRefunds);
 					}}
-					onEdit={refund =>
+					onDelete={async id => {
+						await deleteRefund({
+							...managingRefunds,
+							id,
+							isRefund: true,
+							purchaseId: managingRefunds.purchaseId ?? managingRefunds.id,
+						});
+					}}
+					onEdit={refund => {
+						setRecoveredAction(null);
 						setRefundingPurchase({
 							...managingRefunds,
 							id: refund.id,
@@ -438,30 +457,55 @@ export function CreditCardStatementDetails({
 							purchaseId: managingRefunds.purchaseId ?? managingRefunds.id,
 							refund,
 							totalAmount: -refund.amount,
-						})
-					}
+						});
+					}}
 					onOpenChange={open => !open && setManagingRefunds(null)}
 					open
-					pendingRefundIds={pendingRefundDeleteIds}
+					pendingRefundIds={
+						new Set([
+							...(managingRefunds.refunds ?? [])
+								.filter(() => rowPending(managingRefunds))
+								.map(refund => refund.id),
+						])
+					}
 					purchase={managingRefunds}
 				/>
 			)}
 			{refundingPurchase && (
 				<RefundCreditPurchaseDialog
+					initialValues={recoveredAction?.action === "refund" ? recoveredAction.data : undefined}
 					key={refundingPurchase.id}
 					onDelete={
 						refundingPurchase.isRefund
 							? async () => {
-									await deleteRefund.mutateAsync(refundingPurchase.id);
+									await deleteRefund(refundingPurchase);
 								}
 							: undefined
 					}
-					onOpenChange={open => !open && setRefundingPurchase(null)}
+					onOpenChange={open => {
+						if (!open) {
+							setRefundingPurchase(null);
+							setRecoveredAction(null);
+						}
+					}}
 					onSubmit={async data => {
-						await refundPurchase.mutateAsync({ data, purchase: refundingPurchase });
+						const purchase = refundingPurchase;
+						const purchaseId = purchase.purchaseId ?? purchase.refundOfPurchaseId ?? purchase.id;
+						backgroundAction(
+							{ action: "refund", cardId: card.id, data, purchase, statement },
+							() => setRefundingPurchase(null),
+							() =>
+								purchase.isRefund
+									? dataService.creditCards.updateRefund(card.id, purchaseId, purchase.id, {
+											amount: data.amount ?? Math.abs(purchase.totalAmount),
+											canceledInstallmentNumbers: data.canceledInstallmentNumbers,
+											date: data.date ?? purchase.purchaseDate.slice(0, 10),
+										})
+									: dataService.creditCards.refundPurchase(card.id, purchaseId, data),
+						);
 					}}
 					open
-					pending={refundPurchase.isPending || deleteRefund.isPending}
+					pending={rowPending(refundingPurchase)}
 					purchase={refundingPurchase}
 					refund={refundingPurchase.isRefund ? refundingPurchase.refund : undefined}
 					refundId={refundingPurchase.isRefund ? refundingPurchase.id : undefined}

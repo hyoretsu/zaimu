@@ -24,6 +24,7 @@ export function RefinanceCreditPurchaseDialog({
 	open,
 	pending,
 	purchase,
+	initialValues,
 }: {
 	onOpenChange: (open: boolean) => void;
 	onSubmit: (data: {
@@ -36,16 +37,29 @@ export function RefinanceCreditPurchaseDialog({
 	open: boolean;
 	pending: boolean;
 	purchase: CreditPurchase;
+	initialValues?: {
+		totalAmount?: number;
+		installments: number;
+		purchaseDate: string;
+		time?: string | null;
+		sourceTime?: string | null;
+	};
 }) {
 	const currencyCode = purchase.bookingCurrency ?? "BRL";
 	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
 	const [totalAmount, setTotalAmount] = useState(
-		String(purchase.installmentAmount * (purchase.installments - purchase.currentInstallment + 1)),
+		String(
+			initialValues?.totalAmount ??
+				purchase.installmentAmount * (purchase.installments - purchase.currentInstallment + 1),
+		),
 	);
-	const [installments, setInstallments] = useDebouncedInput("12", () => undefined);
-	const [purchaseDate, setPurchaseDate] = useState(getLocalDateKey);
-	const [time, setTime] = useState("");
-	const [sourceTime, setSourceTime] = useState(purchase.time ?? "");
+	const [installments, setInstallments] = useDebouncedInput(
+		String(initialValues?.installments ?? 12),
+		() => undefined,
+	);
+	const [purchaseDate, setPurchaseDate] = useState(initialValues?.purchaseDate ?? getLocalDateKey());
+	const [time, setTime] = useState(initialValues?.time ?? "");
+	const [sourceTime, setSourceTime] = useState(initialValues?.sourceTime ?? purchase.time ?? "");
 	const total = Number(totalAmount);
 	const count = Number(installments);
 	const balance = purchase.installmentAmount * (purchase.installments - purchase.currentInstallment + 1);
@@ -73,7 +87,7 @@ export function RefinanceCreditPurchaseDialog({
 		}
 	};
 	return (
-		<Dialog onOpenChange={value => !pending && onOpenChange(value)} open={open}>
+		<Dialog onOpenChange={onOpenChange} open={open}>
 			<DialogContent className="max-w-lg">
 				<DialogHeader>
 					<DialogTitle>Reparcelar compra</DialogTitle>
@@ -164,7 +178,7 @@ export function RefinanceCreditPurchaseDialog({
 							Descartar
 						</Button>
 						<Button className="cursor-pointer" disabled={pending || !valid} type="submit">
-							{pending ? "Reparcelando…" : "Reparcelar"}
+							{pending ? "Reparcelando..." : "Reparcelar"}
 						</Button>
 					</DialogFooter>
 				</form>

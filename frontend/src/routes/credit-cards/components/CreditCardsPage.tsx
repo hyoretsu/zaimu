@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { LuCreditCard, LuFileUp, LuPlus, LuScale } from "react-icons/lu";
 import {
 	CreditCardImportReviewDialog,
@@ -13,6 +13,7 @@ import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { QueryRefreshStatus } from "@/components/ui/QueryRefreshStatus";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { getFinancialInstitutions } from "@/lib/financial-institution";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
@@ -24,6 +25,7 @@ import {
 	CreditCardsGrid,
 } from "@/routes/credit-cards/components";
 import { showToast, useAuthStore } from "@/stores";
+import type { StatementActionRecovery } from "./statement-action-recovery";
 
 export function CreditCardsPage() {
 	const queryClient = useQueryClient();
@@ -32,6 +34,19 @@ export function CreditCardsPage() {
 	const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 	const [isCreatePurchaseOpen, setIsCreatePurchaseOpen] = useState(false);
 	const [statementsCardId, setStatementsCardId] = useState<string | null>(null);
+	const requestedRecovery = useModalRecoveryStore(state =>
+		state.requestedId ? state.entries[state.requestedId] : undefined,
+	);
+	useEffect(() => {
+		if (
+			!requestedRecovery?.kind.startsWith("credit-statement-action:") ||
+			requestedRecovery.identity !== identity ||
+			requestedRecovery.path !== window.location.pathname + window.location.search
+		)
+			return;
+		setStatementsCardId((requestedRecovery.payload as StatementActionRecovery).cardId);
+	}, [requestedRecovery, identity]);
+
 	const [isCreateCardOpen, setIsCreateCardOpen] = useState(false);
 	const [isImportOpen, setIsImportOpen] = useState(false);
 	const [isCardAdjustmentsOpen, setIsCardAdjustmentsOpen] = useState(false);

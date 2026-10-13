@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { LuReceiptText } from "react-icons/lu";
 import { DialogBody, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { Tabs } from "@/components/ui/Tabs";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import type { CreditCard } from "@/lib/api";
+import { useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { getLocalMonthKey } from "@/lib/date";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
@@ -14,6 +15,7 @@ import { CreditCardStatementDetails } from "./CreditCardStatementDetails";
 import { CreditCardStatementSkeleton } from "./CreditCardStatementSkeleton";
 import { CreditCardStatementTabs } from "./CreditCardStatementTabs";
 import { getFirstNonZeroStatementMonth, getStatementWindow } from "./credit-card-statement-window";
+import type { StatementActionRecovery } from "./statement-action-recovery";
 
 export function CreditCardStatementBrowser({
 	card,
@@ -30,6 +32,29 @@ export function CreditCardStatementBrowser({
 	const [extra, setExtra] = useState({ next: 0, previous: 0 });
 	const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
 	const [currentMonth] = useState(() => getLocalMonthKey(new Date()));
+	const requestedRecovery = useModalRecoveryStore(state =>
+		state.requestedId ? state.entries[state.requestedId] : undefined,
+	);
+	useEffect(() => {
+		if (
+			!requestedRecovery?.kind.startsWith("credit-statement-action:") ||
+			requestedRecovery.identity !== identity
+		)
+			return;
+		const payload = requestedRecovery.payload as StatementActionRecovery;
+		if (payload.cardId !== card.id) return;
+		const month = getLocalMonthKey(payload.statement.dueDate);
+		setSelectedMonth(month);
+		const monthDistance =
+			(Number(month.slice(0, 4)) - Number(currentMonth.slice(0, 4))) * 12 +
+			Number(month.slice(5, 7)) -
+			Number(currentMonth.slice(5, 7));
+		setExtra(value => ({
+			next: Math.max(value.next, monthDistance),
+			previous: Math.max(value.previous, -monthDistance),
+		}));
+	}, [requestedRecovery, identity, card.id, currentMonth]);
+
 	const statements = useQuery({
 		enabled: identity !== null,
 		queryFn: () => dataService.creditCards.getStatements(card.id),
