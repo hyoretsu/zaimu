@@ -59,6 +59,7 @@ export function DebtSplitParticipantRow({
 				: String((participant as { fixedAmount: number }).fixedAmount || "");
 	return (
 		<AutoCollapseSection
+			collapseOnBlurOnly
 			complete={Boolean(participant.debtPersonId) && (isRemainderRecipient || Number(numericValue) > 0)}
 			summary={[
 				personName ?? "Carregando pessoa...",

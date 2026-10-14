@@ -5,24 +5,28 @@ import { Button } from "./Button";
 /** Collapse completed fields only after focus leaves, keeping debounced inputs mounted. */
 export function AutoCollapseSection({
 	children,
+	collapseOnBlurOnly = false,
 	complete,
 	summary,
 	title,
 }: {
 	children: ReactNode;
+	collapseOnBlurOnly?: boolean;
 	complete: boolean;
 	summary: ReactNode;
 	title: string;
 }) {
-	const [expanded, setExpanded] = useState(!complete);
+	const [expanded, setExpanded] = useState(collapseOnBlurOnly || !complete);
+	const completeRef = useRef(complete);
+	completeRef.current = complete;
 	const root = useRef<HTMLDivElement>(null);
 	const contentId = useId();
 	const collapseTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 	const pointerDown = useRef(false);
 	const scheduleCollapse = useCallback(() => {
 		clearTimeout(collapseTimer.current);
-		if (!complete) return;
 		const collapse = () => {
+			if (!completeRef.current) return;
 			// Blur occurs before click. Keep geometry stable through the whole pointer gesture.
 			if (pointerDown.current) {
 				collapseTimer.current = setTimeout(collapse, 400);
@@ -36,7 +40,7 @@ export function AutoCollapseSection({
 				setExpanded(false);
 		};
 		collapseTimer.current = setTimeout(collapse, 400);
-	}, [complete]);
+	}, []);
 	useEffect(() => {
 		const start = () => {
 			pointerDown.current = true;
@@ -55,9 +59,9 @@ export function AutoCollapseSection({
 	}, []);
 	useEffect(() => {
 		if (!complete) setExpanded(true);
-		scheduleCollapse();
-		return () => clearTimeout(collapseTimer.current);
-	}, [complete, scheduleCollapse]);
+		if (!collapseOnBlurOnly) scheduleCollapse();
+	}, [collapseOnBlurOnly, complete, scheduleCollapse]);
+	useEffect(() => () => clearTimeout(collapseTimer.current), []);
 	return (
 		<div className="grid min-w-0 gap-3 rounded-xl border p-3" onBlur={scheduleCollapse} ref={root}>
 			<div className="flex min-w-0 items-center gap-2">
