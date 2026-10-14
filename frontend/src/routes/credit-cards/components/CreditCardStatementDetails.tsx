@@ -309,11 +309,7 @@ export function CreditCardStatementDetails({
 										<CreditCardPaymentRow key={entry.id} payment={entry.payment} />
 									) : (
 										<CreditPurchaseRow
-											deleteDisabled={
-												entry.purchase.isSynced === true ||
-												statement.isForecast === true ||
-												rowPending(entry.purchase)
-											}
+											deleteDisabled={statement.isForecast === true || rowPending(entry.purchase)}
 											editDisabled={statement.isForecast === true || rowPending(entry.purchase)}
 											key={entry.id}
 											onDelete={() => deletePurchase.mutateAsync(entry.purchase.id)}
