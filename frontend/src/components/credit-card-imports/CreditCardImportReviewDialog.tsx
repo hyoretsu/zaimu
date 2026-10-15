@@ -162,7 +162,7 @@ export function CreditCardImportReviewDialog({
 	);
 
 	const approve = useMutation({
-		mutationFn: () => dataService.creditCardImports.approve(importId!),
+		mutationFn: (_itemIds: string[]) => dataService.creditCardImports.approve(importId!),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async result => {
 			const reviewFinished = result.created === creditCardImportData?.pendingItemCount;
@@ -211,7 +211,9 @@ export function CreditCardImportReviewDialog({
 	const creditCardName = creditCard ? getCreditCardDisplayName(creditCard) : "Cartão de crédito";
 	const reviewBusy = approve.isPending || discardPending;
 	const rowBusy = (id: string) =>
-		reviewBusy || Boolean(pendingActions[`${identity}:credit-card-import:${importId}:${id}`]);
+		discardPending ||
+		(approve.isPending && Boolean(approve.variables?.includes(id))) ||
+		Boolean(pendingActions[`${identity}:credit-card-import:${importId}:${id}`]);
 	const hasApprovingItems = Object.keys(pendingActions).some(key =>
 		key.startsWith(`${identity}:credit-card-import:${importId}:`),
 	);
@@ -312,7 +314,19 @@ export function CreditCardImportReviewDialog({
 						<Button
 							className="cursor-pointer disabled:cursor-not-allowed"
 							disabled={reviewBusy || hasApprovingItems || items.length === 0}
-							onClick={() => approve.mutate()}
+							onClick={() =>
+								approve.mutate(
+									items
+										.filter(
+											item =>
+												item.duplicates.length === 0 &&
+												item.installmentAmount >= 0 &&
+												!item.metadataMissing?.length &&
+												(!importedAnticipation(item.description) || Boolean(item.reconciledCreditPurchaseId)),
+										)
+										.map(item => item.id),
+								)
+							}
 						>
 							<LuFileCheck2 />{" "}
 							{approve.isPending ? (
