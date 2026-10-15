@@ -20,6 +20,7 @@ describe("mobile tab routes", () => {
 		["/admin", "more", "/admin"],
 		["/admin/", "more", "/admin"],
 		["/admin/history/", "more", "/admin/history"],
+		["/admin/institutions/", "more", "/admin/institutions"],
 		["/admin/taxes", "more", "/admin/taxes"],
 		["/admin/users", "more", "/admin/users"],
 		["/debts", "more", "/debts"],

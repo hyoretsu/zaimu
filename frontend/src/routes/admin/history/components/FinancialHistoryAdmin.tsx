@@ -16,7 +16,6 @@ import { useCurrencyStore } from "@/stores/currency";
 import { HistoryCoverageSkeleton } from "./HistoryCoverageSkeleton";
 import { HistoryCoverageTotals } from "./HistoryCoverageTotals";
 import { HistorySeriesCoverage } from "./HistorySeriesCoverage";
-import { InstitutionReviewQueue } from "./InstitutionReviewQueue";
 import type { HistoryCoverage } from "./types";
 
 function initialRange() {
@@ -135,7 +134,6 @@ export function FinancialHistoryAdmin({ header }: { header: ComponentProps<typeo
 				)}
 			</section>
 			{valid && <FinancialSourceCoverage endDate={endDate!} startDate={startDate!} />}
-			<InstitutionReviewQueue />
 		</>
 	);
 }

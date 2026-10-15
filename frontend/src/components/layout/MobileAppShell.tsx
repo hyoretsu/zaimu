@@ -17,6 +17,11 @@ import {
 const AdminPage = lazy(() =>
 	import("@/routes/admin/components/AdminPage").then(module => ({ default: module.AdminPage })),
 );
+const InstitutionsPage = lazy(() =>
+	import("@/routes/admin/institutions/components/InstitutionsPage").then(module => ({
+		default: module.InstitutionsPage,
+	})),
+);
 const HistoryPage = lazy(() =>
 	import("@/routes/admin/history/components/HistoryPage").then(module => ({ default: module.HistoryPage })),
 );
@@ -71,6 +76,7 @@ const screenByPath = {
 	"/accounts": AccountsPage,
 	"/admin": AdminPage,
 	"/admin/history": HistoryPage,
+	"/admin/institutions": InstitutionsPage,
 	"/admin/taxes": TaxesPage,
 	"/admin/users": UsersPage,
 	"/budget": BudgetPage,

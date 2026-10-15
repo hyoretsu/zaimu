@@ -1,11 +1,18 @@
 import { Link } from "@tanstack/react-router";
-import { LuChartNoAxesCombined, LuChevronRight, LuReceiptText, LuUsers } from "react-icons/lu";
+import { LuChartNoAxesCombined, LuChevronRight, LuLandmark, LuReceiptText, LuUsers } from "react-icons/lu";
 import { AdminPageLayout } from "./AdminPageLayout";
 
 const sections = [
 	{
+		description: "Consulte instituições globais e revise propostas de alterações, perfis e rendimentos.",
+		icon: LuLandmark,
+		title: "Instituições",
+		to: "/admin/institutions",
+	},
+	{
 		description: "Consulte a cobertura de juros e conversões cambiais.",
-		icon: LuChartNoAxesCombined,
+		icon: LuLandmark,
+		LuChartNoAxesCombined,
 		title: "Cobertura financeira",
 		to: "/admin/history",
 	},

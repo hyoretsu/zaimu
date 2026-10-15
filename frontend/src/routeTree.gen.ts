@@ -33,6 +33,7 @@ import { Route as AuthVerifyEmailRouteImport } from './routes/auth/verify-email'
 import { Route as BudgetIndexRouteImport } from './routes/budget/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as AdminHistoryIndexRouteImport } from './routes/admin/history/index'
+import { Route as AdminInstitutionsIndexRouteImport } from './routes/admin/institutions/index'
 import { Route as AdminTaxesIndexRouteImport } from './routes/admin/taxes/index'
 import { Route as AdminUsersIndexRouteImport } from './routes/admin/users/index'
 import { Route as SettingsOpenFinanceIndexRouteImport } from './routes/settings/open-finance/index'
@@ -157,6 +158,11 @@ const AdminHistoryIndexRoute = AdminHistoryIndexRouteImport.update({
   path: '/admin/history/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminInstitutionsIndexRoute = AdminInstitutionsIndexRouteImport.update({
+  id: '/admin/institutions/',
+  path: '/admin/institutions/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminTaxesIndexRoute = AdminTaxesIndexRouteImport.update({
   id: '/admin/taxes/',
   path: '/admin/taxes/',
@@ -199,6 +205,7 @@ export interface FileRoutesByFullPath {
   '/budget/': typeof BudgetIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/admin/history/': typeof AdminHistoryIndexRoute
+  '/admin/institutions/': typeof AdminInstitutionsIndexRoute
   '/admin/taxes/': typeof AdminTaxesIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/settings/open-finance/': typeof SettingsOpenFinanceIndexRoute
@@ -226,6 +233,7 @@ export interface FileRoutesByTo {
   '/budget': typeof BudgetIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/admin/history': typeof AdminHistoryIndexRoute
+  '/admin/institutions': typeof AdminInstitutionsIndexRoute
   '/admin/taxes': typeof AdminTaxesIndexRoute
   '/admin/users': typeof AdminUsersIndexRoute
   '/settings/open-finance': typeof SettingsOpenFinanceIndexRoute
@@ -256,6 +264,7 @@ export interface FileRoutesById {
   '/budget/': typeof BudgetIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/admin/history/': typeof AdminHistoryIndexRoute
+  '/admin/institutions/': typeof AdminInstitutionsIndexRoute
   '/admin/taxes/': typeof AdminTaxesIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/settings/open-finance/': typeof SettingsOpenFinanceIndexRoute
@@ -287,6 +296,7 @@ export interface FileRouteTypes {
     | '/budget/'
     | '/settings/'
     | '/admin/history/'
+    | '/admin/institutions/'
     | '/admin/taxes/'
     | '/admin/users/'
     | '/settings/open-finance/'
@@ -314,6 +324,7 @@ export interface FileRouteTypes {
     | '/budget'
     | '/settings'
     | '/admin/history'
+    | '/admin/institutions'
     | '/admin/taxes'
     | '/admin/users'
     | '/settings/open-finance'
@@ -343,6 +354,7 @@ export interface FileRouteTypes {
     | '/budget/'
     | '/settings/'
     | '/admin/history/'
+    | '/admin/institutions/'
     | '/admin/taxes/'
     | '/admin/users/'
     | '/settings/open-finance/'
@@ -367,6 +379,7 @@ export interface RootRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
   BudgetIndexRoute: typeof BudgetIndexRoute
   AdminHistoryIndexRoute: typeof AdminHistoryIndexRoute
+  AdminInstitutionsIndexRoute: typeof AdminInstitutionsIndexRoute
   AdminTaxesIndexRoute: typeof AdminTaxesIndexRoute
   AdminUsersIndexRoute: typeof AdminUsersIndexRoute
 }
@@ -541,6 +554,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminHistoryIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/institutions/': {
+      id: '/admin/institutions/'
+      path: '/admin/institutions'
+      fullPath: '/admin/institutions/'
+      preLoaderRoute: typeof AdminInstitutionsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/taxes/': {
       id: '/admin/taxes/'
       path: '/admin/taxes'
@@ -616,6 +636,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminIndexRoute: AdminIndexRoute,
   BudgetIndexRoute: BudgetIndexRoute,
   AdminHistoryIndexRoute: AdminHistoryIndexRoute,
+  AdminInstitutionsIndexRoute: AdminInstitutionsIndexRoute,
   AdminTaxesIndexRoute: AdminTaxesIndexRoute,
   AdminUsersIndexRoute: AdminUsersIndexRoute,
 }

@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { fetchWithAuth } from "@/lib/dataService";
 import { useAuthStore } from "@/stores/auth";
@@ -18,6 +18,7 @@ export interface InstitutionProposal {
 	createdAt: string;
 }
 export function InstitutionReviewQueue() {
+	const queryClient = useQueryClient();
 	const userId = useAuthStore(state => state.user?.id);
 	const query = useQuery({
 		queryFn: () => fetchWithAuth<InstitutionProposal[]>("/financial-institutions/review/proposals"),
@@ -40,7 +41,10 @@ export function InstitutionReviewQueue() {
 				query.data.map(proposal => (
 					<InstitutionProposalRow
 						key={proposal.id}
-						onReviewed={() => void query.refetch()}
+						onReviewed={() => {
+							void query.refetch();
+							void queryClient.invalidateQueries({ queryKey: ["institutions"] });
+						}}
 						proposal={proposal}
 					/>
 				))

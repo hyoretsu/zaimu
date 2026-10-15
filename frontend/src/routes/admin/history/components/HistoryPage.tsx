@@ -4,7 +4,7 @@ import { FinancialHistoryAdmin } from "./FinancialHistoryAdmin";
 export function HistoryPage() {
 	return (
 		<AdminPageLayout
-			description="Consulte fontes, vigências e lacunas financeiras; revise propostas institucionais."
+			description="Consulte fontes, vigências e lacunas financeiras."
 			title="Cobertura financeira"
 		>
 			{header => <FinancialHistoryAdmin header={header} />}
