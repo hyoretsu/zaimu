@@ -19,7 +19,7 @@ export function CollapsibleListingSection({
 	const [expanded, setExpanded] = useState(false);
 	const contentId = useId();
 	return (
-		<section className="grid min-w-0 gap-4 rounded-2xl border bg-card p-4 sm:p-6">
+		<section className="relative grid min-w-0 gap-4 rounded-2xl border bg-card p-4 sm:p-6">
 			<div className="flex min-w-0 items-start gap-3">
 				<div className="min-w-0 flex-1 space-y-1">
 					<h2 className="font-semibold text-lg">{title}</h2>
@@ -32,7 +32,11 @@ export function CollapsibleListingSection({
 					aria-controls={contentId}
 					aria-expanded={expanded}
 					aria-label={expanded ? "Minimizar" : "Expandir"}
-					className="shrink-0 cursor-pointer"
+					className={
+						expanded
+							? "shrink-0 cursor-pointer"
+							: "active:not-aria-[haspopup]:translate-none static shrink-0 cursor-pointer after:absolute after:inset-0 after:rounded-2xl after:content-['']"
+					}
 					onClick={() => setExpanded(value => !value)}
 					size="icon"
 					type="button"

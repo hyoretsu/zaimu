@@ -75,3 +75,7 @@ If a commit cannot be created at the moment, wait until committing becomes possi
 Always work in an isolated Git worktree to avoid conflicts between concurrent tasks. Record the original branch before starting, make and commit all task changes in the isolated worktree, then bring the completed commit back to the original branch. Preserve unrelated working-tree and staged changes throughout integration.
 
 Always prefer commits with explicit file paths, such as `git commit --only -- path/to/file`, so unrelated staged changes are not included. Keep each commit limited to the task.
+
+# Collapsed listings
+
+When a listing is collapsed, tapping or clicking anywhere on its visible card must expand it, including its title, description, summary, and padding. Use the shared listing component and preserve keyboard activation and accessible expanded state. Once expanded, keep content controls independent and collapse through the explicit toggle only.
