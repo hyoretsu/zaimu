@@ -638,10 +638,10 @@ export function TransactionImportReviewDialog({
 						>
 							{approve.isPending ? <LuLoaderCircle className="animate-spin" /> : <LuFileCheck2 />}
 							{approve.isPending ? (
-								"Finalizando…"
+								"Aprovando…"
 							) : (
 								<span>
-									Finalizar<span className="hidden sm:inline"> revisão</span>
+									Aprovar itens<span className="hidden sm:inline"> sem pendências</span>
 								</span>
 							)}
 						</Button>
