@@ -1,0 +1,10 @@
+import { t } from "elysia";
+
+export const InstitutionCountriesBody = t.Object({
+	accountCurrenciesByCountry: t.Record(
+		t.String({ pattern: "^[A-Z]{2}$" }),
+		t.Array(t.String({ pattern: "^[A-Z]{3}$" }), { minItems: 1, uniqueItems: true }),
+		{ additionalProperties: false },
+	),
+});
+export type InstitutionCountriesBody = typeof InstitutionCountriesBody.static;

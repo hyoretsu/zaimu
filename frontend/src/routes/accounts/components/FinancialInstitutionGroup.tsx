@@ -2,7 +2,7 @@ import { LuLandmark, LuWalletCards } from "react-icons/lu";
 import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { AppBadge } from "@/components/ui/AppBadge";
-import type { FinancialAccount, FinancialInstitution, FinancialInstitutionYieldPolicy } from "@/lib/api";
+import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
 import { getFinancialAccountCurrencyValue } from "@/lib/financial-account";
 import { CreateFinancialAccountDialog } from "./CreateFinancialAccountDialog";
 import { FinancialAccountCard } from "./FinancialAccountCard";
@@ -17,7 +17,6 @@ export function FinancialInstitutionGroup({
 	onHide,
 	onUpdate,
 	onUpdateInstitution,
-	onUpdateInstitutionYield,
 	onDeleteInstitution,
 	pending,
 	rewardAccounts,
@@ -30,10 +29,7 @@ export function FinancialInstitutionGroup({
 	onHide: (account: FinancialAccount) => void;
 	onUpdate: NonNullable<Parameters<typeof CreateFinancialAccountDialog>[0]["onUpdate"]>;
 	onUpdateInstitution: Parameters<typeof InstitutionActions>[0]["onUpdate"];
-	onUpdateInstitutionYield: (
-		institution: FinancialInstitution,
-		policy: Omit<FinancialInstitutionYieldPolicy, "effectiveDate">,
-	) => Promise<unknown>;
+
 	onDeleteInstitution: (institution: FinancialInstitution) => Promise<unknown>;
 	pending: boolean;
 	rewardAccounts: FinancialAccount[];
@@ -75,7 +71,6 @@ export function FinancialInstitutionGroup({
 							institution={institution}
 							onDelete={onDeleteInstitution}
 							onUpdate={onUpdateInstitution}
-							onUpdateYield={onUpdateInstitutionYield}
 						/>
 					)}
 					<CreateFinancialAccountDialog

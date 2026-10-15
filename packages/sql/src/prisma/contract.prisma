@@ -296,6 +296,7 @@ namespace public {
     status VarChar(24) @default("LEGACY_PRIVATE")
     version Int @default(1)
     operatingCountryCodes VarChar(2)[] @default([])
+    accountCurrenciesByCountry Json @default(dbgenerated("'{}'::json"))
     creditInstallmentRemainderOnFirst Boolean @default(false)
     currency VarChar(3) @default("BRL")
 

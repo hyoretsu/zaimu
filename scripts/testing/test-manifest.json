@@ -37,6 +37,8 @@
 		"backend/src/modules/accounts/domain/calculate-financial-account-yields.test.ts",
 		"backend/src/modules/accounts/domain/daily-balance-summary.test.ts",
 		"backend/src/modules/accounts/domain/normalize-financial-institution-name.test.ts",
+		"backend/src/modules/accounts/infra/dto/institution-countries.test.ts",
+		"backend/src/modules/accounts/infra/dto/institution-name.test.ts",
 		"backend/src/modules/accounts/infra/elysia/FinancialAccountYieldsController.test.ts",
 		"backend/src/modules/auth/email.test.ts",
 		"backend/src/modules/auth/password.test.ts",

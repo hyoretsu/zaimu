@@ -263,6 +263,8 @@ Cadastros institucionais antigos são consolidados por administração em uma id
 
 Instituições aprovadas são compartilhadas; vínculo e seleção de perfil pertencem ao usuário. Contas referenciam instituição universal, e remover vínculo pessoal nunca exclui instituição global. Instituições pendentes e rejeitadas permanecem privadas ao proponente, incluindo suas contas. Nomes normalizados geram candidatos de fusão; nomes iguais nunca provam identidade. Seleção por identificador elimina ambiguidades.
 
+Usuários podem editar somente o nome da instituição, por proposta sujeita à revisão. Países de operação e moedas de contas por país são configurados exclusivamente pela administração; cada país possui sua própria lista de moedas, sem alterar contas existentes.
+
 Criação, alterações, novos perfis e políticas passam por propostas. Aprovação publica em transação, com bloqueio, controle de versão, auditoria de antes/depois e notificação persistente interna. Revisão de proposta desatualizada exige conferência explícita da versão atual. Rejeição exige motivo. Não há notificações externas. Propostas globais exigem conexão; cadastro offline pode usar instituições aprovadas já disponíveis no cache do usuário.
 
 Toda instituição possui perfil Padrão. Perfil escolhido pertence ao vínculo usuário-instituição e vale para todas as contas do vínculo. Cada mudança tem data inicial explícita, passada, atual ou futura. Sem retorno automático: cancelamento futuro é outra mudança para Padrão. Padrão vale antes da primeira mudança. Regras aprovadas são selecionadas pela data, perfil, moeda e país da conta. Regras específicas de país prevalecem sobre regras gerais. Término explícito da regra é exclusivo. Ausência de política aplicável é cobertura pendente, não taxa zero.

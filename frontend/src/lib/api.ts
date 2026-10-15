@@ -87,6 +87,7 @@ export interface RewardsAccount {
 }
 
 export interface FinancialInstitution {
+	accountCurrenciesByCountry?: Record<string, string[]>;
 	status?: "LEGACY_PRIVATE" | "PENDING" | "APPROVED" | "REJECTED" | "REJECTED_PRIVATE";
 	version?: number;
 	operatingCountryCodes?: string[];

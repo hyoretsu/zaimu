@@ -1,4 +1,5 @@
 import Elysia, { t } from "elysia";
+import { configureInstitutionCountries } from "~/modules/accounts/application/configure-institution-countries";
 import {
 	consolidateLegacyInstitution,
 	listInstitutionCatalog,
@@ -16,6 +17,8 @@ import { HttpException } from "~/shared/errors";
 import { PostgresOutbox } from "~/shared/infra/outbox";
 import { queryRaw, withRawTransaction } from "~/shared/infra/sql";
 import { InstitutionCatalogResult } from "../dto/institution-catalog";
+import { InstitutionCountriesBody } from "../dto/institution-countries";
+import { InstitutionNameBody } from "../dto/institution-name";
 
 const Id = t.String({ maxLength: 36, minLength: 1 });
 const DateDTO = t.String({ format: "date" });
@@ -78,6 +81,18 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 	.get("/review/catalog", async ({ request }) => listInstitutionCatalog(await requireAdmin(request), true), {
 		response: t.Array(InstitutionReturn),
 	})
+	.patch(
+		"/review/catalog/:id",
+		async ({ request, params, body }) => {
+			await requireAdmin(request);
+			return configureInstitutionCountries(params.id, body.accountCurrenciesByCountry);
+		},
+		{
+			body: InstitutionCountriesBody,
+			params: t.Object({ id: Id }),
+			response: InstitutionReturn,
+		},
+	)
 	.post(
 		"/review/legacy/:id",
 		async ({ request, params, body }) =>
@@ -98,14 +113,8 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 	.patch(
 		"/:id",
 		async ({ body, params, request }) =>
-			proposeInstitution(
-				await requireUserId(request),
-				params.id,
-				"INSTITUTION_UPDATE",
-				body,
-				body.effectiveDate,
-			),
-		{ body: InstitutionBody, params: t.Object({ id: Id }), response: MutationReturn },
+			proposeInstitution(await requireUserId(request), params.id, "INSTITUTION_UPDATE", { name: body.name }),
+		{ body: InstitutionNameBody, params: t.Object({ id: Id }), response: MutationReturn },
 	)
 	.post(
 		"/:id/merge-proposal",
@@ -127,7 +136,7 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 	.post(
 		"/:id/profiles",
 		async ({ params, body, request }) =>
-			proposeInstitution(await requireUserId(request), params.id, "PROFILE", body),
+			proposeInstitution(await requireAdmin(request), params.id, "PROFILE", body),
 		{
 			body: t.Object({ name: t.String({ maxLength: 100, minLength: 1 }) }),
 			params: t.Object({ id: Id }),
@@ -137,7 +146,7 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 	.post(
 		"/:id/policies",
 		async ({ params, body, request }) =>
-			proposeInstitution(await requireUserId(request), params.id, "POLICY", body, body.effectiveDate),
+			proposeInstitution(await requireAdmin(request), params.id, "POLICY", body, body.effectiveDate),
 		{
 			body: t.Object({
 				countryCode: t.Optional(t.String({ maxLength: 2, minLength: 2 })),

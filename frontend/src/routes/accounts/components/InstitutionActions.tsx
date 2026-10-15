@@ -1,29 +1,22 @@
 import { LuTrash2 } from "react-icons/lu";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
-import type { FinancialInstitution, FinancialInstitutionYieldPolicy } from "@/lib/api";
+import type { FinancialInstitution } from "@/lib/api";
 import { EditInstitutionDialog } from "./EditInstitutionDialog";
 import { InstitutionProfileDialog } from "./InstitutionProfileDialog";
-import { InstitutionYieldDialog } from "./InstitutionYieldDialog";
 
 export function InstitutionActions({
 	institution,
 	onDelete,
 	onUpdate,
-	onUpdateYield,
 }: {
 	institution: FinancialInstitution;
 	onDelete: (institution: FinancialInstitution) => Promise<unknown>;
 	onUpdate: Parameters<typeof EditInstitutionDialog>[0]["onUpdate"];
-	onUpdateYield: (
-		institution: FinancialInstitution,
-		policy: Omit<FinancialInstitutionYieldPolicy, "effectiveDate">,
-	) => Promise<unknown>;
 }) {
 	return (
 		<>
 			<InstitutionProfileDialog institution={institution} />
-			<InstitutionYieldDialog institution={institution} onUpdate={onUpdateYield} />
 			<EditInstitutionDialog institution={institution} onUpdate={onUpdate} />
 			<Tooltip>
 				<TooltipTrigger asChild>

@@ -24,7 +24,6 @@ import { fetchWithAuth } from "@/lib/dataService";
 import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
 import { useAuthStore } from "@/stores/auth";
 import { InstitutionMergeProposal } from "./InstitutionMergeProposal";
-import { ProfileProposalForm } from "./ProfileProposalForm";
 
 interface Profile {
 	id: string;
@@ -42,7 +41,6 @@ export function InstitutionProfileDialog({ institution }: { institution: Financi
 	const [profileId, setProfile] = useState<string>();
 	const [date, setDate] = useState(new Date().toLocaleDateString("sv-SE"));
 	const pending = useModalRecoveryStore(state => state.pending);
-	const [proposalName, setProposalName] = useState("");
 	const [mergeTarget, setMergeTarget] = useState<string>();
 	const userId = useAuthStore(state => state.user?.id);
 	const guest = useAuthStore(state => state.isGuestMode);
@@ -69,7 +67,6 @@ export function InstitutionProfileDialog({ institution }: { institution: Financi
 		setOpen(next);
 		if (!next) {
 			setProfile(undefined);
-			setProposalName("");
 			setMergeTarget(undefined);
 			setDate(new Date().toLocaleDateString("sv-SE"));
 		}
@@ -79,7 +76,6 @@ export function InstitutionProfileDialog({ institution }: { institution: Financi
 		entry => {
 			setDate(entry.payload.date ?? today);
 			setProfile(entry.payload.profileId);
-			setProposalName(entry.payload.name ?? "");
 			setMergeTarget(entry.payload.target);
 			setOpen(true);
 		},
@@ -176,11 +172,6 @@ export function InstitutionProfileDialog({ institution }: { institution: Financi
 										value={date}
 									/>
 								</FormFieldRow>
-								<ProfileProposalForm
-									initialName={proposalName}
-									institutionId={institution.id}
-									onClose={() => changeOpen(false)}
-								/>
 								<InstitutionMergeProposal
 									initialTarget={mergeTarget}
 									institution={institution}

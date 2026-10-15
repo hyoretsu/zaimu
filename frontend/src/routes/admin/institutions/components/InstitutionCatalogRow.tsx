@@ -1,12 +1,12 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { ActionGroup } from "@/components/ui/ActionGroup";
-import type { FinancialInstitution } from "@/lib/api";
 import { fetchWithAuth } from "@/lib/dataService";
-import { EditInstitutionDialog } from "@/routes/accounts/components/EditInstitutionDialog";
 import { InstitutionYieldDialog } from "@/routes/accounts/components/InstitutionYieldDialog";
 import { showToast } from "@/stores";
+import { EditInstitutionCatalogDialog } from "./EditInstitutionCatalogDialog";
+import type { AdminInstitution } from "./types";
 
-export function InstitutionCatalogRow({ institution }: { institution: FinancialInstitution }) {
+export function InstitutionCatalogRow({ institution }: { institution: AdminInstitution }) {
 	const queryClient = useQueryClient();
 	const countryNames = new Intl.DisplayNames("pt-BR", { type: "region" });
 	const propose = async (path: string, body: unknown, method: "PATCH" | "POST") => {
@@ -28,21 +28,17 @@ export function InstitutionCatalogRow({ institution }: { institution: FinancialI
 				</p>
 				<p className="break-words text-muted-foreground text-sm">
 					{institution.operatingCountryCodes?.length
-						? institution.operatingCountryCodes.map(code => countryNames.of(code) ?? code).join(", ")
+						? institution.operatingCountryCodes
+								.map(
+									code =>
+										`${countryNames.of(code) ?? code}: ${institution.accountCurrenciesByCountry?.[code]?.join(", ") || "Moedas não definidas"}`,
+								)
+								.join("; ")
 						: "Países não informados"}
 				</p>
 			</div>
 			<ActionGroup>
-				<EditInstitutionDialog
-					institution={institution}
-					onUpdate={(item, name, currency, creditInstallmentRemainderOnFirst, operatingCountryCodes) =>
-						propose(
-							`/financial-institutions/${item.id}`,
-							{ creditInstallmentRemainderOnFirst, currency, name, operatingCountryCodes },
-							"PATCH",
-						)
-					}
-				/>
+				<EditInstitutionCatalogDialog institution={institution} />
 				<InstitutionYieldDialog
 					institution={institution}
 					onUpdate={(item, policy) => {
