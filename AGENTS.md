@@ -6,6 +6,8 @@ Scrollbars must remain contained within their own scrollable div. Inset vertical
 
 # Modal scrolling
 
+Opening or closing any modal must never change the current horizontal or vertical scroll position of the page, background lists, or parent modals, or shift their layout when locking scroll. Preserve positions through nested dialogs, autofocus, browser Back, Escape, overlay clicks, and button closes on desktop, mobile, and touch devices. Never scroll a background record into view as part of opening a modal. Apply fixes through the shared dialog and scroll-lock infrastructure so all modals follow this rule.
+
 Every modal must use the shared `Dialog` components from `frontend/src/components/ui/Dialog.tsx`, including wrappers such as `ImportDialogContent`. Keep `DialogHeader` and `DialogFooter` visible and outside the scrollable region on desktop, mobile, and touch devices. Only the central content scrolls, through the shared `DialogBody`, which uses `ScrollArea`. Limit `DialogContent` to the visible viewport and clip its overflow; never scroll the entire modal or wrap its header/footer in a scroll area. Preserve form submission by keeping `DialogBody` and `DialogFooter` inside the same form when needed. Avoid duplicate vertical scroll containers inside `DialogBody`.
 
 # Back navigation
@@ -63,3 +65,7 @@ Never label form fields as "(opcional)", "(optional)", or add redundant optional
 # Database migration references
 
 `packages/sql/migrations/app/refs/db.json` is versioned migration state. Whenever database work changes this file, always include it in the corresponding database commit alongside relevant migrations and snapshots. Verify that its hash points to a committed or staged snapshot. Preserve the recorded reference; do not advance it merely to match the newest snapshot. This rule does not authorize running migrations or other commands against remote/shared databases.
+
+# Commit availability
+
+If a commit cannot be created at the moment, wait until committing becomes possible and retry. Do not finish the task with the required commit pending because of a temporary lock or another Git operation. Never remove a lock owned by an active process or bypass commit hooks.
