@@ -459,7 +459,6 @@ export function CreateFinancialAccountDialog({
 							]}
 							placeholder="Selecione uma instituição"
 							searchable
-							sortOptions={false}
 							value={institutionId}
 						/>
 						{institutionId === NEW_INSTITUTION && (
