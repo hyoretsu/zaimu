@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import type { CreditCardStatement } from "@/lib/api";
-import { getStatementWindow, getStatementWindowRadius } from "./credit-card-statement-window";
+import {
+	getSelectedStatement,
+	getStatementWindow,
+	getStatementWindowRadius,
+} from "./credit-card-statement-window";
 
 const card = { dueDay: 15, id: "card-1", statementDay: 5 };
 const actual: CreditCardStatement = {
@@ -58,5 +62,23 @@ describe("credit card statement window", () => {
 	test("desktop keeps two extra items beyond the visible center on each side", () => {
 		expect(getStatementWindowRadius(true, 612, 60)).toBe(6);
 		expect(getStatementWindowRadius(false, 612, 60)).toBe(3);
+	});
+});
+
+describe("credit card statement selection", () => {
+	test("selects and recovers the second invoice by ID when due months match", () => {
+		const second = { ...actual, id: "second-august-statement", totalAmount: 43.14 };
+		const statements = [actual, second];
+		expect(getSelectedStatement(statements, second.id, "2026-08")).toBe(second);
+		expect(getSelectedStatement([...statements], second.id, "2026-09")).toBe(second);
+	});
+
+	test("defaults to current month and falls back after selected invoice disappears", () => {
+		const september = { ...actual, dueDate: "2026-09-15", id: "september-statement" };
+		const statements = [actual, september];
+		expect(getSelectedStatement(statements, null, "2026-09")).toBe(september);
+		expect(getSelectedStatement(statements, "deleted", "2026-09")).toBe(september);
+		expect(getSelectedStatement(statements, "deleted", "2026-10")).toBe(actual);
+		expect(getSelectedStatement([], null, "2026-09")).toBeUndefined();
 	});
 });

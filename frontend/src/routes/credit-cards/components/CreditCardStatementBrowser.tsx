@@ -14,7 +14,11 @@ import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { CreditCardStatementDetails } from "./CreditCardStatementDetails";
 import { CreditCardStatementSkeleton } from "./CreditCardStatementSkeleton";
 import { CreditCardStatementTabs } from "./CreditCardStatementTabs";
-import { getFirstNonZeroStatementMonth, getStatementWindow } from "./credit-card-statement-window";
+import {
+	getFirstNonZeroStatementMonth,
+	getSelectedStatement,
+	getStatementWindow,
+} from "./credit-card-statement-window";
 import type { StatementActionRecovery } from "./statement-action-recovery";
 
 export function CreditCardStatementBrowser({
@@ -30,7 +34,7 @@ export function CreditCardStatementBrowser({
 	const [desktopRadius, setDesktopRadius] = useState(6);
 	const radius = isDesktop ? desktopRadius : 3;
 	const [extra, setExtra] = useState({ next: 0, previous: 0 });
-	const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+	const [selectedStatementId, setSelectedStatementId] = useState<string | null>(null);
 	const [currentMonth] = useState(() => getLocalMonthKey(new Date()));
 	const requestedRecovery = useModalRecoveryStore(state =>
 		state.requestedId ? state.entries[state.requestedId] : undefined,
@@ -44,7 +48,7 @@ export function CreditCardStatementBrowser({
 		const payload = requestedRecovery.payload as StatementActionRecovery;
 		if (payload.cardId !== card.id) return;
 		const month = getLocalMonthKey(payload.statement.dueDate);
-		setSelectedMonth(month);
+		setSelectedStatementId(payload.statement.id);
 		const monthDistance =
 			(Number(month.slice(0, 4)) - Number(currentMonth.slice(0, 4))) * 12 +
 			Number(month.slice(5, 7)) -
@@ -72,10 +76,7 @@ export function CreditCardStatementBrowser({
 		[card, statements.data, currentMonth, radius, extra],
 	);
 	const firstMonth = getFirstNonZeroStatementMonth(statements.data ?? []) ?? currentMonth;
-	const selectedStatement =
-		visibleStatements.find(
-			statement => getLocalMonthKey(statement.dueDate) === (selectedMonth ?? currentMonth),
-		) ?? visibleStatements[0];
+	const selectedStatement = getSelectedStatement(visibleStatements, selectedStatementId, currentMonth);
 	const loadPrevious = useCallback(
 		() => setExtra(value => ({ ...value, previous: value.previous + radius })),
 		[radius],
@@ -83,7 +84,7 @@ export function CreditCardStatementBrowser({
 	const loadNext = useCallback(() => setExtra(value => ({ ...value, next: value.next + radius })), [radius]);
 	const selectStatement = (id: string) => {
 		const statement = visibleStatements.find(item => item.id === id);
-		if (statement) setSelectedMonth(getLocalMonthKey(statement.dueDate));
+		if (statement) setSelectedStatementId(statement.id);
 	};
 
 	return (

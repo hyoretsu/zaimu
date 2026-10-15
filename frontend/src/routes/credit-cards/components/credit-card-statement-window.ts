@@ -3,6 +3,18 @@ import { getLocalMonthKey } from "@/lib/date";
 
 export type StatementWindowItem = CreditCardStatement & { isEmptyCycle?: boolean };
 
+export function getSelectedStatement(
+	statements: StatementWindowItem[],
+	selectedId: string | null,
+	currentMonth: string,
+) {
+	return (
+		statements.find(statement => statement.id === selectedId) ??
+		statements.find(statement => getLocalMonthKey(statement.dueDate) === currentMonth) ??
+		statements[0]
+	);
+}
+
 export function getFirstNonZeroStatementMonth(statements: CreditCardStatement[]) {
 	return statements
 		.filter(statement => statement.totalAmount !== 0)

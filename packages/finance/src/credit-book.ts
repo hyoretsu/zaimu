@@ -242,7 +242,10 @@ export function ensureBookStatement(
 	assertDateKey(date);
 	const dates = registered ?? purchaseStatementDates(book.card, date);
 	const existing = registered
-		? book.statements.find(statement => statement.statementDate === registered.statementDate)
+		? (book.statements.find(statement => statement.statementDate === registered.statementDate) ??
+			(registered.statementDate === registered.dueDate
+				? book.statements.find(statement => statement.dueDate === registered.dueDate)
+				: undefined))
 		: book.statements
 				.toSorted((a, b) => a.statementDate.localeCompare(b.statementDate))
 				.find(

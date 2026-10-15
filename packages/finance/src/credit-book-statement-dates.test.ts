@@ -199,3 +199,15 @@ test("an empty hidden December cycle does not pull a corrected January purchase 
 	expect(book.installments.find(item => item.number === 1)!.statementId).toBe(january.id);
 	expect(new Set(book.installments.map(item => item.statementId)).size).toBe(12);
 });
+
+test("imported closing reuses the registered cycle with the same due date", () => {
+	const book = fixture();
+	const original = book.statements[0]!;
+	const imported = ensureBookStatement(book, "2026-08-10", {
+		dueDate: original.dueDate,
+		statementDate: original.dueDate,
+	});
+	expect(imported.id).toBe(original.id);
+	expect(imported.statementDate).toBe("2026-08-20");
+	expect(book.statements).toHaveLength(1);
+});

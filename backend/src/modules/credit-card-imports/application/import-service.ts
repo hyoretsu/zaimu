@@ -131,7 +131,10 @@ export async function markStatementAsFullySynced({
 			.where((fields, functions) =>
 				functions.and(
 					functions.eq(fields.creditCardId, creditCardId),
-					functions.eq(fields.statementDate, statementDate),
+					functions.or(
+						functions.eq(fields.statementDate, statementDate),
+						functions.and(functions.eq(fields.dueDate, dueDate), functions.eq(fields.dueDate, statementDate)),
+					),
 				),
 			)
 			.limit(1)
