@@ -69,3 +69,9 @@ Never label form fields as "(opcional)", "(optional)", or add redundant optional
 # Commit availability
 
 If a commit cannot be created at the moment, wait until committing becomes possible and retry. Do not finish the task with the required commit pending because of a temporary lock or another Git operation. Never remove a lock owned by an active process or bypass commit hooks.
+
+# Isolated worktrees and explicit commit paths
+
+Always work in an isolated Git worktree to avoid conflicts between concurrent tasks. Record the original branch before starting, make and commit all task changes in the isolated worktree, then bring the completed commit back to the original branch. Preserve unrelated working-tree and staged changes throughout integration.
+
+Always prefer commits with explicit file paths, such as `git commit --only -- path/to/file`, so unrelated staged changes are not included. Keep each commit limited to the task.
