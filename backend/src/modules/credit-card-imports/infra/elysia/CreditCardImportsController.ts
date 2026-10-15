@@ -44,6 +44,7 @@ import {
 import { assignCreditCardPurchaseExternalIds } from "../../domain/credit-card-import-identity";
 import { parseCreditCardStatementPdf } from "../../domain/credit-card-statement-parser";
 import { requiresCreditCardStatementPdfPassword } from "../../domain/credit-card-statement-password";
+import { existingImportRoots } from "../../domain/existing-import-roots";
 import { filterZeroValuePurchases } from "../../domain/filter-zero-value-purchases";
 import {
 	getFinancingSource,
@@ -160,9 +161,7 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 						.build(),
 				),
 			]);
-			const existingRoots = new Map(
-				existing.flatMap(item => (item.externalId ? [[item.externalId, item.id] as const] : [])),
-			);
+			const existingRoots = existingImportRoots(existing);
 			const existingRootIds = [...new Set(existingRoots.values())];
 			const existingInstallments = (await readCreditEntries(body.creditCardId)).filter(p =>
 				existingRootIds.includes(p.purchaseId ?? p.id),
