@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
+import { CollapsibleListingSection } from "@/components/ui/CollapsibleListingSection";
 import { FormField } from "@/components/ui/FormField";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
@@ -19,29 +20,33 @@ export function InstitutionCatalog() {
 		queryFn: () => fetchWithAuth<AdminInstitution[]>("/financial-institutions/review/catalog"),
 		queryKey: ["admin-institution-catalog", userId],
 	});
-	const institutions = query.data?.filter(
-		item =>
-			(item.status === "APPROVED" || item.status === "LEGACY_PRIVATE") &&
-			item.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()),
+	const catalog = query.data?.filter(item => item.status === "APPROVED" || item.status === "LEGACY_PRIVATE");
+	const institutions = catalog?.filter(item =>
+		item.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()),
 	);
 	return (
-		<section className="grid min-w-0 gap-4 rounded-2xl border bg-card p-4 sm:p-6">
-			<div>
-				<h2 className="font-semibold text-lg">Catálogo global</h2>
-				<p className="text-muted-foreground text-sm">
-					Instituições aprovadas disponíveis para todos. Publique cadastros antigos ou associe-os a uma
-					instituição global, preservando o histórico das contas.
-				</p>
-			</div>
-			<FormField
-				id="institution-search"
-				label="Buscar instituição"
-				name="institution-search"
-				onChange={event => setInput(event.currentTarget.value)}
-				placeholder="Ex: Nubank"
-				type="text"
-				value={input}
-			/>
+		<CollapsibleListingSection
+			description="Instituições aprovadas disponíveis para todos. Publique cadastros antigos ou associe-os a uma instituição global, preservando o histórico das contas."
+			summary={
+				query.isPending
+					? "Carregando quantidade..."
+					: query.isError
+						? "Quantidade indisponível"
+						: `${catalog?.length ?? 0} ${(catalog?.length ?? 0) === 1 ? "instituição" : "instituições"}`
+			}
+			title="Catálogo global"
+			toolbar={
+				<FormField
+					id="institution-search"
+					label="Buscar instituição"
+					name="institution-search"
+					onChange={event => setInput(event.currentTarget.value)}
+					placeholder="Ex: Nubank"
+					type="text"
+					value={input}
+				/>
+			}
+		>
 			{query.isPending ? (
 				<div className="space-y-3">
 					{[0, 1, 2].map(id => (
@@ -74,6 +79,6 @@ export function InstitutionCatalog() {
 					{search ? "Nenhuma instituição encontrada." : "Nenhuma instituição cadastrada."}
 				</p>
 			)}
-		</section>
+		</CollapsibleListingSection>
 	);
 }

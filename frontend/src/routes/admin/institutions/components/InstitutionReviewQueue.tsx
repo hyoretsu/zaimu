@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { CollapsibleListingSection } from "@/components/ui/CollapsibleListingSection";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { fetchWithAuth } from "@/lib/dataService";
 import { useAuthStore } from "@/stores/auth";
@@ -24,12 +25,20 @@ export function InstitutionReviewQueue() {
 		queryFn: () => fetchWithAuth<InstitutionProposal[]>("/financial-institutions/review/proposals"),
 		queryKey: ["institution-review", userId],
 	});
+	const total = query.data?.length ?? 0;
+	const pending = query.data?.filter(item => item.status === "PENDING").length ?? 0;
 	return (
-		<section className="grid min-w-0 gap-4 rounded-2xl border bg-card p-4 sm:p-6">
-			<h2 className="font-semibold text-lg">
-				Revisão institucional{" "}
-				{query.data ? `(${query.data.filter(item => item.status === "PENDING").length} pendentes)` : ""}
-			</h2>
+		<CollapsibleListingSection
+			description="Revise propostas de instituições, perfis e políticas de rendimento."
+			summary={
+				query.isPending
+					? "Carregando quantidade..."
+					: query.isError
+						? "Quantidade indisponível"
+						: `${total} ${total === 1 ? "proposta" : "propostas"} - ${pending} ${pending === 1 ? "pendente" : "pendentes"}`
+			}
+			title="Revisão institucional"
+		>
 			{query.isPending ? (
 				<div className="space-y-3">
 					<Skeleton className="h-28 w-full" />
@@ -52,6 +61,6 @@ export function InstitutionReviewQueue() {
 			) : (
 				<p>Nenhuma proposta registrada.</p>
 			)}
-		</section>
+		</CollapsibleListingSection>
 	);
 }
