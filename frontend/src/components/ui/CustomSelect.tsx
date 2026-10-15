@@ -1,6 +1,4 @@
-import { cn } from "@/lib/utils";
-import { SearchableCustomSelect } from "./SearchableCustomSelect";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./Select";
+import { CustomSelectPopover } from "./CustomSelectPopover";
 
 export interface Option {
 	disabled?: boolean;
@@ -47,48 +45,23 @@ export function CustomSelect({
 		return sortOptions ? left.label.localeCompare(right.label, "pt-BR", { sensitivity: "base" }) : 0;
 	});
 
-	if (searchable || values) {
-		return (
-			<SearchableCustomSelect
-				className={className}
-				disabled={disabled}
-				error={error}
-				isLoading={isLoading}
-				label={label}
-				onOpenChange={onOpenChange}
-				onRetry={onRetry}
-				onValueChange={onValueChange}
-				options={displayedOptions}
-				placeholder={placeholder}
-				required={required}
-				value={value}
-				values={values}
-			/>
-		);
-	}
-
+	// Keep the list open when dismissing the mobile keyboard resizes the viewport.
 	return (
-		<div className={cn("grid gap-2", className)}>
-			<p className="font-medium text-sm leading-none">
-				{label} {required && <span className="text-destructive">*</span>}
-			</p>
-			<Select disabled={disabled} onOpenChange={onOpenChange} onValueChange={onValueChange} value={value}>
-				<SelectTrigger aria-label={label} className="h-9 w-full cursor-pointer">
-					<SelectValue placeholder={placeholder} />
-				</SelectTrigger>
-				<SelectContent>
-					{displayedOptions.map(option => (
-						<SelectItem
-							className="cursor-pointer disabled:cursor-not-allowed"
-							disabled={option.disabled}
-							key={option.value}
-							value={option.value}
-						>
-							{option.label}
-						</SelectItem>
-					))}
-				</SelectContent>
-			</Select>
-		</div>
+		<CustomSelectPopover
+			className={className}
+			disabled={disabled}
+			error={error}
+			isLoading={isLoading}
+			label={label}
+			onOpenChange={onOpenChange}
+			onRetry={onRetry}
+			onValueChange={onValueChange}
+			options={displayedOptions}
+			placeholder={placeholder}
+			required={required}
+			searchable={searchable || Boolean(values)}
+			value={value}
+			values={values}
+		/>
 	);
 }

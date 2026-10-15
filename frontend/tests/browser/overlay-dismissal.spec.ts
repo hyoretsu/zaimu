@@ -109,9 +109,9 @@ test("selectors and calendar stay clickable above nested dialogs", async ({ page
 	const editor = page
 		.locator('[data-slot="dialog-content"]')
 		.filter({ has: page.getByRole("heading", { exact: true, name: "Edit purchase" }) });
-	await editor.getByRole("combobox", { name: "Categoria" }).click();
+	await editor.getByRole("combobox", { exact: true, name: "Categoria" }).click();
 	await page.getByRole("option", { exact: true, name: "Mercado" }).click();
-	await expect(editor.getByRole("combobox", { name: "Categoria" })).toContainText("Mercado");
+	await expect(editor.getByRole("combobox", { exact: true, name: "Categoria" })).toContainText("Mercado");
 	await editor.getByRole("combobox", { name: "Moeda" }).click();
 	await page.getByRole("option", { exact: true, name: "Real" }).click();
 	await expect(editor.getByRole("combobox", { name: "Moeda" })).toContainText("Real");
@@ -165,3 +165,51 @@ for (const width of [390, 1280]) {
 		expect(await position()).toEqual(before);
 	});
 }
+
+for (const touch of [false, true]) {
+	test.describe(`focused input touch=${touch}`, () => {
+		test.use({ hasTouch: touch });
+		test("budget category stays open when the keyboard viewport resizes", async ({ page }) => {
+			await page.getByRole("button", { exact: true, name: "Open invoice" }).click();
+			await page.getByRole("button", { exact: true, name: "Edit purchase" }).click();
+			const name = page.getByRole("textbox", { exact: true, name: "Nome" });
+			await name.fill("Casa");
+			await expect(name).toBeFocused();
+			const trigger = page.getByRole("combobox", { exact: true, name: "Categoria de planejamento" });
+			if (touch) await trigger.tap();
+			else await trigger.click();
+			await expect(page.getByRole("option", { exact: true, name: "Sem categoria" })).toBeFocused();
+			// Keyboard dismissal sends resize after focus has left the text field.
+			await page.evaluate(() => window.dispatchEvent(new Event("resize")));
+			const option = page.getByRole("option", { exact: true, name: "Reserva" });
+			await expect(option).toBeVisible();
+			await expect(page.getByRole("textbox", { name: /^Buscar/ })).toHaveCount(0);
+			if (touch) await option.tap();
+			else await option.click();
+			await expect(trigger).toContainText("Reserva");
+			await expect(page.getByRole("listbox")).toHaveCount(0);
+			await expect(name).toHaveValue("Casa");
+			await expect(page.getByRole("dialog", { exact: true, name: "Edit purchase" })).toBeVisible();
+		});
+	});
+}
+
+test("fixed category selector supports keyboard navigation and typeahead", async ({ page }) => {
+	await page.getByRole("button", { exact: true, name: "Open invoice" }).click();
+	await page.getByRole("button", { exact: true, name: "Edit purchase" }).click();
+	const trigger = page.getByRole("combobox", { exact: true, name: "Categoria de planejamento" });
+	await trigger.focus();
+	await page.keyboard.press("ArrowDown");
+	await expect(page.getByRole("option", { exact: true, name: "Sem categoria" })).toBeFocused();
+	await page.keyboard.press("Home");
+	await expect(page.getByRole("option", { exact: true, name: "Etiqueta" })).toBeFocused();
+	await page.keyboard.press("r");
+	await expect(page.getByRole("option", { exact: true, name: "Reserva" })).toBeFocused();
+	await page.keyboard.press("Enter");
+	await expect(trigger).toContainText("Reserva");
+	await expect(trigger).toBeFocused();
+	await page.keyboard.press("Enter");
+	await page.keyboard.press("Escape");
+	await expect(page.getByRole("listbox")).toHaveCount(0);
+	await expect(page.getByRole("dialog", { exact: true, name: "Edit purchase" })).toBeVisible();
+});

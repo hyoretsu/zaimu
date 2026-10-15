@@ -11,7 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "./Popover";
 import { ScrollArea } from "./ScrollArea";
 import { Skeleton } from "./Skeleton";
 
-export function SearchableCustomSelect({
+export function CustomSelectPopover({
 	className,
 	disabled,
 	isLoading = false,
@@ -23,6 +23,7 @@ export function SearchableCustomSelect({
 	options,
 	placeholder,
 	required,
+	searchable,
 	value,
 	values,
 }: {
@@ -37,12 +38,14 @@ export function SearchableCustomSelect({
 	options: Option[];
 	placeholder: string;
 	required?: boolean;
+	searchable: boolean;
 	value?: string;
 	values?: string[];
 }) {
 	const [open, setOpen] = useState(false);
 	const [search, setSearch] = useDebouncedInput("", () => undefined);
 	const searchRef = useRef<HTMLInputElement>(null);
+	const typeahead = useRef({ text: "", time: 0 });
 	const selectedRef = useRef<HTMLButtonElement>(null);
 	const listId = useId();
 	const normalizedSearch = search.trim().toLocaleLowerCase("pt-BR");
@@ -62,6 +65,7 @@ export function SearchableCustomSelect({
 		setOpen(nextOpen);
 		onOpenChange?.(nextOpen);
 		if (!nextOpen) setSearch("");
+		typeahead.current = { text: "", time: 0 };
 	};
 
 	return (
@@ -79,6 +83,12 @@ export function SearchableCustomSelect({
 						aria-required={required}
 						className={`${inputControlClassName} cursor-pointer justify-between gap-1.5 disabled:cursor-not-allowed`}
 						disabled={disabled}
+						onKeyDown={event => {
+							if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+								event.preventDefault();
+								changeOpen(true);
+							}
+						}}
 						role="combobox"
 						type="button"
 						variant="outline"
@@ -93,11 +103,18 @@ export function SearchableCustomSelect({
 				</PopoverTrigger>
 				<PopoverContent
 					align="start"
-					className="h-[16.75rem] w-(--radix-popover-trigger-width) min-w-36 gap-0 overflow-hidden p-0"
+					className={cn(
+						"w-(--radix-popover-trigger-width) min-w-36 gap-0 overflow-hidden p-0",
+						searchable ? "h-[16.75rem]" : "max-h-64",
+					)}
 					onOpenAutoFocus={event => {
 						event.preventDefault();
-						searchRef.current?.focus({ preventScroll: true });
-						const selected = selectedRef.current;
+						const selected = selectedRef.current?.disabled ? null : selectedRef.current;
+						const target = searchable
+							? searchRef.current
+							: (selected ??
+								document.getElementById(listId)?.querySelector<HTMLButtonElement>("button:not(:disabled)"));
+						target?.focus({ preventScroll: true });
 						const viewport = selected?.closest<HTMLElement>('[data-slot="scroll-area-viewport"]');
 						if (selected && viewport) {
 							viewport.scrollTop +=
@@ -107,38 +124,40 @@ export function SearchableCustomSelect({
 						}
 					}}
 				>
-					<div className="shrink-0 border-border/60 border-b bg-popover p-2">
-						<div className="relative">
-							<HugeiconsIcon
-								aria-hidden="true"
-								className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-								icon={Search01Icon}
-								strokeWidth={2}
-							/>
-							<Input
-								aria-controls={listId}
-								aria-label={`Buscar ${label.toLocaleLowerCase("pt-BR")}`}
-								autoComplete="off"
-								className="h-9 pl-9"
-								name={`search-${label.toLocaleLowerCase("pt-BR")}`}
-								onChange={event => setSearch(event.currentTarget.value)}
-								onKeyDown={event => {
-									if (event.key === "Enter") event.preventDefault();
-									if (event.key === "ArrowDown") {
-										event.preventDefault();
-										document
-											.getElementById(listId)
-											?.querySelector<HTMLButtonElement>("button:not(:disabled)")
-											?.focus();
-									}
-								}}
-								placeholder={`Buscar ${label.toLocaleLowerCase("pt-BR")}`}
-								ref={searchRef}
-								type="text"
-								value={search}
-							/>
+					{searchable && (
+						<div className="shrink-0 border-border/60 border-b bg-popover p-2">
+							<div className="relative">
+								<HugeiconsIcon
+									aria-hidden="true"
+									className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+									icon={Search01Icon}
+									strokeWidth={2}
+								/>
+								<Input
+									aria-controls={listId}
+									aria-label={`Buscar ${label.toLocaleLowerCase("pt-BR")}`}
+									autoComplete="off"
+									className="h-9 pl-9"
+									name={`search-${label.toLocaleLowerCase("pt-BR")}`}
+									onChange={event => setSearch(event.currentTarget.value)}
+									onKeyDown={event => {
+										if (event.key === "Enter") event.preventDefault();
+										if (event.key === "ArrowDown") {
+											event.preventDefault();
+											document
+												.getElementById(listId)
+												?.querySelector<HTMLButtonElement>("button:not(:disabled)")
+												?.focus();
+										}
+									}}
+									placeholder={`Buscar ${label.toLocaleLowerCase("pt-BR")}`}
+									ref={searchRef}
+									type="text"
+									value={search}
+								/>
+							</div>
 						</div>
-					</div>
+					)}
 					<ScrollArea className="min-h-0 flex-1">
 						<div
 							aria-label={label}
@@ -146,11 +165,30 @@ export function SearchableCustomSelect({
 							className="grid gap-1 p-1"
 							id={listId}
 							onKeyDown={event => {
-								if (!["ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
-								event.preventDefault();
 								const buttons = Array.from(
 									event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"),
 								);
+								if (
+									!searchable &&
+									event.key.length === 1 &&
+									!event.ctrlKey &&
+									!event.metaKey &&
+									!event.altKey &&
+									event.key !== " "
+								) {
+									event.preventDefault();
+									const time = Date.now();
+									const text =
+										(time - typeahead.current.time < 700 ? typeahead.current.text : "") +
+										event.key.toLocaleLowerCase("pt-BR");
+									typeahead.current = { text, time };
+									buttons
+										.find(button => button.textContent?.trim().toLocaleLowerCase("pt-BR").startsWith(text))
+										?.focus({ preventScroll: true });
+									return;
+								}
+								if (!["ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
+								event.preventDefault();
 								const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
 								if (event.key === "ArrowUp" && index === 0) {
 									searchRef.current?.focus();
