@@ -1,5 +1,9 @@
 import Elysia, { t } from "elysia";
 import {
+	consolidateLegacyInstitution,
+	listInstitutionCatalog,
+} from "~/modules/accounts/application/consolidate-legacy-institution";
+import {
 	proposeInstitution,
 	reviewInstitutionProposal,
 	visibleInstitution,
@@ -11,6 +15,7 @@ import { createEventEnvelope } from "~/shared/application/events";
 import { HttpException } from "~/shared/errors";
 import { PostgresOutbox } from "~/shared/infra/outbox";
 import { queryRaw, withRawTransaction } from "~/shared/infra/sql";
+import { InstitutionCatalogResult } from "../dto/institution-catalog";
 
 const Id = t.String({ maxLength: 36, minLength: 1 });
 const DateDTO = t.String({ format: "date" });
@@ -23,18 +28,8 @@ const InstitutionBody = t.Object({
 });
 
 const MutationReturn = t.Object({ id: t.String(), institutionId: t.String(), status: t.String() });
-const InstitutionReturn = t.Object(
-	{
-		creditInstallmentRemainderOnFirst: t.Boolean(),
-		currency: t.String(),
-		id: t.String(),
-		name: t.String(),
-		operatingCountryCodes: t.Array(t.String()),
-		status: t.String(),
-		version: t.Number(),
-	},
-	{ additionalProperties: true },
-);
+const InstitutionReturn = InstitutionCatalogResult;
+
 const ProposalReturn = t.Object(
 	{
 		authorId: t.String(),
@@ -76,15 +71,24 @@ const NotificationReturn = t.Object(
 );
 
 export const InstitutionsController = new Elysia({ prefix: "/financial-institutions" })
-	.get(
-		"/",
-		async ({ request }) =>
-			queryRaw(
-				`SELECT * FROM "FinancialInstitution" WHERE "status"='APPROVED' OR "userId"=$1 ORDER BY "name"`,
-				[await requireUserId(request)],
-			),
-		{ detail: { tags: ["Institutions"] }, response: t.Array(InstitutionReturn) },
+	.get("/", async ({ request }) => listInstitutionCatalog(await requireUserId(request)), {
+		detail: { tags: ["Institutions"] },
+		response: t.Array(InstitutionReturn),
+	})
+	.get("/review/catalog", async ({ request }) => listInstitutionCatalog(await requireAdmin(request), true), {
+		response: t.Array(InstitutionReturn),
+	})
+	.post(
+		"/review/legacy/:id",
+		async ({ request, params, body }) =>
+			consolidateLegacyInstitution(await requireAdmin(request), params.id, body.targetId),
+		{
+			body: t.Object({ targetId: t.Optional(Id) }),
+			params: t.Object({ id: Id }),
+			response: t.Object({ accounts: t.Integer(), institutionId: t.String(), sourceId: t.String() }),
+		},
 	)
+
 	.post(
 		"/",
 		async ({ body, request }) =>

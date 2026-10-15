@@ -6,6 +6,10 @@ import { installContractFixture } from "../../../../../packages/sql/tests/contra
 import { requireFixtureUrl } from "../../../../../scripts/testing/fixture";
 import { ensureAccountCoverage, ensureCalendarCoverage } from "../../yield-calendar/ensure-coverage";
 import {
+	consolidateLegacyInstitution,
+	listInstitutionCatalog,
+} from "../application/consolidate-legacy-institution";
+import {
 	proposeInstitution,
 	reviewInstitutionProposal,
 	visibleInstitution,
@@ -133,6 +137,98 @@ describe("universal institution review and calendar coverage", () => {
 		expect(account.legacyInstitutionId).toBe(source.institutionId);
 		expect(
 			await queryRaw(`SELECT "id" FROM "UserInstitutionProfileChange" WHERE "id"='source-change'`),
+		).toHaveLength(1);
+	});
+
+	test("legacy identities become one global catalog entry while private history stays archived", async () => {
+		const sources: string[] = [];
+		for (const owner of ["owner", "other"]) {
+			const id = crypto.randomUUID();
+			await queryRaw(
+				`INSERT INTO "FinancialInstitution" ("id","userId","name","normalizedName","currency","status") VALUES ($1,$2,'Shared Legacy Bank','shared legacy bank','USD','LEGACY_PRIVATE')`,
+				[id, owner],
+			);
+			await queryRaw(
+				`INSERT INTO "FinancialAccount" ("id","userId","type","institutionId","currency") VALUES ($1,$2,'CHECKING',$3,'USD')`,
+				[`legacy-${owner}`, owner, id],
+			);
+			sources.push(id);
+		}
+		const first = await consolidateLegacyInstitution("admin", sources[0]!);
+		await expect(consolidateLegacyInstitution("admin", sources[1]!)).rejects.toThrow("Já existe");
+		const second = await consolidateLegacyInstitution("admin", sources[1]!, first.institutionId);
+		expect(second.institutionId).toBe(first.institutionId);
+		for (const owner of ["owner", "other"]) {
+			const catalog = await listInstitutionCatalog(owner);
+			expect(catalog.filter(item => item.name === "Shared Legacy Bank").map(item => item.id)).toEqual([
+				first.institutionId,
+			]);
+			const [account] = await queryRaw<{ institutionId: string; legacyInstitutionId: string }>(
+				`SELECT "institutionId","legacyInstitutionId" FROM "FinancialAccount" WHERE "id"=$1`,
+				[`legacy-${owner}`],
+			);
+			expect(account.institutionId).toBe(first.institutionId);
+			expect(sources).toContain(account.legacyInstitutionId);
+		}
+		expect((await listInstitutionCatalog("admin", true)).some(item => sources.includes(item.id))).toBe(false);
+		expect(
+			await queryRaw(
+				`SELECT "id" FROM "InstitutionReviewAudit" WHERE "proposalId" IN (SELECT "id" FROM "FinancialInstitutionProposal" WHERE "institutionId"=ANY($1::text[]))`,
+				[sources],
+			),
+		).toHaveLength(2);
+		await expect(consolidateLegacyInstitution("admin", sources[0]!)).rejects.toThrow();
+	});
+	test("publishing a legacy link without accounts preserves its private policies", async () => {
+		const id = crypto.randomUUID();
+		await queryRaw(
+			`INSERT INTO "FinancialInstitution" ("id","userId","name","normalizedName","currency","status") VALUES ($1,'owner','Empty Legacy Bank','empty legacy bank','USD','LEGACY_PRIVATE')`,
+			[id],
+		);
+		await queryRaw(
+			`INSERT INTO "FinancialInstitutionYieldPolicy" ("id","financialInstitutionId","currency","effectiveDate") VALUES ('legacy-private-policy',$1,'USD','2026-01-01')`,
+			[id],
+		);
+		const profileId = crypto.randomUUID();
+		await queryRaw(
+			`INSERT INTO "FinancialInstitutionProfile" ("id","institutionId","name","isDefault") VALUES ($1,$2,'Padrão',true)`,
+			[profileId, id],
+		);
+		const pending = await proposeInstitution(
+			"owner",
+			id,
+			"POLICY",
+			{ currency: "USD", profileId, rules: [] },
+			"2026-04-01",
+		);
+		const result = await consolidateLegacyInstitution("admin", id);
+		const [movedProposal] = await queryRaw(
+			`SELECT "institutionId","status","payload" FROM "FinancialInstitutionProposal" WHERE "id"=$1`,
+			[pending.id],
+		);
+		expect(movedProposal.institutionId).toBe(result.institutionId);
+		expect(movedProposal.status).toBe("PENDING");
+		const [targetProfile] = await queryRaw<{ id: string }>(
+			`SELECT "id" FROM "FinancialInstitutionProfile" WHERE "institutionId"=$1 AND "isDefault"`,
+			[result.institutionId],
+		);
+		expect((movedProposal.payload as { profileId: string }).profileId).toBe(targetProfile.id);
+		expect((await visibleInstitution("other", result.institutionId)).status).toBe("APPROVED");
+		expect(
+			await queryRaw(`SELECT "id" FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1`, [
+				result.institutionId,
+			]),
+		).toHaveLength(0);
+		expect(
+			await queryRaw(`SELECT "id" FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1`, [
+				id,
+			]),
+		).toHaveLength(1);
+		expect(
+			await queryRaw(
+				`SELECT "id" FROM "UserFinancialInstitution" WHERE "institutionId"=$1 AND "userId"='owner' AND "globalRulesFrom" IS NULL`,
+				[result.institutionId],
+			),
 		).toHaveLength(1);
 	});
 	test("concurrent generation is idempotent and preserves administrative exclusions", async () => {

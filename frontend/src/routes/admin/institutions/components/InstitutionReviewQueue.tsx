@@ -44,6 +44,7 @@ export function InstitutionReviewQueue() {
 						onReviewed={() => {
 							void query.refetch();
 							void queryClient.invalidateQueries({ queryKey: ["institutions"] });
+							void queryClient.invalidateQueries({ queryKey: ["admin-institution-catalog"] });
 						}}
 						proposal={proposal}
 					/>

@@ -259,6 +259,8 @@ Administradores selecionam juros (CDI ou Selic) ou câmbio por moeda base, inclu
 
 ## Instituições universais e revisão
 
+Cadastros institucionais antigos são consolidados por administração em uma identidade global. Publicação cria identidade aprovada sem publicar políticas privadas; associação aponta contas e vínculos de cada usuário para a mesma identidade escolhida. Registros privados antigos ficam arquivados sem proprietário visível e preservam políticas e históricos por referência. Nomes iguais exigem escolha explícita do destino global. Vínculos consolidados não adotam políticas globais retroativamente; adoção continua exigindo vigência explícita. Catálogo administrativo inclui legados ainda não consolidados de todos os usuários.
+
 Instituições aprovadas são compartilhadas; vínculo e seleção de perfil pertencem ao usuário. Contas referenciam instituição universal, e remover vínculo pessoal nunca exclui instituição global. Instituições pendentes e rejeitadas permanecem privadas ao proponente, incluindo suas contas. Nomes normalizados geram candidatos de fusão; nomes iguais nunca provam identidade. Seleção por identificador elimina ambiguidades.
 
 Criação, alterações, novos perfis e políticas passam por propostas. Aprovação publica em transação, com bloqueio, controle de versão, auditoria de antes/depois e notificação persistente interna. Revisão de proposta desatualizada exige conferência explícita da versão atual. Rejeição exige motivo. Não há notificações externas. Propostas globais exigem conexão; cadastro offline pode usar instituições aprovadas já disponíveis no cache do usuário.
