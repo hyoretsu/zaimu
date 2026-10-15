@@ -16,6 +16,7 @@ import {
 	distributePurchaseCents,
 	installmentOccurrenceDate,
 	purchaseStatementDates,
+	statementIncludesDate,
 	sumCents,
 } from "./credit-purchase";
 import {
@@ -115,6 +116,7 @@ export interface CreditBook {
 		id: string;
 		userId: string;
 		statementDay: number;
+		statementClosingInclusive?: boolean;
 		dueDay: number;
 		workingDueDate?: boolean;
 		ignoreStatementsBefore: string | null;
@@ -234,13 +236,30 @@ export function creditBookConsumption(book: CreditBook) {
 	];
 }
 
+/** Resolve actual cutoffs before falling back to the card's nominal calendar. */
+function purchaseBookStatementDates(book: CreditBook, date: string) {
+	for (let offset = 0; ; offset++) {
+		const month = installmentOccurrenceDate(date, offset + 1).slice(0, 7);
+		const cycles = book.statements
+			.filter(statement => statement.statementDate.slice(0, 7) === month)
+			.toSorted((a, b) => a.statementDate.localeCompare(b.statementDate));
+		const existing = cycles.find(statement =>
+			statementIncludesDate(book.card, statement.statementDate, date),
+		);
+		if (existing) return { dueDate: existing.dueDate, statementDate: existing.statementDate };
+		if (cycles.length) continue;
+		const nominal = purchaseStatementDates(book.card, `${month}-01`);
+		if (statementIncludesDate(book.card, nominal.statementDate, date)) return nominal;
+	}
+}
+
 export function ensureBookStatement(
 	book: CreditBook,
 	date: string,
 	registered?: { statementDate: string; dueDate: string },
 ) {
 	assertDateKey(date);
-	const dates = registered ?? purchaseStatementDates(book.card, date);
+	const dates = registered ?? purchaseBookStatementDates(book, date);
 	const existing = registered
 		? (book.statements.find(statement => statement.statementDate === registered.statementDate) ??
 			(registered.statementDate === registered.dueDate
@@ -250,7 +269,7 @@ export function ensureBookStatement(
 				.toSorted((a, b) => a.statementDate.localeCompare(b.statementDate))
 				.find(
 					statement =>
-						statement.statementDate > date &&
+						statementIncludesDate(book.card, statement.statementDate, date) &&
 						statement.statementDate.slice(0, 7) === dates.statementDate.slice(0, 7),
 				);
 	if (existing) return existing;
@@ -296,10 +315,10 @@ export function creditBookPlan(book: CreditBook) {
 			if (!occurrence) {
 				const date = installmentOccurrenceDate(purchase.purchaseDate, number);
 				const dates =
-					purchase.installmentStatementDates?.[index] ?? purchaseStatementDates(book.card, date);
+					purchase.installmentStatementDates?.[index] ?? purchaseBookStatementDates(book, date);
 				statement = (statementsByMonth.get(dates.statementDate.slice(0, 7)) ?? []).find(
 					item =>
-						item.statementDate > date &&
+						statementIncludesDate(book.card, item.statementDate, date) &&
 						item.statementDate.slice(0, 7) === dates.statementDate.slice(0, 7),
 				);
 				if (!statement) {
@@ -794,7 +813,7 @@ function recomposedPurchaseCalendar(
 			.filter(
 				item =>
 					!item.isForecast &&
-					item.statementDate > date &&
+					statementIncludesDate(book.card, item.statementDate, date) &&
 					(item.id === correctedStatementId ||
 						item.totalAmount !== 0 ||
 						book.installments.some(installment => installment.statementId === item.id)),
@@ -807,12 +826,12 @@ function recomposedPurchaseCalendar(
 			const cycles = book.statements
 				.filter(item => item.statementDate.slice(0, 7) === month)
 				.toSorted((a, b) => a.statementDate.localeCompare(b.statementDate));
-			const cycle = cycles.find(item => item.statementDate > date);
+			const cycle = cycles.find(item => statementIncludesDate(book.card, item.statementDate, date));
 			if (cycle) return cycle;
 			if (
 				!cycles.length &&
 				standard.statementDate.slice(0, 7) === month &&
-				standard.statementDate > date
+				statementIncludesDate(book.card, standard.statementDate, date)
 			)
 				return ensureBookStatement(book, date, standard);
 		}

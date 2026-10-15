@@ -72,6 +72,7 @@ export const CreditBookDTO = t.Object({
 		installmentRemainderOnFirst: t.Optional(t.Boolean()),
 		institutionId: NullableId,
 		refundPolicy: t.Nullable(RefundPolicyDTO),
+		statementClosingInclusive: t.Optional(t.Boolean()),
 		statementDay: t.Integer({ maximum: 31, minimum: 1 }),
 		userId: Id,
 	}),

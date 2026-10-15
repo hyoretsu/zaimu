@@ -10,6 +10,7 @@ describe("user institution changes", () => {
 		{ currency: "USD" },
 		{ operatingCountryCodes: ["BR"] },
 		{ creditInstallmentRemainderOnFirst: true },
+		{ creditStatementClosingInclusive: true },
 		{ accountCurrenciesByCountry: { BR: ["BRL"] } },
 	])("rejects catalog configuration: %j", configuration => {
 		expect(Value.Check(InstitutionNameBody, { name: "Banco do Brasil", ...configuration })).toBe(false);

@@ -723,6 +723,7 @@ export async function mutateLocalCreditBook<T>(
 			installmentRemainderOnFirst: accountRow?.data.institution?.creditInstallmentRemainderOnFirst ?? false,
 			institutionId,
 			refundPolicy: policy?.data ?? book.card.refundPolicy,
+			statementClosingInclusive: accountRow?.data.institution?.creditStatementClosingInclusive ?? false,
 			statementDay: card.statementDay,
 			workingDueDate: card.workingDueDate,
 		});
@@ -965,6 +966,7 @@ export async function readLocalCreditBook(cardId: string, owner?: StorageOwner):
 		installmentRemainderOnFirst: account?.institution?.creditInstallmentRemainderOnFirst ?? false,
 		institutionId,
 		refundPolicy: policy ?? book.card.refundPolicy,
+		statementClosingInclusive: account?.institution?.creditStatementClosingInclusive ?? false,
 		statementDay: card.statementDay,
 		workingDueDate: card.workingDueDate,
 	});

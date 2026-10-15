@@ -75,6 +75,28 @@ describe("normalized purchase installments", () => {
 			statementDate: "2024-03-31",
 		});
 	});
+	test("inclusive closing keeps purchases on the cutoff, including short months", () => {
+		const card = { dueDay: 5, statementClosingInclusive: true, statementDay: 31 };
+		expect(purchaseStatementDates(card, "2024-02-29")).toEqual({
+			dueDate: "2024-03-05",
+			statementDate: "2024-02-29",
+		});
+		expect(purchaseStatementDates(card, "2024-03-01").statementDate).toBe("2024-03-31");
+		expect(purchaseStatementDates({ ...card, statementDay: 15 }, "2024-03-15").statementDate).toBe(
+			"2024-03-15",
+		);
+		expect(purchaseStatementDates({ ...card, statementDay: 15 }, "2024-03-16").statementDate).toBe(
+			"2024-04-15",
+		);
+	});
+	test.each([false, true])("cutoff boundaries include short nonleap February (%j)", inclusive => {
+		const card = { dueDay: 5, statementClosingInclusive: inclusive, statementDay: 31 };
+		expect(purchaseStatementDates(card, "2025-02-27").statementDate).toBe("2025-02-28");
+		expect(purchaseStatementDates(card, "2025-02-28").statementDate).toBe(
+			inclusive ? "2025-02-28" : "2025-03-31",
+		);
+		expect(purchaseStatementDates(card, "2025-03-01").statementDate).toBe("2025-03-31");
+	});
 	test("projects future cycles without persisting them", () => {
 		expect(projectInstallments(purchase)).toEqual([
 			{ amountCents: 10001, number: 1, occurrenceDate: "2024-01-31", purchaseId: "purchase" },

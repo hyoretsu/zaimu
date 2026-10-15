@@ -21,6 +21,7 @@ import {
 	synchronizeBookRefinancing,
 	updateBookPurchaseDate,
 	updateBookRefund,
+	updateBookStatementDates,
 } from "./credit-book";
 
 function emptyBook(): CreditBook {
@@ -212,6 +213,109 @@ describe("normalized credit book", () => {
 		);
 		expect(creditBookPlan(book).installments[0]?.statementId).toBe(installment.statementId);
 		expect(installment.statementId).not.toBe(current.id);
+	});
+	test("inclusive closing reuses the current invoice for materialized and projected installments", () => {
+		const book = emptyBook();
+		book.card.statementClosingInclusive = true;
+		const current = ensureBookStatement(book, "2025-01-19");
+		const purchase = newBookPurchase(
+			book,
+			{
+				description: "Compra no fechamento",
+				installments: 2,
+				purchaseDate: "2025-01-20",
+				totalAmount: 100,
+			},
+			"2025-01-20T12:00:00Z",
+		);
+		expect(book.installments.find(item => item.purchaseId === purchase.id)?.statementId).toBe(current.id);
+		const plan = creditBookPlan(book);
+		expect(
+			plan.installments.map(
+				item => plan.statements.find(s => s.id === item.statementId)?.statementDate,
+			),
+		).toEqual(["2025-01-20", "2025-02-20"]);
+	});
+	test.each([false, true])(
+		"effective closing dates control explicit recalculation and refunds (%j)",
+		inclusive => {
+			const book = emptyBook();
+			book.card.statementClosingInclusive = inclusive;
+			const current = ensureBookStatement(book, "2025-01-19");
+			const purchase = newBookPurchase(
+				book,
+				{
+					description: "Fechamento alterado",
+					installments: 2,
+					purchaseDate: "2025-01-22",
+					totalAmount: 100,
+				},
+				"2025-01-22T12:00:00Z",
+			);
+			updateBookStatementDates(book, current.id, {
+				dueDate: "2025-01-28",
+				statementDate: "2025-01-22",
+			});
+			const plan = creditBookPlan(book);
+			const first = plan.installments.find(
+				item => item.purchaseId === purchase.id && item.number === 1,
+			)!;
+			expect(plan.statements.find(item => item.id === first.statementId)?.statementDate).toBe(
+				inclusive ? "2025-01-22" : "2025-02-20",
+			);
+			const refund = addBookRefund(book, purchase.id, { amount: 10, creditDate: "2025-01-22" });
+			expect(book.statements.find(item => item.id === refund.creditStatementId)?.statementDate).toBe(
+				inclusive ? "2025-01-22" : "2025-02-20",
+			);
+		},
+	);
+	test.each([false, true])(
+		"new purchases honor moved effective cutoff rather than nominal cutoff (%j)",
+		inclusive => {
+			const book = emptyBook();
+			book.card.statementClosingInclusive = inclusive;
+			const current = ensureBookStatement(book, "2025-01-19");
+			updateBookStatementDates(book, current.id, {
+				dueDate: "2025-01-28",
+				statementDate: "2025-01-22",
+			});
+			for (const day of [21, 22, 23]) {
+				const purchase = newBookPurchase(
+					book,
+					{
+						description: "Limite efetivo",
+						installments: 1,
+						purchaseDate: `2025-01-${day}`,
+						totalAmount: 10,
+					},
+					"2025-01-23T12:00:00Z",
+				);
+				const installment = book.installments.find(item => item.purchaseId === purchase.id)!;
+				expect(book.statements.find(item => item.id === installment.statementId)?.statementDate).toBe(
+					day < 22 || (day === 22 && inclusive) ? "2025-01-22" : "2025-02-20",
+				);
+			}
+		},
+	);
+	test("changing institution policy preserves materialized installment history", () => {
+		const book = emptyBook();
+		const purchase = newBookPurchase(
+			book,
+			{
+				description: "Histórico",
+				installments: 2,
+				purchaseDate: "2025-01-20",
+				totalAmount: 100,
+			},
+			"2025-01-20T12:00:00Z",
+		);
+		const original = structuredClone(book.installments);
+		book.card.statementClosingInclusive = true;
+		const plan = creditBookPlan(book);
+		expect(book.installments).toEqual(original);
+		const first = plan.installments.find(item => item.purchaseId === purchase.id && item.number === 1)!;
+		expect(first.statementId).toBe(original[0]!.statementId);
+		expect(plan.statements.find(item => item.id === first.statementId)?.statementDate).toBe("2025-02-20");
 	});
 	test("moves manual purchases from closed invoices with installments and refunds intact", () => {
 		const source = emptyBook();

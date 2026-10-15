@@ -1007,7 +1007,12 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 							.build(),
 					);
 					const financialInstitutions = await queryRows(
-						db.sql.public.FinancialInstitution.select("id", "name", "creditInstallmentRemainderOnFirst")
+						db.sql.public.FinancialInstitution.select(
+							"id",
+							"name",
+							"creditInstallmentRemainderOnFirst",
+							"creditStatementClosingInclusive",
+						)
 							.where((f, fn) => fn.or(fn.eq(f.userId, userId), fn.eq(f.status, "APPROVED")))
 							.build(),
 					);

@@ -26,6 +26,7 @@ export function EditInstitutionCatalogDialog({ institution }: { institution: Adm
 	const currencies = useCurrencyStore(state => state.currencies);
 	const [open, setOpen] = useState(false);
 	const [pending, setPending] = useState(false);
+	const [closingInclusive, setClosingInclusive] = useState(false);
 	const [mapping, setMapping] = useState<Record<string, string[]>>({});
 	const countryNames = new Intl.DisplayNames("pt-BR", { type: "region" });
 	const currencyNames = new Intl.DisplayNames("pt-BR", { type: "currency" });
@@ -33,14 +34,14 @@ export function EditInstitutionCatalogDialog({ institution }: { institution: Adm
 		setPending(true);
 		try {
 			await fetchWithAuth(`/financial-institutions/review/catalog/${institution.id}`, {
-				body: JSON.stringify({ accountCurrenciesByCountry: mapping }),
+				body: JSON.stringify({
+					accountCurrenciesByCountry: mapping,
+					creditStatementClosingInclusive: closingInclusive,
+				}),
 				method: "PATCH",
 			});
-			await Promise.all([
-				queryClient.invalidateQueries({ queryKey: ["admin-institution-catalog"] }),
-				queryClient.invalidateQueries({ queryKey: ["institutions"] }),
-			]);
-			showToast("Países e moedas da instituição salvos", "positive");
+			await queryClient.invalidateQueries();
+			showToast("Configurações da instituição salvas", "positive");
 			setOpen(false);
 		} catch (error) {
 			showToast(error instanceof Error ? error.message : "Não foi possível salvar a instituição", "negative");
@@ -52,7 +53,8 @@ export function EditInstitutionCatalogDialog({ institution }: { institution: Adm
 		<Dialog
 			onOpenChange={value => {
 				if (pending) return;
-				if (value)
+				if (value) {
+					setClosingInclusive(institution.creditStatementClosingInclusive ?? false);
 					setMapping(
 						Object.fromEntries(
 							[
@@ -63,6 +65,7 @@ export function EditInstitutionCatalogDialog({ institution }: { institution: Adm
 							].map(code => [code, [...(institution.accountCurrenciesByCountry?.[code] ?? [])]]),
 						),
 					);
+				}
 				setOpen(value);
 			}}
 			open={open}
@@ -70,22 +73,18 @@ export function EditInstitutionCatalogDialog({ institution }: { institution: Adm
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<DialogTrigger asChild>
-						<Button
-							aria-label={`Configurar países e moedas de ${institution.name}`}
-							size="icon-sm"
-							variant="outline"
-						>
+						<Button aria-label={`Configurar ${institution.name}`} size="icon-sm" variant="outline">
 							<LuPencil />
 						</Button>
 					</DialogTrigger>
 				</TooltipTrigger>
-				<TooltipContent>Configurar países e moedas</TooltipContent>
+				<TooltipContent>Configurar instituição</TooltipContent>
 			</Tooltip>
 			<DialogContent className="sm:max-w-xl">
 				<DialogHeader>
-					<DialogTitle>Países e moedas - {institution.name}</DialogTitle>
+					<DialogTitle>Configurar instituição - {institution.name}</DialogTitle>
 					<DialogDescription>
-						Defina os países de operação e as moedas de contas disponíveis em cada país.
+						Defina os países, as moedas e a regra de fechamento das faturas.
 					</DialogDescription>
 				</DialogHeader>
 				<form
@@ -97,6 +96,21 @@ export function EditInstitutionCatalogDialog({ institution }: { institution: Adm
 				>
 					<DialogBody>
 						<div className="space-y-4">
+							<CustomSelect
+								disabled={pending}
+								label="Data de fechamento da fatura"
+								onValueChange={value => setClosingInclusive(value === "inclusive")}
+								options={[
+									{
+										label: "Exclusiva - compras do dia entram na próxima fatura (padrão)",
+										value: "exclusive",
+									},
+									{ label: "Inclusiva - compras do dia entram na fatura atual", value: "inclusive" },
+								]}
+								placeholder="Ex: Exclusiva"
+								value={closingInclusive ? "inclusive" : "exclusive"}
+							/>
+
 							<CustomSelect
 								disabled={pending}
 								label="Adicionar país de operação"
@@ -166,7 +180,7 @@ export function EditInstitutionCatalogDialog({ institution }: { institution: Adm
 							)}
 							{pending && (
 								<p className="text-muted-foreground text-sm" role="status">
-									Salvando países e moedas...
+									Salvando instituição...
 								</p>
 							)}
 						</div>

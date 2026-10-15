@@ -20,6 +20,7 @@ interface CardRow {
 	id: string;
 	dueDay: number;
 	workingDueDate: boolean;
+	statementClosingInclusive: boolean;
 	statementDay: number;
 	ignoreStatementsBefore: string | null;
 }
@@ -71,7 +72,7 @@ interface PaymentRow {
 /** Rebuilds the complete chronological card chain inside the same locked refund transaction. */
 export async function replayNormalizedCard(query: RawQuery, cardId: string) {
 	const [card] = await query<CardRow>(
-		`SELECT "id", "currency", "dueDay", "statementDay", "workingDueDate", "ignoreStatementsBefore"::text AS "ignoreStatementsBefore" FROM "CreditCard" WHERE "id" = $1`,
+		`SELECT c."id", c."currency", c."dueDay", c."statementDay", c."workingDueDate", c."ignoreStatementsBefore"::text AS "ignoreStatementsBefore", COALESCE(i."creditStatementClosingInclusive", false) AS "statementClosingInclusive" FROM "CreditCard" c JOIN "FinancialAccount" a ON a."id"=c."financialAccountId" LEFT JOIN "FinancialInstitution" i ON i."id"=a."institutionId" WHERE c."id" = $1`,
 		[cardId],
 	);
 	if (!card) throw new HttpException("Cartão não encontrado", 404);

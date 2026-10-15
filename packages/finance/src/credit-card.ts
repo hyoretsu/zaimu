@@ -18,6 +18,7 @@ export function currentDateKey() {
 }
 
 export interface CardCalendar {
+	statementClosingInclusive?: boolean;
 	currency?: string;
 	statementDay: number;
 	dueDay: number;

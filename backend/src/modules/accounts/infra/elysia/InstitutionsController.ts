@@ -24,6 +24,7 @@ const Id = t.String({ maxLength: 36, minLength: 1 });
 const DateDTO = t.String({ format: "date" });
 const InstitutionBody = t.Object({
 	creditInstallmentRemainderOnFirst: t.Optional(t.Boolean()),
+	creditStatementClosingInclusive: t.Optional(t.Boolean()),
 	currency: t.Optional(t.String({ maxLength: 3, minLength: 3 })),
 	effectiveDate: t.Optional(DateDTO),
 	name: t.Optional(t.String({ maxLength: 100, minLength: 1 })),
@@ -85,7 +86,11 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 		"/review/catalog/:id",
 		async ({ request, params, body }) => {
 			await requireAdmin(request);
-			return configureInstitutionCountries(params.id, body.accountCurrenciesByCountry);
+			return configureInstitutionCountries(
+				params.id,
+				body.accountCurrenciesByCountry,
+				body.creditStatementClosingInclusive,
+			);
 		},
 		{
 			body: InstitutionCountriesBody,

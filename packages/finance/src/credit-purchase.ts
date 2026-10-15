@@ -1,4 +1,4 @@
-import { statementDueDate } from "./credit-card";
+import { type CardCalendar, statementDueDate } from "./credit-card";
 
 /** Money in normalized purchase records is an integer number of cents. */
 export function assertCents(value: number, minimum = 0) {
@@ -81,11 +81,8 @@ export function installmentOccurrenceDate(purchaseDate: string, number: number) 
 	return target.toISOString().slice(0, 10);
 }
 
-/** Purchases and refund credits on a closing date belong to the next cycle. */
-export function purchaseStatementDates(
-	card: { statementDay: number; dueDay: number; workingDueDate?: boolean },
-	occurrenceDate: string,
-) {
+/** Closing dates are exclusive unless the institution includes that day. */
+export function purchaseStatementDates(card: CardCalendar, occurrenceDate: string) {
 	assertDateKey(occurrenceDate);
 	if (![card.statementDay, card.dueDay].every(day => Number.isInteger(day) && day >= 1 && day <= 31))
 		throw new RangeError("Calendário do cartão inválido");
@@ -97,7 +94,7 @@ export function purchaseStatementDates(
 		return first;
 	};
 	let closing = monthDay(date.getUTCFullYear(), date.getUTCMonth(), card.statementDay);
-	if (closing.toISOString().slice(0, 10) <= occurrenceDate)
+	if (!statementIncludesDate(card, closing.toISOString().slice(0, 10), occurrenceDate))
 		closing = monthDay(date.getUTCFullYear(), date.getUTCMonth() + 1, card.statementDay);
 	return { dueDate: statementDueDate(card, closing), statementDate: closing.toISOString().slice(0, 10) };
 }
@@ -177,4 +174,9 @@ export function purchaseMetadata(purchase: CreditPurchase): PurchaseMetadata {
 		storeName: purchase.storeName,
 		tagIds: [...purchase.tagIds],
 	};
+}
+
+/** Whether a purchase date precedes this cycle's configured cutoff. */
+export function statementIncludesDate(card: CardCalendar, closingDate: string, occurrenceDate: string) {
+	return card.statementClosingInclusive ? closingDate >= occurrenceDate : closingDate > occurrenceDate;
 }

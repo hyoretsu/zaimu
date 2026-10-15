@@ -91,6 +91,7 @@ export interface FinancialInstitution {
 	status?: "LEGACY_PRIVATE" | "PENDING" | "APPROVED" | "REJECTED" | "REJECTED_PRIVATE";
 	version?: number;
 	operatingCountryCodes?: string[];
+	creditStatementClosingInclusive?: boolean;
 	creditInstallmentRemainderOnFirst?: boolean;
 	currency?: string;
 	id: string;

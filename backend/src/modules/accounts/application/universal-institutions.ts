@@ -14,6 +14,7 @@ export async function visibleInstitution(userId: string, id: string) {
 		id: string;
 		name: string;
 		currency: string;
+		creditStatementClosingInclusive: boolean;
 		creditInstallmentRemainderOnFirst: boolean;
 		status: string;
 		version: number;
@@ -41,6 +42,7 @@ export async function proposeInstitution(
 				// Proposing publication of legacy identity never publishes its private policies.
 				payload = {
 					creditInstallmentRemainderOnFirst: original.creditInstallmentRemainderOnFirst,
+					creditStatementClosingInclusive: original.creditStatementClosingInclusive,
 					currency: original.currency,
 					name: original.name,
 					...payload,
@@ -163,7 +165,7 @@ export async function reviewInstitutionProposal(
 			if (proposal.kind === "NEW_INSTITUTION" || proposal.kind === "INSTITUTION_UPDATE") {
 				const name = normalizeFinancialInstitutionName(String(payload.name ?? institution.name));
 				await query(
-					`UPDATE "FinancialInstitution" SET "name"=$2,"normalizedName"=$3,"currency"=$4,"creditInstallmentRemainderOnFirst"=$5,"operatingCountryCodes"=$6,"status"='APPROVED',"userId"=NULL,"version"="version"+1,"updatedAt"=NOW() WHERE "id"=$1`,
+					`UPDATE "FinancialInstitution" SET "name"=$2,"normalizedName"=$3,"currency"=$4,"creditInstallmentRemainderOnFirst"=$5,"operatingCountryCodes"=$6,"creditStatementClosingInclusive"=$7,"status"='APPROVED',"userId"=NULL,"version"="version"+1,"updatedAt"=NOW() WHERE "id"=$1`,
 					[
 						institution.id,
 						name.name,
@@ -171,6 +173,7 @@ export async function reviewInstitutionProposal(
 						payload.currency ?? institution.currency,
 						payload.creditInstallmentRemainderOnFirst ?? institution.creditInstallmentRemainderOnFirst,
 						payload.operatingCountryCodes ?? institution.operatingCountryCodes,
+						payload.creditStatementClosingInclusive ?? institution.creditStatementClosingInclusive,
 					],
 				);
 			} else if (proposal.kind === "PROFILE") {

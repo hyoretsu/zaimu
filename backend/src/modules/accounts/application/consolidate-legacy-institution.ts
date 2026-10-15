@@ -31,7 +31,7 @@ export async function consolidateLegacyInstitution(reviewerId: string, sourceId:
 				);
 			targetId = crypto.randomUUID();
 			await query(
-				`INSERT INTO "FinancialInstitution" ("id","name","normalizedName","currency","creditInstallmentRemainderOnFirst","operatingCountryCodes","status","version","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,'APPROVED',1,NOW())`,
+				`INSERT INTO "FinancialInstitution" ("id","name","normalizedName","currency","creditInstallmentRemainderOnFirst","operatingCountryCodes","creditStatementClosingInclusive","status","version","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,'APPROVED',1,NOW())`,
 				[
 					targetId,
 					source.name,
@@ -39,6 +39,7 @@ export async function consolidateLegacyInstitution(reviewerId: string, sourceId:
 					source.currency,
 					source.creditInstallmentRemainderOnFirst,
 					source.operatingCountryCodes,
+					source.creditStatementClosingInclusive,
 				],
 			);
 			await query(

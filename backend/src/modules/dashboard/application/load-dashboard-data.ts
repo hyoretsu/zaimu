@@ -48,6 +48,7 @@ export interface DashboardCard {
 	id: string;
 	ignoreStatementsBefore: null | string;
 	institutionId: null | string;
+	statementClosingInclusive?: boolean;
 	installmentRemainderOnFirst?: boolean;
 	institutionName: null | string;
 	name: null | string;
@@ -118,7 +119,7 @@ export interface DashboardLoanPayment {
 
 const comparisonOverviewSql = `
 WITH visible_cards AS (
-  SELECT card.*, account."userId", account."institutionId", institution."creditRefundPolicy" AS "refundPolicy", COALESCE(institution."creditInstallmentRemainderOnFirst", false) AS "installmentRemainderOnFirst"
+  SELECT card.*, account."userId", account."institutionId", institution."creditRefundPolicy" AS "refundPolicy", COALESCE(institution."creditInstallmentRemainderOnFirst", false) AS "installmentRemainderOnFirst", COALESCE(institution."creditStatementClosingInclusive", false) AS "statementClosingInclusive"
   FROM "CreditCard" card
   JOIN "FinancialAccount" account ON account."id" = card."financialAccountId"
   LEFT JOIN "FinancialInstitution" institution ON institution."id" = account."institutionId"
@@ -150,6 +151,7 @@ SELECT 'card', jsonb_build_object(
   'financialAccountId', card."financialAccountId", 'id', card."id",
   'ignoreStatementsBefore', card."ignoreStatementsBefore", 'institutionId', card."institutionId",
   'institutionName', institution."name", 'name', account."name", 'refundPolicy', card."refundPolicy",
+  'statementClosingInclusive', card."statementClosingInclusive",
   'installmentRemainderOnFirst', card."installmentRemainderOnFirst",
   'workingDueDate', card."workingDueDate"
 )

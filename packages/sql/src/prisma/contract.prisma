@@ -297,6 +297,7 @@ namespace public {
     version Int @default(1)
     operatingCountryCodes VarChar(2)[] @default([])
     accountCurrenciesByCountry Json @default(dbgenerated("'{}'::json"))
+    creditStatementClosingInclusive Boolean @default(false)
     creditInstallmentRemainderOnFirst Boolean @default(false)
     currency VarChar(3) @default("BRL")
 

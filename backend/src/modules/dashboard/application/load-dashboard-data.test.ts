@@ -62,6 +62,43 @@ test("dashboard invoice forecasts retain the institution installment policy", ()
 	]);
 });
 
+test("dashboard forecasts honor inclusive institution closing day", () => {
+	const subscription: RecurrenceDefinition = {
+		amount: 100,
+		createdAt: "2026-10-01",
+		creditCardId: "card-a",
+		dayOfMonth: 20,
+		endDate: "2026-10-31",
+		id: "closing-subscription",
+		installments: 1,
+		interval: 1,
+		isActive: true,
+		materializedThrough: "2026-09-30",
+		movement: "CARD_PURCHASE",
+		name: "Assinatura",
+		startDate: "2026-10-01",
+		unit: "MONTH",
+		updatedAt: "2026-10-01",
+		userId: "user-1",
+	};
+	for (const inclusive of [false, true]) {
+		const statements = replayDashboardStatements(
+			"user-1",
+			[{ ...card("card-a"), dueDay: 28, statementClosingInclusive: inclusive, statementDay: 20 }],
+			[],
+			"2026-10-01",
+			[subscription],
+			"2026-11-30",
+		);
+		expect(
+			statements
+				.find(statement => statement.totalAmount === 100)
+				?.statementDate.toISOString()
+				.slice(0, 10),
+		).toBe(inclusive ? "2026-10-20" : "2026-11-20");
+	}
+});
+
 const creditRows = (cardId: string, amount: number): DashboardDataRow[] => {
 	const purchaseId = `purchase-${cardId}`;
 	const statementId = `statement-${cardId}`;

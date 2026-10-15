@@ -6,5 +6,6 @@ export const InstitutionCountriesBody = t.Object({
 		t.Array(t.String({ pattern: "^[A-Z]{3}$" }), { minItems: 1, uniqueItems: true }),
 		{ additionalProperties: false },
 	),
+	creditStatementClosingInclusive: t.Optional(t.Boolean()),
 });
 export type InstitutionCountriesBody = typeof InstitutionCountriesBody.static;

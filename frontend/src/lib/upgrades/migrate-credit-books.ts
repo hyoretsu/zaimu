@@ -106,6 +106,7 @@ export async function migrateCreditBooks(db: IDBDatabase, borrowed?: IDBTransact
 						ignoreStatementsBefore: card.ignoreStatementsBefore?.slice(0, 10) ?? null,
 						institutionId: account?.institutionId ?? null,
 						refundPolicy: null,
+						statementClosingInclusive: account?.institution?.creditStatementClosingInclusive ?? false,
 						statementDay: card.statementDay,
 						userId: owner.split(":").slice(1).join(":"),
 					},

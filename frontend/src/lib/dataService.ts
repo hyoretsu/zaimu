@@ -2775,6 +2775,7 @@ export const dataService = {
 				name?: string;
 				currency?: string;
 				operatingCountryCodes?: string[];
+				creditStatementClosingInclusive?: boolean;
 				creditInstallmentRemainderOnFirst?: boolean;
 				yieldPolicy?: Omit<import("./api").FinancialInstitutionYieldPolicy, "effectiveDate">;
 			},
@@ -2789,6 +2790,9 @@ export const dataService = {
 				const updated = {
 					...institution,
 					...(data.currency !== undefined && { currency: data.currency }),
+					...(data.creditStatementClosingInclusive !== undefined && {
+						creditStatementClosingInclusive: data.creditStatementClosingInclusive,
+					}),
 					...(data.creditInstallmentRemainderOnFirst !== undefined && {
 						creditInstallmentRemainderOnFirst: data.creditInstallmentRemainderOnFirst,
 					}),

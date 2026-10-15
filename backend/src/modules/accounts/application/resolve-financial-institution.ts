@@ -11,9 +11,10 @@ export async function resolveFinancialInstitution(userId: string, input?: string
 		id: string;
 		name: string;
 		currency: string;
+		creditStatementClosingInclusive: boolean;
 		creditInstallmentRemainderOnFirst: boolean;
 	}>(
-		`SELECT "id","name","currency","creditInstallmentRemainderOnFirst" FROM "FinancialInstitution" WHERE "normalizedName"=$1 AND ("status"='APPROVED' OR "userId"=$2) ORDER BY CASE WHEN "userId"=$2 THEN 0 ELSE 1 END`,
+		`SELECT "id","name","currency","creditInstallmentRemainderOnFirst","creditStatementClosingInclusive" FROM "FinancialInstitution" WHERE "normalizedName"=$1 AND ("status"='APPROVED' OR "userId"=$2) ORDER BY CASE WHEN "userId"=$2 THEN 0 ELSE 1 END`,
 		[normalizedName, userId],
 	);
 	// Names alone cannot identify universal homonyms safely.

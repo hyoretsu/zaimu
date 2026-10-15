@@ -4,6 +4,7 @@ import { purchaseStatementDates } from "@zaimu/finance/credit-purchase";
 interface Calendar {
 	createdAt: Date;
 	dueDay: number;
+	statementClosingInclusive?: boolean;
 	statementDay: number;
 	workingDueDate?: boolean;
 }
