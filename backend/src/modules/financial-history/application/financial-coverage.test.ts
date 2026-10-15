@@ -9,7 +9,6 @@ test("coverage windows allow future projections but reject invalid and reversed 
 	for (const [start, end] of [
 		["2026-02-30", "2026-03-01"],
 		["2026-03-01", "2026-02-01"],
-		["2000-01-01", "2050-01-01"],
 	])
 		expect(() => financialCoverageWindow(start, end)).toThrow();
 });
@@ -38,4 +37,11 @@ test("adjacent versions cover a timeline together and preserve true gaps", () =>
 			{ endDate: "2026-02-28", startDate: null },
 		]),
 	).toEqual([{ endDate: "2026-03-31", startDate: "2026-03-01" }]);
+});
+
+test("coverage inventory accepts more than ten years", () => {
+	expect(financialCoverageWindow("2000-01-01", "2050-01-01")).toEqual({
+		endDate: "2050-01-01",
+		startDate: "2000-01-01",
+	});
 });

@@ -5,8 +5,8 @@ export function coverageWindow(start?: string, end?: string, now = new Date()) {
 	const startDate = dateKey(start ?? shiftDay(today, -365));
 	const endDate = dateKey(end ?? shiftDay(today, -1));
 	const requestedDays = (Date.parse(endDate) - Date.parse(startDate)) / 86_400_000 + 1;
-	if (requestedDays < 1 || requestedDays > 3660 || endDate >= today)
-		throw new RangeError("Selecione até 3.660 dias, anteriores ao dia atual");
+	if (requestedDays < 1 || endDate >= today)
+		throw new RangeError("Selecione um intervalo válido, anterior ao dia atual");
 	return { endDate, requestedDays, startDate };
 }
 

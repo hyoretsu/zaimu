@@ -33,11 +33,7 @@ export function FinancialHistoryAdmin({ header }: { header: ComponentProps<typeo
 	const startDate = range.startDate;
 	const endDate = range.endDate ?? startDate;
 	const valid =
-		!!startDate &&
-		!!endDate &&
-		startDate <= endDate &&
-		endDate < format(new Date(), "yyyy-MM-dd") &&
-		(Date.parse(endDate) - Date.parse(startDate)) / 86400000 < 3660;
+		!!startDate && !!endDate && startDate <= endDate && endDate < format(new Date(), "yyyy-MM-dd");
 	const query = useQuery({
 		enabled: valid,
 		queryFn: () =>
@@ -106,7 +102,7 @@ export function FinancialHistoryAdmin({ header }: { header: ComponentProps<typeo
 					/>
 				</FormFieldRow>
 				{!valid ? (
-					<p role="alert">Escolha até 3.660 dias, encerrados antes de hoje.</p>
+					<p role="alert">Escolha um intervalo válido, encerrado antes de hoje.</p>
 				) : query.isPending ? (
 					<HistoryCoverageSkeleton />
 				) : query.isError ? (

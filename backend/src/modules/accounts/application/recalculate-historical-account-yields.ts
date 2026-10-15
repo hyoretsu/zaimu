@@ -1,5 +1,5 @@
 import { historicalYieldOverride } from "@zaimu/finance/projected-yield";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
 import { t } from "elysia";
 import { assertFinancialAccountYieldSettings } from "~/modules/accounts/domain/assert-financial-account-yield-settings";
 import type { YieldAccount } from "~/modules/accounts/domain/calculate-financial-account-yields";
@@ -37,6 +37,12 @@ export function selectHistoricalYieldSettings(
 	}
 }
 
+export function historicalYieldCollectionWindow(createdAt: Date, now = new Date()) {
+	const startDate = format(createdAt, "yyyy-MM-dd");
+	const endDate = format(subDays(now, 1), "yyyy-MM-dd");
+	return startDate <= endDate ? { endDate, startDate } : null;
+}
+
 export async function recalculateHistoricalAccountYields(
 	userId: string,
 	accountId: string,
@@ -59,7 +65,8 @@ export async function recalculateHistoricalAccountYields(
 		}
 		const account = await loadYieldAccount(accountId);
 		if (!account) throw new HttpException("Conta não encontrada", 404);
-		const throughDate = format(new Date(), "yyyy-MM-dd");
+		const now = new Date();
+		const throughDate = format(now, "yyyy-MM-dd");
 		if (customSettings) {
 			assertFinancialAccountYieldSettings({ ...customSettings, type: account.type });
 			await assertTaxSelection(customSettings.yieldTaxIds, account.yieldTaxIds ?? [], new Date());
@@ -78,11 +85,9 @@ export async function recalculateHistoricalAccountYields(
 						: [],
 			),
 		];
-		if (referenceTypes.length)
-			await requestHistoryCollection("INTEREST", referenceTypes, throughDate, undefined, {
-				endDate: throughDate,
-				startDate: format(account.createdAt, "yyyy-MM-dd"),
-			});
+		const collectionWindow = historicalYieldCollectionWindow(account.createdAt, now);
+		if (referenceTypes.length && collectionWindow)
+			await requestHistoryCollection("INTEREST", referenceTypes, throughDate, undefined, collectionWindow);
 		await enqueueAccountYieldRecalculation(accountId, account.createdAt, `historical:${crypto.randomUUID()}`);
 		return { success: true };
 	});

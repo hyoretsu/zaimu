@@ -9,13 +9,12 @@ describe("administrative historical coverage", () => {
 			startDate: "2025-10-11",
 		});
 	});
-	test("rejects invalid, reversed, future and oversized intervals", () => {
+	test("rejects invalid, reversed and future intervals", () => {
 		const now = new Date("2026-10-11T12:00:00Z");
 		for (const [start, end] of [
 			["2026-02-30", "2026-03-01"],
 			["2026-03-01", "2026-02-01"],
 			["2026-10-10", "2026-10-11"],
-			["2000-01-01", "2026-10-10"],
 		])
 			expect(() => coverageWindow(start, end, now)).toThrow();
 	});
@@ -43,5 +42,13 @@ describe("administrative historical coverage", () => {
 			savedDays: 0,
 			verifiedDays: 0,
 		});
+	});
+});
+
+test("accepts historical windows longer than ten years", () => {
+	expect(coverageWindow("2000-01-01", "2026-10-10", new Date("2026-10-11T12:00:00Z"))).toEqual({
+		endDate: "2026-10-10",
+		requestedDays: 9780,
+		startDate: "2000-01-01",
 	});
 });

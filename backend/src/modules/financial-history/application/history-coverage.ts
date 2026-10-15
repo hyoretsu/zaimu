@@ -28,7 +28,7 @@ export async function getHistoryCoverage(
 	try {
 		window = coverageWindow(start, end);
 	} catch {
-		throw new HttpException("Intervalo histórico inválido: use até 3.660 dias anteriores ao dia atual", 400);
+		throw new HttpException("Intervalo histórico inválido: use datas anteriores ao dia atual", 400);
 	}
 	const parameters = [window.startDate, window.endDate];
 	const [summaries, saved, cdi, selic] = await Promise.all([

@@ -138,3 +138,47 @@ test("coverage completion rejects reversed and future windows before database ac
 		).rejects.toThrow();
 	}
 });
+
+test("multi-decade interest collection publishes bounded annual jobs without gaps", async () => {
+	const published: { startDate: string; endDate: string }[] = [];
+	const query = (async (statement: string, parameters: unknown[] = []) => {
+		if (statement.includes('INSERT INTO "FinancialHistoryCollection"')) return [{ id: "collection" }];
+		if (statement.includes('INSERT INTO "FinancialHistoryUnit"'))
+			return [
+				{
+					...unit,
+					attempts: 0,
+					endDate: parameters[5],
+					generation: 0,
+					id: String(parameters[0]),
+					kind: "INTEREST",
+					series: "CDI",
+					startDate: parameters[4],
+					state: "PENDING",
+				},
+			];
+		return [];
+	}) as typeof queryRaw;
+	await requestHistoryCollection(
+		"INTEREST",
+		["CDI"],
+		undefined,
+		{
+			publish: async job => {
+				published.push(job);
+			},
+			read: async () => null,
+			transaction: async operation => operation(query),
+		},
+		{ endDate: "2025-03-10", startDate: "2000-06-15" },
+	);
+	expect(published).toHaveLength(26);
+	expect(published[0]).toMatchObject({ endDate: "2000-12-31", startDate: "2000-06-15" });
+	expect(published.at(-1)).toMatchObject({ endDate: "2025-03-10", startDate: "2025-01-01" });
+	for (let index = 0; index < published.length; index++) {
+		const job = published[index]!;
+		expect(Date.parse(job.endDate) - Date.parse(job.startDate)).toBeLessThanOrEqual(365 * 86400000);
+		if (index > 0)
+			expect(Date.parse(job.startDate) - Date.parse(published[index - 1]!.endDate)).toBe(86400000);
+	}
+});

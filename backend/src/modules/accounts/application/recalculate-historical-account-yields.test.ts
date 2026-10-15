@@ -79,3 +79,17 @@ test("sync validates tiered snapshots instead of accepting malformed rules as a 
 		}),
 	).toBe(true);
 });
+
+test("historical collection stops yesterday and skips accounts created today", async () => {
+	const { historicalYieldCollectionWindow } = await import("./recalculate-historical-account-yields");
+	const now = new Date(2026, 9, 15, 12);
+	expect(historicalYieldCollectionWindow(new Date(2000, 0, 1), now)).toEqual({
+		endDate: "2026-10-14",
+		startDate: "2000-01-01",
+	});
+	expect(historicalYieldCollectionWindow(new Date(2026, 9, 14), now)).toEqual({
+		endDate: "2026-10-14",
+		startDate: "2026-10-14",
+	});
+	expect(historicalYieldCollectionWindow(new Date(2026, 9, 15), now)).toBeNull();
+});

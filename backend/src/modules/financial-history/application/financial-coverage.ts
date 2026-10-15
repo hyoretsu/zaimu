@@ -19,8 +19,7 @@ export function financialCoverageWindow(start?: string, end?: string) {
 		!Number.isFinite(to.getTime()) ||
 		day(from) !== startDate ||
 		day(to) !== endDate ||
-		to < from ||
-		to.getTime() - from.getTime() > 3660 * 86400000
+		to < from
 	)
 		throw new HttpException("Intervalo de cobertura inválido", 400);
 	return { endDate, startDate };
