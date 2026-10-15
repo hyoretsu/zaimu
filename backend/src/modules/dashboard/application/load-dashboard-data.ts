@@ -85,6 +85,7 @@ export interface DashboardSchedule {
 }
 
 export interface DashboardFlow {
+	description?: string | null;
 	yieldIncome?: boolean;
 	tagIds?: readonly string[];
 	destinationAmount?: number | null;
@@ -228,7 +229,7 @@ WHERE loan."userId" = $1 AND payment."paidDate" IS NULL AND payment."dueDate" >=
 
 const comparisonMovementsSql = `
 SELECT 'flow' AS kind, jsonb_build_object(
-  'tagIds', COALESCE((SELECT jsonb_agg(assignment."categoryId") FROM "TagAssignment" assignment WHERE assignment."entityId"=transaction."id" AND assignment."entityType"='TRANSACTION'), '[]'::jsonb), 'currency', transaction."bookingCurrency", 'destinationAmount', transaction."destinationAmount", 'cardPayment', transaction."paymentCreditCardId" IS NOT NULL, 'id', transaction."id", 'amount', transaction."amount", 'date', transaction."date", 'type', transaction."type"::text,
+  'tagIds', COALESCE((SELECT jsonb_agg(assignment."categoryId") FROM "TagAssignment" assignment WHERE assignment."entityId"=transaction."id" AND assignment."entityType"='TRANSACTION'), '[]'::jsonb), 'currency', transaction."bookingCurrency", 'destinationAmount', transaction."destinationAmount", 'cardPayment', transaction."paymentCreditCardId" IS NOT NULL, 'id', transaction."id", 'description', transaction."description", 'amount', transaction."amount", 'date', transaction."date", 'type', transaction."type"::text,
   'originAccountId', transaction."originFinancialAccountId", 'destinationAccountId', transaction."destinationFinancialAccountId", 'recurring', transaction."recurrenceId" IS NOT NULL
 ) AS data
 FROM "Transaction" transaction

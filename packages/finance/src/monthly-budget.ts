@@ -12,7 +12,7 @@ export interface MonthlyBudget {
 	endMonth: string | null;
 }
 /** Single-month records override the recurring plan with the same origin and currency.
- * Uncategorized expenses and savings reserves use their name as their planning identity. */
+ * Title expenses and savings reserves use their name as their planning identity. */
 export function sameBudgetPlan(
 	a: Pick<MonthlyBudget, "source" | "categoryId" | "currency" | "name">,
 	b: Pick<MonthlyBudget, "source" | "categoryId" | "currency" | "name">,
@@ -28,6 +28,7 @@ export function isMonthlyAdjustment(a: Pick<MonthlyBudget, "startMonth" | "endMo
 	return a.startMonth === a.endMonth;
 }
 export interface BudgetCommitment {
+	description?: string;
 	id?: string;
 	amount: number;
 	currency: string;
@@ -35,6 +36,23 @@ export interface BudgetCommitment {
 	tagIds?: readonly string[];
 	cardPayment?: boolean;
 	type: string;
+}
+/** Title envelopes match cash expenses and transfers, never incoming money. */
+export function matchesBudgetCommitment(budget: MonthlyBudget, row: BudgetCommitment) {
+	if (budget.source === "CUSTOM") {
+		const title = budget.name.trim().toLocaleLowerCase("pt-BR");
+		return (
+			Boolean(title) &&
+			(row.type === "EXPENSE" || row.type === "TRANSFER") &&
+			row.description?.trim().toLocaleLowerCase("pt-BR") === title
+		);
+	}
+	if (row.type !== "EXPENSE") return false;
+	return budget.source === "STATEMENTS"
+		? Boolean(row.cardPayment)
+		: budget.source === "TAG" &&
+				!row.cardPayment &&
+				Boolean(row.tagIds?.includes(budget.categoryId ?? ""));
 }
 export interface MonthlyBudgetItem extends MonthlyBudget {
 	plannedAmount: number;
@@ -55,9 +73,7 @@ export function monthlyBudgetSummary(input: {
 	convert?: (amount: number, source: string, target: string, date: string) => number;
 }): MonthlyBudgetSummary {
 	monthEnd(input.month);
-	const commitments = input.commitments.filter(
-		row => row.date.slice(0, 7) === input.month && row.type === "EXPENSE",
-	);
+	const commitments = input.commitments.filter(row => row.date.slice(0, 7) === input.month);
 	const active = input.budgets.filter(
 		row => row.startMonth <= input.month && (!row.endMonth || row.endMonth >= input.month),
 	);
@@ -66,21 +82,17 @@ export function monthlyBudgetSummary(input: {
 			isMonthlyAdjustment(row) ||
 			!active.some(other => isMonthlyAdjustment(other) && sameBudgetPlan(row, other)),
 	);
-	const matchesBudget = (budget: MonthlyBudget, row: BudgetCommitment) =>
-		budget.source === "STATEMENTS"
-			? row.cardPayment
-			: budget.source === "TAG" && !row.cardPayment && row.tagIds?.includes(budget.categoryId ?? "");
 	const items = budgets.map(budget => {
 		const seen = new Set<string>();
 		let knownAmount = 0;
 		for (const row of commitments) {
-			const matches = matchesBudget(budget, row);
+			const matches = matchesBudgetCommitment(budget, row);
 			if (!matches || (row.id && seen.has(row.id))) continue;
 			if (row.id) seen.add(row.id);
 			if (row.currency !== budget.currency && !input.convert)
 				throw new Error("Budget consolidation requires currency conversion");
 			const matching = budgets
-				.filter(other => matchesBudget(other, row))
+				.filter(other => matchesBudgetCommitment(other, row))
 				.sort((a, b) => a.id.localeCompare(b.id));
 			const cents = toMinorUnits(row.amount, row.currency);
 			const share = Math.floor(cents / matching.length);

@@ -255,3 +255,56 @@ test("active invoice budget reserves overdue outstanding without losing known sp
 	).toBe(90);
 	expect(context.balanceAt(through)).toBe(-30);
 });
+
+test("title budget recognizes actual and projected transfers without duplicate reserves", () => {
+	const data = loaded();
+	data.monthlyBudgets = [
+		{
+			amount: 100,
+			categoryId: null,
+			currency: "BRL",
+			endMonth: null,
+			id: "ian",
+			name: "Cartão de Ian",
+			source: "CUSTOM",
+			startMonth: "2026-10",
+		},
+	];
+	data.flows = [
+		{
+			amount: 40,
+			currency: "BRL",
+			date: new Date("2026-10-02T12:00:00"),
+			description: "Cartão de Ian",
+			destinationAccountId: "reserve",
+			originAccountId: "cash",
+			type: "TRANSFER",
+		},
+	];
+	data.recurrences = [
+		{
+			amount: 60,
+			createdAt: "",
+			dayOfMonth: 10,
+			destinationFinancialAccountId: "reserve",
+			id: "ian-transfer",
+			interval: 1,
+			isActive: true,
+			materializedThrough: "2026-09-30",
+			movement: "TRANSFER",
+			name: "Cartão de Ian",
+			originFinancialAccountId: "cash",
+			startDate: "2026-10-01",
+			unit: "MONTH",
+			updatedAt: "",
+			userId: "owner",
+		},
+	];
+	const context = dashboardFinancialContext(data, { end: through, start: from }, today, from, through);
+	expect(context.budgetSummary("2026-10").items[0]).toMatchObject({
+		additionalAmount: 0,
+		knownAmount: 100,
+		projectedAmount: 100,
+	});
+	expect(context.comparisonTransactions.filter(row => row.type === "EXPENSE")).toHaveLength(0);
+});

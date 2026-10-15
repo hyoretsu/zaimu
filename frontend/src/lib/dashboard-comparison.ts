@@ -4,6 +4,7 @@ import { creditBookRewards, replayCreditBook } from "@zaimu/finance/credit-book"
 import { dailyForecast, type ForecastMovement, forecastBreakdown } from "@zaimu/finance/daily-forecast";
 import {
 	type BudgetCommitment,
+	matchesBudgetCommitment,
 	monthEnd,
 	monthlyBudgetMovements,
 	monthlyBudgetSummary,
@@ -205,7 +206,12 @@ export async function getGuestDashboardFinancialContext(
 		projectedBooks.flatMap(book => [...recurringCardPaymentAmounts(book)]),
 	);
 	const projected: Array<
-		Omit<ForecastMovement, "date"> & { date: Date; tagIds?: readonly string[]; yieldIncome?: boolean }
+		Omit<ForecastMovement, "date"> & {
+			date: Date;
+			description?: string | null;
+			tagIds?: readonly string[];
+			yieldIncome?: boolean;
+		}
 	> = [];
 	for (const recurrence of recurrences) {
 		if (
@@ -221,6 +227,7 @@ export async function getGuestDashboardFinancialContext(
 					cardPayment: recurrence.movement === "CARD_PAYMENT",
 					currency: recurrence.currency ?? "BRL",
 					date: new Date(`${date}T12:00:00`),
+					description: recurrence.name,
 					destinationAccountId: recurrence.destinationFinancialAccountId,
 					originAccountId: recurrence.originFinancialAccountId,
 					recurring: true,
@@ -303,7 +310,12 @@ export async function getGuestDashboardFinancialContext(
 
 	const recurringPayments = new Map(bookRows.flatMap(row => [...recurringCardPaymentAmounts(row.data)]));
 	const movements: Array<
-		Omit<ForecastMovement, "date"> & { date: Date; tagIds?: readonly string[]; yieldIncome?: boolean }
+		Omit<ForecastMovement, "date"> & {
+			date: Date;
+			description?: string | null;
+			tagIds?: readonly string[];
+			yieldIncome?: boolean;
+		}
 	> = [
 		...loanAccountMovements(paymentRows.map(row => row.data)).map(row => ({
 			amount: row.amount,
@@ -424,7 +436,12 @@ export async function getGuestDashboardFinancialContext(
 	];
 	const budgetCommitments: BudgetCommitment[] = [
 		...budgetExtraCommitments,
-		...movements.map(row => ({ ...row, currency: row.currency ?? "BRL", date: key(row.date) })),
+		...movements.map(row => ({
+			...row,
+			currency: row.currency ?? "BRL",
+			date: key(row.date),
+			description: row.description ?? undefined,
+		})),
 	];
 	const budgetPositions = [
 		...budgetExtraCommitments.map(row => ({ currency: row.currency, date: row.date })),
@@ -432,12 +449,7 @@ export async function getGuestDashboardFinancialContext(
 			budgetCommitments
 				.filter(
 					row =>
-						row.type === "EXPENSE" &&
-						(budget.source === "STATEMENTS"
-							? row.cardPayment
-							: budget.source === "TAG" &&
-								!row.cardPayment &&
-								row.tagIds?.includes(budget.categoryId ?? "")) &&
+						matchesBudgetCommitment(budget, row) &&
 						budget.currency !== row.currency &&
 						row.date <= key(today) &&
 						row.date.slice(0, 7) >= budget.startMonth &&
@@ -461,7 +473,11 @@ export async function getGuestDashboardFinancialContext(
 			),
 			...movements
 				.filter(row => row.amount)
-				.map(row => ({ currency: row.currency ?? "BRL", date: key(row.date) })),
+				.map(row => ({
+					currency: row.currency ?? "BRL",
+					date: key(row.date),
+					description: row.description ?? undefined,
+				})),
 		],
 		reference: key(today),
 	});

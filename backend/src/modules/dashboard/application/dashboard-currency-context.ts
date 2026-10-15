@@ -1,4 +1,4 @@
-import { monthEnd } from "@zaimu/finance/monthly-budget";
+import { matchesBudgetCommitment, monthEnd } from "@zaimu/finance/monthly-budget";
 import { shiftRecurrenceDate } from "@zaimu/finance/recurrence";
 import { pendingRecurrenceDates } from "@zaimu/finance/recurrence-projection";
 import { ensureCurrencyRates, getLatestCurrencyRate } from "~/modules/currencies/infra/currency-exchange";
@@ -160,10 +160,12 @@ export async function dashboardCurrencyContext(
 	for (const budget of loaded.monthlyBudgets ?? []) {
 		for (const row of loaded.flows) {
 			if (
-				row.type !== "EXPENSE" ||
-				(budget.source === "STATEMENTS"
-					? !row.cardPayment
-					: budget.source !== "TAG" || row.cardPayment || !row.tagIds?.includes(budget.categoryId ?? ""))
+				!matchesBudgetCommitment(budget, {
+					...row,
+					currency: row.currency ?? "BRL",
+					date: dateKey(row.date),
+					description: row.description ?? undefined,
+				})
 			)
 				continue;
 			const date = dateKey(row.date);

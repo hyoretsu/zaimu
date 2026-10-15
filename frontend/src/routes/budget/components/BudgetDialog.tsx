@@ -170,13 +170,18 @@ export function BudgetDialog({
 												? [{ label: "Faturas", value: "STATEMENTS" }]
 												: []),
 											{ label: "Etiqueta", value: "TAG" },
-											{ label: "Sem categoria", value: "CUSTOM" },
+											{ label: "Título", value: "CUSTOM" },
 											{ label: "Reserva", value: "RESERVE" },
 										]}
 										placeholder="Ex: Faturas de cartão"
 										required
 										value={draft.source === "STATEMENTS" && unavailable ? "" : draft.source}
 									/>
+									{draft.source === "CUSTOM" && (
+										<p className="text-muted-foreground text-sm">
+											Despesas e transferências com descrição igual ao nome abatem este orçamento.
+										</p>
+									)}
 									{draft.source === "TAG" && (
 										<CustomSelect
 											disabled={pending}

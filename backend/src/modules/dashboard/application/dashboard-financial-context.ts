@@ -1,5 +1,10 @@
 import { dailyForecast, type ForecastMovement, forecastBreakdown } from "@zaimu/finance/daily-forecast";
-import { monthEnd, monthlyBudgetMovements, monthlyBudgetSummary } from "@zaimu/finance/monthly-budget";
+import {
+	type BudgetCommitment,
+	monthEnd,
+	monthlyBudgetMovements,
+	monthlyBudgetSummary,
+} from "@zaimu/finance/monthly-budget";
 import { recurrenceDates, recurrenceNeedsConfiguration } from "@zaimu/finance/recurrence";
 import { dateKey } from "./dashboard-calculations";
 import type { DashboardCurrencyContext } from "./dashboard-currency-context";
@@ -34,7 +39,12 @@ export function dashboardFinancialContext(
 		),
 	);
 	const projectedMovements: Array<
-		Omit<ForecastMovement, "date"> & { date: Date; tagIds?: readonly string[]; yieldIncome?: boolean }
+		Omit<ForecastMovement, "date"> & {
+			date: Date;
+			description?: string;
+			tagIds?: readonly string[];
+			yieldIncome?: boolean;
+		}
 	> = [];
 
 	for (const recurrence of recurrences) {
@@ -46,6 +56,7 @@ export function dashboardFinancialContext(
 					cardPayment: recurrence.movement === "CARD_PAYMENT",
 					currency: recurrence.currency ?? "BRL",
 					date: new Date(`${date}T12:00:00`),
+					description: recurrence.name,
 					destinationAccountId: recurrence.destinationFinancialAccountId,
 					originAccountId: recurrence.originFinancialAccountId,
 					recurring: true,
@@ -92,10 +103,11 @@ export function dashboardFinancialContext(
 			});
 	}
 	const comparisonTransactions = [...normalizedTransactions, ...projectedMovements];
-	const budgetCommitments = comparisonTransactions.map(row => ({
+	const budgetCommitments: BudgetCommitment[] = comparisonTransactions.map(row => ({
 		...row,
 		currency: row.currency ?? "BRL",
 		date: dateKey(row.date),
+		description: row.description ?? undefined,
 	}));
 	for (const statement of loaded.projectedStatements.filter(
 		row => row.dueDate <= today && row.balanceAmount > 0,

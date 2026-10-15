@@ -315,3 +315,34 @@ test("uncategorized expenses and savings keep separate named plans and monthly o
 	expect(summary.items.map(row => row.projectedAmount)).toEqual([100, 100]);
 	expect(summary.items.map(row => row.knownAmount)).toEqual([0, 0]);
 });
+
+test("title envelopes reconcile matching transfers and expenses without consuming income or other titles", () => {
+	const budget: MonthlyBudget = { ...invoice, amount: 1000, name: "Cartão de Ian", source: "CUSTOM" };
+	const transfer = { ...expense("transfer", 600), description: " cartão DE Ian ", type: "TRANSFER" };
+	const commitments = [
+		transfer,
+		transfer,
+		{ ...expense("expense", 100), description: "Cartão de Ian" },
+		{ ...expense("income", 900), description: "Cartão de Ian", type: "INCOME" },
+		{ ...expense("other", 900), description: "Cartão de Ian extra" },
+		{ ...transfer, date: "2026-09-10", id: "outside" },
+	];
+	expect(monthlyBudgetSummary({ budgets: [budget], commitments, month: "2026-10" }).items[0]).toMatchObject(
+		{ additionalAmount: 300, knownAmount: 700 },
+	);
+	expect(
+		monthlyBudgetMovements({
+			budgets: [budget],
+			commitments,
+			from: "2026-10-01",
+			through: "2026-10-31",
+		})[0]?.amount,
+	).toBe(300);
+	expect(
+		monthlyBudgetSummary({
+			budgets: [{ ...budget, name: "" }],
+			commitments: [{ ...transfer, description: "" }],
+			month: "2026-10",
+		}).items[0]?.knownAmount,
+	).toBe(0);
+});
