@@ -35,3 +35,15 @@ export function getRecurrenceScheduleSummary(
 			);
 	}
 }
+
+export function formatRecurrenceStartDate(unit: Recurrence["unit"], startDate: string): string {
+	const formatted = formatLocalDate(
+		startDate,
+		unit === "YEAR"
+			? { year: "numeric" }
+			: unit === "MONTH"
+				? { month: "numeric", year: "numeric" }
+				: undefined,
+	);
+	return unit === "MONTH" ? formatted.replace(/^0/, "") : formatted;
+}

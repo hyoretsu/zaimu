@@ -6,7 +6,7 @@ import { AppBadge } from "@/components/ui/AppBadge";
 import type { Transaction } from "@/lib/api";
 import { formatLocalDate } from "@/lib/date";
 import { isRecurrenceEnded } from "./recurrence-dates";
-import { getRecurrenceScheduleSummary } from "./recurrence-schedule";
+import { formatRecurrenceStartDate, getRecurrenceScheduleSummary } from "./recurrence-schedule";
 import type { RecurringListItemData } from "./types";
 import { movementLabels, scheduleLabel } from "./unified-types";
 
@@ -138,7 +138,9 @@ export function RecurringListItem({
 					{item.movement === "CARD_PURCHASE" && (item.recurrence?.installments ?? 1) > 1
 						? ` · ${item.recurrence!.installments} parcelas por compra`
 						: ""}
-					{item.startDate ? ` · inicia ${formatLocalDate(item.startDate)}` : ""}
+					{item.startDate
+						? ` · inicia em ${formatRecurrenceStartDate(item.unit ?? "MONTH", item.startDate)}`
+						: ""}
 					{item.endDate ? ` · até ${formatLocalDate(item.endDate)}` : ""}
 				</span>
 			}
