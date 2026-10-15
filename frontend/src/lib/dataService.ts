@@ -1040,9 +1040,12 @@ export const dataService = {
 	},
 
 	creditCardImports: {
-		async approve(id: string): Promise<{ created: number }> {
+		async approve(id: string, includeUnmatched = true): Promise<{ created: number }> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar faturas.");
-			return fetchWithAuth<{ created: number }>(`/credit-card-imports/${id}/approve`, { method: "POST" });
+			return fetchWithAuth<{ created: number }>(`/credit-card-imports/${id}/approve`, {
+				body: JSON.stringify({ includeUnmatched }),
+				method: "POST",
+			});
 		},
 		async approveItem(importId: string, itemId: string): Promise<{ created: number }> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar faturas.");

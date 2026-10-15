@@ -23,6 +23,7 @@ import {
 	withRawTransaction,
 	withTransaction,
 } from "~/shared/infra/sql";
+import { canBulkApprovePurchase } from "../domain/bulk-approval";
 import {
 	isPotentialPurchaseRefinancing,
 	matchesExistingCreditPurchase,
@@ -352,11 +353,21 @@ export async function cleanupItemTags(itemIds: string[]) {
 	);
 }
 
-export async function approveItems(userId: string, importId: string, itemId?: string) {
-	return withRawTransaction(() => approveItemsImpl(userId, importId, itemId));
+export async function approveItems(
+	userId: string,
+	importId: string,
+	itemId?: string,
+	includeUnmatched = true,
+) {
+	return withRawTransaction(() => approveItemsImpl(userId, importId, itemId, includeUnmatched));
 }
 
-async function approveItemsImpl(userId: string, importId: string, itemId?: string) {
+async function approveItemsImpl(
+	userId: string,
+	importId: string,
+	itemId: string | undefined,
+	includeUnmatched: boolean,
+) {
 	const creditCardImport = await getImport(userId, importId);
 	if (creditCardImport.status !== "PENDING") throw new HttpException("Esta importação já foi aprovada", 400);
 	const card = await queryFirst(
@@ -407,9 +418,11 @@ async function approveItemsImpl(userId: string, importId: string, itemId?: strin
 		.filter(item =>
 			itemId
 				? item.id === itemId
-				: !duplicates.has(item.id) &&
-					Number(item.installmentAmount) >= 0 &&
-					!(item.metadataMissing as string[]).length,
+				: canBulkApprovePurchase(
+						{ ...item, metadataMissing: item.metadataMissing as string[] },
+						duplicates.has(item.id),
+						includeUnmatched,
+					),
 		)
 		.toSorted(
 			(left, right) =>

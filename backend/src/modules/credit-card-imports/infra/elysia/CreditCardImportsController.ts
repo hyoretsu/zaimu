@@ -495,7 +495,12 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 	.post("/:id/items/:itemId/approve", async ({ params, request }) =>
 		approveItems(await requireUserId(request), params.id, params.itemId),
 	)
-	.post("/:id/approve", async ({ params, request }) => approveItems(await requireUserId(request), params.id))
+	.post(
+		"/:id/approve",
+		async ({ params, request, body }) =>
+			approveItems(await requireUserId(request), params.id, undefined, body?.includeUnmatched ?? true),
+		{ body: t.Optional(t.Object({ includeUnmatched: t.Optional(t.Boolean()) })) },
+	)
 	.delete("/:id", async ({ params, request }) => {
 		const userId = await requireUserId(request);
 		const creditCardImport = await getImport(userId, params.id);

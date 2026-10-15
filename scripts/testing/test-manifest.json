@@ -44,6 +44,7 @@
 		"backend/src/modules/categories/infra/elysia/CategoriesDTO.test.ts",
 		"backend/src/modules/credit-card-imports/domain/anticipated-installments.test.ts",
 		"backend/src/modules/credit-card-imports/domain/bradesco-credit-card.test.ts",
+		"backend/src/modules/credit-card-imports/domain/bulk-approval.test.ts",
 		"backend/src/modules/credit-card-imports/domain/credit-card-import-identity.test.ts",
 		"backend/src/modules/credit-card-imports/domain/credit-card-import-reconciliation.test.ts",
 		"backend/src/modules/credit-card-imports/domain/credit-card-statement-password.test.ts",
