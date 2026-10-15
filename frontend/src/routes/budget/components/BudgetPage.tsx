@@ -20,7 +20,7 @@ import { showToast } from "@/stores";
 import { BudgetAdjustmentsDialog } from "./BudgetAdjustmentsDialog";
 import { BudgetDialog } from "./BudgetDialog";
 import { BudgetGeneralOverview } from "./BudgetGeneralOverview";
-import { BudgetItem } from "./BudgetItem";
+import { BudgetList } from "./BudgetList";
 
 export function BudgetPage() {
 	const identity = useCacheIdentity();
@@ -147,20 +147,12 @@ export function BudgetPage() {
 						Nenhum item no plano geral. Use Adicionar para planejar suas despesas.
 					</p>
 				) : (
-					<ul className="divide-y rounded-xl border">
-						{defaults.map(item => (
-							<BudgetItem
-								item={item}
-								key={item.id}
-								onDelete={() => remove.mutate(item.id)}
-								onEdit={() => {
-									setEditing(item);
-								}}
-								parent={defaults.find(parent => parent.id === item.parentBudgetId)}
-								pending={busyIds.has(item.id)}
-							/>
-						))}
-					</ul>
+					<BudgetList
+						budgets={defaults}
+						onDelete={id => remove.mutate(id)}
+						onEdit={setEditing}
+						pendingIds={busyIds}
+					/>
 				)}
 			</section>
 			{adjustmentsOpen && (

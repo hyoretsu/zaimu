@@ -4,6 +4,7 @@ export { BudgetAdjustmentsDialog } from "./BudgetAdjustmentsDialog";
 export { BudgetAmountField } from "./BudgetAmountField";
 export { BudgetDialog } from "./BudgetDialog";
 export { BudgetItem } from "./BudgetItem";
+export { BudgetList } from "./BudgetList";
 export { BudgetMonthPicker } from "./BudgetMonthPicker";
 export { BudgetOverview } from "./BudgetOverview";
 export { BudgetPage } from "./BudgetPage";
