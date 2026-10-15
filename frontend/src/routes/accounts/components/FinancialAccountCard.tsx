@@ -57,7 +57,6 @@ export function FinancialAccountCard({
 	rewardAccounts: FinancialAccount[];
 }) {
 	const { statementAccountId } = useSearch({ strict: false });
-	const cardRef = useRef<HTMLElement>(null);
 	const openedAccountId = useRef<string | undefined>(undefined);
 	const [statementOpen, setStatementOpen] = useState(false);
 	const [importOpen, setImportOpen] = useState(false);
@@ -69,7 +68,6 @@ export function FinancialAccountCard({
 		}
 		if (openedAccountId.current === statementAccountId || account.type === "CREDIT_CARD") return;
 		const frame = requestAnimationFrame(() => {
-			cardRef.current?.scrollIntoView({ behavior: "instant", block: "center" });
 			openedAccountId.current = statementAccountId;
 			setStatementOpen(true);
 		});
@@ -82,10 +80,7 @@ export function FinancialAccountCard({
 	const listName = getFinancialAccountTitle(account);
 	const accountHasCustomTitle = Boolean(account.name?.trim() && listName !== typeLabel);
 	return (
-		<article
-			className="group rounded-2xl border bg-card p-5 shadow-card transition hover:-translate-y-0.5 hover:border-primary/30"
-			ref={cardRef}
-		>
+		<article className="group rounded-2xl border bg-card p-5 shadow-card transition hover:-translate-y-0.5 hover:border-primary/30">
 			<div className="flex min-h-16 items-start justify-between gap-4">
 				<div className="flex min-w-0 flex-1 items-start gap-3">
 					<span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
