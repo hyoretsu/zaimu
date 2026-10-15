@@ -20,11 +20,13 @@ export function MoneyField({
 	label,
 	onValueChange,
 	onBlur,
+	rawValueName,
 	required,
 	value,
 	...props
 }: Omit<ComponentProps<typeof Input>, "defaultValue" | "onChange" | "type" | "value"> & {
 	currencyCode?: string;
+	rawValueName?: string;
 	label: string;
 	onValueChange: (value: string) => void;
 	value: string;
@@ -62,6 +64,7 @@ export function MoneyField({
 				}
 				{...props}
 			/>
+			{rawValueName && <input name={rawValueName} type="hidden" value={localValue} />}
 		</div>
 	);
 }
