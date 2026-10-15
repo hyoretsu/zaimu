@@ -17,6 +17,7 @@ import {
 	assertImportedInstallmentChronology,
 	importedInstallmentDates,
 } from "../domain/imported-installment-dates";
+import { importedPurchaseTotalCents } from "../domain/imported-purchase-total";
 
 interface ImportedPurchaseInput {
 	id?: string;
@@ -143,11 +144,11 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 		)
 			throw new HttpException("Valor importado já registrado para esta parcela", 409);
 		known.set(input.currentInstallment, moneyCents(input.installmentAmount, 1, book.card.currency));
-		const totalCents = anticipated
-			? known.size === input.installments
-				? [...known.values()].reduce((sum, amount) => sum + amount, 0)
-				: existing!.totalAmountCents
-			: moneyCents(input.totalAmount, 1, book.card.currency);
+		const totalCents = importedPurchaseTotalCents(
+			anticipated ? existing!.totalAmountCents : moneyCents(input.totalAmount, 1, book.card.currency),
+			input.installments,
+			known,
+		);
 		const amounts = distributePurchaseCents(
 			totalCents,
 			input.installments,

@@ -50,6 +50,7 @@
 		"backend/src/modules/credit-card-imports/domain/filter-zero-value-purchases.test.ts",
 		"backend/src/modules/credit-card-imports/domain/financing-source-reference.test.ts",
 		"backend/src/modules/credit-card-imports/domain/imported-installment-dates.test.ts",
+		"backend/src/modules/credit-card-imports/domain/imported-purchase-total.test.ts",
 		"backend/src/modules/credit-card-imports/domain/installment-amounts.test.ts",
 		"backend/src/modules/credit-card-imports/domain/inter-credit-card.test.ts",
 		"backend/src/modules/credit-card-imports/domain/mercado-pago-credit-card.test.ts",
