@@ -1,0 +1,37 @@
+services:
+  backend:
+    image: ghcr.io/hyoretsu/zaimu_backend:latest
+    env_file: .env
+    networks:
+      - postgres
+      - proxy
+    restart: always
+    labels:
+      caddy: api.zaimu.me
+      caddy.import: cloudflare
+      caddy.reverse_proxy: "{{upstreams 3333}}"
+
+  frontend:
+    image: ghcr.io/hyoretsu/zaimu_frontend:latest
+    env_file: .env
+    networks:
+      - postgres
+      - proxy
+    restart: always
+    labels:
+      caddy: zaimu.me
+      caddy.import: cloudflare
+      caddy.reverse_proxy: "{{upstreams 3000}}"
+
+  worker:
+    image: ghcr.io/hyoretsu/zaimu_backend:latest
+    env_file: .env
+    networks:
+      - postgres
+    restart: always
+
+networks:
+  postgres:
+    external: true
+  proxy:
+    external: true

@@ -35,6 +35,7 @@
 		"@hyoretsu/configs": "^1.2.37",
 		"@types/bun": "^1.4.0",
 		"@types/node": "^25.9.5",
+		"chokidar-cli": "^3.0.0",
 		"committier": "^0.2.3",
 		"eslint": "^10.9.1",
 		"eslint-config-biome": "^2.1.3",
