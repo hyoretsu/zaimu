@@ -10,6 +10,16 @@ export async function withWorkerCacheWrite<Result>(
 	transaction: (operation: () => Promise<Result>) => Promise<Result> = operation =>
 		withRawTransaction(operation),
 ) {
+	return withWorkerCacheFence(userIds, namespaces, () => transaction(operation), cache);
+}
+
+/** Fence downloads without keeping a database transaction open across network requests. */
+export async function withWorkerCacheFence<Result>(
+	userIds: string[],
+	namespaces: CacheNamespace[],
+	operation: () => Promise<Result>,
+	cache: Pick<DistributedCache, "beginWrite" | "finishWrite"> = distributedCache,
+) {
 	const owners = [...new Set(userIds)];
 	const tokens = await Promise.all(owners.map(userId => cache.beginWrite(userId, namespaces)));
 	let pendingRenewal: Promise<unknown> = Promise.resolve();
@@ -19,7 +29,7 @@ export async function withWorkerCacheWrite<Result>(
 		).catch(error => console.error("Worker cache fence renewal failed", error));
 	}, 30_000);
 	try {
-		const result = await transaction(operation);
+		const result = await operation();
 		clearInterval(renewal);
 		await pendingRenewal;
 		await Promise.all(owners.map((userId, index) => cache.finishWrite(userId, namespaces, tokens[index])));

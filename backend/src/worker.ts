@@ -13,7 +13,7 @@ import { publishScheduleMaterialization } from "./shared/application/schedule-ma
 import { handleScopedScheduleMaterialization } from "./shared/application/scoped-schedule-materialization";
 import { RabbitMqBroker } from "./shared/infra/broker";
 import { CacheInvalidationConsumer, DistributedCache, RedisCache } from "./shared/infra/cache";
-import { withWorkerCacheWrite } from "./shared/infra/cache/worker-cache-write";
+import { withWorkerCacheFence, withWorkerCacheWrite } from "./shared/infra/cache/worker-cache-write";
 import { OutboxPublisher } from "./shared/infra/outbox";
 import { queryRaw } from "./shared/infra/sql";
 
@@ -40,7 +40,7 @@ async function writeCommand(event: EventEnvelope, operation: () => Promise<unkno
 		`SELECT DISTINCT "userId" FROM "FinancialAccount" WHERE "type" <> 'CREDIT_CARD'`,
 	);
 	const namespaces = namespacesForEvent({ ...event, aggregateType });
-	await withWorkerCacheWrite(
+	await withWorkerCacheFence(
 		rows.map(row => row.userId),
 		[...new Set(namespaces)],
 		operation,

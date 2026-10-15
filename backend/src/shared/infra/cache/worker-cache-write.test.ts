@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { withWorkerCacheWrite } from "./worker-cache-write";
+import { withWorkerCacheFence, withWorkerCacheWrite } from "./worker-cache-write";
 
 test("fences before worker effects and finalizes only after transaction commit", async () => {
 	const steps: string[] = [];
@@ -52,4 +52,31 @@ test("worker rollback retains lease without advancing generation", async () => {
 		),
 	).rejects.toThrow("rollback");
 	expect(invalidated).toBe(false);
+});
+
+test("download fence stays active until adapter finishes", async () => {
+	const download = Promise.withResolvers<void>();
+	const started = Promise.withResolvers<void>();
+	let invalidated = false;
+	const pending = withWorkerCacheFence(
+		["user"],
+		["dashboard"],
+		async () => {
+			started.resolve();
+			await download.promise;
+			return 42;
+		},
+		{
+			beginWrite: async () => "token",
+			finishWrite: async (_user, _namespaces, token) => {
+				expect(token).toBe("token");
+				invalidated = true;
+			},
+		},
+	);
+	await started.promise;
+	expect(invalidated).toBe(false);
+	download.resolve();
+	expect(await pending).toBe(42);
+	expect(invalidated).toBe(true);
 });
