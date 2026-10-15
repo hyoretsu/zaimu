@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { dailyForecast } from "./daily-forecast";
 import {
+	hasBudgetConflict,
 	type MonthlyBudget,
 	monthlyBudgetMovements,
 	monthlyBudgetSummary,
@@ -268,4 +269,18 @@ test("shared tags across ancestor and child consume the commitment once", () => 
 			through: "2026-10-31",
 		}).map(row => row.amount),
 	).toEqual([2900]);
+});
+
+test("duplicate categories preserve adjustments and unrestricted reserves", () => {
+	for (const source of ["TAG", "STATEMENTS"] as const) {
+		const plan = { ...invoice, categoryId: source === "TAG" ? "food" : null, source };
+		expect(hasBudgetConflict([plan], { ...plan, name: "Other" })).toBe(true);
+		expect(hasBudgetConflict([plan], plan, plan.id)).toBe(false);
+		expect(hasBudgetConflict([plan], { ...plan, endMonth: "2026-10", startMonth: "2026-10" })).toBe(
+			false,
+		);
+	}
+	expect(hasBudgetConflict([{ ...invoice, source: "CUSTOM" }], { ...invoice, source: "CUSTOM" })).toBe(
+		false,
+	);
 });

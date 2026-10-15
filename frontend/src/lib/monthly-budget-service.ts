@@ -1,4 +1,4 @@
-import { isMonthlyAdjustment, sameBudgetPlan, validateBudgetHierarchy } from "@zaimu/finance/monthly-budget";
+import { hasBudgetConflict, validateBudgetHierarchy } from "@zaimu/finance/monthly-budget";
 import { useAuthStore } from "@/stores/auth";
 import { fetchWithAuth } from "./dataService";
 import { hardDelete, localCategories, localMonthlyBudgets } from "./localStorage";
@@ -29,16 +29,7 @@ async function validateLocal(input: MonthlyBudgetInput, owner: CacheIdentity, id
 		throw new Error("Tag não encontrada.");
 	const budgets = (await localMonthlyBudgets.getAll(owner)).map(row => row.data);
 	validateBudgetHierarchy(budgets, data, id);
-	if (
-		budgets.some(
-			budget =>
-				budget.id !== id &&
-				sameBudgetPlan(budget, data) &&
-				isMonthlyAdjustment(budget) === isMonthlyAdjustment(data) &&
-				budget.startMonth <= (data.endMonth ?? "9999-12") &&
-				data.startMonth <= (budget.endMonth ?? "9999-12"),
-		)
-	)
+	if (hasBudgetConflict(budgets, data, id))
 		throw new Error("Já existe planejamento para essa origem e moeda no período.");
 	return data;
 }

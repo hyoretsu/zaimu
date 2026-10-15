@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { isMonthlyAdjustment, validateBudgetHierarchy } from "@zaimu/finance/monthly-budget";
+import { isMonthlyAdjustment, sameBudgetPlan, validateBudgetHierarchy } from "@zaimu/finance/monthly-budget";
 import { useState } from "react";
 import { CurrencySelect } from "@/components/currency/CurrencySelect";
 import { Button } from "@/components/ui/Button";
@@ -86,6 +86,17 @@ export function BudgetDialog({
 		},
 		queryKey: ["budget-category-options", identity],
 	});
+	const isUnavailable = (candidate: BudgetInput) =>
+		candidate.source !== "CUSTOM" &&
+		budgets.some(
+			budget =>
+				budget.id !== item?.id &&
+				sameBudgetPlan(budget, candidate) &&
+				isMonthlyAdjustment(budget) === isMonthlyAdjustment(candidate) &&
+				budget.startMonth <= (candidate.endMonth ?? "9999-12") &&
+				candidate.startMonth <= (budget.endMonth ?? "9999-12"),
+		);
+	const unavailable = isUnavailable(draft);
 	const parentOptions = budgets.filter(candidate => {
 		if (isMonthlyAdjustment(candidate)) return false;
 		try {
@@ -117,7 +128,12 @@ export function BudgetDialog({
 					onSubmit={event => {
 						event.preventDefault();
 						const amount = Number(new FormData(event.currentTarget).get("budget-amount-raw"));
-						if (amount > 0 && draft.startMonth && (draft.source !== "TAG" || draft.categoryId))
+						if (
+							!unavailable &&
+							amount > 0 &&
+							draft.startMonth &&
+							(draft.source !== "TAG" || draft.categoryId)
+						)
 							onSave({ ...draft, amount, name: name.trim() });
 					}}
 				>
@@ -150,13 +166,15 @@ export function BudgetDialog({
 											}))
 										}
 										options={[
-											{ label: "Faturas", value: "STATEMENTS" },
+											...(!isUnavailable({ ...draft, categoryId: null, source: "STATEMENTS" })
+												? [{ label: "Faturas", value: "STATEMENTS" }]
+												: []),
 											{ label: "Etiqueta", value: "TAG" },
 											{ label: "Reserva", value: "CUSTOM" },
 										]}
 										placeholder="Ex: Faturas de cartão"
 										required
-										value={draft.source}
+										value={draft.source === "STATEMENTS" && unavailable ? "" : draft.source}
 									/>
 									{draft.source === "TAG" && (
 										<CustomSelect
@@ -166,14 +184,16 @@ export function BudgetDialog({
 											label="Etiqueta"
 											onRetry={() => void categories.refetch()}
 											onValueChange={categoryId => setDraft(current => ({ ...current, categoryId }))}
-											options={(categories.data ?? []).map(category => ({
-												label: category.name,
-												value: category.id,
-											}))}
+											options={(categories.data ?? [])
+												.filter(category => !isUnavailable({ ...draft, categoryId: category.id }))
+												.map(category => ({
+													label: category.name,
+													value: category.id,
+												}))}
 											placeholder="Ex: Contas"
 											required
 											searchable
-											value={draft.categoryId ?? ""}
+											value={unavailable ? "" : (draft.categoryId ?? "")}
 										/>
 									)}
 								</>
@@ -256,7 +276,9 @@ export function BudgetDialog({
 							Descartar
 						</Button>
 						<Button
-							disabled={pending || !draft.startMonth || (draft.source === "TAG" && !draft.categoryId)}
+							disabled={
+								pending || unavailable || !draft.startMonth || (draft.source === "TAG" && !draft.categoryId)
+							}
 							type="submit"
 						>
 							{pending ? "Salvando..." : "Salvar"}

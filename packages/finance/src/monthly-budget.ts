@@ -208,3 +208,21 @@ export function validateBudgetHierarchy(
 		}
 	}
 }
+
+export function hasBudgetConflict(
+	budgets: readonly MonthlyBudget[],
+	input: Omit<MonthlyBudget, "id">,
+	id?: string,
+) {
+	return (
+		input.source !== "CUSTOM" &&
+		budgets.some(
+			budget =>
+				budget.id !== id &&
+				sameBudgetPlan(budget, input) &&
+				isMonthlyAdjustment(budget) === isMonthlyAdjustment(input) &&
+				budget.startMonth <= (input.endMonth ?? "9999-12") &&
+				input.startMonth <= (budget.endMonth ?? "9999-12"),
+		)
+	);
+}

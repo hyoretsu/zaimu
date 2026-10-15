@@ -29,7 +29,7 @@ export async function listMonthlyBudgets(userId: string, includeDeleted = false)
 export async function validateMonthlyBudget(body: MonthlyBudgetBody, userId: string, id?: string) {
 	validateMonthlyBudgetFields(body);
 	await queryRaw("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [`monthly-budget:${userId}`]);
-	{
+	if (body.source !== "CUSTOM") {
 		const [overlap] = await queryRaw<{ id: string }>(
 			`SELECT "id" FROM "MonthlyBudget" WHERE "userId"=$1 AND "deletedAt" IS NULL AND "source"=$2 AND "currency"=$3 AND "categoryId" IS NOT DISTINCT FROM $4::varchar AND ($5::varchar IS NULL OR "id"<>$5) AND ($2<>'CUSTOM' OR "name"=$8) AND (COALESCE("endMonth"="startMonth",false) = COALESCE($6=$7,false)) AND ($2<>'CUSTOM' OR "name"=$8) AND (COALESCE("endMonth"="startMonth",false) = COALESCE($6=$7,false)) AND "startMonth"<=COALESCE($6,'9999-12') AND COALESCE("endMonth",'9999-12')>=$7`,
 			[
