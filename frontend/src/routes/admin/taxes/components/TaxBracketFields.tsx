@@ -1,5 +1,4 @@
 import type { TaxBracket } from "@zaimu/finance/yield-tax";
-import { FormFieldRow } from "@/components/ui/FormFieldRow";
 import { NumericField } from "@/components/ui/NumericField";
 export function TaxBracketFields({
 	bracket,
@@ -13,15 +12,13 @@ export function TaxBracketFields({
 	onChange: (value: TaxBracket) => void;
 }) {
 	return (
-		<FormFieldRow>
+		<div className="grid min-w-0 grid-cols-2 items-center gap-4">
 			{last ? (
-				<div className="grid gap-2">
-					<p className="font-medium text-sm">Prazo</p>
-					<p className="text-muted-foreground text-sm">Acima da faixa anterior</p>
-				</div>
+				<p className="min-w-0 text-muted-foreground text-sm">Acima da faixa anterior</p>
 			) : (
 				<NumericField
 					decimalScale={0}
+					hideLabel
 					id={`tax-days-${index}`}
 					label="Até quantos dias"
 					onValueChange={value => onChange({ ...bracket, upToDays: value === "" ? -1 : Number(value) })}
@@ -32,6 +29,7 @@ export function TaxBracketFields({
 			)}
 			<NumericField
 				decimalScale={2}
+				hideLabel
 				id={`tax-rate-${index}`}
 				label="Alíquota"
 				onValueChange={value => onChange({ ...bracket, rate: value === "" ? Number.NaN : Number(value) })}
@@ -40,6 +38,6 @@ export function TaxBracketFields({
 				suffix="%"
 				value={Number.isFinite(bracket.rate) ? String(bracket.rate) : ""}
 			/>
-		</FormFieldRow>
+		</div>
 	);
 }

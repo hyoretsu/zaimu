@@ -94,6 +94,11 @@ export function TaxEditor({ tax, onClose }: { tax: TaxDefinition | null; onClose
 									value={order}
 								/>
 							</FormFieldRow>
+							<div className="grid gap-2">
+								<div aria-hidden="true" className="grid grid-cols-2 gap-4 font-medium text-sm">
+									<span>Até quantos dias <RequiredMark /></span>
+									<span>Alíquota <RequiredMark /></span>
+								</div>
 							{brackets.map((bracket, index) => (
 								<TaxBracketFields
 									bracket={bracket}
@@ -107,6 +112,7 @@ export function TaxEditor({ tax, onClose }: { tax: TaxDefinition | null; onClose
 									}
 								/>
 							))}
+							</div>
 							<ActionGroup>
 								<Button
 									disabled={brackets.length >= 100}

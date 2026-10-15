@@ -8,6 +8,7 @@ export function NumericField({
 	decimalScale = 4,
 	disabled,
 	description,
+	hideLabel = false,
 	id,
 	label,
 	onValueChange,
@@ -19,6 +20,7 @@ export function NumericField({
 	decimalScale?: number;
 	disabled?: boolean;
 	description?: string;
+	hideLabel?: boolean;
 	id: string;
 	label: string;
 	onValueChange: (value: string) => void;
@@ -30,7 +32,7 @@ export function NumericField({
 	const [local, setLocal] = useDebouncedInput(value, onValueChange);
 	return (
 		<div className="grid gap-2">
-			<Label htmlFor={id}>
+			<Label className={hideLabel ? "sr-only" : undefined} htmlFor={id}>
 				<span>
 					{label} {required && <RequiredMark />}
 				</span>
