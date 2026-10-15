@@ -25,13 +25,22 @@ describe("groupCoverageItems", () => {
 		expect(groups).toHaveLength(1);
 		expect(groups[0].items.map(row => row.id)).toEqual(["2025", "2026"]);
 	});
-	it("hides profile history, policy and CLDR associations, retaining other sources", () => {
+	it("hides manual configurations and retains external coverage sources", () => {
 		const groups = groupCoverageItems([
 			item("a", "ASSOCIATION", "BR - BRL"),
 			item("h", "PROFILE_HISTORY", "Padrão"),
 			item("p", "POLICY", "Padrão"),
 			item("t", "TAX", "IR"),
+			item("c", "CALENDAR", "BR - 2026"),
 		]);
-		expect(groups.map(group => group.id)).toEqual(["t"]);
+		expect(groups.map(group => group.id)).toEqual(["CALENDAR:BR"]);
+	});
+	it("hides tax versions even when validity dates are registered", () => {
+		expect(
+			groupCoverageItems([
+				{ ...item("tax-v1", "TAX", "IR"), endDate: "2025-12-31", startDate: "2025-01-01", version: "v1" },
+				{ ...item("tax-v2", "TAX", "IR"), startDate: "2026-01-01", version: "v2" },
+			]),
+		).toEqual([]);
 	});
 });

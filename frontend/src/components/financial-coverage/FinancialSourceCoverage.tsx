@@ -55,8 +55,8 @@ export function FinancialSourceCoverage({
 		<section className="grid min-w-0 gap-4 rounded-2xl border bg-card p-4 sm:p-6">
 			<h2 className="font-semibold text-lg">Fontes e vigências</h2>
 			<p className="text-muted-foreground text-sm">
-				Consulta somente leitura. Impostos representam vigências registradas. Calendários completos sem
-				eventos continuam completos.
+				Consulta somente leitura da cobertura de fontes externas. Calendários completos sem eventos continuam
+				completos.
 			</p>
 			{query.isPending ? (
 				<div className="space-y-3">

@@ -7,7 +7,7 @@ export function groupCoverageItems(items: CoverageItem[]) {
 	>();
 	const seen = new Set<string>();
 	for (const item of items) {
-		if (item.kind === "POLICY" || item.kind === "PROFILE_HISTORY" || item.kind === "ASSOCIATION") continue;
+		if (["POLICY", "PROFILE_HISTORY", "ASSOCIATION", "TAX"].includes(item.kind)) continue;
 		const collapsible = item.kind === "CALENDAR" || item.kind === "ASSOCIATION";
 		const id =
 			item.kind === "CALENDAR"
