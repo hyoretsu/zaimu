@@ -91,12 +91,6 @@ export function FinancialSourceCoverage({
 									Lacuna: {gap.startDate} a {gap.endDate}
 								</p>
 							))}
-							<p className="text-sm">
-								Contas afetadas:{" "}
-								{item.affectedAccountIds
-									.map(id => query.data?.accounts.find(account => account.id === id)?.name ?? id)
-									.join(", ") || "Nenhuma"}
-							</p>
 							{admin && item.kind === "CALENDAR" && item.countryCode && item.startDate && (
 								<ActionGroup>
 									<Button
