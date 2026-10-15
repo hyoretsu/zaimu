@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { Skeleton } from "@/components/ui/Skeleton";
 import { fetchWithAuth } from "@/lib/dataService";
 import { useAuthStore } from "@/stores/auth";
 export function InstitutionAssociationProfile({ institutionId }: { institutionId: string }) {
@@ -16,6 +15,7 @@ export function InstitutionAssociationProfile({ institutionId }: { institutionId
 					`/financial-institutions/${institutionId}/profile-history`,
 				),
 			]);
+			if (profiles.length <= 1) return null;
 			const day = new Date().toLocaleDateString("sv-SE");
 			const latest = history
 				.filter(change => change.effectiveDate.slice(0, 10) <= day)
@@ -29,22 +29,14 @@ export function InstitutionAssociationProfile({ institutionId }: { institutionId
 		},
 		queryKey: ["association-profile", userId, institutionId],
 	});
-	if (guest) return null;
+	if (guest || !query.isSuccess || !query.data) return null;
 	return (
 		<div className="rounded-xl border p-3 text-sm">
-			{navigator.onLine && query.isPending ? (
-				<Skeleton className="h-5 w-40" />
-			) : query.isError ? (
-				<p role="alert">Perfil indisponível: {query.error.message}</p>
-			) : (
-				<>
-					<p>Perfil do vínculo: {query.data ?? "Confirmado na sincronização"}</p>
-					<p className="text-muted-foreground">
-						Perfil e mudanças agendadas valem para todas as contas desta instituição. Consulte e altere
-						histórico no grupo após salvar.
-					</p>
-				</>
-			)}
+			<p>Perfil do vínculo: {query.data}</p>
+			<p className="text-muted-foreground">
+				Perfil e mudanças agendadas valem para todas as contas desta instituição. Consulte e altere histórico
+				no grupo após salvar.
+			</p>
 		</div>
 	);
 }
