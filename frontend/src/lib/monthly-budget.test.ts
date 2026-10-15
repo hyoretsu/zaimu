@@ -12,7 +12,7 @@ const input: MonthlyBudgetInput = {
 };
 
 test("clearing a name preserves an empty value for every planning source", () => {
-	for (const source of ["STATEMENTS", "CUSTOM", "TAG"] as const) {
+	for (const source of ["STATEMENTS", "CUSTOM", "RESERVE", "TAG"] as const) {
 		for (const name of ["", "   "]) {
 			const data = { ...input, categoryId: source === "TAG" ? "tag" : null, name, source };
 			expect(validateMonthlyBudget(data)).toEqual({ ...data, name: "" });
@@ -32,4 +32,21 @@ test("monthly plans require valid positive amounts and calendar months", () => {
 test("tag-based plans require a tag and non-tag plans remove stale references", () => {
 	expect(() => validateMonthlyBudget({ ...input, source: "TAG" })).toThrow();
 	expect(validateMonthlyBudget({ ...input, categoryId: "old-tag", name: " Faturas " })).toEqual(input);
+});
+
+test("uncategorized expenses remain distinct from savings without requiring tags", () => {
+	const expense = validateMonthlyBudget({
+		...input,
+		name: "Academia",
+		parentBudgetId: "ian-card",
+		source: "CUSTOM",
+	});
+	const savings = validateMonthlyBudget({ ...input, name: "Poupança", source: "RESERVE" });
+	expect(expense).toMatchObject({
+		categoryId: null,
+		name: "Academia",
+		parentBudgetId: "ian-card",
+		source: "CUSTOM",
+	});
+	expect(savings).toMatchObject({ categoryId: null, source: "RESERVE" });
 });

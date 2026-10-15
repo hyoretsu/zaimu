@@ -3,7 +3,7 @@ import { currencyScale, roundMoney, toMinorUnits } from "./money";
 export interface MonthlyBudget {
 	id: string;
 	name: string;
-	source: "TAG" | "STATEMENTS" | "CUSTOM";
+	source: "TAG" | "STATEMENTS" | "CUSTOM" | "RESERVE";
 	categoryId: string | null;
 	parentBudgetId?: string | null;
 	amount: number;
@@ -12,7 +12,7 @@ export interface MonthlyBudget {
 	endMonth: string | null;
 }
 /** Single-month records override the recurring plan with the same origin and currency.
- * Independent reserves use their name as their planning identity. */
+ * Uncategorized expenses and savings reserves use their name as their planning identity. */
 export function sameBudgetPlan(
 	a: Pick<MonthlyBudget, "source" | "categoryId" | "currency" | "name">,
 	b: Pick<MonthlyBudget, "source" | "categoryId" | "currency" | "name">,
@@ -21,7 +21,7 @@ export function sameBudgetPlan(
 		a.source === b.source &&
 		a.categoryId === b.categoryId &&
 		a.currency === b.currency &&
-		(a.source !== "CUSTOM" || a.name === b.name)
+		(!["CUSTOM", "RESERVE"].includes(a.source) || a.name === b.name)
 	);
 }
 export function isMonthlyAdjustment(a: Pick<MonthlyBudget, "startMonth" | "endMonth">) {

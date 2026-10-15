@@ -8,7 +8,7 @@ export const MonthlyBudgetBody = t.Object({
 	endMonth: t.Optional(t.Nullable(Month)),
 	name: t.String({ maxLength: 100 }),
 	parentBudgetId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
-	source: t.Union([t.Literal("TAG"), t.Literal("STATEMENTS"), t.Literal("CUSTOM")]),
+	source: t.Union([t.Literal("TAG"), t.Literal("STATEMENTS"), t.Literal("CUSTOM"), t.Literal("RESERVE")]),
 	startMonth: Month,
 });
 export type MonthlyBudgetBody = typeof MonthlyBudgetBody.static;

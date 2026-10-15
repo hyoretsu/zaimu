@@ -2,7 +2,7 @@ export interface MonthlyBudget {
 	id: string;
 	userId: string;
 	name: string;
-	source: "TAG" | "STATEMENTS" | "CUSTOM";
+	source: "TAG" | "STATEMENTS" | "CUSTOM" | "RESERVE";
 	categoryId: string | null;
 	parentBudgetId?: string | null;
 	amount: number;
@@ -22,7 +22,7 @@ export type MonthlyBudgetInput = Omit<
 export function validateMonthlyBudget(input: MonthlyBudgetInput): MonthlyBudgetInput {
 	const month = /^\d{4}-(0[1-9]|1[0-2])$/;
 	if (input.name.trim().length > 100) throw new Error("Informe um nome de até 100 caracteres.");
-	if (!["TAG", "STATEMENTS", "CUSTOM"].includes(input.source))
+	if (!["TAG", "STATEMENTS", "CUSTOM", "RESERVE"].includes(input.source))
 		throw new Error("Selecione uma origem válida.");
 	if (!Number.isFinite(input.amount) || input.amount <= 0)
 		throw new Error("Informe um valor planejado maior que zero.");

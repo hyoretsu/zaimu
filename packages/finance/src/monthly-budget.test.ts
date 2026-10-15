@@ -5,6 +5,7 @@ import {
 	type MonthlyBudget,
 	monthlyBudgetMovements,
 	monthlyBudgetSummary,
+	sameBudgetPlan,
 	validateBudgetHierarchy,
 } from "./monthly-budget";
 
@@ -283,4 +284,34 @@ test("duplicate categories preserve adjustments and unrestricted reserves", () =
 	expect(hasBudgetConflict([{ ...invoice, source: "CUSTOM" }], { ...invoice, source: "CUSTOM" })).toBe(
 		false,
 	);
+});
+
+test("uncategorized expenses and savings keep separate named plans and monthly overrides", () => {
+	const custom: MonthlyBudget = { ...invoice, amount: 100, id: "gym", name: "Academia", source: "CUSTOM" };
+	const reserve: MonthlyBudget = { ...custom, id: "savings", source: "RESERVE" };
+	expect(sameBudgetPlan(custom, reserve)).toBe(false);
+	for (const plan of [custom, reserve]) {
+		expect(sameBudgetPlan(plan, { ...plan, name: "Investimentos" })).toBe(false);
+		const adjustment = {
+			...plan,
+			amount: 150,
+			endMonth: "2026-10",
+			id: `${plan.id}-adjustment`,
+			startMonth: "2026-10",
+		};
+		const other = { ...plan, id: `${plan.id}-other`, name: "Outro plano" };
+		const summary = monthlyBudgetSummary({
+			budgets: [plan, adjustment, other],
+			commitments: [],
+			month: "2026-10",
+		});
+		expect(summary.items.map(row => row.id)).toEqual([adjustment.id, other.id]);
+	}
+	const summary = monthlyBudgetSummary({
+		budgets: [custom, reserve],
+		commitments: [expense("card", 50)],
+		month: "2026-10",
+	});
+	expect(summary.items.map(row => row.projectedAmount)).toEqual([100, 100]);
+	expect(summary.items.map(row => row.knownAmount)).toEqual([0, 0]);
 });

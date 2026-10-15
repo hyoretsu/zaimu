@@ -65,7 +65,7 @@ export function BudgetDialog({
 					endMonth: null,
 					name: "",
 					parentBudgetId: null,
-					source: "STATEMENTS",
+					source: "CUSTOM",
 					startMonth: month,
 				},
 	);
@@ -170,7 +170,8 @@ export function BudgetDialog({
 												? [{ label: "Faturas", value: "STATEMENTS" }]
 												: []),
 											{ label: "Etiqueta", value: "TAG" },
-											{ label: "Reserva", value: "CUSTOM" },
+											{ label: "Sem categoria", value: "CUSTOM" },
+											{ label: "Reserva", value: "RESERVE" },
 										]}
 										placeholder="Ex: Faturas de cartão"
 										required

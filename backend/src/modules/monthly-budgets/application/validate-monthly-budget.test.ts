@@ -21,7 +21,7 @@ describe("monthly budget validation", () => {
 	});
 	test("blank names supported for every planning source", () => {
 		for (const name of ["", "  "]) {
-			for (const source of ["STATEMENTS", "CUSTOM", "TAG"] as const)
+			for (const source of ["STATEMENTS", "CUSTOM", "RESERVE", "TAG"] as const)
 				expect(() =>
 					validateMonthlyBudgetFields({
 						...budget,
@@ -38,4 +38,9 @@ describe("monthly budget validation", () => {
 	test("single-month plans supported", () => {
 		expect(() => validateMonthlyBudgetFields({ ...budget, endMonth: "2026-10" })).not.toThrow();
 	});
+});
+
+test("savings plans need no tag and reject tagged savings", () => {
+	expect(() => validateMonthlyBudgetFields({ ...budget, source: "RESERVE" })).not.toThrow();
+	expect(() => validateMonthlyBudgetFields({ ...budget, categoryId: "tag", source: "RESERVE" })).toThrow();
 });
