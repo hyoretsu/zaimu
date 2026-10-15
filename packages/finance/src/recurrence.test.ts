@@ -44,14 +44,14 @@ describe("recurrence calendar", () => {
 			),
 		).toEqual(["2026-10-05", "2026-10-19"]);
 	});
-	test("monthly selected day never precedes start", () => {
+	test("monthly start day does not exclude the selected day in the first month", () => {
 		expect(
 			recurrenceDates(
 				{ dayOfMonth: 5, interval: 2, startDate: "2026-10-20", unit: "MONTH" },
 				"2026-10-01",
 				"2027-02-05",
 			),
-		).toEqual(["2026-12-05", "2027-02-05"]);
+		).toEqual(["2026-10-05", "2026-12-05", "2027-02-05"]);
 	});
 	test("daily custom interval", () => {
 		expect(
@@ -124,4 +124,28 @@ test("advance selects tomorrow or next scheduled date and respects schedule end"
 	expect(getNextRecurrenceDate({ interval: 1, startDate: "2026-10-02", unit: "DAY" }, "2026-10-02")).toBe(
 		"2026-10-03",
 	);
+});
+
+test("annual schedules use the selected day in the starting month", () => {
+	expect(
+		recurrenceDates(
+			{ dayOfMonth: 5, interval: 1, startDate: "2027-03-20", unit: "YEAR" },
+			"2027-01-01",
+			"2028-12-31",
+		),
+	).toEqual(["2027-03-05", "2028-03-05"]);
+	expect(
+		recurrenceDates(
+			{ dayOfMonth: 30, interval: 1, startDate: "2027-03-01", unit: "YEAR" },
+			"2027-01-01",
+			"2028-12-31",
+		),
+	).toEqual(["2027-03-30", "2028-03-30"]);
+});
+test("monthly first occurrence still respects query bounds and short months", () => {
+	const schedule = { dayOfMonth: 31, interval: 1, startDate: "2027-02-28", unit: "MONTH" as const };
+	expect(recurrenceDates(schedule, "2027-01-01", "2027-03-31")).toEqual(["2027-02-28", "2027-03-31"]);
+	expect(recurrenceDates({ ...schedule, dayOfMonth: 5 }, "2027-02-20", "2027-03-31")).toEqual([
+		"2027-03-05",
+	]);
 });

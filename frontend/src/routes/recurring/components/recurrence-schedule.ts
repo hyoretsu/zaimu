@@ -1,3 +1,4 @@
+import { recurrenceDates } from "@zaimu/finance/recurrence";
 import { formatLocalDate } from "@/lib/date";
 import type { Recurrence } from "@/lib/recurrence";
 
@@ -23,6 +24,14 @@ export function getRecurrenceScheduleSummary(
 				? formatLocalDate(startDate, { weekday: "long" })
 				: getWeekdayLabel(dayOfWeek);
 		case "YEAR":
-			return formatLocalDate(startDate, { day: "2-digit", month: "2-digit" });
+			return formatLocalDate(
+				recurrenceDates(
+					{ dayOfMonth: day, interval: 1, startDate, unit },
+					`${startDate.slice(0, 7)}-01`,
+					"9999-12-31",
+					1,
+				)[0]!,
+				{ day: "2-digit", month: "2-digit" },
+			);
 	}
 }

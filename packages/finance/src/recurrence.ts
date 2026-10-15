@@ -81,6 +81,10 @@ export function recurrenceDates(
 ): string[] {
 	validateRecurrenceSchedule(schedule);
 	const start = parseDate(schedule.startDate);
+	const firstEligible =
+		schedule.unit === "MONTH" || schedule.unit === "YEAR"
+			? new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1))
+			: start;
 	const lower = parseDate(from);
 	const upper = parseDate(through);
 	const end = schedule.endDate ? parseDate(schedule.endDate) : upper;
@@ -128,7 +132,8 @@ export function recurrenceDates(
 			);
 		}
 		if (!Number.isFinite(occurrence.getTime()) || occurrence.getTime() > limit) break;
-		if (occurrence >= start && occurrence >= lower) dates.push(occurrence.toISOString().slice(0, 10));
+		if (occurrence >= firstEligible && occurrence >= lower)
+			dates.push(occurrence.toISOString().slice(0, 10));
 		if (dates.length >= maximum) break;
 		index++;
 	}
