@@ -42,3 +42,43 @@ test("an anticipated installment remains eligible when its root is already impor
 		{ ...anticipated, reconciledCreditPurchaseId: "root-id" },
 	]);
 });
+
+test("an ordinary purchase imports an unconfirmed installment without duplicating its root", () => {
+	const amazon = {
+		...purchase,
+		currentInstallment: 11,
+		description: "AMAZON RETAIL BR CPI SAO PAULO",
+		installmentAmount: 17.12,
+		installments: 12,
+		purchaseDate: "2025-09-17",
+		totalAmount: 205.44,
+	};
+	const roots = new Map([[amazon.externalId, "amazon-root"]]);
+	const installments = [
+		{ currentInstallment: 10, hasImportedAmount: true, id: "tenth", parentId: "amazon-root" },
+		{ currentInstallment: 11, hasImportedAmount: false, id: "eleventh", parentId: "amazon-root" },
+	];
+	expect(selectNewImportPurchases([amazon], roots, installments, new Set())).toEqual([
+		{ ...amazon, reconciledCreditPurchaseId: "amazon-root" },
+	]);
+	expect(selectNewImportPurchases([amazon], roots, installments, new Set([amazon.externalId]))).toEqual([]);
+	expect(
+		selectNewImportPurchases(
+			[amazon],
+			roots,
+			installments.map(item => ({ ...item, hasImportedAmount: true })),
+			new Set(),
+		),
+	).toEqual([]);
+});
+
+test("existing single purchases, charges and refunds remain excluded", () => {
+	const roots = new Map([[purchase.externalId, "existing"]]);
+	for (const existing of [
+		{ ...purchase, description: "AMAZON", installments: 1 },
+		{ ...purchase, description: "Encargo", installments: 1 },
+		{ ...purchase, description: "Estorno AMAZON", installmentAmount: -17.12 },
+	]) {
+		expect(selectNewImportPurchases([existing], roots, [], new Set())).toEqual([]);
+	}
+});

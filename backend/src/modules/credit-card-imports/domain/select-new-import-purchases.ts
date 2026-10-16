@@ -22,6 +22,7 @@ export function selectNewImportPurchases(
 		if (pendingIds.has(purchase.externalId)) return [];
 		const rootId = existingRoots.get(purchase.externalId);
 		if (!rootId) return [{ ...purchase, reconciledCreditPurchaseId: null }];
+		if (purchase.installmentAmount < 0) return [];
 		const anticipated = importedAnticipation(purchase.description);
 		const importedNumbers = new Set(
 			existingInstallments
@@ -32,7 +33,7 @@ export function selectNewImportPurchases(
 				.map(installment => installment.currentInstallment),
 		);
 		if (
-			(!purchase.description.startsWith("FIN ") && !anticipated) ||
+			(purchase.installments <= 1 && !anticipated) ||
 			(!anticipated && importedNumbers.has(purchase.currentInstallment))
 		)
 			return [];
