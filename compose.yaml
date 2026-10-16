@@ -1,29 +1,31 @@
 name: zaimu
 
-x-common: &common
-  working_dir: /app
-  init: true
-  volumes:
-    - .:/app
-
 services:
-  setup:
-    <<: *common
-    image: oven/bun:latest
-    entrypoint: ["sh", "-c"]
-    command: |
-      bun install --frozen-lockfile &&
-      bun -F sql migrate:deploy
-    restart: "no"
-
   app:
-    <<: *common
     image: oven/bun:latest
-    entrypoint: ["bun"]
-    command: ["dev"]
-    depends_on:
-      setup:
-        condition: service_completed_successfully
+    working_dir: /app
+    init: true
+    volumes:
+      - .:/app
+    entrypoint: ["sh", "-ec"]
+    command:
+      - |
+        bun install --frozen-lockfile
+        migration_hash=$$(tar -cf - packages/sql/migrations | sha256sum)
+        if [ "$$migration_hash" != "$$(cat /tmp/zaimu-migration-hash 2>/dev/null)" ]; then
+          bun -F sql migrate:deploy
+          printf '%s' "$$migration_hash" > /tmp/zaimu-migration-hash
+        fi
+        exec bun dev
+    develop:
+      watch:
+        - action: restart
+          path: .
+          include:
+            - backend/src/**
+            - frontend/src/**
+            - packages/*/src/**
+            - packages/sql/migrations/**
     restart: unless-stopped
     networks:
       - proxy
@@ -33,24 +35,6 @@ services:
 
       caddy_2: zaimu-api.hyoretsu.com
       caddy_2.reverse_proxy: "{{upstreams 3333}}"
-
-  migrate:
-    <<: *common
-    image: oven/bun:latest
-    environment:
-      SHELL: /bin/sh
-    entrypoint: ["bunx"]
-    command:
-      - chokidar-cli
-      - "packages/sql/migrations/**/*.{sql,ts}"
-      - -c
-      - "bun -F sql migrate:deploy"
-      - --debounce
-      - "750"
-    depends_on:
-      setup:
-        condition: service_completed_successfully
-    restart: unless-stopped
 
 networks:
   proxy:
