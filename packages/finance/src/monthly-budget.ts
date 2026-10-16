@@ -3,7 +3,7 @@ import { currencyScale, roundMoney, toMinorUnits } from "./money";
 export interface MonthlyBudget {
 	id: string;
 	name: string;
-	source: "TAG" | "STATEMENTS" | "CUSTOM" | "RESERVE";
+	source: "TAG" | "STATEMENTS" | "CUSTOM" | "RESERVE" | "UNCATEGORIZED";
 	categoryId: string | null;
 	parentBudgetId?: string | null;
 	amount: number;
@@ -21,7 +21,7 @@ export function sameBudgetPlan(
 		a.source === b.source &&
 		a.categoryId === b.categoryId &&
 		a.currency === b.currency &&
-		(!["CUSTOM", "RESERVE"].includes(a.source) || a.name === b.name)
+		(!["CUSTOM", "RESERVE", "UNCATEGORIZED"].includes(a.source) || a.name === b.name)
 	);
 }
 export function isMonthlyAdjustment(a: Pick<MonthlyBudget, "startMonth" | "endMonth">) {

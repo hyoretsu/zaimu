@@ -9,4 +9,6 @@ export const budgetSourceLabel = (item: Pick<MonthlyBudget, "source">) =>
 			? "Etiqueta"
 			: item.source === "CUSTOM"
 				? "Título"
-				: "Reserva";
+				: item.source === "RESERVE"
+					? "Reserva"
+					: "Sem categoria";

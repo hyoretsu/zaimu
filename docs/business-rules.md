@@ -320,3 +320,5 @@ Orçamento "Título" concilia despesas e transferências pela descrição igual 
 ## Inclusão do dia de fechamento
 
 Instituições configuram se o dia de fechamento pertence à fatura atual. O padrão é exclusivo: compras e créditos de reembolso nessa data entram na próxima fatura. No modo inclusivo, o próprio dia ainda pertence à fatura atual. A regra usa a data efetiva de fechamento, inclusive em meses curtos, no servidor e no modo visitante. Parcelas já materializadas e datas explicitamente importadas são preservadas; novas ocorrências, projeções e recálculos explícitos usam a configuração vigente.
+
+Orçamento "Sem categoria" serve para organização, sem conciliar automaticamente lançamentos por título, etiqueta ou ausência de etiqueta. Mantém valor, moeda, vigência, ajustes mensais e vínculo com orçamento principal. Planos distintos usam o nome como identidade. Valor pode ficar vazio ou nulo, tratado como zero nos cálculos e no armazenamento; subcategorias continuam compondo o total.

@@ -346,3 +346,25 @@ test("title envelopes reconcile matching transfers and expenses without consumin
 		}).items[0]?.knownAmount,
 	).toBe(0);
 });
+
+test("uncategorized plans stay independent of commitments and override only their own name", () => {
+	const budget: MonthlyBudget = { ...invoice, id: "organization", name: "Contas", source: "UNCATEGORIZED" };
+	const other = { ...budget, id: "other", name: "Outros" };
+	const adjustment = {
+		...budget,
+		amount: 100,
+		endMonth: "2026-10",
+		id: "adjustment",
+		startMonth: "2026-10",
+	};
+	const items = monthlyBudgetSummary({
+		budgets: [budget, other, adjustment],
+		commitments: [{ ...expense("expense", 200), description: "Contas" }],
+		month: "2026-10",
+	}).items;
+	expect(items.map(row => row.id)).toEqual(["other", "adjustment"]);
+	expect(items.every(row => row.knownAmount === 0)).toBe(true);
+	expect(items.find(row => row.id === "adjustment")?.projectedAmount).toBe(100);
+	expect(hasBudgetConflict([budget], other)).toBe(false);
+	expect(hasBudgetConflict([budget], budget)).toBe(true);
+});

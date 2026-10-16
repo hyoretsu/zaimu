@@ -4,11 +4,13 @@ export function BudgetAmountField({
 	value,
 	currency,
 	disabled,
+	required = true,
 	onChange,
 }: {
-	value: number;
+	value?: number | null;
 	currency: string;
 	disabled: boolean;
+	required?: boolean;
 	onChange: (value: number) => void;
 }) {
 	return (
@@ -19,7 +21,7 @@ export function BudgetAmountField({
 			label="Previsão mensal"
 			onValueChange={value => onChange(Number(value))}
 			rawValueName="budget-amount-raw"
-			required
+			required={required}
 			value={value ? String(value) : ""}
 		/>
 	);

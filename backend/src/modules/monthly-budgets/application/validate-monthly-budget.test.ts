@@ -21,7 +21,7 @@ describe("monthly budget validation", () => {
 	});
 	test("blank names supported for every planning source", () => {
 		for (const name of ["", "  "]) {
-			for (const source of ["STATEMENTS", "CUSTOM", "RESERVE", "TAG"] as const)
+			for (const source of ["STATEMENTS", "CUSTOM", "RESERVE", "UNCATEGORIZED", "TAG"] as const)
 				expect(() =>
 					validateMonthlyBudgetFields({
 						...budget,
@@ -43,4 +43,11 @@ describe("monthly budget validation", () => {
 test("savings plans need no tag and reject tagged savings", () => {
 	expect(() => validateMonthlyBudgetFields({ ...budget, source: "RESERVE" })).not.toThrow();
 	expect(() => validateMonthlyBudgetFields({ ...budget, categoryId: "tag", source: "RESERVE" })).toThrow();
+});
+
+test("only uncategorized budgets allow no planned amount", () => {
+	for (const amount of [undefined, null, 0]) {
+		expect(() => validateMonthlyBudgetFields({ ...budget, amount, source: "UNCATEGORIZED" })).not.toThrow();
+		expect(() => validateMonthlyBudgetFields({ ...budget, amount, source: "CUSTOM" })).toThrow();
+	}
 });

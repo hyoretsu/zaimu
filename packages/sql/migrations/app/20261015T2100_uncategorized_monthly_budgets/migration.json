@@ -1,0 +1,7 @@
+{
+	"createdAt": "2026-10-15T21:00:00.000Z",
+	"from": "3396a7ca1c28bf16ba91ad4c1a4d5fda50876f2b6643c75389c497440205b3cd",
+	"migrationHash": "9271f38b2022e123d1328fa17bc4fb800becf72de5d8c3f64b6a29eb56f7785d",
+	"providedInvariants": ["monthlyBudget.uncategorizedValues.v1"],
+	"to": "3396a7ca1c28bf16ba91ad4c1a4d5fda50876f2b6643c75389c497440205b3cd"
+}

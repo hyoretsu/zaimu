@@ -31,7 +31,7 @@ export async function validateMonthlyBudget(body: MonthlyBudgetBody, userId: str
 	await queryRaw("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [`monthly-budget:${userId}`]);
 	if (body.source !== "CUSTOM") {
 		const [overlap] = await queryRaw<{ id: string }>(
-			`SELECT "id" FROM "MonthlyBudget" WHERE "userId"=$1 AND "deletedAt" IS NULL AND "source"=$2 AND "currency"=$3 AND "categoryId" IS NOT DISTINCT FROM $4::varchar AND ($5::varchar IS NULL OR "id"<>$5) AND ($2 NOT IN ('CUSTOM','RESERVE') OR "name"=$8) AND (COALESCE("endMonth"="startMonth",false) = COALESCE($6=$7,false)) AND "startMonth"<=COALESCE($6,'9999-12') AND COALESCE("endMonth",'9999-12')>=$7`,
+			`SELECT "id" FROM "MonthlyBudget" WHERE "userId"=$1 AND "deletedAt" IS NULL AND "source"=$2 AND "currency"=$3 AND "categoryId" IS NOT DISTINCT FROM $4::varchar AND ($5::varchar IS NULL OR "id"<>$5) AND ($2 NOT IN ('CUSTOM','RESERVE','UNCATEGORIZED') OR "name"=$8) AND (COALESCE("endMonth"="startMonth",false) = COALESCE($6=$7,false)) AND "startMonth"<=COALESCE($6,'9999-12') AND COALESCE("endMonth",'9999-12')>=$7`,
 			[
 				userId,
 				body.source,
@@ -48,7 +48,12 @@ export async function validateMonthlyBudget(body: MonthlyBudgetBody, userId: str
 	try {
 		validateBudgetHierarchy(
 			await listMonthlyBudgets(userId),
-			{ ...body, categoryId: body.categoryId ?? null, endMonth: body.endMonth ?? null },
+			{
+				...body,
+				amount: body.amount ?? 0,
+				categoryId: body.categoryId ?? null,
+				endMonth: body.endMonth ?? null,
+			},
 			id,
 		);
 	} catch (error) {
@@ -73,7 +78,7 @@ async function saveMonthlyBudgetInTransaction(userId: string, body: MonthlyBudge
 		body.name.trim(),
 		body.source,
 		body.categoryId ?? null,
-		body.amount,
+		body.amount ?? 0,
 		body.currency,
 		body.startMonth,
 		body.endMonth ?? null,

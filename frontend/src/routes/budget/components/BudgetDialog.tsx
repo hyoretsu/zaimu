@@ -100,7 +100,11 @@ export function BudgetDialog({
 	const parentOptions = budgets.filter(candidate => {
 		if (isMonthlyAdjustment(candidate)) return false;
 		try {
-			validateBudgetHierarchy(budgets, { ...draft, parentBudgetId: candidate.id }, item?.id);
+			validateBudgetHierarchy(
+				budgets,
+				{ ...draft, amount: draft.amount ?? 0, parentBudgetId: candidate.id },
+				item?.id,
+			);
 			return true;
 		} catch {
 			return false;
@@ -130,7 +134,7 @@ export function BudgetDialog({
 						const amount = Number(new FormData(event.currentTarget).get("budget-amount-raw"));
 						if (
 							!unavailable &&
-							amount > 0 &&
+							(amount > 0 || (draft.source === "UNCATEGORIZED" && amount === 0)) &&
 							draft.startMonth &&
 							(draft.source !== "TAG" || draft.categoryId)
 						)
@@ -172,11 +176,17 @@ export function BudgetDialog({
 											{ label: "Etiqueta", value: "TAG" },
 											{ label: "Título", value: "CUSTOM" },
 											{ label: "Reserva", value: "RESERVE" },
+											{ label: "Sem categoria", value: "UNCATEGORIZED" },
 										]}
 										placeholder="Ex: Faturas de cartão"
 										required
 										value={draft.source === "STATEMENTS" && unavailable ? "" : draft.source}
 									/>
+									{draft.source === "UNCATEGORIZED" && (
+										<p className="text-muted-foreground text-sm">
+											Apenas para organização, sem conciliação automática de despesas.
+										</p>
+									)}
 									{draft.source === "CUSTOM" && (
 										<p className="text-muted-foreground text-sm">
 											Despesas e transferências com descrição igual ao nome abatem este orçamento.
@@ -244,6 +254,7 @@ export function BudgetDialog({
 									currency={draft.currency}
 									disabled={pending}
 									onChange={amount => setDraft(current => ({ ...current, amount }))}
+									required={draft.source !== "UNCATEGORIZED"}
 									value={draft.amount}
 								/>
 							</FormFieldRow>

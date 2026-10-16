@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { type MonthlyBudgetInput, validateMonthlyBudget } from "./monthly-budget";
 
-const input: MonthlyBudgetInput = {
+const input: MonthlyBudgetInput & { amount: number } = {
 	amount: 8500,
 	categoryId: null,
 	currency: "BRL",
@@ -12,7 +12,7 @@ const input: MonthlyBudgetInput = {
 };
 
 test("clearing a name preserves an empty value for every planning source", () => {
-	for (const source of ["STATEMENTS", "CUSTOM", "RESERVE", "TAG"] as const) {
+	for (const source of ["STATEMENTS", "CUSTOM", "RESERVE", "UNCATEGORIZED", "TAG"] as const) {
 		for (const name of ["", "   "]) {
 			const data = { ...input, categoryId: source === "TAG" ? "tag" : null, name, source };
 			expect(validateMonthlyBudget(data)).toEqual({ ...data, name: "" });
@@ -49,4 +49,11 @@ test("uncategorized expenses remain distinct from savings without requiring tags
 		source: "CUSTOM",
 	});
 	expect(savings).toMatchObject({ categoryId: null, source: "RESERVE" });
+});
+
+test("uncategorized budgets accept absent and null amounts without weakening other sources", () => {
+	for (const amount of [undefined, null, 0]) {
+		expect(validateMonthlyBudget({ ...input, amount, source: "UNCATEGORIZED" }).amount).toBe(0);
+		expect(() => validateMonthlyBudget({ ...input, amount, source: "CUSTOM" })).toThrow();
+	}
 });
