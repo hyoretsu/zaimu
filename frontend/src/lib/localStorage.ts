@@ -9,6 +9,7 @@ import {
 	synchronizeBookRefinancing,
 } from "@zaimu/finance/credit-book";
 import { currentDateKey } from "@zaimu/finance/credit-card";
+import { resolveInstitutionCardRules } from "@zaimu/finance/institution-card-rules";
 import { currencyScale, toMinorUnits } from "@zaimu/finance/money";
 import { pendingStatementPayments } from "@zaimu/finance/payment-suggestions";
 import type {
@@ -708,7 +709,11 @@ export async function mutateLocalCreditBook<T>(
 				refundPolicy: null,
 				statementDay: card.statementDay,
 				userId: owner.split(":").slice(1).join(":"),
-				workingDueDate: card.workingDueDate,
+				workingDueDate: resolveInstitutionCardRules(
+					accountRow?.data.institution,
+					accountRow?.data.cardRulesProfiles ?? accountRow?.data.institution?.cardRulesProfiles,
+					accountRow?.data.institutionProfileChanges,
+				).workingDueDate,
 			},
 			charges: [],
 			installments: [],
@@ -725,7 +730,11 @@ export async function mutateLocalCreditBook<T>(
 			refundPolicy: policy?.data ?? book.card.refundPolicy,
 			statementClosingInclusive: accountRow?.data.institution?.creditStatementClosingInclusive ?? false,
 			statementDay: card.statementDay,
-			workingDueDate: card.workingDueDate,
+			workingDueDate: resolveInstitutionCardRules(
+				accountRow?.data.institution,
+				accountRow?.data.cardRulesProfiles ?? accountRow?.data.institution?.cardRulesProfiles,
+				accountRow?.data.institutionProfileChanges,
+			).workingDueDate,
 		});
 		const transactions = (await requestResult(
 			tx.objectStore("scoped-transactions").index("ownerKey").getAll(owner),
@@ -950,7 +959,11 @@ export async function readLocalCreditBook(cardId: string, owner?: StorageOwner):
 						refundPolicy: null,
 						statementDay: card.statementDay,
 						userId: requireOwner(owner).split(":").slice(1).join(":"),
-						workingDueDate: card.workingDueDate,
+						workingDueDate: resolveInstitutionCardRules(
+							account?.institution,
+							account?.cardRulesProfiles ?? account?.institution?.cardRulesProfiles,
+							account?.institutionProfileChanges,
+						).workingDueDate,
 					},
 					charges: [],
 					installments: [],
@@ -968,7 +981,11 @@ export async function readLocalCreditBook(cardId: string, owner?: StorageOwner):
 		refundPolicy: policy ?? book.card.refundPolicy,
 		statementClosingInclusive: account?.institution?.creditStatementClosingInclusive ?? false,
 		statementDay: card.statementDay,
-		workingDueDate: card.workingDueDate,
+		workingDueDate: resolveInstitutionCardRules(
+			account?.institution,
+			account?.cardRulesProfiles ?? account?.institution?.cardRulesProfiles,
+			account?.institutionProfileChanges,
+		).workingDueDate,
 	});
 	book.payments = transactions
 		.filter(row => !row.deleted && row.data.paymentCreditCardId === cardId)

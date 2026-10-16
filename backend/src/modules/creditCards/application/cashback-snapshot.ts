@@ -1,21 +1,16 @@
 import { roundMoney } from "@zaimu/finance/money";
+import { cardRulesForPurchase } from "~/modules/accounts/application/institution-card-rules";
 import { ensureCurrencyRates } from "~/modules/currencies/infra/currency-exchange";
 import { HttpException } from "~/shared/errors";
 import { queryRaw } from "~/shared/infra/sql";
-export interface CashbackCard {
-	cashbackAccountId: string | null;
-	cashbackRate: number | null;
-	cashbackYieldPeriod: "MONTHLY" | "YEARLY" | null;
-	cashbackYieldReferencePercentage: number | null;
-	cashbackYieldReferenceRate: number | null;
-}
 export async function rewardSnapshot(
-	card: CashbackCard,
+	input: { id: string },
 	total: number,
 	source: string,
 	date: string,
 	userId: string,
 ) {
+	const card = await cardRulesForPurchase(input.id, userId, date);
 	const [account] = card.cashbackAccountId
 		? await queryRaw<{ currency: string }>(
 				'SELECT "currency" FROM "FinancialAccount" WHERE "id"=$1 AND "userId"=$2',

@@ -3,6 +3,7 @@
 
 namespace public {
   model FinancialInstitutionProfile {
+    creditCardRules Json?
     institution FinancialInstitution @relation(fields: [institutionId], references: [id], onDelete: Restrict, index: false)
     changes UserInstitutionProfileChange[]
     policies FinancialInstitutionYieldPolicy[]
@@ -290,6 +291,7 @@ namespace public {
   }
 
   model FinancialInstitution {
+    creditCardRules Json?
     profiles FinancialInstitutionProfile[]
     userLinks UserFinancialInstitution[]
     proposals FinancialInstitutionProposal[]

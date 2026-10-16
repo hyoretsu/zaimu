@@ -1,9 +1,11 @@
 import { Value } from "@sinclair/typebox/value";
+import { cardRuleValues } from "@zaimu/finance/institution-card-rules";
 import { toMinorUnits } from "@zaimu/finance/money";
 import Elysia from "elysia";
 import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
 import { getFinancialInstitutionYieldPolicies } from "~/modules/accounts/application/get-financial-institution-yield-policies";
 import { getInstitutionProfileContext } from "~/modules/accounts/application/get-institution-profile-context";
+import { accountCardRules } from "~/modules/accounts/application/institution-card-rules";
 import { saveAccountDefaults } from "~/modules/accounts/application/payment-preferences";
 import { resolveFinancialInstitution } from "~/modules/accounts/application/resolve-financial-institution";
 import {
@@ -612,6 +614,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 							);
 							if (!payer) throw new Error("Conta pagadora indisponível");
 						}
+						const managedRules = await accountCardRules(financialAccountId);
 						const cashbackSettings = {
 							cashbackAccountId,
 							cashbackRate: value<null | number | undefined>(entity, "cashbackRate") ?? null,
@@ -622,6 +625,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 							cashbackYieldReferenceRate:
 								value<null | number | undefined>(entity, "cashbackYieldReferenceRate") ?? null,
 						};
+						Object.assign(cashbackSettings, cardRuleValues({ ...managedRules, cashback: null }));
 						assertCashbackSettings(cashbackSettings);
 						if (cashbackAccountId && !accountIds.has(cashbackAccountId))
 							throw new Error(`Conta de cashback ${cashbackAccountId} indisponível`);
@@ -646,7 +650,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 							),
 							statementDay: Number(value<number>(entity, "statementDay")),
 							updatedAt: new Date(),
-							workingDueDate: value<boolean>(entity, "workingDueDate") ?? false,
+							workingDueDate: managedRules.workingDueDate,
 						};
 						if (existing)
 							await executeStatement(

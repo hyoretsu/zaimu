@@ -13,6 +13,7 @@ export interface User {
 }
 
 export interface FinancialAccount {
+	cardRulesProfiles?: import("@zaimu/finance/institution-card-rules").CardRulesProfile[];
 	historicalYieldSettings?: import("@zaimu/finance/projected-yield").HistoricalYieldSettings | null;
 	legacyYieldCalendar?: import("@zaimu/finance/projected-yield").LegacyYieldCalendar | null;
 	defaultInstitutionProfileId?: string | null;
@@ -87,6 +88,8 @@ export interface RewardsAccount {
 }
 
 export interface FinancialInstitution {
+	cardRulesProfiles?: import("@zaimu/finance/institution-card-rules").CardRulesProfile[];
+	creditCardRules?: import("@zaimu/finance/institution-card-rules").InstitutionCardRules | null;
 	accountCurrenciesByCountry?: Record<string, string[]>;
 	status?: "LEGACY_PRIVATE" | "PENDING" | "APPROVED" | "REJECTED" | "REJECTED_PRIVATE";
 	version?: number;

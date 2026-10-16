@@ -324,3 +324,9 @@ Instituições configuram se o dia de fechamento pertence à fatura atual. O pad
 Orçamento "Sem categoria" serve para organização, sem conciliar automaticamente lançamentos por título, etiqueta ou ausência de etiqueta. Mantém valor, moeda, vigência, ajustes mensais e vínculo com orçamento principal. Planos distintos usam o nome como identidade. Valor pode ficar vazio ou nulo, tratado como zero nos cálculos e no armazenamento; subcategorias continuam compondo o total.
 
 O cadastro e a edição de cartões permitem qualquer combinação de dias de fechamento e vencimento válidos. Quando o dia do vencimento é menor ou igual ao dia do fechamento, o vencimento ocorre no mês seguinte ao fechamento, inclusive na virada de ano. Por exemplo, fechamento em 29/09 e vencimento no dia 5 geram vencimento em 05/10.
+
+## Benefícios dos cartões por instituição e perfil
+
+Cashback, pontos e ajuste de vencimento para dia útil são regras da instituição/perfil, configuradas exclusivamente pelo admin. O cadastro e a edição de um cartão não permitem ativar, desativar ou alterar esses benefícios. A instituição define o padrão; um perfil pode herdar esse padrão ou substituí-lo integralmente, inclusive liberando cashback que não existe no padrão ou desativando um benefício. A configuração inclui tipo da recompensa, taxa, conversão de pontos, taxa de referência, percentual da referência e periodicidade do rendimento.
+
+O histórico de perfis do vínculo do usuário com a instituição determina o benefício aplicável na data da compra, inclusive para compras importadas e recorrências. Perfis futuros não antecipam benefícios. Recompensas já registradas preservam seus snapshots; alterar configurações ou perfis não reescreve compras históricas. O sistema cria ou reutiliza automaticamente a conta de recompensas correspondente à instituição, moeda, tipo e conversão, sem escolha manual de destino. Servidor e modo visitante usam a mesma resolução de regras.

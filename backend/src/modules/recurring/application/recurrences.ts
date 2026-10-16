@@ -295,16 +295,6 @@ export async function materializeRecurrence(
 			}
 			const financialDate = advance ? today : date;
 			if (recurrence.movement === "CARD_PURCHASE") {
-				const [settings] = await query<{
-					cashbackAccountId: string | null;
-					cashbackRate: number | null;
-					cashbackYieldPeriod: "MONTHLY" | "YEARLY" | null;
-					cashbackYieldReferencePercentage: number | null;
-					cashbackYieldReferenceRate: number | null;
-				}>(
-					'SELECT "cashbackAccountId","cashbackRate","cashbackYieldPeriod","cashbackYieldReferencePercentage","cashbackYieldReferenceRate" FROM "CreditCard" WHERE "id"=$1',
-					[recurrence.creditCardId],
-				);
 				await mutateCreditBook(
 					userId,
 					recurrence.creditCardId!,
@@ -317,7 +307,7 @@ export async function materializeRecurrence(
 						});
 						const purchase = newBookPurchase(book, {
 							...(await rewardSnapshot(
-								settings!,
+								{ id: recurrence.creditCardId! },
 								money.amount,
 								book.card.currency ?? "BRL",
 								financialDate,

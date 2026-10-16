@@ -4,6 +4,7 @@ import { fetchWithAuth } from "@/lib/dataService";
 import { InstitutionYieldDialog } from "@/routes/accounts/components/InstitutionYieldDialog";
 import { showToast } from "@/stores";
 import { EditInstitutionCatalogDialog } from "./EditInstitutionCatalogDialog";
+import { InstitutionCardRulesDialog } from "./InstitutionCardRulesDialog";
 import type { AdminInstitution } from "./types";
 
 export function InstitutionCatalogRow({ institution }: { institution: AdminInstitution }) {
@@ -39,6 +40,7 @@ export function InstitutionCatalogRow({ institution }: { institution: AdminInsti
 			</div>
 			<ActionGroup>
 				<EditInstitutionCatalogDialog institution={institution} />
+				<InstitutionCardRulesDialog institution={institution} />
 				<InstitutionYieldDialog
 					institution={institution}
 					onUpdate={(item, policy) => {

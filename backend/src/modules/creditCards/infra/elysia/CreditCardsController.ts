@@ -13,12 +13,14 @@ import {
 	updateBookStatementDates,
 } from "@zaimu/finance/credit-book";
 import { paymentStatement, statementCutoffAfter, statementEntryKind } from "@zaimu/finance/credit-card";
+import { cardRuleValues } from "@zaimu/finance/institution-card-rules";
 import { convertFixedSplitAtDate, currencyScale } from "@zaimu/finance/money";
 import { listedRecurrenceStatements } from "@zaimu/finance/recurrence-projection";
 import Elysia, { t } from "elysia";
+import { accountCardRules, cardRulesByAccount } from "~/modules/accounts/application/institution-card-rules";
 import { setCardPayer } from "~/modules/accounts/application/payment-preferences";
 import { assertBalanceAccountOwnership, assertCreditCardOwnership, requireUserId } from "~/modules/auth";
-import { type CashbackCard, rewardSnapshot } from "~/modules/creditCards/application/cashback-snapshot";
+import { rewardSnapshot } from "~/modules/creditCards/application/cashback-snapshot";
 import { creditLimitOverview } from "~/modules/creditCards/application/credit-limit";
 import {
 	type CreditOverviewCard,
@@ -224,11 +226,13 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					items.push(statement);
 					byCard.set(statement.creditCardId, items);
 				}
+				const managedRules = await cardRulesByAccount(cards.map(card => card.financialAccountId));
 				return cards.map(card => {
 					const effectiveStatements = byCard.get(card.id) ?? [];
 					const currentStatement = paymentStatement(effectiveStatements, new Date()) ?? null;
 					return {
 						...card,
+						...managedRules.get(card.financialAccountId),
 						currentStatement,
 						limit: creditLimitOverview(Number(card.creditLimit), card.currency, effectiveStatements),
 						pendingRefundReviewCount: countsByCard.get(card.id) ?? 0,
@@ -292,7 +296,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				throw new HttpException("Credit card not found", 404);
 			}
 
-			return card;
+			return { ...card, ...cardRuleValues(await accountCardRules(card.financialAccountId)) };
 		},
 		{
 			detail: { tags: ["Credit Cards"] },
@@ -655,10 +659,7 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 							)
 						: null;
 					if (existing) return existing.id;
-					const [card] = await query<CashbackCard>(
-						`SELECT "cashbackAccountId","cashbackRate","cashbackYieldPeriod","cashbackYieldReferencePercentage","cashbackYieldReferenceRate" FROM "CreditCard" WHERE "id"=$1`,
-						[params.id],
-					);
+
 					return newBookPurchase(book, {
 						...body,
 						currency: money.currency,
@@ -681,7 +682,7 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 						time: resolvePurchaseTime(body.time),
 						totalAmount: money.amount,
 						...(await rewardSnapshot(
-							card!,
+							{ id: params.id },
 							money.amount,
 							book.card.currency ?? "BRL",
 							body.purchaseDate,
@@ -874,10 +875,7 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 					params.purchaseId,
 					async (book, query) => {
 						await update(book);
-						const [card] = await query<CashbackCard>(
-							`SELECT "cashbackAccountId","cashbackRate","cashbackYieldPeriod","cashbackYieldReferencePercentage","cashbackYieldReferenceRate" FROM "CreditCard" WHERE "id"=$1`,
-							[destinationCardId],
-						);
+
 						const purchase = resolveBookPurchase(book, params.purchaseId);
 						Object.assign(
 							purchase,
@@ -889,7 +887,7 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 								cashbackYieldReferenceRate: null,
 							},
 							await rewardSnapshot(
-								card!,
+								{ id: destinationCardId },
 								purchase.totalAmountCents / currencyScale(book.card.currency),
 								book.card.currency ?? "BRL",
 								purchase.purchaseDate,

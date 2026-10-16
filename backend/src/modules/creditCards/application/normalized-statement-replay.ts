@@ -10,6 +10,7 @@ import {
 	type PurchaseInvoiceInstallment,
 	rebuildPurchaseStatementLedger,
 } from "@zaimu/finance/purchase-statement-ledger";
+import { workingDueDateSql } from "~/modules/accounts/application/institution-card-rules";
 import { HttpException } from "~/shared/errors";
 import type { withRawTransaction } from "~/shared/infra/sql";
 
@@ -72,7 +73,7 @@ interface PaymentRow {
 /** Rebuilds the complete chronological card chain inside the same locked refund transaction. */
 export async function replayNormalizedCard(query: RawQuery, cardId: string) {
 	const [card] = await query<CardRow>(
-		`SELECT c."id", c."currency", c."dueDay", c."statementDay", c."workingDueDate", c."ignoreStatementsBefore"::text AS "ignoreStatementsBefore", COALESCE(i."creditStatementClosingInclusive", false) AS "statementClosingInclusive" FROM "CreditCard" c JOIN "FinancialAccount" a ON a."id"=c."financialAccountId" LEFT JOIN "FinancialInstitution" i ON i."id"=a."institutionId" WHERE c."id" = $1`,
+		`SELECT c."id", c."currency", c."dueDay", c."statementDay", ${workingDueDateSql("a")} AS "workingDueDate", c."ignoreStatementsBefore"::text AS "ignoreStatementsBefore", COALESCE(i."creditStatementClosingInclusive", false) AS "statementClosingInclusive" FROM "CreditCard" c JOIN "FinancialAccount" a ON a."id"=c."financialAccountId" LEFT JOIN "FinancialInstitution" i ON i."id"=a."institutionId" WHERE c."id" = $1`,
 		[cardId],
 	);
 	if (!card) throw new HttpException("Cartão não encontrado", 404);

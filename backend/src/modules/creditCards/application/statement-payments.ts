@@ -5,6 +5,7 @@ import {
 	type StatementInput,
 	statementCycles,
 } from "@zaimu/finance/credit-card";
+import { accountCardRules } from "~/modules/accounts/application/institution-card-rules";
 import { numeric, queryRaw, type SqlExecutor } from "~/shared/infra/sql";
 import { readCreditBook } from "./normalized-credit-book";
 
@@ -66,6 +67,7 @@ export async function recalculateStatementPayments(transaction: SqlExecutor, car
 		transaction.db.sql.public.CreditCard.select(
 			"id",
 			"currency",
+			"financialAccountId",
 			"statementDay",
 			"dueDay",
 			"workingDueDate",
@@ -80,6 +82,7 @@ export async function recalculateStatementPayments(transaction: SqlExecutor, car
 			.build(),
 	);
 	for (const card of cards) {
+		card.workingDueDate = (await accountCardRules(card.financialAccountId)).workingDueDate;
 		const cycles = statementCycles(
 			statements.filter(s => s.creditCardId === card.id),
 			card,

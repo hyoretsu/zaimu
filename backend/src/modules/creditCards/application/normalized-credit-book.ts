@@ -16,6 +16,7 @@ import { currentDateKey, recalculateStatementDueDate } from "@zaimu/finance/cred
 import { assertPurchase, distributePurchaseCents } from "@zaimu/finance/credit-purchase";
 import { currencyScale } from "@zaimu/finance/money";
 import { measureOperation } from "sql";
+import { workingDueDateSql } from "~/modules/accounts/application/institution-card-rules";
 import {
 	assertTagOwnership,
 	getTagsByEntity,
@@ -52,7 +53,7 @@ export async function loadCreditBook(
 	metadata = true,
 ): Promise<CreditBook> {
 	const [card] = await query<CreditBook["card"]>(
-		`SELECT c."id", c."currency", a."userId", c."statementDay", c."dueDay", c."workingDueDate", c."ignoreStatementsBefore"::text AS "ignoreStatementsBefore", a."institutionId", i."creditRefundPolicy" AS "refundPolicy", COALESCE(i."creditInstallmentRemainderOnFirst", false) AS "installmentRemainderOnFirst", COALESCE(i."creditStatementClosingInclusive", false) AS "statementClosingInclusive" FROM "CreditCard" c JOIN "FinancialAccount" a ON a."id" = c."financialAccountId" LEFT JOIN "FinancialInstitution" i ON i."id" = a."institutionId" WHERE c."id" = $1 AND a."userId" = $2 ${lock ? "FOR UPDATE OF c" : ""}`,
+		`SELECT c."id", c."currency", a."userId", c."statementDay", c."dueDay", ${workingDueDateSql("a")} AS "workingDueDate", c."ignoreStatementsBefore"::text AS "ignoreStatementsBefore", a."institutionId", i."creditRefundPolicy" AS "refundPolicy", COALESCE(i."creditInstallmentRemainderOnFirst", false) AS "installmentRemainderOnFirst", COALESCE(i."creditStatementClosingInclusive", false) AS "statementClosingInclusive" FROM "CreditCard" c JOIN "FinancialAccount" a ON a."id" = c."financialAccountId" LEFT JOIN "FinancialInstitution" i ON i."id" = a."institutionId" WHERE c."id" = $1 AND a."userId" = $2 ${lock ? "FOR UPDATE OF c" : ""}`,
 		[cardId, userId],
 	);
 	if (!card) throw new HttpException("Cartão não encontrado", 404);

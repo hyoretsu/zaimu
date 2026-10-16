@@ -2,10 +2,13 @@ import {
 	addBookRefund,
 	type CreditBook,
 	removeBookRefund,
+	resizePurchaseCashback,
 	updateBookRefund,
 } from "@zaimu/finance/credit-book";
+import { currencyScale } from "@zaimu/finance/money";
 import { HttpException } from "~/shared/errors";
 import { withRawTransaction } from "~/shared/infra/sql";
+import { rewardSnapshot } from "./cashback-snapshot";
 import { mutateCreditBook } from "./normalized-credit-book";
 
 /** Incoming normalized records are merged inside the same card lock as HTTP mutations. */
@@ -30,7 +33,7 @@ export async function syncCreditBook(userId: string, input: CreditBook) {
 					409,
 				);
 		}
-		await mutateCreditBook(userId, input.card.id, book => {
+		await mutateCreditBook(userId, input.card.id, async book => {
 			book.deletedPurchaseIds = [
 				...new Set([...(book.deletedPurchaseIds ?? []), ...(input.deletedPurchaseIds ?? [])]),
 			];
@@ -67,6 +70,36 @@ export async function syncCreditBook(userId: string, input: CreditBook) {
 				if (existing && existing.updatedAt > p.updatedAt)
 					throw new HttpException("Compra alterada no servidor; atualize antes de sincronizar", 409);
 				const next = { ...p, creditCardId: book.card.id, userId };
+				if (existing) {
+					Object.assign(next, {
+						cashbackAccountId: existing.cashbackAccountId,
+						cashbackAmount: existing.cashbackAmount,
+						cashbackCurrency: existing.cashbackCurrency,
+						cashbackYieldPeriod: existing.cashbackYieldPeriod,
+						cashbackYieldReferencePercentage: existing.cashbackYieldReferencePercentage,
+						cashbackYieldReferenceRate: existing.cashbackYieldReferenceRate,
+					});
+					resizePurchaseCashback(next, existing.totalAmountCents);
+				} else
+					Object.assign(
+						next,
+						{
+							cashbackAccountId: null,
+							cashbackAmount: null,
+							cashbackCurrency: null,
+							cashbackYieldPeriod: null,
+							cashbackYieldReferencePercentage: null,
+							cashbackYieldReferenceRate: null,
+						},
+						await rewardSnapshot(
+							{ id: book.card.id },
+							p.totalAmountCents / currencyScale(book.card.currency),
+							book.card.currency ?? "BRL",
+							p.purchaseDate,
+							userId,
+						),
+					);
+
 				if (existing) Object.assign(existing, next);
 				else book.purchases.push(next);
 			}

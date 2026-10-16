@@ -28,7 +28,6 @@ import { useCacheIdentity } from "@/lib/query-cache";
 import { useAuthStore } from "@/stores/auth";
 import { AccountYieldFields } from "./AccountYieldFields";
 import { CardPayerFields } from "./CardPayerFields";
-import { CashbackSettingsDialog } from "./CashbackSettingsDialog";
 import { InstitutionAssociationProfile } from "./InstitutionAssociationProfile";
 import { RecalculateCurrentDayYieldDialog } from "./RecalculateCurrentDayYieldDialog";
 
@@ -44,7 +43,6 @@ const days = Array.from({ length: 31 }, (_, index) => ({
 	label: `Dia ${index + 1}`,
 	value: String(index + 1),
 }));
-const AUTO_REWARDS_ACCOUNT = "__automatic_rewards_account__";
 
 type Draft = Parameters<typeof import("@/lib/dataService").dataService.accounts.create>[0];
 type UpdateDraft = import("@/lib/dataService").FinancialAccountUpdateDraft;
@@ -56,7 +54,6 @@ export function CreateFinancialAccountDialog({
 	cardOnly = false,
 	defaultInstitutionId,
 	institutions: associatedInstitutions = [],
-	rewardAccounts = [],
 	onCreate,
 	onOpenChange,
 	onUpdate,
@@ -127,7 +124,6 @@ export function CreateFinancialAccountDialog({
 	const [securityDeposit, setSecurityDeposit] = useState(String(account?.creditCard?.securityDeposit ?? ""));
 	const [statementDay, setStatementDay] = useState(String(account?.creditCard?.statementDay ?? 10));
 	const [dueDay, setDueDay] = useState(String(account?.creditCard?.dueDay ?? 17));
-	const [workingDueDate, setWorkingDueDate] = useState(account?.creditCard?.workingDueDate ?? false);
 	const [excludeFromTotals, setExcludeFromTotals] = useState(account?.creditCard?.excludeFromTotals ?? false);
 	const [yieldEnabled, setYieldEnabled] = useState(
 		Boolean(account?.yieldFixedRate || (!isGuestMode && account?.yieldReferenceType)),
@@ -166,35 +162,6 @@ export function CreateFinancialAccountDialog({
 		String(account?.rewardsAccount?.conversionAmount ?? ""),
 		() => undefined,
 	);
-	const [cashbackEnabled, setCashbackEnabled] = useState(Boolean(account?.creditCard?.cashbackRate));
-	const [cashbackConfigOpen, setCashbackConfigOpen] = useState(false);
-	const [cashbackRate, setCashbackRate] = useDebouncedInput(
-		String(account?.creditCard?.cashbackRate ?? ""),
-		() => undefined,
-	);
-	const [cashbackAccountId, setCashbackAccountId] = useState(
-		account?.creditCard?.cashbackAccountId ?? AUTO_REWARDS_ACCOUNT,
-	);
-	const [cashbackKind, setCashbackKind] = useState<"CASHBACK" | "POINTS">("CASHBACK");
-	const [cashbackPoints, setCashbackPoints] = useDebouncedInput("", () => undefined);
-	const [cashbackSpendAmount, setCashbackSpendAmount] = useDebouncedInput("", () => undefined);
-	const [cashbackConversionEnabled, setCashbackConversionEnabled] = useState(false);
-	const [cashbackConversionPoints, setCashbackConversionPoints] = useDebouncedInput("", () => undefined);
-	const [cashbackConversionAmount, setCashbackConversionAmount] = useDebouncedInput("", () => undefined);
-	const [cashbackYieldEnabled, setCashbackYieldEnabled] = useState(
-		Boolean(account?.creditCard?.cashbackYieldReferenceRate),
-	);
-	const [cashbackYieldReferenceRate, setCashbackYieldRate] = useDebouncedInput(
-		String(account?.creditCard?.cashbackYieldReferenceRate ?? ""),
-		() => undefined,
-	);
-	const [cashbackYieldReferencePercentage, setCashbackYieldReferencePercentage] = useDebouncedInput(
-		String(account?.creditCard?.cashbackYieldReferencePercentage ?? 100),
-		() => undefined,
-	);
-	const [cashbackYieldPeriod, setCashbackYieldPeriod] = useState<"MONTHLY" | "YEARLY">(
-		account?.creditCard?.cashbackYieldPeriod ?? "MONTHLY",
-	);
 
 	const reset = () => {
 		setCurrency(initialCurrency());
@@ -206,7 +173,6 @@ export function CreateFinancialAccountDialog({
 		setSecurityDeposit(String(account?.creditCard?.securityDeposit ?? ""));
 		setStatementDay(String(account?.creditCard?.statementDay ?? 10));
 		setDueDay(String(account?.creditCard?.dueDay ?? 17));
-		setWorkingDueDate(account?.creditCard?.workingDueDate ?? false);
 		setPaymentAccountId(account?.creditCard?.paymentAccountId ?? null);
 		setPaymentSuggestionsEnabled(account?.creditCard?.paymentSuggestionsEnabled ?? true);
 		setExcludeFromTotals(account?.creditCard?.excludeFromTotals ?? false);
@@ -225,20 +191,6 @@ export function CreateFinancialAccountDialog({
 		);
 		setConversionPoints(String(account?.rewardsAccount?.conversionPoints ?? ""));
 		setConversionAmount(String(account?.rewardsAccount?.conversionAmount ?? ""));
-		setCashbackEnabled(Boolean(account?.creditCard?.cashbackRate));
-		setCashbackConfigOpen(false);
-		setCashbackRate(String(account?.creditCard?.cashbackRate ?? ""));
-		setCashbackAccountId(account?.creditCard?.cashbackAccountId ?? AUTO_REWARDS_ACCOUNT);
-		setCashbackKind("CASHBACK");
-		setCashbackPoints("");
-		setCashbackSpendAmount("");
-		setCashbackConversionEnabled(false);
-		setCashbackConversionPoints("");
-		setCashbackConversionAmount("");
-		setCashbackYieldEnabled(Boolean(account?.creditCard?.cashbackYieldReferenceRate));
-		setCashbackYieldRate(String(account?.creditCard?.cashbackYieldReferenceRate ?? ""));
-		setCashbackYieldReferencePercentage(String(account?.creditCard?.cashbackYieldReferencePercentage ?? 100));
-		setCashbackYieldPeriod(account?.creditCard?.cashbackYieldPeriod ?? "MONTHLY");
 	};
 	useDialogCloseReset(open, reset);
 	const handleOpenChange = (nextOpen: boolean) => {
@@ -269,42 +221,6 @@ export function CreateFinancialAccountDialog({
 				creditCard:
 					type === "CREDIT_CARD"
 						? {
-								...(cashbackEnabled
-									? {
-											...(cashbackAccountId !== AUTO_REWARDS_ACCOUNT && { cashbackAccountId }),
-											cashbackRate:
-												cashbackKind === "CASHBACK"
-													? Number(cashbackRate)
-													: Number(cashbackPoints) / Number(cashbackSpendAmount),
-											cashbackRewards: {
-												conversionAmount:
-													cashbackKind === "POINTS" && cashbackConversionEnabled
-														? Number(cashbackConversionAmount)
-														: undefined,
-												conversionPoints:
-													cashbackKind === "POINTS" && cashbackConversionEnabled
-														? Number(cashbackConversionPoints)
-														: undefined,
-												kind: cashbackKind,
-											},
-											cashbackYieldPeriod: cashbackYieldEnabled ? cashbackYieldPeriod : null,
-											cashbackYieldReferencePercentage: cashbackYieldEnabled
-												? Number(cashbackYieldReferencePercentage)
-												: null,
-											cashbackYieldReferenceRate: cashbackYieldEnabled
-												? Number(cashbackYieldReferenceRate)
-												: null,
-										}
-									: account
-										? {
-												cashbackAccountId: null,
-												cashbackRate: null,
-												cashbackRewards: undefined,
-												cashbackYieldPeriod: null,
-												cashbackYieldReferencePercentage: null,
-												cashbackYieldReferenceRate: null,
-											}
-										: {}),
 								creditLimit: Number(creditLimit),
 								dueDay: Number(dueDay),
 								excludeFromTotals,
@@ -312,7 +228,7 @@ export function CreateFinancialAccountDialog({
 								paymentSuggestionsEnabled,
 								securityDeposit: securityDeposit ? Number(securityDeposit) : undefined,
 								statementDay: Number(statementDay),
-								workingDueDate,
+								workingDueDate: false,
 							}
 						: undefined,
 				currency,
@@ -646,191 +562,10 @@ export function CreateFinancialAccountDialog({
 										value={dueDay}
 									/>
 								</div>
-								<CheckboxField
-									align="start"
-									checkboxProps={{
-										checked: cashbackEnabled,
-										id: "cashback-enabled",
-										onCheckedChange: checked => {
-											setCashbackEnabled(checked === true);
-											if (checked === true) setCashbackConfigOpen(true);
-											if (checked !== true) setCashbackYieldEnabled(false);
-										},
-									}}
-								>
-									<span>
-										<strong className="block">Este cartão oferece cashback</strong>
-										<span className="text-muted-foreground">
-											Cada compra credita a recompensa automaticamente.
-										</span>
-									</span>
-								</CheckboxField>
-								{cashbackEnabled && (
-									<Button
-										className="cursor-pointer"
-										onClick={() => setCashbackConfigOpen(true)}
-										type="button"
-										variant="outline"
-									>
-										Configurar cashback
-									</Button>
-								)}
-								{/* Cashback fields render in their own dialog to preserve this form's geometry.
-									{cashbackEnabled && (
-										<div className="hidden">
-											<CustomSelect
-												label="Recompensa recebida"
-												onValueChange={value => setCashbackKind(value as "CASHBACK" | "POINTS")}
-												options={[
-													{ label: "Cashback em dinheiro", value: "CASHBACK" },
-													{ label: "Pontos", value: "POINTS" },
-												]}
-												placeholder="Selecione a recompensa"
-												value={cashbackKind}
-											/>
-											{cashbackKind === "CASHBACK" ? (
-												<NumericField
-													decimalScale={4}
-													id="cashback-rate"
-													label="Cashback"
-													onValueChange={setCashbackRate}
-													placeholder="Ex: 1,5%"
-													required
-													suffix="%"
-													value={cashbackRate}
-												/>
-											) : (
-												<div className="grid gap-4 sm:grid-cols-2">
-													<NumericField
-														decimalScale={4}
-														id="cashback-points"
-														label="Pontos ganhos"
-														onValueChange={setCashbackPoints}
-														placeholder="Ex: 2"
-														required
-														value={cashbackPoints}
-													/>
-													<MoneyField
-									currencyCode={currency}
-														id="cashback-spend-amount"
-														label="A cada"
-														onValueChange={setCashbackSpendAmount}
-														placeholder="R$ 1,00"
-														required
-														value={cashbackSpendAmount}
-													/>
-												</div>
-											)}
-											<CustomSelect
-												label="Conta de destino"
-												searchable
-												onValueChange={setCashbackAccountId}
-												options={[
-													{ label: "Criar ou reutilizar automaticamente", special: true, value: AUTO_REWARDS_ACCOUNT },
-													...rewardAccounts.map(rewardAccount => ({
-														label: getFinancialAccountOptionLabel(rewardAccount),
-														value: rewardAccount.id,
-													})),
-												]}
-												placeholder="Selecione a conta de recompensa"
-												value={cashbackAccountId}
-											/>
-											<p className="text-muted-foreground text-xs">
-												Sem escolha, uma conta sem nome será criada ou reutilizada nesta instituição.
-											</p>
-											{cashbackKind === "POINTS" && (
-												<>
-													<CheckboxField
-														align="start"
-														checkboxProps={{
-															checked: cashbackConversionEnabled,
-															id: "cashback-conversion-enabled",
-															onCheckedChange: checked => setCashbackConversionEnabled(checked === true),
-														}}
-													>
-														<span>
-															<strong className="block">Informar equivalente monetário em {currency}</strong>
-															<span className="text-muted-foreground">
-																Pontos continuam guardados em pontos.
-															</span>
-														</span>
-													</CheckboxField>
-													{cashbackConversionEnabled && (
-														<div className="grid gap-4 sm:grid-cols-2">
-															<NumericField
-																decimalScale={4}
-																id="cashback-conversion-points"
-																label="Pontos"
-																onValueChange={setCashbackConversionPoints}
-																placeholder="Ex: 1.000"
-																required
-																value={cashbackConversionPoints}
-															/>
-															<MoneyField
-									currencyCode={currency}
-																id="cashback-conversion-amount"
-																label="Equivalem a"
-																onValueChange={setCashbackConversionAmount}
-																																required
-																value={cashbackConversionAmount}
-															/>
-														</div>
-													)}
-												</>
-											)}
-											<CheckboxField
-												align="start"
-												checkboxProps={{
-													checked: cashbackYieldEnabled,
-													id: "cashback-yield-enabled",
-													onCheckedChange: checked => setCashbackYieldEnabled(checked === true),
-												}}
-											>
-												<span>
-													<strong className="block">Cashback rende ao longo do tempo</strong>
-													<span className="text-muted-foreground">Rendimento composto mensal ou anual.</span>
-												</span>
-											</CheckboxField>
-											{cashbackYieldEnabled && (
-												<div className="grid gap-4 sm:grid-cols-2">
-													<NumericField
-														decimalScale={4}
-														id="cashback-yield-rate"
-														label="Rendimento"
-														onValueChange={setCashbackYieldRate}
-														placeholder="Ex: 0,5%"
-														required
-														suffix="%"
-														value={cashbackYieldReferenceRate}
-													/>
-													<CustomSelect
-														label="Período"
-														onValueChange={value => setCashbackYieldPeriod(value as "MONTHLY" | "YEARLY")}
-														options={[
-															{ label: "Ao mês", value: "MONTHLY" },
-															{ label: "Ao ano", value: "YEARLY" },
-														]}
-														placeholder="Selecione o período"
-														required
-														value={cashbackYieldPeriod}
-													/>
-												</div>
-											)}
-										</div>
-									)} */}
-								<CheckboxField
-									align="start"
-									checkboxProps={{
-										checked: workingDueDate,
-										id: "working-due-date",
-										onCheckedChange: checked => setWorkingDueDate(checked === true),
-									}}
-								>
-									<span>
-										<strong className="block">Ajustar para dia útil</strong>
-										<span className="text-muted-foreground">Move vencimentos que caem em fim de semana.</span>
-									</span>
-								</CheckboxField>
+								<p className="text-muted-foreground text-sm">
+									Cashback e ajuste de vencimento seguem as regras da instituição e do perfil do vínculo,
+									configuradas pelo admin.
+								</p>
 								<CheckboxField
 									align="start"
 									checkboxProps={{
@@ -875,20 +610,8 @@ export function CreateFinancialAccountDialog({
 								!currency ||
 								!institution ||
 								(type === "CREDIT_CARD" && !creditLimit) ||
-								(type === "CREDIT_CARD" && cashbackEnabled && cashbackKind === "CASHBACK" && !cashbackRate) ||
-								(type === "CREDIT_CARD" &&
-									cashbackEnabled &&
-									cashbackKind === "POINTS" &&
-									(!cashbackPoints || !cashbackSpendAmount)) ||
-								(type === "CREDIT_CARD" && cashbackYieldEnabled && !cashbackYieldReferenceRate) ||
-								(type === "CREDIT_CARD" && cashbackYieldEnabled && !cashbackYieldReferencePercentage) ||
 								(type !== "CREDIT_CARD" && yieldEnabled && !yieldFixedRate && !yieldReferenceType) ||
 								(type !== "CREDIT_CARD" && yieldEnabled && yieldReferenceType && !yieldReferencePercentage) ||
-								(type === "CREDIT_CARD" &&
-									cashbackEnabled &&
-									cashbackKind === "POINTS" &&
-									cashbackConversionEnabled &&
-									(!cashbackConversionPoints || !cashbackConversionAmount)) ||
 								(type === "REWARDS" && conversionEnabled && (!conversionPoints || !conversionAmount))
 							}
 							type="submit"
@@ -898,36 +621,6 @@ export function CreateFinancialAccountDialog({
 					</DialogFooter>
 				</form>
 			</DialogContent>
-			<CashbackSettingsDialog
-				automaticAccountValue={AUTO_REWARDS_ACCOUNT}
-				cashbackAccountId={cashbackAccountId}
-				cashbackConversionAmount={cashbackConversionAmount}
-				cashbackConversionEnabled={cashbackConversionEnabled}
-				cashbackConversionPoints={cashbackConversionPoints}
-				cashbackKind={cashbackKind}
-				cashbackPoints={cashbackPoints}
-				cashbackRate={cashbackRate}
-				cashbackSpendAmount={cashbackSpendAmount}
-				cashbackYieldEnabled={cashbackYieldEnabled}
-				cashbackYieldPeriod={cashbackYieldPeriod}
-				cashbackYieldReferencePercentage={cashbackYieldReferencePercentage}
-				cashbackYieldReferenceRate={cashbackYieldReferenceRate}
-				onOpenChange={setCashbackConfigOpen}
-				open={cashbackConfigOpen}
-				rewardAccounts={rewardAccounts}
-				setCashbackAccountId={setCashbackAccountId}
-				setCashbackConversionAmount={setCashbackConversionAmount}
-				setCashbackConversionEnabled={setCashbackConversionEnabled}
-				setCashbackConversionPoints={setCashbackConversionPoints}
-				setCashbackKind={setCashbackKind}
-				setCashbackPoints={setCashbackPoints}
-				setCashbackRate={setCashbackRate}
-				setCashbackSpendAmount={setCashbackSpendAmount}
-				setCashbackYieldEnabled={setCashbackYieldEnabled}
-				setCashbackYieldPeriod={setCashbackYieldPeriod}
-				setCashbackYieldRate={setCashbackYieldRate}
-				setCashbackYieldReferencePercentage={setCashbackYieldReferencePercentage}
-			/>
 			<RecalculateCurrentDayYieldDialog
 				onOpenChange={setIsRecalculateCurrentDayYieldDialogOpen}
 				onRecalculate={() => {

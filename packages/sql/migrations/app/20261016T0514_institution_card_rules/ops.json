@@ -1,0 +1,70 @@
+[
+	{
+		"execute": [
+			{
+				"description": "add column \"creditCardRules\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialInstitution\" ADD COLUMN \"creditCardRules\" json"
+			}
+		],
+		"id": "column.public.FinancialInstitution.creditCardRules",
+		"label": "Add column \"creditCardRules\" to \"FinancialInstitution\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"creditCardRules\" exists",
+				"params": ["public", "FinancialInstitution", "creditCardRules"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"creditCardRules\" is missing",
+				"params": ["public", "FinancialInstitution", "creditCardRules"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "creditCardRules",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialInstitution"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"creditCardRules\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialInstitutionProfile\" ADD COLUMN \"creditCardRules\" json"
+			}
+		],
+		"id": "column.public.FinancialInstitutionProfile.creditCardRules",
+		"label": "Add column \"creditCardRules\" to \"FinancialInstitutionProfile\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"creditCardRules\" exists",
+				"params": ["public", "FinancialInstitutionProfile", "creditCardRules"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"creditCardRules\" is missing",
+				"params": ["public", "FinancialInstitutionProfile", "creditCardRules"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "creditCardRules",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialInstitutionProfile"
+			},
+			"id": "postgres"
+		}
+	}
+]

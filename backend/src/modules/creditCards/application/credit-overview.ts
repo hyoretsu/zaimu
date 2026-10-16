@@ -5,6 +5,7 @@ import {
 	projectRecurrenceCreditBook,
 	type RecurrenceMoneyConverter,
 } from "@zaimu/finance/recurrence-projection";
+import { workingDueDateSql } from "~/modules/accounts/application/institution-card-rules";
 export interface CreditOverviewRow extends Record<string, unknown> {
 	data: Record<string, unknown>;
 	kind: string;
@@ -67,7 +68,7 @@ SELECT 'card' AS kind, jsonb_build_object(
   'institutionName', institution."name", 'name', account."name", 'refundPolicy', card."refundPolicy",
   'statementClosingInclusive', card."statementClosingInclusive",
   'installmentRemainderOnFirst', card."installmentRemainderOnFirst",
-  'workingDueDate', card."workingDueDate"
+  'workingDueDate', ${workingDueDateSql("account")}
 ) AS data
 FROM visible_cards card
 JOIN "FinancialAccount" account ON account."id" = card."financialAccountId"

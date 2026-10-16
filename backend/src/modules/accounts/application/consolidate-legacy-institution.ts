@@ -145,7 +145,7 @@ export async function consolidateLegacyInstitution(reviewerId: string, sourceId:
 /** Archived private sources stay for history, never as duplicate selectable institutions. */
 export async function listInstitutionCatalog(userId: string, admin = false) {
 	return queryRaw<InstitutionCatalogResult>(
-		`SELECT i.* FROM "FinancialInstitution" i WHERE i."status"='APPROVED' OR ((i."userId"=$1 OR $2::boolean) AND (i."status"<>'LEGACY_PRIVATE' OR i."userId" IS NOT NULL)) ORDER BY i."name",i."id"`,
+		`SELECT i.*,COALESCE((SELECT json_agg(json_build_object('id',p.id,'isDefault',p."isDefault",'creditCardRules',p."creditCardRules")) FROM "FinancialInstitutionProfile" p WHERE p."institutionId"=i.id),'[]'::json) AS "cardRulesProfiles" FROM "FinancialInstitution" i WHERE i."status"='APPROVED' OR ((i."userId"=$1 OR $2::boolean) AND (i."status"<>'LEGACY_PRIVATE' OR i."userId" IS NOT NULL)) ORDER BY i."name",i."id"`,
 		[userId, admin],
 	);
 }

@@ -1,3 +1,4 @@
+import { cardRuleValues } from "@zaimu/finance/institution-card-rules";
 import { startOfDay } from "date-fns";
 import Elysia, { t } from "elysia";
 import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
@@ -41,6 +42,12 @@ import {
 	queryRows,
 	withRawTransaction,
 } from "~/shared/infra/sql";
+import {
+	accountCardRules,
+	cardRuleValuesSql,
+	institutionCardRules,
+	rewardAccountForRules,
+} from "../../application/institution-card-rules";
 
 const Id = t.String({ maxLength: 36, minLength: 1 });
 const FinancialAccountType = t.Union([
@@ -148,7 +155,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				}>(
 					`
 SELECT to_jsonb(account) - 'balance' AS account, to_jsonb(institution) AS institution,
- to_jsonb(card) AS card, to_jsonb(rewards) AS rewards
+ to_jsonb(card) || ${cardRuleValuesSql("account")} AS card, to_jsonb(rewards) AS rewards
 FROM "FinancialAccount" account
 LEFT JOIN "FinancialInstitution" institution ON institution."id" = account."institutionId"
 LEFT JOIN "CreditCard" card ON card."financialAccountId" = account."id"
@@ -367,9 +374,6 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 				if (body.creditCard) {
 					if (body.creditCard.paymentAccountId)
 						await assertPayerOwnership(body.creditCard.paymentAccountId, userId);
-					assertCashbackSettings(body.creditCard);
-					if (body.creditCard.cashbackAccountId)
-						await assertRewardsAccountOwnership(body.creditCard.cashbackAccountId, userId);
 				}
 				const effectiveCurrency = await defaultCurrency(userId, request.headers.get("x-currency"));
 				const institution = body.institutionId
@@ -399,59 +403,18 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 						},
 						currency,
 					);
-				let cashbackAccountId = body.creditCard?.cashbackAccountId;
-				if (body.creditCard?.cashbackRate && !cashbackAccountId) {
-					const cashbackRewards = body.creditCard.cashbackRewards ?? { kind: "CASHBACK" as const };
-					const existingRewards = await queryFirst(
-						db.sql.public.FinancialAccount.select("id")
-							.where((fields, functions) =>
-								functions.and(
-									functions.eq(fields.userId, userId),
-									functions.eq(fields.type, "REWARDS"),
-									institution
-										? functions.eq(fields.institutionId, institution.id)
-										: functions.raw`${fields.institutionId} IS NULL`.returns("pg/bool@1"),
-									functions.raw`${fields.name} IS NULL`.returns("pg/bool@1"),
-								),
-							)
-							.limit(1)
-							.build(),
-					);
-					if (existingRewards) cashbackAccountId = existingRewards.id;
-					else {
-						const rewardFinancialAccount = await queryFirst(
-							db.sql.public.FinancialAccount.insert([
-								{
-									countryCode,
-									currency,
-									institutionId: institution?.id,
-									name: null as never,
-									type: "REWARDS",
-									userId,
-								},
-							])
-								.returning("id")
-								.build(),
-						);
-						if (!rewardFinancialAccount) throw new HttpException("Conta de recompensa não criada", 500);
-						await executeStatement(
-							db.sql.public.RewardsAccount.insert([
-								{
-									...(cashbackRewards.conversionAmount !== undefined && {
-										conversionAmount: String(cashbackRewards.conversionAmount),
-									}),
-									...(cashbackRewards.conversionPoints !== undefined && {
-										conversionPoints: String(cashbackRewards.conversionPoints),
-									}),
-									financialAccountId: rewardFinancialAccount.id,
-									initialBalance: "0",
-									kind: cashbackRewards.kind,
-								},
-							]).build(),
-						);
-						cashbackAccountId = rewardFinancialAccount.id;
-					}
-				}
+				const creditRules = await institutionCardRules(userId, institution?.id);
+				if (body.creditCard)
+					Object.assign(body.creditCard, {
+						cashbackAccountId: undefined,
+						cashbackRate: undefined,
+						cashbackRewards: undefined,
+						cashbackYieldPeriod: undefined,
+						cashbackYieldReferencePercentage: undefined,
+						cashbackYieldReferenceRate: undefined,
+						workingDueDate: creditRules.workingDueDate,
+					});
+
 				const existing = await queryFirst(
 					db.sql.public.FinancialAccount.select("id")
 						.where((fields, functions) =>
@@ -540,10 +503,11 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 
 				// If it's a credit card, create the credit card details
 				if (type === "CREDIT_CARD" && body.creditCard) {
+					const cashbackAccountId = await rewardAccountForRules(account.id, creditRules);
 					const creditCard = await queryFirst(
 						db.sql.public.CreditCard.insert([
 							{
-								cashbackAccountId,
+								cashbackAccountId: cashbackAccountId ?? undefined,
 								currency,
 								paymentAccountId: body.creditCard.paymentAccountId ?? undefined,
 								paymentSuggestionsEnabled: body.creditCard.paymentSuggestionsEnabled ?? true,
@@ -595,7 +559,12 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 					);
 					if (!creditCard) throw new HttpException("CreditCard not created", 500);
 
-					return { ...account, balance: null, creditCard, institution };
+					return {
+						...account,
+						balance: null,
+						creditCard: { ...creditCard, ...cardRuleValues(await accountCardRules(account.id)) },
+						institution,
+					};
 				}
 				if (type === "REWARDS" && body.rewardsAccount) {
 					const rewardsAccount = await queryFirst(
@@ -1006,7 +975,12 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 					)
 						await recalculateCreditCardDueDates(userId, creditCard.id, existingCreditCard);
 
-					return { ...account, balance: null, creditCard, institution };
+					return {
+						...account,
+						balance: null,
+						creditCard: { ...creditCard, ...cardRuleValues(await accountCardRules(account.id)) },
+						institution,
+					};
 				}
 				if (body.rewardsAccount && existing.type === "REWARDS") {
 					const existingRewardsAccount = await queryFirst(

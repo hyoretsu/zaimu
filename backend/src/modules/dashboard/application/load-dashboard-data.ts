@@ -2,6 +2,7 @@ import type { CreditBook } from "@zaimu/finance/credit-book";
 import type { MonthlyBudget } from "@zaimu/finance/monthly-budget";
 import type { RecurrenceMoneyConverter } from "@zaimu/finance/recurrence-projection";
 import { cashbackReversalsSql } from "~/modules/accounts/application/cashback-reversals-sql";
+import { workingDueDateSql } from "~/modules/accounts/application/institution-card-rules";
 import { replayOverviewStatements as replayDashboardStatements } from "~/modules/creditCards/application/credit-overview";
 import { projectedYieldContext } from "~/modules/reference-rates/application/projected-yield-context";
 
@@ -153,7 +154,7 @@ SELECT 'card', jsonb_build_object(
   'institutionName', institution."name", 'name', account."name", 'refundPolicy', card."refundPolicy",
   'statementClosingInclusive', card."statementClosingInclusive",
   'installmentRemainderOnFirst', card."installmentRemainderOnFirst",
-  'workingDueDate', card."workingDueDate"
+  'workingDueDate', ${workingDueDateSql("account")}
 )
 FROM visible_cards card
 JOIN "FinancialAccount" account ON account."id" = card."financialAccountId"

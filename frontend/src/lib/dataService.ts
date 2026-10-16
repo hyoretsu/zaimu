@@ -28,6 +28,7 @@ import {
 } from "@zaimu/finance/credit-card";
 import { distributePurchaseCents } from "@zaimu/finance/credit-purchase";
 import { dashboardCardForecasts, isCashFlowRecurrence } from "@zaimu/finance/dashboard-forecasts";
+import { cardRuleValues } from "@zaimu/finance/institution-card-rules";
 import { loanAccountAmounts, loanInstallments } from "@zaimu/finance/loan";
 import { convertFixedSplitAtDate, currencyScale, roundMoney, toMinorUnits } from "@zaimu/finance/money";
 import { pendingStatementPayments } from "@zaimu/finance/payment-suggestions";
@@ -49,6 +50,7 @@ import { GuestConversionUnavailable } from "./dashboard-currency-context";
 import { getFinancialInstitutions } from "./financial-institution";
 import { guestTransactionPage } from "./guest-transaction-page";
 import { requestResult } from "./idb";
+import { localAccountCardRules, localRuleRewardAccount } from "./institution-card-rules";
 import { loanAccountMovements } from "./loan-account-movements";
 import { localCursorPage } from "./local-cursor-page";
 import {
@@ -403,42 +405,11 @@ export const dataService = {
 					isPrimary: data.isPrimary,
 				});
 				if (data.type === "CREDIT_CARD" && creditCard) {
-					if (creditCard.cashbackRate && !creditCard.cashbackAccountId && creditCard.cashbackRewards) {
-						const matchingReward = (await localAccounts.getAll())
-							.map(item => item.data)
-							.find(
-								item =>
-									item.type === "REWARDS" &&
-									item.institutionId === newAccount.institutionId &&
-									item.name === null,
-							);
-						if (matchingReward) creditCard.cashbackAccountId = matchingReward.id;
-						else {
-							const rewardAccount: FinancialAccount = {
-								balance: 0,
-								createdAt: new Date().toISOString(),
-								currency: newAccount.currency ?? "BRL",
-								id: crypto.randomUUID(),
-								institution: newAccount.institution,
-								institutionId: newAccount.institutionId,
-								name: null,
-								rewardsAccount: {
-									...creditCard.cashbackRewards,
-									conversionAmount: creditCard.cashbackRewards.conversionAmount ?? null,
-									conversionPoints: creditCard.cashbackRewards.conversionPoints ?? null,
-									financialAccountId: "",
-									id: crypto.randomUUID(),
-									initialBalance: 0,
-								},
-								type: "REWARDS",
-								updatedAt: new Date().toISOString(),
-								userId,
-							};
-							rewardAccount.rewardsAccount!.financialAccountId = rewardAccount.id;
-							await localAccounts.put(rewardAccount, rewardAccount.id);
-							creditCard.cashbackAccountId = rewardAccount.id;
-						}
-					}
+					const rules = localAccountCardRules(newAccount);
+					Object.assign(creditCard, cardRuleValues(rules), {
+						cashbackAccountId: await localRuleRewardAccount(newAccount, rules),
+						cashbackRewards: undefined,
+					});
 					const card = await dataService.creditCards.createFromAccount(newAccount, creditCard);
 					newAccount = { ...newAccount, creditCard: card };
 					await localAccounts.put(newAccount, newAccount.id);
@@ -1375,7 +1346,7 @@ export const dataService = {
 				paymentSuggestionsEnabled: details.paymentSuggestionsEnabled ?? true,
 				securityDeposit: details.securityDeposit ?? null,
 				statementDay: details.statementDay,
-				workingDueDate: details.workingDueDate,
+				workingDueDate: localAccountCardRules(account).workingDueDate,
 			};
 			await localCreditCards.put(card, card.id);
 			return card;
@@ -1423,6 +1394,7 @@ export const dataService = {
 							const statements = await withGuestCardPayments(card.id, statementsByCard.get(card.id) ?? []);
 							return {
 								...card,
+								...cardRuleValues(localAccountCardRules(accounts.get(card.financialAccountId))),
 								accountName:
 									card.accountName ||
 									accounts.get(card.financialAccountId)?.name ||

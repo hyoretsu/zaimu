@@ -16,6 +16,8 @@ import { createEventEnvelope } from "~/shared/application/events";
 import { HttpException } from "~/shared/errors";
 import { PostgresOutbox } from "~/shared/infra/outbox";
 import { queryRaw, withRawTransaction } from "~/shared/infra/sql";
+import { configureInstitutionCardRules } from "../../application/institution-card-rules";
+import { InstitutionCardRulesDTO } from "../dto/institution-card-rules";
 import { InstitutionCatalogResult } from "../dto/institution-catalog";
 import { InstitutionCountriesBody } from "../dto/institution-countries";
 import { InstitutionNameBody } from "../dto/institution-name";
@@ -50,7 +52,13 @@ const ProposalReturn = t.Object(
 	{ additionalProperties: true },
 );
 const ProfileReturn = t.Object(
-	{ id: t.String(), institutionId: t.String(), isDefault: t.Boolean(), name: t.String() },
+	{
+		creditCardRules: t.Nullable(InstitutionCardRulesDTO),
+		id: t.String(),
+		institutionId: t.String(),
+		isDefault: t.Boolean(),
+		name: t.String(),
+	},
 	{ additionalProperties: true },
 );
 const ChangeReturn = t.Object(
@@ -98,6 +106,19 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 			response: InstitutionReturn,
 		},
 	)
+	.patch(
+		"/review/catalog/:id/card-rules",
+		async ({ request, params, body }) => {
+			await requireAdmin(request);
+			return configureInstitutionCardRules(params.id, body.rules, body.profileId);
+		},
+		{
+			body: t.Object({ profileId: t.Optional(Id), rules: t.Nullable(InstitutionCardRulesDTO) }),
+			params: t.Object({ id: Id }),
+			response: t.Object({ id: t.String() }),
+		},
+	)
+
 	.post(
 		"/review/legacy/:id",
 		async ({ request, params, body }) =>
