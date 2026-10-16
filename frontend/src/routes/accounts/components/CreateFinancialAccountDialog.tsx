@@ -562,10 +562,6 @@ export function CreateFinancialAccountDialog({
 										value={dueDay}
 									/>
 								</div>
-								<p className="text-muted-foreground text-sm">
-									Cashback e ajuste de vencimento seguem as regras da instituição e do perfil do vínculo,
-									configuradas pelo admin.
-								</p>
 								<CheckboxField
 									align="start"
 									checkboxProps={{
