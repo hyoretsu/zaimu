@@ -30,6 +30,7 @@ export interface CreditOverviewCard {
 }
 
 export interface CreditOverviewStatement {
+	calculatedTotalAmount: number;
 	recurringAmount?: number;
 	balanceAmount: number;
 	chargesAmount: number;
@@ -77,7 +78,7 @@ UNION ALL
 SELECT 'statement', jsonb_build_object(
   'creditCardId', statement."creditCardId", 'dueDate', statement."dueDate", 'id', statement."id",
   'paidAmount', statement."paidAmount", 'statementDate', statement."statementDate",
-  'totalAmount', statement."totalAmount", 'isPaid', statement."isPaid", 'isFullySynced', statement."isFullySynced"
+  'manualTotalAmount', statement."manualTotalAmount", 'totalAmount', statement."totalAmount", 'isPaid', statement."isPaid", 'isFullySynced', statement."isFullySynced"
 )
 FROM "CreditCardStatement" statement
 JOIN visible_cards card ON card."id" = statement."creditCardId"
@@ -224,6 +225,7 @@ export function replayOverviewStatements(
 				id: String(row.id),
 				isFullySynced: Boolean(row.isFullySynced),
 				isPaid: Boolean(row.isPaid),
+				manualTotalAmount: row.manualTotalAmount == null ? null : Number(row.manualTotalAmount),
 				paidAmount: Number(row.paidAmount),
 				statementDate: asDateKey(row.statementDate),
 				totalAmount: Number(row.totalAmount),

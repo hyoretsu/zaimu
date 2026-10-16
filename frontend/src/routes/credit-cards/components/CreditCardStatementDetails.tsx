@@ -34,6 +34,7 @@ import { EditCreditPurchaseDialog } from "./EditCreditPurchaseDialog";
 import { ManageCreditPurchaseRefundsDialog } from "./ManageCreditPurchaseRefundsDialog";
 import { RefinanceCreditPurchaseDialog } from "./RefinanceCreditPurchaseDialog";
 import { RefundCreditPurchaseDialog } from "./RefundCreditPurchaseDialog";
+import { StatementAmountAdjustmentDialog } from "./StatementAmountAdjustmentDialog";
 import type { StatementActionRecovery } from "./statement-action-recovery";
 
 export function CreditCardStatementDetails({
@@ -53,6 +54,7 @@ export function CreditCardStatementDetails({
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
 	const [editingStatement, setEditingStatement] = useState(false);
+	const [adjustingAmount, setAdjustingAmount] = useState(false);
 	const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<string>>(new Set());
 	const [pendingUpdateIds, setPendingUpdateIds] = useState<Set<string>>(new Set());
 	const [choosingEditScope, setChoosingEditScope] = useState<CreditPurchase | null>(null);
@@ -78,7 +80,8 @@ export function CreditCardStatementDetails({
 	});
 	const displayedStatement = detail.data ?? statement;
 	const displayBalance = getCreditCardStatementDisplayBalance(displayedStatement);
-	const invoiceAmount = displayedStatement.amountDue ?? displayedStatement.totalAmount;
+	const invoiceAmount =
+		displayedStatement.manualTotalAmount ?? displayedStatement.amountDue ?? displayedStatement.totalAmount;
 	const isIgnored = Boolean(ignoreBefore && statement.statementDate.slice(0, 10) < ignoreBefore);
 	const status = isIgnored
 		? { className: "text-muted-foreground", icon: LuReceiptText, label: "Desconsiderada" }
@@ -236,6 +239,30 @@ export function CreditCardStatementDetails({
 							<strong className="block text-2xl tabular-nums">
 								{<PreferredMoneyAmount values={[{ amount: invoiceAmount, currency: currencyCode }]} />}
 							</strong>
+							{displayedStatement.manualTotalAmount != null && (
+								<p className="mt-1 text-muted-foreground text-sm">
+									Valor calculado:{" "}
+									<PreferredMoneyAmount
+										values={[
+											{ amount: displayedStatement.calculatedTotalAmount ?? 0, currency: currencyCode },
+										]}
+									/>
+									. Ajustado:{" "}
+									<PreferredMoneyAmount
+										values={[{ amount: displayedStatement.manualTotalAmount, currency: currencyCode }]}
+									/>
+								</p>
+							)}
+							<ActionGroup className="mt-2">
+								<Button
+									disabled={detail.isPending}
+									onClick={() => setAdjustingAmount(true)}
+									size="sm"
+									variant="outline"
+								>
+									<LuPencil /> Ajustar valor
+								</Button>
+							</ActionGroup>
 							{!isIgnored && Math.abs(invoiceAmount - displayBalance) > 0.001 && (
 								<p className="mt-1 text-muted-foreground text-sm">
 									{displayBalance < 0 ? "Crédito" : "Restante a pagar"}:{" "}
@@ -359,6 +386,13 @@ export function CreditCardStatementDetails({
 			<ActionGroup className="absolute right-3 bottom-3 z-10">
 				<FloatingActionButton icon={LuPlus} label="Nova compra" onClick={onAddPurchase} />
 			</ActionGroup>
+			{adjustingAmount && (
+				<StatementAmountAdjustmentDialog
+					currency={currencyCode}
+					onClose={() => setAdjustingAmount(false)}
+					statement={displayedStatement}
+				/>
+			)}
 			{editingStatement && (
 				<EditCreditCardStatementDialog
 					initialValues={

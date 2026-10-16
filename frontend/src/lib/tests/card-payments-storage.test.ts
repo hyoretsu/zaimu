@@ -307,4 +307,69 @@ test("upgrades v5 guest/cache payments and replays the guest service after edits
 	expect(materialized.data.installments.filter(i => i.purchaseId === futureId)).toHaveLength(1);
 	expect(await storage.materializeLocalCreditBooks(laterOwner, "2099-01-31")).toBe(0);
 	expect(await storage.localCreditBooks.getById("later-card", laterOwner)).toEqual(materialized);
+	// Checkpoints use the same IDB write boundary as account/transaction edits.
+	await storage.localAccounts.put(
+		{
+			createdAt: "2026-01-01",
+			currency: "BRL",
+			id: "checkpoint-account",
+			name: "Caixa",
+			type: "CASH",
+			userId: "guest",
+		} as never,
+		"checkpoint-account",
+		owner,
+	);
+	await storage.mutateLocalBalanceAdjustment({
+		balance: 100,
+		date: "2026-01-02",
+		financialAccountId: "checkpoint-account",
+		id: undefined,
+	});
+	await storage.mutateLocalBalanceAdjustment({
+		balance: 150,
+		date: "2026-01-03",
+		financialAccountId: "checkpoint-account",
+	});
+	await expect(
+		storage.mutateLocalBalanceAdjustment({
+			balance: 200,
+			date: "2026-01-03",
+			financialAccountId: "checkpoint-account",
+		}),
+	).rejects.toThrow("Já existe");
+	expect(
+		(await storage.localAccounts.getById("checkpoint-account", owner))!.data.balanceAdjustments,
+	).toHaveLength(2);
+	await storage.localTransactions.put(
+		{
+			amount: 100,
+			date: "2026-01-01",
+			destinationFinancialAccountId: "checkpoint-account",
+			id: "checkpoint-movement",
+		} as never,
+		"checkpoint-movement",
+		owner,
+	);
+	const afterFirst = (await storage.localAccounts.getById("checkpoint-account", owner))!.data
+		.balanceAdjustments!;
+	expect(afterFirst).toHaveLength(1);
+	expect(afterFirst[0].date).toBe("2026-01-03");
+	await storage.localTransactions.put(
+		{
+			amount: 50,
+			date: "2026-01-03",
+			destinationFinancialAccountId: "checkpoint-account",
+			id: "checkpoint-next",
+		} as never,
+		"checkpoint-next",
+		owner,
+	);
+	expect((await storage.localAccounts.getById("checkpoint-account", owner))!.data.balanceAdjustments).toEqual(
+		[],
+	);
+	await storage.localTransactions.delete("checkpoint-next", owner);
+	expect((await storage.localAccounts.getById("checkpoint-account", owner))!.data.balanceAdjustments).toEqual(
+		[],
+	);
 });

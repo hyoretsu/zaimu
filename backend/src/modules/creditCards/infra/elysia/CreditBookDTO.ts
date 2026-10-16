@@ -115,6 +115,7 @@ export const CreditBookDTO = t.Object({
 			isForecast: t.Optional(t.Boolean()),
 			isFullySynced: t.Boolean(),
 			isPaid: t.Boolean(),
+			manualTotalAmount: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
 			paidAmount: t.Number(),
 			statementDate: DateKey,
 			totalAmount: t.Number(),

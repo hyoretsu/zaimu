@@ -13,6 +13,8 @@ export interface User {
 }
 
 export interface FinancialAccount {
+	/** Guest-only checkpoints, persisted with the account under its local identity. */
+	balanceAdjustments?: import("./balance-adjustment").BalanceAdjustment[];
 	cardRulesProfiles?: import("@zaimu/finance/institution-card-rules").CardRulesProfile[];
 	historicalYieldSettings?: import("@zaimu/finance/projected-yield").HistoricalYieldSettings | null;
 	legacyYieldCalendar?: import("@zaimu/finance/projected-yield").LegacyYieldCalendar | null;
@@ -592,6 +594,8 @@ export interface DebtInvitation {
 }
 
 export interface CreditCardStatement {
+	manualTotalAmount?: number | null;
+	calculatedTotalAmount?: number;
 	amountDue?: number;
 	carriedInAmount?: number;
 	carriedOutAmount?: number;

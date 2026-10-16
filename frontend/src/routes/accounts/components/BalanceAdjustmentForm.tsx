@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toMinorUnits } from "@zaimu/finance/money";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
@@ -16,7 +17,7 @@ import { MoneyField } from "@/components/ui/MoneyField";
 import { runBackgroundModalAction } from "@/lib/background-modal-actions";
 import type { BalanceAdjustment } from "@/lib/balance-adjustment";
 import { dataService } from "@/lib/dataService";
-import { getLocalDateKey } from "@/lib/date";
+import { getLocalDateKey, parseLocalDate } from "@/lib/date";
 import {
 	compareFinancialAccountsByOptionLabel,
 	getFinancialAccountOptionLabel,
@@ -50,25 +51,49 @@ export function BalanceAdjustmentForm({
 	const [financialAccountId, setFinancialAccountId] = useState(
 		initialDraft?.financialAccountId ?? adjustment?.financialAccountId ?? "",
 	);
-	// Keep the available accounts stable while the form is open, even if adjustments refetch.
-	const [adjustedAccountIds] = useState(
-		() => new Set(existingAdjustments.map(existing => existing.financialAccountId)),
-	);
 	const accountsQuery = useQuery({
 		enabled: identity !== null,
 		queryFn: () => dataService.accounts.getAll(),
 		queryKey: queryKeys.accounts.list(identity!),
 	});
 	const accounts = (accountsQuery.data ?? [])
-		.filter(
-			account =>
-				account.type !== "CREDIT_CARD" &&
-				account.type !== "REWARDS" &&
-				(adjustment !== null || !adjustedAccountIds.has(account.id)),
-		)
+		.filter(account => account.type !== "CREDIT_CARD" && account.type !== "REWARDS")
 		.toSorted(compareFinancialAccountsByOptionLabel);
-	const save = () => {
-		const draft = { adjustment, balance, date, financialAccountId };
+	const [error, setError] = useState<string | null>(null);
+	const save = (form: HTMLFormElement) => {
+		const values = new FormData(form);
+		const submittedBalance = String(values.get("balance") ?? "").trim();
+		const selectedAccount = accounts.find(account => account.id === financialAccountId);
+		if (
+			!financialAccountId ||
+			!selectedAccount ||
+			!/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+			getLocalDateKey(parseLocalDate(date)) !== date ||
+			!submittedBalance ||
+			!Number.isFinite(Number(submittedBalance)) ||
+			Math.abs(Number(submittedBalance)) > 9999999999.99
+		) {
+			setError("Preencha conta, data e saldo válido antes de salvar.");
+			return;
+		}
+		try {
+			toMinorUnits(Math.abs(Number(submittedBalance)), selectedAccount.currency);
+		} catch {
+			setError("Informe um saldo válido para a moeda da conta.");
+			return;
+		}
+		if (
+			existingAdjustments.some(
+				existing =>
+					existing.id !== adjustment?.id &&
+					existing.financialAccountId === financialAccountId &&
+					existing.date.slice(0, 10) === date,
+			)
+		) {
+			setError("Já existe um ajuste para esta conta nesta data. Edite o ajuste existente.");
+			return;
+		}
+		const draft = { adjustment, balance: submittedBalance, date, financialAccountId };
 		const data = {
 			balance: Number(draft.balance),
 			date: draft.date,
@@ -103,54 +128,65 @@ export function BalanceAdjustmentForm({
 						automaticamente.
 					</DialogDescription>
 				</DialogHeader>
-				<DialogBody>
-					<div className="grid gap-4">
-						<CustomSelect
-							label="Conta"
-							onValueChange={setFinancialAccountId}
-							options={accounts.map(account => ({
-								label: getFinancialAccountOptionLabel(account),
-								value: account.id,
-							}))}
-							placeholder="Selecione a conta"
-							required
-							searchable
-							value={financialAccountId}
-						/>
-						<DateField
-							id="balance-adjustment-date"
-							label="Data"
-							name="date"
-							onValueChange={setDate}
-							required
-							value={date}
-						/>
-						<MoneyField
-							currencyCode={
-								accounts.find(account => account.id === financialAccountId)?.currency ??
-								adjustment?.currency ??
-								"BRL"
-							}
-							id="balance-adjustment-balance"
-							label="Saldo real"
-							onValueChange={setBalance}
-							required
-							value={balance}
-						/>
-					</div>
-				</DialogBody>
-				<DialogFooter>
-					<Button className="cursor-pointer" onClick={onClose} variant="outline">
-						Descartar
-					</Button>
-					<Button
-						className="cursor-pointer disabled:cursor-not-allowed"
-						disabled={!balance || !date || !financialAccountId}
-						onClick={save}
-					>
-						Salvar
-					</Button>
-				</DialogFooter>
+				<form
+					className="flex min-h-0 flex-col gap-6 overflow-hidden"
+					noValidate
+					onSubmit={event => {
+						event.preventDefault();
+						save(event.currentTarget);
+					}}
+				>
+					<DialogBody>
+						<div className="grid gap-4">
+							{error ? (
+								<p className="text-destructive text-sm" role="alert">
+									{error}
+								</p>
+							) : null}
+							<CustomSelect
+								label="Conta"
+								onValueChange={setFinancialAccountId}
+								options={accounts.map(account => ({
+									label: getFinancialAccountOptionLabel(account),
+									value: account.id,
+								}))}
+								placeholder="Selecione a conta"
+								required
+								searchable
+								value={financialAccountId}
+							/>
+							<DateField
+								id="balance-adjustment-date"
+								label="Data"
+								name="date"
+								onValueChange={setDate}
+								required
+								value={date}
+							/>
+							<MoneyField
+								currencyCode={
+									accounts.find(account => account.id === financialAccountId)?.currency ??
+									adjustment?.currency ??
+									"BRL"
+								}
+								id="balance-adjustment-balance"
+								label="Saldo real"
+								onValueChange={setBalance}
+								rawValueName="balance"
+								required
+								value={balance}
+							/>
+						</div>
+					</DialogBody>
+					<DialogFooter>
+						<Button className="cursor-pointer" onClick={onClose} type="button" variant="outline">
+							Descartar
+						</Button>
+						<Button className="cursor-pointer disabled:cursor-not-allowed" type="submit">
+							Salvar
+						</Button>
+					</DialogFooter>
+				</form>
 			</DialogContent>
 		</Dialog>
 	);

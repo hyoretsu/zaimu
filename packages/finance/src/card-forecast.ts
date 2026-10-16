@@ -85,6 +85,7 @@ function recurringOnlyBook(book: CreditBook, payments: CreditBook["payments"]): 
 		statements: book.statements.map(statement => ({
 			...statement,
 			isPaid: false,
+			manualTotalAmount: null,
 			paidAmount: 0,
 			totalAmount: 0,
 		})),

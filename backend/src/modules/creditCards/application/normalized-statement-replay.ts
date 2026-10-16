@@ -53,6 +53,7 @@ interface RefundRow {
 	canceledInstallmentNumbers: number[] | null;
 }
 interface StatementRow {
+	manualTotalAmount?: number | null;
 	isPaid: boolean;
 	id: string;
 	creditCardId: string;
@@ -109,7 +110,7 @@ export async function replayNormalizedCard(query: RawQuery, cardId: string) {
 		),
 		await query<StatementRow>(
 			`SELECT "id", "creditCardId", "statementDate"::text AS "statementDate",
-				 "dueDate"::text AS "dueDate", "totalAmount", "paidAmount", "isPaid"
+				 "dueDate"::text AS "dueDate", "totalAmount", "manualTotalAmount", "paidAmount", "isPaid"
 				 FROM "CreditCardStatement" WHERE "creditCardId" = $1`,
 			[cardId],
 		),
@@ -136,7 +137,10 @@ export async function replayNormalizedCard(query: RawQuery, cardId: string) {
 		tagIds: [],
 		totalAmountCents: cents(row.totalAmount),
 	}));
-	const statements = [...existingStatements];
+	const statements = existingStatements.map(statement => ({
+		...statement,
+		manualTotalAmount: statement.manualTotalAmount == null ? null : Number(statement.manualTotalAmount),
+	}));
 	const storedById = new Map(existingStatements.map(statement => [statement.id, statement]));
 	const byDate = new Map(statements.map(statement => [statement.statementDate, statement]));
 	const concreteByNumber = new Map(concreteRows.map(row => [`${row.purchaseId}\u0000${row.number}`, row]));
@@ -153,6 +157,7 @@ export async function replayNormalizedCard(query: RawQuery, cardId: string) {
 					dueDate,
 					id: `forecast-${key}`,
 					isPaid: false,
+					manualTotalAmount: null,
 					paidAmount: 0,
 					statementDate: key,
 					totalAmount: 0,

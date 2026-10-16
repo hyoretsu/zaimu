@@ -1,6 +1,10 @@
 import { legacyCalendarHoliday } from "@zaimu/finance/projected-yield";
 import { type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
 import { addDays, format, isWeekend, startOfDay, subDays } from "date-fns";
+import {
+	balanceAdjustmentSourceVersion,
+	reconcileBalanceAdjustments,
+} from "~/modules/accounts/application/balance-adjustment-reconciliation";
 import { loadFinancialAccountBalanceInput } from "~/modules/accounts/application/get-financial-account-balances";
 import { getFinancialInstitutionYieldPolicies } from "~/modules/accounts/application/get-financial-institution-yield-policies";
 import { getInstitutionProfileContext } from "~/modules/accounts/application/get-institution-profile-context";
@@ -292,6 +296,7 @@ function requiredReferenceTypes(settings: ReturnType<typeof getYieldSettings>) {
 }
 async function processAccountRecalculation(job: ClaimedJob) {
 	if (!job.financialAccountId || !job.fromDate) throw new Error("Job de recálculo incompleto");
+	const sourceVersion = await balanceAdjustmentSourceVersion(queryRaw, job.financialAccountId);
 	const account = await loadYieldAccount(job.financialAccountId);
 	if (!account) return;
 	const fromDate = startOfDay(job.fromDate > account.createdAt ? job.fromDate : account.createdAt);
@@ -311,6 +316,7 @@ async function processAccountRecalculation(job: ClaimedJob) {
 	const loaded = await loadFinancialAccountBalanceInput([account.id]);
 	if (!loaded.input) return;
 	const input = { ...loaded.input, yields: [...loaded.input.yields] };
+	let complete = true;
 	for (let day = fromDate; day <= endDate; day = addDays(day, 1)) {
 		const key = dateKey(day);
 		if (isWeekend(day) || (legacyCalendarHoliday(account, key) ?? holidayKeys.has(key))) continue;
@@ -321,7 +327,10 @@ async function processAccountRecalculation(job: ClaimedJob) {
 			`SELECT "type", "value" FROM "public"."ReferenceRate" WHERE "date" = $1 AND "type" = ANY($2::"ReferenceRateType"[])`,
 			[key, types],
 		);
-		if (rows.length !== types.length) continue;
+		if (rows.length !== types.length) {
+			complete = false;
+			continue;
+		}
 		const override = await queryFirst(
 			db.sql.public.FinancialAccountYield.select("id")
 				.where((fields, functions) =>
@@ -372,6 +381,21 @@ async function processAccountRecalculation(job: ClaimedJob) {
 			]).build(),
 		);
 	}
+	if (complete)
+		await withRawTransaction(async query => {
+			// Brief source locks close the gap between version validation and deletion.
+			// Any mutation during yield calculation leaves checkpoints for the next job.
+			await query(
+				`LOCK TABLE "FinancialAccount", "Transaction", "LoanPayment", "FinancialAccountYield", "BalanceAdjustment" IN SHARE ROW EXCLUSIVE MODE`,
+			);
+			if ((await balanceAdjustmentSourceVersion(query, account.id)) !== sourceVersion) return;
+			await reconcileBalanceAdjustments(
+				query,
+				(account as YieldAccount & { userId: string }).userId,
+				account.id,
+				dateKey(fromDate),
+			);
+		});
 	await outbox.append(
 		createEventEnvelope({
 			aggregateId: account.id,

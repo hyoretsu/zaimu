@@ -35,6 +35,7 @@ export const queryKeys = {
 		list: (identity: CacheIdentity, accountId: string) =>
 			[...domainKey(identity, "account-yields"), "list", accountId] as const,
 	},
+	balanceAdjustments: { all: (identity: CacheIdentity) => domainKey(identity, "balance-adjustments") },
 	budgets: {
 		all: (identity: CacheIdentity) => domainKey(identity, "budgets"),
 		list: (identity: CacheIdentity) => [...domainKey(identity, "budgets"), "list"] as const,
@@ -117,7 +118,15 @@ export const queryKeys = {
 type CacheDomain = keyof typeof queryKeys;
 
 export const cacheOperationDomains = {
-	account: ["accounts", "creditCards", "dashboard", "transactions", "accountYields", "budgets"],
+	account: [
+		"balanceAdjustments",
+		"accounts",
+		"creditCards",
+		"dashboard",
+		"transactions",
+		"accountYields",
+		"budgets",
+	],
 	budget: ["budgets", "dashboard"],
 	category: ["categories", "transactions", "dashboard", "budgets"],
 	creditCard: ["creditCards", "creditCardStatements", "accounts", "dashboard", "budgets"],
@@ -125,7 +134,7 @@ export const cacheOperationDomains = {
 	holiday: ["accountYieldHolidays", "accountYields", "accounts", "dashboard", "transactions"],
 	institution: ["accounts", "creditCards", "dashboard"],
 	invitation: ["debts"],
-	loan: ["loans", "accounts", "dashboard", "transactions", "budgets"],
+	loan: ["balanceAdjustments", "loans", "accounts", "dashboard", "transactions", "budgets"],
 	recurring: [
 		"budgets",
 		"recurring",
@@ -148,6 +157,7 @@ export const cacheOperationDomains = {
 	],
 	store: ["stores", "transactions", "dashboard"],
 	transaction: [
+		"balanceAdjustments",
 		"budgets",
 		"transactions",
 		"accounts",
@@ -157,7 +167,7 @@ export const cacheOperationDomains = {
 		"debts",
 		"accountYields",
 	],
-	yield: ["accountYields", "accounts", "dashboard", "transactions"],
+	yield: ["balanceAdjustments", "accountYields", "accounts", "dashboard", "transactions"],
 } as const satisfies Record<string, readonly CacheDomain[]>;
 
 export type CacheOperation = keyof typeof cacheOperationDomains;

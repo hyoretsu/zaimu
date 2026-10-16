@@ -4,7 +4,9 @@ import {
 	ensureBookStatement,
 	materializeBookInstallments,
 	newBookPurchase,
+	removeRedundantStatementAmounts,
 	replayCreditBook,
+	setBookStatementAmount,
 	updateBookPurchaseDate,
 	updateBookStatementDates,
 } from "./credit-book";
@@ -210,4 +212,33 @@ test("imported closing reuses the registered cycle with the same due date", () =
 	expect(imported.id).toBe(original.id);
 	expect(imported.statementDate).toBe("2026-08-20");
 	expect(book.statements).toHaveLength(1);
+});
+
+test("statement amount validates currency precision and persists through replay and calendar edits", () => {
+	const book = fixture();
+	const id = book.statements[0]!.id;
+	for (const amount of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, 1e12, 0.001])
+		expect(() => setBookStatementAmount(book, id, amount)).toThrow("Valor da fatura inválido");
+	setBookStatementAmount(book, id, -25);
+	updateBookStatementDates(book, id, { dueDate: "2026-08-28", statementDate: "2026-08-19" });
+	expect(
+		replayCreditBook(JSON.parse(JSON.stringify(book)), "2026-08-20").statements.find(s => s.id === id)
+			?.amountDue,
+	).toBe(-25);
+	setBookStatementAmount(book, id, null);
+	expect(replayCreditBook(book, "2026-08-20").statements.find(s => s.id === id)?.amountDue).toBe(100);
+	setBookStatementAmount(book, "forecast", 20, { dueDate: "2026-10-28", statementDate: "2026-10-20" });
+	expect(book.statements.find(s => s.statementDate === "2026-10-20")?.manualTotalAmount).toBe(20);
+});
+
+test("writer removes equal manual totals permanently; reads preserve checkpoints", () => {
+	const book = fixture();
+	const id = book.statements[0]!.id;
+	setBookStatementAmount(book, id, 100);
+	replayCreditBook(book, "2026-08-20");
+	expect(book.statements[0]!.manualTotalAmount).toBe(100);
+	expect(removeRedundantStatementAmounts(book, "2026-08-20")).toEqual([id]);
+	expect(book.statements[0]!.manualTotalAmount).toBeNull();
+	setBookStatementAmount(book, id, 100.01);
+	expect(removeRedundantStatementAmounts(book, "2026-08-20")).toEqual([]);
 });

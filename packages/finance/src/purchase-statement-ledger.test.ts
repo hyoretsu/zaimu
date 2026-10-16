@@ -110,3 +110,66 @@ test("surplus refund credit and other purchases are order independent", () => {
 	expect(replay([purchase, other])).toEqual(replay([other, purchase]));
 	expect(replay([purchase, other])[1]?.totalAmount).toBe(-150);
 });
+
+test("manual cycle amount overrides purchases and charges while retaining payment and carry", () => {
+	const result = rebuildPurchaseStatementLedger({
+		asOf: "2024-09-26",
+		installments,
+		payments: [{ amount: 30, date: "2024-08-25" }],
+		purchases: [purchase],
+		refunds: [],
+		statements: statements.map((item, index) => ({
+			...item,
+			chargesAmount: 10,
+			manualTotalAmount: index === 0 ? 50 : null,
+		})),
+	});
+	expect(result.statements[0]).toMatchObject({
+		amountDue: 50,
+		calculatedTotalAmount: 110,
+		carriedOutAmount: 20,
+		periodPaymentAmount: 30,
+		totalAmount: 100,
+	});
+	expect(result.statements[1]).toMatchObject({
+		amountDue: 130,
+		calculatedTotalAmount: 130,
+		carriedInAmount: 20,
+	});
+});
+
+test("manual zero and negative credit survive rebuild; null restores calculation", () => {
+	for (const amount of [0, -25, null]) {
+		const result = rebuildPurchaseStatementLedger({
+			asOf: "2024-08-20",
+			installments,
+			payments: [],
+			purchases: [purchase],
+			refunds: [],
+			statements: JSON.parse(
+				JSON.stringify(statements.map(item => ({ ...item, manualTotalAmount: amount }))),
+			),
+		});
+		expect(result.statements[0].amountDue).toBe(amount ?? 100);
+		expect(result.statements[0].calculatedTotalAmount).toBe(100);
+	}
+});
+
+test("manual final total includes incoming debt and credit, then subtracts payments", () => {
+	for (const first of [150, -40]) {
+		const result = rebuildPurchaseStatementLedger({
+			asOf: "2024-09-26",
+			installments,
+			payments: [{ amount: 20, date: "2024-09-25" }],
+			purchases: [purchase],
+			refunds: [],
+			statements: statements.map((item, index) => ({
+				...item,
+				manualTotalAmount: index === 0 ? first : index === 1 ? 70 : null,
+			})),
+		});
+		expect(result.statements[1].calculatedTotalAmount).toBe(100 + first);
+		expect(result.statements[1].amountDue - result.statements[1].creditInAmount).toBe(70);
+		expect(result.statements[1].carriedOutAmount).toBe(50);
+	}
+});

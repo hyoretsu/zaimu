@@ -4,6 +4,7 @@ export const CreditStatementReturn = t.Object(
 	{
 		amountDue: t.Number(),
 		balanceAmount: t.Number(),
+		calculatedTotalAmount: t.Number(),
 		carriedInAmount: t.Number(),
 		carriedOutAmount: t.Number(),
 		chargesAmount: t.Number(),
@@ -14,6 +15,7 @@ export const CreditStatementReturn = t.Object(
 		isForecast: t.Optional(t.Boolean()),
 		isFullySynced: t.Boolean(),
 		isPaid: t.Boolean(),
+		manualTotalAmount: t.Optional(t.Nullable(t.Number())),
 		paidAmount: t.Number(),
 		periodPaymentAmount: t.Number(),
 		statementDate: t.String(),
@@ -40,6 +42,7 @@ export const CreditCardOverviewReturn = t.Object(
 			t.Object(
 				{
 					balanceAmount: t.Number(),
+					calculatedTotalAmount: t.Number(),
 					chargesAmount: t.Number(),
 					creditCardId: t.String(),
 					dueDate: t.Union([t.String(), t.Date()]),

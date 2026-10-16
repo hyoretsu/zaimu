@@ -463,3 +463,41 @@ test("offline balances and yield entries preserve frozen history and require cur
 		calculateFinancialAccountYieldEntries(account, movements, calendar, today).map(entry => entry.date),
 	).toEqual(["2026-01-05"]);
 });
+
+describe("guest balance checkpoints", () => {
+	test("applies each closing checkpoint after movements and reports underlying balance", () => {
+		const account = {
+			balanceAdjustments: [
+				{ balance: 100, date: "2026-01-02", financialAccountId: "account", id: "a" },
+				{ balance: 150, date: "2026-01-04", financialAccountId: "account", id: "b" },
+			],
+			createdAt: "2026-01-01",
+			currency: "BRL",
+			id: "account",
+			type: "CASH",
+		} as FinancialAccount;
+		const movements = [
+			{ amount: 100, date: "2026-01-01", destinationFinancialAccountId: "account", id: "t" },
+			{ amount: 25, date: "2026-01-03", destinationFinancialAccountId: "account", id: "u" },
+		];
+		const computed: unknown[] = [];
+		const result = calculateFinancialAccountBalances(
+			[account],
+			movements,
+			[],
+			[],
+			new Date("2026-01-05T12:00:00"),
+			[],
+			(id, calculated, complete) => computed.push([id, calculated, complete]),
+		);
+		expect(result[0].balance).toBe(150);
+		expect(computed).toEqual([
+			["a", 100, true],
+			["b", 125, true],
+		]);
+		expect(
+			calculateFinancialAccountBalances([account], movements, [], [], new Date("2026-01-03T12:00:00"))[0]
+				.balance,
+		).toBe(125);
+	});
+});

@@ -5,6 +5,7 @@ import {
 	materializeBookInstallments,
 	moneyCents,
 	moveBookPurchase,
+	removeRedundantStatementAmounts,
 	replayCreditBook,
 	synchronizeBookRefinancing,
 } from "@zaimu/finance/credit-book";
@@ -29,6 +30,7 @@ import { type CacheIdentity, getCurrentCacheIdentity } from "@/lib/query-cache";
 import { calculateDebtSplit } from "./debt-split";
 import { calculateFinancialAccountBalances } from "./financial-account";
 import { requestResult, transactionDone } from "./idb";
+import { loanAccountMovements } from "./loan-account-movements";
 import type { MonthlyBudget } from "./monthly-budget";
 import type { Recurrence, RecurrenceOccurrence } from "./recurrence";
 import { cachedYieldCalendar } from "./yield-calendar";
@@ -276,7 +278,7 @@ export async function put<T>(
 	const timestamp = Date.now();
 	await runTransaction(scopedStoreName(domain), "readwrite", async store => {
 		const existing =
-			domain === "debtEvents" || domain === "monthlyBudgets"
+			domain === "debtEvents" || domain === "monthlyBudgets" || domain === "accounts"
 				? ((await requestResult(store.get(scopedId(owner, id)))) as LocalData<StoredDebtEvent> | undefined)
 				: undefined;
 		if (existing?.deleted) throw new Error("Lançamento excluído");
@@ -289,7 +291,9 @@ export async function put<T>(
 							? { baseUpdatedAt: existing.data.baseUpdatedAt ?? existing.data.updatedAt }
 							: {}),
 					}
-				: data;
+				: domain === "accounts" && existing
+					? { ...data, balanceAdjustments: (existing.data as unknown as FinancialAccount).balanceAdjustments }
+					: data;
 		await requestResult(
 			store.put({
 				data: nextData,
@@ -303,6 +307,7 @@ export async function put<T>(
 			}),
 		);
 	});
+	if (["accounts", "transactions", "loanPayments"].includes(domain)) await reconcileLocalAdjustments(owner);
 	return id;
 }
 
@@ -346,6 +351,7 @@ export async function softDelete(
 				);
 		}
 		await done;
+		await reconcileLocalAdjustments(owner);
 		return;
 	}
 	await runTransaction(scopedStoreName(domain), "readwrite", async store => {
@@ -365,6 +371,7 @@ export async function softDelete(
 			store.put({ ...item, deleted: true, modifiedAt: Math.max(Date.now(), item.modifiedAt + 1) }),
 		);
 	});
+	if (["accounts", "transactions", "loanPayments"].includes(domain)) await reconcileLocalAdjustments(owner);
 }
 
 export async function hardDelete(
@@ -376,6 +383,7 @@ export async function hardDelete(
 	await runTransaction(scopedStoreName(domain), "readwrite", async store => {
 		await requestResult(store.delete(scopedId(owner, localId)));
 	});
+	if (["accounts", "transactions", "loanPayments"].includes(domain)) await reconcileLocalAdjustments(owner);
 }
 
 export async function getModifiedSince<T>(
@@ -515,6 +523,159 @@ function createLocalStore<T>(domain: StoreDomain) {
 		replaceSnapshot: (items: SnapshotItem<T>[], owner?: StorageOwner) =>
 			replaceRemoteSnapshot(domain, items, owner),
 	};
+}
+
+export async function mutateLocalBalanceAdjustment(
+	input: { id?: string; balance?: number; date?: string; financialAccountId?: string },
+	remove = false,
+) {
+	const owner = requireOwner();
+	const database = await initLocalDb();
+	const tx = database.transaction("scoped-accounts", "readwrite");
+	const done = transactionDone(tx);
+	const id = input.id ?? crypto.randomUUID();
+	try {
+		const store = tx.objectStore("scoped-accounts");
+		const rows = (
+			(await requestResult(store.index("ownerKey").getAll(owner))) as LocalData<FinancialAccount>[]
+		).filter(row => !row.deleted);
+		if (input.id && !rows.some(row => row.data.balanceAdjustments?.some(item => item.id === id)))
+			throw new Error("Ajuste não encontrado");
+		const target = rows.find(row => row.data.id === input.financialAccountId);
+		if (!remove) {
+			if (!target || ["CREDIT_CARD", "REWARDS"].includes(target.data.type))
+				throw new Error("Selecione uma conta válida");
+			const date = input.date ?? "";
+			if (
+				!/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+				Number.isNaN(new Date(`${date}T12:00:00Z`).valueOf()) ||
+				new Date(`${date}T12:00:00Z`).toISOString().slice(0, 10) !== date
+			)
+				throw new Error("Informe uma data válida");
+			if (input.balance == null || !Number.isFinite(input.balance) || Math.abs(input.balance) > 9999999999.99)
+				throw new Error("Informe um saldo válido");
+			toMinorUnits(Math.abs(input.balance), target.data.currency ?? "BRL");
+			if (target.data.balanceAdjustments?.some(item => item.id !== id && item.date.slice(0, 10) === date))
+				throw new Error("Já existe um ajuste nesta data para esta conta");
+		}
+		for (const row of rows) {
+			const entries = (row.data.balanceAdjustments ?? []).filter(item => item.id !== id);
+			if (!remove && row === target)
+				entries.push({
+					balance: input.balance!,
+					calculatedBalance: 0,
+					createdAt: new Date().toISOString(),
+					currency: row.data.currency ?? "BRL",
+					date: input.date!,
+					financialAccountId: row.data.id,
+					id,
+					name: row.data.name,
+				});
+			if (row !== target && entries.length === (row.data.balanceAdjustments ?? []).length) continue;
+			await requestResult(
+				store.put({
+					...row,
+					data: { ...row.data, balanceAdjustments: entries },
+					modifiedAt: Math.max(Date.now(), row.modifiedAt + 1),
+				}),
+			);
+		}
+		await done;
+	} catch (error) {
+		try {
+			tx.abort();
+		} catch {}
+		await done.catch(() => undefined);
+		throw error;
+	}
+	await reconcileLocalAdjustments(owner);
+}
+
+/** Actual local writes only. IDB serializes source reads and checkpoint updates. */
+export async function reconcileLocalAdjustments(ownerKey?: StorageOwner) {
+	const owner = requireOwner(ownerKey);
+	if (!owner.startsWith("guest:")) return;
+	const database = await initLocalDb();
+	const tx = database.transaction(
+		["scoped-accounts", "scoped-transactions", "scoped-creditBooks", "scoped-loanPayments", "scoped-meta"],
+		"readwrite",
+	);
+	const done = transactionDone(tx);
+	try {
+		const rows = async <T>(store: string) =>
+			((await requestResult(tx.objectStore(store).index("ownerKey").getAll(owner))) as LocalData<T>[]).filter(
+				row => !row.deleted,
+			);
+		const accounts = await rows<FinancialAccount>("scoped-accounts");
+		const movements = await rows<Transaction>("scoped-transactions");
+		const books = await rows<CreditBook>("scoped-creditBooks");
+		const loans = await rows<LoanPayment>("scoped-loanPayments");
+		const yields = (await requestResult(
+			tx.objectStore("scoped-meta").get(scopedId(owner, "financial-account-yields")),
+		)) as LocalData<import("./api").FinancialAccountYield[]> | undefined;
+		const redundant = new Set<string>();
+		const checkpoints = new Map(
+			accounts.flatMap(row =>
+				(row.data.balanceAdjustments ?? []).map(
+					item => [item.id, { currency: row.data.currency ?? "BRL", item }] as const,
+				),
+			),
+		);
+		calculateFinancialAccountBalances(
+			accounts.map(row => row.data),
+			[...movements.map(row => row.data), ...loanAccountMovements(loans.map(row => row.data))],
+			books.flatMap(row => creditBookRewards(row.data)),
+			cachedYieldCalendar(),
+			new Date(),
+			yields?.data ?? [],
+			(id, calculated, complete) => {
+				const checkpoint = checkpoints.get(id)!;
+				if (
+					complete &&
+					Math.round(calculated * currencyScale(checkpoint.currency)) ===
+						Math.round(checkpoint.item.balance * currencyScale(checkpoint.currency))
+				)
+					redundant.add(id);
+			},
+		);
+		for (const row of accounts) {
+			const remaining = row.data.balanceAdjustments?.filter(item => !redundant.has(item.id));
+			if (remaining?.length === row.data.balanceAdjustments?.length) continue;
+			await requestResult(
+				tx
+					.objectStore("scoped-accounts")
+					.put({
+						...row,
+						data: { ...row.data, balanceAdjustments: remaining },
+						modifiedAt: Math.max(Date.now(), row.modifiedAt + 1),
+					}),
+			);
+		}
+		for (const row of books) {
+			if (!row.data.statements.some(statement => statement.manualTotalAmount != null)) continue;
+			const book = structuredClone(row.data);
+			book.payments = movements
+				.filter(item => item.data.paymentCreditCardId === book.card.id)
+				.map(item => ({
+					amount: item.data.paymentAmount ?? item.data.amount,
+					date: item.data.date.slice(0, 10),
+					id: item.localId,
+				}));
+			if (!removeRedundantStatementAmounts(book).length) continue;
+			await requestResult(
+				tx
+					.objectStore("scoped-creditBooks")
+					.put({ ...row, data: book, modifiedAt: Math.max(Date.now(), row.modifiedAt + 1) }),
+			);
+		}
+		await done;
+	} catch (error) {
+		try {
+			tx.abort();
+		} catch {}
+		await done.catch(() => undefined);
+		throw error;
+	}
 }
 
 export const localAccounts = createLocalStore<FinancialAccount>("accounts");
@@ -780,6 +941,7 @@ export async function mutateLocalCreditBook<T>(
 						throw new Error("Pessoa da dívida indisponível");
 			}
 		}
+		removeRedundantStatementAmounts(book, asOf);
 		materializeBookInstallments(book, asOf);
 		if (institutionId && oldPolicy !== book.card.refundPolicy)
 			await requestResult(
@@ -839,6 +1001,7 @@ export async function mutateLocalCreditBook<T>(
 				}),
 			);
 		await done;
+		await reconcileLocalAdjustments(owner);
 		return result;
 	} catch (error) {
 		try {
@@ -903,6 +1066,7 @@ export async function transferLocalCreditBookPurchase(
 			[sourceCardId, source, sourceRow],
 			[destinationCardId, destination, destinationRow],
 		] as const) {
+			removeRedundantStatementAmounts(book);
 			await requestResult(
 				store.put({
 					...previous,
@@ -1024,6 +1188,7 @@ export const localMeta = {
 				}),
 			);
 		});
+		if (key === "financial-account-yields") await reconcileLocalAdjustments(owner);
 	},
 };
 
@@ -1033,6 +1198,7 @@ export async function materializeLocalCreditBooks(owner: StorageOwner, asOf = cu
 	for (const row of await localCreditBooks.getAll(owner)) {
 		const book = structuredClone(row.data);
 		const count = book.installments.length;
+		removeRedundantStatementAmounts(book, asOf);
 		materializeBookInstallments(book, asOf);
 		if (book.installments.length === count) continue;
 		await mutateLocalCreditBook(row.localId, () => undefined, owner, undefined, asOf);

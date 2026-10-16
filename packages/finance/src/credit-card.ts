@@ -25,6 +25,7 @@ export interface CardCalendar {
 	workingDueDate?: boolean;
 }
 export interface StatementInput {
+	manualTotalAmount?: number | null;
 	currency?: string;
 	id: string;
 	creditCardId?: string;
@@ -42,6 +43,8 @@ export interface CardPayment {
 }
 export type StatementStatus = "OPEN" | "PAID" | "CARRIED";
 export interface StatementBalance {
+	/** Total before this override and before payments, including incoming debt/credit. */
+	calculatedTotalAmount: number;
 	amountDue: number;
 	balanceAmount: number;
 	carriedInAmount: number;
@@ -157,7 +160,8 @@ export function statementCycles<T extends StatementInput>(
 		...statements
 			.filter(
 				statement =>
-					toCents(statement.totalAmount) !== 0 || toCents(statement.chargesAmount ?? 0) !== 0,
+					toCents(statement.manualTotalAmount ?? statement.totalAmount) !== 0 ||
+					toCents(statement.chargesAmount ?? 0) !== 0,
 			)
 			.map(statement => dateKey(statement.statementDate)),
 		...payments.map(payment => paymentStatementDates(card, payment.date).statementDate),
@@ -217,7 +221,15 @@ export function calculateStatementBalances<T extends StatementInput>(
 		const charges = toCents(statement.chargesAmount ?? 0, currency);
 		const incomingDebt = Math.max(0, carry);
 		const incomingCredit = Math.max(0, -carry);
-		const amountDue = toCents(statement.totalAmount, currency) + charges + incomingDebt;
+		const calculatedTotal =
+			toCents(statement.totalAmount, currency) + charges + incomingDebt - incomingCredit;
+		// A manual total already includes all incoming debt and credit. Expose amountDue
+		// using the existing gross convention so consumers subtract credit only once.
+		const effectiveTotal =
+			statement.manualTotalAmount == null
+				? calculatedTotal
+				: toCents(statement.manualTotalAmount, currency);
+		const amountDue = effectiveTotal + incomingCredit;
 		const periodPayment = payments
 			? (paidByStatement.get(statement.id) ?? 0)
 			: toCents(statement.periodPaymentAmount ?? statement.paidAmount ?? 0, currency);
@@ -236,6 +248,7 @@ export function calculateStatementBalances<T extends StatementInput>(
 				ignored || transferred || (remaining < 0 && hasNext)
 					? 0
 					: remaining / currencyScale(currency),
+			calculatedTotalAmount: calculatedTotal / currencyScale(currency),
 			carriedInAmount: incomingDebt / currencyScale(currency),
 			carriedOutAmount: transferred ? remaining / currencyScale(currency) : 0,
 			chargesAmount: charges / currencyScale(currency),

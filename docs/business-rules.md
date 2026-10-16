@@ -32,7 +32,15 @@ Quando uma despesa corresponde a várias categorias planejadas, seu valor é dis
 
 Um ajuste registra o saldo real de uma conta ao fim de uma data. Ele não é entrada nem saída e não participa de categorias, faturas ou dívidas. Existe no máximo um ajuste por conta e data. O saldo antes da data segue as movimentações registradas; na data, o ajuste fixa o saldo de fechamento. Movimentações anteriores ou do mesmo dia alteram automaticamente a diferença implícita do ajuste, preservando o saldo real informado. Movimentações posteriores partem desse saldo, até o próximo ajuste. Excluir o ajuste remove esse ponto de referência e recalcula o histórico.
 
+A listagem agrupa ajustes por conta e mostra suas datas em ordem decrescente. Cada data compara o saldo calculado antes daquele ajuste com o saldo real informado. Uma conta pode ter ajustes em vários dias; adicionar uma data ao grupo mantém a conta selecionada. Duplicatas de conta e dia são rejeitadas antes de salvar.
+
 Cartões de crédito e contas de recompensas não aceitam ajuste de saldo. Rendimentos da data são calculados antes da aplicação do ajuste.
+
+## Ajustes de fatura
+
+Cada fatura pode ter um valor manual que substitui o total final calculado, incluindo compras, parcelas, estornos, encargos, saldo transportado e créditos anteriores, antes dos pagamentos. A comparação mantém visíveis o total calculado e o total ajustado. O ajuste pertence à fatura e permanece após alterações de compras ou recálculos; não modifica as compras nem cria movimentação em conta. Saldos e créditos anteriores já estão incluídos no valor manual; somente pagamentos do período são abatidos depois. Faturas, limite disponível e projeções usam o valor ajustado. Remover o valor manual restaura o cálculo automático. Contas conectadas e modo visitante seguem a mesma regra.
+
+Ajustes de saldo e valores manuais de fatura são removidos automaticamente quando o cálculo sem aquele ajuste coincide com o valor informado na precisão monetária da moeda. A comparação de saldo mantém referências anteriores e ocorre após rendimentos reais concluídos. A de fatura inclui transporte e créditos, antes dos pagamentos. Consultas e projeções não removem registros. A remoção é permanente e não recria ajustes após mudanças futuras. Modos conectado e visitante seguem a mesma regra.
 
 ## Importação de transações
 

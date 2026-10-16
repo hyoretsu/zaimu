@@ -9,6 +9,7 @@ import {
 	replayCreditBook,
 	resizePurchaseCashback,
 	resolveBookInstallment,
+	setBookStatementAmount,
 	updateBookPurchaseDate,
 	updateBookStatementDates,
 } from "@zaimu/finance/credit-book";
@@ -552,6 +553,26 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 			response: { 200: CreditStatementPageReturn, 304: t.Null() },
 		},
 	)
+	.patch(
+		"/:id/statements/:statementId/amount",
+		async ({ params, body, request }) => {
+			const userId = await requireUserId(request);
+			await mutateCreditBook(userId, params.id, book =>
+				setBookStatementAmount(book, params.statementId, body.amount, body.dates),
+			);
+			return { success: true };
+		},
+		{
+			body: t.Object({
+				amount: t.Nullable(t.Number()),
+				dates: t.Optional(
+					t.Object({ dueDate: t.String({ format: "date" }), statementDate: t.String({ format: "date" }) }),
+				),
+			}),
+			response: t.Object({ success: t.Boolean() }),
+		},
+	)
+
 	.patch(
 		"/:id/statements/:statementId",
 		async ({ params, body, request }) => {

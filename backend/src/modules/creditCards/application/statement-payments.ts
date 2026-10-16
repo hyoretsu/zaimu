@@ -7,7 +7,7 @@ import {
 } from "@zaimu/finance/credit-card";
 import { accountCardRules } from "~/modules/accounts/application/institution-card-rules";
 import { numeric, queryRaw, type SqlExecutor } from "~/shared/infra/sql";
-import { readCreditBook } from "./normalized-credit-book";
+import { mutateCreditBook, readCreditBook } from "./normalized-credit-book";
 
 export async function withStatementPayments<T extends StatementInput & { creditCardId: string }>(
 	statements: T[],
@@ -46,6 +46,11 @@ export async function withStatementPayments<T extends StatementInput & { creditC
 
 export async function recalculateStatementPayments(transaction: SqlExecutor, cardIds: string[]) {
 	if (!cardIds.length) return;
+	const owners = await queryRaw<{ id: string; userId: string }>(
+		`SELECT c."id", a."userId" FROM "CreditCard" c JOIN "FinancialAccount" a ON a."id"=c."financialAccountId" WHERE c."id"=ANY($1) ORDER BY c."id"`,
+		[cardIds],
+	);
+	for (const owner of owners) await mutateCreditBook(owner.userId, owner.id, () => undefined);
 	await transaction.executeStatement(
 		transaction.db.sql.public.CreditCard.update({ updatedAt: new Date() })
 			.where((f, fn) => fn.in(f.id, [...new Set(cardIds)].sort()))

@@ -794,6 +794,7 @@ namespace public {
     statementDate   Date
     dueDate         Date
     totalAmount     Numeric(20, 6)   @default(dbgenerated("0"))
+    manualTotalAmount Numeric(20, 6)?
     paidAmount      Numeric(20, 6)   @default(dbgenerated("0"))
     isPaid          Boolean          @default(false)
     isFullySynced   Boolean          @default(false)

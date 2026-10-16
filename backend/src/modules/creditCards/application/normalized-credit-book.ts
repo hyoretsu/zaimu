@@ -8,6 +8,7 @@ import {
 	moneyCents,
 	moveBookPurchase,
 	newBookPurchase,
+	removeRedundantStatementAmounts,
 	replayCreditBook,
 	resolveBookInstallment,
 	synchronizeBookRefinancing,
@@ -170,6 +171,7 @@ export async function loadCreditBook(
 				({
 					...row,
 					dueDate: date(row.dueDate),
+					manualTotalAmount: row.manualTotalAmount == null ? null : Number(row.manualTotalAmount),
 					paidAmount: Number(row.paidAmount),
 					statementDate: date(row.statementDate),
 					totalAmount: Number(row.totalAmount),
@@ -247,6 +249,7 @@ export async function saveCreditBook(
 	book.card.currency ??= previous.card.currency ?? "BRL";
 	if (book.card.currency !== (previous.card.currency ?? "BRL"))
 		throw new HttpException("Moeda do livro não pode ser alterada pelo sync", 409);
+	removeRedundantStatementAmounts(book);
 	const delta = creditBookDelta(book, previous);
 	const purchasesById = new Map(book.purchases.map(p => [p.id, p]));
 	const previousPurchases = new Map(previous.purchases.map(p => [p.id, p]));
@@ -433,6 +436,7 @@ export async function saveCreditBook(
 				"statementDate",
 				"dueDate",
 				"totalAmount",
+				"manualTotalAmount",
 				"paidAmount",
 				"isPaid",
 				"isFullySynced",
@@ -443,6 +447,7 @@ export async function saveCreditBook(
 				s.statementDate,
 				s.dueDate,
 				s.totalAmount,
+				s.manualTotalAmount ?? null,
 				s.paidAmount,
 				s.isPaid,
 				s.isFullySynced,

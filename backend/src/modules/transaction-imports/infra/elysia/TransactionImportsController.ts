@@ -19,6 +19,7 @@ import {
 	discardExternalReviews,
 	refreshAppliedSnapshots,
 } from "~/modules/open-finance/application/review-tracking";
+import { enqueueUserYieldRecalculations } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { createTransactionBatch } from "~/modules/transaction-imports/application/import-batches";
 import { HttpException } from "~/shared/errors";
@@ -1078,6 +1079,11 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				result.transactionId ??
 				(result.reconciledTarget?.entityType === "TRANSACTION" ? result.reconciledTarget.entityId : null);
 			if (localId) await refreshAppliedSnapshots(userId, localId);
+			await enqueueUserYieldRecalculations(
+				userId,
+				importItem.date,
+				`import:${params.id}:${crypto.randomUUID()}`,
+			);
 			return { created: 1, finished: result.finished };
 		},
 		{ params: t.Object({ id: t.String(), itemId: t.String() }) },
@@ -1194,6 +1200,11 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					(result.reconciledTarget?.entityType === "TRANSACTION" ? result.reconciledTarget.entityId : null);
 				if (localId) await refreshAppliedSnapshots(userId, localId);
 			}
+			await enqueueUserYieldRecalculations(
+				userId,
+				new Date(Math.min(...approvableItems.map(item => item.date.valueOf()))),
+				`import:${params.id}:${crypto.randomUUID()}`,
+			);
 			return { created: approvableItems.length, finished: importedTransactions.finished };
 		},
 		{
@@ -1437,6 +1448,11 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					(result.reconciledTarget?.entityType === "TRANSACTION" ? result.reconciledTarget.entityId : null);
 				if (localId) await refreshAppliedSnapshots(userId, localId);
 			}
+			await enqueueUserYieldRecalculations(
+				userId,
+				new Date(Math.min(...approvableItems.map(item => item.date.valueOf()))),
+				`import:${params.id}:${crypto.randomUUID()}`,
+			);
 			return { created: approvableItems.length, finished: importedTransactions.finished };
 		},
 		{ params: t.Object({ id: t.String() }) },

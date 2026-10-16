@@ -63,6 +63,7 @@ export function calculateFinancialAccountBalances(
 	holidays: string[] | YieldCalendar = cachedYieldCalendar(),
 	today = new Date(),
 	yields: FinancialAccountYield[] = [],
+	onAdjustment?: (id: string, calculated: number, complete: boolean) => void,
 ): FinancialAccount[] {
 	const todayKey = format(startOfDay(today), "yyyy-MM-dd");
 	const holidayKeys = Array.isArray(holidays) ? new Set(holidays.map(date => date.slice(0, 10))) : null;
@@ -157,6 +158,7 @@ export function calculateFinancialAccountBalances(
 												new Date(`${day}T12:00:00`),
 												new Date(`${day}T12:00:00`),
 											),
+								onAdjustment,
 							).toFixed(4),
 						),
 		}))
@@ -330,8 +332,12 @@ function calculateYieldedBalance(
 	yields: FinancialAccountYield[] | undefined,
 	snapshots?: Map<string, YieldLot[]>,
 	calendarCovered?: (day: string) => boolean,
+	onAdjustment?: (id: string, calculated: number, complete: boolean) => void,
 ) {
+	const checkpoints = new Map((account.balanceAdjustments ?? []).map(item => [item.date.slice(0, 10), item]));
+	let complete = true;
 	const firstDay = [
+		...checkpoints.keys(),
 		...(events?.keys() ?? []),
 		...(cashbackEvents?.keys() ?? []),
 		...(yields?.map(yieldEntry => yieldEntry.date.slice(0, 10)) ?? []),
@@ -340,6 +346,13 @@ function calculateYieldedBalance(
 	let balance = 0;
 	const ledger = new YieldTaxLedger();
 	const cashbackBalances = new Map<number, number>();
+	const applyAdjustment = (key: string) => {
+		const checkpoint = checkpoints.get(key);
+		if (!checkpoint) return;
+		onAdjustment?.(checkpoint.id, ledger.balance, complete);
+		ledger.adjustBalance(checkpoint.balance, key);
+		balance = ledger.balance;
+	};
 	for (
 		let day = new Date(`${firstDay}T12:00:00`);
 		format(day, "yyyy-MM-dd") <= todayKey;
@@ -374,6 +387,7 @@ function calculateYieldedBalance(
 			);
 			if (recorded?.amount != null) ledger.accrueNet(recorded.amount, key);
 			balance = ledger.balance;
+			applyAdjustment(key);
 			continue;
 		}
 		const yieldSettings = getYieldSettings(account, key);
@@ -383,6 +397,11 @@ function calculateYieldedBalance(
 		if (balance > 0 && !automaticYield?.isExcluded) {
 			const hasReference = settingsRequireReference(yieldSettings);
 			const grossAmount = hasReference ? 0 : calculateGrossYield(balance, yieldSettings);
+			if (
+				(hasReference && automaticYield?.amount == null) ||
+				(grossAmount > 0 && !(calendarCovered?.(key) ?? true))
+			)
+				complete = false;
 
 			if (automaticYield?.amount !== null && automaticYield?.amount !== undefined) {
 				if (automaticYield.origin === "SYSTEM")
@@ -397,6 +416,7 @@ function calculateYieldedBalance(
 		}
 		for (const manualYield of manualYields ?? []) ledger.accrueNet(manualYield.amount ?? 0, key);
 		balance = ledger.balance;
+		applyAdjustment(key);
 	}
 	snapshots?.set(
 		account.id,

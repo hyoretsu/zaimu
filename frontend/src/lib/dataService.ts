@@ -17,6 +17,7 @@ import {
 	replayCreditBook,
 	resizePurchaseCashback,
 	resolveBookInstallment,
+	setBookStatementAmount,
 	updateBookPurchaseDate,
 	updateBookRefund,
 	updateBookStatementDates,
@@ -151,6 +152,7 @@ import {
 	localRecurrences,
 	localStores,
 	localTransactions,
+	mutateLocalBalanceAdjustment,
 	payLocalLoanInstallment,
 } from "./localStorage";
 import { getCurrentCacheIdentity } from "./query-cache";
@@ -913,22 +915,50 @@ export const dataService = {
 	// ============== TRANSACTIONS ==============
 	balanceAdjustments: {
 		async create(data: Pick<BalanceAdjustment, "balance" | "date" | "financialAccountId">) {
-			if (isGuestMode()) throw new Error("Entre na sua conta para registrar ajustes de saldo.");
+			if (isGuestMode()) return mutateLocalBalanceAdjustment(data);
 			return fetchWithAuth<BalanceAdjustment>("/balance-adjustments", {
 				body: JSON.stringify(data),
 				method: "POST",
 			});
 		},
 		async delete(id: string) {
-			if (isGuestMode()) throw new Error("Entre na sua conta para excluir ajustes de saldo.");
+			if (isGuestMode()) return mutateLocalBalanceAdjustment({ id }, true);
 			return fetchWithAuth<{ success: true }>(`/balance-adjustments/${id}`, { method: "DELETE" });
 		},
 		async getAll(): Promise<BalanceAdjustment[]> {
-			if (isGuestMode()) return [];
+			if (isGuestMode()) {
+				const [accounts, transactions, yields, loans] = await Promise.all([
+					localAccounts.getAll(),
+					localTransactions.getAll(),
+					localMeta.get("financial-account-yields"),
+					localLoanPayments.getAll(),
+				]);
+				return accounts.flatMap(row =>
+					(row.data.balanceAdjustments ?? []).map(adjustment => {
+						const without = {
+							...row.data,
+							balanceAdjustments: row.data.balanceAdjustments?.filter(item => item.id !== adjustment.id),
+						};
+						const calculated =
+							calculateFinancialAccountBalances(
+								[without],
+								[
+									...transactions.map(item => item.data),
+									...loanAccountMovements(loans.map(item => item.data)),
+								],
+								[],
+								cachedYieldCalendar(),
+								new Date(`${adjustment.date.slice(0, 10)}T12:00:00`),
+								(yields as FinancialAccountYield[] | undefined) ?? [],
+							)[0]?.balance ?? 0;
+						return { ...adjustment, calculatedBalance: calculated };
+					}),
+				);
+			}
 			return fetchWithAuth("/balance-adjustments");
 		},
 		async update(id: string, data: Pick<BalanceAdjustment, "balance" | "date" | "financialAccountId">) {
-			if (isGuestMode()) throw new Error("Entre na sua conta para alterar ajustes de saldo.");
+			if (isGuestMode()) return mutateLocalBalanceAdjustment({ ...data, id });
 			return fetchWithAuth<BalanceAdjustment>(`/balance-adjustments/${id}`, {
 				body: JSON.stringify(data),
 				method: "PATCH",
@@ -1748,6 +1778,22 @@ export const dataService = {
 			)
 				throw new Error("Conta pagadora indisponível");
 			await localCreditCards.put({ ...card.data, paymentAccountId, paymentSuggestionsEnabled }, cardId);
+		},
+		async setStatementAmount(
+			cardId: string,
+			statementId: string,
+			amount: number | null,
+			dates?: { statementDate: string; dueDate: string },
+		): Promise<void> {
+			if (amount !== null && !Number.isFinite(amount)) throw new RangeError("Valor da fatura inválido");
+			if (isGuestMode()) {
+				await mutateLocalCreditBook(cardId, book => setBookStatementAmount(book, statementId, amount, dates));
+				return;
+			}
+			await fetchWithAuth(`/credit-cards/${cardId}/statements/${statementId}/amount`, {
+				body: JSON.stringify({ amount, dates }),
+				method: "PATCH",
+			});
 		},
 
 		async setStatementCutoff(cardId: string, statementDate: string | null): Promise<void> {

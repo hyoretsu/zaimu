@@ -195,6 +195,7 @@ test("monthly budget counts paid amounts and adds only uncommitted invoice balan
 	data.projectedStatements = [
 		{
 			balanceAmount: 40,
+			calculatedTotalAmount: 40,
 			chargesAmount: 0,
 			creditCardId: "card",
 			dueDate: new Date("2026-10-20T12:00:00"),
@@ -233,6 +234,7 @@ test("active invoice budget reserves overdue outstanding without losing known sp
 	data.projectedStatements = [
 		{
 			balanceAmount: 90,
+			calculatedTotalAmount: 90,
 			chargesAmount: 0,
 			creditCardId: "card",
 			dueDate: new Date("2026-10-02T12:00:00"),

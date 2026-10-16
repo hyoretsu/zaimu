@@ -9,6 +9,7 @@ import {
 	DialogBody,
 	DialogContent,
 	DialogDescription,
+	DialogFooter,
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
@@ -49,6 +50,7 @@ export function BalanceAdjustmentsDialog({
 		enabled: open && identity !== null,
 		queryFn: () => dataService.balanceAdjustments.getAll(),
 		queryKey: adjustmentsKey,
+		refetchInterval: open ? 5000 : false,
 	});
 	const accountsQuery = useQuery({
 		enabled: open && identity !== null,
@@ -65,6 +67,14 @@ export function BalanceAdjustmentsDialog({
 		);
 		return byName || right.date.localeCompare(left.date);
 	});
+	const groups = Array.from(
+		(adjustments ?? []).reduce((groups, adjustment) => {
+			const entries = groups.get(adjustment.financialAccountId) ?? [];
+			entries.push(adjustment);
+			groups.set(adjustment.financialAccountId, entries);
+			return groups;
+		}, new Map<string, BalanceAdjustment[]>()),
+	);
 	useBackgroundModalRecovery<BalanceAdjustment>("balance-adjustment-delete", () => onOpenChange(true));
 	const remove = (adjustment: BalanceAdjustment) =>
 		runBackgroundModalAction({
@@ -101,79 +111,111 @@ export function BalanceAdjustmentsDialog({
 								{adjustmentsQuery.isError || accountsQuery.isError ? (
 									<p className="text-destructive text-sm">Não foi possível carregar os ajustes.</p>
 								) : null}
-								{!accountsQuery.isPending && adjustments?.length === 0 ? (
+								{!accountsQuery.isPending &&
+								!accountsQuery.isError &&
+								!adjustmentsQuery.isPending &&
+								!adjustmentsQuery.isError &&
+								adjustments?.length === 0 ? (
 									<p className="text-muted-foreground text-sm">Nenhum ajuste registrado.</p>
 								) : null}
 								{!accountsQuery.isPending &&
 									!accountsQuery.isError &&
-									adjustments?.map(adjustment => (
-										<div
-											className="flex items-center justify-between gap-3 rounded-xl border p-3"
-											key={adjustment.id}
-										>
-											<div className="min-w-0">
-												<p className="truncate font-medium">
-													{accountNames.get(adjustment.financialAccountId) ?? adjustment.name ?? "Conta"}
-												</p>
-												<p className="text-muted-foreground text-sm">{formatLocalDate(adjustment.date)}</p>
-												<p className="text-muted-foreground text-sm">
-													Saldo sem ajuste:{" "}
-													{formatMoney(Number(adjustment.calculatedBalance), adjustment.currency ?? "BRL")}
-												</p>
-												<p className="text-sm">
-													Saldo corrigido:{" "}
-													{formatMoney(Number(adjustment.balance), adjustment.currency ?? "BRL")}
-												</p>
-											</div>
-											<div className="flex shrink-0 gap-1">
-												<Tooltip>
-													<TooltipTrigger asChild>
-														<Button
-															aria-label="Editar ajuste"
-															className="cursor-pointer"
-															disabled={!!pending[`${identity}:balance-adjustment:${adjustment.id}`]}
-															onClick={() => setEditing(adjustment)}
-															size="icon-sm"
-															variant="outline"
-														>
-															<LuPencil />
-														</Button>
-													</TooltipTrigger>
-													<TooltipContent>Editar</TooltipContent>
-												</Tooltip>
-												<Tooltip>
-													<TooltipTrigger asChild>
-														<span>
-															<ConfirmActionButton
-																aria-label="Excluir ajuste"
-																className="cursor-pointer"
-																confirmation="Excluir este ajuste permanentemente?"
-																disabled={!!pending[`${identity}:balance-adjustment:${adjustment.id}`]}
-																onConfirm={() => remove(adjustment)}
-																size="icon-sm"
-																variant="outline"
-															>
-																<LuTrash2 />
-															</ConfirmActionButton>
-														</span>
-													</TooltipTrigger>
-													<TooltipContent>Excluir</TooltipContent>
-												</Tooltip>
-											</div>
-										</div>
+									!adjustmentsQuery.isPending &&
+									!adjustmentsQuery.isError &&
+									groups.map(([accountId, entries]) => (
+										<section className="grid min-w-0 gap-3 rounded-xl border p-3" key={accountId}>
+											<h3 className="min-w-0 truncate font-medium">
+												{accountNames.get(accountId) ?? entries[0]?.name ?? "Conta"}
+											</h3>
+											<ActionGroup>
+												<Button
+													onClick={() => {
+														setRecoveredDraft({
+															adjustment: null,
+															balance: "",
+															date: "",
+															financialAccountId: accountId,
+														});
+														setEditing("new");
+													}}
+													size="sm"
+													variant="outline"
+												>
+													<LuPlus /> Adicionar data
+												</Button>
+											</ActionGroup>
+											{entries.map(adjustment => (
+												<div
+													className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3"
+													key={adjustment.id}
+												>
+													<div className="min-w-0">
+														<p className="text-muted-foreground text-sm">
+															{formatLocalDate(adjustment.date)}
+														</p>
+														<p className="text-muted-foreground text-sm">
+															Saldo sem ajuste:{" "}
+															{formatMoney(
+																Number(adjustment.calculatedBalance),
+																adjustment.currency ?? "BRL",
+															)}
+														</p>
+														<p className="text-sm">
+															Saldo corrigido:{" "}
+															{formatMoney(Number(adjustment.balance), adjustment.currency ?? "BRL")}
+														</p>
+													</div>
+													<ActionGroup className="ml-auto shrink-0 gap-1">
+														<Tooltip>
+															<TooltipTrigger asChild>
+																<Button
+																	aria-label="Editar ajuste"
+																	className="cursor-pointer"
+																	disabled={!!pending[`${identity}:balance-adjustment:${adjustment.id}`]}
+																	onClick={() => setEditing(adjustment)}
+																	size="icon-sm"
+																	variant="outline"
+																>
+																	<LuPencil />
+																</Button>
+															</TooltipTrigger>
+															<TooltipContent>Editar</TooltipContent>
+														</Tooltip>
+														<Tooltip>
+															<TooltipTrigger asChild>
+																<span>
+																	<ConfirmActionButton
+																		aria-label="Excluir ajuste"
+																		className="cursor-pointer"
+																		confirmation="Excluir este ajuste permanentemente?"
+																		disabled={!!pending[`${identity}:balance-adjustment:${adjustment.id}`]}
+																		onConfirm={() => remove(adjustment)}
+																		size="icon-sm"
+																		variant="outline"
+																	>
+																		<LuTrash2 />
+																	</ConfirmActionButton>
+																</span>
+															</TooltipTrigger>
+															<TooltipContent>Excluir</TooltipContent>
+														</Tooltip>
+													</ActionGroup>
+												</div>
+											))}
+										</section>
 									))}
 							</div>
 						</div>
-						<ActionGroup>
-							<Button
-								className="cursor-pointer disabled:cursor-not-allowed"
-								disabled={!adjustmentsQuery.isSuccess || adjustmentsQuery.isFetching}
-								onClick={() => setEditing("new")}
-							>
-								<LuPlus /> Novo ajuste
-							</Button>
-						</ActionGroup>
 					</DialogBody>
+					<DialogFooter>
+						<Button
+							className="cursor-pointer disabled:cursor-not-allowed"
+							disabled={!adjustmentsQuery.isSuccess || adjustmentsQuery.isFetching}
+							onClick={() => setEditing("new")}
+						>
+							<LuPlus /> Novo ajuste
+						</Button>
+					</DialogFooter>
 				</DialogContent>
 			</Dialog>
 			{editing !== null ? (

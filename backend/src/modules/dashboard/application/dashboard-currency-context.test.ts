@@ -150,6 +150,7 @@ test("overdue foreign invoices request FX only when a monthly plan reserves them
 	data.projectedStatements = [
 		{
 			balanceAmount: 100,
+			calculatedTotalAmount: 100,
 			chargesAmount: 0,
 			creditCardId: "card",
 			dueDate: new Date("2026-10-02T12:00:00"),

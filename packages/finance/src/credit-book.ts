@@ -6,7 +6,7 @@ export {
 	synchronizeBookRefinancing,
 } from "./credit-book-refinancing";
 
-import { currentDateKey, paymentStatementDates, statementCycles } from "./credit-card";
+import { currentDateKey, paymentStatementDates, statementCycles, toCents } from "./credit-card";
 import {
 	assertCents,
 	assertDateKey,
@@ -97,6 +97,7 @@ export interface BookCharge {
 }
 
 export interface BookStatement {
+	manualTotalAmount?: number | null;
 	id: string;
 	creditCardId: string;
 	statementDate: string;
@@ -288,6 +289,8 @@ export function ensureBookStatement(
 
 /** Complete invoice plan for calculations. Projections are never persisted as occurrences. */
 export function creditBookPlan(book: CreditBook) {
+	for (const statement of book.statements)
+		assertStatementAmount(statement.manualTotalAmount ?? null, book.card.currency);
 	if (book.purchases.some(p => p.bookingCurrency && p.bookingCurrency !== (book.card.currency ?? "BRL")))
 		throw new RangeError("Compra possui moeda contabilizada diferente do cartão");
 	if (
@@ -847,6 +850,57 @@ function recomposedPurchaseCalendar(
 		if (existing) return { dueDate: existing.dueDate, statementDate: existing.statementDate };
 		return paymentStatementDates(book.card, `${month}-01`);
 	});
+}
+
+export function assertStatementAmount(amount: number | null, currency = "BRL") {
+	if (
+		amount !== null &&
+		(!Number.isFinite(amount) ||
+			!Number.isSafeInteger(Math.round(amount * currencyScale(currency))) ||
+			Math.abs(amount) >= 1e12 ||
+			Math.abs(amount * currencyScale(currency) - Math.round(amount * currencyScale(currency))) > 1e-7)
+	)
+		throw new RangeError("Valor da fatura inválido");
+}
+
+/** Called only by writers. Read-only and forecast replays never mutate checkpoints. */
+export function removeRedundantStatementAmounts(book: CreditBook, asOf = currentDateKey()) {
+	const replay = replayCreditBook(book, asOf);
+	const byId = new Map(book.statements.map(statement => [statement.id, statement]));
+	const removed: string[] = [];
+	for (const computed of replay.statements) {
+		const stored = byId.get(computed.id);
+		if (stored?.manualTotalAmount == null || stored.statementDate > asOf) continue;
+		if (
+			toCents(stored.manualTotalAmount, book.card.currency) ===
+			toCents(computed.calculatedTotalAmount, book.card.currency)
+		) {
+			stored.manualTotalAmount = null;
+			removed.push(stored.id);
+		}
+	}
+	return removed;
+}
+
+/** Set a cycle total independently of imported purchases; null restores calculation. */
+export function setBookStatementAmount(
+	book: CreditBook,
+	statementId: string,
+	amount: number | null,
+	dates?: { statementDate: string; dueDate: string },
+) {
+	assertStatementAmount(amount, book.card.currency);
+	if (dates) {
+		assertDateKey(dates.statementDate);
+		assertDateKey(dates.dueDate);
+		if (dates.dueDate < dates.statementDate)
+			throw new RangeError("Vencimento deve ser igual ou posterior ao fechamento");
+	}
+	const statement =
+		book.statements.find(item => item.id === statementId && !item.isForecast) ??
+		(dates ? ensureBookStatement(book, dates.statementDate, dates) : undefined);
+	if (!statement) throw new RangeError("Fatura não encontrada");
+	statement.manualTotalAmount = amount === null ? null : roundMoney(amount, book.card.currency);
 }
 
 /** Recompose purchases against the corrected invoice calendar, preserving occurrence IDs. */
