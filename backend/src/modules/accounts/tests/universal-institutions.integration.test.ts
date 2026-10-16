@@ -10,6 +10,7 @@ import {
 	listInstitutionCatalog,
 } from "../application/consolidate-legacy-institution";
 import {
+	ensureInstitutionLink,
 	proposeInstitution,
 	reviewInstitutionProposal,
 	visibleInstitution,
@@ -30,6 +31,21 @@ describe("universal institution review and calendar coverage", () => {
 		);
 	});
 	afterAll(() => closeDatabase());
+	test("institution links bind user IDs consistently and remain private and idempotent", async () => {
+		const draft = await proposeInstitution("owner", null, "NEW_INSTITUTION", {
+			currency: "BRL",
+			name: "Card creation bank",
+		});
+		const date = new Date("2026-10-16T12:00:00Z");
+		await ensureInstitutionLink("other", draft.institutionId!, date);
+		await ensureInstitutionLink("owner", draft.institutionId!, date);
+		await ensureInstitutionLink("owner", draft.institutionId!, date);
+		const links = await queryRaw<{ userId: string; globalRulesFrom: Date | null }>(
+			`SELECT "userId","globalRulesFrom" FROM "UserFinancialInstitution" WHERE "institutionId"=$1`,
+			[draft.institutionId],
+		);
+		expect(links).toEqual([{ globalRulesFrom: null, userId: "owner" }]);
+	});
 	test("pending and rejected institutions remain private; account survives rejection", async () => {
 		const draft = await proposeInstitution("owner", null, "NEW_INSTITUTION", {
 			currency: "USD",
