@@ -15,6 +15,7 @@ function centsToDecimal(value: string, currency: string) {
 }
 
 export function MoneyField({
+	className,
 	id,
 	currencyCode = "BRL",
 	label,
@@ -38,7 +39,7 @@ export function MoneyField({
 	};
 
 	return (
-		<div className="grid gap-2">
+		<div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-2" data-slot="money-field">
 			<Label htmlFor={id}>
 				<span>
 					{label} {required && <RequiredMark />}
@@ -46,6 +47,7 @@ export function MoneyField({
 			</Label>
 			<Input
 				autoComplete="off"
+				className={className}
 				id={id}
 				inputMode="numeric"
 				name={id}

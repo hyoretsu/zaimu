@@ -1,3 +1,4 @@
+import { MoneyValue } from "@/components/ui/MoneyValue";
 import { PreferredMoneyAmount } from "./PreferredMoneyAmount";
 
 export function NativeMoneyTotals({
@@ -10,8 +11,8 @@ export function NativeMoneyTotals({
 	error?: boolean;
 }) {
 	return (
-		<div className="mt-2 font-bold text-3xl">
+		<MoneyValue className="mt-2 text-3xl sm:text-3xl">
 			<PreferredMoneyAmount error={error} pending={pending} values={values} />
-		</div>
+		</MoneyValue>
 	);
 }
