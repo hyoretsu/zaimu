@@ -2,11 +2,13 @@ import { CustomSelect } from "@/components/ui/CustomSelect";
 import { useCurrencyStore } from "@/stores/currency";
 
 export function CurrencySelect({
+	currencies: allowedCurrencies,
 	value,
 	onValueChange,
 	label = "Moeda",
 	disabled = false,
 }: {
+	currencies?: string[];
 	value: string;
 	onValueChange: (value: string) => void;
 	label?: string;
@@ -14,7 +16,10 @@ export function CurrencySelect({
 }) {
 	const currencies = useCurrencyStore(state => state.currencies);
 	const names = new Intl.DisplayNames(document.documentElement.lang || "pt-BR", { type: "currency" });
-	const options = currencies.map(value => ({ label: `${value} - ${names.of(value) ?? value}`, value }));
+	const options = (allowedCurrencies ?? currencies).map(value => ({
+		label: `${value} - ${names.of(value) ?? value}`,
+		value,
+	}));
 	return (
 		<CustomSelect
 			disabled={disabled}

@@ -22,12 +22,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import { useDialogCloseReset } from "@/hooks/use-dialog-close-reset";
 import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
-import { countryCodes, readCountryPreference, suggestedCountry } from "@/lib/country-preference";
 import { dataService } from "@/lib/dataService";
 import { runDialogSave } from "@/lib/dialog-save";
 import { useCacheIdentity } from "@/lib/query-cache";
 import { useAuthStore } from "@/stores/auth";
-import { useCurrencyStore } from "@/stores/currency";
 import { AccountYieldFields } from "./AccountYieldFields";
 import { CardPayerFields } from "./CardPayerFields";
 import { CashbackSettingsDialog } from "./CashbackSettingsDialog";
@@ -46,8 +44,6 @@ const days = Array.from({ length: 31 }, (_, index) => ({
 	label: `Dia ${index + 1}`,
 	value: String(index + 1),
 }));
-const NEW_INSTITUTION = "__new_institution__";
-const NO_INSTITUTION = "__no_institution__";
 const AUTO_REWARDS_ACCOUNT = "__automatic_rewards_account__";
 
 type Draft = Parameters<typeof import("@/lib/dataService").dataService.accounts.create>[0];
@@ -94,33 +90,31 @@ export function CreateFinancialAccountDialog({
 	const institutions = [
 		...new Map([...associatedInstitutions, ...(catalog.data ?? [])].map(item => [item.id, item])).values(),
 	];
-	const initialInstitution = () =>
-		account?.institutionId ??
-		defaultInstitutionId ??
-		(defaultInstitutionId === null ? NO_INSTITUTION : undefined);
-	const effectiveCurrency = useCurrencyStore(state => state.currency);
-	const initialCurrency = () =>
-		account?.currency ??
-		institutions.find(item => item.id === initialInstitution())?.currency ??
-		effectiveCurrency;
-	const [currency, setCurrency] = useState(initialCurrency);
-	const preference = useQuery({
-		queryFn: readCountryPreference,
-		queryKey: ["country-preference", useAuthStore(state => state.user?.id ?? state.guestId)],
-	});
+	const initialInstitution = () => account?.institutionId ?? defaultInstitutionId ?? undefined;
+	const initialCurrency = () => account?.currency ?? "";
+	const [selectedCurrency, setCurrency] = useState(initialCurrency);
 	const [selectedCountry, setCountry] = useState(account?.countryCode ?? undefined);
 	const [internalOpen, setInternalOpen] = useState(false);
 	const isGuestMode = useAuthStore(state => state.isGuestMode);
 	const open = controlledOpen ?? internalOpen;
 	const [institutionId, setInstitutionId] = useState<string | undefined>(initialInstitution);
+	const institution = institutions.find(item => item.id === institutionId);
+	const availableCountries = institution ? (institution.operatingCountryCodes ?? []) : [];
 	const countryCode =
-		selectedCountry ??
-		suggestedCountry(
-			institutions.find(item => item.id === institutionId)?.operatingCountryCodes ?? [],
-			preference.data,
-		);
+		selectedCountry && availableCountries.includes(selectedCountry)
+			? selectedCountry
+			: availableCountries.length === 1
+				? availableCountries[0]
+				: undefined;
+	const availableCurrencies = institution
+		? (institution.accountCurrenciesByCountry?.[countryCode ?? ""] ?? [])
+		: [];
+	const currency = availableCurrencies.includes(selectedCurrency)
+		? selectedCurrency
+		: availableCurrencies.length === 1
+			? availableCurrencies[0]!
+			: "";
 	const countryNames = new Intl.DisplayNames(document.documentElement.lang || "pt-BR", { type: "region" });
-	const [newInstitutionName, setNewInstitutionName] = useDebouncedInput("", () => undefined);
 	const [name, setName] = useDebouncedInput(account?.name ?? "", () => undefined);
 	const [type, setType] = useState<FinancialAccount["type"]>(account?.type ?? defaultType ?? "CHECKING");
 	const [paymentAccountId, setPaymentAccountId] = useState<string | null>(
@@ -207,7 +201,6 @@ export function CreateFinancialAccountDialog({
 		setCurrency(initialCurrency());
 		setCountry(account?.countryCode ?? undefined);
 		setInstitutionId(initialInstitution());
-		setNewInstitutionName("");
 		setName(account?.name ?? "");
 		setType(account?.type ?? defaultType ?? "CHECKING");
 		setCreditLimit(String(account?.creditCard?.creditLimit ?? ""));
@@ -270,11 +263,8 @@ export function CreateFinancialAccountDialog({
 		);
 	};
 	const save = async (recalculateCurrentDay: boolean) => {
+		if (!institution || !countryCode || !currency) return;
 		try {
-			const institutionName =
-				institutionId === NEW_INSTITUTION
-					? newInstitutionName.trim()
-					: institutions.find(institution => institution.id === institutionId)?.name;
 			const data = {
 				countryCode,
 				creditCard:
@@ -327,11 +317,7 @@ export function CreateFinancialAccountDialog({
 							}
 						: undefined,
 				currency,
-				institutionId:
-					institutionId && ![NO_INSTITUTION, NEW_INSTITUTION].includes(institutionId)
-						? institutionId
-						: undefined,
-				institutionName: institutionId === NO_INSTITUTION ? "" : institutionName || undefined,
+				institutionId,
 				name: name.trim() || null,
 				rewardsAccount:
 					type === "REWARDS"
@@ -445,19 +431,6 @@ export function CreateFinancialAccountDialog({
 				</DialogHeader>
 				<form className="flex min-h-0 min-w-0 flex-1 flex-col gap-5" onSubmit={handleSubmit}>
 					<DialogBody>
-						{institutionId && ![NEW_INSTITUTION, NO_INSTITUTION].includes(institutionId) && (
-							<InstitutionAssociationProfile institutionId={institutionId} />
-						)}
-						<CustomSelect
-							label="País da conta"
-							onValueChange={setCountry}
-							options={countryCodes.map(value => ({ label: countryNames.of(value) ?? value, value }))}
-							placeholder="Ex: Brasil"
-							required
-							searchable
-							value={countryCode}
-						/>
-						<CurrencySelect label="Moeda da conta / cartão" onValueChange={setCurrency} value={currency} />
 						<CustomSelect
 							error={
 								catalog.isError ? "Não foi possível carregar as instituições. Tente novamente." : undefined
@@ -465,33 +438,44 @@ export function CreateFinancialAccountDialog({
 							isLoading={catalog.isPending}
 							label="Instituição"
 							onRetry={() => void catalog.refetch()}
-							onValueChange={setInstitutionId}
+							onValueChange={value => {
+								setInstitutionId(value);
+								setCountry(undefined);
+								setCurrency("");
+							}}
 							options={[
-								{ label: "Nova instituição", special: true, value: NEW_INSTITUTION },
-								{ label: "Sem instituição", special: true, value: NO_INSTITUTION },
 								...institutions.map(institution => ({
 									label: institution.name,
 									value: institution.id,
 								})),
 							]}
 							placeholder="Selecione uma instituição"
+							required
 							searchable
 							value={institutionId}
 						/>
-						{institutionId === NEW_INSTITUTION && (
-							<FormField
-								autoComplete="organization"
-								description="Banco, fintech ou corretora que reúne esta conta."
-								id="institution-name"
-								label="Nome da instituição"
-								name="institution-name"
-								onChange={event => setNewInstitutionName(event.currentTarget.value)}
-								placeholder="Ex: Mercado Pago"
-								required
-								type="text"
-								value={newInstitutionName}
-							/>
-						)}
+						{institution && institutionId && <InstitutionAssociationProfile institutionId={institutionId} />}
+						<CustomSelect
+							disabled={!institution}
+							label="País da conta"
+							onValueChange={value => {
+								setCountry(value);
+								setCurrency("");
+							}}
+							options={availableCountries.map(value => ({ label: countryNames.of(value) ?? value, value }))}
+							placeholder="Ex: Brasil"
+							required
+							searchable
+							value={countryCode}
+						/>
+						<CurrencySelect
+							currencies={availableCurrencies}
+							disabled={!institution || !countryCode}
+							label="Moeda da conta / cartão"
+							onValueChange={setCurrency}
+							value={currency}
+						/>
+
 						<FormField
 							autoComplete="off"
 							id="account-name"
@@ -895,7 +879,8 @@ export function CreateFinancialAccountDialog({
 							disabled={
 								pending ||
 								!countryCode ||
-								(institutionId === NEW_INSTITUTION && !newInstitutionName.trim()) ||
+								!currency ||
+								!institution ||
 								(type === "CREDIT_CARD" && !creditLimit) ||
 								(type === "CREDIT_CARD" && hasInvalidBillingDays) ||
 								(type === "CREDIT_CARD" && cashbackEnabled && cashbackKind === "CASHBACK" && !cashbackRate) ||
