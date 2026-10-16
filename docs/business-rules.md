@@ -334,3 +334,8 @@ O histórico de perfis do vínculo do usuário com a instituição determina o b
 ## Senha de PDF na importação
 
 A senha do PDF é sempre opcional na importação, independentemente da instituição. Arquivos sem proteção devem ser processados sem senha. Se o PDF estiver protegido, a leitura informa que é necessário fornecer a senha correta.
+
+
+## Edição de compras sincronizadas
+
+Parcelas sincronizadas têm valor confirmado pela instituição e nunca permitem edição direta. Ao editar uma dessas parcelas, o aplicativo abre a compra original sem perguntar o escopo. O total original pode ser corrigido somente enquanto houver parcelas não sincronizadas; a diferença é distribuída apenas entre essas parcelas, preservando os valores confirmados. Com todas as parcelas sincronizadas, o total também fica bloqueado. A quantidade de parcelas de uma compra com parcelas sincronizadas não pode ser alterada.

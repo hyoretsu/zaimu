@@ -238,7 +238,11 @@ export function TransactionsPage() {
 			transaction: Transaction;
 		}) => {
 			if (!transaction.creditCardId) throw new Error("Cartão da compra não encontrado");
-			return dataService.creditCards.updatePurchase(transaction.creditCardId, transaction.id, data);
+			return dataService.creditCards.updatePurchase(
+				transaction.creditCardId,
+				transaction.isSynced && transaction.parentId ? transaction.parentId : transaction.id,
+				data,
+			);
 		},
 		onError: error =>
 			showToast(error instanceof Error ? error.message : "Não foi possível editar a compra.", "negative"),

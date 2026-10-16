@@ -26,7 +26,7 @@ import {
 	recalculateStatementDueDate,
 	statementCutoffAfter,
 } from "@zaimu/finance/credit-card";
-import { distributePurchaseCents } from "@zaimu/finance/credit-purchase";
+import { assertImportedPurchaseEdit, distributePurchaseCents } from "@zaimu/finance/credit-purchase";
 import { dashboardCardForecasts, isCashFlowRecurrence } from "@zaimu/finance/dashboard-forecasts";
 import { cardRuleValues } from "@zaimu/finance/institution-card-rules";
 import { loanAccountAmounts, loanInstallments } from "@zaimu/finance/loan";
@@ -1857,6 +1857,22 @@ export const dataService = {
 				const id = resolveBookInstallment(book, purchaseId)?.purchaseId ?? purchaseId;
 				const p = bookPurchase(book, id);
 				const previousTotal = p.totalAmountCents;
+				assertImportedPurchaseEdit(
+					p.installmentAmountsCents.length,
+					[
+						...new Set([
+							...(p.installmentImportedNumbers ?? []),
+							...book.installments
+								.filter(row => row.purchaseId === p.id && row.hasImportedAmount)
+								.map(row => row.number),
+						]),
+					],
+					{
+						installmentNumber:
+							"installmentAmount" in data ? resolveBookInstallment(book, purchaseId)?.number : undefined,
+						installments: "installments" in data ? data.installments : undefined,
+					},
+				);
 				if ("installmentAmount" in data) {
 					const i = resolveBookInstallment(book, purchaseId);
 					if (!i) throw new Error("Parcela não encontrada");
@@ -1883,11 +1899,14 @@ export const dataService = {
 						p.installmentAmountsCents = distributePurchaseCents(
 							total,
 							count,
-							new Map(
-								book.installments
+							new Map([
+								...(p.installmentImportedNumbers ?? []).map(
+									number => [number, p.installmentAmountsCents[number - 1]!] as const,
+								),
+								...book.installments
 									.filter(i => i.purchaseId === p.id && i.number <= count && i.hasImportedAmount)
-									.map(i => [i.number, i.amountCents]),
-							),
+									.map(i => [i.number, i.amountCents] as const),
+							]),
 							book.card.installmentRemainderOnFirst,
 						);
 						p.totalAmountCents = total;

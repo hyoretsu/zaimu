@@ -316,9 +316,17 @@ export function CreditCardStatementDetails({
 											onEdit={() =>
 												entry.purchase.isRefund
 													? (setRecoveredAction(null), setRefundingPurchase(entry.purchase))
-													: entry.purchase.parentId
+													: entry.purchase.parentId && !entry.purchase.isSynced
 														? setChoosingEditScope(entry.purchase)
-														: setEditingPurchase(entry.purchase)
+														: setEditingPurchase(
+																entry.purchase.isSynced && entry.purchase.parentId
+																	? {
+																			...entry.purchase,
+																			id: entry.purchase.purchaseId ?? entry.purchase.parentId,
+																			parentId: undefined,
+																		}
+																	: entry.purchase,
+															)
 											}
 											onRefinance={() => {
 												setRecoveredAction(null);

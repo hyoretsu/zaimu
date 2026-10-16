@@ -108,6 +108,17 @@ export function EditCreditPurchaseDialog({
 		sourceCardId && !purchase.isStatementCharge && (canonical.isPending || canonical.isError),
 	);
 	const isSynced = purchase.isSynced === true;
+	const installmentsLocked = isSynced || Boolean(original?.installmentImportedNumbers.length);
+	const isFullySynced = original
+		? new Set(original.installmentImportedNumbers).size === purchase.installments
+		: purchase.isFullySynced === true;
+	const originalAmount =
+		original?.originalAmount ??
+		purchase.originalAmount ??
+		(original
+			? original.totalAmountCents / currencyScale(purchase.bookingCurrency ?? "BRL") -
+				(original.feeAmount ?? 0)
+			: purchase.totalAmount - (purchase.feeAmount ?? 0));
 	const isRefinancing = Boolean(original?.refinancedFromPurchaseId ?? purchase.refinancedFromPurchaseId);
 	const hasRefinancing =
 		isRefinancing || Boolean((original?.refinancingPurchaseIds ?? purchase.refinancingPurchaseIds)?.length);
@@ -149,6 +160,7 @@ export function EditCreditPurchaseDialog({
 	const [time, setTime] = useState(purchase.time ?? "");
 	const [tagIds, setTagIds] = useState(() => purchase.tags?.map(tag => tag.id) ?? purchase.tagIds ?? []);
 	const [storeName, setStoreName] = useState(purchase.storeName ?? "");
+	const [validationError, setValidationError] = useState<string | null>(null);
 	const installmentAmountId = useId();
 
 	useEffect(() => {
@@ -204,7 +216,7 @@ export function EditCreditPurchaseDialog({
 						</Button>
 						<Button
 							className="cursor-pointer disabled:cursor-not-allowed"
-							disabled={pending || Number(amount) <= 0}
+							disabled={pending || isSynced || !Number.isFinite(Number(amount)) || Number(amount) <= 0}
 							onClick={() =>
 								runDialogSave(
 									onSubmit({ installmentAmount: Number(amount) }),
@@ -255,6 +267,23 @@ export function EditCreditPurchaseDialog({
 
 	const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
 		event.preventDefault();
+		const submitted = new FormData(event.currentTarget);
+		const submittedAmount = isFullySynced ? originalAmount : Number(submitted.get("purchaseAmount"));
+		const submittedInstallments =
+			installmentsLocked || purchase.isStatementCharge
+				? purchase.installments
+				: Number(submitted.get("credit-purchase-installments"));
+		if (
+			!Number.isFinite(submittedAmount) ||
+			submittedAmount <= 0 ||
+			!Number.isInteger(submittedInstallments) ||
+			submittedInstallments < 1 ||
+			submittedInstallments > 48
+		) {
+			setValidationError("Informe um valor positivo e uma quantidade de parcelas entre 1 e 48.");
+			return;
+		}
+		setValidationError(null);
 		const updatedStoreName = getUpdatedStoreName(purchase.storeName, storeName);
 		const operation = onSubmit({
 			creditCardId: selectedCardId,
@@ -262,18 +291,12 @@ export function EditCreditPurchaseDialog({
 			debtSplit: isDebt && !purchase.isStatementCharge ? debtSplit : null,
 			description: `${isRefinancing ? "Parcelamento - " : ""}${description.trim()}`,
 			fees,
-			installments,
+			installments: submittedInstallments,
 			purchaseDate: isSynced ? purchase.purchaseDate : date,
 			...(updatedStoreName !== undefined && { storeName: updatedStoreName }),
 			tagIds,
 			time: time || null,
-			totalAmount: isSynced
-				? (original?.originalAmount ??
-					purchase.originalAmount ??
-					(original?.totalAmountCents != null
-						? original.totalAmountCents / currencyScale(purchase.bookingCurrency ?? "BRL")
-						: purchase.totalAmount))
-				: totalAmount,
+			totalAmount: submittedAmount,
 		});
 		runDialogSave(operation, () => onOpenChange(false), "Salvando compra…");
 	};
@@ -297,6 +320,11 @@ export function EditCreditPurchaseDialog({
 				) : null}
 				<form className="flex min-h-0 min-w-0 flex-1 flex-col gap-5" onSubmit={submit}>
 					<DialogBody>
+						{validationError ? (
+							<p className="text-destructive text-sm" role="alert">
+								{validationError}
+							</p>
+						) : null}
 						{canonical.isError ? (
 							<p className="text-destructive text-sm">Não foi possível verificar a troca de cartão.</p>
 						) : null}
@@ -337,8 +365,9 @@ export function EditCreditPurchaseDialog({
 						<FormFieldRow>
 							<CurrencySelect disabled={isSynced} onValueChange={setCurrencyCode} value={currencyCode} />
 							<MoneyField
+								aria-describedby={isFullySynced ? "purchase-amount-confirmed" : undefined}
 								currencyCode={currencyCode}
-								disabled={isSynced}
+								disabled={isFullySynced}
 								id="credit-purchase-amount"
 								label="Valor da compra"
 								onValueChange={value => {
@@ -346,20 +375,33 @@ export function EditCreditPurchaseDialog({
 									setAmount(value);
 								}}
 								placeholder="R$ 120,00"
+								rawValueName="purchaseAmount"
 								required
 								value={amount}
 							/>
 						</FormFieldRow>
-						<FinancialFeeFields
-							baseAmount={Number(amount) || 0}
-							currencyCode={currencyCode}
-							fees={fees}
-							onChange={setFees}
-						/>
+						{isFullySynced ? (
+							<p className="text-muted-foreground text-sm" id="purchase-amount-confirmed">
+								Todas as parcelas estão sincronizadas. O valor total já está confirmado.
+							</p>
+						) : null}
+						<fieldset className="min-w-0" disabled={isFullySynced}>
+							<FinancialFeeFields
+								baseAmount={Number(amount) || 0}
+								currencyCode={currencyCode}
+								fees={fees}
+								onChange={setFees}
+							/>
+						</fieldset>
 						<div className="grid gap-4">
 							<FormField
 								autoComplete="off"
-								disabled={purchase.isStatementCharge}
+								description={
+									installmentsLocked
+										? "Compras sincronizadas não permitem alterar a quantidade de parcelas."
+										: undefined
+								}
+								disabled={installmentsLocked || purchase.isStatementCharge}
 								id="credit-purchase-installments"
 								inputMode="numeric"
 								label="Parcelas"

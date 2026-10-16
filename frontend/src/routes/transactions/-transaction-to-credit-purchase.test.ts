@@ -19,6 +19,9 @@ describe("transactionToCreditPurchase", () => {
 			id: "purchase-id",
 			installmentAmount: 248,
 			installments: 10,
+			isFullySynced: false,
+			isSynced: true,
+			parentId: "original-purchase",
 			paymentCreditCardId: undefined,
 			source: "CREDIT_CARD",
 			statementId: "statement-id",
@@ -27,8 +30,11 @@ describe("transactionToCreditPurchase", () => {
 
 		expect(transactionToCreditPurchase(transaction)).toMatchObject({
 			debtSplit: expect.objectContaining({ mode: "SHARES" }),
-			id: "purchase-id",
+			id: "original-purchase",
 			installments: 10,
+			isFullySynced: false,
+			isSynced: true,
+			parentId: undefined,
 			statementId: "statement-id",
 		});
 	});

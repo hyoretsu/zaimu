@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+	assertImportedPurchaseEdit,
 	assertPurchase,
 	type CreditPurchase,
 	distributePurchaseCents,
@@ -130,5 +131,35 @@ describe("normalized purchase installments", () => {
 		expect(() => distributePurchaseCents(200, 3, new Map([[2, 199]]))).toThrow();
 		expect(() => assertPurchase({ ...purchase, totalAmountCents: 30000 })).toThrow();
 		expect(() => installmentOccurrenceDate("2024-02-30", 1)).toThrow();
+	});
+});
+
+describe("confirmed installment edits", () => {
+	test("rejects editing imported installments and changing their plan count", () => {
+		expect(() => assertImportedPurchaseEdit(5, [1, 2], { installmentNumber: 2 })).toThrow(
+			"Parcelas sincronizadas",
+		);
+		expect(() => assertImportedPurchaseEdit(5, [1], { installments: 4 })).toThrow(
+			"quantidade de parcelas",
+		);
+	});
+	test("allows unchanged count and editing only an unconfirmed installment", () => {
+		expect(() => assertImportedPurchaseEdit(5, [1, 2], { installments: 5 })).not.toThrow();
+		expect(() => assertImportedPurchaseEdit(5, [1, 2], { installmentNumber: 3 })).not.toThrow();
+		expect(() => assertImportedPurchaseEdit(5, [], { installments: 6 })).not.toThrow();
+	});
+	test("total corrections preserve confirmed cents and use only remaining installments", () => {
+		expect(distributePurchaseCents(5684, 5, new Map([[1, 1137]]))).toEqual([
+			1137, 1137, 1137, 1137, 1136,
+		]);
+		const confirmed = new Map([
+			[1, 1137],
+			[2, 1137],
+			[3, 1137],
+			[4, 1137],
+			[5, 1137],
+		]);
+		expect(() => distributePurchaseCents(5684, 5, confirmed)).toThrow();
+		expect(distributePurchaseCents(5685, 5, confirmed)).toEqual([1137, 1137, 1137, 1137, 1137]);
 	});
 });

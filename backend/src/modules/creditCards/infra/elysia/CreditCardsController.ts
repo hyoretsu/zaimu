@@ -13,6 +13,7 @@ import {
 	updateBookStatementDates,
 } from "@zaimu/finance/credit-book";
 import { paymentStatement, statementCutoffAfter, statementEntryKind } from "@zaimu/finance/credit-card";
+import { assertImportedPurchaseEdit } from "@zaimu/finance/credit-purchase";
 import { cardRuleValues } from "@zaimu/finance/institution-card-rules";
 import { convertFixedSplitAtDate, currencyScale } from "@zaimu/finance/money";
 import { listedRecurrenceStatements } from "@zaimu/finance/recurrence-projection";
@@ -778,6 +779,24 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 			const update = async (book: CreditBook) => {
 				const p = resolveBookPurchase(book, params.purchaseId);
 				const previousTotal = p.totalAmountCents;
+				assertImportedPurchaseEdit(
+					p.installmentAmountsCents.length,
+					[
+						...new Set([
+							...(p.installmentImportedNumbers ?? []),
+							...book.installments
+								.filter(row => row.purchaseId === p.id && row.hasImportedAmount)
+								.map(row => row.number),
+						]),
+					],
+					{
+						installmentNumber:
+							body.installmentAmount !== undefined
+								? resolveBookInstallment(book, params.purchaseId)?.number
+								: undefined,
+						installments: body.installments,
+					},
+				);
 				const moneyChanged =
 					body.totalAmount !== undefined ||
 					body.currency !== undefined ||
@@ -827,11 +846,14 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 							1,
 							book.card.currency,
 						);
-						const known = new Map(
-							book.installments
+						const known = new Map([
+							...(p.installmentImportedNumbers ?? []).map(
+								number => [number, p.installmentAmountsCents[number - 1]!] as const,
+							),
+							...book.installments
 								.filter(i => i.purchaseId === p.id && i.number <= count && i.hasImportedAmount)
-								.map(i => [i.number, i.amountCents]),
-						);
+								.map(i => [i.number, i.amountCents] as const),
+						]);
 						p.installmentAmountsCents = distributePurchaseCents(
 							total,
 							count,

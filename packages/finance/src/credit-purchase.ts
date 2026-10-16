@@ -180,3 +180,15 @@ export function purchaseMetadata(purchase: CreditPurchase): PurchaseMetadata {
 export function statementIncludesDate(card: CardCalendar, closingDate: string, occurrenceDate: string) {
 	return card.statementClosingInclusive ? closingDate >= occurrenceDate : closingDate > occurrenceDate;
 }
+
+/** Imported installments are confirmed by the institution and cannot be manually rewritten. */
+export function assertImportedPurchaseEdit(
+	installmentCount: number,
+	importedNumbers: readonly number[],
+	edit: { installmentNumber?: number; installments?: number },
+) {
+	if (edit.installmentNumber !== undefined && importedNumbers.includes(edit.installmentNumber))
+		throw new RangeError("Parcelas sincronizadas não permitem alterar o valor.");
+	if (importedNumbers.length && edit.installments !== undefined && edit.installments !== installmentCount)
+		throw new RangeError("Compras sincronizadas não permitem alterar a quantidade de parcelas.");
+}
