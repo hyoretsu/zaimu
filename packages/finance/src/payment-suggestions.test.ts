@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { type CreditBook, newBookPurchase, replayCreditBook } from "./credit-book";
-import { pendingStatementPayments } from "./payment-suggestions";
+import { pendingStatementPayments, suggestedInvoicePaymentDate } from "./payment-suggestions";
 
 function book(): CreditBook {
 	return {
@@ -89,4 +89,14 @@ test("scheduled payments reduce suggestions and deletion restores them without c
 	expect(ledger.payments[0].date).toBe("2026-08-28");
 	ledger.payments = [];
 	expect(pendingStatementPayments(ledger, today)).toEqual(original);
+});
+
+const statement = { dueDate: "2026-10-20", statementDate: "2026-10-10" };
+test("defaults invoice scheduling to due date", () => {
+	expect(suggestedInvoicePaymentDate(statement, undefined, "2026-10-10")).toBe("2026-10-20");
+});
+test("closing preference selects closing date and clamps past dates to today", () => {
+	expect(suggestedInvoicePaymentDate(statement, "CLOSING_DATE", "2026-10-10")).toBe("2026-10-10");
+	expect(suggestedInvoicePaymentDate(statement, "CLOSING_DATE", "2026-10-12")).toBe("2026-10-12");
+	expect(suggestedInvoicePaymentDate(statement, "DUE_DATE", "2026-10-22")).toBe("2026-10-22");
 });

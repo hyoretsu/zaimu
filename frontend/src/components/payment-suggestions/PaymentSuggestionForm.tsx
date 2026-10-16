@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { suggestedInvoicePaymentDate } from "@zaimu/finance/payment-suggestions";
 import { useState } from "react";
 import { TransactionConversionPreview } from "@/components/transactions/TransactionConversionPreview";
 import { Button } from "@/components/ui/Button";
@@ -18,8 +19,8 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import type { PaymentSuggestion } from "@/lib/api";
 import { runBackgroundModalAction } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
-import { getLocalDateKey } from "@/lib/date";
 import { getFinancialAccountOptionLabel } from "@/lib/financial-account";
+import { invoicePaymentPreferenceKey, readInvoicePaymentPreference } from "@/lib/invoice-payment-preference";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 
 export interface PaymentSuggestionDraft {
@@ -45,7 +46,12 @@ export function PaymentSuggestionForm({
 	const [accountAmount, setAccountAmount] = useState(initialDraft?.accountAmount ?? "");
 	const identity = useCacheIdentity();
 	const queryClient = useQueryClient();
-	const [date, setDate] = useState(initialDraft?.date ?? getLocalDateKey(new Date()));
+	const preference = useQuery({
+		queryFn: readInvoicePaymentPreference,
+		queryKey: invoicePaymentPreferenceKey(identity),
+	});
+	const [selectedDate, setDate] = useState(initialDraft?.date);
+	const date = selectedDate ?? suggestedInvoicePaymentDate(suggestion, preference.data);
 	const [accountId, setAccountId] = useState(initialDraft?.accountId ?? suggestion.financialAccountId);
 	const [attemptId, setAttemptId] = useState(() => initialDraft?.attemptId ?? crypto.randomUUID());
 	const accounts = useQuery({
@@ -54,7 +60,27 @@ export function PaymentSuggestionForm({
 	});
 	const payerCurrency = accounts.data?.find(account => account.id === accountId)?.currency ?? "BRL";
 	const foreign = payerCurrency !== (suggestion.currency ?? "BRL");
+	const [validationError, setValidationError] = useState("");
 	const submit = () => {
+		const parsedDate = new Date(`${date}T12:00:00Z`);
+		if (
+			(!initialDraft && (preference.isPending || preference.isError)) ||
+			accounts.isPending ||
+			accounts.isError ||
+			!accounts.data?.some(
+				account => account.id === accountId && !["CREDIT_CARD", "REWARDS"].includes(account.type),
+			) ||
+			!/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+			!Number.isFinite(parsedDate.getTime()) ||
+			parsedDate.toISOString().slice(0, 10) !== date ||
+			(foreign && (!Number.isFinite(Number(accountAmount)) || !(Number(accountAmount) > 0)))
+		) {
+			setValidationError(
+				"Confira a data, selecione uma conta disponível e informe um débito válido. Aguarde o carregamento dos dados antes de salvar.",
+			);
+			return;
+		}
+		setValidationError("");
 		const draft = { accountAmount, accountId, attemptId, date };
 		runBackgroundModalAction({
 			close: onClose,
@@ -99,8 +125,13 @@ export function PaymentSuggestionForm({
 						<DialogDescription>Revise antes de registrar. Nenhum resgate será realizado.</DialogDescription>
 					</DialogHeader>
 					<DialogBody>
+						{validationError && (
+							<p className="text-danger text-sm" role="alert">
+								{validationError}
+							</p>
+						)}
 						<p className="font-semibold text-xl">{currency.format(suggestion.amount)}</p>
-						{foreign && (
+						{(initialDraft || (!preference.isPending && !preference.isError)) && foreign && (
 							<>
 								<TransactionConversionPreview
 									amount={String(suggestion.amount)}
@@ -127,23 +158,32 @@ export function PaymentSuggestionForm({
 								/>
 							</>
 						)}
-						<DateField
-							id="suggestion-payment-date"
-							label="Data do pagamento"
-							name="payment-date"
-							onValueChange={value => {
-								setDate(value);
-								setAttemptId(crypto.randomUUID());
-							}}
-							placeholder="03/10/2026"
-							required
-							value={date}
-						/>
-						{date > suggestion.dueDate && (
-							<p className="text-amber-600 text-sm dark:text-amber-400" role="status">
-								Data do pagamento após o vencimento da fatura. O pagamento será registrado no cartão.
+						{!initialDraft && preference.isPending ? (
+							<Skeleton className="h-20" />
+						) : !initialDraft && preference.isError ? (
+							<p className="text-danger text-sm" role="alert">
+								Não foi possível carregar preferência de pagamento.
 							</p>
+						) : (
+							<DateField
+								id="suggestion-payment-date"
+								label="Data do pagamento"
+								name="payment-date"
+								onValueChange={value => {
+									setDate(value);
+									setAttemptId(crypto.randomUUID());
+								}}
+								placeholder="03/10/2026"
+								required
+								value={date}
+							/>
 						)}
+						{(initialDraft || (!preference.isPending && !preference.isError)) &&
+							date > suggestion.dueDate && (
+								<p className="text-amber-600 text-sm dark:text-amber-400" role="status">
+									Data do pagamento após o vencimento da fatura. O pagamento será registrado no cartão.
+								</p>
+							)}
 						{accounts.isPending ? (
 							<Skeleton className="h-20" />
 						) : (
@@ -164,7 +204,7 @@ export function PaymentSuggestionForm({
 							/>
 						)}
 						{accounts.isError && (
-							<p className="text-destructive text-sm">Não foi possível carregar contas pagadoras.</p>
+							<p className="text-danger text-sm">Não foi possível carregar contas pagadoras.</p>
 						)}
 					</DialogBody>
 					<DialogFooter>
@@ -173,6 +213,7 @@ export function PaymentSuggestionForm({
 						</Button>
 						<Button
 							disabled={
+								(!initialDraft && (preference.isPending || preference.isError)) ||
 								accounts.isPending ||
 								accounts.isError ||
 								!accountId ||

@@ -25,8 +25,20 @@ export function pendingStatementPayments(book: CreditBook, today = currentDateKe
 				creditCardId: book.card.id,
 				currency: book.card.currency ?? "BRL",
 				dueDate: statement.dueDate,
+				statementDate: statement.statementDate,
 				statementId: statement.id,
 			},
 		];
 	});
+}
+
+export type InvoicePaymentTiming = "CLOSING_DATE" | "DUE_DATE";
+
+export function suggestedInvoicePaymentDate(
+	statement: { statementDate: string; dueDate: string },
+	timing: InvoicePaymentTiming = "DUE_DATE",
+	today = currentDateKey(),
+) {
+	const preferred = timing === "CLOSING_DATE" ? statement.statementDate : statement.dueDate;
+	return preferred < today ? today : preferred;
 }

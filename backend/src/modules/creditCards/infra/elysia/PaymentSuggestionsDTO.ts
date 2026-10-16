@@ -7,6 +7,7 @@ export const PaymentSuggestionReturn = t.Object({
 	currency: t.String(),
 	dueDate: t.String(),
 	financialAccountId: t.String(),
+	statementDate: t.String(),
 	statementId: t.String(),
 });
 export const ConfirmPaymentSuggestionDTO = t.Object({

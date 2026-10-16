@@ -866,6 +866,7 @@ export const openFinanceApi = {
 };
 
 export interface PaymentSuggestion {
+	statementDate: string;
 	currency?: string;
 	amount: number;
 	cardName: string;

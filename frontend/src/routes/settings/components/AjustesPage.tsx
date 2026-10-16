@@ -22,6 +22,7 @@ import { CountrySettings } from "./CountrySettings";
 import { CurrencySettings } from "./CurrencySettings";
 import { FinancialCoverageDialog } from "./FinancialCoverageDialog";
 import { InstitutionNotifications } from "./InstitutionNotifications";
+import { InvoicePaymentSettings } from "./InvoicePaymentSettings";
 
 const themeOptions: { id: ThemeMode; label: string; icon: typeof HiSun; description: string }[] = [
 	{ description: "Sempre usar tema claro", icon: HiSun, id: "light", label: "Claro" },
@@ -182,6 +183,7 @@ export function AjustesPage() {
 
 				<CurrencySettings />
 				<CountrySettings />
+				<InvoicePaymentSettings />
 				<InstitutionNotifications />
 				{!isGuestMode && (
 					<ActionGroup>

@@ -1,0 +1,36 @@
+[
+	{
+		"execute": [
+			{
+				"description": "add column \"invoicePaymentTiming\"",
+				"sql": "ALTER TABLE \"public\".\"user\" ADD COLUMN \"invoicePaymentTiming\" character varying(12) DEFAULT 'DUE_DATE' NOT NULL"
+			}
+		],
+		"id": "column.public.user.invoicePaymentTiming",
+		"label": "Add column \"invoicePaymentTiming\" to \"user\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"invoicePaymentTiming\" exists",
+				"params": ["public", "user", "invoicePaymentTiming"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"invoicePaymentTiming\" is missing",
+				"params": ["public", "user", "invoicePaymentTiming"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "invoicePaymentTiming",
+				"objectType": "column",
+				"schema": "public",
+				"table": "user"
+			},
+			"id": "postgres"
+		}
+	}
+]
