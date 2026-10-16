@@ -23,7 +23,9 @@ import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import { useDialogCloseReset } from "@/hooks/use-dialog-close-reset";
 import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
 import { countryCodes, readCountryPreference, suggestedCountry } from "@/lib/country-preference";
+import { dataService } from "@/lib/dataService";
 import { runDialogSave } from "@/lib/dialog-save";
+import { useCacheIdentity } from "@/lib/query-cache";
 import { useAuthStore } from "@/stores/auth";
 import { useCurrencyStore } from "@/stores/currency";
 import { AccountYieldFields } from "./AccountYieldFields";
@@ -57,7 +59,7 @@ export function CreateFinancialAccountDialog({
 	defaultType,
 	cardOnly = false,
 	defaultInstitutionId,
-	institutions = [],
+	institutions: associatedInstitutions = [],
 	rewardAccounts = [],
 	onCreate,
 	onOpenChange,
@@ -82,6 +84,16 @@ export function CreateFinancialAccountDialog({
 	showTrigger?: boolean;
 	iconOnly?: boolean;
 }) {
+	const identity = useCacheIdentity();
+	const hasAccess = useAuthStore(state => state.isAuthenticated || state.isGuestMode);
+	const catalog = useQuery({
+		enabled: hasAccess,
+		queryFn: () => dataService.financialInstitutions.getAll(),
+		queryKey: ["institutions", identity],
+	});
+	const institutions = [
+		...new Map([...associatedInstitutions, ...(catalog.data ?? [])].map(item => [item.id, item])).values(),
+	];
 	const initialInstitution = () =>
 		account?.institutionId ??
 		defaultInstitutionId ??
@@ -447,7 +459,12 @@ export function CreateFinancialAccountDialog({
 						/>
 						<CurrencySelect label="Moeda da conta / cartão" onValueChange={setCurrency} value={currency} />
 						<CustomSelect
+							error={
+								catalog.isError ? "Não foi possível carregar as instituições. Tente novamente." : undefined
+							}
+							isLoading={catalog.isPending}
 							label="Instituição"
+							onRetry={() => void catalog.refetch()}
 							onValueChange={setInstitutionId}
 							options={[
 								{ label: "Nova instituição", special: true, value: NEW_INSTITUTION },
