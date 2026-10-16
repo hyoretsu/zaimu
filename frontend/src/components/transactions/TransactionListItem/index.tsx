@@ -174,7 +174,6 @@ export function TransactionListItem({
 							transaction.debtSplitSummary ?? transaction.debtSplit,
 							formatCurrency,
 						)}
-						isFullySynced={Boolean(transaction.isFullySynced && (transaction.installments ?? 0) > 1)}
 						isRecurring={Boolean(transaction.recurrenceId)}
 						isSynced={transaction.isSynced ?? Boolean(transaction.externalIds?.length)}
 						storeName={transaction.storeName}

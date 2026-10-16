@@ -34,7 +34,6 @@ export function CreditPurchaseRow({
 	const tags = purchase.tags;
 	const debtPersonName = formatDebtSplitBadge(purchase.debtSplit, amount => currency.format(amount));
 	const hasRefinancing = Boolean(purchase.refinancingPurchaseIds?.length);
-	const hasSyncedInstallments = purchase.isFullySynced && purchase.installments > 1;
 	const description =
 		purchase.feeDescription === "IOF do parcelamento"
 			? (purchase.description ?? "").replace(/^FIN /u, "")
@@ -86,13 +85,11 @@ export function CreditPurchaseRow({
 				debtPersonName ||
 				tags?.length ||
 				purchase.recurrenceId ||
-				purchase.isSynced ||
-				hasSyncedInstallments ? (
+				purchase.isSynced ? (
 					<div className="mt-2">
 						<TransactionBadges
 							accounts={[]}
 							debtPersonName={debtPersonName}
-							isFullySynced={hasSyncedInstallments}
 							isRecurring={Boolean(purchase.recurrenceId)}
 							isSynced={purchase.isSynced}
 							storeName={purchase.storeName}

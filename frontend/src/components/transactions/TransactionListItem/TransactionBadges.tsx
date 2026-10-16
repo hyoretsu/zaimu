@@ -24,7 +24,6 @@ export function TransactionBadges({
 	accounts,
 	creditCardPayment,
 	debtPersonName,
-	isFullySynced = false,
 	isSynced = false,
 	isRecurring = false,
 	storeName,
@@ -33,7 +32,6 @@ export function TransactionBadges({
 	accounts: TransactionBadgeAccount[];
 	creditCardPayment?: { cardName: string; statementDate?: string };
 	debtPersonName?: string;
-	isFullySynced?: boolean;
 	isSynced?: boolean;
 	isRecurring?: boolean;
 	storeName?: string | null;
@@ -109,14 +107,6 @@ export function TransactionBadges({
 					<AppBadge variant="outline">
 						<LuCloudDownload aria-hidden="true" className="text-emerald-600" />
 						<span>Sincronizada</span>
-					</AppBadge>
-				</li>
-			) : null}
-			{isFullySynced ? (
-				<li>
-					<AppBadge variant="outline">
-						<LuCloudDownload aria-hidden="true" className="text-emerald-600" />
-						<span>Parcelas sincronizadas</span>
 					</AppBadge>
 				</li>
 			) : null}
