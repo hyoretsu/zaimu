@@ -22,14 +22,11 @@ import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { StatementFilePicker } from "./StatementFilePicker";
 
-const providerOptions = [
-	{ label: "Banco do Brasil", value: "BANCO_DO_BRASIL" },
-	{ label: "Banco Inter", value: "INTER" },
-	{ label: "Mercado Pago", value: "MERCADO_PAGO" },
-	{ label: "Nubank", value: "NUBANK" },
-	{ label: "PicPay", value: "PICPAY" },
-] as const;
-type TransactionImportProvider = (typeof providerOptions)[number]["value"];
+import {
+	getTransactionImportProvider,
+	supportsTransactionImport,
+	type TransactionImportProvider,
+} from "./transaction-import-institutions";
 
 export function ImportTransactionsDialog({
 	defaultFinancialAccountId,
@@ -46,22 +43,38 @@ export function ImportTransactionsDialog({
 	const identity = useCacheIdentity();
 	const [file, setFile] = useState<File | null>(null);
 	const [financialAccountId, setFinancialAccountId] = useState(defaultFinancialAccountId ?? "");
-	const [provider, setProvider] = useState<TransactionImportProvider | "">("");
+	const [institutionId, setInstitutionId] = useState("");
 	const accounts = useQuery({
 		enabled: identity !== null && open,
 		queryFn: dataService.accounts.getAll,
 		queryKey: queryKeys.accounts.list(identity!),
 	});
+	const institutions = useQuery({
+		enabled: identity !== null && open,
+		queryFn: () => dataService.financialInstitutions.getAll(),
+		queryKey: ["institutions", identity],
+	});
 	useEffect(() => {
 		if (!open) return;
 		setFile(null);
 		setFinancialAccountId(defaultFinancialAccountId ?? "");
-		setProvider("");
+		setInstitutionId("");
 	}, [defaultFinancialAccountId, open]);
 	useDialogCloseReset(open, () => {
 		setFile(null);
-		setProvider("");
+		setInstitutionId("");
 	});
+	useEffect(() => {
+		if (!open || !financialAccountId || !accounts.data) return;
+		const account = accounts.data.find(account => account.id === financialAccountId);
+		if (account && supportsTransactionImport(account)) {
+			setInstitutionId(account.institution!.id);
+		} else {
+			setFinancialAccountId("");
+		}
+	}, [accounts.data, financialAccountId, open]);
+	const selectedInstitution = institutions.data?.find(institution => institution.id === institutionId);
+	const provider = getTransactionImportProvider(selectedInstitution) ?? "";
 	const handleOpenChange = onOpenChange;
 	const createImport = useMutation({
 		mutationFn: ({
@@ -75,6 +88,10 @@ export function ImportTransactionsDialog({
 		}) => {
 			if (!financialAccountId) throw new Error("Selecione a conta que receberá as transações.");
 			if (!provider) throw new Error("Selecione a instituição do extrato.");
+			const account = accounts.data?.find(account => account.id === financialAccountId);
+			if (!account || !supportsTransactionImport(account) || account.institution?.id !== institutionId) {
+				throw new Error("Selecione uma conta da instituição do extrato.");
+			}
 			return dataService.transactionImports.create({ file, financialAccountId, provider });
 		},
 		onError: error => {
@@ -101,7 +118,10 @@ export function ImportTransactionsDialog({
 	});
 	const selectableAccounts =
 		accounts.data
-			?.filter(account => account.type !== "CREDIT_CARD" && account.type !== "REWARDS")
+			?.filter(
+				account =>
+					supportsTransactionImport(account) && (!institutionId || account.institution?.id === institutionId),
+			)
 			.toSorted(compareFinancialAccountsByOptionLabel) ?? [];
 
 	return (
@@ -109,7 +129,7 @@ export function ImportTransactionsDialog({
 			<DialogContent className="sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>Importar extrato</DialogTitle>
-					<DialogDescription>Selecione manualmente a conta e a instituição do extrato.</DialogDescription>
+					<DialogDescription>Selecione a conta ou a instituição do extrato.</DialogDescription>
 				</DialogHeader>
 				<form
 					className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 gap-5"
@@ -122,21 +142,34 @@ export function ImportTransactionsDialog({
 					<DialogBody>
 						<CustomSelect
 							label="Instituição"
-							onValueChange={value => setProvider(value as TransactionImportProvider)}
-							options={providerOptions.map(option => ({ ...option }))}
+							onValueChange={value => {
+								setInstitutionId(value);
+								if (
+									accounts.data?.find(account => account.id === financialAccountId)?.institution?.id !== value
+								) {
+									setFinancialAccountId("");
+								}
+							}}
+							options={(institutions.data ?? [])
+								.filter(institution => getTransactionImportProvider(institution))
+								.map(institution => ({ label: institution.name, value: institution.id }))}
 							placeholder="Selecione a instituição"
 							required
-							sortOptions={false}
-							value={provider}
+							searchable
+							value={institutionId}
 						/>
 						<CustomSelect
 							label="Conta que receberá as transações"
-							onValueChange={setFinancialAccountId}
+							onValueChange={value => {
+								setFinancialAccountId(value);
+								const account = accounts.data?.find(account => account.id === value);
+								if (account?.institution) setInstitutionId(account.institution.id);
+							}}
 							options={selectableAccounts.map(account => ({
 								label: getFinancialAccountOptionLabel(account),
 								value: account.id,
 							}))}
-							placeholder="Selecione manualmente a conta"
+							placeholder="Selecione a conta"
 							required
 							searchable
 							value={financialAccountId}
@@ -154,7 +187,14 @@ export function ImportTransactionsDialog({
 						</Button>
 						<Button
 							className="cursor-pointer disabled:cursor-not-allowed"
-							disabled={!file || !financialAccountId || !provider || createImport.isPending}
+							disabled={
+								!file ||
+								!financialAccountId ||
+								!provider ||
+								accounts.isPending ||
+								institutions.isPending ||
+								createImport.isPending
+							}
 							type="submit"
 						>
 							<LuFileUp /> {createImport.isPending ? "Importando extrato…" : "Importar extrato"}
