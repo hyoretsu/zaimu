@@ -36,7 +36,6 @@ import {
 import { showToast } from "@/stores";
 import { CreditCardImportItemRow } from "./CreditCardImportItemRow";
 import { CreditPurchaseReconciliationDialog } from "./CreditPurchaseReconciliationDialog";
-import { ApproveImportedPurchasesDialog } from "./components";
 import { EditImportedCreditPurchaseDialog } from "./EditImportedCreditPurchaseDialog";
 import { RefundImportReviewDialog } from "./RefundImportReviewDialog";
 
@@ -71,7 +70,6 @@ export function CreditCardImportReviewDialog({
 		setRecoveredEdit(entry.payload.data);
 		setEditingItem(entry.payload.item);
 	});
-	const [approvalChoiceOpen, setApprovalChoiceOpen] = useState(false);
 	const [editingItem, setEditingItem] = useState<CreditCardImportItem | null>(null);
 	const [recoveredRefund, setRecoveredRefund] =
 		useState<Parameters<typeof dataService.creditCardImports.approveRefund>[2]>();
@@ -164,8 +162,7 @@ export function CreditCardImportReviewDialog({
 	);
 
 	const approve = useMutation({
-		mutationFn: ({ includeUnmatched }: { includeUnmatched: boolean; itemIds: string[] }) =>
-			dataService.creditCardImports.approve(importId!, includeUnmatched),
+		mutationFn: (_variables: { itemIds: string[] }) => dataService.creditCardImports.approve(importId!, true),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async result => {
 			const reviewFinished = result.created === creditCardImportData?.pendingItemCount;
@@ -225,11 +222,7 @@ export function CreditCardImportReviewDialog({
 		<>
 			<ImportDialog
 				childDialogOpen={Boolean(
-					editingItem ||
-						reviewingRefund ||
-						reconcilingImport ||
-						discardConfirmationOpen ||
-						approvalChoiceOpen,
+					editingItem || reviewingRefund || reconcilingImport || discardConfirmationOpen,
 				)}
 				onOpenChange={onOpenChange}
 				open={open}
@@ -321,7 +314,19 @@ export function CreditCardImportReviewDialog({
 						<Button
 							className="cursor-pointer disabled:cursor-not-allowed"
 							disabled={reviewBusy || hasApprovingItems || items.length === 0}
-							onClick={() => setApprovalChoiceOpen(true)}
+							onClick={() =>
+								approve.mutate({
+									itemIds: items
+										.filter(
+											item =>
+												item.duplicates.length === 0 &&
+												item.installmentAmount >= 0 &&
+												!item.metadataMissing?.length &&
+												(!importedAnticipation(item.description) || Boolean(item.reconciledCreditPurchaseId)),
+										)
+										.map(item => item.id),
+								})
+							}
 						>
 							<LuFileCheck2 />{" "}
 							{approve.isPending ? (
@@ -335,26 +340,7 @@ export function CreditCardImportReviewDialog({
 					</DialogFooter>
 				</ImportDialogContent>
 			</ImportDialog>
-			<ApproveImportedPurchasesDialog
-				onApprove={includeUnmatched => {
-					setApprovalChoiceOpen(false);
-					approve.mutate({
-						includeUnmatched,
-						itemIds: items
-							.filter(
-								item =>
-									(includeUnmatched || Boolean(item.reconciledCreditPurchaseId)) &&
-									item.duplicates.length === 0 &&
-									item.installmentAmount >= 0 &&
-									!item.metadataMissing?.length &&
-									(!importedAnticipation(item.description) || Boolean(item.reconciledCreditPurchaseId)),
-							)
-							.map(item => item.id),
-					});
-				}}
-				onOpenChange={setApprovalChoiceOpen}
-				open={approvalChoiceOpen}
-			/>
+
 			<ImportDialog onOpenChange={setDiscardConfirmationOpen} open={discardConfirmationOpen}>
 				<ImportDialogContent showCloseButton={false}>
 					<DialogHeader>
