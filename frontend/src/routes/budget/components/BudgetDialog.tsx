@@ -65,7 +65,7 @@ export function BudgetDialog({
 					endMonth: null,
 					name: "",
 					parentBudgetId: null,
-					source: "CUSTOM",
+					source: "UNCATEGORIZED",
 					startMonth: month,
 				},
 	);
