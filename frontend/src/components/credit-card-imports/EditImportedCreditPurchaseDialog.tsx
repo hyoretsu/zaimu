@@ -15,6 +15,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/Dialog";
 import { FormField } from "@/components/ui/FormField";
+import { FormFieldRow } from "@/components/ui/FormFieldRow";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { TimeField } from "@/components/ui/TimeField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
@@ -110,7 +111,7 @@ export function EditImportedCreditPurchaseDialog({
 							</p>
 						) : null}
 						{item.metadataMissing?.includes("calendar") && (
-							<div className="grid gap-4 sm:grid-cols-2">
+							<FormFieldRow className="grid-cols-1 sm:grid-cols-2">
 								<DateField
 									id="imported-statement-date"
 									label="Fechamento da fatura"
@@ -127,7 +128,7 @@ export function EditImportedCreditPurchaseDialog({
 									required
 									value={dueDate}
 								/>
-							</div>
+							</FormFieldRow>
 						)}
 
 						<MoneyField
@@ -138,7 +139,7 @@ export function EditImportedCreditPurchaseDialog({
 							required
 							value={totalAmount}
 						/>
-						<div className="grid gap-4 sm:grid-cols-3">
+						<FormFieldRow className="grid-cols-1 sm:grid-cols-3">
 							<FormField
 								autoComplete="off"
 								disabled={isStatementCharge}
@@ -169,7 +170,7 @@ export function EditImportedCreditPurchaseDialog({
 								placeholder="Ex: 14:30"
 								value={time}
 							/>
-						</div>
+						</FormFieldRow>
 						<TagPicker onValueChange={setTagIds} value={tagIds} />
 						<CheckboxField
 							checkboxProps={{
