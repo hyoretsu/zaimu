@@ -42,7 +42,7 @@ export async function scheduleFinancialAccountYieldRate({
 	);
 	const date = startOfDay(effectiveDate);
 	await executeRaw(
-		`UPDATE "FinancialAccount" SET "historicalYieldSettings" = jsonb_set("historicalYieldSettings", '{throughDate}', to_jsonb(($2::date - 1)::text)) WHERE "id" = $1 AND "historicalYieldSettings"->>'throughDate' >= $2::text`,
+		`UPDATE "FinancialAccount" SET "historicalYieldSettings" = jsonb_set("historicalYieldSettings"::jsonb, '{throughDate}', to_jsonb(($2::date - 1)::text)) WHERE "id" = $1 AND "historicalYieldSettings"->>'throughDate' >= $2::text`,
 		[financialAccountId, format(date, "yyyy-MM-dd")],
 	);
 	await executeStatement(
