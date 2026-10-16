@@ -122,7 +122,7 @@ test("selectors and calendar stay clickable above nested dialogs", async ({ page
 });
 
 for (const width of [390, 1280]) {
-	test(`dialogs preserve background scroll and layout at ${width}px`, async ({ page }) => {
+	test(`dialogs allow background scroll and preserve layout at ${width}px`, async ({ page }) => {
 		await page.setViewportSize({ height: 844, width });
 		await page.evaluate(() => {
 			document.body.style.minHeight = "3000px";
@@ -147,22 +147,21 @@ for (const width of [390, 1280]) {
 		expect(await position()).toEqual(before);
 		await page.mouse.move(5, 5);
 		await page.mouse.wheel(100, 400);
-		await page.evaluate(
-			() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))),
-		);
-		expect(await position()).toEqual(before);
+		await expect.poll(async () => (await position()).y).toBeGreaterThan(before.y);
+		const scrolled = await position();
+		expect(scrolled.width).toBe(before.width);
 		await page.getByRole("button", { exact: true, name: "Edit purchase" }).click();
 		await expect(page.getByRole("dialog", { exact: true, name: "Edit purchase" })).toBeVisible();
-		expect(await position()).toEqual(before);
+		expect(await position()).toEqual(scrolled);
 		await page.keyboard.press("Escape");
 		await expect(page.getByRole("dialog", { exact: true, name: "Edit purchase" })).toHaveCount(0);
-		expect(await position()).toEqual(before);
+		expect(await position()).toEqual(scrolled);
 		await page
 			.getByRole("dialog", { exact: true, name: "Invoice" })
 			.getByRole("button", { name: "Fechar" })
 			.click();
 		await expect(page.getByRole("dialog")).toHaveCount(0);
-		expect(await position()).toEqual(before);
+		expect(await position()).toEqual(scrolled);
 	});
 }
 

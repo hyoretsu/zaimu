@@ -5,7 +5,6 @@ import { type ComponentProps, createContext, useContext } from "react";
 import { Button } from "@/components/ui/Button";
 import { DialogBody } from "@/components/ui/DialogBody";
 import { useDialogHistory } from "@/hooks/use-dialog-history";
-import { usePageScrollLock } from "@/hooks/use-page-scroll-lock";
 import { useRouteDismissableOpen } from "@/hooks/use-route-dismissable-open";
 import { cn } from "@/lib/utils";
 import { PopupLayerContext } from "./popup-layer-context";
@@ -40,7 +39,6 @@ function DialogClose({ ...props }: ComponentProps<typeof DialogPrimitive.Close>)
 }
 
 function DialogOverlay({ className, style, ...props }: ComponentProps<"div">) {
-	usePageScrollLock();
 	const { depth } = useContext(DialogStackContext);
 
 	return (
