@@ -1,4 +1,5 @@
 import { moneyCents } from "@zaimu/finance/credit-book";
+import { currentDateKey } from "@zaimu/finance/credit-card";
 import { toMinorUnits } from "@zaimu/finance/money";
 import { pendingStatementPayments } from "@zaimu/finance/payment-suggestions";
 import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
@@ -84,12 +85,14 @@ export async function confirmSuggestedPayment(userId: string, cardId: string, in
 				})
 			).amount;
 		toMinorUnits(debitAmount, account.currency, 1);
-		const balance =
-			(await getFinancialAccountBalances([account.id], new Date(`${input.date}T12:00:00Z`))).get(
-				account.id,
-			) ?? 0;
-		if (!hasPaymentBalance(balance, debitAmount, account.currency))
-			throw new HttpException("Saldo insuficiente na conta pagadora na data informada", 400);
+		if (input.date <= currentDateKey()) {
+			const balance =
+				(await getFinancialAccountBalances([account.id], new Date(`${input.date}T12:00:00Z`))).get(
+					account.id,
+				) ?? 0;
+			if (!hasPaymentBalance(balance, debitAmount, account.currency))
+				throw new HttpException("Saldo insuficiente na conta pagadora na data informada", 400);
+		}
 		return withTransaction(async executor => {
 			const [transaction] = await query<SuggestedPaymentTransaction>(
 				`INSERT INTO "Transaction" ("id","userId","type","amount","date","originFinancialAccountId","paymentCreditCardId","currency","bookingCurrency","originalAmount","paymentAmount","paymentCurrency","createdAt","updatedAt") VALUES ($1,$2,'EXPENSE',$3,$4,$5,$6,$7,$7,$3,$8,$9,NOW(),NOW()) RETURNING *`,

@@ -157,6 +157,16 @@ test("visitor payment validates balance and date, serializes attempts and isolat
 		statementId: suggestion.statementId,
 	};
 	await expect(storage.confirmLocalSuggestedPayment("card", input)).rejects.toThrow();
+	await expect(
+		storage.confirmLocalSuggestedPayment("card", { ...input, date: "2026-08-26" }),
+	).rejects.toThrow("Saldo insuficiente");
+	const scheduled = await storage.confirmLocalSuggestedPayment("card", {
+		...input,
+		date: "2026-08-27",
+	});
+	expect(scheduled.transaction.date).toBe("2026-08-27");
+	expect(scheduled.transaction.amount).toBe(100);
+	await storage.localTransactions.delete(input.attemptId, owner);
 	await storage.localTransactions.put(
 		{
 			amount: 200,

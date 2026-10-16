@@ -10,7 +10,7 @@ import {
 } from "@zaimu/finance/credit-book";
 import { currentDateKey } from "@zaimu/finance/credit-card";
 import { resolveInstitutionCardRules } from "@zaimu/finance/institution-card-rules";
-import { currencyScale, toMinorUnits } from "@zaimu/finance/money";
+import { currencyScale, roundMoney, toMinorUnits } from "@zaimu/finance/money";
 import { pendingStatementPayments } from "@zaimu/finance/payment-suggestions";
 import type {
 	Category,
@@ -1668,7 +1668,11 @@ export async function confirmLocalSuggestedPayment(
 			input.accountAmount ??
 			((account.currency ?? "BRL") === (book.card.currency ?? "BRL") ? input.amount : Number.NaN);
 		toMinorUnits(debitAmount, account.currency ?? "BRL", 1);
-		if (moneyCents(balance, 1, account.currency) < moneyCents(debitAmount, 1, account.currency))
+		if (
+			input.date <= currentDateKey() &&
+			toMinorUnits(roundMoney(Math.max(0, balance), account.currency ?? "BRL"), account.currency ?? "BRL") <
+				toMinorUnits(debitAmount, account.currency ?? "BRL", 1)
+		)
 			throw new Error("Saldo insuficiente na conta pagadora na data informada");
 		const transaction: Transaction = {
 			amount: debitAmount,
