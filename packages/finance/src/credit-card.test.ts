@@ -6,6 +6,7 @@ import {
 	statementCharges,
 	statementCutoffAfter,
 	statementCycles,
+	statementDueDate,
 	statementEntryKind,
 } from "./credit-card";
 
@@ -20,6 +21,16 @@ const invoice = (month: string, totalAmount: number, chargesAmount = 0) => ({
 });
 
 describe("due-date card ledger", () => {
+	test.each([
+		["2026-09-29", "2026-10-05"],
+		["2026-12-29", "2027-01-05"],
+	])("schedules closing %s for next-month due date %s", (closing, due) => {
+		expect(statementDueDate({ dueDay: 5, statementDay: 29 }, closing)).toBe(due);
+		expect(paymentStatementDates({ dueDay: 5, statementDay: 29 }, due)).toEqual({
+			dueDate: due,
+			statementDate: closing,
+		});
+	});
 	test("starts selected invoice without older debt or surplus credit", () => {
 		const rows = [invoice("07", 100), invoice("08", 50), invoice("09", 20)];
 		const payments = [{ amount: 150, date: "2024-07-10" }];

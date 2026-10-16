@@ -195,7 +195,6 @@ export function CreateFinancialAccountDialog({
 	const [cashbackYieldPeriod, setCashbackYieldPeriod] = useState<"MONTHLY" | "YEARLY">(
 		account?.creditCard?.cashbackYieldPeriod ?? "MONTHLY",
 	);
-	const hasInvalidBillingDays = Number(statementDay) >= Number(dueDay);
 
 	const reset = () => {
 		setCurrency(initialCurrency());
@@ -382,7 +381,6 @@ export function CreateFinancialAccountDialog({
 	};
 	const handleSubmit = (event: SyntheticEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		if (type === "CREDIT_CARD" && hasInvalidBillingDays) return;
 		if (yieldConfigurationChanged()) {
 			setIsRecalculateCurrentDayYieldDialogOpen(true);
 			return;
@@ -648,11 +646,6 @@ export function CreateFinancialAccountDialog({
 										value={dueDay}
 									/>
 								</div>
-								{hasInvalidBillingDays && (
-									<p className="text-destructive text-sm">
-										O vencimento deve ser posterior ao fechamento da fatura.
-									</p>
-								)}
 								<CheckboxField
 									align="start"
 									checkboxProps={{
@@ -882,7 +875,6 @@ export function CreateFinancialAccountDialog({
 								!currency ||
 								!institution ||
 								(type === "CREDIT_CARD" && !creditLimit) ||
-								(type === "CREDIT_CARD" && hasInvalidBillingDays) ||
 								(type === "CREDIT_CARD" && cashbackEnabled && cashbackKind === "CASHBACK" && !cashbackRate) ||
 								(type === "CREDIT_CARD" &&
 									cashbackEnabled &&

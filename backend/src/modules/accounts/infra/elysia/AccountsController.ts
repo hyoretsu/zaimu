@@ -19,7 +19,6 @@ import {
 	visibleInstitution,
 } from "~/modules/accounts/application/universal-institutions";
 import { assertCashbackSettings } from "~/modules/accounts/domain/assert-cashback-settings";
-import { assertCreditCardBillingDays } from "~/modules/accounts/domain/assert-credit-card-billing-days";
 import { assertFinancialAccountYieldSettings } from "~/modules/accounts/domain/assert-financial-account-yield-settings";
 import { assertRewardsAccountDetails } from "~/modules/accounts/domain/assert-rewards-account-details";
 import type { YieldPeriod } from "~/modules/accounts/domain/calculate-financial-account-yields";
@@ -368,7 +367,6 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 				if (body.creditCard) {
 					if (body.creditCard.paymentAccountId)
 						await assertPayerOwnership(body.creditCard.paymentAccountId, userId);
-					assertCreditCardBillingDays(body.creditCard.statementDay, body.creditCard.dueDay);
 					assertCashbackSettings(body.creditCard);
 					if (body.creditCard.cashbackAccountId)
 						await assertRewardsAccountOwnership(body.creditCard.cashbackAccountId, userId);
@@ -908,10 +906,6 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 							.build(),
 					);
 					if (!existingCreditCard) throw new HttpException("CreditCard not found", 404);
-					assertCreditCardBillingDays(
-						body.creditCard.statementDay ?? existingCreditCard.statementDay,
-						body.creditCard.dueDay ?? existingCreditCard.dueDay,
-					);
 					const nextCashback = {
 						cashbackAccountId:
 							body.creditCard.cashbackAccountId === undefined

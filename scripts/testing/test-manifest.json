@@ -28,7 +28,6 @@
 		"backend/src/modules/accounts/application/recalculate-historical-account-yields.test.ts",
 		"backend/src/modules/accounts/domain/account-default-eligibility.test.ts",
 		"backend/src/modules/accounts/domain/assert-cashback-settings.test.ts",
-		"backend/src/modules/accounts/domain/assert-credit-card-billing-days.test.ts",
 		"backend/src/modules/accounts/domain/assert-financial-account-yield-settings.test.ts",
 		"backend/src/modules/accounts/domain/assert-financial-institution-yield-policy.test.ts",
 		"backend/src/modules/accounts/domain/assert-institution-review.test.ts",
