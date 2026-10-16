@@ -43,7 +43,6 @@ import {
 } from "../../application/import-service";
 import { assignCreditCardPurchaseExternalIds } from "../../domain/credit-card-import-identity";
 import { parseCreditCardStatementPdf } from "../../domain/credit-card-statement-parser";
-import { requiresCreditCardStatementPdfPassword } from "../../domain/credit-card-statement-password";
 import { existingImportRoots } from "../../domain/existing-import-roots";
 import { filterZeroValuePurchases } from "../../domain/filter-zero-value-purchases";
 import {
@@ -119,8 +118,6 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
 			await assertCreditCardOwnership(body.creditCardId, userId);
-			if (requiresCreditCardStatementPdfPassword(body.provider) && !body.password)
-				throw new HttpException("Informe a senha do PDF", 400);
 			if (body.file.type !== "application/pdf" && !body.file.name.toLowerCase().endsWith(".pdf"))
 				throw new HttpException("Envie um arquivo PDF", 400);
 			const fileBytes = new Uint8Array(await body.file.arrayBuffer());

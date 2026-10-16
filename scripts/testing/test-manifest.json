@@ -48,7 +48,6 @@
 		"backend/src/modules/credit-card-imports/domain/bulk-approval.test.ts",
 		"backend/src/modules/credit-card-imports/domain/credit-card-import-identity.test.ts",
 		"backend/src/modules/credit-card-imports/domain/credit-card-import-reconciliation.test.ts",
-		"backend/src/modules/credit-card-imports/domain/credit-card-statement-password.test.ts",
 		"backend/src/modules/credit-card-imports/domain/existing-import-roots.test.ts",
 		"backend/src/modules/credit-card-imports/domain/filter-zero-value-purchases.test.ts",
 		"backend/src/modules/credit-card-imports/domain/financing-source-reference.test.ts",

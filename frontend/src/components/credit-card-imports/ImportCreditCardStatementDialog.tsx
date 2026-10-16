@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/Dialog";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
-import { RequiredMark } from "@/components/ui/RequiredMark";
 import type { CreditCard, CreditCardImport } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import {
@@ -56,7 +55,6 @@ export function ImportCreditCardStatementDialog({
 			if (!provider) throw new Error("Selecione a instituição da fatura.");
 			if (!creditCardId) throw new Error("Selecione o cartão que receberá as compras.");
 			if (!file) throw new Error("Selecione uma fatura em PDF.");
-			if (passwordConfiguration?.required && !password) throw new Error("Informe a senha do PDF.");
 			return dataService.creditCardImports.create({
 				creditCardId,
 				file,
@@ -124,9 +122,7 @@ export function ImportCreditCardStatementDialog({
 						/>
 						{passwordConfiguration ? (
 							<div className="grid gap-2">
-								<Label htmlFor="credit-card-import-password">
-									<span>Senha do PDF {passwordConfiguration.required && <RequiredMark />}</span>
-								</Label>
+								<Label htmlFor="credit-card-import-password">Senha do PDF</Label>
 								<Input
 									autoComplete="off"
 									id="credit-card-import-password"
@@ -134,7 +130,6 @@ export function ImportCreditCardStatementDialog({
 									name="credit-card-import-password"
 									onChange={event => setPassword(event.currentTarget.value)}
 									placeholder={passwordConfiguration.placeholder}
-									required={passwordConfiguration.required}
 									type="password"
 									value={password}
 								/>
@@ -148,13 +143,7 @@ export function ImportCreditCardStatementDialog({
 					</Button>
 					<Button
 						className="cursor-pointer disabled:cursor-not-allowed"
-						disabled={
-							!provider ||
-							!creditCardId ||
-							!file ||
-							(passwordConfiguration?.required && !password) ||
-							createImport.isPending
-						}
+						disabled={!provider || !creditCardId || !file || createImport.isPending}
 						onClick={() => createImport.mutate()}
 					>
 						<LuFileUp /> {createImport.isPending ? "Importando…" : "Importar"}

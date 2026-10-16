@@ -330,3 +330,7 @@ O cadastro e a edição de cartões permitem qualquer combinação de dias de fe
 Cashback, pontos e ajuste de vencimento para dia útil são regras da instituição/perfil, configuradas exclusivamente pelo admin. O cadastro e a edição de um cartão não permitem ativar, desativar ou alterar esses benefícios. A instituição define o padrão; um perfil pode herdar esse padrão ou substituí-lo integralmente, inclusive liberando cashback que não existe no padrão ou desativando um benefício. A configuração inclui tipo da recompensa, taxa, conversão de pontos, taxa de referência, percentual da referência e periodicidade do rendimento.
 
 O histórico de perfis do vínculo do usuário com a instituição determina o benefício aplicável na data da compra, inclusive para compras importadas e recorrências. Perfis futuros não antecipam benefícios. Recompensas já registradas preservam seus snapshots; alterar configurações ou perfis não reescreve compras históricas. O sistema cria ou reutiliza automaticamente a conta de recompensas correspondente à instituição, moeda, tipo e conversão, sem escolha manual de destino. Servidor e modo visitante usam a mesma resolução de regras.
+
+## Senha de PDF na importação
+
+A senha do PDF é sempre opcional na importação, independentemente da instituição. Arquivos sem proteção devem ser processados sem senha. Se o PDF estiver protegido, a leitura informa que é necessário fornecer a senha correta.
