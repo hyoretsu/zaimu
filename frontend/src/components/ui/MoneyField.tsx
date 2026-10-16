@@ -16,6 +16,7 @@ function centsToDecimal(value: string, currency: string) {
 
 export function MoneyField({
 	className,
+	disabled,
 	id,
 	currencyCode = "BRL",
 	label,
@@ -33,9 +34,13 @@ export function MoneyField({
 	value: string;
 }) {
 	const [localValue, setLocalValue] = useDebouncedInput(value, onValueChange);
-	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
+	const hasCurrency = currencyCode.trim() !== "";
+	const currency = new Intl.NumberFormat(
+		"pt-BR",
+		hasCurrency ? { currency: currencyCode, style: "currency" } : { style: "decimal" },
+	);
 	const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-		setLocalValue(centsToDecimal(event.currentTarget.value, currencyCode));
+		if (hasCurrency) setLocalValue(centsToDecimal(event.currentTarget.value, currencyCode));
 	};
 
 	return (
@@ -48,6 +53,7 @@ export function MoneyField({
 			<Input
 				autoComplete="off"
 				className={className}
+				disabled={disabled || !hasCurrency}
 				id={id}
 				inputMode="numeric"
 				name={id}
@@ -56,7 +62,7 @@ export function MoneyField({
 					onBlur?.(event);
 				}}
 				onChange={handleChange}
-				placeholder={currency.format(1500)}
+				placeholder={hasCurrency ? currency.format(1500) : "Selecione uma moeda"}
 				required={required}
 				type="text"
 				value={
