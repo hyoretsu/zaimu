@@ -59,14 +59,22 @@ export const monthlyBudgetService = {
 	},
 	async delete(id: string): Promise<void> {
 		const { owner, local } = context();
+		const budgets = await localMonthlyBudgets.getAll(owner);
+		const ids = new Set([id]);
+		let previousSize = 0;
+		while (previousSize !== ids.size) {
+			previousSize = ids.size;
+			for (const { data } of budgets) {
+				if (data.parentBudgetId && ids.has(data.parentBudgetId)) ids.add(data.id);
+			}
+		}
 		if (local) {
-			const budgets = await localMonthlyBudgets.getAll(owner);
-			if (budgets.some(row => row.data.parentBudgetId === id))
-				throw new Error("Remova ou desvincule subcategorias antes de excluir o orçamento principal.");
-			await localMonthlyBudgets.delete(id, owner);
+			for (const budgetId of [...ids].reverse()) await localMonthlyBudgets.delete(budgetId, owner);
 		} else {
 			await fetchWithAuth(`/monthly-budgets/${encodeURIComponent(id)}`, { method: "DELETE" });
-			void hardDelete("monthlyBudgets", id, owner).catch(() => undefined);
+			await Promise.all([...ids].map(budgetId => hardDelete("monthlyBudgets", budgetId, owner))).catch(
+				() => undefined,
+			);
 		}
 	},
 	async getAll(): Promise<MonthlyBudget[]> {

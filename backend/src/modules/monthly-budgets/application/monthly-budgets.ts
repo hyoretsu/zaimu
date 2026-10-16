@@ -101,17 +101,8 @@ export async function deleteMonthlyBudget(userId: string, id: string) {
 }
 async function deleteMonthlyBudgetInTransaction(userId: string, id: string) {
 	await queryRaw("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [`monthly-budget:${userId}`]);
-	const [child] = await queryRaw<{ id: string }>(
-		'SELECT "id" FROM "MonthlyBudget" WHERE "userId"=$1 AND "parentBudgetId"=$2 AND "deletedAt" IS NULL LIMIT 1',
-		[userId, id],
-	);
-	if (child)
-		throw new HttpException(
-			"Remova ou desvincule subcategorias antes de excluir o orçamento principal.",
-			409,
-		);
 	const rows = await queryRaw<{ id: string }>(
-		'UPDATE "MonthlyBudget" SET "deletedAt"=clock_timestamp(),"updatedAt"=clock_timestamp() WHERE "id"=$1 AND "userId"=$2 AND "deletedAt" IS NULL RETURNING "id"',
+		'WITH RECURSIVE descendants AS (SELECT "id" FROM "MonthlyBudget" WHERE "id"=$1 AND "userId"=$2 AND "deletedAt" IS NULL UNION SELECT child."id" FROM "MonthlyBudget" child JOIN descendants parent ON child."parentBudgetId"=parent."id" WHERE child."userId"=$2) UPDATE "MonthlyBudget" SET "deletedAt"=clock_timestamp(),"updatedAt"=clock_timestamp() WHERE "id" IN (SELECT "id" FROM descendants) AND "userId"=$2 AND "deletedAt" IS NULL RETURNING "id"',
 		[id, userId],
 	);
 	if (!rows.length) throw new HttpException("Planejamento não encontrado", 404);
