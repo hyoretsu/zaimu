@@ -4,6 +4,23 @@ import { getDialogHistory } from "@/lib/dialog-history";
 
 export function useDialogHistory(open: boolean, onOpenChange: (open: boolean) => void) {
 	const router = useRouter({ warn: false });
+	if (router) {
+		getDialogHistory(router.history, () => {
+			const left = window.scrollX;
+			const top = window.scrollY;
+			const viewports = [...document.querySelectorAll<HTMLElement>('[data-slot="scroll-area-viewport"]')].map(
+				element => ({ element, left: element.scrollLeft, top: element.scrollTop }),
+			);
+			const unsubscribe = router.subscribe("onRendered", () => {
+				unsubscribe();
+				window.scrollTo({ behavior: "instant", left, top });
+				for (const viewport of viewports) {
+					viewport.element.scrollLeft = viewport.left;
+					viewport.element.scrollTop = viewport.top;
+				}
+			});
+		});
+	}
 	const id = useId();
 	const onChange = useRef(onOpenChange);
 	useLayoutEffect(() => {

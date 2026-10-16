@@ -122,7 +122,9 @@ test("selectors and calendar stay clickable above nested dialogs", async ({ page
 });
 
 for (const width of [390, 1280]) {
-	test(`dialogs allow background scroll and preserve layout at ${width}px`, async ({ page }) => {
+	test(`dialogs block backdrop gestures and preserve scrollbars and layout at ${width}px`, async ({
+		page,
+	}) => {
 		await page.setViewportSize({ height: 844, width });
 		await page.evaluate(() => {
 			document.body.style.minHeight = "3000px";
@@ -147,9 +149,38 @@ for (const width of [390, 1280]) {
 		expect(await position()).toEqual(before);
 		await page.mouse.move(5, 5);
 		await page.mouse.wheel(100, 400);
-		await expect.poll(async () => (await position()).y).toBeGreaterThan(before.y);
-		const scrolled = await position();
-		expect(scrolled.width).toBe(before.width);
+		await page.evaluate(
+			() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+		);
+		expect(await position()).toEqual(before);
+		expect(await page.evaluate(() => getComputedStyle(document.documentElement).overflow)).not.toBe("hidden");
+		const scrolled = before;
+		const viewport = page.locator('[data-slot="dialog-body"] [data-slot="scroll-area-viewport"]');
+		await viewport.hover();
+		await page.mouse.wheel(0, 100);
+		await expect.poll(() => viewport.evaluate(node => node.scrollTop)).toBeGreaterThan(0);
+		expect(await position()).toEqual(before);
+		await viewport.evaluate(node => {
+			node.scrollTop = node.scrollHeight;
+		});
+		await page.mouse.wheel(0, 400);
+		await page.evaluate(
+			() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+		);
+		expect(await position()).toEqual(before);
+		expect(
+			await page.locator('[data-slot="dialog-overlay"]').evaluate(node => {
+				const touch = new Touch({ clientX: 10, clientY: 100, identifier: 1, target: node });
+				node.dispatchEvent(new TouchEvent("touchstart", { bubbles: true, touches: [touch] }));
+				const move = new TouchEvent("touchmove", {
+					bubbles: true,
+					cancelable: true,
+					touches: [new Touch({ clientX: 10, clientY: 10, identifier: 1, target: node })],
+				});
+				node.dispatchEvent(move);
+				return move.defaultPrevented;
+			}),
+		).toBe(true);
 		await page.getByRole("button", { exact: true, name: "Edit purchase" }).click();
 		await expect(page.getByRole("dialog", { exact: true, name: "Edit purchase" })).toBeVisible();
 		expect(await position()).toEqual(scrolled);

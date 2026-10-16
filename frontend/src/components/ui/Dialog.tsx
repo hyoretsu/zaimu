@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { DialogBody } from "@/components/ui/DialogBody";
 import { useDialogHistory } from "@/hooks/use-dialog-history";
 import { useRouteDismissableOpen } from "@/hooks/use-route-dismissable-open";
+import { useScrollBoundary } from "@/hooks/use-scroll-boundary";
 import { cn } from "@/lib/utils";
 import { PopupLayerContext } from "./popup-layer-context";
 
@@ -38,16 +39,18 @@ function DialogClose({ ...props }: ComponentProps<typeof DialogPrimitive.Close>)
 	return <DialogPrimitive.Close data-slot="dialog-close" {...props} />;
 }
 
-function DialogOverlay({ className, style, ...props }: ComponentProps<"div">) {
+function DialogOverlay({ className, style, ref, ...props }: ComponentProps<"div">) {
+	const boundaryRef = useScrollBoundary(ref);
 	const { depth } = useContext(DialogStackContext);
 
 	return (
 		<div
 			className={cn(
-				"data-open:fade-in-0 data-closed:fade-out-0 fixed inset-0 isolate z-50 bg-black/80 duration-100 data-closed:animate-none data-open:animate-in supports-backdrop-filter:backdrop-blur-xs",
+				"data-open:fade-in-0 data-closed:fade-out-0 fixed inset-0 isolate z-50 touch-none bg-black/80 duration-100 data-closed:animate-none data-open:animate-in supports-backdrop-filter:backdrop-blur-xs",
 				className,
 			)}
 			data-slot="dialog-overlay"
+			ref={boundaryRef}
 			style={{ zIndex: 50 + depth * 2, ...style }}
 			{...props}
 		/>
@@ -63,6 +66,7 @@ function DialogContent({
 	onInteractOutside,
 	onOpenAutoFocus,
 	onFocusOutside,
+	ref,
 	style,
 	...props
 }: ComponentProps<typeof DialogPrimitive.Content> & {
@@ -70,6 +74,7 @@ function DialogContent({
 	showCloseButton?: boolean;
 }) {
 	const { depth, dismissTopmost, isTopmost } = useContext(DialogStackContext);
+	const boundaryRef = useScrollBoundary(ref);
 	return (
 		<DialogPortal>
 			<DialogOverlay className={overlayClassName} />
@@ -79,6 +84,7 @@ function DialogContent({
 					className,
 				)}
 				data-slot="dialog-content"
+				ref={boundaryRef}
 				style={{ zIndex: 51 + depth * 2, ...style }}
 				{...props}
 				onEscapeKeyDown={event => {

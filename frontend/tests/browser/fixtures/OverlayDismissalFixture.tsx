@@ -11,7 +11,7 @@ import {
 import { Activity, StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { LuPlus } from "react-icons/lu";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/Dialog";
+import { Dialog, DialogBody, DialogContent, DialogTitle } from "@/components/ui/Dialog";
 import { MobilePageActions } from "@/components/ui/MobilePageActions";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 
@@ -42,6 +42,9 @@ function OverlayDismissalFixture() {
 						<button onClick={() => setEditing(true)} type="button">
 							Edit purchase
 						</button>
+						<DialogBody className="h-32 shrink-0">
+							<div className="h-[900px]">Scrollable invoice details</div>
+						</DialogBody>
 						{editing && (
 							<Dialog onOpenChange={setEditing} open={editing}>
 								<DialogContent>

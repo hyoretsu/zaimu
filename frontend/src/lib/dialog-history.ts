@@ -10,10 +10,13 @@ function stack(history: RouterHistory) {
 }
 
 /** One history entry per dialog, shared by nested and sibling dialogs. */
-export function createDialogHistory(history: RouterHistory) {
+export function createDialogHistory(history: RouterHistory, preserveScroll?: () => void) {
+	let previousHref = history.location.href;
 	const dialogs = new Map<string, { close: () => void; href: string; version: number }>();
 
 	history.subscribe(({ action }) => {
+		if (previousHref === history.location.href) preserveScroll?.();
+		previousHref = history.location.href;
 		const current = stack(history);
 		for (const [id, dialog] of dialogs) {
 			if (dialog.href !== history.location.href || !current.includes(id)) {
@@ -69,10 +72,10 @@ export function createDialogHistory(history: RouterHistory) {
 
 const histories = new WeakMap<RouterHistory, ReturnType<typeof createDialogHistory>>();
 
-export function getDialogHistory(history: RouterHistory) {
+export function getDialogHistory(history: RouterHistory, preserveScroll?: () => void) {
 	let dialogs = histories.get(history);
 	if (!dialogs) {
-		dialogs = createDialogHistory(history);
+		dialogs = createDialogHistory(history, preserveScroll);
 		histories.set(history, dialogs);
 	}
 	return dialogs;
