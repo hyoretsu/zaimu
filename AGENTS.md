@@ -79,3 +79,7 @@ Always prefer commits with explicit file paths, such as `git commit --only -- pa
 # Collapsed listings
 
 When a listing is collapsed, tapping or clicking anywhere on its visible card must expand it, including its title, description, summary, and padding. Use the shared listing component and preserve keyboard activation and accessible expanded state. Once expanded, keep content controls independent and collapse through the explicit toggle only.
+
+# Required form validation
+
+Every form must validate all required fields before saving, including custom selects and conditionally required fields. Required markers alone are not validation. Reject empty or whitespace-only values, non-finite or out-of-range numbers, and invalid field combinations. Keep the form open with an accessible, actionable validation message and preserve entered values; never start a mutation or close the modal for invalid input. Validate submitted native input values to avoid stale debounced state, and enforce equivalent rules at the persistence boundary for connected and guest modes.

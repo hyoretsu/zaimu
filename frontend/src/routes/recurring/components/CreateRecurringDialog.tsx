@@ -27,6 +27,7 @@ import { parseMaskedMoney } from "@/lib/masked-money";
 import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import type { Recurrence, RecurrenceInput } from "@/lib/recurrence";
 import { type RecurringSaveRecovery, saveRecurrenceWithReplay } from "@/lib/recurrence-save";
+import { validateRecurrenceInput } from "@/lib/recurrence-validation";
 import { useCurrencyStore } from "@/stores/currency";
 import { DebouncedFormField } from "./DebouncedFormField";
 import { DebouncedMoneyField } from "./DebouncedMoneyField";
@@ -76,6 +77,7 @@ export function CreateRecurringDialog({
 	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>(() => debtSplitToInput(recurrence?.debtSplit));
 	const [debtEnabled, setDebtEnabled] = useState(Boolean(recurrence?.debtSplit));
 	const [addPast, setAddPast] = useState(false);
+	const [validationError, setValidationError] = useState<string>();
 	const [completedWrite, setCompletedWrite] = useState(false);
 	const [resumeId, setResumeId] = useState<string>();
 	const [recoveryId, setRecoveryId] = useState<string>();
@@ -126,6 +128,7 @@ export function CreateRecurringDialog({
 	}, [open, recurrence, effectiveCurrency]);
 	useDialogCloseReset(open, () => {
 		amountEntered.current = false;
+		setValidationError(undefined);
 		setDraft(initialDraft(recurrence, effectiveCurrency));
 		setDebtSplit(debtSplitToInput(recurrence?.debtSplit));
 		setDebtEnabled(Boolean(recurrence?.debtSplit));
@@ -223,9 +226,20 @@ export function CreateRecurringDialog({
 								tagIds: draft.tagIds,
 								unit: draft.unit as RecurrenceUnit,
 							} satisfies RecurrenceInput;
+							if (!completedWrite) {
+								try {
+									validateRecurrenceInput(input);
+								} catch (error) {
+									setValidationError(
+										error instanceof Error ? error.message : "Revise os campos obrigatórios.",
+									);
+									return;
+								}
+							}
+							setValidationError(undefined);
 							const submittedDraft = {
 								...draft,
-								amount: amountText,
+								amount: String(amount),
 								dayOfMonth: String(fields.get("recurrence-day") ?? draft.dayOfMonth),
 								installments: String(fields.get("recurrence-installments") ?? draft.installments),
 								interval: String(fields.get("recurrence-interval") ?? draft.interval),
@@ -243,6 +257,11 @@ export function CreateRecurringDialog({
 						}}
 					>
 						<DialogBody>
+							{validationError && (
+								<p className="text-destructive text-sm" role="alert">
+									{validationError}
+								</p>
+							)}
 							<fieldset className="space-y-5" disabled={completedWrite}>
 								<DebouncedFormField
 									id="recurrence-name"
