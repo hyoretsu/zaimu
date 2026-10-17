@@ -236,6 +236,8 @@ Buttons in the same action group must share height, border radius, icon size, an
 
 # Dynamic listing selects
 
+Selectors with exactly one available, enabled option must select it automatically, including after asynchronous loading or changes to dependent fields. Update the form value through the normal change flow so validation and submission receive the selection. Count the complete available option set, including special options, before search filtering; typing a search must never trigger automatic selection. Preserve an existing valid selection and never select disabled options.
+
 Every `CustomSelect` whose options come from a user-managed listing (accounts, cards, institutions, statements, categories, or equivalent) must use `searchable`. Fixed, small option sets remain non-searchable.
 
 Special select options (such as "Sem conta específica", "Todas as categorias", or "Criar automaticamente") must always appear at the top, before options from user-managed listings. Mark them with `special: true` in `CustomSelect` options. Preserve the order of multiple special options as supplied by the caller when `sortOptions={false}`.
