@@ -11,7 +11,7 @@ Entrega exclusivamente local; nenhum serviço externo pode ser alterado.
 - [x] Migrar todos os consumidores para operações e tipos gerados, preservando modo convidado e offline.
 - [x] Centralizar invalidação tipada, com isolamento por identidade e moeda.
 - [x] Validar contratos, transporte, cache Turbo, invalidação e regressões.
-- [ ] Criar commits atômicos com hooks e coautoria Codex; integrar na branch original.
+- [x] Criar commits atômicos com hooks e coautoria Codex; integrar na branch original.
 
 ## Progresso
 
@@ -62,3 +62,11 @@ Entrega exclusivamente local; nenhum serviço externo pode ser alterado.
 - Auditoria de contratos agora vive em `backend/scripts/tests/consumed-contracts.test.ts`; testa operações importadas e schemas concretos.
 - Limitação preexistente: fixture de assinatura em `recurrence-service.test.ts` não cria conta do cartão e também falha em main original. Quatro falhas por interferência global de IndexedDB/mocks passam em processos isolados.
 - Integração local em main pendente apenas do commit de auditoria; alteração prévia em db.json preservada.
+
+## Entrega local
+
+- Commits integrados por fast-forward em main: `19d3c846`, `ea346208`, `4bb8a5f7`, `3a9023a8`, `1dbcae24` e `1ee34890`.
+- Hooks normais e coautoria Codex preservados; builds afetados e type-checks passaram antes da integração.
+- Playwright repetido contra build final passou novamente.
+- Alteração prévia de `packages/sql/migrations/app/refs/db.json` manteve SHA-256 `bcb8ecf3f23ddcb764f3adc101d54b29517fdb5372fdeeba91f2a7e1404aee03`.
+- Nenhum push, deploy, migration ou alteração de serviço externo executado.
