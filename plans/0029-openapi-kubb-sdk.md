@@ -10,7 +10,7 @@ Entrega exclusivamente local; nenhum serviço externo pode ser alterado.
 - [x] Portar Kubb, cliente ky e pipeline Turbo do template, preservando contrato SQL.
 - [x] Migrar todos os consumidores para operações e tipos gerados, preservando modo convidado e offline.
 - [x] Centralizar invalidação tipada, com isolamento por identidade e moeda.
-- [ ] Validar contratos, transporte, cache Turbo, invalidação e regressões.
+- [x] Validar contratos, transporte, cache Turbo, invalidação e regressões.
 - [ ] Criar commits atômicos com hooks e coautoria Codex; integrar na branch original.
 
 ## Progresso
@@ -56,3 +56,9 @@ Entrega exclusivamente local; nenhum serviço externo pode ser alterado.
 - Rebase sobre main atual preservou subdiálogo de ajustes por conta; invalidação central aplicada na nova estrutura.
 - Hooks frontend passaram no commit completo; teste posterior à formatação passou 37 testes/111 assertions.
 - Catálogo fiscal compartilhado ganha regra explícita de invalidação; queries de resolução de perfis incluem identidade.
+
+- Gates após rebase passaram: hooks de tipos/lint/formatação e builds Turbo de backend/frontend (5/5 tarefas).
+- Revalidação final: 38 testes SDK/cache/transporte passaram, com 113 assertions; exportação reproduzível e cobertura de consumidores passaram 2 testes/677 assertions.
+- Auditoria de contratos agora vive em `backend/scripts/tests/consumed-contracts.test.ts`; testa operações importadas e schemas concretos.
+- Limitação preexistente: fixture de assinatura em `recurrence-service.test.ts` não cria conta do cartão e também falha em main original. Quatro falhas por interferência global de IndexedDB/mocks passam em processos isolados.
+- Integração local em main pendente apenas do commit de auditoria; alteração prévia em db.json preservada.
