@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { CustomSelectPopover } from "./CustomSelectPopover";
 
 export interface Option {
@@ -40,6 +41,15 @@ export function CustomSelect({
 	value?: string;
 	values?: string[];
 }) {
+	const enabledOptions = options.filter(option => !option.disabled);
+	const singleOptionValue = enabledOptions.length === 1 ? enabledOptions[0]!.value : undefined;
+	const hasValidSelection = enabledOptions.some(option => option.value === value);
+
+	useEffect(() => {
+		if (disabled || isLoading || error || values !== undefined || hasValidSelection) return;
+		if (singleOptionValue !== undefined) onValueChange(singleOptionValue);
+	}, [disabled, error, hasValidSelection, isLoading, onValueChange, singleOptionValue, values]);
+
 	const displayedOptions = options.toSorted((left, right) => {
 		if (left.special !== right.special) return left.special ? -1 : 1;
 		return sortOptions ? left.label.localeCompare(right.label, "pt-BR", { sensitivity: "base" }) : 0;
