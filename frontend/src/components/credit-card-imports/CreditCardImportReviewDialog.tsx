@@ -6,7 +6,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import { importedAnticipation } from "@zaimu/finance/imported-anticipation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { LuCircleAlert, LuFileCheck2, LuTrash2 } from "react-icons/lu";
 import { ImportDialog, ImportDialogContent } from "@/components/imports";
 import { ActionGroup } from "@/components/ui/ActionGroup";
@@ -45,6 +45,8 @@ export function CreditCardImportReviewDialog({
 	const [recoveryImportId, setRecoveryImportId] = useState<string | null>(null);
 	const importId = recoveryImportId ?? suppliedImportId;
 	const open = recoveryImportId !== null || suppliedOpen;
+	const reviewedImportId = useRef(importId);
+	reviewedImportId.current = open ? importId : null;
 	const onOpenChange = (nextOpen: boolean) => {
 		if (!nextOpen) setRecoveryImportId(null);
 		suppliedOnOpenChange(nextOpen);
@@ -121,10 +123,15 @@ export function CreditCardImportReviewDialog({
 			queryKeys.creditCardImports.detail(identity!, targetImportId),
 			queryKeys.creditCardImports.pending(identity!),
 		]);
-	const closeFinishedReview = async () => {
-		if (!importId) return;
-		onOpenChange(false);
-		await closeImportReview(queryClient, identity!, "credit-card", importId);
+	const refreshReview = async (targetImportId: string) => {
+		const updatedImport = await dataService.creditCardImports.get(targetImportId);
+		if (updatedImport.pendingItemCount === 0) {
+			if (reviewedImportId.current === targetImportId) onOpenChange(false);
+			await closeImportReview(queryClient, identity!, "credit-card", targetImportId);
+			return true;
+		}
+		await invalidate(targetImportId);
+		return false;
 	};
 
 	const approveItem = (item: CreditCardImportItem) => {
@@ -136,7 +143,7 @@ export function CreditCardImportReviewDialog({
 			failureMessage: "Não foi possível aprovar compra.",
 			loadingMessage: "Aprovando compra...",
 			onSuccess: async () => {
-				await invalidate(targetImportId);
+				await refreshReview(targetImportId);
 			},
 			progress: "record",
 			recovery: {
@@ -159,10 +166,7 @@ export function CreditCardImportReviewDialog({
 		mutationFn: (_variables: { itemIds: string[] }) => dataService.creditCardImports.approve(importId!, true),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async result => {
-			const reviewFinished = result.created === creditCardImportData?.pendingItemCount;
-
-			if (reviewFinished) await closeFinishedReview();
-			else await invalidate();
+			const reviewFinished = await refreshReview(importId!);
 			showToast(
 				reviewFinished
 					? "Revisão finalizada."
@@ -424,7 +428,7 @@ export function CreditCardImportReviewDialog({
 							failureMessage: "Não foi possível aprovar o reembolso.",
 							loadingMessage: "Aprovando reembolso...",
 							onSuccess: async () => {
-								await invalidate(targetImportId);
+								await refreshReview(targetImportId);
 							},
 							progress: "record",
 							recovery: {
