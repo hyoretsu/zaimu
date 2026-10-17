@@ -75,7 +75,13 @@ const NotificationReturn = t.Object(
 	{
 		createdAt: t.Union([t.Date(), t.String()]),
 		id: t.String(),
-		payload: t.Record(t.String(), t.Unknown()),
+		payload: t.Object({
+			institutionId: t.Optional(t.Nullable(t.String())),
+			proposalId: t.String(),
+			reason: t.Optional(t.Nullable(t.String())),
+			status: t.Optional(t.String()),
+			targetId: t.Optional(t.Nullable(t.String())),
+		}),
 		readAt: t.Nullable(t.Union([t.Date(), t.String()])),
 		type: t.String(),
 	},
@@ -84,10 +90,11 @@ const NotificationReturn = t.Object(
 
 export const InstitutionsController = new Elysia({ prefix: "/financial-institutions" })
 	.get("/", async ({ request }) => listInstitutionCatalog(await requireUserId(request)), {
-		detail: { tags: ["Institutions"] },
+		detail: { operationId: "getFinancialInstitutions", tags: ["Institutions"] },
 		response: t.Array(InstitutionReturn),
 	})
 	.get("/review/catalog", async ({ request }) => listInstitutionCatalog(await requireAdmin(request), true), {
+		detail: { operationId: "getFinancialInstitutionsReviewCatalog" },
 		response: t.Array(InstitutionReturn),
 	})
 	.patch(
@@ -102,6 +109,7 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 		},
 		{
 			body: InstitutionCountriesBody,
+			detail: { operationId: "patchFinancialInstitutionsReviewCatalogById" },
 			params: t.Object({ id: Id }),
 			response: InstitutionReturn,
 		},
@@ -114,6 +122,7 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 		},
 		{
 			body: t.Object({ profileId: t.Optional(Id), rules: t.Nullable(InstitutionCardRulesDTO) }),
+			detail: { operationId: "patchFinancialInstitutionsReviewCatalogByIdCardRules" },
 			params: t.Object({ id: Id }),
 			response: t.Object({ id: t.String() }),
 		},
@@ -125,6 +134,7 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 			consolidateLegacyInstitution(await requireAdmin(request), params.id, body.targetId),
 		{
 			body: t.Object({ targetId: t.Optional(Id) }),
+			detail: { operationId: "postFinancialInstitutionsReviewLegacyById" },
 			params: t.Object({ id: Id }),
 			response: t.Object({ accounts: t.Integer(), institutionId: t.String(), sourceId: t.String() }),
 		},
@@ -134,19 +144,29 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 		"/",
 		async ({ body, request }) =>
 			proposeInstitution(await requireUserId(request), null, "NEW_INSTITUTION", body, body.effectiveDate),
-		{ body: InstitutionBody, response: MutationReturn },
+		{ body: InstitutionBody, detail: { operationId: "postFinancialInstitutions" }, response: MutationReturn },
 	)
 	.patch(
 		"/:id",
 		async ({ body, params, request }) =>
 			proposeInstitution(await requireUserId(request), params.id, "INSTITUTION_UPDATE", { name: body.name }),
-		{ body: InstitutionNameBody, params: t.Object({ id: Id }), response: MutationReturn },
+		{
+			body: InstitutionNameBody,
+			detail: { operationId: "patchFinancialInstitutionsById" },
+			params: t.Object({ id: Id }),
+			response: MutationReturn,
+		},
 	)
 	.post(
 		"/:id/merge-proposal",
 		async ({ params, body, request }) =>
 			proposeInstitution(await requireUserId(request), params.id, "MERGE", body),
-		{ body: t.Object({ targetId: Id }), params: t.Object({ id: Id }), response: MutationReturn },
+		{
+			body: t.Object({ targetId: Id }),
+			detail: { operationId: "postFinancialInstitutionsByIdMergeProposal" },
+			params: t.Object({ id: Id }),
+			response: MutationReturn,
+		},
 	)
 	.get(
 		"/:id/profiles",
@@ -157,7 +177,11 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 				[params.id],
 			);
 		},
-		{ params: t.Object({ id: Id }), response: t.Array(ProfileReturn) },
+		{
+			detail: { operationId: "getFinancialInstitutionsByIdProfiles" },
+			params: t.Object({ id: Id }),
+			response: t.Array(ProfileReturn),
+		},
 	)
 	.post(
 		"/:id/profiles",
@@ -165,6 +189,7 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 			proposeInstitution(await requireAdmin(request), params.id, "PROFILE", body),
 		{
 			body: t.Object({ name: t.String({ maxLength: 100, minLength: 1 }) }),
+			detail: { operationId: "postFinancialInstitutionsByIdProfiles" },
 			params: t.Object({ id: Id }),
 			response: MutationReturn,
 		},
@@ -193,6 +218,7 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 				yieldTaxIds: t.Optional(t.Array(Id)),
 				yieldTaxRate: t.Optional(t.Nullable(t.Number({ maximum: 100, minimum: 0 }))),
 			}),
+			detail: { operationId: "postFinancialInstitutionsByIdPolicies" },
 			params: t.Object({ id: Id }),
 			response: MutationReturn,
 		},
@@ -207,7 +233,11 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 				[userId, params.id],
 			);
 		},
-		{ params: t.Object({ id: Id }), response: t.Array(ChangeReturn) },
+		{
+			detail: { operationId: "getFinancialInstitutionsByIdProfileHistory" },
+			params: t.Object({ id: Id }),
+			response: t.Array(ChangeReturn),
+		},
 	)
 	.post(
 		"/:id/profile-history",
@@ -254,6 +284,7 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 		},
 		{
 			body: t.Object({ effectiveDate: DateDTO, profileId: Id }),
+			detail: { operationId: "postFinancialInstitutionsByIdProfileHistory" },
 			params: t.Object({ id: Id }),
 			response: ChangeReturn,
 		},
@@ -275,7 +306,11 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 			});
 			return { success: true };
 		},
-		{ params: t.Object({ id: Id }), response: t.Object({ success: t.Boolean() }) },
+		{
+			detail: { operationId: "deleteFinancialInstitutionsById" },
+			params: t.Object({ id: Id }),
+			response: t.Object({ success: t.Boolean() }),
+		},
 	)
 	.get(
 		"/proposals",
@@ -284,7 +319,7 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 				`SELECT * FROM "FinancialInstitutionProposal" WHERE "authorId"=$1 ORDER BY "createdAt" DESC`,
 				[await requireUserId(request)],
 			),
-		{ response: t.Array(ProposalReturn) },
+		{ detail: { operationId: "getFinancialInstitutionsProposals" }, response: t.Array(ProposalReturn) },
 	)
 	.get(
 		"/review/pending-count",
@@ -295,7 +330,10 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 			);
 			return { count: row?.count ?? 0 };
 		},
-		{ response: t.Object({ count: t.Integer() }) },
+		{
+			detail: { operationId: "getFinancialInstitutionsReviewPendingCount" },
+			response: t.Object({ count: t.Integer() }),
+		},
 	)
 	.get(
 		"/review/merge-candidates",
@@ -305,7 +343,10 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 				`SELECT "normalizedName",json_agg(to_jsonb(i) ORDER BY "id") AS institutions FROM "FinancialInstitution" i GROUP BY "normalizedName" HAVING COUNT(*)>1 ORDER BY "normalizedName"`,
 			);
 		},
-		{ response: t.Array(t.Object({ institutions: t.Array(InstitutionReturn), normalizedName: t.String() })) },
+		{
+			detail: { operationId: "getFinancialInstitutionsReviewMergeCandidates" },
+			response: t.Array(t.Object({ institutions: t.Array(InstitutionReturn), normalizedName: t.String() })),
+		},
 	)
 	.get(
 		"/review/proposals",
@@ -316,6 +357,7 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 			);
 		},
 		{
+			detail: { operationId: "getFinancialInstitutionsReviewProposals" },
 			response: t.Array(
 				t.Object(
 					{ ...ProposalReturn.properties, name: t.Nullable(t.String()), version: t.Nullable(t.Number()) },
@@ -334,6 +376,7 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 			);
 		},
 		{
+			detail: { operationId: "getFinancialInstitutionsReviewProposalsByIdProfileHistory" },
 			params: t.Object({ id: Id }),
 			query: t.Object({ targetId: t.Optional(Id) }),
 			response: t.Array(
@@ -365,6 +408,7 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 				reason: t.Optional(t.String({ maxLength: 2000 })),
 				targetId: t.Optional(Id),
 			}),
+			detail: { operationId: "postFinancialInstitutionsReviewProposalsById" },
 			params: t.Object({ id: Id }),
 			response: t.Object({ id: t.String(), status: t.String() }),
 		},
@@ -375,7 +419,10 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 			queryRaw(`SELECT * FROM "AppNotification" WHERE "userId"=$1 ORDER BY "createdAt" DESC`, [
 				await requireUserId(request),
 			]),
-		{ response: t.Array(NotificationReturn) },
+		{
+			detail: { operationId: "getFinancialInstitutionsNotifications" },
+			response: t.Array(NotificationReturn),
+		},
 	)
 	.post(
 		"/notifications/:id/read",
@@ -386,5 +433,9 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 			]);
 			return { success: true };
 		},
-		{ params: t.Object({ id: Id }), response: t.Object({ success: t.Boolean() }) },
+		{
+			detail: { operationId: "postFinancialInstitutionsNotificationsByIdRead" },
+			params: t.Object({ id: Id }),
+			response: t.Object({ success: t.Boolean() }),
+		},
 	);

@@ -37,10 +37,18 @@ export const UpgradeController = new Elysia({ prefix: "/upgrades" })
 				[userId, JSON.stringify(body.ids)],
 			);
 		},
-		{ body: UpgradeRecurrenceQuery, response: UpgradeRecurrenceResult },
+		{
+			body: UpgradeRecurrenceQuery,
+			detail: { operationId: "postUpgradesRecurrenceIds" },
+			response: UpgradeRecurrenceResult,
+		},
 	)
 	.post(
 		"/debt-origins",
 		async ({ request, body }) => registerDebtUpgrade(await requireUserId(request), body),
-		{ body: UpgradeDebtBody, response: UpgradeDebtResult },
+		{
+			body: UpgradeDebtBody,
+			detail: { operationId: "postUpgradesDebtOrigins" },
+			response: UpgradeDebtResult,
+		},
 	);

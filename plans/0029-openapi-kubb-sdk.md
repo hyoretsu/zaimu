@@ -18,3 +18,9 @@ Entrega exclusivamente local; nenhum serviço externo pode ser alterado.
 - Inspeção inicial concluída. Plano ainda não existia no repositório.
 - Worktree isolada criada após autorização do sandbox para escrita no Git local.
 - Exportação/contratos, pipeline/transporte e Better Auth em implementação.
+
+- Exportação local cobre 189 operações e passou teste de reprodução com banco, Redis e RabbitMQ indisponíveis.
+- Normalização de respostas preserva números e datas JSON; multipart declarado nos controllers de importação.
+- SDK gera 840 arquivos; validação estrita OpenAPI habilitada antes da geração.
+- Transporte/invalidação: 13 testes passaram. Migração de sincronização e divergências de DTOs ainda pendentes.
+- Commits de implementação ainda em validação pelos hooks; nenhuma integração na branch original.

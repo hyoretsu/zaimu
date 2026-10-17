@@ -1329,5 +1329,5 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 				}),
 			);
 		},
-		{ body: SyncBody, detail: { tags: ["Sync"] }, response: SyncReturn },
+		{ body: SyncBody, detail: { operationId: "postSync", tags: ["Sync"] }, response: SyncReturn },
 	);

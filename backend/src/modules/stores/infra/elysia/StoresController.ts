@@ -41,7 +41,7 @@ export const StoresController = new Elysia({ prefix: "/stores" })
 			return cached.value;
 		},
 		{
-			detail: { tags: ["Stores"] },
+			detail: { operationId: "getStores", tags: ["Stores"] },
 			query: t.Object({
 				cursor: t.Optional(t.String()),
 				limit: t.Optional(t.Integer({ maximum: 100, minimum: 1 })),
@@ -65,6 +65,6 @@ export const StoresController = new Elysia({ prefix: "/stores" })
 		},
 		{
 			body: t.Object({ name: t.String({ maxLength: 200 }) }),
-			detail: { tags: ["Stores"] },
+			detail: { operationId: "postStores", tags: ["Stores"] },
 		},
 	);

@@ -34,7 +34,7 @@ export const CreditCardOverviewReturn = t.Object(
 		accountName: t.Nullable(t.String()),
 		cashbackAccountId: t.Nullable(t.String()),
 		cashbackRate: t.Nullable(t.Number()),
-		cashbackYieldPeriod: t.Nullable(t.String()),
+		cashbackYieldPeriod: t.Nullable(t.Union([t.Literal("MONTHLY"), t.Literal("YEARLY")])),
 		cashbackYieldReferencePercentage: t.Nullable(t.Number()),
 		cashbackYieldReferenceRate: t.Nullable(t.Number()),
 		creditLimit: t.Number(),

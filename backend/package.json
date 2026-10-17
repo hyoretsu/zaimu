@@ -22,7 +22,8 @@
 		"test:integration": "bun run ../scripts/test-runner.ts backend integration",
 		"performance:acceptance": "bun run performance/acceptance.ts",
 		"performance:matrix": "bun run performance/matrix.ts",
-		"performance:test": "bun test performance"
+		"performance:test": "bun test performance",
+		"export": "bun scripts/export-openapi.ts"
 	},
 	"dependencies": {
 		"@better-auth/core": "1.7.1",

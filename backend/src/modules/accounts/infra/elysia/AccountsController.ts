@@ -9,7 +9,10 @@ import {
 	saveAccountDefaults,
 	setPrimaryAccount,
 } from "~/modules/accounts/application/payment-preferences";
-import { recalculateHistoricalAccountYields } from "~/modules/accounts/application/recalculate-historical-account-yields";
+import {
+	HistoricalYieldCustomSettings,
+	recalculateHistoricalAccountYields,
+} from "~/modules/accounts/application/recalculate-historical-account-yields";
 import { resolveFinancialInstitution } from "~/modules/accounts/application/resolve-financial-institution";
 import {
 	scheduleFinancialAccountYieldRate,
@@ -123,15 +126,24 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 	.post(
 		"/:id/recalculate-yields",
 		async ({ body, params, request }) =>
-			recalculateHistoricalAccountYields(await requireUserId(request), params.id, body.profileId),
+			recalculateHistoricalAccountYields(
+				await requireUserId(request),
+				params.id,
+				body.profileId,
+				body.customSettings,
+			),
 		{
-			body: t.Object({ profileId: t.Optional(t.Nullable(Id)) }),
-			detail: { tags: ["Accounts"] },
+			body: t.Object({
+				customSettings: t.Optional(HistoricalYieldCustomSettings),
+				profileId: t.Optional(t.Nullable(Id)),
+			}),
+			detail: { operationId: "postFinancialAccountsByIdRecalculateYields", tags: ["Accounts"] },
 			params: t.Object({ id: Id }),
-			response: t.Object({ success: t.Boolean() }),
+			response: t.Object({ success: t.Literal(true) }),
 		},
 	)
 	.get("/primary", async ({ request }) => getPrimaryAccount(await requireUserId(request)), {
+		detail: { operationId: "getFinancialAccountsPrimary" },
 		response: t.Object({ financialAccountId: t.Nullable(Id) }),
 	})
 	.put(
@@ -139,6 +151,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 		async ({ body, request }) => setPrimaryAccount(await requireUserId(request), body.financialAccountId),
 		{
 			body: t.Object({ financialAccountId: t.Nullable(Id) }),
+			detail: { operationId: "putFinancialAccountsPrimary" },
 			response: t.Object({ financialAccountId: t.Nullable(Id) }),
 		},
 	)
@@ -193,7 +206,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 			return cached.value;
 		},
 		{
-			detail: { tags: ["Accounts"] },
+			detail: { operationId: "getFinancialAccounts", tags: ["Accounts"] },
 		},
 	)
 	.get(
@@ -340,7 +353,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 			return cached.value;
 		},
 		{
-			detail: { tags: ["Accounts"] },
+			detail: { operationId: "getFinancialAccountsById", tags: ["Accounts"] },
 			params: t.Object({
 				id: Id,
 			}),
@@ -620,7 +633,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 				),
 				yieldTaxRate: t.Optional(t.Nullable(t.Number({ maximum: 100, minimum: 0 }))),
 			}),
-			detail: { tags: ["Accounts"] },
+			detail: { operationId: "postFinancialAccounts", tags: ["Accounts"] },
 		},
 	)
 	.patch(
@@ -1095,7 +1108,7 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 				),
 				yieldTaxRate: t.Optional(t.Nullable(t.Number({ maximum: 100, minimum: 0 }))),
 			}),
-			detail: { tags: ["Accounts"] },
+			detail: { operationId: "patchFinancialAccountsById", tags: ["Accounts"] },
 			params: t.Object({
 				id: Id,
 			}),
@@ -1125,7 +1138,7 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 			return { success: true };
 		},
 		{
-			detail: { tags: ["Accounts"] },
+			detail: { operationId: "deleteFinancialAccountsById", tags: ["Accounts"] },
 			params: t.Object({
 				id: Id,
 			}),

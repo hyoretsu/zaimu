@@ -15,5 +15,8 @@ export type ReferenceRateAveragesReturn = typeof ReferenceRateAveragesReturn.sta
 export const ReferenceRateController = new Elysia({ prefix: "/reference-rates" }).get(
 	"/averages",
 	() => getReferenceRateAverages(),
-	{ detail: { tags: ["Reference rates"] }, response: ReferenceRateAveragesReturn },
+	{
+		detail: { operationId: "getReferenceRatesAverages", tags: ["Reference rates"] },
+		response: ReferenceRateAveragesReturn,
+	},
 );

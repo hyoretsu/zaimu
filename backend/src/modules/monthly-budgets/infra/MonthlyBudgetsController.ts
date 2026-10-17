@@ -13,7 +13,7 @@ import {
 const params = t.Object({ id: t.String({ maxLength: 36, minLength: 1 }) });
 export const MonthlyBudgetsController = new Elysia({ prefix: "/monthly-budgets" })
 	.get("/", async ({ request }) => listMonthlyBudgets(await requireUserId(request)), {
-		detail: { tags: ["MonthlyBudgets"] },
+		detail: { operationId: "getMonthlyBudgets", tags: ["MonthlyBudgets"] },
 		response: t.Array(MonthlyBudgetReturn),
 	})
 	.get(
@@ -27,23 +27,32 @@ export const MonthlyBudgetsController = new Elysia({ prefix: "/monthly-budgets" 
 			);
 		},
 		{
-			detail: { tags: ["MonthlyBudgets"] },
+			detail: { operationId: "getMonthlyBudgetsSummary", tags: ["MonthlyBudgets"] },
 			query: MonthlyBudgetSummaryQuery,
 			response: MonthlyBudgetSummaryReturn,
 		},
 	)
 	.post("/", async ({ request, body }) => saveMonthlyBudget(await requireUserId(request), body), {
 		body: MonthlyBudgetBody,
-		detail: { tags: ["MonthlyBudgets"] },
+		detail: { operationId: "postMonthlyBudgets", tags: ["MonthlyBudgets"] },
 		response: MonthlyBudgetReturn,
 	})
 	.put(
 		"/:id",
 		async ({ request, body, params }) => saveMonthlyBudget(await requireUserId(request), body, params.id),
-		{ body: MonthlyBudgetBody, detail: { tags: ["MonthlyBudgets"] }, params, response: MonthlyBudgetReturn },
+		{
+			body: MonthlyBudgetBody,
+			detail: { operationId: "putMonthlyBudgetsById", tags: ["MonthlyBudgets"] },
+			params,
+			response: MonthlyBudgetReturn,
+		},
 	)
 	.delete(
 		"/:id",
 		async ({ request, params }) => deleteMonthlyBudget(await requireUserId(request), params.id),
-		{ detail: { tags: ["MonthlyBudgets"] }, params, response: t.Object({ success: t.Boolean() }) },
+		{
+			detail: { operationId: "deleteMonthlyBudgetsById", tags: ["MonthlyBudgets"] },
+			params,
+			response: t.Object({ success: t.Boolean() }),
+		},
 	);

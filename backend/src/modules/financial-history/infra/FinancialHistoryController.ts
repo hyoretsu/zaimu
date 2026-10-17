@@ -68,7 +68,11 @@ export const FinancialHistoryController = new Elysia({ prefix: "/financial-histo
 			const [user] = await queryRaw<{ role: string }>(`SELECT "role" FROM "user" WHERE "id"=$1`, [userId]);
 			return getFinancialCoverage(userId, user?.role === "ADMIN", query.startDate, query.endDate);
 		},
-		{ query: FinancialCoverageQuery, response: FinancialCoverageReturn },
+		{
+			detail: { operationId: "getFinancialHistoryCoverage" },
+			query: FinancialCoverageQuery,
+			response: FinancialCoverageReturn,
+		},
 	)
 	.get(
 		"/admin/coverage",
@@ -78,6 +82,7 @@ export const FinancialHistoryController = new Elysia({ prefix: "/financial-histo
 			return getHistoryCoverage(query.startDate, query.endDate, query.kind, query.series);
 		},
 		{
+			detail: { operationId: "getFinancialHistoryAdminCoverage" },
 			query: t.Object({
 				endDate: t.Optional(t.String({ format: "date" })),
 				kind: t.Optional(t.Union([t.Literal("CURRENCY"), t.Literal("INTEREST")])),
@@ -113,10 +118,14 @@ export const FinancialHistoryController = new Elysia({ prefix: "/financial-histo
 				series: t.String(),
 				startDate: t.String({ format: "date" }),
 			}),
+			detail: { operationId: "postFinancialHistoryAdminCoverageComplete" },
 			response: t.Nullable(HistoryCollectionReturn),
 		},
 	)
-	.get("/currencies", () => supportedCurrencies(), { response: t.Array(t.String()) })
+	.get("/currencies", () => supportedCurrencies(), {
+		detail: { operationId: "getFinancialHistoryCurrencies" },
+		response: t.Array(t.String()),
+	})
 	.get(
 		"/rate",
 		async ({ query }) => {
@@ -138,6 +147,7 @@ export const FinancialHistoryController = new Elysia({ prefix: "/financial-histo
 			};
 		},
 		{
+			detail: { operationId: "getFinancialHistoryRate" },
 			query: t.Object({
 				date: t.Union([t.Literal("latest"), t.String({ format: "date" })]),
 				from: t.String({ pattern: "^[A-Z]{3}$" }),
@@ -162,6 +172,7 @@ export const FinancialHistoryController = new Elysia({ prefix: "/financial-histo
 				referenceDate: t.Optional(t.String({ pattern: "^\\d{4}-\\d{2}-\\d{2}$" })),
 				series: t.Array(t.String(), { maxItems: 20, minItems: 1 }),
 			}),
+			detail: { operationId: "postFinancialHistoryCollections" },
 			response: t.Nullable(HistoryCollectionReturn),
 		},
 	)
@@ -169,6 +180,7 @@ export const FinancialHistoryController = new Elysia({ prefix: "/financial-histo
 		"/collections/:id/estimate",
 		({ params, query }) => getCurrencyHistoryEstimate(params.id, query.currency),
 		{
+			detail: { operationId: "getFinancialHistoryCollectionsByIdEstimate" },
 			params: t.Object({ id: t.String({ format: "uuid" }) }),
 			query: t.Object({ currency: t.String({ pattern: "^[A-Z]{3}$" }) }),
 			response: t.Nullable(
@@ -193,10 +205,12 @@ export const FinancialHistoryController = new Elysia({ prefix: "/financial-histo
 		},
 	)
 	.get("/collections/:id", ({ params }) => getHistoryCollection(params.id), {
+		detail: { operationId: "getFinancialHistoryCollectionsById" },
 		params: t.Object({ id: t.String({ format: "uuid" }) }),
 		response: t.Nullable(HistoryCollectionReturn),
 	})
 	.post("/collections/:id/retry", ({ params }) => retryHistoryCollection(params.id), {
+		detail: { operationId: "postFinancialHistoryCollectionsByIdRetry" },
 		params: t.Object({ id: t.String({ format: "uuid" }) }),
 		response: t.Nullable(HistoryCollectionReturn),
 	});

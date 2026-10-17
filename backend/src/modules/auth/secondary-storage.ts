@@ -23,9 +23,15 @@ export class AuthSecondaryStorage {
 	private readonly completedFences = new Set<string>();
 	private cleanupTimer: ReturnType<typeof setTimeout> | undefined;
 	private readonly cleanupBudget = new RedisBudget();
-	readonly client: RedisClient;
-	constructor(url = process.env.REDIS_URL) {
-		this.client = new RedisClient(url, { autoReconnect: true, connectionTimeout: 100 });
+	private redisClient?: RedisClient;
+	constructor(private readonly url = process.env.REDIS_URL) {}
+	get client(): RedisClient {
+		if (!this.redisClient)
+			this.redisClient = new RedisClient(this.url, {
+				autoReconnect: true,
+				connectionTimeout: 100,
+			});
+		return this.redisClient;
 	}
 	private key(key: string) {
 		const secret = process.env.BETTER_AUTH_SECRET;

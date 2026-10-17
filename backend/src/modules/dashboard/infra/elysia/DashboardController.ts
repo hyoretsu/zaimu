@@ -387,7 +387,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" })
 			return cached.value;
 		},
 		{
-			detail: { tags: ["Dashboard"] },
+			detail: { operationId: "getDashboard", tags: ["Dashboard"] },
 			query: t.Object({ endDate: DateQuery, startDate: DateQuery }),
 			response: { 200: DashboardReturn, 304: t.Null() },
 		},

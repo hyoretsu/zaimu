@@ -1,6 +1,7 @@
 {
 	"backend:e2e": ["backend/tests/database.e2e.test.ts"],
 	"backend:integration": [
+		"backend/scripts/tests/export-openapi.test.ts",
 		"backend/src/modules/accounts/tests/cashback-reversals.integration.test.ts",
 		"backend/src/modules/accounts/tests/universal-institutions.integration.test.ts",
 		"backend/src/modules/auth/secondary-storage.test.ts",
@@ -135,6 +136,8 @@
 		"backend/src/shared/infra/cache/worker-cache-write.test.ts",
 		"backend/src/shared/infra/elysia/data-consistency.test.ts",
 		"backend/src/shared/infra/elysia/mutation-transaction.test.ts",
+		"backend/src/shared/infra/elysia/operation-id.test.ts",
+		"backend/src/shared/infra/elysia/serialized-response.test.ts",
 		"backend/src/shared/infra/outbox/OutboxPublisher.test.ts",
 		"backend/src/shared/infra/performance/job-metrics.test.ts",
 		"backend/src/shared/infra/service-namespace.test.ts"

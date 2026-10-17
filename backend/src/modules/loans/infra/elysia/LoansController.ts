@@ -206,7 +206,7 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 			return cached.value;
 		},
 		{
-			detail: { tags: ["Loans"] },
+			detail: { operationId: "getLoans", tags: ["Loans"] },
 			query: t.Object({}),
 		},
 	)
@@ -245,7 +245,7 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 			return cached.value;
 		},
 		{
-			detail: { tags: ["Loans"] },
+			detail: { operationId: "getLoansById", tags: ["Loans"] },
 			params: t.Object({
 				id: t.String({ maxLength: 36, minLength: 1 }),
 			}),
@@ -306,7 +306,7 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 			return cached.value;
 		},
 		{
-			detail: { tags: ["Loans"] },
+			detail: { operationId: "getLoansByIdPayments", tags: ["Loans"] },
 			params: t.Object({ id: t.String({ maxLength: 36, minLength: 1 }) }),
 			query: t.Object({
 				cursor: t.Optional(t.String()),
@@ -370,7 +370,7 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 			};
 		},
 		{
-			detail: { tags: ["Loans"] },
+			detail: { operationId: "getLoansByIdEarlyPayoff", tags: ["Loans"] },
 			params: t.Object({
 				id: t.String({ maxLength: 36, minLength: 1 }),
 			}),
@@ -451,7 +451,7 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 				startDate: t.String(),
 				totalInstallments: t.Integer({ maximum: 1200, minimum: 1 }),
 			}),
-			detail: { tags: ["Loans"] },
+			detail: { operationId: "postLoans", tags: ["Loans"] },
 		},
 	)
 	.get(
@@ -486,6 +486,7 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 			};
 		},
 		{
+			detail: { operationId: "getLoansByIdNextPayment" },
 			params: t.Object({ id: t.String({ maxLength: 36, minLength: 1 }) }),
 			query: t.Object({ advanceType: t.Optional(AdvanceType) }),
 			response: t.Nullable(LoanPaymentReturn),
@@ -573,7 +574,7 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 				isAdvanced: t.Optional(t.Boolean()),
 				paidDate: t.Optional(t.String()),
 			}),
-			detail: { tags: ["Loans"] },
+			detail: { operationId: "postLoansByIdPaymentsByInstallmentNumberPay", tags: ["Loans"] },
 			params: t.Object({
 				id: t.String({ maxLength: 36, minLength: 1 }),
 				installmentNumber: t.String(),
@@ -681,7 +682,7 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 				installmentsToAdvance: t.Integer({ maximum: 1200, minimum: 1 }),
 				paidDate: t.Optional(t.String()),
 			}),
-			detail: { tags: ["Loans"] },
+			detail: { operationId: "postLoansByIdAdvance", tags: ["Loans"] },
 			params: t.Object({
 				id: t.String({ maxLength: 36, minLength: 1 }),
 			}),
@@ -740,7 +741,7 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 			return cached.value;
 		},
 		{
-			detail: { tags: ["Loans"] },
+			detail: { operationId: "getLoansByIdHistory", tags: ["Loans"] },
 			params: t.Object({
 				id: t.String({ maxLength: 36, minLength: 1 }),
 			}),

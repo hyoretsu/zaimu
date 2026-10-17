@@ -132,6 +132,7 @@ const UpdatePurchaseBody = t.Object({
 });
 export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 	.get("/payment-suggestions", async ({ request }) => getPaymentSuggestions(await requireUserId(request)), {
+		detail: { operationId: "getCreditCardsPaymentSuggestions" },
 		response: t.Array(PaymentSuggestionReturn),
 	})
 	.put(
@@ -145,6 +146,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			),
 		{
 			body: t.Object({ paymentAccountId: t.Nullable(t.String()), paymentSuggestionsEnabled: t.Boolean() }),
+			detail: { operationId: "putCreditCardsByIdPayer" },
 			response: t.Object({
 				paymentAccountId: t.Nullable(t.String()),
 				paymentSuggestionsEnabled: t.Boolean(),
@@ -155,7 +157,11 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 		"/:id/payment-suggestions/confirm",
 		async ({ params, body, request }) =>
 			confirmSuggestedPayment(await requireUserId(request), params.id, body),
-		{ body: ConfirmPaymentSuggestionDTO, response: ConfirmPaymentSuggestionReturn },
+		{
+			body: ConfirmPaymentSuggestionDTO,
+			detail: { operationId: "postCreditCardsByIdPaymentSuggestionsConfirm" },
+			response: ConfirmPaymentSuggestionReturn,
+		},
 	)
 
 	.onTransform(({ body }) => {
@@ -229,12 +235,16 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					byCard.set(statement.creditCardId, items);
 				}
 				const managedRules = await cardRulesByAccount(cards.map(card => card.financialAccountId));
-				return cards.map(card => {
+				return cards.map((card): typeof CreditCardOverviewReturn.static => {
 					const effectiveStatements = byCard.get(card.id) ?? [];
 					const currentStatement = paymentStatement(effectiveStatements, new Date()) ?? null;
+					const resolvedCard = { ...card, ...managedRules.get(card.financialAccountId) };
+					const period = resolvedCard.cashbackYieldPeriod;
+					if (period !== null && period !== "MONTHLY" && period !== "YEARLY")
+						throw new HttpException("Período de rendimento inválido", 500);
 					return {
-						...card,
-						...managedRules.get(card.financialAccountId),
+						...resolvedCard,
+						cashbackYieldPeriod: period,
 						currentStatement,
 						limit: creditLimitOverview(Number(card.creditLimit), card.currency, effectiveStatements),
 						pendingRefundReviewCount: countsByCard.get(card.id) ?? 0,
@@ -250,7 +260,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			return cached.value;
 		},
 		{
-			detail: { tags: ["Credit Cards"] },
+			detail: { operationId: "getCreditCards", tags: ["Credit Cards"] },
 			response: { 200: t.Array(CreditCardOverviewReturn), 304: t.Null() },
 		},
 	)
@@ -301,7 +311,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			return { ...card, ...cardRuleValues(await accountCardRules(card.financialAccountId)) };
 		},
 		{
-			detail: { tags: ["Credit Cards"] },
+			detail: { operationId: "getCreditCardsById", tags: ["Credit Cards"] },
 			params: t.Object({
 				id: t.String({ maxLength: 36, minLength: 1 }),
 			}),
@@ -341,16 +351,21 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			body: t.Object({
 				statementDate: t.Nullable(t.String({ pattern: "^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$" })),
 			}),
+			detail: { operationId: "patchCreditCardsByIdStatementCutoff" },
 			params: t.Object({ id: t.String({ maxLength: 36, minLength: 1 }) }),
 		},
 	)
-	.get("/:id/refund-reviews", async ({ params, request }) => {
-		const userId = await requireUserId(request);
-		return queryRaw<{ id: string; original: Record<string, unknown> }>(
-			`SELECT r."id", archive."original" FROM "CreditEntryReference" r JOIN "CreditRefundReview" archive ON archive."id"=r."id" WHERE r."requiresRefundReview" AND archive."approvedAt" IS NULL AND archive."creditCardId"=$1 AND archive."userId"=$2 ORDER BY archive."createdAt"`,
-			[params.id, userId],
-		);
-	})
+	.get(
+		"/:id/refund-reviews",
+		async ({ params, request }) => {
+			const userId = await requireUserId(request);
+			return queryRaw<{ id: string; original: Record<string, unknown> }>(
+				`SELECT r."id", archive."original" FROM "CreditEntryReference" r JOIN "CreditRefundReview" archive ON archive."id"=r."id" WHERE r."requiresRefundReview" AND archive."approvedAt" IS NULL AND archive."creditCardId"=$1 AND archive."userId"=$2 ORDER BY archive."createdAt"`,
+				[params.id, userId],
+			);
+		},
+		{ detail: { operationId: "getCreditCardsByIdRefundReviews" } },
+	)
 	.post(
 		"/:id/refund-reviews/:reviewId/approve",
 		async ({ params, body, request }) => {
@@ -418,6 +433,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				),
 				purchaseId: t.Optional(t.String()),
 			}),
+			detail: { operationId: "postCreditCardsByIdRefundReviewsByReviewIdApprove" },
 		},
 	)
 	.get(
@@ -479,7 +495,10 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 			}
 			return cached.value;
 		},
-		{ response: t.Union([CreditPurchaseEditReturn, t.Null()]) },
+		{
+			detail: { operationId: "getCreditCardsByIdPurchasesByPurchaseId" },
+			response: t.Union([CreditPurchaseEditReturn, t.Null()]),
+		},
 	)
 	.get(
 		"/:id/book",
@@ -495,7 +514,7 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 			};
 			return response;
 		},
-		{ response: CreditBookDTO },
+		{ detail: { operationId: "getCreditCardsByIdBook" }, response: CreditBookDTO },
 	)
 	.get(
 		"/:id/statements",
@@ -545,6 +564,7 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 			return cached.value;
 		},
 		{
+			detail: { operationId: "getCreditCardsByIdStatements" },
 			query: t.Object({
 				cursor: t.Optional(t.String()),
 				isPaid: t.Optional(t.Boolean()),
@@ -569,6 +589,7 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 					t.Object({ dueDate: t.String({ format: "date" }), statementDate: t.String({ format: "date" }) }),
 				),
 			}),
+			detail: { operationId: "patchCreditCardsByIdStatementsByStatementIdAmount" },
 			response: t.Object({ success: t.Boolean() }),
 		},
 	)
@@ -586,54 +607,64 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 		},
 		{
 			body: t.Object({ dueDate: t.String(), statementDate: t.String() }),
+			detail: { operationId: "patchCreditCardsByIdStatementsByStatementId" },
 			response: t.Object({ success: t.Boolean() }),
 		},
 	)
 
-	.get("/:id/statements/:statementId", async ({ params, request, set }) => {
-		const userId = await requireUserId(request);
-		const cached = await distributedCache.remember(
-			userId,
-			`credit-cards:${params.id}:statements`,
-			{ kind: "detail", statementId: params.statementId },
-			async () => {
-				const book = await projectRecurringCreditBook(await readCreditBook(userId, params.id, false));
-				const statements = replayCreditBook(book).statements;
-				const statement = statements.find(s => s.id === params.statementId);
-				if (!statement) throw new HttpException("Fatura não encontrada", 404);
-				const paymentIds = book.payments
-					.filter(payment => paymentStatement(statements, new Date(payment.date))?.id === statement.id)
-					.map(payment => payment.id);
-				const paymentRows = paymentIds.length
-					? await queryRaw<{
-							id: string;
-							amount: number;
-							date: Date;
-							time: string | null;
-							description: string | null;
-						}>(
-							`SELECT "id","amount","date","time","description" FROM "Transaction" WHERE "paymentCreditCardId"=$1 AND "userId"=$2 AND "id"=ANY($3::varchar[])`,
-							[params.id, book.card.userId, paymentIds],
-						)
-					: [];
-				return {
-					...statement,
-					payments: paymentRows
-						.filter(p => paymentStatement(statements, p.date)?.id === statement.id)
-						.map(p => ({ ...p, amount: Number(p.amount), paymentCreditCardId: params.id, type: "EXPENSE" })),
-					purchases: await presentCreditBook(book, statement.id),
-					totalAmount: Number(statement.totalAmount) + statement.chargesAmount,
-				};
-			},
-		);
-		set.headers.etag = cached.etag;
-		set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
-		if (request.headers.get("if-none-match") === cached.etag) {
-			set.status = 304;
-			return null;
-		}
-		return cached.value;
-	})
+	.get(
+		"/:id/statements/:statementId",
+		async ({ params, request, set }) => {
+			const userId = await requireUserId(request);
+			const cached = await distributedCache.remember(
+				userId,
+				`credit-cards:${params.id}:statements`,
+				{ kind: "detail", statementId: params.statementId },
+				async () => {
+					const book = await projectRecurringCreditBook(await readCreditBook(userId, params.id, false));
+					const statements = replayCreditBook(book).statements;
+					const statement = statements.find(s => s.id === params.statementId);
+					if (!statement) throw new HttpException("Fatura não encontrada", 404);
+					const paymentIds = book.payments
+						.filter(payment => paymentStatement(statements, new Date(payment.date))?.id === statement.id)
+						.map(payment => payment.id);
+					const paymentRows = paymentIds.length
+						? await queryRaw<{
+								id: string;
+								amount: number;
+								date: Date;
+								time: string | null;
+								description: string | null;
+							}>(
+								`SELECT "id","amount","date","time","description" FROM "Transaction" WHERE "paymentCreditCardId"=$1 AND "userId"=$2 AND "id"=ANY($3::varchar[])`,
+								[params.id, book.card.userId, paymentIds],
+							)
+						: [];
+					return {
+						...statement,
+						payments: paymentRows
+							.filter(p => paymentStatement(statements, p.date)?.id === statement.id)
+							.map(p => ({
+								...p,
+								amount: Number(p.amount),
+								paymentCreditCardId: params.id,
+								type: "EXPENSE",
+							})),
+						purchases: await presentCreditBook(book, statement.id),
+						totalAmount: Number(statement.totalAmount) + statement.chargesAmount,
+					};
+				},
+			);
+			set.headers.etag = cached.etag;
+			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+			if (request.headers.get("if-none-match") === cached.etag) {
+				set.status = 304;
+				return null;
+			}
+			return cached.value;
+		},
+		{ detail: { operationId: "getCreditCardsByIdStatementsByStatementId" } },
+	)
 	.post(
 		"/:id/purchases",
 		async ({ params, body, request }) => {
@@ -727,7 +758,7 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 				await presentCreditBook(await readCreditBook(userId, params.id, false), undefined, createdId)
 			).filter(row => row.purchaseId === createdId || row.id === createdId);
 		},
-		{ body: CreatePurchaseBody },
+		{ body: CreatePurchaseBody, detail: { operationId: "postCreditCardsByIdPurchases" } },
 	)
 	.post(
 		"/:id/purchases/:purchaseId/refunds",
@@ -755,6 +786,7 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 				policy: t.Optional(RefundPolicyDTO),
 				purchaseDate: t.Optional(t.String({ format: "date" })),
 			}),
+			detail: { operationId: "postCreditCardsByIdPurchasesByPurchaseIdRefunds" },
 		},
 	)
 	.patch(
@@ -782,15 +814,20 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 				),
 				purchaseDate: t.Optional(t.String({ format: "date" })),
 			}),
+			detail: { operationId: "patchCreditCardsByIdPurchasesByPurchaseIdRefundsByRefundId" },
 		},
 	)
-	.delete("/:id/purchases/:purchaseId/refunds/:refundId", async ({ params, request }) => {
-		await deleteNormalizedRefund(
-			{ cardId: params.id, purchaseId: params.purchaseId, userId: await requireUserId(request) },
-			params.refundId,
-		);
-		return { success: true };
-	})
+	.delete(
+		"/:id/purchases/:purchaseId/refunds/:refundId",
+		async ({ params, request }) => {
+			await deleteNormalizedRefund(
+				{ cardId: params.id, purchaseId: params.purchaseId, userId: await requireUserId(request) },
+				params.refundId,
+			);
+			return { success: true };
+		},
+		{ detail: { operationId: "deleteCreditCardsByIdPurchasesByPurchaseIdRefundsByRefundId" } },
+	)
 	.patch(
 		"/:id/purchases/:purchaseId",
 		async ({ params, body, request }) => {
@@ -947,24 +984,28 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 				)
 			).find(row => row.id === params.purchaseId || row.purchaseId === params.purchaseId);
 		},
-		{ body: UpdatePurchaseBody },
+		{ body: UpdatePurchaseBody, detail: { operationId: "patchCreditCardsByIdPurchasesByPurchaseId" } },
 	)
-	.delete("/:id/purchases/:purchaseId", async ({ params, request }) => {
-		await mutateCreditBook(await requireUserId(request), params.id, book => {
-			const refund = book.refunds.find(r => r.id === params.purchaseId);
-			if (refund) {
-				removeBookRefund(book, refund.purchaseId, refund.id);
-				return;
-			}
-			const charge = book.charges.find(ch => ch.id === params.purchaseId);
-			if (charge) {
-				book.charges = book.charges.filter(ch => ch.id !== charge.id);
-				return;
-			}
-			removeBookPurchase(book, params.purchaseId);
-		});
-		return { success: true };
-	})
+	.delete(
+		"/:id/purchases/:purchaseId",
+		async ({ params, request }) => {
+			await mutateCreditBook(await requireUserId(request), params.id, book => {
+				const refund = book.refunds.find(r => r.id === params.purchaseId);
+				if (refund) {
+					removeBookRefund(book, refund.purchaseId, refund.id);
+					return;
+				}
+				const charge = book.charges.find(ch => ch.id === params.purchaseId);
+				if (charge) {
+					book.charges = book.charges.filter(ch => ch.id !== charge.id);
+					return;
+				}
+				removeBookPurchase(book, params.purchaseId);
+			});
+			return { success: true };
+		},
+		{ detail: { operationId: "deleteCreditCardsByIdPurchasesByPurchaseId" } },
+	)
 	.post(
 		"/:id/purchases/:purchaseId/refinance",
 		async ({ params, body, request }) => {
@@ -1001,6 +1042,7 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 				time: t.Optional(t.Nullable(t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" }))),
 				totalAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
 			}),
+			detail: { operationId: "postCreditCardsByIdPurchasesByPurchaseIdRefinance" },
 		},
 	)
 	.post(
@@ -1052,7 +1094,7 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 				financialAccountId: t.String({ maxLength: 36, minLength: 1 }),
 				time: t.Optional(t.Nullable(t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" }))),
 			}),
-			detail: { tags: ["Credit Cards"] },
+			detail: { operationId: "postCreditCardsByIdPayments", tags: ["Credit Cards"] },
 			params: t.Object({ id: t.String({ maxLength: 36, minLength: 1 }) }),
 		},
 	)
@@ -1078,7 +1120,7 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 			return history;
 		},
 		{
-			detail: { tags: ["Credit Cards"] },
+			detail: { operationId: "getCreditCardsByIdHistory", tags: ["Credit Cards"] },
 			params: t.Object({
 				id: t.String({ maxLength: 36, minLength: 1 }),
 			}),

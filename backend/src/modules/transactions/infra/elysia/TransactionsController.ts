@@ -179,94 +179,102 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			return { success: true };
 		},
 		{
+			detail: { operationId: "postTransactionsByIdTransferSuggestionsByCounterpartIdAccept" },
 			params: t.Object({
 				counterpartId: t.String({ maxLength: 36, minLength: 1 }),
 				id: t.String({ maxLength: 36, minLength: 1 }),
 			}),
 		},
 	)
-	.get("/transfer-suggestions", async ({ request, set }) => {
-		const userId = await requireUserId(request);
-		const cached = await distributedCache.remember(
-			userId,
-			"transactions:list",
-			{ view: "transfer-suggestions" },
-			async () => {
-				const [transactions, rejections] = await Promise.all([
-					queryRows(
-						db.sql.public.Transaction.innerJoin(db.sql.public.FinancialAccount, (fields, functions) =>
-							functions.or(
-								functions.and(
-									functions.eq(fields.Transaction.type, "EXPENSE"),
-									functions.eq(fields.Transaction.originFinancialAccountId, fields.FinancialAccount.id),
-								),
-								functions.and(
-									functions.eq(fields.Transaction.type, "INCOME"),
-									functions.eq(fields.Transaction.destinationFinancialAccountId, fields.FinancialAccount.id),
-								),
-							),
-						)
-							.outerLeftJoin(db.sql.public.FinancialInstitution, (fields, functions) =>
-								functions.eq(fields.FinancialAccount.institutionId, fields.FinancialInstitution.id),
-							)
-							.select((fields, functions) => ({
-								accountName:
-									functions.raw`COALESCE(${fields.FinancialAccount.name}, ${fields.FinancialInstitution.name})`.returns(
-										"sql/varchar@1",
+	.get(
+		"/transfer-suggestions",
+		async ({ request, set }) => {
+			const userId = await requireUserId(request);
+			const cached = await distributedCache.remember(
+				userId,
+				"transactions:list",
+				{ view: "transfer-suggestions" },
+				async () => {
+					const [transactions, rejections] = await Promise.all([
+						queryRows(
+							db.sql.public.Transaction.innerJoin(db.sql.public.FinancialAccount, (fields, functions) =>
+								functions.or(
+									functions.and(
+										functions.eq(fields.Transaction.type, "EXPENSE"),
+										functions.eq(fields.Transaction.originFinancialAccountId, fields.FinancialAccount.id),
 									),
-								accountType: fields.FinancialAccount.type,
-								amount: fields.Transaction.amount,
-								createdAt: fields.Transaction.createdAt,
-								date: fields.Transaction.date,
-								description: fields.Transaction.description,
-								destinationFinancialAccountId: fields.Transaction.destinationFinancialAccountId,
-								id: fields.Transaction.id,
-								isHidden: fields.Transaction.isHidden,
-								originFinancialAccountId: fields.Transaction.originFinancialAccountId,
-								storeName: fields.Transaction.storeName,
-								time: fields.Transaction.time,
-								type: fields.Transaction.type,
-							}))
-							.where((fields, functions) =>
-								functions.and(
-									functions.eq(fields.FinancialAccount.userId, userId),
-									functions.raw`${fields.Transaction.time} IS NOT NULL`.returns("pg/bool@1"),
+									functions.and(
+										functions.eq(fields.Transaction.type, "INCOME"),
+										functions.eq(
+											fields.Transaction.destinationFinancialAccountId,
+											fields.FinancialAccount.id,
+										),
+									),
 								),
 							)
-							.build(),
-					),
-					queryRows(
-						db.sql.public.TransactionTransferSuggestionRejection.select(
-							"firstTransactionId",
-							"secondTransactionId",
-						)
-							.where((fields, functions) => functions.eq(fields.userId, userId))
-							.build(),
-					),
-				]);
-				const rejectedPairs = new Set(
-					rejections.map(rejection => `${rejection.firstTransactionId}:${rejection.secondTransactionId}`),
-				);
-				const candidates = transactions.map(transaction => ({
-					...transaction,
-					amount: Number(transaction.amount),
-					destinationAccountType: transaction.type === "INCOME" ? transaction.accountType : null,
-					destinationName: transaction.type === "INCOME" ? transaction.accountName : null,
-					originAccountType: transaction.type === "EXPENSE" ? transaction.accountType : null,
-					originName: transaction.type === "EXPENSE" ? transaction.accountName : null,
-					source: "FINANCIAL_ACCOUNT" as const,
-				}));
-				return transferCandidatePairs(candidates, rejectedPairs);
-			},
-		);
-		set.headers.etag = cached.etag;
-		set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
-		if (request.headers.get("if-none-match") === cached.etag) {
-			set.status = 304;
-			return undefined;
-		}
-		return cached.value;
-	})
+								.outerLeftJoin(db.sql.public.FinancialInstitution, (fields, functions) =>
+									functions.eq(fields.FinancialAccount.institutionId, fields.FinancialInstitution.id),
+								)
+								.select((fields, functions) => ({
+									accountName:
+										functions.raw`COALESCE(${fields.FinancialAccount.name}, ${fields.FinancialInstitution.name})`.returns(
+											"sql/varchar@1",
+										),
+									accountType: fields.FinancialAccount.type,
+									amount: fields.Transaction.amount,
+									createdAt: fields.Transaction.createdAt,
+									date: fields.Transaction.date,
+									description: fields.Transaction.description,
+									destinationFinancialAccountId: fields.Transaction.destinationFinancialAccountId,
+									id: fields.Transaction.id,
+									isHidden: fields.Transaction.isHidden,
+									originFinancialAccountId: fields.Transaction.originFinancialAccountId,
+									storeName: fields.Transaction.storeName,
+									time: fields.Transaction.time,
+									type: fields.Transaction.type,
+								}))
+								.where((fields, functions) =>
+									functions.and(
+										functions.eq(fields.FinancialAccount.userId, userId),
+										functions.raw`${fields.Transaction.time} IS NOT NULL`.returns("pg/bool@1"),
+									),
+								)
+								.build(),
+						),
+						queryRows(
+							db.sql.public.TransactionTransferSuggestionRejection.select(
+								"firstTransactionId",
+								"secondTransactionId",
+							)
+								.where((fields, functions) => functions.eq(fields.userId, userId))
+								.build(),
+						),
+					]);
+					const rejectedPairs = new Set(
+						rejections.map(rejection => `${rejection.firstTransactionId}:${rejection.secondTransactionId}`),
+					);
+					const candidates = transactions.map(transaction => ({
+						...transaction,
+						amount: Number(transaction.amount),
+						destinationAccountType: transaction.type === "INCOME" ? transaction.accountType : null,
+						destinationName: transaction.type === "INCOME" ? transaction.accountName : null,
+						originAccountType: transaction.type === "EXPENSE" ? transaction.accountType : null,
+						originName: transaction.type === "EXPENSE" ? transaction.accountName : null,
+						source: "FINANCIAL_ACCOUNT" as const,
+					}));
+					return transferCandidatePairs(candidates, rejectedPairs);
+				},
+			);
+			set.headers.etag = cached.etag;
+			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+			if (request.headers.get("if-none-match") === cached.etag) {
+				set.status = 304;
+				return undefined;
+			}
+			return cached.value;
+		},
+		{ detail: { operationId: "getTransactionsTransferSuggestions" } },
+	)
 	.post(
 		"/:id/transfer-suggestions/:counterpartId/reject",
 		async ({ params, request }) => {
@@ -313,6 +321,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			return { success: true };
 		},
 		{
+			detail: { operationId: "postTransactionsByIdTransferSuggestionsByCounterpartIdReject" },
 			params: t.Object({
 				counterpartId: t.String({ maxLength: 36, minLength: 1 }),
 				id: t.String({ maxLength: 36, minLength: 1 }),
@@ -343,7 +352,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			return cached.value;
 		},
 		{
-			detail: { tags: ["Transactions"] },
+			detail: { operationId: "getTransactions", tags: ["Transactions"] },
 			query: t.Object({
 				categoryId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				cursor: t.Optional(t.String({ maxLength: 2048, minLength: 1 })),
@@ -401,7 +410,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			return cached.value;
 		},
 		{
-			detail: { tags: ["Transactions"] },
+			detail: { operationId: "getTransactionsById", tags: ["Transactions"] },
 			params: t.Object({
 				id: t.String({ maxLength: 36, minLength: 1 }),
 			}),
@@ -429,7 +438,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			return history;
 		},
 		{
-			detail: { tags: ["Transactions"] },
+			detail: { operationId: "getTransactionsByIdHistory", tags: ["Transactions"] },
 			params: t.Object({
 				id: t.String({ maxLength: 36, minLength: 1 }),
 			}),
@@ -566,7 +575,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 								conversionSource: sides.conversionSource,
 								currency: money.currency,
 								date: new Date(body.date),
-								description: body.description,
+								description: body.description ?? undefined,
 								destinationAmount: sides.destinationAmount == null ? null : String(sides.destinationAmount),
 								destinationCurrency: sides.destinationCurrency,
 								destinationFinancialAccountId: body.destinationFinancialAccountId,
@@ -616,7 +625,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						money.bookingCurrency,
 						ensureCurrencyRates,
 					),
-					description: body.description,
+					description: body.description ?? undefined,
 					matchEventId: body.matchDebtEventId,
 					transactionId: transaction.id,
 					type: body.type ?? "EXPENSE",
@@ -654,7 +663,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				currency: t.Optional(CurrencyDTO),
 				date: t.String(),
 				debtSplit: t.Optional(DebtSplitInputDTO),
-				description: t.Optional(t.String({ maxLength: 1000 })),
+				description: t.Optional(t.Nullable(t.String({ maxLength: 1000 }))),
 				destinationAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
 				destinationFinancialAccountId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				feeAmount: t.Optional(t.Number({ minimum: 0 })),
@@ -672,7 +681,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				time: t.Optional(t.Nullable(t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" }))),
 				type: t.Optional(TransactionType),
 			}),
-			detail: { tags: ["Transactions"] },
+			detail: { operationId: "postTransactions", tags: ["Transactions"] },
 		},
 	)
 	.patch(
@@ -941,7 +950,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				currency: t.Optional(CurrencyDTO),
 				date: t.Optional(t.String()),
 				debtSplit: t.Optional(t.Nullable(DebtSplitInputDTO)),
-				description: t.Optional(t.String({ maxLength: 1000 })),
+				description: t.Optional(t.Nullable(t.String({ maxLength: 1000 }))),
 				destinationAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
 				destinationFinancialAccountId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 				feeAmount: t.Optional(t.Number({ minimum: 0 })),
@@ -957,7 +966,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				time: t.Optional(t.Nullable(t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" }))),
 				type: t.Optional(TransactionType),
 			}),
-			detail: { tags: ["Transactions"] },
+			detail: { operationId: "patchTransactionsById", tags: ["Transactions"] },
 			params: t.Object({
 				id: t.String({ maxLength: 36, minLength: 1 }),
 			}),
@@ -1001,7 +1010,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			return { success: true };
 		},
 		{
-			detail: { tags: ["Transactions"] },
+			detail: { operationId: "deleteTransactionsById", tags: ["Transactions"] },
 			params: t.Object({
 				id: t.String({ maxLength: 36, minLength: 1 }),
 			}),

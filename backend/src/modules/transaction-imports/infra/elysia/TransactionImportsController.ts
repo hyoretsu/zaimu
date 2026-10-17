@@ -623,31 +623,35 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 	.onTransform(({ body }) => {
 		rejectLegacyFinancialFields(body);
 	})
-	.get("/", async ({ request, set }) => {
-		const userId = await requireUserId(request);
-		const cached = await distributedCache.remember(
-			userId,
-			"imports:pending",
-			{ domain: "transaction-imports" },
-			() =>
-				queryRaw<{ id: string; fileName: string; pendingItemCount: number } & Record<string, unknown>>(
-					`SELECT import."id", import."fileName", count(item."id")::integer AS "pendingItemCount"
+	.get(
+		"/",
+		async ({ request, set }) => {
+			const userId = await requireUserId(request);
+			const cached = await distributedCache.remember(
+				userId,
+				"imports:pending",
+				{ domain: "transaction-imports" },
+				() =>
+					queryRaw<{ id: string; fileName: string; pendingItemCount: number } & Record<string, unknown>>(
+						`SELECT import."id", import."fileName", count(item."id")::integer AS "pendingItemCount"
 			 FROM "TransactionImport" import
 			 LEFT JOIN "TransactionImportItem" item ON item."transactionImportId" = import."id"
 			 WHERE import."userId" = $1 AND import."status" = 'PENDING'
 			 GROUP BY import."id", import."fileName", import."createdAt"
 			 ORDER BY import."createdAt" DESC`,
-					[userId],
-				),
-		);
-		set.headers.etag = cached.etag;
-		set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
-		if (request.headers.get("if-none-match") === cached.etag) {
-			set.status = 304;
-			return null;
-		}
-		return cached.value;
-	})
+						[userId],
+					),
+			);
+			set.headers.etag = cached.etag;
+			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+			if (request.headers.get("if-none-match") === cached.etag) {
+				set.status = 304;
+				return null;
+			}
+			return cached.value;
+		},
+		{ detail: { operationId: "getTransactionImports" } },
+	)
 	.get(
 		"/:id",
 		async ({ params, query, request, set }) => {
@@ -667,6 +671,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			return cached.value;
 		},
 		{
+			detail: { operationId: "getTransactionImportsById" },
 			params: t.Object({ id: t.String({ maxLength: 36, minLength: 1 }) }),
 			query: t.Object({
 				cursor: t.Optional(t.String({ maxLength: 2048, minLength: 1 })),
@@ -771,6 +776,8 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					t.Literal("PICPAY"),
 				]),
 			}),
+			detail: { operationId: "postTransactionImports" },
+			parse: "multipart/form-data",
 		},
 	)
 	.patch(
@@ -873,7 +880,11 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				});
 			return getImportReturn(userId, transactionImport.id);
 		},
-		{ body: TransactionImportItemUpdateDTO, params: t.Object({ id: t.String(), itemId: t.String() }) },
+		{
+			body: TransactionImportItemUpdateDTO,
+			detail: { operationId: "patchTransactionImportsByIdItemsByItemId" },
+			params: t.Object({ id: t.String(), itemId: t.String() }),
+		},
 	)
 	.post(
 		"/:id/items/:itemId/transfer-suggestions/:counterpartItemId/accept",
@@ -945,7 +956,12 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			});
 			return { removedImportId: transactionImport.id, success: true };
 		},
-		{ params: t.Object({ counterpartItemId: t.String(), id: t.String(), itemId: t.String() }) },
+		{
+			detail: {
+				operationId: "postTransactionImportsByIdItemsByItemIdTransferSuggestionsByCounterpartItemIdAccept",
+			},
+			params: t.Object({ counterpartItemId: t.String(), id: t.String(), itemId: t.String() }),
+		},
 	)
 	.post(
 		"/:id/items/:itemId/transfer-suggestions/:counterpartItemId/reject",
@@ -983,7 +999,12 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			);
 			return { success: true };
 		},
-		{ params: t.Object({ counterpartItemId: t.String(), id: t.String(), itemId: t.String() }) },
+		{
+			detail: {
+				operationId: "postTransactionImportsByIdItemsByItemIdTransferSuggestionsByCounterpartItemIdReject",
+			},
+			params: t.Object({ counterpartItemId: t.String(), id: t.String(), itemId: t.String() }),
+		},
 	)
 	.post(
 		"/:id/items/:itemId/approve",
@@ -1086,7 +1107,10 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			);
 			return { created: 1, finished: result.finished };
 		},
-		{ params: t.Object({ id: t.String(), itemId: t.String() }) },
+		{
+			detail: { operationId: "postTransactionImportsByIdItemsByItemIdApprove" },
+			params: t.Object({ id: t.String(), itemId: t.String() }),
+		},
 	)
 	.post(
 		"/:id/days/:date/approve",
@@ -1208,6 +1232,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			return { created: approvableItems.length, finished: importedTransactions.finished };
 		},
 		{
+			detail: { operationId: "postTransactionImportsByIdDaysByDateApprove" },
 			params: t.Object({
 				date: t.String({ pattern: "^\\d{4}-\\d{2}-\\d{2}$" }),
 				id: t.String(),
@@ -1337,6 +1362,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 		},
 		{
 			body: TransactionImportItemReconcileDTO,
+			detail: { operationId: "postTransactionImportsByIdItemsByItemIdReconcile" },
 			params: t.Object({ id: t.String(), itemId: t.String() }),
 		},
 	)
@@ -1455,7 +1481,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			);
 			return { created: approvableItems.length, finished: importedTransactions.finished };
 		},
-		{ params: t.Object({ id: t.String() }) },
+		{ detail: { operationId: "postTransactionImportsByIdApprove" }, params: t.Object({ id: t.String() }) },
 	)
 	.delete(
 		"/:id",
@@ -1476,5 +1502,5 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			);
 			return { success: true };
 		},
-		{ params: t.Object({ id: t.String() }) },
+		{ detail: { operationId: "deleteTransactionImportsById" }, params: t.Object({ id: t.String() }) },
 	);

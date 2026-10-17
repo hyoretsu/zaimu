@@ -94,9 +94,15 @@ export class RedisCache implements CachePort {
 		this.scheduleCleanup();
 		return accepted;
 	}
-	readonly client: RedisClient;
-	constructor(url = process.env.REDIS_URL) {
-		this.client = new RedisClient(url, { autoReconnect: true, connectionTimeout: 2_000 });
+	private redisClient?: RedisClient;
+	constructor(private readonly url = process.env.REDIS_URL) {}
+	get client(): RedisClient {
+		if (!this.redisClient)
+			this.redisClient = new RedisClient(this.url, {
+				autoReconnect: true,
+				connectionTimeout: 2_000,
+			});
+		return this.redisClient;
 	}
 	async beginFence(key: string, token: string, leaseMs: number) {
 		await this.client.send("EVAL", [

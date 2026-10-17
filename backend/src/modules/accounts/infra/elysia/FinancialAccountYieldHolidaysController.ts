@@ -5,15 +5,27 @@ import { HttpException } from "~/shared/errors";
 export const FinancialAccountYieldHolidaysController = new Elysia({
 	prefix: "/financial-account-yield-holidays",
 })
-	.get("/", async ({ request }) => {
-		await requireUserId(request);
-		return loadCurrencyHolidayRows();
-	})
-	.post("/", async ({ request }) => {
-		await requireUserId(request);
-		throw new HttpException("Use o calendário administrativo para gerenciar feriados", 403);
-	})
-	.delete("/:id", async ({ request }) => {
-		await requireUserId(request);
-		throw new HttpException("Use o calendário administrativo para gerenciar feriados", 403);
-	});
+	.get(
+		"/",
+		async ({ request }) => {
+			await requireUserId(request);
+			return loadCurrencyHolidayRows();
+		},
+		{ detail: { operationId: "getFinancialAccountYieldHolidays" } },
+	)
+	.post(
+		"/",
+		async ({ request }) => {
+			await requireUserId(request);
+			throw new HttpException("Use o calendário administrativo para gerenciar feriados", 403);
+		},
+		{ detail: { operationId: "postFinancialAccountYieldHolidays" } },
+	)
+	.delete(
+		"/:id",
+		async ({ request }) => {
+			await requireUserId(request);
+			throw new HttpException("Use o calendário administrativo para gerenciar feriados", 403);
+		},
+		{ detail: { operationId: "deleteFinancialAccountYieldHolidaysById" } },
+	);

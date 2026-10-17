@@ -16,7 +16,7 @@ export const CurrencyPreferencesController = new Elysia({ prefix: "/currency-pre
 			if (!user) throw new Error("Usuário indisponível");
 			return user;
 		},
-		{ response: CurrencyPreferenceReturn },
+		{ detail: { operationId: "getCurrencyPreferences" }, response: CurrencyPreferenceReturn },
 	)
 	.patch(
 		"/",
@@ -35,6 +35,7 @@ export const CurrencyPreferencesController = new Elysia({ prefix: "/currency-pre
 		},
 		{
 			body: t.Object({ preferredCurrency: t.Nullable(t.String({ pattern: "^[A-Za-z]{3}$" })) }),
+			detail: { operationId: "patchCurrencyPreferences" },
 			response: CurrencyPreferenceReturn,
 		},
 	);

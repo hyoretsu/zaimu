@@ -282,7 +282,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
 			return cached.value;
 		},
-		{ detail: { tags: ["Debts"] }, response: DebtLedgerReturn },
+		{ detail: { operationId: "getDebts", tags: ["Debts"] }, response: DebtLedgerReturn },
 	)
 	.get(
 		"/people/:id/events",
@@ -300,7 +300,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 			return cached.value;
 		},
 		{
-			detail: { tags: ["Debts"] },
+			detail: { operationId: "getDebtsPeopleByIdEvents", tags: ["Debts"] },
 			params: PersonIdParams,
 			query: t.Object({
 				cursor: t.Optional(t.String()),
@@ -315,7 +315,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 			const userId = await requireUserId(request);
 			return getPeopleLedger(userId);
 		},
-		{ detail: { tags: ["Debts"] }, response: DebtSummaryReturn },
+		{ detail: { operationId: "getDebtsSummary", tags: ["Debts"] }, response: DebtSummaryReturn },
 	)
 	.get(
 		"/invitations",
@@ -357,7 +357,10 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 				status: invitation.status as DebtConnectionState,
 			}));
 		},
-		{ detail: { tags: ["Debts"] }, response: t.Array(DebtInvitationReturn) },
+		{
+			detail: { operationId: "getDebtsInvitations", tags: ["Debts"] },
+			response: t.Array(DebtInvitationReturn),
+		},
 	)
 	.get(
 		"/invitations/:id/preview",
@@ -395,7 +398,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 			return cached.value;
 		},
 		{
-			detail: { tags: ["Debts"] },
+			detail: { operationId: "getDebtsInvitationsByIdPreview", tags: ["Debts"] },
 			params: PersonIdParams,
 			query: t.Object({
 				cursor: t.Optional(t.String()),
@@ -413,7 +416,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 		},
 		{
 			body: t.Object({ name: t.String({ maxLength: 100, minLength: 1 }) }),
-			detail: { tags: ["Debts"] },
+			detail: { operationId: "postDebtsPeople", tags: ["Debts"] },
 			response: DebtPersonReturn,
 		},
 	)
@@ -441,7 +444,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 				accountEmail: t.Optional(t.Union([t.String({ format: "email", maxLength: 320 }), t.Null()])),
 				name: t.String({ maxLength: 100, minLength: 1 }),
 			}),
-			detail: { tags: ["Debts"] },
+			detail: { operationId: "patchDebtsPeopleById", tags: ["Debts"] },
 			params: PersonIdParams,
 			response: DebtSuccessReturn,
 		},
@@ -523,7 +526,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 		},
 		{
 			body: t.Object({ email: t.String({ format: "email", maxLength: 320 }) }),
-			detail: { tags: ["Debts"] },
+			detail: { operationId: "postDebtsPeopleByIdInvite", tags: ["Debts"] },
 			params: PersonIdParams,
 			response: DebtConnectionReturn,
 		},
@@ -586,7 +589,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 		},
 		{
 			body: t.Object({ personId: t.Optional(t.String({ maxLength: 36, minLength: 1 })) }),
-			detail: { tags: ["Debts"] },
+			detail: { operationId: "postDebtsInvitationsByIdAccept", tags: ["Debts"] },
 			params: PersonIdParams,
 			response: DebtSuccessReturn,
 		},
@@ -610,7 +613,11 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 			if (!updated) throw new HttpException("Convite não encontrado", 404);
 			return { success: true };
 		},
-		{ detail: { tags: ["Debts"] }, params: PersonIdParams, response: DebtSuccessReturn },
+		{
+			detail: { operationId: "postDebtsInvitationsByIdDecline", tags: ["Debts"] },
+			params: PersonIdParams,
+			response: DebtSuccessReturn,
+		},
 	)
 	.post(
 		"/events",
@@ -660,7 +667,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 				isOwedToMe: t.Boolean(),
 				personId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 			}),
-			detail: { tags: ["Debts"] },
+			detail: { operationId: "postDebtsEvents", tags: ["Debts"] },
 			response: DebtMutationEventsReturn,
 		},
 	)
@@ -693,7 +700,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 				isOwedToMe: t.Optional(t.Boolean()),
 				personName: t.String({ maxLength: 100, minLength: 1 }),
 			}),
-			detail: { tags: ["Debts"] },
+			detail: { operationId: "postDebts", tags: ["Debts"] },
 			response: DebtMutationEventReturn,
 		},
 	)
@@ -743,7 +750,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 				isOwedToMe: t.Optional(t.Boolean()),
 				personId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 			}),
-			detail: { tags: ["Debts"] },
+			detail: { operationId: "patchDebtsEventsByEventId", tags: ["Debts"] },
 			params: EventIdParams,
 			response: DebtMutationEventReturn,
 		},
@@ -760,7 +767,11 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 			);
 			return { success: true };
 		},
-		{ detail: { tags: ["Debts"] }, params: PersonIdParams, response: DebtSuccessReturn },
+		{
+			detail: { operationId: "deleteDebtsPeopleById", tags: ["Debts"] },
+			params: PersonIdParams,
+			response: DebtSuccessReturn,
+		},
 	)
 	.delete(
 		"/events/:eventId",
@@ -776,5 +787,9 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 			);
 			return { success: true };
 		},
-		{ detail: { tags: ["Debts"] }, params: EventIdParams, response: DebtSuccessReturn },
+		{
+			detail: { operationId: "deleteDebtsEventsByEventId", tags: ["Debts"] },
+			params: EventIdParams,
+			response: DebtSuccessReturn,
+		},
 	);

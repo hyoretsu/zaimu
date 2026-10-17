@@ -62,7 +62,7 @@ export const BalanceAdjustmentsController = new Elysia({ prefix: "/balance-adjus
 				})),
 			);
 		},
-		{ detail: { tags: ["Accounts"] } },
+		{ detail: { operationId: "getBalanceAdjustments", tags: ["Accounts"] } },
 	)
 	.post(
 		"/",
@@ -93,7 +93,7 @@ export const BalanceAdjustmentsController = new Elysia({ prefix: "/balance-adjus
 			);
 			return adjustment;
 		},
-		{ body: AdjustmentBody, detail: { tags: ["Accounts"] } },
+		{ body: AdjustmentBody, detail: { operationId: "postBalanceAdjustments", tags: ["Accounts"] } },
 	)
 	.patch(
 		"/:id",
@@ -131,7 +131,11 @@ export const BalanceAdjustmentsController = new Elysia({ prefix: "/balance-adjus
 			);
 			return adjustment;
 		},
-		{ body: AdjustmentBody, detail: { tags: ["Accounts"] }, params: t.Object({ id: t.String() }) },
+		{
+			body: AdjustmentBody,
+			detail: { operationId: "patchBalanceAdjustmentsById", tags: ["Accounts"] },
+			params: t.Object({ id: t.String() }),
+		},
 	)
 	.delete(
 		"/:id",
@@ -149,5 +153,8 @@ export const BalanceAdjustmentsController = new Elysia({ prefix: "/balance-adjus
 			);
 			return { success: true };
 		},
-		{ detail: { tags: ["Accounts"] }, params: t.Object({ id: t.String() }) },
+		{
+			detail: { operationId: "deleteBalanceAdjustmentsById", tags: ["Accounts"] },
+			params: t.Object({ id: t.String() }),
+		},
 	);

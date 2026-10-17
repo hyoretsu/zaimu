@@ -41,7 +41,7 @@ export const CategoriesController = new Elysia({ prefix: "/categories" })
 			return cached.value;
 		},
 		{
-			detail: { tags: ["Categories"] },
+			detail: { operationId: "getCategories", tags: ["Categories"] },
 			query: t.Object({
 				cursor: t.Optional(t.String()),
 				limit: t.Optional(t.Integer({ maximum: 100, minimum: 1 })),
@@ -78,7 +78,7 @@ export const CategoriesController = new Elysia({ prefix: "/categories" })
 			return cached.value;
 		},
 		{
-			detail: { tags: ["Categories"] },
+			detail: { operationId: "getCategoriesLookup", tags: ["Categories"] },
 			query: t.Object({ ids: t.String({ maxLength: 40000 }) }),
 			response: t.Array(CategorySummaryReturn),
 		},
@@ -126,7 +126,7 @@ export const CategoriesController = new Elysia({ prefix: "/categories" })
 			return cached.value;
 		},
 		{
-			detail: { tags: ["Categories"] },
+			detail: { operationId: "getCategoriesById", tags: ["Categories"] },
 			params: t.Object({
 				id: t.String({ maxLength: 36, minLength: 1 }),
 			}),
@@ -173,7 +173,7 @@ export const CategoriesController = new Elysia({ prefix: "/categories" })
 				name: t.String({ maxLength: 50 }),
 				parentId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 			}),
-			detail: { tags: ["Categories"] },
+			detail: { operationId: "postCategories", tags: ["Categories"] },
 		},
 	)
 	.patch(
@@ -215,7 +215,7 @@ export const CategoriesController = new Elysia({ prefix: "/categories" })
 				name: t.Optional(t.String({ maxLength: 50 })),
 				parentId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 			}),
-			detail: { tags: ["Categories"] },
+			detail: { operationId: "patchCategoriesById", tags: ["Categories"] },
 			params: t.Object({
 				id: t.String({ maxLength: 36, minLength: 1 }),
 			}),
@@ -245,7 +245,7 @@ export const CategoriesController = new Elysia({ prefix: "/categories" })
 			return { success: true };
 		},
 		{
-			detail: { tags: ["Categories"] },
+			detail: { operationId: "deleteCategoriesById", tags: ["Categories"] },
 			params: t.Object({
 				id: t.String({ maxLength: 36, minLength: 1 }),
 			}),

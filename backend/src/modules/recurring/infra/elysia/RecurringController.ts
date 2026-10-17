@@ -51,7 +51,11 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 			}
 			return cached.value;
 		},
-		{ query: t.Object({ isActive: t.Optional(t.Boolean()) }), response: t.Array(RecurrenceSummaryReturn) },
+		{
+			detail: { operationId: "getRecurring" },
+			query: t.Object({ isActive: t.Optional(t.Boolean()) }),
+			response: t.Array(RecurrenceSummaryReturn),
+		},
 	)
 	.get(
 		"/:id",
@@ -71,10 +75,11 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 			}
 			return cached.value;
 		},
-		{ params, response: RecurrenceReturn },
+		{ detail: { operationId: "getRecurringById" }, params, response: RecurrenceReturn },
 	)
 	.post("/", async ({ request, body }) => saveRecurrence(await requireUserId(request), body), {
 		body: RecurrenceBody,
+		detail: { operationId: "postRecurring" },
 		response: RecurrenceReturn,
 	})
 	.patch(
@@ -82,6 +87,7 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 		async ({ request, params, body }) => saveRecurrence(await requireUserId(request), body, params.id),
 		{
 			body: UpdateRecurrenceBody,
+			detail: { operationId: "patchRecurringById" },
 			params,
 			response: RecurrenceReturn,
 		},
@@ -91,6 +97,7 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 		async ({ request, params, query }) =>
 			deleteRecurrence(await requireUserId(request), params.id, query.deleteTransactions),
 		{
+			detail: { operationId: "deleteRecurringById" },
 			params,
 			query: t.Object({ deleteTransactions: t.Optional(t.Boolean()) }),
 			response: RecurrenceSuccessReturn,
@@ -109,7 +116,12 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 			}
 			return cached.value;
 		},
-		{ params, query: RecurrenceHistoryQuery, response: RecurrenceHistoryReturn },
+		{
+			detail: { operationId: "getRecurringByIdHistory" },
+			params,
+			query: RecurrenceHistoryQuery,
+			response: RecurrenceHistoryReturn,
+		},
 	)
 	.post(
 		"/:id/advance",
@@ -122,12 +134,22 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 				body,
 			),
 		}),
-		{ body: AdvanceRecurrenceBody, params, response: AdvanceRecurrenceReturn },
+		{
+			body: AdvanceRecurrenceBody,
+			detail: { operationId: "postRecurringByIdAdvance" },
+			params,
+			response: AdvanceRecurrenceReturn,
+		},
 	)
 	.post(
 		"/:id/replay",
 		async ({ request, params, body }) => ({
 			created: await materializeRecurrence(await requireUserId(request), params.id, body.through, body),
 		}),
-		{ body: ReplayRecurrenceBody, params, response: ReplayRecurrenceReturn },
+		{
+			body: ReplayRecurrenceBody,
+			detail: { operationId: "postRecurringByIdReplay" },
+			params,
+			response: ReplayRecurrenceReturn,
+		},
 	);

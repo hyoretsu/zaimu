@@ -62,31 +62,35 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 	.onTransform(({ body }) => {
 		rejectLegacyFinancialFields(body);
 	})
-	.get("/", async ({ request, set }) => {
-		const userId = await requireUserId(request);
-		const cached = await distributedCache.remember(
-			userId,
-			"imports:pending",
-			{ domain: "credit-card-imports" },
-			() =>
-				queryRaw<{ id: string; fileName: string; pendingItemCount: number } & Record<string, unknown>>(
-					`SELECT import."id", import."fileName", count(item."id")::integer AS "pendingItemCount"
+	.get(
+		"/",
+		async ({ request, set }) => {
+			const userId = await requireUserId(request);
+			const cached = await distributedCache.remember(
+				userId,
+				"imports:pending",
+				{ domain: "credit-card-imports" },
+				() =>
+					queryRaw<{ id: string; fileName: string; pendingItemCount: number } & Record<string, unknown>>(
+						`SELECT import."id", import."fileName", count(item."id")::integer AS "pendingItemCount"
 			 FROM "CreditCardImport" import
 			 LEFT JOIN "CreditCardImportItem" item ON item."creditCardImportId" = import."id"
 			 WHERE import."userId" = $1 AND import."status" = 'PENDING'
 			 GROUP BY import."id", import."fileName", import."createdAt"
 			 ORDER BY import."createdAt" DESC`,
-					[userId],
-				),
-		);
-		set.headers.etag = cached.etag;
-		set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
-		if (request.headers.get("if-none-match") === cached.etag) {
-			set.status = 304;
-			return null;
-		}
-		return cached.value;
-	})
+						[userId],
+					),
+			);
+			set.headers.etag = cached.etag;
+			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+			if (request.headers.get("if-none-match") === cached.etag) {
+				set.status = 304;
+				return null;
+			}
+			return cached.value;
+		},
+		{ detail: { operationId: "getCreditCardImports" } },
+	)
 	.get(
 		"/:id",
 		async ({ params, query, request, set }) => {
@@ -106,6 +110,7 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 			return cached.value;
 		},
 		{
+			detail: { operationId: "getCreditCardImportsById" },
 			params: t.Object({ id: t.String({ maxLength: 36, minLength: 1 }) }),
 			query: t.Object({
 				cursor: t.Optional(t.String({ maxLength: 2048, minLength: 1 })),
@@ -273,6 +278,8 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 					t.Literal("PICPAY"),
 				]),
 			}),
+			detail: { operationId: "postCreditCardImports" },
+			parse: "multipart/form-data",
 		},
 	)
 	.patch(
@@ -394,7 +401,11 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 				});
 			return getImportReturn(userId, params.id);
 		},
-		{ body: CreditCardImportItemUpdateDTO, params: t.Object({ id: t.String(), itemId: t.String() }) },
+		{
+			body: CreditCardImportItemUpdateDTO,
+			detail: { operationId: "patchCreditCardImportsByIdItemsByItemId" },
+			params: t.Object({ id: t.String(), itemId: t.String() }),
+		},
 	)
 	.post(
 		"/:id/items/:itemId/reconcile",
@@ -486,53 +497,67 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 		},
 		{
 			body: CreditCardImportItemReconcileDTO,
+			detail: { operationId: "postCreditCardImportsByIdItemsByItemIdReconcile" },
 			params: t.Object({ id: t.String(), itemId: t.String() }),
 		},
 	)
-	.post("/:id/items/:itemId/approve", async ({ params, request }) =>
-		approveItems(await requireUserId(request), params.id, params.itemId),
+	.post(
+		"/:id/items/:itemId/approve",
+		async ({ params, request }) => approveItems(await requireUserId(request), params.id, params.itemId),
+		{ detail: { operationId: "postCreditCardImportsByIdItemsByItemIdApprove" } },
 	)
 	.post(
 		"/:id/approve",
 		async ({ params, request, body }) =>
 			approveItems(await requireUserId(request), params.id, undefined, body?.includeUnmatched ?? true),
-		{ body: t.Optional(t.Object({ includeUnmatched: t.Optional(t.Boolean()) })) },
+		{
+			body: t.Optional(t.Object({ includeUnmatched: t.Optional(t.Boolean()) })),
+			detail: { operationId: "postCreditCardImportsByIdApprove" },
+		},
 	)
-	.delete("/:id", async ({ params, request }) => {
-		const userId = await requireUserId(request);
-		const creditCardImport = await getImport(userId, params.id);
-		if (creditCardImport.status !== "PENDING") throw new HttpException("Importação já finalizada", 400);
-		const items = await queryRows(
-			db.sql.public.CreditCardImportItem.select("id")
-				.where((fields, functions) => functions.eq(fields.creditCardImportId, creditCardImport.id))
-				.build(),
-		);
-		await cleanupItemTags(items.map(item => item.id));
-		await executeStatement(
-			db.sql.public.CreditCardImport.delete()
-				.where((fields, functions) => functions.eq(fields.id, creditCardImport.id))
-				.build(),
-		);
-		return { success: true };
-	})
-	.get("/:id/refund-sources", async ({ params, request }) => {
-		const userId = await requireUserId(request);
-		const imported = await getImport(userId, params.id);
-		const book = await readCreditBook(userId, imported.creditCardId);
-		return book.purchases.map(p => ({
-			description: p.description,
-			id: p.id,
-			installments: p.installmentAmountsCents.length,
-			purchaseDate: p.purchaseDate,
-			refundableAmount:
-				(p.totalAmountCents -
-					book.refunds
-						.filter(r => r.purchaseId === p.id && !r.deletedAt)
-						.reduce((sum, r) => sum + r.amountCents, 0)) /
-				100,
-			totalAmount: p.totalAmountCents / 100,
-		}));
-	})
+	.delete(
+		"/:id",
+		async ({ params, request }) => {
+			const userId = await requireUserId(request);
+			const creditCardImport = await getImport(userId, params.id);
+			if (creditCardImport.status !== "PENDING") throw new HttpException("Importação já finalizada", 400);
+			const items = await queryRows(
+				db.sql.public.CreditCardImportItem.select("id")
+					.where((fields, functions) => functions.eq(fields.creditCardImportId, creditCardImport.id))
+					.build(),
+			);
+			await cleanupItemTags(items.map(item => item.id));
+			await executeStatement(
+				db.sql.public.CreditCardImport.delete()
+					.where((fields, functions) => functions.eq(fields.id, creditCardImport.id))
+					.build(),
+			);
+			return { success: true };
+		},
+		{ detail: { operationId: "deleteCreditCardImportsById" } },
+	)
+	.get(
+		"/:id/refund-sources",
+		async ({ params, request }) => {
+			const userId = await requireUserId(request);
+			const imported = await getImport(userId, params.id);
+			const book = await readCreditBook(userId, imported.creditCardId);
+			return book.purchases.map(p => ({
+				description: p.description,
+				id: p.id,
+				installments: p.installmentAmountsCents.length,
+				purchaseDate: p.purchaseDate,
+				refundableAmount:
+					(p.totalAmountCents -
+						book.refunds
+							.filter(r => r.purchaseId === p.id && !r.deletedAt)
+							.reduce((sum, r) => sum + r.amountCents, 0)) /
+					100,
+				totalAmount: p.totalAmountCents / 100,
+			}));
+		},
+		{ detail: { operationId: "getCreditCardImportsByIdRefundSources" } },
+	)
 	.post(
 		"/:id/items/:itemId/approve-refund",
 		async ({ params, body, request }) => {
@@ -607,5 +632,6 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 				),
 				purchaseId: t.Optional(t.String()),
 			}),
+			detail: { operationId: "postCreditCardImportsByIdItemsByItemIdApproveRefund" },
 		},
 	);

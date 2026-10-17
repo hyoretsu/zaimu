@@ -13,6 +13,7 @@ export const CurrenciesController = new Elysia({ prefix: "/currencies" }).get(
 		return { date, from, rate: await getCurrencyRate(date, from, to), to };
 	},
 	{
+		detail: { operationId: "getCurrenciesRates" },
 		query: t.Object({
 			date: t.String({ pattern: "^\\d{4}-\\d{2}-\\d{2}$" }),
 			from: t.String({ maxLength: 3, minLength: 3 }),

@@ -178,7 +178,7 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 			return cached.value;
 		},
 		{
-			detail: { tags: ["Accounts"] },
+			detail: { operationId: "getFinancialAccountYields", tags: ["Accounts"] },
 			query: t.Object({
 				cursor: t.Optional(t.String()),
 				endDate: t.Optional(DateKey),
@@ -278,7 +278,7 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 				kind: YieldKind,
 				time: t.Optional(YieldTime),
 			}),
-			detail: { tags: ["Accounts"] },
+			detail: { operationId: "postFinancialAccountYields", tags: ["Accounts"] },
 		},
 	)
 	.patch(
@@ -327,7 +327,7 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 				isHidden: t.Optional(t.Boolean()),
 				time: t.Optional(YieldTime),
 			}),
-			detail: { tags: ["Accounts"] },
+			detail: { operationId: "patchFinancialAccountYieldsById", tags: ["Accounts"] },
 			params: t.Object({ id: Id }),
 		},
 	)
@@ -355,5 +355,8 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 			);
 			return { success: true };
 		},
-		{ detail: { tags: ["Accounts"] }, params: t.Object({ id: Id }) },
+		{
+			detail: { operationId: "deleteFinancialAccountYieldsById", tags: ["Accounts"] },
+			params: t.Object({ id: Id }),
+		},
 	);

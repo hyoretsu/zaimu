@@ -89,6 +89,6 @@ export async function recalculateHistoricalAccountYields(
 		if (referenceTypes.length && collectionWindow)
 			await requestHistoryCollection("INTEREST", referenceTypes, throughDate, undefined, collectionWindow);
 		await enqueueAccountYieldRecalculation(accountId, account.createdAt, `historical:${crypto.randomUUID()}`);
-		return { success: true };
+		return { success: true as const };
 	});
 }
