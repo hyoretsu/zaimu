@@ -27,7 +27,7 @@ export const YieldReturn = t.Object({
 	isExcluded: t.Boolean(),
 	isHidden: t.Boolean(),
 	kind: YieldKind,
-	origin: t.String(),
+	origin: t.Union([t.Literal("SYSTEM"), t.Literal("USER")]),
 	time: YieldTime,
 });
 const YieldPageReturn = t.Object({
@@ -76,12 +76,17 @@ export function serializeYield(yieldEntry: {
 	kind: string;
 	origin: string;
 	time: null | string;
-}) {
+}): typeof YieldReturn.static {
+	if (yieldEntry.origin !== "SYSTEM" && yieldEntry.origin !== "USER")
+		throw new Error(`Invalid yield origin: ${yieldEntry.origin}`);
+	if (yieldEntry.kind !== "AUTOMATIC" && yieldEntry.kind !== "MANUAL")
+		throw new Error(`Invalid yield kind: ${yieldEntry.kind}`);
 	return {
 		...yieldEntry,
 		amount: yieldEntry.amount === null ? null : Number(yieldEntry.amount),
 		date: yieldEntry.date.toISOString(),
-		kind: yieldEntry.kind as "AUTOMATIC" | "MANUAL",
+		kind: yieldEntry.kind,
+		origin: yieldEntry.origin,
 		time: yieldEntry.time?.slice(0, 5) ?? null,
 	};
 }

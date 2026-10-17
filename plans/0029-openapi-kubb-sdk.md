@@ -24,3 +24,8 @@ Entrega exclusivamente local; nenhum serviço externo pode ser alterado.
 - SDK gera 840 arquivos; validação estrita OpenAPI habilitada antes da geração.
 - Transporte/invalidação: 13 testes passaram. Migração de sincronização e divergências de DTOs ainda pendentes.
 - Commits de implementação ainda em validação pelos hooks; nenhuma integração na branch original.
+
+- Commit backend `f0bc6625` concluído com hooks normais.
+- Revalidação: 6 testes de contratos/exportação e 21 testes frontend passaram.
+- Invalidação distingue moeda explícita de IDs de registros; tags geradas associadas às queries existentes.
+- Build frontend em validação; sincronização concreta, cache Turbo e integração continuam pendentes.
