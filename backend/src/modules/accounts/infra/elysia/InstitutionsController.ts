@@ -14,6 +14,7 @@ import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/appl
 import { requireAdmin } from "~/modules/taxes/admin-access";
 import { createEventEnvelope } from "~/shared/application/events";
 import { HttpException } from "~/shared/errors";
+import { FinancialInstitutionYieldPolicyReturn } from "~/shared/infra/elysia/transport-contracts";
 import { PostgresOutbox } from "~/shared/infra/outbox";
 import { queryRaw, withRawTransaction } from "~/shared/infra/sql";
 import { configureInstitutionCardRules } from "../../application/institution-card-rules";
@@ -45,7 +46,12 @@ const ProposalReturn = t.Object(
 		id: t.String(),
 		institutionId: t.Nullable(t.String()),
 		kind: t.String(),
-		payload: t.Record(t.String(), t.Unknown()),
+		payload: t.Object({
+			...InstitutionBody.properties,
+			...t.Partial(FinancialInstitutionYieldPolicyReturn).properties,
+			profileId: t.Optional(Id),
+			targetId: t.Optional(Id),
+		}),
 		reason: t.Nullable(t.String()),
 		status: t.String(),
 	},

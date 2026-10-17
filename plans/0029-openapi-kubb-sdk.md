@@ -29,3 +29,15 @@ Entrega exclusivamente local; nenhum serviço externo pode ser alterado.
 - Revalidação: 6 testes de contratos/exportação e 21 testes frontend passaram.
 - Invalidação distingue moeda explícita de IDs de registros; tags geradas associadas às queries existentes.
 - Build frontend em validação; sincronização concreta, cache Turbo e integração continuam pendentes.
+
+- Commit `090e067d` corrigiu contratos de rendimento e resumo de fatura; hooks passaram.
+- Sincronização agora possui schemas por entidade e valida serialização SQL; 3 testes de sincronização/exportação passaram.
+- Build backend passou. Propostas institucionais descrevem payload concreto; endpoints de feriados bloqueados declaram HTTP 403.
+- Cache Turbo: execução fria 3/3 tarefas; repetição 3/3 hits; exclusão/restauração de 841 artefatos preservou todos os hashes SHA-256.
+- Alteração temporária de DTO mudou hashes de exportação, SDK, build e check-types frontend; fonte restaurada integralmente.
+- Invalidação compartilhada cobre mutations e ações em segundo plano; 13 testes passaram, incluindo persistência e troca de identidade.
+- Build frontend continua em validação; regressões ampliadas, commits frontend/pipeline e integração ainda pendentes.
+
+- Histórico offline valida cache com schemas Zod gerados, sem cast de transporte: 3 testes passaram.
+- Regressão ampliada: 353 testes passaram; 4 falhas de IndexedDB/mocks passam em processos isolados. Teste de assinatura falha igualmente na branch original por fixture sem conta do cartão.
+- Paginação e sugestões agora reutilizam `TransactionReturn`, removendo contratos duplicados no backend.

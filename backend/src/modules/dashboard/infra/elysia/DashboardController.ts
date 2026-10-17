@@ -1,3 +1,4 @@
+import { Value } from "@sinclair/typebox/value";
 import { dashboardCardForecasts, isCashFlowRecurrence } from "@zaimu/finance/dashboard-forecasts";
 import { nextRecurrenceDate, recurrenceNeedsConfiguration } from "@zaimu/finance/recurrence";
 import { addDays, startOfDay } from "date-fns";
@@ -15,6 +16,7 @@ import {
 	resolveDashboardRange,
 } from "~/modules/dashboard/application";
 import { distributedCache } from "~/shared/infra/cache";
+import { FinancialAccountReturn } from "~/shared/infra/elysia/transport-contracts";
 import {
 	DashboardConversionUnavailable,
 	dashboardCurrencyContext,
@@ -48,7 +50,7 @@ export const DashboardReturn = t.Object({
 			id: t.String(),
 			institutionName: t.Nullable(t.String()),
 			name: t.Nullable(t.String()),
-			type: t.String(),
+			type: FinancialAccountReturn.properties.type,
 		}),
 	),
 	balanceBreakdown: t.Nullable(
@@ -133,7 +135,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" })
 				userId,
 				"dashboard",
 				{ ...query, currency: consolidatedCurrency },
-				async (): Promise<DashboardReturn> => {
+				async () => {
 					const now = new Date();
 					const today = startOfDay(now);
 					const range = resolveDashboardRange(query.startDate, query.endDate, now);
@@ -384,7 +386,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" })
 				set.status = 304;
 				return null;
 			}
-			return cached.value;
+			return Value.Decode(DashboardReturn, cached.value);
 		},
 		{
 			detail: { operationId: "getDashboard", tags: ["Dashboard"] },

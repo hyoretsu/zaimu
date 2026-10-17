@@ -65,7 +65,7 @@ import {
 	withRawTransaction,
 	withTransaction,
 } from "~/shared/infra/sql";
-import { SyncBody, SyncReturn } from "./SyncDTO";
+import { SyncBody, SyncReturn, serializeSyncReturn } from "./SyncDTO";
 import { syncEvents } from "./sync-events";
 
 type InputEntity = Record<string, unknown>;
@@ -1242,7 +1242,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 					))
 						await outbox.append(event);
 
-					return {
+					return serializeSyncReturn({
 						serverData: {
 							categories: await queryRows(
 								db.sql.public.Category.select(...categoryColumns)
@@ -1250,7 +1250,10 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 									.build(),
 							),
 							creditBooks,
-							creditCardStatements,
+							creditCardStatements: creditCardStatements.map(statement => ({
+								...statement,
+								balanceAmount: Number(statement.totalAmount) - Number(statement.paidAmount),
+							})),
 							creditCards,
 							debtEvents: await listManualDebtEvents(userId),
 							debtPeople: (
@@ -1261,7 +1264,9 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 								)
 							).map(person => ({
 								...person,
+								accountEmail: null,
 								balance: 0,
+								connectionStatus: null,
 								events: [],
 								isZaimuUser: Boolean(person.connectionId),
 							})),
@@ -1313,7 +1318,15 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 							).map(row => ({
 								...row,
 								date: (row.date as Date).toISOString().slice(0, 10),
+								deletedAt:
+									row.deletedAt instanceof Date
+										? row.deletedAt.toISOString()
+										: typeof row.deletedAt === "string"
+											? row.deletedAt
+											: undefined,
 								id: `${row.recurrenceId}:${(row.date as Date).toISOString().slice(0, 10)}`,
+								purchaseId: typeof row.purchaseId === "string" ? row.purchaseId : undefined,
+								transactionId: typeof row.transactionId === "string" ? row.transactionId : undefined,
 							})),
 							recurrences: await listRecurrences(userId),
 
@@ -1325,7 +1338,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 							})),
 						},
 						syncResults,
-					};
+					});
 				}),
 			);
 		},

@@ -1,8 +1,9 @@
+import { Value } from "@sinclair/typebox/value";
 import { t } from "elysia";
 import { CreditBookDTO } from "~/modules/creditCards/infra/elysia/CreditBookDTO";
 import { MonthlyBudgetReturn, SyncMonthlyBudget } from "~/modules/monthly-budgets/infra/MonthlyBudgetsDTO";
-
 import { RecurrenceBody, RecurrenceReturn } from "~/modules/recurring/infra/elysia/RecurrenceDTO";
+import * as contracts from "~/shared/infra/elysia/transport-contracts";
 
 const SyncRecurrence = t.Object(
 	{ ...RecurrenceReturn.properties, debtSplit: RecurrenceBody.properties.debtSplit },
@@ -31,25 +32,44 @@ export const SyncDebtEvent = t.Object(
 );
 export type SyncDebtEvent = typeof SyncDebtEvent.static;
 
-const Entity = t.Record(t.String(), t.Unknown());
+const SyncCategory = t.Object({ ...contracts.CategoryReturn.properties });
+const SyncCard = t.Object({
+	...t.Omit(contracts.CreditCardReturn, ["currentStatement", "limit"]).properties,
+});
+const SyncOccurrence = t.Object({
+	date: t.String(),
+	deletedAt: t.Optional(t.String()),
+	id: t.String(),
+	purchaseId: t.Optional(t.String()),
+	recurrenceId: t.String(),
+	transactionId: t.Optional(t.String()),
+});
+const SyncAccount = t.Object({
+	...contracts.FinancialAccountReturn.properties,
+	initialBalance: t.Optional(t.Number()),
+});
+const SyncPerson = t.Object({
+	...contracts.DebtPersonReturn.properties,
+	hiddenAt: t.Optional(t.Nullable(t.String())),
+});
 
 export const SyncBody = t.Object(
 	{
-		categories: t.Optional(t.Array(Entity)),
+		categories: t.Optional(t.Array(SyncCategory)),
 		creditBooks: t.Optional(t.Array(CreditBookDTO)),
-		creditCardStatements: t.Optional(t.Array(Entity)),
-		creditCards: t.Optional(t.Array(Entity)),
+		creditCardStatements: t.Optional(t.Array(contracts.CreditCardStatementReturn)),
+		creditCards: t.Optional(t.Array(SyncCard)),
 		debtEvents: t.Optional(t.Array(SyncDebtEvent)),
-		debtPeople: t.Optional(t.Array(Entity)),
-		financialAccounts: t.Optional(t.Array(Entity)),
-		financialAccountYieldHolidays: t.Optional(t.Array(Entity)),
-		financialAccountYields: t.Optional(t.Array(Entity)),
-		loanPayments: t.Optional(t.Array(Entity)),
-		loans: t.Optional(t.Array(Entity)),
+		debtPeople: t.Optional(t.Array(SyncPerson)),
+		financialAccounts: t.Optional(t.Array(SyncAccount)),
+		financialAccountYieldHolidays: t.Optional(t.Array(contracts.FinancialAccountYieldHolidayReturn)),
+		financialAccountYields: t.Optional(t.Array(contracts.FinancialAccountYieldReturn)),
+		loanPayments: t.Optional(t.Array(contracts.LoanPaymentReturn)),
+		loans: t.Optional(t.Array(contracts.LoanReturn)),
 		monthlyBudgets: t.Optional(t.Array(SyncMonthlyBudget)),
-		recurrenceOccurrences: t.Optional(t.Array(Entity)),
+		recurrenceOccurrences: t.Optional(t.Array(SyncOccurrence)),
 		recurrences: t.Optional(t.Array(SyncRecurrence)),
-		transactions: t.Optional(t.Array(Entity)),
+		transactions: t.Optional(t.Array(contracts.TransactionReturn)),
 	},
 	{ additionalProperties: false },
 );
@@ -57,24 +77,30 @@ export type SyncBody = typeof SyncBody.static;
 
 export const SyncReturn = t.Object({
 	serverData: t.Object({
-		categories: t.Array(Entity),
+		categories: t.Array(SyncCategory),
 		creditBooks: t.Array(CreditBookDTO),
-		creditCardStatements: t.Array(Entity),
-		creditCards: t.Array(Entity),
+		creditCardStatements: t.Array(contracts.CreditCardStatementReturn),
+		creditCards: t.Array(SyncCard),
 		debtEvents: t.Array(SyncDebtEvent),
-		debtPeople: t.Array(Entity),
-		financialAccounts: t.Array(Entity),
-		financialAccountYieldHolidays: t.Array(Entity),
-		financialAccountYields: t.Array(Entity),
-		loanPayments: t.Array(Entity),
-		loans: t.Array(Entity),
+		debtPeople: t.Array(SyncPerson),
+		financialAccounts: t.Array(SyncAccount),
+		financialAccountYieldHolidays: t.Array(contracts.FinancialAccountYieldHolidayReturn),
+		financialAccountYields: t.Array(contracts.FinancialAccountYieldReturn),
+		loanPayments: t.Array(contracts.LoanPaymentReturn),
+		loans: t.Array(contracts.LoanReturn),
 		monthlyBudgets: t.Array(MonthlyBudgetReturn),
-		recurrenceOccurrences: t.Array(Entity),
-		recurrences: t.Array(Entity),
-		transactions: t.Array(Entity),
+		recurrenceOccurrences: t.Array(SyncOccurrence),
+		recurrences: t.Array(RecurrenceReturn),
+		transactions: t.Array(contracts.TransactionReturn),
 	}),
 	syncResults: t.Record(t.String(), t.Object({ errors: t.Array(t.String()), synced: t.Number() })),
 });
 export type SyncReturn = typeof SyncReturn.static;
 
 export { Id };
+
+/** Validate serialized SQL values at the transport boundary, retaining extra fields. */
+export function serializeSyncReturn(input: unknown): SyncReturn {
+	const json: unknown = JSON.parse(JSON.stringify(input));
+	return Value.Decode(SyncReturn, Value.Convert(SyncReturn, json));
+}
