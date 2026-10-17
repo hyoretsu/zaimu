@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { LuFileUp } from "react-icons/lu";
 import { StatementFilePicker } from "@/components/transaction-imports";
@@ -15,15 +15,18 @@ import {
 } from "@/components/ui/Dialog";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
-import type { CreditCard, CreditCardImport } from "@/lib/api";
+import type { CreditCard } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
-import {
-	creditCardStatementProviderOptions,
-	getCreditCardStatementPdfPasswordConfiguration,
-} from "@/lib/credit-card-imports";
+import { getCreditCardStatementPdfPasswordConfiguration } from "@/lib/credit-card-imports";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
+
+import {
+	getCreditCardImportInstitution,
+	getCreditCardImportProvider,
+	getSelectableImportCards,
+} from "./credit-card-import-institutions";
 
 export function ImportCreditCardStatementDialog({
 	cards,
@@ -41,20 +44,46 @@ export function ImportCreditCardStatementDialog({
 	const [creditCardId, setCreditCardId] = useState("");
 	const [file, setFile] = useState<File | null>(null);
 	const [password, setPassword] = useState("");
-	const [provider, setProvider] = useState<CreditCardImport["provider"] | "">("");
+	const [institutionId, setInstitutionId] = useState("");
+	const accounts = useQuery({
+		enabled: identity !== null && open,
+		queryFn: dataService.accounts.getAll,
+		queryKey: queryKeys.accounts.list(identity!),
+	});
+	const institutions = useQuery({
+		enabled: identity !== null && open,
+		queryFn: () => dataService.financialInstitutions.getAll(),
+		queryKey: ["institutions", identity],
+	});
+	const accountList = accounts.data ?? [];
+	const selectableCards = getSelectableImportCards(cards, accountList, institutionId);
+	const selectedInstitution = institutions.data?.find(institution => institution.id === institutionId);
+	const provider = getCreditCardImportProvider(selectedInstitution) ?? "";
+	const selectedCard = selectableCards.find(card => card.id === creditCardId);
+	const selectCard = (id: string) => {
+		setCreditCardId(id);
+		const card = cards.find(card => card.id === id);
+		if (card) setInstitutionId(getCreditCardImportInstitution(card, accountList)?.id ?? "");
+	};
 	const passwordConfiguration = getCreditCardStatementPdfPasswordConfiguration(provider);
 	useEffect(() => {
 		if (!open) return;
-		setCreditCardId(cards.length === 1 ? cards[0]!.id : "");
+		setCreditCardId("");
 		setFile(null);
 		setPassword("");
-		setProvider("");
-	}, [cards, open]);
+		setInstitutionId("");
+	}, [open]);
 	const createImport = useMutation({
 		meta: { cacheOperations: ["statement"] },
 		mutationFn: () => {
 			if (!provider) throw new Error("Selecione a instituição da fatura.");
 			if (!creditCardId) throw new Error("Selecione o cartão que receberá as compras.");
+			if (
+				!selectedCard ||
+				getCreditCardImportProvider(getCreditCardImportInstitution(selectedCard, accountList)) !== provider
+			) {
+				throw new Error("Selecione um cartão da instituição da fatura.");
+			}
 			if (!file) throw new Error("Selecione uma fatura em PDF.");
 			return dataService.creditCardImports.create({
 				creditCardId,
@@ -97,18 +126,31 @@ export function ImportCreditCardStatementDialog({
 				<DialogBody>
 					<div className="grid gap-4">
 						<CustomSelect
+							isLoading={institutions.isPending || accounts.isPending}
 							label="Instituição"
-							onValueChange={value => setProvider(value as CreditCardImport["provider"])}
-							options={creditCardStatementProviderOptions}
+							onValueChange={value => {
+								setInstitutionId(value);
+								const card = cards.find(card => card.id === creditCardId);
+								if (!card || getCreditCardImportInstitution(card, accountList)?.id !== value)
+									setCreditCardId("");
+							}}
+							options={(institutions.data ?? [])
+								.filter(institution => getCreditCardImportProvider(institution))
+								.map(institution => ({ label: institution.name, value: institution.id }))}
 							placeholder="Selecione a instituição"
 							required
+							searchable
 							sortOptions={false}
-							value={provider}
+							value={institutionId}
 						/>
 						<CustomSelect
+							isLoading={accounts.isPending || institutions.isPending}
 							label="Cartão que receberá as compras"
-							onValueChange={setCreditCardId}
-							options={cards.map(card => ({ label: getCreditCardDisplayName(card), value: card.id }))}
+							onValueChange={selectCard}
+							options={selectableCards.map(card => ({
+								label: getCreditCardDisplayName(card),
+								value: card.id,
+							}))}
 							placeholder="Selecione o cartão"
 							required
 							searchable
@@ -143,7 +185,14 @@ export function ImportCreditCardStatementDialog({
 					</Button>
 					<Button
 						className="cursor-pointer disabled:cursor-not-allowed"
-						disabled={!provider || !creditCardId || !file || createImport.isPending}
+						disabled={
+							!provider ||
+							!selectedCard ||
+							!file ||
+							accounts.isPending ||
+							institutions.isPending ||
+							createImport.isPending
+						}
 						onClick={() => createImport.mutate()}
 					>
 						<LuFileUp /> {createImport.isPending ? "Importando…" : "Importar"}
