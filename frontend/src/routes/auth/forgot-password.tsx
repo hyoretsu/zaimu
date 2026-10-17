@@ -4,7 +4,7 @@ import { LuArrowLeft, LuMail } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
-import { apiUrl, publicWebUrl } from "@/lib/auth-client";
+import { authClient, publicWebUrl } from "@/lib/auth-client";
 import { AuthAlert, AuthShell } from "./components";
 
 function ForgotPasswordPage() {
@@ -16,12 +16,12 @@ function ForgotPasswordPage() {
 		event.preventDefault();
 		setLoading(true);
 		try {
-			await fetch(`${apiUrl}/api/auth/request-password-reset`, {
-				body: JSON.stringify({ email: email.trim(), redirectTo: `${publicWebUrl}/auth/reset-password` }),
-				credentials: "include",
-				headers: { "Content-Type": "application/json" },
-				method: "POST",
+			await authClient.requestPasswordReset({
+				email: email.trim(),
+				redirectTo: `${publicWebUrl}/auth/reset-password`,
 			});
+		} catch {
+			// Keep the same response to avoid disclosing whether the account exists.
 		} finally {
 			setLoading(false);
 			setSent(true);

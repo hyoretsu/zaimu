@@ -1,20 +1,19 @@
 import { hasBudgetConflict, validateBudgetHierarchy } from "@zaimu/finance/monthly-budget";
 import { useAuthStore } from "@/stores/auth";
-import { fetchWithAuth } from "./dataService";
+import {
+	deleteMonthlyBudgetsById,
+	type GetMonthlyBudgetsSummaryQueryResponse,
+	getMonthlyBudgets,
+	getMonthlyBudgetsSummary,
+	postMonthlyBudgets,
+	putMonthlyBudgetsById,
+} from "./api";
 import { hardDelete, localCategories, localMonthlyBudgets } from "./localStorage";
 import { type MonthlyBudget, type MonthlyBudgetInput, validateMonthlyBudget } from "./monthly-budget";
 import { type CacheIdentity, getCurrentCacheIdentity } from "./query-cache";
 
 export type { MonthlyBudget, MonthlyBudgetInput } from "./monthly-budget";
-export interface MonthlyBudgetSummary {
-	month: string;
-	items: (Omit<MonthlyBudget, "userId"> & {
-		plannedAmount: number;
-		knownAmount: number;
-		additionalAmount: number;
-		projectedAmount: number;
-	})[];
-}
+export type MonthlyBudgetSummary = GetMonthlyBudgetsSummaryQueryResponse;
 
 function context() {
 	const owner = getCurrentCacheIdentity();
@@ -50,10 +49,7 @@ export const monthlyBudgetService = {
 			await localMonthlyBudgets.put(budget, budget.id, owner);
 			return budget;
 		}
-		const budget = await fetchWithAuth<MonthlyBudget>("/monthly-budgets", {
-			body: JSON.stringify(data),
-			method: "POST",
-		});
+		const budget = await postMonthlyBudgets(data);
 		cache(budget, owner);
 		return budget;
 	},
@@ -71,7 +67,7 @@ export const monthlyBudgetService = {
 		if (local) {
 			for (const budgetId of [...ids].reverse()) await localMonthlyBudgets.delete(budgetId, owner);
 		} else {
-			await fetchWithAuth(`/monthly-budgets/${encodeURIComponent(id)}`, { method: "DELETE" });
+			await deleteMonthlyBudgetsById(id);
 			await Promise.all([...ids].map(budgetId => hardDelete("monthlyBudgets", budgetId, owner))).catch(
 				() => undefined,
 			);
@@ -80,7 +76,7 @@ export const monthlyBudgetService = {
 	async getAll(): Promise<MonthlyBudget[]> {
 		const { owner, local } = context();
 		if (local) return (await localMonthlyBudgets.getAll(owner)).map(row => row.data);
-		const budgets = await fetchWithAuth<MonthlyBudget[]>("/monthly-budgets");
+		const budgets = await getMonthlyBudgets();
 		void localMonthlyBudgets
 			.replaceSnapshot(
 				budgets.map(data => ({ data, localId: data.id, syncedAt: Date.now() })),
@@ -93,7 +89,7 @@ export const monthlyBudgetService = {
 		if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new Error("Informe um mês válido.");
 		const { local } = context();
 		if (local) return (await import("./monthly-budget-summary")).guestMonthlyBudgetSummary(month);
-		return fetchWithAuth(`/monthly-budgets/summary?${new URLSearchParams({ month })}`);
+		return getMonthlyBudgetsSummary({ month });
 	},
 	async update(id: string, input: MonthlyBudgetInput): Promise<MonthlyBudget> {
 		const { owner, local } = context();
@@ -111,10 +107,7 @@ export const monthlyBudgetService = {
 			await localMonthlyBudgets.put(budget, id, owner);
 			return budget;
 		}
-		const budget = await fetchWithAuth<MonthlyBudget>(`/monthly-budgets/${encodeURIComponent(id)}`, {
-			body: JSON.stringify(data),
-			method: "PUT",
-		});
+		const budget = await putMonthlyBudgetsById(id, data);
 		cache(budget, owner);
 		return budget;
 	},

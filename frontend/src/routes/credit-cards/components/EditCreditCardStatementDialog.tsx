@@ -15,7 +15,7 @@ import { FormFieldRow } from "@/components/ui/FormFieldRow";
 import type { CreditCardStatement } from "@/lib/api";
 import { runBackgroundModalAction } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
-import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
+import { useCacheIdentity } from "@/lib/query-cache";
 
 export function EditCreditCardStatementDialog({
 	statement,
@@ -34,11 +34,11 @@ export function EditCreditCardStatementDialog({
 	const identity = useCacheIdentity();
 	const save = () =>
 		runBackgroundModalAction({
+			cache: { client: queryClient, operations: ["statement"] },
 			close: () => onOpenChange(false),
 			conflictKey: `credit-statement:${statement.id}`,
 			failureMessage: "Não foi possível editar a fatura.",
 			loadingMessage: "Atualizando datas da fatura...",
-			onSuccess: () => invalidateCacheOperation(queryClient, identity!, "statement"),
 			recovery: {
 				entityId: statement.id,
 				kind: `credit-statement-action:${statement.id}`,

@@ -24,7 +24,7 @@ import {
 	getFinancialAccountOptionLabel,
 	getTransactionSourceAccounts,
 } from "@/lib/financial-account";
-import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { getUpdatedStoreName } from "@/lib/store-name";
 import { showToast } from "@/stores";
 import { TransactionDetailsFields } from "../../TransactionDetailsFields";
@@ -91,6 +91,7 @@ export function EditTransactionForm({
 	}, [open, setDescription, transaction]);
 
 	const update = useMutation({
+		meta: { cacheOperations: ["transaction"] },
 		mutationFn: ({
 			transaction,
 			draft,
@@ -138,7 +139,6 @@ export function EditTransactionForm({
 			return { toastId: toast.loading("Salvando transação…", { position: "bottom-right" }) };
 		},
 		onSuccess: async (_, __, context) => {
-			await invalidateCacheOperation(queryClient, identity!, "transaction");
 			toast.success("Transação atualizada.", { id: context?.toastId, position: "bottom-right" });
 		},
 	});

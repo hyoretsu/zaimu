@@ -20,8 +20,8 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { FinancialInstitution, FinancialInstitutionYieldPolicy } from "@/lib/api";
+import { getFinancialInstitutionsByIdProfiles } from "@/lib/api";
 import { countryCodes } from "@/lib/country-preference";
-import { fetchWithAuth } from "@/lib/dataService";
 import { runDialogSave } from "@/lib/dialog-save";
 import { useAuthStore } from "@/stores/auth";
 import { YieldTaxFields } from "../YieldTaxFields";
@@ -56,10 +56,7 @@ export function InstitutionYieldDialog({
 	const userId = useAuthStore(state => state.user?.id);
 	const profiles = useQuery({
 		enabled: open && !guest,
-		queryFn: () =>
-			fetchWithAuth<{ id: string; name: string; isDefault: boolean }[]>(
-				`/financial-institutions/${institution.id}/profiles`,
-			),
+		queryFn: () => getFinancialInstitutionsByIdProfiles(institution.id),
 		queryKey: ["institution-profiles", userId, institution.id],
 	});
 	const selectedProfile = profileId ?? profiles.data?.find(profile => profile.isDefault)?.id;

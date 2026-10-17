@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type { TaxDefinition } from "@zaimu/finance/yield-tax";
 import type { ComponentProps } from "react";
 import { useState } from "react";
@@ -7,7 +7,8 @@ import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { fetchWithAuth } from "@/lib/dataService";
+import { patchAdminTaxesById } from "@/lib/api";
+import { mutationCacheMeta } from "@/lib/mutation-cache";
 import { fetchTaxCatalog } from "@/lib/tax-catalog";
 import { showToast } from "@/stores";
 import { TaxEditor } from "./TaxEditor";
@@ -15,19 +16,14 @@ export function TaxCatalogAdmin({ header }: { header: ComponentProps<typeof Page
 	const catalog = useQuery({ queryFn: fetchTaxCatalog, queryKey: ["tax-definitions"] });
 	const [editing, setEditing] = useState<TaxDefinition | null | undefined>();
 	const [pending, setPending] = useState<string[]>([]);
-	const client = useQueryClient();
 	const toggle = useMutation({
-		mutationFn: (tax: TaxDefinition) =>
-			fetchWithAuth(`/admin/taxes/${tax.id}`, {
-				body: JSON.stringify({ isActive: !tax.isActive }),
-				method: "PATCH",
-			}),
+		meta: mutationCacheMeta("tax"),
+		mutationFn: (tax: TaxDefinition) => patchAdminTaxesById(tax.id, { isActive: !tax.isActive }),
 		onError: error => showToast(error.message, "negative"),
 		onMutate: tax => setPending(current => [...current, tax.id]),
 		onSettled: (_data, _error, tax) => setPending(current => current.filter(id => id !== tax.id)),
 		onSuccess: () => {
 			showToast("Disponibilidade atualizada.", "positive");
-			void client.invalidateQueries({ queryKey: ["tax-definitions"] });
 		},
 	});
 	return (

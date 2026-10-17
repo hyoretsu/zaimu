@@ -18,8 +18,8 @@ import {
 	recalculateAccountYield,
 } from "@/lib/account-yield-recalculation";
 import type { FinancialAccount } from "@/lib/api";
-import { fetchWithAuth } from "@/lib/dataService";
-import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
+import { getFinancialInstitutionsByIdProfiles } from "@/lib/api";
+import { useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { useAuthStore } from "@/stores/auth";
 
@@ -63,10 +63,10 @@ export function RecalculateAccountYieldDialog({ account }: { account: FinancialA
 	const client = useQueryClient();
 	const profiles = useQuery({
 		enabled: open && !guest && Boolean(account.institutionId),
-		queryFn: () =>
-			fetchWithAuth<Array<{ id: string; name: string }>>(
-				`/financial-institutions/${account.institutionId}/profiles`,
-			),
+		queryFn: () => {
+			if (!account.institutionId) throw new Error("Instituição indisponível.");
+			return getFinancialInstitutionsByIdProfiles(account.institutionId);
+		},
 		queryKey: ["institution-profiles", identity, account.institutionId],
 	});
 	const guestProfiles = [
@@ -87,6 +87,7 @@ export function RecalculateAccountYieldDialog({ account }: { account: FinancialA
 		return { id, name: `${rate} - desde ${policy?.effectiveDate.slice(0, 10)}` };
 	});
 	const mutation = useMutation({
+		meta: { cacheOperations: ["account"] },
 		mutationFn: () =>
 			recalculateAccountYield(
 				account.id,
@@ -95,7 +96,6 @@ export function RecalculateAccountYieldDialog({ account }: { account: FinancialA
 			),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
-			await invalidateCacheOperation(client, identity!, "account");
 			showToast(
 				guest ? "Rendimento histórico recalculado." : "Recálculo do rendimento histórico solicitado.",
 				"positive",

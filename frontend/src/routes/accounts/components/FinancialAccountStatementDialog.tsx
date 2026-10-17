@@ -17,7 +17,7 @@ import type { FinancialAccount, Transaction } from "@/lib/api";
 import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { type FinancialAccountYieldEntry, getFinancialAccountDisplayName } from "@/lib/financial-account";
-import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { EditFinancialAccountYieldDialog } from "./EditFinancialAccountYieldDialog";
 
 export function FinancialAccountStatementDialog({
@@ -103,16 +103,15 @@ export function FinancialAccountStatementDialog({
 		}
 	}
 	const displayName = getFinancialAccountDisplayName(account);
-	const refreshStatement = () => invalidateCacheOperation(queryClient, identity!, "yield");
 	const pendingActions = useModalRecoveryStore(state => state.pending);
 	useBackgroundModalRecovery(`account-statement-delete:${account.id}`, () => onOpenChange(true));
 	const removeTransaction = (transaction: Transaction) => {
 		runBackgroundModalAction({
+			cache: { client: queryClient, operations: ["yield"] },
 			close: () => onOpenChange(false),
 			conflictKey: `transaction:${transaction.id}`,
 			failureMessage: "Não foi possível excluir transação.",
 			loadingMessage: "Excluindo transação...",
-			onSuccess: refreshStatement,
 			recovery: {
 				entityId: transaction.id,
 				kind: `account-statement-delete:${account.id}`,
@@ -125,11 +124,11 @@ export function FinancialAccountStatementDialog({
 	};
 	const removeYield = (entry: FinancialAccountYieldEntry) => {
 		runBackgroundModalAction<unknown>({
+			cache: { client: queryClient, operations: ["yield"] },
 			close: () => onOpenChange(false),
 			conflictKey: `yield:${entry.id}`,
 			failureMessage: "Não foi possível excluir rendimento.",
 			loadingMessage: "Excluindo rendimento...",
-			onSuccess: refreshStatement,
 			recovery: { entityId: entry.id, kind: `account-statement-delete:${account.id}`, payload: entry },
 			run: () =>
 				entry.kind === "AUTOMATIC"

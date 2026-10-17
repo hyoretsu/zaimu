@@ -4,17 +4,13 @@ import { LuCheck } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { fetchWithAuth } from "@/lib/dataService";
+import {
+	getFinancialInstitutionsNotifications,
+	postFinancialInstitutionsNotificationsByIdRead,
+} from "@/lib/api";
 import { showToast } from "@/stores";
 import { useAuthStore } from "@/stores/auth";
 
-interface Notification {
-	id: string;
-	type: string;
-	payload: { proposalId?: string; status?: string; reason?: string };
-	readAt: string | null;
-	createdAt: string;
-}
 const statusNames: Record<string, string> = {
 	APPROVED: "Aprovada",
 	ASSOCIATED: "Associada",
@@ -26,7 +22,7 @@ export function InstitutionNotifications() {
 	const [pending, setPending] = useState<string[]>([]);
 	const query = useQuery({
 		enabled: !guest,
-		queryFn: () => fetchWithAuth<Notification[]>("/financial-institutions/notifications"),
+		queryFn: () => getFinancialInstitutionsNotifications(),
 		queryKey: ["institution-notifications", userId],
 	});
 	if (guest) return null;
@@ -58,9 +54,7 @@ export function InstitutionNotifications() {
 									disabled={pending.includes(item.id)}
 									onClick={() => {
 										setPending(ids => [...ids, item.id]);
-										void fetchWithAuth(`/financial-institutions/notifications/${item.id}/read`, {
-											method: "POST",
-										})
+										void postFinancialInstitutionsNotificationsByIdRead(item.id)
 											.then(async () => {
 												await query.refetch();
 												showToast("Notificação marcada como lida", "info");

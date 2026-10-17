@@ -15,7 +15,7 @@ import {
 import { MoneyField } from "@/components/ui/MoneyField";
 import type { CreditCardStatement } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
-import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
+import { useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 
 export function StatementAmountAdjustmentDialog({
@@ -34,6 +34,7 @@ export function StatementAmountAdjustmentDialog({
 	const client = useQueryClient();
 	const identity = useCacheIdentity();
 	const mutation = useMutation({
+		meta: { cacheOperations: ["statement"] },
 		mutationFn: (value: number | null) =>
 			dataService.creditCards.setStatementAmount(statement.creditCardId, statement.id, value, {
 				dueDate: statement.dueDate.slice(0, 10),
@@ -41,7 +42,6 @@ export function StatementAmountAdjustmentDialog({
 			}),
 		onError: error => setError(error instanceof Error ? error.message : "Não foi possível salvar o ajuste."),
 		onSuccess: async () => {
-			await invalidateCacheOperation(client, identity!, "statement");
 			showToast("Ajuste de fatura atualizado.", "positive");
 			onClose();
 		},

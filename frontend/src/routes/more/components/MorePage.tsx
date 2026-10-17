@@ -9,7 +9,7 @@ import {
 } from "react-icons/hi2";
 import { mobileNavigation, primaryNavigation, utilityNavigation } from "@/components/layout/navigation";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { fetchWithAuth } from "@/lib/dataService";
+import { getAdminAccess } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth";
 
 const desktopNavigationPaths = new Set<string>(
@@ -92,7 +92,7 @@ export function MorePage() {
 	const userId = useAuthStore(state => state.user?.id);
 	const access = useQuery({
 		enabled: authenticated,
-		queryFn: () => fetchWithAuth<{ role: string }>("/admin/access"),
+		queryFn: () => getAdminAccess(),
 		queryKey: ["admin-access", userId],
 		retry: false,
 	});

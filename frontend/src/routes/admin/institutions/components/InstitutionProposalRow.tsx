@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { LuCheck, LuLink, LuX } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { FormField } from "@/components/ui/FormField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
-import type { FinancialInstitution } from "@/lib/api";
-import { fetchWithAuth } from "@/lib/dataService";
+import type { PostFinancialInstitutionsReviewProposalsByIdMutationRequest } from "@/lib/api";
+import { getFinancialInstitutions, postFinancialInstitutionsReviewProposalsById } from "@/lib/api";
+import { captureCacheMutation, invalidateMutationCache, mutationCacheMeta } from "@/lib/mutation-cache";
 import { showToast } from "@/stores";
 import { useAuthStore } from "@/stores/auth";
 import type { InstitutionProposal } from "./InstitutionReviewQueue";
@@ -23,13 +24,8 @@ const labels: Record<string, string> = {
 	PROFILE: "Novo perfil",
 	REJECTED: "Rejeitada",
 };
-export function InstitutionProposalRow({
-	proposal,
-	onReviewed,
-}: {
-	proposal: InstitutionProposal;
-	onReviewed: () => void;
-}) {
+export function InstitutionProposalRow({ proposal }: { proposal: InstitutionProposal }) {
+	const queryClient = useQueryClient();
 	const [reason, setReason] = useDebouncedInput("", () => undefined);
 	const [target, setTarget] = useState<string>();
 	const [resolution, setResolution] = useState<ProfileResolution[]>();
@@ -38,27 +34,25 @@ export function InstitutionProposalRow({
 	const userId = useAuthStore(state => state.user?.id);
 	const institutions = useQuery({
 		enabled: proposal.status === "PENDING",
-		queryFn: () => fetchWithAuth<FinancialInstitution[]>("/financial-institutions/"),
+		queryFn: () => getFinancialInstitutions(),
 		queryKey: ["institutions", userId],
 	});
 	const current = institutions.data?.find(item => item.id === proposal.institutionId);
 	const stale =
 		proposal.baseVersion !== null && proposal.version !== null && proposal.baseVersion !== proposal.version;
-	const review = (action: string) => {
+	const review = (action: PostFinancialInstitutionsReviewProposalsByIdMutationRequest["action"]) => {
+		const start = captureCacheMutation();
 		setPending(true);
-		void fetchWithAuth(`/financial-institutions/review/proposals/${proposal.id}`, {
-			body: JSON.stringify({
-				action,
-				confirmedVersion: confirmed ? proposal.version : undefined,
-				profileResolution: resolution,
-				reason: reason.trim() || undefined,
-				targetId: target,
-			}),
-			method: "POST",
+		void postFinancialInstitutionsReviewProposalsById(proposal.id, {
+			action,
+			confirmedVersion: confirmed ? (proposal.version ?? undefined) : undefined,
+			profileResolution: resolution,
+			reason: reason.trim() || undefined,
+			targetId: target,
 		})
 			.then(() => {
 				showToast("Revisão registrada", "positive");
-				onReviewed();
+				void invalidateMutationCache(queryClient, start, mutationCacheMeta("institution"));
 			})
 			.catch(error => showToast(error.message, "negative"))
 			.finally(() => setPending(false));
@@ -80,7 +74,7 @@ export function InstitutionProposalRow({
 						<dt className="font-medium">{key}</dt>
 						<dd>
 							Atual:{" "}
-							{JSON.stringify((current as unknown as Record<string, unknown> | undefined)?.[key]) ??
+							{JSON.stringify(Object.entries(current ?? {}).find(([field]) => field === key)?.[1]) ??
 								"Sem valor"}{" "}
 							- Proposto: {JSON.stringify(value)}
 						</dd>

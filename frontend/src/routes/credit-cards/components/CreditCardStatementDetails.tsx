@@ -23,7 +23,7 @@ import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/backgroun
 import { getCreditCardStatementDisplayBalance } from "@/lib/credit-card-statement-balance";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
-import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { CreditCardPaymentRow } from "./CreditCardPaymentRow";
 import { CreditPurchaseEditScopeDialog } from "./CreditPurchaseEditScopeDialog";
@@ -113,8 +113,8 @@ export function CreditCardStatementDetails({
 		const p = detail.data?.purchases.find(p => p.id === id);
 		return p?.purchaseId ?? p?.refundOfPurchaseId ?? p?.parentId ?? id;
 	};
-	const refreshStatement = () => invalidateCacheOperation(queryClient, identity!, "statement");
 	const updatePurchase = useMutation({
+		meta: { cacheOperations: ["statement"] },
 		mutationFn: ({
 			data,
 			purchaseId,
@@ -133,11 +133,11 @@ export function CreditCardStatementDetails({
 				return next;
 			}),
 		onSuccess: async () => {
-			await refreshStatement();
 			showToast("Transação atualizada.", "positive");
 		},
 	});
 	const deletePurchase = useMutation({
+		meta: { cacheOperations: ["statement"] },
 		mutationFn: (purchaseId: string) =>
 			dataService.creditCards.deletePurchase(statement.creditCardId, purchaseId),
 		onError: error => {
@@ -151,7 +151,6 @@ export function CreditCardStatementDetails({
 				return next;
 			}),
 		onSuccess: async () => {
-			await refreshStatement();
 			showToast("Transação excluída.", "positive");
 		},
 	});
@@ -163,6 +162,7 @@ export function CreditCardStatementDetails({
 	) => {
 		const purchase = payload.purchase!;
 		runBackgroundModalAction({
+			cache: { client: queryClient, operations: ["statement"] },
 			close: () => {
 				setRecoveredAction(null);
 				close();
@@ -170,7 +170,6 @@ export function CreditCardStatementDetails({
 			conflictKey: `credit-purchase:${purchase.purchaseId ?? purchase.refundOfPurchaseId ?? purchase.id}`,
 			failureMessage: "Não foi possível concluir a operação.",
 			loadingMessage: deleting ? "Excluindo reembolso..." : "Salvando compra...",
-			onSuccess: refreshStatement,
 			recovery: { entityId: purchase.id, kind: `credit-statement-action:${statement.id}`, payload },
 			run,
 			successMessage: deleting ? "Reembolso excluído." : "Compra atualizada e faturas recalculadas.",

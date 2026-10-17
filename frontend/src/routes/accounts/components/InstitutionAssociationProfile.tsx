@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchWithAuth } from "@/lib/dataService";
+import { getFinancialInstitutionsByIdProfileHistory, getFinancialInstitutionsByIdProfiles } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth";
 export function InstitutionAssociationProfile({ institutionId }: { institutionId: string }) {
 	const userId = useAuthStore(state => state.user?.id);
@@ -8,12 +8,8 @@ export function InstitutionAssociationProfile({ institutionId }: { institutionId
 		enabled: !guest && navigator.onLine,
 		queryFn: async () => {
 			const [profiles, history] = await Promise.all([
-				fetchWithAuth<{ id: string; name: string; isDefault: boolean }[]>(
-					`/financial-institutions/${institutionId}/profiles`,
-				),
-				fetchWithAuth<{ profileId: string; effectiveDate: string }[]>(
-					`/financial-institutions/${institutionId}/profile-history`,
-				),
+				getFinancialInstitutionsByIdProfiles(institutionId),
+				getFinancialInstitutionsByIdProfileHistory(institutionId),
 			]);
 			if (profiles.length <= 1) return null;
 			const day = new Date().toLocaleDateString("sv-SE");

@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import { dataService } from "@/lib/dataService";
 import { compareDebtPersonNames } from "@/lib/debt-split";
-import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 
 export function DebtPersonPicker({
@@ -43,10 +43,10 @@ export function DebtPersonPicker({
 		.toSorted((left, right) => compareDebtPersonNames(left.name, right.name));
 	const exact = people.find(person => person.name.toLocaleLowerCase("pt-BR") === normalizedSearch);
 	const createPerson = useMutation({
+		meta: { cacheOperations: ["debt"] },
 		mutationFn: (name: string) => dataService.debts.createPerson(name),
 		onError: error => showToast(error instanceof Error ? error.message : "Pessoa não criada.", "negative"),
 		onSuccess: async person => {
-			await invalidateCacheOperation(queryClient, identity!, "debt");
 			onValueChange(person.id);
 			setSearch("");
 			setOpen(false);

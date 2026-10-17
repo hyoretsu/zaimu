@@ -22,7 +22,7 @@ import {
 	compareFinancialAccountsByOptionLabel,
 	getFinancialAccountOptionLabel,
 } from "@/lib/financial-account";
-import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 
 export interface BalanceAdjustmentDraft {
 	adjustment: BalanceAdjustment | null;
@@ -100,16 +100,11 @@ export function BalanceAdjustmentForm({
 			financialAccountId: draft.financialAccountId,
 		};
 		runBackgroundModalAction({
+			cache: { client: queryClient, operations: ["transaction"] },
 			close: onClose,
 			conflictKey: `balance-adjustment:${adjustment?.id ?? financialAccountId}`,
 			failureMessage: "Não foi possível salvar o ajuste de saldo.",
 			loadingMessage: "Salvando ajuste de saldo...",
-			onSuccess: async () => {
-				await Promise.all([
-					invalidateCacheOperation(queryClient, identity!, "transaction"),
-					queryClient.invalidateQueries({ queryKey: ["identity", identity, "balance-adjustments"] }),
-				]);
-			},
 			recovery: { entityId: adjustment?.id, kind: "balance-adjustment", payload: draft },
 			run: () =>
 				adjustment

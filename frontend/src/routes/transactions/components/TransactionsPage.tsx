@@ -25,7 +25,7 @@ import type { Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { formatLocalTime } from "@/lib/date";
 import type { FinancialAccountYieldEntry } from "@/lib/financial-account";
-import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { EditFinancialAccountYieldDialog } from "@/routes/accounts/components/EditFinancialAccountYieldDialog";
 import { EditCreditPurchaseDialog } from "@/routes/credit-cards/components/EditCreditPurchaseDialog";
 import { RefundCreditPurchaseDialog } from "@/routes/credit-cards/components/RefundCreditPurchaseDialog";
@@ -174,27 +174,22 @@ export function TransactionsPage() {
 	});
 	const visibleTransferSuggestions = transferSuggestionsQuery.data ?? [];
 	const acceptTransferSuggestion = useMutation({
+		meta: { cacheOperations: ["transaction"] },
 		mutationFn: ({ counterpart, transaction }: { counterpart: Transaction; transaction: Transaction }) =>
 			dataService.transactions.acceptTransferSuggestion(transaction.id, counterpart.id),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
 			setTransferSuggestionDecision(null);
-			await invalidateCacheOperation(queryClient, identity!, "transaction");
-			await queryClient.invalidateQueries({
-				queryKey: [...queryKeys.transactions.list(identity!, {}), "transfer-suggestions"],
-			});
 			showToast("Movimentos combinados como transferência.", "positive");
 		},
 	});
 	const rejectTransferSuggestion = useMutation({
+		meta: { cacheOperations: ["transaction"] },
 		mutationFn: ({ counterpart, transaction }: { counterpart: Transaction; transaction: Transaction }) =>
 			dataService.transactions.rejectTransferSuggestion(transaction.id, counterpart.id),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
 			setTransferSuggestionDecision(null);
-			await queryClient.invalidateQueries({
-				queryKey: [...queryKeys.transactions.list(identity!, {}), "transfer-suggestions"],
-			});
 			showToast("Sugestão de transferência ignorada.", "info");
 		},
 	});
@@ -206,6 +201,7 @@ export function TransactionsPage() {
 		]),
 	);
 	const removeYield = useMutation({
+		meta: { cacheOperations: ["yield"] },
 		mutationFn: async (entry: FinancialAccountYieldEntry) => {
 			if (entry.kind === "AUTOMATIC")
 				await dataService.accountYields.upsertAutomatic({
@@ -217,19 +213,19 @@ export function TransactionsPage() {
 		},
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
-			await invalidateCacheOperation(queryClient, identity!, "yield");
 			showToast("Rendimento excluído.", "positive");
 		},
 	});
 	const remove = useMutation({
+		meta: { cacheOperations: ["transaction"] },
 		mutationFn: (id: string) => dataService.transactions.delete(id),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
-			await invalidateCacheOperation(queryClient, identity!, "transaction");
 			showToast("Transação excluída.", "positive");
 		},
 	});
 	const updatePurchase = useMutation({
+		meta: { cacheOperations: ["statement"] },
 		mutationFn: ({
 			data,
 			transaction,
@@ -255,11 +251,11 @@ export function TransactionsPage() {
 				return next;
 			}),
 		onSuccess: async () => {
-			await invalidateCacheOperation(queryClient, identity!, "statement");
 			showToast("Compra atualizada.", "positive");
 		},
 	});
 	const removePurchase = useMutation({
+		meta: { cacheOperations: ["statement"] },
 		mutationFn: (transaction: Transaction) => {
 			if (!transaction.creditCardId) throw new Error("Cartão da compra não encontrado");
 			return dataService.creditCards.deletePurchase(transaction.creditCardId, transaction.id);
@@ -267,11 +263,11 @@ export function TransactionsPage() {
 		onError: error =>
 			showToast(error instanceof Error ? error.message : "Não foi possível excluir a compra.", "negative"),
 		onSuccess: async () => {
-			await invalidateCacheOperation(queryClient, identity!, "statement");
 			showToast("Compra excluída.", "positive");
 		},
 	});
 	const refundPurchase = useMutation({
+		meta: { cacheOperations: ["statement"] },
 		mutationFn: ({
 			data,
 			transaction,
@@ -297,11 +293,12 @@ export function TransactionsPage() {
 			),
 		onSuccess: async () => {
 			setRefundingPurchase(null);
-			await invalidateCacheOperation(queryClient, identity!, "statement");
+
 			showToast("Reembolso registrado e faturas recalculadas.", "positive");
 		},
 	});
 	const deleteRefundPurchase = useMutation({
+		meta: { cacheOperations: ["statement"] },
 		mutationFn: (transaction: Transaction) => {
 			const refundId = transaction.isRefund ? transaction.id : transaction.refund?.id;
 			if (!transaction.creditCardId || !refundId) throw new Error("Reembolso não encontrado");
@@ -311,7 +308,7 @@ export function TransactionsPage() {
 			showToast(error instanceof Error ? error.message : "Não foi possível excluir o reembolso.", "negative"),
 		onSuccess: async () => {
 			setRefundingPurchase(null);
-			await invalidateCacheOperation(queryClient, identity!, "statement");
+
 			showToast("Reembolso excluído e faturas recalculadas.", "positive");
 		},
 	});

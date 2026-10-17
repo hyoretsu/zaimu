@@ -1,10 +1,20 @@
 import { afterEach, beforeEach, expect, spyOn, test } from "bun:test";
-import { cachedReferenceRateAverages, refreshReferenceRateAverages } from "./reference-rate-averages";
+
+if (!globalThis.window)
+	Object.defineProperty(globalThis, "window", {
+		configurable: true,
+		value: { location: { origin: "http://localhost" } },
+	});
+const { cachedReferenceRateAverages, refreshReferenceRateAverages } = await import(
+	"./reference-rate-averages"
+);
 
 const values = new Map<string, string>();
 const snapshot = {
 	averages: { CDI: 0.04, SELIC: 0.045 },
+	collectionId: null,
 	endDate: "2026-10-02",
+	progress: null,
 	ready: true,
 	startDate: "2016-10-03",
 };

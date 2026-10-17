@@ -1,9 +1,11 @@
 import { expect, spyOn, test } from "bun:test";
 import type { Recurrence } from "./recurrence";
 
-const record: Recurrence = {
+const record = {
 	amount: 10,
 	createdAt: "2026-10-01T00:00:00Z",
+	currency: "BRL",
+	debtSplit: null,
 	destinationFinancialAccountId: "account",
 	id: "recurrence",
 	interval: 1,
@@ -11,11 +13,18 @@ const record: Recurrence = {
 	materializedThrough: "2026-10-01",
 	movement: "INCOME",
 	name: "Receipt",
+	needsConfiguration: false,
 	startDate: "2026-10-01",
+	tagIds: [],
+	tags: [],
 	unit: "DAY",
 	updatedAt: "2026-10-01T00:00:00Z",
 	userId: "server-user",
-};
+} satisfies Recurrence;
+
+async function unexpected(): Promise<never> {
+	throw new Error("Unexpected remote operation");
+}
 
 async function setup() {
 	if (!globalThis.window)
@@ -26,11 +35,19 @@ async function setup() {
 	const { localRecurrences } = await import("./localStorage");
 	const { createRecurrenceService } = await import("./recurrence-service");
 	const service = createRecurrenceService({
-		fetchWithAuth: async <T>(endpoint: string): Promise<T> =>
-			(endpoint === "/recurring" ? [record] : record) as T,
 		getUserId: () => record.userId,
 		hydrateLocalDebtSplit: async () => null,
 		isGuestMode: () => false,
+		remote: {
+			deleteRecurringById: unexpected,
+			getRecurring: async () => [record],
+			getRecurringById: async () => record,
+			getRecurringByIdHistory: unexpected,
+			patchRecurringById: async () => record,
+			postRecurring: async () => record,
+			postRecurringByIdAdvance: unexpected,
+			postRecurringByIdReplay: unexpected,
+		},
 	});
 	return { localRecurrences, service };
 }
@@ -69,13 +86,25 @@ test("authenticated recurrence detail and mutations succeed despite cache failur
 	const { createRecurrenceService } = await import("./recurrence-service");
 	let failRequest = false;
 	const service = createRecurrenceService({
-		fetchWithAuth: async <T>(): Promise<T> => {
-			if (failRequest) throw new Error("Server rejected recurrence");
-			return record as T;
-		},
 		getUserId: () => record.userId,
 		hydrateLocalDebtSplit: async () => null,
 		isGuestMode: () => false,
+		remote: {
+			deleteRecurringById: unexpected,
+			getRecurring: unexpected,
+			getRecurringById: async () => {
+				if (failRequest) throw new Error("Server rejected recurrence");
+				return record;
+			},
+			getRecurringByIdHistory: unexpected,
+			patchRecurringById: async () => {
+				if (failRequest) throw new Error("Server rejected recurrence");
+				return record;
+			},
+			postRecurring: async () => record,
+			postRecurringByIdAdvance: unexpected,
+			postRecurringByIdReplay: unexpected,
+		},
 	});
 	const put = spyOn(localRecurrences, "put").mockRejectedValue(new Error("IndexedDB unavailable"));
 	try {

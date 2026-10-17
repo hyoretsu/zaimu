@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
 import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
-import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import {
 	AdvanceRecurringDialog,
 	CreateRecurringDialog,
@@ -79,20 +79,20 @@ export function RecurringPage() {
 		queryFn: () => dataService.recurrences.getAll(),
 		queryKey: queryKeys.recurring.all(identity!),
 	});
-	const invalidate = () => invalidateCacheOperation(queryClient, identity!, "recurring");
 	const toggle = useMutation({
+		meta: { cacheOperations: ["recurring"] },
 		mutationFn: (item: RecurringListItemData) =>
 			dataService.recurrences.update(item.id, { isActive: !item.active }),
 		onError: error => showToast(error.message, "negative"),
 		onMutate: item => markPending(item.id, true),
 		onSettled: (_, __, item) => markPending(item.id, false),
 		onSuccess: async (_, item) => {
-			await invalidate();
 			showToast(item.active ? "Recorrência pausada." : "Recorrência retomada.", "positive");
 		},
 	});
 	const submitAdvance = (item: RecurringListItemData, time?: string) =>
 		runBackgroundModalAction({
+			cache: { client: queryClient, operations: ["recurring"] },
 			close: () => {
 				setAdvancingItem(undefined);
 				setRecoveredAdvanceTime(undefined);
@@ -100,13 +100,13 @@ export function RecurringPage() {
 			conflictKey: `recurrence:${item.id}`,
 			failureMessage: "Não foi possível adiantar a ocorrência.",
 			loadingMessage: "Adiantando ocorrência...",
-			onSuccess: invalidate,
 			recovery: { entityId: item.id, kind: "recurrence-advance", payload: { item, time } },
 			run: () => dataService.recurrences.advance(item.id, time),
 			successMessage: "Próxima ocorrência adiantada para hoje.",
 		});
 	const submitDelete = (item: RecurringListItemData, deleteTransactions: boolean) =>
 		runBackgroundModalAction({
+			cache: { client: queryClient, operations: ["recurring"] },
 			close: () => {
 				setDeletingItem(undefined);
 				setRecoveredDeleteChoice(undefined);
@@ -114,7 +114,6 @@ export function RecurringPage() {
 			conflictKey: `recurrence:${item.id}`,
 			failureMessage: "Não foi possível excluir a recorrência.",
 			loadingMessage: "Excluindo recorrência...",
-			onSuccess: invalidate,
 			recovery: { entityId: item.id, kind: "recurrence-delete", payload: { deleteTransactions, item } },
 			run: () => dataService.recurrences.delete(item.id, deleteTransactions),
 			successMessage: "Recorrência excluída.",

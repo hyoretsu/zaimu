@@ -26,13 +26,7 @@ import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/backgroun
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
-import {
-	closeImportReview,
-	invalidateCacheOperation,
-	invalidateQueryKeys,
-	queryKeys,
-	useCacheIdentity,
-} from "@/lib/query-cache";
+import { closeImportReview, invalidateQueryKeys, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { CreditCardImportItemRow } from "./CreditCardImportItemRow";
 import { CreditPurchaseReconciliationDialog } from "./CreditPurchaseReconciliationDialog";
@@ -127,7 +121,6 @@ export function CreditCardImportReviewDialog({
 			queryKeys.creditCardImports.detail(identity!, targetImportId),
 			queryKeys.creditCardImports.pending(identity!),
 		]);
-	const invalidateCreditCards = () => invalidateCacheOperation(queryClient, identity!, "statement");
 	const closeFinishedReview = async () => {
 		if (!importId) return;
 		onOpenChange(false);
@@ -137,12 +130,12 @@ export function CreditCardImportReviewDialog({
 	const approveItem = (item: CreditCardImportItem) => {
 		const targetImportId = importId!;
 		runBackgroundModalAction({
+			cache: { client: queryClient, operations: ["statement"] },
 			close: () => {},
 			conflictKey: `credit-card-import:${targetImportId}:${item.id}`,
 			failureMessage: "Não foi possível aprovar compra.",
 			loadingMessage: "Aprovando compra...",
 			onSuccess: async () => {
-				await invalidateCreditCards();
 				await invalidate(targetImportId);
 			},
 			progress: "record",
@@ -162,11 +155,12 @@ export function CreditCardImportReviewDialog({
 	);
 
 	const approve = useMutation({
+		meta: { cacheOperations: ["statement"] },
 		mutationFn: (_variables: { itemIds: string[] }) => dataService.creditCardImports.approve(importId!, true),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async result => {
 			const reviewFinished = result.created === creditCardImportData?.pendingItemCount;
-			await invalidateCreditCards();
+
 			if (reviewFinished) await closeFinishedReview();
 			else await invalidate();
 			showToast(
@@ -421,6 +415,7 @@ export function CreditCardImportReviewDialog({
 						const item = reviewingRefund;
 						const targetImportId = importId!;
 						runBackgroundModalAction({
+							cache: { client: queryClient, operations: ["statement"] },
 							close: () => {
 								setReviewingRefund(null);
 								setRecoveredRefund(undefined);
@@ -429,7 +424,6 @@ export function CreditCardImportReviewDialog({
 							failureMessage: "Não foi possível aprovar o reembolso.",
 							loadingMessage: "Aprovando reembolso...",
 							onSuccess: async () => {
-								await invalidateCreditCards();
 								await invalidate(targetImportId);
 							},
 							progress: "record",

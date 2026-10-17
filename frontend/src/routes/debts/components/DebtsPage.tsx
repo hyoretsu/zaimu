@@ -51,16 +51,16 @@ export function DebtsPage() {
 	});
 	const refresh = () => invalidateCacheOperation(queryClient, identity!, "debt");
 	const deletePerson = useMutation({
+		meta: { cacheOperations: ["debt"] },
 		mutationFn: (id: string) => dataService.debts.deletePerson(id),
 		onSuccess: async () => {
-			await refresh();
 			showToast("Pessoa excluída.", "info");
 		},
 	});
 	const deleteEvent = useMutation({
+		meta: { cacheOperations: ["debt"] },
 		mutationFn: (id: string) => dataService.debts.deleteEvent(id),
 		onSuccess: async () => {
-			await refresh();
 			showToast("Lançamento excluído.", "info");
 		},
 	});

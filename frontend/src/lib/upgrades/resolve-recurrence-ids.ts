@@ -7,13 +7,13 @@ import type { Recurrence, RecurrenceOccurrence } from "../recurrence";
 interface Mapping {
 	id: string;
 	ownerKey: StorageOwner;
-	source: string;
+	source: "recurring" | "salary" | "subscription";
 	legacyId: string;
 	recurrenceId: string;
 	resolved?: boolean;
 }
 interface Resolution {
-	source: string;
+	source: "recurring" | "salary" | "subscription";
 	legacyId: string;
 	recurrenceId: string;
 	deleted: boolean;
@@ -22,7 +22,9 @@ interface Resolution {
 export async function resolveUpgradeRecurrenceIds(
 	database: IDBDatabase,
 	owner: StorageOwner,
-	lookup: (ids: Array<{ source: string; legacyId: string }>) => Promise<Resolution[]>,
+	lookup: (
+		ids: Array<{ source: "recurring" | "salary" | "subscription"; legacyId: string }>,
+	) => Promise<Resolution[]>,
 ) {
 	const reading = database.transaction("application-upgrade", "readonly");
 	const pending = (

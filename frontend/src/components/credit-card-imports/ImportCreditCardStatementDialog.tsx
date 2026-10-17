@@ -22,7 +22,7 @@ import {
 	getCreditCardStatementPdfPasswordConfiguration,
 } from "@/lib/credit-card-imports";
 import { dataService } from "@/lib/dataService";
-import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 
 export function ImportCreditCardStatementDialog({
@@ -51,6 +51,7 @@ export function ImportCreditCardStatementDialog({
 		setProvider("");
 	}, [cards, open]);
 	const createImport = useMutation({
+		meta: { cacheOperations: ["statement"] },
 		mutationFn: () => {
 			if (!provider) throw new Error("Selecione a instituição da fatura.");
 			if (!creditCardId) throw new Error("Selecione o cartão que receberá as compras.");
@@ -65,7 +66,6 @@ export function ImportCreditCardStatementDialog({
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async result => {
 			if (!result.creditCardImport) {
-				await invalidateCacheOperation(queryClient, identity!, "statement");
 				showToast("Fatura sincronizada por completo.", "positive");
 				onOpenChange(false);
 				return;

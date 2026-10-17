@@ -5,7 +5,11 @@ import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
-import { fetchWithAuth } from "@/lib/dataService";
+import {
+	getFinancialInstitutionsByIdProfiles,
+	getFinancialInstitutionsReviewProposalsByIdProfileHistory,
+} from "@/lib/api";
+import { useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 export interface ProfileResolution {
 	profileId: string;
@@ -22,19 +26,16 @@ export function MergeProfileResolution({
 	value: ProfileResolution[] | undefined;
 	onChange: (value: ProfileResolution[]) => void;
 }) {
+	const identity = useCacheIdentity();
 	const [profile, setProfile] = useState<string>();
 	const [date, setDate] = useState(new Date().toLocaleDateString("sv-SE"));
 	const profiles = useQuery({
-		queryFn: () =>
-			fetchWithAuth<{ id: string; name: string }[]>(`/financial-institutions/${targetId}/profiles`),
-		queryKey: ["merge-profiles", targetId],
+		queryFn: () => getFinancialInstitutionsByIdProfiles(targetId),
+		queryKey: ["merge-profiles", identity, targetId],
 	});
 	const history = useQuery({
-		queryFn: () =>
-			fetchWithAuth<{ institutionId: string; name: string; effectiveDate: string }[]>(
-				`/financial-institutions/review/proposals/${proposalId}/profile-history?targetId=${targetId}`,
-			),
-		queryKey: ["merge-history", proposalId, targetId],
+		queryFn: () => getFinancialInstitutionsReviewProposalsByIdProfileHistory(proposalId, { targetId }),
+		queryKey: ["merge-history", identity, proposalId, targetId],
 	});
 	return (
 		<div className="grid gap-3 rounded-xl border p-3">

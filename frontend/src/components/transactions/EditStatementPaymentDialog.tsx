@@ -19,7 +19,7 @@ import {
 	compareFinancialAccountsByOptionLabel,
 	getFinancialAccountOptionLabel,
 } from "@/lib/financial-account";
-import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { TransactionDetailsFields } from "./TransactionDetailsFields";
 
@@ -58,6 +58,7 @@ export function EditStatementPaymentDialog({
 	}, [open, transaction]);
 
 	const update = useMutation({
+		meta: { cacheOperations: ["statement"] },
 		mutationFn: () => {
 			if (!transaction || !draft) throw new Error("Pagamento não encontrado");
 			return dataService.transactions.update(transaction.id, {
@@ -78,7 +79,6 @@ export function EditStatementPaymentDialog({
 			return { toastId: toast.loading("Salvando pagamento…", { position: "bottom-right" }) };
 		},
 		onSuccess: async (_, __, context) => {
-			await invalidateCacheOperation(queryClient, identity!, "statement");
 			toast.success("Pagamento da fatura atualizado.", { id: context?.toastId, position: "bottom-right" });
 		},
 	});

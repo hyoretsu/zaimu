@@ -98,8 +98,8 @@ export function DashboardAccounts({ accounts, endDate }: DashboardAccountsProps)
 														? "Renda variável"
 														: account.type === "CASH"
 															? "Dinheiro"
-															: account.type === "CASHBACK"
-																? "Cashback"
+															: account.type === "REWARDS"
+																? "Recompensas"
 																: "Conta corrente"}
 											</p>
 										</div>

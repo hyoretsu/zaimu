@@ -1,7 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { fetchWithAuth } from "@/lib/dataService";
-import type { HistoryCollection } from "@/lib/financial-history";
+import {
+	getFinancialHistoryCollectionsById,
+	postFinancialHistoryAdminCoverageComplete,
+	postFinancialHistoryCollectionsByIdRetry,
+} from "@/lib/api";
+import { mutationCacheMeta } from "@/lib/mutation-cache";
 import { showToast } from "@/stores";
 import { useAuthStore } from "@/stores/auth";
 import type { HistoryCoverageSeries } from "./types";
@@ -12,7 +16,10 @@ export function useCoverageCompletion(data: HistoryCoverageSeries) {
 	const [collectionId, setCollectionId] = useState<string>();
 	const collection = useQuery({
 		enabled: !!collectionId,
-		queryFn: () => fetchWithAuth<HistoryCollection>(`/financial-history/collections/${collectionId}`),
+		queryFn: () => {
+			if (!collectionId) throw new Error("Coleta indisponível.");
+			return getFinancialHistoryCollectionsById(collectionId);
+		},
 		queryKey: ["admin-history-completion", userId, collectionId],
 		refetchInterval: query =>
 			query.state.data && !["PENDING", "RUNNING"].includes(query.state.data.progress.state) ? false : 2000,
@@ -22,32 +29,32 @@ export function useCoverageCompletion(data: HistoryCoverageSeries) {
 		void client.invalidateQueries({ queryKey: ["admin-history-coverage", userId] });
 	}, [client, userId, collection.data]);
 	const complete = useMutation({
+		meta: mutationCacheMeta("history"),
 		mutationFn: async (range: { startDate: string; endDate: string }) => {
-			const value = await fetchWithAuth<HistoryCollection | null>(
-				"/financial-history/admin/coverage/complete",
-				{
-					body: JSON.stringify({ ...range, kind: data.kind, series: data.series }),
-					method: "POST",
-				},
-			);
+			const value = await postFinancialHistoryAdminCoverageComplete({
+				...range,
+				kind: data.kind,
+				series: data.series,
+			});
 			if (!value) throw new Error("Coleta indisponível. Tente novamente.");
 			return value;
 		},
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: value => {
-			client.setQueryData(["admin-history-completion", userId, value.id], value);
+			if (value) client.setQueryData(["admin-history-completion", userId, value.id], value);
 			setCollectionId(value.id);
 			showToast("Coleta solicitada. A cobertura será atualizada durante o processamento.", "positive");
 		},
 	});
 	const retry = useMutation({
-		mutationFn: () =>
-			fetchWithAuth<HistoryCollection>(`/financial-history/collections/${collectionId}/retry`, {
-				method: "POST",
-			}),
+		meta: mutationCacheMeta("history"),
+		mutationFn: () => {
+			if (!collectionId) throw new Error("Coleta indisponível.");
+			return postFinancialHistoryCollectionsByIdRetry(collectionId);
+		},
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: value => {
-			client.setQueryData(["admin-history-completion", userId, value.id], value);
+			if (value) client.setQueryData(["admin-history-completion", userId, value.id], value);
 			showToast("Nova tentativa solicitada.", "positive");
 		},
 	});

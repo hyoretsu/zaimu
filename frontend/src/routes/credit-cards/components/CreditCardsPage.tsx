@@ -16,7 +16,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { getFinancialInstitutions } from "@/lib/financial-institution";
-import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { CreateFinancialAccountDialog } from "@/routes/accounts/components";
 import {
 	CardAdjustmentsDialog,
@@ -65,6 +65,7 @@ export function CreditCardsPage() {
 	const institutions = getFinancialInstitutions(accounts.data ?? []);
 	const rewardAccounts = accounts.data?.filter(account => account.type === "REWARDS") ?? [];
 	const purchase = useMutation({
+		meta: { cacheOperations: ["statement"] },
 		mutationFn: ({
 			cardId,
 			data,
@@ -75,40 +76,39 @@ export function CreditCardsPage() {
 		onError: error =>
 			showToast(error instanceof Error ? error.message : "Não foi possível registrar a compra.", "negative"),
 		onSuccess: async () => {
-			await invalidateCacheOperation(queryClient, identity!, "statement");
 			showToast("Compra registrada e faturas recalculadas.", "positive");
 		},
 	});
 	const createCard = useMutation({
+		meta: { cacheOperations: ["creditCard"] },
 		mutationFn: dataService.accounts.create,
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
-			await invalidateCacheOperation(queryClient, identity!, "creditCard");
 			showToast("Cartão cadastrado.", "positive");
 		},
 	});
 	const updateCard = useMutation({
+		meta: { cacheOperations: ["creditCard"] },
 		mutationFn: ({ data, id }: { id: string; data: Parameters<typeof dataService.accounts.update>[1] }) =>
 			dataService.accounts.update(id, data),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
-			await invalidateCacheOperation(queryClient, identity!, "creditCard");
 			showToast("Cartão atualizado.", "positive");
 		},
 	});
 	const deleteCard = useMutation({
+		meta: { cacheOperations: ["creditCard"] },
 		mutationFn: dataService.accounts.delete,
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
-			await invalidateCacheOperation(queryClient, identity!, "creditCard");
 			showToast("Cartão excluído.", "positive");
 		},
 	});
 	const hideCard = useMutation({
+		meta: { cacheOperations: ["creditCard"] },
 		mutationFn: (id: string) => dataService.accounts.update(id, { isHidden: true }),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
-			await invalidateCacheOperation(queryClient, identity!, "creditCard");
 			showToast("Cartão escondido. Mostre novamente em Contas financeiras.", "positive");
 		},
 	});

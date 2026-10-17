@@ -6,18 +6,17 @@ import { CollapsibleListingSection } from "@/components/ui/CollapsibleListingSec
 import { FormField } from "@/components/ui/FormField";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
-import { fetchWithAuth } from "@/lib/dataService";
+import { getFinancialInstitutionsReviewCatalog } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth";
 import { InstitutionCatalogRow } from "./InstitutionCatalogRow";
 import { LegacyInstitutionRow } from "./LegacyInstitutionRow";
-import type { AdminInstitution } from "./types";
 
 export function InstitutionCatalog() {
 	const userId = useAuthStore(state => state.user?.id);
 	const [search, setSearch] = useState("");
 	const [input, setInput] = useDebouncedInput(search, setSearch);
 	const query = useQuery({
-		queryFn: () => fetchWithAuth<AdminInstitution[]>("/financial-institutions/review/catalog"),
+		queryFn: () => getFinancialInstitutionsReviewCatalog(),
 		queryKey: ["admin-institution-catalog", userId],
 	});
 	const catalog = query.data?.filter(item => item.status === "APPROVED" || item.status === "LEGACY_PRIVATE");

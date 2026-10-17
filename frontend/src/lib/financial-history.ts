@@ -1,96 +1,85 @@
+import type { ZodType } from "zod";
+import {
+	getFinancialHistoryCollectionsById,
+	getFinancialHistoryCollectionsByIdEstimate,
+	getFinancialHistoryCollectionsByIdEstimateQueryResponseSchema,
+	getFinancialHistoryCollectionsByIdQueryResponseSchema,
+	getFinancialHistoryRate,
+	getFinancialHistoryRateQueryResponseSchema,
+	postFinancialHistoryCollections,
+	postFinancialHistoryCollectionsByIdRetry,
+	postFinancialHistoryCollectionsByIdRetryMutationResponseSchema,
+	postFinancialHistoryCollectionsMutationResponseSchema,
+} from "./api";
+import { SessionChangedError } from "./api/client-api";
 import { localMeta } from "./localStorage";
 import { getCurrentCacheIdentity } from "./query-cache";
 
-export interface HistoryProgress {
-	state: "PENDING" | "RUNNING" | "COMPLETED" | "COMPLETED_WITH_GAPS" | "FAILED";
-	requestedDays: number;
-	coveredDays: number;
-	total: number;
-	completed: number;
-	unavailable: number;
-	failed: number;
-	running: number;
-	pending: number;
-	canRetry: boolean;
-	lastActivity: string | null;
-}
-export interface HistoryCollection {
-	id: string;
-	kind: "CURRENCY" | "INTEREST";
-	startDate: string;
-	endDate: string;
-	series: string[];
-	progress: HistoryProgress;
-	units: {
-		id: string;
-		series: string;
-		startDate: string;
-		endDate: string;
-		state: string;
-		lastError: string | null;
-	}[];
-}
-export interface CurrencyHistoryEstimate {
-	collectionId: string;
-	currency: string;
-	method: "EXPONENTIAL_90_DAY_HALF_LIFE";
-	startDate: string;
-	endDate: string;
-	progress: HistoryProgress;
-	estimates: {
-		baseCurrency: string;
-		rate: number | null;
-		samples: number;
-		firstDate: string | null;
-		lastDate: string | null;
-	}[];
-}
-const apiUrl = (import.meta.env.VITE_API_URL || "http://localhost:3333").replace(/\/$/, "");
-
-async function historyRequest<T>(path: string, options?: RequestInit): Promise<T | null> {
-	// Capture the owner before network work, so a logout cannot move another owner's cache.
+export type HistoryCollection = NonNullable<import("./api").GetFinancialHistoryCollectionsByIdQueryResponse>;
+export type HistoryProgress = HistoryCollection["progress"];
+export type CurrencyHistoryEstimate = import("./api").GetFinancialHistoryCollectionsByIdEstimateQueryResponse;
+async function historyValue<T>(
+	key: string,
+	load: () => Promise<T>,
+	schema: ZodType<T>,
+	mutation = false,
+): Promise<T | null> {
 	const owner = getCurrentCacheIdentity();
 	if (!owner) return null;
-	const key = `financial-history:${path}:${options?.body ?? ""}`;
 	try {
 		if (!navigator.onLine) throw new Error("Sem conexão");
-		const response = await fetch(`${apiUrl}/financial-history${path}`, {
-			...options,
-			credentials: "include",
-			headers: { "content-type": "application/json" },
-			signal: AbortSignal.timeout(15_000),
-		});
-		if (!response.ok) throw new Error("Histórico indisponível");
-		const value = (await response.json()) as T;
+		const value = await load();
+		if (getCurrentCacheIdentity() !== owner) throw new SessionChangedError();
 		await localMeta.set(key, value, owner);
 		return value;
 	} catch (error) {
-		const cached = (await localMeta.get(key, owner)) as T | undefined;
-		if (cached !== undefined) return cached;
-		if (options?.method === "POST") throw error;
+		if (getCurrentCacheIdentity() !== owner) throw new SessionChangedError();
+		const cached = schema.safeParse(await localMeta.get(key, owner));
+		if (cached.success) return cached.data;
+		if (mutation) throw error;
 		return null;
 	}
 }
 
+const historyConfig = () => ({ authenticated: false, signal: AbortSignal.timeout(15_000) });
+
 export const requestHistoryCollection = (
-	kind: HistoryCollection["kind"],
+	kind: import("./api").PostFinancialHistoryCollectionsMutationRequest["kind"],
 	series: string[],
 	referenceDate?: string,
-) =>
-	historyRequest<HistoryCollection>("/collections", {
-		body: JSON.stringify({ kind, referenceDate, series: [...new Set(series)].sort() }),
-		method: "POST",
-	});
+) => {
+	const data = { kind, referenceDate, series: [...new Set(series)].sort() };
+	return historyValue(
+		`financial-history:/collections:${JSON.stringify(data)}`,
+		() => postFinancialHistoryCollections(data, historyConfig()),
+		postFinancialHistoryCollectionsMutationResponseSchema,
+		true,
+	);
+};
 export const readHistoryCollection = (id: string) =>
-	historyRequest<HistoryCollection>(`/collections/${encodeURIComponent(id)}`);
+	historyValue(
+		`financial-history:/collections/${encodeURIComponent(id)}:`,
+		() => getFinancialHistoryCollectionsById(id, historyConfig()),
+		getFinancialHistoryCollectionsByIdQueryResponseSchema,
+	);
 export const retryHistoryCollection = (id: string) =>
-	historyRequest<HistoryCollection>(`/collections/${encodeURIComponent(id)}/retry`, { method: "POST" });
+	historyValue(
+		`financial-history:/collections/${encodeURIComponent(id)}/retry:`,
+		() => postFinancialHistoryCollectionsByIdRetry(id, historyConfig()),
+		postFinancialHistoryCollectionsByIdRetryMutationResponseSchema,
+		true,
+	);
 export const readCurrencyEstimate = (id: string, currency: string) =>
-	historyRequest<CurrencyHistoryEstimate>(
-		`/collections/${encodeURIComponent(id)}/estimate?currency=${encodeURIComponent(currency)}`,
+	historyValue(
+		`financial-history:/collections/${encodeURIComponent(id)}/estimate?currency=${encodeURIComponent(currency)}:`,
+		() => getFinancialHistoryCollectionsByIdEstimate(id, { currency }, historyConfig()),
+		getFinancialHistoryCollectionsByIdEstimateQueryResponseSchema,
 	);
-
-export const readCurrencyRate = (date: string, from: string, to: string) =>
-	historyRequest<{ date: string; from: string; to: string; rate: number }>(
-		`/rate?date=${encodeURIComponent(date.slice(0, 10))}&from=${encodeURIComponent(from.toUpperCase())}&to=${encodeURIComponent(to.toUpperCase())}`,
+export const readCurrencyRate = (date: string, from: string, to: string) => {
+	const params = { date: date.slice(0, 10), from: from.toUpperCase(), to: to.toUpperCase() };
+	return historyValue(
+		`financial-history:/rate?date=${encodeURIComponent(params.date)}&from=${encodeURIComponent(params.from)}&to=${encodeURIComponent(params.to)}:`,
+		() => getFinancialHistoryRate(params, historyConfig()),
+		getFinancialHistoryRateQueryResponseSchema,
 	);
+};

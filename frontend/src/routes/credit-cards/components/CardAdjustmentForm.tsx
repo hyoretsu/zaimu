@@ -18,7 +18,7 @@ import { ignoredThroughStatement } from "@/lib/card-adjustment";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
 import { formatLocalMonthYear, getLocalDateKey } from "@/lib/date";
-import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 
 export interface CardAdjustmentDraft {
 	card: CreditCard | null;
@@ -63,11 +63,11 @@ export function CardAdjustmentForm({
 	const save = () => {
 		const draft = { card, cardId, statementDate: chosenDate };
 		runBackgroundModalAction({
+			cache: { client: queryClient, operations: ["creditCard"] },
 			close: onClose,
 			conflictKey: `card-adjustment:${cardId}`,
 			failureMessage: "Não foi possível salvar o ajuste de cartão.",
 			loadingMessage: "Salvando ajuste de cartão...",
-			onSuccess: () => invalidateCacheOperation(queryClient, identity!, "creditCard"),
 			recovery: { entityId: cardId, kind: "card-adjustment", payload: draft },
 			run: () => dataService.creditCards.setStatementCutoff(draft.cardId, draft.statementDate),
 			successMessage: "Ajuste de cartão salvo.",

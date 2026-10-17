@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { LuShieldPlus } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
@@ -6,29 +6,28 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
-import { fetchWithAuth } from "@/lib/dataService";
+import { getAdminUsers, postAdminUsersByIdPromote } from "@/lib/api";
+import { mutationCacheMeta } from "@/lib/mutation-cache";
+import { useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 export function AdminUsers() {
+	const identity = useCacheIdentity();
 	const [search, setSearch] = useState("");
 	const [local, setLocal] = useDebouncedInput(search, setSearch);
-	const client = useQueryClient();
 	const users = useQuery({
 		enabled: search.trim().length >= 3,
-		queryFn: () =>
-			fetchWithAuth<Array<{ id: string; email: string; name: string; role: string }>>(
-				`/admin/users?email=${encodeURIComponent(search)}`,
-			),
-		queryKey: ["admin-users", search],
+		queryFn: () => getAdminUsers({ email: search }),
+		queryKey: ["admin-users", identity, search],
 	});
 	const [pending, setPending] = useState<string[]>([]);
 	const promote = useMutation({
-		mutationFn: (id: string) => fetchWithAuth(`/admin/users/${id}/promote`, { method: "POST" }),
+		meta: mutationCacheMeta("adminUser"),
+		mutationFn: (id: string) => postAdminUsersByIdPromote(id),
 		onError: error => showToast(error.message, "negative"),
 		onMutate: id => setPending(current => [...current, id]),
 		onSettled: (_data, _error, id) => setPending(current => current.filter(value => value !== id)),
 		onSuccess: () => {
 			showToast("Permissão administrativa concedida.", "positive");
-			void client.invalidateQueries({ queryKey: ["admin-users"] });
 		},
 	});
 	return (

@@ -9,14 +9,13 @@ import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import type { DateRangeValue } from "@/components/ui/DateRangePicker/types";
 import { FormFieldRow } from "@/components/ui/FormFieldRow";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { fetchWithAuth } from "@/lib/dataService";
+import { getFinancialHistoryAdminCoverage } from "@/lib/api";
 import { showToast } from "@/stores";
 import { useAuthStore } from "@/stores/auth";
 import { useCurrencyStore } from "@/stores/currency";
 import { HistoryCoverageSkeleton } from "./HistoryCoverageSkeleton";
 import { HistoryCoverageTotals } from "./HistoryCoverageTotals";
 import { HistorySeriesCoverage } from "./HistorySeriesCoverage";
-import type { HistoryCoverage } from "./types";
 
 function initialRange() {
 	const end = subDays(new Date(), 1);
@@ -24,7 +23,7 @@ function initialRange() {
 }
 export function FinancialHistoryAdmin({ header }: { header: ComponentProps<typeof PageHeader> }) {
 	const [range, setRange] = useState<DateRangeValue>(initialRange);
-	const [kind, setKind] = useState("INTEREST");
+	const [kind, setKind] = useState<"CURRENCY" | "INTEREST">("INTEREST");
 	const [rate, setRate] = useState("CDI");
 	const [currency, setCurrency] = useState("BRL");
 	const currencies = useCurrencyStore(state => state.currencies);
@@ -36,10 +35,7 @@ export function FinancialHistoryAdmin({ header }: { header: ComponentProps<typeo
 		!!startDate && !!endDate && startDate <= endDate && endDate < format(new Date(), "yyyy-MM-dd");
 	const query = useQuery({
 		enabled: valid,
-		queryFn: () =>
-			fetchWithAuth<HistoryCoverage>(
-				`/financial-history/admin/coverage?startDate=${startDate}&endDate=${endDate}&kind=${kind}&series=${encodeURIComponent(series)}`,
-			),
+		queryFn: () => getFinancialHistoryAdminCoverage({ endDate, kind, series, startDate }),
 		queryKey: ["admin-history-coverage", userId, startDate, endDate, kind, series],
 		retry: false,
 	});
@@ -82,7 +78,9 @@ export function FinancialHistoryAdmin({ header }: { header: ComponentProps<typeo
 					</div>
 					<CustomSelect
 						label="Tipo de histórico"
-						onValueChange={setKind}
+						onValueChange={value => {
+							if (value === "CURRENCY" || value === "INTEREST") setKind(value);
+						}}
 						options={[
 							{ label: "Juros", value: "INTEREST" },
 							{ label: "Câmbio", value: "CURRENCY" },

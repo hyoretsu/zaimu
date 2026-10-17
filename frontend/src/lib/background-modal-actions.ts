@@ -1,7 +1,10 @@
+import type { QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { create } from "zustand";
 import { getCurrentCacheIdentity } from "@/lib/query-cache";
 import { useAuthStore } from "@/stores/auth";
+import { captureCacheMutation, invalidateMutationCache } from "./mutation-cache";
+import type { CacheOperation } from "./query-cache";
 
 export interface ModalRecovery<T = unknown> {
 	entityId?: string;
@@ -93,6 +96,7 @@ useAuthStore.subscribe((state, previous) => {
 });
 
 export interface BackgroundModalAction<T> {
+	cache?: { client: QueryClient; operations: readonly CacheOperation[] };
 	close: () => void;
 	conflictKey?: string;
 	conflictKeys?: string[];
@@ -107,6 +111,7 @@ export interface BackgroundModalAction<T> {
 }
 
 export function runBackgroundModalAction<T>({
+	cache,
 	close,
 	conflictKey,
 	conflictKeys = [],
@@ -119,6 +124,7 @@ export function runBackgroundModalAction<T>({
 	run,
 	successMessage,
 }: BackgroundModalAction<T>): void {
+	const cacheStart = captureCacheMutation();
 	const identity = getCurrentCacheIdentity();
 	const pendingKeys = [...new Set([...(conflictKey ? [conflictKey] : []), ...conflictKeys])].map(
 		key => `${identity}:${key}`,
@@ -139,8 +145,14 @@ export function runBackgroundModalAction<T>({
 	const toastId =
 		progress === "toast" ? toast.loading(loadingMessage, { position: "bottom-right" }) : undefined;
 	const retryRefresh = async (result: T) => {
+		if (getCurrentCacheIdentity() !== identity) return;
 		try {
-			await onSuccess?.(result);
+			if (cache)
+				await invalidateMutationCache(cache.client, cacheStart, {
+					awaitRefetch: true,
+					cacheOperations: cache.operations,
+				});
+			if (getCurrentCacheIdentity() === identity) await onSuccess?.(result);
 			toast.success("Lista atualizada.", { position: "bottom-right" });
 		} catch {
 			toast.error("Não foi possível atualizar a lista.", {
@@ -166,7 +178,12 @@ export function runBackgroundModalAction<T>({
 			}));
 			toast.success(successMessage, { id: toastId, position: "bottom-right" });
 			try {
-				await onSuccess?.(result);
+				if (cache)
+					await invalidateMutationCache(cache.client, cacheStart, {
+						awaitRefetch: true,
+						cacheOperations: cache.operations,
+					});
+				if (getCurrentCacheIdentity() === identity) await onSuccess?.(result);
 			} catch {
 				toast.error("Dados salvos. Não foi possível atualizar a lista.", {
 					action: { label: "Tentar atualizar", onClick: () => void retryRefresh(result) },

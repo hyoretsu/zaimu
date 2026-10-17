@@ -1,7 +1,7 @@
 import { useAuthStore } from "@/stores/auth";
 import { useCurrencyStore } from "@/stores/currency";
+import { getCountryPreferences, patchCountryPreferences } from "./api";
 import { countryCodes } from "./countries";
-import { fetchWithAuth } from "./dataService";
 import { localMeta } from "./localStorage";
 import { getCurrentCacheIdentity } from "./query-cache";
 
@@ -19,17 +19,15 @@ export async function readCountryPreference() {
 	const cached = (await localMeta.get("country-preference", owner)) as string | undefined;
 	if (useAuthStore.getState().isGuestMode || !navigator.onLine) return cached ?? locationCountry();
 	try {
-		let value = (await fetchWithAuth<{ preferredCountry: string | null }>("/country-preferences"))
-			.preferredCountry;
+		let value = (await getCountryPreferences()).preferredCountry;
 		if (!value) {
 			const suggestion = locationCountry();
 			if (suggestion)
 				value = (
-					await fetchWithAuth<{ preferredCountry: string }>("/country-preferences", {
-						body: JSON.stringify({ preferredCountry: suggestion }),
-						headers: { "X-Country-Initialize": "true" },
-						method: "PATCH",
-					})
+					await patchCountryPreferences(
+						{ preferredCountry: suggestion },
+						{ headers: { "X-Country-Initialize": "true" } },
+					)
 				).preferredCountry;
 		}
 		if (value) await localMeta.set("country-preference", value, owner);
@@ -52,10 +50,6 @@ function locationCountry() {
 export async function saveCountryPreference(preferredCountry: string) {
 	const owner = getCurrentCacheIdentity();
 	if (!owner) throw new Error("Sessão indisponível");
-	if (!useAuthStore.getState().isGuestMode)
-		await fetchWithAuth("/country-preferences", {
-			body: JSON.stringify({ preferredCountry }),
-			method: "PATCH",
-		});
+	if (!useAuthStore.getState().isGuestMode) await patchCountryPreferences({ preferredCountry });
 	await localMeta.set("country-preference", preferredCountry, owner);
 }

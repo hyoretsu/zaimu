@@ -8,7 +8,7 @@ import type { FinancialAccount } from "@/lib/api";
 import { runBackgroundModalAction } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { getFinancialAccountOptionLabel } from "@/lib/financial-account";
-import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
+import { useCacheIdentity } from "@/lib/query-cache";
 
 export type { AccountDefaultsDraft } from "@/lib/account-defaults";
 
@@ -30,11 +30,11 @@ export function AccountDefaultsForm({
 	const save = () => {
 		const draft = { primaryId, statementId };
 		runBackgroundModalAction({
+			cache: { client: queryClient, operations: ["account"] },
 			close: onClose,
 			conflictKey: "account-defaults",
 			failureMessage: "Não foi possível atualizar as contas padrão.",
 			loadingMessage: "Atualizando contas padrão...",
-			onSuccess: () => invalidateCacheOperation(queryClient, identity!, "account"),
 			recovery: { kind: "account-defaults", payload: draft },
 			run: () => saveAccountDefaults(draft, dataService.accounts),
 			successMessage: "Contas padrão atualizadas.",

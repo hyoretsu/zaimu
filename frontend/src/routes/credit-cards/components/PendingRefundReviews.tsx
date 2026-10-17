@@ -7,7 +7,7 @@ import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { dataService } from "@/lib/dataService";
-import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 
 export function PendingRefundReviews({ cardId, count }: { cardId: string; count: number }) {
@@ -22,13 +22,14 @@ export function PendingRefundReviews({ cardId, count }: { cardId: string; count:
 	});
 	const selected = reviews.data?.find(row => row.id === selectedId);
 	const approve = useMutation({
+		meta: { cacheOperations: ["statement"] },
 		mutationFn: (data: Parameters<typeof dataService.creditCards.approveRefundReview>[2]) =>
 			dataService.creditCards.approveRefundReview(cardId, selectedId!, data),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
 			setSelectedId(null);
 			await reviews.refetch();
-			await invalidateCacheOperation(queryClient, identity!, "statement");
+
 			showToast("Reembolso vinculado e faturas recalculadas.", "positive");
 		},
 	});

@@ -21,7 +21,7 @@ import { runBackgroundModalAction } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { getFinancialAccountOptionLabel } from "@/lib/financial-account";
 import { invoicePaymentPreferenceKey, readInvoicePaymentPreference } from "@/lib/invoice-payment-preference";
-import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 
 export interface PaymentSuggestionDraft {
 	accountAmount: string;
@@ -83,11 +83,11 @@ export function PaymentSuggestionForm({
 		setValidationError("");
 		const draft = { accountAmount, accountId, attemptId, date };
 		runBackgroundModalAction({
+			cache: { client: queryClient, operations: ["transaction"] },
 			close: onClose,
 			conflictKey: `card-payment:${suggestion.statementId}`,
 			failureMessage: "Não foi possível registrar pagamento.",
 			loadingMessage: "Registrando pagamento...",
-			onSuccess: () => invalidateCacheOperation(queryClient, identity!, "transaction"),
 			recovery: {
 				entityId: suggestion.statementId,
 				kind: "payment-suggestion",

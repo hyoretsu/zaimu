@@ -18,7 +18,7 @@ import {
 	getFinancialAccountOptionLabel,
 } from "@/lib/financial-account";
 import { getFinancialInstitutions } from "@/lib/financial-institution";
-import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import {
 	AccountDefaultsDialog,
 	BalanceAdjustmentsDialog,
@@ -61,42 +61,43 @@ export function AccountsPage() {
 			]),
 		).values(),
 	];
-	const invalidateAccountData = () => invalidateCacheOperation(queryClient, identity!, "account");
+
 	const createAccount = useMutation({
+		meta: { cacheOperations: ["account"] },
 		mutationFn: dataService.accounts.create,
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
-			await invalidateAccountData();
 			showToast("Conta cadastrada.", "positive");
 		},
 	});
 	const deleteAccount = useMutation({
+		meta: { cacheOperations: ["account"] },
 		mutationFn: dataService.accounts.delete,
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
-			await invalidateAccountData();
 			showToast("Conta excluída.", "positive");
 		},
 	});
 	const updateAccount = useMutation({
+		meta: { cacheOperations: ["account"] },
 		mutationFn: ({ data, id }: { id: string; data: Parameters<typeof dataService.accounts.update>[1] }) =>
 			dataService.accounts.update(id, data),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
-			await invalidateAccountData();
 			showToast("Conta atualizada.", "positive");
 		},
 	});
 	const setAccountHidden = useMutation({
+		meta: { cacheOperations: ["account"] },
 		mutationFn: ({ id, isHidden }: { id: string; isHidden: boolean }) =>
 			dataService.accounts.update(id, { isHidden }),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async account => {
-			await invalidateAccountData();
 			showToast(account.isHidden ? "Conta escondida." : "Conta exibida novamente.", "positive");
 		},
 	});
 	const updateInstitution = useMutation({
+		meta: { cacheOperations: ["account"] },
 		mutationFn: ({
 			data,
 			id,
@@ -106,16 +107,15 @@ export function AccountsPage() {
 		}) => dataService.financialInstitutions.update(id, data),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
-			await invalidateAccountData();
 			showToast(guest ? "Instituição atualizada." : "Proposta enviada para revisão.", "positive");
 		},
 	});
 
 	const deleteInstitution = useMutation({
+		meta: { cacheOperations: ["institution"] },
 		mutationFn: dataService.financialInstitutions.delete,
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
-			await invalidateCacheOperation(queryClient, identity!, "institution");
 			showToast("Instituição excluída.", "positive");
 		},
 	});

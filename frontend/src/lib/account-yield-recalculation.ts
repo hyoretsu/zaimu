@@ -38,10 +38,12 @@ export async function recalculateAccountYield(
 ): Promise<{ success: true }> {
 	const { useAuthStore } = await import("@/stores/auth");
 	if (!useAuthStore.getState().isGuestMode) {
-		const { fetchWithAuth } = await import("./dataService");
-		return fetchWithAuth(`/financial-accounts/${accountId}/recalculate-yields`, {
-			body: JSON.stringify({ customSettings, profileId }),
-			method: "POST",
+		const { postFinancialAccountsByIdRecalculateYields } = await import("./api");
+		return postFinancialAccountsByIdRecalculateYields(accountId, {
+			customSettings: customSettings
+				? { ...customSettings, yieldTaxIds: customSettings.yieldTaxIds ?? undefined }
+				: undefined,
+			profileId,
 		});
 	}
 	const { localAccounts, localMeta } = await import("./localStorage");

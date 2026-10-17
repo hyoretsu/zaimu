@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { type TaxBracket, type TaxDefinition, validateTaxBrackets } from "@zaimu/finance/yield-tax";
 import { useState } from "react";
 import { LuMinus, LuPlus } from "react-icons/lu";
@@ -18,7 +18,8 @@ import { Input } from "@/components/ui/Input";
 import { NumericField } from "@/components/ui/NumericField";
 import { RequiredMark } from "@/components/ui/RequiredMark";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
-import { fetchWithAuth } from "@/lib/dataService";
+import { postAdminTaxes, putAdminTaxesById } from "@/lib/api";
+import { mutationCacheMeta } from "@/lib/mutation-cache";
 import { showToast } from "@/stores";
 import { TaxBracketFields } from "./TaxBracketFields";
 export function TaxEditor({ tax, onClose }: { tax: TaxDefinition | null; onClose: () => void }) {
@@ -29,17 +30,15 @@ export function TaxEditor({ tax, onClose }: { tax: TaxDefinition | null; onClose
 		() => latest?.brackets.map(bracket => ({ ...bracket })) ?? [{ rate: 0, upToDays: null }],
 	);
 	const [error, setError] = useState("");
-	const client = useQueryClient();
 	const save = useMutation({
-		mutationFn: () =>
-			fetchWithAuth(tax ? `/admin/taxes/${tax.id}` : "/admin/taxes", {
-				body: JSON.stringify({ applicationOrder: Number(order), brackets, name: name.trim() }),
-				method: tax ? "PUT" : "POST",
-			}),
+		meta: mutationCacheMeta("tax"),
+		mutationFn: () => {
+			const data = { applicationOrder: Number(order), brackets, name: name.trim() };
+			return tax ? putAdminTaxesById(tax.id, data) : postAdminTaxes(data);
+		},
 		onError: error => setError(error.message),
 		onSuccess: () => {
 			showToast("Imposto salvo. Novas faixas valem amanhã.", "positive");
-			void client.invalidateQueries({ queryKey: ["tax-definitions"] });
 			onClose();
 		},
 	});
@@ -96,22 +95,26 @@ export function TaxEditor({ tax, onClose }: { tax: TaxDefinition | null; onClose
 							</FormFieldRow>
 							<div className="grid gap-2">
 								<div aria-hidden="true" className="grid grid-cols-2 gap-4 font-medium text-sm">
-									<span>Até quantos dias <RequiredMark /></span>
-									<span>Alíquota <RequiredMark /></span>
+									<span>
+										Até quantos dias <RequiredMark />
+									</span>
+									<span>
+										Alíquota <RequiredMark />
+									</span>
 								</div>
-							{brackets.map((bracket, index) => (
-								<TaxBracketFields
-									bracket={bracket}
-									index={index}
-									key={index}
-									last={index === brackets.length - 1}
-									onChange={value =>
-										setBrackets(current =>
-											current.map((item, position) => (position === index ? value : item)),
-										)
-									}
-								/>
-							))}
+								{brackets.map((bracket, index) => (
+									<TaxBracketFields
+										bracket={bracket}
+										index={index}
+										key={index}
+										last={index === brackets.length - 1}
+										onChange={value =>
+											setBrackets(current =>
+												current.map((item, position) => (position === index ? value : item)),
+											)
+										}
+									/>
+								))}
 							</div>
 							<ActionGroup>
 								<Button

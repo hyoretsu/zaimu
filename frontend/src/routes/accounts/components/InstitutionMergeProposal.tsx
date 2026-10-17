@@ -5,8 +5,9 @@ import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import type { FinancialInstitution } from "@/lib/api";
+import { postFinancialInstitutionsByIdMergeProposal } from "@/lib/api";
 import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
-import { dataService, fetchWithAuth } from "@/lib/dataService";
+import { dataService } from "@/lib/dataService";
 import { useCacheIdentity } from "@/lib/query-cache";
 
 export function InstitutionMergeProposal({
@@ -49,6 +50,7 @@ export function InstitutionMergeProposal({
 				<Button
 					disabled={!target || pending}
 					onClick={() => {
+						if (!target) return;
 						const draft = { target };
 						runBackgroundModalAction({
 							close: onClose,
@@ -61,10 +63,7 @@ export function InstitutionMergeProposal({
 								payload: draft,
 							},
 							run: () =>
-								fetchWithAuth(`/financial-institutions/${institution.id}/merge-proposal`, {
-									body: JSON.stringify({ targetId: draft.target }),
-									method: "POST",
-								}),
+								postFinancialInstitutionsByIdMergeProposal(institution.id, { targetId: draft.target }),
 							successMessage: "Associação enviada para revisão.",
 						});
 					}}

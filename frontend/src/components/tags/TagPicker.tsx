@@ -17,7 +17,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { CategoryPage } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
-import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { SelectedTags } from "./components";
 
@@ -55,6 +55,7 @@ export function TagPicker({
 		queryKey: [...queryKeys.categories.list(identity!), { search }],
 	});
 	const createTag = useMutation({
+		meta: { cacheOperations: ["category"] },
 		mutationFn: (name: string) => dataService.categories.create({ name }),
 		onError: error => {
 			showToast(error instanceof Error ? error.message : "Não foi possível criar a tag.", "negative");
@@ -63,7 +64,7 @@ export function TagPicker({
 			onValueChange([...new Set([...value, tag.id])]);
 			setSearchInput("");
 			setSearch("");
-			await invalidateCacheOperation(queryClient, identity!, "category");
+
 			showToast(`Tag “${tag.name}” criada.`, "positive");
 		},
 	});

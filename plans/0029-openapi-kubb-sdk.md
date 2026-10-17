@@ -6,10 +6,10 @@ Entrega exclusivamente local; nenhum serviço externo pode ser alterado.
 
 ## Etapas aprovadas
 
-- [ ] Completar contratos TypeBox, operationIds e tags; exportar rotas reais sem infraestrutura.
-- [ ] Portar Kubb, cliente ky e pipeline Turbo do template, preservando contrato SQL.
-- [ ] Migrar todos os consumidores para operações e tipos gerados, preservando modo convidado e offline.
-- [ ] Centralizar invalidação tipada, com isolamento por identidade e moeda.
+- [x] Completar contratos TypeBox, operationIds e tags; exportar rotas reais sem infraestrutura.
+- [x] Portar Kubb, cliente ky e pipeline Turbo do template, preservando contrato SQL.
+- [x] Migrar todos os consumidores para operações e tipos gerados, preservando modo convidado e offline.
+- [x] Centralizar invalidação tipada, com isolamento por identidade e moeda.
 - [ ] Validar contratos, transporte, cache Turbo, invalidação e regressões.
 - [ ] Criar commits atômicos com hooks e coautoria Codex; integrar na branch original.
 
@@ -41,3 +41,18 @@ Entrega exclusivamente local; nenhum serviço externo pode ser alterado.
 - Histórico offline valida cache com schemas Zod gerados, sem cast de transporte: 3 testes passaram.
 - Regressão ampliada: 353 testes passaram; 4 falhas de IndexedDB/mocks passam em processos isolados. Teste de assinatura falha igualmente na branch original por fixture sem conta do cartão.
 - Paginação e sugestões agora reutilizam `TransactionReturn`, removendo contratos duplicados no backend.
+
+- Commit backend `af804cef` concluiu sincronização concreta com hooks normais.
+- Build frontend passou; 34 testes focados passaram (101 assertions).
+- Pipeline Kubb/Turbo concluído: exportação estrita, geração ignorada, grafo SQL -> OpenAPI -> SDK -> consumidores.
+
+- Consumidores migrados para funções geradas; Better Auth usa cliente oficial. Auditoria não encontrou `fetchWithAuth` nem fetch manual da API Zaimu.
+- Invalidação central cobre domínios financeiros, administração e ações persistidas em segundo plano; preserva identidade, moeda e esperas de revisão.
+- Validação focada: 37 testes frontend (109 assertions), 17 regressões (59 assertions) e 9 contratos/exportação (692 assertions) passaram.
+- Playwright local com respostas públicas simuladas passou modo convidado, sessão após recarga, modal por Back, scroll e viewport mobile, sem erros JavaScript.
+- Hooks apontaram diferenças entre páginas remotas e entidades locais opcionais; composição mantém paginação gerada e campos locais separados.
+- Builds backend/frontend passaram antes dos últimos ajustes de tipos/cache. Hooks finais e integração local continuam pendentes.
+
+- Rebase sobre main atual preservou subdiálogo de ajustes por conta; invalidação central aplicada na nova estrutura.
+- Hooks frontend passaram no commit completo; teste posterior à formatação passou 37 testes/111 assertions.
+- Catálogo fiscal compartilhado ganha regra explícita de invalidação; queries de resolução de perfis incluem identidade.

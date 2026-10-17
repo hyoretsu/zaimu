@@ -21,7 +21,7 @@ import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recover
 import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import type { FinancialAccountYieldEntry } from "@/lib/financial-account";
-import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
+import { useCacheIdentity } from "@/lib/query-cache";
 
 export function EditFinancialAccountYieldDialog({
 	entry: suppliedEntry,
@@ -64,17 +64,16 @@ export function EditFinancialAccountYieldDialog({
 		setTime(entry.time ?? "");
 		setIsHidden(entry.isHidden ?? false);
 	}, [entry, recovered]);
-	const refresh = () => invalidateCacheOperation(queryClient, identity!, "yield");
 	const pending = useModalRecoveryStore(state => !!state.pending[`${identity}:yield:${entry?.id}`]);
 	const submit = (deleting: boolean) => {
 		if (!entry) return;
 		const draft = { amount, date, entry, isHidden, time };
 		runBackgroundModalAction<unknown>({
+			cache: { client: queryClient, operations: ["yield"] },
 			close: () => changeOpen(false),
 			conflictKey: `yield:${entry.id}`,
 			failureMessage: "Não foi possível atualizar rendimento.",
 			loadingMessage: deleting ? "Excluindo rendimento..." : "Salvando rendimento...",
-			onSuccess: refresh,
 			recovery: { entityId: entry.id, kind: "yield-edit", payload: draft },
 			run: () =>
 				deleting

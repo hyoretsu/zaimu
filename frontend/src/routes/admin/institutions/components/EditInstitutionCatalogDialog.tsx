@@ -15,8 +15,9 @@ import {
 	DialogTrigger,
 } from "@/components/ui/Dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
+import { patchFinancialInstitutionsReviewCatalogById } from "@/lib/api";
 import { countryCodes } from "@/lib/countries";
-import { fetchWithAuth } from "@/lib/dataService";
+import { captureCacheMutation, invalidateMutationCache, mutationCacheMeta } from "@/lib/mutation-cache";
 import { showToast } from "@/stores";
 import { useCurrencyStore } from "@/stores/currency";
 import type { AdminInstitution } from "./types";
@@ -31,16 +32,17 @@ export function EditInstitutionCatalogDialog({ institution }: { institution: Adm
 	const countryNames = new Intl.DisplayNames("pt-BR", { type: "region" });
 	const currencyNames = new Intl.DisplayNames("pt-BR", { type: "currency" });
 	const save = async () => {
+		const start = captureCacheMutation();
 		setPending(true);
 		try {
-			await fetchWithAuth(`/financial-institutions/review/catalog/${institution.id}`, {
-				body: JSON.stringify({
-					accountCurrenciesByCountry: mapping,
-					creditStatementClosingInclusive: closingInclusive,
-				}),
-				method: "PATCH",
+			await patchFinancialInstitutionsReviewCatalogById(institution.id, {
+				accountCurrenciesByCountry: mapping,
+				creditStatementClosingInclusive: closingInclusive,
 			});
-			await queryClient.invalidateQueries();
+			await invalidateMutationCache(queryClient, start, {
+				...mutationCacheMeta("institution"),
+				awaitRefetch: true,
+			});
 			showToast("Configurações da instituição salvas", "positive");
 			setOpen(false);
 		} catch (error) {

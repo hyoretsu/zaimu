@@ -2,7 +2,7 @@ import type { CreditPurchase, Transaction } from "@/lib/api";
 
 export const transactionToCreditPurchase = (transaction: Transaction): CreditPurchase => ({
 	bookingCurrency: transaction.bookingCurrency,
-	creditCardId: transaction.creditCardId,
+	creditCardId: transaction.creditCardId ?? undefined,
 	currency: transaction.currency,
 	currentInstallment: transaction.currentInstallment ?? 1,
 	debtSplit: transaction.debtSplit,
@@ -19,7 +19,7 @@ export const transactionToCreditPurchase = (transaction: Transaction): CreditPur
 	isRefund: transaction.isRefund,
 	isSynced: transaction.isSynced,
 	originalAmount: transaction.originalAmount,
-	parentId: transaction.isSynced ? undefined : transaction.parentId,
+	parentId: transaction.isSynced ? undefined : (transaction.parentId ?? undefined),
 	purchaseDate: transaction.date,
 	refund: transaction.refund,
 	refundOfPurchaseId: transaction.refundOfPurchaseId,

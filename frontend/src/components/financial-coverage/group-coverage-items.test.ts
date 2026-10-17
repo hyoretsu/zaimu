@@ -2,14 +2,17 @@ import { describe, expect, it } from "bun:test";
 import { groupCoverageItems } from "./group-coverage-items";
 import type { CoverageItem } from "./types";
 
-const item = (id: string, kind: string, name: string): CoverageItem => ({
+const item = (id: string, kind: CoverageItem["kind"], name: string): CoverageItem => ({
 	affectedAccountIds: [],
 	countryCode: "BR",
+	currency: null,
 	endDate: null,
 	gaps: [],
 	id,
+	institutionId: null,
 	kind,
 	name,
+	profileId: null,
 	source: "test",
 	startDate: null,
 	status: "COMPLETE",

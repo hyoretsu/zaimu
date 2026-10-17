@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/Dialog";
 import type { CreditCard } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
-import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
+import { useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { CreatePurchaseDialog } from "./CreatePurchaseDialog";
 import { CreditCardStatementBrowser } from "./CreditCardStatementBrowser";
@@ -19,6 +19,7 @@ export function CreditCardStatementsDialog({
 	const identity = useCacheIdentity();
 	const [isCreatePurchaseOpen, setIsCreatePurchaseOpen] = useState(false);
 	const purchase = useMutation({
+		meta: { cacheOperations: ["statement"] },
 		mutationFn: ({
 			cardId,
 			data,
@@ -29,7 +30,6 @@ export function CreditCardStatementsDialog({
 		onError: error =>
 			showToast(error instanceof Error ? error.message : "Não foi possível registrar a compra.", "negative"),
 		onSuccess: async () => {
-			await invalidateCacheOperation(queryClient, identity!, "statement");
 			showToast("Compra registrada e faturas recalculadas.", "positive");
 		},
 	});

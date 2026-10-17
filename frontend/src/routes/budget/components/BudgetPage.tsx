@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { isMonthlyAdjustment } from "@zaimu/finance/monthly-budget";
 import { format } from "date-fns";
 import { useState } from "react";
@@ -15,6 +15,7 @@ import {
 	type MonthlyBudgetInput,
 	monthlyBudgetService,
 } from "@/lib/monthly-budget-service";
+import { mutationCacheMeta } from "@/lib/mutation-cache";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { BudgetAdjustmentsDialog } from "./BudgetAdjustmentsDialog";
@@ -24,7 +25,6 @@ import { BudgetList } from "./BudgetList";
 
 export function BudgetPage() {
 	const identity = useCacheIdentity();
-	const client = useQueryClient();
 	const [month, setMonth] = useState(() => format(new Date(), "yyyy-MM"));
 	const [editing, setEditing] = useState<MonthlyBudget | "new" | null>(null);
 	const [adjustmentsOpen, setAdjustmentsOpen] = useState(false);
@@ -34,22 +34,18 @@ export function BudgetPage() {
 		queryFn: () => monthlyBudgetService.getAll(),
 		queryKey: queryKeys.budgets.list(identity!),
 	});
-	const invalidate = () =>
-		Promise.all([
-			client.invalidateQueries({ queryKey: queryKeys.budgets.all(identity!) }),
-			client.invalidateQueries({ queryKey: queryKeys.dashboard.all(identity!) }),
-		]);
 	const save = useMutation({
+		meta: { ...mutationCacheMeta("budget"), awaitRefetch: true },
 		mutationFn: ({ value, id }: { value: MonthlyBudgetInput; id?: string }) =>
 			id ? monthlyBudgetService.update(id, value) : monthlyBudgetService.create(value),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
-			await invalidate();
 			setEditing(null);
 			showToast("Planejamento salvo.", "positive");
 		},
 	});
 	const remove = useMutation({
+		meta: { ...mutationCacheMeta("budget"), awaitRefetch: true },
 		mutationFn: (id: string) => monthlyBudgetService.delete(id),
 		onError: error => showToast(error.message, "negative"),
 		onMutate: id => setPendingIds(current => new Set([...current, id])),
@@ -60,7 +56,6 @@ export function BudgetPage() {
 				return next;
 			}),
 		onSuccess: async () => {
-			await invalidate();
 			showToast("Planejamento excluído.", "positive");
 		},
 	});

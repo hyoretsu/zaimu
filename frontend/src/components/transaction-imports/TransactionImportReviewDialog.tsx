@@ -30,13 +30,7 @@ import type {
 import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
-import {
-	closeImportReview,
-	invalidateCacheOperation,
-	invalidateQueryKeys,
-	queryKeys,
-	useCacheIdentity,
-} from "@/lib/query-cache";
+import { closeImportReview, invalidateQueryKeys, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { sortTransactionsByMostRecent } from "@/lib/transaction-sort";
 import { showToast } from "@/stores";
 import { DuplicateResolutionDialog, type DuplicateResolutionSources } from "./DuplicateResolutionDialog";
@@ -260,11 +254,12 @@ export function TransactionImportReviewDialog({
 	};
 
 	const approve = useMutation({
+		meta: { cacheOperations: ["transaction"] },
 		mutationFn: () => dataService.transactionImports.approve(getReviewedImportId()),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async result => {
 			const reviewFinished = result.finished;
-			await invalidateCacheOperation(queryClient, identity!, "transaction");
+
 			if (reviewFinished) await closeFinishedReview();
 			else await invalidate();
 			showToast(
@@ -278,13 +273,13 @@ export function TransactionImportReviewDialog({
 	const approveItem = (itemId: string) => {
 		const targetImportId = getReviewedImportId();
 		runBackgroundModalAction({
+			cache: { client: queryClient, operations: ["transaction"] },
 			close: () => {},
 			conflictKey: `transaction-import:${targetImportId}:${itemId}`,
 			conflictKeys: [`transaction-import-row:${itemId}`],
 			failureMessage: "Não foi possível aprovar transação.",
 			loadingMessage: "Aprovando transação...",
 			onSuccess: async result => {
-				await invalidateCacheOperation(queryClient, identity!, "transaction");
 				if (result.finished) {
 					if (reviewedImportId.current === targetImportId) onOpenChange(false);
 					await closeImportReview(queryClient, identity!, "transaction", targetImportId);
@@ -303,6 +298,7 @@ export function TransactionImportReviewDialog({
 	const approveDay = (date: string) => {
 		const targetImportId = getReviewedImportId();
 		runBackgroundModalAction({
+			cache: { client: queryClient, operations: ["transaction"] },
 			close: () => {},
 			conflictKey: `transaction-import:${targetImportId}:day:${date}`,
 			conflictKeys: items
@@ -314,7 +310,6 @@ export function TransactionImportReviewDialog({
 			failureMessage: "Não foi possível aprovar dia.",
 			loadingMessage: "Aprovando dia...",
 			onSuccess: async result => {
-				await invalidateCacheOperation(queryClient, identity!, "transaction");
 				if (result.finished) {
 					if (reviewedImportId.current === targetImportId) onOpenChange(false);
 					await closeImportReview(queryClient, identity!, "transaction", targetImportId);
@@ -370,6 +365,7 @@ export function TransactionImportReviewDialog({
 		const { item, suggestion } = transferSuggestionDecision;
 		const targetImportId = getReviewedImportId();
 		runBackgroundModalAction({
+			cache: { client: queryClient, operations: ["transaction"] },
 			close: () => setTransferSuggestionDecision(null),
 			conflictKey: `transaction-import:${targetImportId}:${item.id}`,
 			conflictKeys: [`transaction-import-row:${item.id}`, `transaction-import-row:${suggestion.id}`],

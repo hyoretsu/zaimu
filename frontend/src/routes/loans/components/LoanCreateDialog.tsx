@@ -20,7 +20,7 @@ import type { Loan } from "@/lib/api";
 import { runBackgroundModalAction } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { getLocalDateKey } from "@/lib/date";
-import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
+import { useCacheIdentity } from "@/lib/query-cache";
 import { useCurrencyStore } from "@/stores/currency";
 import { LoanNumericField } from "./LoanNumericField";
 
@@ -89,11 +89,11 @@ export function LoanCreateDialog({
 									totalInstallments: number("totalInstallments"),
 								};
 								runBackgroundModalAction({
+									cache: { client, operations: ["loan"] },
 									close: onClose,
 									conflictKey: "loan-create",
 									failureMessage: "Não foi possível criar o empréstimo.",
 									loadingMessage: "Criando empréstimo...",
-									onSuccess: () => invalidateCacheOperation(client, identity!, "loan"),
 									recovery: { kind: "loan-create", payload: input },
 									run: () => dataService.loans.create(input),
 									successMessage: "Empréstimo criado.",

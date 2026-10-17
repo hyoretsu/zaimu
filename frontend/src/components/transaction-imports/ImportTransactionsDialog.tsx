@@ -77,6 +77,7 @@ export function ImportTransactionsDialog({
 	const provider = getTransactionImportProvider(selectedInstitution) ?? "";
 	const handleOpenChange = onOpenChange;
 	const createImport = useMutation({
+		meta: { cacheOperations: ["transaction"] },
 		mutationFn: ({
 			file,
 			financialAccountId,

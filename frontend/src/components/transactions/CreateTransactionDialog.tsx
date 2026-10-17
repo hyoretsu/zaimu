@@ -27,7 +27,7 @@ import {
 	getFinancialAccountOptionLabel,
 	getTransactionSourceAccounts,
 } from "@/lib/financial-account";
-import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { useCurrencyStore } from "@/stores/currency";
 import { TransactionDetailsFields } from "./TransactionDetailsFields";
@@ -164,6 +164,7 @@ export function CreateTransactionDialog({
 		onOpenChange(nextOpen);
 	};
 	const create = useMutation({
+		meta: { cacheOperations: ["yield", "transaction"] },
 		mutationFn: async ({ debtSplit, description, draft, isDebt }: CreateTransactionInput) => {
 			const amount = Number.parseFloat(draft.amount);
 			const originFinancialAccountId =
@@ -213,11 +214,6 @@ export function CreateTransactionDialog({
 			};
 		},
 		onSuccess: async (_, { draft }, context) => {
-			await invalidateCacheOperation(
-				queryClient,
-				identity!,
-				draft.type === "YIELD" ? "yield" : "transaction",
-			);
 			toast.success(
 				draft.paymentCreditCardId
 					? "Transação associada à fatura."

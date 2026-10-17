@@ -1,18 +1,9 @@
-export interface MonthlyBudget {
-	id: string;
-	userId: string;
-	name: string;
-	source: "TAG" | "STATEMENTS" | "CUSTOM" | "RESERVE" | "UNCATEGORIZED";
-	categoryId: string | null;
-	parentBudgetId?: string | null;
-	amount: number;
-	currency: string;
-	startMonth: string;
-	endMonth: string | null;
+type RemoteMonthlyBudget = import("./api").GetMonthlyBudgetsQueryResponse[number];
+export type MonthlyBudget = Omit<RemoteMonthlyBudget, "createdAt" | "updatedAt" | "deletedAt"> & {
 	createdAt?: string;
 	updatedAt?: string;
 	baseUpdatedAt?: string;
-}
+};
 
 export type MonthlyBudgetInput = Omit<
 	MonthlyBudget,

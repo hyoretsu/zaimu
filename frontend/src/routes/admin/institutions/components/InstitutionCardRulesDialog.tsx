@@ -1,9 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-	type CardRulesProfile,
-	defaultCardRules,
-	type InstitutionCardRules,
-} from "@zaimu/finance/institution-card-rules";
+import { defaultCardRules, type InstitutionCardRules } from "@zaimu/finance/institution-card-rules";
 import { useState } from "react";
 import { LuCreditCard } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
@@ -22,13 +18,15 @@ import {
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
+import {
+	getFinancialInstitutionsByIdProfiles,
+	patchFinancialInstitutionsReviewCatalogByIdCardRules,
+} from "@/lib/api";
 import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
-import { fetchWithAuth } from "@/lib/dataService";
 import { useCacheIdentity } from "@/lib/query-cache";
 import { InstitutionCardRuleFields } from "./InstitutionCardRuleFields";
 import type { AdminInstitution } from "./types";
 
-type Profile = CardRulesProfile & { name: string };
 const INSTITUTION = "__institution__";
 export function InstitutionCardRulesDialog({ institution }: { institution: AdminInstitution }) {
 	const [open, setOpen] = useState(false);
@@ -50,7 +48,7 @@ export function InstitutionCardRulesDialog({ institution }: { institution: Admin
 	const client = useQueryClient();
 	const profiles = useQuery({
 		enabled: open,
-		queryFn: () => fetchWithAuth<Profile[]>(`/financial-institutions/${institution.id}/profiles`),
+		queryFn: () => getFinancialInstitutionsByIdProfiles(institution.id),
 		queryKey: ["admin-institution-card-profiles", identity, institution.id],
 	});
 	const choose = (id: string) => {
@@ -99,19 +97,16 @@ export function InstitutionCardRulesDialog({ institution }: { institution: Admin
 						if (pending || (!inherit && invalid) || !profiles.isSuccess) return;
 						const draft = { inherit, rules, scope };
 						runBackgroundModalAction({
+							cache: { client, operations: ["institution"] },
 							close: () => setOpen(false),
 							conflictKey,
 							failureMessage: "Não foi possível salvar as regras dos cartões.",
 							loadingMessage: "Salvando regras dos cartões...",
-							onSuccess: () => client.invalidateQueries(),
 							recovery: { entityId: institution.id, kind: conflictKey, payload: draft },
 							run: () =>
-								fetchWithAuth(`/financial-institutions/review/catalog/${institution.id}/card-rules`, {
-									body: JSON.stringify({
-										profileId: draft.scope === INSTITUTION ? undefined : draft.scope,
-										rules: draft.inherit ? null : draft.rules,
-									}),
-									method: "PATCH",
+								patchFinancialInstitutionsReviewCatalogByIdCardRules(institution.id, {
+									profileId: draft.scope === INSTITUTION ? undefined : draft.scope,
+									rules: draft.inherit ? null : draft.rules,
 								}),
 							successMessage: "Regras dos cartões salvas.",
 						});

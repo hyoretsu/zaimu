@@ -19,23 +19,16 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
 import type { FinancialInstitution } from "@/lib/api";
+import {
+	getFinancialInstitutionsByIdProfileHistory,
+	getFinancialInstitutionsByIdProfiles,
+	postFinancialInstitutionsByIdProfileHistory,
+} from "@/lib/api";
 import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
-import { fetchWithAuth } from "@/lib/dataService";
-import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
+import { useCacheIdentity } from "@/lib/query-cache";
 import { useAuthStore } from "@/stores/auth";
 import { InstitutionMergeProposal } from "./InstitutionMergeProposal";
 
-interface Profile {
-	id: string;
-	name: string;
-	isDefault: boolean;
-}
-interface Change {
-	id: string;
-	name: string;
-	profileId: string;
-	effectiveDate: string;
-}
 export function InstitutionProfileDialog({ institution }: { institution: FinancialInstitution }) {
 	const [open, setOpen] = useState(false);
 	const [profileId, setProfile] = useState<string>();
@@ -49,12 +42,12 @@ export function InstitutionProfileDialog({ institution }: { institution: Financi
 	const saving = !!pending[`${identity}:institution-profile:${institution.id}`];
 	const profiles = useQuery({
 		enabled: open && !guest,
-		queryFn: () => fetchWithAuth<Profile[]>(`/financial-institutions/${institution.id}/profiles`),
+		queryFn: () => getFinancialInstitutionsByIdProfiles(institution.id),
 		queryKey: ["institution-profiles", userId, institution.id],
 	});
 	const history = useQuery({
 		enabled: open && !guest,
-		queryFn: () => fetchWithAuth<Change[]>(`/financial-institutions/${institution.id}/profile-history`),
+		queryFn: () => getFinancialInstitutionsByIdProfileHistory(institution.id),
 		queryKey: ["institution-profile-history", userId, institution.id],
 	});
 	const today = new Date().toLocaleDateString("sv-SE");
@@ -112,26 +105,20 @@ export function InstitutionProfileDialog({ institution }: { institution: Financi
 						if (!selected || !date) return;
 						const draft = { date, profileId: selected };
 						runBackgroundModalAction({
+							cache: { client, operations: ["institution"] },
 							close: () => changeOpen(false),
 							conflictKey: `institution-profile:${institution.id}`,
 							failureMessage: "Não foi possível registrar mudança de perfil.",
 							loadingMessage: "Registrando mudança de perfil...",
-							onSuccess: () =>
-								Promise.all([
-									client.invalidateQueries({
-										queryKey: ["institution-profile-history", userId, institution.id],
-									}),
-									identity ? invalidateCacheOperation(client, identity, "account") : Promise.resolve(),
-								]),
 							recovery: {
 								entityId: institution.id,
 								kind: `institution-profile:${institution.id}`,
 								payload: draft,
 							},
 							run: () =>
-								fetchWithAuth(`/financial-institutions/${institution.id}/profile-history`, {
-									body: JSON.stringify({ effectiveDate: draft.date, profileId: draft.profileId }),
-									method: "POST",
+								postFinancialInstitutionsByIdProfileHistory(institution.id, {
+									effectiveDate: draft.date,
+									profileId: draft.profileId,
 								}),
 							successMessage: "Mudança de perfil registrada.",
 						});

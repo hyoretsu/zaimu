@@ -184,3 +184,35 @@ test("record progress leaves loading feedback inside the affected listing", asyn
 	finish();
 	await settle();
 });
+
+test("background cache policy waits for persistence and ignores an identity change", async () => {
+	const { QueryClient } = await import("@tanstack/react-query");
+	const { queryKeys } = await import("./query-cache");
+	for (const changeIdentity of [false, true]) {
+		const client = new QueryClient();
+		useAuthStore.setState({ guestId: "test-modal" });
+		const key = queryKeys.accounts.list("guest:test-modal");
+		client.setQueryData(key, []);
+		let finish!: () => void;
+		const persisted = new Promise<void>(resolve => {
+			finish = resolve;
+		});
+		let completions = 0;
+		runBackgroundModalAction({
+			...base,
+			cache: { client, operations: ["account"] },
+			onSuccess: () => {
+				completions++;
+			},
+			run: () => persisted,
+		});
+		await settle();
+		expect(client.getQueryState(key)?.isInvalidated).toBe(false);
+		if (changeIdentity) useAuthStore.setState({ guestId: "other" });
+		finish();
+		await settle();
+		expect(client.getQueryState(key)?.isInvalidated).toBe(!changeIdentity);
+		expect(completions).toBe(changeIdentity ? 0 : 1);
+		client.clear();
+	}
+});

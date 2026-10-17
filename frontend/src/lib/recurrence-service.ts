@@ -9,7 +9,18 @@ import {
 	validateRecurrenceSchedule,
 } from "@zaimu/finance/recurrence";
 import { resolveTransactionMoneySides } from "@zaimu/finance/transaction-money";
-import type { DebtSplitInput, Transaction } from "./api";
+import type {
+	DebtSplitInput,
+	deleteRecurringById,
+	getRecurring,
+	getRecurringById,
+	getRecurringByIdHistory,
+	patchRecurringById,
+	postRecurring,
+	postRecurringByIdAdvance,
+	postRecurringByIdReplay,
+	Transaction,
+} from "./api";
 import { guestCashbackSnapshot } from "./cashback-snapshot";
 import { activeCurrency } from "./currency-context";
 import { convertLocalMoney, guestRate } from "./currency-conversion";
@@ -211,7 +222,16 @@ export async function materializeLocalRecurrences(
 interface Dependencies {
 	isGuestMode: () => boolean;
 	getUserId: () => string;
-	fetchWithAuth: <T>(endpoint: string, options?: RequestInit) => Promise<T>;
+	remote: {
+		deleteRecurringById: typeof deleteRecurringById;
+		getRecurring: typeof getRecurring;
+		getRecurringById: typeof getRecurringById;
+		getRecurringByIdHistory: typeof getRecurringByIdHistory;
+		patchRecurringById: typeof patchRecurringById;
+		postRecurring: typeof postRecurring;
+		postRecurringByIdAdvance: typeof postRecurringByIdAdvance;
+		postRecurringByIdReplay: typeof postRecurringByIdReplay;
+	};
 	hydrateLocalDebtSplit: (amount: number, split: DebtSplitInput) => Promise<Recurrence["debtSplit"]>;
 }
 export function createRecurrenceService(deps: Dependencies) {
@@ -315,11 +335,7 @@ export function createRecurrenceService(deps: Dependencies) {
 	};
 	return {
 		async advance(id: string, time?: string): Promise<{ created: number }> {
-			if (!deps.isGuestMode())
-				return deps.fetchWithAuth(`/recurring/${id}/advance`, {
-					body: JSON.stringify({ time }),
-					method: "POST",
-				});
+			if (!deps.isGuestMode()) return deps.remote.postRecurringByIdAdvance(id, { time });
 			const owner = getCurrentCacheIdentity()!;
 			return {
 				created: await materializeLocalRecurrences(owner, getLocalDateKey(), undefined, { id, time }),
@@ -328,19 +344,14 @@ export function createRecurrenceService(deps: Dependencies) {
 		async create(input: RecurrenceInput): Promise<Recurrence> {
 			if (deps.isGuestMode()) return saveLocal(input);
 			const owner = getCurrentCacheIdentity()!;
-			const record = await deps.fetchWithAuth<Recurrence>("/recurring", {
-				body: JSON.stringify(input),
-				method: "POST",
-			});
+			const record = await deps.remote.postRecurring(input);
 			cacheRemoteData(localRecurrences.put(record, record.id, owner));
 			return record;
 		},
 		async delete(id: string, deleteTransactions = false) {
 			const owner = getCurrentCacheIdentity()!;
 			if (!deps.isGuestMode()) {
-				await deps.fetchWithAuth(`/recurring/${id}?deleteTransactions=${deleteTransactions}`, {
-					method: "DELETE",
-				});
+				await deps.remote.deleteRecurringById(id, { deleteTransactions });
 				cacheRemoteData(deleteLocalRecurrence(owner, id, deleteTransactions));
 				return;
 			}
@@ -353,7 +364,7 @@ export function createRecurrenceService(deps: Dependencies) {
 				if (!record) throw new Error("Recorrência não encontrada.");
 				return record.data;
 			}
-			const record = await deps.fetchWithAuth<Recurrence>(`/recurring/${id}`);
+			const record = await deps.remote.getRecurringById(id);
 			cacheRemoteData(localRecurrences.put(record, id, owner));
 			return record;
 		},
@@ -361,7 +372,7 @@ export function createRecurrenceService(deps: Dependencies) {
 			if (deps.isGuestMode())
 				return (await localRecurrences.getAll()).map(({ data: { debtSplit: _, ...summary } }) => summary);
 			const owner = getCurrentCacheIdentity()!;
-			const records = await deps.fetchWithAuth<Recurrence[]>("/recurring");
+			const records = await deps.remote.getRecurring();
 			cacheRemoteData(
 				(async () => {
 					const existing = new Map(
@@ -381,9 +392,7 @@ export function createRecurrenceService(deps: Dependencies) {
 		},
 		async getHistory(id: string, options: LocalPageOptions = {}): Promise<RecurrenceHistoryPage> {
 			if (!deps.isGuestMode()) {
-				const params = new URLSearchParams({ limit: String(options.limit ?? 50) });
-				if (options.cursor) params.set("cursor", options.cursor);
-				return deps.fetchWithAuth(`/recurring/${id}/history?${params}`);
+				return deps.remote.getRecurringByIdHistory(id, { ...options, cursor: options.cursor ?? undefined });
 			}
 			const owner = getCurrentCacheIdentity()!;
 			if (!(await localRecurrences.getById(id, owner))) throw new Error("Recorrência não encontrada.");
@@ -416,11 +425,7 @@ export function createRecurrenceService(deps: Dependencies) {
 			);
 		},
 		async replay(id: string, from: string, through: string): Promise<{ created: number }> {
-			if (!deps.isGuestMode())
-				return deps.fetchWithAuth(`/recurring/${id}/replay`, {
-					body: JSON.stringify({ from, through }),
-					method: "POST",
-				});
+			if (!deps.isGuestMode()) return deps.remote.postRecurringByIdReplay(id, { from, through });
 			return {
 				created: await materializeLocalRecurrences(getCurrentCacheIdentity()!, getLocalDateKey(), {
 					from,
@@ -432,10 +437,7 @@ export function createRecurrenceService(deps: Dependencies) {
 		async update(id: string, input: Partial<RecurrenceInput>): Promise<Recurrence> {
 			if (deps.isGuestMode()) return saveLocal(input, id);
 			const owner = getCurrentCacheIdentity()!;
-			const record = await deps.fetchWithAuth<Recurrence>(`/recurring/${id}`, {
-				body: JSON.stringify(input),
-				method: "PATCH",
-			});
+			const record = await deps.remote.patchRecurringById(id, input);
 			cacheRemoteData(localRecurrences.put(record, id, owner));
 			return record;
 		},

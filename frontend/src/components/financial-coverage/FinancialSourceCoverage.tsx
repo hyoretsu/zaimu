@@ -4,17 +4,16 @@ import { LuCalendarPlus, LuCheck } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { fetchWithAuth } from "@/lib/dataService";
+import {
+	getFinancialHistoryCoverage,
+	postAdminYieldCalendarCountriesByCodeCoverageByYear,
+	postAdminYieldCalendarCountriesByCodeCoverageByYearConfirm,
+} from "@/lib/api";
 import { showToast } from "@/stores";
 import { useAuthStore } from "@/stores/auth";
 import { CoverageSourceGroup } from "./CoverageSourceGroup";
 import { groupCoverageItems } from "./group-coverage-items";
-import type { CoverageItem } from "./types";
 
-interface CoverageReport {
-	items: CoverageItem[];
-	accounts: { id: string; name: string | null; currency: string; countryCode: string | null }[];
-}
 const kinds: Record<string, string> = {
 	ACCOUNT_COUNTRY: "País da conta",
 	ASSOCIATION: "Associação CLDR",
@@ -46,8 +45,7 @@ export function FinancialSourceCoverage({
 	const userId = useAuthStore(state => state.user?.id);
 	const [pending, setPending] = useState<string[]>([]);
 	const query = useQuery({
-		queryFn: () =>
-			fetchWithAuth<CoverageReport>(`/financial-history/coverage?startDate=${startDate}&endDate=${endDate}`),
+		queryFn: () => getFinancialHistoryCoverage({ endDate, startDate }),
 		queryKey: ["financial-source-coverage", userId, startDate, endDate],
 	});
 	const groups = groupCoverageItems(query.data?.items ?? []);
@@ -98,10 +96,11 @@ export function FinancialSourceCoverage({
 												<Button
 													disabled={pending.includes(item.id)}
 													onClick={() => {
+														if (!item.countryCode || !item.startDate) return;
 														setPending(ids => [...ids, item.id]);
-														void fetchWithAuth(
-															`/admin/yield-calendar/countries/${item.countryCode}/coverage/${item.startDate!.slice(0, 4)}`,
-															{ method: "POST" },
+														void postAdminYieldCalendarCountriesByCodeCoverageByYear(
+															item.countryCode,
+															item.startDate.slice(0, 4),
 														)
 															.then(async () => {
 																await query.refetch();
@@ -119,10 +118,11 @@ export function FinancialSourceCoverage({
 													<Button
 														disabled={pending.includes(item.id)}
 														onClick={() => {
+															if (!item.countryCode || !item.startDate) return;
 															setPending(ids => [...ids, item.id]);
-															void fetchWithAuth(
-																`/admin/yield-calendar/countries/${item.countryCode}/coverage/${item.startDate!.slice(0, 4)}/confirm`,
-																{ method: "POST" },
+															void postAdminYieldCalendarCountriesByCodeCoverageByYearConfirm(
+																item.countryCode,
+																item.startDate.slice(0, 4),
 															)
 																.then(async () => {
 																	await query.refetch();

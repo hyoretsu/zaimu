@@ -3,8 +3,8 @@ import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
+import { postFinancialInstitutionsByIdProfiles } from "@/lib/api";
 import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
-import { fetchWithAuth } from "@/lib/dataService";
 import { useCacheIdentity } from "@/lib/query-cache";
 export function ProfileProposalForm({
 	institutionId,
@@ -46,11 +46,7 @@ export function ProfileProposalForm({
 								kind: `institution-profile:${institutionId}`,
 								payload: draft,
 							},
-							run: () =>
-								fetchWithAuth(`/financial-institutions/${institutionId}/profiles`, {
-									body: JSON.stringify(draft),
-									method: "POST",
-								}),
+							run: () => postFinancialInstitutionsByIdProfiles(institutionId, draft),
 							successMessage: "Perfil proposto para revisão.",
 						});
 					}}

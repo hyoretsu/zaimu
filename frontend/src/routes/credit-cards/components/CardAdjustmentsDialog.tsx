@@ -15,7 +15,7 @@ import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recover
 import type { CreditCard } from "@/lib/api";
 import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
-import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
+import { useCacheIdentity } from "@/lib/query-cache";
 import { type CardAdjustmentDraft, CardAdjustmentForm } from "./CardAdjustmentForm";
 import { CardAdjustmentListItem } from "./CardAdjustmentListItem";
 
@@ -44,11 +44,11 @@ export function CardAdjustmentsDialog({
 	});
 	const remove = (card: CreditCard) =>
 		runBackgroundModalAction({
+			cache: { client: queryClient, operations: ["creditCard"] },
 			close: () => onOpenChange(false),
 			conflictKey: `card-adjustment:${card.id}`,
 			failureMessage: "Não foi possível excluir o ajuste.",
 			loadingMessage: "Excluindo ajuste de cartão...",
-			onSuccess: () => invalidateCacheOperation(queryClient, identity!, "creditCard"),
 			recovery: { entityId: card.id, kind: "card-adjustment-delete", payload: card },
 			run: () => dataService.creditCards.setStatementCutoff(card.id, null),
 			successMessage: "Ajuste de cartão excluído.",

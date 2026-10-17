@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { StorePage } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
-import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 
 export function StorePicker({
@@ -52,12 +52,13 @@ export function StorePicker({
 		setOpen(false);
 	};
 	const createStore = useMutation({
+		meta: { cacheOperations: ["store"] },
 		mutationFn: (name: string) => dataService.stores.create(name),
 		onError: error =>
 			showToast(error instanceof Error ? error.message : "Não foi possível criar a loja.", "negative"),
 		onSuccess: async store => {
 			selectStore(store.name);
-			await invalidateCacheOperation(queryClient, identity!, "store");
+
 			showToast(`Loja “${store.name}” criada.`, "positive");
 		},
 	});

@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { fetchWithAuth } from "@/lib/dataService";
+import { getAdminAccess } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth";
 
 export function AdminPageLayout({
@@ -25,7 +25,7 @@ export function AdminPageLayout({
 	const userId = useAuthStore(state => state.user?.id);
 	const access = useQuery({
 		enabled: authenticated,
-		queryFn: () => fetchWithAuth<{ role: string }>("/admin/access"),
+		queryFn: () => getAdminAccess(),
 		queryKey: ["admin-access", userId],
 		retry: false,
 	});

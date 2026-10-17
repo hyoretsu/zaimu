@@ -5,7 +5,7 @@ import { LuCreditCard, LuPlus } from "react-icons/lu";
 import { CreateTransactionDialog } from "@/components/transactions";
 import type { PageAction } from "@/components/ui/page-action";
 import { dataService } from "@/lib/dataService";
-import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { CreatePurchaseDialog } from "../credit-cards/components";
 
@@ -27,6 +27,7 @@ export function DashboardQuickActions({ children }: { children: (actions: PageAc
 		queryKey: queryKeys.creditCards.list(identity!),
 	});
 	const purchase = useMutation({
+		meta: { cacheOperations: ["statement"] },
 		mutationFn: ({
 			cardId,
 			data,
@@ -36,7 +37,6 @@ export function DashboardQuickActions({ children }: { children: (actions: PageAc
 		}) => dataService.creditCards.addPurchase(cardId, data),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
-			await invalidateCacheOperation(queryClient, identity!, "statement");
 			showToast("Compra registrada e faturas recalculadas.", "positive");
 		},
 	});

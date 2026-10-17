@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { type SyntheticEvent, useState } from "react";
 import { LuExternalLink, LuKeyRound } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
-import { apiUrl } from "@/lib/auth-client";
+import { authClient } from "@/lib/auth-client";
 import { AuthAlert, AuthShell, PasswordField } from "./components";
 
 export interface ResetSearch {
@@ -23,18 +23,18 @@ function ResetPasswordPage() {
 		if (password !== confirmation) return setMessage("As senhas não coincidem.");
 		setMessage("");
 		setStatus("loading");
-		const response = await fetch(`${apiUrl}/api/auth/reset-password`, {
-			body: JSON.stringify({ newPassword: password, token }),
-			credentials: "include",
-			headers: { "Content-Type": "application/json" },
-			method: "POST",
-		});
-		if (!response.ok) {
-			setMessage("Este link é inválido, expirou ou já foi utilizado.");
+		try {
+			const { error } = await authClient.resetPassword({ newPassword: password, token });
+			if (error) {
+				setMessage("Este link é inválido, expirou ou já foi utilizado.");
+				setStatus("error");
+				return;
+			}
+			setStatus("success");
+		} catch {
+			setMessage("Não foi possível conectar. Verifique sua conexão e tente novamente.");
 			setStatus("error");
-			return;
 		}
-		setStatus("success");
 	};
 
 	const openApp = () => {

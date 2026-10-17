@@ -4,7 +4,7 @@ import {
 	type TaxDefinition,
 	validateTaxBrackets,
 } from "@zaimu/finance/yield-tax";
-import { fetchWithAuth } from "./dataService";
+import { getTaxDefinitions } from "./api";
 
 const key = "zaimu-tax-catalog-v1";
 export function cachedTaxCatalog(): TaxDefinition[] {
@@ -20,7 +20,7 @@ export function cachedTaxCatalog(): TaxDefinition[] {
 	return defaultTaxDefinitions;
 }
 export async function fetchTaxCatalog() {
-	const definitions = await fetchWithAuth<TaxDefinition[]>("/tax-definitions");
+	const definitions = await getTaxDefinitions({ authenticated: false });
 	setTaxDefinitions(definitions);
 	localStorage.setItem(key, JSON.stringify(definitions));
 	return definitions;

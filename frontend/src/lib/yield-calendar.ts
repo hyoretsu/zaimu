@@ -1,4 +1,4 @@
-import { currencyHolidayDates, type YieldCalendarCountry } from "@zaimu/finance/yield-calendar";
+import { currencyHolidayDates } from "@zaimu/finance/yield-calendar";
 export interface YieldCalendar {
 	coverage?: { countryCode: string; year: number; status: string }[];
 	countries: { code: string; name: string }[];
@@ -34,11 +34,8 @@ export function holidayDatesForCurrency(calendar: YieldCalendar, currency: strin
 	];
 }
 export async function fetchYieldCalendar(): Promise<YieldCalendar> {
-	const { fetchWithAuth } = await import("./dataService");
-	const response = await fetchWithAuth<{
-		countries: YieldCalendarCountry[];
-		coverage?: YieldCalendar["coverage"];
-	}>("/yield-calendar");
+	const { getYieldCalendar } = await import("./api");
+	const response = await getYieldCalendar({ authenticated: false });
 	const calendar = {
 		countries: response.countries.map(({ code, name }) => ({ code, name })),
 		coverage: response.coverage ?? [],

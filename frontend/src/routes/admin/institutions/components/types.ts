@@ -1,6 +1,3 @@
-import type { FinancialInstitution } from "@/lib/api";
+import type { GetFinancialInstitutionsReviewCatalogQueryResponse } from "@/lib/api";
 
-export type AdminInstitution = FinancialInstitution & {
-	accountCurrenciesByCountry?: Record<string, string[]>;
-	userId?: string | null;
-};
+export type AdminInstitution = GetFinancialInstitutionsReviewCatalogQueryResponse[number];

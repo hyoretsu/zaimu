@@ -18,7 +18,7 @@ import type { BalanceAdjustment } from "@/lib/balance-adjustment";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
 import { getFinancialAccountOptionLabel } from "@/lib/financial-account";
-import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { type BalanceAdjustmentDraft, BalanceAdjustmentForm } from "../BalanceAdjustmentForm";
 import { AccountAdjustmentsDialog } from "./AccountAdjustmentsDialog";
 
@@ -82,11 +82,7 @@ export function BalanceAdjustmentsDialog({
 			conflictKey: `balance-adjustment:${adjustment.id}`,
 			failureMessage: "Não foi possível excluir ajuste.",
 			loadingMessage: "Excluindo ajuste...",
-			onSuccess: () =>
-				Promise.all([
-					invalidateCacheOperation(queryClient, identity!, "transaction"),
-					queryClient.invalidateQueries({ queryKey: adjustmentsKey }),
-				]),
+			cache: { client: queryClient, operations: ["transaction"] },
 			recovery: { entityId: adjustment.id, kind: "balance-adjustment-delete", payload: adjustment },
 			run: () => dataService.balanceAdjustments.delete(adjustment.id),
 			successMessage: "Ajuste de saldo excluído.",

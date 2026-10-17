@@ -4,8 +4,8 @@ import { LuGlobe, LuLink } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
-import { fetchWithAuth } from "@/lib/dataService";
-import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { postFinancialInstitutionsReviewLegacyById } from "@/lib/api";
+import { captureCacheMutation, invalidateMutationCache, mutationCacheMeta } from "@/lib/mutation-cache";
 import { showToast } from "@/stores";
 import type { AdminInstitution } from "./types";
 
@@ -19,27 +19,22 @@ export function LegacyInstitutionRow({
 	approvedInstitutions: AdminInstitution[];
 }) {
 	const queryClient = useQueryClient();
-	const identity = useCacheIdentity();
 	const [target, setTarget] = useState(publishOption);
 	const [pending, setPending] = useState(false);
 	const publish = target === publishOption;
 	const consolidate = async () => {
+		const start = captureCacheMutation();
 		setPending(true);
 		try {
-			await fetchWithAuth(`/financial-institutions/review/legacy/${institution.id}`, {
-				body: JSON.stringify(publish ? {} : { targetId: target }),
-				method: "POST",
-			});
+			await postFinancialInstitutionsReviewLegacyById(institution.id, publish ? {} : { targetId: target });
 			showToast(
 				publish ? "Instituição publicada no catálogo global" : "Instituição associada ao catálogo global",
 				"positive",
 			);
-			if (identity) await queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all(identity) });
-			await Promise.all(
-				["institutions", "admin-institution-catalog", "accounts", "institution-review"].map(key =>
-					queryClient.invalidateQueries({ queryKey: [key] }),
-				),
-			);
+			await invalidateMutationCache(queryClient, start, {
+				...mutationCacheMeta("institution"),
+				awaitRefetch: true,
+			});
 		} catch (error) {
 			showToast(
 				error instanceof Error ? error.message : "Não foi possível consolidar a instituição",

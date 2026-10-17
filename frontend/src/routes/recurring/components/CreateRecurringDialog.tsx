@@ -24,7 +24,7 @@ import { dataService } from "@/lib/dataService";
 import { getLocalDateKey } from "@/lib/date";
 import { debtSplitToInput } from "@/lib/debt-split";
 import { parseMaskedMoney } from "@/lib/masked-money";
-import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import type { Recurrence, RecurrenceInput } from "@/lib/recurrence";
 import { type RecurringSaveRecovery, saveRecurrenceWithReplay } from "@/lib/recurrence-save";
 import { validateRecurrenceInput } from "@/lib/recurrence-validation";
@@ -152,11 +152,11 @@ export function CreateRecurringDialog({
 	const debtAllowed = !["TRANSFER", "CARD_PAYMENT"].includes(draft.movement);
 	const save = (recovery: RecurringRecovery) =>
 		runBackgroundModalAction({
+			cache: { client: queryClient, operations: ["recurring"] },
 			close: () => onOpenChange(false),
 			conflictKey: `recurrence:${recurrence?.id ?? recovery.savedId ?? "new"}`,
 			failureMessage: "Não foi possível salvar a recorrência.",
 			loadingMessage: recovery.completedWrite ? "Recompondo ocorrências..." : "Salvando recorrência...",
-			onSuccess: () => invalidateCacheOperation(queryClient, identity!, "recurring"),
 			recovery: { entityId: recurrence?.id ?? recovery.savedId, kind: "recurrence-save", payload: recovery },
 			recoveryId,
 			run: () =>

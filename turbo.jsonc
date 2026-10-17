@@ -20,6 +20,12 @@
 			"env": ["COMPANY_SLUG", "DATABASE_URL"],
 			"persistent": true
 		},
+		"backend#export": {
+			"dependsOn": ["^contract:emit"],
+			"inputs": ["$TURBO_DEFAULT$", "!out/**"],
+			"outputLogs": "new-only",
+			"outputs": ["out/openapi.json"]
+		},
 		"build": {
 			"dependsOn": ["^contract:emit", "generate"],
 			"inputs": ["src/**", "!src/**/generated/**"],
@@ -45,27 +51,49 @@
 		"export": {
 			"dependsOn": ["^contract:emit", "generate"],
 			"env": ["DATABASE_URL"],
-			"inputs": ["src/**", "!src/**/generated/**"],
+			"inputs": ["src/**", "scripts/export-openapi.ts", "package.json", "!src/**/generated/**"],
 			"outputLogs": "new-only",
 			"outputs": ["out/**"]
 		},
 		"frontend#build": {
-			"dependsOn": ["^contract:emit", "generate"],
+			"dependsOn": ["generate"],
 			"env": ["DATABASE_URL"],
-			"inputs": ["src/**", "!src/**/generated/**"],
+			"inputs": ["$TURBO_DEFAULT$", "!src/lib/api/generated/**"],
 			"outputLogs": "new-only",
 			"outputs": ["build/**", "dist/**", "out/**", ".next/**", "!.next/cache/**"]
 		},
+		"frontend#check-types": {
+			"dependsOn": ["generate"],
+			"inputs": ["$TURBO_DEFAULT$", "!src/lib/api/generated/**"],
+			"outputLogs": "new-only"
+		},
 		"frontend#dev": {
 			"cache": false,
-			"dependsOn": ["^contract:emit", "generate"],
+			"dependsOn": ["generate"],
+			"inputs": ["$TURBO_DEFAULT$"],
 			"persistent": true
 		},
 		"frontend#generate": {
-			"dependsOn": ["^contract:emit"],
+			"dependsOn": ["^export"],
 			"inputs": ["kubb.config.ts"],
 			"outputLogs": "new-only",
 			"outputs": ["src/lib/api/generated/**"]
+		},
+		"frontend#performance:test": {
+			"cache": false,
+			"dependsOn": ["generate"]
+		},
+		"frontend#test": {
+			"cache": false,
+			"dependsOn": ["generate"]
+		},
+		"frontend#test:currency": {
+			"cache": false,
+			"dependsOn": ["generate"]
+		},
+		"frontend#test:open-finance": {
+			"cache": false,
+			"dependsOn": ["generate"]
 		},
 		"generate": {
 			"dependsOn": ["^contract:emit"],

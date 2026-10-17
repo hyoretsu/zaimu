@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { LuExternalLink, LuMailCheck } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
-import { apiUrl } from "@/lib/auth-client";
+import { authClient } from "@/lib/auth-client";
 import { AuthAlert, AuthShell } from "./components";
 
 export interface VerifySearch {
@@ -19,13 +19,19 @@ function VerifyEmailPage() {
 	useEffect(() => {
 		if (!token) return;
 		const controller = new AbortController();
-		void fetch(`${apiUrl}/api/auth/verify-email?token=${encodeURIComponent(token)}`, {
-			credentials: "include",
-			signal: controller.signal,
-		}).then(
-			response => setStatus(response.ok ? "success" : "error"),
-			() => setStatus("error"),
-		);
+		void authClient
+			.verifyEmail({
+				fetchOptions: { signal: controller.signal },
+				query: { token },
+			})
+			.then(
+				({ error }) => {
+					if (!controller.signal.aborted) setStatus(error ? "error" : "success");
+				},
+				() => {
+					if (!controller.signal.aborted) setStatus("error");
+				},
+			);
 		return () => controller.abort();
 	}, [token]);
 

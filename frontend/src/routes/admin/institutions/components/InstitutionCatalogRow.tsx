@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { ActionGroup } from "@/components/ui/ActionGroup";
-import { fetchWithAuth } from "@/lib/dataService";
+import { postFinancialInstitutionsByIdPolicies } from "@/lib/api";
+import { captureCacheMutation, invalidateMutationCache, mutationCacheMeta } from "@/lib/mutation-cache";
 import { InstitutionYieldDialog } from "@/routes/accounts/components/InstitutionYieldDialog";
 import { showToast } from "@/stores";
 import { EditInstitutionCatalogDialog } from "./EditInstitutionCatalogDialog";
@@ -10,11 +11,15 @@ import type { AdminInstitution } from "./types";
 export function InstitutionCatalogRow({ institution }: { institution: AdminInstitution }) {
 	const queryClient = useQueryClient();
 	const countryNames = new Intl.DisplayNames("pt-BR", { type: "region" });
-	const propose = async (path: string, body: unknown, method: "PATCH" | "POST") => {
+	const propose = async (...args: Parameters<typeof postFinancialInstitutionsByIdPolicies>) => {
+		const start = captureCacheMutation();
 		try {
-			await fetchWithAuth(path, { body: JSON.stringify(body), method });
+			await postFinancialInstitutionsByIdPolicies(...args);
 			showToast("Proposta enviada para revisão administrativa", "positive");
-			await queryClient.invalidateQueries({ queryKey: ["institution-review"] });
+			await invalidateMutationCache(queryClient, start, {
+				...mutationCacheMeta("institution"),
+				awaitRefetch: true,
+			});
 		} catch (error) {
 			showToast(error instanceof Error ? error.message : "Não foi possível enviar a proposta", "negative");
 			throw error;
@@ -44,12 +49,19 @@ export function InstitutionCatalogRow({ institution }: { institution: AdminInsti
 				<InstitutionYieldDialog
 					institution={institution}
 					onUpdate={(item, policy) => {
-						const { requestedEffectiveDate, ...body } = policy;
-						return propose(
-							`/financial-institutions/${item.id}/policies`,
-							{ ...body, effectiveDate: requestedEffectiveDate },
-							"POST",
-						);
+						const { requestedEffectiveDate, profileId, yieldTaxIds, ...body } = policy;
+						if (!requestedEffectiveDate || !profileId || !body.currency)
+							return Promise.reject(new Error("Selecione perfil e data de vigência."));
+						return propose(item.id, {
+							...body,
+							countryCode: body.countryCode ?? undefined,
+							currency: body.currency,
+							effectiveDate: requestedEffectiveDate,
+							effectiveUntil: body.effectiveUntil ?? undefined,
+							profileId,
+							rules: body.rules.map(rule => ({ ...rule, upToBalance: rule.upToBalance ?? null })),
+							yieldTaxIds: yieldTaxIds ?? undefined,
+						});
 					}}
 				/>
 			</ActionGroup>

@@ -18,7 +18,7 @@ import type { Loan, LoanPayment, LoanPaymentPage } from "@/lib/api";
 import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { getLocalDateKey } from "@/lib/date";
-import { invalidateCacheOperation, queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 
 import { LoanPaymentDialog, type LoanPaymentDraft, type LoanPaymentInput } from "./LoanPaymentDialog";
 import { LoanPaymentRow } from "./LoanPaymentRow";
@@ -78,19 +78,19 @@ export function LoanPaymentsDialog({
 		const submittedSelection = selection;
 		const number = submittedSelection.payment?.installmentNumber;
 		runBackgroundModalAction({
+			cache: { client, operations: ["loan"] },
 			close: () => setSelection(null),
 			conflictKey: `loan:${loan.id}:payment:${number ?? `advance:${submittedSelection.advanceType ?? advanceType}`}`,
 			conflictKeys: [`loan:${loan.id}:settlement`],
 			failureMessage: "Falha ao registrar pagamento.",
 			loadingMessage: "Registrando pagamento...",
-			onSuccess: () => invalidateCacheOperation(client, identity!, "loan"),
 			recovery: {
 				entityId: loan.id,
 				kind: "loan-payment",
 				payload: { draft, loan, selection: submittedSelection },
 			},
-			run: () =>
-				number !== undefined
+			run: async () => {
+				await (number !== undefined
 					? dataService.loans.pay(
 							loan.id,
 							number,
@@ -106,18 +106,19 @@ export function LoanPaymentsDialog({
 							input.financialAccountId,
 							input.accountAmount,
 							input.expectedPaymentId,
-						),
+						));
+			},
 			successMessage: "Pagamento registrado.",
 		});
 	};
 	const reviewLegacy = () =>
 		runBackgroundModalAction({
+			cache: { client, operations: ["loan"] },
 			close: onClose,
 			conflictKey: `loan:${loan.id}:history`,
 			conflictKeys: [`loan:${loan.id}:settlement`],
 			failureMessage: "Falha ao revisar histórico.",
 			loadingMessage: "Revisando histórico...",
-			onSuccess: () => invalidateCacheOperation(client, identity!, "loan"),
 			recovery: { entityId: loan.id, kind: "loan-history", payload: { amortization, loan, paidDate } },
 			run: () => dataService.loans.reviewLegacyPayments(loan.id, paidDate, amortization),
 			successMessage: "Histórico revisado.",

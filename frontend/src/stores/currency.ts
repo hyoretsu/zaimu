@@ -1,8 +1,8 @@
 import { type CurrencyLocation, effectiveCurrency } from "@zaimu/finance/currency-preference";
 import { create } from "zustand";
+import { getCurrencyPreferences, getFinancialHistoryCurrencies, patchCurrencyPreferences } from "@/lib/api";
 import { setActiveCurrency } from "@/lib/currency-context";
 import { detectCurrencyLocation } from "@/lib/currency-location";
-import { fetchWithAuth } from "@/lib/dataService";
 import { localMeta } from "@/lib/localStorage";
 import { getCurrentCacheIdentity } from "@/lib/query-cache";
 import { useAuthStore } from "./auth";
@@ -54,13 +54,11 @@ export const useCurrencyStore = create<CurrencyState>((set, get) => ({
 					let currencies =
 						((await localMeta.get("currency-catalog", owner)) as string[] | undefined) ?? get().currencies;
 					if (useAuthStore.getState().isGuestMode) return currencies;
-					const apiUrl = (import.meta.env.VITE_API_URL || "http://localhost:3333").replace(/\/$/, "");
 					try {
-						const response = await fetch(`${apiUrl}/financial-history/currencies`, {
-							credentials: "include",
+						const value = await getFinancialHistoryCurrencies({
+							authenticated: false,
 							signal: AbortSignal.timeout(10_000),
 						});
-						const value: unknown = response.ok ? await response.json() : null;
 						if (
 							Array.isArray(value) &&
 							value.includes("USD") &&
@@ -77,7 +75,7 @@ export const useCurrencyStore = create<CurrencyState>((set, get) => ({
 				const preferencePromise = (async () => {
 					if (!useAuthStore.getState().isAuthenticated) return cached?.preferredCurrency ?? null;
 					try {
-						const value = await fetchWithAuth<{ preferredCurrency: string | null }>("/currency-preferences/");
+						const value = await getCurrencyPreferences();
 						await localMeta.set("currency-preference", value, owner);
 						return value.preferredCurrency;
 					} catch {
@@ -91,13 +89,9 @@ export const useCurrencyStore = create<CurrencyState>((set, get) => ({
 				if (!preferred && location) {
 					preferred = location.currency;
 					if (useAuthStore.getState().isAuthenticated) {
-						const value = await fetchWithAuth<{ preferredCurrency: string | null }>(
-							"/currency-preferences/",
-							{
-								body: JSON.stringify({ preferredCurrency: preferred }),
-								headers: { "X-Currency-Initialize": "true" },
-								method: "PATCH",
-							},
+						const value = await patchCurrencyPreferences(
+							{ preferredCurrency: preferred },
+							{ headers: { "X-Currency-Initialize": "true" } },
 						);
 						preferred = value.preferredCurrency;
 					}
@@ -134,11 +128,7 @@ export const useCurrencyStore = create<CurrencyState>((set, get) => ({
 		const owner = getCurrentCacheIdentity();
 		if (!owner || owner !== get().owner) throw new Error("Preferências ainda carregando");
 		if (!get().currencies.includes(preferredCurrency)) throw new Error("Moeda não suportada");
-		if (useAuthStore.getState().isAuthenticated)
-			await fetchWithAuth("/currency-preferences/", {
-				body: JSON.stringify({ preferredCurrency }),
-				method: "PATCH",
-			});
+		if (useAuthStore.getState().isAuthenticated) await patchCurrencyPreferences({ preferredCurrency });
 		await localMeta.set("currency-preference", { preferredCurrency }, owner);
 		if (getCurrentCacheIdentity() === owner)
 			set({ currency: resolved(preferredCurrency, get().location, get().currencies), preferredCurrency });
