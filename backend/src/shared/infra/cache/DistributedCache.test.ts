@@ -3,7 +3,7 @@ import { namespacesForEvent } from "~/shared/application/cache-invalidation";
 import { createEventEnvelope } from "~/shared/application/events";
 import type { CacheGuard, CachePort } from "~/shared/application/ports";
 import { cacheKey } from "../service-namespace";
-import { DistributedCache } from "./DistributedCache";
+import { CACHE_MAX_AGE_MS, DistributedCache } from "./DistributedCache";
 
 class MemoryCache implements CachePort {
 	data = new Map<string, string>();
@@ -144,7 +144,14 @@ describe("DistributedCache", () => {
 		let loads = 0;
 		const pending = cache.remember("published", "dashboard", {}, async () => ++loads);
 		await Bun.sleep(10);
-		await storage.set(key, JSON.stringify({ etag: '"published"', value: 42 }));
+		await storage.set(
+			key,
+			JSON.stringify({
+				createdAt: Date.now(),
+				etag: `"${new Bun.CryptoHasher("sha256").update("42").digest("hex")}"`,
+				value: 42,
+			}),
+		);
 		expect((await pending).value).toBe(42);
 		expect(loads).toBe(0);
 	});
@@ -338,4 +345,76 @@ test("one writer and delayed events cannot remove another writer's fence", async
 	expect(await cache.read("user", "dashboard", {})).toBeUndefined();
 	await cache.finishWrite("user", ["dashboard"], second);
 	expect((await cache.remember("user", "dashboard", {}, async () => "committed")).value).toBe("committed");
+});
+
+test("missed invalidation recovers every cache namespace from its loader after bounded freshness", async () => {
+	for (const namespace of ["dashboard", "credit-cards:card:statements", "transactions:list"] as const) {
+		const storage = new MemoryCache();
+		let now = 1_000;
+		const cache = new DistributedCache(storage, () => now);
+		let source = { paidAmount: 0 };
+		await cache.remember("owner", namespace, {}, async () => source);
+		source = { paidAmount: 178.38 };
+		now += CACHE_MAX_AGE_MS - 1;
+		expect((await cache.read<typeof source>("owner", namespace, {}))?.value.paidAmount).toBe(0);
+		now++;
+		expect(await cache.read("owner", namespace, {})).toBeUndefined();
+		const rebuilt = await cache.remember("owner", namespace, {}, async () => source);
+		expect(rebuilt.hit).toBeFalse();
+		expect(rebuilt.value).toEqual(source);
+		expect(
+			(
+				await cache.remember("owner", namespace, {}, async () => {
+					throw new Error("unexpected reload");
+				})
+			).hit,
+		).toBeTrue();
+	}
+});
+
+test("legacy, malformed, future-dated and corrupted cache entries rebuild automatically", async () => {
+	const storage = new MemoryCache();
+	const cache = new DistributedCache(storage, () => 1_000);
+	const key = await cache.key("owner", "dashboard", {});
+	for (const raw of [
+		"{",
+		"null",
+		"{}",
+		JSON.stringify({ etag: '"old"', value: 1 }),
+		JSON.stringify({ createdAt: 2_000, etag: '"old"', value: 1 }),
+		JSON.stringify({ createdAt: 1_000, etag: '"wrong"', value: 1 }),
+	]) {
+		await storage.set(key, raw);
+		expect(await cache.read("owner", "dashboard", {})).toBeUndefined();
+		const rebuilt = await cache.remember("owner", "dashboard", {}, async () => 2);
+		expect(rebuilt.hit).toBeFalse();
+		expect(rebuilt.value).toBe(2);
+	}
+});
+
+test("failed reconstruction never refreshes stale cache freshness", async () => {
+	const storage = new MemoryCache();
+	let now = 1_000;
+	const cache = new DistributedCache(storage, () => now);
+	await cache.remember("owner", "dashboard", {}, async () => 1);
+	now += CACHE_MAX_AGE_MS;
+	await expect(
+		cache.remember("owner", "dashboard", {}, async () => {
+			throw new Error("source unavailable");
+		}),
+	).rejects.toThrow("source unavailable");
+	expect(await cache.read("owner", "dashboard", {})).toBeUndefined();
+	expect((await cache.remember("owner", "dashboard", {}, async () => 2)).value).toBe(2);
+});
+
+test("slow reconstruction does not extend freshness beyond source read start", async () => {
+	const storage = new MemoryCache();
+	let now = 1_000;
+	const cache = new DistributedCache(storage, () => now);
+	await cache.remember("owner", "dashboard", {}, async () => {
+		now += CACHE_MAX_AGE_MS;
+		return 1;
+	});
+	expect(await cache.read("owner", "dashboard", {})).toBeUndefined();
+	expect((await cache.remember("owner", "dashboard", {}, async () => 2)).value).toBe(2);
 });

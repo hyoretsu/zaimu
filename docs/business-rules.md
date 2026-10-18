@@ -359,3 +359,8 @@ Ao vincular automaticamente uma compra importada à compra existente, a revisão
 ## Datas efetivas na importação de faturas
 
 Todos os importadores de faturas, incluindo PDF de qualquer instituição e Open Finance, sincronizam as datas de fechamento e vencimento informadas pela origem ao aplicar os dados. A sincronização corrige o ciclo existente, preservando seu ID, pagamentos, parcelas, encargos e vínculos; não cria outra fatura apenas porque a data mudou. O ciclo é identificado pelo fechamento, pelo vencimento ou por um único fechamento no mesmo mês, nessa ordem. Calendários explícitos das parcelas vinculadas acompanham a correção. Dias nominais configurados no cartão permanecem inalterados. Reimportações sem compras novas também sincronizam as datas ao concluir a fatura. O cabeçalho da revisão mostra somente o nome do arquivo importado.
+
+
+## Recuperação automática de dados derivados
+
+Vínculos calculados, saldos e totais devem ser reconstruídos a partir dos registros originais. Respostas do cache distribuído têm validade máxima de 60 segundos, contada desde o início da leitura da origem, mesmo quando uma invalidação for perdida. Na próxima consulta após esse prazo, a resposta é reconstruída; entradas antigas sem validade, corrompidas ou com data futura também são ignoradas. A recuperação preserva os registros originais e o isolamento por usuário e ambiente. Falha na origem não renova a validade de dados antigos nem transforma reconstrução incompleta em resultado válido. Essa proteção recupera projeções desatualizadas no cache; ausência ou ambiguidade nos dados originais exige revisão, sem inferir pagamentos ou fatos financeiros.

@@ -35,7 +35,10 @@ export type CacheNamespace =
 	| `imports:detail:${string}`
 	| `transactions:detail:${string}`;
 
+export const CACHE_MAX_AGE_MS = 60_000;
+
 interface CacheEntry<Value> {
+	createdAt: number;
 	etag: string;
 	value: Value;
 }
@@ -70,7 +73,27 @@ export class DistributedCache {
 	private available = true;
 	private readonly budget = new RedisBudget();
 	private bypassReason: string | undefined;
-	constructor(private readonly cache: CachePort) {}
+	constructor(
+		private readonly cache: CachePort,
+		private readonly now: () => number = Date.now,
+	) {}
+	private decode<Value>(raw: string): CacheEntry<Value> | undefined {
+		try {
+			const entry = JSON.parse(raw) as CacheEntry<Value>;
+			const age = this.now() - entry?.createdAt;
+			if (
+				!Number.isFinite(entry?.createdAt) ||
+				age < 0 ||
+				age >= CACHE_MAX_AGE_MS ||
+				!("value" in entry) ||
+				entry.etag !== `"${hash(JSON.stringify(entry.value))}"`
+			)
+				return undefined;
+			return entry;
+		} catch {
+			return undefined;
+		}
+	}
 	private async safely<Result>(operation: () => Promise<Result>): Promise<Result | undefined> {
 		try {
 			const result = await this.budget.run(operation);
@@ -183,29 +206,21 @@ export class DistributedCache {
 		if (fenced) return undefined;
 		const raw = await this.safely(() => this.cache.getRegistered(key, guards));
 		if (!raw) return undefined;
-		try {
-			return JSON.parse(raw) as CacheEntry<Value>;
-		} catch {
-			return undefined;
-		}
+		return this.decode<Value>(raw);
 	}
 	async remember<Value>(
 		userId: string,
 		namespace: CacheNamespace,
 		parameters: unknown,
 		load: () => Promise<Value>,
-	) {
+	): Promise<{ etag: string; hit: boolean; value: Value }> {
 		const startedAt = performance.now();
 		const { key, guards, fenced } = await this.snapshot(userId, namespace, parameters);
 		const raw = fenced ? undefined : await this.safely(() => this.cache.getRegistered(key, guards));
-		if (raw) {
-			try {
-				const cached = JSON.parse(raw) as CacheEntry<Value>;
-				logCacheOperation(namespace, "hit", startedAt);
-				return { ...cached, hit: true as const };
-			} catch {
-				/* Invalid entries are replaced by the guarded loader. */
-			}
+		const cached = raw ? this.decode<Value>(raw) : undefined;
+		if (cached) {
+			logCacheOperation(namespace, "hit", startedAt);
+			return { ...cached, hit: true as const };
 		}
 		if (fenced) {
 			const value = await measureOperation("loader", load);
@@ -254,9 +269,10 @@ export class DistributedCache {
 				}, LOCK_LEASE_MS / 3)
 			: undefined;
 		const pending = (async () => {
+			const createdAt = this.now();
 			const value = await measureOperation("loader", load);
 			const encoded = JSON.stringify(value);
-			const entry = { etag: `"${hash(encoded)}"`, value };
+			const entry = { createdAt, etag: `"${hash(encoded)}"`, value };
 			if (leaseValid) await this.safely(() => this.cache.setRegistered(key, JSON.stringify(entry), guards));
 			return entry;
 		})();
