@@ -917,7 +917,21 @@ export function updateBookStatementDates(
 	if (!statement) throw new RangeError("Fatura não encontrada");
 	if (book.statements.some(item => item.id !== statementId && item.statementDate === dates.statementDate))
 		throw new RangeError("Já existe uma fatura com esta data de fechamento");
+	const sameCycle =
+		statement.statementDate === dates.statementDate &&
+		statement.dueDate.slice(0, 7) === dates.dueDate.slice(0, 7);
 	Object.assign(statement, dates);
+	if (sameCycle) {
+		// A due-day correction does not change purchase cutoffs or imported assignments.
+		// Refresh saved dates too, so future materialization uses the corrected cycle.
+		for (const purchase of book.purchases) {
+			for (const installmentDates of purchase.installmentStatementDates ?? []) {
+				if (installmentDates?.statementDate === dates.statementDate)
+					installmentDates.dueDate = dates.dueDate;
+			}
+		}
+		return;
+	}
 
 	for (const purchase of book.purchases) {
 		purchase.installmentStatementDates = recomposedPurchaseCalendar(

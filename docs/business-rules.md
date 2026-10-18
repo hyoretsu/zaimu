@@ -251,7 +251,7 @@ Ao reparcelar uma compra com dívida, o rateio original é removido e a dívida 
 
 ## Edição das datas de faturas
 
-Faturas registradas permitem alterar fechamento e vencimento, inclusive no modo visitante. Vencimento deve ser igual ou posterior ao fechamento; datas devem ser válidas e não podem repetir outro fechamento do mesmo cartão. Edição preserva IDs e recalcula os vínculos de compras, parcelas e reembolsos conforme as novas datas de fechamento. Compras na data de fechamento pertencem ao ciclo seguinte; encargos permanecem na fatura corrigida. Datas informadas têm prioridade sobre o calendário do cartão; pagamentos e saldos são recalculados conforme o novo calendário.
+Faturas registradas permitem alterar fechamento e vencimento, inclusive no modo visitante. Vencimento deve ser igual ou posterior ao fechamento; datas devem ser válidas e não podem repetir outro fechamento do mesmo cartão. Edição preserva IDs e recalcula os vínculos de compras, parcelas e reembolsos conforme as novas datas de fechamento. Compras na data de fechamento pertencem ao ciclo seguinte; encargos permanecem na fatura corrigida. Datas informadas têm prioridade sobre o calendário do cartão; pagamentos e saldos são recalculados conforme o novo calendário. Alterar somente o dia do vencimento dentro do mesmo mês preserva os vínculos de compras, parcelas e reembolsos, inclusive calendários importados; as datas salvas das parcelas futuras acompanham a correção.
 
 Parcelas seguem meses de vencimento consecutivos a partir da primeira fatura, inclusive quando o primeiro ciclo difere do calendário padrão do cartão. Recalcular uma compra sem alterar sua data mantém a primeira fatura e recompõe todas as parcelas posteriores; IDs, valores e estados de liquidação são preservados.
 

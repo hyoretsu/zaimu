@@ -242,3 +242,54 @@ test("writer removes equal manual totals permanently; reads preserve checkpoints
 	setBookStatementAmount(book, id, 100.01);
 	expect(removeRedundantStatementAmounts(book, "2026-08-20")).toEqual([]);
 });
+
+test("changing only the due day preserves imported cycles and future installment dates", () => {
+	const book = fixture();
+	book.purchases = [];
+	book.installments = [];
+	book.statements = [];
+	book.card.statementDay = 12;
+	book.card.dueDay = 25;
+	const september = ensureBookStatement(book, "2026-08-22", {
+		dueDate: "2026-09-25",
+		statementDate: "2026-09-25",
+	});
+	const october = ensureBookStatement(book, "2026-09-22", {
+		dueDate: "2026-10-25",
+		statementDate: "2026-10-12",
+	});
+	const purchase = newBookPurchase(book, {
+		description: "Amazon",
+		installments: 6,
+		purchaseDate: "2026-08-22",
+		totalAmount: 119.82,
+	});
+	purchase.installmentStatementDates = [
+		{ dueDate: september.dueDate, statementDate: september.statementDate },
+		{ dueDate: october.dueDate, statementDate: october.statementDate },
+	];
+	book.installments = [];
+	materializeBookInstallments(book, "2026-09-01");
+	const installments = structuredClone(book.installments);
+	const statements = structuredClone(book.statements);
+	book.payments.push({ amount: 19.97, date: "2026-10-26", id: "payment" });
+	updateBookStatementDates(book, october.id, {
+		dueDate: "2026-10-26",
+		statementDate: october.statementDate,
+	});
+	expect(book.installments).toEqual(installments);
+	expect(book.statements).toEqual(
+		statements.map(statement =>
+			statement.id === october.id ? { ...statement, dueDate: "2026-10-26" } : statement,
+		),
+	);
+	expect(purchase.installmentStatementDates).toEqual([
+		{ dueDate: september.dueDate, statementDate: september.statementDate },
+		{ dueDate: "2026-10-26", statementDate: october.statementDate },
+	]);
+	materializeBookInstallments(book, "2026-10-22");
+	expect(book.installments.find(item => item.number === 2)?.statementId).toBe(october.id);
+	const replay = replayCreditBook(book, "2026-10-26");
+	expect(replay.statements.filter(item => item.dueDate.slice(0, 7) === "2026-10")).toHaveLength(1);
+	expect(replay.statements.find(item => item.id === october.id)?.paidAmount).toBe(19.97);
+});
