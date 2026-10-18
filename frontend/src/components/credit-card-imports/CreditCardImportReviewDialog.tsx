@@ -25,7 +25,6 @@ import type { CreditCardImport, CreditCardImportItem } from "@/lib/api";
 import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
-import { formatLocalDate } from "@/lib/date";
 import { closeImportReview, invalidateQueryKeys, queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { CreditCardImportItemRow } from "./CreditCardImportItemRow";
@@ -225,14 +224,9 @@ export function CreditCardImportReviewDialog({
 				onOpenChange={onOpenChange}
 				open={open}
 			>
-				<ImportDialogContent className="sm:max-w-2xl">
+				<ImportDialogContent aria-describedby={undefined} className="sm:max-w-2xl">
 					<DialogHeader>
-						<DialogTitle>Revisar fatura importada</DialogTitle>
-						<DialogDescription>
-							{creditCardImportData
-								? `${creditCardImportData.fileName} · fecha em ${formatLocalDate(creditCardImportData.statementDate)}. Compras parceladas serão criadas na data da primeira parcela. Antecipações serão vinculadas à compra original.`
-								: "Carregando compras da fatura…"}
-						</DialogDescription>
+						<DialogTitle>{creditCardImportData?.fileName ?? "Carregando fatura..."}</DialogTitle>
 					</DialogHeader>
 					<DialogBody>
 						{creditCardImport.isPending || creditCards.isPending ? (

@@ -355,3 +355,7 @@ Parcelas sincronizadas têm valor confirmado pela instituição e nunca permitem
 ## Conciliação automática de compras importadas
 
 Ao vincular automaticamente uma compra importada à compra existente, a revisão assume descrição, data, horário, loja, etiquetas e divisão de dívida da compra original, além do seu valor total. A parcela atual e seu valor confirmado pela fatura são preservados, incluindo os valores das parcelas antecipadas. Esses dados são copiados para o item de revisão e podem ser ajustados antes da aprovação.
+
+## Datas efetivas na importação de faturas
+
+Todos os importadores de faturas, incluindo PDF de qualquer instituição e Open Finance, sincronizam as datas de fechamento e vencimento informadas pela origem ao aplicar os dados. A sincronização corrige o ciclo existente, preservando seu ID, pagamentos, parcelas, encargos e vínculos; não cria outra fatura apenas porque a data mudou. O ciclo é identificado pelo fechamento, pelo vencimento ou por um único fechamento no mesmo mês, nessa ordem. Calendários explícitos das parcelas vinculadas acompanham a correção. Dias nominais configurados no cartão permanecem inalterados. Reimportações sem compras novas também sincronizam as datas ao concluir a fatura. O cabeçalho da revisão mostra somente o nome do arquivo importado.

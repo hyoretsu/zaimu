@@ -283,3 +283,8 @@ When a listing is collapsed, tapping or clicking anywhere on its visible card mu
 # Required form validation
 
 Every form must validate all required fields before saving, including custom selects and conditionally required fields. Required markers alone are not validation. Reject empty or whitespace-only values, non-finite or out-of-range numbers, and invalid field combinations. Keep the form open with an accessible, actionable validation message and preserve entered values; never start a mutation or close the modal for invalid input. Validate submitted native input values to avoid stale debounced state, and enforce equivalent rules at the persistence boundary for connected and guest modes.
+
+
+## Invoice importer date synchronization
+
+Every invoice importer must synchronize source closing and due dates through the shared finance calendar helper when applying imports, including PDF providers, Open Finance and imports with no new purchases. Correct the existing cycle and preserve its ID, payments and financial links; update explicit installment calendars for that cycle. Never overwrite nominal card days from a single invoice. Keep this invariant in shared import infrastructure and cover date corrections with tests. Invoice review descriptions show only the imported filename.

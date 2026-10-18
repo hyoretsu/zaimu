@@ -254,6 +254,32 @@ function purchaseBookStatementDates(book: CreditBook, date: string) {
 	}
 }
 
+/** Bank dates correct an existing cycle without replacing its identity or imported links. */
+export function synchronizeImportedStatementDates(
+	book: CreditBook,
+	dates: { statementDate: string; dueDate: string },
+) {
+	assertDateKey(dates.statementDate);
+	assertDateKey(dates.dueDate);
+	if (dates.dueDate < dates.statementDate)
+		throw new RangeError("Vencimento deve ser igual ou posterior ao fechamento");
+	const candidates = book.statements.filter(statement => !statement.isForecast);
+	const sameMonth = candidates.filter(
+		statement => statement.statementDate.slice(0, 7) === dates.statementDate.slice(0, 7),
+	);
+	const statement =
+		candidates.find(item => item.statementDate === dates.statementDate) ??
+		candidates.find(item => item.dueDate === dates.dueDate) ??
+		(sameMonth.length === 1 ? sameMonth[0] : undefined);
+	if (!statement) return ensureBookStatement(book, dates.statementDate, dates);
+	const previousClosing = statement.statementDate;
+	Object.assign(statement, dates);
+	for (const purchase of book.purchases)
+		for (const registered of purchase.installmentStatementDates ?? [])
+			if (registered?.statementDate === previousClosing) Object.assign(registered, dates);
+	return statement;
+}
+
 export function ensureBookStatement(
 	book: CreditBook,
 	date: string,

@@ -1,4 +1,4 @@
-import { ensureBookStatement, moneyCents } from "@zaimu/finance/credit-book";
+import { moneyCents, synchronizeImportedStatementDates } from "@zaimu/finance/credit-book";
 import { getTagsByEntity } from "~/modules/categories/application/tag-assignments";
 import { materializeImportedPurchase } from "~/modules/credit-card-imports/application/materialize-imported-purchase";
 import { mutateCreditBook } from "~/modules/creditCards/application/normalized-credit-book";
@@ -235,7 +235,7 @@ async function applyRemote(
 		await mutateCreditBook(userId, binding.creditCardId, book => {
 			const charge = book.charges.find(c => c.id === localId);
 			if (!charge) throw new Error("Encargo não encontrado");
-			charge.statementId = ensureBookStatement(book, remote.date, {
+			charge.statementId = synchronizeImportedStatementDates(book, {
 				dueDate: remote.dueDate!,
 				statementDate: remote.statementDate!,
 			}).id;

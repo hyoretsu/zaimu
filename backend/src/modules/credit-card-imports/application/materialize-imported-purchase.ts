@@ -6,6 +6,7 @@ import {
 	moneyCents,
 	refinanceBookPurchase,
 	resizePurchaseCashback,
+	synchronizeImportedStatementDates,
 } from "@zaimu/finance/credit-book";
 import { distributePurchaseCents, installmentOccurrenceDate } from "@zaimu/finance/credit-purchase";
 import { importedAnticipation, withoutImportedAnticipation } from "@zaimu/finance/imported-anticipation";
@@ -53,6 +54,10 @@ interface CardSnapshot {
 
 export async function materializeImportedPurchase(card: CardSnapshot, input: ImportedPurchaseInput) {
 	return mutateCreditBook(card.userId, card.id, async (book, query) => {
+		synchronizeImportedStatementDates(book, {
+			dueDate: input.dueDate.toISOString().slice(0, 10),
+			statementDate: input.statementDate.toISOString().slice(0, 10),
+		});
 		const duplicate = book.purchases.find(p => p.externalId === input.externalId);
 		const refundDuplicate = await query<{ id: string }>(
 			`SELECT r."id" FROM "CreditRefundRecord" r JOIN "CreditPurchaseRecord" p ON p."id"=r."purchaseId" WHERE r."externalId"=$1 AND p."creditCardId"=$2`,

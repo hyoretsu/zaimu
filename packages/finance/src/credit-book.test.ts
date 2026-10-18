@@ -19,6 +19,7 @@ import {
 	resizePurchaseCashback,
 	resolveBookInstallment,
 	synchronizeBookRefinancing,
+	synchronizeImportedStatementDates,
 	updateBookPurchaseDate,
 	updateBookRefund,
 	updateBookStatementDates,
@@ -902,4 +903,54 @@ test("forecast installment IDs resolve only existing purchase plan entries", () 
 	expect(purchase.installmentAmountsCents.filter((_, index) => index !== 6)).toEqual(
 		before.filter((_, index) => index !== 6),
 	);
+});
+
+describe("imported statement date synchronization", () => {
+	test("corrects both dates while preserving cycle ID and installment assignments", () => {
+		const book = emptyBook();
+		const statement = ensureBookStatement(book, "2026-09-10");
+		const purchase = newBookPurchase(book, {
+			description: "Compra",
+			installments: 1,
+			purchaseDate: "2026-09-10",
+			totalAmount: 100,
+		});
+		materializeBookInstallments(book);
+		const installment = book.installments[0]!;
+		purchase.installmentStatementDates = [
+			{ dueDate: statement.dueDate, statementDate: statement.statementDate },
+		];
+		const result = synchronizeImportedStatementDates(book, {
+			dueDate: "2026-09-30",
+			statementDate: "2026-09-22",
+		});
+		expect(result.id).toBe(statement.id);
+		expect(book.statements).toHaveLength(1);
+		expect(installment.statementId).toBe(statement.id);
+		expect(purchase.installmentStatementDates[0]).toEqual({
+			dueDate: "2026-09-30",
+			statementDate: "2026-09-22",
+		});
+		expect(book.card.statementDay).toBe(20);
+		expect(book.card.dueDay).toBe(28);
+	});
+	test("matches due date when corrected closing crosses a month", () => {
+		const book = emptyBook();
+		const existing = ensureBookStatement(book, "2026-09-10", {
+			dueDate: "2026-10-10",
+			statementDate: "2026-09-30",
+		});
+		expect(
+			synchronizeImportedStatementDates(book, { dueDate: "2026-10-10", statementDate: "2026-10-01" })
+				.id,
+		).toBe(existing.id);
+		expect(book.statements).toHaveLength(1);
+	});
+	test("rejects invalid bank calendar before mutation", () => {
+		const book = emptyBook();
+		expect(() =>
+			synchronizeImportedStatementDates(book, { dueDate: "2026-10-10", statementDate: "2026-10-20" }),
+		).toThrow();
+		expect(book.statements).toHaveLength(0);
+	});
 });

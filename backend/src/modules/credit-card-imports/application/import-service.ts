@@ -1,3 +1,4 @@
+import { synchronizeImportedStatementDates } from "@zaimu/finance/credit-book";
 import { importedAnticipation, withoutImportedAnticipation } from "@zaimu/finance/imported-anticipation";
 import { getTagsByEntity, tagEntityType } from "~/modules/categories/application/tag-assignments";
 import { type CreditReadRow, readCreditEntries } from "~/modules/creditCards/application/credit-entry-reader";
@@ -127,33 +128,17 @@ export async function markStatementAsFullySynced({
 	dueDate: Date;
 	statementDate: Date;
 }) {
-	const statement = await queryFirst(
-		db.sql.public.CreditCardStatement.select("id")
-			.where((fields, functions) =>
-				functions.and(
-					functions.eq(fields.creditCardId, creditCardId),
-					functions.or(
-						functions.eq(fields.statementDate, statementDate),
-						functions.and(functions.eq(fields.dueDate, dueDate), functions.eq(fields.dueDate, statementDate)),
-					),
-				),
-			)
-			.limit(1)
-			.build(),
+	const [owner] = await queryRaw<{ userId: string }>(
+		`SELECT a."userId" FROM "CreditCard" c JOIN "FinancialAccount" a ON a."id"=c."financialAccountId" WHERE c."id"=$1`,
+		[creditCardId],
 	);
-	if (statement) {
-		await executeStatement(
-			db.sql.public.CreditCardStatement.update({ dueDate, isFullySynced: true, updatedAt: new Date() })
-				.where((fields, functions) => functions.eq(fields.id, statement.id))
-				.build(),
-		);
-		return;
-	}
-	await executeStatement(
-		db.sql.public.CreditCardStatement.insert([
-			{ creditCardId, dueDate, isFullySynced: true, statementDate, totalAmount: "0" },
-		]).build(),
-	);
+	if (!owner) throw new HttpException("Cartão não encontrado", 404);
+	await mutateCreditBook(owner.userId, creditCardId, book => {
+		synchronizeImportedStatementDates(book, {
+			dueDate: dateKey(dueDate),
+			statementDate: dateKey(statementDate),
+		}).isFullySynced = true;
+	});
 }
 
 interface ImportItemsCursor {
