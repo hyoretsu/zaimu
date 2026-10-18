@@ -30,7 +30,7 @@ import {
 	matchesExistingCreditPurchase,
 } from "../domain/credit-card-import-reconciliation";
 import { getFinancingSource, getFinancingTarget } from "../domain/financing-source-reference";
-import { materializeImportedPurchase } from "./materialize-imported-purchase";
+import { materializeImportedPurchase, materializeImportedPurchases } from "./materialize-imported-purchase";
 
 const importItemTagEntityType = "CREDIT_CARD_IMPORT_ITEM";
 const dateKey = (value: Date | string) => new Date(value).toISOString().slice(0, 10);
@@ -439,6 +439,45 @@ async function approveItemsImpl(
 		)[0];
 		if (!source) throw new HttpException("Aprove a compra original antes de aprovar o parcelamento", 409);
 	}
+	const cardSnapshot = {
+		...card,
+		cashbackRate: card.cashbackRate === null ? null : Number(card.cashbackRate),
+		cashbackYieldPeriod: card.cashbackYieldPeriod as "MONTHLY" | "YEARLY" | null,
+		cashbackYieldReferencePercentage:
+			card.cashbackYieldReferencePercentage === null ? null : Number(card.cashbackYieldReferencePercentage),
+		cashbackYieldReferenceRate:
+			card.cashbackYieldReferenceRate === null ? null : Number(card.cashbackYieldReferenceRate),
+		userId,
+	};
+	const batchItems = selectedItems.filter(
+		item => !getFinancingSource(item.description) && !getFinancingTarget(item.description),
+	);
+	const debtSplitsByItem = new Map<string, Awaited<ReturnType<typeof getDebtSplitInput>>>();
+	const previousRootsByItem = new Map<string, CreditReadRow | undefined>();
+	const batchInputs: Parameters<typeof materializeImportedPurchases>[1] = [];
+	for (const item of batchItems) {
+		const debtSplit = await getDebtSplitInput({ creditCardImportItemId: item.id });
+		const [importedRoot] = await queryRaw<CreditReadRow>(
+			`SELECT * FROM "CreditEntry" WHERE "externalId"=$1 AND "creditCardId"=$2 LIMIT 1`,
+			[item.externalId, creditCardImport.creditCardId],
+		);
+		if (importedAnticipation(item.description) && !item.reconciledCreditPurchaseId && !importedRoot)
+			throw new HttpException("Vincule a antecipação à compra original antes de aprovar", 409);
+		debtSplitsByItem.set(item.id, debtSplit);
+		previousRootsByItem.set(item.id, importedRoot);
+		batchInputs.push({
+			...item,
+			debtSplitRule: debtSplit ?? null,
+			dueDate: creditCardImport.dueDate,
+			existingRootId: item.reconciledCreditPurchaseId ?? importedRoot?.id ?? null,
+			installmentAmount: Number(item.installmentAmount),
+			statementDate: creditCardImport.statementDate,
+			tagIds: (tagsByItem.get(item.id) ?? []).map(tag => tag.id),
+			totalAmount: Number(item.totalAmount),
+		});
+	}
+	const batchRootIds = await materializeImportedPurchases(cardSnapshot, batchInputs);
+	const rootsByItem = new Map(batchItems.map((item, index) => [item.id, batchRootIds[index]!]));
 	for (const item of selectedItems) {
 		if (item.storeName) await resolveStore(userId, item.storeName);
 		const financingSourceId = getFinancingSource(item.description);
@@ -461,30 +500,23 @@ async function approveItemsImpl(
 					)
 				)[0]
 			: null;
-		const debtSplit = await getDebtSplitInput({ creditCardImportItemId: item.id });
+		const debtSplit = debtSplitsByItem.has(item.id)
+			? debtSplitsByItem.get(item.id)
+			: await getDebtSplitInput({ creditCardImportItemId: item.id });
 		// An interrupted approval can have created the root before deleting the import item.
-		const importedRoot = (
-			await queryRaw<CreditReadRow>(
-				`SELECT * FROM "CreditEntry" WHERE "externalId"=$1 AND "creditCardId"=$2 LIMIT 1`,
-				[item.externalId, creditCardImport.creditCardId],
-			)
-		)[0];
+		const importedRoot = rootsByItem.has(item.id)
+			? previousRootsByItem.get(item.id)
+			: (
+					await queryRaw<CreditReadRow>(
+						`SELECT * FROM "CreditEntry" WHERE "externalId"=$1 AND "creditCardId"=$2 LIMIT 1`,
+						[item.externalId, creditCardImport.creditCardId],
+					)
+				)[0];
 		if (importedAnticipation(item.description) && !item.reconciledCreditPurchaseId && !importedRoot)
 			throw new HttpException("Vincule a antecipação à compra original antes de aprovar", 409);
-		const rootId = await materializeImportedPurchase(
-			{
-				...card,
-				cashbackRate: card.cashbackRate === null ? null : Number(card.cashbackRate),
-				cashbackYieldPeriod: card.cashbackYieldPeriod as "MONTHLY" | "YEARLY" | null,
-				cashbackYieldReferencePercentage:
-					card.cashbackYieldReferencePercentage === null
-						? null
-						: Number(card.cashbackYieldReferencePercentage),
-				cashbackYieldReferenceRate:
-					card.cashbackYieldReferenceRate === null ? null : Number(card.cashbackYieldReferenceRate),
-				userId,
-			},
-			{
+		const rootId =
+			rootsByItem.get(item.id) ??
+			(await materializeImportedPurchase(cardSnapshot, {
 				...item,
 				debtSplitRule: debtSplit ?? null,
 				dueDate: creditCardImport.dueDate,
@@ -493,8 +525,7 @@ async function approveItemsImpl(
 				statementDate: creditCardImport.statementDate,
 				tagIds: (tagsByItem.get(item.id) ?? []).map(tag => tag.id),
 				totalAmount: Number(item.totalAmount),
-			},
-		);
+			}));
 		if (!rootId) throw new HttpException("Não foi possível identificar a compra criada", 500);
 		const settlementSource =
 			financingSource ??
