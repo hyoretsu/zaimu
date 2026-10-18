@@ -238,15 +238,11 @@ export function CreditCardStatementDetails({
 							</strong>
 							{displayedStatement.manualTotalAmount != null && (
 								<p className="mt-1 text-muted-foreground text-sm">
-									Valor calculado:{" "}
+									Valor original:{" "}
 									<PreferredMoneyAmount
 										values={[
 											{ amount: displayedStatement.calculatedTotalAmount ?? 0, currency: currencyCode },
 										]}
-									/>
-									. Ajustado:{" "}
-									<PreferredMoneyAmount
-										values={[{ amount: displayedStatement.manualTotalAmount, currency: currencyCode }]}
 									/>
 								</p>
 							)}
