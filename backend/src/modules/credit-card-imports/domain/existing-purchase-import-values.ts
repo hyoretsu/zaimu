@@ -18,6 +18,6 @@ export function existingPurchaseImportValues(
 		purchaseDate: original.purchaseDate,
 		storeName: original.storeName,
 		time: original.time,
-		totalAmount: String(original.totalAmount),
+		...(anticipated ? { totalAmount: String(original.totalAmount) } : {}),
 	};
 }

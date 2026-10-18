@@ -14,12 +14,14 @@ test("automatic reconciliation inherits original metadata without replacing impo
 	const item = {
 		currentInstallment: 2,
 		description: "AMAZONMKTPLC",
-		installmentAmount: 21.79,
+		installmentAmount: 21.8,
 		installments: 10,
+		totalAmount: "218.00",
 	};
 	expect({ ...item, ...existingPurchaseImportValues(item.description, original) }).toEqual({
 		...item,
 		...original,
+		totalAmount: "218.00",
 	});
 });
 
@@ -35,5 +37,6 @@ test("anticipated installments retain their imported amount markers with the ori
 			{ amountCents: 2100, number: 4 },
 		]),
 	);
+	expect(values.totalAmount).toBe(original.totalAmount);
 	expect(importedAnticipation(values.description)).toEqual(importedAnticipation(description));
 });

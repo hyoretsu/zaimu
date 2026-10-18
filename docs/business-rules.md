@@ -354,7 +354,7 @@ Parcelas sincronizadas têm valor confirmado pela instituição e nunca permitem
 
 ## Conciliação automática de compras importadas
 
-Ao vincular automaticamente uma compra importada à compra existente, a revisão assume descrição, data, horário, loja, etiquetas e divisão de dívida da compra original, além do seu valor total. A parcela atual e seu valor confirmado pela fatura são preservados, incluindo os valores das parcelas antecipadas. Esses dados são copiados para o item de revisão e podem ser ajustados antes da aprovação.
+Ao vincular automaticamente uma compra importada à compra existente, a revisão assume descrição, data, horário, loja, etiquetas e divisão de dívida da compra original. O total é recalculado com base no valor da parcela importada e na quantidade de parcelas, sem reutilizar o total antigo. Antecipações preservam o total original como referência, pois seus valores podem incluir descontos. A parcela atual e seu valor confirmado pela fatura são preservados, incluindo os valores das parcelas antecipadas. Esses dados são copiados para o item de revisão e podem ser ajustados antes da aprovação.
 
 ## Datas efetivas na importação de faturas
 

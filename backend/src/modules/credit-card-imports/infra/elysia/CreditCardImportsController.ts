@@ -265,7 +265,12 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 				).build(),
 			);
 			const reconciledItems = await queryRows(
-				db.sql.public.CreditCardImportItem.select("id", "description", "reconciledCreditPurchaseId")
+				db.sql.public.CreditCardImportItem.select(
+					"id",
+					"description",
+					"reconciledCreditPurchaseId",
+					"totalAmount",
+				)
 					.where((fields, functions) => functions.eq(fields.creditCardImportId, creditCardImport.id))
 					.build(),
 			);
@@ -289,7 +294,7 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 					tagIds: (existingTags.get(original.id) ?? []).map(tag => tag.id),
 				});
 				await replaceDebtSplit({
-					amount: Number(original.totalAmount),
+					amount: Number(importedAnticipation(item.description) ? original.totalAmount : item.totalAmount),
 					split: (await getDebtSplitInput({ creditPurchaseId: original.id })) ?? null,
 					target: { creditCardImportItemId: item.id },
 					userId,
