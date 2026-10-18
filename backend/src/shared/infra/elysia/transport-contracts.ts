@@ -884,7 +884,7 @@ export const DashboardReturn = t.Object({
 			id: t.String(),
 			institutionName: t.Union([t.Null(), t.String()]),
 			name: t.Union([t.Null(), t.String()]),
-			type: FinancialAccountReturn.properties.type,
+			type: t.Union([FinancialAccountReturn.properties.type, t.Literal("CASHBACK")]),
 		}),
 	),
 	balanceBreakdown: t.Union([

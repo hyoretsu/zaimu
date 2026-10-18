@@ -79,6 +79,7 @@
 		"backend/src/modules/currencies/application/currency-exchange.test.ts",
 		"backend/src/modules/currencies/application/financial-fees.test.ts",
 		"backend/src/modules/currencies/application/financial-money.test.ts",
+		"backend/src/modules/dashboard/application/DashboardReturn.test.ts",
 		"backend/src/modules/dashboard/application/dashboard-calculations.test.ts",
 		"backend/src/modules/dashboard/application/dashboard-currency-context.test.ts",
 		"backend/src/modules/dashboard/application/dashboard-financial-context.test.ts",
