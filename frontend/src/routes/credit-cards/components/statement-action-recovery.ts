@@ -16,5 +16,6 @@ export interface StatementActionRecovery {
 		canceledInstallmentNumbers?: number[];
 		statementDate?: string;
 		dueDate?: string;
+		manualTotalAmount?: string;
 	};
 }

@@ -34,7 +34,6 @@ import { EditCreditPurchaseDialog } from "./EditCreditPurchaseDialog";
 import { ManageCreditPurchaseRefundsDialog } from "./ManageCreditPurchaseRefundsDialog";
 import { RefinanceCreditPurchaseDialog } from "./RefinanceCreditPurchaseDialog";
 import { RefundCreditPurchaseDialog } from "./RefundCreditPurchaseDialog";
-import { StatementAmountAdjustmentDialog } from "./StatementAmountAdjustmentDialog";
 import type { StatementActionRecovery } from "./statement-action-recovery";
 
 export function CreditCardStatementDetails({
@@ -54,7 +53,6 @@ export function CreditCardStatementDetails({
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
 	const [editingStatement, setEditingStatement] = useState(false);
-	const [adjustingAmount, setAdjustingAmount] = useState(false);
 	const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<string>>(new Set());
 	const [pendingUpdateIds, setPendingUpdateIds] = useState<Set<string>>(new Set());
 	const [choosingEditScope, setChoosingEditScope] = useState<CreditPurchase | null>(null);
@@ -252,16 +250,7 @@ export function CreditCardStatementDetails({
 									/>
 								</p>
 							)}
-							<ActionGroup className="mt-2">
-								<Button
-									disabled={detail.isPending}
-									onClick={() => setAdjustingAmount(true)}
-									size="sm"
-									variant="outline"
-								>
-									<LuPencil /> Ajustar valor
-								</Button>
-							</ActionGroup>
+
 							{!isIgnored && Math.abs(invoiceAmount - displayBalance) > 0.001 && (
 								<p className="mt-1 text-muted-foreground text-sm">
 									{displayBalance < 0 ? "Crédito" : "Restante a pagar"}:{" "}
@@ -291,21 +280,22 @@ export function CreditCardStatementDetails({
 								</strong>
 							</div>
 						</div>
-						{!isEmptyCycle && !statement.isForecast && (
-							<ActionGroup>
-								<Button
-									disabled={Boolean(backgroundPending[`${identity}:credit-statement:${statement.id}`])}
-									onClick={() => {
-										setRecoveredAction(null);
-										setEditingStatement(true);
-									}}
-									variant="outline"
-								>
-									<LuPencil aria-hidden="true" />
-									Editar fatura
-								</Button>
-							</ActionGroup>
-						)}
+						<ActionGroup>
+							<Button
+								disabled={
+									detail.isPending ||
+									Boolean(backgroundPending[`${identity}:credit-statement:${statement.id}`])
+								}
+								onClick={() => {
+									setRecoveredAction(null);
+									setEditingStatement(true);
+								}}
+								variant="outline"
+							>
+								<LuPencil aria-hidden="true" />
+								Editar fatura
+							</Button>
+						</ActionGroup>
 					</header>
 					<div className="grid gap-3">
 						<div className="flex items-center justify-between gap-3">
@@ -385,19 +375,14 @@ export function CreditCardStatementDetails({
 			<ActionGroup className="absolute right-3 bottom-3 z-10">
 				<FloatingActionButton icon={LuPlus} label="Nova compra" onClick={onAddPurchase} />
 			</ActionGroup>
-			{adjustingAmount && (
-				<StatementAmountAdjustmentDialog
-					currency={currencyCode}
-					onClose={() => setAdjustingAmount(false)}
-					statement={displayedStatement}
-				/>
-			)}
 			{editingStatement && (
 				<EditCreditCardStatementDialog
+					currency={currencyCode}
 					initialValues={
 						recoveredAction?.action === "dates"
 							? {
 									dueDate: recoveredAction.data!.dueDate!,
+									manualTotalAmount: recoveredAction.data!.manualTotalAmount,
 									statementDate: recoveredAction.data!.statementDate!,
 								}
 							: undefined

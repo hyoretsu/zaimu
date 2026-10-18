@@ -12,4 +12,3 @@ export * from "./ManageCreditPurchaseRefundsDialog";
 export * from "./PendingRefundReviews";
 export * from "./RefinanceCreditPurchaseDialog";
 export * from "./RefundInstallmentOptions";
-export { StatementAmountAdjustmentDialog } from "./StatementAmountAdjustmentDialog";
