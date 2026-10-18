@@ -44,6 +44,7 @@ import {
 import { assignCreditCardPurchaseExternalIds } from "../../domain/credit-card-import-identity";
 import { parseCreditCardStatementPdf } from "../../domain/credit-card-statement-parser";
 import { existingImportRoots } from "../../domain/existing-import-roots";
+import { existingPurchaseImportValues } from "../../domain/existing-purchase-import-values";
 import { filterZeroValuePurchases } from "../../domain/filter-zero-value-purchases";
 import {
 	getFinancingSource,
@@ -263,6 +264,37 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 					})),
 				).build(),
 			);
+			const reconciledItems = await queryRows(
+				db.sql.public.CreditCardImportItem.select("id", "description", "reconciledCreditPurchaseId")
+					.where((fields, functions) => functions.eq(fields.creditCardImportId, creditCardImport.id))
+					.build(),
+			);
+			const existingTags = await getTagsByEntity(
+				tagEntityType.creditPurchase,
+				reconciledItems.flatMap(item =>
+					item.reconciledCreditPurchaseId ? [item.reconciledCreditPurchaseId] : [],
+				),
+			);
+			for (const item of reconciledItems) {
+				const original = existingCardEntries.find(entry => entry.id === item.reconciledCreditPurchaseId);
+				if (!original) continue;
+				await executeStatement(
+					db.sql.public.CreditCardImportItem.update(existingPurchaseImportValues(item.description, original))
+						.where((fields, functions) => functions.eq(fields.id, item.id))
+						.build(),
+				);
+				await replaceEntityTags({
+					entityIds: [item.id],
+					entityType: importItemTagEntityType,
+					tagIds: (existingTags.get(original.id) ?? []).map(tag => tag.id),
+				});
+				await replaceDebtSplit({
+					amount: Number(original.totalAmount),
+					split: (await getDebtSplitInput({ creditPurchaseId: original.id })) ?? null,
+					target: { creditCardImportItemId: item.id },
+					userId,
+				});
+			}
 			return { creditCardImport: await getImportReturn(userId, creditCardImport.id), ignoredCount };
 		},
 		{

@@ -1,6 +1,7 @@
 {
 	"backend:e2e": ["backend/tests/database.e2e.test.ts"],
 	"backend:integration": [
+		"backend/scripts/tests/consumed-contracts.test.ts",
 		"backend/scripts/tests/export-openapi.test.ts",
 		"backend/src/modules/accounts/tests/cashback-reversals.integration.test.ts",
 		"backend/src/modules/accounts/tests/universal-institutions.integration.test.ts",
@@ -51,6 +52,7 @@
 		"backend/src/modules/credit-card-imports/domain/credit-card-import-identity.test.ts",
 		"backend/src/modules/credit-card-imports/domain/credit-card-import-reconciliation.test.ts",
 		"backend/src/modules/credit-card-imports/domain/existing-import-roots.test.ts",
+		"backend/src/modules/credit-card-imports/domain/existing-purchase-import-values.test.ts",
 		"backend/src/modules/credit-card-imports/domain/filter-zero-value-purchases.test.ts",
 		"backend/src/modules/credit-card-imports/domain/financing-source-reference.test.ts",
 		"backend/src/modules/credit-card-imports/domain/imported-installment-dates.test.ts",

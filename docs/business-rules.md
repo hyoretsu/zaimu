@@ -351,3 +351,7 @@ A senha do PDF é sempre opcional na importação, independentemente da institui
 ## Edição de compras sincronizadas
 
 Parcelas sincronizadas têm valor confirmado pela instituição e nunca permitem edição direta. Ao editar uma dessas parcelas, o aplicativo abre a compra original sem perguntar o escopo. O total original pode ser corrigido somente enquanto houver parcelas não sincronizadas; a diferença é distribuída apenas entre essas parcelas, preservando os valores confirmados. Com todas as parcelas sincronizadas, o total também fica bloqueado. A quantidade de parcelas de uma compra com parcelas sincronizadas não pode ser alterada.
+
+## Conciliação automática de compras importadas
+
+Ao vincular automaticamente uma compra importada à compra existente, a revisão assume descrição, data, horário, loja, etiquetas e divisão de dívida da compra original, além do seu valor total. A parcela atual e seu valor confirmado pela fatura são preservados, incluindo os valores das parcelas antecipadas. Esses dados são copiados para o item de revisão e podem ser ajustados antes da aprovação.
