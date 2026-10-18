@@ -204,7 +204,6 @@ export function CreditCardImportReviewDialog({
 
 	const creditCard = creditCards.data?.find(card => card.id === creditCardImportData?.creditCardId);
 	const currencyCode = creditCard?.currency ?? "BRL";
-	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
 	const creditCardName = creditCard ? getCreditCardDisplayName(creditCard) : "Cartão de crédito";
 	const reviewBusy = approve.isPending || discardPending;
 	const rowBusy = (id: string) =>
@@ -243,15 +242,6 @@ export function CreditCardImportReviewDialog({
 							/>
 						) : (
 							<div className="">
-								{creditCardImportData?.previousBalanceCheck && (
-									<p className="mb-3 rounded-xl border p-3 text-sm">
-										Saldo anterior informado:{" "}
-										{currency.format(creditCardImportData.previousBalanceCheck.reported)}.{" "}
-										{creditCardImportData.previousBalanceCheck.matches
-											? "Confere com a transposição do histórico."
-											: `Histórico calcula ${currency.format(creditCardImportData.previousBalanceCheck.calculated)}. Confira compras e pagamentos anteriores.`}
-									</p>
-								)}
 								<div className="divide-y rounded-2xl border bg-card shadow-sm">
 									{items.map(item => (
 										<CreditCardImportItemRow
