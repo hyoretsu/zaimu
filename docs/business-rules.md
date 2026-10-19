@@ -360,7 +360,7 @@ Na revisão de importação de fatura, alterar a quantidade de parcelas preserva
 
 ## Datas efetivas na importação de faturas
 
-Todos os importadores de faturas, incluindo PDF de qualquer instituição e Open Finance, sincronizam as datas de fechamento e vencimento informadas pela origem ao aplicar os dados. A sincronização corrige o ciclo existente, preservando seu ID, pagamentos, parcelas, encargos e vínculos; não cria outra fatura apenas porque a data mudou. O ciclo é identificado pelo fechamento, pelo vencimento ou por um único fechamento no mesmo mês, nessa ordem. Calendários explícitos das parcelas vinculadas acompanham a correção. Dias nominais configurados no cartão permanecem inalterados. Reimportações sem compras novas também sincronizam as datas ao concluir a fatura. O cabeçalho da revisão mostra somente o nome do arquivo importado.
+Todos os importadores de faturas, incluindo PDF de qualquer instituição e Open Finance, sincronizam as datas de fechamento e vencimento informadas pela origem ao aplicar os dados. A sincronização corrige o ciclo existente, preservando seu ID, pagamentos, parcelas, encargos e vínculos; não cria outra fatura apenas porque a data mudou. O ciclo é identificado pelo fechamento, pelo vencimento ou por um único fechamento no mesmo mês, nessa ordem. Calendários explícitos das parcelas vinculadas acompanham a correção. Dias nominais configurados no cartão permanecem inalterados. Reimportações sem compras novas também sincronizam as datas ao concluir a fatura. O cabeçalho da revisão mostra o nome do arquivo importado como título e o nome do cartão como subtítulo (por exemplo, "Cartão Inter" ou "Cartão MP Painho").
 
 
 ## Recuperação automática de dados derivados

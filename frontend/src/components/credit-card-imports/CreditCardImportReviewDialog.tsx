@@ -223,9 +223,10 @@ export function CreditCardImportReviewDialog({
 				onOpenChange={onOpenChange}
 				open={open}
 			>
-				<ImportDialogContent aria-describedby={undefined} className="sm:max-w-2xl">
+				<ImportDialogContent className="sm:max-w-2xl">
 					<DialogHeader>
 						<DialogTitle>{creditCardImportData?.fileName ?? "Carregando fatura..."}</DialogTitle>
+						{creditCard && <DialogDescription>Cartão {creditCardName}</DialogDescription>}
 					</DialogHeader>
 					<DialogBody>
 						{creditCardImport.isPending || creditCards.isPending ? (
