@@ -1,7 +1,10 @@
 import { readdir, readFile, unlink, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { createRequire } from "node:module";
+import { dirname, join, resolve } from "node:path";
 
 const root = resolve(import.meta.dir, "..");
+const require = createRequire(import.meta.url);
+const cli = join(dirname(require.resolve("@prisma/cli/package.json")), "dist/cli.js");
 const migrations = join(root, "migrations/app");
 const contract = JSON.parse(await readFile(join(root, "out/prisma/contract.json"), "utf8"));
 const invariants = new Set<string>();
@@ -19,16 +22,7 @@ await writeFile(
 );
 try {
 	const child = Bun.spawn(
-		[
-			"bun",
-			join(root, "node_modules/@prisma/cli/dist/cli.js"),
-			"migrate",
-			"--to",
-			reference,
-			"--advance-ref",
-			"db",
-			...process.argv.slice(2),
-		],
+		["bun", cli, "migrate", "--to", reference, "--advance-ref", "db", ...process.argv.slice(2)],
 		{ cwd: root, env: process.env, stderr: "inherit", stdout: "inherit" },
 	);
 	process.exitCode = await child.exited;
