@@ -3,20 +3,9 @@ import { currentDateKey } from "./credit-card";
 
 /** Carried debt belongs to the receiving cycle; suggest it only after that cycle closes. */
 export function pendingStatementPayments(book: CreditBook, today = currentDateKey()) {
-	// Scheduled payments already reserve the outstanding balance for suggestion purposes.
-	// Keep purchases, refunds and historical balances evaluated at today's date.
-	const statements = replayCreditBook(
-		{
-			...book,
-			payments: book.payments.map(payment => ({
-				...payment,
-				date: payment.date > today ? today : payment.date,
-			})),
-		},
-		today,
-	).statements;
+	const statements = replayCreditBook(book, today).statements;
 	return statements.flatMap(statement => {
-		if (statement.statementDate > today) return [];
+		if (statement.statementDate > today || statement.scheduledPaymentAmount > 0) return [];
 		const remaining = Math.max(0, statement.balanceAmount);
 		if (!remaining) return [];
 		return [

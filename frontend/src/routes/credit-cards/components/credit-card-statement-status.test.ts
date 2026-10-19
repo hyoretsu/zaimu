@@ -14,6 +14,25 @@ const statement: CreditCardStatement = {
 };
 
 describe("getCreditCardStatementStatus", () => {
+	test("recognizes scheduled payments from invoice details without the aggregate", () => {
+		expect(
+			getCreditCardStatementStatus(
+				{ ...statement, payments: [{ amount: 99.99, date: "2099-01-20" }] },
+				"2099-01-16",
+			).label,
+		).toBe("Pagamento agendado");
+		expect(
+			getCreditCardStatementStatus(
+				{ ...statement, payments: [{ amount: 100, date: "2099-01-15" }] },
+				"2099-01-16",
+			).label,
+		).toBe("Fatura fechada");
+	});
+	test("shows scheduled payments without marking the invoice paid", () => {
+		const status = getCreditCardStatementStatus({ ...statement, scheduledPaymentAmount: 100 }, "2099-01-16");
+		expect(status.label).toBe("Pagamento agendado");
+		expect(status.icon).not.toBeNull();
+	});
 	test("shows forecast invoices without a status", () => {
 		const status = getCreditCardStatementStatus({ ...statement, isForecast: true });
 		expect(status.label).toBe("");

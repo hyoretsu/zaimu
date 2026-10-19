@@ -1,13 +1,22 @@
-import { LuCircleCheck, LuCircleDot, LuReceiptText, LuTriangleAlert } from "react-icons/lu";
+import { LuCircleCheck, LuCircleDot, LuClock, LuReceiptText, LuTriangleAlert } from "react-icons/lu";
 import type { CreditCardStatement } from "@/lib/api";
 import { getLocalDateKey } from "@/lib/date";
 
-export function getCreditCardStatementStatus(statement: CreditCardStatement, today = getLocalDateKey()) {
+export function getCreditCardStatementStatus(
+	statement: CreditCardStatement & { payments?: readonly { date: string; amount: number }[] },
+	today = getLocalDateKey(),
+) {
 	if (statement.isForecast) {
 		return { className: "text-muted-foreground", icon: null, label: "" };
 	}
 	if (statement.isPaid) {
 		return { className: "text-success-600", icon: LuCircleCheck, label: "Fatura paga" };
+	}
+	if (
+		(statement.scheduledPaymentAmount ?? 0) > 0 ||
+		statement.payments?.some(payment => payment.amount > 0 && payment.date.slice(0, 10) > today)
+	) {
+		return { className: "text-foreground", icon: LuClock, label: "Pagamento agendado" };
 	}
 	if (statement.status === "CARRIED" || statement.dueDate.slice(0, 10) < today) {
 		return { className: "text-destructive", icon: LuTriangleAlert, label: "Fatura atrasada" };

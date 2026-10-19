@@ -77,6 +77,14 @@ export function CreditCardStatementBrowser({
 	);
 	const firstMonth = getFirstNonZeroStatementMonth(statements.data ?? []) ?? currentMonth;
 	const selectedStatement = getSelectedStatement(visibleStatements, selectedStatementId, currentMonth);
+	const selectedDetail = useQuery({
+		enabled: identity !== null && !!selectedStatement && !selectedStatement.isEmptyCycle,
+		queryFn: () => dataService.creditCards.getStatement(card.id, selectedStatement!.id),
+		queryKey: queryKeys.creditCardStatements.detail(identity!, card.id, selectedStatement?.id ?? ""),
+	});
+	const statusStatements = visibleStatements.map(statement =>
+		statement.id === selectedDetail.data?.id ? { ...statement, ...selectedDetail.data } : statement,
+	);
 	const loadPrevious = useCallback(
 		() => setExtra(value => ({ ...value, previous: value.previous + radius })),
 		[radius],
@@ -120,7 +128,7 @@ export function CreditCardStatementBrowser({
 							onLoadPrevious={loadPrevious}
 							onRadiusChange={setDesktopRadius}
 							selectedId={selectedStatement.id}
-							statements={visibleStatements}
+							statements={statusStatements}
 						/>
 					</div>
 				) : null}

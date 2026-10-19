@@ -142,6 +142,7 @@
 		"backend/src/shared/infra/elysia/mutation-transaction.test.ts",
 		"backend/src/shared/infra/elysia/operation-id.test.ts",
 		"backend/src/shared/infra/elysia/serialized-response.test.ts",
+		"backend/src/shared/infra/elysia/transport-contracts.test.ts",
 		"backend/src/shared/infra/outbox/OutboxPublisher.test.ts",
 		"backend/src/shared/infra/performance/job-metrics.test.ts",
 		"backend/src/shared/infra/service-namespace.test.ts"

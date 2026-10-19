@@ -68,7 +68,7 @@ test("partial payment, final payment and cutoff remove or reduce suggestion", ()
 	expect(pendingStatementPayments(ledger, "2026-08-26")).toEqual([]);
 });
 
-test("scheduled payments reduce suggestions and deletion restores them without changing current balances", () => {
+test("scheduled payments hide suggestions and deletion restores them without changing current balances", () => {
 	const ledger = book();
 	newBookPurchase(ledger, {
 		description: "Compra",
@@ -79,7 +79,7 @@ test("scheduled payments reduce suggestions and deletion restores them without c
 	const today = "2026-08-26";
 	const original = pendingStatementPayments(ledger, today);
 	ledger.payments.push({ amount: 40, date: "2026-08-28", id: "partial" });
-	expect(pendingStatementPayments(ledger, today)[0].amount).toBe(60);
+	expect(pendingStatementPayments(ledger, today)).toEqual([]);
 	ledger.payments.push({ amount: 60, date: "2026-08-28", id: "final" });
 	expect(pendingStatementPayments(ledger, today)).toEqual([]);
 	expect(
@@ -99,4 +99,23 @@ test("closing preference selects closing date and clamps past dates to today", (
 	expect(suggestedInvoicePaymentDate(statement, "CLOSING_DATE", "2026-10-10")).toBe("2026-10-10");
 	expect(suggestedInvoicePaymentDate(statement, "CLOSING_DATE", "2026-10-12")).toBe("2026-10-12");
 	expect(suggestedInvoicePaymentDate(statement, "DUE_DATE", "2026-10-22")).toBe("2026-10-22");
+});
+
+test("scheduled payments keep their original cycle when an earlier invoice is due today", () => {
+	const ledger = book();
+	newBookPurchase(ledger, {
+		description: "Anterior",
+		installments: 1,
+		purchaseDate: "2026-08-10",
+		totalAmount: 50,
+	});
+	newBookPurchase(ledger, {
+		description: "Atual",
+		installments: 1,
+		purchaseDate: "2026-09-10",
+		totalAmount: 100,
+	});
+	ledger.statements.find(row => row.statementDate === "2026-09-20")!.statementDate = "2026-08-27";
+	ledger.payments.push({ amount: 100, date: "2026-09-28", id: "scheduled" });
+	expect(pendingStatementPayments(ledger, "2026-08-28").map(row => row.amount)).toEqual([50]);
 });

@@ -18,6 +18,7 @@ export const CreditStatementReturn = t.Object(
 		manualTotalAmount: t.Optional(t.Nullable(t.Number())),
 		paidAmount: t.Number(),
 		periodPaymentAmount: t.Number(),
+		scheduledPaymentAmount: t.Number(),
 		statementDate: t.String(),
 		status: t.Union([t.Literal("OPEN"), t.Literal("PAID"), t.Literal("CARRIED")]),
 		totalAmount: t.Number(),

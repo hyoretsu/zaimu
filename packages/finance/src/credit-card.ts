@@ -43,6 +43,7 @@ export interface CardPayment {
 }
 export type StatementStatus = "OPEN" | "PAID" | "CARRIED";
 export interface StatementBalance {
+	scheduledPaymentAmount: number;
 	/** Total before this override and before payments, including incoming debt/credit. */
 	calculatedTotalAmount: number;
 	amountDue: number;
@@ -196,16 +197,14 @@ export function calculateStatementBalances<T extends StatementInput>(
 		(a, b) => dateKey(a.dueDate).localeCompare(dateKey(b.dueDate)) || a.id.localeCompare(b.id),
 	);
 	const paidByStatement = new Map<string, number>();
+	const scheduledByStatement = new Map<string, number>();
 	const resolvePayment = createStatementPaymentResolver(chronological);
 	if (payments)
 		for (const payment of payments) {
-			if (dateKey(payment.date) > dateKey(asOf)) continue;
+			const amounts = dateKey(payment.date) > dateKey(asOf) ? scheduledByStatement : paidByStatement;
 			const target = resolvePayment(payment.date);
 			if (target)
-				paidByStatement.set(
-					target.id,
-					(paidByStatement.get(target.id) ?? 0) + toCents(payment.amount, currency),
-				);
+				amounts.set(target.id, (amounts.get(target.id) ?? 0) + toCents(payment.amount, currency));
 		}
 	let carry = 0;
 	const balances = new Map<string, StatementBalance>();
@@ -258,6 +257,7 @@ export function calculateStatementBalances<T extends StatementInput>(
 				Math.max(0, Math.min(Math.max(0, amountDue), incomingCredit + periodPayment)) /
 				currencyScale(currency),
 			periodPaymentAmount: periodPayment / currencyScale(currency),
+			scheduledPaymentAmount: (scheduledByStatement.get(statement.id) ?? 0) / currencyScale(currency),
 			status,
 		});
 		carry = transferred ? remaining : Math.min(0, remaining);
