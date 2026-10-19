@@ -5,7 +5,7 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite --host",
-		"build": "tsc -b && vite build",
+		"build": "bun check -b && vite build",
 		"build:associated": "bun run links:generate --strict && bun run build",
 		"links:generate": "bun scripts/generate-app-links.ts",
 		"preview": "vite preview",
@@ -18,7 +18,7 @@
 		"tauri:ios": "tauri ios dev",
 		"test:currency": "playwright test --config playwright.currency.config.ts",
 		"test:open-finance": "playwright test --config playwright.open-finance.config.ts",
-		"check-types": "tsc -b --noEmit",
+		"check-types": "bun check -b",
 		"performance:test": "playwright test --config playwright.performance.config.ts",
 		"generate": "KUBB_DISABLE_TELEMETRY=1 kubb generate"
 	},

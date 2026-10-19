@@ -33,7 +33,7 @@
 		"./country-codes": "./src/country-codes.ts"
 	},
 	"scripts": {
-		"check-types": "tsc --noEmit",
+		"check-types": "bun check",
 		"test": "bun test src"
 	},
 	"devDependencies": {

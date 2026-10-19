@@ -6,7 +6,7 @@
 		".": "./src/index.ts"
 	},
 	"scripts": {
-		"check-types": "tsc --noEmit",
+		"check-types": "bun check",
 		"contract:emit": "prisma-cli contract emit --output-path out/prisma",
 		"db:sign": "prisma-cli db sign",
 		"db:verify": "prisma-cli db verify",

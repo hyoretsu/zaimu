@@ -9,10 +9,10 @@ if (
 			path.startsWith("scripts/testing/"),
 	)
 ) {
-	const check = Bun.spawnSync(
-		["bun", "x", "--no-install", "tsc", "--noEmit", "--project", "scripts/tsconfig.json"],
-		{ stderr: "inherit", stdout: "inherit" },
-	);
+	const check = Bun.spawnSync(["bun", "check", "--project", "scripts/tsconfig.json"], {
+		stderr: "inherit",
+		stdout: "inherit",
+	});
 	if (check.exitCode !== 0) process.exit(check.exitCode);
 }
 const sql = paths.some(path => path.startsWith("packages/sql/"));

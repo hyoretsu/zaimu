@@ -103,7 +103,7 @@ jobs:
       - name: Check shared runner types and failure regressions
         if: matrix.package == 'backend' && matrix.category == 'unit'
         run: |
-          bun x --no-install tsc --noEmit --project scripts/tsconfig.json
+          bun check --project scripts/tsconfig.json
           bun run test:runner
 
       - name: Prepare local disposable service images
