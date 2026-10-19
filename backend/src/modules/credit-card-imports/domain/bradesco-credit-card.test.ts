@@ -79,8 +79,11 @@ Nacionais em Reais (R$)
 27/04 PAGAMENTO RECEBIDO - OBRIGADO 160,71 -
 Total parcelado para as próximas faturas R$ 293,01
 `);
-	expect(statement.purchases).toHaveLength(2);
-	const [purchase, refund] = statement.purchases;
+	expect(statement.purchases).toHaveLength(3);
+	const [original, purchase, refund] = statement.purchases;
+	expect(original!.totalAmount).toBe(176.03);
+	expect(original!.installments).toBe(8);
+	expect(importedAnticipation(original!.description)).toBeNull();
 	expect(purchase!.totalAmount).toBe(176.03);
 	expect(importedAnticipation(purchase!.description)).toHaveLength(8);
 	expect(refund).toEqual({
@@ -92,5 +95,7 @@ Total parcelado para as próximas faturas R$ 293,01
 		totalAmount: -176.03,
 	});
 	expect(importedAnticipation(refund!.description)).toBeNull();
-	expect(Math.round(statement.purchases.reduce((sum, item) => sum + item.totalAmount, 0) * 100)).toBe(0);
+	expect(
+		Math.round(statement.purchases.slice(1).reduce((sum, item) => sum + item.totalAmount, 0) * 100),
+	).toBe(0);
 });

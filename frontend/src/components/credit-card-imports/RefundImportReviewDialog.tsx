@@ -23,6 +23,8 @@ import type { CreditCardImportItem } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 
+import { matchingRefundSource } from "./refund-source-match";
+
 export function RefundImportReviewDialog({
 	cardId,
 	initialData,
@@ -51,7 +53,9 @@ export function RefundImportReviewDialog({
 	reviewKey: string;
 }) {
 	const [mode, setMode] = useState<"link" | "reconstruct">(initialData?.purchase ? "reconstruct" : "link");
-	const [sourceId, setSourceId] = useState(initialData?.purchaseId ?? item.reconciledCreditPurchaseId ?? "");
+	const [chosenSourceId, setSourceId] = useState(
+		initialData?.purchaseId ?? item.reconciledCreditPurchaseId ?? "",
+	);
 	const [description, setDescription] = useDebouncedInput(
 		initialData?.purchase?.description ?? item.description,
 		() => undefined,
@@ -85,6 +89,8 @@ export function RefundImportReviewDialog({
 		queryFn: () => dataService.creditCards.getBook(cardId),
 		queryKey: queryKeys.creditCards.book(identity!, cardId),
 	});
+	const suggested = matchingRefundSource(item, sources.data ?? []);
+	const sourceId = chosenSourceId || suggested?.id || "";
 	const selected = sources.data?.find(source => source.id === sourceId);
 	const amount = Math.abs(item.installmentAmount);
 	const reconstructedTotal = Number(totalAmount);
@@ -105,25 +111,38 @@ export function RefundImportReviewDialog({
 	const original = mode === "link" ? book.data?.purchases.find(p => p.id === sourceId) : undefined;
 	const firstRefund =
 		mode === "reconstruct" ||
-		Boolean(original && !book.data?.refunds.some(r => r.purchaseId === original.id));
+		Boolean(
+			sourceId.startsWith("pending:") ||
+				(original && !book.data?.refunds.some(r => r.purchaseId === original.id)),
+		);
 	const originalTotal = original
 		? original.totalAmountCents / currencyScale(currencyCode)
-		: reconstructedTotal;
+		: (selected?.totalAmount ?? reconstructedTotal);
 	const creditCycle = book.data
 		? purchaseStatementDates(book.data.card, item.purchaseDate.slice(0, 10)).statementDate
 		: null;
 	const future =
 		mode === "link"
-			? Boolean(
-					book.data &&
-						creditBookPlan(book.data).installments.some(
-							i =>
-								i.purchaseId === sourceId &&
-								!i.isSettled &&
-								creditBookPlan(book.data!).statements.find(s => s.id === i.statementId)!.statementDate >
-									creditCycle!,
-						),
-				)
+			? sourceId.startsWith("pending:")
+				? Boolean(
+						selected &&
+							selected.installments > 1 &&
+							book.data &&
+							purchaseStatementDates(
+								book.data.card,
+								installmentOccurrenceDate(selected.purchaseDate, selected.installments),
+							).statementDate > creditCycle!,
+					)
+				: Boolean(
+						book.data &&
+							creditBookPlan(book.data).installments.some(
+								i =>
+									i.purchaseId === sourceId &&
+									!i.isSettled &&
+									creditBookPlan(book.data!).statements.find(s => s.id === i.statementId)!.statementDate >
+										creditCycle!,
+							),
+					)
 			: Boolean(
 					book.data &&
 						count > 1 &&
@@ -182,18 +201,27 @@ export function RefundImportReviewDialog({
 							/>
 							{mode === "link" ? (
 								<>
-									<CustomSelect
-										label="Compra original"
-										onValueChange={setSourceId}
-										options={(sources.data ?? []).map(source => ({
-											label: `${source.description} - ${source.purchaseDate.slice(0, 10)} - disponível ${currency.format(source.refundableAmount)}`,
-											value: source.id,
-										}))}
-										placeholder="Busque a compra original"
-										required
-										searchable
-										value={sourceId}
-									/>
+									{suggested && !chosenSourceId ? (
+										<div className="rounded-xl border p-3 text-sm">
+											<p className="font-medium">Compra identificada</p>
+											<p>
+												{suggested.description} - {currency.format(suggested.totalAmount)}
+											</p>
+										</div>
+									) : (
+										<CustomSelect
+											label="Compra original"
+											onValueChange={setSourceId}
+											options={(sources.data ?? []).map(source => ({
+												label: `${source.description} - ${source.purchaseDate.slice(0, 10)} - disponível ${currency.format(source.refundableAmount)}`,
+												value: source.id,
+											}))}
+											placeholder="Busque a compra original"
+											required
+											searchable
+											value={sourceId}
+										/>
+									)}
 									{selected && selected.refundableAmount < amount ? (
 										<p className="text-destructive text-sm">Reembolso excede saldo disponível da compra.</p>
 									) : null}
@@ -300,7 +328,7 @@ export function RefundImportReviewDialog({
 						onClick={() => void submit().catch(() => undefined)}
 						type="button"
 					>
-						{pending ? "Aprovando…" : "Aprovar reembolso"}
+						{pending ? "Aprovando..." : "Aprovar reembolso"}
 					</Button>
 				</DialogFooter>
 			</ImportDialogContent>

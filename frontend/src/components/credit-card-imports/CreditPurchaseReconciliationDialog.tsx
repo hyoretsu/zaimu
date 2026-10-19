@@ -39,8 +39,9 @@ const fields: Field[] = [
 	{ key: "debtSplit", label: "Dívida" },
 ];
 function formatExistingPurchase(candidate: CreditCardImportPurchaseDuplicate) {
-	const registered =
-		candidate.installments === 1
+	const registered = candidate.id.startsWith("pending:")
+		? "Compra pendente nesta importação"
+		: candidate.installments === 1
 			? "Compra à vista registrada"
 			: `${candidate.existingInstallments} ${candidate.existingInstallments === 1 ? "parcela registrada" : "parcelas registradas"}`;
 	return `${candidate.storeName || candidate.description} · ${registered}`;

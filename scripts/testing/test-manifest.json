@@ -62,6 +62,7 @@
 		"backend/src/modules/credit-card-imports/domain/inter-credit-card.test.ts",
 		"backend/src/modules/credit-card-imports/domain/mercado-pago-credit-card.test.ts",
 		"backend/src/modules/credit-card-imports/domain/nubank-credit-card.test.ts",
+		"backend/src/modules/credit-card-imports/domain/pending-purchase-reference.test.ts",
 		"backend/src/modules/credit-card-imports/domain/picpay-credit-card.test.ts",
 		"backend/src/modules/credit-card-imports/domain/select-new-import-purchases.test.ts",
 		"backend/src/modules/credit-card-imports/domain/statement-money.test.ts",

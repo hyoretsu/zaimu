@@ -1,4 +1,4 @@
-import { withImportedAnticipation } from "@zaimu/finance/imported-anticipation";
+import { hasCompleteImportedPlan, withImportedAnticipation } from "@zaimu/finance/imported-anticipation";
 import type { CreditCardStatementPurchase } from "./credit-card-statement";
 
 /** Multiple distinct installment numbers in one statement belong to one purchase. */
@@ -56,6 +56,9 @@ export function groupAnticipatedInstallments(purchases: CreditCardStatementPurch
 		if (removed.has(index)) continue;
 		originalToGrouped.set(index, result.length);
 		const { statementPurchaseDate: _, ...value } = replacements.get(index) ?? purchase;
+		// A complete plan also supplies a separate original for explicit approval.
+		if (hasCompleteImportedPlan(value.description, value.installments))
+			result.push({ ...value, description: purchase.description });
 		result.push(value);
 	}
 	return result.map(purchase =>

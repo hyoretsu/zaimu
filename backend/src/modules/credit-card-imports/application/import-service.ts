@@ -1,9 +1,5 @@
 import { synchronizeImportedStatementDates } from "@zaimu/finance/credit-book";
-import {
-	hasCompleteImportedPlan,
-	importedAnticipation,
-	withoutImportedAnticipation,
-} from "@zaimu/finance/imported-anticipation";
+import { importedAnticipation, withoutImportedAnticipation } from "@zaimu/finance/imported-anticipation";
 import { getTagsByEntity, tagEntityType } from "~/modules/categories/application/tag-assignments";
 import { type CreditReadRow, readCreditEntries } from "~/modules/creditCards/application/credit-entry-reader";
 import { mutateCreditBook } from "~/modules/creditCards/application/normalized-credit-book";
@@ -34,6 +30,11 @@ import {
 	matchesExistingCreditPurchase,
 } from "../domain/credit-card-import-reconciliation";
 import { getFinancingSource, getFinancingTarget } from "../domain/financing-source-reference";
+import {
+	includePendingPurchaseSources,
+	pendingPurchaseId,
+	withoutPendingPurchase,
+} from "../domain/pending-purchase-reference";
 import { materializeImportedPurchase, materializeImportedPurchases } from "./materialize-imported-purchase";
 
 const importItemTagEntityType = "CREDIT_CARD_IMPORT_ITEM";
@@ -51,6 +52,7 @@ export async function getPotentialDuplicates(
 		storeName: null | string;
 		totalAmount: number | string;
 	}>,
+	importId?: string,
 ) {
 	const entries = await readCreditEntries(creditCardId);
 	const candidates = entries.filter(p => !p.parentId && !p.isRefund && !p.isStatementCharge);
@@ -70,12 +72,51 @@ export async function getPotentialDuplicates(
 	const candidatesWithCounts = candidates
 		.filter(candidate => !occupiedCandidateIds.has(candidate.id))
 		.map(candidate => ({
-			...candidate,
+			currentInstallment: candidate.currentInstallment,
+			description: candidate.description,
 			existingInstallments: 1 + (childCounts.get(candidate.id) ?? 0),
+			id: candidate.id,
+			installmentAmount: candidate.installmentAmount,
+			installments: candidate.installments,
+			isSettled: candidate.isSettled,
+			purchaseDate: candidate.purchaseDate,
+			settledByPurchaseId: candidate.settledByPurchaseId,
+			storeName: candidate.storeName,
+			time: candidate.time,
+			totalAmount: candidate.totalAmount,
 		}));
+	if (importId) {
+		const pending = await queryRaw<
+			Pick<
+				CreditReadRow,
+				| "id"
+				| "description"
+				| "installments"
+				| "purchaseDate"
+				| "totalAmount"
+				| "installmentAmount"
+				| "storeName"
+				| "time"
+				| "currentInstallment"
+			>
+		>(
+			`SELECT i.* FROM "CreditCardImportItem" i WHERE i."creditCardImportId"=$1 AND NOT i."isStatementCharge" AND i."installmentAmount">0`,
+			[importId],
+		);
+		for (const source of pending) {
+			if (importedAnticipation(source.description) || getFinancingSource(source.description)) continue;
+			candidatesWithCounts.push({
+				...source,
+				existingInstallments: 0,
+				id: `pending:${source.id}`,
+				isSettled: false,
+				settledByPurchaseId: null,
+			});
+		}
+	}
 	const result = new Map<string, typeof candidatesWithCounts>();
 	for (const item of items) {
-		if (item.reconciledCreditPurchaseId) continue;
+		if (item.reconciledCreditPurchaseId || pendingPurchaseId(item.description)) continue;
 		const matches = candidatesWithCounts.filter(candidate =>
 			importedAnticipation(item.description)
 				? candidate.installments === item.installments &&
@@ -85,14 +126,16 @@ export async function getPotentialDuplicates(
 							.trim()
 							.toLocaleLowerCase("pt-BR") ||
 						Math.abs(Number(candidate.totalAmount) - Number(item.totalAmount)) <= 1)
-				: /^FIN /u.test(item.description)
-					? /^FIN /u.test(candidate.description) &&
-						candidate.installments === item.installments &&
-						dateKey(candidate.purchaseDate) === dateKey(item.purchaseDate)
-					: matchesExistingCreditPurchase(item, candidate) ||
-						(!candidate.isSettled &&
-							!candidate.settledByPurchaseId &&
-							isPotentialPurchaseRefinancing(item, candidate)),
+				: candidate.id.startsWith("pending:")
+					? false
+					: /^FIN /u.test(item.description)
+						? /^FIN /u.test(candidate.description) &&
+							candidate.installments === item.installments &&
+							dateKey(candidate.purchaseDate) === dateKey(item.purchaseDate)
+						: matchesExistingCreditPurchase(item, candidate) ||
+							(!candidate.isSettled &&
+								!candidate.settledByPurchaseId &&
+								isPotentialPurchaseRefinancing(item, candidate)),
 		);
 		if (matches.length) result.set(item.id, matches);
 	}
@@ -222,13 +265,13 @@ export async function getImportReturn(
 		importItemTagEntityType,
 		items.map(item => item.id),
 	);
-	const duplicates = await getPotentialDuplicates(creditCardImport.creditCardId, items);
+	const duplicates = await getPotentialDuplicates(creditCardImport.creditCardId, items, importId);
 
 	for (const item of items)
 		if (
 			importedAnticipation(item.description) &&
-			!hasCompleteImportedPlan(item.description, item.installments) &&
 			!item.reconciledCreditPurchaseId &&
+			!pendingPurchaseId(item.description) &&
 			!duplicates.has(item.id)
 		)
 			duplicates.set(item.id, []);
@@ -283,6 +326,7 @@ export async function getImportReturn(
 			...item,
 			currentInstallment: item.currentInstallment,
 			debtSplit: itemDebtSplits.get(item.id) ?? null,
+			description: withoutPendingPurchase(item.description),
 			duplicates: (duplicates.get(item.id) ?? []).map(candidate => ({
 				...candidate,
 				debtSplit: duplicateDebtSplits.get(candidate.id) ?? null,
@@ -294,6 +338,9 @@ export async function getImportReturn(
 			})),
 			installmentAmount: Number(item.installmentAmount),
 			purchaseDate: dateKey(item.purchaseDate),
+			reconciledCreditPurchaseId:
+				item.reconciledCreditPurchaseId ??
+				(pendingPurchaseId(item.description) ? `pending:${pendingPurchaseId(item.description)}` : null),
 			tagIds: (tags.get(item.id) ?? []).map(tag => tag.id),
 			tags: tags.get(item.id) ?? [],
 			totalAmount: Number(item.totalAmount),
@@ -358,6 +405,10 @@ async function approveItemsImpl(
 	itemId: string | undefined,
 	includeUnmatched: boolean,
 ) {
+	await queryRaw(`SELECT "id" FROM "CreditCardImport" WHERE "id"=$1 AND "userId"=$2 FOR UPDATE`, [
+		importId,
+		userId,
+	]);
 	const creditCardImport = await getImport(userId, importId);
 	if (creditCardImport.status !== "PENDING") throw new HttpException("Esta importação já foi aprovada", 400);
 	const card = await queryFirst(
@@ -395,13 +446,13 @@ async function approveItemsImpl(
 			.where((fields, functions) => functions.eq(fields.creditCardImportId, importId))
 			.build(),
 	);
-	const duplicates = await getPotentialDuplicates(creditCardImport.creditCardId, allItems);
+	const duplicates = await getPotentialDuplicates(creditCardImport.creditCardId, allItems, importId);
 
 	for (const item of allItems)
 		if (
 			importedAnticipation(item.description) &&
-			!hasCompleteImportedPlan(item.description, item.installments) &&
 			!item.reconciledCreditPurchaseId &&
+			!pendingPurchaseId(item.description) &&
 			!duplicates.has(item.id)
 		)
 			duplicates.set(item.id, []);
@@ -419,10 +470,24 @@ async function approveItemsImpl(
 			(left, right) =>
 				Number(!!getFinancingSource(left.description)) - Number(!!getFinancingSource(right.description)),
 		);
+	try {
+		const withSources = includePendingPurchaseSources(
+			selectedItems,
+			allItems,
+			itemId
+				? undefined
+				: source => !duplicates.has(source.id) && (source.metadataMissing as string[]).length === 0,
+		);
+		selectedItems.splice(0, selectedItems.length, ...withSources);
+	} catch (error) {
+		throw new HttpException(error instanceof Error ? error.message : "Compra original inválida", 409);
+	}
 	if (itemId && !selectedItems.length)
 		throw new HttpException("Concilie a antecipação ou a compra existente antes de aprovar", 409);
 	if (itemId && duplicates.has(itemId))
 		throw new HttpException("Concilie as possíveis parcelas existentes antes de aprovar", 400);
+	for (const item of selectedItems)
+		if (duplicates.has(item.id)) throw new HttpException("Concilie a compra original antes de aprovar", 409);
 	for (const item of selectedItems)
 		if ((item.metadataMissing as string[]).length)
 			throw new HttpException("Complete os metadados obrigatórios antes de aprovar", 409);
@@ -469,8 +534,8 @@ async function approveItemsImpl(
 		);
 		if (
 			importedAnticipation(item.description) &&
-			!hasCompleteImportedPlan(item.description, item.installments) &&
 			!item.reconciledCreditPurchaseId &&
+			!pendingPurchaseId(item.description) &&
 			!importedRoot
 		)
 			throw new HttpException("Vincule a antecipação à compra original antes de aprovar", 409);
@@ -479,9 +544,11 @@ async function approveItemsImpl(
 		batchInputs.push({
 			...item,
 			debtSplitRule: debtSplit ?? null,
+			description: withoutPendingPurchase(item.description),
 			dueDate: creditCardImport.dueDate,
 			existingRootId: item.reconciledCreditPurchaseId ?? importedRoot?.id ?? null,
 			installmentAmount: Number(item.installmentAmount),
+			pendingSourceItemId: pendingPurchaseId(item.description),
 			statementDate: creditCardImport.statementDate,
 			tagIds: (tagsByItem.get(item.id) ?? []).map(tag => tag.id),
 			totalAmount: Number(item.totalAmount),
@@ -525,8 +592,8 @@ async function approveItemsImpl(
 				)[0];
 		if (
 			importedAnticipation(item.description) &&
-			!hasCompleteImportedPlan(item.description, item.installments) &&
 			!item.reconciledCreditPurchaseId &&
+			!pendingPurchaseId(item.description) &&
 			!importedRoot
 		)
 			throw new HttpException("Vincule a antecipação à compra original antes de aprovar", 409);
@@ -574,7 +641,7 @@ async function approveItemsImpl(
 			creditPurchaseId: rootId,
 			date: dateKey(item.purchaseDate),
 			debtSplit: debtSplit ?? null,
-			description: item.storeName || item.description,
+			description: item.storeName || withoutPendingPurchase(item.description),
 			totalAmount: Number(item.totalAmount),
 			userId,
 		};
@@ -582,6 +649,20 @@ async function approveItemsImpl(
 		else if (debtSplit) await linkPurchaseToDebt({ ...debtInput, debtSplit });
 		await settleExternalReview(item.id, item.isStatementCharge ? "CHARGE" : "PURCHASE", rootId);
 		await refreshAppliedSnapshots(userId, rootId);
+	}
+	for (const source of batchItems) {
+		const rootId = rootsByItem.get(source.id)!;
+		for (const dependent of allItems.filter(item => pendingPurchaseId(item.description) === source.id)) {
+			await executeStatement(
+				db.sql.public.CreditCardImportItem.update({
+					description: withoutPendingPurchase(dependent.description),
+					reconciledCreditPurchaseId: rootId,
+					updatedAt: new Date(),
+				})
+					.where((f, fn) => fn.eq(f.id, dependent.id))
+					.build(),
+			);
+		}
 	}
 	await cleanupItemTags(selectedItems.map(item => item.id));
 	if (selectedItems.length) {

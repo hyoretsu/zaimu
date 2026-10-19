@@ -10,11 +10,7 @@ import {
 	synchronizeImportedStatementDates,
 } from "@zaimu/finance/credit-book";
 import { distributePurchaseCents, installmentOccurrenceDate } from "@zaimu/finance/credit-purchase";
-import {
-	hasCompleteImportedPlan,
-	importedAnticipation,
-	withoutImportedAnticipation,
-} from "@zaimu/finance/imported-anticipation";
+import { importedAnticipation, withoutImportedAnticipation } from "@zaimu/finance/imported-anticipation";
 import { rewardSnapshot } from "~/modules/creditCards/application/cashback-snapshot";
 import { mutateCreditBook, newBookPurchase } from "~/modules/creditCards/application/normalized-credit-book";
 import type { RawQuery } from "~/modules/creditCards/application/normalized-statement-replay";
@@ -28,6 +24,7 @@ import { importedPurchaseTotalCents } from "../domain/imported-purchase-total";
 
 interface ImportedPurchaseInput {
 	id?: string;
+	pendingSourceItemId?: string | null;
 	allowBankCorrection?: boolean;
 	debtSplitRule?: BookPurchase["debtSplitRule"];
 	isStatementCharge?: boolean;
@@ -69,7 +66,18 @@ export async function materializeImportedPurchases(card: CardSnapshot, inputs: I
 	if (!inputs.length) return [];
 	return mutateCreditBook(card.userId, card.id, async (book, query) => {
 		const ids: string[] = [];
-		for (const input of inputs) ids.push(await materializePurchaseInBook(book, query, card, input));
+		const roots = new Map<string, string>();
+		for (const input of inputs) {
+			const source = input.pendingSourceItemId ? roots.get(input.pendingSourceItemId) : null;
+			if (input.pendingSourceItemId && !source)
+				throw new HttpException("Compra original pendente não encontrada", 409);
+			const id = await materializePurchaseInBook(book, query, card, {
+				...input,
+				existingRootId: source ?? input.existingRootId,
+			});
+			ids.push(id);
+			if (input.id) roots.set(input.id, id);
+		}
 		return ids;
 	});
 }
@@ -152,8 +160,7 @@ async function materializePurchaseInBook(
 		...item,
 		amountCents: moneyCents(item.amountCents / 100, 1, book.card.currency),
 	}));
-	if (anticipated && !existing && !hasCompleteImportedPlan(input.description, input.installments))
-		throw new HttpException("Vincule a antecipação à compra original", 409);
+	if (anticipated && !existing) throw new HttpException("Vincule a antecipação à compra original", 409);
 	const known = new Map(
 		book.installments
 			.filter(i => i.purchaseId === existing?.id && i.hasImportedAmount)
@@ -174,9 +181,7 @@ async function materializePurchaseInBook(
 		throw new HttpException("Valor importado já registrado para esta parcela", 409);
 	known.set(input.currentInstallment, moneyCents(input.installmentAmount, 1, book.card.currency));
 	const totalCents = importedPurchaseTotalCents(
-		anticipated && existing
-			? existing.totalAmountCents
-			: moneyCents(input.totalAmount, 1, book.card.currency),
+		anticipated ? existing!.totalAmountCents : moneyCents(input.totalAmount, 1, book.card.currency),
 		input.installments,
 		known,
 	);
@@ -225,7 +230,7 @@ async function materializePurchaseInBook(
 	const previousTotal = p.totalAmountCents;
 	Object.assign(
 		p,
-		anticipated && existing
+		anticipated
 			? {
 					installmentAmountsCents: amounts,
 					installmentImportedNumbers: [...known.keys()],

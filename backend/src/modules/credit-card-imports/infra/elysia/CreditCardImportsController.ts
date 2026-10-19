@@ -53,6 +53,11 @@ import {
 	withFinancingSource,
 	withFinancingTarget,
 } from "../../domain/financing-source-reference";
+import {
+	pendingPurchaseId,
+	withoutPendingPurchase,
+	withPendingPurchase,
+} from "../../domain/pending-purchase-reference";
 import { selectNewImportPurchases } from "../../domain/select-new-import-purchases";
 import { CreditCardImportItemReconcileDTO, CreditCardImportItemUpdateDTO } from "./CreditCardImportsDTO";
 
@@ -410,7 +415,12 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 								? withFinancingSource(preservedDescription, getFinancingSource(current.description)!)
 								: getFinancingTarget(current.description)
 									? withFinancingTarget(preservedDescription, getFinancingTarget(current.description)!)
-									: preservedDescription,
+									: pendingPurchaseId(current.description)
+										? withPendingPurchase(
+												withoutPendingPurchase(preservedDescription),
+												pendingPurchaseId(current.description)!,
+											)
+										: preservedDescription,
 					installmentAmount: String(installmentAmount),
 					installments,
 					isSelected: body.isSelected ?? current.isSelected,
@@ -475,14 +485,35 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 					.build(),
 			);
 			if (!item) throw new HttpException("Compra importada não encontrada", 404);
-			const candidates = await getPotentialDuplicates(creditCardImport.creditCardId, [
-				{ ...item, reconciledCreditPurchaseId: null },
-			]);
+			const candidates = await getPotentialDuplicates(
+				creditCardImport.creditCardId,
+				[
+					{
+						...item,
+						description: withoutPendingPurchase(item.description),
+						reconciledCreditPurchaseId: null,
+					},
+				],
+				params.id,
+			);
 			const duplicate = (candidates.get(item.id) ?? []).find(
 				candidate => candidate.id === body.creditPurchaseId,
 			);
 			if (!duplicate)
 				throw new HttpException("A compra selecionada não corresponde às parcelas importadas", 409);
+			if (duplicate.id.startsWith("pending:")) {
+				const sourceId = duplicate.id.slice(8);
+				await executeStatement(
+					db.sql.public.CreditCardImportItem.update({
+						description: withPendingPurchase(item.description, sourceId),
+						reconciledCreditPurchaseId: null,
+						updatedAt: new Date(),
+					})
+						.where((f, fn) => fn.eq(f.id, item.id))
+						.build(),
+				);
+				return getImportReturn(userId, params.id);
+			}
 			const itemTags = await getTagsByEntity(importItemTagEntityType, [item.id]);
 			const duplicateTags = await getTagsByEntity(tagEntityType.creditPurchase, [duplicate.id]);
 			const source = <T>(
@@ -580,19 +611,42 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 			const userId = await requireUserId(request);
 			const imported = await getImport(userId, params.id);
 			const book = await readCreditBook(userId, imported.creditCardId);
-			return book.purchases.map(p => ({
-				description: p.description,
-				id: p.id,
-				installments: p.installmentAmountsCents.length,
-				purchaseDate: p.purchaseDate,
-				refundableAmount:
-					(p.totalAmountCents -
-						book.refunds
-							.filter(r => r.purchaseId === p.id && !r.deletedAt)
-							.reduce((sum, r) => sum + r.amountCents, 0)) /
-					100,
-				totalAmount: p.totalAmountCents / 100,
-			}));
+			const pending = await queryRaw<{
+				id: string;
+				description: string;
+				installments: number;
+				purchaseDate: Date;
+				totalAmount: string;
+			}>(
+				`SELECT * FROM "CreditCardImportItem" WHERE "creditCardImportId"=$1 AND "installmentAmount">0 AND NOT "isStatementCharge"`,
+				[params.id],
+			);
+			const sources = pending
+				.filter(p => !importedAnticipation(p.description) && !getFinancingSource(p.description))
+				.map(p => ({
+					description: p.description,
+					id: `pending:${p.id}`,
+					installments: p.installments,
+					purchaseDate: dateKey(p.purchaseDate),
+					refundableAmount: Number(p.totalAmount),
+					totalAmount: Number(p.totalAmount),
+				}));
+			return [
+				...sources,
+				...book.purchases.map(p => ({
+					description: p.description,
+					id: p.id,
+					installments: p.installmentAmountsCents.length,
+					purchaseDate: p.purchaseDate,
+					refundableAmount:
+						(p.totalAmountCents -
+							book.refunds
+								.filter(r => r.purchaseId === p.id && !r.deletedAt)
+								.reduce((sum, r) => sum + r.amountCents, 0)) /
+						100,
+					totalAmount: p.totalAmountCents / 100,
+				})),
+			];
 		},
 		{ detail: { operationId: "getCreditCardImportsByIdRefundSources" } },
 	)
@@ -603,6 +657,10 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 				throw new HttpException("Vincule ou reconstrua a compra original", 400);
 			const userId = await requireUserId(request);
 			return withRawTransaction(async query => {
+				await query(`SELECT "id" FROM "CreditCardImport" WHERE "id"=$1 AND "userId"=$2 FOR UPDATE`, [
+					params.id,
+					userId,
+				]);
 				const imported = await getImport(userId, params.id);
 				if (imported.status !== "PENDING") throw new HttpException("Importação já aprovada", 409);
 				const [item] = await query<{
@@ -617,9 +675,37 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 				]);
 				if (!item || Number(item.installmentAmount) >= 0)
 					throw new HttpException("Reembolso importado não encontrado", 404);
+				let purchaseId = body.purchaseId;
+				if (purchaseId?.startsWith("pending:")) {
+					const sourceId = purchaseId.slice(8);
+					const [source] = await query<{
+						externalId: string;
+						description: string;
+						installmentAmount: string;
+						isStatementCharge: boolean;
+					}>(`SELECT * FROM "CreditCardImportItem" WHERE "id"=$1 AND "creditCardImportId"=$2 FOR UPDATE`, [
+						sourceId,
+						params.id,
+					]);
+					if (
+						!source ||
+						Number(source.installmentAmount) <= 0 ||
+						source.isStatementCharge ||
+						importedAnticipation(source.description) ||
+						getFinancingSource(source.description)
+					)
+						throw new HttpException("Compra original pendente não encontrada", 409);
+					await approveItems(userId, params.id, sourceId);
+					const [root] = await query<{ id: string }>(
+						`SELECT "id" FROM "CreditEntry" WHERE "externalId"=$1 AND "creditCardId"=$2 AND "parentId" IS NULL`,
+						[source.externalId, imported.creditCardId],
+					);
+					if (!root) throw new HttpException("Compra original não encontrada", 409);
+					purchaseId = root.id;
+				}
 				await mutateCreditBook(userId, imported.creditCardId, book => {
-					const p = body.purchaseId
-						? book.purchases.find(p => p.id === body.purchaseId)
+					const p = purchaseId
+						? book.purchases.find(p => p.id === purchaseId)
 						: body.purchase
 							? newBookPurchase(book, {
 									...body.purchase,

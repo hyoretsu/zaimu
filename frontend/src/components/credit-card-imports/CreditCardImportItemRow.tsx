@@ -1,8 +1,4 @@
-import {
-	hasCompleteImportedPlan,
-	importedAnticipation,
-	withoutImportedAnticipation,
-} from "@zaimu/finance/imported-anticipation";
+import { importedAnticipation, withoutImportedAnticipation } from "@zaimu/finance/imported-anticipation";
 import { LuCheck, LuCircleAlert, LuLoaderCircle, LuPencil } from "react-icons/lu";
 import { ImportItemDateTime, TransactionListItem } from "@/components/transactions";
 import { AppBadge } from "@/components/ui/AppBadge";
@@ -69,9 +65,7 @@ export function CreditCardImportItemRow({
 	const transaction = toTransaction(item, creditCardId, creditCardName, currencyCode);
 	const financedOperation = getFinancedOperation(item.description);
 	const anticipated = importedAnticipation(item.description);
-	const requiresOriginal = Boolean(
-		anticipated && !hasCompleteImportedPlan(item.description, item.installments),
-	);
+	const requiresOriginal = Boolean(anticipated);
 	const anticipatedAmount = anticipated?.reduce((sum, installment) => sum + installment.amountCents, 0) ?? 0;
 	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
 

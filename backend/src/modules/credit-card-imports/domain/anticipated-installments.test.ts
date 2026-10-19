@@ -20,14 +20,16 @@ test("groups accelerated installments while preserving each amount and a distinc
 		purchase(1, 34.71),
 	];
 	const result = groupAnticipatedInstallments(rows);
-	expect(result).toHaveLength(2);
+	expect(result).toHaveLength(3);
+	expect(importedAnticipation(result[0]!.description)).toBeNull();
+	expect(result[0]!.totalAmount).toBe(413.56);
 	expect(withoutImportedAnticipation(result[0]!.description)).toBe("MP*ALIEXPRESS");
-	expect(importedAnticipation(result[0]!.description)).toEqual([
+	expect(importedAnticipation(result[1]!.description)).toEqual([
 		{ amountCents: 3450, number: 1 },
 		...Array.from({ length: 11 }, (_, index) => ({ amountCents: 3446, number: index + 2 })),
 	]);
 	expect(result[0]!.totalAmount).toBe(413.56);
-	expect(result[1]!.description).toBe("MP*ALIEXPRESS");
+	expect(result[2]!.description).toBe("MP*ALIEXPRESS");
 });
 
 test("does not collapse installments posted in different months", () => {
