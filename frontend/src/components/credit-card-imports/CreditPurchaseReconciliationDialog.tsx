@@ -132,6 +132,15 @@ export function CreditPurchaseReconciliationDialog({
 				<DialogBody>
 					<div>
 						<div className="space-y-4 pr-3">
+							{anticipated && item.duplicates.length === 1 && (
+								<div className="space-y-1 rounded-xl border p-3 text-sm">
+									<p className="font-medium">Compra identificada</p>
+									<p className="break-words">{duplicate.description}</p>
+									<p className="text-muted-foreground">
+										{formatLocalDate(duplicate.purchaseDate)} - {formatExistingPurchase(duplicate)}
+									</p>
+								</div>
+							)}
 							{item.duplicates.length > 1 ? (
 								<div className="space-y-2">
 									<p className="font-medium text-sm">Compras existentes ({item.duplicates.length})</p>
@@ -139,7 +148,7 @@ export function CreditPurchaseReconciliationDialog({
 										{item.duplicates.map((candidate, index) => (
 											<Button
 												aria-pressed={candidate.id === duplicate.id}
-												className="cursor-pointer"
+												className="h-auto min-h-10 max-w-full cursor-pointer py-2"
 												key={candidate.id}
 												onClick={() => {
 													setSelectedDuplicateId(candidate.id);
@@ -151,7 +160,12 @@ export function CreditPurchaseReconciliationDialog({
 												type="button"
 												variant={candidate.id === duplicate.id ? "default" : "outline"}
 											>
-												Compra {index + 1}: {formatExistingPurchase(candidate)}
+												<span className="min-w-0 whitespace-normal break-words text-left">
+													Compra {index + 1}: {candidate.description}
+													<span className="block text-xs">
+														{formatLocalDate(candidate.purchaseDate)} - {formatExistingPurchase(candidate)}
+													</span>
+												</span>
 											</Button>
 										))}
 									</div>
