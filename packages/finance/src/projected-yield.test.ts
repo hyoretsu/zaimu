@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { projectedNetYield, type YieldAccount } from "./projected-yield";
+import { YieldTaxLedger } from "./yield-tax";
 
 const account: YieldAccount = {
 	createdAt: "2020-01-01",
@@ -37,4 +38,15 @@ test("projection respects dated institution tiers", () => {
 		yieldReferenceType: null,
 	};
 	expect(projectedNetYield(tiered, 1000, "2026-10-05", { CDI: 0.05 })).toBeCloseTo(0.375);
+});
+
+test("projection excludes today's contributions from gross yield and taxes", () => {
+	const ledger = new YieldTaxLedger([
+		{ balance: 1000, date: "2026-10-02" },
+		{ balance: 580, date: "2026-10-05" },
+	]);
+	expect(projectedNetYield(account, 1580, "2026-10-05", { CDI: 0.05 }, new Set(), ledger)).toBeCloseTo(0.4);
+	expect(projectedNetYield(account, 1580, "2026-10-06", { CDI: 0.05 }, new Set(), ledger)).toBeCloseTo(
+		0.632,
+	);
 });

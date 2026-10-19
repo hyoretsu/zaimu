@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { dailyForecast } from "./daily-forecast";
+import { projectedNetYield } from "./projected-yield";
 
 const from = "2026-10-04";
 describe("daily forecast", () => {
@@ -218,6 +219,27 @@ test("forecast passes real aged contributions and new deposits separately to tax
 		{ balance: 1000, date: "2025-01-01" },
 		{ balance: 1000, date: "2025-08-01" },
 	]);
-	expect(days[0]!.balances.get("a")).toBeCloseTo(2078.75);
+	expect(days[0]!.balances.get("a")).toBeCloseTo(2080);
 	expect(lots).toEqual([{ balance: 1000, date: "2025-01-01" }]);
+});
+
+test("real yield projection retains opening balance but defers incoming transfers", () => {
+	const account = {
+		balance: 1000,
+		createdAt: "2020-01-01",
+		id: "a",
+		type: "SAVINGS",
+		yieldReferencePercentage: 100,
+		yieldReferenceType: "CDI" as const,
+	};
+	const days = dailyForecast({
+		accounts: [account],
+		from: "2026-10-05",
+		movements: [{ amount: 580, date: "2026-10-05", destinationAccountId: "a", type: "INCOME" }],
+		netYield: (_account, balance, date, ledger) =>
+			projectedNetYield(account, balance, date, { CDI: 0.05 }, new Set(), ledger),
+		through: "2026-10-06",
+	});
+	expect(days[0]!.balances.get("a")).toBeCloseTo(1580.5);
+	expect(days[1]!.balances.get("a")).toBeCloseTo(1580.5 * 1.0005);
 });

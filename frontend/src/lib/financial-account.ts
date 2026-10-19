@@ -252,7 +252,7 @@ export function calculateFinancialAccountYieldEntries(
 				Array.isArray(holidays) ||
 				legacyCalendarHoliday(account, key) !== undefined ||
 				accountCalendarCovered(holidays, account, day, day);
-			const grossAmount = calendarCovered ? calculateGrossYield(balance, settings) : 0;
+			const grossAmount = calendarCovered ? calculateGrossYield(ledger.eligibleBalance(key), settings) : 0;
 			const calculatedAmount = ledger.netYield(grossAmount, settings, key);
 			const amount = automaticYield?.amount ?? calculatedAmount;
 			if (amount > 0) {
@@ -396,7 +396,7 @@ function calculateYieldedBalance(
 		);
 		if (balance > 0 && !automaticYield?.isExcluded) {
 			const hasReference = settingsRequireReference(yieldSettings);
-			const grossAmount = hasReference ? 0 : calculateGrossYield(balance, yieldSettings);
+			const grossAmount = hasReference ? 0 : calculateGrossYield(ledger.eligibleBalance(key), yieldSettings);
 			if (
 				(hasReference && automaticYield?.amount == null) ||
 				(grossAmount > 0 && !(calendarCovered?.(key) ?? true))

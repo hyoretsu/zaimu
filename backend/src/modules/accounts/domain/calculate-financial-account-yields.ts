@@ -315,7 +315,9 @@ function calculateYieldedBalance(
 		);
 		if (balance > 0 && !automaticYield?.isExcluded) {
 			const hasReference = settingsRequireReference(yieldSettings);
-			const grossAmount = hasReference ? 0 : calculateGrossYield(balance, yieldSettings, {});
+			const grossAmount = hasReference
+				? 0
+				: calculateGrossYield(ledger.eligibleBalance(key), yieldSettings, {});
 
 			if (automaticYield?.amount !== null && automaticYield?.amount !== undefined) {
 				if (automaticYield.origin === "SYSTEM")

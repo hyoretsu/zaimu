@@ -126,6 +126,15 @@ export class YieldTaxLedger {
 	get balance() {
 		return this.debt + this.lots.reduce((sum, lot) => sum + lot.balance, 0);
 	}
+	eligibleBalance(day: string) {
+		return Math.max(
+			0,
+			this.debt +
+				this.lots
+					.filter(lot => lot.date.slice(0, 10) < day.slice(0, 10))
+					.reduce((sum, lot) => sum + lot.balance, 0),
+		);
+	}
 	applyCashFlow(amount: number, day: string) {
 		if (amount >= 0) {
 			const paid = Math.min(amount, -this.debt);
@@ -147,10 +156,11 @@ export class YieldTaxLedger {
 		}
 	}
 	netYield(gross: number, settings: TaxSettings | undefined, day: string, definitions = catalog) {
-		const total = this.lots.reduce((sum, lot) => sum + lot.balance, 0);
+		const lots = this.lots.filter(lot => lot.date.slice(0, 10) < day.slice(0, 10));
+		const total = lots.reduce((sum, lot) => sum + lot.balance, 0);
 		return total <= 0
 			? 0
-			: this.lots.reduce(
+			: lots.reduce(
 					(sum, lot) =>
 						sum +
 						((gross * lot.balance) / total) *
@@ -159,10 +169,11 @@ export class YieldTaxLedger {
 				);
 	}
 	accrueGross(gross: number, settings: TaxSettings | undefined, day: string, definitions = catalog) {
-		const total = this.lots.reduce((sum, lot) => sum + lot.balance, 0);
+		const lots = this.lots.filter(lot => lot.date.slice(0, 10) < day.slice(0, 10));
+		const total = lots.reduce((sum, lot) => sum + lot.balance, 0);
 		if (total <= 0) return 0;
 		let net = 0;
-		for (const lot of this.lots) {
+		for (const lot of lots) {
 			const amount =
 				((gross * lot.balance) / total) * retainedYieldFraction(settings, lot.date, day, definitions);
 			lot.balance += amount;

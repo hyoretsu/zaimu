@@ -60,7 +60,7 @@ describe("calculateFinancialAccountYieldBalances", () => {
 			initialRewardsBalances: new Map(),
 			today: new Date("2026-01-06T12:00:00"),
 			transactions: [
-				{ amount: 100, date: new Date("2026-01-05T12:00:00"), destinationFinancialAccountId: "account" },
+				{ amount: 100, date: new Date("2026-01-04T12:00:00"), destinationFinancialAccountId: "account" },
 			],
 		});
 		const dailyRate = 1.1 ** (1 / 21) - 1;
@@ -90,7 +90,7 @@ describe("calculateFinancialAccountYieldBalances", () => {
 			initialRewardsBalances: new Map(),
 			today: new Date("2026-01-06T12:00:00"),
 			transactions: [
-				{ amount: 100, date: new Date("2026-01-05T12:00:00"), destinationFinancialAccountId: "account" },
+				{ amount: 100, date: new Date("2026-01-04T12:00:00"), destinationFinancialAccountId: "account" },
 			],
 		});
 		const dailyRate = 1.1 ** (1 / 21) - 1;
@@ -110,7 +110,7 @@ describe("calculateFinancialAccountYieldBalances", () => {
 			today: new Date("2026-01-06T12:00:00"),
 			transactions: ["account", "usd"].map(destinationFinancialAccountId => ({
 				amount: 100,
-				date: new Date("2026-01-05T12:00:00"),
+				date: new Date("2026-01-04T12:00:00"),
 				destinationFinancialAccountId,
 			})),
 		});
@@ -133,7 +133,7 @@ describe("calculateFinancialAccountYieldBalances", () => {
 			today: new Date("2026-01-06T12:00:00"),
 			transactions: ["account", "usd"].map(destinationFinancialAccountId => ({
 				amount: 100,
-				date: new Date("2026-01-05T12:00:00"),
+				date: new Date("2026-01-04T12:00:00"),
 				destinationFinancialAccountId,
 			})),
 		});
@@ -158,7 +158,7 @@ describe("calculateFinancialAccountYieldBalances", () => {
 			initialRewardsBalances: new Map(),
 			today: new Date("2026-01-05T12:00:00"),
 			transactions: [
-				{ amount: 100, date: new Date("2026-01-05T12:00:00"), destinationFinancialAccountId: "account" },
+				{ amount: 100, date: new Date("2026-01-04T12:00:00"), destinationFinancialAccountId: "account" },
 			],
 			yields: [
 				{
@@ -182,7 +182,7 @@ describe("calculateFinancialAccountYieldBalances", () => {
 			initialRewardsBalances: new Map(),
 			today: new Date("2026-01-05T12:00:00"),
 			transactions: [
-				{ amount: 100, date: new Date("2026-01-05T12:00:00"), destinationFinancialAccountId: "account" },
+				{ amount: 100, date: new Date("2026-01-04T12:00:00"), destinationFinancialAccountId: "account" },
 			],
 		});
 		const dailyRate = 1.1 ** (1 / 21) - 1;
@@ -228,7 +228,7 @@ describe("calculateFinancialAccountYieldBalances", () => {
 			initialRewardsBalances: new Map(),
 			today: new Date("2026-01-06T12:00:00"),
 			transactions: [
-				{ amount: 100, date: new Date("2026-01-05T12:00:00"), destinationFinancialAccountId: "account" },
+				{ amount: 100, date: new Date("2026-01-04T12:00:00"), destinationFinancialAccountId: "account" },
 			],
 		});
 		expect(balances.get("account")).toBeCloseTo(100 * 1.1 ** (1 / 21) * 1.2 ** (1 / 21), 4);
@@ -242,7 +242,7 @@ describe("calculateFinancialAccountYieldBalances", () => {
 			initialRewardsBalances: new Map(),
 			today: new Date("2026-01-06T12:00:00"),
 			transactions: [
-				{ amount: 100, date: new Date("2026-01-05T12:00:00"), destinationFinancialAccountId: "account" },
+				{ amount: 100, date: new Date("2026-01-04T12:00:00"), destinationFinancialAccountId: "account" },
 			],
 			yields: [
 				{
@@ -291,7 +291,7 @@ describe("calculateFinancialAccountYieldBalances", () => {
 			transactions: [
 				{
 					amount: 15_000,
-					date: new Date("2026-01-05T12:00:00"),
+					date: new Date("2026-01-04T12:00:00"),
 					destinationFinancialAccountId: "account",
 				},
 			],
@@ -321,7 +321,7 @@ describe("calculateFinancialAccountYieldBalances", () => {
 			transactions: [
 				{
 					amount: 100,
-					date: new Date("2026-01-05T12:00:00"),
+					date: new Date("2026-01-04T12:00:00"),
 					destinationFinancialAccountId: "account",
 				},
 			],
@@ -425,7 +425,7 @@ test("unavailable calendar keeps automatic fixed yield pending but preserves rec
 		initialRewardsBalances: new Map<string, number>(),
 		today: new Date("2026-01-05T12:00:00"),
 		transactions: [
-			{ amount: 1000, date: new Date("2026-01-05T12:00:00"), destinationFinancialAccountId: "a" },
+			{ amount: 1000, date: new Date("2026-01-04T12:00:00"), destinationFinancialAccountId: "a" },
 		],
 	};
 	expect(calculateFinancialAccountYieldBalances(input).get("a")).toBe(1000);
@@ -458,7 +458,7 @@ test("calendar correction preserves a user adjusted automatic yield on the new h
 			initialRewardsBalances: new Map<string, number>(),
 			today: new Date("2026-01-05T12:00:00"),
 			transactions: [
-				{ amount: 1000, date: new Date("2026-01-05T12:00:00"), destinationFinancialAccountId: "a" },
+				{ amount: 1000, date: new Date("2026-01-04T12:00:00"), destinationFinancialAccountId: "a" },
 			],
 			yields: [
 				{
@@ -491,8 +491,40 @@ test("frozen legacy calendar preserves derived history while ambiguous future co
 		initialRewardsBalances: new Map<string, number>(),
 		today: new Date("2026-01-08T12:00:00"),
 		transactions: [
-			{ amount: 1000, date: new Date("2026-01-05T12:00:00"), destinationFinancialAccountId: "legacy" },
+			{ amount: 1000, date: new Date("2026-01-04T12:00:00"), destinationFinancialAccountId: "legacy" },
 		],
 	};
 	expect(calculateFinancialAccountYieldBalances(input).get("legacy")).toBeCloseTo(1000 * 1.1 ** (1 / 21), 4);
+});
+
+test("same-day transfer starts earning on the next eligible day", () => {
+	const input = {
+		accounts: [
+			{
+				createdAt: new Date("2026-09-26T12:00:00"),
+				id: "savings",
+				type: "SAVINGS",
+				yieldFixedRate: 10,
+				yieldPeriod: "MONTHLY" as const,
+			},
+		],
+		cashbackCredits: [],
+		holidays: [],
+		initialRewardsBalances: new Map<string, number>(),
+		today: new Date("2026-09-30T23:00:00"),
+		transactions: [
+			{
+				amount: 580,
+				date: new Date("2026-09-30T17:06:00"),
+				destinationFinancialAccountId: "savings",
+				originFinancialAccountId: "other",
+			},
+		],
+	};
+	expect(calculateFinancialAccountYieldBalances(input).get("savings")).toBe(580);
+	expect(
+		calculateFinancialAccountYieldBalances({ ...input, today: new Date("2026-10-01T23:00:00") }).get(
+			"savings",
+		),
+	).toBeCloseTo(580 * 1.1 ** (1 / 21), 4);
 });

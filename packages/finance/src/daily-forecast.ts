@@ -101,7 +101,9 @@ export function dailyForecast(input: {
 	const ledgers = new Map(
 		accounts.map(account => {
 			const ledger = new YieldTaxLedger(account.yieldLots ?? []);
-			ledger.adjustBalance(account.balance, input.from);
+			const previousDay = new Date(`${input.from}T12:00:00Z`);
+			previousDay.setUTCDate(previousDay.getUTCDate() - 1);
+			ledger.adjustBalance(account.balance, previousDay.toISOString().slice(0, 10));
 			return [account.id, ledger] as const;
 		}),
 	);
@@ -213,7 +215,7 @@ export function dailyForecast(input: {
 			const ledger = ledgers.get(account.id)!;
 			const earnings = input.netYield?.(account, balance, date, ledger) ?? 0;
 			if (input.settleYield) input.settleYield(account, earnings, date, ledger);
-			else ledger.accrueNet(earnings, date);
+			else ledger.accrueRecordedNet(earnings, undefined, date);
 			balances.set(account.id, balance + earnings);
 			income += earnings * factor(nativeCurrency(account), date);
 		}

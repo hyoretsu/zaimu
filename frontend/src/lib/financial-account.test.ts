@@ -207,7 +207,7 @@ describe("calculateFinancialAccountBalances", () => {
 			yieldPeriod: "MONTHLY" as const,
 		};
 		const today = new Date("2026-01-06T12:00:00");
-		const transactions = [{ amount: 100, date: "2026-01-05", destinationFinancialAccountId: "checking" }];
+		const transactions = [{ amount: 100, date: "2026-01-04", destinationFinancialAccountId: "checking" }];
 		const dailyRate = 1.1 ** (1 / 21) - 1;
 
 		expect(
@@ -234,7 +234,7 @@ describe("calculateFinancialAccountBalances", () => {
 		expect(
 			calculateFinancialAccountBalances(
 				[account] as never,
-				[{ amount: 100, date: "2026-01-05", destinationFinancialAccountId: "checking" }],
+				[{ amount: 100, date: "2026-01-04", destinationFinancialAccountId: "checking" }],
 				[],
 				[],
 				new Date("2026-01-05T12:00:00"),
@@ -271,7 +271,7 @@ describe("calculateFinancialAccountBalances", () => {
 				{ effectiveDate: "2026-01-06", yieldFixedRate: 20, yieldPeriod: "MONTHLY" as const },
 			],
 		};
-		const transactions = [{ amount: 100, date: "2026-01-05", destinationFinancialAccountId: "checking" }];
+		const transactions = [{ amount: 100, date: "2026-01-04", destinationFinancialAccountId: "checking" }];
 		const monthlyTenPercentDailyRate = 1.1 ** (1 / 21) - 1;
 		const monthlyTwentyPercentDailyRate = 1.2 ** (1 / 21) - 1;
 
@@ -300,7 +300,7 @@ describe("calculateFinancialAccountBalances", () => {
 		};
 		const entries = calculateFinancialAccountYieldEntries(
 			account as never,
-			[{ amount: 100, date: "2026-01-05", destinationFinancialAccountId: "checking" }],
+			[{ amount: 100, date: "2026-01-04", destinationFinancialAccountId: "checking" }],
 			[],
 			new Date("2026-01-06T12:00:00"),
 			[
@@ -333,7 +333,7 @@ describe("calculateFinancialAccountBalances", () => {
 	test("preserves visibility of edited automatic yields", () => {
 		const entries = calculateFinancialAccountYieldEntries(
 			{ id: "checking", type: "CHECKING", yieldFixedRate: 10, yieldPeriod: "MONTHLY" } as never,
-			[{ amount: 100, date: "2026-01-05", destinationFinancialAccountId: "checking" }],
+			[{ amount: 100, date: "2026-01-04", destinationFinancialAccountId: "checking" }],
 			[],
 			new Date("2026-01-05T12:00:00"),
 			[
@@ -405,7 +405,7 @@ describe("calculateFinancialAccountBalances", () => {
 					type: "CHECKING",
 				},
 			] as never,
-			[{ amount: 15_000, date: "2026-01-05", destinationFinancialAccountId: "checking" }],
+			[{ amount: 15_000, date: "2026-01-04", destinationFinancialAccountId: "checking" }],
 			[],
 			[],
 			new Date("2026-01-05T12:00:00"),
@@ -452,7 +452,7 @@ test("offline balances and yield entries preserve frozen history and require cur
 		yieldFixedRate: 10,
 		yieldPeriod: "MONTHLY",
 	};
-	const movements = [{ amount: 1000, date: "2026-01-05", destinationFinancialAccountId: "legacy" }];
+	const movements = [{ amount: 1000, date: "2026-01-04", destinationFinancialAccountId: "legacy" }];
 	const calendar = { countries: [], coverage: [], currencyCountries: [], holidays: [] };
 	const today = new Date("2026-01-08T12:00:00");
 	expect(calculateFinancialAccountBalances([account], movements, [], calendar, today)[0].balance).toBeCloseTo(
@@ -500,4 +500,33 @@ describe("guest balance checkpoints", () => {
 				.balance,
 		).toBe(125);
 	});
+});
+
+test("same-day transfer starts earning on the next eligible day", () => {
+	const account = {
+		balance: 0,
+		createdAt: "2026-09-26",
+		id: "savings",
+		type: "SAVINGS",
+		yieldFixedRate: 10,
+		yieldPeriod: "MONTHLY",
+	} as FinancialAccount;
+	const transactions = [
+		{
+			amount: 580,
+			date: "2026-09-30",
+			destinationFinancialAccountId: "savings",
+			originFinancialAccountId: "other",
+		},
+	];
+	expect(
+		calculateFinancialAccountBalances([account], transactions, [], [], new Date("2026-09-30T12:00:00"))[0]
+			.balance,
+	).toBe(580);
+	expect(
+		calculateFinancialAccountYieldEntries(account, transactions, [], new Date("2026-09-30T12:00:00")),
+	).toEqual([]);
+	expect(
+		calculateFinancialAccountYieldEntries(account, transactions, [], new Date("2026-10-01T12:00:00")),
+	).toHaveLength(1);
 });

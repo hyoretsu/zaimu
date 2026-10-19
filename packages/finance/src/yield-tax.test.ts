@@ -39,10 +39,10 @@ test("daily net compounding keeps age per lot and FIFO withdrawals", () => {
 	const ledger = new YieldTaxLedger();
 	ledger.applyCashFlow(1000, day(0));
 	ledger.applyCashFlow(1000, day(200));
-	expect(ledger.accrueGross(100, { yieldTaxIds: ["ir"] }, day(200))).toBeCloseTo(78.75);
-	expect(ledger.lots.map(lot => lot.balance)).toEqual([1040, 1038.75]);
+	expect(ledger.accrueGross(100, { yieldTaxIds: ["ir"] }, day(200))).toBeCloseTo(80);
+	expect(ledger.lots.map(lot => lot.balance)).toEqual([1080, 1000]);
 	ledger.applyCashFlow(-1100, day(201));
-	expect(ledger.lots).toEqual([{ balance: 978.75, date: day(200) }]);
+	expect(ledger.lots).toEqual([{ balance: 980, date: day(200) }]);
 	expect(ledger.netYield(100, { yieldTaxIds: ["ir"] }, day(201))).toBeCloseTo(77.5);
 });
 test("debt, manual yields and adjustments", () => {
@@ -93,4 +93,27 @@ test("invalid brackets reject gaps through implicit ordered ranges", () => {
 	).toThrow();
 	expect(() => validateTaxBrackets([{ rate: 101, upToDays: null }])).toThrow();
 	expect(() => validateTaxBrackets([{ rate: 0, upToDays: null }])).not.toThrow();
+});
+
+test("same-day deposits wait until tomorrow and withdrawals reduce eligible principal", () => {
+	const ledger = new YieldTaxLedger();
+	ledger.applyCashFlow(580, "2026-09-30");
+	expect(ledger.eligibleBalance("2026-09-30")).toBe(0);
+	expect(ledger.accrueGross(1, undefined, "2026-09-30")).toBe(0);
+	expect(ledger.eligibleBalance("2026-10-01")).toBe(580);
+	ledger.applyCashFlow(420, "2026-10-01");
+	ledger.applyCashFlow(-200, "2026-10-01");
+	expect(ledger.eligibleBalance("2026-10-01")).toBe(380);
+	expect(ledger.accrueGross(38, undefined, "2026-10-01")).toBe(38);
+	expect(ledger.lots).toEqual([
+		{ balance: 418, date: "2026-09-30" },
+		{ balance: 420, date: "2026-10-01" },
+	]);
+	expect(ledger.eligibleBalance("2026-10-02")).toBe(838);
+});
+test("recorded and manual amounts remain effective on contribution day", () => {
+	const ledger = new YieldTaxLedger([{ balance: 580, date: "2026-09-30" }]);
+	ledger.accrueRecordedNet(0.35, undefined, "2026-09-30");
+	ledger.accrueNet(1, "2026-09-30");
+	expect(ledger.balance).toBeCloseTo(581.35);
 });

@@ -271,8 +271,16 @@ export function projectedNetYield(
 	if (balance <= 0 || weekday === 0 || weekday === 6 || holidays.has(day)) return 0;
 	const settings = getYieldSettings(account, day);
 	const contributions = ledger ?? new YieldTaxLedger(account.yieldLots ?? []);
-	if (!ledger) contributions.adjustBalance(balance, day);
-	return contributions.netYield(calculateGrossYield(balance, settings, averages), settings, day);
+	if (!ledger) {
+		const previousDay = new Date(`${day}T12:00:00Z`);
+		previousDay.setUTCDate(previousDay.getUTCDate() - 1);
+		contributions.adjustBalance(balance, previousDay.toISOString().slice(0, 10));
+	}
+	return contributions.netYield(
+		calculateGrossYield(contributions.eligibleBalance(day), settings, averages),
+		settings,
+		day,
+	);
 }
 
 export function trimHistoricalYieldSettings(

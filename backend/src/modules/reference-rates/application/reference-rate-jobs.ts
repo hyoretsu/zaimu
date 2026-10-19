@@ -356,7 +356,9 @@ async function processAccountRecalculation(job: ClaimedJob) {
 		if (ledger.balance <= 0) continue;
 		const rates = Object.fromEntries(rows.map(row => [row.type, Number(row.value)]));
 		const amount = Number(
-			ledger.netYield(calculateGrossYield(ledger.balance, settings, rates), settings, key).toFixed(4),
+			ledger
+				.netYield(calculateGrossYield(ledger.eligibleBalance(key), settings, rates), settings, key)
+				.toFixed(4),
 		);
 		if (amount <= 0) continue;
 		input.yields.push({
