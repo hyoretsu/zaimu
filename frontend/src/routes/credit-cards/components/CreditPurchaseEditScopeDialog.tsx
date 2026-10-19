@@ -26,8 +26,7 @@ export function CreditPurchaseEditScopeDialog({
 					<DialogTitle>O que deseja editar?</DialogTitle>
 					<DialogDescription>
 						Escolha entre alterar somente o valor da parcela {purchase.currentInstallment}/
-						{purchase.installments}
-						ou editar os dados da compra original e suas próximas parcelas.
+						{purchase.installments} ou editar os dados da compra original e suas próximas parcelas.
 					</DialogDescription>
 				</DialogHeader>
 				<DialogFooter>
