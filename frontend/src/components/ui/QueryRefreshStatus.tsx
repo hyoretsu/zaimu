@@ -10,6 +10,7 @@ interface QueryRefreshStatusProps {
 }
 
 export function QueryRefreshStatus({ error, pending, onRetry }: QueryRefreshStatusProps) {
+	if (!error && !pending) return null;
 	return (
 		<ActionGroup className="min-h-9 text-muted-foreground text-sm" role="status">
 			{error ? (

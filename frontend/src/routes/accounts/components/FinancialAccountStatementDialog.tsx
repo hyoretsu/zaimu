@@ -1,9 +1,8 @@
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { LuPlus } from "react-icons/lu";
+import { LuPlus, LuScale } from "react-icons/lu";
 import { CreateTransactionDialog, EditTransactionDialog, TransactionsList } from "@/components/transactions";
 import { ActionGroup } from "@/components/ui/ActionGroup";
-import { Button } from "@/components/ui/Button";
 import {
 	Dialog,
 	DialogBody,
@@ -12,12 +11,15 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
+import { FloatingActionButton } from "@/components/ui/FloatingActionButton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
 import type { FinancialAccount, Transaction } from "@/lib/api";
 import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { type FinancialAccountYieldEntry, getFinancialAccountDisplayName } from "@/lib/financial-account";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { BalanceAdjustmentsDialog } from "./BalanceAdjustmentsDialog";
 import { EditFinancialAccountYieldDialog } from "./EditFinancialAccountYieldDialog";
 
 export function FinancialAccountStatementDialog({
@@ -64,6 +66,7 @@ export function FinancialAccountStatementDialog({
 
 	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 	const [creatingTransaction, setCreatingTransaction] = useState(false);
+	const [adjustingBalance, setAdjustingBalance] = useState(false);
 	const [editingYield, setEditingYield] = useState<FinancialAccountYieldEntry | null>(null);
 	const yieldFilters = {
 		startDate: statement.hasNextPage ? statement.data?.pages.at(-1)?.days.at(-1)?.date : undefined,
@@ -152,40 +155,37 @@ export function FinancialAccountStatementDialog({
 					<DialogDescription>Movimentações que compõem saldo desta conta.</DialogDescription>
 				</DialogHeader>
 				<DialogBody>
-					<TransactionsList
-						canDeleteTransaction={transaction => !transaction.paymentCreditCardId}
-						currencyCode={account.currency ?? "BRL"}
-						dailyEndingBalances={dailyEndingBalances}
-						hasMoreTransactions={statement.hasNextPage}
-						hasMoreYields={yields.hasNextPage}
-						isDeletingTransaction={transaction =>
-							!!pendingActions[`${identity}:transaction:${transaction.id}`]
-						}
-						isDeletingYield={entry => !!pendingActions[`${identity}:yield:${entry.id}`]}
-						isError={(statement.isError && !statement.data) || (yields.isError && !yields.data)}
-						isFetchingMoreTransactions={statement.isFetchingNextPage}
-						isFetchingMoreYields={yields.isFetchingNextPage}
-						isPending={statement.isPending || yields.isPending}
-						onDeleteTransaction={removeTransaction}
-						onDeleteYield={removeYield}
-						onEditTransaction={editTransaction}
-						onEditYield={setEditingYield}
-						onLoadMoreTransactions={statement.fetchNextPage}
-						onLoadMoreYields={yields.fetchNextPage}
-						onRetry={() => Promise.all([statement.refetch(), yields.refetch()])}
-						refreshError={(statement.isError && !!statement.data) || (yields.isError && !!yields.data)}
-						refreshPending={
-							(statement.isFetching && !statement.isPending && !statement.isFetchingNextPage) ||
-							(yields.isFetching && !yields.isPending && !yields.isFetchingNextPage)
-						}
-						transactions={statementItems}
-						yieldEntries={yieldEntries}
-					/>
-					<ActionGroup>
-						<Button className="cursor-pointer" onClick={() => setCreatingTransaction(true)}>
-							<LuPlus /> Nova transação
-						</Button>
-					</ActionGroup>
+					<div className="space-y-5 pb-20">
+						<TransactionsList
+							canDeleteTransaction={transaction => !transaction.paymentCreditCardId}
+							currencyCode={account.currency ?? "BRL"}
+							dailyEndingBalances={dailyEndingBalances}
+							hasMoreTransactions={statement.hasNextPage}
+							hasMoreYields={yields.hasNextPage}
+							isDeletingTransaction={transaction =>
+								!!pendingActions[`${identity}:transaction:${transaction.id}`]
+							}
+							isDeletingYield={entry => !!pendingActions[`${identity}:yield:${entry.id}`]}
+							isError={(statement.isError && !statement.data) || (yields.isError && !yields.data)}
+							isFetchingMoreTransactions={statement.isFetchingNextPage}
+							isFetchingMoreYields={yields.isFetchingNextPage}
+							isPending={statement.isPending || yields.isPending}
+							onDeleteTransaction={removeTransaction}
+							onDeleteYield={removeYield}
+							onEditTransaction={editTransaction}
+							onEditYield={setEditingYield}
+							onLoadMoreTransactions={statement.fetchNextPage}
+							onLoadMoreYields={yields.fetchNextPage}
+							onRetry={() => Promise.all([statement.refetch(), yields.refetch()])}
+							refreshError={(statement.isError && !!statement.data) || (yields.isError && !!yields.data)}
+							refreshPending={
+								(statement.isFetching && !statement.isPending && !statement.isFetchingNextPage) ||
+								(yields.isFetching && !yields.isPending && !yields.isFetchingNextPage)
+							}
+							transactions={statementItems}
+							yieldEntries={yieldEntries}
+						/>
+					</div>
 					<CreateTransactionDialog
 						account={account}
 						onOpenChange={setCreatingTransaction}
@@ -203,6 +203,36 @@ export function FinancialAccountStatementDialog({
 						open={editingYield !== null}
 					/>
 				</DialogBody>
+				<ActionGroup className="absolute right-6 bottom-6 z-10">
+					{account.type !== "CREDIT_CARD" && account.type !== "REWARDS" ? (
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<FloatingActionButton
+									icon={LuScale}
+									label="Ajustar saldo"
+									onClick={() => setAdjustingBalance(true)}
+									variant="outline"
+								/>
+							</TooltipTrigger>
+							<TooltipContent>Ajustar saldo</TooltipContent>
+						</Tooltip>
+					) : null}
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<FloatingActionButton
+								icon={LuPlus}
+								label="Nova transação"
+								onClick={() => setCreatingTransaction(true)}
+							/>
+						</TooltipTrigger>
+						<TooltipContent>Nova transação</TooltipContent>
+					</Tooltip>
+				</ActionGroup>
+				<BalanceAdjustmentsDialog
+					account={account}
+					onOpenChange={setAdjustingBalance}
+					open={adjustingBalance}
+				/>
 			</DialogContent>
 		</Dialog>
 	);

@@ -10,6 +10,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
+import { Skeleton } from "@/components/ui/Skeleton";
 import type { BalanceAdjustment } from "@/lib/balance-adjustment";
 import { BalanceAdjustmentRow } from "./BalanceAdjustmentRow";
 export function AccountAdjustmentsDialog({
@@ -21,6 +22,8 @@ export function AccountAdjustmentsDialog({
 	onRemove,
 	isPending,
 	children,
+	loading = false,
+	error = false,
 }: {
 	name: string;
 	entries: BalanceAdjustment[];
@@ -30,6 +33,8 @@ export function AccountAdjustmentsDialog({
 	onRemove: (adjustment: BalanceAdjustment) => void;
 	isPending: (id: string) => boolean;
 	children: ReactNode;
+	loading?: boolean;
+	error?: boolean;
 }) {
 	return (
 		<Dialog onOpenChange={open => !open && onClose()} open>
@@ -40,7 +45,11 @@ export function AccountAdjustmentsDialog({
 				</DialogHeader>
 				<DialogBody>
 					<div className="grid gap-2">
-						{entries.length === 0 ? (
+						{loading ? (
+							<Skeleton className="h-28 rounded-xl" />
+						) : error ? (
+							<p className="text-destructive text-sm">Não foi possível carregar os ajustes.</p>
+						) : entries.length === 0 ? (
 							<p className="text-muted-foreground text-sm">Nenhum ajuste registrado.</p>
 						) : (
 							entries.map(adjustment => (
@@ -56,7 +65,7 @@ export function AccountAdjustmentsDialog({
 					</div>
 				</DialogBody>
 				<DialogFooter>
-					<Button onClick={onAdd}>
+					<Button disabled={loading || error} onClick={onAdd}>
 						<LuPlus /> Adicionar data
 					</Button>
 				</DialogFooter>

@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/Dialog";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
+import type { FinancialAccount } from "@/lib/api";
 import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
 import type { BalanceAdjustment } from "@/lib/balance-adjustment";
 import { dataService } from "@/lib/dataService";
@@ -25,15 +26,18 @@ import { AccountAdjustmentsDialog } from "./AccountAdjustmentsDialog";
 const nameCollator = new Intl.Collator("pt-BR", { sensitivity: "base" });
 
 export function BalanceAdjustmentsDialog({
+	account,
 	onOpenChange,
 	open,
 }: {
+	account?: FinancialAccount;
 	onOpenChange: (open: boolean) => void;
 	open: boolean;
 }) {
 	const identity = useCacheIdentity();
 	const queryClient = useQueryClient();
-	const [accountId, setAccountId] = useState<string | null>(null);
+	const [selectedAccountId, setAccountId] = useState<string | null>(null);
+	const accountId = account?.id ?? selectedAccountId;
 	const [editing, setEditing] = useState<BalanceAdjustment | null | "new">(null);
 	const [recoveredDraft, setRecoveredDraft] = useState<BalanceAdjustmentDraft | null>(null);
 	const pending = useModalRecoveryStore(state => state.pending);
@@ -75,6 +79,7 @@ export function BalanceAdjustmentsDialog({
 	useBackgroundModalRecovery<BalanceAdjustment>("balance-adjustment-delete", () => onOpenChange(true));
 	const remove = (adjustment: BalanceAdjustment) =>
 		runBackgroundModalAction({
+			cache: { client: queryClient, operations: ["transaction"] },
 			close: () => {
 				setAccountId(null);
 				onOpenChange(false);
@@ -82,7 +87,6 @@ export function BalanceAdjustmentsDialog({
 			conflictKey: `balance-adjustment:${adjustment.id}`,
 			failureMessage: "Não foi possível excluir ajuste.",
 			loadingMessage: "Excluindo ajuste...",
-			cache: { client: queryClient, operations: ["transaction"] },
 			recovery: { entityId: adjustment.id, kind: "balance-adjustment-delete", payload: adjustment },
 			run: () => dataService.balanceAdjustments.delete(adjustment.id),
 			successMessage: "Ajuste de saldo excluído.",
@@ -110,7 +114,7 @@ export function BalanceAdjustmentsDialog({
 				}
 				onOpenChange(value);
 			}}
-			open={open}
+			open={open && !account}
 		>
 			<DialogContent className="sm:max-w-lg">
 				<DialogHeader>
@@ -172,15 +176,27 @@ export function BalanceAdjustmentsDialog({
 			{open && accountId !== null ? (
 				<AccountAdjustmentsDialog
 					entries={groups.find(([id]) => id === accountId)?.[1] ?? []}
+					error={adjustmentsQuery.isError || accountsQuery.isError}
 					isPending={id => !!pending[`${identity}:balance-adjustment:${id}`]}
+					loading={adjustmentsQuery.isPending || accountsQuery.isPending}
 					name={
-						accountNames.get(accountId) ?? groups.find(([id]) => id === accountId)?.[1][0]?.name ?? "Conta"
+						(account ? getFinancialAccountOptionLabel(account) : undefined) ??
+						accountNames.get(accountId) ??
+						groups.find(([id]) => id === accountId)?.[1][0]?.name ??
+						"Conta"
 					}
 					onAdd={() => {
 						setRecoveredDraft({ adjustment: null, balance: "", date: "", financialAccountId: accountId });
 						setEditing("new");
 					}}
-					onClose={() => setAccountId(null)}
+					onClose={() => {
+						setAccountId(null);
+						if (account) {
+							setEditing(null);
+							setRecoveredDraft(null);
+							onOpenChange(false);
+						}
+					}}
 					onEdit={adjustment => {
 						setRecoveredDraft(null);
 						setEditing(adjustment);
