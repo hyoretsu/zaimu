@@ -1,5 +1,6 @@
 import { groupAnticipatedInstallments } from "./anticipated-installments";
 import type { CreditCardStatement, CreditCardStatementPurchase } from "./credit-card-statement";
+import { statementMoney } from "./statement-money";
 
 const monthNumbers: Record<string, number> = {
 	ABR: 4,
@@ -16,7 +17,7 @@ const monthNumbers: Record<string, number> = {
 	SET: 9,
 };
 
-const moneyToNumber = (value: string) => Number(value.replace(/\./g, "").replace(",", "."));
+const moneyToNumber = statementMoney;
 const dateKey = (date: Date) => date.toISOString().slice(0, 10);
 
 function parseInvoiceDate(value: string) {
@@ -50,14 +51,15 @@ export function parseNubankCreditCardStatementText(text: string): CreditCardStat
 	if (transactionsStart < 0) throw new Error("Não foi possível encontrar as transações da fatura");
 	const transactions = text.slice(transactionsStart, paymentsStart < 0 ? undefined : paymentsStart);
 	const normalizedTransactions = transactions.replace(
-		/^(\d{2}\s+[A-Za-zÀ-ÿ]{3}\s+[^\n]+)\n(?:USD\s+[^\n]+\n)?(?:Conversão:\s*[^\n]+\n)?(R\$\s*[\d.]+,\d{2})$/gimu,
+		/^(\d{2}\s+[A-Za-zÀ-ÿ]{3}\s+[^\n]+)\n(?:USD\s+[^\n]+\n)?(?:Conversão:\s*[^\n]+\n)?([−-]?[\t ]*R\$[\t ]*[−-]?[\t ]*[\d.]+,\d{2})$/gimu,
 		"$1 $2",
 	);
 	const purchasePattern =
-		/^(\d{2})\s+([A-Za-zÀ-ÿ]{3})\s+(?:••••\s+\d{4}\s+)?(.+?)\s+R\$\s*([\d.]+,\d{2})$/gimu;
+		/^(\d{2})\s+([A-Za-zÀ-ÿ]{3})\s+(?:••••\s+\d{4}\s+)?(.+?)\s+([−-]?[\t ]*R\$[\t ]*[−-]?[\t ]*[\d.]+,\d{2})$/gimu;
 	const purchases: CreditCardStatementPurchase[] = [];
 	for (const match of normalizedTransactions.matchAll(purchasePattern)) {
 		const description = match[3]!.trim();
+		if (/^pagamento\b/iu.test(description)) continue;
 		const installment = description.match(/\s+-\s+Parcela\s+(\d{1,2})\/(\d{1,2})\s*$/iu);
 		const currentInstallment = Number(installment?.[1] ?? 1);
 		const installments = Number(installment?.[2] ?? 1);

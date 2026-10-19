@@ -44,3 +44,15 @@ DATA DOCUMENTO
 		});
 	});
 });
+
+test("preserves refund signs without importing invoice payments", () => {
+	const result = parseInterCreditCardStatementText(`Data de Vencimento 25/08/2026
+Despesas da fatura
+13 de ago. 2026 LOJA - R$ 100,00
+14 de ago. 2026 LOJA - + R$ 25,00
+15 de ago. 2026 Estorno LOJA - + R$ 10,00
+16 de ago. 2026 PAGAMENTO ON LINE - + R$ 100,00
+Próxima fatura`);
+	expect(result.purchases.map(p => p.installmentAmount)).toEqual([100, -25, -10]);
+	expect(result.purchases.map(p => p.totalAmount)).toEqual([100, -25, -10]);
+});

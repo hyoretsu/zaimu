@@ -50,3 +50,18 @@ Pagamentos -R$ 132,18
 		});
 	});
 });
+
+test("preserves refund signs without importing invoice payments", () => {
+	const result = parseNubankCreditCardStatementText(`Data de vencimento: 24 AGO 2026
+Período vigente: 17 JUL a 17 AGO
+TRANSAÇÕES DE 17 JUL A 17 AGO
+01 AGO LOJA R$ 100,00
+02 AGO Estorno LOJA -R$ 25,00
+03 AGO Estorno LOJA R$ -10,00
+04 AGO Estorno LOJA
+−R$ 5,00
+Pagamentos -R$ 100,00
+05 AGO Pagamento em 05 AGO −R$ 100,00`);
+	expect(result.purchases.map(p => p.installmentAmount)).toEqual([100, -25, -10, -5]);
+	expect(result.purchases.map(p => p.totalAmount)).toEqual([100, -25, -10, -5]);
+});

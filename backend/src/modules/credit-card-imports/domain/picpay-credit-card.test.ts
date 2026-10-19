@@ -166,3 +166,17 @@ Total geral dos lançamentos 18,99
 		},
 	]);
 });
+
+test("preserves refund signs without importing invoice payments", () => {
+	const result = parsePicPayCreditCardStatementText(`Vencimento: 20/08/2026
+Fechamento: 15/08/2026
+Transações Nacionais
+Data Estabelecimento Valor (R$)
+01/08 LOJA 100,00
+02/08 LOJA -25,00
+03/08 LOJA −10,00
+04/08 PAGAMENTO DE FATURA -100,00
+Subtotal dos lançamentos`);
+	expect(result.purchases.map(p => p.installmentAmount)).toEqual([100, -25, -10]);
+	expect(result.purchases.map(p => p.totalAmount)).toEqual([100, -25, -10]);
+});

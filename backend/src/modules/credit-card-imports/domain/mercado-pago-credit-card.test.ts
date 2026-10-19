@@ -73,3 +73,17 @@ ${footer}`);
 		expect(result.purchases.map(purchase => purchase.description)).toEqual(["MP*MELIMAIS"]);
 	});
 });
+
+test("preserves refund signs without importing invoice payments", () => {
+	const result = parseMercadoPagoCreditCardStatementText(`Vence em 20/08/2026
+Fechamento da fatura 15/08/2026
+Cartão Visa
+01/08 LOJA R$ 100,00
+02/08 Estorno LOJA R$ -25,00
+03/08 Estorno LOJA -R$ 10,00
+04/08 Estorno LOJA R$ −5,00
+05/08 Pagamento da fatura R$ 100,00
+Parcele a fatura`);
+	expect(result.purchases.map(p => p.installmentAmount)).toEqual([100, -25, -10, -5]);
+	expect(result.purchases.map(p => p.totalAmount)).toEqual([100, -25, -10, -5]);
+});

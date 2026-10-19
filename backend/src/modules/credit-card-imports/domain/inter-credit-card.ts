@@ -36,8 +36,8 @@ function parseStatementDate(text: string, dueDate: Date) {
 	return dateMatch ? parseFullDate(dateMatch[1]!) : dueDate;
 }
 
-function isPurchase(description: string, amount: string) {
-	return !amount.includes("+") && !/^(?:pagamento|estorno|crédito)/iu.test(description);
+function isPurchase(description: string) {
+	return !/^pagamento\b/iu.test(description);
 }
 
 export function parseInterCreditCardStatementText(text: string): CreditCardStatement {
@@ -55,13 +55,14 @@ export function parseInterCreditCardStatementText(text: string): CreditCardState
 	const purchases: CreditCardStatementPurchase[] = [];
 	for (const match of expenses.matchAll(purchasePattern)) {
 		const description = match[4]!.trim();
-		if (!isPurchase(description, match[5]!)) continue;
+		if (!isPurchase(description)) continue;
 		const month = monthNumbers[match[2]!.toLocaleLowerCase("pt-BR")];
 		if (!month) continue;
 		const installment = description.match(/\s*\(Parcela\s+(\d{1,2})\s+de\s+(\d{1,2})\)\s*$/iu);
 		const currentInstallment = Number(installment?.[1] ?? 1);
 		const installments = Number(installment?.[2] ?? 1);
-		const installmentAmount = moneyToNumber(match[5]!);
+		const isCredit = match[5]!.includes("+") || /^(?:estorno|crédito)\b/iu.test(description);
+		const installmentAmount = Math.abs(moneyToNumber(match[5]!)) * (isCredit ? -1 : 1);
 		if (
 			currentInstallment < 1 ||
 			installments < currentInstallment ||

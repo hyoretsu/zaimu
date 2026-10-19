@@ -1,7 +1,8 @@
 import { groupAnticipatedInstallments } from "./anticipated-installments";
 import type { CreditCardStatement, CreditCardStatementPurchase } from "./credit-card-statement";
+import { statementMoney } from "./statement-money";
 
-const moneyToNumber = (value: string) => Number(value.replace(/\./g, "").replace(",", "."));
+const moneyToNumber = statementMoney;
 const dateKey = (day: number, month: number, year: number) =>
 	`${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 
@@ -43,9 +44,10 @@ export function parseMercadoPagoCreditCardStatementText(text: string): CreditCar
 	const cardSectionEnd = text.search(/Parcele a fatura/iu);
 	const cardSection = text.slice(cardSectionStart, cardSectionEnd < 0 ? undefined : cardSectionEnd);
 	const purchasePattern =
-		/^(\d{2})\/(\d{2})\s+(.+?)(?:\s+Parcela\s+(\d+)\s+de\s+(\d+))?\s+R\$\s*([\d.]+,\d{2})\s*$/gimu;
+		/^(\d{2})\/(\d{2})\s+(.+?)(?:\s+Parcela\s+(\d+)\s+de\s+(\d+))?\s+([−-]?[\t ]*R\$[\t ]*[−-]?[\t ]*[\d.]+,\d{2})[\t ]*$/gimu;
 	const purchases: CreditCardStatementPurchase[] = [];
 	for (const match of cardSection.matchAll(purchasePattern)) {
+		if (/^pagamento\b/iu.test(match[3]!.trim())) continue;
 		const installmentAmount = moneyToNumber(match[6]!);
 		const currentInstallment = Number(match[4] ?? 1);
 		const installments = Number(match[5] ?? 1);
