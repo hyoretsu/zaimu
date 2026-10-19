@@ -364,3 +364,6 @@ Todos os importadores de faturas, incluindo PDF de qualquer instituição e Open
 ## Recuperação automática de dados derivados
 
 Vínculos calculados, saldos e totais devem ser reconstruídos a partir dos registros originais. Respostas do cache distribuído têm validade máxima de 60 segundos, contada desde o início da leitura da origem, mesmo quando uma invalidação for perdida. Na próxima consulta após esse prazo, a resposta é reconstruída; entradas antigas sem validade, corrompidas ou com data futura também são ignoradas. A recuperação preserva os registros originais e o isolamento por usuário e ambiente. Falha na origem não renova a validade de dados antigos nem transforma reconstrução incompleta em resultado válido. Essa proteção recupera projeções desatualizadas no cache; ausência ou ambiguidade nos dados originais exige revisão, sem inferir pagamentos ou fatos financeiros.
+
+
+A materialização periódica de faturas considera o mês já coberto por qualquer fechamento registrado. Fechamentos corrigidos ou importados não geram uma segunda fatura vazia no dia nominal do cartão. Apenas meses realmente ausentes recebem novos ciclos pelo calendário configurado.

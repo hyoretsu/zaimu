@@ -18,9 +18,9 @@ export function getStatementDates(card: Omit<Calendar, "createdAt">, purchaseDat
 	};
 }
 
-/** Closing-day 1 and month-end clamping must not shift the requested period. */
+/** Registered closings cover their month, even when the bank changed the nominal day. */
 export function missingMonthlyStatements(card: Calendar, statements: Date[], asOf: Date) {
-	const existing = new Set(statements.map(key));
+	const existing = new Set(statements.map(statement => key(statement).slice(0, 7)));
 	const first = statements.length
 		? [...existing].sort()[0]!
 		: key(getStatementDates(card, card.createdAt).statementDate);
@@ -33,7 +33,7 @@ export function missingMonthlyStatements(card: Calendar, statements: Date[], asO
 		const closing = new Date(
 			Date.UTC(month.getUTCFullYear(), month.getUTCMonth(), Math.min(card.statementDay, lastDay), 12),
 		);
-		if (!existing.has(key(closing)))
+		if (!existing.has(key(closing).slice(0, 7)))
 			missing.push({ dueDate: statementDueDate(card, closing), statementDate: key(closing) });
 		month.setUTCMonth(month.getUTCMonth() + 1);
 	}
