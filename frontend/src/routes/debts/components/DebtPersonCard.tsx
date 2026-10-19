@@ -1,30 +1,26 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import {
-	LuChevronDown,
-	LuChevronUp,
-	LuPencil,
-	LuShoppingCart,
-	LuTrash2,
-	LuUsersRound,
-	LuWalletCards,
-} from "react-icons/lu";
+import { LuList, LuPencil, LuTrash2, LuUsersRound } from "react-icons/lu";
 import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
+import {
+	Dialog,
+	DialogBody,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/Dialog";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import type { DebtEvent, DebtPerson } from "@/lib/api";
 import { useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { type DebtEventPage, dataService } from "@/lib/dataService";
-import { formatLocalDate, formatLocalTime } from "@/lib/date";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
-import {
-	compareDebtEventsByDateTimeThenLabel,
-	getDebtEventCreatorLabel,
-	getDebtEventLabel,
-} from "./debt-event";
+import { DebtEventItem } from "./DebtEventItem";
+import { compareDebtEventsByDateTimeThenLabel } from "./debt-event";
 
 export function DebtPersonCard({
 	onDeleteEvent,
@@ -91,11 +87,11 @@ export function DebtPersonCard({
 			<div className="mt-3 grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] gap-2">
 				<Button
 					className="min-w-0 cursor-pointer"
-					onClick={() => setExpanded(current => !current)}
+					onClick={() => setExpanded(true)}
 					type="button"
 					variant="outline"
 				>
-					{expanded ? <LuChevronUp /> : <LuChevronDown />} {expanded ? "Minimizar" : "Expandir"}
+					<LuList /> Ver lançamentos
 				</Button>
 				<Tooltip>
 					<TooltipTrigger asChild>
@@ -125,85 +121,71 @@ export function DebtPersonCard({
 					<LuTrash2 />
 				</ConfirmActionButton>
 			</div>
-			{expanded ? (
-				<div className="mt-4 grid gap-2 border-t pt-4">
-					{eventsQuery.isPending ? (
-						<Skeleton className="h-24 rounded-xl" />
-					) : eventsQuery.isError ? (
-						<div role="alert">
-							<p>Não foi possível carregar os lançamentos.</p>
-							<Button onClick={() => eventsQuery.refetch()} variant="outline">
-								Tentar novamente
-							</Button>
+			<Dialog onOpenChange={setExpanded} open={expanded}>
+				<DialogContent className="gap-4 sm:max-w-xl">
+					<DialogHeader>
+						<DialogTitle>Lançamentos · {person.name}</DialogTitle>
+						<DialogDescription>Movimentações que compõem o saldo desta pessoa.</DialogDescription>
+					</DialogHeader>
+					<DialogBody>
+						<div className="grid gap-2">
+							{eventsQuery.isPending ? (
+								<div className="grid gap-2">
+									{[1, 2, 3].map(item => (
+										<Skeleton className="h-24 rounded-xl" key={item} />
+									))}
+								</div>
+							) : eventsQuery.isError && !eventsQuery.data ? (
+								<div role="alert">
+									<p>Não foi possível carregar os lançamentos.</p>
+									<Button onClick={() => eventsQuery.refetch()} variant="outline">
+										Tentar novamente
+									</Button>
+								</div>
+							) : (
+								events
+									.toSorted(compareDebtEventsByDateTimeThenLabel)
+									.map(event => (
+										<DebtEventItem
+											event={event}
+											key={event.id}
+											onDeleteEvent={onDeleteEvent}
+											onEditEvent={onEditEvent}
+											personId={person.id}
+											personPending={personPending}
+										/>
+									))
+							)}
+							{!eventsQuery.isPending && !events.length ? (
+								<p className="py-8 text-center text-muted-foreground">Nenhum lançamento cadastrado.</p>
+							) : null}
+							{eventsQuery.isError && eventsQuery.data ? (
+								<div role="alert">
+									<p>Não foi possível atualizar os lançamentos.</p>
+									<Button
+										onClick={() =>
+											eventsQuery.isFetchNextPageError ? eventsQuery.fetchNextPage() : eventsQuery.refetch()
+										}
+										variant="outline"
+									>
+										Tentar novamente
+									</Button>
+								</div>
+							) : null}
+							{eventsQuery.hasNextPage ? (
+								<Button
+									className="w-full cursor-pointer"
+									disabled={eventsQuery.isFetchingNextPage}
+									onClick={() => eventsQuery.fetchNextPage()}
+									variant="outline"
+								>
+									{eventsQuery.isFetchingNextPage ? "Carregando..." : "Carregar mais"}
+								</Button>
+							) : null}
 						</div>
-					) : (
-						events.toSorted(compareDebtEventsByDateTimeThenLabel).map(event => (
-							<div
-								className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-2 rounded-xl border p-3 sm:flex sm:gap-3"
-								key={event.id}
-							>
-								<div className="text-muted-foreground">
-									{event.kind === "PURCHASE" ? <LuShoppingCart /> : <LuWalletCards />}
-								</div>
-								<div className="min-w-0 flex-1">
-									<p className="truncate font-medium text-sm">{getDebtEventLabel(event)}</p>
-									<p className="text-muted-foreground text-xs">
-										{event.date ? formatLocalDate(event.date) : ""}
-										{formatLocalTime(event.time) ? ` · ${formatLocalTime(event.time)}` : ""}
-										{event.date || event.time ? " · " : ""}
-										{getDebtEventCreatorLabel(event)}
-									</p>
-								</div>
-								<div className="col-span-2 flex items-center justify-end gap-2 border-t pt-2 sm:col-auto sm:ml-auto sm:border-0 sm:pt-0">
-									<span className={event.effect >= 0 ? "text-emerald-600" : "text-rose-600"}>
-										{event.effect === 0 ? "" : event.effect > 0 ? "+" : "-"}
-										{new Intl.NumberFormat("pt-BR", {
-											currency: event.currency ?? "BRL",
-											style: "currency",
-										}).format(Math.abs(event.effect))}
-									</span>
-									{event.kind === "ORIGIN" && event.createdByMe ? (
-										<Button
-											aria-label="Editar lançamento"
-											className="cursor-pointer"
-											disabled={personPending || !!pending[`${identity}:debt-event:${event.id}`]}
-											onClick={() => onEditEvent(event, person.id)}
-											size="icon"
-											type="button"
-											variant="outline"
-										>
-											<LuPencil />
-										</Button>
-									) : null}
-									{event.kind === "ORIGIN" && event.createdByMe ? (
-										<ConfirmActionButton
-											aria-label="Excluir lançamento"
-											className="cursor-pointer"
-											confirmation="Excluir este lançamento?"
-											disabled={personPending || !!pending[`${identity}:debt-event:${event.id}`]}
-											onConfirm={() => onDeleteEvent(event.id)}
-											size="icon"
-											variant="destructive"
-										>
-											<LuTrash2 />
-										</ConfirmActionButton>
-									) : null}
-								</div>
-							</div>
-						))
-					)}
-					{eventsQuery.hasNextPage ? (
-						<Button
-							className="w-full cursor-pointer"
-							disabled={eventsQuery.isFetchingNextPage}
-							onClick={() => eventsQuery.fetchNextPage()}
-							variant="outline"
-						>
-							{eventsQuery.isFetchingNextPage ? "Carregando..." : "Carregar mais"}
-						</Button>
-					) : null}
-				</div>
-			) : null}
+					</DialogBody>
+				</DialogContent>
+			</Dialog>
 		</article>
 	);
 }
