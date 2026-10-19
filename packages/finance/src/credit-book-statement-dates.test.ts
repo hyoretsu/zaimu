@@ -293,3 +293,33 @@ test("changing only the due day preserves imported cycles and future installment
 	expect(replay.statements.filter(item => item.dueDate.slice(0, 7) === "2026-10")).toHaveLength(1);
 	expect(replay.statements.find(item => item.id === october.id)?.paidAmount).toBe(19.97);
 });
+
+test("saved installment closing reuses the corrected cycle by due date in projections and materialization", () => {
+	const book = fixture();
+	const original = book.statements[0]!;
+	const purchase = book.purchases[0]!;
+	purchase.installmentStatementDates = [{ dueDate: original.dueDate, statementDate: "2026-08-18" }];
+	book.installments = [];
+	const before = structuredClone(book);
+	const projected = replayCreditBook(book, "2026-08-30");
+	expect(projected.statements.filter(statement => statement.dueDate === original.dueDate)).toHaveLength(1);
+	expect(projected.statements.find(statement => statement.id === original.id)?.totalAmount).toBe(100);
+	expect(book).toEqual(before);
+	materializeBookInstallments(book, "2026-08-30");
+	expect(book.statements).toHaveLength(1);
+	expect(book.installments[0]!.statementId).toBe(original.id);
+});
+
+test("explicit imported cycles remain authoritative even when purchase date is after closing", () => {
+	const book = fixture();
+	const original = book.statements[0]!;
+	const purchase = book.purchases[0]!;
+	purchase.purchaseDate = "2026-08-21";
+	purchase.installmentStatementDates = [
+		{ dueDate: original.dueDate, statementDate: original.statementDate },
+	];
+	book.installments = [];
+	const projected = replayCreditBook(book, "2026-08-30");
+	expect(projected.statements.filter(statement => statement.dueDate === original.dueDate)).toHaveLength(1);
+	expect(projected.statements.find(statement => statement.id === original.id)?.totalAmount).toBe(100);
+});

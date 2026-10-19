@@ -280,6 +280,17 @@ export function synchronizeImportedStatementDates(
 	return statement;
 }
 
+/** Explicit installment calendars identify cycles independently of the purchase cutoff. */
+function registeredBookStatement(
+	statements: BookStatement[],
+	dates: { statementDate: string; dueDate: string },
+) {
+	return (
+		statements.find(statement => statement.statementDate === dates.statementDate) ??
+		statements.find(statement => statement.dueDate === dates.dueDate)
+	);
+}
+
 export function ensureBookStatement(
 	book: CreditBook,
 	date: string,
@@ -288,10 +299,7 @@ export function ensureBookStatement(
 	assertDateKey(date);
 	const dates = registered ?? purchaseBookStatementDates(book, date);
 	const existing = registered
-		? (book.statements.find(statement => statement.statementDate === registered.statementDate) ??
-			(registered.statementDate === registered.dueDate
-				? book.statements.find(statement => statement.dueDate === registered.dueDate)
-				: undefined))
+		? registeredBookStatement(book.statements, registered)
 		: book.statements
 				.toSorted((a, b) => a.statementDate.localeCompare(b.statementDate))
 				.find(
@@ -345,11 +353,13 @@ export function creditBookPlan(book: CreditBook) {
 				const date = installmentOccurrenceDate(purchase.purchaseDate, number);
 				const dates =
 					purchase.installmentStatementDates?.[index] ?? purchaseBookStatementDates(book, date);
-				statement = (statementsByMonth.get(dates.statementDate.slice(0, 7)) ?? []).find(
-					item =>
-						statementIncludesDate(book.card, item.statementDate, date) &&
-						item.statementDate.slice(0, 7) === dates.statementDate.slice(0, 7),
-				);
+				statement = purchase.installmentStatementDates?.[index]
+					? registeredBookStatement(statements, dates)
+					: (statementsByMonth.get(dates.statementDate.slice(0, 7)) ?? []).find(
+							item =>
+								statementIncludesDate(book.card, item.statementDate, date) &&
+								item.statementDate.slice(0, 7) === dates.statementDate.slice(0, 7),
+						);
 				if (!statement) {
 					statement = {
 						...dates,
@@ -998,6 +1008,10 @@ export function updateBookPurchaseDate(book: CreditBook, purchaseId: string, pur
 			? (purchase.installmentStatementDates?.[index] ?? null)
 			: calendar[index]!,
 	);
+	for (const number of purchase.installmentImportedNumbers ?? []) {
+		const dates = purchase.installmentStatementDates[number - 1];
+		if (dates) synchronizeImportedStatementDates(book, dates);
+	}
 	for (const installment of book.installments.filter(i => i.purchaseId === purchaseId)) {
 		installment.occurrenceDate = installmentOccurrenceDate(purchaseDate, installment.number);
 		installment.statementId = ensureBookStatement(
