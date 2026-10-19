@@ -642,13 +642,11 @@ export async function reconcileLocalAdjustments(ownerKey?: StorageOwner) {
 			const remaining = row.data.balanceAdjustments?.filter(item => !redundant.has(item.id));
 			if (remaining?.length === row.data.balanceAdjustments?.length) continue;
 			await requestResult(
-				tx
-					.objectStore("scoped-accounts")
-					.put({
-						...row,
-						data: { ...row.data, balanceAdjustments: remaining },
-						modifiedAt: Math.max(Date.now(), row.modifiedAt + 1),
-					}),
+				tx.objectStore("scoped-accounts").put({
+					...row,
+					data: { ...row.data, balanceAdjustments: remaining },
+					modifiedAt: Math.max(Date.now(), row.modifiedAt + 1),
+				}),
 			);
 		}
 		for (const row of books) {
@@ -1811,10 +1809,7 @@ export async function confirmLocalSuggestedPayment(
 				id: row.localId,
 			}));
 		const suggestion = pendingStatementPayments(book).find(row => row.statementId === input.statementId);
-		if (
-			!suggestion ||
-			moneyCents(suggestion.amount, 1, book.card.currency) !== moneyCents(input.amount, 1, book.card.currency)
-		)
+		if (!suggestion || !Number.isFinite(input.amount) || !(input.amount > 0))
 			throw new Error("Saldo da fatura mudou. Revise o pagamento novamente");
 		const meta = tx.objectStore("scoped-meta");
 

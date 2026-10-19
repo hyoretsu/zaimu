@@ -25,6 +25,7 @@ import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 
 export interface PaymentSuggestionDraft {
 	accountAmount: string;
+	amount?: string;
 	accountId: string;
 	attemptId: string;
 	date: string;
@@ -39,10 +40,7 @@ export function PaymentSuggestionForm({
 	initialDraft?: PaymentSuggestionDraft;
 	onClose: () => void;
 }) {
-	const currency = new Intl.NumberFormat("pt-BR", {
-		currency: suggestion.currency ?? "BRL",
-		style: "currency",
-	});
+	const [amount, setAmount] = useState(initialDraft?.amount ?? String(suggestion.amount));
 	const [accountAmount, setAccountAmount] = useState(initialDraft?.accountAmount ?? "");
 	const identity = useCacheIdentity();
 	const queryClient = useQueryClient();
@@ -67,6 +65,8 @@ export function PaymentSuggestionForm({
 			(!initialDraft && (preference.isPending || preference.isError)) ||
 			accounts.isPending ||
 			accounts.isError ||
+			!Number.isFinite(Number(amount)) ||
+			!(Number(amount) > 0) ||
 			!accounts.data?.some(
 				account => account.id === accountId && !["CREDIT_CARD", "REWARDS"].includes(account.type),
 			) ||
@@ -76,12 +76,12 @@ export function PaymentSuggestionForm({
 			(foreign && (!Number.isFinite(Number(accountAmount)) || !(Number(accountAmount) > 0)))
 		) {
 			setValidationError(
-				"Confira a data, selecione uma conta disponível e informe um débito válido. Aguarde o carregamento dos dados antes de salvar.",
+				"Confira a data, selecione uma conta disponível e informe valores positivos válidos. Aguarde o carregamento dos dados antes de salvar.",
 			);
 			return;
 		}
 		setValidationError("");
-		const draft = { accountAmount, accountId, attemptId, date };
+		const draft = { accountAmount, accountId, amount, attemptId, date };
 		runBackgroundModalAction({
 			cache: { client: queryClient, operations: ["transaction"] },
 			close: onClose,
@@ -96,7 +96,7 @@ export function PaymentSuggestionForm({
 			run: () =>
 				dataService.creditCards.confirmPaymentSuggestion(suggestion.creditCardId, {
 					accountAmount: draft.accountAmount ? Number(draft.accountAmount) : undefined,
-					amount: suggestion.amount,
+					amount: Number(draft.amount),
 					attemptId: draft.attemptId,
 					date: draft.date,
 					financialAccountId: draft.accountId,
@@ -130,11 +130,22 @@ export function PaymentSuggestionForm({
 								{validationError}
 							</p>
 						)}
-						<p className="font-semibold text-xl">{currency.format(suggestion.amount)}</p>
+						<MoneyField
+							currencyCode={suggestion.currency ?? "BRL"}
+							id="suggestion-payment-amount"
+							label="Valor do pagamento"
+							onValueChange={value => {
+								setAmount(value);
+								setAccountAmount("");
+								setAttemptId(crypto.randomUUID());
+							}}
+							required
+							value={amount}
+						/>
 						{(initialDraft || (!preference.isPending && !preference.isError)) && foreign && (
 							<>
 								<TransactionConversionPreview
-									amount={String(suggestion.amount)}
+									amount={amount}
 									bookingCurrency={suggestion.currency ?? "BRL"}
 									date={date}
 									fees={[]}
@@ -216,6 +227,8 @@ export function PaymentSuggestionForm({
 								(!initialDraft && (preference.isPending || preference.isError)) ||
 								accounts.isPending ||
 								accounts.isError ||
+								!Number.isFinite(Number(amount)) ||
+								!(Number(amount) > 0) ||
 								!accountId ||
 								!date ||
 								(foreign && !(Number(accountAmount) > 0))

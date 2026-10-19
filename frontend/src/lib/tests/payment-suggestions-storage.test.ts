@@ -186,6 +186,17 @@ test("visitor payment validates balance and date, serializes attempts and isolat
 		expect(result.transaction.paymentCreditCardId).toBe("card");
 		await storage.localTransactions.delete(input.attemptId, owner);
 	}
+	for (const amount of [0, -1]) {
+		await expect(storage.confirmLocalSuggestedPayment("card", { ...input, amount })).rejects.toThrow();
+	}
+	const partial = await storage.confirmLocalSuggestedPayment("card", { ...input, amount: 40 });
+	expect(partial.transaction.amount).toBe(40);
+	expect(partial.transaction.paymentAmount).toBe(40);
+	await storage.localTransactions.delete(input.attemptId, owner);
+	const overpayment = await storage.confirmLocalSuggestedPayment("card", { ...input, amount: 120 });
+	expect(overpayment.transaction.amount).toBe(120);
+	expect(overpayment.transaction.paymentAmount).toBe(120);
+	await storage.localTransactions.delete(input.attemptId, owner);
 	const [first, repeated] = await Promise.all([
 		storage.confirmLocalSuggestedPayment("card", input),
 		storage.confirmLocalSuggestedPayment("card", input),

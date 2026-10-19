@@ -69,10 +69,7 @@ export async function confirmSuggestedPayment(userId: string, cardId: string, in
 		);
 		if (!account) throw new HttpException("Conta pagadora indisponível", 400);
 		const suggestion = pendingStatementPayments(book).find(row => row.statementId === input.statementId);
-		if (
-			!suggestion ||
-			moneyCents(suggestion.amount, 1, book.card.currency) !== moneyCents(input.amount, 1, book.card.currency)
-		)
+		if (!suggestion || !Number.isFinite(input.amount) || !(input.amount > 0))
 			throw new HttpException("Saldo da fatura mudou. Revise o pagamento novamente", 409);
 		const debitAmount =
 			input.accountAmount ??
