@@ -82,3 +82,22 @@ test("existing single purchases, charges and refunds remain excluded", () => {
 		expect(selectNewImportPurchases([existing], roots, [], new Set())).toEqual([]);
 	}
 });
+
+test("a complete accelerated purchase can be imported again after its root was deleted", () => {
+	const complete = {
+		...purchase,
+		currentInstallment: 1,
+		description: "AMAZON BR [[anticipated:1:2203;2:2200;3:2200;4:2200;5:2200;6:2200;7:2200;8:2200]]",
+		externalId: "amazon-key",
+		installmentAmount: 22.03,
+		installments: 8,
+		purchaseDate: "2026-04-30",
+		totalAmount: 176.03,
+	};
+	// Deleted purchases no longer appear in CreditEntry; their old IDs must not be reused.
+	expect(selectNewImportPurchases([complete], new Map(), [], new Set())).toEqual([
+		{ ...complete, reconciledCreditPurchaseId: null },
+	]);
+	// An already pending review stays in its current batch instead of creating another copy.
+	expect(selectNewImportPurchases([complete], new Map(), [], new Set([complete.externalId]))).toEqual([]);
+});

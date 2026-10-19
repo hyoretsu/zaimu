@@ -1,5 +1,9 @@
 import { synchronizeImportedStatementDates } from "@zaimu/finance/credit-book";
-import { importedAnticipation, withoutImportedAnticipation } from "@zaimu/finance/imported-anticipation";
+import {
+	hasCompleteImportedPlan,
+	importedAnticipation,
+	withoutImportedAnticipation,
+} from "@zaimu/finance/imported-anticipation";
 import { getTagsByEntity, tagEntityType } from "~/modules/categories/application/tag-assignments";
 import { type CreditReadRow, readCreditEntries } from "~/modules/creditCards/application/credit-entry-reader";
 import { mutateCreditBook } from "~/modules/creditCards/application/normalized-credit-book";
@@ -223,6 +227,7 @@ export async function getImportReturn(
 	for (const item of items)
 		if (
 			importedAnticipation(item.description) &&
+			!hasCompleteImportedPlan(item.description, item.installments) &&
 			!item.reconciledCreditPurchaseId &&
 			!duplicates.has(item.id)
 		)
@@ -395,6 +400,7 @@ async function approveItemsImpl(
 	for (const item of allItems)
 		if (
 			importedAnticipation(item.description) &&
+			!hasCompleteImportedPlan(item.description, item.installments) &&
 			!item.reconciledCreditPurchaseId &&
 			!duplicates.has(item.id)
 		)
@@ -461,7 +467,12 @@ async function approveItemsImpl(
 			`SELECT * FROM "CreditEntry" WHERE "externalId"=$1 AND "creditCardId"=$2 LIMIT 1`,
 			[item.externalId, creditCardImport.creditCardId],
 		);
-		if (importedAnticipation(item.description) && !item.reconciledCreditPurchaseId && !importedRoot)
+		if (
+			importedAnticipation(item.description) &&
+			!hasCompleteImportedPlan(item.description, item.installments) &&
+			!item.reconciledCreditPurchaseId &&
+			!importedRoot
+		)
 			throw new HttpException("Vincule a antecipação à compra original antes de aprovar", 409);
 		debtSplitsByItem.set(item.id, debtSplit);
 		previousRootsByItem.set(item.id, importedRoot);
@@ -512,7 +523,12 @@ async function approveItemsImpl(
 						[item.externalId, creditCardImport.creditCardId],
 					)
 				)[0];
-		if (importedAnticipation(item.description) && !item.reconciledCreditPurchaseId && !importedRoot)
+		if (
+			importedAnticipation(item.description) &&
+			!hasCompleteImportedPlan(item.description, item.installments) &&
+			!item.reconciledCreditPurchaseId &&
+			!importedRoot
+		)
 			throw new HttpException("Vincule a antecipação à compra original antes de aprovar", 409);
 		const rootId =
 			rootsByItem.get(item.id) ??

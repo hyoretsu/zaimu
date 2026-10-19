@@ -1,4 +1,8 @@
-import { importedAnticipation, withoutImportedAnticipation } from "@zaimu/finance/imported-anticipation";
+import {
+	hasCompleteImportedPlan,
+	importedAnticipation,
+	withoutImportedAnticipation,
+} from "@zaimu/finance/imported-anticipation";
 import { LuCheck, LuCircleAlert, LuLoaderCircle, LuPencil } from "react-icons/lu";
 import { ImportItemDateTime, TransactionListItem } from "@/components/transactions";
 import { AppBadge } from "@/components/ui/AppBadge";
@@ -65,6 +69,9 @@ export function CreditCardImportItemRow({
 	const transaction = toTransaction(item, creditCardId, creditCardName, currencyCode);
 	const financedOperation = getFinancedOperation(item.description);
 	const anticipated = importedAnticipation(item.description);
+	const requiresOriginal = Boolean(
+		anticipated && !hasCompleteImportedPlan(item.description, item.installments),
+	);
 	const anticipatedAmount = anticipated?.reduce((sum, installment) => sum + installment.amountCents, 0) ?? 0;
 	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
 
@@ -85,7 +92,7 @@ export function CreditCardImportItemRow({
 					disabled:
 						disabled ||
 						(item.installmentAmount >= 0 &&
-							(item.duplicates.length > 0 || Boolean(anticipated && !item.reconciledCreditPurchaseId))),
+							(item.duplicates.length > 0 || Boolean(requiresOriginal && !item.reconciledCreditPurchaseId))),
 					icon: pending ? <LuLoaderCircle className="animate-spin" /> : <LuCheck />,
 					onClick: onApprove,
 					text: pending ? "Processando..." : item.installmentAmount < 0 ? "Revisar reembolso" : "Aprovar",
@@ -112,13 +119,13 @@ export function CreditCardImportItemRow({
 			metadataPrefix={
 				<div className="flex flex-wrap items-center gap-1.5">
 					<ImportItemDateTime
-						date={anticipated && !item.reconciledCreditPurchaseId ? undefined : item.purchaseDate}
-						originalPurchase={!anticipated || Boolean(item.reconciledCreditPurchaseId)}
+						date={requiresOriginal && !item.reconciledCreditPurchaseId ? undefined : item.purchaseDate}
+						originalPurchase={!requiresOriginal || Boolean(item.reconciledCreditPurchaseId)}
 						time={item.time}
 					/>
 					{item.isStatementCharge && <AppBadge variant="outline">Encargo da fatura</AppBadge>}
 					{anticipated && <AppBadge variant="outline">Antecipação de {anticipated.length} parcelas</AppBadge>}
-					{anticipated && !item.reconciledCreditPurchaseId && (
+					{requiresOriginal && !item.reconciledCreditPurchaseId && (
 						<AppBadge variant="outline">
 							{item.duplicates.length ? "Vincule à compra original" : "Importe a compra original"}
 						</AppBadge>

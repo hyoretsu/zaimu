@@ -33,3 +33,14 @@ export function withImportedAnticipation(
 ) {
 	return `${withoutImportedAnticipation(description)} [[anticipated:${installments.map(i => `${i.number}:${i.amountCents}`).join(";")}]]`;
 }
+
+/** A full imported plan supplies its own original purchase without inventing missing installments. */
+export function hasCompleteImportedPlan(description: string, installments: number) {
+	const imported = importedAnticipation(description);
+	return Boolean(
+		Number.isInteger(installments) &&
+			installments >= 2 &&
+			imported?.length === installments &&
+			imported.every(item => item.number <= installments),
+	);
+}
