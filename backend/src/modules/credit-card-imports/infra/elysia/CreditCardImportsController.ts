@@ -19,7 +19,6 @@ import {
 	newBookPurchase,
 	readCreditBook,
 } from "~/modules/creditCards/application/normalized-credit-book";
-import { getImportedInstallmentAmounts } from "~/modules/creditCards/domain/installment-amounts";
 import { getDebtSplitInput, replaceDebtSplit } from "~/modules/debts/application/debt-splits";
 import { createCreditCardBatch } from "~/modules/transaction-imports/application/import-batches";
 import { HttpException } from "~/shared/errors";
@@ -43,6 +42,7 @@ import {
 } from "../../application/import-service";
 import { assignCreditCardPurchaseExternalIds } from "../../domain/credit-card-import-identity";
 import { parseCreditCardStatementPdf } from "../../domain/credit-card-statement-parser";
+import { getEditedInstallmentAmount } from "../../domain/edited-installment-amount";
 import { existingImportRoots } from "../../domain/existing-import-roots";
 import { existingPurchaseImportValues } from "../../domain/existing-purchase-import-values";
 import { filterZeroValuePurchases } from "../../domain/filter-zero-value-purchases";
@@ -377,14 +377,15 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 				throw new HttpException("Antecipação não permite alterar o parcelamento nem virar encargo", 400);
 			if (isStatementCharge && (installments !== 1 || body.debtSplit))
 				throw new HttpException("Encargos não permitem rateio ou parcelamento automático", 400);
+			let installmentAmount: number;
 			try {
-				if (Number(current.installmentAmount) > 0)
-					getImportedInstallmentAmounts({
-						currentInstallment: current.currentInstallment,
-						installmentAmount: Number(current.installmentAmount),
-						installments,
-						totalAmount,
-					});
+				installmentAmount = getEditedInstallmentAmount({
+					currentInstallment: current.currentInstallment,
+					installmentAmount: Number(current.installmentAmount),
+					installments,
+					previousInstallments: current.installments,
+					totalAmount,
+				});
 			} catch (error) {
 				throw new HttpException(
 					error instanceof Error ? error.message : "Valores das parcelas inválidos",
@@ -410,7 +411,7 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 								: getFinancingTarget(current.description)
 									? withFinancingTarget(preservedDescription, getFinancingTarget(current.description)!)
 									: preservedDescription,
-					installmentAmount: String(current.installmentAmount),
+					installmentAmount: String(installmentAmount),
 					installments,
 					isSelected: body.isSelected ?? current.isSelected,
 					isStatementCharge,
