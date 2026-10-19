@@ -53,7 +53,7 @@ export function parseBradescoCreditCardStatementText(text: string): CreditCardSt
 	if (transactionsStart < 0 || transactionsEnd <= transactionsStart)
 		throw new Error("Não foi possível encontrar os lançamentos da fatura");
 	const transactionsSection = text.slice(transactionsStart, transactionsEnd);
-	const purchasePattern = /^(\d{2})\/(\d{2})\s+(.+?)\s+(\d{1,3}(?:\.\d{3})*,\d{2})(?:\s*-)?$/gimu;
+	const purchasePattern = /^(\d{2})\/(\d{2})\s+(.+?)\s+(\d{1,3}(?:\.\d{3})*,\d{2})\s*(-)?$/gimu;
 	const purchases: CreditCardStatementPurchase[] = [];
 	for (const match of transactionsSection.matchAll(purchasePattern)) {
 		const description = match[3]!.trim();
@@ -62,7 +62,7 @@ export function parseBradescoCreditCardStatementText(text: string): CreditCardSt
 		const currentInstallment = Number(installment?.[1] ?? 1);
 		const installments = Number(installment?.[2] ?? 1);
 		if (currentInstallment < 1 || installments < currentInstallment || installments > 48) continue;
-		const installmentAmount = moneyToNumber(match[4]!);
+		const installmentAmount = moneyToNumber(match[4]!) * (match[5] ? -1 : 1);
 		if (!Number.isFinite(installmentAmount)) continue;
 		purchases.push({
 			currentInstallment,

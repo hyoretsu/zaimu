@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { importedAnticipation } from "@zaimu/finance/imported-anticipation";
 import { parseBradescoCreditCardStatementText } from "./bradesco-credit-card";
 
 describe("parseBradescoCreditCardStatementText", () => {
@@ -59,4 +60,37 @@ Total parcelado para as próximas faturas R$ 567,57
 			statementDate: "2026-08-25",
 		});
 	});
+});
+
+test("keeps the Amazon May refund negative and separate from accelerated installments", () => {
+	const statement = parseBradescoCreditCardStatementText(`
+Fatura mensal
+Total da fatura R$ 125,33 Vencimento 25/05/2026
+Nacionais em Reais (R$)
+30/04 AMAZON BR SAO PAULO(01/08) 22,03
+30/04 AMAZON BR SAO PAULO(02/08) 22,00
+30/04 AMAZON BR SAO PAULO(03/08) 22,00
+30/04 AMAZON BR SAO PAULO(04/08) 22,00
+30/04 AMAZON BR SAO PAULO(05/08) 22,00
+30/04 AMAZON BR SAO PAULO(06/08) 22,00
+30/04 AMAZON BR SAO PAULO(07/08) 22,00
+30/04 AMAZON BR SAO PAULO(08/08) 22,00
+30/04 AMAZON BR SAO PAULO BRA 176,03 -
+27/04 PAGAMENTO RECEBIDO - OBRIGADO 160,71 -
+Total parcelado para as próximas faturas R$ 293,01
+`);
+	expect(statement.purchases).toHaveLength(2);
+	const [purchase, refund] = statement.purchases;
+	expect(purchase!.totalAmount).toBe(176.03);
+	expect(importedAnticipation(purchase!.description)).toHaveLength(8);
+	expect(refund).toEqual({
+		currentInstallment: 1,
+		description: "AMAZON BR SAO PAULO BRA",
+		installmentAmount: -176.03,
+		installments: 1,
+		purchaseDate: "2026-04-30",
+		totalAmount: -176.03,
+	});
+	expect(importedAnticipation(refund!.description)).toBeNull();
+	expect(Math.round(statement.purchases.reduce((sum, item) => sum + item.totalAmount, 0) * 100)).toBe(0);
 });
