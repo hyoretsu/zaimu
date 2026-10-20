@@ -23,8 +23,8 @@ import { showToast } from "@/stores";
 import { StatementFilePicker } from "./StatementFilePicker";
 
 import {
+	getSelectableImportAccounts,
 	getTransactionImportProvider,
-	supportsTransactionImport,
 	type TransactionImportProvider,
 } from "./transaction-import-institutions";
 
@@ -65,14 +65,14 @@ export function ImportTransactionsDialog({
 		setInstitutionId("");
 	});
 	useEffect(() => {
-		if (!open || !financialAccountId || !accounts.data) return;
+		if (!open || !financialAccountId || !accounts.data || !institutions.data) return;
 		const account = accounts.data.find(account => account.id === financialAccountId);
-		if (account && supportsTransactionImport(account)) {
+		if (account && getSelectableImportAccounts([account], institutions.data, "").length) {
 			setInstitutionId(account.institution!.id);
 		} else {
 			setFinancialAccountId("");
 		}
-	}, [accounts.data, financialAccountId, open]);
+	}, [accounts.data, financialAccountId, institutions.data, open]);
 	const selectedInstitution = institutions.data?.find(institution => institution.id === institutionId);
 	const provider = getTransactionImportProvider(selectedInstitution) ?? "";
 	const handleOpenChange = onOpenChange;
@@ -90,7 +90,10 @@ export function ImportTransactionsDialog({
 			if (!financialAccountId) throw new Error("Selecione a conta que receberá as transações.");
 			if (!provider) throw new Error("Selecione a instituição do extrato.");
 			const account = accounts.data?.find(account => account.id === financialAccountId);
-			if (!account || !supportsTransactionImport(account) || account.institution?.id !== institutionId) {
+			if (
+				!account ||
+				!getSelectableImportAccounts([account], institutions.data ?? [], institutionId).length
+			) {
 				throw new Error("Selecione uma conta da instituição do extrato.");
 			}
 			return dataService.transactionImports.create({ file, financialAccountId, provider });
@@ -117,13 +120,11 @@ export function ImportTransactionsDialog({
 			);
 		},
 	});
-	const selectableAccounts =
-		accounts.data
-			?.filter(
-				account =>
-					supportsTransactionImport(account) && (!institutionId || account.institution?.id === institutionId),
-			)
-			.toSorted(compareFinancialAccountsByOptionLabel) ?? [];
+	const selectableAccounts = getSelectableImportAccounts(
+		accounts.data ?? [],
+		institutions.data ?? [],
+		institutionId,
+	).toSorted(compareFinancialAccountsByOptionLabel);
 
 	return (
 		<Dialog onOpenChange={handleOpenChange} open={open}>
@@ -142,6 +143,7 @@ export function ImportTransactionsDialog({
 				>
 					<DialogBody>
 						<CustomSelect
+							isLoading={accounts.isPending || institutions.isPending}
 							label="Instituição"
 							onValueChange={value => {
 								setInstitutionId(value);
@@ -160,6 +162,7 @@ export function ImportTransactionsDialog({
 							value={institutionId}
 						/>
 						<CustomSelect
+							isLoading={accounts.isPending || institutions.isPending}
 							label="Conta que receberá as transações"
 							onValueChange={value => {
 								setFinancialAccountId(value);

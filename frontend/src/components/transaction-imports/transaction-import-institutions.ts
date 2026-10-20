@@ -26,3 +26,22 @@ export function supportsTransactionImport(account: FinancialAccount) {
 		!!getTransactionImportProvider(account.institution)
 	);
 }
+
+export function getSelectableImportAccounts(
+	accounts: FinancialAccount[],
+	institutions: FinancialInstitution[],
+	institutionId: string,
+) {
+	const supportedIds = new Set(
+		institutions
+			.filter(institution => getTransactionImportProvider(institution))
+			.map(institution => institution.id),
+	);
+	return accounts.filter(
+		account =>
+			supportsTransactionImport(account) &&
+			!!account.institution &&
+			supportedIds.has(account.institution.id) &&
+			(!institutionId || account.institution.id === institutionId),
+	);
+}
