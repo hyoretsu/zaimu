@@ -40,7 +40,7 @@ const fields: Field[] = [
 ];
 function formatExistingPurchase(candidate: CreditCardImportPurchaseDuplicate) {
 	const registered = candidate.id.startsWith("pending:")
-		? "Compra pendente nesta importação"
+		? "Compra desta importação - ainda não aprovada"
 		: candidate.installments === 1
 			? "Compra à vista registrada"
 			: `${candidate.existingInstallments} ${candidate.existingInstallments === 1 ? "parcela registrada" : "parcelas registradas"}`;
@@ -119,7 +119,7 @@ export function CreditPurchaseReconciliationDialog({
 					</DialogTitle>
 					<DialogDescription>
 						{anticipated ? (
-							"Escolha a compra original. As parcelas antecipadas serão movidas para esta fatura, mantendo os dados da compra."
+							`${item.duplicates.length === 1 ? "Confira a compra original selecionada automaticamente." : "Escolha a compra original."} As parcelas antecipadas serão movidas para esta fatura, mantendo os dados da compra.`
 						) : refinancing ? (
 							`Confira a compra original. A aprovação encerra suas parcelas pendentes e cria um novo plano de ${item.installments} parcelas, com o total importado. O histórico e as parcelas pagas são preservados.`
 						) : (
@@ -135,7 +135,7 @@ export function CreditPurchaseReconciliationDialog({
 						<div className="space-y-4 pr-3">
 							{anticipated && item.duplicates.length === 1 && (
 								<div className="space-y-1 rounded-xl border p-3 text-sm">
-									<p className="font-medium">Compra identificada</p>
+									<p className="font-medium">Compra selecionada automaticamente</p>
 									<p className="break-words">{duplicate.description}</p>
 									<p className="text-muted-foreground">
 										{formatLocalDate(duplicate.purchaseDate)} - {formatExistingPurchase(duplicate)}
