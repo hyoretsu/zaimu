@@ -1,5 +1,9 @@
 import { expect, test } from "bun:test";
-import { hasCompleteImportedPlan, withImportedAnticipation } from "./imported-anticipation";
+import {
+	hasCompleteImportedPlan,
+	matchingAnticipatedTail,
+	withImportedAnticipation,
+} from "./imported-anticipation";
 
 test("only a complete positive plan can supply the missing original purchase", () => {
 	const complete = withImportedAnticipation("AMAZON", [
@@ -13,4 +17,15 @@ test("only a complete positive plan can supply the missing original purchase", (
 	expect(hasCompleteImportedPlan("AMAZON [[anticipated:1:2203;1:2200]]", 2)).toBe(false);
 	expect(hasCompleteImportedPlan("AMAZON [[anticipated:1:2203;2:0]]", 2)).toBe(false);
 	expect(hasCompleteImportedPlan("AMAZON [[anticipated:2:2203;3:2200]]", 2)).toBe(false);
+});
+
+test("maps anticipated amounts to the final installments, preserving exact rounding", () => {
+	const description = withImportedAnticipation(
+		"LOJA",
+		Array.from({ length: 8 }, (_, i) => ({ amountCents: i === 0 ? 2203 : 2200, number: i + 1 })),
+	);
+	expect(matchingAnticipatedTail(description, [2200, 2203, ...Array(7).fill(2200)])).toEqual([
+		2, 3, 4, 5, 6, 7, 8, 9,
+	]);
+	expect(matchingAnticipatedTail(description, [2203, ...Array(8).fill(2200)])).toBeUndefined();
 });

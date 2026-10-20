@@ -90,9 +90,7 @@ test("validates imported cancellation numbers and exact installment amounts", ()
 	expect(() => refundCancellationNumbers(refund!.description, 9999, [5000, 5000, 5000])).toThrow(
 		"Valores das parcelas",
 	);
-	expect(() => refundCancellationNumbers(refund!.description, 10000, [5000, 4999, 5001])).toThrow(
-		"Valores das parcelas",
-	);
+	expect(refundCancellationNumbers(refund!.description, 10000, [5000, 4999, 5001])).toEqual([2, 3]);
 	expect(() => refundCancellationNumbers(refund!.description, 10000, [5000])).toThrow("Valores das parcelas");
 });
 

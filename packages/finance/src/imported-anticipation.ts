@@ -44,3 +44,16 @@ export function hasCompleteImportedPlan(description: string, installments: numbe
 			imported.every(item => item.number <= installments),
 	);
 }
+
+/** Match the final N installments of an N or N+1 purchase using exact cents. */
+export function matchingAnticipatedTail(description: string, amounts: readonly number[]) {
+	const parts = importedAnticipation(description);
+	if (!parts || (amounts.length !== parts.length && amounts.length !== parts.length + 1)) return undefined;
+	const start = amounts.length - parts.length;
+	if (
+		amounts.slice(start).reduce((sum, amount) => sum + amount, 0) !==
+		parts.reduce((sum, part) => sum + part.amountCents, 0)
+	)
+		return undefined;
+	return amounts.slice(start).map((_, index) => start + index + 1);
+}

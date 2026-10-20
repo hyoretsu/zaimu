@@ -1,6 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { creditBookPlan } from "@zaimu/finance/credit-book";
-import { installmentOccurrenceDate, purchaseStatementDates } from "@zaimu/finance/credit-purchase";
+import {
+	distributePurchaseCents,
+	installmentOccurrenceDate,
+	purchaseStatementDates,
+} from "@zaimu/finance/credit-purchase";
 import { importedAnticipation, withoutImportedAnticipation } from "@zaimu/finance/imported-anticipation";
 import { currencyScale } from "@zaimu/finance/money";
 import { useState } from "react";
@@ -24,7 +28,7 @@ import type { CreditCardImportItem } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 
-import { matchingRefundSource } from "./refund-source-match";
+import { eligibleRefundSources, matchingRefundSource } from "./refund-source-match";
 
 export function RefundImportReviewDialog({
 	cardId,
@@ -94,9 +98,27 @@ export function RefundImportReviewDialog({
 		queryFn: () => dataService.creditCards.getBook(cardId),
 		queryKey: queryKeys.creditCards.book(identity!, cardId),
 	});
-	const suggested = matchingRefundSource(item, sources.data ?? []);
-	const sourceId = chosenSourceId || suggested?.id || "";
-	const selected = sources.data?.find(source => source.id === sourceId);
+	const eligibleSources = eligibleRefundSources(
+		item,
+		(sources.data ?? []).map(source => ({
+			...source,
+			installmentAmountsCents:
+				book.data?.purchases.find(purchase => purchase.id === source.id)?.installmentAmountsCents ??
+				(book.data
+					? distributePurchaseCents(
+							Math.round(source.totalAmount * currencyScale(book.data.card.currency)),
+							source.installments,
+							new Map(),
+							book.data.card.installmentRemainderOnFirst,
+						)
+					: undefined),
+		})),
+	);
+	const suggested = matchingRefundSource(item, eligibleSources);
+	const sourceId = eligibleSources.some(source => source.id === chosenSourceId)
+		? chosenSourceId
+		: suggested?.id || "";
+	const selected = eligibleSources.find(source => source.id === sourceId);
 	const amount = Math.abs(item.installmentAmount);
 	const reconstructedTotal = Number(totalAmount);
 	const count = Number.parseInt(installments, 10);
@@ -221,8 +243,8 @@ export function RefundImportReviewDialog({
 									<CustomSelect
 										label="Compra original"
 										onValueChange={setSourceId}
-										options={(sources.data ?? []).map(source => ({
-											label: `${source.description} - ${source.purchaseDate.slice(0, 10)} - disponível ${currency.format(source.refundableAmount)}`,
+										options={eligibleSources.map(source => ({
+											label: `${source.description} - ${source.purchaseDate.slice(0, 10)} - ${source.installments}x - ${currency.format(source.totalAmount)}`,
 											value: source.id,
 										}))}
 										placeholder="Busque a compra original"

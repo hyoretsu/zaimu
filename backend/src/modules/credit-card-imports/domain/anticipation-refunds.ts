@@ -1,5 +1,6 @@
 import {
 	importedAnticipation,
+	matchingAnticipatedTail,
 	withImportedAnticipation,
 	withoutImportedAnticipation,
 } from "@zaimu/finance/imported-anticipation";
@@ -98,6 +99,8 @@ export function refundCancellationNumbers(
 ) {
 	const parts = importedAnticipation(description);
 	if (!parts) return undefined;
+	const tail = matchingAnticipatedTail(description, installmentAmountsCents);
+	if (tail && parts.reduce((sum, part) => sum + part.amountCents, 0) <= amountCents) return tail;
 	if (
 		parts.some(part => installmentAmountsCents[part.number - 1] !== part.amountCents) ||
 		parts.reduce((sum, part) => sum + part.amountCents, 0) > amountCents

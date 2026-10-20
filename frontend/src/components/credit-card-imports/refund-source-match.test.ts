@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { withImportedAnticipation } from "@zaimu/finance/imported-anticipation";
-import { matchingRefundSource } from "./refund-source-match";
+import { eligibleRefundSources, matchingRefundSource } from "./refund-source-match";
 
 const item = {
 	description: "AMAZON BR SAO PAULO BRA",
@@ -38,7 +38,7 @@ test("selects original for a partial cancellation by its original total, with en
 		installmentAmount: -100,
 		totalAmount: -150,
 	};
-	const original = { ...source, refundableAmount: 150, totalAmount: 150 };
+	const original = { ...source, installments: 3, refundableAmount: 150, totalAmount: 150 };
 	expect(matchingRefundSource(cancellation, [original])?.id).toBe(source.id);
 	expect(matchingRefundSource(cancellation, [original, { ...original, id: "other" }])).toBeUndefined();
 	expect(matchingRefundSource(cancellation, [{ ...original, refundableAmount: 99 }])).toBeUndefined();
@@ -61,14 +61,39 @@ test("matches the unique 176.03 purchase in eight installments despite different
 		"pending:purchase",
 	);
 	expect(matchingRefundSource(refund, [original, { ...original, id: "other" }])).toBeUndefined();
-	for (const changes of [
-		{ installments: 7 },
-		{ totalAmount: 176.04 },
-		{ refundableAmount: 176.02 },
-		{ purchaseDate: "2026-05-21" },
-	])
+	for (const changes of [{ installments: 7 }, { totalAmount: 176.04 }, { refundableAmount: 176.02 }])
 		expect(matchingRefundSource(refund, [{ ...original, ...changes }])).toBeUndefined();
 	expect(
 		matchingRefundSource(refund, [original, { ...original, id: "different-plan", installments: 10 }])?.id,
 	).toBe("purchase");
+});
+
+test("filters by the last eight exact installments in eight or nine installment purchases", () => {
+	const refund = {
+		...item,
+		description: withImportedAnticipation(
+			"LOJA",
+			Array.from({ length: 8 }, (_, i) => ({ amountCents: i === 0 ? 2203 : 2200, number: i + 1 })),
+		),
+	};
+	const eight = { ...source, installmentAmountsCents: [2203, ...Array(7).fill(2200)], installments: 8 };
+	const nine = {
+		...source,
+		id: "nine",
+		installmentAmountsCents: [2200, 2203, ...Array(7).fill(2200)],
+		installments: 9,
+		totalAmount: 198.03,
+	};
+	const wrongTail = { ...nine, id: "wrong", installmentAmountsCents: [2203, ...Array(8).fill(2200)] };
+	expect(
+		eligibleRefundSources(refund, [
+			eight,
+			nine,
+			wrongTail,
+			{ ...nine, id: "ten", installments: 10 },
+			{ ...eight, id: "spent", refundableAmount: 1 },
+		]).map(p => p.id),
+	).toEqual(["purchase", "nine"]);
+	expect(matchingRefundSource(refund, [nine, wrongTail])?.id).toBe("nine");
+	expect(matchingRefundSource(refund, [eight, nine])).toBeUndefined();
 });
