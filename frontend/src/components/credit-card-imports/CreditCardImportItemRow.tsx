@@ -1,5 +1,5 @@
 import { importedAnticipation, withoutImportedAnticipation } from "@zaimu/finance/imported-anticipation";
-import { LuCheck, LuCircleAlert, LuLoaderCircle, LuPencil } from "react-icons/lu";
+import { LuCheck, LuCircleAlert, LuLoaderCircle, LuPencil, LuUndo2 } from "react-icons/lu";
 import { ImportItemDateTime, TransactionListItem } from "@/components/transactions";
 import { AppBadge } from "@/components/ui/AppBadge";
 import type { CreditCardImportItem, Transaction } from "@/lib/api";
@@ -18,7 +18,7 @@ function toTransaction(
 ): Transaction {
 	const financedOperation = getFinancedOperation(item.description);
 	return {
-		amount: Math.abs(item.totalAmount),
+		amount: Math.abs(item.installmentAmount < 0 ? item.installmentAmount : item.totalAmount),
 		bookingCurrency: currencyCode,
 		createdAt: item.createdAt,
 		creditCardId,
@@ -64,7 +64,8 @@ export function CreditCardImportItemRow({
 }) {
 	const transaction = toTransaction(item, creditCardId, creditCardName, currencyCode);
 	const financedOperation = getFinancedOperation(item.description);
-	const anticipated = importedAnticipation(item.description);
+	const cancellation = item.installmentAmount < 0 ? importedAnticipation(item.description) : null;
+	const anticipated = item.installmentAmount > 0 ? importedAnticipation(item.description) : null;
 	const requiresOriginal = Boolean(anticipated);
 	const anticipatedAmount = anticipated?.reduce((sum, installment) => sum + installment.amountCents, 0) ?? 0;
 	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
@@ -87,7 +88,13 @@ export function CreditCardImportItemRow({
 						disabled ||
 						(item.installmentAmount >= 0 &&
 							(item.duplicates.length > 0 || Boolean(requiresOriginal && !item.reconciledCreditPurchaseId))),
-					icon: pending ? <LuLoaderCircle className="animate-spin" /> : <LuCheck />,
+					icon: pending ? (
+						<LuLoaderCircle className="animate-spin" />
+					) : item.installmentAmount < 0 ? (
+						<LuPencil />
+					) : (
+						<LuCheck />
+					),
 					onClick: onApprove,
 					text: pending ? "Processando..." : item.installmentAmount < 0 ? "Revisar reembolso" : "Aprovar",
 				},
@@ -103,20 +110,38 @@ export function CreditCardImportItemRow({
 						]),
 			]}
 			amount={
-				anticipated ? (
+				cancellation ? (
+					<span className="whitespace-nowrap font-semibold text-emerald-600 text-sm">
+						{currency.format(Math.abs(item.installmentAmount))}
+					</span>
+				) : anticipated ? (
 					<span className="whitespace-nowrap font-semibold text-foreground text-sm">
 						{currency.format(anticipatedAmount / 100)} nesta fatura
 					</span>
 				) : undefined
 			}
 			forceCompactActions
+			icon={
+				item.installmentAmount < 0 ? (
+					<div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-muted text-emerald-600">
+						<LuUndo2 aria-hidden="true" />
+					</div>
+				) : undefined
+			}
 			metadataPrefix={
 				<div className="flex flex-wrap items-center gap-1.5">
 					<ImportItemDateTime
 						date={requiresOriginal && !item.reconciledCreditPurchaseId ? undefined : item.purchaseDate}
-						originalPurchase={!requiresOriginal || Boolean(item.reconciledCreditPurchaseId)}
+						originalPurchase={
+							item.installmentAmount >= 0 && (!requiresOriginal || Boolean(item.reconciledCreditPurchaseId))
+						}
 						time={item.time}
 					/>
+					{item.installmentAmount < 0 && (
+						<AppBadge variant="outline">
+							{cancellation ? `Reembolso de ${cancellation.length} parcelas` : "Reembolso"}
+						</AppBadge>
+					)}
 					{item.isStatementCharge && <AppBadge variant="outline">Encargo da fatura</AppBadge>}
 					{anticipated && <AppBadge variant="outline">Antecipação de {anticipated.length} parcelas</AppBadge>}
 					{requiresOriginal && !item.reconciledCreditPurchaseId && (
@@ -153,6 +178,10 @@ export function CreditCardImportItemRow({
 				anticipated ? (
 					<p className="min-w-0 flex-1 truncate font-semibold leading-6">
 						Antecipação - {withoutImportedAnticipation(cleanFinancedDescription(item.description))}
+					</p>
+				) : item.installmentAmount < 0 ? (
+					<p className="min-w-0 flex-1 truncate font-semibold leading-6">
+						{withoutImportedAnticipation(item.description).replace(/^Reembolso\s*-\s*/iu, "")}
 					</p>
 				) : undefined
 			}

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { creditBookPlan } from "@zaimu/finance/credit-book";
 import { installmentOccurrenceDate, purchaseStatementDates } from "@zaimu/finance/credit-purchase";
+import { importedAnticipation, withoutImportedAnticipation } from "@zaimu/finance/imported-anticipation";
 import { currencyScale } from "@zaimu/finance/money";
 import { useState } from "react";
 import { ImportDialog, ImportDialogContent } from "@/components/imports";
@@ -45,19 +46,20 @@ export function RefundImportReviewDialog({
 		| "reconciledCreditPurchaseId"
 		| "storeName"
 		| "totalAmount"
-	>;
+	> & { installments?: number };
 	loadSources: () => ReturnType<typeof dataService.creditCardImports.refundSources>;
 	onOpenChange: (open: boolean) => void;
 	onSubmit: (data: Parameters<typeof dataService.creditCardImports.approveRefund>[2]) => Promise<unknown>;
 	pending: boolean;
 	reviewKey: string;
 }) {
+	const cancellation = importedAnticipation(item.description);
 	const [mode, setMode] = useState<"link" | "reconstruct">(initialData?.purchase ? "reconstruct" : "link");
 	const [chosenSourceId, setSourceId] = useState(
 		initialData?.purchaseId ?? item.reconciledCreditPurchaseId ?? "",
 	);
 	const [description, setDescription] = useDebouncedInput(
-		initialData?.purchase?.description ?? item.description,
+		initialData?.purchase?.description ?? withoutImportedAnticipation(item.description),
 		() => undefined,
 	);
 	const [storeName, setStoreName] = useDebouncedInput(
@@ -65,7 +67,10 @@ export function RefundImportReviewDialog({
 		() => undefined,
 	);
 	const [installments, setInstallments] = useDebouncedInput(
-		String(initialData?.purchase?.installments ?? 1),
+		String(
+			initialData?.purchase?.installments ??
+				(cancellation ? (item.installments ?? Math.max(...cancellation.map(part => part.number))) : 1),
+		),
 		() => undefined,
 	);
 	const [purchaseDate, setPurchaseDate] = useState(
@@ -150,6 +155,7 @@ export function RefundImportReviewDialog({
 							.statementDate > creditCycle!,
 				);
 	const needsPolicy =
+		!cancellation &&
 		firstRefund &&
 		Math.round(amount * currencyScale(currencyCode)) ===
 			Math.round(originalTotal * currencyScale(currencyCode)) &&
@@ -189,6 +195,12 @@ export function RefundImportReviewDialog({
 						<p className="text-destructive text-sm">Não foi possível carregar as compras do cartão.</p>
 					) : (
 						<>
+							{cancellation ? (
+								<p className="text-muted-foreground text-sm">
+									Este reembolso cancela {cancellation.length} parcelas da compra. O crédito compensa a
+									antecipação; somente o excedente entra como crédito na fatura.
+								</p>
+							) : null}
 							<CustomSelect
 								label="Origem do reembolso"
 								onValueChange={value => setMode(value as typeof mode)}
@@ -202,26 +214,22 @@ export function RefundImportReviewDialog({
 							{mode === "link" ? (
 								<>
 									{suggested && !chosenSourceId ? (
-										<div className="rounded-xl border p-3 text-sm">
-											<p className="font-medium">Compra identificada</p>
-											<p>
-												{suggested.description} - {currency.format(suggested.totalAmount)}
-											</p>
-										</div>
-									) : (
-										<CustomSelect
-											label="Compra original"
-											onValueChange={setSourceId}
-											options={(sources.data ?? []).map(source => ({
-												label: `${source.description} - ${source.purchaseDate.slice(0, 10)} - disponível ${currency.format(source.refundableAmount)}`,
-												value: source.id,
-											}))}
-											placeholder="Busque a compra original"
-											required
-											searchable
-											value={sourceId}
-										/>
-									)}
+										<p className="text-muted-foreground text-sm">
+											Compra selecionada automaticamente. Confira ou escolha outra compra.
+										</p>
+									) : null}
+									<CustomSelect
+										label="Compra original"
+										onValueChange={setSourceId}
+										options={(sources.data ?? []).map(source => ({
+											label: `${source.description} - ${source.purchaseDate.slice(0, 10)} - disponível ${currency.format(source.refundableAmount)}`,
+											value: source.id,
+										}))}
+										placeholder="Busque a compra original"
+										required
+										searchable
+										value={sourceId}
+									/>
 									{selected && selected.refundableAmount < amount ? (
 										<p className="text-destructive text-sm">Reembolso excede saldo disponível da compra.</p>
 									) : null}

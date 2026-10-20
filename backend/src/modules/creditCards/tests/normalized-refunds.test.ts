@@ -416,6 +416,63 @@ describe("normalized refund transactions", () => {
 				)
 			).status,
 		).toBe(200);
+		// A legacy pending batch must collapse before pagination, and approval cancels only its installments.
+		const { withImportedAnticipation } = await import("@zaimu/finance/imported-anticipation");
+		const { creditBookEntries } = await import("@zaimu/finance/credit-book");
+		const { mutateCreditBook, newBookPurchase, readCreditBook } = await import(
+			"../application/normalized-credit-book"
+		);
+		const canceledPurchase = await mutateCreditBook(context.userId, context.cardId, b =>
+			newBookPurchase(b, {
+				description: "AMAZON BR SAO PAULO",
+				installments: 3,
+				purchaseDate: "2024-08-10",
+				totalAmount: 150,
+			}),
+		);
+		await client.query(
+			`INSERT INTO "CreditCardImport" ("id","userId","creditCardId","provider","fileName","statementDate","dueDate") VALUES ('normalized-offset-import',$1,$2,'BRADESCO','offset.pdf','2024-09-30','2024-10-05')`,
+			[context.userId, context.cardId],
+		);
+		await client.query(
+			`INSERT INTO "CreditCardImportItem" ("id","creditCardImportId","externalId","purchaseDate","description","totalAmount","installmentAmount","installments","reconciledCreditPurchaseId") VALUES
+			('normalized-offset-anticipation','normalized-offset-import','offset-anticipation','2024-08-10',$1,150,50,3,$2),
+			('normalized-offset-credit','normalized-offset-import','offset-credit','2024-08-10','AMAZON BR SAO PAULO',-100,-100,1,NULL)`,
+			[
+				withImportedAnticipation("AMAZON BR SAO PAULO", [
+					{ amountCents: 5000, number: 2 },
+					{ amountCents: 5000, number: 3 },
+				]),
+				canceledPurchase.id,
+			],
+		);
+		const reviewed = await request("/credit-card-imports/normalized-offset-import");
+		expect(reviewed.status).toBe(200);
+		const review = (await reviewed.json()) as {
+			items: { id: string; installmentAmount: number; reconciledCreditPurchaseId: string }[];
+			pendingItemCount: number;
+		};
+		expect(review.pendingItemCount).toBe(1);
+		expect(review.items).toHaveLength(1);
+		expect(review.items[0]).toMatchObject({
+			id: "normalized-offset-credit",
+			installmentAmount: -100,
+			reconciledCreditPurchaseId: canceledPurchase.id,
+		});
+		const approval = await request(
+			"/credit-card-imports/normalized-offset-import/items/normalized-offset-credit/approve-refund",
+			"POST",
+			{ purchaseId: canceledPurchase.id },
+		);
+		expect(approval.status).toBe(200);
+		const afterOffset = await readCreditBook(context.userId, context.cardId);
+		const offsetRefund = afterOffset.refunds.find(r => r.externalId === "offset-credit")!;
+		expect(offsetRefund.canceledInstallmentNumbers).toEqual([2, 3]);
+		expect(offsetRefund.amountCents).toBe(10000);
+		const offsetRows = creditBookEntries(afterOffset).filter(row => row.purchaseId === canceledPurchase.id);
+		expect(offsetRows.filter(row => row.isReimbursed).map(row => row.currentInstallment)).toEqual([2, 3]);
+		expect(offsetRows.find(row => row.id === offsetRefund.id)?.installmentAmount).toBe(-0);
+
 		const statements = await request(`/credit-cards/${context.cardId}/statements`);
 		expect(statements.status).toBe(200);
 		expect(((await statements.json()) as { items: unknown[] }).items.length).toBeGreaterThan(0);

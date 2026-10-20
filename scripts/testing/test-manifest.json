@@ -1,6 +1,7 @@
 {
 	"backend:e2e": ["backend/tests/database.e2e.test.ts"],
 	"backend:integration": [
+		"backend/src/modules/credit-card-imports/tests/credit-card-refunds.test.ts",
 		"backend/scripts/tests/consumed-contracts.test.ts",
 		"backend/scripts/tests/export-openapi.test.ts",
 		"backend/src/modules/accounts/tests/cashback-reversals.integration.test.ts",
@@ -47,6 +48,7 @@
 		"backend/src/modules/categories/application/category-lookup.test.ts",
 		"backend/src/modules/categories/infra/elysia/CategoriesDTO.test.ts",
 		"backend/src/modules/credit-card-imports/domain/anticipated-installments.test.ts",
+		"backend/src/modules/credit-card-imports/domain/anticipation-refunds.test.ts",
 		"backend/src/modules/credit-card-imports/domain/bradesco-credit-card.test.ts",
 		"backend/src/modules/credit-card-imports/domain/bulk-approval.test.ts",
 		"backend/src/modules/credit-card-imports/domain/credit-card-import-identity.test.ts",

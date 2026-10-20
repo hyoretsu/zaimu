@@ -1,5 +1,6 @@
 import { addBookRefund } from "@zaimu/finance/credit-book";
 import { statementEntryKind } from "@zaimu/finance/credit-card";
+import { distributePurchaseCents } from "@zaimu/finance/credit-purchase";
 import {
 	importedAnticipation,
 	withImportedAnticipation,
@@ -35,11 +36,13 @@ import {
 import {
 	approveItems,
 	cleanupItemTags,
+	combinePendingAnticipationRefunds,
 	getImport,
 	getImportReturn,
 	getPotentialDuplicates,
 	markStatementAsFullySynced,
 } from "../../application/import-service";
+import { combineAnticipationRefunds, refundCancellationNumbers } from "../../domain/anticipation-refunds";
 import { assignCreditCardPurchaseExternalIds } from "../../domain/credit-card-import-identity";
 import { parseCreditCardStatementPdf } from "../../domain/credit-card-statement-parser";
 import { getEditedInstallmentAmount } from "../../domain/edited-installment-amount";
@@ -140,11 +143,13 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 				statement.purchases.find(purchase =>
 					/^(saldo\s+(anterior|financiado)|saldo devedor anterior)/i.test(purchase.description.trim()),
 				)?.installmentAmount;
-			const purchases = assignCreditCardPurchaseExternalIds(
-				filterZeroValuePurchases(
-					statement.purchases.filter(purchase => statementEntryKind(purchase.description) !== "BALANCE"),
+			const purchases = combineAnticipationRefunds(
+				assignCreditCardPurchaseExternalIds(
+					filterZeroValuePurchases(
+						statement.purchases.filter(purchase => statementEntryKind(purchase.description) !== "BALANCE"),
+					),
+					body.creditCardId,
 				),
-				body.creditCardId,
 			);
 			const [existing, pending] = await Promise.all([
 				queryRaw<CreditReadRow>(
@@ -183,7 +188,12 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 			);
 			const existingCardEntries = await readCreditEntries(body.creditCardId);
 			for (const purchase of newPurchases) {
-				if (!importedAnticipation(purchase.description) || purchase.reconciledCreditPurchaseId) continue;
+				if (
+					purchase.installmentAmount < 0 ||
+					!importedAnticipation(purchase.description) ||
+					purchase.reconciledCreditPurchaseId
+				)
+					continue;
 				const matches = existingCardEntries.filter(
 					entry =>
 						!entry.parentId &&
@@ -212,7 +222,13 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 			for (let index = newPurchases.length - 1; index >= 0; index--) {
 				const purchase = newPurchases[index]!;
 				const anticipated = importedAnticipation(purchase.description);
-				if (!anticipated || !purchase.reconciledCreditPurchaseId || !statementId) continue;
+				if (
+					purchase.installmentAmount < 0 ||
+					!anticipated ||
+					!purchase.reconciledCreditPurchaseId ||
+					!statementId
+				)
+					continue;
 				const rootId = purchase.reconciledCreditPurchaseId;
 				if (
 					anticipated.every(installment =>
@@ -610,6 +626,7 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 		async ({ params, request }) => {
 			const userId = await requireUserId(request);
 			const imported = await getImport(userId, params.id);
+			await combinePendingAnticipationRefunds(userId, params.id);
 			const book = await readCreditBook(userId, imported.creditCardId);
 			const pending = await queryRaw<{
 				id: string;
@@ -663,8 +680,10 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 				]);
 				const imported = await getImport(userId, params.id);
 				if (imported.status !== "PENDING") throw new HttpException("Importação já aprovada", 409);
+				await combinePendingAnticipationRefunds(userId, params.id);
 				const [item] = await query<{
 					id: string;
+					description: string;
 					installmentAmount: number;
 					purchaseDate: Date;
 					externalId: string;
@@ -715,8 +734,23 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 								})
 							: null;
 					if (!p) throw new HttpException("Vincule ou revise a compra original", 400);
+					const importedCancellation = importedAnticipation(item.description);
+					if (body.purchase && importedCancellation) {
+						p.installmentAmountsCents = distributePurchaseCents(
+							p.totalAmountCents,
+							p.installmentAmountsCents.length,
+							new Map(importedCancellation.map(part => [part.number, part.amountCents])),
+							book.card.installmentRemainderOnFirst,
+						);
+					}
+					const cancellation = refundCancellationNumbers(
+						item.description,
+						Math.round(Math.abs(Number(item.installmentAmount)) * 100),
+						p.installmentAmountsCents,
+					);
 					const r = addBookRefund(book, p.id, {
 						amount: Math.abs(Number(item.installmentAmount)),
+						canceledInstallmentNumbers: cancellation,
 						creditDate: dateKey(item.purchaseDate),
 						policy: body.policy,
 					});

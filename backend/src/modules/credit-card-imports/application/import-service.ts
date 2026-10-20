@@ -1,5 +1,9 @@
 import { synchronizeImportedStatementDates } from "@zaimu/finance/credit-book";
-import { importedAnticipation, withoutImportedAnticipation } from "@zaimu/finance/imported-anticipation";
+import {
+	importedAnticipation,
+	withImportedAnticipation,
+	withoutImportedAnticipation,
+} from "@zaimu/finance/imported-anticipation";
 import {
 	getTagsByEntity,
 	replaceEntityTags,
@@ -32,6 +36,7 @@ import {
 	withRawTransaction,
 	withTransaction,
 } from "~/shared/infra/sql";
+import { anticipationRefundPairs } from "../domain/anticipation-refunds";
 import { canBulkApprovePurchase } from "../domain/bulk-approval";
 import {
 	isPotentialPurchaseRefinancing,
@@ -43,6 +48,7 @@ import {
 	includePendingPurchaseSources,
 	pendingPurchaseId,
 	withoutPendingPurchase,
+	withPendingPurchase,
 } from "../domain/pending-purchase-reference";
 import { uniquePurchaseMatches } from "../domain/unique-purchase-matches";
 import { materializeImportedPurchase, materializeImportedPurchases } from "./materialize-imported-purchase";
@@ -126,7 +132,12 @@ export async function getPotentialDuplicates(
 	}
 	const result = new Map<string, typeof candidatesWithCounts>();
 	for (const item of items) {
-		if (item.reconciledCreditPurchaseId || pendingPurchaseId(item.description)) continue;
+		if (
+			Number(item.installmentAmount) < 0 ||
+			item.reconciledCreditPurchaseId ||
+			pendingPurchaseId(item.description)
+		)
+			continue;
 		const matches = candidatesWithCounts.filter(candidate =>
 			importedAnticipation(item.description)
 				? candidate.installments === item.installments &&
@@ -259,14 +270,58 @@ const decodeImportItemsCursor = (cursor?: string): ImportItemsCursor | null => {
 	}
 };
 
+/** Normalize legacy pending batches before pagination or approval, under the batch lock. */
+export async function combinePendingAnticipationRefunds(userId: string, importId: string) {
+	await withRawTransaction(async query => {
+		const [batch] = await query<{ status: string }>(
+			`SELECT "status" FROM "CreditCardImport" WHERE "id"=$1 AND "userId"=$2 FOR UPDATE`,
+			[importId, userId],
+		);
+		if (batch?.status !== "PENDING") return;
+		const items = await query<{
+			id: string;
+			description: string;
+			installmentAmount: string;
+			installments: number;
+			purchaseDate: Date;
+			totalAmount: string;
+			reconciledCreditPurchaseId: string | null;
+		}>(
+			`SELECT * FROM "CreditCardImportItem" WHERE "creditCardImportId"=$1 AND NOT "isStatementCharge" FOR UPDATE`,
+			[importId],
+		);
+		for (const { anticipation, credit, installments } of anticipationRefundPairs(items)) {
+			let description = withImportedAnticipation(credit.description, installments);
+			const sourceId = pendingPurchaseId(anticipation.description);
+			if (sourceId) description = withPendingPurchase(description, sourceId);
+			await query(
+				`UPDATE "CreditCardImportItem" SET "description"=$2, "installments"=$3,
+				"totalAmount"=$4, "reconciledCreditPurchaseId"=COALESCE("reconciledCreditPurchaseId", $5),
+				"updatedAt"=CURRENT_TIMESTAMP WHERE "id"=$1`,
+				[
+					credit.id,
+					description,
+					anticipation.installments,
+					-Math.abs(Number(anticipation.totalAmount)),
+					anticipation.reconciledCreditPurchaseId,
+				],
+			);
+			await cleanupItemTags([anticipation.id]);
+			await query(`DELETE FROM "CreditCardImportItem" WHERE "id"=$1`, [anticipation.id]);
+		}
+	});
+}
+
 export async function getImportReturn(
 	userId: string,
 	importId: string,
 	page: { cursor?: string; limit?: number } = {},
 ) {
 	const creditCardImport = await getImport(userId, importId);
-	if (creditCardImport.status === "PENDING")
+	if (creditCardImport.status === "PENDING") {
+		await combinePendingAnticipationRefunds(userId, importId);
 		await reconcileUniquePurchases(userId, importId, creditCardImport.creditCardId);
+	}
 	const limit = Math.min(page.limit ?? 50, 100);
 	const cursor = decodeImportItemsCursor(page.cursor);
 	const itemPage = await queryRaw<{
@@ -478,6 +533,7 @@ async function approveItemsImpl(
 			.build(),
 	);
 	if (!card) throw new HttpException("Cartão não encontrado", 404);
+	await combinePendingAnticipationRefunds(userId, importId);
 	await reconcileUniquePurchases(userId, importId, creditCardImport.creditCardId);
 	const allItems = await queryRows(
 		db.sql.public.CreditCardImportItem.select(
