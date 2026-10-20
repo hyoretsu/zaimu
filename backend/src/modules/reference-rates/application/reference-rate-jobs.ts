@@ -337,7 +337,6 @@ async function processAccountRecalculation(job: ClaimedJob) {
 					functions.and(
 						functions.eq(fields.financialAccountId, account.id),
 						functions.eq(fields.date, day),
-						functions.eq(fields.kind, "AUTOMATIC"),
 						functions.eq(fields.origin, "USER"),
 					),
 				)

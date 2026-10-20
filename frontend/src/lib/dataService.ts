@@ -780,8 +780,7 @@ export const dataService = {
 			const existing = yields.find(
 				yieldEntry =>
 					yieldEntry.financialAccountId === data.financialAccountId &&
-					yieldEntry.date.slice(0, 10) === data.date &&
-					yieldEntry.kind === "MANUAL",
+					yieldEntry.date.slice(0, 10) === data.date,
 			);
 			const created: FinancialAccountYield = {
 				amount: data.amount,
@@ -793,12 +792,14 @@ export const dataService = {
 				kind: "MANUAL",
 				time: data.time ?? null,
 			};
-			await localMeta.set(
-				"financial-account-yields",
-				existing
-					? yields.map(yieldEntry => (yieldEntry.id === existing.id ? created : yieldEntry))
-					: [...yields, created],
-			);
+			await localMeta.set("financial-account-yields", [
+				...yields.filter(
+					yieldEntry =>
+						yieldEntry.financialAccountId !== data.financialAccountId ||
+						yieldEntry.date.slice(0, 10) !== data.date,
+				),
+				created,
+			]);
 			return created;
 		},
 		async delete(id: string): Promise<void> {
@@ -953,6 +954,17 @@ export const dataService = {
 			}
 			const yields =
 				((await localMeta.get("financial-account-yields")) as FinancialAccountYield[] | null) ?? [];
+			const existing = yields.find(yieldEntry => yieldEntry.id === id);
+			if (
+				existing &&
+				yields.some(
+					yieldEntry =>
+						yieldEntry.id !== id &&
+						yieldEntry.financialAccountId === existing.financialAccountId &&
+						yieldEntry.date.slice(0, 10) === data.date,
+				)
+			)
+				throw new Error("Já existe rendimento nesta conta e data");
 			await localMeta.set(
 				"financial-account-yields",
 				yields.map(yieldEntry => (yieldEntry.id === id ? { ...yieldEntry, ...data } : yieldEntry)),
@@ -972,9 +984,9 @@ export const dataService = {
 			const existing = yields.find(
 				yieldEntry =>
 					yieldEntry.financialAccountId === data.financialAccountId &&
-					yieldEntry.date.slice(0, 10) === data.date &&
-					yieldEntry.kind === "AUTOMATIC",
+					yieldEntry.date.slice(0, 10) === data.date,
 			);
+			if (existing?.kind === "MANUAL") return existing;
 			const saved: FinancialAccountYield = {
 				amount: data.isExcluded ? null : (data.amount ?? null),
 				date: data.date,

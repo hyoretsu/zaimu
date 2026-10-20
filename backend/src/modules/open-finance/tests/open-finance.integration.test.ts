@@ -63,6 +63,31 @@ describe("MeuPluggy local integration", () => {
 		globalThis.fetch = originalFetch;
 		if (sql) await sql.closeDatabase();
 	});
+	test("yield sync replaces calculated value and keeps its local identity on correction", async () => {
+		await sql.executeRaw(
+			`INSERT INTO "FinancialAccountYield" ("id","financialAccountId","date","amount","kind","origin") VALUES ('calculated-yield','account','2026-03-02',1,'AUTOMATIC','SYSTEM')`,
+		);
+		const input = remote("yield", { amount: 2, date: "2026-03-02", description: "Rendimentos" });
+		expect(await processRemote(input)).toBe("imported");
+		expect(await processRemote(input)).toBe("unchanged");
+		const [saved] = await sql.queryRaw<{ id: string; amount: number; kind: string }>(
+			`SELECT "id","amount","kind" FROM "FinancialAccountYield" WHERE "financialAccountId"='account' AND "date"='2026-03-02'`,
+		);
+		expect(saved).toMatchObject({ amount: 2, id: "calculated-yield", kind: "MANUAL" });
+		const [record] = await sql.queryRaw<{ localKind: string; localId: string; state: string }>(
+			`SELECT "localKind","localId","state" FROM "OpenFinanceRecord" WHERE "identity"='provider:bank-yield'`,
+		);
+		expect(record).toMatchObject({ localId: saved.id, localKind: "YIELD", state: "APPLIED" });
+		expect(await processRemote({ ...input, amount: 3 })).toBe("imported");
+		expect(
+			(
+				await sql.queryRaw<{ amount: number }>(`SELECT "amount" FROM "FinancialAccountYield" WHERE "id"=$1`, [
+					saved.id,
+				])
+			)[0].amount,
+		).toBe(3);
+	});
+
 	test("repeated and concurrent deliveries materialize once", async () => {
 		expect(await processRemote()).toBe("imported");
 		expect(await processRemote()).toBe("unchanged");

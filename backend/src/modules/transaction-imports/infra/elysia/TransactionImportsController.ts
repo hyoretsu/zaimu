@@ -772,7 +772,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					userId,
 				},
 			);
-			const [existingTransactions, existingYields, existingManualYields] = await Promise.all([
+			const [existingTransactions, existingYields] = await Promise.all([
 				queryRaw<{ externalId: string | null }>(
 					`SELECT "externalId" FROM "TransactionExternalReference" WHERE "financialAccountId"=$1 AND "externalId"=ANY($2::varchar[])`,
 					[body.financialAccountId, statementTransactions.map(transaction => transaction.externalId)],
@@ -781,30 +781,13 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					`SELECT "externalId" FROM "FinancialAccountYield" WHERE "financialAccountId"=$1 AND "externalId"=ANY($2::varchar[])`,
 					[body.financialAccountId, statementTransactions.map(transaction => transaction.externalId)],
 				),
-				queryRows(
-					db.sql.public.FinancialAccountYield.select("date")
-						.where((fields, functions) =>
-							functions.and(
-								functions.eq(fields.financialAccountId, body.financialAccountId),
-								functions.eq(fields.kind, "MANUAL"),
-							),
-						)
-						.build(),
-				),
 			]);
 			const existingExternalIds = new Set(
 				[...existingTransactions, ...existingYields].flatMap(transaction =>
 					transaction.externalId ? [transaction.externalId] : [],
 				),
 			);
-			const existingYieldDates = new Set(
-				existingManualYields.map(yieldRecord => toDateKey(yieldRecord.date)),
-			);
-			const transactions = filterExistingTransactions(
-				statementTransactions,
-				existingExternalIds,
-				existingYieldDates,
-			);
+			const transactions = filterExistingTransactions(statementTransactions, existingExternalIds);
 			const ignoredCount = statementTransactions.length - transactions.length;
 			if (transactions.length === 0) return { ignoredCount, transactionImport: null };
 			const transactionImport = await createTransactionBatch({

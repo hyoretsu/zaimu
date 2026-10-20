@@ -462,14 +462,22 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 						if (!account || account.type === "CREDIT_CARD")
 							throw new Error("Conta de rendimento indisponível");
 						const existing = await queryFirst(
-							db.sql.public.FinancialAccountYield.select("id", "financialAccountId", "origin")
-								.where((fields, functions) => functions.eq(fields.id, id))
+							db.sql.public.FinancialAccountYield.select("id", "financialAccountId", "origin", "externalId")
+								.where((fields, functions) =>
+									functions.or(
+										functions.eq(fields.id, id),
+										functions.and(
+											functions.eq(fields.financialAccountId, financialAccountId),
+											functions.eq(fields.date, date),
+										),
+									),
+								)
 								.limit(1)
 								.build(),
 						);
 						if (existing && existing.financialAccountId !== financialAccountId)
 							throw new Error(`Rendimento ${id} pertence a outra conta`);
-						if (existing?.origin === "SYSTEM") return;
+						if (existing?.externalId) return;
 						const values = {
 							amount: nullableNumeric<12, 4>(value<number | null | undefined>(entity, "amount") ?? null),
 							currency: account.currency,

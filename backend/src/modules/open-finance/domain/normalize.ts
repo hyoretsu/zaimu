@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { roundMoney } from "@zaimu/finance/money";
 import type { RemoteBill, RemoteTransaction } from "../infra/pluggy-client";
 
-export type Operation = "TRANSACTION" | "PURCHASE" | "PAYMENT" | "REFUND" | "CHARGE";
+export type Operation = "YIELD" | "TRANSACTION" | "PURCHASE" | "PAYMENT" | "REFUND" | "CHARGE";
 export interface NormalizedRecord {
 	aliases: string[];
 	identity: string;
@@ -53,7 +53,14 @@ export function classifyOperation(tx: RemoteTransaction, card: boolean): Operati
 		/^(pagamento (de |da )?fatura|pagamento recebido|payment received)$/i.test(tx.description.trim())
 	)
 		return "PAYMENT";
-	if (!card) return "TRANSACTION";
+	if (!card) {
+		if (
+			tx.amount > 0 &&
+			(["YIELD", "INTEREST", "INTEREST_CREDIT"].includes(kind) || /\brendimentos?\b/i.test(tx.description))
+		)
+			return "YIELD";
+		return "TRANSACTION";
+	}
 	if (["REFUND", "REVERSAL"].includes(kind) || tx.amount < 0) return "REFUND";
 	if (["FEE", "INTEREST", "CHARGE", "IOF"].includes(kind)) return "CHARGE";
 	return "PURCHASE";

@@ -58,3 +58,10 @@ test("bank values retain KWD thousandths and use JPY integer units", () => {
 		currency: "JPY",
 	});
 });
+
+test("identifies account yield credits without changing card interest charges", () => {
+	expect(classifyOperation({ ...tx, description: "Rendimentos" }, false)).toBe("YIELD");
+	expect(classifyOperation({ ...tx, operationType: "INTEREST_CREDIT" }, false)).toBe("YIELD");
+	expect(classifyOperation({ ...tx, amount: -100, description: "Rendimentos" }, false)).toBe("TRANSACTION");
+	expect(classifyOperation({ ...tx, operationType: "INTEREST" }, true)).toBe("CHARGE");
+});

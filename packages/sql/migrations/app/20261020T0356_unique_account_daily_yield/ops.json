@@ -1,0 +1,88 @@
+[
+	{
+		"execute": [
+			{
+				"description": "Keep one authoritative yield per account and date",
+				"sql": "-- Lock writers until duplicate cleanup and the unique index are committed together.\nLOCK TABLE public.\"FinancialAccountYield\" IN ACCESS EXCLUSIVE MODE;\n\n-- A reported value wins over a calculation. Preserve the newest authoritative row.\nCREATE TEMP TABLE yield_duplicate_ids ON COMMIT DROP AS\nSELECT \"id\" AS removed_id, kept_id\nFROM (\n  SELECT \"id\",\n    first_value(\"id\") OVER ranked AS kept_id,\n    row_number() OVER ranked AS priority\n  FROM public.\"FinancialAccountYield\"\n  WINDOW ranked AS (\n    PARTITION BY \"financialAccountId\", \"date\"\n    ORDER BY (\"externalId\" IS NOT NULL) DESC,\n      (\"kind\" = 'MANUAL') DESC, (\"origin\" = 'USER') DESC,\n      \"updatedAt\" DESC, \"createdAt\" DESC, \"id\" DESC\n  )\n) ranked_yields\nWHERE priority > 1;\n\n-- Imported synchronization links must continue pointing at the surviving yield.\nUPDATE public.\"OpenFinanceRecord\" AS record\nSET \"localId\" = duplicate.kept_id\nFROM yield_duplicate_ids AS duplicate\nWHERE record.\"localKind\" = 'YIELD' AND record.\"localId\" = duplicate.removed_id;\n\nDELETE FROM public.\"FinancialAccountYield\" AS yield\nUSING yield_duplicate_ids AS duplicate\nWHERE yield.\"id\" = duplicate.removed_id;\n"
+			}
+		],
+		"id": "financialAccountYield.deduplicate",
+		"label": "Keep reported yields and preserve synchronization links",
+		"operationClass": "data",
+		"postcheck": [],
+		"precheck": [],
+		"target": {
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "drop index \"FinancialAccountYield_accountId_date_kind_key\"",
+				"params": [],
+				"sql": "DROP INDEX \"public\".\"FinancialAccountYield_accountId_date_kind_key\""
+			}
+		],
+		"id": "dropIndex.FinancialAccountYield.FinancialAccountYield_accountId_date_kind_key",
+		"label": "Drop index \"FinancialAccountYield_accountId_date_kind_key\"",
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify index \"FinancialAccountYield_accountId_date_kind_key\" does not exist",
+				"params": ["\"public\".\"FinancialAccountYield_accountId_date_kind_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"FinancialAccountYield_accountId_date_kind_key\" exists",
+				"params": ["\"public\".\"FinancialAccountYield_accountId_date_kind_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "FinancialAccountYield_accountId_date_kind_key",
+				"objectType": "index",
+				"schema": "public",
+				"table": "FinancialAccountYield"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"FinancialAccountYield_accountId_date_key\"",
+				"params": [],
+				"sql": "CREATE UNIQUE INDEX \"FinancialAccountYield_accountId_date_key\" ON \"public\".\"FinancialAccountYield\" (\"financialAccountId\", \"date\")"
+			}
+		],
+		"id": "index.FinancialAccountYield.FinancialAccountYield_accountId_date_key",
+		"label": "Create index \"FinancialAccountYield_accountId_date_key\" on \"FinancialAccountYield\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"FinancialAccountYield_accountId_date_key\" exists",
+				"params": ["\"public\".\"FinancialAccountYield_accountId_date_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"FinancialAccountYield_accountId_date_key\" does not exist",
+				"params": ["\"public\".\"FinancialAccountYield_accountId_date_key\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "FinancialAccountYield_accountId_date_key",
+				"objectType": "index",
+				"schema": "public",
+				"table": "FinancialAccountYield"
+			},
+			"id": "postgres"
+		}
+	}
+]

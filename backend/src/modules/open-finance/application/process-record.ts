@@ -58,7 +58,7 @@ function transactionInput(
 		storeName: null,
 		time: remote.time,
 		transferCounterpartExternalId: null,
-		type: remote.amount < 0 ? "EXPENSE" : "INCOME",
+		type: remote.operation === "YIELD" ? "YIELD" : remote.amount < 0 ? "EXPENSE" : "INCOME",
 	};
 }
 async function addAliases(userId: string, accountId: string, recordId: string, aliases: string[]) {
@@ -185,11 +185,13 @@ async function applyRemote(
 	remote: NormalizedRecord,
 	localId?: string | null,
 	correcting = false,
+	localKind?: LocalKind | null,
 ) {
 	const reference = externalReference(userId, binding.remoteAccountId, remote.identity);
 	if (!binding.creditCardId) {
 		const input = transactionInput(binding, remote, reference);
-		if (localId) {
+		if (localKind === "YIELD") input.type = "YIELD";
+		if (localId && input.type !== "YIELD") {
 			const tags = await getTagsByEntity("TRANSACTION", [localId]);
 			const split = await getDebtSplitInput({ transactionId: localId });
 			const [old] = await queryRaw<{
@@ -224,6 +226,13 @@ async function applyRemote(
 		const id = await withTransaction(tx =>
 			persistImportItem(tx, input, [], binding.financialAccountId!, userId),
 		);
+		if (input.type === "YIELD") {
+			const [saved] = await queryRaw<{ id: string }>(
+				`SELECT "id" FROM "FinancialAccountYield" WHERE "financialAccountId"=$1 AND "date"=$2`,
+				[binding.financialAccountId, input.date],
+			);
+			return { id: saved.id, kind: "YIELD" as const };
+		}
 		return { id: id!, kind: "TRANSACTION" as const };
 	}
 	const [card] = await queryRaw<Parameters<typeof materializeImportedPurchase>[0] & Record<string, unknown>>(
@@ -280,9 +289,11 @@ async function safelyApplyRemote(
 			? remote.operation === "CHARGE"
 				? "CHARGE"
 				: "PURCHASE"
-			: "TRANSACTION";
+			: record.localKind === "YIELD"
+				? "YIELD"
+				: "TRANSACTION";
 		const before = localId ? await localSnapshot(kind, localId, userId) : null;
-		const result = await applyRemote(userId, binding, remote, localId, correcting);
+		const result = await applyRemote(userId, binding, remote, localId, correcting, record.localKind);
 		if (before && localId) {
 			const siblings = await queryRaw<{ id: string; appliedSnapshot: Record<string, unknown> }>(
 				`SELECT "id", "appliedSnapshot" FROM "OpenFinanceRecord" WHERE "userId"=$1 AND "localId"=$2 AND "state"='APPLIED'`,
@@ -378,7 +389,8 @@ export async function processRecord(
 		const accountCompatible = binding.creditCardId
 			? entity.creditCardId === binding.creditCardId
 			: entity.originFinancialAccountId === binding.financialAccountId ||
-				entity.destinationFinancialAccountId === binding.financialAccountId;
+				entity.destinationFinancialAccountId === binding.financialAccountId ||
+				entity.financialAccountId === binding.financialAccountId;
 		if (unchangedRemote) return "unchanged";
 		if (
 			!accountCompatible ||
@@ -396,7 +408,11 @@ export async function processRecord(
 					creditCardId: binding.creditCardId ? String(entity.creditCardId) : null,
 					financialAccountId: binding.creditCardId
 						? null
-						: String(entity.originFinancialAccountId ?? entity.destinationFinancialAccountId),
+						: String(
+								entity.financialAccountId ??
+									entity.originFinancialAccountId ??
+									entity.destinationFinancialAccountId,
+							),
 				},
 				record,
 				remote,

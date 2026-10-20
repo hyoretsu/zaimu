@@ -36,6 +36,7 @@ export interface FinancialAccountYieldEntry {
 	id: string;
 	kind: "AUTOMATIC" | "MANUAL";
 	isHidden?: boolean;
+	isSynced?: boolean;
 	time?: string | null;
 }
 
@@ -211,6 +212,7 @@ export function calculateFinancialAccountYieldEntries(
 		const key = format(day, "yyyy-MM-dd");
 		for (const movement of events.get(key) ?? []) ledger.applyCashFlow(movement, key);
 		balance = ledger.balance;
+		const hasManualYield = yields?.some(entry => entry.kind === "MANUAL" && entry.date.slice(0, 10) === key);
 		const manualYields = yields.filter(
 			yieldEntry =>
 				yieldEntry.kind === "MANUAL" && !yieldEntry.isExcluded && yieldEntry.date.slice(0, 10) === key,
@@ -219,7 +221,7 @@ export function calculateFinancialAccountYieldEntries(
 			const recorded = yields.find(
 				entry => entry.kind === "AUTOMATIC" && entry.date.slice(0, 10) === key && !entry.isExcluded,
 			);
-			if (recorded?.amount != null) {
+			if (!hasManualYield && recorded?.amount != null) {
 				entries.push({
 					...recorded,
 					amount: recorded.amount,
@@ -246,7 +248,7 @@ export function calculateFinancialAccountYieldEntries(
 		const automaticYield = yields.find(
 			yieldEntry => yieldEntry.kind === "AUTOMATIC" && yieldEntry.date.slice(0, 10) === key,
 		);
-		if (balance > 0 && !automaticYield?.isExcluded) {
+		if (balance > 0 && !hasManualYield && !automaticYield?.isExcluded) {
 			const settings = getYieldSettings(account, key);
 			const calendarCovered =
 				Array.isArray(holidays) ||
@@ -376,6 +378,7 @@ function calculateYieldedBalance(
 				balance = ledger.balance;
 			}
 		}
+		const hasManualYield = yields?.some(entry => entry.kind === "MANUAL" && entry.date.slice(0, 10) === key);
 		const manualYields = yields?.filter(
 			yieldEntry =>
 				yieldEntry.kind === "MANUAL" && !yieldEntry.isExcluded && yieldEntry.date.slice(0, 10) === key,
@@ -385,7 +388,7 @@ function calculateYieldedBalance(
 			const recorded = yields?.find(
 				entry => entry.kind === "AUTOMATIC" && entry.date.slice(0, 10) === key && !entry.isExcluded,
 			);
-			if (recorded?.amount != null) ledger.accrueNet(recorded.amount, key);
+			if (!hasManualYield && recorded?.amount != null) ledger.accrueNet(recorded.amount, key);
 			balance = ledger.balance;
 			applyAdjustment(key);
 			continue;
@@ -394,7 +397,7 @@ function calculateYieldedBalance(
 		const automaticYield = yields?.find(
 			yieldEntry => yieldEntry.kind === "AUTOMATIC" && yieldEntry.date.slice(0, 10) === key,
 		);
-		if (balance > 0 && !automaticYield?.isExcluded) {
+		if (balance > 0 && !hasManualYield && !automaticYield?.isExcluded) {
 			const hasReference = settingsRequireReference(yieldSettings);
 			const grossAmount = hasReference ? 0 : calculateGrossYield(ledger.eligibleBalance(key), yieldSettings);
 			if (

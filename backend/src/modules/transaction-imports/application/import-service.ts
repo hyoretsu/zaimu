@@ -104,42 +104,23 @@ export async function persistImportItem(
 ) {
 	await lockImportPayment(item);
 	if (item.type === "YIELD") {
-		const existingYield = await transaction.queryFirst(
-			transaction.db.sql.public.FinancialAccountYield.select("id")
-				.where((fields, functions) =>
-					functions.and(
-						functions.eq(fields.financialAccountId, item.destinationFinancialAccountId!),
-						functions.eq(fields.date, item.date),
-						functions.eq(fields.kind, "MANUAL"),
-					),
-				)
-				.limit(1)
-				.build(),
+		const [saved] = await queryRaw<{ id: string }>(
+			`INSERT INTO "FinancialAccountYield" ("id","financialAccountId","date","amount","currency","externalId","kind","origin","isExcluded","isHidden","time")
+			 VALUES ($1,$2,$3,$4,$5,$6,'MANUAL','USER',false,$7,$8)
+			 ON CONFLICT ("financialAccountId","date") DO UPDATE SET "amount"=EXCLUDED."amount", "currency"=EXCLUDED."currency", "externalId"=EXCLUDED."externalId", "kind"='MANUAL', "origin"='USER', "isExcluded"=false, "isHidden"=EXCLUDED."isHidden", "time"=EXCLUDED."time", "updatedAt"=now()
+			 RETURNING "id"`,
+			[
+				crypto.randomUUID(),
+				item.destinationFinancialAccountId,
+				item.date,
+				String(item.amount),
+				await financialAccountCurrency(item.destinationFinancialAccountId),
+				item.externalId,
+				item.isHidden,
+				item.time,
+			],
 		);
-		const yieldValues = {
-			amount: String(item.amount),
-			currency: await financialAccountCurrency(item.destinationFinancialAccountId),
-			externalId: item.externalId,
-			isExcluded: false,
-			updatedAt: new Date(),
-		};
-		if (existingYield)
-			await transaction.executeStatement(
-				transaction.db.sql.public.FinancialAccountYield.update(yieldValues)
-					.where((fields, functions) => functions.eq(fields.id, existingYield.id))
-					.build(),
-			);
-		else
-			await transaction.executeStatement(
-				transaction.db.sql.public.FinancialAccountYield.insert([
-					{
-						...yieldValues,
-						date: item.date,
-						financialAccountId: item.destinationFinancialAccountId!,
-						kind: "MANUAL",
-					},
-				]).build(),
-			);
+		await settleExternalReview(item.id, "YIELD", saved.id);
 		return null;
 	}
 

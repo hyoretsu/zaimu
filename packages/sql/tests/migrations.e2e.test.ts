@@ -86,3 +86,40 @@ test("tax catalog migration seeds once and preserves administrator changes", asy
 		await client.end();
 	}
 });
+
+test("daily yields migration preserves imported value and prevents a second kind", async () => {
+	const operations = await Bun.file(
+		new URL("../migrations/app/20261020T0356_unique_account_daily_yield/ops.json", import.meta.url),
+	).json();
+	const client = new Client({ connectionString: url });
+	await client.connect();
+	try {
+		await client.query("BEGIN");
+		await client.query(`DROP INDEX "FinancialAccountYield_accountId_date_key";
+   CREATE UNIQUE INDEX "FinancialAccountYield_accountId_date_kind_key" ON "FinancialAccountYield" ("financialAccountId","date","kind");
+   INSERT INTO "user" ("id","email","name") VALUES ('yield-migration-user','yield-migration@example.test','Yield');
+   INSERT INTO "FinancialAccount" ("id","userId","type") VALUES ('yield-migration-account','yield-migration-user','CHECKING');
+   INSERT INTO "FinancialAccountYield" ("id","financialAccountId","date","amount","kind","origin","externalId") VALUES
+    ('yield-calculated','yield-migration-account','2026-01-05',1,'AUTOMATIC','SYSTEM',NULL),
+    ('yield-imported','yield-migration-account','2026-01-05',2,'MANUAL','USER','external-yield');`);
+		for (const operation of operations)
+			for (const step of operation.execute) await client.query(step.sql, step.params);
+		expect(
+			(
+				await client.query(
+					`SELECT "id","amount"::float8 FROM "FinancialAccountYield" WHERE "financialAccountId"='yield-migration-account'`,
+				)
+			).rows,
+		).toEqual([{ amount: 2, id: "yield-imported" }]);
+		await client.query("SAVEPOINT duplicate_yield");
+		await expect(
+			client.query(
+				`INSERT INTO "FinancialAccountYield" ("id","financialAccountId","date","amount","kind","origin") VALUES ('yield-second','yield-migration-account','2026-01-05',3,'AUTOMATIC','SYSTEM')`,
+			),
+		).rejects.toMatchObject({ code: "23505" });
+		await client.query("ROLLBACK TO SAVEPOINT duplicate_yield");
+	} finally {
+		await client.query("ROLLBACK");
+		await client.end();
+	}
+});

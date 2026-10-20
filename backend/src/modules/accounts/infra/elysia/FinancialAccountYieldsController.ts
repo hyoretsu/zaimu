@@ -26,6 +26,7 @@ export const YieldReturn = t.Object({
 	id: Id,
 	isExcluded: t.Boolean(),
 	isHidden: t.Boolean(),
+	isSynced: t.Optional(t.Boolean()),
 	kind: YieldKind,
 	origin: t.Union([t.Literal("SYSTEM"), t.Literal("USER")]),
 	time: YieldTime,
@@ -123,7 +124,7 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 						origin: string;
 						time: null | string;
 					}>(
-						`SELECT account."currency", entry."id", entry."financialAccountId", entry."date", entry."amount", entry."kind", entry."isExcluded", entry."isHidden", entry."origin", entry."time", COALESCE(account."name", institution."name", 'Conta') AS "accountName"
+						`SELECT account."currency", entry."id", entry."financialAccountId", entry."date", entry."amount", entry."kind", entry."isExcluded", entry."isHidden", entry."origin", entry."time", (entry."externalId" IS NOT NULL) AS "isSynced", COALESCE(account."name", institution."name", 'Conta') AS "accountName"
  FROM "FinancialAccountYield" entry JOIN "FinancialAccount" account ON account."id" = entry."financialAccountId"
  LEFT JOIN "FinancialInstitution" institution ON institution."id" = account."institutionId"
  WHERE account."userId" = $1 AND ($2::text IS NULL OR entry."financialAccountId" = $2)
@@ -214,7 +215,6 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 						functions.and(
 							functions.eq(fields.financialAccountId, body.financialAccountId),
 							functions.eq(fields.date, date),
-							functions.eq(fields.kind, body.kind),
 						),
 					)
 					.limit(1)
@@ -259,7 +259,6 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 						functions.and(
 							functions.eq(fields.financialAccountId, body.financialAccountId),
 							functions.eq(fields.date, date),
-							functions.eq(fields.kind, body.kind),
 						),
 					)
 					.limit(1)

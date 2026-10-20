@@ -325,7 +325,6 @@ describe("calculateFinancialAccountBalances", () => {
 
 		expect(entries.map(entry => [entry.id, entry.amount])).toEqual([
 			["automatic-edit", 1],
-			["automatic-yield-checking-2026-01-06", expect.any(Number)],
 			["manual-yield", 2],
 		]);
 	});
@@ -530,3 +529,39 @@ test("same-day transfer starts earning on the next eligible day", () => {
 		calculateFinancialAccountYieldEntries(account, transactions, [], new Date("2026-10-01T12:00:00")),
 	).toHaveLength(1);
 });
+
+for (const day of ["2026-01-05", "2026-01-10"]) {
+	test(`guest reported yield replaces automatic yield on ${day}`, () => {
+		const account = {
+			id: "account",
+			type: "CHECKING",
+			yieldFixedRate: 10,
+			yieldPeriod: "MONTHLY",
+		} as FinancialAccount;
+		const entries = calculateFinancialAccountYieldEntries(
+			account,
+			[{ amount: 100, date: day, destinationFinancialAccountId: "account" }],
+			[],
+			new Date(`${day}T12:00:00`),
+			[
+				{
+					amount: 1,
+					date: day,
+					financialAccountId: "account",
+					id: "calculated",
+					isExcluded: false,
+					kind: "AUTOMATIC",
+				},
+				{
+					amount: 2,
+					date: day,
+					financialAccountId: "account",
+					id: "reported",
+					isExcluded: false,
+					kind: "MANUAL",
+				},
+			],
+		);
+		expect(entries.map(entry => [entry.id, entry.amount])).toEqual([["reported", 2]]);
+	});
+}

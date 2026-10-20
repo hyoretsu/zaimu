@@ -1,6 +1,13 @@
 import { queryRaw } from "~/shared/infra/sql";
-export type LocalKind = "TRANSACTION" | "PURCHASE" | "CHARGE" | "REFUND";
+export type LocalKind = "YIELD" | "TRANSACTION" | "PURCHASE" | "CHARGE" | "REFUND";
 export async function localSnapshot(kind: LocalKind, id: string, userId: string) {
+	if (kind === "YIELD") {
+		const [row] = await queryRaw<{ snapshot: Record<string, unknown> }>(
+			`SELECT jsonb_build_object('entity', to_jsonb(y)) AS snapshot FROM "FinancialAccountYield" y JOIN "FinancialAccount" a ON a."id"=y."financialAccountId" WHERE y."id"=$1 AND a."userId"=$2`,
+			[id, userId],
+		);
+		return row?.snapshot ?? null;
+	}
 	const table =
 		kind === "TRANSACTION"
 			? "Transaction"

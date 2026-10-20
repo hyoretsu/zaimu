@@ -330,6 +330,7 @@ export const FinancialAccountYieldReturn = t.Object({
 	id: t.String(),
 	isExcluded: t.Boolean(),
 	isHidden: t.Optional(t.Boolean()),
+	isSynced: t.Optional(t.Boolean()),
 	kind: t.Union([t.Literal("AUTOMATIC"), t.Literal("MANUAL")]),
 	origin: t.Optional(t.Union([t.Literal("SYSTEM"), t.Literal("USER")])),
 	time: t.Optional(t.Union([t.Null(), t.String()])),

@@ -121,6 +121,7 @@ export function TransactionsList({
 					amount={entry.value.amount}
 					currencyCode={entry.value.currency ?? currencyCode ?? "BRL"}
 					deleting={isDeletingYield?.(entry.value)}
+					isSynced={entry.value.isSynced}
 					key={entry.id}
 					onDelete={() => onDeleteYield(entry.value)}
 					onEdit={() => onEditYield(entry.value)}

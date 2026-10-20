@@ -1,4 +1,5 @@
-import { LuPencil, LuTrash2, LuTrendingUp } from "react-icons/lu";
+import { LuCloudDownload, LuPencil, LuTrash2, LuTrendingUp } from "react-icons/lu";
+import { AppBadge } from "@/components/ui/AppBadge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
@@ -9,6 +10,7 @@ export function FinancialAccountYieldStatementItem({
 	accountName,
 	amount,
 	deleting = false,
+	isSynced = false,
 	time,
 	onDelete,
 	onEdit,
@@ -17,6 +19,7 @@ export function FinancialAccountYieldStatementItem({
 	accountName?: string;
 	amount: number;
 	deleting?: boolean;
+	isSynced?: boolean;
 	time?: string | null;
 	onDelete: () => void | Promise<void>;
 	onEdit: () => void;
@@ -29,6 +32,12 @@ export function FinancialAccountYieldStatementItem({
 			<div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 sm:contents">
 				<div className="min-w-0 flex-1">
 					<p className="font-semibold">Rendimento</p>
+					{isSynced ? (
+						<AppBadge variant="outline">
+							<LuCloudDownload aria-hidden="true" className="text-emerald-600" />
+							<span>Sincronizado</span>
+						</AppBadge>
+					) : null}
 					{accountName ? <p className="truncate text-muted-foreground text-xs">{accountName}</p> : null}
 					{formatLocalTime(time) ? (
 						<p className="text-muted-foreground text-xs">{formatLocalTime(time)}</p>

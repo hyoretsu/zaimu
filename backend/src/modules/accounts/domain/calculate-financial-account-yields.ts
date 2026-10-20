@@ -286,6 +286,7 @@ function calculateYieldedBalance(
 				balance = ledger.balance;
 			}
 		}
+		const hasManualYield = yields?.some(entry => entry.kind === "MANUAL" && dateKey(entry.date) === key);
 		const manualYields = yields?.filter(
 			yieldEntry =>
 				yieldEntry.kind === "MANUAL" && dateKey(yieldEntry.date) === key && !yieldEntry.isExcluded,
@@ -294,7 +295,7 @@ function calculateYieldedBalance(
 			const recorded = yields?.find(
 				entry => entry.kind === "AUTOMATIC" && !entry.isExcluded && dateKey(entry.date) === key,
 			);
-			if (recorded?.amount != null)
+			if (!hasManualYield && recorded?.amount != null)
 				ledger.accrueRecordedNet(recorded.amount, getYieldSettings(account, key), key);
 			for (const manualYield of manualYields ?? []) ledger.accrueNet(manualYield.amount ?? 0, key);
 			balance = ledger.balance;
@@ -313,7 +314,7 @@ function calculateYieldedBalance(
 		const automaticYield = yields?.find(
 			yieldEntry => yieldEntry.kind === "AUTOMATIC" && dateKey(yieldEntry.date) === key,
 		);
-		if (balance > 0 && !automaticYield?.isExcluded) {
+		if (balance > 0 && !hasManualYield && !automaticYield?.isExcluded) {
 			const hasReference = settingsRequireReference(yieldSettings);
 			const grossAmount = hasReference
 				? 0

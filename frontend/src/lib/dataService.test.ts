@@ -54,3 +54,45 @@ test("server mutations stay successful when local cache writes fail", async () =
 		if (!originalWindow) Reflect.deleteProperty(globalThis, "window");
 	}
 });
+
+test("guest yields replace all same-day kinds and reject date collisions", async () => {
+	const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+	if (!originalWindow)
+		Object.defineProperty(globalThis, "window", {
+			configurable: true,
+			value: { location: { origin: "http://localhost" } },
+		});
+	const { useAuthStore } = await import("@/stores/auth");
+	const { localMeta } = await import("./localStorage");
+	const { dataService } = await import("./dataService");
+	const originalAuth = useAuthStore.getState();
+	useAuthStore.setState({ isGuestMode: true });
+	const base = { amount: 1, date: "2026-01-05", financialAccountId: "account", isExcluded: false };
+	const get = spyOn(localMeta, "get").mockResolvedValue([
+		{ ...base, id: "calculated", kind: "AUTOMATIC" },
+		{ ...base, id: "reported", kind: "MANUAL" },
+	]);
+	const set = spyOn(localMeta, "set").mockResolvedValue(undefined);
+	try {
+		const created = await dataService.accountYields.create({ ...base, amount: 2 });
+		expect(set).toHaveBeenLastCalledWith("financial-account-yields", [created]);
+		get.mockResolvedValue([created]);
+		expect(await dataService.accountYields.upsertAutomatic({ ...base, amount: 1 })).toEqual(created);
+		expect(set).toHaveBeenCalledTimes(1);
+		get.mockResolvedValue([created, { ...created, date: "2026-01-06", id: "other-day" }]);
+		await expect(
+			dataService.accountYields.update(created.id, {
+				amount: 2,
+				date: "2026-01-06",
+				isHidden: false,
+				time: null,
+			}),
+		).rejects.toThrow("Já existe rendimento");
+		expect(set).toHaveBeenCalledTimes(1);
+	} finally {
+		get.mockRestore();
+		set.mockRestore();
+		useAuthStore.setState(originalAuth);
+		if (!originalWindow) Reflect.deleteProperty(globalThis, "window");
+	}
+});

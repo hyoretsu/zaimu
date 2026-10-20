@@ -600,7 +600,7 @@ namespace public {
     updatedAt          Timestamp(3)                      @default(now())
     financialAccount   FinancialAccount                  @relation(fields: [financialAccountId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "FinancialAccountYield_financialAccountId_fkey", index: false)
 
-    @@index([financialAccountId, date, kind], map: "FinancialAccountYield_accountId_date_kind_key", unique: true)
+    @@index([financialAccountId, date], map: "FinancialAccountYield_accountId_date_key", unique: true)
     @@index([externalId], map: "FinancialAccountYield_externalId_idx")
     @@map("FinancialAccountYield")
   }

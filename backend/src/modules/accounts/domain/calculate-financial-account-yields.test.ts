@@ -261,8 +261,7 @@ describe("calculateFinancialAccountYieldBalances", () => {
 				},
 			],
 		});
-		const dailyRate = 1.1 ** (1 / 21) - 1;
-		expect(balances.get("account")).toBeCloseTo(101 * (1 + dailyRate) + 2, 4);
+		expect(balances.get("account")).toBe(103);
 	});
 
 	test("uses progressive institution brackets when the account has no specific rule", () => {
@@ -528,3 +527,31 @@ test("same-day transfer starts earning on the next eligible day", () => {
 		),
 	).toBeCloseTo(580 * 1.1 ** (1 / 21), 4);
 });
+
+for (const day of ["2026-01-05", "2026-01-10"]) {
+	test(`reported yield replaces automatic yield on ${day}`, () => {
+		const date = new Date(`${day}T12:00:00`);
+		const balances = calculateFinancialAccountYieldBalances({
+			accounts: [
+				{ createdAt: date, id: "account", type: "CHECKING", yieldFixedRate: 10, yieldPeriod: "MONTHLY" },
+			],
+			cashbackCredits: [],
+			holidays: [],
+			initialRewardsBalances: new Map(),
+			today: date,
+			transactions: [{ amount: 100, date, destinationFinancialAccountId: "account" }],
+			yields: [
+				{
+					amount: 1,
+					date,
+					financialAccountId: "account",
+					isExcluded: false,
+					kind: "AUTOMATIC",
+					origin: "SYSTEM",
+				},
+				{ amount: 2, date, financialAccountId: "account", isExcluded: false, kind: "MANUAL", origin: "USER" },
+			],
+		});
+		expect(balances.get("account")).toBe(102);
+	});
+}
