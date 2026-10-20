@@ -25,7 +25,15 @@ import { createTransactionBatch } from "~/modules/transaction-imports/applicatio
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
 import { rejectLegacyFinancialFields } from "~/shared/infra/elysia/strict-json-body";
-import { db, executeStatement, queryFirst, queryRaw, queryRows, withTransaction } from "~/shared/infra/sql";
+import {
+	db,
+	executeStatement,
+	queryFirst,
+	queryRaw,
+	queryRows,
+	withRawTransaction,
+	withTransaction,
+} from "~/shared/infra/sql";
 import { indexDuplicateCandidates } from "../../application/duplicate-candidate-index";
 import {
 	assertCreditCardStatementOwnership,
@@ -42,7 +50,10 @@ import {
 } from "../../application/import-service";
 import { filterExistingTransactions } from "../../domain/filter-existing-transactions";
 import { filterZeroValueTransactions } from "../../domain/filter-zero-value-transactions";
-import { matchesDuplicateTransactionShape } from "../../domain/import-reconciliation";
+import {
+	matchesDuplicateTransactionShape,
+	uniqueTransactionMatches,
+} from "../../domain/import-reconciliation";
 import { assignStableExternalIds } from "../../domain/statement-identity";
 import { parseStatementPdf } from "../../domain/statement-parser";
 import {
@@ -432,6 +443,63 @@ async function getPotentialDuplicates(
 	);
 }
 
+async function reconcileUniqueTransactions(userId: string, importId: string, financialAccountId: string) {
+	await withRawTransaction(async () => {
+		await queryRaw(`SELECT "id" FROM "FinancialAccount" WHERE "id"=$1 FOR UPDATE`, [financialAccountId]);
+		const [pendingImport] = await queryRaw<{ id: string }>(
+			`SELECT "id" FROM "TransactionImport" WHERE "id"=$1 AND "userId"=$2 AND "status"='PENDING' FOR UPDATE`,
+			[importId, userId],
+		);
+		if (!pendingImport) return;
+		const items = await queryRaw<Parameters<typeof getPotentialDuplicates>[1][number]>(
+			`SELECT * FROM "TransactionImportItem" WHERE "transactionImportId"=$1`,
+			[importId],
+		);
+		const reserved = await queryRaw<{ reconciledTransactionId: string }>(
+			`SELECT i."reconciledTransactionId" FROM "TransactionImportItem" i
+			 JOIN "TransactionImport" b ON b."id"=i."transactionImportId"
+			 WHERE b."financialAccountId"=$1 AND b."status"='PENDING' AND i."reconciledTransactionId" IS NOT NULL`,
+			[financialAccountId],
+		);
+		const duplicates = await getPotentialDuplicates(financialAccountId, items);
+		for (const [itemId, original] of uniqueTransactionMatches(
+			duplicates,
+			new Set(reserved.map(item => item.reconciledTransactionId)),
+		)) {
+			await executeStatement(
+				db.sql.public.TransactionImportItem.update({
+					amount: String(original.amount),
+					date: original.date,
+					description: original.description,
+					destinationFinancialAccountId: original.destinationFinancialAccountId,
+					isHidden: original.isHidden,
+					isReconciled: true,
+					originFinancialAccountId: original.originFinancialAccountId,
+					paymentCreditCardId: original.paymentCreditCardId,
+					reconciledTransactionId: original.id,
+					storeName: original.storeName,
+					time: original.time,
+					type: original.type,
+					updatedAt: new Date(),
+				})
+					.where((fields, functions) => functions.eq(fields.id, itemId))
+					.build(),
+			);
+			await replaceEntityTags({
+				entityIds: [itemId],
+				entityType: importItemTagEntityType,
+				tagIds: original.tagIds,
+			});
+			await replaceDebtSplit({
+				amount: Number(original.amount),
+				split: (await getDebtSplitInput({ transactionId: original.id })) ?? null,
+				target: { transactionImportItemId: itemId },
+				userId,
+			});
+		}
+	});
+}
+
 interface ImportItemsCursor {
 	createdAt: string;
 	date: string;
@@ -456,6 +524,12 @@ async function getImportReturn(
 	page: { cursor?: string; limit?: number } = {},
 ) {
 	const transactionImport = await getImport(userId, importId);
+	if (
+		transactionImport.status === "PENDING" &&
+		transactionImport.provider !== "MEUPLUGGY" &&
+		transactionImport.provider !== "GENERIC"
+	)
+		await reconcileUniqueTransactions(userId, importId, transactionImport.financialAccountId);
 	const limit = Math.min(page.limit ?? 50, 100);
 	const cursor = decodeImportItemsCursor(page.cursor);
 	const itemPage = await queryRaw<{
