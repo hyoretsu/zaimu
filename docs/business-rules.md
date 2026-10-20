@@ -354,6 +354,8 @@ Parcelas sincronizadas têm valor confirmado pela instituição e nunca permitem
 
 ## Conciliação automática de compras importadas
 
+Uma compra importada com um único candidato existente é conciliada automaticamente, sem exigir identificador externo conhecido. Se outra compra importada também disputa esse candidato, a conciliação permanece manual. A aprovação continua explícita.
+
 Ao vincular automaticamente uma compra importada à compra existente, a revisão assume descrição, data, horário, loja, etiquetas e divisão de dívida da compra original. O total é recalculado com base no valor da parcela importada e na quantidade de parcelas, sem reutilizar o total antigo. Antecipações preservam o total original como referência, pois seus valores podem incluir descontos. A parcela atual e seu valor confirmado pela fatura são preservados, incluindo os valores das parcelas antecipadas. Esses dados são copiados para o item de revisão e podem ser ajustados antes da aprovação.
 
 Na revisão de importação de fatura, alterar a quantidade de parcelas preserva o total da compra e redistribui esse total entre as parcelas, com ajuste dos centavos. O valor da parcela do item em revisão acompanha essa correção; editar outros campos preserva o valor importado. Antecipações continuam sem permitir alteração do parcelamento.

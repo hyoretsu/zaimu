@@ -1,6 +1,10 @@
 import { synchronizeImportedStatementDates } from "@zaimu/finance/credit-book";
 import { importedAnticipation, withoutImportedAnticipation } from "@zaimu/finance/imported-anticipation";
-import { getTagsByEntity, tagEntityType } from "~/modules/categories/application/tag-assignments";
+import {
+	getTagsByEntity,
+	replaceEntityTags,
+	tagEntityType,
+} from "~/modules/categories/application/tag-assignments";
 import { type CreditReadRow, readCreditEntries } from "~/modules/creditCards/application/credit-entry-reader";
 import { mutateCreditBook } from "~/modules/creditCards/application/normalized-credit-book";
 import {
@@ -8,7 +12,11 @@ import {
 	withStatementPayments,
 } from "~/modules/creditCards/application/statement-payments";
 import { linkPurchaseToDebt, syncPurchaseDebtEvent } from "~/modules/debts/application/debt-ledger";
-import { getDebtSplitInput, getDebtSplitReturns } from "~/modules/debts/application/debt-splits";
+import {
+	getDebtSplitInput,
+	getDebtSplitReturns,
+	replaceDebtSplit,
+} from "~/modules/debts/application/debt-splits";
 import {
 	refreshAppliedSnapshots,
 	settleExternalReview,
@@ -29,12 +37,14 @@ import {
 	isPotentialPurchaseRefinancing,
 	matchesExistingCreditPurchase,
 } from "../domain/credit-card-import-reconciliation";
+import { existingPurchaseImportValues } from "../domain/existing-purchase-import-values";
 import { getFinancingSource, getFinancingTarget } from "../domain/financing-source-reference";
 import {
 	includePendingPurchaseSources,
 	pendingPurchaseId,
 	withoutPendingPurchase,
 } from "../domain/pending-purchase-reference";
+import { uniquePurchaseMatches } from "../domain/unique-purchase-matches";
 import { materializeImportedPurchase, materializeImportedPurchases } from "./materialize-imported-purchase";
 
 const importItemTagEntityType = "CREDIT_CARD_IMPORT_ITEM";
@@ -142,6 +152,45 @@ export async function getPotentialDuplicates(
 	return result;
 }
 
+async function reconcileUniquePurchases(userId: string, importId: string, creditCardId: string) {
+	await withRawTransaction(async () => {
+		await queryRaw(`SELECT "id" FROM "CreditCard" WHERE "id"=$1 FOR UPDATE`, [creditCardId]);
+		const items = await queryRaw<Parameters<typeof getPotentialDuplicates>[1][number]>(
+			`SELECT * FROM "CreditCardImportItem" WHERE "creditCardImportId"=$1`,
+			[importId],
+		);
+		const duplicates = await getPotentialDuplicates(creditCardId, items, importId);
+		const entries = await readCreditEntries(creditCardId);
+		for (const [itemId, candidate] of uniquePurchaseMatches(duplicates)) {
+			const item = items.find(item => item.id === itemId)!;
+			const original = entries.find(entry => entry.id === candidate.id);
+			if (!original) continue;
+			const values = existingPurchaseImportValues(item.description, original);
+			await executeStatement(
+				db.sql.public.CreditCardImportItem.update({
+					...values,
+					reconciledCreditPurchaseId: original.id,
+					updatedAt: new Date(),
+				})
+					.where((f, fn) => fn.eq(f.id, itemId))
+					.build(),
+			);
+			const tags = await getTagsByEntity(tagEntityType.creditPurchase, [original.id]);
+			await replaceEntityTags({
+				entityIds: [itemId],
+				entityType: importItemTagEntityType,
+				tagIds: (tags.get(original.id) ?? []).map(tag => tag.id),
+			});
+			await replaceDebtSplit({
+				amount: Number(values.totalAmount ?? item.totalAmount),
+				split: (await getDebtSplitInput({ creditPurchaseId: original.id })) ?? null,
+				target: { creditCardImportItemId: itemId },
+				userId,
+			});
+		}
+	});
+}
+
 export async function getImport(userId: string, importId: string) {
 	const creditCardImport = await queryFirst(
 		db.sql.public.CreditCardImport.select(
@@ -216,6 +265,8 @@ export async function getImportReturn(
 	page: { cursor?: string; limit?: number } = {},
 ) {
 	const creditCardImport = await getImport(userId, importId);
+	if (creditCardImport.status === "PENDING")
+		await reconcileUniquePurchases(userId, importId, creditCardImport.creditCardId);
 	const limit = Math.min(page.limit ?? 50, 100);
 	const cursor = decodeImportItemsCursor(page.cursor);
 	const itemPage = await queryRaw<{
@@ -427,6 +478,7 @@ async function approveItemsImpl(
 			.build(),
 	);
 	if (!card) throw new HttpException("Cartão não encontrado", 404);
+	await reconcileUniquePurchases(userId, importId, creditCardImport.creditCardId);
 	const allItems = await queryRows(
 		db.sql.public.CreditCardImportItem.select(
 			"id",
