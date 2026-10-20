@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { LuClock } from "react-icons/lu";
 import type { CreditCardStatement } from "@/lib/api";
 import { getCreditCardStatementStatus } from "./credit-card-statement-status";
 
@@ -33,6 +34,61 @@ describe("getCreditCardStatementStatus", () => {
 		expect(status.label).toBe("Pagamento agendado");
 		expect(status.icon).not.toBeNull();
 	});
+	test.each([
+		[100, "text-success-600"],
+		[110, "text-success-600"],
+		[99.99, "text-destructive"],
+		[40, "text-destructive"],
+	])("colors scheduled amount %s by its coverage", (scheduledPaymentAmount, className) => {
+		expect(
+			getCreditCardStatementStatus({ ...statement, scheduledPaymentAmount }, "2099-01-16"),
+		).toMatchObject({ className, icon: LuClock, label: "Pagamento agendado" });
+	});
+
+	test("compares the schedule with the remaining balance after credit and settled payments", () => {
+		expect(
+			getCreditCardStatementStatus({
+				...statement,
+				amountDue: 100,
+				creditInAmount: 20,
+				periodPaymentAmount: 30,
+				scheduledPaymentAmount: 50,
+			}).className,
+		).toBe("text-success-600");
+	});
+
+	test("does not treat carried balances reset to zero as fully covered", () => {
+		expect(
+			getCreditCardStatementStatus({
+				...statement,
+				amountDue: 100,
+				balanceAmount: 0,
+				periodPaymentAmount: 0,
+				scheduledPaymentAmount: 40,
+				status: "CARRIED",
+			}).className,
+		).toBe("text-destructive");
+	});
+
+	test("sums only future positive payments without counting the aggregate twice", () => {
+		const payments = [
+			{ amount: 40, date: "2099-01-20" },
+			{ amount: 59.99, date: "2099-01-21" },
+			{ amount: 100, date: "2099-01-15" },
+			{ amount: -10, date: "2099-01-21" },
+		];
+		expect(
+			getCreditCardStatementStatus({ ...statement, payments, scheduledPaymentAmount: 99.99 }, "2099-01-16")
+				.className,
+		).toBe("text-destructive");
+		expect(
+			getCreditCardStatementStatus(
+				{ ...statement, payments: [...payments, { amount: 0.01, date: "2099-01-22" }] },
+				"2099-01-16",
+			).className,
+		).toBe("text-success-600");
+	});
+
 	test("shows forecast invoices without a status", () => {
 		const status = getCreditCardStatementStatus({ ...statement, isForecast: true });
 		expect(status.label).toBe("");

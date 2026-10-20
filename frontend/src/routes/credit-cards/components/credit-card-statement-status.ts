@@ -1,5 +1,7 @@
+import { toCents } from "@zaimu/finance/credit-card";
 import { LuCircleCheck, LuCircleDot, LuClock, LuReceiptText, LuTriangleAlert } from "react-icons/lu";
 import type { CreditCardStatement } from "@/lib/api";
+import { getCreditCardStatementDisplayBalance } from "@/lib/credit-card-statement-balance";
 import { getLocalDateKey } from "@/lib/date";
 
 export function getCreditCardStatementStatus(
@@ -12,11 +14,23 @@ export function getCreditCardStatementStatus(
 	if (statement.isPaid) {
 		return { className: "text-success-600", icon: LuCircleCheck, label: "Fatura paga" };
 	}
-	if (
-		(statement.scheduledPaymentAmount ?? 0) > 0 ||
-		statement.payments?.some(payment => payment.amount > 0 && payment.date.slice(0, 10) > today)
-	) {
-		return { className: "text-foreground", icon: LuClock, label: "Pagamento agendado" };
+	const scheduledAmount = Math.max(
+		toCents(statement.scheduledPaymentAmount ?? 0),
+		statement.payments?.reduce(
+			(sum, payment) =>
+				payment.amount > 0 && payment.date.slice(0, 10) > today ? sum + toCents(payment.amount) : sum,
+			0,
+		) ?? 0,
+	);
+	if (scheduledAmount > 0) {
+		return {
+			className:
+				scheduledAmount >= toCents(getCreditCardStatementDisplayBalance(statement))
+					? "text-success-600"
+					: "text-destructive",
+			icon: LuClock,
+			label: "Pagamento agendado",
+		};
 	}
 	if (statement.status === "CARRIED" || statement.dueDate.slice(0, 10) < today) {
 		return { className: "text-destructive", icon: LuTriangleAlert, label: "Fatura atrasada" };
