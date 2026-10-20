@@ -55,7 +55,7 @@ test("installments offer refund management without repeating refund relationship
 	}
 });
 
-test("refund identifies only its original purchase", () => {
+test("refund uses the original purchase title without repeating its description", () => {
 	const markup = render({
 		installmentAmount: -23.64,
 		installments: 1,
@@ -64,7 +64,9 @@ test("refund identifies only its original purchase", () => {
 		purchaseDate: "2026-04-07",
 		refundOfPurchaseId: "purchase",
 	});
-	expect(markup).toContain("Compra original: Amazon - 05/04/2026");
+	expect(markup).toContain('class="truncate font-medium">Amazon</p>');
+	expect(markup).toContain("Reembolso");
+	expect(markup).not.toContain("Compra original:");
 	expect(markup).not.toContain("Gerenciar reembolsos de Amazon");
 });
 

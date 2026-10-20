@@ -75,12 +75,6 @@ export function CreditPurchaseRow({
 						Inclui {purchase.feeDescription}: {currency.format(purchase.feeAmount)}
 					</p>
 				) : null}
-				{purchase.isRefund && purchase.refundOfPurchaseId ? (
-					<p className="mt-1 text-muted-foreground text-xs">
-						Compra original: {purchase.description || purchase.storeName || "Compra"}
-						{purchase.originalPurchaseDate ? ` - ${formatLocalDate(purchase.originalPurchaseDate)}` : ""}
-					</p>
-				) : null}
 				{purchase.storeName ||
 				debtPersonName ||
 				tags?.length ||

@@ -28,6 +28,7 @@ import { showToast } from "@/stores";
 import { CreditCardPaymentRow } from "./CreditCardPaymentRow";
 import { CreditPurchaseEditScopeDialog } from "./CreditPurchaseEditScopeDialog";
 import { CreditPurchaseRow } from "./CreditPurchaseRow";
+import { isVisibleStatementPurchase } from "./credit-card-statement-purchases";
 import { getCreditCardStatementStatus } from "./credit-card-statement-status";
 import { EditCreditCardStatementDialog } from "./EditCreditCardStatementDialog";
 import { EditCreditPurchaseDialog } from "./EditCreditPurchaseDialog";
@@ -87,7 +88,7 @@ export function CreditCardStatementDetails({
 	const StatusIcon = status.icon;
 	const entries = detail.data
 		? [
-				...detail.data.purchases.map(purchase => ({
+				...detail.data.purchases.filter(isVisibleStatementPurchase).map(purchase => ({
 					date: purchase.purchaseDate,
 					id: purchase.id,
 					kind: "purchase" as const,
