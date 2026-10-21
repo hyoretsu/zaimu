@@ -114,9 +114,9 @@ for (const provider of providers)
 			const rows = combineAnticipationRefunds(identified);
 			expect(rows).toHaveLength(1);
 			expect(
-				selectNewImportPurchases(rows, new Map([[refund.externalId, "approved-refund"]]), [], new Set()),
+				selectNewImportPurchases(rows, new Map([[refund.externalId, "approved-refund"]]), [], []),
 			).toEqual([]);
-			expect(selectNewImportPurchases(rows, new Map(), [], new Set([refund.externalId]))).toEqual([]);
+			expect(selectNewImportPurchases(rows, new Map(), [], [rows[0]!])).toEqual([]);
 			expect(rows[0]).toMatchObject({
 				externalId: refund.externalId,
 				installmentAmount: -100,

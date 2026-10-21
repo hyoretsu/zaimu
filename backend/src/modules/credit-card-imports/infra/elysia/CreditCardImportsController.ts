@@ -160,7 +160,10 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 					db.sql.public.CreditCardImportItem.innerJoin(db.sql.public.CreditCardImport, (fields, functions) =>
 						functions.eq(fields.CreditCardImportItem.creditCardImportId, fields.CreditCardImport.id),
 					)
-						.select(fields => ({ externalId: fields.CreditCardImportItem.externalId }))
+						.select(fields => ({
+							currentInstallment: fields.CreditCardImportItem.currentInstallment,
+							externalId: fields.CreditCardImportItem.externalId,
+						}))
 						.where((fields, functions) =>
 							functions.and(
 								functions.eq(fields.CreditCardImport.creditCardId, body.creditCardId),
@@ -179,13 +182,7 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 			const existingInstallments = (await readCreditEntries(body.creditCardId)).filter(p =>
 				existingRootIds.includes(p.purchaseId ?? p.id),
 			);
-			const pendingIds = new Set(pending.map(item => item.externalId));
-			const newPurchases = selectNewImportPurchases(
-				purchases,
-				existingRoots,
-				existingInstallments,
-				pendingIds,
-			);
+			const newPurchases = selectNewImportPurchases(purchases, existingRoots, existingInstallments, pending);
 			const existingCardEntries = await readCreditEntries(body.creditCardId);
 			for (const purchase of newPurchases) {
 				if (

@@ -14,18 +14,18 @@ const purchase = {
 test("a subsequent financed installment reconciles with its root, but repeating either invoice imports nothing", () => {
 	const root = new Map([[purchase.externalId, "root-id"]]);
 	const imported = [{ currentInstallment: 10, hasImportedAmount: true, id: "child-10", parentId: "root-id" }];
-	expect(selectNewImportPurchases([purchase], root, imported, new Set())).toEqual([]);
+	expect(selectNewImportPurchases([purchase], root, imported, [])).toEqual([]);
 	const next = { ...purchase, currentInstallment: 11, installmentAmount: 10.37 };
-	expect(selectNewImportPurchases([next], root, imported, new Set())).toEqual([
+	expect(selectNewImportPurchases([next], root, imported, [])).toEqual([
 		{ ...next, reconciledCreditPurchaseId: "root-id" },
 	]);
-	expect(selectNewImportPurchases([next], root, imported, new Set([purchase.externalId]))).toEqual([]);
+	expect(selectNewImportPurchases([next], root, imported, [next])).toEqual([]);
 	expect(
 		selectNewImportPurchases(
 			[next],
 			root,
 			[...imported, { currentInstallment: 11, hasImportedAmount: true, id: "child-11", parentId: "root-id" }],
-			new Set(),
+			[],
 		),
 	).toEqual([]);
 });
@@ -38,7 +38,7 @@ test("an anticipated installment remains eligible when its root is already impor
 	};
 	const root = new Map([[anticipated.externalId, "root-id"]]);
 	const imported = [{ currentInstallment: 2, hasImportedAmount: true, id: "child-2", parentId: "root-id" }];
-	expect(selectNewImportPurchases([anticipated], root, imported, new Set())).toEqual([
+	expect(selectNewImportPurchases([anticipated], root, imported, [])).toEqual([
 		{ ...anticipated, reconciledCreditPurchaseId: "root-id" },
 	]);
 });
@@ -58,16 +58,16 @@ test("an ordinary purchase imports an unconfirmed installment without duplicatin
 		{ currentInstallment: 10, hasImportedAmount: true, id: "tenth", parentId: "amazon-root" },
 		{ currentInstallment: 11, hasImportedAmount: false, id: "eleventh", parentId: "amazon-root" },
 	];
-	expect(selectNewImportPurchases([amazon], roots, installments, new Set())).toEqual([
+	expect(selectNewImportPurchases([amazon], roots, installments, [])).toEqual([
 		{ ...amazon, reconciledCreditPurchaseId: "amazon-root" },
 	]);
-	expect(selectNewImportPurchases([amazon], roots, installments, new Set([amazon.externalId]))).toEqual([]);
+	expect(selectNewImportPurchases([amazon], roots, installments, [amazon])).toEqual([]);
 	expect(
 		selectNewImportPurchases(
 			[amazon],
 			roots,
 			installments.map(item => ({ ...item, hasImportedAmount: true })),
-			new Set(),
+			[],
 		),
 	).toEqual([]);
 });
@@ -79,7 +79,7 @@ test("existing single purchases, charges and refunds remain excluded", () => {
 		{ ...purchase, description: "Encargo", installments: 1 },
 		{ ...purchase, description: "Estorno AMAZON", installmentAmount: -17.12 },
 	]) {
-		expect(selectNewImportPurchases([existing], roots, [], new Set())).toEqual([]);
+		expect(selectNewImportPurchases([existing], roots, [], [])).toEqual([]);
 	}
 });
 
@@ -95,9 +95,27 @@ test("a complete accelerated purchase can be imported again after its root was d
 		totalAmount: 176.03,
 	};
 	// Deleted purchases no longer appear in CreditEntry; their old IDs must not be reused.
-	expect(selectNewImportPurchases([complete], new Map(), [], new Set())).toEqual([
+	expect(selectNewImportPurchases([complete], new Map(), [], [])).toEqual([
 		{ ...complete, reconciledCreditPurchaseId: null },
 	]);
 	// An already pending review stays in its current batch instead of creating another copy.
-	expect(selectNewImportPurchases([complete], new Map(), [], new Set([complete.externalId]))).toEqual([]);
+	expect(selectNewImportPurchases([complete], new Map(), [], [complete])).toEqual([]);
+});
+
+test("pending later installments do not hide earlier invoices, in either import order", () => {
+	const first = { ...purchase, currentInstallment: 1, installments: 2 };
+	const second = { ...first, currentInstallment: 2 };
+	for (const [incoming, pending] of [
+		[first, second],
+		[second, first],
+	] as const) {
+		expect(selectNewImportPurchases([incoming], new Map(), [], [pending])).toEqual([
+			{ ...incoming, reconciledCreditPurchaseId: null },
+		]);
+		expect(selectNewImportPurchases([incoming], new Map(), [], [incoming])).toEqual([]);
+		const roots = new Map([[incoming.externalId, "root"]]);
+		expect(selectNewImportPurchases([incoming], roots, [], [pending])).toEqual([
+			{ ...incoming, reconciledCreditPurchaseId: "root" },
+		]);
+	}
 });

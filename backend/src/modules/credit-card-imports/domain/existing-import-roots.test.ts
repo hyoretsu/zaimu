@@ -45,9 +45,9 @@ test("repeated external IDs resolve to the purchase regardless of installment or
 		const roots = existingImportRoots(ordered);
 		expect(roots.get(purchase.externalId)).toBe("root");
 		const installments = ordered.filter(entry => [...roots.values()].includes(entry.purchaseId));
-		expect(selectNewImportPurchases([purchase], roots, installments, new Set())).toEqual([]);
+		expect(selectNewImportPurchases([purchase], roots, installments, [])).toEqual([]);
 		const next = { ...purchase, currentInstallment: 3, description: "FIN AMAZON BR" };
-		expect(selectNewImportPurchases([next], roots, installments, new Set())).toEqual([
+		expect(selectNewImportPurchases([next], roots, installments, [])).toEqual([
 			{ ...next, reconciledCreditPurchaseId: "root" },
 		]);
 	}

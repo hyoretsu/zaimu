@@ -397,3 +397,6 @@ Cada conta possui no máximo um rendimento por data, independentemente de ser ma
 Reembolso com N parcelas antecipadas lista somente compras em N ou N+1 parcelas cujas últimas N parcelas somam exatamente o total antecipado em centavos, com saldo suficiente para o reembolso. Usa os valores reais do plano, incluindo arredondamentos; soma e quantidade prevalecem sobre descrição e data do crédito. Candidata única é selecionada automaticamente antes da busca; múltiplas candidatas exigem escolha. O seletor mostra total e quantidade de parcelas, sem o rótulo redundante "disponível". Aprovação cancela as últimas N parcelas correspondentes. Regra comum a todos os parsers.
 
 Na listagem de transações da fatura, reembolsos aparecem como lançamento separado somente quando geram crédito excedente após o cancelamento de parcelas. Reembolsos sem crédito não exibem uma linha de valor zero. O título do lançamento usa o nome da compra original, sem repetir "Compra original: ...". O histórico completo continua disponível no gerenciamento de reembolsos da compra.
+
+
+Parcelas distintas da mesma compra podem permanecer em revisão em importações diferentes. Uma parcela pendente impede somente outra revisão da mesma parcela, sem ocultar parcelas anteriores ou posteriores da compra. A aprovação concilia todas com a mesma compra original, sem duplicá-la.

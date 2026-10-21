@@ -16,10 +16,17 @@ export function selectNewImportPurchases(
 		id: string;
 		parentId: null | string;
 	}>,
-	pendingIds: Set<string>,
+	pendingPurchases: Array<{ externalId: string; currentInstallment: number }>,
 ) {
 	return purchases.flatMap<IdentifiedPurchase & { reconciledCreditPurchaseId: null | string }>(purchase => {
-		if (pendingIds.has(purchase.externalId)) return [];
+		if (
+			pendingPurchases.some(
+				pending =>
+					pending.externalId === purchase.externalId &&
+					pending.currentInstallment === purchase.currentInstallment,
+			)
+		)
+			return [];
 		const rootId = existingRoots.get(purchase.externalId);
 		if (!rootId) return [{ ...purchase, reconciledCreditPurchaseId: null }];
 		if (purchase.installmentAmount < 0) return [];
