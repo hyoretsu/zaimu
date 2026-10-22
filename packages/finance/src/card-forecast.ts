@@ -1,4 +1,5 @@
 import { type CreditBook, replayCreditBook } from "./credit-book";
+import { paymentStatement } from "./credit-card";
 /** Settle each projected due date in a temporary ledger before inspecting the next cycle. */
 export function forecastCardPayments(book: CreditBook, from: string, through: string) {
 	const temporary = { ...book, payments: [...book.payments] };
@@ -47,10 +48,8 @@ export function recurringCardPaymentAmounts(book: CreditBook) {
 	)) {
 		let remaining = payment.amount;
 		let recurringAmount = 0;
-		const statements = replayCreditBook(replay, payment.date)
-			.statements.filter(statement => statement.dueDate.slice(0, 10) >= payment.date)
-			.toSorted((a, b) => a.dueDate.localeCompare(b.dueDate))
-			.slice(0, 1);
+		const target = paymentStatement(replayCreditBook(replay, payment.date).statements, payment.date);
+		const statements = target ? [target] : [];
 		const recurringStatements = new Map(
 			replayCreditBook(recurringBook, payment.date).statements.map(statement => [
 				statement.id,

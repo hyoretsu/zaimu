@@ -113,7 +113,7 @@ test("surplus refund credit and other purchases are order independent", () => {
 
 test("manual cycle amount overrides purchases and charges while retaining payment and carry", () => {
 	const result = rebuildPurchaseStatementLedger({
-		asOf: "2024-09-26",
+		asOf: "2024-09-27",
 		installments,
 		payments: [{ amount: 30, date: "2024-08-25" }],
 		purchases: [purchase],
@@ -158,7 +158,7 @@ test("manual zero and negative credit survive rebuild; null restores calculation
 test("manual final total includes incoming debt and credit, then subtracts payments", () => {
 	for (const first of [150, -40]) {
 		const result = rebuildPurchaseStatementLedger({
-			asOf: "2024-09-26",
+			asOf: "2024-09-27",
 			installments,
 			payments: [{ amount: 20, date: "2024-09-25" }],
 			purchases: [purchase],

@@ -103,7 +103,7 @@ describe("due-date card ledger", () => {
 			statementDate: "2024-08-15",
 		});
 		expect(paymentStatementDates(calendar, "2024-08-25").dueDate).toBe("2024-08-25");
-		expect(paymentStatementDates(calendar, "2024-08-26").dueDate).toBe("2024-09-25");
+		expect(paymentStatementDates(calendar, "2024-08-26").dueDate).toBe("2024-08-25");
 		expect(paymentStatementDates({ dueDay: 3, statementDay: 25 }, "2024-01-03")).toEqual({
 			dueDate: "2024-01-03",
 			statementDate: "2023-12-25",
@@ -119,10 +119,10 @@ describe("due-date card ledger", () => {
 			dueDate: "2026-09-21",
 			statementDate: "2026-09-15",
 		});
-		expect(paymentStatementDates(workingCard, "2026-09-22").dueDate).toBe("2026-10-20");
+		expect(paymentStatementDates(workingCard, "2026-09-22").dueDate).toBe("2026-09-21");
 		expect(paymentStatementDates(workingCard, "2026-08-24").dueDate).toBe("2026-09-21");
 		expect(paymentStatementDates({ ...workingCard, workingDueDate: false }, "2026-09-21").dueDate).toBe(
-			"2026-10-20",
+			"2026-09-20",
 		);
 	});
 	test("recalculates saved schedules while preserving bank supplied weekday dates", () => {
@@ -191,9 +191,9 @@ describe("due-date card ledger", () => {
 			calendar,
 			[],
 			d => ({ ...invoice("00", 0), id: d.dueDate, ...d }),
-			"2024-11-26",
+			"2024-11-27",
 		);
-		const result = calculateStatementBalances(cycles, [], "2024-11-26");
+		const result = calculateStatementBalances(cycles, [], "2024-11-27");
 		expect(result.filter(s => s.status === "CARRIED")).toHaveLength(4);
 		expect(result.reduce((sum, s) => sum + s.balanceAmount, 0)).toBe(100);
 		expect(result.at(-1)).toMatchObject({ carriedInAmount: 100, dueDate: "2024-12-25" });
@@ -290,7 +290,34 @@ test("payment assignment honors duplicate due-date IDs and boundaries without mu
 	];
 	const resolve = createStatementPaymentResolver(rows);
 	expect(resolve("2026-10-25")?.id).toBe("a");
-	expect(resolve("2026-10-26")?.id).toBe("later");
-	expect(resolve("2026-11-03")).toBeUndefined();
+	expect(resolve("2026-10-26")?.id).toBe("a");
+	expect(resolve("2026-10-27")?.id).toBe("later");
+	expect(resolve("2026-11-03")?.id).toBe("later");
+	expect(resolve("2026-11-04")).toBeUndefined();
 	expect(rows.map(row => row.id)).toEqual(["later", "b", "a"]);
+});
+
+test("payment grace handles weekday, weekend and year boundaries inclusively", async () => {
+	const { statementPaymentDeadline, paymentStatement } = await import("./credit-card");
+	for (const [due, deadline, after] of [
+		["2026-10-23", "2026-10-26", "2026-10-27"],
+		["2026-10-24", "2026-10-26", "2026-10-27"],
+		["2026-10-25", "2026-10-26", "2026-10-27"],
+		["2026-11-25", "2026-11-26", "2026-11-27"],
+		["2027-12-31", "2028-01-03", "2028-01-04"],
+	]) {
+		expect(statementPaymentDeadline(due!)).toBe(deadline!);
+		const rows = [{ dueDate: due!, id: "previous" }];
+		expect(paymentStatement(rows, deadline!)?.id).toBe("previous");
+		expect(paymentStatement(rows, after!)).toBeUndefined();
+		const card = { dueDay: Number(due!.slice(8)), statementDay: 10 };
+		expect(paymentStatementDates(card, deadline!).dueDate).toBe(due!);
+		const invoiceRows = [
+			{ ...invoice("10", 100), dueDate: due! },
+			{ ...invoice("11", 50), dueDate: "2028-02-25" },
+		];
+		const paid = calculateStatementBalances(invoiceRows, [{ amount: 100, date: deadline! }], deadline!);
+		expect(paid[0]).toMatchObject({ carriedOutAmount: 0, isPaid: true, periodPaymentAmount: 100 });
+		expect(paid[1]?.carriedInAmount).toBe(0);
+	}
 });
