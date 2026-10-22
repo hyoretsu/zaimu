@@ -42,7 +42,7 @@ test("suggests carried overdue debt only when the receiving cycle closes", () =>
 		amount: 100,
 		dueDate: "2026-08-28",
 	});
-	expect(pendingStatementPayments(ledger, "2026-08-29")).toEqual([]);
+	expect(pendingStatementPayments(ledger, "2026-09-01")).toEqual([]);
 	expect(pendingStatementPayments(ledger, "2026-09-03")).toEqual([]);
 	expect(pendingStatementPayments(ledger, "2026-09-20")).toHaveLength(1);
 	expect(pendingStatementPayments(ledger, "2026-09-20")[0]).toMatchObject({

@@ -104,16 +104,24 @@ export function recalculateStatementDueDate(
 	return dateKey(date);
 }
 
-/** Purchases use closing dates; payments use the next due date, inclusive. */
+/** Payments remain in their invoice through the first weekday strictly after its due date. */
+export function statementPaymentDeadline(dueDate: FinancialDate) {
+	const date = new Date(`${dateKey(dueDate)}T12:00:00Z`);
+	do {
+		date.setUTCDate(date.getUTCDate() + 1);
+	} while (date.getUTCDay() === 0 || date.getUTCDay() === 6);
+	return dateKey(date);
+}
+
 export function paymentStatementDates(card: CardCalendar, paymentDate: FinancialDate) {
 	const date = new Date(`${dateKey(paymentDate)}T12:00:00Z`);
-	let dueMonth = date.getUTCMonth();
-	if (dueDateForMonth(card, date.getUTCFullYear(), dueMonth) < dateKey(date)) dueMonth++;
-	const due = monthDate(date.getUTCFullYear(), dueMonth, card.dueDay);
+	const year = date.getUTCFullYear();
+	let dueMonth = date.getUTCMonth() - 1;
+	while (statementPaymentDeadline(dueDateForMonth(card, year, dueMonth)) < dateKey(date)) dueMonth++;
 	const closingMonth = dueMonth - (card.dueDay <= card.statementDay ? 1 : 0);
 	return {
-		dueDate: dueDateForMonth(card, date.getUTCFullYear(), dueMonth),
-		statementDate: dateKey(monthDate(due.getUTCFullYear(), closingMonth, card.statementDay)),
+		dueDate: dueDateForMonth(card, year, dueMonth),
+		statementDate: dateKey(monthDate(year, closingMonth, card.statementDay)),
 	};
 }
 
@@ -122,8 +130,12 @@ export function createStatementPaymentResolver<T extends Pick<StatementInput, "i
 	statements: T[],
 ) {
 	const ordered = statements
-		.map(statement => ({ date: dateKey(statement.dueDate), statement }))
-		.sort((a, b) => a.date.localeCompare(b.date) || a.statement.id.localeCompare(b.statement.id));
+		.map(statement => ({ date: statementPaymentDeadline(statement.dueDate), statement }))
+		.sort(
+			(a, b) =>
+				dateKey(a.statement.dueDate).localeCompare(dateKey(b.statement.dueDate)) ||
+				a.statement.id.localeCompare(b.statement.id),
+		);
 	return (paymentDate: FinancialDate) => {
 		const date = dateKey(paymentDate);
 		let low = 0;
@@ -233,7 +245,8 @@ export function calculateStatementBalances<T extends StatementInput>(
 			? (paidByStatement.get(statement.id) ?? 0)
 			: toCents(statement.periodPaymentAmount ?? statement.paidAmount ?? 0, currency);
 		const remaining = amountDue - incomingCredit - periodPayment;
-		const transferred = remaining > 0 && dateKey(statement.dueDate) < dateKey(asOf) && hasNext;
+		const transferred =
+			remaining > 0 && statementPaymentDeadline(statement.dueDate) < dateKey(asOf) && hasNext;
 		const status: StatementStatus = transferred
 			? "CARRIED"
 			: dateKey(statement.statementDate) <= dateKey(asOf) &&
