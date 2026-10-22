@@ -11,11 +11,8 @@ services:
     command:
       - |
         bun install --frozen-lockfile
-        migration_hash=$$(tar -cf - packages/sql/migrations | sha256sum)
-        if [ "$$migration_hash" != "$$(cat /tmp/zaimu-migration-hash 2>/dev/null)" ]; then
-          bun -F sql migrate:deploy
-          printf '%s' "$$migration_hash" > /tmp/zaimu-migration-hash
-        fi
+        bun -F sql contract:emit
+        bun -F sql migrate:deploy
         exec bun dev
     develop:
       watch:
@@ -26,6 +23,8 @@ services:
             - frontend/src/**
             - packages/*/src/**
             - packages/sql/migrations/**
+            - packages/sql/src/prisma/**
+            - packages/sql/prisma.config.ts
     restart: unless-stopped
     networks:
       - proxy
