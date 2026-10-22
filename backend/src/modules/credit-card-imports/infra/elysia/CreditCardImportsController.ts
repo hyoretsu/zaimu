@@ -43,6 +43,7 @@ import {
 	markStatementAsFullySynced,
 } from "../../application/import-service";
 import { combineAnticipationRefunds, refundCancellationNumbers } from "../../domain/anticipation-refunds";
+import { confirmedImportRoots } from "../../domain/confirmed-import-roots";
 import { assignCreditCardPurchaseExternalIds } from "../../domain/credit-card-import-identity";
 import { parseCreditCardStatementPdf } from "../../domain/credit-card-statement-parser";
 import { getEditedInstallmentAmount } from "../../domain/edited-installment-amount";
@@ -177,13 +178,23 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 						.build(),
 				),
 			]);
-			const existingRoots = existingImportRoots(existing);
+			const existingCardEntries = await readCreditEntries(body.creditCardId);
+			const identities = await queryRaw<{ externalId: string; purchaseId: string }>(
+				`SELECT i."externalId", i."purchaseId" FROM "CreditPurchaseImportIdentity" i
+				 JOIN "CreditPurchaseRecord" p ON p."id"=i."purchaseId"
+				 WHERE p."creditCardId"=$1 AND p."userId"=$2 AND i."externalId"=ANY($3::text[])`,
+				[body.creditCardId, userId, purchases.map(p => p.externalId)],
+			);
+			const existingRoots = new Map([
+				...confirmedImportRoots(purchases, existingCardEntries),
+				...identities.map(identity => [identity.externalId, identity.purchaseId] as const),
+				...existingImportRoots(existing),
+			]);
 			const existingRootIds = [...new Set(existingRoots.values())];
-			const existingInstallments = (await readCreditEntries(body.creditCardId)).filter(p =>
+			const existingInstallments = existingCardEntries.filter(p =>
 				existingRootIds.includes(p.purchaseId ?? p.id),
 			);
 			const newPurchases = selectNewImportPurchases(purchases, existingRoots, existingInstallments, pending);
-			const existingCardEntries = await readCreditEntries(body.creditCardId);
 			for (const purchase of newPurchases) {
 				if (
 					purchase.installmentAmount < 0 ||

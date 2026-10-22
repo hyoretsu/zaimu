@@ -648,4 +648,85 @@ describe("normalized refund transactions", () => {
 				.status,
 		).toBe("APPROVED");
 	}, 30_000);
+
+	test("reconciled imports persist every external identity and reuse the same purchase", async () => {
+		const { materializeImportedPurchase } = await import(
+			"../../credit-card-imports/application/materialize-imported-purchase"
+		);
+		const { rememberImportIdentity } = await import(
+			"../../credit-card-imports/application/import-identities"
+		);
+		const { queryRaw, withRawTransaction } = await import("~/shared/infra/sql");
+		const card = {
+			cashbackAccountId: null,
+			cashbackRate: null,
+			cashbackYieldPeriod: null,
+			cashbackYieldReferencePercentage: null,
+			cashbackYieldReferenceRate: null,
+			dueDay: 5,
+			id: "normalized-test-card",
+			statementDay: 31,
+			userId: "normalized-test-user",
+		};
+		const first = {
+			currentInstallment: 1,
+			description: "Lâminas de barbear Gillette x16",
+			dueDate: new Date("2026-02-25"),
+			existingRootId: null,
+			externalId: "pdf-first-identity",
+			installmentAmount: 18.77,
+			installments: 5,
+			purchaseDate: new Date("2026-01-27"),
+			statementDate: new Date("2026-02-12"),
+			storeName: null,
+			tagIds: [],
+			time: null,
+			totalAmount: 93.77,
+		};
+		const id = await materializeImportedPurchase(card, first);
+		const second = {
+			...first,
+			currentInstallment: 2,
+			dueDate: new Date("2026-03-25"),
+			existingRootId: id,
+			externalId: "pdf-second-identity",
+			installmentAmount: 18.75,
+			statementDate: new Date("2026-03-12"),
+		};
+		expect(await materializeImportedPurchase(card, second)).toBe(id);
+		expect(await materializeImportedPurchase(card, { ...second, existingRootId: null })).toBe(id);
+		expect(await materializeImportedPurchase(card, first)).toBe(id);
+		expect(
+			await queryRaw(
+				`SELECT "externalId" FROM "CreditPurchaseImportIdentity" WHERE "purchaseId"=$1 ORDER BY "externalId"`,
+				[id],
+			),
+		).toEqual([{ externalId: first.externalId }, { externalId: second.externalId }]);
+		expect(
+			(
+				await queryRaw<{ externalId: string }>(
+					`SELECT "externalId" FROM "CreditPurchaseRecord" WHERE "id"=$1`,
+					[id],
+				)
+			)[0]?.externalId,
+		).toBe(first.externalId);
+		await expect(
+			withRawTransaction(query => rememberImportIdentity(query, first.externalId, "normalized-test-second")),
+		).rejects.toThrow("Identificador importado já vinculado a outra compra");
+		await expect(
+			withRawTransaction(async query => {
+				await rememberImportIdentity(query, "rolled-back-identity", id);
+				throw new Error("rollback identity");
+			}),
+		).rejects.toThrow("rollback identity");
+		expect(
+			await queryRaw(
+				`SELECT 1 FROM "CreditPurchaseImportIdentity" WHERE "externalId"='rolled-back-identity'`,
+			),
+		).toEqual([]);
+		await withRawTransaction(query => query(`DELETE FROM "CreditPurchaseRecord" WHERE "id"=$1`, [id]));
+		expect(
+			await queryRaw(`SELECT 1 FROM "CreditPurchaseImportIdentity" WHERE "purchaseId"=$1`, [id]),
+		).toEqual([]);
+	});
 });

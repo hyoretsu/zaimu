@@ -1,0 +1,114 @@
+[
+	{
+		"execute": [
+			{
+				"description": "create table \"CreditPurchaseImportIdentity\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"CreditPurchaseImportIdentity\" (\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"externalId\" character varying(200) NOT NULL,\n  \"purchaseId\" character varying(36) NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  CONSTRAINT \"CreditPurchaseImportIdentity_pkey\" PRIMARY KEY (\"externalId\")\n)"
+			}
+		],
+		"id": "table.CreditPurchaseImportIdentity",
+		"label": "Create table \"CreditPurchaseImportIdentity\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"CreditPurchaseImportIdentity\" exists",
+				"params": ["\"public\".\"CreditPurchaseImportIdentity\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"CreditPurchaseImportIdentity\" does not exist",
+				"params": ["\"public\".\"CreditPurchaseImportIdentity\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"CreditPurchaseImportIdentity\"",
+		"target": {
+			"details": {
+				"name": "CreditPurchaseImportIdentity",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"CreditPurchaseImportIdentity_purchaseId_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"CreditPurchaseImportIdentity_purchaseId_idx\" ON \"public\".\"CreditPurchaseImportIdentity\" (\"purchaseId\")"
+			}
+		],
+		"id": "index.CreditPurchaseImportIdentity.CreditPurchaseImportIdentity_purchaseId_idx",
+		"label": "Create index \"CreditPurchaseImportIdentity_purchaseId_idx\" on \"CreditPurchaseImportIdentity\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"CreditPurchaseImportIdentity_purchaseId_idx\" exists",
+				"params": ["\"public\".\"CreditPurchaseImportIdentity_purchaseId_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"CreditPurchaseImportIdentity_purchaseId_idx\" does not exist",
+				"params": ["\"public\".\"CreditPurchaseImportIdentity_purchaseId_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditPurchaseImportIdentity_purchaseId_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "CreditPurchaseImportIdentity"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"CreditPurchaseImportIdentity_purchaseId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"CreditPurchaseImportIdentity\"\nADD CONSTRAINT \"CreditPurchaseImportIdentity_purchaseId_fkey\"\nFOREIGN KEY (\"purchaseId\")\nREFERENCES \"public\".\"CreditPurchaseRecord\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+			}
+		],
+		"id": "foreignKey.CreditPurchaseImportIdentity.CreditPurchaseImportIdentity_purchaseId_fkey",
+		"label": "Add foreign key \"CreditPurchaseImportIdentity_purchaseId_fkey\" on \"CreditPurchaseImportIdentity\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"CreditPurchaseImportIdentity_purchaseId_fkey\" exists",
+				"params": [
+					"CreditPurchaseImportIdentity_purchaseId_fkey",
+					"public",
+					"\"public\".\"CreditPurchaseImportIdentity\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"CreditPurchaseImportIdentity_purchaseId_fkey\" does not exist",
+				"params": [
+					"CreditPurchaseImportIdentity_purchaseId_fkey",
+					"public",
+					"\"public\".\"CreditPurchaseImportIdentity\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "CreditPurchaseImportIdentity_purchaseId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "CreditPurchaseImportIdentity"
+			},
+			"id": "postgres"
+		}
+	}
+]

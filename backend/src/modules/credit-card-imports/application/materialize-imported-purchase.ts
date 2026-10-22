@@ -15,12 +15,14 @@ import { rewardSnapshot } from "~/modules/creditCards/application/cashback-snaps
 import { mutateCreditBook, newBookPurchase } from "~/modules/creditCards/application/normalized-credit-book";
 import type { RawQuery } from "~/modules/creditCards/application/normalized-statement-replay";
 import { HttpException } from "~/shared/errors";
+import { withRawTransaction } from "~/shared/infra/sql";
 import { withoutFinancingReferences } from "../domain/financing-source-reference";
 import {
 	assertImportedInstallmentChronology,
 	importedInstallmentDates,
 } from "../domain/imported-installment-dates";
 import { importedPurchaseTotalCents } from "../domain/imported-purchase-total";
+import { rememberImportIdentity } from "./import-identities";
 
 interface ImportedPurchaseInput {
 	id?: string;
@@ -56,28 +58,39 @@ interface CardSnapshot {
 }
 
 export async function materializeImportedPurchase(card: CardSnapshot, input: ImportedPurchaseInput) {
-	return mutateCreditBook(card.userId, card.id, (book, query) =>
-		materializePurchaseInBook(book, query, card, input),
-	);
+	return withRawTransaction(async query => {
+		const id = await mutateCreditBook(card.userId, card.id, (book, query) =>
+			materializePurchaseInBook(book, query, card, input),
+		);
+		if (input.installmentAmount > 0 && !input.isStatementCharge)
+			await rememberImportIdentity(query, input.externalId, id);
+		return id;
+	});
 }
 
 /** Persist a complete approval batch once, before consumers read CreditEntry. */
 export async function materializeImportedPurchases(card: CardSnapshot, inputs: ImportedPurchaseInput[]) {
 	if (!inputs.length) return [];
-	return mutateCreditBook(card.userId, card.id, async (book, query) => {
-		const ids: string[] = [];
-		const roots = new Map<string, string>();
-		for (const input of inputs) {
-			const source = input.pendingSourceItemId ? roots.get(input.pendingSourceItemId) : null;
-			if (input.pendingSourceItemId && !source)
-				throw new HttpException("Compra original pendente não encontrada", 409);
-			const id = await materializePurchaseInBook(book, query, card, {
-				...input,
-				existingRootId: source ?? input.existingRootId,
-			});
-			ids.push(id);
-			if (input.id) roots.set(input.id, id);
-		}
+	return withRawTransaction(async query => {
+		const ids = await mutateCreditBook(card.userId, card.id, async (book, query) => {
+			const ids: string[] = [];
+			const roots = new Map<string, string>();
+			for (const input of inputs) {
+				const source = input.pendingSourceItemId ? roots.get(input.pendingSourceItemId) : null;
+				if (input.pendingSourceItemId && !source)
+					throw new HttpException("Compra original pendente não encontrada", 409);
+				const id = await materializePurchaseInBook(book, query, card, {
+					...input,
+					existingRootId: source ?? input.existingRootId,
+				});
+				ids.push(id);
+				if (input.id) roots.set(input.id, id);
+			}
+			return ids;
+		});
+		for (const [index, input] of inputs.entries())
+			if (input.installmentAmount > 0 && !input.isStatementCharge)
+				await rememberImportIdentity(query, input.externalId, ids[index]!);
 		return ids;
 	});
 }
@@ -92,7 +105,18 @@ async function materializePurchaseInBook(
 		dueDate: input.dueDate.toISOString().slice(0, 10),
 		statementDate: input.statementDate.toISOString().slice(0, 10),
 	});
-	const duplicate = book.purchases.find(p => p.externalId === input.externalId);
+	const [identity] =
+		input.installmentAmount > 0 && !input.isStatementCharge
+			? await query<{ purchaseId: string }>(
+					`SELECT i."purchaseId" FROM "CreditPurchaseImportIdentity" i
+			 JOIN "CreditPurchaseRecord" p ON p."id"=i."purchaseId"
+			 WHERE i."externalId"=$1 AND p."creditCardId"=$2 AND p."userId"=$3`,
+					[input.externalId, card.id, card.userId],
+				)
+			: [];
+	const duplicate = book.purchases.find(
+		p => p.externalId === input.externalId || p.id === identity?.purchaseId,
+	);
 	const refundDuplicate = await query<{ id: string }>(
 		`SELECT r."id" FROM "CreditRefundRecord" r JOIN "CreditPurchaseRecord" p ON p."id"=r."purchaseId" WHERE r."externalId"=$1 AND p."creditCardId"=$2`,
 		[input.externalId, card.id],

@@ -854,6 +854,7 @@ namespace public {
     updatedAt            Timestamp(3) @default(now())
     user                 User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditPurchaseRecord_userId_fkey", index: false)
     creditCard           CreditCard @relation(fields: [creditCardId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditPurchaseRecord_creditCardId_fkey", index: false)
+    importIdentities     CreditPurchaseImportIdentity[]
     installmentPlan      CreditInstallmentPlan[]
     installments         CreditInstallmentRecord[] @relation("PurchaseInstallments")
     refunds              CreditRefundRecord[]
@@ -868,6 +869,17 @@ namespace public {
     @@index([externalId], map: "CreditPurchaseRecord_externalId_key", unique: true)
     @@index([recurrenceId, recurrenceOccurrenceDate], map: "CreditPurchaseRecord_recurrence_occurrence_key", unique: true)
     @@map("CreditPurchaseRecord")
+  }
+
+  model CreditPurchaseImportIdentity {
+    externalId VarChar(200) @id(map: "CreditPurchaseImportIdentity_pkey")
+    purchaseId VarChar(36)
+    createdAt Timestamp(3) @default(now())
+    updatedAt Timestamp(3) @default(now())
+    purchase CreditPurchaseRecord @relation(fields: [purchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditPurchaseImportIdentity_purchaseId_fkey", index: false)
+
+    @@index([purchaseId], map: "CreditPurchaseImportIdentity_purchaseId_idx")
+    @@map("CreditPurchaseImportIdentity")
   }
 
   model CreditInstallmentPlan {

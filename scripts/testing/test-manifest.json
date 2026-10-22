@@ -53,6 +53,7 @@
 		"backend/src/modules/credit-card-imports/domain/bradescard-credit-card.test.ts",
 		"backend/src/modules/credit-card-imports/domain/bradesco-credit-card.test.ts",
 		"backend/src/modules/credit-card-imports/domain/bulk-approval.test.ts",
+		"backend/src/modules/credit-card-imports/domain/confirmed-import-roots.test.ts",
 		"backend/src/modules/credit-card-imports/domain/credit-card-import-identity.test.ts",
 		"backend/src/modules/credit-card-imports/domain/credit-card-import-reconciliation.test.ts",
 		"backend/src/modules/credit-card-imports/domain/credit-card-statement-layout.test.ts",
