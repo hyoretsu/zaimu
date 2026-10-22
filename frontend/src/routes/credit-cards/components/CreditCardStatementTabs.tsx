@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
-import { LuReceiptText } from "react-icons/lu";
+import { LuCloudDownload, LuReceiptText } from "react-icons/lu";
 import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { TabsList, TabsTrigger } from "@/components/ui/Tabs";
@@ -138,15 +138,22 @@ export function CreditCardStatementTabs({
 											</span>
 										)}
 									</span>
-									<strong className="truncate text-sm">
-										{
-											<PreferredMoneyAmount
-												values={[
-													{ amount: statement.amountDue ?? statement.totalAmount, currency: currencyCode },
-												]}
-											/>
-										}
-									</strong>
+									<span className="flex min-w-0 items-center gap-1.5">
+										<strong className="truncate text-sm">
+											{
+												<PreferredMoneyAmount
+													values={[
+														{ amount: statement.amountDue ?? statement.totalAmount, currency: currencyCode },
+													]}
+												/>
+											}
+										</strong>
+										{statement.isFullySynced && (
+											<span aria-label="Sincronizada" className="shrink-0 text-emerald-600" role="img">
+												<LuCloudDownload aria-hidden="true" className="size-4" />
+											</span>
+										)}
+									</span>
 								</span>
 							</TabsTrigger>
 						);
