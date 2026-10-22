@@ -479,6 +479,7 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 				db.sql.public.CreditCardImportItem.select(
 					"id",
 					"description",
+					"currentInstallment",
 					"installmentAmount",
 					"isStatementCharge",
 					"installments",

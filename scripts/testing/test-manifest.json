@@ -47,6 +47,7 @@
 		"backend/src/modules/auth/password.test.ts",
 		"backend/src/modules/categories/application/category-lookup.test.ts",
 		"backend/src/modules/categories/infra/elysia/CategoriesDTO.test.ts",
+		"backend/src/modules/credit-card-imports/domain/affected-import-months.test.ts",
 		"backend/src/modules/credit-card-imports/domain/anticipated-installments.test.ts",
 		"backend/src/modules/credit-card-imports/domain/anticipation-refunds.test.ts",
 		"backend/src/modules/credit-card-imports/domain/bradescard-credit-card.test.ts",

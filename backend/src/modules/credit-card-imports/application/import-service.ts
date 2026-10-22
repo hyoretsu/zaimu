@@ -36,6 +36,7 @@ import {
 	withRawTransaction,
 	withTransaction,
 } from "~/shared/infra/sql";
+import { affectedImportMonths } from "../domain/affected-import-months";
 import { anticipationRefundPairs } from "../domain/anticipation-refunds";
 import { canBulkApprovePurchase } from "../domain/bulk-approval";
 import {
@@ -61,6 +62,7 @@ export async function getPotentialDuplicates(
 	items: Array<{
 		description: string;
 		id: string;
+		currentInstallment: number;
 		installmentAmount: number | string;
 		installments: number;
 		purchaseDate: Date | string;
@@ -74,33 +76,33 @@ export async function getPotentialDuplicates(
 	const candidates = entries.filter(p => !p.parentId && !p.isRefund && !p.isStatementCharge);
 	const children = entries.filter(p => p.parentId && candidates.some(c => c.id === p.parentId));
 	const reconciledItems = await queryRows(
-		db.sql.public.CreditCardImportItem.select("reconciledCreditPurchaseId").build(),
+		db.sql.public.CreditCardImportItem.select("reconciledCreditPurchaseId", "currentInstallment").build(),
 	);
 	const occupiedCandidateIds = new Set(
 		reconciledItems.flatMap(item =>
-			item.reconciledCreditPurchaseId ? [item.reconciledCreditPurchaseId] : [],
+			item.reconciledCreditPurchaseId
+				? [`${item.reconciledCreditPurchaseId}:${item.currentInstallment}`]
+				: [],
 		),
 	);
 	const childCounts = new Map<string, number>();
 	for (const child of children) {
 		if (child.parentId) childCounts.set(child.parentId, (childCounts.get(child.parentId) ?? 0) + 1);
 	}
-	const candidatesWithCounts = candidates
-		.filter(candidate => !occupiedCandidateIds.has(candidate.id))
-		.map(candidate => ({
-			currentInstallment: candidate.currentInstallment,
-			description: candidate.description,
-			existingInstallments: 1 + (childCounts.get(candidate.id) ?? 0),
-			id: candidate.id,
-			installmentAmount: candidate.installmentAmount,
-			installments: candidate.installments,
-			isSettled: candidate.isSettled,
-			purchaseDate: candidate.purchaseDate,
-			settledByPurchaseId: candidate.settledByPurchaseId,
-			storeName: candidate.storeName,
-			time: candidate.time,
-			totalAmount: candidate.totalAmount,
-		}));
+	const candidatesWithCounts = candidates.map(candidate => ({
+		currentInstallment: candidate.currentInstallment,
+		description: candidate.description,
+		existingInstallments: 1 + (childCounts.get(candidate.id) ?? 0),
+		id: candidate.id,
+		installmentAmount: candidate.installmentAmount,
+		installments: candidate.installments,
+		isSettled: candidate.isSettled,
+		purchaseDate: candidate.purchaseDate,
+		settledByPurchaseId: candidate.settledByPurchaseId,
+		storeName: candidate.storeName,
+		time: candidate.time,
+		totalAmount: candidate.totalAmount,
+	}));
 	if (importId) {
 		const pending = await queryRaw<
 			Pick<
@@ -138,25 +140,27 @@ export async function getPotentialDuplicates(
 			pendingPurchaseId(item.description)
 		)
 			continue;
-		const matches = candidatesWithCounts.filter(candidate =>
-			importedAnticipation(item.description)
-				? candidate.installments === item.installments &&
-					(candidate.description.normalize("NFKC").trim().toLocaleLowerCase("pt-BR") ===
-						withoutImportedAnticipation(item.description)
-							.normalize("NFKC")
-							.trim()
-							.toLocaleLowerCase("pt-BR") ||
-						Math.abs(Number(candidate.totalAmount) - Number(item.totalAmount)) <= 1)
-				: candidate.id.startsWith("pending:")
-					? false
-					: /^FIN /u.test(item.description)
-						? /^FIN /u.test(candidate.description) &&
-							candidate.installments === item.installments &&
-							dateKey(candidate.purchaseDate) === dateKey(item.purchaseDate)
-						: matchesExistingCreditPurchase(item, candidate) ||
-							(!candidate.isSettled &&
-								!candidate.settledByPurchaseId &&
-								isPotentialPurchaseRefinancing(item, candidate)),
+		const matches = candidatesWithCounts.filter(
+			candidate =>
+				!occupiedCandidateIds.has(`${candidate.id}:${item.currentInstallment}`) &&
+				(importedAnticipation(item.description)
+					? candidate.installments === item.installments &&
+						(candidate.description.normalize("NFKC").trim().toLocaleLowerCase("pt-BR") ===
+							withoutImportedAnticipation(item.description)
+								.normalize("NFKC")
+								.trim()
+								.toLocaleLowerCase("pt-BR") ||
+							Math.abs(Number(candidate.totalAmount) - Number(item.totalAmount)) <= 1)
+					: candidate.id.startsWith("pending:")
+						? false
+						: /^FIN /u.test(item.description)
+							? /^FIN /u.test(candidate.description) &&
+								candidate.installments === item.installments &&
+								dateKey(candidate.purchaseDate) === dateKey(item.purchaseDate)
+							: matchesExistingCreditPurchase(item, candidate) ||
+								(!candidate.isSettled &&
+									!candidate.settledByPurchaseId &&
+									isPotentialPurchaseRefinancing(item, candidate))),
 		);
 		if (matches.length) result.set(item.id, matches);
 	}
@@ -172,7 +176,10 @@ async function reconcileUniquePurchases(userId: string, importId: string, credit
 		);
 		const duplicates = await getPotentialDuplicates(creditCardId, items, importId);
 		const entries = await readCreditEntries(creditCardId);
-		for (const [itemId, candidate] of uniquePurchaseMatches(duplicates)) {
+		for (const [itemId, candidate] of uniquePurchaseMatches(duplicates, (itemId, candidate) => {
+			const item = items.find(item => item.id === itemId)!;
+			return !importedAnticipation(item.description) && matchesExistingCreditPurchase(item, candidate);
+		})) {
 			const item = items.find(item => item.id === itemId)!;
 			const original = entries.find(entry => entry.id === candidate.id);
 			if (!original) continue;
@@ -784,6 +791,21 @@ async function approveItemsImpl(
 				)
 				.build(),
 		);
+	}
+	const affectedMonths = affectedImportMonths(
+		creditCardImport.statementDate,
+		selectedItems.filter(item => !item.isStatementCharge && Number(item.installmentAmount) > 0),
+	);
+	if (affectedMonths.length) {
+		const pendingImports = await queryRaw<{ id: string }>(
+			`SELECT "id" FROM "CreditCardImport"
+			 WHERE "creditCardId"=$1 AND "userId"=$2 AND "status"='PENDING'
+			 AND "id"<>$3 AND to_char("statementDate", 'YYYY-MM')=ANY($4::text[])
+			 ORDER BY "id"`,
+			[creditCardImport.creditCardId, userId, importId, affectedMonths],
+		);
+		for (const pending of pendingImports)
+			await reconcileUniquePurchases(userId, pending.id, creditCardImport.creditCardId);
 	}
 	const remaining = await queryFirst(
 		db.sql.public.CreditCardImportItem.select("id")

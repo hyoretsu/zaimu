@@ -400,3 +400,5 @@ Na listagem de transações da fatura, reembolsos aparecem como lançamento sepa
 
 
 Parcelas distintas da mesma compra podem permanecer em revisão em importações diferentes. Uma parcela pendente impede somente outra revisão da mesma parcela, sem ocultar parcelas anteriores ou posteriores da compra. A aprovação concilia todas com a mesma compra original, sem duplicá-la.
+
+Aprovar compras de uma fatura atualiza a conciliação das importações ainda pendentes do mesmo cartão, somente nos meses cobertos pelas parcelas das compras aprovadas, incluindo meses anteriores e posteriores. Meses sobrepostos são deduplicados: cada lote relacionado é atualizado uma única vez por aprovação. Correspondência exata de data, valores e quantidade de parcelas prevalece sobre sugestões de reparcelamento. Vínculos de revisão reservam somente a parcela correspondente, sem bloquear outras parcelas da compra; ambiguidades entre compras compatíveis continuam exigindo revisão manual.
