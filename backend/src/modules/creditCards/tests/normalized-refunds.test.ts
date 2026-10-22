@@ -710,6 +710,27 @@ describe("normalized refund transactions", () => {
 				)
 			)[0]?.externalId,
 		).toBe(first.externalId);
+
+		const corrected = {
+			...first,
+			existingRootId: id,
+			externalId: "corrected-first-identity",
+			installmentAmount: 18.82,
+			totalAmount: 94.1,
+		};
+		await expect(materializeImportedPurchase(card, corrected)).rejects.toThrow(
+			"Valor importado já registrado para esta parcela",
+		);
+		expect(await materializeImportedPurchase(card, { ...corrected, allowBankCorrection: true })).toBe(id);
+		expect(
+			await queryRaw(
+				`SELECT "number", "amount", "hasImportedAmount" FROM "CreditInstallmentRecord" WHERE "purchaseId"=$1 AND "number"<=2 ORDER BY "number"`,
+				[id],
+			),
+		).toEqual([
+			{ amount: 18.82, hasImportedAmount: true, number: 1 },
+			{ amount: 18.75, hasImportedAmount: true, number: 2 },
+		]);
 		await expect(
 			withRawTransaction(query => rememberImportIdentity(query, first.externalId, "normalized-test-second")),
 		).rejects.toThrow("Identificador importado já vinculado a outra compra");

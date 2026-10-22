@@ -658,6 +658,7 @@ async function approveItemsImpl(
 		previousRootsByItem.set(item.id, importedRoot);
 		batchInputs.push({
 			...item,
+			allowBankCorrection: true,
 			debtSplitRule: debtSplit ?? null,
 			description: withoutPendingPurchase(item.description),
 			dueDate: creditCardImport.dueDate,
@@ -716,6 +717,7 @@ async function approveItemsImpl(
 			rootsByItem.get(item.id) ??
 			(await materializeImportedPurchase(cardSnapshot, {
 				...item,
+				allowBankCorrection: true,
 				debtSplitRule: debtSplit ?? null,
 				dueDate: creditCardImport.dueDate,
 				existingRootId: item.reconciledCreditPurchaseId ?? importedRoot?.id ?? null,
