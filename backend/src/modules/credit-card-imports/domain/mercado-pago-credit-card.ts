@@ -35,10 +35,11 @@ export function parseMercadoPagoCreditCardStatementText(text: string): CreditCar
 	const dueDateMatch =
 		text.match(/Vence em\s*(\d{2}\/\d{2}\/\d{4})/iu) ?? text.match(/Vencimento:\s*(\d{2}\/\d{2}\/\d{4})/iu);
 	const statementDateMatch = text.match(/Fechamento da fatura\s*(\d{2}\/\d{2}\/\d{4})/iu);
-	if (!dueDateMatch || !statementDateMatch)
+	if (!dueDateMatch && !statementDateMatch)
 		throw new Error("Não foi possível identificar vencimento e fechamento da fatura");
-	const dueDate = parseFullDate(dueDateMatch[1]!);
-	const statementDate = parseFullDate(statementDateMatch[1]!);
+	const dueDate = dueDateMatch ? parseFullDate(dueDateMatch[1]!) : undefined;
+	const statementDate = statementDateMatch ? parseFullDate(statementDateMatch[1]!) : undefined;
+	const referenceDate = (statementDate ?? dueDate)!;
 	const cardSectionStart = text.search(/Cartão\s+(?:Visa|Mastercard)/iu);
 	if (cardSectionStart < 0) throw new Error("Não foi possível encontrar as compras da fatura");
 	const cardSectionEnd = text.search(/Parcele a fatura/iu);
@@ -57,20 +58,18 @@ export function parseMercadoPagoCreditCardStatementText(text: string): CreditCar
 			description: match[3]!.trim(),
 			installmentAmount,
 			installments,
-			purchaseDate: inferPurchaseDate(Number(match[1]), Number(match[2]), statementDate, currentInstallment),
+			purchaseDate: inferPurchaseDate(Number(match[1]), Number(match[2]), referenceDate, currentInstallment),
 			statementPurchaseDate: `${match[1]}/${match[2]}`,
 			totalAmount: Math.round(installmentAmount * installments * 100) / 100,
 		});
 	}
 	if (!purchases.length) throw new Error("Nenhuma compra foi encontrada na fatura");
 	return {
-		dueDate: dateKey(dueDate.getDate(), dueDate.getMonth() + 1, dueDate.getFullYear()),
+		dueDate: dueDate ? dateKey(dueDate.getDate(), dueDate.getMonth() + 1, dueDate.getFullYear()) : undefined,
 		provider: "MERCADO_PAGO",
 		purchases: groupAnticipatedInstallments(purchases),
-		statementDate: dateKey(
-			statementDate.getDate(),
-			statementDate.getMonth() + 1,
-			statementDate.getFullYear(),
-		),
+		statementDate: statementDate
+			? dateKey(statementDate.getDate(), statementDate.getMonth() + 1, statementDate.getFullYear())
+			: undefined,
 	};
 }

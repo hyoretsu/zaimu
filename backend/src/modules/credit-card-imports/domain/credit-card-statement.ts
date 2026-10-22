@@ -14,8 +14,10 @@ export interface CreditCardStatementPurchase {
 }
 
 export interface CreditCardStatement {
-	dueDate: string;
+	/** Explicit closing of the next cycle, independent of the current invoice. */
+	nextStatementDate?: string;
+	dueDate?: string;
 	provider: CreditCardImportProvider;
 	purchases: CreditCardStatementPurchase[];
-	statementDate: string;
+	statementDate?: string;
 }

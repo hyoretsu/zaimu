@@ -62,7 +62,11 @@ import {
 	withoutPendingPurchase,
 	withPendingPurchase,
 } from "../../domain/pending-purchase-reference";
-import { selectNewImportPurchases } from "../../domain/select-new-import-purchases";
+import {
+	resolveImportStatementDates,
+	synchronizeNextImportedStatement,
+} from "../../domain/resolve-import-statement-dates";
+import { findPendingImport, selectNewImportPurchases } from "../../domain/select-new-import-purchases";
 import { CreditCardImportItemReconcileDTO, CreditCardImportItemUpdateDTO } from "./CreditCardImportsDTO";
 
 const importItemTagEntityType = "CREDIT_CARD_IMPORT_ITEM";
@@ -138,7 +142,22 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 			const fileBytes = new Uint8Array(await body.file.arrayBuffer());
 			if (fileBytes.length < 5 || new TextDecoder().decode(fileBytes.slice(0, 5)) !== "%PDF-")
 				throw new HttpException("Envie um PDF válido", 400);
-			const statement = await parseCreditCardStatementPdf(fileBytes.buffer, body.provider, body.password);
+			const parsedStatement = await parseCreditCardStatementPdf(
+				fileBytes.buffer,
+				body.provider,
+				body.password,
+			);
+			const resolvedDates = parsedStatement.nextStatementDate
+				? await mutateCreditBook(userId, body.creditCardId, book => {
+						const dates = resolveImportStatementDates(parsedStatement, book);
+						synchronizeNextImportedStatement(book, parsedStatement.nextStatementDate!, dates.statementDate);
+						return dates;
+					})
+				: resolveImportStatementDates(
+						parsedStatement,
+						await readCreditBook(userId, body.creditCardId, false),
+					);
+			const statement = { ...parsedStatement, ...resolvedDates };
 			const reportedPreviousBalance =
 				statement.reportedPreviousBalance ??
 				statement.purchases.find(purchase =>
@@ -162,6 +181,7 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 						functions.eq(fields.CreditCardImportItem.creditCardImportId, fields.CreditCardImport.id),
 					)
 						.select(fields => ({
+							creditCardImportId: fields.CreditCardImportItem.creditCardImportId,
 							currentInstallment: fields.CreditCardImportItem.currentInstallment,
 							externalId: fields.CreditCardImportItem.externalId,
 						}))
@@ -254,12 +274,18 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 			}
 			const ignoredCount = purchases.length - newPurchases.length;
 			if (!newPurchases.length) {
-				if (!pending.length)
-					await markStatementAsFullySynced({
-						creditCardId: body.creditCardId,
-						dueDate: new Date(`${statement.dueDate}T12:00:00`),
-						statementDate: new Date(`${statement.statementDate}T12:00:00`),
-					});
+				const pendingImportId = findPendingImport(
+					selectNewImportPurchases(purchases, existingRoots, existingInstallments, []),
+					pending,
+				);
+				if (pendingImportId) {
+					return { creditCardImport: await getImportReturn(userId, pendingImportId), ignoredCount };
+				}
+				await markStatementAsFullySynced({
+					creditCardId: body.creditCardId,
+					dueDate: new Date(`${statement.dueDate}T12:00:00`),
+					statementDate: new Date(`${statement.statementDate}T12:00:00`),
+				});
 				return { creditCardImport: null, ignoredCount };
 			}
 			const creditCardImport = await createCreditCardBatch({

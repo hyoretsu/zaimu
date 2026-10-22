@@ -42,10 +42,12 @@ export function parseNubankCreditCardStatementText(text: string): CreditCardStat
 	const periodMatch = text.match(
 		/Período\s+vigente:\s*\d{2}\s+[A-Za-zÀ-ÿ]{3}\s+a\s+(\d{2}\s+[A-Za-zÀ-ÿ]{3})/iu,
 	);
-	if (!dueDateMatch || !periodMatch)
-		throw new Error("Não foi possível identificar vencimento e período da fatura");
+	if (!dueDateMatch) throw new Error("Não foi possível identificar vencimento e período da fatura");
 	const dueDate = parseInvoiceDate(dueDateMatch[1]!.toUpperCase());
-	const statementDate = parseInvoiceDate(`${periodMatch[1]!.toUpperCase()} ${dueDate.getFullYear()}`);
+	const statementDate = periodMatch
+		? parseInvoiceDate(`${periodMatch[1]!.toUpperCase()} ${dueDate.getFullYear()}`)
+		: undefined;
+	const referenceDate = statementDate ?? dueDate;
 	const transactionsStart = text.search(/TRANSAÇÕES\s+DE/iu);
 	const paymentsStart = text.search(/Pagamentos\s+-?R\$/iu);
 	if (transactionsStart < 0) throw new Error("Não foi possível encontrar as transações da fatura");
@@ -79,7 +81,7 @@ export function parseNubankCreditCardStatementText(text: string): CreditCardStat
 			purchaseDate: parsePurchaseDate(
 				Number(match[1]),
 				match[2]!.toUpperCase(),
-				statementDate,
+				referenceDate,
 				currentInstallment,
 			),
 			statementPurchaseDate: `${match[1]}/${match[2]}`,
@@ -91,6 +93,6 @@ export function parseNubankCreditCardStatementText(text: string): CreditCardStat
 		dueDate: dateKey(dueDate),
 		provider: "NUBANK",
 		purchases: groupAnticipatedInstallments(purchases),
-		statementDate: dateKey(statementDate),
+		statementDate: statementDate ? dateKey(statementDate) : undefined,
 	};
 }

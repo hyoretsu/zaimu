@@ -57,7 +57,7 @@ Total parcelado para as próximas faturas R$ 567,57
 					totalAmount: 26.02,
 				},
 			],
-			statementDate: "2026-08-25",
+			statementDate: undefined,
 		});
 	});
 });

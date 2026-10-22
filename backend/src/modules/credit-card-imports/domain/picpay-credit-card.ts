@@ -73,11 +73,11 @@ function parseInvoiceDates(text: string) {
 		};
 	const dueDate = text.match(/Vencimento:\s*(\d{2}[/-]\d{2}[/-]\d{4})/iu);
 	const statementDate = text.match(/Fechamento(?:\s+da\s+fatura)?:\s*(\d{2}[/-]\d{2}[/-]\d{4})/iu);
-	if (!dueDate || !statementDate)
+	if (!dueDate && !statementDate)
 		throw new Error("Não foi possível identificar vencimento e fechamento da fatura");
 	return {
-		dueDate: parseFullDate(dueDate[1]!.replaceAll("-", "/")),
-		statementDate: parseFullDate(statementDate[1]!.replaceAll("-", "/")),
+		dueDate: dueDate ? parseFullDate(dueDate[1]!.replaceAll("-", "/")) : undefined,
+		statementDate: statementDate ? parseFullDate(statementDate[1]!.replaceAll("-", "/")) : undefined,
 	};
 }
 
@@ -128,10 +128,11 @@ function parseFinancedOperations(text: string, statementDate: Date) {
 
 export function parsePicPayCreditCardStatementText(text: string): CreditCardStatement {
 	const { dueDate, statementDate } = parseInvoiceDates(text);
+	const referenceDate = (statementDate ?? dueDate)!;
 	const sectionPattern =
 		/Transações\s+Nacionais\s+Data\s+Estabelecimento\s+Valor(?:\s+\(R\$\))?\s*([\s\S]*?)(?=Subtotal\s+dos\s+lançamentos|Total\s+geral\s+dos\s+lançamentos)/giu;
 	const purchasePattern = /^(\d{2})\/(\d{2})\s+(.+?)\s+([−-]?[\d.]+,\d{2})$/gimu;
-	const purchases = parseFinancedOperations(text, statementDate);
+	const purchases = parseFinancedOperations(text, referenceDate);
 	const nationalSections = [...text.matchAll(sectionPattern)].map(match => match[1]!);
 	for (const section of nationalSections.length ? nationalSections : [text]) {
 		for (const match of section.matchAll(purchasePattern)) {
@@ -147,7 +148,7 @@ export function parsePicPayCreditCardStatementText(text: string): CreditCardStat
 					description: `Reembolso - ${description}`,
 					installmentAmount,
 					installments: 1,
-					purchaseDate: inferPurchaseDate(Number(match[1]), Number(match[2]), statementDate, 1),
+					purchaseDate: inferPurchaseDate(Number(match[1]), Number(match[2]), referenceDate, 1),
 					totalAmount: installmentAmount,
 				});
 				continue;
@@ -164,7 +165,7 @@ export function parsePicPayCreditCardStatementText(text: string): CreditCardStat
 				purchaseDate: inferPurchaseDate(
 					Number(match[1]),
 					Number(match[2]),
-					statementDate,
+					referenceDate,
 					currentInstallment,
 				),
 				statementPurchaseDate: `${match[1]}/${match[2]}`,
@@ -185,7 +186,7 @@ export function parsePicPayCreditCardStatementText(text: string): CreditCardStat
 			purchaseDate: inferPurchaseDate(
 				Number(internationalPurchase[1]),
 				Number(internationalPurchase[2]),
-				statementDate,
+				referenceDate,
 				1,
 			),
 			totalAmount: installmentAmount,
@@ -201,9 +202,9 @@ export function parsePicPayCreditCardStatementText(text: string): CreditCardStat
 	if (credits.length) linkFinancedSources(purchases, credits);
 	if (!purchases.length) throw new Error("Nenhuma compra foi encontrada na fatura");
 	return {
-		dueDate: dateKey(dueDate),
+		dueDate: dueDate ? dateKey(dueDate) : undefined,
 		provider: "PICPAY",
 		purchases: groupAnticipatedInstallments(purchases),
-		statementDate: dateKey(statementDate),
+		statementDate: statementDate ? dateKey(statementDate) : undefined,
 	};
 }

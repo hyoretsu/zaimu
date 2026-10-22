@@ -31,9 +31,9 @@ function parseFullDate(value: string) {
 	return new Date(year, month - 1, day);
 }
 
-function parseStatementDate(text: string, dueDate: Date) {
+function parseStatementDate(text: string) {
 	const dateMatch = text.match(/DATA\s+DOCUMENTO\s+(\d{2}\/\d{2}\/\d{4})/iu);
-	return dateMatch ? parseFullDate(dateMatch[1]!) : dueDate;
+	return dateMatch ? parseFullDate(dateMatch[1]!) : undefined;
 }
 
 function isPurchase(description: string) {
@@ -42,9 +42,8 @@ function isPurchase(description: string) {
 
 export function parseInterCreditCardStatementText(text: string): CreditCardStatement {
 	const dueDateMatch = text.match(/Data\s+de\s+Vencimento\s+(\d{2}\/\d{2}\/\d{4})/iu);
-	if (!dueDateMatch) throw new Error("Não foi possível identificar o vencimento da fatura");
-	const dueDate = parseFullDate(dueDateMatch[1]!);
-	const statementDate = parseStatementDate(text, dueDate);
+	const dueDate = dueDateMatch ? parseFullDate(dueDateMatch[1]!) : undefined;
+	const statementDate = parseStatementDate(text);
 	const expensesStart = text.search(/Despesas\s+da\s+fatura/iu);
 	if (expensesStart < 0) throw new Error("Não foi possível encontrar as despesas da fatura");
 	const expensesAfterStart = text.slice(expensesStart);
@@ -82,9 +81,9 @@ export function parseInterCreditCardStatementText(text: string): CreditCardState
 	}
 	if (!purchases.length) throw new Error("Nenhuma compra foi encontrada na fatura");
 	return {
-		dueDate: dateKey(dueDate),
+		dueDate: dueDate ? dateKey(dueDate) : undefined,
 		provider: "INTER",
 		purchases: groupAnticipatedInstallments(purchases),
-		statementDate: dateKey(statementDate),
+		statementDate: statementDate ? dateKey(statementDate) : undefined,
 	};
 }

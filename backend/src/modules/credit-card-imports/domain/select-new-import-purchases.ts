@@ -47,3 +47,17 @@ export function selectNewImportPurchases(
 		return [{ ...purchase, reconciledCreditPurchaseId: rootId }];
 	});
 }
+
+/** Only the same unconfirmed installment can block completion of this invoice. */
+export function findPendingImport(
+	purchases: Array<{ externalId: string; currentInstallment: number }>,
+	pendingPurchases: Array<{ externalId: string; currentInstallment: number; creditCardImportId: string }>,
+) {
+	return pendingPurchases.find(pending =>
+		purchases.some(
+			purchase =>
+				purchase.externalId === pending.externalId &&
+				purchase.currentInstallment === pending.currentInstallment,
+		),
+	)?.creditCardImportId;
+}

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { selectNewImportPurchases } from "./select-new-import-purchases";
+import { findPendingImport, selectNewImportPurchases } from "./select-new-import-purchases";
 
 const purchase = {
 	currentInstallment: 10,
@@ -118,4 +118,29 @@ test("pending later installments do not hide earlier invoices, in either import 
 			{ ...incoming, reconciledCreditPurchaseId: "root" },
 		]);
 	}
+});
+
+test("reimporting Amazon February resumes review of only the unconfirmed second installment", () => {
+	const second = { ...purchase, currentInstallment: 2, installmentAmount: 11.63, installments: 2 };
+	const roots = new Map([[second.externalId, "root"]]);
+	const entries = [
+		{ currentInstallment: 1, hasImportedAmount: true, id: "root", parentId: null },
+		{ currentInstallment: 2, hasImportedAmount: false, id: "second", parentId: "root" },
+	];
+	const pending = [{ ...second, creditCardImportId: "february" }];
+	expect(selectNewImportPurchases([second], roots, entries, pending)).toEqual([]);
+	const unconfirmed = selectNewImportPurchases([second], roots, entries, []);
+	expect(findPendingImport(unconfirmed, pending)).toBe("february");
+	expect(findPendingImport(unconfirmed, [{ ...pending[0]!, currentInstallment: 1 }])).toBeUndefined();
+	expect(
+		findPendingImport(
+			selectNewImportPurchases(
+				[second],
+				roots,
+				entries.map(entry => ({ ...entry, hasImportedAmount: true })),
+				[],
+			),
+			pending,
+		),
+	).toBeUndefined();
 });

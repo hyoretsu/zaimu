@@ -38,11 +38,34 @@ const creditCardStatementLayouts: readonly CreditCardStatementLayout[] = [
 	{ id: "picpay", matches: () => true, parse: parsePicPayCreditCardStatementText, provider: "PICPAY" },
 ];
 
+/** Read only dates explicitly attributed to the next invoice, shared by all layouts. */
+export function nextStatementDateFromText(text: string) {
+	const patterns = [
+		/fechamento\s+da\s+(?:sua\s+)?próxima\s+fatura[^\d]{0,40}(\d{2}[/-]\d{2}[/-]\d{4})/giu,
+		/próxima\s+fatura\s*(?:data\s+de\s+)?(?:corte|fechamento)\s*:?\s*(\d{2}[/-]\d{2}[/-]\d{4})/giu,
+	];
+	const dates = new Set(
+		patterns.flatMap(pattern =>
+			[...text.matchAll(pattern)].map(match => {
+				const [day, month, year] = match[1]!.split(/[/-]/u);
+				const date = `${year}-${month}-${day}`;
+				const parsed = new Date(`${date}T12:00:00Z`);
+				if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date)
+					throw new HttpException("Data de fechamento da próxima fatura inválida", 400);
+				return date;
+			}),
+		),
+	);
+	if (dates.size > 1) throw new HttpException("Datas de fechamento da próxima fatura conflitantes", 400);
+	return [...dates][0];
+}
+
 export function parseCreditCardStatementText(text: string, provider: CreditCardImportProvider) {
 	if (!text.trim()) throw new HttpException("Não foi possível extrair texto do PDF", 400);
 	const layout = selectCreditCardStatementLayout(text, provider, creditCardStatementLayouts);
 	return {
 		...layout.parse(text),
+		nextStatementDate: nextStatementDateFromText(text),
 		reportedPreviousBalance: statementPreviousBalance(text),
 	};
 }

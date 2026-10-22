@@ -30,11 +30,11 @@ function inferPurchaseDate(day: number, month: number, statementDate: Date, curr
 	return dateKey(selected.date.getDate(), selected.date.getMonth() + 1, selected.date.getFullYear());
 }
 
-function findStatementDate(text: string, dueDate: Date) {
+function findStatementDate(text: string) {
 	const closingDate = text.match(
 		/(?:data\s+de\s+fechamento|fechamento\s+da\s+fatura|fechamento:)[^\d]{0,40}(\d{2}\/\d{2}\/\d{4})/iu,
 	);
-	return closingDate ? parseFullDate(closingDate[1]!) : dueDate;
+	return closingDate ? parseFullDate(closingDate[1]!) : undefined;
 }
 
 function isPurchase(description: string) {
@@ -45,9 +45,10 @@ function isPurchase(description: string) {
 
 export function parseBradescoPurchases(text: string, transactionsSection: string): CreditCardStatement {
 	const dueDateMatch = text.match(/Vencimento\s*(\d{2}\/\d{2}\/\d{4})/iu);
-	if (!dueDateMatch) throw new Error("Não foi possível identificar o vencimento da fatura");
-	const dueDate = parseFullDate(dueDateMatch[1]!);
-	const statementDate = findStatementDate(text, dueDate);
+	const dueDate = dueDateMatch ? parseFullDate(dueDateMatch[1]!) : undefined;
+	const statementDate = findStatementDate(text);
+	const referenceDate = statementDate ?? dueDate;
+	if (!referenceDate) throw new Error("Não foi possível identificar o período da fatura");
 	const purchasePattern = /^(\d{2})\/(\d{2})\s+(.+?)\s+(\d{1,3}(?:\.\d{3})*,\d{2})\s*(-)?$/gimu;
 	const purchases: CreditCardStatementPurchase[] = [];
 	for (const match of transactionsSection.matchAll(purchasePattern)) {
@@ -64,20 +65,18 @@ export function parseBradescoPurchases(text: string, transactionsSection: string
 			description: description.replace(/\s*\(\d{1,2}\/\d{1,2}\)\s*$/u, ""),
 			installmentAmount,
 			installments,
-			purchaseDate: inferPurchaseDate(Number(match[1]), Number(match[2]), statementDate, currentInstallment),
+			purchaseDate: inferPurchaseDate(Number(match[1]), Number(match[2]), referenceDate, currentInstallment),
 			statementPurchaseDate: `${match[1]}/${match[2]}`,
 			totalAmount: Math.round(installmentAmount * installments * 100) / 100,
 		});
 	}
 	if (!purchases.length) throw new Error("Nenhuma compra foi encontrada na fatura");
 	return {
-		dueDate: dateKey(dueDate.getDate(), dueDate.getMonth() + 1, dueDate.getFullYear()),
+		dueDate: dueDate ? dateKey(dueDate.getDate(), dueDate.getMonth() + 1, dueDate.getFullYear()) : undefined,
 		provider: "BRADESCO",
 		purchases: groupAnticipatedInstallments(purchases),
-		statementDate: dateKey(
-			statementDate.getDate(),
-			statementDate.getMonth() + 1,
-			statementDate.getFullYear(),
-		),
+		statementDate: statementDate
+			? dateKey(statementDate.getDate(), statementDate.getMonth() + 1, statementDate.getFullYear())
+			: undefined,
 	};
 }

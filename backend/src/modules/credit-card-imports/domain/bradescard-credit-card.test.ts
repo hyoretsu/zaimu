@@ -23,7 +23,7 @@ ${footer}
 Parcelamento de Fatura
 01/04 FINANCING OFFER 39,90`);
 		expect(statement.dueDate).toBe("2025-04-25");
-		expect(statement.statementDate).toBe("2025-04-25");
+		expect(statement.statementDate).toBeUndefined();
 		expect(statement.provider).toBe("BRADESCO");
 		expect(statement.purchases).toHaveLength(2);
 		expect(statement.purchases.map(purchase => purchase.installmentAmount)).toEqual([26.5, 3.15]);
@@ -46,8 +46,8 @@ ${footer}`);
 		expect(statement.purchases[1]!.installmentAmount).toBe(-15);
 	});
 
-	test("rejects absent due dates and transaction sections", () => {
-		expect(() => parseBradescardCreditCardStatementText(header)).toThrow("vencimento");
+	test("rejects absent periods and transaction sections", () => {
+		expect(() => parseBradescardCreditCardStatementText(header)).toThrow("período");
 		expect(() => parseBradescardCreditCardStatementText(footer)).toThrow("lançamentos");
 	});
 });
