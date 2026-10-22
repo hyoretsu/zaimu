@@ -369,7 +369,7 @@ export async function listTransactionsPage(userId: string, input: ListTransactio
 							}
 						: null;
 				})(),
-				isSynced: sourceRank === 0 ? references.length > 0 : undefined,
+				isSynced: sourceRank === 0 ? references.length > 0 : purchaseSyncStatus.get(row.id)?.isSynced,
 				tagIds: tags.map(tag => tag.id),
 				tags,
 			};
