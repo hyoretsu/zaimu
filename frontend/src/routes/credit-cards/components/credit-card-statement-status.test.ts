@@ -18,7 +18,7 @@ describe("getCreditCardStatementStatus", () => {
 	test("recognizes scheduled payments from invoice details without the aggregate", () => {
 		expect(
 			getCreditCardStatementStatus(
-				{ ...statement, payments: [{ amount: 99.99, date: "2099-01-20" }] },
+				{ ...statement, payments: [{ amount: 100, date: "2099-01-20" }] },
 				"2099-01-16",
 			).label,
 		).toBe("Pagamento agendado");
@@ -37,8 +37,6 @@ describe("getCreditCardStatementStatus", () => {
 	test.each([
 		[100, "text-success-600"],
 		[110, "text-success-600"],
-		[99.99, "text-destructive"],
-		[40, "text-destructive"],
 	])("colors scheduled amount %s by its coverage", (scheduledPaymentAmount, className) => {
 		expect(
 			getCreditCardStatementStatus({ ...statement, scheduledPaymentAmount }, "2099-01-16"),
@@ -47,13 +45,16 @@ describe("getCreditCardStatementStatus", () => {
 
 	test("compares the schedule with the remaining balance after credit and settled payments", () => {
 		expect(
-			getCreditCardStatementStatus({
-				...statement,
-				amountDue: 100,
-				creditInAmount: 20,
-				periodPaymentAmount: 30,
-				scheduledPaymentAmount: 50,
-			}).className,
+			getCreditCardStatementStatus(
+				{
+					...statement,
+					amountDue: 100,
+					creditInAmount: 20,
+					periodPaymentAmount: 30,
+					scheduledPaymentAmount: 50,
+				},
+				"2099-01-16",
+			).className,
 		).toBe("text-success-600");
 	});
 
@@ -79,14 +80,39 @@ describe("getCreditCardStatementStatus", () => {
 		];
 		expect(
 			getCreditCardStatementStatus({ ...statement, payments, scheduledPaymentAmount: 99.99 }, "2099-01-16")
-				.className,
-		).toBe("text-destructive");
+				.label,
+		).toBe("Fatura fechada");
 		expect(
 			getCreditCardStatementStatus(
 				{ ...statement, payments: [...payments, { amount: 0.01, date: "2099-01-22" }] },
 				"2099-01-16",
 			).className,
 		).toBe("text-success-600");
+	});
+
+	test.each(["2099-01-01", "2099-01-14"])(
+		"keeps invoices open before closing despite future payments on %s",
+		today => {
+			expect(
+				getCreditCardStatementStatus(
+					{ ...statement, payments: [{ amount: 150, date: "2099-01-14" }], scheduledPaymentAmount: 150 },
+					today,
+				).label,
+			).toBe("Fatura aberta");
+		},
+	);
+	test.each([40, 99.99])("keeps closed invoices closed with only %s scheduled", scheduledPaymentAmount => {
+		expect(getCreditCardStatementStatus({ ...statement, scheduledPaymentAmount }, "2099-01-16").label).toBe(
+			"Fatura fechada",
+		);
+	});
+	test("does not schedule an invoice with no remaining balance", () => {
+		expect(
+			getCreditCardStatementStatus(
+				{ ...statement, balanceAmount: 0, scheduledPaymentAmount: 100 },
+				"2099-01-16",
+			).label,
+		).toBe("Fatura fechada");
 	});
 
 	test("shows forecast invoices without a status", () => {

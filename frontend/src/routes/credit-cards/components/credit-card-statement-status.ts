@@ -18,16 +18,22 @@ export function getCreditCardStatementStatus(
 		toCents(statement.scheduledPaymentAmount ?? 0),
 		statement.payments?.reduce(
 			(sum, payment) =>
-				payment.amount > 0 && payment.date.slice(0, 10) > today ? sum + toCents(payment.amount) : sum,
+				payment.amount > 0 &&
+				payment.date.slice(0, 10) > today &&
+				payment.date.slice(0, 10) > statement.statementDate.slice(0, 10)
+					? sum + toCents(payment.amount)
+					: sum,
 			0,
 		) ?? 0,
 	);
-	if (scheduledAmount > 0) {
+	const remainingAmount = toCents(getCreditCardStatementDisplayBalance(statement));
+	if (
+		statement.statementDate.slice(0, 10) <= today &&
+		remainingAmount > 0 &&
+		scheduledAmount >= remainingAmount
+	) {
 		return {
-			className:
-				scheduledAmount >= toCents(getCreditCardStatementDisplayBalance(statement))
-					? "text-success-600"
-					: "text-destructive",
+			className: "text-success-600",
 			icon: LuClock,
 			label: "Pagamento agendado",
 		};

@@ -418,3 +418,6 @@ Alterações de fechamento por importação usam a mesma recomposição das edi�
 Mover lançamentos e recalcular a cascata de faturas constitui uma única operação atômica por cartão. Datas, alocações, saldos e estados de pagamento são confirmados juntos; qualquer falha cancela o conjunto e retorna erro, sem deixar faturas parcialmente reprocessadas.
 
 Na recuperação de vínculos antigos, o fechamento da fatura efetivamente vinculada à parcela prevalece sobre o calendário salvo no plano da compra. Um plano desatualizado não pode esconder uma compra posterior ao fechamento corrigido. A recuperação atualiza também o calendário do plano e recalcula a cascata na mesma operação.
+
+
+O status "Pagamento agendado" exige fatura já fechada e pagamentos futuros após o fechamento que cubram integralmente o saldo restante. Pagamentos anteriores ao fechamento, mesmo futuros ou suficientes para cobrir o saldo atual, mantêm a fatura aberta até o fechamento. Agendamentos parciais não substituem o status de fatura fechada ou atrasada.
