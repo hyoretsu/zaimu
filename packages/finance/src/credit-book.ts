@@ -272,11 +272,7 @@ export function synchronizeImportedStatementDates(
 		candidates.find(item => item.dueDate === dates.dueDate) ??
 		(sameMonth.length === 1 ? sameMonth[0] : undefined);
 	if (!statement) return ensureBookStatement(book, dates.statementDate, dates);
-	const previousClosing = statement.statementDate;
-	Object.assign(statement, dates);
-	for (const purchase of book.purchases)
-		for (const registered of purchase.installmentStatementDates ?? [])
-			if (registered?.statementDate === previousClosing) Object.assign(registered, dates);
+	updateBookStatementDates(book, statement.id, dates);
 	return statement;
 }
 
@@ -411,6 +407,15 @@ export function creditBookEffects(book: CreditBook, asOf = currentDateKey(), pla
 
 export function materializeBookInstallments(book: CreditBook, asOf = currentDateKey()) {
 	assertDateKey(asOf);
+	// A previous import may have corrected a cutoff without rebuilding its concrete links.
+	const invalid = book.purchases.filter(purchase => {
+		const first = book.installments.find(item => item.purchaseId === purchase.id && item.number === 1);
+		const statement = first && book.statements.find(item => item.id === first.statementId);
+		// Concrete invoice is authoritative; a stale saved plan must not hide its corrected cutoff.
+		const closing = statement?.statementDate ?? purchase.installmentStatementDates?.[0]?.statementDate;
+		return closing && !statementIncludesDate(book.card, closing, purchase.purchaseDate);
+	});
+	if (invalid.length) recomposeBookInstallments(book, invalid);
 	const canceled = new Map<string, Set<number>>();
 	const effects = creditBookEffects(book, asOf);
 	const effectsByRefund = new Map(effects.map(effect => [effect.refundId, effect]));
@@ -845,20 +850,8 @@ function recomposedPurchaseCalendar(
 	book: CreditBook,
 	purchase: BookPurchase,
 	firstStatement?: BookStatement,
-	correctedStatementId?: string,
 ) {
 	const resolve = (date: string) => {
-		const registered = book.statements
-			.filter(
-				item =>
-					!item.isForecast &&
-					statementIncludesDate(book.card, item.statementDate, date) &&
-					(item.id === correctedStatementId ||
-						item.totalAmount !== 0 ||
-						book.installments.some(installment => installment.statementId === item.id)),
-			)
-			.toSorted((a, b) => a.statementDate.localeCompare(b.statementDate))[0];
-		if (registered) return registered;
 		for (let offset = 0; ; offset++) {
 			const month = installmentOccurrenceDate(date, offset + 1).slice(0, 7);
 			const standard = purchaseStatementDates(book.card, `${month}-01`);
@@ -969,13 +962,16 @@ export function updateBookStatementDates(
 		return;
 	}
 
-	for (const purchase of book.purchases) {
-		purchase.installmentStatementDates = recomposedPurchaseCalendar(
-			book,
-			purchase,
-			undefined,
-			statementId,
-		);
+	recomposeBookInstallments(book);
+	for (const refund of book.refunds) {
+		refund.creditStatementId = ensureBookStatement(book, refund.creditDate).id;
+	}
+}
+
+/** Rebuild derived assignments while preserving concrete identities and confirmed amounts. */
+function recomposeBookInstallments(book: CreditBook, purchases = book.purchases) {
+	for (const purchase of purchases) {
+		purchase.installmentStatementDates = recomposedPurchaseCalendar(book, purchase);
 		for (const installment of book.installments.filter(item => item.purchaseId === purchase.id)) {
 			installment.occurrenceDate = installmentOccurrenceDate(purchase.purchaseDate, installment.number);
 			installment.statementId = ensureBookStatement(
@@ -984,9 +980,6 @@ export function updateBookStatementDates(
 				purchase.installmentStatementDates[installment.number - 1]!,
 			).id;
 		}
-	}
-	for (const refund of book.refunds) {
-		refund.creditStatementId = ensureBookStatement(book, refund.creditDate).id;
 	}
 }
 
@@ -1008,10 +1001,12 @@ export function updateBookPurchaseDate(book: CreditBook, purchaseId: string, pur
 			? (purchase.installmentStatementDates?.[index] ?? null)
 			: calendar[index]!,
 	);
+	const importedCalendar = purchase.installmentStatementDates;
 	for (const number of purchase.installmentImportedNumbers ?? []) {
-		const dates = purchase.installmentStatementDates[number - 1];
+		const dates = importedCalendar[number - 1];
 		if (dates) synchronizeImportedStatementDates(book, dates);
 	}
+	purchase.installmentStatementDates = importedCalendar;
 	for (const installment of book.installments.filter(i => i.purchaseId === purchaseId)) {
 		installment.occurrenceDate = installmentOccurrenceDate(purchaseDate, installment.number);
 		installment.statementId = ensureBookStatement(

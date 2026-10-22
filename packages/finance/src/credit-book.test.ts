@@ -954,3 +954,93 @@ describe("imported statement date synchronization", () => {
 		expect(book.statements).toHaveLength(0);
 	});
 });
+
+function amazonCascadeBook() {
+	const book = emptyBook();
+	book.card.statementDay = 11;
+	book.card.dueDay = 25;
+	const may = ensureBookStatement(book, "2026-05-01", {
+		dueDate: "2026-05-25",
+		statementDate: "2026-05-25",
+	});
+	const june = ensureBookStatement(book, "2026-06-01", {
+		dueDate: "2026-06-25",
+		statementDate: "2026-06-12",
+	});
+	const original = newBookPurchase(book, {
+		description: "Fatura maio",
+		installments: 1,
+		purchaseDate: "2026-05-01",
+		totalAmount: 125.33,
+	});
+	const purchase = newBookPurchase(book, {
+		description: "Amazon",
+		installments: 6,
+		purchaseDate: "2026-05-24",
+		totalAmount: 123,
+	});
+	purchase.installmentStatementDates = Array.from({ length: 6 }, (_, index) => ({
+		dueDate: `2026-${String(5 + index).padStart(2, "0")}-25`,
+		statementDate: `2026-${String(5 + index).padStart(2, "0")}-${index === 0 ? "25" : index === 1 ? "12" : "11"}`,
+	}));
+	purchase.installmentImportedNumbers = [1];
+	book.installments.find(i => i.purchaseId === purchase.id && i.number === 1)!.hasImportedAmount = true;
+	book.payments = [{ amount: 125.33, date: "2026-05-25", id: "payment" }];
+	materializeBookInstallments(book, "2026-10-01");
+	return { book, june, may, original, purchase };
+}
+
+test("April reimport corrects May cutoff and cascades May 24 purchase, installments and balances", () => {
+	const { book, may, june, purchase } = amazonCascadeBook();
+	const ids = book.installments.filter(i => i.purchaseId === purchase.id).map(i => i.id);
+	const amounts = [...purchase.installmentAmountsCents];
+	const before = replayCreditBook(book, "2026-05-25");
+	expect(before.statements.find(s => s.id === may.id)?.balanceAmount).toBeCloseTo(20.5);
+	synchronizeImportedStatementDates(book, { dueDate: "2026-05-25", statementDate: "2026-05-11" });
+	materializeBookInstallments(book, "2026-10-01");
+	const installments = book.installments.filter(i => i.purchaseId === purchase.id);
+	expect(installments.map(i => i.id)).toEqual(ids);
+	expect(installments[0]!.statementId).toBe(june.id);
+	expect(installments[0]!.hasImportedAmount).toBe(true);
+	expect(purchase.installmentAmountsCents).toEqual(amounts);
+	expect(purchase.installmentStatementDates?.map(d => d?.dueDate)).toEqual([
+		"2026-06-25",
+		"2026-07-25",
+		"2026-08-25",
+		"2026-09-25",
+		"2026-10-25",
+		"2026-11-25",
+	]);
+	const after = replayCreditBook(book, "2026-05-25");
+	expect(after.statements.find(s => s.id === may.id)?.balanceAmount).toBe(0);
+	expect(after.statements.find(s => s.id === may.id)?.isPaid).toBe(true);
+	expect(book.payments).toEqual([{ amount: 125.33, date: "2026-05-25", id: "payment" }]);
+	const snapshot = structuredClone(book);
+	synchronizeImportedStatementDates(book, { dueDate: "2026-05-25", statementDate: "2026-05-11" });
+	materializeBookInstallments(book, "2026-10-01");
+	expect(book).toEqual(snapshot);
+});
+
+for (const stalePlan of [false, true])
+	test(`subsequent processing repairs stale assignment with divergent plan (${stalePlan})`, () => {
+		const { book, may, june, purchase } = amazonCascadeBook();
+		may.statementDate = "2026-05-11";
+		if (!stalePlan) purchase.installmentStatementDates![0]!.statementDate = "2026-05-11";
+		const first = book.installments.find(i => i.purchaseId === purchase.id && i.number === 1)!;
+		const id = first.id;
+		materializeBookInstallments(book, "2026-10-01");
+		expect(first.id).toBe(id);
+		expect(first.statementId).toBe(june.id);
+		expect(first.hasImportedAmount).toBe(true);
+		expect(purchase.installmentStatementDates![5]!.dueDate).toBe("2026-11-25");
+		expect(purchase.installmentStatementDates![0]).toEqual({
+			dueDate: "2026-06-25",
+			statementDate: "2026-06-12",
+		});
+		const replay = replayCreditBook(book, "2026-05-25");
+		expect(replay.statements.find(s => s.id === may.id)?.balanceAmount).toBe(0);
+		expect(replay.statements.find(s => s.id === may.id)?.totalAmount).toBe(125.33);
+		const snapshot = structuredClone(book);
+		materializeBookInstallments(book, "2026-10-01");
+		expect(book).toEqual(snapshot);
+	});
