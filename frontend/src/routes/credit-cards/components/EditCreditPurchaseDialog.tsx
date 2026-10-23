@@ -183,7 +183,7 @@ export function EditCreditPurchaseDialog({
 								(original.feeAmount ?? 0),
 					),
 				);
-			if (!dateEdited.current) setDate(original.purchaseDate);
+			if (!dateEdited.current) setDate(original.purchaseDate.slice(0, 10));
 		}
 	}, [open, original?.id, original?.totalAmountCents, original?.purchaseDate]);
 	const purchaseAmount = Number(amount);
@@ -292,7 +292,7 @@ export function EditCreditPurchaseDialog({
 			description: `${isRefinancing ? "Parcelamento - " : ""}${description.trim()}`,
 			fees,
 			installments: submittedInstallments,
-			purchaseDate: isSynced ? purchase.purchaseDate : date,
+			purchaseDate: isSynced ? purchase.purchaseDate.slice(0, 10) : date,
 			...(updatedStoreName !== undefined && { storeName: updatedStoreName }),
 			tagIds,
 			time: time || null,
