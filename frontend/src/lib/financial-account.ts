@@ -492,7 +492,11 @@ export function getFinancialAccountSummaryName(
 	},
 ) {
 	const name = account.name?.trim();
-	if (name) return name;
+	if (name) {
+		return account.type === "SAVINGS" && name !== financialAccountTypeLabels.SAVINGS
+			? `${financialAccountOptionPrefixes.SAVINGS} ${name}`
+			: name;
+	}
 	const institution = account.institution?.name;
 	if (!institution) return financialAccountTypeLabels[account.type];
 	return `${financialAccountOptionPrefixes[account.type]} ${institution}`;

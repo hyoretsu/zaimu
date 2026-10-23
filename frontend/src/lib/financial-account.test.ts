@@ -114,6 +114,15 @@ describe("getTransactionAccountTypeLabel", () => {
 });
 
 describe("getFinancialAccountSummaryName", () => {
+	test("keeps the savings prefix with custom names and avoids repeating the fallback label", () => {
+		expect(getFinancialAccountSummaryName({ institution: null, name: "Psicóloga", type: "SAVINGS" })).toBe(
+			"Poupança Psicóloga",
+		);
+		expect(getFinancialAccountSummaryName({ institution: null, name: "Poupança", type: "SAVINGS" })).toBe(
+			"Poupança",
+		);
+	});
+
 	test("names dashboard cashback accounts with and without an institution", () => {
 		expect(
 			getFinancialAccountSummaryName({ institution: { name: "Nubank" }, name: null, type: "CASHBACK" }),
