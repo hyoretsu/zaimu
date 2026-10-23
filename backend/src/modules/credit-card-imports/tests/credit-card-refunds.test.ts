@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { calculateRefundEffects } from "@zaimu/finance/credit-refund";
+import { calculateRefundEffects, matchingGenericRefundSource } from "@zaimu/finance/credit-refund";
 import { importedAnticipation, withImportedAnticipation } from "@zaimu/finance/imported-anticipation";
 import { combineAnticipationRefunds, refundCancellationNumbers } from "../domain/anticipation-refunds";
+import { parseBradescardCreditCardStatementText } from "../domain/bradescard-credit-card";
 import { parseBradescoCreditCardStatementText } from "../domain/bradesco-credit-card";
 import { assignCreditCardPurchaseExternalIds } from "../domain/credit-card-import-identity";
 import { parseInterCreditCardStatementText } from "../domain/inter-credit-card";
@@ -11,6 +12,17 @@ import { parsePicPayCreditCardStatementText } from "../domain/picpay-credit-card
 import { selectNewImportPurchases } from "../domain/select-new-import-purchases";
 
 const providers = [
+	{
+		name: "Bradescard",
+		parse: parseBradescardCreditCardStatementText,
+		text: `Vencimento 25/05/2026
+Movimentações da conta
+Nacionais em Reais (R$)
+30/04 AMAZON BR SAO PAULO 176,03
+30/04 AMAZON BR SAO PAULO 176,03 -
+10/05 PAGAMENTO RECEBIDO - OBRIGADO 176,03 -
+Total de compras`,
+	},
 	{
 		name: "Bradesco",
 		parse: parseBradescoCreditCardStatementText,
@@ -77,6 +89,57 @@ for (const provider of providers)
 				totalAmount: -176.03,
 			});
 		});
+		test("preserves bank signs in every supported amount position", () => {
+			const currency = ["Mercado Pago", "Nubank", "Inter"].includes(provider.name);
+			const sign = provider.name === "Inter" ? "+" : "-";
+			const creditLine = provider.text.split("\n").filter(line => line.includes("AMAZON"))[1]!;
+			const prefix = creditLine.slice(0, creditLine.indexOf("AMAZON") + "AMAZON BR SAO PAULO".length);
+			const amounts = currency
+				? [`${sign} R$ 176,03`, `R$ ${sign}176,03`, `R$ 176,03 ${sign}`]
+				: [`${sign}176,03`, `176,03 ${sign}`];
+			if (sign === "-") amounts.push(currency ? "R$ 176,03 −" : "176,03 −");
+			for (const amount of amounts) {
+				const result = provider.parse(
+					provider.text.replace(creditLine, `${prefix}${provider.name === "Inter" ? " -" : ""} ${amount}`),
+				);
+				expect(result.purchases).toHaveLength(2);
+				expect(result.purchases[1]).toMatchObject({
+					description: provider.name === "PicPay" ? "Reembolso - AMAZON BR SAO PAULO" : "AMAZON BR SAO PAULO",
+					installmentAmount: -176.03,
+					totalAmount: -176.03,
+				});
+			}
+		});
+		if (["Bradesco", "Bradescard"].includes(provider.name))
+			test("retains dated merchant credits while excluding credit summaries", () => {
+				const text = provider.text.replace(
+					"30/04 AMAZON BR SAO PAULO 176,03 -",
+					"30/04 Crédito AMAZON BR SAO PAULO 176,03 -\n30/04 Créditos 176,03 -",
+				);
+				const { purchases } = provider.parse(text);
+				expect(purchases).toHaveLength(2);
+				expect(purchases[1]).toMatchObject({
+					description: "Crédito AMAZON BR SAO PAULO",
+					installmentAmount: -176.03,
+				});
+			});
+		test("identifies generic refunds and suggests only a unique purchase before the credit", () => {
+			const text = provider.text.replaceAll("AMAZON BR SAO PAULO", "Crédito concedido");
+			const { purchases } = provider.parse(text);
+			expect(purchases).toHaveLength(2);
+			for (const credit of purchases) {
+				expect(credit.installmentAmount).toBe(-176.03);
+				const original = {
+					id: "before",
+					purchaseDate: "2026-04-29",
+					refundableAmount: 176.03,
+					totalAmount: 176.03,
+				};
+				const future = { ...original, id: "after", purchaseDate: "2026-05-01" };
+				expect(matchingGenericRefundSource(credit, [original, future])?.id).toBe("before");
+				expect(matchingGenericRefundSource(credit, [original, { ...original, id: "other" }])).toBeUndefined();
+			}
+		});
 		test("collapses anticipation and offsetting credit before duplicate filtering", () => {
 			const formats: Record<string, [string, string, string]> = {
 				Bradesco: [
@@ -105,7 +168,8 @@ for (const provider of providers)
 					"30/04 AMAZON BR SAO PAULO -176,03",
 				],
 			};
-			const [debit, installments, credit] = formats[provider.name]!;
+			const [debit, installments, credit] =
+				formats[provider.name === "Bradescard" ? "Bradesco" : provider.name]!;
 			const text = provider.text
 				.replace(debit, installments)
 				.replace(credit, credit.replace("176,03", "100,00"));

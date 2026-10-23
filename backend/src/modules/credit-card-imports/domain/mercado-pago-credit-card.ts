@@ -45,9 +45,13 @@ export function parseMercadoPagoCreditCardStatementText(text: string): CreditCar
 	const cardSectionStart = text.search(/Cartão\s+(?:Visa|Mastercard)/iu);
 	if (cardSectionStart < 0) throw new Error("Não foi possível encontrar as compras da fatura");
 	const cardSectionEnd = text.search(/Parcele a fatura/iu);
-	const cardSection = text.slice(cardSectionStart, cardSectionEnd < 0 ? undefined : cardSectionEnd);
+	// Refund movements precede card purchases and carry positive bank magnitudes.
+	const movementsStart = text.search(/Movimentações na fatura/iu);
+	const sectionStart =
+		movementsStart >= 0 && movementsStart < cardSectionStart ? movementsStart : cardSectionStart;
+	const cardSection = text.slice(sectionStart, cardSectionEnd < 0 ? undefined : cardSectionEnd);
 	const purchasePattern =
-		/^(\d{2})\/(\d{2})\s+(.+?)(?:\s+Parcela\s+(\d+)\s+de\s+(\d+))?\s+([−-]?[\t ]*R\$[\t ]*[−-]?[\t ]*[\d.]+,\d{2})[\t ]*$/gimu;
+		/^(\d{2})\/(\d{2})\s+(.+?)(?:\s+Parcela\s+(\d+)\s+de\s+(\d+))?\s+([−-]?[\t ]*R\$[\t ]*[−-]?[\t ]*[\d.]+,\d{2}[\t ]*[−-]?)[\t ]*$/gimu;
 	const purchases: CreditCardStatementPurchase[] = [];
 	for (const match of cardSection.matchAll(purchasePattern)) {
 		if (/^pagamento\b/iu.test(match[3]!.trim())) continue;

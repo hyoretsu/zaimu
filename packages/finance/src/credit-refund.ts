@@ -255,3 +255,35 @@ export function selectRefundInstallments(
 	}
 	return selected.toSorted((a, b) => a - b);
 }
+
+/** A bank refund label without merchant data; never infer ordinary financial credits. */
+export function isGenericImportedRefund(description: string) {
+	return /^(?:(?:reembolso|estorno)\s*[-:]\s*)?(?:credito concedido|estorno|reembolso)$/u.test(
+		description
+			.normalize("NFD")
+			.replace(/[\u0300-\u036f]/gu, "")
+			.trim()
+			.replace(/\s+/gu, " ")
+			.toLowerCase(),
+	);
+}
+
+/** Generic credits can suggest only a unique exact full purchase made by the credit date. */
+export function matchingGenericRefundSource<
+	T extends {
+		purchaseDate: string;
+		refundableAmount: number;
+		totalAmount: number;
+	},
+>(item: { description: string; purchaseDate: string; installmentAmount: number }, sources: T[]) {
+	if (!isGenericImportedRefund(item.description) || item.installmentAmount >= 0) return undefined;
+	const cents = Math.round(Math.abs(item.installmentAmount) * 100);
+	if (!Number.isSafeInteger(cents) || cents <= 0) return undefined;
+	const matches = sources.filter(
+		source =>
+			Math.round(source.totalAmount * 100) === cents &&
+			Math.round(source.refundableAmount * 100) >= cents &&
+			source.purchaseDate.slice(0, 10) <= item.purchaseDate.slice(0, 10),
+	);
+	return matches.length === 1 ? matches[0] : undefined;
+}

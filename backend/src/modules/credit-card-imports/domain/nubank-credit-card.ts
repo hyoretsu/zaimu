@@ -53,11 +53,11 @@ export function parseNubankCreditCardStatementText(text: string): CreditCardStat
 	if (transactionsStart < 0) throw new Error("Não foi possível encontrar as transações da fatura");
 	const transactions = text.slice(transactionsStart, paymentsStart < 0 ? undefined : paymentsStart);
 	const normalizedTransactions = transactions.replace(
-		/^(\d{2}\s+[A-Za-zÀ-ÿ]{3}\s+[^\n]+)\n(?:USD\s+[^\n]+\n)?(?:Conversão:\s*[^\n]+\n)?([−-]?[\t ]*R\$[\t ]*[−-]?[\t ]*[\d.]+,\d{2})$/gimu,
+		/^(\d{2}\s+[A-Za-zÀ-ÿ]{3}\s+[^\n]+)\n(?:USD\s+[^\n]+\n)?(?:Conversão:\s*[^\n]+\n)?([−-]?[\t ]*R\$[\t ]*[−-]?[\t ]*[\d.]+,\d{2}[\t ]*[−-]?)[\t ]*$/gimu,
 		"$1 $2",
 	);
 	const purchasePattern =
-		/^(\d{2})\s+([A-Za-zÀ-ÿ]{3})\s+(?:••••\s+\d{4}\s+)?(.+?)\s+([−-]?[\t ]*R\$[\t ]*[−-]?[\t ]*[\d.]+,\d{2})$/gimu;
+		/^(\d{2})\s+([A-Za-zÀ-ÿ]{3})\s+(?:••••\s+\d{4}\s+)?(.+?)\s+([−-]?[\t ]*R\$[\t ]*[−-]?[\t ]*[\d.]+,\d{2}[\t ]*[−-]?)[\t ]*$/gimu;
 	const purchases: CreditCardStatementPurchase[] = [];
 	for (const match of normalizedTransactions.matchAll(purchasePattern)) {
 		const description = match[3]!.trim();

@@ -1,5 +1,6 @@
 import { groupAnticipatedInstallments } from "./anticipated-installments";
 import type { CreditCardStatement, CreditCardStatementPurchase } from "./credit-card-statement";
+import { statementMoney } from "./statement-money";
 
 const monthNumbers: Record<string, number> = {
 	abr: 4,
@@ -16,13 +17,7 @@ const monthNumbers: Record<string, number> = {
 	set: 9,
 };
 
-const moneyToNumber = (value: string) =>
-	Number(
-		value
-			.replace(/[^\d,.-]/g, "")
-			.replace(/\./g, "")
-			.replace(",", "."),
-	);
+const moneyToNumber = statementMoney;
 const dateKey = (date: Date) => date.toISOString().slice(0, 10);
 
 function parseFullDate(value: string) {
@@ -50,7 +45,7 @@ export function parseInterCreditCardStatementText(text: string): CreditCardState
 	const nextStatementOffset = expensesAfterStart.search(/Próxima\s+fatura/iu);
 	const expenses = expensesAfterStart.slice(0, nextStatementOffset < 0 ? undefined : nextStatementOffset);
 	const purchasePattern =
-		/^(\d{2})\s+de\s+([A-Za-zÀ-ÿ]{3})\.?(?:\s+)(\d{4})\s+(.+?)[\t ]+-[\t ]+((?:\+|−|-)?[\t ]*R\$[\t ]*[\d., ]+)$/gimu;
+		/^(\d{2})\s+de\s+([A-Za-zÀ-ÿ]{3})\.?(?:\s+)(\d{4})\s+(.+?)[\t ]+-[\t ]+([+−-]?[\t ]*R\$[\t ]*[+−-]?[\t ]*[\d.]+,\d{2}[\t ]*[+−-]?)[\t ]*$/gimu;
 	const purchases: CreditCardStatementPurchase[] = [];
 	for (const match of expenses.matchAll(purchasePattern)) {
 		const description = match[4]!.trim();

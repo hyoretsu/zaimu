@@ -84,3 +84,7 @@ Every form must validate all required fields before saving, including custom sel
 ## Invoice importer date synchronization
 
 Every invoice importer must synchronize source closing and due dates through the shared finance calendar helper when applying imports, including PDF providers, Open Finance and imports with no new purchases. Correct the existing cycle and preserve its ID, payments and financial links; update explicit installment calendars for that cycle. Never overwrite nominal card days from a single invoice. Keep this invariant in shared import infrastructure and cover date corrections with tests. Invoice review descriptions show only the imported filename.
+
+## Invoice parser parity
+
+Every change, fix or addition to an invoice parser must be checked against every other supported parser and layout in the same task. Apply equivalent behavior wherever compatible, keeping only source-format extraction specific to the bank. Cover shared behavior with regression tests across all supported readers, including both Bradesco layouts.

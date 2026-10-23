@@ -1,7 +1,8 @@
 import { groupAnticipatedInstallments } from "./anticipated-installments";
 import type { CreditCardStatement, CreditCardStatementPurchase } from "./credit-card-statement";
+import { statementMoney } from "./statement-money";
 
-const moneyToNumber = (value: string) => Number(value.replace(/\./g, "").replace(",", "."));
+const moneyToNumber = statementMoney;
 const dateKey = (day: number, month: number, year: number) =>
 	`${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 
@@ -38,7 +39,7 @@ function findStatementDate(text: string) {
 }
 
 function isPurchase(description: string) {
-	return !/^(?:pagamento|saldo anterior|créditos?|total|compras|limites?|saque|data\s+descrição)/iu.test(
+	return !/^(?:pagamento|saldo anterior|créditos?\s*$|total|compras|limites?|saque|data\s+descrição)/iu.test(
 		description,
 	);
 }
@@ -49,7 +50,8 @@ export function parseBradescoPurchases(text: string, transactionsSection: string
 	const statementDate = findStatementDate(text);
 	const referenceDate = statementDate ?? dueDate;
 	if (!referenceDate) throw new Error("Não foi possível identificar o período da fatura");
-	const purchasePattern = /^(\d{2})\/(\d{2})\s+(.+?)\s+(\d{1,3}(?:\.\d{3})*,\d{2})\s*(-)?$/gimu;
+	const purchasePattern =
+		/^(\d{2})\/(\d{2})\s+(.+?)\s+([−-]?[\t ]*(?:R\$[\t ]*)?[−-]?[\t ]*\d{1,3}(?:\.\d{3})*,\d{2}[\t ]*[−-]?)$/gimu;
 	const purchases: CreditCardStatementPurchase[] = [];
 	for (const match of transactionsSection.matchAll(purchasePattern)) {
 		const description = match[3]!.trim();
@@ -58,7 +60,7 @@ export function parseBradescoPurchases(text: string, transactionsSection: string
 		const currentInstallment = Number(installment?.[1] ?? 1);
 		const installments = Number(installment?.[2] ?? 1);
 		if (currentInstallment < 1 || installments < currentInstallment || installments > 48) continue;
-		const installmentAmount = moneyToNumber(match[4]!) * (match[5] ? -1 : 1);
+		const installmentAmount = moneyToNumber(match[4]!);
 		if (!Number.isFinite(installmentAmount)) continue;
 		purchases.push({
 			currentInstallment,

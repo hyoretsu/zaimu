@@ -89,7 +89,9 @@ function parseFinancedOperations(text: string, statementDate: Date) {
 		feeCents: number;
 		purchase: CreditCardStatementPurchase;
 	} | null = null;
-	for (const match of text.matchAll(/^(\d{2})\/(\d{2})\s+(.+?)\s+([−-]?[\d.]+,\d{2})$/gimu)) {
+	for (const match of text.matchAll(
+		/^(\d{2})\/(\d{2})\s+(.+?)\s+([−-]?[\t ]*[\d.]+,\d{2}[\t ]*[−-]?)[\t ]*$/gimu,
+	)) {
 		const amount = moneyToNumber(match[4]!);
 		if (!Number.isFinite(amount)) continue;
 		const description = match[3]!.trim();
@@ -131,7 +133,7 @@ export function parsePicPayCreditCardStatementText(text: string): CreditCardStat
 	const referenceDate = (statementDate ?? dueDate)!;
 	const sectionPattern =
 		/Transações\s+Nacionais\s+Data\s+Estabelecimento\s+Valor(?:\s+\(R\$\))?\s*([\s\S]*?)(?=Subtotal\s+dos\s+lançamentos|Total\s+geral\s+dos\s+lançamentos)/giu;
-	const purchasePattern = /^(\d{2})\/(\d{2})\s+(.+?)\s+([−-]?[\d.]+,\d{2})$/gimu;
+	const purchasePattern = /^(\d{2})\/(\d{2})\s+(.+?)\s+([−-]?[\t ]*[\d.]+,\d{2}[\t ]*[−-]?)[\t ]*$/gimu;
 	const purchases = parseFinancedOperations(text, referenceDate);
 	const nationalSections = [...text.matchAll(sectionPattern)].map(match => match[1]!);
 	for (const section of nationalSections.length ? nationalSections : [text]) {

@@ -1,8 +1,18 @@
+import { isGenericImportedRefund } from "@zaimu/finance/credit-refund";
 import { hasCompleteImportedPlan, withImportedAnticipation } from "@zaimu/finance/imported-anticipation";
 import type { CreditCardStatementPurchase } from "./credit-card-statement";
 
 /** Multiple distinct installment numbers in one statement belong to one purchase. */
 export function groupAnticipatedInstallments(purchases: CreditCardStatementPurchase[]) {
+	purchases = purchases.map(purchase =>
+		isGenericImportedRefund(purchase.description)
+			? {
+					...purchase,
+					installmentAmount: -Math.abs(purchase.installmentAmount),
+					totalAmount: -Math.abs(purchase.totalAmount),
+				}
+			: purchase,
+	);
 	const groups = new Map<string, number[][]>();
 	for (const [index, purchase] of purchases.entries()) {
 		if (

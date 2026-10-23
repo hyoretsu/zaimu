@@ -1,4 +1,5 @@
 import { distributePurchaseCents } from "@zaimu/finance/credit-purchase";
+import { isGenericImportedRefund, matchingGenericRefundSource } from "@zaimu/finance/credit-refund";
 import {
 	importedAnticipation,
 	matchingAnticipatedTail,
@@ -39,6 +40,7 @@ export function matchingRefundSource(
 	const cents = Math.round(Math.abs(item.installmentAmount) * 100);
 	const eligible = eligibleRefundSources(item, sources);
 	if (cancellation) return eligible.length === 1 ? eligible[0] : undefined;
+	if (isGenericImportedRefund(item.description)) return matchingGenericRefundSource(item, eligible);
 	const matches = eligible.filter(
 		source =>
 			Math.round(source.totalAmount * 100) === cents &&

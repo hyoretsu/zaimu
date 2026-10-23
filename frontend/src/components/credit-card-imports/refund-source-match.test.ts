@@ -97,3 +97,23 @@ test("filters by the last eight exact installments in eight or nine installment 
 	expect(matchingRefundSource(refund, [nine, wrongTail])?.id).toBe("nine");
 	expect(matchingRefundSource(refund, [eight, nine])).toBeUndefined();
 });
+
+test("suggests the unique full purchase before a generic bank refund, including pending purchases", () => {
+	const generic = { description: "Crédito concedido", installmentAmount: -257.8, purchaseDate: "2026-10-10" };
+	const before = {
+		...source,
+		description: "ASA*HAPPY TECNOLOGIA E",
+		id: "pending:before",
+		purchaseDate: "2026-10-08",
+		refundableAmount: 257.8,
+		totalAmount: 257.8,
+	};
+	const after = { ...before, id: "after", purchaseDate: "2026-10-12" };
+	expect(matchingRefundSource(generic, [before, after])?.id).toBe(before.id);
+	expect(matchingRefundSource(generic, [after])).toBeUndefined();
+	expect(matchingRefundSource(generic, [before, { ...before, id: "ambiguous" }])).toBeUndefined();
+	expect(matchingRefundSource(generic, [{ ...before, refundableAmount: 100 }])).toBeUndefined();
+	expect(matchingRefundSource(generic, [{ ...before, totalAmount: 300 }])).toBeUndefined();
+	expect(matchingRefundSource({ ...generic, description: "Cashback" }, [before])).toBeUndefined();
+	expect(matchingRefundSource({ ...generic, description: "Crédito parcelamento" }, [before])).toBeUndefined();
+});

@@ -78,11 +78,11 @@ Próximo fechamento 15/06/2026`,
 			"MERCADO_PAGO",
 		);
 		expect(statement.nextStatementDate).toBe("2026-06-15");
-		expect(statement.purchases).toHaveLength(4);
-		expect(statement.purchases[2]!.description).toBe(
+		expect(statement.purchases).toHaveLength(5);
+		expect(statement.purchases[3]!.description).toBe(
 			"MP*CELLFYBR [[anticipated:2:2428;3:2428;4:2428;5:2428;6:2428;7:2428]]",
 		);
-		expect(statement.purchases[3]!.installmentAmount).toBe(88.9);
+		expect(statement.purchases[4]!.installmentAmount).toBe(88.9);
 	});
 
 	test("does not decode modern text containing legacy-looking merchant characters", () => {

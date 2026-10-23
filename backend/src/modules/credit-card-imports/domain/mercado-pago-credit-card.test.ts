@@ -87,3 +87,41 @@ Parcele a fatura`);
 	expect(result.purchases.map(p => p.installmentAmount)).toEqual([100, -25, -10, -5]);
 	expect(result.purchases.map(p => p.totalAmount)).toEqual([100, -25, -10, -5]);
 });
+
+test("imports unsigned refunds before card purchases without importing invoice payments", () => {
+	const statement = parseMercadoPagoCreditCardStatementText(`Vence em 20/10/2026
+Movimentações na fatura
+20/09 Pagamento da fatura de setembro/2026 R$ 758,52
+10/10 Crédito concedido R$ 257,80
+Cartão Visa
+08/10 ASA*HAPPY TECNOLOGIA E R$ 257,80
+12/10 ASA*HAPPY TECNOLOGIA E R$ 257,80
+Fechamento da fatura 15/10/2026
+Parcele a fatura`);
+	expect(statement.purchases).toEqual([
+		{
+			currentInstallment: 1,
+			description: "Crédito concedido",
+			installmentAmount: -257.8,
+			installments: 1,
+			purchaseDate: "2026-10-10",
+			totalAmount: -257.8,
+		},
+		{
+			currentInstallment: 1,
+			description: "ASA*HAPPY TECNOLOGIA E",
+			installmentAmount: 257.8,
+			installments: 1,
+			purchaseDate: "2026-10-08",
+			totalAmount: 257.8,
+		},
+		{
+			currentInstallment: 1,
+			description: "ASA*HAPPY TECNOLOGIA E",
+			installmentAmount: 257.8,
+			installments: 1,
+			purchaseDate: "2026-10-12",
+			totalAmount: 257.8,
+		},
+	]);
+});

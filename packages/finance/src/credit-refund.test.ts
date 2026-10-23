@@ -4,6 +4,8 @@ import {
 	calculateRefundEffects,
 	createCreditRefund,
 	editCreditRefund,
+	isGenericImportedRefund,
+	matchingGenericRefundSource,
 	refundAmountCents,
 	resolveRefundPolicy,
 	selectRefundInstallments,
@@ -153,4 +155,42 @@ describe("automatic refund installment selection", () => {
 		).toEqual([9, 10]);
 		expect(selectRefundInstallments(installments, 0, "FIRST")).toEqual([]);
 	});
+});
+
+test("generic import labels identify refunds without classifying financial credits", () => {
+	for (const label of [
+		"Crédito concedido",
+		"  CRÉDITO  CONCEDIDO  ",
+		"Reembolso - Crédito concedido",
+		"Estorno",
+		"Reembolso",
+	])
+		expect(isGenericImportedRefund(label)).toBe(true);
+	for (const label of [
+		"Cashback",
+		"Crédito parcelamento",
+		"Crédito pessoal",
+		"Limite de crédito",
+		"Pagamento",
+		"Crédito LOJA",
+	])
+		expect(isGenericImportedRefund(label)).toBe(false);
+});
+
+test("generic import matching rejects ambiguity, future purchases, insufficient balance and partial totals", () => {
+	const credit = {
+		description: "Crédito concedido",
+		installmentAmount: -257.8,
+		purchaseDate: "2026-10-10",
+	};
+	const before = { id: "before", purchaseDate: "2026-10-08", refundableAmount: 257.8, totalAmount: 257.8 };
+	const after = { ...before, id: "after", purchaseDate: "2026-10-12" };
+	expect(matchingGenericRefundSource(credit, [before, after])).toBe(before);
+	expect(matchingGenericRefundSource(credit, [before, { ...before, id: "other" }])).toBeUndefined();
+	for (const source of [after, { ...before, totalAmount: 300 }, { ...before, refundableAmount: 100 }])
+		expect(matchingGenericRefundSource(credit, [source])).toBeUndefined();
+	for (const amount of [0, 257.8, Number.NaN, Number.NEGATIVE_INFINITY])
+		expect(
+			matchingGenericRefundSource({ ...credit, installmentAmount: amount }, [before]),
+		).toBeUndefined();
 });

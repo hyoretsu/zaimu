@@ -421,3 +421,8 @@ Na recuperação de vínculos antigos, o fechamento da fatura efetivamente vincu
 
 
 O status "Pagamento agendado" exige fatura já fechada e pagamentos futuros após o fechamento que cubram integralmente o saldo restante. Pagamentos anteriores ao fechamento, mesmo futuros ou suficientes para cobrir o saldo atual, mantêm a fatura aberta até o fechamento. Agendamentos parciais não substituem o status de fatura fechada ou atrasada.
+
+Os leitores de faturas preservam o sinal monetário informado pelo banco antes ou depois do símbolo de moeda e após o valor, inclusive o sinal de menos Unicode. O sinal pertence ao valor, nunca ao nome do estabelecimento. Créditos assim identificados seguem a mesma revisão de reembolso e conciliação de antecipações em todas as instituições; o Inter mantém sua convenção de crédito com sinal positivo.
+
+
+Créditos de reembolso sem estabelecimento, como "Crédito concedido", entram na revisão de reembolso mesmo quando o banco informa valor positivo ou os lista fora da seção de compras do cartão. A data é a do crédito. A conciliação sugere automaticamente somente uma compra com total integral igual em centavos, saldo reembolsável suficiente e data igual ou anterior ao crédito, incluindo compras pendentes da mesma importação. Compras posteriores não são candidatas automáticas; múltiplas candidatas exigem escolha manual. Créditos financeiros identificados, cashback e pagamentos conservam seu tratamento próprio. A sugestão nunca aprova o reembolso automaticamente. Regra comum a todos os leitores.
