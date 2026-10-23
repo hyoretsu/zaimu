@@ -1,4 +1,6 @@
 import { synchronizeImportedStatementDates } from "@zaimu/finance/credit-book";
+import { distributePurchaseCents } from "@zaimu/finance/credit-purchase";
+import { hasMatchingInstallmentSum } from "@zaimu/finance/credit-refund";
 import {
 	importedAnticipation,
 	withImportedAnticipation,
@@ -10,7 +12,7 @@ import {
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
 import { type CreditReadRow, readCreditEntries } from "~/modules/creditCards/application/credit-entry-reader";
-import { mutateCreditBook } from "~/modules/creditCards/application/normalized-credit-book";
+import { mutateCreditBook, readCreditBook } from "~/modules/creditCards/application/normalized-credit-book";
 import {
 	recalculateStatementPayments,
 	withStatementPayments,
@@ -74,6 +76,11 @@ export async function getPotentialDuplicates(
 ) {
 	const entries = await readCreditEntries(creditCardId);
 	const candidates = entries.filter(p => !p.parentId && !p.isRefund && !p.isStatementCharge);
+	const book =
+		entries[0] && items.some(item => importedAnticipation(item.description))
+			? await readCreditBook(entries[0].userId, creditCardId)
+			: undefined;
+	const plans = new Map(book?.purchases.map(p => [p.id, p.installmentAmountsCents]));
 	const children = entries.filter(p => p.parentId && candidates.some(c => c.id === p.parentId));
 	const reconciledItems = await queryRows(
 		db.sql.public.CreditCardImportItem.select("reconciledCreditPurchaseId", "currentInstallment").build(),
@@ -144,13 +151,14 @@ export async function getPotentialDuplicates(
 			candidate =>
 				!occupiedCandidateIds.has(`${candidate.id}:${item.currentInstallment}`) &&
 				(importedAnticipation(item.description)
-					? candidate.installments === item.installments &&
-						(candidate.description.normalize("NFKC").trim().toLocaleLowerCase("pt-BR") ===
-							withoutImportedAnticipation(item.description)
-								.normalize("NFKC")
-								.trim()
-								.toLocaleLowerCase("pt-BR") ||
-							Math.abs(Number(candidate.totalAmount) - Number(item.totalAmount)) <= 1)
+					? hasMatchingInstallmentSum(
+							plans.get(candidate.id) ??
+								distributePurchaseCents(
+									Math.round(Number(candidate.totalAmount) * 100),
+									candidate.installments,
+								),
+							importedAnticipation(item.description)!.reduce((sum, part) => sum + part.amountCents, 0),
+						)
 					: candidate.id.startsWith("pending:")
 						? false
 						: /^FIN /u.test(item.description)
@@ -181,6 +189,20 @@ async function reconcileUniquePurchases(userId: string, importId: string, credit
 			return !importedAnticipation(item.description) && matchesExistingCreditPurchase(item, candidate);
 		})) {
 			const item = items.find(item => item.id === itemId)!;
+			// Broader value-only review candidates are not proof for automatic linking.
+			if (
+				importedAnticipation(item.description) &&
+				(candidate.installments !== item.installments ||
+					!(
+						candidate.description.normalize("NFKC").trim().toLocaleLowerCase("pt-BR") ===
+							withoutImportedAnticipation(item.description)
+								.normalize("NFKC")
+								.trim()
+								.toLocaleLowerCase("pt-BR") ||
+						Math.abs(Number(candidate.totalAmount) - Number(item.totalAmount)) <= 1
+					))
+			)
+				continue;
 			const original = entries.find(entry => entry.id === candidate.id);
 			if (!original) continue;
 			const values = existingPurchaseImportValues(item.description, original);

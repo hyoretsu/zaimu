@@ -1,6 +1,7 @@
 import { addBookRefund } from "@zaimu/finance/credit-book";
 import { statementEntryKind } from "@zaimu/finance/credit-card";
 import { distributePurchaseCents } from "@zaimu/finance/credit-purchase";
+import { hasMatchingInstallmentSum } from "@zaimu/finance/credit-refund";
 import {
 	importedAnticipation,
 	withImportedAnticipation,
@@ -199,6 +200,16 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 				),
 			]);
 			const existingCardEntries = await readCreditEntries(body.creditCardId);
+			const anticipatedPlans = purchases.some(
+				p => p.installmentAmount > 0 && importedAnticipation(p.description),
+			)
+				? new Map(
+						(await readCreditBook(userId, body.creditCardId, false)).purchases.map(p => [
+							p.id,
+							p.installmentAmountsCents,
+						]),
+					)
+				: new Map<string, number[]>();
 			const identities = await queryRaw<{ externalId: string; purchaseId: string }>(
 				`SELECT i."externalId", i."purchaseId" FROM "CreditPurchaseImportIdentity" i
 				 JOIN "CreditPurchaseRecord" p ON p."id"=i."purchaseId"
@@ -228,6 +239,11 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 						!entry.isRefund &&
 						!entry.isStatementCharge &&
 						entry.installments === purchase.installments &&
+						hasMatchingInstallmentSum(
+							anticipatedPlans.get(entry.id) ??
+								distributePurchaseCents(Math.round(Number(entry.totalAmount) * 100), entry.installments),
+							importedAnticipation(purchase.description)!.reduce((sum, part) => sum + part.amountCents, 0),
+						) &&
 						entry.description.normalize("NFKC").trim().toLocaleLowerCase("pt-BR") ===
 							withoutImportedAnticipation(purchase.description)
 								.normalize("NFKC")

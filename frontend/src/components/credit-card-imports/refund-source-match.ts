@@ -1,5 +1,10 @@
 import { distributePurchaseCents } from "@zaimu/finance/credit-purchase";
-import { isGenericImportedRefund, matchingGenericRefundSource } from "@zaimu/finance/credit-refund";
+import {
+	hasMatchingInstallmentSum,
+	importReconciliationToleranceCents,
+	isGenericImportedRefund,
+	matchingGenericRefundSource,
+} from "@zaimu/finance/credit-refund";
 import {
 	importedAnticipation,
 	matchingAnticipatedTail,
@@ -39,7 +44,21 @@ export function matchingRefundSource(
 	const cancellation = importedAnticipation(item.description);
 	const cents = Math.round(Math.abs(item.installmentAmount) * 100);
 	const eligible = eligibleRefundSources(item, sources);
-	if (cancellation) return eligible.length === 1 ? eligible[0] : undefined;
+	if (cancellation) {
+		// Eligibility permits approximate sums; automatic cancellation still requires an exact plan.
+		const exact = eligible.filter(
+			source =>
+				Math.round(source.refundableAmount * 100) >= cents &&
+				Boolean(
+					matchingAnticipatedTail(
+						item.description,
+						source.installmentAmountsCents ??
+							distributePurchaseCents(Math.round(source.totalAmount * 100), source.installments ?? 1),
+					),
+				),
+		);
+		return eligible.length === 1 && exact.length === 1 ? exact[0] : undefined;
+	}
 	if (isGenericImportedRefund(item.description)) return matchingGenericRefundSource(item, eligible);
 	const matches = eligible.filter(
 		source =>
@@ -56,15 +75,12 @@ export function eligibleRefundSources<T extends RefundSource>(
 	item: { description: string; installmentAmount: number },
 	sources: T[],
 ) {
-	const cancellation = importedAnticipation(item.description);
 	const cents = Math.round(Math.abs(item.installmentAmount) * 100);
 	return sources.filter(source => {
-		if (Math.round(source.refundableAmount * 100) < cents) return false;
-		if (!cancellation) return true;
-		const count = source.installments;
-		if (!count || (count !== cancellation.length && count !== cancellation.length + 1)) return false;
+		if (Math.round(source.refundableAmount * 100) + importReconciliationToleranceCents < cents) return false;
 		const amounts =
-			source.installmentAmountsCents ?? distributePurchaseCents(Math.round(source.totalAmount * 100), count);
-		return Boolean(matchingAnticipatedTail(item.description, amounts));
+			source.installmentAmountsCents ??
+			distributePurchaseCents(Math.round(source.totalAmount * 100), source.installments ?? 1);
+		return hasMatchingInstallmentSum(amounts, cents);
 	});
 }

@@ -1,3 +1,5 @@
+import { importReconciliationToleranceCents } from "@zaimu/finance/credit-refund";
+
 interface ImportedPurchaseShape {
 	description: string;
 	installmentAmount: number | string;
@@ -18,7 +20,7 @@ interface ExistingPurchaseShape {
 }
 
 const dateKey = (value: Date | string) => new Date(value).toISOString().slice(0, 10);
-const reconciliationToleranceInCents = 100;
+const reconciliationToleranceInCents = importReconciliationToleranceCents;
 
 export function hasCompatibleInstallmentAmount(
 	importedAmount: number | string,

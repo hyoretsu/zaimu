@@ -287,3 +287,34 @@ export function matchingGenericRefundSource<
 	);
 	return matches.length === 1 ? matches[0] : undefined;
 }
+
+/** Shared import review tolerance, in the smallest currency unit (R$ 1.00 for BRL). */
+export const importReconciliationToleranceCents = 100;
+
+/** Match a nonempty consecutive interval in the original installment order. */
+export function hasMatchingInstallmentSum(
+	amounts: readonly number[],
+	targetCents: number,
+	toleranceCents = importReconciliationToleranceCents,
+) {
+	if (
+		!Number.isSafeInteger(targetCents) ||
+		targetCents <= 0 ||
+		!Number.isSafeInteger(toleranceCents) ||
+		toleranceCents < 0 ||
+		amounts.some(amount => !Number.isSafeInteger(amount) || amount < 0)
+	)
+		return false;
+	const lower = Math.max(1, targetCents - toleranceCents);
+	const upper = targetCents + toleranceCents;
+	if (!Number.isSafeInteger(upper)) return false;
+	for (let start = 0; start < amounts.length; start++) {
+		let sum = 0;
+		for (let end = start; end < amounts.length; end++) {
+			sum += amounts[end]!;
+			if (sum > upper) break;
+			if (sum >= lower) return true;
+		}
+	}
+	return false;
+}

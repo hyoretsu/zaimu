@@ -64,11 +64,11 @@ test("matches the unique 176.03 purchase in eight installments despite different
 	for (const changes of [{ installments: 7 }, { totalAmount: 176.04 }, { refundableAmount: 176.02 }])
 		expect(matchingRefundSource(refund, [{ ...original, ...changes }])).toBeUndefined();
 	expect(
-		matchingRefundSource(refund, [original, { ...original, id: "different-plan", installments: 10 }])?.id,
-	).toBe("purchase");
+		matchingRefundSource(refund, [original, { ...original, id: "different-plan", installments: 10 }]),
+	).toBeUndefined();
 });
 
-test("filters by the last eight exact installments in eight or nine installment purchases", () => {
+test("filters cancellation choices by any matching sum while preserving exact automatic cancellation", () => {
 	const refund = {
 		...item,
 		description: withImportedAnticipation(
@@ -93,8 +93,8 @@ test("filters by the last eight exact installments in eight or nine installment 
 			{ ...nine, id: "ten", installments: 10 },
 			{ ...eight, id: "spent", refundableAmount: 1 },
 		]).map(p => p.id),
-	).toEqual(["purchase", "nine"]);
-	expect(matchingRefundSource(refund, [nine, wrongTail])?.id).toBe("nine");
+	).toEqual(["purchase", "nine", "wrong", "ten"]);
+	expect(matchingRefundSource(refund, [nine, wrongTail])).toBeUndefined();
 	expect(matchingRefundSource(refund, [eight, nine])).toBeUndefined();
 });
 
@@ -116,4 +116,28 @@ test("suggests the unique full purchase before a generic bank refund, including 
 	expect(matchingRefundSource(generic, [{ ...before, totalAmount: 300 }])).toBeUndefined();
 	expect(matchingRefundSource({ ...generic, description: "Cashback" }, [before])).toBeUndefined();
 	expect(matchingRefundSource({ ...generic, description: "Crédito parcelamento" }, [before])).toBeUndefined();
+});
+
+test("refund choices use only installment sums, including single purchases from earlier invoices", () => {
+	const refund = { description: "Crédito concedido", installmentAmount: -257.8 };
+	const base = { ...source, installments: 1, refundableAmount: 257.8, totalAmount: 257.8 };
+	const old = { ...base, description: "OTHER MERCHANT", id: "old", purchaseDate: "2025-01-01" };
+	const subset = {
+		...base,
+		id: "subset",
+		installmentAmountsCents: [10000, 15780, 14220],
+		installments: 3,
+		refundableAmount: 400,
+		totalAmount: 400,
+	};
+	const skipped = { ...subset, id: "skipped", installmentAmountsCents: [10000, 14220, 15780] };
+	const near = { ...base, id: "near", refundableAmount: 258.8, totalAmount: 258.8 };
+	const outside = { ...base, id: "outside", refundableAmount: 258.81, totalAmount: 258.81 };
+	const wrong = { ...base, id: "wrong", installments: 12, refundableAmount: 300, totalAmount: 300 };
+	expect(eligibleRefundSources(refund, [old, subset, skipped, near, outside, wrong]).map(p => p.id)).toEqual([
+		"old",
+		"subset",
+		"near",
+	]);
+	expect(eligibleRefundSources(refund, [{ ...old, id: "pending:old" }])).toHaveLength(1);
 });

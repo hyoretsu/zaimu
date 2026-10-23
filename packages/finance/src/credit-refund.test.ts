@@ -4,6 +4,7 @@ import {
 	calculateRefundEffects,
 	createCreditRefund,
 	editCreditRefund,
+	hasMatchingInstallmentSum,
 	isGenericImportedRefund,
 	matchingGenericRefundSource,
 	refundAmountCents,
@@ -193,4 +194,28 @@ test("generic import matching rejects ambiguity, future purchases, insufficient 
 		expect(
 			matchingGenericRefundSource({ ...credit, installmentAmount: amount }, [before]),
 		).toBeUndefined();
+});
+
+test("import review matches only consecutive installment sums within the inclusive one-real margin", () => {
+	expect(hasMatchingInstallmentSum([10000], 10000)).toBe(true);
+	expect(hasMatchingInstallmentSum([10000], 10100)).toBe(true);
+	expect(hasMatchingInstallmentSum([10000], 9900)).toBe(true);
+	expect(hasMatchingInstallmentSum([10000], 10101)).toBe(false);
+	expect(hasMatchingInstallmentSum([10000], 9899)).toBe(false);
+	// Keep original order: do not skip the middle installment or sort the plan.
+	expect(hasMatchingInstallmentSum([1000, 9900, 2000], 3000)).toBe(false);
+	expect(hasMatchingInstallmentSum([1000, 2000, 9900], 3000)).toBe(true);
+	expect(hasMatchingInstallmentSum([9900, 1000, 2000, 8800], 3000)).toBe(true);
+	expect(hasMatchingInstallmentSum([1000, 9900, 2000], 5000)).toBe(false);
+	expect(hasMatchingInstallmentSum([3000], 6000)).toBe(false);
+	expect(hasMatchingInstallmentSum([], 50)).toBe(false);
+	expect(hasMatchingInstallmentSum([200], 50)).toBe(false);
+	expect(hasMatchingInstallmentSum([50], 50)).toBe(true);
+	expect(hasMatchingInstallmentSum([0, 1000], 1000)).toBe(true);
+	expect(hasMatchingInstallmentSum(Array(48).fill(10000), 470000)).toBe(true);
+	expect(hasMatchingInstallmentSum(Array(48).fill(10000), 475000)).toBe(false);
+	for (const amounts of [[Number.NaN], [-1], [0], [1.5]])
+		expect(hasMatchingInstallmentSum(amounts, 100)).toBe(false);
+	for (const target of [Number.NaN, Number.POSITIVE_INFINITY, 0, -10])
+		expect(hasMatchingInstallmentSum([100], target)).toBe(false);
 });
