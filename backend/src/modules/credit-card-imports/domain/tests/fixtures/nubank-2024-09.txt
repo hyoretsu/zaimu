@@ -1,0 +1,99 @@
+Data de vencimento: 09 SET 2024
+Período vigente: 01 AGO a 01 SET
+Fechamento da próxima fatura 01 OUT 2024
+TRANSAÇÕES DE 01 AGO A 01 SET
+01 AGO Saldo adicionado na sua conta do Nubank - Parcela 2/5
+Total a pagar: R$ 492,52 (valor da transação de R$ 400,00 + R$ 4,01 de IOF
++ R$ 88,51 de juros) divididos em 5 parcelas de R$ 98,50.
+R$ 98,50
+02 AGO Spred
+USD 9.99
+Conversão: USD 1 = R$ 5,89
+R$ 58,89
+02 AGO Pagamento em 02 AGO -R$ 545,93
+02 AGO IOF de "Spred" R$ 2,57
+02 AGO Pagamento em 02 AGO -R$ 44,88
+08 AGO Juros de dívida encerrada R$ 0,00
+08 AGO Encerramento de dívida R$ 0,00
+09 AGO Saldo adicionado na sua conta do Nubank
+Total a pagar: R$ 139,47 (valor da transação de R$ 125,00 + R$ 0,86 de IOF +
+R$ 13,62 de juros).
+R$ 139,47
+20 AGO Titular Exemplo - Parcela 1/12
+Total a pagar: R$ 661,92 (valor da transação de R$ 400,00 + R$ 8,58 de IOF
++ R$ 253,35 de juros) divididos em 12 parcelas de R$ 55,16.
+R$ 55,16
+31 AGO Desconto de antecipação de saldo adicionado usando crédito -R$ 7,86
+31 AGO Antecipada - Titular Exemplo - Parcela 3/12
+Total a pagar: R$ 661,92 (valor da transação de R$ 400,00 + R$ 8,58 de IOF
++ R$ 253,35 de juros) divididos em 12 parcelas de R$ 55,16.
+R$ 55,16
+31 AGO Antecipada - Titular Exemplo - Parcela 2/12
+Total a pagar: R$ 661,92 (valor da transação de R$ 400,00 + R$ 8,58 de IOF
++ R$ 253,35 de juros) divididos em 12 parcelas de R$ 55,16.
+R$ 55,16
+31 AGO Antecipada - Titular Exemplo - Parcela 5/12
+Total a pagar: R$ 661,92 (valor da transação de R$ 400,00 + R$ 8,58 de IOF
++ R$ 253,35 de juros) divididos em 12 parcelas de R$ 55,16.
+R$ 55,16
+31 AGO Antecipada - Titular Exemplo - Parcela 4/12
+Total a pagar: R$ 661,92 (valor da transação de R$ 400,00 + R$ 8,58 de IOF
++ R$ 253,35 de juros) divididos em 12 parcelas de R$ 55,16.
+R$ 55,16
+31 AGO Desconto de antecipação de pagamento de pix -R$ 33,70
+31 AGO Antecipada - Titular Exemplo - Parcela 7/12
+Total a pagar: R$ 661,92 (valor da transação de R$ 400,00 + R$ 8,58 de IOF
++ R$ 253,35 de juros) divididos em 12 parcelas de R$ 55,16.
+R$ 55,16
+31 AGO Antecipada - Titular Exemplo - Parcela 6/12
+Total a pagar: R$ 661,92 (valor da transação de R$ 400,00 + R$ 8,58 de IOF
++ R$ 253,35 de juros) divididos em 12 parcelas de R$ 55,16.
+R$ 55,16
+31 AGO Antecipada - Titular Exemplo - Parcela 9/12
+Total a pagar: R$ 661,92 (valor da transação de R$ 400,00 + R$ 8,58 de IOF
++ R$ 253,35 de juros) divididos em 12 parcelas de R$ 55,16.
+R$ 55,16
+5 de 6
+
+-- 5 of 6 --
+
+TITULAR EXEMPLO
+FATURA 09 SET 2024 EMISSÃO E ENVIO 01 SET 2024
+TRANSAÇÕES DE 01 AGO A 01 SET
+31 AGO Antecipada - Titular Exemplo - Parcela 8/12
+Total a pagar: R$ 661,92 (valor da transação de R$ 400,00 + R$ 8,58 de IOF
++ R$ 253,35 de juros) divididos em 12 parcelas de R$ 55,16.
+R$ 55,16
+31 AGO Antecipada - Titular Exemplo - Parcela 11/12
+Total a pagar: R$ 661,92 (valor da transação de R$ 400,00 + R$ 8,58 de IOF
++ R$ 253,35 de juros) divididos em 12 parcelas de R$ 55,16.
+R$ 55,16
+31 AGO Antecipada - Titular Exemplo - Parcela 10/12
+Total a pagar: R$ 661,92 (valor da transação de R$ 400,00 + R$ 8,58 de IOF
++ R$ 253,35 de juros) divididos em 12 parcelas de R$ 55,16.
+R$ 55,16
+31 AGO Desconto de antecipação de pagamento de pix -R$ 15,95
+31 AGO Antecipada - Titular Exemplo - Parcela 12/12
+Total a pagar: R$ 661,92 (valor da transação de R$ 400,00 + R$ 8,58 de IOF
++ R$ 253,35 de juros) divididos em 12 parcelas de R$ 55,16.
+R$ 55,16
+31 AGO Desconto de antecipação de pagamento de pix -R$ 12,43
+31 AGO Desconto de antecipação de pagamento de pix -R$ 22,15
+31 AGO Desconto de antecipação de pagamento de pix -R$ 19,19
+31 AGO Desconto de antecipação de pagamento de pix -R$ 27,37
+31 AGO Desconto de antecipação de pagamento de pix -R$ 24,87
+31 AGO Desconto de antecipação de pagamento de pix -R$ 31,77
+31 AGO Desconto de antecipação de pagamento de pix -R$ 29,66
+31 AGO Desconto de antecipação de pagamento de pix -R$ 8,59
+31 AGO Desconto de antecipação de pagamento de pix -R$ 4,40
+31 AGO Antecipada - Saldo adicionado na sua conta do Nubank - Parcela
+3/5
+Total a pagar: R$ 492,52 (valor da transação de R$ 400,00 + R$ 4,01 de IOF
++ R$ 88,51 de juros) divididos em 5 parcelas de R$ 98,50.
+R$ 98,50
+Como assegurado pela Resolução CMN n° 5.112 de 21/12/2023, o valor total cobrado a título de juros e encargos financeiros aplicados aos
+financiamentos de saldo devedor da fatura (rotativo, parcelamentos de fatura e renegociações de pendências) não deve exceder o valor original
+da dívida. Válido apenas para as operações realizadas a partir de 3 de Janeiro de 2024.
+6 de 6
+
+-- 6 of 6 --

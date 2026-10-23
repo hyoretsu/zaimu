@@ -38,34 +38,45 @@ function parsePurchaseDate(day: number, monthName: string, statementDate: Date, 
 }
 
 export function parseNubankCreditCardStatementText(text: string): CreditCardStatement {
-	const dueDateMatch = text.match(/Data\s+de\s+vencimento:\s*(\d{2}\s+[A-Za-zÀ-ÿ]{3}\s+\d{4})/iu);
+	const dueDateMatch = text.match(/(?:Data\s+d[eo]\s+)?vencimento\s*:?\s*(\d{2}\s+[A-Za-zÀ-ÿ]{3}\s+\d{4})/iu);
 	const periodMatch = text.match(
-		/Período\s+vigente:\s*\d{2}\s+[A-Za-zÀ-ÿ]{3}\s+a\s+(\d{2}\s+[A-Za-zÀ-ÿ]{3})/iu,
+		/(?:Período\s+vigente:|Total\s+de\s+compras(?:\s+de\s+todos\s+os\s+cartões)?,)\s*\d{2}\s+[A-Za-zÀ-ÿ]{3}\s+a\s+(\d{2}\s+[A-Za-zÀ-ÿ]{3})/iu,
 	);
 	if (!dueDateMatch) throw new Error("Não foi possível identificar vencimento e período da fatura");
 	const dueDate = parseInvoiceDate(dueDateMatch[1]!.toUpperCase());
 	const statementDate = periodMatch
 		? parseInvoiceDate(`${periodMatch[1]!.toUpperCase()} ${dueDate.getFullYear()}`)
 		: undefined;
+	if (statementDate && statementDate > dueDate) statementDate.setFullYear(statementDate.getFullYear() - 1);
 	const referenceDate = statementDate ?? dueDate;
 	const transactionsStart = text.search(/TRANSAÇÕES\s+DE/iu);
 	const paymentsStart = text.search(/Pagamentos\s+-?R\$/iu);
 	if (transactionsStart < 0) throw new Error("Não foi possível encontrar as transações da fatura");
 	const transactions = text.slice(transactionsStart, paymentsStart < 0 ? undefined : paymentsStart);
-	const normalizedTransactions = transactions.replace(
-		/^(\d{2}\s+[A-Za-zÀ-ÿ]{3}\s+[^\n]+)\n(?:USD\s+[^\n]+\n)?(?:Conversão:\s*[^\n]+\n)?([−-]?[\t ]*R\$[\t ]*[−-]?[\t ]*[\d.]+,\d{2}[\t ]*[−-]?)[\t ]*$/gimu,
-		"$1 $2",
-	);
+	// Notes may precede the row amount or continue after a page break.
+	let inNote = false;
+	const normalizedTransactions = transactions
+		.split("\n")
+		.filter(line => {
+			if (/^\d{2}\s+[A-Za-zÀ-ÿ]{3}\s/u.test(line)) inNote = false;
+			if (/^Total a pagar:/iu.test(line)) inNote = true;
+			if (!inNote) return !/^(?:USD|Conversão:)/iu.test(line);
+			if (/^[−-]?(?:R\$\s*)?[\d.]+,\d{2}[\t ]*[−-]?\s*$/u.test(line)) return true;
+			if (/(?:parcelas de R\$[\d., ]+|juros\))\.\s*$/u.test(line)) inNote = false;
+			return false;
+		})
+		.join("\n");
 	const purchasePattern =
-		/^(\d{2})\s+([A-Za-zÀ-ÿ]{3})\s+(?:••••\s+\d{4}\s+)?(.+?)\s+([−-]?[\t ]*R\$[\t ]*[−-]?[\t ]*[\d.]+,\d{2}[\t ]*[−-]?)[\t ]*$/gimu;
+		/^(\d{2})[\t ]+([A-Za-zÀ-ÿ]{3})[\t ]+(?:••••\s+\d{4}\s+)?((?:(?!\n\d{2}[\t ]+[A-Za-zÀ-ÿ]{3}[\t ])[\s\S])*?)[\t \n]+([−-]?[\t ]*(?:R\$[\t ]*)?[−-]?[\t ]*[\d.]+,\d{2}[\t ]*[−-]?)(?=[\t ]*(?:\n|$))/gimu;
 	const purchases: CreditCardStatementPurchase[] = [];
 	for (const match of normalizedTransactions.matchAll(purchasePattern)) {
-		const description = match[3]!.trim();
+		const description = match[3]!.trim().replace(/\s+/gu, " ");
 		if (/^pagamento\b/iu.test(description)) continue;
-		const installment = description.match(/\s+-\s+Parcela\s+(\d{1,2})\/(\d{1,2})\s*$/iu);
+		const installment = description.match(/\s+-\s+(?:Parcela\s+)?(\d{1,2})\/(\d{1,2})\s*$/iu);
 		const currentInstallment = Number(installment?.[1] ?? 1);
 		const installments = Number(installment?.[2] ?? 1);
-		const installmentAmount = moneyToNumber(match[4]!);
+		const amount = moneyToNumber(match[4]!);
+		const installmentAmount = /^(?:Estorno|Desconto)\b/iu.test(description) ? -Math.abs(amount) : amount;
 		if (
 			currentInstallment < 1 ||
 			installments < currentInstallment ||
@@ -75,7 +86,9 @@ export function parseNubankCreditCardStatementText(text: string): CreditCardStat
 			continue;
 		purchases.push({
 			currentInstallment,
-			description: description.replace(/\s+-\s+Parcela\s+\d{1,2}\/\d{1,2}\s*$/iu, ""),
+			description: description
+				.replace(/^Antecipada\s+-\s+/iu, "")
+				.replace(/\s+-\s+(?:Parcela\s+)?\d{1,2}\/\d{1,2}\s*$/iu, ""),
 			installmentAmount,
 			installments,
 			purchaseDate: parsePurchaseDate(
@@ -84,7 +97,8 @@ export function parseNubankCreditCardStatementText(text: string): CreditCardStat
 				referenceDate,
 				currentInstallment,
 			),
-			statementPurchaseDate: `${match[1]}/${match[2]}`,
+			// Historical financing rows reuse the same title for different plans.
+			statementPurchaseDate: `${match[1]}/${match[2]}/${Math.abs(installmentAmount)}`,
 			totalAmount: Math.round(installmentAmount * installments * 100) / 100,
 		});
 	}

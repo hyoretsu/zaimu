@@ -41,6 +41,12 @@ const creditCardStatementLayouts: readonly CreditCardStatementLayout[] = [
 
 /** Read only dates explicitly attributed to the next invoice, shared by all layouts. */
 export function nextStatementDateFromText(text: string) {
+	const months = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+	text = text.replace(
+		/(fechamento\s+da\s+(?:sua\s+)?próxima\s+fatura\s*:?\s*)(\d{2})\s+(JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)\s+(\d{4})/giu,
+		(_, label: string, day: string, month: string, year: string) =>
+			`${label}${day}/${String(months.indexOf(month.toUpperCase()) + 1).padStart(2, "0")}/${year}`,
+	);
 	const patterns = [
 		/fechamento\s+da\s+(?:sua\s+)?próxima\s+fatura[^\d]{0,40}(\d{2}[/-]\d{2}[/-]\d{4})/giu,
 		/próxima\s+fatura\s*(?:data\s+de\s+)?(?:corte|fechamento)\s*:?\s*(\d{2}[/-]\d{2}[/-]\d{4})/giu,

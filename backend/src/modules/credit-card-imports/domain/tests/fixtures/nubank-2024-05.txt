@@ -1,0 +1,247 @@
+Data do vencimento: 08 MAI 2024
+Total de compras, 01 ABR a 01 MAI
+Fechamento da próxima fatura 01 JUN 2024
+TRANSAÇÕES DE 01 ABR A 01 MAI VALORES EM R$
+01 ABR Parcelamento de Compra - 4/12
+Total a pagar: R$ 61,99 (valor original de R$ 41,08 + R$ 0,88 de IOF +
+R$ 20,03 de juros) divididos em 12 parcelas de R$ 5,17.
+5,17
+01 ABR Amazon - 5/10 54,63
+01 ABR Shopee *Eccosmeticos - 2/3 14,40
+01 ABR Titular Exemplo - 2/12
+Total a pagar: R$ 379,44 (valor original de R$ 203,47 + R$ 4,70 de
+IOF + R$ 171,27 de juros) divididos em 12 parcelas de R$ 31,62.
+31,62
+01 ABR Parcelamento de Compra - 4/12
+Total a pagar: R$ 183,82 (valor original de R$ 121,81 + R$ 2,61 de IOF +
+R$ 59,41 de juros) divididos em 12 parcelas de R$ 15,32.
+15,32
+01 ABR TITULAR EXEMPLO - 4/12
+Total a pagar: R$ 545,11 (valor original de R$ 361,26 + R$ 7,69 de IOF
++ R$ 176,16 de juros) divididos em 12 parcelas de R$ 45,43.
+45,43
+03 ABR Pagamento em 03 ABR 164,53
+07 ABR Antecipada - Parcelamento de Compra - 6/12
+Total a pagar: R$ 61,99 (valor original de R$ 41,08 + R$ 0,88 de IOF +
+R$ 20,03 de juros) divididos em 12 parcelas de R$ 5,17.
+5,17
+07 ABR Antecipada - Parcelamento de Compra - 7/12
+Total a pagar: R$ 61,99 (valor original de R$ 41,08 + R$ 0,88 de IOF +
+R$ 20,03 de juros) divididos em 12 parcelas de R$ 5,17.
+5,17
+07 ABR Antecipada - Parcelamento de Compra - 5/12
+Total a pagar: R$ 61,99 (valor original de R$ 41,08 + R$ 0,88 de IOF +
+R$ 20,03 de juros) divididos em 12 parcelas de R$ 5,17.
+5,17
+07 ABR Antecipada - Parcelamento de Compra - 12/12
+Total a pagar: R$ 61,99 (valor original de R$ 41,08 + R$ 0,88 de IOF +
+R$ 20,03 de juros) divididos em 12 parcelas de R$ 5,17.
+5,17
+07 ABR Antecipada - Parcelamento de Compra - 10/12
+Total a pagar: R$ 61,99 (valor original de R$ 41,08 + R$ 0,88 de IOF +
+R$ 20,03 de juros) divididos em 12 parcelas de R$ 5,17.
+5,17
+07 ABR Antecipada - Amazon - 10/10 54,63
+07 ABR Antecipada - Parcelamento de Compra - 11/12
+Total a pagar: R$ 61,99 (valor original de R$ 41,08 + R$ 0,88 de IOF +
+R$ 20,03 de juros) divididos em 12 parcelas de R$ 5,17.
+5,17
+07 ABR Antecipada - Amazon - 9/10 54,63
+07 ABR Antecipada - Parcelamento de Compra - 8/12
+Total a pagar: R$ 61,99 (valor original de R$ 41,08 + R$ 0,88 de IOF +
+R$ 20,03 de juros) divididos em 12 parcelas de R$ 5,17.
+5,17
+TITULAR EXEMPLO
+FATURA 08 MAI 2024 EMISSÃO E ENVIO 01 MAI 2024
+4 de 8
+
+-- 4 of 8 --
+
+TRANSAÇÕES DE 01 ABR A 01 MAI VALORES EM R$
+07 ABR Antecipada - Parcelamento de Compra - 9/12
+Total a pagar: R$ 61,99 (valor original de R$ 41,08 + R$ 0,88 de IOF +
+R$ 20,03 de juros) divididos em 12 parcelas de R$ 5,17.
+5,17
+07 ABR Desconto de antecipação de pagamento de pix 0,95
+07 ABR Antecipada - Amazon - 6/10 54,63
+07 ABR Desconto de antecipação de pagamento de pix 0,65
+07 ABR Desconto de antecipação de pagamento de pix 1,48
+07 ABR Antecipada - Amazon - 8/10 54,63
+07 ABR Desconto de antecipação de pagamento de pix 1,22
+07 ABR Antecipada - Amazon - 7/10 54,63
+07 ABR Desconto de antecipação de pagamento de pix 1,95
+07 ABR Desconto de antecipação de pagamento de pix 1,72
+07 ABR Desconto de antecipação de pagamento de pix 2,16
+07 ABR Desconto de antecipação de pagamento de pix 16,38
+07 ABR Desconto de antecipação de pagamento de pix 14,71
+07 ABR Desconto de antecipação de pagamento de pix 19,25
+07 ABR Desconto de antecipação de pagamento de pix 17,89
+07 ABR Desconto de antecipação de pagamento de pix 20,47
+07 ABR Antecipada - Shopee *Eccosmeticos - 3/3 14,40
+07 ABR Desconto de antecipação de pagamento de pix 0,34
+07 ABR Desconto de antecipação de pagamento de pix 3,13
+07 ABR Desconto de antecipação de pagamento de pix 8,49
+07 ABR Desconto de antecipação de pagamento de pix 5,95
+07 ABR Desconto de antecipação de pagamento de pix 12,85
+07 ABR Desconto de antecipação de pagamento de pix 10,78
+07 ABR Desconto Antecipação Shopee *Eccosmeticos 0,12
+07 ABR Antecipada - Parcelamento de Compra - 10/12
+Total a pagar: R$ 183,82 (valor original de R$ 121,81 + R$ 2,61 de IOF +
+R$ 59,41 de juros) divididos em 12 parcelas de R$ 15,32.
+15,32
+07 ABR Antecipada - Parcelamento de Compra - 11/12
+Total a pagar: R$ 183,82 (valor original de R$ 121,81 + R$ 2,61 de IOF +
+R$ 59,41 de juros) divididos em 12 parcelas de R$ 15,32.
+15,32
+07 ABR Antecipada - Parcelamento de Compra - 8/12 15,32
+TITULAR EXEMPLO
+FATURA 08 MAI 2024 EMISSÃO E ENVIO 01 MAI 2024
+5 de 8
+
+-- 5 of 8 --
+
+TRANSAÇÕES DE 01 ABR A 01 MAI VALORES EM R$
+Total a pagar: R$ 183,82 (valor original de R$ 121,81 + R$ 2,61 de IOF +
+R$ 59,41 de juros) divididos em 12 parcelas de R$ 15,32.
+07 ABR Antecipada - Parcelamento de Compra - 9/12
+Total a pagar: R$ 183,82 (valor original de R$ 121,81 + R$ 2,61 de IOF +
+R$ 59,41 de juros) divididos em 12 parcelas de R$ 15,32.
+15,32
+07 ABR Antecipada - Parcelamento de Compra - 6/12
+Total a pagar: R$ 183,82 (valor original de R$ 121,81 + R$ 2,61 de IOF +
+R$ 59,41 de juros) divididos em 12 parcelas de R$ 15,32.
+15,32
+07 ABR Antecipada - Parcelamento de Compra - 7/12
+Total a pagar: R$ 183,82 (valor original de R$ 121,81 + R$ 2,61 de IOF +
+R$ 59,41 de juros) divididos em 12 parcelas de R$ 15,32.
+15,32
+07 ABR Antecipada - Titular Exemplo - 4/12
+Total a pagar: R$ 379,44 (valor original de R$ 203,47 + R$ 4,70 de
+IOF + R$ 171,27 de juros) divididos em 12 parcelas de R$ 31,62.
+31,62
+07 ABR Antecipada - Parcelamento de Compra - 5/12
+Total a pagar: R$ 183,82 (valor original de R$ 121,81 + R$ 2,61 de IOF +
+R$ 59,41 de juros) divididos em 12 parcelas de R$ 15,32.
+15,32
+07 ABR Antecipada - Titular Exemplo - 3/12
+Total a pagar: R$ 379,44 (valor original de R$ 203,47 + R$ 4,70 de
+IOF + R$ 171,27 de juros) divididos em 12 parcelas de R$ 31,62.
+31,62
+07 ABR Antecipada - Titular Exemplo - 6/12
+Total a pagar: R$ 379,44 (valor original de R$ 203,47 + R$ 4,70 de
+IOF + R$ 171,27 de juros) divididos em 12 parcelas de R$ 31,62.
+31,62
+07 ABR Antecipada - Titular Exemplo - 5/12
+Total a pagar: R$ 379,44 (valor original de R$ 203,47 + R$ 4,70 de
+IOF + R$ 171,27 de juros) divididos em 12 parcelas de R$ 31,62.
+31,62
+07 ABR Antecipada - Titular Exemplo - 8/12
+Total a pagar: R$ 379,44 (valor original de R$ 203,47 + R$ 4,70 de
+IOF + R$ 171,27 de juros) divididos em 12 parcelas de R$ 31,62.
+31,62
+07 ABR Antecipada - Titular Exemplo - 7/12
+Total a pagar: R$ 379,44 (valor original de R$ 203,47 + R$ 4,70 de
+IOF + R$ 171,27 de juros) divididos em 12 parcelas de R$ 31,62.
+31,62
+07 ABR Antecipada - Titular Exemplo - 10/12
+Total a pagar: R$ 379,44 (valor original de R$ 203,47 + R$ 4,70 de
+IOF + R$ 171,27 de juros) divididos em 12 parcelas de R$ 31,62.
+31,62
+07 ABR Antecipada - Titular Exemplo - 9/12
+Total a pagar: R$ 379,44 (valor original de R$ 203,47 + R$ 4,70 de
+IOF + R$ 171,27 de juros) divididos em 12 parcelas de R$ 31,62.
+31,62
+07 ABR Antecipada - Parcelamento de Compra - 12/12
+Total a pagar: R$ 183,82 (valor original de R$ 121,81 + R$ 2,61 de IOF +
+15,32
+TITULAR EXEMPLO
+FATURA 08 MAI 2024 EMISSÃO E ENVIO 01 MAI 2024
+6 de 8
+
+-- 6 of 8 --
+
+TRANSAÇÕES DE 01 ABR A 01 MAI VALORES EM R$
+R$ 59,41 de juros) divididos em 12 parcelas de R$ 15,32.
+07 ABR Antecipada - TITULAR EXEMPLO - 5/12
+Total a pagar: R$ 545,11 (valor original de R$ 361,26 + R$ 7,69 de IOF
++ R$ 176,16 de juros) divididos em 12 parcelas de R$ 45,43.
+45,43
+07 ABR Antecipada - Titular Exemplo - 12/12
+Total a pagar: R$ 379,44 (valor original de R$ 203,47 + R$ 4,70 de
+IOF + R$ 171,27 de juros) divididos em 12 parcelas de R$ 31,62.
+31,62
+07 ABR Antecipada - TITULAR EXEMPLO - 6/12
+Total a pagar: R$ 545,11 (valor original de R$ 361,26 + R$ 7,69 de IOF
++ R$ 176,16 de juros) divididos em 12 parcelas de R$ 45,43.
+45,43
+07 ABR Antecipada - Titular Exemplo - 11/12
+Total a pagar: R$ 379,44 (valor original de R$ 203,47 + R$ 4,70 de
+IOF + R$ 171,27 de juros) divididos em 12 parcelas de R$ 31,62.
+31,62
+07 ABR Desconto Antecipação Amazon 6,76
+07 ABR Desconto de antecipação de pagamento de pix 2,81
+07 ABR Desconto de antecipação de pagamento de pix 1,94
+07 ABR Desconto de antecipação de pagamento de pix 4,39
+07 ABR Desconto de antecipação de pagamento de pix 3,63
+07 ABR Desconto de antecipação de pagamento de pix 5,77
+07 ABR Desconto de antecipação de pagamento de pix 5,11
+07 ABR Desconto de antecipação de pagamento de pix 6,40
+07 ABR Antecipada - TITULAR EXEMPLO - 7/12
+Total a pagar: R$ 545,11 (valor original de R$ 361,26 + R$ 7,69 de IOF
++ R$ 176,16 de juros) divididos em 12 parcelas de R$ 45,43.
+45,43
+07 ABR Desconto de antecipação de pagamento de pix 17,12
+07 ABR Antecipada - TITULAR EXEMPLO - 8/12
+Total a pagar: R$ 545,11 (valor original de R$ 361,26 + R$ 7,69 de IOF
++ R$ 176,16 de juros) divididos em 12 parcelas de R$ 45,43.
+45,43
+07 ABR Desconto de antecipação de pagamento de pix 15,14
+07 ABR Antecipada - TITULAR EXEMPLO - 9/12
+Total a pagar: R$ 545,11 (valor original de R$ 361,26 + R$ 7,69 de IOF
++ R$ 176,16 de juros) divididos em 12 parcelas de R$ 45,43.
+45,43
+07 ABR Antecipada - TITULAR EXEMPLO - 10/12
+Total a pagar: R$ 545,11 (valor original de R$ 361,26 + R$ 7,69 de IOF
++ R$ 176,16 de juros) divididos em 12 parcelas de R$ 45,43.
+45,43
+07 ABR Desconto de antecipação de pagamento de pix 18,97
+07 ABR Antecipada - TITULAR EXEMPLO - 11/12 45,43
+TITULAR EXEMPLO
+FATURA 08 MAI 2024 EMISSÃO E ENVIO 01 MAI 2024
+7 de 8
+
+-- 7 of 8 --
+
+TRANSAÇÕES DE 01 ABR A 01 MAI VALORES EM R$
+Total a pagar: R$ 545,11 (valor original de R$ 361,26 + R$ 7,69 de IOF
++ R$ 176,16 de juros) divididos em 12 parcelas de R$ 45,43.
+07 ABR Antecipada - TITULAR EXEMPLO - 12/12
+Total a pagar: R$ 545,11 (valor original de R$ 361,26 + R$ 7,69 de IOF
++ R$ 176,16 de juros) divididos em 12 parcelas de R$ 45,43.
+45,43
+07 ABR Desconto de antecipação de pagamento de pix 1,00
+07 ABR Desconto de antecipação de pagamento de pix 2,97
+07 ABR Desconto de antecipação de pagamento de pix 8,33
+07 ABR Desconto de antecipação de pagamento de pix 5,74
+07 ABR Desconto de antecipação de pagamento de pix 13,02
+07 ABR Desconto de antecipação de pagamento de pix 10,76
+08 ABR Saldo adicionado na sua conta do Nubank
+Total a pagar: R$ 18,35 (valor original de R$ 16,69 + R$ 0,10 de IOF +
+R$ 1,56 de juros).
+18,35
+08 ABR Saldo adicionado na sua conta do Nubank
+Total a pagar: R$ 162,70 (valor original de R$ 147,92 + R$ 0,95 de IOF
++ R$ 13,83 de juros).
+162,70
+08 ABR Saldo adicionado na sua conta do Nubank
+Total a pagar: R$ 42,89 (valor original de R$ 39,00 + R$ 0,25 de IOF +
+R$ 3,65 de juros).
+42,90
+09 ABR Lojas Americanas 273,77
+09 ABR Marben Servicos de Al 130,00
+16 ABR Supermercado Litoral A 416,69
+TITULAR EXEMPLO
+FATURA 08 MAI 2024 EMISSÃO E ENVIO 01 MAI 2024
+8 de 8
+
+-- 8 of 8 --

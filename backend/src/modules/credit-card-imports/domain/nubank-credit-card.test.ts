@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { importedAnticipation } from "@zaimu/finance/imported-anticipation";
+import { parseCreditCardStatementText } from "./credit-card-statement-parser";
 import { parseNubankCreditCardStatementText } from "./nubank-credit-card";
 
 describe("parseNubankCreditCardStatementText", () => {
@@ -64,4 +66,82 @@ Pagamentos -R$ 100,00
 05 AGO Pagamento em 05 AGO −R$ 100,00`);
 	expect(result.purchases.map(p => p.installmentAmount)).toEqual([100, -25, -10, -5]);
 	expect(result.purchases.map(p => p.totalAmount)).toEqual([100, -25, -10, -5]);
+});
+
+for (const fixture of [
+	{
+		cents: 207174,
+		dueDate: "2024-05-08",
+		file: "2024-05",
+		nextStatementDate: "2024-06-01",
+		statementDate: "2024-05-01",
+	},
+	{
+		cents: 82191,
+		dueDate: "2024-09-09",
+		file: "2024-09",
+		nextStatementDate: "2024-10-01",
+		statementDate: "2024-09-01",
+	},
+	{
+		cents: 27128,
+		dueDate: "2022-02-08",
+		file: "2022-02",
+		nextStatementDate: undefined,
+		statementDate: "2022-02-01",
+	},
+]) {
+	test(`reads historical Nubank ${fixture.file} without dropping rows or inventing amounts`, async () => {
+		const text = await Bun.file(
+			new URL(`./tests/fixtures/nubank-${fixture.file}.txt`, import.meta.url),
+		).text();
+		const result = parseCreditCardStatementText(text, "NUBANK");
+		expect(result).toMatchObject({
+			dueDate: fixture.dueDate,
+			nextStatementDate: fixture.nextStatementDate,
+			statementDate: fixture.statementDate,
+		});
+		// Source line totals differ slightly from printed invoice summaries; preserve actual rows.
+		expect(
+			result.purchases.reduce(
+				(sum, p) =>
+					sum +
+					(importedAnticipation(p.description)?.reduce((total, part) => total + part.amountCents, 0) ??
+						Math.round(p.installmentAmount * 100)),
+				0,
+			),
+		).toBe(fixture.cents);
+		expect(result.purchases.some(p => /^Pagamento|Total a pagar|Conversão:/iu.test(p.description))).toBe(
+			false,
+		);
+		expect(
+			result.purchases
+				.filter(p => /^Estorno|^Desconto/iu.test(p.description))
+				.every(p => p.installmentAmount < 0),
+		).toBe(true);
+		expect(
+			result.purchases.filter(p => /^Reversão/iu.test(p.description)).every(p => p.installmentAmount > 0),
+		).toBe(true);
+		if (fixture.file === "2024-09") {
+			expect(result.purchases.find(p => p.description === 'IOF de "Spred"')?.installmentAmount).toBe(2.57);
+			expect(result.purchases.find(p => p.description === "Spred")?.installmentAmount).toBe(58.89);
+			expect(
+				result.purchases.find(
+					p => p.description === "Saldo adicionado na sua conta do Nubank" && p.currentInstallment === 3,
+				),
+			).toMatchObject({ installmentAmount: 98.5, installments: 5 });
+		}
+		for (const p of result.purchases) {
+			const parts = importedAnticipation(p.description);
+			if (parts) expect(new Set(parts.map(part => part.amountCents)).size).toBe(1);
+		}
+	});
+}
+
+test("keeps December closing in the previous year for January invoices", () => {
+	const result = parseNubankCreditCardStatementText(
+		"VENCIMENTO 08 JAN 2024\nTotal de compras, 01 NOV a 31 DEZ\nTRANSAÇÕES DE 01 NOV A 31 DEZ\n30 DEZ LOJA 10,00",
+	);
+	expect(result.statementDate).toBe("2023-12-31");
+	expect(result.purchases[0]?.purchaseDate).toBe("2023-12-30");
 });
