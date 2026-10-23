@@ -19,7 +19,7 @@ export async function createTransactionBatch(input: {
 export async function createCreditCardBatch(input: {
 	userId: string;
 	creditCardId: string;
-	provider: "MEUPLUGGY" | "MERCADO_PAGO" | "NUBANK" | "BRADESCO" | "INTER" | "PICPAY";
+	provider: "MEUPLUGGY" | "MERCADO_PAGO" | "NUBANK" | "BRADESCO" | "INTER" | "PICPAY" | "WILL_BANK";
 	fileName: string;
 	statementDate: Date;
 	dueDate: Date;

@@ -14,7 +14,22 @@ import { parseNubankCreditCardStatementText } from "./nubank-credit-card";
 import { parsePicPayCreditCardStatementText } from "./picpay-credit-card";
 import { statementPreviousBalance } from "./statement-previous-balance";
 
+import { parseWillBankCreditCardStatementText } from "./will-bank-credit-card";
+
 const creditCardStatementLayouts: readonly CreditCardStatementLayout[] = [
+	{
+		id: "will-bank-legacy",
+		matches: text => /Detalhamento da fatura de/iu.test(text) && /Cartão Mastercard/iu.test(text),
+		parse: parseWillBankCreditCardStatementText,
+		provider: "WILL_BANK",
+	},
+	{
+		id: "will-bank-current",
+		matches: text =>
+			/Lançamentos de/iu.test(text) && /Confira seus gastos e os valores recebidos/iu.test(text),
+		parse: parseWillBankCreditCardStatementText,
+		provider: "WILL_BANK",
+	},
 	{
 		id: "bradesco-classic",
 		matches: text =>
@@ -48,6 +63,7 @@ export function nextStatementDateFromText(text: string) {
 			`${label}${day}/${String(months.indexOf(month.toUpperCase()) + 1).padStart(2, "0")}/${year}`,
 	);
 	const patterns = [
+		/Previsão\s+próximo\s+fechamento\s*(\d{2}[/-]\d{2}[/-]\d{4})/giu,
 		/fechamento\s+da\s+(?:sua\s+)?próxima\s+fatura[^\d]{0,40}(\d{2}[/-]\d{2}[/-]\d{4})/giu,
 		/próxima\s+fatura\s*(?:data\s+de\s+)?(?:corte|fechamento)\s*:?\s*(\d{2}[/-]\d{2}[/-]\d{4})/giu,
 	];

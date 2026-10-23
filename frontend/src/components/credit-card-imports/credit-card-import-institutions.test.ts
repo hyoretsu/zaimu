@@ -21,6 +21,9 @@ describe("invoice institution selection", () => {
 		["Mercado Pago", "MERCADO_PAGO"],
 		[" NUBANK ", "NUBANK"],
 		["PicPay", "PICPAY"],
+		["Will Bank", "WILL_BANK"],
+		["Will", "WILL_BANK"],
+		["Will Financeira", "WILL_BANK"],
 	] as const)("maps %s", (name, provider) => {
 		expect(getCreditCardImportProvider({ id: "catalog", name })).toBe(provider);
 	});

@@ -5,7 +5,15 @@ import { parseMercadoPagoCreditCardStatementText } from "./mercado-pago-credit-c
 import { parseNubankCreditCardStatementText } from "./nubank-credit-card";
 import { parsePicPayCreditCardStatementText } from "./picpay-credit-card";
 
+import { parseWillBankCreditCardStatementText } from "./will-bank-credit-card";
+
 const readers = [
+	{
+		closing: "Fechamento da fatura 19/08/2026",
+		due: "Vencimento 25/08/2026",
+		name: "Will Bank",
+		parse: (text: string) => parseWillBankCreditCardStatementText(`${text}\n07/08 LOJA Virtual R$ 11,99`),
+	},
 	{
 		closing: "Data de fechamento 19/08/2026",
 		due: "Vencimento 25/08/2026",

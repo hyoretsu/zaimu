@@ -1,4 +1,10 @@
-export type CreditCardImportProvider = "MERCADO_PAGO" | "BRADESCO" | "INTER" | "NUBANK" | "PICPAY";
+export type CreditCardImportProvider =
+	| "MERCADO_PAGO"
+	| "BRADESCO"
+	| "INTER"
+	| "NUBANK"
+	| "PICPAY"
+	| "WILL_BANK";
 
 export interface CreditCardStatementPurchase {
 	/** Original date token before provider-specific installment date inference. */

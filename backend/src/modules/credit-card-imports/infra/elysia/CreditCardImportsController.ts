@@ -381,6 +381,7 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 					t.Literal("INTER"),
 					t.Literal("NUBANK"),
 					t.Literal("PICPAY"),
+					t.Literal("WILL_BANK"),
 				]),
 				statementId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 			}),

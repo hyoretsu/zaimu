@@ -7,6 +7,7 @@ const providerNames = {
 	MERCADO_PAGO: ["Mercado Pago"],
 	NUBANK: ["Nubank"],
 	PICPAY: ["PicPay"],
+	WILL_BANK: ["Will Bank", "Will", "Will Financeira"],
 } as const;
 
 export function getCreditCardImportProvider(institution?: FinancialInstitution | null) {

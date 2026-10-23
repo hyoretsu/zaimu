@@ -20,6 +20,7 @@ export const creditCardStatementProviders = {
 	MEUPLUGGY: { label: "MeuPluggy", pdfPassword: null },
 	NUBANK: { label: "Nubank", pdfPassword: null },
 	PICPAY: { label: "PicPay", pdfPassword: null },
+	WILL_BANK: { label: "Will Bank", pdfPassword: null },
 } as const satisfies Record<CreditCardImportProvider, CreditCardStatementProviderConfiguration>;
 
 export const creditCardStatementProviderOptions = Object.entries(creditCardStatementProviders)

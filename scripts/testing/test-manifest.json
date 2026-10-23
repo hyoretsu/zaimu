@@ -73,6 +73,7 @@
 		"backend/src/modules/credit-card-imports/domain/nubank-credit-card.test.ts",
 		"backend/src/modules/credit-card-imports/domain/pending-purchase-reference.test.ts",
 		"backend/src/modules/credit-card-imports/domain/picpay-credit-card.test.ts",
+		"backend/src/modules/credit-card-imports/domain/will-bank-credit-card.test.ts",
 		"backend/src/modules/credit-card-imports/domain/select-new-import-purchases.test.ts",
 		"backend/src/modules/credit-card-imports/domain/partial-statement-dates.test.ts",
 		"backend/src/modules/credit-card-imports/domain/resolve-import-statement-dates.test.ts",

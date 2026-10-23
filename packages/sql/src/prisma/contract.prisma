@@ -1708,6 +1708,7 @@ namespace public {
     NUBANK = "NUBANK"
     PICPAY = "PICPAY"
     MEUPLUGGY = "MEUPLUGGY"
+    WILL_BANK = "WILL_BANK"
   }
 
   native_enum CreditRefundPolicy {

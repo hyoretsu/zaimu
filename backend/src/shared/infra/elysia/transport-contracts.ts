@@ -533,6 +533,7 @@ export const CreditCardImportReturn = t.Object({
 		t.Literal("INTER"),
 		t.Literal("NUBANK"),
 		t.Literal("PICPAY"),
+		t.Literal("WILL_BANK"),
 	]),
 	statementDate: t.String(),
 	status: t.Union([t.Literal("PENDING"), t.Literal("APPROVED")]),
