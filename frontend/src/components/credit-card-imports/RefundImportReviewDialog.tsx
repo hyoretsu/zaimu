@@ -244,7 +244,7 @@ export function RefundImportReviewDialog({
 										label="Compra original"
 										onValueChange={setSourceId}
 										options={eligibleSources.map(source => ({
-											label: `${source.description} - ${source.purchaseDate.slice(0, 10)} - ${source.installments}x - ${currency.format(source.totalAmount)}`,
+											label: `${source.description.trim() || "Compra sem nome"} - ${source.purchaseDate.slice(0, 10)} - ${source.installments}x - ${currency.format(source.totalAmount)}`,
 											value: source.id,
 										}))}
 										placeholder="Busque a compra original"
