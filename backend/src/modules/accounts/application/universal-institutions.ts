@@ -74,6 +74,13 @@ export async function proposeInstitution(
 			`INSERT INTO "FinancialInstitutionProposal" ("id","institutionId","authorId","kind","baseVersion","payload","effectiveDate","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,NOW())`,
 			[id, institutionId, userId, kind, version, JSON.stringify(payload), effectiveDate ?? null],
 		);
+		if (kind === "NEW_INSTITUTION") {
+			const [author] = await query<{ role: string }>(`SELECT "role" FROM "user" WHERE "id"=$1`, [userId]);
+			if (author?.role === "ADMIN") {
+				const result = await reviewInstitutionProposal(userId, id, "APPROVE");
+				return { ...result, institutionId };
+			}
+		}
 		await query(
 			`INSERT INTO "AppNotification" ("id","userId","type","payload") SELECT gen_random_uuid()::text,"id",'INSTITUTION_REVIEW',$1::jsonb FROM "user" WHERE "role"='ADMIN'`,
 			[JSON.stringify({ institutionId, proposalId: id })],

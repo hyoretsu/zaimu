@@ -31,6 +31,33 @@ describe("universal institution review and calendar coverage", () => {
 		);
 	});
 	afterAll(() => closeDatabase());
+	test("admin creation publishes immediately with review audit and no pending notification", async () => {
+		const created = await proposeInstitution("admin", null, "NEW_INSTITUTION", {
+			creditStatementClosingInclusive: true,
+			currency: "BRL",
+			name: "Admin bank",
+		});
+		expect(created.status).toBe("APPROVED");
+		const institution = await visibleInstitution("other", created.institutionId);
+		expect(institution.status).toBe("APPROVED");
+		expect(institution.creditStatementClosingInclusive).toBe(true);
+		const [proposal] = await queryRaw(`SELECT * FROM "FinancialInstitutionProposal" WHERE "id"=$1`, [
+			created.id,
+		]);
+		expect(proposal.status).toBe("APPROVED");
+		expect(proposal.reviewerId).toBe("admin");
+		expect(
+			await queryRaw(`SELECT * FROM "InstitutionReviewAudit" WHERE "proposalId"=$1 AND "action"='APPROVE'`, [
+				created.id,
+			]),
+		).toHaveLength(1);
+		expect(
+			await queryRaw(
+				`SELECT * FROM "AppNotification" WHERE "type"='INSTITUTION_REVIEW' AND "payload"->>'proposalId'=$1`,
+				[created.id],
+			),
+		).toHaveLength(0);
+	});
 	test("institution links bind user IDs consistently and remain private and idempotent", async () => {
 		const draft = await proposeInstitution("owner", null, "NEW_INSTITUTION", {
 			currency: "BRL",

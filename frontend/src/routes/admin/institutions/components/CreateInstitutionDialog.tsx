@@ -41,10 +41,7 @@ export function CreateInstitutionDialog() {
 				...mutationCacheMeta("institution"),
 				awaitRefetch: true,
 			});
-			showToast(
-				"Instituição criada. Aprove a proposta na revisão institucional para publicar no catálogo.",
-				"positive",
-			);
+			showToast("Instituição criada e publicada no catálogo.", "positive");
 			setOpen(false);
 		} catch (cause) {
 			setError(cause instanceof Error ? cause.message : "Não foi possível criar a instituição.");
