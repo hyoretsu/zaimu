@@ -178,6 +178,7 @@ jobs:
           draft: false
           prerelease: false
           # AAB goes to Play, not the release — only attach the signed APK(s).
+          fail_on_unmatched_files: true
           files: ${{ steps.build.outputs.apk-glob }}
 
       # Store uploads consume the single build above; add one step per store.

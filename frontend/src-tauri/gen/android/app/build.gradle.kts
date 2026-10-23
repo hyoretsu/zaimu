@@ -13,7 +13,25 @@ val tauriProperties = Properties().apply {
     }
 }
 
+val keystoreFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties().apply {
+    if (keystoreFile.exists()) {
+        keystoreFile.inputStream().use { load(it) }
+    }
+}
+
 android {
+    signingConfigs {
+        if (keystoreFile.exists()) {
+            create("release") {
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("password")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("password")
+                storeType = keystoreProperties.getProperty("storeType", "PKCS12")
+            }
+        }
+    }
     compileSdk = 34
     namespace = "com.hyolabs.zaimu"
     defaultConfig {
@@ -37,6 +55,9 @@ android {
             }
         }
         getByName("release") {
+            if (keystoreFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             isMinifyEnabled = true
             proguardFiles(
                 *fileTree(".") { include("**/*.pro") }
