@@ -65,7 +65,7 @@ export function AccountAdjustmentsDialog({
 					</div>
 				</DialogBody>
 				<DialogFooter>
-					<Button disabled={loading || error} onClick={onAdd}>
+					<Button onClick={onAdd}>
 						<LuPlus /> Adicionar data
 					</Button>
 				</DialogFooter>

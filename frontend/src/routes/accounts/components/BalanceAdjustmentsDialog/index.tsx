@@ -164,11 +164,7 @@ export function BalanceAdjustmentsDialog({
 					</div>
 				</DialogBody>
 				<DialogFooter>
-					<Button
-						className="cursor-pointer disabled:cursor-not-allowed"
-						disabled={!adjustmentsQuery.isSuccess || !accountsQuery.isSuccess}
-						onClick={() => setEditing("new")}
-					>
+					<Button className="cursor-pointer disabled:cursor-not-allowed" onClick={() => setEditing("new")}>
 						<LuPlus /> Novo ajuste
 					</Button>
 				</DialogFooter>
