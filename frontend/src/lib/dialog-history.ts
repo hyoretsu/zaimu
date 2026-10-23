@@ -1,4 +1,4 @@
-import type { RouterHistory } from "@tanstack/history";
+import type { RouterHistory } from "@tanstack/react-router";
 
 const stateKey = "zaimuDialogStack";
 interface DialogState {

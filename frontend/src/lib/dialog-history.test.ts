@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createMemoryHistory } from "@tanstack/history";
+import { createMemoryHistory } from "@tanstack/react-router";
 import { createDialogHistory } from "./dialog-history";
 
 describe("dialog history", () => {
