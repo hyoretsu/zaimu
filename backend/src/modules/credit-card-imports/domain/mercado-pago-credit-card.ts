@@ -1,5 +1,6 @@
 import { groupAnticipatedInstallments } from "./anticipated-installments";
 import type { CreditCardStatement, CreditCardStatementPurchase } from "./credit-card-statement";
+import { normalizeMercadoPagoText } from "./mercado-pago-text";
 import { statementMoney } from "./statement-money";
 
 const moneyToNumber = statementMoney;
@@ -32,6 +33,7 @@ function inferPurchaseDate(day: number, month: number, statementDate: Date, curr
 }
 
 export function parseMercadoPagoCreditCardStatementText(text: string): CreditCardStatement {
+	text = normalizeMercadoPagoText(text);
 	const dueDateMatch =
 		text.match(/Vence em\s*(\d{2}\/\d{2}\/\d{4})/iu) ?? text.match(/Vencimento:\s*(\d{2}\/\d{2}\/\d{4})/iu);
 	const statementDateMatch = text.match(/Fechamento da fatura\s*(\d{2}\/\d{2}\/\d{4})/iu);

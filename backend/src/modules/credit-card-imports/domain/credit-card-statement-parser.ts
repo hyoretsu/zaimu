@@ -9,6 +9,7 @@ import {
 } from "./credit-card-statement-layout";
 import { parseInterCreditCardStatementText } from "./inter-credit-card";
 import { parseMercadoPagoCreditCardStatementText } from "./mercado-pago-credit-card";
+import { normalizeMercadoPagoText } from "./mercado-pago-text";
 import { parseNubankCreditCardStatementText } from "./nubank-credit-card";
 import { parsePicPayCreditCardStatementText } from "./picpay-credit-card";
 import { statementPreviousBalance } from "./statement-previous-balance";
@@ -61,6 +62,7 @@ export function nextStatementDateFromText(text: string) {
 }
 
 export function parseCreditCardStatementText(text: string, provider: CreditCardImportProvider) {
+	if (provider === "MERCADO_PAGO") text = normalizeMercadoPagoText(text);
 	if (!text.trim()) throw new HttpException("Não foi possível extrair texto do PDF", 400);
 	const layout = selectCreditCardStatementLayout(text, provider, creditCardStatementLayouts);
 	return {
