@@ -882,6 +882,7 @@ export async function mutateLocalCreditBook<T>(
 			statements: [],
 		};
 		Object.assign(book.card, {
+			calendarHistory: card.calendarHistory ?? book.card.calendarHistory,
 			dueDay: card.dueDay,
 			ignoreStatementsBefore: card.ignoreStatementsBefore?.slice(0, 10) ?? null,
 			installmentRemainderOnFirst: accountRow?.data.institution?.creditInstallmentRemainderOnFirst ?? false,
@@ -908,6 +909,13 @@ export async function mutateLocalCreditBook<T>(
 		const oldPolicy = book.card.refundPolicy;
 		const previousBook = structuredClone(book);
 		const result = operation(book);
+		card.calendarHistory = book.card.calendarHistory;
+		await requestResult(tx.objectStore("scoped-creditCards").put({ ...cardRow, data: card }));
+		if (accountRow?.data.creditCard) {
+			accountRow.data.creditCard.calendarHistory = book.card.calendarHistory;
+			await requestResult(tx.objectStore("scoped-accounts").put(accountRow));
+		}
+
 		synchronizeBookRefinancing(book, previousBook);
 		for (const p of book.purchases) {
 			if (p.userId !== book.card.userId || p.creditCardId !== cardId)
@@ -1135,6 +1143,7 @@ export async function readLocalCreditBook(cardId: string, owner?: StorageOwner):
 					statements: [],
 				};
 	Object.assign(book.card, {
+		calendarHistory: card.calendarHistory ?? book.card.calendarHistory,
 		currency: card.currency ?? book.card.currency ?? "BRL",
 		dueDay: card.dueDay,
 		ignoreStatementsBefore: card.ignoreStatementsBefore?.slice(0, 10) ?? null,

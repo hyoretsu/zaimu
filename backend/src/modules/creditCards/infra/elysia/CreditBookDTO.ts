@@ -2,6 +2,8 @@ import { t } from "elysia";
 import { FinancialFeeDTO } from "~/modules/currencies/application/financial-money";
 import { DebtSplitInputDTO } from "~/modules/debts/infra/elysia/DebtSplitsDTO";
 
+import { CardCalendarPeriodDTO } from "./CardCalendarPeriodDTO";
+
 const Id = t.String({ maxLength: 36, minLength: 1 });
 const DateKey = t.String({ format: "date" });
 const NullableId = t.Nullable(Id);
@@ -65,6 +67,7 @@ export const BookRefundDTO = t.Object({
 });
 export const CreditBookDTO = t.Object({
 	card: t.Object({
+		calendarHistory: t.Optional(t.Nullable(t.Array(CardCalendarPeriodDTO))),
 		currency: t.Optional(t.String({ pattern: "^[A-Z]{3}$" })),
 		dueDay: t.Integer({ maximum: 31, minimum: 1 }),
 		id: Id,

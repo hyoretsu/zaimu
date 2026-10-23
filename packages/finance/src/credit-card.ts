@@ -17,7 +17,21 @@ export function currentDateKey() {
 	return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
+export type CardTransitionMode = "EXTRA_CYCLE" | "NEXT_CYCLE";
+export type CardInstallmentMode = "PER_CYCLE" | "PER_MONTH";
+export type CardCalendarPeriod = Readonly<{
+	effectiveDate: string;
+	statementDay: number;
+	dueDay: number;
+	workingDueDate: boolean;
+	firstStatementDate: string;
+	firstDueDate: string;
+	transitionMode: CardTransitionMode;
+	installmentMode: CardInstallmentMode;
+}>;
+
 export interface CardCalendar {
+	calendarHistory?: CardCalendarPeriod[] | null;
 	statementClosingInclusive?: boolean;
 	currency?: string;
 	statementDay: number;
@@ -182,6 +196,12 @@ export function statementCycles<T extends StatementInput>(
 	const last = closingDates.at(-1);
 	if (!first || !last) return statements;
 	const result = [...statements];
+	if (card.calendarHistory?.length) {
+		const known = new Set(statements.map(statement => dateKey(statement.statementDate)));
+		for (const cycle of calendarCycles(card, first, last))
+			if (!known.has(cycle.statementDate)) result.push(create(cycle));
+		return result;
+	}
 	const known = new Set(statements.map(statement => dateKey(statement.statementDate).slice(0, 7)));
 	const cursor = new Date(`${first.slice(0, 7)}-01T12:00:00Z`);
 	while (dateKey(cursor).slice(0, 7) <= last.slice(0, 7)) {
@@ -338,4 +358,137 @@ export function statementCharges(purchases: ChargePurchase[]) {
 		}
 	}
 	return result;
+}
+
+/** A saved period is a snapshot; later institution rule changes cannot rewrite it. */
+export function calendarAt(card: CardCalendar, date: string): CardCalendar {
+	const history = card.calendarHistory ?? [];
+	const period =
+		history
+			.filter(item => item.effectiveDate <= date)
+			.toSorted((a, b) => a.effectiveDate.localeCompare(b.effectiveDate))
+			.at(-1) ?? history[0];
+	return period ? { ...card, ...period, calendarHistory: undefined } : card;
+}
+
+/** Generate every configured closing, including short transition cycles. */
+export function calendarCycles(card: CardCalendar, from: string, through: string) {
+	const history = card.calendarHistory ?? [];
+	const result = new Map<string, { statementDate: string; dueDate: string }>();
+	const cursor = new Date(`${from.slice(0, 7)}-01T12:00:00Z`);
+	while (dateKey(cursor).slice(0, 7) <= through.slice(0, 7)) {
+		const candidates = history.length ? history : [null];
+		for (const period of candidates) {
+			const calendar = period ? { ...card, ...period, calendarHistory: undefined } : card;
+			const closing = dateKey(
+				monthDate(cursor.getUTCFullYear(), cursor.getUTCMonth(), calendar.statementDay),
+			);
+			const active = history
+				.filter(item => item.firstStatementDate <= closing)
+				.toSorted((a, b) => a.firstStatementDate.localeCompare(b.firstStatementDate))
+				.at(-1);
+			if (period && active !== period) continue;
+			if (closing >= from && closing <= through)
+				result.set(closing, {
+					dueDate:
+						period?.firstStatementDate === closing
+							? period.firstDueDate
+							: statementDueDate(calendar, closing),
+					statementDate: closing,
+				});
+		}
+		cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+	}
+	for (const period of history)
+		if (period.firstStatementDate >= from && period.firstStatementDate <= through)
+			result.set(period.firstStatementDate, {
+				dueDate: period.firstDueDate,
+				statementDate: period.firstStatementDate,
+			});
+	return [...result.values()].sort((a, b) => a.statementDate.localeCompare(b.statementDate));
+}
+
+export function assertCalendarPeriod(period: CardCalendarPeriod) {
+	for (const key of [period.effectiveDate, period.firstStatementDate, period.firstDueDate]) {
+		const date = new Date(`${key}T12:00:00Z`);
+		if (!/^\d{4}-\d{2}-\d{2}$/.test(key) || !Number.isFinite(date.valueOf()) || dateKey(date) !== key)
+			throw new RangeError("Data de transição inválida");
+	}
+	if (
+		![period.statementDay, period.dueDay].every(day => Number.isInteger(day) && day >= 1 && day <= 31) ||
+		period.firstDueDate < period.firstStatementDate ||
+		period.firstStatementDate < period.effectiveDate ||
+		!["EXTRA_CYCLE", "NEXT_CYCLE"].includes(period.transitionMode) ||
+		!["PER_CYCLE", "PER_MONTH"].includes(period.installmentMode)
+	)
+		throw new RangeError("Calendário de transição inválido");
+}
+
+export function previewCalendarTransition(
+	previous: CardCalendar,
+	next: CardCalendar,
+	effectiveDate: string,
+	transitionMode: CardTransitionMode = "NEXT_CYCLE",
+	installmentMode: CardInstallmentMode = "PER_MONTH",
+): CardCalendarPeriod {
+	const base = new Date(`${effectiveDate}T12:00:00Z`);
+	let closing = dateKey(monthDate(base.getUTCFullYear(), base.getUTCMonth(), next.statementDay));
+	if (closing < effectiveDate)
+		closing = dateKey(monthDate(base.getUTCFullYear(), base.getUTCMonth() + 1, next.statementDay));
+	const oldDue = paymentStatementDates(calendarAt(previous, effectiveDate), effectiveDate).dueDate;
+	if (
+		transitionMode === "NEXT_CYCLE" &&
+		statementDueDate(next, closing).slice(0, 7) <= oldDue.slice(0, 7)
+	) {
+		const date = new Date(`${closing}T12:00:00Z`);
+		closing = dateKey(monthDate(date.getUTCFullYear(), date.getUTCMonth() + 1, next.statementDay));
+	}
+	return {
+		dueDay: next.dueDay,
+		effectiveDate,
+		firstDueDate: statementDueDate(next, closing),
+		firstStatementDate: closing,
+		installmentMode,
+		statementDay: next.statementDay,
+		transitionMode,
+		workingDueDate: next.workingDueDate ?? false,
+	};
+}
+
+/** Decode JSON/transport calendars before they enter financial calculations. */
+export function readCalendarHistory(value: unknown): CardCalendarPeriod[] | null {
+	if (value == null) return null;
+	if (!Array.isArray(value)) throw new RangeError("Histórico do calendário inválido");
+	return value.map(item => {
+		if (!item || typeof item !== "object") throw new RangeError("Período do calendário inválido");
+		const row = item as Record<string, unknown>;
+		if (
+			typeof row.effectiveDate !== "string" ||
+			typeof row.firstStatementDate !== "string" ||
+			typeof row.firstDueDate !== "string" ||
+			typeof row.workingDueDate !== "boolean" ||
+			(row.transitionMode !== "EXTRA_CYCLE" && row.transitionMode !== "NEXT_CYCLE") ||
+			(row.installmentMode !== "PER_CYCLE" && row.installmentMode !== "PER_MONTH")
+		)
+			throw new RangeError("Período do calendário inválido");
+		const period: CardCalendarPeriod = {
+			dueDay: Number(row.dueDay),
+			effectiveDate: row.effectiveDate,
+			firstDueDate: row.firstDueDate,
+			firstStatementDate: row.firstStatementDate,
+			installmentMode: row.installmentMode,
+			statementDay: Number(row.statementDay),
+			transitionMode: row.transitionMode,
+			workingDueDate: row.workingDueDate,
+		};
+		assertCalendarPeriod(period);
+		return period;
+	});
+}
+
+export function normalizeCardCalendar<
+	T extends { calendarHistory?: unknown; statementDay: number; dueDay: number },
+>(card: T) {
+	const { calendarHistory, ...rest } = card;
+	return { ...rest, calendarHistory: readCalendarHistory(calendarHistory) };
 }

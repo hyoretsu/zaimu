@@ -4,6 +4,7 @@ import {
 	bookPurchase,
 	bookRefinancingLinks,
 	type CreditBook,
+	changeBookCalendar,
 	creditBookConsumption,
 	creditBookEntries,
 	creditBookRewards,
@@ -23,6 +24,7 @@ import {
 	updateBookStatementDates,
 } from "@zaimu/finance/credit-book";
 import {
+	normalizeCardCalendar,
 	paymentStatement,
 	recalculateStatementDueDate,
 	statementCutoffAfter,
@@ -323,12 +325,14 @@ export type FinancialAccountDraft = Omit<
 		| "cashbackYieldReferencePercentage"
 		| "cashbackYieldReferenceRate"
 		| "creditLimit"
+		| "calendarHistory"
 		| "dueDay"
 		| "excludeFromTotals"
 		| "securityDeposit"
 		| "statementDay"
 		| "workingDueDate"
 	> & {
+		calendarTransition?: import("@zaimu/finance/credit-card").CardCalendarPeriod;
 		cashbackRewards?: {
 			conversionAmount?: number;
 			conversionPoints?: number;
@@ -700,6 +704,15 @@ export const dataService = {
 				};
 				if (data.currency && updated.creditCard)
 					updated.creditCard = { ...updated.creditCard, currency: data.currency };
+				if (
+					updated.creditCard &&
+					data.creditCard &&
+					existing.data.creditCard &&
+					(updated.creditCard.dueDay !== existing.data.creditCard.dueDay ||
+						updated.creditCard.statementDay !== existing.data.creditCard.statementDay) &&
+					!data.creditCard.calendarTransition
+				)
+					throw new Error("Informe a vigência e as datas da transição");
 				updated = await saveLocalAccountDefaults(updated, {
 					isDefaultForStatements: data.isDefaultForStatements,
 					isPrimary: data.isPrimary,
@@ -713,15 +726,22 @@ export const dataService = {
 						card.workingDueDate !== existing.data.creditCard?.workingDueDate
 					)
 						await mutateLocalCreditBook(card.id, book => {
+							if (data.creditCard?.calendarTransition) {
+								changeBookCalendar(book, existing.data.creditCard!, data.creditCard.calendarTransition);
+								return;
+							}
 							for (const statement of book.statements)
 								statement.dueDate = recalculateStatementDueDate(
 									book.card,
 									statement.statementDate,
 									statement.dueDate,
-									existing.data.creditCard!,
+									normalizeCardCalendar(existing.data.creditCard!),
 								);
 						});
 				}
+				if (updated.creditCard)
+					updated.creditCard =
+						(await localCreditCards.getById(updated.creditCard.id))?.data ?? updated.creditCard;
 				if (yieldChanged && recalculateCurrentDay) {
 					const yields =
 						((await localMeta.get("financial-account-yields")) as FinancialAccountYield[] | null) ?? [];
@@ -1151,11 +1171,13 @@ export const dataService = {
 		},
 		async create({
 			creditCardId,
+			statementId,
 			file,
 			password,
 			provider,
 		}: {
 			creditCardId: string;
+			statementId?: string;
 			file: File;
 			password?: string;
 			provider: CreditCardImport["provider"];
@@ -1163,7 +1185,7 @@ export const dataService = {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar faturas.");
 			await assertFileIsAccessible(file);
 			if (provider === "MEUPLUGGY") throw new Error("Selecione um provedor de arquivo válido.");
-			return postCreditCardImports({ creditCardId, file, password, provider });
+			return postCreditCardImports({ creditCardId, file, password, provider, statementId });
 		},
 		async delete(id: string): Promise<void> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar faturas.");

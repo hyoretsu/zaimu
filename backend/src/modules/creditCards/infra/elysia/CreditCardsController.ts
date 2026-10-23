@@ -13,7 +13,12 @@ import {
 	updateBookPurchaseDate,
 	updateBookStatementDates,
 } from "@zaimu/finance/credit-book";
-import { paymentStatement, statementCutoffAfter, statementEntryKind } from "@zaimu/finance/credit-card";
+import {
+	normalizeCardCalendar,
+	paymentStatement,
+	statementCutoffAfter,
+	statementEntryKind,
+} from "@zaimu/finance/credit-card";
 import { assertImportedPurchaseEdit } from "@zaimu/finance/credit-purchase";
 import { cardRuleValues } from "@zaimu/finance/institution-card-rules";
 import { convertFixedSplitAtDate, currencyScale } from "@zaimu/finance/money";
@@ -184,6 +189,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 								functions.raw`COALESCE(${fields.FinancialAccount.name}, ${fields.FinancialInstitution.name}, 'Cartão de crédito')`.returns(
 									"sql/varchar@1",
 								),
+							calendarHistory: fields.CreditCard.calendarHistory,
 							cashbackAccountId: fields.CreditCard.cashbackAccountId,
 							cashbackRate: fields.CreditCard.cashbackRate,
 							cashbackYieldPeriod: fields.CreditCard.cashbackYieldPeriod,
@@ -243,7 +249,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					if (period !== null && period !== "MONTHLY" && period !== "YEARLY")
 						throw new HttpException("Período de rendimento inválido", 500);
 					return {
-						...resolvedCard,
+						...normalizeCardCalendar(resolvedCard),
 						cashbackYieldPeriod: period,
 						currentStatement,
 						limit: creditLimitOverview(Number(card.creditLimit), card.currency, effectiveStatements),
@@ -281,6 +287,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 							functions.raw`COALESCE(${fields.FinancialAccount.name}, ${fields.FinancialInstitution.name}, 'Cartão de crédito')`.returns(
 								"sql/varchar@1",
 							),
+						calendarHistory: fields.CreditCard.calendarHistory,
 						cashbackAccountId: fields.CreditCard.cashbackAccountId,
 						cashbackRate: fields.CreditCard.cashbackRate,
 						cashbackYieldPeriod: fields.CreditCard.cashbackYieldPeriod,

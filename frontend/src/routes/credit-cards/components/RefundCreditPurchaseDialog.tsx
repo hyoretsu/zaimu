@@ -203,6 +203,7 @@ export function RefundCreditPurchaseDialog({
 										credit={currency.format(Math.max(0, creditCents) / scale).replace(/\s/gu, "")}
 										direction={effectiveDirection}
 										installments={available.map(item => ({
+											dueDate: plan!.statements.find(statement => statement.id === item.statementId)!.dueDate,
 											...item,
 											statementDate: plan!.statements.find(statement => statement.id === item.statementId)!
 												.statementDate,

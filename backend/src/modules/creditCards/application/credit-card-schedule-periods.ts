@@ -1,7 +1,8 @@
-import { statementDueDate } from "@zaimu/finance/credit-card";
+import { type CardCalendarPeriod, calendarCycles, statementDueDate } from "@zaimu/finance/credit-card";
 import { purchaseStatementDates } from "@zaimu/finance/credit-purchase";
 
 interface Calendar {
+	calendarHistory?: CardCalendarPeriod[] | null;
 	createdAt: Date;
 	dueDay: number;
 	statementClosingInclusive?: boolean;
@@ -20,6 +21,14 @@ export function getStatementDates(card: Omit<Calendar, "createdAt">, purchaseDat
 
 /** Registered closings cover their month, even when the bank changed the nominal day. */
 export function missingMonthlyStatements(card: Calendar, statements: Date[], asOf: Date) {
+	if (card.calendarHistory?.length) {
+		const existing = new Set(statements.map(key));
+		const through = new Date(asOf);
+		through.setUTCMonth(through.getUTCMonth() + 1);
+		return calendarCycles(card, key(card.createdAt), key(through)).filter(
+			item => item.statementDate <= key(asOf) && !existing.has(item.statementDate),
+		);
+	}
 	const existing = new Set(statements.map(statement => key(statement).slice(0, 7)));
 	const first = statements.length
 		? [...existing].sort()[0]!

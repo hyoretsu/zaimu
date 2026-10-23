@@ -1,4 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
+import {
+	assertCalendarPeriod,
+	type CardCalendarPeriod,
+	currentDateKey,
+	normalizeCardCalendar,
+	previewCalendarTransition,
+} from "@zaimu/finance/credit-card";
+import { resolveInstitutionCardRules } from "@zaimu/finance/institution-card-rules";
 import { type SyntheticEvent, useState } from "react";
 import { LuPencil, LuPlus } from "react-icons/lu";
 import { CurrencySelect } from "@/components/currency";
@@ -27,6 +35,7 @@ import { runDialogSave } from "@/lib/dialog-save";
 import { useCacheIdentity } from "@/lib/query-cache";
 import { useAuthStore } from "@/stores/auth";
 import { AccountYieldFields } from "./AccountYieldFields";
+import { CardCalendarTransitionFields } from "./CardCalendarTransitionFields";
 import { CardPayerFields } from "./CardPayerFields";
 import { InstitutionAssociationProfile } from "./InstitutionAssociationProfile";
 import { RecalculateCurrentDayYieldDialog } from "./RecalculateCurrentDayYieldDialog";
@@ -124,6 +133,32 @@ export function CreateFinancialAccountDialog({
 	const [securityDeposit, setSecurityDeposit] = useState(String(account?.creditCard?.securityDeposit ?? ""));
 	const [statementDay, setStatementDay] = useState(String(account?.creditCard?.statementDay ?? 10));
 	const [dueDay, setDueDay] = useState(String(account?.creditCard?.dueDay ?? 17));
+	const [transitionOverride, setTransitionOverride] = useState<CardCalendarPeriod | null>(null);
+	const calendarChanged =
+		!!account?.creditCard &&
+		(Number(statementDay) !== account.creditCard.statementDay ||
+			Number(dueDay) !== account.creditCard.dueDay);
+	const rules = resolveInstitutionCardRules(institution);
+	const calendarTransition =
+		calendarChanged && account?.creditCard
+			? {
+					...previewCalendarTransition(
+						normalizeCardCalendar(account.creditCard),
+						{
+							dueDay: Number(dueDay),
+							statementDay: Number(statementDay),
+							workingDueDate: rules.workingDueDate,
+						},
+						transitionOverride?.effectiveDate ?? currentDateKey(),
+						transitionOverride?.transitionMode ?? rules.transitionMode ?? "NEXT_CYCLE",
+						transitionOverride?.installmentMode ?? rules.installmentMode ?? "PER_MONTH",
+					),
+					...transitionOverride,
+					dueDay: Number(dueDay),
+					statementDay: Number(statementDay),
+				}
+			: undefined;
+
 	const [excludeFromTotals, setExcludeFromTotals] = useState(account?.creditCard?.excludeFromTotals ?? false);
 	const [yieldEnabled, setYieldEnabled] = useState(
 		Boolean(account?.yieldFixedRate || (!isGuestMode && account?.yieldReferenceType)),
@@ -173,6 +208,7 @@ export function CreateFinancialAccountDialog({
 		setSecurityDeposit(String(account?.creditCard?.securityDeposit ?? ""));
 		setStatementDay(String(account?.creditCard?.statementDay ?? 10));
 		setDueDay(String(account?.creditCard?.dueDay ?? 17));
+		setTransitionOverride(null);
 		setPaymentAccountId(account?.creditCard?.paymentAccountId ?? null);
 		setPaymentSuggestionsEnabled(account?.creditCard?.paymentSuggestionsEnabled ?? true);
 		setExcludeFromTotals(account?.creditCard?.excludeFromTotals ?? false);
@@ -216,11 +252,13 @@ export function CreateFinancialAccountDialog({
 	const save = async (recalculateCurrentDay: boolean) => {
 		if (!institution || !countryCode || !currency) return;
 		try {
+			if (calendarTransition) assertCalendarPeriod(calendarTransition);
 			const data = {
 				countryCode,
 				creditCard:
 					type === "CREDIT_CARD"
 						? {
+								calendarTransition,
 								creditLimit: Number(creditLimit),
 								dueDay: Number(dueDay),
 								excludeFromTotals,
@@ -562,6 +600,27 @@ export function CreateFinancialAccountDialog({
 										value={dueDay}
 									/>
 								</div>
+								{calendarTransition && (
+									<CardCalendarTransitionFields
+										onChange={value =>
+											setTransitionOverride(
+												value.effectiveDate !== calendarTransition.effectiveDate ||
+													value.transitionMode !== calendarTransition.transitionMode
+													? {
+															...previewCalendarTransition(
+																normalizeCardCalendar(account!.creditCard!),
+																value,
+																value.effectiveDate,
+																value.transitionMode,
+																value.installmentMode,
+															),
+														}
+													: value,
+											)
+										}
+										value={calendarTransition}
+									/>
+								)}
 								<CheckboxField
 									align="start"
 									checkboxProps={{

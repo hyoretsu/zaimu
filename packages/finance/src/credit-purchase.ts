@@ -1,4 +1,4 @@
-import { type CardCalendar, statementDueDate } from "./credit-card";
+import { type CardCalendar, calendarCycles, statementDueDate } from "./credit-card";
 
 /** Money in normalized purchase records is an integer number of cents. */
 export function assertCents(value: number, minimum = 0) {
@@ -84,6 +84,14 @@ export function installmentOccurrenceDate(purchaseDate: string, number: number) 
 /** Closing dates are exclusive unless the institution includes that day. */
 export function purchaseStatementDates(card: CardCalendar, occurrenceDate: string) {
 	assertDateKey(occurrenceDate);
+	if (card.calendarHistory?.length) {
+		const next = calendarCycles(
+			card,
+			occurrenceDate,
+			`${Number(occurrenceDate.slice(0, 4)) + 2}-12-31`,
+		).find(cycle => statementIncludesDate(card, cycle.statementDate, occurrenceDate));
+		if (next) return next;
+	}
 	if (![card.statementDay, card.dueDay].every(day => Number.isInteger(day) && day >= 1 && day <= 31))
 		throw new RangeError("Calendário do cartão inválido");
 	const date = new Date(`${occurrenceDate}T12:00:00Z`);

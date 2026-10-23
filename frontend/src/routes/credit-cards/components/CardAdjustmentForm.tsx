@@ -17,8 +17,9 @@ import { runBackgroundModalAction } from "@/lib/background-modal-actions";
 import { ignoredThroughStatement } from "@/lib/card-adjustment";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
-import { formatLocalMonthYear, getLocalDateKey } from "@/lib/date";
+import { getLocalDateKey } from "@/lib/date";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { statementLabel } from "@/lib/statement-label";
 
 export interface CardAdjustmentDraft {
 	card: CreditCard | null;
@@ -111,7 +112,7 @@ export function CardAdjustmentForm({
 								label="Desconsiderar até a fatura"
 								onValueChange={setStatementDate}
 								options={availableStatements.map(statement => ({
-									label: formatLocalMonthYear(statement.dueDate),
+									label: statementLabel(statement, statements.data ?? []),
 									value: statement.statementDate.slice(0, 10),
 								}))}
 								placeholder={availableStatements.length ? "Selecione a fatura" : "Nenhuma fatura histórica"}

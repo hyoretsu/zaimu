@@ -4,7 +4,7 @@ import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import type { CreditCardStatement } from "@/lib/api";
-import { formatLocalMonthYear } from "@/lib/date";
+import { statementLabel } from "@/lib/statement-label";
 import { cn } from "@/lib/utils";
 import { getCreditCardStatementStatus } from "./credit-card-statement-status";
 import { getStatementWindowRadius } from "./credit-card-statement-window";
@@ -121,7 +121,7 @@ export function CreditCardStatementTabs({
 						const StatusIcon = status.icon;
 						return (
 							<TabsTrigger
-								aria-label={`${formatLocalMonthYear(statement.dueDate)}${status.label ? ` - ${status.label}` : ""}`}
+								aria-label={`${statementLabel(statement, statements)}${status.label ? ` - ${status.label}` : ""}`}
 								className={cn(
 									"h-20 w-36 shrink-0 cursor-pointer items-start justify-start whitespace-normal rounded-xl border-border p-3 text-left",
 									selected && "border-primary bg-primary/10 ring-1 ring-primary/30",
@@ -131,7 +131,7 @@ export function CreditCardStatementTabs({
 							>
 								<span className="grid min-w-0 flex-1 gap-1.5">
 									<span className="flex items-center gap-1.5 font-semibold text-sm">
-										{formatLocalMonthYear(statement.dueDate)}
+										{statementLabel(statement, statements)}
 										{StatusIcon && (
 											<span aria-label={status.label} className={status.className} role="img">
 												<StatusIcon aria-hidden="true" className="size-4" />

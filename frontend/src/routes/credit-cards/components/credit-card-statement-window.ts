@@ -36,8 +36,14 @@ export function getStatementWindow(
 ): StatementWindowItem[] {
 	const visible = statements
 		.filter(statement => statement.totalAmount !== 0)
-		.toSorted((a, b) => getLocalMonthKey(a.dueDate).localeCompare(getLocalMonthKey(b.dueDate)));
+		.toSorted((a, b) => a.dueDate.localeCompare(b.dueDate) || a.id.localeCompare(b.id));
 	const currentIndex = visible.findIndex(statement => getLocalMonthKey(statement.dueDate) >= month);
 	const center = currentIndex === -1 ? Math.max(0, visible.length - 1) : currentIndex;
-	return visible.slice(Math.max(0, center - previous), center + next + 1);
+	const start = getLocalMonthKey(visible[Math.max(0, center - previous)]?.dueDate ?? `${month}-01`);
+	const end = getLocalMonthKey(
+		visible[Math.min(visible.length - 1, center + next)]?.dueDate ?? `${month}-01`,
+	);
+	return visible.filter(
+		item => getLocalMonthKey(item.dueDate) >= start && getLocalMonthKey(item.dueDate) <= end,
+	);
 }

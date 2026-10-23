@@ -5,6 +5,7 @@ import { purchaseStatementDates } from "@zaimu/finance/credit-purchase";
 export function resolveImportStatementDates(
 	dates: { statementDate?: string; dueDate?: string },
 	book: Pick<CreditBook, "card" | "statements">,
+	statementId?: string,
 ) {
 	const reference = dates.statementDate ?? dates.dueDate;
 	if (!reference) throw new Error("Não foi possível identificar o período da fatura");
@@ -14,8 +15,10 @@ export function resolveImportStatementDates(
 		candidates.find(statement => dates.dueDate && statement.dueDate === dates.dueDate);
 	const field = dates.statementDate ? "statementDate" : "dueDate";
 	const sameMonth = candidates.filter(statement => statement[field].slice(0, 7) === reference.slice(0, 7));
-	if (!exact && sameMonth.length > 1) throw new Error("Mais de uma fatura corresponde ao período importado");
-	const cycle = exact ?? sameMonth[0];
+	if (!statementId && !exact && (!dates.statementDate || !dates.dueDate) && sameMonth.length > 0)
+		throw new Error("Mais de uma fatura corresponde ao período importado");
+	const cycle = statementId ? candidates.find(item => item.id === statementId) : exact;
+	if (statementId && !cycle) throw new Error("Fatura não encontrada");
 	if (!cycle) {
 		const [year, month] = reference.split("-").map(Number);
 		const calendars = [-2, -1, 0, 1, 2].map(offset =>
@@ -43,8 +46,24 @@ export function synchronizeNextImportedStatement(
 	nextStatementDate: string,
 	currentStatementDate: string,
 ) {
+	const confirmed = book.statements
+		.filter(item => item.isFullySynced && item.statementDate > currentStatementDate)
+		.toSorted((a, b) => a.statementDate.localeCompare(b.statementDate))[0];
+	if (confirmed) return confirmed;
 	if (nextStatementDate <= currentStatementDate)
 		throw new RangeError("Fechamento da próxima fatura deve ser posterior ao fechamento atual");
+	const pending = book.statements.filter(
+		item =>
+			!item.isFullySynced &&
+			item.statementDate > currentStatementDate &&
+			item.statementDate.slice(0, 7) === nextStatementDate.slice(0, 7),
+	);
+	if (pending.length === 1)
+		return synchronizeImportedStatementDates(
+			book,
+			{ dueDate: pending[0]!.dueDate, statementDate: nextStatementDate },
+			pending[0]!.id,
+		);
 	return synchronizeImportedStatementDates(
 		book,
 		resolveImportStatementDates({ statementDate: nextStatementDate }, book),

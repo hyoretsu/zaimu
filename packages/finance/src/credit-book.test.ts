@@ -920,10 +920,14 @@ describe("imported statement date synchronization", () => {
 		purchase.installmentStatementDates = [
 			{ dueDate: statement.dueDate, statementDate: statement.statementDate },
 		];
-		const result = synchronizeImportedStatementDates(book, {
-			dueDate: "2026-09-30",
-			statementDate: "2026-09-22",
-		});
+		const result = synchronizeImportedStatementDates(
+			book,
+			{
+				dueDate: "2026-09-30",
+				statementDate: "2026-09-22",
+			},
+			statement.id,
+		);
 		expect(result.id).toBe(statement.id);
 		expect(book.statements).toHaveLength(1);
 		expect(installment.statementId).toBe(statement.id);

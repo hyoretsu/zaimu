@@ -28,6 +28,7 @@ import { assertRewardsAccountDetails } from "~/modules/accounts/domain/assert-re
 import type { YieldPeriod } from "~/modules/accounts/domain/calculate-financial-account-yields";
 import { assertDirectOwnership, requireUserId } from "~/modules/auth";
 import { recalculateCreditCardDueDates } from "~/modules/creditCards/application/normalized-credit-book";
+import { CardCalendarPeriodDTO } from "~/modules/creditCards/infra/elysia/CardCalendarPeriodDTO";
 import { assertSupportedCurrency, defaultCurrency } from "~/modules/currencies/application/currency-defaults";
 import { CurrencyDTO } from "~/modules/currencies/application/financial-money";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
@@ -296,6 +297,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 								"creditLimit",
 								"securityDeposit",
 								"excludeFromTotals",
+								"calendarHistory",
 								"statementDay",
 								"dueDay",
 								"workingDueDate",
@@ -562,6 +564,7 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 								"creditLimit",
 								"securityDeposit",
 								"excludeFromTotals",
+								"calendarHistory",
 								"statementDay",
 								"dueDay",
 								"workingDueDate",
@@ -879,6 +882,7 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 							"cashbackYieldPeriod",
 							"cashbackYieldReferencePercentage",
 							"cashbackYieldReferenceRate",
+							"calendarHistory",
 							"statementDay",
 							"dueDay",
 							"workingDueDate",
@@ -888,6 +892,21 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 							.build(),
 					);
 					if (!existingCreditCard) throw new HttpException("CreditCard not found", 404);
+					const calendarChanged =
+						(body.creditCard.statementDay !== undefined &&
+							body.creditCard.statementDay !== existingCreditCard.statementDay) ||
+						(body.creditCard.dueDay !== undefined && body.creditCard.dueDay !== existingCreditCard.dueDay);
+					if (calendarChanged && !body.creditCard.calendarTransition)
+						throw new HttpException("Informe a vigência e as datas da transição", 400);
+					if (
+						body.creditCard.calendarTransition &&
+						(body.creditCard.calendarTransition.statementDay !==
+							(body.creditCard.statementDay ?? existingCreditCard.statementDay) ||
+							body.creditCard.calendarTransition.dueDay !==
+								(body.creditCard.dueDay ?? existingCreditCard.dueDay))
+					)
+						throw new HttpException("Calendário da transição difere dos dias informados", 400);
+
 					const nextCashback = {
 						cashbackAccountId:
 							body.creditCard.cashbackAccountId === undefined
@@ -972,6 +991,7 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 								"creditLimit",
 								"securityDeposit",
 								"excludeFromTotals",
+								"calendarHistory",
 								"statementDay",
 								"dueDay",
 								"workingDueDate",
@@ -986,7 +1006,18 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 						creditCard.statementDay !== existingCreditCard.statementDay ||
 						creditCard.workingDueDate !== existingCreditCard.workingDueDate
 					)
-						await recalculateCreditCardDueDates(userId, creditCard.id, existingCreditCard);
+						await recalculateCreditCardDueDates(
+							userId,
+							creditCard.id,
+							existingCreditCard,
+							body.creditCard.calendarTransition,
+						);
+					if (body.creditCard.calendarTransition) {
+						const [saved] = await queryRaw<{
+							calendarHistory: import("@zaimu/finance/credit-card").CardCalendarPeriod[] | null;
+						}>(`SELECT "calendarHistory" FROM "CreditCard" WHERE id=$1`, [creditCard.id]);
+						creditCard.calendarHistory = saved?.calendarHistory ?? null;
+					}
 
 					return {
 						...account,
@@ -1068,6 +1099,7 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 				countryCode: t.Optional(t.String({ pattern: "^[A-Z]{2}$" })),
 				creditCard: t.Optional(
 					t.Object({
+						calendarTransition: t.Optional(CardCalendarPeriodDTO),
 						cashbackAccountId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 						cashbackRate: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
 						cashbackYieldPeriod: t.Optional(t.Nullable(CashbackYieldPeriod)),

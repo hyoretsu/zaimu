@@ -44,7 +44,7 @@ test("closing alone preserves actual due date", () => {
 });
 
 test("explicit dates can correct an existing cycle without replacing absent dates", () => {
-	expect(resolveImportStatementDates({ dueDate: "2026-02-26" }, book)).toEqual({
+	expect(resolveImportStatementDates({ dueDate: "2026-02-26" }, book, "february")).toEqual({
 		dueDate: "2026-02-26",
 		statementDate: "2026-02-12",
 	});

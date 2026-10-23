@@ -14,6 +14,7 @@ export interface CreditOverviewRow extends Record<string, unknown> {
 export interface CreditOverviewCard {
 	currency?: string;
 	creditLimit: number;
+	calendarHistory?: import("@zaimu/finance/credit-card").CardCalendarPeriod[] | null;
 	dueDay: number;
 	excludeFromTotals: boolean;
 	financialAccountId: string;
@@ -63,7 +64,7 @@ WITH visible_cards AS (
 )
 SELECT 'card' AS kind, jsonb_build_object(
   'currency', card."currency", 'creditLimit', card."creditLimit", 'excludeFromTotals', card."excludeFromTotals",
-  'dueDay', card."dueDay", 'statementDay', card."statementDay",
+  'calendarHistory', card."calendarHistory", 'dueDay', card."dueDay", 'statementDay', card."statementDay",
   'financialAccountId', card."financialAccountId", 'id', card."id",
   'ignoreStatementsBefore', card."ignoreStatementsBefore", 'institutionId', card."institutionId",
   'institutionName', institution."name", 'name', account."name", 'refundPolicy', card."refundPolicy",
@@ -164,6 +165,7 @@ export function replayOverviewStatements(
 		})) as unknown as BookPurchase[];
 		const book: CreditBook = {
 			card: {
+				calendarHistory: card.calendarHistory,
 				currency: card.currency ?? "BRL",
 				dueDay: Number(card.dueDay),
 				id: card.id,

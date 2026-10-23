@@ -82,3 +82,10 @@ describe("credit card statement selection", () => {
 		expect(getSelectedStatement([], null, "2026-09")).toBeUndefined();
 	});
 });
+
+test("window never splits a duplicate month at either edge", () => {
+	const first = { ...actual, dueDate: "2026-09-08", id: "first" };
+	const second = { ...first, dueDate: "2026-09-24", id: "second" };
+	const visible = getStatementWindow(card, [second, first], "2026-09", 0, 0);
+	expect(visible.map(item => item.id)).toEqual(["first", "second"]);
+});

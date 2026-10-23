@@ -1,4 +1,5 @@
 import { t } from "elysia";
+import { CardCalendarPeriodDTO } from "~/modules/creditCards/infra/elysia/CardCalendarPeriodDTO";
 
 export const OpenFinanceBindingReturn = t.Object({
 	connectionId: t.String(),
@@ -196,6 +197,7 @@ export type CreditCardStatementReturn = typeof CreditCardStatementReturn.static;
 
 export const CreditCardReturn = t.Object({
 	accountName: t.Optional(t.Union([t.Null(), t.String()])),
+	calendarHistory: t.Optional(t.Nullable(t.Array(CardCalendarPeriodDTO))),
 	cashbackAccountId: t.Optional(t.Union([t.Null(), t.String()])),
 	cashbackRate: t.Optional(t.Union([t.Null(), t.Number()])),
 	cashbackYieldPeriod: t.Optional(t.Union([t.Null(), t.Literal("MONTHLY"), t.Literal("YEARLY")])),

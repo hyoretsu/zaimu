@@ -17,6 +17,7 @@ import type { withRawTransaction } from "~/shared/infra/sql";
 export type RawQuery = Parameters<Parameters<typeof withRawTransaction>[0]>[0];
 
 interface CardRow {
+	calendarHistory?: import("@zaimu/finance/credit-card").CardCalendarPeriod[] | null;
 	currency: string;
 	id: string;
 	dueDay: number;
@@ -74,7 +75,7 @@ interface PaymentRow {
 /** Rebuilds the complete chronological card chain inside the same locked refund transaction. */
 export async function replayNormalizedCard(query: RawQuery, cardId: string) {
 	const [card] = await query<CardRow>(
-		`SELECT c."id", c."currency", c."dueDay", c."statementDay", ${workingDueDateSql("a")} AS "workingDueDate", c."ignoreStatementsBefore"::text AS "ignoreStatementsBefore", COALESCE(i."creditStatementClosingInclusive", false) AS "statementClosingInclusive" FROM "CreditCard" c JOIN "FinancialAccount" a ON a."id"=c."financialAccountId" LEFT JOIN "FinancialInstitution" i ON i."id"=a."institutionId" WHERE c."id" = $1`,
+		`SELECT c."id", c."currency", c."dueDay", c."statementDay", c."calendarHistory", ${workingDueDateSql("a")} AS "workingDueDate", c."ignoreStatementsBefore"::text AS "ignoreStatementsBefore", COALESCE(i."creditStatementClosingInclusive", false) AS "statementClosingInclusive" FROM "CreditCard" c JOIN "FinancialAccount" a ON a."id"=c."financialAccountId" LEFT JOIN "FinancialInstitution" i ON i."id"=a."institutionId" WHERE c."id" = $1`,
 		[cardId],
 	);
 	if (!card) throw new HttpException("Cartão não encontrado", 404);

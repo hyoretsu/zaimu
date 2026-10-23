@@ -1,5 +1,7 @@
 export interface InstitutionCardRules {
 	workingDueDate: boolean;
+	transitionMode?: "EXTRA_CYCLE" | "NEXT_CYCLE";
+	installmentMode?: "PER_CYCLE" | "PER_MONTH";
 	cashback: null | {
 		kind: "CASHBACK" | "POINTS";
 		rate: number;

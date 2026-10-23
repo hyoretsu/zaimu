@@ -1,4 +1,5 @@
 import { t } from "elysia";
+import { CardCalendarPeriodDTO } from "./CardCalendarPeriodDTO";
 
 export const CreditStatementReturn = t.Object(
 	{
@@ -33,6 +34,7 @@ export const CreditStatementPageReturn = t.Object({
 export const CreditCardOverviewReturn = t.Object(
 	{
 		accountName: t.Nullable(t.String()),
+		calendarHistory: t.Optional(t.Nullable(t.Array(CardCalendarPeriodDTO))),
 		cashbackAccountId: t.Nullable(t.String()),
 		cashbackRate: t.Nullable(t.Number()),
 		cashbackYieldPeriod: t.Nullable(t.Union([t.Literal("MONTHLY"), t.Literal("YEARLY")])),

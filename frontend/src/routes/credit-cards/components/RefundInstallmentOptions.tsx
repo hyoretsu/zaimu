@@ -1,5 +1,5 @@
 import { CustomSelect } from "@/components/ui/CustomSelect";
-import { formatLocalMonthYear } from "@/lib/date";
+import { statementLabel } from "@/lib/statement-label";
 
 export function RefundInstallmentOptions({
 	installments,
@@ -8,7 +8,7 @@ export function RefundInstallmentOptions({
 	onDirectionChange,
 	credit,
 }: {
-	installments: { number: number; statementDate: string }[];
+	installments: { number: number; statementDate: string; dueDate?: string; statementId?: string }[];
 	selected: number[];
 	direction: "FIRST" | "LAST";
 	onDirectionChange: (direction: "FIRST" | "LAST") => void;
@@ -18,7 +18,18 @@ export function RefundInstallmentOptions({
 		...new Set(
 			installments
 				.filter(installment => selected.includes(installment.number))
-				.map(installment => formatLocalMonthYear(installment.statementDate)),
+				.map(installment =>
+					statementLabel(
+						{
+							dueDate: installment.dueDate ?? installment.statementDate,
+							id: installment.statementId ?? String(installment.number),
+						},
+						installments.map(item => ({
+							dueDate: item.dueDate ?? item.statementDate,
+							id: item.statementId ?? String(item.number),
+						})),
+					),
+				),
 		),
 	];
 	const affected = new Intl.ListFormat("pt-BR", { style: "long", type: "conjunction" }).formatToParts(months);

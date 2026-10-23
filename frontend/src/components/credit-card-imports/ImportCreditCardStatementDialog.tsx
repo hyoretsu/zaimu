@@ -20,6 +20,7 @@ import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { getCreditCardStatementPdfPasswordConfiguration } from "@/lib/credit-card-imports";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { statementLabel } from "@/lib/statement-label";
 import { showToast } from "@/stores";
 
 import {
@@ -42,6 +43,12 @@ export function ImportCreditCardStatementDialog({
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
 	const [creditCardId, setCreditCardId] = useState("");
+	const [statementId, setStatementId] = useState("new");
+	const statements = useQuery({
+		enabled: open && !!creditCardId && identity !== null,
+		queryFn: () => dataService.creditCards.getStatements(creditCardId),
+		queryKey: [...queryKeys.creditCardStatements.list(identity!, creditCardId), "import-target"],
+	});
 	const [file, setFile] = useState<File | null>(null);
 	const [password, setPassword] = useState("");
 	const [institutionId, setInstitutionId] = useState("");
@@ -62,6 +69,7 @@ export function ImportCreditCardStatementDialog({
 	const selectedCard = selectableCards.find(card => card.id === creditCardId);
 	const selectCard = (id: string) => {
 		setCreditCardId(id);
+		setStatementId("new");
 		const card = cards.find(card => card.id === id);
 		if (card) setInstitutionId(getCreditCardImportInstitution(card, accountList)?.id ?? "");
 	};
@@ -69,6 +77,7 @@ export function ImportCreditCardStatementDialog({
 	useEffect(() => {
 		if (!open) return;
 		setCreditCardId("");
+		setStatementId("new");
 		setFile(null);
 		setPassword("");
 		setInstitutionId("");
@@ -90,6 +99,7 @@ export function ImportCreditCardStatementDialog({
 				file,
 				password: password || undefined,
 				provider,
+				statementId: statementId === "new" ? undefined : statementId,
 			});
 		},
 		onError: error => showToast(error.message, "negative"),
@@ -155,6 +165,20 @@ export function ImportCreditCardStatementDialog({
 							required
 							searchable
 							value={creditCardId}
+						/>
+						<CustomSelect
+							isLoading={!!creditCardId && statements.isPending}
+							label="Destino do calendário"
+							onValueChange={setStatementId}
+							options={[
+								{ label: "Identificar pelas datas ou criar nova fatura", special: true, value: "new" },
+								...(statements.data ?? [])
+									.filter(item => !item.isForecast)
+									.map(item => ({ label: statementLabel(item, statements.data ?? []), value: item.id })),
+							]}
+							placeholder="Ex: Outubro/2024 - vence 08/10"
+							searchable
+							value={statementId}
 						/>
 						<StatementFilePicker
 							file={file}

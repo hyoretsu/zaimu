@@ -3,6 +3,7 @@ import {
 	bookPurchase,
 	bookRefinancingLinks,
 	type CreditBook,
+	changeBookCalendar,
 	creditBookEntries,
 	materializeBookInstallments,
 	moneyCents,
@@ -54,7 +55,7 @@ export async function loadCreditBook(
 	metadata = true,
 ): Promise<CreditBook> {
 	const [card] = await query<CreditBook["card"]>(
-		`SELECT c."id", c."currency", a."userId", c."statementDay", c."dueDay", ${workingDueDateSql("a")} AS "workingDueDate", c."ignoreStatementsBefore"::text AS "ignoreStatementsBefore", a."institutionId", i."creditRefundPolicy" AS "refundPolicy", COALESCE(i."creditInstallmentRemainderOnFirst", false) AS "installmentRemainderOnFirst", COALESCE(i."creditStatementClosingInclusive", false) AS "statementClosingInclusive" FROM "CreditCard" c JOIN "FinancialAccount" a ON a."id" = c."financialAccountId" LEFT JOIN "FinancialInstitution" i ON i."id" = a."institutionId" WHERE c."id" = $1 AND a."userId" = $2 ${lock ? "FOR UPDATE OF c" : ""}`,
+		`SELECT c."id", c."currency", a."userId", c."statementDay", c."calendarHistory", c."dueDay", ${workingDueDateSql("a")} AS "workingDueDate", c."ignoreStatementsBefore"::text AS "ignoreStatementsBefore", a."institutionId", i."creditRefundPolicy" AS "refundPolicy", COALESCE(i."creditInstallmentRemainderOnFirst", false) AS "installmentRemainderOnFirst", COALESCE(i."creditStatementClosingInclusive", false) AS "statementClosingInclusive" FROM "CreditCard" c JOIN "FinancialAccount" a ON a."id" = c."financialAccountId" LEFT JOIN "FinancialInstitution" i ON i."id" = a."institutionId" WHERE c."id" = $1 AND a."userId" = $2 ${lock ? "FOR UPDATE OF c" : ""}`,
 		[cardId, userId],
 	);
 	if (!card) throw new HttpException("Cartão não encontrado", 404);
@@ -243,6 +244,11 @@ export async function saveCreditBook(
 	previous: CreditBook,
 	transferredPurchaseIds: ReadonlySet<string> = new Set(),
 ) {
+	if (JSON.stringify(book.card.calendarHistory) !== JSON.stringify(previous?.card.calendarHistory))
+		await query(`UPDATE "CreditCard" SET "calendarHistory"=$2::json WHERE id=$1`, [
+			book.card.id,
+			JSON.stringify(book.card.calendarHistory ?? null),
+		]);
 	synchronizeBookRefinancing(book, previous);
 	restoreRefinancingDebtSplits(book, previous);
 	transferRefinancingDebtSplits(book, previous);
@@ -712,6 +718,15 @@ export async function saveCreditBook(
 			});
 		if (refundsByPurchase.has(p.id)) await syncRefundDebtEvents(query, book, p);
 	}
+	const retiredStatements = previous.statements
+		.filter(item => !book.statements.some(next => next.id === item.id))
+		.map(item => item.id);
+	if (retiredStatements.length)
+		await query(`DELETE FROM "CreditCardStatement" WHERE "creditCardId"=$1 AND id=ANY($2::varchar[])`, [
+			book.card.id,
+			retiredStatements,
+		]);
+
 	const replay = replayCreditBook(book);
 	for (const s of replay.statements.filter(s => statementIds.has(s.id))) {
 		const stored = statementsById.get(s.id)!;
@@ -755,8 +770,13 @@ export async function recalculateCreditCardDueDates(
 	userId: string,
 	cardId: string,
 	previousCard: { dueDay: number; statementDay: number; workingDueDate: boolean },
+	period?: import("@zaimu/finance/credit-card").CardCalendarPeriod,
 ) {
 	await mutateCreditBook(userId, cardId, book => {
+		if (period) {
+			changeBookCalendar(book, previousCard, period);
+			return;
+		}
 		for (const statement of book.statements)
 			statement.dueDate = recalculateStatementDueDate(
 				book.card,

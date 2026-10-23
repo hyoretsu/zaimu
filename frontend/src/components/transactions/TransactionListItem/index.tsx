@@ -97,6 +97,7 @@ export function TransactionListItem({
 	const creditCardPayment =
 		transaction.source !== "CREDIT_CARD" && transaction.paymentCreditCardId
 			? {
+					cardId: transaction.paymentCreditCardId,
 					cardName: transaction.creditCardName || "Cartão de crédito",
 					statementDate: transaction.creditCardStatementDate ?? undefined,
 				}

@@ -1,6 +1,7 @@
 export * from "./AccountDefaultsDialog";
 export { AccountsPage } from "./AccountsPage";
 export * from "./BalanceAdjustmentsDialog";
+export { CardCalendarTransitionFields } from "./CardCalendarTransitionFields";
 export * from "./CardPayerFields";
 export * from "./CreateFinancialAccountDialog";
 export * from "./EditFinancialAccountYieldDialog";

@@ -1,0 +1,53 @@
+[
+	{
+		"execute": [
+			{
+				"description": "add column \"calendarHistory\"",
+				"sql": "ALTER TABLE \"public\".\"CreditCard\" ADD COLUMN \"calendarHistory\" json"
+			}
+		],
+		"id": "column.public.CreditCard.calendarHistory",
+		"label": "Add column \"calendarHistory\" to \"CreditCard\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"calendarHistory\" exists",
+				"params": ["public", "CreditCard", "calendarHistory"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"calendarHistory\" is missing",
+				"params": ["public", "CreditCard", "calendarHistory"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "calendarHistory",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditCard"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "Nubank transition defaults",
+				"sql": "UPDATE \"FinancialInstitution\" SET \"creditCardRules\"=('{\"cashback\":null,\"workingDueDate\":true,\"transitionMode\":\"EXTRA_CYCLE\",\"installmentMode\":\"PER_CYCLE\"}'::jsonb || COALESCE(\"creditCardRules\"::jsonb,'{}'::jsonb))::json WHERE lower(\"name\")='nubank';\nUPDATE \"FinancialInstitutionProfile\" p SET \"creditCardRules\"=('{\"cashback\":null,\"workingDueDate\":true,\"transitionMode\":\"EXTRA_CYCLE\",\"installmentMode\":\"PER_CYCLE\"}'::jsonb || p.\"creditCardRules\"::jsonb)::json FROM \"FinancialInstitution\" i WHERE i.id=p.\"institutionId\" AND lower(i.name)='nubank' AND p.\"creditCardRules\" IS NOT NULL;"
+			}
+		],
+		"id": "creditCard.nubankCycleDefaults",
+		"invariantId": "creditCard.nubankCycleDefaults.v1",
+		"label": "Set Nubank cycle transition defaults without changing existing rules",
+		"operationClass": "data",
+		"postcheck": [],
+		"precheck": [],
+		"target": {
+			"id": "postgres"
+		}
+	}
+]

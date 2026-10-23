@@ -3,6 +3,7 @@ import { queryRaw } from "~/shared/infra/sql";
 import { missingMonthlyStatements } from "./credit-card-schedule-periods";
 
 type ScheduleCard = Record<string, unknown> & {
+	calendarHistory?: import("@zaimu/finance/credit-card").CardCalendarPeriod[] | null;
 	id: string;
 	userId: string;
 	createdAt: Date;
@@ -15,7 +16,7 @@ type ScheduleCard = Record<string, unknown> & {
 export async function loadCreditCardScheduleCandidates(asOf: Date, cardIds?: string[]) {
 	if (cardIds && !cardIds.length) return [];
 	const cards = await queryRaw<ScheduleCard>(
-		`SELECT c."id",a."userId",c."createdAt",c."dueDay",c."statementDay",${workingDueDateSql("a")} AS "workingDueDate", COALESCE(i."creditStatementClosingInclusive", false) AS "statementClosingInclusive" FROM "CreditCard" c JOIN "FinancialAccount" a ON a."id"=c."financialAccountId" LEFT JOIN "FinancialInstitution" i ON i."id"=a."institutionId" WHERE ($1::varchar[] IS NULL OR c."id"=ANY($1))`,
+		`SELECT c."id",a."userId",c."createdAt",c."dueDay",c."statementDay", c."calendarHistory",${workingDueDateSql("a")} AS "workingDueDate", COALESCE(i."creditStatementClosingInclusive", false) AS "statementClosingInclusive" FROM "CreditCard" c JOIN "FinancialAccount" a ON a."id"=c."financialAccountId" LEFT JOIN "FinancialInstitution" i ON i."id"=a."institutionId" WHERE ($1::varchar[] IS NULL OR c."id"=ANY($1))`,
 		[cardIds ?? null],
 	);
 	if (!cards.length) return [];

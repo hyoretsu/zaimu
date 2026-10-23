@@ -17,6 +17,26 @@ export function InstitutionCardRuleFields({
 	};
 	return (
 		<div className="space-y-4">
+			<CustomSelect
+				label="Troca do vencimento"
+				onValueChange={mode => onChange({ ...value, transitionMode: mode as "EXTRA_CYCLE" | "NEXT_CYCLE" })}
+				options={[
+					{ label: "Aplicar no próximo ciclo mensal", value: "NEXT_CYCLE" },
+					{ label: "Permitir ciclo extra no mesmo mês", value: "EXTRA_CYCLE" },
+				]}
+				placeholder="Ex: Próximo ciclo mensal"
+				value={value.transitionMode ?? "NEXT_CYCLE"}
+			/>
+			<CustomSelect
+				label="Parcelas após troca do vencimento"
+				onValueChange={mode => onChange({ ...value, installmentMode: mode as "PER_CYCLE" | "PER_MONTH" })}
+				options={[
+					{ label: "Uma parcela por mês", value: "PER_MONTH" },
+					{ label: "Uma parcela por ciclo", value: "PER_CYCLE" },
+				]}
+				placeholder="Ex: Uma parcela por mês"
+				value={value.installmentMode ?? "PER_MONTH"}
+			/>
 			<CheckboxField
 				checkboxProps={{
 					checked: value.workingDueDate,

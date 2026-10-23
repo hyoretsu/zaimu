@@ -147,6 +147,7 @@ const cardColumns = [
 	"creditLimit",
 	"securityDeposit",
 	"excludeFromTotals",
+	"calendarHistory",
 	"statementDay",
 	"dueDay",
 	"workingDueDate",
@@ -640,6 +641,11 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 						const values = {
 							currency: cardCurrency,
 							...(paymentAccountId !== undefined && { paymentAccountId: paymentAccountId as never }),
+							calendarHistory:
+								value<import("@zaimu/finance/credit-card").CardCalendarPeriod[] | null>(
+									entity,
+									"calendarHistory",
+								) ?? null,
 							cashbackAccountId,
 							cashbackRate: nullableNumeric<5, 2>(cashbackSettings.cashbackRate),
 							cashbackYieldPeriod: cashbackSettings.cashbackYieldPeriod,

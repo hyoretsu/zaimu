@@ -426,3 +426,17 @@ Os leitores de faturas preservam o sinal monetário informado pelo banco antes o
 
 
 Créditos de reembolso sem estabelecimento, como "Crédito concedido", entram na revisão de reembolso mesmo quando o banco informa valor positivo ou os lista fora da seção de compras do cartão. A data é a do crédito. A conciliação sugere automaticamente somente uma compra com total integral igual em centavos, saldo reembolsável suficiente e data igual ou anterior ao crédito, incluindo compras pendentes da mesma importação. Compras posteriores não são candidatas automáticas; múltiplas candidatas exigem escolha manual. Créditos financeiros identificados, cashback e pagamentos conservam seu tratamento próprio. A sugestão nunca aprova o reembolso automaticamente. Regra comum a todos os leitores.
+
+## Troca do calendário do cartão
+
+Faturas são ciclos identificados por ID e datas completas, nunca somente por mês/ano.
+Trocar vencimento pode gerar dois ciclos no mesmo mês. Instituição define padrão de
+transição (ciclo extra ou próximo ciclo mensal) e parcelas (por ciclo ou por mês).
+Nubank admite ciclo extra com próxima parcela nesse ciclo. Edição exige vigência,
+primeiro fechamento e primeiro vencimento; usuário pode ajustar padrão nessa troca.
+Histórico salva regras utilizadas e preserva ciclos confirmados, pagamentos e ajustes.
+Importação confirma calendário próprio e parcelas informadas, sem alterar dias nominais
+do cartão. Correção sem correspondência por datas exige escolher fatura explicitamente;
+compartilhar mês não autoriza substituir outra fatura. Previsão antiga de próximo
+fechamento nunca substitui ciclo confirmado. Nomes mantêm mês/ano; duplicidades incluem
+vencimento completo no contexto. Projeções e planejamento somam todos os ciclos do mês.

@@ -2,6 +2,7 @@ import { replayCreditBook } from "@zaimu/finance/credit-book";
 import {
 	currentDateKey,
 	type FinancialDate,
+	normalizeCardCalendar,
 	type StatementInput,
 	statementCycles,
 } from "@zaimu/finance/credit-card";
@@ -73,6 +74,7 @@ export async function recalculateStatementPayments(transaction: SqlExecutor, car
 			"id",
 			"currency",
 			"financialAccountId",
+			"calendarHistory",
 			"statementDay",
 			"dueDay",
 			"workingDueDate",
@@ -90,7 +92,7 @@ export async function recalculateStatementPayments(transaction: SqlExecutor, car
 		card.workingDueDate = (await accountCardRules(card.financialAccountId)).workingDueDate;
 		const cycles = statementCycles(
 			statements.filter(s => s.creditCardId === card.id),
-			card,
+			normalizeCardCalendar(card),
 			payments
 				.filter(p => p.paymentCreditCardId === card.id)
 				.map(p => ({ ...p, amount: p.paymentAmount ?? p.amount })),

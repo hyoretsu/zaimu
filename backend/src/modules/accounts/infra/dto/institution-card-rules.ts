@@ -13,6 +13,8 @@ export const InstitutionCardRulesDTO = t.Object({
 			yieldReferenceRate: t.Nullable(Positive),
 		}),
 	),
+	installmentMode: t.Optional(t.Union([t.Literal("PER_CYCLE"), t.Literal("PER_MONTH")])),
+	transitionMode: t.Optional(t.Union([t.Literal("EXTRA_CYCLE"), t.Literal("NEXT_CYCLE")])),
 	workingDueDate: t.Boolean(),
 });
 export type InstitutionCardRulesDTO = typeof InstitutionCardRulesDTO.static;

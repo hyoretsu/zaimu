@@ -718,6 +718,7 @@ namespace public {
     @@map("ConsumerReceipt")
   }
   model CreditCard {
+    calendarHistory Json?
     currency VarChar(3) @default("BRL")
     refundReviews CreditRefundReview[]
     id                   VarChar(36)           @id(map: "CreditCard_pkey") @default(dbgenerated("cuid2()"))

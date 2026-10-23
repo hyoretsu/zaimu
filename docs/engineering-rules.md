@@ -88,3 +88,10 @@ Every invoice importer must synchronize source closing and due dates through the
 ## Invoice parser parity
 
 Every change, fix or addition to an invoice parser must be checked against every other supported parser and layout in the same task. Apply equivalent behavior wherever compatible, keeping only source-format extraction specific to the bank. Cover shared behavior with regression tests across all supported readers, including both Bradesco layouts.
+
+## Card calendar transitions
+
+`CreditCard.calendarHistory` stores immutable calendar periods and transition snapshots.
+Use shared finance cycle helpers for connected and guest books. Never identify or
+correct imported invoices by month alone. Explicit correction uses statement ID;
+full closing/due dates identify existing cycles. Month grouping is presentation only.

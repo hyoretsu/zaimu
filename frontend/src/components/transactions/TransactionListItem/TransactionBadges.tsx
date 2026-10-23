@@ -10,8 +10,8 @@ import {
 } from "react-icons/lu";
 import { AppBadge } from "@/components/ui/AppBadge";
 import type { FinancialAccount, Tag } from "@/lib/api";
-import { formatLocalMonthYear } from "@/lib/date";
 import { getTransactionAccountTypeLabel } from "@/lib/financial-account";
+import { CreditCardPaymentInvoiceLabel } from "./CreditCardPaymentInvoiceLabel";
 
 export interface TransactionBadgeAccount {
 	id: string;
@@ -30,7 +30,7 @@ export function TransactionBadges({
 	tags,
 }: {
 	accounts: TransactionBadgeAccount[];
-	creditCardPayment?: { cardName: string; statementDate?: string };
+	creditCardPayment?: { cardName: string; cardId: string; statementDate?: string };
 	debtPersonName?: string;
 	isSynced?: boolean;
 	isRecurring?: boolean;
@@ -75,7 +75,10 @@ export function TransactionBadges({
 								<LuReceiptText aria-hidden="true" />
 								<span className="min-w-0 truncate">
 									<span className="text-muted-foreground">Fatura</span>{" "}
-									{formatLocalMonthYear(creditCardPayment.statementDate)}
+									<CreditCardPaymentInvoiceLabel
+										cardId={creditCardPayment.cardId}
+										statementDate={creditCardPayment.statementDate}
+									/>
 								</span>
 							</AppBadge>
 						</li>

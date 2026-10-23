@@ -6,7 +6,15 @@ export {
 	synchronizeBookRefinancing,
 } from "./credit-book-refinancing";
 
-import { currentDateKey, paymentStatementDates, statementCycles, toCents } from "./credit-card";
+import {
+	assertCalendarPeriod,
+	type CardCalendarPeriod,
+	calendarCycles,
+	currentDateKey,
+	paymentStatementDates,
+	statementCycles,
+	toCents,
+} from "./credit-card";
 import {
 	assertCents,
 	assertDateKey,
@@ -113,6 +121,7 @@ export interface CreditBook {
 	deletedPurchaseIds?: string[];
 	deletedChargeIds?: string[];
 	card: {
+		calendarHistory?: CardCalendarPeriod[] | null;
 		currency?: string;
 		id: string;
 		userId: string;
@@ -239,6 +248,17 @@ export function creditBookConsumption(book: CreditBook) {
 
 /** Resolve actual cutoffs before falling back to the card's nominal calendar. */
 function purchaseBookStatementDates(book: CreditBook, date: string) {
+	if (book.card.calendarHistory?.length) {
+		const end = `${Number(date.slice(0, 4)) + 2}-12-31`;
+		const cycles = new Map(calendarCycles(book.card, date, end).map(item => [item.statementDate, item]));
+		for (const statement of book.statements)
+			if (!statement.isForecast) cycles.set(statement.statementDate, statement);
+		const next = [...cycles.values()]
+			.sort((a, b) => a.statementDate.localeCompare(b.statementDate))
+			.find(item => statementIncludesDate(book.card, item.statementDate, date));
+		if (next) return { dueDate: next.dueDate, statementDate: next.statementDate };
+	}
+
 	for (let offset = 0; ; offset++) {
 		const month = installmentOccurrenceDate(date, offset + 1).slice(0, 7);
 		const cycles = book.statements
@@ -258,19 +278,18 @@ function purchaseBookStatementDates(book: CreditBook, date: string) {
 export function synchronizeImportedStatementDates(
 	book: CreditBook,
 	dates: { statementDate: string; dueDate: string },
+	statementId?: string | null,
 ) {
 	assertDateKey(dates.statementDate);
 	assertDateKey(dates.dueDate);
 	if (dates.dueDate < dates.statementDate)
 		throw new RangeError("Vencimento deve ser igual ou posterior ao fechamento");
 	const candidates = book.statements.filter(statement => !statement.isForecast);
-	const sameMonth = candidates.filter(
-		statement => statement.statementDate.slice(0, 7) === dates.statementDate.slice(0, 7),
-	);
-	const statement =
-		candidates.find(item => item.statementDate === dates.statementDate) ??
-		candidates.find(item => item.dueDate === dates.dueDate) ??
-		(sameMonth.length === 1 ? sameMonth[0] : undefined);
+	const statement = statementId
+		? candidates.find(item => item.id === statementId)
+		: (candidates.find(item => item.statementDate === dates.statementDate) ??
+			candidates.find(item => item.dueDate === dates.dueDate));
+	if (statementId && !statement) throw new RangeError("Fatura não encontrada");
 	if (!statement) return ensureBookStatement(book, dates.statementDate, dates);
 	updateBookStatementDates(book, statement.id, dates);
 	return statement;
@@ -317,6 +336,134 @@ export function ensureBookStatement(
 	return statement;
 }
 
+/** Confirmed installments anchor later forecasts, independent of calendar months. */
+function installmentBookDates(book: CreditBook, purchase: BookPurchase, index: number) {
+	const explicit = purchase.installmentStatementDates?.[index];
+	if (explicit) return explicit;
+	let anchorIndex = 0;
+	let anchor =
+		purchase.installmentStatementDates?.[0] ?? purchaseBookStatementDates(book, purchase.purchaseDate);
+	for (let i = 0; i < index; i++) {
+		const occurrence = book.installments.find(
+			item => item.purchaseId === purchase.id && item.number === i + 1,
+		);
+		const known =
+			purchase.installmentStatementDates?.[i] ??
+			(occurrence && book.statements.find(item => item.id === occurrence.statementId));
+		if (known) {
+			anchorIndex = i;
+			anchor = known;
+		}
+	}
+	if (index === anchorIndex) return anchor;
+	const end = `${Number(anchor.statementDate.slice(0, 4)) + Math.ceil(purchase.installmentAmountsCents.length / 12) + 2}-12-31`;
+	const configured = calendarCycles(book.card, anchor.statementDate, end);
+	const cycles = new Map(configured.map(item => [item.statementDate, item]));
+	// Actual bank cutoffs replace nominal cutoffs in unconfigured historical months.
+	for (const statement of book.statements.filter(item => !item.isForecast)) {
+		if (!book.card.calendarHistory?.length)
+			for (const key of cycles.keys())
+				if (key.slice(0, 7) === statement.statementDate.slice(0, 7)) cycles.delete(key);
+	}
+	for (const statement of book.statements.filter(item => !item.isForecast))
+		cycles.set(statement.statementDate, statement);
+	let current = anchor;
+	for (let i = anchorIndex + 1; i <= index; i++) {
+		const ordered = [...cycles.values()]
+			.filter(item => item.statementDate > current.statementDate)
+			.sort((a, b) => a.statementDate.localeCompare(b.statementDate));
+		const next = ordered.find(item => {
+			const period = book.card.calendarHistory
+				?.filter(p => p.firstStatementDate <= item.statementDate)
+				.toSorted((a, b) => a.firstStatementDate.localeCompare(b.firstStatementDate))
+				.at(-1);
+			return (
+				period?.installmentMode === "PER_CYCLE" ||
+				item.dueDate.slice(0, 7) > current.dueDate.slice(0, 7)
+			);
+		});
+		if (!next)
+			return purchaseBookStatementDates(
+				book,
+				installmentOccurrenceDate(purchase.purchaseDate, index + 1),
+			);
+		current = next;
+	}
+	return { dueDate: current.dueDate, statementDate: current.statementDate };
+}
+
+/** Record a transition once, preserving confirmed history and imported assignments. */
+export function changeBookCalendar(
+	book: CreditBook,
+	previous: Pick<CreditBook["card"], "statementDay" | "dueDay" | "workingDueDate">,
+	period: CardCalendarPeriod,
+) {
+	assertCalendarPeriod(period);
+	const history = book.card.calendarHistory ?? [];
+	const latest = history.at(-1);
+	if (
+		latest &&
+		(period.effectiveDate <= latest.effectiveDate ||
+			period.firstStatementDate <= latest.firstStatementDate)
+	)
+		throw new RangeError("Nova alteração deve ser posterior ao calendário registrado");
+	if (history.some(item => item.effectiveDate === period.effectiveDate))
+		throw new RangeError("Já existe alteração nesta data");
+	if (!history.length)
+		history.push({
+			dueDay: previous.dueDay,
+			effectiveDate: "0001-01-01",
+			firstDueDate: "0001-01-01",
+			firstStatementDate: "0001-01-01",
+			installmentMode: "PER_MONTH",
+			statementDay: previous.statementDay,
+			transitionMode: "NEXT_CYCLE",
+			workingDueDate: previous.workingDueDate ?? false,
+		});
+	book.card.calendarHistory = [...history, period].sort((a, b) =>
+		a.effectiveDate.localeCompare(b.effectiveDate),
+	);
+	Object.assign(book.card, { dueDay: period.dueDay, statementDay: period.statementDay });
+	const retired = new Set(
+		book.statements
+			.filter(
+				item =>
+					item.statementDate >= period.firstStatementDate &&
+					!item.isFullySynced &&
+					item.manualTotalAmount == null &&
+					!book.charges.some(charge => charge.statementId === item.id) &&
+					!book.refunds.some(refund => refund.creditStatementId === item.id) &&
+					!book.installments.some(
+						installment => installment.statementId === item.id && installment.hasImportedAmount,
+					),
+			)
+			.map(item => item.id),
+	);
+	book.statements = book.statements.filter(item => !retired.has(item.id));
+	ensureBookStatement(book, period.firstStatementDate, {
+		dueDate: period.firstDueDate,
+		statementDate: period.firstStatementDate,
+	});
+	for (const purchase of book.purchases) {
+		const dates = purchase.installmentStatementDates ?? [];
+		purchase.installmentStatementDates = dates.map((item, index) =>
+			purchase.installmentImportedNumbers?.includes(index + 1) ||
+			(item && item.statementDate < period.firstStatementDate)
+				? item
+				: null,
+		);
+		for (const installment of book.installments.filter(
+			item => item.purchaseId === purchase.id && retired.has(item.statementId),
+		)) {
+			installment.statementId = ensureBookStatement(
+				book,
+				installment.occurrenceDate,
+				installmentBookDates(book, purchase, installment.number - 1),
+			).id;
+		}
+	}
+}
+
 /** Complete invoice plan for calculations. Projections are never persisted as occurrences. */
 export function creditBookPlan(book: CreditBook) {
 	for (const statement of book.statements)
@@ -332,10 +479,7 @@ export function creditBookPlan(book: CreditBook) {
 		throw new RangeError("Calendário do cartão inválido");
 	const statements = book.statements.map(statement => ({ ...statement }));
 	const statementsById = new Map(statements.map(statement => [statement.id, statement]));
-	const statementsByMonth = Map.groupBy(
-		statements.toSorted((a, b) => a.statementDate.localeCompare(b.statementDate)),
-		statement => statement.statementDate.slice(0, 7),
-	);
+
 	const occurrences = new Map(book.installments.map(item => [`${item.purchaseId}:${item.number}`, item]));
 	const installments: PurchaseInvoiceInstallment[] = [];
 	for (const purchase of book.purchases) {
@@ -347,15 +491,8 @@ export function creditBookPlan(book: CreditBook) {
 			if (occurrence && !statement) throw new RangeError("Fatura da parcela não encontrada");
 			if (!occurrence) {
 				const date = installmentOccurrenceDate(purchase.purchaseDate, number);
-				const dates =
-					purchase.installmentStatementDates?.[index] ?? purchaseBookStatementDates(book, date);
-				statement = purchase.installmentStatementDates?.[index]
-					? registeredBookStatement(statements, dates)
-					: (statementsByMonth.get(dates.statementDate.slice(0, 7)) ?? []).find(
-							item =>
-								statementIncludesDate(book.card, item.statementDate, date) &&
-								item.statementDate.slice(0, 7) === dates.statementDate.slice(0, 7),
-						);
+				const dates = installmentBookDates(book, purchase, index);
+				statement = registeredBookStatement(statements, dates);
 				if (!statement) {
 					statement = {
 						...dates,
@@ -369,11 +506,6 @@ export function creditBookPlan(book: CreditBook) {
 					};
 					statements.push(statement);
 					statementsById.set(statement.id, statement);
-					const month = statement.statementDate.slice(0, 7);
-					const group = statementsByMonth.get(month) ?? [];
-					group.push(statement);
-					group.sort((a, b) => a.statementDate.localeCompare(b.statementDate));
-					statementsByMonth.set(month, group);
 				}
 			}
 			if (!statement) throw new RangeError("Fatura da parcela não encontrada");
@@ -449,7 +581,7 @@ export function materializeBookInstallments(book: CreditBook, asOf = currentDate
 			const statement = ensureBookStatement(
 				book,
 				occurrenceDate,
-				purchase.installmentStatementDates?.[index] ?? undefined,
+				installmentBookDates(book, purchase, index),
 			);
 			const id = number === 1 && !occurrenceIds.has(purchase.id) ? purchase.id : crypto.randomUUID();
 			existingOccurrences.add(`${purchase.id}:${number}`);
@@ -870,6 +1002,24 @@ function recomposedPurchaseCalendar(
 	};
 
 	const first = firstStatement ?? resolve(purchase.purchaseDate);
+	if (book.card.calendarHistory?.length) {
+		const draft = {
+			...purchase,
+			installmentStatementDates: [{ dueDate: first.dueDate, statementDate: first.statementDate }],
+		};
+		const calendarBook = {
+			...book,
+			installments: book.installments.filter(item => item.purchaseId !== purchase.id),
+		};
+		return purchase.installmentAmountsCents.map((_, index) => {
+			const dates = installmentBookDates(calendarBook, draft, index);
+			draft.installmentStatementDates[index] = {
+				dueDate: dates.dueDate,
+				statementDate: dates.statementDate,
+			};
+			return draft.installmentStatementDates[index]!;
+		});
+	}
 	return purchase.installmentAmountsCents.map((_, index) => {
 		if (index === 0) return { dueDate: first.dueDate, statementDate: first.statementDate };
 		const month = installmentOccurrenceDate(first.dueDate, index + 1).slice(0, 7);
@@ -949,6 +1099,10 @@ export function updateBookStatementDates(
 	const sameCycle =
 		statement.statementDate === dates.statementDate &&
 		statement.dueDate.slice(0, 7) === dates.dueDate.slice(0, 7);
+	const previousClosing = statement.statementDate;
+	for (const purchase of book.purchases)
+		for (const saved of purchase.installmentStatementDates ?? [])
+			if (saved?.statementDate === previousClosing) Object.assign(saved, dates);
 	Object.assign(statement, dates);
 	if (sameCycle) {
 		// A due-day correction does not change purchase cutoffs or imported assignments.
@@ -971,7 +1125,26 @@ export function updateBookStatementDates(
 /** Rebuild derived assignments while preserving concrete identities and confirmed amounts. */
 function recomposeBookInstallments(book: CreditBook, purchases = book.purchases) {
 	for (const purchase of purchases) {
-		purchase.installmentStatementDates = recomposedPurchaseCalendar(book, purchase);
+		const previous = purchase.installmentStatementDates;
+		const recomposed = recomposedPurchaseCalendar(book, purchase);
+		purchase.installmentStatementDates = recomposed.map((dates, index) =>
+			purchase.installmentImportedNumbers?.includes(index + 1) &&
+			previous?.[index] &&
+			(index > 0 ||
+				statementIncludesDate(
+					book.card,
+					book.statements.find(
+						statement =>
+							statement.id ===
+							book.installments.find(
+								item => item.purchaseId === purchase.id && item.number === 1,
+							)?.statementId,
+					)?.statementDate ?? previous[index]!.statementDate,
+					purchase.purchaseDate,
+				))
+				? previous[index]!
+				: dates,
+		);
 		for (const installment of book.installments.filter(item => item.purchaseId === purchase.id)) {
 			installment.occurrenceDate = installmentOccurrenceDate(purchase.purchaseDate, installment.number);
 			installment.statementId = ensureBookStatement(

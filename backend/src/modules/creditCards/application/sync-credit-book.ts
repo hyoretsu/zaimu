@@ -5,6 +5,7 @@ import {
 	resizePurchaseCashback,
 	updateBookRefund,
 } from "@zaimu/finance/credit-book";
+import { assertCalendarPeriod } from "@zaimu/finance/credit-card";
 import { currencyScale } from "@zaimu/finance/money";
 import { HttpException } from "~/shared/errors";
 import { withRawTransaction } from "~/shared/infra/sql";
@@ -34,6 +35,21 @@ export async function syncCreditBook(userId: string, input: CreditBook) {
 				);
 		}
 		await mutateCreditBook(userId, input.card.id, async book => {
+			const history = new Map(
+				(book.card.calendarHistory ?? []).map(period => [period.effectiveDate, period]),
+			);
+			for (const period of input.card.calendarHistory ?? []) {
+				assertCalendarPeriod(period);
+				const previous = history.get(period.effectiveDate);
+				if (previous && JSON.stringify(previous) !== JSON.stringify(period))
+					throw new HttpException("Calendário alterado no servidor; atualize antes de sincronizar", 409);
+				history.set(period.effectiveDate, period);
+			}
+			if (history.size)
+				book.card.calendarHistory = [...history.values()].sort((a, b) =>
+					a.effectiveDate.localeCompare(b.effectiveDate),
+				);
+
 			book.deletedPurchaseIds = [
 				...new Set([...(book.deletedPurchaseIds ?? []), ...(input.deletedPurchaseIds ?? [])]),
 			];

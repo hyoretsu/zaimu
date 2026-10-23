@@ -1,4 +1,4 @@
-import { addBookRefund } from "@zaimu/finance/credit-book";
+import { addBookRefund, synchronizeImportedStatementDates } from "@zaimu/finance/credit-book";
 import { statementEntryKind } from "@zaimu/finance/credit-card";
 import { distributePurchaseCents } from "@zaimu/finance/credit-purchase";
 import { hasMatchingInstallmentSum } from "@zaimu/finance/credit-refund";
@@ -148,16 +148,13 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 				body.provider,
 				body.password,
 			);
-			const resolvedDates = parsedStatement.nextStatementDate
-				? await mutateCreditBook(userId, body.creditCardId, book => {
-						const dates = resolveImportStatementDates(parsedStatement, book);
-						synchronizeNextImportedStatement(book, parsedStatement.nextStatementDate!, dates.statementDate);
-						return dates;
-					})
-				: resolveImportStatementDates(
-						parsedStatement,
-						await readCreditBook(userId, body.creditCardId, false),
-					);
+			const resolvedDates = await mutateCreditBook(userId, body.creditCardId, book => {
+				const dates = resolveImportStatementDates(parsedStatement, book, body.statementId);
+				if (body.statementId) synchronizeImportedStatementDates(book, dates, body.statementId);
+				if (parsedStatement.nextStatementDate)
+					synchronizeNextImportedStatement(book, parsedStatement.nextStatementDate, dates.statementDate);
+				return dates;
+			});
 			const statement = { ...parsedStatement, ...resolvedDates };
 			const reportedPreviousBalance =
 				statement.reportedPreviousBalance ??
@@ -385,6 +382,7 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 					t.Literal("NUBANK"),
 					t.Literal("PICPAY"),
 				]),
+				statementId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 			}),
 			detail: { operationId: "postCreditCardImports" },
 			parse: "multipart/form-data",
