@@ -105,7 +105,7 @@ export function CustomSelectPopover({
 					align="start"
 					className={cn(
 						"w-(--radix-popover-trigger-width) min-w-36 gap-0 overflow-hidden p-0",
-						searchable ? "h-[16.75rem]" : "h-64 max-h-64",
+						searchable ? "max-h-[16.75rem]" : "max-h-64",
 					)}
 					onOpenAutoFocus={event => {
 						event.preventDefault();
@@ -158,7 +158,14 @@ export function CustomSelectPopover({
 							</div>
 						</div>
 					)}
-					<ScrollArea className="min-h-0 flex-1">
+					<ScrollArea
+						className={cn(
+							"min-h-0",
+							searchable
+								? "[&>[data-slot=scroll-area-viewport]]:max-h-[min(13.5rem,calc(var(--radix-popover-content-available-height)-3.25rem))]"
+								: "[&>[data-slot=scroll-area-viewport]]:max-h-[min(16rem,var(--radix-popover-content-available-height))]",
+						)}
+					>
 						<div
 							aria-label={label}
 							aria-multiselectable={values ? true : undefined}
