@@ -111,9 +111,9 @@ export function EditImportedTransactionDialog({
 	const incomeDestinationAccounts = accounts
 		.filter(account => account.type !== "CREDIT_CARD")
 		.toSorted(compareFinancialAccountsByOptionLabel);
-	const sourceAccounts = getTransactionSourceAccounts(accounts).toSorted(
-		compareFinancialAccountsByOptionLabel,
-	);
+	const sourceAccounts = getTransactionSourceAccounts(accounts)
+		.filter(account => draft.type !== "TRANSFER" || account.id !== draft.destinationFinancialAccountId)
+		.toSorted(compareFinancialAccountsByOptionLabel);
 	const primaryAccounts =
 		draft.type === "INCOME"
 			? incomeDestinationAccounts

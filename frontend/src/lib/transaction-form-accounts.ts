@@ -7,14 +7,18 @@ interface AccountDraft {
 export function getTransactionFormAccounts(draft: AccountDraft, type: string) {
 	const destinationOnly = type === "INCOME" || type === "YIELD";
 	const wasDestinationOnly = draft.type === "INCOME" || draft.type === "YIELD";
+	if (type === "TRANSFER") {
+		return {
+			destinationFinancialAccountId: draft.destinationFinancialAccountId ?? "",
+			originFinancialAccountId: draft.originFinancialAccountId ?? "",
+		};
+	}
 	const primaryAccountId =
-		(wasDestinationOnly ? draft.destinationFinancialAccountId : draft.originFinancialAccountId) ?? "";
+		((draft.type === "TRANSFER" ? destinationOnly : wasDestinationOnly)
+			? draft.destinationFinancialAccountId
+			: draft.originFinancialAccountId) ?? "";
 	return {
-		destinationFinancialAccountId: destinationOnly
-			? primaryAccountId
-			: type === "TRANSFER" && !wasDestinationOnly
-				? (draft.destinationFinancialAccountId ?? "")
-				: "",
+		destinationFinancialAccountId: destinationOnly ? primaryAccountId : "",
 		originFinancialAccountId: destinationOnly ? "" : primaryAccountId,
 	};
 }

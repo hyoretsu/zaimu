@@ -153,9 +153,9 @@ export function EditTransactionForm({
 		accountsQuery.data
 			?.filter(account => account.type !== "CREDIT_CARD")
 			.toSorted(compareFinancialAccountsByOptionLabel) ?? [];
-	const sourceAccounts = getTransactionSourceAccounts(accountsQuery.data ?? []).toSorted(
-		compareFinancialAccountsByOptionLabel,
-	);
+	const sourceAccounts = getTransactionSourceAccounts(accountsQuery.data ?? [])
+		.filter(account => draft.type !== "TRANSFER" || account.id !== draft.destinationFinancialAccountId)
+		.toSorted(compareFinancialAccountsByOptionLabel);
 	const primaryAccounts = draft.type === "INCOME" ? incomeDestinationAccounts : sourceAccounts;
 	const primaryAccountId =
 		draft.type === "INCOME" ? draft.destinationFinancialAccountId : draft.originFinancialAccountId;

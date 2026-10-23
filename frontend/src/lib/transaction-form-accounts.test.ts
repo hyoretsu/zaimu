@@ -26,6 +26,20 @@ describe("transaction form account selection", () => {
 		).toEqual({ destinationFinancialAccountId: "b", originFinancialAccountId: "a" });
 		expect(
 			getTransactionFormAccounts({ destinationFinancialAccountId: "a", type: "INCOME" }, "TRANSFER"),
+		).toEqual({ destinationFinancialAccountId: "a", originFinancialAccountId: "" });
+		expect(
+			getTransactionFormAccounts({ originFinancialAccountId: "a", type: "EXPENSE" }, "TRANSFER"),
 		).toEqual({ destinationFinancialAccountId: "", originFinancialAccountId: "a" });
+	});
+	test("uses the matching transfer side when switching to income or expense", () => {
+		const transfer = { destinationFinancialAccountId: "b", originFinancialAccountId: "a", type: "TRANSFER" };
+		expect(getTransactionFormAccounts(transfer, "INCOME")).toEqual({
+			destinationFinancialAccountId: "b",
+			originFinancialAccountId: "",
+		});
+		expect(getTransactionFormAccounts(transfer, "EXPENSE")).toEqual({
+			destinationFinancialAccountId: "",
+			originFinancialAccountId: "a",
+		});
 	});
 });
