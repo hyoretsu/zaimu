@@ -1,208 +1,107 @@
-name: CD
+name: CD - images
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
+    inputs:
+      target:
+        description: Images to publish
+        type: choice
+        options: [all, backend, worker, frontend]
+        default: all
+
+permissions:
+  contents: read
+
+# Finish the current publication before starting another on the same branch.
+# Do not cancel a run midway through updating mutable image tags.
+concurrency:
+  group: cd-images-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   detect:
-    name: Detect affected
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     outputs:
-      # {"build":["backend","frontend",...]} — only packages with a build script are included.
-      # The web (GHCR) job fans out over this list; the Tauri jobs gate on whether
-      # "frontend" is in it. A push that touches neither builds nothing.
-      # Manual runs plan every service. Pushes use affected detection; a first
-      # push plans every service through its all-zero before SHA.
-      tasks: ${{ steps.all.outputs.tasks || steps.affected.outputs.tasks }}
+      matrix: ${{ steps.plan.outputs.matrix }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          # Need history present so Turbo's --affected can diff against the base.
           fetch-depth: 0
-
-      - name: Set up Bun for manual run
-        if: ${{ github.event_name == 'workflow_dispatch' }}
-        uses: oven-sh/setup-bun@v2
-
-      - name: Install dependencies for manual run
-        if: ${{ github.event_name == 'workflow_dispatch' }}
-        run: bun install --frozen-lockfile
-
-      - name: Plan all services
-        id: all
-        if: ${{ github.event_name == 'workflow_dispatch' }}
-        run: echo "tasks=$(bun scripts/affected-packages.ts '' build)" >> "$GITHUB_OUTPUT"
-
-      - name: Compute affected services
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - name: Compute affected packages
         id: affected
-        if: ${{ github.event_name == 'push' }}
-        uses: hyoretsu/gh-actions/detect-affected@main
-        with:
-          tasks: build
-          base-sha: ${{ github.event.before }}
+        env:
+          BASE_SHA: ${{ github.event.before }}
+        run: echo "tasks=$(bun scripts/affected-packages.ts "$BASE_SHA" build)" >> "$GITHUB_OUTPUT"
+      - name: Plan image matrix
+        id: plan
+        env:
+          TASKS: ${{ steps.affected.outputs.tasks }}
+          TARGET: ${{ inputs.target || 'affected' }}
+        run: python .github/scripts/plan-cd.py
 
-  ghcr-backend:
-    name: Build and publish backend image
+  images:
+    name: Image / ${{ matrix.service }}${{ matrix.variant.suffix }}
     needs: detect
-    if: ${{ contains(fromJSON(needs.detect.outputs.tasks).build, 'backend') }}
+    if: needs.detect.outputs.matrix != '[]'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     permissions:
       contents: read
       packages: write
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        include: ${{ fromJSON(needs.detect.outputs.matrix) }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-
-      - name: Build and publish image
-        uses: hyoretsu/gh-actions/containers@main
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Validate production web URLs
+        if: matrix.service == 'frontend'
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_APP_URL: ${{ vars.VITE_APP_URL }}
+        run: python .github/scripts/validate-build-urls.py
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Image metadata
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         with:
-          image: ${{ github.repository }}_backend
-          dockerfile: backend/Dockerfile
-          build-args: |
-            NODE_ENV=production
-          secrets: DATABASE_URL=${{ secrets.DATABASE_URL }}
-          cache-scope: backend
+          images: ghcr.io/${{ github.repository }}_${{ matrix.service }}${{ matrix.variant.suffix }}
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+            type=sha,format=long
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
           registry: ghcr.io
+          username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-  ghcr-worker:
-    name: Build and publish worker image
-    needs: detect
-    if: ${{ contains(fromJSON(needs.detect.outputs.tasks).build, 'backend') }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-
-      - name: Build and publish image
-        uses: hyoretsu/gh-actions/containers@main
+      - name: Build and publish
+        id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
-          image: ${{ github.repository }}_worker
-          dockerfile: backend/Dockerfile.worker
-          build-args: |
-            NODE_ENV=production
-          secrets: DATABASE_URL=${{ secrets.DATABASE_URL }}
-          cache-scope: worker
-          registry: ghcr.io
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-  ghcr-frontend:
-    name: Build and publish frontend image
-    needs: detect
-    if: ${{ contains(fromJSON(needs.detect.outputs.tasks).build, 'frontend') }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-
-      - name: Build and publish image
-        uses: hyoretsu/gh-actions/containers@main
-        with:
-          image: ${{ github.repository }}_frontend
-          dockerfile: frontend/Dockerfile
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             NODE_ENV=production
             VITE_API_URL=${{ vars.VITE_API_URL }}
             VITE_APP_URL=${{ vars.VITE_APP_URL }}
-          cache-scope: frontend
-          registry: ghcr.io
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-  desktop:
-    name: Build & release ${{ matrix.label }} app
-    needs: detect
-    # Only the Tauri frontend produces these apps; skip when it isn't affected.
-    if: ${{ contains(fromJSON(needs.detect.outputs.tasks).build, 'frontend') }}
-    permissions:
-      # tauri-action creates the GitHub release / uploads the installers.
-      contents: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: windows-latest
-            label: Windows
-          - platform: ubuntu-latest
-            label: Linux
-          - platform: macos-latest
-            label: macOS
-    runs-on: ${{ matrix.platform }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-
-      - name: Build & release desktop app
-        uses: hyoretsu/gh-actions/tauri-build@main
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          release-name: Zaimu v__VERSION__
-
-  android:
-    name: Build & release Android app
-    needs: detect
-    if: ${{ contains(fromJSON(needs.detect.outputs.tasks).build, 'frontend') }}
-    runs-on: ubuntu-latest
-    permissions:
-      # softprops/action-gh-release creates the GitHub release / uploads the APK.
-      contents: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-
-      - name: Build Android app (APK + AAB)
-        id: build
-        uses: hyoretsu/gh-actions/tauri-android-build@main
-        with:
-          keystore-base64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          keystore-password: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          key-alias: ${{ secrets.ANDROID_KEY_ALIAS }}
-
-      - name: Publish APK to GitHub release
-        uses: softprops/action-gh-release@v2
+            VARIANT=${{ matrix.variant.slug }}
+            BRANDING_REVISION=${{ github.run_id }}-${{ github.run_attempt }}
+          secrets: DATABASE_URL=${{ secrets.DATABASE_URL }}
+          cache-from: type=gha,scope=${{ matrix.service }}${{ matrix.variant.suffix }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}${{ matrix.variant.suffix }}
+      - name: Publication summary
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          # Same tag the desktop job uses; the action creates it once and appends assets.
-          tag_name: v${{ steps.build.outputs.version }}
-          name: Zaimu v${{ steps.build.outputs.version }}
-          draft: false
-          prerelease: false
-          # AAB goes to Play, not the release — only attach the signed APK(s).
-          fail_on_unmatched_files: true
-          files: ${{ steps.build.outputs.apk-glob }}
-
-      # Store uploads consume the single build above; add one step per store.
-      - name: Upload AAB to Google Play
-        if: vars.ANDROID_PACKAGE_NAME != ''
-        uses: r0adkll/upload-google-play@v1
-        with:
-          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-          packageName: ${{ vars.ANDROID_PACKAGE_NAME }}
-          releaseFiles: ${{ steps.build.outputs.aab-glob }}
-          track: production
-          status: completed
-
-  ios:
-    name: Build iOS app (stub)
-    needs: detect
-    if: ${{ contains(fromJSON(needs.detect.outputs.tasks).build, 'frontend') }}
-    # Stub slot: iOS shipping needs a macOS runner, an Apple Developer account and
-    # signing certs/provisioning profiles that aren't wired up yet. Kept as a
-    # placeholder so the platform is tracked; flip to a real build once those exist.
-    runs-on: ubuntu-latest
-    steps:
-      - name: iOS build not configured
-        run: |
-          echo "::notice title=iOS::iOS build is a stub."
-          echo "To enable: run on macos-latest, 'bun tauri ios init', then"
-          echo "'bun tauri ios build' with APPLE signing secrets and a provisioning profile."
+          IMAGE: ghcr.io/${{ github.repository }}_${{ matrix.service }}${{ matrix.variant.suffix }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: printf 'Published `%s@%s` from `%s`\n' "$IMAGE" "$DIGEST" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"

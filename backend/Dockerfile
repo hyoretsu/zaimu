@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM oven/bun:1.3.12 AS deps
+FROM oven/bun:1.4.3 AS deps
 
 WORKDIR /app
 
@@ -27,7 +27,7 @@ COPY . .
 
 RUN --mount=type=secret,id=DATABASE_URL DATABASE_URL="$(cat /run/secrets/DATABASE_URL)" bunx turbo -F backend build
 
-FROM oven/bun:1.3.12 AS runtime
+FROM oven/bun:1.4.3 AS runtime
 
 ENV NODE_ENV=production
 

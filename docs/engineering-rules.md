@@ -95,3 +95,10 @@ Every change, fix or addition to an invoice parser must be checked against every
 Use shared finance cycle helpers for connected and guest books. Never identify or
 correct imported invoices by month alone. Explicit correction uses statement ID;
 full closing/due dates identify existing cycles. Month grouping is presentation only.
+
+## Continuous delivery
+
+See [CD configuration and release guide](development/cd.md) for image matrices,
+version-tagged native releases, iOS signing and explicit Google Play promotion.
+Keep app publication downstream of all selected platform builds and preserve
+variant isolation in the template.

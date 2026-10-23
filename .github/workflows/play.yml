@@ -1,0 +1,81 @@
+name: CD - Google Play promotion
+
+on:
+  workflow_dispatch:
+    inputs:
+      release-tag:
+        description: Published app release tag (for example v1.2.3)
+        type: string
+        required: true
+      run-id:
+        description: Successful CD - apps run ID containing the original AAB artifacts
+        type: string
+        required: true
+      track:
+        description: Google Play track to promote to
+        type: choice
+        options: [internal, alpha, beta, production]
+        default: internal
+
+permissions:
+  contents: read
+  actions: read
+
+# Prevent concurrent store uploads, including across different version tags.
+concurrency:
+  group: google-play-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Verify release and source workflow
+        id: plan
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.release-tag }}
+          SOURCE_RUN_ID: ${{ inputs.run-id }}
+        run: python .github/scripts/plan-play.py
+
+  promote:
+    name: Google Play${{ matrix.suffix }} / ${{ inputs.track }}
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: google-play-${{ inputs.track }}
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: app-android${{ matrix.suffix }}
+          path: android
+          run-id: ${{ inputs.run-id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify original signed store bundle
+        env:
+          EXPECTED_METADATA: ${{ toJSON(matrix.metadata) }}
+        run: python .github/scripts/verify-play.py
+      - uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: ${{ matrix.metadata.identifier }}
+          releaseFiles: android/store/*.aab
+          track: ${{ inputs.track }}
+          status: completed
+      - name: Promotion summary
+        env:
+          PACKAGE: ${{ matrix.metadata.identifier }}
+          VERSION: ${{ matrix.metadata.version }}
+          TRACK: ${{ inputs.track }}
+          BUILD_NUMBER: ${{ matrix.metadata.buildNumber }}
+        run: printf 'Promoted `%s` version `%s` (%s) to `%s`\n' "$PACKAGE" "$VERSION" "$BUILD_NUMBER" "$TRACK" >> "$GITHUB_STEP_SUMMARY"

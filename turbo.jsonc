@@ -57,7 +57,7 @@
 		},
 		"frontend#build": {
 			"dependsOn": ["generate"],
-			"env": ["DATABASE_URL"],
+			"env": ["DATABASE_URL", "VITE_API_URL", "VITE_APP_URL"],
 			"inputs": ["$TURBO_DEFAULT$", "!src/lib/api/generated/**"],
 			"outputLogs": "new-only",
 			"outputs": ["build/**", "dist/**", "out/**", ".next/**", "!.next/cache/**"]

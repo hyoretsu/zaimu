@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM oven/bun:latest AS deps
+FROM oven/bun:1.4.3 AS deps
 
 WORKDIR /app
 
