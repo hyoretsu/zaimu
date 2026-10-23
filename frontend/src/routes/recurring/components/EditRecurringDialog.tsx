@@ -20,8 +20,11 @@ export function EditRecurringDialog({
 		enabled: identity !== null,
 		queryFn: () => dataService.recurrences.get(item.id),
 		queryKey: [...queryKeys.recurring.all(identity!), "detail", item.id],
+		refetchOnMount: "always",
 	});
-	if (detail.isPending || detail.isError)
+	// Never initialize the edit draft from a previous opening's cached detail.
+	const loading = detail.isPending || (!detail.isFetchedAfterMount && !detail.isError);
+	if (loading || detail.isError)
 		return (
 			<Dialog onOpenChange={onOpenChange} open>
 				<DialogContent>
@@ -29,7 +32,7 @@ export function EditRecurringDialog({
 						<DialogTitle>Editar recorrência</DialogTitle>
 					</DialogHeader>
 					<DialogBody>
-						{detail.isPending ? (
+						{loading ? (
 							<div className="space-y-4" role="status">
 								<Skeleton className="h-12 w-full" />
 								<Skeleton className="h-24 w-full" />
