@@ -136,9 +136,13 @@ export function parsePicPayCreditCardStatementText(text: string): CreditCardStat
 	const nationalSections = [...text.matchAll(sectionPattern)].map(match => match[1]!);
 	for (const section of nationalSections.length ? nationalSections : [text]) {
 		for (const match of section.matchAll(purchasePattern)) {
-			const installmentAmount = moneyToNumber(match[4]!);
-			if (!Number.isFinite(installmentAmount)) continue;
 			const description = match[3]!.trim();
+			const parsedAmount = moneyToNumber(match[4]!);
+			// The newer PDF prints cashback credits without a minus sign.
+			const installmentAmount = /^CASHBACK PICPAY CARD$/iu.test(description)
+				? -Math.abs(parsedAmount)
+				: parsedAmount;
+			if (!Number.isFinite(installmentAmount)) continue;
 			if (/^(?:FIN\s+|IOF\s+(?:DIARIO|DIÁRIO|ADICIONAL)\s+PARCELADO$)/iu.test(description)) continue;
 			if (/^CREDITO PARCELAMENTO COMPRA$/iu.test(description)) continue;
 			if (/^PAGAMENTO DE FATURA/iu.test(description)) continue;

@@ -180,3 +180,66 @@ Subtotal dos lançamentos`);
 	expect(result.purchases.map(p => p.installmentAmount)).toEqual([100, -25, -10]);
 	expect(result.purchases.map(p => p.totalAmount)).toEqual([100, -25, -10]);
 });
+
+for (const fixture of [
+	{
+		cashback: -0.27,
+		count: 24,
+		dueDate: "2025-12-25",
+		file: "picpay-2025-12.txt",
+		financedCount: 8,
+		installment: 2,
+		iof: "0,03",
+		statementDate: "2025-12-18",
+		totalCents: 32427,
+	},
+	{
+		cashback: -2.03,
+		count: 17,
+		dueDate: "2026-02-25",
+		file: "picpay-2026-02.txt",
+		financedCount: 6,
+		installment: 4,
+		iof: "0,06",
+		statementDate: "2026-02-19",
+		totalCents: 24412,
+	},
+]) {
+	test(`parses the extracted ${fixture.file} layout and reconciles its invoice total`, async () => {
+		const text = await Bun.file(new URL(`./tests/fixtures/${fixture.file}`, import.meta.url)).text();
+		const statement = parsePicPayCreditCardStatementText(text);
+		expect(statement).toMatchObject({
+			dueDate: fixture.dueDate,
+			provider: "PICPAY",
+			statementDate: fixture.statementDate,
+		});
+		expect(statement.purchases).toHaveLength(fixture.count);
+		expect(
+			statement.purchases.reduce((sum, purchase) => sum + Math.round(purchase.installmentAmount * 100), 0),
+		).toBe(fixture.totalCents);
+		expect(statement.purchases.find(purchase => purchase.description.includes("CASHBACK"))).toMatchObject({
+			description: "Reembolso - CASHBACK PICPAY CARD",
+			installmentAmount: fixture.cashback,
+			totalAmount: fixture.cashback,
+		});
+		expect(
+			statement.purchases.some(purchase => /PAGAMENTO DE FATURA|^IOF /u.test(purchase.description)),
+		).toBe(false);
+		expect(statement.purchases.filter(purchase => purchase.description.startsWith("FIN "))).toHaveLength(
+			fixture.financedCount,
+		);
+		expect(statement.purchases[0]).toMatchObject({
+			currentInstallment: fixture.installment,
+			description: `FIN CINEPOLIS · IOF R$ ${fixture.iof}`,
+			installmentAmount: 10.34,
+			installments: 16,
+			purchaseDate: "2025-11-09",
+		});
+		expect(statement.purchases.find(purchase => purchase.description === "AMAZON MARKETP")).toMatchObject({
+			currentInstallment: fixture.installment,
+			installmentAmount: 16.59,
+			installments: 12,
+			purchaseDate: "2025-10-30",
+		});
+	});
+}
