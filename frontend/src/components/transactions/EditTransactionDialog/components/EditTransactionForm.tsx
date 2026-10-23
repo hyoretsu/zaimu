@@ -26,6 +26,7 @@ import {
 } from "@/lib/financial-account";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { getUpdatedStoreName } from "@/lib/store-name";
+import { getTransactionFormAccounts } from "@/lib/transaction-form-accounts";
 import { showToast } from "@/stores";
 import { TransactionDetailsFields } from "../../TransactionDetailsFields";
 
@@ -236,13 +237,7 @@ export function EditTransactionForm({
 										current
 											? {
 													...current,
-													destinationFinancialAccountId:
-														type === "INCOME" || type === "TRANSFER"
-															? type === "INCOME" && current.type === "EXPENSE"
-																? current.originFinancialAccountId
-																: current.destinationFinancialAccountId
-															: "",
-													originFinancialAccountId: type === "INCOME" ? "" : current.originFinancialAccountId,
+													...getTransactionFormAccounts(current, type),
 													paymentCreditCardId: type === "EXPENSE" ? current.paymentCreditCardId : "",
 													type,
 												}

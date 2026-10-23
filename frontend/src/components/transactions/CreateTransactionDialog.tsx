@@ -28,6 +28,7 @@ import {
 	getTransactionSourceAccounts,
 } from "@/lib/financial-account";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { getTransactionFormAccounts } from "@/lib/transaction-form-accounts";
 import { showToast } from "@/stores";
 import { useCurrencyStore } from "@/stores/currency";
 import { TransactionDetailsFields } from "./TransactionDetailsFields";
@@ -286,16 +287,7 @@ export function CreateTransactionDialog({
 									if (type === "TRANSFER") setIsDebt(false);
 									setDraft(current => ({
 										...current,
-										destinationFinancialAccountId:
-											type === "INCOME" || type === "YIELD" || type === "TRANSFER"
-												? type === "INCOME" && current.type === "EXPENSE"
-													? current.originFinancialAccountId
-													: current.destinationFinancialAccountId
-												: "",
-										originFinancialAccountId:
-											type === "INCOME" || type === "YIELD"
-												? ""
-												: current.originFinancialAccountId || account?.id || "",
+										...getTransactionFormAccounts(current, type),
 										paymentCreditCardId: type === "EXPENSE" ? current.paymentCreditCardId : "",
 										type,
 									}));

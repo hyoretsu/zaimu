@@ -24,6 +24,7 @@ import {
 	getTransactionSourceAccounts,
 } from "@/lib/financial-account";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { getTransactionFormAccounts } from "@/lib/transaction-form-accounts";
 
 type EditableItem = Omit<
 	Pick<
@@ -165,14 +166,7 @@ export function EditImportedTransactionDialog({
 										current
 											? {
 													...current,
-													destinationFinancialAccountId:
-														type === "INCOME" || type === "YIELD" || type === "TRANSFER"
-															? type === "INCOME" && current.type === "EXPENSE"
-																? current.originFinancialAccountId
-																: current.destinationFinancialAccountId
-															: null,
-													originFinancialAccountId:
-														type === "INCOME" || type === "YIELD" ? null : current.originFinancialAccountId,
+													...getTransactionFormAccounts(current, type),
 													paymentCreditCardId: type === "EXPENSE" ? current.paymentCreditCardId : null,
 													type,
 												}
