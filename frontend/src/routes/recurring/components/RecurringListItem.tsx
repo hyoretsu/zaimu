@@ -78,8 +78,10 @@ export function RecurringListItem({
 	];
 	const transaction: Transaction = {
 		amount: item.amount,
+		bookingCurrency: item.recurrence?.currency ?? "BRL",
 		createdAt: item.startDate,
 		date: item.startDate,
+		debtSplit: item.debtSplit,
 		id: item.id,
 		...(item.direction === "INCOME"
 			? {
