@@ -3,7 +3,6 @@ import { useState } from "react";
 import { LuFileClock, LuFileSearch } from "react-icons/lu";
 import { ActionNotice } from "@/components/ui/ActionNotice";
 import { Button } from "@/components/ui/Button";
-import { Skeleton } from "@/components/ui/Skeleton";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { PendingCreditCardImportsDialog } from "./PendingCreditCardImportsDialog";
@@ -16,8 +15,7 @@ export function PendingCreditCardImportsNotice({ onReview }: { onReview: (import
 		queryFn: dataService.creditCardImports.getPending,
 		queryKey: queryKeys.creditCardImports.pending(identity!),
 	});
-	if (imports.isPending && identity?.startsWith("user:"))
-		return <Skeleton className="h-[5.625rem] rounded-2xl" />;
+	if (imports.isPending) return null;
 	if (imports.isError && !imports.data)
 		return (
 			<section className="flex items-center justify-between gap-3 rounded-2xl border border-destructive/30 p-4">

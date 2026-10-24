@@ -3,7 +3,6 @@ import { useState } from "react";
 import { LuFileSearch, LuUsersRound } from "react-icons/lu";
 import { ActionNotice } from "@/components/ui/ActionNotice";
 import { Button } from "@/components/ui/Button";
-import { Skeleton } from "@/components/ui/Skeleton";
 import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
@@ -24,7 +23,7 @@ export function PendingDebtInvitations() {
 		queryFn: () => dataService.debts.getInvitations(),
 		queryKey: queryKeys.debts.invitations(identity!),
 	});
-	if (invitations.isPending && identity !== null) return <Skeleton className="h-[5.625rem] rounded-2xl" />;
+	if (invitations.isPending) return null;
 	if (invitations.isError && !invitations.data)
 		return (
 			<section className="flex items-center justify-between gap-3 rounded-2xl border border-destructive/30 p-4">

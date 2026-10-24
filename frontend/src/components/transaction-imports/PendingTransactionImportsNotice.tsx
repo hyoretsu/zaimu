@@ -3,7 +3,6 @@ import { useState } from "react";
 import { LuClock3, LuFileSearch } from "react-icons/lu";
 import { ActionNotice } from "@/components/ui/ActionNotice";
 import { Button } from "@/components/ui/Button";
-import { Skeleton } from "@/components/ui/Skeleton";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { useAuthStore } from "@/stores";
@@ -18,7 +17,7 @@ export function PendingTransactionImportsNotice({ onReview }: { onReview: (impor
 		queryFn: dataService.transactionImports.getPending,
 		queryKey: queryKeys.transactionImports.pending(identity!),
 	});
-	if (imports.isPending && isAuthenticated) return <Skeleton className="h-[5.625rem] rounded-2xl" />;
+	if (imports.isPending) return null;
 	if (imports.isError && !imports.data)
 		return (
 			<section className="flex items-center justify-between gap-3 rounded-2xl border border-destructive/30 p-4">

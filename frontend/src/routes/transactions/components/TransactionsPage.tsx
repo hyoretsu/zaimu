@@ -20,7 +20,6 @@ import { ActionNotice } from "@/components/ui/ActionNotice";
 import { Button } from "@/components/ui/Button";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Skeleton } from "@/components/ui/Skeleton";
 import type { Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { formatLocalTime } from "@/lib/date";
@@ -324,9 +323,7 @@ export function TransactionsPage() {
 				title="Transações"
 			/>
 			<PendingNotices onReviewTransactionImport={setReviewingImportId} paymentSuggestions />
-			{identity !== null && transferSuggestionsQuery.isPending ? (
-				<Skeleton className="h-[5.625rem] rounded-2xl" />
-			) : visibleTransferSuggestions.length > 0 ? (
+			{!transferSuggestionsQuery.isPending && visibleTransferSuggestions.length > 0 ? (
 				<ActionNotice
 					action={
 						<Button

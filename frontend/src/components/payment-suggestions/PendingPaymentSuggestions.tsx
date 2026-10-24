@@ -46,7 +46,7 @@ export function PendingPaymentSuggestions() {
 		queryKey: queryKeys.accounts.list(identity!),
 	});
 	if (!identity) return null;
-	if (suggestions.isPending && !selected) return <Skeleton className="h-24" />;
+	if (suggestions.isPending && !selected) return null;
 	if (suggestions.isError && !selected)
 		return <p className="text-muted-foreground text-sm">Sugestões de pagamento indisponíveis.</p>;
 	if (!suggestions.data?.length && !selected) return null;
