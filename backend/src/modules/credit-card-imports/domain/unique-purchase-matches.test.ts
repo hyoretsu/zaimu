@@ -45,3 +45,18 @@ test("does not choose between two exact plans or competing claims", () => {
 		),
 	).toEqual([]);
 });
+
+test("prefers the same day over adjacent dates regardless of candidate order", () => {
+	const exact = { date: "2026-04-26", id: "exact" };
+	const adjacent = { date: "2026-04-25", id: "adjacent" };
+	const sameDay = (_itemId: string, candidate: typeof exact) => candidate.date === "2026-04-26";
+	expect(uniquePurchaseMatches(new Map([["item", [adjacent, exact]]]), () => true, sameDay)).toEqual([
+		["item", exact],
+	]);
+	expect(uniquePurchaseMatches(new Map([["item", [adjacent]]]), () => true, sameDay)).toEqual([
+		["item", adjacent],
+	]);
+	expect(
+		uniquePurchaseMatches(new Map([["item", [adjacent, { ...adjacent, id: "other" }]]]), () => true, sameDay),
+	).toEqual([]);
+});

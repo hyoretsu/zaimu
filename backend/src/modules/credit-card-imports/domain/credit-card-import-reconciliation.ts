@@ -44,11 +44,16 @@ function hasCompatibleTotalAmount(
 	);
 }
 
-export function matchesExistingCreditPurchase(item: ImportedPurchaseShape, candidate: ExistingPurchaseShape) {
+export function matchesExistingCreditPurchase(
+	item: ImportedPurchaseShape,
+	candidate: ExistingPurchaseShape,
+	dateToleranceDays = 0,
+) {
 	return (
 		candidate.installments === item.installments &&
 		candidate.existingInstallments <= item.installments &&
-		dateKey(candidate.purchaseDate) === dateKey(item.purchaseDate) &&
+		Math.abs(Date.parse(dateKey(candidate.purchaseDate)) - Date.parse(dateKey(item.purchaseDate))) <=
+			dateToleranceDays * 86_400_000 &&
 		hasCompatibleInstallmentAmount(item.installmentAmount, candidate.installmentAmount, item.installments) &&
 		hasCompatibleTotalAmount(item.totalAmount, candidate.totalAmount, item.installments)
 	);
@@ -83,4 +88,9 @@ export function isPotentialPurchaseRefinancing(
 			),
 		)
 	);
+}
+
+/** Editing an import requires explicit field selection before linking it. */
+export function requiresPurchaseReconciliation(item: { createdAt: Date | string; updatedAt: Date | string }) {
+	return new Date(item.updatedAt).getTime() > new Date(item.createdAt).getTime();
 }

@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
 	isPotentialPurchaseRefinancing,
 	matchesExistingCreditPurchase,
+	requiresPurchaseReconciliation,
 } from "./credit-card-import-reconciliation";
 
 const imported = {
@@ -73,7 +74,7 @@ describe("matchesExistingCreditPurchase", () => {
 				existingInstallments: 3,
 				installmentAmount: 41,
 				installments: imported.installments,
-				purchaseDate: "2026-04-27",
+				purchaseDate: "2026-04-28",
 				storeName: null,
 				totalAmount: imported.totalAmount,
 			}),
@@ -192,4 +193,27 @@ describe("isPotentialPurchaseRefinancing", () => {
 		expect(isPotentialPurchaseRefinancing({ ...newPlan, installments: 1 }, source)).toBe(false);
 		expect(isPotentialPurchaseRefinancing({ ...newPlan, purchaseDate: "2026-01-19" }, source)).toBe(false);
 	});
+});
+
+for (const [date, expected] of [
+	["2026-04-25", true],
+	["2026-04-26", true],
+	["2026-04-27", true],
+	["2026-04-24", false],
+	["2026-04-28", false],
+] as const) {
+	test(`purchase date tolerance: ${date}`, () => {
+		expect(
+			matchesExistingCreditPurchase(
+				imported,
+				{ ...imported, existingInstallments: 1, purchaseDate: date },
+				1,
+			),
+		).toBe(expected);
+	});
+}
+test("edited imports require field reconciliation; untouched imports can link automatically", () => {
+	const createdAt = "2026-04-27T10:00:00Z";
+	expect(requiresPurchaseReconciliation({ createdAt, updatedAt: createdAt })).toBe(false);
+	expect(requiresPurchaseReconciliation({ createdAt, updatedAt: "2026-04-27T10:01:00Z" })).toBe(true);
 });

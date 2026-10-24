@@ -44,6 +44,7 @@ import { canBulkApprovePurchase } from "../domain/bulk-approval";
 import {
 	isPotentialPurchaseRefinancing,
 	matchesExistingCreditPurchase,
+	requiresPurchaseReconciliation,
 } from "../domain/credit-card-import-reconciliation";
 import { existingPurchaseImportValues } from "../domain/existing-purchase-import-values";
 import { getFinancingSource, getFinancingTarget } from "../domain/financing-source-reference";
@@ -166,7 +167,7 @@ export async function getPotentialDuplicates(
 							? /^FIN /u.test(candidate.description) &&
 								candidate.installments === item.installments &&
 								dateKey(candidate.purchaseDate) === dateKey(item.purchaseDate)
-							: matchesExistingCreditPurchase(item, candidate) ||
+							: matchesExistingCreditPurchase(item, candidate, 1) ||
 								(!candidate.isSettled &&
 									!candidate.settledByPurchaseId &&
 									isPotentialPurchaseRefinancing(item, candidate))),
@@ -179,17 +180,22 @@ export async function getPotentialDuplicates(
 async function reconcileUniquePurchases(userId: string, importId: string, creditCardId: string) {
 	await withRawTransaction(async () => {
 		await queryRaw(`SELECT "id" FROM "CreditCard" WHERE "id"=$1 FOR UPDATE`, [creditCardId]);
-		const items = await queryRaw<Parameters<typeof getPotentialDuplicates>[1][number]>(
-			`SELECT * FROM "CreditCardImportItem" WHERE "creditCardImportId"=$1`,
-			[importId],
-		);
+		const items = await queryRaw<
+			Parameters<typeof getPotentialDuplicates>[1][number] & { createdAt: Date; updatedAt: Date }
+		>(`SELECT * FROM "CreditCardImportItem" WHERE "creditCardImportId"=$1`, [importId]);
 		const duplicates = await getPotentialDuplicates(creditCardId, items, importId);
 		const entries = await readCreditEntries(creditCardId);
-		for (const [itemId, candidate] of uniquePurchaseMatches(duplicates, (itemId, candidate) => {
+		for (const [itemId, candidate] of uniquePurchaseMatches(
+			duplicates,
+			(itemId, candidate) => {
+				const item = items.find(item => item.id === itemId)!;
+				return !importedAnticipation(item.description) && matchesExistingCreditPurchase(item, candidate, 1);
+			},
+			(itemId, candidate) =>
+				dateKey(candidate.purchaseDate) === dateKey(items.find(item => item.id === itemId)!.purchaseDate),
+		)) {
 			const item = items.find(item => item.id === itemId)!;
-			return !importedAnticipation(item.description) && matchesExistingCreditPurchase(item, candidate);
-		})) {
-			const item = items.find(item => item.id === itemId)!;
+			if (requiresPurchaseReconciliation(item)) continue;
 			// Broader value-only review candidates are not proof for automatic linking.
 			if (
 				importedAnticipation(item.description) &&

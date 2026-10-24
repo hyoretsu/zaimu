@@ -2,11 +2,14 @@
 export function uniquePurchaseMatches<T extends { id: string }>(
 	duplicates: Map<string, T[]>,
 	prefer?: (itemId: string, candidate: T) => boolean,
+	preferDate?: (itemId: string, candidate: T) => boolean,
 ) {
 	duplicates = new Map(
 		[...duplicates].map(([itemId, candidates]) => {
 			const preferred = candidates.filter(candidate => prefer?.(itemId, candidate));
-			return [itemId, preferred.length ? preferred : candidates];
+			const compatible = preferred.length ? preferred : candidates;
+			const sameDay = compatible.filter(candidate => preferDate?.(itemId, candidate));
+			return [itemId, sameDay.length ? sameDay : compatible];
 		}),
 	);
 	const claims = new Map<string, number>();
