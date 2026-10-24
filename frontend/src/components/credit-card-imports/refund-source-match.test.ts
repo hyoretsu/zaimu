@@ -118,7 +118,7 @@ test("suggests the unique full purchase before a generic bank refund, including 
 	expect(matchingRefundSource({ ...generic, description: "Crédito parcelamento" }, [before])).toBeUndefined();
 });
 
-test("refund choices use only installment sums, including single purchases from earlier invoices", () => {
+test("partial refund choices include purchases without matching installment sums", () => {
 	const refund = { description: "Crédito concedido", installmentAmount: -257.8 };
 	const base = { ...source, installments: 1, refundableAmount: 257.8, totalAmount: 257.8 };
 	const old = { ...base, description: "OTHER MERCHANT", id: "old", purchaseDate: "2025-01-01" };
@@ -137,7 +137,21 @@ test("refund choices use only installment sums, including single purchases from 
 	expect(eligibleRefundSources(refund, [old, subset, skipped, near, outside, wrong]).map(p => p.id)).toEqual([
 		"old",
 		"subset",
+		"skipped",
 		"near",
+		"outside",
+		"wrong",
 	]);
 	expect(eligibleRefundSources(refund, [{ ...old, id: "pending:old" }])).toHaveLength(1);
+});
+
+test("partial credits require enough remaining balance and never suggest a larger purchase", () => {
+	const refund = { ...item, installmentAmount: -17.92 };
+	const larger = { ...source, installments: 4, refundableAmount: 200, totalAmount: 200 };
+	expect(eligibleRefundSources(refund, [larger])).toEqual([larger]);
+	expect(matchingRefundSource(refund, [larger])).toBeUndefined();
+	expect(eligibleRefundSources(refund, [{ ...larger, refundableAmount: 17.92 }])).toHaveLength(1);
+	expect(eligibleRefundSources(refund, [{ ...larger, refundableAmount: 17.91 }])).toEqual([]);
+	for (const installmentAmount of [0, Number.NaN, Number.POSITIVE_INFINITY])
+		expect(eligibleRefundSources({ ...refund, installmentAmount }, [larger])).toEqual([]);
 });

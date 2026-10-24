@@ -70,14 +70,19 @@ export function matchingRefundSource(
 	return matches.length === 1 ? matches[0] : undefined;
 }
 
-/** Filter before search and auto-selection so hidden incompatible plans cannot be linked. */
+/** Partial credits need refundable balance; explicit cancellations also need a compatible plan. */
 export function eligibleRefundSources<T extends RefundSource>(
 	item: { description: string; installmentAmount: number },
 	sources: T[],
 ) {
 	const cents = Math.round(Math.abs(item.installmentAmount) * 100);
+	if (!Number.isSafeInteger(cents) || cents <= 0) return [];
+	const cancellation = importedAnticipation(item.description);
 	return sources.filter(source => {
-		if (Math.round(source.refundableAmount * 100) + importReconciliationToleranceCents < cents) return false;
+		const balance = Math.round(source.refundableAmount * 100);
+		if (!Number.isSafeInteger(balance)) return false;
+		if (!cancellation) return balance >= cents;
+		if (balance + importReconciliationToleranceCents < cents) return false;
 		const amounts =
 			source.installmentAmountsCents ??
 			distributePurchaseCents(Math.round(source.totalAmount * 100), source.installments ?? 1);
