@@ -37,3 +37,14 @@ test("does not collapse installments posted in different months", () => {
 	expect(result).toHaveLength(2);
 	expect(result.every(row => importedAnticipation(row.description) === null)).toBe(true);
 });
+
+test("filtering invoice payments preserves financing source indices", () => {
+	const original = { ...purchase(1, 100), description: "Original", installments: 1 };
+	const result = groupAnticipatedInstallments([
+		{ ...original, description: "Débito automático da fatura" },
+		original,
+		{ ...original, description: "FIN Original", financingSourceIndex: 1 },
+	]);
+	expect(result).toHaveLength(2);
+	expect(result[1]!.financingSourceIndex).toBe(0);
+});

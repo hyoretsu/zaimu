@@ -2,6 +2,7 @@
 	"backend:e2e": ["backend/tests/database.e2e.test.ts"],
 	"backend:integration": [
 		"backend/src/modules/credit-card-imports/tests/credit-card-refunds.test.ts",
+		"backend/src/modules/credit-card-imports/tests/import-refund-parity.test.ts",
 		"backend/scripts/tests/consumed-contracts.test.ts",
 		"backend/scripts/tests/export-openapi.test.ts",
 		"backend/src/modules/accounts/tests/cashback-reversals.integration.test.ts",
@@ -61,6 +62,7 @@
 		"backend/src/modules/credit-card-imports/domain/credit-card-statement-parser.test.ts",
 		"backend/src/modules/credit-card-imports/domain/edited-installment-amount.test.ts",
 		"backend/src/modules/credit-card-imports/domain/existing-import-roots.test.ts",
+		"backend/src/modules/credit-card-imports/domain/existing-imported-refund.test.ts",
 		"backend/src/modules/credit-card-imports/domain/existing-purchase-import-values.test.ts",
 		"backend/src/modules/credit-card-imports/domain/filter-zero-value-purchases.test.ts",
 		"backend/src/modules/credit-card-imports/domain/financing-source-reference.test.ts",
@@ -68,6 +70,7 @@
 		"backend/src/modules/credit-card-imports/domain/imported-purchase-total.test.ts",
 		"backend/src/modules/credit-card-imports/domain/installment-amounts.test.ts",
 		"backend/src/modules/credit-card-imports/domain/inter-credit-card.test.ts",
+		"backend/src/modules/credit-card-imports/domain/invoice-payment.test.ts",
 		"backend/src/modules/credit-card-imports/domain/mercado-pago-credit-card.test.ts",
 		"backend/src/modules/credit-card-imports/domain/mercado-pago-text.test.ts",
 		"backend/src/modules/credit-card-imports/domain/nubank-credit-card.test.ts",

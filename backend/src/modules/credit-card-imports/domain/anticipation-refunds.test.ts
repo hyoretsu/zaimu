@@ -108,3 +108,74 @@ test("preserves conflicting manual purchase links", () => {
 		]),
 	).toEqual([]);
 });
+
+test("combines a later generic full credit only with a unique exact original plan", () => {
+	const tail = Array.from({ length: 7 }, (_, i) => ({ amountCents: 3112, number: i + 2 }));
+	const anticipated = {
+		...anticipation,
+		description: withImportedAnticipation("Cabo riser", tail),
+		installments: 8,
+		purchaseDate: "2026-08-08",
+		totalAmount: 248.96,
+	};
+	const generic = {
+		...credit,
+		description: "Crédito concedido",
+		installmentAmount: -249,
+		purchaseDate: "2026-09-04",
+		totalAmount: -249,
+	};
+	const source = {
+		id: "riser",
+		installmentAmountsCents: [3116, ...tail.map(p => p.amountCents)],
+		purchaseDate: "2026-08-08",
+		totalAmount: 249,
+	};
+	const [refund] = combineAnticipationRefunds([anticipated, generic], [source]);
+	expect(refund).toMatchObject({
+		installmentAmount: -249,
+		purchaseDate: "2026-09-04",
+		reconciledCreditPurchaseId: "riser",
+		totalAmount: -249,
+	});
+	expect(importedAnticipation(refund!.description)).toEqual(tail);
+	expect(
+		anticipationRefundPairs([anticipated, { ...generic, reconciledCreditPurchaseId: "other" }], [source]),
+	).toEqual([]);
+	for (const sources of [
+		[],
+		[source, { ...source, id: "other" }],
+		[{ ...source, totalAmount: 249.01 }],
+		[{ ...source, installmentAmountsCents: Array(8).fill(3112) }],
+	])
+		expect(anticipationRefundPairs([anticipated, generic], sources)).toEqual([]);
+	expect(
+		anticipationRefundPairs([anticipated, { ...generic, purchaseDate: "2026-08-07" }], [source]),
+	).toEqual([]);
+	expect(anticipationRefundPairs([anticipated, generic, { ...generic }], [source])).toEqual([]);
+});
+
+test("combines generic credit against an exact complete bank plan without an existing purchase", () => {
+	const full = {
+		...anticipation,
+		description: withImportedAnticipation("Loja", [{ amountCents: 5000, number: 1 }, ...parts]),
+		purchaseDate: "2026-04-30",
+	};
+	const generic = {
+		...credit,
+		description: "Crédito concedido",
+		installmentAmount: -150,
+		purchaseDate: "2026-05-02",
+	};
+	expect(combineAnticipationRefunds([full, generic])).toHaveLength(1);
+	const unrelated = {
+		id: "unrelated",
+		installmentAmountsCents: [20000],
+		purchaseDate: "2026-01-01",
+		totalAmount: 200,
+	};
+	expect(combineAnticipationRefunds([full, generic], [unrelated])[0]).toMatchObject({
+		reconciledCreditPurchaseId: undefined,
+	});
+	expect(anticipationRefundPairs([full, { ...generic, installmentAmount: -149.99 }])).toEqual([]);
+});

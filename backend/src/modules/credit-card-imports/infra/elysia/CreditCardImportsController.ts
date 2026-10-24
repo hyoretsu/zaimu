@@ -1,4 +1,4 @@
-import { addBookRefund, synchronizeImportedStatementDates } from "@zaimu/finance/credit-book";
+import { synchronizeImportedStatementDates } from "@zaimu/finance/credit-book";
 import { statementEntryKind } from "@zaimu/finance/credit-card";
 import { distributePurchaseCents } from "@zaimu/finance/credit-purchase";
 import { hasMatchingInstallmentSum } from "@zaimu/finance/credit-refund";
@@ -49,6 +49,7 @@ import { assignCreditCardPurchaseExternalIds } from "../../domain/credit-card-im
 import { parseCreditCardStatementPdf } from "../../domain/credit-card-statement-parser";
 import { getEditedInstallmentAmount } from "../../domain/edited-installment-amount";
 import { existingImportRoots } from "../../domain/existing-import-roots";
+import { approveImportedRefund, existingImportedRefund } from "../../domain/existing-imported-refund";
 import { existingPurchaseImportValues } from "../../domain/existing-purchase-import-values";
 import { filterZeroValuePurchases } from "../../domain/filter-zero-value-purchases";
 import {
@@ -161,6 +162,7 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 				statement.purchases.find(purchase =>
 					/^(saldo\s+(anterior|financiado)|saldo devedor anterior)/i.test(purchase.description.trim()),
 				)?.installmentAmount;
+			const importBook = await readCreditBook(userId, body.creditCardId);
 			const purchases = combineAnticipationRefunds(
 				assignCreditCardPurchaseExternalIds(
 					filterZeroValuePurchases(
@@ -168,6 +170,12 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 					),
 					body.creditCardId,
 				),
+				importBook.purchases.map(p => ({
+					id: p.id,
+					installmentAmountsCents: p.installmentAmountsCents,
+					purchaseDate: p.purchaseDate,
+					totalAmount: p.totalAmountCents / 100,
+				})),
 			);
 			const [existing, pending] = await Promise.all([
 				queryRaw<CreditReadRow>(
@@ -688,6 +696,15 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 				`SELECT * FROM "CreditCardImportItem" WHERE "creditCardImportId"=$1 AND "installmentAmount">0 AND NOT "isStatementCharge"`,
 				[params.id],
 			);
+			const refundItems = await queryRaw<{
+				reconciledCreditPurchaseId: string | null;
+				installmentAmount: string;
+				purchaseDate: Date;
+				externalId: string;
+				description: string;
+			}>(`SELECT * FROM "CreditCardImportItem" WHERE "creditCardImportId"=$1 AND "installmentAmount"<0`, [
+				params.id,
+			]);
 			const sources = pending
 				.filter(p => !importedAnticipation(p.description) && !getFinancingSource(p.description))
 				.map(p => ({
@@ -706,7 +723,23 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 					installments: p.installmentAmountsCents.length,
 					purchaseDate: p.purchaseDate,
 					refundableAmount:
-						(p.totalAmountCents -
+						(p.totalAmountCents +
+							Math.max(
+								0,
+								...refundItems
+									.filter(
+										item =>
+											item.reconciledCreditPurchaseId === p.id && importedAnticipation(item.description),
+									)
+									.map(
+										item =>
+											existingImportedRefund(book.refunds, p.id, {
+												amount: Math.abs(Number(item.installmentAmount)),
+												creditDate: dateKey(item.purchaseDate),
+												externalId: item.externalId,
+											})?.amountCents ?? 0,
+									),
+							) -
 							book.refunds
 								.filter(r => r.purchaseId === p.id && !r.deletedAt)
 								.reduce((sum, r) => sum + r.amountCents, 0)) /
@@ -798,14 +831,15 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 						Math.round(Math.abs(Number(item.installmentAmount)) * 100),
 						p.installmentAmountsCents,
 					);
-					const r = addBookRefund(book, p.id, {
+					const r = approveImportedRefund(book, p.id, {
 						amount: Math.abs(Number(item.installmentAmount)),
 						canceledInstallmentNumbers: cancellation,
 						creditDate: dateKey(item.purchaseDate),
+						externalId: item.externalId,
 						policy: body.policy,
 					});
 					r.externalId = item.externalId;
-					r.time = item.time;
+					r.time = item.time ?? r.time;
 				});
 				await cleanupItemTags([item.id]);
 				await query(`DELETE FROM "CreditCardImportItem" WHERE "id"=$1`, [item.id]);

@@ -440,3 +440,7 @@ do cartão. Correção sem correspondência por datas exige escolher fatura expl
 compartilhar mês não autoriza substituir outra fatura. Previsão antiga de próximo
 fechamento nunca substitui ciclo confirmado. Nomes mantêm mês/ano; duplicidades incluem
 vencimento completo no contexto. Projeções e planejamento somam todos os ciclos do mês.
+
+Créditos genéricos, como "Crédito concedido", podem compor o reembolso único com antecipação quando há uma única compra original compatível: total integral exato em centavos, data original da antecipação, crédito na mesma data ou depois dela e valores exatos de todas as parcelas antecipadas. Um plano integral explícito no PDF também comprova o total. Sem prova exata ou com ambiguidade, os movimentos permanecem separados para revisão. Reembolso manual único da mesma compra, data e valor pode receber a identidade bancária e o cancelamento explícito durante a aprovação, preservando seu ID e sem duplicar o crédito. Identidades bancárias conflitantes não são reutilizadas.
+
+Pagamentos de fatura, inclusive débito automático, não entram como compras nem reembolsos nos leitores de PDF. A revisão remove esses movimentos também de lotes ainda pendentes; não cria pagamentos nem modifica lançamentos já aprovados automaticamente.

@@ -1,3 +1,4 @@
+import { isGenericImportedRefund } from "@zaimu/finance/credit-refund";
 import {
 	importedAnticipation,
 	matchingAnticipatedTail,
@@ -36,8 +37,57 @@ const compatibleSources = (a: ImportPurchase, b: ImportPurchase) => {
 };
 const date = (value: Date | string) => new Date(value).toISOString().slice(0, 10);
 
-/** Pair a unique merchant/date when bank credit covers the anticipated installments. */
-export function anticipationRefundPairs<T extends ImportPurchase>(purchases: T[]) {
+export interface AnticipationRefundSource {
+	id: string;
+	purchaseDate: Date | string;
+	totalAmount: number | string;
+	installmentAmountsCents: readonly number[];
+}
+
+/** Generic bank credits require an exact original plan, never an estimated total. */
+function matchesGenericCredit(
+	anticipation: ImportPurchase,
+	credit: ImportPurchase,
+	sources: readonly AnticipationRefundSource[],
+	allowComplete = true,
+) {
+	if (
+		!isGenericImportedRefund(withoutImportedAnticipation(credit.description)) ||
+		date(credit.purchaseDate) < date(anticipation.purchaseDate)
+	)
+		return false;
+	const parts = importedAnticipation(anticipation.description)!;
+	const cents = Math.round(Math.abs(Number(credit.installmentAmount)) * 100);
+	const matches = sources.filter(
+		source =>
+			(!anticipation.reconciledCreditPurchaseId || source.id === anticipation.reconciledCreditPurchaseId) &&
+			(!credit.reconciledCreditPurchaseId || source.id === credit.reconciledCreditPurchaseId) &&
+			date(source.purchaseDate) === date(anticipation.purchaseDate) &&
+			Math.round(Number(source.totalAmount) * 100) === cents &&
+			source.installmentAmountsCents.length === anticipation.installments &&
+			source.installmentAmountsCents.reduce((sum, amount) => sum + amount, 0) === cents &&
+			parts.every(part => source.installmentAmountsCents[part.number - 1] === part.amountCents),
+	);
+	// A complete bank plan proves its own total even before an original is linked.
+	const complete =
+		parts.length === anticipation.installments &&
+		parts.every((part, index) => part.number === index + 1) &&
+		parts.reduce((sum, part) => sum + part.amountCents, 0) === cents;
+	return (
+		matches.length === 1 ||
+		(allowComplete &&
+			matches.length === 0 &&
+			!anticipation.reconciledCreditPurchaseId &&
+			!credit.reconciledCreditPurchaseId &&
+			complete)
+	);
+}
+
+/** Pair only unique exact operations; ambiguous credits remain in review. */
+export function anticipationRefundPairs<T extends ImportPurchase>(
+	purchases: T[],
+	sources: readonly AnticipationRefundSource[] = [],
+) {
 	const anticipations = purchases.filter(
 		p => Number(p.installmentAmount) > 0 && importedAnticipation(p.description),
 	);
@@ -51,14 +101,25 @@ export function anticipationRefundPairs<T extends ImportPurchase>(purchases: T[]
 			.filter(
 				credit =>
 					compatibleSources(anticipation, credit) &&
-					merchant(credit.description).length >= 3 &&
-					merchant(credit.description) === merchant(anticipation.description) &&
-					date(credit.purchaseDate) === date(anticipation.purchaseDate) &&
 					Math.round(Math.abs(Number(credit.installmentAmount)) * 100) >= amount &&
-					Math.round(Math.abs(Number(credit.installmentAmount)) * 100) <=
-						Math.round(Math.abs(Number(anticipation.totalAmount)) * 100),
+					(matchesGenericCredit(anticipation, credit, sources) ||
+						(merchant(credit.description).length >= 3 &&
+							merchant(credit.description) === merchant(anticipation.description) &&
+							date(credit.purchaseDate) === date(anticipation.purchaseDate) &&
+							Math.round(Math.abs(Number(credit.installmentAmount)) * 100) <=
+								Math.round(Math.abs(Number(anticipation.totalAmount)) * 100))),
 			)
-			.map(credit => ({ anticipation, credit, installments }));
+			.map(credit => {
+				const matching = sources.filter(source =>
+					matchesGenericCredit(anticipation, credit, [source], false),
+				);
+				return {
+					anticipation,
+					credit,
+					installments,
+					sourceId: matching.length === 1 ? matching[0]!.id : undefined,
+				};
+			});
 	});
 	const anticipationCounts = new Map<T, number>();
 	const creditCounts = new Map<T, number>();
@@ -72,8 +133,11 @@ export function anticipationRefundPairs<T extends ImportPurchase>(purchases: T[]
 }
 
 /** Negative anticipation metadata means an explicit refund cancellation, never a purchase. */
-export function combineAnticipationRefunds<T extends ImportPurchase>(purchases: T[]): T[] {
-	const pairs = anticipationRefundPairs(purchases);
+export function combineAnticipationRefunds<T extends ImportPurchase>(
+	purchases: T[],
+	sources: readonly AnticipationRefundSource[] = [],
+): T[] {
+	const pairs = anticipationRefundPairs(purchases, sources);
 	const removed = new Set(pairs.map(pair => pair.anticipation));
 	const refunds = new Map(pairs.map(pair => [pair.credit, pair]));
 	return purchases
@@ -85,7 +149,12 @@ export function combineAnticipationRefunds<T extends ImportPurchase>(purchases: 
 						...p,
 						description: withImportedAnticipation(p.description, pair.installments),
 						installments: pair.anticipation.installments,
-						totalAmount: -Math.abs(Number(pair.anticipation.totalAmount)),
+						reconciledCreditPurchaseId:
+							p.reconciledCreditPurchaseId ?? pair.anticipation.reconciledCreditPurchaseId ?? pair.sourceId,
+						totalAmount: -Math.max(
+							Math.abs(Number(pair.anticipation.totalAmount)),
+							Math.abs(Number(p.installmentAmount)),
+						),
 					}
 				: p;
 		});

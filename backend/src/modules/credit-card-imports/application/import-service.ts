@@ -47,6 +47,7 @@ import {
 } from "../domain/credit-card-import-reconciliation";
 import { existingPurchaseImportValues } from "../domain/existing-purchase-import-values";
 import { getFinancingSource, getFinancingTarget } from "../domain/financing-source-reference";
+import { isInvoicePayment } from "../domain/invoice-payment";
 import {
 	includePendingPurchaseSources,
 	pendingPurchaseId,
@@ -302,8 +303,8 @@ const decodeImportItemsCursor = (cursor?: string): ImportItemsCursor | null => {
 /** Normalize legacy pending batches before pagination or approval, under the batch lock. */
 export async function combinePendingAnticipationRefunds(userId: string, importId: string) {
 	await withRawTransaction(async query => {
-		const [batch] = await query<{ status: string }>(
-			`SELECT "status" FROM "CreditCardImport" WHERE "id"=$1 AND "userId"=$2 FOR UPDATE`,
+		const [batch] = await query<{ status: string; creditCardId: string }>(
+			`SELECT "status", "creditCardId" FROM "CreditCardImport" WHERE "id"=$1 AND "userId"=$2 FOR UPDATE`,
 			[importId, userId],
 		);
 		if (batch?.status !== "PENDING") return;
@@ -319,7 +320,22 @@ export async function combinePendingAnticipationRefunds(userId: string, importId
 			`SELECT * FROM "CreditCardImportItem" WHERE "creditCardImportId"=$1 AND NOT "isStatementCharge" FOR UPDATE`,
 			[importId],
 		);
-		for (const { anticipation, credit, installments } of anticipationRefundPairs(items)) {
+		const paymentIds = items.filter(item => isInvoicePayment(item.description)).map(item => item.id);
+		if (paymentIds.length) {
+			await cleanupItemTags(paymentIds);
+			await query(`DELETE FROM "CreditCardImportItem" WHERE "id"=ANY($1)`, [paymentIds]);
+		}
+		const book = await readCreditBook(userId, batch.creditCardId);
+		const sources = book.purchases.map(p => ({
+			id: p.id,
+			installmentAmountsCents: p.installmentAmountsCents,
+			purchaseDate: p.purchaseDate,
+			totalAmount: p.totalAmountCents / 100,
+		}));
+		for (const { anticipation, credit, installments, sourceId: matchedSourceId } of anticipationRefundPairs(
+			items.filter(item => !isInvoicePayment(item.description)),
+			sources,
+		)) {
 			let description = withImportedAnticipation(credit.description, installments);
 			const sourceId = pendingPurchaseId(anticipation.description);
 			if (sourceId) description = withPendingPurchase(description, sourceId);
@@ -331,8 +347,8 @@ export async function combinePendingAnticipationRefunds(userId: string, importId
 					credit.id,
 					description,
 					anticipation.installments,
-					-Math.abs(Number(anticipation.totalAmount)),
-					anticipation.reconciledCreditPurchaseId,
+					-Math.max(Math.abs(Number(anticipation.totalAmount)), Math.abs(Number(credit.installmentAmount))),
+					anticipation.reconciledCreditPurchaseId ?? matchedSourceId,
 				],
 			);
 			await cleanupItemTags([anticipation.id]);

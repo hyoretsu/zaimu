@@ -1,6 +1,7 @@
 import { isGenericImportedRefund } from "@zaimu/finance/credit-refund";
 import { hasCompleteImportedPlan, withImportedAnticipation } from "@zaimu/finance/imported-anticipation";
 import type { CreditCardStatementPurchase } from "./credit-card-statement";
+import { isInvoicePayment } from "./invoice-payment";
 
 /** Multiple distinct installment numbers in one statement belong to one purchase. */
 export function groupAnticipatedInstallments(purchases: CreditCardStatementPurchase[]) {
@@ -63,7 +64,7 @@ export function groupAnticipatedInstallments(purchases: CreditCardStatementPurch
 	const originalToGrouped = new Map<number, number>();
 	const result: CreditCardStatementPurchase[] = [];
 	for (const [index, purchase] of purchases.entries()) {
-		if (removed.has(index)) continue;
+		if (removed.has(index) || isInvoicePayment(purchase.description)) continue;
 		originalToGrouped.set(index, result.length);
 		const { statementPurchaseDate: _, ...value } = replacements.get(index) ?? purchase;
 		// A complete plan also supplies a separate original for explicit approval.
