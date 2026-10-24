@@ -447,3 +447,6 @@ Pagamentos de fatura, inclusive débito automático, não entram como compras ne
 
 
 Reembolsos importados parciais permitem vincular manualmente qualquer compra do mesmo cartão com saldo reembolsável suficiente, incluindo originais pendentes da mesma importação, sem exigir correspondência entre o crédito e somas de parcelas. Essa regra substitui o filtro por soma de parcelas para créditos comuns de reembolso. Cancelamentos explícitos de parcelas e antecipações preservam o filtro por parcelas consecutivas. Sugestões automáticas continuam exigindo correspondência exata e segura; saldo insuficiente impede o vínculo.
+
+
+Na revisão de reembolsos importados, Salvar persiste somente a origem, os dados de reconstrução e a política escolhida. O reembolso permanece pendente, sem criar compras ou créditos, cancelar parcelas ou alterar a política da instituição. Reabrir recupera a última revisão salva; Descartar abandona alterações não salvas. A aprovação explícita pode ocorrer na linha ou em lote por Aprovar itens sem pendências e revalida os dados financeiros atuais. Sugestões automáticas de origem não substituem a revisão salva. Reembolsos bloqueados permanecem pendentes na aprovação em lote. A compra original pendente pode ser aprovada antes do reembolso sem perder o vínculo.

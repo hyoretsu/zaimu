@@ -750,4 +750,230 @@ describe("normalized refund transactions", () => {
 			await queryRaw(`SELECT 1 FROM "CreditPurchaseImportIdentity" WHERE "purchaseId"=$1`, [id]),
 		).toEqual([]);
 	});
+	describe("saved import refund reviews", () => {
+		async function fixture(query: typeof import("~/shared/infra/sql").queryRaw) {
+			const id = crypto.randomUUID().slice(0, 8);
+			const cardId = `review-card-${id}`;
+			const accountId = `review-account-${id}`;
+			const importId = `review-import-${id}`;
+			const itemId = `review-refund-${id}`;
+			const purchaseId = `review-purchase-${id}`;
+			await query(
+				`INSERT INTO "FinancialAccount" ("id", "userId", "name", "type") VALUES ($1,$2,'Review','CREDIT_CARD')`,
+				[accountId, context.userId],
+			);
+			await query(
+				`INSERT INTO "CreditCard" ("id", "financialAccountId", "creditLimit", "statementDay", "dueDay") VALUES ($1,$2,5000,15,25)`,
+				[cardId, accountId],
+			);
+			await query(
+				`INSERT INTO "CreditCardImport" ("id", "userId", "creditCardId", "provider", "fileName", "statementDate", "dueDate") VALUES ($1,$2,$3,'NUBANK','review.pdf','2024-09-15','2024-09-25')`,
+				[importId, context.userId, cardId],
+			);
+			await query(
+				`INSERT INTO "CreditCardImportItem" ("id", "creditCardImportId", "externalId", "purchaseDate", "description", "totalAmount", "installmentAmount") VALUES ($1,$2,$1,'2024-09-04','Refund',-50,-50)`,
+				[itemId, importId],
+			);
+			await query(
+				`INSERT INTO "CreditPurchaseRecord" ("id", "userId", "creditCardId", "description", "purchaseDate", "totalAmount") VALUES ($1,$2,$3,'Original','2024-08-01',300)`,
+				[purchaseId, context.userId, cardId],
+			);
+			await query(
+				`INSERT INTO "CreditInstallmentPlan" ("purchaseId", "number", "amount") VALUES ($1,1,100),($1,2,100),($1,3,100)`,
+				[purchaseId],
+			);
+			return { accountId, cardId, importId, itemId, purchaseId };
+		}
+
+		for (const mode of ["link", "reconstruct", "pending"] as const) {
+			test(`saving ${mode} keeps financial state unchanged; explicit approval applies once`, async () => {
+				const { withRawTransaction, queryRaw } = await import("~/shared/infra/sql");
+				const { saveRefundReview } = await import("../../credit-card-imports/application/refund-review");
+				const { approveItems, getImportReturn } = await import(
+					"../../credit-card-imports/application/import-service"
+				);
+				await expect(
+					withRawTransaction(async () => {
+						const f = await fixture(queryRaw);
+						const sourceId = `source-${f.itemId}`;
+						if (mode === "pending")
+							await queryRaw(
+								`INSERT INTO "CreditCardImportItem" ("id", "creditCardImportId", "externalId", "purchaseDate", "description", "totalAmount", "installmentAmount") VALUES ($1,$2,$1,'2024-08-05','Pending source',100,100)`,
+								[sourceId, f.importId],
+							);
+						const draft =
+							mode === "reconstruct"
+								? {
+										purchase: {
+											description: "Reconstructed",
+											installments: 1,
+											purchaseDate: "2024-08-10",
+											totalAmount: 100,
+										},
+									}
+								: { purchaseId: mode === "pending" ? `pending:${sourceId}` : f.purchaseId };
+						const snapshot = await queryRaw(
+							`SELECT "id", "totalAmount" FROM "CreditPurchaseRecord" WHERE "creditCardId"=$1`,
+							[f.cardId],
+						);
+						await saveRefundReview(context.userId, f.importId, f.itemId, draft);
+						expect(
+							await queryRaw(
+								`SELECT "id", "totalAmount" FROM "CreditPurchaseRecord" WHERE "creditCardId"=$1`,
+								[f.cardId],
+							),
+						).toEqual(snapshot);
+						expect(
+							await queryRaw(
+								`SELECT * FROM "CreditRefundRecord" WHERE "purchaseId" IN (SELECT "id" FROM "CreditPurchaseRecord" WHERE "creditCardId"=$1)`,
+								[f.cardId],
+							),
+						).toEqual([]);
+						expect(
+							(await getImportReturn(context.userId, f.importId)).items.find(item => item.id === f.itemId)
+								?.refundReview,
+						).toMatchObject(draft);
+						expect(
+							(
+								await queryRaw<{ status: string }>(`SELECT "status" FROM "CreditCardImport" WHERE "id"=$1`, [
+									f.importId,
+								])
+							)[0].status,
+						).toBe("PENDING");
+						if (mode === "pending") await approveItems(context.userId, f.importId, sourceId);
+						expect(await approveItems(context.userId, f.importId, f.itemId)).toMatchObject({ created: 1 });
+						expect(
+							await queryRaw(
+								`SELECT * FROM "CreditRefundRecord" WHERE "purchaseId" IN (SELECT "id" FROM "CreditPurchaseRecord" WHERE "creditCardId"=$1)`,
+								[f.cardId],
+							),
+						).toHaveLength(1);
+						await expect(approveItems(context.userId, f.importId, f.itemId)).rejects.toThrow();
+						throw new Error("rollback review test");
+					}),
+				).rejects.toThrow("rollback review test");
+			});
+		}
+
+		test("bulk approval keeps blocked and unreviewed refunds while approving valid items", async () => {
+			const { queryRaw, withRawTransaction } = await import("~/shared/infra/sql");
+			const { saveRefundReview } = await import("../../credit-card-imports/application/refund-review");
+			const { approveItems } = await import("../../credit-card-imports/application/import-service");
+			await expect(
+				withRawTransaction(async () => {
+					const f = await fixture(queryRaw);
+					await saveRefundReview(context.userId, f.importId, f.itemId, { purchaseId: f.purchaseId });
+					await queryRaw(`DELETE FROM "CreditPurchaseRecord" WHERE "id"=$1`, [f.purchaseId]);
+					const validId = `valid-${f.itemId}`;
+					const unreviewedId = `unreviewed-${f.itemId}`;
+					await queryRaw(
+						`INSERT INTO "CreditCardImportItem" ("id", "creditCardImportId", "externalId", "purchaseDate", "description", "totalAmount", "installmentAmount") VALUES ($1,$3,$1,'2024-09-03','Valid refund',-50,-50),($2,$3,$2,'2024-09-02','Unreviewed refund',-50,-50)`,
+						[validId, unreviewedId, f.importId],
+					);
+					await saveRefundReview(context.userId, f.importId, validId, {
+						purchase: {
+							description: "Valid original",
+							installments: 1,
+							purchaseDate: "2024-08-01",
+							totalAmount: 50,
+						},
+					});
+					expect(await approveItems(context.userId, f.importId)).toMatchObject({ created: 1 });
+					expect(
+						(
+							await queryRaw<{ id: string }>(
+								`SELECT "id" FROM "CreditCardImportItem" WHERE "creditCardImportId"=$1 ORDER BY "id"`,
+								[f.importId],
+							)
+						)
+							.map(row => row.id)
+							.sort(),
+					).toEqual([f.itemId, unreviewedId].sort());
+					throw new Error("rollback bulk test");
+				}),
+			).rejects.toThrow("rollback bulk test");
+		});
+
+		test("invalid review and insufficient balance preserve pending data", async () => {
+			const { queryRaw, withRawTransaction } = await import("~/shared/infra/sql");
+			const { saveRefundReview } = await import("../../credit-card-imports/application/refund-review");
+			const { approveItems } = await import("../../credit-card-imports/application/import-service");
+			await expect(
+				withRawTransaction(async () => {
+					const f = await fixture(queryRaw);
+					await expect(saveRefundReview(context.userId, f.importId, f.itemId, {})).rejects.toThrow("Vincule");
+					await expect(approveItems(context.userId, f.importId, f.itemId)).rejects.toThrow("Salve");
+					await saveRefundReview(context.userId, f.importId, f.itemId, { purchaseId: f.purchaseId });
+					await queryRaw(`UPDATE "CreditCardImportItem" SET "installmentAmount"=-301 WHERE "id"=$1`, [
+						f.itemId,
+					]);
+					await expect(approveItems(context.userId, f.importId, f.itemId)).rejects.toThrow();
+					expect(
+						await queryRaw(`SELECT "id" FROM "CreditCardImportItem" WHERE "id"=$1`, [f.itemId]),
+					).toHaveLength(1);
+					expect(
+						await queryRaw(
+							`SELECT "id" FROM "CreditRefundRecord" WHERE "purchaseId" IN (SELECT "id" FROM "CreditPurchaseRecord" WHERE "creditCardId"=$1)`,
+							[f.cardId],
+						),
+					).toHaveLength(0);
+					throw new Error("rollback invalid test");
+				}),
+			).rejects.toThrow("rollback invalid test");
+		});
+		test("future-installment policy is required and saving it does not define institution policy", async () => {
+			const { queryRaw, withRawTransaction } = await import("~/shared/infra/sql");
+			const { saveRefundReview } = await import("../../credit-card-imports/application/refund-review");
+			await expect(
+				withRawTransaction(async () => {
+					const f = await fixture(queryRaw);
+					const purchase = {
+						description: "Full refund",
+						installments: 3,
+						purchaseDate: "2024-08-01",
+						totalAmount: 50,
+					};
+					await expect(
+						saveRefundReview(context.userId, f.importId, f.itemId, { purchase }),
+					).rejects.toThrow();
+					await saveRefundReview(context.userId, f.importId, f.itemId, {
+						policy: "KEEP_INSTALLMENTS",
+						purchase,
+					});
+					expect(
+						await queryRaw(
+							`SELECT "id" FROM "CreditRefundRecord" WHERE "purchaseId" IN (SELECT "id" FROM "CreditPurchaseRecord" WHERE "creditCardId"=$1)`,
+							[f.cardId],
+						),
+					).toHaveLength(0);
+					throw new Error("rollback policy test");
+				}),
+			).rejects.toThrow("rollback policy test");
+		});
+
+		test("concurrent approvals create only one refund", async () => {
+			const { queryRaw, withRawTransaction } = await import("~/shared/infra/sql");
+			const { saveRefundReview } = await import("../../credit-card-imports/application/refund-review");
+			const { approveItems } = await import("../../credit-card-imports/application/import-service");
+			const f = await withRawTransaction(() => fixture(queryRaw));
+			try {
+				await saveRefundReview(context.userId, f.importId, f.itemId, { purchaseId: f.purchaseId });
+				const results = await Promise.allSettled([
+					approveItems(context.userId, f.importId, f.itemId),
+					approveItems(context.userId, f.importId, f.itemId),
+				]);
+				expect(results.filter(result => result.status === "fulfilled")).toHaveLength(1);
+				expect(
+					await queryRaw(
+						`SELECT "id" FROM "CreditRefundRecord" WHERE "purchaseId" IN (SELECT "id" FROM "CreditPurchaseRecord" WHERE "creditCardId"=$1)`,
+						[f.cardId],
+					),
+				).toHaveLength(1);
+			} finally {
+				await queryRaw(`DELETE FROM "CreditCardImport" WHERE "id"=$1`, [f.importId]);
+				await queryRaw(`DELETE FROM "CreditCard" WHERE "id"=$1`, [f.cardId]);
+				await queryRaw(`DELETE FROM "FinancialAccount" WHERE "id"=$1`, [f.accountId]);
+			}
+		});
+	});
 });

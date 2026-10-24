@@ -51,6 +51,7 @@ export function CreditCardImportItemRow({
 	onApprove,
 	onEdit,
 	onReconcile,
+	onReviewRefund,
 }: {
 	currencyCode: string;
 	creditCardId: string;
@@ -61,6 +62,7 @@ export function CreditCardImportItemRow({
 	onApprove: () => void;
 	onEdit: () => void;
 	onReconcile: () => void;
+	onReviewRefund: () => void;
 }) {
 	const transaction = toTransaction(item, creditCardId, creditCardName, currencyCode);
 	const financedOperation = getFinancedOperation(item.description);
@@ -83,20 +85,18 @@ export function CreditCardImportItemRow({
 							},
 						]
 					: []),
+				...(item.installmentAmount < 0
+					? [{ disabled, icon: <LuPencil />, onClick: onReviewRefund, text: "Revisar reembolso" }]
+					: []),
 				{
 					disabled:
 						disabled ||
-						(item.installmentAmount >= 0 &&
-							(item.duplicates.length > 0 || Boolean(requiresOriginal && !item.reconciledCreditPurchaseId))),
-					icon: pending ? (
-						<LuLoaderCircle className="animate-spin" />
-					) : item.installmentAmount < 0 ? (
-						<LuPencil />
-					) : (
-						<LuCheck />
-					),
+						(item.installmentAmount < 0
+							? !item.refundReview
+							: item.duplicates.length > 0 || Boolean(requiresOriginal && !item.reconciledCreditPurchaseId)),
+					icon: pending ? <LuLoaderCircle className="animate-spin" /> : <LuCheck />,
 					onClick: onApprove,
-					text: pending ? "Processando..." : item.installmentAmount < 0 ? "Revisar reembolso" : "Aprovar",
+					text: pending ? "Processando..." : "Aprovar",
 				},
 				...(item.installmentAmount < 0
 					? []

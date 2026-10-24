@@ -31,3 +31,21 @@ export const CreditCardImportItemReconcileDTO = t.Object({
 		),
 	),
 });
+
+export const RefundImportReviewDTO = t.Object({
+	policy: t.Optional(t.Union([t.Literal("KEEP_INSTALLMENTS"), t.Literal("CANCEL_FUTURE_INSTALLMENTS")])),
+	purchase: t.Optional(
+		t.Object({
+			description: t.String({ maxLength: 500, minLength: 1 }),
+			installments: t.Integer({ maximum: 48, minimum: 1 }),
+			purchaseDate: t.String({ format: "date" }),
+			storeName: t.Optional(t.String({ maxLength: 200 })),
+			tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
+			totalAmount: t.Number({ exclusiveMinimum: 0 }),
+		}),
+	),
+	purchaseId: t.Optional(t.String({ maxLength: 44, minLength: 1 })),
+});
+export type RefundImportReviewDTO = typeof RefundImportReviewDTO.static;
+
+export const SavedRefundImportReviewReturn = t.Object({ refundReview: RefundImportReviewDTO });

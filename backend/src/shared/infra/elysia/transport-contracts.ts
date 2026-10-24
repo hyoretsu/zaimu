@@ -1,4 +1,5 @@
 import { t } from "elysia";
+import { RefundImportReviewDTO } from "~/modules/credit-card-imports/infra/elysia/CreditCardImportsDTO";
 import { CardCalendarPeriodDTO } from "~/modules/creditCards/infra/elysia/CardCalendarPeriodDTO";
 
 export const OpenFinanceBindingReturn = t.Object({
@@ -497,6 +498,7 @@ export const CreditCardImportItemReturn = t.Object({
 	metadataMissing: t.Optional(t.Array(t.String())),
 	purchaseDate: t.String(),
 	reconciledCreditPurchaseId: t.Optional(t.Union([t.Null(), t.String()])),
+	refundReview: t.Optional(t.Nullable(RefundImportReviewDTO)),
 	storeName: t.Optional(t.Union([t.Null(), t.String()])),
 	tagIds: t.Array(t.String()),
 	tags: t.Array(TagReturn),

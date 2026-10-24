@@ -31,6 +31,7 @@ import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { eligibleRefundSources, matchingRefundSource } from "./refund-source-match";
 
 export function RefundImportReviewDialog({
+	action = "approve",
 	cardId,
 	initialData,
 	item,
@@ -40,6 +41,7 @@ export function RefundImportReviewDialog({
 	pending,
 	reviewKey,
 }: {
+	action?: "save" | "approve";
 	cardId: string;
 	initialData?: Parameters<typeof dataService.creditCardImports.approveRefund>[2];
 	item: Pick<
@@ -358,7 +360,13 @@ export function RefundImportReviewDialog({
 						onClick={() => void submit().catch(() => undefined)}
 						type="button"
 					>
-						{pending ? "Aprovando..." : "Aprovar reembolso"}
+						{action === "save"
+							? pending
+								? "Salvando..."
+								: "Salvar"
+							: pending
+								? "Aprovando..."
+								: "Aprovar reembolso"}
 					</Button>
 				</DialogFooter>
 			</ImportDialogContent>

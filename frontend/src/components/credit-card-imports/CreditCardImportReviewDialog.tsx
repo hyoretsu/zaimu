@@ -139,8 +139,8 @@ export function CreditCardImportReviewDialog({
 			cache: { client: queryClient, operations: ["statement"] },
 			close: () => {},
 			conflictKey: `credit-card-import:${targetImportId}:${item.id}`,
-			failureMessage: "Não foi possível aprovar compra.",
-			loadingMessage: "Aprovando compra...",
+			failureMessage: "Não foi possível aprovar item.",
+			loadingMessage: "Aprovando item...",
 			onSuccess: async () => {
 				await refreshReview(targetImportId);
 			},
@@ -151,9 +151,12 @@ export function CreditCardImportReviewDialog({
 				payload: { importId: targetImportId },
 			},
 			run: () => dataService.creditCardImports.approveItem(targetImportId, item.id),
-			successMessage: importedAnticipation(item.description ?? "")
-				? "Parcelas antecipadas movidas para esta fatura."
-				: "Compra e parcelas criadas.",
+			successMessage:
+				item.installmentAmount < 0
+					? "Reembolso aprovado e faturas recalculadas."
+					: importedAnticipation(item.description ?? "")
+						? "Parcelas antecipadas movidas para esta fatura."
+						: "Compra e parcelas criadas.",
 		});
 	};
 	useBackgroundModalRecovery<{ importId: string }>("credit-card-import-action", entry =>
@@ -252,14 +255,13 @@ export function CreditCardImportReviewDialog({
 											disabled={rowBusy(item.id)}
 											item={item}
 											key={item.id}
-											onApprove={() =>
-												item.installmentAmount < 0 ? setReviewingRefund(item) : approveItem(item)
-											}
+											onApprove={() => approveItem(item)}
 											onEdit={() => setEditingItem(item)}
 											onReconcile={() => {
 												if (!importId) return;
 												setReconcilingImport({ id: importId, item });
 											}}
+											onReviewRefund={() => setReviewingRefund(item)}
 											pending={rowBusy(item.id)}
 										/>
 									))}
@@ -303,9 +305,11 @@ export function CreditCardImportReviewDialog({
 										.filter(
 											item =>
 												item.duplicates.length === 0 &&
-												item.installmentAmount >= 0 &&
+												(item.installmentAmount >= 0 || Boolean(item.refundReview)) &&
 												!item.metadataMissing?.length &&
-												(!importedAnticipation(item.description) || Boolean(item.reconciledCreditPurchaseId)),
+												(item.installmentAmount < 0 ||
+													!importedAnticipation(item.description) ||
+													Boolean(item.reconciledCreditPurchaseId)),
 										)
 										.map(item => item.id),
 								})
@@ -389,8 +393,22 @@ export function CreditCardImportReviewDialog({
 			/>
 			{reviewingRefund && creditCardImportData ? (
 				<RefundImportReviewDialog
+					action="save"
 					cardId={creditCardImportData.creditCardId}
-					initialData={recoveredRefund}
+					initialData={
+						recoveredRefund ??
+						(reviewingRefund.refundReview
+							? {
+									...reviewingRefund.refundReview,
+									purchase: reviewingRefund.refundReview.purchase
+										? {
+												...reviewingRefund.refundReview.purchase,
+												installments: Number(reviewingRefund.refundReview.purchase.installments),
+											}
+										: undefined,
+								}
+							: undefined)
+					}
 					item={reviewingRefund}
 					key={reviewingRefund.id}
 					loadSources={() => dataService.creditCardImports.refundSources(importId!)}
@@ -404,25 +422,22 @@ export function CreditCardImportReviewDialog({
 						const item = reviewingRefund;
 						const targetImportId = importId!;
 						runBackgroundModalAction({
-							cache: { client: queryClient, operations: ["statement"] },
 							close: () => {
 								setReviewingRefund(null);
 								setRecoveredRefund(undefined);
 							},
 							conflictKey: `credit-card-import:${targetImportId}:${item.id}`,
-							failureMessage: "Não foi possível aprovar o reembolso.",
-							loadingMessage: "Aprovando reembolso...",
-							onSuccess: async () => {
-								await refreshReview(targetImportId);
-							},
+							failureMessage: "Não foi possível salvar a revisão do reembolso.",
+							loadingMessage: "Salvando revisão do reembolso...",
+							onSuccess: () => invalidate(targetImportId),
 							progress: "record",
 							recovery: {
 								entityId: item.id,
 								kind: "credit-card-import-refund",
 								payload: { data, importId: targetImportId, item },
 							},
-							run: () => dataService.creditCardImports.approveRefund(targetImportId, item.id, data),
-							successMessage: "Reembolso aprovado e faturas recalculadas.",
+							run: () => dataService.creditCardImports.saveRefundReview(targetImportId, item.id, data),
+							successMessage: "Revisão salva. Reembolso continua pendente.",
 						});
 					}}
 					pending={false}

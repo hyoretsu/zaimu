@@ -58,6 +58,8 @@ import {
 import { uniquePurchaseMatches } from "../domain/unique-purchase-matches";
 import { materializeImportedPurchase, materializeImportedPurchases } from "./materialize-imported-purchase";
 
+import { approveReviewedRefund } from "./refund-review";
+
 const importItemTagEntityType = "CREDIT_CARD_IMPORT_ITEM";
 const dateKey = (value: Date | string) => new Date(value).toISOString().slice(0, 10);
 
@@ -407,6 +409,7 @@ export async function getImportReturn(
 					"isSelected",
 					"purchaseDate",
 					"reconciledCreditPurchaseId",
+					"refundReview",
 					"storeName",
 					"time",
 					"totalAmount",
@@ -552,8 +555,39 @@ export async function approveItems(
 	importId: string,
 	itemId?: string,
 	includeUnmatched = true,
-) {
-	return withRawTransaction(() => approveItemsImpl(userId, importId, itemId, includeUnmatched));
+): Promise<{ created: number }> {
+	return withRawTransaction(async () => {
+		await queryRaw(`SELECT "id" FROM "CreditCardImport" WHERE "id"=$1 AND "userId"=$2 FOR UPDATE`, [
+			importId,
+			userId,
+		]);
+		if (itemId) {
+			const [item] = await queryRaw<{ installmentAmount: number }>(
+				`SELECT "installmentAmount" FROM "CreditCardImportItem" WHERE "id"=$1 AND "creditCardImportId"=$2`,
+				[itemId, importId],
+			);
+			if (item && Number(item.installmentAmount) < 0) return approveReviewedRefund(userId, importId, itemId);
+			return approveItemsImpl(userId, importId, itemId, includeUnmatched);
+		}
+		const result = await approveItemsImpl(userId, importId, undefined, includeUnmatched);
+		const refunds = await queryRaw<{ id: string }>(
+			`SELECT "id" FROM "CreditCardImportItem" WHERE "creditCardImportId"=$1 AND "installmentAmount"<0 AND "refundReview" IS NOT NULL ORDER BY "createdAt", "id"`,
+			[importId],
+		);
+		for (const refund of refunds) {
+			await queryRaw("SAVEPOINT approve_import_refund");
+			try {
+				const approved = await approveReviewedRefund(userId, importId, refund.id);
+				result.created += approved.created;
+				await queryRaw("RELEASE SAVEPOINT approve_import_refund");
+			} catch (error) {
+				await queryRaw("ROLLBACK TO SAVEPOINT approve_import_refund");
+				await queryRaw("RELEASE SAVEPOINT approve_import_refund");
+				if (!(error instanceof HttpException) || error.statusCode >= 500) throw error;
+			}
+		}
+		return result;
+	});
 }
 
 async function approveItemsImpl(
@@ -813,6 +847,10 @@ async function approveItemsImpl(
 	}
 	for (const source of batchItems) {
 		const rootId = rootsByItem.get(source.id)!;
+		await queryRaw(
+			`UPDATE "CreditCardImportItem" SET "refundReview"=jsonb_set("refundReview"::jsonb, '{purchaseId}', to_jsonb($3::text))::json, "updatedAt"=CURRENT_TIMESTAMP WHERE "creditCardImportId"=$1 AND "refundReview"->>'purchaseId'=$2`,
+			[importId, `pending:${source.id}`, rootId],
+		);
 		for (const dependent of allItems.filter(item => pendingPurchaseId(item.description) === source.id)) {
 			await executeStatement(
 				db.sql.public.CreditCardImportItem.update({

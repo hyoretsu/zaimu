@@ -16,24 +16,13 @@ import {
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
 import { type CreditReadRow, readCreditEntries } from "~/modules/creditCards/application/credit-entry-reader";
-import {
-	mutateCreditBook,
-	newBookPurchase,
-	readCreditBook,
-} from "~/modules/creditCards/application/normalized-credit-book";
+import { mutateCreditBook, readCreditBook } from "~/modules/creditCards/application/normalized-credit-book";
 import { getDebtSplitInput, replaceDebtSplit } from "~/modules/debts/application/debt-splits";
 import { createCreditCardBatch } from "~/modules/transaction-imports/application/import-batches";
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
 import { rejectLegacyFinancialFields } from "~/shared/infra/elysia/strict-json-body";
-import {
-	db,
-	executeStatement,
-	queryFirst,
-	queryRaw,
-	queryRows,
-	withRawTransaction,
-} from "~/shared/infra/sql";
+import { db, executeStatement, queryFirst, queryRaw, queryRows } from "~/shared/infra/sql";
 import {
 	approveItems,
 	cleanupItemTags,
@@ -43,13 +32,14 @@ import {
 	getPotentialDuplicates,
 	markStatementAsFullySynced,
 } from "../../application/import-service";
-import { combineAnticipationRefunds, refundCancellationNumbers } from "../../domain/anticipation-refunds";
+import { approveReviewedRefund, saveRefundReview } from "../../application/refund-review";
+import { combineAnticipationRefunds } from "../../domain/anticipation-refunds";
 import { confirmedImportRoots } from "../../domain/confirmed-import-roots";
 import { assignCreditCardPurchaseExternalIds } from "../../domain/credit-card-import-identity";
 import { parseCreditCardStatementPdf } from "../../domain/credit-card-statement-parser";
 import { getEditedInstallmentAmount } from "../../domain/edited-installment-amount";
 import { existingImportRoots } from "../../domain/existing-import-roots";
-import { approveImportedRefund, existingImportedRefund } from "../../domain/existing-imported-refund";
+import { existingImportedRefund } from "../../domain/existing-imported-refund";
 import { existingPurchaseImportValues } from "../../domain/existing-purchase-import-values";
 import { filterZeroValuePurchases } from "../../domain/filter-zero-value-purchases";
 import {
@@ -69,7 +59,12 @@ import {
 	synchronizeNextImportedStatement,
 } from "../../domain/resolve-import-statement-dates";
 import { findPendingImport, selectNewImportPurchases } from "../../domain/select-new-import-purchases";
-import { CreditCardImportItemReconcileDTO, CreditCardImportItemUpdateDTO } from "./CreditCardImportsDTO";
+import {
+	CreditCardImportItemReconcileDTO,
+	CreditCardImportItemUpdateDTO,
+	RefundImportReviewDTO,
+	SavedRefundImportReviewReturn,
+} from "./CreditCardImportsDTO";
 
 const importItemTagEntityType = "CREDIT_CARD_IMPORT_ITEM";
 const dateKey = (value: Date | string) => new Date(value).toISOString().slice(0, 10);
@@ -750,130 +745,15 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 		},
 		{ detail: { operationId: "getCreditCardImportsByIdRefundSources" } },
 	)
+	.patch(
+		"/:id/items/:itemId/refund-review",
+		async ({ params, body, request }) =>
+			saveRefundReview(await requireUserId(request), params.id, params.itemId, body),
+		{ body: RefundImportReviewDTO, response: SavedRefundImportReviewReturn },
+	)
 	.post(
 		"/:id/items/:itemId/approve-refund",
-		async ({ params, body, request }) => {
-			if (Boolean(body.purchaseId) === Boolean(body.purchase))
-				throw new HttpException("Vincule ou reconstrua a compra original", 400);
-			const userId = await requireUserId(request);
-			return withRawTransaction(async query => {
-				await query(`SELECT "id" FROM "CreditCardImport" WHERE "id"=$1 AND "userId"=$2 FOR UPDATE`, [
-					params.id,
-					userId,
-				]);
-				const imported = await getImport(userId, params.id);
-				if (imported.status !== "PENDING") throw new HttpException("Importação já aprovada", 409);
-				await combinePendingAnticipationRefunds(userId, params.id);
-				const [item] = await query<{
-					id: string;
-					description: string;
-					installmentAmount: number;
-					purchaseDate: Date;
-					externalId: string;
-					time: string | null;
-				}>(`SELECT * FROM "CreditCardImportItem" WHERE "id"=$1 AND "creditCardImportId"=$2 FOR UPDATE`, [
-					params.itemId,
-					params.id,
-				]);
-				if (!item || Number(item.installmentAmount) >= 0)
-					throw new HttpException("Reembolso importado não encontrado", 404);
-				let purchaseId = body.purchaseId;
-				if (purchaseId?.startsWith("pending:")) {
-					const sourceId = purchaseId.slice(8);
-					const [source] = await query<{
-						externalId: string;
-						description: string;
-						installmentAmount: string;
-						isStatementCharge: boolean;
-					}>(`SELECT * FROM "CreditCardImportItem" WHERE "id"=$1 AND "creditCardImportId"=$2 FOR UPDATE`, [
-						sourceId,
-						params.id,
-					]);
-					if (
-						!source ||
-						Number(source.installmentAmount) <= 0 ||
-						source.isStatementCharge ||
-						importedAnticipation(source.description) ||
-						getFinancingSource(source.description)
-					)
-						throw new HttpException("Compra original pendente não encontrada", 409);
-					await approveItems(userId, params.id, sourceId);
-					const [root] = await query<{ id: string }>(
-						`SELECT "id" FROM "CreditEntry" WHERE "externalId"=$1 AND "creditCardId"=$2 AND "parentId" IS NULL`,
-						[source.externalId, imported.creditCardId],
-					);
-					if (!root) throw new HttpException("Compra original não encontrada", 409);
-					purchaseId = root.id;
-				}
-				await mutateCreditBook(userId, imported.creditCardId, book => {
-					const p = purchaseId
-						? book.purchases.find(p => p.id === purchaseId)
-						: body.purchase
-							? newBookPurchase(book, {
-									...body.purchase,
-									installments: body.purchase.installments,
-									storeName: body.purchase.storeName ?? null,
-									tagIds: body.purchase.tagIds ?? [],
-								})
-							: null;
-					if (!p) throw new HttpException("Vincule ou revise a compra original", 400);
-					const importedCancellation = importedAnticipation(item.description);
-					if (body.purchase && importedCancellation) {
-						p.installmentAmountsCents = distributePurchaseCents(
-							p.totalAmountCents,
-							p.installmentAmountsCents.length,
-							new Map(importedCancellation.map(part => [part.number, part.amountCents])),
-							book.card.installmentRemainderOnFirst,
-						);
-					}
-					const cancellation = refundCancellationNumbers(
-						item.description,
-						Math.round(Math.abs(Number(item.installmentAmount)) * 100),
-						p.installmentAmountsCents,
-					);
-					const r = approveImportedRefund(book, p.id, {
-						amount: Math.abs(Number(item.installmentAmount)),
-						canceledInstallmentNumbers: cancellation,
-						creditDate: dateKey(item.purchaseDate),
-						externalId: item.externalId,
-						policy: body.policy,
-					});
-					r.externalId = item.externalId;
-					r.time = item.time ?? r.time;
-				});
-				await cleanupItemTags([item.id]);
-				await query(`DELETE FROM "CreditCardImportItem" WHERE "id"=$1`, [item.id]);
-				const [{ remaining }] = await query<{ remaining: number }>(
-					`SELECT count(*)::int AS remaining FROM "CreditCardImportItem" WHERE "creditCardImportId"=$1`,
-					[params.id],
-				);
-				if (remaining === 0) {
-					await query(
-						`UPDATE "CreditCardImport" SET "status"='APPROVED', "updatedAt"=CURRENT_TIMESTAMP WHERE "id"=$1`,
-						[params.id],
-					);
-					await markStatementAsFullySynced(imported);
-				}
-				return { created: 1, finished: remaining === 0 };
-			});
-		},
-		{
-			body: t.Object({
-				policy: t.Optional(
-					t.Union([t.Literal("KEEP_INSTALLMENTS"), t.Literal("CANCEL_FUTURE_INSTALLMENTS")]),
-				),
-				purchase: t.Optional(
-					t.Object({
-						description: t.String({ maxLength: 500, minLength: 1 }),
-						installments: t.Integer({ maximum: 48, minimum: 1 }),
-						purchaseDate: t.String({ format: "date" }),
-						storeName: t.Optional(t.String({ maxLength: 200 })),
-						tagIds: t.Optional(t.Array(t.String())),
-						totalAmount: t.Number({ exclusiveMinimum: 0 }),
-					}),
-				),
-				purchaseId: t.Optional(t.String()),
-			}),
-			detail: { operationId: "postCreditCardImportsByIdItemsByItemIdApproveRefund" },
-		},
+		async ({ params, body, request }) =>
+			approveReviewedRefund(await requireUserId(request), params.id, params.itemId, body),
+		{ body: RefundImportReviewDTO, response: t.Object({ created: t.Number(), finished: t.Boolean() }) },
 	);

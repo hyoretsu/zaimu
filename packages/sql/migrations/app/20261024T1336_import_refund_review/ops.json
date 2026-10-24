@@ -1,0 +1,36 @@
+[
+	{
+		"execute": [
+			{
+				"description": "add column \"refundReview\"",
+				"sql": "ALTER TABLE \"public\".\"CreditCardImportItem\" ADD COLUMN \"refundReview\" json"
+			}
+		],
+		"id": "column.public.CreditCardImportItem.refundReview",
+		"label": "Add column \"refundReview\" to \"CreditCardImportItem\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"refundReview\" exists",
+				"params": ["public", "CreditCardImportItem", "refundReview"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"refundReview\" is missing",
+				"params": ["public", "CreditCardImportItem", "refundReview"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "refundReview",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditCardImportItem"
+			},
+			"id": "postgres"
+		}
+	}
+]

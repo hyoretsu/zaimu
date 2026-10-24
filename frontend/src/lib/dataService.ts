@@ -79,6 +79,7 @@ import {
 	patchBalanceAdjustmentsById,
 	patchCategoriesById,
 	patchCreditCardImportsByIdItemsByItemId,
+	patchCreditCardImportsByIdItemsByItemIdRefundReview,
 	patchCreditCardsByIdPurchasesByPurchaseId,
 	patchCreditCardsByIdPurchasesByPurchaseIdRefundsByRefundId,
 	patchCreditCardsByIdStatementCutoff,
@@ -1169,6 +1170,7 @@ export const dataService = {
 			if (isGuestMode()) throw new Error("Conecte sua conta para revisar reembolsos.");
 			return postCreditCardImportsByIdItemsByItemIdApproveRefund(importId, itemId, data);
 		},
+
 		async create({
 			creditCardId,
 			statementId,
@@ -1228,6 +1230,14 @@ export const dataService = {
 		> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para revisar reembolsos.");
 			return getCreditCardImportsByIdRefundSources(importId);
+		},
+		async saveRefundReview(
+			importId: string,
+			itemId: string,
+			data: Parameters<typeof postCreditCardImportsByIdItemsByItemIdApproveRefund>[2],
+		) {
+			if (isGuestMode()) throw new Error("Conecte sua conta para revisar reembolsos.");
+			return patchCreditCardImportsByIdItemsByItemIdRefundReview(importId, itemId, data);
 		},
 		async updateItem(
 			importId: string,

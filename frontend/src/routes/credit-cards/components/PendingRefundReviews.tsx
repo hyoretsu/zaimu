@@ -58,6 +58,7 @@ export function PendingRefundReviews({ cardId, count }: { cardId: string; count:
 			))}
 			{selected ? (
 				<RefundImportReviewDialog
+					action="approve"
 					cardId={cardId}
 					item={{ ...selected.original, reconciledCreditPurchaseId: null }}
 					key={selected.id}
