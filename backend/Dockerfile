@@ -1,17 +1,21 @@
 # syntax=docker/dockerfile:1.7
 
-FROM oven/bun:1.4.3 AS deps
+FROM oven/bun:1.4.4 AS deps
 
 WORKDIR /app
 
 COPY package.json bun.lock ./
+COPY patches patches
+
+# Keep dependency downloads cached when workspace manifests change.
+RUN bun pm fetch
+
 COPY backend/package.json backend/package.json
 COPY frontend/package.json frontend/package.json
 COPY packages/finance/package.json packages/finance/package.json
 COPY packages/sql/package.json packages/sql/package.json
-COPY patches patches
 
-RUN bun i --frozen-lockfile --linker=isolated
+RUN bun i --offline --frozen-lockfile --linker=isolated
 
 FROM deps AS build
 
@@ -27,7 +31,7 @@ COPY . .
 
 RUN --mount=type=secret,id=DATABASE_URL DATABASE_URL="$(cat /run/secrets/DATABASE_URL)" bunx turbo -F backend build
 
-FROM oven/bun:1.4.3 AS runtime
+FROM oven/bun:1.4.4 AS runtime
 
 ENV NODE_ENV=production
 
