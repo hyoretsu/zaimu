@@ -10,6 +10,7 @@ import {
 	type PurchaseInvoiceInstallment,
 	rebuildPurchaseStatementLedger,
 } from "@zaimu/finance/purchase-statement-ledger";
+import { cardPaymentAmount } from "@zaimu/finance/transaction-money";
 import { workingDueDateSql } from "~/modules/accounts/application/institution-card-rules";
 import { HttpException } from "~/shared/errors";
 import type { withRawTransaction } from "~/shared/infra/sql";
@@ -68,6 +69,8 @@ interface ChargeRow {
 	amount: number;
 }
 interface PaymentRow {
+	bookingCurrency: string | null;
+	paymentAmount: number | string | null;
 	amount: number;
 	date: string;
 }
@@ -80,7 +83,7 @@ export async function replayNormalizedCard(query: RawQuery, cardId: string) {
 	);
 	if (!card) throw new HttpException("Cartão não encontrado", 404);
 	const cents = (amount: number) => Math.round(amount * currencyScale(card.currency));
-	const [purchaseRows, planRows, concreteRows, refundRows, existingStatements, chargeRows, payments] = [
+	const [purchaseRows, planRows, concreteRows, refundRows, existingStatements, chargeRows, paymentRows] = [
 		await query<PurchaseRow>(
 			`SELECT "id", "creditCardId", "description", "storeName",
 				 "purchaseDate"::text AS "purchaseDate", "totalAmount"
@@ -122,11 +125,12 @@ export async function replayNormalizedCard(query: RawQuery, cardId: string) {
 			[cardId],
 		),
 		await query<PaymentRow>(
-			`SELECT COALESCE("paymentAmount","amount") AS "amount", "date"::text AS "date" FROM "Transaction"
+			`SELECT "amount", "paymentAmount", "bookingCurrency", "date"::text AS "date" FROM "Transaction"
 				 WHERE "paymentCreditCardId" = $1`,
 			[cardId],
 		),
 	];
+	const payments = paymentRows.map(row => ({ ...row, amount: cardPaymentAmount(row, card.currency) }));
 	const plansByPurchase = Map.groupBy(planRows, row => row.purchaseId);
 	const purchases: CreditPurchase[] = purchaseRows.map(row => ({
 		creditCardId: row.creditCardId,

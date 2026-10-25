@@ -1,5 +1,22 @@
 import { roundMoney, toMinorUnits } from "./money";
 
+/** Same-currency payments have one amount; ignore stale hidden conversion fields. */
+export function cardPaymentAmount(
+	input: {
+		amount: number | string;
+		bookingCurrency?: string | null;
+		paymentAmount?: number | string | null;
+		paymentCurrency?: string | null;
+	},
+	cardCurrency = input.paymentCurrency ?? "BRL",
+) {
+	return Number(
+		(input.bookingCurrency ?? "BRL") === cardCurrency
+			? input.amount
+			: (input.paymentAmount ?? input.amount),
+	);
+}
+
 export interface TransactionMoneySides {
 	destinationAmount: number | null;
 	destinationCurrency: string | null;
@@ -25,6 +42,10 @@ export async function resolveTransactionMoneySides(
 		if (!currency) {
 			if (amount != null) throw new Error("Valor efetivo exige conta ou cartão de destino");
 			return null;
+		}
+		if (currency === input.currency) {
+			toMinorUnits(input.amount, currency, 1);
+			return input.amount;
 		}
 		if (amount != null) {
 			toMinorUnits(amount, currency, 1);

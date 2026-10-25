@@ -468,3 +468,5 @@ O total exibido da fatura representa o valor líquido no fechamento: inclui enca
 
 
 Reembolsos e antecipações importados só podem ser vinculados a compras com data igual ou anterior à operação. O limite vale para sugestões automáticas, escolha manual, originais pendentes da mesma importação e compras reconstruídas. Salvar a revisão e aprovar revalidam essa cronologia; compras posteriores não são opções elegíveis.
+
+Pagamentos de cartão e transferências na mesma moeda usam o valor contabilizado como valor efetivo do destino. Campos de conversão ocultos não preservam valores antigos após edição; registros legados com essa divergência são normalizados na leitura. Moedas diferentes preservam o valor efetivo informado. O recálculo usa essa regra em saldos, status e transporte entre faturas.

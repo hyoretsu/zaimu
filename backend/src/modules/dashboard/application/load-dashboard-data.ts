@@ -192,7 +192,7 @@ JOIN "CreditCardStatement" statement ON statement."id" = charge."statementId"
 JOIN visible_cards card ON card."id" = statement."creditCardId"
 UNION ALL
 SELECT 'payment', jsonb_build_object(
-  'amount', COALESCE(payment."paymentAmount", payment."amount"), 'creditCardId', payment."paymentCreditCardId", 'date', payment."date", 'id', payment."id"
+  'amount', payment."amount", 'paymentAmount', payment."paymentAmount", 'bookingCurrency', payment."bookingCurrency", 'creditCardId', payment."paymentCreditCardId", 'date', payment."date", 'id', payment."id"
 )
 FROM "Transaction" payment
 JOIN visible_cards card ON card."id" = payment."paymentCreditCardId"

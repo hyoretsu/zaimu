@@ -277,3 +277,24 @@ test("recurring card payments use purchase composition instead of full payment a
 	);
 	expect(result.flows[0]!.recurringAmount).toBe(0);
 });
+
+test("dashboard replays edited same-currency payments without stale hidden amounts", () => {
+	const rows = creditRows("card-a", 1863.01);
+	rows.push({
+		data: {
+			amount: 1863.01,
+			bookingCurrency: "BRL",
+			creditCardId: "card-a",
+			date: "2026-02-10",
+			id: "payment-a",
+			paymentAmount: 1434.35,
+		},
+		kind: "payment",
+	});
+	const statements = replayDashboardStatements("user-1", [card("card-a")], rows, "2026-02-15");
+	expect(statements.find(statement => statement.id === "statement-card-a")).toMatchObject({
+		balanceAmount: 0,
+		isPaid: true,
+		paidAmount: 1863.01,
+	});
+});

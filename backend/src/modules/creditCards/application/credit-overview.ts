@@ -5,6 +5,7 @@ import {
 	projectRecurrenceCreditBook,
 	type RecurrenceMoneyConverter,
 } from "@zaimu/finance/recurrence-projection";
+import { cardPaymentAmount } from "@zaimu/finance/transaction-money";
 import { workingDueDateSql } from "~/modules/accounts/application/institution-card-rules";
 export interface CreditOverviewRow extends Record<string, unknown> {
 	data: Record<string, unknown>;
@@ -108,7 +109,7 @@ JOIN "CreditCardStatement" statement ON statement."id" = charge."statementId"
 JOIN visible_cards card ON card."id" = statement."creditCardId"
 UNION ALL
 SELECT 'payment', jsonb_build_object(
-  'amount', COALESCE(payment."paymentAmount",payment."amount"), 'creditCardId', payment."paymentCreditCardId", 'date', payment."date", 'id', payment."id"
+  'amount', payment."amount", 'paymentAmount', payment."paymentAmount", 'bookingCurrency', payment."bookingCurrency", 'creditCardId', payment."paymentCreditCardId", 'date', payment."date", 'id', payment."id"
 )
 FROM "Transaction" payment
 JOIN visible_cards card ON card."id" = payment."paymentCreditCardId"
@@ -201,7 +202,14 @@ export function replayOverviewStatements(
 				statementId: String(row.statementId),
 			})),
 			payments: (paymentsByCard.get(card.id) ?? []).map(row => ({
-				amount: Number(row.amount),
+				amount: cardPaymentAmount(
+					{
+						amount: Number(row.amount),
+						bookingCurrency: row.bookingCurrency as string | null,
+						paymentAmount: row.paymentAmount == null ? null : Number(row.paymentAmount),
+					},
+					card.currency,
+				),
 				date: asDateKey(row.date),
 				id: String(row.id),
 			})),

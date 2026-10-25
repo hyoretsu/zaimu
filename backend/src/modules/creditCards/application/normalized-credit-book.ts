@@ -17,6 +17,7 @@ import {
 import { currentDateKey, recalculateStatementDueDate } from "@zaimu/finance/credit-card";
 import { assertPurchase, distributePurchaseCents } from "@zaimu/finance/credit-purchase";
 import { currencyScale } from "@zaimu/finance/money";
+import { cardPaymentAmount } from "@zaimu/finance/transaction-money";
 import { measureOperation } from "sql";
 import { workingDueDateSql } from "~/modules/accounts/application/institution-card-rules";
 import {
@@ -83,7 +84,7 @@ export async function loadCreditBook(
 		cardId,
 	]);
 	const payments = await query<Row>(
-		`SELECT "id", COALESCE("paymentAmount","amount") AS "amount", "date" FROM "Transaction" WHERE "paymentCreditCardId" = $1 AND "userId" = $2`,
+		`SELECT "id", "amount", "paymentAmount", "bookingCurrency", "paymentCurrency", "date" FROM "Transaction" WHERE "paymentCreditCardId" = $1 AND "userId" = $2`,
 		[cardId, userId],
 	);
 	const tombstones = await query<{ id: string; entryKind: string }>(
@@ -129,7 +130,18 @@ export async function loadCreditBook(
 			settledByPurchaseId: row.settledByPurchaseId as string | null,
 			statementId: String(row.statementId),
 		})),
-		payments: payments.map(row => ({ amount: Number(row.amount), date: date(row.date), id: String(row.id) })),
+		payments: payments.map(row => ({
+			amount: cardPaymentAmount(
+				{
+					amount: Number(row.amount),
+					bookingCurrency: row.bookingCurrency as string | null,
+					paymentAmount: row.paymentAmount == null ? null : Number(row.paymentAmount),
+				},
+				card.currency,
+			),
+			date: date(row.date),
+			id: String(row.id),
+		})),
 		purchases: purchases.map(p => {
 			const plan = plansByPurchase.get(String(p.id)) ?? [];
 			return {

@@ -13,6 +13,7 @@ import { currentDateKey } from "@zaimu/finance/credit-card";
 import { resolveInstitutionCardRules } from "@zaimu/finance/institution-card-rules";
 import { currencyScale, roundMoney, toMinorUnits } from "@zaimu/finance/money";
 import { pendingStatementPayments } from "@zaimu/finance/payment-suggestions";
+import { cardPaymentAmount } from "@zaimu/finance/transaction-money";
 import type {
 	Category,
 	CreditCard,
@@ -659,7 +660,7 @@ export async function reconcileLocalAdjustments(ownerKey?: StorageOwner) {
 			book.payments = movements
 				.filter(item => item.data.paymentCreditCardId === book.card.id)
 				.map(item => ({
-					amount: item.data.paymentAmount ?? item.data.amount,
+					amount: cardPaymentAmount(item.data, book.card.currency),
 					date: item.data.date.slice(0, 10),
 					id: item.localId,
 				}));
@@ -906,7 +907,7 @@ export async function mutateLocalCreditBook<T>(
 		book.payments = transactions
 			.filter(row => !row.deleted && row.data.paymentCreditCardId === cardId)
 			.map(row => ({
-				amount: row.data.paymentAmount ?? row.data.amount,
+				amount: cardPaymentAmount(row.data, book.card.currency),
 				date: row.data.date.slice(0, 10),
 				id: row.data.id,
 			}));
@@ -1063,7 +1064,7 @@ export async function transferLocalCreditBookPurchase(
 			book.payments = transactions
 				.filter(row => !row.deleted && row.data.paymentCreditCardId === book.card.id)
 				.map(row => ({
-					amount: row.data.paymentAmount ?? row.data.amount,
+					amount: cardPaymentAmount(row.data, book.card.currency),
 					date: row.data.date.slice(0, 10),
 					id: row.data.id,
 				}));
@@ -1165,7 +1166,7 @@ export async function readLocalCreditBook(cardId: string, owner?: StorageOwner):
 	book.payments = transactions
 		.filter(row => !row.deleted && row.data.paymentCreditCardId === cardId)
 		.map(row => ({
-			amount: row.data.paymentAmount ?? row.data.amount,
+			amount: cardPaymentAmount(row.data, book.card.currency),
 			date: row.data.date.slice(0, 10),
 			id: row.data.id,
 		}));
@@ -1817,7 +1818,7 @@ export async function confirmLocalSuggestedPayment(
 		book.payments = transactions
 			.filter(row => row.data.paymentCreditCardId === cardId)
 			.map(row => ({
-				amount: row.data.paymentAmount ?? row.data.amount,
+				amount: cardPaymentAmount(row.data, book.card.currency),
 				date: row.data.date.slice(0, 10),
 				id: row.localId,
 			}));
