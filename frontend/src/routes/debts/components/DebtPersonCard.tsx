@@ -140,11 +140,11 @@ export function DebtPersonCard({
 					<DialogHeader>
 						<DialogTitle>Lançamentos · {person.name}</DialogTitle>
 						<DialogDescription>Movimentações que compõem o saldo desta pessoa.</DialogDescription>
-						<div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3 text-sm">
-							<span className="text-muted-foreground">Total devido</span>
-							{balanceSummary}
-						</div>
 					</DialogHeader>
+					<div className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-xl border p-3 text-sm">
+						<span className="text-muted-foreground">Total devido</span>
+						{balanceSummary}
+					</div>
 					<DialogBody>
 						<div className="grid gap-2 pb-16">
 							{eventsQuery.isPending ? (
