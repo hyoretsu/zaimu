@@ -1,9 +1,7 @@
 import type { LinkProps } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { ActionGroup } from "./ActionGroup";
-import { Button } from "./Button";
-import { MobilePageActions } from "./MobilePageActions";
+import { PageActions } from "./PageActions";
 import { PageBackButton } from "./PageBackButton";
 import type { PageAction } from "./page-action";
 
@@ -35,23 +33,7 @@ export function PageHeader({
 					<h1 className="break-words font-bold text-3xl tracking-tight sm:text-4xl">{title}</h1>
 					{description && <p className="mt-2 max-w-2xl text-muted-foreground">{description}</p>}
 				</div>
-				{!!actions?.length && (
-					<ActionGroup className="hidden max-w-full basis-full lg:flex">
-						{actions.map(action => (
-							<Button
-								className="h-11 cursor-pointer"
-								disabled={action.disabled}
-								key={action.label}
-								onClick={action.onClick}
-								type="button"
-								variant={action.variant ?? "outline"}
-							>
-								<action.icon aria-hidden="true" /> {action.label}
-							</Button>
-						))}
-					</ActionGroup>
-				)}
-				{actions && <MobilePageActions actions={actions} />}
+				{actions && <PageActions actions={actions} />}
 				{controls}
 			</div>
 		</header>
