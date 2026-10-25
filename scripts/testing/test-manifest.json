@@ -63,6 +63,7 @@
 		"backend/src/modules/credit-card-imports/domain/edited-installment-amount.test.ts",
 		"backend/src/modules/credit-card-imports/domain/existing-import-roots.test.ts",
 		"backend/src/modules/credit-card-imports/domain/existing-imported-refund.test.ts",
+		"backend/src/modules/credit-card-imports/domain/existing-refund-matches.test.ts",
 		"backend/src/modules/credit-card-imports/domain/existing-purchase-import-values.test.ts",
 		"backend/src/modules/credit-card-imports/domain/filter-zero-value-purchases.test.ts",
 		"backend/src/modules/credit-card-imports/domain/financing-source-reference.test.ts",

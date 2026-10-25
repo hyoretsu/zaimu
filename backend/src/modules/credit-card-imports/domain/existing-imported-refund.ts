@@ -5,6 +5,8 @@ import {
 	updateBookRefund,
 } from "@zaimu/finance/credit-book";
 
+import { HttpException } from "../../../shared/errors/HttpException";
+
 interface ImportedRefund {
 	amount: number;
 	creditDate: string;
@@ -19,6 +21,14 @@ export function existingImportedRefund(
 	purchaseId: string,
 	input: ImportedRefund,
 ) {
+	const identified = refunds.find(refund => !refund.deletedAt && refund.externalId === input.externalId);
+	if (identified)
+		return !identified.deletedAt &&
+			identified.purchaseId === purchaseId &&
+			identified.creditDate === input.creditDate &&
+			identified.amountCents === Math.round(input.amount * 100)
+			? identified
+			: undefined;
 	const matches = refunds.filter(
 		refund =>
 			!refund.deletedAt &&
@@ -32,6 +42,11 @@ export function existingImportedRefund(
 
 export function approveImportedRefund(book: CreditBook, purchaseId: string, input: ImportedRefund) {
 	const existing = existingImportedRefund(book.refunds, purchaseId, input);
+	if (!existing && book.refunds.some(refund => !refund.deletedAt && refund.externalId === input.externalId))
+		throw new HttpException(
+			"Este crédito importado já está vinculado a outro reembolso. Revise o reembolso existente",
+			409,
+		);
 	if (!existing) {
 		const refund = addBookRefund(book, purchaseId, input);
 		refund.externalId = input.externalId;

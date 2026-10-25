@@ -57,7 +57,7 @@ import {
 } from "../domain/pending-purchase-reference";
 import { uniquePurchaseMatches } from "../domain/unique-purchase-matches";
 import { materializeImportedPurchase, materializeImportedPurchases } from "./materialize-imported-purchase";
-
+import { reconcileExistingRefunds } from "./reconcile-existing-refunds";
 import { approveReviewedRefund } from "./refund-review";
 
 const importItemTagEntityType = "CREDIT_CARD_IMPORT_ITEM";
@@ -182,6 +182,7 @@ export async function getPotentialDuplicates(
 async function reconcileUniquePurchases(userId: string, importId: string, creditCardId: string) {
 	await withRawTransaction(async () => {
 		await queryRaw(`SELECT "id" FROM "CreditCard" WHERE "id"=$1 FOR UPDATE`, [creditCardId]);
+		await reconcileExistingRefunds(userId, importId, creditCardId);
 		const items = await queryRaw<
 			Parameters<typeof getPotentialDuplicates>[1][number] & { createdAt: Date; updatedAt: Date }
 		>(`SELECT * FROM "CreditCardImportItem" WHERE "creditCardImportId"=$1`, [importId]);

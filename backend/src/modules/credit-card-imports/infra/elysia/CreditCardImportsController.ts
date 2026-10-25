@@ -723,8 +723,7 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 								0,
 								...refundItems
 									.filter(
-										item =>
-											item.reconciledCreditPurchaseId === p.id && importedAnticipation(item.description),
+										item => !item.reconciledCreditPurchaseId || item.reconciledCreditPurchaseId === p.id,
 									)
 									.map(
 										item =>

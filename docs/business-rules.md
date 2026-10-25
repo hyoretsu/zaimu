@@ -453,3 +453,10 @@ Na revisão de reembolsos importados, Salvar persiste somente a origem, os dados
 
 
 Extratos PDF possuem identidade estável por usuário, conta, provedor e conjunto de identificadores dos lançamentos, independente do nome do arquivo e da ordem das linhas. Reimportar o mesmo extrato retoma a revisão pendente, preservando edições e aprovações parciais, ou informa que já foi importado quando concluído. Envios simultâneos não criam lotes duplicados. Revisões antigas com o mesmo conjunto de lançamentos restantes também são reutilizadas.
+
+
+Excluir reembolso remove seu registro financeiro e libera a identidade bancária para uma nova aprovação. Um marcador de exclusão por ID impede que sincronizações antigas recriem o registro removido; esse marcador não reserva a identidade externa. Registros legados excluídos também não bloqueiam novas aprovações.
+
+Reembolsos ativos já registrados participam da conciliação pela data do crédito e valor exato, mesmo quando a compra não tem saldo reembolsável restante. A identidade bancária existente tem prioridade; sem identidade, a correspondência precisa ser única nos dois sentidos. A revisão salva prevalece. A associação recupera a compra totalmente reembolsada nas opções de revisão. A aprovação explícita reutiliza o reembolso e vincula a identidade importada, sem repetir o efeito financeiro. Registros excluídos não são candidatos automáticos.
+
+O badge de sincronizado de um reembolso depende da identidade bancária do próprio crédito, independentemente do status da compra original. Reembolsos manuais permanecem sem badge até serem associados à importação.

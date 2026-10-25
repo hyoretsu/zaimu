@@ -309,7 +309,11 @@ export async function saveCreditBook(
 			...previous.charges.filter(ch => !chargeIds.has(ch.id)).map(ch => ch.id),
 		]),
 	];
-	const ids = [...book.purchases.map(p => p.id), ...book.charges.map(ch => ch.id)];
+	const ids = [
+		...book.purchases.map(p => p.id),
+		...book.charges.map(ch => ch.id),
+		...book.refunds.filter(r => !r.deletedAt).map(r => r.id),
+	];
 	if ((await query(`SELECT "id" FROM "CreditBookTombstone" WHERE "id"=ANY($1)`, [ids])).length)
 		throw new HttpException("Registro excluído não pode ser restaurado pelo sync", 409);
 	for (const [entryKind, deletedIds, table, scope] of [
@@ -554,7 +558,30 @@ export async function saveCreditBook(
 			[i.id, i.purchaseId, i.id],
 		);
 	}
+	const deletedRefundIds = book.refunds.filter(r => r.deletedAt).map(r => r.id);
+	if (deletedRefundIds.length) {
+		await query(
+			`INSERT INTO "CreditBookTombstone" ("id","userId","creditCardId","entryKind")
+			 SELECT r."id", p."userId", p."creditCardId", 'REFUND' FROM "CreditRefundRecord" r
+			 JOIN "CreditPurchaseRecord" p ON p."id"=r."purchaseId"
+			 WHERE r."id"=ANY($1) AND p."creditCardId"=$2 ON CONFLICT ("id") DO NOTHING`,
+			[deletedRefundIds, book.card.id],
+		);
+		await query(
+			`UPDATE "DebtEvent" e SET "effect"=0, "updatedAt"=CURRENT_TIMESTAMP
+			 FROM "DebtPurchaseLink" l JOIN "CreditRefundRecord" r ON r."id"=l."creditPurchaseId"
+			 JOIN "CreditPurchaseRecord" p ON p."id"=r."purchaseId"
+			 WHERE e."id"=l."eventId" AND r."id"=ANY($1) AND p."creditCardId"=$2`,
+			[deletedRefundIds, book.card.id],
+		);
+		await query(
+			`DELETE FROM "CreditRefundRecord" r USING "CreditPurchaseRecord" p
+			 WHERE r."purchaseId"=p."id" AND p."creditCardId"=$2 AND r."id"=ANY($1)`,
+			[deletedRefundIds, book.card.id],
+		);
+	}
 	for (const r of delta.refunds) {
+		if (r.deletedAt) continue;
 		await upsertMoney(
 			query,
 			"CreditRefundRecord",
@@ -685,6 +712,7 @@ export async function saveCreditBook(
 			);
 	}
 	for (const r of delta.refunds) {
+		if (r.deletedAt) continue;
 		const old = previousRefunds.get(r.id);
 		if (!old) continue;
 		await history(

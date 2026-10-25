@@ -118,7 +118,7 @@ async function materializePurchaseInBook(
 		p => p.externalId === input.externalId || p.id === identity?.purchaseId,
 	);
 	const refundDuplicate = await query<{ id: string }>(
-		`SELECT r."id" FROM "CreditRefundRecord" r JOIN "CreditPurchaseRecord" p ON p."id"=r."purchaseId" WHERE r."externalId"=$1 AND p."creditCardId"=$2`,
+		`SELECT r."id" FROM "CreditRefundRecord" r JOIN "CreditPurchaseRecord" p ON p."id"=r."purchaseId" WHERE r."externalId"=$1 AND p."creditCardId"=$2 AND r."deletedAt" IS NULL`,
 		[input.externalId, card.id],
 	);
 	if (input.installmentAmount < 0) {

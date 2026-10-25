@@ -88,9 +88,16 @@ describe("normalized refund transactions", () => {
 		expect(rows.rows).toEqual([{ id: refund.id }]);
 		await refunds.deleteNormalizedRefund(context, refund.id);
 		expect(
-			(await client.query(`SELECT "deletedAt" FROM "CreditRefundRecord" WHERE "id" = $1`, [refund.id]))
-				.rows[0].deletedAt,
-		).not.toBeNull();
+			(await client.query(`SELECT "id" FROM "CreditRefundRecord" WHERE "id" = $1`, [refund.id])).rows,
+		).toHaveLength(0);
+		expect(
+			(await client.query(`SELECT "id" FROM "CreditEntryReference" WHERE "refundId"=$1`, [refund.id])).rows,
+		).toHaveLength(0);
+		const { readCreditBook } = await import("../application/normalized-credit-book");
+		const { syncCreditBook } = await import("../application/sync-credit-book");
+		const stale = await readCreditBook(context.userId, context.cardId);
+		stale.refunds.push(refund);
+		await expect(syncCreditBook(context.userId, stale)).rejects.toThrow("excluído");
 	});
 
 	test("concurrent partial refunds cannot exceed purchase total", async () => {
