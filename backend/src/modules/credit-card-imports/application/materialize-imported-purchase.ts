@@ -131,6 +131,8 @@ async function materializePurchaseInBook(
 			: [];
 		const source = book.purchases.find(p => p.id === (reference?.purchaseId ?? input.existingRootId));
 		if (!source) throw new HttpException("Crédito exige revisão e vínculo com compra original", 409);
+		if (source.purchaseDate > input.purchaseDate.toISOString().slice(0, 10))
+			throw new HttpException("A compra original não pode ser posterior ao reembolso", 400);
 		const r = addBookRefund(book, source.id, {
 			amount: Math.abs(input.installmentAmount),
 			creditDate: input.purchaseDate.toISOString().slice(0, 10),
@@ -167,6 +169,12 @@ async function materializePurchaseInBook(
 		throw new HttpException(error instanceof Error ? error.message : "Calendário de parcelas inválido", 409);
 	}
 	let existing = duplicate ?? book.purchases.find(p => p.id === input.existingRootId);
+	if (
+		existing &&
+		importedAnticipation(input.description) &&
+		existing.purchaseDate > input.purchaseDate.toISOString().slice(0, 10)
+	)
+		throw new HttpException("A compra original não pode ser posterior à antecipação", 400);
 	const refinancing =
 		existing && existing.installmentAmountsCents.length !== input.installments && !duplicate;
 	if (refinancing) {

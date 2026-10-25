@@ -155,6 +155,7 @@ export function RefundImportReviewDialog({
 			: Boolean(
 					description.trim() &&
 						purchaseDate &&
+						purchaseDate <= item.purchaseDate.slice(0, 10) &&
 						correctedReconstructedTotal >= amount &&
 						Number.isInteger(count) &&
 						count >= (cancellation?.length ?? 1) &&
@@ -324,6 +325,7 @@ export function RefundImportReviewDialog({
 										autoComplete="off"
 										id="refund-original-date"
 										label="Data da compra original"
+										max={item.purchaseDate.slice(0, 10)}
 										name="refund-original-date"
 										onValueChange={setPurchaseDate}
 										required

@@ -155,7 +155,8 @@ export async function getPotentialDuplicates(
 			candidate =>
 				!occupiedCandidateIds.has(`${candidate.id}:${item.currentInstallment}`) &&
 				(importedAnticipation(item.description)
-					? hasMatchingInstallmentSum(
+					? dateKey(candidate.purchaseDate) <= dateKey(item.purchaseDate) &&
+						hasMatchingInstallmentSum(
 							plans.get(candidate.id) ??
 								distributePurchaseCents(
 									Math.round(Number(candidate.totalAmount) * 100),

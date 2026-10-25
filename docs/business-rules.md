@@ -465,3 +465,6 @@ O badge de sincronizado de um reembolso depende da identidade bancária do próp
 
 
 O total exibido da fatura representa o valor líquido no fechamento: inclui encargos e débitos transportados, desconta créditos e reembolsos efetivos e pagamentos realizados antes do fechamento. Pagamentos no fechamento ou depois dele alteram somente o saldo restante, preservando o total da fatura. Pagamentos futuros ainda não realizados não reduzem esse total. Abas e detalhes usam o mesmo cálculo nas contas conectadas e no modo visitante.
+
+
+Reembolsos e antecipações importados só podem ser vinculados a compras com data igual ou anterior à operação. O limite vale para sugestões automáticas, escolha manual, originais pendentes da mesma importação e compras reconstruídas. Salvar a revisão e aprovar revalidam essa cronologia; compras posteriores não são opções elegíveis.

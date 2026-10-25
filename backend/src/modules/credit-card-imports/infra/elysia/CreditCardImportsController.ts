@@ -239,6 +239,7 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 						!entry.isRefund &&
 						!entry.isStatementCharge &&
 						entry.installments === purchase.installments &&
+						dateKey(entry.purchaseDate) <= purchase.purchaseDate.slice(0, 10) &&
 						hasMatchingInstallmentSum(
 							anticipatedPlans.get(entry.id) ??
 								distributePurchaseCents(Math.round(Number(entry.totalAmount) * 100), entry.installments),

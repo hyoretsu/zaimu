@@ -144,3 +144,19 @@ test("new approval after deletion revalidates remaining refundable balance", () 
 	expect(original.externalId).toBe(input.externalId);
 	expect(book.refunds).toHaveLength(2);
 });
+
+test("import approval rejects purchases after the refund and accepts the same day", () => {
+	const book = newBook();
+	const purchase = newBookPurchase(book, {
+		description: "Original",
+		installments: 1,
+		purchaseDate: "2026-10-12",
+		totalAmount: 257.8,
+	});
+	const input = { amount: 257.8, creditDate: "2026-10-10", externalId: "bank-credit" };
+	expect(() => approveImportedRefund(book, purchase.id, input)).toThrow("posterior ao reembolso");
+	expect(book.refunds).toHaveLength(0);
+	expect(approveImportedRefund(book, purchase.id, { ...input, creditDate: "2026-10-12" }).purchaseId).toBe(
+		purchase.id,
+	);
+});

@@ -41,6 +41,9 @@ export function existingImportedRefund(
 }
 
 export function approveImportedRefund(book: CreditBook, purchaseId: string, input: ImportedRefund) {
+	const purchase = book.purchases.find(purchase => purchase.id === purchaseId);
+	if (purchase && purchase.purchaseDate > input.creditDate)
+		throw new HttpException("A compra original não pode ser posterior ao reembolso", 400);
 	const existing = existingImportedRefund(book.refunds, purchaseId, input);
 	if (!existing && book.refunds.some(refund => !refund.deletedAt && refund.externalId === input.externalId))
 		throw new HttpException(

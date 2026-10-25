@@ -119,7 +119,7 @@ test("suggests the unique full purchase before a generic bank refund, including 
 });
 
 test("partial refund choices include purchases without matching installment sums", () => {
-	const refund = { description: "Crédito concedido", installmentAmount: -257.8 };
+	const refund = { ...item, description: "Crédito concedido", installmentAmount: -257.8 };
 	const base = { ...source, installments: 1, refundableAmount: 257.8, totalAmount: 257.8 };
 	const old = { ...base, description: "OTHER MERCHANT", id: "old", purchaseDate: "2025-01-01" };
 	const subset = {
@@ -158,6 +158,7 @@ test("partial credits require enough remaining balance and never suggest a large
 
 test("refund evidence accepts larger plans and repairs values before checking refundable balance", () => {
 	const refund = {
+		...item,
 		description: withImportedAnticipation(
 			"Crédito concedido",
 			Array.from({ length: 7 }, (_, i) => ({ amountCents: 3112, number: i + 2 })),
@@ -183,4 +184,25 @@ test("refund evidence accepts larger plans and repairs values before checking re
 		]),
 	).toEqual([]);
 	expect(eligibleRefundSources(refund, [{ ...purchase, refundableAmount: 240 }])).toEqual([]);
+});
+
+test("manual refund choices exclude later purchases, including pending sources and imported installments", () => {
+	const refund = { ...item, installmentAmount: -100, purchaseDate: "2026-10-10" };
+	const before = { ...source, installments: 3, purchaseDate: "2026-10-08T12:00:00Z" };
+	const sameDay = { ...before, id: "same-day", purchaseDate: "2026-10-10T23:59:59Z" };
+	const after = { ...before, id: "after", purchaseDate: "2026-10-12" };
+	const pendingAfter = { ...after, id: "pending:after" };
+	for (const description of [
+		"Crédito concedido",
+		"Reembolso LOJA",
+		withImportedAnticipation("LOJA", [
+			{ amountCents: 5000, number: 2 },
+			{ amountCents: 5000, number: 3 },
+		]),
+	]) {
+		expect(eligibleRefundSources({ ...refund, description }, [before, sameDay, after, pendingAfter])).toEqual(
+			[before, sameDay],
+		);
+		expect(matchingRefundSource({ ...refund, description }, [after])).toBeUndefined();
+	}
 });

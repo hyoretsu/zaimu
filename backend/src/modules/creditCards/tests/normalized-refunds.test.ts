@@ -792,6 +792,45 @@ describe("normalized refund transactions", () => {
 			return { accountId, cardId, importId, itemId, purchaseId };
 		}
 
+		test("anticipation choices exclude original purchases after the operation date", async () => {
+			const { queryRaw, withRawTransaction } = await import("~/shared/infra/sql");
+			const { getPotentialDuplicates } = await import("../../credit-card-imports/application/import-service");
+			await expect(
+				withRawTransaction(async () => {
+					const f = await fixture(queryRaw);
+					const sourceId = `source-${f.itemId}`;
+					await queryRaw(
+						`INSERT INTO "CreditCardImportItem" ("id", "creditCardImportId", "externalId", "purchaseDate", "description", "totalAmount", "installmentAmount", "installments") VALUES ($1,$2,$1,'2024-08-01','Pending original',300,100,3)`,
+						[sourceId, f.importId],
+					);
+					const item = {
+						currentInstallment: 2,
+						description: "Anticipation [[anticipated:2:10000;3:10000]]",
+						id: f.itemId,
+						installmentAmount: 100,
+						installments: 3,
+						purchaseDate: "2024-07-31",
+						reconciledCreditPurchaseId: null,
+						storeName: null,
+						totalAmount: 300,
+					};
+					expect((await getPotentialDuplicates(f.cardId, [item], f.importId)).has(item.id)).toBe(false);
+					const matches = await getPotentialDuplicates(
+						f.cardId,
+						[{ ...item, purchaseDate: "2024-08-01" }],
+						f.importId,
+					);
+					expect(
+						matches
+							.get(item.id)
+							?.map(source => source.id)
+							.sort(),
+					).toEqual([f.purchaseId, `pending:${sourceId}`].sort());
+					throw new Error("rollback chronology test");
+				}),
+			).rejects.toThrow("rollback chronology test");
+		});
+
 		for (const mode of ["link", "reconstruct", "pending"] as const) {
 			test(`saving ${mode} keeps financial state unchanged; explicit approval applies once`, async () => {
 				const { withRawTransaction, queryRaw } = await import("~/shared/infra/sql");
@@ -823,6 +862,15 @@ describe("normalized refund transactions", () => {
 							`SELECT "id", "totalAmount" FROM "CreditPurchaseRecord" WHERE "creditCardId"=$1`,
 							[f.cardId],
 						);
+						await queryRaw(`UPDATE "CreditCardImportItem" SET "purchaseDate"='2024-07-31' WHERE "id"=$1`, [
+							f.itemId,
+						]);
+						await expect(saveRefundReview(context.userId, f.importId, f.itemId, draft)).rejects.toThrow(
+							"posterior ao reembolso",
+						);
+						await queryRaw(`UPDATE "CreditCardImportItem" SET "purchaseDate"='2024-09-04' WHERE "id"=$1`, [
+							f.itemId,
+						]);
 						await saveRefundReview(context.userId, f.importId, f.itemId, draft);
 						expect(
 							await queryRaw(

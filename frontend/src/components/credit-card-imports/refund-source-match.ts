@@ -68,13 +68,14 @@ export function matchingRefundSource(
 
 /** Refunds need sufficient corrected balance and enough installments for imported evidence. */
 export function eligibleRefundSources<T extends RefundSource>(
-	item: { description: string; installmentAmount: number },
+	item: { description: string; installmentAmount: number; purchaseDate: string },
 	sources: T[],
 ) {
 	const cents = Math.round(Math.abs(item.installmentAmount) * 100);
 	if (!Number.isSafeInteger(cents) || cents <= 0) return [];
 	const cancellation = importedAnticipation(item.description);
 	return sources.filter(source => {
+		if (source.purchaseDate.slice(0, 10) > item.purchaseDate.slice(0, 10)) return false;
 		const balance = Math.round(source.refundableAmount * 100);
 		if (!Number.isSafeInteger(balance)) return false;
 		if (!cancellation) return balance >= cents;
