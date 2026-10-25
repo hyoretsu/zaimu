@@ -3,7 +3,7 @@
 	"version": "1.0.0",
 	"private": true,
 	"type": "module",
-	"packageManager": "bun@1.4.3",
+	"packageManager": "bun@1.4.4",
 	"workspaces": [
 		"backend",
 		"frontend",
@@ -15,16 +15,19 @@
 		"commit": "git add . && bun committier ai",
 		"dev": "turbo dev",
 		"dev:frontend": "bun -F frontend tauri dev",
-		"format": "bun format:biome . && bun format:eslint .",
-		"format:biome": "bunx biome check --diagnostic-level=error --write --unsafe",
-		"format:eslint": "bunx eslint --quiet --fix",
+		"format": "bun fmt",
 		"prepare": "bun run ./prepare.ts || true",
 		"start": "turbo start",
 		"test": "bun run test:runner && bun run scripts/test-runner.ts backend all && bun run scripts/test-runner.ts sql all",
 		"test:unit": "bun run scripts/test-runner.ts backend unit && bun run scripts/test-runner.ts sql unit",
 		"test:integration": "bun run scripts/test-runner.ts backend integration && bun run scripts/test-runner.ts sql integration",
 		"test:e2e": "bun run scripts/test-runner.ts backend e2e && bun run scripts/test-runner.ts sql e2e",
-		"test:runner": "bun test scripts/testing --timeout 45000"
+		"test:runner": "bun test scripts/testing --timeout 45000",
+		"format:check": "bun fmt --check",
+		"lint": "bun run lint:biome . && bun run lint:eslint .",
+		"lint:biome": "bunx biome check --formatter-enabled=false --diagnostic-level=error",
+		"lint:eslint": "bunx eslint --quiet",
+		"lint:fix": "bun run lint:biome --write --unsafe . && bun run lint:eslint --fix . && bun run format"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.5.10",

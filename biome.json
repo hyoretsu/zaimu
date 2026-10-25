@@ -1,4 +1,21 @@
 {
 	"$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
-	"extends": ["@hyoretsu/configs/biome"]
+	"assist": {
+		"actions": {
+			"source": {
+				"organizeImports": "off"
+			}
+		}
+	},
+	"extends": ["@hyoretsu/configs/biome"],
+	"formatter": {
+		"enabled": false
+	},
+	"linter": {
+		"rules": {
+			"nursery": {
+				"useSortedClasses": "off"
+			}
+		}
+	}
 }

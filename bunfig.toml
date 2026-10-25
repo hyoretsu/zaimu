@@ -1,2 +1,42 @@
 [run]
 bun = true
+
+# Formatting belongs to Bun; Biome and ESLint retain lint rules and unsupported assists.
+[fmt]
+printWidth = 110
+useTabs = true
+tabWidth = 4
+semi = true
+singleQuote = false
+jsxSingleQuote = false
+arrowParens = "avoid"
+trailingComma = "all"
+endOfLine = "lf"
+editorconfig = true
+sortPackageJson = false
+ignorePatterns = [
+	".agents/",
+	".claude/",
+	"**/public/",
+	"**/*.gen.ts",
+	"**/*.min.js",
+	"skills-lock.json",
+	"**/package-lock.json",
+	"**/pnpm-lock.yaml",
+	"backend/db/types.ts",
+	"backend/generated/",
+	"backend/src/generated/",
+	"frontend/src/lib/api/generated/",
+	"frontend/src-tauri/gen/",
+]
+
+[fmt.sortImports]
+newlinesBetween = false
+
+[fmt.sortTailwindcss]
+attributes = ["classList"]
+functions = ["cn", "clsx", "cva", "tw"]
+
+[[fmt.overrides]]
+files = ["*.yaml", "*.yml"]
+options = { useTabs = false, tabWidth = 2 }

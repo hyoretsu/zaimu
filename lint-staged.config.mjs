@@ -1,12 +1,8 @@
 import { relative } from "node:path";
 import { cwd } from "node:process";
-import { lintStagedConfig } from "@hyoretsu/configs/lint-staged";
-
-const sharedConfig = lintStagedConfig();
 
 const isIgnoredFile = filename => {
 	const path = relative(cwd(), filename).replaceAll("\\", "/");
-
 	return (
 		path.startsWith(".agents/") ||
 		path.startsWith(".claude/") ||
@@ -16,18 +12,26 @@ const isIgnoredFile = filename => {
 	);
 };
 
-const commandForProductFiles = (command, filenames) => {
-	const productFiles = filenames.filter(filename => !isIgnoredFile(filename));
-
-	if (productFiles.length === 0) return [];
-
-	return `${command} ${productFiles.map(filename => JSON.stringify(filename)).join(" ")}`;
+// lint-staged parses command strings directly; it does not invoke a shell.
+const quote = filename => {
+	if (filename.includes('"') && filename.includes("'"))
+		throw new Error("lint-staged cannot parse filenames containing both quote styles");
+	return filename.includes('"') ? `'${filename}'` : `"${filename}"`;
 };
 
 export default {
-	...sharedConfig,
-	"*": () => "bun scripts/validate-staged.ts",
-	"*.(cjs|js|jsx|mjs|ts|tsx)": filenames => commandForProductFiles("bunx eslint --quiet --fix", filenames),
-	"*.(css|graphql|cjs|js|jsx|mjs|json|jsonc|ts|tsx)": filenames =>
-		commandForProductFiles("bunx biome check --diagnostic-level=error --write --unsafe", filenames),
+	"*": filenames => {
+		const files = filenames.filter(filename => !isIgnoredFile(filename));
+		const commands = ["bun scripts/validate-staged.ts"];
+		if (files.length === 0) return commands;
+		const paths = files.map(quote).join(" ");
+		commands.push(
+			`bunx biome check --formatter-enabled=false --diagnostic-level=error --files-ignore-unknown=true --no-errors-on-unmatched --write --unsafe ${paths}`,
+		);
+		const scripts = files.filter(filename => /\.(cjs|js|jsx|mjs|ts|tsx)$/.test(filename));
+		if (scripts.length > 0) commands.push(`bunx eslint --quiet --fix ${scripts.map(quote).join(" ")}`);
+		// Run last so lint fixes cannot leave code outside the formatter's canonical output.
+		commands.push(`bun fmt --ignore-unknown --no-error-on-unmatched-pattern ${paths}`);
+		return commands;
+	},
 };
