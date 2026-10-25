@@ -1,10 +1,6 @@
 import { expect, test } from "bun:test";
 import { importedAnticipation, withImportedAnticipation } from "@zaimu/finance/imported-anticipation";
-import {
-	anticipationRefundPairs,
-	combineAnticipationRefunds,
-	refundCancellationNumbers,
-} from "./anticipation-refunds";
+import { anticipationRefundPairs, combineAnticipationRefunds } from "./anticipation-refunds";
 
 const parts = [
 	{ amountCents: 5000, number: 2 },
@@ -32,7 +28,7 @@ const credit = {
 	totalAmount: -100,
 };
 
-test("combines offsetting entries into one partial cancellation without changing identities or original", () => {
+test("combines offsetting entries into one refund with installment evidence without changing identities or original", () => {
 	const input = [original, anticipation, credit];
 	const rows = combineAnticipationRefunds(input);
 	expect(rows).toHaveLength(2);
@@ -41,7 +37,7 @@ test("combines offsetting entries into one partial cancellation without changing
 		externalId: "credit",
 		installmentAmount: -100,
 		installments: 3,
-		totalAmount: -150,
+		totalAmount: -100,
 	});
 	expect(importedAnticipation(rows[1]!.description)).toEqual(parts);
 	expect(combineAnticipationRefunds(rows)).toEqual(rows);
@@ -54,7 +50,6 @@ test("leaves unrelated, mismatched and ambiguous entries separate", () => {
 		{ ...credit, purchaseDate: "2026-04-29" },
 		{ ...credit, description: "OUTRA LOJA" },
 		{ ...credit, installmentAmount: -99.99 },
-		{ ...credit, installmentAmount: -150.01 },
 	])
 		expect(anticipationRefundPairs([anticipation, other])).toEqual([]);
 	expect(anticipationRefundPairs([anticipation, { ...anticipation }, credit])).toEqual([]);
@@ -82,18 +77,6 @@ test("pairs legacy pending references and database money/date types", () => {
 	).toHaveLength(1);
 });
 
-test("validates imported cancellation numbers and exact installment amounts", () => {
-	const [refund] = combineAnticipationRefunds([anticipation, credit]);
-	const numbers = refundCancellationNumbers(refund!.description, 10000, [5000, 5000, 5000]);
-	expect(numbers).toEqual([2, 3]);
-	expect(refundCancellationNumbers(credit.description, 10000, [5000, 5000, 5000])).toBeUndefined();
-	expect(() => refundCancellationNumbers(refund!.description, 9999, [5000, 5000, 5000])).toThrow(
-		"Valores das parcelas",
-	);
-	expect(refundCancellationNumbers(refund!.description, 10000, [5000, 4999, 5001])).toEqual([2, 3]);
-	expect(() => refundCancellationNumbers(refund!.description, 10000, [5000])).toThrow("Valores das parcelas");
-});
-
 test("preserves conflicting manual purchase links", () => {
 	expect(
 		anticipationRefundPairs([
@@ -109,7 +92,7 @@ test("preserves conflicting manual purchase links", () => {
 	).toEqual([]);
 });
 
-test("combines a later generic full credit only with a unique exact original plan", () => {
+test("combines a unique later generic credit even when the original plan needs correction", () => {
 	const tail = Array.from({ length: 7 }, (_, i) => ({ amountCents: 3112, number: i + 2 }));
 	const anticipated = {
 		...anticipation,
@@ -139,16 +122,8 @@ test("combines a later generic full credit only with a unique exact original pla
 		totalAmount: -249,
 	});
 	expect(importedAnticipation(refund!.description)).toEqual(tail);
-	expect(
-		anticipationRefundPairs([anticipated, { ...generic, reconciledCreditPurchaseId: "other" }], [source]),
-	).toEqual([]);
-	for (const sources of [
-		[],
-		[source, { ...source, id: "other" }],
-		[{ ...source, totalAmount: 249.01 }],
-		[{ ...source, installmentAmountsCents: Array(8).fill(3112) }],
-	])
-		expect(anticipationRefundPairs([anticipated, generic], sources)).toEqual([]);
+	for (const sources of [[], [source, { ...source, id: "other" }], [{ ...source, totalAmount: 249.01 }]])
+		expect(anticipationRefundPairs([anticipated, generic], sources)).toHaveLength(1);
 	expect(
 		anticipationRefundPairs([anticipated, { ...generic, purchaseDate: "2026-08-07" }], [source]),
 	).toEqual([]);
@@ -178,4 +153,14 @@ test("combines generic credit against an exact complete bank plan without an exi
 		reconciledCreditPurchaseId: undefined,
 	});
 	expect(anticipationRefundPairs([full, { ...generic, installmentAmount: -149.99 }])).toEqual([]);
+});
+
+test("credit below anticipated sum remains an anticipation plus separate discount", () => {
+	const discounted = { ...credit, installmentAmount: -99.99, totalAmount: -99.99 };
+	expect(combineAnticipationRefunds([anticipation, discounted])).toEqual([anticipation, discounted]);
+	for (const amount of [100, 100.01, 150.01]) {
+		const [refund] = combineAnticipationRefunds([anticipation, { ...credit, installmentAmount: -amount }]);
+		expect(refund?.totalAmount).toBe(-amount);
+		expect(importedAnticipation(refund!.description)).toEqual(parts);
+	}
 });

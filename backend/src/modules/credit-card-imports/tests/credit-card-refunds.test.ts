@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { calculateRefundEffects, matchingGenericRefundSource } from "@zaimu/finance/credit-refund";
 import { importedAnticipation, withImportedAnticipation } from "@zaimu/finance/imported-anticipation";
-import { combineAnticipationRefunds, refundCancellationNumbers } from "../domain/anticipation-refunds";
+import { combineAnticipationRefunds } from "../domain/anticipation-refunds";
 import { parseBradescardCreditCardStatementText } from "../domain/bradescard-credit-card";
 import { parseBradescoCreditCardStatementText } from "../domain/bradesco-credit-card";
 import { assignCreditCardPurchaseExternalIds } from "../domain/credit-card-import-identity";
@@ -184,7 +184,7 @@ for (const provider of providers)
 			expect(rows[0]).toMatchObject({
 				externalId: refund.externalId,
 				installmentAmount: -100,
-				totalAmount: -150,
+				totalAmount: -100,
 			});
 			expect(importedAnticipation(rows[0]!.description)).toEqual([
 				{ amountCents: 5000, number: 1 },
@@ -193,7 +193,7 @@ for (const provider of providers)
 		});
 	});
 
-test("refund cancels anticipated installments and credits only the bank's surplus", () => {
+test("refund retains the whole bank credit without forcing installment cancellation", () => {
 	const anticipation = {
 		description: withImportedAnticipation("Amazon", [
 			{ amountCents: 5000, number: 2 },
@@ -209,18 +209,17 @@ test("refund cancels anticipated installments and credits only the bank's surplu
 			anticipation,
 			{ ...anticipation, description: "Amazon", installmentAmount: -amount, totalAmount: -amount },
 		]);
-		const numbers = refundCancellationNumbers(refund!.description, amount * 100, [5000, 5000, 5000]);
+		expect(importedAnticipation(refund!.description)).toHaveLength(2);
 		const [effect] = calculateRefundEffects(
 			{ id: "purchase", totalAmountCents: 15000 },
 			[
 				{
 					amountCents: amount * 100,
-					canceledInstallmentNumbers: numbers,
 					cancellationEligible: false,
 					creditDate: "2026-05-10",
 					creditStatementId: "may",
 					id: "refund",
-					policy: "CANCEL_FUTURE_INSTALLMENTS",
+					policy: "KEEP_INSTALLMENTS",
 					purchaseId: "purchase",
 				},
 			],
@@ -228,9 +227,9 @@ test("refund cancels anticipated installments and credits only the bank's surplu
 			[{ id: "may", statementDate: "2026-05-20" }],
 		);
 		expect(effect).toMatchObject({
-			canceledAmountCents: 10000,
-			canceledInstallmentNumbers: [2, 3],
-			creditAmountCents: (amount - 100) * 100,
+			canceledAmountCents: 0,
+			canceledInstallmentNumbers: [],
+			creditAmountCents: amount * 100,
 		});
 	}
 });

@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import {
+	correctedRefundInstallments,
 	hasCompleteImportedPlan,
 	matchingAnticipatedTail,
 	withImportedAnticipation,
@@ -28,4 +29,21 @@ test("maps anticipated amounts to the final installments, preserving exact round
 		2, 3, 4, 5, 6, 7, 8, 9,
 	]);
 	expect(matchingAnticipatedTail(description, [2203, ...Array(8).fill(2200)])).toBeUndefined();
+});
+
+test("refund evidence fixes the final installments and preserves earlier amounts", () => {
+	const description = withImportedAnticipation(
+		"Crédito concedido",
+		Array.from({ length: 7 }, (_, i) => ({ amountCents: 3112, number: i + 2 })),
+	);
+	expect(correctedRefundInstallments(description, Array(8).fill(3116))).toEqual([
+		3116,
+		...Array(7).fill(3112),
+	]);
+	expect(correctedRefundInstallments(description, Array(10).fill(3116))).toEqual([
+		...Array(3).fill(3116),
+		...Array(7).fill(3112),
+	]);
+	expect(correctedRefundInstallments(description, Array(7).fill(3116))).toEqual(Array(7).fill(3112));
+	expect(() => correctedRefundInstallments(description, Array(6).fill(3116))).toThrow("menos parcelas");
 });

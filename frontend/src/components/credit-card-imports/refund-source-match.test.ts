@@ -155,3 +155,32 @@ test("partial credits require enough remaining balance and never suggest a large
 	for (const installmentAmount of [0, Number.NaN, Number.POSITIVE_INFINITY])
 		expect(eligibleRefundSources({ ...refund, installmentAmount }, [larger])).toEqual([]);
 });
+
+test("refund evidence accepts larger plans and repairs values before checking refundable balance", () => {
+	const refund = {
+		description: withImportedAnticipation(
+			"Crédito concedido",
+			Array.from({ length: 7 }, (_, i) => ({ amountCents: 3112, number: i + 2 })),
+		),
+		installmentAmount: -249,
+	};
+	const purchase = {
+		...source,
+		installmentAmountsCents: Array(8).fill(3116),
+		installments: 8,
+		refundableAmount: 249.28,
+		totalAmount: 249.28,
+	};
+	expect(eligibleRefundSources(refund, [purchase])).toEqual([purchase]);
+	expect(
+		eligibleRefundSources(refund, [
+			{ ...purchase, installmentAmountsCents: Array(10).fill(3116), installments: 10 },
+		]),
+	).toHaveLength(1);
+	expect(
+		eligibleRefundSources(refund, [
+			{ ...purchase, installmentAmountsCents: Array(6).fill(3116), installments: 6 },
+		]),
+	).toEqual([]);
+	expect(eligibleRefundSources(refund, [{ ...purchase, refundableAmount: 240 }])).toEqual([]);
+});

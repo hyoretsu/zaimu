@@ -5,7 +5,11 @@ import {
 	installmentOccurrenceDate,
 	purchaseStatementDates,
 } from "@zaimu/finance/credit-purchase";
-import { importedAnticipation, withoutImportedAnticipation } from "@zaimu/finance/imported-anticipation";
+import {
+	correctedRefundInstallments,
+	importedAnticipation,
+	withoutImportedAnticipation,
+} from "@zaimu/finance/imported-anticipation";
 import { currencyScale } from "@zaimu/finance/money";
 import { useState } from "react";
 import { ImportDialog, ImportDialogContent } from "@/components/imports";
@@ -124,18 +128,38 @@ export function RefundImportReviewDialog({
 	const amount = Math.abs(item.installmentAmount);
 	const reconstructedTotal = Number(totalAmount);
 	const count = Number.parseInt(installments, 10);
+	const currencyCode = book.data?.card.currency ?? "BRL";
+	const reconstructedAmounts =
+		Number.isFinite(reconstructedTotal) &&
+		reconstructedTotal > 0 &&
+		Number.isInteger(count) &&
+		count >= (cancellation?.length ?? 1) &&
+		count <= 48
+			? distributePurchaseCents(
+					Math.round(reconstructedTotal * currencyScale(currencyCode)),
+					count,
+					new Map(),
+					book.data?.card.installmentRemainderOnFirst,
+				)
+			: undefined;
+	const correctedReconstructedTotal =
+		reconstructedAmounts && cancellation
+			? correctedRefundInstallments(item.description, reconstructedAmounts).reduce(
+					(sum, value) => sum + value,
+					0,
+				) / currencyScale(currencyCode)
+			: reconstructedTotal;
 	const canSubmit =
 		mode === "link"
-			? Boolean(selected && selected.refundableAmount >= amount)
+			? Boolean(selected && (cancellation || selected.refundableAmount >= amount))
 			: Boolean(
 					description.trim() &&
 						purchaseDate &&
-						reconstructedTotal >= amount &&
+						correctedReconstructedTotal >= amount &&
 						Number.isInteger(count) &&
-						count >= 1 &&
+						count >= (cancellation?.length ?? 1) &&
 						count <= 48,
 				);
-	const currencyCode = book.data?.card.currency ?? "BRL";
 	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
 	const original = mode === "link" ? book.data?.purchases.find(p => p.id === sourceId) : undefined;
 	const firstRefund =
@@ -144,9 +168,22 @@ export function RefundImportReviewDialog({
 			sourceId.startsWith("pending:") ||
 				(original && !book.data?.refunds.some(r => r.purchaseId === original.id)),
 		);
-	const originalTotal = original
-		? original.totalAmountCents / currencyScale(currencyCode)
-		: (selected?.totalAmount ?? reconstructedTotal);
+	const originalTotal =
+		mode === "reconstruct"
+			? correctedReconstructedTotal
+			: original && cancellation
+				? correctedRefundInstallments(item.description, original.installmentAmountsCents).reduce(
+						(sum, value) => sum + value,
+						0,
+					) / currencyScale(currencyCode)
+				: original
+					? original.totalAmountCents / currencyScale(currencyCode)
+					: selected?.installmentAmountsCents && cancellation
+						? correctedRefundInstallments(item.description, selected.installmentAmountsCents).reduce(
+								(sum, value) => sum + value,
+								0,
+							) / currencyScale(currencyCode)
+						: (selected?.totalAmount ?? reconstructedTotal);
 	const creditCycle = book.data
 		? purchaseStatementDates(book.data.card, item.purchaseDate.slice(0, 10)).statementDate
 		: null;
@@ -179,7 +216,6 @@ export function RefundImportReviewDialog({
 							.statementDate > creditCycle!,
 				);
 	const needsPolicy =
-		!cancellation &&
 		firstRefund &&
 		Math.round(amount * currencyScale(currencyCode)) ===
 			Math.round(originalTotal * currencyScale(currencyCode)) &&
@@ -219,12 +255,6 @@ export function RefundImportReviewDialog({
 						<p className="text-destructive text-sm">Não foi possível carregar as compras do cartão.</p>
 					) : (
 						<>
-							{cancellation ? (
-								<p className="text-muted-foreground text-sm">
-									Este reembolso cancela {cancellation.length} parcelas da compra. O crédito compensa a
-									antecipação; somente o excedente entra como crédito na fatura.
-								</p>
-							) : null}
 							<CustomSelect
 								label="Origem do reembolso"
 								onValueChange={value => setMode(value as typeof mode)}

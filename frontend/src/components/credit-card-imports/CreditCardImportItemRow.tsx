@@ -137,11 +137,7 @@ export function CreditCardImportItemRow({
 						}
 						time={item.time}
 					/>
-					{item.installmentAmount < 0 && (
-						<AppBadge variant="outline">
-							{cancellation ? `Reembolso de ${cancellation.length} parcelas` : "Reembolso"}
-						</AppBadge>
-					)}
+					{item.installmentAmount < 0 && <AppBadge variant="outline">Reembolso</AppBadge>}
 					{item.isStatementCharge && <AppBadge variant="outline">Encargo da fatura</AppBadge>}
 					{anticipated && <AppBadge variant="outline">Antecipação de {anticipated.length} parcelas</AppBadge>}
 					{requiresOriginal && !item.reconciledCreditPurchaseId && (

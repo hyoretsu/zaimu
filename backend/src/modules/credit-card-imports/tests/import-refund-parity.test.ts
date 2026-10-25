@@ -114,3 +114,27 @@ for (const layout of layouts)
 			Array.from({ length: 7 }, (_, i) => ({ amountCents: 3112, number: i + 2 })),
 		);
 	});
+
+for (const layout of layouts)
+	for (const [value, isRefund] of [
+		["217,83", false],
+		["217,84", true],
+		["249,00", true],
+	] as const)
+		test(`${layout.name}: credit ${value} distinguishes discount from refund after parsing`, () => {
+			const parsed = layout.parse(
+				[
+					layout.header,
+					...Array.from({ length: 7 }, (_, i) => layout.part(i + 2)),
+					layout.credit.replace("249,00", value),
+					layout.footer,
+				].join("\n"),
+			);
+			const rows = combineAnticipationRefunds(parsed.purchases);
+			expect(rows).toHaveLength(isRefund ? 1 : 2);
+			const refund = rows.find(row => row.installmentAmount < 0)!;
+			expect(importedAnticipation(refund.description)?.length ?? 0).toBe(isRefund ? 7 : 0);
+			expect(rows.some(row => row.installmentAmount > 0 && importedAnticipation(row.description))).toBe(
+				!isRefund,
+			);
+		});

@@ -1,5 +1,5 @@
 import { distributePurchaseCents } from "@zaimu/finance/credit-purchase";
-import { importedAnticipation } from "@zaimu/finance/imported-anticipation";
+import { correctedRefundInstallments, importedAnticipation } from "@zaimu/finance/imported-anticipation";
 import { assertTagOwnership } from "~/modules/categories/application/tag-assignments";
 import {
 	mutateCreditBook,
@@ -8,7 +8,6 @@ import {
 } from "~/modules/creditCards/application/normalized-credit-book";
 import { HttpException } from "~/shared/errors";
 import { queryRaw, withRawTransaction } from "~/shared/infra/sql";
-import { refundCancellationNumbers } from "../domain/anticipation-refunds";
 import { approveImportedRefund } from "../domain/existing-imported-refund";
 import { getFinancingSource } from "../domain/financing-source-reference";
 import type { RefundImportReviewDTO } from "../infra/elysia/CreditCardImportsDTO";
@@ -128,21 +127,19 @@ function applyReview(
 			new Map([[source.currentInstallment, Math.round(Number(source.installmentAmount) * 100)]]),
 			book.card.installmentRemainderOnFirst,
 		);
-	const cancellation = importedAnticipation(item.description);
-	if (data.purchase && cancellation)
-		p.installmentAmountsCents = distributePurchaseCents(
-			p.totalAmountCents,
-			p.installmentAmountsCents.length,
-			new Map(cancellation.map(part => [part.number, part.amountCents])),
-			book.card.installmentRemainderOnFirst,
-		);
+	if (importedAnticipation(item.description)) {
+		p.installmentAmountsCents = correctedRefundInstallments(item.description, p.installmentAmountsCents);
+		p.totalAmountCents = p.installmentAmountsCents.reduce((sum, amount) => sum + amount, 0);
+		const start = p.installmentAmountsCents.length - importedAnticipation(item.description)!.length;
+		p.installmentImportedNumbers = [
+			...new Set([
+				...(p.installmentImportedNumbers ?? []),
+				...p.installmentAmountsCents.slice(start).map((_, index) => start + index + 1),
+			]),
+		];
+	}
 	const refund = approveImportedRefund(book, p.id, {
 		amount: Math.abs(Number(item.installmentAmount)),
-		canceledInstallmentNumbers: refundCancellationNumbers(
-			item.description,
-			Math.round(Math.abs(Number(item.installmentAmount)) * 100),
-			p.installmentAmountsCents,
-		),
 		creditDate: new Date(item.purchaseDate).toISOString().slice(0, 10),
 		externalId: item.externalId,
 		policy: data.policy,

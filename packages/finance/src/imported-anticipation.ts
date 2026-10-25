@@ -57,3 +57,14 @@ export function matchingAnticipatedTail(description: string, amounts: readonly n
 		return undefined;
 	return amounts.slice(start).map((_, index) => start + index + 1);
 }
+
+/** Refund evidence corrects the imported tail without treating it as a cancellation instruction. */
+export function correctedRefundInstallments(description: string, amounts: readonly number[]) {
+	const parts = importedAnticipation(description);
+	if (!parts) return [...amounts];
+	if (amounts.length < parts.length)
+		throw new RangeError("Compra possui menos parcelas que o reembolso importado.");
+	const ordered = parts.toSorted((a, b) => a.number - b.number);
+	const start = amounts.length - ordered.length;
+	return amounts.map((amount, index) => (index < start ? amount : ordered[index - start]!.amountCents));
+}

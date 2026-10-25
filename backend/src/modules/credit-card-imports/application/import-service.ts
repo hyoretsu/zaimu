@@ -356,7 +356,7 @@ export async function combinePendingAnticipationRefunds(userId: string, importId
 					credit.id,
 					description,
 					anticipation.installments,
-					-Math.max(Math.abs(Number(anticipation.totalAmount)), Math.abs(Number(credit.installmentAmount))),
+					-Math.abs(Number(credit.installmentAmount)),
 					anticipation.reconciledCreditPurchaseId ?? matchedSourceId,
 				],
 			);
