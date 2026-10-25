@@ -271,7 +271,7 @@ import {
 import { getCurrentCacheIdentity } from "./query-cache";
 import { getTransactionSearchText, normalizeTransactionSearch } from "./transaction-search";
 import { sortTransactionsByMostRecent } from "./transaction-sort";
-import { assertFileIsAccessible } from "./upload-file";
+import { prepareUploadFile } from "./upload-file";
 
 export type FinancialAccountYieldPage = Omit<
 	Awaited<ReturnType<typeof getFinancialAccountYields>>,
@@ -1186,9 +1186,9 @@ export const dataService = {
 			provider: CreditCardImport["provider"];
 		}): Promise<CreditCardImportCreateResult> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar faturas.");
-			await assertFileIsAccessible(file);
+			const uploadFile = await prepareUploadFile(file);
 			if (provider === "MEUPLUGGY") throw new Error("Selecione um provedor de arquivo válido.");
-			return postCreditCardImports({ creditCardId, file, password, provider, statementId });
+			return postCreditCardImports({ creditCardId, file: uploadFile, password, provider, statementId });
 		},
 		async delete(id: string): Promise<void> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar faturas.");
@@ -3461,8 +3461,8 @@ export const dataService = {
 			provider: TransactionImport["provider"];
 		}): Promise<TransactionImportCreateResult> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
-			await assertFileIsAccessible(file);
-			return postTransactionImports({ file, financialAccountId, provider });
+			const uploadFile = await prepareUploadFile(file);
+			return postTransactionImports({ file: uploadFile, financialAccountId, provider });
 		},
 		async delete(id: string): Promise<void> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
