@@ -14,6 +14,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
+import { FloatingActionMenu } from "@/components/ui/FloatingActionMenu";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
@@ -201,21 +202,16 @@ export function DebtPersonCard({
 						</div>
 					</DialogBody>
 					<ActionGroup className="absolute right-6 bottom-6 z-10">
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button
-									aria-label={`Adicionar lançamento para ${person.name}`}
-									className="size-12 cursor-pointer rounded-full border-primary shadow-lg"
-									disabled={createPending || personPending}
-									onClick={() => onCreateEvent(person.id)}
-									size="icon-lg"
-									type="button"
-								>
-									<LuPlus className="size-5" />
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent>Adicionar lançamento</TooltipContent>
-						</Tooltip>
+						<FloatingActionMenu
+							actions={[
+								{
+									disabled: createPending || personPending,
+									icon: LuPlus,
+									label: `Adicionar lançamento para ${person.name}`,
+									onClick: () => onCreateEvent(person.id),
+								},
+							]}
+						/>
 					</ActionGroup>
 				</DialogContent>
 			</Dialog>

@@ -11,8 +11,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
-import { FloatingActionButton } from "@/components/ui/FloatingActionButton";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
+import { FloatingActionMenu } from "@/components/ui/FloatingActionMenu";
 import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
 import type { FinancialAccount, Transaction } from "@/lib/api";
 import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
@@ -204,30 +203,15 @@ export function FinancialAccountStatementDialog({
 					/>
 				</DialogBody>
 				<ActionGroup className="absolute right-6 bottom-6 z-10">
-					{account.type !== "CREDIT_CARD" &&
-					(account.type !== "REWARDS" || account.rewardsAccount?.kind === "CASHBACK") ? (
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<FloatingActionButton
-									icon={LuScale}
-									label="Ajustar saldo"
-									onClick={() => setAdjustingBalance(true)}
-									variant="outline"
-								/>
-							</TooltipTrigger>
-							<TooltipContent>Ajustar saldo</TooltipContent>
-						</Tooltip>
-					) : null}
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<FloatingActionButton
-								icon={LuPlus}
-								label="Nova transação"
-								onClick={() => setCreatingTransaction(true)}
-							/>
-						</TooltipTrigger>
-						<TooltipContent>Nova transação</TooltipContent>
-					</Tooltip>
+					<FloatingActionMenu
+						actions={[
+							...(account.type !== "CREDIT_CARD" &&
+							(account.type !== "REWARDS" || account.rewardsAccount?.kind === "CASHBACK")
+								? [{ icon: LuScale, label: "Ajustar saldo", onClick: () => setAdjustingBalance(true) }]
+								: []),
+							{ icon: LuPlus, label: "Nova transação", onClick: () => setCreatingTransaction(true) },
+						]}
+					/>
 				</ActionGroup>
 				<BalanceAdjustmentsDialog
 					account={account}

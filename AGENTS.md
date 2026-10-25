@@ -81,6 +81,8 @@ A route with children is a layout and must render Outlet. Use folder paths consi
 
 ## Component Architecture (Frontend)
 
+- **One floating action menu.** Each page or modal must expose at most one floating action control, always a hamburger menu, even when only one action exists. Put every floating action inside that menu; never render separate floating buttons side by side. Reuse the shared menu and preserve accessible labels, disabled states, keyboard navigation and focus when an action opens a dialog.
+
 - **Loading states before empty/error states.** While any request required to decide what a screen should render is pending, render skeletons that mirror the final content's dimensions and structure as closely as possible. Never infer "not found", "unavailable", or an empty collection from `undefined` data before the relevant request settles. Check `isPending`/`isLoading` first, then request errors, then settled empty/not-found states. When a screen depends on multiple requests, keep its skeleton until all required requests settle. Avoid generic spinner-only or one-block placeholders when shaped skeletons can preserve layout.
 - **Simple, componentized components.** Break out parts that make sense into their own components - avoid bloated components with multiple responsibilities.
 - **Shared form fields.** When create and edit forms repeat field groups, extract one shared field component and pass their small variations as props (for example, an optional product select or layout width). Never copy input markup between these forms.

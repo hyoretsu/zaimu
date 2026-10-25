@@ -14,7 +14,7 @@ import { AppBadge } from "@/components/ui/AppBadge";
 import { Button } from "@/components/ui/Button";
 import { DialogBody } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { FloatingActionButton } from "@/components/ui/FloatingActionButton";
+import { FloatingActionMenu } from "@/components/ui/FloatingActionMenu";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { TabsContent } from "@/components/ui/Tabs";
 import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
@@ -370,7 +370,7 @@ export function CreditCardStatementDetails({
 				</div>
 			</DialogBody>
 			<ActionGroup className="absolute right-3 bottom-3 z-10">
-				<FloatingActionButton icon={LuPlus} label="Nova compra" onClick={onAddPurchase} />
+				<FloatingActionMenu actions={[{ icon: LuPlus, label: "Nova compra", onClick: onAddPurchase }]} />
 			</ActionGroup>
 			{editingStatement && (
 				<EditCreditCardStatementDialog
