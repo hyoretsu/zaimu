@@ -57,6 +57,19 @@ export function DebtPersonCard({
 		enabled: expanded && !!eventsQuery.hasNextPage && !eventsQuery.isFetching && !eventsQuery.isError,
 		onLoadMore: eventsQuery.fetchNextPage,
 	});
+	const balanceSummary = (
+		<strong
+			className={
+				person.balance > 0
+					? "whitespace-nowrap text-emerald-600"
+					: person.balance < 0
+						? "whitespace-nowrap text-rose-600"
+						: "whitespace-nowrap text-muted-foreground"
+			}
+		>
+			<PreferredMoneyAmount values={person.balances ?? [{ amount: person.balance, currency: "BRL" }]} />
+		</strong>
+	);
 	return (
 		<article className="min-w-0 max-w-full overflow-x-clip rounded-2xl border bg-card p-4 shadow-sm">
 			<div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3">
@@ -82,17 +95,7 @@ export function DebtPersonCard({
 									: "Saldo quitado"}
 					</p>
 				</div>
-				<strong
-					className={
-						person.balance > 0
-							? "whitespace-nowrap text-emerald-600"
-							: person.balance < 0
-								? "whitespace-nowrap text-rose-600"
-								: "whitespace-nowrap text-muted-foreground"
-					}
-				>
-					<PreferredMoneyAmount values={person.balances ?? [{ amount: person.balance, currency: "BRL" }]} />
-				</strong>
+				{balanceSummary}
 			</div>
 			<div className="mt-3 grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] gap-2">
 				<Button
@@ -136,6 +139,10 @@ export function DebtPersonCard({
 					<DialogHeader>
 						<DialogTitle>Lançamentos · {person.name}</DialogTitle>
 						<DialogDescription>Movimentações que compõem o saldo desta pessoa.</DialogDescription>
+						<div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3 text-sm">
+							<span className="text-muted-foreground">Total devido</span>
+							{balanceSummary}
+						</div>
 					</DialogHeader>
 					<DialogBody>
 						<div className="grid gap-2 pb-16">
