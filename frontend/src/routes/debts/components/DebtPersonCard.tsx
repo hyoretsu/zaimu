@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/Dialog";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
+import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import type { DebtEvent, DebtPerson } from "@/lib/api";
 import { useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { type DebtEventPage, dataService } from "@/lib/dataService";
@@ -47,6 +48,10 @@ export function DebtPersonCard({
 		queryKey: queryKeys.debts.events(identity!, person.id),
 	});
 	const events = eventsQuery.data?.pages.flatMap(page => page.items) ?? person.events;
+	const loadMoreRef = useInfiniteScroll({
+		enabled: expanded && !!eventsQuery.hasNextPage && !eventsQuery.isFetching && !eventsQuery.isError,
+		onLoadMore: eventsQuery.fetchNextPage,
+	});
 	return (
 		<article className="min-w-0 max-w-full overflow-x-clip rounded-2xl border bg-card p-4 shadow-sm">
 			<div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3">
@@ -173,14 +178,13 @@ export function DebtPersonCard({
 								</div>
 							) : null}
 							{eventsQuery.hasNextPage ? (
-								<Button
-									className="w-full cursor-pointer"
-									disabled={eventsQuery.isFetchingNextPage}
-									onClick={() => eventsQuery.fetchNextPage()}
-									variant="outline"
+								<div
+									aria-live="polite"
+									className="flex h-10 items-center justify-center text-muted-foreground"
+									ref={loadMoreRef}
 								>
-									{eventsQuery.isFetchingNextPage ? "Carregando..." : "Carregar mais"}
-								</Button>
+									{eventsQuery.isFetchingNextPage ? "Carregando..." : null}
+								</div>
 							) : null}
 						</div>
 					</DialogBody>
