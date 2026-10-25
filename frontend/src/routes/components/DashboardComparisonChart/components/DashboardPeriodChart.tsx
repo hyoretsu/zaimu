@@ -14,6 +14,7 @@ import { ChartContainer } from "@/components/ui/chart";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { DashboardReferenceRateNotice } from "../../DashboardReferenceRateNotice";
 import { chartConfig } from "./chart-config";
+import { chartScale } from "./chart-scale";
 import { FloatingDashboardTooltip } from "./FloatingDashboardTooltip";
 import type { DashboardChartKind, DashboardChartPeriod } from "./types";
 
@@ -68,20 +69,30 @@ export function DashboardPeriodChart({
 	const balances = kind === "balances";
 	const title = balances ? "Patrimônio" : "Entradas e gastos";
 	const keys = balances ? balanceKeys : flowKeys;
-	const chartData = balances
-		? data
-		: data.map(period => ({
-				...period,
-				cardExpenses: (period.cardExpenses ?? 0) - (period.recurringCardExpenses ?? 0),
-				otherExpenses:
-					period.expenses -
-					period.recurringExpenses -
-					(period.cardExpenses ?? 0) +
-					(period.recurringCardExpenses ?? 0),
-				otherIncome: period.income - period.recurringIncome,
-				recurringCardExpenses: period.recurringCardExpenses ?? 0,
-				recurringExpenses: period.recurringExpenses - (period.recurringCardExpenses ?? 0),
-			}));
+	const chartData = data.map(period => ({
+		...period,
+		cardExpenses: (period.cardExpenses ?? 0) - (period.recurringCardExpenses ?? 0),
+		otherExpenses:
+			period.expenses -
+			period.recurringExpenses -
+			(period.cardExpenses ?? 0) +
+			(period.recurringCardExpenses ?? 0),
+		otherIncome: period.income - period.recurringIncome,
+		recurringCardExpenses: period.recurringCardExpenses ?? 0,
+		recurringExpenses: period.recurringExpenses - (period.recurringCardExpenses ?? 0),
+	}));
+	const scaleValues = chartData.flatMap(period => {
+		if (balances) return balanceKeys.map(key => period[key]);
+		// Stacked bars need their cumulative extents, including mixed signs.
+		return [incomeKeys, expenseKeys].flatMap(stack => {
+			const values = stack.map(key => period[key] ?? 0);
+			return [
+				values.reduce((sum, value) => sum + Math.min(0, value), 0),
+				values.reduce((sum, value) => sum + Math.max(0, value), 0),
+			];
+		});
+	});
+	const scale = chartScale(scaleValues);
 	return (
 		<section aria-label={title}>
 			<h3 className="mb-3 font-medium text-sm">{title}</h3>
@@ -100,7 +111,9 @@ export function DashboardPeriodChart({
 						<CartesianGrid strokeDasharray="3 3" vertical={false} />
 						<XAxis dataKey="label" scale="band" tickLine={false} />
 						<YAxis
+							domain={scale.domain}
 							tickFormatter={value => (mobile ? compactCurrency : currency).format(value)}
+							ticks={scale.ticks}
 							width={mobile ? 72 : 110}
 						/>
 						{currentPeriod && (
