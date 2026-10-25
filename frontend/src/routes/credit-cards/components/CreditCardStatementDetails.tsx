@@ -4,10 +4,15 @@ import {
 	LuCalendarCheck,
 	LuCalendarClock,
 	LuCloudDownload,
+	LuFileUp,
 	LuPencil,
 	LuPlus,
 	LuReceiptText,
 } from "react-icons/lu";
+import {
+	CreditCardImportReviewDialog,
+	ImportCreditCardStatementDialog,
+} from "@/components/credit-card-imports";
 import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { AppBadge } from "@/components/ui/AppBadge";
@@ -57,6 +62,8 @@ export function CreditCardStatementDetails({
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
 	const [editingStatement, setEditingStatement] = useState(false);
+	const [isImportOpen, setIsImportOpen] = useState(false);
+	const [reviewingImportId, setReviewingImportId] = useState<string | null>(null);
 	const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<string>>(new Set());
 	const [pendingUpdateIds, setPendingUpdateIds] = useState<Set<string>>(new Set());
 	const [choosingEditScope, setChoosingEditScope] = useState<CreditPurchase | null>(null);
@@ -372,8 +379,24 @@ export function CreditCardStatementDetails({
 				</div>
 			</DialogBody>
 			<ActionGroup className="absolute right-3 bottom-3 z-10">
-				<FloatingActionMenu actions={[{ icon: LuPlus, label: "Nova compra", onClick: onAddPurchase }]} />
+				<FloatingActionMenu
+					actions={[
+						{ icon: LuPlus, label: "Nova compra", onClick: onAddPurchase },
+						{ icon: LuFileUp, label: "Importar fatura", onClick: () => setIsImportOpen(true) },
+					]}
+				/>
 			</ActionGroup>
+			<ImportCreditCardStatementDialog
+				cards={[card]}
+				onImported={setReviewingImportId}
+				onOpenChange={setIsImportOpen}
+				open={isImportOpen}
+			/>
+			<CreditCardImportReviewDialog
+				importId={reviewingImportId}
+				onOpenChange={open => !open && setReviewingImportId(null)}
+				open={reviewingImportId !== null}
+			/>
 			{editingStatement && (
 				<EditCreditCardStatementDialog
 					currency={currencyCode}
