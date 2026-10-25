@@ -10,6 +10,8 @@ services:
     entrypoint: ["sh", "-ec"]
     command:
       - |
+        date +%s > /tmp/zaimu-dev-started-at
+        echo 0 > /tmp/zaimu-dev-health-failures
         bun install --frozen-lockfile
         bun -F sql contract:emit
         bun -F sql migrate:deploy
@@ -25,6 +27,12 @@ services:
             - packages/sql/migrations/**
             - packages/sql/src/prisma/**
             - packages/sql/prisma.config.ts
+    healthcheck:
+      test: ["CMD", "sh", "/app/scripts/dev-healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5m
     restart: unless-stopped
     networks:
       - proxy
