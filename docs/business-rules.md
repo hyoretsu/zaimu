@@ -450,3 +450,6 @@ Reembolsos importados parciais permitem vincular manualmente qualquer compra do 
 
 
 Na revisão de reembolsos importados, Salvar persiste somente a origem, os dados de reconstrução e a política escolhida. O reembolso permanece pendente, sem criar compras ou créditos, cancelar parcelas ou alterar a política da instituição. Reabrir recupera a última revisão salva; Descartar abandona alterações não salvas. A aprovação explícita pode ocorrer na linha ou em lote por Aprovar itens sem pendências e revalida os dados financeiros atuais. Sugestões automáticas de origem não substituem a revisão salva. Reembolsos bloqueados permanecem pendentes na aprovação em lote. A compra original pendente pode ser aprovada antes do reembolso sem perder o vínculo.
+
+
+Extratos PDF possuem identidade estável por usuário, conta, provedor e conjunto de identificadores dos lançamentos, independente do nome do arquivo e da ordem das linhas. Reimportar o mesmo extrato retoma a revisão pendente, preservando edições e aprovações parciais, ou informa que já foi importado quando concluído. Envios simultâneos não criam lotes duplicados. Revisões antigas com o mesmo conjunto de lançamentos restantes também são reutilizadas.

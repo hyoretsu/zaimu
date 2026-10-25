@@ -41,3 +41,15 @@ export function assignStableExternalIds(
 		};
 	});
 }
+
+export function statementImportId(
+	userId: string,
+	accountId: string,
+	provider: string,
+	externalIds: string[],
+) {
+	const hash = new Bun.CryptoHasher("sha256")
+		.update(JSON.stringify(["statement-import-v1", userId, accountId, provider, externalIds.toSorted()]))
+		.digest("hex");
+	return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
+}

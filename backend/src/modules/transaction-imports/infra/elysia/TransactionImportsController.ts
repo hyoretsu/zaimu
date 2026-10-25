@@ -54,7 +54,7 @@ import {
 	matchesDuplicateTransactionShape,
 	uniqueTransactionMatches,
 } from "../../domain/import-reconciliation";
-import { assignStableExternalIds } from "../../domain/statement-identity";
+import { assignStableExternalIds, statementImportId } from "../../domain/statement-identity";
 import { parseStatementPdf } from "../../domain/statement-parser";
 import {
 	getTransferSuggestions,
@@ -772,54 +772,89 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					userId,
 				},
 			);
-			const [existingTransactions, existingYields] = await Promise.all([
-				queryRaw<{ externalId: string | null }>(
-					`SELECT "externalId" FROM "TransactionExternalReference" WHERE "financialAccountId"=$1 AND "externalId"=ANY($2::varchar[])`,
-					[body.financialAccountId, statementTransactions.map(transaction => transaction.externalId)],
-				),
-				queryRaw<{ externalId: string | null }>(
-					`SELECT "externalId" FROM "FinancialAccountYield" WHERE "financialAccountId"=$1 AND "externalId"=ANY($2::varchar[])`,
-					[body.financialAccountId, statementTransactions.map(transaction => transaction.externalId)],
-				),
-			]);
-			const existingExternalIds = new Set(
-				[...existingTransactions, ...existingYields].flatMap(transaction =>
-					transaction.externalId ? [transaction.externalId] : [],
-				),
-			);
-			const transactions = filterExistingTransactions(statementTransactions, existingExternalIds);
-			const ignoredCount = statementTransactions.length - transactions.length;
-			if (transactions.length === 0) return { ignoredCount, transactionImport: null };
-			const transactionImport = await createTransactionBatch({
-				fileName: body.file.name.slice(0, 255),
-				financialAccountId: body.financialAccountId,
-				periodEnd: statement.periodEnd ? new Date(statement.periodEnd) : undefined,
-				periodStart: statement.periodStart ? new Date(statement.periodStart) : undefined,
-				provider: statement.provider,
+			const importId = statementImportId(
 				userId,
-			});
-			if (!transactionImport) throw new HttpException("Não foi possível criar a importação", 500);
-			await executeStatement(
-				db.sql.public.TransactionImportItem.insert(
-					transactions.map(transaction => ({
-						amount: String(transaction.amount),
-						balanceAfter:
-							transaction.balanceAfter === undefined ? undefined : String(transaction.balanceAfter),
-						date: new Date(transaction.date),
-						description: transaction.description,
-						destinationFinancialAccountId:
-							transaction.type === "INCOME" || transaction.type === "YIELD"
-								? body.financialAccountId
-								: undefined,
-						externalId: transaction.externalId,
-						originFinancialAccountId: transaction.type === "EXPENSE" ? body.financialAccountId : undefined,
-						time: transaction.time,
-						transactionImportId: transactionImport.id,
-						type: transaction.type as ImportItemType,
-					})),
-				).build(),
+				body.financialAccountId,
+				statement.provider,
+				statementTransactions.map(item => item.externalId),
 			);
-			return { ignoredCount, transactionImport: await getImportReturn(userId, transactionImport.id) };
+			return withRawTransaction(async query => {
+				await query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [
+					`statement-import:${userId}:${body.financialAccountId}`,
+				]);
+				const imported = await query<{ id: string; status: string }>(
+					'SELECT "id", "status" FROM "TransactionImport" WHERE "id"=$1',
+					[importId],
+				);
+				if (imported[0])
+					return {
+						ignoredCount: imported[0].status === "PENDING" ? 0 : statementTransactions.length,
+						transactionImport:
+							imported[0].status === "PENDING" ? await getImportReturn(userId, imported[0].id) : null,
+					};
+
+				const [existingTransactions, existingYields] = await Promise.all([
+					queryRaw<{ externalId: string | null }>(
+						`SELECT "externalId" FROM "TransactionExternalReference" WHERE "financialAccountId"=$1 AND "externalId"=ANY($2::varchar[])`,
+						[body.financialAccountId, statementTransactions.map(transaction => transaction.externalId)],
+					),
+					queryRaw<{ externalId: string | null }>(
+						`SELECT "externalId" FROM "FinancialAccountYield" WHERE "financialAccountId"=$1 AND "externalId"=ANY($2::varchar[])`,
+						[body.financialAccountId, statementTransactions.map(transaction => transaction.externalId)],
+					),
+				]);
+				const existingExternalIds = new Set(
+					[...existingTransactions, ...existingYields].flatMap(transaction =>
+						transaction.externalId ? [transaction.externalId] : [],
+					),
+				);
+				const transactions = filterExistingTransactions(statementTransactions, existingExternalIds);
+				const ignoredCount = statementTransactions.length - transactions.length;
+				if (transactions.length === 0) return { ignoredCount, transactionImport: null };
+				const pending = await queryRaw<{ id: string }>(
+					`SELECT b."id" FROM "TransactionImport" b
+				 WHERE b."userId"=$1 AND b."financialAccountId"=$2 AND b."provider"=$3 AND b."status"='PENDING'
+				 AND EXISTS (SELECT 1 FROM "TransactionImportItem" i WHERE i."transactionImportId"=b."id")
+				 AND NOT EXISTS (SELECT 1 FROM "TransactionImportItem" i WHERE i."transactionImportId"=b."id" AND (i."externalId" IS NULL OR NOT (i."externalId"=ANY($4::varchar[]))))
+				 AND NOT EXISTS (SELECT 1 FROM unnest($4::varchar[]) e WHERE NOT EXISTS (SELECT 1 FROM "TransactionImportItem" i WHERE i."transactionImportId"=b."id" AND i."externalId"=e))
+				 ORDER BY b."createdAt" LIMIT 1`,
+					[userId, body.financialAccountId, statement.provider, transactions.map(item => item.externalId)],
+				);
+				const existing = pending[0];
+				if (existing) return { ignoredCount, transactionImport: await getImportReturn(userId, existing.id) };
+
+				const transactionImport = await createTransactionBatch({
+					fileName: body.file.name.slice(0, 255),
+					financialAccountId: body.financialAccountId,
+					id: importId,
+					periodEnd: statement.periodEnd ? new Date(statement.periodEnd) : undefined,
+					periodStart: statement.periodStart ? new Date(statement.periodStart) : undefined,
+					provider: statement.provider,
+					userId,
+				});
+				if (!transactionImport) throw new HttpException("Não foi possível criar a importação", 500);
+				await executeStatement(
+					db.sql.public.TransactionImportItem.insert(
+						transactions.map(transaction => ({
+							amount: String(transaction.amount),
+							balanceAfter:
+								transaction.balanceAfter === undefined ? undefined : String(transaction.balanceAfter),
+							date: new Date(transaction.date),
+							description: transaction.description,
+							destinationFinancialAccountId:
+								transaction.type === "INCOME" || transaction.type === "YIELD"
+									? body.financialAccountId
+									: undefined,
+							externalId: transaction.externalId,
+							originFinancialAccountId: transaction.type === "EXPENSE" ? body.financialAccountId : undefined,
+							time: transaction.time,
+							transactionImportId: transactionImport.id,
+							type: transaction.type as ImportItemType,
+						})),
+					).build(),
+				);
+				return { ignoredCount, transactionImport: await getImportReturn(userId, transactionImport.id) };
+			});
 		},
 		{
 			body: t.Object({

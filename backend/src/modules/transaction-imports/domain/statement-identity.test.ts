@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { assignStableExternalIds } from "./statement-identity";
+import { assignStableExternalIds, statementImportId } from "./statement-identity";
 
 const context = { financialAccountId: "account-a", provider: "NUBANK" as const, userId: "user-a" };
 const transaction = {
@@ -26,5 +26,24 @@ describe("assignStableExternalIds", () => {
 			"nubank:v1:25d14864c3b1bdd05d293a746a51bc0a1b14e4c45ee254fc56fd01f40fb25b14:2",
 			"native-id",
 		]);
+	});
+});
+
+describe("statementImportId", () => {
+	test("identifies content independently of filename and transaction ordering", () => {
+		expect(statementImportId("u", "a", "NUBANK", ["b", "a"])).toBe(
+			statementImportId("u", "a", "NUBANK", ["a", "b"]),
+		);
+	});
+	test("isolates owners, accounts, providers and different contents", () => {
+		const id = statementImportId("u", "a", "NUBANK", ["a", "b"]);
+		for (const candidate of [
+			statementImportId("v", "a", "NUBANK", ["a", "b"]),
+			statementImportId("u", "b", "NUBANK", ["a", "b"]),
+			statementImportId("u", "a", "INTER", ["a", "b"]),
+			statementImportId("u", "a", "NUBANK", ["a"]),
+		])
+			expect(candidate).not.toBe(id);
+		expect(id).toMatch(/^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/);
 	});
 });
