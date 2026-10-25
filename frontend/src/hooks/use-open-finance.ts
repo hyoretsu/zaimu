@@ -48,12 +48,8 @@ export function useOpenFinanceAutoSync() {
 				const result = await openFinanceApi.sync();
 				if (active && result.runId) observedRun.current = result.runId;
 				if (active) await client.invalidateQueries({ queryKey: openFinanceKeys.status(identity) });
-			} catch (error) {
-				if (active)
-					showToast(
-						error instanceof Error ? error.message : "Não foi possível buscar dados MeuPluggy",
-						"negative",
-					);
+			} catch {
+				// Background sync failures stay in Open Finance instead of interrupting the user.
 			} finally {
 				searching = false;
 			}
@@ -84,11 +80,7 @@ export function useOpenFinanceAutoSync() {
 			queryKey: ["identity", identity],
 		});
 		void client.invalidateQueries({ queryKey: openFinanceKeys.configuration(identity) });
-		showToast(
-			run.errors.length
-				? "Busca MeuPluggy concluída com pendências. Confira Open Finance."
-				: `MeuPluggy: ${run.imported} registros importados, ${run.pending} pendências.`,
-			run.errors.length ? "negative" : "positive",
-		);
+		if (!run.errors.length)
+			showToast(`MeuPluggy: ${run.imported} registros importados, ${run.pending} pendências.`, "positive");
 	}, [client, identity, status.data]);
 }
