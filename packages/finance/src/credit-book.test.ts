@@ -1048,3 +1048,29 @@ for (const stalePlan of [false, true])
 		materializeBookInstallments(book, "2026-10-01");
 		expect(book).toEqual(snapshot);
 	});
+
+test("refund synchronization uses its own bank identity instead of the original purchase", () => {
+	const book = emptyBook();
+	const purchase = newBookPurchase(book, {
+		description: "Purchase",
+		externalId: "bank-purchase",
+		installments: 1,
+		purchaseDate: "2026-08-01",
+		totalAmount: 100,
+	});
+	const refund = addBookRefund(book, purchase.id, { amount: 7.3, creditDate: "2026-08-28" });
+	const manual = creditBookEntries(book)
+		.filter(row => row.entryKind === "REFUND")
+		.find(row => row.id === refund.id)!;
+	expect(manual.isSynced).toBe(false);
+	expect(manual.hasImportedAmount).toBe(false);
+	expect(manual.externalId).toBeNull();
+	refund.externalId = "bank-refund";
+	const imported = creditBookEntries(book)
+		.filter(row => row.entryKind === "REFUND")
+		.find(row => row.id === refund.id)!;
+	expect(imported.isSynced).toBe(true);
+	expect(imported.isFullySynced).toBe(true);
+	expect(imported.hasImportedAmount).toBe(true);
+	expect(imported.externalId).toBe("bank-refund");
+});
