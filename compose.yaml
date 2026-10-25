@@ -3,7 +3,6 @@ name: zaimu
 services:
   app:
     image: oven/bun:latest
-    container_name: zaimu-dev
     working_dir: /app
     init: true
     volumes:
