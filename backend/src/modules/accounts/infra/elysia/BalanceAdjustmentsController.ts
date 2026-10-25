@@ -29,7 +29,20 @@ async function assertEligibleAccount(userId: string, accountId: string) {
 			.limit(1)
 			.build(),
 	);
-	if (!account || account.type === "CREDIT_CARD" || account.type === "REWARDS")
+	const rewards =
+		account?.type === "REWARDS"
+			? await queryFirst(
+					db.sql.public.RewardsAccount.select("kind")
+						.where((fields, functions) => functions.eq(fields.financialAccountId, accountId))
+						.limit(1)
+						.build(),
+				)
+			: null;
+	if (
+		!account ||
+		account.type === "CREDIT_CARD" ||
+		(account.type === "REWARDS" && rewards?.kind !== "CASHBACK")
+	)
 		throw new HttpException("Selecione uma conta com saldo válido", 400);
 	return account;
 }

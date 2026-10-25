@@ -34,7 +34,7 @@ Um ajuste registra o saldo real de uma conta ao fim de uma data. Ele não é ent
 
 A listagem agrupa ajustes por conta e mostra suas datas em ordem decrescente. Cada data compara o saldo calculado antes daquele ajuste com o saldo real informado. Uma conta pode ter ajustes em vários dias; adicionar uma data ao grupo mantém a conta selecionada. Duplicatas de conta e dia são rejeitadas antes de salvar.
 
-Cartões de crédito e contas de recompensas não aceitam ajuste de saldo. Rendimentos da data são calculados antes da aplicação do ajuste.
+Contas de Cashback em dinheiro aceitam ajuste de saldo nos modos conectado e visitante. Cartões de crédito e contas de pontos não aceitam ajuste de saldo. Rendimentos da data são calculados antes da aplicação do ajuste.
 
 ## Ajustes de fatura
 

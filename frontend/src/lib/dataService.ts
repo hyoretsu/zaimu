@@ -1038,11 +1038,12 @@ export const dataService = {
 		},
 		async getAll(): Promise<BalanceAdjustment[]> {
 			if (isGuestMode()) {
-				const [accounts, transactions, yields, loans] = await Promise.all([
+				const [accounts, transactions, yields, loans, books] = await Promise.all([
 					localAccounts.getAll(),
 					localTransactions.getAll(),
 					localMeta.get("financial-account-yields"),
 					localLoanPayments.getAll(),
+					localCreditBooks.getAll(),
 				]);
 				return accounts.flatMap(row =>
 					(row.data.balanceAdjustments ?? []).map(adjustment => {
@@ -1057,7 +1058,7 @@ export const dataService = {
 									...transactions.map(item => item.data),
 									...loanAccountMovements(loans.map(item => item.data)),
 								],
-								[],
+								books.flatMap(item => creditBookRewards(item.data)),
 								cachedYieldCalendar(),
 								new Date(`${adjustment.date.slice(0, 10)}T12:00:00`),
 								(yields as FinancialAccountYield[] | undefined) ?? [],

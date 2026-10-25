@@ -543,7 +543,11 @@ export async function mutateLocalBalanceAdjustment(
 			throw new Error("Ajuste não encontrado");
 		const target = rows.find(row => row.data.id === input.financialAccountId);
 		if (!remove) {
-			if (!target || ["CREDIT_CARD", "REWARDS"].includes(target.data.type))
+			if (
+				!target ||
+				target.data.type === "CREDIT_CARD" ||
+				(target.data.type === "REWARDS" && target.data.rewardsAccount?.kind !== "CASHBACK")
+			)
 				throw new Error("Selecione uma conta válida");
 			const date = input.date ?? "";
 			if (

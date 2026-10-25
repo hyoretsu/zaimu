@@ -57,7 +57,11 @@ export function BalanceAdjustmentForm({
 		queryKey: queryKeys.accounts.list(identity!),
 	});
 	const accounts = (accountsQuery.data ?? [])
-		.filter(account => account.type !== "CREDIT_CARD" && account.type !== "REWARDS")
+		.filter(
+			account =>
+				account.type !== "CREDIT_CARD" &&
+				(account.type !== "REWARDS" || account.rewardsAccount?.kind === "CASHBACK"),
+		)
 		.toSorted(compareFinancialAccountsByOptionLabel);
 	const [error, setError] = useState<string | null>(null);
 	const save = (form: HTMLFormElement) => {

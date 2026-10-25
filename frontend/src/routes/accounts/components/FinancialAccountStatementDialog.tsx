@@ -204,7 +204,8 @@ export function FinancialAccountStatementDialog({
 					/>
 				</DialogBody>
 				<ActionGroup className="absolute right-6 bottom-6 z-10">
-					{account.type !== "CREDIT_CARD" && account.type !== "REWARDS" ? (
+					{account.type !== "CREDIT_CARD" &&
+					(account.type !== "REWARDS" || account.rewardsAccount?.kind === "CASHBACK") ? (
 						<Tooltip>
 							<TooltipTrigger asChild>
 								<FloatingActionButton
