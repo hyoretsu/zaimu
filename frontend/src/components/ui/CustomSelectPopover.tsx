@@ -115,13 +115,13 @@ export function CustomSelectPopover({
 							: (selected ??
 								document.getElementById(listId)?.querySelector<HTMLButtonElement>("button:not(:disabled)"));
 						target?.focus({ preventScroll: true });
-						const viewport = selected?.closest<HTMLElement>('[data-slot="scroll-area-viewport"]');
-						if (selected && viewport) {
-							viewport.scrollTop +=
-								selected.getBoundingClientRect().top -
-								viewport.getBoundingClientRect().top -
-								(viewport.clientHeight - selected.offsetHeight) / 2;
-						}
+						// Floating positioning sets the viewport height after autofocus runs.
+						requestAnimationFrame(() => {
+							const viewport = selected?.closest<HTMLElement>('[data-slot="scroll-area-viewport"]');
+							if (selected && viewport) {
+								viewport.scrollTop = selected.offsetTop - (viewport.clientHeight - selected.offsetHeight) / 2;
+							}
+						});
 					}}
 				>
 					{searchable && (
