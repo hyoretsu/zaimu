@@ -102,3 +102,7 @@ See [CD configuration and release guide](development/cd.md) for image matrices,
 version-tagged native releases, iOS signing and explicit Google Play promotion.
 Keep app publication downstream of all selected platform builds and preserve
 variant isolation in the template.
+
+## Disposable test command timeout
+
+`scripts/test-runner.ts` limits each setup and cleanup command to 120,000 ms by default. On overloaded local machines, set `TEST_COMMAND_TIMEOUT_MS` to a larger millisecond limit while running tests or normal Git hooks. This changes only command execution time; test selection, coverage gates and disposable service isolation remain enforced.

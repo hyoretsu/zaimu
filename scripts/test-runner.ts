@@ -21,13 +21,20 @@ if (!targets.has(target) || !categories.has(category) || args.some(arg => arg !=
 	);
 const temp = await mkdtemp(join(tmpdir(), "zaimu-tests-"));
 const namespace = `zaimu_test_${crypto.randomUUID().replaceAll("-", "")}`;
+const commandTimeoutMs = Number(process.env.TEST_COMMAND_TIMEOUT_MS ?? 120000);
 const containers: string[] = [];
 let child: ReturnType<typeof Bun.spawn> | undefined;
 let interrupted = false;
 const commands = new Set<ReturnType<typeof Bun.spawn>>();
 console.log(`Disposable test run: ${namespace} (${target}:${category})`);
 async function command(command: string[], env?: Record<string, string | undefined>, cwd = root) {
-	const process = Bun.spawn(command, { cwd, env, stderr: "pipe", stdout: "pipe", timeout: 120000 });
+	const process = Bun.spawn(command, {
+		cwd,
+		env,
+		stderr: "pipe",
+		stdout: "pipe",
+		timeout: commandTimeoutMs,
+	});
 	commands.add(process);
 	const [stdout, stderr, code] = await Promise.all([
 		new Response(process.stdout).text(),
