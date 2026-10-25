@@ -8,7 +8,6 @@ import {
 	LuLandmark,
 	LuPiggyBank,
 	LuReceiptText,
-	LuScale,
 	LuSparkles,
 	LuTrash2,
 	LuWallet,
@@ -26,7 +25,6 @@ import {
 	getFinancialAccountTitle,
 	getFinancialAccountTypeLabel,
 } from "@/lib/financial-account";
-import { BalanceAdjustmentsDialog } from "./BalanceAdjustmentsDialog";
 import { CreateFinancialAccountDialog } from "./CreateFinancialAccountDialog";
 import { CreditCardAccountSummary } from "./CreditCardAccountSummary";
 import { FinancialAccountStatementDialog } from "./FinancialAccountStatementDialog";
@@ -61,7 +59,6 @@ export function FinancialAccountCard({
 	const { statementAccountId } = useSearch({ strict: false });
 	const openedAccountId = useRef<string | undefined>(undefined);
 	const [statementOpen, setStatementOpen] = useState(false);
-	const [balanceOpen, setBalanceOpen] = useState(false);
 	const [importOpen, setImportOpen] = useState(false);
 	const [reviewingImportId, setReviewingImportId] = useState<string | null>(null);
 	useEffect(() => {
@@ -196,16 +193,19 @@ export function FinancialAccountCard({
 					</>
 				)}
 			</div>
+			{account.type !== "CREDIT_CARD" &&
+			(account.type !== "REWARDS" || account.rewardsAccount?.kind === "CASHBACK") ? (
+				<Button
+					className="mt-4 w-full cursor-pointer"
+					onClick={() => setStatementOpen(true)}
+					size="sm"
+					variant="outline"
+				>
+					<LuReceiptText /> Extrato
+				</Button>
+			) : null}
 			{account.type !== "CREDIT_CARD" && account.type !== "REWARDS" ? (
 				<>
-					<Button
-						className="mt-4 w-full cursor-pointer"
-						onClick={() => setStatementOpen(true)}
-						size="sm"
-						variant="outline"
-					>
-						<LuReceiptText /> Extrato
-					</Button>
 					<Button
 						className="mt-2 w-full cursor-pointer"
 						onClick={() => setImportOpen(true)}
@@ -225,19 +225,6 @@ export function FinancialAccountCard({
 						onOpenChange={nextOpen => !nextOpen && setReviewingImportId(null)}
 						open={reviewingImportId !== null}
 					/>
-				</>
-			) : null}
-			{account.type === "REWARDS" && account.rewardsAccount?.kind === "CASHBACK" ? (
-				<>
-					<Button
-						className="mt-4 w-full cursor-pointer"
-						onClick={() => setBalanceOpen(true)}
-						size="sm"
-						variant="outline"
-					>
-						<LuScale /> Saldo
-					</Button>
-					<BalanceAdjustmentsDialog account={account} onOpenChange={setBalanceOpen} open={balanceOpen} />
 				</>
 			) : null}
 			{account.type !== "CREDIT_CARD" && <RecalculateAccountYieldDialog account={account} />}
