@@ -10,6 +10,18 @@ export function FloatingActionMenu({ actions }: { actions: PageAction[] }) {
 	const [open, setOpen] = useState(false);
 	const actionSelected = useRef(false);
 	if (!actions.length) return null;
+	if (actions.length === 1) {
+		const action = actions[0];
+		return (
+			<FloatingActionButton
+				disabled={action.disabled}
+				icon={action.icon}
+				label={action.label}
+				onClick={action.onClick}
+				variant={action.variant}
+			/>
+		);
+	}
 	const trigger = <FloatingActionButton icon={LuMenu} label="Ações da tela" />;
 	return (
 		<Popover
