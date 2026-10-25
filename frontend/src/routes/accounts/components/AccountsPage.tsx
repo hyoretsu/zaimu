@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { LuEye, LuLandmark, LuPlus, LuScale, LuSettings2, LuWalletCards } from "react-icons/lu";
+import { LuEye, LuFileUp, LuLandmark, LuPlus, LuScale, LuSettings2, LuWalletCards } from "react-icons/lu";
 import { NativeMoneyTotals } from "@/components/currency/NativeMoneyTotals";
+import { PendingNotices } from "@/components/pending-notices";
+import { ImportTransactionsDialog, TransactionImportReviewDialog } from "@/components/transaction-imports";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageContainer } from "@/components/ui/PageContainer";
@@ -29,6 +31,8 @@ import { showToast, useAuthStore } from "@/stores";
 import type { AccountDefaultsDraft } from "./AccountDefaultsForm";
 
 export function AccountsPage() {
+	const [isImportOpen, setIsImportOpen] = useState(false);
+	const [reviewingImportId, setReviewingImportId] = useState<string | null>(null);
 	const [isDefaultsOpen, setIsDefaultsOpen] = useState(false);
 	const [recoveredDefaults, setRecoveredDefaults] = useState<AccountDefaultsDraft | null>(null);
 	const identity = useCacheIdentity();
@@ -155,6 +159,7 @@ export function AccountsPage() {
 						label: "Contas padrão",
 						onClick: () => setIsDefaultsOpen(true),
 					},
+					{ icon: LuFileUp, label: "Importar extrato", onClick: () => setIsImportOpen(true) },
 					{ icon: LuScale, label: "Ajustes de saldo", onClick: () => setIsBalanceAdjustmentsOpen(true) },
 					{
 						icon: LuPlus,
@@ -166,6 +171,17 @@ export function AccountsPage() {
 				description="Organize contas bancárias, dinheiro, investimentos e recompensas."
 				subtitle="Patrimônio"
 				title="Contas financeiras"
+			/>
+			<PendingNotices onReviewTransactionImport={setReviewingImportId} />
+			<ImportTransactionsDialog
+				onImported={setReviewingImportId}
+				onOpenChange={setIsImportOpen}
+				open={isImportOpen}
+			/>
+			<TransactionImportReviewDialog
+				importId={reviewingImportId}
+				onOpenChange={open => !open && setReviewingImportId(null)}
+				open={reviewingImportId !== null}
 			/>
 			<CreateFinancialAccountDialog
 				institutions={selectableInstitutions}
