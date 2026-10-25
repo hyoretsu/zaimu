@@ -17,6 +17,7 @@ import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { Button } from "@/components/ui/Button";
+import { CollapsibleListingSection } from "@/components/ui/CollapsibleListingSection";
 import { DialogBody } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FloatingActionMenu } from "@/components/ui/FloatingActionMenu";
@@ -89,7 +90,15 @@ export function CreditCardStatementDetails({
 	});
 	const displayedStatement = detail.data ?? statement;
 	const displayBalance = getCreditCardStatementDisplayBalance(displayedStatement);
-	const invoiceAmount = getCreditCardStatementInvoiceAmount(displayedStatement);
+	const closingAmount = getCreditCardStatementInvoiceAmount(displayedStatement);
+	const forecasts =
+		detail.data?.purchases.filter(purchase => purchase.isForecast && isVisibleStatementPurchase(purchase)) ??
+		[];
+	const forecastAmount =
+		forecasts.reduce((total, purchase) => total + Math.round(purchase.installmentAmount * 100), 0) / 100;
+	const forecastIncluded = displayedStatement.manualTotalAmount == null ? forecastAmount : 0;
+	const invoiceAmount = (Math.round(closingAmount * 100) - Math.round(forecastIncluded * 100)) / 100;
+	const projectedAmount = (Math.round(invoiceAmount * 100) + Math.round(forecastAmount * 100)) / 100;
 	const isIgnored = Boolean(ignoreBefore && statement.statementDate.slice(0, 10) < ignoreBefore);
 	const status = isIgnored
 		? { className: "text-muted-foreground", icon: LuReceiptText, label: "Desconsiderada" }
@@ -97,13 +106,15 @@ export function CreditCardStatementDetails({
 	const StatusIcon = status.icon;
 	const entries = detail.data
 		? [
-				...detail.data.purchases.filter(isVisibleStatementPurchase).map(purchase => ({
-					date: purchase.purchaseDate,
-					id: purchase.id,
-					kind: "purchase" as const,
-					purchase,
-					time: purchase.time,
-				})),
+				...detail.data.purchases
+					.filter(purchase => !purchase.isForecast && isVisibleStatementPurchase(purchase))
+					.map(purchase => ({
+						date: purchase.purchaseDate,
+						id: purchase.id,
+						kind: "purchase" as const,
+						purchase,
+						time: purchase.time,
+					})),
 				...detail.data.payments.map(payment => ({
 					date: payment.date,
 					id: payment.id,
@@ -246,6 +257,12 @@ export function CreditCardStatementDetails({
 							<strong className="block text-2xl tabular-nums">
 								{<PreferredMoneyAmount values={[{ amount: invoiceAmount, currency: currencyCode }]} />}
 							</strong>
+							{forecasts.length > 0 && (
+								<p className="mt-1 text-muted-foreground text-xs">
+									Previsão:{" "}
+									<PreferredMoneyAmount values={[{ amount: projectedAmount, currency: currencyCode }]} />
+								</p>
+							)}
 							{displayedStatement.manualTotalAmount != null && (
 								<p className="mt-1 text-muted-foreground text-sm">
 									Valor original:{" "}
@@ -257,12 +274,14 @@ export function CreditCardStatementDetails({
 								</p>
 							)}
 
-							{!isIgnored && Math.abs(invoiceAmount - displayBalance) > 0.001 && (
+							{!isIgnored && Math.abs(invoiceAmount - (displayBalance - forecastIncluded)) > 0.001 && (
 								<p className="mt-1 text-muted-foreground text-sm">
-									{displayBalance < 0 ? "Crédito" : "Restante a pagar"}:{" "}
+									{displayBalance - forecastIncluded < 0 ? "Crédito" : "Restante a pagar"}:{" "}
 									{
 										<PreferredMoneyAmount
-											values={[{ amount: Math.abs(displayBalance), currency: currencyCode }]}
+											values={[
+												{ amount: Math.abs(displayBalance - forecastIncluded), currency: currencyCode },
+											]}
 										/>
 									}
 								</p>
@@ -376,6 +395,28 @@ export function CreditCardStatementDetails({
 							/>
 						)}
 					</div>
+					{!detail.isPending && !detail.isError && forecasts.length > 0 && (
+						<CollapsibleListingSection
+							description="Lançamentos previstos, fora do total da fatura."
+							summary={`${forecasts.length} ${forecasts.length === 1 ? "previsão" : "previsões"}`}
+							title="Previsões"
+						>
+							{forecasts.map(purchase => (
+								<CreditPurchaseRow
+									deleteDisabled
+									editDisabled
+									key={purchase.id}
+									onDelete={async () => {}}
+									onEdit={() => {}}
+									onRefinance={() => {}}
+									onRefund={() => {}}
+									purchase={purchase}
+									refinanceDisabled
+									refundDisabled
+								/>
+							))}
+						</CollapsibleListingSection>
+					)}
 				</div>
 			</DialogBody>
 			<ActionGroup className="absolute right-3 bottom-3 z-10">
