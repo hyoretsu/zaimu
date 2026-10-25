@@ -4,6 +4,7 @@ import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import type { CreditCardStatement } from "@/lib/api";
+import { getCreditCardStatementInvoiceAmount } from "@/lib/credit-card-statement-balance";
 import { statementLabel } from "@/lib/statement-label";
 import { cn } from "@/lib/utils";
 import { getCreditCardStatementStatus } from "./credit-card-statement-status";
@@ -143,7 +144,10 @@ export function CreditCardStatementTabs({
 											{
 												<PreferredMoneyAmount
 													values={[
-														{ amount: statement.amountDue ?? statement.totalAmount, currency: currencyCode },
+														{
+															amount: getCreditCardStatementInvoiceAmount(statement),
+															currency: currencyCode,
+														},
 													]}
 												/>
 											}

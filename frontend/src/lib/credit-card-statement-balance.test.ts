@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { calculateStatementBalances } from "@zaimu/finance/credit-card";
 import type { CreditCardStatement } from "./api";
-import { getCreditCardStatementDisplayBalance } from "./credit-card-statement-balance";
+import {
+	getCreditCardStatementDisplayBalance,
+	getCreditCardStatementInvoiceAmount,
+} from "./credit-card-statement-balance";
 
 const statement = (id: string, month: string, totalAmount: number): CreditCardStatement => ({
 	balanceAmount: totalAmount,
@@ -55,5 +58,40 @@ describe("getCreditCardStatementDisplayBalance", () => {
 		expect(getCreditCardStatementDisplayBalance({ ...statement("aug", "08", 100), balanceAmount: -25 })).toBe(
 			-25,
 		);
+	});
+});
+
+describe("invoice amount display", () => {
+	test("uses the same net closing amount before and after the final payment", () => {
+		const rows = calculateStatementBalances(
+			[statement("aug", "08", 361.18), statement("sep", "09", 872.64)],
+			[
+				{ amount: 475.3, date: "2026-08-20" },
+				{ amount: 758.52, date: "2026-09-21" },
+			],
+			"2026-09-22",
+		);
+		expect(getCreditCardStatementInvoiceAmount(rows[1]!)).toBe(758.52);
+		expect(getCreditCardStatementDisplayBalance(rows[1]!)).toBe(0);
+	});
+
+	test("supports older responses without exposing the gross amount", () => {
+		expect(
+			getCreditCardStatementInvoiceAmount({
+				...statement("sep", "09", 895.13),
+				amountDue: 895.13,
+				creditInAmount: 114.12,
+			}),
+		).toBe(781.01);
+	});
+
+	test("deducts advance payments once and preserves signed surplus", () => {
+		const [row] = calculateStatementBalances(
+			[statement("sep", "09", 50)],
+			[{ amount: 70, date: "2026-09-10" }],
+			"2026-09-22",
+		);
+		expect(getCreditCardStatementInvoiceAmount(row!)).toBe(-20);
+		expect(getCreditCardStatementDisplayBalance(row!)).toBe(-20);
 	});
 });

@@ -50,6 +50,8 @@ export interface StatementInput {
 	paidAmount?: number | string;
 	/** Actual payments assigned by date. Stored paidAmount is never an input to replay. */
 	periodPaymentAmount?: number;
+	/** Actual payments made strictly before closing, already included in invoiceAmount. */
+	preClosingPaymentAmount?: number;
 }
 export interface CardPayment {
 	amount: number | string;
@@ -57,6 +59,9 @@ export interface CardPayment {
 }
 export type StatementStatus = "OPEN" | "PAID" | "CARRIED";
 export interface StatementBalance {
+	/** Net invoice total after incoming credit and payments made before closing. */
+	invoiceAmount: number;
+	preClosingPaymentAmount: number;
 	scheduledPaymentAmount: number;
 	/** Total before this override and before payments, including incoming debt/credit. */
 	calculatedTotalAmount: number;
@@ -230,13 +235,20 @@ export function calculateStatementBalances<T extends StatementInput>(
 	);
 	const paidByStatement = new Map<string, number>();
 	const scheduledByStatement = new Map<string, number>();
+	const preClosingByStatement = new Map<string, number>();
 	const resolvePayment = createStatementPaymentResolver(chronological);
 	if (payments)
 		for (const payment of payments) {
 			const amounts = dateKey(payment.date) > dateKey(asOf) ? scheduledByStatement : paidByStatement;
 			const target = resolvePayment(payment.date);
-			if (target)
+			if (target) {
 				amounts.set(target.id, (amounts.get(target.id) ?? 0) + toCents(payment.amount, currency));
+				if (amounts === paidByStatement && dateKey(payment.date) < dateKey(target.statementDate))
+					preClosingByStatement.set(
+						target.id,
+						(preClosingByStatement.get(target.id) ?? 0) + toCents(payment.amount, currency),
+					);
+			}
 		}
 	let carry = 0;
 	const balances = new Map<string, StatementBalance>();
@@ -264,6 +276,9 @@ export function calculateStatementBalances<T extends StatementInput>(
 		const periodPayment = payments
 			? (paidByStatement.get(statement.id) ?? 0)
 			: toCents(statement.periodPaymentAmount ?? statement.paidAmount ?? 0, currency);
+		const preClosingPayment = payments
+			? (preClosingByStatement.get(statement.id) ?? 0)
+			: toCents(statement.preClosingPaymentAmount ?? 0, currency);
 		const remaining = amountDue - incomingCredit - periodPayment;
 		const transferred =
 			remaining > 0 && statementPaymentDeadline(statement.dueDate) < dateKey(asOf) && hasNext;
@@ -285,11 +300,13 @@ export function calculateStatementBalances<T extends StatementInput>(
 			carriedOutAmount: transferred ? remaining / currencyScale(currency) : 0,
 			chargesAmount: charges / currencyScale(currency),
 			creditInAmount: incomingCredit / currencyScale(currency),
+			invoiceAmount: (effectiveTotal - preClosingPayment) / currencyScale(currency),
 			isPaid: status === "PAID",
 			paidAmount:
 				Math.max(0, Math.min(Math.max(0, amountDue), incomingCredit + periodPayment)) /
 				currencyScale(currency),
 			periodPaymentAmount: periodPayment / currencyScale(currency),
+			preClosingPaymentAmount: preClosingPayment / currencyScale(currency),
 			scheduledPaymentAmount: (scheduledByStatement.get(statement.id) ?? 0) / currencyScale(currency),
 			status,
 		});

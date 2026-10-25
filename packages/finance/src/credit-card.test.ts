@@ -321,3 +321,69 @@ test("payment grace handles weekday, weekend and year boundaries inclusively", a
 		expect(paid[1]?.carriedInAmount).toBe(0);
 	}
 });
+
+describe("invoice total at closing", () => {
+	const invoice = (id: string, month: string, totalAmount: number) => ({
+		dueDate: `2026-${month}-21`,
+		id,
+		statementDate: `2026-${month}-15`,
+		totalAmount,
+	});
+
+	test("deducts carried credit while preserving the remaining balance after settlement", () => {
+		const rows = calculateStatementBalances(
+			[invoice("aug", "08", 361.18), invoice("sep", "09", 872.64)],
+			[
+				{ amount: 475.3, date: "2026-08-20" },
+				{ amount: 758.52, date: "2026-09-21" },
+			],
+			"2026-09-22",
+		);
+		expect(rows[1]).toMatchObject({ balanceAmount: 0, invoiceAmount: 758.52, isPaid: true });
+	});
+
+	test("only actual payments strictly before closing reduce the invoice total", () => {
+		const payments = [
+			{ amount: 30, date: "2026-09-14" },
+			{ amount: 20, date: "2026-09-15" },
+			{ amount: 10, date: "2026-09-21" },
+		];
+		const [row] = calculateStatementBalances([invoice("sep", "09", 100)], payments, "2026-09-22");
+		expect(row).toMatchObject({ balanceAmount: 40, invoiceAmount: 70, preClosingPaymentAmount: 30 });
+		const [pending] = calculateStatementBalances([invoice("sep", "09", 100)], payments, "2026-09-13");
+		expect(pending).toMatchObject({
+			invoiceAmount: 100,
+			preClosingPaymentAmount: 0,
+			scheduledPaymentAmount: 60,
+		});
+	});
+
+	test("combines refunds, incoming credit and pre-closing payments exactly once", () => {
+		const rows = calculateStatementBalances(
+			[invoice("aug", "08", -10), invoice("sep", "09", 75)],
+			[
+				{ amount: 15, date: "2026-09-10" },
+				{ amount: 50, date: "2026-09-21" },
+			],
+			"2026-09-22",
+		);
+		expect(rows[1]).toMatchObject({ balanceAmount: 0, creditInAmount: 10, invoiceAmount: 50 });
+	});
+	test("keeps overrides and carried debt consistent with the actual closing payments", () => {
+		const rows = calculateStatementBalances(
+			[invoice("aug", "08", 20), { ...invoice("sep", "09", 100), manualTotalAmount: 80 }],
+			[{ amount: 15, date: "2026-09-10" }],
+			"2026-09-22",
+		);
+		expect(rows[1]).toMatchObject({ balanceAmount: 65, carriedInAmount: 20, invoiceAmount: 65 });
+	});
+
+	test("replays an explicit pre-closing breakdown without payment records", () => {
+		const [row] = calculateStatementBalances(
+			[{ ...invoice("sep", "09", 100), periodPaymentAmount: 60, preClosingPaymentAmount: 30 }],
+			undefined,
+			"2026-09-22",
+		);
+		expect(row).toMatchObject({ balanceAmount: 40, invoiceAmount: 70 });
+	});
+});

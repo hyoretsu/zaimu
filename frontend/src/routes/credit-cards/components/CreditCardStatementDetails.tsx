@@ -20,7 +20,10 @@ import { TabsContent } from "@/components/ui/Tabs";
 import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
 import type { CreditCard, CreditCardStatement, CreditPurchase } from "@/lib/api";
 import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
-import { getCreditCardStatementDisplayBalance } from "@/lib/credit-card-statement-balance";
+import {
+	getCreditCardStatementDisplayBalance,
+	getCreditCardStatementInvoiceAmount,
+} from "@/lib/credit-card-statement-balance";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
@@ -79,8 +82,7 @@ export function CreditCardStatementDetails({
 	});
 	const displayedStatement = detail.data ?? statement;
 	const displayBalance = getCreditCardStatementDisplayBalance(displayedStatement);
-	const invoiceAmount =
-		displayedStatement.manualTotalAmount ?? displayedStatement.amountDue ?? displayedStatement.totalAmount;
+	const invoiceAmount = getCreditCardStatementInvoiceAmount(displayedStatement);
 	const isIgnored = Boolean(ignoreBefore && statement.statementDate.slice(0, 10) < ignoreBefore);
 	const status = isIgnored
 		? { className: "text-muted-foreground", icon: LuReceiptText, label: "Desconsiderada" }
