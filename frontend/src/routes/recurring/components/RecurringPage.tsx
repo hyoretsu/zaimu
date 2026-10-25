@@ -253,14 +253,6 @@ export function RecurringPage() {
 				/>
 			) : (
 				<div className="space-y-5">
-					{activeItems.length > 0 && (
-						<section className="space-y-2">
-							<h2 className="font-medium text-muted-foreground text-sm">Ativas</h2>
-							<div className="divide-y rounded-2xl border bg-card shadow-sm">
-								{activeItems.map(renderItem)}
-							</div>
-						</section>
-					)}
 					{pausedItems.length > 0 && (
 						<section className="space-y-2">
 							<HiddenRecurrencesToggle
@@ -274,6 +266,14 @@ export function RecurringPage() {
 									{pausedItems.map(renderItem)}
 								</div>
 							)}
+						</section>
+					)}
+					{activeItems.length > 0 && (
+						<section className="space-y-2">
+							<h2 className="font-medium text-muted-foreground text-sm">Ativas</h2>
+							<div className="divide-y rounded-2xl border bg-card shadow-sm">
+								{activeItems.map(renderItem)}
+							</div>
 						</section>
 					)}
 					{endedItems.length > 0 && (
