@@ -1,7 +1,8 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { LuList, LuPencil, LuTrash2, LuUsersRound } from "react-icons/lu";
+import { LuList, LuPencil, LuPlus, LuTrash2, LuUsersRound } from "react-icons/lu";
 import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
@@ -24,12 +25,16 @@ import { DebtEventItem } from "./DebtEventItem";
 import { compareDebtEventsByDateTimeThenLabel } from "./debt-event";
 
 export function DebtPersonCard({
+	createPending,
+	onCreateEvent,
 	onDeleteEvent,
 	onDeletePerson,
 	onEditEvent,
 	onEditPerson,
 	person,
 }: {
+	createPending: boolean;
+	onCreateEvent: (personId: string) => void;
 	onDeleteEvent: (id: string) => void;
 	onDeletePerson: (id: string) => void;
 	onEditEvent: (event: DebtEvent, personId: string) => void;
@@ -133,7 +138,7 @@ export function DebtPersonCard({
 						<DialogDescription>Movimentações que compõem o saldo desta pessoa.</DialogDescription>
 					</DialogHeader>
 					<DialogBody>
-						<div className="grid gap-2">
+						<div className="grid gap-2 pb-16">
 							{eventsQuery.isPending ? (
 								<div className="grid gap-2">
 									{[1, 2, 3].map(item => (
@@ -188,6 +193,23 @@ export function DebtPersonCard({
 							) : null}
 						</div>
 					</DialogBody>
+					<ActionGroup className="absolute right-6 bottom-6 z-10">
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									aria-label={`Adicionar lançamento para ${person.name}`}
+									className="size-12 cursor-pointer rounded-full border-primary shadow-lg"
+									disabled={createPending || personPending}
+									onClick={() => onCreateEvent(person.id)}
+									size="icon-lg"
+									type="button"
+								>
+									<LuPlus className="size-5" />
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent>Adicionar lançamento</TooltipContent>
+						</Tooltip>
+					</ActionGroup>
 				</DialogContent>
 			</Dialog>
 		</article>

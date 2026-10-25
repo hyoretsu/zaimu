@@ -30,9 +30,11 @@ export function DebtsPage() {
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
 	const [createOpen, setCreateOpen] = useState(false);
+	const [createPersonId, setCreatePersonId] = useState<string>();
 	const [recoveredCreate, setRecoveredCreate] = useState<CreateDebtOriginDraft>();
 	const createPending = useModalRecoveryStore(state => !!state.pending[`${identity}:debt-create`]);
 	useBackgroundModalRecovery<CreateDebtOriginDraft>("debt-create", entry => {
+		setCreatePersonId(undefined);
 		setRecoveredCreate(entry.payload);
 		setCreateOpen(true);
 	});
@@ -86,7 +88,10 @@ export function DebtsPage() {
 								disabled: createPending,
 								icon: LuPlus,
 								label: "Adicionar lançamento",
-								onClick: () => setCreateOpen(true),
+								onClick: () => {
+									setCreatePersonId(undefined);
+									setCreateOpen(true);
+								},
 								variant: "default",
 							},
 						]
@@ -175,7 +180,12 @@ export function DebtsPage() {
 				{people.length ? (
 					people.map(person => (
 						<DebtPersonCard
+							createPending={createPending}
 							key={person.id}
+							onCreateEvent={personId => {
+								setCreatePersonId(personId);
+								setCreateOpen(true);
+							}}
 							onDeleteEvent={id => deleteEvent.mutate(id)}
 							onDeletePerson={id => deletePerson.mutate(id)}
 							onEditEvent={(event, personId) => setEditing({ event, personId })}
@@ -195,6 +205,8 @@ export function DebtsPage() {
 			</section>
 			<CreateDebtDialog
 				initialDraft={recoveredCreate}
+				initialPersonId={createPersonId}
+				key={createPersonId ?? "new"}
 				mode="create"
 				onOpenChange={open => {
 					setCreateOpen(open);

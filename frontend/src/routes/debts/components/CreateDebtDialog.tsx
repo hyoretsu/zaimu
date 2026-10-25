@@ -46,6 +46,7 @@ type CreateDebtDialogProps =
 	| {
 			mode: "create";
 			initialDraft?: CreateDebtOriginDraft;
+			initialPersonId?: string;
 			onOpenChange: (open: boolean) => void;
 			onSaved: () => Promise<unknown> | unknown;
 			onSubmit: (draft: CreateDebtOriginDraft) => Promise<void>;
@@ -63,16 +64,17 @@ type CreateDebtDialogProps =
 			pending: boolean;
 	  };
 
-const initialDebtSplit = (): DebtSplitInput => ({
+const initialDebtSplit = (personId = ""): DebtSplitInput => ({
 	mode: "SHARES",
 	ownerShares: null,
-	participants: [{ debtPersonId: "", shares: 1 }],
+	participants: [{ debtPersonId: personId, shares: 1 }],
 });
 
 export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 	const { mode, onOpenChange, open, pending } = props;
 	const initialValue = props.mode === "edit" ? props.initialValue : null;
 	const recovered = props.mode === "create" ? props.initialDraft : undefined;
+	const initialPersonId = props.mode === "create" ? props.initialPersonId : undefined;
 	const effectiveCurrency = useCurrencyStore(state => state.currency);
 	const [selectedCurrency, setCurrency] = useState<string | null>(null);
 	const currency = selectedCurrency ?? initialValue?.currency ?? effectiveCurrency;
@@ -82,7 +84,7 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 	const [dueDate, setDueDate] = useState("");
 	const [description, setDescription] = useDebouncedInput("", () => undefined);
 	const [personId, setPersonId] = useState("");
-	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>(initialDebtSplit);
+	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>(() => initialDebtSplit(initialPersonId));
 	const [isOwedToMe, setIsOwedToMe] = useState(true);
 	useEffect(() => {
 		if (!open || !initialValue) return;
@@ -114,7 +116,7 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 		setDueDate("");
 		setDescription("");
 		setPersonId("");
-		setDebtSplit(initialDebtSplit());
+		setDebtSplit(initialDebtSplit(initialPersonId));
 		setIsOwedToMe(true);
 	};
 	useDialogCloseReset(open, reset);
