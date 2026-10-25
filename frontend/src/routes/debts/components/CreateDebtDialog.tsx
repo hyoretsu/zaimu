@@ -223,27 +223,15 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 							/>
 						</FormFieldRow>
 						<FormFieldRow>
-							<div className="grid content-start gap-4">
-								<DateField
-									autoComplete="off"
-									disabled={sendWithoutDate}
-									id="debt-origin-date"
-									label="Data"
-									name="debt-origin-date"
-									onValueChange={setDate}
-									value={sendWithoutDate ? "" : date}
-								/>
-								<CheckboxField
-									align="start"
-									checkboxProps={{
-										checked: sendWithoutDate,
-										id: "debt-without-date",
-										onCheckedChange: checked => setSendWithoutDate(checked === true),
-									}}
-								>
-									<span className="font-medium text-foreground-muted">Não incluir data</span>
-								</CheckboxField>
-							</div>
+							<DateField
+								autoComplete="off"
+								disabled={sendWithoutDate}
+								id="debt-origin-date"
+								label="Data"
+								name="debt-origin-date"
+								onValueChange={setDate}
+								value={sendWithoutDate ? "" : date}
+							/>
 							<DateField
 								autoComplete="off"
 								id="debt-origin-due-date"
@@ -253,6 +241,16 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 								value={dueDate}
 							/>
 						</FormFieldRow>
+						<CheckboxField
+							align="start"
+							checkboxProps={{
+								checked: sendWithoutDate,
+								id: "debt-without-date",
+								onCheckedChange: checked => setSendWithoutDate(checked === true),
+							}}
+						>
+							<span className="font-medium text-foreground-muted">Não incluir data</span>
+						</CheckboxField>
 						<FormField
 							autoComplete="off"
 							id="debt-origin-description"
