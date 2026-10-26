@@ -1,5 +1,4 @@
 import { addMonths, format, parseISO, startOfMonth, subMonths } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { useState } from "react";
 import { LuCalendarDays, LuChevronLeft, LuChevronRight } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
@@ -189,7 +188,7 @@ export function DateRangePicker({ className, onChange, triggerLabel, value }: Da
 }
 
 function formatBoundary(value?: string) {
-	return value ? format(parseISO(value), "dd MMM yyyy", { locale: ptBR }) : "Sem limite";
+	return value ? format(parseISO(value), "dd/MM/yyyy") : "Sem limite";
 }
 
 function getVisibleMonth({ endDate, startDate }: DateRangeValue) {
