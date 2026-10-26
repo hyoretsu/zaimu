@@ -140,3 +140,22 @@ changes continue through Bun/Vite hot reload. Recreate an existing container aft
 changing its startup command to activate the monitor. Startup/recreation runs
 migrations against the configured database and requires explicit authorization
 when that database is remote/shared.
+
+## Action batching
+
+`shared/batch-policy.ts` explicitly registers independent list mutations. The shared SDK
+transport batches those routes through `POST /batch`: 300 ms debounce, maximum wait
+of one second, at most 50 operations and 1 MiB per envelope. Distinct actions retain
+order; batches sharing a session and transport context execute sequentially. Other
+mutations drain overlapping pending batches before submission; unrelated actions stay available. Forms, auth and uploads stay immediate.
+
+The envelope has no database transaction or cache/outbox event of its own. Each internal
+request reuses the authenticated session and runs normal endpoint validation, authorization,
+transaction, cache fence and outbox hooks. Results remain independent; never replay
+a batch automatically. Bound raw streamed bytes before parsing and forbid nested batches,
+external/noncanonical paths and client-supplied operation credentials.
+
+Import row approvals use `completionGroup` in the shared background action runner.
+Keep row locks until grouped refresh finishes, aggregate final feedback, and retain
+individual failure recovery. Closing a dialog must not discard its queued actions.
+Guest actions keep local persistence and never use the backend batch endpoint.

@@ -1,6 +1,6 @@
 import { measureOperation, withQueryKind } from "sql";
 import { HttpException } from "~/shared/errors";
-import { type AuthSession, auth } from "./auth";
+import { auth, type AuthSession } from "./auth";
 import { authSecondaryStorage } from "./secondary-storage";
 
 const requestSessions = new WeakMap<Request, Promise<AuthSession | null>>();
@@ -30,3 +30,8 @@ export const requireUserId = async (request: Request) => {
 	if (!session) throw new HttpException("Não autenticado", 401);
 	return session.user.id;
 };
+
+/** Reuse authenticated envelope identity for internal batch dispatch only. */
+export function inheritAuthSession(parent: Request, child: Request) {
+	requestSessions.set(child, getAuthSession(parent));
+}

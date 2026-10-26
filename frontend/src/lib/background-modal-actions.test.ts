@@ -223,3 +223,29 @@ test("background cache policy waits for persistence and ignores an identity chan
 		client.clear();
 	}
 });
+
+test("grouped approvals refresh once, retain row locks and emit one summary", async () => {
+	const { spyOn } = await import("bun:test");
+	const refresh = spyOn({ refresh: async () => {} }, "refresh");
+	const success = spyOn(toast, "success");
+	try {
+		for (const id of ["a", "b", "c"])
+			runBackgroundModalAction({
+				...base,
+				completionGroup: "import:group",
+				conflictKey: `record:${id}`,
+				onSuccess: refresh,
+				run: async () => ({ created: 1 }),
+			});
+		await settle();
+		expect(Object.keys(useModalRecoveryStore.getState().pending)).toHaveLength(3);
+		await new Promise(resolve => setTimeout(resolve, 20));
+		expect(refresh).toHaveBeenCalledTimes(1);
+		expect(success).toHaveBeenCalledTimes(1);
+		expect(success.mock.calls[0]?.[0]).toBe("3 ações concluídas.");
+		expect(Object.keys(useModalRecoveryStore.getState().pending)).toHaveLength(0);
+	} finally {
+		success.mockRestore();
+		refresh.mockRestore();
+	}
+});

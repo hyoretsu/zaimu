@@ -17,8 +17,9 @@ if (
 }
 const sql = paths.some(path => path.startsWith("packages/sql/"));
 const finance = paths.some(path => path.startsWith("packages/finance/"));
-const backend = sql || finance || paths.some(path => path.startsWith("backend/"));
-const frontend = finance || paths.some(path => path.startsWith("frontend/"));
+const shared = paths.some(path => path.startsWith("shared/"));
+const backend = shared || sql || finance || paths.some(path => path.startsWith("backend/"));
+const frontend = shared || finance || paths.some(path => path.startsWith("frontend/"));
 const packages = [
 	...(sql ? ["sql"] : []),
 	...(finance ? ["@zaimu/finance"] : []),
@@ -40,7 +41,7 @@ if (packages.length) {
 	);
 	if (check.exitCode !== 0) process.exit(check.exitCode);
 }
-if (paths.some(path => path.startsWith("backend/src/"))) {
+if (shared || paths.some(path => path.startsWith("backend/src/"))) {
 	const test = Bun.spawnSync(["bun", "run", "test:unit", "--coverage"], {
 		cwd: "backend",
 		stderr: "inherit",

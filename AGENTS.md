@@ -227,3 +227,15 @@ Before implementation or review, read [docs/engineering-rules.md](docs/engineeri
 Use Sonner through the shared `frontend/src/lib/toast.ts` facade and `frontend/src/components/ui/Sonner.tsx` renderer. Keep at most five active notifications globally; new notifications permanently dismiss the oldest, without a hidden queue. Group repeated errors and retain the latest recovery action. Never resurrect dismissed notifications when an operation completes. Loading notifications must also be dismissible without cancelling their operation.
 
 Every toast supports exactly three dismissal directions: left, right and toward its nearest vertical viewport edge. Top-positioned toasts dismiss upward; bottom-positioned toasts dismiss downward. The vertical direction follows the rendered position, never the device type. Keep toasts fixed at the top on desktop and mobile in this repository, with left/right/up dismissal; do not move them to the bottom at mobile breakpoints. Show the close button only on desktop. Keep notifications compact, respect safe areas, avoid covering modal footer actions and present actionable errors without raw request URLs or technical IDs.
+
+## Repeatable actions and batching
+
+Accumulate independent, repeatable list actions through shared batching infrastructure.
+Debounce must preserve every distinct action, bound the maximum wait and batch size,
+and lock only overlapping records from enqueue through completion. Keep form submissions,
+authentication, uploads and response-dependent actions immediate. Register compatible
+operations explicitly; never batch arbitrary URLs or forward per-operation credentials.
+Preserve authorization, validation, independent transactions and per-action results.
+Refresh related views and consolidate feedback once per completed batch. Cancel unsent
+work on session changes; stale responses must not affect another session. Never retry
+mutations automatically after an uncertain transport result; refresh before an explicit retry.

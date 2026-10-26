@@ -191,3 +191,130 @@ describe("shared SDK transport", () => {
 		});
 	});
 });
+
+it("batches registered list actions and preserves individual errors", async () => {
+	const requests: Request[] = [];
+	mockFetch(async input => {
+		const request = input instanceof Request ? input : new Request(input);
+		requests.push(request);
+		const { operations } = await request.json();
+		return Response.json({
+			results: operations.map((operation: { id: string; path: string }) => ({
+				data: operation.path.includes("/b/") ? { error: "Sem permissão" } : { created: 1 },
+				id: operation.id,
+				status: operation.path.includes("/b/") ? 403 : 200,
+			})),
+		});
+	});
+	const results = await Promise.allSettled([
+		client<{ created: number }>({ method: "POST", url: "/credit-card-imports/import/items/a/approve" }),
+		client({ method: "POST", url: "/credit-card-imports/import/items/b/approve" }),
+	]);
+	expect(requests).toHaveLength(1);
+	expect(new URL(requests[0]!.url).pathname).toBe("/batch");
+	expect(results[0].status).toBe("fulfilled");
+	expect(results[1].status).toBe("rejected");
+});
+
+it("drops queued writes immediately on session change, including switching away and back", async () => {
+	const result = client({ method: "DELETE", url: "/transactions/a" }).catch(error => error);
+	useAuthStore.setState({ guestId: "different" });
+	useAuthStore.setState({ guestId: "transport-test" });
+	expect(await result).toBeInstanceOf(SessionChangedError);
+	expect(fetchMock).not.toHaveBeenCalled();
+});
+
+it("flushes queued list writes before bulk/form mutations", async () => {
+	const order: string[] = [];
+	mockFetch(async input => {
+		const request = input instanceof Request ? input : new Request(input);
+		const path = new URL(request.url).pathname;
+		order.push(path);
+		if (path === "/batch") {
+			const { operations } = await request.json();
+			return Response.json({
+				results: operations.map((operation: { id: string }) => ({
+					data: null,
+					id: operation.id,
+					status: 204,
+				})),
+			});
+		}
+		return Response.json({ created: 0 });
+	});
+	await Promise.all([
+		client({ method: "POST", url: "/transaction-imports/import/items/a/approve" }),
+		client({ method: "POST", url: "/transaction-imports/import/approve" }),
+	]);
+	expect(order).toEqual(["/batch", "/transaction-imports/import/approve"]);
+});
+
+it("keeps unrelated forms immediate while list actions wait for their debounce", async () => {
+	const order: string[] = [];
+	mockFetch(async input => {
+		const request = input instanceof Request ? input : new Request(input);
+		const path = new URL(request.url).pathname;
+		order.push(path);
+		if (path !== "/batch") return Response.json({ id: "new" });
+		const { operations } = await request.json();
+		return Response.json({
+			results: operations.map((operation: { id: string }) => ({
+				data: null,
+				id: operation.id,
+				status: 204,
+			})),
+		});
+	});
+	const pending = client({ method: "DELETE", url: "/transactions/a" });
+	await client({ data: { name: "New" }, method: "POST", url: "/categories" });
+	expect(order).toEqual(["/categories"]);
+	await pending;
+	expect(order).toEqual(["/categories", "/batch"]);
+});
+
+it("keeps different currency/header contexts in separate envelopes", async () => {
+	const contexts: string[] = [];
+	mockFetch(async input => {
+		const request = input instanceof Request ? input : new Request(input);
+		contexts.push(request.headers.get("x-currency")!);
+		const { operations } = await request.json();
+		expect(operations).toHaveLength(1);
+		return Response.json({
+			results: operations.map((operation: { id: string }) => ({
+				data: null,
+				id: operation.id,
+				status: 204,
+			})),
+		});
+	});
+	await Promise.all([
+		client({ headers: { "X-Currency": "BRL" }, method: "DELETE", url: "/transactions/a" }),
+		client({ headers: { "X-Currency": "USD" }, method: "DELETE", url: "/transactions/b" }),
+	]);
+	expect(contexts.sort()).toEqual(["BRL", "USD"]);
+});
+
+it("never replays an uncertain batch and asks for a refresh", async () => {
+	mockFetch(async () => Response.json({ error: "proxy unavailable" }, { status: 503 }));
+	await expect(client({ method: "DELETE", url: "/transactions/a" })).rejects.toThrow("Atualize os dados");
+	expect(fetchMock).toHaveBeenCalledTimes(1);
+});
+
+it("ignores an in-flight batch even when the same identity returns before its response", async () => {
+	mockFetch(async input => {
+		const request = input instanceof Request ? input : new Request(input);
+		const { operations } = await request.json();
+		useAuthStore.setState({ guestId: "another-session" });
+		useAuthStore.setState({ guestId: "transport-test" });
+		return Response.json({
+			results: operations.map((operation: { id: string }) => ({
+				data: null,
+				id: operation.id,
+				status: 204,
+			})),
+		});
+	});
+	await expect(client({ method: "DELETE", url: "/transactions/a" })).rejects.toBeInstanceOf(
+		SessionChangedError,
+	);
+});

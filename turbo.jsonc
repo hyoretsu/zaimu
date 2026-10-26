@@ -1,127 +1,127 @@
 {
 	"$schema": "https://turborepo.dev/schema.json",
-	"globalDependencies": ["scripts/test-runner.ts", "scripts/testing/**"],
+	"globalDependencies": ["scripts/test-runner.ts", "scripts/testing/**", "shared/**"],
 	"tasks": {
 		"backend#build": {
 			"dependsOn": ["^contract:emit", "generate"],
 			"env": ["DATABASE_URL"],
 			"inputs": ["scripts/inject.ts", "src/**", ".env*"],
 			"outputLogs": "new-only",
-			"outputs": ["dist/**"]
+			"outputs": ["dist/**"],
 		},
 		"backend#check-types": {
 			"dependsOn": ["^contract:emit", "generate"],
 			"inputs": ["src/**", "performance/**/*.ts", "tsconfig*.json"],
-			"outputLogs": "new-only"
+			"outputLogs": "new-only",
 		},
 		"backend#dev": {
 			"cache": false,
 			"dependsOn": ["^contract:emit", "generate"],
 			"env": ["COMPANY_SLUG", "DATABASE_URL"],
-			"persistent": true
+			"persistent": true,
 		},
 		"backend#export": {
 			"dependsOn": ["^contract:emit"],
 			"inputs": ["$TURBO_DEFAULT$", "!out/**"],
 			"outputLogs": "new-only",
-			"outputs": ["out/openapi.json"]
+			"outputs": ["out/openapi.json"],
 		},
 		"build": {
 			"dependsOn": ["^contract:emit", "generate"],
 			"inputs": ["src/**", "!src/**/generated/**"],
 			"outputLogs": "new-only",
-			"outputs": ["build/**", "dist/**", "out/**"]
+			"outputs": ["build/**", "dist/**", "out/**"],
 		},
 		"check-types": {
 			"dependsOn": ["^contract:emit", "generate"],
 			"inputs": ["src/**", "tsconfig*.json"],
-			"outputLogs": "new-only"
+			"outputLogs": "new-only",
 		},
 		"contract:emit": {
 			"env": ["DATABASE_URL"],
 			"inputs": ["src/prisma/contract.prisma", "prisma.config.ts"],
 			"outputLogs": "new-only",
-			"outputs": ["out/**"]
+			"outputs": ["out/**"],
 		},
 		"dev": {
 			"cache": false,
 			"dependsOn": ["^contract:emit", "generate"],
-			"persistent": true
+			"persistent": true,
 		},
 		"export": {
 			"dependsOn": ["^contract:emit", "generate"],
 			"env": ["DATABASE_URL"],
 			"inputs": ["src/**", "scripts/export-openapi.ts", "package.json", "!src/**/generated/**"],
 			"outputLogs": "new-only",
-			"outputs": ["out/**"]
+			"outputs": ["out/**"],
 		},
 		"frontend#build": {
 			"dependsOn": ["generate"],
 			"env": ["DATABASE_URL", "VITE_API_URL", "VITE_APP_URL"],
 			"inputs": ["$TURBO_DEFAULT$", "!src/lib/api/generated/**"],
 			"outputLogs": "new-only",
-			"outputs": ["build/**", "dist/**", "out/**", ".next/**", "!.next/cache/**"]
+			"outputs": ["build/**", "dist/**", "out/**", ".next/**", "!.next/cache/**"],
 		},
 		"frontend#check-types": {
 			"dependsOn": ["generate"],
 			"inputs": ["$TURBO_DEFAULT$", "!src/lib/api/generated/**"],
-			"outputLogs": "new-only"
+			"outputLogs": "new-only",
 		},
 		"frontend#dev": {
 			"cache": false,
 			"dependsOn": ["generate"],
 			"inputs": ["$TURBO_DEFAULT$"],
-			"persistent": true
+			"persistent": true,
 		},
 		"frontend#generate": {
 			"dependsOn": ["^export"],
 			"inputs": ["kubb.config.ts"],
 			"outputLogs": "new-only",
-			"outputs": ["src/lib/api/generated/**"]
+			"outputs": ["src/lib/api/generated/**"],
 		},
 		"frontend#performance:test": {
 			"cache": false,
-			"dependsOn": ["generate"]
+			"dependsOn": ["generate"],
 		},
 		"frontend#test": {
 			"cache": false,
-			"dependsOn": ["generate"]
+			"dependsOn": ["generate"],
 		},
 		"frontend#test:currency": {
 			"cache": false,
-			"dependsOn": ["generate"]
+			"dependsOn": ["generate"],
 		},
 		"frontend#test:open-finance": {
 			"cache": false,
-			"dependsOn": ["generate"]
+			"dependsOn": ["generate"],
 		},
 		"generate": {
 			"dependsOn": ["^contract:emit"],
 			"env": ["DATABASE_URL"],
 			"inputs": ["src/**", "!src/generated/**"],
 			"outputLogs": "new-only",
-			"outputs": ["src/generated/**"]
+			"outputs": ["src/generated/**"],
 		},
 		"migrate:deploy": {
 			"env": ["DATABASE_URL", "DATABASE_TEST_URL"],
 			"inputs": ["src/migrations/**"],
-			"outputLogs": "new-only"
+			"outputLogs": "new-only",
 		},
 		"test": {
 			"cache": false,
-			"dependsOn": ["^contract:emit"]
+			"dependsOn": ["^contract:emit"],
 		},
 		"test:e2e": {
 			"cache": false,
-			"dependsOn": ["^contract:emit"]
+			"dependsOn": ["^contract:emit"],
 		},
 		"test:integration": {
 			"cache": false,
-			"dependsOn": ["^contract:emit"]
+			"dependsOn": ["^contract:emit"],
 		},
 		"test:unit": {
 			"cache": false,
-			"dependsOn": ["^contract:emit"]
-		}
-	}
+			"dependsOn": ["^contract:emit"],
+		},
+	},
 }

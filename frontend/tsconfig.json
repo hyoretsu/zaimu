@@ -7,5 +7,5 @@
 	},
 	"exclude": ["node_modules"],
 	"extends": "@hyoretsu/configs/ts-frontend",
-	"include": ["src/**/*.ts", "src/**/*.tsx", "src/**/.*/**/*"]
+	"include": ["src/**/*.ts", "src/**/*.tsx", "src/**/.*/**/*", "../shared/**/*.ts"]
 }

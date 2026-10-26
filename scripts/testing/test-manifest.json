@@ -20,6 +20,7 @@
 		"backend/src/shared/tests/pdf-worker.test.ts"
 	],
 	"backend:unit": [
+		"backend/src/modules/batch/infra/elysia/BatchController.test.ts",
 		"backend/src/shared/application/financial-date.test.ts",
 		"backend/performance/clock.test.ts",
 		"backend/performance/coverage.test.ts",

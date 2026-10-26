@@ -100,7 +100,8 @@ function toTransferSuggestionTransaction(
 	const originFinancialAccountId =
 		suggestion.originFinancialAccountId ?? (type === "EXPENSE" ? suggestion.financialAccountId : null);
 	const destinationFinancialAccountId =
-		suggestion.destinationFinancialAccountId ?? (type === "INCOME" ? suggestion.financialAccountId : null);
+		suggestion.destinationFinancialAccountId ??
+		(type === "INCOME" ? suggestion.financialAccountId : null);
 	const originAccount = originFinancialAccountId ? accounts.get(originFinancialAccountId) : undefined;
 	const destinationAccount = destinationFinancialAccountId
 		? accounts.get(destinationFinancialAccountId)
@@ -224,7 +225,9 @@ export function TransactionImportReviewDialog({
 	);
 	const hasPendingItems =
 		approvingItemIds.size > 0 ||
-		Object.keys(pendingActions).some(key => key.startsWith(`${identity}:transaction-import:${importId}:`));
+		Object.keys(pendingActions).some(key =>
+			key.startsWith(`${identity}:transaction-import:${importId}:`),
+		);
 	useEffect(() => {
 		if (importId) reviewedImportId.current = importId;
 	}, [importId]);
@@ -275,10 +278,12 @@ export function TransactionImportReviewDialog({
 		runBackgroundModalAction({
 			cache: { client: queryClient, operations: ["transaction"] },
 			close: () => {},
+			completionGroup: `transaction-import:${targetImportId}`,
 			conflictKey: `transaction-import:${targetImportId}:${itemId}`,
 			conflictKeys: [`transaction-import-row:${itemId}`],
 			failureMessage: "Não foi possível aprovar transação.",
 			loadingMessage: "Aprovando transação...",
+			onFailureRefresh: () => invalidate(targetImportId),
 			onSuccess: async result => {
 				if (result.finished) {
 					if (reviewedImportId.current === targetImportId) onOpenChange(false);
@@ -300,6 +305,7 @@ export function TransactionImportReviewDialog({
 		runBackgroundModalAction({
 			cache: { client: queryClient, operations: ["transaction"] },
 			close: () => {},
+			completionGroup: `transaction-import:${targetImportId}`,
 			conflictKey: `transaction-import:${targetImportId}:day:${date}`,
 			conflictKeys: items
 				.filter(item => item.date.slice(0, 10) === date)
@@ -309,6 +315,7 @@ export function TransactionImportReviewDialog({
 				]),
 			failureMessage: "Não foi possível aprovar dia.",
 			loadingMessage: "Aprovando dia...",
+			onFailureRefresh: () => invalidate(targetImportId),
 			onSuccess: async result => {
 				if (result.finished) {
 					if (reviewedImportId.current === targetImportId) onOpenChange(false);
@@ -316,7 +323,11 @@ export function TransactionImportReviewDialog({
 				} else await invalidate(targetImportId);
 			},
 			progress: "record",
-			recovery: { entityId: date, kind: "transaction-import-action", payload: { importId: targetImportId } },
+			recovery: {
+				entityId: date,
+				kind: "transaction-import-action",
+				payload: { importId: targetImportId },
+			},
 			run: () => dataService.transactionImports.approveDay(targetImportId, date),
 			successMessage: "Transações do dia aprovadas.",
 		});
@@ -390,7 +401,11 @@ export function TransactionImportReviewDialog({
 						item.id,
 						suggestion.id,
 					);
-				await dataService.transactionImports.rejectTransferSuggestion(targetImportId, item.id, suggestion.id);
+				await dataService.transactionImports.rejectTransferSuggestion(
+					targetImportId,
+					item.id,
+					suggestion.id,
+				);
 				return null;
 			},
 			successMessage: accept
@@ -483,7 +498,9 @@ export function TransactionImportReviewDialog({
 				payload: { importId: targetImportId },
 			},
 			run: () =>
-				dataService.transactionImports.updateItem(targetImportId, item.id, { isDuplicateIgnored: true }),
+				dataService.transactionImports.updateItem(targetImportId, item.id, {
+					isDuplicateIgnored: true,
+				}),
 			successMessage: "Alerta de possível duplicata ignorado.",
 		});
 	};
@@ -523,16 +540,15 @@ export function TransactionImportReviewDialog({
 							<div className="">
 								<div className="space-y-5">
 									{Object.entries(
-										sortTransactionsByMostRecent(items).reduce<Record<string, TransactionImportItem[]>>(
-											(groups, item) => {
-												const date = item.date.slice(0, 10);
-												const itemsForDate = groups[date] ?? [];
-												itemsForDate.push(item);
-												groups[date] = itemsForDate;
-												return groups;
-											},
-											{},
-										),
+										sortTransactionsByMostRecent(items).reduce<
+											Record<string, TransactionImportItem[]>
+										>((groups, item) => {
+											const date = item.date.slice(0, 10);
+											const itemsForDate = groups[date] ?? [];
+											itemsForDate.push(item);
+											groups[date] = itemsForDate;
+											return groups;
+										}, {}),
 									).map(([date, items]) => (
 										<ImportReviewDateSection
 											approveAllDisabled={
@@ -560,15 +576,21 @@ export function TransactionImportReviewDialog({
 														approvingItemIds.has(item.id) ||
 														approvingDateKeys.has(date) ||
 														Boolean(
-															pendingActions[`${identity}:transaction-import:${importId}:${item.id}`] ||
-																pendingActions[`${identity}:transaction-import-row:${item.id}`],
+															pendingActions[
+																`${identity}:transaction-import:${importId}:${item.id}`
+															] ||
+															pendingActions[
+																`${identity}:transaction-import-row:${item.id}`
+															],
 														)
 													}
 													isIgnoringDuplicate={false}
 													item={item}
 													key={item.id}
 													onApprove={() => approveItem(item.id)}
-													onCollapsedChange={collapsed => setItemCollapsed(item.id, collapsed)}
+													onCollapsedChange={collapsed =>
+														setItemCollapsed(item.id, collapsed)
+													}
 													onEdit={() => setEditingItem(item)}
 													onIgnoreDuplicate={() => ignoreDuplicate(item)}
 													onResolveDuplicate={() => setResolvingItem(item)}
@@ -576,8 +598,12 @@ export function TransactionImportReviewDialog({
 														setTransferSuggestionDecision({ item, suggestion })
 													}
 													pending={Boolean(
-														pendingActions[`${identity}:transaction-import:${importId}:${item.id}`] ||
-															pendingActions[`${identity}:transaction-import-row:${item.id}`],
+														pendingActions[
+															`${identity}:transaction-import:${importId}:${item.id}`
+														] ||
+														pendingActions[
+															`${identity}:transaction-import-row:${item.id}`
+														],
 													)}
 													transaction={toTransaction(item, accountDetails)}
 												/>
@@ -606,7 +632,7 @@ export function TransactionImportReviewDialog({
 					</DialogBody>
 					<DialogFooter className="flex-row justify-end">
 						<Button
-							className="cursor-pointer bg-destructive text-destructive-foreground hover:bg-destructive/80 disabled:cursor-not-allowed"
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/80 cursor-pointer disabled:cursor-not-allowed"
 							disabled={
 								discardPending ||
 								approve.isPending ||
@@ -632,7 +658,11 @@ export function TransactionImportReviewDialog({
 							}
 							onClick={finishImport}
 						>
-							{approve.isPending ? <LuLoaderCircle className="animate-spin" /> : <LuFileCheck2 />}
+							{approve.isPending ? (
+								<LuLoaderCircle className="animate-spin" />
+							) : (
+								<LuFileCheck2 />
+							)}
 							{approve.isPending ? (
 								"Aprovando…"
 							) : (
@@ -729,11 +759,16 @@ export function TransactionImportReviewDialog({
 			<TransferSuggestionDecisionDialog
 				counterpartTransaction={
 					transferSuggestionDecision
-						? toTransferSuggestionTransaction(transferSuggestionDecision.suggestion, accountDetails)
+						? toTransferSuggestionTransaction(
+								transferSuggestionDecision.suggestion,
+								accountDetails,
+							)
 						: null
 				}
 				currentTransaction={
-					transferSuggestionDecision ? toTransaction(transferSuggestionDecision.item, accountDetails) : null
+					transferSuggestionDecision
+						? toTransaction(transferSuggestionDecision.item, accountDetails)
+						: null
 				}
 				onAccept={() => decideTransfer(true)}
 				onOpenChange={nextOpen => !nextOpen && setTransferSuggestionDecision(null)}

@@ -5,6 +5,8 @@ import {
 	FinancialAccountYieldsController,
 	InstitutionsController,
 } from "./modules/accounts/infra";
+import { inheritAuthSession } from "./modules/auth/session";
+import { createBatchController } from "./modules/batch/infra/elysia/BatchController";
 import { CategoriesController } from "./modules/categories/infra";
 import { CreditCardImportsController } from "./modules/credit-card-imports/infra";
 import { CreditCardsController } from "./modules/creditCards/infra";
@@ -54,3 +56,5 @@ export const server = app.use([
 	SyncController,
 	UpgradeController,
 ]);
+
+server.use(createBatchController(request => server.handle(request), inheritAuthSession));

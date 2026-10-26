@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { getCurrentCacheIdentity } from "@/lib/query-cache";
 import { toast } from "@/lib/toast";
 import { useAuthStore } from "@/stores/auth";
+import { completeModalActionGroup } from "./modal-action-completion";
 import { captureCacheMutation, invalidateMutationCache } from "./mutation-cache";
 import type { CacheOperation } from "./query-cache";
 
@@ -79,6 +80,7 @@ export function takeModalRecovery<T>(kind: string): (ModalRecovery<T> & { id: st
 	return { entityId: entry.entityId, id: entry.id, kind: entry.kind, payload: entry.payload as T };
 }
 
+let sessionVersion = 0;
 useAuthStore.subscribe((state, previous) => {
 	const identity =
 		state.isAuthenticated && state.user
@@ -92,10 +94,15 @@ useAuthStore.subscribe((state, previous) => {
 			: previous.isGuestMode
 				? `guest:${previous.guestId}`
 				: null;
-	if (identity !== previousIdentity) useModalRecoveryStore.getState().clearAll();
+	if (identity !== previousIdentity) {
+		sessionVersion++;
+		useModalRecoveryStore.getState().clearAll();
+	}
 });
 
 export interface BackgroundModalAction<T> {
+	completionGroup?: string;
+	onFailureRefresh?: () => Promise<unknown>;
 	cache?: { client: QueryClient; operations: readonly CacheOperation[] };
 	close: () => void;
 	conflictKey?: string;
@@ -112,6 +119,8 @@ export interface BackgroundModalAction<T> {
 
 export function runBackgroundModalAction<T>({
 	cache,
+	completionGroup,
+	onFailureRefresh,
 	close,
 	conflictKey,
 	conflictKeys = [],
@@ -126,6 +135,8 @@ export function runBackgroundModalAction<T>({
 }: BackgroundModalAction<T>): void {
 	const cacheStart = captureCacheMutation();
 	const identity = getCurrentCacheIdentity();
+	const version = sessionVersion;
+	const isCurrent = () => getCurrentCacheIdentity() === identity && version === sessionVersion;
 	const pendingKeys = [...new Set([...(conflictKey ? [conflictKey] : []), ...conflictKeys])].map(
 		key => `${identity}:${key}`,
 	);
@@ -144,14 +155,14 @@ export function runBackgroundModalAction<T>({
 	close();
 	const toastId = progress === "toast" ? toast.loading(loadingMessage) : undefined;
 	const retryRefresh = async (result: T) => {
-		if (getCurrentCacheIdentity() !== identity) return;
+		if (!isCurrent()) return;
 		try {
 			if (cache)
 				await invalidateMutationCache(cache.client, cacheStart, {
 					awaitRefetch: true,
 					cacheOperations: cache.operations,
 				});
-			if (getCurrentCacheIdentity() === identity) await onSuccess?.(result);
+			if (isCurrent()) await onSuccess?.(result);
 			toast.success("Lista atualizada.");
 		} catch {
 			toast.error("Não foi possível atualizar a lista.", {
@@ -162,6 +173,7 @@ export function runBackgroundModalAction<T>({
 	void Promise.resolve()
 		.then(run)
 		.then(async result => {
+			if (!isCurrent()) return;
 			useModalRecoveryStore.setState(state => ({
 				entries: Object.fromEntries(
 					Object.entries(state.entries).filter(
@@ -174,6 +186,22 @@ export function runBackgroundModalAction<T>({
 					),
 				),
 			}));
+			if (completionGroup) {
+				await completeModalActionGroup(`${identity}:${completionGroup}`, {
+					current: isCurrent,
+					message: successMessage,
+					refresh: async () => {
+						if (cache)
+							await invalidateMutationCache(cache.client, cacheStart, {
+								awaitRefetch: true,
+								cacheOperations: cache.operations,
+							});
+						if (isCurrent()) await onSuccess?.(result);
+					},
+					success: true,
+				});
+				return;
+			}
 			toast.success(successMessage, { id: toastId, position: "bottom-right" });
 			try {
 				if (cache)
@@ -181,19 +209,35 @@ export function runBackgroundModalAction<T>({
 						awaitRefetch: true,
 						cacheOperations: cache.operations,
 					});
-				if (getCurrentCacheIdentity() === identity) await onSuccess?.(result);
+				if (isCurrent()) await onSuccess?.(result);
 			} catch {
 				toast.error("Dados salvos. Não foi possível atualizar a lista.", {
 					action: { label: "Tentar atualizar", onClick: () => void retryRefresh(result) },
 				});
 			}
 		})
-		.catch(error => {
+		.catch(async error => {
+			if (!isCurrent()) return;
 			const id = crypto.randomUUID();
-			const canRecover = identity !== null && identity === getCurrentCacheIdentity();
+			const canRecover = identity !== null && isCurrent();
 			if (canRecover) {
 				if (recoveryId) useModalRecoveryStore.getState().clear(recoveryId);
 				useModalRecoveryStore.getState().store({ ...recovery, id, identity, path });
+			}
+			if (completionGroup) {
+				await completeModalActionGroup(`${identity}:${completionGroup}`, {
+					current: isCurrent,
+					errorOptions: {
+						action: canRecover
+							? { label: "Reabrir", onClick: () => requestModalRecovery(id) }
+							: undefined,
+						dedupeKey: `modal:${recovery.kind}:${failureMessage}`,
+					},
+					message: error instanceof Error ? error.message : failureMessage,
+					refresh: onFailureRefresh,
+					success: false,
+				});
+				return;
 			}
 			toast.error(error instanceof Error ? error.message : failureMessage, {
 				action: canRecover

@@ -148,9 +148,11 @@ export function CreditCardImportReviewDialog({
 		runBackgroundModalAction({
 			cache: { client: queryClient, operations: ["statement"] },
 			close: () => {},
+			completionGroup: `credit-card-import:${targetImportId}`,
 			conflictKey: `credit-card-import:${targetImportId}:${item.id}`,
 			failureMessage: "Não foi possível aprovar item.",
 			loadingMessage: "Aprovando item...",
+			onFailureRefresh: () => refreshReview(targetImportId),
 			onSuccess: async () => {
 				await refreshReview(targetImportId);
 			},

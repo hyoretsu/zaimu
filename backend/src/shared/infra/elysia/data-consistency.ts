@@ -102,6 +102,7 @@ export const DataConsistencyPlugin = new Elysia({ name: "DataConsistencyPlugin" 
 		const handle = async () => (await handler(request)) as unknown as Response;
 		if (
 			["GET", "HEAD", "OPTIONS"].includes(request.method) ||
+			new URL(request.url).pathname === "/batch" ||
 			writeNamespaces(new URL(request.url).pathname).length === 0
 		)
 			return handle();
@@ -109,7 +110,8 @@ export const DataConsistencyPlugin = new Elysia({ name: "DataConsistencyPlugin" 
 	})
 	.derive(async ({ request, body }) => {
 		const pathname = new URL(request.url).pathname;
-		if (["GET", "HEAD", "OPTIONS"].includes(request.method)) return { cacheWriteFence: null };
+		if (pathname === "/batch" || ["GET", "HEAD", "OPTIONS"].includes(request.method))
+			return { cacheWriteFence: null };
 		const namespaces = writeNamespaces(pathname);
 		if (namespaces.length === 0) return { cacheWriteFence: null };
 		const userId = await requireUserId(request);
@@ -135,9 +137,9 @@ export const DataConsistencyPlugin = new Elysia({ name: "DataConsistencyPlugin" 
 		const affectedUserIds = pathname.startsWith("/debts")
 			? await debtAffectedUserIds(debtResourceId(pathname))
 			: pathname.startsWith("/credit-cards") ||
-					pathname.startsWith("/credit-card-imports") ||
-					pathname.startsWith("/transactions") ||
-					pathname.startsWith("/sync")
+				  pathname.startsWith("/credit-card-imports") ||
+				  pathname.startsWith("/transactions") ||
+				  pathname.startsWith("/sync")
 				? await creditAffectedUserIds(userId)
 				: [];
 		const userIds = [...new Set([userId, ...affectedUserIds])];
