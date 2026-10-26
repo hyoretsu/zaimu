@@ -67,3 +67,34 @@ test("next-cycle extraction covers classic, legacy and Inter wording", () => {
 		),
 	).toThrow("conflitantes");
 });
+
+for (const provider of ["BRADESCO", "INTER", "MERCADO_PAGO", "NUBANK", "PICPAY", "WILL_BANK"] as const) {
+	test(`invalid ${provider} invoice explains how to correct the selection`, () => {
+		expect(() => parseCreditCardStatementText("Arquivo de outra instituição", provider)).toThrow(
+			"Verifique se o banco escolhido corresponde ao arquivo enviado",
+		);
+	});
+}
+
+test("Inter invoice selected as Mercado Pago explains the selection instead of only missing dates", () => {
+	expect(() =>
+		parseCreditCardStatementText(
+			`Data de Vencimento 20/08/2026
+DATA DOCUMENTO 10/08/2026
+Despesas da fatura
+01 de ago 2026 LOJA - R$ 10,00`,
+			"MERCADO_PAGO",
+		),
+	).toThrow("selecione o banco ou a fatura correta");
+});
+
+for (const signature of [
+	"Nacionais em Reais\nTotal parcelado para as próximas faturas",
+	"Movimentações da conta\nNacionais em Reais",
+]) {
+	test(`invalid Bradesco layout retains selection guidance: ${signature}`, () => {
+		expect(() => parseCreditCardStatementText(signature, "BRADESCO")).toThrow(
+			"Verifique se o banco escolhido corresponde ao arquivo enviado",
+		);
+	});
+}

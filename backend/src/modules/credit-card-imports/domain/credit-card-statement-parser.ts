@@ -13,7 +13,6 @@ import { normalizeMercadoPagoText } from "./mercado-pago-text";
 import { parseNubankCreditCardStatementText } from "./nubank-credit-card";
 import { parsePicPayCreditCardStatementText } from "./picpay-credit-card";
 import { statementPreviousBalance } from "./statement-previous-balance";
-
 import { parseWillBankCreditCardStatementText } from "./will-bank-credit-card";
 
 const creditCardStatementLayouts: readonly CreditCardStatementLayout[] = [
@@ -86,12 +85,20 @@ export function nextStatementDateFromText(text: string) {
 export function parseCreditCardStatementText(text: string, provider: CreditCardImportProvider) {
 	if (provider === "MERCADO_PAGO") text = normalizeMercadoPagoText(text);
 	if (!text.trim()) throw new HttpException("Não foi possível extrair texto do PDF", 400);
-	const layout = selectCreditCardStatementLayout(text, provider, creditCardStatementLayouts);
-	return {
-		...layout.parse(text),
-		nextStatementDate: nextStatementDateFromText(text),
-		reportedPreviousBalance: statementPreviousBalance(text),
-	};
+	try {
+		const layout = selectCreditCardStatementLayout(text, provider, creditCardStatementLayouts);
+		return {
+			...layout.parse(text),
+			nextStatementDate: nextStatementDateFromText(text),
+			reportedPreviousBalance: statementPreviousBalance(text),
+		};
+	} catch (error) {
+		const detail = error instanceof Error ? ` Detalhe: ${error.message}` : "";
+		throw new HttpException(
+			`Não foi possível ler a fatura para o banco selecionado. Verifique se o banco escolhido corresponde ao arquivo enviado e selecione o banco ou a fatura correta.${detail}`,
+			400,
+		);
+	}
 }
 
 export async function parseCreditCardStatementPdf(
@@ -108,7 +115,10 @@ export async function parseCreditCardStatementPdf(
 		if (error instanceof HttpException) throw error;
 		if (error instanceof Error && /password|senha/iu.test(error.message))
 			throw new HttpException("Informe a senha correta do PDF", 400);
-		throw new HttpException(error instanceof Error ? error.message : "Não foi possível ler a fatura", 400);
+		throw new HttpException(
+			error instanceof Error ? error.message : "Não foi possível ler a fatura",
+			400,
+		);
 	} finally {
 		await parser.destroy();
 	}
