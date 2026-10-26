@@ -8,6 +8,7 @@ import {
 	queryKeys,
 } from "./query-cache";
 import { type ApiTag, type auxiliaryQueryTags, cacheDomainTags } from "./query-tags";
+import { refreshQueries } from "./refresh-queries";
 
 const auxiliaryOperations = {
 	adminUser: ["admin-users"],
@@ -105,7 +106,7 @@ export async function invalidateMutationCache(
 			? [...auxiliaryOperations[operation as keyof typeof auxiliaryOperations]]
 			: [],
 	);
-	const pending = client.invalidateQueries({
+	const pending = refreshQueries(client, {
 		predicate: query => {
 			const currency = query.meta?.cacheCurrency ?? queryCurrency(query.queryKey);
 			const relatedTag = !query.meta?.apiTags || query.meta.apiTags.some(tag => tags.has(tag));
@@ -114,7 +115,9 @@ export async function invalidateMutationCache(
 				return (
 					(publicCatalog || query.meta?.cacheIdentity === owner) &&
 					(query.queryKey[0] === root ||
-						(query.queryKey[0] === "identity" && query.queryKey[1] === owner && query.queryKey[2] === root))
+						(query.queryKey[0] === "identity" &&
+							query.queryKey[1] === owner &&
+							query.queryKey[2] === root))
 				);
 			});
 			return (

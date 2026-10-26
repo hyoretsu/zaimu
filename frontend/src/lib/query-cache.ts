@@ -1,6 +1,7 @@
 import type { QueryClient, QueryKey } from "@tanstack/react-query";
 import { type AuthState, useAuthStore } from "@/stores/auth";
 import { activeCurrency } from "./currency-context";
+import { refreshQueries } from "./refresh-queries";
 
 export type CacheIdentity = `guest:${string}` | `user:${string}`;
 
@@ -187,7 +188,7 @@ export async function invalidateCacheOperation(
 ): Promise<void> {
 	const refresh = Promise.all(
 		cacheOperationDomains[operation].map(domain =>
-			queryClient.invalidateQueries({
+			refreshQueries(queryClient, {
 				queryKey: queryKeys[domain].all(identity),
 				refetchType: "active",
 			}),
@@ -202,9 +203,7 @@ export async function invalidateQueryKeys(
 	queryClient: QueryClient,
 	keys: readonly QueryKey[],
 ): Promise<void> {
-	await Promise.all(
-		keys.map(queryKey => queryClient.invalidateQueries({ queryKey, refetchType: "active" })),
-	);
+	await Promise.all(keys.map(queryKey => refreshQueries(queryClient, { queryKey, refetchType: "active" })));
 }
 
 export async function closeImportReview(
@@ -215,5 +214,5 @@ export async function closeImportReview(
 ): Promise<void> {
 	const keys = type === "transaction" ? queryKeys.transactionImports : queryKeys.creditCardImports;
 	queryClient.removeQueries({ exact: true, queryKey: keys.detail(identity, importId) });
-	await queryClient.invalidateQueries({ queryKey: keys.pending(identity), refetchType: "active" });
+	await refreshQueries(queryClient, { queryKey: keys.pending(identity), refetchType: "active" });
 }
