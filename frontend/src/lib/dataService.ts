@@ -3647,7 +3647,7 @@ export const dataService = {
 		},
 		async approveDay(importId: string, date: string): Promise<{ created: number; finished: boolean }> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
-			return postTransactionImportsByIdDaysByDateApprove(importId, date);
+			return postTransactionImportsByIdDaysByDateApprove(date, importId);
 		},
 		async approveItem(importId: string, itemId: string): Promise<{ created: number; finished: boolean }> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");

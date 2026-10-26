@@ -36,7 +36,9 @@ test("server mutations stay successful when local cache writes fail", async () =
 		await expect(
 			dataService.categories.create({ color: category.color, name: category.name }),
 		).resolves.toEqual(category);
-		await expect(dataService.categories.update(category.id, { name: "Mercado" })).resolves.toEqual(category);
+		await expect(dataService.categories.update(category.id, { name: "Mercado" })).resolves.toEqual(
+			category,
+		);
 		await expect(dataService.categories.delete(category.id)).resolves.toBeUndefined();
 		expect(fetchMock).toHaveBeenCalledTimes(3);
 		expect(put).toHaveBeenCalledTimes(2);
@@ -92,6 +94,37 @@ test("guest yields replace all same-day kinds and reject date collisions", async
 	} finally {
 		get.mockRestore();
 		set.mockRestore();
+		useAuthStore.setState(originalAuth);
+		if (!originalWindow) Reflect.deleteProperty(globalThis, "window");
+	}
+});
+
+test("statement day approval sends import ID and date in their correct URL segments", async () => {
+	const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+	if (!originalWindow)
+		Object.defineProperty(globalThis, "window", {
+			configurable: true,
+			value: { location: { origin: "http://localhost" } },
+		});
+	const { useAuthStore } = await import("@/stores/auth");
+	const { dataService } = await import("./dataService");
+	const originalAuth = useAuthStore.getState();
+	useAuthStore.setState({ isGuestMode: false });
+	const result = { created: 3, finished: true };
+	const fetchMock = spyOn(globalThis, "fetch").mockResolvedValue(Response.json(result));
+	try {
+		const importId = "eae76ce7-e0ce-6529-a8a1-982c64ea1b3c";
+		await expect(dataService.transactionImports.approveDay(importId, "2026-06-03")).resolves.toEqual(
+			result,
+		);
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+		const request = fetchMock.mock.calls[0]![0] as Request;
+		expect(request.method).toBe("POST");
+		expect(new URL(request.url).pathname).toBe(
+			`/transaction-imports/${importId}/days/2026-06-03/approve`,
+		);
+	} finally {
+		fetchMock.mockRestore();
 		useAuthStore.setState(originalAuth);
 		if (!originalWindow) Reflect.deleteProperty(globalThis, "window");
 	}
