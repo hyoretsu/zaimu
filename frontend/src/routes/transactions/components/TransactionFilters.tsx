@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { LuChevronDown, LuChevronUp, LuSearch, LuSlidersHorizontal, LuX } from "react-icons/lu";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateRangePicker } from "@/components/ui/DateRangePicker";
@@ -53,7 +54,10 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 	const shouldShowFilters = !isMobile || expanded;
 
 	return (
-		<section aria-label="Filtros de transações" className="rounded-2xl border bg-card p-2 shadow-sm sm:p-4">
+		<section
+			aria-label="Filtros de transações"
+			className="bg-card rounded-2xl border p-2 shadow-sm sm:p-4"
+		>
 			{isMobile ? (
 				<Button
 					aria-controls={contentId}
@@ -66,8 +70,10 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 					<span className="flex items-center gap-2">
 						<LuSlidersHorizontal /> Filtros
 					</span>
-					<span className="flex items-center gap-2 text-muted-foreground">
-						{hasFilters ? `${activeFilterCount} ${activeFilterCount === 1 ? "ativo" : "ativos"}` : null}
+					<span className="text-muted-foreground flex items-center gap-2">
+						{hasFilters
+							? `${activeFilterCount} ${activeFilterCount === 1 ? "ativo" : "ativos"}`
+							: null}
 						{expanded ? <LuChevronUp /> : <LuChevronDown />}
 					</span>
 				</Button>
@@ -82,7 +88,7 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 						<div className="relative">
 							<LuSearch
 								aria-hidden="true"
-								className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+								className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
 							/>
 							<Input
 								className="h-10 pl-9"
@@ -96,9 +102,9 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 						</div>
 					</div>
 					<div className="grid min-w-0 gap-2">
-						<p className="font-medium text-sm leading-none">Data</p>
+						<p className="text-sm leading-none font-medium">Data</p>
 						<DateRangePicker
-							className="w-full min-w-0 max-w-full overflow-hidden [&>span]:truncate"
+							className="w-full max-w-full min-w-0 overflow-hidden [&>span]:truncate"
 							onChange={value => set("dateRange", value)}
 							value={filters.dateRange}
 						/>
@@ -134,7 +140,9 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 					<CustomSelect
 						className="min-w-0"
 						label="Visibilidade"
-						onValueChange={value => set("visibility", value as TransactionFiltersValue["visibility"])}
+						onValueChange={value =>
+							set("visibility", value as TransactionFiltersValue["visibility"])
+						}
 						options={[
 							{ label: "Todas", value: "all" },
 							{ label: "Visíveis", value: "visible" },
@@ -156,10 +164,12 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 						onValueChange={value => set("accountId", value)}
 						options={[
 							{ label: "Todas as contas", special: true, value: "all" },
-							...(accountsQuery.data ?? []).toSorted(compareFinancialAccountsByOptionLabel).map(account => ({
-								label: getFinancialAccountOptionLabel(account),
-								value: account.id,
-							})),
+							...(accountsQuery.data ?? [])
+								.toSorted(compareFinancialAccountsByOptionLabel)
+								.map(account => ({
+									label: getFinancialAccountOptionLabel(account),
+									value: account.id,
+								})),
 						]}
 						placeholder="Todas as contas"
 						searchable
@@ -179,15 +189,11 @@ export function TransactionFilters({ filters, onChange, onClear, transactions }:
 						value={filters.categoryId}
 					/>
 					{hasFilters ? (
-						<Button
-							className="col-span-2 cursor-pointer justify-self-end sm:col-span-1 sm:self-end"
-							onClick={onClear}
-							size="sm"
-							type="button"
-							variant="outline"
-						>
-							<LuX /> Limpar filtros
-						</Button>
+						<ActionGroup className="col-span-full self-end xl:col-span-4">
+							<Button onClick={onClear} size="sm" type="button" variant="outline">
+								<LuX /> Limpar filtros
+							</Button>
+						</ActionGroup>
 					) : null}
 				</div>
 			) : null}
