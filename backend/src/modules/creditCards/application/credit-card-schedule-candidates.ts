@@ -8,6 +8,7 @@ type ScheduleCard = Record<string, unknown> & {
 	id: string;
 	userId: string;
 	preferredCountry: string | null;
+	preferredTimeZone: string | null;
 	createdAt: Date;
 	dueDay: number;
 	statementClosingInclusive: boolean;
@@ -18,13 +19,13 @@ type ScheduleCard = Record<string, unknown> & {
 export async function loadCreditCardScheduleCandidates(asOf: Date, cardIds?: string[]) {
 	if (cardIds && !cardIds.length) return [];
 	const cards = await queryRaw<ScheduleCard>(
-		`SELECT c."id",a."userId",u."preferredCountry",c."createdAt",c."dueDay",c."statementDay", c."calendarHistory",${workingDueDateSql("a")} AS "workingDueDate", COALESCE(i."creditStatementClosingInclusive", false) AS "statementClosingInclusive" FROM "CreditCard" c JOIN "FinancialAccount" a ON a."id"=c."financialAccountId" JOIN "user" u ON u."id"=a."userId" LEFT JOIN "FinancialInstitution" i ON i."id"=a."institutionId" WHERE ($1::varchar[] IS NULL OR c."id"=ANY($1))`,
+		`SELECT c."id",a."userId",u."preferredCountry",u."preferredTimeZone",c."createdAt",c."dueDay",c."statementDay", c."calendarHistory",${workingDueDateSql("a")} AS "workingDueDate", COALESCE(i."creditStatementClosingInclusive", false) AS "statementClosingInclusive" FROM "CreditCard" c JOIN "FinancialAccount" a ON a."id"=c."financialAccountId" JOIN "user" u ON u."id"=a."userId" LEFT JOIN "FinancialInstitution" i ON i."id"=a."institutionId" WHERE ($1::varchar[] IS NULL OR c."id"=ANY($1))`,
 		[cardIds ?? null],
 	);
 	if (!cards.length) return [];
 	const ids = cards.map(card => card.id);
 	const cutoffs = Object.fromEntries(
-		cards.map(card => [card.id, financialDate(asOf, card.preferredCountry ?? "BR")]),
+		cards.map(card => [card.id, financialDate(asOf, card.preferredCountry, card.preferredTimeZone)]),
 	);
 	const [statements, due] = await Promise.all([
 		queryRaw<{ creditCardId: string; statementDate: Date }>(
@@ -40,7 +41,7 @@ export async function loadCreditCardScheduleCandidates(asOf: Date, cardIds?: str
 	const dueByCard = Map.groupBy(due, row => row.creditCardId);
 	return cards
 		.map(card => {
-			const through = financialDate(asOf, card.preferredCountry ?? "BR");
+			const through = financialDate(asOf, card.preferredCountry, card.preferredTimeZone);
 			return {
 				through,
 				...card,

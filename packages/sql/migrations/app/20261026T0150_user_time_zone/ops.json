@@ -1,0 +1,36 @@
+[
+	{
+		"execute": [
+			{
+				"description": "add column \"preferredTimeZone\"",
+				"sql": "ALTER TABLE \"public\".\"user\" ADD COLUMN \"preferredTimeZone\" character varying(100)"
+			}
+		],
+		"id": "column.public.user.preferredTimeZone",
+		"label": "Add column \"preferredTimeZone\" to \"user\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"preferredTimeZone\" exists",
+				"params": ["public", "user", "preferredTimeZone"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"preferredTimeZone\" is missing",
+				"params": ["public", "user", "preferredTimeZone"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "preferredTimeZone",
+				"objectType": "column",
+				"schema": "public",
+				"table": "user"
+			},
+			"id": "postgres"
+		}
+	}
+]

@@ -315,28 +315,33 @@ export async function materializeRecurrence(
 							date: financialDate,
 							targetCurrency: book.card.currency ?? "BRL",
 						});
-						const purchase = newBookPurchase(book, {
-							...(await rewardSnapshot(
-								{ id: recurrence.creditCardId! },
-								money.amount,
-								book.card.currency ?? "BRL",
-								financialDate,
-								userId,
-							)),
-							currency: money.currency,
-							debtSplitRule: debtSplit ?? null,
-							description: recurrence.name,
-							exchangeRate: money.exchangeRate,
-							installments: recurrence.installments ?? 1,
-							originalAmount: money.originalAmount,
-							purchaseDate: financialDate,
-							recurrenceId: id,
-							recurrenceOccurrenceDate: date,
-							storeName: recurrence.storeName ?? null,
-							tagIds,
-							time: advance?.time ?? null,
-							totalAmount: money.amount,
-						});
+						const purchase = newBookPurchase(
+							book,
+							{
+								...(await rewardSnapshot(
+									{ id: recurrence.creditCardId! },
+									money.amount,
+									book.card.currency ?? "BRL",
+									financialDate,
+									userId,
+								)),
+								currency: money.currency,
+								debtSplitRule: debtSplit ?? null,
+								description: recurrence.name,
+								exchangeRate: money.exchangeRate,
+								installments: recurrence.installments ?? 1,
+								originalAmount: money.originalAmount,
+								purchaseDate: financialDate,
+								recurrenceId: id,
+								recurrenceOccurrenceDate: date,
+								storeName: recurrence.storeName ?? null,
+								tagIds,
+								time: advance?.time ?? null,
+								totalAmount: money.amount,
+							},
+							undefined,
+							{ materialize: false },
+						);
 						await query(
 							'UPDATE "RecurrenceOccurrence" SET "purchaseId"=$1 WHERE "recurrenceId"=$2 AND "date"=$3',
 							[purchase.id, id, date],
@@ -450,15 +455,16 @@ export async function materializeAllRecurrences(asOf = new Date(), userIds?: str
 		id: string;
 		userId: string;
 		preferredCountry: string | null;
+		preferredTimeZone: string | null;
 		materializedThrough: string | Date;
 	}>(
-		'SELECT r."id",r."userId",r."materializedThrough",u."preferredCountry" FROM "Recurrence" r JOIN "user" u ON u."id"=r."userId" WHERE r."isActive"=true AND r."materializedThrough"<$2::date AND ($1::varchar[] IS NULL OR r."userId"=ANY($1)) ORDER BY r."id"',
+		'SELECT r."id",r."userId",r."materializedThrough",u."preferredCountry",u."preferredTimeZone" FROM "Recurrence" r JOIN "user" u ON u."id"=r."userId" WHERE r."isActive"=true AND r."materializedThrough"<$2::date AND ($1::varchar[] IS NULL OR r."userId"=ANY($1)) ORDER BY r."id"',
 		[userIds ?? null, new Date(asOf.valueOf() + 86400000).toISOString().slice(0, 10)],
 	);
 	let transactions = 0;
 	const changed = new Set<string>();
 	for (const row of rows) {
-		const through = financialDate(asOf, row.preferredCountry ?? "BR");
+		const through = financialDate(asOf, row.preferredCountry, row.preferredTimeZone);
 		if (recurrenceDateKey(row.materializedThrough) >= through) continue;
 		const created = await materializeRecurrence(row.userId, row.id, through);
 		transactions += created;

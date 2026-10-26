@@ -1,6 +1,7 @@
 {
 	"backend:e2e": ["backend/tests/database.e2e.test.ts"],
 	"backend:integration": [
+		"backend/src/modules/recurring/tests/time-zone-materialization.test.ts",
 		"backend/src/modules/credit-card-imports/tests/credit-card-refunds.test.ts",
 		"backend/src/modules/credit-card-imports/tests/import-refund-parity.test.ts",
 		"backend/scripts/tests/consumed-contracts.test.ts",

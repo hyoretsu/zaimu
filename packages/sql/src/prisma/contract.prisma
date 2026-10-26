@@ -247,6 +247,7 @@ namespace public {
     role VarChar(10) @default("USER")
     preferredCurrency VarChar(3)?
     preferredCountry VarChar(2)?
+    preferredTimeZone VarChar(100)?
     invoicePaymentTiming VarChar(12) @default("DUE_DATE")
 
     openFinanceConfig OpenFinanceConfig?

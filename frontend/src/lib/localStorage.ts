@@ -13,6 +13,7 @@ import { currentDateKey } from "@zaimu/finance/credit-card";
 import { resolveInstitutionCardRules } from "@zaimu/finance/institution-card-rules";
 import { currencyScale, roundMoney, toMinorUnits } from "@zaimu/finance/money";
 import { pendingStatementPayments } from "@zaimu/finance/payment-suggestions";
+import { financialDateKey, resolveTimeZone } from "@zaimu/finance/time-zone";
 import { cardPaymentAmount } from "@zaimu/finance/transaction-money";
 import type {
 	Category,
@@ -140,9 +141,19 @@ async function openLocalDb(): Promise<IDBDatabase> {
 			if (event.oldVersion < 13)
 				request
 					.transaction!.objectStore("application-upgrade")
-					.put({ id: "state", status: event.oldVersion === 0 ? "complete" : "pending", version: 13 });
+					.put({
+						id: "state",
+						status: event.oldVersion === 0 ? "complete" : "pending",
+						version: 13,
+					});
 			if (event.oldVersion > 0)
-				for (const domain of ["recurringPayments", "salaries", "subscriptions", "creditPurchases", "debts"]) {
+				for (const domain of [
+					"recurringPayments",
+					"salaries",
+					"subscriptions",
+					"creditPurchases",
+					"debts",
+				]) {
 					const name = `scoped-${domain}`;
 					if (!request.result.objectStoreNames.contains(name))
 						request.result
@@ -176,7 +187,9 @@ async function openLocalDb(): Promise<IDBDatabase> {
 	migrationPromise =
 		state?.status === "complete"
 			? Promise.resolve()
-			: import("./upgrades/local-upgrade").then(({ upgradeLocalDatabase }) => upgradeLocalDatabase(database));
+			: import("./upgrades/local-upgrade").then(({ upgradeLocalDatabase }) =>
+					upgradeLocalDatabase(database),
+				);
 	try {
 		await migrationPromise;
 	} catch (error) {
@@ -280,7 +293,8 @@ export async function put<T>(
 	await runTransaction(scopedStoreName(domain), "readwrite", async store => {
 		const existing =
 			domain === "debtEvents" || domain === "monthlyBudgets" || domain === "accounts"
-				? ((await requestResult(store.get(scopedId(owner, id)))) as LocalData<StoredDebtEvent> | undefined)
+				? ((await requestResult(store.get(scopedId(owner, id)))) as
+						LocalData<StoredDebtEvent> | undefined)
 				: undefined;
 		if (existing?.deleted) throw new Error("Lançamento excluído");
 		const debtData = data as StoredDebtEvent;
@@ -293,7 +307,11 @@ export async function put<T>(
 							: {}),
 					}
 				: domain === "accounts" && existing
-					? { ...data, balanceAdjustments: (existing.data as unknown as FinancialAccount).balanceAdjustments }
+					? {
+							...data,
+							balanceAdjustments: (existing.data as unknown as FinancialAccount)
+								.balanceAdjustments,
+						}
 					: data;
 		await requestResult(
 			store.put({
@@ -324,8 +342,7 @@ export async function softDelete(
 		const done = transactionDone(tx);
 		const store = tx.objectStore("scoped-transactions");
 		const item = (await requestResult(store.get(scopedId(owner, localId)))) as
-			| LocalData<Transaction>
-			| undefined;
+			LocalData<Transaction> | undefined;
 		if (item) {
 			const occurrenceId =
 				item.data.recurrenceId && item.data.recurrenceOccurrenceDate
@@ -334,8 +351,7 @@ export async function softDelete(
 			if (occurrenceId) {
 				const occurrences = tx.objectStore("scoped-recurrenceOccurrences");
 				const occurrence = (await requestResult(occurrences.get(scopedId(owner, occurrenceId)))) as
-					| LocalData<RecurrenceOccurrence>
-					| undefined;
+					LocalData<RecurrenceOccurrence> | undefined;
 				if (occurrence)
 					await requestResult(
 						occurrences.put({
@@ -348,7 +364,11 @@ export async function softDelete(
 			if (owner.startsWith("user:")) await requestResult(store.delete(scopedId(owner, localId)));
 			else
 				await requestResult(
-					store.put({ ...item, deleted: true, modifiedAt: Math.max(Date.now(), item.modifiedAt + 1) }),
+					store.put({
+						...item,
+						deleted: true,
+						modifiedAt: Math.max(Date.now(), item.modifiedAt + 1),
+					}),
 				);
 		}
 		await done;
@@ -519,8 +539,11 @@ function createLocalStore<T>(domain: StoreDomain) {
 		getById: (id: string, owner?: StorageOwner) => getById<T>(domain, id, owner),
 		getModifiedSince: (since: number, owner?: StorageOwner) => getModifiedSince<T>(domain, since, owner),
 		put: (data: T, id?: string, owner?: StorageOwner) => put(domain, data, id, owner),
-		replaceSlice: (items: SnapshotItem<T>[], belongsToSlice: (data: T) => boolean, owner?: StorageOwner) =>
-			replaceRemoteSlice(domain, items, belongsToSlice, owner),
+		replaceSlice: (
+			items: SnapshotItem<T>[],
+			belongsToSlice: (data: T) => boolean,
+			owner?: StorageOwner,
+		) => replaceRemoteSlice(domain, items, belongsToSlice, owner),
 		replaceSnapshot: (items: SnapshotItem<T>[], owner?: StorageOwner) =>
 			replaceRemoteSnapshot(domain, items, owner),
 	};
@@ -557,10 +580,18 @@ export async function mutateLocalBalanceAdjustment(
 				new Date(`${date}T12:00:00Z`).toISOString().slice(0, 10) !== date
 			)
 				throw new Error("Informe uma data válida");
-			if (input.balance == null || !Number.isFinite(input.balance) || Math.abs(input.balance) > 9999999999.99)
+			if (
+				input.balance == null ||
+				!Number.isFinite(input.balance) ||
+				Math.abs(input.balance) > 9999999999.99
+			)
 				throw new Error("Informe um saldo válido");
 			toMinorUnits(Math.abs(input.balance), target.data.currency ?? "BRL");
-			if (target.data.balanceAdjustments?.some(item => item.id !== id && item.date.slice(0, 10) === date))
+			if (
+				target.data.balanceAdjustments?.some(
+					item => item.id !== id && item.date.slice(0, 10) === date,
+				)
+			)
 				throw new Error("Já existe um ajuste nesta data para esta conta");
 		}
 		for (const row of rows) {
@@ -602,15 +633,21 @@ export async function reconcileLocalAdjustments(ownerKey?: StorageOwner) {
 	if (!owner.startsWith("guest:")) return;
 	const database = await initLocalDb();
 	const tx = database.transaction(
-		["scoped-accounts", "scoped-transactions", "scoped-creditBooks", "scoped-loanPayments", "scoped-meta"],
+		[
+			"scoped-accounts",
+			"scoped-transactions",
+			"scoped-creditBooks",
+			"scoped-loanPayments",
+			"scoped-meta",
+		],
 		"readwrite",
 	);
 	const done = transactionDone(tx);
 	try {
 		const rows = async <T>(store: string) =>
-			((await requestResult(tx.objectStore(store).index("ownerKey").getAll(owner))) as LocalData<T>[]).filter(
-				row => !row.deleted,
-			);
+			(
+				(await requestResult(tx.objectStore(store).index("ownerKey").getAll(owner))) as LocalData<T>[]
+			).filter(row => !row.deleted);
 		const accounts = await rows<FinancialAccount>("scoped-accounts");
 		const movements = await rows<Transaction>("scoped-transactions");
 		const books = await rows<CreditBook>("scoped-creditBooks");
@@ -813,7 +850,8 @@ export function toPurchasePresentation(entry: ReturnType<typeof creditBookEntrie
 		recurrenceId: ("recurrenceId" in entry ? entry.recurrenceId : null) ?? undefined,
 		recurrenceOccurrenceDate:
 			("recurrenceOccurrenceDate" in entry ? entry.recurrenceOccurrenceDate : null) ?? undefined,
-		refinancingFeeAmount: ("refinancingFeeAmount" in entry ? entry.refinancingFeeAmount : null) ?? undefined,
+		refinancingFeeAmount:
+			("refinancingFeeAmount" in entry ? entry.refinancingFeeAmount : null) ?? undefined,
 		refundOfPurchaseId: entry.refundOfPurchaseId ?? undefined,
 		storeName: entry.storeName ?? undefined,
 		tagIds: [...entry.tagIds],
@@ -827,9 +865,10 @@ export async function mutateLocalCreditBook<T>(
 	operation: (book: CreditBook) => T,
 	ownerKey?: StorageOwner,
 	reviewIdToDelete?: string,
-	asOf = currentDateKey(),
+	asOf?: string,
 ): Promise<T> {
 	const owner = requireOwner(ownerKey);
+	asOf ??= await localFinancialDate(owner);
 	const database = await initLocalDb();
 	const tx = database.transaction(
 		[
@@ -849,9 +888,9 @@ export async function mutateLocalCreditBook<T>(
 	);
 	const done = transactionDone(tx);
 	try {
-		const stored = (await requestResult(tx.objectStore("scoped-creditBooks").get(scopedId(owner, cardId)))) as
-			| LocalData<CreditBook>
-			| undefined;
+		const stored = (await requestResult(
+			tx.objectStore("scoped-creditBooks").get(scopedId(owner, cardId)),
+		)) as LocalData<CreditBook> | undefined;
 		const cardRow = (await requestResult(
 			tx.objectStore("scoped-creditCards").get(scopedId(owner, cardId)),
 		)) as LocalData<CreditCard> | undefined;
@@ -862,7 +901,9 @@ export async function mutateLocalCreditBook<T>(
 		)) as LocalData<FinancialAccount> | undefined;
 		const institutionId = accountRow?.data.institutionId ?? null;
 		const policyKey = scopedId(owner, `refund-policy-${institutionId}`);
-		const policy = institutionId ? await requestResult(tx.objectStore("scoped-meta").get(policyKey)) : null;
+		const policy = institutionId
+			? await requestResult(tx.objectStore("scoped-meta").get(policyKey))
+			: null;
 		const book: CreditBook = stored?.data ?? {
 			card: {
 				currency: card.currency ?? accountRow?.data.currency ?? "BRL",
@@ -890,7 +931,8 @@ export async function mutateLocalCreditBook<T>(
 			calendarHistory: card.calendarHistory ?? book.card.calendarHistory,
 			dueDay: card.dueDay,
 			ignoreStatementsBefore: card.ignoreStatementsBefore?.slice(0, 10) ?? null,
-			installmentRemainderOnFirst: accountRow?.data.institution?.creditInstallmentRemainderOnFirst ?? false,
+			installmentRemainderOnFirst:
+				accountRow?.data.institution?.creditInstallmentRemainderOnFirst ?? false,
 			institutionId,
 			refundPolicy: policy?.data ?? book.card.refundPolicy,
 			statementClosingInclusive: accountRow?.data.institution?.creditStatementClosingInclusive ?? false,
@@ -946,7 +988,9 @@ export async function mutateLocalCreditBook<T>(
 				for (const participant of p.debtSplitRule.participants)
 					if (
 						!(await requestResult(
-							tx.objectStore("scoped-debtPeople").get(scopedId(owner, participant.debtPersonId)),
+							tx
+								.objectStore("scoped-debtPeople")
+								.get(scopedId(owner, participant.debtPersonId)),
 						))
 					)
 						throw new Error("Pessoa da dívida indisponível");
@@ -973,8 +1017,7 @@ export async function mutateLocalCreditBook<T>(
 				const occurrences = tx.objectStore("scoped-recurrenceOccurrences");
 				const identity = `${removed.recurrenceId}:${removed.recurrenceOccurrenceDate}`;
 				const row = (await requestResult(occurrences.get(scopedId(owner, identity)))) as
-					| LocalData<RecurrenceOccurrence>
-					| undefined;
+					LocalData<RecurrenceOccurrence> | undefined;
 				if (row)
 					await requestResult(
 						occurrences.put({
@@ -1030,6 +1073,7 @@ export async function transferLocalCreditBookPurchase(
 	update: (book: CreditBook, card: CreditCard) => void,
 ) {
 	const owner = requireOwner();
+	const asOf = await localFinancialDate(owner);
 	const [source, destination] = await Promise.all([
 		readLocalCreditBook(sourceCardId, owner),
 		readLocalCreditBook(destinationCardId, owner),
@@ -1043,13 +1087,15 @@ export async function transferLocalCreditBookPurchase(
 	try {
 		const store = tx.objectStore("scoped-creditBooks");
 		const [sourceRow, destinationRow, cardRow] = await Promise.all([
-			requestResult(store.get(scopedId(owner, sourceCardId))) as Promise<LocalData<CreditBook> | undefined>,
+			requestResult(store.get(scopedId(owner, sourceCardId))) as Promise<
+				LocalData<CreditBook> | undefined
+			>,
 			requestResult(store.get(scopedId(owner, destinationCardId))) as Promise<
 				LocalData<CreditBook> | undefined
 			>,
-			requestResult(tx.objectStore("scoped-creditCards").get(scopedId(owner, destinationCardId))) as Promise<
-				LocalData<CreditCard> | undefined
-			>,
+			requestResult(
+				tx.objectStore("scoped-creditCards").get(scopedId(owner, destinationCardId)),
+			) as Promise<LocalData<CreditCard> | undefined>,
 		]);
 		if (!cardRow || cardRow.deleted) throw new Error("Cartão de destino não encontrado");
 		// Refresh ledger contents inside the write transaction so concurrent edits survive.
@@ -1070,8 +1116,8 @@ export async function transferLocalCreditBookPurchase(
 				}));
 		moveBookPurchase(source, destination, purchaseId);
 		update(destination, cardRow.data);
-		materializeBookInstallments(source);
-		materializeBookInstallments(destination);
+		materializeBookInstallments(source, asOf);
+		materializeBookInstallments(destination, asOf);
 		const now = Date.now();
 		for (const [id, book, previous] of [
 			[sourceCardId, source, sourceRow],
@@ -1093,7 +1139,10 @@ export async function transferLocalCreditBookPurchase(
 			))
 				await requestResult(
 					tx.objectStore("scoped-creditCardStatements").put({
-						data: { ...statement, totalAmount: Number(statement.totalAmount) + statement.chargesAmount },
+						data: {
+							...statement,
+							totalAmount: Number(statement.totalAmount) + statement.chargesAmount,
+						},
 						localId: statement.id,
 						modifiedAt: now,
 						ownerKey: owner,
@@ -1183,7 +1232,8 @@ export const localMeta = {
 	get: async (key: string, ownerKey?: StorageOwner): Promise<unknown> => {
 		const owner = requireOwner(ownerKey);
 		return runTransaction(scopedStoreName("meta"), "readonly", async store => {
-			const result = (await requestResult(store.get(scopedId(owner, key)))) as LocalData<unknown> | undefined;
+			const result = (await requestResult(store.get(scopedId(owner, key)))) as
+				LocalData<unknown> | undefined;
 			return result?.data;
 		});
 	},
@@ -1205,7 +1255,8 @@ export const localMeta = {
 };
 
 /** Lifecycle materialization is separate from pure reads and preserves synced clocks when unchanged. */
-export async function materializeLocalCreditBooks(owner: StorageOwner, asOf = currentDateKey()) {
+export async function materializeLocalCreditBooks(owner: StorageOwner, asOf?: string) {
+	asOf ??= await localFinancialDate(owner);
 	let changed = 0;
 	for (const row of await localCreditBooks.getAll(owner)) {
 		const book = structuredClone(row.data);
@@ -1237,7 +1288,8 @@ export async function commitLocalRecurrenceChanges(
 	const done = transactionDone(tx);
 	try {
 		const store = tx.objectStore("scoped-recurrences");
-		const current = (await requestResult(store.get(expected.scopedId))) as LocalData<Recurrence> | undefined;
+		const current = (await requestResult(store.get(expected.scopedId))) as
+			LocalData<Recurrence> | undefined;
 		if (
 			!current ||
 			current.deleted ||
@@ -1303,9 +1355,9 @@ export async function acknowledgeRecurrenceSync(
 		for (const recurrence of received) {
 			const source = sent.find(row => row.data.id === recurrence.id);
 			if (source) mappings.set(source.localId, recurrence.id);
-			const current = (await requestResult(store.get(scopedId(owner, source?.localId ?? recurrence.id)))) as
-				| LocalData<Recurrence>
-				| undefined;
+			const current = (await requestResult(
+				store.get(scopedId(owner, source?.localId ?? recurrence.id)),
+			)) as LocalData<Recurrence> | undefined;
 			const unchanged =
 				!current ||
 				(source &&
@@ -1352,8 +1404,7 @@ export async function acknowledgeRecurrenceSync(
 					row.data.date === data.date,
 			);
 			const current = (await requestResult(occurrences.get(scopedId(owner, data.id)))) as
-				| LocalData<RecurrenceOccurrence>
-				| undefined;
+				LocalData<RecurrenceOccurrence> | undefined;
 			if (current && (!source || current.modifiedAt !== source.modifiedAt)) continue;
 			const now = Date.now();
 			await requestResult(
@@ -1374,7 +1425,9 @@ export async function acknowledgeRecurrenceSync(
 				const recurrenceId = mappings.get(row.data.recurrenceId)!;
 				if (recurrenceId !== row.data.recurrenceId)
 					await requestResult(
-						tx.objectStore("scoped-transactions").put({ ...row, data: { ...row.data, recurrenceId } }),
+						tx
+							.objectStore("scoped-transactions")
+							.put({ ...row, data: { ...row.data, recurrenceId } }),
 					);
 			}
 		for (const row of (await requestResult(
@@ -1409,7 +1462,8 @@ export async function deleteLocalRecurrence(owner: StorageOwner, id: string, rem
 	const now = Date.now();
 	try {
 		const store = tx.objectStore("scoped-recurrences");
-		const record = (await requestResult(store.get(scopedId(owner, id)))) as LocalData<Recurrence> | undefined;
+		const record = (await requestResult(store.get(scopedId(owner, id)))) as
+			LocalData<Recurrence> | undefined;
 		if (!record) {
 			await done;
 			return;
@@ -1451,7 +1505,9 @@ export async function deleteLocalRecurrence(owner: StorageOwner, id: string, rem
 						purchase.recurrenceOccurrenceDate = null;
 					}
 			synchronizeBookRefinancing(book, row.data);
-			await requestResult(books.put({ ...row, data: book, modifiedAt: Math.max(now, row.modifiedAt + 1) }));
+			await requestResult(
+				books.put({ ...row, data: book, modifiedAt: Math.max(now, row.modifiedAt + 1) }),
+			);
 		}
 		const occurrences = tx.objectStore("scoped-recurrenceOccurrences");
 		for (const row of (await requestResult(
@@ -1461,7 +1517,11 @@ export async function deleteLocalRecurrence(owner: StorageOwner, id: string, rem
 				if (owner.startsWith("user:")) await requestResult(occurrences.delete(row.scopedId));
 				else
 					await requestResult(
-						occurrences.put({ ...row, deleted: true, modifiedAt: Math.max(now, row.modifiedAt + 1) }),
+						occurrences.put({
+							...row,
+							deleted: true,
+							modifiedAt: Math.max(now, row.modifiedAt + 1),
+						}),
 					);
 			}
 		if (owner.startsWith("user:")) await requestResult(store.delete(record.scopedId));
@@ -1564,7 +1624,9 @@ export async function advanceLocalLoanInstallments(
 	const done = transactionDone(tx);
 	const store = tx.objectStore("scoped-loanPayments");
 	try {
-		const rows = ((await requestResult(store.index("ownerKey").getAll(owner))) as LocalData<LoanPayment>[])
+		const rows = (
+			(await requestResult(store.index("ownerKey").getAll(owner))) as LocalData<LoanPayment>[]
+		)
 			.filter(row => !row.deleted && row.data.loanId === loanId && !row.data.paidDate)
 			.sort((a, b) =>
 				advanceType === "FRONT"
@@ -1626,7 +1688,9 @@ export async function acknowledgeDebtEventSync(
 			const previous = sent.find(row => row.localId === data.id);
 			if (
 				current &&
-				(!previous || current.modifiedAt !== previous.modifiedAt || current.deleted !== previous.deleted)
+				(!previous ||
+					current.modifiedAt !== previous.modifiedAt ||
+					current.deleted !== previous.deleted)
 			)
 				continue;
 			const clock = current?.modifiedAt ?? Date.now();
@@ -1699,7 +1763,9 @@ export async function saveLocalAccountDefaults(
 					...row,
 					data: {
 						...row.data,
-						isDefaultForStatements: updated.isDefaultForStatements ? false : row.data.isDefaultForStatements,
+						isDefaultForStatements: updated.isDefaultForStatements
+							? false
+							: row.data.isDefaultForStatements,
 						isPrimary: updated.isPrimary ? false : row.data.isPrimary,
 					},
 					modifiedAt: Date.now(),
@@ -1787,17 +1853,20 @@ export async function confirmLocalSuggestedPayment(
 	const done = transactionDone(tx);
 	try {
 		const getRows = async <T>(name: string) =>
-			((await requestResult(tx.objectStore(name).index("ownerKey").getAll(owner))) as LocalData<T>[]).filter(
-				row => !row.deleted,
-			);
+			(
+				(await requestResult(tx.objectStore(name).index("ownerKey").getAll(owner))) as LocalData<T>[]
+			).filter(row => !row.deleted);
 		const transactions = await getRows<Transaction>("scoped-transactions");
 		const previous = transactions.find(row => row.localId === input.attemptId)?.data;
 		if (previous) {
 			if (
 				previous.paymentCreditCardId !== cardId ||
 				previous.originFinancialAccountId !== input.financialAccountId ||
-				moneyCents(previous.paymentAmount ?? previous.amount, 1, previous.paymentCurrency ?? "BRL") !==
-					moneyCents(input.amount, 1, previous.paymentCurrency ?? "BRL") ||
+				moneyCents(
+					previous.paymentAmount ?? previous.amount,
+					1,
+					previous.paymentCurrency ?? "BRL",
+				) !== moneyCents(input.amount, 1, previous.paymentCurrency ?? "BRL") ||
 				(input.accountAmount != null && previous.amount !== input.accountAmount) ||
 				previous.date.slice(0, 10) !== input.date
 			)
@@ -1828,8 +1897,7 @@ export async function confirmLocalSuggestedPayment(
 		const meta = tx.objectStore("scoped-meta");
 
 		const yieldData = (await requestResult(meta.get(scopedId(owner, "financial-account-yields")))) as
-			| LocalData<import("./api").FinancialAccountYield[]>
-			| undefined;
+			LocalData<import("./api").FinancialAccountYield[]> | undefined;
 		const balance =
 			calculateFinancialAccountBalances(
 				accounts.map(row => row.data),
@@ -1845,8 +1913,10 @@ export async function confirmLocalSuggestedPayment(
 		toMinorUnits(debitAmount, account.currency ?? "BRL", 1);
 		if (
 			input.date <= currentDateKey() &&
-			toMinorUnits(roundMoney(Math.max(0, balance), account.currency ?? "BRL"), account.currency ?? "BRL") <
-				toMinorUnits(debitAmount, account.currency ?? "BRL", 1)
+			toMinorUnits(
+				roundMoney(Math.max(0, balance), account.currency ?? "BRL"),
+				account.currency ?? "BRL",
+			) < toMinorUnits(debitAmount, account.currency ?? "BRL", 1)
 		)
 			throw new Error("Saldo insuficiente na conta pagadora na data informada");
 		const transaction: Transaction = {
@@ -1879,4 +1949,19 @@ export async function confirmLocalSuggestedPayment(
 		await done.catch(() => undefined);
 		throw error;
 	}
+}
+
+/** Resolve the owner's civil date without relying on the browser's timezone. */
+export async function localFinancialDate(owner: StorageOwner, now = new Date()): Promise<string> {
+	const [country, preference] = await Promise.all([
+		localMeta.get("country-preference", owner),
+		localMeta.get("time-zone-preference", owner),
+	]);
+	return financialDateKey(
+		now,
+		resolveTimeZone(
+			typeof preference === "string" ? preference : null,
+			typeof country === "string" ? country : null,
+		),
+	);
 }

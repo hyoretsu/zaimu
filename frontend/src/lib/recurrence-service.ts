@@ -24,9 +24,8 @@ import type {
 import { guestCashbackSnapshot } from "./cashback-snapshot";
 import { activeCurrency } from "./currency-context";
 import { convertLocalMoney, guestRate } from "./currency-conversion";
-import { getLocalDateKey } from "./date";
 import { debtSplitToInput } from "./debt-split";
-import { type LocalPageOptions, localCursorPage } from "./local-cursor-page";
+import { localCursorPage, type LocalPageOptions } from "./local-cursor-page";
 import {
 	commitLocalRecurrenceChanges,
 	deleteLocalRecurrence,
@@ -34,6 +33,7 @@ import {
 	localCategories,
 	localCreditBooks,
 	localCreditCards,
+	localFinancialDate,
 	localMeta,
 	localRecurrenceOccurrences,
 	localRecurrences,
@@ -51,11 +51,12 @@ import type {
 
 export async function materializeLocalRecurrences(
 	owner: StorageOwner,
-	today = getLocalDateKey(),
+	today?: string,
 	replay?: { id: string; from: string; through: string },
 	advance?: { id: string; time?: string },
 	rate: typeof guestRate = guestRate,
 ) {
+	today ??= await localFinancialDate(owner);
 	if (advance?.time && !/^([01]\d|2[0-3]):[0-5]\d$/.test(advance.time))
 		throw new Error("Informe um horário válido.");
 	if (advance && !(await localRecurrences.getById(advance.id, owner)))
@@ -153,7 +154,9 @@ export async function materializeLocalRecurrences(
 						? recurrence.destinationFinancialAccountId
 						: recurrence.originFinancialAccountId;
 				const target =
-					accounts.find(account => account.id === targetId)?.currency ?? recurrence.currency ?? "BRL";
+					accounts.find(account => account.id === targetId)?.currency ??
+					recurrence.currency ??
+					"BRL";
 				const money = await convertLocalMoney(
 					recurrence.amount,
 					advance ? today : date,
@@ -168,10 +171,12 @@ export async function materializeLocalRecurrences(
 						currency: target,
 						destinationCurrency:
 							recurrence.movement === "TRANSFER"
-								? (accounts.find(account => account.id === recurrence.destinationFinancialAccountId)
-										?.currency ?? "BRL")
+								? (accounts.find(
+										account => account.id === recurrence.destinationFinancialAccountId,
+									)?.currency ?? "BRL")
 								: null,
-						paymentCurrency: recurrence.movement === "CARD_PAYMENT" ? (card?.currency ?? "BRL") : null,
+						paymentCurrency:
+							recurrence.movement === "CARD_PAYMENT" ? (card?.currency ?? "BRL") : null,
 					},
 					(from, to) => rate(advance ? today : date, from, to),
 				);
@@ -190,7 +195,9 @@ export async function materializeLocalRecurrences(
 					id,
 					originFinancialAccountId: recurrence.originFinancialAccountId ?? undefined,
 					paymentCreditCardId:
-						recurrence.movement === "CARD_PAYMENT" ? (recurrence.creditCardId ?? undefined) : undefined,
+						recurrence.movement === "CARD_PAYMENT"
+							? (recurrence.creditCardId ?? undefined)
+							: undefined,
 					recurrenceId: recurrence.id,
 					recurrenceOccurrenceDate: date,
 					storeName: recurrence.storeName ?? undefined,
@@ -258,7 +265,9 @@ export function createRecurrenceService(deps: Dependencies) {
 			? (await localCreditCards.getById(merged.creditCardId, owner))?.data
 			: undefined;
 		const accountId =
-			merged.movement === "INCOME" ? merged.destinationFinancialAccountId : merged.originFinancialAccountId;
+			merged.movement === "INCOME"
+				? merged.destinationFinancialAccountId
+				: merged.originFinancialAccountId;
 		merged.currency ??=
 			merged.movement === "CARD_PURCHASE"
 				? (card?.currency ?? (card ? "BRL" : activeCurrency()))
@@ -270,7 +279,8 @@ export function createRecurrenceService(deps: Dependencies) {
 			if (
 				accountId &&
 				!accounts.some(
-					account => account.id === accountId && ["CHECKING", "SAVINGS", "CASH"].includes(account.type),
+					account =>
+						account.id === accountId && ["CHECKING", "SAVINGS", "CASH"].includes(account.type),
 				)
 			)
 				throw new Error("Conta incompatível com recorrência.");
@@ -278,7 +288,8 @@ export function createRecurrenceService(deps: Dependencies) {
 			throw new Error("Cartão não encontrado.");
 		if (
 			(merged.movement === "INCOME" && (merged.originFinancialAccountId || merged.creditCardId)) ||
-			(merged.movement === "EXPENSE" && (merged.destinationFinancialAccountId || merged.creditCardId)) ||
+			(merged.movement === "EXPENSE" &&
+				(merged.destinationFinancialAccountId || merged.creditCardId)) ||
 			(merged.movement === "TRANSFER" && merged.creditCardId) ||
 			(merged.movement === "CARD_PURCHASE" &&
 				(merged.originFinancialAccountId || merged.destinationFinancialAccountId)) ||
@@ -299,15 +310,17 @@ export function createRecurrenceService(deps: Dependencies) {
 		if (tags.length !== new Set(merged.tagIds ?? []).size)
 			throw new Error("Uma ou mais tags não estão disponíveis.");
 		const now = new Date().toISOString();
+		const today = await localFinancialDate(owner);
 		const recurrence: Recurrence = {
 			...merged,
 			createdAt: existing?.createdAt ?? now,
-			debtSplit: hasDebt && splitInput ? await deps.hydrateLocalDebtSplit(merged.amount, splitInput) : null,
+			debtSplit:
+				hasDebt && splitInput ? await deps.hydrateLocalDebtSplit(merged.amount, splitInput) : null,
 			id: id ?? crypto.randomUUID(),
 			materializedThrough:
-				existing && existing.materializedThrough > shiftRecurrenceDate(getLocalDateKey(), -1)
+				existing && existing.materializedThrough > shiftRecurrenceDate(today, -1)
 					? existing.materializedThrough
-					: shiftRecurrenceDate(getLocalDateKey(), -1),
+					: shiftRecurrenceDate(today, -1),
 			needsConfiguration: recurrenceNeedsConfiguration(merged),
 			tags,
 			updatedAt: now,
@@ -338,7 +351,7 @@ export function createRecurrenceService(deps: Dependencies) {
 			if (!deps.isGuestMode()) return deps.remote.postRecurringByIdAdvance(id, { time });
 			const owner = getCurrentCacheIdentity()!;
 			return {
-				created: await materializeLocalRecurrences(owner, getLocalDateKey(), undefined, { id, time }),
+				created: await materializeLocalRecurrences(owner, undefined, undefined, { id, time }),
 			};
 		},
 		async create(input: RecurrenceInput): Promise<Recurrence> {
@@ -370,7 +383,9 @@ export function createRecurrenceService(deps: Dependencies) {
 		},
 		async getAll(): Promise<Recurrence[]> {
 			if (deps.isGuestMode())
-				return (await localRecurrences.getAll()).map(({ data: { debtSplit: _, ...summary } }) => summary);
+				return (await localRecurrences.getAll()).map(
+					({ data: { debtSplit: _, ...summary } }) => summary,
+				);
 			const owner = getCurrentCacheIdentity()!;
 			const records = await deps.remote.getRecurring();
 			cacheRemoteData(
@@ -392,7 +407,10 @@ export function createRecurrenceService(deps: Dependencies) {
 		},
 		async getHistory(id: string, options: LocalPageOptions = {}): Promise<RecurrenceHistoryPage> {
 			if (!deps.isGuestMode()) {
-				return deps.remote.getRecurringByIdHistory(id, { ...options, cursor: options.cursor ?? undefined });
+				return deps.remote.getRecurringByIdHistory(id, {
+					...options,
+					cursor: options.cursor ?? undefined,
+				});
 			}
 			const owner = getCurrentCacheIdentity()!;
 			if (!(await localRecurrences.getById(id, owner))) throw new Error("Recorrência não encontrada.");
@@ -427,7 +445,7 @@ export function createRecurrenceService(deps: Dependencies) {
 		async replay(id: string, from: string, through: string): Promise<{ created: number }> {
 			if (!deps.isGuestMode()) return deps.remote.postRecurringByIdReplay(id, { from, through });
 			return {
-				created: await materializeLocalRecurrences(getCurrentCacheIdentity()!, getLocalDateKey(), {
+				created: await materializeLocalRecurrences(getCurrentCacheIdentity()!, undefined, {
 					from,
 					id,
 					through,

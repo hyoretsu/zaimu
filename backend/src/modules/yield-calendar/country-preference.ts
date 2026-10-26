@@ -1,3 +1,4 @@
+import { countryTimeZone, isTimeZone, resolveTimeZone } from "@zaimu/finance/time-zone";
 import Elysia, { t } from "elysia";
 import { requireUserId } from "~/modules/auth";
 import { HttpException } from "~/shared/errors";
@@ -6,6 +7,22 @@ import { supportedCountryCodes } from "./calendar-source";
 
 const Country = t.String({ pattern: "^[A-Z]{2}$" });
 const PreferenceReturn = t.Object({ preferredCountry: t.Nullable(Country) });
+const TimeZonePreferenceReturn = t.Object({
+	defaultTimeZone: t.String(),
+	preferredCountry: t.Nullable(Country),
+	preferredTimeZone: t.Nullable(t.String()),
+	timeZone: t.String(),
+});
+function presentTimeZonePreference(user: {
+	preferredCountry: string | null;
+	preferredTimeZone: string | null;
+}) {
+	return {
+		...user,
+		defaultTimeZone: countryTimeZone(user.preferredCountry),
+		timeZone: resolveTimeZone(user.preferredTimeZone, user.preferredCountry),
+	};
+}
 export const CountryPreferencesController = new Elysia()
 	.get("/countries", () => ({ countries: supportedCountryCodes }), {
 		response: t.Object({ countries: t.Array(Country) }),
@@ -39,4 +56,38 @@ export const CountryPreferencesController = new Elysia()
 			return user;
 		},
 		{ body: t.Object({ preferredCountry: Country }), response: PreferenceReturn },
+	)
+	.get(
+		"/time-zone-preferences",
+		async ({ request }) => {
+			const [user] = await queryRaw<{
+				preferredCountry: string | null;
+				preferredTimeZone: string | null;
+			}>('SELECT "preferredCountry","preferredTimeZone" FROM "user" WHERE "id"=$1', [
+				await requireUserId(request),
+			]);
+			if (!user) throw new HttpException("Usuário indisponível", 404);
+			return presentTimeZonePreference(user);
+		},
+		{ response: TimeZonePreferenceReturn },
+	)
+	.patch(
+		"/time-zone-preferences",
+		async ({ request, body }) => {
+			if (body.preferredTimeZone !== null && !isTimeZone(body.preferredTimeZone))
+				throw new HttpException("Fuso horário inválido", 400);
+			const [user] = await queryRaw<{
+				preferredCountry: string | null;
+				preferredTimeZone: string | null;
+			}>(
+				'UPDATE "user" SET "preferredTimeZone"=$2,"updatedAt"=CURRENT_TIMESTAMP WHERE "id"=$1 RETURNING "preferredCountry","preferredTimeZone"',
+				[await requireUserId(request), body.preferredTimeZone],
+			);
+			if (!user) throw new HttpException("Usuário indisponível", 404);
+			return presentTimeZonePreference(user);
+		},
+		{
+			body: t.Object({ preferredTimeZone: t.Nullable(t.String({ maxLength: 100, minLength: 1 })) }),
+			response: TimeZonePreferenceReturn,
+		},
 	);

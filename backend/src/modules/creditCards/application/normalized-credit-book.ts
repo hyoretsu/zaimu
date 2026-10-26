@@ -2,8 +2,8 @@ import {
 	type BookPurchase,
 	bookPurchase,
 	bookRefinancingLinks,
-	type CreditBook,
 	changeBookCalendar,
+	type CreditBook,
 	creditBookEntries,
 	materializeBookInstallments,
 	moneyCents,
@@ -34,6 +34,7 @@ import {
 	replaceDebtSplit,
 	syncPurchaseDebtEvent,
 } from "~/modules/debts/application";
+import { userFinancialDate } from "~/shared/application/financial-date";
 import { HttpException } from "~/shared/errors";
 import { queryRaw, withRawTransaction } from "~/shared/infra/sql";
 import { creditBookDelta, equalBookValue } from "./credit-book-delta";
@@ -152,13 +153,19 @@ export async function loadCreditBook(
 				debtSplitRule: splits.get(String(p.id)) ?? null,
 				exchangeRate: p.exchangeRate == null ? null : Number(p.exchangeRate),
 				installmentAmountsCents: plan.map(row => moneyCents(Number(row.amount), 1, card.currency)),
-				installmentImportedNumbers: plan.filter(row => row.hasImportedAmount).map(row => Number(row.number)),
+				installmentImportedNumbers: plan
+					.filter(row => row.hasImportedAmount)
+					.map(row => Number(row.number)),
 				installmentStatementDates: plan.map(row =>
-					row.statementDate ? { dueDate: date(row.dueDate), statementDate: date(row.statementDate) } : null,
+					row.statementDate
+						? { dueDate: date(row.dueDate), statementDate: date(row.statementDate) }
+						: null,
 				),
 				originalAmount: p.originalAmount == null ? null : Number(p.originalAmount),
 				purchaseDate: date(p.purchaseDate),
-				recurrenceOccurrenceDate: p.recurrenceOccurrenceDate ? date(p.recurrenceOccurrenceDate) : null,
+				recurrenceOccurrenceDate: p.recurrenceOccurrenceDate
+					? date(p.recurrenceOccurrenceDate)
+					: null,
 				tagIds: (tags.get(String(p.id)) ?? []).map(tag => tag.id),
 				totalAmountCents: moneyCents(Number(p.totalAmount), 1, card.currency),
 				updatedAt: timestamp(p.updatedAt),
@@ -348,7 +355,9 @@ export async function saveCreditBook(
 			throw new HttpException("Exclusão pertence a outro cartão", 403);
 		for (const id of deletedIds.filter(
 			id =>
-				!(entryKind === "PURCHASE" ? previous.deletedPurchaseIds : previous.deletedChargeIds)?.includes(id),
+				!(
+					entryKind === "PURCHASE" ? previous.deletedPurchaseIds : previous.deletedChargeIds
+				)?.includes(id),
 		)) {
 			const old = await query(
 				`SELECT "id" FROM "CreditBookTombstone" WHERE "id"=$1 AND ("userId"<>$2 OR "creditCardId"<>$3)`,
@@ -396,7 +405,11 @@ export async function saveCreditBook(
 	}
 	for (const i of book.installments) {
 		const p = purchasesById.get(i.purchaseId);
-		if (!p || p.installmentAmountsCents[i.number - 1] !== i.amountCents || !statementIds.has(i.statementId))
+		if (
+			!p ||
+			p.installmentAmountsCents[i.number - 1] !== i.amountCents ||
+			!statementIds.has(i.statementId)
+		)
 			throw new HttpException("Parcela não corresponde à compra e fatura", 400);
 	}
 
@@ -413,8 +426,12 @@ export async function saveCreditBook(
 		] as const) {
 			if (
 				id &&
-				!(await query(`SELECT "id" FROM "${table}" WHERE "id"=$1 AND "userId"=$2`, [id, book.card.userId]))
-					.length
+				!(
+					await query(`SELECT "id" FROM "${table}" WHERE "id"=$1 AND "userId"=$2`, [
+						id,
+						book.card.userId,
+					])
+				).length
 			)
 				throw new HttpException("Vínculo pertence a outro usuário", 403);
 		}
@@ -483,7 +500,8 @@ export async function saveCreditBook(
 			exchangeRate: p.exchangeRate ?? 1,
 			fees: JSON.stringify(p.fees ?? []),
 			originalAmount:
-				p.originalAmount ?? p.totalAmountCents / currencyScale(book.card.currency) - (p.feeAmount ?? 0),
+				p.originalAmount ??
+				p.totalAmountCents / currencyScale(book.card.currency) - (p.feeAmount ?? 0),
 			totalAmount: p.totalAmountCents / currencyScale(book.card.currency),
 		};
 		await upsertMoney(
@@ -620,7 +638,9 @@ export async function saveCreditBook(
 				r.creditDate,
 				r.policy,
 				r.cancellationEligible,
-				r.canceledInstallmentNumbers === undefined ? null : JSON.stringify(r.canceledInstallmentNumbers),
+				r.canceledInstallmentNumbers === undefined
+					? null
+					: JSON.stringify(r.canceledInstallmentNumbers),
 				r.deletedAt,
 				r.createdAt,
 				r.updatedAt,
@@ -711,7 +731,12 @@ export async function saveCreditBook(
 			old.totalAmountCents / currencyScale(book.card.currency),
 			p.totalAmountCents / currencyScale(book.card.currency),
 		);
-		await history(p.id, "installments", old.installmentAmountsCents.length, p.installmentAmountsCents.length);
+		await history(
+			p.id,
+			"installments",
+			old.installmentAmountsCents.length,
+			p.installmentAmountsCents.length,
+		);
 	}
 	for (const i of delta.installments) {
 		const old = previousInstallments.get(i.id);
@@ -787,8 +812,9 @@ export async function mutateCreditBook<T>(
 	userId: string,
 	cardId: string,
 	mutation: (book: CreditBook, query: RawQuery) => T | Promise<T>,
-	asOf = currentDateKey(),
+	asOf?: string,
 ) {
+	asOf ??= await userFinancialDate(userId);
 	return withRawTransaction(async query => {
 		const book = await measureOperation("credit-book:load", () =>
 			loadCreditBook(query, userId, cardId, true),
@@ -835,6 +861,7 @@ export async function transferCreditBookPurchase<T>(
 	mutation: (book: CreditBook, query: RawQuery) => T | Promise<T>,
 ) {
 	return withRawTransaction(async query => {
+		const asOf = await userFinancialDate(userId);
 		const ids = [sourceCardId, destinationCardId].sort();
 		const books: CreditBook[] = [];
 		for (const id of ids) books.push(await loadCreditBook(query, userId, id, true));
@@ -845,8 +872,8 @@ export async function transferCreditBookPurchase<T>(
 		try {
 			const purchase = moveBookPurchase(source, destination, purchaseId);
 			const result = await mutation(destination, query);
-			materializeBookInstallments(source);
-			materializeBookInstallments(destination);
+			materializeBookInstallments(source, asOf);
+			materializeBookInstallments(destination, asOf);
 			await query(
 				`UPDATE "CreditPurchaseRecord" SET "creditCardId"=$1 WHERE "id"=$2 AND "userId"=$3 AND "creditCardId"=$4`,
 				[destinationCardId, purchase.id, userId, sourceCardId],
