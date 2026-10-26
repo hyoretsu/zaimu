@@ -6,21 +6,34 @@ import {
 	MultiplicationSignCircleIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { CSSProperties } from "react";
+import { type CSSProperties, useSyncExternalStore } from "react";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 
+const desktopQuery = "(min-width: 768px) and (hover: hover) and (pointer: fine)";
+const subscribe = (callback: () => void) => {
+	const media = window.matchMedia(desktopQuery);
+	media.addEventListener("change", callback);
+	return () => media.removeEventListener("change", callback);
+};
+const desktopSnapshot = () => window.matchMedia(desktopQuery).matches;
+
 const Toaster = ({ ...props }: ToasterProps) => {
+	const desktop = useSyncExternalStore(subscribe, desktopSnapshot, () => false);
 	return (
 		<Sonner
 			className="toaster group"
 			icons={{
-				error: <HugeiconsIcon className="size-4" icon={MultiplicationSignCircleIcon} strokeWidth={2} />,
+				error: (
+					<HugeiconsIcon className="size-4" icon={MultiplicationSignCircleIcon} strokeWidth={2} />
+				),
 				info: <HugeiconsIcon className="size-4" icon={InformationCircleIcon} strokeWidth={2} />,
-				loading: <HugeiconsIcon className="size-4 animate-spin" icon={Loading03Icon} strokeWidth={2} />,
+				loading: (
+					<HugeiconsIcon className="size-4 animate-spin" icon={Loading03Icon} strokeWidth={2} />
+				),
 				success: <HugeiconsIcon className="size-4" icon={CheckmarkCircle02Icon} strokeWidth={2} />,
 				warning: <HugeiconsIcon className="size-4" icon={Alert02Icon} strokeWidth={2} />,
 			}}
-			mobileOffset={{ bottom: "calc(5.5rem + env(safe-area-inset-bottom))", left: "1rem", right: "1rem" }}
+			mobileOffset={{ left: "1rem", right: "1rem", top: "calc(1rem + env(safe-area-inset-top))" }}
 			style={
 				{
 					"--border-radius": "var(--radius)",
@@ -34,8 +47,13 @@ const Toaster = ({ ...props }: ToasterProps) => {
 				classNames: {
 					toast: "cn-toast",
 				},
+				closeButtonAriaLabel: "Fechar notificação",
 			}}
 			{...props}
+			closeButton={desktop}
+			position="top-center"
+			swipeDirections={["left", "right", "top"]}
+			visibleToasts={5}
 		/>
 	);
 };

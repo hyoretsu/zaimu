@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import {
@@ -20,6 +19,7 @@ import {
 	getFinancialAccountOptionLabel,
 } from "@/lib/financial-account";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { toast } from "@/lib/toast";
 import { showToast } from "@/stores";
 import { TransactionDetailsFields } from "./TransactionDetailsFields";
 
@@ -76,10 +76,13 @@ export function EditStatementPaymentDialog({
 		},
 		onMutate: () => {
 			onOpenChange(false);
-			return { toastId: toast.loading("Salvando pagamento…", { position: "bottom-right" }) };
+			return { toastId: toast.loading("Salvando pagamento…") };
 		},
 		onSuccess: async (_, __, context) => {
-			toast.success("Pagamento da fatura atualizado.", { id: context?.toastId, position: "bottom-right" });
+			toast.success("Pagamento da fatura atualizado.", {
+				id: context?.toastId,
+				position: "bottom-right",
+			});
 		},
 	});
 
@@ -107,7 +110,9 @@ export function EditStatementPaymentDialog({
 			<DialogContent className="sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>Editar pagamento da fatura</DialogTitle>
-					<DialogDescription>O saldo e a situação da fatura são recalculados ao salvar.</DialogDescription>
+					<DialogDescription>
+						O saldo e a situação da fatura são recalculados ao salvar.
+					</DialogDescription>
 				</DialogHeader>
 				<DialogBody>
 					<div>
@@ -115,27 +120,36 @@ export function EditStatementPaymentDialog({
 							<TransactionDetailsFields
 								amount={draft.amount}
 								bookingCurrency={
-									accountsQuery.data?.find(account => account.id === draft.originFinancialAccountId)
-										?.currency ?? draft.currency
+									accountsQuery.data?.find(
+										account => account.id === draft.originFinancialAccountId,
+									)?.currency ?? draft.currency
 								}
 								currencyCode={draft.currency}
 								date={draft.date}
 								description=""
-								onAmountChange={amount => setDraft(current => (current ? { ...current, amount } : current))}
+								onAmountChange={amount =>
+									setDraft(current => (current ? { ...current, amount } : current))
+								}
 								onCurrencyChange={currency =>
 									setDraft(current => (current ? { ...current, currency } : current))
 								}
-								onDateChange={date => setDraft(current => (current ? { ...current, date } : current))}
+								onDateChange={date =>
+									setDraft(current => (current ? { ...current, date } : current))
+								}
 								onDescriptionChange={() => undefined}
 								onPaymentAmountChange={paymentAmount =>
 									setDraft(current => (current ? { ...current, paymentAmount } : current))
 								}
 								onStoreNameChange={() => undefined}
 								onTagIdsChange={() => undefined}
-								onTimeChange={time => setDraft(current => (current ? { ...current, time } : current))}
+								onTimeChange={time =>
+									setDraft(current => (current ? { ...current, time } : current))
+								}
 								onTypeChange={() => undefined}
 								paymentAmount={draft.paymentAmount}
-								paymentCurrency={transaction.paymentCurrency ?? transaction.bookingCurrency ?? "BRL"}
+								paymentCurrency={
+									transaction.paymentCurrency ?? transaction.bookingCurrency ?? "BRL"
+								}
 								showDescription={false}
 								showStore={false}
 								showTags={false}
@@ -154,7 +168,9 @@ export function EditStatementPaymentDialog({
 									disabled={accountsQuery.isPending || accountsQuery.isError}
 									label="Conta pagadora"
 									onValueChange={originFinancialAccountId =>
-										setDraft(current => (current ? { ...current, originFinancialAccountId } : current))
+										setDraft(current =>
+											current ? { ...current, originFinancialAccountId } : current,
+										)
 									}
 									options={accountOptions}
 									placeholder="Selecione a conta"
@@ -163,7 +179,7 @@ export function EditStatementPaymentDialog({
 									value={draft.originFinancialAccountId}
 								/>
 							) : (
-								<p className="rounded-xl border p-3 text-muted-foreground text-sm">
+								<p className="text-muted-foreground rounded-xl border p-3 text-sm">
 									Nenhuma conta com saldo próprio disponível.
 								</p>
 							)}

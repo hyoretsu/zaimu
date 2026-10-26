@@ -1,8 +1,8 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { LuLogOut } from "react-icons/lu";
-import { toast } from "sonner";
 import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/Button";
+import { toast } from "@/lib/toast";
 import { useAuthStore } from "@/stores";
 import { primaryNavigation, utilityNavigation } from "./navigation";
 
@@ -20,7 +20,7 @@ export function AppSidebar() {
 	};
 
 	return (
-		<aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-border/70 border-r bg-card/95 p-4 backdrop-blur-xl lg:flex">
+		<aside className="border-border/70 bg-card/95 fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r p-4 backdrop-blur-xl lg:flex">
 			<div className="px-2 py-4">
 				<BrandMark />
 			</div>
@@ -29,8 +29,8 @@ export function AppSidebar() {
 					<Link
 						className={
 							active(pathname, item.to)
-								? "flex items-center gap-3 rounded-xl border border-primary/15 bg-primary px-3 py-2.5 font-semibold text-primary-foreground text-sm shadow-soft"
-								: "flex items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 font-medium text-muted-foreground text-sm hover:border-border hover:bg-muted hover:text-foreground"
+								? "border-primary/15 bg-primary text-primary-foreground shadow-soft flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-semibold"
+								: "text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground flex items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-sm font-medium"
 						}
 						key={item.to}
 						to={item.to}
@@ -43,7 +43,7 @@ export function AppSidebar() {
 			<div className="mt-auto grid gap-2">
 				{utilityNavigation.map(item => (
 					<Link
-						className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5 font-medium text-sm hover:bg-muted"
+						className="border-border hover:bg-muted flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-medium"
 						key={item.to}
 						to={item.to}
 					>
@@ -51,9 +51,11 @@ export function AppSidebar() {
 						{item.label}
 					</Link>
 				))}
-				<div className="mt-2 rounded-2xl border border-border bg-muted/45 p-3">
-					<p className="truncate font-semibold text-sm">{isGuestMode ? "Modo convidado" : user?.name}</p>
-					<p className="truncate text-muted-foreground text-xs">
+				<div className="border-border bg-muted/45 mt-2 rounded-2xl border p-3">
+					<p className="truncate text-sm font-semibold">
+						{isGuestMode ? "Modo convidado" : user?.name}
+					</p>
+					<p className="text-muted-foreground truncate text-xs">
 						{isGuestMode ? "Dados salvos neste dispositivo" : user?.email}
 					</p>
 				</div>

@@ -1,7 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createRootRoute, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
-import { toast } from "sonner";
 import { CurrencyLifecycle } from "@/components/currency/CurrencyLifecycle";
 import { AppShell } from "@/components/layout";
 import { useOpenFinanceAutoSync } from "@/hooks/use-open-finance";
@@ -9,6 +8,7 @@ import { initLocalDb, materializeLocalCreditBooks } from "@/lib/localStorage";
 import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
 import { materializeLocalRecurrences } from "@/lib/recurrence-service";
 import { cachedTaxCatalog, fetchTaxCatalog } from "@/lib/tax-catalog";
+import { toast } from "@/lib/toast";
 import { useAuthStore, useThemeStore } from "@/stores";
 import { AppStartupGate } from "./components/AppStartupGate";
 import { YieldCalendarLifecycle } from "./components/YieldCalendarLifecycle";
@@ -62,12 +62,17 @@ function RootComponent() {
 		const materialize = async () => {
 			try {
 				const recurringChanged = await materializeLocalRecurrences(identity);
-				if (active && recurringChanged) await invalidateCacheOperation(queryClient, identity, "recurring");
+				if (active && recurringChanged)
+					await invalidateCacheOperation(queryClient, identity, "recurring");
 				const changed = await materializeLocalCreditBooks(identity);
 				if (active && changed) await invalidateCacheOperation(queryClient, identity, "statement");
 			} catch (error) {
 				if (active)
-					toast.error(error instanceof Error ? error.message : "Não foi possível atualizar parcelas locais.");
+					toast.error(
+						error instanceof Error
+							? error.message
+							: "Não foi possível atualizar parcelas locais.",
+					);
 			}
 		};
 		void materialize();
@@ -105,7 +110,8 @@ function RootComponent() {
 	]);
 
 	useEffect(() => {
-		if (isRateLimited) toast.error("Não foi possível validar a sessão agora. Tente novamente em instantes.");
+		if (isRateLimited)
+			toast.error("Não foi possível validar a sessão agora. Tente novamente em instantes.");
 	}, [isRateLimited]);
 
 	useEffect(() => {

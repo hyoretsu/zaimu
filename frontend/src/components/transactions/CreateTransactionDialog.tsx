@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
 import { DebtSplitEditor } from "@/components/debts";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
@@ -28,6 +27,7 @@ import {
 	getTransactionSourceAccounts,
 } from "@/lib/financial-account";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { toast } from "@/lib/toast";
 import { getTransactionFormAccounts } from "@/lib/transaction-form-accounts";
 import { showToast } from "@/stores";
 import { useCurrencyStore } from "@/stores/currency";
@@ -134,7 +134,9 @@ export function CreateTransactionDialog({
 			: draft.type === "YIELD"
 				? balanceDestinationAccounts
 				: sourceAccounts;
-	const selectedStatement = payableStatementsQuery.data?.find(item => item.id === draft.paymentCreditCardId);
+	const selectedStatement = payableStatementsQuery.data?.find(
+		item => item.id === draft.paymentCreditCardId,
+	);
 	const primaryAccountId =
 		draft.type === "INCOME" || draft.type === "YIELD"
 			? (account?.id ?? draft.destinationFinancialAccountId)
@@ -193,9 +195,12 @@ export function CreateTransactionDialog({
 						: undefined,
 				fees: draft.fees,
 				isHidden: draft.isHidden,
-				originFinancialAccountId: draft.type === "INCOME" ? undefined : originFinancialAccountId || undefined,
+				originFinancialAccountId:
+					draft.type === "INCOME" ? undefined : originFinancialAccountId || undefined,
 				paymentAmount:
-					draft.paymentCreditCardId && draft.paymentAmount ? Number(draft.paymentAmount) : undefined,
+					draft.paymentCreditCardId && draft.paymentAmount
+						? Number(draft.paymentAmount)
+						: undefined,
 				paymentCreditCardId: draft.paymentCreditCardId || undefined,
 				storeName: draft.type === "EXPENSE" ? draft.storeName.trim() || undefined : undefined,
 				tagIds: draft.tagIds,
@@ -211,7 +216,7 @@ export function CreateTransactionDialog({
 		onMutate: () => {
 			handleOpenChange(false);
 			return {
-				toastId: toast.loading("Salvando transação…", { position: "bottom-right" }),
+				toastId: toast.loading("Salvando transação…"),
 			};
 		},
 		onSuccess: async (_, { draft }, context) => {
@@ -258,7 +263,11 @@ export function CreateTransactionDialog({
 									)?.currency ??
 									draft.currency
 								}
-								currencyCode={draft.type === "YIELD" ? (account?.currency ?? draft.currency) : draft.currency}
+								currencyCode={
+									draft.type === "YIELD"
+										? (account?.currency ?? draft.currency)
+										: draft.currency
+								}
 								date={draft.date}
 								description={description}
 								fees={draft.fees}
@@ -276,11 +285,17 @@ export function CreateTransactionDialog({
 								onDateChange={date => setDraft(current => ({ ...current, date }))}
 								onDescriptionChange={setDescription}
 								onFeesChange={
-									draft.type !== "YIELD" ? fees => setDraft(current => ({ ...current, fees })) : undefined
+									draft.type !== "YIELD"
+										? fees => setDraft(current => ({ ...current, fees }))
+										: undefined
 								}
 								onIsHiddenChange={isHidden => setDraft(current => ({ ...current, isHidden }))}
-								onPaymentAmountChange={value => setDraft(current => ({ ...current, paymentAmount: value }))}
-								onStoreNameChange={storeName => setDraft(current => ({ ...current, storeName }))}
+								onPaymentAmountChange={value =>
+									setDraft(current => ({ ...current, paymentAmount: value }))
+								}
+								onStoreNameChange={storeName =>
+									setDraft(current => ({ ...current, storeName }))
+								}
 								onTagIdsChange={tagIds => setDraft(current => ({ ...current, tagIds }))}
 								onTimeChange={time => setDraft(current => ({ ...current, time }))}
 								onTypeChange={type => {
@@ -288,7 +303,8 @@ export function CreateTransactionDialog({
 									setDraft(current => ({
 										...current,
 										...getTransactionFormAccounts(current, type),
-										paymentCreditCardId: type === "EXPENSE" ? current.paymentCreditCardId : "",
+										paymentCreditCardId:
+											type === "EXPENSE" ? current.paymentCreditCardId : "",
 										type,
 									}));
 								}}
@@ -372,7 +388,8 @@ export function CreateTransactionDialog({
 																current.type === "TRANSFER"
 																	? account && accountId !== account.id
 																		? account.id
-																		: current.destinationFinancialAccountId === accountId
+																		: current.destinationFinancialAccountId ===
+																			  accountId
 																			? ""
 																			: current.destinationFinancialAccountId
 																	: "",
@@ -421,16 +438,23 @@ export function CreateTransactionDialog({
 					</div>
 				</DialogBody>
 				<DialogFooter>
-					<Button className="cursor-pointer" onClick={() => handleOpenChange(false)} variant="outline">
+					<Button
+						className="cursor-pointer"
+						onClick={() => handleOpenChange(false)}
+						variant="outline"
+					>
 						Descartar
 					</Button>
 					<Button
 						className="cursor-pointer disabled:cursor-not-allowed"
 						disabled={
 							!draft.amount ||
-							draft.fees.some(fee => !fee.name.trim() || !Number.isFinite(fee.amount) || fee.amount < 0) ||
+							draft.fees.some(
+								fee => !fee.name.trim() || !Number.isFinite(fee.amount) || fee.amount < 0,
+							) ||
 							!primaryAccountId ||
-							(isDebt && !calculateDebtSplit(Number(draft.amount), debtSplit, draft.currency)) ||
+							(isDebt &&
+								!calculateDebtSplit(Number(draft.amount), debtSplit, draft.currency)) ||
 							(draft.type === "TRANSFER" && !draft.destinationFinancialAccountId)
 						}
 						onClick={save}

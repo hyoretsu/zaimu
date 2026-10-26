@@ -1,5 +1,10 @@
 import { beforeEach, expect, test } from "bun:test";
 
+if (typeof requestAnimationFrame === "undefined") {
+	globalThis.requestAnimationFrame = callback => Number(setTimeout(() => callback(performance.now()), 0));
+	globalThis.cancelAnimationFrame = id => clearTimeout(id);
+}
+
 // Auth configuration reads the browser origin while modules initialize.
 if (typeof window === "undefined") {
 	Object.defineProperty(globalThis, "window", {
@@ -15,7 +20,7 @@ const {
 	takeModalRecovery,
 } = await import("./background-modal-actions");
 const { useAuthStore } = await import("@/stores/auth");
-const { toast } = await import("sonner");
+const { toast } = await import("./toast");
 const settle = async () => {
 	for (let index = 0; index < 15; index++) await Promise.resolve();
 };
@@ -180,7 +185,9 @@ test("record progress leaves loading feedback inside the affected listing", asyn
 			}),
 	});
 	await settle();
-	expect(toast.getHistory().some(item => "title" in item && item.title === "Row-only progress")).toBeFalse();
+	expect(
+		toast.getHistory().some(item => "title" in item && item.title === "Row-only progress"),
+	).toBeFalse();
 	finish();
 	await settle();
 });

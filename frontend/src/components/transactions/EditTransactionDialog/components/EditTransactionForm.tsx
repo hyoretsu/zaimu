@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 import { DebtSplitEditor } from "@/components/debts";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
@@ -26,6 +25,7 @@ import {
 } from "@/lib/financial-account";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { getUpdatedStoreName } from "@/lib/store-name";
+import { toast } from "@/lib/toast";
 import { getTransactionFormAccounts } from "@/lib/transaction-form-accounts";
 import { showToast } from "@/stores";
 import { TransactionDetailsFields } from "../../TransactionDetailsFields";
@@ -117,13 +117,17 @@ export function EditTransactionForm({
 				debtSplit: isDebt ? debtSplit : null,
 				description: description.trim() || undefined,
 				destinationAmount:
-					draft.type === "TRANSFER" && draft.destinationAmount ? Number(draft.destinationAmount) : undefined,
+					draft.type === "TRANSFER" && draft.destinationAmount
+						? Number(draft.destinationAmount)
+						: undefined,
 				destinationFinancialAccountId: draft.destinationFinancialAccountId || null,
 				fees: draft.fees,
 				isHidden: draft.isHidden,
 				originFinancialAccountId: draft.originFinancialAccountId || null,
 				paymentAmount:
-					draft.paymentCreditCardId && draft.paymentAmount ? Number(draft.paymentAmount) : undefined,
+					draft.paymentCreditCardId && draft.paymentAmount
+						? Number(draft.paymentAmount)
+						: undefined,
 				paymentCreditCardId: draft.paymentCreditCardId || null,
 				...(storeName !== undefined && { storeName }),
 				tagIds: draft.tagIds,
@@ -137,7 +141,7 @@ export function EditTransactionForm({
 		},
 		onMutate: () => {
 			onOpenChange(false);
-			return { toastId: toast.loading("Salvando transação…", { position: "bottom-right" }) };
+			return { toastId: toast.loading("Salvando transação…") };
 		},
 		onSuccess: async (_, __, context) => {
 			toast.success("Transação atualizada.", { id: context?.toastId, position: "bottom-right" });
@@ -166,7 +170,8 @@ export function EditTransactionForm({
 	if (primaryAccountId && !primaryAccountOptions.some(option => option.value === primaryAccountId)) {
 		primaryAccountOptions.unshift({
 			label:
-				(draft.type === "INCOME" ? transaction.destinationName : transaction.originName) || "Conta atual",
+				(draft.type === "INCOME" ? transaction.destinationName : transaction.originName) ||
+				"Conta atual",
 			value: primaryAccountId,
 		});
 	}
@@ -212,13 +217,19 @@ export function EditTransactionForm({
 								description={description}
 								fees={draft.fees}
 								isHidden={draft.isHidden}
-								onAmountChange={amount => setDraft(current => (current ? { ...current, amount } : current))}
+								onAmountChange={amount =>
+									setDraft(current => (current ? { ...current, amount } : current))
+								}
 								onCurrencyChange={currency =>
 									setDraft(current => (current ? { ...current, currency } : current))
 								}
-								onDateChange={date => setDraft(current => (current ? { ...current, date } : current))}
+								onDateChange={date =>
+									setDraft(current => (current ? { ...current, date } : current))
+								}
 								onDescriptionChange={setDescription}
-								onFeesChange={fees => setDraft(current => (current ? { ...current, fees } : current))}
+								onFeesChange={fees =>
+									setDraft(current => (current ? { ...current, fees } : current))
+								}
 								onIsHiddenChange={isHidden =>
 									setDraft(current => (current ? { ...current, isHidden } : current))
 								}
@@ -228,8 +239,12 @@ export function EditTransactionForm({
 								onStoreNameChange={storeName =>
 									setDraft(current => (current ? { ...current, storeName } : current))
 								}
-								onTagIdsChange={tagIds => setDraft(current => (current ? { ...current, tagIds } : current))}
-								onTimeChange={time => setDraft(current => (current ? { ...current, time } : current))}
+								onTagIdsChange={tagIds =>
+									setDraft(current => (current ? { ...current, tagIds } : current))
+								}
+								onTimeChange={time =>
+									setDraft(current => (current ? { ...current, time } : current))
+								}
 								onTypeChange={type => {
 									if (type === "YIELD") return;
 									if (type === "TRANSFER") setIsDebt(false);
@@ -238,7 +253,8 @@ export function EditTransactionForm({
 											? {
 													...current,
 													...getTransactionFormAccounts(current, type),
-													paymentCreditCardId: type === "EXPENSE" ? current.paymentCreditCardId : "",
+													paymentCreditCardId:
+														type === "EXPENSE" ? current.paymentCreditCardId : "",
 													type,
 												}
 											: current,
@@ -246,7 +262,9 @@ export function EditTransactionForm({
 								}}
 								paymentAmount={draft.paymentAmount}
 								paymentCurrency={
-									payableStatementsQuery.data?.find(item => item.id === draft.paymentCreditCardId)?.currency
+									payableStatementsQuery.data?.find(
+										item => item.id === draft.paymentCreditCardId,
+									)?.currency
 								}
 								showStore={draft.type === "EXPENSE"}
 								storeName={draft.storeName}
@@ -294,7 +312,10 @@ export function EditTransactionForm({
 											amount={Number(draft.amount) * (transaction.exchangeRate ?? 1)}
 											currencyCode={transaction.bookingCurrency ?? "BRL"}
 											onChange={value =>
-												setDebtSplit({ ...value, currency: transaction.bookingCurrency ?? "BRL" })
+												setDebtSplit({
+													...value,
+													currency: transaction.bookingCurrency ?? "BRL",
+												})
 											}
 											showParticipantDescriptions={draft.type === "EXPENSE"}
 											value={debtSplit}
@@ -317,7 +338,8 @@ export function EditTransactionForm({
 																current.type === "TRANSFER"
 																	? account && accountId !== account.id
 																		? account.id
-																		: current.destinationFinancialAccountId === accountId
+																		: current.destinationFinancialAccountId ===
+																			  accountId
 																			? ""
 																			: current.destinationFinancialAccountId
 																	: current.destinationFinancialAccountId,
@@ -347,7 +369,8 @@ export function EditTransactionForm({
 														...current,
 														destinationFinancialAccountId,
 														originFinancialAccountId:
-															account && destinationFinancialAccountId !== account.id
+															account &&
+															destinationFinancialAccountId !== account.id
 																? account.id
 																: current.originFinancialAccountId,
 													}
@@ -390,7 +413,9 @@ export function EditTransactionForm({
 						className="cursor-pointer disabled:cursor-not-allowed"
 						disabled={
 							!draft.amount ||
-							draft.fees.some(fee => !fee.name.trim() || !Number.isFinite(fee.amount) || fee.amount < 0) ||
+							draft.fees.some(
+								fee => !fee.name.trim() || !Number.isFinite(fee.amount) || fee.amount < 0,
+							) ||
 							!primaryAccountId ||
 							(isDebt &&
 								!calculateDebtSplit(

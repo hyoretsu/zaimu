@@ -1,7 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 import { create } from "zustand";
 import { getCurrentCacheIdentity } from "@/lib/query-cache";
+import { toast } from "@/lib/toast";
 import { useAuthStore } from "@/stores/auth";
 import { captureCacheMutation, invalidateMutationCache } from "./mutation-cache";
 import type { CacheOperation } from "./query-cache";
@@ -142,8 +142,7 @@ export function runBackgroundModalAction<T>({
 	setPending(true);
 	const path = window.location.pathname + window.location.search;
 	close();
-	const toastId =
-		progress === "toast" ? toast.loading(loadingMessage, { position: "bottom-right" }) : undefined;
+	const toastId = progress === "toast" ? toast.loading(loadingMessage) : undefined;
 	const retryRefresh = async (result: T) => {
 		if (getCurrentCacheIdentity() !== identity) return;
 		try {
@@ -153,11 +152,10 @@ export function runBackgroundModalAction<T>({
 					cacheOperations: cache.operations,
 				});
 			if (getCurrentCacheIdentity() === identity) await onSuccess?.(result);
-			toast.success("Lista atualizada.", { position: "bottom-right" });
+			toast.success("Lista atualizada.");
 		} catch {
 			toast.error("Não foi possível atualizar a lista.", {
 				action: { label: "Tentar atualizar", onClick: () => void retryRefresh(result) },
-				position: "bottom-right",
 			});
 		}
 	};
@@ -187,7 +185,6 @@ export function runBackgroundModalAction<T>({
 			} catch {
 				toast.error("Dados salvos. Não foi possível atualizar a lista.", {
 					action: { label: "Tentar atualizar", onClick: () => void retryRefresh(result) },
-					position: "bottom-right",
 				});
 			}
 		})
@@ -199,9 +196,11 @@ export function runBackgroundModalAction<T>({
 				useModalRecoveryStore.getState().store({ ...recovery, id, identity, path });
 			}
 			toast.error(error instanceof Error ? error.message : failureMessage, {
-				action: canRecover ? { label: "Reabrir", onClick: () => requestModalRecovery(id) } : undefined,
+				action: canRecover
+					? { label: "Reabrir", onClick: () => requestModalRecovery(id) }
+					: undefined,
+				dedupeKey: `modal:${recovery.kind}:${failureMessage}`,
 				id: toastId,
-				position: "bottom-right",
 			});
 		})
 		.finally(() => {
