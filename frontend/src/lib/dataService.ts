@@ -3,8 +3,8 @@ import {
 	addBookRefund,
 	bookPurchase,
 	bookRefinancingLinks,
-	type CreditBook,
 	changeBookCalendar,
+	type CreditBook,
 	creditBookConsumption,
 	creditBookEntries,
 	creditBookRewards,
@@ -99,8 +99,8 @@ import {
 	postCreditCardImportsByIdItemsByItemIdApprove,
 	postCreditCardImportsByIdItemsByItemIdApproveRefund,
 	postCreditCardImportsByIdItemsByItemIdReconcile,
-	postCreditCardsByIdPaymentSuggestionsConfirm,
 	postCreditCardsByIdPayments,
+	postCreditCardsByIdPaymentSuggestionsConfirm,
 	postCreditCardsByIdPurchases,
 	postCreditCardsByIdPurchasesByPurchaseIdRefinance,
 	postCreditCardsByIdPurchasesByPurchaseIdRefunds,
@@ -134,6 +134,7 @@ import {
 	putFinancialAccountsPrimary,
 } from "@/lib/api";
 import { showToast } from "@/stores";
+import { useAuthStore } from "@/stores/auth";
 import {
 	deleteRecurringById,
 	getCategories,
@@ -158,43 +159,6 @@ import {
 	postRecurringByIdAdvance,
 	postRecurringByIdReplay,
 } from "./api";
-import { ConnectivityError } from "./api/client-api";
-import { guestCashbackSnapshot } from "./cashback-snapshot";
-import { type CatalogPageOptions, localCatalogPage } from "./catalog-pagination";
-import { activeCurrency } from "./currency-context";
-import { convertLocalMoney, guestRate } from "./currency-conversion";
-import { GuestConversionUnavailable } from "./dashboard-currency-context";
-import { getFinancialInstitutions as getLocalFinancialInstitutions } from "./financial-institution";
-import { guestTransactionPage } from "./guest-transaction-page";
-import { requestResult } from "./idb";
-import { localAccountCardRules, localRuleRewardAccount } from "./institution-card-rules";
-import { loanAccountMovements } from "./loan-account-movements";
-import { localCursorPage } from "./local-cursor-page";
-import {
-	acknowledgeCreditBookSync,
-	acknowledgeRecurrenceSync,
-	confirmLocalSuggestedPayment,
-	initLocalDb,
-	localCreditBooks,
-	localCreditRefundReviews,
-	mutateLocalCreditBook,
-	readLocalCreditBook,
-	saveLocalAccountDefaults,
-	setLocalPrimaryAccount,
-	toPurchasePresentation,
-	transferLocalCreditBookPurchase,
-} from "./localStorage";
-import { projectGuestRecurrenceCreditBook } from "./recurrence-credit-projection";
-import { createRecurrenceService } from "./recurrence-service";
-import { cachedYieldCalendar } from "./yield-calendar";
-/**
- * Data Service - Abstracts local vs remote data operations
- *
- * When in guest mode: All operations use IndexedDB
- * When authenticated: Operations use backend API with local caching
- */
-
-import { useAuthStore } from "@/stores/auth";
 import type {
 	Category,
 	CategoryPage,
@@ -232,9 +196,15 @@ import type {
 	TransactionImportItem,
 	TransactionImportSummary,
 } from "./api";
+import { ConnectivityError } from "./api/client-api";
 import type { BalanceAdjustment } from "./balance-adjustment";
+import { guestCashbackSnapshot } from "./cashback-snapshot";
+import { type CatalogPageOptions, localCatalogPage } from "./catalog-pagination";
 import { calculateCreditCardLimit, getCurrentCreditCardStatement } from "./credit-card";
+import { activeCurrency } from "./currency-context";
+import { convertLocalMoney, guestRate } from "./currency-conversion";
 import type { DashboardComparisonParameters } from "./dashboard-comparison";
+import { GuestConversionUnavailable } from "./dashboard-currency-context";
 import { getCurrentLocalTime, getLocalDateKey } from "./date";
 import { calculateDebtSplit, debtSplitToInput } from "./debt-split";
 import {
@@ -243,18 +213,38 @@ import {
 	type FinancialAccountYieldEntry,
 	getFinancialAccountOptionLabel,
 } from "./financial-account";
-import { normalizeInstitutionName } from "./financial-institution";
 import {
+	getFinancialInstitutions as getLocalFinancialInstitutions,
+	normalizeInstitutionName,
+} from "./financial-institution";
+import { guestTransactionPage } from "./guest-transaction-page";
+/**
+ * Data Service - Abstracts local vs remote data operations
+ *
+ * When in guest mode: All operations use IndexedDB
+ * When authenticated: Operations use backend API with local caching
+ */
+import { requestResult } from "./idb";
+import { localAccountCardRules, localRuleRewardAccount } from "./institution-card-rules";
+import { loanAccountMovements } from "./loan-account-movements";
+import { localCursorPage } from "./local-cursor-page";
+import {
+	acknowledgeCreditBookSync,
 	acknowledgeDebtEventSync,
 	acknowledgeMonthlyBudgetSync,
+	acknowledgeRecurrenceSync,
 	advanceLocalLoanInstallments,
 	clearAllLocalData,
+	confirmLocalSuggestedPayment,
 	createLocalDebtOrigins,
 	createLocalLoanWithPayments,
+	initLocalDb,
 	localAccounts,
 	localCategories,
-	localCreditCardStatements,
+	localCreditBooks,
 	localCreditCards,
+	localCreditCardStatements,
+	localCreditRefundReviews,
 	localDebtEvents,
 	localDebtPeople,
 	localLoanPayments,
@@ -266,12 +256,21 @@ import {
 	localStores,
 	localTransactions,
 	mutateLocalBalanceAdjustment,
+	mutateLocalCreditBook,
 	payLocalLoanInstallment,
+	readLocalCreditBook,
+	saveLocalAccountDefaults,
+	setLocalPrimaryAccount,
+	toPurchasePresentation,
+	transferLocalCreditBookPurchase,
 } from "./localStorage";
 import { getCurrentCacheIdentity } from "./query-cache";
+import { projectGuestRecurrenceCreditBook } from "./recurrence-credit-projection";
+import { createRecurrenceService } from "./recurrence-service";
 import { getTransactionSearchText, normalizeTransactionSearch } from "./transaction-search";
 import { sortTransactionsByMostRecent } from "./transaction-sort";
 import { prepareUploadFile } from "./upload-file";
+import { cachedYieldCalendar } from "./yield-calendar";
 
 export type FinancialAccountYieldPage = Omit<
 	Awaited<ReturnType<typeof getFinancialAccountYields>>,
@@ -432,8 +431,10 @@ export const dataService = {
 					institution =
 						storedAccounts
 							.map(item => item.data.institution)
-							.find(item => item && normalizeInstitutionName(item.name) === normalizedInstitutionName) ??
-						null;
+							.find(
+								item =>
+									item && normalizeInstitutionName(item.name) === normalizedInstitutionName,
+							) ?? null;
 					institution ??= {
 						currency: activeCurrency(),
 						id: crypto.randomUUID(),
@@ -533,14 +534,15 @@ export const dataService = {
 		},
 		async getAllIncludingHidden(): Promise<FinancialAccount[]> {
 			if (isGuestMode()) {
-				const [local, transactions, cashbackPurchases, holidays, yields, loanPayments] = await Promise.all([
-					localAccounts.getAll(),
-					localTransactions.getAll(),
-					localCreditBooks.getAll(),
-					Promise.resolve(cachedYieldCalendar()),
-					localMeta.get("financial-account-yields"),
-					localLoanPayments.getAll(),
-				]);
+				const [local, transactions, cashbackPurchases, holidays, yields, loanPayments] =
+					await Promise.all([
+						localAccounts.getAll(),
+						localTransactions.getAll(),
+						localCreditBooks.getAll(),
+						Promise.resolve(cachedYieldCalendar()),
+						localMeta.get("financial-account-yields"),
+						localLoanPayments.getAll(),
+					]);
 				const accounts = calculateFinancialAccountBalances(
 					local.map(item => item.data),
 					[
@@ -592,14 +594,15 @@ export const dataService = {
 				if (!existing) throw new Error("FinancialAccount not found");
 
 				if (data.currency && data.currency !== (existing.data.currency ?? "BRL")) {
-					const [transactions, books, recurrences, payments, yields, rewardCards] = await Promise.all([
-						localTransactions.getAll(),
-						localCreditBooks.getAll(),
-						localRecurrences.getAll(),
-						localLoanPayments.getAll(),
-						localMeta.get("financial-account-yields"),
-						localCreditCards.getAll(),
-					]);
+					const [transactions, books, recurrences, payments, yields, rewardCards] =
+						await Promise.all([
+							localTransactions.getAll(),
+							localCreditBooks.getAll(),
+							localRecurrences.getAll(),
+							localLoanPayments.getAll(),
+							localMeta.get("financial-account-yields"),
+							localCreditCards.getAll(),
+						]);
 					const cardId = existing.data.creditCard?.id;
 					const used =
 						Boolean(existing.data.balance || existing.data.creditCard?.securityDeposit) ||
@@ -607,7 +610,8 @@ export const dataService = {
 						books.some(row => row.data.purchases.some(p => p.cashbackAccountId === id)) ||
 						transactions.some(
 							row =>
-								row.data.originFinancialAccountId === id || row.data.destinationFinancialAccountId === id,
+								row.data.originFinancialAccountId === id ||
+								row.data.destinationFinancialAccountId === id,
 						) ||
 						books.some(
 							row =>
@@ -615,7 +619,9 @@ export const dataService = {
 								(row.data.purchases.length ||
 									row.data.charges.length ||
 									row.data.refunds.length ||
-									row.data.statements.some(statement => statement.totalAmount || statement.paidAmount)),
+									row.data.statements.some(
+										statement => statement.totalAmount || statement.paidAmount,
+									)),
 						) ||
 						recurrences.some(
 							row =>
@@ -644,7 +650,9 @@ export const dataService = {
 					institution = normalizedName
 						? ((await localAccounts.getAll())
 								.map(item => item.data.institution)
-								.find(item => item && normalizeInstitutionName(item.name) === normalizedName) ?? {
+								.find(
+									item => item && normalizeInstitutionName(item.name) === normalizedName,
+								) ?? {
 								id: crypto.randomUUID(),
 								name: institutionName.normalize("NFKC").trim().replace(/\s+/gu, " "),
 							})
@@ -668,8 +676,13 @@ export const dataService = {
 							{
 								effectiveDate: effectiveDateKey,
 								yieldFixedRate:
-									data.yieldFixedRate === undefined ? existing.data.yieldFixedRate : data.yieldFixedRate,
-								yieldPeriod: data.yieldPeriod === undefined ? existing.data.yieldPeriod : data.yieldPeriod,
+									data.yieldFixedRate === undefined
+										? existing.data.yieldFixedRate
+										: data.yieldFixedRate,
+								yieldPeriod:
+									data.yieldPeriod === undefined
+										? existing.data.yieldPeriod
+										: data.yieldPeriod,
 								yieldReferencePercentage:
 									data.yieldReferencePercentage === undefined
 										? existing.data.yieldReferencePercentage
@@ -678,9 +691,14 @@ export const dataService = {
 									data.yieldReferenceType === undefined
 										? existing.data.yieldReferenceType
 										: data.yieldReferenceType,
-								yieldTaxIds: data.yieldTaxIds === undefined ? existing.data.yieldTaxIds : data.yieldTaxIds,
+								yieldTaxIds:
+									data.yieldTaxIds === undefined
+										? existing.data.yieldTaxIds
+										: data.yieldTaxIds,
 								yieldTaxRate:
-									data.yieldTaxRate === undefined ? existing.data.yieldTaxRate : data.yieldTaxRate,
+									data.yieldTaxRate === undefined
+										? existing.data.yieldTaxRate
+										: data.yieldTaxRate,
 							},
 						]
 					: existing.data.yieldRateHistories;
@@ -728,7 +746,11 @@ export const dataService = {
 					)
 						await mutateLocalCreditBook(card.id, book => {
 							if (data.creditCard?.calendarTransition) {
-								changeBookCalendar(book, existing.data.creditCard!, data.creditCard.calendarTransition);
+								changeBookCalendar(
+									book,
+									existing.data.creditCard!,
+									data.creditCard.calendarTransition,
+								);
 								return;
 							}
 							for (const statement of book.statements)
@@ -745,7 +767,8 @@ export const dataService = {
 						(await localCreditCards.getById(updated.creditCard.id))?.data ?? updated.creditCard;
 				if (yieldChanged && recalculateCurrentDay) {
 					const yields =
-						((await localMeta.get("financial-account-yields")) as FinancialAccountYield[] | null) ?? [];
+						((await localMeta.get("financial-account-yields")) as
+							FinancialAccountYield[] | null) ?? [];
 					await localMeta.set(
 						"financial-account-yields",
 						yields.filter(
@@ -852,8 +875,14 @@ export const dataService = {
 				});
 				return {
 					...page,
-					accountNames: page.items.map(row => [row.financialAccountId, row.accountName ?? "Conta"] as const),
-					items: page.items.map(row => ({ ...row, amount: row.amount ?? 0, date: row.date.slice(0, 10) })),
+					accountNames: page.items.map(
+						row => [row.financialAccountId, row.accountName ?? "Conta"] as const,
+					),
+					items: page.items.map(row => ({
+						...row,
+						amount: row.amount ?? 0,
+						date: row.date.slice(0, 10),
+					})),
 				};
 			}
 			const [accounts, transactions, holidays, yields, loanPayments] = await Promise.all([
@@ -874,7 +903,9 @@ export const dataService = {
 						],
 						holidays,
 						undefined,
-						((yields ?? []) as FinancialAccountYield[]).filter(row => row.financialAccountId === account.id),
+						((yields ?? []) as FinancialAccountYield[]).filter(
+							row => row.financialAccountId === account.id,
+						),
 					),
 				)
 				.filter(
@@ -884,7 +915,10 @@ export const dataService = {
 						(!filters.visibility || Boolean(row.isHidden) === (filters.visibility === "hidden")),
 				)
 				.toSorted(
-					(a, b) => b.date.localeCompare(a.date) || b.kind.localeCompare(a.kind) || b.id.localeCompare(a.id),
+					(a, b) =>
+						b.date.localeCompare(a.date) ||
+						b.kind.localeCompare(a.kind) ||
+						b.id.localeCompare(a.id),
 				);
 			const page = localCursorPage(
 				entries,
@@ -911,12 +945,15 @@ export const dataService = {
 			);
 			return {
 				...page,
-				accountNames: accounts.map(account => [account.id, getFinancialAccountOptionLabel(account)] as const),
+				accountNames: accounts.map(
+					account => [account.id, getFinancialAccountOptionLabel(account)] as const,
+				),
 				items: page.items.map(entry => ({
 					...entry,
 					endingBalance:
-						balancesByDate.get(entry.date)?.find(account => account.id === entry.financialAccountId)
-							?.balance ?? undefined,
+						balancesByDate
+							.get(entry.date)
+							?.find(account => account.id === entry.financialAccountId)?.balance ?? undefined,
 				})),
 			};
 		},
@@ -942,7 +979,9 @@ export const dataService = {
 			const yields =
 				((await localMeta.get("financial-account-yields")) as FinancialAccountYield[] | null) ?? [];
 			const sorted = yields
-				.filter(yieldEntry => !financialAccountId || yieldEntry.financialAccountId === financialAccountId)
+				.filter(
+					yieldEntry => !financialAccountId || yieldEntry.financialAccountId === financialAccountId,
+				)
 				.toSorted(
 					(left, right) =>
 						right.date.localeCompare(left.date) ||
@@ -1049,7 +1088,9 @@ export const dataService = {
 					(row.data.balanceAdjustments ?? []).map(adjustment => {
 						const without = {
 							...row.data,
-							balanceAdjustments: row.data.balanceAdjustments?.filter(item => item.id !== adjustment.id),
+							balanceAdjustments: row.data.balanceAdjustments?.filter(
+								item => item.id !== adjustment.id,
+							),
 						};
 						const calculated =
 							calculateFinancialAccountBalances(
@@ -1114,7 +1155,9 @@ export const dataService = {
 			const selected = [...new Set(ids)].sort();
 			if (!selected.length) return [];
 			if (isGuestMode())
-				return (await localCategories.getAll()).map(row => row.data).filter(row => selected.includes(row.id));
+				return (await localCategories.getAll())
+					.map(row => row.data)
+					.filter(row => selected.includes(row.id));
 			return getCategoriesLookup({ ids: selected.join(",") });
 		},
 		async getPage(options: CatalogPageOptions = {}): Promise<CategoryPage> {
@@ -1391,7 +1434,8 @@ export const dataService = {
 				return;
 			}
 			const review = (await localCreditRefundReviews.getById(reviewId))?.data;
-			if (!review || review.creditCardId !== cardId) throw new Error("Reembolso pendente não encontrado");
+			if (!review || review.creditCardId !== cardId)
+				throw new Error("Reembolso pendente não encontrado");
 			await mutateLocalCreditBook(
 				cardId,
 				book => {
@@ -1495,7 +1539,10 @@ export const dataService = {
 				const reviewCounts = new Map<string, number>();
 				for (const { data: review } of storedReviews)
 					if (review.requiresRefundReview)
-						reviewCounts.set(review.creditCardId, (reviewCounts.get(review.creditCardId) ?? 0) + 1);
+						reviewCounts.set(
+							review.creditCardId,
+							(reviewCounts.get(review.creditCardId) ?? 0) + 1,
+						);
 				const accounts = new Map(storedAccounts.map(item => [item.data.id, item.data]));
 				const statementsByCard = Map.groupBy(
 					storedStatements.map(item => item.data),
@@ -1505,10 +1552,15 @@ export const dataService = {
 					storedCards
 						.filter(({ data: card }) => !accounts.get(card.financialAccountId)?.isHidden)
 						.map(async ({ data: card }) => {
-							const statements = await withGuestCardPayments(card.id, statementsByCard.get(card.id) ?? []);
+							const statements = await withGuestCardPayments(
+								card.id,
+								statementsByCard.get(card.id) ?? [],
+							);
 							return {
 								...card,
-								...cardRuleValues(localAccountCardRules(accounts.get(card.financialAccountId))),
+								...cardRuleValues(
+									localAccountCardRules(accounts.get(card.financialAccountId)),
+								),
 								accountName:
 									card.accountName ||
 									accounts.get(card.financialAccountId)?.name ||
@@ -1556,7 +1608,8 @@ export const dataService = {
 						.map(async card => {
 							const payer = accounts.find(
 								account =>
-									account.id === (card.paymentAccountId ?? statementDefault?.id ?? primary?.id) &&
+									account.id ===
+										(card.paymentAccountId ?? statementDefault?.id ?? primary?.id) &&
 									!["CREDIT_CARD", "REWARDS"].includes(account.type),
 							);
 							if (!payer) return [];
@@ -1603,7 +1656,10 @@ export const dataService = {
 			cardId: string,
 		): Promise<Array<{ id: string; original: CreditPurchase; creditCardId: string }>> {
 			if (!isGuestMode())
-				return (await getCreditCardsByIdRefundReviews(cardId)).map(row => ({ ...row, creditCardId: cardId }));
+				return (await getCreditCardsByIdRefundReviews(cardId)).map(row => ({
+					...row,
+					creditCardId: cardId,
+				}));
 			return (await localCreditRefundReviews.getAll())
 				.filter(row => !row.deleted && row.data.creditCardId === cardId)
 				.map(row => ({ creditCardId: cardId, id: row.localId, original: row.data.original }));
@@ -1633,7 +1689,8 @@ export const dataService = {
 							...p,
 							debtSplit: rule
 								? await hydrateLocalDebtSplit(
-										bookPurchase(book, row.purchaseId!).totalAmountCents / currencyScale(book.card.currency),
+										bookPurchase(book, row.purchaseId!).totalAmountCents /
+											currencyScale(book.card.currency),
 										rule,
 										book.card.currency,
 									)
@@ -1678,7 +1735,9 @@ export const dataService = {
 					),
 				)
 					.filter(s => options.isPaid === undefined || s.isPaid === options.isPaid)
-					.toSorted((a, b) => b.statementDate.localeCompare(a.statementDate) || b.id.localeCompare(a.id));
+					.toSorted(
+						(a, b) => b.statementDate.localeCompare(a.statementDate) || b.id.localeCompare(a.id),
+					);
 				const page = localCursorPage(
 					rows,
 					getUserId(),
@@ -1790,7 +1849,9 @@ export const dataService = {
 				);
 				return {
 					...result,
-					purchases: creditBookEntries(await readLocalCreditBook(cardId)).map(toPurchasePresentation),
+					purchases: creditBookEntries(await readLocalCreditBook(cardId)).map(
+						toPurchasePresentation,
+					),
 				};
 			}
 			return postCreditCardsByIdPurchasesByPurchaseIdRefinance(cardId, purchaseId, data);
@@ -1836,7 +1897,8 @@ export const dataService = {
 			if (
 				paymentAccountId &&
 				!accounts.some(
-					account => account.id === paymentAccountId && !["CREDIT_CARD", "REWARDS"].includes(account.type),
+					account =>
+						account.id === paymentAccountId && !["CREDIT_CARD", "REWARDS"].includes(account.type),
 				)
 			)
 				throw new Error("Conta pagadora indisponível");
@@ -1850,7 +1912,9 @@ export const dataService = {
 		): Promise<void> {
 			if (amount !== null && !Number.isFinite(amount)) throw new RangeError("Valor da fatura inválido");
 			if (isGuestMode()) {
-				await mutateLocalCreditBook(cardId, book => setBookStatementAmount(book, statementId, amount, dates));
+				await mutateLocalCreditBook(cardId, book =>
+					setBookStatementAmount(book, statementId, amount, dates),
+				);
 				return;
 			}
 			await patchCreditCardsByIdStatementsByStatementIdAmount(cardId, statementId, { amount, dates });
@@ -1931,12 +1995,15 @@ export const dataService = {
 			}
 
 			const targetRewardCard =
-				destinationCardId !== cardId ? (await localCreditCards.getById(destinationCardId))?.data : undefined;
+				destinationCardId !== cardId
+					? (await localCreditCards.getById(destinationCardId))?.data
+					: undefined;
 			const sourceRewardBook = targetRewardCard ? await readLocalCreditBook(cardId) : undefined;
 			const sourceRewardPurchase = sourceRewardBook
 				? bookPurchase(
 						sourceRewardBook,
-						sourceRewardBook.installments.find(row => row.id === purchaseId)?.purchaseId ?? purchaseId,
+						sourceRewardBook.installments.find(row => row.id === purchaseId)?.purchaseId ??
+							purchaseId,
 					)
 				: undefined;
 			const movedRewards =
@@ -1945,8 +2012,13 @@ export const dataService = {
 							targetRewardCard,
 							"installmentAmount" in data
 								? (sourceRewardPurchase.totalAmountCents -
-										(sourceRewardBook!.installments.find(row => row.id === purchaseId)?.amountCents ?? 0) +
-										moneyCents(data.installmentAmount, 1, sourceRewardBook!.card.currency)) /
+										(sourceRewardBook!.installments.find(row => row.id === purchaseId)
+											?.amountCents ?? 0) +
+										moneyCents(
+											data.installmentAmount,
+											1,
+											sourceRewardBook!.card.currency,
+										)) /
 										currencyScale(sourceRewardBook!.card.currency)
 								: data.totalAmount,
 							targetRewardCard.currency ?? "BRL",
@@ -1969,7 +2041,9 @@ export const dataService = {
 					],
 					{
 						installmentNumber:
-							"installmentAmount" in data ? resolveBookInstallment(book, purchaseId)?.number : undefined,
+							"installmentAmount" in data
+								? resolveBookInstallment(book, purchaseId)?.number
+								: undefined,
 						installments: "installments" in data ? data.installments : undefined,
 					},
 				);
@@ -2004,21 +2078,29 @@ export const dataService = {
 									number => [number, p.installmentAmountsCents[number - 1]!] as const,
 								),
 								...book.installments
-									.filter(i => i.purchaseId === p.id && i.number <= count && i.hasImportedAmount)
+									.filter(
+										i =>
+											i.purchaseId === p.id && i.number <= count && i.hasImportedAmount,
+									)
 									.map(i => [i.number, i.amountCents] as const),
 							]),
 							book.card.installmentRemainderOnFirst,
 						);
 						p.totalAmountCents = total;
-						book.installments = book.installments.filter(i => i.purchaseId !== p.id || i.number <= count);
+						book.installments = book.installments.filter(
+							i => i.purchaseId !== p.id || i.number <= count,
+						);
 						p.installmentStatementDates = p.installmentStatementDates?.slice(0, count);
-						p.installmentImportedNumbers = p.installmentImportedNumbers?.filter(number => number <= count);
+						p.installmentImportedNumbers = p.installmentImportedNumbers?.filter(
+							number => number <= count,
+						);
 						for (const i of book.installments.filter(i => i.purchaseId === p.id))
 							i.amountCents = p.installmentAmountsCents[i.number - 1]!;
 					}
 					if (data.description !== undefined) p.description = data.description;
 					if (data.storeName !== undefined) p.storeName = data.storeName ?? null;
-					if (data.purchaseDate !== undefined) updateBookPurchaseDate(book, p.id, data.purchaseDate);
+					if (data.purchaseDate !== undefined)
+						updateBookPurchaseDate(book, p.id, data.purchaseDate);
 					if (data.time !== undefined) p.time = data.time;
 					if (data.tagIds !== undefined) p.tagIds = data.tagIds;
 					if (data.debtSplit !== undefined) p.debtSplitRule = data.debtSplit;
@@ -2034,7 +2116,8 @@ export const dataService = {
 			else {
 				await transferLocalCreditBookPurchase(cardId, destinationCardId, purchaseId, (book, card) => {
 					update(book);
-					const rootId = book.installments.find(item => item.id === purchaseId)?.purchaseId ?? purchaseId;
+					const rootId =
+						book.installments.find(item => item.id === purchaseId)?.purchaseId ?? purchaseId;
 					const purchase = bookPurchase(book, rootId);
 					Object.assign(
 						purchase,
@@ -2063,11 +2146,16 @@ export const dataService = {
 			data: { amount: number; date: string; canceledInstallmentNumbers?: number[] },
 		): Promise<CreditPurchase> {
 			if (!isGuestMode())
-				return patchCreditCardsByIdPurchasesByPurchaseIdRefundsByRefundId(cardId, purchaseId, refundId, {
-					amount: data.amount,
-					canceledInstallmentNumbers: data.canceledInstallmentNumbers,
-					purchaseDate: data.date,
-				});
+				return patchCreditCardsByIdPurchasesByPurchaseIdRefundsByRefundId(
+					cardId,
+					purchaseId,
+					refundId,
+					{
+						amount: data.amount,
+						canceledInstallmentNumbers: data.canceledInstallmentNumbers,
+						purchaseDate: data.date,
+					},
+				);
 			await mutateLocalCreditBook(cardId, book =>
 				updateBookRefund(book, purchaseId, refundId, {
 					amount: data.amount,
@@ -2085,7 +2173,9 @@ export const dataService = {
 			dates: { statementDate: string; dueDate: string },
 		): Promise<void> {
 			if (isGuestMode()) {
-				await mutateLocalCreditBook(cardId, book => updateBookStatementDates(book, statementId, dates));
+				await mutateLocalCreditBook(cardId, book =>
+					updateBookStatementDates(book, statementId, dates),
+				);
 				return;
 			}
 			await patchCreditCardsByIdStatementsByStatementId(cardId, statementId, dates);
@@ -2096,15 +2186,16 @@ export const dataService = {
 	dashboard: {
 		async get(dateRange?: { endDate?: string; startDate?: string }): Promise<Dashboard> {
 			if (isGuestMode()) {
-				const [accounts, transactions, loans, debts, recurrences, cards, rawStatements] = await Promise.all([
-					dataService.accounts.getAll(),
-					dataService.transactions.getAll(),
-					dataService.loans.getAll(),
-					dataService.debts.getLedger(),
-					dataService.recurrences.getAll(),
-					dataService.creditCards.getAll(),
-					localCreditCardStatements.getAll().then(items => items.map(item => item.data)),
-				]);
+				const [accounts, transactions, loans, debts, recurrences, cards, rawStatements] =
+					await Promise.all([
+						dataService.accounts.getAll(),
+						dataService.transactions.getAll(),
+						dataService.loans.getAll(),
+						dataService.debts.getLedger(),
+						dataService.recurrences.getAll(),
+						dataService.creditCards.getAll(),
+						localCreditCardStatements.getAll().then(items => items.map(item => item.data)),
+					]);
 				const statements = (
 					await Promise.all(
 						cards.map(async card =>
@@ -2122,13 +2213,14 @@ export const dataService = {
 				const rangeEnd = new Date(
 					`${dateRange?.endDate ?? getLocalDateKey(new Date(now.getFullYear(), now.getMonth() + 1, 0))}T23:59:59`,
 				);
-				const [accountRecords, cashbackPurchases, holidays, yields, loanPaymentRows] = await Promise.all([
-					localAccounts.getAll(),
-					localCreditBooks.getAll(),
-					Promise.resolve(cachedYieldCalendar()),
-					localMeta.get("financial-account-yields"),
-					localLoanPayments.getAll(),
-				]);
+				const [accountRecords, cashbackPurchases, holidays, yields, loanPaymentRows] =
+					await Promise.all([
+						localAccounts.getAll(),
+						localCreditBooks.getAll(),
+						Promise.resolve(cachedYieldCalendar()),
+						localMeta.get("financial-account-yields"),
+						localLoanPayments.getAll(),
+					]);
 				const accountsAtRangeEnd = calculateFinancialAccountBalances(
 					accountRecords.filter(item => !item.data.isHidden).map(item => item.data),
 					[...transactions, ...loanAccountMovements(loanPaymentRows.map(row => row.data))],
@@ -2140,17 +2232,25 @@ export const dataService = {
 				const dateKey = (value: Date | string) =>
 					typeof value === "string" ? value.slice(0, 10) : getLocalDateKey(value);
 
-				const recurrenceOccurrences = (await localRecurrenceOccurrences.getAll()).map(row => row.data);
+				const recurrenceOccurrences = (await localRecurrenceOccurrences.getAll()).map(
+					row => row.data,
+				);
 				const processedRecurrences = new Set([
 					...recurrenceOccurrences.map(row => `${row.recurrenceId}:${row.date}`),
 					...transactions
 						.filter(row => row.recurrenceId)
-						.map(row => `${row.recurrenceId}:${row.recurrenceOccurrenceDate ?? row.date.slice(0, 10)}`),
+						.map(
+							row =>
+								`${row.recurrenceId}:${row.recurrenceOccurrenceDate ?? row.date.slice(0, 10)}`,
+						),
 				]);
 				const forecasts = [
 					...recurrences
 						.filter(
-							item => item.isActive && isCashFlowRecurrence(item) && !recurrenceNeedsConfiguration(item),
+							item =>
+								item.isActive &&
+								isCashFlowRecurrence(item) &&
+								!recurrenceNeedsConfiguration(item),
 						)
 						.flatMap(item => {
 							let date = nextRecurrenceDate(item, shiftRecurrenceDate(getLocalDateKey(), 1));
@@ -2161,7 +2261,10 @@ export const dataService = {
 										{
 											amount: item.amount,
 											date,
-											direction: item.movement === "INCOME" ? ("INCOME" as const) : ("EXPENSE" as const),
+											direction:
+												item.movement === "INCOME"
+													? ("INCOME" as const)
+													: ("EXPENSE" as const),
 											id: `recurrence-${item.id}`,
 											name: item.name,
 											sourceId: item.id,
@@ -2172,7 +2275,10 @@ export const dataService = {
 						}),
 					...loanPaymentRows
 						.map(row => row.data)
-						.filter(payment => !payment.paidDate && payment.dueDate.slice(0, 10) > getLocalDateKey(now))
+						.filter(
+							payment =>
+								!payment.paidDate && payment.dueDate.slice(0, 10) > getLocalDateKey(now),
+						)
 						.flatMap(payment => {
 							const loan = loans.find(item => item.id === payment.loanId);
 							return loan
@@ -2224,7 +2330,8 @@ export const dataService = {
 						financialAccountId: card.financialAccountId,
 						id: card.id,
 						institutionName:
-							accounts.find(account => account.id === card.financialAccountId)?.institution?.name ?? null,
+							accounts.find(account => account.id === card.financialAccountId)?.institution
+								?.name ?? null,
 						name:
 							accounts.find(account => account.id === card.financialAccountId)?.name ??
 							card.accountName ??
@@ -2258,7 +2365,9 @@ export const dataService = {
 							.reduce(
 								(sum, item) =>
 									sum +
-									(recurring ? (item.recurringAmount ?? (item.recurring ? item.amount : 0)) : item.amount),
+									(recurring
+										? (item.recurringAmount ?? (item.recurring ? item.amount : 0))
+										: item.amount),
 								0,
 							);
 					const initialDate = new Date(rangeStart);
@@ -2275,7 +2384,11 @@ export const dataService = {
 						net: totalFor("INCOME") - totalFor("EXPENSE"),
 						recurringCardExpenses: selectedMovements
 							.filter(item => item.type === "EXPENSE" && item.cardPayment)
-							.reduce((sum, item) => sum + (item.recurringAmount ?? (item.recurring ? item.amount : 0)), 0),
+							.reduce(
+								(sum, item) =>
+									sum + (item.recurringAmount ?? (item.recurring ? item.amount : 0)),
+								0,
+							),
 						recurringExpenses: totalFor("EXPENSE", true),
 						recurringIncome: totalFor("INCOME", true),
 						startDate: dateKey(rangeStart),
@@ -2290,7 +2403,9 @@ export const dataService = {
 							.reduce(
 								(sum, item) =>
 									sum +
-									(recurring ? (item.recurringAmount ?? (item.recurring ? item.amount : 0)) : item.amount),
+									(recurring
+										? (item.recurringAmount ?? (item.recurring ? item.amount : 0))
+										: item.amount),
 								0,
 							);
 					const projectedCashFlowUntilMonthEnd = {
@@ -2311,7 +2426,8 @@ export const dataService = {
 								const source = event.currency ?? "BRL";
 								denominations.set(
 									source,
-									(denominations.get(source) ?? 0) + (event.createdByMe ? event.effect : -event.effect),
+									(denominations.get(source) ?? 0) +
+										(event.createdByMe ? event.effect : -event.effect),
 								);
 							}
 							let balance = 0;
@@ -2319,7 +2435,11 @@ export const dataService = {
 								if (!amount) continue;
 								let factor = source === financialContext.currency ? 1 : debtRates.get(source);
 								if (factor == null) {
-									factor = await guestRate("latest", source, financialContext.currency).catch(() => {
+									factor = await guestRate(
+										"latest",
+										source,
+										financialContext.currency,
+									).catch(() => {
 										throw new GuestConversionUnavailable(
 											source,
 											dateKey(now),
@@ -2351,10 +2471,13 @@ export const dataService = {
 								? (loans.find(loan => loan.id === row.sourceId)?.currency ?? "BRL")
 								: row.type === "RECURRING"
 									? (recurrences.find(item => item.id === row.sourceId)?.currency ?? "BRL")
-									: (transactions.find(item => item.id === row.sourceId)?.bookingCurrency ?? "BRL");
+									: (transactions.find(item => item.id === row.sourceId)?.bookingCurrency ??
+										"BRL");
 					return {
 						accounts: accountsAtRangeEnd
-							.filter(account => ["CHECKING", "CASH", "SAVINGS", "INVESTMENT"].includes(account.type))
+							.filter(account =>
+								["CHECKING", "CASH", "SAVINGS", "INVESTMENT"].includes(account.type),
+							)
 							.map(account => ({
 								balance: forecastBalances.get(account.id) ?? 0,
 								currency: account.currency ?? "BRL",
@@ -2376,7 +2499,8 @@ export const dataService = {
 						]
 							.toSorted()
 							.map(date => ({
-								balance: financialContext.balanceAt(new Date(`${date}T12:00:00`)).endingBalance,
+								balance: financialContext.balanceAt(new Date(`${date}T12:00:00`))
+									.endingBalance,
 								date,
 							})),
 						debts: {
@@ -2388,11 +2512,19 @@ export const dataService = {
 						forecasts: financialContext.consolidation.forecastAvailable
 							? [
 									...forecasts,
-									...dashboardCardForecasts(financialContext.projectedStatements, creditCards, dateKey(now)),
+									...dashboardCardForecasts(
+										financialContext.projectedStatements,
+										creditCards,
+										dateKey(now),
+									),
 								]
 									.map(row => ({
 										...row,
-										amount: financialContext.money.convert(row.amount, forecastCurrency(row), row.date),
+										amount: financialContext.money.convert(
+											row.amount,
+											forecastCurrency(row),
+											row.date,
+										),
 									}))
 									.toSorted((left, right) => left.date.localeCompare(right.date))
 							: [],
@@ -2407,7 +2539,11 @@ export const dataService = {
 							.reduce(
 								(sum, card) =>
 									sum +
-									financialContext.money.convert(card.availableLimit, card.currency, getLocalDateKey(now)),
+									financialContext.money.convert(
+										card.availableLimit,
+										card.currency,
+										getLocalDateKey(now),
+									),
 								0,
 							),
 					};
@@ -2415,7 +2551,9 @@ export const dataService = {
 					if (!(error instanceof GuestConversionUnavailable)) throw error;
 					return {
 						accounts: accounts
-							.filter(account => ["CHECKING", "CASH", "SAVINGS", "INVESTMENT"].includes(account.type))
+							.filter(account =>
+								["CHECKING", "CASH", "SAVINGS", "INVESTMENT"].includes(account.type),
+							)
 							.map(account => ({
 								balance: account.balance ?? 0,
 								currency: account.currency ?? "BRL",
@@ -2425,7 +2563,9 @@ export const dataService = {
 								type: account.type as "CHECKING" | "CASH" | "SAVINGS" | "INVESTMENT",
 							})),
 						balanceBreakdown: null,
-						consolidation: error.consolidation ? { ...error.consolidation, unavailable: true } : undefined,
+						consolidation: error.consolidation
+							? { ...error.consolidation, unavailable: true }
+							: undefined,
 						creditCards,
 						currency: activeCurrency(),
 						dailyBalances: [],
@@ -2527,7 +2667,8 @@ export const dataService = {
 		async deleteEvent(id: string): Promise<void> {
 			if (isGuestMode()) {
 				const row = await localDebtEvents.getById(id);
-				if (row?.data.kind !== "ORIGIN") throw new Error("Exclua a movimentação financeira original.");
+				if (row?.data.kind !== "ORIGIN")
+					throw new Error("Exclua a movimentação financeira original.");
 				await localDebtEvents.delete(id);
 				return;
 			}
@@ -2574,7 +2715,11 @@ export const dataService = {
 				};
 				cacheRemoteData(
 					localDebtPeople.replaceSnapshot(
-						ledger.people.map(person => ({ data: person, localId: person.id, syncedAt: Date.now() })),
+						ledger.people.map(person => ({
+							data: person,
+							localId: person.id,
+							syncedAt: Date.now(),
+						})),
 						owner,
 					),
 				);
@@ -2669,13 +2814,25 @@ export const dataService = {
 					push(purchase.id, purchase.purchaseDate, purchase.description, amounts, 1, purchase.time);
 					let refunded = 0;
 					for (const refund of book.refunds
-						.filter(r => r.purchaseId === purchase.id && !r.deletedAt && r.creditDate <= getLocalDateKey())
-						.toSorted((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))) {
+						.filter(
+							r =>
+								r.purchaseId === purchase.id &&
+								!r.deletedAt &&
+								r.creditDate <= getLocalDateKey(),
+						)
+						.toSorted(
+							(a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id),
+						)) {
 						push(
 							refund.id,
 							refund.creditDate,
 							`Reembolso - ${purchase.description}`,
-							refundDebtAmounts(purchase.totalAmountCents, amounts, refunded, refund.amountCents),
+							refundDebtAmounts(
+								purchase.totalAmountCents,
+								amounts,
+								refunded,
+								refund.amountCents,
+							),
 							-1,
 							refund.time ?? null,
 						);
@@ -2738,7 +2895,9 @@ export const dataService = {
 					},
 					{ iOwe: 0, net: 0, owedToMe: 0 },
 				),
-				totalsByCurrency: [...totalsByCurrency.values()].sort((a, b) => a.currency.localeCompare(b.currency)),
+				totalsByCurrency: [...totalsByCurrency.values()].sort((a, b) =>
+					a.currency.localeCompare(b.currency),
+				),
 			};
 		},
 		async invitePerson(id: string, email: string): Promise<void> {
@@ -2761,7 +2920,8 @@ export const dataService = {
 			if (isGuestMode()) {
 				const person = await localDebtPeople.getById(data.personId);
 				const event = await localDebtEvents.getById(id);
-				if (!person || !event || event.data.kind !== "ORIGIN") throw new Error("Origem não encontrada");
+				if (!person || !event || event.data.kind !== "ORIGIN")
+					throw new Error("Origem não encontrada");
 				const currency = event.data.currency ?? "BRL";
 				if (data.currency && data.currency !== currency)
 					throw new Error("Moeda do lançamento existente não pode ser alterada");
@@ -2802,7 +2962,12 @@ export const dataService = {
 						.filter(item => item.data.institutionId === id)
 						.map(item =>
 							localAccounts.put(
-								{ ...item.data, institution: null, institutionId: null, updatedAt: new Date().toISOString() },
+								{
+									...item.data,
+									institution: null,
+									institutionId: null,
+									updatedAt: new Date().toISOString(),
+								},
 								item.localId,
 							),
 						),
@@ -2819,7 +2984,10 @@ export const dataService = {
 				? ((await localMeta.get("institution-catalog", owner)) as FinancialInstitution[] | undefined)
 				: undefined;
 			if (!navigator.onLine)
-				return cached ?? getLocalFinancialInstitutions((await localAccounts.getAll()).map(item => item.data));
+				return (
+					cached ??
+					getLocalFinancialInstitutions((await localAccounts.getAll()).map(item => item.data))
+				);
 			try {
 				const rows = await getFinancialInstitutions();
 				if (owner) await localMeta.set("institution-catalog", rows, owner);
@@ -2856,7 +3024,9 @@ export const dataService = {
 					...(data.creditInstallmentRemainderOnFirst !== undefined && {
 						creditInstallmentRemainderOnFirst: data.creditInstallmentRemainderOnFirst,
 					}),
-					...(data.name !== undefined && { name: data.name.normalize("NFKC").trim().replace(/\s+/gu, " ") }),
+					...(data.name !== undefined && {
+						name: data.name.normalize("NFKC").trim().replace(/\s+/gu, " "),
+					}),
 					...(data.yieldPolicy && {
 						yieldPolicies: [
 							...(institution.yieldPolicies ?? []).filter(
@@ -2880,9 +3050,11 @@ export const dataService = {
 			}
 			if (!navigator.onLine) throw new Error("Propostas institucionais exigem conexão");
 			if (data.yieldPolicy) {
-				if (!data.yieldPolicy.currency) throw new Error("Selecione a moeda da política de rendimento");
+				if (!data.yieldPolicy.currency)
+					throw new Error("Selecione a moeda da política de rendimento");
 				const profiles = await getFinancialInstitutionsByIdProfiles(id);
-				const profileId = data.yieldPolicy.profileId ?? profiles.find(profile => profile.isDefault)?.id;
+				const profileId =
+					data.yieldPolicy.profileId ?? profiles.find(profile => profile.isDefault)?.id;
 				if (!profileId) throw new Error("Perfil Padrão indisponível");
 				const date = new Date();
 				date.setDate(date.getDate() + 1);
@@ -2890,10 +3062,14 @@ export const dataService = {
 					...data.yieldPolicy,
 					countryCode: data.yieldPolicy.countryCode ?? undefined,
 					currency: data.yieldPolicy.currency,
-					effectiveDate: data.yieldPolicy.requestedEffectiveDate ?? date.toLocaleDateString("sv-SE"),
+					effectiveDate:
+						data.yieldPolicy.requestedEffectiveDate ?? date.toLocaleDateString("sv-SE"),
 					effectiveUntil: data.yieldPolicy.effectiveUntil ?? undefined,
 					profileId,
-					rules: data.yieldPolicy.rules.map(rule => ({ ...rule, upToBalance: rule.upToBalance ?? null })),
+					rules: data.yieldPolicy.rules.map(rule => ({
+						...rule,
+						upToBalance: rule.upToBalance ?? null,
+					})),
 					yieldTaxIds: data.yieldPolicy.yieldTaxIds ?? undefined,
 				});
 			} else {
@@ -2933,7 +3109,9 @@ export const dataService = {
 			const loan = await localLoans.getById(id, owner);
 			if (!loan || loan.data.needsPaymentReview)
 				throw new Error("Revise pagamentos antigos antes de antecipar");
-			const account = financialAccountId ? await localAccounts.getById(financialAccountId, owner) : null;
+			const account = financialAccountId
+				? await localAccounts.getById(financialAccountId, owner)
+				: null;
 			if (
 				financialAccountId &&
 				(!account || !["CHECKING", "CASH", "SAVINGS", "INVESTMENT"].includes(account.data.type))
@@ -3063,7 +3241,9 @@ export const dataService = {
 				const cursor = JSON.parse(atob(options.cursor));
 				if (cursor.owner !== getUserId() || cursor.loanId !== id || !Number.isInteger(cursor.number))
 					throw new Error("Cursor inválido");
-				position = rows.findIndex(row => row.id === cursor.id && row.installmentNumber === cursor.number) + 1;
+				position =
+					rows.findIndex(row => row.id === cursor.id && row.installmentNumber === cursor.number) +
+					1;
 				if (!position) throw new Error("Cursor inválido");
 			}
 			const limit = options.limit ?? 50;
@@ -3104,12 +3284,15 @@ export const dataService = {
 			const owner = getCurrentCacheIdentity();
 			if (!owner) throw new Error("Identidade indisponível");
 			const loan = await localLoans.getById(id, owner);
-			if (!loan || loan.data.needsPaymentReview) throw new Error("Revise pagamentos antigos antes de pagar");
+			if (!loan || loan.data.needsPaymentReview)
+				throw new Error("Revise pagamentos antigos antes de pagar");
 			if (financialAccountId && !(await localAccounts.getById(financialAccountId, owner)))
 				throw new Error("Conta não encontrada");
 			if (!/^\d{4}-\d{2}-\d{2}$/.test(paidDate) || Number.isNaN(Date.parse(paidDate)))
 				throw new Error("Data inválida");
-			const account = financialAccountId ? await localAccounts.getById(financialAccountId, owner) : null;
+			const account = financialAccountId
+				? await localAccounts.getById(financialAccountId, owner)
+				: null;
 			if (account && !["CHECKING", "CASH", "SAVINGS", "INVESTMENT"].includes(account.data.type))
 				throw new Error("Conta de pagamento indisponível");
 			const payment = (await localLoanPayments.getAll(owner)).find(
@@ -3131,11 +3314,9 @@ export const dataService = {
 		},
 		async reviewLegacyPayments(id: string, paidDate: string, amortization: Loan["amortization"]) {
 			if (!isGuestMode()) throw new Error("Revisão indisponível");
-			await (await import("./upgrades/review-loan-payments")).reviewLocalLoanPayments(
-				id,
-				paidDate,
-				amortization,
-			);
+			await (
+				await import("./upgrades/review-loan-payments")
+			).reviewLocalLoanPayments(id, paidDate, amortization);
 		},
 	},
 	recurrences: recurrenceService,
@@ -3147,8 +3328,11 @@ export const dataService = {
 				if (!normalizedName) throw new Error("Informe o nome da loja");
 				const existing = (await localStores.getAll()).find(
 					row =>
-						row.data.name.normalize("NFKC").trim().replace(/\s+/gu, " ").toLocaleLowerCase("pt-BR") ===
-						normalizedName.toLocaleLowerCase("pt-BR"),
+						row.data.name
+							.normalize("NFKC")
+							.trim()
+							.replace(/\s+/gu, " ")
+							.toLocaleLowerCase("pt-BR") === normalizedName.toLocaleLowerCase("pt-BR"),
 				);
 				if (existing) return existing.data;
 				name = normalizedName;
@@ -3205,20 +3389,21 @@ export const dataService = {
 			try {
 				const database = await initLocalDb();
 				const upgradeRecords = await requestResult(
-					database.transaction("application-upgrade", "readonly").objectStore("application-upgrade").getAll(),
+					database
+						.transaction("application-upgrade", "readonly")
+						.objectStore("application-upgrade")
+						.getAll(),
 				);
 				const pending = upgradeRecords.filter(row => row.ownerKey === owner && !row.resolved);
 				if (pending.some(row => row.id.startsWith("mapping:")))
-					await (await import("./upgrades/resolve-recurrence-ids")).resolveUpgradeRecurrenceIds(
-						database,
-						owner,
-						ids => postUpgradesRecurrenceIds({ ids }),
-					);
+					await (
+						await import("./upgrades/resolve-recurrence-ids")
+					).resolveUpgradeRecurrenceIds(database, owner, ids => postUpgradesRecurrenceIds({ ids }));
 				if (pending.some(row => row.id.startsWith("debt-proof:")))
-					await (await import("./upgrades/resolve-debt-events")).resolveDebtEventUpgrade(
-						database,
-						owner,
-						records => postUpgradesDebtOrigins({ records }),
+					await (
+						await import("./upgrades/resolve-debt-events")
+					).resolveDebtEventUpgrade(database, owner, records =>
+						postUpgradesDebtOrigins({ records }),
 					);
 				// Get all local data
 				const [
@@ -3256,14 +3441,18 @@ export const dataService = {
 				const recurrenceOccurrences = await localRecurrenceOccurrences.getAll(owner);
 				const recurrenceIds = new Set(recurrences.map(row => row.data.id));
 				if (
-					transactions.some(row => row.data.recurrenceId && !recurrenceIds.has(row.data.recurrenceId)) ||
+					transactions.some(
+						row => row.data.recurrenceId && !recurrenceIds.has(row.data.recurrenceId),
+					) ||
 					creditBooks.some(row =>
 						row.data.purchases.some(
 							purchase => purchase.recurrenceId && !recurrenceIds.has(purchase.recurrenceId),
 						),
 					)
 				)
-					throw new Error("Referência de recorrência não resolvida. Corrija vínculo antes de sincronizar.");
+					throw new Error(
+						"Referência de recorrência não resolvida. Corrija vínculo antes de sincronizar.",
+					);
 				// Send to server
 				const response = await postSync({
 					categories: categories.map(c => c.data),
@@ -3295,7 +3484,8 @@ export const dataService = {
 					loans: loans.map(l => l.data),
 					monthlyBudgets: monthlyBudgets.map(row => ({
 						...row.data,
-						baseUpdatedAt: row.data.baseUpdatedAt ?? (row.syncedAt ? row.data.updatedAt : undefined),
+						baseUpdatedAt:
+							row.data.baseUpdatedAt ?? (row.syncedAt ? row.data.updatedAt : undefined),
 						createdAt: row.data.createdAt ?? new Date(row.modifiedAt).toISOString(),
 						deletedAt: row.deleted ? new Date(row.modifiedAt).toISOString() : null,
 						updatedAt: new Date(row.modifiedAt).toISOString(),
@@ -3325,7 +3515,11 @@ export const dataService = {
 				);
 				// Update local with server data
 				if (!response.syncResults.monthlyBudgets?.errors.length)
-					await acknowledgeMonthlyBudgetSync(monthlyBudgets, response.serverData.monthlyBudgets, owner);
+					await acknowledgeMonthlyBudgetSync(
+						monthlyBudgets,
+						response.serverData.monthlyBudgets,
+						owner,
+					);
 				await Promise.all([
 					localAccounts.replaceSnapshot(
 						response.serverData.financialAccounts.map(a => ({
@@ -3340,7 +3534,11 @@ export const dataService = {
 						response.serverData.financialAccountYieldHolidays,
 						owner,
 					),
-					localMeta.set("financial-account-yields", response.serverData.financialAccountYields, owner),
+					localMeta.set(
+						"financial-account-yields",
+						response.serverData.financialAccountYields,
+						owner,
+					),
 					localCategories.replaceSnapshot(
 						response.serverData.categories.map(c => ({
 							data: c,
@@ -3387,7 +3585,11 @@ export const dataService = {
 						owner,
 					),
 					localLoanPayments.replaceSnapshot(
-						response.serverData.loanPayments.map(data => ({ data, localId: data.id, syncedAt: Date.now() })),
+						response.serverData.loanPayments.map(data => ({
+							data,
+							localId: data.id,
+							syncedAt: Date.now(),
+						})),
 						owner,
 					),
 					localLoans.replaceSnapshot(
@@ -3523,7 +3725,8 @@ export const dataService = {
 			>,
 		): Promise<TransactionImport> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
-			if (data.type === "REFUND") throw new Error("Reembolsos não são aceitos nesta edição de importação");
+			if (data.type === "REFUND")
+				throw new Error("Reembolsos não são aceitos nesta edição de importação");
 			return patchTransactionImportsByIdItemsByItemId(importId, itemId, { ...data, type: data.type });
 		},
 	},
@@ -3542,7 +3745,9 @@ export const dataService = {
 		): Promise<Transaction> {
 			if (isGuestMode()) {
 				const targetId =
-					data.type === "INCOME" ? data.destinationFinancialAccountId : data.originFinancialAccountId;
+					data.type === "INCOME"
+						? data.destinationFinancialAccountId
+						: data.originFinancialAccountId;
 				const account = targetId ? (await localAccounts.getById(targetId))?.data : undefined;
 				const money = await convertLocalMoney(
 					data.amount,
@@ -3614,7 +3819,8 @@ export const dataService = {
 				await localTransactions.put(newTransaction, newTransaction.id);
 				return newTransaction;
 			}
-			if (data.type === "REFUND") throw new Error("Use o fluxo de reembolso para registrar esta operação");
+			if (data.type === "REFUND")
+				throw new Error("Use o fluxo de reembolso para registrar esta operação");
 			const transaction = await postTransactions({
 				...data,
 				destinationAmount: data.destinationAmount ?? undefined,
@@ -3654,15 +3860,21 @@ export const dataService = {
 			visibility?: "hidden" | "visible";
 		}): Promise<Transaction[]> {
 			if (isGuestMode()) {
-				const [local, storedPurchases, storedStatements, storedCards, storedCategories, storedAccounts] =
-					await Promise.all([
-						localTransactions.getAll(),
-						localCreditBooks.getAll(),
-						localCreditCardStatements.getAll(),
-						localCreditCards.getAll(),
-						localCategories.getAll(),
-						localAccounts.getAll(),
-					]);
+				const [
+					local,
+					storedPurchases,
+					storedStatements,
+					storedCards,
+					storedCategories,
+					storedAccounts,
+				] = await Promise.all([
+					localTransactions.getAll(),
+					localCreditBooks.getAll(),
+					localCreditCardStatements.getAll(),
+					localCreditCards.getAll(),
+					localCategories.getAll(),
+					localAccounts.getAll(),
+				]);
 				const statements = new Map(storedStatements.map(item => [item.data.id, item.data]));
 				const cards = new Map(storedCards.map(item => [item.data.id, item.data]));
 				const categories = new Map(storedCategories.map(item => [item.data.id, item.data]));
@@ -3713,14 +3925,18 @@ export const dataService = {
 							? accounts.get(item.data.destinationFinancialAccountId)
 							: undefined;
 						const originName = originAccount?.name || originAccount?.institution?.name;
-						const destinationName = destinationAccount?.name || destinationAccount?.institution?.name;
-						const paymentAccount = item.data.type === "INCOME" ? destinationAccount : originAccount;
+						const destinationName =
+							destinationAccount?.name || destinationAccount?.institution?.name;
+						const paymentAccount =
+							item.data.type === "INCOME" ? destinationAccount : originAccount;
 						const paymentCard = item.data.paymentCreditCardId
 							? cards.get(item.data.paymentCreditCardId)
 							: undefined;
 						const paymentCycle = paymentCard
 							? paymentStatement(
-									[...statements.values()].filter(statement => statement.creditCardId === paymentCard.id),
+									[...statements.values()].filter(
+										statement => statement.creditCardId === paymentCard.id,
+									),
 									item.data.date,
 								)
 							: undefined;
@@ -3807,7 +4023,11 @@ export const dataService = {
 			days: Array<{
 				date: string;
 				endingBalance: number;
-				accountEndingBalances?: Array<{ financialAccountId: string; currency: string; amount: number }>;
+				accountEndingBalances?: Array<{
+					financialAccountId: string;
+					currency: string;
+					amount: number;
+				}>;
 				endingBalances?: Array<{ currency: string; amount: number }>;
 				transactions: Transaction[];
 			}>;
@@ -3875,7 +4095,9 @@ export const dataService = {
 			if (!row) throw new Error("Transação não encontrada");
 			return row.data;
 		},
-		async getTransferSuggestions(): Promise<Array<{ counterpart: Transaction; transaction: Transaction }>> {
+		async getTransferSuggestions(): Promise<
+			Array<{ counterpart: Transaction; transaction: Transaction }>
+		> {
 			if (isGuestMode()) return [];
 			return getTransactionsTransferSuggestions();
 		},
@@ -3899,7 +4121,9 @@ export const dataService = {
 
 				const merged = { ...existing.data, ...data };
 				const targetId =
-					merged.type === "INCOME" ? merged.destinationFinancialAccountId : merged.originFinancialAccountId;
+					merged.type === "INCOME"
+						? merged.destinationFinancialAccountId
+						: merged.originFinancialAccountId;
 				const account = targetId ? (await localAccounts.getById(targetId))?.data : undefined;
 				const moneyChanged = [
 					"amount",
