@@ -19,10 +19,12 @@ export function CollapsibleListingSection({
 	const [expanded, setExpanded] = useState(false);
 	const contentId = useId();
 	return (
-		<section className="relative grid min-w-0 gap-4 rounded-2xl border bg-card p-4 sm:p-6">
-			<div className="flex min-w-0 items-start gap-3">
+		<section className="bg-card relative grid min-w-0 gap-4 rounded-2xl border p-4 sm:p-6">
+			<div
+				className={`-m-4 flex min-w-0 items-start gap-3 p-4 sm:-m-6 sm:p-6 ${expanded ? "relative" : ""}`}
+			>
 				<div className="min-w-0 flex-1 space-y-1">
-					<h2 className="font-semibold text-lg">{title}</h2>
+					<h2 className="text-lg font-semibold">{title}</h2>
 					<p className="text-muted-foreground text-sm">{description}</p>
 					<p aria-live="polite" className="text-muted-foreground text-sm">
 						{summary}
@@ -34,8 +36,8 @@ export function CollapsibleListingSection({
 					aria-label={expanded ? "Minimizar" : "Expandir"}
 					className={
 						expanded
-							? "shrink-0 cursor-pointer"
-							: "active:not-aria-[haspopup]:translate-none static shrink-0 cursor-pointer after:absolute after:inset-0 after:rounded-2xl after:content-['']"
+							? "static shrink-0 cursor-pointer after:absolute after:inset-x-0 after:top-0 after:h-full after:rounded-2xl after:content-[''] active:not-aria-[haspopup]:translate-none"
+							: "static shrink-0 cursor-pointer after:absolute after:inset-0 after:rounded-2xl after:content-[''] active:not-aria-[haspopup]:translate-none"
 					}
 					onClick={() => setExpanded(value => !value)}
 					size="icon"

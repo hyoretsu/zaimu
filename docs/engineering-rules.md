@@ -72,6 +72,10 @@ Never label form fields as "(opcional)", "(optional)", or add redundant optional
 
 `packages/sql/migrations/app/refs/db.json` is versioned migration state. Whenever database work changes this file, always include it in the corresponding database commit alongside relevant migrations and snapshots. Verify that its hash points to a committed or staged snapshot. Preserve the recorded reference; do not advance it merely to match the newest snapshot. This rule does not authorize running migrations or other commands against remote/shared databases.
 
+## Collapsible headers
+
+Every collapsible header must toggle from its entire row, including title, summary, whitespace and surrounding header padding. Preserve keyboard activation and accessible expanded state; keep controls inside expanded content independent.
+
 ## Collapsed listings
 
 When a listing is collapsed, tapping or clicking anywhere on its visible card must expand it, including its title, description, summary, and padding. Use the shared listing component and preserve keyboard activation and accessible expanded state. Once expanded, keep content controls independent and collapse through the explicit toggle only.

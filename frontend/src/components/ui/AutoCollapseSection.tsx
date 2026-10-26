@@ -64,8 +64,8 @@ export function AutoCollapseSection({
 	useEffect(() => () => clearTimeout(collapseTimer.current), []);
 	return (
 		<div className="grid min-w-0 gap-3 rounded-xl border p-3" onBlur={scheduleCollapse} ref={root}>
-			<div className="flex min-w-0 items-center gap-2">
-				<div className="min-w-0 flex-1 break-words text-sm">
+			<div className="relative -m-3 flex min-w-0 items-center gap-2 p-3">
+				<div className="min-w-0 flex-1 text-sm break-words">
 					<span className="font-medium">{title}</span>
 					{!expanded ? <span className="text-muted-foreground"> - {summary}</span> : null}
 				</div>
@@ -73,7 +73,7 @@ export function AutoCollapseSection({
 					aria-controls={contentId}
 					aria-expanded={expanded}
 					aria-label={expanded ? "Minimizar" : "Expandir"}
-					className="shrink-0 cursor-pointer"
+					className="static shrink-0 cursor-pointer after:absolute after:inset-0 after:rounded-xl after:content-[''] active:not-aria-[haspopup]:translate-none"
 					onClick={() => setExpanded(value => !value)}
 					size="icon"
 					type="button"
