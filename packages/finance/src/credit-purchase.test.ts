@@ -54,6 +54,22 @@ describe("normalized purchase installments", () => {
 			statementDate: "2026-09-15",
 		});
 	});
+	test.each([19, 20])("working due dates preserve weekend closing day %j", statementDay => {
+		const card = { dueDay: 27, statementDay, workingDueDate: true };
+		const closing = `2026-09-${statementDay}`;
+		expect(purchaseStatementDates(card, "2026-09-18")).toEqual({
+			dueDate: "2026-09-28",
+			statementDate: closing,
+		});
+		expect(purchaseStatementDates(card, closing)).toEqual({
+			dueDate: "2026-10-27",
+			statementDate: `2026-10-${statementDay}`,
+		});
+		expect(purchaseStatementDates({ ...card, statementClosingInclusive: true }, closing)).toEqual({
+			dueDate: "2026-09-28",
+			statementDate: closing,
+		});
+	});
 	test("closing dates clamp short months and advance purchases made on closing day", () => {
 		expect(purchaseStatementDates({ dueDay: 5, statementDay: 31 }, "2024-09-10")).toEqual({
 			dueDate: "2024-10-05",

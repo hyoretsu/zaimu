@@ -461,3 +461,7 @@ Na listagem e nos detalhes das faturas, previsões de recorrências ficam fora d
 Ao abrir o navegador de faturas de um cartão, selecionar a primeira fatura ainda não fechada, não paga e não prevista, em ordem de fechamento, independentemente do mês atual. Preservar seleções explícitas do usuário. Sem ciclo elegível, selecionar a fatura do mês atual ou a primeira disponível.
 
 Materialização automática usa a data civil no fuso horário preferido do usuário, nunca a data UTC do worker ou o fuso do dispositivo. Sem escolha explícita, usa o primeiro fuso do calendário nacional do país preferido; país ausente ou sem fuso reconhecido usa GMT. Alterar país atualiza somente o padrão automático e preserva o fuso escolhido manualmente. A preferência aceita fusos reconhecidos pelo Intl e pode voltar ao automático. O mesmo limite vale para recorrências, parcelas, cursores de edição e validação de recomposição, em contas conectadas e modo visitante; instantes dos comandos continuam em UTC. Alterar fuso não reescreve registros já materializados.
+
+## Ajuste de vencimento para dia útil
+
+O ajuste para dia útil afeta somente o vencimento da fatura. Fechamento permanece no dia configurado, inclusive em sábados e domingos, respeitando o limite de dias do mês. O ajuste não altera o ciclo das compras nem a inclusão do dia de fechamento.
