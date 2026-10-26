@@ -8,10 +8,12 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { QueryRefreshStatus } from "@/components/ui/QueryRefreshStatus";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
+import { useUrlViewState } from "@/hooks/use-url-view-state";
 import type { Loan } from "@/lib/api";
 import { useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { viewBoolean } from "@/lib/view-state";
 import { LoanCard, LoanCreateDialog, LoanPaymentsDialog } from "@/routes/loans/components";
 import type { LoanPaymentRecovery } from "./LoanPaymentsDialog";
 export function EmpréstimosPage() {
@@ -40,7 +42,7 @@ export function EmpréstimosPage() {
 			setSelected(entry.payload.loan);
 		},
 	);
-	const [paid, setPaid] = useState(false);
+	const [paid, setPaid] = useUrlViewState("paid", false, viewBoolean);
 	const loans = useQuery({
 		enabled: identity !== null,
 		queryFn: () => dataService.loans.getAll(),
@@ -98,7 +100,11 @@ export function EmpréstimosPage() {
 				<div role="alert">
 					<p>Falha ao carregar empréstimos.</p>
 					<ActionGroup>
-						<Button className="mt-2 cursor-pointer" onClick={() => void loans.refetch()} variant="outline">
+						<Button
+							className="mt-2 cursor-pointer"
+							onClick={() => void loans.refetch()}
+							variant="outline"
+						>
 							Tentar novamente
 						</Button>
 					</ActionGroup>
@@ -119,7 +125,12 @@ export function EmpréstimosPage() {
 					{items.length ? (
 						<div className="grid gap-4 sm:grid-cols-2">
 							{items.map(loan => (
-								<LoanCard isPaid={paid} key={loan.id} loan={loan} onPayments={() => setSelected(loan)} />
+								<LoanCard
+									isPaid={paid}
+									key={loan.id}
+									loan={loan}
+									onPayments={() => setSelected(loan)}
+								/>
 							))}
 						</div>
 					) : (

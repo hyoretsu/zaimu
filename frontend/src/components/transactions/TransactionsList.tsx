@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import { HiArrowsRightLeft } from "react-icons/hi2";
 import { LuLoaderCircle } from "react-icons/lu";
 import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { QueryRefreshStatus } from "@/components/ui/QueryRefreshStatus";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { useUrlViewSet } from "@/hooks/use-url-view-state";
 import type { Transaction } from "@/lib/api";
 import { formatLocalDate, formatLocalTime, getLocalDateKey } from "@/lib/date";
 import type { FinancialAccountYieldEntry } from "@/lib/financial-account";
@@ -36,6 +37,7 @@ type TransactionDisplayEntry =
 	  };
 
 interface TransactionsListProps {
+	viewKey?: string;
 	transactions: Transaction[];
 	yieldEntries?: FinancialAccountYieldEntry[];
 	dailyEndingBalances: ReadonlyMap<string, Array<{ currency: string; amount: number }>>;
@@ -63,6 +65,7 @@ interface TransactionsListProps {
 	onLoadMoreYields?: () => unknown;
 }
 export function TransactionsList({
+	viewKey = "transactions",
 	transactions,
 	yieldEntries = [],
 	dailyEndingBalances,
@@ -89,7 +92,7 @@ export function TransactionsList({
 	isFetchingMoreYields = false,
 	onLoadMoreYields,
 }: TransactionsListProps) {
-	const [expandedTransactionGroups, setExpandedTransactionGroups] = useState<Set<string>>(() => new Set());
+	const [expandedTransactionGroups, setExpandedTransactionGroups] = useUrlViewSet(`${viewKey}.groups`);
 	const loadMoreRef = useRef<HTMLDivElement>(null);
 	useEffect(() => {
 		if (
@@ -139,7 +142,9 @@ export function TransactionsList({
 					(time ? <span className="text-muted-foreground text-xs">{time}</span> : undefined)
 				}
 				onDelete={
-					canDeleteTransaction?.(transaction) === false ? undefined : () => onDeleteTransaction(transaction)
+					canDeleteTransaction?.(transaction) === false
+						? undefined
+						: () => onDeleteTransaction(transaction)
 				}
 				onEdit={() => onEditTransaction(transaction)}
 				transaction={transaction}
@@ -223,7 +228,9 @@ export function TransactionsList({
 								value: entry,
 							})),
 						].toSorted((left, right) =>
-							(formatLocalTime(right.time) ?? "").localeCompare(formatLocalTime(left.time) ?? ""),
+							(formatLocalTime(right.time) ?? "").localeCompare(
+								formatLocalTime(left.time) ?? "",
+							),
 						);
 						const displayGroups = groupTransactionsForDisplay(entries, today);
 						const [onlyDisplayGroup] = displayGroups;
@@ -240,7 +247,10 @@ export function TransactionsList({
 									dateLabel={dayLabel}
 									endingBalance={
 										dailyEndingBalances.has(date) ? (
-											<PreferredMoneyAmount date={date} values={dailyEndingBalances.get(date)!} />
+											<PreferredMoneyAmount
+												date={date}
+												values={dailyEndingBalances.get(date)!}
+											/>
 										) : undefined
 									}
 								/>
@@ -263,7 +273,7 @@ export function TransactionsList({
 										if (group.kind === "visible") {
 											return (
 												<div
-													className="divide-y overflow-hidden rounded-2xl border bg-card shadow-sm"
+													className="bg-card divide-y overflow-hidden rounded-2xl border shadow-sm"
 													key={group.id}
 												>
 													{group.transactions.map(renderEntry)}
@@ -283,14 +293,16 @@ export function TransactionsList({
 														group.kind === "yield"
 															? sumYieldsByCurrency(
 																	group.transactions.flatMap(entry =>
-																		entry.kind === "yield" ? [entry.value] : [],
+																		entry.kind === "yield"
+																			? [entry.value]
+																			: [],
 																	),
 																)
 															: undefined
 													}
 												/>
 												{isExpanded ? (
-													<div className="divide-y overflow-hidden rounded-2xl border bg-card shadow-sm">
+													<div className="bg-card divide-y overflow-hidden rounded-2xl border shadow-sm">
 														{group.transactions.map(renderEntry)}
 													</div>
 												) : null}
@@ -298,8 +310,9 @@ export function TransactionsList({
 										);
 									})
 								)}
-								{singleCollapsedGroup && expandedTransactionGroups.has(singleCollapsedGroup.id) ? (
-									<div className="divide-y overflow-hidden rounded-2xl border bg-card shadow-sm">
+								{singleCollapsedGroup &&
+								expandedTransactionGroups.has(singleCollapsedGroup.id) ? (
+									<div className="bg-card divide-y overflow-hidden rounded-2xl border shadow-sm">
 										{singleCollapsedGroup.transactions.map(renderEntry)}
 									</div>
 								) : null}
@@ -314,14 +327,20 @@ export function TransactionsList({
 								onClick={() => void onLoadMoreYields?.()}
 								variant="outline"
 							>
-								{isFetchingMoreYields ? "Carregando rendimentos..." : "Carregar mais rendimentos"}
+								{isFetchingMoreYields
+									? "Carregando rendimentos..."
+									: "Carregar mais rendimentos"}
 							</Button>
 						</ActionGroup>
 					)}
 					{hasMoreTransactions ? (
-						<div aria-live="polite" className="flex h-14 items-center justify-center" ref={loadMoreRef}>
+						<div
+							aria-live="polite"
+							className="flex h-14 items-center justify-center"
+							ref={loadMoreRef}
+						>
 							{isFetchingMoreTransactions ? (
-								<span className="flex items-center gap-2 text-muted-foreground text-sm">
+								<span className="text-muted-foreground flex items-center gap-2 text-sm">
 									<LuLoaderCircle aria-hidden className="animate-spin" />
 									Carregando transações anteriores...
 								</span>

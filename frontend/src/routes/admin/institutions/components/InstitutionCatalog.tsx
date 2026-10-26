@@ -1,25 +1,28 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { CollapsibleListingSection } from "@/components/ui/CollapsibleListingSection";
 import { FormField } from "@/components/ui/FormField";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
+import { useUrlViewState } from "@/hooks/use-url-view-state";
 import { getFinancialInstitutionsReviewCatalog } from "@/lib/api";
+import { viewString } from "@/lib/view-state";
 import { useAuthStore } from "@/stores/auth";
 import { InstitutionCatalogRow } from "./InstitutionCatalogRow";
 import { LegacyInstitutionRow } from "./LegacyInstitutionRow";
 
 export function InstitutionCatalog() {
 	const userId = useAuthStore(state => state.user?.id);
-	const [search, setSearch] = useState("");
+	const [search, setSearch] = useUrlViewState("search", "", viewString);
 	const [input, setInput] = useDebouncedInput(search, setSearch);
 	const query = useQuery({
 		queryFn: () => getFinancialInstitutionsReviewCatalog(),
 		queryKey: ["admin-institution-catalog", userId],
 	});
-	const catalog = query.data?.filter(item => item.status === "APPROVED" || item.status === "LEGACY_PRIVATE");
+	const catalog = query.data?.filter(
+		item => item.status === "APPROVED" || item.status === "LEGACY_PRIVATE",
+	);
 	const institutions = catalog?.filter(item =>
 		item.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()),
 	);
@@ -65,7 +68,9 @@ export function InstitutionCatalog() {
 				institutions.map(institution =>
 					institution.status === "LEGACY_PRIVATE" ? (
 						<LegacyInstitutionRow
-							approvedInstitutions={(query.data ?? []).filter(item => item.status === "APPROVED")}
+							approvedInstitutions={(query.data ?? []).filter(
+								item => item.status === "APPROVED",
+							)}
 							institution={institution}
 							key={institution.id}
 						/>

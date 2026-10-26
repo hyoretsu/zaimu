@@ -1,14 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
 import { LuCalculator } from "react-icons/lu";
 import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { useUrlViewState } from "@/hooks/use-url-view-state";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { viewBoolean } from "@/lib/view-state";
 export function LoanPayoffPreview({ loanId }: { loanId: string }) {
-	const [open, setOpen] = useState(false);
+	const [open, setOpen] = useUrlViewState(`loan.${loanId}.payoff`, false, viewBoolean);
 	const identity = useCacheIdentity();
 	const estimate = useQuery({
 		enabled: open && identity !== null,
@@ -30,7 +31,11 @@ export function LoanPayoffPreview({ loanId }: { loanId: string }) {
 					<div role="alert">
 						<p>Falha ao calcular estimativa.</p>
 						<ActionGroup>
-							<Button className="cursor-pointer" onClick={() => void estimate.refetch()} variant="outline">
+							<Button
+								className="cursor-pointer"
+								onClick={() => void estimate.refetch()}
+								variant="outline"
+							>
 								Tentar novamente
 							</Button>
 						</ActionGroup>
@@ -40,13 +45,23 @@ export function LoanPayoffPreview({ loanId }: { loanId: string }) {
 						<p>
 							Principal restante:{" "}
 							<PreferredMoneyAmount
-								values={[{ amount: estimate.data.totalToPay, currency: estimate.data.currency ?? "BRL" }]}
+								values={[
+									{
+										amount: estimate.data.totalToPay,
+										currency: estimate.data.currency ?? "BRL",
+									},
+								]}
 							/>
 						</p>
 						<p>
 							Juros futuros previstos:{" "}
 							<PreferredMoneyAmount
-								values={[{ amount: estimate.data.savedInterest, currency: estimate.data.currency ?? "BRL" }]}
+								values={[
+									{
+										amount: estimate.data.savedInterest,
+										currency: estimate.data.currency ?? "BRL",
+									},
+								]}
 							/>
 						</p>
 						<p className="text-muted-foreground text-xs">

@@ -1,16 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { LuReceiptText } from "react-icons/lu";
+import { z } from "zod";
 import { DialogBody, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tabs } from "@/components/ui/Tabs";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useUrlViewState } from "@/hooks/use-url-view-state";
 import type { CreditCard } from "@/lib/api";
 import { useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { getLocalMonthKey } from "@/lib/date";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { viewNullableId } from "@/lib/view-state";
 import {
 	getFirstNonZeroStatementMonth,
 	getSelectedStatement,
@@ -31,10 +34,22 @@ export function CreditCardStatementBrowser({
 	const identity = useCacheIdentity();
 	const ignoreBefore = card.ignoreStatementsBefore?.slice(0, 10) ?? null;
 	const isDesktop = useMediaQuery("(min-width: 640px)");
-	const [desktopRadius, setDesktopRadius] = useState(6);
+	const [desktopRadius, setDesktopRadius] = useUrlViewState("radius", 6, z.number().int().min(1).max(60));
 	const radius = isDesktop ? desktopRadius : 3;
-	const [extra, setExtra] = useState({ next: 0, previous: 0 });
-	const [selectedStatementId, setSelectedStatementId] = useState<string | null>(null);
+	const [extra, setExtra] = useUrlViewState(
+		`card.${card.id}.window`,
+		{ next: 0, previous: 0 },
+		z.object({ next: z.number().int().min(0).max(1200), previous: z.number().int().min(0).max(1200) }),
+		[
+			{ parameter: "next", path: "next" },
+			{ parameter: "previous", path: "previous" },
+		],
+	);
+	const [selectedStatementId, setSelectedStatementId] = useUrlViewState<string | null>(
+		"statement",
+		null,
+		viewNullableId,
+	);
 	const [currentMonth] = useState(() => getLocalMonthKey(new Date()));
 	const requestedRecovery = useModalRecoveryStore(state =>
 		state.requestedId ? state.entries[state.requestedId] : undefined,

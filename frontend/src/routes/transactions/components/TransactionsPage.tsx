@@ -16,6 +16,7 @@ import { ActionNotice } from "@/components/ui/ActionNotice";
 import { Button } from "@/components/ui/Button";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { useUrlViewState } from "@/hooks/use-url-view-state";
 import type { Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { formatLocalTime } from "@/lib/date";
@@ -27,9 +28,11 @@ import { RefundCreditPurchaseDialog } from "@/routes/credit-cards/components/Ref
 import {
 	countActiveTransactionFilters,
 	initialTransactionFilters,
-	type TransactionFilters as TransactionFiltersValue,
-	type TransactionQueryFilters,
 	toTransactionQueryFilters,
+	transactionFilterParameters,
+	type TransactionFilters as TransactionFiltersValue,
+	transactionFiltersSchema,
+	type TransactionQueryFilters,
 } from "@/routes/transactions/-transaction-filters";
 import { transactionToCreditPurchase } from "@/routes/transactions/-transaction-to-credit-purchase";
 import { uniqueTransactions } from "@/routes/transactions/-unique-transactions";
@@ -68,7 +71,12 @@ export function TransactionsPage() {
 	const [editingPurchase, setEditingPurchase] = useState<Transaction | null>(null);
 	const [pendingPurchaseUpdateIds, setPendingPurchaseUpdateIds] = useState<Set<string>>(new Set());
 	const [refundingPurchase, setRefundingPurchase] = useState<Transaction | null>(null);
-	const [filters, setFilters] = useState<TransactionFiltersValue>(initialTransactionFilters);
+	const [filters, setFilters] = useUrlViewState<TransactionFiltersValue>(
+		"transactions.filters",
+		initialTransactionFilters,
+		transactionFiltersSchema,
+		transactionFilterParameters,
+	);
 	const [transferSuggestionsOpen, setTransferSuggestionsOpen] = useState(false);
 	const [transferSuggestionDecision, setTransferSuggestionDecision] = useState<{
 		counterpart: Transaction;
@@ -86,7 +94,9 @@ export function TransactionsPage() {
 	>({
 		enabled: identity !== null,
 		getNextPageParam: (lastPage, _pages, lastPageParam) =>
-			lastPage.hasMore && lastPage.nextCursor ? { ...lastPageParam, cursor: lastPage.nextCursor } : undefined,
+			lastPage.hasMore && lastPage.nextCursor
+				? { ...lastPageParam, cursor: lastPage.nextCursor }
+				: undefined,
 		initialPageParam: getInitialTransactionsPage(filters),
 		queryFn: ({ pageParam }) =>
 			dataService.transactions.getDailyPage(
@@ -235,7 +245,10 @@ export function TransactionsPage() {
 			);
 		},
 		onError: error =>
-			showToast(error instanceof Error ? error.message : "Não foi possível editar a compra.", "negative"),
+			showToast(
+				error instanceof Error ? error.message : "Não foi possível editar a compra.",
+				"negative",
+			),
 		onMutate: ({ transaction }) =>
 			setPendingPurchaseUpdateIds(current => new Set(current).add(transaction.id)),
 		onSettled: (_data, _error, { transaction }) =>
@@ -255,7 +268,10 @@ export function TransactionsPage() {
 			return dataService.creditCards.deletePurchase(transaction.creditCardId, transaction.id);
 		},
 		onError: error =>
-			showToast(error instanceof Error ? error.message : "Não foi possível excluir a compra.", "negative"),
+			showToast(
+				error instanceof Error ? error.message : "Não foi possível excluir a compra.",
+				"negative",
+			),
 		onSuccess: async () => {
 			showToast("Compra excluída.", "positive");
 		},
@@ -276,7 +292,10 @@ export function TransactionsPage() {
 			return refundId
 				? dataService.creditCards.updateRefund(transaction.creditCardId, purchaseId, refundId, {
 						amount: data.amount ?? transaction.refund?.amount ?? transaction.amount,
-						date: data.date ?? transaction.refund?.date.slice(0, 10) ?? transaction.date.slice(0, 10),
+						date:
+							data.date ??
+							transaction.refund?.date.slice(0, 10) ??
+							transaction.date.slice(0, 10),
 					})
 				: dataService.creditCards.refundPurchase(transaction.creditCardId, purchaseId, data);
 		},
@@ -299,7 +318,10 @@ export function TransactionsPage() {
 			return dataService.creditCards.deletePurchase(transaction.creditCardId, refundId);
 		},
 		onError: error =>
-			showToast(error instanceof Error ? error.message : "Não foi possível excluir o reembolso.", "negative"),
+			showToast(
+				error instanceof Error ? error.message : "Não foi possível excluir o reembolso.",
+				"negative",
+			),
 		onSuccess: async () => {
 			setRefundingPurchase(null);
 
@@ -311,7 +333,12 @@ export function TransactionsPage() {
 		<PageContainer className="space-y-6">
 			<PageHeader
 				actions={[
-					{ icon: HiPlus, label: "Adicionar", onClick: () => setIsModalOpen(true), variant: "default" },
+					{
+						icon: HiPlus,
+						label: "Adicionar",
+						onClick: () => setIsModalOpen(true),
+						variant: "default",
+					},
 				]}
 				description="Acompanhe entradas, saídas, transferências e rendimentos."
 				title="Transações"
@@ -329,7 +356,7 @@ export function TransactionsPage() {
 						</Button>
 					}
 					description={`${visibleTransferSuggestions.length} ${visibleTransferSuggestions.length === 1 ? "par encontrado" : "pares encontrados"} no mesmo dia.`}
-					icon={<LuArrowLeftRight aria-hidden="true" className="size-5 text-primary" />}
+					icon={<LuArrowLeftRight aria-hidden="true" className="text-primary size-5" />}
 					title="Transferências sugeridas"
 				/>
 			) : null}
@@ -349,7 +376,8 @@ export function TransactionsPage() {
 				counterpartTransaction={transferSuggestionDecision?.counterpart ?? null}
 				currentTransaction={transferSuggestionDecision?.transaction ?? null}
 				onAccept={() => {
-					if (transferSuggestionDecision) acceptTransferSuggestion.mutate(transferSuggestionDecision);
+					if (transferSuggestionDecision)
+						acceptTransferSuggestion.mutate(transferSuggestionDecision);
 				}}
 				onOpenChange={open => !open && setTransferSuggestionDecision(null)}
 				onReject={() => {
@@ -376,8 +404,9 @@ export function TransactionsPage() {
 				hasMoreYields={yieldsQuery.hasNextPage}
 				isDeletingTransaction={transaction =>
 					(transaction.source === "CREDIT_CARD" ? removePurchase.isPending : remove.isPending) &&
-					(transaction.source === "CREDIT_CARD" ? removePurchase.variables?.id : remove.variables) ===
-						transaction.id
+					(transaction.source === "CREDIT_CARD"
+						? removePurchase.variables?.id
+						: remove.variables) === transaction.id
 				}
 				isDeletingYield={entry => removeYield.isPending && removeYield.variables?.id === entry.id}
 				isError={
@@ -403,7 +432,10 @@ export function TransactionsPage() {
 				onLoadMoreTransactions={transactionsQuery.fetchNextPage}
 				onLoadMoreYields={yieldsQuery.fetchNextPage}
 				onRetry={() =>
-					Promise.all([transactionsQuery.refetch(), ...(yieldsMatchFilters ? [yieldsQuery.refetch()] : [])])
+					Promise.all([
+						transactionsQuery.refetch(),
+						...(yieldsMatchFilters ? [yieldsQuery.refetch()] : []),
+					])
 				}
 				refreshError={
 					(transactionsQuery.isError && transactionsQuery.data !== undefined) ||
@@ -420,14 +452,17 @@ export function TransactionsPage() {
 				}
 				transactionMetadata={transaction =>
 					visibleTransferSuggestions.some(
-						item => item.transaction.id === transaction.id || item.counterpart.id === transaction.id,
+						item =>
+							item.transaction.id === transaction.id || item.counterpart.id === transaction.id,
 					) ? (
 						<div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-							<span className="inline-flex items-center gap-1 text-primary">
+							<span className="text-primary inline-flex items-center gap-1">
 								<LuArrowLeftRight /> Transferência sugerida
 							</span>
 							{formatLocalTime(transaction.time) ? (
-								<span className="text-muted-foreground">{formatLocalTime(transaction.time)}</span>
+								<span className="text-muted-foreground">
+									{formatLocalTime(transaction.time)}
+								</span>
 							) : null}
 						</div>
 					) : undefined

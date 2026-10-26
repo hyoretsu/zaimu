@@ -348,7 +348,10 @@ export function CreditCardStatementDetails({
 							)}
 						</div>
 						{!detail.isPending && !detail.isError && forecasts.length > 0 && (
-							<CollapsibleListingSection title="Previsões">
+							<CollapsibleListingSection
+								title="Previsões"
+								viewKey={`statement.${statement.id}.forecasts`}
+							>
 								{forecasts.map(purchase => (
 									<CreditPurchaseRow
 										deleteDisabled

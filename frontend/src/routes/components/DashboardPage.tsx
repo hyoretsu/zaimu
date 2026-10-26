@@ -12,9 +12,11 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { MoneyValue } from "@/components/ui/MoneyValue";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { useUrlViewState } from "@/hooks/use-url-view-state";
 import { dataService } from "@/lib/dataService";
 import { createCurrencyFormatter } from "@/lib/format-currency";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { viewDateRange, viewDateRangeParameters } from "@/lib/view-state";
 import {
 	DashboardAccounts,
 	DashboardComparisonChart,
@@ -33,7 +35,12 @@ import { useCurrencyStore } from "@/stores/currency";
 export function DashboardPage() {
 	const user = useAuthStore((state: AuthState) => state.user);
 	const identity = useCacheIdentity();
-	const [dateRange, setDateRange] = useState<DateRangeValue>(() => getTodayRange());
+	const [dateRange, setDateRange] = useUrlViewState<DateRangeValue>(
+		"dashboard.range",
+		getTodayRange,
+		viewDateRange,
+		viewDateRangeParameters,
+	);
 	const [reviewingImportId, setReviewingImportId] = useState<string | null>(null);
 	const [reviewingCreditCardImportId, setReviewingCreditCardImportId] = useState<string | null>(null);
 	const today = format(new Date(), "yyyy-MM-dd");
@@ -94,16 +101,16 @@ export function DashboardPage() {
 			/>
 			{dashboard.period && dashboard.balanceBreakdown ? (
 				<section className="grid gap-3 sm:gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] xl:grid-rows-[auto_auto]">
-					<Card className="gap-3 border-0 bg-primary py-4 text-primary-foreground shadow-primary/15 shadow-xl [--card-spacing:--spacing(4)] sm:gap-6 sm:py-6 xl:row-span-2 sm:[--card-spacing:--spacing(6)]">
+					<Card className="bg-primary text-primary-foreground shadow-primary/15 gap-3 border-0 py-4 shadow-xl [--card-spacing:--spacing(4)] sm:gap-6 sm:py-6 sm:[--card-spacing:--spacing(6)] xl:row-span-2">
 						<CardHeader>
-							<CardTitle className="flex items-start gap-2 font-medium text-primary-foreground text-xs sm:text-sm">
+							<CardTitle className="text-primary-foreground flex items-start gap-2 text-xs font-medium sm:text-sm">
 								<LuWalletCards aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
 								<span>{isCurrentDay ? "Saldo atual" : "Saldo final do período"}</span>
 							</CardTitle>
 						</CardHeader>
 						<CardContent>
 							<MoneyValue>{currency.format(endingBalance!)}</MoneyValue>
-							<div className="mt-2 space-y-0.5 text-primary-foreground text-xs sm:mt-3 sm:space-y-1">
+							<div className="text-primary-foreground mt-2 space-y-0.5 text-xs sm:mt-3 sm:space-y-1">
 								<p>Em conta: {currency.format(accountBalance!)}</p>
 								<p>Renda fixa: {currency.format(fixedIncomeBalance!)}</p>
 								<p>Renda variável: {currency.format(variableIncomeBalance!)}</p>
@@ -133,7 +140,7 @@ export function DashboardPage() {
 						/>
 					) : (
 						<Card>
-							<CardContent className="py-6 text-muted-foreground text-sm">
+							<CardContent className="text-muted-foreground py-6 text-sm">
 								Fluxo previsto aguarda histórico cambial.
 							</CardContent>
 						</Card>
@@ -141,9 +148,9 @@ export function DashboardPage() {
 				</section>
 			) : (
 				<Card>
-					<CardContent className="py-6 text-muted-foreground text-sm">
-						Consolidação em {currencyCode} indisponível enquanto faltam cotações. Saldos nativos continuam
-						disponíveis abaixo.
+					<CardContent className="text-muted-foreground py-6 text-sm">
+						Consolidação em {currencyCode} indisponível enquanto faltam cotações. Saldos nativos
+						continuam disponíveis abaixo.
 					</CardContent>
 				</Card>
 			)}
@@ -161,9 +168,10 @@ export function DashboardPage() {
 					currencyCode={currencyCode}
 					totalAvailableCredit={dashboard.totalAvailableCredit}
 				/>
-				{dashboard.consolidation?.unavailable || dashboard.consolidation?.forecastAvailable === false ? (
+				{dashboard.consolidation?.unavailable ||
+				dashboard.consolidation?.forecastAvailable === false ? (
 					<Card>
-						<CardContent className="py-6 text-muted-foreground text-sm">
+						<CardContent className="text-muted-foreground py-6 text-sm">
 							Previsões consolidadas aguardam cotações.
 						</CardContent>
 					</Card>

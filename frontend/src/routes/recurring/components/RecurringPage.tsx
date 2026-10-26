@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { endOfMonth, format, startOfMonth } from "date-fns";
 import { useState } from "react";
 import { HiArrowDown, HiArrowPath, HiArrowUp, HiPlus } from "react-icons/hi2";
+import { z } from "zod";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageContainer } from "@/components/ui/PageContainer";
@@ -9,6 +10,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { QueryRefreshStatus } from "@/components/ui/QueryRefreshStatus";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
+import { useUrlViewSet, useUrlViewState } from "@/hooks/use-url-view-state";
 import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
@@ -19,11 +21,11 @@ import {
 	EditRecurringDialog,
 	HiddenRecurrencesToggle,
 	isRecurrenceEnded,
+	recurrenceToListItem,
 	type RecurringDirection,
 	RecurringListItem,
 	type RecurringListItemData,
 	RecurringSummary,
-	recurrenceToListItem,
 } from "@/routes/recurring/components";
 import { showToast } from "@/stores";
 
@@ -39,10 +41,12 @@ const filterOptions = [
 export function RecurringPage() {
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
-	const [filter, setFilter] = useState<DirectionFilter>("all");
-	const [expandedInactiveSections, setExpandedInactiveSections] = useState<Set<"ended" | "paused">>(
-		() => new Set(),
+	const [filter, setFilter] = useUrlViewState<DirectionFilter>(
+		"type",
+		"all",
+		z.enum(["all", "INCOME", "EXPENSE", "TRANSFER"]),
 	);
+	const [expandedInactiveSections, setExpandedInactiveSections] = useUrlViewSet("sections");
 	const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
 	const markPending = (id: string, pending: boolean) =>
 		setPendingIds(current => {
@@ -58,10 +62,13 @@ export function RecurringPage() {
 	const [recoveredAdvanceTime, setRecoveredAdvanceTime] = useState<string>();
 	const [recoveredDeleteChoice, setRecoveredDeleteChoice] = useState<boolean>();
 	const pendingModalActions = useModalRecoveryStore(state => state.pending);
-	useBackgroundModalRecovery<{ item: RecurringListItemData; time?: string }>("recurrence-advance", entry => {
-		setRecoveredAdvanceTime(entry.payload.time);
-		setAdvancingItem(entry.payload.item);
-	});
+	useBackgroundModalRecovery<{ item: RecurringListItemData; time?: string }>(
+		"recurrence-advance",
+		entry => {
+			setRecoveredAdvanceTime(entry.payload.time);
+			setAdvancingItem(entry.payload.item);
+		},
+	);
 	useBackgroundModalRecovery<{ item: RecurringListItemData; deleteTransactions: boolean }>(
 		"recurrence-delete",
 		entry => {
@@ -125,7 +132,9 @@ export function RecurringPage() {
 		(recurringQuery.isError && recurringQuery.data === undefined);
 	const monthStart = format(startOfMonth(new Date()), "yyyy-MM-dd");
 	const monthEnd = format(endOfMonth(new Date()), "yyyy-MM-dd");
-	const periodLabel = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(new Date());
+	const periodLabel = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(
+		new Date(),
+	);
 	const items = (recurringQuery.data ?? [])
 		.map(recurrence => recurrenceToListItem(recurrence, accountsQuery.data ?? [], monthStart, monthEnd))
 		.sort(
@@ -198,7 +207,7 @@ export function RecurringPage() {
 				</div>
 			)}
 
-			<div className="grid gap-2 rounded-2xl border bg-card p-2 min-[440px]:grid-cols-4">
+			<div className="bg-card grid gap-2 rounded-2xl border p-2 min-[440px]:grid-cols-4">
 				{filterOptions.map(option => (
 					<Button
 						className="w-full cursor-pointer"
@@ -262,7 +271,7 @@ export function RecurringPage() {
 								onClick={() => toggleInactiveSection("paused")}
 							/>
 							{expandedInactiveSections.has("paused") && (
-								<div className="divide-y overflow-hidden rounded-2xl border bg-card shadow-sm">
+								<div className="bg-card divide-y overflow-hidden rounded-2xl border shadow-sm">
 									{pausedItems.map(renderItem)}
 								</div>
 							)}
@@ -270,8 +279,8 @@ export function RecurringPage() {
 					)}
 					{activeItems.length > 0 && (
 						<section className="space-y-2">
-							<h2 className="font-medium text-muted-foreground text-sm">Ativas</h2>
-							<div className="divide-y rounded-2xl border bg-card shadow-sm">
+							<h2 className="text-muted-foreground text-sm font-medium">Ativas</h2>
+							<div className="bg-card divide-y rounded-2xl border shadow-sm">
 								{activeItems.map(renderItem)}
 							</div>
 						</section>
@@ -285,7 +294,7 @@ export function RecurringPage() {
 								onClick={() => toggleInactiveSection("ended")}
 							/>
 							{expandedInactiveSections.has("ended") && (
-								<div className="divide-y overflow-hidden rounded-2xl border bg-card shadow-sm">
+								<div className="bg-card divide-y overflow-hidden rounded-2xl border shadow-sm">
 									{endedItems.map(renderItem)}
 								</div>
 							)}

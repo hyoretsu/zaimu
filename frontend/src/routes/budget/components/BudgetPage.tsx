@@ -10,6 +10,7 @@ import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { QueryRefreshStatus } from "@/components/ui/QueryRefreshStatus";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { useUrlViewState } from "@/hooks/use-url-view-state";
 import {
 	type MonthlyBudget,
 	type MonthlyBudgetInput,
@@ -17,6 +18,7 @@ import {
 } from "@/lib/monthly-budget-service";
 import { mutationCacheMeta } from "@/lib/mutation-cache";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { viewMonth } from "@/lib/view-state";
 import { showToast } from "@/stores";
 import { BudgetAdjustmentsDialog } from "./BudgetAdjustmentsDialog";
 import { BudgetDialog } from "./BudgetDialog";
@@ -25,7 +27,7 @@ import { BudgetList } from "./BudgetList";
 
 export function BudgetPage() {
 	const identity = useCacheIdentity();
-	const [month, setMonth] = useState(() => format(new Date(), "yyyy-MM"));
+	const [month, setMonth] = useUrlViewState("month", () => format(new Date(), "yyyy-MM"), viewMonth);
 	const [editing, setEditing] = useState<MonthlyBudget | "new" | null>(null);
 	const [adjustmentsOpen, setAdjustmentsOpen] = useState(false);
 	const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
@@ -138,7 +140,7 @@ export function BudgetPage() {
 						title="Falha ao carregar plano geral"
 					/>
 				) : !defaults.length ? (
-					<p className="py-5 text-muted-foreground text-sm">
+					<p className="text-muted-foreground py-5 text-sm">
 						Nenhum item no plano geral. Use Adicionar para planejar suas despesas.
 					</p>
 				) : (

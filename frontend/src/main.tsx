@@ -9,6 +9,7 @@ import { configureModalRecoveryNavigation } from "@/lib/background-modal-actions
 import { initializeDeepLinks } from "@/lib/deep-links";
 import { configureMutationInvalidation } from "@/lib/mutation-cache";
 import { configureQueryTags } from "@/lib/query-tags";
+import { parseViewSearch, stringifyViewSearch } from "./lib/view-state";
 import { initializeVisibleViewport } from "./lib/visible-viewport";
 import { routeTree } from "./routeTree.gen";
 import "./index.css";
@@ -34,7 +35,9 @@ const router = createRouter({
 	},
 	defaultPreload: "intent",
 	defaultPreloadStaleTime: 0,
+	parseSearch: parseViewSearch,
 	routeTree,
+	stringifySearch: stringifyViewSearch,
 });
 
 configureModalRecoveryNavigation(path => router.navigate({ to: path as never }));

@@ -1,10 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { endOfMonth, format, startOfMonth } from "date-fns";
-import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { useUrlViewState } from "@/hooks/use-url-view-state";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { viewChartParameters, viewChartPeriod } from "@/lib/view-state";
 import { useCurrencyStore } from "@/stores/currency";
 import { ChartPeriodFilter, type ChartPeriodSettings, DashboardPeriodChart } from "./components";
 
@@ -17,12 +18,17 @@ export function DashboardComparisonChart() {
 	const identity = useCacheIdentity();
 	const currencyCode = useCurrencyStore(state => state.currency);
 	const currencyReady = useCurrencyStore(state => !state.loading && state.owner === identity);
-	const [settings, setSettings] = useState<ChartPeriodSettings>(() => ({
-		endDate: format(endOfMonth(new Date()), "yyyy-MM-dd"),
-		periodsAfter: 10,
-		periodsBefore: 1,
-		startDate: format(startOfMonth(new Date()), "yyyy-MM-dd"),
-	}));
+	const [settings, setSettings] = useUrlViewState<ChartPeriodSettings>(
+		"dashboard.chart",
+		() => ({
+			endDate: format(endOfMonth(new Date()), "yyyy-MM-dd"),
+			periodsAfter: 10,
+			periodsBefore: 1,
+			startDate: format(startOfMonth(new Date()), "yyyy-MM-dd"),
+		}),
+		viewChartPeriod,
+		viewChartParameters,
+	);
 
 	const query = useQuery({
 		enabled: identity !== null && currencyReady,
@@ -40,8 +46,8 @@ export function DashboardComparisonChart() {
 			<CardHeader>
 				<CardTitle>Evolução por período</CardTitle>
 				<p className="text-muted-foreground text-sm">
-					{settings.periodsBefore + 1 + settings.periodsAfter} períodos: {settings.periodsBefore} anteriores,
-					período de referência e {settings.periodsAfter} posteriores.
+					{settings.periodsBefore + 1 + settings.periodsAfter} períodos: {settings.periodsBefore}{" "}
+					anteriores, período de referência e {settings.periodsAfter} posteriores.
 				</p>
 				<ChartPeriodFilter onChange={setSettings} value={settings} />
 			</CardHeader>
@@ -57,7 +63,7 @@ export function DashboardComparisonChart() {
 						))}
 					</div>
 				) : query.isError ? (
-					<p className="py-12 text-center text-muted-foreground">
+					<p className="text-muted-foreground py-12 text-center">
 						Não foi possível carregar o gráfico. Selecione o período novamente para tentar.
 					</p>
 				) : (

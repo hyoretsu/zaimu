@@ -6,12 +6,14 @@ import { RefundImportReviewDialog } from "@/components/credit-card-imports/Refun
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { useUrlViewState } from "@/hooks/use-url-view-state";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { viewBoolean } from "@/lib/view-state";
 import { showToast } from "@/stores";
 
 export function PendingRefundReviews({ cardId, count }: { cardId: string; count: number }) {
-	const [expanded, setExpanded] = useState(false);
+	const [expanded, setExpanded] = useUrlViewState(`refunds.${cardId}.expanded`, false, viewBoolean);
 	const identity = useCacheIdentity();
 	const queryClient = useQueryClient();
 	const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -49,7 +51,7 @@ export function PendingRefundReviews({ cardId, count }: { cardId: string; count:
 	if (!reviews.data?.length) return null;
 	return (
 		<div className="grid gap-2 rounded-xl border p-3">
-			<p className="font-medium text-sm">Reembolsos antigos aguardam vínculo com a compra original.</p>
+			<p className="text-sm font-medium">Reembolsos antigos aguardam vínculo com a compra original.</p>
 			{reviews.data.map(row => (
 				<Button key={row.id} onClick={() => setSelectedId(row.id)} variant="outline">
 					<LuUndo2 />

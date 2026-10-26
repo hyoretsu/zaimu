@@ -166,3 +166,16 @@ Shared dialogs follow the VisualViewport height and offset, keeping headers and
 footers above the software keyboard. Popovers must also fit that viewport, including
 searchable selectors. Keep option lists shrinkable inside ScrollArea. Focus recovery
 may scroll only the input's own ScrollArea, never a background page or parent modal.
+
+## URL view state
+
+Persist committed data-view controls through `frontend/src/hooks/use-url-view-state.ts`:
+search text, filters, date ranges, selected periods/tabs and listing disclosures.
+Use simple query parameters (`account`, `search`, `type`, `startDate`, `endDate`),
+never JSON objects or wrappers. Composite controls declare explicit field mappings;
+repeated selections use repeated parameters. Omit default and empty values.
+Validate incoming values with schemas from `frontend/src/lib/view-state.ts` or domain schemas.
+Use history replacement for every view change, preserving unrelated parameters,
+hashes, router state and the current page/modal. Filters must never add history steps.
+Modal opening retains its own history behavior. Keep draft form values, transient
+popover searches, hover state and automatic infinite-scroll pagination local.

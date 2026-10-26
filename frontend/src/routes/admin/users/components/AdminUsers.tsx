@@ -6,13 +6,15 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
+import { useUrlViewState } from "@/hooks/use-url-view-state";
 import { getAdminUsers, postAdminUsersByIdPromote } from "@/lib/api";
 import { mutationCacheMeta } from "@/lib/mutation-cache";
 import { useCacheIdentity } from "@/lib/query-cache";
+import { viewString } from "@/lib/view-state";
 import { showToast } from "@/stores";
 export function AdminUsers() {
 	const identity = useCacheIdentity();
-	const [search, setSearch] = useState("");
+	const [search, setSearch] = useUrlViewState("search", "", viewString);
 	const [local, setLocal] = useDebouncedInput(search, setSearch);
 	const users = useQuery({
 		enabled: search.trim().length >= 3,
@@ -31,8 +33,8 @@ export function AdminUsers() {
 		},
 	});
 	return (
-		<section className="grid gap-3 rounded-2xl border bg-card p-4 sm:p-6">
-			<h2 className="font-semibold text-lg">Administradores</h2>
+		<section className="bg-card grid gap-3 rounded-2xl border p-4 sm:p-6">
+			<h2 className="text-lg font-semibold">Administradores</h2>
 			<label className="grid gap-2" htmlFor="admin-user-search">
 				Buscar por e-mail
 				<Input
@@ -55,7 +57,7 @@ export function AdminUsers() {
 			) : (
 				users.data.map(user => (
 					<div
-						className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/50 p-4"
+						className="bg-background/50 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4"
 						key={user.id}
 					>
 						<div className="min-w-0">

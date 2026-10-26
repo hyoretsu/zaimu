@@ -1,9 +1,10 @@
-import { useState } from "react";
 import { LuChevronDown, LuChevronUp, LuDownload, LuRefreshCw } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
+import { useUrlViewState } from "@/hooks/use-url-view-state";
+import { viewBoolean } from "@/lib/view-state";
 import type { HistoryCoverageSeries } from "./types";
 import { useCoverageCompletion } from "./use-coverage-completion";
 
@@ -25,7 +26,11 @@ export function HistorySeriesCoverage({
 	endDate: string;
 }) {
 	const completion = useCoverageCompletion(data);
-	const [expanded, setExpanded] = useState(false);
+	const [expanded, setExpanded] = useUrlViewState(
+		`history.${data.kind}.${data.series}.expanded`,
+		false,
+		viewBoolean,
+	);
 	const months = new Map<string, HistoryCoverageSeries["days"]>();
 	for (const day of data.days) {
 		const month = day.date.slice(0, 7);
@@ -76,10 +81,12 @@ export function HistorySeriesCoverage({
 			</ActionGroup>
 			{completion.progress && (
 				<p aria-live="polite" className="text-muted-foreground text-sm">
-					{completion.progress.coveredDays} de {completion.progress.requestedDays} dias cobertos na coleta.
+					{completion.progress.coveredDays} de {completion.progress.requestedDays} dias cobertos na
+					coleta.
 					{completion.progress.state === "COMPLETED"
 						? " Coleta concluída."
-						: completion.progress.state === "FAILED" || completion.progress.state === "COMPLETED_WITH_GAPS"
+						: completion.progress.state === "FAILED" ||
+							  completion.progress.state === "COMPLETED_WITH_GAPS"
 							? " Coleta encerrada com lacunas."
 							: " Processando..."}
 				</p>
@@ -93,7 +100,10 @@ export function HistorySeriesCoverage({
 					</Button>
 				</p>
 			)}
-			<ul aria-label="Legenda do gráfico de cobertura" className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+			<ul
+				aria-label="Legenda do gráfico de cobertura"
+				className="flex flex-wrap gap-x-4 gap-y-2 text-sm"
+			>
 				{(
 					[
 						{ count: data.savedDays, status: "SAVED" },
@@ -104,10 +114,11 @@ export function HistorySeriesCoverage({
 					<li className="flex min-w-0 items-center gap-2" key={status}>
 						<span
 							aria-hidden="true"
-							className={`h-3 w-3 shrink-0 rounded-sm border border-foreground/20 ${statuses[status].className}`}
+							className={`border-foreground/20 h-3 w-3 shrink-0 rounded-sm border ${statuses[status].className}`}
 						/>
 						<span>
-							{count.toLocaleString("pt-BR")} {count === 1 ? "dia" : "dias"} - {statuses[status].label}
+							{count.toLocaleString("pt-BR")} {count === 1 ? "dia" : "dias"} -{" "}
+							{statuses[status].label}
 						</span>
 					</li>
 				))}
@@ -119,8 +130,8 @@ export function HistorySeriesCoverage({
 			>
 				<div className="grid min-w-[24rem] gap-2 pr-4 pb-4">
 					<div aria-hidden="true" className="flex items-center gap-3">
-						<span className="w-16 shrink-0 text-muted-foreground text-xs">Mês</span>
-						<div className="grid flex-1 grid-cols-[repeat(31,minmax(0,1fr))] gap-1 text-center text-[10px] text-muted-foreground">
+						<span className="text-muted-foreground w-16 shrink-0 text-xs">Mês</span>
+						<div className="text-muted-foreground grid flex-1 grid-cols-[repeat(31,minmax(0,1fr))] gap-1 text-center text-[10px]">
 							{[1, 5, 10, 15, 20, 25, 31].map(day => (
 								<span key={day} style={{ gridColumn: day }}>
 									{day}
@@ -130,7 +141,7 @@ export function HistorySeriesCoverage({
 					</div>
 					{[...months].map(([month, days]) => (
 						<div className="flex items-center gap-3" key={month}>
-							<span className="w-16 shrink-0 text-muted-foreground text-xs">
+							<span className="text-muted-foreground w-16 shrink-0 text-xs">
 								{month.split("-").reverse().join("/")}
 							</span>
 							<div className="grid flex-1 grid-cols-[repeat(31,minmax(0,1fr))] gap-1">
@@ -139,7 +150,7 @@ export function HistorySeriesCoverage({
 										<TooltipTrigger asChild>
 											<button
 												aria-label={`${dateLabel(day.date)}: ${statuses[day.status].label}`}
-												className={`block h-5 min-w-0 cursor-pointer rounded-sm border border-foreground/20 focus-visible:outline-2 ${statuses[day.status].className}`}
+												className={`border-foreground/20 block h-5 min-w-0 cursor-pointer rounded-sm border focus-visible:outline-2 ${statuses[day.status].className}`}
 												style={{ gridColumn: Number(day.date.slice(8)) }}
 												tabIndex={0}
 												type="button"
@@ -175,7 +186,10 @@ export function HistorySeriesCoverage({
 						<ul className="grid gap-1 pr-4 text-sm">
 							{data.missingRanges.length ? (
 								data.missingRanges.map(range => (
-									<li className="flex flex-wrap items-center justify-between gap-2" key={range.startDate}>
+									<li
+										className="flex flex-wrap items-center justify-between gap-2"
+										key={range.startDate}
+									>
 										<span>
 											{dateLabel(range.startDate)} - {dateLabel(range.endDate)}
 										</span>

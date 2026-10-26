@@ -15,19 +15,26 @@ export function createDialogHistory(history: RouterHistory, preserveScroll?: () 
 	const dialogs = new Map<string, { close: () => void; href: string; version: number }>();
 
 	history.subscribe(({ action }) => {
-		if (previousHref === history.location.href) preserveScroll?.();
+		if (new URL(previousHref, "http://localhost").pathname === history.location.pathname)
+			preserveScroll?.();
 		previousHref = history.location.href;
 		const current = stack(history);
 		for (const [id, dialog] of dialogs) {
-			if (dialog.href !== history.location.href || !current.includes(id)) {
+			if (
+				new URL(dialog.href, "http://localhost").pathname !== history.location.pathname ||
+				!current.includes(id)
+			) {
 				dialogs.delete(id);
 				dialog.close();
+			} else {
+				dialog.href = history.location.href;
 			}
 		}
 		// Closed dialogs must not leave dead steps when traversing page history.
-		if (current.length && !current.some(id => dialogs.has(id))) {
+		if (current.length && !dialogs.has(current.at(-1)!)) {
 			if (action.type === "BACK" || (action.type === "GO" && action.index < 0)) history.back();
-			else if (action.type === "FORWARD" || (action.type === "GO" && action.index > 0)) history.forward();
+			else if (action.type === "FORWARD" || (action.type === "GO" && action.index > 0))
+				history.forward();
 		}
 	});
 

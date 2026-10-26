@@ -3,8 +3,6 @@ import { useLocation } from "@tanstack/react-router";
 import { Activity, type ComponentType, lazy, Suspense, useEffect, useState } from "react";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { useCacheIdentity } from "@/lib/query-cache";
-import { MobileNavigation } from "./MobileNavigation";
-import { MobileScreenSkeleton } from "./MobileScreenSkeleton";
 import {
 	createMobileTabRoutes,
 	type MobileScreenPath,
@@ -13,6 +11,8 @@ import {
 	resolveMobileRoute,
 	updateMobileTabRoute,
 } from "./mobile-tabs";
+import { MobileNavigation } from "./MobileNavigation";
+import { MobileScreenSkeleton } from "./MobileScreenSkeleton";
 
 const AdminPage = lazy(() =>
 	import("@/routes/admin/components/AdminPage").then(module => ({ default: module.AdminPage })),
@@ -91,7 +91,15 @@ const screenByPath = {
 } satisfies Record<MobileScreenPath, ComponentType>;
 
 export function MobileAppShell() {
-	const pathname = useLocation().pathname;
+	const { pathname, search } = useLocation();
+	const [searchByPath, setSearchByPath] = useState<Record<string, Record<string, unknown>>>(() => ({
+		[pathname]: search,
+	}));
+	useEffect(() => {
+		setSearchByPath(previous =>
+			previous[pathname] === search ? previous : { ...previous, [pathname]: search },
+		);
+	}, [pathname, search]);
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
 	const currentRoute = resolveMobileRoute(pathname) ?? {
@@ -127,7 +135,7 @@ export function MobileAppShell() {
 	}, [currentRoute.tabId, pathname]);
 
 	return (
-		<div className="h-dvh overflow-hidden bg-background">
+		<div className="bg-background h-dvh overflow-hidden">
 			{mobileTabIds.map(tabId => {
 				if (!(visitedTabs.has(tabId) || tabId === currentRoute.tabId)) return null;
 				const screenPath = renderedRoutes[tabId];
@@ -139,10 +147,10 @@ export function MobileAppShell() {
 						name={`mobile-tab-${tabId}`}
 					>
 						<ScrollArea
-							className="mobile-tab-scroll-area h-dvh w-full min-w-0 max-w-full"
+							className="mobile-tab-scroll-area h-dvh w-full max-w-full min-w-0"
 							key={`${screenPath}:${refreshVersions[tabId]}`}
 						>
-							<main className="min-h-dvh w-full min-w-0 max-w-full pb-[calc(var(--mobile-navigation-height)+5.5rem)]">
+							<main className="min-h-dvh w-full max-w-full min-w-0 pb-[calc(var(--mobile-navigation-height)+5.5rem)]">
 								<Suspense fallback={<MobileScreenSkeleton />}>
 									<Screen />
 								</Suspense>
@@ -151,7 +159,12 @@ export function MobileAppShell() {
 					</Activity>
 				);
 			})}
-			<MobileNavigation activeTab={currentRoute.tabId} onReselect={refreshTab} routes={renderedRoutes} />
+			<MobileNavigation
+				activeTab={currentRoute.tabId}
+				onReselect={refreshTab}
+				routes={renderedRoutes}
+				searchByPath={searchByPath}
+			/>
 		</div>
 	);
 }

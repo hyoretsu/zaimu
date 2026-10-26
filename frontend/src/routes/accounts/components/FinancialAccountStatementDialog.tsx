@@ -57,7 +57,11 @@ export function FinancialAccountStatementDialog({
 		getNextPageParam: page => page.nextCursor ?? undefined,
 		initialPageParam: undefined as string | undefined,
 		queryFn: ({ pageParam }) =>
-			dataService.transactions.getDailyPage({ cursor: pageParam, financialAccountId: account.id, limit: 50 }),
+			dataService.transactions.getDailyPage({
+				cursor: pageParam,
+				financialAccountId: account.id,
+				limit: 50,
+			}),
 		queryKey: queryKeys.transactions.byAccount(identity!, account.id),
 	});
 	const statementItems =
@@ -83,7 +87,8 @@ export function FinancialAccountStatementDialog({
 		getNextPageParam: page => page.nextCursor ?? undefined,
 		initialPageParam: undefined as string | undefined,
 		placeholderData: previous => previous,
-		queryFn: ({ pageParam }) => dataService.accountYields.getDisplayPage(account.id, pageParam, yieldFilters),
+		queryFn: ({ pageParam }) =>
+			dataService.accountYields.getDisplayPage(account.id, pageParam, yieldFilters),
 		queryKey: [...queryKeys.accountYields.list(identity!, account.id), "statement", yieldFilters],
 	});
 	const yieldEntries = yields.data?.pages.flatMap(page => page.items) ?? [];
@@ -165,7 +170,9 @@ export function FinancialAccountStatementDialog({
 								!!pendingActions[`${identity}:transaction:${transaction.id}`]
 							}
 							isDeletingYield={entry => !!pendingActions[`${identity}:yield:${entry.id}`]}
-							isError={(statement.isError && !statement.data) || (yields.isError && !yields.data)}
+							isError={
+								(statement.isError && !statement.data) || (yields.isError && !yields.data)
+							}
 							isFetchingMoreTransactions={statement.isFetchingNextPage}
 							isFetchingMoreYields={yields.isFetchingNextPage}
 							isPending={statement.isPending || yields.isPending}
@@ -176,12 +183,17 @@ export function FinancialAccountStatementDialog({
 							onLoadMoreTransactions={statement.fetchNextPage}
 							onLoadMoreYields={yields.fetchNextPage}
 							onRetry={() => Promise.all([statement.refetch(), yields.refetch()])}
-							refreshError={(statement.isError && !!statement.data) || (yields.isError && !!yields.data)}
+							refreshError={
+								(statement.isError && !!statement.data) || (yields.isError && !!yields.data)
+							}
 							refreshPending={
-								(statement.isFetching && !statement.isPending && !statement.isFetchingNextPage) ||
+								(statement.isFetching &&
+									!statement.isPending &&
+									!statement.isFetchingNextPage) ||
 								(yields.isFetching && !yields.isPending && !yields.isFetchingNextPage)
 							}
 							transactions={statementItems}
+							viewKey={`account.${account.id}.transactions`}
 							yieldEntries={yieldEntries}
 						/>
 					</div>
@@ -207,9 +219,19 @@ export function FinancialAccountStatementDialog({
 						actions={[
 							...(account.type !== "CREDIT_CARD" &&
 							(account.type !== "REWARDS" || account.rewardsAccount?.kind === "CASHBACK")
-								? [{ icon: LuScale, label: "Ajustar saldo", onClick: () => setAdjustingBalance(true) }]
+								? [
+										{
+											icon: LuScale,
+											label: "Ajustar saldo",
+											onClick: () => setAdjustingBalance(true),
+										},
+									]
 								: []),
-							{ icon: LuPlus, label: "Nova transação", onClick: () => setCreatingTransaction(true) },
+							{
+								icon: LuPlus,
+								label: "Nova transação",
+								onClick: () => setCreatingTransaction(true),
+							},
 						]}
 					/>
 				</ActionGroup>

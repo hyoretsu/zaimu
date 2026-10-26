@@ -4,7 +4,9 @@ import { createDialogHistory } from "./dialog-history";
 
 describe("dialog history", () => {
 	test("Back unwinds nested dialogs before subpages", () => {
-		const history = createMemoryHistory({ initialEntries: ["/more", "/settings", "/settings/open-finance"] });
+		const history = createMemoryHistory({
+			initialEntries: ["/more", "/settings", "/settings/open-finance"],
+		});
 		const dialogs = createDialogHistory(history);
 		const closed: string[] = [];
 		dialogs.retain("parent", () => closed.push("parent"));
@@ -79,4 +81,26 @@ test("explicit topmost dismissal respects history order even when portal order d
 	expect(dialogs.isTopmost("parent")).toBeTrue();
 	expect(dialogs.dismissTopmost()).toBeTrue();
 	expect(closed).toEqual(["child", "parent"]);
+});
+
+test("replacing view parameters keeps nested dialogs open and adds no history steps", async () => {
+	const history = createMemoryHistory({ initialEntries: ["/more", "/credit-cards"] });
+	const dialogs = createDialogHistory(history);
+	const closed: string[] = [];
+	dialogs.retain("parent", () => closed.push("parent"));
+	dialogs.retain("child", () => closed.push("child"));
+	const length = history.length;
+	history.replace("/credit-cards?statement=next", { ...history.location.state });
+	history.replace("/credit-cards?statement=last", { ...history.location.state });
+	expect(history.length).toBe(length);
+	expect(closed).toEqual([]);
+	expect(dialogs.isTopmost("child")).toBe(true);
+	dialogs.release("child");
+	await Promise.resolve();
+	expect(dialogs.isTopmost("parent")).toBe(true);
+	expect(history.location.href).toBe("/credit-cards");
+	history.back();
+	expect(closed).toEqual(["parent"]);
+	history.back();
+	expect(history.location.href).toBe("/more");
 });

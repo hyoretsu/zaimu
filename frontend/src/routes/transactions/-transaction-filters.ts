@@ -1,4 +1,6 @@
+import { z } from "zod";
 import type { Transaction } from "@/lib/api";
+import { viewDateRange, type ViewParameter, viewString } from "@/lib/view-state";
 
 export interface TransactionFilters {
 	accountId: string;
@@ -54,3 +56,24 @@ export function countActiveTransactionFilters(filters: TransactionFilters) {
 		filters.categoryId !== initialTransactionFilters.categoryId,
 	].filter(Boolean).length;
 }
+
+export const transactionFiltersSchema = z.object({
+	accountId: viewString,
+	categoryId: viewString,
+	dateRange: viewDateRange,
+	search: viewString,
+	source: z.enum(["all", "FINANCIAL_ACCOUNT", "CREDIT_CARD"]),
+	type: z.enum(["all", "INCOME", "EXPENSE", "TRANSFER"]),
+	visibility: z.enum(["all", "hidden", "visible"]),
+});
+
+export const transactionFilterParameters: ViewParameter[] = [
+	{ parameter: "account", path: "accountId" },
+	{ parameter: "category", path: "categoryId" },
+	{ parameter: "startDate", path: "dateRange.startDate" },
+	{ parameter: "endDate", path: "dateRange.endDate" },
+	{ parameter: "search", path: "search" },
+	{ parameter: "source", path: "source" },
+	{ parameter: "type", path: "type" },
+	{ parameter: "visibility", path: "visibility" },
+];
