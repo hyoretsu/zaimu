@@ -9,6 +9,7 @@ import { configureModalRecoveryNavigation } from "@/lib/background-modal-actions
 import { initializeDeepLinks } from "@/lib/deep-links";
 import { configureMutationInvalidation } from "@/lib/mutation-cache";
 import { configureQueryTags } from "@/lib/query-tags";
+import { initializeVisibleViewport } from "./lib/visible-viewport";
 import { routeTree } from "./routeTree.gen";
 import "./index.css";
 
@@ -56,3 +57,6 @@ createRoot(document.getElementById("root")!).render(
 		</QueryClientProvider>
 	</StrictMode>,
 );
+
+const disposeVisibleViewport = initializeVisibleViewport();
+if (import.meta.hot) import.meta.hot.dispose(disposeVisibleViewport);

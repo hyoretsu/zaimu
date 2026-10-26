@@ -115,7 +115,7 @@ export function CustomSelectPopover({
 					align="start"
 					className={cn(
 						"w-(--radix-popover-trigger-width) min-w-36 gap-0 overflow-hidden p-0",
-						searchable ? "max-h-[16.75rem]" : "max-h-64",
+						searchable ? "[--popup-max-height:16.75rem]" : "[--popup-max-height:16rem]",
 					)}
 					onOpenAutoFocus={event => {
 						event.preventDefault();
@@ -177,10 +177,10 @@ export function CustomSelectPopover({
 					)}
 					<ScrollArea
 						className={cn(
-							"min-h-0",
+							"min-h-0 shrink",
 							searchable
-								? "[&>[data-slot=scroll-area-viewport]]:max-h-[min(13.5rem,calc(var(--radix-popover-content-available-height)-3.25rem))]"
-								: "[&>[data-slot=scroll-area-viewport]]:max-h-[min(16rem,var(--radix-popover-content-available-height))]",
+								? "[&>[data-slot=scroll-area-viewport]]:max-h-[min(13.5rem,calc(var(--popup-viewport-height,100dvh)-3.25rem))]"
+								: "[&>[data-slot=scroll-area-viewport]]:max-h-[min(16rem,var(--popup-viewport-height,100dvh))]",
 						)}
 					>
 						<div

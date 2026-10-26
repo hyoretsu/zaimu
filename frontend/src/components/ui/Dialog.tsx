@@ -46,7 +46,7 @@ function DialogOverlay({ className, style, ref, ...props }: ComponentProps<"div"
 	return (
 		<div
 			className={cn(
-				"data-open:fade-in-0 data-closed:fade-out-0 fixed inset-0 isolate z-50 touch-none bg-black/80 duration-100 data-closed:animate-none data-open:animate-in supports-backdrop-filter:backdrop-blur-xs",
+				"data-open:fade-in-0 data-closed:fade-out-0 data-open:animate-in fixed inset-0 isolate z-50 touch-none bg-black/80 duration-100 data-closed:animate-none supports-backdrop-filter:backdrop-blur-xs",
 				className,
 			)}
 			data-slot="dialog-overlay"
@@ -80,7 +80,7 @@ function DialogContent({
 			<DialogOverlay className={overlayClassName} />
 			<DialogPrimitive.Content
 				className={cn(
-					"data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col gap-6 overflow-hidden rounded-4xl bg-popover p-6 text-popover-foreground text-sm outline-none ring-1 ring-foreground/5 duration-100 data-closed:animate-none data-open:animate-in sm:max-w-md [&:has([data-slot=dialog-header])>[data-slot=dialog-close]]:hidden",
+					"data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 bg-popover text-popover-foreground ring-foreground/5 data-open:animate-in fixed top-(--visible-viewport-center,50%) left-1/2 z-50 flex max-h-[calc(var(--visible-viewport-height,100dvh)-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col gap-6 overflow-hidden rounded-4xl p-6 text-sm ring-1 duration-100 outline-none data-closed:animate-none sm:max-w-md [&:has([data-slot=dialog-header])>[data-slot=dialog-close]]:hidden",
 					className,
 				)}
 				data-slot="dialog-content"
@@ -111,7 +111,11 @@ function DialogContent({
 				</PopupLayerContext.Provider>
 				{showCloseButton && (
 					<DialogPrimitive.Close asChild data-slot="dialog-close">
-						<Button className="absolute top-4 right-4 cursor-pointer" size="icon-sm" variant="outline">
+						<Button
+							className="absolute top-4 right-4 cursor-pointer"
+							size="icon-sm"
+							variant="outline"
+						>
 							<HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
 							<span className="sr-only">Fechar</span>
 						</Button>
@@ -131,7 +135,7 @@ function DialogHeader({ className, children, ...props }: ComponentProps<"div">) 
 			data-slot="dialog-header"
 			{...props}
 		>
-			<div className="wrap-anywhere flex min-w-0 flex-1 flex-col gap-2">{children}</div>
+			<div className="flex min-w-0 flex-1 flex-col gap-2 wrap-anywhere">{children}</div>
 			{showCloseButton && (
 				<DialogPrimitive.Close asChild data-slot="dialog-close">
 					<Button className="shrink-0 cursor-pointer" size="icon-sm" variant="outline">
@@ -171,7 +175,7 @@ function DialogFooter({
 function DialogTitle({ className, ...props }: ComponentProps<typeof DialogPrimitive.Title>) {
 	return (
 		<DialogPrimitive.Title
-			className={cn("font-heading font-medium text-base leading-none", className)}
+			className={cn("font-heading text-base leading-none font-medium", className)}
 			data-slot="dialog-title"
 			{...props}
 		/>
@@ -182,7 +186,7 @@ function DialogDescription({ className, ...props }: ComponentProps<typeof Dialog
 	return (
 		<DialogPrimitive.Description
 			className={cn(
-				"text-muted-foreground text-sm *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground",
+				"text-muted-foreground *:[a]:hover:text-foreground text-sm *:[a]:underline *:[a]:underline-offset-3",
 				className,
 			)}
 			data-slot="dialog-description"

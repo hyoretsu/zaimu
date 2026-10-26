@@ -159,3 +159,10 @@ Import row approvals use `completionGroup` in the shared background action runne
 Keep row locks until grouped refresh finishes, aggregate final feedback, and retain
 individual failure recovery. Closing a dialog must not discard its queued actions.
 Guest actions keep local persistence and never use the backend batch endpoint.
+
+## Mobile keyboard avoidance
+
+Shared dialogs follow the VisualViewport height and offset, keeping headers and
+footers above the software keyboard. Popovers must also fit that viewport, including
+searchable selectors. Keep option lists shrinkable inside ScrollArea. Focus recovery
+may scroll only the input's own ScrollArea, never a background page or parent modal.
