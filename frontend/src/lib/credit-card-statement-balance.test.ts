@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { calculateStatementBalances } from "@zaimu/finance/credit-card";
 import type { CreditCardStatement } from "./api";
 import {
+	getCreditCardStatementDisplayAmounts,
 	getCreditCardStatementDisplayBalance,
 	getCreditCardStatementInvoiceAmount,
 } from "./credit-card-statement-balance";
@@ -102,5 +103,47 @@ describe("invoice amount display", () => {
 		);
 		expect(getCreditCardStatementInvoiceAmount(row!)).toBe(-20);
 		expect(getCreditCardStatementDisplayBalance(row!)).toBe(-20);
+	});
+});
+
+describe("statement detail amounts", () => {
+	test.each([
+		["11", 940.62, 1300.76],
+		["12", 475.7, 708.46],
+	])("keeps %s detail equal to the tab without subtracting forecasts twice", (month, actual, projected) => {
+		const row = {
+			...statement("cycle", month, projected),
+			actualInvoiceAmount: actual,
+			invoiceAmount: projected,
+		};
+		const amounts = getCreditCardStatementDisplayAmounts(row);
+		expect(amounts.invoiceAmount).toBe(getCreditCardStatementInvoiceAmount(row));
+		expect(amounts.invoiceAmount).toBe(actual);
+		expect(amounts.projectedAmount).toBe(projected);
+		expect(amounts.remainingAmount).toBe(actual);
+	});
+
+	test("preserves later payments and manual totals while removing only projected balance", () => {
+		const row = {
+			...statement("cycle", "11", 150),
+			actualInvoiceAmount: 100,
+			amountDue: 150,
+			invoiceAmount: 150,
+			manualTotalAmount: 100,
+			periodPaymentAmount: 40,
+		};
+		expect(getCreditCardStatementDisplayAmounts(row)).toEqual({
+			invoiceAmount: 100,
+			projectedAmount: 150,
+			remainingAmount: 60,
+		});
+	});
+
+	test("leaves nonprojected legacy balances unchanged", () => {
+		expect(getCreditCardStatementDisplayAmounts(statement("cycle", "11", 100))).toEqual({
+			invoiceAmount: 100,
+			projectedAmount: 100,
+			remainingAmount: 100,
+		});
 	});
 });

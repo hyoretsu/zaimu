@@ -26,19 +26,16 @@ import { TabsContent } from "@/components/ui/Tabs";
 import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
 import type { CreditCard, CreditCardStatement, CreditPurchase } from "@/lib/api";
 import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
-import {
-	getCreditCardStatementDisplayBalance,
-	getCreditCardStatementInvoiceAmount,
-} from "@/lib/credit-card-statement-balance";
+import { getCreditCardStatementDisplayAmounts } from "@/lib/credit-card-statement-balance";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
+import { isVisibleStatementPurchase } from "./credit-card-statement-purchases";
+import { getCreditCardStatementStatus } from "./credit-card-statement-status";
 import { CreditCardPaymentRow } from "./CreditCardPaymentRow";
 import { CreditPurchaseEditScopeDialog } from "./CreditPurchaseEditScopeDialog";
 import { CreditPurchaseRow } from "./CreditPurchaseRow";
-import { isVisibleStatementPurchase } from "./credit-card-statement-purchases";
-import { getCreditCardStatementStatus } from "./credit-card-statement-status";
 import { EditCreditCardStatementDialog } from "./EditCreditCardStatementDialog";
 import { EditCreditPurchaseDialog } from "./EditCreditPurchaseDialog";
 import { ManageCreditPurchaseRefundsDialog } from "./ManageCreditPurchaseRefundsDialog";
@@ -89,16 +86,13 @@ export function CreditCardStatementDetails({
 		queryKey: queryKeys.creditCardStatements.detail(identity!, statement.creditCardId, statement.id),
 	});
 	const displayedStatement = detail.data ?? statement;
-	const displayBalance = getCreditCardStatementDisplayBalance(displayedStatement);
-	const closingAmount = getCreditCardStatementInvoiceAmount(displayedStatement);
+	// The listing replays actual and projected books; detail only replays the projected book.
+	const { invoiceAmount, projectedAmount, remainingAmount } =
+		getCreditCardStatementDisplayAmounts(statement);
 	const forecasts =
-		detail.data?.purchases.filter(purchase => purchase.isForecast && isVisibleStatementPurchase(purchase)) ??
-		[];
-	const forecastAmount =
-		forecasts.reduce((total, purchase) => total + Math.round(purchase.installmentAmount * 100), 0) / 100;
-	const forecastIncluded = displayedStatement.manualTotalAmount == null ? forecastAmount : 0;
-	const invoiceAmount = (Math.round(closingAmount * 100) - Math.round(forecastIncluded * 100)) / 100;
-	const projectedAmount = (Math.round(invoiceAmount * 100) + Math.round(forecastAmount * 100)) / 100;
+		detail.data?.purchases.filter(
+			purchase => purchase.isForecast && isVisibleStatementPurchase(purchase),
+		) ?? [];
 	const isIgnored = Boolean(ignoreBefore && statement.statementDate.slice(0, 10) < ignoreBefore);
 	const status = isIgnored
 		? { className: "text-muted-foreground", icon: LuReceiptText, label: "Desconsiderada" }
@@ -142,7 +136,10 @@ export function CreditCardStatementDetails({
 			purchaseId: string;
 		}) => dataService.creditCards.updatePurchase(statement.creditCardId, purchaseId, data),
 		onError: error => {
-			showToast(error instanceof Error ? error.message : "Não foi possível editar a transação.", "negative");
+			showToast(
+				error instanceof Error ? error.message : "Não foi possível editar a transação.",
+				"negative",
+			);
 		},
 		onMutate: ({ purchaseId }) => setPendingUpdateIds(current => new Set(current).add(purchaseId)),
 		onSettled: (_data, _error, { purchaseId }) =>
@@ -160,7 +157,10 @@ export function CreditCardStatementDetails({
 		mutationFn: (purchaseId: string) =>
 			dataService.creditCards.deletePurchase(statement.creditCardId, purchaseId),
 		onError: error => {
-			showToast(error instanceof Error ? error.message : "Não foi possível excluir a transação.", "negative");
+			showToast(
+				error instanceof Error ? error.message : "Não foi possível excluir a transação.",
+				"negative",
+			);
 		},
 		onMutate: id => setPendingDeleteIds(current => new Set(current).add(id)),
 		onSettled: (_data, _error, id) =>
@@ -222,20 +222,24 @@ export function CreditCardStatementDetails({
 	const rowPending = (p: CreditPurchase) => {
 		const purchaseId = p.purchaseId ?? p.refundOfPurchaseId ?? p.parentId ?? p.id;
 		return (
-			pendingRootIds.has(purchaseId) || pendingFamilyIds.has(p.refinancingOriginalPurchaseId ?? purchaseId)
+			pendingRootIds.has(purchaseId) ||
+			pendingFamilyIds.has(p.refinancingOriginalPurchaseId ?? purchaseId)
 		);
 	};
 	return (
 		<TabsContent className="relative flex min-h-0 min-w-0 flex-col overflow-hidden" value={statement.id}>
 			<DialogBody className="flex-1">
 				<div className="grid gap-3 pr-3 pb-24">
-					<header className="grid gap-3 rounded-xl border bg-muted/30 p-4">
+					<header className="bg-muted/30 grid gap-3 rounded-xl border p-4">
 						<div className="flex flex-wrap items-center justify-between gap-2">
-							<h3 className="font-bold text-base sm:text-lg" id={`statement-title-${statement.id}`}>
-								{formatLocalDate(displayedStatement.dueDate, { month: "long", year: "numeric" }).replace(
-									/^./,
-									letter => letter.toLocaleUpperCase("pt-BR"),
-								)}
+							<h3
+								className="text-base font-bold sm:text-lg"
+								id={`statement-title-${statement.id}`}
+							>
+								{formatLocalDate(displayedStatement.dueDate, {
+									month: "long",
+									year: "numeric",
+								}).replace(/^./, letter => letter.toLocaleUpperCase("pt-BR"))}
 							</h3>
 							<div className="flex flex-wrap gap-2">
 								{statement.isFullySynced && (
@@ -246,7 +250,9 @@ export function CreditCardStatementDetails({
 								)}
 								{status.label && (
 									<AppBadge className="shrink-0" variant="outline">
-										{StatusIcon && <StatusIcon aria-hidden="true" className={status.className} />}
+										{StatusIcon && (
+											<StatusIcon aria-hidden="true" className={status.className} />
+										)}
 										{status.label}
 									</AppBadge>
 								)}
@@ -255,32 +261,41 @@ export function CreditCardStatementDetails({
 						<div>
 							<p className="text-muted-foreground text-xs">Valor da fatura</p>
 							<strong className="block text-2xl tabular-nums">
-								{<PreferredMoneyAmount values={[{ amount: invoiceAmount, currency: currencyCode }]} />}
+								{
+									<PreferredMoneyAmount
+										values={[{ amount: invoiceAmount, currency: currencyCode }]}
+									/>
+								}
 							</strong>
 							{forecasts.length > 0 && (
-								<p className="mt-1 text-muted-foreground text-xs">
+								<p className="text-muted-foreground mt-1 text-xs">
 									Previsão:{" "}
-									<PreferredMoneyAmount values={[{ amount: projectedAmount, currency: currencyCode }]} />
+									<PreferredMoneyAmount
+										values={[{ amount: projectedAmount, currency: currencyCode }]}
+									/>
 								</p>
 							)}
 							{displayedStatement.manualTotalAmount != null && (
-								<p className="mt-1 text-muted-foreground text-sm">
+								<p className="text-muted-foreground mt-1 text-sm">
 									Valor original:{" "}
 									<PreferredMoneyAmount
 										values={[
-											{ amount: displayedStatement.calculatedTotalAmount ?? 0, currency: currencyCode },
+											{
+												amount: displayedStatement.calculatedTotalAmount ?? 0,
+												currency: currencyCode,
+											},
 										]}
 									/>
 								</p>
 							)}
 
-							{!isIgnored && Math.abs(invoiceAmount - (displayBalance - forecastIncluded)) > 0.001 && (
-								<p className="mt-1 text-muted-foreground text-sm">
-									{displayBalance - forecastIncluded < 0 ? "Crédito" : "Restante a pagar"}:{" "}
+							{!isIgnored && Math.abs(invoiceAmount - remainingAmount) > 0.001 && (
+								<p className="text-muted-foreground mt-1 text-sm">
+									{remainingAmount < 0 ? "Crédito" : "Restante a pagar"}:{" "}
 									{
 										<PreferredMoneyAmount
 											values={[
-												{ amount: Math.abs(displayBalance - forecastIncluded), currency: currencyCode },
+												{ amount: Math.abs(remainingAmount), currency: currencyCode },
 											]}
 										/>
 									}
@@ -289,7 +304,7 @@ export function CreditCardStatementDetails({
 						</div>
 						<div className="grid grid-cols-2 gap-2 border-t pt-2">
 							<div className="min-w-0">
-								<p className="flex items-center gap-1 text-muted-foreground text-xs">
+								<p className="text-muted-foreground flex items-center gap-1 text-xs">
 									<LuCalendarCheck /> Fechamento
 								</p>
 								<strong className="mt-0.5 block text-sm">
@@ -297,7 +312,7 @@ export function CreditCardStatementDetails({
 								</strong>
 							</div>
 							<div className="min-w-0 border-l pl-2">
-								<p className="flex items-center gap-1 text-muted-foreground text-xs">
+								<p className="text-muted-foreground flex items-center gap-1 text-xs">
 									<LuCalendarClock /> Vencimento
 								</p>
 								<strong className="mt-0.5 block text-sm">
@@ -350,20 +365,28 @@ export function CreditCardStatementDetails({
 										<CreditCardPaymentRow key={entry.id} payment={entry.payment} />
 									) : (
 										<CreditPurchaseRow
-											deleteDisabled={statement.isForecast === true || rowPending(entry.purchase)}
-											editDisabled={statement.isForecast === true || rowPending(entry.purchase)}
+											deleteDisabled={
+												statement.isForecast === true || rowPending(entry.purchase)
+											}
+											editDisabled={
+												statement.isForecast === true || rowPending(entry.purchase)
+											}
 											key={entry.id}
 											onDelete={() => deletePurchase.mutateAsync(entry.purchase.id)}
 											onEdit={() =>
 												entry.purchase.isRefund
-													? (setRecoveredAction(null), setRefundingPurchase(entry.purchase))
+													? (setRecoveredAction(null),
+														setRefundingPurchase(entry.purchase))
 													: entry.purchase.parentId && !entry.purchase.isSynced
 														? setChoosingEditScope(entry.purchase)
 														: setEditingPurchase(
-																entry.purchase.isSynced && entry.purchase.parentId
+																entry.purchase.isSynced &&
+																	entry.purchase.parentId
 																	? {
 																			...entry.purchase,
-																			id: entry.purchase.purchaseId ?? entry.purchase.parentId,
+																			id:
+																				entry.purchase.purchaseId ??
+																				entry.purchase.parentId,
 																			parentId: undefined,
 																		}
 																	: entry.purchase,
@@ -382,7 +405,9 @@ export function CreditCardStatementDetails({
 												entry.purchase.isStatementCharge === true ||
 												entry.purchase.isSettled === true
 											}
-											refundDisabled={statement.isForecast === true || rowPending(entry.purchase)}
+											refundDisabled={
+												statement.isForecast === true || rowPending(entry.purchase)
+											}
 										/>
 									),
 								)}
@@ -507,9 +532,20 @@ export function CreditCardStatementDetails({
 					}}
 					onSubmit={async data => {
 						backgroundAction(
-							{ action: "refinance", cardId: card.id, data, purchase: refinancingPurchase, statement },
+							{
+								action: "refinance",
+								cardId: card.id,
+								data,
+								purchase: refinancingPurchase,
+								statement,
+							},
 							() => setRefinancingPurchase(null),
-							() => dataService.creditCards.refinancePurchase(card.id, refinancingPurchase.id, data),
+							() =>
+								dataService.creditCards.refinancePurchase(
+									card.id,
+									refinancingPurchase.id,
+									data,
+								),
 						);
 					}}
 					open

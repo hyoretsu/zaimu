@@ -26,3 +26,16 @@ export function getCreditCardStatementInvoiceAmount(statement: CreditCardStateme
 			100
 	);
 }
+
+/** Keep invoice, projection and remaining balance on the same replay basis. */
+export function getCreditCardStatementDisplayAmounts(statement: CreditCardStatement) {
+	const invoiceAmount = getCreditCardStatementInvoiceAmount(statement);
+	const projectedAmount = statement.invoiceAmount ?? invoiceAmount;
+	const forecastIncluded = (toCents(projectedAmount) - toCents(invoiceAmount)) / 100;
+	return {
+		invoiceAmount,
+		projectedAmount,
+		remainingAmount:
+			(toCents(getCreditCardStatementDisplayBalance(statement)) - toCents(forecastIncluded)) / 100,
+	};
+}
