@@ -11,14 +11,14 @@ import { useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { getLocalMonthKey } from "@/lib/date";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
-import { CreditCardStatementDetails } from "./CreditCardStatementDetails";
-import { CreditCardStatementSkeleton } from "./CreditCardStatementSkeleton";
-import { CreditCardStatementTabs } from "./CreditCardStatementTabs";
 import {
 	getFirstNonZeroStatementMonth,
 	getSelectedStatement,
 	getStatementWindow,
 } from "./credit-card-statement-window";
+import { CreditCardStatementDetails } from "./CreditCardStatementDetails";
+import { CreditCardStatementSkeleton } from "./CreditCardStatementSkeleton";
+import { CreditCardStatementTabs } from "./CreditCardStatementTabs";
 import type { StatementActionRecovery } from "./statement-action-recovery";
 
 export function CreditCardStatementBrowser({
@@ -89,7 +89,10 @@ export function CreditCardStatementBrowser({
 		() => setExtra(value => ({ ...value, previous: value.previous + radius })),
 		[radius],
 	);
-	const loadNext = useCallback(() => setExtra(value => ({ ...value, next: value.next + radius })), [radius]);
+	const loadNext = useCallback(
+		() => setExtra(value => ({ ...value, next: value.next + radius })),
+		[radius],
+	);
 	const selectStatement = (id: string) => {
 		const statement = visibleStatements.find(item => item.id === id);
 		if (statement) setSelectedStatementId(statement.id);
@@ -102,23 +105,25 @@ export function CreditCardStatementBrowser({
 			orientation="horizontal"
 			value={selectedStatement?.id}
 		>
-			<div className="min-w-0 shrink-0 space-y-2">
+			<div className="min-w-0 shrink-0 space-y-4">
 				<DialogHeader>
 					<DialogTitle>Faturas de {card.accountName ?? "Cartão de crédito"}</DialogTitle>
-					<DialogDescription>Selecione um mês para consultar os detalhes e as transações.</DialogDescription>
+					<DialogDescription>
+						Selecione um mês para consultar os detalhes e as transações.
+					</DialogDescription>
 				</DialogHeader>
 				{statements.isPending ? (
-					<div className="h-[6.75rem] min-h-0 min-w-0 pt-2 pr-3">
+					<div className="h-32 min-h-0 min-w-0 pt-2 pr-3">
 						<div className="h-full overflow-hidden border-b">
-							<div className="flex w-max gap-2 px-1 pt-1 pb-3">
+							<div className="flex w-max gap-2 px-1 pt-1 pb-4">
 								{[1, 2, 3, 4, 5, 6, 7].map(item => (
-									<Skeleton className="h-20 w-36 shrink-0 rounded-xl" key={item} />
+									<Skeleton className="h-24 w-40 shrink-0 rounded-xl" key={item} />
 								))}
 							</div>
 						</div>
 					</div>
 				) : !statements.isError && selectedStatement ? (
-					<div className="h-[6.75rem] min-h-0 min-w-0 pt-2 pr-3">
+					<div className="h-32 min-h-0 min-w-0 pt-2 pr-3">
 						<CreditCardStatementTabs
 							canLoadPrevious={getLocalMonthKey(visibleStatements[0]!.dueDate) > firstMonth}
 							currencyCode={card.currency ?? "BRL"}

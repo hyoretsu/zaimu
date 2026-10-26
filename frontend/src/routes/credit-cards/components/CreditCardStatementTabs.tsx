@@ -120,7 +120,7 @@ export function CreditCardStatementTabs({
 			<ScrollArea className="h-full min-h-0 border-b" horizontalScrollbar>
 				<TabsList
 					aria-label="Faturas"
-					className="!h-auto w-max min-w-full !flex-row gap-2 bg-transparent px-1 pt-1 pb-3"
+					className="!h-auto w-max min-w-full !flex-row gap-2 bg-transparent px-1 pt-1 pb-4"
 				>
 					{statements.map(statement => {
 						const selected = statement.id === selectedId;
