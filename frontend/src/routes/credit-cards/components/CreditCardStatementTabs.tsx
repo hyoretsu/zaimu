@@ -137,7 +137,7 @@ export function CreditCardStatementTabs({
 							<TabsTrigger
 								aria-label={`${statementLabel(statement, statements)}${status.label ? ` - ${status.label}` : ""}`}
 								className={cn(
-									"border-border h-24 w-40 shrink-0 cursor-pointer items-start justify-start rounded-xl p-3 text-left whitespace-normal",
+									"border-border h-20 w-36 shrink-0 cursor-pointer items-start justify-start rounded-xl p-3 text-left whitespace-normal",
 									selected && "border-primary bg-primary/10 ring-primary/30 ring-1",
 								)}
 								key={statement.id}
@@ -181,22 +181,6 @@ export function CreditCardStatementTabs({
 											</span>
 										)}
 									</span>
-									{statement.actualInvoiceAmount != null &&
-										statement.invoiceAmount != null &&
-										Math.abs(statement.invoiceAmount - statement.actualInvoiceAmount) >
-											0.001 && (
-											<span className="text-muted-foreground text-xs">
-												Previsão:{" "}
-												<PreferredMoneyAmount
-													values={[
-														{
-															amount: statement.invoiceAmount,
-															currency: currencyCode,
-														},
-													]}
-												/>
-											</span>
-										)}
 								</span>
 							</TabsTrigger>
 						);
