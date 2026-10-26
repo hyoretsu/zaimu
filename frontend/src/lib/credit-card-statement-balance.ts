@@ -17,6 +17,7 @@ export function getCreditCardStatementDisplayBalance(statement: CreditCardStatem
 /** Net total at closing; later payments change only the remaining balance. */
 export function getCreditCardStatementInvoiceAmount(statement: CreditCardStatement) {
 	return (
+		statement.actualInvoiceAmount ??
 		statement.invoiceAmount ??
 		statement.manualTotalAmount ??
 		(toCents(statement.amountDue ?? statement.totalAmount) -

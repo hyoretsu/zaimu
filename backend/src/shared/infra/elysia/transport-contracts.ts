@@ -107,7 +107,11 @@ export const FinancialInstitutionReturn = t.Object({
 									conversionPoints: t.Union([t.Null(), t.Number()]),
 									kind: t.Union([t.Literal("CASHBACK"), t.Literal("POINTS")]),
 									rate: t.Number(),
-									yieldPeriod: t.Union([t.Null(), t.Literal("MONTHLY"), t.Literal("YEARLY")]),
+									yieldPeriod: t.Union([
+										t.Null(),
+										t.Literal("MONTHLY"),
+										t.Literal("YEARLY"),
+									]),
 									yieldReferencePercentage: t.Union([t.Null(), t.Number()]),
 									yieldReferenceRate: t.Union([t.Null(), t.Number()]),
 								}),
@@ -173,6 +177,7 @@ export const FinancialAccountYieldRateHistoryReturn = t.Object({
 export type FinancialAccountYieldRateHistoryReturn = typeof FinancialAccountYieldRateHistoryReturn.static;
 
 export const CreditCardStatementReturn = t.Object({
+	actualInvoiceAmount: t.Optional(t.Number()),
 	amountDue: t.Optional(t.Number()),
 	balanceAmount: t.Number(),
 	calculatedTotalAmount: t.Optional(t.Number()),
@@ -269,7 +274,11 @@ export const FinancialAccountReturn = t.Object({
 									conversionPoints: t.Union([t.Null(), t.Number()]),
 									kind: t.Union([t.Literal("CASHBACK"), t.Literal("POINTS")]),
 									rate: t.Number(),
-									yieldPeriod: t.Union([t.Null(), t.Literal("MONTHLY"), t.Literal("YEARLY")]),
+									yieldPeriod: t.Union([
+										t.Null(),
+										t.Literal("MONTHLY"),
+										t.Literal("YEARLY"),
+									]),
 									yieldReferencePercentage: t.Union([t.Null(), t.Number()]),
 									yieldReferenceRate: t.Union([t.Null(), t.Number()]),
 								}),
@@ -764,7 +773,9 @@ export const TransactionReturn = t.Object({
 	),
 	debtSplitSummary: t.Optional(t.Union([t.Null(), DebtSplitSummaryReturn])),
 	description: t.Optional(t.Union([t.Null(), t.String()])),
-	destinationAccountRewardsKind: t.Optional(t.Union([t.Null(), t.Literal("CASHBACK"), t.Literal("POINTS")])),
+	destinationAccountRewardsKind: t.Optional(
+		t.Union([t.Null(), t.Literal("CASHBACK"), t.Literal("POINTS")]),
+	),
 	destinationAccountType: t.Optional(
 		t.Union([
 			t.Null(),

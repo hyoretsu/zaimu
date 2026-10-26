@@ -3,6 +3,7 @@ import { CardCalendarPeriodDTO } from "./CardCalendarPeriodDTO";
 
 export const CreditStatementReturn = t.Object(
 	{
+		actualInvoiceAmount: t.Optional(t.Number()),
 		amountDue: t.Number(),
 		balanceAmount: t.Number(),
 		calculatedTotalAmount: t.Number(),

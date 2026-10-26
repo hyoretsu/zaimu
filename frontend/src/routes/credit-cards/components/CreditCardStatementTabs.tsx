@@ -37,7 +37,9 @@ export function CreditCardStatementTabs({
 	const previousDesktop = useRef(isDesktop);
 
 	useLayoutEffect(() => {
-		const viewport = scrollAreaRef.current?.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]');
+		const viewport = scrollAreaRef.current?.querySelector<HTMLElement>(
+			'[data-slot="scroll-area-viewport"]',
+		);
 		const activeTab = scrollAreaRef.current?.querySelector<HTMLElement>(
 			'[data-slot="tabs-trigger"][data-state="active"]',
 		);
@@ -54,15 +56,20 @@ export function CreditCardStatementTabs({
 			const viewportRect = viewport.getBoundingClientRect();
 			const tabRect = activeTab.getBoundingClientRect();
 			if (isDesktop)
-				viewport.scrollTop += tabRect.top - viewportRect.top - (viewportRect.height - tabRect.height) / 2;
-			else viewport.scrollLeft += tabRect.left - viewportRect.left - (viewportRect.width - tabRect.width) / 2;
+				viewport.scrollTop +=
+					tabRect.top - viewportRect.top - (viewportRect.height - tabRect.height) / 2;
+			else
+				viewport.scrollLeft +=
+					tabRect.left - viewportRect.left - (viewportRect.width - tabRect.width) / 2;
 			centeredId.current = selectedId;
 			previousDesktop.current = isDesktop;
 		}
 	}, [isDesktop, selectedId, statements]);
 
 	useEffect(() => {
-		const viewport = scrollAreaRef.current?.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]');
+		const viewport = scrollAreaRef.current?.querySelector<HTMLElement>(
+			'[data-slot="scroll-area-viewport"]',
+		);
 		const tab = scrollAreaRef.current?.querySelector<HTMLElement>('[data-slot="tabs-trigger"]');
 		if (!viewport || !tab) return;
 		const resizeObserver = new ResizeObserver(() => {
@@ -77,7 +84,9 @@ export function CreditCardStatementTabs({
 	}, [isDesktop, onRadiusChange]);
 
 	useEffect(() => {
-		const viewport = scrollAreaRef.current?.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]');
+		const viewport = scrollAreaRef.current?.querySelector<HTMLElement>(
+			'[data-slot="scroll-area-viewport"]',
+		);
 		if (!viewport) return;
 		let frame: number | null = null;
 		const onScroll = () => {
@@ -111,30 +120,38 @@ export function CreditCardStatementTabs({
 			<ScrollArea className="h-full min-h-0 border-b" horizontalScrollbar>
 				<TabsList
 					aria-label="Faturas"
-					className="!h-auto !flex-row w-max min-w-full gap-2 bg-transparent px-1 pt-1 pb-3"
+					className="!h-auto w-max min-w-full !flex-row gap-2 bg-transparent px-1 pt-1 pb-3"
 				>
 					{statements.map(statement => {
 						const selected = statement.id === selectedId;
 						const status =
 							ignoreBefore && statement.statementDate.slice(0, 10) < ignoreBefore
-								? { className: "text-muted-foreground", icon: LuReceiptText, label: "Desconsiderada" }
+								? {
+										className: "text-muted-foreground",
+										icon: LuReceiptText,
+										label: "Desconsiderada",
+									}
 								: getCreditCardStatementStatus(statement);
 						const StatusIcon = status.icon;
 						return (
 							<TabsTrigger
 								aria-label={`${statementLabel(statement, statements)}${status.label ? ` - ${status.label}` : ""}`}
 								className={cn(
-									"h-20 w-36 shrink-0 cursor-pointer items-start justify-start whitespace-normal rounded-xl border-border p-3 text-left",
-									selected && "border-primary bg-primary/10 ring-1 ring-primary/30",
+									"border-border h-24 w-40 shrink-0 cursor-pointer items-start justify-start rounded-xl p-3 text-left whitespace-normal",
+									selected && "border-primary bg-primary/10 ring-primary/30 ring-1",
 								)}
 								key={statement.id}
 								value={statement.id}
 							>
 								<span className="grid min-w-0 flex-1 gap-1.5">
-									<span className="flex items-center gap-1.5 font-semibold text-sm">
+									<span className="flex items-center gap-1.5 text-sm font-semibold">
 										{statementLabel(statement, statements)}
 										{StatusIcon && (
-											<span aria-label={status.label} className={status.className} role="img">
+											<span
+												aria-label={status.label}
+												className={status.className}
+												role="img"
+											>
 												<StatusIcon aria-hidden="true" className="size-4" />
 											</span>
 										)}
@@ -145,7 +162,9 @@ export function CreditCardStatementTabs({
 												<PreferredMoneyAmount
 													values={[
 														{
-															amount: getCreditCardStatementInvoiceAmount(statement),
+															amount: getCreditCardStatementInvoiceAmount(
+																statement,
+															),
 															currency: currencyCode,
 														},
 													]}
@@ -153,11 +172,31 @@ export function CreditCardStatementTabs({
 											}
 										</strong>
 										{statement.isFullySynced && (
-											<span aria-label="Sincronizada" className="shrink-0 text-emerald-600" role="img">
+											<span
+												aria-label="Sincronizada"
+												className="shrink-0 text-emerald-600"
+												role="img"
+											>
 												<LuCloudDownload aria-hidden="true" className="size-4" />
 											</span>
 										)}
 									</span>
+									{statement.actualInvoiceAmount != null &&
+										statement.invoiceAmount != null &&
+										Math.abs(statement.invoiceAmount - statement.actualInvoiceAmount) >
+											0.001 && (
+											<span className="text-muted-foreground text-xs">
+												Previsão:{" "}
+												<PreferredMoneyAmount
+													values={[
+														{
+															amount: statement.invoiceAmount,
+															currency: currencyCode,
+														},
+													]}
+												/>
+											</span>
+										)}
 								</span>
 							</TabsTrigger>
 						);

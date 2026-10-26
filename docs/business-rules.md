@@ -226,7 +226,6 @@ Recorrências identificam moeda do principal e herdam conta/cartão quando não 
 
 Saldos de dívidas e seus totais são apurados por pessoa e moeda antes de qualquer consolidação. A listagem mostra cada denominação separadamente; dólares e reais não se compensam por igualdade nominal. Novas origens manuais herdam moeda efetiva e podem selecionar outra; edição mantém denominação existente. Rateios fixos, prévias e máscaras usam precisão ISO da origem.
 
-
 ## Preferência internacional e histórico financeiro
 
 Primeira localização detectada por IP configura e salva permanentemente a moeda da pessoa, se ainda não houver preferência. Até detectar localização, região explícita do dispositivo ou USD servem como fallback provisório. Não existe opção automática: novas localizações não alteram a moeda salva. A pessoa pode alterar a preferência manualmente. Detecção acontece também com preferência explícita, usa cache local de sete dias e permite sugerir troca na homepage durante viagem. Confirmação altera preferência; cancelamento preserva configuração. Dispensa é vinculada à identidade e combinação país/preferência/moeda. Campos preenchidos e escolhas explícitas não mudam ao concluir detecção.
@@ -349,7 +348,6 @@ O histórico de perfis do vínculo do usuário com a instituição determina o b
 
 A senha do PDF é sempre opcional na importação, independentemente da instituição. Arquivos sem proteção devem ser processados sem senha. Se o PDF estiver protegido, a leitura informa que é necessário fornecer a senha correta.
 
-
 ## Edição de compras sincronizadas
 
 Parcelas sincronizadas têm valor confirmado pela instituição e nunca permitem edição direta. Ao editar uma dessas parcelas, o aplicativo abre a compra original sem perguntar o escopo. O total original pode ser corrigido somente enquanto houver parcelas não sincronizadas; a diferença é distribuída apenas entre essas parcelas, preservando os valores confirmados. Com todas as parcelas sincronizadas, o total também fica bloqueado. A quantidade de parcelas de uma compra com parcelas sincronizadas não pode ser alterada.
@@ -366,11 +364,9 @@ Na revisão de importação de fatura, alterar a quantidade de parcelas preserva
 
 Todos os importadores de faturas, incluindo PDF de qualquer instituição e Open Finance, sincronizam as datas de fechamento e vencimento informadas pela origem ao aplicar os dados. A sincronização corrige o ciclo existente, preservando seu ID, pagamentos, parcelas, encargos e vínculos; não cria outra fatura apenas porque a data mudou. O ciclo é identificado pelo fechamento, pelo vencimento ou por um único fechamento no mesmo mês, nessa ordem. Calendários explícitos das parcelas vinculadas acompanham a correção. Dias nominais configurados no cartão permanecem inalterados. Reimportações sem compras novas também sincronizam as datas ao concluir a fatura. O cabeçalho da revisão mostra o nome do arquivo importado como título e o nome do cartão como subtítulo (por exemplo, "Cartão Inter" ou "Cartão MP Painho").
 
-
 ## Recuperação automática de dados derivados
 
 Vínculos calculados, saldos e totais devem ser reconstruídos a partir dos registros originais. Respostas do cache distribuído têm validade máxima de 60 segundos, contada desde o início da leitura da origem, mesmo quando uma invalidação for perdida. Na próxima consulta após esse prazo, a resposta é reconstruída; entradas antigas sem validade, corrompidas ou com data futura também são ignoradas. A recuperação preserva os registros originais e o isolamento por usuário e ambiente. Falha na origem não renova a validade de dados antigos nem transforma reconstrução incompleta em resultado válido. Essa proteção recupera projeções desatualizadas no cache; ausência ou ambiguidade nos dados originais exige revisão, sem inferir pagamentos ou fatos financeiros.
-
 
 A materialização periódica de faturas considera o mês já coberto por qualquer fechamento registrado. Fechamentos corrigidos ou importados não geram uma segunda fatura vazia no dia nominal do cartão. Apenas meses realmente ausentes recebem novos ciclos pelo calendário configurado.
 
@@ -384,11 +380,9 @@ Todos os parsers de fatura seguem as mesmas regras de negócio, independentement
 
 Créditos de estabelecimento representam reembolsos, mesmo sem a palavra "estorno" ou "reembolso" na descrição. Pagamentos de fatura e créditos de operações financeiras identificadas conservam seu tratamento próprio. A revisão identifica explicitamente cada reembolso e permite escolher sua compra original. Correspondência única e segura seleciona a compra automaticamente, mantendo o seletor disponível para correção antes da aprovação. Correspondências ambíguas exigem escolha manual; identificar ou selecionar a origem nunca aprova o reembolso por si só.
 
-
 Quando uma mesma fatura contém antecipação de parcelas e crédito que cobre essas parcelas da mesma compra, a importação apresenta somente um reembolso. A correspondência exige estabelecimento normalizado, data original e valores em centavos compatíveis, sem ambiguidade entre as operações. O reembolso cancela explicitamente as parcelas identificadas; antecipação e crédito não geram uma compra adicional. Somente o excedente do crédito sobre as parcelas canceladas entra como crédito na fatura. A compra original, parcelas não abrangidas e histórico são preservados. A regra vale para todos os provedores, para novas importações e lotes ainda pendentes, e reimportar a fatura não repete o reembolso. Pares ambíguos permanecem separados para revisão.
 
 Uma instituição pode ter múltiplos leitores de PDF, por cartão e por versão histórica do layout. A importação seleciona automaticamente o leitor pelo conteúdo da fatura, sem exigir escolha manual de versão. Layouts não reconhecidos ou ambíguos devem produzir erro de leitura, sem escolher silenciosamente um leitor incompatível. Bradesco inclui o layout Bradescard/Amazon com "Movimentações da conta" e o layout com total parcelado para as próximas faturas; ambos compartilham classificação de compras, parcelas e créditos.
-
 
 ## Unicidade e sincronização de rendimentos
 
@@ -397,7 +391,6 @@ Cada conta possui no máximo um rendimento por data, independentemente de ser ma
 A conciliação de reembolsos e antecipações lista somente compras do mesmo cartão cuja soma de uma ou mais parcelas reais consecutivas fica até R$ 1,00 do valor da operação, inclusive nos limites da margem. Cada parcela participa no máximo uma vez da soma, respeitando a ordem original do plano, sem pular parcelas. O filtro usa somente valores, sem restringir fatura, data, estabelecimento ou quantidade de parcelas. Compras à vista de faturas anteriores e originais pendentes da mesma importação também são elegíveis. Valores conhecidos do plano prevalecem sobre médias calculadas. Saldo reembolsável limita candidatos de reembolso, com a mesma margem na revisão. A margem serve para revisão: não altera valores financeiros nem autoriza aprovação automática ou cancelamento aproximado. Sugestões automáticas e aprovação mantêm suas validações exatas. O seletor mostra total e quantidade de parcelas. Regra compartilhada por todos os cartões e leitores.
 
 Na listagem de transações da fatura, reembolsos aparecem como lançamento separado somente quando geram crédito excedente após o cancelamento de parcelas. Reembolsos sem crédito não exibem uma linha de valor zero. O título do lançamento usa o nome da compra original, sem repetir "Compra original: ...". O histórico completo continua disponível no gerenciamento de reembolsos da compra.
-
 
 Parcelas distintas da mesma compra podem permanecer em revisão em importações diferentes. Uma parcela pendente impede somente outra revisão da mesma parcela, sem ocultar parcelas anteriores ou posteriores da compra. A aprovação concilia todas com a mesma compra original, sem duplicá-la.
 
@@ -419,11 +412,9 @@ Mover lançamentos e recalcular a cascata de faturas constitui uma única opera�
 
 Na recuperação de vínculos antigos, o fechamento da fatura efetivamente vinculada à parcela prevalece sobre o calendário salvo no plano da compra. Um plano desatualizado não pode esconder uma compra posterior ao fechamento corrigido. A recuperação atualiza também o calendário do plano e recalcula a cascata na mesma operação.
 
-
 O status "Pagamento agendado" exige fatura já fechada e pagamentos futuros após o fechamento que cubram integralmente o saldo restante. Pagamentos anteriores ao fechamento, mesmo futuros ou suficientes para cobrir o saldo atual, mantêm a fatura aberta até o fechamento. Agendamentos parciais não substituem o status de fatura fechada ou atrasada.
 
 Os leitores de faturas preservam o sinal monetário informado pelo banco antes ou depois do símbolo de moeda e após o valor, inclusive o sinal de menos Unicode. O sinal pertence ao valor, nunca ao nome do estabelecimento. Créditos assim identificados seguem a mesma revisão de reembolso e conciliação de antecipações em todas as instituições; o Inter mantém sua convenção de crédito com sinal positivo.
-
 
 Créditos de reembolso sem estabelecimento, como "Crédito concedido", entram na revisão de reembolso mesmo quando o banco informa valor positivo ou os lista fora da seção de compras do cartão. A data é a do crédito. A conciliação sugere automaticamente somente uma compra com total integral igual em centavos, saldo reembolsável suficiente e data igual ou anterior ao crédito, incluindo compras pendentes da mesma importação. Compras posteriores não são candidatas automáticas; múltiplas candidatas exigem escolha manual. Créditos financeiros identificados, cashback e pagamentos conservam seu tratamento próprio. A sugestão nunca aprova o reembolso automaticamente. Regra comum a todos os leitores.
 
@@ -447,15 +438,11 @@ Parcelas do PDF permanecem como evidência interna do reembolso, sem rótulo de 
 
 Pagamentos de fatura, inclusive débito automático, não entram como compras nem reembolsos nos leitores de PDF. A revisão remove esses movimentos também de lotes ainda pendentes; não cria pagamentos nem modifica lançamentos já aprovados automaticamente.
 
-
 Reembolsos importados parciais permitem vincular manualmente qualquer compra do mesmo cartão com saldo reembolsável suficiente, incluindo originais pendentes da mesma importação, sem exigir correspondência entre o crédito e somas de parcelas. Essa regra substitui o filtro por soma de parcelas para créditos comuns de reembolso. Cancelamentos explícitos de parcelas e antecipações preservam o filtro por parcelas consecutivas. Sugestões automáticas continuam exigindo correspondência exata e segura; saldo insuficiente impede o vínculo.
-
 
 Na revisão de reembolsos importados, Salvar persiste somente a origem, os dados de reconstrução e a política escolhida. O reembolso permanece pendente, sem criar compras ou créditos, cancelar parcelas ou alterar a política da instituição. Reabrir recupera a última revisão salva; Descartar abandona alterações não salvas. A aprovação explícita pode ocorrer na linha ou em lote por Aprovar itens sem pendências e revalida os dados financeiros atuais. Sugestões automáticas de origem não substituem a revisão salva. Reembolsos bloqueados permanecem pendentes na aprovação em lote. A compra original pendente pode ser aprovada antes do reembolso sem perder o vínculo.
 
-
 Extratos PDF possuem identidade estável por usuário, conta, provedor e conjunto de identificadores dos lançamentos, independente do nome do arquivo e da ordem das linhas. Reimportar o mesmo extrato retoma a revisão pendente, preservando edições e aprovações parciais, ou informa que já foi importado quando concluído. Envios simultâneos não criam lotes duplicados. Revisões antigas com o mesmo conjunto de lançamentos restantes também são reutilizadas.
-
 
 Excluir reembolso remove seu registro financeiro e libera a identidade bancária para uma nova aprovação. Um marcador de exclusão por ID impede que sincronizações antigas recriem o registro removido; esse marcador não reserva a identidade externa. Registros legados excluídos também não bloqueiam novas aprovações.
 
@@ -463,10 +450,10 @@ Reembolsos ativos já registrados participam da conciliação pela data do créd
 
 O badge de sincronizado de um reembolso depende da identidade bancária do próprio crédito, independentemente do status da compra original. Reembolsos manuais permanecem sem badge até serem associados à importação.
 
-
 O total exibido da fatura representa o valor líquido no fechamento: inclui encargos e débitos transportados, desconta créditos e reembolsos efetivos e pagamentos realizados antes do fechamento. Pagamentos no fechamento ou depois dele alteram somente o saldo restante, preservando o total da fatura. Pagamentos futuros ainda não realizados não reduzem esse total. Abas e detalhes usam o mesmo cálculo nas contas conectadas e no modo visitante.
-
 
 Reembolsos e antecipações importados só podem ser vinculados a compras com data igual ou anterior à operação. O limite vale para sugestões automáticas, escolha manual, originais pendentes da mesma importação e compras reconstruídas. Salvar a revisão e aprovar revalidam essa cronologia; compras posteriores não são opções elegíveis.
 
 Pagamentos de cartão e transferências na mesma moeda usam o valor contabilizado como valor efetivo do destino. Campos de conversão ocultos não preservam valores antigos após edição; registros legados com essa divergência são normalizados na leitura. Moedas diferentes preservam o valor efetivo informado. O recálculo usa essa regra em saldos, status e transporte entre faturas.
+
+Na listagem e nos detalhes das faturas, previsões de recorrências ficam fora do total principal. Quando houver previsão, a linha "Previsão" apresenta o total projetado, incluindo os lançamentos previstos. Nos detalhes, esses lançamentos aparecem em seção inicialmente colapsada.

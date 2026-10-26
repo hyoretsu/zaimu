@@ -55,13 +55,22 @@ describe("getCreditCardStatementDisplayBalance", () => {
 	});
 
 	test("uses supplied signed balance when cycle breakdown is unavailable", () => {
-		expect(getCreditCardStatementDisplayBalance({ ...statement("aug", "08", 100), balanceAmount: -25 })).toBe(
-			-25,
-		);
+		expect(
+			getCreditCardStatementDisplayBalance({ ...statement("aug", "08", 100), balanceAmount: -25 }),
+		).toBe(-25);
 	});
 });
 
 describe("invoice amount display", () => {
+	test("listing uses actual closing amount while preserving projection", () => {
+		const row = {
+			...statement("nov", "11", 1291.26),
+			actualInvoiceAmount: 822.9,
+			invoiceAmount: 1291.26,
+		};
+		expect(getCreditCardStatementInvoiceAmount(row)).toBe(822.9);
+		expect(row.invoiceAmount).toBe(1291.26);
+	});
 	test("uses the same net closing amount before and after the final payment", () => {
 		const rows = calculateStatementBalances(
 			[statement("aug", "08", 361.18), statement("sep", "09", 872.64)],

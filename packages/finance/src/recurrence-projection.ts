@@ -1,6 +1,6 @@
 import { type CreditBook, creditBookPlan, newBookPurchase, replayCreditBook } from "./credit-book";
 import { roundMoney } from "./money";
-import { type RecurrenceDefinition, recurrenceDates, recurrenceNeedsConfiguration } from "./recurrence";
+import { recurrenceDates, type RecurrenceDefinition, recurrenceNeedsConfiguration } from "./recurrence";
 export type RecurrenceMoneyConverter = (amount: number, from: string, to: string, date: string) => number;
 
 /** Only unmaterialized occurrences inside the requested projection need conversion. */
@@ -92,12 +92,14 @@ export function projectRecurrenceCreditBook(
 /** Listing visibility comes from existing purchases, never recurring forecasts alone. */
 export function listedRecurrenceStatements(book: CreditBook, projected: CreditBook, asOf?: string) {
 	const purchaseStatements = new Set(creditBookPlan(book).installments.map(row => row.statementId));
+	const actualStatements = new Map(replayCreditBook(book, asOf).statements.map(row => [row.id, row]));
 	const outstandingStatements = new Set(
-		replayCreditBook(book, asOf)
-			.statements.filter(row => row.balanceAmount !== 0)
-			.map(row => row.id),
+		[...actualStatements.values()].filter(row => row.balanceAmount !== 0).map(row => row.id),
 	);
-	return replayCreditBook(projected, asOf).statements.filter(
-		row => purchaseStatements.has(row.id) || outstandingStatements.has(row.id),
-	);
+	return replayCreditBook(projected, asOf)
+		.statements.filter(row => purchaseStatements.has(row.id) || outstandingStatements.has(row.id))
+		.map(row => ({
+			...row,
+			actualInvoiceAmount: actualStatements.get(row.id)?.invoiceAmount ?? 0,
+		}));
 }
