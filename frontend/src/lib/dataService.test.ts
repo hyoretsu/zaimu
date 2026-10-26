@@ -129,3 +129,52 @@ test("statement day approval sends import ID and date in their correct URL segme
 		if (!originalWindow) Reflect.deleteProperty(globalThis, "window");
 	}
 });
+
+test("credit-card yield display stays empty without requesting yields in connected and guest modes", async () => {
+	const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+	if (!originalWindow)
+		Object.defineProperty(globalThis, "window", {
+			configurable: true,
+			value: { location: { origin: "http://localhost" } },
+		});
+	const { useAuthStore } = await import("@/stores/auth");
+	const { dataService } = await import("./dataService");
+	const originalAuth = useAuthStore.getState();
+	const account = spyOn(dataService.accounts, "getById").mockResolvedValue({
+		balance: 0,
+		createdAt: "2026-01-01T00:00:00Z",
+		currency: "BRL",
+		id: "card-account",
+		name: "Cartão",
+		type: "CREDIT_CARD",
+		updatedAt: "2026-01-01T00:00:00Z",
+		userId: "user",
+	});
+	const page = spyOn(dataService.accountYields, "getPage").mockResolvedValue({
+		hasMore: false,
+		items: [],
+		nextCursor: null,
+	});
+	try {
+		for (const isGuestMode of [false, true]) {
+			useAuthStore.setState({ isGuestMode });
+			await expect(dataService.accountYields.getDisplayPage("card-account")).resolves.toEqual({
+				accountNames: [],
+				hasMore: false,
+				items: [],
+				nextCursor: null,
+			});
+		}
+		expect(page).not.toHaveBeenCalled();
+		useAuthStore.setState({ isGuestMode: false });
+		account.mockResolvedValue(null);
+		await dataService.accountYields.getDisplayPage("bank-account");
+		await dataService.accountYields.getDisplayPage();
+		expect(page).toHaveBeenCalledTimes(2);
+	} finally {
+		account.mockRestore();
+		page.mockRestore();
+		useAuthStore.setState(originalAuth);
+		if (!originalWindow) Reflect.deleteProperty(globalThis, "window");
+	}
+});

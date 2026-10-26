@@ -867,6 +867,11 @@ export const dataService = {
 			nextCursor: string | null;
 			accountNames: Array<readonly [string, string]>;
 		}> {
+			if (financialAccountId) {
+				const account = await dataService.accounts.getById(financialAccountId);
+				if (account?.type === "CREDIT_CARD")
+					return { accountNames: [], hasMore: false, items: [], nextCursor: null };
+			}
 			if (!isGuestMode()) {
 				const page = await dataService.accountYields.getPage(financialAccountId, cursor, 100, {
 					...filters,
