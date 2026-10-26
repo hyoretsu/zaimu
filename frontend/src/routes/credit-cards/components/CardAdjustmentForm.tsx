@@ -17,7 +17,7 @@ import { runBackgroundModalAction } from "@/lib/background-modal-actions";
 import { ignoredThroughStatement } from "@/lib/card-adjustment";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
-import { getLocalDateKey } from "@/lib/date";
+import { getLocalDateKey, getLocalMonthKey } from "@/lib/date";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { statementLabel } from "@/lib/statement-label";
 
@@ -49,8 +49,10 @@ export function CardAdjustmentForm({
 	const [statementDate, setStatementDate] = useState<string | null>(initialDraft?.statementDate ?? null);
 	const originalDate =
 		card && statements.data
-			? (ignoredThroughStatement(statements.data, card.ignoreStatementsBefore)?.statementDate.slice(0, 10) ??
-				null)
+			? (ignoredThroughStatement(statements.data, card.ignoreStatementsBefore)?.statementDate.slice(
+					0,
+					10,
+				) ?? null)
 			: null;
 	const chosenDate = statementDate ?? originalDate ?? "";
 	const availableStatements = (statements.data ?? [])
@@ -60,7 +62,14 @@ export function CardAdjustmentForm({
 				!statement.isForecast &&
 				statement.statementDate.slice(0, 10) <= getLocalDateKey(),
 		)
-		.toSorted((a, b) => b.statementDate.localeCompare(a.statementDate));
+		.toSorted(
+			(a, b) => a.dueDate.localeCompare(b.dueDate) || a.statementDate.localeCompare(b.statementDate),
+		);
+	const currentMonth = getLocalMonthKey(new Date());
+	const initialStatement =
+		availableStatements.find(statement => getLocalMonthKey(statement.dueDate) === currentMonth) ??
+		availableStatements.findLast(statement => getLocalMonthKey(statement.dueDate) < currentMonth) ??
+		availableStatements[0];
 	const save = () => {
 		const draft = { card, cardId, statementDate: chosenDate };
 		runBackgroundModalAction({
@@ -109,13 +118,18 @@ export function CardAdjustmentForm({
 						) : null}
 						{cardId && statements.isSuccess ? (
 							<CustomSelect
+								initialScrollValue={initialStatement?.statementDate.slice(0, 10)}
 								label="Desconsiderar até a fatura"
 								onValueChange={setStatementDate}
 								options={availableStatements.map(statement => ({
 									label: statementLabel(statement, statements.data ?? []),
 									value: statement.statementDate.slice(0, 10),
 								}))}
-								placeholder={availableStatements.length ? "Selecione a fatura" : "Nenhuma fatura histórica"}
+								placeholder={
+									availableStatements.length
+										? "Selecione a fatura"
+										: "Nenhuma fatura histórica"
+								}
 								required
 								searchable
 								sortOptions={false}

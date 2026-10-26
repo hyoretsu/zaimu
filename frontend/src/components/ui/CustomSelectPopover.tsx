@@ -15,6 +15,7 @@ export function CustomSelectPopover({
 	className,
 	disabled,
 	isLoading = false,
+	initialScrollValue,
 	error,
 	onRetry,
 	onOpenChange,
@@ -30,6 +31,7 @@ export function CustomSelectPopover({
 	className?: string;
 	disabled?: boolean;
 	isLoading?: boolean;
+	initialScrollValue?: string;
 	error?: string;
 	onRetry?: () => void;
 	onOpenChange?: (open: boolean) => void;
@@ -47,6 +49,7 @@ export function CustomSelectPopover({
 	const searchRef = useRef<HTMLInputElement>(null);
 	const typeahead = useRef({ text: "", time: 0 });
 	const selectedRef = useRef<HTMLButtonElement>(null);
+	const initialScrollRef = useRef<HTMLButtonElement>(null);
 	const listId = useId();
 	const normalizedSearch = search.trim().toLocaleLowerCase("pt-BR");
 	const filteredOptions = options.filter(
@@ -70,7 +73,7 @@ export function CustomSelectPopover({
 
 	return (
 		<div className={cn("grid gap-2", className)}>
-			<p className="font-medium text-sm leading-none">
+			<p className="text-sm leading-none font-medium">
 				{label} {required && <span className="text-destructive">*</span>}
 			</p>
 			<Popover onOpenChange={changeOpen} open={open}>
@@ -94,11 +97,18 @@ export function CustomSelectPopover({
 						variant="outline"
 					>
 						<span
-							className={cn("min-w-0 flex-1 truncate text-left", !selectedLabel && "text-muted-foreground")}
+							className={cn(
+								"min-w-0 flex-1 truncate text-left",
+								!selectedLabel && "text-muted-foreground",
+							)}
 						>
 							{selectedLabel || placeholder}
 						</span>
-						<HugeiconsIcon className="size-4 text-muted-foreground" icon={UnfoldMoreIcon} strokeWidth={2} />
+						<HugeiconsIcon
+							className="text-muted-foreground size-4"
+							icon={UnfoldMoreIcon}
+							strokeWidth={2}
+						/>
 					</Button>
 				</PopoverTrigger>
 				<PopoverContent
@@ -113,23 +123,30 @@ export function CustomSelectPopover({
 						const target = searchable
 							? searchRef.current
 							: (selected ??
-								document.getElementById(listId)?.querySelector<HTMLButtonElement>("button:not(:disabled)"));
+								document
+									.getElementById(listId)
+									?.querySelector<HTMLButtonElement>("button:not(:disabled)"));
 						target?.focus({ preventScroll: true });
 						// Floating positioning sets the viewport height after autofocus runs.
 						requestAnimationFrame(() => {
-							const viewport = selected?.closest<HTMLElement>('[data-slot="scroll-area-viewport"]');
-							if (selected && viewport) {
-								viewport.scrollTop = selected.offsetTop - (viewport.clientHeight - selected.offsetHeight) / 2;
+							const scrollTarget = initialScrollRef.current ?? selected;
+							const viewport = scrollTarget?.closest<HTMLElement>(
+								'[data-slot="scroll-area-viewport"]',
+							);
+							if (scrollTarget && viewport) {
+								viewport.scrollTop =
+									scrollTarget.offsetTop -
+									(viewport.clientHeight - scrollTarget.offsetHeight) / 2;
 							}
 						});
 					}}
 				>
 					{searchable && (
-						<div className="shrink-0 border-border/60 border-b bg-popover p-2">
+						<div className="border-border/60 bg-popover shrink-0 border-b p-2">
 							<div className="relative">
 								<HugeiconsIcon
 									aria-hidden="true"
-									className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+									className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
 									icon={Search01Icon}
 									strokeWidth={2}
 								/>
@@ -173,7 +190,9 @@ export function CustomSelectPopover({
 							id={listId}
 							onKeyDown={event => {
 								const buttons = Array.from(
-									event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"),
+									event.currentTarget.querySelectorAll<HTMLButtonElement>(
+										"button:not(:disabled)",
+									),
 								);
 								if (
 									!searchable &&
@@ -190,7 +209,12 @@ export function CustomSelectPopover({
 										event.key.toLocaleLowerCase("pt-BR");
 									typeahead.current = { text, time };
 									buttons
-										.find(button => button.textContent?.trim().toLocaleLowerCase("pt-BR").startsWith(text))
+										.find(button =>
+											button.textContent
+												?.trim()
+												.toLocaleLowerCase("pt-BR")
+												.startsWith(text),
+										)
 										?.focus({ preventScroll: true });
 									return;
 								}
@@ -229,31 +253,45 @@ export function CustomSelectPopover({
 							) : (
 								filteredOptions.map(option => (
 									<button
-										aria-selected={values ? values.includes(option.value) : option.value === value}
-										className="relative flex w-full cursor-pointer items-center rounded-xl border border-transparent py-2 pr-8 pl-3 text-left text-sm outline-none hover:border-border hover:bg-accent focus-visible:border-ring focus-visible:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+										aria-selected={
+											values ? values.includes(option.value) : option.value === value
+										}
+										className="hover:border-border hover:bg-accent focus-visible:border-ring focus-visible:bg-accent relative flex w-full cursor-pointer items-center rounded-xl border border-transparent py-2 pr-8 pl-3 text-left text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50"
 										disabled={option.disabled}
 										key={option.value}
 										onClick={() => {
 											onValueChange(option.value);
 											if (!values) changeOpen(false);
 										}}
-										ref={
-											(values ? values.includes(option.value) : option.value === value)
-												? selectedRef
-												: undefined
-										}
+										ref={element => {
+											if (option.value === initialScrollValue)
+												initialScrollRef.current = element;
+											if (
+												values
+													? values.includes(option.value)
+													: option.value === value
+											) {
+												selectedRef.current = element;
+											}
+										}}
 										role="option"
 										type="button"
 									>
 										{option.label}
-										{(values ? values.includes(option.value) : option.value === value) && (
-											<HugeiconsIcon className="absolute right-2 size-4" icon={Tick02Icon} strokeWidth={2} />
+										{(values
+											? values.includes(option.value)
+											: option.value === value) && (
+											<HugeiconsIcon
+												className="absolute right-2 size-4"
+												icon={Tick02Icon}
+												strokeWidth={2}
+											/>
 										)}
 									</button>
 								))
 							)}
 							{!isLoading && !error && filteredOptions.length === 0 && (
-								<p className="px-3 py-6 text-center text-muted-foreground text-sm">
+								<p className="text-muted-foreground px-3 py-6 text-center text-sm">
 									Nenhum resultado encontrado.
 								</p>
 							)}

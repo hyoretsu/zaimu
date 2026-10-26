@@ -12,6 +12,7 @@ export function CustomSelect({
 	className,
 	disabled,
 	isLoading = false,
+	initialScrollValue,
 	error,
 	onRetry,
 	onOpenChange,
@@ -28,6 +29,7 @@ export function CustomSelect({
 	className?: string;
 	disabled?: boolean;
 	isLoading?: boolean;
+	initialScrollValue?: string;
 	error?: string;
 	onRetry?: () => void;
 	onOpenChange?: (open: boolean) => void;
@@ -51,7 +53,16 @@ export function CustomSelect({
 		if (disabled || isLoading || error || values !== undefined || hasValidSelection) return;
 		if (clearedOptions.current === optionValues) return;
 		if (singleOptionValue !== undefined) onValueChange(singleOptionValue);
-	}, [disabled, error, hasValidSelection, isLoading, onValueChange, optionValues, singleOptionValue, values]);
+	}, [
+		disabled,
+		error,
+		hasValidSelection,
+		isLoading,
+		onValueChange,
+		optionValues,
+		singleOptionValue,
+		values,
+	]);
 
 	const displayedOptions = options.toSorted((left, right) => {
 		if (left.special !== right.special) return left.special ? -1 : 1;
@@ -64,6 +75,7 @@ export function CustomSelect({
 			className={className}
 			disabled={disabled}
 			error={error}
+			initialScrollValue={initialScrollValue}
 			isLoading={isLoading}
 			label={label}
 			onOpenChange={onOpenChange}
