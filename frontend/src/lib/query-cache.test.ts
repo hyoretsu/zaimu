@@ -42,6 +42,36 @@ describe("query cache", () => {
 		expect(queryKeys.accounts.list(identity)).not.toEqual(queryKeys.accounts.list("user:user-b"));
 	});
 
+	test("statement approval refreshes other import reviews and preserves user isolation", async () => {
+		const queryClient = new QueryClient();
+		const relatedKey = queryKeys.creditCardImports.detail(identity, "other-import");
+		const inactiveKey = queryKeys.creditCardImports.detail(identity, "closed-import");
+		const pendingKey = queryKeys.creditCardImports.pending(identity);
+		const otherUserKey = queryKeys.creditCardImports.detail("user:user-b", "other-import");
+		let approved = false;
+		const observer = new QueryObserver(queryClient, {
+			queryFn: async () => ({ reconciled: approved }),
+			queryKey: relatedKey,
+			staleTime: Number.POSITIVE_INFINITY,
+		});
+		const unsubscribe = observer.subscribe(() => undefined);
+		await queryClient.ensureQueryData({ queryFn: () => ({ reconciled: false }), queryKey: relatedKey });
+		queryClient.setQueryData<unknown>(inactiveKey, { reconciled: false });
+		queryClient.setQueryData(pendingKey, ["other-import"]);
+		queryClient.setQueryData<unknown>(otherUserKey, { reconciled: false });
+
+		approved = true;
+		await invalidateCacheOperation(queryClient, identity, "statement", { awaitRefetch: true });
+
+		expect(queryClient.getQueryData<unknown>(relatedKey)).toEqual({ reconciled: true });
+		expect(queryClient.getQueryState(inactiveKey)?.isInvalidated).toBeTrue();
+		expect(queryClient.getQueryData<unknown>(inactiveKey)).toEqual({ reconciled: false });
+		expect(queryClient.getQueryState(pendingKey)?.isInvalidated).toBeTrue();
+		expect(queryClient.getQueryState(otherUserKey)?.isInvalidated).toBeFalse();
+		unsubscribe();
+		queryClient.clear();
+	});
+
 	test("invalidates active and inactive derived queries without removing data", async () => {
 		const queryClient = new QueryClient();
 		const transactionKey = queryKeys.transactions.list(identity, { type: "EXPENSE" });
@@ -88,9 +118,11 @@ describe("query cache", () => {
 			});
 			const unsubscribe = observer.subscribe(() => undefined);
 			let confirmed = false;
-			const pending = invalidateCacheOperation(client, identity, "statement", { awaitRefetch }).then(() => {
-				confirmed = true;
-			});
+			const pending = invalidateCacheOperation(client, identity, "statement", { awaitRefetch }).then(
+				() => {
+					confirmed = true;
+				},
+			);
 			if (!awaitRefetch) await pending;
 			else await Promise.resolve();
 			expect(confirmed).toBe(!awaitRefetch);

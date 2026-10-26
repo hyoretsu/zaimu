@@ -50,7 +50,8 @@ export const queryKeys = {
 		all: (identity: CacheIdentity) => domainKey(identity, "credit-card-imports"),
 		detail: (identity: CacheIdentity, importId: string | null) =>
 			[...domainKey(identity, "credit-card-imports"), "detail", importId] as const,
-		pending: (identity: CacheIdentity) => [...domainKey(identity, "credit-card-imports"), "pending"] as const,
+		pending: (identity: CacheIdentity) =>
+			[...domainKey(identity, "credit-card-imports"), "pending"] as const,
 	},
 	creditCardStatements: {
 		all: (identity: CacheIdentity) => domainKey(identity, "credit-card-statements"),
@@ -59,7 +60,11 @@ export const queryKeys = {
 		list: (identity: CacheIdentity, cardId: string, filters: { isPaid?: boolean } = {}) =>
 			[...domainKey(identity, "credit-card-statements"), "list", cardId, filters] as const,
 		payable: (identity: CacheIdentity, currentStatementId?: string) =>
-			[...domainKey(identity, "credit-card-statements"), "payable", currentStatementId ?? null] as const,
+			[
+				...domainKey(identity, "credit-card-statements"),
+				"payable",
+				currentStatementId ?? null,
+			] as const,
 	},
 	creditCards: {
 		all: (identity: CacheIdentity) => domainKey(identity, "credit-cards"),
@@ -104,7 +109,8 @@ export const queryKeys = {
 		all: (identity: CacheIdentity) => domainKey(identity, "transaction-imports"),
 		detail: (identity: CacheIdentity, importId: string | null) =>
 			[...domainKey(identity, "transaction-imports"), "detail", importId] as const,
-		pending: (identity: CacheIdentity) => [...domainKey(identity, "transaction-imports"), "pending"] as const,
+		pending: (identity: CacheIdentity) =>
+			[...domainKey(identity, "transaction-imports"), "pending"] as const,
 	},
 	transactions: {
 		all: (identity: CacheIdentity) => domainKey(identity, "transactions"),
@@ -147,6 +153,7 @@ export const cacheOperationDomains = {
 		"accountYields",
 	],
 	statement: [
+		"creditCardImports",
 		"creditCardStatements",
 		"creditCards",
 		"accounts",
@@ -180,7 +187,10 @@ export async function invalidateCacheOperation(
 ): Promise<void> {
 	const refresh = Promise.all(
 		cacheOperationDomains[operation].map(domain =>
-			queryClient.invalidateQueries({ queryKey: queryKeys[domain].all(identity), refetchType: "active" }),
+			queryClient.invalidateQueries({
+				queryKey: queryKeys[domain].all(identity),
+				refetchType: "active",
+			}),
 		),
 	);
 	// Invalidation is synchronous; persisted writes need not wait for derived reads.
@@ -192,7 +202,9 @@ export async function invalidateQueryKeys(
 	queryClient: QueryClient,
 	keys: readonly QueryKey[],
 ): Promise<void> {
-	await Promise.all(keys.map(queryKey => queryClient.invalidateQueries({ queryKey, refetchType: "active" })));
+	await Promise.all(
+		keys.map(queryKey => queryClient.invalidateQueries({ queryKey, refetchType: "active" })),
+	);
 }
 
 export async function closeImportReview(
