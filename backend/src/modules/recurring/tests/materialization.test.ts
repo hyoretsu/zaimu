@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, mock, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, mock, setSystemTime, test } from "bun:test";
 import { shiftRecurrenceDate } from "@zaimu/finance/recurrence";
 import Elysia, { t } from "elysia";
 import { Client } from "pg";
@@ -34,7 +34,9 @@ describe("atomic recurrence processing", () => {
 				destinationFinancialAccountId: ["INCOME", "TRANSFER"].includes(movement) ? "b" : null,
 				installments: movement === "CARD_PURCHASE" ? 3 : 1,
 				movement,
-				originFinancialAccountId: ["EXPENSE", "TRANSFER", "CARD_PAYMENT"].includes(movement) ? "a" : null,
+				originFinancialAccountId: ["EXPENSE", "TRANSFER", "CARD_PAYMENT"].includes(movement)
+					? "a"
+					: null,
 			});
 			const results = await Promise.all([
 				service.materializeRecurrence("owner", r.id, today),
@@ -68,7 +70,10 @@ describe("atomic recurrence processing", () => {
 					r.id,
 				);
 				expect(
-					await service.materializeRecurrence("owner", r.id, today, { from: today, through: today }),
+					await service.materializeRecurrence("owner", r.id, today, {
+						from: today,
+						through: today,
+					}),
 				).toBe(0);
 			}
 		}
@@ -119,9 +124,9 @@ describe("atomic recurrence processing", () => {
 			expect((await service.getStoredRecurrence("owner", r.id)).materializedThrough).toBe(
 				r.materializedThrough,
 			);
-			await expect(service.materializeRecurrence("owner", r.id, undefined, undefined, {})).rejects.toThrow(
-				"já foi adiantada",
-			);
+			await expect(
+				service.materializeRecurrence("owner", r.id, undefined, undefined, {}),
+			).rejects.toThrow("já foi adiantada");
 			expect(await service.materializeRecurrence("owner", r.id, today)).toBe(0);
 		}
 	});
@@ -142,12 +147,15 @@ describe("atomic recurrence processing", () => {
 			r.id,
 		]);
 		await client.query('DELETE FROM "Transaction" WHERE "recurrenceId"=$1', [r.id]);
-		expect(await service.materializeRecurrence("owner", r.id, today, { from: today, through: today })).toBe(
-			0,
-		);
 		expect(
-			(await client.query('SELECT "deletedAt" FROM "RecurrenceOccurrence" WHERE "recurrenceId"=$1', [r.id]))
-				.rows[0].deletedAt,
+			await service.materializeRecurrence("owner", r.id, today, { from: today, through: today }),
+		).toBe(0);
+		expect(
+			(
+				await client.query('SELECT "deletedAt" FROM "RecurrenceOccurrence" WHERE "recurrenceId"=$1', [
+					r.id,
+				])
+			).rows[0].deletedAt,
 		).toBeTruthy();
 	});
 	test("outage catches up; pause and resume reset eligibility without rewriting history", async () => {
@@ -172,13 +180,13 @@ describe("atomic recurrence processing", () => {
 		await service.saveRecurrence("owner", { amount: 25, isActive: true }, r.id);
 		expect(await service.materializeRecurrence("owner", r.id)).toBe(0);
 		expect(
-			(await client.query('SELECT "amount" FROM "Transaction" WHERE "recurrenceId"=$1', [r.id])).rows.map(
-				row => Number(row.amount),
-			),
+			(
+				await client.query('SELECT "amount" FROM "Transaction" WHERE "recurrenceId"=$1', [r.id])
+			).rows.map(row => Number(row.amount)),
 		).toEqual([20, 20, 20, 20]);
-		await expect(service.materializeRecurrence("owner", r.id, shiftRecurrenceDate(today, 1))).rejects.toThrow(
-			"previsões",
-		);
+		await expect(
+			service.materializeRecurrence("owner", r.id, shiftRecurrenceDate(today, 1)),
+		).rejects.toThrow("previsões");
 	});
 	test("generic receipt can invert debt; split changes preserve occurrence snapshots", async () => {
 		await client.query(
@@ -214,8 +222,11 @@ describe("atomic recurrence processing", () => {
 		await service.materializeRecurrence("owner", receipt.id);
 		expect(
 			Number(
-				(await client.query('SELECT SUM("effect") AS total FROM "DebtEvent" WHERE "debtPersonId"=\'person\''))
-					.rows[0].total,
+				(
+					await client.query(
+						'SELECT SUM("effect") AS total FROM "DebtEvent" WHERE "debtPersonId"=\'person\'',
+					)
+				).rows[0].total,
 			),
 		).toBe(-20);
 		await service.saveRecurrence(
@@ -224,8 +235,11 @@ describe("atomic recurrence processing", () => {
 			receipt.id,
 		);
 		expect(
-			(await client.query('SELECT "debtPersonId","amount" FROM "DebtEvent" WHERE "debtPersonId"=\'person\''))
-				.rows,
+			(
+				await client.query(
+					'SELECT "debtPersonId","amount" FROM "DebtEvent" WHERE "debtPersonId"=\'person\'',
+				)
+			).rows,
 		).toHaveLength(2);
 		expect(
 			(
@@ -285,7 +299,9 @@ describe("atomic recurrence processing", () => {
 				}),
 			);
 		const data = {
-			creditCards: [{ creditLimit: 1000, dueDay: 25, financialAccountId: "c", id: "card", statementDay: 15 }],
+			creditCards: [
+				{ creditLimit: 1000, dueDay: 25, financialAccountId: "c", id: "card", statementDay: 15 },
+			],
 			debtPeople: [
 				{ id: "person", name: "Person" },
 				{ id: "other", name: "Other" },
@@ -336,8 +352,70 @@ describe("atomic recurrence processing", () => {
 		};
 		const failure = await request(invalid);
 		expect(failure.status).not.toBe(200);
-		expect((await client.query('SELECT * FROM "Recurrence" WHERE "id"=\'failed-import\'')).rows).toHaveLength(
-			0,
-		);
+		expect(
+			(await client.query('SELECT * FROM "Recurrence" WHERE "id"=\'failed-import\'')).rows,
+		).toHaveLength(0);
 	}, 60000);
+	test("Brazilian recurrences wait for local midnight even after the UTC date changes", async () => {
+		setSystemTime(new Date("2026-10-26T01:21:00Z"));
+		try {
+			await client.query(
+				`INSERT INTO "user" ("id","email","name","preferredCountry") VALUES ('timezone-owner','timezone@example.test','Timezone','BR'); INSERT INTO "FinancialAccount" ("id","userId","name","type") VALUES ('timezone-account','timezone-owner','Account','CHECKING')`,
+			);
+			const recurrence = await service.saveRecurrence("timezone-owner", {
+				amount: 15,
+				interval: 1,
+				movement: "EXPENSE",
+				name: "Local midnight",
+				originFinancialAccountId: "timezone-account",
+				startDate: "2026-10-26",
+				unit: "MONTH",
+			});
+			expect(recurrence.materializedThrough).toBe("2026-10-24");
+			expect(
+				(await service.materializeAllRecurrences(new Date(), ["timezone-owner"])).transactions,
+			).toBe(0);
+			await expect(
+				service.materializeRecurrence("timezone-owner", recurrence.id, "2026-10-26"),
+			).rejects.toThrow("Ocorrências futuras");
+			await client.query(
+				`INSERT INTO "FinancialAccount" ("id","userId","name","type") VALUES ('timezone-card-account','timezone-owner','Card','CREDIT_CARD'); INSERT INTO "CreditCard" ("id","financialAccountId","creditLimit","statementDay","dueDay") VALUES ('timezone-card','timezone-card-account',1000,15,25)`,
+			);
+			const purchase = await service.saveRecurrence("timezone-owner", {
+				amount: 30,
+				creditCardId: "timezone-card",
+				installments: 3,
+				interval: 1,
+				movement: "CARD_PURCHASE",
+				name: "Card local midnight",
+				startDate: "2026-10-26",
+				unit: "YEAR",
+			});
+			expect(await service.materializeRecurrence("timezone-owner", purchase.id)).toBe(0);
+			setSystemTime(new Date("2026-10-26T03:00:00Z"));
+			expect(
+				(await service.materializeAllRecurrences(new Date(), ["timezone-owner"])).transactions,
+			).toBe(2);
+			expect(
+				(await service.materializeAllRecurrences(new Date(), ["timezone-owner"])).transactions,
+			).toBe(0);
+			const { materializeCreditCardSchedules } =
+				await import("../../creditCards/application/materialize-credit-card-schedules");
+			await materializeCreditCardSchedules(new Date("2026-11-26T01:21:00Z"), ["timezone-card"]);
+			const installmentCount = async () =>
+				Number(
+					(
+						await client.query(
+							'SELECT count(*) AS count FROM "CreditInstallmentRecord" WHERE "purchaseId" IN (SELECT "id" FROM "CreditPurchaseRecord" WHERE "recurrenceId"=$1)',
+							[purchase.id],
+						)
+					).rows[0].count,
+				);
+			expect(await installmentCount()).toBe(1);
+			await materializeCreditCardSchedules(new Date("2026-11-26T03:00:00Z"), ["timezone-card"]);
+			expect(await installmentCount()).toBe(2);
+		} finally {
+			setSystemTime();
+		}
+	});
 });

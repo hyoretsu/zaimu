@@ -459,3 +459,5 @@ Pagamentos de cartão e transferências na mesma moeda usam o valor contabilizad
 Na listagem e nos detalhes das faturas, previsões de recorrências ficam fora do total principal. Quando houver previsão, a linha "Previsão" apresenta o total projetado, incluindo os lançamentos previstos. Nos detalhes, esses lançamentos aparecem em seção inicialmente colapsada.
 
 Ao abrir o navegador de faturas de um cartão, selecionar a primeira fatura ainda não fechada, não paga e não prevista, em ordem de fechamento, independentemente do mês atual. Preservar seleções explícitas do usuário. Sem ciclo elegível, selecionar a fatura do mês atual ou a primeira disponível.
+
+Materialização automática usa a data civil no fuso principal do país preferido do usuário, nunca a data UTC do worker. Sem país configurado, usa Brasil (`America/Sao_Paulo`). Países com múltiplos fusos usam o primeiro fuso do calendário nacional até existir preferência regional. O mesmo limite vale para recorrências, parcelas, cursores de edição e validação de recomposição; instantes dos comandos continuam em UTC.

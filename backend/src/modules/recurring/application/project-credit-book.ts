@@ -3,8 +3,9 @@ import { shiftRecurrenceDate } from "@zaimu/finance/recurrence";
 import { pendingRecurrenceDates, projectRecurrenceCreditBook } from "@zaimu/finance/recurrence-projection";
 import { getCurrencyHistoryEstimate } from "~/modules/financial-history/application/currency-history-estimate";
 import { requestHistoryCollection } from "~/modules/financial-history/application/history-collections";
+import { userFinancialDate } from "~/shared/application/financial-date";
 import { queryRaw } from "~/shared/infra/sql";
-import { normalizeRecurrence, recurrenceToday } from "./recurrences";
+import { normalizeRecurrence } from "./recurrences";
 export async function projectRecurringCreditBook(
 	book: CreditBook,
 	through = `${new Date().getFullYear() + 2}-12-31`,
@@ -19,7 +20,8 @@ export async function projectRecurringCreditBook(
 	);
 	const recurrences = rows.map(normalizeRecurrence);
 	const target = book.card.currency ?? "BRL";
-	const from = shiftRecurrenceDate(recurrenceToday(), 1);
+	const today = await userFinancialDate(book.card.userId);
+	const from = shiftRecurrenceDate(today, 1);
 	const processed = new Set(occurrences.map(row => `${row.recurrenceId}:${row.date}`));
 	const demanded = recurrences.filter(
 		row => row.amount && pendingRecurrenceDates(row, from, through, processed).length,
@@ -27,7 +29,7 @@ export async function projectRecurringCreditBook(
 	const rates = new Map<string, number>();
 	for (const source of new Set(demanded.map(row => row.currency ?? "BRL"))) {
 		if (source === target) continue;
-		const collection = await requestHistoryCollection("CURRENCY", [source, target], recurrenceToday());
+		const collection = await requestHistoryCollection("CURRENCY", [source, target], today);
 		const estimate = collection ? await getCurrencyHistoryEstimate(collection.id, target) : null;
 		const rate = estimate?.estimates.find(row => row.baseCurrency === source)?.rate;
 		if (rate != null && rate > 0) rates.set(source, rate);

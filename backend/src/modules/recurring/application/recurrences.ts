@@ -1,16 +1,15 @@
 import { toMinorUnits } from "@zaimu/finance/money";
 import {
 	getNextRecurrenceDate,
-	type RecurrenceDefinition,
 	recurrenceDateKey,
 	recurrenceDates,
+	type RecurrenceDefinition,
 	recurrenceNeedsConfiguration,
 	shiftRecurrenceDate,
 	validateRecurrenceInstallments,
 	validateRecurrenceSchedule,
 } from "@zaimu/finance/recurrence";
 import { resolveTransactionMoneySides } from "@zaimu/finance/transaction-money";
-import { format } from "date-fns";
 import { assertBalanceAccountOwnership, assertCreditCardOwnership } from "~/modules/auth";
 import {
 	assertTagOwnership,
@@ -38,13 +37,14 @@ import {
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { deleteLinkedTransactions } from "~/modules/transactions/application/delete-linked-transactions";
+import { financialDate, userFinancialDate } from "~/shared/application/financial-date";
 import { HttpException } from "~/shared/errors";
 import { queryRaw, withRawTransaction, withTransaction } from "~/shared/infra/sql";
 import type { RecurrenceBody, UpdateRecurrenceBody } from "../infra/elysia/RecurrenceDTO";
 import { deleteLinkedRecurrencePurchases } from "./delete-linked-recurrence-purchases";
 
 export type StoredRecurrence = RecurrenceDefinition;
-export const recurrenceToday = () => format(new Date(), "yyyy-MM-dd");
+export const recurrenceToday = () => financialDate();
 export function normalizeRecurrence(row: Record<string, unknown>): StoredRecurrence {
 	const result = { ...row };
 	for (const field of ["startDate", "endDate", "materializedThrough"])
@@ -193,7 +193,9 @@ export async function saveRecurrence(
 			next.movement === "CARD_PURCHASE" && next.creditCardId
 				? await creditCardCurrency(next.creditCardId)
 				: await financialAccountCurrency(
-						next.movement === "INCOME" ? next.destinationFinancialAccountId : next.originFinancialAccountId,
+						next.movement === "INCOME"
+							? next.destinationFinancialAccountId
+							: next.originFinancialAccountId,
 						await defaultCurrency(userId),
 					);
 		next.currency = await assertSupportedCurrency(next.currency ?? linkedCurrency);
@@ -207,11 +209,12 @@ export async function saveRecurrence(
 			allowMissing ||
 				Boolean(
 					existing &&
-						recurrenceNeedsConfiguration(existing) &&
-						Object.keys(input).every(key => key === "isActive"),
+					recurrenceNeedsConfiguration(existing) &&
+					Object.keys(input).every(key => key === "isActive"),
 				),
 		);
 		const recurrenceId = existing?.id ?? identity?.id ?? crypto.randomUUID();
+		const today = await userFinancialDate(userId);
 		const values = writable.map(field =>
 			field === "isActive" ? (next[field] ?? true) : (next[field] ?? null),
 		);
@@ -231,7 +234,7 @@ export async function saveRecurrence(
 				`UPDATE "Recurrence" SET ${writable.map((field, index) => `"${field}"=$${index + 1}`).join(",")},"materializedThrough"=GREATEST("materializedThrough",$${values.length + 1}::date),"updatedAt"=CURRENT_TIMESTAMP WHERE "id"=$${values.length + 2} AND "userId"=$${values.length + 3}`,
 				[
 					...values,
-					preserveEligibility ? existing.materializedThrough : shiftRecurrenceDate(recurrenceToday(), -1),
+					preserveEligibility ? existing.materializedThrough : shiftRecurrenceDate(today, -1),
 					recurrenceId,
 					userId,
 				],
@@ -239,10 +242,14 @@ export async function saveRecurrence(
 		} else
 			await query(
 				`INSERT INTO "Recurrence" ("id","userId",${writable.map(field => `"${field}"`).join(",")},"materializedThrough") VALUES (${Array.from({ length: values.length + 3 }, (_, index) => `$${index + 1}`).join(",")})`,
-				[recurrenceId, userId, ...values, shiftRecurrenceDate(recurrenceToday(), -1)],
+				[recurrenceId, userId, ...values, shiftRecurrenceDate(today, -1)],
 			);
 		if (input.tagIds !== undefined)
-			await replaceEntityTags({ entityIds: [recurrenceId], entityType: "RECURRENCE", tagIds: input.tagIds });
+			await replaceEntityTags({
+				entityIds: [recurrenceId],
+				entityType: "RECURRENCE",
+				tagIds: input.tagIds,
+			});
 		if (
 			input.debtSplit !== undefined ||
 			(existingSplit &&
@@ -253,7 +260,9 @@ export async function saveRecurrence(
 			await replaceDebtSplit({
 				amount: next.amount,
 				split:
-					next.movement === "TRANSFER" || next.movement === "CARD_PAYMENT" ? null : (next.debtSplit ?? null),
+					next.movement === "TRANSFER" || next.movement === "CARD_PAYMENT"
+						? null
+						: (next.debtSplit ?? null),
 				target: { recurrenceId },
 				userId,
 			});
@@ -263,7 +272,7 @@ export async function saveRecurrence(
 export async function materializeRecurrence(
 	userId: string,
 	id: string,
-	through = recurrenceToday(),
+	through?: string,
 	replay?: { from: string; through: string },
 	advance?: { time?: string | null },
 ) {
@@ -273,7 +282,8 @@ export async function materializeRecurrence(
 			if (advance) throw new HttpException("Ative e configure a recorrência antes de adiantar.", 400);
 			return 0;
 		}
-		const today = recurrenceToday();
+		const today = await userFinancialDate(userId);
+		through ??= today;
 		if (through > today || (replay && replay.through > today))
 			throw new HttpException("Ocorrências futuras são somente previsões.", 400);
 		const from = replay?.from ?? shiftRecurrenceDate(recurrence.materializedThrough, 1);
@@ -436,14 +446,21 @@ export async function materializeRecurrence(
 }
 export async function materializeAllRecurrences(asOf = new Date(), userIds?: string[]) {
 	if (userIds && !userIds.length) return { transactions: 0, userIds: [] };
-	const rows = await queryRaw<{ id: string; userId: string }>(
-		'SELECT "id","userId" FROM "Recurrence" WHERE "isActive"=true AND "materializedThrough"<$1::date AND ($2::varchar[] IS NULL OR "userId"=ANY($2)) ORDER BY "id"',
-		[asOf.toISOString().slice(0, 10), userIds ?? null],
+	const rows = await queryRaw<{
+		id: string;
+		userId: string;
+		preferredCountry: string | null;
+		materializedThrough: string | Date;
+	}>(
+		'SELECT r."id",r."userId",r."materializedThrough",u."preferredCountry" FROM "Recurrence" r JOIN "user" u ON u."id"=r."userId" WHERE r."isActive"=true AND r."materializedThrough"<$2::date AND ($1::varchar[] IS NULL OR r."userId"=ANY($1)) ORDER BY r."id"',
+		[userIds ?? null, new Date(asOf.valueOf() + 86400000).toISOString().slice(0, 10)],
 	);
 	let transactions = 0;
 	const changed = new Set<string>();
 	for (const row of rows) {
-		const created = await materializeRecurrence(row.userId, row.id, asOf.toISOString().slice(0, 10));
+		const through = financialDate(asOf, row.preferredCountry ?? "BR");
+		if (recurrenceDateKey(row.materializedThrough) >= through) continue;
+		const created = await materializeRecurrence(row.userId, row.id, through);
 		transactions += created;
 		if (created) changed.add(row.userId);
 	}
@@ -456,7 +473,9 @@ export async function deleteRecurrence(userId: string, id: string, deleteTransac
 			await deleteLinkedTransactions("recurrenceId", id, userId);
 			await deleteLinkedRecurrencePurchases(id, userId);
 			if (recurrence.creditCardId)
-				await withTransaction(executor => recalculateStatementPayments(executor, [recurrence.creditCardId!]));
+				await withTransaction(executor =>
+					recalculateStatementPayments(executor, [recurrence.creditCardId!]),
+				);
 		}
 		await replaceEntityTags({ entityIds: [id], entityType: "RECURRENCE", tagIds: [] });
 		await query('DELETE FROM "DebtSplit" WHERE "recurrenceId"=$1', [id]);

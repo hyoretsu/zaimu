@@ -19,6 +19,7 @@
 		"backend/src/shared/tests/pdf-worker.test.ts"
 	],
 	"backend:unit": [
+		"backend/src/shared/application/financial-date.test.ts",
 		"backend/performance/clock.test.ts",
 		"backend/performance/coverage.test.ts",
 		"backend/performance/journal.test.ts",

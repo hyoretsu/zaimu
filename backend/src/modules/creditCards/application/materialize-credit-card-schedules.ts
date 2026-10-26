@@ -70,10 +70,10 @@ export async function materializeCreditCardSchedules(asOf = new Date(), cardIds?
 			card.id,
 			book => {
 				const before = book.installments.length;
-				materializeBookInstallments(book, asOf.toISOString().slice(0, 10));
+				materializeBookInstallments(book, card.through);
 				return book.installments.length !== before;
 			},
-			asOf.toISOString().slice(0, 10),
+			card.through,
 		);
 		if (changed) changedCards.add(card.id);
 	}

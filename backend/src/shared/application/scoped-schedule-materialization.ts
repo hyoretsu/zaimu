@@ -22,7 +22,7 @@ export async function handleScopedScheduleMaterialization(event: EventEnvelope) 
 		loadCreditCardScheduleCandidates(cutoff),
 		queryRaw<{ userId: string }>(
 			`SELECT DISTINCT "userId" FROM "Recurrence" WHERE "isActive" AND "materializedThrough"<$1::date`,
-			[asOf.slice(0, 10)],
+			[new Date(cutoff.valueOf() + 86400000).toISOString().slice(0, 10)],
 		),
 	]);
 	const owners = [...new Set([...cards.map(card => card.userId), ...recurrences.map(row => row.userId)])];
