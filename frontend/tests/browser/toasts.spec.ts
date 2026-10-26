@@ -50,22 +50,39 @@ test("repeated errors keep latest recovery action and compact network message", 
 });
 
 for (const direction of ["left", "right", "top"] as const) {
-	test(`swipe ${direction} dismisses loading without resurrecting completion`, async ({ page }) => {
+	test(`swipe ${direction} dismisses loading without resurrecting completion`, async ({
+		page,
+		isMobile,
+	}) => {
 		const id = await page.evaluate(() => window.notifications.loading("Saving"));
 		const card = page.locator(cards);
 		await expect(card).toBeVisible();
 		await card.hover();
-		const box = (await card.boundingBox())!;
-		const x = box.x + box.width / 2,
+		const box = (await card.locator("[data-title]").boundingBox())!;
+		const x = box.x + 10,
 			y = box.y + box.height / 2;
-		await page.mouse.move(x, y);
-		await page.mouse.down();
-		await page.mouse.move(
-			x + (direction === "left" ? -150 : direction === "right" ? 150 : 0),
-			y - (direction === "top" ? 100 : 0),
-			{ steps: 12 },
-		);
-		await page.mouse.up();
+		const endX = x + (direction === "left" ? -150 : direction === "right" ? 150 : 0);
+		const endY = y - (direction === "top" ? 100 : 0);
+		if (isMobile) {
+			const session = await page.context().newCDPSession(page);
+			await session.send("Input.dispatchTouchEvent", {
+				touchPoints: [{ x, y }],
+				type: "touchStart",
+			});
+			for (let step = 1; step <= 12; step++) {
+				await session.send("Input.dispatchTouchEvent", {
+					touchPoints: [{ x: x + ((endX - x) * step) / 12, y: y + ((endY - y) * step) / 12 }],
+					type: "touchMove",
+				});
+			}
+			await session.send("Input.dispatchTouchEvent", { touchPoints: [], type: "touchEnd" });
+			await session.detach();
+		} else {
+			await page.mouse.move(x, y);
+			await page.mouse.down();
+			await page.mouse.move(endX, endY, { steps: 12 });
+			await page.mouse.up();
+		}
 		await expect(card).toHaveCount(0);
 		await page.evaluate(id => window.notifications.success("Saved", { id }), id);
 		await page.waitForTimeout(100);
