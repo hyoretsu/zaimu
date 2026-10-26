@@ -44,6 +44,10 @@ export function CreditCardImportReviewDialog({
 	const [recoveryImportId, setRecoveryImportId] = useState<string | null>(null);
 	const importId = recoveryImportId ?? suppliedImportId;
 	const open = recoveryImportId !== null || suppliedOpen;
+	const [reviewOpening, setReviewOpening] = useState({ importId, open, startedAt: Date.now() });
+	if (reviewOpening.open !== open || reviewOpening.importId !== importId) {
+		setReviewOpening({ importId, open, startedAt: Date.now() });
+	}
 	const reviewedImportId = useRef(importId);
 	reviewedImportId.current = open ? importId : null;
 	const onOpenChange = (nextOpen: boolean) => {
@@ -109,7 +113,13 @@ export function CreditCardImportReviewDialog({
 		initialPageParam: undefined as string | undefined,
 		queryFn: ({ pageParam }) => dataService.creditCardImports.get(importId!, pageParam),
 		queryKey: queryKeys.creditCardImports.detail(identity!, importId),
+		refetchOnMount: "always",
+		// Re-enabling the mounted dialog must also refresh a still-fresh cached batch.
+		staleTime: 0,
 	});
+	const awaitingCurrentReview = creditCardImport.dataUpdatedAt <= reviewOpening.startedAt;
+	const reviewLoading = creditCardImport.isPending || (awaitingCurrentReview && !creditCardImport.isError);
+	const reviewLoadFailed = awaitingCurrentReview && creditCardImport.isError;
 	const creditCardImportData = creditCardImport.data?.pages[0];
 	const items = creditCardImport.data?.pages.flatMap(page => page.items) ?? [];
 	const creditCards = useQuery({
@@ -165,7 +175,8 @@ export function CreditCardImportReviewDialog({
 
 	const approve = useMutation({
 		meta: { cacheOperations: ["statement"] },
-		mutationFn: (_variables: { itemIds: string[] }) => dataService.creditCardImports.approve(importId!, true),
+		mutationFn: (_variables: { itemIds: string[] }) =>
+			dataService.creditCardImports.approve(importId!, true),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async result => {
 			const reviewFinished = await refreshReview(importId!);
@@ -208,7 +219,7 @@ export function CreditCardImportReviewDialog({
 	const creditCard = creditCards.data?.find(card => card.id === creditCardImportData?.creditCardId);
 	const currencyCode = creditCard?.currency ?? "BRL";
 	const creditCardName = creditCard ? getCreditCardDisplayName(creditCard) : "Cartão de crédito";
-	const reviewBusy = approve.isPending || discardPending;
+	const reviewBusy = reviewLoading || reviewLoadFailed || approve.isPending || discardPending;
 	const rowBusy = (id: string) =>
 		discardPending ||
 		(approve.isPending && Boolean(approve.variables?.itemIds.includes(id))) ||
@@ -232,13 +243,15 @@ export function CreditCardImportReviewDialog({
 						{creditCard && <DialogDescription>Cartão {creditCardName}</DialogDescription>}
 					</DialogHeader>
 					<DialogBody>
-						{creditCardImport.isPending || creditCards.isPending ? (
+						{reviewLoading || creditCards.isPending ? (
 							<div className="space-y-3">
 								{[1, 2, 3].map(item => (
 									<Skeleton className="h-20 rounded-2xl" key={item} />
 								))}
 							</div>
-						) : (creditCardImport.isError && !creditCardImport.data) || creditCards.isError ? (
+						) : reviewLoadFailed ||
+						  (creditCardImport.isError && !creditCardImport.data) ||
+						  creditCards.isError ? (
 							<EmptyState
 								description="Tente novamente em instantes."
 								icon={<LuCircleAlert className="size-7" />}
@@ -246,7 +259,7 @@ export function CreditCardImportReviewDialog({
 							/>
 						) : (
 							<div className="">
-								<div className="divide-y rounded-2xl border bg-card shadow-sm">
+								<div className="bg-card divide-y rounded-2xl border shadow-sm">
 									{items.map(item => (
 										<CreditCardImportItemRow
 											creditCardId={creditCardImportData!.creditCardId}
@@ -287,7 +300,7 @@ export function CreditCardImportReviewDialog({
 					</DialogBody>
 					<DialogFooter className="flex-row justify-end">
 						<Button
-							className="cursor-pointer bg-destructive text-destructive-foreground hover:bg-destructive/80"
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/80 cursor-pointer"
 							disabled={reviewBusy || hasApprovingItems}
 							onClick={() => setDiscardConfirmationOpen(true)}
 						>
@@ -346,7 +359,7 @@ export function CreditCardImportReviewDialog({
 							Cancelar
 						</Button>
 						<Button
-							className="cursor-pointer bg-destructive text-destructive-foreground hover:bg-destructive/80"
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/80 cursor-pointer"
 							disabled={discardPending}
 							onClick={() => discardImport()}
 						>
@@ -403,7 +416,9 @@ export function CreditCardImportReviewDialog({
 									purchase: reviewingRefund.refundReview.purchase
 										? {
 												...reviewingRefund.refundReview.purchase,
-												installments: Number(reviewingRefund.refundReview.purchase.installments),
+												installments: Number(
+													reviewingRefund.refundReview.purchase.installments,
+												),
 											}
 										: undefined,
 								}
@@ -436,7 +451,8 @@ export function CreditCardImportReviewDialog({
 								kind: "credit-card-import-refund",
 								payload: { data, importId: targetImportId, item },
 							},
-							run: () => dataService.creditCardImports.saveRefundReview(targetImportId, item.id, data),
+							run: () =>
+								dataService.creditCardImports.saveRefundReview(targetImportId, item.id, data),
 							successMessage: "Revisão salva. Reembolso continua pendente.",
 						});
 					}}
