@@ -34,7 +34,9 @@ const transport = createClient(
 );
 
 function isHttpError(error: unknown): error is { data: unknown; status: number } {
-	return typeof error === "object" && error !== null && "status" in error && typeof error.status === "number";
+	return (
+		typeof error === "object" && error !== null && "status" in error && typeof error.status === "number"
+	);
 }
 
 export default async function client<TData, TError = unknown, TVariables = unknown>(
@@ -55,12 +57,24 @@ export default async function client<TData, TError = unknown, TVariables = unkno
 		(options?.signal ?? config.signal)?.throwIfAborted();
 		const result = await transport<string, TError, TVariables>(
 			{ ...config, headers, responseType: "text" },
-			{ timeout: config.timeout, ...options, headers, retry: 0, signal: options?.signal ?? config.signal },
+			{
+				...options,
+				headers,
+				retry: 0,
+				signal: options?.signal ?? config.signal,
+				// Explicit undefined resets Ky's instance default to its 10-second timeout.
+				timeout: options?.timeout ?? config.timeout ?? false,
+			},
 		);
 		if (getCurrentCacheIdentity() !== identity) throw new SessionChangedError();
 		return {
 			...result,
-			data: config.responseType === "text" ? result.data : result.data ? JSON.parse(result.data) : undefined,
+			data:
+				config.responseType === "text"
+					? result.data
+					: result.data
+						? JSON.parse(result.data)
+						: undefined,
 		};
 	} catch (error) {
 		// A late response must never log out or populate cache for a new identity.
@@ -79,7 +93,8 @@ export default async function client<TData, TError = unknown, TVariables = unkno
 					: `HTTP ${error.status}`,
 			);
 		}
-		if (error instanceof TypeError) throw new ConnectivityError("Servidor indisponível.", { cause: error });
+		if (error instanceof TypeError)
+			throw new ConnectivityError("Servidor indisponível.", { cause: error });
 		throw error;
 	}
 }

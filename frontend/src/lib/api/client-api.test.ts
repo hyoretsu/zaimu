@@ -14,7 +14,12 @@ const mockFetch = (implementation: (...args: Parameters<typeof fetch>) => Promis
 const originalAuth = useAuthStore.getState();
 let fetchMock: ReturnType<typeof spyOn<typeof globalThis, "fetch">>;
 beforeEach(() => {
-	useAuthStore.setState({ guestId: "transport-test", isAuthenticated: false, isGuestMode: true, user: null });
+	useAuthStore.setState({
+		guestId: "transport-test",
+		isAuthenticated: false,
+		isGuestMode: true,
+		user: null,
+	});
 	fetchMock = spyOn(globalThis, "fetch");
 	mockFetch(async () => Response.json({ date: "2026-10-17" }));
 });
@@ -92,9 +97,9 @@ describe("shared SDK transport", () => {
 		const logout = spyOn(useAuthStore.getState(), "logout").mockResolvedValue(undefined);
 		try {
 			mockFetch(async () => Response.json({ error: "public failure" }, { status: 401 }));
-			await expect(client({ authenticated: false, method: "GET", url: "/tax-definitions" })).rejects.toThrow(
-				"public failure",
-			);
+			await expect(
+				client({ authenticated: false, method: "GET", url: "/tax-definitions" }),
+			).rejects.toThrow("public failure");
 			expect(logout).not.toHaveBeenCalled();
 		} finally {
 			logout.mockRestore();
@@ -137,11 +142,28 @@ describe("shared SDK transport", () => {
 			SessionChangedError,
 		);
 	});
+	it("waits beyond Ky's default timeout for reads and mutations", async () => {
+		mockFetch(async () => {
+			await Bun.sleep(10_100);
+			return Response.json({ success: true });
+		});
+		const methods = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
+		const results = await Promise.all(
+			methods.map(method =>
+				client<{ success: boolean }>({ method, url: "/transactions" }, { timeout: undefined }),
+			),
+		);
+		expect(results.every(result => result.data.success)).toBe(true);
+		expect(fetchMock).toHaveBeenCalledTimes(methods.length);
+	}, 15_000);
+
 	it("honors per-request timeouts without retry", async () => {
 		mockFetch(
 			async (_input, options) =>
 				new Promise((_resolve, reject) => {
-					options?.signal?.addEventListener("abort", () => reject(options.signal?.reason), { once: true });
+					options?.signal?.addEventListener("abort", () => reject(options.signal?.reason), {
+						once: true,
+					});
 				}),
 		);
 		await expect(client({ method: "POST", timeout: 10, url: "/transactions" })).rejects.toThrow();
@@ -149,9 +171,8 @@ describe("shared SDK transport", () => {
 	});
 
 	it("uploads typed generated multipart fields without JSON encoding", async () => {
-		const { postCreditCardImports } = await import(
-			"./generated/api/hooks/creditCardImportsController/usePostCreditCardImports"
-		);
+		const { postCreditCardImports } =
+			await import("./generated/api/hooks/creditCardImportsController/usePostCreditCardImports");
 		mockFetch(async input => {
 			const request = input instanceof Request ? input : new Request(input);
 			const body = await request.formData();
