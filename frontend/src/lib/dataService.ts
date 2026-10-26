@@ -89,7 +89,6 @@ import {
 	patchDebtsPeopleById,
 	patchFinancialAccountsById,
 	patchFinancialAccountYieldsById,
-	patchFinancialInstitutionsById,
 	patchTransactionImportsByIdItemsByItemId,
 	patchTransactionsById,
 	postBalanceAdjustments,
@@ -3008,6 +3007,8 @@ export const dataService = {
 				yieldPolicy?: Omit<import("./api").FinancialInstitutionYieldPolicy, "effectiveDate">;
 			},
 		): Promise<FinancialInstitution> {
+			if (data.name !== undefined)
+				throw new Error("O nome da instituição só pode ser alterado pela administração");
 			if (isGuestMode()) {
 				const accounts = await localAccounts.getAll();
 				const institution = accounts.find(item => item.data.institutionId === id)?.data.institution;
@@ -3023,9 +3024,6 @@ export const dataService = {
 					}),
 					...(data.creditInstallmentRemainderOnFirst !== undefined && {
 						creditInstallmentRemainderOnFirst: data.creditInstallmentRemainderOnFirst,
-					}),
-					...(data.name !== undefined && {
-						name: data.name.normalize("NFKC").trim().replace(/\s+/gu, " "),
 					}),
 					...(data.yieldPolicy && {
 						yieldPolicies: [
@@ -3073,8 +3071,7 @@ export const dataService = {
 					yieldTaxIds: data.yieldPolicy.yieldTaxIds ?? undefined,
 				});
 			} else {
-				if (!data.name) throw new Error("Informe o nome da instituição para enviar a proposta");
-				await patchFinancialInstitutionsById(id, { name: data.name });
+				throw new Error("O nome da instituição só pode ser alterado pela administração");
 			}
 			showToast("Proposta enviada para revisão", "info");
 			const institutions = await getFinancialInstitutions();

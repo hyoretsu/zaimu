@@ -14,7 +14,9 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/Dialog";
+import { FormField } from "@/components/ui/FormField";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
+import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import { patchFinancialInstitutionsReviewCatalogById } from "@/lib/api";
 import { countryCodes } from "@/lib/countries";
 import { captureCacheMutation, invalidateMutationCache, mutationCacheMeta } from "@/lib/mutation-cache";
@@ -27,17 +29,28 @@ export function EditInstitutionCatalogDialog({ institution }: { institution: Adm
 	const currencies = useCurrencyStore(state => state.currencies);
 	const [open, setOpen] = useState(false);
 	const [pending, setPending] = useState(false);
+	const [name, setName] = useState(institution.name);
+	const [input, setInput] = useDebouncedInput(name, setName);
+	const [error, setError] = useState("");
 	const [closingInclusive, setClosingInclusive] = useState(false);
 	const [mapping, setMapping] = useState<Record<string, string[]>>({});
 	const countryNames = new Intl.DisplayNames("pt-BR", { type: "region" });
 	const currencyNames = new Intl.DisplayNames("pt-BR", { type: "currency" });
-	const save = async () => {
+	const save = async (submittedName: string) => {
+		if (pending) return;
+		const trimmedName = submittedName.trim();
+		if (!trimmedName || trimmedName.length > 100) {
+			setError("Informe um nome com até 100 caracteres.");
+			return;
+		}
+		setError("");
 		const start = captureCacheMutation();
 		setPending(true);
 		try {
 			await patchFinancialInstitutionsReviewCatalogById(institution.id, {
 				accountCurrenciesByCountry: mapping,
 				creditStatementClosingInclusive: closingInclusive,
+				name: trimmedName,
 			});
 			await invalidateMutationCache(queryClient, start, {
 				...mutationCacheMeta("institution"),
@@ -46,7 +59,10 @@ export function EditInstitutionCatalogDialog({ institution }: { institution: Adm
 			showToast("Configurações da instituição salvas", "positive");
 			setOpen(false);
 		} catch (error) {
-			showToast(error instanceof Error ? error.message : "Não foi possível salvar a instituição", "negative");
+			showToast(
+				error instanceof Error ? error.message : "Não foi possível salvar a instituição",
+				"negative",
+			);
 		} finally {
 			setPending(false);
 		}
@@ -56,6 +72,9 @@ export function EditInstitutionCatalogDialog({ institution }: { institution: Adm
 			onOpenChange={value => {
 				if (pending) return;
 				if (value) {
+					setName(institution.name);
+					setInput(institution.name);
+					setError("");
 					setClosingInclusive(institution.creditStatementClosingInclusive ?? false);
 					setMapping(
 						Object.fromEntries(
@@ -64,7 +83,10 @@ export function EditInstitutionCatalogDialog({ institution }: { institution: Adm
 									...(institution.operatingCountryCodes ?? []),
 									...Object.keys(institution.accountCurrenciesByCountry ?? {}),
 								]),
-							].map(code => [code, [...(institution.accountCurrenciesByCountry?.[code] ?? [])]]),
+							].map(code => [
+								code,
+								[...(institution.accountCurrenciesByCountry?.[code] ?? [])],
+							]),
 						),
 					);
 				}
@@ -75,7 +97,11 @@ export function EditInstitutionCatalogDialog({ institution }: { institution: Adm
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<DialogTrigger asChild>
-						<Button aria-label={`Configurar ${institution.name}`} size="icon-sm" variant="outline">
+						<Button
+							aria-label={`Configurar ${institution.name}`}
+							size="icon-sm"
+							variant="outline"
+						>
 							<LuPencil />
 						</Button>
 					</DialogTrigger>
@@ -86,18 +112,37 @@ export function EditInstitutionCatalogDialog({ institution }: { institution: Adm
 				<DialogHeader>
 					<DialogTitle>Configurar instituição - {institution.name}</DialogTitle>
 					<DialogDescription>
-						Defina os países, as moedas e a regra de fechamento das faturas.
+						Edite o nome, os países, as moedas e a regra de fechamento das faturas.
 					</DialogDescription>
 				</DialogHeader>
 				<form
 					className="flex min-h-0 min-w-0 flex-1 flex-col gap-5"
 					onSubmit={event => {
 						event.preventDefault();
-						void save();
+						const data = new FormData(event.currentTarget);
+						void save(String(data.get("institution-name") ?? ""));
 					}}
 				>
 					<DialogBody>
 						<div className="space-y-4">
+							<FormField
+								disabled={pending}
+								error={error}
+								id={`institution-name-${institution.id}`}
+								label="Nome da instituição"
+								maxLength={100}
+								name="institution-name"
+								onChange={event => setInput(event.currentTarget.value)}
+								placeholder="Ex: Banco Inter"
+								required
+								type="text"
+								value={input}
+							/>
+							{error && (
+								<p className="text-destructive text-sm" role="alert">
+									{error}
+								</p>
+							)}
 							<CustomSelect
 								disabled={pending}
 								label="Data de fechamento da fatura"
@@ -107,7 +152,10 @@ export function EditInstitutionCatalogDialog({ institution }: { institution: Adm
 										label: "Exclusiva - compras do dia entram na próxima fatura (padrão)",
 										value: "exclusive",
 									},
-									{ label: "Inclusiva - compras do dia entram na fatura atual", value: "inclusive" },
+									{
+										label: "Inclusiva - compras do dia entram na fatura atual",
+										value: "inclusive",
+									},
 								]}
 								placeholder="Ex: Exclusiva"
 								value={closingInclusive ? "inclusive" : "exclusive"}
@@ -129,7 +177,9 @@ export function EditInstitutionCatalogDialog({ institution }: { institution: Adm
 							{Object.entries(mapping).map(([country, selected]) => (
 								<section className="min-w-0 space-y-3 rounded-xl border p-3" key={country}>
 									<div className="flex items-center gap-3">
-										<h3 className="min-w-0 flex-1 font-medium">{countryNames.of(country) ?? country}</h3>
+										<h3 className="min-w-0 flex-1 font-medium">
+											{countryNames.of(country) ?? country}
+										</h3>
 										<ActionGroup>
 											<Tooltip>
 												<TooltipTrigger asChild>
@@ -139,7 +189,9 @@ export function EditInstitutionCatalogDialog({ institution }: { institution: Adm
 														onClick={() => {
 															setMapping(previous =>
 																Object.fromEntries(
-																	Object.entries(previous).filter(([code]) => code !== country),
+																	Object.entries(previous).filter(
+																		([code]) => code !== country,
+																	),
 																),
 															);
 															showToast("País removido da edição", "info");
@@ -188,7 +240,12 @@ export function EditInstitutionCatalogDialog({ institution }: { institution: Adm
 						</div>
 					</DialogBody>
 					<DialogFooter>
-						<Button disabled={pending} onClick={() => setOpen(false)} type="button" variant="outline">
+						<Button
+							disabled={pending}
+							onClick={() => setOpen(false)}
+							type="button"
+							variant="outline"
+						>
 							Descartar
 						</Button>
 						<Button

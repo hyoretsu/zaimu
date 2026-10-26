@@ -99,10 +99,14 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 		detail: { operationId: "getFinancialInstitutions", tags: ["Institutions"] },
 		response: t.Array(InstitutionReturn),
 	})
-	.get("/review/catalog", async ({ request }) => listInstitutionCatalog(await requireAdmin(request), true), {
-		detail: { operationId: "getFinancialInstitutionsReviewCatalog" },
-		response: t.Array(InstitutionReturn),
-	})
+	.get(
+		"/review/catalog",
+		async ({ request }) => listInstitutionCatalog(await requireAdmin(request), true),
+		{
+			detail: { operationId: "getFinancialInstitutionsReviewCatalog" },
+			response: t.Array(InstitutionReturn),
+		},
+	)
 	.patch(
 		"/review/catalog/:id",
 		async ({ request, params, body }) => {
@@ -111,6 +115,7 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 				params.id,
 				body.accountCurrenciesByCountry,
 				body.creditStatementClosingInclusive,
+				body.name,
 			);
 		},
 		{
@@ -149,13 +154,25 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 	.post(
 		"/",
 		async ({ body, request }) =>
-			proposeInstitution(await requireUserId(request), null, "NEW_INSTITUTION", body, body.effectiveDate),
-		{ body: InstitutionBody, detail: { operationId: "postFinancialInstitutions" }, response: MutationReturn },
+			proposeInstitution(
+				await requireUserId(request),
+				null,
+				"NEW_INSTITUTION",
+				body,
+				body.effectiveDate,
+			),
+		{
+			body: InstitutionBody,
+			detail: { operationId: "postFinancialInstitutions" },
+			response: MutationReturn,
+		},
 	)
 	.patch(
 		"/:id",
 		async ({ body, params, request }) =>
-			proposeInstitution(await requireUserId(request), params.id, "INSTITUTION_UPDATE", { name: body.name }),
+			proposeInstitution(await requireAdmin(request), params.id, "INSTITUTION_UPDATE", {
+				name: body.name,
+			}),
 		{
 			body: InstitutionNameBody,
 			detail: { operationId: "patchFinancialInstitutionsById" },
@@ -216,7 +233,9 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 						upToBalance: t.Nullable(t.Number({ exclusiveMinimum: 0 })),
 						yieldFixedRate: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
 						yieldReferencePercentage: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
-						yieldReferenceType: t.Optional(t.Nullable(t.Union([t.Literal("CDI"), t.Literal("SELIC")]))),
+						yieldReferenceType: t.Optional(
+							t.Nullable(t.Union([t.Literal("CDI"), t.Literal("SELIC")])),
+						),
 					}),
 					{ maxItems: 20 },
 				),
@@ -305,10 +324,10 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 					`UPDATE "FinancialAccount" SET "institutionId"=NULL,"updatedAt"=NOW() WHERE "institutionId"=$1 AND "userId"=$2`,
 					[params.id, userId],
 				);
-				await query(`DELETE FROM "UserFinancialInstitution" WHERE "institutionId"=$1 AND "userId"=$2`, [
-					params.id,
-					userId,
-				]);
+				await query(
+					`DELETE FROM "UserFinancialInstitution" WHERE "institutionId"=$1 AND "userId"=$2`,
+					[params.id, userId],
+				);
 			});
 			return { success: true };
 		},
@@ -351,7 +370,9 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 		},
 		{
 			detail: { operationId: "getFinancialInstitutionsReviewMergeCandidates" },
-			response: t.Array(t.Object({ institutions: t.Array(InstitutionReturn), normalizedName: t.String() })),
+			response: t.Array(
+				t.Object({ institutions: t.Array(InstitutionReturn), normalizedName: t.String() }),
+			),
 		},
 	)
 	.get(
@@ -366,7 +387,11 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 			detail: { operationId: "getFinancialInstitutionsReviewProposals" },
 			response: t.Array(
 				t.Object(
-					{ ...ProposalReturn.properties, name: t.Nullable(t.String()), version: t.Nullable(t.Number()) },
+					{
+						...ProposalReturn.properties,
+						name: t.Nullable(t.String()),
+						version: t.Nullable(t.Number()),
+					},
 					{ additionalProperties: true },
 				),
 			),

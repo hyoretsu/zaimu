@@ -7,5 +7,6 @@ export const InstitutionCountriesBody = t.Object({
 		{ additionalProperties: false },
 	),
 	creditStatementClosingInclusive: t.Optional(t.Boolean()),
+	name: t.Optional(t.String({ maxLength: 100, minLength: 1, pattern: "\\S" })),
 });
 export type InstitutionCountriesBody = typeof InstitutionCountriesBody.static;

@@ -5,7 +5,6 @@ export { CardCalendarTransitionFields } from "./CardCalendarTransitionFields";
 export * from "./CardPayerFields";
 export * from "./CreateFinancialAccountDialog";
 export * from "./EditFinancialAccountYieldDialog";
-export { EditInstitutionDialog } from "./EditInstitutionDialog";
 export * from "./FinancialAccountCard";
 export * from "./FinancialInstitutionGroup";
 export { InstitutionActions } from "./InstitutionActions";

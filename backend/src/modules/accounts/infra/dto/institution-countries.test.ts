@@ -36,6 +36,14 @@ describe("institution country currencies", () => {
 			expect(Value.Check(InstitutionCountriesBody, { accountCurrenciesByCountry })).toBe(false);
 		},
 	);
+	test.each(["", "   ", "x".repeat(101)])("rejects invalid name %j", name => {
+		expect(Value.Check(InstitutionCountriesBody, { accountCurrenciesByCountry: {}, name })).toBe(false);
+	});
+	test("accepts renaming without country suggestions", () => {
+		expect(
+			Value.Check(InstitutionCountriesBody, { accountCurrenciesByCountry: {}, name: "Banco Inter" }),
+		).toBe(true);
+	});
 	test("allows removing all country suggestions", () => {
 		expect(Value.Check(InstitutionCountriesBody, { accountCurrenciesByCountry: {} })).toBe(true);
 	});

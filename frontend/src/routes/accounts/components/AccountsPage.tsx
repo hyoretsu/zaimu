@@ -100,20 +100,6 @@ export function AccountsPage() {
 			showToast(account.isHidden ? "Conta escondida." : "Conta exibida novamente.", "positive");
 		},
 	});
-	const updateInstitution = useMutation({
-		meta: { cacheOperations: ["account"] },
-		mutationFn: ({
-			data,
-			id,
-		}: {
-			data: Parameters<typeof dataService.financialInstitutions.update>[1];
-			id: string;
-		}) => dataService.financialInstitutions.update(id, data),
-		onError: error => showToast(error.message, "negative"),
-		onSuccess: async () => {
-			showToast(guest ? "Instituição atualizada." : "Proposta enviada para revisão.", "positive");
-		},
-	});
 
 	const deleteInstitution = useMutation({
 		meta: { cacheOperations: ["institution"] },
@@ -160,7 +146,11 @@ export function AccountsPage() {
 						onClick: () => setIsDefaultsOpen(true),
 					},
 					{ icon: LuFileUp, label: "Importar extrato", onClick: () => setIsImportOpen(true) },
-					{ icon: LuScale, label: "Ajustes de saldo", onClick: () => setIsBalanceAdjustmentsOpen(true) },
+					{
+						icon: LuScale,
+						label: "Ajustes de saldo",
+						onClick: () => setIsBalanceAdjustmentsOpen(true),
+					},
 					{
 						icon: LuPlus,
 						label: "Nova conta",
@@ -195,7 +185,7 @@ export function AccountsPage() {
 				showTrigger={false}
 			/>
 			<section className="grid gap-4 sm:grid-cols-2">
-				<div className="rounded-2xl bg-brand-indigo p-5 text-white shadow-card">
+				<div className="bg-brand-indigo shadow-card rounded-2xl p-5 text-white">
 					<p className="text-sm text-white/70">Saldo total</p>
 					<NativeMoneyTotals
 						error={accounts.isError && accounts.data === undefined}
@@ -206,9 +196,9 @@ export function AccountsPage() {
 						}))}
 					/>
 				</div>
-				<div className="rounded-2xl border bg-brand-yellow p-5 text-brand-ink shadow-card">
+				<div className="bg-brand-yellow text-brand-ink shadow-card rounded-2xl border p-5">
 					<p className="text-brand-ink/65 text-sm">Contas cadastradas</p>
-					<p className="mt-2 font-bold text-3xl">{visibleAccounts.length}</p>
+					<p className="mt-2 text-3xl font-bold">{visibleAccounts.length}</p>
 				</div>
 			</section>
 			<QueryRefreshStatus
@@ -243,9 +233,6 @@ export function AccountsPage() {
 							onDeleteInstitution={institution => deleteInstitution.mutateAsync(institution.id)}
 							onHide={account => setAccountHidden.mutate({ id: account.id, isHidden: true })}
 							onUpdate={(id, data) => updateAccount.mutateAsync({ data, id })}
-							onUpdateInstitution={(institution, name) =>
-								updateInstitution.mutateAsync({ data: { name }, id: institution.id })
-							}
 							pending={false}
 							rewardAccounts={rewardAccounts}
 						/>
@@ -268,16 +255,19 @@ export function AccountsPage() {
 			)}
 			{hiddenAccounts.length > 0 && (
 				<section className="grid gap-3">
-					<h2 className="font-bold text-lg">Contas escondidas</h2>
+					<h2 className="text-lg font-bold">Contas escondidas</h2>
 					{hiddenAccounts.map(account => (
 						<div
-							className="flex items-center justify-between gap-3 rounded-xl border bg-card p-3"
+							className="bg-card flex items-center justify-between gap-3 rounded-xl border p-3"
 							key={account.id}
 						>
 							<span className="truncate">{getFinancialAccountOptionLabel(account)}</span>
 							<Button
 								className="cursor-pointer"
-								disabled={setAccountHidden.isPending && setAccountHidden.variables?.id === account.id}
+								disabled={
+									setAccountHidden.isPending &&
+									setAccountHidden.variables?.id === account.id
+								}
 								onClick={() => setAccountHidden.mutate({ id: account.id, isHidden: false })}
 								size="sm"
 								variant="outline"
@@ -297,7 +287,10 @@ export function AccountsPage() {
 					}}
 				/>
 			)}
-			<BalanceAdjustmentsDialog onOpenChange={setIsBalanceAdjustmentsOpen} open={isBalanceAdjustmentsOpen} />
+			<BalanceAdjustmentsDialog
+				onOpenChange={setIsBalanceAdjustmentsOpen}
+				open={isBalanceAdjustmentsOpen}
+			/>
 		</PageContainer>
 	);
 }
