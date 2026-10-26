@@ -461,6 +461,7 @@ export function CreditCardImportReviewDialog({
 				/>
 			) : null}
 			<CreditPurchaseReconciliationDialog
+				currencyCode={currencyCode}
 				initialSelection={recoveredReconciliation}
 				item={reconcilingImport?.item ?? null}
 				onOpenChange={nextOpen => {
