@@ -31,6 +31,7 @@ function parseEntry(line: string) {
 }
 
 export function parseBancoDoBrasilStatementText(text: string): Statement {
+	text = text.replaceAll("−", "-");
 	if (!/Extrato de Conta Corrente/iu.test(text) || !/Lançamentos/iu.test(text))
 		throw new HttpException("O arquivo não parece ser um extrato Banco do Brasil válido", 400);
 	const period = text.match(periodPattern);

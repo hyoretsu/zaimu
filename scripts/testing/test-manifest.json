@@ -142,6 +142,7 @@
 		"backend/src/modules/transaction-imports/domain/nubank.test.ts",
 		"backend/src/modules/transaction-imports/domain/picpay.test.ts",
 		"backend/src/modules/transaction-imports/domain/statement-identity.test.ts",
+		"backend/src/modules/transaction-imports/domain/statement-signs.test.ts",
 		"backend/src/modules/transaction-imports/domain/transfer-suggestions.test.ts",
 		"backend/src/modules/transactions/application/list-transactions-page.test.ts",
 		"backend/src/modules/transactions/application/transfer-candidate-pairs.test.ts",

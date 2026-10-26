@@ -1,5 +1,6 @@
 import { HttpException } from "~/shared/errors";
 import type { Statement } from "./statement";
+import { statementCurrency, statementCurrencyPattern } from "./statement-money";
 
 const monthNumbers: Record<string, string> = {
 	abril: "04",
@@ -16,10 +17,12 @@ const monthNumbers: Record<string, string> = {
 	setembro: "09",
 };
 const datePattern = /^(\d{1,2}) de ([a-zç]+) (\d{4}) Saldo ao final do dia:/iu;
-const movementPattern = /^(\d{2}:\d{2}) (.+?) ([+−-])R\$\s*([\d.]+,\d{2})(?:\t(.*))?$/u;
+const movementPattern = new RegExp(
+	String.raw`^(\d{2}:\d{2}) (.+?) (${statementCurrencyPattern})(?:\t(.*))?$`,
+	"u",
+);
 const periodPattern = /(\d{1,2}) de ([a-zç]+) de (\d{4})\s+a\s+(\d{1,2}) de ([a-zç]+) de (\d{4})/iu;
 
-const parseCurrency = (value: string) => Number(value.replaceAll(".", "").replace(",", "."));
 const cleanDescription = (value: string) => value.replaceAll("\t", " ").replace(/\s+/gu, " ").trim();
 const isCardPurchase = (paymentMethod: string | undefined) => /\bcom cartão\b/iu.test(paymentMethod ?? "");
 
@@ -46,15 +49,16 @@ export function parsePicPayStatementText(text: string): Statement {
 		}
 		const movement = line.match(movementPattern);
 		if (!movement || !currentDate) continue;
-		if (isCardPurchase(movement[5])) continue;
-		const amount = parseCurrency(movement[4]);
+		if (isCardPurchase(movement[4])) continue;
+		const signedAmount = statementCurrency(movement[3]);
+		const amount = Math.abs(signedAmount);
 		if (!Number.isFinite(amount)) continue;
 		transactions.push({
 			amount,
 			date: currentDate,
-			description: cleanDescription(`${movement[2]} ${movement[5] ?? ""}`),
+			description: cleanDescription(`${movement[2]} ${movement[4] ?? ""}`),
 			time: movement[1],
-			type: movement[3] === "+" ? "INCOME" : "EXPENSE",
+			type: signedAmount < 0 ? "EXPENSE" : "INCOME",
 		});
 	}
 

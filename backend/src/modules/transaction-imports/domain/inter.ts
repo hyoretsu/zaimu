@@ -1,5 +1,6 @@
 import { HttpException } from "~/shared/errors";
 import type { Statement } from "./statement";
+import { statementCurrency, statementCurrencyPattern } from "./statement-money";
 
 const monthNumbers: Record<string, string> = {
 	ABRIL: "04",
@@ -17,9 +18,11 @@ const monthNumbers: Record<string, string> = {
 };
 const periodPattern = /Período:\s*(\d{2})\/(\d{2})\/(\d{4})\s+a\s+(\d{2})\/(\d{2})\/(\d{4})/iu;
 const datePattern = /(\d{1,2})\s+de\s+([A-Za-zÇç]+)\s+de\s+(\d{4})\s+Saldo do dia:/iu;
-const entryPattern = /^(.*?)\s+(-?)R\$\s*([\d.]+,\d{2})\s+R\$\s*(-?[\d.]+,\d{2})$/u;
+const entryPattern = new RegExp(
+	String.raw`^(.*?)\s+(${statementCurrencyPattern})\s+(${statementCurrencyPattern})$`,
+	"u",
+);
 
-const parseCurrency = (value: string) => Number(value.replaceAll(".", "").replace(",", "."));
 const toDate = (day: string, month: string, year: string) => {
 	const monthNumber = monthNumbers[month.toLocaleUpperCase("pt-BR")];
 	if (!monthNumber) throw new HttpException("Data inválida no extrato Banco Inter", 400);
@@ -38,11 +41,11 @@ export function parseInterStatementText(text: string): Statement {
 		const entry = description.join(" ").replace(/\s+/gu, " ").trim().match(entryPattern);
 		if (!entry) return;
 		transactions.push({
-			amount: parseCurrency(entry[3]),
-			balanceAfter: parseCurrency(entry[4]),
+			amount: Math.abs(statementCurrency(entry[2])),
+			balanceAfter: statementCurrency(entry[3]),
 			date: currentDate,
 			description: entry[1].trim(),
-			type: entry[2] === "-" ? "EXPENSE" : "INCOME",
+			type: statementCurrency(entry[2]) < 0 ? "EXPENSE" : "INCOME",
 		});
 		description = [];
 	};

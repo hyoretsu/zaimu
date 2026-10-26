@@ -43,6 +43,7 @@ function removePageChrome(text: string) {
 }
 
 export function parseNubankStatementText(text: string): Statement {
+	text = text.replaceAll("−", "-");
 	if (!/Nu Pagamentos S\.A\.|Movimentações/iu.test(text) || !/\d{2} DE [A-ZÇ]+ DE \d{4}/u.test(text))
 		throw new HttpException("O arquivo não parece ser um extrato Nubank válido", 400);
 	const period = text.match(/(\d{2}) DE ([A-ZÇ]+) DE (\d{4})\s+a\s+(\d{2}) DE ([A-ZÇ]+) DE (\d{4})/iu);

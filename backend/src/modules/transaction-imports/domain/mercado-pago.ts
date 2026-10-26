@@ -1,9 +1,12 @@
 import { HttpException } from "~/shared/errors";
 import type { Statement } from "./statement";
+import { statementCurrency, statementCurrencyPattern } from "./statement-money";
 
 const datePattern = /(\d{2})-(\d{2})-(\d{4})/;
-const movementPattern =
-	/(\d{2}-\d{2}-\d{4})\s+([\s\S]*?)\s+(\d{8,})\s+R\$\s*(-?[\d.]+,\d{2})\s+R\$\s*(-?[\d.]+,\d{2})/g;
+const movementPattern = new RegExp(
+	String.raw`(\d{2}-\d{2}-\d{4})\s+([\s\S]*?)\s+(\d{8,})\s+(${statementCurrencyPattern})\s+(${statementCurrencyPattern})`,
+	"gu",
+);
 const yieldDescriptionPattern = /rendimentos?/i;
 
 const toDate = (value: string) => {
@@ -11,8 +14,6 @@ const toDate = (value: string) => {
 	if (!match) throw new HttpException("Data inválida no extrato Mercado Pago", 400);
 	return `${match[3]}-${match[2]}-${match[1]}`;
 };
-
-const parseCurrency = (value: string) => Number(value.replaceAll(".", "").replace(",", "."));
 
 export function parseMercadoPagoStatementText(text: string): Statement {
 	if (!text.includes("EXTRATO DE CONTA") || !text.includes("ID da operação")) {
@@ -35,8 +36,8 @@ export function parseMercadoPagoStatementText(text: string): Statement {
 		const leadingDescription = previousMatchEnd
 			? movementsText.slice(previousMatchEnd, match.index).replace(/\s+/g, " ").trim()
 			: "";
-		const signedAmount = parseCurrency(match[4]);
-		const balanceAfter = parseCurrency(match[5]);
+		const signedAmount = statementCurrency(match[4]);
+		const balanceAfter = statementCurrency(match[5]);
 		if (!Number.isFinite(signedAmount) || !Number.isFinite(balanceAfter)) continue;
 		const description = `${leadingDescription} ${match[2]}`.replace(/\s+/g, " ").trim();
 		transactions.push({
@@ -45,7 +46,8 @@ export function parseMercadoPagoStatementText(text: string): Statement {
 			date: toDate(match[1]),
 			description,
 			externalId: match[3],
-			type: signedAmount < 0 ? "EXPENSE" : yieldDescriptionPattern.test(description) ? "YIELD" : "INCOME",
+			type:
+				signedAmount < 0 ? "EXPENSE" : yieldDescriptionPattern.test(description) ? "YIELD" : "INCOME",
 		});
 		previousMatchEnd = (match.index ?? 0) + match[0].length;
 	}
