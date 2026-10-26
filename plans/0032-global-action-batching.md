@@ -11,7 +11,7 @@ per-action results, authentication, cache/outbox and explicit retries only.
 - [x] Consolidated import completion feedback and refresh.
 - [x] Repository/template rules, SDK regeneration and local verification.
 - [x] Hook-validated implementation commit.
-- [ ] Integration into original branches.
+- [x] Integration into original branches.
 
 No remote writes or database migrations. Preserve pre-existing changes.
 
@@ -20,4 +20,6 @@ Backend build passes. Frontend build passes with `--configLoader runner` because
 shared dependency directories contain a root-owned `.vite-temp` cache. Hook-driven
 type checks, backend unit coverage, lint and formatting pass for the final implementation. SDK export/generation runs through the existing graph.
 Template rule integrated into its original `main` as `89cfdc4`; template worktree removed.
-Next: Zaimu integration and worktree cleanup.
+Zaimu implementation integrated into original `main` as `858bf938`. Equivalent
+changes verified with a reverse patch check and comparison of affected files.
+Task worktree cleanup follows final verification.
