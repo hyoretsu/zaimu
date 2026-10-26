@@ -12,21 +12,11 @@ services:
       - |
         date +%s > /tmp/zaimu-dev-started-at
         echo 0 > /tmp/zaimu-dev-health-failures
+        sh /app/scripts/dev-migration-watch.sh &
         bun install --frozen-lockfile
         bun -F sql contract:emit
         bun -F sql migrate:deploy
         exec bun dev
-    develop:
-      watch:
-        - action: restart
-          path: .
-          include:
-            - backend/src/**
-            - frontend/src/**
-            - packages/*/src/**
-            - packages/sql/migrations/**
-            - packages/sql/src/prisma/**
-            - packages/sql/prisma.config.ts
     healthcheck:
       test: ["CMD", "sh", "/app/scripts/dev-healthcheck.sh"]
       interval: 30s

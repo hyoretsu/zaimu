@@ -127,3 +127,16 @@ after merging request options: an undefined timeout resets Ky to its 10-second
 default. Explicit per-request deadlines and cancellation remain supported. Never
 automatically retry mutations after transport failures: a missing response does
 not prove that the backend rolled back the operation.
+
+## Development migration reload
+
+`docker compose up -d` runs migration monitoring inside the development container
+through `scripts/dev-migration-watch.sh`; no Compose Watch or host service is needed.
+The monitor polls migration and Prisma schema/config contents every five seconds,
+waits for two stable observations, then terminates PID 1. Docker's restart policy
+reruns contract emission and migration deployment before starting the application.
+Migration `refs/` files are excluded because deployment writes them. Source-only
+changes continue through Bun/Vite hot reload. Recreate an existing container after
+changing its startup command to activate the monitor. Startup/recreation runs
+migrations against the configured database and requires explicit authorization
+when that database is remote/shared.
