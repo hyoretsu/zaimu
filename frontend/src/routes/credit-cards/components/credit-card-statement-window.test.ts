@@ -89,3 +89,48 @@ test("window never splits a duplicate month at either edge", () => {
 	const visible = getStatementWindow(card, [second, first], "2026-09", 0, 0);
 	expect(visible.map(item => item.id)).toEqual(["first", "second"]);
 });
+
+test("defaults to the first unclosed invoice after the current month closes", () => {
+	const october = { ...actual, dueDate: "2026-10-20", id: "october", statementDate: "2026-10-15" };
+	const november = {
+		...actual,
+		dueDate: "2026-11-20",
+		id: "november",
+		isPaid: false,
+		statementDate: "2026-11-15",
+	};
+	const december = { ...november, dueDate: "2026-12-20", id: "december", statementDate: "2026-12-15" };
+	const statements = [december, october, november];
+	expect(getSelectedStatement(statements, null, "2026-10", "2026-10-25")).toBe(november);
+	expect(getSelectedStatement(statements, "deleted", "2026-10", "2026-10-25")).toBe(november);
+	expect(getSelectedStatement(statements, october.id, "2026-10", "2026-10-25")).toBe(october);
+	expect(
+		getSelectedStatement(
+			[october, { ...november, isPaid: true }, december],
+			null,
+			"2026-10",
+			"2026-10-25",
+		),
+	).toBe(december);
+	expect(
+		getSelectedStatement(
+			[october, { ...november, isForecast: true }, december],
+			null,
+			"2026-10",
+			"2026-10-25",
+		),
+	).toBe(december);
+	expect(getSelectedStatement(statements, null, "2026-11", "2026-11-15")).toBe(december);
+});
+
+test("selects the earliest closing when multiple cycles share a due month", () => {
+	const first = {
+		...actual,
+		dueDate: "2026-11-20",
+		id: "first",
+		isPaid: false,
+		statementDate: "2026-11-05",
+	};
+	const second = { ...first, id: "second", statementDate: "2026-11-15" };
+	expect(getSelectedStatement([second, first], null, "2026-10", "2026-10-25")).toBe(first);
+});

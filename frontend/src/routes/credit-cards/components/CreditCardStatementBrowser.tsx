@@ -64,19 +64,24 @@ export function CreditCardStatementBrowser({
 		queryFn: () => dataService.creditCards.getStatements(card.id),
 		queryKey: [...queryKeys.creditCardStatements.list(identity!, card.id), "browser"],
 	});
+	const selectedStatement = getSelectedStatement(
+		(statements.data ?? []).filter(statement => statement.totalAmount !== 0),
+		selectedStatementId,
+		currentMonth,
+	);
+	const selectedMonth = selectedStatement ? getLocalMonthKey(selectedStatement.dueDate) : currentMonth;
 	const visibleStatements = useMemo(
 		() =>
 			getStatementWindow(
 				card,
 				statements.data ?? [],
-				currentMonth,
+				selectedMonth,
 				radius + extra.previous,
 				radius + extra.next,
 			),
-		[card, statements.data, currentMonth, radius, extra],
+		[card, statements.data, selectedMonth, radius, extra],
 	);
 	const firstMonth = getFirstNonZeroStatementMonth(statements.data ?? []) ?? currentMonth;
-	const selectedStatement = getSelectedStatement(visibleStatements, selectedStatementId, currentMonth);
 	const selectedDetail = useQuery({
 		enabled: identity !== null && !!selectedStatement && !selectedStatement.isEmptyCycle,
 		queryFn: () => dataService.creditCards.getStatement(card.id, selectedStatement!.id),

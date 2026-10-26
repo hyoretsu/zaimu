@@ -1,5 +1,5 @@
 import type { CreditCard, CreditCardStatement } from "@/lib/api";
-import { getLocalMonthKey } from "@/lib/date";
+import { getLocalDateKey, getLocalMonthKey } from "@/lib/date";
 
 export type StatementWindowItem = CreditCardStatement & { isEmptyCycle?: boolean };
 
@@ -7,9 +7,23 @@ export function getSelectedStatement(
 	statements: StatementWindowItem[],
 	selectedId: string | null,
 	currentMonth: string,
+	today = getLocalDateKey(),
 ) {
 	return (
 		statements.find(statement => statement.id === selectedId) ??
+		statements
+			.filter(
+				statement =>
+					!statement.isPaid &&
+					!statement.isForecast &&
+					statement.statementDate.slice(0, 10) > today,
+			)
+			.toSorted(
+				(a, b) =>
+					a.statementDate.localeCompare(b.statementDate) ||
+					a.dueDate.localeCompare(b.dueDate) ||
+					a.id.localeCompare(b.id),
+			)[0] ??
 		statements.find(statement => getLocalMonthKey(statement.dueDate) === currentMonth) ??
 		statements[0]
 	);
