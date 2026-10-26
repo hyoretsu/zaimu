@@ -7,6 +7,7 @@
 Never perform any action whose effect leaves this computer. No exceptions, ever, without an explicit per-instance request from the user.
 
 Forbidden unless the user explicitly asks for that specific action:
+
 - `git push` (or any push to a remote), creating/updating PRs, pushing tags.
 - Running database migrations, schema pushes, seeds, or any command against a remote/shared/external database.
 - Triggering CI/CD, deploys, or remote jobs; publishing packages; sending requests that mutate external services.
@@ -124,18 +125,18 @@ Inspect the HTTP result of auth/session requests before redirecting. An empty su
 ```ts
 // ✅ correct
 export const CreateReceiptDTO = t.Object({
-    ...CreateReceiptBody.properties,
-    companyId: t.Optional(t.String()),
-    filename: t.String(),
-    userId: t.String(),
+	...CreateReceiptBody.properties,
+	companyId: t.Optional(t.String()),
+	filename: t.String(),
+	userId: t.String(),
 });
 export type CreateReceiptDTO = typeof CreateReceiptDTO.static;
 
 // ❌ avoid
 export interface CreateReceiptDTO {
-    companyId?: string;
-    filename: string;
-    // ...
+	companyId?: string;
+	filename: string;
+	// ...
 }
 ```
 
@@ -171,6 +172,7 @@ Using `result:` makes Elysia ignore the response typing, which makes Kubb genera
 **Never edit files inside `frontend/src/lib/api/generated/`.** They are completely overwritten on every regeneration.
 
 Correct flow when adding or changing an endpoint:
+
 1. Change the backend (controller/DTO).
 2. `bun run export` in the backend → updates `backend/generated/openapi.json` and `generateOpenApi.ts`.
 3. `bun run generate` in the frontend → regenerates the SDK in `generated/`.
@@ -201,6 +203,8 @@ Backend status/error enums (e.g. KYC status, bet status, payout status, error co
 ## Local worktrees and atomic commits
 
 Always implement in an isolated worktree. Create task worktrees under `$HOME/.local/share/worktrees/<repository>/<task>` (for example, `mkdir -p "$HOME/.local/share/worktrees/<repository>"` followed by `git worktree add -b <branch> "$HOME/.local/share/worktrees/<repository>/<task>" HEAD`). Use a unique task directory and keep it outside the repository. Never create worktrees under `/tmp`, `/var/tmp` or another temporary filesystem: dependencies and build artifacts need persistent disk space rather than tmpfs capacity. Existing worktrees may be in use; do not move or remove them merely to adopt this location. Record original branch, preserve unrelated staged and working changes, commit coherent increments, then integrate completed commits into the original branch without push. Prefer explicit commit paths; never include unrelated staged files. Wait and retry temporary Git locks, never remove locks owned by active processes or bypass hooks.
+
+Integration is mandatory before completion. Never end a task with completed changes left only on its task branch or worktree. If the original branch is temporarily busy with another cherry-pick, merge, rebase, Git lock or concurrent task, preserve the worktree, keep waiting and retry until integration succeeds. Do not abort or alter another task's operation, remove its locks or bypass hooks. Resolve conflicts belonging to this task, rerun applicable checks and verify all intended changes reached the original branch before cleaning up the task worktree and reporting completion. Only an explicit user instruction to stop or leave changes unintegrated overrides this requirement.
 
 After integrating a task into the original branch (including `main`), remove its isolated worktree with `git worktree remove <path>` before reporting completion. Verify that every intended commit was integrated and the worktree has no staged, unstaged or untracked work, and is not in use by another task or process. For cherry-picked or squashed changes, verify equivalent changes in the destination rather than relying only on ancestry. Never use `--force` or delete a directory directly to bypass these checks. If cleanup is blocked by remaining work or active use, preserve the worktree and report its path and reason. Do not remove other tasks' worktrees.
 
