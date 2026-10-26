@@ -115,7 +115,7 @@ export function EditTransactionForm({
 				currency: draft.currency,
 				date: draft.date,
 				debtSplit: isDebt ? debtSplit : null,
-				description: description.trim() || undefined,
+				description: description.trim(),
 				destinationAmount:
 					draft.type === "TRANSFER" && draft.destinationAmount
 						? Number(draft.destinationAmount)

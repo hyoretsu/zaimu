@@ -130,7 +130,7 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 			amount: parseMaskedMoney(String(form.get("debt-origin-amount") ?? "")),
 			currency,
 			date: sendWithoutDate ? null : date || undefined,
-			description: String(form.get("debt-origin-description") ?? description).trim() || undefined,
+			description: String(form.get("debt-origin-description") ?? description).trim(),
 			dueDate: dueDate || undefined,
 			isOwedToMe,
 		};
@@ -251,7 +251,7 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 								onCheckedChange: checked => setSendWithoutDate(checked === true),
 							}}
 						>
-							<span className="font-medium text-foreground-muted">Não incluir data</span>
+							<span className="text-foreground-muted font-medium">Não incluir data</span>
 						</CheckboxField>
 						<FormField
 							autoComplete="off"
@@ -275,10 +275,18 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 						</Button>
 						<Button
 							className="cursor-pointer"
-							disabled={pending || Number(amount) <= 0 || (mode === "edit" ? !personId : !hasValidSplit)}
+							disabled={
+								pending ||
+								Number(amount) <= 0 ||
+								(mode === "edit" ? !personId : !hasValidSplit)
+							}
 							type="submit"
 						>
-							{pending ? "Salvando..." : mode === "edit" ? "Salvar alterações" : "Salvar lançamento"}
+							{pending
+								? "Salvando..."
+								: mode === "edit"
+									? "Salvar alterações"
+									: "Salvar lançamento"}
 						</Button>
 					</DialogFooter>
 				</form>
