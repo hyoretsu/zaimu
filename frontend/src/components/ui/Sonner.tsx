@@ -40,6 +40,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
 					"--normal-bg": "var(--popover)",
 					"--normal-border": "var(--border)",
 					"--normal-text": "var(--popover-foreground)",
+					"--toast-close-button-end": "0",
+					"--toast-close-button-start": "auto",
+					"--toast-close-button-transform": "translate(35%, -35%)",
 				} as CSSProperties
 			}
 			theme="system"
