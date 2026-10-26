@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/Button";
 import { inputControlClassName } from "@/components/ui/input-styles";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
+import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { ActionGroup } from "../ActionGroup";
 import { CalendarMonth } from "./CalendarMonth";
-import { DateBoundaryButton } from "./DateBoundaryButton";
 import { formatDateRange } from "./date-range-label";
+import { DateBoundaryButton } from "./DateBoundaryButton";
 import { MonthYearPicker } from "./MonthYearPicker";
 import { type DateRangeBoundary, selectDateRangeBoundary, selectDateRangePair } from "./range-selection";
 import type { DateRangeValue } from "./types";
@@ -46,7 +47,9 @@ export function DateRangePicker({ className, onChange, triggerLabel, value }: Da
 		const selectedDate = format(date, "yyyy-MM-dd");
 
 		if (activeBoundary) {
-			setDraftRange(currentRange => selectDateRangeBoundary(currentRange, activeBoundary, selectedDate));
+			setDraftRange(currentRange =>
+				selectDateRangeBoundary(currentRange, activeBoundary, selectedDate),
+			);
 			setActiveBoundary(undefined);
 			return;
 		}
@@ -59,6 +62,20 @@ export function DateRangePicker({ className, onChange, triggerLabel, value }: Da
 
 		setDraftRange({ startDate: selectedDate });
 		setRangeStart(selectedDate);
+	};
+	const handleClearBoundary = (boundary: DateRangeBoundary) => {
+		setDraftRange(current => ({
+			...current,
+			[boundary === "start" ? "startDate" : "endDate"]: undefined,
+		}));
+		setActiveBoundary(boundary);
+		setRangeStart(undefined);
+		setHoveredDate(undefined);
+		toast.info(
+			boundary === "start"
+				? "Data inicial removida. Aplique para confirmar."
+				: "Data final removida. Aplique para confirmar.",
+		);
 	};
 	const handleApply = () => {
 		onChange(draftRange);
@@ -104,6 +121,7 @@ export function DateRangePicker({ className, onChange, triggerLabel, value }: Da
 						active={activeBoundary === "start"}
 						displayValue={formatBoundary(draftRange.startDate)}
 						label="De"
+						onClear={draftRange.startDate ? () => handleClearBoundary("start") : undefined}
 						onClick={() => {
 							setActiveBoundary("start");
 							setRangeStart(undefined);
@@ -113,6 +131,7 @@ export function DateRangePicker({ className, onChange, triggerLabel, value }: Da
 						active={activeBoundary === "end"}
 						displayValue={formatBoundary(draftRange.endDate)}
 						label="Até"
+						onClear={draftRange.endDate ? () => handleClearBoundary("end") : undefined}
 						onClick={() => {
 							setActiveBoundary("end");
 							setRangeStart(undefined);
@@ -151,7 +170,13 @@ export function DateRangePicker({ className, onChange, triggerLabel, value }: Da
 					/>
 				</div>
 				<ActionGroup className="gap-3 border-t pt-4">
-					<Button className="cursor-pointer" onClick={handleClear} size="sm" type="button" variant="outline">
+					<Button
+						className="cursor-pointer"
+						onClick={handleClear}
+						size="sm"
+						type="button"
+						variant="outline"
+					>
 						Limpar
 					</Button>
 					<Button className="cursor-pointer" onClick={handleApply} size="sm" type="button">
