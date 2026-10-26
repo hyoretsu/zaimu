@@ -456,7 +456,7 @@ Reembolsos e antecipações importados só podem ser vinculados a compras com da
 
 Pagamentos de cartão e transferências na mesma moeda usam o valor contabilizado como valor efetivo do destino. Campos de conversão ocultos não preservam valores antigos após edição; registros legados com essa divergência são normalizados na leitura. Moedas diferentes preservam o valor efetivo informado. O recálculo usa essa regra em saldos, status e transporte entre faturas.
 
-Na listagem e nos detalhes das faturas, previsões de recorrências ficam fora do total principal. A listagem superior exibe somente o total principal, sem linha de previsão. Nos detalhes, quando houver previsão, a linha "Previsão" apresenta o total projetado, incluindo os lançamentos previstos, que aparecem em seção inicialmente colapsada.
+Na listagem e nos detalhes das faturas, previsões de recorrências ficam fora do total principal. A listagem superior exibe somente o total principal, sem linha de previsão. Nos detalhes, quando houver previsão, a linha "Previsão" apresenta o total projetado, incluindo os lançamentos previstos, que aparecem no topo da seção Transações, antes dos lançamentos realizados, em seção inicialmente colapsada e sem descrição auxiliar. Parcelas de compras já realizadas integram as transações e o total principal, mesmo quando ainda não materializadas; a data futura da parcela não transforma a compra em previsão.
 
 Ao abrir o navegador de faturas de um cartão, selecionar a primeira fatura ainda não fechada, não paga e não prevista, em ordem de fechamento, independentemente do mês atual. Preservar seleções explícitas do usuário. Sem ciclo elegível, selecionar a fatura do mês atual ou a primeira disponível.
 

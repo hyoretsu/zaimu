@@ -337,6 +337,7 @@ export function CreditCardStatementDetails({
 							</Button>
 						</ActionGroup>
 					</header>
+
 					<div className="grid gap-3">
 						<div className="flex items-center justify-between gap-3">
 							<h4 className="font-semibold">Transações</h4>
@@ -346,6 +347,24 @@ export function CreditCardStatementDetails({
 								</span>
 							)}
 						</div>
+						{!detail.isPending && !detail.isError && forecasts.length > 0 && (
+							<CollapsibleListingSection title="Previsões">
+								{forecasts.map(purchase => (
+									<CreditPurchaseRow
+										deleteDisabled
+										editDisabled
+										key={purchase.id}
+										onDelete={async () => {}}
+										onEdit={() => {}}
+										onRefinance={() => {}}
+										onRefund={() => {}}
+										purchase={purchase}
+										refinanceDisabled
+										refundDisabled
+									/>
+								))}
+							</CollapsibleListingSection>
+						)}
 						{detail.isPending ? (
 							<div className="grid gap-2">
 								{[1, 2, 3, 4].map(item => (
@@ -420,28 +439,6 @@ export function CreditCardStatementDetails({
 							/>
 						)}
 					</div>
-					{!detail.isPending && !detail.isError && forecasts.length > 0 && (
-						<CollapsibleListingSection
-							description="Lançamentos previstos, fora do total da fatura."
-							summary={`${forecasts.length} ${forecasts.length === 1 ? "previsão" : "previsões"}`}
-							title="Previsões"
-						>
-							{forecasts.map(purchase => (
-								<CreditPurchaseRow
-									deleteDisabled
-									editDisabled
-									key={purchase.id}
-									onDelete={async () => {}}
-									onEdit={() => {}}
-									onRefinance={() => {}}
-									onRefund={() => {}}
-									purchase={purchase}
-									refinanceDisabled
-									refundDisabled
-								/>
-							))}
-						</CollapsibleListingSection>
-					)}
 				</div>
 			</DialogBody>
 			<ActionGroup className="absolute right-3 bottom-3 z-10">

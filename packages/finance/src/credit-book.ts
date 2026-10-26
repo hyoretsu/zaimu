@@ -8,8 +8,8 @@ export {
 
 import {
 	assertCalendarPeriod,
-	type CardCalendarPeriod,
 	calendarCycles,
+	type CardCalendarPeriod,
 	currentDateKey,
 	paymentStatementDates,
 	statementCycles,
@@ -28,9 +28,9 @@ import {
 	sumCents,
 } from "./credit-purchase";
 import {
-	type CreditRefund,
 	createCreditRefund,
 	createRefundCalculator,
+	type CreditRefund,
 	editCreditRefund,
 	type RefundPolicy,
 	resolveRefundPolicy,
@@ -809,7 +809,8 @@ export function refundDebtAmounts(
 /** Invoice presentation only. These rows are never saved as duplicated purchases. */
 export function creditBookEntries(book: CreditBook, includeForecasts = true) {
 	const plan = creditBookPlan(book);
-	const asOf = includeForecasts ? "9999-12-31" : currentDateKey();
+	const today = currentDateKey();
+	const asOf = includeForecasts ? "9999-12-31" : today;
 	const effects = creditBookEffects(book, asOf, plan);
 	const refundsByPurchase = Map.groupBy(
 		book.refunds.filter(refund => !refund.deletedAt),
@@ -858,7 +859,9 @@ export function creditBookEntries(book: CreditBook, includeForecasts = true) {
 					id: concrete?.id ?? `forecast-${purchase.id}-${item.number}`,
 					installmentAmount: item.amountCents / currencyScale(book.card.currency),
 					installments: purchase.installmentAmountsCents.length,
-					isForecast: !concrete,
+					isForecast:
+						!concrete &&
+						(purchase.id.startsWith("forecast:") || purchase.purchaseDate.slice(0, 10) > today),
 					isFullySynced:
 						(concreteByPurchase.get(purchase.id) ?? []).length ===
 							purchase.installmentAmountsCents.length &&

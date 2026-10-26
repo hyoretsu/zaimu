@@ -11,8 +11,8 @@ export function CollapsibleListingSection({
 	toolbar,
 }: {
 	children: ReactNode;
-	description: string;
-	summary: ReactNode;
+	description?: string;
+	summary?: ReactNode;
 	title: string;
 	toolbar?: ReactNode;
 }) {
@@ -25,10 +25,12 @@ export function CollapsibleListingSection({
 			>
 				<div className="min-w-0 flex-1 space-y-1">
 					<h2 className="text-lg font-semibold">{title}</h2>
-					<p className="text-muted-foreground text-sm">{description}</p>
-					<p aria-live="polite" className="text-muted-foreground text-sm">
-						{summary}
-					</p>
+					{description && <p className="text-muted-foreground text-sm">{description}</p>}
+					{summary != null && (
+						<p aria-live="polite" className="text-muted-foreground text-sm">
+							{summary}
+						</p>
+					)}
 				</div>
 				<Button
 					aria-controls={contentId}

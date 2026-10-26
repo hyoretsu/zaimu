@@ -535,6 +535,45 @@ describe("normalized credit book", () => {
 			expect(book.installments.some(row => row.isSettled)).toBe(false);
 		}
 	});
+	test("unmaterialized installments of completed purchases are actual invoice entries", () => {
+		const book = emptyBook();
+		newBookPurchase(
+			book,
+			{
+				description: "Compra realizada",
+				installments: 12,
+				purchaseDate: "2025-01-01",
+				totalAmount: 120,
+			},
+			undefined,
+			{ materialize: false },
+		);
+		expect(book.installments).toHaveLength(0);
+		expect(creditBookEntries(book)).toHaveLength(12);
+		expect(creditBookEntries(book).every(row => !row.isForecast)).toBe(true);
+	});
+	test("future purchases and pending recurrence projections remain forecasts", () => {
+		const book = emptyBook();
+		for (const [id, purchaseDate] of [
+			["future", "2099-01-01"],
+			["forecast:recurrence:2025-01-01", "2025-01-01"],
+		]) {
+			newBookPurchase(
+				book,
+				{
+					description: "Previsão",
+					id,
+					installments: 3,
+					purchaseDate,
+					totalAmount: 30,
+				},
+				undefined,
+				{ materialize: false },
+			);
+		}
+		expect(creditBookEntries(book)).toHaveLength(6);
+		expect(creditBookEntries(book).every(row => row.isForecast)).toBe(true);
+	});
 	test("only due installments become records; forecasts inherit canonical metadata", () => {
 		const book = emptyBook();
 		const p = newBookPurchase(book, {
