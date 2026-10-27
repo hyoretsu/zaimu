@@ -62,7 +62,6 @@ test("visitor closing-day institution policy reaches purchases and persisted boo
 	const card = await dataService.creditCards.createFromAccount(account, {
 		creditLimit: 1000,
 		dueDay: 28,
-		excludeFromTotals: false,
 		statementDay: 20,
 		workingDueDate: false,
 	});
@@ -89,7 +88,8 @@ test("visitor closing-day institution policy reaches purchases and persisted boo
 			?.creditStatementClosingInclusive,
 	).toBe(true);
 	expect(
-		(await storage.localAccounts.getById("other", owner))?.data.institution?.creditStatementClosingInclusive,
+		(await storage.localAccounts.getById("other", owner))?.data.institution
+			?.creditStatementClosingInclusive,
 	).toBeUndefined();
 	const added = await dataService.creditCards.addPurchase(card.id, input);
 	book = await dataService.creditCards.getBook(card.id);
@@ -97,7 +97,8 @@ test("visitor closing-day institution policy reaches purchases and persisted boo
 	expect(
 		book.statements.find(
 			statement =>
-				statement.id === book.installments.find(item => item.purchaseId === added[0].purchaseId)?.statementId,
+				statement.id ===
+				book.installments.find(item => item.purchaseId === added[0].purchaseId)?.statementId,
 		)?.statementDate,
 	).toBe("2026-09-20");
 	await dataService.creditCards.updatePurchase(card.id, original.purchaseId, {
@@ -110,7 +111,8 @@ test("visitor closing-day institution policy reaches purchases and persisted boo
 	expect(
 		book.statements.find(
 			statement =>
-				statement.id === book.installments.find(item => item.purchaseId === original.purchaseId)?.statementId,
+				statement.id ===
+				book.installments.find(item => item.purchaseId === original.purchaseId)?.statementId,
 		)?.statementDate,
 	).toBe("2026-09-20");
 	await dataService.financialInstitutions.update("bank", { creditStatementClosingInclusive: false });

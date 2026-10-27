@@ -28,7 +28,7 @@ export const CreditCardsGrid = memo(function CreditCardsGrid({
 }: Props) {
 	const accountById = new Map(accounts?.map(account => [account.id, account]));
 	const institutions = getFinancialInstitutions(accounts ?? []);
-	const rewardAccounts = accounts?.filter(account => account.type === "REWARDS") ?? [];
+	const rewardAccounts = accounts?.filter(account => account.type === "REWARDS" && !account.isHidden) ?? [];
 	const sortedCards = cards.toSorted((first, second) =>
 		getCreditCardDisplayName(first).localeCompare(getCreditCardDisplayName(second), "pt-BR", {
 			sensitivity: "base",

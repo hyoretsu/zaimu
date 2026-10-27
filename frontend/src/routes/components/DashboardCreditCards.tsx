@@ -37,9 +37,6 @@ export function DashboardCreditCards({
 			<div className="flex items-start justify-between gap-5 rounded-xl border p-3" key={card.id}>
 				<div className="min-w-0">
 					<p className="truncate font-medium">{getName(card)}</p>
-					<p className="text-muted-foreground text-xs">
-						{card.excludeFromTotals ? "Oculto do limite total" : "Incluído no limite total"}
-					</p>
 				</div>
 				<div className="shrink-0 space-y-1 text-right text-xs">
 					<p className="text-muted-foreground">Limite disponível</p>

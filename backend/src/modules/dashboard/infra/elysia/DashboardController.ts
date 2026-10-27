@@ -299,14 +299,11 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" })
 							period: { ...dashboardPeriod, ...balanceBreakdown },
 							projectedCashFlowUntilMonthEnd: projectedCashFlow,
 							referenceRatesAvailable: loaded.projectedYields?.available ?? false,
-							totalAvailableCredit: cardsWithStatements
-								.filter(card => !card.excludeFromTotals)
-								.reduce(
-									(sum, card) =>
-										sum +
-										money.convert(card.availableLimit, card.currency, dateKey(today)),
-									0,
-								),
+							totalAvailableCredit: cardsWithStatements.reduce(
+								(sum, card) =>
+									sum + money.convert(card.availableLimit, card.currency, dateKey(today)),
+								0,
+							),
 						};
 					} catch (error) {
 						if (!(error instanceof DashboardConversionUnavailable)) throw error;

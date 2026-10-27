@@ -94,7 +94,9 @@ export function CreateFinancialAccountDialog({
 		queryKey: ["institutions", identity],
 	});
 	const institutions = [
-		...new Map([...associatedInstitutions, ...(catalog.data ?? [])].map(item => [item.id, item])).values(),
+		...new Map(
+			[...associatedInstitutions, ...(catalog.data ?? [])].map(item => [item.id, item]),
+		).values(),
 	];
 	const initialInstitution = () => account?.institutionId ?? defaultInstitutionId ?? undefined;
 	const initialCurrency = () => account?.currency ?? "";
@@ -130,7 +132,9 @@ export function CreateFinancialAccountDialog({
 		account?.creditCard?.paymentSuggestionsEnabled ?? true,
 	);
 	const [creditLimit, setCreditLimit] = useState(String(account?.creditCard?.creditLimit ?? ""));
-	const [securityDeposit, setSecurityDeposit] = useState(String(account?.creditCard?.securityDeposit ?? ""));
+	const [securityDeposit, setSecurityDeposit] = useState(
+		String(account?.creditCard?.securityDeposit ?? ""),
+	);
 	const [statementDay, setStatementDay] = useState(String(account?.creditCard?.statementDay ?? 10));
 	const [dueDay, setDueDay] = useState(String(account?.creditCard?.dueDay ?? 17));
 	const [transitionOverride, setTransitionOverride] = useState<CardCalendarPeriod | null>(null);
@@ -159,7 +163,6 @@ export function CreateFinancialAccountDialog({
 				}
 			: undefined;
 
-	const [excludeFromTotals, setExcludeFromTotals] = useState(account?.creditCard?.excludeFromTotals ?? false);
 	const [yieldEnabled, setYieldEnabled] = useState(
 		Boolean(account?.yieldFixedRate || (!isGuestMode && account?.yieldReferenceType)),
 	);
@@ -180,7 +183,8 @@ export function CreateFinancialAccountDialog({
 		() => undefined,
 	);
 	const [yieldPeriod, setYieldPeriod] = useState<"MONTHLY" | "YEARLY">(account?.yieldPeriod ?? "MONTHLY");
-	const [isRecalculateCurrentDayYieldDialogOpen, setIsRecalculateCurrentDayYieldDialogOpen] = useState(false);
+	const [isRecalculateCurrentDayYieldDialogOpen, setIsRecalculateCurrentDayYieldDialogOpen] =
+		useState(false);
 	const [rewardsKind, setRewardsKind] = useState(account?.rewardsAccount?.kind ?? "POINTS");
 	const [initialRewardsBalance, setInitialRewardsBalance] = useDebouncedInput(
 		String(account?.rewardsAccount?.initialBalance ?? ""),
@@ -211,7 +215,6 @@ export function CreateFinancialAccountDialog({
 		setTransitionOverride(null);
 		setPaymentAccountId(account?.creditCard?.paymentAccountId ?? null);
 		setPaymentSuggestionsEnabled(account?.creditCard?.paymentSuggestionsEnabled ?? true);
-		setExcludeFromTotals(account?.creditCard?.excludeFromTotals ?? false);
 		setYieldEnabled(Boolean(account?.yieldFixedRate || (!isGuestMode && account?.yieldReferenceType)));
 		setYieldFixedRate(String(account?.yieldFixedRate ?? ""));
 		setYieldReferenceType(isGuestMode ? "" : (account?.yieldReferenceType ?? ""));
@@ -238,7 +241,8 @@ export function CreateFinancialAccountDialog({
 	const yieldConfigurationChanged = () => {
 		if (!account || type === "CREDIT_CARD") return false;
 		return (
-			(yieldEnabled && yieldFixedRate ? Number(yieldFixedRate) : null) !== (account.yieldFixedRate ?? null) ||
+			(yieldEnabled && yieldFixedRate ? Number(yieldFixedRate) : null) !==
+				(account.yieldFixedRate ?? null) ||
 			(yieldEnabled && yieldFixedRate ? yieldPeriod : null) !== (account.yieldPeriod ?? null) ||
 			(yieldEnabled && yieldReferenceType ? Number(yieldReferencePercentage) : null) !==
 				(account.yieldReferencePercentage ?? null) ||
@@ -261,7 +265,6 @@ export function CreateFinancialAccountDialog({
 								calendarTransition,
 								creditLimit: Number(creditLimit),
 								dueDay: Number(dueDay),
-								excludeFromTotals,
 								paymentAccountId,
 								paymentSuggestionsEnabled,
 								securityDeposit: securityDeposit ? Number(securityDeposit) : undefined,
@@ -300,7 +303,11 @@ export function CreateFinancialAccountDialog({
 							? null
 							: undefined,
 				yieldPeriod:
-					type !== "CREDIT_CARD" && yieldEnabled && yieldFixedRate ? yieldPeriod : account ? null : undefined,
+					type !== "CREDIT_CARD" && yieldEnabled && yieldFixedRate
+						? yieldPeriod
+						: account
+							? null
+							: undefined,
 				yieldReferencePercentage:
 					type !== "CREDIT_CARD" && !isGuestMode && yieldEnabled && yieldReferenceType
 						? Number(yieldReferencePercentage)
@@ -313,7 +320,8 @@ export function CreateFinancialAccountDialog({
 						: account
 							? null
 							: undefined,
-				yieldTaxIds: type !== "CREDIT_CARD" && yieldEnabled ? yieldTaxIds : account ? null : undefined,
+				yieldTaxIds:
+					type !== "CREDIT_CARD" && yieldEnabled ? yieldTaxIds : account ? null : undefined,
 				yieldTaxRate:
 					type !== "CREDIT_CARD" && yieldEnabled && yieldTaxRate !== ""
 						? Number(yieldTaxRate)
@@ -355,11 +363,14 @@ export function CreateFinancialAccountDialog({
 								variant={contextual ? "outline" : "default"}
 							>
 								{account ? <LuPencil /> : <LuPlus />}
-								{!iconOnly && ` ${account ? "Editar" : contextual ? "Adicionar conta" : "Nova conta"}`}
+								{!iconOnly &&
+									` ${account ? "Editar" : contextual ? "Adicionar conta" : "Nova conta"}`}
 							</Button>
 						</DialogTrigger>
 					</TooltipTrigger>
-					{iconOnly && <TooltipContent>{account ? "Editar conta" : "Adicionar conta"}</TooltipContent>}
+					{iconOnly && (
+						<TooltipContent>{account ? "Editar conta" : "Adicionar conta"}</TooltipContent>
+					)}
 				</Tooltip>
 			)}
 			<DialogContent className="sm:max-w-lg">
@@ -385,7 +396,9 @@ export function CreateFinancialAccountDialog({
 					<DialogBody>
 						<CustomSelect
 							error={
-								catalog.isError ? "Não foi possível carregar as instituições. Tente novamente." : undefined
+								catalog.isError
+									? "Não foi possível carregar as instituições. Tente novamente."
+									: undefined
 							}
 							isLoading={catalog.isPending}
 							label="Instituição"
@@ -406,7 +419,9 @@ export function CreateFinancialAccountDialog({
 							searchable
 							value={institutionId}
 						/>
-						{institution && institutionId && <InstitutionAssociationProfile institutionId={institutionId} />}
+						{institution && institutionId && (
+							<InstitutionAssociationProfile institutionId={institutionId} />
+						)}
 						<CustomSelect
 							disabled={!institution}
 							label="País da conta"
@@ -414,7 +429,10 @@ export function CreateFinancialAccountDialog({
 								setCountry(value);
 								setCurrency("");
 							}}
-							options={availableCountries.map(value => ({ label: countryNames.of(value) ?? value, value }))}
+							options={availableCountries.map(value => ({
+								label: countryNames.of(value) ?? value,
+								value,
+							}))}
 							placeholder="Ex: Brasil"
 							required
 							searchable
@@ -440,8 +458,8 @@ export function CreateFinancialAccountDialog({
 						/>
 						{account ? (
 							<div className="grid gap-2">
-								<p className="font-medium text-sm">Tipo</p>
-								<p className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+								<p className="text-sm font-medium">Tipo</p>
+								<p className="bg-muted/30 rounded-md border px-3 py-2 text-sm">
 									{types.find(item => item.value === type)?.label}
 								</p>
 							</div>
@@ -479,7 +497,7 @@ export function CreateFinancialAccountDialog({
 							/>
 						)}
 						{type === "REWARDS" && (
-							<div className="grid gap-5 rounded-2xl border bg-muted/35 p-4">
+							<div className="bg-muted/35 grid gap-5 rounded-2xl border p-4">
 								<CustomSelect
 									label="Modalidade"
 									onValueChange={value => {
@@ -520,11 +538,14 @@ export function CreateFinancialAccountDialog({
 											checkboxProps={{
 												checked: conversionEnabled,
 												id: "conversion-enabled",
-												onCheckedChange: checked => setConversionEnabled(checked === true),
+												onCheckedChange: checked =>
+													setConversionEnabled(checked === true),
 											}}
 										>
 											<span>
-												<strong className="block">Informar equivalente monetário em {currency}</strong>
+												<strong className="block">
+													Informar equivalente monetário em {currency}
+												</strong>
 												<span className="text-muted-foreground">
 													Saldo continua guardado e exibido em pontos.
 												</span>
@@ -556,7 +577,7 @@ export function CreateFinancialAccountDialog({
 							</div>
 						)}
 						{type === "CREDIT_CARD" && (
-							<div className="grid gap-5 rounded-2xl border bg-muted/35 p-4">
+							<div className="bg-muted/35 grid gap-5 rounded-2xl border p-4">
 								<MoneyField
 									currencyCode={currency}
 									id="credit-limit"
@@ -576,8 +597,8 @@ export function CreateFinancialAccountDialog({
 										value={securityDeposit}
 									/>
 									<p className="text-muted-foreground text-xs">
-										Use somente em cartões cujo limite depende de dinheiro deixado em garantia. Não entra no
-										saldo disponível.
+										Use somente em cartões cujo limite depende de dinheiro deixado em
+										garantia. Não entra no saldo disponível.
 									</p>
 								</div>
 								<div className="grid gap-4 sm:grid-cols-2">
@@ -621,22 +642,6 @@ export function CreateFinancialAccountDialog({
 										value={calendarTransition}
 									/>
 								)}
-								<CheckboxField
-									align="start"
-									checkboxProps={{
-										checked: excludeFromTotals,
-										id: "exclude-from-totals",
-										onCheckedChange: checked => setExcludeFromTotals(checked === true),
-									}}
-								>
-									<span>
-										<strong className="block">Não considerar nos totais</strong>
-										<span className="text-muted-foreground">
-											Use para cartão de outra pessoa: acompanhe compras e faturas sem somá-lo aos seus
-											limites.
-										</span>
-									</span>
-								</CheckboxField>
 							</div>
 						)}
 						{type === "CREDIT_CARD" && (
@@ -665,9 +670,17 @@ export function CreateFinancialAccountDialog({
 								!currency ||
 								!institution ||
 								(type === "CREDIT_CARD" && !creditLimit) ||
-								(type !== "CREDIT_CARD" && yieldEnabled && !yieldFixedRate && !yieldReferenceType) ||
-								(type !== "CREDIT_CARD" && yieldEnabled && yieldReferenceType && !yieldReferencePercentage) ||
-								(type === "REWARDS" && conversionEnabled && (!conversionPoints || !conversionAmount))
+								(type !== "CREDIT_CARD" &&
+									yieldEnabled &&
+									!yieldFixedRate &&
+									!yieldReferenceType) ||
+								(type !== "CREDIT_CARD" &&
+									yieldEnabled &&
+									yieldReferenceType &&
+									!yieldReferencePercentage) ||
+								(type === "REWARDS" &&
+									conversionEnabled &&
+									(!conversionPoints || !conversionAmount))
 							}
 							type="submit"
 						>

@@ -6,6 +6,7 @@ import {
 	ImportCreditCardStatementDialog,
 } from "@/components/credit-card-imports";
 import { NativeMoneyTotals } from "@/components/currency/NativeMoneyTotals";
+import { HiddenAccountsList } from "@/components/hidden-accounts";
 import { PendingNotices } from "@/components/pending-notices";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -89,11 +90,14 @@ export function CreditCardsPage() {
 
 	const accounts = useQuery({
 		enabled: hasAccess,
-		queryFn: () => dataService.accounts.getAll(),
-		queryKey: queryKeys.accounts.list(identity!),
+		queryFn: () => dataService.accounts.getAllIncludingHidden(),
+		queryKey: [...queryKeys.accounts.list(identity!), "including-hidden"],
 	});
+	const hiddenCards =
+		accounts.data?.filter(account => account.type === "CREDIT_CARD" && account.isHidden) ?? [];
 	const institutions = getFinancialInstitutions(accounts.data ?? []);
-	const rewardAccounts = accounts.data?.filter(account => account.type === "REWARDS") ?? [];
+	const rewardAccounts =
+		accounts.data?.filter(account => account.type === "REWARDS" && !account.isHidden) ?? [];
 	const purchase = useMutation({
 		meta: { cacheOperations: ["statement"] },
 		mutationFn: ({
@@ -142,11 +146,11 @@ export function CreditCardsPage() {
 		mutationFn: (id: string) => dataService.accounts.update(id, { isHidden: true }),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
-			showToast("Cartão escondido. Mostre novamente em Contas financeiras.", "positive");
+			showToast("Cartão escondido.", "positive");
 		},
 	});
 
-	const ownCardsCount = cards.data?.filter(card => !card.excludeFromTotals).length ?? 0;
+	const ownCardsCount = cards.data?.length ?? 0;
 	const handleDelete = useCallback((id: string) => deleteCard.mutateAsync(id), [deleteCard.mutateAsync]);
 	const handleHide = useCallback((id: string) => hideCard.mutateAsync(id), [hideCard.mutateAsync]);
 	const handleUpdate = useCallback(
@@ -200,12 +204,10 @@ export function CreditCardsPage() {
 						<NativeMoneyTotals
 							error={cards.isError && cards.data === undefined}
 							pending={cards.isPending}
-							values={(cards.data ?? [])
-								.filter(card => !card.excludeFromTotals)
-								.map(card => ({
-									amount: card.limit.effectiveLimit,
-									currency: card.currency ?? "BRL",
-								}))}
+							values={(cards.data ?? []).map(card => ({
+								amount: card.limit.effectiveLimit,
+								currency: card.currency ?? "BRL",
+							}))}
 						/>
 					)}
 				</div>
@@ -215,20 +217,28 @@ export function CreditCardsPage() {
 				</div>
 			</section>
 			<QueryRefreshStatus
-				error={cards.isError && cards.data !== undefined}
-				onRetry={() => cards.refetch()}
+				error={
+					(cards.isError && cards.data !== undefined) ||
+					(accounts.isError && accounts.data !== undefined)
+				}
+				onRetry={() => Promise.all([cards.refetch(), accounts.refetch()])}
 				pending={cards.isFetching && !cards.isPending}
 			/>
-			{cards.isPending || (restoreStatement && statementOwner.isPending) ? (
+			{cards.isPending || accounts.isPending || (restoreStatement && statementOwner.isPending) ? (
 				<div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
 					{[1, 2, 3].map(item => (
 						<Skeleton className="h-72" key={item} />
 					))}
 				</div>
-			) : cards.isError && cards.data === undefined ? (
+			) : (cards.isError && cards.data === undefined) ||
+			  (accounts.isError && accounts.data === undefined) ? (
 				<EmptyState
 					action={
-						<Button className="cursor-pointer" onClick={() => cards.refetch()} variant="outline">
+						<Button
+							className="cursor-pointer"
+							onClick={() => Promise.all([cards.refetch(), accounts.refetch()])}
+							variant="outline"
+						>
 							Tentar novamente
 						</Button>
 					}
@@ -271,9 +281,11 @@ export function CreditCardsPage() {
 					}
 					description="Cadastre seu cartão sem sair desta tela."
 					icon={<LuCreditCard className="size-7" />}
-					title="Nenhum cartão cadastrado"
+					title={hiddenCards.length ? "Nenhum cartão visível" : "Nenhum cartão cadastrado"}
 				/>
 			)}
+			<HiddenAccountsList accounts={hiddenCards} title="Cartões escondidos" />
+
 			<CreatePurchaseDialog
 				cards={cards.data ?? []}
 				initialCardId={selectedCard?.id}

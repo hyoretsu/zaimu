@@ -62,7 +62,6 @@ test("visitor institution policy reaches new purchases, reloads and explicit rec
 	const card = await dataService.creditCards.createFromAccount(account, {
 		creditLimit: 1000,
 		dueDay: 28,
-		excludeFromTotals: false,
 		statementDay: 20,
 		workingDueDate: false,
 	});

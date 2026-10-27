@@ -44,7 +44,12 @@ beforeAll(async () => {
 	}
 	auth = (await import("@/stores/auth")).useAuthStore;
 	previousAuth = auth.getState();
-	auth.setState({ guestId: "projection-regressions", isAuthenticated: false, isGuestMode: true, user: null });
+	auth.setState({
+		guestId: "projection-regressions",
+		isAuthenticated: false,
+		isGuestMode: true,
+		user: null,
+	});
 	storage = await import("../localStorage");
 	currency = await import("../currency-context");
 	previousCurrency = currency.activeCurrency();
@@ -421,4 +426,39 @@ test("PREV-003: recurring card payment and projected remainder share mixed compo
 	expect(context.movements.find(row => row.amount === 50 && row.cardPayment)?.recurringAmount).toBe(25);
 	expect(context.projectedStatements.find(row => row.balanceAmount === 150)?.recurringAmount).toBe(75);
 	expect((await storage.localCreditBooks.getById("card", owner))?.data.payments).toEqual([]);
+});
+
+test("only hiding excludes a card from credit totals, including legacy exclusions", async () => {
+	await account();
+	await cardBook();
+	const { dataService } = await import("../dataService");
+	const stored = (await storage.localCreditCards.getById("card", owner))!.data;
+	await storage.localCreditCards.put({ ...stored, excludeFromTotals: true }, stored.id, owner);
+	const cardAccount: FinancialAccount = {
+		balance: 0,
+		createdAt: "2026-10-01",
+		currency: "BRL",
+		id: "card-account",
+		isHidden: false,
+		isPrimary: false,
+		name: "Cartão legado",
+		type: "CREDIT_CARD",
+		updatedAt: "2026-10-01",
+		userId: "projection-regressions",
+	};
+	await storage.localAccounts.put(cardAccount, cardAccount.id, owner);
+	const visible = await dataService.dashboard.get();
+	expect(visible.creditCards).toHaveLength(1);
+	expect(visible.totalAvailableCredit).toBe(10000);
+	await dataService.accounts.update(cardAccount.id, { isHidden: true });
+	expect(await dataService.creditCards.getAll()).toHaveLength(0);
+	expect(
+		(await dataService.accounts.getAllIncludingHidden()).find(row => row.id === cardAccount.id)?.isHidden,
+	).toBe(true);
+	const hidden = await dataService.dashboard.get();
+	expect(hidden.creditCards).toHaveLength(0);
+	expect(hidden.totalAvailableCredit).toBe(0);
+	await dataService.accounts.update(cardAccount.id, { isHidden: false });
+	expect(await dataService.creditCards.getAll()).toHaveLength(1);
+	expect((await dataService.dashboard.get()).totalAvailableCredit).toBe(10000);
 });

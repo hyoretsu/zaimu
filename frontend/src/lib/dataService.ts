@@ -326,7 +326,6 @@ export type FinancialAccountDraft = Omit<
 		| "creditLimit"
 		| "calendarHistory"
 		| "dueDay"
-		| "excludeFromTotals"
 		| "securityDeposit"
 		| "statementDay"
 		| "workingDueDate"
@@ -1501,7 +1500,7 @@ export const dataService = {
 				currency: account.currency ?? activeCurrency(),
 				currentStatement: null,
 				dueDay: details.dueDay,
-				excludeFromTotals: details.excludeFromTotals ?? false,
+				excludeFromTotals: false,
 				financialAccountId: account.id,
 				id: crypto.randomUUID(),
 				limit: {
@@ -2544,18 +2543,16 @@ export const dataService = {
 							? projectedCashFlowUntilMonthEnd
 							: null,
 						referenceRatesAvailable: financialContext.referenceRatesAvailable,
-						totalAvailableCredit: creditCards
-							.filter(card => !card.excludeFromTotals)
-							.reduce(
-								(sum, card) =>
-									sum +
-									financialContext.money.convert(
-										card.availableLimit,
-										card.currency,
-										getLocalDateKey(now),
-									),
-								0,
-							),
+						totalAvailableCredit: creditCards.reduce(
+							(sum, card) =>
+								sum +
+								financialContext.money.convert(
+									card.availableLimit,
+									card.currency,
+									getLocalDateKey(now),
+								),
+							0,
+						),
 					};
 				} catch (error) {
 					if (!(error instanceof GuestConversionUnavailable)) throw error;

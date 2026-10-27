@@ -490,3 +490,7 @@ agenda não duplica um período já associado. Períodos ocupados ou excluídos 
 ser reutilizados; repetir a mesma associação é idempotente. Um lançamento já associado
 não pode representar outro período. Mudança de frequência reavalia os períodos pela
 nova unidade da agenda, preservando todos os registros financeiros existentes.
+
+## Visibilidade de cartões
+
+Esconder é o único controle de visibilidade e participação nos totais dos cartões. Cartões escondidos saem dos totais e das listagens principais e ficam em linhas compactas na própria tela de cartões, com ação Mostrar. A tela de contas lista somente contas escondidas que não sejam cartões. Mostrar restaura o cartão e sua participação nos totais. A antiga opção de não considerar nos totais foi removida; valores legados de `excludeFromTotals` não afetam os cálculos.

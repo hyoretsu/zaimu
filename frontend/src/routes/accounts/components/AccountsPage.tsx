@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { LuEye, LuFileUp, LuLandmark, LuPlus, LuScale, LuSettings2, LuWalletCards } from "react-icons/lu";
+import { LuFileUp, LuLandmark, LuPlus, LuScale, LuSettings2, LuWalletCards } from "react-icons/lu";
 import { NativeMoneyTotals } from "@/components/currency/NativeMoneyTotals";
+import { HiddenAccountsList } from "@/components/hidden-accounts";
 import { PendingNotices } from "@/components/pending-notices";
 import { ImportTransactionsDialog, TransactionImportReviewDialog } from "@/components/transaction-imports";
-import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -14,11 +14,7 @@ import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recover
 import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
 import { useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
-import {
-	compareFinancialAccountsByTitle,
-	getFinancialAccountCurrencyValue,
-	getFinancialAccountOptionLabel,
-} from "@/lib/financial-account";
+import { compareFinancialAccountsByTitle, getFinancialAccountCurrencyValue } from "@/lib/financial-account";
 import { getFinancialInstitutions } from "@/lib/financial-institution";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import {
@@ -115,7 +111,8 @@ export function AccountsPage() {
 		[accounts.data],
 	);
 	const rewardAccounts = visibleAccounts.filter(account => account.type === "REWARDS");
-	const hiddenAccounts = accounts.data?.filter(account => account.isHidden) ?? [];
+	const hiddenAccounts =
+		accounts.data?.filter(account => account.type !== "CREDIT_CARD" && account.isHidden) ?? [];
 	const organization = useMemo(() => {
 		const allAccounts = visibleAccounts;
 		const institutions = getFinancialInstitutions(accounts.data ?? []);
@@ -253,31 +250,7 @@ export function AccountsPage() {
 					title={hiddenAccounts.length ? "Nenhuma conta visível" : "Nenhuma conta cadastrada"}
 				/>
 			)}
-			{hiddenAccounts.length > 0 && (
-				<section className="grid gap-3">
-					<h2 className="text-lg font-bold">Contas escondidas</h2>
-					{hiddenAccounts.map(account => (
-						<div
-							className="bg-card flex items-center justify-between gap-3 rounded-xl border p-3"
-							key={account.id}
-						>
-							<span className="truncate">{getFinancialAccountOptionLabel(account)}</span>
-							<Button
-								className="cursor-pointer"
-								disabled={
-									setAccountHidden.isPending &&
-									setAccountHidden.variables?.id === account.id
-								}
-								onClick={() => setAccountHidden.mutate({ id: account.id, isHidden: false })}
-								size="sm"
-								variant="outline"
-							>
-								<LuEye /> Mostrar
-							</Button>
-						</div>
-					))}
-				</section>
-			)}
+			<HiddenAccountsList accounts={hiddenAccounts} title="Contas escondidas" />
 			{isDefaultsOpen && (
 				<AccountDefaultsDialog
 					initialDraft={recoveredDefaults ?? undefined}
