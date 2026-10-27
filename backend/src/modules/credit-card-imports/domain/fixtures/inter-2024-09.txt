@@ -1,0 +1,76 @@
+VENCIMENTO
+07/10/2024
+DATA DOCUMENTO
+30/09/2024
+Despesas da fatura
+CARTÃO 2306\u0000\u0000\u0000\u00005248
+Data 	Movimentação 	Beneficiário 	Valor
+31 de ago. 2024 PAGAMENTO ON LINE 	- 	+ R$ 1.126,30
+31 de ago. 2024 PAGAMENTO ON LINE 	- 	+ R$ 820,00
+01 de set. 2024 PAGAMENTO ON LINE 	- 	+ R$ 180,88
+02 de set. 2024 PAGAMENTO ON LINE 	- 	+ R$ 84,62
+04 de set. 2024 SEG CART STDA LIBERTY 	- 	R$ 1,90
+Total CARTÃO 2306\u0000\u0000\u0000\u00005248 	R$ 1,90
+CARTÃO 2306\u0000\u0000\u0000\u00008642
+Data 	Movimentação 	Beneficiário 	Valor
+26 de set. 2023 aliexpress \u0000Parcela 12 de 12\u0000 	- 	R$ 25,01
+27 de set. 2023 aliexpress \u0000Parcela 12 de 12\u0000 	- 	R$ 9,73
+27 de set. 2023 aliexpress \u0000Parcela 12 de 12\u0000 	- 	R$ 13,12
+27 de set. 2023 PAG\u0000Steam \u0000Parcela 12 de 12\u0000 	- 	R$ 24,46
+07 de out. 2023 RECARGAPAY\u0000CLIENTE \u0000Parcela 12 de 12\u0000 	- 	R$ 6,64
+07 de out. 2023 RECARGAPAY\u0000CLIENTE \u0000Parcela 12 de 12\u0000 	- 	R$ 9,54
+24 de out. 2023 RECARGA\u0000CLIENTE \u0000Parcela 11 de 12\u0000 	- 	R$ 44,15
+09 de dez. 2023 RECARGA\u0000CLIENTE \u0000Parcela 10 de 12\u0000 	- 	R$ 24,59
+25 de dez. 2023 RECARGA\u0000CLIENTE \u0000Parcela 09 de 12\u0000 	- 	R$ 20,07
+20 de jan. 2024 CP PAR SHOP INTER MAIS \u0000Parcela 09 de 10\u0000 	- 	R$ 319,90
+06 de jun. 2024 ANTECIPACAO SHOPPING IN 	- 	R$ 6.978,30
+06 de jun. 2024 CP PARC SHOPPING INTER \u0000Parcela 04 de 10\u0000 	- 	R$ 170,91
+
+-- 3 of 7 --
+
+CLIENTE EXEMPLO
+2306****5248 	07/10/2024 	R$ 8.815,97
+Despesas da fatura
+CARTÃO 2306\u0000\u0000\u0000\u00008642
+Data 	Movimentação 	Beneficiário 	Valor
+27 de jul. 2024 PIX CRED PARCELADO \u0000Parcela 03 de 04\u0000
+Principal \u0000R$ 220,82\u0000 + Juros \u0000R$ 41,49\u0000
+- 	R$ 262,31
+30 de jul. 2024 PICPAY CLIENTE \u0000Parcela 02 de 06\u0000 	- 	R$ 20,34
+31 de ago. 2024 MP \u0000CLIENTE 	- 	R$ 860,10
+01 de set. 2024 Google TRAKT 	- 	R$ 19,90
+07 de set. 2024 CP INTERC PLAN 	- 	R$ 5,00
+Total CARTÃO 2306\u0000\u0000\u0000\u00008642 	R$ 8.814,07
+
+-- 4 of 7 --
+
+CLIENTE EXEMPLO
+2306****5248 	07/10/2024 	R$ 8.815,97
+Limite de crédito total:
+R$ 11.397,47
+Os valores dos limites são referentes ao valor
+utilizado e disponível no momento de fechamento
+da fatura.
+Utilizado:
+R$ 10.658,49
+Disponível:
+R$ 738,98
+Como está distribuído o seu limite de crédito por
+produto?
+Pix no crédito
+Utilizado:
+R$ 524,62
+Disponível:
+R$ 227,28
+Boleto no crédito
+Utilizado:
+R$ 0,00
+Disponível:
+R$ 751,90
+Saque
+Utilizado:
+R$ 0,00
+Disponível:
+R$ 751,90
+Próxima fatura
+01 de nov. 2024 NÃO IMPORTAR - R$ 999,00

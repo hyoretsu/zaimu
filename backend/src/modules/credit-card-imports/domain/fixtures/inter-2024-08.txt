@@ -1,0 +1,64 @@
+VENCIMENTO
+07/09/2024
+DATA DOCUMENTO
+31/08/2024
+Despesas da fatura
+CARTÃO 2306 	5248
+DATA 	MOVIMENTAÇÃO 	VALOR
+02 ago. 2024 Pagamento On Line 	+ R$ 269,11
+25 ago. 2024 Resgate Pontos 	+ R$ 5,00
+VALOR TOTAL CARTÃO 2306 	5248 	R$ 0,00
+CARTÃO 2306 	8642
+DATA 	MOVIMENTAÇÃO 	VALOR
+26 set. 2023 Aliexpress \u0000Parcela 11 De 12\u0000 	R$ 25,01
+27 set. 2023 Aliexpress \u0000Parcela 11 De 12\u0000 	R$ 13,12
+27 set. 2023 Aliexpress \u0000Parcela 11 De 12\u0000 	R$ 9,73
+27 set. 2023 Pag*Steam \u0000Parcela 11 De 12\u0000 	R$ 24,46
+07 out. 2023 Recargapay*Cliente \u0000Parcela 11 De 12\u0000 	R$ 9,54
+07 out. 2023 Recargapay*Cliente \u0000Parcela 11 De 12\u0000 	R$ 6,64
+24 out. 2023 Recarga*Cliente \u0000Parcela 10 De 12\u0000 	R$ 44,15
+09 dez. 2023 Recarga*Cliente \u0000Parcela 09 De 12\u0000 	R$ 24,59
+VALOR TOTAL
+R$ 2.211,80
+
+-- 2 of 6 --
+
+CLIENTE EXEMPLO
+2306 	5248
+VENCIMENTO
+07/09/2024
+Despesas da fatura
+CARTÃO 2306 	8642
+DATA 	MOVIMENTAÇÃO 	VALOR
+25 dez. 2023 Recarga*Cliente \u0000Parcela 08 De 12\u0000 	R$ 20,07
+20 jan. 2024 Cp Par Shop Inter Mais \u0000Parcela 08 De 10\u0000 	R$ 319,90
+06 jun. 2024 Cp Parc Shopping Inter \u0000Parcela 03 De 10\u0000 	R$ 170,91
+06 jun. 2024 Cp Parc Shopping Inter \u0000Parcela 03 De 10\u0000 	R$ 996,90
+27 jul. 2024 	Pix Cred Parcelado \u0000Parcela 02 De 04\u0000 	R$ 262,31
+Principal ( R$ 202,61) + Juros ( R$ 59,70)
+30 jul. 2024 Picpay Aran Leite De \u0000Parcela 01 De 06\u0000 	R$ 20,39
+02 ago. 2024 Recargapay \u0000Cliente 	R$ 269,08
+VALOR TOTAL CARTÃO 2306 	8642 	R$ 2.216,80
+VALOR TOTAL
+R$ 2.211,80
+
+-- 3 of 6 --
+
+CLIENTE EXEMPLO
+2306 	5248
+VENCIMENTO
+07/09/2024
+VALOR TOTAL
+R$ 2.211,80
+Limites
+LIMITE DE CRÉDITO
+R$ 11.865,95
+LIMITE DE SAQUE
+R$ 0,00
+LIMITE DE CRÉDITO DISPONÍVEL
+R$ \u0000117,44
+LIMITE DE CRÉDITO UTILIZADO
+R$ 11.983,39
+Você sabia?
+Próxima fatura
+01 de nov. 2024 NÃO IMPORTAR - R$ 999,00

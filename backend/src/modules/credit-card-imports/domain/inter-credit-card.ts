@@ -36,7 +36,14 @@ function isPurchase(description: string) {
 }
 
 export function parseInterCreditCardStatementText(text: string): CreditCardStatement {
-	const dueDateMatch = text.match(/Data\s+de\s+Vencimento\s+(\d{2}\/\d{2}\/\d{4})/iu);
+	// Older Inter PDFs map parentheses (and other glyphs) to NUL in their font.
+	// biome-ignore lint/suspicious/noControlCharactersInRegex: Inter PDF fonts emit actual NUL glyphs around installment labels.
+	text = text
+		.replace(/\u0000(Parcela\s+\d{1,2}\s+de\s+\d{1,2})\u0000/giu, "($1)")
+		.replaceAll("\u0000", " ");
+	// PDF.js may place the Pix breakdown between its description and amount.
+	text = text.replace(/\nPrincipal[^\n]*\n[\t ]*(?=-[\t ]+R\$)/giu, "\t");
+	const dueDateMatch = text.match(/(?:Data\s+de\s+)?Vencimento\s+(\d{2}\/\d{2}\/\d{4})/iu);
 	const dueDate = dueDateMatch ? parseFullDate(dueDateMatch[1]!) : undefined;
 	const statementDate = parseStatementDate(text);
 	const expensesStart = text.search(/Despesas\s+da\s+fatura/iu);
@@ -45,7 +52,7 @@ export function parseInterCreditCardStatementText(text: string): CreditCardState
 	const nextStatementOffset = expensesAfterStart.search(/Próxima\s+fatura/iu);
 	const expenses = expensesAfterStart.slice(0, nextStatementOffset < 0 ? undefined : nextStatementOffset);
 	const purchasePattern =
-		/^(\d{2})\s+de\s+([A-Za-zÀ-ÿ]{3})\.?(?:\s+)(\d{4})\s+(.+?)[\t ]+-[\t ]+([+−-]?[\t ]*R\$[\t ]*[+−-]?[\t ]*[\d.]+,\d{2}[\t ]*[+−-]?)[\t ]*$/gimu;
+		/^(\d{2})\s+(?:de\s+)?([A-Za-zÀ-ÿ]{3})\.?(?:\s+)(\d{4})\s+(.+?)[\t ]+(?:-[\t ]+)?([+−-]?[\t ]*R\$[\t ]*[+−-]?[\t ]*[\d.]+,\d{2}[\t ]*[+−-]?)[\t ]*$/gimu;
 	const purchases: CreditCardStatementPurchase[] = [];
 	for (const match of expenses.matchAll(purchasePattern)) {
 		const description = match[4]!.trim();

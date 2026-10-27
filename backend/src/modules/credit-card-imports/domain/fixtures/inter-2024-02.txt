@@ -1,0 +1,57 @@
+VENCIMENTO
+01/03/2024
+DATA DOCUMENTO
+24/02/2024
+Despesas da fatura
+CARTÃO 2306 	8642
+DATA 	MOVIMENTAÇÃO 	VALOR
+21 mar 2023 Aliexpress.Com \u0000Parcela 11 De 12\u0000 	R$ 40,85
+22 mar 2023 Aliexpress.Com \u0000Parcela 11 De 12\u0000 	R$ 42,70
+26 set 2023 Aliexpress \u0000Parcela 05 De 12\u0000 	R$ 25,01
+27 set 2023 Aliexpress \u0000Parcela 05 De 12\u0000 	R$ 9,73
+27 set 2023 Aliexpress \u0000Parcela 05 De 12\u0000 	R$ 13,12
+27 set 2023 Pag*Steam \u0000Parcela 05 De 12\u0000 	R$ 24,46
+07 out 2023 Recargapay*Cliente \u0000Parcela 05 De 12\u0000 	R$ 6,64
+07 out 2023 Recargapay*Cliente \u0000Parcela 05 De 12\u0000 	R$ 9,54
+24 out 2023 Recarga*Cliente \u0000Parcela 04 De 12\u0000 	R$ 44,15
+09 dez 2023 Recarga*Cliente \u0000Parcela 03 De 12\u0000 	R$ 24,59
+25 dez 2023 Recarga*Cliente \u0000Parcela 02 De 12\u0000 	R$ 20,07
+20 jan 2024 Cp Par Shop Inter Mais \u0000Parcela 02 De 10\u0000 	R$ 319,90
+VALOR TOTAL CARTÃO 2306 	8642 	R$ 580,76
+DESPESAS DO MÊS
+R$ 580,76
+Essa é a soma de todas as
+suas despesas durante esse
+mês.
+VALOR ANTECIPADO
+R$ 1.036,90
+Esse é o valor que ficou como
+crédito para esse mês, já que
+os pagamentos recebidos no
+mês anterior foram maiores do
+que suas despesas!
+TOTAL DESSA FATURA
+R$ 0,00
+Você não precisa se preocupar
+suas despesas já estão pagas!
+O restante do valor antecipado
+passará para o próximo mês.
+Valor antecipado:
+R$ 456,14
+
+-- 1 of 4 --
+
+CLIENTE EXEMPLO
+2306 	5248
+VENCIMENTO
+01/03/2024
+VALOR TOTAL
+R$ 0,00
+Limites
+LIMITE DE CRÉDITO
+R$ 2.593,70
+LIMITE DE SAQUE
+R$ 0,00
+Você sabia?
+Próxima fatura
+01 de nov. 2024 NÃO IMPORTAR - R$ 999,00
