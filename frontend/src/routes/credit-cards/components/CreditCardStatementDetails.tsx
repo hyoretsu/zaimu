@@ -267,6 +267,16 @@ export function CreditCardStatementDetails({
 									/>
 								}
 							</strong>
+							{!isIgnored && (statement.creditInAmount ?? 0) > 0 && (
+								<p className="text-muted-foreground mt-1 text-xs">
+									Crédito da fatura anterior:{" "}
+									<PreferredMoneyAmount
+										values={[
+											{ amount: statement.creditInAmount ?? 0, currency: currencyCode },
+										]}
+									/>
+								</p>
+							)}
 							{forecasts.length > 0 && (
 								<p className="text-muted-foreground mt-1 text-xs">
 									Previsão:{" "}

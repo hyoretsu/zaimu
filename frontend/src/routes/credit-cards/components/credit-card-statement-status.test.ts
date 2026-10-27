@@ -30,7 +30,10 @@ describe("getCreditCardStatementStatus", () => {
 		).toBe("Fatura fechada");
 	});
 	test("shows scheduled payments without marking the invoice paid", () => {
-		const status = getCreditCardStatementStatus({ ...statement, scheduledPaymentAmount: 100 }, "2099-01-16");
+		const status = getCreditCardStatementStatus(
+			{ ...statement, scheduledPaymentAmount: 100 },
+			"2099-01-16",
+		);
 		expect(status.label).toBe("Pagamento agendado");
 		expect(status.icon).not.toBeNull();
 	});
@@ -79,8 +82,10 @@ describe("getCreditCardStatementStatus", () => {
 			{ amount: -10, date: "2099-01-21" },
 		];
 		expect(
-			getCreditCardStatementStatus({ ...statement, payments, scheduledPaymentAmount: 99.99 }, "2099-01-16")
-				.label,
+			getCreditCardStatementStatus(
+				{ ...statement, payments, scheduledPaymentAmount: 99.99 },
+				"2099-01-16",
+			).label,
 		).toBe("Fatura fechada");
 		expect(
 			getCreditCardStatementStatus(
@@ -95,16 +100,20 @@ describe("getCreditCardStatementStatus", () => {
 		today => {
 			expect(
 				getCreditCardStatementStatus(
-					{ ...statement, payments: [{ amount: 150, date: "2099-01-14" }], scheduledPaymentAmount: 150 },
+					{
+						...statement,
+						payments: [{ amount: 150, date: "2099-01-14" }],
+						scheduledPaymentAmount: 150,
+					},
 					today,
 				).label,
 			).toBe("Fatura aberta");
 		},
 	);
 	test.each([40, 99.99])("keeps closed invoices closed with only %s scheduled", scheduledPaymentAmount => {
-		expect(getCreditCardStatementStatus({ ...statement, scheduledPaymentAmount }, "2099-01-16").label).toBe(
-			"Fatura fechada",
-		);
+		expect(
+			getCreditCardStatementStatus({ ...statement, scheduledPaymentAmount }, "2099-01-16").label,
+		).toBe("Fatura fechada");
 	});
 	test("does not schedule an invoice with no remaining balance", () => {
 		expect(
@@ -115,13 +124,25 @@ describe("getCreditCardStatementStatus", () => {
 		).toBe("Fatura fechada");
 	});
 
+	test("keeps carried debt distinct even after its due date and with scheduled payments", () => {
+		expect(
+			getCreditCardStatementStatus(
+				{ ...statement, scheduledPaymentAmount: 100, status: "CARRIED" },
+				"2099-02-01",
+			).label,
+		).toBe("Saldo transposto");
+	});
+
 	test("shows forecast invoices without a status", () => {
 		const status = getCreditCardStatementStatus({ ...statement, isForecast: true });
 		expect(status.label).toBe("");
 		expect(status.icon).toBeNull();
 	});
 	test("hides status before the cycle opens, including month and year boundaries", () => {
-		expect(getCreditCardStatementStatus(statement, "2098-12-14")).toMatchObject({ icon: null, label: "" });
+		expect(getCreditCardStatementStatus(statement, "2098-12-14")).toMatchObject({
+			icon: null,
+			label: "",
+		});
 		expect(getCreditCardStatementStatus(statement, "2098-12-15").label).toBe("Fatura aberta");
 		const march = { ...statement, dueDate: "2026-04-10", statementDate: "2026-03-31" };
 		expect(getCreditCardStatementStatus(march, "2026-02-27").label).toBe("");
@@ -139,7 +160,7 @@ describe("getCreditCardStatementStatus", () => {
 		).toBe("Fatura atrasada");
 	});
 
-	test("shows paid invoices as paid and carried debt as overdue", () => {
+	test("shows paid invoices as paid and distinguishes carried debt from overdue debt", () => {
 		expect(
 			getCreditCardStatementStatus({
 				...statement,
@@ -148,6 +169,8 @@ describe("getCreditCardStatementStatus", () => {
 				statementDate: "2020-01-15",
 			}).label,
 		).toBe("Fatura paga");
-		expect(getCreditCardStatementStatus({ ...statement, status: "CARRIED" }).label).toBe("Fatura atrasada");
+		expect(getCreditCardStatementStatus({ ...statement, status: "CARRIED" }).label).toBe(
+			"Saldo transposto",
+		);
 	});
 });
