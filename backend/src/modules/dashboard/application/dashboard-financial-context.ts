@@ -1,11 +1,16 @@
-import { dailyForecast, type ForecastMovement, forecastBreakdown } from "@zaimu/finance/daily-forecast";
+import { dailyForecast, forecastBreakdown, type ForecastMovement } from "@zaimu/finance/daily-forecast";
 import {
 	type BudgetCommitment,
 	monthEnd,
 	monthlyBudgetMovements,
 	monthlyBudgetSummary,
 } from "@zaimu/finance/monthly-budget";
-import { recurrenceDates, recurrenceNeedsConfiguration } from "@zaimu/finance/recurrence";
+import {
+	processedRecurrencePeriods,
+	recurrenceDates,
+	recurrenceNeedsConfiguration,
+	recurrencePeriodStart,
+} from "@zaimu/finance/recurrence";
 import { dateKey } from "./dashboard-calculations";
 import type { DashboardCurrencyContext } from "./dashboard-currency-context";
 import type { loadDashboardData } from "./load-dashboard-data";
@@ -20,7 +25,8 @@ export function dashboardFinancialContext(
 ) {
 	if (money?.forecastAvailable && loaded.projectStatements)
 		loaded.projectedStatements = loaded.projectStatements(
-			(amount, source, target, date) => (amount * money.factor(source, date)) / money.factor(target, date),
+			(amount, source, target, date) =>
+				(amount * money.factor(source, date)) / money.factor(target, date),
 		);
 	const { accounts, recurrences, loanPayments: payments } = loaded;
 	const monetaryAccounts = accounts.filter(
@@ -48,9 +54,10 @@ export function dashboardFinancialContext(
 	> = [];
 
 	for (const recurrence of recurrences) {
+		const periods = processedRecurrencePeriods(recurrence, linkedTransactionDates);
 		if (recurrenceNeedsConfiguration(recurrence) || recurrence.movement === "CARD_PURCHASE") continue;
 		for (const date of recurrenceDates(recurrence, dateKey(projectionStart), dateKey(comparisonEnd)))
-			if (!linkedTransactionDates.has(`${recurrence.id}:${date}`))
+			if (!periods.has(recurrencePeriodStart(recurrence.unit, date)))
 				projectedMovements.push({
 					amount: recurrence.amount,
 					cardPayment: recurrence.movement === "CARD_PAYMENT",
@@ -64,7 +71,9 @@ export function dashboardFinancialContext(
 					...(recurrence.movement === "CARD_PAYMENT"
 						? {
 								recurringAmount:
-									loaded.projectedCardPaymentAmounts?.get(`forecast:${recurrence.id}:${date}`) ?? 0,
+									loaded.projectedCardPaymentAmounts?.get(
+										`forecast:${recurrence.id}:${date}`,
+									) ?? 0,
 							}
 						: {}),
 					type:
@@ -150,7 +159,11 @@ export function dashboardFinancialContext(
 			from: dateKey(projectionStart),
 			through: dateKey(comparisonEnd),
 		})) {
-			const row = { ...movement, date: new Date(`${movement.date}T12:00:00`), type: "EXPENSE" as const };
+			const row = {
+				...movement,
+				date: new Date(`${movement.date}T12:00:00`),
+				type: "EXPENSE" as const,
+			};
 			projectedMovements.push(row);
 			comparisonTransactions.push(row);
 		}
@@ -169,7 +182,11 @@ export function dashboardFinancialContext(
 			monetaryAccounts.reduce(
 				(sum, account) =>
 					sum +
-					(money?.convert(dateBalances.get(account.id) ?? 0, account.currency ?? "BRL", dateKey(date)) ??
+					(money?.convert(
+						dateBalances.get(account.id) ?? 0,
+						account.currency ?? "BRL",
+						dateKey(date),
+					) ??
 						dateBalances.get(account.id) ??
 						0),
 				0,
@@ -177,7 +194,8 @@ export function dashboardFinancialContext(
 		]),
 	);
 	const todayBalances =
-		historicalBalances.find(item => dateKey(item.date) === todayKey)?.balances ?? new Map<string, number>();
+		historicalBalances.find(item => dateKey(item.date) === todayKey)?.balances ??
+		new Map<string, number>();
 	const forecastAccounts = monetaryAccounts.map(account => ({
 		...account,
 		balance: todayBalances.get(account.id) ?? 0,
@@ -250,7 +268,8 @@ export function dashboardFinancialContext(
 				savingsBalance: projected.savingsBalance,
 				variableIncomeBalance: projected.variableIncomeBalance,
 			};
-		const balances = historicalBalances.find(item => dateKey(item.date) === key)?.balances ?? todayBalances;
+		const balances =
+			historicalBalances.find(item => dateKey(item.date) === key)?.balances ?? todayBalances;
 		const { totalBalance: _, ...breakdown } = forecastBreakdown(
 			forecastAccounts,
 			balances,
@@ -280,7 +299,11 @@ export function dashboardFinancialContext(
 						recurringAmount:
 							row.recurringAmount == null
 								? undefined
-								: money.convert(row.recurringAmount, row.currency ?? "BRL", dateKey(row.date)),
+								: money.convert(
+										row.recurringAmount,
+										row.currency ?? "BRL",
+										dateKey(row.date),
+									),
 					}))
 			: comparisonTransactions,
 		linkedTransactionDates,

@@ -63,6 +63,19 @@ test("guest subscriptions create one installment plan per renewal without future
 		statementDay: 20,
 		workingDueDate: false,
 	};
+	await storage.localAccounts.put(
+		{
+			balance: 0,
+			createdAt: "2026-04-01",
+			id: card.financialAccountId,
+			name: "Cartão",
+			type: "CREDIT_CARD",
+			updatedAt: "2026-04-01",
+			userId: "guest",
+		},
+		card.financialAccountId,
+		owner,
+	);
 	await storage.localCreditCards.put(card, card.id, owner);
 	await storage.localRecurrences.put(
 		{

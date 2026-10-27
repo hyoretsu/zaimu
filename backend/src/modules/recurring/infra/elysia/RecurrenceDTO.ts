@@ -81,3 +81,10 @@ export const AdvanceRecurrenceBody = t.Object(
 );
 export type AdvanceRecurrenceBody = typeof AdvanceRecurrenceBody.static;
 export const AdvanceRecurrenceReturn = t.Object({ created: t.Integer({ minimum: 0 }) });
+
+export const AssociateRecurrenceBody = t.Object({
+	date: t.String({ format: "date" }),
+	kind: t.Union([t.Literal("TRANSACTION"), t.Literal("PURCHASE")]),
+	recordId: t.String({ maxLength: 36, minLength: 1 }),
+});
+export type AssociateRecurrenceBody = typeof AssociateRecurrenceBody.static;

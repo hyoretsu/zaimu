@@ -13,6 +13,7 @@ import { currentDateKey } from "@zaimu/finance/credit-card";
 import { resolveInstitutionCardRules } from "@zaimu/finance/institution-card-rules";
 import { currencyScale, roundMoney, toMinorUnits } from "@zaimu/finance/money";
 import { pendingStatementPayments } from "@zaimu/finance/payment-suggestions";
+import { recurrencePeriodStart } from "@zaimu/finance/recurrence";
 import { financialDateKey, resolveTimeZone } from "@zaimu/finance/time-zone";
 import { cardPaymentAmount } from "@zaimu/finance/transaction-money";
 import type {
@@ -139,13 +140,11 @@ async function openLocalDb(): Promise<IDBDatabase> {
 				request.result.createObjectStore("application-upgrade", { keyPath: "id" });
 			// Index-only upgrades must not replay already completed financial migrations.
 			if (event.oldVersion < 13)
-				request
-					.transaction!.objectStore("application-upgrade")
-					.put({
-						id: "state",
-						status: event.oldVersion === 0 ? "complete" : "pending",
-						version: 13,
-					});
+				request.transaction!.objectStore("application-upgrade").put({
+					id: "state",
+					status: event.oldVersion === 0 ? "complete" : "pending",
+					version: 13,
+				});
 			if (event.oldVersion > 0)
 				for (const domain of [
 					"recurringPayments",
@@ -1279,6 +1278,7 @@ export async function commitLocalRecurrenceChanges(
 	transactions: Transaction[],
 	book?: CreditBook,
 	expectedBook?: LocalData<CreditBook>,
+	expectedTransactions: LocalData<Transaction>[] = [],
 ) {
 	const database = await initLocalDb();
 	const tx = database.transaction(
@@ -1304,6 +1304,13 @@ export async function commitLocalRecurrenceChanges(
 			if (JSON.stringify(currentBook) !== JSON.stringify(expectedBook))
 				throw new Error("Cartão mudou durante processamento. Tente novamente.");
 		}
+		for (const expectedTransaction of expectedTransactions) {
+			const currentTransaction = await requestResult(
+				tx.objectStore("scoped-transactions").get(expectedTransaction.scopedId),
+			);
+			if (JSON.stringify(currentTransaction) !== JSON.stringify(expectedTransaction))
+				throw new Error("Transação mudou durante processamento. Tente novamente.");
+		}
 		const now = Math.max(Date.now(), expected.modifiedAt + 1);
 		const wrap = (data: unknown, localId: string) => ({
 			data,
@@ -1312,7 +1319,18 @@ export async function commitLocalRecurrenceChanges(
 			ownerKey: owner,
 			scopedId: scopedId(owner, localId),
 		});
+		const storedOccurrences = (await requestResult(
+			tx.objectStore("scoped-recurrenceOccurrences").getAll(),
+		)) as LocalData<RecurrenceOccurrence>[];
+		const periods = new Set(
+			storedOccurrences
+				.filter(row => row.ownerKey === owner && row.data.recurrenceId === recurrence.id)
+				.map(row => recurrencePeriodStart(recurrence.unit, row.data.date)),
+		);
 		for (const occurrence of occurrences) {
+			const period = recurrencePeriodStart(recurrence.unit, occurrence.date);
+			if (periods.has(period)) throw new Error("Ocorrência já processada.");
+			periods.add(period);
 			if (
 				await requestResult(
 					tx.objectStore("scoped-recurrenceOccurrences").get(scopedId(owner, occurrence.id)),

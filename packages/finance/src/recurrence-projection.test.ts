@@ -364,3 +364,33 @@ test("statement listings exclude recurring-only forecasts and retain existing pu
 	expect(listed.map(row => row.invoiceAmount)).toEqual([150, 150]);
 	expect(JSON.stringify(book)).toBe(before);
 });
+
+test("changing monthly day suppresses old period in cash and card forecasts", () => {
+	const cash = { ...recurrence("EXPENSE"), dayOfMonth: 20 };
+	const processed = new Set(["EXPENSE:2026-10-10"]);
+	expect(pendingRecurrenceDates(cash, "2026-10-01", "2026-11-30", processed)).toEqual(["2026-11-20"]);
+	expect(recurrenceAccountEffects([cash], "2026-10-01", "2026-10-31", processed).size).toBe(0);
+	const card = { ...recurrence("CARD_PURCHASE"), dayOfMonth: 20 };
+	const book: CreditBook = {
+		card: {
+			dueDay: 25,
+			id: "card",
+			ignoreStatementsBefore: null,
+			institutionId: null,
+			refundPolicy: null,
+			statementDay: 15,
+			userId: "owner",
+		},
+		charges: [],
+		installments: [],
+		payments: [],
+		purchases: [],
+		refunds: [],
+		statements: [],
+	};
+	expect(
+		projectRecurrenceCreditBook(book, [card], "2026-10-01", "2026-10-31", [
+			{ date: "2026-10-10", recurrenceId: card.id },
+		]).purchases,
+	).toHaveLength(0);
+});

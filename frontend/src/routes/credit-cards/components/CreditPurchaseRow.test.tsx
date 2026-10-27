@@ -104,3 +104,15 @@ test("reimbursed installments retain struck amount and cannot be refinanced", ()
 	expect(markup).toContain("line-through");
 	expect(markup).not.toContain('aria-label="Reparcelar Amazon"');
 });
+
+test("only existing, unlinked purchase rows offer recurrence association", () => {
+	expect(render()).toContain('aria-label="Associar a recorrência"');
+	for (const overrides of [
+		{ recurrenceId: "recurring" },
+		{ isForecast: true },
+		{ isRefund: true },
+		{ isStatementCharge: true },
+		{ refinancedFromPurchaseId: "previous" },
+	])
+		expect(render(overrides)).not.toContain('aria-label="Associar a recorrência"');
+});

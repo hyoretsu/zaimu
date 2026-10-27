@@ -4,6 +4,7 @@ import {
 	getNextRecurrenceDate,
 	recurrenceDates,
 	recurrenceNeedsConfiguration,
+	recurrencePeriodStart,
 	shiftRecurrenceDate,
 	validateRecurrenceInstallments,
 	validateRecurrenceSchedule,
@@ -18,9 +19,11 @@ import type {
 	patchRecurringById,
 	postRecurring,
 	postRecurringByIdAdvance,
+	PostRecurringByIdAssociateMutationRequest,
 	postRecurringByIdReplay,
 	Transaction,
 } from "./api";
+import { associateLocalRecurrence } from "./associate-recurrence";
 import { guestCashbackSnapshot } from "./cashback-snapshot";
 import { activeCurrency } from "./currency-context";
 import { convertLocalMoney, guestRate } from "./currency-conversion";
@@ -86,10 +89,11 @@ export async function materializeLocalRecurrences(
 		const processed = new Set(
 			(await localRecurrenceOccurrences.getAll(owner))
 				.filter(row => row.data.recurrenceId === recurrence.id)
-				.map(row => row.data.date),
+				.map(row => recurrencePeriodStart(recurrence.unit, row.data.date)),
 		);
-		if (advance && processed.has(nextDate!)) throw new Error("A próxima ocorrência já foi adiantada.");
-		const pending = dates.filter(date => !processed.has(date));
+		if (advance && processed.has(recurrencePeriodStart(recurrence.unit, nextDate!)))
+			throw new Error("A próxima ocorrência já foi adiantada.");
+		const pending = dates.filter(date => !processed.has(recurrencePeriodStart(recurrence.unit, date)));
 		if (!pending.length && (replay || recurrence.materializedThrough >= today)) continue;
 		const occurrences: RecurrenceOccurrence[] = [];
 		const transactions: Transaction[] = [];
@@ -353,6 +357,14 @@ export function createRecurrenceService(deps: Dependencies) {
 			return {
 				created: await materializeLocalRecurrences(owner, undefined, undefined, { id, time }),
 			};
+		},
+		async associate(id: string, input: PostRecurringByIdAssociateMutationRequest) {
+			if (!deps.isGuestMode()) {
+				const { postRecurringByIdAssociate } = await import("./api");
+				return postRecurringByIdAssociate(id, input);
+			}
+			await associateLocalRecurrence(getCurrentCacheIdentity()!, id, input);
+			return { success: true };
 		},
 		async create(input: RecurrenceInput): Promise<Recurrence> {
 			if (deps.isGuestMode()) return saveLocal(input);

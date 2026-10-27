@@ -298,21 +298,8 @@ describe("atomic recurrence processing", () => {
 					method: "POST",
 				}),
 			);
-		const data = {
-			creditCards: [
-				{ creditLimit: 1000, dueDay: 25, financialAccountId: "c", id: "card", statementDay: 15 },
-			],
-			debtPeople: [
-				{ id: "person", name: "Person" },
-				{ id: "other", name: "Other" },
-			],
-			financialAccounts: [
-				{ id: "a", name: "A", type: "CHECKING" },
-				{ id: "b", name: "B", type: "SAVINGS" },
-				{ id: "c", name: "Card", type: "CREDIT_CARD" },
-			],
-			recurrences,
-		};
+		// Dependencies already exist on the server; sync the recurrence snapshots under test.
+		const data = { recurrences };
 		const history = (await client.query('SELECT * FROM "RecurrenceHistory"')).rows.length;
 		const count = (await client.query('SELECT * FROM "Transaction"')).rows.length;
 		for (let i = 0; i < 2; i++) {
@@ -416,6 +403,115 @@ describe("atomic recurrence processing", () => {
 			expect(await installmentCount()).toBe(2);
 		} finally {
 			setSystemTime();
+		}
+	});
+	test("associating existing records reserves replay identity without changing financial IDs", async () => {
+		const { associateRecurrence } = await import("../application/associate-recurrence");
+		const date = `${shiftRecurrenceDate(`${service.recurrenceToday().slice(0, 7)}-01`, -1).slice(0, 7)}-01`;
+		const through = shiftRecurrenceDate(date, 20);
+		for (const kind of ["TRANSACTION", "PURCHASE"] as const) {
+			const purchase = kind === "PURCHASE";
+			const recordId = `associated-${kind}`;
+			const recurrence = await service.saveRecurrence("owner", {
+				amount: 30,
+				creditCardId: purchase ? "card" : null,
+				dayOfMonth: 1,
+				interval: 1,
+				movement: purchase ? "CARD_PURCHASE" : "EXPENSE",
+				name: "Associated",
+				originFinancialAccountId: purchase ? null : "a",
+				startDate: date,
+				unit: "MONTH",
+			});
+			if (purchase)
+				await client.query(
+					`WITH purchase AS (INSERT INTO "CreditPurchaseRecord" ("id","userId","creditCardId","description","purchaseDate","totalAmount","externalId") VALUES ($1,'owner','card','Existing',$2,25,'associated-external') RETURNING "id") INSERT INTO "CreditInstallmentPlan" ("purchaseId","number","amount") SELECT "id",1,25 FROM purchase`,
+					[recordId, date],
+				);
+			else
+				await client.query(
+					`INSERT INTO "Transaction" ("id","userId","originFinancialAccountId","type","date","amount") VALUES ($1,'owner','a','EXPENSE',$2,25)`,
+					[recordId, date],
+				);
+			const input = { date: shiftRecurrenceDate(date, 2), kind, recordId };
+			await expect(associateRecurrence("another-user", recurrence.id, input)).rejects.toThrow(
+				"encontrada",
+			);
+			await Promise.all([
+				associateRecurrence("owner", recurrence.id, input),
+				associateRecurrence("owner", recurrence.id, input),
+			]);
+			await associateRecurrence("owner", recurrence.id, {
+				...input,
+				date: shiftRecurrenceDate(date, 10),
+			});
+			await service.saveRecurrence(
+				"owner",
+				{ amount: 40, dayOfMonth: 15, name: "Edited" },
+				recurrence.id,
+			);
+			expect(
+				await service.materializeRecurrence("owner", recurrence.id, through, { from: date, through }),
+			).toBe(0);
+			const table = purchase ? "CreditPurchaseRecord" : "Transaction";
+			const rows = (
+				await client.query(`SELECT * FROM "${table}" WHERE "recurrenceId"=$1`, [recurrence.id])
+			).rows;
+			expect(rows).toHaveLength(1);
+			expect(rows[0].id).toBe(recordId);
+			expect(Number(purchase ? rows[0].totalAmount : rows[0].amount)).toBe(25);
+			if (purchase) expect(rows[0].externalId).toBe("associated-external");
+			if (!purchase) {
+				await client.query(
+					`INSERT INTO "Transaction" ("id","userId","originFinancialAccountId","type","date","amount") VALUES ('association-conflict','owner','a','EXPENSE',$1,25)`,
+					[date],
+				);
+				await expect(
+					associateRecurrence("owner", recurrence.id, {
+						...input,
+						recordId: "association-conflict",
+					}),
+				).rejects.toThrow("já foi processado");
+				expect(
+					(
+						await client.query(
+							`SELECT "recurrenceId" FROM "Transaction" WHERE "id"='association-conflict'`,
+						)
+					).rows[0].recurrenceId,
+				).toBeNull();
+			}
+		}
+	});
+
+	test("normal monthly generation retains occupied period after changing its day", async () => {
+		const date = `${shiftRecurrenceDate(`${service.recurrenceToday().slice(0, 7)}-01`, -1).slice(0, 7)}-01`;
+		const through = shiftRecurrenceDate(date, 20);
+		for (const movement of ["EXPENSE", "CARD_PURCHASE"] as const) {
+			const recurrence = await service.saveRecurrence("owner", {
+				amount: 50,
+				creditCardId: movement === "CARD_PURCHASE" ? "card" : null,
+				dayOfMonth: 1,
+				interval: 1,
+				movement,
+				name: "Period identity",
+				originFinancialAccountId: movement === "EXPENSE" ? "a" : null,
+				startDate: date,
+				unit: "MONTH",
+			});
+			expect(
+				await service.materializeRecurrence("owner", recurrence.id, through, { from: date, through }),
+			).toBe(1);
+			await service.saveRecurrence("owner", { dayOfMonth: 15 }, recurrence.id);
+			expect(
+				await service.materializeRecurrence("owner", recurrence.id, through, { from: date, through }),
+			).toBe(0);
+			expect(
+				(
+					await client.query('SELECT * FROM "RecurrenceOccurrence" WHERE "recurrenceId"=$1', [
+						recurrence.id,
+					])
+				).rows,
+			).toHaveLength(1);
 		}
 	});
 });

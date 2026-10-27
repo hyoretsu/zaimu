@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { LuDollarSign, LuLandmark, LuPencil, LuTrash2 } from "react-icons/lu";
 import { OriginalMoneyDetails } from "@/components/currency";
+import { AssociateRecurrenceButton } from "@/components/recurrences";
 import { ListItemLayout } from "@/components/ui/ListItemLayout";
 import type { Transaction } from "@/lib/api";
 import { formatDebtSplitBadge } from "@/lib/debt-split";
@@ -80,8 +81,12 @@ export function TransactionListItem({
 			: [
 					{
 						id:
-							transaction.originFinancialAccountId || transaction.destinationFinancialAccountId || "account",
-						name: (transaction.type === "INCOME" ? destinationName : originName) || "Conta sem nome",
+							transaction.originFinancialAccountId ||
+							transaction.destinationFinancialAccountId ||
+							"account",
+						name:
+							(transaction.type === "INCOME" ? destinationName : originName) ||
+							"Conta sem nome",
 						rewardsKind:
 							(transaction.type === "INCOME"
 								? transaction.destinationAccountRewardsKind
@@ -125,13 +130,28 @@ export function TransactionListItem({
 		<ListItemLayout
 			actions={
 				allActionItems.length ? (
-					<ItemActions actions={allActionItems} forceCompact={forceCompactActions} />
+					<div className="flex flex-wrap items-center justify-end gap-2">
+						{(onEdit || onDelete) && !transaction.isRefund && (
+							<AssociateRecurrenceButton
+								date={transaction.date}
+								disabled={deleting}
+								target={{
+									...transaction,
+									id: isCreditCardPurchase
+										? (transaction.parentId ?? transaction.id)
+										: transaction.id,
+									kind: isCreditCardPurchase ? "PURCHASE" : "TRANSACTION",
+								}}
+							/>
+						)}
+						<ItemActions actions={allActionItems} forceCompact={forceCompactActions} />
+					</div>
 				) : undefined
 			}
 			amount={
 				amount ??
 				(isCreditCardPurchase && transaction.isRefund ? (
-					<p className="whitespace-nowrap font-bold text-emerald-600">
+					<p className="font-bold whitespace-nowrap text-emerald-600">
 						{Number(transaction.amount) === 0 ? "" : "+"}
 						{formatCurrency(Number(transaction.amount))}
 					</p>
@@ -143,7 +163,7 @@ export function TransactionListItem({
 						totalAmount={Number(transaction.amount)}
 					/>
 				) : (
-					<p className={`whitespace-nowrap font-bold ${amountColor}`}>
+					<p className={`font-bold whitespace-nowrap ${amountColor}`}>
 						{amountPrefix}
 						{formatCurrency(Number(transaction.amount))}
 					</p>
@@ -153,9 +173,13 @@ export function TransactionListItem({
 			icon={
 				icon ?? (
 					<div
-						className={`flex size-11 shrink-0 items-center justify-center rounded-2xl bg-muted ${amountColor}`}
+						className={`bg-muted flex size-11 shrink-0 items-center justify-center rounded-2xl ${amountColor}`}
 					>
-						{isCreditCardPurchase ? <LuDollarSign aria-hidden="true" /> : <LuLandmark aria-hidden="true" />}
+						{isCreditCardPurchase ? (
+							<LuDollarSign aria-hidden="true" />
+						) : (
+							<LuLandmark aria-hidden="true" />
+						)}
 					</div>
 				)
 			}
@@ -184,7 +208,7 @@ export function TransactionListItem({
 			}
 			title={
 				title ?? (
-					<p className="min-w-0 flex-1 truncate font-semibold leading-6">
+					<p className="min-w-0 flex-1 truncate leading-6 font-semibold">
 						{getTransactionTitle(transaction)}
 					</p>
 				)

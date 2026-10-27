@@ -1,5 +1,6 @@
 import { LuPencil, LuRefreshCw, LuTrash2, LuUndo2 } from "react-icons/lu";
 import { OriginalMoneyDetails } from "@/components/currency";
+import { AssociateRecurrenceButton } from "@/components/recurrences";
 import { TransactionBadges } from "@/components/transactions/TransactionListItem/TransactionBadges";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
@@ -38,19 +39,20 @@ export function CreditPurchaseRow({
 		purchase.feeDescription === "IOF do parcelamento"
 			? (purchase.description ?? "").replace(/^FIN /u, "")
 			: (purchase.description ?? "");
-	const isRefinancing = Boolean(purchase.refinancedFromPurchaseId) || /^Parcelamento\s*-/u.test(description);
+	const isRefinancing =
+		Boolean(purchase.refinancedFromPurchaseId) || /^Parcelamento\s*-/u.test(description);
 	const purchaseName =
 		(isRefinancing ? description.replace(/^Parcelamento\s*-\s*/u, "") : description).trim() ||
 		purchase.storeName ||
 		"Compra";
 
 	return (
-		<div className="grid min-w-0 gap-3 rounded-xl border bg-card p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+		<div className="bg-card grid min-w-0 gap-3 rounded-xl border p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
 			<div className="min-w-0">
 				<p className="truncate font-medium">
 					{isRefinancing ? `Parcelamento - ${purchaseName}` : purchaseName}
 				</p>
-				<p className="truncate text-muted-foreground text-xs">
+				<p className="text-muted-foreground truncate text-xs">
 					{formatLocalDate(purchase.purchaseDate)}
 					{purchase.currentInstallment === 1 && formatLocalTime(purchase.time)
 						? ` · ${formatLocalTime(purchase.time)}`
@@ -59,7 +61,9 @@ export function CreditPurchaseRow({
 					{purchase.isReimbursed ? " · Reembolsada" : ""}
 					{purchase.isForecast ? " · Previsão" : ""}
 					{purchase.isStatementCharge ? " · Encargo da fatura" : ""}
-					{purchase.installments > 1 ? ` · ${purchase.currentInstallment}/${purchase.installments}` : ""}
+					{purchase.installments > 1
+						? ` · ${purchase.currentInstallment}/${purchase.installments}`
+						: ""}
 					{!purchase.refinancedFromPurchaseId && purchase.refinancingPurchaseIds?.length
 						? " · Reparcelada"
 						: ""}
@@ -71,7 +75,7 @@ export function CreditPurchaseRow({
 					originalAmount={purchase.originalAmount}
 				/>
 				{purchase.feeAmount && purchase.feeDescription ? (
-					<p className="mt-1 text-muted-foreground text-xs">
+					<p className="text-muted-foreground mt-1 text-xs">
 						Inclui {purchase.feeDescription}: {currency.format(purchase.feeAmount)}
 					</p>
 				) : null}
@@ -105,6 +109,20 @@ export function CreditPurchaseRow({
 					{currency.format(purchase.installmentAmount)}
 				</strong>
 				<div className="flex flex-wrap justify-end gap-2">
+					{!purchase.isRefund &&
+						!purchase.isForecast &&
+						!purchase.isStatementCharge &&
+						!purchase.refinancedFromPurchaseId && (
+							<AssociateRecurrenceButton
+								date={purchase.purchaseDate}
+								disabled={editDisabled || deleteDisabled}
+								target={{
+									...purchase,
+									id: purchase.purchaseId ?? purchase.parentId ?? purchase.id,
+									kind: "PURCHASE",
+								}}
+							/>
+						)}
 					{!purchase.isRefund ? (
 						<Tooltip>
 							<TooltipTrigger asChild>

@@ -1,6 +1,12 @@
 import { type CreditBook, creditBookPlan, newBookPurchase, replayCreditBook } from "./credit-book";
 import { roundMoney } from "./money";
-import { recurrenceDates, type RecurrenceDefinition, recurrenceNeedsConfiguration } from "./recurrence";
+import {
+	processedRecurrencePeriods,
+	recurrenceDates,
+	type RecurrenceDefinition,
+	recurrenceNeedsConfiguration,
+	recurrencePeriodStart,
+} from "./recurrence";
 export type RecurrenceMoneyConverter = (amount: number, from: string, to: string, date: string) => number;
 
 /** Only unmaterialized occurrences inside the requested projection need conversion. */
@@ -11,8 +17,9 @@ export function pendingRecurrenceDates(
 	processed: ReadonlySet<string> = new Set(),
 ) {
 	if (!recurrence.isActive || recurrenceNeedsConfiguration(recurrence)) return [];
+	const periods = processedRecurrencePeriods(recurrence, processed);
 	return recurrenceDates(recurrence, from, through).filter(
-		date => !processed.has(`${recurrence.id}:${date}`),
+		date => !periods.has(recurrencePeriodStart(recurrence.unit, date)),
 	);
 }
 
@@ -63,7 +70,10 @@ export function projectRecurrenceCreditBook(
 				recurrence.movement === "CARD_PURCHASE" &&
 				!projected.purchases.some(
 					purchase =>
-						purchase.recurrenceId === recurrence.id && purchase.recurrenceOccurrenceDate === date,
+						purchase.recurrenceId === recurrence.id &&
+						purchase.recurrenceOccurrenceDate != null &&
+						recurrencePeriodStart(recurrence.unit, purchase.recurrenceOccurrenceDate) ===
+							recurrencePeriodStart(recurrence.unit, date),
 				)
 			)
 				newBookPurchase(

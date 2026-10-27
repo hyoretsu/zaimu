@@ -42,6 +42,7 @@ import { HttpException } from "~/shared/errors";
 import { queryRaw, withRawTransaction, withTransaction } from "~/shared/infra/sql";
 import type { RecurrenceBody, UpdateRecurrenceBody } from "../infra/elysia/RecurrenceDTO";
 import { deleteLinkedRecurrencePurchases } from "./delete-linked-recurrence-purchases";
+import { getRecurrencePeriodOccurrence } from "./recurrence-period-occurrence";
 
 export type StoredRecurrence = RecurrenceDefinition;
 export const recurrenceToday = () => financialDate();
@@ -295,6 +296,10 @@ export async function materializeRecurrence(
 		const debtSplit = await getDebtSplitInput({ recurrenceId: id });
 		let created = 0;
 		for (const date of dates) {
+			if (await getRecurrencePeriodOccurrence(recurrence, date)) {
+				if (advance) throw new HttpException("A próxima ocorrência já foi adiantada.", 409);
+				continue;
+			}
 			const [reserved] = await query(
 				'INSERT INTO "RecurrenceOccurrence" ("recurrenceId","date") VALUES ($1,$2) ON CONFLICT DO NOTHING RETURNING "recurrenceId"',
 				[id, date],

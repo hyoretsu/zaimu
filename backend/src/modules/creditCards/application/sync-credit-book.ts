@@ -7,6 +7,9 @@ import {
 } from "@zaimu/finance/credit-book";
 import { assertCalendarPeriod } from "@zaimu/finance/credit-card";
 import { currencyScale } from "@zaimu/finance/money";
+import { recurrencePeriodStart } from "@zaimu/finance/recurrence";
+import { getRecurrencePeriodOccurrence } from "~/modules/recurring/application/recurrence-period-occurrence";
+import { getStoredRecurrence } from "~/modules/recurring/application/recurrences";
 import { HttpException } from "~/shared/errors";
 import { withRawTransaction } from "~/shared/infra/sql";
 import { rewardSnapshot } from "./cashback-snapshot";
@@ -14,25 +17,29 @@ import { mutateCreditBook } from "./normalized-credit-book";
 
 /** Incoming normalized records are merged inside the same card lock as HTTP mutations. */
 export async function syncCreditBook(userId: string, input: CreditBook) {
+	input = structuredClone(input);
 	await withRawTransaction(async query => {
 		const recurring = input.purchases
 			.filter(p => p.recurrenceId && p.recurrenceOccurrenceDate)
 			.toSorted((a, b) => a.recurrenceId!.localeCompare(b.recurrenceId!));
+		const incomingPeriods = new Map<string, string>();
 		for (const purchase of recurring) {
-			const [owner] = await query('SELECT "id" FROM "Recurrence" WHERE "id"=$1 AND "userId"=$2 FOR UPDATE', [
-				purchase.recurrenceId,
-				userId,
-			]);
-			if (!owner) throw new HttpException("Recorrência da compra indisponível", 400);
-			const [identity] = await query(
-				'SELECT * FROM "RecurrenceOccurrence" WHERE "recurrenceId"=$1 AND "date"=$2',
-				[purchase.recurrenceId, purchase.recurrenceOccurrenceDate],
+			const recurrence = await getStoredRecurrence(userId, purchase.recurrenceId!, true);
+			const period = `${recurrence.id}:${recurrencePeriodStart(recurrence.unit, purchase.recurrenceOccurrenceDate!)}`;
+			const previous = incomingPeriods.get(period);
+			if (previous && previous !== purchase.id)
+				throw new HttpException("Mais de uma compra no mesmo período da recorrência", 409);
+			incomingPeriods.set(period, purchase.id);
+			const identity = await getRecurrencePeriodOccurrence(
+				recurrence,
+				purchase.recurrenceOccurrenceDate!,
 			);
 			if (identity && (identity.deletedAt || identity.purchaseId !== purchase.id))
 				throw new HttpException(
 					"Ocorrência já processada; atualize dados do cartão antes de sincronizar",
 					409,
 				);
+			if (identity) purchase.recurrenceOccurrenceDate = identity.date;
 		}
 		await mutateCreditBook(userId, input.card.id, async book => {
 			const history = new Map(
@@ -42,7 +49,10 @@ export async function syncCreditBook(userId: string, input: CreditBook) {
 				assertCalendarPeriod(period);
 				const previous = history.get(period.effectiveDate);
 				if (previous && JSON.stringify(previous) !== JSON.stringify(period))
-					throw new HttpException("Calendário alterado no servidor; atualize antes de sincronizar", 409);
+					throw new HttpException(
+						"Calendário alterado no servidor; atualize antes de sincronizar",
+						409,
+					);
 				history.set(period.effectiveDate, period);
 			}
 			if (history.size)
@@ -81,10 +91,14 @@ export async function syncCreditBook(userId: string, input: CreditBook) {
 			for (const p of input.purchases) {
 				if (book.deletedPurchaseIds?.includes(p.id))
 					throw new HttpException("Compra excluída não pode ser restaurada pelo sync", 409);
-				if (p.creditCardId !== book.card.id) throw new HttpException("Compra vinculada a outro cartão", 400);
+				if (p.creditCardId !== book.card.id)
+					throw new HttpException("Compra vinculada a outro cartão", 400);
 				const existing = book.purchases.find(old => old.id === p.id);
 				if (existing && existing.updatedAt > p.updatedAt)
-					throw new HttpException("Compra alterada no servidor; atualize antes de sincronizar", 409);
+					throw new HttpException(
+						"Compra alterada no servidor; atualize antes de sincronizar",
+						409,
+					);
 				const next = { ...p, creditCardId: book.card.id, userId };
 				if (existing) {
 					Object.assign(next, {
@@ -170,7 +184,8 @@ export async function syncCreditBook(userId: string, input: CreditBook) {
 				}
 			}
 			for (const ch of input.charges) {
-				if (!statements.has(ch.statementId)) throw new HttpException("Fatura do encargo inválida", 400);
+				if (!statements.has(ch.statementId))
+					throw new HttpException("Fatura do encargo inválida", 400);
 				const existing = book.charges.find(old => old.id === ch.id);
 				if (existing) Object.assign(existing, ch);
 				else book.charges.push(ch);

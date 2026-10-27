@@ -1,14 +1,19 @@
 import { Value } from "@sinclair/typebox/value";
 import { dashboardCardForecasts, isCashFlowRecurrence } from "@zaimu/finance/dashboard-forecasts";
-import { nextRecurrenceDate, recurrenceNeedsConfiguration } from "@zaimu/finance/recurrence";
+import {
+	nextRecurrenceDate,
+	processedRecurrencePeriods,
+	recurrenceNeedsConfiguration,
+	recurrencePeriodStart,
+} from "@zaimu/finance/recurrence";
 import { addDays, startOfDay } from "date-fns";
 import Elysia, { t } from "elysia";
 import { requireUserId } from "~/modules/auth";
 import { defaultCurrency } from "~/modules/currencies/application/currency-defaults";
 import {
 	comparisonRangeEnd,
-	type DashboardForecast,
 	dashboardFinancialContext,
+	type DashboardForecast,
 	dateKey,
 	loadDashboardData,
 	period,
@@ -16,11 +21,11 @@ import {
 	resolveDashboardRange,
 } from "~/modules/dashboard/application";
 import { distributedCache } from "~/shared/infra/cache";
-import { DashboardReturn } from "../../application/DashboardReturn";
 import {
 	DashboardConversionUnavailable,
 	dashboardCurrencyContext,
 } from "../../application/dashboard-currency-context";
+import { DashboardReturn } from "../../application/DashboardReturn";
 
 export { DashboardReturn } from "../../application/DashboardReturn";
 
@@ -44,7 +49,9 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" })
 					const now = new Date();
 					const today = startOfDay(now);
 					const range = resolveDashboardRange(query.startDate, query.endDate, now);
-					const comparisonEnd = new Date(Math.max(comparisonRangeEnd(range).getTime(), range.end.getTime()));
+					const comparisonEnd = new Date(
+						Math.max(comparisonRangeEnd(range).getTime(), range.end.getTime()),
+					);
 					const comparisonStart = new Date(Math.min(range.start.getTime(), today.getTime()));
 					const projectionStart = addDays(today, 1);
 					const loaded = await loadDashboardData(userId, {
@@ -86,7 +93,14 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" })
 							balancesAtRangeEnd,
 							balanceAt,
 							balanceBreakdownAt,
-						} = dashboardFinancialContext(loaded, range, today, projectionStart, comparisonEnd, money);
+						} = dashboardFinancialContext(
+							loaded,
+							range,
+							today,
+							projectionStart,
+							comparisonEnd,
+							money,
+						);
 						const projectedCashFlow = money.forecastAvailable
 							? projectedCashFlowUntilMonthEnd({
 									today,
@@ -123,19 +137,27 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" })
 							.reduce((sum, item) => sum + item.amount, 0);
 						dashboardPeriod.recurringCardExpenses = periodTransactions
 							.filter(item => item.type === "EXPENSE" && item.cardPayment)
-							.reduce((sum, item) => sum + (item.recurringAmount ?? (item.recurring ? item.amount : 0)), 0);
+							.reduce(
+								(sum, item) =>
+									sum + (item.recurringAmount ?? (item.recurring ? item.amount : 0)),
+								0,
+							);
 						dashboardPeriod.recurringIncome = periodTransactions
 							.filter(transaction => transaction.type === "INCOME")
 							.reduce(
 								(sum, transaction) =>
-									sum + (transaction.recurringAmount ?? (transaction.recurring ? transaction.amount : 0)),
+									sum +
+									(transaction.recurringAmount ??
+										(transaction.recurring ? transaction.amount : 0)),
 								0,
 							);
 						dashboardPeriod.recurringExpenses = periodTransactions
 							.filter(transaction => transaction.type === "EXPENSE")
 							.reduce(
 								(sum, transaction) =>
-									sum + (transaction.recurringAmount ?? (transaction.recurring ? transaction.amount : 0)),
+									sum +
+									(transaction.recurringAmount ??
+										(transaction.recurring ? transaction.amount : 0)),
 								0,
 							);
 						const balanceBreakdown = balanceBreakdownAt(range.end);
@@ -152,13 +174,28 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" })
 						const forecasts: DashboardForecast[] = [];
 						if (money.forecastAvailable) {
 							for (const recurrence of recurrences) {
-								if (recurrenceNeedsConfiguration(recurrence) || !isCashFlowRecurrence(recurrence)) continue;
+								if (
+									recurrenceNeedsConfiguration(recurrence) ||
+									!isCashFlowRecurrence(recurrence)
+								)
+									continue;
+								const periods = processedRecurrencePeriods(
+									recurrence,
+									linkedTransactionDates,
+								);
 								let date = nextRecurrenceDate(recurrence, dateKey(projectionStart));
-								while (date && linkedTransactionDates.has(`${recurrence.id}:${date}`))
-									date = nextRecurrenceDate(recurrence, dateKey(addDays(new Date(`${date}T12:00:00`), 1)));
+								while (date && periods.has(recurrencePeriodStart(recurrence.unit, date)))
+									date = nextRecurrenceDate(
+										recurrence,
+										dateKey(addDays(new Date(`${date}T12:00:00`), 1)),
+									);
 								if (date)
 									forecasts.push({
-										amount: money.convert(recurrence.amount, recurrence.currency ?? "BRL", date),
+										amount: money.convert(
+											recurrence.amount,
+											recurrence.currency ?? "BRL",
+											date,
+										),
 										date,
 										direction: recurrence.movement === "INCOME" ? "INCOME" : "EXPENSE",
 										id: `recurrence-${recurrence.id}`,
@@ -256,14 +293,18 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" })
 							currency: consolidatedCurrency,
 							dailyBalances,
 							debts: { iOwe, net: owedToMe - iOwe, owedToMe, people },
-							forecasts: forecasts.toSorted((left, right) => left.date.localeCompare(right.date)),
+							forecasts: forecasts.toSorted((left, right) =>
+								left.date.localeCompare(right.date),
+							),
 							period: { ...dashboardPeriod, ...balanceBreakdown },
 							projectedCashFlowUntilMonthEnd: projectedCashFlow,
 							referenceRatesAvailable: loaded.projectedYields?.available ?? false,
 							totalAvailableCredit: cardsWithStatements
 								.filter(card => !card.excludeFromTotals)
 								.reduce(
-									(sum, card) => sum + money.convert(card.availableLimit, card.currency, dateKey(today)),
+									(sum, card) =>
+										sum +
+										money.convert(card.availableLimit, card.currency, dateKey(today)),
 									0,
 								),
 						};

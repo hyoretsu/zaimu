@@ -473,3 +473,20 @@ Reembolsos registrados ou editados manualmente aceitam qualquer valor positivo v
 ## Impostos de compras na importação de faturas
 
 Compras importadas aceitam impostos discriminados, inclusive IOF sobre compras em BRL. Os valores informados no campo de impostos já integram o total revisado da compra. Um lançamento positivo à vista da mesma fatura pode ser associado à compra como imposto: seu valor integra apenas a parcela daquela fatura e o total da compra, sem gerar encargo de fatura nem duplicar o total. A associação é explícita; a proximidade entre datas não basta para vincular automaticamente. Preservar a identidade do lançamento incorporado para não duplicá-lo em reimportações, antes ou depois da aprovação.
+
+## Associação de lançamentos a recorrências
+
+Transações e compras existentes podem ser associadas explicitamente a uma recorrência
+com movimentação e contas/cartão compatíveis. O usuário escolhe o período representado
+pelo lançamento: dia nas diárias, semana civil de segunda a domingo nas semanais,
+mês/ano nas mensais e ano nas anuais. Intervalos continuam definindo quais períodos
+pertencem à agenda. Alterar o dia dentro do mesmo período não cria nova identidade.
+
+Geração normal, associação manual, sincronização e previsões reconhecem períodos
+já ocupados pela recorrência, inclusive registros anteriores a esta regra. A reserva
+e o vínculo são atômicos. Preservar o ID financeiro existente, identidades bancárias,
+parcelas, reembolsos, pagamentos e demais vínculos. Recompor o passado após editar a
+agenda não duplica um período já associado. Períodos ocupados ou excluídos não podem
+ser reutilizados; repetir a mesma associação é idempotente. Um lançamento já associado
+não pode representar outro período. Mudança de frequência reavalia os períodos pela
+nova unidade da agenda, preservando todos os registros financeiros existentes.

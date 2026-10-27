@@ -206,8 +206,9 @@ export function recurrenceAccountEffects(
 			recurrence.movement === "CARD_PURCHASE"
 		)
 			continue;
+		const periods = processedRecurrencePeriods(recurrence, processed);
 		for (const date of recurrenceDates(recurrence, from, through)) {
-			if (processed.has(`${recurrence.id}:${date}`)) continue;
+			if (periods.has(recurrencePeriodStart(recurrence.unit, date))) continue;
 			const amount = Math.round(recurrence.amount * 100);
 			add(recurrence.originFinancialAccountId, -amount);
 			add(recurrence.destinationFinancialAccountId, amount);
@@ -219,4 +220,79 @@ export function recurrenceAccountEffects(
 /** Next scheduled occurrence strictly after today, preserving the original schedule. */
 export function getNextRecurrenceDate(schedule: RecurrenceSchedule, today: string) {
 	return nextRecurrenceDate(schedule, shiftRecurrenceDate(today, 1));
+}
+
+/** Existing records keep their primary ID; recurrence + scheduled date identifies the occurrence. */
+export interface RecurrenceAssociationTarget {
+	id: string;
+	kind: "TRANSACTION" | "PURCHASE";
+	type?: string;
+	originFinancialAccountId?: string | null;
+	destinationFinancialAccountId?: string | null;
+	paymentCreditCardId?: string | null;
+	creditCardId?: string | null;
+	recurrenceId?: string | null;
+	recurrenceOccurrenceDate?: string | null;
+}
+export function isRecurrenceAssociationCompatible(
+	recurrence: RecurrenceDefinition,
+	target: RecurrenceAssociationTarget,
+) {
+	if (target.kind === "PURCHASE")
+		return recurrence.movement === "CARD_PURCHASE" && recurrence.creditCardId === target.creditCardId;
+	const movement = target.paymentCreditCardId ? "CARD_PAYMENT" : target.type;
+	return (
+		recurrence.movement === movement &&
+		(recurrence.originFinancialAccountId ?? null) === (target.originFinancialAccountId ?? null) &&
+		(recurrence.destinationFinancialAccountId ?? null) ===
+			(target.destinationFinancialAccountId ?? null) &&
+		(recurrence.creditCardId ?? null) === (target.paymentCreditCardId ?? null)
+	);
+}
+export function validateRecurrenceAssociation(
+	recurrence: RecurrenceDefinition,
+	target: RecurrenceAssociationTarget,
+	date: string,
+) {
+	if (
+		target.recurrenceId &&
+		(target.recurrenceId !== recurrence.id ||
+			!target.recurrenceOccurrenceDate ||
+			recurrencePeriodStart(recurrence.unit, target.recurrenceOccurrenceDate) !==
+				recurrencePeriodStart(recurrence.unit, date))
+	)
+		throw new Error("Este lançamento já pertence a outra ocorrência.");
+	if (!isRecurrenceAssociationCompatible(recurrence, target))
+		throw new Error("Selecione uma recorrência com movimentação e contas compatíveis.");
+	const period = recurrencePeriodRange(recurrence.unit, date);
+	if (date.length !== 10 || recurrenceDates(recurrence, period.from, period.through).length !== 1)
+		throw new Error("Selecione um período que pertença à agenda da recorrência.");
+}
+
+/** Calendar periods ignore changes to the day within the same month, week or year. */
+export function recurrencePeriodStart(unit: RecurrenceUnit, value: string): string {
+	const date = parseDate(value);
+	if (unit === "YEAR") return `${value.slice(0, 4)}-01-01`;
+	if (unit === "MONTH") return `${value.slice(0, 7)}-01`;
+	if (unit === "WEEK") return shiftRecurrenceDate(value, -((date.getUTCDay() + 6) % 7));
+	return recurrenceDateKey(value);
+}
+export function recurrencePeriodRange(unit: RecurrenceUnit, value: string) {
+	const from = recurrencePeriodStart(unit, value);
+	const next = parseDate(from);
+	if (unit === "YEAR") next.setUTCFullYear(next.getUTCFullYear() + 1);
+	else if (unit === "MONTH") next.setUTCMonth(next.getUTCMonth() + 1);
+	else next.setUTCDate(next.getUTCDate() + (unit === "WEEK" ? 7 : 1));
+	return { from, through: shiftRecurrenceDate(next.toISOString().slice(0, 10), -1) };
+}
+export function processedRecurrencePeriods(
+	recurrence: Pick<RecurrenceDefinition, "id" | "unit">,
+	processed: ReadonlySet<string>,
+) {
+	const prefix = `${recurrence.id}:`;
+	return new Set(
+		[...processed]
+			.filter(key => key.startsWith(prefix))
+			.map(key => recurrencePeriodStart(recurrence.unit, key.slice(prefix.length))),
+	);
 }

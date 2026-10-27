@@ -2,6 +2,7 @@ import Elysia, { t } from "elysia";
 import { requireUserId } from "~/modules/auth";
 import { distributedCache } from "~/shared/infra/cache";
 import { strictJsonBody } from "~/shared/infra/elysia/strict-json-body";
+import { associateRecurrence } from "../../application/associate-recurrence";
 import { getCachedRecurrenceHistory } from "../../application/recurrence-history";
 import {
 	deleteRecurrence,
@@ -14,6 +15,7 @@ import {
 import {
 	AdvanceRecurrenceBody,
 	AdvanceRecurrenceReturn,
+	AssociateRecurrenceBody,
 	RecurrenceBody,
 	RecurrenceHistoryQuery,
 	RecurrenceHistoryReturn,
@@ -121,6 +123,16 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 			params,
 			query: RecurrenceHistoryQuery,
 			response: RecurrenceHistoryReturn,
+		},
+	)
+	.post(
+		"/:id/associate",
+		async ({ request, params, body }) =>
+			associateRecurrence(await requireUserId(request), params.id, body),
+		{
+			body: AssociateRecurrenceBody,
+			params,
+			response: RecurrenceSuccessReturn,
 		},
 	)
 	.post(
