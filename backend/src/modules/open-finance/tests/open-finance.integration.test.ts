@@ -65,27 +65,50 @@ describe("MeuPluggy local integration", () => {
 	});
 	test("yield sync replaces calculated value and keeps its local identity on correction", async () => {
 		await sql.executeRaw(
-			`INSERT INTO "FinancialAccountYield" ("id","financialAccountId","date","amount","kind","origin") VALUES ('calculated-yield','account','2026-03-02',1,'AUTOMATIC','SYSTEM')`,
+			`INSERT INTO "FinancialAccountYield" ("id","financialAccountId","date","amount","kind","origin","time") VALUES ('calculated-yield','account','2026-03-02',1,'AUTOMATIC','SYSTEM','18:45')`,
 		);
-		const input = remote("yield", { amount: 2, date: "2026-03-02", description: "Rendimentos" });
+		const input = {
+			...remote("yield", { amount: 2, date: "2026-03-02", description: "Rendimentos" }),
+			time: "12:30",
+		};
 		expect(await processRemote(input)).toBe("imported");
 		expect(await processRemote(input)).toBe("unchanged");
-		const [saved] = await sql.queryRaw<{ id: string; amount: number; kind: string }>(
-			`SELECT "id","amount","kind" FROM "FinancialAccountYield" WHERE "financialAccountId"='account' AND "date"='2026-03-02'`,
+		const [saved] = await sql.queryRaw<{ id: string; amount: number; kind: string; time: string | null }>(
+			`SELECT "id","amount","kind","time" FROM "FinancialAccountYield" WHERE "financialAccountId"='account' AND "date"='2026-03-02'`,
 		);
-		expect(saved).toMatchObject({ amount: 2, id: "calculated-yield", kind: "MANUAL" });
+		expect(saved).toMatchObject({ amount: 2, id: "calculated-yield", kind: "MANUAL", time: "18:45:00" });
 		const [record] = await sql.queryRaw<{ localKind: string; localId: string; state: string }>(
 			`SELECT "localKind","localId","state" FROM "OpenFinanceRecord" WHERE "identity"='provider:bank-yield'`,
 		);
 		expect(record).toMatchObject({ localId: saved.id, localKind: "YIELD", state: "APPLIED" });
-		expect(await processRemote({ ...input, amount: 3 })).toBe("imported");
+		expect(await processRemote({ ...input, amount: 3, time: null })).toBe("imported");
 		expect(
 			(
-				await sql.queryRaw<{ amount: number }>(`SELECT "amount" FROM "FinancialAccountYield" WHERE "id"=$1`, [
-					saved.id,
-				])
-			)[0].amount,
-		).toBe(3);
+				await sql.queryRaw<{ amount: number; time: string }>(
+					`SELECT "amount","time" FROM "FinancialAccountYield" WHERE "id"=$1`,
+					[saved.id],
+				)
+			)[0],
+		).toMatchObject({ amount: 3, time: "18:45:00" });
+	});
+
+	test("yield imports use bank time for new entries and existing entries without a time", async () => {
+		await sql.executeRaw(
+			`INSERT INTO "FinancialAccountYield" ("id","financialAccountId","date","amount","kind","origin") VALUES ('untimed-yield','account','2026-03-03',1,'AUTOMATIC','SYSTEM')`,
+		);
+		for (const date of ["2026-03-03", "2026-03-04"]) {
+			const input = {
+				...remote(`yield-${date}`, { amount: 2, date, description: "Rendimentos" }),
+				time: "12:30",
+			};
+			expect(await processRemote(input)).toBe("imported");
+			const [saved] = await sql.queryRaw<{ id: string; time: string }>(
+				`SELECT "id","time" FROM "FinancialAccountYield" WHERE "financialAccountId"='account' AND "date"=$1`,
+				[date],
+			);
+			expect(saved.time).toBe("12:30:00");
+			if (date === "2026-03-03") expect(saved.id).toBe("untimed-yield");
+		}
 	});
 
 	test("repeated and concurrent deliveries materialize once", async () => {
@@ -96,13 +119,20 @@ describe("MeuPluggy local integration", () => {
 			processRemote(remote("concurrent", { date: "2026-01-16" })),
 		]);
 		expect(
-			(await sql.queryRaw<{ count: number }>('SELECT count(*)::integer AS "count" FROM "Transaction"'))[0]
-				.count,
+			(
+				await sql.queryRaw<{ count: number }>(
+					'SELECT count(*)::integer AS "count" FROM "Transaction"',
+				)
+			)[0].count,
 		).toBe(2);
 	});
 	test("user isolation and reconnection aliases", async () => {
 		expect(
-			await processRemote(remote("first"), { ...binding, financialAccountId: "other-account" }, "other"),
+			await processRemote(
+				remote("first"),
+				{ ...binding, financialAccountId: "other-account" },
+				"other",
+			),
 		).toBe("imported");
 		expect(await processRemote(remote("reconnected", { description: " MERCADO " }))).toBe("linked");
 		expect(
@@ -138,7 +168,9 @@ describe("MeuPluggy local integration", () => {
 		await sql.executeRaw(`INSERT INTO "TransactionImport" ("id","userId","financialAccountId","provider","fileName") VALUES ('pdf','owner','account','NUBANK','PDF');
    INSERT INTO "TransactionImportItem" ("id","transactionImportId","amount","date","description","type","originFinancialAccountId") VALUES ('pdf-item','pdf',45,'2026-02-01','PDF market','EXPENSE','account');`);
 		expect(
-			await processRemote(remote("pdf", { amount: -45, date: "2026-02-01", description: "PDF market" })),
+			await processRemote(
+				remote("pdf", { amount: -45, date: "2026-02-01", description: "PDF market" }),
+			),
 		).toBe("linked");
 		await sql.executeRaw(
 			`INSERT INTO "Transaction" ("userId","amount","date","description","type","originFinancialAccountId") VALUES ('owner',45,'2026-02-01','PDF market','EXPENSE','account');`,
@@ -150,8 +182,12 @@ describe("MeuPluggy local integration", () => {
 		).toBe("pending");
 	});
 	test("pending transactions wait for confirmation and discarded records never reappear", async () => {
-		expect(await processRemote(remote("waiting", { date: "2026-03-02", status: "PENDING" }))).toBe("pending");
-		expect(await processRemote(remote("waiting", { date: "2026-03-02", status: "POSTED" }))).toBe("imported");
+		expect(await processRemote(remote("waiting", { date: "2026-03-02", status: "PENDING" }))).toBe(
+			"pending",
+		);
+		expect(await processRemote(remote("waiting", { date: "2026-03-02", status: "POSTED" }))).toBe(
+			"imported",
+		);
 		const { settleExternalReview } = await import("../application/review-tracking");
 		const [review] = await sql.queryRaw<{ reviewItemId: string }>(
 			'SELECT "reviewItemId" FROM "OpenFinanceRecord" WHERE "identity"=$1',
@@ -166,8 +202,12 @@ describe("MeuPluggy local integration", () => {
 	});
 	test("batch discard settles only selected external reviews", async () => {
 		const { discardExternalReviews } = await import("../application/review-tracking");
-		await processRemote(remote("batch-a", { amount: -45, date: "2026-02-01", description: "PDF market" }));
-		await processRemote(remote("batch-b", { amount: -45, date: "2026-02-01", description: "PDF market" }));
+		await processRemote(
+			remote("batch-a", { amount: -45, date: "2026-02-01", description: "PDF market" }),
+		);
+		await processRemote(
+			remote("batch-b", { amount: -45, date: "2026-02-01", description: "PDF market" }),
+		);
 		const rows = await sql.queryRaw<{ identity: string; reviewItemId: string }>(
 			`SELECT "identity", "reviewItemId" FROM "OpenFinanceRecord" WHERE "identity"=ANY($1::text[]) ORDER BY "identity"`,
 			[["provider:bank-batch-a", "provider:bank-batch-b"]],
@@ -187,14 +227,18 @@ describe("MeuPluggy local integration", () => {
 		expect(states[0]).toMatchObject({ appliedSnapshot: null, reviewItemId: null, state: "DISCARDED" });
 		expect(states[1]!.reviewItemId).toBe(rows[1]!.reviewItemId);
 		expect(
-			await processRemote(remote("batch-a", { amount: -45, date: "2026-02-01", description: "PDF market" })),
+			await processRemote(
+				remote("batch-a", { amount: -45, date: "2026-02-01", description: "PDF market" }),
+			),
 		).toBe("unchanged");
 	});
 	test("persistent user lock coalesces starts and respects interval", async () => {
 		const starts = await Promise.all([startSync("owner", true), startSync("owner", true)]);
 		expect(starts[0].runId).toBe(starts[1].runId);
 		expect(starts[0].runId).not.toBeNull();
-		await sql.executeRaw(`UPDATE "OpenFinanceRun" SET "status"='COMPLETED' WHERE "id"=$1`, [starts[0].runId]);
+		await sql.executeRaw(`UPDATE "OpenFinanceRun" SET "status"='COMPLETED' WHERE "id"=$1`, [
+			starts[0].runId,
+		]);
 		expect((await startSync("owner")).runId).toBeNull();
 	});
 	test("successive card installments share a purchase and retain imported amounts", async () => {
@@ -224,7 +268,13 @@ describe("MeuPluggy local integration", () => {
 					providerId: `bank-installment-${number}`,
 				},
 				true,
-				[{ closingDate: `2026-0${number + 1}-01`, dueDate: `2026-0${number + 1}-10`, id: `bill-${number}` }],
+				[
+					{
+						closingDate: `2026-0${number + 1}-01`,
+						dueDate: `2026-0${number + 1}-10`,
+						id: `bill-${number}`,
+					},
+				],
 			);
 		expect(await processRemote(purchase(1), cardBinding)).toBe("imported");
 		expect(await processRemote(purchase(2), cardBinding)).toBe("linked");
@@ -296,7 +346,12 @@ describe("MeuPluggy local integration", () => {
 				return Response.json({
 					page: 1,
 					results: [
-						{ id: itemId === "item" ? "remote" : "remote-two", itemId, name: "Bank account", type: "BANK" },
+						{
+							id: itemId === "item" ? "remote" : "remote-two",
+							itemId,
+							name: "Bank account",
+							type: "BANK",
+						},
 					],
 					totalPages: 1,
 				});
@@ -322,9 +377,8 @@ describe("MeuPluggy local integration", () => {
 			throw new Error("Unexpected outbound request blocked");
 		}) as unknown as typeof fetch;
 		try {
-			const { handleOpenFinanceSync, recoverOpenFinanceRuns, syncStatus } = await import(
-				"../application/sync"
-			);
+			const { handleOpenFinanceSync, recoverOpenFinanceRuns, syncStatus } =
+				await import("../application/sync");
 			const { createEventEnvelope } = await import("~/shared/application/events");
 			const first = await startSync("owner", true);
 			const event = (runId: string) =>
@@ -375,7 +429,9 @@ describe("MeuPluggy local integration", () => {
 		>(`SELECT * FROM "TransactionImportItem" WHERE "id"=$1`, [record.reviewItemId]);
 		const { prepareImportItem } = await import("../../transaction-imports/application/import-service");
 		await expect(prepareImportItem(item, "owner")).rejects.toThrow("Selecione o cartão");
-		await expect(prepareImportItem({ ...item, paymentCreditCardId: "card" }, "owner")).resolves.toEqual([]);
+		await expect(prepareImportItem({ ...item, paymentCreditCardId: "card" }, "owner")).resolves.toEqual(
+			[],
+		);
 		await sql.executeRaw(
 			`INSERT INTO "Transaction" ("id","userId","amount","date","description","type","originFinancialAccountId","paymentCreditCardId") VALUES ('known-payment','owner',81,'2026-06-06','Pagamento de fatura','EXPENSE','account','card')`,
 		);
@@ -408,9 +464,10 @@ describe("MeuPluggy local integration", () => {
 		);
 		expect(
 			(
-				await sql.queryRaw<{ amount: number }>(`SELECT "amount" FROM "TransactionImportItem" WHERE "id"=$1`, [
-					record.reviewItemId,
-				])
+				await sql.queryRaw<{ amount: number }>(
+					`SELECT "amount" FROM "TransactionImportItem" WHERE "id"=$1`,
+					[record.reviewItemId],
+				)
 			)[0].amount,
 		).toBe(555);
 		await sql.executeRaw(`UPDATE "TransactionImportItem" SET "description"='Draft edit' WHERE "id"=$1`, [
@@ -419,9 +476,10 @@ describe("MeuPluggy local integration", () => {
 		await processRemote({ ...input, amount: -112 });
 		expect(
 			(
-				await sql.queryRaw<{ amount: number }>(`SELECT "amount" FROM "TransactionImportItem" WHERE "id"=$1`, [
-					record.reviewItemId,
-				])
+				await sql.queryRaw<{ amount: number }>(
+					`SELECT "amount" FROM "TransactionImportItem" WHERE "id"=$1`,
+					[record.reviewItemId],
+				)
 			)[0].amount,
 		).toBe(555);
 	});
@@ -467,10 +525,14 @@ describe("MeuPluggy local integration", () => {
 			}),
 		).toBe("pending");
 		expect(
-			await sql.queryRaw(`SELECT * FROM "CreditPurchaseRecord" WHERE "description"='Invalid chronology'`),
+			await sql.queryRaw(
+				`SELECT * FROM "CreditPurchaseRecord" WHERE "description"='Invalid chronology'`,
+			),
 		).toHaveLength(0);
 		expect(
-			await sql.queryRaw(`SELECT * FROM "CreditCardImportItem" WHERE "description"='Invalid chronology'`),
+			await sql.queryRaw(
+				`SELECT * FROM "CreditCardImportItem" WHERE "description"='Invalid chronology'`,
+			),
 		).toHaveLength(1);
 	});
 	test("inconsistent totals stay in review without creating a purchase", async () => {
@@ -556,7 +618,10 @@ describe("MeuPluggy local integration", () => {
 								{ connector: { name: "Other connector" }, id: "ignored" },
 							],
 						})
-					: Response.json({ code: 403, codeDescription: "LIST_ITEMS_FEATURE_NOT_ENABLED" }, { status: 403 });
+					: Response.json(
+							{ code: 403, codeDescription: "LIST_ITEMS_FEATURE_NOT_ENABLED" },
+							{ status: 403 },
+						);
 			if (target.pathname === "/items/item-two") return new Response(null, { status: 502 });
 			if (target.pathname.startsWith("/items/"))
 				return Response.json({
@@ -598,7 +663,9 @@ describe("MeuPluggy local integration", () => {
 					)
 				)[0].count,
 			).toBe(1);
-			expect(await sql.queryRaw('SELECT * FROM "OpenFinanceBinding" ORDER BY "id"')).toEqual(beforeBindings);
+			expect(await sql.queryRaw('SELECT * FROM "OpenFinanceBinding" ORDER BY "id"')).toEqual(
+				beforeBindings,
+			);
 			expect(
 				await sql.queryRaw('SELECT * FROM "OpenFinanceConnection" WHERE "userId"=$1', ["other"]),
 			).toEqual(otherBefore);

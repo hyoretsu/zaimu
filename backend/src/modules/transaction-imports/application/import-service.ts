@@ -107,7 +107,7 @@ export async function persistImportItem(
 		const [saved] = await queryRaw<{ id: string }>(
 			`INSERT INTO "FinancialAccountYield" ("id","financialAccountId","date","amount","currency","externalId","kind","origin","isExcluded","isHidden","time")
 			 VALUES ($1,$2,$3,$4,$5,$6,'MANUAL','USER',false,$7,$8)
-			 ON CONFLICT ("financialAccountId","date") DO UPDATE SET "amount"=EXCLUDED."amount", "currency"=EXCLUDED."currency", "externalId"=EXCLUDED."externalId", "kind"='MANUAL', "origin"='USER', "isExcluded"=false, "isHidden"=EXCLUDED."isHidden", "time"=EXCLUDED."time", "updatedAt"=now()
+			 ON CONFLICT ("financialAccountId","date") DO UPDATE SET "amount"=EXCLUDED."amount", "currency"=EXCLUDED."currency", "externalId"=EXCLUDED."externalId", "kind"='MANUAL', "origin"='USER', "isExcluded"=false, "isHidden"=EXCLUDED."isHidden", "time"=COALESCE("FinancialAccountYield"."time", EXCLUDED."time"), "updatedAt"=now()
 			 RETURNING "id"`,
 			[
 				crypto.randomUUID(),
@@ -224,7 +224,11 @@ export async function persistReconciledImportItem(
 			if (!reference)
 				await transaction.executeStatement(
 					transaction.db.sql.public.TransactionExternalReference.insert([
-						{ externalId: item.externalId, financialAccountId, transactionId: item.reconciledTransactionId },
+						{
+							externalId: item.externalId,
+							financialAccountId,
+							transactionId: item.reconciledTransactionId,
+						},
 					]).build(),
 				);
 		}
