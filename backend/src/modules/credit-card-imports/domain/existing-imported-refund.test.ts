@@ -127,7 +127,7 @@ test("deleted refund does not block a new explicit import approval", () => {
 	expect(book.refunds.filter(refund => !refund.deletedAt)).toHaveLength(1);
 });
 
-test("new approval after deletion revalidates remaining refundable balance", () => {
+test("new approval after deletion preserves refunds above the purchase total", () => {
 	const book = newBook();
 	const purchase = newBookPurchase(book, {
 		description: "Purchase",
@@ -139,10 +139,12 @@ test("new approval after deletion revalidates remaining refundable balance", () 
 	const original = approveImportedRefund(book, purchase.id, input);
 	removeBookRefund(book, purchase.id, original.id);
 	addBookRefund(book, purchase.id, { amount: 10, creditDate: "2026-08-28" });
-	expect(() => approveImportedRefund(book, purchase.id, input)).toThrow("saldo disponível");
+	const restored = approveImportedRefund(book, purchase.id, input);
+	expect(restored.amountCents).toBe(4726);
+	expect(restored.deletedAt).toBeNull();
 	expect(original.deletedAt).not.toBeNull();
 	expect(original.externalId).toBe(input.externalId);
-	expect(book.refunds).toHaveLength(2);
+	expect(book.refunds).toHaveLength(3);
 });
 
 test("import approval rejects purchases after the refund and accepts the same day", () => {
