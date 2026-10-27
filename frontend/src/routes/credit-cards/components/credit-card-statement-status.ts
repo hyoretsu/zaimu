@@ -18,6 +18,9 @@ export function getCreditCardStatementStatus(
 	if (statement.isForecast) {
 		return { className: "text-muted-foreground", icon: null, label: "" };
 	}
+	if (toCents(getCreditCardStatementDisplayBalance(statement)) < 0) {
+		return { className: "text-success-600", icon: LuArrowRight, label: "Fatura com crédito" };
+	}
 	if (statement.isPaid) {
 		return { className: "text-success-600", icon: LuCircleCheck, label: "Fatura paga" };
 	}

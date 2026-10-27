@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { LuClock } from "react-icons/lu";
+import { LuArrowRight, LuCircleCheck, LuClock } from "react-icons/lu";
 import type { CreditCardStatement } from "@/lib/api";
 import { getCreditCardStatementStatus } from "./credit-card-statement-status";
 
@@ -15,6 +15,35 @@ const statement: CreditCardStatement = {
 };
 
 describe("getCreditCardStatementStatus", () => {
+	test.each([false, true])("distinguishes credit from paid invoices with isPaid=%s", isPaid => {
+		expect(getCreditCardStatementStatus({ ...statement, balanceAmount: -0.01, isPaid })).toEqual({
+			className: "text-success-600",
+			icon: LuArrowRight,
+			label: "Fatura com crédito",
+		});
+	});
+
+	test("preserves credit status after excess credit moves to another cycle", () => {
+		expect(
+			getCreditCardStatementStatus({
+				...statement,
+				amountDue: 100,
+				balanceAmount: 0,
+				creditInAmount: 20,
+				isPaid: true,
+				periodPaymentAmount: 90,
+			}),
+		).toEqual({ className: "text-success-600", icon: LuArrowRight, label: "Fatura com crédito" });
+	});
+
+	test("keeps fully paid invoices without credit marked as paid", () => {
+		expect(getCreditCardStatementStatus({ ...statement, balanceAmount: 0, isPaid: true })).toEqual({
+			className: "text-success-600",
+			icon: LuCircleCheck,
+			label: "Fatura paga",
+		});
+	});
+
 	test("recognizes scheduled payments from invoice details without the aggregate", () => {
 		expect(
 			getCreditCardStatementStatus(
