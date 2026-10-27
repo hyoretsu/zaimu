@@ -2,6 +2,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useId, useLayoutEffect, useRef, useSyncExternalStore } from "react";
 import { getDialogHistory } from "@/lib/dialog-history";
 import { type DialogUrl, dialogUrlId } from "@/lib/dialog-url";
+import { captureScrollPosition, restoreScrollPosition } from "@/lib/scroll-position";
 
 export function useDialogHistory(open: boolean, onOpenChange: (open: boolean) => void, url?: DialogUrl) {
 	const router = useRouter({ warn: false });
@@ -11,14 +12,11 @@ export function useDialogHistory(open: boolean, onOpenChange: (open: boolean) =>
 			const top = window.scrollY;
 			const viewports = [
 				...document.querySelectorAll<HTMLElement>('[data-slot="scroll-area-viewport"]'),
-			].map(element => ({ element, left: element.scrollLeft, top: element.scrollTop }));
+			].map(captureScrollPosition);
 			const unsubscribe = router.subscribe("onRendered", () => {
 				unsubscribe();
 				window.scrollTo({ behavior: "instant", left, top });
-				for (const viewport of viewports) {
-					viewport.element.scrollLeft = viewport.left;
-					viewport.element.scrollTop = viewport.top;
-				}
+				for (const viewport of viewports) restoreScrollPosition(viewport);
 			});
 		});
 	}

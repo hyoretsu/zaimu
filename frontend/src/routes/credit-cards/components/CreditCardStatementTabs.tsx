@@ -148,6 +148,7 @@ export function CreditCardStatementTabs({
 									"border-border h-20 w-36 flex-none cursor-pointer items-start justify-start rounded-xl p-3 text-left whitespace-normal",
 									selected && "border-primary bg-primary/10 ring-primary/30 ring-1",
 								)}
+								data-scroll-anchor=""
 								key={statement.id}
 								value={statement.id}
 							>

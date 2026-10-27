@@ -22,6 +22,8 @@ Mobile system back buttons, back gestures, and browser Back must traverse every 
 
 Loading more items must never change the current scroll position. Keep the existing list, rows, and scroll container mounted with stable keys throughout pagination, including dependent requests and pagination errors. Never replace loaded content with a spinner, skeleton, or full-list error state when fetching another page. Show incremental loading and retry feedback after the existing items, append new items without shrinking existing content, and preserve dependent query data while pagination changes its range. Reserve full-list loading states for the initial load or an explicit filter change; never reset scroll as a side effect of pagination.
 
+For lists that insert records before the viewport, mark stable record elements with `data-scroll-anchor`. Shared dialog history restoration in `frontend/src/lib/scroll-position.ts` preserves the first visible anchor through URL view changes; never overwrite this with a captured absolute offset after the list has compensated for inserted records.
+
 ## Button groups
 
 Align action buttons and action groups to the right, including wrapped rows on mobile. Use `ActionGroup` for standalone actions and groups; keep modal footer actions right-aligned through `DialogFooter`.
