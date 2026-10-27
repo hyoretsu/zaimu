@@ -15,8 +15,8 @@ export const viewMonth = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
 export const viewChartPeriod = z
 	.object({
 		endDate: viewDate,
-		periodsAfter: z.number().int().min(0).max(60),
-		periodsBefore: z.number().int().min(0).max(60),
+		periodsAfter: z.number().int().min(0),
+		periodsBefore: z.number().int().min(0),
 		startDate: viewDate,
 	})
 	.refine(value => value.startDate <= value.endDate);

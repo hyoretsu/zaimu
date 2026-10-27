@@ -21,8 +21,8 @@ export const PeriodReturn = t.Object({
 export const DashboardComparisonQuery = t.Object({
 	endDate: t.Optional(t.String({ format: "date" })),
 	excludeYields: t.Optional(t.Boolean()),
-	periodsAfter: t.Optional(t.Integer({ maximum: 60, minimum: 0 })),
-	periodsBefore: t.Optional(t.Integer({ maximum: 60, minimum: 0 })),
+	periodsAfter: t.Optional(t.Integer({ minimum: 0 })),
+	periodsBefore: t.Optional(t.Integer({ minimum: 0 })),
 	startDate: t.Optional(t.String({ format: "date" })),
 });
 export type DashboardComparisonQuery = typeof DashboardComparisonQuery.static;

@@ -216,3 +216,12 @@ describe("plain URL view parameters", () => {
 		expect(history.location.href).toBe("/previous");
 	});
 });
+
+test("comparison URL retains counts above the former maximum", () => {
+	const fallback = { endDate: "2026-10-31", periodsAfter: 10, periodsBefore: 1, startDate: "2026-10-01" };
+	const value = { ...fallback, periodsAfter: 120, periodsBefore: 100 };
+	const href = writeViewState("/", "comparison", value, fallback, viewChartParameters);
+	expect(readViewState(href, "comparison", fallback, viewChartPeriod, viewChartParameters)).toEqual(value);
+	for (const periodsBefore of [-1, 1.5])
+		expect(viewChartPeriod.safeParse({ ...value, periodsBefore }).success).toBe(false);
+});

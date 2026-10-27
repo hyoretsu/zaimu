@@ -105,6 +105,7 @@
 		"backend/src/modules/dashboard/application/DashboardReturn.test.ts",
 		"backend/src/modules/dashboard/application/dashboard-calculations.test.ts",
 		"backend/src/modules/dashboard/application/dashboard-currency-context.test.ts",
+		"backend/src/modules/dashboard/application/dashboard-dtos.test.ts",
 		"backend/src/modules/dashboard/application/dashboard-financial-context.test.ts",
 		"backend/src/modules/dashboard/application/get-dashboard-comparison.test.ts",
 		"backend/src/modules/dashboard/application/load-dashboard-data.test.ts",

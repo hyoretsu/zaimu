@@ -6,18 +6,17 @@ import { useDebouncedInput } from "@/hooks/use-debounced-input";
 interface PeriodCountFieldProps {
 	id: string;
 	label: string;
-	max: number;
 	min: number;
 	onChange: (value: number) => void;
 	value: number;
 }
 
-export function PeriodCountField({ id, label, max, min, onChange, value }: PeriodCountFieldProps) {
+export function PeriodCountField({ id, label, min, onChange, value }: PeriodCountFieldProps) {
 	const [local, setLocal] = useDebouncedInput(String(value), next => {
 		const parsed = Number(next);
-		if (next && Number.isInteger(parsed) && parsed >= min && parsed <= max) onChange(parsed);
+		if (next && Number.isSafeInteger(parsed) && parsed >= min) onChange(parsed);
 	});
-	const valid = local !== "" && Number(local) >= min && Number(local) <= max;
+	const valid = local !== "" && Number.isSafeInteger(Number(local)) && Number(local) >= min;
 	return (
 		<div className="grid w-max content-start gap-2">
 			<Label htmlFor={id}>{label}</Label>
@@ -31,7 +30,6 @@ export function PeriodCountField({ id, label, max, min, onChange, value }: Perio
 				decimalScale={0}
 				id={id}
 				inputMode="numeric"
-				isAllowed={({ floatValue }) => floatValue === undefined || floatValue <= max}
 				name={id}
 				onValueChange={({ value: next }) => setLocal(next)}
 				placeholder={min === 0 ? "Ex: 3" : "Ex: 2"}
@@ -40,7 +38,7 @@ export function PeriodCountField({ id, label, max, min, onChange, value }: Perio
 			/>
 			{!valid && (
 				<p className="text-destructive text-xs" id={`${id}-error`}>
-					Informe de {min} a {max}.
+					Informe um número inteiro maior ou igual a {min}.
 				</p>
 			)}
 		</div>
