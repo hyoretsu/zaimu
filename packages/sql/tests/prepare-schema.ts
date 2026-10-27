@@ -20,6 +20,7 @@ export async function prepareSchema(
 		file.endsWith("database.e2e.test.ts") ||
 		file.endsWith("migrations.e2e.test.ts") ||
 		file.endsWith("normalized-refunds.test.ts") ||
+		file.endsWith("import-purchase-taxes.integration.test.ts") ||
 		file.endsWith("src/tests/query-metrics.test.ts") ||
 		file.endsWith("RabbitMqBroker.integration.test.ts") ||
 		file.endsWith("open-finance.integration.test.ts") ||

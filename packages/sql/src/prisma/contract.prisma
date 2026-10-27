@@ -1469,6 +1469,8 @@ namespace public {
     metadataMissing Json @default("[]")
     reconciledCreditPurchaseId VarChar(36)?
     refundReview Json?
+    taxSourceExternalIds Json @default(dbgenerated("'[]'::json"))
+    taxes Json @default(dbgenerated("'[]'::json"))
     createdAt          Timestamp(3)    @default(now())
     updatedAt          Timestamp(3)    @default(now())
     creditCardImport   CreditCardImport @relation(fields: [creditCardImportId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditCardImportItem_importId_fkey", index: false)

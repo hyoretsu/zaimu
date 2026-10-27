@@ -469,3 +469,7 @@ O ajuste para dia útil afeta somente o vencimento da fatura. Fechamento permane
 Nos detalhes da fatura que recebe crédito excedente do ciclo anterior, exibir "Crédito da fatura anterior" e seu valor em texto pequeno e discreto abaixo do total. O crédito já integra o cálculo líquido e não deve ser descontado novamente. Saldo transposto identifica somente dívida transferida, nunca crédito.
 
 Reembolsos registrados ou editados manualmente aceitam qualquer valor positivo válido, sem teto pelo total ou saldo da compra, inclusive após reembolsos anteriores. Cancelamento continua limitado às parcelas disponíveis; todo excedente vira crédito na fatura. Relatórios preservam o valor integral e admitem gasto líquido negativo. O saldo da compra no formulário é apenas informativo. Estornos de dívidas e cashback ficam limitados às participações e recompensas originais, sem reduzir o crédito excedente.
+
+## Impostos de compras na importação de faturas
+
+Compras importadas aceitam impostos discriminados, inclusive IOF sobre compras em BRL. Os valores informados no campo de impostos já integram o total revisado da compra. Um lançamento positivo à vista da mesma fatura pode ser associado à compra como imposto: seu valor integra apenas a parcela daquela fatura e o total da compra, sem gerar encargo de fatura nem duplicar o total. A associação é explícita; a proximidade entre datas não basta para vincular automaticamente. Preservar a identidade do lançamento incorporado para não duplicá-lo em reimportações, antes ou depois da aprovação.

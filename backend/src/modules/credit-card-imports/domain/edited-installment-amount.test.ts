@@ -14,6 +14,11 @@ const purchase = {
 };
 
 describe("getEditedInstallmentAmount", () => {
+	test("cash total includes reviewed taxes", () => {
+		expect(getEditedInstallmentAmount({ ...purchase, installments: 1, totalAmount: 177.88 })).toBe(
+			177.88,
+		);
+	});
 	test("splits a cash purchase into eight installments without changing its total", () => {
 		const installmentAmount = getEditedInstallmentAmount(purchase);
 		const amounts = getImportedInstallmentAmounts({ ...purchase, installmentAmount });
@@ -24,9 +29,9 @@ describe("getEditedInstallmentAmount", () => {
 
 	test("preserves the imported amount when the installment count is unchanged", () => {
 		expect(getEditedInstallmentAmount({ ...purchase, installments: 1 })).toBe(176.03);
-		expect(getEditedInstallmentAmount({ ...purchase, previousInstallments: 8, totalAmount: 1408.24 })).toBe(
-			176.03,
-		);
+		expect(
+			getEditedInstallmentAmount({ ...purchase, previousInstallments: 8, totalAmount: 1408.24 }),
+		).toBe(176.03);
 	});
 
 	test("rejects totals too small for positive installments", () => {

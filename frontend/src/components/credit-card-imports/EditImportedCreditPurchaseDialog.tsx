@@ -1,5 +1,5 @@
 import { withoutImportedAnticipation } from "@zaimu/finance/imported-anticipation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DebtSplitEditor } from "@/components/debts";
 import { ImportDialog, ImportDialogContent } from "@/components/imports";
 import { StorePicker } from "@/components/stores";
@@ -23,9 +23,13 @@ import type { CreditCardImportItem } from "@/lib/api";
 import type { dataService } from "@/lib/dataService";
 import { calculateDebtSplit, debtSplitToInput } from "@/lib/debt-split";
 import { cleanFinancedDescription, getFinancedOperation } from "@/lib/financing-source-reference";
+import { showToast } from "@/stores";
+import { ImportedPurchaseTaxFields } from "./ImportedPurchaseTaxFields";
+import { ImportedTaxPurchaseSelect } from "./ImportedTaxPurchaseSelect";
 
 export function EditImportedCreditPurchaseDialog({
 	currencyCode,
+	importId,
 	initialData,
 	item,
 	onOpenChange,
@@ -34,6 +38,7 @@ export function EditImportedCreditPurchaseDialog({
 	pending,
 }: {
 	currencyCode: string;
+	importId: string;
 	initialData?: Parameters<typeof dataService.creditCardImports.updateItem>[2];
 	item: CreditCardImportItem | null;
 	onOpenChange: (open: boolean) => void;
@@ -44,6 +49,9 @@ export function EditImportedCreditPurchaseDialog({
 	const [description, setDescription] = useDebouncedInput("", () => undefined);
 	const [installments, setInstallments] = useDebouncedInput("1", () => undefined);
 	const [debtSplit, setDebtSplit] = useState(() => debtSplitToInput());
+	const fieldsRef = useRef<HTMLDivElement>(null);
+	const [taxes, setTaxes] = useState<{ name: string; amount: number }[]>([]);
+	const [taxPurchaseItemId, setTaxPurchaseItemId] = useState("");
 	const [isStatementCharge, setIsStatementCharge] = useState(false);
 	const [isDebt, setIsDebt] = useState(false);
 	const [purchaseDate, setPurchaseDate] = useState("");
@@ -66,6 +74,8 @@ export function EditImportedCreditPurchaseDialog({
 			!(initialData?.isStatementCharge ?? item.isStatementCharge) &&
 				Boolean(initialData ? initialData.debtSplit : item.debtSplit),
 		);
+		setTaxes(initialData?.taxes ?? item.taxes ?? []);
+		setTaxPurchaseItemId(initialData?.taxPurchaseItemId ?? "");
 		setIsStatementCharge(initialData?.isStatementCharge ?? item.isStatementCharge ?? false);
 		setPurchaseDate(initialData?.purchaseDate ?? item.purchaseDate);
 		setStoreName(initialData?.storeName ?? item.storeName ?? "");
@@ -79,7 +89,10 @@ export function EditImportedCreditPurchaseDialog({
 	const installmentCount = isStatementCharge ? 1 : Number.parseInt(installments, 10);
 	const isValid =
 		(!item.metadataMissing?.includes("calendar") || Boolean(statementDate && dueDate)) &&
+		Number.isFinite(Number(totalAmount)) &&
 		Number(totalAmount) > 0 &&
+		taxes.every(tax => tax.name.trim() && Number.isFinite(tax.amount) && tax.amount > 0) &&
+		taxes.reduce((sum, tax) => sum + tax.amount, 0) <= Number(totalAmount) &&
 		Number.isInteger(installmentCount) &&
 		installmentCount >= 1 &&
 		installmentCount <= 48 &&
@@ -93,7 +106,7 @@ export function EditImportedCreditPurchaseDialog({
 					<DialogDescription>Alterações valem antes da criação das parcelas.</DialogDescription>
 				</DialogHeader>
 				<DialogBody>
-					<div className="grid gap-5">
+					<div className="grid gap-5" ref={fieldsRef}>
 						<FormField
 							autoComplete="off"
 							id="imported-purchase-description"
@@ -136,6 +149,7 @@ export function EditImportedCreditPurchaseDialog({
 							id="imported-purchase-total"
 							label="Valor total"
 							onValueChange={setTotalAmount}
+							rawValueName="imported-purchase-raw-total"
 							required
 							value={totalAmount}
 						/>
@@ -147,7 +161,9 @@ export function EditImportedCreditPurchaseDialog({
 								inputMode="numeric"
 								label="Total de parcelas"
 								name="imported-purchase-installments"
-								onChange={event => setInstallments(event.currentTarget.value.replace(/\D/g, "").slice(0, 2))}
+								onChange={event =>
+									setInstallments(event.currentTarget.value.replace(/\D/g, "").slice(0, 2))
+								}
 								placeholder="Ex: 12"
 								required
 								type="text"
@@ -172,17 +188,34 @@ export function EditImportedCreditPurchaseDialog({
 							/>
 						</FormFieldRow>
 						<TagPicker onValueChange={setTagIds} value={tagIds} />
+						{!isStatementCharge && (
+							<ImportedPurchaseTaxFields
+								currencyCode={currencyCode}
+								onChange={setTaxes}
+								taxes={taxes}
+							/>
+						)}
+						{item.installments === 1 && item.installmentAmount > 0 && !item.taxes?.length && (
+							<ImportedTaxPurchaseSelect
+								currencyCode={currencyCode}
+								importId={importId}
+								itemId={item.id}
+								onChange={setTaxPurchaseItemId}
+								value={taxPurchaseItemId}
+							/>
+						)}
 						<CheckboxField
 							checkboxProps={{
 								checked: isStatementCharge,
 								id: "imported-purchase-is-charge",
 								onCheckedChange: checked => {
 									setIsStatementCharge(checked === true);
+									if (checked) setTaxes([]);
 									if (checked) setIsDebt(false);
 								},
 							}}
 						>
-							Encargo da fatura (juros, multa ou IOF)
+							Encargo da fatura (juros, multa ou tarifas)
 						</CheckboxField>
 						<div className="grid gap-3 rounded-2xl border p-3">
 							<CheckboxField
@@ -213,8 +246,43 @@ export function EditImportedCreditPurchaseDialog({
 					<Button
 						className="cursor-pointer disabled:cursor-not-allowed"
 						disabled={!isValid || pending}
-						onClick={() =>
+						onClick={() => {
+							const submittedTaxes = taxes.map((tax, index) => ({
+								amount: Number(
+									fieldsRef.current?.querySelector<HTMLInputElement>(
+										`input[name="import-tax-raw-${index}"]`,
+									)?.value ?? tax.amount,
+								),
+								name:
+									fieldsRef.current
+										?.querySelector<HTMLInputElement>(
+											`input[name="import-tax-name-${index}"]`,
+										)
+										?.value.trim() ?? tax.name,
+							}));
+							const submittedTotal = Number(
+								fieldsRef.current?.querySelector<HTMLInputElement>(
+									'input[name="imported-purchase-raw-total"]',
+								)?.value ?? totalAmount,
+							);
+							if (
+								!taxPurchaseItemId &&
+								(!Number.isFinite(submittedTotal) ||
+									submittedTotal <= 0 ||
+									submittedTaxes.some(
+										tax => !tax.name || !Number.isFinite(tax.amount) || tax.amount <= 0,
+									) ||
+									submittedTaxes.reduce((sum, tax) => sum + tax.amount, 0) > submittedTotal)
+							) {
+								showToast(
+									"Informe impostos válidos já incluídos no total da compra.",
+									"negative",
+								);
+								return;
+							}
 							onSubmit({
+								taxes: isStatementCharge ? [] : submittedTaxes,
+								...(taxPurchaseItemId ? { taxPurchaseItemId } : {}),
 								debtSplit: isDebt && !isStatementCharge ? debtSplit : null,
 								description: description.trim(),
 								installments: installmentCount,
@@ -223,10 +291,12 @@ export function EditImportedCreditPurchaseDialog({
 								storeName: storeName.trim() || null,
 								tagIds,
 								time: time || null,
-								totalAmount: Number(totalAmount),
-								...(item.metadataMissing?.includes("calendar") ? { dueDate, statementDate } : {}),
-							})
-						}
+								totalAmount: submittedTotal,
+								...(item.metadataMissing?.includes("calendar")
+									? { dueDate, statementDate }
+									: {}),
+							});
+						}}
 					>
 						{pending ? "Salvando…" : "Salvar"}
 					</Button>

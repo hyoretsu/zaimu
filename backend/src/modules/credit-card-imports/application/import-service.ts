@@ -48,6 +48,7 @@ import {
 } from "../domain/credit-card-import-reconciliation";
 import { existingPurchaseImportValues } from "../domain/existing-purchase-import-values";
 import { getFinancingSource, getFinancingTarget } from "../domain/financing-source-reference";
+import { readImportTaxes } from "../domain/import-purchase-taxes";
 import { isInvoicePayment } from "../domain/invoice-payment";
 import {
 	includePendingPurchaseSources,
@@ -162,7 +163,10 @@ export async function getPotentialDuplicates(
 									Math.round(Number(candidate.totalAmount) * 100),
 									candidate.installments,
 								),
-							importedAnticipation(item.description)!.reduce((sum, part) => sum + part.amountCents, 0),
+							importedAnticipation(item.description)!.reduce(
+								(sum, part) => sum + part.amountCents,
+								0,
+							),
 						)
 					: candidate.id.startsWith("pending:")
 						? false
@@ -193,10 +197,14 @@ async function reconcileUniquePurchases(userId: string, importId: string, credit
 			duplicates,
 			(itemId, candidate) => {
 				const item = items.find(item => item.id === itemId)!;
-				return !importedAnticipation(item.description) && matchesExistingCreditPurchase(item, candidate, 1);
+				return (
+					!importedAnticipation(item.description) &&
+					matchesExistingCreditPurchase(item, candidate, 1)
+				);
 			},
 			(itemId, candidate) =>
-				dateKey(candidate.purchaseDate) === dateKey(items.find(item => item.id === itemId)!.purchaseDate),
+				dateKey(candidate.purchaseDate) ===
+				dateKey(items.find(item => item.id === itemId)!.purchaseDate),
 		)) {
 			const item = items.find(item => item.id === itemId)!;
 			if (requiresPurchaseReconciliation(item)) continue;
@@ -342,7 +350,12 @@ export async function combinePendingAnticipationRefunds(userId: string, importId
 			purchaseDate: p.purchaseDate,
 			totalAmount: p.totalAmountCents / 100,
 		}));
-		for (const { anticipation, credit, installments, sourceId: matchedSourceId } of anticipationRefundPairs(
+		for (const {
+			anticipation,
+			credit,
+			installments,
+			sourceId: matchedSourceId,
+		} of anticipationRefundPairs(
 			items.filter(item => !isInvoicePayment(item.description)),
 			sources,
 		)) {
@@ -401,6 +414,8 @@ export async function getImportReturn(
 				db.sql.public.CreditCardImportItem.select(
 					"id",
 					"metadataMissing",
+					"taxes",
+					"taxSourceExternalIds",
 					"currentInstallment",
 					"createdAt",
 					"description",
@@ -443,7 +458,10 @@ export async function getImportReturn(
 	const [duplicateDebtSplits, itemDebtSplits] = await Promise.all([
 		getDebtSplitReturns(
 			"creditPurchaseId",
-			duplicateCandidates.map(candidate => ({ amount: Number(candidate.totalAmount), id: candidate.id })),
+			duplicateCandidates.map(candidate => ({
+				amount: Number(candidate.totalAmount),
+				id: candidate.id,
+			})),
 		),
 		getDebtSplitReturns(
 			"creditCardImportItemId",
@@ -451,13 +469,21 @@ export async function getImportReturn(
 		),
 	]);
 	const existingStatements = await queryRows(
-		db.sql.public.CreditCardStatement.select("id", "creditCardId", "statementDate", "dueDate", "totalAmount")
+		db.sql.public.CreditCardStatement.select(
+			"id",
+			"creditCardId",
+			"statementDate",
+			"dueDate",
+			"totalAmount",
+		)
 			.where((f, fn) => fn.eq(f.creditCardId, creditCardImport.creditCardId))
 			.build(),
 	);
 	if (
 		!existingStatements.some(
-			row => dateKey(row.statementDate).slice(0, 7) === dateKey(creditCardImport.statementDate).slice(0, 7),
+			row =>
+				dateKey(row.statementDate).slice(0, 7) ===
+				dateKey(creditCardImport.statementDate).slice(0, 7),
 		)
 	)
 		existingStatements.push({
@@ -467,7 +493,9 @@ export async function getImportReturn(
 			statementDate: creditCardImport.statementDate,
 			totalAmount: 0,
 		});
-	const balance = (await withStatementPayments(existingStatements, undefined, creditCardImport.dueDate)).find(
+	const balance = (
+		await withStatementPayments(existingStatements, undefined, creditCardImport.dueDate)
+	).find(
 		row => dateKey(row.statementDate).slice(0, 7) === dateKey(creditCardImport.statementDate).slice(0, 7),
 	);
 	const previousBalanceCheck =
@@ -502,9 +530,13 @@ export async function getImportReturn(
 			purchaseDate: dateKey(item.purchaseDate),
 			reconciledCreditPurchaseId:
 				item.reconciledCreditPurchaseId ??
-				(pendingPurchaseId(item.description) ? `pending:${pendingPurchaseId(item.description)}` : null),
+				(pendingPurchaseId(item.description)
+					? `pending:${pendingPurchaseId(item.description)}`
+					: null),
 			tagIds: (tags.get(item.id) ?? []).map(tag => tag.id),
 			tags: tags.get(item.id) ?? [],
+			taxes: readImportTaxes(item.taxes),
+			taxSourceExternalIds: item.taxSourceExternalIds as string[],
 			totalAmount: Number(item.totalAmount),
 		})),
 		nextCursor: (() => {
@@ -568,7 +600,8 @@ export async function approveItems(
 				`SELECT "installmentAmount" FROM "CreditCardImportItem" WHERE "id"=$1 AND "creditCardImportId"=$2`,
 				[itemId, importId],
 			);
-			if (item && Number(item.installmentAmount) < 0) return approveReviewedRefund(userId, importId, itemId);
+			if (item && Number(item.installmentAmount) < 0)
+				return approveReviewedRefund(userId, importId, itemId);
 			return approveItemsImpl(userId, importId, itemId, includeUnmatched);
 		}
 		const result = await approveItemsImpl(userId, importId, undefined, includeUnmatched);
@@ -603,7 +636,8 @@ async function approveItemsImpl(
 		userId,
 	]);
 	const creditCardImport = await getImport(userId, importId);
-	if (creditCardImport.status !== "PENDING") throw new HttpException("Esta importação já foi aprovada", 400);
+	if (creditCardImport.status !== "PENDING")
+		throw new HttpException("Esta importação já foi aprovada", 400);
 	const card = await queryFirst(
 		db.sql.public.CreditCard.select(
 			"id",
@@ -626,6 +660,8 @@ async function approveItemsImpl(
 		db.sql.public.CreditCardImportItem.select(
 			"id",
 			"metadataMissing",
+			"taxes",
+			"taxSourceExternalIds",
 			"currentInstallment",
 			"description",
 			"externalId",
@@ -663,7 +699,8 @@ async function approveItemsImpl(
 		)
 		.toSorted(
 			(left, right) =>
-				Number(!!getFinancingSource(left.description)) - Number(!!getFinancingSource(right.description)),
+				Number(!!getFinancingSource(left.description)) -
+				Number(!!getFinancingSource(right.description)),
 		);
 	try {
 		const withSources = includePendingPurchaseSources(
@@ -682,7 +719,8 @@ async function approveItemsImpl(
 	if (itemId && duplicates.has(itemId))
 		throw new HttpException("Concilie as possíveis parcelas existentes antes de aprovar", 400);
 	for (const item of selectedItems)
-		if (duplicates.has(item.id)) throw new HttpException("Concilie a compra original antes de aprovar", 409);
+		if (duplicates.has(item.id))
+			throw new HttpException("Concilie a compra original antes de aprovar", 409);
 	for (const item of selectedItems)
 		if ((item.metadataMissing as string[]).length)
 			throw new HttpException("Complete os metadados obrigatórios antes de aprovar", 409);
@@ -710,7 +748,9 @@ async function approveItemsImpl(
 		cashbackRate: card.cashbackRate === null ? null : Number(card.cashbackRate),
 		cashbackYieldPeriod: card.cashbackYieldPeriod as "MONTHLY" | "YEARLY" | null,
 		cashbackYieldReferencePercentage:
-			card.cashbackYieldReferencePercentage === null ? null : Number(card.cashbackYieldReferencePercentage),
+			card.cashbackYieldReferencePercentage === null
+				? null
+				: Number(card.cashbackYieldReferencePercentage),
 		cashbackYieldReferenceRate:
 			card.cashbackYieldReferenceRate === null ? null : Number(card.cashbackYieldReferenceRate),
 		userId,
@@ -747,6 +787,8 @@ async function approveItemsImpl(
 			pendingSourceItemId: pendingPurchaseId(item.description),
 			statementDate: creditCardImport.statementDate,
 			tagIds: (tagsByItem.get(item.id) ?? []).map(tag => tag.id),
+			taxes: readImportTaxes(item.taxes),
+			taxSourceExternalIds: item.taxSourceExternalIds as string[],
 			totalAmount: Number(item.totalAmount),
 		});
 	}
@@ -804,6 +846,8 @@ async function approveItemsImpl(
 				installmentAmount: Number(item.installmentAmount),
 				statementDate: creditCardImport.statementDate,
 				tagIds: (tagsByItem.get(item.id) ?? []).map(tag => tag.id),
+				taxes: readImportTaxes(item.taxes),
+				taxSourceExternalIds: item.taxSourceExternalIds as string[],
 				totalAmount: Number(item.totalAmount),
 			}));
 		if (!rootId) throw new HttpException("Não foi possível identificar a compra criada", 500);

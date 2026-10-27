@@ -17,6 +17,7 @@ import type { RawQuery } from "~/modules/creditCards/application/normalized-stat
 import { HttpException } from "~/shared/errors";
 import { withRawTransaction } from "~/shared/infra/sql";
 import { withoutFinancingReferences } from "../domain/financing-source-reference";
+import type { ImportedPurchaseTax } from "../domain/import-purchase-taxes";
 import {
 	assertImportedInstallmentChronology,
 	importedInstallmentDates,
@@ -25,6 +26,8 @@ import { importedPurchaseTotalCents } from "../domain/imported-purchase-total";
 import { rememberImportIdentity } from "./import-identities";
 
 interface ImportedPurchaseInput {
+	taxes?: ImportedPurchaseTax[];
+	taxSourceExternalIds?: string[];
 	id?: string;
 	pendingSourceItemId?: string | null;
 	allowBankCorrection?: boolean;
@@ -62,8 +65,11 @@ export async function materializeImportedPurchase(card: CardSnapshot, input: Imp
 		const id = await mutateCreditBook(card.userId, card.id, (book, query) =>
 			materializePurchaseInBook(book, query, card, input),
 		);
-		if (input.installmentAmount > 0 && !input.isStatementCharge)
+		if (input.installmentAmount > 0 && !input.isStatementCharge) {
 			await rememberImportIdentity(query, input.externalId, id);
+			for (const externalId of input.taxSourceExternalIds ?? [])
+				await rememberImportIdentity(query, externalId, id);
+		}
 		return id;
 	});
 }
@@ -89,8 +95,11 @@ export async function materializeImportedPurchases(card: CardSnapshot, inputs: I
 			return ids;
 		});
 		for (const [index, input] of inputs.entries())
-			if (input.installmentAmount > 0 && !input.isStatementCharge)
+			if (input.installmentAmount > 0 && !input.isStatementCharge) {
 				await rememberImportIdentity(query, input.externalId, ids[index]!);
+				for (const externalId of input.taxSourceExternalIds ?? [])
+					await rememberImportIdentity(query, externalId, ids[index]!);
+			}
 		return ids;
 	});
 }
@@ -164,9 +173,16 @@ async function materializePurchaseInBook(
 		return id;
 	}
 	try {
-		assertImportedInstallmentChronology(input.purchaseDate, input.statementDate, input.currentInstallment);
+		assertImportedInstallmentChronology(
+			input.purchaseDate,
+			input.statementDate,
+			input.currentInstallment,
+		);
 	} catch (error) {
-		throw new HttpException(error instanceof Error ? error.message : "Calendário de parcelas inválido", 409);
+		throw new HttpException(
+			error instanceof Error ? error.message : "Calendário de parcelas inválido",
+			409,
+		);
 	}
 	let existing = duplicate ?? book.purchases.find(p => p.id === input.existingRootId);
 	if (
@@ -271,6 +287,24 @@ async function materializePurchaseInBook(
 				}
 			: {
 					debtSplitRule: input.debtSplitRule === undefined ? p.debtSplitRule : input.debtSplitRule,
+					...(input.taxes?.length
+						? {
+								...(!source
+									? {
+											currency: book.card.currency ?? "BRL",
+											exchangeRate: 1,
+											originalAmount:
+												input.totalAmount -
+												input.taxes.reduce((sum, tax) => sum + tax.amount, 0),
+										}
+									: {}),
+								fees: input.taxes.map(tax => ({
+									amount: tax.amount,
+									name: tax.name,
+									type: "FIXED" as const,
+								})),
+							}
+						: {}),
 					description: original
 						? `Parcelamento - ${original.description}`
 						: withoutImportedAnticipation(withoutFinancingReferences(input.description)),

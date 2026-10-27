@@ -25,7 +25,8 @@ function toTransaction(
 		date: item.purchaseDate,
 		debtSplit: item.isStatementCharge ? null : item.debtSplit,
 		description:
-			financedOperation?.merchant ?? withoutImportedAnticipation(cleanFinancedDescription(item.description)),
+			financedOperation?.merchant ??
+			withoutImportedAnticipation(cleanFinancedDescription(item.description)),
 		id: item.id,
 		installmentAmount: item.installmentAmount,
 		installments: item.installments,
@@ -69,7 +70,8 @@ export function CreditCardImportItemRow({
 	const cancellation = item.installmentAmount < 0 ? importedAnticipation(item.description) : null;
 	const anticipated = item.installmentAmount > 0 ? importedAnticipation(item.description) : null;
 	const requiresOriginal = Boolean(anticipated);
-	const anticipatedAmount = anticipated?.reduce((sum, installment) => sum + installment.amountCents, 0) ?? 0;
+	const anticipatedAmount =
+		anticipated?.reduce((sum, installment) => sum + installment.amountCents, 0) ?? 0;
 	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
 
 	return (
@@ -93,7 +95,8 @@ export function CreditCardImportItemRow({
 						disabled ||
 						(item.installmentAmount < 0
 							? !item.refundReview
-							: item.duplicates.length > 0 || Boolean(requiresOriginal && !item.reconciledCreditPurchaseId)),
+							: item.duplicates.length > 0 ||
+								Boolean(requiresOriginal && !item.reconciledCreditPurchaseId)),
 					icon: pending ? <LuLoaderCircle className="animate-spin" /> : <LuCheck />,
 					onClick: onApprove,
 					text: pending ? "Processando..." : "Aprovar",
@@ -111,11 +114,11 @@ export function CreditCardImportItemRow({
 			]}
 			amount={
 				cancellation ? (
-					<span className="whitespace-nowrap font-semibold text-emerald-600 text-sm">
+					<span className="text-sm font-semibold whitespace-nowrap text-emerald-600">
 						{currency.format(Math.abs(item.installmentAmount))}
 					</span>
 				) : anticipated ? (
-					<span className="whitespace-nowrap font-semibold text-foreground text-sm">
+					<span className="text-foreground text-sm font-semibold whitespace-nowrap">
 						{currency.format(anticipatedAmount / 100)} nesta fatura
 					</span>
 				) : undefined
@@ -123,7 +126,7 @@ export function CreditCardImportItemRow({
 			forceCompactActions
 			icon={
 				item.installmentAmount < 0 ? (
-					<div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-muted text-emerald-600">
+					<div className="bg-muted flex size-11 shrink-0 items-center justify-center rounded-2xl text-emerald-600">
 						<LuUndo2 aria-hidden="true" />
 					</div>
 				) : undefined
@@ -131,23 +134,37 @@ export function CreditCardImportItemRow({
 			metadataPrefix={
 				<div className="flex flex-wrap items-center gap-1.5">
 					<ImportItemDateTime
-						date={requiresOriginal && !item.reconciledCreditPurchaseId ? undefined : item.purchaseDate}
+						date={
+							requiresOriginal && !item.reconciledCreditPurchaseId
+								? undefined
+								: item.purchaseDate
+						}
 						originalPurchase={
-							item.installmentAmount >= 0 && (!requiresOriginal || Boolean(item.reconciledCreditPurchaseId))
+							item.installmentAmount >= 0 &&
+							(!requiresOriginal || Boolean(item.reconciledCreditPurchaseId))
 						}
 						time={item.time}
 					/>
 					{item.installmentAmount < 0 && <AppBadge variant="outline">Reembolso</AppBadge>}
 					{item.isStatementCharge && <AppBadge variant="outline">Encargo da fatura</AppBadge>}
-					{anticipated && <AppBadge variant="outline">Antecipação de {anticipated.length} parcelas</AppBadge>}
+					{item.taxes?.map((tax, index) => (
+						<AppBadge key={index} variant="outline">
+							{tax.name}: {currency.format(tax.amount)}
+						</AppBadge>
+					))}
+					{anticipated && (
+						<AppBadge variant="outline">Antecipação de {anticipated.length} parcelas</AppBadge>
+					)}
 					{requiresOriginal && !item.reconciledCreditPurchaseId && (
 						<AppBadge variant="outline">
-							{item.duplicates.length ? "Vincule à compra original" : "Importe a compra original"}
+							{item.duplicates.length
+								? "Vincule à compra original"
+								: "Importe a compra original"}
 						</AppBadge>
 					)}
 					{financedOperation ? (
 						<AppBadge
-							className="h-auto min-h-7 whitespace-normal break-words py-1 leading-4"
+							className="h-auto min-h-7 py-1 leading-4 break-words whitespace-normal"
 							variant="outline"
 						>
 							Crédito parcelado · IOF R$ {financedOperation.iof} incluído
@@ -160,11 +177,12 @@ export function CreditCardImportItemRow({
 						<AppBadge variant="outline">Será compensada pelo crédito parcelado</AppBadge>
 					) : null}
 					{item.duplicates.length ? (
-						<span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-amber-700 text-xs">
-							<LuCircleAlert /> {anticipated ? "Escolha a compra original" : "Possível duplicata"}
+						<span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-700">
+							<LuCircleAlert />{" "}
+							{anticipated ? "Escolha a compra original" : "Possível duplicata"}
 						</span>
 					) : item.reconciledCreditPurchaseId ? (
-						<span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-emerald-700 text-xs">
+						<span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-700">
 							<LuCheck /> Conciliada
 						</span>
 					) : null}
@@ -172,11 +190,12 @@ export function CreditCardImportItemRow({
 			}
 			title={
 				anticipated ? (
-					<p className="min-w-0 flex-1 truncate font-semibold leading-6">
-						Antecipação - {withoutImportedAnticipation(cleanFinancedDescription(item.description))}
+					<p className="min-w-0 flex-1 truncate leading-6 font-semibold">
+						Antecipação -{" "}
+						{withoutImportedAnticipation(cleanFinancedDescription(item.description))}
 					</p>
 				) : item.installmentAmount < 0 ? (
-					<p className="min-w-0 flex-1 truncate font-semibold leading-6">
+					<p className="min-w-0 flex-1 truncate leading-6 font-semibold">
 						{withoutImportedAnticipation(item.description).replace(/^Reembolso\s*-\s*/iu, "")}
 					</p>
 				) : undefined

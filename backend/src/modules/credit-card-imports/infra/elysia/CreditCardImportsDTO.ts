@@ -1,6 +1,10 @@
 import { t } from "elysia";
 import { DebtSplitInputDTO } from "~/modules/debts/infra/elysia/DebtSplitsDTO";
 
+export const ImportedPurchaseTaxDTO = t.Object({
+	amount: t.Number({ exclusiveMinimum: 0 }),
+	name: t.String({ maxLength: 100, minLength: 1 }),
+});
 export const CreditCardImportItemUpdateDTO = t.Object({
 	debtSplit: t.Optional(t.Nullable(DebtSplitInputDTO)),
 	description: t.Optional(t.String({ maxLength: 500 })),
@@ -12,6 +16,8 @@ export const CreditCardImportItemUpdateDTO = t.Object({
 	statementDate: t.Optional(t.String({ format: "date" })),
 	storeName: t.Optional(t.Nullable(t.String({ maxLength: 200 }))),
 	tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
+	taxes: t.Optional(t.Array(ImportedPurchaseTaxDTO, { maxItems: 20 })),
+	taxPurchaseItemId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 	time: t.Optional(t.Nullable(t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" }))),
 	totalAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
 });

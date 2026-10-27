@@ -23,6 +23,7 @@ import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
 import { rejectLegacyFinancialFields } from "~/shared/infra/elysia/strict-json-body";
 import { db, executeStatement, queryFirst, queryRaw, queryRows } from "~/shared/infra/sql";
+import { associateImportedTax } from "../../application/associate-import-tax";
 import {
 	approveItems,
 	cleanupItemTags,
@@ -49,6 +50,7 @@ import {
 	withFinancingSource,
 	withFinancingTarget,
 } from "../../domain/financing-source-reference";
+import { readImportTaxes } from "../../domain/import-purchase-taxes";
 import {
 	pendingPurchaseId,
 	withoutPendingPurchase,
@@ -82,7 +84,9 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 				"imports:pending",
 				{ domain: "credit-card-imports" },
 				() =>
-					queryRaw<{ id: string; fileName: string; pendingItemCount: number } & Record<string, unknown>>(
+					queryRaw<
+						{ id: string; fileName: string; pendingItemCount: number } & Record<string, unknown>
+					>(
 						`SELECT import."id", import."fileName", count(item."id")::integer AS "pendingItemCount"
 			 FROM "CreditCardImport" import
 			 LEFT JOIN "CreditCardImportItem" item ON item."creditCardImportId" = import."id"
@@ -148,20 +152,28 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 				const dates = resolveImportStatementDates(parsedStatement, book, body.statementId);
 				if (body.statementId) synchronizeImportedStatementDates(book, dates, body.statementId);
 				if (parsedStatement.nextStatementDate)
-					synchronizeNextImportedStatement(book, parsedStatement.nextStatementDate, dates.statementDate);
+					synchronizeNextImportedStatement(
+						book,
+						parsedStatement.nextStatementDate,
+						dates.statementDate,
+					);
 				return dates;
 			});
 			const statement = { ...parsedStatement, ...resolvedDates };
 			const reportedPreviousBalance =
 				statement.reportedPreviousBalance ??
 				statement.purchases.find(purchase =>
-					/^(saldo\s+(anterior|financiado)|saldo devedor anterior)/i.test(purchase.description.trim()),
+					/^(saldo\s+(anterior|financiado)|saldo devedor anterior)/i.test(
+						purchase.description.trim(),
+					),
 				)?.installmentAmount;
 			const importBook = await readCreditBook(userId, body.creditCardId);
 			const purchases = combineAnticipationRefunds(
 				assignCreditCardPurchaseExternalIds(
 					filterZeroValuePurchases(
-						statement.purchases.filter(purchase => statementEntryKind(purchase.description) !== "BALANCE"),
+						statement.purchases.filter(
+							purchase => statementEntryKind(purchase.description) !== "BALANCE",
+						),
 					),
 					body.creditCardId,
 				),
@@ -177,26 +189,15 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 					`SELECT * FROM "CreditEntry" WHERE "creditCardId"=$1 AND "externalId"=ANY($2)`,
 					[body.creditCardId, purchases.map(p => p.externalId)],
 				),
-				queryRows(
-					db.sql.public.CreditCardImportItem.innerJoin(db.sql.public.CreditCardImport, (fields, functions) =>
-						functions.eq(fields.CreditCardImportItem.creditCardImportId, fields.CreditCardImport.id),
-					)
-						.select(fields => ({
-							creditCardImportId: fields.CreditCardImportItem.creditCardImportId,
-							currentInstallment: fields.CreditCardImportItem.currentInstallment,
-							externalId: fields.CreditCardImportItem.externalId,
-						}))
-						.where((fields, functions) =>
-							functions.and(
-								functions.eq(fields.CreditCardImport.creditCardId, body.creditCardId),
-								functions.eq(fields.CreditCardImport.status, "PENDING"),
-								functions.in(
-									fields.CreditCardImportItem.externalId,
-									purchases.map(purchase => purchase.externalId),
-								),
-							),
-						)
-						.build(),
+				queryRaw<{ creditCardImportId: string; currentInstallment: number; externalId: string }>(
+					`SELECT i."creditCardImportId", i."currentInstallment", i."externalId"
+      FROM "CreditCardImportItem" i JOIN "CreditCardImport" b ON b."id"=i."creditCardImportId"
+      WHERE b."creditCardId"=$1 AND b."status"='PENDING'
+      UNION ALL
+      SELECT i."creditCardImportId", 1 AS "currentInstallment", json_array_elements_text(i."taxSourceExternalIds") AS "externalId"
+      FROM "CreditCardImportItem" i JOIN "CreditCardImport" b ON b."id"=i."creditCardImportId"
+      WHERE b."creditCardId"=$1 AND b."status"='PENDING'`,
+					[body.creditCardId],
 				),
 			]);
 			const existingCardEntries = await readCreditEntries(body.creditCardId);
@@ -225,7 +226,12 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 			const existingInstallments = existingCardEntries.filter(p =>
 				existingRootIds.includes(p.purchaseId ?? p.id),
 			);
-			const newPurchases = selectNewImportPurchases(purchases, existingRoots, existingInstallments, pending);
+			const newPurchases = selectNewImportPurchases(
+				purchases,
+				existingRoots,
+				existingInstallments,
+				pending,
+			);
 			for (const purchase of newPurchases) {
 				if (
 					purchase.installmentAmount < 0 ||
@@ -242,8 +248,14 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 						dateKey(entry.purchaseDate) <= purchase.purchaseDate.slice(0, 10) &&
 						hasMatchingInstallmentSum(
 							anticipatedPlans.get(entry.id) ??
-								distributePurchaseCents(Math.round(Number(entry.totalAmount) * 100), entry.installments),
-							importedAnticipation(purchase.description)!.reduce((sum, part) => sum + part.amountCents, 0),
+								distributePurchaseCents(
+									Math.round(Number(entry.totalAmount) * 100),
+									entry.installments,
+								),
+							importedAnticipation(purchase.description)!.reduce(
+								(sum, part) => sum + part.amountCents,
+								0,
+							),
 						) &&
 						entry.description.normalize("NFKC").trim().toLocaleLowerCase("pt-BR") ===
 							withoutImportedAnticipation(purchase.description)
@@ -318,22 +330,24 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 			if (!creditCardImport) throw new HttpException("Não foi possível criar a importação", 500);
 			await executeStatement(
 				db.sql.public.CreditCardImportItem.insert(
-					newPurchases.map(({ financingSourceExternalId, financingTargetExternalId, ...purchase }) => ({
-						...purchase,
-						creditCardImportId: creditCardImport.id,
-						description: financingSourceExternalId
-							? withFinancingSource(purchase.description, financingSourceExternalId)
-							: financingTargetExternalId
-								? withFinancingTarget(purchase.description, financingTargetExternalId)
-								: purchase.description,
-						installmentAmount: String(purchase.installmentAmount),
-						isStatementCharge: statementEntryKind(purchase.description) === "CHARGE",
-						purchaseDate: new Date(`${purchase.purchaseDate}T12:00:00`),
-						...(purchase.reconciledCreditPurchaseId && {
-							reconciledCreditPurchaseId: purchase.reconciledCreditPurchaseId,
+					newPurchases.map(
+						({ financingSourceExternalId, financingTargetExternalId, ...purchase }) => ({
+							...purchase,
+							creditCardImportId: creditCardImport.id,
+							description: financingSourceExternalId
+								? withFinancingSource(purchase.description, financingSourceExternalId)
+								: financingTargetExternalId
+									? withFinancingTarget(purchase.description, financingTargetExternalId)
+									: purchase.description,
+							installmentAmount: String(purchase.installmentAmount),
+							isStatementCharge: statementEntryKind(purchase.description) === "CHARGE",
+							purchaseDate: new Date(`${purchase.purchaseDate}T12:00:00`),
+							...(purchase.reconciledCreditPurchaseId && {
+								reconciledCreditPurchaseId: purchase.reconciledCreditPurchaseId,
+							}),
+							totalAmount: String(purchase.totalAmount),
 						}),
-						totalAmount: String(purchase.totalAmount),
-					})),
+					),
 				).build(),
 			);
 			const reconciledItems = await queryRows(
@@ -343,7 +357,9 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 					"reconciledCreditPurchaseId",
 					"totalAmount",
 				)
-					.where((fields, functions) => functions.eq(fields.creditCardImportId, creditCardImport.id))
+					.where((fields, functions) =>
+						functions.eq(fields.creditCardImportId, creditCardImport.id),
+					)
 					.build(),
 			);
 			const existingTags = await getTagsByEntity(
@@ -353,10 +369,14 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 				),
 			);
 			for (const item of reconciledItems) {
-				const original = existingCardEntries.find(entry => entry.id === item.reconciledCreditPurchaseId);
+				const original = existingCardEntries.find(
+					entry => entry.id === item.reconciledCreditPurchaseId,
+				);
 				if (!original) continue;
 				await executeStatement(
-					db.sql.public.CreditCardImportItem.update(existingPurchaseImportValues(item.description, original))
+					db.sql.public.CreditCardImportItem.update(
+						existingPurchaseImportValues(item.description, original),
+					)
 						.where((fields, functions) => functions.eq(fields.id, item.id))
 						.build(),
 				);
@@ -366,7 +386,9 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 					tagIds: (existingTags.get(original.id) ?? []).map(tag => tag.id),
 				});
 				await replaceDebtSplit({
-					amount: Number(importedAnticipation(item.description) ? original.totalAmount : item.totalAmount),
+					amount: Number(
+						importedAnticipation(item.description) ? original.totalAmount : item.totalAmount,
+					),
 					split: (await getDebtSplitInput({ creditPurchaseId: original.id })) ?? null,
 					target: { creditCardImportItemId: item.id },
 					userId,
@@ -400,11 +422,19 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 			const creditCardImport = await getImport(userId, params.id);
 			if (creditCardImport.status !== "PENDING")
 				throw new HttpException("Esta importação já foi aprovada", 400);
+			if (body.taxPurchaseItemId) {
+				await associateImportedTax(userId, params.id, params.itemId, body.taxPurchaseItemId, {
+					amount: body.totalAmount,
+					name: body.description,
+				});
+				return getImportReturn(userId, params.id);
+			}
 			const current = await queryFirst(
 				db.sql.public.CreditCardImportItem.select(
 					"id",
 					"description",
 					"metadataMissing",
+					"taxes",
 					"currentInstallment",
 					"installmentAmount",
 					"isStatementCharge",
@@ -448,8 +478,16 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 				importedAnticipation(current.description) &&
 				(isStatementCharge || installments !== current.installments)
 			)
-				throw new HttpException("Antecipação não permite alterar o parcelamento nem virar encargo", 400);
-			if (isStatementCharge && (installments !== 1 || body.debtSplit))
+				throw new HttpException(
+					"Antecipação não permite alterar o parcelamento nem virar encargo",
+					400,
+				);
+			if (
+				isStatementCharge &&
+				(installments !== 1 ||
+					body.debtSplit ||
+					(body.taxes ?? readImportTaxes(current.taxes)).length)
+			)
 				throw new HttpException("Encargos não permitem rateio ou parcelamento automático", 400);
 			let installmentAmount: number;
 			try {
@@ -466,7 +504,14 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 					400,
 				);
 			}
-			const tagIds = body.tagIds === undefined ? undefined : await assertTagOwnership(body.tagIds, userId);
+			if (
+				body.taxes?.some(tax => !tax.name.trim()) ||
+				(body.taxes ?? readImportTaxes(current.taxes)).reduce((sum, tax) => sum + tax.amount, 0) >
+					totalAmount
+			)
+				throw new HttpException("Impostos devem ter nome e não podem exceder o total da compra", 400);
+			const tagIds =
+				body.tagIds === undefined ? undefined : await assertTagOwnership(body.tagIds, userId);
 			const description = preserveFinancedOperation(
 				current.description,
 				body.description?.trim() ?? current.description,
@@ -481,9 +526,15 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 						body.description === undefined
 							? current.description
 							: getFinancingSource(current.description)
-								? withFinancingSource(preservedDescription, getFinancingSource(current.description)!)
+								? withFinancingSource(
+										preservedDescription,
+										getFinancingSource(current.description)!,
+									)
 								: getFinancingTarget(current.description)
-									? withFinancingTarget(preservedDescription, getFinancingTarget(current.description)!)
+									? withFinancingTarget(
+											preservedDescription,
+											getFinancingTarget(current.description)!,
+										)
 									: pendingPurchaseId(current.description)
 										? withPendingPurchase(
 												withoutPendingPurchase(preservedDescription),
@@ -495,8 +546,14 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 					isSelected: body.isSelected ?? current.isSelected,
 					isStatementCharge,
 					metadataMissing: missing,
-					purchaseDate: body.purchaseDate ? new Date(`${body.purchaseDate}T12:00:00`) : current.purchaseDate,
-					storeName: body.storeName === undefined ? current.storeName : body.storeName?.trim() || null,
+					...(body.taxes !== undefined
+						? { taxes: body.taxes.map(tax => ({ ...tax, name: tax.name.trim() })) }
+						: {}),
+					purchaseDate: body.purchaseDate
+						? new Date(`${body.purchaseDate}T12:00:00`)
+						: current.purchaseDate,
+					storeName:
+						body.storeName === undefined ? current.storeName : body.storeName?.trim() || null,
 					...(body.time !== undefined && { time: body.time }),
 					totalAmount: String(totalAmount),
 					updatedAt: new Date(),
@@ -507,7 +564,11 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 			if (tagIds) {
 				const currentTags = await getTagsByEntity(importItemTagEntityType, [current.id]);
 				if (tagIds.length || currentTags.has(current.id))
-					await replaceEntityTags({ entityIds: [current.id], entityType: importItemTagEntityType, tagIds });
+					await replaceEntityTags({
+						entityIds: [current.id],
+						entityType: importItemTagEntityType,
+						tagIds,
+					});
 			}
 			if (body.debtSplit !== undefined)
 				await replaceDebtSplit({
@@ -607,7 +668,10 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 			await executeStatement(
 				db.sql.public.CreditCardImportItem.update({
 					description: importedAnticipation(item.description)
-						? withImportedAnticipation(duplicate.description, importedAnticipation(item.description)!)
+						? withImportedAnticipation(
+								duplicate.description,
+								importedAnticipation(item.description)!,
+							)
 						: source("description", item.description, duplicate.description),
 					purchaseDate: importedAnticipation(item.description)
 						? duplicate.purchaseDate
@@ -659,10 +723,13 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 		async ({ params, request }) => {
 			const userId = await requireUserId(request);
 			const creditCardImport = await getImport(userId, params.id);
-			if (creditCardImport.status !== "PENDING") throw new HttpException("Importação já finalizada", 400);
+			if (creditCardImport.status !== "PENDING")
+				throw new HttpException("Importação já finalizada", 400);
 			const items = await queryRows(
 				db.sql.public.CreditCardImportItem.select("id")
-					.where((fields, functions) => functions.eq(fields.creditCardImportId, creditCardImport.id))
+					.where((fields, functions) =>
+						functions.eq(fields.creditCardImportId, creditCardImport.id),
+					)
 					.build(),
 			);
 			await cleanupItemTags(items.map(item => item.id));
@@ -698,9 +765,10 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 				purchaseDate: Date;
 				externalId: string;
 				description: string;
-			}>(`SELECT * FROM "CreditCardImportItem" WHERE "creditCardImportId"=$1 AND "installmentAmount"<0`, [
-				params.id,
-			]);
+			}>(
+				`SELECT * FROM "CreditCardImportItem" WHERE "creditCardImportId"=$1 AND "installmentAmount"<0`,
+				[params.id],
+			);
 			const sources = pending
 				.filter(p => !importedAnticipation(p.description) && !getFinancingSource(p.description))
 				.map(p => ({
@@ -724,7 +792,9 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 								0,
 								...refundItems
 									.filter(
-										item => !item.reconciledCreditPurchaseId || item.reconciledCreditPurchaseId === p.id,
+										item =>
+											!item.reconciledCreditPurchaseId ||
+											item.reconciledCreditPurchaseId === p.id,
 									)
 									.map(
 										item =>

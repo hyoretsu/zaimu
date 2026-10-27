@@ -21,6 +21,7 @@ const item: CreditCardImportItem = {
 	purchaseDate: "2026-09-04",
 	tagIds: [],
 	tags: [],
+	taxes: [],
 	totalAmount: -249,
 	updatedAt: "2026-09-04",
 };
@@ -48,3 +49,31 @@ for (const reviewed of [false, true]) {
 		expect(approve!.includes("disabled=")).toBe(!reviewed);
 	});
 }
+
+test("BRL purchase shows imported IOF as purchase tax", () => {
+	const markup = renderToStaticMarkup(
+		<TooltipProvider>
+			<CreditCardImportItemRow
+				creditCardId="card"
+				creditCardName="Inter"
+				currencyCode="BRL"
+				disabled={false}
+				item={{
+					...item,
+					description: "Task Bar Hero DLCs",
+					installmentAmount: 54.62,
+					taxes: [{ amount: 1.85, name: "IOF INTERNACIONAL" }],
+					totalAmount: 54.62,
+				}}
+				onApprove={() => undefined}
+				onEdit={() => undefined}
+				onReconcile={() => undefined}
+				onReviewRefund={() => undefined}
+				pending={false}
+			/>
+		</TooltipProvider>,
+	);
+	expect(markup).toContain("IOF INTERNACIONAL");
+	expect(markup).toContain("1,85");
+	expect(markup).not.toContain("Encargo da fatura");
+});

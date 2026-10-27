@@ -1,0 +1,70 @@
+[
+	{
+		"execute": [
+			{
+				"description": "add column \"taxSourceExternalIds\"",
+				"sql": "ALTER TABLE \"public\".\"CreditCardImportItem\" ADD COLUMN \"taxSourceExternalIds\" json DEFAULT '[]'::json NOT NULL"
+			}
+		],
+		"id": "column.public.CreditCardImportItem.taxSourceExternalIds",
+		"label": "Add column \"taxSourceExternalIds\" to \"CreditCardImportItem\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"taxSourceExternalIds\" exists",
+				"params": ["public", "CreditCardImportItem", "taxSourceExternalIds"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"taxSourceExternalIds\" is missing",
+				"params": ["public", "CreditCardImportItem", "taxSourceExternalIds"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "taxSourceExternalIds",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditCardImportItem"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"taxes\"",
+				"sql": "ALTER TABLE \"public\".\"CreditCardImportItem\" ADD COLUMN \"taxes\" json DEFAULT '[]'::json NOT NULL"
+			}
+		],
+		"id": "column.public.CreditCardImportItem.taxes",
+		"label": "Add column \"taxes\" to \"CreditCardImportItem\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"taxes\" exists",
+				"params": ["public", "CreditCardImportItem", "taxes"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"taxes\" is missing",
+				"params": ["public", "CreditCardImportItem", "taxes"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "taxes",
+				"objectType": "column",
+				"schema": "public",
+				"table": "CreditCardImportItem"
+			},
+			"id": "postgres"
+		}
+	}
+]

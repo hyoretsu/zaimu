@@ -372,6 +372,7 @@ export function CreditCardImportReviewDialog({
 			</ImportDialog>
 			<EditImportedCreditPurchaseDialog
 				currencyCode={currencyCode}
+				importId={importId!}
 				initialData={recoveredEdit}
 				item={editingItem}
 				onOpenChange={nextOpen => {
@@ -390,6 +391,9 @@ export function CreditCardImportReviewDialog({
 							setRecoveredEdit(undefined);
 						},
 						conflictKey: `credit-card-import:${targetImportId}:${item.id}`,
+						conflictKeys: data.taxPurchaseItemId
+							? [`credit-card-import:${targetImportId}:${data.taxPurchaseItemId}`]
+							: [],
 						failureMessage: "Não foi possível salvar o item.",
 						loadingMessage: "Salvando item importado...",
 						onSuccess: () => invalidate(targetImportId),
@@ -400,7 +404,9 @@ export function CreditCardImportReviewDialog({
 							payload: { data, importId: targetImportId, item },
 						},
 						run: () => dataService.creditCardImports.updateItem(targetImportId, item.id, data),
-						successMessage: "Item importado atualizado.",
+						successMessage: data.taxPurchaseItemId
+							? "Imposto associado à compra."
+							: "Item importado atualizado.",
 					});
 				}}
 				open={editingItem !== null}

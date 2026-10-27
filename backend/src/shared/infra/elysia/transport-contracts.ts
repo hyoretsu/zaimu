@@ -513,6 +513,7 @@ export const CreditCardImportItemReturn = t.Object({
 	storeName: t.Optional(t.Union([t.Null(), t.String()])),
 	tagIds: t.Array(t.String()),
 	tags: t.Array(TagReturn),
+	taxes: t.Array(t.Object({ amount: t.Number(), name: t.String() })),
 	time: t.Optional(t.Union([t.Null(), t.String()])),
 	totalAmount: t.Number(),
 	updatedAt: t.String(),

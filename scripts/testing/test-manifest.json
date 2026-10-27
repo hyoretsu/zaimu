@@ -1,6 +1,7 @@
 {
 	"backend:e2e": ["backend/tests/database.e2e.test.ts"],
 	"backend:integration": [
+		"backend/src/modules/credit-card-imports/tests/import-purchase-taxes.integration.test.ts",
 		"backend/src/modules/recurring/tests/time-zone-materialization.test.ts",
 		"backend/src/modules/credit-card-imports/tests/credit-card-refunds.test.ts",
 		"backend/src/modules/credit-card-imports/tests/import-refund-parity.test.ts",
@@ -70,6 +71,7 @@
 		"backend/src/modules/credit-card-imports/domain/existing-purchase-import-values.test.ts",
 		"backend/src/modules/credit-card-imports/domain/filter-zero-value-purchases.test.ts",
 		"backend/src/modules/credit-card-imports/domain/financing-source-reference.test.ts",
+		"backend/src/modules/credit-card-imports/domain/import-purchase-taxes.test.ts",
 		"backend/src/modules/credit-card-imports/domain/imported-installment-dates.test.ts",
 		"backend/src/modules/credit-card-imports/domain/imported-purchase-total.test.ts",
 		"backend/src/modules/credit-card-imports/domain/installment-amounts.test.ts",

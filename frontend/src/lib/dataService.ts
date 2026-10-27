@@ -1306,7 +1306,13 @@ export const dataService = {
 					>
 				>,
 				"debtSplit"
-			> & { debtSplit?: DebtSplitInput | null; statementDate?: string; dueDate?: string },
+			> & {
+				taxes?: { name: string; amount: number }[];
+				taxPurchaseItemId?: string;
+				debtSplit?: DebtSplitInput | null;
+				statementDate?: string;
+				dueDate?: string;
+			},
 		): Promise<CreditCardImport> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar faturas.");
 			return patchCreditCardImportsByIdItemsByItemId(importId, itemId, data);
