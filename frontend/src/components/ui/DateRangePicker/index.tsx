@@ -97,7 +97,7 @@ export function DateRangePicker({ className, onChange, triggerLabel, value }: Da
 			</PopoverTrigger>
 			<PopoverContent
 				align="end"
-				className="w-[20rem] gap-5 p-4"
+				className="w-[24rem] gap-5 p-4"
 				onOpenAutoFocus={event => event.preventDefault()}
 			>
 				<div className="grid grid-cols-[auto_1fr_1fr_auto] items-center gap-2">
