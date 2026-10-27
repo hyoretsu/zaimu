@@ -1,0 +1,7 @@
+{
+	"createdAt": "2026-10-27T03:16:56.969Z",
+	"from": "761180a121bb1b5cbb68975d303828540dccb199deacc27099061aa25b8bcb86",
+	"migrationHash": "787111938004a09d1f978784da747a409517981bb2bbdbe374c261df10d2a92a",
+	"providedInvariants": ["creditPurchases.allowExcessRefunds.v1"],
+	"to": "761180a121bb1b5cbb68975d303828540dccb199deacc27099061aa25b8bcb86"
+}

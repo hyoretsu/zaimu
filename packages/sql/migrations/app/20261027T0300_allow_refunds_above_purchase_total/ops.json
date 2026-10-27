@@ -1,0 +1,24 @@
+[
+	{
+		"execute": [
+			{
+				"description": "Remove purchase refund ceiling",
+				"sql": "-- Remove only the retired refund ceiling; retain installed integrity checks.\nDO $repair$\nDECLARE definition text;\nBEGIN\n IF to_regprocedure('public.enforce_credit_purchase_integrity()') IS NULL THEN\n  RAISE EXCEPTION 'Credit purchase integrity function missing';\n END IF;\n SELECT pg_get_functiondef('public.enforce_credit_purchase_integrity()'::regprocedure) INTO definition;\n definition := replace(definition, $ceiling$ IF (SELECT COALESCE(sum(\"amount\"), 0) FROM \"CreditRefundRecord\" WHERE \"purchaseId\" = target AND \"deletedAt\" IS NULL) > total THEN RAISE EXCEPTION 'Refunds exceed purchase total'; END IF;$ceiling$, '');\n IF position('Refunds exceed purchase total' in definition) > 0 THEN\n  RAISE EXCEPTION 'Unrecognized refund ceiling; review integrity function before migration';\n END IF;\n EXECUTE definition;\nEND $repair$;\n"
+			}
+		],
+		"id": "creditPurchases.allowExcessRefunds",
+		"invariantId": "creditPurchases.allowExcessRefunds.v1",
+		"label": "Allow refunds above purchase total while preserving ledger integrity",
+		"operationClass": "data",
+		"postcheck": [
+			{
+				"description": "Verify refund ceiling is absent",
+				"sql": "SELECT position('Refunds exceed purchase total' in pg_get_functiondef('public.enforce_credit_purchase_integrity()'::regprocedure)) = 0 AS result"
+			}
+		],
+		"precheck": [],
+		"target": {
+			"id": "postgres"
+		}
+	}
+]

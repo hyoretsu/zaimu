@@ -3,6 +3,7 @@ import { Client } from "pg";
 import { requireFixtureUrl } from "../../../scripts/testing/fixture";
 import backfill from "../migrations/app/20260928T1302_backfill_credit_purchases/ops.json";
 import cutover from "../migrations/app/20260928T1340_activate_normalized_credit_ledger/ops.json";
+import excessRefunds from "../migrations/app/20261027T0300_allow_refunds_above_purchase_total/ops.json";
 
 const url = requireFixtureUrl("CREDIT_CUTOVER_TEST_URL");
 const fixture = await Bun.file(new URL("./fixtures/credit-ledger-cutover.sql", import.meta.url)).text();
@@ -96,5 +97,23 @@ describe("credit ledger SQL cutover", () => {
 			(await client.query(`SELECT to_regclass('public."CreditEntryReference"') AS table`)).rows[0]
 				.table,
 		).toBeNull();
+	});
+
+	test("refund ceiling migration permits excess credits and retains plan integrity", async () => {
+		await migrate();
+		for (let repeat = 0; repeat < 2; repeat++)
+			for (const op of excessRefunds)
+				for (const statement of op.execute) await client.query(statement.sql);
+		await client.query(`UPDATE "CreditRefundRecord" SET "amount" = 100 WHERE "id" = 'refund'`);
+		await client.query("SET CONSTRAINTS ALL IMMEDIATE");
+		expect(
+			(await client.query(`SELECT "amount" FROM "CreditRefundRecord" WHERE "id" = 'refund'`)).rows[0]
+				.amount,
+		).toBe("100.00");
+		await client.query("SAVEPOINT invalid_plan");
+		await expect(
+			client.query(`UPDATE "CreditInstallmentPlan" SET "amount" = 1 WHERE "purchaseId" = 'purchase'`),
+		).rejects.toThrow("Purchase plan must match total");
+		await client.query("ROLLBACK TO SAVEPOINT invalid_plan");
 	});
 });
