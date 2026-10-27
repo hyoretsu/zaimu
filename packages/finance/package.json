@@ -31,7 +31,11 @@
 		"./yield-calendar": "./src/yield-calendar.ts",
 		"./country-currencies": "./src/country-currencies.ts",
 		"./time-zone": "./src/time-zone.ts",
-		"./country-codes": "./src/country-codes.ts"
+		"./country-codes": "./src/country-codes.ts",
+		"./financial-indicators": "./src/financial-indicators.ts",
+		"./loan-contract": "./src/loan-contract.ts",
+		"./loan-planner": "./src/loan-planner.ts",
+		"./loan-legacy": "./src/loan-legacy.ts"
 	},
 	"scripts": {
 		"check-types": "bun check",
