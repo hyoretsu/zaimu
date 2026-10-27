@@ -239,3 +239,13 @@ Preserve authorization, validation, independent transactions and per-action resu
 Refresh related views and consolidate feedback once per completed batch. Cancel unsent
 work on session changes; stale responses must not affect another session. Never retry
 mutations automatically after an uncertain transport result; refresh before an explicit retry.
+
+## URL state relevance
+
+Persist only meaningful navigation and committed data-view choices, such as selected
+records, tabs, search and filters. Keep incidental loading/presentation bookkeeping
+local: "load more" counters, previous/next expansion counts, pagination cursors,
+infinite-scroll progress and loaded-window size/radius. Never serialize these into
+URLs or durable storage. Restore the selected record directly without preserving
+how many items were loaded to reach it. This does not exclude explicit pagination
+controls that users deliberately select as part of a data view.

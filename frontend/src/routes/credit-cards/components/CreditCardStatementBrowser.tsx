@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { LuReceiptText } from "react-icons/lu";
-import { z } from "zod";
 import { DialogBody, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -34,17 +33,9 @@ export function CreditCardStatementBrowser({
 	const identity = useCacheIdentity();
 	const ignoreBefore = card.ignoreStatementsBefore?.slice(0, 10) ?? null;
 	const isDesktop = useMediaQuery("(min-width: 640px)");
-	const [desktopRadius, setDesktopRadius] = useUrlViewState("radius", 6, z.number().int().min(1).max(60));
+	const [desktopRadius, setDesktopRadius] = useState(6);
 	const radius = isDesktop ? desktopRadius : 3;
-	const [extra, setExtra] = useUrlViewState(
-		`card.${card.id}.window`,
-		{ next: 0, previous: 0 },
-		z.object({ next: z.number().int().min(0).max(1200), previous: z.number().int().min(0).max(1200) }),
-		[
-			{ parameter: "next", path: "next" },
-			{ parameter: "previous", path: "previous" },
-		],
-	);
+	const [extra, setExtra] = useState({ next: 0, previous: 0 });
 	const [selectedStatementId, setSelectedStatementId] = useUrlViewState<string | null>(
 		"statement",
 		null,

@@ -179,6 +179,8 @@ Use history replacement for every view change, preserving unrelated parameters,
 hashes, router state and the current page/modal. Filters must never add history steps.
 Modal opening retains its own history behavior. Keep draft form values, transient
 popover searches, hover state and automatic infinite-scroll pagination local.
+Follow AGENTS.md "URL state relevance": load-more counters, previous/next expansion
+counts, cursors and loaded-window size/radius must remain local, never persisted.
 
 Data-view modals must restore their parent context from plain URL parameters, not
 only keep the selected tab or filters. Pass a stable `url` descriptor to shared
