@@ -84,6 +84,9 @@ export function CreditCardStatementBrowser({
 		selectedStatementId,
 		currentMonth,
 	);
+	useEffect(() => {
+		if (!selectedStatementId && selectedStatement) setSelectedStatementId(selectedStatement.id);
+	}, [selectedStatementId, selectedStatement?.id, setSelectedStatementId]);
 	const selectedMonth = selectedStatement ? getLocalMonthKey(selectedStatement.dueDate) : currentMonth;
 	const visibleStatements = useMemo(
 		() =>

@@ -1,5 +1,4 @@
-import { useSearch } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import {
 	LuBanknote,
 	LuCreditCard,
@@ -18,6 +17,7 @@ import { AppBadge } from "@/components/ui/AppBadge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
+import { useUrlModalSelection } from "@/hooks/use-url-modal-selection";
 import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
 import {
 	getFinancialAccountCurrencyValue,
@@ -56,23 +56,13 @@ export function FinancialAccountCard({
 	onUpdate: Parameters<typeof CreateFinancialAccountDialog>[0]["onUpdate"];
 	rewardAccounts: FinancialAccount[];
 }) {
-	const { statementAccountId } = useSearch({ strict: false });
-	const openedAccountId = useRef<string | undefined>(undefined);
-	const [statementOpen, setStatementOpen] = useState(false);
+	const [statementAccountId, setStatementAccountId] = useUrlModalSelection("statementAccountId", [
+		`account.${account.id}.transactions.groups`,
+	]);
+	const statementOpen = statementAccountId === account.id && account.type !== "CREDIT_CARD";
+	const setStatementOpen = (open: boolean) => setStatementAccountId(open ? account.id : null);
 	const [importOpen, setImportOpen] = useState(false);
 	const [reviewingImportId, setReviewingImportId] = useState<string | null>(null);
-	useEffect(() => {
-		if (statementAccountId !== account.id) {
-			openedAccountId.current = undefined;
-			return;
-		}
-		if (openedAccountId.current === statementAccountId || account.type === "CREDIT_CARD") return;
-		const frame = requestAnimationFrame(() => {
-			openedAccountId.current = statementAccountId;
-			setStatementOpen(true);
-		});
-		return () => cancelAnimationFrame(frame);
-	}, [account.id, account.type, statementAccountId]);
 	const config = accountType[account.type];
 	const Icon = config.icon;
 	const displayName = getFinancialAccountDisplayName(account);
@@ -80,14 +70,14 @@ export function FinancialAccountCard({
 	const listName = getFinancialAccountTitle(account);
 	const accountHasCustomTitle = Boolean(account.name?.trim() && listName !== typeLabel);
 	return (
-		<article className="group rounded-2xl border bg-card p-5 shadow-card transition hover:-translate-y-0.5 hover:border-primary/30">
+		<article className="group bg-card shadow-card hover:border-primary/30 rounded-2xl border p-5 transition hover:-translate-y-0.5">
 			<div className="flex min-h-16 items-start justify-between gap-4">
 				<div className="flex min-w-0 flex-1 items-start gap-3">
-					<span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+					<span className="bg-primary/10 text-primary flex size-11 shrink-0 items-center justify-center rounded-2xl">
 						<Icon className="size-5" />
 					</span>
 					<div className="min-w-0">
-						<h2 className="break-words font-bold text-base leading-snug">{listName}</h2>
+						<h2 className="text-base leading-snug font-bold break-words">{listName}</h2>
 						{accountHasCustomTitle && (
 							<AppBadge className="mt-1 flex" variant="secondary">
 								{typeLabel}
@@ -131,21 +121,26 @@ export function FinancialAccountCard({
 					</ConfirmActionButton>
 				</div>
 			</div>
-			<div className="mt-6 border-border/70 border-t pt-4">
+			<div className="border-border/70 mt-6 border-t pt-4">
 				{account.type === "CREDIT_CARD" ? (
 					<CreditCardAccountSummary accountId={account.id} />
 				) : account.type === "REWARDS" ? (
 					<>
 						<p className="text-muted-foreground text-xs">
-							{account.rewardsAccount?.kind === "CASHBACK" ? "Cashback disponível" : "Pontos acumulados"}
+							{account.rewardsAccount?.kind === "CASHBACK"
+								? "Cashback disponível"
+								: "Pontos acumulados"}
 						</p>
-						<p className="mt-1 font-bold text-2xl">
+						<p className="mt-1 text-2xl font-bold">
 							{account.rewardsAccount?.kind === "CASHBACK" ? (
 								<PreferredMoneyAmount
 									values={[
 										{
 											amount: account.balance ?? 0,
-											currency: account.rewardsAccount?.conversionCurrency ?? account.currency ?? "BRL",
+											currency:
+												account.rewardsAccount?.conversionCurrency ??
+												account.currency ??
+												"BRL",
 										},
 									]}
 								/>
@@ -153,15 +148,19 @@ export function FinancialAccountCard({
 								`${points.format(account.balance ?? 0)} pontos`
 							)}
 						</p>
-						{account.rewardsAccount?.kind === "POINTS" && account.rewardsAccount.conversionPoints ? (
-							<p className="mt-1 text-muted-foreground text-sm">
+						{account.rewardsAccount?.kind === "POINTS" &&
+						account.rewardsAccount.conversionPoints ? (
+							<p className="text-muted-foreground mt-1 text-sm">
 								Equivalente a{" "}
 								{
 									<PreferredMoneyAmount
 										values={[
 											{
 												amount: getFinancialAccountCurrencyValue(account),
-												currency: account.rewardsAccount?.conversionCurrency ?? account.currency ?? "BRL",
+												currency:
+													account.rewardsAccount?.conversionCurrency ??
+													account.currency ??
+													"BRL",
 											},
 										]}
 									/>
@@ -175,8 +174,8 @@ export function FinancialAccountCard({
 						<p
 							className={
 								(account.balance ?? 0) < 0
-									? "mt-1 font-bold text-2xl text-destructive"
-									: "mt-1 font-bold text-2xl"
+									? "text-destructive mt-1 text-2xl font-bold"
+									: "mt-1 text-2xl font-bold"
 							}
 						>
 							{
@@ -184,7 +183,10 @@ export function FinancialAccountCard({
 									values={[
 										{
 											amount: account.balance ?? 0,
-											currency: account.rewardsAccount?.conversionCurrency ?? account.currency ?? "BRL",
+											currency:
+												account.rewardsAccount?.conversionCurrency ??
+												account.currency ??
+												"BRL",
 										},
 									]}
 								/>

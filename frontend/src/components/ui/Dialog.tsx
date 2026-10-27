@@ -7,6 +7,7 @@ import { DialogBody } from "@/components/ui/DialogBody";
 import { useDialogHistory } from "@/hooks/use-dialog-history";
 import { useRouteDismissableOpen } from "@/hooks/use-route-dismissable-open";
 import { useScrollBoundary } from "@/hooks/use-scroll-boundary";
+import type { DialogUrl } from "@/lib/dialog-url";
 import { cn } from "@/lib/utils";
 import { PopupLayerContext } from "./popup-layer-context";
 
@@ -17,9 +18,13 @@ const DialogStackContext = createContext<{
 }>({ depth: 0, dismissTopmost: () => false, isTopmost: () => true });
 const DialogContentContext = createContext({ showCloseButton: true });
 
-function Dialog({ modal = false, ...props }: ComponentProps<typeof DialogPrimitive.Root>) {
+function Dialog({
+	modal = false,
+	url,
+	...props
+}: ComponentProps<typeof DialogPrimitive.Root> & { url?: DialogUrl }) {
 	const openProps = useRouteDismissableOpen(props);
-	const stack = useDialogHistory(openProps.open, openProps.onOpenChange);
+	const stack = useDialogHistory(openProps.open, openProps.onOpenChange, url);
 	return (
 		<DialogStackContext.Provider value={stack}>
 			<DialogPrimitive.Root data-slot="dialog" modal={modal} {...props} {...openProps} />

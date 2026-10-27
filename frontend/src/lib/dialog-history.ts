@@ -1,4 +1,5 @@
 import type { RouterHistory } from "@tanstack/react-router";
+import { type DialogUrl, dialogUrls, isRestorableDialog } from "./dialog-url";
 
 const stateKey = "zaimuDialogStack";
 interface DialogState {
@@ -12,9 +13,11 @@ function stack(history: RouterHistory) {
 /** One history entry per dialog, shared by nested and sibling dialogs. */
 export function createDialogHistory(history: RouterHistory, preserveScroll?: () => void) {
 	let previousHref = history.location.href;
+	let updatingDialogUrl = false;
 	const dialogs = new Map<string, { close: () => void; href: string; version: number }>();
 
 	history.subscribe(({ action }) => {
+		if (updatingDialogUrl) return;
 		if (new URL(previousHref, "http://localhost").pathname === history.location.pathname)
 			preserveScroll?.();
 		previousHref = history.location.href;
@@ -31,7 +34,11 @@ export function createDialogHistory(history: RouterHistory, preserveScroll?: () 
 			}
 		}
 		// Closed dialogs must not leave dead steps when traversing page history.
-		if (current.length && !dialogs.has(current.at(-1)!)) {
+		if (
+			current.length &&
+			!dialogs.has(current.at(-1)!) &&
+			!isRestorableDialog(current.at(-1)!, history.location.href)
+		) {
 			if (action.type === "BACK" || (action.type === "GO" && action.index < 0)) history.back();
 			else if (action.type === "FORWARD" || (action.type === "GO" && action.index > 0))
 				history.forward();
@@ -59,20 +66,43 @@ export function createDialogHistory(history: RouterHistory, preserveScroll?: () 
 				if (dialog.href === history.location.href && stack(history).at(-1) === id) history.back();
 			});
 		},
-		retain(id: string, close: () => void) {
+		retain(id: string, close: () => void, url?: DialogUrl) {
 			const existing = dialogs.get(id);
 			if (existing) {
 				existing.version++;
 				existing.close = close;
 				return;
 			}
-			dialogs.set(id, { close, href: history.location.href, version: 0 });
 			history.flush();
-			history.push(history.location.href, {
-				...history.location.state,
-				[stateKey]: [...stack(history).filter(value => dialogs.has(value)), id],
-			});
-			history.flush();
+			const currentHref = history.location.href;
+			const urls = url
+				? dialogUrls(currentHref, url)
+				: { background: currentHref, foreground: currentHref };
+			// Stable URL-backed IDs survive reloads. Adopt their existing entry instead of pushing again.
+			if (url && stack(history).includes(id)) {
+				dialogs.set(id, { close, href: currentHref, version: 0 });
+				return;
+			}
+			const parentStack = stack(history).filter(
+				value => dialogs.has(value) || isRestorableDialog(value, currentHref),
+			);
+			preserveScroll?.();
+			updatingDialogUrl = true;
+			try {
+				if (url && urls.background !== currentHref) {
+					history.replace(urls.background, { ...history.location.state, [stateKey]: parentStack });
+					history.flush();
+				}
+				dialogs.set(id, { close, href: urls.foreground, version: 0 });
+				history.push(urls.foreground, {
+					...history.location.state,
+					[stateKey]: [...parentStack, id],
+				});
+				history.flush();
+				previousHref = history.location.href;
+			} finally {
+				updatingDialogUrl = false;
+			}
 		},
 	};
 }

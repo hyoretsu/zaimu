@@ -19,7 +19,6 @@ import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/backgroun
 import { dataService } from "@/lib/dataService";
 import { getLocalDateKey } from "@/lib/date";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
-
 import { LoanPaymentDialog, type LoanPaymentDraft, type LoanPaymentInput } from "./LoanPaymentDialog";
 import { LoanPaymentRow } from "./LoanPaymentRow";
 import { LoanPayoffPreview } from "./LoanPayoffPreview";
@@ -70,7 +69,8 @@ export function LoanPaymentsDialog({
 		enabled: identity !== null,
 		getNextPageParam: page => page.nextCursor ?? undefined,
 		initialPageParam: undefined as string | undefined,
-		queryFn: ({ pageParam }) => dataService.loans.getPaymentPage(loan.id, { cursor: pageParam, limit: 25 }),
+		queryFn: ({ pageParam }) =>
+			dataService.loans.getPaymentPage(loan.id, { cursor: pageParam, limit: 25 }),
 		queryKey: [...queryKeys.loans.all(identity!), "payments", loan.id],
 	});
 	const submitPayment = (input: LoanPaymentInput, draft: LoanPaymentDraft) => {
@@ -132,6 +132,7 @@ export function LoanPaymentsDialog({
 				if (!open) onClose();
 			}}
 			open
+			url={{ clear: [`loan.${loan.id}.payoff`], parameter: "loan", value: loan.id }}
 		>
 			{selection && (
 				<LoanPaymentDialog
@@ -166,12 +167,14 @@ export function LoanPaymentsDialog({
 								<div className="space-y-3 rounded-xl border p-3">
 									<p>
 										Histórico antigo sem datas de pagamento. Ao confirmar, as primeiras{" "}
-										{loan.paidInstallments ?? 0} parcelas serão marcadas como pagas na data escolhida. Totais
-										serão recalculados pelo cronograma selecionado.
+										{loan.paidInstallments ?? 0} parcelas serão marcadas como pagas na
+										data escolhida. Totais serão recalculados pelo cronograma selecionado.
 									</p>
 									<CustomSelect
 										label="Amortização confirmada"
-										onValueChange={value => setAmortization(value as Loan["amortization"])}
+										onValueChange={value =>
+											setAmortization(value as Loan["amortization"])
+										}
 										options={[
 											{ label: "PRICE (fixa)", value: "PRICE" },
 											{ label: "SAC (decrescente)", value: "SAC" },
@@ -204,8 +207,8 @@ export function LoanPaymentsDialog({
 											value={advanceType}
 										/>
 										<p className="text-muted-foreground text-xs">
-											Registra valor integral da parcela. Desconto de juros exige condições específicas do
-											credor.
+											Registra valor integral da parcela. Desconto de juros exige
+											condições específicas do credor.
 										</p>
 										<ActionGroup>
 											<Button
@@ -222,7 +225,9 @@ export function LoanPaymentsDialog({
 							)}
 							{!loan.needsPaymentReview && <LoanPayoffPreview loanId={loan.id} />}
 							{payments.isPending ? (
-								Array.from({ length: 4 }, (_, i) => <Skeleton className="h-20 w-full" key={i} />)
+								Array.from({ length: 4 }, (_, i) => (
+									<Skeleton className="h-20 w-full" key={i} />
+								))
 							) : payments.isError ? (
 								<div role="alert">
 									<p>Falha ao carregar parcelas.</p>

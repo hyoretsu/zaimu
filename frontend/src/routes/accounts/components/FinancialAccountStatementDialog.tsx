@@ -152,7 +152,15 @@ export function FinancialAccountStatementDialog({
 	const editTransaction = (transaction: Transaction) => setEditingTransaction(transaction);
 
 	return (
-		<Dialog onOpenChange={onOpenChange} open={open}>
+		<Dialog
+			onOpenChange={onOpenChange}
+			open={open}
+			url={{
+				clear: [`account.${account.id}.transactions.groups`],
+				parameter: "statementAccountId",
+				value: account.id,
+			}}
+		>
 			<DialogContent className="gap-4 sm:max-w-xl">
 				<DialogHeader>
 					<DialogTitle>Extrato · {displayName}</DialogTitle>

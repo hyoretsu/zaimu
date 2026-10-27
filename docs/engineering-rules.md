@@ -179,3 +179,13 @@ Use history replacement for every view change, preserving unrelated parameters,
 hashes, router state and the current page/modal. Filters must never add history steps.
 Modal opening retains its own history behavior. Keep draft form values, transient
 popover searches, hover state and automatic infinite-scroll pagination local.
+
+Data-view modals must restore their parent context from plain URL parameters, not
+only keep the selected tab or filters. Pass a stable `url` descriptor to shared
+`Dialog`, and derive its selected record/open state from URL state. Include owned
+view parameters in the descriptor's `clear` list. URL-backed dialogs reconstruct
+one clean background entry on direct links, adopt existing entries on reload and
+restore on Forward. Closing must clear identity and dependent parameters together
+when a dependent parameter can itself trigger restoration. Statement-only credit
+card links resolve the owning card within the current user's cards; new links also
+record `card` so reopening does not require searching other cards.

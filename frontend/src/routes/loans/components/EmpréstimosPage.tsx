@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { QueryRefreshStatus } from "@/components/ui/QueryRefreshStatus";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
+import { useUrlModalSelection } from "@/hooks/use-url-modal-selection";
 import { useUrlViewState } from "@/hooks/use-url-view-state";
 import type { Loan } from "@/lib/api";
 import { useModalRecoveryStore } from "@/lib/background-modal-actions";
@@ -25,7 +26,8 @@ export function EmpréstimosPage() {
 		setRecoveredCreate(entry.payload);
 		setCreateOpen(true);
 	});
-	const [selected, setSelected] = useState<Loan | null>(null);
+	const [selectedId, setSelectedId] = useUrlModalSelection("loan");
+	const setSelected = (loan: Loan | null) => setSelectedId(loan?.id ?? null);
 	const [recoveredPayment, setRecoveredPayment] = useState<LoanPaymentRecovery>();
 	useBackgroundModalRecovery<LoanPaymentRecovery>("loan-payment", entry => {
 		setRecoveredPayment(entry.payload);
@@ -48,6 +50,7 @@ export function EmpréstimosPage() {
 		queryFn: () => dataService.loans.getAll(),
 		queryKey: queryKeys.loans.list(identity!),
 	});
+	const selected = loans.data?.find(loan => loan.id === selectedId);
 	const remaining = (loan: Loan) => loan.remainingInstallments ?? loan.totalInstallments;
 	const items =
 		loans.data

@@ -1,16 +1,17 @@
 import { useRouter } from "@tanstack/react-router";
 import { useId, useLayoutEffect, useRef, useSyncExternalStore } from "react";
 import { getDialogHistory } from "@/lib/dialog-history";
+import { type DialogUrl, dialogUrlId } from "@/lib/dialog-url";
 
-export function useDialogHistory(open: boolean, onOpenChange: (open: boolean) => void) {
+export function useDialogHistory(open: boolean, onOpenChange: (open: boolean) => void, url?: DialogUrl) {
 	const router = useRouter({ warn: false });
 	if (router) {
 		getDialogHistory(router.history, () => {
 			const left = window.scrollX;
 			const top = window.scrollY;
-			const viewports = [...document.querySelectorAll<HTMLElement>('[data-slot="scroll-area-viewport"]')].map(
-				element => ({ element, left: element.scrollLeft, top: element.scrollTop }),
-			);
+			const viewports = [
+				...document.querySelectorAll<HTMLElement>('[data-slot="scroll-area-viewport"]'),
+			].map(element => ({ element, left: element.scrollLeft, top: element.scrollTop }));
 			const unsubscribe = router.subscribe("onRendered", () => {
 				unsubscribe();
 				window.scrollTo({ behavior: "instant", left, top });
@@ -21,7 +22,8 @@ export function useDialogHistory(open: boolean, onOpenChange: (open: boolean) =>
 			});
 		});
 	}
-	const id = useId();
+	const generatedId = useId();
+	const id = url ? dialogUrlId(url.parameter) : generatedId;
 	const onChange = useRef(onOpenChange);
 	useLayoutEffect(() => {
 		onChange.current = onOpenChange;
@@ -29,9 +31,9 @@ export function useDialogHistory(open: boolean, onOpenChange: (open: boolean) =>
 	useLayoutEffect(() => {
 		if (!router || !open) return;
 		const dialogs = getDialogHistory(router.history);
-		dialogs.retain(id, () => onChange.current(false));
+		dialogs.retain(id, () => onChange.current(false), url);
 		return () => dialogs.release(id);
-	}, [router, id, open]);
+	}, [router, id, open, url]);
 	const depth = useSyncExternalStore(
 		listener => (router ? router.history.subscribe(listener) : () => {}),
 		() => (router ? getDialogHistory(router.history).depth(id) : 0),

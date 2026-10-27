@@ -1,5 +1,4 @@
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
 import { LuArrowRight, LuLandmark } from "react-icons/lu";
 import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { Button } from "@/components/ui/Button";
@@ -13,6 +12,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
+import { useUrlModalSelection } from "@/hooks/use-url-modal-selection";
 import type { Dashboard } from "@/lib/api";
 import { formatLocalDate } from "@/lib/date";
 import { getFinancialAccountSummaryName } from "@/lib/financial-account";
@@ -25,7 +25,9 @@ interface DashboardAccountsProps extends Pick<Dashboard, "accounts"> {
 }
 
 export function DashboardAccounts({ accounts, endDate }: DashboardAccountsProps) {
-	const [open, setOpen] = useState(false);
+	const [panel, setPanel] = useUrlModalSelection("panel");
+	const open = panel === "accounts";
+	const setOpen = (open: boolean) => setPanel(open ? "accounts" : null);
 	const getName = (account: Dashboard["accounts"][number]) =>
 		getFinancialAccountSummaryName({
 			institution: account.institutionName ? { name: account.institutionName } : null,
@@ -43,9 +45,16 @@ export function DashboardAccounts({ accounts, endDate }: DashboardAccountsProps)
 						<CardTitle className="flex items-center gap-2">
 							<LuLandmark className="text-primary" /> Contas
 						</CardTitle>
-						<p className="mt-1 text-muted-foreground text-xs">Saldos em {formatLocalDate(endDate)}</p>
+						<p className="text-muted-foreground mt-1 text-xs">
+							Saldos em {formatLocalDate(endDate)}
+						</p>
 					</div>
-					<Button className="cursor-pointer" onClick={() => setOpen(true)} size="sm" variant="outline">
+					<Button
+						className="cursor-pointer"
+						onClick={() => setOpen(true)}
+						size="sm"
+						variant="outline"
+					>
 						Ver todas <LuArrowRight />
 					</Button>
 				</CardHeader>
@@ -64,26 +73,33 @@ export function DashboardAccounts({ accounts, endDate }: DashboardAccountsProps)
 							<span>{getName(account)}</span>
 							<strong>
 								<PreferredMoneyAmount
-									values={[{ amount: account.balance, currency: account.currency ?? "BRL" }]}
+									values={[
+										{ amount: account.balance, currency: account.currency ?? "BRL" },
+									]}
 								/>
 							</strong>
 						</div>
 					))}
-					{!ordered.length && <p className="text-muted-foreground text-sm">Nenhuma conta com saldo.</p>}
+					{!ordered.length && (
+						<p className="text-muted-foreground text-sm">Nenhuma conta com saldo.</p>
+					)}
 				</CardContent>
 			</Card>
-			<Dialog onOpenChange={setOpen} open={open}>
+			<Dialog onOpenChange={setOpen} open={open} url={{ parameter: "panel", value: "accounts" }}>
 				<DialogContent className="sm:max-w-lg">
 					<DialogHeader>
 						<DialogTitle>Todas as contas</DialogTitle>
 						<DialogDescription>
-							Contas monetárias e investimentos incluídos no saldo em {formatLocalDate(endDate)}.
+							Contas monetárias e investimentos incluídos no saldo em {formatLocalDate(endDate)}
+							.
 						</DialogDescription>
 					</DialogHeader>
 					<DialogBody>
 						<div>
 							<div className="space-y-3 pr-3">
-								{!ordered.length && <p className="text-muted-foreground text-sm">Nenhuma conta com saldo.</p>}
+								{!ordered.length && (
+									<p className="text-muted-foreground text-sm">Nenhuma conta com saldo.</p>
+								)}
 								{ordered.map(account => (
 									<div
 										className="flex items-center justify-between gap-3 rounded-xl border p-3"
@@ -106,11 +122,24 @@ export function DashboardAccounts({ accounts, endDate }: DashboardAccountsProps)
 										<div className="flex shrink-0 flex-col items-end gap-2 text-right">
 											<strong className="tabular-nums">
 												<PreferredMoneyAmount
-													values={[{ amount: account.balance, currency: account.currency ?? "BRL" }]}
+													values={[
+														{
+															amount: account.balance,
+															currency: account.currency ?? "BRL",
+														},
+													]}
 												/>
 											</strong>
-											<Button asChild className="cursor-pointer" size="sm" variant="outline">
-												<Link search={{ statementAccountId: account.id }} to="/accounts">
+											<Button
+												asChild
+												className="cursor-pointer"
+												size="sm"
+												variant="outline"
+											>
+												<Link
+													search={{ statementAccountId: account.id }}
+													to="/accounts"
+												>
 													Extrato <LuArrowRight />
 												</Link>
 											</Button>

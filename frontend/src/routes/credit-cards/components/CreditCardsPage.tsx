@@ -13,19 +13,23 @@ import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { QueryRefreshStatus } from "@/components/ui/QueryRefreshStatus";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { useUrlModalSelection } from "@/hooks/use-url-modal-selection";
+import { useUrlViewState } from "@/hooks/use-url-view-state";
 import { useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { getFinancialInstitutions } from "@/lib/financial-institution";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { viewNullableId } from "@/lib/view-state";
 import { CreateFinancialAccountDialog } from "@/routes/accounts/components";
 import {
 	CardAdjustmentsDialog,
 	CreatePurchaseDialog,
-	CreditCardStatementsDialog,
 	CreditCardsGrid,
+	CreditCardStatementsDialog,
 } from "@/routes/credit-cards/components";
 import { showToast, useAuthStore } from "@/stores";
 import type { StatementActionRecovery } from "./statement-action-recovery";
+import { findStatementCard, statementViewParameters } from "./statement-modal-context";
 
 export function CreditCardsPage() {
 	const queryClient = useQueryClient();
@@ -33,7 +37,8 @@ export function CreditCardsPage() {
 	const hasAccess = useAuthStore(state => state.isAuthenticated || state.isGuestMode);
 	const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 	const [isCreatePurchaseOpen, setIsCreatePurchaseOpen] = useState(false);
-	const [statementsCardId, setStatementsCardId] = useState<string | null>(null);
+	const [requestedCardId, setStatementsCardId] = useUrlModalSelection("card", statementViewParameters);
+	const [requestedStatementId] = useUrlViewState<string | null>("statement", null, viewNullableId);
 	const requestedRecovery = useModalRecoveryStore(state =>
 		state.requestedId ? state.entries[state.requestedId] : undefined,
 	);
@@ -57,6 +62,31 @@ export function CreditCardsPage() {
 		queryKey: queryKeys.creditCards.list(identity!),
 		retry: 0,
 	});
+	const restoreStatement =
+		!requestedCardId && !!requestedStatementId && !!identity && cards.data !== undefined;
+	const statementOwner = useQuery({
+		enabled: restoreStatement,
+		queryFn: () =>
+			findStatementCard(
+				(cards.data ?? []).map(card => card.id),
+				requestedStatementId!,
+				cardId =>
+					queryClient.ensureQueryData({
+						queryFn: () => dataService.creditCards.getStatements(cardId),
+						queryKey: [...queryKeys.creditCardStatements.list(identity!, cardId), "browser"],
+					}),
+			),
+		queryKey: [
+			"identity",
+			identity,
+			"statement-owner",
+			requestedStatementId,
+			cards.data?.map(card => card.id),
+		],
+		retry: false,
+	});
+	const statementsCardId = requestedCardId ?? (restoreStatement ? statementOwner.data : null);
+
 	const accounts = useQuery({
 		enabled: hasAccess,
 		queryFn: () => dataService.accounts.getAll(),
@@ -74,7 +104,10 @@ export function CreditCardsPage() {
 			data: Parameters<typeof dataService.creditCards.addPurchase>[1];
 		}) => dataService.creditCards.addPurchase(cardId, data),
 		onError: error =>
-			showToast(error instanceof Error ? error.message : "Não foi possível registrar a compra.", "negative"),
+			showToast(
+				error instanceof Error ? error.message : "Não foi possível registrar a compra.",
+				"negative",
+			),
 		onSuccess: async () => {
 			showToast("Compra registrada e faturas recalculadas.", "positive");
 		},
@@ -159,23 +192,26 @@ export function CreditCardsPage() {
 			/>
 			<PendingNotices onReviewCreditCardImport={setReviewingImportId} paymentSuggestions />
 			<section className="grid gap-4 sm:grid-cols-2">
-				<div className="rounded-2xl bg-brand-yellow p-5 text-brand-ink shadow-card">
+				<div className="bg-brand-yellow text-brand-ink shadow-card rounded-2xl p-5">
 					<p className="text-brand-ink/60 text-sm">Limite total</p>
 					{cards.isPending ? (
-						<Skeleton className="mt-2 h-9 w-40 bg-brand-ink/10" />
+						<Skeleton className="bg-brand-ink/10 mt-2 h-9 w-40" />
 					) : (
 						<NativeMoneyTotals
 							error={cards.isError && cards.data === undefined}
 							pending={cards.isPending}
 							values={(cards.data ?? [])
 								.filter(card => !card.excludeFromTotals)
-								.map(card => ({ amount: card.limit.effectiveLimit, currency: card.currency ?? "BRL" }))}
+								.map(card => ({
+									amount: card.limit.effectiveLimit,
+									currency: card.currency ?? "BRL",
+								}))}
 						/>
 					)}
 				</div>
-				<div className="rounded-2xl border bg-card p-5 shadow-card">
+				<div className="bg-card shadow-card rounded-2xl border p-5">
 					<p className="text-muted-foreground text-sm">Seus cartões</p>
-					<p className="mt-2 font-bold text-3xl">{ownCardsCount}</p>
+					<p className="mt-2 text-3xl font-bold">{ownCardsCount}</p>
 				</div>
 			</section>
 			<QueryRefreshStatus
@@ -183,7 +219,7 @@ export function CreditCardsPage() {
 				onRetry={() => cards.refetch()}
 				pending={cards.isFetching && !cards.isPending}
 			/>
-			{cards.isPending ? (
+			{cards.isPending || (restoreStatement && statementOwner.isPending) ? (
 				<div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
 					{[1, 2, 3].map(item => (
 						<Skeleton className="h-72" key={item} />
@@ -199,6 +235,21 @@ export function CreditCardsPage() {
 					description="Tente novamente em instantes."
 					icon={<LuCreditCard className="size-7" />}
 					title="Não foi possível carregar cartões"
+				/>
+			) : restoreStatement && (statementOwner.isError || statementOwner.data === null) ? (
+				<EmptyState
+					action={
+						<Button onClick={() => statementOwner.refetch()} variant="outline">
+							Tentar novamente
+						</Button>
+					}
+					description="Confira o link ou tente carregar novamente."
+					icon={<LuCreditCard className="size-7" />}
+					title={
+						statementOwner.isError
+							? "Não foi possível restaurar a fatura"
+							: "Fatura não encontrada"
+					}
 				/>
 			) : cards.data?.length ? (
 				<CreditCardsGrid

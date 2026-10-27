@@ -7,6 +7,7 @@ import { useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { CreatePurchaseDialog } from "./CreatePurchaseDialog";
 import { CreditCardStatementBrowser } from "./CreditCardStatementBrowser";
+import { statementViewParameters } from "./statement-modal-context";
 
 export function CreditCardStatementsDialog({
 	card,
@@ -28,13 +29,20 @@ export function CreditCardStatementsDialog({
 			data: Parameters<typeof dataService.creditCards.addPurchase>[1];
 		}) => dataService.creditCards.addPurchase(cardId, data),
 		onError: error =>
-			showToast(error instanceof Error ? error.message : "Não foi possível registrar a compra.", "negative"),
+			showToast(
+				error instanceof Error ? error.message : "Não foi possível registrar a compra.",
+				"negative",
+			),
 		onSuccess: async () => {
 			showToast("Compra registrada e faturas recalculadas.", "positive");
 		},
 	});
 	return (
-		<Dialog onOpenChange={onOpenChange} open={Boolean(card)}>
+		<Dialog
+			onOpenChange={onOpenChange}
+			open={Boolean(card)}
+			url={card ? { clear: statementViewParameters, parameter: "card", value: card.id } : undefined}
+		>
 			<DialogContent className="gap-4 p-4 sm:max-w-5xl sm:gap-6 sm:p-6 [&>[data-slot=dialog-close]]:hidden">
 				{card && (
 					<CreditCardStatementBrowser

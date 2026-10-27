@@ -1,5 +1,4 @@
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
 import { LuArrowRight, LuCreditCard } from "react-icons/lu";
 import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { ActionGroup } from "@/components/ui/ActionGroup";
@@ -14,6 +13,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
+import { useUrlModalSelection } from "@/hooks/use-url-modal-selection";
 import type { Dashboard } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 
@@ -22,8 +22,13 @@ export function DashboardCreditCards({
 	totalAvailableCredit,
 	currencyCode = "BRL",
 }: Pick<Dashboard, "creditCards" | "totalAvailableCredit"> & { currencyCode?: string }) {
-	const currency = new Intl.NumberFormat(navigator.languages, { currency: currencyCode, style: "currency" });
-	const [open, setOpen] = useState(false);
+	const currency = new Intl.NumberFormat(navigator.languages, {
+		currency: currencyCode,
+		style: "currency",
+	});
+	const [panel, setPanel] = useUrlModalSelection("panel");
+	const open = panel === "cards";
+	const setOpen = (open: boolean) => setPanel(open ? "cards" : null);
 	const getName = (card: Dashboard["creditCards"][number]) =>
 		getCreditCardDisplayName({ accountName: card.name, institutionName: card.institutionName });
 	const ordered = creditCards.toSorted((left, right) => right.availableLimit - left.availableLimit);
@@ -38,7 +43,7 @@ export function DashboardCreditCards({
 				</div>
 				<div className="shrink-0 space-y-1 text-right text-xs">
 					<p className="text-muted-foreground">Limite disponível</p>
-					<p className="font-semibold text-sm tabular-nums">
+					<p className="text-sm font-semibold tabular-nums">
 						<PreferredMoneyAmount
 							values={[{ amount: card.availableLimit, currency: card.currency ?? "BRL" }]}
 						/>
@@ -54,21 +59,30 @@ export function DashboardCreditCards({
 						<LuCreditCard className="text-primary" /> Limites dos cartões
 					</CardTitle>
 					<ActionGroup className="ml-auto">
-						<Button className="cursor-pointer" onClick={() => setOpen(true)} size="sm" variant="outline">
+						<Button
+							className="cursor-pointer"
+							onClick={() => setOpen(true)}
+							size="sm"
+							variant="outline"
+						>
 							Ver todos <LuArrowRight />
 						</Button>
 					</ActionGroup>
 				</CardHeader>
 				<CardContent className="space-y-3">
-					<p className="font-semibold text-muted-foreground text-sm">
+					<p className="text-muted-foreground text-sm font-semibold">
 						Limite disponível:{" "}
-						{totalAvailableCredit == null ? "Conversão indisponível" : currency.format(totalAvailableCredit)}
+						{totalAvailableCredit == null
+							? "Conversão indisponível"
+							: currency.format(totalAvailableCredit)}
 					</p>
 					{rows(ordered.slice(0, 4))}
-					{!ordered.length && <p className="text-muted-foreground text-sm">Nenhum cartão cadastrado.</p>}
+					{!ordered.length && (
+						<p className="text-muted-foreground text-sm">Nenhum cartão cadastrado.</p>
+					)}
 				</CardContent>
 			</Card>
-			<Dialog onOpenChange={setOpen} open={open}>
+			<Dialog onOpenChange={setOpen} open={open} url={{ parameter: "panel", value: "cards" }}>
 				<DialogContent className="sm:max-w-lg">
 					<DialogHeader>
 						<DialogTitle>Todos os cartões</DialogTitle>

@@ -1,5 +1,4 @@
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
 import { LuArrowRight, LuHandshake } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -12,6 +11,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
+import { useUrlModalSelection } from "@/hooks/use-url-modal-selection";
 import type { Dashboard } from "@/lib/api";
 import { compareDebtPersonNames } from "@/lib/debt-split";
 
@@ -25,8 +25,13 @@ export function DashboardDebts({
 	debts: NonNullable<Dashboard["debts"]>;
 	currencyCode?: string;
 }) {
-	const currency = new Intl.NumberFormat(navigator.languages, { currency: currencyCode, style: "currency" });
-	const [open, setOpen] = useState(false);
+	const currency = new Intl.NumberFormat(navigator.languages, {
+		currency: currencyCode,
+		style: "currency",
+	});
+	const [panel, setPanel] = useUrlModalSelection("panel");
+	const open = panel === "debts";
+	const setOpen = (open: boolean) => setPanel(open ? "debts" : null);
 	const people = debts.people.toSorted((left, right) => {
 		const leftIsPayable = left.balance < 0;
 		const rightIsPayable = right.balance < 0;
@@ -61,16 +66,23 @@ export function DashboardDebts({
 					<CardTitle className="flex items-center gap-2">
 						<LuHandshake className="text-primary" /> Dívidas
 					</CardTitle>
-					<Button className="cursor-pointer" onClick={() => setOpen(true)} size="sm" variant="outline">
+					<Button
+						className="cursor-pointer"
+						onClick={() => setOpen(true)}
+						size="sm"
+						variant="outline"
+					>
 						Ver todas
 					</Button>
 				</CardHeader>
 				<CardContent className="space-y-3">
 					{rows(people, true)}
-					{!people.length && <p className="text-muted-foreground text-sm">Nenhuma dívida em aberto.</p>}
+					{!people.length && (
+						<p className="text-muted-foreground text-sm">Nenhuma dívida em aberto.</p>
+					)}
 				</CardContent>
 			</Card>
-			<Dialog onOpenChange={setOpen} open={open}>
+			<Dialog onOpenChange={setOpen} open={open} url={{ parameter: "panel", value: "debts" }}>
 				<DialogContent className="sm:max-w-lg">
 					<DialogHeader>
 						<DialogTitle>Dívidas em aberto</DialogTitle>
@@ -78,7 +90,8 @@ export function DashboardDebts({
 							<span className="block">A receber: {currency.format(debts.owedToMe)}</span>
 							<span className="block">A pagar: {currency.format(debts.iOwe)}</span>
 							<span className="block">
-								Líquido {debts.net < 0 ? "a pagar" : "a receber"}: {currency.format(Math.abs(debts.net))}
+								Líquido {debts.net < 0 ? "a pagar" : "a receber"}:{" "}
+								{currency.format(Math.abs(debts.net))}
 							</span>
 						</DialogDescription>
 					</DialogHeader>

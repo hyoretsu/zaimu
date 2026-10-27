@@ -1,5 +1,4 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { useState } from "react";
 import { LuList, LuPencil, LuPlus, LuTrash2, LuUsersRound } from "react-icons/lu";
 import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { ActionGroup } from "@/components/ui/ActionGroup";
@@ -18,12 +17,14 @@ import { FloatingActionMenu } from "@/components/ui/FloatingActionMenu";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
+import { useUrlViewState } from "@/hooks/use-url-view-state";
 import type { DebtEvent, DebtPerson } from "@/lib/api";
 import { useModalRecoveryStore } from "@/lib/background-modal-actions";
-import { type DebtEventPage, dataService } from "@/lib/dataService";
+import { dataService, type DebtEventPage } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
-import { DebtEventItem } from "./DebtEventItem";
+import { viewNullableId } from "@/lib/view-state";
 import { compareDebtEventsByDateTimeThenLabel } from "./debt-event";
+import { DebtEventItem } from "./DebtEventItem";
 
 export function DebtPersonCard({
 	createPending,
@@ -42,7 +43,13 @@ export function DebtPersonCard({
 	onEditPerson: (person: DebtPerson) => void;
 	person: DebtPerson;
 }) {
-	const [expanded, setExpanded] = useState(false);
+	const [selectedPerson, setSelectedPerson] = useUrlViewState<string | null>(
+		"person",
+		null,
+		viewNullableId,
+	);
+	const expanded = selectedPerson === person.id;
+	const setExpanded = (open: boolean) => setSelectedPerson(open ? person.id : null);
 	const identity = useCacheIdentity();
 	const pending = useModalRecoveryStore(state => state.pending);
 	const personPending = !!pending[`${identity}:debt-person:${person.id}`];
@@ -65,16 +72,16 @@ export function DebtPersonCard({
 					? "whitespace-nowrap text-emerald-600"
 					: person.balance < 0
 						? "whitespace-nowrap text-rose-600"
-						: "whitespace-nowrap text-muted-foreground"
+						: "text-muted-foreground whitespace-nowrap"
 			}
 		>
 			<PreferredMoneyAmount values={person.balances ?? [{ amount: person.balance, currency: "BRL" }]} />
 		</strong>
 	);
 	return (
-		<article className="min-w-0 max-w-full overflow-x-clip rounded-2xl border bg-card p-4 shadow-sm">
+		<article className="bg-card max-w-full min-w-0 overflow-x-clip rounded-2xl border p-4 shadow-sm">
 			<div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3">
-				<div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+				<div className="bg-primary/10 text-primary flex size-11 shrink-0 items-center justify-center rounded-2xl">
 					<LuUsersRound />
 				</div>
 				<div className="min-w-0 flex-1">
@@ -127,7 +134,9 @@ export function DebtPersonCard({
 					aria-label={`Excluir ${person.name}`}
 					className="cursor-pointer"
 					confirmation={`Excluir ${person.name}?`}
-					disabled={personPending || events.some(event => !!pending[`${identity}:debt-event:${event.id}`])}
+					disabled={
+						personPending || events.some(event => !!pending[`${identity}:debt-event:${event.id}`])
+					}
 					onConfirm={() => onDeletePerson(person.id)}
 					size="icon"
 					variant="destructive"
@@ -135,7 +144,11 @@ export function DebtPersonCard({
 					<LuTrash2 />
 				</ConfirmActionButton>
 			</div>
-			<Dialog onOpenChange={setExpanded} open={expanded}>
+			<Dialog
+				onOpenChange={setExpanded}
+				open={expanded}
+				url={{ parameter: "person", value: person.id }}
+			>
 				<DialogContent className="gap-4 sm:max-w-xl">
 					<DialogHeader>
 						<DialogTitle>Lançamentos · {person.name}</DialogTitle>
@@ -175,14 +188,18 @@ export function DebtPersonCard({
 									))
 							)}
 							{!eventsQuery.isPending && !events.length ? (
-								<p className="py-8 text-center text-muted-foreground">Nenhum lançamento cadastrado.</p>
+								<p className="text-muted-foreground py-8 text-center">
+									Nenhum lançamento cadastrado.
+								</p>
 							) : null}
 							{eventsQuery.isError && eventsQuery.data ? (
 								<div role="alert">
 									<p>Não foi possível atualizar os lançamentos.</p>
 									<Button
 										onClick={() =>
-											eventsQuery.isFetchNextPageError ? eventsQuery.fetchNextPage() : eventsQuery.refetch()
+											eventsQuery.isFetchNextPageError
+												? eventsQuery.fetchNextPage()
+												: eventsQuery.refetch()
 										}
 										variant="outline"
 									>
@@ -193,7 +210,7 @@ export function DebtPersonCard({
 							{eventsQuery.hasNextPage ? (
 								<div
 									aria-live="polite"
-									className="flex h-10 items-center justify-center text-muted-foreground"
+									className="text-muted-foreground flex h-10 items-center justify-center"
 									ref={loadMoreRef}
 								>
 									{eventsQuery.isFetchingNextPage ? "Carregando..." : null}
