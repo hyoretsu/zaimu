@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { LuCloudDownload, LuReceiptText } from "react-icons/lu";
 import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { ScrollArea } from "@/components/ui/ScrollArea";
@@ -32,9 +32,20 @@ export function CreditCardStatementTabs({
 	statements: CreditCardStatement[];
 }) {
 	const scrollAreaRef = useRef<HTMLDivElement>(null);
-	const pendingPrepend = useRef<{ size: number; offset: number } | null>(null);
-	const centeredId = useRef<string | null>(null);
+	const pendingPrepend = useRef(false);
+	const scrollAnchor = useRef<{ element: HTMLElement; left: number } | null>(null);
 	const previousDesktop = useRef(isDesktop);
+
+	const captureScrollAnchor = useCallback(() => {
+		const viewport = scrollAreaRef.current?.querySelector<HTMLElement>(
+			'[data-slot="scroll-area-viewport"]',
+		);
+		if (!viewport) return;
+		const left = viewport.getBoundingClientRect().left;
+		const tabs = viewport.querySelectorAll<HTMLElement>('[data-slot="tabs-trigger"]');
+		const element = Array.from(tabs).find(tab => tab.getBoundingClientRect().right > left);
+		if (element) scrollAnchor.current = { element, left: element.getBoundingClientRect().left };
+	}, []);
 
 	useLayoutEffect(() => {
 		const viewport = scrollAreaRef.current?.querySelector<HTMLElement>(
@@ -44,27 +55,19 @@ export function CreditCardStatementTabs({
 			'[data-slot="tabs-trigger"][data-state="active"]',
 		);
 		if (!viewport || !activeTab) return;
-		const prepend = pendingPrepend.current;
-		if (prepend) {
-			if (isDesktop) viewport.scrollTop = prepend.offset + viewport.scrollHeight - prepend.size;
-			else viewport.scrollLeft = prepend.offset + viewport.scrollWidth - prepend.size;
-			pendingPrepend.current = null;
-		} else if (centeredId.current === selectedId && previousDesktop.current === isDesktop) {
-			return;
-		}
-		if (centeredId.current !== selectedId || previousDesktop.current !== isDesktop) {
+		if (scrollAnchor.current?.element.isConnected && previousDesktop.current === isDesktop) {
+			const { element, left } = scrollAnchor.current;
+			viewport.scrollLeft += element.getBoundingClientRect().left - left;
+		} else {
 			const viewportRect = viewport.getBoundingClientRect();
 			const tabRect = activeTab.getBoundingClientRect();
-			if (isDesktop)
-				viewport.scrollTop +=
-					tabRect.top - viewportRect.top - (viewportRect.height - tabRect.height) / 2;
-			else
-				viewport.scrollLeft +=
-					tabRect.left - viewportRect.left - (viewportRect.width - tabRect.width) / 2;
-			centeredId.current = selectedId;
-			previousDesktop.current = isDesktop;
+			viewport.scrollLeft +=
+				tabRect.left - viewportRect.left - (viewportRect.width - tabRect.width) / 2;
 		}
-	}, [isDesktop, selectedId, statements]);
+		pendingPrepend.current = false;
+		previousDesktop.current = isDesktop;
+		captureScrollAnchor();
+	}, [captureScrollAnchor, isDesktop, selectedId, statements]);
 
 	useEffect(() => {
 		const viewport = scrollAreaRef.current?.querySelector<HTMLElement>(
@@ -75,7 +78,7 @@ export function CreditCardStatementTabs({
 		const resizeObserver = new ResizeObserver(() => {
 			if (!isDesktop) return;
 			onRadiusChange(
-				getStatementWindowRadius(true, viewport.clientHeight, tab.getBoundingClientRect().height),
+				getStatementWindowRadius(true, viewport.clientWidth, tab.getBoundingClientRect().width),
 			);
 		});
 		resizeObserver.observe(viewport);
@@ -90,18 +93,18 @@ export function CreditCardStatementTabs({
 		if (!viewport) return;
 		let frame: number | null = null;
 		const onScroll = () => {
+			captureScrollAnchor();
 			if (frame !== null) return;
 			frame = requestAnimationFrame(() => {
 				frame = null;
 				const tab = scrollAreaRef.current?.querySelector<HTMLElement>('[data-slot="tabs-trigger"]');
 				if (!tab || pendingPrepend.current) return;
-				const offset = isDesktop ? viewport.scrollTop : viewport.scrollLeft;
-				const size = isDesktop ? viewport.scrollHeight : viewport.scrollWidth;
-				const visibleSize = isDesktop ? viewport.clientHeight : viewport.clientWidth;
-				const threshold =
-					(isDesktop ? tab.getBoundingClientRect().height : tab.getBoundingClientRect().width) + 8;
+				const offset = viewport.scrollLeft;
+				const size = viewport.scrollWidth;
+				const visibleSize = viewport.clientWidth;
+				const threshold = tab.getBoundingClientRect().width + 8;
 				if (canLoadPrevious && offset < threshold) {
-					pendingPrepend.current = { offset, size };
+					pendingPrepend.current = true;
 					onLoadPrevious();
 				} else if (size - visibleSize - offset < threshold) {
 					onLoadNext();
@@ -113,11 +116,16 @@ export function CreditCardStatementTabs({
 			viewport.removeEventListener("scroll", onScroll);
 			if (frame !== null) cancelAnimationFrame(frame);
 		};
-	}, [canLoadPrevious, isDesktop, onLoadNext, onLoadPrevious]);
+	}, [canLoadPrevious, captureScrollAnchor, onLoadNext, onLoadPrevious]);
 
 	return (
-		<div className="h-full min-w-0" ref={scrollAreaRef}>
-			<ScrollArea className="h-full min-h-0 border-b" horizontalScrollbar>
+		<div
+			className="h-full min-w-0"
+			onKeyDownCapture={captureScrollAnchor}
+			onPointerDownCapture={captureScrollAnchor}
+			ref={scrollAreaRef}
+		>
+			<ScrollArea className="h-full min-h-0 border-b [overflow-anchor:none]" horizontalScrollbar>
 				<TabsList
 					aria-label="Faturas"
 					className="!h-auto w-max min-w-full !flex-row gap-2 bg-transparent px-1 pt-1 pb-4"
@@ -137,7 +145,7 @@ export function CreditCardStatementTabs({
 							<TabsTrigger
 								aria-label={`${statementLabel(statement, statements)}${status.label ? ` - ${status.label}` : ""}`}
 								className={cn(
-									"border-border h-20 w-36 shrink-0 cursor-pointer items-start justify-start rounded-xl p-3 text-left whitespace-normal",
+									"border-border h-20 w-36 flex-none cursor-pointer items-start justify-start rounded-xl p-3 text-left whitespace-normal",
 									selected && "border-primary bg-primary/10 ring-primary/30 ring-1",
 								)}
 								key={statement.id}
