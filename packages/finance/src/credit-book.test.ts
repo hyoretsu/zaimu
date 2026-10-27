@@ -626,7 +626,10 @@ describe("normalized credit book", () => {
 			totalAmount: 300,
 		});
 		const r = addBookRefund(book, p.id, { amount: 100, creditDate: "2025-01-10" });
-		expect(() => addBookRefund(book, p.id, { amount: 201, creditDate: "2025-01-10" })).toThrow();
+		const extra = addBookRefund(book, p.id, { amount: 201, creditDate: "2025-01-10" });
+		expect(extra.amountCents).toBe(20100);
+		expect(creditBookEntries(book).filter(row => row.entryKind === "INSTALLMENT")).toHaveLength(3);
+		removeBookRefund(book, p.id, extra.id);
 		removeBookRefund(book, p.id, r.id);
 		const full = addBookRefund(book, p.id, { creditDate: "2025-01-10" });
 		expect(full.cancellationEligible).toBe(false);
@@ -653,7 +656,8 @@ describe("normalized credit book", () => {
 			[0, 0],
 			[1, 1],
 		]);
-		expect(() => refundDebtAmounts(3, [1, 1], 2, 2)).toThrow();
+		expect(refundDebtAmounts(3, [1, 1], 2, 2)).toEqual([1, 1]);
+		expect(refundDebtAmounts(3, [1, 1], 4, 1)).toEqual([0, 0]);
 	});
 });
 
@@ -1112,4 +1116,19 @@ test("refund synchronization uses its own bank identity instead of the original 
 	expect(imported.isFullySynced).toBe(true);
 	expect(imported.hasImportedAmount).toBe(true);
 	expect(imported.externalId).toBe("bank-refund");
+});
+
+test("excess refunds never reverse more than the original cashback", () => {
+	const book = emptyBook();
+	const purchase = newBookPurchase(book, {
+		description: "Compra",
+		installments: 1,
+		purchaseDate: "2025-01-01",
+		totalAmount: 300,
+	});
+	purchase.cashbackAccountId = "rewards";
+	purchase.cashbackAmount = 30;
+	addBookRefund(book, purchase.id, { amount: 301, creditDate: "2025-01-10" });
+	addBookRefund(book, purchase.id, { amount: 1, creditDate: "2025-01-11" });
+	expect(creditBookRewards(book).map(row => row.cashbackAmount)).toEqual([30, -30, -0]);
 });

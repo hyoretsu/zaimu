@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
-	type CreditRefund,
 	calculateRefundEffects,
 	createCreditRefund,
+	type CreditRefund,
 	editCreditRefund,
 	hasMatchingInstallmentSum,
 	isGenericImportedRefund,
@@ -34,10 +34,12 @@ const fullRefund: CreditRefund = {
 };
 
 describe("purchase refunds", () => {
-	test("caps multiple partial refunds in cents", () => {
+	test("accepts refunds above the purchase balance while defaulting to the remaining amount", () => {
 		expect(refundAmountCents(30000, [9999, 10000])).toBe(10001);
-		expect(() => refundAmountCents(30000, [9999, 10000], 10002)).toThrow();
-		expect(() => refundAmountCents(30000, [30000], 1)).toThrow();
+		expect(refundAmountCents(30000, [9999, 10000], 10002)).toBe(10002);
+		expect(refundAmountCents(30000, [30000], 1)).toBe(1);
+		for (const amount of [0, -1, Number.NaN, Number.POSITIVE_INFINITY, 1.5])
+			expect(() => refundAmountCents(30000, [], amount)).toThrow();
 	});
 
 	test("full refund cancels only later invoice cycles and credits the difference", () => {
@@ -92,7 +94,9 @@ describe("purchase refunds", () => {
 			canceledAmountCents: 10000,
 			creditAmountCents: 20000,
 		});
-		expect(() => editCreditRefund(purchase, [fullRefund], "refund", { amountCents: 30001 })).toThrow();
+		expect(editCreditRefund(purchase, [fullRefund], "refund", { amountCents: 30001 }).amountCents).toBe(
+			30001,
+		);
 	});
 
 	test("institution policy is write-once; institution-less card prompts each full refund", () => {
@@ -218,4 +222,29 @@ test("import review matches only consecutive installment sums within the inclusi
 		expect(hasMatchingInstallmentSum(amounts, 100)).toBe(false);
 	for (const target of [Number.NaN, Number.POSITIVE_INFINITY, 0, -10])
 		expect(hasMatchingInstallmentSum([100], target)).toBe(false);
+});
+
+test("refund above total cancels selected installments and credits every excess cent", () => {
+	const refund = createCreditRefund(purchase, [], {
+		...fullRefund,
+		amountCents: 30011,
+		canceledInstallmentNumbers: [1, 2, 3],
+		hasPreviousRefundHistory: false,
+	});
+	expect(calculateRefundEffects(purchase, [refund], installments, invoices)[0]).toMatchObject({
+		canceledAmountCents: 30000,
+		canceledInstallmentNumbers: [1, 2, 3],
+		creditAmountCents: 11,
+	});
+	const extra = createCreditRefund(purchase, [refund], {
+		...fullRefund,
+		amountCents: 50,
+		canceledInstallmentNumbers: [],
+		hasPreviousRefundHistory: true,
+		id: "extra",
+	});
+	expect(calculateRefundEffects(purchase, [refund, extra], installments, invoices)[1]).toMatchObject({
+		canceledAmountCents: 0,
+		creditAmountCents: 50,
+	});
 });

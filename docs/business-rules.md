@@ -467,3 +467,5 @@ Materialização automática usa a data civil no fuso horário preferido do usu�
 O ajuste para dia útil afeta somente o vencimento da fatura. Fechamento permanece no dia configurado, inclusive em sábados e domingos, respeitando o limite de dias do mês. O ajuste não altera o ciclo das compras nem a inclusão do dia de fechamento.
 
 Nos detalhes da fatura que recebe crédito excedente do ciclo anterior, exibir "Crédito da fatura anterior" e seu valor em texto pequeno e discreto abaixo do total. O crédito já integra o cálculo líquido e não deve ser descontado novamente. Saldo transposto identifica somente dívida transferida, nunca crédito.
+
+Reembolsos registrados ou editados manualmente aceitam qualquer valor positivo válido, sem teto pelo total ou saldo da compra, inclusive após reembolsos anteriores. Cancelamento continua limitado às parcelas disponíveis; todo excedente vira crédito na fatura. Relatórios preservam o valor integral e admitem gasto líquido negativo. O saldo da compra no formulário é apenas informativo. Estornos de dívidas e cashback ficam limitados às participações e recompensas originais, sem reduzir o crédito excedente.

@@ -116,7 +116,8 @@ export function RefundCreditPurchaseDialog({
 		effects
 			.filter(
 				effect =>
-					activeRefunds.some(item => item.id === effect.refundId) && effect.refundId !== currentRefund?.id,
+					activeRefunds.some(item => item.id === effect.refundId) &&
+					effect.refundId !== currentRefund?.id,
 			)
 			.flatMap(effect => effect.canceledInstallmentNumbers),
 	);
@@ -163,7 +164,7 @@ export function RefundCreditPurchaseDialog({
 							? "Carregando saldo da compra..."
 							: bookQuery.isError
 								? "Não foi possível carregar a compra. Tente novamente."
-								: `Disponível para reembolso: ${currency.format(remaining)}. Selecione crédito ou cancelamento de parcelas.`}
+								: `Saldo da compra: ${currency.format(remaining)}. Selecione crédito ou cancelamento de parcelas.`}
 					</DialogDescription>
 				</DialogHeader>
 				<form className="flex min-h-0 min-w-0 flex-1 flex-col gap-5" onSubmit={submit}>
@@ -200,13 +201,18 @@ export function RefundCreditPurchaseDialog({
 								/>
 								{effectiveMode === "cancellation" ? (
 									<RefundInstallmentOptions
-										credit={currency.format(Math.max(0, creditCents) / scale).replace(/\s/gu, "")}
+										credit={currency
+											.format(Math.max(0, creditCents) / scale)
+											.replace(/\s/gu, "")}
 										direction={effectiveDirection}
 										installments={available.map(item => ({
-											dueDate: plan!.statements.find(statement => statement.id === item.statementId)!.dueDate,
+											dueDate: plan!.statements.find(
+												statement => statement.id === item.statementId,
+											)!.dueDate,
 											...item,
-											statementDate: plan!.statements.find(statement => statement.id === item.statementId)!
-												.statementDate,
+											statementDate: plan!.statements.find(
+												statement => statement.id === item.statementId,
+											)!.statementDate,
 										}))}
 										onDirectionChange={setDirection}
 										selected={canceledInstallmentNumbers}
@@ -214,7 +220,10 @@ export function RefundCreditPurchaseDialog({
 								) : null}
 								{effectiveMode === "credit" ? (
 									<p className="text-muted-foreground text-sm">
-										Crédito excedente: {currency.format(Math.max(0, creditCents) / scale).replace(/\s/gu, "")}
+										Crédito excedente:{" "}
+										{currency
+											.format(Math.max(0, creditCents) / scale)
+											.replace(/\s/gu, "")}
 									</p>
 								) : null}
 								{creditCents < 0 ? (
@@ -233,9 +242,10 @@ export function RefundCreditPurchaseDialog({
 											value={displayedDate}
 										/>
 										{!displayedDate ? (
-											<p className="text-amber-600 text-sm" role="status">
-												Sem data informada, o crédito de {currency.format(creditCents / scale)} será lançado
-												em {formatLocalDate(originalDate)}, data da compra original.
+											<p className="text-sm text-amber-600" role="status">
+												Sem data informada, o crédito de{" "}
+												{currency.format(creditCents / scale)} será lançado em{" "}
+												{formatLocalDate(originalDate)}, data da compra original.
 											</p>
 										) : null}
 									</div>
@@ -272,7 +282,6 @@ export function RefundCreditPurchaseDialog({
 								bookQuery.isError ||
 								!Number.isFinite(effectiveAmount) ||
 								effectiveAmount <= 0 ||
-								effectiveAmount > remaining ||
 								creditCents < 0 ||
 								(effectiveMode === "cancellation" && available.length === 0)
 							}

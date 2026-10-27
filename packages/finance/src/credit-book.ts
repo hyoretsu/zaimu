@@ -206,7 +206,7 @@ export function creditBookRewards(book: CreditBook) {
 					const before = Math.round(
 						((purchase.cashbackAmount! * refunded) / purchase.totalAmountCents) * rewardScale,
 					);
-					refunded += refund.amountCents;
+					refunded = Math.min(purchase.totalAmountCents, refunded + refund.amountCents);
 					const after = Math.round(
 						((purchase.cashbackAmount! * refunded) / purchase.totalAmountCents) * rewardScale,
 					);
@@ -795,13 +795,12 @@ export function refundDebtAmounts(
 	assertCents(totalCents, 1);
 	assertCents(beforeCents);
 	assertCents(refundCents);
-	if (beforeCents + refundCents > totalCents || sumCents(participantCents) > totalCents)
-		throw new RangeError("Rateio do reembolso inválido");
+	if (sumCents(participantCents) > totalCents) throw new RangeError("Rateio do reembolso inválido");
 	return participantCents.map(amount => {
 		assertCents(amount);
 		return (
-			Math.floor((amount * (beforeCents + refundCents)) / totalCents) -
-			Math.floor((amount * beforeCents) / totalCents)
+			Math.floor((amount * Math.min(totalCents, beforeCents + refundCents)) / totalCents) -
+			Math.floor((amount * Math.min(totalCents, beforeCents)) / totalCents)
 		);
 	});
 }

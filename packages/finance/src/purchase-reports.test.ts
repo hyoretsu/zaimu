@@ -46,3 +46,12 @@ test("net spending belongs to purchase period; cash credit belongs to refund cyc
 		storeName: "Mercado",
 	});
 });
+
+test("spending preserves a refund above the purchase total", () => {
+	expect(
+		purchaseSpending(purchase, [{ ...refund, amountCents: purchase.totalAmountCents + 11 }]),
+	).toMatchObject({
+		netAmountCents: -11,
+		refundedAmountCents: purchase.totalAmountCents + 11,
+	});
+});

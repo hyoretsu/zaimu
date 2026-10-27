@@ -48,7 +48,6 @@ export function refundAmountCents(
 	const remaining = totalAmountCents - refunded;
 	const amount = requestedAmountCents ?? remaining;
 	assertCents(amount, 1);
-	if (amount > remaining) throw new RangeError("O reembolso excede o saldo disponível da compra");
 	return amount;
 }
 
@@ -115,8 +114,6 @@ function calculateRefundEffectsWithInvoices(
 		if (!invoiceDates.has(refund.creditStatementId))
 			throw new RangeError("Fatura do reembolso não encontrada");
 	}
-	if (sumCents(refunds.map(refund => refund.amountCents)) > purchase.totalAmountCents)
-		throw new RangeError("Os reembolsos excedem o total da compra");
 	const numbers = new Set<number>();
 	for (const installment of installments) {
 		assertCents(installment.amountCents, 1);

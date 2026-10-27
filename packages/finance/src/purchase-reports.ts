@@ -12,8 +12,6 @@ export function purchaseSpending(purchase: CreditPurchase, refunds: readonly Cre
 	assertPurchase(purchase);
 	const related = refunds.filter(refund => refund.purchaseId === purchase.id);
 	const refundedAmountCents = sumCents(related.map(refund => refund.amountCents));
-	if (refundedAmountCents > purchase.totalAmountCents)
-		throw new RangeError("Os reembolsos excedem o total da compra");
 	return {
 		...purchaseMetadata(purchase),
 		date: purchase.purchaseDate,
