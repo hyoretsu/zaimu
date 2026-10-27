@@ -7,9 +7,13 @@ import {
 } from "@tanstack/react-query";
 import { useState } from "react";
 import { HiPlus } from "react-icons/hi2";
-import { LuArrowLeftRight, LuEye } from "react-icons/lu";
+import { LuArrowLeftRight, LuEye, LuFileUp } from "react-icons/lu";
 import { PendingNotices } from "@/components/pending-notices";
-import { TransactionImportReviewDialog, TransferSuggestionsDialog } from "@/components/transaction-imports";
+import {
+	ImportTransactionsDialog,
+	TransactionImportReviewDialog,
+	TransferSuggestionsDialog,
+} from "@/components/transaction-imports";
 import { TransferSuggestionDecisionDialog } from "@/components/transaction-imports/TransferSuggestionDecisionDialog";
 import { CreateTransactionDialog, EditTransactionDialog, TransactionsList } from "@/components/transactions";
 import { ActionNotice } from "@/components/ui/ActionNotice";
@@ -65,6 +69,7 @@ function getInitialTransactionsPage(filters: TransactionFiltersValue): Transacti
 
 export function TransactionsPage() {
 	const [isModalOpen, setIsModalOpen] = useState(false);
+	const [isImportOpen, setIsImportOpen] = useState(false);
 	const [reviewingImportId, setReviewingImportId] = useState<string | null>(null);
 	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 	const [editingYield, setEditingYield] = useState<FinancialAccountYieldEntry | null>(null);
@@ -333,6 +338,7 @@ export function TransactionsPage() {
 		<PageContainer className="space-y-6">
 			<PageHeader
 				actions={[
+					{ icon: LuFileUp, label: "Importar extrato", onClick: () => setIsImportOpen(true) },
 					{
 						icon: HiPlus,
 						label: "Adicionar",
@@ -477,6 +483,12 @@ export function TransactionsPage() {
 				entry={editingYield}
 				onOpenChange={open => !open && setEditingYield(null)}
 				open={editingYield !== null}
+			/>
+			<ImportTransactionsDialog
+				defaultFinancialAccountId={filters.accountId === "all" ? undefined : filters.accountId}
+				onImported={setReviewingImportId}
+				onOpenChange={setIsImportOpen}
+				open={isImportOpen}
 			/>
 			<TransactionImportReviewDialog
 				importId={reviewingImportId}
