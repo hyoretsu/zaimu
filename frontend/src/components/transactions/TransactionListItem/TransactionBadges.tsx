@@ -38,11 +38,14 @@ export function TransactionBadges({
 	tags?: Tag[];
 }) {
 	return (
-		<ul aria-label="Detalhes da transação" className="flex min-w-0 list-none flex-wrap items-center gap-1.5">
+		<ul
+			aria-label="Detalhes da transação"
+			className="flex min-w-0 list-none flex-wrap items-center gap-1.5"
+		>
 			{accounts.map((account, index) => (
 				<li className="flex min-w-0 items-center gap-1" key={account.id}>
 					{index > 0 ? (
-						<LuArrowRight aria-hidden="true" className="size-3 shrink-0 text-muted-foreground" />
+						<LuArrowRight aria-hidden="true" className="text-muted-foreground size-3 shrink-0" />
 					) : null}
 					<AppBadge variant="outline">
 						{account.type === "CREDIT_CARD" ? (
@@ -65,7 +68,8 @@ export function TransactionBadges({
 						<AppBadge variant="outline">
 							<LuCreditCard aria-hidden="true" />
 							<span className="min-w-0 truncate">
-								<span className="text-muted-foreground">Cartão</span> {creditCardPayment.cardName}
+								<span className="text-muted-foreground">Cartão</span>{" "}
+								{creditCardPayment.cardName}
 							</span>
 						</AppBadge>
 					</li>
@@ -85,6 +89,14 @@ export function TransactionBadges({
 					) : null}
 				</>
 			) : null}
+			{isSynced ? (
+				<li>
+					<AppBadge variant="outline">
+						<LuCloudDownload aria-hidden="true" className="text-emerald-600" />
+						<span>Sincronizada</span>
+					</AppBadge>
+				</li>
+			) : null}
 			{storeName ? (
 				<li className="min-w-0">
 					<AppBadge variant="outline">
@@ -102,14 +114,6 @@ export function TransactionBadges({
 						<span className="truncate">
 							<span className="text-muted-foreground">Dívida</span> {debtPersonName}
 						</span>
-					</AppBadge>
-				</li>
-			) : null}
-			{isSynced ? (
-				<li>
-					<AppBadge variant="outline">
-						<LuCloudDownload aria-hidden="true" className="text-emerald-600" />
-						<span>Sincronizada</span>
 					</AppBadge>
 				</li>
 			) : null}
