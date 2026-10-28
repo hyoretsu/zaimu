@@ -1,6 +1,6 @@
 import { legacyCalendarHoliday } from "@zaimu/finance/projected-yield";
 import { type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
-import { addDays, format, isWeekend, startOfDay, subDays } from "date-fns";
+import { addDays, format, isWeekend, startOfDay } from "date-fns";
 import {
 	balanceAdjustmentSourceVersion,
 	reconcileBalanceAdjustments,
@@ -40,6 +40,7 @@ import {
 } from "~/shared/infra/sql";
 import { fetchBcbReferenceRates } from "../domain/bcb-reference-rates";
 import { referenceRateBatchInsertSql } from "../domain/reference-rate-insert-sql";
+import { recentReferenceRateWindow, yieldSchedulerClock } from "../domain/yield-scheduler-clock";
 
 type FetchReferenceRates = typeof fetchBcbReferenceRates;
 interface ClaimedJob {
@@ -50,7 +51,6 @@ interface ClaimedJob {
 	referenceType: ReferenceRateType | null;
 	startDate: Date | null;
 }
-const schedulerTimezone = "America/Recife";
 const dateKey = (date: Date) => format(date, "yyyy-MM-dd");
 const outbox = new PostgresOutbox();
 const commandId = (key: string) => {
@@ -78,22 +78,6 @@ async function appendCommand(
 	);
 }
 
-function schedulerClock(now = new Date()) {
-	const parts = new Intl.DateTimeFormat("en-CA", {
-		day: "2-digit",
-		hour: "2-digit",
-		hourCycle: "h23",
-		month: "2-digit",
-		timeZone: schedulerTimezone,
-		year: "numeric",
-	}).formatToParts(now);
-	const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
-	return {
-		date: new Date(`${values.year}-${values.month}-${values.day}T12:00:00`),
-		hour: Number(values.hour),
-	};
-}
-
 export async function enqueueReferenceRateFetch(
 	type: ReferenceRateType,
 	startDate: Date,
@@ -107,12 +91,18 @@ export async function enqueueReferenceRateFetch(
 		startDate: dateKey(startDate),
 	});
 }
-export async function enqueueAccountYieldRecalculation(accountId: string, fromDate: Date, cause: string) {
+export async function enqueueAccountYieldRecalculation(
+	accountId: string,
+	fromDate: Date,
+	cause: string,
+	throughDate?: string,
+) {
 	const deduplicationKey = `account:${accountId}:${dateKey(fromDate)}:${cause}`;
 	await appendCommand("account-yield-recalculation", deduplicationKey, accountId, {
 		deduplicationKey,
 		financialAccountId: accountId,
 		fromDate: dateKey(fromDate),
+		...(throughDate ? { throughDate } : {}),
 	});
 }
 export async function enqueueUserYieldRecalculations(userId: string, fromDate: Date, cause: string) {
@@ -132,13 +122,20 @@ export async function ensureReferenceRateBootstrapJobs(now = new Date()) {
 	return requestHistoryCollection(
 		"INTEREST",
 		["CDI", "SELIC", "IPCA", "TR"],
-		dateKey(schedulerClock(now).date),
+		dateKey(yieldSchedulerClock(now).date),
 	);
 }
 export async function enqueueDailyReferenceRateFetches(now = new Date()) {
-	const clock = schedulerClock(now);
-	const reference = clock.hour >= 6 ? clock.date : subDays(clock.date, 1);
-	return requestHistoryCollection("INTEREST", ["CDI", "SELIC", "IPCA", "TR"], dateKey(reference));
+	const window = recentReferenceRateWindow(now);
+	if (!window) return;
+	// Recent publications are provisional: historical coverage must never suppress this refresh.
+	for (const type of ["CDI", "SELIC", "IPCA", "TR"] as const)
+		await enqueueReferenceRateFetch(
+			type,
+			window.startDate,
+			window.endDate,
+			`recent:${type}:${window.slot}`,
+		);
 }
 async function processFetchJob(
 	job: ClaimedJob,
@@ -310,7 +307,7 @@ async function processAccountRecalculation(job: ClaimedJob) {
 	const account = await loadYieldAccount(job.financialAccountId);
 	if (!account) return;
 	const fromDate = startOfDay(job.fromDate > account.createdAt ? job.fromDate : account.createdAt);
-	const endDate = startOfDay(new Date());
+	const endDate = startOfDay(job.endDate ?? yieldSchedulerClock().date);
 	if (fromDate > endDate) return;
 	const years = Array.from(
 		{ length: endDate.getFullYear() - fromDate.getFullYear() + 1 },
@@ -319,8 +316,8 @@ async function processAccountRecalculation(job: ClaimedJob) {
 	if (!(await ensureAccountCoverage(account.currency ?? "BRL", account.countryCode, years))) return;
 	await loadTaxCatalog();
 	await executeRaw(
-		`DELETE FROM "public"."FinancialAccountYield" WHERE "financialAccountId" = $1 AND "kind" = 'AUTOMATIC' AND "origin" = 'SYSTEM' AND "date" >= $2`,
-		[account.id, dateKey(fromDate)],
+		`DELETE FROM "public"."FinancialAccountYield" WHERE "financialAccountId" = $1 AND "kind" = 'AUTOMATIC' AND "origin" = 'SYSTEM' AND "date" >= $2 AND "date" <= $3`,
+		[account.id, dateKey(fromDate), dateKey(endDate)],
 	);
 	const holidayKeys = await getCountryHolidays(account.countryCode!);
 	const loaded = await loadFinancialAccountBalanceInput([account.id]);
@@ -465,12 +462,17 @@ export async function handleReferenceRateFetchCommand(
 }
 
 export async function handleAccountYieldRecalculationCommand(event: EventEnvelope) {
-	return processAccountRecalculation({
-		deduplicationKey: requiredString(event.payload, "deduplicationKey"),
-		endDate: null,
-		financialAccountId: requiredString(event.payload, "financialAccountId"),
-		fromDate: new Date(`${requiredString(event.payload, "fromDate")}T12:00:00`),
-		referenceType: null,
-		startDate: null,
+	const accountId = requiredString(event.payload, "financialAccountId");
+	const throughDate = (event.payload as { throughDate?: string }).throughDate;
+	return withRawTransaction(async query => {
+		await query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [`account-yields:${accountId}`]);
+		return processAccountRecalculation({
+			deduplicationKey: requiredString(event.payload, "deduplicationKey"),
+			endDate: throughDate ? new Date(`${throughDate}T12:00:00`) : null,
+			financialAccountId: accountId,
+			fromDate: new Date(`${requiredString(event.payload, "fromDate")}T12:00:00`),
+			referenceType: null,
+			startDate: null,
+		});
 	});
 }

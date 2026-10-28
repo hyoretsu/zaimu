@@ -193,3 +193,16 @@ restore on Forward. Closing must clear identity and dependent parameters togethe
 when a dependent parameter can itself trigger restoration. Statement-only credit
 card links resolve the owning card within the current user's cards; new links also
 record `card` so reopening does not require searching other cards.
+
+## Daily account yields
+
+The worker schedules daily account-yield recovery at startup and in its normal timer,
+independently of reference-rate downloads. Commands deduplicate by account and completed
+Recife date, replay from account creation through yesterday, and serialize per account
+inside a database transaction. Existing user overrides and manual/imported yields remain intact.
+
+Historical bootstrap coverage is not a publication freshness guarantee. From 6h in
+`America/Recife`, hourly commands re-fetch the latest 30 completed calendar days for
+CDI/Selic/IPCA/TR, bypassing completed/no-data history units. Empty responses preserve
+stored rates; newly published or corrected values trigger dependent account recalculation.
+Missing rates or calendar coverage remain pending until a subsequent recovery command.

@@ -2,6 +2,7 @@ import { handleCurrencyHistoryCommand } from "./modules/financial-history/applic
 import { recoverHistoryCollections } from "./modules/financial-history/application/history-collections";
 import { deliverNotifications } from "./modules/notifications/notification-deliveries";
 import { handleOpenFinanceSync, recoverOpenFinanceRuns } from "./modules/open-finance/application/sync";
+import { enqueueDailyAccountYieldRecalculations } from "./modules/reference-rates/application/daily-account-yield-jobs";
 import {
 	enqueueDailyReferenceRateFetches,
 	ensureReferenceRateBootstrapJobs,
@@ -66,6 +67,7 @@ await broker.consume("account-yield-recalculation", async event => {
 await publishScheduleMaterialization(broker);
 await ensureReferenceRateBootstrapJobs();
 await enqueueDailyReferenceRateFetches();
+await enqueueDailyAccountYieldRecalculations();
 await deliverNotifications();
 await recoverOpenFinanceRuns();
 await recoverHistoryCollections();
@@ -77,6 +79,7 @@ scheduleTimer = setInterval(() => {
 		recoverHistoryCollections(),
 		ensureReferenceRateBootstrapJobs(),
 		enqueueDailyReferenceRateFetches(),
+		enqueueDailyAccountYieldRecalculations(),
 	]).catch(error => console.error("Failed to publish scheduled commands", error));
 }, scheduleIntervalMs);
 console.log("Zaimu worker running");
