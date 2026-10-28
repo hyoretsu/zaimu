@@ -29,6 +29,7 @@ import { showToast } from "@/stores";
 import { formatCurrency } from "./loan-format";
 import { LoanContractDialog } from "./LoanContractDialog";
 import { LoanPlannerAccountRow } from "./LoanPlannerAccountRow";
+import { LoanPlannerHorizonNotice } from "./LoanPlannerHorizonNotice";
 import { LoanPlannerManualScenario } from "./LoanPlannerManualScenario";
 import { LoanPlannerResults } from "./LoanPlannerResults";
 import { LoanSection } from "./LoanSection";
@@ -179,6 +180,7 @@ export function LoanPlannerContent({ snapshot }: { snapshot: LoanPlannerSnapshot
 				Horizonte: {input.from} até {loanPlannerHorizon(input)}. Hipóteses dos indicadores: últimos
 				cinco anos, janela fixa.
 			</p>
+			<LoanPlannerHorizonNotice input={input} names={loanNames} />
 			<LoanSection
 				initiallyOpen
 				summary={`${input.eligibleLoanIds?.length ?? input.loans.length} empréstimos para antecipar; demais obrigações preservadas`}
@@ -392,8 +394,10 @@ export function LoanPlannerContent({ snapshot }: { snapshot: LoanPlannerSnapshot
 						{worker.result.evaluated} cenários avaliados em {worker.result.dates.length} datas.
 					</p>
 					<LoanPlannerResults
+						accounts={input.accounts}
 						baseline={worker.result.baseline}
 						currency={input.currency}
+						names={names}
 						onSelect={row => setSelectedId(row.id)}
 						ranked={worker.result.ranked}
 						selectedId={selectedId}

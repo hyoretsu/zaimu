@@ -1,9 +1,10 @@
-import type { PlannerResult } from "@zaimu/finance/loan-planner";
+import type { PlannerInput, PlannerResult } from "@zaimu/finance/loan-planner";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { formatCurrency } from "./loan-format";
 import { LoanPlannerChart } from "./LoanPlannerChart";
+import { LoanPlannerDailyBalances } from "./LoanPlannerDailyBalances";
 import { LoanSection } from "./LoanSection";
 export function LoanPlannerResults({
 	baseline,
@@ -11,12 +12,16 @@ export function LoanPlannerResults({
 	currency,
 	onSelect,
 	selectedId,
+	accounts,
+	names,
 }: {
 	baseline: PlannerResult;
 	ranked: PlannerResult[];
 	currency: string;
 	onSelect: (result: PlannerResult) => void;
 	selectedId: string;
+	accounts: PlannerInput["accounts"];
+	names: Record<string, string>;
 }) {
 	const [limit, setLimit] = useState(60);
 	const selected = ranked.find(row => row.id === selectedId) ?? ranked[0] ?? baseline;
@@ -85,6 +90,8 @@ export function LoanPlannerResults({
 				<p>Rendimento líquido perdido: {formatCurrency(selected.lostYield, currency)}</p>
 				<p>Desembolso antecipado: {formatCurrency(selected.outlay, currency)}</p>
 				<p>Custos de resgate: {formatCurrency(selected.costs, currency)}</p>
+				<p>Ativos líquidos finais: {formatCurrency(selected.terminalAssets, currency)}</p>
+				<p>Dívida restante: {formatCurrency(selected.remainingDebt, currency)}</p>
 				<p>Patrimônio líquido final: {formatCurrency(selected.terminalWealth, currency)}</p>
 				<p>
 					Menor saldo: {formatCurrency(selected.minimumBalance, currency)} em {selected.minimumDate}
@@ -102,6 +109,7 @@ export function LoanPlannerResults({
 					{issue}
 				</p>
 			))}
+			<LoanPlannerDailyBalances accounts={accounts} key={selected.id} names={names} result={selected} />
 			<LoanSection
 				summary={`${selected.days.length} dias até ${selected.through}`}
 				title="Evolução diária"

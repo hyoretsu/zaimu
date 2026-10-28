@@ -343,3 +343,30 @@ test("automatic search names full settlement explicitly", async () => {
 		),
 	).toBe(true);
 });
+
+test("terminal wealth exposes liquid assets and debt after the selected horizon", () => {
+	const input = setup();
+	input.loans = [
+		{
+			book: createLoanContract("first", "bank", {
+				...terms,
+				principalAmount: 100,
+				totalInstallments: 1,
+			}),
+			paymentAccountId: "cash",
+		},
+		{
+			book: createLoanContract("second", "bank", {
+				...terms,
+				principalAmount: 1000,
+				totalInstallments: 10,
+			}),
+			paymentAccountId: "cash",
+		},
+	];
+	input.eligibleLoanIds = ["first"];
+	const result = evaluateLoanScenario(input, baselineLoanScenario);
+	expect(result.remainingDebt).toBe(900);
+	expect(result.terminalAssets).toBe(9800);
+	expect(result.terminalWealth).toBe(8900);
+});

@@ -82,6 +82,8 @@ export interface PlannerResult {
 	minimumBalance: number;
 	minimumDate: string;
 	terminalWealth: number;
+	terminalAssets: number;
+	remainingDebt: number;
 	advantage: number;
 	discount: number;
 	outlay: number;
@@ -487,7 +489,7 @@ export function evaluateLoanScenario(
 					})),
 			)
 			.reduce((sum, row) => sum + convert(row.amount, row.currency, through), 0);
-		const terminalWealth = roundMoney(
+		const terminalAssets = roundMoney(
 			input.accounts
 				.filter(row => isLiquid(row, through))
 				.reduce(
@@ -495,9 +497,10 @@ export function evaluateLoanScenario(
 						sum +
 						convert(terminal.balances.get(row.id) ?? 0, row.currency ?? input.currency, through),
 					0,
-				) - debt,
+				),
 			input.currency,
 		);
+		const terminalWealth = roundMoney(terminalAssets - debt, input.currency);
 		const gain = forecastYield(days, movements, input.currency, convert);
 		const baseGain = baseline
 			? baseline.days.reduce((sum, day) => sum + day.income, 0) -
@@ -522,8 +525,10 @@ export function evaluateLoanScenario(
 			months: [...monthly.values()],
 			name: scenario.name,
 			outlay: roundMoney(outlay, input.currency),
+			remainingDebt: roundMoney(debt, input.currency),
 			scenario: structuredClone(scenario),
 			status: issues.length ? "UNAVAILABLE" : firstDeficit ? "UNSAFE" : "SAFE",
+			terminalAssets,
 			terminalWealth,
 			through,
 		};
@@ -542,8 +547,10 @@ export function evaluateLoanScenario(
 			months: [],
 			name: scenario.name,
 			outlay: 0,
+			remainingDebt: 0,
 			scenario: structuredClone(scenario),
 			status: "UNAVAILABLE",
+			terminalAssets: 0,
 			terminalWealth: 0,
 			through,
 		};

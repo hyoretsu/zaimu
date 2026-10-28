@@ -20,3 +20,6 @@ export { LoanChargeRow } from "./LoanChargeRow";
 export { LoanManualRow } from "./LoanManualRow";
 
 export { LoanPlannerManualScenario } from "./LoanPlannerManualScenario";
+
+export { LoanPlannerDailyBalances } from "./LoanPlannerDailyBalances";
+export { LoanPlannerHorizonNotice } from "./LoanPlannerHorizonNotice";
