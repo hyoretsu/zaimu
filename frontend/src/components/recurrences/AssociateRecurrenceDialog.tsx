@@ -17,7 +17,6 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
-import { RequiredMark } from "@/components/ui/RequiredMark";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { dataService } from "@/lib/dataService";
 import { getCurrentCacheIdentity, queryKeys } from "@/lib/query-cache";
@@ -122,9 +121,6 @@ export default function AssociateRecurrenceDialog({
 							) : (
 								<>
 									<div className="space-y-2">
-										<span className="text-sm font-medium">
-											Recorrência <RequiredMark />
-										</span>
 										<CustomSelect
 											disabled={mutation.isPending}
 											label="Recorrência"
