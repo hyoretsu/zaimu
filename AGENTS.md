@@ -1,6 +1,6 @@
 # Agent Guidelines
 
-> Single source of truth for every coding agent (Codex, Claude Code, others). `CLAUDE.md` only imports this file. Rules specific to a package or app live in that directory's own `AGENTS.md`; repeatable procedures live in skills under `.agents/skills/` (symlinked into `.claude/skills/`); hooks share one script in `scripts/agent-hooks/` wired per agent. Add new agent configuration to these shared locations, never to an agent-specific one.
+> Single source of truth for every coding agent (Codex, Claude Code, others). Rules specific to a package or app live in that directory's own `AGENTS.md`; repeatable procedures live in skills under `.agents/skills/` (symlinked into `.claude/skills/`); hooks share one script in `scripts/agent-hooks/` wired per agent. Add new agent configuration to these shared locations, never to an agent-specific one.
 
 ## Read first
 
