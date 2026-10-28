@@ -1,12 +1,15 @@
 # Agent Guidelines
 
-> Single source of truth for every coding agent (Codex, Claude Code, others). `CLAUDE.md` only imports this file. Directory-scoped rules live in nested `AGENTS.md` files (`frontend/`, `backend/`); repeatable procedures live in skills under `.agents/skills/` (symlinked into `.claude/skills/`). Add new agent configuration to these shared locations, never to an agent-specific one.
+> Single source of truth for every coding agent (Codex, Claude Code, others). `CLAUDE.md` only imports this file. Package rules live in `frontend/AGENTS.md` and `backend/AGENTS.md`; repeatable procedures live in skills under `.agents/skills/` (symlinked into `.claude/skills/`); hooks share one script in `scripts/agent-hooks/` wired per agent. Add new agent configuration to these shared locations, never to an agent-specific one.
 
 ## Read first
 
+Agents are normally started from the repository root, where nested `AGENTS.md` files are not guaranteed to load. Read them explicitly:
+
 - [`docs/business-rules.md`](docs/business-rules.md): product/domain rules.
 - [`docs/engineering-rules.md`](docs/engineering-rules.md): Zaimu stack, shared components and infrastructure invariants. Read before implementation or review.
-- [`frontend/AGENTS.md`](frontend/AGENTS.md) and [`backend/AGENTS.md`](backend/AGENTS.md): loaded when working in those packages.
+- [`frontend/AGENTS.md`](frontend/AGENTS.md): read before reading or editing anything under `frontend/`.
+- [`backend/AGENTS.md`](backend/AGENTS.md): read before reading or editing anything under `backend/`.
 - Keep this file for workflow and cross-package rules. Do not copy domain examples or nonexistent paths from another project; instructions must name real scripts, hooks, paths and components.
 
 ## Skills
@@ -57,15 +60,36 @@ Only large features executed in Plan mode need a plan in [`plans/`](plans/), nam
 
 Run type-check and build for affected packages before a PR or merge. Local validation type-checks affected packages and runs backend unit coverage when backend source is staged; CI uses affected-package detection and the disposable integration/E2E runner. No local check authorizes push, deploy or remote database operations.
 
+## Structure and naming
+
+**File naming follows responsibilities.** Components, classes, use cases and DTO schemas use PascalCase: `AuthTabs.tsx`, `LoginForm.tsx`, `FormField.tsx`. Utilities, hooks and configs use kebab-case. Preserve established module directories such as `useCases`, `infra`, `dtos` and their index barrels. Avoid unrelated renames.
+
 ## Tests
 
 - Unit tests sit next to the file under test: `Foo.ts` → `Foo.test.ts`.
 - Integration/E2E tests (several units, DB, cross-module) live in a `tests/` folder in the module. Never name it `__tests__` or any `__…__` form.
 - Backend runs on Bun: `bun:test` and `bun test`.
 
-## Lint-enforced rules
+## i18n - Mandatory Rule
 
-These fail `bun run lint` (see `eslint.config.mjs`) and are not repeated elsewhere: no `React.` namespace/`import * as React`, no `<input type="number|checkbox|date|datetime-local|month|week">`, no native `<select>`, no `alert`/`confirm`, no `t.Intersect`.
+The translation files in [frontend/src/i18n/locales/](frontend/src/i18n/locales/) **must remain synchronized**. The project is adopting i18n: these paths are the target layout and are created with the first i18n setup. Until then, add no hardcoded locale-specific structure elsewhere.
+
+**Every time you add, rename, or remove a key, apply the change to ALL locale files in the same operation.** Never leave one locale behind another, even if the final translation still needs review - in that case, use the fallback-language string as a placeholder and leave a comment in the PR, but ensure the key structure is identical across files.
+
+- The fallback locale is the ground truth for types (see `frontend/src/i18n/types.d.ts`).
+- Keys inside JSON files follow alphabetical order (linter rule).
+- When introducing a new namespace, register it in `frontend/src/i18n/config.ts` and in `types.d.ts`.
+
+### Enums Are Frontend-Translatable Contracts
+
+Backend status/error enums (e.g. KYC status, bet status, payout status, error codes) exist to give the frontend predictability: the frontend translates the enum value, it never renders the raw value to the user. Whenever you add or change an enum member on the backend, add the matching translation key to **all** locale files in the same change, and render it through `t()` with the raw value as `defaultValue` (e.g. ``t(`kyc.status.${user.kycStatus}`, { defaultValue: user.kycStatus })``). Never render a raw enum value in the UI.
+
+## Enforced rules
+
+Not repeated elsewhere:
+
+- `bun run lint` (see `eslint.config.mjs`) fails on: `React.` namespace/`import * as React`, `<input type="number|checkbox|date|datetime-local|month|week">`, native `<select>`, `alert`/`confirm`, `t.Intersect`.
+- Edits to generated files (`frontend/src/lib/api/generated/`, `backend/generated/`, `frontend/src-tauri/gen/`, `packages/sql/out/`, `*.gen.ts`) are blocked before they happen by `scripts/agent-hooks/block-generated-edits.ts`, wired for Claude Code in `.claude/settings.json` and for Codex in `.codex/hooks.json`. Regenerate instead (`backend-endpoint-sdk` skill, frontend build). Keep both configs pointing at the same script.
 
 ## Style
 

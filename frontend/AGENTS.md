@@ -14,7 +14,6 @@ Never edit `src/lib/api/generated/`; regeneration overwrites it. Hooks for endpo
 - Fetch data in the deepest component that consumes it; lift only when a sibling needs the same data.
 - Shared form fields: create and edit forms that repeat field groups use one shared field component with small variations as props. Never copy input markup.
 - ShadCN components are added through the ShadCN CLI.
-- File naming: components, classes, use cases and DTO schemas use PascalCase; utilities, hooks and configs use kebab-case. Keep established directories (`useCases`, `infra`, `dtos`) and index barrels. Avoid unrelated renames.
 - Import React APIs by name (`import { useState, type ReactNode } from "react"`). Prefer an inline `onSubmit` so the event type is inferred.
 
 ## Loading, empty and error states

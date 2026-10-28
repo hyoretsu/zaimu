@@ -28,3 +28,7 @@ Name return DTOs `XxxReturn` or `XxxResult` (domain naming, no HTTP knowledge). 
 ## Tests
 
 Bun test runner via `bun run test:unit | test:integration | test:e2e` (they delegate to `scripts/test-runner.ts`, which starts disposable services). Placement rules are in the root `AGENTS.md`.
+
+## Enums
+
+Status and error enums are contracts the frontend translates. A new or changed enum member needs matching translation keys in every locale file in the same change (see "i18n" in the root `AGENTS.md`).
