@@ -21,7 +21,6 @@ import {
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { StatementFilePicker } from "./StatementFilePicker";
-
 import {
 	getSelectableImportAccounts,
 	getTransactionImportProvider,
@@ -62,6 +61,7 @@ export function ImportTransactionsDialog({
 	}, [defaultFinancialAccountId, open]);
 	useDialogCloseReset(open, () => {
 		setFile(null);
+		setFinancialAccountId("");
 		setInstitutionId("");
 	});
 	useEffect(() => {
@@ -102,6 +102,9 @@ export function ImportTransactionsDialog({
 			showToast(error.message, "negative");
 		},
 		onSuccess: async result => {
+			setFile(null);
+			setFinancialAccountId("");
+			setInstitutionId("");
 			handleOpenChange(false);
 			if (!result.transactionImport) {
 				showToast("Nenhuma transação nova encontrada no extrato.", "info");
@@ -148,7 +151,8 @@ export function ImportTransactionsDialog({
 							onValueChange={value => {
 								setInstitutionId(value);
 								if (
-									accounts.data?.find(account => account.id === financialAccountId)?.institution?.id !== value
+									accounts.data?.find(account => account.id === financialAccountId)
+										?.institution?.id !== value
 								) {
 									setFinancialAccountId("");
 								}
