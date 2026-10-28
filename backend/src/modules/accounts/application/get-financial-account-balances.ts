@@ -22,7 +22,9 @@ export function calculateCashbackValue(
 	if (!yieldReferenceRate || !yieldReferencePercentage || !yieldPeriod) return amount;
 	const periods = Math.max(
 		0,
-		yieldPeriod === "MONTHLY" ? differenceInMonths(today, awardedAt) : differenceInYears(today, awardedAt),
+		yieldPeriod === "MONTHLY"
+			? differenceInMonths(today, awardedAt)
+			: differenceInYears(today, awardedAt),
 	);
 	const rate = (yieldReferenceRate * yieldReferencePercentage) / 100;
 	return amount * (1 + rate / 100) ** periods;
@@ -137,7 +139,8 @@ export async function loadFinancialAccountBalanceInput(accountIds: string[]) {
  SELECT p."cashbackAccountId",p."cashbackAmount",p."cashbackYieldPeriod",p."cashbackYieldReferenceRate",p."cashbackYieldReferencePercentage",p."purchaseDate" FROM "CreditPurchaseRecord" p WHERE p."cashbackAccountId"=ANY($1) AND p."purchaseDate"<=CURRENT_DATE
  UNION ALL SELECT p."cashbackAccountId",r.amount,p."cashbackYieldPeriod",p."cashbackYieldReferenceRate",p."cashbackYieldReferencePercentage",r."date"
  FROM (${cashbackReversalsSql}) r JOIN "CreditPurchaseRecord" p ON p."id"=r."purchaseId"
- WHERE p."cashbackAccountId"=ANY($1) AND r."date"<=CURRENT_DATE`,
+ WHERE p."cashbackAccountId"=ANY($1) AND r."date"<=CURRENT_DATE
+ UNION ALL SELECT "financialAccountId","amount","yieldPeriod"::"CashbackYieldPeriod","yieldReferenceRate","yieldReferencePercentage","date" FROM "DetachedRewardCredit" WHERE "financialAccountId"=ANY($1) AND "date"<=CURRENT_DATE`,
 				[rewardsAccountIds],
 			)
 		: [];
@@ -190,7 +193,10 @@ export async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 				})),
 				yieldReferenceType: account.yieldReferenceType as "CDI" | "SELIC" | null,
 			})),
-			adjustments: adjustments.map(adjustment => ({ ...adjustment, balance: Number(adjustment.balance) })),
+			adjustments: adjustments.map(adjustment => ({
+				...adjustment,
+				balance: Number(adjustment.balance),
+			})),
 			cashbackCredits: cashbackPurchases.map(purchase => ({
 				...purchase,
 				cashbackAmount: Number(purchase.cashbackAmount ?? 0),
@@ -241,13 +247,15 @@ export async function getFinancialAccountBalances(
 				.where((f, fn) => fn.in(f.id, accountIds))
 				.build(),
 		));
-	const monetary = accounts.filter(account => ["CHECKING", "CASH", "SAVINGS"].includes(account.type));
+	const monetary = accounts.filter(account =>
+		["CHECKING", "CASH", "SAVINGS", "INVESTMENT"].includes(account.type),
+	);
 	const userIds = [...new Set(monetary.map(account => account.userId))];
 	for (const userId of userIds) {
 		const rows = await queryRaw<{ accountId: string; balance: number }>(
 			monetaryBalancesSql.replace(
-				"ORDER BY requested.date",
-				' AND account."id" = ANY($3::text[])\nORDER BY requested.date',
+				'WHERE account."userId"=$1',
+				'WHERE account."userId"=$1 AND account."id"=ANY($3::text[])',
 			),
 			[
 				userId,
@@ -261,7 +269,10 @@ export async function getFinancialAccountBalances(
 	if (rewards.length) {
 		const loaded = await loadFinancialAccountBalanceInput(rewards);
 		if (loaded.input)
-			for (const [id, balance] of calculateFinancialAccountYieldBalances({ ...loaded.input, today: asOf }))
+			for (const [id, balance] of calculateFinancialAccountYieldBalances({
+				...loaded.input,
+				today: asOf,
+			}))
 				balances.set(id, balance);
 	}
 	return balances;

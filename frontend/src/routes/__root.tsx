@@ -98,7 +98,11 @@ function RootComponent() {
 			isGuestMode
 		)
 			return;
-		void navigate({ to: "/auth" });
+		const requestedTransfer =
+			pathname.replace(/\/$/, "") === "/account-transfers"
+				? new URLSearchParams(window.location.search).get("transfer")
+				: null;
+		void navigate({ search: requestedTransfer ? { transfer: requestedTransfer } : {}, to: "/auth" });
 	}, [
 		isAuthenticated,
 		isGuestMode,

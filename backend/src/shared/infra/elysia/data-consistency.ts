@@ -68,6 +68,7 @@ const aggregateForPath = (pathname: string) => {
 	const aggregateType =
 		(
 			{
+				"account-transfers": "accountTransfer",
 				"balance-adjustments": "financialAccount",
 				categories: "category",
 				"credit-card-imports": "creditCardImport",
@@ -134,14 +135,24 @@ export const DataConsistencyPlugin = new Elysia({ name: "DataConsistencyPlugin" 
 			namespaces.push(...paymentCardNamespaces(paymentCreditCardIds));
 		}
 
-		const affectedUserIds = pathname.startsWith("/debts")
-			? await debtAffectedUserIds(debtResourceId(pathname))
-			: pathname.startsWith("/credit-cards") ||
-				  pathname.startsWith("/credit-card-imports") ||
-				  pathname.startsWith("/transactions") ||
-				  pathname.startsWith("/sync")
-				? await creditAffectedUserIds(userId)
-				: [];
+		await queryRaw(`SELECT set_config('zaimu.request_user',$1,true)`, [userId]);
+		const transferId = pathname.match(/^\/account-transfers\/([^/]+)/)?.[1];
+		const transferUsers = transferId
+			? await queryRaw<{ senderId: string; recipientId: string }>(
+					`SELECT "senderId","recipientId" FROM "AccountTransfer" WHERE "id"=$1 AND ("senderId"=$2 OR "recipientId"=$2)`,
+					[transferId, userId],
+				)
+			: [];
+		const affectedUserIds = transferUsers.length
+			? transferUsers.flatMap(row => [row.senderId, row.recipientId])
+			: pathname.startsWith("/debts")
+				? await debtAffectedUserIds(debtResourceId(pathname))
+				: pathname.startsWith("/credit-cards") ||
+					  pathname.startsWith("/credit-card-imports") ||
+					  pathname.startsWith("/transactions") ||
+					  pathname.startsWith("/sync")
+					? await creditAffectedUserIds(userId)
+					: [];
 		const userIds = [...new Set([userId, ...affectedUserIds])];
 		const tokens = await Promise.all(
 			userIds.map(affectedUserId => distributedCache.beginWrite(affectedUserId, namespaces)),

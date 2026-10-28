@@ -97,7 +97,9 @@ export const decodeTransactionCursor = (
 ): TransactionCursorPayload | null => {
 	if (!cursor) return null;
 	try {
-		const parsed = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as TransactionCursorPayload;
+		const parsed = JSON.parse(
+			Buffer.from(cursor, "base64url").toString("utf8"),
+		) as TransactionCursorPayload;
 		if (
 			!parsed.id ||
 			!parsed.date ||
@@ -337,6 +339,13 @@ export async function listTransactionsPage(userId: string, input: ListTransactio
 			page.filter(row => row.sourceRank === 1).map(row => ({ amount: Number(row.amount), id: row.id })),
 		),
 	]);
+	const detachedRows = transactionIds.length
+		? await queryRaw<{ entityId: string; kind: string }>(
+				`SELECT "entityId","kind" FROM "DetachedFinancialRecord" WHERE "entityType"='Transaction' AND "entityId"=ANY($1::text[]) AND "userId"=$2`,
+				[transactionIds, userId],
+			)
+		: [];
+	const detachedKinds = new Map(detachedRows.map(row => [row.entityId, row.kind]));
 	const externalIds = new Map<string, string[]>();
 	for (const reference of externalReferences)
 		externalIds.set(reference.transactionId, [
@@ -356,6 +365,7 @@ export async function listTransactionsPage(userId: string, input: ListTransactio
 			const references = externalIds.get(row.id) ?? [];
 			return {
 				...row,
+				...(detachedKinds.has(row.id) ? { detachedKind: detachedKinds.get(row.id) } : {}),
 				...(sourceRank === 1 ? purchaseSyncStatus.get(row.id) : {}),
 				debtSplitSummary: (() => {
 					const split = (sourceRank === 0 ? transactionDebtSplits : purchaseDebtSplits).get(row.id);

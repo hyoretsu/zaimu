@@ -18,7 +18,7 @@ interface InstitutionProfileContext {
 export async function getInstitutionProfileContext(accountIds: string[]) {
 	if (!accountIds.length) return new Map<string, InstitutionProfileContext>();
 	const rows = await queryRaw<InstitutionProfileContext & Record<string, unknown>>(
-		`SELECT a.id AS "accountId", COALESCE((SELECT json_agg(json_build_object('id',p.id,'isDefault',p."isDefault",'creditCardRules',p."creditCardRules")) FROM "FinancialInstitutionProfile" p WHERE p."institutionId"=a."institutionId"),'[]'::json) AS "cardRulesProfiles", a."historicalYieldSettings", a."legacyYieldCalendar", COALESCE(a."legacyInstitutionId",CASE WHEN i."status" <> 'APPROVED' THEN a."institutionId" END) AS "legacyInstitutionId", p.id AS "defaultInstitutionProfileId", l."globalRulesFrom",
+		`SELECT to_jsonb(a)->'transferredProfileContext' AS "transferredProfileContext", a.id AS "accountId", COALESCE((SELECT json_agg(json_build_object('id',p.id,'isDefault',p."isDefault",'creditCardRules',p."creditCardRules")) FROM "FinancialInstitutionProfile" p WHERE p."institutionId"=a."institutionId"),'[]'::json) AS "cardRulesProfiles", a."historicalYieldSettings", a."legacyYieldCalendar", COALESCE(a."legacyInstitutionId",CASE WHEN i."status" <> 'APPROVED' THEN a."institutionId" END) AS "legacyInstitutionId", p.id AS "defaultInstitutionProfileId", l."globalRulesFrom",
 	COALESCE((SELECT json_agg(json_build_object('profileId', c."profileId", 'effectiveDate', c."effectiveDate") ORDER BY c."effectiveDate")
 	FROM "UserInstitutionProfileChange" c WHERE c."linkId" = l.id), '[]'::json) AS "institutionProfileChanges"
 	FROM "FinancialAccount" a
@@ -36,9 +36,15 @@ export async function getInstitutionProfileContext(accountIds: string[]) {
 			row.accountId,
 			{
 				...row,
-				legacyInstitutionYieldPolicies: row.legacyInstitutionId
-					? policies.get(row.legacyInstitutionId)?.map(policy => ({ ...policy, profileId: null }))
-					: undefined,
+				...(row.transferredProfileContext as Partial<InstitutionProfileContext> | null),
+				legacyInstitutionYieldPolicies:
+					(row.transferredProfileContext as Partial<InstitutionProfileContext> | null)
+						?.legacyInstitutionYieldPolicies ??
+					(row.legacyInstitutionId
+						? policies
+								.get(row.legacyInstitutionId)
+								?.map(policy => ({ ...policy, profileId: null }))
+						: undefined),
 			},
 		]),
 	);

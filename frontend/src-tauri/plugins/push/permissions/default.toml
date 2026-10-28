@@ -1,0 +1,3 @@
+[default]
+description = "Register this device for remote notifications after user permission."
+permissions = ["allow-register", "allow-pending"]

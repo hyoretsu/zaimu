@@ -1,4 +1,5 @@
 import { LuTrash2 } from "react-icons/lu";
+import { AccountTransferDialog } from "@/components/account-transfers";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import type { FinancialInstitution } from "@/lib/api";
@@ -13,6 +14,7 @@ export function InstitutionActions({
 }) {
 	return (
 		<>
+			<AccountTransferDialog iconOnly institutionId={institution.id} />
 			<InstitutionProfileDialog institution={institution} />
 			<Tooltip>
 				<TooltipTrigger asChild>

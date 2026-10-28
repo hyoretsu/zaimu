@@ -144,6 +144,9 @@ export const useAuthStore = create<AuthState>()(
 				return true;
 			},
 			logout: async () => {
+				await import("@/lib/push-notifications")
+					.then(module => module.disablePushNotifications())
+					.catch(() => undefined);
 				const version = ++identityVersion;
 				try {
 					const { error } = await authClient.signOut();
@@ -154,7 +157,10 @@ export const useAuthStore = create<AuthState>()(
 					}
 				} catch {
 					if (version === identityVersion)
-						set({ error: "Servidor indisponível. Tente novamente em instantes.", isLoading: false });
+						set({
+							error: "Servidor indisponível. Tente novamente em instantes.",
+							isLoading: false,
+						});
 					return;
 				}
 				set({

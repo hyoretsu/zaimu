@@ -238,7 +238,108 @@ namespace public {
     @@unique([taxDefinitionId, effectiveDate])
   }
 
+  model AccountTransfer {
+    id VarChar(36) @id
+    senderId VarChar(36)
+    recipientId VarChar(36)
+    status VarChar(16) @default("PENDING")
+    summary Json
+    createdAt Timestamp(3) @default(now())
+    updatedAt Timestamp(3) @default(now())
+    respondedAt Timestamp(3)?
+    sender User @relation("TransferSender", fields: [senderId], references: [id], onDelete: Cascade, index: false)
+    recipient User @relation("TransferRecipient", fields: [recipientId], references: [id], onDelete: Cascade, index: false)
+    items AccountTransferItem[]
+    deliveries NotificationDelivery[]
+    @@index([senderId, status, createdAt])
+    @@index([recipientId, status, createdAt])
+    @@map("AccountTransfer")
+  }
+
+  model AccountTransferItem {
+    id VarChar(36) @id
+    transferId VarChar(36)
+    accountId VarChar(36)
+    createdAt Timestamp(3) @default(now())
+    updatedAt Timestamp(3) @default(now())
+    transfer AccountTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade, index: false)
+    @@unique([transferId, accountId])
+    @@index([accountId])
+    @@map("AccountTransferItem")
+  }
+
+  model DetachedRewardCredit {
+    id VarChar(36) @id
+    financialAccountId VarChar(36)
+    amount Numeric(20, 8)
+    date Date
+    yieldReferenceRate Numeric(7, 4)?
+    yieldReferencePercentage Numeric(7, 4)?
+    yieldPeriod VarChar(8)?
+    createdAt Timestamp(3) @default(now())
+    updatedAt Timestamp(3) @default(now())
+    account FinancialAccount @relation(fields: [financialAccountId], references: [id], onDelete: Cascade, index: false)
+    @@index([financialAccountId, date])
+    @@map("DetachedRewardCredit")
+  }
+
+  model DetachedFinancialRecord {
+    id VarChar(36) @id
+    userId VarChar(36)
+    entityType VarChar(40)
+    entityId VarChar(36)
+    kind VarChar(32)
+    createdAt Timestamp(3) @default(now())
+    updatedAt Timestamp(3) @default(now())
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade, index: false)
+    @@unique([entityType, entityId])
+    @@index([userId])
+    @@map("DetachedFinancialRecord")
+  }
+
+  model PushDevice {
+    id VarChar(36) @id
+    userId VarChar(36)
+    platform VarChar(12)
+    address String @unique
+    credentials Json
+    enabled Boolean @default(true)
+    createdAt Timestamp(3) @default(now())
+    updatedAt Timestamp(3) @default(now())
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade, index: false)
+    @@index([userId, enabled])
+    @@map("PushDevice")
+  }
+
+  model NotificationDelivery {
+    id VarChar(36) @id
+    userId VarChar(36)
+    transferId VarChar(36)
+    event VarChar(16)
+    channel VarChar(12)
+    deviceId VarChar(36)?
+    destinationKey String
+    status VarChar(16) @default("PENDING")
+    attempts Int @default(0)
+    nextAttemptAt Timestamp(3) @default(now())
+    lockedUntil Timestamp(3)?
+    lastError VarChar(500)?
+    createdAt Timestamp(3) @default(now())
+    updatedAt Timestamp(3) @default(now())
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade, index: false)
+    transfer AccountTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade, index: false)
+    @@unique([transferId, event, destinationKey])
+    @@index([userId])
+    @@index([status, nextAttemptAt])
+    @@map("NotificationDelivery")
+  }
+
   model User {
+    sentAccountTransfers AccountTransfer[] @relation("TransferSender")
+    receivedAccountTransfers AccountTransfer[] @relation("TransferRecipient")
+    detachedFinancialRecords DetachedFinancialRecord[]
+    pushDevices PushDevice[]
+    notificationDeliveries NotificationDelivery[]
     institutionLinks UserFinancialInstitution[]
     institutionProposals FinancialInstitutionProposal[] @relation("ProposalAuthor")
     reviewedInstitutionProposals FinancialInstitutionProposal[] @relation("ProposalReviewer")
@@ -456,6 +557,8 @@ namespace public {
   }
 
   model FinancialAccount {
+    transferredProfileContext Json?
+    detachedRewardCredits DetachedRewardCredit[]
     historicalYieldSettings Json?
     legacyYieldCalendar Json?
     legacyInstitutionId VarChar(36)?

@@ -24,6 +24,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SubscriptionsRouteImport } from './routes/subscriptions'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as TransactionsRouteImport } from './routes/transactions'
+import { Route as AccountTransfersIndexRouteImport } from './routes/account-transfers/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AuthIndexRouteImport } from './routes/auth/index'
 import { Route as AuthForgotPasswordRouteImport } from './routes/auth/forgot-password'
@@ -113,6 +114,11 @@ const TransactionsRoute = TransactionsRouteImport.update({
   path: '/transactions',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AccountTransfersIndexRoute = AccountTransfersIndexRouteImport.update({
+  id: '/account-transfers/',
+  path: '/account-transfers/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/admin/',
   path: '/admin/',
@@ -200,6 +206,7 @@ export interface FileRoutesByFullPath {
   '/auth/register': typeof AuthRegisterRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/verify-email': typeof AuthVerifyEmailRoute
+  '/account-transfers/': typeof AccountTransfersIndexRoute
   '/admin/': typeof AdminIndexRoute
   '/auth/': typeof AuthIndexRoute
   '/budget/': typeof BudgetIndexRoute
@@ -228,6 +235,7 @@ export interface FileRoutesByTo {
   '/auth/register': typeof AuthRegisterRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/verify-email': typeof AuthVerifyEmailRoute
+  '/account-transfers': typeof AccountTransfersIndexRoute
   '/admin': typeof AdminIndexRoute
   '/auth': typeof AuthIndexRoute
   '/budget': typeof BudgetIndexRoute
@@ -259,6 +267,7 @@ export interface FileRoutesById {
   '/auth/register': typeof AuthRegisterRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/verify-email': typeof AuthVerifyEmailRoute
+  '/account-transfers/': typeof AccountTransfersIndexRoute
   '/admin/': typeof AdminIndexRoute
   '/auth/': typeof AuthIndexRoute
   '/budget/': typeof BudgetIndexRoute
@@ -291,6 +300,7 @@ export interface FileRouteTypes {
     | '/auth/register'
     | '/auth/reset-password'
     | '/auth/verify-email'
+    | '/account-transfers/'
     | '/admin/'
     | '/auth/'
     | '/budget/'
@@ -319,6 +329,7 @@ export interface FileRouteTypes {
     | '/auth/register'
     | '/auth/reset-password'
     | '/auth/verify-email'
+    | '/account-transfers'
     | '/admin'
     | '/auth'
     | '/budget'
@@ -349,6 +360,7 @@ export interface FileRouteTypes {
     | '/auth/register'
     | '/auth/reset-password'
     | '/auth/verify-email'
+    | '/account-transfers/'
     | '/admin/'
     | '/auth/'
     | '/budget/'
@@ -376,6 +388,7 @@ export interface RootRouteChildren {
   SubscriptionsRoute: typeof SubscriptionsRoute
   TermsRoute: typeof TermsRoute
   TransactionsRoute: typeof TransactionsRoute
+  AccountTransfersIndexRoute: typeof AccountTransfersIndexRoute
   AdminIndexRoute: typeof AdminIndexRoute
   BudgetIndexRoute: typeof BudgetIndexRoute
   AdminHistoryIndexRoute: typeof AdminHistoryIndexRoute
@@ -489,6 +502,13 @@ declare module '@tanstack/react-router' {
       path: '/transactions'
       fullPath: '/transactions'
       preLoaderRoute: typeof TransactionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/account-transfers/': {
+      id: '/account-transfers/'
+      path: '/account-transfers'
+      fullPath: '/account-transfers/'
+      preLoaderRoute: typeof AccountTransfersIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -633,6 +653,7 @@ const rootRouteChildren: RootRouteChildren = {
   SubscriptionsRoute: SubscriptionsRoute,
   TermsRoute: TermsRoute,
   TransactionsRoute: TransactionsRoute,
+  AccountTransfersIndexRoute: AccountTransfersIndexRoute,
   AdminIndexRoute: AdminIndexRoute,
   BudgetIndexRoute: BudgetIndexRoute,
   AdminHistoryIndexRoute: AdminHistoryIndexRoute,

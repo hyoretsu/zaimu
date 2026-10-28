@@ -53,6 +53,7 @@ export const cacheInvalidationMatrix: Record<string, NamespaceResolver> = {
 		"dashboard",
 		"transactions:list",
 	],
+	accountTransfer: () => syncCacheNamespaces,
 	category: () => [
 		"categories:detail",
 		"categories:list",

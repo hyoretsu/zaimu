@@ -11,6 +11,7 @@ import {
 	LuTrash2,
 	LuWallet,
 } from "react-icons/lu";
+import { AccountTransferDialog } from "@/components/account-transfers";
 import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { ImportTransactionsDialog, TransactionImportReviewDialog } from "@/components/transaction-imports";
 import { AppBadge } from "@/components/ui/AppBadge";
@@ -85,7 +86,8 @@ export function FinancialAccountCard({
 						)}
 					</div>
 				</div>
-				<div className="flex shrink-0 gap-2">
+				<div className="flex shrink-0 flex-wrap justify-end gap-2">
+					<AccountTransferDialog accountId={account.id} iconOnly />
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<Button

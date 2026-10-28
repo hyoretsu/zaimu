@@ -494,3 +494,17 @@ nova unidade da agenda, preservando todos os registros financeiros existentes.
 ## Visibilidade de cartões
 
 Esconder é o único controle de visibilidade e participação nos totais dos cartões. Cartões escondidos saem dos totais e das listagens principais e ficam em linhas compactas na própria tela de cartões, com ação Mostrar. A tela de contas lista somente contas escondidas que não sejam cartões. Mostrar restaura o cartão e sua participação nos totais. A antiga opção de não considerar nos totais foi removida; valores legados de `excludeFromTotals` não afetam os cálculos.
+
+## Transferência de contas entre usuários Zaimu
+
+Transferência move cadastro e histórico de contas escolhidas para outro usuário existente com e-mail verificado, mediante convite e aceite explícito. Inclui corrente, dinheiro, renda fixa, investimentos, pontos/cashback e cartões, isolados ou em conjunto. Selecionar instituição inclui todas as suas contas existentes, inclusive escondidas e cartões. A seleção fica fixada no envio; novos cadastros não entram automaticamente. Visitantes precisam autenticar antes de usar o fluxo.
+
+Convites não expiram. Remetente pode cancelar; destinatário pode recusar. Até o aceite, contas permanecem utilizáveis pelo remetente. Destinatário revisa estado atual, valores e consequências; alterações posteriores à prévia exigem nova revisão. Aceite é integral e atômico, sem transferências parciais por falha. Repetir aceite concluído não repete efeitos. Após conclusão, remetente perde acesso aos registros movidos. Devolução exige novo convite. Histórico do convite guarda somente resumo, sem acesso contínuo aos dados financeiros.
+
+Contas não são mescladas ao destino. Conflitos de nome recebem sufixo numérico informado na prévia. Regras efetivas das contas e histórico financeiro são preservados sem substituir preferências existentes do destinatário. Categorias utilizadas são copiadas com sua hierarquia; cadastros privados restantes ficam na origem. Preferências que dependiam das contas transferidas são removidas da origem.
+
+Vínculos entre contas transferidas juntas permanecem. Vínculos com contas que ficam na origem são separados, preservando efeitos financeiros, moedas, datas, pagamentos e créditos de cada lado. Transferências não viram receitas/despesas comuns. Pagamentos e movimentos separados mantêm sua classificação e ficam protegidos como histórico independente; excluir uma cópia não exclui a outra. Cashback separado preserva créditos, estornos existentes e remuneração, sem passar a acompanhar alterações futuras nas compras do outro usuário.
+
+Dívidas, recebíveis, empréstimos e conexões com terceiros permanecem com seus titulares originais. Regras de rateio não acompanham agendas transferidas. Recorrências acompanham contas quando todas as suas referências seguem juntas; agendas que cruzariam usuários ficam pausadas na origem e perdem referências ativas ao destino. Reservas de ocorrências são preservadas para não materializar lançamentos novamente. Credenciais e conexões Open Finance ficam na origem; vínculos das contas movidas são desativados. Destino configura integração própria.
+
+Convite gera banner no aplicativo e tentativas independentes de e-mail e push para dispositivos habilitados. Remetente recebe resultado de aceite ou recusa. Ausência de configuração ou permissão push não bloqueia o convite. Notificações externas não contêm saldos nem nomes de contas; links exigem autenticação e revisão, sem executar aceite. Convites cancelados ou respondidos não geram novos avisos de pendência.

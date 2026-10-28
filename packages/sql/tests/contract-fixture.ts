@@ -2,6 +2,7 @@ import type { Client } from "pg";
 import { assertFixtureUrl } from "../../../scripts/testing/fixture";
 
 interface Column {
+	many?: boolean;
 	nativeType: string;
 	nullable: boolean;
 	typeParams?: { length?: number; precision?: number; scale?: number };
@@ -60,7 +61,13 @@ export async function installContractFixture(client: Client, input: unknown) {
 				type += `(${params.precision}${params.scale === undefined ? "" : `,${params.scale}`})`;
 			else if (["timestamp", "timestamptz", "time"].includes(type) && params?.precision !== undefined)
 				type += `(${params.precision})`;
-			return `${quote(name)} ${type}${column.nullable ? "" : " NOT NULL"}${column.default ? ` DEFAULT ${column.default.kind === "literal" ? literal(column.default.value) : column.default.expression}` : ""}`;
+			const defaultValue =
+				column.default?.kind === "literal" && column.many && Array.isArray(column.default.value)
+					? `ARRAY[${column.default.value.map(literal).join(",")}]::${type}[]`
+					: column.default?.kind === "literal"
+						? literal(column.default.value)
+						: column.default?.expression;
+			return `${quote(name)} ${type}${column.many ? "[]" : ""}${column.nullable ? "" : " NOT NULL"}${column.default ? ` DEFAULT ${defaultValue}` : ""}`;
 		});
 		if (table.primaryKey)
 			columns.push(

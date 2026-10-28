@@ -109,7 +109,9 @@ export function TransactionListItem({
 			: undefined;
 
 	const defaultActionItems: ItemAction[] = [
-		...(onEdit ? [{ disabled: deleting, icon: <LuPencil />, onClick: onEdit, text: "Editar" }] : []),
+		...(onEdit && !transaction.detachedKind
+			? [{ disabled: deleting, icon: <LuPencil />, onClick: onEdit, text: "Editar" }]
+			: []),
 		...(onDelete
 			? [
 					{
@@ -131,7 +133,7 @@ export function TransactionListItem({
 			actions={
 				allActionItems.length ? (
 					<div className="flex flex-wrap items-center justify-end gap-2">
-						{(onEdit || onDelete) && !transaction.isRefund && (
+						{(onEdit || onDelete) && !transaction.isRefund && !transaction.detachedKind && (
 							<AssociateRecurrenceButton
 								date={transaction.date}
 								disabled={deleting}
@@ -185,7 +187,18 @@ export function TransactionListItem({
 			}
 			metadata={
 				<div className="min-w-0 space-y-3">
-					{metadataPrefix ? <div>{metadataPrefix}</div> : null}
+					{metadataPrefix || transaction.detachedKind ? (
+						<div>
+							{metadataPrefix}
+							{transaction.detachedKind && (
+								<span className="text-muted-foreground text-xs">
+									{transaction.detachedKind === "CARD_PAYMENT"
+										? "Pagamento de fatura - histórico separado"
+										: "Histórico separado"}
+								</span>
+							)}
+						</div>
+					) : null}
 					<OriginalMoneyDetails
 						bookingCurrency={currencyCode}
 						currency={transaction.currency}

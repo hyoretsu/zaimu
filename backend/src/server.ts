@@ -1,3 +1,4 @@
+import { AccountTransfersController } from "./modules/account-transfers/infra/AccountTransfersController";
 import {
 	AccountsController,
 	BalanceAdjustmentsController,
@@ -17,6 +18,7 @@ import { DebtsController } from "./modules/debts/infra";
 import { FinancialHistoryController } from "./modules/financial-history/infra/FinancialHistoryController";
 import { LoansController } from "./modules/loans/infra";
 import { MonthlyBudgetsController } from "./modules/monthly-budgets/infra/MonthlyBudgetsController";
+import { NotificationsController } from "./modules/notifications/NotificationsController";
 import { OpenFinanceController } from "./modules/open-finance/infra/OpenFinanceController";
 import { RecurringController } from "./modules/recurring/infra";
 import { ReferenceRateController } from "./modules/reference-rates/infra/ReferenceRateController";
@@ -30,6 +32,8 @@ import { YieldCalendarController } from "./modules/yield-calendar/YieldCalendarC
 import { app } from "./shared/infra/elysia";
 
 export const server = app.use([
+	AccountTransfersController,
+	NotificationsController,
 	MonthlyBudgetsController,
 	TaxesController,
 	YieldCalendarController,

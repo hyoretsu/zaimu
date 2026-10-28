@@ -1,6 +1,7 @@
 {
 	"backend:e2e": ["backend/tests/database.e2e.test.ts"],
 	"backend:integration": [
+		"backend/src/modules/account-transfers/tests/account-transfers.integration.test.ts",
 		"backend/src/modules/credit-card-imports/tests/import-purchase-taxes.integration.test.ts",
 		"backend/src/modules/recurring/tests/time-zone-materialization.test.ts",
 		"backend/src/modules/credit-card-imports/tests/credit-card-refunds.test.ts",
@@ -171,7 +172,9 @@
 		"backend/src/shared/infra/elysia/transport-contracts.test.ts",
 		"backend/src/shared/infra/outbox/OutboxPublisher.test.ts",
 		"backend/src/shared/infra/performance/job-metrics.test.ts",
-		"backend/src/shared/infra/service-namespace.test.ts"
+		"backend/src/shared/infra/service-namespace.test.ts",
+		"backend/src/modules/account-transfers/domain/transfer-policy.test.ts",
+		"backend/src/modules/account-transfers/domain/sanitize-transfer-review.test.ts"
 	],
 	"sql:e2e": ["packages/sql/tests/migrations.e2e.test.ts"],
 	"sql:integration": [

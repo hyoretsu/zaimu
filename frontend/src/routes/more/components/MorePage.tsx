@@ -20,6 +20,13 @@ const mobileNavigationPaths = new Set<string>(mobileNavigation.map(item => item.
 const menuItems = [
 	{
 		color: "bg-primary/10 text-primary",
+		description: "Envie contas e revise convites",
+		icon: HiUsers,
+		label: "Transferências de contas",
+		to: "/account-transfers",
+	},
+	{
+		color: "bg-primary/10 text-primary",
 		description: "Planeje despesas por tag e faturas de todos os cartões",
 		icon: HiCalendarDays,
 		label: "Orçamento mensal",
@@ -66,7 +73,7 @@ function renderMenuItems(items: readonly (typeof menuItems)[number][]) {
 	return items.map((item, idx) => (
 		<Link className="block" key={item.to} to={item.to}>
 			<div
-				className={`flex items-center gap-4 p-4 transition-colors hover:bg-background-card/50 active:bg-background-card ${
+				className={`hover:bg-background-card/50 active:bg-background-card flex items-center gap-4 p-4 transition-colors ${
 					idx < items.length - 1 ? "border-border-light border-b" : ""
 				}`}
 				style={{ animationDelay: `${idx * 0.05}s` }}
@@ -75,10 +82,10 @@ function renderMenuItems(items: readonly (typeof menuItems)[number][]) {
 					<item.icon className="h-6 w-6" />
 				</div>
 				<div className="min-w-0 flex-1">
-					<p className="font-semibold text-foreground">{item.label}</p>
-					<p className="truncate text-foreground-muted text-sm">{item.description}</p>
+					<p className="text-foreground font-semibold">{item.label}</p>
+					<p className="text-foreground-muted truncate text-sm">{item.description}</p>
 				</div>
-				<HiChevronRight className="h-5 w-5 text-foreground-muted" />
+				<HiChevronRight className="text-foreground-muted h-5 w-5" />
 			</div>
 		</Link>
 	));
@@ -103,8 +110,12 @@ export function MorePage() {
 		item => item.to !== "/admin" || access.data?.role === "ADMIN",
 	);
 	return (
-		<div className="mx-auto min-h-screen w-full max-w-5xl bg-background lg:py-10">
-			<PageHeader className="px-4 pt-6 pb-8 lg:px-8" description="Explore todos os recursos" title="Mais" />
+		<div className="bg-background mx-auto min-h-screen w-full max-w-5xl lg:py-10">
+			<PageHeader
+				className="px-4 pt-6 pb-8 lg:px-8"
+				description="Explore todos os recursos"
+				title="Mais"
+			/>
 
 			{/* Menu List */}
 			<div className="px-4 pb-8">

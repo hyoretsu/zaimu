@@ -19,6 +19,7 @@ import { dataService } from "@/lib/dataService";
 import { type FinancialAccountYieldEntry, getFinancialAccountDisplayName } from "@/lib/financial-account";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { BalanceAdjustmentsDialog } from "./BalanceAdjustmentsDialog";
+import { DetachedRewardHistory } from "./DetachedRewardHistory";
 import { EditFinancialAccountYieldDialog } from "./EditFinancialAccountYieldDialog";
 
 export function FinancialAccountStatementDialog({
@@ -168,6 +169,13 @@ export function FinancialAccountStatementDialog({
 				</DialogHeader>
 				<DialogBody>
 					<div className="space-y-5 pb-20">
+						{account.type === "REWARDS" && (
+							<DetachedRewardHistory
+								accountId={account.id}
+								currency={account.currency ?? "BRL"}
+								points={account.rewardsAccount?.kind === "POINTS"}
+							/>
+						)}
 						<TransactionsList
 							canDeleteTransaction={transaction => !transaction.paymentCreditCardId}
 							currencyCode={account.currency ?? "BRL"}

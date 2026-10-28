@@ -3,6 +3,7 @@ export const mobileTabIds = ["overview", "transactions", "accounts", "creditCard
 export type MobileTabId = (typeof mobileTabIds)[number];
 
 export const mobileScreenPaths = [
+	"/account-transfers",
 	"/admin",
 	"/admin/history",
 	"/admin/institutions",
@@ -34,6 +35,7 @@ export const mobileTabRoots = {
 
 const tabByScreen = {
 	"/": "overview",
+	"/account-transfers": "more",
 	"/accounts": "accounts",
 	"/admin": "more",
 	"/admin/history": "more",

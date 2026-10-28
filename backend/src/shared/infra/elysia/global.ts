@@ -16,7 +16,11 @@ export const GlobalPlugin = new Elysia({ name: "GlobalPlugin" })
 	.onError(({ code, error, request, set }) => {
 		if (new URL(request.url).pathname.startsWith("/open-finance")) {
 			set.status =
-				code === "HttpException" ? (error as HttpException).statusCode : code === "VALIDATION" ? 422 : 500;
+				code === "HttpException"
+					? (error as HttpException).statusCode
+					: code === "VALIDATION"
+						? 422
+						: 500;
 			return {
 				error:
 					code === "HttpException"
@@ -24,6 +28,12 @@ export const GlobalPlugin = new Elysia({ name: "GlobalPlugin" })
 						: code === "VALIDATION"
 							? "Dados Open Finance inválidos"
 							: "Não foi possível concluir a operação Open Finance",
+			};
+		}
+		if (error && typeof error === "object" && "code" in error && error.code === "42501") {
+			set.status = 409;
+			return {
+				error: "Titularidade alterada ou histórico separado protegido. Atualize os dados antes de continuar.",
 			};
 		}
 		if (code === "HttpException") {

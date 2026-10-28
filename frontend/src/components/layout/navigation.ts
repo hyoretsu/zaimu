@@ -19,6 +19,7 @@ export const primaryNavigation = [
 ] as const;
 
 export const utilityNavigation = [
+	{ icon: LuArrowLeftRight, label: "Transferir contas", to: "/account-transfers" },
 	{ icon: LuWalletCards, label: "Orçamento", to: "/budget" },
 	{ icon: LuSettings2, label: "Ajustes", to: "/settings" },
 ] as const;

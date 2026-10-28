@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "@tanstack/react-router";
 import { Activity, type ComponentType, lazy, Suspense, useEffect, useState } from "react";
+import { AccountTransferBanner } from "@/components/account-transfers";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { useCacheIdentity } from "@/lib/query-cache";
 import {
@@ -71,8 +72,15 @@ const TransactionsPage = lazy(() =>
 	})),
 );
 
+const AccountTransfersPage = lazy(() =>
+	import("@/routes/account-transfers/components").then(module => ({
+		default: module.AccountTransfersPage,
+	})),
+);
+
 const screenByPath = {
 	"/": DashboardPage,
+	"/account-transfers": AccountTransfersPage,
 	"/accounts": AccountsPage,
 	"/admin": AdminPage,
 	"/admin/history": HistoryPage,
@@ -151,6 +159,7 @@ export function MobileAppShell() {
 							key={`${screenPath}:${refreshVersions[tabId]}`}
 						>
 							<main className="min-h-dvh w-full max-w-full min-w-0 pb-[calc(var(--mobile-navigation-height)+5.5rem)]">
+								{tabId === currentRoute.tabId && <AccountTransferBanner />}
 								<Suspense fallback={<MobileScreenSkeleton />}>
 									<Screen />
 								</Suspense>

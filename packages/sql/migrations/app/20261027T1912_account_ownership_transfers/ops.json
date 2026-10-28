@@ -1,0 +1,1014 @@
+[
+	{
+		"execute": [
+			{
+				"description": "create table \"AccountTransfer\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"AccountTransfer\" (\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"id\" character varying(36) NOT NULL,\n  \"recipientId\" character varying(36) NOT NULL,\n  \"respondedAt\" timestamp(3),\n  \"senderId\" character varying(36) NOT NULL,\n  \"status\" character varying(16) DEFAULT 'PENDING' NOT NULL,\n  \"summary\" json NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.AccountTransfer",
+		"label": "Create table \"AccountTransfer\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"AccountTransfer\" exists",
+				"params": ["\"public\".\"AccountTransfer\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"AccountTransfer\" does not exist",
+				"params": ["\"public\".\"AccountTransfer\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"AccountTransfer\"",
+		"target": {
+			"details": {
+				"name": "AccountTransfer",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"AccountTransferItem\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"AccountTransferItem\" (\n  \"accountId\" character varying(36) NOT NULL,\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"id\" character varying(36) NOT NULL,\n  \"transferId\" character varying(36) NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.AccountTransferItem",
+		"label": "Create table \"AccountTransferItem\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"AccountTransferItem\" exists",
+				"params": ["\"public\".\"AccountTransferItem\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"AccountTransferItem\" does not exist",
+				"params": ["\"public\".\"AccountTransferItem\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"AccountTransferItem\"",
+		"target": {
+			"details": {
+				"name": "AccountTransferItem",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"DetachedFinancialRecord\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"DetachedFinancialRecord\" (\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"entityId\" character varying(36) NOT NULL,\n  \"entityType\" character varying(40) NOT NULL,\n  \"id\" character varying(36) NOT NULL,\n  \"kind\" character varying(32) NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"userId\" character varying(36) NOT NULL,\n  PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.DetachedFinancialRecord",
+		"label": "Create table \"DetachedFinancialRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"DetachedFinancialRecord\" exists",
+				"params": ["\"public\".\"DetachedFinancialRecord\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"DetachedFinancialRecord\" does not exist",
+				"params": ["\"public\".\"DetachedFinancialRecord\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"DetachedFinancialRecord\"",
+		"target": {
+			"details": {
+				"name": "DetachedFinancialRecord",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"DetachedRewardCredit\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"DetachedRewardCredit\" (\n  \"amount\" numeric(20,8) NOT NULL,\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"date\" date NOT NULL,\n  \"financialAccountId\" character varying(36) NOT NULL,\n  \"id\" character varying(36) NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"yieldPeriod\" character varying(8),\n  \"yieldReferencePercentage\" numeric(7,4),\n  \"yieldReferenceRate\" numeric(7,4),\n  PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.DetachedRewardCredit",
+		"label": "Create table \"DetachedRewardCredit\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"DetachedRewardCredit\" exists",
+				"params": ["\"public\".\"DetachedRewardCredit\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"DetachedRewardCredit\" does not exist",
+				"params": ["\"public\".\"DetachedRewardCredit\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"DetachedRewardCredit\"",
+		"target": {
+			"details": {
+				"name": "DetachedRewardCredit",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"NotificationDelivery\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"NotificationDelivery\" (\n  \"attempts\" int4 DEFAULT 0 NOT NULL,\n  \"channel\" character varying(12) NOT NULL,\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"destinationKey\" text NOT NULL,\n  \"deviceId\" character varying(36),\n  \"event\" character varying(16) NOT NULL,\n  \"id\" character varying(36) NOT NULL,\n  \"lastError\" character varying(500),\n  \"lockedUntil\" timestamp(3),\n  \"nextAttemptAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"status\" character varying(16) DEFAULT 'PENDING' NOT NULL,\n  \"transferId\" character varying(36) NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"userId\" character varying(36) NOT NULL,\n  PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.NotificationDelivery",
+		"label": "Create table \"NotificationDelivery\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"NotificationDelivery\" exists",
+				"params": ["\"public\".\"NotificationDelivery\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"NotificationDelivery\" does not exist",
+				"params": ["\"public\".\"NotificationDelivery\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"NotificationDelivery\"",
+		"target": {
+			"details": {
+				"name": "NotificationDelivery",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"PushDevice\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"PushDevice\" (\n  \"address\" text NOT NULL,\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"credentials\" json NOT NULL,\n  \"enabled\" bool DEFAULT true NOT NULL,\n  \"id\" character varying(36) NOT NULL,\n  \"platform\" character varying(12) NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"userId\" character varying(36) NOT NULL,\n  PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.PushDevice",
+		"label": "Create table \"PushDevice\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"PushDevice\" exists",
+				"params": ["\"public\".\"PushDevice\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"PushDevice\" does not exist",
+				"params": ["\"public\".\"PushDevice\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"PushDevice\"",
+		"target": {
+			"details": {
+				"name": "PushDevice",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"transferredProfileContext\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialAccount\" ADD COLUMN \"transferredProfileContext\" json"
+			}
+		],
+		"id": "column.public.FinancialAccount.transferredProfileContext",
+		"label": "Add column \"transferredProfileContext\" to \"FinancialAccount\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"transferredProfileContext\" exists",
+				"params": ["public", "FinancialAccount", "transferredProfileContext"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"transferredProfileContext\" is missing",
+				"params": ["public", "FinancialAccount", "transferredProfileContext"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "transferredProfileContext",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialAccount"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add unique constraint \"AccountTransferItem_transferId_accountId_key\"",
+				"sql": "ALTER TABLE \"public\".\"AccountTransferItem\" ADD CONSTRAINT \"AccountTransferItem_transferId_accountId_key\" UNIQUE (\"transferId\", \"accountId\")"
+			}
+		],
+		"id": "unique.AccountTransferItem.AccountTransferItem_transferId_accountId_key",
+		"label": "Add unique constraint on \"AccountTransferItem\" (transferId, accountId)",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify constraint \"AccountTransferItem_transferId_accountId_key\" exists",
+				"params": [
+					"AccountTransferItem_transferId_accountId_key",
+					"public",
+					"\"public\".\"AccountTransferItem\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure constraint \"AccountTransferItem_transferId_accountId_key\" does not exist",
+				"params": [
+					"AccountTransferItem_transferId_accountId_key",
+					"public",
+					"\"public\".\"AccountTransferItem\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "AccountTransferItem_transferId_accountId_key",
+				"objectType": "unique",
+				"schema": "public",
+				"table": "AccountTransferItem"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add unique constraint \"DetachedFinancialRecord_entityType_entityId_key\"",
+				"sql": "ALTER TABLE \"public\".\"DetachedFinancialRecord\" ADD CONSTRAINT \"DetachedFinancialRecord_entityType_entityId_key\" UNIQUE (\"entityType\", \"entityId\")"
+			}
+		],
+		"id": "unique.DetachedFinancialRecord.DetachedFinancialRecord_entityType_entityId_key",
+		"label": "Add unique constraint on \"DetachedFinancialRecord\" (entityType, entityId)",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify constraint \"DetachedFinancialRecord_entityType_entityId_key\" exists",
+				"params": [
+					"DetachedFinancialRecord_entityType_entityId_key",
+					"public",
+					"\"public\".\"DetachedFinancialRecord\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure constraint \"DetachedFinancialRecord_entityType_entityId_key\" does not exist",
+				"params": [
+					"DetachedFinancialRecord_entityType_entityId_key",
+					"public",
+					"\"public\".\"DetachedFinancialRecord\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "DetachedFinancialRecord_entityType_entityId_key",
+				"objectType": "unique",
+				"schema": "public",
+				"table": "DetachedFinancialRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add unique constraint \"NotificationDelivery_transferId_event_destinationKey_key\"",
+				"sql": "ALTER TABLE \"public\".\"NotificationDelivery\" ADD CONSTRAINT \"NotificationDelivery_transferId_event_destinationKey_key\" UNIQUE (\"transferId\", \"event\", \"destinationKey\")"
+			}
+		],
+		"id": "unique.NotificationDelivery.NotificationDelivery_transferId_event_destinationKey_key",
+		"label": "Add unique constraint on \"NotificationDelivery\" (transferId, event, destinationKey)",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify constraint \"NotificationDelivery_transferId_event_destinationKey_key\" exists",
+				"params": [
+					"NotificationDelivery_transferId_event_destinationKey_key",
+					"public",
+					"\"public\".\"NotificationDelivery\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure constraint \"NotificationDelivery_transferId_event_destinationKey_key\" does not exist",
+				"params": [
+					"NotificationDelivery_transferId_event_destinationKey_key",
+					"public",
+					"\"public\".\"NotificationDelivery\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "NotificationDelivery_transferId_event_destinationKey_key",
+				"objectType": "unique",
+				"schema": "public",
+				"table": "NotificationDelivery"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add unique constraint \"PushDevice_address_key\"",
+				"sql": "ALTER TABLE \"public\".\"PushDevice\" ADD CONSTRAINT \"PushDevice_address_key\" UNIQUE (\"address\")"
+			}
+		],
+		"id": "unique.PushDevice.PushDevice_address_key",
+		"label": "Add unique constraint on \"PushDevice\" (address)",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify constraint \"PushDevice_address_key\" exists",
+				"params": ["PushDevice_address_key", "public", "\"public\".\"PushDevice\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure constraint \"PushDevice_address_key\" does not exist",
+				"params": ["PushDevice_address_key", "public", "\"public\".\"PushDevice\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "PushDevice_address_key",
+				"objectType": "unique",
+				"schema": "public",
+				"table": "PushDevice"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"AccountTransfer_recipientId_status_createdAt_idx_163556a6\"",
+				"params": [],
+				"sql": "CREATE INDEX \"AccountTransfer_recipientId_status_createdAt_idx_163556a6\" ON \"public\".\"AccountTransfer\" (\"recipientId\", \"status\", \"createdAt\")"
+			}
+		],
+		"id": "index.AccountTransfer.AccountTransfer_recipientId_status_createdAt_idx_163556a6",
+		"label": "Create index \"AccountTransfer_recipientId_status_createdAt_idx_163556a6\" on \"AccountTransfer\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"AccountTransfer_recipientId_status_createdAt_idx_163556a6\" exists",
+				"params": ["\"public\".\"AccountTransfer_recipientId_status_createdAt_idx_163556a6\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"AccountTransfer_recipientId_status_createdAt_idx_163556a6\" does not exist",
+				"params": ["\"public\".\"AccountTransfer_recipientId_status_createdAt_idx_163556a6\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "AccountTransfer_recipientId_status_createdAt_idx_163556a6",
+				"objectType": "index",
+				"schema": "public",
+				"table": "AccountTransfer"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"AccountTransfer_senderId_status_createdAt_idx_1751b28b\"",
+				"params": [],
+				"sql": "CREATE INDEX \"AccountTransfer_senderId_status_createdAt_idx_1751b28b\" ON \"public\".\"AccountTransfer\" (\"senderId\", \"status\", \"createdAt\")"
+			}
+		],
+		"id": "index.AccountTransfer.AccountTransfer_senderId_status_createdAt_idx_1751b28b",
+		"label": "Create index \"AccountTransfer_senderId_status_createdAt_idx_1751b28b\" on \"AccountTransfer\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"AccountTransfer_senderId_status_createdAt_idx_1751b28b\" exists",
+				"params": ["\"public\".\"AccountTransfer_senderId_status_createdAt_idx_1751b28b\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"AccountTransfer_senderId_status_createdAt_idx_1751b28b\" does not exist",
+				"params": ["\"public\".\"AccountTransfer_senderId_status_createdAt_idx_1751b28b\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "AccountTransfer_senderId_status_createdAt_idx_1751b28b",
+				"objectType": "index",
+				"schema": "public",
+				"table": "AccountTransfer"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"AccountTransferItem_accountId_idx_cbfb3085\"",
+				"params": [],
+				"sql": "CREATE INDEX \"AccountTransferItem_accountId_idx_cbfb3085\" ON \"public\".\"AccountTransferItem\" (\"accountId\")"
+			}
+		],
+		"id": "index.AccountTransferItem.AccountTransferItem_accountId_idx_cbfb3085",
+		"label": "Create index \"AccountTransferItem_accountId_idx_cbfb3085\" on \"AccountTransferItem\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"AccountTransferItem_accountId_idx_cbfb3085\" exists",
+				"params": ["\"public\".\"AccountTransferItem_accountId_idx_cbfb3085\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"AccountTransferItem_accountId_idx_cbfb3085\" does not exist",
+				"params": ["\"public\".\"AccountTransferItem_accountId_idx_cbfb3085\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "AccountTransferItem_accountId_idx_cbfb3085",
+				"objectType": "index",
+				"schema": "public",
+				"table": "AccountTransferItem"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"DetachedFinancialRecord_userId_idx_a489d58a\"",
+				"params": [],
+				"sql": "CREATE INDEX \"DetachedFinancialRecord_userId_idx_a489d58a\" ON \"public\".\"DetachedFinancialRecord\" (\"userId\")"
+			}
+		],
+		"id": "index.DetachedFinancialRecord.DetachedFinancialRecord_userId_idx_a489d58a",
+		"label": "Create index \"DetachedFinancialRecord_userId_idx_a489d58a\" on \"DetachedFinancialRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"DetachedFinancialRecord_userId_idx_a489d58a\" exists",
+				"params": ["\"public\".\"DetachedFinancialRecord_userId_idx_a489d58a\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"DetachedFinancialRecord_userId_idx_a489d58a\" does not exist",
+				"params": ["\"public\".\"DetachedFinancialRecord_userId_idx_a489d58a\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "DetachedFinancialRecord_userId_idx_a489d58a",
+				"objectType": "index",
+				"schema": "public",
+				"table": "DetachedFinancialRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"DetachedRewardCredit_financialAccountId_date_idx_de4be8dd\"",
+				"params": [],
+				"sql": "CREATE INDEX \"DetachedRewardCredit_financialAccountId_date_idx_de4be8dd\" ON \"public\".\"DetachedRewardCredit\" (\"financialAccountId\", \"date\")"
+			}
+		],
+		"id": "index.DetachedRewardCredit.DetachedRewardCredit_financialAccountId_date_idx_de4be8dd",
+		"label": "Create index \"DetachedRewardCredit_financialAccountId_date_idx_de4be8dd\" on \"DetachedRewardCredit\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"DetachedRewardCredit_financialAccountId_date_idx_de4be8dd\" exists",
+				"params": ["\"public\".\"DetachedRewardCredit_financialAccountId_date_idx_de4be8dd\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"DetachedRewardCredit_financialAccountId_date_idx_de4be8dd\" does not exist",
+				"params": ["\"public\".\"DetachedRewardCredit_financialAccountId_date_idx_de4be8dd\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "DetachedRewardCredit_financialAccountId_date_idx_de4be8dd",
+				"objectType": "index",
+				"schema": "public",
+				"table": "DetachedRewardCredit"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"NotificationDelivery_status_nextAttemptAt_idx_8ba20615\"",
+				"params": [],
+				"sql": "CREATE INDEX \"NotificationDelivery_status_nextAttemptAt_idx_8ba20615\" ON \"public\".\"NotificationDelivery\" (\"status\", \"nextAttemptAt\")"
+			}
+		],
+		"id": "index.NotificationDelivery.NotificationDelivery_status_nextAttemptAt_idx_8ba20615",
+		"label": "Create index \"NotificationDelivery_status_nextAttemptAt_idx_8ba20615\" on \"NotificationDelivery\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"NotificationDelivery_status_nextAttemptAt_idx_8ba20615\" exists",
+				"params": ["\"public\".\"NotificationDelivery_status_nextAttemptAt_idx_8ba20615\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"NotificationDelivery_status_nextAttemptAt_idx_8ba20615\" does not exist",
+				"params": ["\"public\".\"NotificationDelivery_status_nextAttemptAt_idx_8ba20615\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "NotificationDelivery_status_nextAttemptAt_idx_8ba20615",
+				"objectType": "index",
+				"schema": "public",
+				"table": "NotificationDelivery"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"NotificationDelivery_userId_idx_a489d58a\"",
+				"params": [],
+				"sql": "CREATE INDEX \"NotificationDelivery_userId_idx_a489d58a\" ON \"public\".\"NotificationDelivery\" (\"userId\")"
+			}
+		],
+		"id": "index.NotificationDelivery.NotificationDelivery_userId_idx_a489d58a",
+		"label": "Create index \"NotificationDelivery_userId_idx_a489d58a\" on \"NotificationDelivery\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"NotificationDelivery_userId_idx_a489d58a\" exists",
+				"params": ["\"public\".\"NotificationDelivery_userId_idx_a489d58a\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"NotificationDelivery_userId_idx_a489d58a\" does not exist",
+				"params": ["\"public\".\"NotificationDelivery_userId_idx_a489d58a\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "NotificationDelivery_userId_idx_a489d58a",
+				"objectType": "index",
+				"schema": "public",
+				"table": "NotificationDelivery"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"PushDevice_userId_enabled_idx_9da2f9d3\"",
+				"params": [],
+				"sql": "CREATE INDEX \"PushDevice_userId_enabled_idx_9da2f9d3\" ON \"public\".\"PushDevice\" (\"userId\", \"enabled\")"
+			}
+		],
+		"id": "index.PushDevice.PushDevice_userId_enabled_idx_9da2f9d3",
+		"label": "Create index \"PushDevice_userId_enabled_idx_9da2f9d3\" on \"PushDevice\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"PushDevice_userId_enabled_idx_9da2f9d3\" exists",
+				"params": ["\"public\".\"PushDevice_userId_enabled_idx_9da2f9d3\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"PushDevice_userId_enabled_idx_9da2f9d3\" does not exist",
+				"params": ["\"public\".\"PushDevice_userId_enabled_idx_9da2f9d3\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "PushDevice_userId_enabled_idx_9da2f9d3",
+				"objectType": "index",
+				"schema": "public",
+				"table": "PushDevice"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"AccountTransfer_senderId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"AccountTransfer\"\nADD CONSTRAINT \"AccountTransfer_senderId_fkey\"\nFOREIGN KEY (\"senderId\")\nREFERENCES \"public\".\"user\" (\"id\")\nON DELETE CASCADE"
+			}
+		],
+		"id": "foreignKey.AccountTransfer.AccountTransfer_senderId_fkey",
+		"label": "Add foreign key \"AccountTransfer_senderId_fkey\" on \"AccountTransfer\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"AccountTransfer_senderId_fkey\" exists",
+				"params": ["AccountTransfer_senderId_fkey", "public", "\"public\".\"AccountTransfer\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"AccountTransfer_senderId_fkey\" does not exist",
+				"params": ["AccountTransfer_senderId_fkey", "public", "\"public\".\"AccountTransfer\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "AccountTransfer_senderId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "AccountTransfer"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"AccountTransfer_recipientId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"AccountTransfer\"\nADD CONSTRAINT \"AccountTransfer_recipientId_fkey\"\nFOREIGN KEY (\"recipientId\")\nREFERENCES \"public\".\"user\" (\"id\")\nON DELETE CASCADE"
+			}
+		],
+		"id": "foreignKey.AccountTransfer.AccountTransfer_recipientId_fkey",
+		"label": "Add foreign key \"AccountTransfer_recipientId_fkey\" on \"AccountTransfer\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"AccountTransfer_recipientId_fkey\" exists",
+				"params": ["AccountTransfer_recipientId_fkey", "public", "\"public\".\"AccountTransfer\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"AccountTransfer_recipientId_fkey\" does not exist",
+				"params": ["AccountTransfer_recipientId_fkey", "public", "\"public\".\"AccountTransfer\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "AccountTransfer_recipientId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "AccountTransfer"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"AccountTransferItem_transferId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"AccountTransferItem\"\nADD CONSTRAINT \"AccountTransferItem_transferId_fkey\"\nFOREIGN KEY (\"transferId\")\nREFERENCES \"public\".\"AccountTransfer\" (\"id\")\nON DELETE CASCADE"
+			}
+		],
+		"id": "foreignKey.AccountTransferItem.AccountTransferItem_transferId_fkey",
+		"label": "Add foreign key \"AccountTransferItem_transferId_fkey\" on \"AccountTransferItem\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"AccountTransferItem_transferId_fkey\" exists",
+				"params": [
+					"AccountTransferItem_transferId_fkey",
+					"public",
+					"\"public\".\"AccountTransferItem\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"AccountTransferItem_transferId_fkey\" does not exist",
+				"params": [
+					"AccountTransferItem_transferId_fkey",
+					"public",
+					"\"public\".\"AccountTransferItem\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "AccountTransferItem_transferId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "AccountTransferItem"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"DetachedFinancialRecord_userId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"DetachedFinancialRecord\"\nADD CONSTRAINT \"DetachedFinancialRecord_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"user\" (\"id\")\nON DELETE CASCADE"
+			}
+		],
+		"id": "foreignKey.DetachedFinancialRecord.DetachedFinancialRecord_userId_fkey",
+		"label": "Add foreign key \"DetachedFinancialRecord_userId_fkey\" on \"DetachedFinancialRecord\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"DetachedFinancialRecord_userId_fkey\" exists",
+				"params": [
+					"DetachedFinancialRecord_userId_fkey",
+					"public",
+					"\"public\".\"DetachedFinancialRecord\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"DetachedFinancialRecord_userId_fkey\" does not exist",
+				"params": [
+					"DetachedFinancialRecord_userId_fkey",
+					"public",
+					"\"public\".\"DetachedFinancialRecord\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "DetachedFinancialRecord_userId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "DetachedFinancialRecord"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"DetachedRewardCredit_financialAccountId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"DetachedRewardCredit\"\nADD CONSTRAINT \"DetachedRewardCredit_financialAccountId_fkey\"\nFOREIGN KEY (\"financialAccountId\")\nREFERENCES \"public\".\"FinancialAccount\" (\"id\")\nON DELETE CASCADE"
+			}
+		],
+		"id": "foreignKey.DetachedRewardCredit.DetachedRewardCredit_financialAccountId_fkey",
+		"label": "Add foreign key \"DetachedRewardCredit_financialAccountId_fkey\" on \"DetachedRewardCredit\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"DetachedRewardCredit_financialAccountId_fkey\" exists",
+				"params": [
+					"DetachedRewardCredit_financialAccountId_fkey",
+					"public",
+					"\"public\".\"DetachedRewardCredit\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"DetachedRewardCredit_financialAccountId_fkey\" does not exist",
+				"params": [
+					"DetachedRewardCredit_financialAccountId_fkey",
+					"public",
+					"\"public\".\"DetachedRewardCredit\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "DetachedRewardCredit_financialAccountId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "DetachedRewardCredit"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"NotificationDelivery_userId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"NotificationDelivery\"\nADD CONSTRAINT \"NotificationDelivery_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"user\" (\"id\")\nON DELETE CASCADE"
+			}
+		],
+		"id": "foreignKey.NotificationDelivery.NotificationDelivery_userId_fkey",
+		"label": "Add foreign key \"NotificationDelivery_userId_fkey\" on \"NotificationDelivery\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"NotificationDelivery_userId_fkey\" exists",
+				"params": [
+					"NotificationDelivery_userId_fkey",
+					"public",
+					"\"public\".\"NotificationDelivery\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"NotificationDelivery_userId_fkey\" does not exist",
+				"params": [
+					"NotificationDelivery_userId_fkey",
+					"public",
+					"\"public\".\"NotificationDelivery\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "NotificationDelivery_userId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "NotificationDelivery"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"NotificationDelivery_transferId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"NotificationDelivery\"\nADD CONSTRAINT \"NotificationDelivery_transferId_fkey\"\nFOREIGN KEY (\"transferId\")\nREFERENCES \"public\".\"AccountTransfer\" (\"id\")\nON DELETE CASCADE"
+			}
+		],
+		"id": "foreignKey.NotificationDelivery.NotificationDelivery_transferId_fkey",
+		"label": "Add foreign key \"NotificationDelivery_transferId_fkey\" on \"NotificationDelivery\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"NotificationDelivery_transferId_fkey\" exists",
+				"params": [
+					"NotificationDelivery_transferId_fkey",
+					"public",
+					"\"public\".\"NotificationDelivery\""
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"NotificationDelivery_transferId_fkey\" does not exist",
+				"params": [
+					"NotificationDelivery_transferId_fkey",
+					"public",
+					"\"public\".\"NotificationDelivery\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "NotificationDelivery_transferId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "NotificationDelivery"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"PushDevice_userId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"PushDevice\"\nADD CONSTRAINT \"PushDevice_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"user\" (\"id\")\nON DELETE CASCADE"
+			}
+		],
+		"id": "foreignKey.PushDevice.PushDevice_userId_fkey",
+		"label": "Add foreign key \"PushDevice_userId_fkey\" on \"PushDevice\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"PushDevice_userId_fkey\" exists",
+				"params": ["PushDevice_userId_fkey", "public", "\"public\".\"PushDevice\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"PushDevice_userId_fkey\" does not exist",
+				"params": ["PushDevice_userId_fkey", "public", "\"public\".\"PushDevice\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "PushDevice_userId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "PushDevice"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "Install ownership guards",
+				"sql": "-- Row ownership resolution shared by transfer fingerprints and write barriers.\nCREATE OR REPLACE FUNCTION public.zaimu_record_owner(entity text, record jsonb)\nRETURNS text LANGUAGE plpgsql STABLE AS $$\nDECLARE parent_table text; parent_id text; parent_record jsonb;\nBEGIN\n IF record IS NULL THEN RETURN NULL; END IF;\n IF record ? 'userId' THEN RETURN record->>'userId'; END IF;\n IF entity='CreditEntryReference' THEN\n  IF record->>'purchaseId' IS NOT NULL THEN parent_table:='CreditPurchaseRecord'; parent_id:=record->>'purchaseId';\n  ELSIF record->>'installmentId' IS NOT NULL THEN parent_table:='CreditInstallmentRecord'; parent_id:=record->>'installmentId';\n  ELSIF record->>'refundId' IS NOT NULL THEN parent_table:='CreditRefundRecord'; parent_id:=record->>'refundId';\n  ELSIF record->>'chargeId' IS NOT NULL THEN parent_table:='CreditStatementCharge'; parent_id:=record->>'chargeId';\n  ELSE parent_table:='CreditRefundReview'; parent_id:=record->>'id'; END IF;\n ELSIF entity='RecurrenceOccurrence' THEN parent_table:='Recurrence'; parent_id:=record->>'recurrenceId';\n ELSIF entity='OpenFinanceIdentity' THEN parent_table:='OpenFinanceRecord'; parent_id:=record->>'recordId';\n ELSIF entity='UserInstitutionProfileChange' THEN parent_table:='UserFinancialInstitution'; parent_id:=record->>'linkId';\n ELSIF entity='TagAssignment' THEN parent_table:='Category'; parent_id:=record->>'categoryId';\n ELSIF entity='DebtSplitParticipant' THEN parent_table:='DebtSplit'; parent_id:=record->>'debtSplitId';\n ELSIF entity='LoanPayment' THEN parent_table:='Loan'; parent_id:=record->>'loanId';\n ELSIF entity='OpenFinanceBinding' THEN parent_table:='OpenFinanceConnection'; parent_id:=record->>'connectionId';\n ELSIF record ? 'financialAccountId' THEN parent_table:='FinancialAccount'; parent_id:=record->>'financialAccountId';\n ELSIF record ? 'creditCardId' THEN parent_table:='CreditCard'; parent_id:=record->>'creditCardId';\n ELSIF record ? 'purchaseId' THEN parent_table:='CreditPurchaseRecord'; parent_id:=record->>'purchaseId';\n ELSIF record ? 'creditPurchaseId' THEN parent_table:='CreditEntryReference'; parent_id:=record->>'creditPurchaseId';\n ELSIF record ? 'transactionId' THEN parent_table:='Transaction'; parent_id:=record->>'transactionId';\n ELSIF record ? 'transactionImportId' THEN parent_table:='TransactionImport'; parent_id:=record->>'transactionImportId';\n ELSIF record ? 'creditCardImportId' THEN parent_table:='CreditCardImport'; parent_id:=record->>'creditCardImportId';\n ELSIF record ? 'recurrenceId' THEN parent_table:='Recurrence'; parent_id:=record->>'recurrenceId';\n ELSIF record ? 'statementId' THEN parent_table:='CreditCardStatement'; parent_id:=record->>'statementId';\n END IF;\n IF parent_id IS NULL THEN RETURN NULL; END IF;\n EXECUTE format('SELECT to_jsonb(row) FROM public.%I row WHERE \"id\"=$1',parent_table) INTO parent_record USING parent_id;\n RETURN public.zaimu_record_owner(parent_table,parent_record);\nEND $$;\n\nCREATE OR REPLACE FUNCTION public.zaimu_ownership_guard() RETURNS trigger LANGUAGE plpgsql AS $$\nDECLARE record jsonb; old_record jsonb; owner_id text; previous_owner text; caller text; reference_owner text; key text; referenced_table text;\nBEGIN\n record:=CASE WHEN TG_OP='DELETE' THEN to_jsonb(OLD) ELSE to_jsonb(NEW) END;\n old_record:=CASE WHEN TG_OP='INSERT' THEN NULL ELSE to_jsonb(OLD) END;\n owner_id:=public.zaimu_record_owner(TG_TABLE_NAME,record);\n previous_owner:=public.zaimu_record_owner(TG_TABLE_NAME,old_record);\n IF owner_id IS NOT NULL THEN PERFORM pg_advisory_xact_lock_shared(hashtextextended('account-owner:'||owner_id,0)); END IF;\n IF current_setting('zaimu.account_transfer',true)='on' THEN\n  IF TG_OP='DELETE' THEN RETURN OLD; ELSE RETURN NEW; END IF;\n END IF;\n caller:=nullif(current_setting('zaimu.request_user',true),'');\n IF caller IS NOT NULL AND owner_id IS NOT NULL AND owner_id<>caller AND TG_TABLE_NAME NOT IN ('DebtTransactionLink','DebtPurchaseLink','DebtSplitParticipant') AND NOT EXISTS(SELECT 1 FROM public.\"user\" actor WHERE actor.\"id\"=caller AND actor.\"role\"='ADMIN') THEN RAISE EXCEPTION 'Financial ownership changed' USING ERRCODE='42501'; END IF;\n IF TG_OP='UPDATE' AND previous_owner IS DISTINCT FROM owner_id THEN RAISE EXCEPTION 'Ownership requires account transfer' USING ERRCODE='42501'; END IF;\n IF TG_TABLE_NAME='FinancialAccount' AND TG_OP<>'DELETE' AND record->'transferredProfileContext' IS DISTINCT FROM COALESCE(old_record->'transferredProfileContext','null'::jsonb) THEN\n  RAISE EXCEPTION 'Transferred financial context is protected' USING ERRCODE='42501';\n END IF;\n IF TG_TABLE_NAME='TagAssignment' AND TG_OP<>'DELETE' THEN\n  referenced_table:=CASE record->>'entityType' WHEN 'TRANSACTION' THEN 'Transaction' WHEN 'CREDIT_PURCHASE' THEN 'CreditPurchaseRecord' WHEN 'RECURRING_PAYMENT' THEN 'Recurrence' END;\n  IF referenced_table IS NOT NULL THEN\n   EXECUTE format('SELECT public.zaimu_record_owner($1,to_jsonb(row)) FROM public.%I row WHERE \"id\"=$2',referenced_table) INTO reference_owner USING referenced_table,record->>'entityId';\n   IF reference_owner IS NULL AND record->>'entityType'='CREDIT_PURCHASE' THEN SELECT public.zaimu_record_owner('CreditEntryReference',to_jsonb(entry)) INTO reference_owner FROM public.\"CreditEntryReference\" entry WHERE entry.\"id\"=record->>'entityId'; END IF;\n   IF reference_owner IS NOT NULL AND owner_id IS NOT NULL AND reference_owner<>owner_id THEN RAISE EXCEPTION 'Cross-owner tag reference' USING ERRCODE='42501'; END IF;\n  END IF;\n END IF;\n IF TG_OP<>'DELETE' AND EXISTS(SELECT 1 FROM public.\"DetachedFinancialRecord\" WHERE \"entityType\"=TG_TABLE_NAME AND \"entityId\"=record->>'id') THEN\n  RAISE EXCEPTION 'Separated financial history is protected' USING ERRCODE='42501';\n END IF;\n IF TG_OP<>'DELETE' THEN\n  FOREACH key IN ARRAY ARRAY['originFinancialAccountId','destinationFinancialAccountId','financialAccountId','paymentAccountId','cashbackAccountId','creditCardId','paymentCreditCardId','recurrenceId','categoryId','outgoingFinancialAccountId','incomingFinancialAccountId','firstTransactionId','secondTransactionId','reconciledImportItemId','reconciledCreditPurchaseId','reconciledTransactionId','transactionId','creditPurchaseId','purchaseId','statementId'] LOOP\n   IF record->>key IS NULL THEN CONTINUE; END IF;\n   referenced_table:=CASE WHEN key IN ('creditCardId','paymentCreditCardId') THEN 'CreditCard' WHEN key='recurrenceId' THEN 'Recurrence' WHEN key='categoryId' THEN 'Category' WHEN key IN ('firstTransactionId','secondTransactionId','reconciledTransactionId','transactionId') THEN 'Transaction' WHEN key='reconciledImportItemId' THEN 'TransactionImportItem' WHEN key IN ('reconciledCreditPurchaseId','creditPurchaseId') THEN 'CreditEntryReference' WHEN key='purchaseId' THEN 'CreditPurchaseRecord' WHEN key='statementId' THEN 'CreditCardStatement' ELSE 'FinancialAccount' END;\n   EXECUTE format('SELECT public.zaimu_record_owner($1,to_jsonb(row)) FROM public.%I row WHERE \"id\"=$2',referenced_table) INTO reference_owner USING referenced_table,record->>key;\n   IF reference_owner IS NOT NULL AND owner_id IS NOT NULL AND reference_owner<>owner_id AND TG_TABLE_NAME NOT IN ('DebtTransactionLink','DebtPurchaseLink') THEN RAISE EXCEPTION 'Cross-owner financial reference' USING ERRCODE='42501'; END IF;\n  END LOOP;\n END IF;\n IF TG_OP='DELETE' THEN RETURN OLD; ELSE RETURN NEW; END IF;\nEND $$;\n\nDO $$ DECLARE entity text; BEGIN\n FOREACH entity IN ARRAY ARRAY['TransactionTransferSuggestionRejection','TransactionImportTransferSuggestionRejection','FinancialAccount','CreditCard','RewardsAccount','Transaction','TransactionHistory','TransactionExternalReference','BalanceAdjustment','FinancialAccountYield','FinancialAccountYieldRateHistory','DetachedRewardCredit','CreditCardStatement','CreditCardHistory','CreditPurchaseRecord','CreditInstallmentPlan','CreditInstallmentRecord','CreditRefundRecord','CreditStatementCharge','CreditRefundReview','CreditEntryReference','CreditPurchaseHistory','CreditPurchaseImportIdentity','CreditBookTombstone','Recurrence','RecurrenceHistory','RecurrenceOccurrence','TransactionImport','TransactionImportItem','CreditCardImport','CreditCardImportItem','DebtSplit','DebtSplitParticipant','DebtTransactionLink','DebtPurchaseLink','LoanPayment','UserFinancialInstitution','UserInstitutionProfileChange','Category','TagAssignment','OpenFinanceBinding','OpenFinanceRecord','OpenFinanceIdentity'] LOOP\n  EXECUTE format('CREATE TRIGGER zaimu_ownership_guard BEFORE INSERT OR UPDATE OR DELETE ON public.%I FOR EACH ROW EXECUTE FUNCTION public.zaimu_ownership_guard()',entity);\n END LOOP;\nEND $$;\nALTER TABLE public.\"AccountTransfer\" ADD CONSTRAINT \"AccountTransfer_status_check\" CHECK (\"status\" IN ('PENDING','ACCEPTED','DECLINED','CANCELLED'));\nALTER TABLE public.\"AccountTransfer\" ADD CONSTRAINT \"AccountTransfer_distinct_users\" CHECK (\"senderId\"<>\"recipientId\");\nALTER TABLE public.\"PushDevice\" ADD CONSTRAINT \"PushDevice_platform_check\" CHECK (\"platform\" IN ('WEB','ANDROID','IOS'));\nALTER TABLE public.\"NotificationDelivery\" ADD CONSTRAINT \"NotificationDelivery_status_check\" CHECK (\"status\" IN ('PENDING','SENT','SKIPPED'));\n"
+			}
+		],
+		"id": "accountTransfers.ownershipGuards",
+		"label": "Enforce transfer ownership and detached history",
+		"operationClass": "data",
+		"postcheck": [],
+		"precheck": [],
+		"target": {
+			"id": "postgres"
+		}
+	}
+]

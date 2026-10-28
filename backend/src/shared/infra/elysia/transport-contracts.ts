@@ -792,6 +792,7 @@ export const TransactionReturn = t.Object({
 	destinationCurrency: t.Optional(t.Union([t.Null(), t.String()])),
 	destinationFinancialAccountId: t.Optional(t.Union([t.Null(), t.String()])),
 	destinationName: t.Optional(t.Union([t.Null(), t.String()])),
+	detachedKind: t.Optional(t.String()),
 	entryKind: t.Optional(t.Union([t.Literal("INSTALLMENT"), t.Literal("REFUND"), t.Literal("CHARGE")])),
 	exchangeRate: t.Optional(t.Union([t.Null(), t.Number()])),
 	externalIds: t.Optional(t.Array(t.String())),

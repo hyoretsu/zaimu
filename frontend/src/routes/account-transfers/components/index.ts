@@ -1,0 +1,1 @@
+export { AccountTransfersPage } from "./AccountTransfersPage";

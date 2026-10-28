@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { Client } from "pg";
 import { closeDatabase, queryRaw } from "sql";
-import contract from "../../../../../packages/sql/migrations/snapshots/0567ee71a30f4562462e07ff2776133815a39ed36b3807bdeafbfa0e1527e22e/contract.json";
+import contract from "../../../../../packages/sql/out/prisma/contract.json";
 import { installContractFixture } from "../../../../../packages/sql/tests/contract-fixture";
 import { requireFixtureUrl } from "../../../../../scripts/testing/fixture";
 import { ensureAccountCoverage, ensureCalendarCoverage } from "../../yield-calendar/ensure-coverage";
@@ -47,9 +47,10 @@ describe("universal institution review and calendar coverage", () => {
 		expect(proposal.status).toBe("APPROVED");
 		expect(proposal.reviewerId).toBe("admin");
 		expect(
-			await queryRaw(`SELECT * FROM "InstitutionReviewAudit" WHERE "proposalId"=$1 AND "action"='APPROVE'`, [
-				created.id,
-			]),
+			await queryRaw(
+				`SELECT * FROM "InstitutionReviewAudit" WHERE "proposalId"=$1 AND "action"='APPROVE'`,
+				[created.id],
+			),
 		).toHaveLength(1);
 		expect(
 			await queryRaw(
@@ -85,9 +86,9 @@ describe("universal institution review and calendar coverage", () => {
 			[draft.institutionId],
 		);
 		await reviewInstitutionProposal("admin", draft.id, "REJECT", "Identity could not be verified");
-		expect(await queryRaw(`SELECT "id" FROM "FinancialAccount" WHERE "id"='private-account'`)).toHaveLength(
-			1,
-		);
+		expect(
+			await queryRaw(`SELECT "id" FROM "FinancialAccount" WHERE "id"='private-account'`),
+		).toHaveLength(1);
 		await expect(visibleInstitution("other", draft.institutionId)).rejects.toThrow();
 		expect(
 			(await queryRaw(`SELECT "id" FROM "AppNotification" WHERE "userId"='owner'`)).length,
@@ -127,7 +128,9 @@ describe("universal institution review and calendar coverage", () => {
 			name: "Review Bank B",
 		});
 		await reviewInstitutionProposal("admin", one.id, "APPROVE");
-		await expect(reviewInstitutionProposal("admin", two.id, "APPROVE")).rejects.toThrow("Versão alterada");
+		await expect(reviewInstitutionProposal("admin", two.id, "APPROVE")).rejects.toThrow(
+			"Versão alterada",
+		);
 		const current = await visibleInstitution("owner", draft.institutionId);
 		await reviewInstitutionProposal("admin", two.id, "APPROVE", undefined, undefined, current.version);
 		expect((await visibleInstitution("owner", draft.institutionId)).name).toBe("Review Bank B");
@@ -213,7 +216,9 @@ describe("universal institution review and calendar coverage", () => {
 			expect(account.institutionId).toBe(first.institutionId);
 			expect(sources).toContain(account.legacyInstitutionId);
 		}
-		expect((await listInstitutionCatalog("admin", true)).some(item => sources.includes(item.id))).toBe(false);
+		expect((await listInstitutionCatalog("admin", true)).some(item => sources.includes(item.id))).toBe(
+			false,
+		);
 		expect(
 			await queryRaw(
 				`SELECT "id" FROM "InstitutionReviewAudit" WHERE "proposalId" IN (SELECT "id" FROM "FinancialInstitutionProposal" WHERE "institutionId"=ANY($1::text[]))`,
@@ -258,14 +263,16 @@ describe("universal institution review and calendar coverage", () => {
 		expect((movedProposal.payload as { profileId: string }).profileId).toBe(targetProfile.id);
 		expect((await visibleInstitution("other", result.institutionId)).status).toBe("APPROVED");
 		expect(
-			await queryRaw(`SELECT "id" FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1`, [
-				result.institutionId,
-			]),
+			await queryRaw(
+				`SELECT "id" FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1`,
+				[result.institutionId],
+			),
 		).toHaveLength(0);
 		expect(
-			await queryRaw(`SELECT "id" FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1`, [
-				id,
-			]),
+			await queryRaw(
+				`SELECT "id" FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1`,
+				[id],
+			),
 		).toHaveLength(1);
 		expect(
 			await queryRaw(

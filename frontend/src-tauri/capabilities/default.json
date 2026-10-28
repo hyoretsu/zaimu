@@ -4,6 +4,7 @@
 	"identifier": "default",
 	"permissions": [
 		"core:default",
+		"push:default",
 		"deep-link:default",
 		{
 			"allow": [

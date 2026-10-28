@@ -10,6 +10,7 @@ import { AuthAlert, AuthShell, PasswordField } from "./components";
 
 function LoginPage() {
 	const navigate = useNavigate();
+	const { transfer } = Route.useSearch();
 	const { clearError, enableGuestMode, error, isLoading, login } = useAuthStore();
 	const [email, setEmail] = useDebouncedInput("", clearError);
 	const [password, setPassword] = useState("");
@@ -18,7 +19,7 @@ function LoginPage() {
 		event.preventDefault();
 		if (!(await login(email.trim(), password))) return;
 		void dataService.sync.syncAll();
-		await navigate({ to: "/" });
+		await navigate(transfer ? { search: { transfer }, to: "/account-transfers" } : { to: "/" });
 	};
 
 	const continueAsGuest = async () => {
@@ -54,7 +55,10 @@ function LoginPage() {
 					value={password}
 				/>
 				<div className="flex justify-end">
-					<Link className="font-semibold text-primary text-sm hover:underline" to="/auth/forgot-password">
+					<Link
+						className="text-primary text-sm font-semibold hover:underline"
+						to="/auth/forgot-password"
+					>
 						Esqueci minha senha
 					</Link>
 				</div>
@@ -62,15 +66,21 @@ function LoginPage() {
 					{isLoading ? "Entrando…" : "Entrar"} <LuArrowRight />
 				</Button>
 			</form>
-			<div className="my-6 flex items-center gap-3 text-muted-foreground text-xs">
-				<span className="h-px flex-1 bg-border" /> ou <span className="h-px flex-1 bg-border" />
+			<div className="text-muted-foreground my-6 flex items-center gap-3 text-xs">
+				<span className="bg-border h-px flex-1" /> ou <span className="bg-border h-px flex-1" />
 			</div>
-			<Button className="h-11 w-full" onClick={continueAsGuest} size="lg" type="button" variant="outline">
+			<Button
+				className="h-11 w-full"
+				onClick={continueAsGuest}
+				size="lg"
+				type="button"
+				variant="outline"
+			>
 				<LuSmartphone /> Continuar como convidado
 			</Button>
-			<p className="mt-6 text-center text-muted-foreground text-sm">
+			<p className="text-muted-foreground mt-6 text-center text-sm">
 				Ainda não tem conta?{" "}
-				<Link className="font-semibold text-primary hover:underline" to="/auth/register">
+				<Link className="text-primary font-semibold hover:underline" to="/auth/register">
 					Criar conta
 				</Link>
 			</p>
@@ -78,4 +88,12 @@ function LoginPage() {
 	);
 }
 
-export const Route = createFileRoute("/auth/")({ component: LoginPage });
+export const Route = createFileRoute("/auth/")({
+	component: LoginPage,
+	validateSearch: (search: Record<string, unknown>): { transfer?: string } => ({
+		transfer:
+			typeof search.transfer === "string" && /^[a-zA-Z0-9-]{1,36}$/.test(search.transfer)
+				? search.transfer
+				: undefined,
+	}),
+});

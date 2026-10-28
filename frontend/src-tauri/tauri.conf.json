@@ -30,6 +30,9 @@
 			"icons/icon.icns",
 			"icons/icon.ico"
 		],
+		"iOS": {
+			"template": "ios-project.yml.hbs"
+		},
 		"targets": "all"
 	},
 	"identifier": "com.hyolabs.zaimu",

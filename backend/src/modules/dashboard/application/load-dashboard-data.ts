@@ -232,7 +232,7 @@ WHERE loan."userId" = $1 AND payment."paidDate" IS NULL AND payment."dueDate" >=
 
 const comparisonMovementsSql = `
 SELECT 'flow' AS kind, jsonb_build_object(
-  'tagIds', COALESCE((SELECT jsonb_agg(assignment."categoryId") FROM "TagAssignment" assignment WHERE assignment."entityId"=transaction."id" AND assignment."entityType"='TRANSACTION'), '[]'::jsonb), 'currency', transaction."bookingCurrency", 'destinationAmount', transaction."destinationAmount", 'cardPayment', transaction."paymentCreditCardId" IS NOT NULL, 'id', transaction."id", 'description', transaction."description", 'amount', transaction."amount", 'date', transaction."date", 'type', transaction."type"::text,
+  'tagIds', COALESCE((SELECT jsonb_agg(assignment."categoryId") FROM "TagAssignment" assignment WHERE assignment."entityId"=transaction."id" AND assignment."entityType"='TRANSACTION'), '[]'::jsonb), 'currency', transaction."bookingCurrency", 'destinationAmount', transaction."destinationAmount", 'cardPayment', (transaction."paymentCreditCardId" IS NOT NULL OR EXISTS(SELECT 1 FROM "DetachedFinancialRecord" detached WHERE detached."entityType"='Transaction' AND detached."entityId"=transaction."id" AND detached."kind"='CARD_PAYMENT')), 'id', transaction."id", 'description', transaction."description", 'amount', transaction."amount", 'date', transaction."date", 'type', transaction."type"::text,
   'originAccountId', transaction."originFinancialAccountId", 'destinationAccountId', transaction."destinationFinancialAccountId", 'recurring', transaction."recurrenceId" IS NOT NULL
 ) AS data
 FROM "Transaction" transaction
@@ -258,6 +258,11 @@ SELECT 'flow', jsonb_build_object('currency',account."currency",'destinationAcco
 FROM (${cashbackReversalsSql}) reversal JOIN "FinancialAccount" account ON account."id"=reversal."cashbackAccountId"
 WHERE account."userId"=$1 AND reversal."date" BETWEEN $2::date AND LEAST($3::date,CURRENT_DATE)
  AND (account."type" IN ('CHECKING','CASH','SAVINGS','INVESTMENT') OR EXISTS(SELECT 1 FROM "RewardsAccount" reward WHERE reward."financialAccountId"=account."id" AND reward."kind"='CASHBACK'))
+UNION ALL
+SELECT 'flow', jsonb_build_object('currency',account."currency",'destinationAccountId',account."id",'amount',credit."amount",'date',credit."date",'type','INCOME','recurring',false)
+FROM "DetachedRewardCredit" credit JOIN "FinancialAccount" account ON account."id"=credit."financialAccountId"
+WHERE account."userId"=$1 AND credit."date" BETWEEN $2::date AND LEAST($3::date,CURRENT_DATE)
+ AND EXISTS(SELECT 1 FROM "RewardsAccount" reward WHERE reward."financialAccountId"=account."id" AND reward."kind"='CASHBACK')
 UNION ALL
 SELECT 'linked', jsonb_build_object(
   'date', transaction."date", 'sourceId', transaction."recurrenceId"
@@ -332,13 +337,16 @@ export async function loadDashboardRows(
 		userId,
 	]);
 	const scheduleRows = await query<DashboardDataRow>(schedulesSql, [userId, dateKey(range.today)]);
-	const movementRows = await query<DashboardDataRow>(comparisonOnly ? comparisonMovementsSql : movementsSql, [
-		userId,
-		`${dateKey(range.comparisonStart < range.projectionStart ? range.comparisonStart : range.projectionStart).slice(0, 7)}-01`,
-		dateKey(range.comparisonEnd),
-		dateKey(range.projectionStart),
-		...(comparisonOnly ? [] : [dateKey(range.periodStart), dateKey(range.periodEnd)]),
-	]);
+	const movementRows = await query<DashboardDataRow>(
+		comparisonOnly ? comparisonMovementsSql : movementsSql,
+		[
+			userId,
+			`${dateKey(range.comparisonStart < range.projectionStart ? range.comparisonStart : range.projectionStart).slice(0, 7)}-01`,
+			dateKey(range.comparisonEnd),
+			dateKey(range.projectionStart),
+			...(comparisonOnly ? [] : [dateKey(range.periodStart), dateKey(range.periodEnd)]),
+		],
+	);
 	const monthlyBudgets = rowsByKind(scheduleRows, "budget").map(row => ({
 		...row,
 		amount: Number(row.amount),
@@ -402,12 +410,17 @@ export async function loadDashboardRows(
 					dateKey(range.today),
 					recurrences,
 					dateKey(range.comparisonEnd),
-					rowsByKind(scheduleRows, "occurrence") as unknown as Array<{ recurrenceId: string; date: string }>,
+					rowsByKind(scheduleRows, "occurrence") as unknown as Array<{
+						recurrenceId: string;
+						date: string;
+					}>,
 					projectedCardPaymentAmounts,
 					convert,
 				),
 		} as {
-			projectStatements?: (convert: RecurrenceMoneyConverter) => ReturnType<typeof replayDashboardStatements>;
+			projectStatements?: (
+				convert: RecurrenceMoneyConverter,
+			) => ReturnType<typeof replayDashboardStatements>;
 		}),
 		projectedStatements: replayDashboardStatements(
 			userId,
@@ -416,10 +429,14 @@ export async function loadDashboardRows(
 			dateKey(range.today),
 			recurrences.filter(
 				row =>
-					(row.currency ?? "BRL") === (cards.find(card => card.id === row.creditCardId)?.currency ?? "BRL"),
+					(row.currency ?? "BRL") ===
+					(cards.find(card => card.id === row.creditCardId)?.currency ?? "BRL"),
 			),
 			dateKey(range.comparisonEnd),
-			rowsByKind(scheduleRows, "occurrence") as unknown as Array<{ recurrenceId: string; date: string }>,
+			rowsByKind(scheduleRows, "occurrence") as unknown as Array<{
+				recurrenceId: string;
+				date: string;
+			}>,
 			projectedCardPaymentAmounts,
 		),
 		projectedYields: null as Awaited<ReturnType<typeof projectedYieldContext>> | null,

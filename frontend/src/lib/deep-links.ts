@@ -1,5 +1,6 @@
 import type { AnyRouter } from "@tanstack/react-router";
 import { isTauri } from "@tauri-apps/api/core";
+import { parseTransferDeepLink } from "./transfer-deep-links";
 
 export interface AuthDeepLink {
 	token: string;
@@ -21,6 +22,11 @@ export const parseAuthDeepLink = (rawUrl: string): AuthDeepLink | null => {
 };
 
 const navigateToDeepLink = (router: AnyRouter, rawUrl: string) => {
+	const transfer = parseTransferDeepLink(rawUrl);
+	if (transfer) {
+		void router.navigate({ search: { transfer: transfer.id }, to: "/account-transfers" });
+		return;
+	}
 	const link = parseAuthDeepLink(rawUrl);
 	if (!link) return;
 	void router.navigate({ search: { token: link.token }, to: link.to });

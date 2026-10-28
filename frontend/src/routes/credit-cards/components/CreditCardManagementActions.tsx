@@ -1,4 +1,5 @@
 import { LuEyeOff, LuTrash2 } from "react-icons/lu";
+import { AccountTransferDialog } from "@/components/account-transfers";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -31,6 +32,7 @@ export function CreditCardManagementActions({
 	if (!account) return null;
 	return (
 		<>
+			<AccountTransferDialog accountId={account.id} iconOnly />
 			<CreateFinancialAccountDialog
 				account={account}
 				cardOnly

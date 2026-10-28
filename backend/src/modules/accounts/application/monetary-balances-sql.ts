@@ -32,6 +32,10 @@ WITH requested_dates AS (
  SELECT reversal."cashbackAccountId",reversal."date",reversal.amount
  FROM (${cashbackReversalsSql}) reversal JOIN owned_accounts account ON account."id"=reversal."cashbackAccountId"
  WHERE reversal."date" <= (SELECT max(date) FROM requested_dates)
+ UNION ALL
+ SELECT credit."financialAccountId",credit."date",credit."amount"
+ FROM "DetachedRewardCredit" credit JOIN owned_accounts account ON account."id"=credit."financialAccountId"
+ WHERE credit."date" <= (SELECT max(date) FROM requested_dates)
 ), points AS (
  SELECT "accountId", date, sum(amount) AS amount FROM (
  SELECT "accountId",date,amount FROM movements
