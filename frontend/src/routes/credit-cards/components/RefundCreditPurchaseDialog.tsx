@@ -231,25 +231,23 @@ export function RefundCreditPurchaseDialog({
 										As parcelas selecionadas excedem o valor do reembolso.
 									</p>
 								) : null}
-								{creditCents > 0 ? (
-									<div className="min-w-0 space-y-2">
-										<DateField
-											autoComplete="off"
-											id="credit-purchase-refund-date"
-											label="Data do crédito excedente"
-											name="credit-purchase-refund-date"
-											onValueChange={setDate}
-											value={displayedDate}
-										/>
-										{!displayedDate ? (
-											<p className="text-sm text-amber-600" role="status">
-												Sem data informada, o crédito de{" "}
-												{currency.format(creditCents / scale)} será lançado em{" "}
-												{formatLocalDate(originalDate)}, data da compra original.
-											</p>
-										) : null}
-									</div>
-								) : null}
+								<div className="min-w-0 space-y-2">
+									<DateField
+										autoComplete="off"
+										id="credit-purchase-refund-date"
+										label="Data do reembolso"
+										name="credit-purchase-refund-date"
+										onValueChange={setDate}
+										value={displayedDate}
+									/>
+									{!displayedDate && creditCents > 0 ? (
+										<p className="text-sm text-amber-600" role="status">
+											Sem data informada, o crédito de{" "}
+											{currency.format(creditCents / scale)} será lançado em{" "}
+											{formatLocalDate(originalDate)}, data da compra original.
+										</p>
+									) : null}
+								</div>
 							</>
 						)}
 					</DialogBody>
