@@ -1,0 +1,64 @@
+{
+	"baseline": {
+		"functionalTestIncludes": ["forced rollback", "successful approval"],
+		"purchases": 125,
+		"timedOut": true,
+		"timeoutMs": 30000
+	},
+	"current": {
+		"connectionWaitMs": 0.3802620000024035,
+		"durationMs": 9455.839286000002,
+		"normalizedTestsPassed": 19,
+		"purchases": 1000,
+		"queries": 166,
+		"queryBudget": 200,
+		"queryBudgetPassed": true,
+		"scenario": "approve1000",
+		"sqlDurationMs": 6626.648783000004,
+		"statementVersionsPreservedOnNoOp": true
+	},
+	"diagnostic": true,
+	"intermediate": [
+		{
+			"purchases": 125,
+			"queries": 1556,
+			"queryBudgetPassed": false
+		},
+		{
+			"purchases": 125,
+			"queries": 189,
+			"queryBudgetPassed": true
+		}
+	],
+	"limitations": [
+		"Single integration sample, not an HTTP/browser p95. No latency comparison across different fixture sizes.",
+		"Database and services were disposable and local. Host concurrently used by other local workloads.",
+		"Financial rules unchanged; source/fixture inconsistencies were reconciled against the latest documented rules."
+	],
+	"passed": false,
+	"reason": "One integration sample is not performance acceptance. Official rounds, load, history and platform matrix remain incomplete.",
+	"verification": {
+		"backendIntegration": {
+			"assertions": 1518,
+			"files": 21,
+			"passed": true,
+			"tests": 157
+		},
+		"backendUnit": {
+			"assertions": 2051,
+			"passed": true,
+			"tests": 658
+		},
+		"commitHooks": "type checks, unit coverage, lint and formatting passed",
+		"financeShared": {
+			"assertions": 299,
+			"passed": true,
+			"tests": 65
+		},
+		"performanceExecutor": {
+			"assertions": 119,
+			"passed": true,
+			"tests": 25
+		}
+	}
+}

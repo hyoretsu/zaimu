@@ -11,7 +11,10 @@ import {
 } from "@zaimu/finance/credit-book";
 import { distributePurchaseCents, installmentOccurrenceDate } from "@zaimu/finance/credit-purchase";
 import { importedAnticipation, withoutImportedAnticipation } from "@zaimu/finance/imported-anticipation";
-import { rewardSnapshot } from "~/modules/creditCards/application/cashback-snapshot";
+import {
+	createRewardSnapshotLoader,
+	rewardSnapshot,
+} from "~/modules/creditCards/application/cashback-snapshot";
 import { mutateCreditBook, newBookPurchase } from "~/modules/creditCards/application/normalized-credit-book";
 import type { RawQuery } from "~/modules/creditCards/application/normalized-statement-replay";
 import { HttpException } from "~/shared/errors";
@@ -23,7 +26,7 @@ import {
 	importedInstallmentDates,
 } from "../domain/imported-installment-dates";
 import { importedPurchaseTotalCents } from "../domain/imported-purchase-total";
-import { rememberImportIdentity } from "./import-identities";
+import { rememberImportIdentities, rememberImportIdentity } from "./import-identities";
 
 interface ImportedPurchaseInput {
 	taxes?: ImportedPurchaseTax[];
@@ -79,29 +82,66 @@ export async function materializeImportedPurchases(card: CardSnapshot, inputs: I
 	if (!inputs.length) return [];
 	return withRawTransaction(async query => {
 		const ids = await mutateCreditBook(card.userId, card.id, async (book, query) => {
+			const externalIds = inputs.map(input => input.externalId);
+			const identities = await query<{ externalId: string; purchaseId: string }>(
+				`SELECT i."externalId",i."purchaseId" FROM "CreditPurchaseImportIdentity" i JOIN "CreditPurchaseRecord" p ON p."id"=i."purchaseId" WHERE i."externalId"=ANY($1::text[]) AND p."creditCardId"=$2 AND p."userId"=$3`,
+				[externalIds, card.id, card.userId],
+			);
+			const refunds = await query<{ externalId: string; id: string }>(
+				`SELECT r."externalId",r."id" FROM "CreditRefundRecord" r JOIN "CreditPurchaseRecord" p ON p."id"=r."purchaseId" WHERE r."externalId"=ANY($1::text[]) AND p."creditCardId"=$2 AND r."deletedAt" IS NULL`,
+				[externalIds, card.id],
+			);
+			const sources = await query<{ itemId: string; currency: string; originalAmount: number }>(
+				`SELECT "reviewItemId" AS "itemId", "snapshot"->>'currency' AS currency, abs(COALESCE(("snapshot"->>'totalAmount')::numeric,("snapshot"->>'amount')::numeric)) AS "originalAmount" FROM "OpenFinanceRecord" WHERE "reviewItemId"=ANY($1::text[])`,
+				[inputs.flatMap(input => (input.id ? [input.id] : []))],
+			);
+			const context: ImportBatchContext = {
+				identities: new Map(identities.map(row => [row.externalId, row.purchaseId])),
+				refunds: new Map(refunds.map(row => [row.externalId, row.id])),
+				reward: createRewardSnapshotLoader(),
+				sources: new Map(sources.map(row => [row.itemId, row])),
+			};
 			const ids: string[] = [];
 			const roots = new Map<string, string>();
 			for (const input of inputs) {
 				const source = input.pendingSourceItemId ? roots.get(input.pendingSourceItemId) : null;
 				if (input.pendingSourceItemId && !source)
 					throw new HttpException("Compra original pendente não encontrada", 409);
-				const id = await materializePurchaseInBook(book, query, card, {
-					...input,
-					existingRootId: source ?? input.existingRootId,
-				});
+				const id = await materializePurchaseInBook(
+					book,
+					query,
+					card,
+					{
+						...input,
+						existingRootId: source ?? input.existingRootId,
+					},
+					context,
+				);
 				ids.push(id);
 				if (input.id) roots.set(input.id, id);
 			}
 			return ids;
 		});
-		for (const [index, input] of inputs.entries())
-			if (input.installmentAmount > 0 && !input.isStatementCharge) {
-				await rememberImportIdentity(query, input.externalId, ids[index]!);
-				for (const externalId of input.taxSourceExternalIds ?? [])
-					await rememberImportIdentity(query, externalId, ids[index]!);
-			}
+		await rememberImportIdentities(
+			query,
+			inputs.flatMap((input, index) =>
+				input.installmentAmount > 0 && !input.isStatementCharge
+					? [input.externalId, ...(input.taxSourceExternalIds ?? [])].map(externalId => ({
+							externalId,
+							purchaseId: ids[index]!,
+						}))
+					: [],
+			),
+		);
 		return ids;
 	});
+}
+
+interface ImportBatchContext {
+	identities: Map<string, string>;
+	refunds: Map<string, string>;
+	sources: Map<string, { currency: string; originalAmount: number }>;
+	reward: typeof rewardSnapshot;
 }
 
 async function materializePurchaseInBook(
@@ -109,6 +149,7 @@ async function materializePurchaseInBook(
 	query: RawQuery,
 	card: CardSnapshot,
 	input: ImportedPurchaseInput,
+	context?: ImportBatchContext,
 ) {
 	synchronizeImportedStatementDates(book, {
 		dueDate: input.dueDate.toISOString().slice(0, 10),
@@ -116,20 +157,28 @@ async function materializePurchaseInBook(
 	});
 	const [identity] =
 		input.installmentAmount > 0 && !input.isStatementCharge
-			? await query<{ purchaseId: string }>(
-					`SELECT i."purchaseId" FROM "CreditPurchaseImportIdentity" i
+			? context
+				? context.identities.has(input.externalId)
+					? [{ purchaseId: context.identities.get(input.externalId)! }]
+					: []
+				: await query<{ purchaseId: string }>(
+						`SELECT i."purchaseId" FROM "CreditPurchaseImportIdentity" i
 			 JOIN "CreditPurchaseRecord" p ON p."id"=i."purchaseId"
 			 WHERE i."externalId"=$1 AND p."creditCardId"=$2 AND p."userId"=$3`,
-					[input.externalId, card.id, card.userId],
-				)
+						[input.externalId, card.id, card.userId],
+					)
 			: [];
 	const duplicate = book.purchases.find(
 		p => p.externalId === input.externalId || p.id === identity?.purchaseId,
 	);
-	const refundDuplicate = await query<{ id: string }>(
-		`SELECT r."id" FROM "CreditRefundRecord" r JOIN "CreditPurchaseRecord" p ON p."id"=r."purchaseId" WHERE r."externalId"=$1 AND p."creditCardId"=$2 AND r."deletedAt" IS NULL`,
-		[input.externalId, card.id],
-	);
+	const refundDuplicate = context
+		? context.refunds.has(input.externalId)
+			? [{ id: context.refunds.get(input.externalId)! }]
+			: []
+		: await query<{ id: string }>(
+				`SELECT r."id" FROM "CreditRefundRecord" r JOIN "CreditPurchaseRecord" p ON p."id"=r."purchaseId" WHERE r."externalId"=$1 AND p."creditCardId"=$2 AND r."deletedAt" IS NULL`,
+				[input.externalId, card.id],
+			);
 	if (input.installmentAmount < 0) {
 		if (refundDuplicate[0]) return refundDuplicate[0].id;
 		const [reference] = input.existingRootId
@@ -240,10 +289,14 @@ async function materializePurchaseInBook(
 		book.card.installmentRemainderOnFirst,
 	);
 	const [source] = input.id
-		? await query<{ currency: string; originalAmount: number }>(
-				`SELECT "snapshot"->>'currency' AS currency, abs(COALESCE(("snapshot"->>'totalAmount')::numeric,("snapshot"->>'amount')::numeric)) AS "originalAmount" FROM "OpenFinanceRecord" WHERE "reviewItemId"=$1 LIMIT 1`,
-				[input.id],
-			)
+		? context
+			? context.sources.has(input.id)
+				? [context.sources.get(input.id)!]
+				: []
+			: await query<{ currency: string; originalAmount: number }>(
+					`SELECT "snapshot"->>'currency' AS currency, abs(COALESCE(("snapshot"->>'totalAmount')::numeric,("snapshot"->>'amount')::numeric)) AS "originalAmount" FROM "OpenFinanceRecord" WHERE "reviewItemId"=$1 LIMIT 1`,
+					[input.id],
+				)
 		: [];
 	const originalMoney =
 		source && Number(source.originalAmount) > 0
@@ -259,7 +312,7 @@ async function materializePurchaseInBook(
 			book,
 			{
 				...originalMoney,
-				...(await rewardSnapshot(
+				...(await (context?.reward ?? rewardSnapshot)(
 					card,
 					input.totalAmount,
 					book.card.currency ?? "BRL",

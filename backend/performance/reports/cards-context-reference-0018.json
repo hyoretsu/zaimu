@@ -1982,7 +1982,7 @@
 		"Diagnostic only: one round, five samples, one user and ten transaction records. No global application acceptance.",
 		"Payload byte comparison uses the same fixture. Full-account timing is MISS and option timing is HIT; these durations are not a controlled before/after latency comparison.",
 		"Release browser coverage is recorded separately. Native platforms and the official matrix remain pending.",
-		"Initial integration run failed on stale refund-ceiling assertions and leaked replay trigger; subsequent verification is recorded in plan 0018."
+		"Initial stale refund assertions, incomplete fixtures and leaked replay trigger were corrected against the latest documented rules. Final integration passed 157 tests across 21 files; import-approval-context-0018.json records follow-up evidence."
 	],
 	"passed": false,
 	"payloadComparison": {

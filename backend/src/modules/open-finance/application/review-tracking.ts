@@ -3,16 +3,26 @@ import { externalReference, type NormalizedRecord } from "../domain/normalize";
 import { type LocalKind, localSnapshot } from "./local-snapshot";
 // Called inside the same financial transaction, before a reviewed item is removed.
 export async function settleExternalReview(itemId: string, localKind?: LocalKind, localId?: string) {
+	return settleExternalReviews([{ itemId, localId, localKind }]);
+}
+
+export async function settleExternalReviews(
+	items: readonly { itemId: string; localKind?: LocalKind; localId?: string }[],
+) {
+	if (!items.length) return;
+	const targets = new Map(items.map(item => [item.itemId, item]));
 	const records = await queryRaw<{
 		id: string;
+		reviewItemId: string;
 		userId: string;
 		remoteAccountId: string;
 		snapshot: NormalizedRecord;
 	}>(
-		'SELECT "id", "userId", "remoteAccountId", "snapshot" FROM "OpenFinanceRecord" WHERE "reviewItemId"=$1 FOR UPDATE',
-		[itemId],
+		'SELECT "id", "reviewItemId", "userId", "remoteAccountId", "snapshot" FROM "OpenFinanceRecord" WHERE "reviewItemId"=ANY($1::text[]) ORDER BY "id" FOR UPDATE',
+		[[...targets.keys()]],
 	);
 	for (const record of records) {
+		const { itemId, localKind, localId } = targets.get(record.reviewItemId)!;
 		if (localKind === "TRANSACTION" && localId) {
 			const [source] = await queryRaw<{ financialAccountId: string }>(
 				`SELECT b."financialAccountId" FROM "TransactionImport" b JOIN "TransactionImportItem" i ON i."transactionImportId"=b."id" WHERE i."id"=$1`,
@@ -45,14 +55,19 @@ export async function settleExternalReview(itemId: string, localKind?: LocalKind
 }
 
 export async function refreshAppliedSnapshots(userId: string, localId: string) {
-	const records = await queryRaw<{ id: string; localKind: LocalKind }>(
-		`SELECT "id", "localKind" FROM "OpenFinanceRecord" WHERE "userId"=$1 AND "localId"=$2 AND "state"='APPLIED' FOR UPDATE`,
-		[userId, localId],
+	return refreshAppliedSnapshotsForIds(userId, [localId]);
+}
+
+export async function refreshAppliedSnapshotsForIds(userId: string, localIds: readonly string[]) {
+	if (!localIds.length) return;
+	const records = await queryRaw<{ id: string; localKind: LocalKind; localId: string }>(
+		`SELECT "id", "localKind", "localId" FROM "OpenFinanceRecord" WHERE "userId"=$1 AND "localId"=ANY($2::text[]) AND "state"='APPLIED' ORDER BY "id" FOR UPDATE`,
+		[userId, [...new Set(localIds)]],
 	);
 	for (const record of records)
 		await executeRaw(`UPDATE "OpenFinanceRecord" SET "appliedSnapshot"=$2::jsonb WHERE "id"=$1`, [
 			record.id,
-			JSON.stringify(await localSnapshot(record.localKind, localId, userId)),
+			JSON.stringify(await localSnapshot(record.localKind, record.localId, userId)),
 		]);
 }
 

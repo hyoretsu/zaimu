@@ -5,6 +5,23 @@ import { requireFixtureUrl } from "../../../../../scripts/testing/fixture";
 import type { CreditBookDTO } from "../infra/elysia/CreditBookDTO";
 
 const testUrl = requireFixtureUrl("NORMALIZED_PURCHASE_TEST_URL");
+// SQL shapes only; parameters and financial values never enter failure diagnostics.
+let activeQueries: Map<string, number> | undefined;
+const originalQuery = Client.prototype.query;
+Client.prototype.query = function (this: Client, ...args: unknown[]) {
+	if (activeQueries) {
+		const value = args[0];
+		const text =
+			typeof value === "string"
+				? value
+				: value && typeof value === "object" && "text" in value
+					? String(value.text)
+					: "unknown";
+		const shape = text.replace(/\s+/g, " ").replace(/\$\d+/g, "?").slice(0, 180);
+		activeQueries.set(shape, (activeQueries.get(shape) ?? 0) + 1);
+	}
+	return Reflect.apply(originalQuery, this, args);
+} as typeof Client.prototype.query;
 
 /** Requires the migrated schema in a fresh, explicitly named local disposable database. */
 describe("normalized refund transactions", () => {
@@ -45,6 +62,7 @@ describe("normalized refund transactions", () => {
 	});
 
 	afterAll(async () => {
+		Client.prototype.query = originalQuery;
 		await client?.query(`DELETE FROM "user" WHERE "id" = 'normalized-test-user'`);
 		await client?.end();
 		const sql = await import("~/shared/infra/sql");
@@ -624,7 +642,7 @@ describe("normalized refund transactions", () => {
 		).toBe(-20);
 	}, 30000);
 
-	test("bulk approval persists 125 purchases in one batch and rolls back a failed batch", async () => {
+	test("bulk approval persists 1000 purchases in one batch and rolls back a failed batch", async () => {
 		const { approveItems } = await import("../../credit-card-imports/application/import-service");
 		const { getQueryMetrics, withQueryMetrics } = await import("sql");
 		const importId = "normalized-test-large-import";
@@ -633,7 +651,7 @@ describe("normalized refund transactions", () => {
 			[importId, context.userId, context.cardId],
 		);
 		await client.query(
-			`INSERT INTO "CreditCardImportItem" ("id","creditCardImportId","externalId","purchaseDate","description","totalAmount","installmentAmount") SELECT 'large-item-' || i, $1, 'large-external-' || i, '2024-12-10'::date, 'Compra grande ' || i, 10, 10 FROM generate_series(1,125) i`,
+			`INSERT INTO "CreditCardImportItem" ("id","creditCardImportId","externalId","purchaseDate","description","totalAmount","installmentAmount") SELECT 'large-item-' || i, $1, 'large-external-' || i, '2024-12-10'::date, 'Compra grande ' || i, 10, 10 FROM generate_series(1,1000) i`,
 			[importId],
 		);
 		// Fail only at final approval, after purchases and review effects have been written.
@@ -661,14 +679,37 @@ describe("normalized refund transactions", () => {
 						[importId],
 					)
 				).rows,
-			).toHaveLength(125);
+			).toHaveLength(1000);
 		} finally {
 			await client.query(`DROP TRIGGER reject_large_import ON "CreditCardImport"`);
 			await client.query("DROP FUNCTION reject_large_import()");
 		}
 		await withQueryMetrics(async () => {
-			expect(await approveItems(context.userId, importId)).toEqual({ created: 125 });
-			const spans = getQueryMetrics()!.spans;
+			const queryShapes = new Map<string, number>();
+			activeQueries = queryShapes;
+			try {
+				expect(await approveItems(context.userId, importId)).toEqual({ created: 1000 });
+			} finally {
+				activeQueries = undefined;
+				if (getQueryMetrics()!.queryCount >= 200)
+					console.info(
+						JSON.stringify({
+							sqlShapes: [...queryShapes].sort((a, b) => b[1] - a[1]).slice(0, 12),
+						}),
+					);
+			}
+			const metrics = getQueryMetrics()!;
+			const spans = metrics.spans;
+			console.info(
+				JSON.stringify({
+					connectionWaitMs: metrics.connectionWaitMs,
+					durationMs: performance.now() - metrics.startedAt,
+					queries: metrics.queryCount,
+					scenario: "approve1000",
+					sqlDurationMs: metrics.sqlDurationMs,
+				}),
+			);
+			expect(metrics.queryCount).toBeLessThan(200);
 			// Batch persistence, fully-synced marker and statement payment reconciliation.
 			expect(spans.filter(span => span.name === "credit-book:persist").length).toBeLessThanOrEqual(3);
 		});
@@ -678,7 +719,7 @@ describe("normalized refund transactions", () => {
 					`SELECT "id" FROM "CreditPurchaseRecord" WHERE "externalId" LIKE 'large-external-%'`,
 				)
 			).rows,
-		).toHaveLength(125);
+		).toHaveLength(1000);
 		expect(
 			(
 				await client.query(`SELECT "id" FROM "CreditCardImportItem" WHERE "creditCardImportId"=$1`, [
@@ -691,6 +732,21 @@ describe("normalized refund transactions", () => {
 				.status,
 		).toBe("APPROVED");
 	}, 30_000);
+
+	test("payment recalculation preserves unchanged statement rows", async () => {
+		const { recalculateStatementPayments } = await import("../application/statement-payments");
+		const { withTransaction } = await import("~/shared/infra/sql");
+		const snapshot = async () =>
+			(
+				await client.query(
+					`SELECT id,xmin::text AS version FROM "CreditCardStatement" WHERE "creditCardId"=$1 ORDER BY id`,
+					[context.cardId],
+				)
+			).rows;
+		const before = await snapshot();
+		await withTransaction(transaction => recalculateStatementPayments(transaction, [context.cardId]));
+		expect(await snapshot()).toEqual(before);
+	});
 
 	test("month-end import assigns the unconfirmed final installment to November and repairs stale links", async () => {
 		const { materializeImportedPurchase } =

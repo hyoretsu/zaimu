@@ -27,6 +27,8 @@
 		"backend/src/modules/batch/infra/elysia/BatchController.test.ts",
 		"backend/src/shared/application/financial-date.test.ts",
 		"backend/performance/clock.test.ts",
+		"backend/src/modules/creditCards/application/cashback-snapshot.test.ts",
+		"backend/src/modules/credit-card-imports/application/import-identities.test.ts",
 		"backend/performance/coverage.test.ts",
 		"backend/performance/journal.test.ts",
 		"backend/performance/inventory-schema.test.ts",

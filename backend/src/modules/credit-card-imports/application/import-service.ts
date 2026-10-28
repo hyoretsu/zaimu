@@ -20,12 +20,14 @@ import {
 import { linkPurchaseToDebt, syncPurchaseDebtEvent } from "~/modules/debts/application/debt-ledger";
 import {
 	getDebtSplitInput,
+	getDebtSplitInputs,
 	getDebtSplitReturns,
 	replaceDebtSplit,
 } from "~/modules/debts/application/debt-splits";
 import {
-	refreshAppliedSnapshots,
+	refreshAppliedSnapshotsForIds,
 	settleExternalReview,
+	settleExternalReviews,
 } from "~/modules/open-finance/application/review-tracking";
 import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { HttpException } from "~/shared/errors";
@@ -758,15 +760,22 @@ async function approveItemsImpl(
 	const batchItems = selectedItems.filter(
 		item => !getFinancingSource(item.description) && !getFinancingTarget(item.description),
 	);
-	const debtSplitsByItem = new Map<string, Awaited<ReturnType<typeof getDebtSplitInput>>>();
+	const debtSplitsByItem = await getDebtSplitInputs(
+		"creditCardImportItemId",
+		selectedItems.map(item => item.id),
+	);
+	const importedRoots = batchItems.length
+		? await queryRaw<CreditReadRow>(
+				`SELECT * FROM "CreditEntry" WHERE "externalId"=ANY($1::text[]) AND "creditCardId"=$2`,
+				[batchItems.map(item => item.externalId), creditCardImport.creditCardId],
+			)
+		: [];
+	const importedRootsByExternalId = new Map(importedRoots.map(root => [root.externalId, root]));
 	const previousRootsByItem = new Map<string, CreditReadRow | undefined>();
 	const batchInputs: Parameters<typeof materializeImportedPurchases>[1] = [];
 	for (const item of batchItems) {
-		const debtSplit = await getDebtSplitInput({ creditCardImportItemId: item.id });
-		const [importedRoot] = await queryRaw<CreditReadRow>(
-			`SELECT * FROM "CreditEntry" WHERE "externalId"=$1 AND "creditCardId"=$2 LIMIT 1`,
-			[item.externalId, creditCardImport.creditCardId],
-		);
+		const debtSplit = debtSplitsByItem.get(item.id);
+		const importedRoot = importedRootsByExternalId.get(item.externalId);
 		if (
 			importedAnticipation(item.description) &&
 			!item.reconciledCreditPurchaseId &&
@@ -774,7 +783,6 @@ async function approveItemsImpl(
 			!importedRoot
 		)
 			throw new HttpException("Vincule a antecipação à compra original antes de aprovar", 409);
-		debtSplitsByItem.set(item.id, debtSplit);
 		previousRootsByItem.set(item.id, importedRoot);
 		batchInputs.push({
 			...item,
@@ -794,6 +802,7 @@ async function approveItemsImpl(
 	}
 	const batchRootIds = await materializeImportedPurchases(cardSnapshot, batchInputs);
 	const rootsByItem = new Map(batchItems.map((item, index) => [item.id, batchRootIds[index]!]));
+	const externalReviews: { itemId: string; localKind: "PURCHASE" | "CHARGE"; localId: string }[] = [];
 	for (const item of selectedItems) {
 		if (item.storeName) await resolveStore(userId, item.storeName);
 		const financingSourceId = getFinancingSource(item.description);
@@ -816,9 +825,7 @@ async function approveItemsImpl(
 					)
 				)[0]
 			: null;
-		const debtSplit = debtSplitsByItem.has(item.id)
-			? debtSplitsByItem.get(item.id)
-			: await getDebtSplitInput({ creditCardImportItemId: item.id });
+		const debtSplit = debtSplitsByItem.get(item.id);
 		// An interrupted approval can have created the root before deleting the import item.
 		const importedRoot = rootsByItem.has(item.id)
 			? previousRootsByItem.get(item.id)
@@ -872,8 +879,7 @@ async function approveItemsImpl(
 				source.settledByPurchaseId = settlementRootId;
 			});
 		if (item.reconciledCreditPurchaseId && rootId !== item.reconciledCreditPurchaseId) {
-			await settleExternalReview(item.id, "PURCHASE", rootId);
-			await refreshAppliedSnapshots(userId, rootId);
+			externalReviews.push({ itemId: item.id, localId: rootId, localKind: "PURCHASE" });
 			continue;
 		}
 		if (Number(item.installmentAmount) < 0 || item.isStatementCharge || /^FIN /u.test(item.description))
@@ -888,15 +894,24 @@ async function approveItemsImpl(
 		};
 		if (item.reconciledCreditPurchaseId || importedRoot) await syncPurchaseDebtEvent(debtInput);
 		else if (debtSplit) await linkPurchaseToDebt({ ...debtInput, debtSplit });
-		await settleExternalReview(item.id, item.isStatementCharge ? "CHARGE" : "PURCHASE", rootId);
-		await refreshAppliedSnapshots(userId, rootId);
+		externalReviews.push({
+			itemId: item.id,
+			localId: rootId,
+			localKind: item.isStatementCharge ? "CHARGE" : "PURCHASE",
+		});
 	}
+	await settleExternalReviews(externalReviews);
+	await refreshAppliedSnapshotsForIds(
+		userId,
+		externalReviews.map(review => review.localId),
+	);
+	if (batchItems.length)
+		await queryRaw(
+			`UPDATE "CreditCardImportItem" i SET "refundReview"=jsonb_set(i."refundReview"::jsonb, '{purchaseId}', to_jsonb(m."rootId"))::json, "updatedAt"=CURRENT_TIMESTAMP FROM unnest($2::text[],$3::text[]) AS m("itemId","rootId") WHERE i."creditCardImportId"=$1 AND i."refundReview"->>'purchaseId'=('pending:' || m."itemId")`,
+			[importId, batchItems.map(item => item.id), batchItems.map(item => rootsByItem.get(item.id)!)],
+		);
 	for (const source of batchItems) {
 		const rootId = rootsByItem.get(source.id)!;
-		await queryRaw(
-			`UPDATE "CreditCardImportItem" SET "refundReview"=jsonb_set("refundReview"::jsonb, '{purchaseId}', to_jsonb($3::text))::json, "updatedAt"=CURRENT_TIMESTAMP WHERE "creditCardImportId"=$1 AND "refundReview"->>'purchaseId'=$2`,
-			[importId, `pending:${source.id}`, rootId],
-		);
 		for (const dependent of allItems.filter(item => pendingPurchaseId(item.description) === source.id)) {
 			await executeStatement(
 				db.sql.public.CreditCardImportItem.update({

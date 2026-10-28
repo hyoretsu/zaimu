@@ -419,23 +419,23 @@ export async function saveCreditBook(
 			throw new HttpException("Titularidade da compra inválida", 403);
 	}
 	await assertTagOwnership([...new Set(delta.purchases.flatMap(p => p.tagIds))], book.card.userId);
-	for (const p of delta.purchases) {
-		for (const [table, id] of [
-			["FinancialAccount", p.cashbackAccountId],
-			["Recurrence", p.recurrenceId],
-		] as const) {
-			if (
-				id &&
-				!(
-					await query(`SELECT "id" FROM "${table}" WHERE "id"=$1 AND "userId"=$2`, [
-						id,
-						book.card.userId,
-					])
-				).length
-			)
-				throw new HttpException("Vínculo pertence a outro usuário", 403);
-		}
+	for (const [table, field] of [
+		["FinancialAccount", "cashbackAccountId"],
+		["Recurrence", "recurrenceId"],
+	] as const) {
+		const ids = [...new Set(delta.purchases.flatMap(p => (p[field] ? [p[field]!] : [])))];
+		if (
+			ids.length &&
+			(
+				await query(`SELECT "id" FROM "${table}" WHERE "id"=ANY($1::text[]) AND "userId"=$2`, [
+					ids,
+					book.card.userId,
+				])
+			).length !== ids.length
+		)
+			throw new HttpException("Vínculo pertence a outro usuário", 403);
 	}
+
 	for (const r of book.refunds)
 		if (!purchasesById.has(r.purchaseId) || !statementIds.has(r.creditStatementId))
 			throw new HttpException("Vínculo do reembolso inválido", 400);
@@ -492,6 +492,10 @@ export async function saveCreditBook(
 				s.isFullySynced,
 			],
 		);
+	const purchaseRows: unknown[][] = [];
+	const planRows: unknown[][] = [];
+	const truncatePlans: { id: string; length: number }[] = [];
+	const tagGroups = new Map<string, { ids: string[]; tags: string[] }>();
 	for (const p of delta.purchases) {
 		const row = {
 			...p,
@@ -504,19 +508,10 @@ export async function saveCreditBook(
 				p.totalAmountCents / currencyScale(book.card.currency) - (p.feeAmount ?? 0),
 			totalAmount: p.totalAmountCents / currencyScale(book.card.currency),
 		};
-		await upsertMoney(
-			query,
-			"CreditPurchaseRecord",
-			purchaseColumns,
-			purchaseColumns.map(column => row[column]),
-		);
+		purchaseRows.push(purchaseColumns.map(column => row[column]));
 		const old = previousPurchases.get(p.id);
 		if (!old || old.installmentAmountsCents.length > p.installmentAmountsCents.length)
-			await query(`DELETE FROM "CreditInstallmentPlan" WHERE "purchaseId" = $1 AND "number" > $2`, [
-				p.id,
-				p.installmentAmountsCents.length,
-			]);
-		const planRows: unknown[][] = [];
+			truncatePlans.push({ id: p.id, length: p.installmentAmountsCents.length });
 		for (const [index, amount] of p.installmentAmountsCents.entries()) {
 			const calendar = p.installmentStatementDates?.[index];
 			if (
@@ -536,58 +531,74 @@ export async function saveCreditBook(
 				calendar?.dueDate ?? null,
 			]);
 		}
-		await upsertMoneyMany(
-			query,
-			"CreditInstallmentPlan",
-			["purchaseId", "number", "amount", "hasImportedAmount", "statementDate", "dueDate"],
-			planRows,
-			["purchaseId", "number"],
-		);
+		if (!old || !equalBookValue(old.tagIds, p.tagIds)) {
+			const key = JSON.stringify(p.tagIds);
+			const group = tagGroups.get(key) ?? { ids: [], tags: [...p.tagIds] };
+			group.ids.push(p.id);
+			tagGroups.set(key, group);
+		}
+	}
+	await upsertMoneyMany(query, "CreditPurchaseRecord", purchaseColumns, purchaseRows);
+	if (truncatePlans.length)
 		await query(
-			`INSERT INTO "CreditEntryReference" ("id","purchaseId") VALUES ($1,$1) ON CONFLICT ("id") DO NOTHING`,
-			[p.id],
+			`DELETE FROM "CreditInstallmentPlan" plan USING unnest($1::text[],$2::int[]) AS target(id,length) WHERE plan."purchaseId"=target.id AND plan."number">target.length`,
+			[truncatePlans.map(row => row.id), truncatePlans.map(row => row.length)],
 		);
-		if (!old || !equalBookValue(old.tagIds, p.tagIds))
-			await replaceEntityTags({
-				entityIds: [p.id],
-				entityType: tagEntityType.creditPurchase,
-				tagIds: [...p.tagIds],
-			});
-	}
-	for (const i of delta.installments) {
-		await upsertMoney(
-			query,
-			"CreditInstallmentRecord",
-			[
-				"id",
-				"purchaseId",
-				"statementId",
-				"number",
-				"amount",
-				"occurrenceDate",
-				"hasImportedAmount",
-				"settledByPurchaseId",
-				"isSettled",
-			],
-			[
-				i.id,
-				i.purchaseId,
-				i.statementId,
-				i.number,
-				i.amountCents / currencyScale(book.card.currency),
-				i.occurrenceDate,
-				i.hasImportedAmount,
-				i.settledByPurchaseId,
-				i.isSettled ?? false,
-			],
+	await upsertMoneyMany(
+		query,
+		"CreditInstallmentPlan",
+		["purchaseId", "number", "amount", "hasImportedAmount", "statementDate", "dueDate"],
+		planRows,
+		["purchaseId", "number"],
+	);
+	if (delta.purchases.length)
+		await query(
+			`INSERT INTO "CreditEntryReference" ("id","purchaseId") SELECT id,id FROM unnest($1::text[]) AS source(id) ON CONFLICT ("id") DO NOTHING`,
+			[delta.purchases.map(p => p.id)],
 		);
-		await upsertMoney(
-			query,
-			"CreditEntryReference",
-			["id", "purchaseId", "installmentId"],
-			[i.id, i.purchaseId, i.id],
-		);
-	}
+	for (const group of tagGroups.values())
+		await replaceEntityTags({
+			entityIds: group.ids,
+			entityType: tagEntityType.creditPurchase,
+			tagIds: group.tags,
+		});
+	const installmentRows: unknown[][] = [];
+
+	for (const i of delta.installments)
+		installmentRows.push([
+			i.id,
+			i.purchaseId,
+			i.statementId,
+			i.number,
+			i.amountCents / currencyScale(book.card.currency),
+			i.occurrenceDate,
+			i.hasImportedAmount,
+			i.settledByPurchaseId,
+			i.isSettled ?? false,
+		]);
+	await upsertMoneyMany(
+		query,
+		"CreditInstallmentRecord",
+		[
+			"id",
+			"purchaseId",
+			"statementId",
+			"number",
+			"amount",
+			"occurrenceDate",
+			"hasImportedAmount",
+			"settledByPurchaseId",
+			"isSettled",
+		],
+		installmentRows,
+	);
+	await upsertMoneyMany(
+		query,
+		"CreditEntryReference",
+		["id", "purchaseId", "installmentId"],
+		delta.installments.map(i => [i.id, i.purchaseId, i.id]),
+	);
+
 	const deletedRefundIds = book.refunds.filter(r => r.deletedAt).map(r => r.id);
 	if (deletedRefundIds.length) {
 		await query(
@@ -761,7 +772,25 @@ export async function saveCreditBook(
 		await history(r.id, "refundDate", old.creditDate, r.creditDate);
 		await history(r.id, "deletedAt", old.deletedAt, r.deletedAt);
 	}
+	const newPurchaseIds = delta.purchases.filter(p => !previousPurchases.has(p.id)).map(p => p.id);
+	const existingDebtTargets = new Set(
+		newPurchaseIds.length
+			? (
+					await query<{ id: string }>(
+						`SELECT "creditPurchaseId" AS id FROM "DebtSplit" WHERE "creditPurchaseId"=ANY($1::text[]) UNION SELECT "creditPurchaseId" AS id FROM "DebtPurchaseLink" WHERE "creditPurchaseId"=ANY($1::text[])`,
+						[newPurchaseIds],
+					)
+				).map(row => row.id)
+			: [],
+	);
 	for (const p of book.purchases.filter(p => delta.debtPurchaseIds.has(p.id))) {
+		if (
+			!previousPurchases.has(p.id) &&
+			!p.debtSplitRule &&
+			!existingDebtTargets.has(p.id) &&
+			!refundsByPurchase.has(p.id)
+		)
+			continue;
 		if (
 			JSON.stringify(previousPurchases.get(p.id)?.debtSplitRule) !== JSON.stringify(p.debtSplitRule) ||
 			previousPurchases.get(p.id)?.totalAmountCents !== p.totalAmountCents

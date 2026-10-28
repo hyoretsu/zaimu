@@ -10,6 +10,24 @@ export async function rewardSnapshot(
 	date: string,
 	userId: string,
 ) {
+	return snapshot(await rewardContext(input, source, date, userId), total);
+}
+
+/** One approval transaction may reuse the same effective policy and exchange quote. */
+export function createRewardSnapshotLoader(loadContext: typeof rewardContext = rewardContext) {
+	const contexts = new Map<string, ReturnType<typeof rewardContext>>();
+	return async (...[input, total, source, date, userId]: Parameters<typeof rewardSnapshot>) => {
+		const key = JSON.stringify([input.id, source, date, userId]);
+		let context = contexts.get(key);
+		if (!context) {
+			context = loadContext(input, source, date, userId);
+			contexts.set(key, context);
+		}
+		return snapshot(await context, total);
+	};
+}
+
+async function rewardContext(input: { id: string }, source: string, date: string, userId: string) {
 	const card = await cardRulesForPurchase(input.id, userId, date);
 	const [account] = card.cashbackAccountId
 		? await queryRaw<{ currency: string }>(
@@ -23,6 +41,10 @@ export async function rewardSnapshot(
 		card.cashbackAccountId && card.cashbackRate && source !== currency
 			? await ensureCurrencyRates(date, source, currency)
 			: 1;
+	return { card, currency, rate };
+}
+
+function snapshot({ card, currency, rate }: Awaited<ReturnType<typeof rewardContext>>, total: number) {
 	return card.cashbackAccountId && card.cashbackRate
 		? {
 				cashbackAccountId: card.cashbackAccountId,

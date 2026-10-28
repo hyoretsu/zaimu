@@ -3,11 +3,11 @@ import {
 	currentDateKey,
 	type FinancialDate,
 	normalizeCardCalendar,
-	type StatementInput,
 	statementCycles,
+	type StatementInput,
 } from "@zaimu/finance/credit-card";
 import { accountCardRules } from "~/modules/accounts/application/institution-card-rules";
-import { numeric, queryRaw, type SqlExecutor } from "~/shared/infra/sql";
+import { queryRaw, type SqlExecutor } from "~/shared/infra/sql";
 import { mutateCreditBook, readCreditBook } from "./normalized-credit-book";
 
 export async function withStatementPayments<T extends StatementInput & { creditCardId: string }>(
@@ -34,7 +34,9 @@ export async function withStatementPayments<T extends StatementInput & { creditC
 					...template,
 					...statement,
 					dueDate:
-						template.dueDate instanceof Date ? new Date(`${statement.dueDate}T12:00:00Z`) : statement.dueDate,
+						template.dueDate instanceof Date
+							? new Date(`${statement.dueDate}T12:00:00Z`)
+							: statement.dueDate,
 					statementDate:
 						template.statementDate instanceof Date
 							? new Date(`${statement.statementDate}T12:00:00Z`)
@@ -65,6 +67,7 @@ export async function recalculateStatementPayments(transaction: SqlExecutor, car
 			"dueDate",
 			"totalAmount",
 			"paidAmount",
+			"isPaid",
 		)
 			.where((f, fn) => fn.in(f.creditCardId, cardIds))
 			.build(),
@@ -100,6 +103,7 @@ export async function recalculateStatementPayments(transaction: SqlExecutor, car
 				creditCardId: card.id,
 				dueDate: new Date(`${dates.dueDate}T12:00:00Z`),
 				id: `cycle-${dates.statementDate}`,
+				isPaid: false,
 				paidAmount: 0,
 				statementDate: new Date(`${dates.statementDate}T12:00:00Z`),
 				totalAmount: 0,
@@ -122,16 +126,26 @@ export async function recalculateStatementPayments(transaction: SqlExecutor, car
 			if (created) statements.push({ ...cycle, id: created.id });
 		}
 	}
-	for (const statement of await withStatementPayments(statements, transaction)) {
-		if (statement.id.startsWith("cycle-") || statement.isForecast) continue;
-		await transaction.executeStatement(
-			transaction.db.sql.public.CreditCardStatement.update({
-				isPaid: statement.isPaid,
-				paidAmount: numeric<12, 2>(statement.paidAmount),
-				updatedAt: new Date(),
-			})
-				.where((f, fn) => fn.eq(f.id, statement.id))
-				.build(),
+	const stored = new Map(statements.map(statement => [statement.id, statement]));
+	const changed = (await withStatementPayments(statements, transaction)).filter(statement => {
+		if (statement.id.startsWith("cycle-") || statement.isForecast) return false;
+		const previous = stored.get(statement.id);
+		return (
+			previous &&
+			(Number(previous.paidAmount) !== statement.paidAmount || previous.isPaid !== statement.isPaid)
 		);
-	}
+	});
+	if (changed.length)
+		await queryRaw(
+			`UPDATE "CreditCardStatement" s SET "isPaid"=v."isPaid", "paidAmount"=v."paidAmount", "updatedAt"=CURRENT_TIMESTAMP FROM jsonb_to_recordset($1::jsonb) AS v(id text, "isPaid" boolean, "paidAmount" numeric) WHERE s.id=v.id AND (s."isPaid" IS DISTINCT FROM v."isPaid" OR s."paidAmount" IS DISTINCT FROM v."paidAmount")`,
+			[
+				JSON.stringify(
+					changed.map(statement => ({
+						id: statement.id,
+						isPaid: statement.isPaid,
+						paidAmount: statement.paidAmount,
+					})),
+				),
+			],
+		);
 }
