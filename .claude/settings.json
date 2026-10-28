@@ -1,0 +1,15 @@
+{
+	"hooks": {
+		"PreToolUse": [
+			{
+				"hooks": [
+					{
+						"command": "bun \"$CLAUDE_PROJECT_DIR/scripts/agent-hooks/block-generated-edits.ts\"",
+						"type": "command"
+					}
+				],
+				"matcher": "Edit|Write|MultiEdit|NotebookEdit"
+			}
+		]
+	}
+}

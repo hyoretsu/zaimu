@@ -6,7 +6,8 @@ if (
 		path =>
 			path === "scripts/test-runner.ts" ||
 			path === "scripts/tsconfig.json" ||
-			path.startsWith("scripts/testing/"),
+			path.startsWith("scripts/testing/") ||
+			path.startsWith("scripts/agent-hooks/"),
 	)
 ) {
 	const check = Bun.spawnSync(["bun", "check", "--project", "scripts/tsconfig.json"], {
