@@ -14,7 +14,7 @@ Connected and guest use the same domain calculations. No remote mutations.
 - [x] Persistence, versioned operations, API contracts and guest synchronization.
 - [x] Institution association, forms, schedules and payment/simulation UI.
 - [x] Generated SDK, integration tests, build and hook-validated commits.
-- [ ] Integrate into original main and remove task worktree.
+- [x] Integrate into original main and remove task worktree.
 
 ## Verification
 
@@ -34,3 +34,11 @@ Final verification: 325 finance unit tests passed; two disposable loan integrati
 Presentation verification: daily account balance inspection, known commitments beyond selected horizon and explicit terminal assets/debt breakdown added. Finance suite now includes 326 regression tests.
 
 Mobile containment update: shared dialog viewport content uses block sizing so nested horizontal tables cannot widen forms; loan disclosures/results preserve minimum widths. Dialog history/scroll regression tests and production build passed.
+
+## Delivery completed
+
+Integrated into original `main` with local commits. Isolated worktree removed through `git worktree remove`; original compose and database-reference edits preserved byte for byte. Finance suite: 326 passing tests. Loan integration: two passing tests. Migration chain: three passing checks. Dialog history/scroll: 15 passing tests. Headed desktop/mobile browser flows passed creation, search, account balances, save/reopen, recalculation and creditor-confirmed execution. Mobile viewport measured 318 px content within 318 px available. Normal commit hooks and affected production builds passed.
+
+Broad backend integration run still reports failures in `normalized-refunds.test.ts` involving injected replay failure and aborted transactions; that broad suite is not reported as passing. Required unit coverage and targeted loan integration passed.
+
+Runtime boundary: existing `zaimu-dev-1` container remains paused. Its schema watcher restarts the container and startup executes `migrate:deploy`; pausing prevented automatic application while integrating files. Resuming/restarting it can apply the pending migration. No shared/remote database migration, push or deployment was executed. Task preview/dev servers were stopped.
