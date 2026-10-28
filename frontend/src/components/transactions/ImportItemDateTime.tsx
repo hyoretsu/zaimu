@@ -14,7 +14,7 @@ export function ImportItemDateTime({
 
 	return (
 		<span className="text-muted-foreground text-xs">
-			{originalPurchase ? <span className="block">Compra original:</span> : null}
+			{originalPurchase ? <span>Compra original: </span> : null}
 			{date ? formatLocalDate(date) : null}
 			{date && formattedTime ? " · " : null}
 			{formattedTime}

@@ -80,6 +80,10 @@ Code/commits/PRs: normal. Off: "stop caveman" / "normal mode".
 
 A route with children is a layout and must render Outlet. Use folder paths consistently: `foo/$param.tsx` for the layout, `foo/$param/index.tsx` for its index page and `foo/$param/terms/index.tsx` for a child. Move the parent's page content and page guard to the index route; preserve deliberate layout-wide authorization. Never place page content in a route that also has children. Regenerate routeTree.gen.ts through the frontend build after route changes.
 
+## Screenshot validation
+
+Every interface change must be validated in the browser using screenshots before completion. Capture and visually inspect the affected screen and states at desktop and mobile widths, including the reported viewport when available. Fix spacing, alignment, overflow and responsive regressions, then capture and inspect fresh screenshots after the final change. DOM assertions, builds and type checks do not replace visual inspection. Report screenshot paths and any validation limitations.
+
 ## Component Architecture (Frontend)
 
 - **One floating action menu.** Each page or modal must expose at most one floating action control. With exactly one action, show its own icon and execute it directly. With two or more actions, show a hamburger menu containing all actions; never render separate floating buttons side by side. Reuse the shared menu and preserve accessible labels, disabled states, keyboard navigation and focus when an action opens a dialog.
