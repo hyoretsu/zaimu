@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { cp, mkdir, symlink } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { Client } from "pg";
@@ -49,7 +50,13 @@ export async function prepareSchema(
 	await mkdir(copy, { recursive: true });
 	for (const name of ["migrations", "out", "src", "scripts", "prisma.config.ts", "package.json"])
 		await cp(join(sqlRoot, name), join(copy, name), { recursive: true });
-	await symlink(join(sqlRoot, "node_modules"), join(copy, "node_modules"), "dir");
+	// Hoisted installs keep dependencies in the workspace root instead of packages/sql.
+	const modulesDir = [join(sqlRoot, "node_modules"), resolve(sqlRoot, "../../node_modules")].find(dir =>
+		existsSync(join(dir, "@prisma/cli/dist/cli.js")),
+	);
+	if (!modulesDir) throw new Error("Disposable schema preparation failed: @prisma/cli is not installed");
+	await symlink(modulesDir, join(copy, "node_modules"), "dir");
+	const prismaCli = join(modulesDir, "@prisma/cli/dist/cli.js");
 	await Bun.write(
 		join(copy, "migrations/app/refs/db.json"),
 		JSON.stringify({ hash: initial, invariants: [] }),
@@ -60,9 +67,7 @@ export async function prepareSchema(
 		["migrate", "--advance-ref", "db"],
 	]) {
 		const command =
-			args[0] === "migrate"
-				? ["bun", join(copy, "scripts/migrate.ts")]
-				: ["bun", join(sqlRoot, "node_modules/@prisma/cli/dist/cli.js"), ...args];
+			args[0] === "migrate" ? ["bun", join(copy, "scripts/migrate.ts")] : ["bun", prismaCli, ...args];
 		const process = Bun.spawn(command, {
 			cwd: copy,
 			env: environment,
