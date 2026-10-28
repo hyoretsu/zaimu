@@ -101,13 +101,13 @@ describe("normalized refund transactions", () => {
 		await expect(syncCreditBook(context.userId, stale)).rejects.toThrow("excluído");
 	});
 
-	test("concurrent partial refunds cannot exceed purchase total", async () => {
+	test("concurrent refunds preserve both credits above the purchase total", async () => {
 		const results = await Promise.allSettled([
 			refunds.createNormalizedRefund(secondContext, { amount: 70, creditDate: "2024-08-20" }),
 			refunds.createNormalizedRefund(secondContext, { amount: 70, creditDate: "2024-08-20" }),
 		]);
-		expect(results.filter(result => result.status === "fulfilled")).toHaveLength(1);
-		expect(results.filter(result => result.status === "rejected")).toHaveLength(1);
+		expect(results.filter(result => result.status === "fulfilled")).toHaveLength(2);
+		expect(results.filter(result => result.status === "rejected")).toHaveLength(0);
 		expect(
 			Number(
 				(
@@ -117,28 +117,36 @@ describe("normalized refund transactions", () => {
 					)
 				).rows[0].sum,
 			),
-		).toBe(70);
+		).toBe(140);
 	});
 
 	test("failure during replay rolls back refund and institutional state", async () => {
+		const snapshot = async () => ({
+			policy: (
+				await client.query(
+					`SELECT "creditRefundPolicy" FROM "FinancialInstitution" WHERE "id"='normalized-test-bank'`,
+				)
+			).rows,
+			refunds: (
+				await client.query(`SELECT * FROM "CreditRefundRecord" WHERE "purchaseId"=$1 ORDER BY "id"`, [
+					secondContext.purchaseId,
+				])
+			).rows,
+		});
+		const before = await snapshot();
 		await client.query(
 			`CREATE FUNCTION fail_normalized_replay() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'Injected replay failure'; END $$; CREATE TRIGGER fail_normalized_replay BEFORE UPDATE ON "CreditCardStatement" FOR EACH ROW EXECUTE FUNCTION fail_normalized_replay();`,
 		);
-		await expect(
-			refunds.createNormalizedRefund(secondContext, { amount: 10, creditDate: "2024-08-20" }),
-		).rejects.toThrow();
-		expect(
-			Number(
-				(
-					await client.query(`SELECT count(*) FROM "CreditRefundRecord" WHERE "purchaseId" = $1`, [
-						secondContext.purchaseId,
-					])
-				).rows[0].count,
-			),
-		).toBe(1);
-		await client.query(
-			`DROP TRIGGER fail_normalized_replay ON "CreditCardStatement"; DROP FUNCTION fail_normalized_replay();`,
-		);
+		try {
+			await expect(
+				refunds.createNormalizedRefund(secondContext, { amount: 10, creditDate: "2024-08-20" }),
+			).rejects.toThrow("Injected replay failure");
+			expect(await snapshot()).toEqual(before);
+		} finally {
+			await client.query(
+				`DROP TRIGGER fail_normalized_replay ON "CreditCardStatement"; DROP FUNCTION fail_normalized_replay();`,
+			);
+		}
 	});
 
 	test("sync tombstone removes a deleted purchase without resurrecting it", async () => {
@@ -359,7 +367,7 @@ describe("normalized refund transactions", () => {
 					purchaseDate: "2024-09-12",
 				})
 			).status,
-		).toBe(400);
+		).toBe(200);
 		await client.query(
 			`INSERT INTO "user" ("id","email","name") VALUES ('normalized-test-outsider','normalized-outsider@example.test','Outro'); INSERT INTO "FinancialAccount" ("id","userId","type") VALUES ('normalized-test-foreign','normalized-test-outsider','CHECKING');`,
 		);
@@ -404,7 +412,7 @@ describe("normalized refund transactions", () => {
 					purchase: {
 						description: "Inválida",
 						installments: 1,
-						purchaseDate: "2024-08-10",
+						purchaseDate: "2024-09-13",
 						totalAmount: 10,
 					},
 				})
@@ -449,7 +457,7 @@ describe("normalized refund transactions", () => {
 				)
 			).status,
 		).toBe(200);
-		// A legacy pending batch must collapse before pagination, and approval cancels only its installments.
+		// A legacy pending batch collapses before pagination; refund evidence preserves installments.
 		const { withImportedAnticipation } = await import("@zaimu/finance/imported-anticipation");
 		const { creditBookEntries } = await import("@zaimu/finance/credit-book");
 		const { mutateCreditBook, newBookPurchase, readCreditBook } =
@@ -499,13 +507,13 @@ describe("normalized refund transactions", () => {
 		expect(approval.status).toBe(200);
 		const afterOffset = await readCreditBook(context.userId, context.cardId);
 		const offsetRefund = afterOffset.refunds.find(r => r.externalId === "offset-credit")!;
-		expect(offsetRefund.canceledInstallmentNumbers).toEqual([2, 3]);
+		expect(offsetRefund.canceledInstallmentNumbers).toBeUndefined();
 		expect(offsetRefund.amountCents).toBe(10000);
 		const offsetRows = creditBookEntries(afterOffset).filter(
 			row => row.purchaseId === canceledPurchase.id,
 		);
-		expect(offsetRows.filter(row => row.isReimbursed).map(row => row.currentInstallment)).toEqual([2, 3]);
-		expect(offsetRows.find(row => row.id === offsetRefund.id)?.installmentAmount).toBe(-0);
+		expect(offsetRows.filter(row => row.isReimbursed)).toEqual([]);
+		expect(offsetRows.find(row => row.id === offsetRefund.id)?.installmentAmount).toBe(-100);
 
 		const statements = await request(`/credit-cards/${context.cardId}/statements`);
 		expect(statements.status).toBe(200);
@@ -885,6 +893,8 @@ describe("normalized refund transactions", () => {
 			await expect(
 				withRawTransaction(async () => {
 					const f = await fixture(queryRaw);
+					const { mutateCreditBook } = await import("../application/normalized-credit-book");
+					await mutateCreditBook(context.userId, f.cardId, () => undefined, "2024-12-01");
 					const sourceId = `source-${f.itemId}`;
 					await queryRaw(
 						`INSERT INTO "CreditCardImportItem" ("id", "creditCardImportId", "externalId", "purchaseDate", "description", "totalAmount", "installmentAmount", "installments") VALUES ($1,$2,$1,'2024-08-01','Pending original',300,100,3)`,
@@ -1046,7 +1056,7 @@ describe("normalized refund transactions", () => {
 			).rejects.toThrow("rollback bulk test");
 		});
 
-		test("invalid review and insufficient balance preserve pending data", async () => {
+		test("invalid review and non-refund source preserve pending data", async () => {
 			const { queryRaw, withRawTransaction } = await import("~/shared/infra/sql");
 			const { saveRefundReview } = await import("../../credit-card-imports/application/refund-review");
 			const { approveItems } = await import("../../credit-card-imports/application/import-service");
@@ -1060,10 +1070,9 @@ describe("normalized refund transactions", () => {
 					await saveRefundReview(context.userId, f.importId, f.itemId, {
 						purchaseId: f.purchaseId,
 					});
-					await queryRaw(
-						`UPDATE "CreditCardImportItem" SET "installmentAmount"=-301 WHERE "id"=$1`,
-						[f.itemId],
-					);
+					await queryRaw(`UPDATE "CreditCardImportItem" SET "installmentAmount"=0 WHERE "id"=$1`, [
+						f.itemId,
+					]);
 					await expect(approveItems(context.userId, f.importId, f.itemId)).rejects.toThrow();
 					expect(
 						await queryRaw(`SELECT "id" FROM "CreditCardImportItem" WHERE "id"=$1`, [f.itemId]),
