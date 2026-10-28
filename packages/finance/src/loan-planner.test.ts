@@ -233,3 +233,113 @@ test("illiquid selected assets cannot satisfy today's consolidated reserve", () 
 	input.accounts[1]!.availableFrom = undefined;
 	expect(evaluateLoanScenario(input, baselineLoanScenario).status).toBe("UNAVAILABLE");
 });
+
+test("variable capitalized grace is not capitalized twice during projection", () => {
+	const input = setup();
+	input.loans[0]!.book = createLoanContract(
+		"loan",
+		"bank",
+		{
+			...terms,
+			graceInterest: "CAPITALIZE",
+			graceMonths: 2,
+			principalAmount: 1000,
+			rate: { indicator: "IPCA", percentage: 100 },
+			totalInstallments: 4,
+		},
+		() => 1,
+	);
+	const nominal = input.loans[0]!.book.versions[0]!.schedule.reduce(
+		(sum, row) => sum + row.principal + row.interest + row.charges,
+		0,
+	);
+	const result = evaluateLoanScenario(input, baselineLoanScenario, { reference: () => 1 });
+	expect(result.status).toBe("SAFE");
+	expect(result.days.reduce((sum, row) => sum + row.expenses, 0)).toBeCloseTo(nominal, 2);
+});
+
+test("recurring advances stop at payoff and cap the last installment quantity", () => {
+	const input = setup();
+	input.loans[0]!.book = createLoanContract("loan", "bank", {
+		...terms,
+		principalAmount: 1000,
+		totalInstallments: 2,
+	});
+	const result = evaluateLoanScenario(input, {
+		id: "repeat",
+		name: "repeat",
+		operations: [
+			{
+				accountId: "cash",
+				input: { count: 3, date: input.from, mode: "FRONT" },
+				loanId: "loan",
+				repeatEveryMonths: 1,
+				repetitions: 6,
+			},
+		],
+		transfers: [],
+	});
+	expect(result.status).toBe("SAFE");
+	expect(result.outlay).toBe(1000);
+});
+
+test("configured arrears cannot disappear from the safe baseline", () => {
+	const input = setup();
+	input.from = "2026-03-01";
+	input.accounts[0]!.balance = 1030;
+	input.loans[0]!.book = createLoanContract("loan", "bank", {
+		...terms,
+		lateFinePercent: 2,
+		lateMonthlyPercent: 3,
+		principalAmount: 1000,
+		totalInstallments: 1,
+	});
+	const result = evaluateLoanScenario(input, baselineLoanScenario);
+	expect(result.status).toBe("UNSAFE");
+	expect(result.firstDeficit?.date).toBe(input.from);
+});
+
+test("selected installments keep their due-date identity after rescheduling", () => {
+	const input = setup();
+	input.loans[0]!.book = createLoanContract("loan", "bank", {
+		...terms,
+		principalAmount: 1000,
+		rate: { fixedRate: 1 },
+		totalInstallments: 3,
+	});
+	const chosen = input.loans[0]!.book.versions[0]!.schedule[2]!.id;
+	const result = evaluateLoanScenario(input, {
+		id: "selection",
+		name: "selection",
+		operations: [
+			{
+				accountId: "cash",
+				input: { amount: 100, date: "2026-03-01", mode: "REDUCE_PAYMENT" },
+				loanId: "loan",
+			},
+			{
+				accountId: "cash",
+				input: { date: "2026-03-02", installmentIds: [chosen], mode: "SELECTED" },
+				loanId: "loan",
+			},
+		],
+		transfers: [],
+	});
+	expect(result.status).toBe("SAFE");
+});
+
+test("automatic search names full settlement explicitly", async () => {
+	const input = setup();
+	input.loans[0]!.book = createLoanContract("loan", "bank", {
+		...terms,
+		principalAmount: 1000,
+		rate: { fixedRate: 2 },
+		totalInstallments: 3,
+	});
+	const result = await searchLoanScenarios(input, { accountId: "cash", budget: 2000 });
+	expect(
+		result.ranked.some(row =>
+			row.scenario.operations.some(operation => operation.input.mode === "PAYOFF"),
+		),
+	).toBe(true);
+});

@@ -10,6 +10,7 @@ import {
 	applyLoanSimulation,
 	buildContractSchedule,
 	type LoanContractBook,
+	loanInstallmentLateCharges,
 	type LoanReference,
 	type LoanSimulationInput,
 	outstandingLoanSchedule,
@@ -190,12 +191,31 @@ export function evaluateLoanScenario(
 			const prior =
 				outstanding.find(row => row.number === first.number - 1)?.dueDate ??
 				shiftMonths(first.dueDate, -1);
+			const futureGrace = future.filter(
+				row => row.number <= version.terms.graceMonths && row.principal === 0,
+			);
+			const oldCapitalization =
+				version.terms.graceInterest === "CAPITALIZE"
+					? futureGrace.reduce((sum, row) => {
+							const priorRow = book.versions
+								.toReversed()
+								.flatMap(entry => entry.schedule)
+								.find(item => item.number === row.number - 1 && item.dueDate < row.dueDate);
+							const before =
+								priorRow?.balance ??
+								version.terms.principalAmount +
+									version.terms.charges
+										.filter(charge => charge.financed)
+										.reduce((sum, charge) => sum + charge.amount, 0);
+							return sum + row.balance - before;
+						}, 0)
+					: 0;
 			const terms = {
 				...structuredClone(version.terms),
 				charges: [],
 				firstDueDate: first.dueDate,
-				graceMonths: Math.max(0, version.terms.graceMonths - (first.number - 1)),
-				principalAmount: future.reduce((sum, row) => sum + row.principal, 0),
+				graceMonths: futureGrace.length,
+				principalAmount: future.reduce((sum, row) => sum + row.principal, 0) - oldCapitalization,
 				startDate: prior,
 				totalInstallments: future.length,
 			};
@@ -268,7 +288,7 @@ export function evaluateLoanScenario(
 			.sort((a, b) => a.input.date.localeCompare(b.input.date) || a.loanId.localeCompare(b.loanId));
 		for (const operation of operations) {
 			const date = civilDate(operation.input.date);
-			if (date < input.from || date > through) throw new Error("Operação fora do horizonte");
+			if (date < input.from) throw new Error("Operação fora do horizonte");
 			const loan = input.loans.find(row => row.book.loanId === operation.loanId);
 			let book = books.get(operation.loanId);
 			if (
@@ -277,11 +297,32 @@ export function evaluateLoanScenario(
 				(input.eligibleLoanIds && !input.eligibleLoanIds.includes(operation.loanId))
 			)
 				throw new Error("Empréstimo indisponível");
+			if (!outstandingLoanSchedule(book).length) continue;
+			if (date > through) throw new Error("Operação fora do horizonte");
 			const payer = funding(operation.accountId, date);
 			const currency = activeLoanVersion(book).terms.currency;
 			// Regular installments before the proposed date remain in the cash flow and reduce the book first.
 			for (const row of outstandingLoanSchedule(book).filter(row => row.dueDate < date)) {
-				const amount = row.principal + row.interest + row.charges;
+				const paidDate = row.dueDate < input.from ? input.from : row.dueDate;
+				const amount =
+					row.principal +
+					row.interest +
+					row.charges +
+					loanInstallmentLateCharges(book, row, paidDate);
+				if (amount <= 0) {
+					if (amount < 0)
+						movements.push({
+							amount: -amount,
+							currency,
+							date: paidDate,
+							destinationAccountId: loan.paymentAccountId,
+							type: "INCOME",
+						});
+					activeLoanVersion(book).schedule = outstandingLoanSchedule(book).filter(
+						item => item.id !== row.id,
+					);
+					continue;
+				}
 				movements.push({
 					amount,
 					currency,
@@ -295,9 +336,9 @@ export function evaluateLoanScenario(
 					accountId: null,
 					amount,
 					date:
-						row.dueDate < activeLoanVersion(book).terms.startDate
-							? activeLoanVersion(book).terms.startDate
-							: row.dueDate,
+						paidDate < activeLoanVersion(book).effectiveDate
+							? activeLoanVersion(book).effectiveDate
+							: paidDate,
 					expectedRevision: book.revision,
 					id: `forecast:${book.revision}:${row.id}`,
 				});
@@ -309,14 +350,22 @@ export function evaluateLoanScenario(
 			const simulationInput = structuredClone(operation.input);
 			if (simulationInput.mode === "SELECTED") {
 				const originalRows = outstandingLoanSchedule(loan.book);
-				const numbers = simulationInput.installmentIds?.map(
-					id => originalRows.find(row => row.id === id)?.number,
+				const dates = simulationInput.installmentIds?.map(
+					id => originalRows.find(row => row.id === id)?.dueDate,
 				);
-				simulationInput.installmentIds = numbers?.map(
-					number =>
-						outstandingLoanSchedule(book!).find(row => row.number === number)?.id ?? "missing",
+				simulationInput.installmentIds = dates?.map(
+					dueDate =>
+						outstandingLoanSchedule(book!).find(row => row.dueDate === dueDate)?.id ?? "missing",
 				);
 			}
+			if (
+				(simulationInput.mode === "FRONT" || simulationInput.mode === "BACK") &&
+				(operation.repetitions ?? 1) > 1
+			)
+				simulationInput.count = Math.min(
+					simulationInput.count ?? 1,
+					outstandingLoanSchedule(book).length,
+				);
 			const simulation = simulateLoanOperation(book, simulationInput, runtime.reference);
 			const debit =
 				convert(simulation.amount, currency, date) /
@@ -356,14 +405,19 @@ export function evaluateLoanScenario(
 		for (const loan of input.loans) {
 			const book = books.get(loan.book.loanId)!;
 			account(loan.paymentAccountId);
-			for (const row of outstandingLoanSchedule(book))
+			for (const row of outstandingLoanSchedule(book)) {
+				const date = row.dueDate < input.from ? input.from : row.dueDate;
+				const amount =
+					row.principal + row.interest + row.charges + loanInstallmentLateCharges(book, row, date);
 				movements.push({
-					amount: row.principal + row.interest + row.charges,
+					amount: Math.abs(amount),
 					currency: activeLoanVersion(book).terms.currency,
-					date: row.dueDate < input.from ? input.from : row.dueDate,
-					originAccountId: loan.paymentAccountId,
-					type: "EXPENSE",
+					date,
+					destinationAccountId: amount < 0 ? loan.paymentAccountId : undefined,
+					originAccountId: amount < 0 ? undefined : loan.paymentAccountId,
+					type: amount < 0 ? "INCOME" : "EXPENSE",
 				});
+			}
 		}
 		const days = dailyForecast({
 			...runtime,
@@ -550,10 +604,14 @@ export async function searchLoanScenarios(
 		for (const loan of input.loans.filter(
 			loan => !input.eligibleLoanIds || input.eligibleLoanIds.includes(loan.book.loanId),
 		)) {
-			const count = outstandingLoanSchedule(loan.book).filter(row => row.dueDate >= date).length;
+			const count = outstandingLoanSchedule(loan.book).filter(
+				row => row.dueDate >= date || date === input.from,
+			).length;
 			if (!count) continue;
 			for (const mode of ["FRONT", "BACK"] as const)
-				for (const quantity of [...new Set([1, Math.ceil(count / 4), Math.ceil(count / 2), count])])
+				for (const quantity of [...new Set([1, Math.ceil(count / 4), Math.ceil(count / 2)])].filter(
+					quantity => quantity < count,
+				))
 					scenarios.push({
 						id: `${date}:${loan.book.loanId}:${mode}:${quantity}`,
 						name: `${quantity} parcelas - ${date}`,
@@ -566,6 +624,18 @@ export async function searchLoanScenarios(
 						],
 						transfers: [],
 					});
+			scenarios.push({
+				id: `${date}:${loan.book.loanId}:PAYOFF`,
+				name: `Quitar - ${date}`,
+				operations: [
+					{
+						accountId: options.accountId,
+						input: { date, mode: "PAYOFF" },
+						loanId: loan.book.loanId,
+					},
+				],
+				transfers: [],
+			});
 			for (const fraction of [0.25, 0.5, 1])
 				for (const mode of ["REDUCE_TERM", "REDUCE_PAYMENT"] as const)
 					scenarios.push({

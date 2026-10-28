@@ -202,3 +202,39 @@ test("summary counts completed installments rather than partial receipts", () =>
 	expect(loanContractSummary(second).remainingInstallments).toBe(12);
 	expect(loanContractSummary(second).totalPaid).toBe(20);
 });
+
+test("payoff includes configured arrears and audits their amount", () => {
+	const book = createLoanContract(
+		"loan",
+		"bank",
+		terms({
+			lateFinePercent: 2,
+			lateMonthlyPercent: 3,
+			principalAmount: 1000,
+			rate: { fixedRate: 0 },
+			totalInstallments: 1,
+		}),
+	);
+	const quote = simulateLoanOperation(book, { date: "2026-03-01", mode: "PAYOFF" });
+	expect(quote.amount).toBe(1048);
+	expect(quote.charges).toBe(48);
+	const paid = applyLoanSimulation(book, quote, payment);
+	expect(paid.receipts.at(-1)!.lateCharges).toBe(48);
+});
+
+test("principal amortization respects accrued interest and cannot bypass payoff charges", () => {
+	const book = createLoanContract(
+		"loan",
+		"bank",
+		terms({
+			charges: [{ amount: 30, financed: false, name: "Tarifa", recurring: false }],
+			principalAmount: 1000,
+			totalInstallments: 3,
+		}),
+	);
+	const partial = simulateLoanOperation(book, { amount: 500, date: "2026-02-01", mode: "REDUCE_PAYMENT" });
+	expect(partial.amount).toBe(505);
+	expect(partial.schedule[0]!.charges).toBe(30);
+	const full = simulateLoanOperation(book, { amount: 1000, date: "2026-01-01", mode: "REDUCE_TERM" });
+	expect(full.amount).toBe(simulateLoanOperation(book, { date: "2026-01-01", mode: "PAYOFF" }).amount);
+});

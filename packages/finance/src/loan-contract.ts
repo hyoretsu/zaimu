@@ -340,8 +340,26 @@ export function simulateLoanOperation(
 			throw new Error("Regularize parcelas vencidas antes de amortizar");
 		const principal = round(rows.reduce((sum, row) => sum + row.principal, 0));
 		if (input.amount! > principal) throw new Error("Amortização excede principal restante");
-		amount = round(input.amount!);
-		const left = round(principal - amount);
+		if (round(input.amount!) === principal) {
+			const payoff = simulateLoanOperation(book, { ...input, mode: "PAYOFF" }, reference);
+			return { ...payoff, input: structuredClone(input) };
+		}
+		const principalReduction = round(input.amount!);
+		const nextDue = rows[0]!;
+		const periodStart =
+			shiftMonths(nextDue.dueDate, -1) > terms.startDate
+				? shiftMonths(nextDue.dueDate, -1)
+				: terms.startDate;
+		const elapsed = Math.max(
+			0,
+			Math.min(
+				1,
+				civilDays(periodStart, input.date) / Math.max(1, civilDays(periodStart, nextDue.dueDate)),
+			),
+		);
+		const accrued = round(nextDue.interest * (principalReduction / principal) * elapsed);
+		amount = round(principalReduction + accrued);
+		const left = round(principal - principalReduction);
 		const revision = book.revision + 1;
 		let count = rows.length;
 		if (input.mode === "REDUCE_TERM" && left > 0) {
@@ -371,6 +389,12 @@ export function simulateLoanOperation(
 						revision,
 						reference,
 					);
+		if (schedule[0]) {
+			const recurring = terms.charges
+				.filter(charge => charge.recurring)
+				.reduce((sum, charge) => sum + charge.amount, 0);
+			schedule[0].charges = round(schedule[0].charges + Math.max(0, rows[0]!.charges - recurring));
+		}
 		// Settle the old schedule; its replacement is recorded as a new immutable version.
 		allocations = rows.map(row => ({
 			charges: row.charges,
@@ -392,7 +416,8 @@ export function simulateLoanOperation(
 			selected = (input.mode === "BACK" ? rows.toReversed() : rows).slice(0, input.count);
 		}
 		for (const row of selected) {
-			const rate = monthlyLoanRate(terms, input.date, row.dueDate, reference);
+			const rate =
+				row.dueDate <= input.date ? 0 : monthlyLoanRate(terms, input.date, row.dueDate, reference);
 			const months = Math.max(0, civilDays(input.date, row.dueDate) / (365 / 12));
 			const nominal = row.principal + row.interest + row.charges;
 			// Charges are contractual: discounts apply to principal/interest only unless creditor quote overrides.
@@ -408,7 +433,7 @@ export function simulateLoanOperation(
 				interest: row.interest,
 				principal: row.principal,
 			});
-			amount += nominal - saved;
+			amount += nominal - saved + loanInstallmentLateCharges(book, row, input.date);
 			discount += saved;
 		}
 		const selectedIds = new Set(selected.map(row => row.id));
@@ -431,7 +456,12 @@ export function simulateLoanOperation(
 		amount,
 		beforeMaturity: rows.at(-1)!.dueDate,
 		beforeTotal,
-		charges: round(selected.reduce((sum, row) => sum + row.charges, 0)),
+		charges: round(
+			selected.reduce(
+				(sum, row) => sum + row.charges + loanInstallmentLateCharges(book, row, input.date),
+				0,
+			),
+		),
 		currency,
 		discount,
 		input: structuredClone(input),
@@ -461,7 +491,13 @@ export function applyLoanSimulation(
 		amount: simulation.amount,
 		date: simulation.input.date,
 		kind: simulation.input.mode === "PAYOFF" ? "PAYOFF" : "ADVANCE",
-		lateCharges: 0,
+		lateCharges: Math.max(
+			0,
+			roundMoney(
+				simulation.charges - simulation.allocations.reduce((sum, row) => sum + row.charges, 0),
+				simulation.currency,
+			),
+		),
 	});
 	// Each version carries only open balances and new IDs; receipt history stays immutable.
 	next.versions.push({
@@ -473,6 +509,41 @@ export function applyLoanSimulation(
 		terms: structuredClone(version.terms),
 	});
 	return next;
+}
+export function loanInstallmentLateCharges(
+	book: LoanContractBook,
+	row: ContractInstallment,
+	date: string,
+): number {
+	const { terms } = activeLoanVersion(book);
+	const round = (amount: number) => roundMoney(amount, terms.currency);
+	const reversed = new Set(
+		book.receipts.filter(receipt => receipt.kind === "REVERSAL").map(receipt => receipt.reversesId),
+	);
+	const earlier = book.receipts.filter(
+		receipt =>
+			!reversed.has(receipt.id) &&
+			receipt.kind === "PAYMENT" &&
+			receipt.allocations.some(allocation =>
+				book.versions.some(version =>
+					version.schedule.some(
+						item => item.id === allocation.installmentId && item.dueDate === row.dueDate,
+					),
+				),
+			),
+	);
+	const lastDate = earlier.reduce(
+		(date, receipt) => (receipt.date > date ? receipt.date : date),
+		row.dueDate,
+	);
+	const days = Math.max(0, civilDays(lastDate, date));
+	return days
+		? round(
+				(row.principal + row.interest + row.charges) *
+					((earlier.length ? 0 : terms.lateFinePercent) / 100 +
+						((terms.lateMonthlyPercent / 100) * days) / 30),
+			)
+		: 0;
 }
 export function recordLoanPayment(
 	book: LoanContractBook,
@@ -497,33 +568,7 @@ export function recordLoanPayment(
 	let lateCharges = 0;
 	for (const row of rows) {
 		if (remaining <= 0) break;
-		const reversed = new Set(
-			book.receipts.filter(receipt => receipt.kind === "REVERSAL").map(receipt => receipt.reversesId),
-		);
-		const earlier = book.receipts.filter(
-			receipt =>
-				!reversed.has(receipt.id) &&
-				receipt.kind === "PAYMENT" &&
-				receipt.allocations.some(allocation =>
-					book.versions.some(version =>
-						version.schedule.some(
-							item => item.id === allocation.installmentId && item.dueDate === row.dueDate,
-						),
-					),
-				),
-		);
-		const lastDate = earlier.reduce(
-			(date, receipt) => (receipt.date > date ? receipt.date : date),
-			row.dueDate,
-		);
-		const days = Math.max(0, civilDays(lastDate, input.date));
-		const extra = days
-			? round(
-					(row.principal + row.interest + row.charges) *
-						((earlier.length ? 0 : terms.lateFinePercent) / 100 +
-							((terms.lateMonthlyPercent / 100) * days) / 30),
-				)
-			: 0;
+		const extra = loanInstallmentLateCharges(book, row, input.date);
 		// Late charges must be covered before allocating to an installment; partial late payments remain explicit.
 		if (extra > remaining) throw new Error("Pagamento não cobre encargos de atraso");
 		remaining = round(remaining - extra);

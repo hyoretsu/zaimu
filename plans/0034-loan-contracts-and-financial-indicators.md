@@ -10,10 +10,10 @@ Connected and guest use the same domain calculations. No remote mutations.
 ## Progress
 
 - [x] Shared indicators and contract/simulation engine with regression tests.
-      Core commit: e9e798ab. Thirteen targeted tests and hook type checks passed.
+      Core commit: 87a8f339. Thirteen targeted tests and hook type checks passed.
 - [x] Persistence, versioned operations, API contracts and guest synchronization.
 - [x] Institution association, forms, schedules and payment/simulation UI.
-- [ ] Generated SDK, integration tests, build and hook-validated commits.
+- [x] Generated SDK, integration tests, build and hook-validated commits.
 - [ ] Integrate into original main and remove task worktree.
 
 ## Verification
@@ -28,3 +28,5 @@ Execution update: API/guest aggregate persistence, operation review, institution
 Integration update: plans renumbered to 0034/0035 after concurrent 0033 account transfer delivery. Migration follows account-transfer schema; merged contract retains both domains.
 
 Verification update: full finance suite (316 tests before final summary regression), loan persistence integration (2 tests), atomic visitor storage, frontend/backend builds, desktop/mobile contract creation and worker search/save verified. Broad backend integration currently exposes unrelated normalized-refund replay mock failures; required backend unit coverage passed normal hooks. Final merged migration and corrected guest forecast browser rerun in progress.
+
+Final verification: 325 finance unit tests passed; two disposable loan integration tests passed; three complete migration-chain checks passed. Desktop/mobile creation, worker ranking, save/reopen/recalculation and creditor-confirmed execution passed in headed Chromium with external requests blocked. Frontend/backend production bundles and normal hook type/coverage gates passed. Added arrears, future-grace, liquidity, recurring-stop and selected-due-date regressions. Migration remains unapplied to shared databases. Only integration into original branch and worktree removal remain.

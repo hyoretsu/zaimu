@@ -11,7 +11,7 @@ control. Missing coverage cannot yield a safe verdict.
 - [x] Shared daily safety, funding eligibility and scenario comparison engine.
 - [x] Bounded deterministic search over dates, installments and loan combinations.
 - [x] Worker UI, daily/monthly results, progress/cancellation and saved scenarios.
-- [ ] Connected/guest persistence, tests, builds and hook-validated commits.
+- [x] Connected/guest persistence, tests, builds and hook-validated commits.
 - [ ] Integrate into original main and remove task worktree.
 
 ## Invariants
@@ -35,3 +35,5 @@ Execution update: API/guest aggregate persistence, operation review, institution
 Integration update: plans renumbered to 0034/0035 after concurrent 0033 account transfer delivery. Migration follows account-transfer schema; merged contract retains both domains.
 
 Verification update: full finance suite (316 tests before final summary regression), loan persistence integration (2 tests), atomic visitor storage, frontend/backend builds, desktop/mobile contract creation and worker search/save verified. Broad backend integration currently exposes unrelated normalized-refund replay mock failures; required backend unit coverage passed normal hooks. Final merged migration and corrected guest forecast browser rerun in progress.
+
+Final verification: 325 finance unit tests passed; two disposable loan integration tests passed; three complete migration-chain checks passed. Desktop/mobile creation, worker ranking, save/reopen/recalculation and creditor-confirmed execution passed in headed Chromium with external requests blocked. Frontend/backend production bundles and normal hook type/coverage gates passed. Added arrears, future-grace, liquidity, recurring-stop and selected-due-date regressions. Migration remains unapplied to shared databases. Only integration into original branch and worktree removal remain.

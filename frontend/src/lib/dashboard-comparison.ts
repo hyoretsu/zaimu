@@ -337,8 +337,9 @@ export async function getGuestDashboardFinancialContext(
 			amount: row.amount,
 			currency: row.bookingCurrency,
 			date: new Date(`${row.date.slice(0, 10)}T12:00:00`),
+			destinationAccountId: row.destinationFinancialAccountId,
 			originAccountId: row.originFinancialAccountId,
-			type: "EXPENSE" as const,
+			type: row.type as "INCOME" | "EXPENSE",
 		})),
 		...transactions
 			.filter(item => item.type !== "REFUND")
