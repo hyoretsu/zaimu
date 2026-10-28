@@ -76,6 +76,160 @@
 	"routes": [
 		{
 			"budget": 1000,
+			"method": "GET",
+			"path": "/account-transfers/",
+			"result": "pending",
+			"source": "OpenAPI: getAccountTransfers"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/account-transfers/:id",
+			"result": "pending",
+			"source": "OpenAPI: getAccountTransfersById"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/account-transfers/:id/accept",
+			"result": "pending",
+			"source": "OpenAPI: postAccountTransfersByIdAccept"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/account-transfers/:id/cancel",
+			"result": "pending",
+			"source": "OpenAPI: postAccountTransfersByIdCancel"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/account-transfers/:id/decline",
+			"result": "pending",
+			"source": "OpenAPI: postAccountTransfersByIdDecline"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/account-transfers/",
+			"result": "pending",
+			"source": "OpenAPI: postAccountTransfers"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/account-transfers/rewards/:accountId",
+			"result": "pending",
+			"source": "OpenAPI: getAccountTransfersRewardsByAccountId"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/admin/access",
+			"result": "pending",
+			"source": "OpenAPI: getAdminAccess"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/admin/taxes",
+			"result": "pending",
+			"source": "OpenAPI: postAdminTaxes"
+		},
+		{
+			"budget": 1000,
+			"method": "PATCH",
+			"path": "/admin/taxes/:id",
+			"result": "pending",
+			"source": "OpenAPI: patchAdminTaxesById"
+		},
+		{
+			"budget": 1000,
+			"method": "PUT",
+			"path": "/admin/taxes/:id",
+			"result": "pending",
+			"source": "OpenAPI: putAdminTaxesById"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/admin/users",
+			"result": "pending",
+			"source": "OpenAPI: getAdminUsers"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/admin/users/:id/promote",
+			"result": "pending",
+			"source": "OpenAPI: postAdminUsersByIdPromote"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/admin/yield-calendar/access",
+			"result": "pending",
+			"source": "OpenAPI: getAdminYieldCalendarAccess"
+		},
+		{
+			"budget": 1000,
+			"method": "DELETE",
+			"path": "/admin/yield-calendar/countries/:code",
+			"result": "pending",
+			"source": "OpenAPI: deleteAdminYieldCalendarCountriesByCode"
+		},
+		{
+			"budget": 1000,
+			"method": "PUT",
+			"path": "/admin/yield-calendar/countries/:code",
+			"result": "pending",
+			"source": "OpenAPI: putAdminYieldCalendarCountriesByCode"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/admin/yield-calendar/countries/:code/coverage/:year",
+			"result": "pending",
+			"source": "OpenAPI: postAdminYieldCalendarCountriesByCodeCoverageByYear"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/admin/yield-calendar/countries/:code/coverage/:year/confirm",
+			"result": "pending",
+			"source": "OpenAPI: postAdminYieldCalendarCountriesByCodeCoverageByYearConfirm"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/admin/yield-calendar/countries/:code/holidays",
+			"result": "pending",
+			"source": "OpenAPI: postAdminYieldCalendarCountriesByCodeHolidays"
+		},
+		{
+			"budget": 1000,
+			"method": "PUT",
+			"path": "/admin/yield-calendar/currencies/:currency",
+			"result": "pending",
+			"source": "OpenAPI: putAdminYieldCalendarCurrenciesByCurrency"
+		},
+		{
+			"budget": 1000,
+			"method": "DELETE",
+			"path": "/admin/yield-calendar/holidays/:id",
+			"result": "pending",
+			"source": "OpenAPI: deleteAdminYieldCalendarHolidaysById"
+		},
+		{
+			"budget": 1000,
+			"method": "PUT",
+			"path": "/admin/yield-calendar/holidays/:id",
+			"result": "pending",
+			"source": "OpenAPI: putAdminYieldCalendarHolidaysById"
+		},
+		{
+			"budget": 1000,
 			"method": "POST",
 			"path": "/api/auth/delete-user",
 			"result": "pending",
@@ -149,945 +303,1379 @@
 			"method": "GET",
 			"path": "/balance-adjustments/",
 			"result": "pending",
-			"source": "backend/src/modules/accounts/infra/elysia/BalanceAdjustmentsController.ts"
+			"source": "OpenAPI: getBalanceAdjustments"
 		},
 		{
 			"budget": 1000,
 			"method": "DELETE",
 			"path": "/balance-adjustments/:id",
 			"result": "pending",
-			"source": "backend/src/modules/accounts/infra/elysia/BalanceAdjustmentsController.ts"
+			"source": "OpenAPI: deleteBalanceAdjustmentsById"
 		},
 		{
 			"budget": 1000,
 			"method": "PATCH",
 			"path": "/balance-adjustments/:id",
 			"result": "pending",
-			"source": "backend/src/modules/accounts/infra/elysia/BalanceAdjustmentsController.ts"
+			"source": "OpenAPI: patchBalanceAdjustmentsById"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/balance-adjustments/",
 			"result": "pending",
-			"source": "backend/src/modules/accounts/infra/elysia/BalanceAdjustmentsController.ts"
+			"source": "OpenAPI: postBalanceAdjustments"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/batch",
+			"result": "pending",
+			"source": "OpenAPI: postBatch"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/categories/",
 			"result": "pending",
-			"source": "backend/src/modules/categories/infra/elysia/CategoriesController.ts"
+			"source": "OpenAPI: getCategories"
 		},
 		{
 			"budget": 1000,
 			"method": "DELETE",
 			"path": "/categories/:id",
 			"result": "pending",
-			"source": "backend/src/modules/categories/infra/elysia/CategoriesController.ts"
+			"source": "OpenAPI: deleteCategoriesById"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/categories/:id",
 			"result": "pending",
-			"source": "backend/src/modules/categories/infra/elysia/CategoriesController.ts"
+			"source": "OpenAPI: getCategoriesById"
 		},
 		{
 			"budget": 1000,
 			"method": "PATCH",
 			"path": "/categories/:id",
 			"result": "pending",
-			"source": "backend/src/modules/categories/infra/elysia/CategoriesController.ts"
+			"source": "OpenAPI: patchCategoriesById"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/categories/",
 			"result": "pending",
-			"source": "backend/src/modules/categories/infra/elysia/CategoriesController.ts"
+			"source": "OpenAPI: postCategories"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/categories/lookup",
 			"result": "pending",
-			"source": "backend/src/modules/categories/infra/elysia/CategoriesController.ts"
+			"source": "OpenAPI: getCategoriesLookup"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
-			"path": "/comparison",
+			"path": "/countries",
 			"result": "pending",
-			"source": "backend/src/modules/dashboard/infra/elysia/DashboardComparisonController.ts"
+			"source": "OpenAPI: getCountries"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/country-preferences",
+			"result": "pending",
+			"source": "OpenAPI: getCountryPreferences"
+		},
+		{
+			"budget": 1000,
+			"method": "PATCH",
+			"path": "/country-preferences",
+			"result": "pending",
+			"source": "OpenAPI: patchCountryPreferences"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/credit-card-imports/",
 			"result": "pending",
-			"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
+			"source": "OpenAPI: getCreditCardImports"
 		},
 		{
 			"budget": 1000,
 			"method": "DELETE",
 			"path": "/credit-card-imports/:id",
 			"result": "pending",
-			"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
+			"source": "OpenAPI: deleteCreditCardImportsById"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/credit-card-imports/:id",
 			"result": "pending",
-			"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
+			"source": "OpenAPI: getCreditCardImportsById"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/credit-card-imports/:id/approve",
 			"result": "pending",
-			"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
+			"source": "OpenAPI: postCreditCardImportsByIdApprove"
 		},
 		{
 			"budget": 1000,
 			"method": "PATCH",
 			"path": "/credit-card-imports/:id/items/:itemId",
 			"result": "pending",
-			"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
+			"source": "OpenAPI: patchCreditCardImportsByIdItemsByItemId"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/credit-card-imports/:id/items/:itemId/approve-refund",
 			"result": "pending",
-			"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
+			"source": "OpenAPI: postCreditCardImportsByIdItemsByItemIdApproveRefund"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/credit-card-imports/:id/items/:itemId/approve",
 			"result": "pending",
-			"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
+			"source": "OpenAPI: postCreditCardImportsByIdItemsByItemIdApprove"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/credit-card-imports/:id/items/:itemId/reconcile",
 			"result": "pending",
-			"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
+			"source": "OpenAPI: postCreditCardImportsByIdItemsByItemIdReconcile"
+		},
+		{
+			"budget": 1000,
+			"method": "PATCH",
+			"path": "/credit-card-imports/:id/items/:itemId/refund-review",
+			"result": "pending",
+			"source": "OpenAPI: patchCreditCardImportsByIdItemsByItemIdRefundReview"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/credit-card-imports/:id/refund-sources",
 			"result": "pending",
-			"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
+			"source": "OpenAPI: getCreditCardImportsByIdRefundSources"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/credit-card-imports/",
 			"result": "pending",
-			"source": "backend/src/modules/credit-card-imports/infra/elysia/CreditCardImportsController.ts"
+			"source": "OpenAPI: postCreditCardImports"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/credit-cards/",
 			"result": "pending",
-			"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			"source": "OpenAPI: getCreditCards"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/credit-cards/:id",
 			"result": "pending",
-			"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			"source": "OpenAPI: getCreditCardsById"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/credit-cards/:id/book",
 			"result": "pending",
-			"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			"source": "OpenAPI: getCreditCardsByIdBook"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/credit-cards/:id/history",
 			"result": "pending",
-			"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			"source": "OpenAPI: getCreditCardsByIdHistory"
 		},
 		{
 			"budget": 1000,
 			"method": "PUT",
 			"path": "/credit-cards/:id/payer",
 			"result": "pending",
-			"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			"source": "OpenAPI: putCreditCardsByIdPayer"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/credit-cards/:id/payment-suggestions/confirm",
 			"result": "pending",
-			"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			"source": "OpenAPI: postCreditCardsByIdPaymentSuggestionsConfirm"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/credit-cards/:id/payments",
 			"result": "pending",
-			"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			"source": "OpenAPI: postCreditCardsByIdPayments"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/credit-cards/:id/purchases",
 			"result": "pending",
-			"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			"source": "OpenAPI: postCreditCardsByIdPurchases"
 		},
 		{
 			"budget": 1000,
 			"method": "DELETE",
 			"path": "/credit-cards/:id/purchases/:purchaseId",
 			"result": "pending",
-			"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			"source": "OpenAPI: deleteCreditCardsByIdPurchasesByPurchaseId"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/credit-cards/:id/purchases/:purchaseId",
 			"result": "pending",
-			"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			"source": "OpenAPI: getCreditCardsByIdPurchasesByPurchaseId"
 		},
 		{
 			"budget": 1000,
 			"method": "PATCH",
 			"path": "/credit-cards/:id/purchases/:purchaseId",
 			"result": "pending",
-			"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			"source": "OpenAPI: patchCreditCardsByIdPurchasesByPurchaseId"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/credit-cards/:id/purchases/:purchaseId/refinance",
 			"result": "pending",
-			"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			"source": "OpenAPI: postCreditCardsByIdPurchasesByPurchaseIdRefinance"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/credit-cards/:id/purchases/:purchaseId/refunds",
 			"result": "pending",
-			"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			"source": "OpenAPI: postCreditCardsByIdPurchasesByPurchaseIdRefunds"
 		},
 		{
 			"budget": 1000,
 			"method": "DELETE",
 			"path": "/credit-cards/:id/purchases/:purchaseId/refunds/:refundId",
 			"result": "pending",
-			"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			"source": "OpenAPI: deleteCreditCardsByIdPurchasesByPurchaseIdRefundsByRefundId"
 		},
 		{
 			"budget": 1000,
 			"method": "PATCH",
 			"path": "/credit-cards/:id/purchases/:purchaseId/refunds/:refundId",
 			"result": "pending",
-			"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			"source": "OpenAPI: patchCreditCardsByIdPurchasesByPurchaseIdRefundsByRefundId"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/credit-cards/:id/refund-reviews",
 			"result": "pending",
-			"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			"source": "OpenAPI: getCreditCardsByIdRefundReviews"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/credit-cards/:id/refund-reviews/:reviewId/approve",
 			"result": "pending",
-			"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			"source": "OpenAPI: postCreditCardsByIdRefundReviewsByReviewIdApprove"
 		},
 		{
 			"budget": 1000,
 			"method": "PATCH",
 			"path": "/credit-cards/:id/statement-cutoff",
 			"result": "pending",
-			"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			"source": "OpenAPI: patchCreditCardsByIdStatementCutoff"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/credit-cards/:id/statements",
 			"result": "pending",
-			"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			"source": "OpenAPI: getCreditCardsByIdStatements"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/credit-cards/:id/statements/:statementId",
 			"result": "pending",
-			"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			"source": "OpenAPI: getCreditCardsByIdStatementsByStatementId"
+		},
+		{
+			"budget": 1000,
+			"method": "PATCH",
+			"path": "/credit-cards/:id/statements/:statementId",
+			"result": "pending",
+			"source": "OpenAPI: patchCreditCardsByIdStatementsByStatementId"
+		},
+		{
+			"budget": 1000,
+			"method": "PATCH",
+			"path": "/credit-cards/:id/statements/:statementId/amount",
+			"result": "pending",
+			"source": "OpenAPI: patchCreditCardsByIdStatementsByStatementIdAmount"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/credit-cards/payment-suggestions",
 			"result": "pending",
-			"source": "backend/src/modules/creditCards/infra/elysia/CreditCardsController.ts"
+			"source": "OpenAPI: getCreditCardsPaymentSuggestions"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/currencies/rates",
 			"result": "pending",
-			"source": "backend/src/modules/currencies/infra/CurrenciesController.ts"
+			"source": "OpenAPI: getCurrenciesRates"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/currency-preferences/",
 			"result": "pending",
-			"source": "backend/src/modules/currencies/infra/CurrencyPreferencesController.ts"
+			"source": "OpenAPI: getCurrencyPreferences"
 		},
 		{
 			"budget": 1000,
 			"method": "PATCH",
 			"path": "/currency-preferences/",
 			"result": "pending",
-			"source": "backend/src/modules/currencies/infra/CurrencyPreferencesController.ts"
+			"source": "OpenAPI: patchCurrencyPreferences"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/dashboard/",
 			"result": "pending",
-			"source": "backend/src/modules/dashboard/infra/elysia/DashboardController.ts"
+			"source": "OpenAPI: getDashboard"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/dashboard/comparison",
+			"result": "pending",
+			"source": "OpenAPI: getDashboardComparison"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/debts/",
 			"result": "pending",
-			"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			"source": "OpenAPI: getDebts"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/debts/",
 			"result": "pending",
-			"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			"source": "OpenAPI: postDebts"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/debts/events",
 			"result": "pending",
-			"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			"source": "OpenAPI: postDebtsEvents"
 		},
 		{
 			"budget": 1000,
 			"method": "DELETE",
 			"path": "/debts/events/:eventId",
 			"result": "pending",
-			"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			"source": "OpenAPI: deleteDebtsEventsByEventId"
 		},
 		{
 			"budget": 1000,
 			"method": "PATCH",
 			"path": "/debts/events/:eventId",
 			"result": "pending",
-			"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			"source": "OpenAPI: patchDebtsEventsByEventId"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/debts/invitations",
 			"result": "pending",
-			"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			"source": "OpenAPI: getDebtsInvitations"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/debts/invitations/:id/accept",
 			"result": "pending",
-			"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			"source": "OpenAPI: postDebtsInvitationsByIdAccept"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/debts/invitations/:id/decline",
 			"result": "pending",
-			"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			"source": "OpenAPI: postDebtsInvitationsByIdDecline"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/debts/invitations/:id/preview",
 			"result": "pending",
-			"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			"source": "OpenAPI: getDebtsInvitationsByIdPreview"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/debts/people",
 			"result": "pending",
-			"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			"source": "OpenAPI: postDebtsPeople"
 		},
 		{
 			"budget": 1000,
 			"method": "DELETE",
 			"path": "/debts/people/:id",
 			"result": "pending",
-			"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			"source": "OpenAPI: deleteDebtsPeopleById"
 		},
 		{
 			"budget": 1000,
 			"method": "PATCH",
 			"path": "/debts/people/:id",
 			"result": "pending",
-			"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			"source": "OpenAPI: patchDebtsPeopleById"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/debts/people/:id/events",
 			"result": "pending",
-			"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			"source": "OpenAPI: getDebtsPeopleByIdEvents"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/debts/people/:id/invite",
 			"result": "pending",
-			"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			"source": "OpenAPI: postDebtsPeopleByIdInvite"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/debts/summary",
 			"result": "pending",
-			"source": "backend/src/modules/debts/infra/elysia/DebtsController.ts"
+			"source": "OpenAPI: getDebtsSummary"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/financial-account-yield-holidays/",
 			"result": "pending",
-			"source": "backend/src/modules/accounts/infra/elysia/FinancialAccountYieldHolidaysController.ts"
+			"source": "OpenAPI: getFinancialAccountYieldHolidays"
 		},
 		{
 			"budget": 1000,
 			"method": "DELETE",
 			"path": "/financial-account-yield-holidays/:id",
 			"result": "pending",
-			"source": "backend/src/modules/accounts/infra/elysia/FinancialAccountYieldHolidaysController.ts"
+			"source": "OpenAPI: deleteFinancialAccountYieldHolidaysById"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/financial-account-yield-holidays/",
 			"result": "pending",
-			"source": "backend/src/modules/accounts/infra/elysia/FinancialAccountYieldHolidaysController.ts"
+			"source": "OpenAPI: postFinancialAccountYieldHolidays"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/financial-account-yields/",
 			"result": "pending",
-			"source": "backend/src/modules/accounts/infra/elysia/FinancialAccountYieldsController.ts"
+			"source": "OpenAPI: getFinancialAccountYields"
 		},
 		{
 			"budget": 1000,
 			"method": "DELETE",
 			"path": "/financial-account-yields/:id",
 			"result": "pending",
-			"source": "backend/src/modules/accounts/infra/elysia/FinancialAccountYieldsController.ts"
+			"source": "OpenAPI: deleteFinancialAccountYieldsById"
 		},
 		{
 			"budget": 1000,
 			"method": "PATCH",
 			"path": "/financial-account-yields/:id",
 			"result": "pending",
-			"source": "backend/src/modules/accounts/infra/elysia/FinancialAccountYieldsController.ts"
+			"source": "OpenAPI: patchFinancialAccountYieldsById"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/financial-account-yields/",
 			"result": "pending",
-			"source": "backend/src/modules/accounts/infra/elysia/FinancialAccountYieldsController.ts"
+			"source": "OpenAPI: postFinancialAccountYields"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/financial-accounts/",
 			"result": "pending",
-			"source": "backend/src/modules/accounts/infra/elysia/AccountsController.ts"
+			"source": "OpenAPI: getFinancialAccounts"
 		},
 		{
 			"budget": 1000,
 			"method": "DELETE",
 			"path": "/financial-accounts/:id",
 			"result": "pending",
-			"source": "backend/src/modules/accounts/infra/elysia/AccountsController.ts"
+			"source": "OpenAPI: deleteFinancialAccountsById"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/financial-accounts/:id",
 			"result": "pending",
-			"source": "backend/src/modules/accounts/infra/elysia/AccountsController.ts"
+			"source": "OpenAPI: getFinancialAccountsById"
 		},
 		{
 			"budget": 1000,
 			"method": "PATCH",
 			"path": "/financial-accounts/:id",
 			"result": "pending",
-			"source": "backend/src/modules/accounts/infra/elysia/AccountsController.ts"
+			"source": "OpenAPI: patchFinancialAccountsById"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/financial-accounts/:id/recalculate-yields",
+			"result": "pending",
+			"source": "OpenAPI: postFinancialAccountsByIdRecalculateYields"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/financial-accounts/",
 			"result": "pending",
-			"source": "backend/src/modules/accounts/infra/elysia/AccountsController.ts"
+			"source": "OpenAPI: postFinancialAccounts"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/financial-accounts/options",
+			"result": "pending",
+			"source": "OpenAPI: getFinancialAccountsOptions"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/financial-accounts/primary",
 			"result": "pending",
-			"source": "backend/src/modules/accounts/infra/elysia/AccountsController.ts"
+			"source": "OpenAPI: getFinancialAccountsPrimary"
 		},
 		{
 			"budget": 1000,
 			"method": "PUT",
 			"path": "/financial-accounts/primary",
 			"result": "pending",
-			"source": "backend/src/modules/accounts/infra/elysia/AccountsController.ts"
+			"source": "OpenAPI: putFinancialAccountsPrimary"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/financial-history/admin/coverage",
+			"result": "pending",
+			"source": "OpenAPI: getFinancialHistoryAdminCoverage"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/financial-history/admin/coverage/complete",
+			"result": "pending",
+			"source": "OpenAPI: postFinancialHistoryAdminCoverageComplete"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/financial-history/collections",
 			"result": "pending",
-			"source": "backend/src/modules/financial-history/infra/FinancialHistoryController.ts"
+			"source": "OpenAPI: postFinancialHistoryCollections"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/financial-history/collections/:id",
 			"result": "pending",
-			"source": "backend/src/modules/financial-history/infra/FinancialHistoryController.ts"
+			"source": "OpenAPI: getFinancialHistoryCollectionsById"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/financial-history/collections/:id/estimate",
 			"result": "pending",
-			"source": "backend/src/modules/financial-history/infra/FinancialHistoryController.ts"
+			"source": "OpenAPI: getFinancialHistoryCollectionsByIdEstimate"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/financial-history/collections/:id/retry",
 			"result": "pending",
-			"source": "backend/src/modules/financial-history/infra/FinancialHistoryController.ts"
+			"source": "OpenAPI: postFinancialHistoryCollectionsByIdRetry"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/financial-history/coverage",
+			"result": "pending",
+			"source": "OpenAPI: getFinancialHistoryCoverage"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/financial-history/currencies",
 			"result": "pending",
-			"source": "backend/src/modules/financial-history/infra/FinancialHistoryController.ts"
+			"source": "OpenAPI: getFinancialHistoryCurrencies"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/financial-history/rate",
 			"result": "pending",
-			"source": "backend/src/modules/financial-history/infra/FinancialHistoryController.ts"
+			"source": "OpenAPI: getFinancialHistoryRate"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/financial-institutions/",
+			"result": "pending",
+			"source": "OpenAPI: getFinancialInstitutions"
 		},
 		{
 			"budget": 1000,
 			"method": "DELETE",
 			"path": "/financial-institutions/:id",
 			"result": "pending",
-			"source": "backend/src/modules/accounts/infra/elysia/InstitutionsController.ts"
+			"source": "OpenAPI: deleteFinancialInstitutionsById"
 		},
 		{
 			"budget": 1000,
 			"method": "PATCH",
 			"path": "/financial-institutions/:id",
 			"result": "pending",
-			"source": "backend/src/modules/accounts/infra/elysia/InstitutionsController.ts"
+			"source": "OpenAPI: patchFinancialInstitutionsById"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/financial-institutions/:id/merge-proposal",
+			"result": "pending",
+			"source": "OpenAPI: postFinancialInstitutionsByIdMergeProposal"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/financial-institutions/:id/policies",
+			"result": "pending",
+			"source": "OpenAPI: postFinancialInstitutionsByIdPolicies"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/financial-institutions/:id/profile-history",
+			"result": "pending",
+			"source": "OpenAPI: getFinancialInstitutionsByIdProfileHistory"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/financial-institutions/:id/profile-history",
+			"result": "pending",
+			"source": "OpenAPI: postFinancialInstitutionsByIdProfileHistory"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/financial-institutions/:id/profiles",
+			"result": "pending",
+			"source": "OpenAPI: getFinancialInstitutionsByIdProfiles"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/financial-institutions/:id/profiles",
+			"result": "pending",
+			"source": "OpenAPI: postFinancialInstitutionsByIdProfiles"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/financial-institutions/",
+			"result": "pending",
+			"source": "OpenAPI: postFinancialInstitutions"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/financial-institutions/catalog",
+			"result": "pending",
+			"source": "OpenAPI: getFinancialInstitutionsCatalog"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/financial-institutions/notifications",
+			"result": "pending",
+			"source": "OpenAPI: getFinancialInstitutionsNotifications"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/financial-institutions/notifications/:id/read",
+			"result": "pending",
+			"source": "OpenAPI: postFinancialInstitutionsNotificationsByIdRead"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/financial-institutions/proposals",
+			"result": "pending",
+			"source": "OpenAPI: getFinancialInstitutionsProposals"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/financial-institutions/review/catalog",
+			"result": "pending",
+			"source": "OpenAPI: getFinancialInstitutionsReviewCatalog"
+		},
+		{
+			"budget": 1000,
+			"method": "PATCH",
+			"path": "/financial-institutions/review/catalog/:id",
+			"result": "pending",
+			"source": "OpenAPI: patchFinancialInstitutionsReviewCatalogById"
+		},
+		{
+			"budget": 1000,
+			"method": "PATCH",
+			"path": "/financial-institutions/review/catalog/:id/card-rules",
+			"result": "pending",
+			"source": "OpenAPI: patchFinancialInstitutionsReviewCatalogByIdCardRules"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/financial-institutions/review/legacy/:id",
+			"result": "pending",
+			"source": "OpenAPI: postFinancialInstitutionsReviewLegacyById"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/financial-institutions/review/merge-candidates",
+			"result": "pending",
+			"source": "OpenAPI: getFinancialInstitutionsReviewMergeCandidates"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/financial-institutions/review/pending-count",
+			"result": "pending",
+			"source": "OpenAPI: getFinancialInstitutionsReviewPendingCount"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/financial-institutions/review/proposals",
+			"result": "pending",
+			"source": "OpenAPI: getFinancialInstitutionsReviewProposals"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/financial-institutions/review/proposals/:id",
+			"result": "pending",
+			"source": "OpenAPI: postFinancialInstitutionsReviewProposalsById"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/financial-institutions/review/proposals/:id/profile-history",
+			"result": "pending",
+			"source": "OpenAPI: getFinancialInstitutionsReviewProposalsByIdProfileHistory"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/health",
+			"result": "pending",
+			"source": "OpenAPI: getHealth"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/invoice-payment-preferences",
+			"result": "pending",
+			"source": "OpenAPI: getInvoicePaymentPreferences"
+		},
+		{
+			"budget": 1000,
+			"method": "PATCH",
+			"path": "/invoice-payment-preferences",
+			"result": "pending",
+			"source": "OpenAPI: patchInvoicePaymentPreferences"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/loans/",
 			"result": "pending",
-			"source": "backend/src/modules/loans/infra/elysia/LoansController.ts"
+			"source": "OpenAPI: getLoans"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/loans/:id",
 			"result": "pending",
-			"source": "backend/src/modules/loans/infra/elysia/LoansController.ts"
+			"source": "OpenAPI: getLoansById"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/loans/:id/advance",
 			"result": "pending",
-			"source": "backend/src/modules/loans/infra/elysia/LoansController.ts"
+			"source": "OpenAPI: postLoansByIdAdvance"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/loans/:id/contract",
+			"result": "pending",
+			"source": "OpenAPI: getLoansByIdContract"
+		},
+		{
+			"budget": 1000,
+			"method": "PATCH",
+			"path": "/loans/:id/contract",
+			"result": "pending",
+			"source": "OpenAPI: patchLoansByIdContract"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/loans/:id/early-payoff",
 			"result": "pending",
-			"source": "backend/src/modules/loans/infra/elysia/LoansController.ts"
+			"source": "OpenAPI: getLoansByIdEarlyPayoff"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/loans/:id/execute",
+			"result": "pending",
+			"source": "OpenAPI: postLoansByIdExecute"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/loans/:id/history",
 			"result": "pending",
-			"source": "backend/src/modules/loans/infra/elysia/LoansController.ts"
+			"source": "OpenAPI: getLoansByIdHistory"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/loans/:id/next-payment",
 			"result": "pending",
-			"source": "backend/src/modules/loans/infra/elysia/LoansController.ts"
+			"source": "OpenAPI: getLoansByIdNextPayment"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/loans/:id/payments",
 			"result": "pending",
-			"source": "backend/src/modules/loans/infra/elysia/LoansController.ts"
+			"source": "OpenAPI: getLoansByIdPayments"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/loans/:id/payments/:installmentNumber/pay",
 			"result": "pending",
-			"source": "backend/src/modules/loans/infra/elysia/LoansController.ts"
+			"source": "OpenAPI: postLoansByIdPaymentsByInstallmentNumberPay"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/loans/:id/receipts",
+			"result": "pending",
+			"source": "OpenAPI: postLoansByIdReceipts"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/loans/:id/restructure",
+			"result": "pending",
+			"source": "OpenAPI: postLoansByIdRestructure"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/loans/:id/reverse",
+			"result": "pending",
+			"source": "OpenAPI: postLoansByIdReverse"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/loans/:id/simulate",
+			"result": "pending",
+			"source": "OpenAPI: postLoansByIdSimulate"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/loans/",
 			"result": "pending",
-			"source": "backend/src/modules/loans/infra/elysia/LoansController.ts"
+			"source": "OpenAPI: postLoans"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/loans/contracts",
+			"result": "pending",
+			"source": "OpenAPI: postLoansContracts"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/loans/planner/context",
+			"result": "pending",
+			"source": "OpenAPI: getLoansPlannerContext"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/loans/scenarios",
+			"result": "pending",
+			"source": "OpenAPI: getLoansScenarios"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/loans/scenarios",
+			"result": "pending",
+			"source": "OpenAPI: postLoansScenarios"
+		},
+		{
+			"budget": 1000,
+			"method": "DELETE",
+			"path": "/loans/scenarios/:id",
+			"result": "pending",
+			"source": "OpenAPI: deleteLoansScenariosById"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/monthly-budgets/",
+			"result": "pending",
+			"source": "OpenAPI: getMonthlyBudgets"
+		},
+		{
+			"budget": 1000,
+			"method": "DELETE",
+			"path": "/monthly-budgets/:id",
+			"result": "pending",
+			"source": "OpenAPI: deleteMonthlyBudgetsById"
+		},
+		{
+			"budget": 1000,
+			"method": "PUT",
+			"path": "/monthly-budgets/:id",
+			"result": "pending",
+			"source": "OpenAPI: putMonthlyBudgetsById"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/monthly-budgets/",
+			"result": "pending",
+			"source": "OpenAPI: postMonthlyBudgets"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/monthly-budgets/summary",
+			"result": "pending",
+			"source": "OpenAPI: getMonthlyBudgetsSummary"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/notifications/devices",
+			"result": "pending",
+			"source": "OpenAPI: postNotificationsDevices"
+		},
+		{
+			"budget": 1000,
+			"method": "DELETE",
+			"path": "/notifications/devices/:id",
+			"result": "pending",
+			"source": "OpenAPI: deleteNotificationsDevicesById"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/notifications/push-config",
+			"result": "pending",
+			"source": "OpenAPI: getNotificationsPushConfig"
 		},
 		{
 			"budget": 1000,
 			"method": "DELETE",
 			"path": "/open-finance/",
 			"result": "pending",
-			"source": "backend/src/modules/open-finance/infra/OpenFinanceController.ts"
+			"source": "OpenAPI: deleteOpenFinance"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/open-finance/",
 			"result": "pending",
-			"source": "backend/src/modules/open-finance/infra/OpenFinanceController.ts"
+			"source": "OpenAPI: getOpenFinance"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/open-finance/connections",
 			"result": "pending",
-			"source": "backend/src/modules/open-finance/infra/OpenFinanceController.ts"
+			"source": "OpenAPI: postOpenFinanceConnections"
 		},
 		{
 			"budget": 1000,
 			"method": "DELETE",
 			"path": "/open-finance/connections/:id",
 			"result": "pending",
-			"source": "backend/src/modules/open-finance/infra/OpenFinanceController.ts"
+			"source": "OpenAPI: deleteOpenFinanceConnectionsById"
 		},
 		{
 			"budget": 1000,
 			"method": "PUT",
 			"path": "/open-finance/connections/:id/bindings",
 			"result": "pending",
-			"source": "backend/src/modules/open-finance/infra/OpenFinanceController.ts"
+			"source": "OpenAPI: putOpenFinanceConnectionsByIdBindings"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/open-finance/connections/discover",
 			"result": "pending",
-			"source": "backend/src/modules/open-finance/infra/OpenFinanceController.ts"
+			"source": "OpenAPI: postOpenFinanceConnectionsDiscover"
 		},
 		{
 			"budget": 1000,
 			"method": "PUT",
 			"path": "/open-finance/credentials",
 			"result": "pending",
-			"source": "backend/src/modules/open-finance/infra/OpenFinanceController.ts"
+			"source": "OpenAPI: putOpenFinanceCredentials"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/open-finance/sync",
 			"result": "pending",
-			"source": "backend/src/modules/open-finance/infra/OpenFinanceController.ts"
+			"source": "OpenAPI: getOpenFinanceSync"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/open-finance/sync",
 			"result": "pending",
-			"source": "backend/src/modules/open-finance/infra/OpenFinanceController.ts"
+			"source": "OpenAPI: postOpenFinanceSync"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/recurring/",
 			"result": "pending",
-			"source": "backend/src/modules/recurring/infra/elysia/RecurringController.ts"
+			"source": "OpenAPI: getRecurring"
 		},
 		{
 			"budget": 1000,
 			"method": "DELETE",
 			"path": "/recurring/:id",
 			"result": "pending",
-			"source": "backend/src/modules/recurring/infra/elysia/RecurringController.ts"
+			"source": "OpenAPI: deleteRecurringById"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/recurring/:id",
 			"result": "pending",
-			"source": "backend/src/modules/recurring/infra/elysia/RecurringController.ts"
+			"source": "OpenAPI: getRecurringById"
 		},
 		{
 			"budget": 1000,
 			"method": "PATCH",
 			"path": "/recurring/:id",
 			"result": "pending",
-			"source": "backend/src/modules/recurring/infra/elysia/RecurringController.ts"
+			"source": "OpenAPI: patchRecurringById"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/recurring/:id/advance",
 			"result": "pending",
-			"source": "backend/src/modules/recurring/infra/elysia/RecurringController.ts"
+			"source": "OpenAPI: postRecurringByIdAdvance"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/recurring/:id/associate",
+			"result": "pending",
+			"source": "OpenAPI: postRecurringByIdAssociate"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/recurring/:id/history",
 			"result": "pending",
-			"source": "backend/src/modules/recurring/infra/elysia/RecurringController.ts"
+			"source": "OpenAPI: getRecurringByIdHistory"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/recurring/:id/replay",
 			"result": "pending",
-			"source": "backend/src/modules/recurring/infra/elysia/RecurringController.ts"
+			"source": "OpenAPI: postRecurringByIdReplay"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/recurring/",
 			"result": "pending",
-			"source": "backend/src/modules/recurring/infra/elysia/RecurringController.ts"
+			"source": "OpenAPI: postRecurring"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/reference-rates/averages",
 			"result": "pending",
-			"source": "backend/src/modules/reference-rates/infra/ReferenceRateController.ts"
+			"source": "OpenAPI: getReferenceRatesAverages"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/reference-rates/indicators",
+			"result": "pending",
+			"source": "OpenAPI: getReferenceRatesIndicators"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/stores/",
 			"result": "pending",
-			"source": "backend/src/modules/stores/infra/elysia/StoresController.ts"
+			"source": "OpenAPI: getStores"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/stores/",
 			"result": "pending",
-			"source": "backend/src/modules/stores/infra/elysia/StoresController.ts"
+			"source": "OpenAPI: postStores"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/sync/",
 			"result": "pending",
-			"source": "backend/src/modules/sync/SyncController.ts"
+			"source": "OpenAPI: postSync"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/tax-definitions",
+			"result": "pending",
+			"source": "OpenAPI: getTaxDefinitions"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/time-zone-preferences",
+			"result": "pending",
+			"source": "OpenAPI: getTimeZonePreferences"
+		},
+		{
+			"budget": 1000,
+			"method": "PATCH",
+			"path": "/time-zone-preferences",
+			"result": "pending",
+			"source": "OpenAPI: patchTimeZonePreferences"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/transaction-imports/",
 			"result": "pending",
-			"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			"source": "OpenAPI: getTransactionImports"
 		},
 		{
 			"budget": 1000,
 			"method": "DELETE",
 			"path": "/transaction-imports/:id",
 			"result": "pending",
-			"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			"source": "OpenAPI: deleteTransactionImportsById"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/transaction-imports/:id",
 			"result": "pending",
-			"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			"source": "OpenAPI: getTransactionImportsById"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/transaction-imports/:id/approve",
 			"result": "pending",
-			"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			"source": "OpenAPI: postTransactionImportsByIdApprove"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/transaction-imports/:id/days/:date/approve",
 			"result": "pending",
-			"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			"source": "OpenAPI: postTransactionImportsByIdDaysByDateApprove"
 		},
 		{
 			"budget": 1000,
 			"method": "PATCH",
 			"path": "/transaction-imports/:id/items/:itemId",
 			"result": "pending",
-			"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			"source": "OpenAPI: patchTransactionImportsByIdItemsByItemId"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/transaction-imports/:id/items/:itemId/approve",
 			"result": "pending",
-			"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			"source": "OpenAPI: postTransactionImportsByIdItemsByItemIdApprove"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/transaction-imports/:id/items/:itemId/reconcile",
 			"result": "pending",
-			"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			"source": "OpenAPI: postTransactionImportsByIdItemsByItemIdReconcile"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/transaction-imports/:id/items/:itemId/transfer-suggestions/:counterpartItemId/accept",
 			"result": "pending",
-			"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			"source": "OpenAPI: postTransactionImportsByIdItemsByItemIdTransferSuggestionsByCounterpartItemIdAccept"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/transaction-imports/:id/items/:itemId/transfer-suggestions/:counterpartItemId/reject",
 			"result": "pending",
-			"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			"source": "OpenAPI: postTransactionImportsByIdItemsByItemIdTransferSuggestionsByCounterpartItemIdReject"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/transaction-imports/",
 			"result": "pending",
-			"source": "backend/src/modules/transaction-imports/infra/elysia/TransactionImportsController.ts"
+			"source": "OpenAPI: postTransactionImports"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/transactions/",
 			"result": "pending",
-			"source": "backend/src/modules/transactions/infra/elysia/TransactionsController.ts"
+			"source": "OpenAPI: getTransactions"
 		},
 		{
 			"budget": 1000,
 			"method": "DELETE",
 			"path": "/transactions/:id",
 			"result": "pending",
-			"source": "backend/src/modules/transactions/infra/elysia/TransactionsController.ts"
+			"source": "OpenAPI: deleteTransactionsById"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/transactions/:id",
 			"result": "pending",
-			"source": "backend/src/modules/transactions/infra/elysia/TransactionsController.ts"
+			"source": "OpenAPI: getTransactionsById"
 		},
 		{
 			"budget": 1000,
 			"method": "PATCH",
 			"path": "/transactions/:id",
 			"result": "pending",
-			"source": "backend/src/modules/transactions/infra/elysia/TransactionsController.ts"
+			"source": "OpenAPI: patchTransactionsById"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/transactions/:id/history",
 			"result": "pending",
-			"source": "backend/src/modules/transactions/infra/elysia/TransactionsController.ts"
+			"source": "OpenAPI: getTransactionsByIdHistory"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/transactions/:id/transfer-suggestions/:counterpartId/accept",
 			"result": "pending",
-			"source": "backend/src/modules/transactions/infra/elysia/TransactionsController.ts"
+			"source": "OpenAPI: postTransactionsByIdTransferSuggestionsByCounterpartIdAccept"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/transactions/:id/transfer-suggestions/:counterpartId/reject",
 			"result": "pending",
-			"source": "backend/src/modules/transactions/infra/elysia/TransactionsController.ts"
+			"source": "OpenAPI: postTransactionsByIdTransferSuggestionsByCounterpartIdReject"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/transactions/",
 			"result": "pending",
-			"source": "backend/src/modules/transactions/infra/elysia/TransactionsController.ts"
+			"source": "OpenAPI: postTransactions"
 		},
 		{
 			"budget": 1000,
 			"method": "GET",
 			"path": "/transactions/transfer-suggestions",
 			"result": "pending",
-			"source": "backend/src/modules/transactions/infra/elysia/TransactionsController.ts"
+			"source": "OpenAPI: getTransactionsTransferSuggestions"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/upgrades/debt-origins",
 			"result": "pending",
-			"source": "backend/src/modules/upgrades/UpgradeController.ts"
+			"source": "OpenAPI: postUpgradesDebtOrigins"
 		},
 		{
 			"budget": 1000,
 			"method": "POST",
 			"path": "/upgrades/recurrence-ids",
 			"result": "pending",
-			"source": "backend/src/modules/upgrades/UpgradeController.ts"
+			"source": "OpenAPI: postUpgradesRecurrenceIds"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/yield-calendar",
+			"result": "pending",
+			"source": "OpenAPI: getYieldCalendar"
 		}
 	],
 	"screens": [
@@ -1099,10 +1687,52 @@
 			"usableP95Ms": 1000
 		},
 		{
+			"path": "/account-transfers/",
+			"requestBudget": null,
+			"result": "pending",
+			"source": "frontend/src/routes/account-transfers/index.tsx",
+			"usableP95Ms": 1000
+		},
+		{
 			"path": "/accounts",
 			"requestBudget": null,
 			"result": "pending",
 			"source": "frontend/src/routes/accounts.tsx",
+			"usableP95Ms": 1000
+		},
+		{
+			"path": "/admin/",
+			"requestBudget": null,
+			"result": "pending",
+			"source": "frontend/src/routes/admin/index.tsx",
+			"usableP95Ms": 1000
+		},
+		{
+			"path": "/admin/history/",
+			"requestBudget": null,
+			"result": "pending",
+			"source": "frontend/src/routes/admin/history/index.tsx",
+			"usableP95Ms": 1000
+		},
+		{
+			"path": "/admin/institutions/",
+			"requestBudget": null,
+			"result": "pending",
+			"source": "frontend/src/routes/admin/institutions/index.tsx",
+			"usableP95Ms": 1000
+		},
+		{
+			"path": "/admin/taxes/",
+			"requestBudget": null,
+			"result": "pending",
+			"source": "frontend/src/routes/admin/taxes/index.tsx",
+			"usableP95Ms": 1000
+		},
+		{
+			"path": "/admin/users/",
+			"requestBudget": null,
+			"result": "pending",
+			"source": "frontend/src/routes/admin/users/index.tsx",
 			"usableP95Ms": 1000
 		},
 		{
@@ -1145,6 +1775,13 @@
 			"requestBudget": null,
 			"result": "pending",
 			"source": "frontend/src/routes/auth/verify-email.tsx",
+			"usableP95Ms": 1000
+		},
+		{
+			"path": "/budget/",
+			"requestBudget": null,
+			"result": "pending",
+			"source": "frontend/src/routes/budget/index.tsx",
 			"usableP95Ms": 1000
 		},
 		{
@@ -1245,5 +1882,6 @@
 			"source": "frontend/src/routes/transactions.tsx",
 			"usableP95Ms": 1000
 		}
-	]
+	],
+	"sourceHash": "733d1e7d3f3b945ed2ff3f2e7a3bea31408258876a5ce1b03b592106a5a6bbe0"
 }

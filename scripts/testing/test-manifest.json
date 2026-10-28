@@ -29,6 +29,8 @@
 		"backend/performance/clock.test.ts",
 		"backend/performance/coverage.test.ts",
 		"backend/performance/journal.test.ts",
+		"backend/performance/inventory-schema.test.ts",
+		"backend/performance/inventory-source.test.ts",
 		"backend/performance/local-fetch.test.ts",
 		"backend/performance/mutations.test.ts",
 		"backend/performance/pdf-fixture.test.ts",

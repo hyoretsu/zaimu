@@ -3,11 +3,14 @@
 Infra exclusiva local: PostgreSQL 55495, Redis 6395, RabbitMQ 56795 e API 3335. Nunca usar serviços compartilhados. Compose não baixa imagens; imagens precisam estar disponíveis na máquina.
 
 ```bash
+bun backend/performance/inventory.ts
 docker compose -f backend/performance/compose.yml up -d --pull never
 PERFORMANCE_DATABASE_URL=postgresql://performance:performance-local@127.0.0.1:55495/zaimu_performance \
 PERFORMANCE_FIXTURE_SIZE=10000 PERFORMANCE_FIXTURE_USERS=20 bun run backend/performance/seed.ts
 bun run --filter backend build
 ```
+
+Inventário usa caminhos efetivamente montados no OpenAPI, incluindo controllers compostos, preferências e health; exportação lê declarações sem executar endpoints. Impressão SHA-256 cobre fontes backend, telas, gerador e orçamentos. Executor e matriz recusam inventário desatualizado antes de conectar serviços ou preparar fixtures. Após mudar essas fontes, regenere com `bun backend/performance/inventory.ts`. Rotas e telas novas permanecem pendentes até medição própria.
 
 Fixtures: 10, 10 mil ou 100 mil transações por usuário; 1 a 20 identidades isoladas. Seed exige host, porta, usuário e nome da instância dedicada. Runner verifica identidades e conservação do principal nas parcelas antes de medir. API/worker usam namespace `zaimu_performance`, data financeira fixa em 2026-10-04, fornecedores BCB/câmbio simulados e bloqueio de HTTP externo.
 

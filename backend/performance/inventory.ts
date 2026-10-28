@@ -1,45 +1,16 @@
-import { performanceBudgets } from "./budgets";
+import { inventoryRoutes } from "./inventory-schema";
+import { inventorySourceHash } from "./inventory-source";
 
-// Source inventory runs without importing the application or connecting to shared services.
+// Export declarations only: no listener, endpoint execution or shared service access.
 const root = new URL("../../", import.meta.url).pathname;
-const routes: { method: string; path: string; source: string; budget: number; result: string }[] = [];
-for await (const source of new Bun.Glob("backend/src/**/*Controller.ts").scan(root)) {
-	const text = await Bun.file(`${root}/${source}`).text();
-	const prefix = text.match(/prefix:\s*["']([^"']+)["']/)?.[1] ?? "";
-	for (const match of text.matchAll(
-		/(?:^\s*|new Elysia\([^\n]*\))\.(get|post|patch|put|delete)\(\s*["']([^"']+)["']/gm,
-	)) {
-		const path = `${prefix}${match[2]}`;
-		const known = Object.values(performanceBudgets).find(budget => budget.path.split("?")[0] === path);
-		routes.push({
-			budget: match[1] === "get" ? (known?.coldP95Ms ?? 1000) : 1000,
-			method: match[1]!.toUpperCase(),
-			path,
-			result: "pending",
-			source,
-		});
-	}
-}
-const authActions = [
-	"sign-in/email",
-	"sign-up/email",
-	"get-session",
-	"verify-email",
-	"request-password-reset",
-	"reset-password",
-	"sign-out",
-	"revoke-session",
-	"revoke-sessions",
-	"delete-user",
-];
-for (const action of authActions)
-	routes.push({
-		budget: 1000,
-		method: action === "get-session" || action === "verify-email" ? "GET" : "POST",
-		path: `/api/auth/${action}`,
-		result: "pending",
-		source: "Better Auth",
-	});
+const sourceHash = await inventorySourceHash(root);
+const exportProcess = Bun.spawn(["bun", "backend/scripts/export-openapi.ts"], {
+	cwd: root,
+	stderr: "inherit",
+	stdout: "inherit",
+});
+if (await exportProcess.exited) throw new Error("Cannot export current API inventory");
+const routes = inventoryRoutes(await Bun.file(`${root}/backend/out/openapi.json`).json());
 const screens = [];
 for await (const source of new Bun.Glob("frontend/src/routes/**/*.tsx").scan(root)) {
 	const text = await Bun.file(`${root}/${source}`).text();
@@ -66,10 +37,13 @@ const journeys = [
 	"50 navigation cycles",
 	"deep links/background",
 ];
+if (sourceHash !== (await inventorySourceHash(root)))
+	throw new Error("Sources changed while inventory was being generated; retry.");
 const report = {
 	journeys: journeys.map(name => ({ name, result: "pending" })),
 	routes: routes.sort((a, b) => `${a.path}:${a.method}`.localeCompare(`${b.path}:${b.method}`)),
 	screens: screens.sort((a, b) => a.path.localeCompare(b.path)),
+	sourceHash,
 };
 await Bun.write(new URL("./coverage.json", import.meta.url), `${JSON.stringify(report, null, 2)}\n`);
 console.log(JSON.stringify({ journeys: journeys.length, routes: routes.length, screens: screens.length }));

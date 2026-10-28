@@ -3,6 +3,8 @@ import { RedisClient } from "bun";
 import { performanceBudgets } from "./budgets";
 import { completeCoverage, evaluateCoverage } from "./coverage";
 import coverage from "./coverage.json";
+import { assertInventoryCurrent } from "./inventory-schema";
+import { inventorySourceHash } from "./inventory-source";
 import { PerformanceJournal } from "./journal";
 import { mutationScenarios, runMutationScenario } from "./mutations";
 import { preflight } from "./preflight";
@@ -31,6 +33,7 @@ const selected = selectScenarios(
 	[...Object.keys(performanceBudgets), ...mutationScenarios],
 	process.env.PERFORMANCE_SCENARIOS,
 );
+assertInventoryCurrent(coverage, await inventorySourceHash());
 const redis = new RedisClient(redisUrl.href);
 type Sample = RequestSample;
 const cookies: string[] = [];
@@ -75,7 +78,10 @@ try {
 	fixture = await preflight(Math.max(...loads));
 	for (let user = 0; user < Math.max(...loads); user++) {
 		const response = await fetch(new URL("/api/auth/sign-in/email", base), {
-			body: JSON.stringify({ email: `performance${user}@zaimu.local`, password: "Performance-local-2026" }),
+			body: JSON.stringify({
+				email: `performance${user}@zaimu.local`,
+				password: "Performance-local-2026",
+			}),
 			headers: {
 				"content-type": "application/json",
 				origin: "http://127.0.0.1:5173",
@@ -109,7 +115,10 @@ try {
 						for (let user = 0; user < load; user++) {
 							await request(budget.path, user);
 							const warm = await fetch(
-								new URL(budget.path.replaceAll("perf-", user === 0 ? "perf-" : `p${user}-`), base),
+								new URL(
+									budget.path.replaceAll("perf-", user === 0 ? "perf-" : `p${user}-`),
+									base,
+								),
 								{
 									headers: { cookie: cookies[user]! },
 									redirect: "error",
@@ -129,7 +138,9 @@ try {
 								request(
 									budget.path,
 									user,
-									mode === "304" && etags[user] ? { headers: { "if-none-match": etags[user]! } } : {},
+									mode === "304" && etags[user]
+										? { headers: { "if-none-match": etags[user]! } }
+										: {},
 								),
 							),
 						);
@@ -179,7 +190,9 @@ try {
 				results[key] = result;
 				await journal.complete(key, result);
 				failed ||= !result.passed;
-				console.info(JSON.stringify({ load, name, p95Ms: result.p95Ms, passed: result.passed, round }));
+				console.info(
+					JSON.stringify({ load, name, p95Ms: result.p95Ms, passed: result.passed, round }),
+				);
 			}
 	}
 } catch (error) {

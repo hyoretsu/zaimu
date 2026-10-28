@@ -1,9 +1,13 @@
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { assertLocalDockerSocket } from "../../scripts/testing/validation";
+import coverage from "./coverage.json";
+import { assertInventoryCurrent } from "./inventory-schema";
+import { inventorySourceHash } from "./inventory-source";
 
 const root = resolve(import.meta.dir, "../..");
 const output = resolve(process.env.PERFORMANCE_MATRIX_DIR ?? "/tmp/zaimu-performance-matrix");
+assertInventoryCurrent(coverage, await inventorySourceHash());
 await mkdir(output, { recursive: true });
 const sizes = [10, 10000, 100000];
 const runs: { size: number; worker: string; code: number; report: string }[] = [];
@@ -76,7 +80,10 @@ try {
 						signal: AbortSignal.timeout(1000),
 					});
 					await response.arrayBuffer();
-					if (response.ok && response.headers.get("x-performance-namespace") === "zaimu_performance") {
+					if (
+						response.ok &&
+						response.headers.get("x-performance-namespace") === "zaimu_performance"
+					) {
 						ready = true;
 						break;
 					}
