@@ -1196,9 +1196,18 @@ export const dataService = {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar faturas.");
 			return postCreditCardImportsByIdApprove(id, { includeUnmatched });
 		},
-		async approveItem(importId: string, itemId: string): Promise<{ created: number }> {
+		async approveItem(
+			importId: string,
+			itemId: string,
+			data?: { recurrence: { recurrenceId: string; date: string } },
+		): Promise<{ created: number }> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar faturas.");
-			return postCreditCardImportsByIdItemsByItemIdApprove(importId, itemId);
+			return postCreditCardImportsByIdItemsByItemIdApprove(
+				importId,
+				itemId,
+				data ?? {},
+				data ? { authenticated: true, batch: false, responseType: "json" } : undefined,
+			);
 		},
 		async approveRefund(
 			importId: string,
@@ -3686,9 +3695,18 @@ export const dataService = {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
 			return postTransactionImportsByIdDaysByDateApprove(date, importId);
 		},
-		async approveItem(importId: string, itemId: string): Promise<{ created: number; finished: boolean }> {
+		async approveItem(
+			importId: string,
+			itemId: string,
+			data?: { recurrence: { recurrenceId: string; date: string } },
+		): Promise<{ created: number; finished: boolean }> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
-			return postTransactionImportsByIdItemsByItemIdApprove(importId, itemId);
+			return postTransactionImportsByIdItemsByItemIdApprove(
+				importId,
+				itemId,
+				data ?? {},
+				data ? { authenticated: true, batch: false, responseType: "json" } : undefined,
+			);
 		},
 		async create({
 			file,

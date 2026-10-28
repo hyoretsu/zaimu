@@ -14,6 +14,7 @@ export type { ResponseConfig, ResponseErrorConfig } from "@hyoretsu/kubb/client"
 export type RequestConfig<TVariables = unknown> = KubbRequestConfig<TVariables> & {
 	timeout?: Options["timeout"];
 	authenticated?: boolean;
+	batch?: boolean;
 };
 export type Client = typeof client;
 
@@ -88,6 +89,7 @@ export default async function client<TData, TError = unknown, TVariables = unkno
 			Object.keys(options).every(key => ["headers", "signal", "timeout", "credentials"].includes(key));
 		if (
 			isBatchAction(method, config.url) &&
+			config.batch !== false &&
 			standardOptions &&
 			(config.responseType === undefined || config.responseType === "json") &&
 			!config.responseValidator &&

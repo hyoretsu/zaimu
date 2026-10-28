@@ -72,6 +72,9 @@ export const cacheInvalidationMatrix: Record<string, NamespaceResolver> = {
 		"transactions:list",
 	],
 	creditCardImport: event => [
+		"schedules:detail",
+		"schedules:history",
+		"schedules:overview",
 		"accounts:detail",
 		"accounts:list",
 		"credit-cards:overview",
@@ -157,6 +160,9 @@ export const cacheInvalidationMatrix: Record<string, NamespaceResolver> = {
 		...detail("transactions:detail")(event),
 	],
 	transactionImport: event => [
+		"schedules:detail",
+		"schedules:history",
+		"schedules:overview",
 		"accounts:detail",
 		"accounts:list",
 		"debts:events",

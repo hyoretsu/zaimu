@@ -584,10 +584,20 @@ export function TransactionImportReviewDialog({
 															],
 														)
 													}
+													importId={importId ?? undefined}
 													isIgnoringDuplicate={false}
 													item={item}
 													key={item.id}
 													onApprove={() => approveItem(item.id)}
+													onAssociated={async () => {
+														const batch =
+															await dataService.transactionImports.get(
+																importId!,
+															);
+														if (batch.pendingItemCount === 0)
+															await closeFinishedReview();
+														else await invalidate(importId!);
+													}}
 													onCollapsedChange={collapsed =>
 														setItemCollapsed(item.id, collapsed)
 													}

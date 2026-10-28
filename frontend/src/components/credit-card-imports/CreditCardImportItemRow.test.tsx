@@ -77,3 +77,32 @@ test("BRL purchase shows imported IOF as purchase tax", () => {
 	expect(markup).toContain("1,85");
 	expect(markup).not.toContain("Encargo da fatura");
 });
+
+for (const [label, changes, allowed] of [
+	["purchase", { installmentAmount: 25, totalAmount: 25 }, true],
+	["refund", {}, false],
+	["charge", { installmentAmount: 25, isStatementCharge: true }, false],
+	["duplicate", { duplicates: [{ id: "original" }], installmentAmount: 25 }, false],
+] as const) {
+	test(`import recurrence action respects ${label} scope`, () => {
+		const markup = renderToStaticMarkup(
+			<TooltipProvider>
+				<CreditCardImportItemRow
+					creditCardId="card"
+					creditCardName="Card"
+					currencyCode="BRL"
+					disabled={false}
+					importId="import"
+					item={{ ...item, ...changes } as CreditCardImportItem}
+					onApprove={() => {}}
+					onEdit={() => {}}
+					onReconcile={() => {}}
+					onReviewRefund={() => {}}
+				/>
+			</TooltipProvider>,
+		);
+		expect(markup.includes('aria-label="Aprovar e associar a recorrência"')).toBe(allowed);
+		expect(markup).not.toContain('aria-label="Registrar reembolso"');
+		expect(markup).not.toContain('aria-label="Reparcelar"');
+	});
+}

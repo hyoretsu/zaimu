@@ -75,3 +75,11 @@ describe("debtResourceId", () => {
 		expect(debtResourceId("/debts/events")).toBeUndefined();
 	});
 });
+
+for (const domain of ["credit-card-imports", "transaction-imports"]) {
+	test(`${domain} approvals invalidate recurrence reservations and forecasts`, () => {
+		const namespaces = writeNamespaces(`/${domain}/import/items/item/approve`);
+		for (const key of ["schedules:detail", "schedules:history", "schedules:overview"] as const)
+			expect(namespaces).toContain(key);
+	});
+}

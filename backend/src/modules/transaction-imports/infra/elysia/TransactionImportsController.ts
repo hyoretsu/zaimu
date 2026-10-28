@@ -4,8 +4,8 @@ import {
 	assertTagOwnership,
 	getTagsByEntity,
 	replaceEntityTags,
-	type TagSummary,
 	tagEntityType,
+	type TagSummary,
 } from "~/modules/categories/application/tag-assignments";
 import { recalculateStatementPayments } from "~/modules/creditCards/application/statement-payments";
 import {
@@ -19,6 +19,9 @@ import {
 	discardExternalReviews,
 	refreshAppliedSnapshots,
 } from "~/modules/open-finance/application/review-tracking";
+import { associateRecurrence } from "~/modules/recurring/application/associate-recurrence";
+import { getStoredRecurrence } from "~/modules/recurring/application/recurrences";
+import { ApproveImportItemBody } from "~/modules/recurring/infra/elysia/RecurrenceDTO";
 import { enqueueUserYieldRecalculations } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { createTransactionBatch } from "~/modules/transaction-imports/application/import-batches";
@@ -129,8 +132,13 @@ interface TransferSuggestionCandidate extends TransferSuggestionItem {
 async function getTransferSuggestionPairs(userId: string, itemIds: string[]) {
 	const [items, candidates, rejections] = await Promise.all([
 		queryRows(
-			db.sql.public.TransactionImportItem.innerJoin(db.sql.public.TransactionImport, (fields, functions) =>
-				functions.eq(fields.TransactionImportItem.transactionImportId, fields.TransactionImport.id),
+			db.sql.public.TransactionImportItem.innerJoin(
+				db.sql.public.TransactionImport,
+				(fields, functions) =>
+					functions.eq(
+						fields.TransactionImportItem.transactionImportId,
+						fields.TransactionImport.id,
+					),
 			)
 				.select(fields => ({
 					amount: fields.TransactionImportItem.amount,
@@ -155,11 +163,16 @@ async function getTransferSuggestionPairs(userId: string, itemIds: string[]) {
 				.build(),
 		),
 		queryRows(
-			db.sql.public.TransactionExternalReference.innerJoin(db.sql.public.Transaction, (fields, functions) =>
-				functions.eq(fields.TransactionExternalReference.transactionId, fields.Transaction.id),
+			db.sql.public.TransactionExternalReference.innerJoin(
+				db.sql.public.Transaction,
+				(fields, functions) =>
+					functions.eq(fields.TransactionExternalReference.transactionId, fields.Transaction.id),
 			)
 				.innerJoin(db.sql.public.FinancialAccount, (fields, functions) =>
-					functions.eq(fields.TransactionExternalReference.financialAccountId, fields.FinancialAccount.id),
+					functions.eq(
+						fields.TransactionExternalReference.financialAccountId,
+						fields.FinancialAccount.id,
+					),
 				)
 				.select(fields => ({
 					amount: fields.Transaction.amount,
@@ -295,8 +308,13 @@ async function getPotentialDuplicates(
 				.build(),
 		),
 		queryRows(
-			db.sql.public.TransactionImportItem.innerJoin(db.sql.public.TransactionImport, (fields, functions) =>
-				functions.eq(fields.TransactionImportItem.transactionImportId, fields.TransactionImport.id),
+			db.sql.public.TransactionImportItem.innerJoin(
+				db.sql.public.TransactionImport,
+				(fields, functions) =>
+					functions.eq(
+						fields.TransactionImportItem.transactionImportId,
+						fields.TransactionImport.id,
+					),
 			)
 				.select(fields => ({
 					amount: fields.TransactionImportItem.amount,
@@ -395,8 +413,9 @@ async function getPotentialDuplicates(
 	const candidatesWithDebtSplits = candidates.map(candidate => ({
 		...candidate,
 		debtSplit:
-			(candidate.source === "TRANSACTION" ? transactionDebtSplits : importItemDebtSplits).get(candidate.id) ??
-			null,
+			(candidate.source === "TRANSACTION" ? transactionDebtSplits : importItemDebtSplits).get(
+				candidate.id,
+			) ?? null,
 	}));
 	const candidateIndex = indexDuplicateCandidates(candidatesWithDebtSplits);
 	return new Map<string, PotentialDuplicates | null>(
@@ -632,7 +651,9 @@ async function getImportReturn(
 					.build(),
 			)
 		: [];
-	const creditCardStatementsById = new Map(creditCardStatements.map(statement => [statement.id, statement]));
+	const creditCardStatementsById = new Map(
+		creditCardStatements.map(statement => [statement.id, statement]),
+	);
 	return {
 		...transactionImport,
 		hasMore: itemPage.length > limit,
@@ -649,32 +670,35 @@ async function getImportReturn(
 				creditCardStatementDate: creditCardStatement?.statementDate ?? null,
 				debtSplit: debtSplitsByItem.get(item.id) ?? null,
 				duplicateReason: duplicates.get(item.id)?.reason ?? null,
-				duplicates: duplicateCandidates.map(({ externalIds: _, externalId: __, ...duplicate }) => duplicate),
+				duplicates: duplicateCandidates.map(
+					({ externalIds: _, externalId: __, ...duplicate }) => duplicate,
+				),
 				requiresPaymentCard: requiredPaymentItems.has(item.id),
 				tagIds: tags.map(tag => tag.id),
 				tags,
-				transferSuggestions: (duplicateCandidates.length ? [] : (transferSuggestions.get(item.id) ?? [])).map(
-					pair => {
-						const counterpart = pair.outgoing.id === item.id ? pair.incoming : pair.outgoing;
-						return {
-							amount: Number(counterpart.amount),
-							createdAt: counterpart.createdAt ?? item.createdAt,
-							date: toDateKey(counterpart.date),
-							debtSplit: counterpart.debtSplit,
-							description: counterpart.description,
-							destinationFinancialAccountId: counterpart.destinationFinancialAccountId,
-							financialAccountId: counterpart.financialAccountId,
-							id: counterpart.id,
-							isHidden: counterpart.isHidden ?? false,
-							originFinancialAccountId: counterpart.originFinancialAccountId,
-							storeName: counterpart.storeName,
-							tagIds: counterpart.tagIds ?? [],
-							tags: counterpart.tags ?? [],
-							time: counterpart.time,
-							type: counterpart.type,
-						};
-					},
-				),
+				transferSuggestions: (duplicateCandidates.length
+					? []
+					: (transferSuggestions.get(item.id) ?? [])
+				).map(pair => {
+					const counterpart = pair.outgoing.id === item.id ? pair.incoming : pair.outgoing;
+					return {
+						amount: Number(counterpart.amount),
+						createdAt: counterpart.createdAt ?? item.createdAt,
+						date: toDateKey(counterpart.date),
+						debtSplit: counterpart.debtSplit,
+						description: counterpart.description,
+						destinationFinancialAccountId: counterpart.destinationFinancialAccountId,
+						financialAccountId: counterpart.financialAccountId,
+						id: counterpart.id,
+						isHidden: counterpart.isHidden ?? false,
+						originFinancialAccountId: counterpart.originFinancialAccountId,
+						storeName: counterpart.storeName,
+						tagIds: counterpart.tagIds ?? [],
+						tags: counterpart.tags ?? [],
+						time: counterpart.time,
+						type: counterpart.type,
+					};
+				}),
 			};
 		}),
 		nextCursor: (() => {
@@ -706,7 +730,9 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				"imports:pending",
 				{ domain: "transaction-imports" },
 				() =>
-					queryRaw<{ id: string; fileName: string; pendingItemCount: number } & Record<string, unknown>>(
+					queryRaw<
+						{ id: string; fileName: string; pendingItemCount: number } & Record<string, unknown>
+					>(
 						`SELECT import."id", import."fileName", count(item."id")::integer AS "pendingItemCount"
 			 FROM "TransactionImport" import
 			 LEFT JOIN "TransactionImportItem" item ON item."transactionImportId" = import."id"
@@ -790,17 +816,25 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					return {
 						ignoredCount: imported[0].status === "PENDING" ? 0 : statementTransactions.length,
 						transactionImport:
-							imported[0].status === "PENDING" ? await getImportReturn(userId, imported[0].id) : null,
+							imported[0].status === "PENDING"
+								? await getImportReturn(userId, imported[0].id)
+								: null,
 					};
 
 				const [existingTransactions, existingYields] = await Promise.all([
 					queryRaw<{ externalId: string | null }>(
 						`SELECT "externalId" FROM "TransactionExternalReference" WHERE "financialAccountId"=$1 AND "externalId"=ANY($2::varchar[])`,
-						[body.financialAccountId, statementTransactions.map(transaction => transaction.externalId)],
+						[
+							body.financialAccountId,
+							statementTransactions.map(transaction => transaction.externalId),
+						],
 					),
 					queryRaw<{ externalId: string | null }>(
 						`SELECT "externalId" FROM "FinancialAccountYield" WHERE "financialAccountId"=$1 AND "externalId"=ANY($2::varchar[])`,
-						[body.financialAccountId, statementTransactions.map(transaction => transaction.externalId)],
+						[
+							body.financialAccountId,
+							statementTransactions.map(transaction => transaction.externalId),
+						],
 					),
 				]);
 				const existingExternalIds = new Set(
@@ -818,10 +852,16 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				 AND NOT EXISTS (SELECT 1 FROM "TransactionImportItem" i WHERE i."transactionImportId"=b."id" AND (i."externalId" IS NULL OR NOT (i."externalId"=ANY($4::varchar[]))))
 				 AND NOT EXISTS (SELECT 1 FROM unnest($4::varchar[]) e WHERE NOT EXISTS (SELECT 1 FROM "TransactionImportItem" i WHERE i."transactionImportId"=b."id" AND i."externalId"=e))
 				 ORDER BY b."createdAt" LIMIT 1`,
-					[userId, body.financialAccountId, statement.provider, transactions.map(item => item.externalId)],
+					[
+						userId,
+						body.financialAccountId,
+						statement.provider,
+						transactions.map(item => item.externalId),
+					],
 				);
 				const existing = pending[0];
-				if (existing) return { ignoredCount, transactionImport: await getImportReturn(userId, existing.id) };
+				if (existing)
+					return { ignoredCount, transactionImport: await getImportReturn(userId, existing.id) };
 
 				const transactionImport = await createTransactionBatch({
 					fileName: body.file.name.slice(0, 255),
@@ -838,7 +878,9 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 						transactions.map(transaction => ({
 							amount: String(transaction.amount),
 							balanceAfter:
-								transaction.balanceAfter === undefined ? undefined : String(transaction.balanceAfter),
+								transaction.balanceAfter === undefined
+									? undefined
+									: String(transaction.balanceAfter),
 							date: new Date(transaction.date),
 							description: transaction.description,
 							destinationFinancialAccountId:
@@ -846,14 +888,18 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 									? body.financialAccountId
 									: undefined,
 							externalId: transaction.externalId,
-							originFinancialAccountId: transaction.type === "EXPENSE" ? body.financialAccountId : undefined,
+							originFinancialAccountId:
+								transaction.type === "EXPENSE" ? body.financialAccountId : undefined,
 							time: transaction.time,
 							transactionImportId: transactionImport.id,
 							type: transaction.type as ImportItemType,
 						})),
 					).build(),
 				);
-				return { ignoredCount, transactionImport: await getImportReturn(userId, transactionImport.id) };
+				return {
+					ignoredCount,
+					transactionImport: await getImportReturn(userId, transactionImport.id),
+				};
 			});
 		},
 		{
@@ -911,7 +957,8 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			const next = {
 				amount: body.amount ?? Number(current.amount),
 				date: body.date ?? toDateKey(current.date),
-				description: body.description === undefined ? current.description : normalizeText(body.description),
+				description:
+					body.description === undefined ? current.description : normalizeText(body.description),
 				destinationFinancialAccountId:
 					body.destinationFinancialAccountId === undefined
 						? current.destinationFinancialAccountId
@@ -950,7 +997,8 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			if (next.storeName && next.type !== "EXPENSE")
 				throw new HttpException("Loja só pode ser informada em saídas", 400);
 			if (next.storeName) await resolveStore(userId, next.storeName);
-			const tagIds = body.tagIds === undefined ? undefined : await assertTagOwnership(body.tagIds, userId);
+			const tagIds =
+				body.tagIds === undefined ? undefined : await assertTagOwnership(body.tagIds, userId);
 			await executeStatement(
 				db.sql.public.TransactionImportItem.update({
 					...next,
@@ -962,7 +1010,11 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					.build(),
 			);
 			if (tagIds)
-				await replaceEntityTags({ entityIds: [current.id], entityType: importItemTagEntityType, tagIds });
+				await replaceEntityTags({
+					entityIds: [current.id],
+					entityType: importItemTagEntityType,
+					tagIds,
+				});
 			if (body.debtSplit !== undefined)
 				await replaceDebtSplit({
 					amount: next.amount,
@@ -1050,7 +1102,8 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 		},
 		{
 			detail: {
-				operationId: "postTransactionImportsByIdItemsByItemIdTransferSuggestionsByCounterpartItemIdAccept",
+				operationId:
+					"postTransactionImportsByIdItemsByItemIdTransferSuggestionsByCounterpartItemIdAccept",
 			},
 			params: t.Object({ counterpartItemId: t.String(), id: t.String(), itemId: t.String() }),
 		},
@@ -1093,113 +1146,138 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 		},
 		{
 			detail: {
-				operationId: "postTransactionImportsByIdItemsByItemIdTransferSuggestionsByCounterpartItemIdReject",
+				operationId:
+					"postTransactionImportsByIdItemsByItemIdTransferSuggestionsByCounterpartItemIdReject",
 			},
 			params: t.Object({ counterpartItemId: t.String(), id: t.String(), itemId: t.String() }),
 		},
 	)
 	.post(
 		"/:id/items/:itemId/approve",
-		async ({ params, request }) => {
+		async ({ params, request, body }) => {
 			const userId = await requireUserId(request);
-			const transactionImport = await getImport(userId, params.id);
-			if (transactionImport.status !== "PENDING")
-				throw new HttpException("Esta importação já foi aprovada", 400);
-			const item = await queryFirst(
-				db.sql.public.TransactionImportItem.select(
-					"id",
-					"amount",
-					"paymentCreditCardId",
-					"date",
-					"description",
-					"destinationFinancialAccountId",
-					"externalId",
-					"isDuplicateIgnored",
-					"transferCounterpartExternalId",
-					"isHidden",
-					"isReconciled",
-					"originFinancialAccountId",
-					"reconciledImportItemId",
-					"reconciledTransactionId",
-					"storeName",
-					"time",
-					"type",
-				)
-					.where((fields, functions) =>
-						functions.and(
-							functions.eq(fields.id, params.itemId),
-							functions.eq(fields.transactionImportId, transactionImport.id),
-						),
+			return withRawTransaction(async () => {
+				if (body?.recurrence) await getStoredRecurrence(userId, body.recurrence.recurrenceId, true);
+				await queryRaw(
+					'SELECT "id" FROM "TransactionImport" WHERE "id"=$1 AND "userId"=$2 FOR UPDATE',
+					[params.id, userId],
+				);
+				const transactionImport = await getImport(userId, params.id);
+				if (transactionImport.status !== "PENDING")
+					throw new HttpException("Esta importação já foi aprovada", 400);
+				const item = await queryFirst(
+					db.sql.public.TransactionImportItem.select(
+						"id",
+						"amount",
+						"paymentCreditCardId",
+						"date",
+						"description",
+						"destinationFinancialAccountId",
+						"externalId",
+						"isDuplicateIgnored",
+						"transferCounterpartExternalId",
+						"isHidden",
+						"isReconciled",
+						"originFinancialAccountId",
+						"reconciledImportItemId",
+						"reconciledTransactionId",
+						"storeName",
+						"time",
+						"type",
 					)
-					.limit(1)
-					.build(),
-			);
-			if (!item) throw new HttpException("Item da importação não encontrado", 404);
-			await assertImportItemIsNotReconciliationTarget(item.id);
-			const importItem = { ...item, type: item.type as ImportItemType };
-			const duplicates = await getPotentialDuplicates(transactionImport.financialAccountId, [importItem]);
-			if (duplicates.get(item.id))
-				throw new HttpException("Resolva a possível duplicata antes de aprovar", 400);
-			const tagIds = await prepareImportItem(importItem, userId);
-			const debtSplit = await getDebtSplitInput({ transactionImportItemId: importItem.id });
-			const result = await withTransaction(async transaction => {
-				const reconciledTarget = importItem.isReconciled
-					? await persistReconciledImportItem(
-							transaction,
-							importItem,
-							tagIds,
-							transactionImport.financialAccountId,
+						.where((fields, functions) =>
+							functions.and(
+								functions.eq(fields.id, params.itemId),
+								functions.eq(fields.transactionImportId, transactionImport.id),
+							),
 						)
-					: null;
-				const transactionId = reconciledTarget
-					? null
-					: await persistImportItem(
-							transaction,
-							importItem,
-							tagIds,
-							transactionImport.financialAccountId,
-							userId,
+						.limit(1)
+						.build(),
+				);
+				if (!item) throw new HttpException("Item da importação não encontrado", 404);
+				await assertImportItemIsNotReconciliationTarget(item.id);
+				const importItem = { ...item, type: item.type as ImportItemType };
+				const duplicates = await getPotentialDuplicates(transactionImport.financialAccountId, [
+					importItem,
+				]);
+				if (duplicates.get(item.id))
+					throw new HttpException("Resolva a possível duplicata antes de aprovar", 400);
+				const tagIds = await prepareImportItem(importItem, userId);
+				const debtSplit = await getDebtSplitInput({ transactionImportItemId: importItem.id });
+				const result = await withTransaction(async transaction => {
+					const reconciledTarget = importItem.isReconciled
+						? await persistReconciledImportItem(
+								transaction,
+								importItem,
+								tagIds,
+								transactionImport.financialAccountId,
+							)
+						: null;
+					const transactionId = reconciledTarget
+						? null
+						: await persistImportItem(
+								transaction,
+								importItem,
+								tagIds,
+								transactionImport.financialAccountId,
+								userId,
+							);
+					await removeImportItem(transaction, item.id);
+					if (importItem.paymentCreditCardId)
+						await recalculateStatementPayments(transaction, [importItem.paymentCreditCardId]);
+					const finished = await finalizeImportWhenEmpty(transaction, transactionImport.id);
+					return { finished, reconciledTarget, transactionId };
+				});
+				if (result.reconciledTarget) {
+					await replaceEntityTags({
+						entityIds: [result.reconciledTarget.entityId],
+						entityType: result.reconciledTarget.entityType,
+						tagIds,
+					});
+					await replaceDebtSplit({
+						amount: importItem.amount,
+						split: debtSplit ?? null,
+						target: result.reconciledTarget.debtTarget,
+						userId,
+					});
+				} else if (debtSplit && result.transactionId)
+					await linkTransactionToDebt({
+						amount: importItem.amount,
+						date: toDateKey(importItem.date),
+						debtSplit,
+						description: importItem.description ?? undefined,
+						transactionId: result.transactionId,
+						type: importItem.type as TransactionType,
+						userId,
+					});
+				const localId =
+					result.transactionId ??
+					(result.reconciledTarget?.entityType === "TRANSACTION"
+						? result.reconciledTarget.entityId
+						: null);
+				if (localId) await refreshAppliedSnapshots(userId, localId);
+				await enqueueUserYieldRecalculations(
+					userId,
+					importItem.date,
+					`import:${params.id}:${crypto.randomUUID()}`,
+				);
+				if (body?.recurrence) {
+					if (!localId)
+						throw new HttpException(
+							"Este lançamento não pode ser associado a uma recorrência.",
+							400,
 						);
-				await removeImportItem(transaction, item.id);
-				if (importItem.paymentCreditCardId)
-					await recalculateStatementPayments(transaction, [importItem.paymentCreditCardId]);
-				const finished = await finalizeImportWhenEmpty(transaction, transactionImport.id);
-				return { finished, reconciledTarget, transactionId };
+					await associateRecurrence(userId, body.recurrence.recurrenceId, {
+						date: body.recurrence.date,
+						kind: "TRANSACTION",
+						recordId: localId,
+					});
+				}
+				return { created: 1, finished: result.finished };
 			});
-			if (result.reconciledTarget) {
-				await replaceEntityTags({
-					entityIds: [result.reconciledTarget.entityId],
-					entityType: result.reconciledTarget.entityType,
-					tagIds,
-				});
-				await replaceDebtSplit({
-					amount: importItem.amount,
-					split: debtSplit ?? null,
-					target: result.reconciledTarget.debtTarget,
-					userId,
-				});
-			} else if (debtSplit && result.transactionId)
-				await linkTransactionToDebt({
-					amount: importItem.amount,
-					date: toDateKey(importItem.date),
-					debtSplit,
-					description: importItem.description ?? undefined,
-					transactionId: result.transactionId,
-					type: importItem.type as TransactionType,
-					userId,
-				});
-			const localId =
-				result.transactionId ??
-				(result.reconciledTarget?.entityType === "TRANSACTION" ? result.reconciledTarget.entityId : null);
-			if (localId) await refreshAppliedSnapshots(userId, localId);
-			await enqueueUserYieldRecalculations(
-				userId,
-				importItem.date,
-				`import:${params.id}:${crypto.randomUUID()}`,
-			);
-			return { created: 1, finished: result.finished };
 		},
 		{
+			body: ApproveImportItemBody,
 			detail: { operationId: "postTransactionImportsByIdItemsByItemIdApprove" },
 			params: t.Object({ id: t.String(), itemId: t.String() }),
 		},
@@ -1231,14 +1309,21 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					"time",
 					"type",
 				)
-					.where((fields, functions) => functions.eq(fields.transactionImportId, transactionImport.id))
+					.where((fields, functions) =>
+						functions.eq(fields.transactionImportId, transactionImport.id),
+					)
 					.build(),
 			);
 			const itemsForDay = items
 				.filter(item => toDateKey(item.date) === params.date)
 				.map(item => ({ ...item, type: item.type as ImportItemType }));
-			const duplicates = await getPotentialDuplicates(transactionImport.financialAccountId, itemsForDay);
-			const reconciliationTargetIds = await getReconciliationTargetIds(itemsForDay.map(item => item.id));
+			const duplicates = await getPotentialDuplicates(
+				transactionImport.financialAccountId,
+				itemsForDay,
+			);
+			const reconciliationTargetIds = await getReconciliationTargetIds(
+				itemsForDay.map(item => item.id),
+			);
 			const approvableItems = itemsForDay.filter(
 				item => !duplicates.get(item.id) && !reconciliationTargetIds.has(item.id),
 			);
@@ -1279,7 +1364,9 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				}
 				await recalculateStatementPayments(transaction, [
 					...new Set(
-						approvableItems.flatMap(item => (item.paymentCreditCardId ? [item.paymentCreditCardId] : [])),
+						approvableItems.flatMap(item =>
+							item.paymentCreditCardId ? [item.paymentCreditCardId] : [],
+						),
 					),
 				]);
 				const finished = await finalizeImportWhenEmpty(transaction, transactionImport.id);
@@ -1313,7 +1400,9 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			for (const result of importedTransactions.results) {
 				const localId =
 					result.transactionId ??
-					(result.reconciledTarget?.entityType === "TRANSACTION" ? result.reconciledTarget.entityId : null);
+					(result.reconciledTarget?.entityType === "TRANSACTION"
+						? result.reconciledTarget.entityId
+						: null);
 				if (localId) await refreshAppliedSnapshots(userId, localId);
 			}
 			await enqueueUserYieldRecalculations(
@@ -1370,7 +1459,8 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			const duplicate = duplicates
 				.get(item.id)
 				?.candidates.find(
-					candidate => candidate.id === body.duplicateId && candidate.source === body.duplicateSource,
+					candidate =>
+						candidate.id === body.duplicateId && candidate.source === body.duplicateSource,
 				);
 			if (!duplicate || duplicate.id !== body.duplicateId || duplicate.source !== body.duplicateSource)
 				throw new HttpException("Duplicata não encontrada", 404);
@@ -1485,7 +1575,9 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 						"time",
 						"type",
 					)
-						.where((fields, functions) => functions.eq(fields.transactionImportId, transactionImport.id))
+						.where((fields, functions) =>
+							functions.eq(fields.transactionImportId, transactionImport.id),
+						)
 						.build(),
 				)
 			).map(item => ({ ...item, type: item.type as ImportItemType }));
@@ -1529,7 +1621,9 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				}
 				await recalculateStatementPayments(transaction, [
 					...new Set(
-						approvableItems.flatMap(item => (item.paymentCreditCardId ? [item.paymentCreditCardId] : [])),
+						approvableItems.flatMap(item =>
+							item.paymentCreditCardId ? [item.paymentCreditCardId] : [],
+						),
 					),
 				]);
 				const finished = await finalizeImportWhenEmpty(transaction, transactionImport.id);
@@ -1563,7 +1657,9 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			for (const result of importedTransactions.results) {
 				const localId =
 					result.transactionId ??
-					(result.reconciledTarget?.entityType === "TRANSACTION" ? result.reconciledTarget.entityId : null);
+					(result.reconciledTarget?.entityType === "TRANSACTION"
+						? result.reconciledTarget.entityId
+						: null);
 				if (localId) await refreshAppliedSnapshots(userId, localId);
 			}
 			await enqueueUserYieldRecalculations(
@@ -1573,7 +1669,10 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			);
 			return { created: approvableItems.length, finished: importedTransactions.finished };
 		},
-		{ detail: { operationId: "postTransactionImportsByIdApprove" }, params: t.Object({ id: t.String() }) },
+		{
+			detail: { operationId: "postTransactionImportsByIdApprove" },
+			params: t.Object({ id: t.String() }),
+		},
 	)
 	.delete(
 		"/:id",

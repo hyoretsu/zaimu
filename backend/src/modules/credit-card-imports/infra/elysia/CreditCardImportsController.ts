@@ -18,11 +18,13 @@ import {
 import { type CreditReadRow, readCreditEntries } from "~/modules/creditCards/application/credit-entry-reader";
 import { mutateCreditBook, readCreditBook } from "~/modules/creditCards/application/normalized-credit-book";
 import { getDebtSplitInput, replaceDebtSplit } from "~/modules/debts/application/debt-splits";
+import { ApproveImportItemBody } from "~/modules/recurring/infra/elysia/RecurrenceDTO";
 import { createCreditCardBatch } from "~/modules/transaction-imports/application/import-batches";
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
 import { rejectLegacyFinancialFields } from "~/shared/infra/elysia/strict-json-body";
 import { db, executeStatement, queryFirst, queryRaw, queryRows } from "~/shared/infra/sql";
+import { approveWithRecurrence } from "../../application/approve-with-recurrence";
 import { associateImportedTax } from "../../application/associate-import-tax";
 import {
 	approveItems,
@@ -706,8 +708,16 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 	)
 	.post(
 		"/:id/items/:itemId/approve",
-		async ({ params, request }) => approveItems(await requireUserId(request), params.id, params.itemId),
-		{ detail: { operationId: "postCreditCardImportsByIdItemsByItemIdApprove" } },
+		async ({ params, request, body }) => {
+			const userId = await requireUserId(request);
+			return body?.recurrence
+				? approveWithRecurrence(userId, params.id, params.itemId, body.recurrence)
+				: approveItems(userId, params.id, params.itemId);
+		},
+		{
+			body: ApproveImportItemBody,
+			detail: { operationId: "postCreditCardImportsByIdItemsByItemIdApprove" },
+		},
 	)
 	.post(
 		"/:id/approve",

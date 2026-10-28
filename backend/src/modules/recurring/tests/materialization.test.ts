@@ -514,4 +514,80 @@ describe("atomic recurrence processing", () => {
 			).toHaveLength(1);
 		}
 	});
+	test("import approval associates a purchase atomically and retains pending rows on conflict", async () => {
+		const { approveWithRecurrence } =
+			await import("../../credit-card-imports/application/approve-with-recurrence");
+		const date = "2099-01-02";
+		const recurrence = await service.saveRecurrence("owner", {
+			amount: 25,
+			creditCardId: "card",
+			dayOfMonth: 2,
+			interval: 1,
+			movement: "CARD_PURCHASE",
+			name: "Imported subscription",
+			startDate: date,
+			unit: "MONTH",
+		});
+		await client.query(
+			`INSERT INTO "CreditCardImport" ("id","userId","creditCardId","provider","fileName","statementDate","dueDate") VALUES ('association-import','owner','card','INTER','invoice.pdf','2099-01-15','2099-01-25')`,
+		);
+		for (const [id, amount] of [
+			["import-associated", 25],
+			["import-conflict", 37],
+			["import-refund", -10],
+		] as const) {
+			await client.query(
+				`INSERT INTO "CreditCardImportItem" ("id","creditCardImportId","externalId","purchaseDate","description","totalAmount","installmentAmount") VALUES ($1,'association-import',$1,$2,$1,$3,$3)`,
+				[id, date, amount],
+			);
+		}
+		const input = { date, recurrenceId: recurrence.id };
+		await expect(
+			approveWithRecurrence("another-user", "association-import", "import-associated", input),
+		).rejects.toThrow();
+		await expect(
+			approveWithRecurrence("owner", "association-import", "import-refund", input),
+		).rejects.toThrow("compras comuns");
+		expect(
+			await approveWithRecurrence("owner", "association-import", "import-associated", input),
+		).toEqual({ created: 1 });
+		const linked = (
+			await client.query(
+				'SELECT "id","recurrenceId" FROM "CreditPurchaseRecord" WHERE "externalId"=$1',
+				["import-associated"],
+			)
+		).rows;
+		expect(linked).toHaveLength(1);
+		expect(linked[0].recurrenceId).toBe(recurrence.id);
+		expect(
+			(
+				await client.query(
+					'SELECT "purchaseId" FROM "RecurrenceOccurrence" WHERE "recurrenceId"=$1',
+					[recurrence.id],
+				)
+			).rows[0].purchaseId,
+		).toBe(linked[0].id);
+		await expect(
+			approveWithRecurrence("owner", "association-import", "import-conflict", input),
+		).rejects.toThrow("período");
+		expect(
+			(await client.query('SELECT "id" FROM "CreditCardImportItem" WHERE "id"=$1', ["import-conflict"]))
+				.rows,
+		).toHaveLength(1);
+		expect(
+			(
+				await client.query('SELECT "id" FROM "CreditPurchaseRecord" WHERE "externalId"=$1', [
+					"import-conflict",
+				])
+			).rows,
+		).toHaveLength(0);
+		expect(
+			(
+				await client.query(
+					'SELECT "purchaseId" FROM "CreditPurchaseImportIdentity" WHERE "externalId"=$1',
+					["import-conflict"],
+				)
+			).rows,
+		).toHaveLength(0);
+	});
 });

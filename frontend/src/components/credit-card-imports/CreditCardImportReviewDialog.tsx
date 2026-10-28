@@ -268,9 +268,11 @@ export function CreditCardImportReviewDialog({
 											creditCardName={creditCardName}
 											currencyCode={currencyCode}
 											disabled={rowBusy(item.id)}
+											importId={importId ?? undefined}
 											item={item}
 											key={item.id}
 											onApprove={() => approveItem(item)}
+											onAssociated={() => refreshReview(importId!)}
 											onEdit={() => setEditingItem(item)}
 											onReconcile={() => {
 												if (!importId) return;

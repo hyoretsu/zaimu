@@ -318,3 +318,22 @@ it("ignores an in-flight batch even when the same identity returns before its re
 		SessionChangedError,
 	);
 });
+
+it("submits recurrence approval forms directly without a batch envelope", async () => {
+	const paths: string[] = [];
+	mockFetch(async input => {
+		const request = input instanceof Request ? input : new Request(input);
+		paths.push(new URL(request.url).pathname);
+		expect(await request.json()).toEqual({
+			recurrence: { date: "2026-10-01", recurrenceId: "recurrence" },
+		});
+		return Response.json({ created: 1 });
+	});
+	await client({
+		batch: false,
+		data: { recurrence: { date: "2026-10-01", recurrenceId: "recurrence" } },
+		method: "POST",
+		url: "/credit-card-imports/import/items/purchase/approve",
+	});
+	expect(paths).toEqual(["/credit-card-imports/import/items/purchase/approve"]);
+});

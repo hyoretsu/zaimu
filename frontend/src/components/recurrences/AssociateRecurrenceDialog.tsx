@@ -25,9 +25,13 @@ import { RecurrencePeriodField } from "./RecurrencePeriodField";
 
 export default function AssociateRecurrenceDialog({
 	target,
+	onAssociate,
+	onAssociated,
 	initialDate,
 	onOpenChange,
 }: {
+	onAssociated?: () => Promise<unknown>;
+	onAssociate?: (recurrenceId: string, date: string) => Promise<unknown>;
 	target: RecurrenceAssociationTarget;
 	initialDate: string;
 	onOpenChange: (open: boolean) => void;
@@ -45,9 +49,15 @@ export default function AssociateRecurrenceDialog({
 	const recurrences = (query.data ?? []).filter(item => isRecurrenceAssociationCompatible(item, target));
 	const selected = recurrences.find(item => item.id === recurrenceId);
 	const mutation = useMutation({
-		meta: { cacheOperations: ["recurring"] },
+		meta: {
+			cacheOperations: [
+				"recurring",
+				...(onAssociate ? ["statement" as const, "transaction" as const] : []),
+			],
+		},
 		mutationFn: async () => {
 			if (!selected || !date) throw new Error("Selecione uma recorrência e o período da ocorrência.");
+			if (onAssociate) return onAssociate(selected.id, date);
 			return dataService.recurrences.associate(selected.id, {
 				date,
 				kind: target.kind,
@@ -58,7 +68,14 @@ export default function AssociateRecurrenceDialog({
 			setError(error.message);
 			showToast(error.message, "negative");
 		},
-		onSuccess: () => {
+		onSuccess: async () => {
+			if (onAssociated) {
+				try {
+					await onAssociated();
+				} catch {
+					showToast("Vínculo salvo. Atualize a revisão para consultar os dados atuais.", "info");
+				}
+			}
 			showToast("Lançamento associado à recorrência.", "positive");
 			onOpenChange(false);
 		},
@@ -94,8 +111,12 @@ export default function AssociateRecurrenceDialog({
 					}}
 				>
 					<DialogHeader>
-						<DialogTitle>Associar a recorrência</DialogTitle>
+						<DialogTitle>
+							{onAssociate ? "Aprovar e associar a recorrência" : "Associar a recorrência"}
+						</DialogTitle>
 						<DialogDescription>
+							{onAssociate &&
+								"Salvar aprova este item e associa à recorrência em uma única operação. "}
 							Escolha o período representado por este lançamento. A regeneração do histórico
 							preservará esse vínculo sem duplicá-lo.
 						</DialogDescription>

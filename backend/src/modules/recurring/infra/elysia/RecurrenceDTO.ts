@@ -88,3 +88,10 @@ export const AssociateRecurrenceBody = t.Object({
 	recordId: t.String({ maxLength: 36, minLength: 1 }),
 });
 export type AssociateRecurrenceBody = typeof AssociateRecurrenceBody.static;
+
+export const ImportRecurrenceDTO = t.Object({
+	date: t.String({ format: "date" }),
+	recurrenceId: t.String({ maxLength: 36, minLength: 1 }),
+});
+export type ImportRecurrenceDTO = typeof ImportRecurrenceDTO.static;
+export const ApproveImportItemBody = t.Optional(t.Object({ recurrence: t.Optional(ImportRecurrenceDTO) }));
