@@ -6,6 +6,7 @@ import {
 	buildContractSchedule,
 	createLoanContract,
 	type LoanContractBook,
+	loanContractSummary,
 	type LoanContractTerms,
 	type LoanReference,
 	type LoanSimulation,
@@ -63,7 +64,6 @@ export function loanReference(context: IndicatorContext): LoanReference {
 export function loanPresentation(book: LoanContractBook, previous?: Loan): Loan {
 	const version = activeLoanVersion(book);
 	const terms = version.terms;
-	const rows = outstandingLoanSchedule(book);
 	return {
 		...previous,
 		amortization: terms.amortization === "MANUAL" ? "PRICE" : terms.amortization,
@@ -73,20 +73,13 @@ export function loanPresentation(book: LoanContractBook, previous?: Loan): Loan 
 		dueDay: Number(terms.firstDueDate.slice(8)),
 		firstDueDate: terms.firstDueDate,
 		id: book.loanId,
-		installmentAmount: rows[0] ? rows[0].principal + rows[0].interest + rows[0].charges : 0,
 		institutionId: book.institutionId,
 		interestRate: (terms.rate.fixedRate ?? 0) / 100,
 		lender: previous?.lender ?? "Instituição",
-		paidInstallments: Math.max(0, terms.totalInstallments - rows.length),
+		...loanContractSummary(book),
 		principalAmount: terms.principalAmount,
-		remainingInstallments: rows.length,
-		remainingPrincipal: rows.reduce((sum, row) => sum + row.principal, 0),
-		remainingTotal: rows.reduce((sum, row) => sum + row.principal + row.interest + row.charges, 0),
 		startDate: terms.startDate,
 		totalInstallments: terms.totalInstallments,
-		totalPaid: book.receipts
-			.filter(row => row.kind !== "REFINANCE")
-			.reduce((sum, row) => sum + row.amount, 0),
 		userId: previous?.userId ?? useAuthStore.getState().user?.id ?? useAuthStore.getState().guestId,
 	};
 }

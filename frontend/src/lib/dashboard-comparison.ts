@@ -88,7 +88,9 @@ export async function getGuestDashboardFinancialContext(
 			new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 23, 59, 59).getTime(),
 		),
 	);
-	const today = startOfDay(new Date());
+	const today = startOfDay(
+		planner && parameters.startDate ? new Date(`${parameters.startDate}T12:00:00`) : new Date(),
+	);
 	const projectionStart = addDays(today, 1);
 	const occurrences = occurrenceRows.map(row => row.data);
 	const linked = new Set([
@@ -283,7 +285,7 @@ export async function getGuestDashboardFinancialContext(
 				type: "EXPENSE",
 			});
 	}
-	for (const { data: payment } of paymentRows) {
+	for (const { data: payment } of planner ? [] : paymentRows) {
 		const date = new Date(`${payment.dueDate.slice(0, 10)}T12:00:00`);
 		if (!payment.paidDate && date >= projectionStart && date <= through)
 			projected.push({
@@ -514,55 +516,63 @@ export async function getGuestDashboardFinancialContext(
 	const plannerMovements = movements
 		.filter(row => key(row.date) > key(today))
 		.map(row => ({ ...row, date: key(row.date) }));
-	const forecastDays = !money.consolidation.forecastAvailable
-		? []
-		: dailyForecast({
-				accounts: current.map(account => ({
-					...account,
-					balance: account.balance ?? 0,
-					type:
-						account.type === "REWARDS" && account.rewardsAccount?.kind === "CASHBACK"
-							? "CASHBACK"
-							: account.type,
-				})),
-				currency,
-				from: key(projectionStart),
-				movements: movements
-					.filter(item => key(item.date) > key(today))
-					.map(item => ({ ...item, date: key(item.date) })),
-				netYield: (account, balance, day, ledger) => {
-					const settings = yieldAccounts.get(account.id);
-					if (
-						settings &&
-						(settings.type === "CHECKING" ||
-							settings.type === "SAVINGS" ||
-							settings.yieldReferenceType ||
-							settings.yieldFixedRate != null)
-					) {
+	const forecastDays =
+		planner || !money.consolidation.forecastAvailable
+			? []
+			: dailyForecast({
+					accounts: current.map(account => ({
+						...account,
+						balance: account.balance ?? 0,
+						type:
+							account.type === "REWARDS" && account.rewardsAccount?.kind === "CASHBACK"
+								? "CASHBACK"
+								: account.type,
+					})),
+					currency,
+					from: key(projectionStart),
+					movements: movements
+						.filter(item => key(item.date) > key(today))
+						.map(item => ({ ...item, date: key(item.date) })),
+					netYield: (account, balance, day, ledger) => {
+						const settings = yieldAccounts.get(account.id);
 						if (
-							!accountCalendarCovered(holidays, settings, projectionStart, through) ||
-							!getYieldSettings(settings, day)
+							settings &&
+							(settings.type === "CHECKING" ||
+								settings.type === "SAVINGS" ||
+								settings.yieldReferenceType ||
+								settings.yieldFixedRate != null)
 						) {
-							yieldCoverageAvailable = false;
-							return 0;
+							if (
+								!accountCalendarCovered(holidays, settings, projectionStart, through) ||
+								!getYieldSettings(settings, day)
+							) {
+								yieldCoverageAvailable = false;
+								return 0;
+							}
 						}
-					}
-					return settings
-						? projectedNetYield(settings, balance, day, averages, yieldHolidays(settings), ledger)
-						: 0;
-				},
-				primaryAccountId: accounts.find(account => account.isPrimary)?.id,
-				rate: money.factor,
-				settleYield: (account, amount, day, ledger) => {
-					const settings = yieldAccounts.get(account.id);
-					ledger.accrueRecordedNet(
-						amount,
-						settings ? getYieldSettings(settings, day) : undefined,
-						day,
-					);
-				},
-				through: key(through),
-			});
+						return settings
+							? projectedNetYield(
+									settings,
+									balance,
+									day,
+									averages,
+									yieldHolidays(settings),
+									ledger,
+								)
+							: 0;
+					},
+					primaryAccountId: accounts.find(account => account.isPrimary)?.id,
+					rate: money.factor,
+					settleYield: (account, amount, day, ledger) => {
+						const settings = yieldAccounts.get(account.id);
+						ledger.accrueRecordedNet(
+							amount,
+							settings ? getYieldSettings(settings, day) : undefined,
+							day,
+						);
+					},
+					through: key(through),
+				});
 	for (const day of forecastDays) {
 		const originalIncome = movements
 			.filter(movement => key(movement.date) === day.date && movement.type === "INCOME")

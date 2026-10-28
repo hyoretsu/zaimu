@@ -60,7 +60,7 @@ export function LoanContractDialog({
 					if (!open) onClose();
 				}}
 				open
-				url={{ clear: ["loan"], parameter: "loan", value: loanId }}
+				url={initial ? undefined : { clear: ["loan"], parameter: "loan", value: loanId }}
 			>
 				<DialogContent className="flex flex-col sm:max-w-3xl">
 					<DialogHeader>
@@ -147,7 +147,7 @@ export function LoanContractDialog({
 									summary={`${book.data.receipts.length} registros`}
 									title="Histórico de pagamentos"
 								>
-									{book.data.receipts.map((row, index) => (
+									{book.data.receipts.map(row => (
 										<div
 											className="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3"
 											key={row.id}
@@ -168,7 +168,9 @@ export function LoanContractDialog({
 												{formatCurrency(row.amount, version.terms.currency)}
 											</strong>
 											{book.data!.versions.at(-1)?.receiptId === row.id &&
-												index === book.data!.receipts.length - 1 &&
+												!book.data!.receipts.some(
+													receipt => receipt.reversesId === row.id,
+												) &&
 												row.kind !== "REVERSAL" &&
 												row.kind !== "REFINANCE" && (
 													<Button

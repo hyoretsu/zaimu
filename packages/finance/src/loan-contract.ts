@@ -571,15 +571,21 @@ export function reverseLoanReceipt(
 	expectedRevision: number,
 ): LoanContractBook {
 	civilDate(date);
-	if (expectedRevision !== book.revision) throw new Error("Contrato mudou");
-	const receipt = book.receipts.at(-1);
+	if (expectedRevision !== book.revision || book.receipts.some(row => row.id === id))
+		throw new Error("Contrato mudou");
+	const reversed = new Set(book.receipts.filter(row => row.kind === "REVERSAL").map(row => row.reversesId));
+	const receipt = book.receipts.findLast(row => row.kind !== "REVERSAL" && !reversed.has(row.id));
 	if (!receipt || receipt.id !== receiptId || receipt.kind === "REVERSAL" || receipt.kind === "REFINANCE")
 		throw new Error("Reverta operações posteriores primeiro");
-	if (date < receipt.date) throw new Error("Estorno anterior ao pagamento");
+	if (date < receipt.date || date < activeLoanVersion(book).effectiveDate)
+		throw new Error("Estorno anterior ao pagamento");
 	if (activeLoanVersion(book).receiptId !== receiptId)
 		throw new Error("Reverta alterações posteriores ao pagamento primeiro");
 	const next = structuredClone(book);
-	const previous = book.versions.at(-2);
+	const operationIndex = book.versions.findIndex(
+		version => version.receiptId === receiptId && version.reason !== "REVERSAL",
+	);
+	const previous = book.versions[operationIndex - 1];
 	if (!previous) throw new Error("Versão anterior ausente");
 	next.revision++;
 	next.receipts.push({
@@ -658,4 +664,26 @@ function canonicalLoanValue(value: unknown): string {
 
 export function sameLoanContract(a: unknown, b: unknown): boolean {
 	return canonicalLoanValue(a) === canonicalLoanValue(b);
+}
+
+/** Receipt counts never stand in for settled installments (partial payments may be repeated). */
+export function loanContractSummary(book: LoanContractBook) {
+	const terms = activeLoanVersion(book).terms;
+	const rows = outstandingLoanSchedule(book);
+	return {
+		installmentAmount: rows[0]
+			? roundMoney(rows[0].principal + rows[0].interest + rows[0].charges, terms.currency)
+			: 0,
+		paidInstallments: Math.max(0, terms.totalInstallments - rows.length),
+		remainingInstallments: rows.length,
+		remainingPrincipal: roundMoney(
+			rows.reduce((sum, row) => sum + row.principal, 0),
+			terms.currency,
+		),
+		remainingTotal: loanScheduleTotal(rows, terms.currency),
+		totalPaid: roundMoney(
+			book.receipts.filter(row => row.kind !== "REFINANCE").reduce((sum, row) => sum + row.amount, 0),
+			terms.currency,
+		),
+	};
 }

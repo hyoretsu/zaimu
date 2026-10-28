@@ -135,6 +135,22 @@ export function evaluateLoanScenario(
 	const through = loanPlannerHorizon(input);
 	const eligible = eligiblePlannerAccounts(input.accounts, input.eligibility);
 	const issues = [...input.dataIssues];
+	const isLiquid = (row: PlannerAccount, date: string) => {
+		const investment = ["SAVINGS", "INVESTMENT"].includes(row.type);
+		if (investment && !row.availableFrom && row.redemptionDays === undefined) return false;
+		return (
+			date >= (row.availableFrom ?? input.from) &&
+			civilDays(input.from, date) >= (row.redemptionDays ?? 0)
+		);
+	};
+	for (const row of input.accounts)
+		if (
+			eligible.has(row.id) &&
+			["SAVINGS", "INVESTMENT"].includes(row.type) &&
+			!row.availableFrom &&
+			row.redemptionDays === undefined
+		)
+			issues.push("Informe condições de liquidez dos investimentos incluídos");
 	const movements = structuredClone(
 		input.movements.filter(row => row.date >= input.from && row.date <= through),
 	);
@@ -355,6 +371,8 @@ export function evaluateLoanScenario(
 			currency: input.currency,
 			from: input.from,
 			movements,
+			netYield: (account, balance, day, ledger) =>
+				day === input.from ? 0 : (runtime.netYield?.(account, balance, day, ledger) ?? 0),
 			primaryAccountId: input.primaryAccountId,
 			strictAccounts: true,
 			through,
@@ -365,7 +383,7 @@ export function evaluateLoanScenario(
 		const monthly = new Map<string, PlannerResult["months"][number]>();
 		const output = days.map(day => {
 			const balance = input.accounts
-				.filter(row => eligible.has(row.id))
+				.filter(row => eligible.has(row.id) && isLiquid(row, day.date))
 				.reduce(
 					(sum, row) =>
 						sum +
@@ -415,7 +433,17 @@ export function evaluateLoanScenario(
 					})),
 			)
 			.reduce((sum, row) => sum + convert(row.amount, row.currency, through), 0);
-		const terminalWealth = roundMoney(terminal.totalBalance - debt, input.currency);
+		const terminalWealth = roundMoney(
+			input.accounts
+				.filter(row => isLiquid(row, through))
+				.reduce(
+					(sum, row) =>
+						sum +
+						convert(terminal.balances.get(row.id) ?? 0, row.currency ?? input.currency, through),
+					0,
+				) - debt,
+			input.currency,
+		);
 		const gain = forecastYield(days, movements, input.currency, convert);
 		const baseGain = baseline
 			? baseline.days.reduce((sum, day) => sum + day.income, 0) -

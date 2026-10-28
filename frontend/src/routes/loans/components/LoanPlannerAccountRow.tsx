@@ -65,6 +65,14 @@ export function LoanPlannerAccountRow({
 			>
 				Excluir especificamente - prevalece sobre inclusões
 			</CheckboxField>
+			{["SAVINGS", "INVESTMENT"].includes(account.type) &&
+				!account.availableFrom &&
+				account.redemptionDays === undefined && (
+					<p className="text-muted-foreground text-xs">
+						Informe prazo de resgate, inclusive zero para liquidez imediata, antes de usar
+						investimento na previsão segura.
+					</p>
+				)}
 			<FormFieldRow>
 				<DateField
 					id={`liquidity-date-${account.id}`}
@@ -79,7 +87,7 @@ export function LoanPlannerAccountRow({
 					label="Prazo de resgate em dias corridos"
 					onValueChange={v => onAccount({ ...account, redemptionDays: Number(v) })}
 					placeholder="Ex: 30"
-					value={String(account.redemptionDays ?? 0)}
+					value={account.redemptionDays === undefined ? "" : String(account.redemptionDays)}
 				/>
 				<MoneyField
 					currencyCode={account.currency ?? "BRL"}

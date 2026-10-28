@@ -14,22 +14,28 @@ import type {
 	TypeMaps as TypeMapsType,
 } from "@prisma/orm-postgres/family-contract/types";
 import type {
+	Bit,
+	Char,
 	CodecTypes as PgTypes,
+	Interval,
+	JsonValue,
 	Numeric,
 	Time,
 	Timestamp,
 	Timestamptz,
+	Timetz,
+	VarBit,
 	Varchar,
 } from "@prisma/orm-postgres/target/codec-types";
 
-export type StorageHash = StorageHashBase<"6af0e52f81411b29960d995cd65365f2fb0d92995e7d15957dfbbb3a78ec0cbe">;
+export type StorageHash = StorageHashBase<"91403cb5c3f8f100e98f710b7cf15733f5668ecc41cf5f663aacf0767e9a071c">;
 export type ExecutionHash = ExecutionHashBase<string>;
 export type ProfileHash = ProfileHashBase<"3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2">;
 
 export type CodecTypes = PgTypes;
 export type LaneCodecTypes = CodecTypes;
 export type QueryOperationTypes = PgAdapterQueryOps<CodecTypes>;
-export interface AggregateTypes {
+export type AggregateTypes = {
 	readonly avg: {
 		readonly byCodec: {
 			readonly "pg/float@1": { readonly output: "pg/float8@1"; readonly nullable: true };
@@ -175,15 +181,32 @@ export interface AggregateTypes {
 			readonly "sql/int@1": { readonly output: "pg/int8@1"; readonly nullable: true };
 		};
 	};
-}
+};
 type DefaultLiteralValue<CodecId extends string, Encoded> = CodecId extends keyof CodecTypes
 	? Encoded extends CodecTypes[CodecId]["json"]
 		? Encoded
 		: CodecTypes[CodecId]["json"]
 	: Encoded;
 
-export interface FieldOutputTypes {
+export type FieldOutputTypes = {
 	readonly public: {
+		readonly AccountTransfer: {
+			readonly id: Varchar<36>;
+			readonly senderId: Varchar<36>;
+			readonly recipientId: Varchar<36>;
+			readonly status: Varchar<16>;
+			readonly summary: CodecTypes["pg/json@1"]["output"];
+			readonly createdAt: Timestamp<3>;
+			readonly updatedAt: Timestamp<3>;
+			readonly respondedAt: Timestamp<3> | null;
+		};
+		readonly AccountTransferItem: {
+			readonly id: Varchar<36>;
+			readonly transferId: Varchar<36>;
+			readonly accountId: Varchar<36>;
+			readonly createdAt: Timestamp<3>;
+			readonly updatedAt: Timestamp<3>;
+		};
 		readonly ApplicationUpgradeArchive: {
 			readonly source: Varchar<80>;
 			readonly recordId: Varchar<36>;
@@ -565,7 +588,28 @@ export interface FieldOutputTypes {
 			readonly createdAt: Timestamp<3>;
 			readonly updatedAt: Timestamp<3>;
 		};
+		readonly DetachedFinancialRecord: {
+			readonly id: Varchar<36>;
+			readonly userId: Varchar<36>;
+			readonly entityType: Varchar<40>;
+			readonly entityId: Varchar<36>;
+			readonly kind: Varchar<32>;
+			readonly createdAt: Timestamp<3>;
+			readonly updatedAt: Timestamp<3>;
+		};
+		readonly DetachedRewardCredit: {
+			readonly id: Varchar<36>;
+			readonly financialAccountId: Varchar<36>;
+			readonly amount: Numeric<20, 8>;
+			readonly date: CodecTypes["pg/date@1"]["output"];
+			readonly yieldReferenceRate: Numeric<7, 4> | null;
+			readonly yieldReferencePercentage: Numeric<7, 4> | null;
+			readonly yieldPeriod: Varchar<8> | null;
+			readonly createdAt: Timestamp<3>;
+			readonly updatedAt: Timestamp<3>;
+		};
 		readonly FinancialAccount: {
+			readonly transferredProfileContext: CodecTypes["pg/json@1"]["output"] | null;
 			readonly historicalYieldSettings: CodecTypes["pg/json@1"]["output"] | null;
 			readonly legacyYieldCalendar: CodecTypes["pg/json@1"]["output"] | null;
 			readonly legacyInstitutionId: Varchar<36> | null;
@@ -583,7 +627,7 @@ export interface FieldOutputTypes {
 			readonly yieldReferenceType: "CDI" | "SELIC" | "IPCA" | "TR" | null;
 			readonly yieldReferencePercentage: Numeric<7, 4> | null;
 			readonly yieldFixedRate: Numeric<7, 4> | null;
-			readonly yieldTaxIds: readonly Varchar<36>[];
+			readonly yieldTaxIds: ReadonlyArray<Varchar<36>>;
 			readonly yieldTaxRate: Numeric<5, 2> | null;
 			readonly yieldPeriod: "MONTHLY" | "YEARLY" | null;
 			readonly createdAt: Timestamp<3>;
@@ -618,7 +662,7 @@ export interface FieldOutputTypes {
 			readonly yieldReferenceType: "CDI" | "SELIC" | "IPCA" | "TR" | null;
 			readonly yieldReferencePercentage: Numeric<7, 4> | null;
 			readonly yieldFixedRate: Numeric<7, 4> | null;
-			readonly yieldTaxIds: readonly Varchar<36>[];
+			readonly yieldTaxIds: ReadonlyArray<Varchar<36>>;
 			readonly yieldTaxRate: Numeric<5, 2> | null;
 			readonly yieldPeriod: "MONTHLY" | "YEARLY" | null;
 			readonly createdAt: Timestamp<3>;
@@ -660,7 +704,7 @@ export interface FieldOutputTypes {
 			readonly creditCardRules: CodecTypes["pg/json@1"]["output"] | null;
 			readonly status: Varchar<24>;
 			readonly version: CodecTypes["pg/int4@1"]["output"];
-			readonly operatingCountryCodes: readonly Varchar<2>[];
+			readonly operatingCountryCodes: ReadonlyArray<Varchar<2>>;
 			readonly accountCurrenciesByCountry: CodecTypes["pg/json@1"]["output"];
 			readonly creditStatementClosingInclusive: CodecTypes["pg/bool@1"]["output"];
 			readonly creditInstallmentRemainderOnFirst: CodecTypes["pg/bool@1"]["output"];
@@ -707,7 +751,7 @@ export interface FieldOutputTypes {
 			readonly financialInstitutionId: Varchar<36>;
 			readonly effectiveDate: CodecTypes["pg/date@1"]["output"];
 			readonly yieldPeriod: "MONTHLY" | "YEARLY" | null;
-			readonly yieldTaxIds: readonly Varchar<36>[];
+			readonly yieldTaxIds: ReadonlyArray<Varchar<36>>;
 			readonly yieldTaxRate: Numeric<5, 2> | null;
 			readonly createdAt: Timestamp<3>;
 			readonly updatedAt: Timestamp<3>;
@@ -807,6 +851,22 @@ export interface FieldOutputTypes {
 			readonly createdAt: Timestamp<3>;
 			readonly updatedAt: Timestamp<3>;
 		};
+		readonly NotificationDelivery: {
+			readonly id: Varchar<36>;
+			readonly userId: Varchar<36>;
+			readonly transferId: Varchar<36>;
+			readonly event: Varchar<16>;
+			readonly channel: Varchar<12>;
+			readonly deviceId: Varchar<36> | null;
+			readonly destinationKey: CodecTypes["pg/text@1"]["output"];
+			readonly status: Varchar<16>;
+			readonly attempts: CodecTypes["pg/int4@1"]["output"];
+			readonly nextAttemptAt: Timestamp<3>;
+			readonly lockedUntil: Timestamp<3> | null;
+			readonly lastError: Varchar<500> | null;
+			readonly createdAt: Timestamp<3>;
+			readonly updatedAt: Timestamp<3>;
+		};
 		readonly OpenFinanceBinding: {
 			readonly id: Varchar<36>;
 			readonly connectionId: Varchar<36>;
@@ -871,7 +931,7 @@ export interface FieldOutputTypes {
 			readonly eventType: Varchar<120>;
 			readonly aggregateType: Varchar<80>;
 			readonly aggregateId: Varchar<36>;
-			readonly userIds: readonly Varchar<36>[];
+			readonly userIds: ReadonlyArray<Varchar<36>>;
 			readonly occurredAt: Timestamp<3>;
 			readonly schemaVersion: CodecTypes["pg/int4@1"]["output"];
 			readonly correlationId: Varchar<36>;
@@ -880,6 +940,16 @@ export interface FieldOutputTypes {
 			readonly lockedUntil: Timestamp<3> | null;
 			readonly publishedAt: Timestamp<3> | null;
 			readonly lastError: CodecTypes["pg/text@1"]["output"] | null;
+			readonly createdAt: Timestamp<3>;
+			readonly updatedAt: Timestamp<3>;
+		};
+		readonly PushDevice: {
+			readonly id: Varchar<36>;
+			readonly userId: Varchar<36>;
+			readonly platform: Varchar<12>;
+			readonly address: CodecTypes["pg/text@1"]["output"];
+			readonly credentials: CodecTypes["pg/json@1"]["output"];
+			readonly enabled: CodecTypes["pg/bool@1"]["output"];
 			readonly createdAt: Timestamp<3>;
 			readonly updatedAt: Timestamp<3>;
 		};
@@ -1154,9 +1224,26 @@ export interface FieldOutputTypes {
 			readonly updatedAt: Timestamp<3>;
 		};
 	};
-}
-export interface FieldInputTypes {
+};
+export type FieldInputTypes = {
 	readonly public: {
+		readonly AccountTransfer: {
+			readonly id: CodecTypes["sql/varchar@1"]["input"];
+			readonly senderId: CodecTypes["sql/varchar@1"]["input"];
+			readonly recipientId: CodecTypes["sql/varchar@1"]["input"];
+			readonly status: CodecTypes["sql/varchar@1"]["input"];
+			readonly summary: CodecTypes["pg/json@1"]["input"];
+			readonly createdAt: CodecTypes["pg/timestamp@1"]["input"];
+			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
+			readonly respondedAt: CodecTypes["pg/timestamp@1"]["input"] | null;
+		};
+		readonly AccountTransferItem: {
+			readonly id: CodecTypes["sql/varchar@1"]["input"];
+			readonly transferId: CodecTypes["sql/varchar@1"]["input"];
+			readonly accountId: CodecTypes["sql/varchar@1"]["input"];
+			readonly createdAt: CodecTypes["pg/timestamp@1"]["input"];
+			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
+		};
 		readonly ApplicationUpgradeArchive: {
 			readonly source: CodecTypes["sql/varchar@1"]["input"];
 			readonly recordId: CodecTypes["sql/varchar@1"]["input"];
@@ -1538,7 +1625,28 @@ export interface FieldInputTypes {
 			readonly createdAt: CodecTypes["pg/timestamp@1"]["input"];
 			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
 		};
+		readonly DetachedFinancialRecord: {
+			readonly id: CodecTypes["sql/varchar@1"]["input"];
+			readonly userId: CodecTypes["sql/varchar@1"]["input"];
+			readonly entityType: CodecTypes["sql/varchar@1"]["input"];
+			readonly entityId: CodecTypes["sql/varchar@1"]["input"];
+			readonly kind: CodecTypes["sql/varchar@1"]["input"];
+			readonly createdAt: CodecTypes["pg/timestamp@1"]["input"];
+			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
+		};
+		readonly DetachedRewardCredit: {
+			readonly id: CodecTypes["sql/varchar@1"]["input"];
+			readonly financialAccountId: CodecTypes["sql/varchar@1"]["input"];
+			readonly amount: CodecTypes["pg/numeric@1"]["input"];
+			readonly date: CodecTypes["pg/date@1"]["input"];
+			readonly yieldReferenceRate: CodecTypes["pg/numeric@1"]["input"] | null;
+			readonly yieldReferencePercentage: CodecTypes["pg/numeric@1"]["input"] | null;
+			readonly yieldPeriod: CodecTypes["sql/varchar@1"]["input"] | null;
+			readonly createdAt: CodecTypes["pg/timestamp@1"]["input"];
+			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
+		};
 		readonly FinancialAccount: {
+			readonly transferredProfileContext: CodecTypes["pg/json@1"]["input"] | null;
 			readonly historicalYieldSettings: CodecTypes["pg/json@1"]["input"] | null;
 			readonly legacyYieldCalendar: CodecTypes["pg/json@1"]["input"] | null;
 			readonly legacyInstitutionId: CodecTypes["sql/varchar@1"]["input"] | null;
@@ -1556,7 +1664,7 @@ export interface FieldInputTypes {
 			readonly yieldReferenceType: "CDI" | "SELIC" | "IPCA" | "TR" | null;
 			readonly yieldReferencePercentage: CodecTypes["pg/numeric@1"]["input"] | null;
 			readonly yieldFixedRate: CodecTypes["pg/numeric@1"]["input"] | null;
-			readonly yieldTaxIds: readonly CodecTypes["sql/varchar@1"]["input"][];
+			readonly yieldTaxIds: ReadonlyArray<CodecTypes["sql/varchar@1"]["input"]>;
 			readonly yieldTaxRate: CodecTypes["pg/numeric@1"]["input"] | null;
 			readonly yieldPeriod: "MONTHLY" | "YEARLY" | null;
 			readonly createdAt: CodecTypes["pg/timestamp@1"]["input"];
@@ -1591,7 +1699,7 @@ export interface FieldInputTypes {
 			readonly yieldReferenceType: "CDI" | "SELIC" | "IPCA" | "TR" | null;
 			readonly yieldReferencePercentage: CodecTypes["pg/numeric@1"]["input"] | null;
 			readonly yieldFixedRate: CodecTypes["pg/numeric@1"]["input"] | null;
-			readonly yieldTaxIds: readonly CodecTypes["sql/varchar@1"]["input"][];
+			readonly yieldTaxIds: ReadonlyArray<CodecTypes["sql/varchar@1"]["input"]>;
 			readonly yieldTaxRate: CodecTypes["pg/numeric@1"]["input"] | null;
 			readonly yieldPeriod: "MONTHLY" | "YEARLY" | null;
 			readonly createdAt: CodecTypes["pg/timestamp@1"]["input"];
@@ -1633,7 +1741,7 @@ export interface FieldInputTypes {
 			readonly creditCardRules: CodecTypes["pg/json@1"]["input"] | null;
 			readonly status: CodecTypes["sql/varchar@1"]["input"];
 			readonly version: CodecTypes["pg/int4@1"]["input"];
-			readonly operatingCountryCodes: readonly CodecTypes["sql/varchar@1"]["input"][];
+			readonly operatingCountryCodes: ReadonlyArray<CodecTypes["sql/varchar@1"]["input"]>;
 			readonly accountCurrenciesByCountry: CodecTypes["pg/json@1"]["input"];
 			readonly creditStatementClosingInclusive: CodecTypes["pg/bool@1"]["input"];
 			readonly creditInstallmentRemainderOnFirst: CodecTypes["pg/bool@1"]["input"];
@@ -1680,7 +1788,7 @@ export interface FieldInputTypes {
 			readonly financialInstitutionId: CodecTypes["sql/varchar@1"]["input"];
 			readonly effectiveDate: CodecTypes["pg/date@1"]["input"];
 			readonly yieldPeriod: "MONTHLY" | "YEARLY" | null;
-			readonly yieldTaxIds: readonly CodecTypes["sql/varchar@1"]["input"][];
+			readonly yieldTaxIds: ReadonlyArray<CodecTypes["sql/varchar@1"]["input"]>;
 			readonly yieldTaxRate: CodecTypes["pg/numeric@1"]["input"] | null;
 			readonly createdAt: CodecTypes["pg/timestamp@1"]["input"];
 			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
@@ -1780,6 +1888,22 @@ export interface FieldInputTypes {
 			readonly createdAt: CodecTypes["pg/timestamp@1"]["input"];
 			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
 		};
+		readonly NotificationDelivery: {
+			readonly id: CodecTypes["sql/varchar@1"]["input"];
+			readonly userId: CodecTypes["sql/varchar@1"]["input"];
+			readonly transferId: CodecTypes["sql/varchar@1"]["input"];
+			readonly event: CodecTypes["sql/varchar@1"]["input"];
+			readonly channel: CodecTypes["sql/varchar@1"]["input"];
+			readonly deviceId: CodecTypes["sql/varchar@1"]["input"] | null;
+			readonly destinationKey: CodecTypes["pg/text@1"]["input"];
+			readonly status: CodecTypes["sql/varchar@1"]["input"];
+			readonly attempts: CodecTypes["pg/int4@1"]["input"];
+			readonly nextAttemptAt: CodecTypes["pg/timestamp@1"]["input"];
+			readonly lockedUntil: CodecTypes["pg/timestamp@1"]["input"] | null;
+			readonly lastError: CodecTypes["sql/varchar@1"]["input"] | null;
+			readonly createdAt: CodecTypes["pg/timestamp@1"]["input"];
+			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
+		};
 		readonly OpenFinanceBinding: {
 			readonly id: CodecTypes["sql/varchar@1"]["input"];
 			readonly connectionId: CodecTypes["sql/varchar@1"]["input"];
@@ -1844,7 +1968,7 @@ export interface FieldInputTypes {
 			readonly eventType: CodecTypes["sql/varchar@1"]["input"];
 			readonly aggregateType: CodecTypes["sql/varchar@1"]["input"];
 			readonly aggregateId: CodecTypes["sql/varchar@1"]["input"];
-			readonly userIds: readonly CodecTypes["sql/varchar@1"]["input"][];
+			readonly userIds: ReadonlyArray<CodecTypes["sql/varchar@1"]["input"]>;
 			readonly occurredAt: CodecTypes["pg/timestamp@1"]["input"];
 			readonly schemaVersion: CodecTypes["pg/int4@1"]["input"];
 			readonly correlationId: CodecTypes["sql/varchar@1"]["input"];
@@ -1853,6 +1977,16 @@ export interface FieldInputTypes {
 			readonly lockedUntil: CodecTypes["pg/timestamp@1"]["input"] | null;
 			readonly publishedAt: CodecTypes["pg/timestamp@1"]["input"] | null;
 			readonly lastError: CodecTypes["pg/text@1"]["input"] | null;
+			readonly createdAt: CodecTypes["pg/timestamp@1"]["input"];
+			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
+		};
+		readonly PushDevice: {
+			readonly id: CodecTypes["sql/varchar@1"]["input"];
+			readonly userId: CodecTypes["sql/varchar@1"]["input"];
+			readonly platform: CodecTypes["sql/varchar@1"]["input"];
+			readonly address: CodecTypes["pg/text@1"]["input"];
+			readonly credentials: CodecTypes["pg/json@1"]["input"];
+			readonly enabled: CodecTypes["pg/bool@1"]["input"];
 			readonly createdAt: CodecTypes["pg/timestamp@1"]["input"];
 			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
 		};
@@ -2127,8 +2261,8 @@ export interface FieldInputTypes {
 			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
 		};
 	};
-}
-export interface StorageColumnTypes {
+};
+export type StorageColumnTypes = {
 	readonly public: {
 		readonly account: {
 			readonly accessToken: CodecTypes["pg/text@1"]["output"] | null;
@@ -2145,6 +2279,23 @@ export interface StorageColumnTypes {
 			readonly scope: CodecTypes["pg/text@1"]["output"] | null;
 			readonly updatedAt: Timestamp<3>;
 			readonly userId: Varchar<36>;
+		};
+		readonly AccountTransfer: {
+			readonly createdAt: Timestamp<3>;
+			readonly id: Varchar<36>;
+			readonly recipientId: Varchar<36>;
+			readonly respondedAt: Timestamp<3> | null;
+			readonly senderId: Varchar<36>;
+			readonly status: Varchar<16>;
+			readonly summary: CodecTypes["pg/json@1"]["output"];
+			readonly updatedAt: Timestamp<3>;
+		};
+		readonly AccountTransferItem: {
+			readonly accountId: Varchar<36>;
+			readonly createdAt: Timestamp<3>;
+			readonly id: Varchar<36>;
+			readonly transferId: Varchar<36>;
+			readonly updatedAt: Timestamp<3>;
 		};
 		readonly ApplicationUpgradeArchive: {
 			readonly archivedAt: Timestamp<3>;
@@ -2511,6 +2662,26 @@ export interface StorageColumnTypes {
 			readonly updatedAt: Timestamp<3>;
 			readonly userId: Varchar<36>;
 		};
+		readonly DetachedFinancialRecord: {
+			readonly createdAt: Timestamp<3>;
+			readonly entityId: Varchar<36>;
+			readonly entityType: Varchar<40>;
+			readonly id: Varchar<36>;
+			readonly kind: Varchar<32>;
+			readonly updatedAt: Timestamp<3>;
+			readonly userId: Varchar<36>;
+		};
+		readonly DetachedRewardCredit: {
+			readonly amount: Numeric<20, 8>;
+			readonly createdAt: Timestamp<3>;
+			readonly date: CodecTypes["pg/date@1"]["output"];
+			readonly financialAccountId: Varchar<36>;
+			readonly id: Varchar<36>;
+			readonly updatedAt: Timestamp<3>;
+			readonly yieldPeriod: Varchar<8> | null;
+			readonly yieldReferencePercentage: Numeric<7, 4> | null;
+			readonly yieldReferenceRate: Numeric<7, 4> | null;
+		};
 		readonly FinancialAccount: {
 			readonly balance: Numeric<20, 6> | null;
 			readonly countryCode: Varchar<2> | null;
@@ -2525,6 +2696,7 @@ export interface StorageColumnTypes {
 			readonly legacyInstitutionId: Varchar<36> | null;
 			readonly legacyYieldCalendar: CodecTypes["pg/json@1"]["output"] | null;
 			readonly name: Varchar<70> | null;
+			readonly transferredProfileContext: CodecTypes["pg/json@1"]["output"] | null;
 			readonly type: "CHECKING" | "SAVINGS" | "INVESTMENT" | "CASH" | "CREDIT_CARD" | "REWARDS";
 			readonly updatedAt: Timestamp<3>;
 			readonly userId: Varchar<36>;
@@ -2532,7 +2704,7 @@ export interface StorageColumnTypes {
 			readonly yieldPeriod: "MONTHLY" | "YEARLY" | null;
 			readonly yieldReferencePercentage: Numeric<7, 4> | null;
 			readonly yieldReferenceType: "CDI" | "SELIC" | "IPCA" | "TR" | null;
-			readonly yieldTaxIds: readonly Varchar<36>[];
+			readonly yieldTaxIds: ReadonlyArray<Varchar<36>>;
 			readonly yieldTaxRate: Numeric<5, 2> | null;
 		};
 		readonly FinancialAccountYield: {
@@ -2567,7 +2739,7 @@ export interface StorageColumnTypes {
 			readonly yieldPeriod: "MONTHLY" | "YEARLY" | null;
 			readonly yieldReferencePercentage: Numeric<7, 4> | null;
 			readonly yieldReferenceType: "CDI" | "SELIC" | "IPCA" | "TR" | null;
-			readonly yieldTaxIds: readonly Varchar<36>[];
+			readonly yieldTaxIds: ReadonlyArray<Varchar<36>>;
 			readonly yieldTaxRate: Numeric<5, 2> | null;
 		};
 		readonly FinancialHistoryCollection: {
@@ -2613,7 +2785,7 @@ export interface StorageColumnTypes {
 			readonly id: Varchar<36>;
 			readonly name: Varchar<100>;
 			readonly normalizedName: Varchar<100>;
-			readonly operatingCountryCodes: readonly Varchar<2>[];
+			readonly operatingCountryCodes: ReadonlyArray<Varchar<2>>;
 			readonly status: Varchar<24>;
 			readonly updatedAt: Timestamp<3>;
 			readonly userId: Varchar<36> | null;
@@ -2655,7 +2827,7 @@ export interface StorageColumnTypes {
 			readonly status: Varchar<16>;
 			readonly updatedAt: Timestamp<3>;
 			readonly yieldPeriod: "MONTHLY" | "YEARLY" | null;
-			readonly yieldTaxIds: readonly Varchar<36>[];
+			readonly yieldTaxIds: ReadonlyArray<Varchar<36>>;
 			readonly yieldTaxRate: Numeric<5, 2> | null;
 		};
 		readonly FinancialInstitutionYieldRule: {
@@ -2753,6 +2925,22 @@ export interface StorageColumnTypes {
 			readonly updatedAt: Timestamp<3>;
 			readonly userId: Varchar<36>;
 		};
+		readonly NotificationDelivery: {
+			readonly attempts: CodecTypes["pg/int4@1"]["output"];
+			readonly channel: Varchar<12>;
+			readonly createdAt: Timestamp<3>;
+			readonly destinationKey: CodecTypes["pg/text@1"]["output"];
+			readonly deviceId: Varchar<36> | null;
+			readonly event: Varchar<16>;
+			readonly id: Varchar<36>;
+			readonly lastError: Varchar<500> | null;
+			readonly lockedUntil: Timestamp<3> | null;
+			readonly nextAttemptAt: Timestamp<3>;
+			readonly status: Varchar<16>;
+			readonly transferId: Varchar<36>;
+			readonly updatedAt: Timestamp<3>;
+			readonly userId: Varchar<36>;
+		};
 		readonly OpenFinanceBinding: {
 			readonly connectionId: Varchar<36>;
 			readonly creditCardId: Varchar<36> | null;
@@ -2827,7 +3015,17 @@ export interface StorageColumnTypes {
 			readonly publishedAt: Timestamp<3> | null;
 			readonly schemaVersion: CodecTypes["pg/int4@1"]["output"];
 			readonly updatedAt: Timestamp<3>;
-			readonly userIds: readonly Varchar<36>[];
+			readonly userIds: ReadonlyArray<Varchar<36>>;
+		};
+		readonly PushDevice: {
+			readonly address: CodecTypes["pg/text@1"]["output"];
+			readonly createdAt: Timestamp<3>;
+			readonly credentials: CodecTypes["pg/json@1"]["output"];
+			readonly enabled: CodecTypes["pg/bool@1"]["output"];
+			readonly id: Varchar<36>;
+			readonly platform: Varchar<12>;
+			readonly updatedAt: Timestamp<3>;
+			readonly userId: Varchar<36>;
 		};
 		readonly Recurrence: {
 			readonly amount: Numeric<20, 6>;
@@ -3100,8 +3298,8 @@ export interface StorageColumnTypes {
 			readonly updatedAt: Timestamp<3>;
 		};
 	};
-}
-export interface StorageColumnInputTypes {
+};
+export type StorageColumnInputTypes = {
 	readonly public: {
 		readonly account: {
 			readonly accessToken: CodecTypes["pg/text@1"]["input"] | null;
@@ -3118,6 +3316,23 @@ export interface StorageColumnInputTypes {
 			readonly scope: CodecTypes["pg/text@1"]["input"] | null;
 			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
 			readonly userId: CodecTypes["sql/varchar@1"]["input"];
+		};
+		readonly AccountTransfer: {
+			readonly createdAt: CodecTypes["pg/timestamp@1"]["input"];
+			readonly id: CodecTypes["sql/varchar@1"]["input"];
+			readonly recipientId: CodecTypes["sql/varchar@1"]["input"];
+			readonly respondedAt: CodecTypes["pg/timestamp@1"]["input"] | null;
+			readonly senderId: CodecTypes["sql/varchar@1"]["input"];
+			readonly status: CodecTypes["sql/varchar@1"]["input"];
+			readonly summary: CodecTypes["pg/json@1"]["input"];
+			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
+		};
+		readonly AccountTransferItem: {
+			readonly accountId: CodecTypes["sql/varchar@1"]["input"];
+			readonly createdAt: CodecTypes["pg/timestamp@1"]["input"];
+			readonly id: CodecTypes["sql/varchar@1"]["input"];
+			readonly transferId: CodecTypes["sql/varchar@1"]["input"];
+			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
 		};
 		readonly ApplicationUpgradeArchive: {
 			readonly archivedAt: CodecTypes["pg/timestamp@1"]["input"];
@@ -3484,6 +3699,26 @@ export interface StorageColumnInputTypes {
 			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
 			readonly userId: CodecTypes["sql/varchar@1"]["input"];
 		};
+		readonly DetachedFinancialRecord: {
+			readonly createdAt: CodecTypes["pg/timestamp@1"]["input"];
+			readonly entityId: CodecTypes["sql/varchar@1"]["input"];
+			readonly entityType: CodecTypes["sql/varchar@1"]["input"];
+			readonly id: CodecTypes["sql/varchar@1"]["input"];
+			readonly kind: CodecTypes["sql/varchar@1"]["input"];
+			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
+			readonly userId: CodecTypes["sql/varchar@1"]["input"];
+		};
+		readonly DetachedRewardCredit: {
+			readonly amount: CodecTypes["pg/numeric@1"]["input"];
+			readonly createdAt: CodecTypes["pg/timestamp@1"]["input"];
+			readonly date: CodecTypes["pg/date@1"]["input"];
+			readonly financialAccountId: CodecTypes["sql/varchar@1"]["input"];
+			readonly id: CodecTypes["sql/varchar@1"]["input"];
+			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
+			readonly yieldPeriod: CodecTypes["sql/varchar@1"]["input"] | null;
+			readonly yieldReferencePercentage: CodecTypes["pg/numeric@1"]["input"] | null;
+			readonly yieldReferenceRate: CodecTypes["pg/numeric@1"]["input"] | null;
+		};
 		readonly FinancialAccount: {
 			readonly balance: CodecTypes["pg/numeric@1"]["input"] | null;
 			readonly countryCode: CodecTypes["sql/varchar@1"]["input"] | null;
@@ -3498,6 +3733,7 @@ export interface StorageColumnInputTypes {
 			readonly legacyInstitutionId: CodecTypes["sql/varchar@1"]["input"] | null;
 			readonly legacyYieldCalendar: CodecTypes["pg/json@1"]["input"] | null;
 			readonly name: CodecTypes["sql/varchar@1"]["input"] | null;
+			readonly transferredProfileContext: CodecTypes["pg/json@1"]["input"] | null;
 			readonly type: "CHECKING" | "SAVINGS" | "INVESTMENT" | "CASH" | "CREDIT_CARD" | "REWARDS";
 			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
 			readonly userId: CodecTypes["sql/varchar@1"]["input"];
@@ -3505,7 +3741,7 @@ export interface StorageColumnInputTypes {
 			readonly yieldPeriod: "MONTHLY" | "YEARLY" | null;
 			readonly yieldReferencePercentage: CodecTypes["pg/numeric@1"]["input"] | null;
 			readonly yieldReferenceType: "CDI" | "SELIC" | "IPCA" | "TR" | null;
-			readonly yieldTaxIds: readonly CodecTypes["sql/varchar@1"]["input"][];
+			readonly yieldTaxIds: ReadonlyArray<CodecTypes["sql/varchar@1"]["input"]>;
 			readonly yieldTaxRate: CodecTypes["pg/numeric@1"]["input"] | null;
 		};
 		readonly FinancialAccountYield: {
@@ -3540,7 +3776,7 @@ export interface StorageColumnInputTypes {
 			readonly yieldPeriod: "MONTHLY" | "YEARLY" | null;
 			readonly yieldReferencePercentage: CodecTypes["pg/numeric@1"]["input"] | null;
 			readonly yieldReferenceType: "CDI" | "SELIC" | "IPCA" | "TR" | null;
-			readonly yieldTaxIds: readonly CodecTypes["sql/varchar@1"]["input"][];
+			readonly yieldTaxIds: ReadonlyArray<CodecTypes["sql/varchar@1"]["input"]>;
 			readonly yieldTaxRate: CodecTypes["pg/numeric@1"]["input"] | null;
 		};
 		readonly FinancialHistoryCollection: {
@@ -3586,7 +3822,7 @@ export interface StorageColumnInputTypes {
 			readonly id: CodecTypes["sql/varchar@1"]["input"];
 			readonly name: CodecTypes["sql/varchar@1"]["input"];
 			readonly normalizedName: CodecTypes["sql/varchar@1"]["input"];
-			readonly operatingCountryCodes: readonly CodecTypes["sql/varchar@1"]["input"][];
+			readonly operatingCountryCodes: ReadonlyArray<CodecTypes["sql/varchar@1"]["input"]>;
 			readonly status: CodecTypes["sql/varchar@1"]["input"];
 			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
 			readonly userId: CodecTypes["sql/varchar@1"]["input"] | null;
@@ -3628,7 +3864,7 @@ export interface StorageColumnInputTypes {
 			readonly status: CodecTypes["sql/varchar@1"]["input"];
 			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
 			readonly yieldPeriod: "MONTHLY" | "YEARLY" | null;
-			readonly yieldTaxIds: readonly CodecTypes["sql/varchar@1"]["input"][];
+			readonly yieldTaxIds: ReadonlyArray<CodecTypes["sql/varchar@1"]["input"]>;
 			readonly yieldTaxRate: CodecTypes["pg/numeric@1"]["input"] | null;
 		};
 		readonly FinancialInstitutionYieldRule: {
@@ -3726,6 +3962,22 @@ export interface StorageColumnInputTypes {
 			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
 			readonly userId: CodecTypes["sql/varchar@1"]["input"];
 		};
+		readonly NotificationDelivery: {
+			readonly attempts: CodecTypes["pg/int4@1"]["input"];
+			readonly channel: CodecTypes["sql/varchar@1"]["input"];
+			readonly createdAt: CodecTypes["pg/timestamp@1"]["input"];
+			readonly destinationKey: CodecTypes["pg/text@1"]["input"];
+			readonly deviceId: CodecTypes["sql/varchar@1"]["input"] | null;
+			readonly event: CodecTypes["sql/varchar@1"]["input"];
+			readonly id: CodecTypes["sql/varchar@1"]["input"];
+			readonly lastError: CodecTypes["sql/varchar@1"]["input"] | null;
+			readonly lockedUntil: CodecTypes["pg/timestamp@1"]["input"] | null;
+			readonly nextAttemptAt: CodecTypes["pg/timestamp@1"]["input"];
+			readonly status: CodecTypes["sql/varchar@1"]["input"];
+			readonly transferId: CodecTypes["sql/varchar@1"]["input"];
+			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
+			readonly userId: CodecTypes["sql/varchar@1"]["input"];
+		};
 		readonly OpenFinanceBinding: {
 			readonly connectionId: CodecTypes["sql/varchar@1"]["input"];
 			readonly creditCardId: CodecTypes["sql/varchar@1"]["input"] | null;
@@ -3800,7 +4052,17 @@ export interface StorageColumnInputTypes {
 			readonly publishedAt: CodecTypes["pg/timestamp@1"]["input"] | null;
 			readonly schemaVersion: CodecTypes["pg/int4@1"]["input"];
 			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
-			readonly userIds: readonly CodecTypes["sql/varchar@1"]["input"][];
+			readonly userIds: ReadonlyArray<CodecTypes["sql/varchar@1"]["input"]>;
+		};
+		readonly PushDevice: {
+			readonly address: CodecTypes["pg/text@1"]["input"];
+			readonly createdAt: CodecTypes["pg/timestamp@1"]["input"];
+			readonly credentials: CodecTypes["pg/json@1"]["input"];
+			readonly enabled: CodecTypes["pg/bool@1"]["input"];
+			readonly id: CodecTypes["sql/varchar@1"]["input"];
+			readonly platform: CodecTypes["sql/varchar@1"]["input"];
+			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
+			readonly userId: CodecTypes["sql/varchar@1"]["input"];
 		};
 		readonly Recurrence: {
 			readonly amount: CodecTypes["pg/numeric@1"]["input"];
@@ -4073,7 +4335,7 @@ export interface StorageColumnInputTypes {
 			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
 		};
 	};
-}
+};
 export type TypeMaps = TypeMapsType<
 	CodecTypes,
 	QueryOperationTypes,
@@ -4219,6 +4481,177 @@ type ContractBase = Omit<
 										readonly columns: readonly ["id"];
 									};
 									readonly name: "account_userId_fkey";
+								},
+							];
+						};
+						readonly AccountTransfer: {
+							columns: {
+								readonly id: {
+									readonly nativeType: "character varying";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: false;
+									readonly typeParams: { readonly length: 36 };
+								};
+								readonly senderId: {
+									readonly nativeType: "character varying";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: false;
+									readonly typeParams: { readonly length: 36 };
+								};
+								readonly recipientId: {
+									readonly nativeType: "character varying";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: false;
+									readonly typeParams: { readonly length: 36 };
+								};
+								readonly status: {
+									readonly nativeType: "character varying";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: false;
+									readonly default: {
+										readonly kind: "literal";
+										readonly value: DefaultLiteralValue<"sql/varchar@1", "PENDING">;
+									};
+									readonly typeParams: { readonly length: 16 };
+								};
+								readonly summary: {
+									readonly nativeType: "json";
+									readonly codecId: "pg/json@1";
+									readonly nullable: false;
+								};
+								readonly createdAt: {
+									readonly nativeType: "timestamp";
+									readonly codecId: "pg/timestamp@1";
+									readonly nullable: false;
+									readonly default: {
+										readonly kind: "function";
+										readonly expression: "now()";
+									};
+									readonly typeParams: { readonly precision: 3 };
+								};
+								readonly updatedAt: {
+									readonly nativeType: "timestamp";
+									readonly codecId: "pg/timestamp@1";
+									readonly nullable: false;
+									readonly default: {
+										readonly kind: "function";
+										readonly expression: "now()";
+									};
+									readonly typeParams: { readonly precision: 3 };
+								};
+								readonly respondedAt: {
+									readonly nativeType: "timestamp";
+									readonly codecId: "pg/timestamp@1";
+									readonly nullable: true;
+									readonly typeParams: { readonly precision: 3 };
+								};
+							};
+							primaryKey: { readonly columns: readonly ["id"] };
+							uniques: readonly [];
+							indexes: readonly [
+								{
+									readonly name: "AccountTransfer_senderId_status_createdAt_idx_1751b28b";
+									readonly prefix: "AccountTransfer_senderId_status_createdAt_idx";
+									readonly columns: readonly ["senderId", "status", "createdAt"];
+									readonly unique: false;
+								},
+								{
+									readonly name: "AccountTransfer_recipientId_status_createdAt_idx_163556a6";
+									readonly prefix: "AccountTransfer_recipientId_status_createdAt_idx";
+									readonly columns: readonly ["recipientId", "status", "createdAt"];
+									readonly unique: false;
+								},
+							];
+							foreignKeys: readonly [
+								{
+									readonly source: {
+										readonly namespaceId: "public" & NamespaceId;
+										readonly tableName: "AccountTransfer";
+										readonly columns: readonly ["senderId"];
+									};
+									readonly target: {
+										readonly namespaceId: "public" & NamespaceId;
+										readonly tableName: "user";
+										readonly columns: readonly ["id"];
+									};
+								},
+								{
+									readonly source: {
+										readonly namespaceId: "public" & NamespaceId;
+										readonly tableName: "AccountTransfer";
+										readonly columns: readonly ["recipientId"];
+									};
+									readonly target: {
+										readonly namespaceId: "public" & NamespaceId;
+										readonly tableName: "user";
+										readonly columns: readonly ["id"];
+									};
+								},
+							];
+						};
+						readonly AccountTransferItem: {
+							columns: {
+								readonly id: {
+									readonly nativeType: "character varying";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: false;
+									readonly typeParams: { readonly length: 36 };
+								};
+								readonly transferId: {
+									readonly nativeType: "character varying";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: false;
+									readonly typeParams: { readonly length: 36 };
+								};
+								readonly accountId: {
+									readonly nativeType: "character varying";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: false;
+									readonly typeParams: { readonly length: 36 };
+								};
+								readonly createdAt: {
+									readonly nativeType: "timestamp";
+									readonly codecId: "pg/timestamp@1";
+									readonly nullable: false;
+									readonly default: {
+										readonly kind: "function";
+										readonly expression: "now()";
+									};
+									readonly typeParams: { readonly precision: 3 };
+								};
+								readonly updatedAt: {
+									readonly nativeType: "timestamp";
+									readonly codecId: "pg/timestamp@1";
+									readonly nullable: false;
+									readonly default: {
+										readonly kind: "function";
+										readonly expression: "now()";
+									};
+									readonly typeParams: { readonly precision: 3 };
+								};
+							};
+							primaryKey: { readonly columns: readonly ["id"] };
+							uniques: readonly [{ readonly columns: readonly ["transferId", "accountId"] }];
+							indexes: readonly [
+								{
+									readonly name: "AccountTransferItem_accountId_idx_cbfb3085";
+									readonly prefix: "AccountTransferItem_accountId_idx";
+									readonly columns: readonly ["accountId"];
+									readonly unique: false;
+								},
+							];
+							foreignKeys: readonly [
+								{
+									readonly source: {
+										readonly namespaceId: "public" & NamespaceId;
+										readonly tableName: "AccountTransferItem";
+										readonly columns: readonly ["transferId"];
+									};
+									readonly target: {
+										readonly namespaceId: "public" & NamespaceId;
+										readonly tableName: "AccountTransfer";
+										readonly columns: readonly ["id"];
+									};
 								},
 							];
 						};
@@ -7891,8 +8324,180 @@ type ContractBase = Omit<
 								},
 							];
 						};
+						readonly DetachedFinancialRecord: {
+							columns: {
+								readonly id: {
+									readonly nativeType: "character varying";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: false;
+									readonly typeParams: { readonly length: 36 };
+								};
+								readonly userId: {
+									readonly nativeType: "character varying";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: false;
+									readonly typeParams: { readonly length: 36 };
+								};
+								readonly entityType: {
+									readonly nativeType: "character varying";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: false;
+									readonly typeParams: { readonly length: 40 };
+								};
+								readonly entityId: {
+									readonly nativeType: "character varying";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: false;
+									readonly typeParams: { readonly length: 36 };
+								};
+								readonly kind: {
+									readonly nativeType: "character varying";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: false;
+									readonly typeParams: { readonly length: 32 };
+								};
+								readonly createdAt: {
+									readonly nativeType: "timestamp";
+									readonly codecId: "pg/timestamp@1";
+									readonly nullable: false;
+									readonly default: {
+										readonly kind: "function";
+										readonly expression: "now()";
+									};
+									readonly typeParams: { readonly precision: 3 };
+								};
+								readonly updatedAt: {
+									readonly nativeType: "timestamp";
+									readonly codecId: "pg/timestamp@1";
+									readonly nullable: false;
+									readonly default: {
+										readonly kind: "function";
+										readonly expression: "now()";
+									};
+									readonly typeParams: { readonly precision: 3 };
+								};
+							};
+							primaryKey: { readonly columns: readonly ["id"] };
+							uniques: readonly [{ readonly columns: readonly ["entityType", "entityId"] }];
+							indexes: readonly [
+								{
+									readonly name: "DetachedFinancialRecord_userId_idx_a489d58a";
+									readonly prefix: "DetachedFinancialRecord_userId_idx";
+									readonly columns: readonly ["userId"];
+									readonly unique: false;
+								},
+							];
+							foreignKeys: readonly [
+								{
+									readonly source: {
+										readonly namespaceId: "public" & NamespaceId;
+										readonly tableName: "DetachedFinancialRecord";
+										readonly columns: readonly ["userId"];
+									};
+									readonly target: {
+										readonly namespaceId: "public" & NamespaceId;
+										readonly tableName: "user";
+										readonly columns: readonly ["id"];
+									};
+								},
+							];
+						};
+						readonly DetachedRewardCredit: {
+							columns: {
+								readonly id: {
+									readonly nativeType: "character varying";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: false;
+									readonly typeParams: { readonly length: 36 };
+								};
+								readonly financialAccountId: {
+									readonly nativeType: "character varying";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: false;
+									readonly typeParams: { readonly length: 36 };
+								};
+								readonly amount: {
+									readonly nativeType: "numeric";
+									readonly codecId: "pg/numeric@1";
+									readonly nullable: false;
+									readonly typeParams: { readonly precision: 20; readonly scale: 8 };
+								};
+								readonly date: {
+									readonly nativeType: "date";
+									readonly codecId: "pg/date@1";
+									readonly nullable: false;
+								};
+								readonly yieldReferenceRate: {
+									readonly nativeType: "numeric";
+									readonly codecId: "pg/numeric@1";
+									readonly nullable: true;
+									readonly typeParams: { readonly precision: 7; readonly scale: 4 };
+								};
+								readonly yieldReferencePercentage: {
+									readonly nativeType: "numeric";
+									readonly codecId: "pg/numeric@1";
+									readonly nullable: true;
+									readonly typeParams: { readonly precision: 7; readonly scale: 4 };
+								};
+								readonly yieldPeriod: {
+									readonly nativeType: "character varying";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: true;
+									readonly typeParams: { readonly length: 8 };
+								};
+								readonly createdAt: {
+									readonly nativeType: "timestamp";
+									readonly codecId: "pg/timestamp@1";
+									readonly nullable: false;
+									readonly default: {
+										readonly kind: "function";
+										readonly expression: "now()";
+									};
+									readonly typeParams: { readonly precision: 3 };
+								};
+								readonly updatedAt: {
+									readonly nativeType: "timestamp";
+									readonly codecId: "pg/timestamp@1";
+									readonly nullable: false;
+									readonly default: {
+										readonly kind: "function";
+										readonly expression: "now()";
+									};
+									readonly typeParams: { readonly precision: 3 };
+								};
+							};
+							primaryKey: { readonly columns: readonly ["id"] };
+							uniques: readonly [];
+							indexes: readonly [
+								{
+									readonly name: "DetachedRewardCredit_financialAccountId_date_idx_de4be8dd";
+									readonly prefix: "DetachedRewardCredit_financialAccountId_date_idx";
+									readonly columns: readonly ["financialAccountId", "date"];
+									readonly unique: false;
+								},
+							];
+							foreignKeys: readonly [
+								{
+									readonly source: {
+										readonly namespaceId: "public" & NamespaceId;
+										readonly tableName: "DetachedRewardCredit";
+										readonly columns: readonly ["financialAccountId"];
+									};
+									readonly target: {
+										readonly namespaceId: "public" & NamespaceId;
+										readonly tableName: "FinancialAccount";
+										readonly columns: readonly ["id"];
+									};
+								},
+							];
+						};
 						readonly FinancialAccount: {
 							columns: {
+								readonly transferredProfileContext: {
+									readonly nativeType: "json";
+									readonly codecId: "pg/json@1";
+									readonly nullable: true;
+								};
 								readonly historicalYieldSettings: {
 									readonly nativeType: "json";
 									readonly codecId: "pg/json@1";
@@ -10076,6 +10681,156 @@ type ContractBase = Omit<
 								},
 							];
 						};
+						readonly NotificationDelivery: {
+							columns: {
+								readonly id: {
+									readonly nativeType: "character varying";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: false;
+									readonly typeParams: { readonly length: 36 };
+								};
+								readonly userId: {
+									readonly nativeType: "character varying";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: false;
+									readonly typeParams: { readonly length: 36 };
+								};
+								readonly transferId: {
+									readonly nativeType: "character varying";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: false;
+									readonly typeParams: { readonly length: 36 };
+								};
+								readonly event: {
+									readonly nativeType: "character varying";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: false;
+									readonly typeParams: { readonly length: 16 };
+								};
+								readonly channel: {
+									readonly nativeType: "character varying";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: false;
+									readonly typeParams: { readonly length: 12 };
+								};
+								readonly deviceId: {
+									readonly nativeType: "character varying";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: true;
+									readonly typeParams: { readonly length: 36 };
+								};
+								readonly destinationKey: {
+									readonly nativeType: "text";
+									readonly codecId: "pg/text@1";
+									readonly nullable: false;
+								};
+								readonly status: {
+									readonly nativeType: "character varying";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: false;
+									readonly default: {
+										readonly kind: "literal";
+										readonly value: DefaultLiteralValue<"sql/varchar@1", "PENDING">;
+									};
+									readonly typeParams: { readonly length: 16 };
+								};
+								readonly attempts: {
+									readonly nativeType: "int4";
+									readonly codecId: "pg/int4@1";
+									readonly nullable: false;
+									readonly default: {
+										readonly kind: "literal";
+										readonly value: DefaultLiteralValue<"pg/int4@1", 0>;
+									};
+								};
+								readonly nextAttemptAt: {
+									readonly nativeType: "timestamp";
+									readonly codecId: "pg/timestamp@1";
+									readonly nullable: false;
+									readonly default: {
+										readonly kind: "function";
+										readonly expression: "now()";
+									};
+									readonly typeParams: { readonly precision: 3 };
+								};
+								readonly lockedUntil: {
+									readonly nativeType: "timestamp";
+									readonly codecId: "pg/timestamp@1";
+									readonly nullable: true;
+									readonly typeParams: { readonly precision: 3 };
+								};
+								readonly lastError: {
+									readonly nativeType: "character varying";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: true;
+									readonly typeParams: { readonly length: 500 };
+								};
+								readonly createdAt: {
+									readonly nativeType: "timestamp";
+									readonly codecId: "pg/timestamp@1";
+									readonly nullable: false;
+									readonly default: {
+										readonly kind: "function";
+										readonly expression: "now()";
+									};
+									readonly typeParams: { readonly precision: 3 };
+								};
+								readonly updatedAt: {
+									readonly nativeType: "timestamp";
+									readonly codecId: "pg/timestamp@1";
+									readonly nullable: false;
+									readonly default: {
+										readonly kind: "function";
+										readonly expression: "now()";
+									};
+									readonly typeParams: { readonly precision: 3 };
+								};
+							};
+							primaryKey: { readonly columns: readonly ["id"] };
+							uniques: readonly [
+								{ readonly columns: readonly ["transferId", "event", "destinationKey"] },
+							];
+							indexes: readonly [
+								{
+									readonly name: "NotificationDelivery_userId_idx_a489d58a";
+									readonly prefix: "NotificationDelivery_userId_idx";
+									readonly columns: readonly ["userId"];
+									readonly unique: false;
+								},
+								{
+									readonly name: "NotificationDelivery_status_nextAttemptAt_idx_8ba20615";
+									readonly prefix: "NotificationDelivery_status_nextAttemptAt_idx";
+									readonly columns: readonly ["status", "nextAttemptAt"];
+									readonly unique: false;
+								},
+							];
+							foreignKeys: readonly [
+								{
+									readonly source: {
+										readonly namespaceId: "public" & NamespaceId;
+										readonly tableName: "NotificationDelivery";
+										readonly columns: readonly ["userId"];
+									};
+									readonly target: {
+										readonly namespaceId: "public" & NamespaceId;
+										readonly tableName: "user";
+										readonly columns: readonly ["id"];
+									};
+								},
+								{
+									readonly source: {
+										readonly namespaceId: "public" & NamespaceId;
+										readonly tableName: "NotificationDelivery";
+										readonly columns: readonly ["transferId"];
+									};
+									readonly target: {
+										readonly namespaceId: "public" & NamespaceId;
+										readonly tableName: "AccountTransfer";
+										readonly columns: readonly ["id"];
+									};
+								},
+							];
+						};
 						readonly OpenFinanceBinding: {
 							columns: {
 								readonly id: {
@@ -10687,6 +11442,91 @@ type ContractBase = Omit<
 								},
 							];
 							foreignKeys: readonly [];
+						};
+						readonly PushDevice: {
+							columns: {
+								readonly id: {
+									readonly nativeType: "character varying";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: false;
+									readonly typeParams: { readonly length: 36 };
+								};
+								readonly userId: {
+									readonly nativeType: "character varying";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: false;
+									readonly typeParams: { readonly length: 36 };
+								};
+								readonly platform: {
+									readonly nativeType: "character varying";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: false;
+									readonly typeParams: { readonly length: 12 };
+								};
+								readonly address: {
+									readonly nativeType: "text";
+									readonly codecId: "pg/text@1";
+									readonly nullable: false;
+								};
+								readonly credentials: {
+									readonly nativeType: "json";
+									readonly codecId: "pg/json@1";
+									readonly nullable: false;
+								};
+								readonly enabled: {
+									readonly nativeType: "bool";
+									readonly codecId: "pg/bool@1";
+									readonly nullable: false;
+									readonly default: {
+										readonly kind: "literal";
+										readonly value: DefaultLiteralValue<"pg/bool@1", true>;
+									};
+								};
+								readonly createdAt: {
+									readonly nativeType: "timestamp";
+									readonly codecId: "pg/timestamp@1";
+									readonly nullable: false;
+									readonly default: {
+										readonly kind: "function";
+										readonly expression: "now()";
+									};
+									readonly typeParams: { readonly precision: 3 };
+								};
+								readonly updatedAt: {
+									readonly nativeType: "timestamp";
+									readonly codecId: "pg/timestamp@1";
+									readonly nullable: false;
+									readonly default: {
+										readonly kind: "function";
+										readonly expression: "now()";
+									};
+									readonly typeParams: { readonly precision: 3 };
+								};
+							};
+							primaryKey: { readonly columns: readonly ["id"] };
+							uniques: readonly [{ readonly columns: readonly ["address"] }];
+							indexes: readonly [
+								{
+									readonly name: "PushDevice_userId_enabled_idx_9da2f9d3";
+									readonly prefix: "PushDevice_userId_enabled_idx";
+									readonly columns: readonly ["userId", "enabled"];
+									readonly unique: false;
+								},
+							];
+							foreignKeys: readonly [
+								{
+									readonly source: {
+										readonly namespaceId: "public" & NamespaceId;
+										readonly tableName: "PushDevice";
+										readonly columns: readonly ["userId"];
+									};
+									readonly target: {
+										readonly namespaceId: "public" & NamespaceId;
+										readonly tableName: "user";
+										readonly columns: readonly ["id"];
+									};
+								},
+							];
 						};
 						readonly Recurrence: {
 							columns: {
@@ -13491,6 +14331,30 @@ type ContractBase = Omit<
 			readonly namespace: "public" & NamespaceId;
 			readonly model: "TaxDefinitionVersion";
 		};
+		readonly AccountTransfer: {
+			readonly namespace: "public" & NamespaceId;
+			readonly model: "AccountTransfer";
+		};
+		readonly AccountTransferItem: {
+			readonly namespace: "public" & NamespaceId;
+			readonly model: "AccountTransferItem";
+		};
+		readonly DetachedRewardCredit: {
+			readonly namespace: "public" & NamespaceId;
+			readonly model: "DetachedRewardCredit";
+		};
+		readonly DetachedFinancialRecord: {
+			readonly namespace: "public" & NamespaceId;
+			readonly model: "DetachedFinancialRecord";
+		};
+		readonly PushDevice: {
+			readonly namespace: "public" & NamespaceId;
+			readonly model: "PushDevice";
+		};
+		readonly NotificationDelivery: {
+			readonly namespace: "public" & NamespaceId;
+			readonly model: "NotificationDelivery";
+		};
 		readonly user: { readonly namespace: "public" & NamespaceId; readonly model: "User" };
 		readonly FinancialInstitution: {
 			readonly namespace: "public" & NamespaceId;
@@ -13740,6 +14604,198 @@ type ContractBase = Omit<
 		readonly namespaces: {
 			readonly public: {
 				readonly models: {
+					readonly AccountTransfer: {
+						readonly fields: {
+							readonly id: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 36 };
+								};
+							};
+							readonly senderId: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 36 };
+								};
+							};
+							readonly recipientId: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 36 };
+								};
+							};
+							readonly status: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 16 };
+								};
+							};
+							readonly summary: {
+								readonly nullable: false;
+								readonly type: { readonly kind: "scalar"; readonly codecId: "pg/json@1" };
+							};
+							readonly createdAt: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "pg/timestamp@1";
+									readonly typeParams: { readonly precision: 3 };
+								};
+							};
+							readonly updatedAt: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "pg/timestamp@1";
+									readonly typeParams: { readonly precision: 3 };
+								};
+							};
+							readonly respondedAt: {
+								readonly nullable: true;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "pg/timestamp@1";
+									readonly typeParams: { readonly precision: 3 };
+								};
+							};
+						};
+						readonly relations: {
+							readonly deliveries: {
+								readonly to: {
+									readonly namespace: "public" & NamespaceId;
+									readonly model: "NotificationDelivery";
+								};
+								readonly cardinality: "1:N";
+								readonly on: {
+									readonly localFields: readonly ["id"];
+									readonly targetFields: readonly ["transferId"];
+								};
+							};
+							readonly items: {
+								readonly to: {
+									readonly namespace: "public" & NamespaceId;
+									readonly model: "AccountTransferItem";
+								};
+								readonly cardinality: "1:N";
+								readonly on: {
+									readonly localFields: readonly ["id"];
+									readonly targetFields: readonly ["transferId"];
+								};
+							};
+							readonly recipient: {
+								readonly to: {
+									readonly namespace: "public" & NamespaceId;
+									readonly model: "User";
+								};
+								readonly cardinality: "N:1";
+								readonly on: {
+									readonly localFields: readonly ["recipientId"];
+									readonly targetFields: readonly ["id"];
+								};
+							};
+							readonly sender: {
+								readonly to: {
+									readonly namespace: "public" & NamespaceId;
+									readonly model: "User";
+								};
+								readonly cardinality: "N:1";
+								readonly on: {
+									readonly localFields: readonly ["senderId"];
+									readonly targetFields: readonly ["id"];
+								};
+							};
+						};
+						readonly storage: {
+							readonly table: "AccountTransfer";
+							readonly namespaceId: "public";
+							readonly fields: {
+								readonly id: { readonly column: "id" };
+								readonly senderId: { readonly column: "senderId" };
+								readonly recipientId: { readonly column: "recipientId" };
+								readonly status: { readonly column: "status" };
+								readonly summary: { readonly column: "summary" };
+								readonly createdAt: { readonly column: "createdAt" };
+								readonly updatedAt: { readonly column: "updatedAt" };
+								readonly respondedAt: { readonly column: "respondedAt" };
+							};
+						};
+					};
+					readonly AccountTransferItem: {
+						readonly fields: {
+							readonly id: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 36 };
+								};
+							};
+							readonly transferId: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 36 };
+								};
+							};
+							readonly accountId: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 36 };
+								};
+							};
+							readonly createdAt: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "pg/timestamp@1";
+									readonly typeParams: { readonly precision: 3 };
+								};
+							};
+							readonly updatedAt: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "pg/timestamp@1";
+									readonly typeParams: { readonly precision: 3 };
+								};
+							};
+						};
+						readonly relations: {
+							readonly transfer: {
+								readonly to: {
+									readonly namespace: "public" & NamespaceId;
+									readonly model: "AccountTransfer";
+								};
+								readonly cardinality: "N:1";
+								readonly on: {
+									readonly localFields: readonly ["transferId"];
+									readonly targetFields: readonly ["id"];
+								};
+							};
+						};
+						readonly storage: {
+							readonly table: "AccountTransferItem";
+							readonly namespaceId: "public";
+							readonly fields: {
+								readonly id: { readonly column: "id" };
+								readonly transferId: { readonly column: "transferId" };
+								readonly accountId: { readonly column: "accountId" };
+								readonly createdAt: { readonly column: "createdAt" };
+								readonly updatedAt: { readonly column: "updatedAt" };
+							};
+						};
+					};
 					readonly ApplicationUpgradeArchive: {
 						readonly fields: {
 							readonly source: {
@@ -17872,8 +18928,200 @@ type ContractBase = Omit<
 							};
 						};
 					};
+					readonly DetachedFinancialRecord: {
+						readonly fields: {
+							readonly id: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 36 };
+								};
+							};
+							readonly userId: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 36 };
+								};
+							};
+							readonly entityType: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 40 };
+								};
+							};
+							readonly entityId: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 36 };
+								};
+							};
+							readonly kind: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 32 };
+								};
+							};
+							readonly createdAt: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "pg/timestamp@1";
+									readonly typeParams: { readonly precision: 3 };
+								};
+							};
+							readonly updatedAt: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "pg/timestamp@1";
+									readonly typeParams: { readonly precision: 3 };
+								};
+							};
+						};
+						readonly relations: {
+							readonly user: {
+								readonly to: {
+									readonly namespace: "public" & NamespaceId;
+									readonly model: "User";
+								};
+								readonly cardinality: "N:1";
+								readonly on: {
+									readonly localFields: readonly ["userId"];
+									readonly targetFields: readonly ["id"];
+								};
+							};
+						};
+						readonly storage: {
+							readonly table: "DetachedFinancialRecord";
+							readonly namespaceId: "public";
+							readonly fields: {
+								readonly id: { readonly column: "id" };
+								readonly userId: { readonly column: "userId" };
+								readonly entityType: { readonly column: "entityType" };
+								readonly entityId: { readonly column: "entityId" };
+								readonly kind: { readonly column: "kind" };
+								readonly createdAt: { readonly column: "createdAt" };
+								readonly updatedAt: { readonly column: "updatedAt" };
+							};
+						};
+					};
+					readonly DetachedRewardCredit: {
+						readonly fields: {
+							readonly id: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 36 };
+								};
+							};
+							readonly financialAccountId: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 36 };
+								};
+							};
+							readonly amount: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "pg/numeric@1";
+									readonly typeParams: { readonly precision: 20; readonly scale: 8 };
+								};
+							};
+							readonly date: {
+								readonly nullable: false;
+								readonly type: { readonly kind: "scalar"; readonly codecId: "pg/date@1" };
+							};
+							readonly yieldReferenceRate: {
+								readonly nullable: true;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "pg/numeric@1";
+									readonly typeParams: { readonly precision: 7; readonly scale: 4 };
+								};
+							};
+							readonly yieldReferencePercentage: {
+								readonly nullable: true;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "pg/numeric@1";
+									readonly typeParams: { readonly precision: 7; readonly scale: 4 };
+								};
+							};
+							readonly yieldPeriod: {
+								readonly nullable: true;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 8 };
+								};
+							};
+							readonly createdAt: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "pg/timestamp@1";
+									readonly typeParams: { readonly precision: 3 };
+								};
+							};
+							readonly updatedAt: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "pg/timestamp@1";
+									readonly typeParams: { readonly precision: 3 };
+								};
+							};
+						};
+						readonly relations: {
+							readonly account: {
+								readonly to: {
+									readonly namespace: "public" & NamespaceId;
+									readonly model: "FinancialAccount";
+								};
+								readonly cardinality: "N:1";
+								readonly on: {
+									readonly localFields: readonly ["financialAccountId"];
+									readonly targetFields: readonly ["id"];
+								};
+							};
+						};
+						readonly storage: {
+							readonly table: "DetachedRewardCredit";
+							readonly namespaceId: "public";
+							readonly fields: {
+								readonly id: { readonly column: "id" };
+								readonly financialAccountId: { readonly column: "financialAccountId" };
+								readonly amount: { readonly column: "amount" };
+								readonly date: { readonly column: "date" };
+								readonly yieldReferenceRate: { readonly column: "yieldReferenceRate" };
+								readonly yieldReferencePercentage: {
+									readonly column: "yieldReferencePercentage";
+								};
+								readonly yieldPeriod: { readonly column: "yieldPeriod" };
+								readonly createdAt: { readonly column: "createdAt" };
+								readonly updatedAt: { readonly column: "updatedAt" };
+							};
+						};
+					};
 					readonly FinancialAccount: {
 						readonly fields: {
+							readonly transferredProfileContext: {
+								readonly nullable: true;
+								readonly type: { readonly kind: "scalar"; readonly codecId: "pg/json@1" };
+							};
 							readonly historicalYieldSettings: {
 								readonly nullable: true;
 								readonly type: { readonly kind: "scalar"; readonly codecId: "pg/json@1" };
@@ -18055,6 +19303,17 @@ type ContractBase = Omit<
 								readonly to: {
 									readonly namespace: "public" & NamespaceId;
 									readonly model: "CreditCard";
+								};
+								readonly cardinality: "1:N";
+								readonly on: {
+									readonly localFields: readonly ["id"];
+									readonly targetFields: readonly ["financialAccountId"];
+								};
+							};
+							readonly detachedRewardCredits: {
+								readonly to: {
+									readonly namespace: "public" & NamespaceId;
+									readonly model: "DetachedRewardCredit";
 								};
 								readonly cardinality: "1:N";
 								readonly on: {
@@ -18265,6 +19524,9 @@ type ContractBase = Omit<
 							readonly table: "FinancialAccount";
 							readonly namespaceId: "public";
 							readonly fields: {
+								readonly transferredProfileContext: {
+									readonly column: "transferredProfileContext";
+								};
 								readonly historicalYieldSettings: {
 									readonly column: "historicalYieldSettings";
 								};
@@ -20419,6 +21681,158 @@ type ContractBase = Omit<
 							};
 						};
 					};
+					readonly NotificationDelivery: {
+						readonly fields: {
+							readonly id: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 36 };
+								};
+							};
+							readonly userId: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 36 };
+								};
+							};
+							readonly transferId: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 36 };
+								};
+							};
+							readonly event: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 16 };
+								};
+							};
+							readonly channel: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 12 };
+								};
+							};
+							readonly deviceId: {
+								readonly nullable: true;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 36 };
+								};
+							};
+							readonly destinationKey: {
+								readonly nullable: false;
+								readonly type: { readonly kind: "scalar"; readonly codecId: "pg/text@1" };
+							};
+							readonly status: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 16 };
+								};
+							};
+							readonly attempts: {
+								readonly nullable: false;
+								readonly type: { readonly kind: "scalar"; readonly codecId: "pg/int4@1" };
+							};
+							readonly nextAttemptAt: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "pg/timestamp@1";
+									readonly typeParams: { readonly precision: 3 };
+								};
+							};
+							readonly lockedUntil: {
+								readonly nullable: true;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "pg/timestamp@1";
+									readonly typeParams: { readonly precision: 3 };
+								};
+							};
+							readonly lastError: {
+								readonly nullable: true;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 500 };
+								};
+							};
+							readonly createdAt: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "pg/timestamp@1";
+									readonly typeParams: { readonly precision: 3 };
+								};
+							};
+							readonly updatedAt: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "pg/timestamp@1";
+									readonly typeParams: { readonly precision: 3 };
+								};
+							};
+						};
+						readonly relations: {
+							readonly transfer: {
+								readonly to: {
+									readonly namespace: "public" & NamespaceId;
+									readonly model: "AccountTransfer";
+								};
+								readonly cardinality: "N:1";
+								readonly on: {
+									readonly localFields: readonly ["transferId"];
+									readonly targetFields: readonly ["id"];
+								};
+							};
+							readonly user: {
+								readonly to: {
+									readonly namespace: "public" & NamespaceId;
+									readonly model: "User";
+								};
+								readonly cardinality: "N:1";
+								readonly on: {
+									readonly localFields: readonly ["userId"];
+									readonly targetFields: readonly ["id"];
+								};
+							};
+						};
+						readonly storage: {
+							readonly table: "NotificationDelivery";
+							readonly namespaceId: "public";
+							readonly fields: {
+								readonly id: { readonly column: "id" };
+								readonly userId: { readonly column: "userId" };
+								readonly transferId: { readonly column: "transferId" };
+								readonly event: { readonly column: "event" };
+								readonly channel: { readonly column: "channel" };
+								readonly deviceId: { readonly column: "deviceId" };
+								readonly destinationKey: { readonly column: "destinationKey" };
+								readonly status: { readonly column: "status" };
+								readonly attempts: { readonly column: "attempts" };
+								readonly nextAttemptAt: { readonly column: "nextAttemptAt" };
+								readonly lockedUntil: { readonly column: "lockedUntil" };
+								readonly lastError: { readonly column: "lastError" };
+								readonly createdAt: { readonly column: "createdAt" };
+								readonly updatedAt: { readonly column: "updatedAt" };
+							};
+						};
+					};
 					readonly OpenFinanceBinding: {
 						readonly fields: {
 							readonly id: {
@@ -21040,6 +22454,89 @@ type ContractBase = Omit<
 								readonly lockedUntil: { readonly column: "lockedUntil" };
 								readonly publishedAt: { readonly column: "publishedAt" };
 								readonly lastError: { readonly column: "lastError" };
+								readonly createdAt: { readonly column: "createdAt" };
+								readonly updatedAt: { readonly column: "updatedAt" };
+							};
+						};
+					};
+					readonly PushDevice: {
+						readonly fields: {
+							readonly id: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 36 };
+								};
+							};
+							readonly userId: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 36 };
+								};
+							};
+							readonly platform: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 12 };
+								};
+							};
+							readonly address: {
+								readonly nullable: false;
+								readonly type: { readonly kind: "scalar"; readonly codecId: "pg/text@1" };
+							};
+							readonly credentials: {
+								readonly nullable: false;
+								readonly type: { readonly kind: "scalar"; readonly codecId: "pg/json@1" };
+							};
+							readonly enabled: {
+								readonly nullable: false;
+								readonly type: { readonly kind: "scalar"; readonly codecId: "pg/bool@1" };
+							};
+							readonly createdAt: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "pg/timestamp@1";
+									readonly typeParams: { readonly precision: 3 };
+								};
+							};
+							readonly updatedAt: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "pg/timestamp@1";
+									readonly typeParams: { readonly precision: 3 };
+								};
+							};
+						};
+						readonly relations: {
+							readonly user: {
+								readonly to: {
+									readonly namespace: "public" & NamespaceId;
+									readonly model: "User";
+								};
+								readonly cardinality: "N:1";
+								readonly on: {
+									readonly localFields: readonly ["userId"];
+									readonly targetFields: readonly ["id"];
+								};
+							};
+						};
+						readonly storage: {
+							readonly table: "PushDevice";
+							readonly namespaceId: "public";
+							readonly fields: {
+								readonly id: { readonly column: "id" };
+								readonly userId: { readonly column: "userId" };
+								readonly platform: { readonly column: "platform" };
+								readonly address: { readonly column: "address" };
+								readonly credentials: { readonly column: "credentials" };
+								readonly enabled: { readonly column: "enabled" };
 								readonly createdAt: { readonly column: "createdAt" };
 								readonly updatedAt: { readonly column: "updatedAt" };
 							};
@@ -23392,6 +24889,17 @@ type ContractBase = Omit<
 									readonly targetFields: readonly ["userId"];
 								};
 							};
+							readonly detachedFinancialRecords: {
+								readonly to: {
+									readonly namespace: "public" & NamespaceId;
+									readonly model: "DetachedFinancialRecord";
+								};
+								readonly cardinality: "1:N";
+								readonly on: {
+									readonly localFields: readonly ["id"];
+									readonly targetFields: readonly ["userId"];
+								};
+							};
 							readonly financialAccountYieldHolidays: {
 								readonly to: {
 									readonly namespace: "public" & NamespaceId;
@@ -23491,6 +24999,17 @@ type ContractBase = Omit<
 									readonly targetFields: readonly ["userId"];
 								};
 							};
+							readonly notificationDeliveries: {
+								readonly to: {
+									readonly namespace: "public" & NamespaceId;
+									readonly model: "NotificationDelivery";
+								};
+								readonly cardinality: "1:N";
+								readonly on: {
+									readonly localFields: readonly ["id"];
+									readonly targetFields: readonly ["userId"];
+								};
+							};
 							readonly openFinanceConfig: {
 								readonly to: {
 									readonly namespace: "public" & NamespaceId;
@@ -23535,6 +25054,28 @@ type ContractBase = Omit<
 									readonly targetFields: readonly ["userId"];
 								};
 							};
+							readonly pushDevices: {
+								readonly to: {
+									readonly namespace: "public" & NamespaceId;
+									readonly model: "PushDevice";
+								};
+								readonly cardinality: "1:N";
+								readonly on: {
+									readonly localFields: readonly ["id"];
+									readonly targetFields: readonly ["userId"];
+								};
+							};
+							readonly receivedAccountTransfers: {
+								readonly to: {
+									readonly namespace: "public" & NamespaceId;
+									readonly model: "AccountTransfer";
+								};
+								readonly cardinality: "1:N";
+								readonly on: {
+									readonly localFields: readonly ["id"];
+									readonly targetFields: readonly ["recipientId"];
+								};
+							};
 							readonly receivedDebtConnections: {
 								readonly to: {
 									readonly namespace: "public" & NamespaceId;
@@ -23577,6 +25118,17 @@ type ContractBase = Omit<
 								readonly on: {
 									readonly localFields: readonly ["id"];
 									readonly targetFields: readonly ["reviewerId"];
+								};
+							};
+							readonly sentAccountTransfers: {
+								readonly to: {
+									readonly namespace: "public" & NamespaceId;
+									readonly model: "AccountTransfer";
+								};
+								readonly cardinality: "1:N";
+								readonly on: {
+									readonly localFields: readonly ["id"];
+									readonly targetFields: readonly ["senderId"];
 								};
 							};
 							readonly sessions: {

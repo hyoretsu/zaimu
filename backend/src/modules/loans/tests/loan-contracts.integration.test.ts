@@ -8,7 +8,7 @@ import {
 } from "@zaimu/finance/loan-contract";
 import { Client } from "pg";
 import { closeDatabase, queryRaw, withRawTransaction } from "sql";
-import contract from "../../../../../packages/sql/migrations/snapshots/6af0e52f81411b29960d995cd65365f2fb0d92995e7d15957dfbbb3a78ec0cbe/contract.json";
+import contract from "../../../../../packages/sql/out/prisma/contract.json";
 import { installContractFixture } from "../../../../../packages/sql/tests/contract-fixture";
 import { requireFixtureUrl } from "../../../../../scripts/testing/fixture";
 import { insertLoanBook, loadLoanBook, saveLoanBook } from "../application/loan-contracts";

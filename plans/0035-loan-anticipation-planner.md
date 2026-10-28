@@ -1,6 +1,6 @@
 # Long-horizon loan anticipation planner
 
-Depends on 0033. Compare baseline and loan operations using disposable daily
+Depends on 0034. Compare baseline and loan operations using disposable daily
 forecasts through the latest original maturity of selected loans. Rank by net
 terminal wealth after remaining debt, taxes, liquidity costs and lost yield.
 Automatic official-rate assumptions use exactly five years of history, no window
@@ -31,3 +31,7 @@ missing data, yield taxes, partial/combined anticipations, stale saved scenarios
 cancellation and deterministic search. Preserve unrelated local changes.
 
 Execution update: API/guest aggregate persistence, operation review, institution forms, worker search and dated saved scenarios implemented. Targeted domain/storage regression tests pass. Final hook, disposable integration, browser verification and integration remain in progress.
+
+Integration update: plans renumbered to 0034/0035 after concurrent 0033 account transfer delivery. Migration follows account-transfer schema; merged contract retains both domains.
+
+Verification update: full finance suite (316 tests before final summary regression), loan persistence integration (2 tests), atomic visitor storage, frontend/backend builds, desktop/mobile contract creation and worker search/save verified. Broad backend integration currently exposes unrelated normalized-refund replay mock failures; required backend unit coverage passed normal hooks. Final merged migration and corrected guest forecast browser rerun in progress.

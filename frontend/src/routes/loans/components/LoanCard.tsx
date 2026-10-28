@@ -14,7 +14,18 @@ export function LoanCard({
 }) {
 	const paidInstallments = loan.paidInstallments || 0;
 	const remainingInstallments = loan.remainingInstallments ?? loan.totalInstallments;
-	const progress = (paidInstallments / loan.totalInstallments) * 100;
+	const progress = Math.min(100, (paidInstallments / loan.totalInstallments) * 100);
+	const terms = loan.contractBook?.versions.at(-1)?.terms;
+	const rate = terms
+		? [
+				terms.rate.indicator ? `${terms.rate.percentage}% ${terms.rate.indicator}` : null,
+				terms.rate.fixedRate
+					? `${terms.rate.fixedRate}% ${terms.rate.fixedPeriod === "YEARLY" ? "a.a." : "a.m."}`
+					: null,
+			]
+				.filter(Boolean)
+				.join(" + ") || "Sem juros"
+		: `${loan.interestRate * 100}% p.m.`;
 
 	return (
 		<div className="card space-y-4 p-4">
@@ -30,9 +41,7 @@ export function LoanCard({
 					</div>
 					<div className="min-w-0 flex-1">
 						<p className="text-foreground truncate font-semibold">{loan.lender}</p>
-						<p className="text-foreground-muted text-xs">
-							{loan.description || `${loan.interestRate * 100}% p.m.`}
-						</p>
+						<p className="text-foreground-muted text-xs">{loan.description || rate}</p>
 					</div>
 				</div>
 				{onPayments && (
@@ -50,7 +59,7 @@ export function LoanCard({
 			<div>
 				<div className="mb-2 flex justify-between text-sm">
 					<span className="text-foreground-muted">
-						{paidInstallments} de {loan.totalInstallments} pagas
+						{paidInstallments} de {loan.totalInstallments} concluídas
 					</span>
 					<span className="text-foreground font-medium">{Math.round(progress)}%</span>
 				</div>

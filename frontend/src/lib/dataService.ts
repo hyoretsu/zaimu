@@ -33,6 +33,7 @@ import { assertImportedPurchaseEdit, distributePurchaseCents } from "@zaimu/fina
 import { dashboardCardForecasts, isCashFlowRecurrence } from "@zaimu/finance/dashboard-forecasts";
 import { cardRuleValues } from "@zaimu/finance/institution-card-rules";
 import { loanAccountAmounts, loanInstallments } from "@zaimu/finance/loan";
+import { loanContractSummary } from "@zaimu/finance/loan-contract";
 import { convertFixedSplitAtDate, currencyScale, roundMoney, toMinorUnits } from "@zaimu/finance/money";
 import { pendingStatementPayments } from "@zaimu/finance/payment-suggestions";
 import { trimHistoricalYieldSettings } from "@zaimu/finance/projected-yield";
@@ -3198,6 +3199,7 @@ export const dataService = {
 				const local = await localLoans.getAll();
 				const payments = (await localLoanPayments.getAll()).map(row => row.data);
 				return local.map(({ data }) => {
+					if (data.contractBook) return { ...data, ...loanContractSummary(data.contractBook) };
 					const rows = payments.filter(row => row.loanId === data.id);
 					if (!rows.length || data.needsPaymentReview) return data;
 					const paid = rows.filter(row => row.paidDate);

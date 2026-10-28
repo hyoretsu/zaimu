@@ -5,6 +5,7 @@ import {
 	applyLoanSimulation,
 	buildContractSchedule,
 	createLoanContract,
+	loanContractSummary,
 	type LoanContractTerms,
 	loanScheduleTotal,
 	outstandingLoanSchedule,
@@ -154,4 +155,50 @@ test("partial late payments charge the fine once and accrue only the new interva
 	});
 	expect(first.receipts.at(-1)!.lateCharges).toBeGreaterThan(0);
 	expect(next.receipts.at(-1)!.lateCharges).toBe(0);
+});
+
+test("sequential reversals restore earlier snapshots without losing audit receipts", () => {
+	const original = createLoanContract("loan", "bank", terms());
+	const first = recordLoanPayment(original, {
+		...payment,
+		amount: 100,
+		date: "2026-02-01",
+		expectedRevision: 1,
+		id: "one",
+	});
+	const second = recordLoanPayment(first, {
+		...payment,
+		amount: 100,
+		date: "2026-02-01",
+		expectedRevision: 2,
+		id: "two",
+	});
+	const reversedSecond = reverseLoanReceipt(second, "two", "reverse-two", "2026-02-01", 3);
+	const reversedFirst = reverseLoanReceipt(reversedSecond, "one", "reverse-one", "2026-02-01", 4);
+	expect(loanScheduleTotal(outstandingLoanSchedule(reversedFirst), "BRL")).toBe(
+		loanScheduleTotal(outstandingLoanSchedule(original), "BRL"),
+	);
+	expect(reversedFirst.receipts).toHaveLength(4);
+	expect(reversedFirst.receipts.reduce((sum, row) => sum + row.amount, 0)).toBe(0);
+});
+
+test("summary counts completed installments rather than partial receipts", () => {
+	const book = createLoanContract("loan", "bank", terms());
+	const first = recordLoanPayment(book, {
+		...payment,
+		amount: 10,
+		date: "2026-02-01",
+		expectedRevision: 1,
+		id: "p1",
+	});
+	const second = recordLoanPayment(first, {
+		...payment,
+		amount: 10,
+		date: "2026-02-01",
+		expectedRevision: 2,
+		id: "p2",
+	});
+	expect(loanContractSummary(second).paidInstallments).toBe(0);
+	expect(loanContractSummary(second).remainingInstallments).toBe(12);
+	expect(loanContractSummary(second).totalPaid).toBe(20);
 });

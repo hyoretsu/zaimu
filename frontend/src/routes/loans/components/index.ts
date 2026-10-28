@@ -18,3 +18,5 @@ export { LoanInstallmentRow } from "./LoanInstallmentRow";
 export { LoanRateFields } from "./LoanRateFields";
 export { LoanChargeRow } from "./LoanChargeRow";
 export { LoanManualRow } from "./LoanManualRow";
+
+export { LoanPlannerManualScenario } from "./LoanPlannerManualScenario";

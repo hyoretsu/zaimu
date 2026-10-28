@@ -209,3 +209,27 @@ test("variable loans require current hypotheses and reprice disposable schedules
 	expect(current.terminalWealth).toBeLessThan(zero.terminalWealth);
 	expect(JSON.stringify(input.loans[0]!.book)).toBe(original);
 });
+
+test("illiquid selected assets cannot satisfy today's consolidated reserve", () => {
+	const input = setup();
+	input.loans[0]!.book = createLoanContract("loan", "bank", {
+		...terms,
+		principalAmount: 100,
+		totalInstallments: 2,
+	});
+	input.accounts[0]!.balance = 500;
+	input.accounts.push({
+		availableFrom: "2026-02-01",
+		balance: 10000,
+		currency: "BRL",
+		id: "locked",
+		type: "INVESTMENT",
+	});
+	input.eligibility.includeAccountIds = ["locked"];
+	input.reserve = 1000;
+	const result = evaluateLoanScenario(input, baselineLoanScenario);
+	expect(result.firstDeficit?.date).toBe(input.from);
+	expect(result.status).toBe("UNSAFE");
+	input.accounts[1]!.availableFrom = undefined;
+	expect(evaluateLoanScenario(input, baselineLoanScenario).status).toBe("UNAVAILABLE");
+});

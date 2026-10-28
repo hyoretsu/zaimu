@@ -1,6 +1,7 @@
 import { loanAccountAmounts, loanInstallments } from "@zaimu/finance/loan";
 import {
 	type LoanContractBook,
+	loanContractSummary,
 	loanScheduleTotal,
 	outstandingLoanSchedule,
 } from "@zaimu/finance/loan-contract";
@@ -217,6 +218,7 @@ const LegacyLoansController = new Elysia({ prefix: "/loans" })
 							)
 						: Number(loan.remainingTotal),
 					totalPaid: Number(loan.totalPaid),
+					...(loan.contractBook ? loanContractSummary(loan.contractBook) : {}),
 				}));
 			});
 			set.headers.etag = cached.etag;
