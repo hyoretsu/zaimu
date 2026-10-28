@@ -1,6 +1,7 @@
 export * from "./CardAdjustmentsDialog";
 export * from "./CreatePurchaseDialog";
 export * from "./CreditCardManagementActions";
+export * from "./CreditCardEditor";
 export * from "./CreditCardOverviewCard";
 export * from "./CreditCardStatementsDialog";
 export * from "./CreditCardsGrid";

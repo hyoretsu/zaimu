@@ -1,7 +1,13 @@
-import type { FinancialAccount } from "@/lib/api";
+import type { FinancialAccountLabel } from "@/lib/financial-account";
 import { HiddenAccountRow } from "./components";
 
-export function HiddenAccountsList({ accounts, title }: { accounts: FinancialAccount[]; title: string }) {
+export function HiddenAccountsList({
+	accounts,
+	title,
+}: {
+	accounts: (FinancialAccountLabel & { id: string })[];
+	title: string;
+}) {
 	if (!accounts.length) return null;
 	return (
 		<section className="grid gap-3">

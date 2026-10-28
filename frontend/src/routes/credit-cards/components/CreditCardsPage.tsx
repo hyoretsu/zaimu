@@ -18,7 +18,6 @@ import { useUrlModalSelection } from "@/hooks/use-url-modal-selection";
 import { useUrlViewState } from "@/hooks/use-url-view-state";
 import { useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
-import { getFinancialInstitutions } from "@/lib/financial-institution";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { viewNullableId } from "@/lib/view-state";
 import { CreateFinancialAccountDialog } from "@/routes/accounts/components";
@@ -90,14 +89,11 @@ export function CreditCardsPage() {
 
 	const accounts = useQuery({
 		enabled: hasAccess,
-		queryFn: () => dataService.accounts.getAllIncludingHidden(),
-		queryKey: [...queryKeys.accounts.list(identity!), "including-hidden"],
+		queryFn: () => dataService.accounts.getOptions("CREDIT_CARD"),
+		queryKey: [...queryKeys.accounts.list(identity!), "options", "CREDIT_CARD"],
 	});
 	const hiddenCards =
 		accounts.data?.filter(account => account.type === "CREDIT_CARD" && account.isHidden) ?? [];
-	const institutions = getFinancialInstitutions(accounts.data ?? []);
-	const rewardAccounts =
-		accounts.data?.filter(account => account.type === "REWARDS" && !account.isHidden) ?? [];
 	const purchase = useMutation({
 		meta: { cacheOperations: ["statement"] },
 		mutationFn: ({
@@ -263,8 +259,6 @@ export function CreditCardsPage() {
 				/>
 			) : cards.data?.length ? (
 				<CreditCardsGrid
-					accounts={accounts.data}
-					accountsPending={accounts.isPending}
 					cards={cards.data}
 					onAddPurchase={setSelectedCardId}
 					onDelete={handleDelete}
@@ -312,17 +306,17 @@ export function CreditCardsPage() {
 				onOpenChange={setIsCardAdjustmentsOpen}
 				open={isCardAdjustmentsOpen}
 			/>
-			<CreateFinancialAccountDialog
-				cardOnly
-				defaultType="CREDIT_CARD"
-				institutions={institutions}
-				onCreate={data => createCard.mutateAsync(data)}
-				onOpenChange={setIsCreateCardOpen}
-				open={isCreateCardOpen}
-				pending={createCard.isPending}
-				rewardAccounts={rewardAccounts}
-				showTrigger={false}
-			/>
+			{isCreateCardOpen && (
+				<CreateFinancialAccountDialog
+					cardOnly
+					defaultType="CREDIT_CARD"
+					onCreate={data => createCard.mutateAsync(data)}
+					onOpenChange={setIsCreateCardOpen}
+					open={isCreateCardOpen}
+					pending={createCard.isPending}
+					showTrigger={false}
+				/>
+			)}
 			<ImportCreditCardStatementDialog
 				cards={cards.data ?? []}
 				onImported={setReviewingImportId}

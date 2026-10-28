@@ -46,7 +46,7 @@ export function CreditCardOverviewCard({
 					</div>
 				</div>
 				{managementActions && (
-					<div className="relative mt-4 flex justify-end gap-2">{managementActions}</div>
+					<div className="relative mt-4 flex flex-wrap justify-end gap-2">{managementActions}</div>
 				)}
 			</div>
 			<div className="flex flex-1 flex-col gap-5 p-5">

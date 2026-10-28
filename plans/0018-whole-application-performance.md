@@ -8,17 +8,17 @@ Plano versionado em `plans/0018-whole-application-performance.md`. Salvamento e 
 
 Evidências encontradas:
 
-| Evidência | Implicação |
-|---|---|
-| Dashboard: 35,2 s com quatro queries e 224 ms SQL | Investigar esperas de cache, autenticação, CPU, serialização e bloqueio do event loop. |
-| Eventos de dívida: 32,2 s com duas queries | Poucas queries não garantem resposta rápida. bypass precisa informar causa e tempo de infraestrutura. |
-| Cartões/transações: 419/833 queries nos logs | Confirmar atribuição por request. loadCreditBook possui N+1 real: consulta rateio por compra. |
-| Espera de conexão 17,6 s numa request de 3,5 s | Instrumentação precisa separar tempo acumulado, operações concorrentes e duração da request. |
-| Uma consulta de revisão de estorno por cartão | Tela voltou a ter requests proporcionais à quantidade de cartões. |
-| Histórico/detalhe de faturas lê livro inteiro | Paginação atual limita resposta, mas mantém trabalho integral antes do corte. |
-| Baseline versionado: cinco amostras, cartões ~10 s e dashboard ~15,5 s | Captura diagnóstica; não constitui aceite. Vários hits também excedem 100 ms. |
-| Adapter de autenticação consulta fora dos contadores atuais | queryCount: 0 ainda não comprova zero SQL total. |
-| Shell mobile importa telas diretamente; guest usa leituras integrais | Bundle, CPU, memória e IndexedDB precisam entrar na validação. |
+| Evidência                                                              | Implicação                                                                                            |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Dashboard: 35,2 s com quatro queries e 224 ms SQL                      | Investigar esperas de cache, autenticação, CPU, serialização e bloqueio do event loop.                |
+| Eventos de dívida: 32,2 s com duas queries                             | Poucas queries não garantem resposta rápida. bypass precisa informar causa e tempo de infraestrutura. |
+| Cartões/transações: 419/833 queries nos logs                           | Confirmar atribuição por request. loadCreditBook possui N+1 real: consulta rateio por compra.         |
+| Espera de conexão 17,6 s numa request de 3,5 s                         | Instrumentação precisa separar tempo acumulado, operações concorrentes e duração da request.          |
+| Uma consulta de revisão de estorno por cartão                          | Tela voltou a ter requests proporcionais à quantidade de cartões.                                     |
+| Histórico/detalhe de faturas lê livro inteiro                          | Paginação atual limita resposta, mas mantém trabalho integral antes do corte.                         |
+| Baseline versionado: cinco amostras, cartões ~10 s e dashboard ~15,5 s | Captura diagnóstica; não constitui aceite. Vários hits também excedem 100 ms.                         |
+| Adapter de autenticação consulta fora dos contadores atuais            | queryCount: 0 ainda não comprova zero SQL total.                                                      |
+| Shell mobile importa telas diretamente; guest usa leituras integrais   | Bundle, CPU, memória e IndexedDB precisam entrar na validação.                                        |
 
 Nenhuma causa será atribuída somente pela diferença entre duração HTTP e soma SQL. Tempos sobrepostos serão identificados por spans.
 
@@ -42,20 +42,20 @@ Cobertura obrigatória:
 
 Metas oficiais em infraestrutura local saudável, com carga de 1, 5 e 20 usuários concorrentes:
 
-| Cenário | Meta |
-|---|---|
-| GET cacheável frio | p95 < 1.000 ms, incluindo autenticação e corpo completo |
-| GET quente e resposta 304 | p95 < 100 ms; zero SQL total, incluindo autenticação |
-| Entrada numa tela | Requests iniciais justificados por responsabilidade; sem limite artificial quando prejudicar divisão lógica; assets medidos separadamente |
-| Listagens e detalhes paginados | Nenhum request/query por registro; orçamento constante com tamanho de página fixo |
-| CRUD individual comum | p95 < 1.000 ms até confirmação |
-| Navegação/abertura de detalhe com cache quente | p95 < 1.000 ms até conteúdo utilizável |
-| Experiência web | LCP ≤ 2,5 s, INP ≤ 200 ms e CLS ≤ 0,1 |
-| Startup utilizável | p95 ≤ 3 s web/desktop; ≤ 4 s mobile |
-| Importação de referência | Até 15 s para arquivo local ≤ 10 MB e ≤ 1.000 itens |
-| Sync de referência | Até 30 s para snapshot de 100 mil lançamentos |
-| Materialização | SLA existente de até dois minutos |
-| Falha do Redis | Até 100 ms adicionais de espera de cache por request antes do fallback |
+| Cenário                                        | Meta                                                                                                                                      |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| GET cacheável frio                             | p95 < 1.000 ms, incluindo autenticação e corpo completo                                                                                   |
+| GET quente e resposta 304                      | p95 < 100 ms; zero SQL total, incluindo autenticação                                                                                      |
+| Entrada numa tela                              | Requests iniciais justificados por responsabilidade; sem limite artificial quando prejudicar divisão lógica; assets medidos separadamente |
+| Listagens e detalhes paginados                 | Nenhum request/query por registro; orçamento constante com tamanho de página fixo                                                         |
+| CRUD individual comum                          | p95 < 1.000 ms até confirmação                                                                                                            |
+| Navegação/abertura de detalhe com cache quente | p95 < 1.000 ms até conteúdo utilizável                                                                                                    |
+| Experiência web                                | LCP ≤ 2,5 s, INP ≤ 200 ms e CLS ≤ 0,1                                                                                                     |
+| Startup utilizável                             | p95 ≤ 3 s web/desktop; ≤ 4 s mobile                                                                                                       |
+| Importação de referência                       | Até 15 s para arquivo local ≤ 10 MB e ≤ 1.000 itens                                                                                       |
+| Sync de referência                             | Até 30 s para snapshot de 100 mil lançamentos                                                                                             |
+| Materialização                                 | SLA existente de até dois minutos                                                                                                         |
+| Falha do Redis                                 | Até 100 ms adicionais de espera de cache por request antes do fallback                                                                    |
 
 GETs não cacheáveis, uploads, operações em lote, sync e jobs terão cenários próprios; seus custos não serão ocultados nas médias de CRUD. Orçamentos adicionais são defaults deste plano, ajustáveis somente por decisão registrada do usuário.
 
@@ -455,3 +455,18 @@ Próxima etapa: validar fallback de cache e persistência incremental contra reg
 - Diagnóstico real: sugestão/rejeição p95 242 ms, conta 172 ms, transferência 85 ms; cinco amostras por cenário, sem erros, titularidade e limpeza preservadas. Relatório transfer-country-reference-0018.json não constitui aceite global.
 - Dashboard após deduplicação ainda reprova: frio p95 25.576 ms/68 queries; quente 101 ms e 304 75 ms com uma query total. Host tinha load average próximo de 32, impedindo comparação sob infraestrutura saudável; custos de projeção e fallback precisam investigação adicional.
 - Executor passou 22 testes/103 assertions. Matriz oficial e medição frontend release continuam pendentes.
+
+### Tela de cartões após evolução dos contratos
+
+- Carga inicial passa a usar /financial-accounts/options, projeção explícita de identificação, nome, tipo, moeda, visibilidade e nome da instituição. Uma consulta, sem cálculo de saldos, replay, políticas de juros ou snapshots legados. Namespace de contas preserva invalidação e isolamento; cache de opções não substitui snapshot financeiro local.
+- Grade não depende mais de contas completas. Edição busca apenas conta selecionada no clique; formulário de criação monta ao abrir. Catálogo de instituições deixa de carregar em cada formulário fechado. Opções visitante vêm diretamente dos registros locais, sem replay de saldos.
+- Integração verifica ownership, cartões escondidos, campos exatos e uma consulta. Cenário de performance dedicado exige frio abaixo de 1 s/uma query e quente/304 abaixo de 100 ms/zero SQL. Regeneração SDK usa exportador backend e Kubb, sem edição de código gerado. Validação em andamento; não constitui aceite global.
+- Sugestões de pagamento dispensam tags/rateios do livro e usam cache por usuário/data, com invalidação existente de cartões. Teste release registra paths iniciais, exige ausência de contas completas/catálogo de instituições e verifica detalhe apenas após clique em editar.
+
+- Opções da tela filtram CREDIT_CARD no SQL e no storage visitante; poupança, dinheiro e recompensas nem entram na resposta inicial. Regressão inclui conta de dinheiro do mesmo dono para garantir corte por tipo.
+- Primeiro smoke de navegador parou em autenticação HTTP 503 por orçamento Redis, com host em load average ~64. Integração das opções passou (5 assertions); transferências passaram 13 casos/54 assertions. Restante da integração encontrou @prisma/cli ausente no worktree, corrigido por dependência local. SDK do primeiro hook foi interrompido após mais de nove minutos sem concluir; gates serão repetidos integralmente.
+
+- Diagnóstico HTTP local, cinco amostras/um usuário/dez transações: opções frias p95 292 ms/uma query de negócio; quente 22 ms e 304 20 ms/zero SQL total. Relatório sanitizado cards-context-reference-0018.json conserva amostras, spans, recursos, cobertura incompleta e reprovação global.
+- Comparação de payload na mesma fixture: listagem integral 4.739 bytes/três contas/30 campos; opções 293 bytes/dois cartões/seis campos, redução de 93,8%. Tempos dessa comparação são MISS contra HIT e não representam ganho controlado de latência.
+- Build backend e release frontend passaram após exportação e geração SDK atualizadas. Dois testes Chromium (1440×900 e 390×844) passaram leitura mínima, carregamento de detalhe no clique, erro/retry e descarte. Dez capturas finais inspecionadas em /tmp/zaimu-cards-browser-results; mensagem de erro agora ocupa linha própria e preserva botões.
+- Integração ampla detectou divergência preexistente: normalized-refunds espera bloquear excesso de reembolso, enquanto implementação/migração atuais o permitem; docs/business-rules.md ainda descreve bloqueio. Assertion falha antes da remoção do trigger de replay e contamina casos seguintes. Nenhuma regra financeira alterada nesta correção; aceite financeiro/global permanece pendente.

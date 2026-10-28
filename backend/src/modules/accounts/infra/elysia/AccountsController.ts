@@ -4,6 +4,7 @@ import Elysia, { t } from "elysia";
 import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
 import { getFinancialInstitutionYieldPolicies } from "~/modules/accounts/application/get-financial-institution-yield-policies";
 import { getInstitutionProfileContext } from "~/modules/accounts/application/get-institution-profile-context";
+import { listFinancialAccountOptions } from "~/modules/accounts/application/list-financial-account-options";
 import {
 	getPrimaryAccount,
 	saveAccountDefaults,
@@ -154,6 +155,42 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 			body: t.Object({ financialAccountId: t.Nullable(Id) }),
 			detail: { operationId: "putFinancialAccountsPrimary" },
 			response: t.Object({ financialAccountId: t.Nullable(Id) }),
+		},
+	)
+	.get(
+		"/options",
+		async ({ request, set, query }) => {
+			const userId = await requireUserId(request);
+			const cached = await distributedCache.remember(
+				userId,
+				"accounts:list",
+				{ type: query.type, view: "options-v1" },
+				() => listFinancialAccountOptions(userId, query.type),
+			);
+			set.headers.etag = cached.etag;
+			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+			if (request.headers.get("if-none-match") === cached.etag) {
+				set.status = 304;
+				return null;
+			}
+			return cached.value;
+		},
+		{
+			detail: { operationId: "getFinancialAccountsOptions", tags: ["Accounts"] },
+			query: t.Object({ type: t.Optional(FinancialAccountType) }),
+			response: {
+				200: t.Array(
+					t.Object({
+						currency: t.String(),
+						id: Id,
+						institution: t.Nullable(t.Object({ name: t.String() })),
+						isHidden: t.Boolean(),
+						name: t.Nullable(t.String()),
+						type: FinancialAccountType,
+					}),
+				),
+				304: t.Null(),
+			},
 		},
 	)
 	.get(

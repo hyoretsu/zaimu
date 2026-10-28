@@ -1,6 +1,7 @@
 {
 	"backend:e2e": ["backend/tests/database.e2e.test.ts"],
 	"backend:integration": [
+		"backend/src/modules/accounts/tests/account-options.integration.test.ts",
 		"backend/src/modules/account-transfers/tests/account-transfers.integration.test.ts",
 		"backend/src/modules/credit-card-imports/tests/import-purchase-taxes.integration.test.ts",
 		"backend/src/modules/recurring/tests/time-zone-materialization.test.ts",

@@ -70,6 +70,7 @@ import {
 	getDebtsInvitations,
 	getFinancialAccounts,
 	getFinancialAccountsById,
+	getFinancialAccountsOptions,
 	getFinancialInstitutions,
 	getFinancialInstitutionsByIdProfiles,
 	getLoans,
@@ -532,6 +533,7 @@ export const dataService = {
 		async getAll(): Promise<FinancialAccount[]> {
 			return (await dataService.accounts.getAllIncludingHidden()).filter(account => !account.isHidden);
 		},
+
 		async getAllIncludingHidden(): Promise<FinancialAccount[]> {
 			if (isGuestMode()) {
 				const [local, transactions, cashbackPurchases, holidays, yields, loanPayments] =
@@ -582,6 +584,21 @@ export const dataService = {
 				const local = await localAccounts.getById(id, owner);
 				return local?.data || null;
 			}
+		},
+		async getOptions(type?: FinancialAccount["type"]): Promise<import("./api").FinancialAccountOption[]> {
+			if (isGuestMode()) {
+				return (await localAccounts.getAll())
+					.filter(({ data }) => !type || data.type === type)
+					.map(({ data }) => ({
+						currency: data.currency ?? "BRL",
+						id: data.id,
+						institution: data.institution ? { name: data.institution.name } : null,
+						isHidden: data.isHidden ?? false,
+						name: data.name,
+						type: data.type,
+					}));
+			}
+			return getFinancialAccountsOptions(type ? { type } : undefined);
 		},
 		async setPrimary(financialAccountId: string | null) {
 			if (isGuestMode()) return setLocalPrimaryAccount(financialAccountId);

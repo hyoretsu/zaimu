@@ -7,6 +7,13 @@ export interface PerformanceBudget {
 }
 
 export const performanceBudgets: Record<string, PerformanceBudget> = {
+	accountOptions: {
+		coldP95Ms: 1000,
+		coldQueryCount: 1,
+		hotP95Ms: 100,
+		hotQueryCount: 0,
+		path: "/financial-accounts/options?type=CREDIT_CARD",
+	},
 	accounts: {
 		coldP95Ms: 1000,
 		coldQueryCount: 5,

@@ -1,6 +1,6 @@
 import {
-	legacyCalendarHoliday,
 	getYieldSettings as resolveYieldSettings,
+	legacyCalendarHoliday,
 } from "@zaimu/finance/projected-yield";
 import { type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
 import { addDays, differenceInMonths, differenceInYears, format, isWeekend, startOfDay } from "date-fns";
@@ -51,7 +51,9 @@ export function calculateCashbackValue(
 	if (!yieldReferenceRate || !yieldReferencePercentage || !yieldPeriod) return amount;
 	const periods = Math.max(
 		0,
-		yieldPeriod === "MONTHLY" ? differenceInMonths(today, awardedAt) : differenceInYears(today, awardedAt),
+		yieldPeriod === "MONTHLY"
+			? differenceInMonths(today, awardedAt)
+			: differenceInYears(today, awardedAt),
 	);
 	const rate = (yieldReferenceRate * yieldReferencePercentage) / 100;
 	return amount * (1 + rate / 100) ** periods;
@@ -145,7 +147,8 @@ export function calculateFinancialAccountBalances(
 								account,
 								events.get(account.id),
 								cashbackEvents.get(account.id),
-								holidayKeys ?? new Set(holidayDatesForAccount(holidays as YieldCalendar, account)),
+								holidayKeys ??
+									new Set(holidayDatesForAccount(holidays as YieldCalendar, account)),
 								todayKey,
 								yieldsByAccountId.get(account.id),
 								snapshots,
@@ -212,10 +215,14 @@ export function calculateFinancialAccountYieldEntries(
 		const key = format(day, "yyyy-MM-dd");
 		for (const movement of events.get(key) ?? []) ledger.applyCashFlow(movement, key);
 		balance = ledger.balance;
-		const hasManualYield = yields?.some(entry => entry.kind === "MANUAL" && entry.date.slice(0, 10) === key);
+		const hasManualYield = yields?.some(
+			entry => entry.kind === "MANUAL" && entry.date.slice(0, 10) === key,
+		);
 		const manualYields = yields.filter(
 			yieldEntry =>
-				yieldEntry.kind === "MANUAL" && !yieldEntry.isExcluded && yieldEntry.date.slice(0, 10) === key,
+				yieldEntry.kind === "MANUAL" &&
+				!yieldEntry.isExcluded &&
+				yieldEntry.date.slice(0, 10) === key,
 		);
 		if (isWeekend(day) || (legacyCalendarHoliday(account, key) ?? holidayKeys.has(key))) {
 			const recorded = yields.find(
@@ -254,7 +261,9 @@ export function calculateFinancialAccountYieldEntries(
 				Array.isArray(holidays) ||
 				legacyCalendarHoliday(account, key) !== undefined ||
 				accountCalendarCovered(holidays, account, day, day);
-			const grossAmount = calendarCovered ? calculateGrossYield(ledger.eligibleBalance(key), settings) : 0;
+			const grossAmount = calendarCovered
+				? calculateGrossYield(ledger.eligibleBalance(key), settings)
+				: 0;
 			const calculatedAmount = ledger.netYield(grossAmount, settings, key);
 			const amount = automaticYield?.amount ?? calculatedAmount;
 			if (amount > 0) {
@@ -336,7 +345,9 @@ function calculateYieldedBalance(
 	calendarCovered?: (day: string) => boolean,
 	onAdjustment?: (id: string, calculated: number, complete: boolean) => void,
 ) {
-	const checkpoints = new Map((account.balanceAdjustments ?? []).map(item => [item.date.slice(0, 10), item]));
+	const checkpoints = new Map(
+		(account.balanceAdjustments ?? []).map(item => [item.date.slice(0, 10), item]),
+	);
 	let complete = true;
 	const firstDay = [
 		...checkpoints.keys(),
@@ -378,10 +389,14 @@ function calculateYieldedBalance(
 				balance = ledger.balance;
 			}
 		}
-		const hasManualYield = yields?.some(entry => entry.kind === "MANUAL" && entry.date.slice(0, 10) === key);
+		const hasManualYield = yields?.some(
+			entry => entry.kind === "MANUAL" && entry.date.slice(0, 10) === key,
+		);
 		const manualYields = yields?.filter(
 			yieldEntry =>
-				yieldEntry.kind === "MANUAL" && !yieldEntry.isExcluded && yieldEntry.date.slice(0, 10) === key,
+				yieldEntry.kind === "MANUAL" &&
+				!yieldEntry.isExcluded &&
+				yieldEntry.date.slice(0, 10) === key,
 		);
 		if (isWeekend(day) || (legacyCalendarHoliday(account, key) ?? holidays.has(key))) {
 			for (const manualYield of manualYields ?? []) ledger.accrueNet(manualYield.amount ?? 0, key);
@@ -399,7 +414,9 @@ function calculateYieldedBalance(
 		);
 		if (balance > 0 && !hasManualYield && !automaticYield?.isExcluded) {
 			const hasReference = settingsRequireReference(yieldSettings);
-			const grossAmount = hasReference ? 0 : calculateGrossYield(ledger.eligibleBalance(key), yieldSettings);
+			const grossAmount = hasReference
+				? 0
+				: calculateGrossYield(ledger.eligibleBalance(key), yieldSettings);
 			if (
 				(hasReference && automaticYield?.amount == null) ||
 				(grossAmount > 0 && !(calendarCovered?.(key) ?? true))
@@ -477,11 +494,16 @@ const financialAccountOptionPrefixes = {
 	SAVINGS: "Poupança",
 } as const;
 
+export type FinancialAccountLabel = Pick<FinancialAccount, "name" | "type"> & {
+	institution?:
+		| (Pick<NonNullable<FinancialAccount["institution"]>, "name"> &
+				Partial<NonNullable<FinancialAccount["institution"]>>)
+		| null;
+};
+
 const displayNameCollator = new Intl.Collator("pt-BR", { sensitivity: "base" });
 
-export function getFinancialAccountDisplayName(
-	account: Pick<FinancialAccount, "institution" | "name" | "type">,
-) {
+export function getFinancialAccountDisplayName(account: FinancialAccountLabel) {
 	return account.name?.trim() || account.institution?.name || financialAccountTypeLabels[account.type];
 }
 
@@ -502,7 +524,7 @@ export function getFinancialAccountSummaryName(
 	return `${financialAccountOptionPrefixes[account.type]} ${institution}`;
 }
 
-export function getFinancialAccountTitle(account: Pick<FinancialAccount, "institution" | "name" | "type">) {
+export function getFinancialAccountTitle(account: FinancialAccountLabel) {
 	const name = account.name?.trim();
 	const repeatsInstitution =
 		name &&
@@ -511,9 +533,7 @@ export function getFinancialAccountTitle(account: Pick<FinancialAccount, "instit
 	return name && !repeatsInstitution ? name : financialAccountTypeLabels[account.type];
 }
 
-export function getFinancialAccountOptionLabel(
-	account: Pick<FinancialAccount, "institution" | "name" | "type">,
-) {
+export function getFinancialAccountOptionLabel(account: FinancialAccountLabel) {
 	const displayName = getFinancialAccountDisplayName(account);
 	return displayName === financialAccountTypeLabels[account.type]
 		? displayName
@@ -521,8 +541,8 @@ export function getFinancialAccountOptionLabel(
 }
 
 export function compareFinancialAccountsByOptionLabel(
-	left: Pick<FinancialAccount, "institution" | "name" | "type">,
-	right: Pick<FinancialAccount, "institution" | "name" | "type">,
+	left: FinancialAccountLabel,
+	right: FinancialAccountLabel,
 ) {
 	return displayNameCollator.compare(
 		getFinancialAccountOptionLabel(left),
@@ -531,8 +551,8 @@ export function compareFinancialAccountsByOptionLabel(
 }
 
 export function compareFinancialAccountsByDisplayName(
-	left: Pick<FinancialAccount, "institution" | "name" | "type">,
-	right: Pick<FinancialAccount, "institution" | "name" | "type">,
+	left: FinancialAccountLabel,
+	right: FinancialAccountLabel,
 ) {
 	return displayNameCollator.compare(
 		getFinancialAccountDisplayName(left),
@@ -540,10 +560,7 @@ export function compareFinancialAccountsByDisplayName(
 	);
 }
 
-export function compareFinancialAccountsByTitle(
-	left: Pick<FinancialAccount, "institution" | "name" | "type">,
-	right: Pick<FinancialAccount, "institution" | "name" | "type">,
-) {
+export function compareFinancialAccountsByTitle(left: FinancialAccountLabel, right: FinancialAccountLabel) {
 	return displayNameCollator.compare(getFinancialAccountTitle(left), getFinancialAccountTitle(right));
 }
 

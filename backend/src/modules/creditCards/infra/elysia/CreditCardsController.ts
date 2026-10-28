@@ -14,6 +14,7 @@ import {
 	updateBookStatementDates,
 } from "@zaimu/finance/credit-book";
 import {
+	currentDateKey,
 	normalizeCardCalendar,
 	paymentStatement,
 	statementCutoffAfter,
@@ -60,8 +61,8 @@ import {
 } from "~/modules/creditCards/application/statement-cursor";
 import { recalculateStatementPayments } from "~/modules/creditCards/application/statement-payments";
 import {
-	CurrencyDTO,
 	creditCardCurrency,
+	CurrencyDTO,
 	FinancialFeeDTO,
 	resolveFinancialMoney,
 } from "~/modules/currencies/application/financial-money";
@@ -136,10 +137,24 @@ const UpdatePurchaseBody = t.Object({
 	totalAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
 });
 export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
-	.get("/payment-suggestions", async ({ request }) => getPaymentSuggestions(await requireUserId(request)), {
-		detail: { operationId: "getCreditCardsPaymentSuggestions" },
-		response: t.Array(PaymentSuggestionReturn),
-	})
+	.get(
+		"/payment-suggestions",
+		async ({ request, set }) => {
+			const userId = await requireUserId(request);
+			const cached = await distributedCache.remember(
+				userId,
+				"credit-cards:overview",
+				{ date: currentDateKey(), view: "payment-suggestions" },
+				() => getPaymentSuggestions(userId),
+			);
+			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
+			return cached.value;
+		},
+		{
+			detail: { operationId: "getCreditCardsPaymentSuggestions" },
+			response: t.Array(PaymentSuggestionReturn),
+		},
+	)
 	.put(
 		"/:id/payer",
 		async ({ params, body, request }) =>
@@ -150,7 +165,10 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				body.paymentSuggestionsEnabled,
 			),
 		{
-			body: t.Object({ paymentAccountId: t.Nullable(t.String()), paymentSuggestionsEnabled: t.Boolean() }),
+			body: t.Object({
+				paymentAccountId: t.Nullable(t.String()),
+				paymentSuggestionsEnabled: t.Boolean(),
+			}),
 			detail: { operationId: "putCreditCardsByIdPayer" },
 			response: t.Object({
 				paymentAccountId: t.Nullable(t.String()),
@@ -182,7 +200,10 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						functions.eq(fields.CreditCard.financialAccountId, fields.FinancialAccount.id),
 					)
 						.outerLeftJoin(db.sql.public.FinancialInstitution, (fields, functions) =>
-							functions.eq(fields.FinancialAccount.institutionId, fields.FinancialInstitution.id),
+							functions.eq(
+								fields.FinancialAccount.institutionId,
+								fields.FinancialInstitution.id,
+							),
 						)
 						.select((fields, functions) => ({
 							accountName:
@@ -193,7 +214,8 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 							cashbackAccountId: fields.CreditCard.cashbackAccountId,
 							cashbackRate: fields.CreditCard.cashbackRate,
 							cashbackYieldPeriod: fields.CreditCard.cashbackYieldPeriod,
-							cashbackYieldReferencePercentage: fields.CreditCard.cashbackYieldReferencePercentage,
+							cashbackYieldReferencePercentage:
+								fields.CreditCard.cashbackYieldReferencePercentage,
 							cashbackYieldReferenceRate: fields.CreditCard.cashbackYieldReferenceRate,
 							createdAt: fields.CreditCard.createdAt,
 							creditLimit: fields.CreditCard.creditLimit,
@@ -252,7 +274,11 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						...normalizeCardCalendar(resolvedCard),
 						cashbackYieldPeriod: period,
 						currentStatement,
-						limit: creditLimitOverview(Number(card.creditLimit), card.currency, effectiveStatements),
+						limit: creditLimitOverview(
+							Number(card.creditLimit),
+							card.currency,
+							effectiveStatements,
+						),
 						pendingRefundReviewCount: countsByCard.get(card.id) ?? 0,
 					};
 				});
@@ -335,7 +361,10 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						.where((fields, functions) =>
 							functions.and(
 								functions.eq(fields.creditCardId, params.id),
-								functions.eq(fields.statementDate, new Date(`${body.statementDate}T12:00:00Z`)),
+								functions.eq(
+									fields.statementDate,
+									new Date(`${body.statementDate}T12:00:00Z`),
+								),
 							),
 						)
 						.limit(1)
@@ -356,7 +385,9 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 		},
 		{
 			body: t.Object({
-				statementDate: t.Nullable(t.String({ pattern: "^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$" })),
+				statementDate: t.Nullable(
+					t.String({ pattern: "^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$" }),
+				),
 			}),
 			detail: { operationId: "patchCreditCardsByIdStatementCutoff" },
 			params: t.Object({ id: t.String({ maxLength: 36, minLength: 1 }) }),
@@ -479,7 +510,10 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 					if (!row) throw new HttpException("Compra não encontrada", 404);
 					return {
 						currency: row.currency,
-						debtSplit: await getDebtSplitReturn({ creditPurchaseId: row.id }, Number(row.totalAmount)),
+						debtSplit: await getDebtSplitReturn(
+							{ creditPurchaseId: row.id },
+							Number(row.totalAmount),
+						),
 						exchangeRate: row.exchangeRate == null ? null : Number(row.exchangeRate),
 						externalId: row.externalId,
 						feeAmount: row.feeAmount,
@@ -537,7 +571,10 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 					const cursor = query.cursor ? decodeStatementCursor(query.cursor, query.isPaid) : null;
 					const rows = listedRecurrenceStatements(existingBook, book)
 						.filter(s => query.isPaid === undefined || s.isPaid === query.isPaid)
-						.toSorted((a, b) => b.statementDate.localeCompare(a.statementDate) || b.id.localeCompare(a.id))
+						.toSorted(
+							(a, b) =>
+								b.statementDate.localeCompare(a.statementDate) || b.id.localeCompare(a.id),
+						)
 						.filter(
 							s =>
 								!cursor ||
@@ -593,7 +630,10 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 			body: t.Object({
 				amount: t.Nullable(t.Number()),
 				dates: t.Optional(
-					t.Object({ dueDate: t.String({ format: "date" }), statementDate: t.String({ format: "date" }) }),
+					t.Object({
+						dueDate: t.String({ format: "date" }),
+						statementDate: t.String({ format: "date" }),
+					}),
 				),
 			}),
 			detail: { operationId: "patchCreditCardsByIdStatementsByStatementIdAmount" },
@@ -628,12 +668,17 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 				`credit-cards:${params.id}:statements`,
 				{ kind: "detail", statementId: params.statementId },
 				async () => {
-					const book = await projectRecurringCreditBook(await readCreditBook(userId, params.id, false));
+					const book = await projectRecurringCreditBook(
+						await readCreditBook(userId, params.id, false),
+					);
 					const statements = replayCreditBook(book).statements;
 					const statement = statements.find(s => s.id === params.statementId);
 					if (!statement) throw new HttpException("Fatura não encontrada", 404);
 					const paymentIds = book.payments
-						.filter(payment => paymentStatement(statements, new Date(payment.date))?.id === statement.id)
+						.filter(
+							payment =>
+								paymentStatement(statements, new Date(payment.date))?.id === statement.id,
+						)
 						.map(payment => payment.id);
 					const paymentRows = paymentIds.length
 						? await queryRaw<{
@@ -810,7 +855,11 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 				},
 			);
 			return (
-				await presentCreditBook(await readCreditBook(userId, params.id, false), undefined, params.refundId)
+				await presentCreditBook(
+					await readCreditBook(userId, params.id, false),
+					undefined,
+					params.refundId,
+				)
 			).find(row => row.id === params.refundId);
 		},
 		{
@@ -875,14 +924,21 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 								body.totalAmount !== undefined
 									? body.totalAmount - (body.fees === undefined ? (body.feeAmount ?? 0) : 0)
 									: (p.originalAmount ??
-										p.totalAmountCents / currencyScale(book.card.currency) - (p.feeAmount ?? 0)),
+										p.totalAmountCents / currencyScale(book.card.currency) -
+											(p.feeAmount ?? 0)),
 							currency: body.currency ?? p.currency,
 							date: body.purchaseDate ?? p.purchaseDate,
 							fees:
 								body.fees ??
 								(body.feeAmount !== undefined
 									? body.feeAmount
-										? [{ amount: body.feeAmount, name: body.feeDescription ?? "Taxa", type: "FIXED" }]
+										? [
+												{
+													amount: body.feeAmount,
+													name: body.feeDescription ?? "Taxa",
+													type: "FIXED",
+												},
+											]
 										: []
 									: (p.fees ?? [])),
 							targetCurrency,
@@ -916,7 +972,9 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 								number => [number, p.installmentAmountsCents[number - 1]!] as const,
 							),
 							...book.installments
-								.filter(i => i.purchaseId === p.id && i.number <= count && i.hasImportedAmount)
+								.filter(
+									i => i.purchaseId === p.id && i.number <= count && i.hasImportedAmount,
+								)
 								.map(i => [i.number, i.amountCents] as const),
 						]);
 						p.installmentAmountsCents = distributePurchaseCents(
@@ -926,9 +984,13 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 							book.card.installmentRemainderOnFirst,
 						);
 						p.totalAmountCents = total;
-						book.installments = book.installments.filter(i => i.purchaseId !== p.id || i.number <= count);
+						book.installments = book.installments.filter(
+							i => i.purchaseId !== p.id || i.number <= count,
+						);
 						p.installmentStatementDates = p.installmentStatementDates?.slice(0, count);
-						p.installmentImportedNumbers = p.installmentImportedNumbers?.filter(number => number <= count);
+						p.installmentImportedNumbers = p.installmentImportedNumbers?.filter(
+							number => number <= count,
+						);
 						for (const i of book.installments.filter(i => i.purchaseId === p.id))
 							i.amountCents = p.installmentAmountsCents[i.number - 1]!;
 					}
@@ -1024,7 +1086,10 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 				const sourceId = resolveBookPurchase(book, params.purchaseId).id;
 				const previousIds = new Set(book.purchases.map(p => p.id));
 				const result = refinanceBookPurchase(book, sourceId, body);
-				affectedIds = [sourceId, ...book.purchases.filter(p => !previousIds.has(p.id)).map(p => p.id)];
+				affectedIds = [
+					sourceId,
+					...book.purchases.filter(p => !previousIds.has(p.id)).map(p => p.id),
+				];
 				settledAmount = result.settledAmount;
 				totalAmount = result.totalAmount;
 			});
@@ -1046,7 +1111,9 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 				sourceTime: t.Optional(
 					t.Nullable(t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" })),
 				),
-				time: t.Optional(t.Nullable(t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" }))),
+				time: t.Optional(
+					t.Nullable(t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" })),
+				),
 				totalAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
 			}),
 			detail: { operationId: "postCreditCardsByIdPurchasesByPurchaseIdRefinance" },
@@ -1099,7 +1166,9 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 				amount: t.Number({ exclusiveMinimum: 0 }),
 				date: t.String({ format: "date" }),
 				financialAccountId: t.String({ maxLength: 36, minLength: 1 }),
-				time: t.Optional(t.Nullable(t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" }))),
+				time: t.Optional(
+					t.Nullable(t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" })),
+				),
 			}),
 			detail: { operationId: "postCreditCardsByIdPayments", tags: ["Credit Cards"] },
 			params: t.Object({ id: t.String({ maxLength: 36, minLength: 1 }) }),

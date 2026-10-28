@@ -1,12 +1,12 @@
 import { useMutation } from "@tanstack/react-query";
 import { LuEye } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
-import type { FinancialAccount } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
+import type { FinancialAccountLabel } from "@/lib/financial-account";
 import { getFinancialAccountOptionLabel } from "@/lib/financial-account";
 import { showToast } from "@/stores";
 
-export function HiddenAccountRow({ account }: { account: FinancialAccount }) {
+export function HiddenAccountRow({ account }: { account: FinancialAccountLabel & { id: string } }) {
 	const isCard = account.type === "CREDIT_CARD";
 	const restore = useMutation({
 		meta: { cacheOperations: [isCard ? "creditCard" : "account"] },

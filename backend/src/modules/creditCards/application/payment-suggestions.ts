@@ -26,7 +26,7 @@ WHERE a."userId"=$1 AND NOT a."isHidden" AND c."paymentSuggestionsEnabled"`,
 	return (
 		await Promise.all(
 			cards.map(async card =>
-				pendingStatementPayments(await readCreditBook(userId, card.id)).map(row => ({
+				pendingStatementPayments(await readCreditBook(userId, card.id, false)).map(row => ({
 					...row,
 					cardName: card.cardName,
 					financialAccountId: card.paymentAccountId,
@@ -43,22 +43,28 @@ type ConfirmPaymentInput = import("../infra/elysia/PaymentSuggestionsDTO").Confi
 export async function confirmSuggestedPayment(userId: string, cardId: string, input: ConfirmPaymentInput) {
 	return withRawTransaction(async query => {
 		const book = await loadCreditBook(query, userId, cardId, true);
-		const [previous] = await query<SuggestedPaymentTransaction>(`SELECT * FROM "Transaction" WHERE "id"=$1`, [
-			input.attemptId,
-		]);
+		const [previous] = await query<SuggestedPaymentTransaction>(
+			`SELECT * FROM "Transaction" WHERE "id"=$1`,
+			[input.attemptId],
+		);
 		if (previous) {
 			if (
 				(previous as SuggestedPaymentTransaction & { userId: string }).userId !== userId ||
 				previous.paymentCreditCardId !== cardId ||
 				previous.originFinancialAccountId !== input.financialAccountId ||
 				moneyCents(
-					Number((previous as typeof previous & { paymentAmount?: number }).paymentAmount ?? previous.amount),
+					Number(
+						(previous as typeof previous & { paymentAmount?: number }).paymentAmount ??
+							previous.amount,
+					),
 					1,
 					book.card.currency,
 				) !== moneyCents(input.amount, 1, book.card.currency) ||
 				(input.accountAmount != null && Number(previous.amount) !== input.accountAmount) ||
-				String(previous.date instanceof Date ? previous.date.toISOString() : previous.date).slice(0, 10) !==
-					input.date
+				String(previous.date instanceof Date ? previous.date.toISOString() : previous.date).slice(
+					0,
+					10,
+				) !== input.date
 			)
 				throw new HttpException("Tentativa de pagamento já utilizada", 409);
 			return { transaction: presentSuggestedPayment(previous) };
