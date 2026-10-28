@@ -255,22 +255,27 @@ async function materializePurchaseInBook(
 			: {};
 	const p =
 		existing ??
-		newBookPurchase(book, {
-			...originalMoney,
-			...(await rewardSnapshot(
-				card,
-				input.totalAmount,
-				book.card.currency ?? "BRL",
-				input.purchaseDate.toISOString().slice(0, 10),
-				card.userId,
-			)),
-			description: withoutImportedAnticipation(withoutFinancingReferences(input.description)),
-			externalId: input.externalId,
-			installmentAmountsCents: amounts,
-			installments: input.installments,
-			purchaseDate: input.purchaseDate.toISOString().slice(0, 10),
-			totalAmount: input.totalAmount,
-		});
+		newBookPurchase(
+			book,
+			{
+				...originalMoney,
+				...(await rewardSnapshot(
+					card,
+					input.totalAmount,
+					book.card.currency ?? "BRL",
+					input.purchaseDate.toISOString().slice(0, 10),
+					card.userId,
+				)),
+				description: withoutImportedAnticipation(withoutFinancingReferences(input.description)),
+				externalId: input.externalId,
+				installmentAmountsCents: amounts,
+				installments: input.installments,
+				purchaseDate: input.purchaseDate.toISOString().slice(0, 10),
+				totalAmount: input.totalAmount,
+			},
+			undefined,
+			{ materialize: false },
+		);
 	const relation = bookRefinancingLinks(book).get(p.id);
 	const original = relation?.refinancedFromPurchaseId
 		? book.purchases.find(row => row.id === relation.refinancingOriginalPurchaseId)
@@ -373,7 +378,8 @@ async function materializePurchaseInBook(
 	}
 	for (const i of book.installments.filter(i => i.purchaseId === p.id)) {
 		i.amountCents = amounts[i.number - 1]!;
-		if (refinancing) {
+		// Reconcile forecasts created before the imported calendar was installed.
+		if (refinancing || !i.hasImportedAmount) {
 			i.occurrenceDate = installmentOccurrenceDate(p.purchaseDate, i.number);
 			i.statementId = ensureBookStatement(
 				book,

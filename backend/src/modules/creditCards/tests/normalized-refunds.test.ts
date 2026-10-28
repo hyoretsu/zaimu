@@ -91,7 +91,8 @@ describe("normalized refund transactions", () => {
 			(await client.query(`SELECT "id" FROM "CreditRefundRecord" WHERE "id" = $1`, [refund.id])).rows,
 		).toHaveLength(0);
 		expect(
-			(await client.query(`SELECT "id" FROM "CreditEntryReference" WHERE "refundId"=$1`, [refund.id])).rows,
+			(await client.query(`SELECT "id" FROM "CreditEntryReference" WHERE "refundId"=$1`, [refund.id]))
+				.rows,
 		).toHaveLength(0);
 		const { readCreditBook } = await import("../application/normalized-credit-book");
 		const { syncCreditBook } = await import("../application/sync-credit-book");
@@ -152,8 +153,11 @@ describe("normalized refund transactions", () => {
 		);
 		await syncCreditBook(context.userId, book);
 		expect(
-			(await client.query(`SELECT "id" FROM "CreditPurchaseRecord" WHERE "id" = 'normalized-test-sync'`))
-				.rows,
+			(
+				await client.query(
+					`SELECT "id" FROM "CreditPurchaseRecord" WHERE "id" = 'normalized-test-sync'`,
+				)
+			).rows,
 		).toHaveLength(0);
 		await expect(syncCreditBook(context.userId, stale)).rejects.toThrow("Compra excluída");
 	});
@@ -215,8 +219,8 @@ describe("normalized refund transactions", () => {
 		await refunds.deleteNormalizedRefund(target, refund.id);
 		expect(
 			Number(
-				(await client.query(`SELECT "effect" FROM "DebtEvent" WHERE "id"=$1`, [event.rows[0].id])).rows[0]
-					.effect,
+				(await client.query(`SELECT "effect" FROM "DebtEvent" WHERE "id"=$1`, [event.rows[0].id]))
+					.rows[0].effect,
 			),
 		).toBe(0);
 		const before = Number(
@@ -236,9 +240,10 @@ describe("normalized refund transactions", () => {
 			expect(
 				Number(
 					(
-						await client.query(`SELECT count(*) AS n FROM "DebtEvent" WHERE "createdByUserId"=$1`, [
-							context.userId,
-						])
+						await client.query(
+							`SELECT count(*) AS n FROM "DebtEvent" WHERE "createdByUserId"=$1`,
+							[context.userId],
+						)
 					).rows[0].n,
 				),
 			).toBe(before);
@@ -251,9 +256,8 @@ describe("normalized refund transactions", () => {
 	test("authenticated HTTP contracts, import review, owner isolation and atomic reconstruction", async () => {
 		const { default: Elysia } = await import("elysia");
 		const { CreditCardsController } = await import("../infra/elysia/CreditCardsController");
-		const { CreditCardImportsController } = await import(
-			"../../credit-card-imports/infra/elysia/CreditCardImportsController"
-		);
+		const { CreditCardImportsController } =
+			await import("../../credit-card-imports/infra/elysia/CreditCardImportsController");
 		const { HttpException } = await import("~/shared/errors");
 		const app = new Elysia()
 			.error({ HttpException })
@@ -284,7 +288,9 @@ describe("normalized refund transactions", () => {
 					...(body ? { body: JSON.stringify(body) } : {}),
 				}),
 			);
-		expect((await request(`/credit-cards/${context.cardId}/book`, "GET", undefined, false)).status).toBe(401);
+		expect((await request(`/credit-cards/${context.cardId}/book`, "GET", undefined, false)).status).toBe(
+			401,
+		);
 		expect(await auth.api.getSession({ headers: new Headers({ cookie }) })).not.toBeNull();
 		const initial = await request(`/credit-cards/${context.cardId}/book`);
 		expect(initial.status).toBe(200);
@@ -303,9 +309,13 @@ describe("normalized refund transactions", () => {
 		expect(purchase!.totalAmountCents).toBe(12000);
 		const originalInstallments = book.installments.filter(i => i.purchaseId === purchase!.id);
 		expect(originalInstallments).toHaveLength(2);
-		const converted = await request(`/credit-cards/${context.cardId}/purchases/${purchase!.id}`, "PATCH", {
-			installments: 1,
-		});
+		const converted = await request(
+			`/credit-cards/${context.cardId}/purchases/${purchase!.id}`,
+			"PATCH",
+			{
+				installments: 1,
+			},
+		);
 		expect(converted.status).toBe(200);
 		const convertedBook = (await (
 			await request(`/credit-cards/${context.cardId}/book`)
@@ -319,15 +329,20 @@ describe("normalized refund transactions", () => {
 		]);
 		expect(
 			(
-				await client.query(`SELECT "number","amount" FROM "CreditInstallmentRecord" WHERE "purchaseId"=$1`, [
-					purchase!.id,
-				])
+				await client.query(
+					`SELECT "number","amount" FROM "CreditInstallmentRecord" WHERE "purchaseId"=$1`,
+					[purchase!.id],
+				)
 			).rows.map(row => ({ amount: Number(row.amount), number: row.number })),
 		).toEqual([{ amount: 120, number: 1 }]);
-		const first = await request(`/credit-cards/${context.cardId}/purchases/${purchase!.id}/refunds`, "POST", {
-			amount: 20,
-			purchaseDate: "2024-09-10",
-		});
+		const first = await request(
+			`/credit-cards/${context.cardId}/purchases/${purchase!.id}/refunds`,
+			"POST",
+			{
+				amount: 20,
+				purchaseDate: "2024-09-10",
+			},
+		);
 		expect(first.status).toBe(200);
 		const refund = (await first.json()) as { id: string };
 		const edited = await request(
@@ -349,7 +364,8 @@ describe("normalized refund transactions", () => {
 			`INSERT INTO "user" ("id","email","name") VALUES ('normalized-test-outsider','normalized-outsider@example.test','Outro'); INSERT INTO "FinancialAccount" ("id","userId","type") VALUES ('normalized-test-foreign','normalized-test-outsider','CHECKING');`,
 		);
 		try {
-			const { mutateCreditBook, newBookPurchase } = await import("../application/normalized-credit-book");
+			const { mutateCreditBook, newBookPurchase } =
+				await import("../application/normalized-credit-book");
 			await expect(
 				mutateCreditBook(context.userId, context.cardId, b =>
 					newBookPurchase(b, {
@@ -376,24 +392,31 @@ describe("normalized refund transactions", () => {
 		expect((await request(path, "POST", {})).status).toBe(400);
 		const before = Number(
 			(
-				await client.query(`SELECT count(*) AS n FROM "CreditPurchaseRecord" WHERE "creditCardId"=$1`, [
-					context.cardId,
-				])
+				await client.query(
+					`SELECT count(*) AS n FROM "CreditPurchaseRecord" WHERE "creditCardId"=$1`,
+					[context.cardId],
+				)
 			).rows[0].n,
 		);
 		expect(
 			(
 				await request(path, "POST", {
-					purchase: { description: "Inválida", installments: 1, purchaseDate: "2024-08-10", totalAmount: 10 },
+					purchase: {
+						description: "Inválida",
+						installments: 1,
+						purchaseDate: "2024-08-10",
+						totalAmount: 10,
+					},
 				})
 			).status,
 		).toBe(400);
 		expect(
 			Number(
 				(
-					await client.query(`SELECT count(*) AS n FROM "CreditPurchaseRecord" WHERE "creditCardId"=$1`, [
-						context.cardId,
-					])
+					await client.query(
+						`SELECT count(*) AS n FROM "CreditPurchaseRecord" WHERE "creditCardId"=$1`,
+						[context.cardId],
+					)
 				).rows[0].n,
 			),
 		).toBe(before);
@@ -412,8 +435,11 @@ describe("normalized refund transactions", () => {
 		expect(Number(imported[0].amount)).toBe(15);
 		expect(imported[0].time).toStartWith("14:30");
 		expect(
-			(await client.query(`SELECT "status" FROM "CreditCardImport" WHERE "id"='normalized-test-import'`))
-				.rows[0].status,
+			(
+				await client.query(
+					`SELECT "status" FROM "CreditCardImport" WHERE "id"='normalized-test-import'`,
+				)
+			).rows[0].status,
 		).toBe("APPROVED");
 		expect(
 			(
@@ -426,9 +452,8 @@ describe("normalized refund transactions", () => {
 		// A legacy pending batch must collapse before pagination, and approval cancels only its installments.
 		const { withImportedAnticipation } = await import("@zaimu/finance/imported-anticipation");
 		const { creditBookEntries } = await import("@zaimu/finance/credit-book");
-		const { mutateCreditBook, newBookPurchase, readCreditBook } = await import(
-			"../application/normalized-credit-book"
-		);
+		const { mutateCreditBook, newBookPurchase, readCreditBook } =
+			await import("../application/normalized-credit-book");
 		const canceledPurchase = await mutateCreditBook(context.userId, context.cardId, b =>
 			newBookPurchase(b, {
 				description: "AMAZON BR SAO PAULO",
@@ -476,7 +501,9 @@ describe("normalized refund transactions", () => {
 		const offsetRefund = afterOffset.refunds.find(r => r.externalId === "offset-credit")!;
 		expect(offsetRefund.canceledInstallmentNumbers).toEqual([2, 3]);
 		expect(offsetRefund.amountCents).toBe(10000);
-		const offsetRows = creditBookEntries(afterOffset).filter(row => row.purchaseId === canceledPurchase.id);
+		const offsetRows = creditBookEntries(afterOffset).filter(
+			row => row.purchaseId === canceledPurchase.id,
+		);
 		expect(offsetRows.filter(row => row.isReimbursed).map(row => row.currentInstallment)).toEqual([2, 3]);
 		expect(offsetRows.find(row => row.id === offsetRefund.id)?.installmentAmount).toBe(-0);
 
@@ -486,9 +513,8 @@ describe("normalized refund transactions", () => {
 	}, 30000);
 
 	test("future split persistence, matched debts, normalized dashboard forecasts and cumulative rewards", async () => {
-		const { mutateCreditBook, newBookPurchase, readCreditBook } = await import(
-			"../application/normalized-credit-book"
-		);
+		const { mutateCreditBook, newBookPurchase, readCreditBook } =
+			await import("../application/normalized-credit-book");
 		const { withStatementPayments } = await import("../application/statement-payments");
 		const { createDebtEvent, linkPurchaseToDebt } = await import("~/modules/debts/application");
 		await client.query(
@@ -543,9 +569,8 @@ describe("normalized refund transactions", () => {
 				{ ...context, purchaseId: rewardId },
 				{ amount: 1, creditDate: `2024-08-${20 + i}` },
 			);
-		const { getFinancialAccountBalances } = await import(
-			"~/modules/accounts/application/get-financial-account-balances"
-		);
+		const { getFinancialAccountBalances } =
+			await import("~/modules/accounts/application/get-financial-account-balances");
 		expect(
 			(await getFinancialAccountBalances(["normalized-test-rewards"])).get("normalized-test-rewards"),
 		).toBe(0);
@@ -611,7 +636,9 @@ describe("normalized refund transactions", () => {
 			`CREATE TRIGGER reject_large_import BEFORE UPDATE ON "CreditCardImport" FOR EACH ROW EXECUTE FUNCTION reject_large_import()`,
 		);
 		try {
-			await expect(approveItems(context.userId, importId)).rejects.toThrow("forced bulk approval failure");
+			await expect(approveItems(context.userId, importId)).rejects.toThrow(
+				"forced bulk approval failure",
+			);
 			expect(
 				(
 					await client.query(
@@ -621,9 +648,10 @@ describe("normalized refund transactions", () => {
 			).toHaveLength(0);
 			expect(
 				(
-					await client.query(`SELECT "id" FROM "CreditCardImportItem" WHERE "creditCardImportId"=$1`, [
-						importId,
-					])
+					await client.query(
+						`SELECT "id" FROM "CreditCardImportItem" WHERE "creditCardImportId"=$1`,
+						[importId],
+					)
 				).rows,
 			).toHaveLength(125);
 		} finally {
@@ -656,13 +684,69 @@ describe("normalized refund transactions", () => {
 		).toBe("APPROVED");
 	}, 30_000);
 
+	test("month-end import assigns the unconfirmed final installment to November and repairs stale links", async () => {
+		const { materializeImportedPurchase } =
+			await import("../../credit-card-imports/application/materialize-imported-purchase");
+		const card = {
+			cashbackAccountId: null,
+			cashbackRate: null,
+			cashbackYieldPeriod: null,
+			cashbackYieldReferencePercentage: null,
+			cashbackYieldReferenceRate: null,
+			dueDay: 5,
+			id: context.cardId,
+			statementDay: 31,
+			userId: context.userId,
+		};
+		const input = {
+			currentInstallment: 11,
+			description: "AMAZONMKTPLC*DUOFFICEB",
+			dueDate: new Date("2026-10-05"),
+			existingRootId: null,
+			externalId: "month-end-installment-11",
+			installmentAmount: 83.65,
+			installments: 12,
+			purchaseDate: new Date("2025-10-31"),
+			statementDate: new Date("2026-09-30"),
+			storeName: null,
+			tagIds: [],
+			time: null,
+			totalAmount: 1003.8,
+		};
+		const id = await materializeImportedPurchase(card, input);
+		const rows = async () =>
+			(
+				await client.query(
+					`SELECT i."id", i."number", i."hasImportedAmount", s."dueDate"::text AS "dueDate"
+			 FROM "CreditInstallmentRecord" i JOIN "CreditCardStatement" s ON s."id"=i."statementId"
+			 WHERE i."purchaseId"=$1 AND i."number">=11 ORDER BY i."number"`,
+					[id],
+				)
+			).rows;
+		const created = await rows();
+		expect(
+			created.map(({ number, dueDate, hasImportedAmount }) => ({ dueDate, hasImportedAmount, number })),
+		).toEqual([
+			{ dueDate: "2026-10-05", hasImportedAmount: true, number: 11 },
+			{ dueDate: "2026-11-05", hasImportedAmount: false, number: 12 },
+		]);
+		// Reproduce a legacy occurrence left on October despite its November plan.
+		await client.query(
+			`UPDATE "CreditInstallmentRecord" SET "statementId"=(
+			SELECT "statementId" FROM "CreditInstallmentRecord" WHERE "purchaseId"=$1 AND "number"=11
+		) WHERE "purchaseId"=$1 AND "number"=12`,
+			[id],
+		);
+		expect(await materializeImportedPurchase(card, input)).toBe(id);
+		expect(await rows()).toEqual(created);
+		await client.query(`DELETE FROM "CreditPurchaseRecord" WHERE "id"=$1`, [id]);
+	}, 30_000);
+
 	test("reconciled imports persist every external identity and reuse the same purchase", async () => {
-		const { materializeImportedPurchase } = await import(
-			"../../credit-card-imports/application/materialize-imported-purchase"
-		);
-		const { rememberImportIdentity } = await import(
-			"../../credit-card-imports/application/import-identities"
-		);
+		const { materializeImportedPurchase } =
+			await import("../../credit-card-imports/application/materialize-imported-purchase");
+		const { rememberImportIdentity } =
+			await import("../../credit-card-imports/application/import-identities");
 		const { queryRaw, withRawTransaction } = await import("~/shared/infra/sql");
 		const card = {
 			cashbackAccountId: null,
@@ -739,7 +823,9 @@ describe("normalized refund transactions", () => {
 			{ amount: 18.75, hasImportedAmount: true, number: 2 },
 		]);
 		await expect(
-			withRawTransaction(query => rememberImportIdentity(query, first.externalId, "normalized-test-second")),
+			withRawTransaction(query =>
+				rememberImportIdentity(query, first.externalId, "normalized-test-second"),
+			),
 		).rejects.toThrow("Identificador importado já vinculado a outra compra");
 		await expect(
 			withRawTransaction(async query => {
@@ -794,7 +880,8 @@ describe("normalized refund transactions", () => {
 
 		test("anticipation choices exclude original purchases after the operation date", async () => {
 			const { queryRaw, withRawTransaction } = await import("~/shared/infra/sql");
-			const { getPotentialDuplicates } = await import("../../credit-card-imports/application/import-service");
+			const { getPotentialDuplicates } =
+				await import("../../credit-card-imports/application/import-service");
 			await expect(
 				withRawTransaction(async () => {
 					const f = await fixture(queryRaw);
@@ -814,7 +901,9 @@ describe("normalized refund transactions", () => {
 						storeName: null,
 						totalAmount: 300,
 					};
-					expect((await getPotentialDuplicates(f.cardId, [item], f.importId)).has(item.id)).toBe(false);
+					expect((await getPotentialDuplicates(f.cardId, [item], f.importId)).has(item.id)).toBe(
+						false,
+					);
 					const matches = await getPotentialDuplicates(
 						f.cardId,
 						[{ ...item, purchaseDate: "2024-08-01" }],
@@ -834,10 +923,10 @@ describe("normalized refund transactions", () => {
 		for (const mode of ["link", "reconstruct", "pending"] as const) {
 			test(`saving ${mode} keeps financial state unchanged; explicit approval applies once`, async () => {
 				const { withRawTransaction, queryRaw } = await import("~/shared/infra/sql");
-				const { saveRefundReview } = await import("../../credit-card-imports/application/refund-review");
-				const { approveItems, getImportReturn } = await import(
-					"../../credit-card-imports/application/import-service"
-				);
+				const { saveRefundReview } =
+					await import("../../credit-card-imports/application/refund-review");
+				const { approveItems, getImportReturn } =
+					await import("../../credit-card-imports/application/import-service");
 				await expect(
 					withRawTransaction(async () => {
 						const f = await fixture(queryRaw);
@@ -862,15 +951,17 @@ describe("normalized refund transactions", () => {
 							`SELECT "id", "totalAmount" FROM "CreditPurchaseRecord" WHERE "creditCardId"=$1`,
 							[f.cardId],
 						);
-						await queryRaw(`UPDATE "CreditCardImportItem" SET "purchaseDate"='2024-07-31' WHERE "id"=$1`, [
-							f.itemId,
-						]);
-						await expect(saveRefundReview(context.userId, f.importId, f.itemId, draft)).rejects.toThrow(
-							"posterior ao reembolso",
+						await queryRaw(
+							`UPDATE "CreditCardImportItem" SET "purchaseDate"='2024-07-31' WHERE "id"=$1`,
+							[f.itemId],
 						);
-						await queryRaw(`UPDATE "CreditCardImportItem" SET "purchaseDate"='2024-09-04' WHERE "id"=$1`, [
-							f.itemId,
-						]);
+						await expect(
+							saveRefundReview(context.userId, f.importId, f.itemId, draft),
+						).rejects.toThrow("posterior ao reembolso");
+						await queryRaw(
+							`UPDATE "CreditCardImportItem" SET "purchaseDate"='2024-09-04' WHERE "id"=$1`,
+							[f.itemId],
+						);
 						await saveRefundReview(context.userId, f.importId, f.itemId, draft);
 						expect(
 							await queryRaw(
@@ -885,18 +976,22 @@ describe("normalized refund transactions", () => {
 							),
 						).toEqual([]);
 						expect(
-							(await getImportReturn(context.userId, f.importId)).items.find(item => item.id === f.itemId)
-								?.refundReview,
+							(await getImportReturn(context.userId, f.importId)).items.find(
+								item => item.id === f.itemId,
+							)?.refundReview,
 						).toMatchObject(draft);
 						expect(
 							(
-								await queryRaw<{ status: string }>(`SELECT "status" FROM "CreditCardImport" WHERE "id"=$1`, [
-									f.importId,
-								])
+								await queryRaw<{ status: string }>(
+									`SELECT "status" FROM "CreditCardImport" WHERE "id"=$1`,
+									[f.importId],
+								)
 							)[0].status,
 						).toBe("PENDING");
 						if (mode === "pending") await approveItems(context.userId, f.importId, sourceId);
-						expect(await approveItems(context.userId, f.importId, f.itemId)).toMatchObject({ created: 1 });
+						expect(await approveItems(context.userId, f.importId, f.itemId)).toMatchObject({
+							created: 1,
+						});
 						expect(
 							await queryRaw(
 								`SELECT * FROM "CreditRefundRecord" WHERE "purchaseId" IN (SELECT "id" FROM "CreditPurchaseRecord" WHERE "creditCardId"=$1)`,
@@ -917,7 +1012,9 @@ describe("normalized refund transactions", () => {
 			await expect(
 				withRawTransaction(async () => {
 					const f = await fixture(queryRaw);
-					await saveRefundReview(context.userId, f.importId, f.itemId, { purchaseId: f.purchaseId });
+					await saveRefundReview(context.userId, f.importId, f.itemId, {
+						purchaseId: f.purchaseId,
+					});
 					await queryRaw(`DELETE FROM "CreditPurchaseRecord" WHERE "id"=$1`, [f.purchaseId]);
 					const validId = `valid-${f.itemId}`;
 					const unreviewedId = `unreviewed-${f.itemId}`;
@@ -956,12 +1053,17 @@ describe("normalized refund transactions", () => {
 			await expect(
 				withRawTransaction(async () => {
 					const f = await fixture(queryRaw);
-					await expect(saveRefundReview(context.userId, f.importId, f.itemId, {})).rejects.toThrow("Vincule");
+					await expect(saveRefundReview(context.userId, f.importId, f.itemId, {})).rejects.toThrow(
+						"Vincule",
+					);
 					await expect(approveItems(context.userId, f.importId, f.itemId)).rejects.toThrow("Salve");
-					await saveRefundReview(context.userId, f.importId, f.itemId, { purchaseId: f.purchaseId });
-					await queryRaw(`UPDATE "CreditCardImportItem" SET "installmentAmount"=-301 WHERE "id"=$1`, [
-						f.itemId,
-					]);
+					await saveRefundReview(context.userId, f.importId, f.itemId, {
+						purchaseId: f.purchaseId,
+					});
+					await queryRaw(
+						`UPDATE "CreditCardImportItem" SET "installmentAmount"=-301 WHERE "id"=$1`,
+						[f.itemId],
+					);
 					await expect(approveItems(context.userId, f.importId, f.itemId)).rejects.toThrow();
 					expect(
 						await queryRaw(`SELECT "id" FROM "CreditCardImportItem" WHERE "id"=$1`, [f.itemId]),
