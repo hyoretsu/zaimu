@@ -20,33 +20,39 @@ export function ImportedPurchaseTaxRow({
 }) {
 	const [name, setName] = useDebouncedInput(tax.name, name => onChange({ ...tax, name }));
 	return (
-		<div className="flex min-w-0 items-end gap-2">
-			<FormFieldRow className="flex-1 grid-cols-2 has-[[data-slot=money-field]]:grid-cols-2">
-				<FormField
-					id={`import-tax-name-${index}`}
-					label="Imposto"
-					maxLength={100}
-					name={`import-tax-name-${index}`}
-					onChange={event => setName(event.currentTarget.value)}
-					placeholder="Ex: IOF"
-					required
-					type="text"
-					value={name}
-				/>
-				<MoneyField
-					currencyCode={currencyCode}
-					id={`import-tax-amount-${index}`}
-					label="Valor"
-					onValueChange={amount => onChange({ ...tax, amount: Number(amount), name })}
-					placeholder="R$ 1,85"
-					rawValueName={`import-tax-raw-${index}`}
-					required
-					value={String(tax.amount)}
-				/>
-			</FormFieldRow>
-			<Button aria-label="Remover imposto" onClick={onRemove} size="icon" variant="outline">
-				<LuTrash2 />
-			</Button>
-		</div>
+		<FormFieldRow className="grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-x-2 has-[[data-slot=money-field]]:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+			<FormField
+				id={`import-tax-name-${index}`}
+				label="Imposto"
+				maxLength={100}
+				name={`import-tax-name-${index}`}
+				onChange={event => setName(event.currentTarget.value)}
+				placeholder="Ex: IOF"
+				required
+				type="text"
+				value={name}
+			/>
+			<MoneyField
+				currencyCode={currencyCode}
+				id={`import-tax-amount-${index}`}
+				label="Valor"
+				onValueChange={amount => onChange({ ...tax, amount: Number(amount), name })}
+				placeholder="R$ 1,85"
+				rawValueName={`import-tax-raw-${index}`}
+				required
+				value={String(tax.amount)}
+			/>
+			<div>
+				<Button
+					aria-label="Remover imposto"
+					className="row-start-2"
+					onClick={onRemove}
+					size="icon"
+					variant="outline"
+				>
+					<LuTrash2 />
+				</Button>
+			</div>
+		</FormFieldRow>
 	);
 }
