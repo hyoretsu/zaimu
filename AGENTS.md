@@ -87,7 +87,3 @@ Not repeated elsewhere:
 
 - `bun run lint` (see `eslint.config.mjs`) fails on: `React.` namespace/`import * as React`, `<input type="number|checkbox|date|datetime-local|month|week">`, native `<select>`, `alert`/`confirm`, `t.Intersect`.
 - Edits to generated files (`frontend/src/lib/api/generated/`, `backend/generated/`, `frontend/src-tauri/gen/`, `packages/sql/out/`, `*.gen.ts`) are blocked before they happen by `scripts/agent-hooks/block-generated-edits.ts`, wired for Claude Code in `.claude/settings.json` and for Codex in `.codex/hooks.json`. Regenerate instead (`backend-endpoint-sdk` skill, frontend build). Keep both configs pointing at the same script.
-
-## Style
-
-Caveman mode: terse, technical substance exact, no filler or pleasantries; fragments fine. Code, commits and PRs stay normal. Off on "stop caveman" / "normal mode".
