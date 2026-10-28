@@ -1,15 +1,12 @@
 # Agent Guidelines
 
-> Single source of truth for every coding agent (Codex, Claude Code, others). `CLAUDE.md` only imports this file. Package rules live in `frontend/AGENTS.md` and `backend/AGENTS.md`; repeatable procedures live in skills under `.agents/skills/` (symlinked into `.claude/skills/`); hooks share one script in `scripts/agent-hooks/` wired per agent. Add new agent configuration to these shared locations, never to an agent-specific one.
+> Single source of truth for every coding agent (Codex, Claude Code, others). `CLAUDE.md` only imports this file. Rules specific to a package or app live in that directory's own `AGENTS.md`; repeatable procedures live in skills under `.agents/skills/` (symlinked into `.claude/skills/`); hooks share one script in `scripts/agent-hooks/` wired per agent. Add new agent configuration to these shared locations, never to an agent-specific one.
 
 ## Read first
 
-Agents are normally started from the repository root, where nested `AGENTS.md` files are not guaranteed to load. Read them explicitly:
-
 - [`docs/business-rules.md`](docs/business-rules.md): product/domain rules.
 - [`docs/engineering-rules.md`](docs/engineering-rules.md): Zaimu stack, shared components and infrastructure invariants. Read before implementation or review.
-- [`frontend/AGENTS.md`](frontend/AGENTS.md): read before reading or editing anything under `frontend/`.
-- [`backend/AGENTS.md`](backend/AGENTS.md): read before reading or editing anything under `backend/`.
+- **Nested `AGENTS.md` files.** Agents are normally started from the repository root, where nested files are not guaranteed to load. Before reading or editing anything in a directory, read every `AGENTS.md` between the repository root and that directory that you have not read yet, whatever the directory is called. List them with `git ls-files '*AGENTS.md'`. Their rules add to this file and win on conflicts inside their directory.
 - Keep this file for workflow and cross-package rules. Do not copy domain examples or nonexistent paths from another project; instructions must name real scripts, hooks, paths and components.
 
 ## Skills
@@ -62,7 +59,7 @@ Run type-check and build for affected packages before a PR or merge. Local valid
 
 ## Structure and naming
 
-**File naming follows responsibilities.** Components, classes, use cases and DTO schemas use PascalCase: `AuthTabs.tsx`, `LoginForm.tsx`, `FormField.tsx`. Utilities, hooks and configs use kebab-case. Preserve established module directories such as `useCases`, `infra`, `dtos` and their index barrels. Avoid unrelated renames.
+**File naming follows responsibilities.** Components, classes, use cases and DTO schemas use PascalCase: `AuthTabs.tsx`, `LoginForm.tsx`, `FormField.tsx`. Utilities, hooks and configs use kebab-case. Preserve established directory structures and their index barrels. Avoid unrelated renames.
 
 ## Tests
 

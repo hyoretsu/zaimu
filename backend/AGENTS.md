@@ -2,6 +2,10 @@
 
 Bun + Elysia + TypeBox API (`src/main.ts`, `src/worker.ts`). Modules live in `src/modules/<module>/{application,domain,infra,tests}`. Shared rules live in the root [`AGENTS.md`](../AGENTS.md); Zaimu backend invariants (Redis/RabbitMQ namespaces, batching, migrations) live in [`docs/engineering-rules.md`](../docs/engineering-rules.md). Use the `backend-endpoint-sdk` skill when adding or changing an endpoint.
 
+## Structure
+
+Preserve established module directories such as `useCases`, `infra`, `dtos` and their index barrels. Current modules use `application/`, `domain/`, `infra/` and `tests/`; follow the layout of the module you are changing.
+
 ## DTOs
 
 DTOs are TypeBox schemas, never TypeScript interfaces; derive the type with `typeof XxxDTO.static`:
