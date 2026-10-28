@@ -27,7 +27,7 @@ export function LoanPlannerResults({
 	const selected = ranked.find(row => row.id === selectedId) ?? ranked[0] ?? baseline;
 	const best = ranked.find(row => row.status === "SAFE" && row.advantage > 0);
 	return (
-		<div className="space-y-4">
+		<div className="min-w-0 space-y-4">
 			<p className="font-semibold" role="status">
 				{best
 					? "Melhor cenário encontrado respeita reserva e supera manter dinheiro rendendo."

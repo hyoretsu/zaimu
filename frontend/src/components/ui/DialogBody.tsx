@@ -6,13 +6,13 @@ export function DialogBody({ className, children, ...props }: ComponentProps<typ
 	return (
 		<ScrollArea
 			className={cn(
-				"-m-1 grid min-h-0 min-w-0 shrink grid-rows-[minmax(0,1fr)] [&>[data-slot=scroll-area-viewport]]:h-auto [&>[data-slot=scroll-area-viewport]]:min-h-0",
+				"-m-1 grid min-h-0 min-w-0 shrink grid-rows-[minmax(0,1fr)] [&>[data-slot=scroll-area-viewport]]:h-auto [&>[data-slot=scroll-area-viewport]]:min-h-0 [&>[data-slot=scroll-area-viewport]>div]:!block",
 				className,
 			)}
 			data-slot="dialog-body"
 			{...props}
 		>
-			<div className="grid min-w-0 gap-5 p-1">{children}</div>
+			<div className="grid min-w-0 grid-cols-1 gap-5 p-1">{children}</div>
 		</ScrollArea>
 	);
 }

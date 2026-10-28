@@ -175,7 +175,7 @@ export function LoanPlannerContent({ snapshot }: { snapshot: LoanPlannerSnapshot
 		}
 	};
 	return (
-		<div className="space-y-4">
+		<div className="min-w-0 space-y-4">
 			<p>
 				Horizonte: {input.from} até {loanPlannerHorizon(input)}. Hipóteses dos indicadores: últimos
 				cinco anos, janela fixa.

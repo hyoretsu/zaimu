@@ -10,7 +10,7 @@ Connected and guest use the same domain calculations. No remote mutations.
 ## Progress
 
 - [x] Shared indicators and contract/simulation engine with regression tests.
-      Core commit: 87a8f339. Thirteen targeted tests and hook type checks passed.
+      Shared engine committed with this delivery. Thirteen targeted tests and hook type checks passed.
 - [x] Persistence, versioned operations, API contracts and guest synchronization.
 - [x] Institution association, forms, schedules and payment/simulation UI.
 - [x] Generated SDK, integration tests, build and hook-validated commits.
@@ -32,3 +32,5 @@ Verification update: full finance suite (316 tests before final summary regressi
 Final verification: 325 finance unit tests passed; two disposable loan integration tests passed; three complete migration-chain checks passed. Desktop/mobile creation, worker ranking, save/reopen/recalculation and creditor-confirmed execution passed in headed Chromium with external requests blocked. Frontend/backend production bundles and normal hook type/coverage gates passed. Added arrears, future-grace, liquidity, recurring-stop and selected-due-date regressions. Migration remains unapplied to shared databases. Only integration into original branch and worktree removal remain.
 
 Presentation verification: daily account balance inspection, known commitments beyond selected horizon and explicit terminal assets/debt breakdown added. Finance suite now includes 326 regression tests.
+
+Mobile containment update: shared dialog viewport content uses block sizing so nested horizontal tables cannot widen forms; loan disclosures/results preserve minimum widths. Dialog history/scroll regression tests and production build passed.
