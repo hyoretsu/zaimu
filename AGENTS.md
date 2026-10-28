@@ -37,8 +37,10 @@ Cloud/remote sessions have an ephemeral container and cannot rely on the user pu
 After every completed task, commit with the local Git user as author and committer and a `Co-authored-by:` trailer for the agent:
 
 ```
-git -c commit.gpgsign=false commit -m "..." -m "Co-authored-by: <Agent> <agent-email>"
+git commit -m "..." -m "Co-authored-by: <Agent> <agent-email>"
 ```
+
+On the user's machine add `-c commit.gpgsign=false`. Cloud sessions keep their preconfigured signing: disabling it makes GitHub show the commits as Unverified.
 
 - Claude → `Co-authored-by: Claude <noreply@anthropic.com>`; Codex → `Co-authored-by: Codex <noreply@openai.com>`.
 - Never set the agent as author/committer; do not pass `--author` or override `user.name`/`user.email`.
