@@ -1,3 +1,4 @@
+import { indicatorDailyRate } from "./financial-indicators";
 import { type YieldLot, YieldTaxLedger } from "./yield-tax";
 export interface LegacyYieldCalendar {
 	throughDate: string;
@@ -12,7 +13,7 @@ export function legacyCalendarHoliday(
 	return snapshot && day < snapshot.throughDate ? snapshot.holidays.includes(day) : undefined;
 }
 export type YieldPeriod = "MONTHLY" | "YEARLY";
-export type ReferenceRateType = "CDI" | "SELIC";
+export type ReferenceRateType = "CDI" | "SELIC" | "IPCA" | "TR";
 
 export interface YieldAccount {
 	historicalYieldSettings?: HistoricalYieldSettings | null;
@@ -149,7 +150,7 @@ function referenceDailyRate(
 	referenceRates: Partial<Record<ReferenceRateType, number>>,
 ) {
 	if (!type || !percentage || referenceRates[type] === undefined) return null;
-	return (referenceRates[type]! / 100) * (percentage / 100);
+	return indicatorDailyRate(type, referenceRates[type]!, percentage);
 }
 
 function getYieldSettings(account: YieldAccount, day: string) {

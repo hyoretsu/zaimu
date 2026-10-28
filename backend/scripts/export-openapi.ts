@@ -54,6 +54,14 @@ function jsonSchema(value: unknown): void {
 	for (const child of Object.values(value)) jsonSchema(child);
 }
 jsonSchema(schema);
+// Named return contracts can also be referenced by coercing request schemas (for example sync).
+// Export their decoded JSON form consistently with inline route responses.
+for (const [name, contract] of Object.entries(schema.components?.schemas ?? {})) {
+	if (name.endsWith("Return") && schema.components?.schemas)
+		schema.components.schemas[name] = serializedResponse(
+			contract as Parameters<typeof serializedResponse>[0],
+		);
+}
 const identifiers = new Set<string>();
 for (const [path, methods] of Object.entries(schema.paths)) {
 	for (const method of ["get", "post", "put", "patch", "delete", "head", "options"] as const) {

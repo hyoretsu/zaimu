@@ -9,9 +9,10 @@ Connected and guest use the same domain calculations. No remote mutations.
 
 ## Progress
 
-- [ ] Shared indicators and contract/simulation engine with regression tests.
-- [ ] Persistence, versioned operations, API contracts and guest synchronization.
-- [ ] Institution association, forms, schedules and payment/simulation UI.
+- [x] Shared indicators and contract/simulation engine with regression tests.
+      Core commit: e9e798ab. Thirteen targeted tests and hook type checks passed.
+- [x] Persistence, versioned operations, API contracts and guest synchronization.
+- [x] Institution association, forms, schedules and payment/simulation UI.
 - [ ] Generated SDK, integration tests, build and hook-validated commits.
 - [ ] Integrate into original main and remove task worktree.
 
@@ -21,3 +22,5 @@ PRICE/SAC/manual, zero rates, rounding, short months, negative indices, grace,
 partial payments, reversals, stale simulations, institution ownership, account
 movements and preservation of historical payments. Update business rules with
 implemented behavior. Prepare migrations locally; never deploy them remotely.
+
+Execution update: API/guest aggregate persistence, operation review, institution forms, worker search and dated saved scenarios implemented. Targeted domain/storage regression tests pass. Final hook, disposable integration, browser verification and integration remain in progress.

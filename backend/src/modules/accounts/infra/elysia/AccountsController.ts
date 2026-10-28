@@ -65,7 +65,7 @@ const FinancialAccountType = t.Union([
 
 const CashbackYieldPeriod = t.Union([t.Literal("MONTHLY"), t.Literal("YEARLY")]);
 const FinancialAccountYieldPeriod = t.Union([t.Literal("MONTHLY"), t.Literal("YEARLY")]);
-const ReferenceRateType = t.Union([t.Literal("CDI"), t.Literal("SELIC")]);
+const ReferenceRateType = t.Union([t.Literal("CDI"), t.Literal("SELIC"), t.Literal("IPCA"), t.Literal("TR")]);
 const RewardsAccountKind = t.Union([t.Literal("POINTS"), t.Literal("CASHBACK")]);
 const RewardsAccountCreate = t.Object({
 	conversionAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
@@ -181,7 +181,9 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 					...new Set(rows.flatMap(row => (row.institution ? [row.institution.id] : []))),
 				]);
 				const accounts = rows.map(row => row.account);
-				const profileContext = await getInstitutionProfileContext(accounts.map(account => account.id));
+				const profileContext = await getInstitutionProfileContext(
+					accounts.map(account => account.id),
+				);
 				const balances = await getFinancialAccountBalances(
 					accounts.map(account => account.id),
 					new Date(),
@@ -241,7 +243,10 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 							"updatedAt",
 						)
 							.where((fields, functions) =>
-								functions.and(functions.eq(fields.id, params.id), functions.eq(fields.userId, userId)),
+								functions.and(
+									functions.eq(fields.id, params.id),
+									functions.eq(fields.userId, userId),
+								),
 							)
 							.limit(1)
 							.build(),
@@ -258,7 +263,9 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 						? {
 								...institution,
 								yieldPolicies:
-									(await getFinancialInstitutionYieldPolicies([institution.id])).get(institution.id) ?? [],
+									(await getFinancialInstitutionYieldPolicies([institution.id])).get(
+										institution.id,
+									) ?? [],
 							}
 						: null;
 
@@ -304,7 +311,9 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 								"createdAt",
 								"updatedAt",
 							)
-								.where((fields, functions) => functions.eq(fields.financialAccountId, account.id))
+								.where((fields, functions) =>
+									functions.eq(fields.financialAccountId, account.id),
+								)
 								.limit(1)
 								.build(),
 						);
@@ -330,7 +339,9 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 								"createdAt",
 								"updatedAt",
 							)
-								.where((fields, functions) => functions.eq(fields.financialAccountId, account.id))
+								.where((fields, functions) =>
+									functions.eq(fields.financialAccountId, account.id),
+								)
 								.limit(1)
 								.build(),
 						);
@@ -343,7 +354,12 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 						};
 					}
 
-					return { ...account, balance, institution: institutionWithYieldPolicies, yieldRateHistories };
+					return {
+						...account,
+						balance,
+						institution: institutionWithYieldPolicies,
+						yieldRateHistories,
+					};
 				},
 			);
 			set.headers.etag = cached.etag;
@@ -372,11 +388,17 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 				if (type === "CREDIT_CARD" && !body.creditCard)
 					throw new HttpException("Informe os dados do cartão de crédito", 400);
 				if (type !== "CREDIT_CARD" && body.creditCard)
-					throw new HttpException("Dados de cartão exigem uma conta do tipo cartão de crédito", 400);
+					throw new HttpException(
+						"Dados de cartão exigem uma conta do tipo cartão de crédito",
+						400,
+					);
 				if (type === "REWARDS" && !body.rewardsAccount)
 					throw new HttpException("Informe os dados da conta de pontos ou cashback", 400);
 				if (type !== "REWARDS" && body.rewardsAccount)
-					throw new HttpException("Dados de recompensas exigem uma conta do tipo pontos/cashback", 400);
+					throw new HttpException(
+						"Dados de recompensas exigem uma conta do tipo pontos/cashback",
+						400,
+					);
 				assertFinancialAccountYieldSettings({
 					type,
 					yieldFixedRate: body.yieldFixedRate,
@@ -406,7 +428,9 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 					(institution as { operatingCountryCodes?: string[] } | null)?.operatingCountryCodes ?? [];
 				const countryCode =
 					body.countryCode ??
-					(operatingCountries.length === 1 ? operatingCountries[0] : countryPreference?.preferredCountry);
+					(operatingCountries.length === 1
+						? operatingCountries[0]
+						: countryPreference?.preferredCountry);
 				if (!countryCode || !supportedCountryCodes.includes(countryCode))
 					throw new HttpException("Selecione o país da conta", 400);
 				await ensureAccountCoverage(currency, countryCode);
@@ -463,7 +487,9 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 							userId,
 							yieldPeriod: body.yieldPeriod ?? undefined,
 							...(body.yieldFixedRate !== undefined &&
-								body.yieldFixedRate !== null && { yieldFixedRate: String(body.yieldFixedRate) }),
+								body.yieldFixedRate !== null && {
+									yieldFixedRate: String(body.yieldFixedRate),
+								}),
 							...(body.yieldReferencePercentage !== undefined &&
 								body.yieldReferencePercentage !== null && {
 									yieldReferencePercentage: String(body.yieldReferencePercentage),
@@ -538,7 +564,9 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 									}),
 								...(body.creditCard.cashbackYieldReferenceRate !== undefined &&
 									body.creditCard.cashbackYieldReferenceRate !== null && {
-										cashbackYieldReferenceRate: String(body.creditCard.cashbackYieldReferenceRate),
+										cashbackYieldReferenceRate: String(
+											body.creditCard.cashbackYieldReferenceRate,
+										),
 									}),
 								creditLimit: String(body.creditCard.creditLimit),
 								dueDay: body.creditCard.dueDay,
@@ -610,7 +638,12 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 							.build(),
 					);
 					if (!rewardsAccount) throw new HttpException("RewardsAccount not created", 500);
-					return { ...account, balance: Number(rewardsAccount.initialBalance), institution, rewardsAccount };
+					return {
+						...account,
+						balance: Number(rewardsAccount.initialBalance),
+						institution,
+						rewardsAccount,
+					};
 				}
 
 				return { ...account, balance: 0, institution };
@@ -632,7 +665,12 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 				yieldReferencePercentage: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
 				yieldReferenceType: t.Optional(t.Nullable(ReferenceRateType)),
 				yieldTaxIds: t.Optional(
-					t.Nullable(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20, uniqueItems: true })),
+					t.Nullable(
+						t.Array(t.String({ maxLength: 36, minLength: 1 }), {
+							maxItems: 20,
+							uniqueItems: true,
+						}),
+					),
 				),
 				yieldTaxRate: t.Optional(t.Nullable(t.Number({ maximum: 100, minimum: 0 }))),
 			}),
@@ -715,22 +753,31 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 						);
 				}
 				if (body.creditCard && existing.type !== "CREDIT_CARD")
-					throw new HttpException("Dados de cartão exigem uma conta do tipo cartão de crédito", 400);
+					throw new HttpException(
+						"Dados de cartão exigem uma conta do tipo cartão de crédito",
+						400,
+					);
 				if (body.rewardsAccount && existing.type !== "REWARDS")
-					throw new HttpException("Dados de recompensas exigem uma conta do tipo pontos/cashback", 400);
+					throw new HttpException(
+						"Dados de recompensas exigem uma conta do tipo pontos/cashback",
+						400,
+					);
 				assertFinancialAccountYieldSettings({
 					type: existing.type,
-					yieldFixedRate: body.yieldFixedRate === undefined ? existing.yieldFixedRate : body.yieldFixedRate,
+					yieldFixedRate:
+						body.yieldFixedRate === undefined ? existing.yieldFixedRate : body.yieldFixedRate,
 					yieldPeriod: body.yieldPeriod === undefined ? existing.yieldPeriod : body.yieldPeriod,
 					yieldReferencePercentage:
 						body.yieldReferencePercentage === undefined
 							? existing.yieldReferencePercentage
 							: body.yieldReferencePercentage,
 					yieldReferenceType:
-						body.yieldReferenceType === undefined ? existing.yieldReferenceType : body.yieldReferenceType,
-					yieldTaxIds: (body.yieldTaxIds === undefined ? existing.yieldTaxIds : body.yieldTaxIds) as
-						| string[]
-						| null,
+						body.yieldReferenceType === undefined
+							? existing.yieldReferenceType
+							: body.yieldReferenceType,
+					yieldTaxIds: (body.yieldTaxIds === undefined
+						? existing.yieldTaxIds
+						: body.yieldTaxIds) as string[] | null,
 					yieldTaxRate: body.yieldTaxRate === undefined ? existing.yieldTaxRate : body.yieldTaxRate,
 				});
 				const institution =
@@ -768,7 +815,8 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 							.limit(1)
 							.build(),
 					);
-					if (duplicate) throw new HttpException("Já existe uma conta desse tipo com este nome", 409);
+					if (duplicate)
+						throw new HttpException("Já existe uma conta desse tipo com este nome", 409);
 				}
 
 				if (body.currency && existing.type === "CREDIT_CARD")
@@ -837,7 +885,8 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 					await scheduleFinancialAccountYieldRate({
 						effectiveDate: body.recalculateCurrentDay ? new Date() : tomorrow(),
 						financialAccountId: account.id,
-						yieldFixedRate: body.yieldFixedRate === undefined ? existing.yieldFixedRate : body.yieldFixedRate,
+						yieldFixedRate:
+							body.yieldFixedRate === undefined ? existing.yieldFixedRate : body.yieldFixedRate,
 						yieldPeriod: (body.yieldPeriod === undefined
 							? existing.yieldPeriod
 							: body.yieldPeriod) as null | YieldPeriod,
@@ -847,12 +896,13 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 								: body.yieldReferencePercentage,
 						yieldReferenceType:
 							body.yieldReferenceType === undefined
-								? (existing.yieldReferenceType as "CDI" | "SELIC" | null)
+								? (existing.yieldReferenceType as "CDI" | "SELIC" | "IPCA" | "TR" | null)
 								: body.yieldReferenceType,
-						yieldTaxIds: (body.yieldTaxIds === undefined ? existing.yieldTaxIds : body.yieldTaxIds) as
-							| string[]
-							| null,
-						yieldTaxRate: body.yieldTaxRate === undefined ? existing.yieldTaxRate : body.yieldTaxRate,
+						yieldTaxIds: (body.yieldTaxIds === undefined
+							? existing.yieldTaxIds
+							: body.yieldTaxIds) as string[] | null,
+						yieldTaxRate:
+							body.yieldTaxRate === undefined ? existing.yieldTaxRate : body.yieldTaxRate,
 					});
 					if (body.recalculateCurrentDay)
 						await executeStatement(
@@ -895,7 +945,8 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 					const calendarChanged =
 						(body.creditCard.statementDay !== undefined &&
 							body.creditCard.statementDay !== existingCreditCard.statementDay) ||
-						(body.creditCard.dueDay !== undefined && body.creditCard.dueDay !== existingCreditCard.dueDay);
+						(body.creditCard.dueDay !== undefined &&
+							body.creditCard.dueDay !== existingCreditCard.dueDay);
 					if (calendarChanged && !body.creditCard.calendarTransition)
 						throw new HttpException("Informe a vigência e as datas da transição", 400);
 					if (
@@ -950,7 +1001,9 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 								cashbackYieldPeriod: body.creditCard.cashbackYieldPeriod,
 							}),
 							...(body.creditCard.cashbackYieldReferenceRate !== undefined && {
-								cashbackYieldReferenceRate: nullableNumeric<7, 4>(body.creditCard.cashbackYieldReferenceRate),
+								cashbackYieldReferenceRate: nullableNumeric<7, 4>(
+									body.creditCard.cashbackYieldReferenceRate,
+								),
 							}),
 							...(body.creditCard.cashbackYieldReferencePercentage !== undefined && {
 								cashbackYieldReferencePercentage: nullableNumeric<7, 4>(
@@ -1048,17 +1101,25 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 							body.rewardsAccount.conversionPoints === undefined
 								? existingRewardsAccount.conversionPoints
 								: body.rewardsAccount.conversionPoints,
-						initialBalance: body.rewardsAccount.initialBalance ?? existingRewardsAccount.initialBalance,
+						initialBalance:
+							body.rewardsAccount.initialBalance ?? existingRewardsAccount.initialBalance,
 						kind: body.rewardsAccount.kind ?? existingRewardsAccount.kind,
 					};
-					assertRewardsAccountDetails(nextRewardsAccount, body.currency?.toUpperCase() ?? existing.currency);
+					assertRewardsAccountDetails(
+						nextRewardsAccount,
+						body.currency?.toUpperCase() ?? existing.currency,
+					);
 					const rewardsAccount = await queryFirst(
 						db.sql.public.RewardsAccount.update({
 							...(body.rewardsAccount.conversionAmount !== undefined && {
-								conversionAmount: nullableNumeric<12, 2>(body.rewardsAccount.conversionAmount),
+								conversionAmount: nullableNumeric<12, 2>(
+									body.rewardsAccount.conversionAmount,
+								),
 							}),
 							...(body.rewardsAccount.conversionPoints !== undefined && {
-								conversionPoints: nullableNumeric<18, 4>(body.rewardsAccount.conversionPoints),
+								conversionPoints: nullableNumeric<18, 4>(
+									body.rewardsAccount.conversionPoints,
+								),
 							}),
 							...(body.rewardsAccount.initialBalance !== undefined && {
 								initialBalance: String(body.rewardsAccount.initialBalance),
@@ -1103,7 +1164,9 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 						cashbackAccountId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 						cashbackRate: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
 						cashbackYieldPeriod: t.Optional(t.Nullable(CashbackYieldPeriod)),
-						cashbackYieldReferencePercentage: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
+						cashbackYieldReferencePercentage: t.Optional(
+							t.Nullable(t.Number({ exclusiveMinimum: 0 })),
+						),
 						cashbackYieldReferenceRate: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
 						creditLimit: t.Optional(t.Number({ minimum: 0 })),
 						dueDay: t.Optional(t.Number({ maximum: 31, minimum: 1 })),
@@ -1136,7 +1199,12 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 				yieldReferencePercentage: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
 				yieldReferenceType: t.Optional(t.Nullable(ReferenceRateType)),
 				yieldTaxIds: t.Optional(
-					t.Nullable(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20, uniqueItems: true })),
+					t.Nullable(
+						t.Array(t.String({ maxLength: 36, minLength: 1 }), {
+							maxItems: 20,
+							uniqueItems: true,
+						}),
+					),
 				),
 				yieldTaxRate: t.Optional(t.Nullable(t.Number({ maximum: 100, minimum: 0 }))),
 			}),

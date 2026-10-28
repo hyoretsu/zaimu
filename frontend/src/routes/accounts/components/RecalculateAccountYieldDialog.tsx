@@ -22,7 +22,6 @@ import { getFinancialInstitutionsByIdProfiles } from "@/lib/api";
 import { useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { useAuthStore } from "@/stores/auth";
-
 import { AccountYieldFields } from "./AccountYieldFields";
 
 export function RecalculateAccountYieldDialog({ account }: { account: FinancialAccount }) {
@@ -33,7 +32,7 @@ export function RecalculateAccountYieldDialog({ account }: { account: FinancialA
 		fixedRate: "",
 		period: "YEARLY" as "MONTHLY" | "YEARLY",
 		referencePercentage: "100",
-		referenceType: "" as "" | "CDI" | "SELIC",
+		referenceType: "" as "" | "CDI" | "SELIC" | "IPCA" | "TR",
 		taxIds: [] as string[],
 		taxRate: "",
 	});
@@ -42,7 +41,9 @@ export function RecalculateAccountYieldDialog({ account }: { account: FinancialA
 			? {
 					yieldFixedRate: custom.fixedRate ? Number(custom.fixedRate) : null,
 					yieldPeriod: custom.fixedRate ? custom.period : null,
-					yieldReferencePercentage: custom.referenceType ? Number(custom.referencePercentage) : null,
+					yieldReferencePercentage: custom.referenceType
+						? Number(custom.referencePercentage)
+						: null,
 					yieldReferenceType: custom.referenceType || null,
 					yieldTaxIds: custom.taxIds,
 					yieldTaxRate: custom.taxRate ? Number(custom.taxRate) : null,
@@ -53,7 +54,8 @@ export function RecalculateAccountYieldDialog({ account }: { account: FinancialA
 		(Boolean(custom.fixedRate) || Boolean(custom.referenceType)) &&
 		(!custom.fixedRate || (Number.isFinite(Number(custom.fixedRate)) && Number(custom.fixedRate) > 0)) &&
 		(!custom.referenceType ||
-			(Number.isFinite(Number(custom.referencePercentage)) && Number(custom.referencePercentage) > 0)) &&
+			(Number.isFinite(Number(custom.referencePercentage)) &&
+				Number(custom.referencePercentage) > 0)) &&
 		(!custom.taxRate ||
 			(Number.isFinite(Number(custom.taxRate)) &&
 				Number(custom.taxRate) >= 0 &&
@@ -138,8 +140,9 @@ export function RecalculateAccountYieldDialog({ account }: { account: FinancialA
 				<DialogHeader>
 					<DialogTitle>Recalcular rendimento histórico</DialogTitle>
 					<DialogDescription>
-						Escolha a regra aplicada ao histórico desta conta até hoje. A configuração dos próximos dias será
-						mantida. Lançamentos manuais, rendimentos ajustados e exclusões serão preservados.
+						Escolha a regra aplicada ao histórico desta conta até hoje. A configuração dos
+						próximos dias será mantida. Lançamentos manuais, rendimentos ajustados e exclusões
+						serão preservados.
 					</DialogDescription>
 				</DialogHeader>
 				<DialogBody>
@@ -167,7 +170,9 @@ export function RecalculateAccountYieldDialog({ account }: { account: FinancialA
 								enabled={custom.enabled}
 								fixedRate={custom.fixedRate}
 								onEnabledChange={enabled => setCustom(previous => ({ ...previous, enabled }))}
-								onFixedRateChange={fixedRate => setCustom(previous => ({ ...previous, fixedRate }))}
+								onFixedRateChange={fixedRate =>
+									setCustom(previous => ({ ...previous, fixedRate }))
+								}
 								onPeriodChange={period => setCustom(previous => ({ ...previous, period }))}
 								onReferencePercentageChange={referencePercentage =>
 									setCustom(previous => ({ ...previous, referencePercentage }))
@@ -186,7 +191,7 @@ export function RecalculateAccountYieldDialog({ account }: { account: FinancialA
 						</fieldset>
 					)}
 					{loading && (
-						<p className="mt-3 text-muted-foreground text-sm" role="status">
+						<p className="text-muted-foreground mt-3 text-sm" role="status">
 							Carregando outras regras...
 						</p>
 					)}
@@ -201,18 +206,18 @@ export function RecalculateAccountYieldDialog({ account }: { account: FinancialA
 						</div>
 					)}
 					{guest && (
-						<p className="mt-3 text-muted-foreground text-sm">
-							No modo visitante, recálculo disponível para taxas fixas. CDI e SELIC exigem histórico oficial
-							de uma conta conectada.
+						<p className="text-muted-foreground mt-3 text-sm">
+							No modo visitante, recálculo disponível para taxas fixas. CDI e SELIC exigem
+							histórico oficial de uma conta conectada.
 						</p>
 					)}
 					{mutation.isPending && (
-						<p className="mt-3 text-muted-foreground text-sm" role="status">
+						<p className="text-muted-foreground mt-3 text-sm" role="status">
 							Recalculando rendimento histórico...
 						</p>
 					)}
 					{mutation.isError && (
-						<p className="mt-3 text-destructive text-sm" role="alert">
+						<p className="text-destructive mt-3 text-sm" role="alert">
 							{mutation.error.message}
 						</p>
 					)}
@@ -224,7 +229,9 @@ export function RecalculateAccountYieldDialog({ account }: { account: FinancialA
 					<Button
 						disabled={
 							mutation.isPending ||
-							(selected === "custom" ? !customValid : selected !== "current" && (loading || profiles.isError))
+							(selected === "custom"
+								? !customValid
+								: selected !== "current" && (loading || profiles.isError))
 						}
 						onClick={() => mutation.mutate()}
 					>

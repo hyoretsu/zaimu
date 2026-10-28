@@ -95,6 +95,7 @@ const NotificationReturn = t.Object(
 );
 
 export const InstitutionsController = new Elysia({ prefix: "/financial-institutions" })
+	.get("/catalog", () => listInstitutionCatalog(""), { response: t.Array(InstitutionReturn) })
 	.get("/", async ({ request }) => listInstitutionCatalog(await requireUserId(request)), {
 		detail: { operationId: "getFinancialInstitutions", tags: ["Institutions"] },
 		response: t.Array(InstitutionReturn),
@@ -234,7 +235,14 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 						yieldFixedRate: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
 						yieldReferencePercentage: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
 						yieldReferenceType: t.Optional(
-							t.Nullable(t.Union([t.Literal("CDI"), t.Literal("SELIC")])),
+							t.Nullable(
+								t.Union([
+									t.Literal("CDI"),
+									t.Literal("SELIC"),
+									t.Literal("IPCA"),
+									t.Literal("TR"),
+								]),
+							),
 						),
 					}),
 					{ maxItems: 20 },

@@ -1,6 +1,7 @@
 import { t } from "elysia";
 import { RefundImportReviewDTO } from "~/modules/credit-card-imports/infra/elysia/CreditCardImportsDTO";
 import { CardCalendarPeriodDTO } from "~/modules/creditCards/infra/elysia/CardCalendarPeriodDTO";
+import { LoanContractBookDTO } from "~/modules/loans/infra/elysia/LoanContractDTO";
 
 export const OpenFinanceBindingReturn = t.Object({
 	connectionId: t.String(),
@@ -72,7 +73,9 @@ export const FinancialInstitutionYieldRuleReturn = t.Object({
 	upToBalance: t.Optional(t.Union([t.Null(), t.Number()])),
 	yieldFixedRate: t.Optional(t.Union([t.Null(), t.Number()])),
 	yieldReferencePercentage: t.Optional(t.Union([t.Null(), t.Number()])),
-	yieldReferenceType: t.Optional(t.Union([t.Null(), t.Literal("CDI"), t.Literal("SELIC")])),
+	yieldReferenceType: t.Optional(
+		t.Union([t.Null(), t.Literal("CDI"), t.Literal("SELIC"), t.Literal("IPCA"), t.Literal("TR")]),
+	),
 });
 export type FinancialInstitutionYieldRuleReturn = typeof FinancialInstitutionYieldRuleReturn.static;
 
@@ -170,7 +173,9 @@ export const FinancialAccountYieldRateHistoryReturn = t.Object({
 	yieldFixedRate: t.Optional(t.Union([t.Null(), t.Number()])),
 	yieldPeriod: t.Optional(t.Union([t.Null(), t.Literal("MONTHLY"), t.Literal("YEARLY")])),
 	yieldReferencePercentage: t.Optional(t.Union([t.Null(), t.Number()])),
-	yieldReferenceType: t.Optional(t.Union([t.Null(), t.Literal("CDI"), t.Literal("SELIC")])),
+	yieldReferenceType: t.Optional(
+		t.Union([t.Null(), t.Literal("CDI"), t.Literal("SELIC"), t.Literal("IPCA"), t.Literal("TR")]),
+	),
 	yieldTaxIds: t.Optional(t.Union([t.Null(), t.Array(t.String())])),
 	yieldTaxRate: t.Optional(t.Union([t.Null(), t.Number()])),
 });
@@ -328,7 +333,9 @@ export const FinancialAccountReturn = t.Object({
 	yieldPeriod: t.Optional(t.Union([t.Null(), t.Literal("MONTHLY"), t.Literal("YEARLY")])),
 	yieldRateHistories: t.Optional(t.Array(FinancialAccountYieldRateHistoryReturn)),
 	yieldReferencePercentage: t.Optional(t.Union([t.Null(), t.Number()])),
-	yieldReferenceType: t.Optional(t.Union([t.Null(), t.Literal("CDI"), t.Literal("SELIC")])),
+	yieldReferenceType: t.Optional(
+		t.Union([t.Null(), t.Literal("CDI"), t.Literal("SELIC"), t.Literal("IPCA"), t.Literal("TR")]),
+	),
 	yieldTaxIds: t.Optional(t.Union([t.Null(), t.Array(t.String())])),
 	yieldTaxRate: t.Optional(t.Union([t.Null(), t.Number()])),
 });
@@ -1085,12 +1092,14 @@ export type DebtInvitationReturn = typeof DebtInvitationReturn.static;
 
 export const LoanReturn = t.Object({
 	amortization: t.Union([t.Literal("PRICE"), t.Literal("SAC")]),
+	contractBook: t.Optional(t.Nullable(LoanContractBookDTO)),
 	currency: t.Optional(t.String()),
 	description: t.Optional(t.Nullable(t.String())),
 	dueDay: t.Number(),
 	firstDueDate: t.String(),
 	id: t.String(),
 	installmentAmount: t.Number(),
+	institutionId: t.Optional(t.Nullable(t.String())),
 	interestRate: t.Number(),
 	lender: t.String(),
 	needsPaymentReview: t.Optional(t.Boolean()),
@@ -1098,6 +1107,7 @@ export const LoanReturn = t.Object({
 	principalAmount: t.Number(),
 	remainingInstallments: t.Optional(t.Number()),
 	remainingPrincipal: t.Optional(t.Number()),
+	remainingTotal: t.Optional(t.Number()),
 	startDate: t.String(),
 	totalInstallments: t.Number(),
 	totalPaid: t.Optional(t.Number()),

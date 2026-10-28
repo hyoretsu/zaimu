@@ -1983,3 +1983,76 @@ export async function localFinancialDate(owner: StorageOwner, now = new Date()):
 		),
 	);
 }
+
+/** Atomically replace compatibility projections and aggregates, including both ends of refinancing. */
+export async function commitLocalLoanContracts(
+	changes: { loan: Loan; payments: LoanPayment[]; expectedRevision: number | null }[],
+	ownerKey: StorageOwner,
+	disbursement?: Transaction,
+) {
+	const owner = requireOwner(ownerKey);
+	const database = await initLocalDb();
+	const tx = database.transaction(
+		["scoped-loans", "scoped-loanPayments", "scoped-transactions"],
+		"readwrite",
+	);
+	const done = transactionDone(tx);
+	try {
+		const store = tx.objectStore("scoped-loans");
+		const paymentStore = tx.objectStore("scoped-loanPayments");
+		for (const change of changes) {
+			const existing = await requestResult<LocalData<Loan> | undefined>(
+				store.get(scopedId(owner, change.loan.id)),
+			);
+			if (
+				change.expectedRevision === null
+					? !!existing
+					: !existing || (existing.data.contractBook?.revision ?? 1) !== change.expectedRevision
+			)
+				throw new Error("Contrato mudou; revise operação");
+		}
+		const existingLoans = await requestResult<LocalData<Loan>[]>(store.index("ownerKey").getAll(owner));
+		const merged = new Map(existingLoans.map(row => [row.data.id, row.data]));
+		for (const change of changes) merged.set(change.loan.id, change.loan);
+		const linked = new Set<string>();
+		for (const loan of merged.values()) {
+			const id = loan.contractBook?.disbursementTransactionId;
+			if (id) {
+				if (linked.has(id)) throw new Error("Crédito já associado a outro empréstimo");
+				linked.add(id);
+			}
+		}
+		const now = Date.now();
+		const wrap = (data: Loan | LoanPayment | Transaction) => ({
+			data,
+			localId: data.id,
+			modifiedAt: now,
+			ownerKey: owner,
+			scopedId: scopedId(owner, data.id),
+		});
+		const old = await requestResult<LocalData<LoanPayment>[]>(
+			paymentStore.index("ownerKey").getAll(owner),
+		);
+		const ids = new Set(changes.map(row => row.loan.id));
+		for (const row of old) if (ids.has(row.data.loanId)) paymentStore.delete(row.scopedId);
+		for (const change of changes) {
+			store.put(wrap(change.loan));
+			for (const row of change.payments) paymentStore.put(wrap(row));
+		}
+		if (disbursement) tx.objectStore("scoped-transactions").put(wrap(disbursement));
+		await done;
+	} catch (error) {
+		tx.abort();
+		await done.catch(() => undefined);
+		throw error;
+	}
+}
+export function commitLocalLoanContract(
+	loan: Loan,
+	payments: LoanPayment[],
+	expectedRevision: number | null,
+	ownerKey: StorageOwner,
+	disbursement?: Transaction,
+) {
+	return commitLocalLoanContracts([{ expectedRevision, loan, payments }], ownerKey, disbursement);
+}

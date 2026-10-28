@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { shiftMonths } from "./financial-indicators";
 import {
 	activeLoanVersion,
 	applyLoanSimulation,
@@ -111,4 +112,46 @@ describe("versioned loan contract", () => {
 		);
 		expect(activeLoanVersion(book).schedule[0]!.interest).toBeLessThan(0);
 	});
+});
+
+test("serialized quote key order does not invalidate an equivalent preview", () => {
+	const book = createLoanContract("loan", "bank", terms());
+	const quote = simulateLoanOperation(book, { count: 1, date: "2026-01-10", mode: "BACK" });
+	const reorder = (value: unknown): unknown =>
+		Array.isArray(value)
+			? value.map(reorder)
+			: value && typeof value === "object"
+				? Object.fromEntries(
+						Object.entries(value)
+							.reverse()
+							.map(([key, item]) => [key, reorder(item)]),
+					)
+				: value;
+	const roundTrip = reorder(quote) as typeof quote;
+	expect(applyLoanSimulation(book, roundTrip, payment).revision).toBe(2);
+});
+
+test("partial late payments charge the fine once and accrue only the new interval", () => {
+	const book = createLoanContract(
+		"loan",
+		"bank",
+		terms({
+			lateFinePercent: 2,
+			lateMonthlyPercent: 3,
+			principalAmount: 1000,
+			rate: { fixedRate: 0 },
+			totalInstallments: 1,
+		}),
+	);
+	const date = shiftMonths(activeLoanVersion(book).schedule[0]!.dueDate, 1);
+	const first = recordLoanPayment(book, { ...payment, amount: 550, date, expectedRevision: 1 });
+	const next = recordLoanPayment(first, {
+		...payment,
+		amount: 100,
+		date,
+		expectedRevision: first.revision,
+		id: "second-partial",
+	});
+	expect(first.receipts.at(-1)!.lateCharges).toBeGreaterThan(0);
+	expect(next.receipts.at(-1)!.lateCharges).toBe(0);
 });

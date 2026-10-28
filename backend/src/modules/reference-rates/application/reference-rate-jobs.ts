@@ -129,12 +129,16 @@ export async function enqueueUserYieldRecalculations(userId: string, fromDate: D
 	for (const account of accounts) await enqueueAccountYieldRecalculation(account.id, fromDate, cause);
 }
 export async function ensureReferenceRateBootstrapJobs(now = new Date()) {
-	return requestHistoryCollection("INTEREST", ["CDI", "SELIC"], dateKey(schedulerClock(now).date));
+	return requestHistoryCollection(
+		"INTEREST",
+		["CDI", "SELIC", "IPCA", "TR"],
+		dateKey(schedulerClock(now).date),
+	);
 }
 export async function enqueueDailyReferenceRateFetches(now = new Date()) {
 	const clock = schedulerClock(now);
 	const reference = clock.hour >= 6 ? clock.date : subDays(clock.date, 1);
-	return requestHistoryCollection("INTEREST", ["CDI", "SELIC"], dateKey(reference));
+	return requestHistoryCollection("INTEREST", ["CDI", "SELIC", "IPCA", "TR"], dateKey(reference));
 }
 async function processFetchJob(
 	job: ClaimedJob,
@@ -176,7 +180,9 @@ async function processFetchJob(
 			const changed = await query<{ date: string }>(referenceRateBatchInsertSql(preserveExisting), [
 				referenceType,
 				JSON.stringify(
-					rates.slice(offset, offset + 1000).map(rate => ({ date: dateKey(rate.date), value: rate.value })),
+					rates
+						.slice(offset, offset + 1000)
+						.map(rate => ({ date: dateKey(rate.date), value: rate.value })),
 				),
 			]);
 			for (const row of changed) {
@@ -197,7 +203,11 @@ async function processFetchJob(
 			);
 			await Promise.all(
 				accounts.map(account =>
-					enqueueAccountYieldRecalculation(account.id, earliestChangedDate, `fetch:${job.deduplicationKey}`),
+					enqueueAccountYieldRecalculation(
+						account.id,
+						earliestChangedDate,
+						`fetch:${job.deduplicationKey}`,
+					),
 				),
 			);
 		}
@@ -324,7 +334,12 @@ async function processAccountRecalculation(job: ClaimedJob) {
 		if (!settings) continue;
 		const types = requiredReferenceTypes(settings);
 		const rows = await queryRaw<{ type: ReferenceRateType; value: string }>(
-			`SELECT "type", "value" FROM "public"."ReferenceRate" WHERE "date" = $1 AND "type" = ANY($2::"ReferenceRateType"[])`,
+			`SELECT DISTINCT ON ("type") "type", "value" FROM "public"."ReferenceRate"
+ WHERE "type" = ANY($2::"ReferenceRateType"[]) AND (
+ ("type" IN ('CDI','SELIC') AND "date"=$1::date)
+ OR ("type"='TR' AND "date"=date_trunc('month',$1::date)::date)
+ OR ("type"='IPCA' AND "date"=(date_trunc('month',$1::date)-interval '2 months')::date))
+ ORDER BY "type","date" DESC`,
 			[key, types],
 		);
 		if (rows.length !== types.length) {
@@ -359,7 +374,7 @@ async function processAccountRecalculation(job: ClaimedJob) {
 				.netYield(calculateGrossYield(ledger.eligibleBalance(key), settings, rates), settings, key)
 				.toFixed(4),
 		);
-		if (amount <= 0) continue;
+		if (amount === 0) continue;
 		input.yields.push({
 			amount,
 			date: day,
@@ -421,7 +436,13 @@ export async function handleReferenceRateFetchCommand(
 	options: { preserveExisting?: boolean } = {},
 ) {
 	const rawReferenceType = requiredString(event.payload, "referenceType");
-	if (rawReferenceType !== "CDI" && rawReferenceType !== "SELIC") throw new Error("Tipo de taxa inválido");
+	if (
+		rawReferenceType !== "CDI" &&
+		rawReferenceType !== "SELIC" &&
+		rawReferenceType !== "IPCA" &&
+		rawReferenceType !== "TR"
+	)
+		throw new Error("Tipo de taxa inválido");
 	const referenceType: ReferenceRateType = rawReferenceType;
 	const job = {
 		deduplicationKey: requiredString(event.payload, "deduplicationKey"),

@@ -32,9 +32,9 @@ export function InstitutionYieldRuleRow({
 		onChange({ ...rule, referencePercentage: value }),
 	);
 	return (
-		<div className="grid gap-4 rounded-2xl border bg-muted/25 p-4">
+		<div className="bg-muted/25 grid gap-4 rounded-2xl border p-4">
 			<div className="flex items-center justify-between gap-3">
-				<p className="font-semibold text-sm">Faixa {index + 1}</p>
+				<p className="text-sm font-semibold">Faixa {index + 1}</p>
 				<Tooltip>
 					<TooltipTrigger asChild>
 						<Button
@@ -54,8 +54,8 @@ export function InstitutionYieldRuleRow({
 			<div className="grid gap-4 sm:grid-cols-2">
 				{isLast ? (
 					<div className="grid gap-2">
-						<p className="font-medium text-sm">Limite da faixa</p>
-						<div className="flex h-10 items-center rounded-md border bg-muted px-3 text-muted-foreground text-sm">
+						<p className="text-sm font-medium">Limite da faixa</p>
+						<div className="bg-muted text-muted-foreground flex h-10 items-center rounded-md border px-3 text-sm">
 							Saldo excedente, sem limite
 						</div>
 					</div>
@@ -79,12 +79,16 @@ export function InstitutionYieldRuleRow({
 				/>
 				<CustomSelect
 					label="Taxa de referência"
-					onValueChange={value => onChange({ ...rule, referenceType: value as "CDI" | "SELIC" })}
+					onValueChange={value =>
+						onChange({ ...rule, referenceType: value as "CDI" | "SELIC" | "IPCA" | "TR" })
+					}
 					options={[
 						{ label: "CDI", value: "CDI" },
 						{ label: "Taxa Selic", value: "SELIC" },
+						{ label: "IPCA", value: "IPCA" },
+						{ label: "TR", value: "TR" },
 					]}
-					placeholder="Selecione CDI ou Selic"
+					placeholder="Selecione indicador"
 					value={rule.referenceType}
 				/>
 				<NumericField

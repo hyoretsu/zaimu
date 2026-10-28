@@ -4,3 +4,5 @@ export * from "./generated/api";
 export * from "./open-finance";
 
 export * from "./account-transfers";
+
+export * from "./loan-contracts";

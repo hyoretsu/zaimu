@@ -35,7 +35,8 @@
 		"./financial-indicators": "./src/financial-indicators.ts",
 		"./loan-contract": "./src/loan-contract.ts",
 		"./loan-planner": "./src/loan-planner.ts",
-		"./loan-legacy": "./src/loan-legacy.ts"
+		"./loan-legacy": "./src/loan-legacy.ts",
+		"./loan-planner-runtime": "./src/loan-planner-runtime.ts"
 	},
 	"scripts": {
 		"check-types": "bun check",

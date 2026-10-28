@@ -43,8 +43,8 @@ export async function projectedYieldContext(
 		]),
 	);
 	const averages: Partial<Record<ReferenceRateType, number>> = {};
-	for (const type of ["CDI", "SELIC"] as const)
-		if (rateResult.averages[type] !== null) averages[type] = rateResult.averages[type];
+	for (const type of ["CDI", "SELIC", "IPCA", "TR"] as const)
+		if (rateResult.averages[type] != null) averages[type] = rateResult.averages[type];
 	const unavailableAccountIds = new Set<string>();
 	for (const account of accounts) {
 		const hasYield =

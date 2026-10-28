@@ -1,6 +1,6 @@
 import { format } from "date-fns";
-export type ReferenceRateType = "CDI" | "SELIC";
-const seriesCodes: Record<ReferenceRateType, number> = { CDI: 12, SELIC: 11 };
+export type ReferenceRateType = "CDI" | "SELIC" | "IPCA" | "TR";
+const seriesCodes: Record<ReferenceRateType, number> = { CDI: 12, IPCA: 433, SELIC: 11, TR: 226 };
 const responseDatePattern = /^(\d{2})\/(\d{2})\/(\d{4})$/;
 export interface ReferenceRateValue {
 	date: Date;
@@ -13,7 +13,10 @@ export function buildBcbReferenceRateUrl(type: ReferenceRateType, startDate: Dat
 	url.searchParams.set("dataFinal", format(endDate, "dd/MM/yyyy"));
 	return url;
 }
-export function parseBcbReferenceRateResponse(input: unknown): ReferenceRateValue[] {
+export function parseBcbReferenceRateResponse(
+	input: unknown,
+	type: ReferenceRateType = "CDI",
+): ReferenceRateValue[] {
 	if (!Array.isArray(input)) throw new Error("Resposta inválida do Banco Central");
 	return input.map((entry, index) => {
 		if (!entry || typeof entry !== "object") throw new Error(`Taxa inválida na posição ${index}`);
@@ -32,7 +35,7 @@ export function parseBcbReferenceRateResponse(input: unknown): ReferenceRateValu
 		)
 			throw new Error(`Data inválida recebida do Banco Central: ${data}`);
 		const value = Number(valor);
-		if (!Number.isFinite(value) || value < 0)
+		if (!Number.isFinite(value) || value <= -100 || (type !== "IPCA" && value < 0))
 			throw new Error(`Valor inválido recebido do Banco Central: ${valor}`);
 		return { date, value };
 	});
@@ -54,5 +57,5 @@ export async function fetchBcbReferenceRates(
 		error.retryAfter = response.headers.get("retry-after") ?? undefined;
 		throw error;
 	}
-	return parseBcbReferenceRateResponse(await response.json());
+	return parseBcbReferenceRateResponse(await response.json(), type);
 }

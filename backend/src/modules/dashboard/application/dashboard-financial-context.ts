@@ -201,6 +201,9 @@ export function dashboardFinancialContext(
 		balance: todayBalances.get(account.id) ?? 0,
 		yieldLots: loaded.projectedYields?.lots.get(account.id) ?? [],
 	}));
+	const plannerMovements = comparisonTransactions
+		.filter(row => dateKey(row.date) > todayKey)
+		.map(row => ({ ...row, date: dateKey(row.date) }));
 	const forecastDays =
 		money && !money.forecastAvailable
 			? []
@@ -306,7 +309,9 @@ export function dashboardFinancialContext(
 									),
 					}))
 			: comparisonTransactions,
+		forecastAccounts,
 		linkedTransactionDates,
 		monetaryAccounts,
+		plannerMovements,
 	};
 }

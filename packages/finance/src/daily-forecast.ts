@@ -82,6 +82,8 @@ export function dailyForecast(input: {
 	netYield?: (account: ForecastAccount, balance: number, date: string, ledger?: YieldTaxLedger) => number;
 	settleYield?: (account: ForecastAccount, amount: number, date: string, ledger: YieldTaxLedger) => void;
 	primaryAccountId?: null | string;
+	/** Planner mode: expenses debit only their stated account; no implicit asset sales. */
+	strictAccounts?: boolean;
 	through: string;
 }) {
 	const accounts = input.accounts.filter(account =>
@@ -139,7 +141,9 @@ export function dailyForecast(input: {
 				const origin = accounts.find(account => account.id === movement.originAccountId);
 				if (origin && destination && origin.id !== destination.id) {
 					const requestedDebit = consolidatedAmount / factor(nativeCurrency(origin), date);
-					const amount = Math.min(requestedDebit, Math.max(0, balances.get(origin.id) ?? 0));
+					const amount = input.strictAccounts
+						? requestedDebit
+						: Math.min(requestedDebit, Math.max(0, balances.get(origin.id) ?? 0));
 					const requestedCredit =
 						movement.destinationAmount ??
 						consolidatedAmount / factor(nativeCurrency(destination), date);
@@ -175,7 +179,7 @@ export function dailyForecast(input: {
 			}
 			expenses += consolidatedAmount;
 			recurringExpenses += consolidatedRecurring;
-			const order = accounts.toSorted((a, b) => {
+			const order = (input.strictAccounts ? (origin ? [origin] : []) : accounts).toSorted((a, b) => {
 				if (a.id === origin?.id) return -1;
 				if (b.id === origin?.id) return 1;
 				const group = (account: ForecastAccount) =>
@@ -196,7 +200,9 @@ export function dailyForecast(input: {
 			}
 			if (remaining) {
 				const deficitAccount =
-					origin && cash.some(account => account.id === origin.id) ? origin : primary;
+					origin && (input.strictAccounts || cash.some(account => account.id === origin.id))
+						? origin
+						: primary;
 				if (deficitAccount) {
 					ledgers
 						.get(deficitAccount.id)

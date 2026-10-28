@@ -378,6 +378,7 @@ namespace public {
     balanceAdjustments BalanceAdjustment[]
     financialAccountYieldHolidays FinancialAccountYieldHoliday[]
     financialInstitutions FinancialInstitution[]
+    loanScenarios LoanScenario[]
     loans             Loan[]
     recurrences       Recurrence[]
     creditCardImports CreditCardImport[]
@@ -394,6 +395,7 @@ namespace public {
   }
 
   model FinancialInstitution {
+    loans Loan[]
     creditCardRules Json?
     profiles FinancialInstitutionProfile[]
     userLinks UserFinancialInstitution[]
@@ -1296,6 +1298,10 @@ namespace public {
   }
 
   model Loan {
+    institutionId VarChar(36)?
+    institution FinancialInstitution? @relation(fields: [institutionId], references: [id], onDelete: Restrict, index: false)
+    contractBook Json?
+    @@index([institutionId], map: "Loan_institutionId_idx")
     currency VarChar(3) @default("BRL")
 
     id                VarChar(36)               @id(map: "Loan_pkey") @default(dbgenerated("cuid2()"))
@@ -1320,6 +1326,19 @@ namespace public {
     @@map("Loan")
   }
 
+  model LoanScenario {
+    id VarChar(36) @id @default(dbgenerated("cuid2()"))
+    userId VarChar(36)
+    name VarChar(150)
+    parameters Json
+    summary Json
+    createdAt Timestamp(3) @default(now())
+    updatedAt Timestamp(3) @default(now())
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade, index: false)
+    @@index([userId, updatedAt, id], map: "LoanScenario_userId_updatedAt_id_idx")
+    @@map("LoanScenario")
+  }
+
   model LoanHistory {
     id        VarChar(36)  @id(map: "LoanHistory_pkey") @default(dbgenerated("cuid2()"))
     loanId    VarChar(36)
@@ -1338,7 +1357,7 @@ namespace public {
     accountAmount Numeric(20, 6)?
     accountCurrency VarChar(3)?
 
-    id                 VarChar(36)           @id(map: "LoanPayment_pkey") @default(dbgenerated("cuid2()"))
+    id                 VarChar(100)           @id(map: "LoanPayment_pkey") @default(dbgenerated("cuid2()"))
     loanId             VarChar(36)
     financialAccountId VarChar(36)?
     installmentNumber  SmallInt
@@ -1759,6 +1778,8 @@ namespace public {
   native_enum ReferenceRateType {
     CDI = "CDI"
     SELIC = "SELIC"
+    IPCA = "IPCA"
+    TR = "TR"
   }
 
   native_enum FinancialAccountType {

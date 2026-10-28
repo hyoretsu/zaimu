@@ -170,7 +170,7 @@ export function CreateFinancialAccountDialog({
 		String(account?.yieldFixedRate ?? ""),
 		() => undefined,
 	);
-	const [yieldReferenceType, setYieldReferenceType] = useState<"" | "CDI" | "SELIC">(
+	const [yieldReferenceType, setYieldReferenceType] = useState<"" | "CDI" | "SELIC" | "IPCA" | "TR">(
 		isGuestMode ? "" : (account?.yieldReferenceType ?? ""),
 	);
 	const [yieldReferencePercentage, setYieldReferencePercentage] = useDebouncedInput(

@@ -56,7 +56,7 @@ const HistoryCollectionReturn = t.Object({
 });
 async function validateHistorySeries(kind: "CURRENCY" | "INTEREST" | undefined, series: string) {
 	if (!kind) throw new HttpException("Selecione o tipo da série", 400);
-	const supported = kind === "INTEREST" ? ["CDI", "SELIC"] : await supportedCurrencies();
+	const supported = kind === "INTEREST" ? ["CDI", "SELIC", "IPCA", "TR"] : await supportedCurrencies();
 	if (!supported.includes(series)) throw new HttpException("Série não suportada", 400);
 }
 
@@ -65,7 +65,9 @@ export const FinancialHistoryController = new Elysia({ prefix: "/financial-histo
 		"/coverage",
 		async ({ request, query }) => {
 			const userId = await requireUserId(request);
-			const [user] = await queryRaw<{ role: string }>(`SELECT "role" FROM "user" WHERE "id"=$1`, [userId]);
+			const [user] = await queryRaw<{ role: string }>(`SELECT "role" FROM "user" WHERE "id"=$1`, [
+				userId,
+			]);
 			return getFinancialCoverage(userId, user?.role === "ADMIN", query.startDate, query.endDate);
 		},
 		{

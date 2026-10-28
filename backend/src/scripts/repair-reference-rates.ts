@@ -58,19 +58,22 @@ async function main() {
 	const run = crypto.randomUUID();
 	let failures = 0;
 	for (const { startDate, endDate } of referenceRateBootstrapIntervals(new Date())) {
-		for (const type of ["CDI", "SELIC"] as const) {
+		for (const type of ["CDI", "SELIC", "IPCA", "TR"] as const) {
 			const start = format(startDate, "yyyy-MM-dd");
 			const end = format(endDate, "yyyy-MM-dd");
 			try {
 				const rates = await fetchBcbReferenceRates(type, startDate, endDate);
-				if (!rates.length) throw new Error("BCB retornou intervalo anual vazio; cobertura não será marcada");
+				if (!rates.length)
+					throw new Error("BCB retornou intervalo anual vazio; cobertura não será marcada");
 				if (
 					rates.some(rate => {
 						const date = format(rate.date, "yyyy-MM-dd");
 						return date < start || date > end;
 					})
 				)
-					throw new Error("BCB retornou taxa fora do intervalo solicitado; nenhuma gravação realizada");
+					throw new Error(
+						"BCB retornou taxa fora do intervalo solicitado; nenhuma gravação realizada",
+					);
 				const stored = await queryRaw<{ date: string; value: number }>(
 					`SELECT to_char("date",'YYYY-MM-DD') AS date, "value" FROM "ReferenceRate"
  WHERE "type"=$1 AND "date" BETWEEN $2::date AND $3::date`,
@@ -105,12 +108,16 @@ async function main() {
 				await withWorkerCacheWrite(
 					owners.map(row => row.userId),
 					namespacesForEvent(event),
-					() => handleReferenceRateFetchCommand(event, async () => rates, { preserveExisting: true }),
+					() =>
+						handleReferenceRateFetchCommand(event, async () => rates, { preserveExisting: true }),
 				);
 				console.log(`${type} ${start}: preenchimento e cobertura confirmados.`);
 			} catch (error) {
 				failures++;
-				console.error(`${type} ${start} - ${end}:`, error instanceof Error ? error.message : String(error));
+				console.error(
+					`${type} ${start} - ${end}:`,
+					error instanceof Error ? error.message : String(error),
+				);
 			}
 		}
 	}
@@ -120,7 +127,9 @@ async function main() {
 			`${failures} intervalos falharam. Reexecute após corrigir causa; preenchimento é idempotente.`,
 		);
 	if (!apply)
-		console.log("Simulação concluída. Use --apply para completar taxas e registrar cobertura verificada.");
+		console.log(
+			"Simulação concluída. Use --apply para completar taxas e registrar cobertura verificada.",
+		);
 }
 
 try {

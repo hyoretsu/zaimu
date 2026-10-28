@@ -29,7 +29,7 @@ export function LoanCard({
 						{isPaid ? <HiCheckCircle className="h-6 w-6" /> : <HiBanknotes className="h-6 w-6" />}
 					</div>
 					<div className="min-w-0 flex-1">
-						<p className="truncate font-semibold text-foreground">{loan.lender}</p>
+						<p className="text-foreground truncate font-semibold">{loan.lender}</p>
 						<p className="text-foreground-muted text-xs">
 							{loan.description || `${loan.interestRate * 100}% p.m.`}
 						</p>
@@ -38,7 +38,7 @@ export function LoanCard({
 				{onPayments && (
 					<button
 						aria-label="Ver parcelas e pagamentos"
-						className="cursor-pointer rounded-xl border border-primary-200 bg-primary-100 p-2.5 text-primary-600 transition-colors hover:bg-primary-200"
+						className="border-primary-200 bg-primary-100 text-primary-600 hover:bg-primary-200 cursor-pointer rounded-xl border p-2.5 transition-colors"
 						onClick={onPayments}
 					>
 						<LuListChecks className="h-5 w-5" />
@@ -52,12 +52,12 @@ export function LoanCard({
 					<span className="text-foreground-muted">
 						{paidInstallments} de {loan.totalInstallments} pagas
 					</span>
-					<span className="font-medium text-foreground">{Math.round(progress)}%</span>
+					<span className="text-foreground font-medium">{Math.round(progress)}%</span>
 				</div>
-				<div className="h-2 overflow-hidden rounded-full bg-primary-100">
+				<div className="bg-primary-100 h-2 overflow-hidden rounded-full">
 					<div
 						className={`h-full rounded-full transition-all duration-500 ${
-							isPaid ? "bg-success-500" : "bg-gradient-to-r from-accent-400 to-accent-300"
+							isPaid ? "bg-success-500" : "from-accent-400 to-accent-300 bg-gradient-to-r"
 						}`}
 						style={{ width: `${progress}%` }}
 					/>
@@ -65,33 +65,34 @@ export function LoanCard({
 			</div>
 
 			{/* Details */}
-			<div className="grid grid-cols-2 gap-3 border-primary-50 border-t pt-2">
+			<div className="border-primary-50 grid grid-cols-2 gap-3 border-t pt-2">
 				<div className="min-w-0">
-					<p className="mb-1 text-foreground-muted text-xs">Parcela</p>
-					<p className="truncate font-bold text-foreground">
+					<p className="text-foreground-muted mb-1 text-xs">Parcela</p>
+					<p className="text-foreground truncate font-bold">
 						{formatCurrency(loan.installmentAmount, loan.currency)}
 					</p>
 				</div>
 				<div className="min-w-0 text-right">
-					<p className="mb-1 text-foreground-muted text-xs">{isPaid ? "Total pago" : "Restante"}</p>
-					<p className={`truncate font-bold ${isPaid ? "text-success-600" : "text-danger-600"}`}>
+					<p className="text-foreground-muted mb-1 text-xs">{isPaid ? "Total pago" : "Restante"}</p>
+					<div className={`truncate font-bold ${isPaid ? "text-success-600" : "text-danger-600"}`}>
 						<PreferredMoneyAmount
 							values={[
 								{
 									amount: isPaid
 										? loan.totalPaid || loan.totalInstallments * loan.installmentAmount
-										: remainingInstallments * loan.installmentAmount,
+										: (loan.remainingTotal ??
+											remainingInstallments * loan.installmentAmount),
 									currency: loan.currency ?? "BRL",
 								},
 							]}
 						/>
-					</p>
+					</div>
 				</div>
 			</div>
 
 			{/* Dia do vencimento */}
 			{!isPaid && (
-				<div className="flex items-center gap-2 text-foreground-muted">
+				<div className="text-foreground-muted flex items-center gap-2">
 					<HiClock className="h-4 w-4" />
 					<span className="text-sm">Vencimento dia {loan.dueDay}</span>
 				</div>

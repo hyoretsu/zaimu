@@ -10,15 +10,21 @@ export async function getReferenceRateAverages(today = new Date()) {
 	const window = referenceRateWindow(today);
 	const startDate = format(window.startDate, "yyyy-MM-dd");
 	const endDate = format(window.endDate, "yyyy-MM-dd");
-	const rows = await queryRaw<{ type: "CDI" | "SELIC"; ready: boolean; average: string | null }>(
-		referenceRateAveragesSql,
-		[startDate, endDate],
-	);
-	const averages = { CDI: null as number | null, SELIC: null as number | null };
+	const rows = await queryRaw<{
+		type: "CDI" | "SELIC" | "IPCA" | "TR";
+		ready: boolean;
+		average: string | null;
+	}>(referenceRateAveragesSql, [startDate, endDate]);
+	const averages = {
+		CDI: null as number | null,
+		IPCA: null as number | null,
+		SELIC: null as number | null,
+		TR: null as number | null,
+	};
 	for (const row of rows) if (row.ready && row.average !== null) averages[row.type] = Number(row.average);
 	const [collection] = await queryRaw<{ id: string }>(
 		`SELECT "id" FROM "FinancialHistoryCollection" WHERE "deduplicationKey"=$1`,
-		[`INTEREST:CDI,SELIC:${startDate}:${endDate}`],
+		[`INTEREST:CDI,IPCA,SELIC,TR:${startDate}:${endDate}`],
 	);
 	const history = collection ? await getHistoryCollection(collection.id) : null;
 	return {

@@ -27,7 +27,7 @@ export async function scheduleFinancialAccountYieldRate({
 	yieldFixedRate?: null | number;
 	yieldPeriod?: null | YieldPeriod;
 	yieldReferencePercentage?: null | number;
-	yieldReferenceType?: "CDI" | "SELIC" | null;
+	yieldReferenceType?: "CDI" | "SELIC" | "IPCA" | "TR" | null;
 	yieldTaxIds?: string[] | null;
 	yieldTaxRate?: null | number;
 }) {

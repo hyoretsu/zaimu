@@ -1,7 +1,6 @@
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { NumericField } from "@/components/ui/NumericField";
-
 import { YieldTaxFields } from "./YieldTaxFields";
 
 export function AccountYieldFields({
@@ -33,13 +32,13 @@ export function AccountYieldFields({
 	onFixedRateChange: (rate: string) => void;
 	onPeriodChange: (period: "MONTHLY" | "YEARLY") => void;
 	onReferencePercentageChange: (percentage: string) => void;
-	onReferenceTypeChange: (rate: "" | "CDI" | "SELIC") => void;
+	onReferenceTypeChange: (rate: "" | "CDI" | "SELIC" | "IPCA" | "TR") => void;
 	onTaxRateChange: (rate: string) => void;
 	onTaxIdsChange: (type: string[]) => void;
 }) {
 	const hasReference = Boolean(referenceType);
 	return (
-		<div className="grid gap-4 rounded-2xl border bg-muted/35 p-4">
+		<div className="bg-muted/35 grid gap-4 rounded-2xl border p-4">
 			<CheckboxField
 				align="start"
 				checkboxProps={{
@@ -60,16 +59,20 @@ export function AccountYieldFields({
 					<p className="text-muted-foreground text-xs">
 						Preencha a taxa de referência, a taxa fixa ou ambas.
 					</p>
-					<div className="@container grid @md:grid-cols-2 gap-4">
+					<div className="@container grid gap-4 @md:grid-cols-2">
 						{allowReference && (
 							<CustomSelect
 								label="Taxa de referência"
-								onValueChange={value => onReferenceTypeChange(value as "CDI" | "SELIC")}
+								onValueChange={value =>
+									onReferenceTypeChange(value as "CDI" | "SELIC" | "IPCA" | "TR")
+								}
 								options={[
 									{ label: "CDI", value: "CDI" },
 									{ label: "Taxa Selic", value: "SELIC" },
+									{ label: "IPCA", value: "IPCA" },
+									{ label: "TR", value: "TR" },
 								]}
-								placeholder="Selecione CDI ou Selic"
+								placeholder="Selecione indicador"
 								value={referenceType}
 							/>
 						)}

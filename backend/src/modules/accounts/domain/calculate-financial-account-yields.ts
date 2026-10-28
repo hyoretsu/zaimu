@@ -1,13 +1,14 @@
+import { indicatorDailyRate } from "@zaimu/finance/financial-indicators";
 import {
 	getYieldSettings,
-	type LegacyYieldCalendar,
 	legacyCalendarHoliday,
+	type LegacyYieldCalendar,
 } from "@zaimu/finance/projected-yield";
 import { type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
 import { addDays, format, isWeekend, startOfDay } from "date-fns";
 
 export type YieldPeriod = "MONTHLY" | "YEARLY";
-export type ReferenceRateType = "CDI" | "SELIC";
+export type ReferenceRateType = "CDI" | "SELIC" | "IPCA" | "TR";
 
 export interface YieldAccount {
 	historicalYieldSettings?: import("@zaimu/finance/projected-yield").HistoricalYieldSettings | null;
@@ -170,7 +171,8 @@ export function calculateFinancialAccountYieldBalances({
 			continue;
 		const day = dateKey(credit.purchaseDate);
 		if (day > todayKey) continue;
-		const accountEvents = cashbackEvents.get(credit.cashbackAccountId) ?? new Map<string, CashbackCredit[]>();
+		const accountEvents =
+			cashbackEvents.get(credit.cashbackAccountId) ?? new Map<string, CashbackCredit[]>();
 		const entries = accountEvents.get(day) ?? [];
 		entries.push(credit);
 		accountEvents.set(day, entries);
@@ -202,8 +204,10 @@ export function calculateFinancialAccountYieldBalances({
 								? day =>
 										Boolean(
 											legacyCalendarHoliday(account, day) !== undefined ||
-												(account.countryCode &&
-													coveredCalendarYears.get(account.countryCode)?.has(Number(day.slice(0, 4)))),
+											(account.countryCode &&
+												coveredCalendarYears
+													.get(account.countryCode)
+													?.has(Number(day.slice(0, 4)))),
 										)
 								: undefined,
 						).toFixed(4),
@@ -222,7 +226,8 @@ export function effectiveYieldRate(settings: {
 	referenceRate?: null | number;
 }) {
 	return (
-		(settings.fixedRate ?? 0) + ((settings.referenceRate ?? 0) * (settings.referencePercentage ?? 0)) / 100
+		(settings.fixedRate ?? 0) +
+		((settings.referenceRate ?? 0) * (settings.referencePercentage ?? 0)) / 100
 	);
 }
 
@@ -237,7 +242,7 @@ function referenceDailyRate(
 	referenceRates: Partial<Record<ReferenceRateType, number>>,
 ) {
 	if (!type || !percentage || referenceRates[type] === undefined) return null;
-	return (referenceRates[type]! / 100) * (percentage / 100);
+	return indicatorDailyRate(type, referenceRates[type]!, percentage);
 }
 
 function dailyRate(settings: Parameters<typeof effectiveYieldRate>[0], period?: null | YieldPeriod) {
@@ -280,7 +285,8 @@ function calculateYieldedBalance(
 				},
 				credit.cashbackYieldPeriod,
 			);
-			if (rate) cashbackBalances.set(rate, (cashbackBalances.get(rate) ?? 0) + Number(credit.cashbackAmount));
+			if (rate)
+				cashbackBalances.set(rate, (cashbackBalances.get(rate) ?? 0) + Number(credit.cashbackAmount));
 			else {
 				ledger.applyCashFlow(Number(credit.cashbackAmount), key);
 				balance = ledger.balance;
@@ -361,7 +367,8 @@ export function calculateGrossYield(
 	referenceRates: Partial<Record<ReferenceRateType, number>>,
 ) {
 	if (!settings) return 0;
-	if (!("rules" in settings)) return balance * ruleDailyRate(settings, settings.yieldPeriod, referenceRates);
+	if (!("rules" in settings))
+		return balance * ruleDailyRate(settings, settings.yieldPeriod, referenceRates);
 	let previousLimit = 0;
 	let grossYield = 0;
 	for (const rule of settings.rules) {

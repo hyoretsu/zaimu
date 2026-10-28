@@ -35,7 +35,7 @@ export function FinancialHistoryAdmin({ header }: { header: ComponentProps<typeo
 		"INTEREST",
 		z.enum(["CURRENCY", "INTEREST"]),
 	);
-	const [rate, setRate] = useUrlViewState<string>("rate", "CDI", z.enum(["CDI", "SELIC"]));
+	const [rate, setRate] = useUrlViewState<string>("rate", "CDI", z.enum(["CDI", "SELIC", "IPCA", "TR"]));
 	const [currency, setCurrency] = useUrlViewState("currency", "BRL", z.string().regex(/^[A-Z]{3}$/));
 	const currencies = useCurrencyStore(state => state.currencies);
 	const series = kind === "INTEREST" ? rate : currency;
@@ -103,7 +103,7 @@ export function FinancialHistoryAdmin({ header }: { header: ComponentProps<typeo
 						label={kind === "INTEREST" ? "Taxa" : "Moeda base"}
 						onValueChange={kind === "INTEREST" ? setRate : setCurrency}
 						options={(kind === "INTEREST"
-							? ["CDI", "SELIC"]
+							? ["CDI", "SELIC", "IPCA", "TR"]
 							: [...new Set([...currencies, currency])]
 						).map(value => ({ label: value, value }))}
 						placeholder={kind === "INTEREST" ? "Ex: CDI" : "Ex: BRL"}

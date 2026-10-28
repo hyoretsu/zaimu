@@ -156,6 +156,7 @@ export class YieldTaxLedger {
 		}
 	}
 	netYield(gross: number, settings: TaxSettings | undefined, day: string, definitions = catalog) {
+		if (gross < 0) return gross;
 		const lots = this.lots.filter(lot => lot.date.slice(0, 10) < day.slice(0, 10));
 		const total = lots.reduce((sum, lot) => sum + lot.balance, 0);
 		return total <= 0
@@ -182,6 +183,10 @@ export class YieldTaxLedger {
 		return net;
 	}
 	accrueRecordedNet(amount: number, settings: TaxSettings | undefined, day: string) {
+		if (amount < 0) {
+			this.accrueNet(amount, day);
+			return;
+		}
 		const retained = this.netYield(1, settings, day);
 		if (retained > 0) this.accrueGross(amount / retained, settings, day);
 		else this.accrueNet(amount, day);

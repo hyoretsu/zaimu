@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { LuPlus } from "react-icons/lu";
+import { LuChartNoAxesCombined, LuPlus } from "react-icons/lu";
 import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { QueryRefreshStatus } from "@/components/ui/QueryRefreshStatus";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -14,11 +15,16 @@ import type { Loan } from "@/lib/api";
 import { useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
-import { viewBoolean } from "@/lib/view-state";
+import { viewBoolean, viewString } from "@/lib/view-state";
 import { LoanCard, LoanCreateDialog, LoanPaymentsDialog } from "@/routes/loans/components";
+import { LoanContractDialog } from "./LoanContractDialog";
+import { LoanContractEditor } from "./LoanContractEditor";
 import type { LoanPaymentRecovery } from "./LoanPaymentsDialog";
+import { LoanPlannerDialog } from "./LoanPlannerDialog";
 export function EmpréstimosPage() {
 	const identity = useCacheIdentity();
+	const [plannerOpen, setPlannerOpen] = useUrlViewState("planner", false, viewBoolean);
+	const [institution, setInstitution] = useUrlViewState("institution", "", viewString);
 	const [createOpen, setCreateOpen] = useState(false);
 	const [recoveredCreate, setRecoveredCreate] = useState<Parameters<typeof dataService.loans.create>[0]>();
 	const createPending = useModalRecoveryStore(state => !!state.pending[`${identity}:loan-create`]);
@@ -54,12 +60,19 @@ export function EmpréstimosPage() {
 	const remaining = (loan: Loan) => loan.remainingInstallments ?? loan.totalInstallments;
 	const items =
 		loans.data
-			?.filter(loan => (paid ? remaining(loan) === 0 : remaining(loan) > 0))
+			?.filter(loan => !institution || loan.institutionId === institution)
+			.filter(loan => (paid ? remaining(loan) === 0 : remaining(loan) > 0))
 			.toSorted((a, b) => a.lender.localeCompare(b.lender, "pt-BR")) ?? [];
 	return (
 		<div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8">
 			<PageHeader
 				actions={[
+					{
+						icon: LuChartNoAxesCombined,
+						label: "Planejar antecipações",
+						onClick: () => setPlannerOpen(true),
+						variant: "outline",
+					},
 					{
 						disabled: createPending,
 						icon: LuPlus,
@@ -71,6 +84,23 @@ export function EmpréstimosPage() {
 				backTo="/more"
 				description="Acompanhe empréstimos, financiamentos e suas parcelas."
 				title="Empréstimos"
+			/>
+			<CustomSelect
+				label="Instituição"
+				onValueChange={setInstitution}
+				options={[
+					{ label: "Todas as instituições", special: true, value: "" },
+					...[
+						...new Map(
+							(loans.data ?? [])
+								.filter(row => row.institutionId)
+								.map(row => [row.institutionId!, row.lender]),
+						).entries(),
+					].map(([value, label]) => ({ label, value })),
+				]}
+				placeholder="Todas as instituições"
+				searchable
+				value={institution}
 			/>
 			<ActionGroup>
 				<Button
@@ -114,7 +144,7 @@ export function EmpréstimosPage() {
 				</div>
 			) : (
 				<>
-					<p className="text-muted-foreground">
+					<div className="text-muted-foreground">
 						Principal restante:{" "}
 						<PreferredMoneyAmount
 							values={(loans.data ?? []).map(loan => ({
@@ -124,7 +154,7 @@ export function EmpréstimosPage() {
 								currency: loan.currency ?? "BRL",
 							}))}
 						/>
-					</p>
+					</div>
 					{items.length ? (
 						<div className="grid gap-4 sm:grid-cols-2">
 							{items.map(loan => (
@@ -141,7 +171,9 @@ export function EmpréstimosPage() {
 					)}
 				</>
 			)}
-			{createOpen && (
+			{plannerOpen && <LoanPlannerDialog onClose={() => setPlannerOpen(false)} />}
+			{createOpen && !recoveredCreate && <LoanContractEditor onClose={() => setCreateOpen(false)} />}
+			{createOpen && recoveredCreate && (
 				<LoanCreateDialog
 					initialDraft={recoveredCreate}
 					onClose={() => {
@@ -150,7 +182,10 @@ export function EmpréstimosPage() {
 					}}
 				/>
 			)}
-			{selected && (
+			{selected && !selected.needsPaymentReview && (
+				<LoanContractDialog loanId={selected.id} onClose={() => setSelected(null)} />
+			)}
+			{selected?.needsPaymentReview && (
 				<LoanPaymentsDialog
 					initialHistory={recoveredHistory}
 					loan={loans.data?.find(loan => loan.id === selected.id) ?? selected}

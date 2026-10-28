@@ -19,7 +19,8 @@
 		"backend/src/modules/reference-rates/tests/reference-rate-repair.test.ts",
 		"backend/src/shared/infra/broker/tests/RabbitMqBroker.integration.test.ts",
 		"backend/src/shared/infra/cache/RedisCache.test.ts",
-		"backend/src/shared/tests/pdf-worker.test.ts"
+		"backend/src/shared/tests/pdf-worker.test.ts",
+		"backend/src/modules/loans/tests/loan-contracts.integration.test.ts"
 	],
 	"backend:unit": [
 		"backend/src/modules/batch/infra/elysia/BatchController.test.ts",
@@ -174,7 +175,8 @@
 		"backend/src/shared/infra/performance/job-metrics.test.ts",
 		"backend/src/shared/infra/service-namespace.test.ts",
 		"backend/src/modules/account-transfers/domain/transfer-policy.test.ts",
-		"backend/src/modules/account-transfers/domain/sanitize-transfer-review.test.ts"
+		"backend/src/modules/account-transfers/domain/sanitize-transfer-review.test.ts",
+		"backend/src/modules/loans/infra/elysia/LoanContractDTO.test.ts"
 	],
 	"sql:e2e": ["packages/sql/tests/migrations.e2e.test.ts"],
 	"sql:integration": [

@@ -1,5 +1,6 @@
 import { Value } from "@sinclair/typebox/value";
 import { cardRuleValues } from "@zaimu/finance/institution-card-rules";
+import { type LoanContractBook, sameLoanContract, validateLoanTerms } from "@zaimu/finance/loan-contract";
 import { toMinorUnits } from "@zaimu/finance/money";
 import Elysia from "elysia";
 import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
@@ -41,6 +42,7 @@ import {
 	syncManualDebtEvent,
 } from "~/modules/debts/application/sync-manual-debt-events";
 import type { DebtSplitInput } from "~/modules/debts/domain";
+import { saveLoanBook } from "~/modules/loans/application/loan-contracts";
 import { listMonthlyBudgets, syncMonthlyBudget } from "~/modules/monthly-budgets/application/monthly-budgets";
 import { getRecurrencePeriodOccurrence } from "~/modules/recurring/application/recurrence-period-occurrence";
 import {
@@ -320,8 +322,10 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 								value<number | null | undefined>(entity, "yieldReferencePercentage") ?? null,
 							),
 							yieldReferenceType:
-								value<"CDI" | "SELIC" | null | undefined>(entity, "yieldReferenceType") ??
-								null,
+								value<"CDI" | "SELIC" | "IPCA" | "TR" | null | undefined>(
+									entity,
+									"yieldReferenceType",
+								) ?? null,
 							yieldTaxIds: value<string[] | null | undefined>(entity, "yieldTaxIds") as never,
 							yieldTaxRate: nullableNumeric<5, 2>(
 								value<number | null | undefined>(entity, "yieldTaxRate") ?? null,
@@ -355,7 +359,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 								yieldPeriod?: "MONTHLY" | "YEARLY" | null;
 								yieldFixedRate?: number | null;
 								yieldReferencePercentage?: number | null;
-								yieldReferenceType?: "CDI" | "SELIC" | null;
+								yieldReferenceType?: "CDI" | "SELIC" | "IPCA" | "TR" | null;
 								yieldTaxIds?: string[] | null;
 								yieldTaxRate?: number | null;
 							}>
@@ -788,13 +792,33 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 					await sync("loans", body.loans, async entity => {
 						const id = value<string>(entity, "id");
 						const existing = await queryFirst(
-							db.sql.public.Loan.select("id", "userId", "currency")
+							db.sql.public.Loan.select("id", "userId", "currency", "contractBook")
 								.where((f, fn) => fn.eq(f.id, id))
 								.limit(1)
 								.build(),
 						);
 						if (existing && existing.userId !== userId)
 							throw new Error(`Empréstimo ${id} pertence a outro usuário`);
+
+						const book = entity.contractBook as LoanContractBook | undefined;
+						if (entity.institutionId)
+							await visibleInstitution(userId, String(entity.institutionId));
+						if (existing?.contractBook) {
+							if (!sameLoanContract(existing.contractBook, book))
+								throw new Error("Contrato mudou; use operações versionadas");
+							return;
+						}
+						if (existing && book)
+							throw new Error("Revise contrato existente antes de importar versões");
+						if (book) {
+							if (book.loanId !== id || !book.institutionId)
+								throw new Error("Contrato e instituição inválidos");
+							await visibleInstitution(userId, book.institutionId);
+							for (const version of book.versions) validateLoanTerms(version.terms);
+							for (const receipt of book.receipts)
+								if (receipt.accountId && !accountIds.has(receipt.accountId))
+									throw new Error("Conta de pagamento inválida");
+						}
 						if (entity.amortization !== "PRICE" && entity.amortization !== "SAC")
 							throw new Error("Amortização inválida");
 						const currency = await assertSupportedCurrency(
@@ -809,6 +833,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 							dueDay: Number(value<number>(entity, "dueDay")),
 							firstDueDate: new Date(value<string>(entity, "firstDueDate")),
 							installmentAmount: String(value<number>(entity, "installmentAmount")),
+							institutionId: value<string | undefined>(entity, "institutionId"),
 							interestRate: String(value<number>(entity, "interestRate")),
 							lender: value<string>(entity, "lender"),
 							principalAmount: String(value<number>(entity, "principalAmount")),
@@ -826,6 +851,21 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 							await executeStatement(
 								db.sql.public.Loan.insert([{ ...values, id, userId }]).build(),
 							);
+						if (book) await saveLoanBook(userId, book);
+					});
+
+					await sync("loanScenarios", body.loanScenarios, async entity => {
+						const [row] = await queryRaw(
+							'INSERT INTO "LoanScenario" ("id","userId","name","parameters","summary","updatedAt") VALUES ($1,$2,$3,$4::json,$5::json,NOW()) ON CONFLICT ("id") DO UPDATE SET "id"=EXCLUDED."id" WHERE "LoanScenario"."userId"=$2 RETURNING "id"',
+							[
+								entity.id,
+								userId,
+								entity.name,
+								JSON.stringify(entity.parameters),
+								JSON.stringify(entity.summary),
+							],
+						);
+						if (!row) throw new Error("Cenário pertence a outro usuário");
 					});
 
 					await sync("loanPayments", body.loanPayments, async entity => {
@@ -833,11 +873,12 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 						const loanId = value<string>(entity, "loanId");
 						const number = Number(entity.installmentNumber);
 						const loan = await queryFirst(
-							db.sql.public.Loan.select("id", "totalInstallments", "currency")
+							db.sql.public.Loan.select("id", "totalInstallments", "currency", "contractBook")
 								.where((f, fn) => fn.and(fn.eq(f.id, loanId), fn.eq(f.userId, userId)))
 								.limit(1)
 								.build(),
 						);
+						if (loan?.contractBook) return;
 						if (
 							!loan ||
 							!Number.isInteger(number) ||
@@ -1444,8 +1485,13 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 								principalPaid: Number(payment.principalPaid),
 								totalPaid: Number(payment.totalPaid),
 							})),
+							loanScenarios: await queryRaw('SELECT * FROM "LoanScenario" WHERE "userId"=$1', [
+								userId,
+							]),
 							loans: await queryRows(
 								db.sql.public.Loan.select(
+									"institutionId",
+									"contractBook",
 									"currency",
 									"id",
 									"userId",

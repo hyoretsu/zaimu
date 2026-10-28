@@ -196,6 +196,7 @@ import type {
 	TransactionImportSummary,
 } from "./api";
 import { ConnectivityError } from "./api/client-api";
+import { loanContractsApi } from "./api/loan-contracts";
 import type { BalanceAdjustment } from "./balance-adjustment";
 import { guestCashbackSnapshot } from "./cashback-snapshot";
 import { type CatalogPageOptions, localCatalogPage } from "./catalog-pagination";
@@ -2963,6 +2964,8 @@ export const dataService = {
 	financialInstitutions: {
 		async delete(id: string): Promise<void> {
 			if (isGuestMode()) {
+				if ((await localLoans.getAll()).some(row => row.data.institutionId === id))
+					throw new Error("Instituição possui empréstimos associados");
 				const accounts = await localAccounts.getAll();
 				await Promise.all(
 					accounts
@@ -2985,8 +2988,22 @@ export const dataService = {
 		},
 		async getAll(): Promise<FinancialInstitution[]> {
 			const owner = getCurrentCacheIdentity();
-			if (isGuestMode())
-				return getLocalFinancialInstitutions((await localAccounts.getAll()).map(item => item.data));
+			if (isGuestMode()) {
+				const local = getLocalFinancialInstitutions(
+					(await localAccounts.getAll()).map(item => item.data),
+				);
+				let catalog = (owner ? await localMeta.get("institution-catalog", owner) : undefined) as
+					FinancialInstitution[] | undefined;
+				try {
+					catalog = await loanContractsApi.publicInstitutions();
+					if (owner) await localMeta.set("institution-catalog", catalog, owner);
+				} catch {
+					/* Guest can use locally cached institutions offline. */
+				}
+				return [...new Map([...(catalog ?? []), ...local].map(row => [row.id, row])).values()].sort(
+					(a, b) => a.name.localeCompare(b.name, "pt-BR"),
+				);
+			}
 			const cached = owner
 				? ((await localMeta.get("institution-catalog", owner)) as FinancialInstitution[] | undefined)
 				: undefined;
@@ -3148,6 +3165,7 @@ export const dataService = {
 			});
 		},
 		async create(data: Omit<Loan, "id" | "userId">): Promise<Loan> {
+			if (!data.institutionId) throw new Error("Selecione instituição financeira");
 			const userId = getUserId();
 			if (isGuestMode()) {
 				const newLoan: Loan = {
@@ -3166,7 +3184,11 @@ export const dataService = {
 				await createLocalLoanWithPayments(newLoan, payments);
 				return newLoan;
 			}
-			const loan = await postLoans({ ...data, description: data.description ?? undefined });
+			const loan = await postLoans({
+				...data,
+				description: data.description ?? undefined,
+				institutionId: data.institutionId,
+			});
 			cacheRemoteData(localLoans.put(loan, loan.id));
 			return loan;
 		},
@@ -3182,10 +3204,13 @@ export const dataService = {
 					return {
 						...data,
 						paidInstallments: paid.length,
-						remainingInstallments: data.totalInstallments - paid.length,
+						remainingInstallments: rows.filter(row => !row.paidDate).length,
 						remainingPrincipal: rows
 							.filter(row => !row.paidDate)
 							.reduce((sum, row) => sum + row.principalPaid, 0),
+						remainingTotal: rows
+							.filter(row => !row.paidDate)
+							.reduce((sum, row) => sum + row.totalPaid, 0),
 						totalPaid: paid.reduce((sum, row) => sum + row.totalPaid, 0),
 					};
 				});
@@ -3486,6 +3511,10 @@ export const dataService = {
 						yieldEntry => yieldEntry.origin !== "SYSTEM",
 					),
 					loanPayments: loanPayments.map(row => row.data),
+					loanScenarios: owner.startsWith("guest:")
+						? (((await localMeta.get("loan-scenarios", owner)) as
+								import("./api").SavedLoanScenario[] | undefined) ?? [])
+						: [],
 					loans: loans.map(l => l.data),
 					monthlyBudgets: monthlyBudgets.map(row => ({
 						...row.data,
@@ -3589,6 +3618,7 @@ export const dataService = {
 						})),
 						owner,
 					),
+					localMeta.set("loan-scenarios", response.serverData.loanScenarios ?? [], owner),
 					localLoanPayments.replaceSnapshot(
 						response.serverData.loanPayments.map(data => ({
 							data,

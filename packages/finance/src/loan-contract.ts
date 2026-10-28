@@ -54,7 +54,7 @@ export interface LoanReceipt {
 	accountCurrency: string | null;
 	accountAmount: number | null;
 	allocations: LoanAllocation[];
-	kind: "PAYMENT" | "ADVANCE" | "PAYOFF" | "REVERSAL";
+	kind: "PAYMENT" | "ADVANCE" | "PAYOFF" | "REVERSAL" | "REFINANCE";
 	reversesId?: string;
 	lateCharges: number;
 }
@@ -62,6 +62,7 @@ export interface LoanContractVersion {
 	revision: number;
 	effectiveDate: string;
 	reason: "CREATE" | "EDIT" | "ADVANCE" | "RENEGOTIATE" | "PORTABILITY" | "REVERSAL";
+	receiptId?: string;
 	terms: LoanContractTerms;
 	schedule: ContractInstallment[];
 }
@@ -320,7 +321,7 @@ export function simulateLoanOperation(
 ): LoanSimulation {
 	civilDate(input.date);
 	const { terms } = activeLoanVersion(book);
-	if (input.date < terms.startDate || book.successorLoanId)
+	if (input.date < activeLoanVersion(book).effectiveDate || book.successorLoanId)
 		throw new Error("Contrato indisponível nesta data");
 	const currency = terms.currency;
 	const round = (amount: number) => roundMoney(amount, currency);
@@ -347,9 +348,11 @@ export function simulateLoanOperation(
 			const rate = monthlyLoanRate(terms, input.date, rows[0]!.dueDate, reference);
 			const payment = rows[0]!.principal + rows[0]!.interest;
 			count =
-				rate <= 0
-					? Math.ceil(left / Math.max(0.000001, payment))
-					: Math.ceil(-Math.log(1 - (left * rate) / payment) / Math.log1p(rate));
+				terms.amortization === "SAC"
+					? Math.ceil(left / Math.max(0.000001, rows[0]!.principal))
+					: rate <= 0
+						? Math.ceil(left / Math.max(0.000001, payment))
+						: Math.ceil(-Math.log(1 - (left * rate) / payment) / Math.log1p(rate));
 			count = Math.max(1, Math.min(rows.length, count));
 		}
 		schedule =
@@ -446,7 +449,7 @@ export function applyLoanSimulation(
 	if (book.revision !== simulation.revision || book.receipts.some(row => row.id === payment.id))
 		throw new Error("Simulação desatualizada");
 	const fresh = simulateLoanOperation(book, simulation.input, reference);
-	if (JSON.stringify(fresh) !== JSON.stringify(simulation))
+	if (canonicalLoanValue(fresh) !== canonicalLoanValue(simulation))
 		throw new Error("Simulação mudou; revise novamente");
 	const next = structuredClone(book);
 	const version = activeLoanVersion(book);
@@ -464,6 +467,7 @@ export function applyLoanSimulation(
 	next.versions.push({
 		effectiveDate: simulation.input.date,
 		reason: "ADVANCE",
+		receiptId: payment.id,
 		revision,
 		schedule: simulation.schedule.map(row => ({ ...row, id: `${revision}:${row.number}` })),
 		terms: structuredClone(version.terms),
@@ -482,7 +486,7 @@ export function recordLoanPayment(
 	if (input.expectedRevision !== book.revision || book.receipts.some(row => row.id === input.id))
 		throw new Error("Contrato mudou; revise pagamento");
 	const { terms } = activeLoanVersion(book);
-	if (input.date < terms.startDate || book.successorLoanId)
+	if (input.date < activeLoanVersion(book).effectiveDate || book.successorLoanId)
 		throw new Error("Contrato indisponível nesta data");
 	const round = (amount: number) => roundMoney(amount, terms.currency);
 	const rows = outstandingLoanSchedule(book).filter(
@@ -493,11 +497,31 @@ export function recordLoanPayment(
 	let lateCharges = 0;
 	for (const row of rows) {
 		if (remaining <= 0) break;
-		const days = Math.max(0, civilDays(row.dueDate, input.date));
+		const reversed = new Set(
+			book.receipts.filter(receipt => receipt.kind === "REVERSAL").map(receipt => receipt.reversesId),
+		);
+		const earlier = book.receipts.filter(
+			receipt =>
+				!reversed.has(receipt.id) &&
+				receipt.kind === "PAYMENT" &&
+				receipt.allocations.some(allocation =>
+					book.versions.some(version =>
+						version.schedule.some(
+							item => item.id === allocation.installmentId && item.dueDate === row.dueDate,
+						),
+					),
+				),
+		);
+		const lastDate = earlier.reduce(
+			(date, receipt) => (receipt.date > date ? receipt.date : date),
+			row.dueDate,
+		);
+		const days = Math.max(0, civilDays(lastDate, input.date));
 		const extra = days
 			? round(
 					(row.principal + row.interest + row.charges) *
-						(terms.lateFinePercent / 100 + ((terms.lateMonthlyPercent / 100) * days) / 30),
+						((earlier.length ? 0 : terms.lateFinePercent) / 100 +
+							((terms.lateMonthlyPercent / 100) * days) / 30),
 				)
 			: 0;
 		// Late charges must be covered before allocating to an installment; partial late payments remain explicit.
@@ -532,6 +556,7 @@ export function recordLoanPayment(
 	next.versions.push({
 		effectiveDate: input.date,
 		reason: "EDIT",
+		receiptId: input.id,
 		revision: next.revision,
 		schedule: schedule.map(row => ({ ...row, id: `${next.revision}:${row.number}` })),
 		terms: structuredClone(terms),
@@ -548,9 +573,11 @@ export function reverseLoanReceipt(
 	civilDate(date);
 	if (expectedRevision !== book.revision) throw new Error("Contrato mudou");
 	const receipt = book.receipts.at(-1);
-	if (!receipt || receipt.id !== receiptId || receipt.kind === "REVERSAL")
+	if (!receipt || receipt.id !== receiptId || receipt.kind === "REVERSAL" || receipt.kind === "REFINANCE")
 		throw new Error("Reverta operações posteriores primeiro");
 	if (date < receipt.date) throw new Error("Estorno anterior ao pagamento");
+	if (activeLoanVersion(book).receiptId !== receiptId)
+		throw new Error("Reverta alterações posteriores ao pagamento primeiro");
 	const next = structuredClone(book);
 	const previous = book.versions.at(-2);
 	if (!previous) throw new Error("Versão anterior ausente");
@@ -575,4 +602,60 @@ export function reverseLoanReceipt(
 		schedule: previous.schedule.map(row => ({ ...row, id: `${next.revision}:${row.number}` })),
 	});
 	return next;
+}
+
+/** Refinancing settles debt without inventing an income/outflow; any cash difference is booked explicitly. */
+export function restructureLoanContract(
+	book: LoanContractBook,
+	input: {
+		expectedRevision: number;
+		successorId: string;
+		institutionId: string;
+		terms: LoanContractTerms;
+		kind: "RENEGOTIATE" | "PORTABILITY";
+		settlementAmount: number;
+		receiptId: string;
+	},
+	reference?: LoanReference,
+): { source: LoanContractBook; successor: LoanContractBook } {
+	if (book.revision !== input.expectedRevision || book.successorLoanId || input.successorId === book.loanId)
+		throw new Error("Contrato mudou");
+	if (input.terms.currency !== activeLoanVersion(book).terms.currency)
+		throw new Error("Renegociação exige mesma moeda");
+	const simulation = simulateLoanOperation(
+		book,
+		{ date: input.terms.startDate, mode: "PAYOFF", quotedAmount: input.settlementAmount },
+		reference,
+	);
+	const source = applyLoanSimulation(
+		book,
+		simulation,
+		{ accountAmount: null, accountCurrency: null, accountId: null, id: input.receiptId },
+		reference,
+	);
+	source.receipts.at(-1)!.kind = "REFINANCE";
+	source.versions.at(-1)!.reason = input.kind;
+	source.successorLoanId = input.successorId;
+	const successor = createLoanContract(input.successorId, input.institutionId, input.terms, reference);
+	successor.predecessorLoanId = book.loanId;
+	successor.versions[0]!.reason = input.kind;
+	return { source, successor };
+}
+
+function canonicalLoanValue(value: unknown): string {
+	const normalize = (item: unknown): unknown =>
+		Array.isArray(item)
+			? item.map(normalize)
+			: item && typeof item === "object"
+				? Object.fromEntries(
+						Object.entries(item)
+							.sort(([a], [b]) => a.localeCompare(b))
+							.map(([key, child]) => [key, normalize(child)]),
+					)
+				: item;
+	return JSON.stringify(normalize(value));
+}
+
+export function sameLoanContract(a: unknown, b: unknown): boolean {
+	return canonicalLoanValue(a) === canonicalLoanValue(b);
 }

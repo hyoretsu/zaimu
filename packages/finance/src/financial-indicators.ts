@@ -110,7 +110,13 @@ export function fiveYearIndicatorProjection(
 		civilDays(from, start) <= (monthly ? 32 : 7) &&
 		civilDays(end, asOf) <= (monthly ? 62 : 7) &&
 		(monthly
-			? new Set(samples.map(row => row.date.slice(0, 7))).size >= 59
+			? new Set(samples.map(row => row.date.slice(0, 7))).size >= 59 &&
+				samples.every(
+					(row, index) =>
+						index === 0 ||
+						shiftMonths(`${samples[index - 1]!.date.slice(0, 7)}-01`, 1).slice(0, 7) ===
+							row.date.slice(0, 7),
+				)
 			: businessCoverage(samples, from, asOf));
 	const logFactor = samples.reduce((sum, row) => sum + Math.log1p(row.value / 100), 0);
 	return {
@@ -128,4 +134,49 @@ function businessCoverage(rows: IndicatorObservation[], from: string, through: s
 	// Holidays are absent from daily SGS series; bounded gaps catch missing months without inventing returns.
 	if (rows.length < Math.floor(civilDays(from, through) * 0.62)) return false;
 	return rows.every((row, index) => index === 0 || civilDays(rows[index - 1]!.date, row.date) <= 7);
+}
+
+/** Account monthly conventions use 21 business accrual days, as their fixed monthly rules do. */
+export function indicatorDailyRate(
+	type: FinancialIndicator,
+	quotedPercent: number,
+	percentage: number,
+): number {
+	const factor = rateFactor((quotedPercent * percentage) / 100);
+	return financialIndicators[type].period === "MONTHLY" ? factor ** (1 / 21) - 1 : factor - 1;
+}
+
+/** Resolve contractual lag against real observations, then use the fixed five-year hypothesis for future periods. */
+export function financialReferenceResolver(context: {
+	projections: IndicatorProjection[];
+	observations: Record<string, IndicatorObservation[]>;
+}) {
+	return (rule: FinancialRateRule, from: string, through: string): number | null => {
+		if (!rule.indicator) return 0;
+		const projection = context.projections.find(row => row.indicator === rule.indicator);
+		if (!projection) return null;
+		const referenceDate = shiftMonths(through, -(rule.lagMonths ?? 0));
+		if (referenceDate > projection.through) {
+			if (!projection.complete || projection.periodRate === null) return null;
+			return financialIndicators[rule.indicator].period === "DAILY_BUSINESS"
+				? ((1 + projection.periodRate / 100) ** 21 - 1) * 100
+				: projection.periodRate;
+		}
+		const observations = context.observations[rule.indicator] ?? [];
+		if (financialIndicators[rule.indicator].period === "MONTHLY") {
+			const date =
+				rule.indicator === "TR"
+					? shiftMonths(from, -(rule.lagMonths ?? 0))
+					: `${referenceDate.slice(0, 7)}-01`;
+			return observations.find(row => row.date === date)?.value ?? null;
+		}
+		const start = shiftMonths(from, -(rule.lagMonths ?? 0));
+		const rows = observations.filter(row => row.date > start && row.date <= referenceDate);
+		if (!rows.length) return null;
+		const percentage = rule.percentage ?? 100;
+		if (!percentage) return 0;
+		// Contract percentage applies to each published daily quote, before compounding.
+		const factor = rows.reduce((factor, row) => factor * rateFactor((row.value * percentage) / 100), 1);
+		return ((factor - 1) * 100) / (percentage / 100);
+	};
 }

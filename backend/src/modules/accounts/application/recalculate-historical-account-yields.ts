@@ -16,7 +16,9 @@ export const HistoricalYieldCustomSettings = t.Object({
 	yieldFixedRate: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
 	yieldPeriod: t.Optional(t.Nullable(t.Union([t.Literal("MONTHLY"), t.Literal("YEARLY")]))),
 	yieldReferencePercentage: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
-	yieldReferenceType: t.Optional(t.Nullable(t.Union([t.Literal("CDI"), t.Literal("SELIC")]))),
+	yieldReferenceType: t.Optional(
+		t.Nullable(t.Union([t.Literal("CDI"), t.Literal("SELIC"), t.Literal("IPCA"), t.Literal("TR")])),
+	),
 	yieldTaxIds: t.Optional(
 		t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20, uniqueItems: true }),
 	),
@@ -33,7 +35,10 @@ export function selectHistoricalYieldSettings(
 	try {
 		return historicalYieldOverride(account, profileId, today, customSettings).settings;
 	} catch (error) {
-		throw new HttpException(error instanceof Error ? error.message : "Regra de rendimento indisponível", 400);
+		throw new HttpException(
+			error instanceof Error ? error.message : "Regra de rendimento indisponível",
+			400,
+		);
 	}
 }
 
@@ -79,7 +84,9 @@ export async function recalculateHistoricalAccountYields(
 		const referenceTypes = [
 			...new Set(
 				"rules" in settings
-					? settings.rules.flatMap(rule => (rule.yieldReferenceType ? [rule.yieldReferenceType] : []))
+					? settings.rules.flatMap(rule =>
+							rule.yieldReferenceType ? [rule.yieldReferenceType] : [],
+						)
 					: settings.yieldReferenceType
 						? [settings.yieldReferenceType]
 						: [],
@@ -87,8 +94,18 @@ export async function recalculateHistoricalAccountYields(
 		];
 		const collectionWindow = historicalYieldCollectionWindow(account.createdAt, now);
 		if (referenceTypes.length && collectionWindow)
-			await requestHistoryCollection("INTEREST", referenceTypes, throughDate, undefined, collectionWindow);
-		await enqueueAccountYieldRecalculation(accountId, account.createdAt, `historical:${crypto.randomUUID()}`);
+			await requestHistoryCollection(
+				"INTEREST",
+				referenceTypes,
+				throughDate,
+				undefined,
+				collectionWindow,
+			);
+		await enqueueAccountYieldRecalculation(
+			accountId,
+			account.createdAt,
+			`historical:${crypto.randomUUID()}`,
+		);
 		return { success: true as const };
 	});
 }

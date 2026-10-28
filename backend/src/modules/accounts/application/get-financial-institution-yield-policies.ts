@@ -64,7 +64,7 @@ export async function getFinancialInstitutionYieldPolicies(institutionIds: strin
 				yieldFixedRate: rule.yieldFixedRate === null ? null : Number(rule.yieldFixedRate),
 				yieldReferencePercentage:
 					rule.yieldReferencePercentage === null ? null : Number(rule.yieldReferencePercentage),
-				yieldReferenceType: rule.yieldReferenceType as "CDI" | "SELIC" | null,
+				yieldReferenceType: rule.yieldReferenceType as "CDI" | "SELIC" | "IPCA" | "TR" | null,
 			})),
 			status: policy.status as "APPROVED" | "PENDING" | "REJECTED",
 			yieldPeriod: policy.yieldPeriod as null | YieldPeriod,

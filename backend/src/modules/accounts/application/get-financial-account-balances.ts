@@ -189,9 +189,9 @@ export async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 				yieldRateHistories: (yieldRateHistoriesByAccountId.get(account.id) ?? []).map(history => ({
 					...history,
 					yieldPeriod: history.yieldPeriod as null | YieldPeriod,
-					yieldReferenceType: history.yieldReferenceType as "CDI" | "SELIC" | null,
+					yieldReferenceType: history.yieldReferenceType as "CDI" | "SELIC" | "IPCA" | "TR" | null,
 				})),
-				yieldReferenceType: account.yieldReferenceType as "CDI" | "SELIC" | null,
+				yieldReferenceType: account.yieldReferenceType as "CDI" | "SELIC" | "IPCA" | "TR" | null,
 			})),
 			adjustments: adjustments.map(adjustment => ({
 				...adjustment,

@@ -1,0 +1,358 @@
+[
+	{
+		"execute": [
+			{
+				"description": "add value \"IPCA\" to enum type \"ReferenceRateType\"",
+				"sql": "ALTER TYPE \"public\".\"ReferenceRateType\" ADD VALUE 'IPCA'"
+			}
+		],
+		"id": "addNativeEnumValue.ReferenceRateType.IPCA",
+		"label": "Add value \"IPCA\" to enum type \"ReferenceRateType\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify value \"IPCA\" exists on enum type \"ReferenceRateType\"",
+				"params": ["public", "ReferenceRateType", "IPCA"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure enum type \"ReferenceRateType\" exists",
+				"params": ["public", "ReferenceRateType", "e"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_type\" AS \"t\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"t\".\"typtype\" = $3)) AS \"result\""
+			},
+			{
+				"description": "ensure value \"IPCA\" is absent from enum type \"ReferenceRateType\"",
+				"params": ["public", "ReferenceRateType", "IPCA"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\""
+			}
+		],
+		"summary": "Adds value \"IPCA\" to enum type \"ReferenceRateType\". A newly added enum value cannot be used until the transaction that adds it commits, so a migration that both appends a value and uses it in the same step will fail at apply.",
+		"target": {
+			"details": {
+				"name": "ReferenceRateType",
+				"objectType": "type",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add value \"TR\" to enum type \"ReferenceRateType\"",
+				"sql": "ALTER TYPE \"public\".\"ReferenceRateType\" ADD VALUE 'TR'"
+			}
+		],
+		"id": "addNativeEnumValue.ReferenceRateType.TR",
+		"label": "Add value \"TR\" to enum type \"ReferenceRateType\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify value \"TR\" exists on enum type \"ReferenceRateType\"",
+				"params": ["public", "ReferenceRateType", "TR"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure enum type \"ReferenceRateType\" exists",
+				"params": ["public", "ReferenceRateType", "e"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_type\" AS \"t\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"t\".\"typtype\" = $3)) AS \"result\""
+			},
+			{
+				"description": "ensure value \"TR\" is absent from enum type \"ReferenceRateType\"",
+				"params": ["public", "ReferenceRateType", "TR"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\""
+			}
+		],
+		"summary": "Adds value \"TR\" to enum type \"ReferenceRateType\". A newly added enum value cannot be used until the transaction that adds it commits, so a migration that both appends a value and uses it in the same step will fail at apply.",
+		"target": {
+			"details": {
+				"name": "ReferenceRateType",
+				"objectType": "type",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create table \"LoanScenario\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"LoanScenario\" (\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"id\" character varying(36) DEFAULT (cuid2()) NOT NULL,\n  \"name\" character varying(150) NOT NULL,\n  \"parameters\" json NOT NULL,\n  \"summary\" json NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"userId\" character varying(36) NOT NULL,\n  PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.LoanScenario",
+		"label": "Create table \"LoanScenario\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"LoanScenario\" exists",
+				"params": ["\"public\".\"LoanScenario\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"LoanScenario\" does not exist",
+				"params": ["\"public\".\"LoanScenario\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"LoanScenario\"",
+		"target": {
+			"details": {
+				"name": "LoanScenario",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"contractBook\"",
+				"sql": "ALTER TABLE \"public\".\"Loan\" ADD COLUMN \"contractBook\" json"
+			}
+		],
+		"id": "column.public.Loan.contractBook",
+		"label": "Add column \"contractBook\" to \"Loan\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"contractBook\" exists",
+				"params": ["public", "Loan", "contractBook"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"contractBook\" is missing",
+				"params": ["public", "Loan", "contractBook"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "contractBook",
+				"objectType": "column",
+				"schema": "public",
+				"table": "Loan"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"institutionId\"",
+				"sql": "ALTER TABLE \"public\".\"Loan\" ADD COLUMN \"institutionId\" character varying(36)"
+			}
+		],
+		"id": "column.public.Loan.institutionId",
+		"label": "Add column \"institutionId\" to \"Loan\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"institutionId\" exists",
+				"params": ["public", "Loan", "institutionId"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"institutionId\" is missing",
+				"params": ["public", "Loan", "institutionId"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "institutionId",
+				"objectType": "column",
+				"schema": "public",
+				"table": "Loan"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "alter type of \"id\"",
+				"sql": "ALTER TABLE \"public\".\"LoanPayment\" ALTER COLUMN \"id\" TYPE character varying(100) USING \"id\"::character varying(100)"
+			}
+		],
+		"id": "alterType.LoanPayment.id",
+		"label": "Alter type of \"LoanPayment\".\"id\" to character varying(100)",
+		"meta": {
+			"warning": "TABLE_REWRITE"
+		},
+		"operationClass": "destructive",
+		"postcheck": [
+			{
+				"description": "verify column \"id\" has type \"character varying(100)\"",
+				"params": ["public", "LoanPayment", "id", "character varying(100)"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"id\" exists",
+				"params": ["public", "LoanPayment", "id"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "id",
+				"objectType": "column",
+				"schema": "public",
+				"table": "LoanPayment"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"Loan_institutionId_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"Loan_institutionId_idx\" ON \"public\".\"Loan\" (\"institutionId\")"
+			}
+		],
+		"id": "index.Loan.Loan_institutionId_idx",
+		"label": "Create index \"Loan_institutionId_idx\" on \"Loan\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"Loan_institutionId_idx\" exists",
+				"params": ["\"public\".\"Loan_institutionId_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"Loan_institutionId_idx\" does not exist",
+				"params": ["\"public\".\"Loan_institutionId_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "Loan_institutionId_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "Loan"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"LoanScenario_userId_updatedAt_id_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"LoanScenario_userId_updatedAt_id_idx\" ON \"public\".\"LoanScenario\" (\"userId\", \"updatedAt\", \"id\")"
+			}
+		],
+		"id": "index.LoanScenario.LoanScenario_userId_updatedAt_id_idx",
+		"label": "Create index \"LoanScenario_userId_updatedAt_id_idx\" on \"LoanScenario\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"LoanScenario_userId_updatedAt_id_idx\" exists",
+				"params": ["\"public\".\"LoanScenario_userId_updatedAt_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"LoanScenario_userId_updatedAt_id_idx\" does not exist",
+				"params": ["\"public\".\"LoanScenario_userId_updatedAt_id_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "LoanScenario_userId_updatedAt_id_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "LoanScenario"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"Loan_institutionId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"Loan\"\nADD CONSTRAINT \"Loan_institutionId_fkey\"\nFOREIGN KEY (\"institutionId\")\nREFERENCES \"public\".\"FinancialInstitution\" (\"id\")\nON DELETE RESTRICT"
+			}
+		],
+		"id": "foreignKey.Loan.Loan_institutionId_fkey",
+		"label": "Add foreign key \"Loan_institutionId_fkey\" on \"Loan\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"Loan_institutionId_fkey\" exists",
+				"params": ["Loan_institutionId_fkey", "public", "\"public\".\"Loan\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"Loan_institutionId_fkey\" does not exist",
+				"params": ["Loan_institutionId_fkey", "public", "\"public\".\"Loan\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "Loan_institutionId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "Loan"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add FK \"LoanScenario_userId_fkey\"",
+				"sql": "ALTER TABLE \"public\".\"LoanScenario\"\nADD CONSTRAINT \"LoanScenario_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"user\" (\"id\")\nON DELETE CASCADE"
+			}
+		],
+		"id": "foreignKey.LoanScenario.LoanScenario_userId_fkey",
+		"label": "Add foreign key \"LoanScenario_userId_fkey\" on \"LoanScenario\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify FK \"LoanScenario_userId_fkey\" exists",
+				"params": ["LoanScenario_userId_fkey", "public", "\"public\".\"LoanScenario\""],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure FK \"LoanScenario_userId_fkey\" does not exist",
+				"params": ["LoanScenario_userId_fkey", "public", "\"public\".\"LoanScenario\""],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "LoanScenario_userId_fkey",
+				"objectType": "foreignKey",
+				"schema": "public",
+				"table": "LoanScenario"
+			},
+			"id": "postgres"
+		}
+	}
+]

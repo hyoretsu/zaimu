@@ -50,6 +50,7 @@ export interface DashboardComparisonParameters {
 export async function getGuestDashboardFinancialContext(
 	parameters: DashboardComparisonParameters,
 	projectionThrough?: string,
+	planner = false,
 ) {
 	const [
 		accountRows,
@@ -114,7 +115,7 @@ export async function getGuestDashboardFinancialContext(
 	const futureTransactions = transactions.filter(
 		row => row.amount && row.date.slice(0, 10) > key(today) && row.date.slice(0, 10) <= key(through),
 	);
-	const futurePayments = paymentRows.filter(
+	const futurePayments = (planner ? [] : paymentRows).filter(
 		row =>
 			!row.data.paidDate &&
 			row.data.totalPaid &&
@@ -294,7 +295,7 @@ export async function getGuestDashboardFinancialContext(
 	}
 	const rateResult = await refreshReferenceRateAverages();
 	const averages: Partial<Record<ReferenceRateType, number>> = {};
-	for (const type of ["CDI", "SELIC"] as const)
+	for (const type of ["CDI", "SELIC", "IPCA", "TR"] as const)
 		if (rateResult?.averages[type] != null) averages[type] = rateResult.averages[type];
 	const yieldHolidays = (account: { countryCode?: string | null; currency?: string }) =>
 		new Set(holidayDatesForAccount(holidays, account));
@@ -510,6 +511,9 @@ export async function getGuestDashboardFinancialContext(
 			through: key(through),
 		}))
 			movements.push({ ...row, date: new Date(`${row.date}T12:00:00`), type: "EXPENSE" });
+	const plannerMovements = movements
+		.filter(row => key(row.date) > key(today))
+		.map(row => ({ ...row, date: key(row.date) }));
 	const forecastDays = !money.consolidation.forecastAvailable
 		? []
 		: dailyForecast({
@@ -675,6 +679,12 @@ export async function getGuestDashboardFinancialContext(
 		get periods() {
 			return buildPeriods();
 		},
+		plannerAccounts: current,
+		plannerHolidays: Object.fromEntries(
+			[...yieldAccounts.values()].map(account => [account.id, [...yieldHolidays(account)]]),
+		),
+		plannerMovements,
+		plannerYieldAccounts: [...yieldAccounts.values()],
 		projectedStatements: statements,
 		referenceRatesAvailable: (rateResult?.ready ?? false) && yieldCoverageAvailable,
 	};

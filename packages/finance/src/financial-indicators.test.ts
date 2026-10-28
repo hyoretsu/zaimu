@@ -46,3 +46,28 @@ describe("shared financial indicators", () => {
 		expect(result.periodRate).toBeCloseTo(0.2);
 	});
 });
+
+test("monthly indices convert to native account accrual without treating publication as daily interest", async () => {
+	const { indicatorDailyRate, financialReferenceResolver } = await import("./financial-indicators");
+	expect((1 + indicatorDailyRate("IPCA", 0.5, 100)) ** 21).toBeCloseTo(1.005, 10);
+	expect(indicatorDailyRate("IPCA", -0.5, 100)).toBeLessThan(0);
+	const resolve = financialReferenceResolver({
+		observations: { IPCA: [{ date: "2026-01-01", value: 0.5 }] },
+		projections: [
+			{
+				complete: true,
+				coverageEnd: "2026-01-01",
+				coverageStart: "2021-02-01",
+				from: "2021-02-01",
+				indicator: "IPCA",
+				observations: 60,
+				periodRate: 0.4,
+				through: "2026-02-01",
+			},
+		],
+	});
+	expect(resolve({ indicator: "IPCA", lagMonths: 1, percentage: 100 }, "2026-01-01", "2026-02-01")).toBe(
+		0.5,
+	);
+	expect(resolve({ indicator: "IPCA", percentage: 100 }, "2026-02-01", "2026-03-01")).toBe(0.4);
+});

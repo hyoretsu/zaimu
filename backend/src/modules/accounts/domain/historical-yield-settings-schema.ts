@@ -4,7 +4,9 @@ const NullableRate = t.Optional(t.Nullable(t.Number({ minimum: 0 })));
 const RateProperties = {
 	yieldFixedRate: NullableRate,
 	yieldReferencePercentage: NullableRate,
-	yieldReferenceType: t.Optional(t.Nullable(t.Union([t.Literal("CDI"), t.Literal("SELIC")]))),
+	yieldReferenceType: t.Optional(
+		t.Nullable(t.Union([t.Literal("CDI"), t.Literal("SELIC"), t.Literal("IPCA"), t.Literal("TR")])),
+	),
 };
 const SharedProperties = {
 	effectiveDate: t.String(),
@@ -29,7 +31,10 @@ export const HistoricalYieldSettingsDTO = t.Object({
 			effectiveUntil: t.Optional(t.Nullable(t.String())),
 			profileId: t.Optional(t.Nullable(t.String())),
 			rules: t.Array(
-				t.Object({ ...RateProperties, upToBalance: t.Optional(t.Nullable(t.Number({ minimum: 0 }))) }),
+				t.Object({
+					...RateProperties,
+					upToBalance: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
+				}),
 				{ maxItems: 100, minItems: 1 },
 			),
 			status: t.Optional(t.Union([t.Literal("APPROVED"), t.Literal("PENDING"), t.Literal("REJECTED")])),

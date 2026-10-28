@@ -8,9 +8,9 @@ control. Missing coverage cannot yield a safe verdict.
 
 ## Progress
 
-- [ ] Shared daily safety, funding eligibility and scenario comparison engine.
-- [ ] Bounded deterministic search over dates, installments and loan combinations.
-- [ ] Worker UI, daily/monthly results, progress/cancellation and saved scenarios.
+- [x] Shared daily safety, funding eligibility and scenario comparison engine.
+- [x] Bounded deterministic search over dates, installments and loan combinations.
+- [x] Worker UI, daily/monthly results, progress/cancellation and saved scenarios.
 - [ ] Connected/guest persistence, tests, builds and hook-validated commits.
 - [ ] Integrate into original main and remove task worktree.
 
@@ -29,3 +29,5 @@ requires fresh contractual review; never execute automatically.
 Deficits within a positive month, illiquid funds, exclusions, multiple currencies,
 missing data, yield taxes, partial/combined anticipations, stale saved scenarios,
 cancellation and deterministic search. Preserve unrelated local changes.
+
+Execution update: API/guest aggregate persistence, operation review, institution forms, worker search and dated saved scenarios implemented. Targeted domain/storage regression tests pass. Final hook, disposable integration, browser verification and integration remain in progress.

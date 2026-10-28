@@ -9,13 +9,12 @@ import {
 	type CollectionKind,
 	currencyWindow,
 	dateKey,
-	type HistoryUnit,
 	historyCoverageRanges,
 	historyProgress,
+	type HistoryUnit,
 	retryDelay,
 	windowDays,
 } from "../domain/collection";
-
 import { coverageWindow } from "../domain/history-coverage";
 import { referenceRateCoveredDaysSql } from "./reference-rate-coverage-sql";
 
@@ -75,7 +74,7 @@ export async function requestHistoryCollection(
 		!series.length ||
 		series.length > 20 ||
 		series.some(value =>
-			kind === "INTEREST" ? !["CDI", "SELIC"].includes(value) : !/^[A-Z]{3}$/.test(value),
+			kind === "INTEREST" ? !["CDI", "SELIC", "IPCA", "TR"].includes(value) : !/^[A-Z]{3}$/.test(value),
 		)
 	)
 		throw new RangeError("Séries de coleta inválidas");
@@ -318,7 +317,8 @@ export async function runHistoryUnit(
 		const retryAfter =
 			details.retryAfterMs ??
 			(details.retryAfter
-				? Number(details.retryAfter) * 1000 || Math.max(0, Date.parse(details.retryAfter) - Date.now())
+				? Number(details.retryAfter) * 1000 ||
+					Math.max(0, Date.parse(details.retryAfter) - Date.now())
 				: 0);
 		await execute(
 			`UPDATE "FinancialHistoryUnit" SET "state"=$3,"leaseToken"=NULL,"lockedUntil"=NULL,"nextAttemptAt"=now()+($4 * interval '1 millisecond'),"lastError"=$5,"updatedAt"=now() WHERE "id"=$1 AND "leaseToken"=$2`,

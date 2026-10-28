@@ -176,9 +176,9 @@ Migração SQL preserva referências de histórico, conciliação e dívida ante
 
 ## Empréstimos
 
-Amortizações disponíveis: PRICE (prestação fixa) e SAC (amortização constante). SACRE foi removido. Registros legados não recebem conversão financeira automática; migração SQL recusa empréstimos ainda nessa modalidade até revisão explícita. PRICE com taxa zero divide principal pelo prazo. Vencimentos preservam dia original e ajustam meses curtos ao último dia disponível.
+Amortizações disponíveis: PRICE (prestação fixa), SAC (amortização constante) e cronograma manual. SACRE foi removido. Registros legados não recebem conversão financeira automática; migração SQL recusa empréstimos ainda nessa modalidade até revisão explícita. PRICE com taxa zero divide principal pelo prazo. Vencimentos preservam dia original e ajustam meses curtos ao último dia disponível.
 
-Parcelas carregam somente ao abrir empréstimo, em páginas. Pagamento e antecipação registram valor integral previsto, data e estado da parcela. FRONT seleciona primeiras pendentes; BACK seleciona últimas pendentes. Estimativa de quitação sem juros futuros não aplica desconto ao registrar antecipação; condições efetivas dependem do credor.
+Cronograma contratual carrega ao abrir empréstimo. Pagamentos integrais ou parciais e antecipações registram valor efetivo, data e alocações. FRONT seleciona primeiras pendentes; BACK seleciona últimas pendentes. Simulação aplica convenção de desconto do contrato; efetivação exige valor confirmado pelo credor.
 
 Migração guest gera cronograma de empréstimos antigos sem parcelas. Resumos com pagamentos históricos exigem revisão: usuário confirma amortização e data comum para primeiras parcelas declaradas pagas; totais passam a ser calculados pelo cronograma confirmado. Revisão grava parcelas e empréstimo atomicamente, sem classificar pagamentos históricos como antecipações. Sync bloqueia históricos pendentes de revisão.
 
@@ -508,3 +508,15 @@ Vínculos entre contas transferidas juntas permanecem. Vínculos com contas que 
 Dívidas, recebíveis, empréstimos e conexões com terceiros permanecem com seus titulares originais. Regras de rateio não acompanham agendas transferidas. Recorrências acompanham contas quando todas as suas referências seguem juntas; agendas que cruzariam usuários ficam pausadas na origem e perdem referências ativas ao destino. Reservas de ocorrências são preservadas para não materializar lançamentos novamente. Credenciais e conexões Open Finance ficam na origem; vínculos das contas movidas são desativados. Destino configura integração própria.
 
 Convite gera banner no aplicativo e tentativas independentes de e-mail e push para dispositivos habilitados. Remetente recebe resultado de aceite ou recusa. Ausência de configuração ou permissão push não bloqueia o convite. Notificações externas não contêm saldos nem nomes de contas; links exigem autenticação e revisão, sem executar aceite. Convites cancelados ou respondidos não geram novos avisos de pendência.
+
+## Contratos de empréstimos e planejador de antecipação
+
+Novos contratos exigem instituição cadastrada. Credores legados permanecem preservados até associação explícita. Contratos PRICE, SAC e cronograma manual mantêm versões de condições e parcelas; pagamentos parciais, antecipações e estornos preservam histórico. Totais restantes somam parcelas reais. Renegociação e portabilidade vinculam origem e sucessor sem fabricar crédito recebido ou pagamento em conta. Crédito recebido exige criação ou vínculo explícito; um movimento não financia dois contratos.
+
+Simulação permite primeiras, últimas ou parcelas escolhidas, amortização com redução de prazo/prestação e quitação. Efetivação exige revisão atual do contrato e valor confirmado pelo credor. Revisão desatualizada é rejeitada. Estorno disponível somente para última operação sem alteração posterior.
+
+Planejador calcula saldo diário por conta até último vencimento original dos contratos selecionados para antecipar. Obrigações dos demais empréstimos permanecem na previsão. Cenários compartilham data final, inclusive após quitação antecipada. Reserva padrão zero; falta na conta pagadora não é compensada silenciosamente por outras contas. Investimentos e poupanças ficam excluídos por padrão; inclusão explícita permitida e exclusão específica prevalece. Recursos precisam estar resgatáveis na data, com prazo e custo informados. Transferências são explícitas.
+
+Hipóteses do planejador usam exclusivamente últimos cinco anos de observações oficiais, média geométrica na periodicidade nativa e cobertura exibida. Ausência de indicador ou cotação impede classificação conclusiva. CDI/Selic são diários úteis; IPCA/TR são mensais, com defasagem contratual. Valores históricos oficiais permanecem intactos; índices negativos válidos são preservados. Regras de rendimento também aceitam IPCA/TR, convertidos pela convenção de 21 dias úteis mensais da conta. Projeção do dashboard mantém sua janela histórica existente.
+
+Comparação usa patrimônio líquido na mesma data final, desconta dívida restante e considera rendimento líquido perdido, tributação e custos. Manter cronograma sempre aparece. Busca limitada e determinística exibe melhor cenário encontrado, datas avaliadas e progresso; não afirma ótimo global. Cenários salvos guardam parâmetros e resumo datado; reabertura recalcula. Revisar operação abre fluxo contratual atual, sem executar pagamento automaticamente. Segurança vale somente dentro da previsão base registrada e horizonte exibido.

@@ -53,6 +53,14 @@ const SyncPerson = t.Object({
 	hiddenAt: t.Optional(t.Nullable(t.String())),
 });
 
+export const SyncLoanScenario = t.Object({
+	id: t.String({ maxLength: 36, minLength: 1 }),
+	name: t.String({ maxLength: 150, minLength: 1 }),
+	parameters: t.Unknown(),
+	summary: t.Unknown(),
+	updatedAt: t.Optional(t.String()),
+});
+
 export const SyncBody = t.Object(
 	{
 		categories: t.Optional(t.Array(SyncCategory)),
@@ -65,6 +73,7 @@ export const SyncBody = t.Object(
 		financialAccountYieldHolidays: t.Optional(t.Array(contracts.FinancialAccountYieldHolidayReturn)),
 		financialAccountYields: t.Optional(t.Array(contracts.FinancialAccountYieldReturn)),
 		loanPayments: t.Optional(t.Array(contracts.LoanPaymentReturn)),
+		loanScenarios: t.Optional(t.Array(SyncLoanScenario)),
 		loans: t.Optional(t.Array(contracts.LoanReturn)),
 		monthlyBudgets: t.Optional(t.Array(SyncMonthlyBudget)),
 		recurrenceOccurrences: t.Optional(t.Array(SyncOccurrence)),
@@ -87,6 +96,7 @@ export const SyncReturn = t.Object({
 		financialAccountYieldHolidays: t.Array(contracts.FinancialAccountYieldHolidayReturn),
 		financialAccountYields: t.Array(contracts.FinancialAccountYieldReturn),
 		loanPayments: t.Array(contracts.LoanPaymentReturn),
+		loanScenarios: t.Optional(t.Array(SyncLoanScenario)),
 		loans: t.Array(contracts.LoanReturn),
 		monthlyBudgets: t.Array(MonthlyBudgetReturn),
 		recurrenceOccurrences: t.Array(SyncOccurrence),
