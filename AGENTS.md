@@ -43,7 +43,7 @@ git commit -m "..." -m "Co-authored-by: <Agent> <agent-email>"
 On the user's machine add `-c commit.gpgsign=false`. Cloud sessions keep their preconfigured signing: disabling it makes GitHub show the commits as Unverified.
 
 - Claude → `Co-authored-by: Claude <noreply@anthropic.com>`; Codex → `Co-authored-by: Codex <noreply@openai.com>`.
-- Never set the agent as author/committer; do not pass `--author` or override `user.name`/`user.email`.
+- On the user's machine the agent is only ever a co-author: never set it as author/committer, and do not pass `--author` or override `user.name`/`user.email`. Cloud sessions already run with the agent's own Git identity preconfigured; leave it as is and still add the trailer.
 - Conventional Commits (`feat`, `fix`, `refactor`, `docs`, `style`, `chore`) scoped by package (`feat(frontend)`, `fix(backend)`).
 - Atomic: one commit = one coherent, revertible change. Revert formatter edits outside your change. Prefer several small commits.
 - Adjustments to something just delivered amend or rebase instead of adding noise.
